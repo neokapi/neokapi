@@ -308,6 +308,30 @@ func TestPulledBases_NameTheSourceTheVenueRecorded(t *testing.T) {
 	assert.Equal(t, map[string]pulledBasis{targetMatchKey("greeting", "Hello world"): pulledBasis(sourceRev("Hello"))}, got)
 }
 
+// A translation the venue holds no decision on still carries the derivation it
+// was made from across the wire, and the pull records it as the basis when it
+// names the edition the block is written in. One derived from a tone edition
+// names no source the checkout holds.
+func TestPulledBases_FallsBackToTheCarriedDerivation(t *testing.T) {
+	block := func(name, source, target string, d *model.Derivation) apiclient.SyncBlock {
+		b := &model.Block{ID: "row-" + name, Name: name, Translatable: true, SourceLocale: "en"}
+		b.SetSourceText(source)
+		b.SetTargetEdition(model.EditionKey{Locale: "fr"}, model.Edition{Runs: []model.Run{model.TextR(target)}, Derived: d})
+		return apiclient.BlockToSyncBlock(b, "locales/en.json")
+	}
+	blocks := []apiclient.SyncBlock{
+		block("greeting", "Hello world", "Bonjour le monde", &model.Derivation{Rev: "r:1111111111111111"}),
+		block("farewell", "Goodbye now", "Au revoir", &model.Derivation{From: model.EditionKey{Locale: "en"}, Rev: "r:2222222222222222"}),
+		block("thanks", "Thank you", "Merci", &model.Derivation{From: model.EditionKey{Locale: "en", Tone: "formal"}, Rev: "r:3333333333333333"}),
+		block("title", "Welcome", "Bienvenue", nil),
+	}
+	got := pulledBases(blocks, "fr", nil)
+	assert.Equal(t, map[string]pulledBasis{
+		targetMatchKey("greeting", "Hello world"): "r:1111111111111111",
+		targetMatchKey("farewell", "Goodbye now"): "r:2222222222222222",
+	}, got)
+}
+
 // A venue's record names the source by revision: the basis names the source
 // the checkout holds while the revision does, under any key a read of the
 // document gives it, and a link moved in the source means it names another.

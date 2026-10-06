@@ -303,6 +303,19 @@ message SyncBlock {
 // wire-identical to the former SyncSegmentList-of-SyncSegment.
 message SyncSegmentList {
   repeated neokapi.content.v1.SegmentMessage segments = 1;
+  // derived names the edition this one was made from and that edition's
+  // revision when it was made (model.Edition.Derived): the basis staleness is
+  // read against. Unset for an authored edition and for one nothing recorded
+  // a basis for.
+  SyncDerivation derived = 2;
+}
+
+// SyncDerivation is model.Derivation on the sync wire. from is the edition
+// key's text form ("" for the edition a document is written in), rev that
+// edition's revision (model.EditionRevision).
+message SyncDerivation {
+  string from = 1;
+  string rev = 2;
 }
 
 // SyncTerm carries a terminology concept with translations.

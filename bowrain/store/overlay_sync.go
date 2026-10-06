@@ -59,22 +59,53 @@ func SyncBlockOverlays(
 }
 
 // targetJSON is an edition in the shape the translations table stores in
-// target_json: its runs, status, origin and score under these keys, in this
+// target_json: its runs, status, origin, score and derivation under these keys, in this
 // order. Every stored row has this shape, and the status projections read
 // target_json's status key in SQL (sqlListTranslationStatesByBlocks, the
 // decision ledger's jsonb_set and json_set), so the keys and their tags stay as
 // they are.
 type targetJSON struct {
-	Runs   []model.Run  `json:"runs"`
-	Status model.Status `json:"status,omitempty"`
-	Origin model.Origin `json:"origin,omitzero"`
-	Score  float64      `json:"score,omitempty"`
+	Runs    []model.Run     `json:"runs"`
+	Status  model.Status    `json:"status,omitempty"`
+	Origin  model.Origin    `json:"origin,omitzero"`
+	Score   float64         `json:"score,omitempty"`
+	Derived *derivationJSON `json:"derived,omitempty"`
+}
+
+// derivationJSON is model.Derivation as target_json stores it: the key of the
+// edition the translation was made from, in text form ("" for the edition a
+// document is written in), and that edition's revision.
+type derivationJSON struct {
+	From string `json:"from"`
+	Rev  string `json:"rev"`
+}
+
+func derivationToJSON(d *model.Derivation) *derivationJSON {
+	if d == nil {
+		return nil
+	}
+	from, err := d.From.MarshalText()
+	if err != nil {
+		return nil
+	}
+	return &derivationJSON{From: string(from), Rev: d.Rev}
+}
+
+func (d *derivationJSON) model() *model.Derivation {
+	if d == nil {
+		return nil
+	}
+	var from model.EditionKey
+	if err := from.UnmarshalText([]byte(d.From)); err != nil {
+		return nil
+	}
+	return &model.Derivation{From: from, Rev: d.Rev}
 }
 
 // MarshalTargetJSON encodes edition e as the translations table stores it in
 // target_json.
 func MarshalTargetJSON(e model.Edition) ([]byte, error) {
-	return json.Marshal(targetJSON{Runs: e.Runs, Status: e.Status, Origin: e.Origin, Score: e.Score})
+	return json.Marshal(targetJSON{Runs: e.Runs, Status: e.Status, Origin: e.Origin, Score: e.Score, Derived: derivationToJSON(e.Derived)})
 }
 
 // UnmarshalTargetJSON decodes a target_json value into the edition it stores.
@@ -100,7 +131,7 @@ func (d *targetDecoder) decode(data []byte) (model.Edition, error) {
 	if err := json.Unmarshal(data, &d.row); err != nil {
 		return model.Edition{}, err
 	}
-	return model.Edition{Runs: d.row.Runs, Status: d.row.Status, Origin: d.row.Origin, Score: d.row.Score}, nil
+	return model.Edition{Runs: d.row.Runs, Status: d.row.Status, Origin: d.row.Origin, Score: d.row.Score, Derived: d.row.Derived.model()}, nil
 }
 
 // UpsertBlockAnnotation writes one (block, key) annotation row. It and

@@ -1084,8 +1084,13 @@ func (x *SyncBlock) GetUnit() string {
 // The segments themselves are the canonical schema; this wrapper is
 // wire-identical to the former SyncSegmentList-of-SyncSegment.
 type SyncSegmentList struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Segments      []*v1.SegmentMessage   `protobuf:"bytes,1,rep,name=segments,proto3" json:"segments,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Segments []*v1.SegmentMessage   `protobuf:"bytes,1,rep,name=segments,proto3" json:"segments,omitempty"`
+	// derived names the edition this one was made from and that edition's
+	// revision when it was made (model.Edition.Derived): the basis staleness is
+	// read against. Unset for an authored edition and for one nothing recorded
+	// a basis for.
+	Derived       *SyncDerivation `protobuf:"bytes,2,opt,name=derived,proto3" json:"derived,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1127,6 +1132,68 @@ func (x *SyncSegmentList) GetSegments() []*v1.SegmentMessage {
 	return nil
 }
 
+func (x *SyncSegmentList) GetDerived() *SyncDerivation {
+	if x != nil {
+		return x.Derived
+	}
+	return nil
+}
+
+// SyncDerivation is model.Derivation on the sync wire. from is the edition
+// key's text form ("" for the edition a document is written in), rev that
+// edition's revision (model.EditionRevision).
+type SyncDerivation struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	From          string                 `protobuf:"bytes,1,opt,name=from,proto3" json:"from,omitempty"`
+	Rev           string                 `protobuf:"bytes,2,opt,name=rev,proto3" json:"rev,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SyncDerivation) Reset() {
+	*x = SyncDerivation{}
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SyncDerivation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SyncDerivation) ProtoMessage() {}
+
+func (x *SyncDerivation) ProtoReflect() protoreflect.Message {
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SyncDerivation.ProtoReflect.Descriptor instead.
+func (*SyncDerivation) Descriptor() ([]byte, []int) {
+	return file_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *SyncDerivation) GetFrom() string {
+	if x != nil {
+		return x.From
+	}
+	return ""
+}
+
+func (x *SyncDerivation) GetRev() string {
+	if x != nil {
+		return x.Rev
+	}
+	return ""
+}
+
 // SyncTerm carries a terminology concept with translations.
 type SyncTerm struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -1145,7 +1212,7 @@ type SyncTerm struct {
 
 func (x *SyncTerm) Reset() {
 	*x = SyncTerm{}
-	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[10]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1157,7 +1224,7 @@ func (x *SyncTerm) String() string {
 func (*SyncTerm) ProtoMessage() {}
 
 func (x *SyncTerm) ProtoReflect() protoreflect.Message {
-	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[10]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1170,7 +1237,7 @@ func (x *SyncTerm) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncTerm.ProtoReflect.Descriptor instead.
 func (*SyncTerm) Descriptor() ([]byte, []int) {
-	return file_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{10}
+	return file_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *SyncTerm) GetConceptId() string {
@@ -1247,7 +1314,7 @@ type SyncTermTranslation struct {
 
 func (x *SyncTermTranslation) Reset() {
 	*x = SyncTermTranslation{}
-	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[11]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1259,7 +1326,7 @@ func (x *SyncTermTranslation) String() string {
 func (*SyncTermTranslation) ProtoMessage() {}
 
 func (x *SyncTermTranslation) ProtoReflect() protoreflect.Message {
-	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[11]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1272,7 +1339,7 @@ func (x *SyncTermTranslation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncTermTranslation.ProtoReflect.Descriptor instead.
 func (*SyncTermTranslation) Descriptor() ([]byte, []int) {
-	return file_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{11}
+	return file_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *SyncTermTranslation) GetLocale() string {
@@ -1324,7 +1391,7 @@ type SyncMemoryEntry struct {
 
 func (x *SyncMemoryEntry) Reset() {
 	*x = SyncMemoryEntry{}
-	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[12]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1336,7 +1403,7 @@ func (x *SyncMemoryEntry) String() string {
 func (*SyncMemoryEntry) ProtoMessage() {}
 
 func (x *SyncMemoryEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[12]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1349,7 +1416,7 @@ func (x *SyncMemoryEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncMemoryEntry.ProtoReflect.Descriptor instead.
 func (*SyncMemoryEntry) Descriptor() ([]byte, []int) {
-	return file_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{12}
+	return file_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *SyncMemoryEntry) GetId() string {
@@ -1438,7 +1505,7 @@ type SyncMedia struct {
 
 func (x *SyncMedia) Reset() {
 	*x = SyncMedia{}
-	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[13]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1450,7 +1517,7 @@ func (x *SyncMedia) String() string {
 func (*SyncMedia) ProtoMessage() {}
 
 func (x *SyncMedia) ProtoReflect() protoreflect.Message {
-	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[13]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1463,7 +1530,7 @@ func (x *SyncMedia) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncMedia.ProtoReflect.Descriptor instead.
 func (*SyncMedia) Descriptor() ([]byte, []int) {
-	return file_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{13}
+	return file_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *SyncMedia) GetId() string {
@@ -1603,7 +1670,7 @@ type SyncContextEntry struct {
 
 func (x *SyncContextEntry) Reset() {
 	*x = SyncContextEntry{}
-	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[14]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1615,7 +1682,7 @@ func (x *SyncContextEntry) String() string {
 func (*SyncContextEntry) ProtoMessage() {}
 
 func (x *SyncContextEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[14]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1628,7 +1695,7 @@ func (x *SyncContextEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncContextEntry.ProtoReflect.Descriptor instead.
 func (*SyncContextEntry) Descriptor() ([]byte, []int) {
-	return file_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{14}
+	return file_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *SyncContextEntry) GetName() string {
@@ -1708,7 +1775,7 @@ type SyncPreviewSource struct {
 
 func (x *SyncPreviewSource) Reset() {
 	*x = SyncPreviewSource{}
-	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[15]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1720,7 +1787,7 @@ func (x *SyncPreviewSource) String() string {
 func (*SyncPreviewSource) ProtoMessage() {}
 
 func (x *SyncPreviewSource) ProtoReflect() protoreflect.Message {
-	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[15]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1733,7 +1800,7 @@ func (x *SyncPreviewSource) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncPreviewSource.ProtoReflect.Descriptor instead.
 func (*SyncPreviewSource) Descriptor() ([]byte, []int) {
-	return file_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{15}
+	return file_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *SyncPreviewSource) GetKind() string {
@@ -1770,7 +1837,7 @@ type SyncItemMeta struct {
 
 func (x *SyncItemMeta) Reset() {
 	*x = SyncItemMeta{}
-	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[16]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1782,7 +1849,7 @@ func (x *SyncItemMeta) String() string {
 func (*SyncItemMeta) ProtoMessage() {}
 
 func (x *SyncItemMeta) ProtoReflect() protoreflect.Message {
-	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[16]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1795,7 +1862,7 @@ func (x *SyncItemMeta) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncItemMeta.ProtoReflect.Descriptor instead.
 func (*SyncItemMeta) Descriptor() ([]byte, []int) {
-	return file_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{16}
+	return file_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *SyncItemMeta) GetName() string {
@@ -1868,7 +1935,7 @@ type SyncPullRequest struct {
 
 func (x *SyncPullRequest) Reset() {
 	*x = SyncPullRequest{}
-	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[17]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1880,7 +1947,7 @@ func (x *SyncPullRequest) String() string {
 func (*SyncPullRequest) ProtoMessage() {}
 
 func (x *SyncPullRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[17]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1893,7 +1960,7 @@ func (x *SyncPullRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncPullRequest.ProtoReflect.Descriptor instead.
 func (*SyncPullRequest) Descriptor() ([]byte, []int) {
-	return file_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{17}
+	return file_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *SyncPullRequest) GetProjectId() string {
@@ -1961,7 +2028,7 @@ type SyncPullResponse struct {
 
 func (x *SyncPullResponse) Reset() {
 	*x = SyncPullResponse{}
-	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[18]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1973,7 +2040,7 @@ func (x *SyncPullResponse) String() string {
 func (*SyncPullResponse) ProtoMessage() {}
 
 func (x *SyncPullResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[18]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1986,7 +2053,7 @@ func (x *SyncPullResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncPullResponse.ProtoReflect.Descriptor instead.
 func (*SyncPullResponse) Descriptor() ([]byte, []int) {
-	return file_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{18}
+	return file_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *SyncPullResponse) GetCursor() int64 {
@@ -2166,9 +2233,13 @@ const file_core_proto_sync_v1_sync_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a@\n" +
 	"\x12ConnectorDataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"Q\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x8c\x01\n" +
 	"\x0fSyncSegmentList\x12>\n" +
-	"\bsegments\x18\x01 \x03(\v2\".neokapi.content.v1.SegmentMessageR\bsegments\"\xb6\x03\n" +
+	"\bsegments\x18\x01 \x03(\v2\".neokapi.content.v1.SegmentMessageR\bsegments\x129\n" +
+	"\aderived\x18\x02 \x01(\v2\x1f.neokapi.sync.v1.SyncDerivationR\aderived\"6\n" +
+	"\x0eSyncDerivation\x12\x12\n" +
+	"\x04from\x18\x01 \x01(\tR\x04from\x12\x10\n" +
+	"\x03rev\x18\x02 \x01(\tR\x03rev\"\xb6\x03\n" +
 	"\bSyncTerm\x12\x1d\n" +
 	"\n" +
 	"concept_id\x18\x01 \x01(\tR\tconceptId\x12\x1f\n" +
@@ -2289,7 +2360,7 @@ func file_core_proto_sync_v1_sync_proto_rawDescGZIP() []byte {
 	return file_core_proto_sync_v1_sync_proto_rawDescData
 }
 
-var file_core_proto_sync_v1_sync_proto_msgTypes = make([]protoimpl.MessageInfo, 30)
+var file_core_proto_sync_v1_sync_proto_msgTypes = make([]protoimpl.MessageInfo, 31)
 var file_core_proto_sync_v1_sync_proto_goTypes = []any{
 	(*SyncRef)(nil),              // 0: neokapi.sync.v1.SyncRef
 	(*SyncPushInit)(nil),         // 1: neokapi.sync.v1.SyncPushInit
@@ -2301,67 +2372,69 @@ var file_core_proto_sync_v1_sync_proto_goTypes = []any{
 	(*SyncChunk)(nil),            // 7: neokapi.sync.v1.SyncChunk
 	(*SyncBlock)(nil),            // 8: neokapi.sync.v1.SyncBlock
 	(*SyncSegmentList)(nil),      // 9: neokapi.sync.v1.SyncSegmentList
-	(*SyncTerm)(nil),             // 10: neokapi.sync.v1.SyncTerm
-	(*SyncTermTranslation)(nil),  // 11: neokapi.sync.v1.SyncTermTranslation
-	(*SyncMemoryEntry)(nil),      // 12: neokapi.sync.v1.SyncMemoryEntry
-	(*SyncMedia)(nil),            // 13: neokapi.sync.v1.SyncMedia
-	(*SyncContextEntry)(nil),     // 14: neokapi.sync.v1.SyncContextEntry
-	(*SyncPreviewSource)(nil),    // 15: neokapi.sync.v1.SyncPreviewSource
-	(*SyncItemMeta)(nil),         // 16: neokapi.sync.v1.SyncItemMeta
-	(*SyncPullRequest)(nil),      // 17: neokapi.sync.v1.SyncPullRequest
-	(*SyncPullResponse)(nil),     // 18: neokapi.sync.v1.SyncPullResponse
-	nil,                          // 19: neokapi.sync.v1.SyncPushInit.ItemHashesEntry
-	nil,                          // 20: neokapi.sync.v1.SyncItemDiff.BlockHashesEntry
-	nil,                          // 21: neokapi.sync.v1.SyncManifest.ContextEntry
-	nil,                          // 22: neokapi.sync.v1.SyncBlock.TargetsEntry
-	nil,                          // 23: neokapi.sync.v1.SyncBlock.PropertiesEntry
-	nil,                          // 24: neokapi.sync.v1.SyncBlock.ConnectorDataEntry
-	nil,                          // 25: neokapi.sync.v1.SyncTerm.PropertiesEntry
-	nil,                          // 26: neokapi.sync.v1.SyncMemoryEntry.PropertiesEntry
-	nil,                          // 27: neokapi.sync.v1.SyncMedia.PropertiesEntry
-	nil,                          // 28: neokapi.sync.v1.SyncContextEntry.CoordinatesEntry
-	nil,                          // 29: neokapi.sync.v1.SyncItemMeta.ConnectorDataEntry
-	(*v1.SegmentMessage)(nil),    // 30: neokapi.content.v1.SegmentMessage
-	(*v1.OverlayMessage)(nil),    // 31: neokapi.content.v1.OverlayMessage
+	(*SyncDerivation)(nil),       // 10: neokapi.sync.v1.SyncDerivation
+	(*SyncTerm)(nil),             // 11: neokapi.sync.v1.SyncTerm
+	(*SyncTermTranslation)(nil),  // 12: neokapi.sync.v1.SyncTermTranslation
+	(*SyncMemoryEntry)(nil),      // 13: neokapi.sync.v1.SyncMemoryEntry
+	(*SyncMedia)(nil),            // 14: neokapi.sync.v1.SyncMedia
+	(*SyncContextEntry)(nil),     // 15: neokapi.sync.v1.SyncContextEntry
+	(*SyncPreviewSource)(nil),    // 16: neokapi.sync.v1.SyncPreviewSource
+	(*SyncItemMeta)(nil),         // 17: neokapi.sync.v1.SyncItemMeta
+	(*SyncPullRequest)(nil),      // 18: neokapi.sync.v1.SyncPullRequest
+	(*SyncPullResponse)(nil),     // 19: neokapi.sync.v1.SyncPullResponse
+	nil,                          // 20: neokapi.sync.v1.SyncPushInit.ItemHashesEntry
+	nil,                          // 21: neokapi.sync.v1.SyncItemDiff.BlockHashesEntry
+	nil,                          // 22: neokapi.sync.v1.SyncManifest.ContextEntry
+	nil,                          // 23: neokapi.sync.v1.SyncBlock.TargetsEntry
+	nil,                          // 24: neokapi.sync.v1.SyncBlock.PropertiesEntry
+	nil,                          // 25: neokapi.sync.v1.SyncBlock.ConnectorDataEntry
+	nil,                          // 26: neokapi.sync.v1.SyncTerm.PropertiesEntry
+	nil,                          // 27: neokapi.sync.v1.SyncMemoryEntry.PropertiesEntry
+	nil,                          // 28: neokapi.sync.v1.SyncMedia.PropertiesEntry
+	nil,                          // 29: neokapi.sync.v1.SyncContextEntry.CoordinatesEntry
+	nil,                          // 30: neokapi.sync.v1.SyncItemMeta.ConnectorDataEntry
+	(*v1.SegmentMessage)(nil),    // 31: neokapi.content.v1.SegmentMessage
+	(*v1.OverlayMessage)(nil),    // 32: neokapi.content.v1.OverlayMessage
 }
 var file_core_proto_sync_v1_sync_proto_depIdxs = []int32{
-	19, // 0: neokapi.sync.v1.SyncPushInit.item_hashes:type_name -> neokapi.sync.v1.SyncPushInit.ItemHashesEntry
+	20, // 0: neokapi.sync.v1.SyncPushInit.item_hashes:type_name -> neokapi.sync.v1.SyncPushInit.ItemHashesEntry
 	0,  // 1: neokapi.sync.v1.SyncPushInitResponse.ref:type_name -> neokapi.sync.v1.SyncRef
-	20, // 2: neokapi.sync.v1.SyncItemDiff.block_hashes:type_name -> neokapi.sync.v1.SyncItemDiff.BlockHashesEntry
+	21, // 2: neokapi.sync.v1.SyncItemDiff.block_hashes:type_name -> neokapi.sync.v1.SyncItemDiff.BlockHashesEntry
 	6,  // 3: neokapi.sync.v1.SyncManifest.chunks:type_name -> neokapi.sync.v1.ChunkRef
-	16, // 4: neokapi.sync.v1.SyncManifest.items:type_name -> neokapi.sync.v1.SyncItemMeta
-	21, // 5: neokapi.sync.v1.SyncManifest.context:type_name -> neokapi.sync.v1.SyncManifest.ContextEntry
-	14, // 6: neokapi.sync.v1.SyncManifest.contexts:type_name -> neokapi.sync.v1.SyncContextEntry
+	17, // 4: neokapi.sync.v1.SyncManifest.items:type_name -> neokapi.sync.v1.SyncItemMeta
+	22, // 5: neokapi.sync.v1.SyncManifest.context:type_name -> neokapi.sync.v1.SyncManifest.ContextEntry
+	15, // 6: neokapi.sync.v1.SyncManifest.contexts:type_name -> neokapi.sync.v1.SyncContextEntry
 	0,  // 7: neokapi.sync.v1.SyncManifest.expected_ref:type_name -> neokapi.sync.v1.SyncRef
 	8,  // 8: neokapi.sync.v1.SyncChunk.blocks:type_name -> neokapi.sync.v1.SyncBlock
-	10, // 9: neokapi.sync.v1.SyncChunk.terms:type_name -> neokapi.sync.v1.SyncTerm
-	12, // 10: neokapi.sync.v1.SyncChunk.memory_entries:type_name -> neokapi.sync.v1.SyncMemoryEntry
-	13, // 11: neokapi.sync.v1.SyncChunk.media:type_name -> neokapi.sync.v1.SyncMedia
-	30, // 12: neokapi.sync.v1.SyncBlock.source:type_name -> neokapi.content.v1.SegmentMessage
-	22, // 13: neokapi.sync.v1.SyncBlock.targets:type_name -> neokapi.sync.v1.SyncBlock.TargetsEntry
-	23, // 14: neokapi.sync.v1.SyncBlock.properties:type_name -> neokapi.sync.v1.SyncBlock.PropertiesEntry
-	24, // 15: neokapi.sync.v1.SyncBlock.connector_data:type_name -> neokapi.sync.v1.SyncBlock.ConnectorDataEntry
-	31, // 16: neokapi.sync.v1.SyncBlock.overlays:type_name -> neokapi.content.v1.OverlayMessage
-	30, // 17: neokapi.sync.v1.SyncSegmentList.segments:type_name -> neokapi.content.v1.SegmentMessage
-	11, // 18: neokapi.sync.v1.SyncTerm.translations:type_name -> neokapi.sync.v1.SyncTermTranslation
-	25, // 19: neokapi.sync.v1.SyncTerm.properties:type_name -> neokapi.sync.v1.SyncTerm.PropertiesEntry
-	26, // 20: neokapi.sync.v1.SyncMemoryEntry.properties:type_name -> neokapi.sync.v1.SyncMemoryEntry.PropertiesEntry
-	27, // 21: neokapi.sync.v1.SyncMedia.properties:type_name -> neokapi.sync.v1.SyncMedia.PropertiesEntry
-	28, // 22: neokapi.sync.v1.SyncContextEntry.coordinates:type_name -> neokapi.sync.v1.SyncContextEntry.CoordinatesEntry
-	15, // 23: neokapi.sync.v1.SyncContextEntry.preview:type_name -> neokapi.sync.v1.SyncPreviewSource
-	29, // 24: neokapi.sync.v1.SyncItemMeta.connector_data:type_name -> neokapi.sync.v1.SyncItemMeta.ConnectorDataEntry
-	8,  // 25: neokapi.sync.v1.SyncPullResponse.blocks:type_name -> neokapi.sync.v1.SyncBlock
-	10, // 26: neokapi.sync.v1.SyncPullResponse.terms:type_name -> neokapi.sync.v1.SyncTerm
-	12, // 27: neokapi.sync.v1.SyncPullResponse.memory_entries:type_name -> neokapi.sync.v1.SyncMemoryEntry
-	13, // 28: neokapi.sync.v1.SyncPullResponse.media:type_name -> neokapi.sync.v1.SyncMedia
-	14, // 29: neokapi.sync.v1.SyncPullResponse.contexts:type_name -> neokapi.sync.v1.SyncContextEntry
-	0,  // 30: neokapi.sync.v1.SyncPullResponse.ref:type_name -> neokapi.sync.v1.SyncRef
-	9,  // 31: neokapi.sync.v1.SyncBlock.TargetsEntry.value:type_name -> neokapi.sync.v1.SyncSegmentList
-	32, // [32:32] is the sub-list for method output_type
-	32, // [32:32] is the sub-list for method input_type
-	32, // [32:32] is the sub-list for extension type_name
-	32, // [32:32] is the sub-list for extension extendee
-	0,  // [0:32] is the sub-list for field type_name
+	11, // 9: neokapi.sync.v1.SyncChunk.terms:type_name -> neokapi.sync.v1.SyncTerm
+	13, // 10: neokapi.sync.v1.SyncChunk.memory_entries:type_name -> neokapi.sync.v1.SyncMemoryEntry
+	14, // 11: neokapi.sync.v1.SyncChunk.media:type_name -> neokapi.sync.v1.SyncMedia
+	31, // 12: neokapi.sync.v1.SyncBlock.source:type_name -> neokapi.content.v1.SegmentMessage
+	23, // 13: neokapi.sync.v1.SyncBlock.targets:type_name -> neokapi.sync.v1.SyncBlock.TargetsEntry
+	24, // 14: neokapi.sync.v1.SyncBlock.properties:type_name -> neokapi.sync.v1.SyncBlock.PropertiesEntry
+	25, // 15: neokapi.sync.v1.SyncBlock.connector_data:type_name -> neokapi.sync.v1.SyncBlock.ConnectorDataEntry
+	32, // 16: neokapi.sync.v1.SyncBlock.overlays:type_name -> neokapi.content.v1.OverlayMessage
+	31, // 17: neokapi.sync.v1.SyncSegmentList.segments:type_name -> neokapi.content.v1.SegmentMessage
+	10, // 18: neokapi.sync.v1.SyncSegmentList.derived:type_name -> neokapi.sync.v1.SyncDerivation
+	12, // 19: neokapi.sync.v1.SyncTerm.translations:type_name -> neokapi.sync.v1.SyncTermTranslation
+	26, // 20: neokapi.sync.v1.SyncTerm.properties:type_name -> neokapi.sync.v1.SyncTerm.PropertiesEntry
+	27, // 21: neokapi.sync.v1.SyncMemoryEntry.properties:type_name -> neokapi.sync.v1.SyncMemoryEntry.PropertiesEntry
+	28, // 22: neokapi.sync.v1.SyncMedia.properties:type_name -> neokapi.sync.v1.SyncMedia.PropertiesEntry
+	29, // 23: neokapi.sync.v1.SyncContextEntry.coordinates:type_name -> neokapi.sync.v1.SyncContextEntry.CoordinatesEntry
+	16, // 24: neokapi.sync.v1.SyncContextEntry.preview:type_name -> neokapi.sync.v1.SyncPreviewSource
+	30, // 25: neokapi.sync.v1.SyncItemMeta.connector_data:type_name -> neokapi.sync.v1.SyncItemMeta.ConnectorDataEntry
+	8,  // 26: neokapi.sync.v1.SyncPullResponse.blocks:type_name -> neokapi.sync.v1.SyncBlock
+	11, // 27: neokapi.sync.v1.SyncPullResponse.terms:type_name -> neokapi.sync.v1.SyncTerm
+	13, // 28: neokapi.sync.v1.SyncPullResponse.memory_entries:type_name -> neokapi.sync.v1.SyncMemoryEntry
+	14, // 29: neokapi.sync.v1.SyncPullResponse.media:type_name -> neokapi.sync.v1.SyncMedia
+	15, // 30: neokapi.sync.v1.SyncPullResponse.contexts:type_name -> neokapi.sync.v1.SyncContextEntry
+	0,  // 31: neokapi.sync.v1.SyncPullResponse.ref:type_name -> neokapi.sync.v1.SyncRef
+	9,  // 32: neokapi.sync.v1.SyncBlock.TargetsEntry.value:type_name -> neokapi.sync.v1.SyncSegmentList
+	33, // [33:33] is the sub-list for method output_type
+	33, // [33:33] is the sub-list for method input_type
+	33, // [33:33] is the sub-list for extension type_name
+	33, // [33:33] is the sub-list for extension extendee
+	0,  // [0:33] is the sub-list for field type_name
 }
 
 func init() { file_core_proto_sync_v1_sync_proto_init() }
@@ -2375,7 +2448,7 @@ func file_core_proto_sync_v1_sync_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_core_proto_sync_v1_sync_proto_rawDesc), len(file_core_proto_sync_v1_sync_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   30,
+			NumMessages:   31,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

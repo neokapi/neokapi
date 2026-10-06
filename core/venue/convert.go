@@ -82,6 +82,7 @@ func BlockToProto(b *model.Block, itemName string) *pb.SyncBlock {
 		}
 		sb.Targets[string(keyText)] = &pb.SyncSegmentList{
 			Segments: []*contentv1.SegmentMessage{targetToSegment(e)},
+			Derived:  DerivationToProto(e.Derived),
 		}
 	}
 
@@ -203,7 +204,9 @@ func ProtoToBlock(sb *pb.SyncBlock) (*model.Block, error) {
 			}
 			runs = append(runs, protoconvert.ProtoToRuns(seg.Runs)...)
 		}
-		b.SetTargetEdition(key, segmentToEdition(runs, first))
+		e := segmentToEdition(runs, first)
+		e.Derived = ProtoToDerivation(list.Derived)
+		b.SetTargetEdition(key, e)
 	}
 
 	// Annotations.
@@ -278,6 +281,31 @@ const (
 	propOriginProfV  = "__origin_profile_version"
 	propOriginCtxFP  = "__origin_context_fingerprint"
 )
+
+// DerivationToProto encodes the basis a derived edition records, nil for none.
+func DerivationToProto(d *model.Derivation) *pb.SyncDerivation {
+	if d == nil {
+		return nil
+	}
+	from, err := d.From.MarshalText()
+	if err != nil {
+		return nil
+	}
+	return &pb.SyncDerivation{From: string(from), Rev: d.Rev}
+}
+
+// ProtoToDerivation decodes a wire derivation, nil for none or for a key that
+// does not parse.
+func ProtoToDerivation(d *pb.SyncDerivation) *model.Derivation {
+	if d == nil {
+		return nil
+	}
+	var from model.EditionKey
+	if err := from.UnmarshalText([]byte(d.From)); err != nil {
+		return nil
+	}
+	return &model.Derivation{From: from, Rev: d.Rev}
+}
 
 // targetToSegment encodes a derived edition as a single wire segment,
 // stashing status/origin/score in segment properties so the protocol shape

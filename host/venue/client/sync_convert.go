@@ -22,6 +22,13 @@ const (
 	propOriginProf   = "__origin_profile"
 	propOriginProfV  = "__origin_profile_version"
 	propOriginCtxFP  = "__origin_context_fingerprint"
+	// The basis a derived edition records (model.Edition.Derived): the key of
+	// the edition it was made from, in text form, and that edition's revision.
+	// Both are written when the edition records one, the key even when it is
+	// "" (the edition a document is written in), so the presence of
+	// propDerivedRev is what says a basis was recorded.
+	propDerivedFrom = "__derived_from"
+	propDerivedRev  = "__derived_rev"
 )
 
 // StoredBlockToSyncBlock converts a StoredBlock to the JSON wire type.
@@ -136,7 +143,7 @@ func runsToWireSegment(runs []model.Run) SyncSegment {
 }
 
 // targetToWireSegment encodes a committed target as a single wire segment,
-// stashing status/origin/score in segment properties so the protocol shape is
+// stashing status/origin/score and the derivation in segment properties so the protocol shape is
 // unchanged while the round-trip remains lossless.
 func targetToWireSegment(t model.Edition) SyncSegment {
 	props := map[string]string{}
@@ -172,6 +179,12 @@ func targetToWireSegment(t model.Edition) SyncSegment {
 	}
 	if t.Origin.ContextFingerprint != "" {
 		props[propOriginCtxFP] = t.Origin.ContextFingerprint
+	}
+	if t.Derived != nil {
+		if from, err := t.Derived.From.MarshalText(); err == nil {
+			props[propDerivedFrom] = string(from)
+			props[propDerivedRev] = t.Derived.Rev
+		}
 	}
 	if len(props) == 0 {
 		props = nil
@@ -302,6 +315,12 @@ func wireSegmentToTarget(runs []model.Run, first *SyncSegment) model.Edition {
 	if s := props[propOriginConf]; s != "" {
 		if v, err := strconv.ParseFloat(s, 64); err == nil {
 			t.Origin.Confidence = v
+		}
+	}
+	if rev, ok := props[propDerivedRev]; ok {
+		var from model.EditionKey
+		if err := from.UnmarshalText([]byte(props[propDerivedFrom])); err == nil {
+			t.Derived = &model.Derivation{From: from, Rev: rev}
 		}
 	}
 	return t
