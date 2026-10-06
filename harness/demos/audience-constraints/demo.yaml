@@ -12,7 +12,9 @@ project: true
 captureTimeoutSec: 180
 # A scripted plain-shell demo: every command is deterministic and offline, so
 # it runs for real and its output is recorded exactly. Edits to the pages are
-# made with ksed, which changes the text inside the JSON and keeps its shape.
+# made with ksed, which changes the text inside the JSON and keeps its shape,
+# and which refuses an edit that introduces a failing finding. The planted
+# phrase therefore goes in with perl, as an edit made outside kapi would.
 aspects:
   - Shared constraints across audience treatments
   - Provenance in the finding
@@ -31,8 +33,12 @@ script:
   - command: kapi context site/locales/en/adult.json | head -9
   - comment: The prepared pages pass the configured checks.
   - command: kapi check site/locales/en/*.json
-  - comment: Put the same unsupported assurance into every page.
+  - comment: Try to put the same unsupported assurance into every page. kapi refuses an edit that introduces a failing finding.
+  # Each page's edit is refused at the commit check and nothing is written.
   - command: ksed -i 's/is not recorded/is risk-free/' site/locales/en/*.json
+    expectExit: 2
+  - comment: An edit made outside kapi, here with perl, lands as written. The check catches it.
+  - command: perl -pi -e 's/is not recorded/is risk-free/' site/locales/en/*.json
   # The gate must fail here: four pages, one shared rule, four findings.
   - command: kapi check site/locales/en/*.json
     expectExit: 3
@@ -67,17 +73,19 @@ narration:
       pages pass the configured checks.
   - id: violation
     kind: terminal
-    through: 11
-    highlight: { text: [FAILS, risk-free] }
+    through: 13
+    highlight: { text: [gate_failed, FAILS, risk-free] }
     caption: The prohibited phrase fails in all four audiences.
     text: >-
-      Put the same prohibited phrase into all four pages. The check exits
-      three with four failing findings, one per page, and each names the same
-      shared rule with its version and source. Audience style overrides leave
-      that constraint in force.
+      Try to put the same prohibited phrase into all four pages. Each edit
+      would introduce a failing finding, so kapi refuses it and writes nothing.
+      An edit made outside kapi lands as written, and the check catches it: it
+      exits three with four failing findings, one per page, and each names the
+      same shared rule with its version and source. Audience style overrides
+      leave that constraint in force.
   - id: repair
     kind: terminal
-    through: 14
+    through: 16
     highlight: { text: [voice.guidance] }
     caption: Prepared wording restored; configured checks pass.
     text: >-
@@ -86,7 +94,7 @@ narration:
       facts guidance, which deterministic rules do not assess.
   - id: boundary
     kind: terminal
-    through: 17
+    through: 19
     highlight: { text: [PASS, voice.guidance] }
     caption: A deterministic pass does not verify the service facts.
     text: >-
