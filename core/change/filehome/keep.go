@@ -47,6 +47,10 @@ type Kept struct {
 	Digest string
 	// Blocks holds each block's edition, by the document's block key.
 	Blocks map[string]model.Edition
+	// Contested names the blocks a write that did not land still names
+	// (change.ContestedSession): a person's or an agent's operation that
+	// leaves one as it stands is recorded as the decision to keep it.
+	Contested map[string]bool
 }
 
 // KeptWrite is a change to one edition a keeper holds.

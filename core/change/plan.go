@@ -269,6 +269,11 @@ func (p *docPlan) Edit(b *model.Block) ([]model.EditionKey, error) {
 	for _, t := range touched {
 		applied := slices.ContainsFunc(t.ops, func(i int) bool { return p.results[i].Status == OpApplied })
 		if !applied {
+			if p.keepsContested(key, t.key, t.ops) {
+				// The edition stands as it was, and the home records that a
+				// person or an agent chose it over a write that did not land.
+				changed = append(changed, t.key)
+			}
 			continue
 		}
 		changed = append(changed, t.key)
@@ -530,4 +535,18 @@ func nearness(want, got string) int {
 // copied.
 func changedBlock(b *model.Block) *model.Block {
 	return b.CopyEditionSet()
+}
+
+// keepsContested reports whether operations ops, which left edition k of the
+// block keyed key as it stood, are a person's or an agent's decision to keep
+// that wording over a write that did not land (ContestedSession).
+func (p *docPlan) keepsContested(key string, k model.EditionKey, ops []int) bool {
+	if p.actor.Kind != ActorPerson && p.actor.Kind != ActorAgent {
+		return false
+	}
+	if !slices.ContainsFunc(ops, func(i int) bool { return p.results[i].Status == OpUnchanged }) {
+		return false
+	}
+	cs, ok := p.sess.(ContestedSession)
+	return ok && cs.Contested(k, key)
 }

@@ -105,6 +105,10 @@ func (s *session) joinIndexed(ctx context.Context, keys []model.EditionKey, ix *
 				return nil, err
 			}
 			je.kept = &kept
+			if s.kept == nil {
+				s.kept = map[model.EditionKey]*Kept{}
+			}
+			s.kept[je.key] = &kept
 			je.blocks = keptBlocks(kept)
 			je.exists = len(je.blocks) > 0
 			je.pair(ix, s.doc.SourceLocale)
