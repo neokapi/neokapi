@@ -50,7 +50,7 @@ The projection stays in the checkout at `.kapi/work/store.db`
 | `voice_*` | `voice/` | context |
 | `unit_decision`, `unit_view`, `document`, `document_adoption`, `checkout`, `state_meta` | `core/state` | context |
 | `block_history`, `block_history_op` | `core/history` | context |
-| `edition_head`, `edition_subject_head` | `core/workhome` | context |
+| `edition_head`, `edition_subject_head`, `document_head` | `core/workhome` | context |
 | `projector_cursor` | `core/projector` | context |
 | `graph_nodes`, `graph_edges` | `host/storage/graph` | workspace |
 | `workspace_projects`, `workspace_checkouts` | `core/workspace` | workspace |
@@ -75,8 +75,8 @@ store.
 
 `core/projector` is the only writer of `tb_*`, `tm_*`, `voice_profiles`,
 `voice_profile_versions`, `unit_decision`, `document_adoption`,
-`block_history`, `block_history_op`, `edition_head`, `edition_subject_head`
-and `workspace_rules`
+`block_history`, `block_history_op`, `edition_head`, `edition_subject_head`,
+`document_head` and `workspace_rules`
 ([C-03](../../architecture/context/c-03-context-store-and-graph.md#the-stores-are-projections-of-the-log)).
 A write is two transactions under one in-process mutex per context store: the
 operation into `workspace_ops` (and its steps into `workspace_blobs` when they
@@ -231,6 +231,27 @@ foreign write are read from its blob as it is folded, so a rebuild writes the
 rows the live writes left. Neither table keeps a log position: a checkpoint
 carries both, and a position read from another machine's log would mean
 nothing here.
+
+A write to a document the workspace home keeps whole (a KPZ's source opened
+for editing) is a `content.edit` with `"home": "workspace"`, no `edition`, and
+a `document` field: `{"format", "blob"}`, the format that reads the document
+and the address of the blob holding its bytes after the write, which `blobs`
+lists too. `base` is the operation the document's head was at, `doc_before` and
+`doc_after` are its revisions (`sha256:` over the bytes), and the transitions
+are the editions the change set changed, as a write to a file records them; the
+write that opens a document carries none. The `subject` column holds
+`document:<doc key>`, and the address adds `workspace`, `document`, the base,
+both revisions, the format and the blob. The projector folds those operations
+into a third table:
+
+| Table | Key | Holds |
+| --- | --- | --- |
+| `document_head` | `key` | `path`, the reference the head was written through; `rev`; `format`; `blob`; `op`, the operation the head is at; `last`, the largest operation id folded; `divergent`, a JSON list of `{op, before, after}` for the writes that did not advance the head |
+
+A write whose `base` equals `op` advances the head; any other is appended to
+`divergent`, and a person's or an agent's write that advances the head empties
+it. A write that arrives out of order folds the document again from every
+operation on its subject (`workhome.FoldDocument`, `Store.ReplaceDocument`).
 
 The projector also writes one `block_history_op` row per operation: its id
 (the primary key), its content address (unique) and its document, so the

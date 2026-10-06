@@ -42,9 +42,23 @@ func (a *App) RunInspect(ctx context.Context, cmd Command, args []string, outFor
 		hadError = true
 		fmt.Fprintf(cmd.ErrOrStderr(), "kapi inspect: %s: %v\n", path, err)
 	}
-	files, err := a.ResolveInputs(cmd, args, InputOptions{Command: "kapi inspect", OnSkip: report})
-	if err != nil {
-		return err
+	// A source a .kpz carries (work.kpz!guide.md) is read through the KPZ's
+	// workspace home; every other argument names files.
+	var kpzDocs, rest []string
+	for _, arg := range args {
+		if isKpzDocRef(arg) {
+			kpzDocs = append(kpzDocs, arg)
+			continue
+		}
+		rest = append(rest, arg)
+	}
+	files := kpzDocs
+	if len(rest) > 0 || len(kpzDocs) == 0 {
+		resolved, err := a.ResolveInputs(cmd, rest, InputOptions{Command: "kapi inspect", OnSkip: report})
+		if err != nil {
+			return err
+		}
+		files = append(files, resolved...)
 	}
 	a.InitRegistries()
 	recipe, err := ResolveProjectPath(cmd)

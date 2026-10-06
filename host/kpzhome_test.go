@@ -120,3 +120,13 @@ func TestKpzEdit_TheMCPEditToolsReachAKPZDocument(t *testing.T) {
 	assert.Equal(t, "applied", res.Status, text)
 	assert.NotEmpty(t, mustRev(t, session, "work.kpz!messages.json", "Hello from an agent"))
 }
+
+// TestIsKpzDocRef: kapi inspect reads an argument as a KPZ's document only
+// when the KPZ exists and the reference names a document after it.
+func TestIsKpzDocRef(t *testing.T) {
+	_, work := kpzWorkspace(t, "fr")
+	assert.True(t, isKpzDocRef(work+"!messages.json"))
+	assert.False(t, isKpzDocRef(work+"!"), "no document named")
+	assert.False(t, isKpzDocRef(filepath.Join(filepath.Dir(work), "missing.kpz")+"!messages.json"))
+	assert.False(t, isKpzDocRef(work))
+}

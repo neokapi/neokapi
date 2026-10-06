@@ -392,6 +392,26 @@ of the change set; a settle applies the operations again to rows that moved,
 and the commit stores them with their history and commits the transaction, so
 the change set lands whole or not at all. A result names it `stream:<id>`.
 
+While a write that did not land still names a kept block (a conflict two
+machines' logs left), the file home's session answers `Contested` for it
+(`change.ContestedSession`). A person's or an agent's operation that leaves
+that block as it stands is then reported `unchanged` and still recorded, as the
+decision to keep the wording the head holds, so every way of deciding a
+conflict is a change set with `if_match` like any other.
+
+The workspace home also serves **whole documents** (`workhome.Documents`): a
+native document opened for editing that has no file, kept as a blob in the
+log with its head in `document_head`. A KPZ's sources are its documents,
+named `work.kpz!guide.md`; the kapi host routes such a reference to the KPZ's
+workspace home, so `kapi apply` and the MCP edit tools edit a KPZ as they edit a
+file. A session reads the head into a private working copy that the file home
+stages against; `Settle` reads the head again when it moved and puts it in the
+copy, where the file home applies the change once more; and `Commit` records
+the copy's bytes with the head the settle found as its expected head. Edits to
+different blocks of one document commute, and a document a KPZ carries as a
+skeleton alone holds no text to edit and is refused `unsupported`. The
+conformance suite runs on it with two JSON documents and a bilingual catalog.
+
 ### Flows
 
 A flow writes a document whole: its writer renders every block the run passed

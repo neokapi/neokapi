@@ -284,3 +284,14 @@ func (h *kpzHomes) kpzRef(doc string) (ref, path string, ok bool) {
 	}
 	return ref, path, true
 }
+
+// isKpzDocRef reports whether arg names a document a .kpz on disk carries:
+// work.kpz!guide.md.
+func isKpzDocRef(arg string) bool {
+	i := strings.Index(strings.ToLower(arg), workspaceExt+"!")
+	if i < 0 || i+len(workspaceExt)+1 >= len(arg) {
+		return false
+	}
+	info, err := os.Stat(arg[:i+len(workspaceExt)])
+	return err == nil && !info.IsDir()
+}
