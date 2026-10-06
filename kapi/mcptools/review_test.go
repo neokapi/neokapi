@@ -91,11 +91,11 @@ func TestHandleReviewBlock(t *testing.T) {
 
 	_, out, err := handleReviewBlock(t.Context(), a, ReviewBlockInput{Project: proj, At: item.Ref})
 	require.NoError(t, err)
-	require.NotNil(t, out.Unit)
+	require.NotNil(t, out.Block)
 	assert.Equal(t, item.Ref, out.Ref)
-	assert.Equal(t, "translated", out.Unit.Status)
-	assert.Equal(t, "Apple", out.Unit.Source)
-	assert.Equal(t, "Eple", out.Unit.Target)
+	assert.Equal(t, "translated", out.Block.Status)
+	assert.Equal(t, "Apple", out.Block.Source)
+	assert.Equal(t, "Eple", out.Block.Target)
 	assert.Equal(t, readRev(t, a, proj, "en.json", "a", "nb"), out.Rev)
 
 	// The file of the translation names the same edition.
@@ -124,8 +124,8 @@ func TestHandleReviewBlock_InTheProjectsOwnSourceLanguage(t *testing.T) {
 	_, out, err := handleReviewBlock(t.Context(), a, ReviewBlockInput{Project: proj, At: at})
 	require.NoError(t, err)
 	assert.Equal(t, at, out.Ref)
-	require.NotNil(t, out.Unit)
-	assert.Equal(t, "Eple", out.Unit.Target)
+	require.NotNil(t, out.Block)
+	assert.Equal(t, "Eple", out.Block.Target)
 	assert.Equal(t, readRev(t, a, proj, "en.json", "a", "nb"), out.Rev)
 }
 
@@ -157,10 +157,10 @@ func TestHandleReviewBlock_CarriesTheContext(t *testing.T) {
 		Project: proj, At: BlockRef{Doc: "en.json", Block: "a", Edition: "nb"},
 	})
 	require.NoError(t, err)
-	require.NotNil(t, out.Unit)
-	require.NotNil(t, out.Unit.Context, "review_block answers with the review model")
+	require.NotNil(t, out.Block)
+	require.NotNil(t, out.Block.Context, "review_block answers with the review model")
 
-	rc := out.Unit.Context
+	rc := out.Block.Context
 	assert.Equal(t, "app", rc.Point.Collection)
 	assert.Equal(t, "en.json", rc.Point.Path, "the point is the SOURCE file's coordinate")
 	assert.Equal(t, "a", rc.Neighbourhood.Key)
@@ -387,16 +387,16 @@ func TestHandleReviewBlock_AcceptsASourceLanguageBlock(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, BlockRef{Doc: "en.json", Block: "a"}, out.Ref)
 			assert.Regexp(t, `^r:[0-9a-f]{16}$`, out.Rev)
-			require.NotNil(t, out.Unit)
-			assert.True(t, out.Unit.IsSource)
-			assert.Equal(t, "en", out.Unit.Language)
-			assert.Equal(t, "Apple", out.Unit.Source)
-			assert.Empty(t, out.Unit.Target)
-			assert.Equal(t, "written", out.Unit.Status)
-			require.NotNil(t, out.Unit.Context)
-			assert.Equal(t, "en.json", out.Unit.Context.Point.Path)
-			assert.True(t, out.Unit.Context.Point.IsSource)
-			assert.Equal(t, "a", out.Unit.Context.Neighbourhood.Key)
+			require.NotNil(t, out.Block)
+			assert.True(t, out.Block.IsSource)
+			assert.Equal(t, "en", out.Block.Language)
+			assert.Equal(t, "Apple", out.Block.Source)
+			assert.Empty(t, out.Block.Target)
+			assert.Equal(t, "written", out.Block.Status)
+			require.NotNil(t, out.Block.Context)
+			assert.Equal(t, "en.json", out.Block.Context.Point.Path)
+			assert.True(t, out.Block.Context.Point.IsSource)
+			assert.Equal(t, "a", out.Block.Context.Neighbourhood.Key)
 		})
 	}
 }

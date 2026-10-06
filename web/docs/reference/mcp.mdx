@@ -321,7 +321,8 @@ shippable or parks for a human.
 > Show me the French blocks waiting for review, and pre-review them for me
 
 The assistant calls `review_queue`, reads each candidate with `review_block`
-using the `ref` its row carries, and records a pre-review through
+using the `ref` its row carries (the result holds the block's text, status and
+review context under `block`), and records a pre-review through
 `apply_edits`: a `decide` operation at that `ref`, with `if_match` set to the
 `rev` `review_block` returned, outcome `advise`, a score from 0 to 100 and its
 reasons. The pre-review is bound to the wording the assistant read and

@@ -26,9 +26,9 @@ type ReviewBlock struct {
 	// Rev is the edition's revision: the if_match a decide operation about it
 	// sends.
 	Rev string `json:"rev"`
-	// Unit is the review queue's picture of the block, with the context the
+	// Block is the review queue's picture of the block, with the context the
 	// decision is made in.
-	Unit *ReviewUnitInfo `json:"unit"`
+	Block *ReviewUnitInfo `json:"block"`
 }
 
 // ReviewBlockAt reads the review picture of the edition at names, in the
@@ -97,7 +97,7 @@ func (a *App) ReviewBlockAt(ctx context.Context, recipe string, at change.Ref) (
 	if err != nil {
 		return nil, err
 	}
-	out.Unit = info
+	out.Block = info
 	return out, nil
 }
 

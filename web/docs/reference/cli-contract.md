@@ -276,7 +276,7 @@ The edit tools carry the change contract
 ([E-09](/contribute/architecture/engine/e-09-the-change-contract)). `read_blocks` reads
 a document's blocks with the `ref` and `rev` each operation names, and
 `review_block` reads one block's review picture with the `ref` and `rev` of the
-edition under review. `apply_edits` takes a `kapi.change/v1` change set: its input
+edition under review, and the block itself under `block`. `apply_edits` takes a `kapi.change/v1` change set: its input
 schema is the change-set schema, which the snapshot records in full, with the
 per-call `project` added. Its result is a `kapi.change-result/v1` document, an
 error result when the change set is refused or lands only in part.
