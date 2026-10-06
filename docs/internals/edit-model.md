@@ -1695,7 +1695,7 @@ The browser build runs the same service and the same stores.
 | Plugin kind | How it meets the contract |
 | --- | --- |
 | Format plugins (okapi-bridge filters, pdfium, sourcecode) | wrapped through the Part protocol; the host maps `source` to the first native edition and `targets` to the rest, so okapi-bridge does not change; capabilities conservative until declared and proven |
-| Tool plugins | blocks in and out over gRPC as today; the host turns the result into operations with `Diff` |
+| Tool plugins | none exist: the manifest's `tools` list is validated and the host registers no flow tool from it (E-05). One that is added returns blocks over gRPC, and the host turns the result into operations with `Diff` |
 | Comment plugins | behind the comment writing path of the file home, as `kind: "comment"` reaches them today |
 | MCP tool proxy (`host/mcp_plugin_proxy.go`) | unchanged |
 
