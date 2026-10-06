@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"runtime"
+	"slices"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -33,8 +34,16 @@ var ErrWriteGateReentrant = errors.New("storage: the write gate is not reentrant
 // over and over, until it exhausts the timeout and fails with SQLITE_BUSY.
 // Measured at dogfood scale, a drip of small unit-state writes completed 32 of
 // 2650 attempts against a saturating content-memory writer. A FIFO permit takes
-// that to zero, because the queue is Go's, not SQLite's: a buffered channel's
-// sender wait queue is served in the order senders blocked.
+// that to zero, because the queue is Go's, not SQLite's.
+//
+// The queue is an explicit list of waiters under a mutex, and a release hands
+// the permit straight to the waiter at its head. Joining the queue, reading how
+// many releases have happened so far, and the handoff that ends a wait each
+// happen inside the mutex, so the order a writer is served in and the number of
+// releases it is counted as waiting through describe the same queue. A channel
+// would serve senders in order too, but a writer cannot read a counter in the
+// same step as it blocks on a send, and a writer descheduled between the two
+// would be charged for releases it never queued behind.
 //
 // What it cannot do: reach another process. Two `kapi` processes on the same
 // file still contend at the file level, softened by BEGIN IMMEDIATE (which puts
@@ -42,29 +51,40 @@ var ErrWriteGateReentrant = errors.New("storage: the write gate is not reentrant
 // starvation is the failure this removes; cross-process contention is the
 // residue it leaves.
 type writeGate struct {
-	// permits has capacity 1. Acquiring sends, releasing receives. The
-	// direction matters: a blocked *sender* queue is what Go serves FIFO, and
-	// a receive by the releasing holder hands the slot to the longest-waiting
-	// sender rather than leaving it open for a newcomer to barge into.
-	permits chan struct{}
+	mu sync.Mutex
+
+	// busy reports that some writer holds the permit. While it is set, a newcomer
+	// joins the back of waiters; a release with writers waiting passes the
+	// permit to the first of them and leaves busy set, so no newcomer can take
+	// it in between.
+	busy    bool
+	waiters []*gateWaiter
+
+	// grants counts the permits granted, and releases the permits handed back.
+	// mostWaited is the largest number of releases one acquisition waited
+	// through, from joining the queue to its grant or to the moment it gave up:
+	// one per writer served before it, the holder at its arrival included. See
+	// WriteGateStats. All three are guarded by mu.
+	grants     uint64
+	releases   uint64
+	mostWaited uint64
 
 	// holder is the goroutine id holding a transaction-scoped permit, or 0 when
 	// the permit is free or held only for the duration of a single statement.
 	// A statement-scoped holder need not be recorded: the goroutine running one
-	// Exec cannot be the goroutine blocked on the next one.
+	// Exec cannot be the goroutine blocked on the next one. It is read outside
+	// mu, on the way into the queue.
 	holder atomic.Int64
-
-	// grants counts the permits granted. releases counts the permits handed
-	// back, and goes up before the permit is, so a writer that reads it on
-	// arrival counts exactly the releases it then waits through: one per writer
-	// served before it. mostWaited is the largest number of releases one
-	// acquisition waited through. See WriteGateStats.
-	grants     atomic.Uint64
-	releases   atomic.Uint64
-	mostWaited atomic.Uint64
 }
 
-func newWriteGate() *writeGate { return &writeGate{permits: make(chan struct{}, 1)} }
+// gateWaiter is one writer queued for the permit. granted is closed when the
+// permit is handed to it; arrived is the release count when it joined.
+type gateWaiter struct {
+	granted chan struct{}
+	arrived uint64
+}
+
+func newWriteGate() *writeGate { return &writeGate{} }
 
 // acquire takes the permit, blocking in arrival order until it is free or ctx
 // is done.
@@ -81,46 +101,67 @@ func (g *writeGate) acquire(ctx context.Context, held bool) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	// Uncontended: take it without paying for the goroutine-id lookup. This
-	// does not let a newcomer jump the queue — a buffered channel with senders
-	// already blocked on it has no free slot for a non-blocking send.
-	select {
-	case g.permits <- struct{}{}:
-		g.grants.Add(1)
+	// Uncontended: take it without paying for the goroutine-id lookup.
+	if g.tryAcquire() {
 		g.claim(held)
 		return nil
-	default:
 	}
 	if owner := g.holder.Load(); owner != 0 && owner == goID() {
 		return fmt.Errorf("%w: goroutine %d already holds a write transaction on this database "+
 			"and would wait on itself forever", ErrWriteGateReentrant, owner)
 	}
-	// The arrival is read before the send blocks. A release counted after the
-	// read hands the permit to a writer queued at that moment, so served in
-	// arrival order this acquisition waits through one release per writer
-	// ahead of it, including the one holding the permit when it arrived.
-	arrived := g.releases.Load()
+
+	g.mu.Lock()
+	if !g.busy {
+		// Released while the owner was being checked.
+		g.busy = true
+		g.grants++
+		g.mu.Unlock()
+		g.claim(held)
+		return nil
+	}
+	w := &gateWaiter{granted: make(chan struct{}), arrived: g.releases}
+	g.waiters = append(g.waiters, w)
+	g.mu.Unlock()
+
 	select {
-	case g.permits <- struct{}{}:
-		g.grants.Add(1)
-		g.waited(g.releases.Load() - arrived)
+	case <-w.granted:
 		g.claim(held)
 		return nil
 	case <-ctx.Done():
-		g.waited(g.releases.Load() - arrived)
+	}
+
+	g.mu.Lock()
+	if i := slices.Index(g.waiters, w); i >= 0 {
+		// Still queued: leave the queue and count the wait to here.
+		g.waiters = slices.Delete(g.waiters, i, i+1)
+		g.noteWaited(w)
+		g.mu.Unlock()
 		return ctx.Err()
 	}
+	g.mu.Unlock()
+	// The permit was handed over as the context ended. It is ours, and the
+	// writer behind us is waiting for it.
+	g.release()
+	return ctx.Err()
 }
 
-// waited records that one acquisition queued through n releases, whether it
-// was then granted or gave up.
-func (g *writeGate) waited(n uint64) {
-	for {
-		most := g.mostWaited.Load()
-		if n <= most || g.mostWaited.CompareAndSwap(most, n) {
-			return
-		}
+// tryAcquire takes the permit if it is free, which it never is while a writer
+// is queued: a release with waiters hands the permit on without freeing it.
+func (g *writeGate) tryAcquire() bool {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.busy {
+		return false
 	}
+	g.busy = true
+	g.grants++
+	return true
+}
+
+// noteWaited records how many releases w waited through. The caller holds mu.
+func (g *writeGate) noteWaited(w *gateWaiter) {
+	g.mostWaited = max(g.mostWaited, g.releases-w.arrived)
 }
 
 func (g *writeGate) claim(held bool) {
@@ -131,15 +172,41 @@ func (g *writeGate) claim(held bool) {
 	g.holder.Store(0)
 }
 
-// release returns the permit. It is safe on a nil gate, so every caller can be
-// written once for both gated and ungated handles.
+// release returns the permit, handing it to the longest-waiting writer if there
+// is one. It is safe on a nil gate, so every caller can be written once for
+// both gated and ungated handles.
 func (g *writeGate) release() {
 	if g == nil {
 		return
 	}
 	g.holder.Store(0)
-	g.releases.Add(1)
-	<-g.permits
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.releases++
+	if len(g.waiters) == 0 {
+		g.busy = false
+		return
+	}
+	w := g.waiters[0]
+	g.waiters[0] = nil
+	g.waiters = g.waiters[1:]
+	g.grants++
+	g.noteWaited(w)
+	close(w.granted)
+}
+
+// stats reads the counters WriteGateStats reports.
+func (g *writeGate) stats() (grants, mostWaited uint64) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.grants, g.mostWaited
+}
+
+// queued reports how many writers are waiting for the permit.
+func (g *writeGate) queued() int {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return len(g.waiters)
 }
 
 // goIDBufs keeps the scratch space for goID off the allocator's path. Sixty-four

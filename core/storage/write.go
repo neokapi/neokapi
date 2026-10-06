@@ -115,7 +115,8 @@ func (db *DB) WriteGateStats() WriteGateStats {
 	if db.gate == nil {
 		return WriteGateStats{}
 	}
-	return WriteGateStats{Grants: db.gate.grants.Load(), MostWaited: db.gate.mostWaited.Load()}
+	grants, mostWaited := db.gate.stats()
+	return WriteGateStats{Grants: grants, MostWaited: mostWaited}
 }
 
 // Tx is a transaction on a *DB. It embeds *sql.Tx, so it is used exactly like
