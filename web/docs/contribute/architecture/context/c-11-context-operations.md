@@ -54,7 +54,7 @@ those proposals before checks enforce them.
 
 Suggestions must not fail builds before review. Operations must also be
 attributable and reversible. The design follows the unit-decision model in
-`core/state` ([C-04](c-04-unit-state-and-decisions.md)): an append-only ledger
+`core/state` ([C-04](c-04-block-state-and-decisions.md)): an append-only ledger
 and a shared policy function for all writers.
 
 ## Decision

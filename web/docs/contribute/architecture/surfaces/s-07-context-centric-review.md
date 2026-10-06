@@ -80,7 +80,7 @@ block, the edition and the pairing it blessed (the source and translation
 revisions), and a checkout's view points at the entry for the pairing its files
 hold; `Put` appends an entry. The model exposes the entry that applies and
 invents no chain over the others
-([C-04](../context/c-04-unit-state-and-decisions.md)). Every write to the
+([C-04](../context/c-04-block-state-and-decisions.md)). Every write to the
 edition sits in the block history, which the Review page lists beside it
 ([S-02](s-02-kapi-desktop.md)).
 
@@ -100,7 +100,7 @@ marking one the project's `translate_after` level is holding the fan-out on.
 `host.App.ReviewQueue` derives it, merging the target derivation and the source
 derivation over one project read. The listing is unified and the storage is not:
 a source decision is recorded under the source locale variant and a target
-decision under the target's, as [C-04](../context/c-04-unit-state-and-decisions.md)
+decision under the target's, as [C-04](../context/c-04-block-state-and-decisions.md)
 defines them.
 
 ### The decision set is the same on every client
@@ -108,7 +108,7 @@ defines them.
 A reviewer has two verdicts on a target: **approve**, which establishes it,
 and **reject**, which drops it to `draft` so the block re-enters the work queue.
 The rungs are the target ladder
-[C-04](../context/c-04-unit-state-and-decisions.md) defines, and the ship gates
+[C-04](../context/c-04-block-state-and-decisions.md) defines, and the ship gates
 read them. There is one human rung, and no second rung above it. An agent reviews
 ahead of the person with a score and its reasons, which the queue shows and
 which never count as a decision.
@@ -207,7 +207,7 @@ the voice and vocabulary in force rather than against a bare pair of strings.
 
 Judging the author's wording and judging a translation of it are the same act on
 different content, at rungs of the two ladders
-[C-04](../context/c-04-unit-state-and-decisions.md) defines. Both render the
+[C-04](../context/c-04-block-state-and-decisions.md) defines. Both render the
 same review model, so a reviewer approving source wording sees the voice it is
 approved against, and a source decision is recorded with the same identity a
 target decision carries.
@@ -246,14 +246,14 @@ worker records the basis of the drafts it writes, and a push carries the basis
 a run on a checkout recorded (see below), so the venue grades both alike. The
 server venue grades by the revision of the source as well, taken under the
 project's source language, so a changed link reads stale there as it does in
-coverage on a checkout ([C-04](../context/c-04-unit-state-and-decisions.md#unit-state-is-unit-keyed-and-bound-to-the-pairing-it-blessed)).
+coverage on a checkout ([C-04](../context/c-04-block-state-and-decisions.md#unit-state-is-unit-keyed-and-bound-to-the-pairing-it-blessed)).
 
 The server's translation worker reads the same ledger. A target whose recorded
 basis is stale is owed a draft, a target the ledger has no record of is left
 alone, and a decided block is drafted once per source change: the worker marks
 the row with the source it drafted against, beside the decision it may not
 replace, and the next pass counts the block as awaiting review rather than as
-work ([C-04](../context/c-04-unit-state-and-decisions.md)).
+work ([C-04](../context/c-04-block-state-and-decisions.md)).
 
 ### A push carries decisions; the venue decides
 
@@ -292,7 +292,7 @@ A verdict made in the venue records what governed it, the way a verdict made in
 a project does: the voice profile the venue's own ladder resolves for the
 block's collection and locale, and the term rules its workspace holds, folded by
 the function every producer stamps with
-([C-04](../context/c-04-unit-state-and-decisions.md)). It reaches the ledger,
+([C-04](../context/c-04-block-state-and-decisions.md)). It reaches the ledger,
 the content memory the approval promotes to, and the project's record on the
 next pull, so a decision made in either place answers the staleness question
 against one definition of the context in force.
@@ -378,7 +378,7 @@ with the least screen has the same facts as the one with the most.
 ## Related
 
 - [C-02: Coordinates and governance](../context/c-02-coordinates-and-governance.md): the point a decision is made at
-- [C-04: Unit state and the decision record](../context/c-04-unit-state-and-decisions.md): what a decision records
+- [C-04: Block state and the decision record](../context/c-04-block-state-and-decisions.md): what a decision records
 - [C-06: Context retrieval](../context/c-06-retrieval.md): the two primitives Review consumes
 - [S-01: The kapi CLI](s-01-kapi-cli.md): `kapi status --review` and `kapi apply`
 - [S-02: Kapi Desktop](s-02-kapi-desktop.md): the queue, the document view and the digest

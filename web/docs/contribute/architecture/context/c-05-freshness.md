@@ -68,7 +68,7 @@ type Ref struct {
   that carries a review state, a established rung, a parked unit, an
   assignee or a note. The source is the checkout's own view of the ledger, so a
   decision recorded in another checkout of the project and one recorded here both
-  count ([C-04](c-04-unit-state-and-decisions.md)). A record that says only what was
+  count ([C-04](c-04-block-state-and-decisions.md)). A record that says only what was
   produced for a unit, its target and the source it was written for, is left
   out. A producer writes one for every unit it drafts, and a run on the venue
   writes thousands between a client's pull and its push, none of them a decision
@@ -161,7 +161,7 @@ The position is bound to the project store that consumed it. The two files sit
 in the same disposable directory and are deleted independently, and what a pull
 consumes lands in the store: target files on disk, and the decisions the venue's
 ledger carried, recorded in the project's own ledger
-([C-04](c-04-unit-state-and-decisions.md)). A position outliving the store it
+([C-04](c-04-block-state-and-decisions.md)). A position outliving the store it
 consumed into says this project holds content it holds nowhere, so the cache
 records the store's identity (`projectdb.DB.InstanceID`) beside the positions
 and drops every position when that identity changes (`Cache.BindStore`). The
@@ -204,7 +204,7 @@ The comparison is made once, in `core/ref`, and rendered by each surface:
 | --- | --- |
 | `kapi status` | the **governance axis** of the report: the ref this project observed against the one its venue publishes now, rendered through `StatusGovernance.Divergence()`. The content axis is the coverage grid beside it. |
 | Retrieval answers | a **staleness note** on the answer, naming the governance components that moved since this process last read (`host/freshness.go`). Silent for a project that has never observed governance: taking a position with no identities as a baseline would be taking silence for a fact. |
-| `kapi check` | the **staleness gate** (`host/verify_staleness.go`), in the default gate set and in `--ship`. A convergence records each target it wrote as the flow's `content.edit`, with the producer's `Origin` as the transition's producer in the block history ([C-03](c-03-context-store-and-graph.md#edits-are-recorded-as-content-edit)), and the gate compares a decision's **governing basis** (`state.UnitState.GoverningBasis`), or for an undecided target the producer's stamp the flow's last write carries, against the context in force at the file's governance point. The same resolver gives a decision the fingerprint it records as `governingFingerprint` ([C-04](c-04-unit-state-and-decisions.md)), so a decision and a produced target are judged against one definition of the context in force. |
+| `kapi check` | the **staleness gate** (`host/verify_staleness.go`), in the default gate set and in `--ship`. A convergence records each target it wrote as the flow's `content.edit`, with the producer's `Origin` as the transition's producer in the block history ([C-03](c-03-context-store-and-graph.md#edits-are-recorded-as-content-edit)), and the gate compares a decision's **governing basis** (`state.UnitState.GoverningBasis`), or for an undecided target the producer's stamp the flow's last write carries, against the context in force at the file's governance point. The same resolver gives a decision the fingerprint it records as `governingFingerprint` ([C-04](c-04-block-state-and-decisions.md)), so a decision and a produced target are judged against one definition of the context in force. |
 
 Two properties of the gate matter. It runs at the file's governance point, so a
 per-file `channel:` override ([C-02](c-02-coordinates-and-governance.md)) is
@@ -219,7 +219,7 @@ force is the project saying this wording stands under it, made about the answer
 more recently than the run that drafted it, so the unit clears the gate without
 being reproduced. A rejection vouches for nothing and reads through to the stamp
 the run left, which is how a turned-down re-draft stays behind the context. This
-is the same rule the source basis follows ([C-04](c-04-unit-state-and-decisions.md)):
+is the same rule the source basis follows ([C-04](c-04-block-state-and-decisions.md)):
 one verdict re-stamps both halves, and it is the approval.
 
 Reporting and enforcing are separate roles. The status report and the retrieval
@@ -253,7 +253,7 @@ is nothing to be behind.
 
 - [C-02: Coordinates and governance](c-02-coordinates-and-governance.md): the
   governance point the staleness gate resolves at.
-- [C-04: Unit state and the decision record](c-04-unit-state-and-decisions.md):
+- [C-04: Block state and the decision record](c-04-block-state-and-decisions.md):
   the ledger and the checkout view the `decisions` component folds.
 - [C-06: Context retrieval](c-06-retrieval.md): the answers that carry a
   staleness note.

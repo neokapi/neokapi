@@ -179,7 +179,7 @@ each operation's `if_match` and lands only while the edition still has it
 recorded decision pairs two revisions, the edition it blesses (`Revision`) and the
 authoritative edition that edition was made from (`Basis`), and answers for the
 block exactly where that pairing holds
-([C-04](../context/c-04-unit-state-and-decisions.md)). Readers of one document
+([C-04](../context/c-04-block-state-and-decisions.md)). Readers of one document
 file its source under different keys, so `Block.SourceRevisions` lists the
 source's revision under each, and a basis taken under any of them matches.
 
@@ -397,7 +397,7 @@ has two identities. Its **id** is time-ordered with a random suffix
 order; a person types its first characters, the way a commit is named. Its
 optional **content address** names what it says: an operation whose address a
 log already holds is the one already there. A decision's operation
-(`decision.record`) carries the ledger entry's own content address ([C-04](../context/c-04-unit-state-and-decisions.md)),
+(`decision.record`) carries the ledger entry's own content address ([C-04](../context/c-04-block-state-and-decisions.md)),
 scoped by project, and the large payloads operations name are blobs addressed by
 the SHA-256 of their bytes.
 
@@ -426,5 +426,5 @@ the SHA-256 of their bytes.
 - [E-02: The format system](../engine/e-02-format-system.md): where reader-assigned IDs originate
 - [C-01: The project model](../context/c-01-project-model.md): the store the keys address
 - [C-03: The context store and graph](../context/c-03-context-store-and-graph.md): the durable content key in the graph
-- [C-04: Unit state and the decision record](../context/c-04-unit-state-and-decisions.md): what is recorded against a reconciled block
+- [C-04: Block state and the decision record](../context/c-04-block-state-and-decisions.md): what is recorded against a reconciled block
 - [E-09: The change contract](../engine/e-09-the-change-contract.md): how a change names the revision it read

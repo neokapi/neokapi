@@ -355,7 +355,11 @@ const config: Config = {
           },
           {
             from: "/contribute/architecture/033-project-state-model",
-            to: "/contribute/architecture/context/c-04-unit-state-and-decisions",
+            to: "/contribute/architecture/context/c-04-block-state-and-decisions",
+          },
+          {
+            from: "/contribute/architecture/context/c-04-unit-state-and-decisions",
+            to: "/contribute/architecture/context/c-04-block-state-and-decisions",
           },
           {
             from: "/contribute/architecture/037-context-retrieval-surface",

@@ -520,7 +520,7 @@ the package manager.
 - [C-03: The context store and graph](../context/c-03-context-store-and-graph.md): the workspace the home screen reads and the operation log it follows
 - [C-11: Context operations](../context/c-11-context-operations.md): the operations the feed shows and the policy behind its decisions
 - [C-02: Coordinates and governance](../context/c-02-coordinates-and-governance.md): the coordinate points the home maps and the axes the settings edit
-- [C-04: Unit state and the decision record](../context/c-04-unit-state-and-decisions.md): what the review queue records
+- [C-04: Block state and the decision record](../context/c-04-block-state-and-decisions.md): what the review queue records
 - [C-06: Context retrieval](../context/c-06-retrieval.md): the guide the explorer renders
 - [C-07: Voice profiles](../context/c-07-voice-profiles.md): the profile the Voice page resolves and edits
 - [S-01: The kapi CLI](s-01-kapi-cli.md): the shared credential store and config home

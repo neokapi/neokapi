@@ -80,7 +80,7 @@ ALLOWLIST=(
   # writes or reads it.
   "web/docs/contribute/architecture/context/c-01-project-model.md"
   "web/docs/contribute/architecture/context/c-02-coordinates-and-governance.md"
-  "web/docs/contribute/architecture/context/c-04-unit-state-and-decisions.md"
+  "web/docs/contribute/architecture/context/c-04-block-state-and-decisions.md"
   "web/docs/contribute/architecture/context/c-08-terms.md"
   "web/docs/contribute/architecture/context/c-09-content-memory.md"
   "web/docs/contribute/architecture/context/c-11-context-operations.md"

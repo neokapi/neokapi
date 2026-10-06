@@ -558,7 +558,7 @@ where the most recent recorded change to the edition left the content it holds;
 and a history lists the edition's rows of that block history. A decision binds
 to the revision of the edition it decides and of the authoritative edition
 beside it (`DecisionTarget.Rev` and `SourceRev`), which the decision ledger
-pairs ([C-04](../context/c-04-unit-state-and-decisions.md)).
+pairs ([C-04](../context/c-04-block-state-and-decisions.md)).
 
 On the command line, `kapi apply` hands a decoded change set to the service,
 `kapi inspect` prints the service's read records, and `ksed` compiles its

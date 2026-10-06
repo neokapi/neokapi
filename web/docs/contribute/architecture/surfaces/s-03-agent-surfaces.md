@@ -346,7 +346,7 @@ a kapi.change/v1 change set, and on the command line every one lands through
 | --- | --- | --- |
 | `set_content`, `replace_text` | an edition of a block, named by `at` and guarded by the revision read in `if_match` | the file home's byte-faithful round-trip, refused when the edition moved or an inline code or plural would be lost |
 | `set_content` on a code comment | one comment's prose in a source file, keyed as `kapi check` reports it, its revision taken from the comment's fingerprint | the comment write path: the file must still parse and the language's formatter must agree, and what was written is checked again |
-| `decide` | a review outcome on the edition revision a person read | the decision ledger ([C-04](../context/c-04-unit-state-and-decisions.md)) |
+| `decide` | a review outcome on the edition revision a person read | the decision ledger ([C-04](../context/c-04-block-state-and-decisions.md)) |
 | `term` | a term, including every word rule (`advisory`, `competitor`) | the terms tables of the project store, with a context operation recorded |
 | `memory` | a content-memory pair | the memory tables of the project store, with a context operation recorded |
 | `recipe` | an allowlisted recipe field | the `kapi.yaml` recipe, via project load and save |
@@ -715,7 +715,7 @@ between revising content and troubleshooting the command.
 - [E-09: The change contract](../engine/e-09-the-change-contract.md): the operations, revisions, results and error codes `kapi apply` and `apply_edits` speak, and the service that applies them
 - [E-02: The format system](../engine/e-02-format-system.md): the writer capabilities behind `editable` / `round_trip` / `generative`
 - [E-06: Execution trust](../engine/e-06-execution-trust.md): why code-executing tools stay off the agent surface
-- [C-04: Unit state and the decision record](../context/c-04-unit-state-and-decisions.md): what a `decide` operation records
+- [C-04: Block state and the decision record](../context/c-04-block-state-and-decisions.md): what a `decide` operation records
 - [C-06: Context retrieval](../context/c-06-retrieval.md): the two questions, and why one is a resource
 - [C-07: Voice profiles](../context/c-07-voice-profiles.md): the voice an assistant writes in
 - [M-01: Bilingual interop](../multilingual/m-01-bilingual-interop.md): the `extract`/`merge` round-trip that `inspect`/`apply` mirror on the monolingual side

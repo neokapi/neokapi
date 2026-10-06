@@ -20,7 +20,7 @@ project keeps one of its own.
 
 The **context store** lives in a **workspace**, outside every checkout: the
 terms, the voice profiles, the content memory, the decision ledger and the
-document adoptions ([C-04](c-04-unit-state-and-decisions.md)), the block
+document adoptions ([C-04](c-04-block-state-and-decisions.md)), the block
 history of every recorded edit, and the project's settings: team
 choices about the project that are neither content nor governance, such as the
 saved filters a team shares (`projectdb.DB.Setting`). It is authored rather than derived,
@@ -215,7 +215,7 @@ until the project is opened somewhere else.
 | content memory | `memory/` ([C-09](c-09-content-memory.md)) | context | the operation log, through `core/projector` |
 | voice profiles | `voice/` ([C-07](c-07-voice-profiles.md)) | context | the operation log, through `core/projector` |
 | `projector_cursor` | `core/projector` | context | the position of the last operation applied |
-| decision ledger, document adoptions | `core/state` ([C-04](c-04-unit-state-and-decisions.md)) | context | the operation log, through `core/projector` |
+| decision ledger, document adoptions | `core/state` ([C-04](c-04-block-state-and-decisions.md)) | context | the operation log, through `core/projector` |
 | one view of the ledger and of the documents read, per checkout | `core/state` | context | the checkout's files |
 | block history | `core/history` | context | the operation log, through `core/projector` |
 | `edition_head`, `edition_subject_head`: the workspace home | `core/workhome` | context | the operation log, through `core/projector` |
@@ -313,7 +313,7 @@ files, source and target, so deleting it costs a re-extraction and nothing else.
 The **context store** holds the project's terms ([C-08](c-08-terms.md)), its
 voice profiles ([C-07](c-07-voice-profiles.md)), its content memory
 ([C-09](c-09-content-memory.md)), its decision ledger and document adoptions
-([C-04](c-04-unit-state-and-decisions.md)), its block history and the
+([C-04](c-04-block-state-and-decisions.md)), its block history and the
 editions the workspace home keeps, each a projection of the workspace's
 operation log, described below. No read path opens a file in the
 checkout to answer for any of them. A checkout may carry a terms bundle or a
@@ -360,11 +360,11 @@ seconds.
 The decision ledger records through the same projector: `state.WorkStore`
 takes a journal (`projector.Decisions`), and each entry is a `decision.record`
 operation addressed by the entry's own content address, so a decision recorded
-twice is one operation ([C-04](c-04-unit-state-and-decisions.md#the-ledger-is-a-projection-of-the-operation-log)).
+twice is one operation ([C-04](c-04-block-state-and-decisions.md#the-ledger-is-a-projection-of-the-operation-log)).
 Each document a checkout resolves is a `document.adopt` operation carrying its
 key, its path and what it held, which every other checkout of the project
 consults before minting a key of its own
-([C-04](c-04-unit-state-and-decisions.md#document-keys-are-recorded-in-the-log)).
+([C-04](c-04-block-state-and-decisions.md#document-keys-are-recorded-in-the-log)).
 Each checkout's view of the ledger, and its own list of the documents it has
 read, stay readings of its files.
 
@@ -463,7 +463,7 @@ this checkout does not hold, and is recorded with none.
 Kapi Desktop, `kapi apply`, ksed, the MCP edit tools and the browser engine
 edit content through the change service, so their edits reach the same
 recorder under their own origins. The decision ledger holds decisions only
-([C-04](c-04-unit-state-and-decisions.md#the-ledger-is-a-projection-of-the-operation-log)):
+([C-04](c-04-block-state-and-decisions.md#the-ledger-is-a-projection-of-the-operation-log)):
 what a producer made, and from which source, is in the block history and
 nowhere else.
 
@@ -708,7 +708,7 @@ separate edges, and the term and the locale are the edge discriminators;
 joins the decision ledger against the block cache, so a record whose block
 no longer exists keeps its node and loses its edge. A unit state names its
 document by the durable key the ledger's view records
-([C-04](c-04-unit-state-and-decisions.md)); the graph writer turns that key back
+([C-04](c-04-block-state-and-decisions.md)); the graph writer turns that key back
 into the path the block cache files blocks under before joining.
 
 The term is a discriminator because a concept holds several spellings and a
@@ -766,7 +766,7 @@ Within a scope, identity is **durable**: a block is its content key
 block and edition (the ledger's unit and variant), not a reader's positional
 id, so a re-parse that renumbers a document rewrites the same rows rather than
 orphaning them. The document is part of a unit state's identity for the reason
-[C-04](c-04-unit-state-and-decisions.md) gives: a block id is unique inside its
+[C-04](c-04-block-state-and-decisions.md) gives: a block id is unique inside its
 document and nowhere wider, so without it two pages of one collection are one
 node and the decision written last answers for both.
 
@@ -918,7 +918,7 @@ sets `$KAPI_DATA_DIR` as part of the isolation contract.
 
 - [C-01: The project model](c-01-project-model.md): the layout the projection
   sits in.
-- [C-04: Unit state and the decision record](c-04-unit-state-and-decisions.md):
+- [C-04: Block state and the decision record](c-04-block-state-and-decisions.md):
   the decision ledger inside the context store.
 - [C-08: Terms](c-08-terms.md) and [C-09: Content memory](c-09-content-memory.md):
   the two subsystems whose source-versus-projection split this store

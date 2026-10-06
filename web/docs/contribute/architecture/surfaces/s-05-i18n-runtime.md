@@ -432,7 +432,7 @@ caller asks for gated locales only. A locale that ships but is not established
 is AI work and is the only case this layer badges. Display labels derive from
 each locale code as its endonym through `Intl.DisplayNames`, so no per-locale
 label table is needed; an explicit label still wins, for the codes `Intl` cannot
-name. See [C-04](../context/c-04-unit-state-and-decisions.md) for what the gates
+name. See [C-04](../context/c-04-block-state-and-decisions.md) for what the gates
 mean.
 
 ## Consequences
@@ -478,7 +478,7 @@ mean.
 - [F-03: Identity](../foundations/f-03-identity.md): content-addressed block identity
 - [E-02: The format system](../engine/e-02-format-system.md): how an extractor plugs into the pipeline, and the readers that share the translatability table
 - [E-03: The tool system](../engine/e-03-tool-system.md): the tools that consume extracted blocks
-- [C-04: Unit state and the decision record](../context/c-04-unit-state-and-decisions.md): the ship and established gates the picker reads
+- [C-04: Block state and the decision record](../context/c-04-block-state-and-decisions.md): the ship and established gates the picker reads
 - [M-06: Content packages](../multilingual/m-06-content-packages.md): the interchange files review reads and writes
 - [S-06: The visual editor data model](s-06-visual-editor.md): the vocabulary that styles these runs
 - [React i18n guide](/react/introduction): the user-facing documentation

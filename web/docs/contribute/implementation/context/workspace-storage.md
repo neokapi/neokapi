@@ -457,5 +457,5 @@ checkout's own files.
 
 - [C-03: The context store and graph](/contribute/architecture/context/c-03-context-store-and-graph):
   the decision this note implements.
-- [C-04: Unit state and the decision record](/contribute/architecture/context/c-04-unit-state-and-decisions):
+- [C-04: Block state and the decision record](/contribute/architecture/context/c-04-block-state-and-decisions):
   the ledger in the context pool.
