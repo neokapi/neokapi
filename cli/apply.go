@@ -73,9 +73,9 @@ documents, never both.
 Inside a project a document is named by its project-relative path. A file
 outside the project is named by its absolute path, as kapi inspect names it, and
 a change set that edits one edits nothing in the project. Outside a project a
-document holds one edition, in the language --source-lang names or else the one
-its file or directory names (locales/nb.json, or docs/de/guide.md beside
-docs/en/guide.md), which a read prints in each ref; --out FILE writes the one
+document holds one edition, in the language its file or directory names
+(locales/nb.json, or docs/de/guide.md beside docs/en/guide.md), which a read
+prints in each ref, else English; --out FILE writes the one
 edition a change set adds to it, a translation, to FILE.
 
 --dry-run computes and checks the change set, writes nothing, and prints a diff
