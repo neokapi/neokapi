@@ -14,7 +14,7 @@ import { TypeDiagram } from "@neokapi/docs-shared";
 
 Documents are a stream of `Part` values, each carrying a `PartType`
 discriminator and a `Resource`. Modifiable content is a `Block`, and a Block's
-content is a flat `[]Run` per side: a discriminated union of `Text`, `Ph`,
+content is a flat `[]Run` per edition: a discriminated union of `Text`, `Ph`,
 `PcOpen`, `PcClose`, `Sub`, `Plural`, and `Select`. Each inline-code run carries
 its own metadata (native markup, abstract identity, semantic type, display text,
 text equivalent, canonical attributes, editing constraints), so tools process
@@ -437,16 +437,18 @@ model and retrieval ingestion while translation skips it. That surfacing is a
 default-on, per-format opt-out described in
 [E-02: The format system](../engine/e-02-format-system.md).
 
-**Source provenance.** A `Target` records its `Origin`: how the translation was
-produced (`human`, `memory`, `mt`, `ai`), the engine, a reference, a timestamp. A
+**Source provenance.** A derived edition records its `Origin`: how the
+translation was produced (`human`, `agent`, `memory`, `mt`, `ai`), the engine, a
+reference, a timestamp. A
 Block's **source** carries the same `Origin` when it was *recognized* rather than
 parsed: an OCR or speech engine, or a model, produced the text, so the `Origin`
 names that engine (`ocr`, `asr`, or `llm-refined` for a recognition a multimodal
 model re-read) and carries a **confidence** in `[0,1]`. A block read losslessly
 from a text format has no source `Origin`; one produced by recognition does, and a
 confidence-gated refinement step reads it to decide what to re-examine
-([M-03](../multilingual/m-03-multimodal-content.md)). Source and target
-provenance are one record on two sides of the Block.
+([M-03](../multilingual/m-03-multimodal-content.md)). Every edition carries the
+same `Origin` record; the source's is held in the block's source-origin
+annotation (`SourceOrigin`), which every wire and store carries.
 
 **What governed it.** `Origin` records not only *how* a target was produced but
 *what governed it*: the `Profile` and `ProfileVersion` in force, and a
@@ -471,8 +473,8 @@ See [C-05: Freshness and the composite ref](../context/c-05-freshness.md).
 
 ### The Run sequence
 
-A Block's content is a flat sequence of `Run` values held directly on the
-Block, with no embedded marker characters:
+Each edition's content is a flat sequence of `Run` values (`Edition.Runs`),
+with no embedded marker characters:
 
 ```go
 type Run struct {

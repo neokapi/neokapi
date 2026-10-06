@@ -601,7 +601,7 @@ right extraction without guessing from its name.
   point a collection sits at and what governs it.
 - [C-03: The context store and graph](c-03-context-store-and-graph.md):
   `.kapi/work/store.db` and the workspace holding the other half.
-- [C-04: Unit state and the decision record](c-04-unit-state-and-decisions.md):
+- [C-04: Block state and the decision record](c-04-block-state-and-decisions.md):
   the ledger and the shards a snapshot writes.
 - [E-01: Processing Engine](../engine/e-01-processing-engine.md): flow
   execution.

@@ -27,8 +27,10 @@ dot-directory; naming one (`.github/**/*.yml`) opts back in.
 **Directories are content, not errors.** A directory argument expands to the
 regular files beneath it, skipping hidden directories and editor junk (`~$…`
 Office lock files, `._…` AppleDouble stubs). The toolbox utilities that emulate
-a Unix filter (`kgrep`, `kcat`, `ksed`) keep the POSIX `-r` requirement, because
-they are deliberate emulations of tools whose muscle memory includes it.
+a Unix filter (`kgrep`, `kcat`, `ksed`) keep the POSIX requirement of a
+recursion flag (`-r`, and `-R` on `ksed`, where sed's `-r` means extended
+regexps), because they are deliberate emulations of tools whose muscle memory
+includes it.
 
 **No input never means "block on the terminal".** Given nothing, a content verb
 uses the project's tracked content set when a recipe is in scope; otherwise it
@@ -49,6 +51,12 @@ path template (`kapi extract -o work.kpz`, `kapi memory export -o memory.tmx`,
 the `{dir}{name}{ext}{lang}` template on `kapi exec <tool>`), and that meaning
 is consistent, so the format axis keeps the unambiguous long spelling.
 
+`--print-ops` is the one flag that swaps the result for a change set: on
+`ksed`, on the flow verbs (`translate`, `pseudo-translate`, `run`, `up`), on
+`kapi exec` for a tool that writes, and on `kapi apply` itself, it writes no
+file and prints the kapi.change/v1 change set to stdout, which `kapi apply`
+applies as printed.
+
 Progress for anything that can exceed a second goes to **stderr**
 (`host/progressstep.go`), so stdout stays exactly the machine-readable result:
 `kapi stats --output-format json 'src/**' > out.json` writes only JSON. It stays
@@ -66,6 +74,7 @@ append-only lines on a pipe.
 | 2 | usage error: bad flags, unreadable input, no input |
 | 3 | quality gate unmet (`ErrQualityGate`) |
 | 4 | a check did not run (`ErrCheckNotRun`): no content checked, or an analyzer missed its canary |
+| 5 | a backend could not be reached (`ExitUnreachable`): a context pull or push, or a change set's backend; nothing changed |
 | 130 | interrupted (SIGINT) |
 
 The grep-family utilities additionally use `1` for "no match", which is their
@@ -121,7 +130,7 @@ semantic guidance, through the same source-check implementation as ordinary
 | `run [flow]` | `-i` | yes | text·json·yaml | preferred | 1 |
 | `extract` | project content, or positional + `-o <kpz>` | yes | text·json·yaml | required, or a `.kpz` workspace | 1 |
 | `merge` | `-i` (file, glob, dir), or a `.kpz` workspace | yes | text·json·yaml | required, or a `.kpz` workspace | 1 |
-| `apply [changeset]` | positional or stdin | none | text·json·yaml | preferred | 3 drift |
+| `apply [changeset]` | positional or stdin | none | text·json·yaml (`--json`: kapi.change-result/v1; `--print-ops`: the change set) | preferred | 2 does not decode, 3 refused or partial, 5 unreachable |
 | `pack` / `unpack` / `info` | positional archive | none | text·json·yaml | preferred / none | 1 |
 | `add` / `ls` / `rm` | positional patterns | yes | text·json·yaml | required | 1 |
 | `exec <tool> <files…>` | positional | yes | text·json·yaml | memory + terms bound from project | 1 |
@@ -142,7 +151,7 @@ semantic guidance, through the same source-check implementation as ordinary
 
 Three departures are intentional and documented rather than fixed:
 
-- **`kgrep`/`kcat`/`ksed` require `-r` for directories.** They are explicit
+- **`kgrep`/`kcat` require `-r`, and `ksed` `-R`, for directories.** They are explicit
   emulations of POSIX tools, and matching their contract is what makes them
   useful.
 - **`kgrep` exits 1 on no-match.** Same reason.

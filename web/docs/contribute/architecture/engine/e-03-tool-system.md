@@ -220,6 +220,7 @@ type ToolMeta struct {
     WritesOutput          bool     // CLI adds -o/--output when true
     DefaultParallelBlocks int      // concurrency for IO-bound tools
     Aliases               []string // alternative CLI command names
+    Internal              bool     // withheld from kapi exec, kapi tools and MCP; still a flow step
 }
 ```
 
@@ -295,10 +296,11 @@ declares `source-language` in `Accepts`.
 
 #### Uniform locale access
 
-Blocks carry one source locale and N target locales. The source locale is
-structurally distinct because it anchors the document skeleton and inline code
-positions, but tools should not need to know whether a locale is source or
-target; they just need text for a given locale:
+A block holds its content as peer editions
+([F-02](../foundations/f-02-content-model.md)). The edition the block was read
+in, in the language `SourceLocale` names, anchors the document skeleton and
+inline code positions, but tools should not need to know whether a locale names
+that edition or a translation; they just need text for a given locale:
 
 ```go
 // Text returns the plain text for a locale: the source text if the
@@ -315,8 +317,10 @@ func (b *Block) HasLocale(locale LocaleID) bool
 
 A bilingual tool comparing `[fr, de]` calls `block.Text("fr")` and
 `block.Text("de")`: identical code whether `fr` is source or target.
-`SourceText()` and `TargetText(locale)` remain available when a tool specifically
-needs the source-anchored skeleton.
+`SourceText()` and `TargetText(locale)` are available when a tool specifically
+needs the edition the block was read in or one translation, and the view's
+`SetEdition` and `RemoveEdition` write any derived edition by its full key
+(`model.EditionKey`: locale, tone and channel).
 
 #### Segments: one iterator over segmented and unsegmented blocks
 
@@ -404,11 +408,11 @@ the wire is the vocabulary the flow validator checks the IO contract against.
 Three consequences follow from validating on the declared contract. A wrong
 `Consumes`/`Produces` on a built-in tool breaks a real flow, so each tool's
 declaration is audited against its actual reads and writes, with an end-to-end
-test per built-in flow as the guardrail. Plugin tools
-([E-05](e-05-plugin-system.md)) declare the same metadata over gRPC, and the
-overlay and annotation vocabulary is open to them through `model.RegisterPayload`:
-a plugin-defined type crosses the bridge by type name and JSON, and rehydrates
-to its concrete type wherever the payload constructor is registered. Alignment
+test per built-in flow as the guardrail. The overlay and annotation vocabulary
+is open to plugins ([E-05](e-05-plugin-system.md)) through
+`model.RegisterPayload`: a plugin-defined type crosses the plugin wire by type
+name and JSON, and rehydrates to its concrete type wherever the payload
+constructor is registered. Alignment
 is the one relational overlay: it links a source span to a target span, so its
 payload carries the counterpart range while the `Overlay` shape stays
 single-sided.
@@ -569,9 +573,11 @@ a config factory; the real provider is resolved from the credential-bearing
 config map at tool-creation time, not at registration time
 ([E-07](e-07-model-providers.md)).
 
-Plugin tools ([E-05](e-05-plugin-system.md)) use the same `Tool` interface via
-gRPC translation, so plugin-provided tools and built-in tools are
-interchangeable from the pipeline's perspective.
+A plugin manifest can declare flow tools (`capabilities.tools`), and the
+registry can list a tool it cannot build (`ToolRegistry.RegisterMetadata`), but
+the host registers no plugin tool, so a flow runs the built-in tools. A plugin
+reaches a flow through its formats and its segmentation engines
+([E-05](e-05-plugin-system.md)).
 
 ### Tool groups (pluggable backends)
 
@@ -783,7 +789,7 @@ type makes the wrong writes unrepresentable.
 | Handler | View | May write |
 | --- | --- | --- |
 | `Annotate(BlockView)` | source + target read-only | overlays, annotations, properties |
-| `Produce(VariantView)` | source read-only | target content, plus the above |
+| `Produce(VariantView)` | source read-only | derived editions (translations, and tone or channel editions by key), plus the above |
 | `Transform(BlockView)` | source + target read-only | an edit plan the framework applies to source |
 
 - **Analysis and check** tools (`qa`, `term-check`, `entity-extract`, the
@@ -848,7 +854,22 @@ which a file of strings has nowhere to keep.
 
 A tool that genuinely needs
 the maximal surface (`script`, which runs arbitrary JavaScript) overrides
-`Process` instead and self-gates source mutation behind its own flag.
+`Process` instead and self-gates source mutation behind its own flag
+(`allowSourceMutation`). The script hands back a whole block, and
+`change.Diff(before, after)` turns the pair into operations, each guarded by
+the revision of the edition it changes: `set_content` for an edition added or
+rewritten, `replace_text` where one text edit with every inline code kept
+describes the change, and `remove_edition`. They apply through
+`change.ApplyBlock` as the `script` tool, so a whole-block write meets the same
+rules as a typed one.
+
+The same function lets a run show what it would do. Under `--print-ops`
+(`kapi exec <tool>`, `kapi run`, `kapi up`, and the flow porcelains such as
+`kapi translate` and `kapi pseudo-translate`), the run commits through a home
+that writes nothing, and the difference between each block as the reader gave
+it and as the writer received it becomes the change set the run prints, which
+`kapi apply` applies ([E-09](e-09-the-change-contract.md#flows)). `ksed
+--print-ops` prints the operations its substitutions compile to the same way.
 
 #### Transformer placement
 
@@ -884,8 +905,9 @@ rejected.
   handler function field.
 - Unhandled Part types pass through automatically; there is no risk of
   accidentally dropping Parts.
-- Plugin tools use the same interface via gRPC translation, so the pipeline
-  treats all tools uniformly ([E-05](e-05-plugin-system.md)).
+- Every content write a tool makes, through a view, an edit plan or
+  `change.Diff`, is an operation `change.ApplyBlock` applies, so one set of
+  rules guards every write ([E-09](e-09-the-change-contract.md)).
 - Schema-driven CLI flags, flow-editor config panels, and validation all share one
   schema representation, so a change to a tool's config propagates automatically.
 - IO contracts enable flow-level locale inference: the runner works out whether to
@@ -911,6 +933,7 @@ rejected.
 - [E-01: The processing engine](e-01-processing-engine.md): how tools compose into flows
 - [E-02: The format system](e-02-format-system.md): readers and writers bracket the tool chain
 - [E-04: Flows and I/O binding](e-04-flows-and-io-binding.md): a flow is composition only; tool = unit, binding = the ends
-- [E-05: The plugin system](e-05-plugin-system.md): plugin tools
+- [E-05: The plugin system](e-05-plugin-system.md): plugin formats and segmentation engines
+- [E-09: The change contract](e-09-the-change-contract.md): the operations every tool write becomes, the file home a flow commits through, and `--print-ops`
 - [E-06: Execution trust](e-06-execution-trust.md): the exec class and how a recipe arms it
 - [E-07: Model and translation providers](e-07-model-providers.md): provider injection into model-backed tools

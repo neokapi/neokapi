@@ -141,9 +141,11 @@ and returns a Promise of a JSON string.
   command given no `-p` does, and outside any project a document is a path
   under that directory. `actor`, which only an apply takes, is
   `{kind, name, session}` with `kind` either `person` or `agent`. Without
-  one, the change set is a person's, as `kapi apply` records one. An agent's
-  term, memory and recipe operations and its review decisions are refused,
-  as they are over MCP.
+  one, the sender is the one `kapi apply` records in the same environment: a
+  person, unless `KAPI_ACTOR` or an agent host's marker says otherwise. An
+  agent's term, memory and recipe operations, its decisions other than a
+  pre-review (`advise`), an `if_match` of `*` and the `report` gate are
+  refused as `not_permitted`, as they are over MCP.
 - **One service.** The calls build the change service through
   `host.ReadChangesJSON`, `host.ApplyChangesJSON` and
   `host.DescribeChangesJSON`, from the same function the MCP edit tools use

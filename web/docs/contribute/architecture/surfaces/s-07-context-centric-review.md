@@ -2,7 +2,7 @@
 id: s-07-context-centric-review
 sidebar_position: 7
 title: "S-07: The review model"
-description: "A review decision is made at a point. Host assembles one review model per unit, from the retrieval primitives every other surface uses, and every review client renders it: the desktop queue, the CLI, the MCP tools, and any host that records a decision with an identity."
+description: "A review decision is made at a point. Host assembles one review model per block, from the retrieval primitives every other surface uses, and every review client renders it: the desktop queue, the CLI, the MCP tools, and any host that records a decision with an identity."
 keywords: [neokapi, architecture decision, review, context, coordinates, voice profile, terms, neighbourhood, prior version, provenance, review queue, MCP]
 ---
 
@@ -10,18 +10,18 @@ keywords: [neokapi, architecture decision, review, context, coordinates, voice p
 
 ## Summary
 
-A reviewer decides **at a point**. The unit under decision sits in a document,
+A reviewer decides **at a point**. The block under decision sits in a document,
 at a coordinate, governed by a voice profile and a vocabulary, beside the blocks
 that precede and follow it, after a version that was approved before it.
 
 Review consumes the two retrieval primitives
-[C-06](../context/c-06-retrieval.md) defines: *what applies here* for the unit's path, and *what do we know about
+[C-06](../context/c-06-retrieval.md) defines: *what applies here* for the block's path, and *what do we know about
 this* for its content. Host assembles one **review model** from those answers,
-once per unit, and every client renders it. The desktop's detail pane and the
+once per block, and every client renders it. The desktop's detail pane and the
 MCP `review_block` tool receive the same object; a client that draws a subset
 chooses it in its own projection, and every client receives the whole.
 
-Content is reviewed unit by unit. What kapi learned about how a project writes
+Content is reviewed block by block. What kapi learned about how a project writes
 is reviewed differently: as discovery in a **digest** that reads as news and
 never gates the work (below).
 
@@ -30,7 +30,7 @@ The bar the design is held to is an invariant:
 > **A reviewer sees at least what the model was told.**
 
 The reference is the tool configuration the translate call received for that
-unit. `prompt.Context` (`core/ai/prompt/context_sections.go`) enumerates what a
+block. `prompt.Context` (`core/ai/prompt/context_sections.go`) enumerates what a
 translate prompt carries about a block beyond the block: its key, the blocks
 before it, the blocks after it, and the prior approved version. Each of those is
 a field of the review model, and a reflection test in `host`
@@ -43,10 +43,10 @@ the way `check-run-projection.sh` holds every run projection to `RUN_KINDS`.
 The engine has a context graph, coordinate axes, per-point governance,
 run-anchored findings and a version chain. A review client addresses a
 `(file, key, locale)` triple and, on its own, can reach only the two texts and
-the unit's status. The point is resolved on every request to select which
+the block's status. The point is resolved on every request to select which
 checkers run; the neighbourhood is read from disk to build the prompt; the
 content-memory match is fetched to seed the draft. Each of these exists at the
-moment the unit is translated and is gone by the time it is reviewed, unless
+moment the block is translated and is gone by the time it is reviewed, unless
 something keeps it.
 
 The review clients differ in who is behind them. The desktop queue is the
@@ -74,36 +74,41 @@ answers that already exist and serves it unchanged to every client.
 Provenance is named provenance. A card labelled Context that holds only this row
 is mislabelled.
 
-Provenance carries the decision **in force**. `core/state` keeps one record per
-(scope, unit, variant) and `Put` overwrites it; the model exposes what the store
-holds and invents no chain. A client that wants a chain wants a store change,
-which is a [C-04](../context/c-04-unit-state-and-decisions.md) decision.
+Provenance carries the decision **in force**. `core/state` records each
+decision as an entry in an append-only, content-addressed ledger, keyed by the
+block, the edition and the pairing it blessed (the source and translation
+revisions), and a checkout's view points at the entry for the pairing its files
+hold; `Put` appends an entry. The model exposes the entry that applies and
+invents no chain over the others
+([C-04](../context/c-04-block-state-and-decisions.md)). Every write to the
+edition sits in the block history, which the Review page lists beside it
+([S-02](s-02-kapi-desktop.md)).
 
-### One queue, and every unit in it belongs to a language
+### One queue, and every block in it belongs to a language
 
-The queue is a single list of the units awaiting a person. Each row names the
+The queue is a single list of the blocks awaiting a person. Each row names the
 language it belongs to (`language`), and the row whose language is the
 project's source carries `isSource`. Listing every language lists the source
-language's units among the translations; a language filter narrows the list, and
+language's blocks among the translations; a language filter narrows the list, and
 the result carries the pending count per language beside it, so a surface offers
 the languages that have work rather than a lane switch.
 
 A row's `status` is its rung on its own ladder: `translated` for a queued
-translation, and the settled authoring rung for a source unit, with `held`
+translation, and the settled authoring rung for a source block, with `held`
 marking one the project's `translate_after` level is holding the fan-out on.
 
 `host.App.ReviewQueue` derives it, merging the target derivation and the source
 derivation over one project read. The listing is unified and the storage is not:
 a source decision is recorded under the source locale variant and a target
-decision under the target's, as [C-04](../context/c-04-unit-state-and-decisions.md)
+decision under the target's, as [C-04](../context/c-04-block-state-and-decisions.md)
 defines them.
 
 ### The decision set is the same on every client
 
 A reviewer has two verdicts on a target: **approve**, which establishes it,
-and **reject**, which drops it to `draft` so the unit re-enters the work queue.
+and **reject**, which drops it to `draft` so the block re-enters the work queue.
 The rungs are the target ladder
-[C-04](../context/c-04-unit-state-and-decisions.md) defines, and the ship gates
+[C-04](../context/c-04-block-state-and-decisions.md) defines, and the ship gates
 read them. There is one human rung, and no second rung above it. An agent reviews
 ahead of the person with a score and its reasons, which the queue shows and
 which never count as a decision.
@@ -140,23 +145,23 @@ decides it.
 
 The model is one Go type, `core/review.Context`, which `host` names
 `ReviewContext`. `App.AssembleReviewContext` assembles it and attaches it to
-the unit (`ReviewUnitInfo.Context`) when a client asks for a unit with its
+the block (`ReviewUnitInfo.Context`) when a client asks for a block with its
 context. The point carries the language it was resolved for, because a term
-rule resolves per language. The queue itself stays a list of units; a file's
-point is resolved once per queue and shared by its units.
+rule resolves per language. The queue itself stays a list of blocks; a file's
+point is resolved once per queue and shared by its blocks.
 
 The type sits in the framework, below the licence line, because two hosts
 assemble it. The platform's REST review context is the same struct embedded
-whole, with the rows only the platform holds beside it: the unit's own address
+whole, with the rows only the platform holds beside it: the block's own address
 there, the positioned term hits its document surface marks, the block's notes,
-and the unit's voice score against its profile's bar. Where the two venues
+and the block's voice score against its profile's bar. Where the two venues
 hold the same fact, one spelling and one scale carry it: the memory match is an
 integer percent on both, a neighbour carries its rung on both, and the decision
 in force carries its rung on both. The conversions the venues share (the match
 percent, the prior version judged against the fingerprint of the context the
 current target was produced under, the term rules led by the ones bearing on
 the wording) are functions in `core/review`, and a test in the server holds
-its assembler to the host's over one unit.
+its assembler to the host's over one block.
 
 The TypeScript both frontends read is generated from the same structs
 (`packages/contract-types/src/review.gen.ts`, by `make generate-contract-types`,
@@ -165,10 +170,10 @@ fails to compile in the one that ignores it. The clients are:
 
 | Client | How it renders the model |
 | --- | --- |
-| Kapi Desktop ([S-02](s-02-kapi-desktop.md)) | the queue's detail pane: the five shared cards over the model, and the document view opening at the unit with review state drawn as marks |
+| Kapi Desktop ([S-02](s-02-kapi-desktop.md)) | the queue's detail pane: the five shared cards over the model, and the document view opening at the block with review state drawn as marks |
 | `kapi status --review` ([S-01](s-01-kapi-cli.md)) | the queue as a table, `--lang` narrowing it to one or more languages, and as JSON with `--json` |
 | MCP `review_block` ([S-03](s-03-agent-surfaces.md)) | the model whole, with the reference and revision of the edition under review, as the read leg before a pre-review sent through `apply_edits`; `review_queue` lists the queue with its per-language counts and each row's reference |
-| A review surface over the REST editor | the queue as a list with the focused unit beside it: the same five cards over the same model, the findings anchored on the target, with the three verdicts under them |
+| A review surface over the REST editor | the queue as a list with the focused block beside it: the same five cards over the same model, the findings anchored on the target, with the three verdicts under them |
 
 A host that records a review decision with an identity is a client of this
 model by shape: the layers are the contract, whatever renders them.
@@ -179,12 +184,12 @@ The rendering is shared. One card per layer lives in `@neokapi/ui-primitives`
 `ProvenanceCard`, each on the folding `LayerCard`), and each card takes its
 layer of the generated model as its prop. A review shell hands its layers to
 the cards and keeps what is its own: Kapi Desktop's `ReviewPage` owns the
-verdict bar, the AI actions and the source-unit pane; the REST review surfaces
+verdict bar, the AI actions and the source-block pane; the REST review surfaces
 own the target editor, the anchored marks on the target, the re-check and the
 term and voice-rule dialogs, and pass the platform's own rows (the term hits,
 the score against the bar, the latest block note, the check issues on the
 error and warning scale) as the cards' extra props. A row a venue leaves empty
-draws the card's own empty case, so the same unit reads the same way on either
+draws the card's own empty case, so the same block reads the same way on either
 surface. The origin kinds, the decision states, the tone a finding takes and
 the neutral chip a term rule takes are all named once, in the cards.
 
@@ -195,14 +200,14 @@ configuration assembly the flow runner uses, `App.ToolConfigForUnit` in `host`,
 never from a hand-written map. Eight fields carry context into the translate tool (term
 rules, profile, memory, point, reuse, DNT, context, context window), and an
 equality test holds the review path to the flow path over all eight. The AI
-pre-review judge scores against the same assembly, so it judges the unit against
+pre-review judge scores against the same assembly, so it judges the block against
 the voice and vocabulary in force rather than against a bare pair of strings.
 
 ### Source review is review, in the source language
 
 Judging the author's wording and judging a translation of it are the same act on
 different content, at rungs of the two ladders
-[C-04](../context/c-04-unit-state-and-decisions.md) defines. Both render the
+[C-04](../context/c-04-block-state-and-decisions.md) defines. Both render the
 same review model, so a reviewer approving source wording sees the voice it is
 approved against, and a source decision is recorded with the same identity a
 target decision carries.
@@ -217,7 +222,7 @@ wording the reviewer read.
 ### What a source change does to an undecided target
 
 A decision records the source it was taken against, and coverage grades a
-decided unit stale once the source moves away from that basis. An undecided
+decided block stale once the source moves away from that basis. An undecided
 translation gets the same anchor from the loop itself: every document a run
 writes is recorded as the flow's `content.edit`, and the block history keeps,
 for each translation the run produced, the revision and the hash of the source
@@ -231,24 +236,24 @@ translations exist on disk and the history records nothing.
 
 Coverage grades the basis of both classes alike, by the revision of the
 source, so a changed link counts as a source change as much as a changed word.
-A source change under an undecided target grades the unit stale, the plan counts
-it, and the next pass re-drafts it with the old wording still on disk. Only a decision moves a unit on
+A source change under an undecided target grades the block stale, the plan counts
+it, and the next pass re-drafts it with the old wording still on disk. Only a decision moves an edition on
 its ladder. A target that no longer holds the revision the flow left was taken
 over by a person; the next read records that change as observed, with no
-author and no basis, and the unit grades as basis unknown and is left alone and
+author and no basis, and the block grades as basis unknown and is left alone and
 reported. No host clears targets to force the loop's attention. A venue's own
 worker records the basis of the drafts it writes, and a push carries the basis
 a run on a checkout recorded (see below), so the venue grades both alike. The
 server venue grades by the revision of the source as well, taken under the
 project's source language, so a changed link reads stale there as it does in
-coverage on a checkout ([C-04](../context/c-04-unit-state-and-decisions.md#unit-state-is-unit-keyed-and-bound-to-the-pairing-it-blessed)).
+coverage on a checkout ([C-04](../context/c-04-block-state-and-decisions.md#unit-state-is-unit-keyed-and-bound-to-the-pairing-it-blessed)).
 
 The server's translation worker reads the same ledger. A target whose recorded
 basis is stale is owed a draft, a target the ledger has no record of is left
-alone, and a decided unit is drafted once per source change: the worker marks
+alone, and a decided block is drafted once per source change: the worker marks
 the row with the source it drafted against, beside the decision it may not
-replace, and the next pass counts the unit as awaiting review rather than as
-work ([C-04](../context/c-04-unit-state-and-decisions.md)).
+replace, and the next pass counts the block as awaiting review rather than as
+work ([C-04](../context/c-04-block-state-and-decisions.md)).
 
 ### A push carries decisions; the venue decides
 
@@ -268,10 +273,10 @@ agent, tool, or external) and the surface. A pulled translation's write names no
 venue's own record holds it. Each write goes until the venue has applied a
 push that carried it, and again when it changes. The venue records them after
 the decisions, reading each item's blocks, translations and ledger rows once:
-on a unit nobody has decided, the basis becomes the unit's ledger record, as
+on a block nobody has decided, the basis becomes the block's ledger record, as
 the basis of one of its own drafts does, so a translation a run on the
 checkout produced is graded stale once its source moves; a tool's write from a
-recorded source marks the unit drafted against it; a write about another
+recorded source marks the block drafted against it; a write about another
 translation than the one the venue holds leaves the basis and the draft mark
 alone; and a write by hand records its author.
 
@@ -285,9 +290,9 @@ apart.
 
 A verdict made in the venue records what governed it, the way a verdict made in
 a project does: the voice profile the venue's own ladder resolves for the
-unit's collection and locale, and the term rules its workspace holds, folded by
+block's collection and locale, and the term rules its workspace holds, folded by
 the function every producer stamps with
-([C-04](../context/c-04-unit-state-and-decisions.md)). It reaches the ledger,
+([C-04](../context/c-04-block-state-and-decisions.md)). It reaches the ledger,
 the content memory the approval promotes to, and the project's record on the
 next pull, so a decision made in either place answers the staleness question
 against one definition of the context in force.
@@ -300,11 +305,11 @@ the payload named. The project's own record then retires the refused verdicts to
 the same basis, which is what stops the next push sending them again.
 
 A rejection is held to the translation it names before the gate is asked. One
-whose translation the venue has since replaced is dropped: the unit keeps its
+whose translation the venue has since replaced is dropped: the block keeps its
 rung, its ledger record and its draft mark, the refusal is counted as a demotion
 the venue did not apply, and the venue's record travels back for the project to
 take. A rejection of the translation the venue holds lands, and clears the
-platform's mark that it has drafted the unit, so the next run drafts it again.
+platform's mark that it has drafted the block, so the next run drafts it again.
 
 The other direction is held to one question. A push that lowers a target the
 venue holds at `established`, keeping the translation and the source the
@@ -373,7 +378,7 @@ with the least screen has the same facts as the one with the most.
 ## Related
 
 - [C-02: Coordinates and governance](../context/c-02-coordinates-and-governance.md): the point a decision is made at
-- [C-04: Unit state and decisions](../context/c-04-unit-state-and-decisions.md): what a decision records
+- [C-04: Block state and the decision record](../context/c-04-block-state-and-decisions.md): what a decision records
 - [C-06: Context retrieval](../context/c-06-retrieval.md): the two primitives Review consumes
 - [S-01: The kapi CLI](s-01-kapi-cli.md): `kapi status --review` and `kapi apply`
 - [S-02: Kapi Desktop](s-02-kapi-desktop.md): the queue, the document view and the digest

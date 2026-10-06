@@ -29,7 +29,7 @@ whoever edited.
 
 <RoundTripDiagram
   animated
-  hub={{ label: "Content model", sub: "Block · Run · Target" }}
+  hub={{ label: "Content model", sub: "Block · Run · Edition" }}
   forward={[
     { label: "Source", sub: "file / store", role: "io" },
     { label: "Reader", sub: "+ skeleton" },
@@ -150,8 +150,8 @@ the JSX vocabulary is one the default registry loads.
 
 Inline runs are styled through the **vocabulary registry**. The vocabulary packs
 are canonical as a Go embed in `core/model/vocabularies`; `packages/ui/src/vocabularies`
-carries a byte-identical mirror, and `scripts/check-vocab-packs.mjs` holds the
-two equal in `make lint`. Resolving a run's type yields display information: a
+carries a byte-identical mirror, and `scripts/format-ops/check-vocab-packs.mjs`
+holds the two equal in `make lint`. Resolving a run's type yields display information: a
 category, a label, HTML and display templates, a chip label, a colour, an
 equivalence text, and editing constraints. An **unknown** type is not an error:
 the registry synthesizes an entry from a default fallback, interpolating the
@@ -220,12 +220,12 @@ vocabulary registry).
 The kit holds no commit path, which keeps it dependency-light UI every one of
 those consumers shares. A host that edits builds the commit beside the viewer on
 the change service. Kapi Desktop's document view does: a click on a block in the
-Preview puts it in focus, and Edit opens the unit's source, or the translation
-the view shows, in an editor under the document. The editor reads the unit
+Preview puts it in focus, and Edit opens the block's source, or the translation
+the view shows, in an editor under the document. The editor reads the block
 through the service, draws each inline code as a chip and a plural a form at a
 time (a translation's own plural, which the read lists beside the block), and
 saves a `set_content` with the revision it read; the document is
-inspected again once the change lands. A unit that changed since it was read is
+inspected again once the change lands. A block that changed since it was read is
 refused with the text it holds now, which the editor shows before asking to
 apply the edit over it ([S-02](s-02-kapi-desktop.md)).
 
@@ -273,9 +273,11 @@ change set through `kapi apply` or its MCP tools ([S-03](s-03-agent-surfaces.md)
 Within the content model and its interchange family
 ([M-06](../multilingual/m-06-content-packages.md)):
 
-- **Targets** are first-class records: runs plus status, origin, and score.
+- **Editions** are first-class records: runs plus status, origin, score and the
+  edition each was derived from, the source under the empty edition key beside
+  each translation (KBF schema 2.0).
 - **Annotations** are the block-scoped typed carrier; the block file carries
-  blocks, targets, and properties, and the JSON-Lines sidecar carries annotation
+  blocks, their editions, and properties, and the JSON-Lines sidecar carries annotation
   overlays with their anchor kinds.
 - **The skeleton** is the binary skeleton store ([E-02](../engine/e-02-format-system.md)).
 

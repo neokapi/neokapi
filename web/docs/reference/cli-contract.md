@@ -190,7 +190,7 @@ For block-level content streaming (rather than run progress), `kapi inspect --js
 
 ## Change sets: `kapi apply`
 
-`kapi apply` reads a `kapi.change/v1` change set: one JSON object with its operations under `ops`, JSONL with the envelope fields on the first line and one operation per line, or a JSON array of operations. `kapi apply --schema` prints its JSON Schema, generated from the Go types and pinned by a golden file (`core/change/testdata/schema.golden.json`). Decoding is strict: an unknown field or operation is refused with its JSON pointer. The entry shape `kapi apply` read before (`kind`, `file`, `id`, `content_hash`) is refused with a message naming the operation that takes its place. A change set with no operation (`"ops": []`) applies and changes nothing.
+`kapi apply` reads a `kapi.change/v1` change set: one JSON object with its operations under `ops`, JSONL with the envelope fields on the first line and one operation per line, or a JSON array of operations. `kapi apply --schema` prints its JSON Schema, generated from the Go types and pinned by a golden file (`core/change/testdata/schema.golden.json`). Decoding is strict: an unknown field or operation is refused with its JSON pointer. An entry of the earlier shape (`kind`, `file`, `id`, `content_hash`) is refused with a message naming the operation that takes its place. A change set with no operation (`"ops": []`) applies and changes nothing.
 
 Every position in a change set names the edition at the revision its operation's `if_match` names: an edit's `start` and `end`, a run `range`, and the run index of a `path`. When an earlier operation of the set changed the same edition, `kapi apply` moves each position past that change, so the fixes `kapi check --json` prints for different words of one block apply together (`kapi check --json | jq '{ops: [.findings[].fix | select(.)]}' | kapi apply -`). A position inside text an earlier operation changed is refused as `guard` with subcode `overlap`, naming both operations. A `find` matches the text as the earlier operations left it.
 
@@ -208,7 +208,7 @@ An application reads and changes content through one of four channels. Each carr
 
 | Channel | For | How |
 | --- | --- | --- |
-| The Go library | a Go program | `host.App.ChangeService` builds the change service for a project, with the recipe's formats, its governance and its history; `core/change` with `core/change/filehome` builds one over a directory. The service has `Read`, `Apply` and `Describe`. |
+| The Go library | a Go program | `host.App.ChangeService` builds the change service for a project, with the recipe's formats, its governance and its history; `core/change` with `core/change/filehome` builds one over a directory. The service has `Read`, `Apply`, `Describe` and `History`. |
 | `kapi apply -` | a program in any language that can start a process | write a change set to standard input; with `--json` the `kapi.change-result/v1` result arrives on standard output, and the exit status follows [Change sets](#change-sets-kapi-apply). `kapi inspect --jsonl` is the matching read. |
 | MCP over standard input and output | an agent host, or any MCP client | `kapi mcp` serves `read_blocks`, `apply_edits`, `describe_format` and the rest of the [MCP tools](/reference/mcp). |
 | The browser build | a web page | `@neokapi/engine` loads the WebAssembly build of kapi and calls the functions of its [engine ABI](/contribute/implementation/surfaces/wasm-engine-abi). |
@@ -273,18 +273,16 @@ return them in the same report, and the `check_report_warnings` golden in
 for the codes.
 
 The edit tools carry the change contract
-([E-09](/contribute/architecture/engine/e-09-the-change-contract)), and their
-names and schemas are a documented break of this surface. `read_blocks` reads
+([E-09](/contribute/architecture/engine/e-09-the-change-contract)). `read_blocks` reads
 a document's blocks with the `ref` and `rev` each operation names, and
 `review_block` reads one block's review picture with the `ref` and `rev` of the
-edition under review; together they cover what `extract_content` and
-`review_unit` read. `apply_edits` takes a `kapi.change/v1` change set: its input
+edition under review. `apply_edits` takes a `kapi.change/v1` change set: its input
 schema is the change-set schema, which the snapshot records in full, with the
 per-call `project` added. Its result is a `kapi.change-result/v1` document, an
 error result when the change set is refused or lands only in part.
 `describe_format` reports what each operation supports in a format. A
 pre-review is a `decide` operation with outcome `advise` sent through
-`apply_edits`, where `pre_review_unit` recorded one. `review_queue` rows carry
+`apply_edits`. `review_queue` rows carry
 the `ref` that `review_block` takes.
 
 A person sends the same change sets with `kapi apply` (see
@@ -292,10 +290,11 @@ A person sends the same change sets with `kapi apply` (see
 `evidence` field. A term or a content-memory pair is a decision about the
 project: applying one records one `edit` operation in that project's history,
 established from the start, and `evidence` says where the wording behind it was
-seen: a file (`path`, `unit`, `quote`) or a web page (`url`). A change set
+seen: a file (`path`, `block`, `quote`) or a web page (`url`). A change set
 takes no actor: `apply_edits` sends every change set as the calling agent in
-the server's session, so the context policy refuses its term, content-memory
-and recipe operations, and `kapi apply` records the person or agent its
+the server's session, so the change policy refuses its term, content-memory
+and recipe operations, a `decide` other than `advise`, an `if_match` of `*` and
+the `report` gate, and `kapi apply` records the person or agent its
 environment names. See
 [Growing context](/kapi/context-decisions).
 

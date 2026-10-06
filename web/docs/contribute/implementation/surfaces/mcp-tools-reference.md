@@ -172,10 +172,11 @@ read it rather than a prose copy.
 themselves rather than through the SDK's typed path: each result is encoded once
 with HTML escaping off and set as both the structured content and the text
 content, so the `<x id="…"/>` placeholders a block's text holds reach the client
-as written. Their output schemas are declared envelopes
-(`readBlocksOutputSchema`, `applyEditsOutputSchema`,
-`describeFormatOutputSchema`), because the run model nests and the tool
-descriptions name a page's fields.
+as written. `read_blocks` and `describe_format` declare their output schemas
+as envelopes (`readBlocksOutputSchema`, `describeFormatOutputSchema`), because
+the run model nests and the tool descriptions name a page's fields;
+`apply_edits` declares the generated result schema,
+`changeschema.ResultSchema()`.
 
 `apply_edits` registers through `Server.AddTool` and reads the raw arguments.
 Its input schema is `changeschema.Schema()` with `project` added; the handler
@@ -207,11 +208,11 @@ a reference that names no source file (the file of a translation), and the
 project's state directory is created at the first commit. `review_block` reads
 the block through the same service, in the project's own source language, to
 report the canonical reference and the revision of the edition under review,
-then answers with `ReviewUnitWithContext`, addressing the unit by the file the
+then answers with `ReviewUnitWithContext`, addressing the block by the file the
 recipe writes that edition to.
 
 An advise lands through `RecordAIReviews`, under `agent/<client>`. It needs a
-score, and one the review queue has no unit for is refused as `not_found` once
+score, and one the review queue has no row for is refused as `not_found` once
 the content beside it was written, which makes the change set `partial`.
 
 The tool sets are `mcpToolSets` in `host/mcp_sets.go`. `pruneMCPToolSets`
@@ -227,4 +228,9 @@ input schemas and addresses may only be extended. Renaming a tool, removing one,
 changing a field's type, or moving an address breaks agent integrations already
 in the field and needs an explicit decision: regenerate with
 `KAPI_UPDATE_GOLDEN=1` and record it in
-[the CLI contract](/reference/cli-contract).
+[the CLI contract](/reference/cli-contract). A second test,
+`TestMCPToolSurfaceExtendsFrozen`, holds the tools to
+`testdata/mcp_tools.frozen.json`, frozen with kapi.change/v1 for a release and
+never regenerated: a tool may be added and an input schema extended, and a
+removed or renamed tool or field, a changed type or a newly required field
+fails.

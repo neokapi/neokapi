@@ -109,21 +109,21 @@ builds the service for the tab's project with `desktop` as the origin, so the
 commit check governs every edit and the block history records it, and it sends
 every change set as the person at the keyboard.
 
-A surface that changes content reads the unit it shows through `Read` and sends
+A surface that changes content reads the block it shows through `Read` and sends
 what the person does with the revision it read:
 
 - The Review page edits a translation, or a source row's wording, in the
   inline-code editor: each code is a chip the person types beside, and the text
   goes back in the placeholder form the read showed, so a code the edit kept is
-  the code the edition holds. A plural is edited a form at a time, each form in
-  the same inline-code editor inside `PluralTargetEditor`, so every code keeps
-  its id whatever it displays, and each changed form is a `set_content`
-  addressed by the path the read lists. An AI proposal is accepted as the same
+  the code the edition holds. A plural or select is edited a branch at a time, each branch in
+  the same inline-code editor (inside `PluralTargetEditor` for a plural), so
+  every code keeps its id whatever it displays, and each changed branch is a
+  `set_content` addressed by the path the read lists. An AI proposal is accepted as the same
   `set_content`.
-- Approve and Reject send `decide`, Reject with the reviewer's note on the
+- Approve and Reject send `decide` with the outcome `establish` or `reject`, Reject with the reviewer's note on the
   change set. A parked draft, which reads as `absent`, is decided as `absent`.
-  Approving the clean units of a view reads each one as it approves it and runs
-  its checks again; a unit whose text is no longer what its row lists, or that
+  Approving the clean blocks of a view reads each one as it approves it and runs
+  its checks again; a block whose text is no longer what its row lists, or that
   now trips a check, stops the batch with its row brought up to date.
 - A check finding whose rule names a replacement carries its fix, the
   `replace_text` `kapi check` reports, and the Checks panel sends it as it is.
@@ -152,7 +152,7 @@ catalog whose collection names a target lands in the file the target names
 (`po/fr.po`), never in the source catalog. A check's fix sent again finds its
 words by the text the finding quotes, and is offered only while those words are
 plain text in the text as it stands. The
-Review page lists the unit's recorded changes under its provenance, read from
+Review page lists the edition's recorded changes under its provenance, read from
 the block history through `History`, and its provenance names the person or the
 agent whose recorded change produced the text in force.
 
@@ -249,7 +249,7 @@ and says "still working" until nothing has been added for two minutes.
 Each operation shows its kind, its actor with the machine an agent ran on, the
 rule or wording it is about, its status (`suggested`, `established`,
 `contested`, `withdrawn`, `dropped` or `reverted`, with a contested entry
-reading "Contested by #n"), and its evidence: the file, the unit and the
+reading "Contested by #n"), and its evidence: the file, the block and the
 quotation. Evidence is on the card rather than behind a disclosure for
 anything awaiting a decision, so reviewers can assess the supporting text.
 
@@ -520,7 +520,7 @@ the package manager.
 - [C-03: The context store and graph](../context/c-03-context-store-and-graph.md): the workspace the home screen reads and the operation log it follows
 - [C-11: Context operations](../context/c-11-context-operations.md): the operations the feed shows and the policy behind its decisions
 - [C-02: Coordinates and governance](../context/c-02-coordinates-and-governance.md): the coordinate points the home maps and the axes the settings edit
-- [C-04: Unit state and decisions](../context/c-04-unit-state-and-decisions.md): what the review queue records
+- [C-04: Block state and the decision record](../context/c-04-block-state-and-decisions.md): what the review queue records
 - [C-06: Context retrieval](../context/c-06-retrieval.md): the guide the explorer renders
 - [C-07: Voice profiles](../context/c-07-voice-profiles.md): the profile the Voice page resolves and edits
 - [S-01: The kapi CLI](s-01-kapi-cli.md): the shared credential store and config home

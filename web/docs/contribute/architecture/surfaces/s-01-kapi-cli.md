@@ -15,7 +15,7 @@ import { PhaseFlow } from "@neokapi/docs-shared";
 `kapi` is the binary a person types. It is a thin [Cobra](https://github.com/spf13/cobra)
 shell (`cli/`) over the cobra-free host runtime (`host/`), assembled in
 `kapi/cmd/kapi`. Verbs are grouped by intent rather than by subsystem (*Work*,
-*Translate*, *Assets*, *Advanced*), and every one of them runs either ad hoc on
+*Languages*, *Assets*, *Advanced*), and every one of them runs either ad hoc on
 files you name or inside a project, which the CLI finds by a git-style upward
 walk for a `kapi.yaml` recipe. Three contracts make the surface scriptable: one
 output-format resolution shared by every command, one exit-code table, and one
@@ -83,12 +83,12 @@ lands in is the decision about who it is for.
 | Group | What lives there |
 | --- | --- |
 | **Work** | the loop over a project's own content: bringing it up to date, checking it, reading its status, recording decisions, applying an edit, asking what context applies, and the project-composition verbs |
-| **Translate** | the guardrailed built-in flows over files you name: a real translation pass and its pseudo-translation pre-flight |
+| **Languages** | the guardrailed built-in flows over files you name: a real translation pass and its pseudo-translation pre-flight |
 | **Assets** | the standing resources a project draws on: content memory, terms, voice profiles, models, credentials |
-| **Advanced** | the plumbing the porcelain composes, and the machinery around it: one named flow, one registry tool, the bilingual hand-off, the package verbs, block-level inspection and measurement, the registry listings, plugin management, configuration, the assistant hooks, and the MCP server |
+| **Advanced** | the plumbing the porcelain composes, and the machinery around it: one named flow, one registry tool, the bilingual hand-off, the package verbs, block-level inspection and measurement, the registry listings, plugin management, configuration, and the MCP server |
 
-Version, update, and shell-completion stay ungrouped, and registry tools render
-no root group at all. The [command reference](/reference/commands/up) is
+Version, update, telemetry and shell-completion stay ungrouped, registry tools render
+no root group at all, and `kapi hook` is hidden. The [command reference](/reference/commands/up) is
 generated from the binary, so it is the current list rather than this prose.
 
 Two verbs carry the layering explicitly. `kapi run <flow>` executes one named
@@ -237,7 +237,7 @@ the code symbol mirroring the exit code:
 ```json
 {
   "error": "failed to connect to server",
-  "code": "gate"
+  "code": "unreachable"
 }
 ```
 

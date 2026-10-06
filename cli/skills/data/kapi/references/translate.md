@@ -8,8 +8,8 @@ voice profile, and terms in a project first; see [project.md](project.md).
 
 **A single file you just need translated** (a document, a deck, one catalog):
 translate it directly. There is nothing to set up. `kapi extract` with no `-o`
-reads a *project's* content config (on a loose file it fails with "no .kapi
-project found"); the ad-hoc form `kapi extract <files> -o work.kpz --target-lang
+reads a *project's* content config (given loose files it fails, asking for
+`-o <work.kpz>`); the ad-hoc form `kapi extract <files> -o work.kpz --target-lang
 <lang>` builds a `.kpz` workspace instead and needs no project. For one file,
 just round-trip it:
 
@@ -138,9 +138,9 @@ profile and terms still apply. Format is detected from the extension and
 written back unchanged (round-trip), preserving structure, tags, and placeholders.
 
 When a source block has changed since it was last translated, `translate` sends
-the block's own prior approved translation to the model as reference
-(`--reuse prior`, the default), so the model revises the settled wording rather
-than starting over; `--reuse none` turns that off. Fuzzy memory matches are
+the block's own prior approved translation to the model as reference, so the
+model revises the settled wording rather than starting over; `kapi exec
+translate --reuse none` turns that off (`--reuse prior` is the default). Fuzzy memory matches are
 never sent to the model; `recycle` applies them before translation.
 
 ## Bring a project up to date (status → up → review)

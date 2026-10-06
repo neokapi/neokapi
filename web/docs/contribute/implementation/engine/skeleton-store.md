@@ -139,12 +139,16 @@ predicates. `streamingFeed(reader, preReadContent)` is true when the reader
 declares `StreamingReader` and nothing pre-read the source;
 `wireSkeleton(reader, writer, streaming)` then picks
 `NewWiredStreamingSkeleton` when the writer also declares `StreamingWriter`,
-and `NewWiredSkeleton` otherwise. The other call sites (`host/toolrun.go`, the
-toolbox edit, convert and archive paths, `host/venue/source`) call
-`NewWiredSkeleton` directly and fail the file on error. The runner closes the
+and `NewWiredSkeleton` otherwise. The file home's pass
+(`core/change/filehome/pass.go`), through which a change set commits, makes the
+same choice: `NewWiredReadSkeleton` for a read, `NewWiredStreamingSkeleton` when
+both ends stream and nothing pre-read the document, and `NewWiredSkeleton`
+otherwise. The other call sites (`host/toolrun.go`, the same-format conversion
+in `host/toolbox_conv.go`, `host/venue/source`) call `NewWiredSkeleton`
+directly and fail the file on error. The runner closes the
 store explicitly on each error path and at completion rather than through a
-single `defer`, because the writer outlives the function through the
-temp-then-rename output.
+single `defer`, because the writer outlives the function through the staged
+output the file home commits (`filehome.Home.Produce`).
 
 ## Locating blocks in the source (`core/format/extent.go`)
 
@@ -443,4 +447,5 @@ The writer tries three modes in order:
 | `core/formats/html/roundtrip_test.go` | Byte-exact, translation, and attribute round-trip tests |
 | `core/formats/json/streamscanner.go`, `tokenstream.go` | The streaming JSON tokenizer and the seam the walk reads through |
 | `core/flow/filerunner.go` | `streamingFeed` and `wireSkeleton`: the per-run streaming and skeleton decision |
+| `core/change/filehome/pass.go` | The file home's read, streaming and buffered passes and the seam each one wires |
 | `host/toolrun.go` | `NewWiredSkeleton` on the tool path, failing the file on error |

@@ -13,8 +13,8 @@ import { PipelineDiagram } from "@neokapi/docs-shared";
 ## Summary
 
 `@neokapi/i18n-react` extracts translatable content directly from React and JSX
-source at build time, producing `Block` records whose `Source` is a typed
-`Run[]`, the framework's canonical inline-content model
+source at build time, producing `Block` records whose source edition is a
+typed `Run[]`, the framework's canonical inline-content model
 ([F-02](../foundations/f-02-content-model.md)). An inline JSX element with
 children becomes a paired open/close run triple in its parent's sequence, so
 `<p>Click <a href="/docs">here</a> to read.</p>` extracts as **one** block whose
@@ -53,6 +53,9 @@ An SWC-AST walker (`src/extract/walker.ts`) descends each module looking for
 translatable JSX. Translatability comes from element vocabulary plus
 user-supplied `componentMap` and `rules`. For each translatable element the
 walker emits a block whose source run sequence is built by `extract/runs.ts`.
+The blocks are written as KBF schema 2.0 (`@neokapi/kapi-format`), where a
+block holds its content as peer editions: the source under the empty edition
+key, each translation under its locale.
 
 The element vocabulary has one definition. `plugin/defaults.ts` holds the W3C
 HTML5 translatability table: which elements' text belongs to the translator,
@@ -93,7 +96,7 @@ placeholders, or further pairs:
 | `<strong>{count}</strong>` | open + placeholder + close |
 | `<a>read <em>the</em> docs</a>` | open + text + open + text + close + text + close |
 
-This makes the translator the unit of decision: a German translation can wrap
+This leaves the decision with the translator: a German translation can wrap
 the link around a different word, and a French one can move it elsewhere in the
 sentence.
 
@@ -248,7 +251,8 @@ wrong or invalid JSX.
 The package exposes one build adapter per bundler (`./vite`, `./webpack`,
 `./rollup`, `./esbuild`), the runtime (`./runtime`, with `./runtime/pseudo` for
 the pseudo locale), the head hooks (`./head`), the review layer (`./review`,
-`./review/hosted`, `./review/manifest`), the ship-status picker (`./ship`), and
+`./review/hosted`, `./review/manifest`), the ship-status picker (`./ship`,
+with `./ship/react`), and
 two more that exist for hosts the adapters cannot reach:
 
 - `./loader` is a plain webpack loader, named by a path string in
@@ -345,7 +349,8 @@ so an out-of-band translation or check pass shows up without a restart.
 
 ### A review is a diff
 
-A reviewed target is written into the block's own file as a target run. The
+A reviewed target is written into the block's own file as the block's edition
+for that locale, recorded as a person's edit. The
 obvious alternative, a review database with comments, states, and an approve
 button, was rejected.
 
@@ -427,7 +432,7 @@ caller asks for gated locales only. A locale that ships but is not established
 is AI work and is the only case this layer badges. Display labels derive from
 each locale code as its endonym through `Intl.DisplayNames`, so no per-locale
 label table is needed; an explicit label still wins, for the codes `Intl` cannot
-name. See [C-04](../context/c-04-unit-state-and-decisions.md) for what the gates
+name. See [C-04](../context/c-04-block-state-and-decisions.md) for what the gates
 mean.
 
 ## Consequences
@@ -473,7 +478,7 @@ mean.
 - [F-03: Identity](../foundations/f-03-identity.md): content-addressed block identity
 - [E-02: The format system](../engine/e-02-format-system.md): how an extractor plugs into the pipeline, and the readers that share the translatability table
 - [E-03: The tool system](../engine/e-03-tool-system.md): the tools that consume extracted blocks
-- [C-04: Unit state and decisions](../context/c-04-unit-state-and-decisions.md): the ship and established gates the picker reads
+- [C-04: Block state and the decision record](../context/c-04-block-state-and-decisions.md): the ship and established gates the picker reads
 - [M-06: Content packages](../multilingual/m-06-content-packages.md): the interchange files review reads and writes
 - [S-06: The visual editor data model](s-06-visual-editor.md): the vocabulary that styles these runs
 - [React i18n guide](/react/introduction): the user-facing documentation

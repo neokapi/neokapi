@@ -1,12 +1,12 @@
 ---
-id: c-04-unit-state-and-decisions
+id: c-04-block-state-and-decisions
 sidebar_position: 4
-title: "C-04: Unit state and the decision record"
-description: "Architecture decision: a project's authored unit state (the review ladder, approvals, parking) lives in an append-only, content-addressed decision ledger in core/state. An entry applies where the revisions of the translation and the source it blessed match the content (its hashes, for an entry recorded before revisions), so one ledger serves every checkout of a project; the .kapi/state/ shards are what a snapshot writes and an import reads."
+title: "C-04: Block state and the decision record"
+description: "Architecture decision: a project's authored block state (the review ladder, approvals, parking) lives in an append-only, content-addressed decision ledger in core/state. An entry applies where the revisions of the translation and the source it blessed match the content (its hashes, for an entry recorded before revisions), so one ledger serves every checkout of a project; the .kapi/state/ shards carry one checkout's view of it as text, which kapi context import reads."
 keywords: [project state, decision ledger, core/state, review, approval, convergence, append-only, content-addressed, commit, revision, basis, targetHash, architecture decision, neokapi]
 ---
 
-# C-04: Unit state and the decision record
+# C-04: Block state and the decision record
 
 ## Summary
 
@@ -18,12 +18,12 @@ project's **work**, and that work is itself two kinds of thing:
   ladder reachable from content. Rebuildable; it lives in the cache under
   `.kapi/work/cache/` and is ignored. Delete it and a re-run reconstructs
   identical results.
-- **Authored unit state**: a person approving a translation, parking a unit, or recording who reviewed what. This is *not* derivable from
+- **Authored block state**: a person approving a translation, parking a block, or recording who reviewed what. This is *not* derivable from
   anything; it must be **kept**.
 
 Authored state needs a carrier a plain target file cannot provide: such a file
 contains target text but no record of its approval. `core/state` is
-that carrier, a first-class, format-independent record of where each unit
+that carrier, a first-class, format-independent record of where each block
 stands, distinct from both the derived cache and the recycle content memory
 ([C-09](c-09-content-memory.md)).
 
@@ -33,7 +33,7 @@ review queue derived from it) is [Convergence](/kapi/convergence) and
 
 ## Context
 
-The convergence model derives a project's per-locale standing: per `(unit,
+The convergence model derives a project's per-locale standing: per `(block,
 locale)`, a monotone ladder (`draft → translated → established`) and a source
 ladder (`written → established`). The lower rungs are derivable from content:
 an absent target is below the ladder, a present non-empty target is at least
@@ -54,7 +54,7 @@ The model already expresses these facts (`model.TargetStatus`,
 independent of the deliverable format. The danger is overloading an existing
 store, in particular the content memory, which is content-keyed leverage, not
 project state. Conflating *have we ever translated this string?* (recycle,
-content-keyed) with *is this unit established, by whom?* (state, unit-keyed) is a
+content-keyed) with *is this block established, by whom?* (state, block-keyed) is a
 category error: the two have different keys and different lifecycles.
 
 ## Decision
@@ -67,7 +67,7 @@ two are separated:
 | Kind | Examples | Home | Authoritative? |
 | --- | --- | --- | --- |
 | Derived | parsed blocks, coverage, rungs reachable from content, the overlays a producer serves a draft from | `.kapi/work/cache/`, and the checkout's projection at `.kapi/work/store.db` | no: rebuildable, ignored |
-| Authored unit state | approvals, parking, reviewer, notes | the decision ledger (`core/state`) in the project's context store | yes |
+| Authored block state | approvals, parking, reviewer, notes | the decision ledger (`core/state`) in the project's context store | yes |
 | A parked locale's drafts, and the edits made to them | the text of translations whose files a gate withholds | the workspace home (`core/workhome`) in the project's context store | yes, until a delivery writes them to their files |
 
 The cache may *mirror* authored state in transit, but it never *owns* it. A
@@ -84,7 +84,7 @@ decision on a delivered translation binds to the revision its file holds.
 The content memory ([C-09](c-09-content-memory.md)) is the **recycle corpus**: a
 content-keyed pool of source→target pairs reused to pre-fill and leverage future
 work. It does not record review outcomes. Adding a pair to the memory (a
-`memory` operation through `kapi apply`) is recycle leverage; approving a unit
+`memory` operation through `kapi apply`) is recycle leverage; approving a block
 (a `decide` operation through `kapi apply`) writes the state store. An approved pair may *also* land in
 the memory as leverage, but that is a side effect, not where the record lives.
 
@@ -94,7 +94,7 @@ Decisions are content-addressed entries in an **append-only ledger**. Updates
 and withdrawals append new entries. Each entry contains the decision record,
 actor, origin and a timestamp assigned by Go.
 
-The entry's key identifies the unit **and its source/target pairing**: `(document, unit
+The entry's key identifies the block **and its source/target pairing**: `(document, block
 identity, variant, basis, revision)`, beside the source and target hashes, which
 an entry recorded before revisions carries alone. That is what makes the ledger
 answerable across checkouts, and it is the same fact the `blesses` edge carries
@@ -138,7 +138,7 @@ text in that pairing came to be.
 
 The ledger holds decisions only. An entry decides something when it carries a
 review state (an approval or a rejection, of a translation or of source
-wording), a rung above translated, a parked unit, an assignee, a note, or an
+wording), a rung above translated, a parked block, an assignee, a note, or an
 agent's pre-review, which is a `decide advise` (`state.UnitState.Decides`).
 `WorkStore` refuses an entry that decides nothing with
 `state.ErrDecidesNothing`: a translation, the source it was made from and the
@@ -201,23 +201,23 @@ later entry speaks for that text, whether or not its revisions are still the
 content's, and of the entries that answer the latest does. A later withdrawal is
 therefore never undone by an older entry for the same text, even after an
 inline code moves under it. Different
-translations of a unit have separate ledger entries, two that differ in an
+translations of a block have separate ledger entries, two that differ in an
 inline code alone among them. Checkouts with identical source and translation
 share the same decision, regardless of branch.
 
 The ledger and each checkout's view carry the revisions beside the hashes (store
 migration 8). A store written before revisions gains the two columns empty, and
 nothing rewrites an entry to add them: it answers by its hashes until the next
-decision on its unit records the revisions.
+decision on its block records the revisions.
 
-Each checkout maintains a derived **view** of its current unit pairings. Content
+Each checkout maintains a derived **view** of its current block pairings. Content
 changes, including branch switches, rebuild this view without modifying the
 ledger. `WorkStore.ClearView` clears only the checkout's view; decisions remain
 available if their source and target pairing appears again.
 
 ### Recording is durable; the shards are an artifact
 
-`Put`, `Record` and `RecordEntry` append to the ledger and are durable at once.
+`Put` and `RecordEntry` append to the ledger and are durable at once.
 No separate publish or commit step is required.
 
 The log is the source of the decisions, and the shards under `.kapi/state/`
@@ -233,17 +233,17 @@ backend or a transfer file ([C-03](c-03-context-store-and-graph.md)).
    project's decisions this way when its store has never held them. A record read
    in this way is recorded in the order that leaves this
    checkout's view where it was: the lines whose pairing it already holds go
-   last, so a record carrying several branches' answers for one unit cannot
+   last, so a record carrying several branches' answers for one block cannot
    repoint it. `state.CommittedDigest`, over each shard's name and bytes and stamped
    per checkout in `state_meta`, is the fast path for an import that would find
    nothing: the same key-and-value shape the block cache uses for its extraction
    stamps ([C-03](c-03-context-store-and-graph.md)).
 
-**One line per unit, sharded by document**, rather than one JSON array. A single
+**One line per block, sharded by document**, rather than one JSON array. A single
 indented document means one approval rewrites every byte of the file: the diff
 for a one-word change is the whole project, two branches touching unrelated
-documents conflict on sight, and a run approving many units moves orders of
-magnitude more bytes than it writes. A line per unit makes an approval a one-line
+documents conflict on sight, and a run approving many blocks moves orders of
+magnitude more bytes than it writes. A line per block makes an approval a one-line
 diff; a shard per document keeps a documentation edit from churning the shard
 holding the interface strings.
 
@@ -269,12 +269,16 @@ reports what it refused. An actor class with narrower or wider rights is a chang
 in that one function rather than at each call site, which is why actor and origin
 ride on every entry.
 
-### Unit state is unit-keyed and bound to the pairing it records {#unit-state-is-unit-keyed-and-bound-to-the-pairing-it-blessed}
+### Block state is block-keyed and bound to the pairing it records {#unit-state-is-unit-keyed-and-bound-to-the-pairing-it-blessed}
 
-State is keyed by the **unit**: `(document, unit identity, variant)`, where the
-variant is the locale plus any further qualification, not by content.
+State is keyed by the **block**: `(document, block identity, variant)`, not by
+content (`state.Key`: `Scope`, `Unit`, `Variant`). The block is named by the
+identity its reader gives it, and the
+variant is an edition key (`model.EditionKey`): the locale plus any further
+qualification. The surfaces that show a decision name the same three as the
+document, the block and the edition.
 
-The document is identity, not a label beside it. A unit id is unique inside its
+The document is identity, not a label beside it. A block id is unique inside its
 document and nowhere wider: a reader names blocks by what the format gives it,
 and for prose those names follow position, so every page of a documentation
 collection carries an `h`, a `p` and an `fm_title`. Keyed on less, one page's
@@ -309,7 +313,7 @@ definition every party uses:
 - `targetHash` and `contentHash`: the content hashes of the two halves
   (`state.TargetHash`, and `state.SourceHash`, which is
   `model.ComputeContentHash`, the same normalization `core/reconcile` matches
-  identity on, so a unit's basis by hash and its identity signal are one
+  identity on, so a block's basis by hash and its identity signal are one
   number).
 
 A record is graded by its revisions where it carries them, and by its hashes
@@ -360,7 +364,7 @@ source language cannot change once its venue holds content, since every stamped
 revision and every basis is taken under it.
 
 A record is **stale** when either half no longer matches what the project holds.
-Editing an approved translation drops the unit back below *established*; rewriting
+Editing an approved translation drops the block back below *established*; rewriting
 its source does the same. Binding only the target is the half-measure that lets a
 reviewer's blessing outlive the sentence it blessed: the translation stays
 `translated`, stays approved, and ships wording for text the project no longer
@@ -373,7 +377,7 @@ the review queue, the ship gate, the convergence plan), and a restored source
 converges back onto the decision already on record, with nobody re-reviewing
 anything.
 
-A stale unit tallies at `draft`: a committed target exists, so it is not below the
+A stale block tallies at `draft`: a committed target exists, so it is not below the
 ladder, but it is not a translation of the current source either. It withholds its
 scope from shipping **whether or not a ship gate applies**. A coverage bar is a
 threshold on quantity, and no threshold makes a translation of a rewritten
@@ -385,7 +389,7 @@ coverage rollup and read by every surface that reports one. A scope is
 **shippable** when a ship gate matches it, it clears the gate, and nothing
 withholds it. It is **withheld** when it is short of a matching gate or a
 withhold applies: stale wording, a rejected translation, a failing check, or a
-unit the terms govern with no terminology result. It is **not gated** when no gate
+block the terms govern with no terminology result. It is **not gated** when no gate
 matches and nothing withholds. A not-gated scope carries no shippable claim:
 `kapi status` and `kapi up` name it not gated, and `ship.json` records
 `state: not_gated`. It keeps the two-field reading `gated: false`,
@@ -393,15 +397,15 @@ matches and nothing withholds. A not-gated scope carries no shippable claim:
 spread over several collections takes the weakest state among them.
 
 **Stale is work, not only a report.** The convergence fan-out treats a
-basis-stale unit exactly as it treats one with no translation at all: it is in
+basis-stale block exactly as it treats one with no translation at all: it is in
 the pending set on any scope (gated or not, since the `draft` tally would
 otherwise read an ungated scope as complete), it is priced in `kapi up --plan` on
 the same recycle-versus-AI split, and the pass produces a translation of the
 source the project has now. The server venue derives the answer from its
 ledger by revision: one grouped query grades every recorded basis against the
-revision of the current source, and a stale unit is withheld from the produced count until a pass has
+revision of the current source, and a stale block is withheld from the produced count until a pass has
 drafted it, so a run started by a source change has pending work and produces.
-For a unit nobody has decided, the venue's ledger row carries the basis of the
+For a block nobody has decided, the venue's ledger row carries the basis of the
 latest draft: one its own run made, or one a run on a checkout made, which the
 push carries beside the decisions
 ([S-07](../surfaces/s-07-context-centric-review.md#a-push-carries-decisions-the-venue-decides)).
@@ -410,19 +414,19 @@ replaces a decision, and it leaves an undecided row's rung, note and assignee
 as they were. A translation a checkout pulled from the venue sends no basis,
 since the venue's own record of it already holds one.
 
-**Only an approval re-stamps the basis.** What clears a stale unit is the next
+**Only an approval re-stamps the basis.** What clears a stale block is the next
 decision on it, and one kind of decision: a reviewer looking at the re-drafted
 translation and saying it stands, on the source in front of them and under the
 governance in force where they are deciding. That verdict binds both halves of
 the basis, the source and the governing fingerprint, and the readers that
-grade the unit compare against it, so the unit reads current on the source axis
+grade the block compare against it, so the block reads current on the source axis
 and clears the staleness gate on the governance axis
 ([C-05](c-05-freshness.md)). The never-over-a-decision rule holds: the approval
 IS the decision.
 
 A **rejection** records the verdict, the rejected translation and the reviewer.
 It preserves the basis recorded by the last approval or by the run that
-produced the translation, so the unit's staleness remains unchanged. A
+produced the translation, so the block's staleness remains unchanged. A
 translation the loop produced and nobody has decided has its basis in the
 block history, as the flow's write that left it
 ([C-03](c-03-context-store-and-graph.md#edits-are-recorded-as-content-edit)), and
@@ -436,18 +440,18 @@ pairing answers whether a translation renders the source the project holds. It
 says nothing about whether the project stands behind that translation, and a
 reviewer turning down a translation of the source in front of them moves neither
 half, so
-a reader grading the basis alone sees a settled record over a unit sitting at
+a reader grading the basis alone sees a settled record over a block sitting at
 `draft` with a refusal on it. The verdict is therefore read beside the basis: a
-rejected unit is owed a draft until the venue has drafted it again since the
+rejected block is owed a draft until the venue has drafted it again since the
 rejection.
 
 Each venue answers "since the rejection" from what it already keeps. On the
 server it is the draft mark, which the rejection clears and the next pass
 stamps, so one rejection buys exactly one draft and a second rejection buys one
 more. Locally it is the decision's target half: the rejection names the
-translation it refused, a pass that drafts something else moves the unit off
+translation it refused, a pass that drafts something else moves the block off
 that pairing, and the decision stops applying. Neither venue can loop, and a
-pass that reproduces the refused wording word for word leaves the unit exactly
+pass that reproduces the refused wording word for word leaves the block exactly
 where it was, held out of shipping rather than quietly delivered.
 
 The count is published beside the stale split rather than inside it. A
@@ -457,25 +461,25 @@ folding it in would break the subset relation the derive depends on. It is
 `rejected_awaiting_draft_blocks` on the dashboard stats, and
 `DecisionBasisTally.RejectedOwed` in the ledger's grouped tally, where it holds
 the rejections `Stale` does not, so the two are disjoint. A convergence pass
-owes a draft for `Owed + RejectedOwed` units, which is the number the derive
+owes a draft for `Owed + RejectedOwed` blocks, which is the number the derive
 withholds from the produced count and the number the worker's own predicate
-partitions out. Such a unit holds its scope out of shipping on both venues,
+partitions out. Such a block holds its scope out of shipping on both venues,
 exactly as a stale one does.
 
-**A decided unit is re-drafted once per source change.** The re-draft cannot
+**A decided block is re-drafted once per source change.** The re-draft cannot
 decide, so a stale decision stays stale until a person re-reviews, and a loop
-that read only the decision would draft the unit again on every pass. Each
+that read only the decision would draft the block again on every pass. Each
 venue keeps its own record of what it last drafted. Locally, the content memory
 absorbs the re-drafted pairing and the next pass recycles it rather than paying
 for it again. On the server, the ledger row carries the source the platform
-last drafted the unit against beside the decision (`unit_decisions.draft_basis`),
+last drafted the block against beside the decision (`unit_decisions.draft_basis`),
 written by the worker for every target it produces and never over the decision
-itself. A stale unit whose mark names the current source is owed nothing by the
-loop: it counts as produced again, the run converges, and the unit waits on a
+itself. A stale block whose mark names the current source is owed nothing by the
+loop: it counts as produced again, the run converges, and the block waits on a
 reviewer with its ship state withheld. A source rewritten again moves away from
-the mark, and the unit is owed once more.
+the mark, and the block is owed once more.
 
-**The stale count splits by what the unit waits on.** A stale unit the loop has
+**The stale count splits by what the block waits on.** A stale block the loop has
 not yet drafted against the source the project holds now is owed a convergence
 pass; one it has drafted is owed a person's attention. Both are stale and both
 withhold the scope, and the work is different, so the count is published as its
@@ -486,16 +490,16 @@ split from what it already holds: locally, whether the record still describes
 the translation on disk; on the server, whether the row's draft mark names the
 block's current source, which is the `Owed` half of the grouped tally. `Owed`
 stays a subset of `Stale`, which is what lets the derive subtract it from a
-produced count the stale units are already inside.
+produced count the stale blocks are already inside.
 
-Staleness is one reason a produced unit is work, and the plan carries the others
+Staleness is one reason a produced block is work, and the plan carries the others
 on their own axis. What a pass spends a provider call on is decided by the
 content memory, not by a target file: the pipeline reads the source documents,
 `recycle` fills what the corpus answers, and `translate` drafts the remainder. So
-`kapi up --plan` asks the corpus about every unit it counts, reading the
+`kapi up --plan` asks the corpus about every block it counts, reading the
 project's content memory without writing anything, so a dry run prices the
 recycling a run would do without creating the state a dry run must not. A
-produced unit the record does not pair with its source (a rewrite, an
+produced block the record does not pair with its source (a rewrite, an
 identical pair no approval stands behind, a pair refused for asymmetric inline
 codes) is reported as **unanswered** and priced. It is kept apart from `stale`:
 stale means a decision's basis moved, which also drives the review worklist and
@@ -503,15 +507,15 @@ shipping, and merging the two would make the plan and the run summary disagree.
 The plan prices only the languages the run's first pass works on, chosen from
 coverage derived as the run derives it before that pass (`localesNeedingPass`,
 with the bound checks unless the run skips them). A pass drafts every
-unanswered unit of a language it works on, and a language with nothing
+unanswered block of a language it works on, and a language with nothing
 missing, stale, rejected, failing a check or short of its gate gets no pass, so
-its unanswered units are no work and its exact lookups are not asked.
+its unanswered blocks are no work and its exact lookups are not asked.
 Whether the price is a provider call is the drafting step's own question. The
 step serves a stored draft when the project block store holds a translation of
 the same source made under its current configuration fingerprint and the
 governing context in force (`blockstore.TargetOverlay.ReusableFor`), and the
 plan puts that question to a producer built the way a pass builds one
-(`tool.StoredTargetReuser`), so the two answer it from one function. A unit the
+(`tool.StoredTargetReuser`), so the two answer it from one function. A block the
 step would serve this way is counted as a **stored draft** at no tokens; a
 parked locale's whole draft set reads this way on the run after the one that
 drafted it. The block store is a cache: the workspace home keeps each parked
@@ -521,16 +525,16 @@ lacks back before its first pass, so a checkout whose `.kapi/work/` was deleted
 serves its parked drafts without a provider call. A draft a person or an agent
 edited since is restored from the latest draft a producer wrote for it, which
 the log keeps.
-The plan judges a produced unit only once the record absorber has read its
+The plan judges a produced block only once the record absorber has read its
 committed target at the bytes on disk (the digest stamps of
 [C-03](c-03-context-store-and-graph.md)); before that the corpus is unfinished,
 its silence means "not asked", and the plan says so rather than quoting either a
 free run or a provider call per translation the run will recycle. A produced
-unit with no file on disk is a parked locale's draft, read out of the
+block with no file on disk is a parked locale's draft, read out of the
 workspace home; nothing is left for the absorber to read, so the plan judges it
 at once. What the loop
 cannot do is decide, so the re-draft never restores the withdrawn approval: the
-unit returns at its presence baseline, in the review worklist, and the scope
+block returns at its presence baseline, in the review worklist, and the scope
 stays withheld until someone reviews the new pairing.
 
 The record absorber (`host/recordabsorb.go`) follows one rule for a pairing the
@@ -551,7 +555,7 @@ rewrites a sentence and its translation together keep the pairing they authored.
 **An identical translation is a decision or it is nothing.** A target equal to
 its source is dropped: unapproved, the identity is far more often a catalog
 carrying its untranslated leaves verbatim than a translation that happens to
-coincide, and absorbing one would fill the unit from its own source and take it
+coincide, and absorbing one would fill the block from its own source and take it
 away from the AI step for good. Carrying an approval it is absorbed like any
 other pair: a person read the pairing and said this wording is right, which is
 what proper nouns, product names and short labels look like when they are
@@ -564,22 +568,22 @@ asks, so an approved identical target is not reported and does not fail the ship
 gate. The project's terms settle it the same way, for an entry whose target is
 its source. Both are one rule (`host.identicalTargetRule`) because two surfaces
 consult it: the gate `kapi check` fails on, and the check exclusions that
-demote a unit below `translated` during `kapi up`. Only that one finding is
-settled; a dropped placeholder on an approved unit is still a defect, and an
+demote a block below `translated` during `kapi up`. Only that one finding is
+settled; a dropped placeholder on an approved block is still a defect, and an
 approval licenses nothing about it.
 
 **A missing basis is unknown, not stale.** A record with no basis says nothing
 about the source it blessed, and reading that silence as drift would demote
-every such decision a project holds. Such a unit keeps its rung, ships as it
+every such decision a project holds. Such a block keeps its rung, ships as it
 does, and is *counted*: `kapi status` reports how many decisions rest on an
 unrecorded basis, so the assumption is visible rather than silent. It clears
-itself: the next decision on the unit records a basis.
+itself: the next decision on the block records a basis.
 
-A content-keyed index structurally cannot express any of this. Unit-keying plus
+A content-keyed index structurally cannot express any of this. Block-keying plus
 the pairing is what makes an approval unable to silently outlive the text it
 approved, and it is the same fact the graph's `blesses` edge carries
 ([C-03](c-03-context-store-and-graph.md)), which carries both halves, by
-revision and by hash, for that reason, so *which decision covers this unit, at
+revision and by hash, for that reason, so *which decision covers this block, at
 which basis* is answerable by traversal as well as by lookup. A connected venue
 applies the same basis rule from its side, by revision: a record that names no
 basis is unknown there too, counted and never stale.
@@ -588,7 +592,7 @@ basis is unknown there too, counted and never stale.
 
 A record also carries **what governed the answer it is about**:
 `governingFingerprint`, the fingerprint of the voice guidance and the term rules
-in force at the unit's governance point for its locale
+in force at the block's governance point for its locale
 ([C-05](c-05-freshness.md)). It is the value every translation producer stamps
 on a target's `Origin.ContextFingerprint`, computed by the one function all of
 them share (`core/profile.GovernanceContext`), so a decision and a produced
@@ -598,7 +602,7 @@ Two writers set it. A **decision** (`kapi apply`, the desktop's approve action,
 an agent's pre-review, an approval made in a connected venue)
 resolves the context in force where the decider is deciding and records it
 beside the verdict. Each decider resolves it from what it has: a project reads
-the recipe's bindings at the unit's point, a venue reads the voice profile its
+the recipe's bindings at the block's point, a venue reads the voice profile its
 own ladder resolves and the term rules its workspace holds, and both fold the
 result with the one function every producer stamps with, so the two are
 comparable. The same verdict on the same pairing under a moved context is a new
@@ -619,12 +623,12 @@ The record is the durable carrier of this value. A bilingual format keeps the
 producer's stamp beside the words, but most delivered formats hold strings and
 nothing else: a JSON catalog, a `.properties` file. A reader pairing such a
 file with its source finds what governed the translation in the record for the
-unit or nowhere. That is what the record absorber reads, in this order: the
+block or nowhere. That is what the record absorber reads, in this order: the
 target's own stamp where the format carries one, then the record row for the
-unit and locale, while that row still describes the translation on disk. The
+block and locale, while that row still describes the translation on disk. The
 value travels into the content memory beside the answer
 ([C-09](c-09-content-memory.md)), and compiling a content-memory bundle back
-into the store writes it onto the record row for the unit the answer was
+into the store writes it onto the record row for the block the answer was
 recorded for, where that row holds none and is about that translation. A record
 written before the field existed reads through the producer's stamp on its
 `origin`, which is all it has to say.
@@ -637,14 +641,14 @@ service ([E-09](../engine/e-09-the-change-contract.md)), and an agent or a model
 never records one: the service refuses a `decide` other than `advise` from an
 agent as `not_permitted`, whichever surface carries it (`kapi apply` run from an
 agent's shell, MCP `apply_edits`). An agent pre-reviews instead: it stores a
-score and its reasons on the unit (`state.AIReview`, a `decide` operation with
+score and its reasons on the block (`state.AIReview`, a `decide` operation with
 outcome `advise`, the desktop pre-review), bound to the translation it judged,
 and the person reviewing reads it in the queue. Its judgement never counts as a
 person's.
 
 An `AIReview` is a third thing again: an advisory annotation carrying a score
 and findings, bound to the translation it judged so that an edit invalidates it
-(`AIReview.Fresh`). It never moves a unit on the ladder.
+(`AIReview.Fresh`). It never moves a block on the ladder.
 
 ### A venue is authoritative for what it accepts
 
@@ -663,7 +667,7 @@ agrees again and the next push has nothing to send. Without that step the two
 folds differ for good, and every push re-sends the same refused approvals.
 
 The venue declines the other direction on the same terms. A push whose record
-takes back an established unit the venue holds, over the same translation of the same
+takes back an established block the venue holds, over the same translation of the same
 source, is a withdrawal, and the venue applies it only for a pusher holding
 review permission for the language. A refused withdrawal keeps the venue's
 record, and the report carries that record back; the project writes it into
@@ -672,7 +676,7 @@ no pull between them.
 
 A rejection is bound to the translation it judged in the same way. A pushed
 rejection of a translation the venue has since replaced changes nothing the venue
-holds: the venue keeps the unit's record, reports the rejection it did not apply
+holds: the venue keeps the block's record, reports the rejection it did not apply
 and carries its record back. The project takes that record, or keeps the basis
 without the rejection where the venue holds none.
 
@@ -687,10 +691,13 @@ to account for a file it does not have.
 
 ### The shards' location is fixed
 
-A snapshot writes decision shards under `state/` in the selected output
-directory. Import reads the same layout, conventionally `.kapi/state/`. The
-recipe has no separate binding for this directory. kapi manages and prunes the
-shards within the snapshot layout.
+A checkout's decision shards sit under `state/` in its `.kapi/` directory
+(`project.ExportLayout.UnitStateDir`), and `kapi context import <dir>` reads the
+same layout under the directory it is given. The recipe has no separate binding
+for this directory. When an import, a pull or a content-memory bundle records
+decisions into a checkout, the store writes the checkout's view back to its
+shards (`WorkStore.Commit`), one shard per document, and removes each shard whose
+document the view does not name.
 
 Getting the record *out* of kapi's own layout is a job for exchange rather than
 relocation (`kapi merge`, XLIFF `<target state=…>`, the `.kpz` bilingual
@@ -704,7 +711,7 @@ and a place for reviews done by people with no checkout. That is coordination
 *around* the record rather than a replacement for it, and a project's own record
 keeps properties no live service can:
 
-- **kapi runs on its own.** If unit state required a service, a plain kapi
+- **kapi runs on its own.** If block state required a service, a plain kapi
   project could not converge at all.
 - **The record belongs to the change that caused it.** Source drift happens in a
   pull request, and the state change belongs in that same diff, where a reviewer
@@ -714,7 +721,7 @@ keeps properties no live service can:
   alongside the source gives that.
 - **Local-first holds elsewhere too.** Redaction
   ([C-10](c-10-redaction.md)) exists so content can be withheld from a named
-  destination. A design where unit state has to round-trip that destination
+  destination. A design where block state has to round-trip that destination
   contradicts it.
 
 ### Layering: the model in `core/`, the IO with its surface
@@ -722,8 +729,7 @@ keeps properties no live service can:
 The decision ledger, a checkout's view of it, and the convergence *model* (the
 ladder types and the per-block rung helpers) live in `core/state` and
 `core/convergence`, so every surface agrees on what the rungs mean. The
-*orchestration* that reads files and computes a report stays with its IO. The CLI
-re-exports the core types through aliases so downstream code sees one import.
+*orchestration* that reads files and computes a report stays with its IO.
 
 ## Consequences
 
@@ -731,7 +737,7 @@ re-exports the core types through aliases so downstream code sees one import.
   pairing by revision and by hash, governing fingerprint, decision, updated), a
   `Key`, a `Pairing`, a `Reading` and the `Stale`/`SourceStale`/`Fresh`/
   `Established` helpers that grade a record against it, and `WorkStore`, the ledger and this
-  checkout's view of it (`Lookup`/`Get`/`Put`/`Record`/`RecordEntry`/`Delete`/
+  checkout's view of it (`Lookup`/`Get`/`Put`/`RecordEntry`/`Delete`/
   `All`/`Priors`/`Entries`, `Ledger` for the whole of it, `Commit` and
   `RecordDiff` for writing the shards, `Import` and `CommittedDigest` for
   reading them,
@@ -742,16 +748,17 @@ re-exports the core types through aliases so downstream code sees one import.
 - **Edits and decisions are two records.** `core/history` holds the block
   history `content.edit` operations project to; the ledger holds what was
   decided about a pairing ([C-03](c-03-context-store-and-graph.md)).
-- **A backup reads the ledger, a snapshot reads the view.** `Ledger` answers
-  with the entry in force at every pairing, whichever checkout recorded it, and
-  `OpenLedger` reaches it with no checkout in hand. That is what
-  `kapi context export` carries, with and without `--workspace`
-  ([M-06](../multilingual/m-06-content-packages.md)): a project whose branches
-  answer one unit differently has decided both, and a backup built from one
-  checkout's view would drop the rest. The `.kapi/` shards keep carrying the
-  view, because they are what that checkout evaluates from.
+- **A transfer file carries the log, the shards carry a view.**
+  `kapi context export` writes the project's operations, so it carries every
+  `decision.record` whichever checkout recorded it
+  ([C-03](c-03-context-store-and-graph.md)): a project whose branches answer one
+  block differently has decided both, and a backup built from one checkout's view
+  would drop the rest. `Ledger` answers with the entry in force at every
+  pairing, and `OpenLedger` reaches it with no checkout in hand. The `.kapi/`
+  shards carry one checkout's view, because they are what that checkout
+  evaluates from.
 - **Approvals flow through one verb.** A `decide` operation through
-  `kapi apply` records the unit state in the project store, addressed by the
+  `kapi apply` records the block state in the project store, addressed by the
   source document, the block and the edition `kapi status --review` lists, and
   bound to the revision the person read ([E-09](../engine/e-09-the-change-contract.md)).
   The desktop's approve action and the CLI verb share one path.

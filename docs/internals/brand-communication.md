@@ -55,6 +55,20 @@ the content. The vocabulary below is authoritative; use the right-hand column.
 Words that are **not** jargon and stay: *translate*, *translation* (the act),
 *locale*, *language*, *terminology*, *parity*, *bilingual*, *i18n*.
 
+Two words name how content is held and changed, and every surface uses them the
+same way:
+
+| Word | Means | Write it for |
+| --- | --- | --- |
+| **edition** | One version of a block's content under one key: a language, optionally with a tone and a channel. The edition the document is written in and each translation are peers. | the source text or a translation of a block, when the sentence is about the block's content in one language (`edition` in a block reference, `model.Edition`) |
+| **change set** | An ordered list of operations in the `kapi.change/v1` format, each addressed to one edition of one block and naming the revision it read. `kapi apply` and the `apply_edits` tool take one; `--print-ops` prints one. | any edit a person, tool or agent asks for, when the sentence is about what gets written |
+
+A *block* is the addressable unit of content. Write *block* where an older text
+says *unit* or *content unit*; *unit* survives only in identifiers a user never
+sees. *Home* (the place an edition's text is kept: a file, the workspace, a
+platform stream) is contributor vocabulary and reaches users only as a field in
+a result.
+
 Recast rather than substitute. "The page being localized" becomes "the page being
 translated". "A localization pipeline" becomes "the pipeline", or "the
 translation pipeline" when the sentence is genuinely about translating. "A

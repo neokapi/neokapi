@@ -28,8 +28,8 @@ protobuf in `core/proto/content/v1`, converted by `core/plugin/protoconvert`.
 Every other serialized shape (a transport envelope, a REST payload, a set of
 store columns) is an explicitly-labeled **projection**. A projection may carry
 *fewer* fields than the canonical schema, and it may add envelope properties of
-its own for the two dimensions F-04 keeps out of the canonical messages (target
-tone/channel, and per-target status, origin and score). What it may not do is
+its own for what F-04 keeps out of the canonical messages (per-edition status,
+origin and score, and the block's durable `Key`). What it may not do is
 change the meaning of a field it does carry: for those, the round-trip must be
 exact.
 
@@ -87,8 +87,8 @@ its own against the same list.
   Tone/channel ride the target map key's text form; status/origin/score ride the
   wire segment's properties.
 - **Overlays**: **every OverlayType**: segmentation (incl. an ignorable span),
-  term, entity, qa, alignment (variant-scoped) and term-candidate, each with anchors,
-  props, variant, and typed span `Value`. Typed values (`*EntityAnnotation`,
+  term, entity, qa, alignment (on a translation's edition) and term-candidate,
+  each with anchors, props, the edition it sits on, and typed span `Value`. Typed values (`*EntityAnnotation`,
   `*TermAnnotation`, …) must rehydrate to their concrete type via the payload
   registry, not a generic map.
 - **Annotations**: block-scoped typed payloads (`*Notes`, …) keyed by type name.
@@ -98,10 +98,13 @@ its own against the same list.
   round-trips by type name + JSON as a `GenericAnnotation`, never dropped or
   panicking.
 
-`Block.Identity` is **derived** (recomputed by `model.ComputeIdentity`) and is
-the only field a completeness guard allow-lists as intentionally not carried. A
-projection that wants the hash available without recomputing it carries it in
-its own envelope, as the sync wire does in `SyncBlock.content_hash`.
+Two fields are **derived**, and the sync wire's completeness guard allow-lists
+them as intentionally not carried (`venuetest.BlockDerivedFields`):
+`Block.Identity`, recomputed by `model.ComputeIdentity`, and `Block.Native`,
+which a reader records each time it reads a file and a stream, holding no file,
+has no use for. A projection that wants the hash available without recomputing
+it carries it in its own envelope, as the sync wire does in
+`SyncBlock.content_hash`.
 
 ## The conformance gate
 
@@ -184,7 +187,8 @@ recorded here because a projection is required to say what it does not carry.
   delivery connector reconstructs it **at the edge**: its write path re-reads the
   co-located **source** document, captures its skeleton with the format reader,
   and splices the reviewed targets back in, exactly the local `kapi merge`
-  round trip (`host/merge.go` `writeMergedSourceWithSkeleton`). This is always
+  round trip, which writes each edition into a re-read of the source through the
+  change service's file home (`host/merge_changes.go` `materializeEdition`). This is always
   available when the same checkout pushes and delivers, so the source sits on
   disk next to the delivery target. Pure-structure formats (json/yaml/arb/po/…) whose block set fully
   determines the file deliver byte-identically either way, so the re-parse path
@@ -192,6 +196,11 @@ recorded here because a projection is required to say what it does not carry.
   - Content held by a venue with **no** co-located source at delivery time
     degrades to the from-blocks reconstruction rather than reintroducing
     skeleton storage into the venue.
+- An edition's **derivation** (`Edition.Derived`: the edition it was made from
+  and that edition's revision) does not cross the sync wire in either direction.
+  `TestOriginFixtureIsComplete` walks `model.Origin` and no guard walks
+  `model.Edition`, so the round-trip test passes without it. KBF carries it
+  (`core/kbf/edition.go`); a pulled block reads with no recorded basis.
 - On the **proto push** path an *unregistered* overlay payload degrades to a
   `GenericAnnotation` whose `Fields` nests the payload's whole JSON (via
   `protoconvert`), whereas the JSON pull / store codecs reconstruct it exactly.

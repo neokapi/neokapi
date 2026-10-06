@@ -21,7 +21,7 @@ backend can be supplied behind the same interface.
 The content memory is the project's **recycle** corpus: a pool of source→target
 pairs reused to pre-fill and leverage future work. It is not the carrier of unit
 state. Whether a person established a particular target lives in the
-unit-state record ([C-04](c-04-unit-state-and-decisions.md)). Adding a pair to
+unit-state record ([C-04](c-04-block-state-and-decisions.md)). Adding a pair to
 the memory (a `memory` operation through `kapi apply`) is recycle leverage; it does not
 promote a unit to *reviewed*.
 
@@ -264,7 +264,7 @@ fresh. The pair is returned, source and target, because either half alone is
 worse than neither: a target with no source is an anchor with no explanation,
 and a source with no target teaches wording that must not be reused.
 
-The record absorber ([C-04](c-04-unit-state-and-decisions.md)) writes both
+The record absorber ([C-04](c-04-block-state-and-decisions.md)) writes both
 fields as it learns a committed target: the block's identity, and the governing
 context the answer stands under. The context is read from the target's own
 stamp where the format keeps one, and otherwise from the decision record for
@@ -492,7 +492,7 @@ entity mappings, so the memory accumulates richer data over time.
 
 - [C-02: Coordinates and governance](c-02-coordinates-and-governance.md): the
   context space an approval point names, and the resolver that answers it.
-- [C-04: Unit state and the decision record](c-04-unit-state-and-decisions.md):
+- [C-04: Block state and the decision record](c-04-block-state-and-decisions.md):
   the state carrier this store is not, and the absorber that teaches it.
 - [C-05: Freshness and the composite ref](c-05-freshness.md): the context
   fingerprint a prior answer is gated on.

@@ -346,7 +346,7 @@ a kapi.change/v1 change set, and on the command line every one lands through
 | --- | --- | --- |
 | `set_content`, `replace_text` | an edition of a block, named by `at` and guarded by the revision read in `if_match` | the file home's byte-faithful round-trip, refused when the edition moved or an inline code or plural would be lost |
 | `set_content` on a code comment | one comment's prose in a source file, keyed as `kapi check` reports it, its revision taken from the comment's fingerprint | the comment write path: the file must still parse and the language's formatter must agree, and what was written is checked again |
-| `decide` | a review outcome on the edition revision a person read | the decision ledger ([C-04](../context/c-04-unit-state-and-decisions.md)) |
+| `decide` | a review outcome on the edition revision a person read | the decision ledger ([C-04](../context/c-04-block-state-and-decisions.md)) |
 | `term` | a term, including every word rule (`advisory`, `competitor`) | the terms tables of the project store, with a context operation recorded |
 | `memory` | a content-memory pair | the memory tables of the project store, with a context operation recorded |
 | `recipe` | an allowlisted recipe field | the `kapi.yaml` recipe, via project load and save |
@@ -392,7 +392,7 @@ reads a queued block with the reference and revision of the edition under
 review, and `apply_edits` records a `decide` operation at that reference with
 outcome `advise`, a score from 0 to 100 and its reasons. The pre-review is
 bound to the revision the agent read and recorded as `agent/<client>`, and the
-person working the queue reads it beside the unit. An agent's `establish`,
+person working the queue reads it beside the block. An agent's `establish`,
 `reject` or `withdraw` is refused as `not_permitted`. A person's decision
 reaches the decision ledger through the desktop, `kapi apply` run as a person,
 or a hosted review session.
@@ -602,10 +602,11 @@ client that reads only `isError` still learns that nothing, or not
 everything, landed. The results are written with HTML escaping off, so the
 placeholders a block's text holds reach the agent as written.
 
-Code comments are written by the comment entries of `kapi apply`, outside the
-change service. A read or an edit of a source code file kapi reads for its
-comments is refused as `unsupported` with the capability `comment`, and an
-agent edits the comment in the file and runs `check_file` on it.
+Code comments are written by `kapi apply`, whose `set_content` on a comment
+takes the comment write path outside the change service. A read or an edit of
+a source code file kapi reads for its comments is refused as `unsupported` with
+the capability `comment`, and an agent edits the comment in the file and runs
+`check_file` on it.
 
 The transport stamps the actor: every change set `apply_edits` applies is the
 calling agent's, named by its `initialize` name, in the server's session. The
@@ -714,7 +715,7 @@ between revising content and troubleshooting the command.
 - [E-09: The change contract](../engine/e-09-the-change-contract.md): the operations, revisions, results and error codes `kapi apply` and `apply_edits` speak, and the service that applies them
 - [E-02: The format system](../engine/e-02-format-system.md): the writer capabilities behind `editable` / `round_trip` / `generative`
 - [E-06: Execution trust](../engine/e-06-execution-trust.md): why code-executing tools stay off the agent surface
-- [C-04: Unit state and decisions](../context/c-04-unit-state-and-decisions.md): what a `decide` operation records
+- [C-04: Block state and the decision record](../context/c-04-block-state-and-decisions.md): what a `decide` operation records
 - [C-06: Context retrieval](../context/c-06-retrieval.md): the two questions, and why one is a resource
 - [C-07: Voice profiles](../context/c-07-voice-profiles.md): the voice an assistant writes in
 - [M-01: Bilingual interop](../multilingual/m-01-bilingual-interop.md): the `extract`/`merge` round-trip that `inspect`/`apply` mirror on the monolingual side

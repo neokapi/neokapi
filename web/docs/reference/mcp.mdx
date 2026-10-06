@@ -457,8 +457,8 @@ invents or unbalances an inline code, or flattens a plural or select, is
 refused as `guard`. A reference that names no block is `not_found`, and so is
 a `find` that matches nothing, with the text it searched. A block the format
 reads as not translatable, such as a code block, is `unsupported`. Each
-document in `docs` carries the findings the commit check made on the edit, an
-empty list when it found nothing; a failing one refuses the change as
+document in `docs` carries the findings the edit introduced, failing or not, an
+empty list when the check found nothing; a failing one refuses the change as
 `gate_failed`, and the finding names the wording a term rule asks for.
 Every other operation of a refused change set reports `not_applied`, and the
 result is an error. The status `partial` is an error too: some of the change
@@ -472,8 +472,8 @@ translations it made stale under `invalidates`.
 `apply_edits` sends every change set as the calling agent in the server's
 session; a change set has no field that names its sender. Writing a term, a
 content-memory pair or a field of `kapi.yaml` is a person's decision, so a
-change set holding a `term`, `memory` or `recipe` operation is refused as
-`not_permitted` and writes nothing. The assistant records a term rule as a
+change set holding a `term`, `memory` or `recipe` operation, an `if_match` of
+`*` or `gate: "report"` is refused as `not_permitted` and writes nothing. The assistant records a term rule as a
 suggestion with `context_observe`, or with `context_correct` for wording it
 changed, and a person keeps it. A review decision is a person's too: an
 assistant's `decide` takes only the outcome `advise`, with the score it gives.
