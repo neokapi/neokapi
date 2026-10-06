@@ -210,7 +210,8 @@ per format" below).
 
 The store has several backings behind one API: a temp file
 (`NewSkeletonStore`), memory (`NewMemorySkeletonStore`), nothing at all for a
-pass that reads and writes no document (`NewDiscardSkeletonStore`), a
+pass that reads a document and writes none (`NewDiscardSkeletonStore`, which
+`format.NewWiredReadSkeleton` wires so a read sees the blocks a write would), a
 concurrent channel for streaming pairs (`NewStreamingSkeletonStore`), and a
 persisted file that
 outlives the process (`NewSkeletonStoreAt` / `OpenSkeletonStore`,
@@ -398,7 +399,8 @@ bold span over words that had none. The [change
 contract](/contribute/implementation/engine/change-applier) carries them as
 `set_attribute`, `mark` and a new code in a `runs` payload, and a format accepts
 each one only where its writer declares it. Four declared writer capabilities
-say what a writer can write beyond its skeleton, in `core/format/editcaps.go`:
+say what a writer can write beyond its skeleton, in `core/format/editcaps.go`
+and `core/format/structural.go`:
 
 | Interface | Declares | Used by |
 | --- | --- | --- |
@@ -989,6 +991,38 @@ part) qualifies the member's ids with the child layer's id through
 `tu1` are two ids and the qualified id still satisfies an XLIFF `xs:NMTOKEN`.
 These ids are file-local; how they become durable identity across reads is
 [F-03](../foundations/f-03-identity.md).
+
+### Editions a reader reads and a writer writes
+
+A block holds its content as peer editions
+([F-02](../foundations/f-02-content-model.md)). A reader files the edition it
+read under the zero edition key, the document's own edition, whatever language
+`SourceLocale` names. A bilingual reader (XLIFF 1.2 and 2, PO, Qt TS, TMX,
+xcstrings, CSV, KBF) also files each translation it reads under that
+translation's key and marks it with `Block.MarkNative`, so `NativeEditions()`
+lists the editions the file holds, the document's own first.
+
+A writer writes the document's own edition, and the translation filed under the
+locale its `SetLocale` names, which it reads through `TargetRuns` or
+`TargetEdition`. Readers and writers reach editions only through the accessors
+in `core/model` (`SetSourceRuns`, `SetTargetRuns`, `SetTargetEdition`,
+`SourceRuns`, `TargetRuns`), and no format package indexes `Block.Editions`
+directly. The file home (`core/change/filehome`,
+[E-09](e-09-the-change-contract.md)) chooses which edition a pass writes by
+setting the writer's locale: empty for the document's own edition, the
+edition's language for a translation in a bilingual file.
+
+KBF, the content bundle, carries the editions themselves. Schema `2.0`
+(`kbf.SchemaVersion`) gives each block an `editions` map keyed by the edition
+key's text form (`fr`, `fr;tone=formal`, `en;channel=short`), with the
+document's own edition under the empty key, and each edition holds its `runs`,
+`status`, `origin`, `score` and `derived` (the edition it was made from and that
+edition's revision). A translation a reader filed under no language rides
+beside the map as `unlabelled`. The Go reader (`core/kbf`) and the TypeScript
+reader (`@neokapi/kapi-format`) also read schema `1.0`, whose `source` runs and
+`targets` map decode into the same editions, and both writers write `2.0`. The
+[content bundle reference](/reference/serialization/content-bundle) is the
+normative schema.
 
 ### Deciding translatability
 

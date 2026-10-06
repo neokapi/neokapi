@@ -56,7 +56,7 @@ func (t *MyTool) SessionProcess(
     in <-chan *model.Part,
     out chan<- *model.Part,
 ) error {
-    overlayKind := "targets/" + string(t.targetLocale)
+    overlayKind := blockstore.TargetOverlayKind(t.targetLocale) // "targets/<locale>", canonical
     caps := sess.Capabilities()
 
     for {
@@ -68,7 +68,7 @@ func (t *MyTool) SessionProcess(
                 return nil
             }
             // Skip logic, expensive work, overlay write...
-            if err := t.handle(sess, caps.RandomAccess, overlayKind, part); err != nil {
+            if err := t.handle(ctx, sess, caps.RandomAccess, overlayKind, part); err != nil {
                 return err
             }
             select {
@@ -82,23 +82,34 @@ func (t *MyTool) SessionProcess(
 ```
 
 The per-block helper checks capabilities, consults the overlay,
-runs the core work, writes the overlay back:
+runs the core work, writes the overlay back. A stored target goes back on the
+block through `tool.WriteAs`, so it is an operation `change.ApplyBlock` applies
+as the tool, like any other write
+([E-03](/contribute/architecture/engine/e-03-tool-system)); a model setter
+called on the block directly would bypass that:
 
 ```go
-func (t *MyTool) handle(sess blockstore.Session, ra bool, kind string, part *model.Part) error {
+func (t *MyTool) handle(ctx context.Context, sess blockstore.Session, ra bool, kind string, part *model.Part) error {
     block, ok := part.Resource.(*model.Block)
     if !ok || !block.Translatable || block.ID == "" {
         _, err := t.doTheWork(part)
         return err
     }
 
-    // Hydrate from cache when possible.
+    // The overlay key: unique per source file inside a project, the block id
+    // in a single-document run.
+    key := blockstore.OverlayKey(ctx, block.ID, block.SourceText())
+
+    // Hydrate from cache when the stored target answers this source.
     if ra {
-        if sc, err := sess.GetOverlay(kind, block.ID); err == nil && len(sc.Payload) > 0 {
-            var cached myOverlay
-            if json.Unmarshal(sc.Payload, &cached) == nil && cached.Text != "" {
-                block.SetTargetText(t.targetLocale, cached.Text)
-                return nil
+        if sc, err := sess.GetOverlay(kind, key); err == nil && len(sc.Payload) > 0 {
+            var cached blockstore.TargetOverlay
+            if json.Unmarshal(sc.Payload, &cached) == nil &&
+                cached.Source == blockstore.SourceStamp(block.SourceText()) && len(cached.Runs) > 0 {
+                return tool.WriteAs(ctx, block, t.ToolName, func(v tool.VariantView) error {
+                    v.SetTargetRuns(t.targetLocale, cached.Runs)
+                    return nil
+                })
             }
         }
     }
@@ -109,11 +120,14 @@ func (t *MyTool) handle(sess blockstore.Session, ra bool, kind string, part *mod
     }
 
     // Cache the result for next time.
-    if target := block.TargetText(t.targetLocale); target != "" {
-        payload, _ := json.Marshal(myOverlay{Text: target})
+    if runs := block.TargetRuns(t.targetLocale); len(runs) > 0 {
+        payload, _ := json.Marshal(blockstore.TargetOverlay{
+            Runs:   runs,
+            Source: blockstore.SourceStamp(block.SourceText()),
+        })
         if err := sess.PutOverlay(blockstore.Overlay{
             Kind:      kind,
-            BlockHash: block.ID,
+            BlockHash: key,
             Payload:   payload,
         }); err != nil && !errors.Is(err, blockstore.ErrReadOnly) {
             return fmt.Errorf("my-tool: write overlay: %w", err)
@@ -123,17 +137,27 @@ func (t *MyTool) handle(sess blockstore.Session, ra bool, kind string, part *mod
 }
 ```
 
+A real producer also compares the configuration it would send now
+(`TargetOverlay.Config`, `TargetOverlay.ReusableFor`) before it serves a stored
+target, as `core/ai/tools/translate.go` does.
+
 ## Overlay conventions
 
 | Kind prefix          | Used by                                                                  | Payload shape                        |
 | -------------------- | ------------------------------------------------------------------------ | ------------------------------------ |
-| `targets/<locale>`   | translators (translate, pseudo-translate, human editor) | `{"runs": [...], "text": "...", "status": "...", "origin": {...}}` |
+| `targets/<locale>`   | translators (`translate`, `pseudo-translate`) and the flow's `commit-targets` step | `blockstore.TargetOverlay`: `{"runs": [...], "text": "...", "status": "...", "provider": "...", "config": "...", "source": "...", "origin": {...}}` |
 | `annotations/<name>` | term-lookup, recycle, qa checks                                      | tool-specific JSON                   |
 | `skeletons/<format>` | format writers (round-trip skeletons)                                    | opaque payload                       |
 
 The `targets/<locale>` shape is cross-tool: any translator writes
 and reads the same key, so a session hydrated by one can be
-continued by another. Keep the payload small and JSON-compatible.
+continued by another. Build the kind with `blockstore.TargetOverlayKind`,
+which writes the locale in canonical form, and the payload as a
+`blockstore.TargetOverlay`; the stores canonicalize a `targets/` kind on every
+read and write (`blockstore.CanonicalOverlayKind`). `source` is the content hash
+of the source the translation was made from (`blockstore.SourceStamp`): the
+overlay key names a block by file and id and says nothing about its wording,
+so an overlay with no source stamp serves nothing.
 
 `origin` carries the provenance the producer stamped, including the
 `ContextFingerprint` of the governing context. Most target formats
@@ -185,9 +209,10 @@ constructs the one it wants and hands it to the executor:
   Full ACID, persistent across runs. The browser build runs the same store on
   SQLite's WebAssembly build.
 - `NewFormatReaderStore(factory)`: wraps a `format.DataFormatReader` factory as
-  a read-only store. Useful for ad-hoc CLI flows (`kapi translate -i
-  file.xliff`): RandomAccess=true, Writable=false. Its `PutOverlay` returns
-  `blockstore.ErrReadOnly`.
+  a read-only store over one file, for a Go caller that runs a flow over a
+  document it does not want written back: RandomAccess=true, Writable=false.
+  Its `PutOverlay` returns `blockstore.ErrReadOnly`. No CLI command constructs
+  it.
 
 The executor receives the store via the `flow.WithBlockStore(s)` option
 (default `NewMemoryStore()`); tools never open the store directly.

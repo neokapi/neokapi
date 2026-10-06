@@ -2,22 +2,25 @@
 id: f-03-identity
 sidebar_position: 3
 title: "F-03: Identity"
-description: "Entity IDs are 8-character base62 strings from crypto/rand; a block's identity is the graded output of matching a fresh read against the previous one, on a content hash and a document-scoped context hash; and the store key namespaces that identity by source file."
-keywords: [entity ID, base62, crypto/rand, block identity, content hash, context hash, reconcile, store key, architecture decision, neokapi]
+description: "Entity IDs are 8-character base62 strings from crypto/rand; a block's identity is the graded output of matching a fresh read against the previous one, on a content hash and a document-scoped context hash; an edition revision names one edition's content; and the store key namespaces a block by source file."
+keywords: [entity ID, base62, crypto/rand, block identity, block key, edition revision, content hash, context hash, reconcile, store key, architecture decision, neokapi]
 ---
 
 # F-03: Identity
 
 ## Summary
 
-The framework has three identity primitives, each answering a different question.
+The framework has four identity primitives, each answering a different question.
 **Entity IDs** (`core/id`) are 8-character base62 strings from `crypto/rand`
 (short, URL-safe, dependency-free), used wherever something needs an allocated,
 opaque handle. **Block identity** (`core/model.BlockIdentity`) is a pair of
 content-addressable hashes that answer "is this the same content?". **Reconciled
 identity** (`core/reconcile`) answers the harder question, "is this the same
-*unit* as last time?", by grading the two hashes against the previous read
-rather than by picking a naming scheme. The block-addressed store
+*block* as last time?", by grading the two hashes against the previous read
+rather than by picking a naming scheme, and records the answer as the block's
+`Key`. An **edition revision** (`model.EditionRevision`) names the content of one
+edition of a block, so a change or a decision can say which content it was made
+against. The block-addressed store
 (`core/blockstore`) keys on a derived value that namespaces the block by its
 source file, so blocks from different files never collide.
 
@@ -35,9 +38,9 @@ by hash comparison. But format readers also assign their own IDs from the source
 format (XLIFF `tu1`, `tu2`, and so on), and those are unique only within one file.
 
 A third problem only appears once a project is iterative. A decision, a
-translation, and a content-memory entry are all recorded against a unit, and the
-source file is re-read after every edit. Something has to say which unit in the
-new read is which unit from the old one, and neither hash can answer that alone.
+translation, and a content-memory entry are all recorded against a block, and the
+source file is re-read after every edit. Something has to say which block in the
+new read is which block from the old one, and neither hash can answer that alone.
 
 ## Decision
 
@@ -147,6 +150,44 @@ reaches content already stored elsewhere. Anything a block is persisted with
 belongs in one half or the other, and anything computed rather than read belongs
 behind the advisory prefix.
 
+### Edition revisions
+
+A block holds its content as peer editions ([F-02](f-02-content-model.md)), and a
+change or a decision is about one of them. `model.EditionRevision(block, key)`
+names an edition's content: `r:` and the first 16 hex digits of the SHA-256 of
+the edition key's canonical text, a zero byte, and the edition's runs as
+canonical JSON (`model.RunsRevision`, `model.CanonicalRunsJSON`). Every key that
+reaches an edition gives the same revision, and an edition the block does not
+hold reads as `absent` (`model.AbsentRevision`).
+
+What the revision covers is chosen for the questions it answers:
+
+- **Inline codes count.** A changed link target or a removed link moves the
+  revision, where the content hash, which hashes trimmed plain text, stays put.
+- **Status and origin are left out.** A review decision changes them and no word,
+  so it binds to the revision it saw and moves none.
+- **Other editions are left out.** A derived edition records the revision of the
+  edition it was made from separately, as its derivation (`Edition.Derived`), so a
+  fix to the source wording does not refuse a concurrent save of a translation.
+  The derivation reads stale once that edition's revision moves
+  (`Block.DerivationStanding`).
+
+Being a function of content alone, one revision is valid wherever the content is
+held: a file, a server row or a store. A change set names the revision it read in
+each operation's `if_match` and lands only while the edition still has it
+([E-09](../engine/e-09-the-change-contract.md#addressing-and-revisions)). A
+recorded decision pairs two revisions, the edition it blesses (`Revision`) and the
+authoritative edition that edition was made from (`Basis`), and answers for the
+block exactly where that pairing holds
+([C-04](../context/c-04-unit-state-and-decisions.md)). Readers of one document
+file its source under different keys, so `Block.SourceRevisions` lists the
+source's revision under each, and a basis taken under any of them matches.
+
+The revision and the identity pair answer different questions. The content hash
+and the context hash say which block a read is, and stay the keys sync, the
+content memory and reconciliation match on; the revision says which content of
+which edition a write or a decision was made against.
+
 ### Two producers, two vintages
 
 Delivering a field to content already stored raises the mirror question: what
@@ -208,20 +249,20 @@ wrong words.
 
 `reconcile.Blocks(scope, current, prior)` runs four passes (both hashes, then
 content within the block's own document, then content anywhere in the project,
-then context alone), and each pass consumes the priors it claims, so a prior unit
-is claimed at most once. Two blocks can never resolve to one key, which is what
+then context alone), and each pass consumes the priors it claims, so a prior
+(`reconcile.Prior`) is claimed at most once. Two blocks can never resolve to one key, which is what
 stops approving one from approving another. Callers may pass the whole project's
-prior units while reconciling one document at a time, which is what lets content
+priors while reconciling one document at a time, which is what lets content
 moved between files keep its identity, and lets a removed block return to its own
 history later.
 
 **A block's own document is searched before the rest of the project.** Short
 strings repeat across a project, and a change to the context signal fails the
 exact match for all of them at once. Searched project-wide first, each block would
-take the first unclaimed unit with its words, often one from another document,
-and the translation and review attached to that unit would move to a different
-file. Searched in its own document first, a block keeps its own unit, and repeated
-text inside one document keeps its units in document order, which is the order a
+take the first unclaimed prior with its words, often one from another document,
+and the translation and review attached to that prior would move to a different
+file. Searched in its own document first, a block keeps its own key, and repeated
+text inside one document keeps its keys in document order, which is the order a
 venue serves priors in.
 
 **Content is graded before context**, and that settles the ambiguous case. Delete a
@@ -285,7 +326,7 @@ nothing is ever re-keyed.
 
 #### Identity across languages
 
-Everything above answers "is this the same unit as before?" within one language.
+Everything above answers "is this the same block as before?" within one language.
 Pairing a source file with its translation asks a different question, and a
 structural name cannot answer it. Ancestors' text is a legitimate naming input
 (it is what makes `getting-started/install/p` readable to the translator who opens
@@ -313,7 +354,7 @@ guard, which is the last resort for formats that compose no address.
 
 ### The store key
 
-Reconciled identity says which unit is which. The block-addressed store
+Reconciled identity says which block is which. The block-addressed store
 (`core/blockstore`) needs a second thing: one string that keys a block and its
 overlays within a project, stable across re-reads.
 
@@ -355,8 +396,8 @@ has two identities. Its **id** is time-ordered with a random suffix
 (`workspace.NewOpID`), so logs from two machines merge by union and sort into one
 order; a person types its first characters, the way a commit is named. Its
 optional **content address** names what it says: an operation whose address a
-log already holds is the one already there. A unit decision's operation carries
-the ledger entry's own content address ([C-04](../context/c-04-unit-state-and-decisions.md)),
+log already holds is the one already there. A decision's operation
+(`decision.record`) carries the ledger entry's own content address ([C-04](../context/c-04-unit-state-and-decisions.md)),
 scoped by project, and the large payloads operations name are blobs addressed by
 the SHA-256 of their bytes.
 
@@ -375,7 +416,7 @@ the SHA-256 of their bytes.
   reader can keep emitting the positional names its format actually supports, and a
   paragraph edited in place keeps the decisions recorded against it.
 - Because the store key namespaces by source file, a project can ingest twenty
-  files that each call their first unit `tu1` without a three-part composite key
+  files that each call their first block `tu1` without a three-part composite key
   appearing anywhere else in the stack.
 
 ## See also
@@ -385,4 +426,5 @@ the SHA-256 of their bytes.
 - [E-02: The format system](../engine/e-02-format-system.md): where reader-assigned IDs originate
 - [C-01: The project model](../context/c-01-project-model.md): the store the keys address
 - [C-03: The context store and graph](../context/c-03-context-store-and-graph.md): the durable content key in the graph
-- [C-04: Unit state and the decision record](../context/c-04-unit-state-and-decisions.md): what is recorded against a reconciled unit
+- [C-04: Unit state and the decision record](../context/c-04-unit-state-and-decisions.md): what is recorded against a reconciled block
+- [E-09: The change contract](../engine/e-09-the-change-contract.md): how a change names the revision it read

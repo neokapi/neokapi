@@ -177,7 +177,7 @@ id and the operation's own instant, so a rebuild writes the same rows:
 | `before`, `after`, `basis` | edition revisions, `absent` for an edition created or removed |
 | `content_hash`, `context_hash` | the block's identity signals after the change |
 | `actor`, `actor_name`, `session` | `person`, `agent`, `tool`, or `external` for a change made outside kapi that a read observed |
-| `origin` | `apply`, `ksed`, `mcp`, `browser`, `desktop`, `flow:<name>`, `merge`, `pull` or `observed` |
+| `origin` | `apply`, `ksed`, `mcp`, `browser`, `desktop`, `extract`, `context`, `flow:<name>`, `merge`, `pull` or `observed` |
 | `producer` | the producing tool's `model.Origin` as JSON, empty when the transition carries none |
 | `ops` | the kinds of the operations that changed the edition, comma-separated, empty when none explains it |
 | `tool` | the tool in a flow that changed the edition, where the record names one |

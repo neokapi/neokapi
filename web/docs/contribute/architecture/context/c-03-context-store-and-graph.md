@@ -23,7 +23,7 @@ terms, the voice profiles, the content memory, the decision ledger and the
 document adoptions ([C-04](c-04-unit-state-and-decisions.md)), the block
 history of every recorded edit, and the project's settings: team
 choices about the project that are neither content nor governance, such as the
-saved filters a team shares (`projectdb.Setting`). It is authored rather than derived,
+saved filters a team shares (`projectdb.DB.Setting`). It is authored rather than derived,
 written a little at a time, and true wherever the project is checked out. Two
 checkouts of one project, a second clone and a git worktree, share it, and each
 keeps its own view of the one ledger.
@@ -48,7 +48,7 @@ of them are established?* is answered in one pass.
 
 Context is relational. A term occurs in blocks; blocks belong to collections and
 sit at a point in the context space ([C-02](c-02-coordinates-and-governance.md));
-a state record approves a unit at a content hash; a memory entry recycles into a
+a decision approves a block's translation at a revision; a memory entry recycles into a
 block. Retrieval ([C-06](c-06-retrieval.md)) and governance
 ([C-02](c-02-coordinates-and-governance.md)) both traverse those relations rather
 than reading one store in isolation.
@@ -111,6 +111,8 @@ Queries for data outside the graph read the relevant project databases.
 | `Project` | one project's context store, created on first use |
 | `Forget` | drop one project's context store |
 | `Record` | append operations, minting an id for each that arrives without one; an id or content address the log holds is not written twice |
+| `RecordIf` | `Record`, appending only while each named subject's last operation is still at the position the writer read (`ErrHeadMoved` otherwise) |
+| `SubjectHead` | the local position of the last operation on one subject of one project |
 | `Since` | read operations back from a local arrival position |
 | `Select` | read one project's operations, or one kind's, from a position |
 | `PutBlob`, `Blob` | keep the bytes an operation names under the digest of those bytes, up to 64 MiB each |
@@ -120,7 +122,7 @@ Queries for data outside the graph read the relevant project databases.
 `Registry` and `Project` answer with handles the backend owns: a caller reads
 and writes through one and closes the backend, never a handle.
 
-One adapter ships: `workspace.Local`, the directory of SQLite files above.
+One adapter ships: `workspace.LocalBackend`, the directory of SQLite files above.
 Every machine keeps its workspace locally; a project whose context is shared
 exchanges operations with a remote, below, rather than reading through one.
 
@@ -168,8 +170,9 @@ names its blobs in its payload's top-level `blob` field and `blobs` list
 into a log that holds nothing of the project starts from the newest checkpoint
 whose segment list covers every operation up to it, and still merges every
 segment, so the history travels. The kinds `projector.LocalKinds` names never
-leave the machine: the project's registration, its checkpoints, and rules a
-person widened to the whole workspace.
+leave the machine: the project's registration and its removal
+(`project.register`, `project.forget`), its checkpoints, and rules a person
+widened to the whole workspace.
 
 What the workspace knows about a remote is kept in `workspace.db`, keyed by the
 project and the remote: the operation ids the remote holds, the segments read
@@ -417,8 +420,8 @@ edition was made from, the block's key, content hash and context hash, the
 kinds of the operations that changed it and, for a flow, the tool that changed
 it, who made the change (person, agent or tool, with a name and a session, or
 `external` for an edit made outside kapi) and through which surface (`apply`,
-`ksed`, `mcp`, `browser`, `desktop`, `flow:<name>`, `merge`, `pull`,
-`observed`). `history.Store.Wrote` answers who wrote the content an edition
+`ksed`, `mcp`, `browser`, `desktop`, `extract`, `context`, `flow:<name>`,
+`merge`, `pull`, `observed`). `history.Store.Wrote` answers who wrote the content an edition
 holds, for every writer: the change that left the edition at that revision,
 a recorded write before an observed one. `LastWrite` and `Latest` read the
 most recent change to one edition or to every edition of a document (or to
@@ -673,7 +676,7 @@ Node labels:
 | --- | --- | --- |
 | `block` | a unit of source content, keyed by its content key | instance |
 | `collection` | a content collection, keyed by its label | instance |
-| `unit_state` | one unit's state in one document, in one locale variant | instance |
+| `unit_state` | the decision state of one block in one document, for one edition | instance |
 | `concept` | a terminology concept | vocabulary |
 | `coordinate` | a point on the structural axes, a `(profile, channel)` pair | vocabulary |
 
@@ -702,7 +705,7 @@ come from a term search over the block cache (`core/occurrence`), where repeated
 uses of one term in one block fold into a `count` property rather than into
 separate edges, and the term and the locale are the edge discriminators;
 `governed_by` comes from resolving each named collection's governance; `blesses`
-joins the unit decision ledger against the block cache, so a record whose block
+joins the decision ledger against the block cache, so a record whose block
 no longer exists keeps its node and loses its edge. A unit state names its
 document by the durable key the ledger's view records
 ([C-04](c-04-unit-state-and-decisions.md)); the graph writer turns that key back
@@ -760,10 +763,10 @@ through the vocabulary they share.
 
 Within a scope, identity is **durable**: a block is its content key
 ([F-03](../foundations/f-03-identity.md)), and a unit state is its document,
-unit and variant, not a reader's positional id, so a re-parse that renumbers a
-document rewrites the same rows rather than orphaning them. The document is part
-of a unit state's identity for the reason
-[C-04](c-04-unit-state-and-decisions.md) gives: a unit id is unique inside its
+block and edition (the ledger's unit and variant), not a reader's positional
+id, so a re-parse that renumbers a document rewrites the same rows rather than
+orphaning them. The document is part of a unit state's identity for the reason
+[C-04](c-04-unit-state-and-decisions.md) gives: a block id is unique inside its
 document and nowhere wider, so without it two pages of one collection are one
 node and the decision written last answers for both.
 
@@ -815,7 +818,7 @@ by convention:
 | `ProjectsUsingConcept` | which projects use this concept |
 | `UsesByProject` | how much of it sits in each, in which words, and how it stands there at this point |
 | `CollectionsAtCoordinate` | what is governed at this point, at this instant |
-| `BlessingsOfBlock` | which decision covers this unit, at which basis |
+| `BlessingsOfBlock` | which decision covers this block, at which basis |
 | `BlocksWithContentKey` | who else holds this same wording |
 
 `core/contextgraph/graphtest` is the shared query-shape suite: one fixture of two
@@ -892,7 +895,7 @@ sets `$KAPI_DATA_DIR` as part of the isolation contract.
   context.
 - **Cross-subsystem questions are one query within a pool, and one join across
   them.** Term coverage per collection, the blocks behind a coordinate, the
-  units a term change puts at risk.
+  blocks a term change puts at risk.
 - **One transaction still covers a decision and the wording it approves.** Both
   are in the context pool, which is why they are in the same file.
 - **Store paths are not a user surface.** The recipe binds what governs a point

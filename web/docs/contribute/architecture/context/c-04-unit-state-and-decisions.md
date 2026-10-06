@@ -2,7 +2,7 @@
 id: c-04-unit-state-and-decisions
 sidebar_position: 4
 title: "C-04: Unit state and the decision record"
-description: "Architecture decision: a project's authored unit state (the review ladder, approvals, parking) lives in an append-only, content-addressed decision ledger in core/state. An entry applies where the revisions of the translation and the source it blessed match the content (its hashes, for an entry recorded before revisions), so one ledger serves every checkout of a project; the .kapi/state/ shards are what a snapshot writes and an import reads."
+description: "Architecture decision: a project's authored unit state (the review ladder, approvals, parking) lives in an append-only, content-addressed decision ledger in core/state. An entry applies where the revisions of the translation and the source it blessed match the content (its hashes, for an entry recorded before revisions), so one ledger serves every checkout of a project; the .kapi/state/ shards carry one checkout's view of it as text, which kapi context import reads."
 keywords: [project state, decision ledger, core/state, review, approval, convergence, append-only, content-addressed, commit, revision, basis, targetHash, architecture decision, neokapi]
 ---
 
@@ -217,7 +217,7 @@ available if their source and target pairing appears again.
 
 ### Recording is durable; the shards are an artifact
 
-`Put`, `Record` and `RecordEntry` append to the ledger and are durable at once.
+`Put` and `RecordEntry` append to the ledger and are durable at once.
 No separate publish or commit step is required.
 
 The log is the source of the decisions, and the shards under `.kapi/state/`
@@ -271,8 +271,11 @@ ride on every entry.
 
 ### Unit state is unit-keyed and bound to the pairing it records {#unit-state-is-unit-keyed-and-bound-to-the-pairing-it-blessed}
 
-State is keyed by the **unit**: `(document, unit identity, variant)`, where the
-variant is the locale plus any further qualification, not by content.
+State is keyed by the **unit**: `(document, unit identity, variant)`, not by
+content. The unit is a block, named by the identity its reader gives it, and the
+variant is an edition key (`model.EditionKey`): the locale plus any further
+qualification. The surfaces that show a decision name the same three as the
+document, the block and the edition.
 
 The document is identity, not a label beside it. A unit id is unique inside its
 document and nowhere wider: a reader names blocks by what the format gives it,
@@ -687,10 +690,13 @@ to account for a file it does not have.
 
 ### The shards' location is fixed
 
-A snapshot writes decision shards under `state/` in the selected output
-directory. Import reads the same layout, conventionally `.kapi/state/`. The
-recipe has no separate binding for this directory. kapi manages and prunes the
-shards within the snapshot layout.
+A checkout's decision shards sit under `state/` in its `.kapi/` directory
+(`project.ExportLayout.UnitStateDir`), and `kapi context import <dir>` reads the
+same layout under the directory it is given. The recipe has no separate binding
+for this directory. When an import, a pull or a content-memory bundle records
+decisions into a checkout, the store writes the checkout's view back to its
+shards (`WorkStore.Commit`), one shard per document, and removes each shard whose
+document the view does not name.
 
 Getting the record *out* of kapi's own layout is a job for exchange rather than
 relocation (`kapi merge`, XLIFF `<target state=…>`, the `.kpz` bilingual
@@ -722,8 +728,7 @@ keeps properties no live service can:
 The decision ledger, a checkout's view of it, and the convergence *model* (the
 ladder types and the per-block rung helpers) live in `core/state` and
 `core/convergence`, so every surface agrees on what the rungs mean. The
-*orchestration* that reads files and computes a report stays with its IO. The CLI
-re-exports the core types through aliases so downstream code sees one import.
+*orchestration* that reads files and computes a report stays with its IO.
 
 ## Consequences
 
@@ -731,7 +736,7 @@ re-exports the core types through aliases so downstream code sees one import.
   pairing by revision and by hash, governing fingerprint, decision, updated), a
   `Key`, a `Pairing`, a `Reading` and the `Stale`/`SourceStale`/`Fresh`/
   `Established` helpers that grade a record against it, and `WorkStore`, the ledger and this
-  checkout's view of it (`Lookup`/`Get`/`Put`/`Record`/`RecordEntry`/`Delete`/
+  checkout's view of it (`Lookup`/`Get`/`Put`/`RecordEntry`/`Delete`/
   `All`/`Priors`/`Entries`, `Ledger` for the whole of it, `Commit` and
   `RecordDiff` for writing the shards, `Import` and `CommittedDigest` for
   reading them,
@@ -742,14 +747,15 @@ re-exports the core types through aliases so downstream code sees one import.
 - **Edits and decisions are two records.** `core/history` holds the block
   history `content.edit` operations project to; the ledger holds what was
   decided about a pairing ([C-03](c-03-context-store-and-graph.md)).
-- **A backup reads the ledger, a snapshot reads the view.** `Ledger` answers
-  with the entry in force at every pairing, whichever checkout recorded it, and
-  `OpenLedger` reaches it with no checkout in hand. That is what
-  `kapi context export` carries, with and without `--workspace`
-  ([M-06](../multilingual/m-06-content-packages.md)): a project whose branches
-  answer one unit differently has decided both, and a backup built from one
-  checkout's view would drop the rest. The `.kapi/` shards keep carrying the
-  view, because they are what that checkout evaluates from.
+- **A transfer file carries the log, the shards carry a view.**
+  `kapi context export` writes the project's operations, so it carries every
+  `decision.record` whichever checkout recorded it
+  ([C-03](c-03-context-store-and-graph.md)): a project whose branches answer one
+  unit differently has decided both, and a backup built from one checkout's view
+  would drop the rest. `Ledger` answers with the entry in force at every
+  pairing, and `OpenLedger` reaches it with no checkout in hand. The `.kapi/`
+  shards carry one checkout's view, because they are what that checkout
+  evaluates from.
 - **Approvals flow through one verb.** A `decide` operation through
   `kapi apply` records the unit state in the project store, addressed by the
   source document, the block and the edition `kapi status --review` lists, and

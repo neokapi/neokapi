@@ -217,6 +217,26 @@ ch <- model.PartResult{Part: &model.Part{
 }}
 ```
 
+### Editions
+
+`model.NewBlock` files the text as the edition the block was read in, under the
+zero edition key, whatever language the document turns out to be in. A
+bilingual format (XLIFF, PO, TMX, a CSV with a target column) files each
+translation it reads under that translation's key and marks it as held by the
+document, so the block's `NativeEditions()` say what the file holds:
+
+```go
+block.SetTargetText(targetLocale, target)       // or SetTargetRuns / SetTargetEdition
+block.MarkNative(model.Variant(targetLocale))
+```
+
+The writer writes the edition the block was read in, and, for the locale its
+`SetLocale` names, the translation it reads with `block.TargetRuns(locale)` or
+`block.TargetEdition(locale)`. Reach editions only through these accessors in
+`core/model`; a format never indexes `Block.Editions` itself. The file home
+picks which edition a pass writes by the locale it sets on the writer
+([E-02](/contribute/architecture/engine/e-02-format-system)).
+
 ### Subfilter Support
 
 If the format can contain embedded content (e.g., HTML strings inside JSON),
@@ -516,8 +536,11 @@ skeleton + build-from-blocks.
 
 A writer that can write a changed attribute of an inline code implements
 `format.AttrWriter`; one that can write a new paired code of a vocabulary type
-implements `format.CodeSynthesizer` (`core/format/editcaps.go`). The registry
-probes both at registration into `FormatInfo.EditCapabilities`, and the change
+implements `format.CodeSynthesizer` (`core/format/editcaps.go`). One that can
+add or remove a whole block implements `format.StructureEditor`
+(`core/format/structural.go`), and format-specific operations are a
+`format.NativeEditor`. The registry probes all four at registration into
+`FormatInfo.EditCapabilities`, and the change
 service passes the writer to `change.ApplyBlock` through
 `change.WriterCapabilities`, so `set_attribute`, `mark` and a new code in a
 `runs` payload apply exactly where the writer declares them.
@@ -557,6 +580,10 @@ cells on two attributes and a refusal cell. Declare refusals as cells too, with
 the reason, and give the fixtures the contexts that change how markup reads
 (text wrapped over lines, a backslash, a character the syntax treats as
 markup), so a cell shows the bytes around the edit stay as written.
+
+A `StructureEditor` declaration is proved the same way in the structural
+operations matrix (`core/formats/opsmatrix_structural_test.go`), which fails
+while a declared operation has no passing cell.
 
 ## Registration
 
@@ -626,7 +653,7 @@ Read, modify block targets, write, verify translated values appear:
 ```go
 func TestTranslation(t *testing.T) {
     // Read input
-    // Set target text on blocks
+    // Set a target edition on each block (SetTargetRuns)
     // Write with skeleton store
     // Verify output has translated values in correct positions
 }
@@ -683,7 +710,9 @@ Before submitting a new format:
 - [ ] Reader emits `PartLayerStart` → blocks/data → `PartLayerEnd`
 - [ ] Skeleton store: coalescing buffer in reader, `writeFromSkeleton` in writer
 - [ ] Writer fallback chain (skeleton → re-parse or build-from-blocks)
+- [ ] A bilingual reader marks each translation it files with `MarkNative`
 - [ ] Any `AttrWriter` or `CodeSynthesizer` declaration has capability-matrix cells
+- [ ] Any `StructureEditor` declaration has structural-matrix cells
 - [ ] No write-side regex/byte post-processing of serialized output (see [the no-regex convention](#write-side-post-processing-the-no-regex-convention)); any Okapi-reproduction exception documents the mirrored class/method
 - [ ] Registered in `core/formats/register.go`
 - [ ] Byte-exact roundtrip tests (with and without skeleton store)
