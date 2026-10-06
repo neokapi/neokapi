@@ -56,18 +56,31 @@ type StatusOutput struct {
 	Conflicts []StatusConflict `json:"conflicts,omitempty"`
 }
 
-// StatusConflict is an edit to a kept draft that did not land, or wording a
-// translation's file does not hold.
+// StatusConflict is an edit to a kept draft that did not land, wording a
+// translation's file does not hold, or a version of a KPZ's document that did
+// not land.
 type StatusConflict struct {
+	// Kind is "edit", "file" or "document" (ConflictEdit, ConflictFile,
+	// ConflictDocument).
+	Kind string `json:"kind"`
 	// Doc is the source document, Locale the draft's language, and Blocks
 	// the units concerned. Edit is the recorded edit (content.edit) a merge
 	// left unapplied; File, set instead, is the translation's file that does
-	// not hold what the workspace keeps of those units.
+	// not hold what the workspace keeps of those units. For a "document"
+	// conflict, Doc is the KPZ's document (work.kpz!guide.md), Edit the
+	// version that did not land, Locale empty, and Blocks the blocks a rebase
+	// left for a person, none before the rebase.
 	Doc    string   `json:"doc"`
 	Locale string   `json:"locale"`
 	Edit   string   `json:"edit,omitempty"`
 	File   string   `json:"file,omitempty"`
 	Blocks []string `json:"blocks"`
+	// Rebased says a rebase carried a "document" conflict's version over,
+	// leaving Blocks to decide.
+	Rebased bool `json:"rebased,omitempty"`
+	// Next is the command line that settles the conflict, or the step that
+	// does.
+	Next string `json:"next"`
 }
 
 // StatusVenue names the effective convergence venue for a server-connected
@@ -191,6 +204,16 @@ func (o StatusOutput) FormatText(w io.Writer) error {
 	}
 	for _, c := range o.Conflicts {
 		units := strings.Join(c.Blocks, ", ")
+		switch {
+		case c.Kind == ConflictDocument && !c.Rebased:
+			fmt.Fprintf(w, "Conflict: %s holds another version, written from an earlier one, that did not land (write %s). Next: %s\n",
+				c.Doc, workspace.ShortOpID(c.Edit), c.Next)
+			continue
+		case c.Kind == ConflictDocument:
+			fmt.Fprintf(w, "Conflict: the rebase of write %s left %s of %s, which the document changed too. Next: %s\n",
+				workspace.ShortOpID(c.Edit), units, c.Doc, c.Next)
+			continue
+		}
 		if c.File != "" {
 			fmt.Fprintf(w, "Conflict: the workspace keeps an edit to %s of the %s translation of %s that %s does not hold; kapi merge writes it into the file.\n",
 				units, c.Locale, c.Doc, c.File)

@@ -2015,12 +2015,16 @@ beside all of them in package-sized PRs.
   its cache holds unpacked edits (`host.recordKpzRewrites` records each edited document the new
   file carries with other bytes as a write made from the version the cache opened).
   `Documents.Rebase` carries the write's changes over onto the head through the change service,
-  block by block, each guarded by the revision the block had where the write began, and lists the
-  blocks the head changed too as contested; `Documents.Discard` keeps the head. Each is a write that
-  names the divergent write as its `cause`. A contested block is decided by a change set guarded by
-  the head's revision, keeping the held wording included. Kapi Desktop lists the write on the
-  project's conflicts card (kind `document`) with both choices (`RebaseKeptDocument`,
-  `DiscardKeptDocument`).
+  block by block, each guarded by the revision the block had where the write began. A block the
+  write added is inserted (`insert_block`, anchored on a neighbour the base and the head both hold)
+  and one it removed is removed (`delete_block`, guarded by its base revisions). It lists as
+  contested the blocks the head changed too and those whose surrounding structure conflicts;
+  `Documents.Discard` keeps the head. Each is a write that names the divergent write as its
+  `cause`. A contested block is decided by a change set guarded by the head's revision, keeping the
+  held wording included. `kapi status` lists the write (kind `document`, text and `--json`) with
+  the `kapi resolve DOC --rebase|--discard WRITE` line that settles it. Kapi Desktop lists it on the
+  project's conflicts card (`RebaseKeptDocument`, `DiscardKeptDocument`) and, for every `.kpz` on
+  the machine whose cache holds edits, on the workspace home (`GetWorkspaceDocumentConflicts`).
 - **Routing:** the file home reaches the workspace home through a keeper (`filehome.Keeper`). Under
   `on-converge` a translation whose file does not exist lives in the workspace home; under `manual`
   it is written to its file unless the workspace still keeps a draft of it. Once the file exists it is
@@ -2045,7 +2049,11 @@ beside all of them in package-sized PRs.
   decide each kind of conflict through the change service. `TestDocuments_RebaseCarriesADivergentWriteOver`,
   `TestKpzDivergence_*` and the desktop's `TestKeptConflicts_TheDesktopRebasesOrDiscardsADivergentDocument`
   rebase and discard a whole document's divergent write, decide what a rebase left contested, and
-  reach one head on both machines and after a rebuild.
+  reach one head on both machines and after a rebuild. `TestDocuments_RebaseAddsAndRemovesBlocks`
+  inserts and removes blocks and falls back to contested where the structure conflicts,
+  `TestResolve_StatusNamesTheNextStepAndResolveTakesIt` drives `kapi status` and `kapi resolve`,
+  and `TestWorkspaceDocumentConflicts_ListsAKpzOutsideAnyProject` settles a `.kpz` outside every
+  project from the workspace home.
 - **Acceptance:** `TestWorkspaceHome_ConcurrentWritesMergeInEitherOrder` and
   `TestWorkspaceHome_RandomWritesConvergeInAnyMergeOrder` (three machines, nine writes, six seeds)
   reach one head in every merge order. The conformance suite passes on the workspace home in
@@ -2082,9 +2090,8 @@ beside all of them in package-sized PRs.
 - Two checkouts that mint different keys for one document before their logs meet keep both.
 - The KPZ's log travels with neither the pack nor a context backend, so two machines' edits to one
   whole KPZ document meet only through a merged log; a replaced `.kpz` is how a divergent write
-  reaches a person in practice. A rebase carries edits to blocks the head still holds; a block the
-  divergent write added or removed is listed as contested rather than written structurally, and
-  `kapi status` does not list whole-document divergence yet.
+  reaches a person in practice. A rebase writes a block the divergent write added or removed only
+  in a format whose writer adds and removes blocks (JSON, YAML, ARB); in any other it is contested.
 - Under a policy that detects entities, parked drafts stay in the producer's cache; a kept edition
   read on another machine carries placeholders and another revision, so a producer there never
   replaces it.

@@ -158,6 +158,7 @@ func BrowserCommandSet(a *App) []*cobra.Command {
 	// .kpz workspace verbs (AD-025 §5): the working cache is the wasm
 	// session-persistent in-memory store (core/blockstore/cache_wasm.go).
 	cmds = append(cmds, NewPackCmd(a), NewUnpackCmd(a), NewInfoCmd(a))
+	cmds = append(cmds, NewResolveCmd(a))
 
 	// Format-aware toolbox utilities. `kconv` powers the in-browser Conversion
 	// Lab — read any format, re-express it as a generative target through the

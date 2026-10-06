@@ -131,3 +131,78 @@ func TestKeptConflicts_TheDesktopRebasesOrDiscardsADivergentDocument(t *testing.
 		})
 	}
 }
+
+// TestWorkspaceDocumentConflicts_ListsAKpzOutsideAnyProject: the workspace
+// home lists a .kpz's divergent version with no project open, the .kpz named
+// by its absolute path, and settles it the way a project's card does:
+// rebase, then decide the block left through ApplyWorkspaceDocument.
+func TestWorkspaceDocumentConflicts_ListsAKpzOutsideAnyProject(t *testing.T) {
+	t.Setenv("KAPI_KPZ_CACHE", t.TempDir())
+	app := NewApp()
+	ctx := context.Background()
+	work := filepath.Join(t.TempDir(), "loose.kpz")
+	extractKpz(t, app, work, `{"greeting": "Hello there", "farewell": "Goodbye now"}`+"\n")
+	doc := work + "!messages.json"
+
+	svc, err := app.hostEngine().KpzDocumentService(ctx, doc, "desktop")
+	require.NoError(t, err)
+	page, err := svc.Read(ctx, change.ReadRequest{Doc: doc})
+	require.NoError(t, err)
+	text := "Hello, edited loose"
+	res, err := svc.Apply(ctx, change.Set{Ops: []change.Op{{Kind: change.KindSetContent, At: page.Blocks[0].Ref,
+		IfMatch: page.Blocks[0].Rev, Body: &change.SetContent{Text: &text}}}}, desktopActor)
+	require.NoError(t, err)
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+
+	none, err := app.GetWorkspaceDocumentConflicts()
+	require.NoError(t, err)
+	assert.Empty(t, none)
+
+	extractKpz(t, app, work, `{"greeting": "Hello from the team", "farewell": "Goodbye from the team"}`+"\n")
+	conflicts, err := app.GetWorkspaceDocumentConflicts()
+	require.NoError(t, err)
+	require.Len(t, conflicts, 1)
+	c := conflicts[0]
+	assert.Equal(t, "document", c.Kind)
+	assert.Equal(t, doc, c.Doc, "named by the .kpz's absolute path")
+
+	rb, err := app.RebaseWorkspaceDocument(c.Doc, c.Edit)
+	require.NoError(t, err)
+	assert.Empty(t, rb.Refused)
+	assert.Equal(t, 1, rb.Carried)
+	assert.Equal(t, 1, rb.Contested)
+
+	conflicts, err = app.GetWorkspaceDocumentConflicts()
+	require.NoError(t, err)
+	require.Len(t, conflicts, 1)
+	require.True(t, conflicts[0].Rebased)
+	require.Len(t, conflicts[0].Blocks, 1)
+	b := conflicts[0].Blocks[0]
+	assert.Equal(t, "Hello, edited loose", b.Held.Text)
+
+	body, err := json.Marshal(map[string]any{"ops": []any{map[string]any{"op": "set_content",
+		"at": map[string]any{"doc": c.Doc, "block": b.Block}, "if_match": b.Held.Rev, "text": b.Held.Text}}})
+	require.NoError(t, err)
+	raw, err := app.ApplyWorkspaceDocument(string(body))
+	require.NoError(t, err)
+	var applied change.Result
+	require.NoError(t, json.Unmarshal([]byte(raw), &applied))
+	require.Equal(t, change.SetApplied, applied.Status, "%+v", applied.Ops)
+
+	after, err := app.GetWorkspaceDocumentConflicts()
+	require.NoError(t, err)
+	assert.Empty(t, after, "keeping the held wording decides the last block")
+
+	extractKpz(t, app, work, `{"greeting": "Hello again", "farewell": "Goodbye now"}`+"\n")
+	conflicts, err = app.GetWorkspaceDocumentConflicts()
+	require.NoError(t, err)
+	require.Len(t, conflicts, 1)
+	require.NoError(t, app.DiscardWorkspaceDocument(conflicts[0].Doc, conflicts[0].Edit))
+	after, err = app.GetWorkspaceDocumentConflicts()
+	require.NoError(t, err)
+	assert.Empty(t, after)
+
+	raw, err = app.ApplyWorkspaceDocument(`{"ops": [{"op": "set_content", "at": {"doc": "relative.kpz!x.json", "block": "a"}, "if_match": "absent", "text": "x"}]}`)
+	require.NoError(t, err)
+	assert.Contains(t, raw, "not_found", "a .kpz the workspace home edits is named by its absolute path")
+}

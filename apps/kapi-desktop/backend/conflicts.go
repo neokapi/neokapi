@@ -4,8 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/host"
 )
 
 // Kapi Desktop shows the conflicts `kapi status` lists and lets a person
@@ -81,6 +84,11 @@ func (a *App) GetKeptConflicts(tabID string) ([]KeptConflict, error) {
 	if err != nil {
 		return nil, err
 	}
+	return keptConflictsFrom(found), nil
+}
+
+// keptConflictsFrom is the host's conflicts as the desktop shows them.
+func keptConflictsFrom(found []host.KeptConflict) []KeptConflict {
 	out := make([]KeptConflict, 0, len(found))
 	for _, c := range found {
 		kc := KeptConflict{Kind: c.Kind, Doc: c.Doc, Locale: c.Locale, Edit: c.Edit, File: c.File, Rebased: c.Rebased,
@@ -92,7 +100,7 @@ func (a *App) GetKeptConflicts(tabID string) ([]KeptConflict, error) {
 		}
 		out = append(out, kc)
 	}
-	return out, nil
+	return out
 }
 
 // ReleaseKeptWording drops what the workspace keeps of blocks of the locale
@@ -156,4 +164,84 @@ func (a *App) DiscardKeptDocument(tabID, doc, edit string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), changeTimeout)
 	defer cancel()
 	return a.hostEngine().DiscardKeptDocument(ctx, op.Path, doc, edit, "desktop")
+}
+
+// The workspace home lists the same "document" conflicts for every .kpz on
+// this machine whose working cache holds edits, with no project open. The
+// caches are this user's and keyed by each .kpz's absolute path, so each
+// document is named by that path (/work/guide.kpz!guide.md), and the change
+// service that settles it is the one of the project the .kpz sits in, or of
+// its directory when it sits in none.
+
+// GetWorkspaceDocumentConflicts lists the versions of a .kpz's document that
+// did not land, for every .kpz on this machine.
+func (a *App) GetWorkspaceDocumentConflicts() ([]KeptConflict, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), changeTimeout)
+	defer cancel()
+	found, err := a.hostEngine().WorkspaceDocumentConflicts(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return keptConflictsFrom(found), nil
+}
+
+// RebaseWorkspaceDocument rebases the write edit to doc, a .kpz's document
+// named by the .kpz's absolute path, onto the document's head.
+func (a *App) RebaseWorkspaceDocument(doc, edit string) (DocumentRebase, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), changeTimeout)
+	defer cancel()
+	rb, err := a.hostEngine().RebaseKeptDocument(ctx, "", doc, edit, "desktop")
+	if err != nil {
+		return DocumentRebase{}, err
+	}
+	return DocumentRebase{Carried: rb.Carried, Contested: rb.Contested, Refused: rb.Refused}, nil
+}
+
+// DiscardWorkspaceDocument drops the write edit to doc, a .kpz's document
+// named by the .kpz's absolute path, and keeps the document as it stands.
+func (a *App) DiscardWorkspaceDocument(doc, edit string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), changeTimeout)
+	defer cancel()
+	return a.hostEngine().DiscardKeptDocument(ctx, "", doc, edit, "desktop")
+}
+
+// ApplyWorkspaceDocument applies a change set to one .kpz's document named
+// by the .kpz's absolute path, as the person using the desktop, and returns
+// the result (kapi.change-result/v1): how the workspace home decides a block a
+// rebase left. Every content operation names that one document.
+func (a *App) ApplyWorkspaceDocument(changeSet string) (string, error) {
+	set, err := change.Decode(strings.NewReader(changeSet))
+	if err != nil {
+		if ce, ok := errors.AsType[*change.Error](err); ok && ce != nil {
+			return encodeChange(change.ErrorResult(ce))
+		}
+		return encodeChange(change.ErrorResult(&change.Error{Code: change.CodeInvalid, Message: err.Error()}))
+	}
+	doc := ""
+	for _, o := range set.Ops {
+		switch {
+		case doc == "":
+			doc = o.At.Doc
+		case o.At.Doc != doc:
+			return encodeChange(change.ErrorResult(&change.Error{Code: change.CodeInvalid, Field: "ops/at/doc",
+				Message: "a change set from the workspace home edits one document of a .kpz"}))
+		}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), changeTimeout)
+	defer cancel()
+	svc, err := a.hostEngine().KpzDocumentService(ctx, doc, "desktop")
+	if errors.Is(err, host.ErrNotKpzDocument) {
+		return encodeChange(change.ErrorResult(&change.Error{Code: change.CodeNotFound, Field: "ops/at/doc", Message: err.Error()}))
+	}
+	if err != nil {
+		return "", err
+	}
+	res, err := svc.Apply(ctx, set, desktopActor)
+	if err != nil {
+		if ce, ok := errors.AsType[*change.Error](err); ok && ce != nil {
+			return encodeChange(change.ErrorResult(ce))
+		}
+		return "", err
+	}
+	return encodeChange(res)
 }

@@ -225,6 +225,16 @@ versions changed, decided as above, or discards it (`DiscardKeptDocument`),
 which keeps the document as it stands. A rebase the change service refuses,
 for a stale block or a failing gate, shows the reason and settles nothing.
 
+The workspace home lists the same kind for every `.kpz` on this machine whose
+working cache holds edits, inside a project or outside every project
+(`GetWorkspaceDocumentConflicts`). The caches are the user's own, one per
+`.kpz` and keyed by its absolute path, which their metadata records, so the
+list needs no project open, and each document is named by that path. Rebasing,
+discarding and deciding a block (`RebaseWorkspaceDocument`,
+`DiscardWorkspaceDocument`, `ApplyWorkspaceDocument`) go through the change
+service of the project the `.kpz` sits in, or of its directory when it sits in
+none.
+
 The backend resolves the declared cross product, the project's own point and
 then each profile's channels, and lists a collection where it is actually
 governed: a collection whose profile's window has closed appears at the point

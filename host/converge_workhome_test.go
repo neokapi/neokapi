@@ -404,7 +404,8 @@ func TestConverge_AFileThatAppearsKeepsAPersonsEdit(t *testing.T) {
 				"the person's wording stays kept, and the tool's drafts are released")
 			conflicts := a.statusConflicts(ctx, recipe)
 			require.Len(t, conflicts, 1)
-			assert.Equal(t, StatusConflict{Doc: parkedSource, Locale: "nl", File: "site/locales/nl.json", Blocks: []string{"title"}}, conflicts[0])
+			assert.Equal(t, StatusConflict{Kind: ConflictFile, Doc: parkedSource, Locale: "nl", File: "site/locales/nl.json", Blocks: []string{"title"},
+				Next: "kapi merge"}, conflicts[0])
 			var text strings.Builder
 			require.NoError(t, StatusOutput{Conflicts: conflicts}.FormatText(&text))
 			assert.Contains(t, text.String(), "kapi merge writes it into the file")

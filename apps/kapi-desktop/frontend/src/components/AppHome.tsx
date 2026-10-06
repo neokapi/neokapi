@@ -6,11 +6,13 @@ import { ConnectAICard } from "./ConnectAICard";
 import { ContextFeedHint } from "./ContextFeed";
 import { ContextFeedPanel } from "./ContextFeedPanel";
 import { RemoveProjectDialog } from "./RemoveProjectDialog";
+import { WorkspaceConflicts } from "./WorkspaceConflicts";
 import { WorkspaceProjectRow } from "./WorkspaceProjectRow";
 import type {
   AIDetectionResult,
   ContextNews,
   ContextFeed,
+  KeptConflict,
   WorkspaceHome,
   WorkspaceProject,
 } from "../types/api";
@@ -38,6 +40,8 @@ interface AppHomeProps {
   onDismissSamples: () => void;
   /** Pre-loaded AI detection for Storybook/tests — forwarded to ConnectAICard. */
   aiDetection?: AIDetectionResult;
+  /** Pre-loaded .kpz document conflicts for Storybook and tests. */
+  documentConflicts?: KeptConflict[];
 }
 
 /**
@@ -62,6 +66,7 @@ export function AppHome({
   onCreateSampleProject,
   onDismissSamples,
   aiDetection,
+  documentConflicts,
 }: AppHomeProps) {
   const shortenHome = useShortenHome();
   const [removing, setRemoving] = useState<WorkspaceProject | null>(null);
@@ -77,6 +82,12 @@ export function AppHome({
             Your project&apos;s context, applied to real files, for people and agents.
           </p>
         </div>
+      </div>
+
+      {/* A .kpz document whose other version did not land, in a project or in
+          none: decided here, so one outside every project has a place. */}
+      <div className="mb-8 empty:hidden">
+        <WorkspaceConflicts conflicts={documentConflicts} />
       </div>
 
       {/* Primary: start or open a project. This is the day-to-day model. */}
