@@ -843,9 +843,14 @@ are operations in the log, and the projector is their one writer. The workspace
 sits under the engine's data root, `/.kapi-data`.
 
 The driver declares what it gives a store in a profile
-(`storage.DriverProfile`): one connection per file, no WAL, no lock another
-process honours, and no durability, since the databases live in the module's
-memory and nothing outlives the tab. Two rules follow for every store, natively
+(`storage.DriverProfile`): one connection per file, no WAL and no lock another
+process honours. The engine runs in a dedicated Worker, where the databases and
+the engine's files live in the origin private file system (SQLite's
+`opfs-sahpool` VFS) and survive a reload; one tab holds them, and a page that
+cannot (another tab holds them, or the browser lacks the API) keeps them in
+memory, and the profile reports durability accordingly. The browser copy is a
+cache of the log, so a page exports the workspace as a `.kpz` and imports it
+back. Two rules follow for every store, natively
 too. No correctness rule depends on a reader running beside a writer, and no
 code holds a transaction or open rows on a pool and then waits for a second
 session on the same pool; `make test-stores-oneconn` runs the store suites

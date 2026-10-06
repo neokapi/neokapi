@@ -1625,12 +1625,19 @@ The browser build runs the same service and the same stores.
   `sqlitestore_wasm.go`, `driver_wasm.go`, the `App.MemoryBackend/TermsBackend/BlocksBackend`
   injection points (`host/app.go:73-88`) and about 20 browser branches in `host/` go. Lab fixtures are
   seeded through the projector.
-- **Stage B, after 1.3.0.** Go, sqlite-wasm and memfs move into one dedicated Worker with the
-  `opfs-sahpool` VFS, which survived reload and browser restart in headless Chromium without
-  COOP/COEP headers (browser §4.2, observed); the docs are on GitHub Pages, which cannot set them.
-  One tab owns the pool through a Web Locks leader. The browser workspace is a cache of a log that
-  should also live elsewhere: export a `.kpz`, or sync through a `workspace.Remote`, because Safari
-  evicts script-written data after seven days without interaction (browser §7.4).
+- **Stage B.** Go, sqlite-wasm and memfs run in one dedicated Worker
+  (`packages/engine/src/worker.ts`) with the `opfs-sahpool` VFS, which needs no COOP/COEP headers;
+  the docs are on GitHub Pages, which cannot set them. One tab owns the pool through a Web Lock;
+  another tab runs in memory and the facade says so (`runtime.storage`, `reason: "another-tab"`).
+  The pool's locks only remember the level asked for, so the bridge installs a lock table over them
+  that locks between the engine's connections as `memdb` does. memfs is kept in a database of the
+  same pool after each call, and the page holds a mirror of it, so `vol` stays synchronous. The
+  browser workspace is a cache of a log that should also live elsewhere: `kapiExportWorkspace`
+  writes a workspace `.kpz` (`kapi-workspace`: the files and one context package per project) and
+  `kapiImportWorkspace` merges it back, because Safari evicts script-written data after seven days
+  without interaction (browser §7.4). Sync through a `workspace.Remote` is not built.
+  `make wasm-persist-smoke` proves reload, restart, a second tab and the export in headless
+  Chromium without COOP/COEP headers.
 - **One storage contract.** `core/storage` stays the only way to open a database. Each driver
   declares a profile (maximum connections, WAL, cross-process lock, durability). Database files get
   a driver-owned namespace (`storage.Exists/Remove/Rename/List`) because the OPFS pool is invisible to
@@ -1645,6 +1652,10 @@ The browser build runs the same service and the same stores.
   Adding functions is additive under the ABI rule, so `engineABIVersion` stays 1
   (`kapi/cmd/kapi-wasm-cli/main.go:49-53`). `kapiRun(argv)` keeps running the porcelain. Labs stop
   passing JSON through argv, which caused the agent evaluation's one transport error (r7 §6.4).
+  Stage B adds `kapiExportWorkspace`, `kapiImportWorkspace` and `labSegmentAsync`, also additive.
+  The globals live in the Worker; the facade calls them by message, so its `kbf`, `segment`,
+  `segmentEngines` and `removeDatabase` answer Promises (`@neokapi/engine` 0.2.0), and every
+  caller in the repository awaits them.
 
 ### 11.6 Bowrain
 
@@ -1785,7 +1796,7 @@ candidates are cut until WP13 (the founder's direction).
 | WP7 | Record: `content.edit`, `decision.record`, identity in the log | WP6 |
 | WP8 | The workspace home and parked drafts | WP7 |
 | WP9 | Kapi Desktop | WP5 (history after WP7) |
-| WP10 | Browser stage A | WP5 (log recording after WP7) |
+| WP10 | Browser stages A and B | WP5 (log recording after WP7) |
 | WP11 | Bowrain | WP5 |
 | WP12 | Key-value structure (cut line) | WP3 |
 | WP14 | Peer editions in the model, `Block.Key`, KBF v2 | accessors with WP1; caller migration beside WP2 to WP11; the flip after WP11 |
@@ -2036,7 +2047,7 @@ beside all of them in package-sized PRs.
 - **Acceptance:** a formatted paragraph and a plural branch edit and save; a concurrent change shows
   the stale prompt; `make audit-modules` (no cobra); the conformance suite through the binding.
 
-### WP10. Browser stage A
+### WP10. Browser stages A and B
 
 - **Moves:** every lab, the playground, `kapiRun` stores.
 - **Contents:** `driver_js.go` and the bridge; driver profile and namespace; forks and branches
@@ -2060,6 +2071,18 @@ beside all of them in package-sized PRs.
   them, the browser stores add 0.49 MB (their Go 0.02 MB, `sqlite3.wasm`, the JavaScript) and the edit
   model's Go 0.92 MB (`core/change`, its file home and schema, `core/history`, the host's change
   service), 1.41 MB together.
+- **Stage B:** the engine in a dedicated Worker on `opfs-sahpool`, one tab owning the pool through a
+  Web Lock and the others in memory with a notice, memfs kept in the same pool and mirrored on the
+  page, a lock table over the pool's locks, and the workspace `.kpz` (`kapiExportWorkspace`,
+  `kapiImportWorkspace`, `kpz.KindWorkspace`). **Acceptance:** the stage A smokes stay green, and
+  `make wasm-persist-smoke` passes in headless Chromium without COOP/COEP headers: reload, browser
+  restart, a second tab, and an export imported into a fresh profile.
+- **Measured, stage B** (the same method, against 41ffec2b7): `kapi-cli.wasm.gz` grows from
+  19,327,146 to 19,344,741 bytes, 0.018 MB, for the workspace package, its two entry points and
+  `labSegmentAsync`. The JavaScript, bundled and minified with esbuild's code splitting and gzip -9
+  per file, grows from 72.7 KB (the facade 6.9 KB, the lazily loaded sqlite-wasm glue 65.9 KB) to
+  79.1 KB (the facade 3.5 KB, the code the page and the Worker share 7.9 KB, the Worker 1.8 KB, the
+  glue 65.9 KB), 6.4 KB. `sqlite3.wasm` is unchanged at 0.40 MB. Stage B adds 0.02 MB to the engine.
 
 ### WP11. Bowrain
 
@@ -2265,7 +2288,7 @@ All of these hold before the 1.3.0 tag:
 `mark` (keep `set_attribute`), then local reconciliation on read (ship identity evidence only). None of
 them changes the schema.
 
-**After 1.3.0, in order:** DOCX native operations; browser stage B;
+**After 1.3.0, in order:** DOCX native operations; browser sync through a `workspace.Remote`;
 proposals (`mode: propose`); the Bowrain log remote with decisions keyed by pairing; `EditNative` for
 plugins; `kapi edit` if decided; structural operations for Markdown and HTML with skeleton tombstones;
 revert by session for content.
@@ -2382,7 +2405,7 @@ installed by no channel.
 | Local reconciliation on read is too slow | not measured | Cached per document revision; WP7 measures and has a fallback |
 | Immediate application costs time in the translate hot loop | inference: one small struct and call per mutation | Benchmark the translate flow before and after WP1 |
 | okapi-bridge write-back is untested under the contract | codex-design §5; r2 C4 completion | Conservative manifests; the bridge parity suite in the matrix run |
-| sqlite-wasm limits: the sahpool caveat before 3.54, one connection, `memdb` out of memory under load, no ICU tokenizer | browser §8, §4.3 | One connection per file; OPFS in stage B; `unicode61` in the browser |
+| sqlite-wasm limits: the sahpool caveat before 3.54, one connection, `memdb` out of memory under load, no ICU tokenizer | browser §8, §4.3 | One connection per file; OPFS in stage B, installed only once no other context holds the pool's files (a failed install in 3.53 removes the pool's directory); `unicode61` in the browser |
 | 1.3.0 scope: fifteen packages | this note | Packages run in parallel after WP5; three cut lines that leave the schema intact |
 | The model flip runs under every other package (D5) | 1,248 uses in 260 files; engine-first's plan was judged the highest schedule risk | Accessors first so new code never touches the old fields; package-sized PRs, each green; the flip and renames in one late PR; the wire unchanged by it |
 
