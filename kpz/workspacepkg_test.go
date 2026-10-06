@@ -62,13 +62,13 @@ func TestWorkspacePackage_RefusesPathsOutsideIt(t *testing.T) {
 		pkg := workspacePackage(t)
 		pkg.Files[0].Path = bad
 		_, err := pkg.Marshal()
-		assert.Error(t, err, bad)
+		require.Error(t, err, bad)
 	}
 	for _, bad := range []string{"../elsewhere", "/abs"} {
 		pkg := workspacePackage(t)
 		pkg.Contexts[0].Project = bad
 		_, err := pkg.Marshal()
-		assert.Error(t, err, bad)
+		require.Error(t, err, bad)
 	}
 }
 
