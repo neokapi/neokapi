@@ -3,9 +3,13 @@
 // In a dedicated Worker, the engine keeps its databases and the files of its
 // file system in the origin private file system, through SQLite's
 // opfs-sahpool VFS, so a workspace outlives the page and the browser. One tab
-// owns the pool at a time: a Web Lock names the owner, and a tab that cannot
-// take it runs in memory and says so. Everywhere else, and wherever the pool
-// cannot be opened, everything lives in memory for the life of the page.
+// owns the pool at a time: a Web Lock names the owner. A tab that finds the
+// lock held runs in memory and says so, waits for it, or takes it over, as
+// its page asks (WhenHeld). A takeover steals the lock: the owner's Worker
+// sees its lock released, keeps its last changes and tells its page, which
+// stops it so the pool's files are free for the new owner. Everywhere else,
+// and wherever the pool cannot be opened, everything lives in memory for the
+// life of the page.
 //
 // The browser may still evict what a site keeps (Safari removes data a script
 // wrote after seven days without a visit), so the workspace in a browser is a
@@ -26,6 +30,8 @@ export type MemoryReason =
   | "unsupported"
   /** Another tab of this site holds the workspace. */
   | "another-tab"
+  /** This tab held the workspace until another tab took it over. */
+  | "taken"
   /** Opening the pool failed; `detail` says how. */
   | "failed";
 
@@ -53,6 +59,8 @@ export function describeStorage(info: StorageInfo): string {
   switch (info.reason) {
     case "another-tab":
       return "Another tab holds the workspace, so this tab keeps its files in memory and loses them when it closes.";
+    case "taken":
+      return "Another tab took over the workspace, so this tab keeps its files in memory and loses them when it closes.";
     case "unsupported":
       return "This browser cannot keep the workspace, so files last until the page closes.";
     case "failed":
@@ -93,19 +101,55 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const LOCK_WAIT_MS = 2500;
 
 /**
- * Take the Web Lock for `name`, held until the Worker ends. Resolves to
- * whether it was granted within `wait` milliseconds.
+ * What a tab does when another tab holds the workspace: run in memory
+ * (`memory`, the default), wait until the owner lets go (`wait`: it closes,
+ * or another tab takes the workspace over and closes), or take the workspace
+ * over (`take`), which tells the owner it lost it.
  */
-function takeLock(name: string, wait: number): Promise<boolean> {
-  return new Promise((resolve) => {
-    navigator.locks
-      .request(name, { signal: AbortSignal.timeout(wait) }, () => {
-        resolve(true);
-        // Held for the life of the Worker: the browser releases it then.
-        return new Promise<never>(() => {});
-      })
-      .catch(() => resolve(false));
-  });
+export type WhenHeld = "memory" | "wait" | "take";
+
+/** The part of the Web Locks API the owner's lock uses. */
+export interface OwnerLocks {
+  request(
+    name: string,
+    options: { signal?: AbortSignal; steal?: boolean },
+    callback: () => Promise<unknown>,
+  ): Promise<unknown>;
+}
+
+/**
+ * Take the Web Lock for `name`, held until the Worker ends, as `whenHeld`
+ * says. Resolves to whether it was granted. `onLost` runs if another tab
+ * later takes the lock over (a request with `steal`), which rejects the held
+ * request with an AbortError.
+ */
+export function takeLock(
+  locks: OwnerLocks,
+  name: string,
+  whenHeld: WhenHeld,
+  onLost: () => void,
+  wait = LOCK_WAIT_MS,
+): Promise<boolean> {
+  const hold = (options: { signal?: AbortSignal; steal?: boolean }) =>
+    new Promise<boolean>((resolve) => {
+      let granted = false;
+      locks
+        .request(name, options, () => {
+          granted = true;
+          resolve(true);
+          // Held for the life of the Worker: the browser releases it then.
+          return new Promise<never>(() => {});
+        })
+        .catch(() => {
+          if (granted) onLost();
+          else resolve(false);
+        });
+    });
+  if (whenHeld === "wait") return hold({});
+  // A reloading page lets go as it closes, so every mode waits a little first.
+  return hold({ signal: AbortSignal.timeout(wait) }).then((ok) =>
+    ok || whenHeld !== "take" ? ok : hold({ steal: true }),
+  );
 }
 
 /**
@@ -139,6 +183,14 @@ async function poolFree(directory: string): Promise<boolean> {
   return true;
 }
 
+/** How opening a pool goes when another tab holds it. */
+export interface OpenPoolOptions {
+  /** What to do when another tab holds the workspace. */
+  whenHeld?: WhenHeld;
+  /** Runs when another tab takes over the workspace this Worker owns. */
+  onLost?: () => void;
+}
+
 /**
  * Open the opfs-sahpool pool for `key` in this Worker, or say why the
  * workspace stays in memory.
@@ -146,6 +198,7 @@ async function poolFree(directory: string): Promise<boolean> {
 export async function openPool(
   sqlite3: Sqlite3Static,
   key: string,
+  opts: OpenPoolOptions = {},
 ): Promise<OpenedPool | StorageInfo> {
   const g = globalThis as { navigator?: Navigator; FileSystemFileHandle?: unknown };
   const hasOPFS =
@@ -155,12 +208,21 @@ export async function openPool(
   if (!hasOPFS || !g.navigator?.locks) return { kind: "memory", reason: "unsupported" };
 
   const name = storageName(key);
-  if (!(await takeLock(`${name}:owner`, LOCK_WAIT_MS)))
-    return { kind: "memory", reason: "another-tab" };
+  const whenHeld = opts.whenHeld ?? "memory";
+  const owned = await takeLock(
+    g.navigator.locks as unknown as OwnerLocks,
+    `${name}:owner`,
+    whenHeld,
+    () => opts.onLost?.(),
+  );
+  if (!owned) return { kind: "memory", reason: "another-tab" };
   const directory = `.${name}`;
+  // A tab taking the workspace over waits longer: the owner has to notice,
+  // keep its last changes and stop before the pool's files are free.
+  const attempts = whenHeld === "take" ? 60 : 10;
   try {
     for (let attempt = 0; !(await poolFree(directory)); attempt++) {
-      if (attempt >= 10)
+      if (attempt >= attempts)
         return { kind: "memory", reason: "failed", detail: "the pool's files are held elsewhere" };
       await sleep(250);
     }

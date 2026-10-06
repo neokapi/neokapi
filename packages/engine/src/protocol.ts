@@ -9,7 +9,7 @@
 
 import type { EngineABI } from "./abi.ts";
 import type { BootProgress } from "./fetch.ts";
-import type { StorageInfo, VolOp } from "./storage.ts";
+import type { StorageInfo, VolOp, WhenHeld } from "./storage.ts";
 
 /** What the page asks the Worker to boot with. */
 export interface WorkerBoot {
@@ -18,6 +18,8 @@ export interface WorkerBoot {
   sqliteWasmUrl: string;
   /** The storage key, or null for a workspace in memory. */
   persist: string | null;
+  /** What to do when another tab holds the workspace. */
+  whenHeld?: WhenHeld;
 }
 
 export type ToWorker =
@@ -34,7 +36,10 @@ export type FromWorker =
   | { t: "out" | "err"; text: string }
   | { t: "vol"; ops: VolOp[] }
   | { t: "result"; id: number; ok: boolean; value?: unknown; error?: string; cwd: string }
-  | { t: "bridge"; id: number; name: string; args: unknown[] };
+  | { t: "bridge"; id: number; name: string; args: unknown[] }
+  // Another tab took the workspace over: the Worker kept its last changes and
+  // no longer uses the pool, and the page stops it.
+  | { t: "lost" };
 
 /**
  * The page globals the engine may call back (capabilities.ts), which the

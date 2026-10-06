@@ -65,30 +65,9 @@ func nbTally(t *testing.T, s *PostgresStore, projectID string) platstore.Decisio
 	return out
 }
 
-// nbDerived is the derivation the Norwegian translation of unit records, or
-// nil when it records none.
-func nbDerived(t *testing.T, s *PostgresStore, projectID, unit string) *model.Derivation {
-	t.Helper()
-	d, ok := storedRow(t, s, projectID, unit).Block.Derivation(model.EditionKey{Locale: "nb"})
-	if !ok {
-		return nil
-	}
-	return &d
-}
-
-// nbHistory is the block history of the Norwegian translation of unit, the
-// latest entry first.
-func nbHistory(t *testing.T, s *PostgresStore, projectID, unit string) []platstore.BlockHistoryEntry {
-	t.Helper()
-	entries, err := s.GetBlockHistory(t.Context(), projectID, "main", storedRow(t, s, projectID, unit).ID, "nb", 0)
-	require.NoError(t, err)
-	return entries
-}
-
-// A translation a run on a checkout made reaches the venue with the basis the
-// run recorded on its edition, and is graded stale when the source moves, as a
-// draft of the venue's own is. The ledger gains no record: a basis decides
-// nothing.
+// A translation a run on a checkout made reaches the venue's ledger as the
+// basis the run recorded, and is graded stale when the source moves, as a
+// draft of the venue's own is.
 func TestRecordEditionWrites_GradesALocalRunsTranslationAgainstItsSource(t *testing.T) {
 	s := newTestStore(t)
 	p := createTestProject(t, s)
@@ -96,138 +75,41 @@ func TestRecordEditionWrites_GradesALocalRunsTranslationAgainstItsSource(t *test
 		blockWithTarget("greeting", "Hello", "Hei", model.TargetStatusTranslated),
 		blockWithText("farewell", "Goodbye"),
 	}, nil)
-	require.Nil(t, nbDerived(t, s, p.ID, "greeting"))
 
-	write := venue.EditionWrite{ItemName: "en.json", Unit: "greeting", Variant: "nb", Revision: nbRevision(t, s, p.ID, "greeting"),
-		Basis: sourceRevision("Hello"), Writer: venue.WriterTool, Origin: "flow:up", GoverningFingerprint: "fp-1"}
 	n := pushWrites(t, s, p.ID, "u-pusher", nil, []venue.EditionWrite{
-		write,
+		{ItemName: "en.json", Unit: "greeting", Variant: "nb", Revision: nbRevision(t, s, p.ID, "greeting"),
+			Basis: sourceRevision("Hello"), Writer: venue.WriterTool, Origin: "flow:up", GoverningFingerprint: "fp-1"},
 		// The checkout holds this translation and the venue does not.
 		{ItemName: "en.json", Unit: "farewell", Variant: "nb", Revision: "r:0123456789abcdef",
 			Basis: sourceRevision("Goodbye"), Writer: venue.WriterTool, Origin: "flow:up"},
 	})
 	assert.Equal(t, 2, n)
 
-	got := nbDerived(t, s, p.ID, "greeting")
-	require.NotNil(t, got, "the basis lands on the edition")
-	assert.Equal(t, sourceRevision("Hello"), got.Rev)
-	assert.True(t, got.From.IsZero(), "made from the edition the document is written in")
-	assert.Equal(t, model.TargetStatusTranslated, targetStatus(t, s, p.ID, "en.json", "greeting"), "and decides nothing")
-	assert.Empty(t, listDecisions(t, s, p.ID), "the ledger holds no record that carries a basis alone")
+	records := listDecisions(t, s, p.ID)
+	greeting := records["en.json|greeting|nb"]
+	assert.Equal(t, sourceRevision("Hello"), greeting.Basis, "the basis the run recorded")
+	assert.Equal(t, nbRevision(t, s, p.ID, "greeting"), greeting.Revision, "for the translation the venue holds")
+	assert.Equal(t, "fp-1", greeting.GoverningFingerprint)
+	assert.False(t, greeting.IsDecision(), "a basis decides nothing")
+	assert.Equal(t, sourceRevision("Goodbye"), records["en.json|farewell|nb"].Basis)
+	assert.Empty(t, records["en.json|farewell|nb"].Revision, "the venue holds no translation for it to name")
+	assert.Zero(t, nbTally(t, s, p.ID).Stale, "both translations render the source the venue holds")
+
 	drafts, err := s.ListDraftBases(t.Context(), p.ID, "main")
 	require.NoError(t, err)
-	assert.Empty(t, drafts, "a draft mark lands on a row and creates none")
-	assert.Zero(t, nbTally(t, s, p.ID).Stale, "the translation renders the source the venue holds")
+	assert.Len(t, drafts, 2, "a run's translations count as drafted against their source")
 
-	// The source moves.
-	pushWrites(t, s, p.ID, "", []*model.Block{blockWithText("greeting", "Hello there")}, nil)
-	tally := nbTally(t, s, p.ID)
-	assert.Equal(t, 1, tally.Stale, "the translation a local run made reads stale on the venue")
-	assert.Equal(t, 1, tally.Owed)
+	// The source of one moves.
+	pushWrites(t, s, p.ID, "", []*model.Block{blockWithText("farewell", "Goodbye for now")}, nil)
+	assert.Equal(t, 1, nbTally(t, s, p.ID).Stale, "the translation a local run made reads stale on the venue")
 
-	// Sending the same write again changes nothing.
-	n = pushWrites(t, s, p.ID, "u-pusher", nil, []venue.EditionWrite{write})
+	// Sending the same writes again changes nothing.
+	n = pushWrites(t, s, p.ID, "u-pusher", nil, []venue.EditionWrite{
+		{ItemName: "en.json", Unit: "greeting", Variant: "nb", Revision: nbRevision(t, s, p.ID, "greeting"),
+			Basis: sourceRevision("Hello"), Writer: venue.WriterTool, Origin: "flow:up", GoverningFingerprint: "fp-1"},
+	})
 	assert.Equal(t, 1, n)
-	assert.Equal(t, got, nbDerived(t, s, p.ID, "greeting"))
-}
-
-// A write that names no source for the translation it left clears the basis
-// the edition recorded, rather than leaving the basis of a translation the
-// write replaced. A write that says nothing about the source leaves it.
-func TestRecordEditionWrites_ClearsABasisTheWriteDoesNotCarry(t *testing.T) {
-	tests := []struct {
-		name  string
-		write venue.EditionWrite
-		keeps bool
-	}{
-		{name: "an edit by hand", write: venue.EditionWrite{Writer: venue.WriterPerson, Origin: "desktop"}},
-		{name: "an edit made outside kapi", write: venue.EditionWrite{Writer: venue.WriterExternal, Origin: "observed"}},
-		{name: "a translation a pull brought in", write: venue.EditionWrite{Writer: venue.WriterTool, Origin: "pull"}, keeps: true},
-		{name: "a translation a merge brought in", write: venue.EditionWrite{Writer: venue.WriterPerson, Origin: "merge"}, keeps: true},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			s := newTestStore(t)
-			p := createTestProject(t, s)
-			b := blockWithTarget("greeting", "Hello", "Hei", model.TargetStatusTranslated)
-			b.SetDerivation(model.EditionKey{Locale: "nb"}, &model.Derivation{Rev: sourceRevision("Hello")})
-			pushWrites(t, s, p.ID, "", []*model.Block{b}, nil)
-			require.NotNil(t, nbDerived(t, s, p.ID, "greeting"))
-
-			w := tc.write
-			w.ItemName, w.Unit, w.Variant, w.Revision = "en.json", "greeting", "nb", nbRevision(t, s, p.ID, "greeting")
-			pushWrites(t, s, p.ID, "u-pusher", nil, []venue.EditionWrite{w})
-
-			if tc.keeps {
-				assert.NotNil(t, nbDerived(t, s, p.ID, "greeting"), "the write says nothing new about the source")
-				return
-			}
-			assert.Nil(t, nbDerived(t, s, p.ID, "greeting"), "made from no recorded source")
-			assert.Equal(t, model.TargetStatusTranslated, targetStatus(t, s, p.ID, "en.json", "greeting"), "the rest of the edition stays")
-			assert.Empty(t, listDecisions(t, s, p.ID))
-
-			pushWrites(t, s, p.ID, "", []*model.Block{blockWithText("greeting", "Hello there")}, nil)
-			assert.Zero(t, nbTally(t, s, p.ID).Stale, "nothing says what the translation renders, so nothing calls it stale")
-		})
-	}
-}
-
-// A push that carries a translation stores the derivation its edition carries,
-// and one that carries none clears the derivation the venue held.
-func TestApplyPush_APushedEditionReplacesItsDerivation(t *testing.T) {
-	s := newTestStore(t)
-	p := createTestProject(t, s)
-	b := blockWithTarget("greeting", "Hello", "Hei", model.TargetStatusTranslated)
-	b.SetDerivation(model.EditionKey{Locale: "nb"}, &model.Derivation{Rev: sourceRevision("Hello")})
-	pushWrites(t, s, p.ID, "", []*model.Block{b}, nil)
-	require.NotNil(t, nbDerived(t, s, p.ID, "greeting"))
-
-	pushWrites(t, s, p.ID, "", []*model.Block{blockWithTarget("greeting", "Hello", "Hallo", model.TargetStatusTranslated)}, nil)
-	assert.Nil(t, nbDerived(t, s, p.ID, "greeting"), "the pushed edition records no derivation")
-}
-
-// The block history records the basis each revision of a translation
-// carried: the derivation on the edition the push stored, and the basis the
-// push's write gave it.
-func TestRecordEditionWrites_RecordsTheBasisInTheBlockHistory(t *testing.T) {
-	s := newTestStore(t)
-	p := createTestProject(t, s)
-
-	// A pushed edition that records its derivation.
-	b := blockWithTarget("greeting", "Hello", "Hei", model.TargetStatusTranslated)
-	b.SetDerivation(model.EditionKey{Locale: "nb"}, &model.Derivation{Rev: sourceRevision("Hello")})
-	pushWrites(t, s, p.ID, "", []*model.Block{b}, nil)
-	history := nbHistory(t, s, p.ID, "greeting")
-	require.Len(t, history, 1)
-	assert.Equal(t, sourceRevision("Hello"), history[0].Basis)
-	assert.Empty(t, history[0].BasisFrom, "the edition the document is written in")
-
-	// A run's draft whose write names the source.
-	drafted := blockWithTarget("greeting", "Hello", "Hallo", model.TargetStatusTranslated)
-	pushWrites(t, s, p.ID, "u-pusher", []*model.Block{drafted}, []venue.EditionWrite{{
-		ItemName: "en.json", Unit: "greeting", Variant: "nb",
-		Revision: model.EditionRevision(drafted, model.EditionKey{Locale: "nb"}),
-		Basis:    sourceRevision("Hello"), Writer: venue.WriterTool, Origin: "flow:up",
-	}})
-	history = nbHistory(t, s, p.ID, "greeting")
-	require.Len(t, history, 2)
-	assert.Equal(t, "Hallo", history[0].Text)
-	assert.Equal(t, sourceRevision("Hello"), history[0].Basis, "the basis the write gave the draft")
-
-	// An edit by hand, which names no source.
-	edited := blockWithTarget("greeting", "Hello", "Heisann", model.TargetStatusTranslated)
-	edited.SetDerivation(model.EditionKey{Locale: "nb"}, &model.Derivation{Rev: sourceRevision("Hello")})
-	pushWrites(t, s, p.ID, "u-pusher", []*model.Block{edited}, []venue.EditionWrite{{
-		ItemName: "en.json", Unit: "greeting", Variant: "nb",
-		Revision: model.EditionRevision(edited, model.EditionKey{Locale: "nb"}),
-		Writer:   venue.WriterPerson, Origin: "desktop",
-	}})
-	history = nbHistory(t, s, p.ID, "greeting")
-	require.Len(t, history, 3)
-	assert.Equal(t, "Heisann", history[0].Text)
-	assert.Empty(t, history[0].Basis, "the write names no source for the edit")
-	assert.Nil(t, nbDerived(t, s, p.ID, "greeting"))
-	assert.Equal(t, sourceRevision("Hello"), history[1].Basis, "an earlier entry keeps the basis it recorded")
+	assert.Equal(t, greeting.Updated, listDecisions(t, s, p.ID)["en.json|greeting|nb"].Updated, "the record already says it")
 }
 
 func TestRecordEditionWrites_LeavesWhatItDoesNotDescribe(t *testing.T) {
@@ -241,8 +123,7 @@ func TestRecordEditionWrites_LeavesWhatItDoesNotDescribe(t *testing.T) {
 			name:  "a write about another translation",
 			write: venue.EditionWrite{Revision: "r:ffffffffffffffff", Basis: sourceRevision("Hello"), Writer: venue.WriterTool, Origin: "flow:up"},
 			check: func(t *testing.T, s *PostgresStore, projectID string) {
-				assert.Nil(t, nbDerived(t, s, projectID, "greeting"), "the venue holds another translation, and records nothing on it")
-				assert.Empty(t, listDecisions(t, s, projectID))
+				assert.Empty(t, listDecisions(t, s, projectID), "the venue holds another translation, and records nothing")
 			},
 		},
 		{
@@ -265,9 +146,13 @@ func TestRecordEditionWrites_LeavesWhatItDoesNotDescribe(t *testing.T) {
 				require.NoError(t, err)
 				require.Len(t, drafts, 1)
 				assert.Equal(t, sourceRevision("Hello again"), drafts[0].Basis, "the run's draft is marked beside it")
-				got := nbDerived(t, s, projectID, "greeting")
-				require.NotNil(t, got)
-				assert.Equal(t, sourceRevision("Hello again"), got.Rev, "and the edition records what the run made it from")
+			},
+		},
+		{
+			name:  "a translation a pull brought in, with no basis",
+			write: venue.EditionWrite{Writer: venue.WriterTool, Origin: "pull"},
+			check: func(t *testing.T, s *PostgresStore, projectID string) {
+				assert.Empty(t, listDecisions(t, s, projectID), "it says nothing new about the source")
 			},
 		},
 		{
@@ -277,10 +162,20 @@ func TestRecordEditionWrites_LeavesWhatItDoesNotDescribe(t *testing.T) {
 			name:  "a translation a pull brought in, carrying a basis",
 			write: venue.EditionWrite{Basis: sourceRevision("Hello"), Writer: venue.WriterTool, Origin: "pull"},
 			check: func(t *testing.T, s *PostgresStore, projectID string) {
-				assert.Nil(t, nbDerived(t, s, projectID, "greeting"), "no basis")
+				assert.Empty(t, listDecisions(t, s, projectID), "no basis record")
 				drafts, err := s.ListDraftBases(t.Context(), projectID, "main")
 				require.NoError(t, err)
 				assert.Empty(t, drafts, "and no draft mark")
+			},
+		},
+		{
+			name:  "a translation written by hand",
+			write: venue.EditionWrite{Writer: venue.WriterPerson, Origin: "desktop"},
+			check: func(t *testing.T, s *PostgresStore, projectID string) {
+				d, ok := listDecisions(t, s, projectID)["en.json|greeting|nb"]
+				require.True(t, ok)
+				assert.Empty(t, d.Basis, "made from no recorded source, so its basis is unknown")
+				assert.Equal(t, 1, nbTally(t, s, projectID).BasisUnknown)
 			},
 		},
 	}
@@ -406,15 +301,8 @@ func TestRecordEditionWrites_KeepsWhoWroteATranslationByHand(t *testing.T) {
 func TestRecordEditionWrites_LeavesADraftMarkThatAlreadySaysIt(t *testing.T) {
 	s := newTestStore(t)
 	p := createTestProject(t, s)
-	pushWrites(t, s, p.ID, "", []*model.Block{blockWithTarget("greeting", "Hello", "Hei", model.TargetStatusTranslated)}, nil)
-	_, err := s.UpsertUnitDecisions(t.Context(), p.ID, "main", []venue.UnitDecision{{
-		ItemName: "en.json", Unit: "greeting", Variant: "nb",
-		Status: string(model.TargetStatusEstablished), ReviewState: venue.ReviewStateApproved,
-		Revision: nbTextRevision("Hei"), Basis: sourceRevision("Hello"),
-		DecidedBy: "u-reviewer", Updated: "2026-08-04T10:00:00Z",
-	}})
-	require.NoError(t, err)
-	w := venue.EditionWrite{ItemName: "en.json", Unit: "greeting", Variant: "nb", Revision: nbRevision(t, s, p.ID, "greeting"),
+	pushWrites(t, s, p.ID, "", []*model.Block{blockWithText("greeting", "Hello")}, nil)
+	w := venue.EditionWrite{ItemName: "en.json", Unit: "greeting", Variant: "nb", Revision: "r:0123456789abcdef",
 		Basis: sourceRevision("Hello"), Writer: venue.WriterTool, Origin: "flow:up"}
 	updatedAt := func() string {
 		var at string
@@ -423,9 +311,6 @@ func TestRecordEditionWrites_LeavesADraftMarkThatAlreadySaysIt(t *testing.T) {
 		return at
 	}
 	pushWrites(t, s, p.ID, "u-ada", nil, []venue.EditionWrite{w})
-	drafts, err := s.ListDraftBases(t.Context(), p.ID, "main")
-	require.NoError(t, err)
-	require.Len(t, drafts, 1, "the run's draft is marked on the decided unit's row")
 	first := updatedAt()
 	pushWrites(t, s, p.ID, "u-ada", nil, []venue.EditionWrite{w})
 	assert.Equal(t, first, updatedAt(), "the second push wrote nothing to the record")

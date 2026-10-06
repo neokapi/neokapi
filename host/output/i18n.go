@@ -104,15 +104,6 @@ var sources = map[string]string{
 	"resources.header.modified": "MODIFIED",
 	"resources.header.path":     "PATH",
 
-	// Each kind names its own heading, empty line and total, so the noun
-	// carries its own plural instead of having an "s" appended to the kind.
-	"resources.terms.title":  "Named terms stores:",
-	"resources.terms.none":   "No named terms stores found.",
-	"resources.terms.total":  "Total: %d terms store(s)",
-	"resources.memory.title": "Named content memories:",
-	"resources.memory.none":  "No named content memories found.",
-	"resources.memory.total": "Total: %d content memory(ies)",
-
 	// registry list
 	"registries.none":            "No registries configured.",
 	"registries.total":           "Total: %d registry(ies)",

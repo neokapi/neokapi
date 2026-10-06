@@ -432,23 +432,16 @@ type StreamDiff struct {
 // JSON `codedText` is preserved on the wire for client compatibility; the Go field
 // is named `Coded` to stay clear of the RFC 0001 Phase 2 acceptance grep.
 type BlockHistoryEntry struct {
-	Seq           int64  `json:"seq"`
-	ChangeType    string `json:"changeType"`
-	Text          string `json:"text"`
-	Coded         string `json:"codedText"`
-	Origin        string `json:"origin"`
-	Author        string `json:"author"`
-	ActorRole     string `json:"actorRole,omitempty"`
-	EditReason    string `json:"editReason,omitempty"`
-	CorrelationID string `json:"correlationId,omitempty"`
-	// Basis is the revision of the edition the translation was made from, as
-	// the edition recorded it when this entry was written
-	// (model.Edition.Derived), and BasisFrom that edition's key in text form
-	// ("" for the edition the document is written in). Basis is empty when
-	// the translation recorded no derivation.
-	Basis     string    `json:"basis,omitempty"`
-	BasisFrom string    `json:"basisFrom,omitempty"`
-	Timestamp time.Time `json:"timestamp"`
+	Seq           int64     `json:"seq"`
+	ChangeType    string    `json:"changeType"`
+	Text          string    `json:"text"`
+	Coded         string    `json:"codedText"`
+	Origin        string    `json:"origin"`
+	Author        string    `json:"author"`
+	ActorRole     string    `json:"actorRole,omitempty"`
+	EditReason    string    `json:"editReason,omitempty"`
+	CorrelationID string    `json:"correlationId,omitempty"`
+	Timestamp     time.Time `json:"timestamp"`
 }
 
 // ChangeEntry represents a single entry in the append-only change log.

@@ -3179,7 +3179,7 @@ wasm-surface-smoke: web-wasm-cli ## Verify no browser verb answers "unknown comm
 change-wasm-smoke: web-wasm-cli ## Verify kapiRead, kapiApply and kapiDescribe in the browser WASM engine (read, edit, record, refusals)
 	node --experimental-strip-types scripts/verify-snippets/change-smoke.ts
 
-wasm-persist-smoke: web-wasm-cli ## Verify the browser engine keeps its workspace (Worker + opfs-sahpool) across reload, restart, a second tab and an export, in headless Chromium
+wasm-persist-smoke: web-wasm-cli ## Verify the browser engine keeps its workspace (Worker + opfs-sahpool) across reload, restart, a tab takeover, a reset and an export, and syncs through a folder, in headless Chromium
 	node --experimental-strip-types scripts/wasm-persist/run.ts
 
 # ── Pages publishing (local) ──────────────────────────────────────────────────

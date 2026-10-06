@@ -55,6 +55,7 @@ func RunConformance(t *testing.T, newBackend Factory) {
 		{"a project with no registration is not found", unregisteredProjectIsNotFound},
 		{"forgetting a project removes it and its store", forgettingRemovesTheProject},
 		{"forgetting a project needs a key", forgettingNeedsAKey},
+		{"an operation held before its project's removal is recorded again", recordingAgainAfterRemoval},
 		{"a widened rule is held for the whole workspace", widenedRulesAreHeldForTheWorkspace},
 		{"an agent session is noted and ages out", agentSessionsAreNotedAndAgeOut},
 		{"an import stamp is kept per checkout", importStampsAreKeptPerCheckout},
@@ -666,6 +667,46 @@ func forgettingRemovesTheProject(t *testing.T, b workspace.Backend) {
 
 	assert.NoError(t, w.Forget(ctx, "prj_absent"),
 		"forgetting a project the workspace never held is not an error")
+}
+
+// recordingAgainAfterRemoval covers a project imported again after it was
+// forgotten: the log keeps the operations that built the context the removal
+// deleted, and the same operations arriving afterwards are recorded after the
+// removal, by id and by content address, so a store that starts after the
+// removal applies them. Once recorded after it, they are held as usual.
+func recordingAgainAfterRemoval(t *testing.T, b workspace.Backend) {
+	ctx := t.Context()
+	w, err := workspace.Open(ctx, b)
+	require.NoError(t, err)
+	_, err = w.Register(ctx, "prj_back", "Back", "/fakehome/src/back")
+	require.NoError(t, err)
+
+	byID := workspace.Op{ID: workspace.NewOpID(time.Now(), ""), Project: "prj_back", Kind: "terms.write", Payload: []byte(`{"a":1}`)}
+	byAddress := workspace.Op{Project: "prj_back", Kind: "terms.write", Address: "addr-back", Payload: []byte(`{"b":1}`)}
+	kept := workspace.Op{Project: "prj_other", Kind: "terms.write", Address: "addr-other", Payload: []byte(`{"c":1}`)}
+	first, err := w.Record(ctx, byID, byAddress, kept)
+	require.NoError(t, err)
+
+	require.NoError(t, w.Forget(ctx, "prj_back"))
+	ops, err := w.Ops(ctx, 0, 0)
+	require.NoError(t, err)
+	removal := ops[len(ops)-1].Seq
+
+	added, err := workspace.Merge(ctx, b, []workspace.Op{first[0], first[1], first[2]})
+	require.NoError(t, err)
+	assert.Equal(t, 2, added, "the forgotten project's operations count as not held; the other project's are held")
+
+	again, err := w.Record(ctx, byID, byAddress, kept)
+	require.NoError(t, err)
+	assert.Greater(t, again[0].Seq, removal, "recorded after the removal, by id")
+	assert.Equal(t, first[0].ID, again[0].ID, "under the id it carries")
+	assert.Greater(t, again[1].Seq, removal, "recorded after the removal, by content address")
+	assert.Equal(t, first[2].Seq, again[2].Seq, "another project's operation is held where it was")
+
+	held, err := w.Record(ctx, byID, byAddress)
+	require.NoError(t, err)
+	assert.Equal(t, again[0].Seq, held[0].Seq, "once after the removal it is held")
+	assert.Equal(t, again[1].Seq, held[1].Seq)
 }
 
 func forgettingNeedsAKey(t *testing.T, b workspace.Backend) {

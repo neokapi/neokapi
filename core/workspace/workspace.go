@@ -262,6 +262,11 @@ func (w *Workspace) Forget(ctx context.Context, key ProjectKey) error {
 	if err := w.backend.Forget(ctx, key); err != nil {
 		return err
 	}
+	// What the workspace knew about the project's remotes belongs to the
+	// context the removal deletes: a pull after it reads each remote afresh.
+	if _, err := w.sync(); err != nil {
+		return err
+	}
 
 	tx, err := w.registry.BeginTx(ctx, nil)
 	if err != nil {
@@ -275,6 +280,14 @@ func (w *Workspace) Forget(ctx context.Context, key ProjectKey) error {
 	if _, err := tx.ExecContext(ctx,
 		`DELETE FROM workspace_projects WHERE key = ?`, string(key)); err != nil {
 		return fmt.Errorf("workspace: forget %s: %w", key, err)
+	}
+	// The sync state is keyed by the project and the remote (Sync.rid).
+	prefix := string(key) + " "
+	for _, table := range []string{"workspace_sync_known", "workspace_sync_segments", "workspace_sync_contact"} {
+		if _, err := tx.ExecContext(ctx,
+			`DELETE FROM `+table+` WHERE substr(remote, 1, ?) = ?`, len(prefix), prefix); err != nil {
+			return fmt.Errorf("workspace: forget the sync state of %s: %w", key, err)
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("workspace: forget %s: %w", key, err)

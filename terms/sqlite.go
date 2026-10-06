@@ -30,6 +30,18 @@ var ErrConceptIDRequired = errors.New("concept ID is required")
 // migration that renames the table deliberately.
 const migrationsTable = "termbase_migrations"
 
+// IsStore reports whether db carries the terms schema: whether it is a terms
+// store, or a database that holds one beside other stores. It reads the
+// schema and changes nothing.
+func IsStore(ctx context.Context, db *storage.DB) (bool, error) {
+	var n int
+	if err := db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?`, migrationsTable).Scan(&n); err != nil {
+		return false, fmt.Errorf("terms: read the schema: %w", err)
+	}
+	return n > 0, nil
+}
+
 // SQLiteStore is a persistent terms store backed by SQLite.
 type SQLiteStore struct {
 	db *storage.DB

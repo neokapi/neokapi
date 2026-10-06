@@ -3,6 +3,8 @@
 // in the engine's Worker.
 
 import type { MemFS } from "./memfs.ts";
+import { folderRemote } from "./folderremote.ts";
+import type { FolderHandle } from "./folderremote.ts";
 import "./globals.ts";
 
 /**
@@ -32,6 +34,17 @@ export function localCalls(mem: MemFS): Record<string, (...args: never[]) => unk
       } catch {
         /* nothing to clear */
       }
+    },
+    /**
+     * Sync a project's context with a folder: the engine's kapiSyncContext
+     * over a remote on the folder's handle, which a Worker receives intact.
+     */
+    async syncContext(folder: FolderHandle, options: string): Promise<string> {
+      const fn = globalThis.kapiSyncContext;
+      if (typeof fn !== "function") {
+        throw new Error("this engine predates context sync (kapiSyncContext)");
+      }
+      return await fn(folderRemote(folder), options);
     },
     /** Read a file once and remove it (a trace a lab reads back). */
     take(path: string): Uint8Array | null {

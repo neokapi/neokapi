@@ -990,9 +990,7 @@ type ResourceListEntry struct {
 	Modified time.Time `json:"modified"`
 }
 
-// ResourceListOutput represents the list of named resources. Kind is
-// "terms" or "memory"; each has its own heading, empty line and total under
-// resources.<kind>.* in the chrome table.
+// ResourceListOutput represents the list of named resources.
 type ResourceListOutput struct {
 	Kind      string              `json:"kind"`
 	Resources []ResourceListEntry `json:"resources"`
@@ -1001,11 +999,11 @@ type ResourceListOutput struct {
 
 func (o ResourceListOutput) FormatText(w io.Writer) error {
 	if len(o.Resources) == 0 {
-		fmt.Fprintln(w, T("resources."+o.Kind+".none"))
+		fmt.Fprintf(w, "No named %ss found.\n", o.Kind)
 		return nil
 	}
 
-	Title(w, T("resources."+o.Kind+".title"))
+	Title(w, fmt.Sprintf("Named %ss:", o.Kind))
 
 	t := NewTable(w).Accent(0).Headers(
 		T("resources.header.name"), T("resources.header.size"),
@@ -1018,7 +1016,7 @@ func (o ResourceListOutput) FormatText(w io.Writer) error {
 	t.Render()
 
 	fmt.Fprintln(w)
-	Note(w, T("resources."+o.Kind+".total"), o.Total)
+	Note(w, "Total: %d %s(s)", o.Total, o.Kind)
 	return nil
 }
 

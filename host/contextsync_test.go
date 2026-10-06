@@ -9,6 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/neokapi/neokapi/core/workspace"
 )
 
 // runGit runs git for a test, with an identity and no user configuration.
@@ -139,4 +141,47 @@ func TestContextSyncOfflineAndLocal(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "git", info.Kind)
 	assert.Equal(t, "recipe", info.From)
+}
+
+// TestContextTravelsThroughARemoteTheCallerHolds is the browser engine's
+// sync: a remote the caller opened, not one the recipe declares. One machine
+// pushes, another pulls the same stores and has nothing of its own to push,
+// and a second sync moves nothing.
+func TestContextTravelsThroughARemoteTheCallerHolds(t *testing.T) {
+	ctx := t.Context()
+	first := contextOpsProject(t, "ctxsync-held")
+	second := t.TempDir()
+	require.NoError(t, os.CopyFS(second, os.DirFS(first)))
+	shared := t.TempDir()
+	appA, _ := contextOpsApp(t)
+	appB, _ := contextOpsApp(t)
+
+	kept := proposeUtilise(t, appA, first, person)
+	_, err := appA.KeepContextOperation(ctx, ContextKeepRequest{Actor: person, Project: recipeOf(first), ID: kept.ID})
+	require.NoError(t, err)
+
+	a, err := appA.SyncProjectContextWith(ctx, recipeOf(first), workspace.NewFileRemote(shared), true, true)
+	require.NoError(t, err)
+	require.NotNil(t, a.Pull)
+	assert.True(t, a.Pull.Empty, "nothing was pushed to the folder before")
+	require.NotNil(t, a.Push)
+	assert.Positive(t, a.Push.Pushed)
+
+	b, err := appB.SyncProjectContextWith(ctx, recipeOf(second), workspace.NewFileRemote(shared), true, true)
+	require.NoError(t, err)
+	assert.Equal(t, a.Push.Pushed, b.Pull.Merged)
+	assert.Zero(t, b.Push.Pushed, "what was pulled is not pushed back")
+
+	dbA, err := appA.ProjectDB(ctx, first)
+	require.NoError(t, err)
+	dbB, err := appB.ProjectDB(ctx, second)
+	require.NoError(t, err)
+	rowsA := projectionRows(t, appA, dbA)
+	require.NotEmpty(t, rowsA["tb_concepts"])
+	assert.Equal(t, rowsA, projectionRows(t, appB, dbB))
+
+	again, err := appA.SyncProjectContextWith(ctx, recipeOf(first), workspace.NewFileRemote(shared), true, false)
+	require.NoError(t, err)
+	assert.Zero(t, again.Pull.Merged)
+	assert.Nil(t, again.Push, "a push that was not asked for does not run")
 }

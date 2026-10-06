@@ -252,8 +252,6 @@ block_asset_refs.ref_type text NOT NULL DEFAULT 'embedded'::text
 block_asset_refs.stream text NOT NULL DEFAULT 'main'::text
 block_history.actor_role text NOT NULL DEFAULT ''::text
 block_history.author text NOT NULL DEFAULT ''::text
-block_history.basis text NOT NULL DEFAULT ''::text
-block_history.basis_from text NOT NULL DEFAULT ''::text
 block_history.block_id text NOT NULL
 block_history.change_type text NOT NULL
 block_history.coded_text text NOT NULL DEFAULT ''::text

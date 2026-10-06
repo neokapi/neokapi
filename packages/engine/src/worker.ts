@@ -41,6 +41,21 @@ let local: ReturnType<typeof localCalls> | null = null;
 let store: VolumeStore | null = null;
 let pool: Awaited<ReturnType<typeof openPool>> | null = null;
 let quiet = false;
+// Set once another tab takes the workspace over: the pool is no longer ours.
+let lost = false;
+
+/**
+ * Another tab took the workspace over. Keep the changes not yet kept, stop
+ * using the pool and tell the page, which stops this Worker: only then are
+ * the pool's files free for the tab that took it.
+ */
+function onLost(): void {
+  if (lost) return;
+  flush();
+  lost = true;
+  store = null;
+  post({ t: "lost" });
+}
 // Changes the page has not seen, and changes the pool has not kept.
 const forPage = new Set<string>();
 const forPool = new Set<string>();
@@ -151,6 +166,7 @@ async function call(id: number, fn: string, args: unknown[], bridges: string[]):
   syncBridges(bridges);
   let reply: FromWorker;
   try {
+    if (lost) throw new Error("another tab took over the workspace");
     const value = await invokeEngine(local!, fn, args);
     reply = { t: "result", id, ok: true, value, cwd: mem!.process.cwd() };
   } catch (e) {
@@ -164,7 +180,7 @@ async function call(id: number, fn: string, args: unknown[], bridges: string[]):
   }
   flush();
   post(reply, reply.ok ? transferables(reply.value) : []);
-  if (store && pool && "pool" in pool) {
+  if (!lost && store && pool && "pool" in pool) {
     // Spare slots for the next call's new databases; between calls, since
     // growing the pool waits on the file system.
     calls = calls
@@ -196,7 +212,7 @@ async function boot(b: WorkerBoot): Promise<void> {
   const sqlite3 = await sqliteReady;
   let info: StorageInfo = { kind: "memory", reason: "disabled" };
   if (b.persist !== null) {
-    pool = await openPool(sqlite3, b.persist);
+    pool = await openPool(sqlite3, b.persist, { whenHeld: b.whenHeld, onLost });
     info = "pool" in pool ? pool.info : pool;
   }
 

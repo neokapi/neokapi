@@ -107,8 +107,8 @@ Section 12 has the counts.
 after a paired agent evaluation, `content.edit` is recorded for every applied change, parked
 drafts live in the workspace, the browser runs the native stores on sqlite-wasm, and Bowrain's
 editor and MCP speak the contract. `model.Block` holds peer editions in 1.3.0 as well (decision D5,
-WP14). DOCX native operations, durable browser storage and the Bowrain log remote come after
-1.3.0. None of them changes the contract. Section 14 has the bar; section 16 has fifteen decisions, each with a
+WP14), and the browser keeps its workspace in the origin private file system and syncs a project's
+context through a folder. DOCX native operations and the Bowrain log remote come after 1.3.0. None of them changes the contract. Section 14 has the bar; section 16 has fifteen decisions, each with a
 recommendation.
 
 ---
@@ -1631,15 +1631,27 @@ The browser build runs the same service and the same stores.
 - **Stage B.** Go, sqlite-wasm and memfs run in one dedicated Worker
   (`packages/engine/src/worker.ts`) with the `opfs-sahpool` VFS, which needs no COOP/COEP headers;
   the docs are on GitHub Pages, which cannot set them. One tab owns the pool through a Web Lock;
-  another tab runs in memory and the facade says so (`runtime.storage`, `reason: "another-tab"`).
+  another tab runs in memory and the facade says so (`runtime.storage`, `reason: "another-tab"`),
+  waits for the lock (`whenHeld: "wait"`), or takes the workspace over (`runtime.takeOver()`, or
+  `whenHeld: "take"`): its Worker requests the lock with `steal`, the owner's Worker sees its lock
+  request rejected, keeps its last file changes and reports `lost`, and the owner's page stops that
+  Worker and carries on in memory with its files (`reason: "taken"`).
   The pool's locks only remember the level asked for, so the bridge installs a lock table over them
   that locks between the engine's connections as `memdb` does. memfs is kept in a database of the
   same pool after each call, and the page holds a mirror of it, so `vol` stays synchronous. The
   browser workspace is a cache of a log that should also live elsewhere: `kapiExportWorkspace`
-  writes a workspace `.kpz` (`kapi-workspace`: the files and one context package per project) and
+  writes a workspace `.kpz` (`kapi-workspace`: the files, one context package per project, and
+  each terms store outside every project as a terms bundle under `termstores/`) and
   `kapiImportWorkspace` merges it back, because Safari evicts script-written data after seven days
-  without interaction (browser §7.4). Sync through a `workspace.Remote` is not built.
-  `make wasm-persist-smoke` proves reload, restart, a second tab and the export in headless
+  without interaction (browser §7.4). A reset forgets the project (`workspace.Forget`), and the
+  workspace treats an operation held only before its project's removal as not held, so the package
+  exported before a reset imports again in the same browser; a removal also clears the project's
+  sync state, and a push leaves out the operations before it. `kapiSyncContext` syncs a project's
+  context through a `workspace.Remote` the page holds (`App.SyncProjectContextWith`): a folder from
+  the File System Access API, in the layout `FileRemote` keeps, so a native `file` backend on the
+  same computer shares it. `git` and `s3` stay native: one runs the `git` executable, the other reads
+  the AWS credential chain. `make wasm-persist-smoke` proves reload, restart, a takeover in both
+  directions, a waiting tab, a reset and re-import, a folder sync and the export in headless
   Chromium without COOP/COEP headers.
 - **One storage contract.** `core/storage` stays the only way to open a database. Each driver
   declares a profile (maximum connections, WAL, cross-process lock, durability). Database files get
@@ -2063,7 +2075,8 @@ beside all of them in package-sized PRs.
   whose round trip is not byte-stable would show as an observed edit.
 - Local records name no person, so a venue names the first pusher of a revision as its author, and
   its own review surfaces learn a checkout's author only from the push that wrote the translation. A
-  removed translation sends no write; local decisions do not join a venue's minted unit
+  removed translation sends no write; a basis record a push writes is stamped at the push and can win
+  over an older local decision pushed after it; local decisions do not join a venue's minted unit
   keys; the staleness gate takes a translation's latest row, which after a branch switch can be
   another branch's.
 - Two checkouts that mint different keys for one document before their logs meet keep both.
@@ -2116,9 +2129,13 @@ beside all of them in package-sized PRs.
 - **Stage B:** the engine in a dedicated Worker on `opfs-sahpool`, one tab owning the pool through a
   Web Lock and the others in memory with a notice, memfs kept in the same pool and mirrored on the
   page, a lock table over the pool's locks, and the workspace `.kpz` (`kapiExportWorkspace`,
-  `kapiImportWorkspace`, `kpz.KindWorkspace`). **Acceptance:** the stage A smokes stay green, and
-  `make wasm-persist-smoke` passes in headless Chromium without COOP/COEP headers: reload, browser
-  restart, a second tab, and an export imported into a fresh profile.
+  `kapiImportWorkspace`, `kpz.KindWorkspace`), a takeover between tabs (`takeOver`, `whenHeld`), a
+  re-import after a reset, terms stores outside a project in the package, and sync through a folder
+  (`kapiSyncContext`). **Acceptance:** the stage A smokes stay green, and `make wasm-persist-smoke`
+  passes in headless Chromium without COOP/COEP headers: reload, browser restart, a second tab
+  taking the workspace over and handing it back, a tab waiting for the owner, a reset followed by a
+  re-import, a push to a folder and a pull from it after a reset, and an export imported into a
+  fresh profile with its terms store.
 - **Measured, stage B** (the same method, against 41ffec2b7): `kapi-cli.wasm.gz` grows from
   19,327,146 to 19,344,741 bytes, 0.018 MB, for the workspace package, its two entry points and
   `labSegmentAsync`. The JavaScript, bundled and minified with esbuild's code splitting and gzip -9
@@ -2329,8 +2346,9 @@ All of these hold before the 1.3.0 tag:
 `mark` (keep `set_attribute`), then local reconciliation on read (ship identity evidence only). None of
 them changes the schema.
 
-**After 1.3.0, in order:** DOCX native operations; browser sync through a `workspace.Remote`;
-proposals (`mode: propose`); the Bowrain log remote with decisions keyed by pairing; `EditNative` for
+**After 1.3.0, in order:** DOCX native operations; proposals (`mode: propose`); the Bowrain log
+remote with decisions keyed by pairing, which the browser reaches through `kapiSyncContext` as it
+reaches a folder; `EditNative` for
 plugins; `kapi edit` if decided; structural operations for Markdown and HTML with skeleton tombstones;
 revert by session for content.
 

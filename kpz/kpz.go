@@ -160,8 +160,9 @@ const (
 	// an operation in the workspace's log (core/projector), so a rebuild
 	// starts from it and replays only what came after. See checkpoint.go.
 	KindCheckpoint = "kapi-checkpoint"
-	// KindWorkspace marks a workspace package: the files of a file system and
-	// the context of every project among them, one context package each. The
+	// KindWorkspace marks a workspace package: the files of a file system,
+	// the context of every project among them, one context package each, and
+	// each terms store outside every project as a terms bundle. The
 	// browser engine writes one to carry what a page holds out of the
 	// browser, and reads one back. See workspacepkg.go.
 	KindWorkspace = "kapi-workspace"
@@ -208,6 +209,10 @@ const (
 	// ContentTypeContext carries one project's context package (KindContext)
 	// in a workspace package, under contexts/. Content.
 	ContentTypeContext = "context"
+	// ContentTypeTermStore carries one terms store that sits outside every
+	// project in a workspace package, under termstores/, as a terms bundle.
+	// Content.
+	ContentTypeTermStore = "termstore"
 
 	// memoryPath and termsPath are the conventional bare bundle names, so
 	// unzipping a package by hand yields the same spelling the rest of the
@@ -297,11 +302,12 @@ type Package struct {
 	Tables     []TableDoc
 	Checkpoint *CheckpointMark
 
-	// Files and Contexts carry a workspace package's files and the context
-	// package of each project among them. Empty for every profile but
-	// KindWorkspace.
-	Files    []FileDoc
-	Contexts []ContextDoc
+	// Files, Contexts and TermStores carry a workspace package's files, the
+	// context package of each project among them, and each terms store that
+	// sits outside every project. Empty for every profile but KindWorkspace.
+	Files      []FileDoc
+	Contexts   []ContextDoc
+	TermStores []TermStoreDoc
 }
 
 // HasContent reports whether the package carries any packable content — blocks,
@@ -321,6 +327,7 @@ func (p *Package) HasContent() bool {
 		len(p.Tables) > 0 ||
 		len(p.Files) > 0 ||
 		len(p.Contexts) > 0 ||
+		len(p.TermStores) > 0 ||
 		(p.Memory != nil && len(p.Memory.Entries) > 0) ||
 		(p.Terms != nil && len(p.Terms.Concepts) > 0)
 }
@@ -474,6 +481,9 @@ type Manifest struct {
 	// Projects names the project each context of a workspace package belongs
 	// to. Metadata, not in the RootHash.
 	Projects []WorkspaceProject `json:"projects,omitempty"`
+	// TermStores names where each terms store of a workspace package sits.
+	// Metadata, not in the RootHash.
+	TermStores []WorkspaceTermStore `json:"termStores,omitempty"`
 }
 
 // Member is one entry in the manifest inventory.
@@ -531,6 +541,10 @@ func (p *Package) WriteTo(w io.Writer) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
+	termStores, err := workspaceTermStores(p.TermStores)
+	if err != nil {
+		return 0, err
+	}
 	manifest := Manifest{
 		SchemaVersion: SchemaVersion,
 		Kind:          kind,
@@ -542,6 +556,7 @@ func (p *Package) WriteTo(w io.Writer) (int64, error) {
 		Task:          p.InterchangeTask,
 		Checkpoint:    p.Checkpoint,
 		Projects:      projects,
+		TermStores:    termStores,
 	}
 	for _, m := range members {
 		manifest.Members = append(manifest.Members, m.Member)
@@ -722,6 +737,12 @@ func (p *Package) serializeMembers() ([]memberContent, error) {
 		}
 		addData(c.Path, ContentTypeContext, c.Data)
 	}
+	for _, s := range p.TermStores {
+		if !underDir(s.Path, TermStoresDir) {
+			return nil, fmt.Errorf("kpz: %q is not a path under %s", s.Path, TermStoresDir)
+		}
+		addData(s.Path, ContentTypeTermStore, s.Data)
+	}
 	for _, t := range p.Tables {
 		if t.Table == "" {
 			return nil, errors.New("kpz: projection table needs a name")
@@ -872,6 +893,10 @@ func read(zr *zip.Reader) (*Package, error) {
 	for _, wp := range manifest.Projects {
 		roots[wp.Context] = wp.Root
 	}
+	stores := make(map[string]string, len(manifest.TermStores))
+	for _, ts := range manifest.TermStores {
+		stores[ts.Bundle] = ts.Store
+	}
 
 	for _, m := range manifest.Members {
 		zf, ok := files[m.Path]
@@ -964,6 +989,12 @@ func read(zr *zip.Reader) (*Package, error) {
 				return nil, err
 			}
 			pkg.Contexts = append(pkg.Contexts, ctxDoc)
+		case ContentTypeTermStore:
+			doc, err := termStoreMember(m.Path, body, stores)
+			if err != nil {
+				return nil, err
+			}
+			pkg.TermStores = append(pkg.TermStores, doc)
 		case ContentTypeHistory:
 			pkg.History = body
 		case ContentTypeOverlays:

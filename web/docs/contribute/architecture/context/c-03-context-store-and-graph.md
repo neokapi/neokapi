@@ -157,6 +157,7 @@ nothing; of other bytes, `ErrObjectExists`).
 | `GitRemote` | one commit per push on the ref, pushed without force; a push that loses a race fetches the new tip, lays its files over it and pushes again | the repository's remote |
 | `host/s3remote` | `PutObject` with `If-None-Match: *` | the AWS credential chain |
 | `MemoryRemote` | a map, packed into a transfer file | none |
+| the browser engine's folder remote (`kapiSyncContext`) | the `FileRemote` layout in a folder the page holds, each file written under a dot-name and moved into place | the folder the person granted the page |
 
 `workspace.Sync` moves one project's operations. A **pull** lists `log/`, reads
 the segments this workspace has not seen, merges their operations into the log
@@ -338,7 +339,12 @@ a projector opening a store applies whatever the log holds beyond the cursor.
 `Workspace.Forget` records a `project.forget` operation when it removes a
 project's context store, and a store that has applied nothing starts after the
 project's latest one, so a project registered again begins with an empty
-context. A rebuild starts there too.
+context. A rebuild starts there too. The operations before the removal stay in
+the log for history and count as not held: the log records one again after the
+removal when it arrives again (`Record`, by id or content address), a pull
+counts it as new, and a push leaves out everything before the removal. The
+removal also clears what the workspace knew about the project's remotes, so a
+project imported or pulled again after a reset gets its context back.
 
 Each step carries its rows with every timestamp the store would take from the
 clock filled in from the operation's instant, and a write that would leave the
@@ -867,9 +873,16 @@ process honours. The engine runs in a dedicated Worker, where the databases and
 the engine's files live in the origin private file system (SQLite's
 `opfs-sahpool` VFS) and survive a reload; one tab holds them, and a page that
 cannot (another tab holds them, or the browser lacks the API) keeps them in
-memory, and the profile reports durability accordingly. The browser copy is a
-cache of the log, so a page exports the workspace as a `.kpz` and imports it
-back. Two rules follow for every store, natively
+memory, and the profile reports durability accordingly. A tab takes the
+workspace over by stealing the Web Lock that names its owner; the owner's
+Worker learns of it when its lock request is rejected, and its page carries on
+in memory. The browser copy is a cache of the log, so a page exports the
+workspace as a `.kpz` and imports it back, a terms store outside every project
+travelling as a terms bundle, and syncs a project's context through a folder
+it was given, a `workspace.Remote` with the layout `FileRemote` keeps. An
+operation held only before its project's removal from the workspace counts as
+not held, which lets a project forgotten by a reset take its log back from a
+package or a remote. Two rules follow for every store, natively
 too. No correctness rule depends on a reader running beside a writer, and no
 code holds a transaction or open rows on a pool and then waits for a second
 session on the same pool; `make test-stores-oneconn` runs the store suites

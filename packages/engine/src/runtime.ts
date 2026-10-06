@@ -34,22 +34,26 @@ import type {
   RawSegmentResponse,
   RawWorkspaceExport,
   WorkspaceProjectExport,
+  WorkspaceTermStore,
 } from "./abi.ts";
 import { createMemFS } from "./memfs.ts";
 import type { MemFS, MemVolume } from "./memfs.ts";
 import { installSQLiteBridge, loadSQLite } from "./sqlite.ts";
 import { fetchWasmBytes, instantiate, sibling } from "./fetch.ts";
 import type { BootProgress, WasmExecHost } from "./fetch.ts";
-import { applyChanges } from "./storage.ts";
+import { applyChanges, changesOf } from "./storage.ts";
 import { invokeEngine, localCalls } from "./local.ts";
-import type { StorageInfo } from "./storage.ts";
+import type { FolderHandle } from "./folderremote.ts";
+import type { StorageInfo, VolOp, WhenHeld } from "./storage.ts";
 import { presentBridges } from "./protocol.ts";
 import type { FromWorker, ToWorker } from "./protocol.ts";
 import "./globals.ts";
 
 export type { BootProgress } from "./fetch.ts";
-export type { MemoryReason, StorageInfo } from "./storage.ts";
+export type { MemoryReason, StorageInfo, WhenHeld } from "./storage.ts";
 export { describeStorage } from "./storage.ts";
+export { folderRemote } from "./folderremote.ts";
+export type { ContextRemote, FolderFile, FolderHandle, RemoteObject } from "./folderremote.ts";
 
 export interface PreviewBlock {
   id: string;
@@ -209,6 +213,8 @@ export interface WorkspaceExport {
   files: number;
   /** The projects whose context it carries. */
   projects: WorkspaceProjectExport[];
+  /** The terms stores outside every project it carries, as terms bundles. */
+  termStores: WorkspaceTermStore[];
   /** Projects whose context could not be read, with the reason. */
   skipped: { root: string; reason: string }[];
 }
@@ -219,6 +225,55 @@ export interface WorkspaceImport {
   files: number;
   /** Each project whose context was merged, with the operations it added. */
   projects: { root: string; merged: number }[];
+  /** Each terms store written, with the concepts written to it. */
+  termStores: WorkspaceTermStore[];
+}
+
+/** How far apart the engine and a remote were at the last contact. */
+export interface ContextSyncStatus {
+  remote: { Kind: string; Location: string };
+  /** The project's operations the remote is not known to hold. */
+  to_push: number;
+  /** The operations read from the remote and not yet merged. */
+  to_pull: number;
+  /** When the remote was last reached (RFC 3339). */
+  contacted?: string;
+  /** What the last attempt to reach it reported. */
+  error?: string;
+}
+
+/** What a pull merged (`kapi context pull --json`). */
+export interface ContextPullReport extends ContextSyncStatus {
+  segments: number;
+  merged: number;
+  rebuilt?: boolean;
+  checkpoint?: string;
+  /** Nothing has been pushed to the remote yet. */
+  empty?: boolean;
+  seconds: number;
+}
+
+/** What a push wrote (`kapi context push --json`). */
+export interface ContextPushReport extends ContextSyncStatus {
+  pushed: number;
+  segments: number;
+  blobs: number;
+  checkpoint?: string;
+  seconds: number;
+}
+
+/** What {@link KapiRuntime.syncContext} did: each part is absent when it was not asked for. */
+export interface ContextSyncReport {
+  pull?: ContextPullReport;
+  push?: ContextPushReport;
+}
+
+/** What {@link KapiRuntime.syncContext} syncs. */
+export interface SyncContextOptions extends ChangeCallOptions {
+  /** Pull from the folder. With neither set, both run. */
+  pull?: boolean;
+  /** Push to the folder. With neither set, both run. */
+  push?: boolean;
 }
 
 export interface KapiRuntime {
@@ -228,8 +283,24 @@ export interface KapiRuntime {
    * changes are here when its Promise resolves.
    */
   vol: MemVolume;
-  /** Where the engine keeps its databases and files. */
+  /**
+   * Where the engine keeps its databases and files. It changes when another
+   * tab takes the workspace over (`reason: "taken"`) and when this tab takes
+   * it over ({@link takeOver}); {@link onStorageChange} reports each change.
+   */
   readonly storage: StorageInfo;
+  /** Subscribe to changes of {@link storage}. Returns an unsubscribe. */
+  onStorageChange(fn: (info: StorageInfo) => void): () => void;
+  /**
+   * Take the workspace over from the tab of this site that holds it. The
+   * calls in flight finish first. This tab then starts an engine on the kept
+   * workspace, whose files replace the ones this tab held in memory, and the
+   * tab that held it is told (its `storage` becomes `{ kind: "memory",
+   * reason: "taken" }`) and carries on in memory with its files. Resolves to
+   * the new `storage`; rejects, leaving this tab as it was, when the
+   * workspace cannot be opened. A tab that already holds it resolves at once.
+   */
+  takeOver(): Promise<StorageInfo>;
   run(argv: string[]): Promise<number>;
   preview(path: string): Promise<PreviewResult>;
   /** Inspect a file's content model, returning the parsed ContentTree. */
@@ -301,6 +372,15 @@ export interface KapiRuntime {
    * same path, and merge each project's context into the project's log.
    */
   importWorkspace(data: Uint8Array): Promise<WorkspaceImport>;
+  /**
+   * Share a project's context through a folder: pull what others pushed to
+   * it, then push what this engine recorded, as `kapi context pull` and
+   * `kapi context push` do for a `file` backend. `folder` is a directory
+   * handle, from `showDirectoryPicker()` or the origin private file system.
+   * The folder keeps the layout a `file` backend keeps on disk, so a machine
+   * whose recipe names the same folder shares the context.
+   */
+  syncContext(folder: FolderHandle, opts?: SyncContextOptions): Promise<ContextSyncReport>;
   cwd(): string;
   chdir(dir: string): void;
   /** Point the live stdout/stderr sinks at a destination (the active terminal). */
@@ -374,6 +454,10 @@ interface Engine {
   storage: StorageInfo;
   cwd(): string;
   chdir(dir: string): void;
+  /** Subscribe to changes of `storage`; returns an unsubscribe. */
+  onStorageChange(fn: (info: StorageInfo) => void): () => void;
+  /** Take the workspace over from the tab that holds it. */
+  takeOver(): Promise<StorageInfo>;
 }
 
 function facade(engine: Engine): KapiRuntime {
@@ -419,6 +503,8 @@ function facade(engine: Engine): KapiRuntime {
     get storage() {
       return engine.storage;
     },
+    onStorageChange: (fn) => engine.onStorageChange(fn),
+    takeOver: () => engine.takeOver(),
     run: async (argv: string[]) => (await engine.call("kapiRun", [argv])) as number,
     preview: async (path: string): Promise<PreviewResult> =>
       (await engine.call("kapiPreview", [path])) as RawPreviewResponse,
@@ -506,6 +592,7 @@ function facade(engine: Engine): KapiRuntime {
         data: raw.data,
         files: raw.files,
         projects: Array.from(raw.projects ?? []),
+        termStores: Array.from(raw.termStores ?? []),
         skipped: Array.from(raw.skipped ?? []),
       };
     },
@@ -513,9 +600,22 @@ function facade(engine: Engine): KapiRuntime {
       if (!engine.has("kapiImportWorkspace")) {
         throw new Error("this engine predates the workspace import (kapiImportWorkspace)");
       }
-      return JSON.parse(
+      const res = JSON.parse(
         (await engine.call("kapiImportWorkspace", [data])) as string,
-      ) as WorkspaceImport;
+      ) as Partial<WorkspaceImport>;
+      return {
+        files: res.files ?? 0,
+        projects: res.projects ?? [],
+        termStores: res.termStores ?? [],
+      };
+    },
+    syncContext: async (folder, opts): Promise<ContextSyncReport> => {
+      if (!engine.has("kapiSyncContext")) {
+        throw new Error("this engine predates context sync (kapiSyncContext)");
+      }
+      return JSON.parse(
+        (await engine.call("syncContext", [folder, JSON.stringify(opts ?? {})])) as string,
+      ) as ContextSyncReport;
     },
     cwd: () => engine.cwd(),
     chdir: (dir: string) => engine.chdir(dir),
@@ -555,6 +655,8 @@ export function makeRuntime(
     storage,
     cwd: () => mem.vol.cwd(),
     chdir: (dir) => mem.process.chdir(dir),
+    onStorageChange: () => () => {},
+    takeOver: () => Promise.reject(new Error("only an engine in a Worker can keep the workspace")),
   });
 }
 
@@ -586,22 +688,66 @@ function ownBytes(data: Uint8Array): Uint8Array {
   return copy;
 }
 
+/** What booting the engine in a Worker needs. */
+interface WorkerBootConfig {
+  wasmExecUrl: string;
+  wasmUrl: string;
+  sqliteWasmUrl: string;
+  persist: string | null;
+  whenHeld: WhenHeld;
+}
+
+/** The message a call in flight fails with when another tab takes the workspace. */
+const TAKEN = "another tab took over the workspace; this tab now keeps its files in memory";
+
+/** A booted Worker the facade sends calls to. */
+interface Session {
+  worker: Worker;
+  pending: Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }>;
+  abi: EngineABI | null;
+}
+
+/** A Worker that has just reported ready. */
+interface Started {
+  session: Session;
+  info: StorageInfo;
+  ops: VolOp[];
+  cwd: string;
+}
+
+/** A Worker lost the workspace before it was ready. */
+class LostBeforeReady extends Error {}
+
 /**
  * Boot the engine in a dedicated Worker and wire the facade to it. The page
  * keeps a mirror of the engine's file system: the Worker sends the changes a
  * call made before the call's answer, and a write on the page reaches the
  * Worker before the next call (messages keep their order).
+ *
+ * The facade outlives the Worker it starts with. When another tab takes the
+ * workspace over, the Worker says so (`lost`); the facade fails the calls in
+ * flight, stops the Worker (which frees the pool's files for the new owner)
+ * and starts another in memory, handing it the page's files, so the tab keeps
+ * working. `takeOver()` starts a Worker that takes the workspace from the tab
+ * holding it, and moves the facade onto it.
  */
-function bootWorker(
-  worker: Worker,
-  boot: { wasmExecUrl: string; wasmUrl: string; sqliteWasmUrl: string; persist: string | null },
-): Promise<KapiRuntime> {
+function bootWorker(spawn: () => Worker, boot: WorkerBootConfig): Promise<KapiRuntime> {
   const mirror = createMemFS();
-  const send = (msg: ToWorker, transfer: Transferable[] = []) => worker.postMessage(msg, transfer);
-  const pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
-  let nextId = 1;
+  let current: Session | null = null;
+  // While a replacement Worker boots, calls wait for it.
+  let switching: Promise<Session> | null = null;
   let abi: EngineABI | null = null;
   let storage: StorageInfo = { kind: "memory" };
+  let booted = false;
+  let nextId = 1;
+  const storageListeners = new Set<(info: StorageInfo) => void>();
+  const setStorage = (info: StorageInfo) => {
+    storage = info;
+    for (const fn of storageListeners) fn(info);
+  };
+
+  const send = (msg: ToWorker, transfer: Transferable[] = []) =>
+    current?.worker.postMessage(msg, transfer);
 
   // The page's writes go to the mirror and to the Worker.
   const vol: MemVolume = {
@@ -643,89 +789,213 @@ function bootWorker(
     }
   };
 
-  return new Promise<KapiRuntime>((resolveBoot, rejectBoot) => {
-    worker.onmessage = (ev: MessageEvent<FromWorker>) => {
-      const msg = ev.data;
-      switch (msg.t) {
-        case "progress":
-          emitBootProgress(msg.progress);
-          break;
-        case "out":
-          outSink(msg.text);
-          break;
-        case "err":
-          errSink(msg.text);
-          break;
-        case "vol":
-          applyChanges(mirror, msg.ops);
-          break;
-        case "ready": {
-          applyChanges(mirror, msg.ops);
-          syncCwd(msg.cwd);
-          storage = msg.storage;
-          abi = msg.abi;
-          // engineABI() and hasEngineFunction() read the descriptor from the
-          // page; the engine's own globals are in the Worker.
-          if (abi) {
-            const descriptor = abi;
-            globalThis.kapiEngineABI = () => descriptor;
+  /** Start a Worker and resolve once it is ready. */
+  const start = (config: WorkerBootConfig): Promise<Started> =>
+    new Promise<Started>((resolveStart, rejectStart) => {
+      const session: Session = { worker: spawn(), pending: new Map(), abi: null };
+      let ready = false;
+      const isCurrent = () => current === session;
+      session.worker.onmessage = (ev: MessageEvent<FromWorker>) => {
+        const msg = ev.data;
+        switch (msg.t) {
+          case "progress":
+            // A Worker started after boot (a takeover, or a restart in
+            // memory) reuses the fetched engine; only the first reports.
+            if (!booted) emitBootProgress(msg.progress);
+            break;
+          case "out":
+            outSink(msg.text);
+            break;
+          case "err":
+            errSink(msg.text);
+            break;
+          case "vol":
+            if (isCurrent()) applyChanges(mirror, msg.ops);
+            break;
+          case "ready":
+            ready = true;
+            session.abi = msg.abi;
+            resolveStart({ session, info: msg.storage, ops: msg.ops, cwd: msg.cwd });
+            break;
+          case "boot-error":
+            rejectStart(new Error(msg.error));
+            session.worker.terminate();
+            break;
+          case "result": {
+            if (isCurrent()) syncCwd(msg.cwd);
+            const call = session.pending.get(msg.id);
+            session.pending.delete(msg.id);
+            if (!call) break;
+            if (msg.ok) call.resolve(msg.value);
+            else call.reject(new Error(msg.error));
+            break;
           }
-          resolveBoot(
-            facade({
-              call: (fn, args) =>
-                new Promise((resolve, reject) => {
-                  const id = nextId++;
-                  pending.set(id, { resolve, reject });
-                  send({ t: "call", id, fn, args, bridges: presentBridges() });
+          case "bridge":
+            answerBridge(msg.name, msg.args).then(
+              (value) =>
+                session.worker.postMessage({ t: "bridge-result", id: msg.id, ok: true, value }),
+              (e: unknown) =>
+                session.worker.postMessage({
+                  t: "bridge-result",
+                  id: msg.id,
+                  ok: false,
+                  error: e instanceof Error ? e.message : String(e),
                 }),
-              has: (fn) =>
-                ["removeDatabase", "reset", "take"].includes(fn) ||
-                (abi ? abi.functions.includes(fn) : false),
-              vol,
-              get storage() {
-                return storage;
-              },
-              cwd: () => mirror.vol.cwd(),
-              chdir: (dir) => {
-                mirror.process.chdir(dir);
-                send({ t: "chdir", dir: mirror.vol.cwd() });
-              },
-            }),
-          );
-          break;
+            );
+            break;
+          case "lost":
+            if (!ready) {
+              session.worker.terminate();
+              rejectStart(new LostBeforeReady(TAKEN));
+            } else if (isCurrent()) {
+              lose(session);
+            } else {
+              session.worker.terminate();
+            }
+            break;
         }
-        case "boot-error":
-          rejectBoot(new Error(msg.error));
-          worker.terminate();
-          break;
-        case "result": {
-          syncCwd(msg.cwd);
-          const call = pending.get(msg.id);
-          pending.delete(msg.id);
-          if (!call) break;
-          if (msg.ok) call.resolve(msg.value);
-          else call.reject(new Error(msg.error));
-          break;
-        }
-        case "bridge":
-          answerBridge(msg.name, msg.args).then(
-            (value) => send({ t: "bridge-result", id: msg.id, ok: true, value }),
-            (e: unknown) =>
-              send({
-                t: "bridge-result",
-                id: msg.id,
-                ok: false,
-                error: e instanceof Error ? e.message : String(e),
-              }),
-          );
-          break;
+      };
+      session.worker.onerror = (ev) => {
+        rejectStart(new Error(ev.message || "the engine's Worker failed to start"));
+      };
+      session.worker.postMessage({ t: "boot", boot: config } satisfies ToWorker);
+    });
+
+  /** Move the facade onto a Worker that has just started. */
+  const adopt = (s: Started, replaceFiles: boolean) => {
+    current = s.session;
+    abi = s.session.abi ?? abi;
+    if (replaceFiles) {
+      for (const name of mirror.vol.readdir("/")) mirror.vol.remove(`/${name}`);
+    }
+    applyChanges(mirror, s.ops);
+    syncCwd(s.cwd);
+    // engineABI() and hasEngineFunction() read the descriptor from the page;
+    // the engine's own globals are in the Worker.
+    if (abi) {
+      const descriptor = abi;
+      globalThis.kapiEngineABI = () => descriptor;
+    }
+  };
+
+  /** Fail every call in flight on a session and stop its Worker. */
+  const stop = (session: Session, why: string) => {
+    for (const call of session.pending.values()) call.reject(new Error(why));
+    session.pending.clear();
+    session.worker.terminate();
+  };
+
+  /**
+   * Another tab took the workspace over: stop this tab's Worker so the pool's
+   * files are free, and carry on in memory with the page's files.
+   */
+  const lose = (session: Session) => {
+    current = null;
+    stop(session, TAKEN);
+    setStorage({ kind: "memory", reason: "taken" });
+    switching = start({ ...boot, persist: null })
+      .then((s) => {
+        current = s.session;
+        abi = s.session.abi ?? abi;
+        // The new engine starts from the page's files.
+        s.session.worker.postMessage({
+          t: "vol",
+          ops: changesOf(mirror, ["/"]),
+        } satisfies ToWorker);
+        s.session.worker.postMessage({ t: "chdir", dir: mirror.vol.cwd() } satisfies ToWorker);
+        applyChanges(mirror, s.ops);
+        return s.session;
+      })
+      .finally(() => {
+        switching = null;
+      });
+    switching.catch((e: unknown) => {
+      errSink(`kapi: could not restart the engine in memory: ${(e as Error).message}\n`);
+    });
+  };
+
+  const sessionForCall = async (): Promise<Session> => {
+    if (current) return current;
+    if (switching) return switching;
+    throw new Error("the engine is not running");
+  };
+
+  const engine: Engine = {
+    call: async (fn, args) => {
+      const session = await sessionForCall();
+      return new Promise((resolve, reject) => {
+        const id = nextId++;
+        session.pending.set(id, { resolve, reject });
+        session.worker.postMessage({
+          t: "call",
+          id,
+          fn,
+          args,
+          bridges: presentBridges(),
+        } satisfies ToWorker);
+      });
+    },
+    has: (fn) =>
+      ["removeDatabase", "reset", "take"].includes(fn) ||
+      (abi ? abi.functions.includes(fn) : false),
+    vol,
+    get storage() {
+      return storage;
+    },
+    cwd: () => mirror.vol.cwd(),
+    chdir: (dir) => {
+      mirror.process.chdir(dir);
+      send({ t: "chdir", dir: mirror.vol.cwd() });
+    },
+    onStorageChange: (fn) => {
+      storageListeners.add(fn);
+      return () => storageListeners.delete(fn);
+    },
+    takeOver: async () => {
+      if (storage.kind === "opfs") return storage;
+      if (boot.persist === null) {
+        throw new Error("this page keeps its workspace in memory (persist: false)");
       }
-    };
-    worker.onerror = (ev) => {
-      rejectBoot(new Error(ev.message || "the engine's Worker failed to start"));
-    };
-    send({ t: "boot", boot });
-  });
+      const old = current ?? (await switching);
+      if (!old) throw new Error("the engine is not running");
+      // The calls in flight finish on the engine they started on.
+      await waitIdle(old);
+      const next = await start({ ...boot, whenHeld: "take" });
+      if (next.info.kind !== "opfs") {
+        next.session.worker.terminate();
+        const why = next.info.detail ?? next.info.reason ?? "unknown";
+        throw new Error(`could not take over the workspace: ${why}`);
+      }
+      // This tab's files in memory give way to the workspace it took over.
+      adopt(next, true);
+      stop(old, "this tab took over the workspace");
+      setStorage(next.info);
+      return storage;
+    },
+  };
+
+  return start(boot)
+    .catch((e: unknown) => {
+      // The workspace was taken while this tab was still starting: run in memory.
+      if (!(e instanceof LostBeforeReady)) throw e;
+      return start({ ...boot, persist: null }).then((s) => ({
+        ...s,
+        info: { kind: "memory", reason: "taken" } as StorageInfo,
+      }));
+    })
+    .then((s) => {
+      adopt(s, false);
+      storage = s.info;
+      booted = true;
+      return facade(engine);
+    });
+}
+
+/** Resolve once no call is in flight on a session. */
+async function waitIdle(session: Session): Promise<void> {
+  while (session.pending.size) {
+    await new Promise((r) => setTimeout(r, 20));
+  }
 }
 
 let booting: Promise<KapiRuntime> | null = null;
@@ -753,6 +1023,14 @@ export interface BootOptions {
    * different keys, since a workspace belongs to the engine that wrote it.
    */
   persist?: boolean | string;
+  /**
+   * What this tab does when another tab of the site holds the workspace:
+   * `"memory"` (the default) runs in memory and says so (`reason:
+   * "another-tab"`), and the page can call `takeOver()` later; `"wait"` waits
+   * until the owner closes or lets go; `"take"` takes the workspace over at
+   * once, and the owner carries on in memory (`reason: "taken"`).
+   */
+  whenHeld?: WhenHeld;
 }
 
 /**
@@ -797,16 +1075,19 @@ export function bootKapiRuntime(
     // Absolute URLs: the Worker resolves relative ones against its own script.
     const base = typeof location !== "undefined" ? location.href : undefined;
     const abs = (u: string) => new URL(u, base).href;
-    const worker = new Worker(new URL("./worker.ts", import.meta.url), {
-      type: "module",
-      name: "kapi-engine",
-    });
+    // A takeover, or a restart in memory, starts another Worker.
+    const spawn = () =>
+      new Worker(new URL("./worker.ts", import.meta.url), {
+        type: "module",
+        name: "kapi-engine",
+      });
     const persist = opts.persist ?? true;
-    return bootWorker(worker, {
+    return bootWorker(spawn, {
       wasmExecUrl: abs(wasmExecUrl),
       wasmUrl: abs(wasmUrl),
       sqliteWasmUrl: abs(sqliteWasmUrl),
       persist: persist === false ? null : persist === true ? "kapi" : persist,
+      whenHeld: opts.whenHeld ?? "memory",
     });
   }
 

@@ -3,6 +3,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -16,8 +17,10 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/kpz"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // The browser workspace is a cache: the browser may evict what a page keeps,
@@ -26,8 +29,10 @@ import (
 // the engine's file system and the context of every project among them, and
 // kapiImportWorkspace reads one back. A project's context travels as its
 // operation log (a context package, as `kapi context export` writes one), so
-// reading it back rebuilds the project's stores by merging the log; a store
-// outside every project is a projection of nothing and does not travel.
+// reading it back rebuilds the project's stores by merging the log. A terms
+// store outside every project (`kapi terms import` run outside a project, or
+// one named with --file) has no log, so it travels as a terms bundle and is
+// written back into a store at the same path.
 
 // exportSkip lists the directories an export leaves out: the data root (the
 // workspace's own databases live in the driver's namespace, and its files are
@@ -37,10 +42,18 @@ var exportSkip = []string{browserDataDir, "/tmp", filepath.Dir(labProjectDir)}
 
 // workspaceExport is what kapiExportWorkspace reports beside the package.
 type workspaceExport struct {
-	Files    int               `json:"files"`
-	Projects []exportedProject `json:"projects"`
-	Skipped  []skippedProject  `json:"skipped,omitempty"`
-	pkg      *kpz.Package
+	Files      int                 `json:"files"`
+	Projects   []exportedProject   `json:"projects"`
+	TermStores []exportedTermStore `json:"termStores"`
+	Skipped    []skippedProject    `json:"skipped,omitempty"`
+	pkg        *kpz.Package
+}
+
+// exportedTermStore is a terms store outside every project an export carries,
+// and how many concepts it holds.
+type exportedTermStore struct {
+	Store    string `json:"store"`
+	Concepts int    `json:"concepts"`
 }
 
 type exportedProject struct {
@@ -55,8 +68,9 @@ type skippedProject struct {
 
 // workspaceImport is what kapiImportWorkspace resolves to.
 type workspaceImport struct {
-	Files    int               `json:"files"`
-	Projects []importedProject `json:"projects"`
+	Files      int                 `json:"files"`
+	Projects   []importedProject   `json:"projects"`
+	TermStores []exportedTermStore `json:"termStores"`
 }
 
 type importedProject struct {
@@ -65,8 +79,9 @@ type importedProject struct {
 }
 
 // kapiExportWorkspace packs the engine's file system and the context of each
-// project in it. It returns a Promise of {data, files, projects, skipped}:
-// data is the package's bytes (a Uint8Array), and skipped names each project
+// project in it, and each terms store outside every project. It returns a
+// Promise of {data, files, projects, termStores, skipped}: data is the
+// package's bytes (a Uint8Array), and skipped names each project
 // whose context could not be read, with the reason. A project whose log holds
 // nothing yet travels as its files alone.
 func kapiExportWorkspace(_ js.Value, _ []js.Value) any {
@@ -101,8 +116,10 @@ func kapiExportWorkspace(_ js.Value, _ []js.Value) any {
 
 // kapiImportWorkspace reads a workspace package (a Uint8Array) into the
 // engine: it writes the package's files, replacing a file at the same path,
-// and merges each project's context into the project's log. It returns a
-// Promise of the report as a JSON string, {files, projects: [{root, merged}]}.
+// merges each project's context into the project's log, and adds each terms
+// store's concepts to a store at its path. It returns a Promise of the report
+// as a JSON string, {files, projects: [{root, merged}], termStores: [{store,
+// concepts}]}.
 func kapiImportWorkspace(_ js.Value, args []js.Value) any {
 	var data []byte
 	if len(args) >= 1 && args[0].InstanceOf(js.Global().Get("Uint8Array")) {
@@ -186,7 +203,126 @@ func exportWorkspace(ctx context.Context, root string) (*workspaceExport, error)
 		})
 		res.Projects = append(res.Projects, exportedProject{Root: dir, Operations: exported.Operations})
 	}
+	stores, err := termStoresOutsideProjects(ctx, root, projects)
+	if err != nil {
+		return nil, err
+	}
+	res.TermStores = []exportedTermStore{}
+	for _, path := range stores {
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			return nil, err
+		}
+		data, concepts, err := termStoreBundle(ctx, path)
+		if err != nil {
+			return nil, fmt.Errorf("pack the terms store %s: %w", path, err)
+		}
+		res.pkg.TermStores = append(res.pkg.TermStores, kpz.TermStoreDoc{
+			Path:  fmt.Sprintf("%s%d.terms.json", kpz.TermStoresDir, len(res.pkg.TermStores)+1),
+			Store: filepath.ToSlash(rel),
+			Data:  data,
+		})
+		res.TermStores = append(res.TermStores, exportedTermStore{Store: path, Concepts: concepts})
+	}
 	return res, nil
+}
+
+// termStoresOutsideProjects lists the terms stores at or below root that
+// belong to no project: every database the driver holds there that carries
+// the terms schema, apart from the data root (the workspace), the directories
+// an export leaves out, and each project's own state directory, whose stores
+// are projections of the project's log.
+func termStoresOutsideProjects(ctx context.Context, root string, projects []string) ([]string, error) {
+	paths, err := storage.List(root)
+	if err != nil {
+		return nil, err
+	}
+	// The directories an export leaves out apply below the root it packs, as
+	// the file walk applies them: a root inside one of them (a temporary
+	// directory under /tmp) is packed whole.
+	var skip []string
+	for _, dir := range append([]string{host.DataDir()}, exportSkip...) {
+		dir = filepath.Clean(dir)
+		if !within(filepath.Clean(root), dir) {
+			skip = append(skip, dir)
+		}
+	}
+	for _, dir := range projects {
+		layout, err := project.LayoutFor(dir)
+		if err != nil {
+			return nil, err
+		}
+		skip = append(skip, filepath.Clean(layout.StateDir))
+	}
+	var out []string
+	for _, p := range paths {
+		if slices.ContainsFunc(skip, func(dir string) bool { return within(p, dir) }) {
+			continue
+		}
+		ok, err := isTermStore(ctx, p)
+		if err != nil {
+			return nil, err
+		}
+		if ok {
+			out = append(out, p)
+		}
+	}
+	return out, nil
+}
+
+// within reports whether path is dir or lies below it.
+func within(path, dir string) bool {
+	return path == dir || strings.HasPrefix(path, strings.TrimSuffix(dir, string(filepath.Separator))+string(filepath.Separator))
+}
+
+// isTermStore reports whether the database at path carries the terms
+// schema, read without changing it.
+func isTermStore(ctx context.Context, path string) (bool, error) {
+	db, err := storage.OpenReadOnly(path)
+	if err != nil {
+		// A file that is not a database is not a terms store.
+		return false, nil
+	}
+	defer func() { _ = db.Close() }()
+	ok, err := terms.IsStore(ctx, db)
+	if err != nil {
+		return false, fmt.Errorf("%s: %w", path, err)
+	}
+	return ok, nil
+}
+
+// termStoreBundle packs the terms store at path as a terms bundle, and
+// reports how many concepts it holds.
+func termStoreBundle(ctx context.Context, path string) ([]byte, int, error) {
+	tb, err := terms.NewSQLiteStore(path)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer func() { _ = tb.Close() }()
+	n, err := tb.Count(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	var buf bytes.Buffer
+	if err := host.ExportKTB(ctx, tb, &buf); err != nil {
+		return nil, 0, err
+	}
+	return buf.Bytes(), n, nil
+}
+
+// importTermStore adds a terms bundle's concepts and relations to the store
+// at path, creating it when there is none. A concept already there under the
+// same id is replaced.
+func importTermStore(ctx context.Context, path string, data []byte) (int, error) {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return 0, err
+	}
+	tb, err := terms.NewSQLiteStore(path)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = tb.Close() }()
+	return host.ImportKTBFile(ctx, tb, bytes.NewReader(data))
 }
 
 // importWorkspace writes a workspace package's files under root and merges
@@ -231,6 +367,18 @@ func importWorkspace(ctx context.Context, root string, data []byte) (*workspaceI
 			return nil, fmt.Errorf("merge the context of %s: %w", dir, err)
 		}
 		res.Projects = append(res.Projects, importedProject{Root: dir, Merged: pulled.Merged})
+	}
+	res.TermStores = []exportedTermStore{}
+	for _, s := range pkg.TermStores {
+		path := filepath.Join(root, filepath.FromSlash(s.Store))
+		if !within(path, filepath.Clean(root)) {
+			return nil, fmt.Errorf("%s is not a path inside the workspace", s.Store)
+		}
+		n, err := importTermStore(ctx, path, s.Data)
+		if err != nil {
+			return nil, fmt.Errorf("write the terms store %s: %w", path, err)
+		}
+		res.TermStores = append(res.TermStores, exportedTermStore{Store: path, Concepts: n})
 	}
 	return res, nil
 }

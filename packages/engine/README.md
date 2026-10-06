@@ -15,9 +15,11 @@ The package owns:
   runs on the calling thread.
 - **A kept workspace** — in the Worker, the databases and files live in the
   origin private file system (SQLite's `opfs-sahpool` VFS), so a workspace
-  survives a reload and a browser restart. One tab holds it at a time;
-  `runtime.storage` says where the workspace is, and `exportWorkspace()` /
-  `importWorkspace()` carry it out of the browser as a `.kpz`.
+  survives a reload and a browser restart. One tab holds it at a time, and
+  `takeOver()` moves it to another; `runtime.storage` says where the
+  workspace is, `exportWorkspace()` / `importWorkspace()` carry it out of the
+  browser as a `.kpz`, and `syncContext()` shares a project's context through
+  a folder.
 - **`KapiRuntime`** — the facade over the engine's global function set:
   `run` (any browser-safe kapi CLI command), `preview`, `inspect`,
   `inspectAnnotated`, `kbf`, `segment`, `segmentEngines`, `runWithTrace`,
@@ -82,11 +84,27 @@ rt.storage; // { kind: "opfs", name } or { kind: "memory", reason }
   take different keys: a workspace belongs to the engine that wrote it.
 - One tab holds the workspace. Another tab of the site runs in memory with
   `reason: "another-tab"`; `describeStorage(rt.storage)` gives a sentence to
-  show.
+  show. `whenHeld: "wait"` waits for the owner instead, and `whenHeld: "take"`
+  takes the workspace over at boot.
+- `rt.takeOver()` moves the workspace to this tab: the calls in flight finish,
+  the tab's files give way to the kept ones, and the tab that held it carries
+  on in memory with `reason: "taken"`. `rt.onStorageChange(fn)` reports each
+  change.
 - The browser may clear what a site keeps (Safari does after seven days
   without interaction). `rt.exportWorkspace()` resolves to a `.kpz` of the
-  files and each project's context, and `rt.importWorkspace(bytes)` reads one
-  back into any page.
+  files, each project's context and every terms store outside a project, and
+  `rt.importWorkspace(bytes)` reads one back into any page, including the same
+  one after a `reset`.
+- `rt.syncContext(folder, { project })` pulls a project's context from a
+  folder and pushes what the engine recorded to it. `folder` is a directory
+  handle (`showDirectoryPicker()`, or the origin private file system); the
+  folder keeps the layout of a `file` context backend, so kapi on the same
+  computer shares it.
+
+```ts
+const folder = await showDirectoryPicker({ mode: "readwrite" });
+const { pull, push } = await rt.syncContext(folder, { project: "/site" });
+```
 
 A bundler that understands `new Worker(new URL("./worker.ts", import.meta.url))`
 (webpack 5, Vite, Rspack) bundles the Worker with the package.

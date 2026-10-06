@@ -17,6 +17,7 @@
 export {
   bootKapiRuntime,
   ChangeRefused,
+  folderRemote,
   describeStorage,
   isBooted,
   makeRuntime,
@@ -31,6 +32,11 @@ export type {
   ChangeCallOptions,
   ChangeResult,
   ChangeSet,
+  ContextPullReport,
+  ContextPushReport,
+  ContextRemote,
+  ContextSyncReport,
+  ContextSyncStatus,
   DescribeRequest,
   FormatDescription,
   InspectResult,
@@ -42,9 +48,14 @@ export type {
   PreviewResult,
   ReadPage,
   ReadRequest,
+  SyncContextOptions,
   SegmentPiece,
   SegmentResult,
   StorageInfo,
+  FolderFile,
+  FolderHandle,
+  RemoteObject,
+  WhenHeld,
   TraceRunResult,
   WorkspaceExport,
   WorkspaceImport,
@@ -75,6 +86,7 @@ export type {
   RawSegmentResponse,
   RawWorkspaceExport,
   WorkspaceProjectExport,
+  WorkspaceTermStore,
 } from "./abi.ts";
 
 // Reverse-bridge capabilities the host page may provide.

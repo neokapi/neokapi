@@ -405,20 +405,14 @@ source the project has now. The server venue derives the answer from its
 ledger by revision: one grouped query grades every recorded basis against the
 revision of the current source, and a stale block is withheld from the produced count until a pass has
 drafted it, so a run started by a source change has pending work and produces.
-For a block nobody has decided, the translation's edition carries the basis of
-the latest draft (`Edition.Derived`, stored in `target_json`): one the venue's
-own run made, or one a run on a checkout made. A push stores each edition with
-the derivation it carries, and the edition write it sends beside the decisions
-([S-07](../surfaces/s-07-context-centric-review.md#a-push-carries-decisions-the-venue-decides))
-sets the basis on the translation the venue holds. The venue's ledger gains no
-row for it, so a basis never replaces a decision and leaves an undecided row's
-rung, note and assignee as they were. A write that left a translation made from
-no recorded source, an edit by hand or one made outside kapi, clears the basis
-the edition held, and so does a pushed edition that carries no derivation. A
-translation a checkout pulled from the venue sends no basis, since the venue's
-own record of it already holds one. Each block history row records the
-derivation the edition carried when the row was written (`block_history.basis`
-and `basis_from`), and the history endpoint serves it with the entry.
+For a block nobody has decided, the venue's ledger row carries the basis of the
+latest draft: one its own run made, or one a run on a checkout made, which the
+push carries beside the decisions
+([S-07](../surfaces/s-07-context-centric-review.md#a-push-carries-decisions-the-venue-decides)).
+A basis record from a push carries the basis and nothing else: it never
+replaces a decision, and it leaves an undecided row's rung, note and assignee
+as they were. A translation a checkout pulled from the venue sends no basis,
+since the venue's own record of it already holds one.
 
 **Only an approval re-stamps the basis.** What clears a stale block is the next
 decision on it, and one kind of decision: a reviewer looking at the re-drafted
@@ -620,8 +614,7 @@ decision, and is recorded again. A **basis** the convergence loop writes for
 its own output records the producer's stamp: the run that wrote the target is
 the run recording it. A hand-typed translation records none, because nothing
 vouches for the context it was written under. The venue ledger carries the same
-column for a decision, so a push and a pull agree on it, and an undecided
-translation carries the stamp on its edition's origin.
+column, so a push and a pull agree on it.
 
 The fingerprint is a different quantity from the record's identity signals, and
 neither is derivable from the other. `contextHash` says *which block* this is

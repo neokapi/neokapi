@@ -16,7 +16,10 @@ import (
 //
 // The contexts are the operation logs, never the stores: a project's stores
 // are projections of its log, and reading the package back rebuilds them by
-// merging each log the way `kapi context import` does.
+// merging each log the way `kapi context import` does. A terms store that sits
+// outside every project has no log, so it travels as itself: a terms bundle
+// (terms/ktb) under termstores/, which reading the package back writes into a
+// store at the same path.
 
 // FilesDir is the archive directory holding a workspace package's files, at
 // their paths relative to the root the package was written from.
@@ -25,6 +28,62 @@ const FilesDir = "files/"
 // ContextsDir is the archive directory holding a workspace package's context
 // packages, one per project.
 const ContextsDir = "contexts/"
+
+// TermStoresDir is the archive directory holding a workspace package's terms
+// stores, one terms bundle each.
+const TermStoresDir = "termstores/"
+
+// TermStoreDoc is one terms store of a workspace package.
+type TermStoreDoc struct {
+	// Path is the archive path under termstores/, e.g. "termstores/1.terms.json".
+	Path string
+	// Store is the store's database path, relative to the root the package
+	// was written from.
+	Store string
+	// Data is the store's concepts and relations as a terms bundle (terms/ktb).
+	Data []byte
+}
+
+// WorkspaceTermStore is one terms store a workspace package carries, as the
+// manifest records it.
+type WorkspaceTermStore struct {
+	// Store is the store's database path, relative to the package's root.
+	Store string `json:"store"`
+	// Bundle is the archive path of the store's terms bundle.
+	Bundle string `json:"bundle"`
+}
+
+// workspaceTermStores lists a package's terms stores for its manifest,
+// refusing a bundle outside termstores/ or a store outside the package.
+func workspaceTermStores(stores []TermStoreDoc) ([]WorkspaceTermStore, error) {
+	var out []WorkspaceTermStore
+	for _, s := range stores {
+		if !underDir(s.Path, TermStoresDir) {
+			return nil, fmt.Errorf("kpz: %q is not a path under %s", s.Path, TermStoresDir)
+		}
+		if s.Store == "" || s.Store == "." || !safeio.IsLocalPath(s.Store) {
+			return nil, fmt.Errorf("kpz: terms store %q is not a path inside the workspace", s.Store)
+		}
+		out = append(out, WorkspaceTermStore{Store: s.Store, Bundle: s.Path})
+	}
+	return out, nil
+}
+
+// termStoreMember reads one terms store member of a workspace package, with
+// the store path the manifest records for it.
+func termStoreMember(member string, data []byte, stores map[string]string) (TermStoreDoc, error) {
+	if !underDir(member, TermStoresDir) {
+		return TermStoreDoc{}, fmt.Errorf("kpz: %q is not a path under %s", member, TermStoresDir)
+	}
+	store, ok := stores[member]
+	if !ok {
+		return TermStoreDoc{}, fmt.Errorf("kpz: the manifest names no terms store for %q", member)
+	}
+	if store == "" || store == "." || !safeio.IsLocalPath(store) {
+		return TermStoreDoc{}, fmt.Errorf("kpz: terms store %q is not a path inside the workspace", store)
+	}
+	return TermStoreDoc{Path: member, Store: store, Data: data}, nil
+}
 
 // FileDoc is one file of a workspace package.
 type FileDoc struct {
