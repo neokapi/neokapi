@@ -54,8 +54,10 @@ The drafts of a language whose files `materialize: on-converge` withholds
 travel too, because the workspace is where they are kept until a delivery
 writes them. Two machines that edit one such draft each keep their edit after
 a pull when they changed different blocks. When both changed the same block, the
-edit made first holds it and `kapi status` lists the other as a conflict;
-editing that block again settles it.
+edit made first holds it and `kapi status` lists the other as a conflict.
+Kapi Desktop shows each conflict on the project's home with both wordings:
+keep the wording held now, take the other one, or write a new one. Editing that
+block again from the command line or through an agent settles it the same way.
 
 Content files are managed separately in git.
 

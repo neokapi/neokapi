@@ -240,7 +240,29 @@ func (h *Home) Edition(ctx context.Context, ref string, k model.EditionKey) (fil
 	if err != nil {
 		return filehome.Kept{}, err
 	}
-	return filehome.Kept{Token: token(seq, head), Digest: Digest(rows), Blocks: blocks}, nil
+	return filehome.Kept{Token: token(seq, head), Digest: Digest(rows), Blocks: blocks, Contested: contested(head, rows)}, nil
+}
+
+// contested names the blocks of an edition a write that did not land still
+// names, as Conflicts lists them: a person's or an agent's write that keeps
+// one as it stands decides it.
+func contested(head Head, rows map[string]Row) map[string]bool {
+	var out map[string]bool
+	for _, d := range head.Divergent {
+		if d.Release || Settled(d, rows) || Rebaseable(d, rows) {
+			continue
+		}
+		for _, m := range d.Blocks {
+			if revOf(rows, m.Block) == m.Before {
+				continue
+			}
+			if out == nil {
+				out = map[string]bool{}
+			}
+			out[m.Block] = true
+		}
+	}
+	return out
 }
 
 // Rows reads every block of edition k of the document ref names, as the
@@ -311,6 +333,7 @@ func (h *Home) Commit(ctx context.Context, w filehome.KeptWrite) (string, error)
 		}
 	}
 	keep := rec.Actor.Kind == change.ActorPerson || rec.Actor.Kind == change.ActorAgent
+	var held map[string]Row
 	for _, ch := range w.Changes {
 		b := CommitBlock{Block: ch.Block, Before: ch.Before, After: model.AbsentRevision, Edition: ch.Edition}
 		if ch.Edition != nil {
@@ -332,6 +355,16 @@ func (h *Home) Commit(ctx context.Context, w filehome.KeptWrite) (string, error)
 			if keep {
 				b.BeforeRuns = t.Before
 			}
+		} else if ch.Edition != nil && b.After == ch.Before {
+			// A person or an agent kept the wording a write that did not
+			// land contested: the edition stands as it was, made from the
+			// same basis.
+			if held == nil {
+				if held, err = h.Store.Rows(ctx, c.Doc, c.Edition); err != nil {
+					return "", err
+				}
+			}
+			b.Basis = held[ch.Block].Basis
 		}
 		c.Blocks = append(c.Blocks, b)
 	}

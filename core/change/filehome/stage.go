@@ -393,7 +393,7 @@ func (st *staged) stageKept(je *joinedEdition, ix *blockIndex, changed map[int]*
 			continue
 		case ed == nil:
 			delete(now, key)
-		case held && KeptEntry(je.key, was) == KeptEntry(je.key, *ed):
+		case held && KeptEntry(je.key, was) == KeptEntry(je.key, *ed) && !k.Contested[key]:
 			continue
 		default:
 			now[key] = *ed

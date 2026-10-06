@@ -28,6 +28,7 @@ import type {
   CheckRunResult,
   SessionState,
   ProjectStatus,
+  KeptConflict,
   ExtractResult,
   ConvergenceReport,
   ConvergePlan,
@@ -143,6 +144,12 @@ export const api = {
   applyChanges: (tabID: string, changeSet: string) => call<string>("Apply", tabID, changeSet),
   describeFormat: (tabID: string, request: string) => call<string>("Describe", tabID, request),
   blockHistory: (tabID: string, request: string) => call<string>("History", tabID, request),
+  // The conflicts kapi status lists, with both wordings; a decision is a
+  // change set sent through applyChanges, and a translation whose file holds
+  // the decided wording has the workspace's copy released.
+  getKeptConflicts: (tabID: string) => call<KeptConflict[]>("GetKeptConflicts", tabID),
+  releaseKeptWording: (tabID: string, doc: string, locale: string, blocks: string[]) =>
+    call<void>("ReleaseKeptWording", tabID, doc, locale, blocks),
 
   // Review surface — queue with findings enrichment and per-unit detail.
   /** The unified review queue: every unit awaiting a person across the

@@ -35,11 +35,17 @@ type Edit struct {
 	// was at when the write was staged, and Cause the divergent operation a
 	// rebase carries over. Release marks a delivery's release of the whole
 	// edition. All four are empty for any other write.
-	Edition string       `json:"edition,omitempty"`
-	Base    string       `json:"base,omitempty"`
-	Cause   string       `json:"cause,omitempty"`
-	Release bool         `json:"release,omitempty"`
-	Actor   change.Actor `json:"actor"`
+	Edition string `json:"edition,omitempty"`
+	// Document, for a write to a document the workspace home keeps whole,
+	// names its format and the blob holding its bytes after the write; the
+	// operation names the document as its subject (workhome.DocumentSubject),
+	// Base is the operation the document's head was at, and DocBefore and
+	// DocAfter are its revisions around the write.
+	Document *EditDocument `json:"document,omitempty"`
+	Base     string        `json:"base,omitempty"`
+	Cause    string        `json:"cause,omitempty"`
+	Release  bool          `json:"release,omitempty"`
+	Actor    change.Actor  `json:"actor"`
 	// Origin says which surface applied the change, in By: apply, ksed, mcp,
 	// browser, desktop, flow:<name>, merge, pull or observed.
 	Origin Origin `json:"origin,omitzero"`
@@ -64,6 +70,14 @@ type Edit struct {
 	// SetJSON is the change set as sent. RecordEdit stores it in a blob and
 	// names the blob in ChangeSet; nil records none.
 	SetJSON []byte `json:"-"`
+}
+
+// EditDocument is what a write to a whole document the workspace home keeps
+// carries beside its transitions.
+type EditDocument struct {
+	Format string `json:"format,omitempty"`
+	// Blob is the address of the blob holding the document's bytes.
+	Blob string `json:"blob"`
 }
 
 // EditDoc names the document an edit changed.
@@ -174,7 +188,7 @@ func (p *Projector) recordEdits(ctx context.Context, edits []Edit, expect []work
 		if e.Doc.Key == "" {
 			return nil, errors.New("projector: an edit names no document")
 		}
-		if len(e.Transitions) == 0 {
+		if len(e.Transitions) == 0 && !e.whole() {
 			return nil, errors.New("projector: an edit with no transitions records nothing")
 		}
 	}
@@ -336,8 +350,11 @@ func (p *Projector) encodeEdit(ctx context.Context, e Edit, at time.Time) (works
 		}
 	}
 	op := workspace.Op{Project: p.key, Kind: KindEdit, Payload: body, At: at}
-	if e.kept() {
+	switch {
+	case e.kept():
 		op.Subject = workhome.Subject(e.Doc.Key, e.Edition)
+	case e.whole():
+		op.Subject = workhome.DocumentSubject(e.Doc.Key)
 	}
 	return op, nil
 }
@@ -345,6 +362,10 @@ func (p *Projector) encodeEdit(ctx context.Context, e Edit, at time.Time) (works
 // kept reports whether an edit is a write to an edition the workspace home
 // keeps.
 func (e Edit) kept() bool { return e.Home == workhome.Name && e.Edition != "" }
+
+// whole reports whether an edit is a write to a document the workspace home
+// keeps whole.
+func (e Edit) whole() bool { return e.Home == workhome.Name && e.Edition == "" && e.Document != nil }
 
 // decodeEdit reads the edit a content.edit operation carries, from its
 // payload or its blob.
@@ -398,6 +419,11 @@ func editAddress(key workspace.ProjectKey, e Edit, reached map[history.Reach]str
 		// and the write it carries over: two machines that rebase one write
 		// onto one head make one operation.
 		parts = append(parts, workhome.Name, e.Edition, e.Base, e.Cause)
+	}
+	if e.whole() {
+		// A write to a whole document is the head it was staged on and the
+		// bytes it leaves.
+		parts = append(parts, workhome.Name, "document", e.Base, e.DocBefore, e.DocAfter, e.Document.Format, e.Document.Blob)
 	}
 	for _, t := range e.Transitions {
 		parts = append(parts, t.Block, t.Key, t.Edition, t.Before, t.After, t.Basis,

@@ -51,6 +51,12 @@ What's happening underneath:
 - **Transforms run against a working cache** keyed to the `.kpz`; the file itself changes only when you `pack` (or pass `--pack` on a transform). `info` reports `dirty` when the cache holds unpacked work. Re-running a transform reuses work already done, so AI steps never run twice.
 - **Merge replays** the stored translations onto the source and writes one file per source × locale; it never re-runs a tool or calls a provider. With no `-o` it uses the recipe's layout.
 - **Another machine** just receives the packed file: the first command rebuilds the cache from the `.kpz` alone.
+- **Edit a source in the parcel** the way you edit a file: name it `work.kpz!<name>` to `kapi apply`, `kapi inspect`, or an agent's `read_blocks` and `apply_edits`. Each edit is checked against the revision you read, so a stale one is refused, and the next transform, `merge` and `pack` read the edited source. A packed parcel then carries that source's text. A source the parcel holds as a skeleton alone has no text to edit; extract it again with `--with-source`.
+
+```bash
+kapi inspect work.kpz!messages.json                       # blocks with their revisions
+kapi apply changes.json                                    # ops address work.kpz!messages.json
+```
 
 One thing to avoid: running a `.kpz` workspace *and* a kapi project over the same content. Use the parcel when there is no project.
 

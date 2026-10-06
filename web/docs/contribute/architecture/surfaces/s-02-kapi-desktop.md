@@ -200,6 +200,21 @@ the collections at each and the voice profile governing there. A row opens the
 Context hub standing at that point. A single-point project gets one row rather
 than no map.
 
+Between the standing and the point map, the project lists the **conflicts**
+`kapi status` reports, when there are any, block by block with both wordings
+(`GetKeptConflicts`). One kind is an edit another machine made to a draft the
+workspace keeps, which a pull merged and which could not land: the workspace
+holds one wording and that edit another. The other is wording a person kept in
+the workspace whose translation's file has appeared since without it: the file
+holds one wording and the workspace another
+([C-03](../context/c-03-context-store-and-graph.md#the-workspace-home)). The
+person keeps either side or writes a new wording, and each choice that writes
+is a `set_content` sent through `Apply` with the revision the conflict shows as
+held, so a block that moved meanwhile is refused stale and shown again. Keeping
+the wording the workspace holds is recorded as the person's decision, and a
+translation whose file exists has the workspace's copy released once the file
+holds the chosen wording (`ReleaseKeptWording`).
+
 The backend resolves the declared cross product, the project's own point and
 then each profile's channels, and lists a collection where it is actually
 governed: a collection whose profile's window has closed appears at the point

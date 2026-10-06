@@ -118,6 +118,7 @@ export const qk = {
 
   // Project state / convergence / review
   projectStatus: (tabID: string) => ["project-status", tabID] as const,
+  keptConflicts: (tabID: string) => ["project-status", tabID, "conflicts"] as const,
   convergence: (tabID: string) => ["convergence", tabID] as const,
   convergePlan: (tabID: string) => ["converge-plan", tabID] as const,
   projectServer: (tabID: string) => ["project-server", tabID] as const,

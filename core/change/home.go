@@ -182,6 +182,19 @@ type StructuralSession interface {
 	Structural() []Kind
 }
 
+// ContestedSession is a session whose home can hold, for an edition, a write
+// that did not land: two machines wrote one edition from one head, and the
+// write that sorts later is kept beside the head until a person or an agent
+// decides the blocks it changed (core/workhome). A person's or an agent's
+// operation that leaves such a block's edition as it stands is then the
+// decision to keep that wording, and the home records it as a write.
+type ContestedSession interface {
+	Session
+	// Contested reports whether a write that did not land still names edition
+	// k of the block keyed block. The answer holds for the stage in progress.
+	Contested(k model.EditionKey, block string) bool
+}
+
 // Restructurer is the part of the service's editor that adds blocks to a
 // document and removes them. Before each pass of a stage whose Want is
 // Structural, the home reads the document as it stands: it calls

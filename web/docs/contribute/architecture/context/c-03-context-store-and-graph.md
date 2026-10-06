@@ -218,7 +218,7 @@ until the project is opened somewhere else.
 | decision ledger, document adoptions | `core/state` ([C-04](c-04-block-state-and-decisions.md)) | context | the operation log, through `core/projector` |
 | one view of the ledger and of the documents read, per checkout | `core/state` | context | the checkout's files |
 | block history | `core/history` | context | the operation log, through `core/projector` |
-| `edition_head`, `edition_subject_head`: the workspace home | `core/workhome` | context | the operation log, through `core/projector` |
+| `edition_head`, `edition_subject_head`, `document_head`: the workspace home | `core/workhome` | context | the operation log, through `core/projector` |
 | `graph_nodes`, `graph_edges` | `host/storage/graph`, vocabulary in `core/contextgraph` | workspace | the rows above, plus the recipe |
 | `workspace_projects`, `workspace_checkouts` | `core/workspace` | workspace | what has been opened |
 | `workspace_ops` | `core/workspace` | workspace | its own log |
@@ -574,11 +574,15 @@ still holds the revision it started from, the common case for writes to
 different blocks, is applied onto the head as a new `content.edit` naming it as
 its cause, addressed so that two machines rebasing one write onto one head make
 one operation. A divergent write that changed a block the head has moved since
-is a **conflict**, which `kapi status` names. A person's or an agent's write
-that advances the head settles the conflict for every block it writes, since it
-was made with the conflict in view, and a rebase carries over only the blocks a
-conflict still lists. A delivery's release of the whole edition settles every
-conflict on it.
+is a **conflict**, which `kapi status` names and Kapi Desktop shows with both
+wordings ([S-02](../surfaces/s-02-kapi-desktop.md)). A person's or an agent's
+write that advances the head settles the conflict for every block it writes,
+since it was made with the conflict in view, and a rebase carries over only the
+blocks a conflict still lists. Keeping the wording the head holds is such a
+write too: a `set_content` that leaves a contested block as it stands, sent by
+a person or an agent, is recorded rather than reported unchanged and nothing
+more (`change.ContestedSession`). A delivery's release of the whole edition
+settles every conflict on it.
 
 The recipe picks an edition's home. The file home reaches the workspace home
 through a keeper (`filehome.Keeper`): under `on-converge` a translation whose
@@ -608,7 +612,21 @@ pass write it from the flow's drafts. The end of every run **settles** such an
 edition: the workspace releases each block the file already holds and each
 draft a tool made, which the file supersedes, and keeps the wording a person or
 an agent wrote that the file does not hold. `kapi status` lists that wording
-as a conflict, and `kapi merge` writes it into the file.
+as a conflict, and `kapi merge` writes it into the file. A person deciding it in
+Kapi Desktop writes the chosen wording into the file through the change service
+when it is not the file's, and the workspace then releases its copy
+(`host.ReleaseKeptWording`).
+
+The workspace home also keeps **whole documents**: a native document opened
+for editing that has no file of its own, such as a source a `.kpz` carries.
+Each is a row of `document_head` (key, revision, format, the blob holding its
+bytes, and the operation its head is at), folded from `content.edit` operations
+whose subject is the document (`workhome.DocumentSubject`) by the rule the
+edition heads follow: a write staged on the head advances it, and any other is
+divergent. A change reads the document at its head through its format, applies
+the operations, writes it through the same format, and commits by a
+conditional record of the new bytes (`workhome.Documents`). The table is a
+projection like the others: a rebuild replays it and a checkpoint carries it.
 
 ### Deleting derived data {#kapiwork-is-free-to-delete}
 

@@ -158,6 +158,19 @@ type session struct {
 	// overlay holds, while a stage runs, the files a structural edit
 	// rewrote, by path: every pass of the stage reads them from here.
 	overlay map[string][]byte
+	// kept holds, while a stage runs, what each kept edition's keeper held
+	// when the pass joined it.
+	kept map[model.EditionKey]*Kept
+}
+
+var _ change.ContestedSession = (*session)(nil)
+
+// Contested reports whether a write that did not land still names edition k
+// of the block keyed block, as the keeper of the edition held it when the
+// stage in progress joined it.
+func (s *session) Contested(k model.EditionKey, block string) bool {
+	kept := s.kept[k.Canonical()]
+	return kept != nil && kept.Contested[block]
 }
 
 func (s *session) Info() change.DocInfo {

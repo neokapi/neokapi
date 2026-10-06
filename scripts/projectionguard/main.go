@@ -3,8 +3,8 @@
 //
 // The terms store, the content memory, the voice profiles, the rules widened
 // to the whole workspace, the block history and the workspace home's editions
-// (edition_head, edition_subject_head) are projections of the workspace's
-// operation log. A write that reaches one of them any other way leaves a row
+// and whole documents (edition_head, edition_subject_head, document_head) are
+// projections of the workspace's operation log. A write that reaches one of them any other way leaves a row
 // the log does not explain, which a rebuild then drops without anyone
 // noticing. So this type-checks every Apache-licensed package that could
 // reach the stores and reports two things:
@@ -76,7 +76,7 @@ var writes = map[string]map[string]bool{
 		"CreateProfileTag", "DeleteProfileTag", "StoreScore", "StoreCorrection", "RecordRuleDecision"),
 	"github.com/neokapi/neokapi/core/workspace.Workspace": set("WidenRule", "NarrowRule"),
 	"github.com/neokapi/neokapi/core/history.Store":       set("Put"),
-	"github.com/neokapi/neokapi/core/workhome.Store":      set("Apply", "Replace"),
+	"github.com/neokapi/neokapi/core/workhome.Store":      set("Apply", "Replace", "ApplyDocuments", "ReplaceDocument"),
 }
 
 // unprojected lists the store methods that write something the log does not

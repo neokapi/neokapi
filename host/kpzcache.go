@@ -161,6 +161,9 @@ func buildKpzCacheFromPackage(ctx context.Context, kpzPath string, pkg *kpz.Pack
 		return nil, err
 	}
 	dir := kpzCacheDir(kpzPath)
+	// The log of the documents opened for editing closes before the
+	// directory that holds it goes.
+	closeKpzLog(dir)
 	// The overlay stores first, through the driver that holds them: the
 	// browser's are not files the directory removal would reach.
 	if err := storage.RemoveAll(dir); err != nil {
@@ -306,6 +309,11 @@ func (a *App) ensureKpzCache(ctx context.Context, kpzPath string) (*kpzCache, er
 	}
 	if !ok {
 		return buildKpzCache(ctx, kpzPath)
+	}
+	// Documents edited through the workspace home reach the cache first, so
+	// an edit counts as unpacked work.
+	if err := a.syncKpzEdits(ctx, c); err != nil {
+		return nil, err
 	}
 	fileRoot, err := kpzFileRootHash(kpzPath)
 	if err != nil {

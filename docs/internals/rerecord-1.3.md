@@ -36,6 +36,13 @@ Since then 1.3 changed what several of them show:
   Edit on a focused unit. Each form of a plural is an inline-code editor of its
   own, and Approve clean checks each unit again, stopping at one that changed
   since the queue was listed or now has a finding.
+- Kapi Desktop's project home lists the conflicts `kapi status` reports, when
+  there are any, between the standing and the point map: each block with the
+  wording held now and the wording that did not land, and buttons to keep
+  either or write another. A sample with no conflict shows no such card.
+- A source a `.kpz` carries is edited as `work.kpz!<name>`: `kapi inspect` reads
+  it and `kapi apply` and the MCP edit tools write it, and `kapi info` then
+  reports the workspace dirty.
 - A `kapi check --json` finding whose rule names a replacement carries `fix`,
   the `replace_text` operation that applies it, naming its document by the path
   from the project root. A finding whose words have formatting among them, or
@@ -124,7 +131,7 @@ answer ends with (#2989).
 | 2 | `05-ai-checks-guardrail` | `kapi-checks-guardrail` | `framework/checks/rule-checks.md` | none | the findings table reads FAILS, not CRITICAL/MAJOR |
 | 3 | `kapi-bilingual-workflow` | `bilingual-workflow` | `kapi/bilingual-workflow.mdx` | none | commands unchanged; each XLIFF unit now carries an `<mda:metadata>` with its `if-match` and `basis` revisions, which the `head -20` beat shows, and `kapi merge` writes the returned translations through the change service, from the source's skeleton |
 | 4 | `09-toolbox-find-replace` | `toolbox-explainer` | `toolbox/overview.mdx` | none | commands and output unchanged; re-recorded for the September template. `ksed` now applies its substitutions as change-set operations, and the demo's commands print the same output and leave the same bytes in all three files as before |
-| 5 | `kapi-desktop-projects` | `kapi-desktop-projects` | `kapi/desktop/tour.mdx`, `kapi/desktop/recipes/author-a-project-visually.mdx` | desktop recorder (wbridge, no server) | the app opens on the workspace; project home carries the context digest |
+| 5 | `kapi-desktop-projects` | `kapi-desktop-projects` | `kapi/desktop/tour.mdx`, `kapi/desktop/recipes/author-a-project-visually.mdx` | desktop recorder (wbridge, no server) | the app opens on the workspace; project home carries the context digest; the project home draws a conflicts card only when there are conflicts, and the sample has none |
 | 6 | `kapi-desktop-flows` | `kapi-desktop-flows` | `kapi/desktop/tour.mdx`, `kapi/desktop/recipes/build-a-flow-visually.mdx` | desktop recorder | earlier Toolbox and home |
 | 7 | `kapi-desktop-config` | `kapi-desktop-config` | `kapi/desktop/tour.mdx`, `kapi/desktop/recipes/store-ai-credentials.mdx` | desktop recorder | earlier settings layout |
 | 8 | `bowrain-cli-getting-started` | `bowrain-cli-getting-started` | Bowrain `getting-started/the-loop.mdx`, `walkthroughs/bowrain-getting-started.mdx` | stack + `make harness-seed` | `kapi init` proposes the catalog's collection, so the `kapi add` step is gone; status, push and up output |
@@ -314,6 +321,13 @@ Norwegian pass until every scene is translated, so record English first and run
 `--locale=nb --only=narrate,render,publish` once the sidecars have caught up.
 
 ## Open before recording
+
+No walkthrough shows a conflict being decided in Kapi Desktop. A beat for it
+needs a sample whose workspace holds one: two machines' logs that each edited
+one parked draft's block, merged, or a parked draft a person edited whose
+translation's file was written since without it. The second is the easier
+fixture to seed. Neither the `kapi-kpz-workspace` guided embed nor any other
+walkthrough edits a source inside a `.kpz`; its narration is unchanged.
 
 No walkthrough shows the context digest or the Learned section on its own;
 `kapi-desktop-explorer` passes the Learned rail entry on its way to Terms. A

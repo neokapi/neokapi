@@ -5,6 +5,8 @@
 // the voice in force, the terms bound and the venue. A reader who learns the
 // shape here reads the CLI's output without learning it twice.
 //
+// Conflicts a person decides sit under it, when there are any (KeptConflicts).
+//
 // The point map below it is the recipe's declared coordinate space as a table.
 // A single-point project gets one quiet row rather than no map: hiding it would
 // make coordinates read as an advanced feature instead of the model the app is
@@ -23,7 +25,8 @@ import {
 import { t } from "@neokapi/i18n-react/runtime";
 import { call } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
-import type { KapiProject, ProjectStatus, ProjectServer } from "../types/api";
+import type { KapiProject, KeptConflict, ProjectStatus, ProjectServer } from "../types/api";
+import { KeptConflicts } from "./KeptConflicts";
 
 /** One point the recipe declares, and what governs there. */
 export interface ProjectPoint {
@@ -55,6 +58,8 @@ export interface ProjectStandingProps {
   status?: ProjectStatus;
   points?: ProjectPointsResult;
   server?: ProjectServer;
+  /** Conflicts to decide, pre-loaded for Storybook/tests. */
+  conflicts?: KeptConflict[];
   /** Open Context standing at a point. */
   onOpenPoint?: (pin: { coordinate?: string; collection?: string }) => void;
 }
@@ -98,6 +103,7 @@ export function ProjectStanding({
   status: propStatus,
   points: propPoints,
   server: propServer,
+  conflicts,
   onOpenPoint,
 }: ProjectStandingProps) {
   const statusQuery = useQuery({
@@ -226,6 +232,8 @@ export function ProjectStanding({
           )}
         </CardContent>
       </Card>
+
+      <KeptConflicts tabID={tabID} conflicts={conflicts} />
 
       {points && points.points.length > 0 && (
         <Card>

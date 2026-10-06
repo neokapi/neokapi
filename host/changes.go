@@ -244,7 +244,17 @@ func (a *App) serviceOver(ctx context.Context, cmd Command, opts ChangeServiceOp
 			svcOpts = append(svcOpts, change.WithObserver(&editObserver{hist: hist, rec: recorder}))
 		}
 	}
-	return change.NewService(filehome.Formats{Registry: a.FormatReg}, change.OneHome(home), svcOpts...), nil
+	// A reference into a KPZ (work.kpz!guide.md) names a document the KPZ's
+	// workspace home keeps whole; every other reference is a file.
+	root := h.root
+	if root == "" {
+		root = opts.Root
+	}
+	if root == "" {
+		root, _ = os.Getwd()
+	}
+	homes := &kpzHomes{app: a, ctx: context.WithoutCancel(ctx), file: home, root: root}
+	return change.NewService(filehome.Formats{Registry: a.FormatReg}, homes, svcOpts...), nil
 }
 
 // changeHookCommand is the command the hooks that resolve a project from a
