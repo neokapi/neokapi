@@ -517,7 +517,7 @@ func newMemoryListCmd(a *App) *cobra.Command {
 			}
 
 			return output.Print(cmd, output.ResourceListOutput{
-				Kind:      "tm",
+				Kind:      "memory",
 				Resources: entries,
 				Total:     len(entries),
 			})
