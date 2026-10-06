@@ -55,8 +55,9 @@ oracle. Model to proto to model is identity for every Run kind, for overlays, fo
 multi-locale targets, segmentation, skeleton refs, display hints, and registered
 annotations.
 
-Two things do not cross this schema: per-edition status, origin, and score, and
-the block's durable `Key` ([F-03](f-03-identity.md)). A protocol that needs them
+These do not cross this schema: per-edition status, origin, score and derivation
+(`Edition.Derived`), the block's durable `Key` ([F-03](f-03-identity.md)), and
+which editions past the first the document's bytes hold (`Block.Native`). A protocol that needs them
 carries them in its own envelope rather than widening the canonical messages.
 
 The source segments carry the block's first native edition and each
