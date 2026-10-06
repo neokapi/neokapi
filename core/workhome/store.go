@@ -10,7 +10,7 @@
 // Subject), and a writer appends it only while the subject's head is still
 // the one it read (workspace.Backend.RecordIf), so two processes writing one
 // edition take turns. The projector folds the operations of each subject into
-// two tables of the context store, which this package owns:
+// tables of the context store, which this package owns:
 //
 //   - edition_head holds one row per block of each edition the workspace
 //     keeps: its revision, its runs (inline, or in a blob when large), its
@@ -18,7 +18,11 @@
 //     producer recognizes it by;
 //   - edition_subject_head holds one row per subject: the operation its head
 //     is at, the latest operation folded, and the operations that did not
-//     advance it.
+//     advance it;
+//   - document_head holds one row per document the workspace keeps whole
+//     (a document opened for editing that has no file, such as a source a
+//     KPZ carries): its revision, format, the blob holding its bytes, and
+//     the operation its head is at (docstore.go, dochome.go).
 //
 // The head a conditional record expects is the local position of the latest
 // operation on the subject, which the writer reads from the log itself
@@ -187,11 +191,11 @@ CREATE TABLE IF NOT EXISTS edition_subject_head (
     divergent TEXT NOT NULL DEFAULT '',
     PRIMARY KEY (doc, edition)
 );`,
-}}
+}, docMigrations[0]}
 
 // Tables are the tables the store keeps, which a rebuild empties and a
 // checkpoint carries.
-var Tables = []string{"edition_head", "edition_subject_head"}
+var Tables = []string{"edition_head", "edition_subject_head", "document_head"}
 
 // Open binds the store to a context database, creating its tables.
 func Open(db *storage.DB) (*Store, error) {

@@ -475,6 +475,7 @@ func (p *Projector) catchUpLocked(ctx context.Context, mine map[string]pending) 
 		edits     []history.Row
 		editsMine bool
 		works     []workhome.Write
+		docs      []workhome.DocWrite
 	)
 	flush := func() {
 		if len(units) > 0 {
@@ -483,15 +484,18 @@ func (p *Projector) catchUpLocked(ctx context.Context, mine map[string]pending) 
 			}
 			units, unitsMine = nil, false
 		}
-		if len(edits) > 0 {
+		if len(edits) > 0 || len(docs) > 0 {
 			aerr := p.applyEditRows(ctx, edits)
 			if aerr == nil {
 				aerr = p.applyWorkWrites(ctx, works)
 			}
+			if aerr == nil {
+				aerr = p.applyDocWrites(ctx, docs)
+			}
 			if aerr != nil && editsMine && first == nil {
 				first = aerr
 			}
-			edits, editsMine, works = nil, false, nil
+			edits, editsMine, works, docs = nil, false, nil, nil
 		}
 	}
 	for _, op := range ops {
@@ -523,6 +527,9 @@ func (p *Projector) catchUpLocked(ctx context.Context, mine map[string]pending) 
 				}
 				works = append(works, w)
 			}
+			if e.whole() {
+				docs = append(docs, docWrite(op, e))
+			}
 			edits = append(edits, editRows(op.ID, opAddress(op), op.At, e)...)
 			editsMine = editsMine || isMine
 			continue
@@ -538,7 +545,7 @@ func (p *Projector) catchUpLocked(ctx context.Context, mine map[string]pending) 
 			foreignBulk = foreignBulk || bulkMemory(op.Kind, steps)
 		}
 		if op.Kind == KindDecision {
-			if len(edits) > 0 {
+			if len(edits) > 0 || len(docs) > 0 {
 				flush()
 			}
 			units = append(units, steps...)

@@ -311,3 +311,121 @@ func (p *Projector) rebase(ctx context.Context, doc, edition string, d workhome.
 	}
 	return true, nil
 }
+
+var _ workhome.DocLog = (*Projector)(nil)
+
+// CommitDocument records a write to a document the workspace home keeps whole
+// as one content.edit operation naming the blob of the document's bytes,
+// appended only while the document's head is still at c.Expect, and folds it
+// into the projection.
+func (p *Projector) CommitDocument(ctx context.Context, c workhome.DocCommit) (string, error) {
+	if p.log == nil {
+		return "", errNoWorkspaceLog
+	}
+	if p.st.Heads == nil {
+		return "", errNoSubsystem
+	}
+	if c.Key == "" {
+		return "", errors.New("projector: a write to a whole document names its document")
+	}
+	address, err := p.log.PutBlob(ctx, c.Data)
+	if err != nil {
+		return "", fmt.Errorf("projector: store the document's bytes: %w", err)
+	}
+	e := Edit{
+		Doc: EditDoc{Key: c.Key, Path: c.Path}, Home: workhome.Name, Base: c.Base,
+		Document: &EditDocument{Format: c.Format, Blob: address}, Blobs: []string{address},
+		Actor: c.Actor, Origin: Origin{By: c.Origin}, Fingerprint: c.Fingerprint, Note: c.Note,
+		DocBefore: c.Before, DocAfter: c.After, Overridden: c.Overridden,
+	}
+	byWriter := c.Actor.Kind == change.ActorPerson || c.Actor.Kind == change.ActorAgent
+	if byWriter && c.Set != nil {
+		data, err := json.Marshal(c.Set)
+		if err != nil {
+			return "", fmt.Errorf("projector: encode the change set: %w", err)
+		}
+		e.SetJSON = data
+	}
+	for _, b := range c.Blocks {
+		t := EditTransition{Block: b.Block, Key: b.Key, Edition: b.Edition, Before: b.Before, After: b.After, Basis: b.Basis,
+			ContentHash: b.ContentHash, ContextHash: b.ContextHash}
+		for _, k := range b.Ops {
+			t.Ops = append(t.Ops, string(k))
+		}
+		if byWriter {
+			t.BeforeRuns, t.AfterRuns = b.BeforeRuns, b.AfterRuns
+		}
+		e.Transitions = append(e.Transitions, t)
+	}
+	expect := []workspace.Expect{{Project: p.key, Subject: workhome.DocumentSubject(c.Key), Head: c.Expect}}
+	ids, err := p.recordEdits(ctx, []Edit{e}, expect)
+	if err != nil {
+		return "", err
+	}
+	return ids[0], nil
+}
+
+// DocumentSubjectHead is the local position of the latest operation the log
+// holds on one document the workspace home keeps whole, zero for none.
+func (p *Projector) DocumentSubjectHead(ctx context.Context, key string) (int64, error) {
+	if p.log == nil {
+		return 0, nil
+	}
+	return p.log.SubjectHead(ctx, p.key, workhome.DocumentSubject(key))
+}
+
+// docWrite is the workspace home's reading of a write to a whole document.
+func docWrite(op workspace.Op, e Edit) workhome.DocWrite {
+	return workhome.DocWrite{Op: op.ID, Key: e.Doc.Key, Path: e.Doc.Path, Base: e.Base,
+		Before: e.DocBefore, After: e.DocAfter, Format: e.Document.Format, Blob: e.Document.Blob,
+		Writer: e.Actor.Kind == change.ActorPerson || e.Actor.Kind == change.ActorAgent}
+}
+
+// applyDocWrites folds writes to whole documents into the projection, folding
+// every document a write arrived out of order for again from all the writes
+// the log holds for it.
+func (p *Projector) applyDocWrites(ctx context.Context, writes []workhome.DocWrite) error {
+	if len(writes) == 0 || p.st.Heads == nil {
+		return nil
+	}
+	refold, err := p.st.Heads.ApplyDocuments(ctx, writes)
+	if err != nil {
+		return err
+	}
+	for _, key := range refold {
+		writes, err := p.DocumentWrites(ctx, key)
+		if err != nil {
+			return err
+		}
+		h := workhome.FoldDocument(writes)
+		h.Key = key
+		if err := p.st.Heads.ReplaceDocument(ctx, h); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// DocumentWrites reads every write the log holds to one document the
+// workspace home keeps whole, as the fold reads them.
+func (p *Projector) DocumentWrites(ctx context.Context, key string) ([]workhome.DocWrite, error) {
+	if p.log == nil {
+		return nil, nil
+	}
+	ops, err := p.log.Select(ctx, workspace.OpQuery{Project: p.key, Subject: workhome.DocumentSubject(key)})
+	if err != nil {
+		return nil, err
+	}
+	var writes []workhome.DocWrite
+	for _, op := range ops {
+		if op.Kind != KindEdit {
+			continue
+		}
+		e, err := p.decodeEdit(ctx, op)
+		if err != nil || !e.whole() {
+			continue
+		}
+		writes = append(writes, docWrite(op, e))
+	}
+	return writes, nil
+}

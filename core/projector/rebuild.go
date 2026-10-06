@@ -144,6 +144,7 @@ func (p *Projector) Rebuild(ctx context.Context) (RebuildReport, error) {
 		edits   []history.Row
 		editOps []workspace.Op
 		works   []workhome.Write
+		docs    []workhome.DocWrite
 	)
 	fail := func(op workspace.Op, err error) {
 		report.Failed = append(report.Failed, fmt.Sprintf("%s %s: %v", op.Kind, workspace.ShortOpID(op.ID), err))
@@ -158,7 +159,7 @@ func (p *Projector) Rebuild(ctx context.Context) (RebuildReport, error) {
 		run, runOps, runKind = nil, nil, ""
 	}
 	flushEdits := func() {
-		if len(edits) == 0 {
+		if len(edits) == 0 && len(docs) == 0 {
 			return
 		}
 		if err := p.applyEditRows(ctx, edits); err != nil {
@@ -167,7 +168,10 @@ func (p *Projector) Rebuild(ctx context.Context) (RebuildReport, error) {
 		if err := p.applyWorkWrites(ctx, works); err != nil {
 			fail(editOps[len(editOps)-1], err)
 		}
-		edits, editOps, works = nil, nil, nil
+		if err := p.applyDocWrites(ctx, docs); err != nil {
+			fail(editOps[len(editOps)-1], err)
+		}
+		edits, editOps, works, docs = nil, nil, nil, nil
 	}
 	for _, op := range ops {
 		if !projects(op.Kind) {
@@ -194,6 +198,9 @@ func (p *Projector) Rebuild(ctx context.Context) (RebuildReport, error) {
 					continue
 				}
 				works = append(works, w)
+			}
+			if e.whole() {
+				docs = append(docs, docWrite(op, e))
 			}
 			edits, editOps = append(edits, editRows(op.ID, opAddress(op), op.At, e)...), append(editOps, op)
 			continue
