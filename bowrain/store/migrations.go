@@ -50,6 +50,7 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 // 40  a decision records the revisions of the pairing it blesses
 // 41  a block records its source revision; decisions drop their text hashes
 // 42  an edition write names its unit by the venue's key alone
+// 43  the block history records the basis each translation carried
 var Migrations = []storage.Migration{
 	{
 		Version:     24,
@@ -1648,6 +1649,27 @@ var Migrations = []storage.Migration{
 			-- it resolved each block to (Block.Key), so a write no longer
 			-- carries the key the checkout's records give the unit beside it.
 			ALTER TABLE edition_writers DROP COLUMN IF EXISTS block;
+		`,
+	},
+	{
+		Version:     43,
+		Description: "the block history records the basis each translation carried",
+		SQL: `
+			-- The derivation the edition carried when the row was written
+			-- (model.Edition.Derived): the revision of the edition it was
+			-- made from (basis) and that edition's key in text form
+			-- (basis_from, '' for the edition the document is written in).
+			-- Empty on every row written before this version.
+			ALTER TABLE block_history ADD COLUMN IF NOT EXISTS basis      TEXT NOT NULL DEFAULT '';
+			ALTER TABLE block_history ADD COLUMN IF NOT EXISTS basis_from TEXT NOT NULL DEFAULT '';
+
+			-- A translation's basis lives on its edition, so the ledger holds
+			-- no row that carries a basis and nothing else. Such a row would
+			-- shadow the derivation the translation records, so the ones a
+			-- push or a draft wrote before this version go.
+			DELETE FROM unit_decisions
+			 WHERE review_state = '' AND status = '' AND decided_by = ''
+			   AND note = '' AND assignee = '' AND NOT parked;
 		`,
 	},
 }

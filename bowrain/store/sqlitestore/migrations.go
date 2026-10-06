@@ -1101,4 +1101,18 @@ var storeMigrations = []storage.Migration{
 			 WHERE properties LIKE '%"__source_settled_hash"%';
 		`,
 	},
+	{
+		Version:     37,
+		Description: "the block history records the basis each translation carried",
+		SQL: `
+			-- Mirrors bowrain/store/migrations.go version 43: the derivation
+			-- the edition carried when the row was written, and no ledger row
+			-- that carries a basis and nothing else.
+			ALTER TABLE block_history ADD COLUMN basis      TEXT NOT NULL DEFAULT '';
+			ALTER TABLE block_history ADD COLUMN basis_from TEXT NOT NULL DEFAULT '';
+			DELETE FROM unit_decisions
+			 WHERE review_state = '' AND status = '' AND decided_by = ''
+			   AND note = '' AND assignee = '' AND parked = 0;
+		`,
+	},
 }
