@@ -82,6 +82,14 @@ func labSegment(_ js.Value, args []js.Value) any {
 	return doSegment(text, engine, locale)
 }
 
+// labSegmentAsync is labSegment answered as a Promise. A host whose ICU4X
+// bridge answers asynchronously (an engine in a Worker, whose page holds
+// ICU4X) calls it: the segmentation runs in a goroutine, which may wait for
+// the bridge, where labSegment's callback may not.
+func labSegmentAsync(this js.Value, args []js.Value) any {
+	return goPromise(func() (any, error) { return labSegment(this, args), nil })
+}
+
 func doSegment(text, engineName, locale string) (result any) {
 	defer func() {
 		if r := recover(); r != nil {

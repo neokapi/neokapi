@@ -160,6 +160,11 @@ const (
 	// an operation in the workspace's log (core/projector), so a rebuild
 	// starts from it and replays only what came after. See checkpoint.go.
 	KindCheckpoint = "kapi-checkpoint"
+	// KindWorkspace marks a workspace package: the files of a file system and
+	// the context of every project among them, one context package each. The
+	// browser engine writes one to carry what a page holds out of the
+	// browser, and reads one back. See workspacepkg.go.
+	KindWorkspace = "kapi-workspace"
 
 	// ManifestPath is the manifest member's path within the archive.
 	ManifestPath = "manifest.json"
@@ -197,6 +202,12 @@ const (
 	// ContentTypeProjection carries one projection table of a checkpoint, as
 	// JSON Lines of its rows. Members live under projection/ and are content.
 	ContentTypeProjection = "projection"
+	// ContentTypeFile carries one file of a workspace package, under files/
+	// at its path relative to the package's root. Content.
+	ContentTypeFile = "file"
+	// ContentTypeContext carries one project's context package (KindContext)
+	// in a workspace package, under contexts/. Content.
+	ContentTypeContext = "context"
 
 	// memoryPath and termsPath are the conventional bare bundle names, so
 	// unzipping a package by hand yields the same spelling the rest of the
@@ -285,6 +296,12 @@ type Package struct {
 	// for every profile but KindCheckpoint.
 	Tables     []TableDoc
 	Checkpoint *CheckpointMark
+
+	// Files and Contexts carry a workspace package's files and the context
+	// package of each project among them. Empty for every profile but
+	// KindWorkspace.
+	Files    []FileDoc
+	Contexts []ContextDoc
 }
 
 // HasContent reports whether the package carries any packable content — blocks,
@@ -302,6 +319,8 @@ func (p *Package) HasContent() bool {
 		len(p.Source) > 0 ||
 		len(p.Layout) > 0 ||
 		len(p.Tables) > 0 ||
+		len(p.Files) > 0 ||
+		len(p.Contexts) > 0 ||
 		(p.Memory != nil && len(p.Memory.Entries) > 0) ||
 		(p.Terms != nil && len(p.Terms.Concepts) > 0)
 }
@@ -452,6 +471,9 @@ type Manifest struct {
 	// Checkpoint says which project a checkpoint's tables belong to and the
 	// operation they stand at. Metadata, not in the RootHash.
 	Checkpoint *CheckpointMark `json:"checkpoint,omitempty"`
+	// Projects names the project each context of a workspace package belongs
+	// to. Metadata, not in the RootHash.
+	Projects []WorkspaceProject `json:"projects,omitempty"`
 }
 
 // Member is one entry in the manifest inventory.
@@ -505,6 +527,10 @@ func (p *Package) WriteTo(w io.Writer) (int64, error) {
 	if kind == "" {
 		kind = KindProject
 	}
+	projects, err := workspaceProjects(p.Contexts)
+	if err != nil {
+		return 0, err
+	}
 	manifest := Manifest{
 		SchemaVersion: SchemaVersion,
 		Kind:          kind,
@@ -515,6 +541,7 @@ func (p *Package) WriteTo(w io.Writer) (int64, error) {
 		Sources:       p.Sources,
 		Task:          p.InterchangeTask,
 		Checkpoint:    p.Checkpoint,
+		Projects:      projects,
 	}
 	for _, m := range members {
 		manifest.Members = append(manifest.Members, m.Member)
@@ -678,6 +705,23 @@ func (p *Package) serializeMembers() ([]memberContent, error) {
 		}
 		addData(l.Path, ContentTypeLayout, l.Data)
 	}
+	for _, f := range p.Files {
+		if !underDir(f.Path, FilesDir) {
+			return nil, fmt.Errorf("kpz: %q is not a path under %s", f.Path, FilesDir)
+		}
+		if f.Content == nil {
+			return nil, fmt.Errorf("kpz: file %q needs Content", f.Path)
+		}
+		if err := addContent(f.Path, ContentTypeFile, f.Content); err != nil {
+			return nil, err
+		}
+	}
+	for _, c := range p.Contexts {
+		if !underDir(c.Path, ContextsDir) {
+			return nil, fmt.Errorf("kpz: %q is not a path under %s", c.Path, ContextsDir)
+		}
+		addData(c.Path, ContentTypeContext, c.Data)
+	}
 	for _, t := range p.Tables {
 		if t.Table == "" {
 			return nil, errors.New("kpz: projection table needs a name")
@@ -776,16 +820,16 @@ func read(zr *zip.Reader) (*Package, error) {
 	if err := json.Unmarshal(manifestData, &manifest); err != nil {
 		return nil, fmt.Errorf("kpz: decode manifest: %w", err)
 	}
-	// Accept the four profiles the container has: the project snapshot, the
-	// bilingual interchange slice, a project's shared context, and a
-	// checkpoint of a project's projections. Reject any other kind.
+	// Accept the five profiles the container has: the project snapshot, the
+	// bilingual interchange slice, a project's shared context, a checkpoint
+	// of a project's projections, and a workspace. Reject any other kind.
 	kind := manifest.Kind
 	switch kind {
-	case KindProject, KindInterchange, KindContext, KindCheckpoint:
+	case KindProject, KindInterchange, KindContext, KindCheckpoint, KindWorkspace:
 		// keep
 	default:
-		return nil, fmt.Errorf("kpz: unknown kind %q (want %q, %q, %q or %q)",
-			manifest.Kind, KindProject, KindInterchange, KindContext, KindCheckpoint)
+		return nil, fmt.Errorf("kpz: unknown kind %q (want %q, %q, %q, %q or %q)",
+			manifest.Kind, KindProject, KindInterchange, KindContext, KindCheckpoint, KindWorkspace)
 	}
 	major, vok := schemaversion.Major(manifest.SchemaVersion)
 	if !vok {
@@ -824,6 +868,10 @@ func read(zr *zip.Reader) (*Package, error) {
 		}
 	}
 	verify := make([]memberContent, 0, len(manifest.Members))
+	roots := make(map[string]string, len(manifest.Projects))
+	for _, wp := range manifest.Projects {
+		roots[wp.Context] = wp.Root
+	}
 
 	for _, m := range manifest.Members {
 		zf, ok := files[m.Path]
@@ -905,6 +953,17 @@ func read(zr *zip.Reader) (*Package, error) {
 				Table: strings.TrimSuffix(strings.TrimPrefix(m.Path, ProjectionDir), ".jsonl"),
 				Data:  body,
 			})
+		case ContentTypeFile:
+			if !underDir(m.Path, FilesDir) {
+				return nil, fmt.Errorf("kpz: %q is not a path under %s", m.Path, FilesDir)
+			}
+			pkg.Files = append(pkg.Files, FileDoc{Path: m.Path, Content: zipContent{zf, PackageZipLimits}})
+		case ContentTypeContext:
+			ctxDoc, err := contextMember(m.Path, body, roots)
+			if err != nil {
+				return nil, err
+			}
+			pkg.Contexts = append(pkg.Contexts, ctxDoc)
 		case ContentTypeHistory:
 			pkg.History = body
 		case ContentTypeOverlays:
@@ -937,7 +996,7 @@ func read(zr *zip.Reader) (*Package, error) {
 // history) are parsed, so they must be read.
 func opaqueContentType(ct string) bool {
 	switch ct {
-	case ContentTypeMedia, ContentTypeSource, ContentTypeSkeleton:
+	case ContentTypeMedia, ContentTypeSource, ContentTypeSkeleton, ContentTypeFile:
 		return true
 	default:
 		return false
@@ -996,6 +1055,14 @@ func validateManifestPaths(m *Manifest) error {
 			if err := check("skeleton path", si.SkeletonPath); err != nil {
 				return err
 			}
+		}
+	}
+	for _, wp := range m.Projects {
+		if err := check("project root", wp.Root); err != nil {
+			return err
+		}
+		if err := check("project context", wp.Context); err != nil {
+			return err
 		}
 	}
 	if m.Task != nil {

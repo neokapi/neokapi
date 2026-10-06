@@ -110,6 +110,9 @@ var engineExports = []struct {
 	{"kapiRead", kapiRead},
 	{"kapiApply", kapiApply},
 	{"kapiDescribe", kapiDescribe},
+	{"labSegmentAsync", labSegmentAsync},
+	{"kapiExportWorkspace", kapiExportWorkspace},
+	{"kapiImportWorkspace", kapiImportWorkspace},
 }
 
 // registerEngineABI installs every engine entry point plus the additive
