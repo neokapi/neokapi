@@ -22,10 +22,10 @@ lock, and applies the change again when the file moved since it was read. A
 flow commits each document it writes through the same home and records it as
 the flow's edit.
 
-The service lives below every surface. It imports `core/model` and
-`core/safeio` and nothing above them, so the CLI, the agent tools, Kapi Desktop
-and an application that embeds the engine all build the same service and differ
-only in the home and the hooks they give it.
+The service lives below every surface. It imports `core/model`, `core/format`
+and `core/safeio`, and nothing from the host, the CLI or a surface, so the CLI,
+the agent tools, Kapi Desktop and an application that embeds the engine all
+build the same service and differ only in the home and the hooks they give it.
 
 ## Context
 
@@ -79,10 +79,12 @@ structs the service marshals; a drift gate regenerates them on every change. The
 note [The change applier](../../implementation/engine/change-applier.md) covers
 the types, the decoder, the schema and the TypeScript types.
 
-`kapi.change/v1` is frozen, and from then on is only extended. A frozen file
-beside each golden holds the contract as it was published: the change set's
-schema, the result's (`kapi.change-result/v1`, `changeschema.ResultSchema`) and
-the read's (`changeschema.ReadSchema`), and the MCP tool surface. A test walks
+`kapi.change/v1` is frozen for release 1.3.0 and is only extended. A frozen
+file beside each golden holds the contract as it was published: the change
+set's schema, the result's (`kapi.change-result/v1`,
+`changeschema.ResultSchema`) and the read's (`changeschema.ReadSchema`), and
+the MCP tool surface, whose tool names may only grow and whose input schemas
+are held to the request rule below. A test walks
 each frozen schema beside the one the Go types generate and refuses a change that
 breaks the side that depends on it: for a request, a property, `$defs` entry or
 operation removed or renamed, a type, `const`, `$ref`, pattern, format or bound
@@ -269,7 +271,8 @@ type Home interface {
 }
 ```
 
-A session reads the document at its head, stages a change by running the
+`Name` is the home as a result reports it: `file`, `workspace` or
+`stream:<id>`. A session reads the document at its head, stages a change by running the
 service's editor over its blocks, and hands back a staged change that names the
 commit locks it needs, settles (makes sure the change still applies with those
 locks held), commits and releases. A home that reads a document whole streams
@@ -381,6 +384,13 @@ workspace holds anything of it yet, and under `manual` it is the file, unless
 the workspace still keeps a draft of it. A project that declares redaction
 records a kept edition redacted and reads it back from the vault
 ([C-03](../context/c-03-context-store-and-graph.md#the-workspace-home)).
+
+**A stream home** keeps the documents of one stream of a server's project as
+rows, one per block, each holding every edition of its block. Its commit lock
+is the rows a stage read, held on one database transaction for every document
+of the change set; a settle applies the operations again to rows that moved,
+and the commit stores them with their history and commits the transaction, so
+the change set lands whole or not at all. A result names it `stream:<id>`.
 
 ### Flows
 
@@ -500,6 +510,26 @@ The service refuses a change only for a failing finding it introduces
 (`change.Introduced`). Under `report` the change lands with its findings, and a
 person's overridden findings go to the record.
 
+The kapi host's policy (`ChangePolicy`) lets a person send every operation.
+An agent may change content, and is refused as `not_permitted` when it sends a
+`term`, `memory` or `recipe` operation, a `decide` with any outcome but
+`advise`, an `if_match` of `*`, or the `report` gate. A tool in a flow may
+choose `report` and decides only with `advise`, and only a tool sends the
+in-process provenance operation. A sender of any other kind is refused every
+operation.
+
+The kapi host's recorder writes each change set into the workspace's log, one
+`content.edit` operation per document, in one write, and the projector writes
+it into the block history: who changed which edition, from which revision to
+which, through which surface (the origin), and under which governance
+fingerprint. A person's or an agent's record keeps the runs around each change
+and the change set as sent; a tool's keeps revisions and hashes, and the file
+holds the text. A document the workspace home holds is recorded by that home's
+commit, and the recorder records the rest of the change set. A project that
+declares redaction records the runs and the note redacted, or neither under a
+policy that detects entities, and keeps no copy of the change set as sent
+([C-10](../context/c-10-redaction.md)).
+
 The kapi host builds the service for a surface with `App.Changes` and
 `App.ChangeService`. Inside a project the file home's layout resolves a
 reference the way the recipe does: a source file is read with the format and
@@ -585,9 +615,9 @@ where the change set changes no content in a file whose blocks no longer pair
 with the source's. A bilingual translation file that still holds every unit
 of its source keeps its own skeleton, header included.
 `kapi merge -i` compiles a returned XLIFF, PO or `.kpz` into `set_content`
-operations carrying the `if_match` and `basis` each unit was extracted against,
+operations carrying the `if_match` and `basis` each entry was extracted against,
 under `require_basis` and the enforce gate, and sends them as a person;
-`kapi extract` stamps each unit with the revision of the source it carries and
+`kapi extract` stamps each entry with the revision of the source it carries and
 the translation's revision a read through the service gives
 ([M-01](../multilingual/m-01-bilingual-interop.md)). `kapi merge` with no `-i`
 sends the targets the block store holds for a source and language as one
@@ -624,18 +654,39 @@ language's rules.
 ### Results and errors
 
 A result has a status (`applied`, `refused`, `previewed`, or `partial` when an
-I/O error stopped the final renames after some files landed), a record id, one
-entry per file written or read with its digests before and after and whether it
-was written, and one result per operation with its revisions, the positions it
-resolved, the derived editions it left on an older basis (`invalidates`), and
-on a refusal an error from a closed set of codes, each mapped once to an exit
-code and an HTTP status. A refused operation reports no revision or position,
+I/O error stopped the final renames after some files landed, or a store refused
+a decision or an asset operation after the content landed), a record id, one
+entry per file written or read with its home, its digests before and after and
+whether it was written, and one result per operation. An operation's status is
+`applied`, `unchanged` (its `if_match` holds and the edition already says what
+it sends), `refused`, `not_applied` (blocked by another operation's refusal) or
+`previewed`; it carries its revisions, the positions it resolved, the derived
+editions it left on an older basis (`invalidates`), and on a refusal an error
+from a closed set of codes, each mapped once to an exit code and an HTTP status
+(`Code.ExitCode`, `Code.HTTPStatus`):
+
+| Code | Means | Exit | HTTP |
+| --- | --- | --- | --- |
+| `invalid` | the change set does not decode, fails its schema or contradicts itself | 2 | 400 |
+| `not_found` | a reference resolves to no document, block or edition, or a `find` matches nothing | 3 | 404 |
+| `ambiguous` | a key or a `find` matches more than one thing | 3 | 409 |
+| `stale` | an `if_match` no longer holds, or under `require_basis` the basis moved | 3 | 409 |
+| `doc_changed` | the document changed under the commit and one more pass could not settle it | 3 | 409 |
+| `guard` | the result breaks an inline code, a plural or select, or a position (subcode `codes_changed`, `structure_lost`, `bad_position` or `overlap`) | 3 | 422 |
+| `gate_failed` | the commit check found a failing finding the change introduces | 3 | 422 |
+| `unsupported` | the format, the edition or the home lacks the capability the operation needs | 3 | 422 |
+| `not_permitted` | the policy refuses the operation to its sender | 3 | 403 |
+| `budget_exceeded` | a resource bound was reached | 3 | 413 |
+| `unreachable` | a backend did not answer | 5 | 503 |
+
+A refused operation reports no revision or position,
 since nothing was written; a change set refused after its documents were read
 lists each with `written: false`. A resolved position prints its run and its
-offset, a zero offset included. Each document carries the findings the commit
-check made on the edit, failing or not, each with the range it found and, for a
-term rule, the wording it asks for: an empty list when the check ran and found
-nothing, and none where no check applies. A `gate_failed` refusal counts the
+offset, a zero offset included. Each document carries the findings the edit
+introduced, failing or not (`change.NewFindings`), each with the range it found
+where the rule locates one and, for a term rule, the wording it asks for: an
+empty list when the check ran and found nothing, and none where no check
+applies. A `gate_failed` refusal counts the
 failing findings and leaves them on the document. A `find` that matches nothing
 is refused `not_found` with the path and the text it searched and up to three
 candidates. In a `partial` result the operations on the files that
