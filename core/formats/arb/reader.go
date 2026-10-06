@@ -196,7 +196,7 @@ func (r *Reader) streamWalkTop(ctx context.Context, ch chan<- model.PartResult, 
 				}
 				r.skelText(val.prefix)
 				r.skelRef(block.ID)
-			} else {
+			} else if key != "@@locale" || !r.skelLocale(val) {
 				// "@<id>" / "@@<global>" / unexpected — copy the value verbatim.
 				r.copyValueStream(ss, val)
 			}
@@ -283,6 +283,24 @@ func (r *Reader) skelToken(tok token) {
 		r.skelBuf.WriteString(tok.prefix)
 		r.skelBuf.WriteString(tok.raw)
 	}
+}
+
+// skelLocale writes the value of "@@locale" as a language entry between its
+// quotes, so a writer for another locale writes that locale's name there
+// (Writer.renderLang). A value spelled with escapes is left to the caller to
+// copy verbatim, and skelLocale reports false.
+func (r *Reader) skelLocale(tok token) bool {
+	if tok.typ != tokString || tok.raw != `"`+tok.value+`"` {
+		return false
+	}
+	if r.skeletonStore != nil {
+		r.skelBuf.WriteString(tok.prefix)
+		r.skelBuf.WriteString(`"`)
+		r.skelFlush()
+		r.skeletonStore.WriteLang(tok.value)
+		r.skelBuf.WriteString(`"`)
+	}
+	return true
 }
 
 // skelFlush writes any remaining buffered text to the skeleton store.
@@ -494,6 +512,8 @@ func (r *Reader) skeletonTop(tokens []token, pos *int, blockIDByKey map[string]s
 			if id, ok := blockIDByKey[key]; ok && !strings.HasPrefix(key, "@") {
 				// Translatable message value — stand a Ref in for it.
 				r.skeletonRefValue(tokens, pos, id)
+			} else if key == "@@locale" && *pos < len(tokens) && r.skelLocale(tokens[*pos]) {
+				*pos++
 			} else {
 				// "@<id>" / "@@<global>" / unknown key — copy its value verbatim.
 				r.skeletonCopyValue(tokens, pos)

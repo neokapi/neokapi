@@ -210,3 +210,43 @@ func TestPush_SendsAStaleBasisAsItIs(t *testing.T) {
 	assert.Equal(t, record.Basis, d.Basis)
 	assert.NotEqual(t, venue.SourceRevision(b, "en-US"), d.Basis, "the venue grades it stale")
 }
+
+// A flow writes the French catalog of an ARB file that declares en, and a
+// person then edits a French translation through the change service. The
+// French file declares fr after each write.
+func TestUp_WritesTheTargetsLocaleIntoAnARBCatalog(t *testing.T) {
+	srv := newRefServer(t, "proj1", ref.Ref{Content: 5})
+	conn := declaredCheckout(t, srv)
+	up(t, conn)
+	french := filepath.Join(conn.project.Root, filepath.FromSlash(arbFrench))
+	body, err := os.ReadFile(french)
+	require.NoError(t, err)
+	assert.Contains(t, string(body), `"@@locale": "fr"`, "the flow wrote the French file")
+
+	approveFrench(t, conn, arbSource, "greeting")
+	ctx := context.Background()
+	svc, err := conn.app.ChangeService(ctx, host.ChangeServiceOptions{Project: conn.project.RecipePath(), SourceLocale: "en-US"})
+	require.NoError(t, err)
+	fr := model.EditionKey{Locale: "fr"}
+	var read change.BlockRead
+	_, err = svc.ReadEach(ctx, change.ReadRequest{Doc: arbSource, Editions: []model.EditionKey{fr}},
+		func(_ *model.Block, r change.BlockRead) error {
+			if r.Ref.Block == "farewell" {
+				read = r
+			}
+			return nil
+		})
+	require.NoError(t, err)
+	text := "Au revoir"
+	at := read.Ref
+	at.Edition = fr
+	res, err := svc.Apply(ctx, change.Set{Ops: []change.Op{{
+		Kind: change.KindSetContent, At: at, IfMatch: read.Editions["fr"].Rev, Body: &change.SetContent{Text: &text},
+	}}}, change.Actor{Kind: change.ActorPerson})
+	require.NoError(t, err)
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+	body, err = os.ReadFile(french)
+	require.NoError(t, err)
+	assert.Contains(t, string(body), `"@@locale": "fr"`, "the change service wrote the French file")
+	assert.Contains(t, string(body), `"farewell": "Au revoir"`)
+}
