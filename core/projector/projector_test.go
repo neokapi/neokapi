@@ -19,6 +19,7 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/core/projector"
+	"github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/core/workspace"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/terms"
@@ -26,14 +27,27 @@ import (
 
 const key = workspace.ProjectKey("prj_docs")
 
+// storeDir is a temporary directory for databases. Under js/wasm the driver
+// keeps a database in SQLite's memory rather than in the directory, so the
+// directory's removal leaves it held for the life of the process, and a
+// repeated run (-count) grows the module's heap until SQLite runs out of
+// memory. The cleanup removes the databases through the driver. It is
+// registered before the caller's Close cleanups, so it runs after them.
+func storeDir(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	t.Cleanup(func() { assert.NoError(t, storage.RemoveAll(dir)) })
+	return dir
+}
+
 // open binds a projector to a fresh workspace and a project store in it.
 func open(t *testing.T) (*projector.Projector, *workspace.Workspace, *projectdb.DB) {
 	t.Helper()
 	ctx := t.Context()
-	ws, err := workspace.OpenLocal(ctx, t.TempDir())
+	ws, err := workspace.OpenLocal(ctx, storeDir(t))
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = ws.Close() })
-	root := t.TempDir()
+	root := storeDir(t)
 	require.NoError(t, os.MkdirAll(filepath.Join(root, project.StateDirName), 0o755))
 	contextDB, err := ws.Context(ctx, key)
 	require.NoError(t, err)
@@ -261,7 +275,7 @@ func TestLargeWritesSplitAcrossOperations(t *testing.T) {
 }
 
 func TestEmbeddedLayoutAppliesWithoutALog(t *testing.T) {
-	root := t.TempDir()
+	root := storeDir(t)
 	require.NoError(t, os.MkdirAll(filepath.Join(root, project.StateDirName), 0o755))
 	db, err := projectdb.Open(t.Context(), project.LayoutAt(root))
 	require.NoError(t, err)
@@ -281,11 +295,11 @@ func TestEmbeddedLayoutAppliesWithoutALog(t *testing.T) {
 // and neither a store that starts from nothing nor a rebuild applies them.
 func TestAForgottenProjectStartsAfresh(t *testing.T) {
 	ctx := t.Context()
-	ws, err := workspace.OpenLocal(ctx, t.TempDir())
+	ws, err := workspace.OpenLocal(ctx, storeDir(t))
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = ws.Close() })
 	bind := func() (*projector.Projector, *projectdb.DB) {
-		root := t.TempDir()
+		root := storeDir(t)
 		require.NoError(t, os.MkdirAll(filepath.Join(root, project.StateDirName), 0o755))
 		contextDB, err := ws.Context(ctx, key)
 		require.NoError(t, err)

@@ -558,7 +558,7 @@ func TestTwoMachinesObservingTheSameChangesRecordThemOnce(t *testing.T) {
 }
 
 func TestEmbeddedLayoutRecordsAnEditWithoutALog(t *testing.T) {
-	root := t.TempDir()
+	root := storeDir(t)
 	require.NoError(t, os.MkdirAll(filepath.Join(root, project.StateDirName), 0o755))
 	db, err := projectdb.Open(t.Context(), project.LayoutAt(root))
 	require.NoError(t, err)
