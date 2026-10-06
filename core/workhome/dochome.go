@@ -398,7 +398,7 @@ func (st *docStaged) Settle(ctx context.Context) error {
 			return err
 		}
 		if !found {
-			return &change.Error{Code: change.CodeDocChanged, Message: fmt.Sprintf("%s left the workspace while the edit was committed", st.s.d.Prefix+st.s.key)}
+			return &change.Error{Code: change.CodeDocChanged, Message: st.s.d.Prefix + st.s.key + " left the workspace while the edit was committed"}
 		}
 		if head.Rev != st.head.Rev {
 			if err := replaceCopy(st.s.copy, data); err != nil {
@@ -461,7 +461,7 @@ func (st *docStaged) Commit(ctx context.Context) error {
 	id, err := st.s.d.Log.CommitDocument(ctx, c)
 	if errors.Is(err, workspace.ErrHeadMoved) {
 		return &change.Error{Code: change.CodeDocChanged,
-			Message: fmt.Sprintf("%s changed in the workspace while the edit was committed; read it and send the change again", c.Path)}
+			Message: c.Path + " changed in the workspace while the edit was committed; read it and send the change again"}
 	}
 	if err != nil {
 		return err
