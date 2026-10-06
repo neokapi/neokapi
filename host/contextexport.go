@@ -71,27 +71,44 @@ func (a *App) ExportProjectContext(ctx context.Context, projectPath, out string)
 	if err != nil {
 		return res, err
 	}
+	pkg, res, err := a.ProjectContextPackage(ctx, projectPath)
 	res.Path = abs
-	layout, err := project.LayoutFor(projectPath)
 	if err != nil {
 		return res, err
+	}
+	res.Bytes, err = writePackage(pkg, abs)
+	return res, err
+}
+
+// ErrNoContext reports a project whose context holds nothing to export yet.
+var ErrNoContext = errors.New("this project's context holds nothing to export yet")
+
+// ProjectContextPackage packs the project's context, with its whole history,
+// as a context package (kpz.KindContext): the layout a context backend keeps,
+// held in memory. It answers ErrNoContext for a project whose log holds
+// nothing to carry.
+func (a *App) ProjectContextPackage(ctx context.Context, projectPath string) (*kpz.Package, ContextExport, error) {
+	var res ContextExport
+	layout, err := project.LayoutFor(projectPath)
+	if err != nil {
+		return nil, res, err
 	}
 	w, ws, err := a.projectLog(ctx, layout)
 	if err != nil {
-		return res, err
+		return nil, res, err
 	}
-	mem, err := workspace.NewMemoryRemote(abs)
+	mem, err := workspace.NewMemoryRemote(layout.Root + ".kpz")
 	if err != nil {
-		return res, err
+		return nil, res, err
 	}
 	s := ws.NewSync(mem, w.Key(), w.Syncer(), workspace.SyncOptions{LocalKinds: projector.LocalKinds, CheckpointEvery: 1})
 	defer func() { _ = s.Forget(context.WithoutCancel(ctx)) }()
 	pushed, err := s.Push(ctx)
 	if err != nil {
-		return res, err
+		return nil, res, err
 	}
 	if pushed.Pushed == 0 {
-		return res, errors.New("this project's context holds nothing to export yet")
+		return nil, res, ErrNoContext
 	}
 	res.Operations, res.Segments, res.Blobs, res.Checkpoint = pushed.Pushed, pushed.Segments, pushed.Blobs, pushed.Checkpoint
 
@@ -99,8 +116,7 @@ func (a *App) ExportProjectContext(ctx context.Context, projectPath, out string)
 	for _, obj := range mem.Objects() {
 		pkg.Layout = append(pkg.Layout, kpz.LayoutDoc{Path: obj.Name, Data: obj.Data})
 	}
-	res.Bytes, err = writePackage(pkg, abs)
-	return res, err
+	return pkg, res, nil
 }
 
 // writePackage writes a package to a file through a temporary sibling, so a
@@ -182,11 +198,24 @@ func (a *App) ImportContextFile(ctx context.Context, projectPath, file string) (
 		return res, fmt.Errorf("read %s: %w", file, err)
 	}
 	_ = closer.Close()
+	abs, err := filepath.Abs(file)
+	if err != nil {
+		return res, err
+	}
+	res.PullReport, err = a.ImportContextPackage(ctx, projectPath, pkg, abs)
+	return res, err
+}
+
+// ImportContextPackage merges a context package into the project's context,
+// as ImportContextFile merges one read from a file. name says where the
+// package came from, in the messages a refusal carries.
+func (a *App) ImportContextPackage(ctx context.Context, projectPath string, pkg *kpz.Package, name string) (workspace.PullReport, error) {
+	var res workspace.PullReport
 	switch {
 	case pkg.Kind != kpz.KindContext:
-		return res, fmt.Errorf("%s is a %s package; `kapi context import` reads a context file, which `kapi context export` writes", file, pkg.Kind)
+		return res, fmt.Errorf("%s is a %s package; `kapi context import` reads a context file, which `kapi context export` writes", name, pkg.Kind)
 	case len(pkg.Layout) == 0:
-		return res, fmt.Errorf("%s holds no context operations. A context file from an earlier kapi carried the stores rather than their history; export it again with this version", file)
+		return res, fmt.Errorf("%s holds no context operations. A context file from an earlier kapi carried the stores rather than their history; export it again with this version", name)
 	}
 	layout, err := project.LayoutFor(projectPath)
 	if err != nil {
@@ -201,20 +230,15 @@ func (a *App) ImportContextFile(ctx context.Context, projectPath, file string) (
 		objs = append(objs, workspace.Object{Name: l.Path, Data: l.Data})
 	}
 	if other := layoutProject(objs); other != "" && other != string(w.Key()) {
-		return res, fmt.Errorf("%s holds the context of project %s, and this project is %s. Import it in a checkout of that project", file, other, w.Key())
+		return res, fmt.Errorf("%s holds the context of project %s, and this project is %s. Import it in a checkout of that project", name, other, w.Key())
 	}
-	abs, err := filepath.Abs(file)
+	mem, err := workspace.NewMemoryRemote(name, objs...)
 	if err != nil {
-		return res, err
-	}
-	mem, err := workspace.NewMemoryRemote(abs, objs...)
-	if err != nil {
-		return res, fmt.Errorf("%s: %w", file, err)
+		return res, fmt.Errorf("%s: %w", name, err)
 	}
 	s := ws.NewSync(mem, w.Key(), w.Syncer(), workspace.SyncOptions{LocalKinds: projector.LocalKinds})
 	defer func() { _ = s.Forget(context.WithoutCancel(ctx)) }()
-	res.PullReport, err = s.Pull(ctx)
-	return res, err
+	return s.Pull(ctx)
 }
 
 // layoutProject reads the project the first segment's first operation

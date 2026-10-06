@@ -1,5 +1,15 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Download, Trash2, Upload, FolderOpen, FileText, CornerLeftUp } from "lucide-react";
+import {
+  Download,
+  Trash2,
+  Upload,
+  FolderOpen,
+  FileText,
+  CornerLeftUp,
+  PackageOpen,
+  Package,
+} from "lucide-react";
+import { describeStorage } from "./runtime";
 import type { KapiRuntime } from "./runtime";
 import FilePreview from "./FilePreview";
 
@@ -24,6 +34,8 @@ export default function FilesPanel({
   onChange: () => void;
 }) {
   const fileInput = useRef<HTMLInputElement>(null);
+  const packageInput = useRef<HTMLInputElement>(null);
+  const [workspaceBusy, setWorkspaceBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState("");
   const [uploadError, setUploadError] = useState("");
@@ -98,8 +110,7 @@ export default function FilesPanel({
     onChange();
   }
 
-  function download(name: string) {
-    const data = runtime.vol.readFile(joinPath(viewDir, name));
+  function save(name: string, data: Uint8Array) {
     // Copy into a fresh ArrayBuffer so the Blob owns contiguous bytes.
     const copy = new Uint8Array(data.length);
     copy.set(data);
@@ -109,6 +120,52 @@ export default function FilesPanel({
     a.download = name;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  function download(name: string) {
+    save(name, runtime.vol.readFile(joinPath(viewDir, name)));
+  }
+
+  // The workspace in a browser is a cache: an export keeps the files and each
+  // project's context somewhere else, and an import reads them back.
+  async function exportWorkspace() {
+    setWorkspaceBusy(true);
+    setUploadError("");
+    setUploadStatus("");
+    try {
+      const out = await runtime.exportWorkspace();
+      save("workspace.kpz", out.data);
+      const skipped = out.skipped.map((s) => `${s.root}: ${s.reason}`).join(" ");
+      setUploadStatus(
+        `Exported ${out.files} files and the context of ${out.projects.length} projects to workspace.kpz.`,
+      );
+      if (skipped) setUploadError(`Left out the context of ${skipped}`);
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setWorkspaceBusy(false);
+    }
+  }
+
+  async function importWorkspace(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (packageInput.current) packageInput.current.value = "";
+    if (!file) return;
+    setWorkspaceBusy(true);
+    setUploadError("");
+    setUploadStatus("");
+    try {
+      const res = await runtime.importWorkspace(new Uint8Array(await file.arrayBuffer()));
+      const merged = res.projects.reduce((n, p) => n + p.merged, 0);
+      setUploadStatus(
+        `Imported ${res.files} files and ${merged} context operations into ${res.projects.length} projects.`,
+      );
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setWorkspaceBusy(false);
+      onChange();
+    }
   }
 
   function remove(name: string) {
@@ -146,6 +203,42 @@ export default function FilesPanel({
           onChange={onUpload}
         />
       </div>
+      <div className="kapi-pg-files-header">
+        <button
+          type="button"
+          className="kapi-pg-btn kapi-pg-btn--sm"
+          disabled={workspaceBusy}
+          onClick={() => void exportWorkspace()}
+          title="Save the files and each project's context as a .kpz"
+        >
+          <Package size={16} aria-hidden="true" />
+          <span>Export workspace</span>
+        </button>
+        <button
+          type="button"
+          className="kapi-pg-btn kapi-pg-btn--sm"
+          disabled={workspaceBusy}
+          onClick={() => packageInput.current?.click()}
+          title="Read a workspace .kpz back into this page"
+        >
+          <PackageOpen size={16} aria-hidden="true" />
+          <span>Import workspace</span>
+        </button>
+        <input
+          ref={packageInput}
+          aria-label="Choose a workspace package to import"
+          type="file"
+          accept=".kpz"
+          hidden
+          disabled={workspaceBusy}
+          onChange={(e) => void importWorkspace(e)}
+        />
+      </div>
+      {runtime.storage && (
+        <p className="kapi-pg-files-help" data-storage={runtime.storage.kind}>
+          {describeStorage(runtime.storage)}
+        </p>
+      )}
       <div className="kapi-pg-files-cwd" title={viewDir}>
         {viewDir}
       </div>

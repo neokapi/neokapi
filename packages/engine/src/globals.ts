@@ -3,8 +3,10 @@
 // host-provided reverse bridges. Importing anything from @neokapi/engine pulls
 // these in, so no call site needs a `globalThis as any` cast.
 //
-// Everything is declared `| undefined`: before an engine has booted on the
-// page none of the entry points exist, and the reverse bridges are optional
+// The entry points live where the engine runs: on the page for an engine on
+// the page's thread, in its Worker otherwise, where the facade (runtime.ts)
+// calls them. Everything is declared `| undefined`: before an engine has
+// booted none of the entry points exist, and the reverse bridges are optional
 // capabilities the page may never install. Feature-detect via `engineABI()` /
 // `hasEngineFunction()` (abi.ts) or `detectCapabilities()` (capabilities.ts).
 
@@ -13,6 +15,7 @@ import type {
   RawInspectResponse,
   RawPreviewResponse,
   RawSegmentResponse,
+  RawWorkspaceExport,
 } from "./abi.ts";
 import type {
   KapiBrowserTranslate,
@@ -45,6 +48,14 @@ declare global {
   // eslint-disable-next-line no-var
   var labSegment:
     | ((text: string, engine: string, locale: string) => RawSegmentResponse)
+    | undefined;
+  /**
+   * labSegment answered as a Promise: the segmentation may wait for a page
+   * bridge (ICU4X on the page of an engine in a Worker).
+   */
+  // eslint-disable-next-line no-var
+  var labSegmentAsync:
+    | ((text: string, engine: string, locale: string) => Promise<RawSegmentResponse>)
     | undefined;
   /** List the segmentation engines registered in this wasm build. */
   // eslint-disable-next-line no-var
@@ -82,6 +93,18 @@ declare global {
    */
   // eslint-disable-next-line no-var
   var kapiDescribe: ((requestJSON: string, optionsJSON?: string) => Promise<string>) | undefined;
+  /**
+   * Pack the engine's files and each project's context as a workspace .kpz.
+   * Resolves to the bytes and what they carry.
+   */
+  // eslint-disable-next-line no-var
+  var kapiExportWorkspace: (() => Promise<RawWorkspaceExport>) | undefined;
+  /**
+   * Read a workspace .kpz back: write its files and merge each project's
+   * context. Resolves to the report as a JSON string.
+   */
+  // eslint-disable-next-line no-var
+  var kapiImportWorkspace: ((data: Uint8Array) => Promise<string>) | undefined;
   /** ABI descriptor for feature detection; absent on pre-ABI builds. */
   // eslint-disable-next-line no-var
   var kapiEngineABI: (() => EngineABI) | undefined;

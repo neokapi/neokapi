@@ -16,6 +16,9 @@ const ENGINE_GLOBALS = [
   "labInspectAnnotated",
   "labSegment",
   "labSegmentEngines",
+  "labSegmentAsync",
+  "kapiExportWorkspace",
+  "kapiImportWorkspace",
   "kbf",
   "kapiReset",
   "kapiRead",
@@ -114,21 +117,21 @@ describe("makeRuntime", () => {
     });
   });
 
-  it("kbf round-trips JSON strings and degrades when the endpoint is absent", () => {
+  it("kbf round-trips JSON strings and degrades when the endpoint is absent", async () => {
     installCoreGlobals();
     const rt = makeRuntime(createMemFS());
-    expect(rt.kbf({ op: "roundtrip" }).ok).toBe(false);
+    expect((await rt.kbf({ op: "roundtrip" })).ok).toBe(false);
 
     globalThis.kbf = vi.fn((reqJSON: string) => {
       const req = JSON.parse(reqJSON) as { op: string };
       return JSON.stringify({ ok: true, op: req.op });
     });
     const rt2 = makeRuntime(createMemFS());
-    expect(rt2.kbf({ op: "renderHtml" })).toEqual({ ok: true, op: "renderHtml" });
+    expect(await rt2.kbf({ op: "renderHtml" })).toEqual({ ok: true, op: "renderHtml" });
     expect(globalThis.kbf).toHaveBeenCalledWith(`{"op":"renderHtml"}`);
   });
 
-  it("segment maps the wire segments and reports the engine that ran", () => {
+  it("segment maps the wire segments and reports the engine that ran", async () => {
     installCoreGlobals();
     globalThis.labSegment = vi.fn(() => ({
       ok: true,
@@ -136,7 +139,7 @@ describe("makeRuntime", () => {
       segments: [{ text: "One." }, { text: "Two." }],
     }));
     const rt = makeRuntime(createMemFS());
-    expect(rt.segment("One. Two.", "", "en")).toEqual({
+    expect(await rt.segment("One. Two.", "", "en")).toEqual({
       ok: true,
       engine: "srx",
       segments: [{ text: "One." }, { text: "Two." }],
@@ -144,15 +147,15 @@ describe("makeRuntime", () => {
     expect(globalThis.labSegment).toHaveBeenCalledWith("One. Two.", "", "en");
   });
 
-  it("segment and segmentEngines degrade when the globals are absent", () => {
+  it("segment and segmentEngines degrade when the globals are absent", async () => {
     installCoreGlobals();
     const rt = makeRuntime(createMemFS());
-    expect(rt.segment("x", "", "en").ok).toBe(false);
-    expect(rt.segmentEngines()).toEqual([]);
+    expect((await rt.segment("x", "", "en")).ok).toBe(false);
+    expect(await rt.segmentEngines()).toEqual([]);
 
     globalThis.labSegmentEngines = vi.fn(() => ["srx", "uax29"]);
     const rt2 = makeRuntime(createMemFS());
-    expect(rt2.segmentEngines()).toEqual(["srx", "uax29"]);
+    expect(await rt2.segmentEngines()).toEqual(["srx", "uax29"]);
   });
 
   it("runWithTrace appends --trace, reads the trace back, and uses fresh paths per run", async () => {
@@ -336,5 +339,66 @@ describe("the change contract", () => {
     await expect(rt.read({ doc: "a.json" })).rejects.toThrow(/kapiRead is not registered/);
     await expect(rt.apply({ ops: [] })).rejects.toThrow(/kapiApply is not registered/);
     await expect(rt.describe({ format: "json" })).rejects.toThrow(/kapiDescribe is not registered/);
+  });
+
+  it("says its workspace is in memory on this thread", () => {
+    installCoreGlobals();
+    const rt = makeRuntime(createMemFS());
+    expect(rt.storage).toEqual({ kind: "memory", reason: "main-thread" });
+  });
+
+  it("segments through the asynchronous entry point when the engine has it", async () => {
+    installCoreGlobals();
+    globalThis.labSegment = vi.fn(() => ({ ok: false, error: "the synchronous one" }));
+    globalThis.labSegmentAsync = vi.fn(() =>
+      Promise.resolve({ ok: true, engine: "uax29", segments: [{ text: "One." }] }),
+    );
+    const rt = makeRuntime(createMemFS());
+    await expect(rt.segment("One.", "uax29", "en")).resolves.toEqual({
+      ok: true,
+      engine: "uax29",
+      segments: [{ text: "One." }],
+    });
+    expect(globalThis.labSegment).not.toHaveBeenCalled();
+  });
+
+  it("exports and imports the workspace through the engine", async () => {
+    installCoreGlobals();
+    const data = new Uint8Array([80, 75, 3, 4]);
+    globalThis.kapiExportWorkspace = vi.fn(() =>
+      Promise.resolve({ data, files: 2, projects: [{ root: "/project", operations: 3 }] }),
+    );
+    globalThis.kapiImportWorkspace = vi.fn(() =>
+      Promise.resolve(JSON.stringify({ files: 2, projects: [{ root: "/project", merged: 3 }] })),
+    );
+    const rt = makeRuntime(createMemFS());
+    await expect(rt.exportWorkspace()).resolves.toEqual({
+      data,
+      files: 2,
+      projects: [{ root: "/project", operations: 3 }],
+      skipped: [],
+    });
+    await expect(rt.importWorkspace(data)).resolves.toEqual({
+      files: 2,
+      projects: [{ root: "/project", merged: 3 }],
+    });
+    expect(globalThis.kapiImportWorkspace).toHaveBeenCalledWith(data);
+  });
+
+  it("removes a database through the bridge and answers false for none", async () => {
+    installCoreGlobals();
+    const removed: string[] = [];
+    globalThis.__kapiSQL = {
+      exists: (n: string) => n === "/p/a.db",
+      remove: (n: string) => {
+        removed.push(n);
+        return 0;
+      },
+    } as never;
+    const rt = makeRuntime(createMemFS());
+    await expect(rt.removeDatabase("/p/a.db")).resolves.toBe(true);
+    await expect(rt.removeDatabase("/p/b.db")).resolves.toBe(false);
+    expect(removed).toEqual(["/p/a.db"]);
+    delete globalThis.__kapiSQL;
   });
 });

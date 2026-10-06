@@ -33,5 +33,9 @@ export function useKapiPlaygroundConfig(): KapiPlaygroundConfig {
   const wasmOnCdn = onCdn && cdn.version !== "" && cdn.version !== "dev";
   const wasmExecUrl = wasmOnCdn ? cdnHref(cdn, `/wasm/${cdn.version}/wasm_exec.js`) : execLocal;
   const wasmUrl = wasmOnCdn ? cdnHref(cdn, `/wasm/${cdn.version}/kapi-cli.wasm`) : wasmLocal;
-  return useMemo(() => ({ wasmExecUrl, wasmUrl }), [wasmExecUrl, wasmUrl]);
+  // The engine keeps a reader's workspace in the browser. The stable docs, the
+  // preview channel and each pull request preview share an origin and serve
+  // different engines, so each keeps its own, keyed by its base URL.
+  const storageKey = `kapi-docs:${siteConfig.baseUrl}`;
+  return useMemo(() => ({ wasmExecUrl, wasmUrl, storageKey }), [wasmExecUrl, wasmUrl, storageKey]);
 }

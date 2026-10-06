@@ -104,13 +104,23 @@ func serveChange(serve changeServe, request, options []byte) (out []byte, err er
 			out, err = nil, fmt.Errorf("internal error: %v", r)
 		}
 	}()
-	if app.Config == nil {
-		// No command has run yet, so nothing has finished initializing the App.
-		app.Config = config.NewAppConfig()
-		if err := app.Init(); err != nil {
-			return nil, err
-		}
-		forceDemoProviders(app)
+	if err := ensureApp(); err != nil {
+		return nil, err
 	}
 	return serve(context.Background(), browserChangeOrigin, request, options)
+}
+
+// ensureApp initializes the App for a call that acts on it before any
+// command has run. The caller holds engineMu.
+func ensureApp() error {
+	if app.Config != nil {
+		return nil
+	}
+	// No command has run yet, so nothing has finished initializing the App.
+	app.Config = config.NewAppConfig()
+	if err := app.Init(); err != nil {
+		return err
+	}
+	forceDemoProviders(app)
+	return nil
 }

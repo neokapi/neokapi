@@ -26,9 +26,15 @@ interface FD {
   append: boolean;
 }
 
-interface MemFSOptions {
+export interface MemFSOptions {
   onStdout?: (chunk: Uint8Array) => void;
   onStderr?: (chunk: Uint8Array) => void;
+  /**
+   * Called with the absolute path of each entry a write, a truncation, a
+   * creation, a removal or a rename touches (both names for a rename). The
+   * engine's Worker uses it to mirror the volume to the page and to keep it.
+   */
+  onChange?: (path: string) => void;
 }
 
 // Linux-style open flags. The exact values are arbitrary as long as we both
@@ -87,6 +93,10 @@ export interface MemFS {
   fs: any;
   process: any;
   vol: MemVolume;
+  /** The modification time of the entry at `path` in ms, or null when absent. */
+  mtime(path: string): number | null;
+  /** Set the modification time of the entry at `path` (a restore keeps it). */
+  setMtime(path: string, ms: number): void;
 }
 
 export function createMemFS(opts: MemFSOptions = {}): MemFS {
@@ -94,6 +104,8 @@ export function createMemFS(opts: MemFSOptions = {}): MemFS {
   let cwd = "/";
   const fds = new Map<number, FD>();
   let nextFd = 3; // 0,1,2 reserved for stdio
+
+  const changed = (p: string) => opts.onChange?.(p);
 
   function resolve(p: string): string[] {
     const abs = p.startsWith("/") ? p : cwd + "/" + p;
@@ -167,6 +179,7 @@ export function createMemFS(opts: MemFSOptions = {}): MemFS {
           node = fileNode();
           parent.children!.set(name, node);
           parent.mtimeMs = Date.now();
+          changed(joinAbs(parts));
         } else if ((flags & O.O_CREAT) !== 0 && (flags & O.O_EXCL) !== 0) {
           return cb(err("EEXIST"));
         } else if (node.kind === "dir" && wantWrite) {
@@ -174,6 +187,7 @@ export function createMemFS(opts: MemFSOptions = {}): MemFS {
         }
         if (node.kind === "file" && (flags & O.O_TRUNC) !== 0) {
           node.content = new Uint8Array(0);
+          changed(joinAbs(parts));
         }
         const append = (flags & O.O_APPEND) !== 0;
         const fd = nextFd++;
@@ -246,6 +260,7 @@ export function createMemFS(opts: MemFSOptions = {}): MemFS {
         cur.set(data, pos);
       }
       e.node.mtimeMs = Date.now();
+      changed(e.path);
       if (position === null || position === undefined) e.pos = end;
       cb(null, length, buffer);
     },
@@ -277,6 +292,7 @@ export function createMemFS(opts: MemFSOptions = {}): MemFS {
         const { parent, name } = lookupParent(parts);
         parent.children!.set(name, dirNode());
         parent.mtimeMs = Date.now();
+        changed(joinAbs(parts));
         cb(null);
       } catch (e) {
         cb(e);
@@ -292,6 +308,7 @@ export function createMemFS(opts: MemFSOptions = {}): MemFS {
         if (node.children!.size > 0) return cb(err("ENOTEMPTY"));
         const { parent, name } = lookupParent(parts);
         parent.children!.delete(name);
+        changed(joinAbs(parts));
         cb(null);
       } catch (e) {
         cb(e);
@@ -306,6 +323,7 @@ export function createMemFS(opts: MemFSOptions = {}): MemFS {
         if (node.kind === "dir") return cb(err("EISDIR"));
         const { parent, name } = lookupParent(parts);
         parent.children!.delete(name);
+        changed(joinAbs(parts));
         cb(null);
       } catch (e) {
         cb(e);
@@ -323,6 +341,8 @@ export function createMemFS(opts: MemFSOptions = {}): MemFS {
         src.parent.children!.delete(src.name);
         dst.parent.children!.set(dst.name, node);
         dst.parent.mtimeMs = Date.now();
+        changed(joinAbs(fromParts));
+        changed(joinAbs(dstParts));
         cb(null);
       } catch (e) {
         cb(e);
@@ -343,6 +363,7 @@ export function createMemFS(opts: MemFSOptions = {}): MemFS {
       const grown = new Uint8Array(length);
       grown.set(cur.subarray(0, Math.min(length, cur.length)), 0);
       e.node.content = grown;
+      changed(e.path);
       cb(null);
     },
 
@@ -353,6 +374,7 @@ export function createMemFS(opts: MemFSOptions = {}): MemFS {
       const grown = new Uint8Array(length);
       grown.set(node.content!.subarray(0, Math.min(length, node.content!.length)), 0);
       node.content = grown;
+      changed(joinAbs(resolve(p)));
       cb(null);
     },
 
@@ -405,16 +427,17 @@ export function createMemFS(opts: MemFSOptions = {}): MemFS {
     mkdirp(p: string) {
       const parts = resolve(p);
       let cur = root;
-      for (const name of parts) {
+      parts.forEach((name, i) => {
         let next = cur.children!.get(name);
         if (!next) {
           next = dirNode();
           cur.children!.set(name, next);
+          changed(joinAbs(parts.slice(0, i + 1)));
         } else if (next.kind !== "dir") {
           throw err("ENOTDIR");
         }
         cur = next;
-      }
+      });
     },
     writeFile(p: string, data: Uint8Array) {
       const parts = resolve(p);
@@ -427,6 +450,7 @@ export function createMemFS(opts: MemFSOptions = {}): MemFS {
         parent.children!.set(name, fileNode(data));
       }
       parent.mtimeMs = Date.now();
+      changed(joinAbs(parts));
     },
     readFile(p: string): Uint8Array {
       const node = lookup(resolve(p));
@@ -443,7 +467,7 @@ export function createMemFS(opts: MemFSOptions = {}): MemFS {
     remove(p: string) {
       const parts = resolve(p);
       const { parent, name } = lookupParent(parts);
-      parent.children!.delete(name);
+      if (parent.children!.delete(name)) changed(joinAbs(parts));
     },
     exists(p: string): boolean {
       return lookup(resolve(p)) !== null;
@@ -459,5 +483,11 @@ export function createMemFS(opts: MemFSOptions = {}): MemFS {
   vol.mkdirp("/project");
   cwd = "/project";
 
-  return { fs, process, vol };
+  const mtime = (p: string): number | null => lookup(resolve(p))?.mtimeMs ?? null;
+  const setMtime = (p: string, ms: number) => {
+    const node = lookup(resolve(p));
+    if (node) node.mtimeMs = ms;
+  };
+
+  return { fs, process, vol, mtime, setMtime };
 }

@@ -195,6 +195,7 @@ const LazyGuidedModal = React.lazy(async () => {
                   ref={embedRef}
                   wasmExecUrl={pg.wasmExecUrl}
                   wasmUrl={pg.wasmUrl}
+                  storageKey={pg.storageKey}
                   seed={config.seed}
                   files={config.files}
                   // Only mounted after the reader clicks "Run it now", so boot on

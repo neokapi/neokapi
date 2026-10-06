@@ -13,6 +13,7 @@ const LazyEmbedWithConfig = React.lazy(async () => {
       <KapiEmbed
         wasmExecUrl={config.wasmExecUrl}
         wasmUrl={config.wasmUrl}
+        storageKey={config.storageKey}
         seed={["messages.json"]}
       />
     );

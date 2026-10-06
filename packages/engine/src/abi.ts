@@ -56,9 +56,29 @@ export interface RawSegmentResponse {
   segments?: { text: string }[];
 }
 
+/** One project a workspace export carries the context of. */
+export interface WorkspaceProjectExport {
+  /** The project's root in the engine's file system. */
+  root: string;
+  /** The context operations its log holds. */
+  operations: number;
+}
+
+/** Wire shape of `kapiExportWorkspace()` (a converted JS object). */
+export interface RawWorkspaceExport {
+  /** The workspace package (`kapi-workspace` .kpz) bytes. */
+  data: Uint8Array;
+  /** Files it carries. */
+  files: number;
+  projects: WorkspaceProjectExport[];
+  /** Projects whose context could not be read, with the reason. */
+  skipped?: { root: string; reason: string }[];
+}
+
 /**
  * Read the engine's ABI descriptor, or null when this wasm build predates
- * `kapiEngineABI` (or no engine has booted on this page yet).
+ * `kapiEngineABI` (or no engine has booted on this page yet). For an engine in
+ * a Worker, the facade installs the descriptor the Worker reported at boot.
  */
 export function engineABI(): EngineABI | null {
   const fn = globalThis.kapiEngineABI;

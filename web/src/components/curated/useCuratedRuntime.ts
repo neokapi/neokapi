@@ -57,7 +57,7 @@ export interface CuratedRuntimeState {
  * idempotent + shared across every curated view and lab on the page.
  */
 export function useCuratedRuntime(): CuratedRuntimeState {
-  const { wasmExecUrl, wasmUrl } = useKapiPlaygroundConfig();
+  const { wasmExecUrl, wasmUrl, storageKey } = useKapiPlaygroundConfig();
   const [runtime, setRuntime] = useState<KapiRuntime | null>(null);
   const [error, setError] = useState<string>("");
   const [armed, setArmed] = useState(false);
@@ -73,8 +73,8 @@ export function useCuratedRuntime(): CuratedRuntimeState {
   // Configure the shared manager with the asset URLs (no boot) so a Run here, in
   // a lab, or via the navbar widget all converge on one engine.
   useEffect(() => {
-    if (wasmExecUrl && wasmUrl) configurePlugins({ wasmExecUrl, wasmUrl });
-  }, [wasmExecUrl, wasmUrl]);
+    if (wasmExecUrl && wasmUrl) configurePlugins({ wasmExecUrl, wasmUrl, storageKey });
+  }, [wasmExecUrl, wasmUrl, storageKey]);
 
   useEffect(() => {
     if (!armed) return;

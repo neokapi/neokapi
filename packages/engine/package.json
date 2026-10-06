@@ -1,8 +1,8 @@
 {
   "name": "@neokapi/engine",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": false,
-  "description": "The kapi content engine (WebAssembly) as a typed npm package: boot loader, in-memory filesystem, KapiRuntime facade, versioned ABI with feature detection, and typed host-capability bridges. The wasm asset is served separately (CDN or self-hosted).",
+  "description": "The kapi content engine (WebAssembly) as a typed npm package: a dedicated Worker that runs the engine and keeps its workspace in the browser, the KapiRuntime facade, a versioned ABI with feature detection, and typed host-capability bridges. The wasm asset is served separately (CDN or self-hosted).",
   "keywords": [
     "wasm",
     "webassembly",
@@ -29,6 +29,8 @@
     "./abi": "./src/abi.ts",
     "./capabilities": "./src/capabilities.ts",
     "./sqlite": "./src/sqlite.ts",
+    "./worker": "./src/worker.ts",
+    "./storage": "./src/storage.ts",
     "./package.json": "./package.json"
   },
   "publishConfig": {
@@ -58,6 +60,14 @@
       "./sqlite": {
         "types": "./dist/sqlite.d.ts",
         "default": "./dist/sqlite.js"
+      },
+      "./worker": {
+        "types": "./dist/worker.d.ts",
+        "default": "./dist/worker.js"
+      },
+      "./storage": {
+        "types": "./dist/storage.d.ts",
+        "default": "./dist/storage.js"
       },
       "./package.json": "./package.json"
     },

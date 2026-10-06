@@ -14,12 +14,18 @@
 //
 //	globalThis.kapiICU4XSentenceBreaks(text: string, locale: string) => number[]
 //
-// returning the INTERIOR sentence-break offsets as Unicode code-point (rune)
+// or a Promise of that array, returning the INTERIOR sentence-break offsets as Unicode code-point (rune)
 // indices into text — excluding 0 and text length, ascending. The JS glue that
 // wraps ICU4X's SentenceSegmenter is responsible for converting ICU4X's offsets
 // to code-point indices (JS strings are UTF-16; Go spans are rune-indexed). When
 // the function is absent (ICU4X not loaded) Segment returns a clear error rather
 // than a wrong result, so a build without the bridge degrades visibly.
+//
+// The Promise form serves an engine running in a Worker whose page holds
+// ICU4X: the call crosses to the page and back. Waiting for it parks the
+// goroutine, so a caller that answers a Promise of its own (a command, or the
+// lab's asynchronous entry point) may use it, and a synchronous JS callback
+// may not.
 //
 // Blank-import this package into a wasm entrypoint to make the engine available.
 package icu4xjs
@@ -68,19 +74,62 @@ func (icu4xBaseBreaker) BaseBreaks(ctx context.Context, text []rune, locale stri
 	if !fn.Truthy() {
 		return nil, errors.New("icu4xjs: host did not define " + jsFuncName + " (ICU4X not loaded)")
 	}
-	res := fn.Invoke(string(text), locale)
+	return interiorBreaks(ctx, fn.Invoke(string(text), locale), len(text))
+}
+
+// interiorBreaks reads the bridge's answer, waiting for it when it is a
+// Promise, and keeps the offsets strictly inside the text.
+func interiorBreaks(ctx context.Context, res js.Value, n int) ([]int, error) {
+	res, err := settle(ctx, res)
+	if err != nil {
+		return nil, err
+	}
 	if res.Type() != js.TypeObject {
 		return nil, errors.New("icu4xjs: " + jsFuncName + " did not return an array")
 	}
-	n := res.Length()
-	breaks := make([]int, 0, n)
-	for i := 0; i < n; i++ {
+	count := res.Length()
+	breaks := make([]int, 0, count)
+	for i := 0; i < count; i++ {
 		off := res.Index(i).Int()
-		if off > 0 && off < len(text) {
+		if off > 0 && off < n {
 			breaks = append(breaks, off)
 		}
 	}
 	return breaks, nil
+}
+
+// settle waits for v when it is a Promise and answers it as it is otherwise.
+func settle(ctx context.Context, v js.Value) (js.Value, error) {
+	if v.Type() != js.TypeObject || v.Get("then").Type() != js.TypeFunction {
+		return v, nil
+	}
+	type answer struct {
+		v   js.Value
+		err error
+	}
+	ch := make(chan answer, 1)
+	onValue := js.FuncOf(func(_ js.Value, args []js.Value) any {
+		ch <- answer{v: args[0]}
+		return nil
+	})
+	onError := js.FuncOf(func(_ js.Value, args []js.Value) any {
+		msg := "icu4xjs: " + jsFuncName + " failed"
+		if len(args) > 0 && args[0].Truthy() {
+			msg += ": " + args[0].Call("toString").String()
+		}
+		ch <- answer{err: errors.New(msg)}
+		return nil
+	})
+	v.Call("then", onValue, onError)
+	select {
+	case <-ctx.Done():
+		// The callbacks stay: a late answer must not call a released func.
+		return js.Undefined(), ctx.Err()
+	case a := <-ch:
+		onValue.Release()
+		onError.Release()
+		return a.v, a.err
+	}
 }
 
 type engine struct {
@@ -113,18 +162,9 @@ func (e *engine) Segment(ctx context.Context, runs []model.Run, loc model.Locale
 	if !fn.Truthy() {
 		return nil, errors.New("icu4xjs: host did not define " + jsFuncName + " (ICU4X segmenter not loaded)")
 	}
-	res := fn.Invoke(string(text), locale)
-	if res.Type() != js.TypeObject {
-		return nil, errors.New("icu4xjs: " + jsFuncName + " did not return an array")
-	}
-
-	n := res.Length()
-	breaks := make([]int, 0, n)
-	for i := 0; i < n; i++ {
-		off := res.Index(i).Int()
-		if off > 0 && off < len(text) {
-			breaks = append(breaks, off)
-		}
+	breaks, err := interiorBreaks(ctx, fn.Invoke(string(text), locale), len(text))
+	if err != nil {
+		return nil, err
 	}
 	return fl.Spans(breaks), nil
 }

@@ -20,20 +20,32 @@ import (
 // Go and SQLite share a thread, so a statement runs to completion inside the
 // call and no goroutine runs meanwhile.
 //
-// Databases live in SQLite's memdb VFS, in the module's memory, named by their
-// absolute path. They are shared by every connection to one name, ATTACH by
-// path reaches them, and nothing outlives the tab. A database file at a name
-// in the page's file system is read in on the first open (readFileIn).
+// Databases are named by their absolute path. They are shared by every
+// connection to one name, and ATTACH by path reaches them. Where they live is
+// the bridge's choice: in an engine running in a dedicated Worker that holds
+// the origin's storage, SQLite's opfs-sahpool VFS keeps them in the origin
+// private file system, where they outlive the page; otherwise SQLite's memdb
+// VFS keeps them in the module's memory for the life of the page. The bridge
+// says which with its `durable` flag, and the profile reports it. A database
+// file at a name in the page's file system is read in on the first open
+// (readFileIn).
 
-func init() { sql.Register(sqliteDriver, jsDriver{}) }
+func init() {
+	sql.Register(sqliteDriver, jsDriver{})
+	// The host installs the bridge before the Go program starts.
+	if b := js.Global().Get("__kapiSQL"); b.Type() == js.TypeObject && b.Get("durable").Truthy() {
+		driverProfile.Durable = true
+	}
+}
 
 // sqliteDriver is the database/sql name the bridge driver registers under.
 const sqliteDriver = "sqlite-wasm"
 
 // driverProfile is what the bridge gives a store. One connection per file,
 // because a second connection's busy wait would spin the only thread; no WAL,
-// because memdb keeps its journal in memory; no lock another process honours,
-// because there is no other process; and nothing durable.
+// which neither memdb nor opfs-sahpool supports; and no lock another process
+// honours, because there is no other process. Durable follows the bridge
+// (see init).
 var driverProfile = Profile{
 	Driver:   "sqlite-wasm",
 	MaxConns: 1,
@@ -157,10 +169,10 @@ func dbList(dir string) ([]string, error) {
 	return slices.Compact(out), nil
 }
 
-// readFileIn loads the database file at name into memory, the first time a
+// readFileIn loads the database file at name into the bridge, the first time a
 // connection opens a name the bridge does not hold. The file stays where it
-// is, and writes go to the database in memory: like every browser database,
-// the copy lasts as long as the tab.
+// is, and writes go to the bridge's copy, which lives where the bridge keeps
+// every database.
 //
 // No file, or an empty one, leaves the bridge to start an empty database, as
 // SQLite does with an empty file on disk. A file that is not a database fails

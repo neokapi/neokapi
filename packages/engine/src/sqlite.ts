@@ -8,20 +8,28 @@
 // syscall/js. Go and SQLite therefore share a thread: the page's main thread
 // today, or a dedicated Worker.
 //
-// Databases live in SQLite's `memdb` VFS, in the module's memory. A database is
-// named by its absolute path, every connection to one name shares it, and the
-// bridge keeps one connection of its own on each name so a database outlives
-// the pools that open and close it between commands. That connection is also
-// what the driver-owned namespace answers from (exists, remove, rename, list):
-// the page's file system never sees these databases. Nothing outlives the
-// tab.
+// A database is named by its absolute path, and every connection to one name
+// shares it. Where databases live is the bridge's choice at creation:
+//
+//   - In memory, SQLite's `memdb` VFS. The bridge keeps one connection of its
+//     own on each name so a database outlives the pools that open and close it
+//     between commands, and nothing outlives the page.
+//   - In an opfs-sahpool pool, given one: the origin private file system,
+//     reached through synchronous access handles, which only a dedicated
+//     Worker holds. Databases outlive the page and the browser. The pool's
+//     locks are replaced with a table that locks between the bridge's
+//     connections as memdb does (locks.ts). The bridge reports `durable`.
+//
+// The driver-owned namespace (exists, remove, rename, list) answers from the
+// bridge: the page's file system never sees these databases.
 //
 // Every method returns a number or a plain object and never throws; a failure
 // is `{ err, code }` with SQLite's extended result code. Values cross in one
 // packed byte buffer per call rather than one JavaScript value each. The tags
 // and layout below are shared with driver_js.go; change both together.
 
-import type { Sqlite3Static } from "@sqlite.org/sqlite-wasm";
+import type { SAHPoolUtil, Sqlite3Static } from "@sqlite.org/sqlite-wasm";
+import { installPoolLocks } from "./locks.ts";
 
 /** Value tags in the packed argument and row buffers. */
 const TAG_NULL = 0;
@@ -54,6 +62,8 @@ export interface SQLitePrepared {
 export interface SQLiteBridge {
   /** The SQLite library version, e.g. "3.53.4". */
   version(): string;
+  /** True when databases outlive the page (an opfs-sahpool pool). */
+  durable: boolean;
   /**
    * Arguments in, results out. `run` and `exec` write the change count and
    * the last row id here as two int64s. Go replaces it with a larger buffer
@@ -146,13 +156,30 @@ async function fetchWasm(url: string): Promise<ArrayBuffer> {
   return resp.arrayBuffer();
 }
 
+/** Where the bridge keeps its databases. */
+export interface SQLiteBridgeOptions {
+  /**
+   * An installed opfs-sahpool pool. Databases live there and outlive the
+   * page; without one they live in memory.
+   */
+  pool?: SAHPoolUtil;
+  /**
+   * Names in the pool the bridge leaves out of its namespace: databases the
+   * host keeps there for itself.
+   */
+  hidden?: (name: string) => boolean;
+}
+
 /**
  * Install the bridge on globalThis for an initialised SQLite module. Call it
  * before the Go program starts; the driver looks the bridge up on first open.
  * Installing twice replaces the first bridge and its databases.
  */
-export function installSQLiteBridge(sqlite3: Sqlite3Static): SQLiteBridge {
-  const bridge = createSQLiteBridge(sqlite3);
+export function installSQLiteBridge(
+  sqlite3: Sqlite3Static,
+  opts: SQLiteBridgeOptions = {},
+): SQLiteBridge {
+  const bridge = createSQLiteBridge(sqlite3, opts);
   globalThis.__kapiSQL = bridge;
   return bridge;
 }
@@ -171,7 +198,7 @@ interface Stmt {
 }
 
 interface File {
-  /** The bridge's own connection, which keeps the database alive. */
+  /** The bridge's own connection, which keeps a database in memory alive; 0 in a pool. */
   pin: number;
   /** Driver connections open on it. */
   open: number;
@@ -187,7 +214,10 @@ class SQLiteError extends Error {
 }
 
 /** Build the bridge without installing it. */
-export function createSQLiteBridge(sqlite3: Sqlite3Static): SQLiteBridge {
+export function createSQLiteBridge(
+  sqlite3: Sqlite3Static,
+  opts: SQLiteBridgeOptions = {},
+): SQLiteBridge {
   const { capi, wasm } = sqlite3;
   // The raw exports take and return pointers as numbers and int64 as bigint,
   // which is what a packed buffer needs; the published typing leaves them
@@ -198,15 +228,33 @@ export function createSQLiteBridge(sqlite3: Sqlite3Static): SQLiteBridge {
   const DEALLOC = capi.SQLITE_WASM_DEALLOC as unknown as number;
   const OPEN_FLAGS = capi.SQLITE_OPEN_READWRITE | capi.SQLITE_OPEN_CREATE;
 
-  // memdb is the default VFS too, so `ATTACH '<path>'` and `VACUUM INTO
-  // '<path>'` reach the same shared databases the driver opens by name.
-  const memdb = capi.sqlite3_vfs_find("memdb");
-  if (!memdb) throw new Error("sqlite-wasm: this build has no memdb VFS");
-  capi.sqlite3_vfs_register(memdb, 1);
+  // The VFS the databases live in is the default VFS too, so `ATTACH
+  // '<path>'` and `VACUUM INTO '<path>'` reach the same shared databases the
+  // driver opens by name.
+  const pool = opts.pool;
+  const hidden = opts.hidden ?? (() => false);
+  const vfsName = pool ? pool.vfsName : "memdb";
+  const vfs = capi.sqlite3_vfs_find(vfsName);
+  if (!vfs) throw new Error(`sqlite-wasm: this build has no ${vfsName} VFS`);
+  capi.sqlite3_vfs_register(vfs, 1);
+  if (pool) installPoolLocks(sqlite3, vfsName);
 
   const conns = new Map<number, Conn>();
   const stmts = new Map<number, Stmt>();
   const files = new Map<string, File>();
+  // A pool already holds the databases an earlier page wrote. Its names are
+  // URL paths (a space is %20), and its journals are files of their own.
+  if (pool) {
+    for (const raw of pool.getFileNames()) {
+      const name = decodeURIComponent(raw);
+      if (/-(journal|wal)$/.test(name) || hidden(name)) continue;
+      files.set(name, { pin: 0, open: 0 });
+    }
+  }
+  // A database name the bridge holds a file for, created on first open.
+  const hold = (name: string) => {
+    if (!files.has(name)) files.set(name, { pin: pool ? 0 : openDb(name), open: 0 });
+  };
   let nextId = 1;
   const decoder = new TextDecoder();
 
@@ -224,7 +272,7 @@ export function createSQLiteBridge(sqlite3: Sqlite3Static): SQLiteBridge {
     const sp = wasm.pstack.pointer;
     try {
       const pp = wasm.pstack.allocPtr() as number;
-      const rc = capi.sqlite3_open_v2(name, pp, OPEN_FLAGS, "memdb");
+      const rc = capi.sqlite3_open_v2(name, pp, OPEN_FLAGS, vfsName);
       const db = wasm.peekPtr(pp) as number;
       if (rc) {
         const msg = db ? capi.sqlite3_errmsg(db) : capi.sqlite3_errstr(rc);
@@ -333,20 +381,25 @@ export function createSQLiteBridge(sqlite3: Sqlite3Static): SQLiteBridge {
     const f = files.get(name);
     if (!f) return 0;
     if (f.open > 0) return { err: `database ${name} is open`, code: capi.SQLITE_BUSY };
-    capi.sqlite3_close_v2(f.pin);
+    if (f.pin) capi.sqlite3_close_v2(f.pin);
     files.delete(name);
+    if (pool) {
+      pool.unlink(name);
+      pool.unlink(`${name}-journal`);
+    }
     return 0;
   };
 
   const bridge: SQLiteBridge = {
     io: new Uint8Array(1 << 16),
     rows: rowBuf,
+    durable: pool !== undefined,
     version: () => sqlite3.version.libVersion,
 
     open(name) {
       try {
         const shared = name.startsWith("/");
-        if (shared && !files.has(name)) files.set(name, { pin: openDb(name), open: 0 });
+        if (shared) hold(name);
         const db = openDb(name);
         const id = nextId++;
         conns.set(id, { db, stmts: new Set(), file: shared ? name : undefined });
@@ -528,16 +581,17 @@ export function createSQLiteBridge(sqlite3: Sqlite3Static): SQLiteBridge {
       return 0;
     },
 
-    exists: (name) => files.has(name),
+    exists: (name) => files.has(name) && !hidden(name),
 
     load(name, data) {
       if (files.has(name)) return 0;
       // sqlite3_deserialize opens the bytes as a database private to one
       // connection; VACUUM INTO then copies it to the shared name, as rename
-      // does. The name's own connection, opened first, keeps the copy alive.
+      // does. In memory, the name's own connection, opened first, keeps the
+      // copy alive; in a pool the copy is the pool's file.
       let tmp = 0;
       try {
-        files.set(name, { pin: openDb(name), open: 0 });
+        hold(name);
         tmp = openDb(":memory:");
         const p = wasm.alloc(data.length) as number;
         const heap = wasm.heap8u();
@@ -581,26 +635,31 @@ export function createSQLiteBridge(sqlite3: Sqlite3Static): SQLiteBridge {
       if (f.open > 0) return { err: `database ${from} is open`, code: capi.SQLITE_BUSY };
       const removed = removeFile(to);
       if (removed !== 0) return removed;
+      // VACUUM INTO writes a copy to a database that must be empty. In
+      // memory, the destination's own connection, opened first, keeps the
+      // copy alive; in a pool a connection of the bridge's reads the source.
+      const src = f.pin || openDb(from);
       try {
-        // VACUUM INTO writes a copy to a database that must be empty; the
-        // destination's own connection, opened first, keeps the copy alive.
-        files.set(to, { pin: openDb(to), open: 0 });
-        const rc = capi.sqlite3_exec(f.pin, `VACUUM INTO '${to.replaceAll("'", "''")}'`, 0, 0, 0);
+        if (pool) files.set(to, { pin: 0, open: 0 });
+        else hold(to);
+        const rc = capi.sqlite3_exec(src, `VACUUM INTO '${to.replaceAll("'", "''")}'`, 0, 0, 0);
         if (rc) {
-          const failure = dbFail(f.pin, rc);
+          const failure = dbFail(src, rc);
           removeFile(to);
           return failure;
         }
       } catch (e) {
         removeFile(to);
         return fail(e);
+      } finally {
+        if (src !== f.pin) capi.sqlite3_close_v2(src);
       }
       return removeFile(from);
     },
 
     list(dir) {
       const prefix = dir.endsWith("/") ? dir : `${dir}/`;
-      return [...files.keys()].filter((name) => name.startsWith(prefix)).sort();
+      return [...files.keys()].filter((name) => name.startsWith(prefix) && !hidden(name)).sort();
     },
   };
   return bridge;

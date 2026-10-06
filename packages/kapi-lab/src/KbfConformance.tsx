@@ -223,8 +223,8 @@ async function sha256Hex(bytes: Uint8Array): Promise<string> {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-function goAnchor(rt: LabRuntime, block: Block, anchor: AnnotationAnchor): string {
-  const res = rt.kbf({ op: "resolveAnchor", block, anchor });
+async function goAnchor(rt: LabRuntime, block: Block, anchor: AnnotationAnchor): Promise<string> {
+  const res = await rt.kbf({ op: "resolveAnchor", block, anchor });
   const r = (res.resolution as Record<string, unknown>) ?? {};
   if (!r.ok) return `fail:${String(r.reason)}`;
   switch (r.kind) {
@@ -239,8 +239,12 @@ function goAnchor(rt: LabRuntime, block: Block, anchor: AnnotationAnchor): strin
   }
 }
 
-function goValidateAnnotation(rt: LabRuntime, block: Block, annotation: Annotation): string {
-  const res = rt.kbf({ op: "validateAnnotation", block, annotation });
+async function goValidateAnnotation(
+  rt: LabRuntime,
+  block: Block,
+  annotation: Annotation,
+): Promise<string> {
+  const res = await rt.kbf({ op: "validateAnnotation", block, annotation });
   const v = (res.validation as Record<string, unknown>) ?? {};
   return v.valid ? "valid" : `fail:${String(v.reason)}`;
 }
@@ -269,8 +273,8 @@ function tsAnchor(block: Block, anchor: AnnotationAnchor): string {
   }
 }
 
-function goValidateTarget(rt: LabRuntime, source: Block, target: Run[]): string {
-  const res = rt.kbf({ op: "validateTarget", source, target });
+async function goValidateTarget(rt: LabRuntime, source: Block, target: Run[]): Promise<string> {
+  const res = await rt.kbf({ op: "validateTarget", source, target });
   const errs = (res.errors as Array<{ kind: string }>) ?? [];
   return normKinds(errs.map((e) => e.kind));
 }
@@ -279,15 +283,15 @@ function tsValidateTarget(source: Block, target: Run[]): string {
   return normKinds(validateTargetAgainstSource(source, target).map((e) => e.kind));
 }
 
-function goValidateBlock(rt: LabRuntime, block: unknown): string {
-  const res = rt.kbf({ op: "validateBlock", block });
+async function goValidateBlock(rt: LabRuntime, block: unknown): Promise<string> {
+  const res = await rt.kbf({ op: "validateBlock", block });
   if (!res.ok) return "decode-rejected";
   const errs = (res.errors as Array<{ kind: string }>) ?? [];
   return normKinds(errs.map((e) => e.kind));
 }
 
-function goAccepts(rt: LabRuntime, kbf: string): string {
-  return rt.kbf({ op: "roundtrip", kbf }).ok ? "accepted" : "rejected";
+async function goAccepts(rt: LabRuntime, kbf: string): Promise<string> {
+  return (await rt.kbf({ op: "roundtrip", kbf })).ok ? "accepted" : "rejected";
 }
 
 function tsAccepts(kbf: string): string {
@@ -480,7 +484,8 @@ const CASES: ConfCase[] = [
     name: "Round-trip the complete document",
     description: "Decode → re-marshal; both engines emit identical canonical bytes.",
     category: "serialization",
-    runGo: (rt) => rt.kbf({ op: "roundtrip", kbf: kbfText(fullFile) }).sha256 as string,
+    runGo: async (rt) =>
+      (await rt.kbf({ op: "roundtrip", kbf: kbfText(fullFile) })).sha256 as string,
     runTs: () => sha256Hex(marshalFile(fullFile)),
   },
   {
@@ -488,7 +493,8 @@ const CASES: ConfCase[] = [
     name: "Round-trip a plural block",
     description: "Plural form keys serialize in the same (sorted) order in both engines.",
     category: "serialization",
-    runGo: (rt) => rt.kbf({ op: "roundtrip", kbf: kbfText(pluralFile) }).sha256 as string,
+    runGo: async (rt) =>
+      (await rt.kbf({ op: "roundtrip", kbf: kbfText(pluralFile) })).sha256 as string,
     runTs: () => sha256Hex(marshalFile(pluralFile)),
   },
   {
@@ -496,7 +502,8 @@ const CASES: ConfCase[] = [
     name: "Round-trip a select block",
     description: "Select case keys serialize identically across implementations.",
     category: "serialization",
-    runGo: (rt) => rt.kbf({ op: "roundtrip", kbf: kbfText(selectFile) }).sha256 as string,
+    runGo: async (rt) =>
+      (await rt.kbf({ op: "roundtrip", kbf: kbfText(selectFile) })).sha256 as string,
     runTs: () => sha256Hex(marshalFile(selectFile)),
   },
   {
@@ -504,7 +511,8 @@ const CASES: ConfCase[] = [
     name: "Round-trip a subblock reference",
     description: "A document with a sub run and its referenced block round-trips byte-identically.",
     category: "serialization",
-    runGo: (rt) => rt.kbf({ op: "roundtrip", kbf: kbfText(subFile) }).sha256 as string,
+    runGo: async (rt) =>
+      (await rt.kbf({ op: "roundtrip", kbf: kbfText(subFile) })).sha256 as string,
     runTs: () => sha256Hex(marshalFile(subFile)),
   },
   {
@@ -513,7 +521,8 @@ const CASES: ConfCase[] = [
     description:
       "A translation and a channel edition, with status, origin and derivation, serialize identically in both engines.",
     category: "serialization",
-    runGo: (rt) => rt.kbf({ op: "roundtrip", kbf: kbfText(editionsFile) }).sha256 as string,
+    runGo: async (rt) =>
+      (await rt.kbf({ op: "roundtrip", kbf: kbfText(editionsFile) })).sha256 as string,
     runTs: () => sha256Hex(marshalFile(editionsFile)),
   },
   {
@@ -522,7 +531,7 @@ const CASES: ConfCase[] = [
     description:
       "A file whose blocks carry source beside targets keyed by locale reads as editions and is written in the current schema, byte-identically in both engines.",
     category: "serialization",
-    runGo: (rt) => rt.kbf({ op: "roundtrip", kbf: SCHEMA1_KBF }).sha256 as string,
+    runGo: async (rt) => (await rt.kbf({ op: "roundtrip", kbf: SCHEMA1_KBF })).sha256 as string,
     runTs: () => sha256Hex(marshalFile(parseFile(SCHEMA1_KBF))),
   },
 
@@ -532,7 +541,7 @@ const CASES: ConfCase[] = [
     name: "Render files-heading to HTML",
     description: "Paired code + variable render to the same <kat-block> HTML.",
     category: "preview",
-    runGo: (rt) => rt.kbf({ op: "renderHtml", block: filesHeading }).html as string,
+    runGo: async (rt) => (await rt.kbf({ op: "renderHtml", block: filesHeading })).html as string,
     runTs: () => renderBlockHtml(filesHeading),
   },
   {
@@ -540,7 +549,7 @@ const CASES: ConfCase[] = [
     name: "Render tag-chip to HTML",
     description: "Conditional jsx:node placeholders render identically.",
     category: "preview",
-    runGo: (rt) => rt.kbf({ op: "renderHtml", block: tagChip }).html as string,
+    runGo: async (rt) => (await rt.kbf({ op: "renderHtml", block: tagChip })).html as string,
     runTs: () => renderBlockHtml(tagChip),
   },
   {
@@ -548,7 +557,7 @@ const CASES: ConfCase[] = [
     name: "Render a plural block to HTML",
     description: "Plural forms render in the same order with the same labels.",
     category: "preview",
-    runGo: (rt) => rt.kbf({ op: "renderHtml", block: shoppingCart }).html as string,
+    runGo: async (rt) => (await rt.kbf({ op: "renderHtml", block: shoppingCart })).html as string,
     runTs: () => renderBlockHtml(shoppingCart),
   },
   {
@@ -556,7 +565,8 @@ const CASES: ConfCase[] = [
     name: "Render a select block to HTML",
     description: "Select cases render identically (other sorts last).",
     category: "preview",
-    runGo: (rt) => rt.kbf({ op: "renderHtml", block: likeNotification }).html as string,
+    runGo: async (rt) =>
+      (await rt.kbf({ op: "renderHtml", block: likeNotification })).html as string,
     runTs: () => renderBlockHtml(likeNotification),
   },
   {
@@ -564,7 +574,7 @@ const CASES: ConfCase[] = [
     name: "Render a sub run to HTML",
     description: "A subblock reference renders to the same neokapi-sub span.",
     category: "preview",
-    runGo: (rt) => rt.kbf({ op: "renderHtml", block: emailBody }).html as string,
+    runGo: async (rt) => (await rt.kbf({ op: "renderHtml", block: emailBody })).html as string,
     runTs: () => renderBlockHtml(emailBody),
   },
 

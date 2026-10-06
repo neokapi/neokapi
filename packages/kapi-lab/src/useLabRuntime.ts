@@ -41,6 +41,8 @@ const stripAnsi = (s: string): string => s.replace(ANSI_ESCAPE, "");
 export interface LabRuntimeAssets {
   wasmExecUrl: string;
   wasmUrl: string;
+  /** The key the engine keeps its workspace under (KapiPlaygroundConfig.storageKey). */
+  storageKey?: string;
 }
 
 export interface InspectOutcome {
@@ -111,12 +113,12 @@ export interface LabRuntime {
   /** Read raw bytes from the in-memory filesystem, or null (for binary
    *  outputs like .docx — used to confirm a valid OOXML zip was produced). */
   readBytes: (path: string) => Uint8Array | null;
-  /** Run a KBF spec operation against the canonical Go engine (synchronous). */
-  kbf: (req: KbfRequest) => KbfResponse;
-  /** Segment raw text with a named engine + locale (synchronous). */
-  segment: (text: string, engine: string, locale: string) => SegmentResult;
+  /** Run a KBF spec operation against the canonical Go engine. */
+  kbf: (req: KbfRequest) => Promise<KbfResponse>;
+  /** Segment raw text with a named engine + locale. */
+  segment: (text: string, engine: string, locale: string) => Promise<SegmentResult>;
   /** Segmentation engine names registered in this wasm build. */
-  segmentEngines: () => string[];
+  segmentEngines: () => Promise<string[]>;
   /**
    * Read a page of a document's blocks through the change service: each block
    * carries the reference and the revision an operation names. Paths are
@@ -176,13 +178,14 @@ export function useLabRuntime(
   // pegs the tab ("Maximum update depth"). The strings are stable.
   const wasmExecUrl = assets?.wasmExecUrl;
   const wasmUrl = assets?.wasmUrl;
+  const storageKey = assets?.storageKey;
 
   // Configure the shared plugin manager with the asset URLs as soon as we have
   // them (idempotent). This does NOT boot — it just lets the navbar widget and
   // any plugin ensure() reach the same engine. Boot stays gated behind boot().
   useEffect(() => {
-    if (wasmExecUrl && wasmUrl) configurePlugins({ wasmExecUrl, wasmUrl });
-  }, [wasmExecUrl, wasmUrl]);
+    if (wasmExecUrl && wasmUrl) configurePlugins({ wasmExecUrl, wasmUrl, storageKey });
+  }, [wasmExecUrl, wasmUrl, storageKey]);
 
   const boot = useCallback(() => {
     if (!wasmExecUrl || !wasmUrl || bootStartedRef.current) return;
@@ -191,7 +194,7 @@ export function useLabRuntime(
     const offProgress = onBootProgress((p) => {
       if (mountedRef.current) setBootProgress(p.done ? null : p);
     });
-    configurePlugins({ wasmExecUrl, wasmUrl });
+    configurePlugins({ wasmExecUrl, wasmUrl, storageKey });
     bootEngine()
       .then((rt: unknown) => {
         runtimeRef.current = rt as KapiRuntime;
@@ -325,7 +328,7 @@ export function useLabRuntime(
     }
   }, []);
 
-  const kbf = useCallback((req: KbfRequest): KbfResponse => {
+  const kbf = useCallback(async (req: KbfRequest): Promise<KbfResponse> => {
     const rt = runtimeRef.current;
     if (!rt) return { ok: false, error: "runtime not ready" };
     // The kbf endpoint is pure CPU work over an in-memory JSON payload (no fs,
@@ -333,15 +336,18 @@ export function useLabRuntime(
     return rt.kbf(req);
   }, []);
 
-  const segment = useCallback((text: string, engine: string, locale: string): SegmentResult => {
-    const rt = runtimeRef.current;
-    if (!rt) return { ok: false, error: "runtime not ready" };
-    // Like kbf: pure CPU (plus, for uax29, one re-entrant ICU4X JS call) over an
-    // in-memory string, no fs or shared stdout — no run-chain serialization.
-    return rt.segment(text, engine, locale);
-  }, []);
+  const segment = useCallback(
+    async (text: string, engine: string, locale: string): Promise<SegmentResult> => {
+      const rt = runtimeRef.current;
+      if (!rt) return { ok: false, error: "runtime not ready" };
+      // Like kbf: pure CPU (plus, for uax29, one re-entrant ICU4X JS call) over an
+      // in-memory string, no fs or shared stdout — no run-chain serialization.
+      return rt.segment(text, engine, locale);
+    },
+    [],
+  );
 
-  const segmentEngines = useCallback((): string[] => {
+  const segmentEngines = useCallback(async (): Promise<string[]> => {
     const rt = runtimeRef.current;
     return rt ? rt.segmentEngines() : [];
   }, []);

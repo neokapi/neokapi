@@ -41,7 +41,7 @@ const FOCUSABLE =
  * fresh seed.
  */
 export default function KapiModal(): React.ReactElement | null {
-  const { wasmExecUrl, wasmUrl } = useKapiConfig();
+  const { wasmExecUrl, wasmUrl, storageKey } = useKapiConfig();
   const [open, setOpen] = useState(false);
   // Whether the heavy embed has ever mounted. Once true we keep it mounted
   // (display:none when closed) so the runtime stays warm and terminal history
@@ -232,6 +232,7 @@ export default function KapiModal(): React.ReactElement | null {
             ref={embedRef}
             wasmExecUrl={wasmExecUrl}
             wasmUrl={wasmUrl}
+            storageKey={storageKey}
             seed={initialReq.seed}
             files={initialReq.files}
             binaryFiles={initialReq.binaryFiles}

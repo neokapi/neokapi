@@ -6,17 +6,25 @@ wrapped as a typed, dependency-light npm package.
 
 The package owns:
 
-- **Boot** — `bootKapiRuntime(wasmExecUrl, wasmUrl)`: installs an in-memory
-  filesystem, loads SQLite (`@sqlite.org/sqlite-wasm`) and installs the bridge
-  the engine's database driver calls, loads Go's `wasm_exec.js`, instantiates
-  the engine, and resolves once the engine signals ready. Idempotent; one warm
-  instance per page.
+- **Boot** — `bootKapiRuntime(wasmExecUrl, wasmUrl)`: starts the engine in a
+  dedicated Worker, where it installs the engine's file system, loads SQLite
+  (`@sqlite.org/sqlite-wasm`) and installs the bridge the engine's database
+  driver calls, loads Go's `wasm_exec.js`, instantiates the engine, and
+  resolves once the engine signals ready. Idempotent; one warm instance per
+  page. Without `Worker` (Node, tests) or with `{ worker: false }` the engine
+  runs on the calling thread.
+- **A kept workspace** — in the Worker, the databases and files live in the
+  origin private file system (SQLite's `opfs-sahpool` VFS), so a workspace
+  survives a reload and a browser restart. One tab holds it at a time;
+  `runtime.storage` says where the workspace is, and `exportWorkspace()` /
+  `importWorkspace()` carry it out of the browser as a `.kpz`.
 - **`KapiRuntime`** — the facade over the engine's global function set:
   `run` (any browser-safe kapi CLI command), `preview`, `inspect`,
   `inspectAnnotated`, `kbf`, `segment`, `segmentEngines`, `runWithTrace`,
   `reset` (start a directory over, its projects, databases and files) and
   `removeDatabase`, plus the in-memory volume (`vol`), `cwd`/`chdir`, and
-  `setSinks` for stdout/stderr routing. `read`, `apply` and `describe` edit
+  `setSinks` for stdout/stderr routing. `kbf`, `segment`, `segmentEngines` and
+  `removeDatabase` answer Promises. `read`, `apply` and `describe` edit
   content through the change contract (`kapi.change/v1`), the one `kapi apply`
   and the agent tools use.
 - **Versioned ABI** — `engineABI()` reads the engine's `kapiEngineABI()`
@@ -58,8 +66,32 @@ To serve it elsewhere, pass its URL:
 await bootKapiRuntime(wasmExecUrl, wasmUrl, { sqliteWasmUrl: "/assets/sqlite3.wasm" });
 ```
 
-The databases live in memory for the life of the page. Two patterns for the
-engine asset:
+## Where the workspace is kept
+
+In a browser the engine keeps its databases and the files of its file system
+in the origin private file system, so a reload or a browser restart finds them
+again. It needs no COOP or COEP headers.
+
+```ts
+const rt = await bootKapiRuntime(wasmExecUrl, wasmUrl, { persist: "my-site" });
+rt.storage; // { kind: "opfs", name } or { kind: "memory", reason }
+```
+
+- `persist` names the key the workspace is kept under (default `"kapi"`), or
+  `false` keeps it in memory. Two builds of the engine served on one origin
+  take different keys: a workspace belongs to the engine that wrote it.
+- One tab holds the workspace. Another tab of the site runs in memory with
+  `reason: "another-tab"`; `describeStorage(rt.storage)` gives a sentence to
+  show.
+- The browser may clear what a site keeps (Safari does after seven days
+  without interaction). `rt.exportWorkspace()` resolves to a `.kpz` of the
+  files and each project's context, and `rt.importWorkspace(bytes)` reads one
+  back into any page.
+
+A bundler that understands `new Worker(new URL("./worker.ts", import.meta.url))`
+(webpack 5, Vite, Rspack) bundles the Worker with the package.
+
+Two patterns for the engine asset:
 
 ### 1. CDN-hosted asset
 

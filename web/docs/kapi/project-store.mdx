@@ -198,10 +198,14 @@ exactly as though there were no terms store at all: the terminology gate
 enforces nothing, `kapi up --plan` never creates state, and `kapi pack` carries
 only the parts that hold something. Only populated subsystems contribute context.
 
-The same model runs in the browser, where everything is held in memory and the
-decisions persist to a sidecar file beside the projection. A browser tab holds
-one project and nothing outlives it, so it keeps its context beside its
-projection rather than in a workspace.
+The same model runs in the browser. The playground and the labs keep their
+files, the workspace and its operation log in the browser's storage for the
+site, so a project is still there after a reload or a browser restart. One tab
+holds the workspace at a time; a second tab keeps its own work in memory and
+says so beside its files. The browser may clear what a site keeps (Safari
+does after seven days without a visit), so treat the browser copy as a cache:
+**Export workspace** in the files panel saves the files and each project's
+context as a `.kpz`, and **Import workspace** reads one back into any browser.
 
 ## What the store is *not*
 

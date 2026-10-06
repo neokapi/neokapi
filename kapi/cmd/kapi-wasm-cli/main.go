@@ -20,7 +20,11 @@
 // bridge the host installs before Go starts (packages/engine/src/sqlite.ts),
 // so the workspace, its operation log, the projector, the content memory, the
 // terms store, the decision ledger and the block cache all run here as they do
-// natively. Their databases live in memory for the life of the page.
+// natively. In the engine's Worker their databases live in the origin private
+// file system and outlive the page; elsewhere they live in memory
+// (packages/engine/src/storage.ts). kapiExportWorkspace and
+// kapiImportWorkspace carry the workspace out of the browser and back
+// (workspace.go).
 package main
 
 import (
@@ -110,6 +114,9 @@ var engineExports = []struct {
 	{"kapiRead", kapiRead},
 	{"kapiApply", kapiApply},
 	{"kapiDescribe", kapiDescribe},
+	{"labSegmentAsync", labSegmentAsync},
+	{"kapiExportWorkspace", kapiExportWorkspace},
+	{"kapiImportWorkspace", kapiImportWorkspace},
 }
 
 // registerEngineABI installs every engine entry point plus the additive
