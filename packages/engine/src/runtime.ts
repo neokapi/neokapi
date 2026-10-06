@@ -1,10 +1,18 @@
 // KapiRuntime — the singleton that owns the one booted kapi WASM instance.
 //
-// The wasm module installs a single global function set (see globals.ts /
-// abi.ts) and our memfs is a module-global volume, so there is exactly one
-// live session at a time. That is fine for the embedding model: only one host
-// surface (modal, lab, terminal) is ever driving the runtime. `setSinks`
-// points the live stdout/stderr at whichever surface is active.
+// In a browser the engine runs in a dedicated Worker (worker.ts): Go, SQLite
+// and the engine's file system run there, off the page's thread, and the
+// workspace can be kept in the origin private file system (storage.ts). The
+// facade sends each call to the Worker and keeps a mirror of the engine's file
+// system on the page, so `vol` reads stay synchronous: the Worker sends the
+// changes a call made before the call's answer. Where no Worker can run (Node,
+// a test environment, or a page that asks for it) the engine runs on the
+// calling thread with its workspace in memory, as the smokes run it.
+//
+// There is exactly one live session at a time. That is fine for the embedding
+// model: only one host surface (modal, lab, terminal) is ever driving the
+// runtime. `setSinks` points the live stdout/stderr at whichever surface is
+// active.
 //
 // Boot is lazy: nothing is fetched until `bootKapiRuntime()` is first called.
 // Subsequent calls reuse the warm instance.
@@ -19,11 +27,29 @@ import type {
   ReadPage,
   ReadRequest,
 } from "@neokapi/contract-types";
-import type { RawInspectResponse, RawPreviewResponse } from "./abi.ts";
+import type {
+  EngineABI,
+  RawInspectResponse,
+  RawPreviewResponse,
+  RawSegmentResponse,
+  RawWorkspaceExport,
+  WorkspaceProjectExport,
+} from "./abi.ts";
 import { createMemFS } from "./memfs.ts";
 import type { MemFS, MemVolume } from "./memfs.ts";
 import { installSQLiteBridge, loadSQLite } from "./sqlite.ts";
+import { fetchWasmBytes, instantiate, sibling } from "./fetch.ts";
+import type { BootProgress, WasmExecHost } from "./fetch.ts";
+import { applyChanges } from "./storage.ts";
+import { invokeEngine, localCalls } from "./local.ts";
+import type { StorageInfo } from "./storage.ts";
+import { presentBridges } from "./protocol.ts";
+import type { FromWorker, ToWorker } from "./protocol.ts";
 import "./globals.ts";
+
+export type { BootProgress } from "./fetch.ts";
+export type { MemoryReason, StorageInfo } from "./storage.ts";
+export { describeStorage } from "./storage.ts";
 
 export interface PreviewBlock {
   id: string;
@@ -175,8 +201,35 @@ function isChangeResult(v: unknown): v is ChangeResult {
   );
 }
 
+/** What an export of the workspace carries. */
+export interface WorkspaceExport {
+  /** The workspace package: a `.kpz` of kind `kapi-workspace`. */
+  data: Uint8Array;
+  /** The files it carries. */
+  files: number;
+  /** The projects whose context it carries. */
+  projects: WorkspaceProjectExport[];
+  /** Projects whose context could not be read, with the reason. */
+  skipped: { root: string; reason: string }[];
+}
+
+/** What reading a workspace package back did. */
+export interface WorkspaceImport {
+  /** The files written. */
+  files: number;
+  /** Each project whose context was merged, with the operations it added. */
+  projects: { root: string; merged: number }[];
+}
+
 export interface KapiRuntime {
+  /**
+   * The engine's file system. For an engine in a Worker this is a mirror on
+   * the page: a write reaches the engine before the next call, and a call's
+   * changes are here when its Promise resolves.
+   */
   vol: MemVolume;
+  /** Where the engine keeps its databases and files. */
+  readonly storage: StorageInfo;
   run(argv: string[]): Promise<number>;
   preview(path: string): Promise<PreviewResult>;
   /** Inspect a file's content model, returning the parsed ContentTree. */
@@ -188,24 +241,16 @@ export interface KapiRuntime {
    * (term/brand/qa); all default to true. Wraps the `labInspectAnnotated` global.
    */
   inspectAnnotated(path: string, opts?: AnnotateOptions): Promise<InspectResult>;
-  /**
-   * Run a KBF spec operation against the canonical Go engine. Synchronous: the
-   * wasm endpoint does pure in-memory work over the JSON payload (no fs), so it
-   * returns the parsed response directly rather than a Promise.
-   */
-  kbf(req: KbfRequest): KbfResponse;
-  /**
-   * Segment raw text with a named engine ("" = default srx) and locale.
-   * Synchronous: pure in-memory work (the "uax29"/ICU4X path makes one
-   * re-entrant JS call), so it returns the result directly.
-   */
-  segment(text: string, engine: string, locale: string): SegmentResult;
+  /** Run a KBF spec operation against the canonical Go engine. */
+  kbf(req: KbfRequest): Promise<KbfResponse>;
+  /** Segment raw text with a named engine ("" = default srx) and locale. */
+  segment(text: string, engine: string, locale: string): Promise<SegmentResult>;
   /** List the segmentation engines registered in this wasm build. */
-  segmentEngines(): string[];
+  segmentEngines(): Promise<string[]>;
   /**
    * Run a command with flow tracing enabled and return the parsed FlowTrace.
    * Appends `--trace <tmp>` to argv, runs it, and reads the trace back from the
-   * in-memory filesystem. The caller supplies the command plus its input and
+   * engine's file system. The caller supplies the command plus its input and
    * output args, e.g. ["pseudo-translate", "/p/in.json", "-o", "/p/out.json"]
    * or ["run", "translate-qa", "-i", "/p/in.json", "-o", "/p/out.json"].
    */
@@ -213,16 +258,16 @@ export interface KapiRuntime {
   /**
    * Start `dir` over as a fresh page would find it: forget the projects at
    * or below it, with their stores and context, and remove its databases,
-   * then remove its files. Databases live in SQLite's memory, so removing
-   * the files alone would leave them. An engine without the `kapiReset`
-   * entry point removes the files only.
+   * then remove its files. Databases live outside the file system, so
+   * removing the files alone would leave them. An engine without the
+   * `kapiReset` entry point removes the files only.
    */
   reset(dir: string): Promise<void>;
   /**
    * Remove the database held at the absolute `path`, as `rm` removes a file.
-   * Answers false when no database is held there. Throws when one is open.
+   * Answers false when no database is held there. Rejects when one is open.
    */
-  removeDatabase(path: string): boolean;
+  removeDatabase(path: string): Promise<boolean>;
   /**
    * Read a page of a document's blocks through the change service, as
    * `kapi inspect` reads them: each block carries the reference to copy into
@@ -245,14 +290,25 @@ export interface KapiRuntime {
    * service refuses the request.
    */
   describe(req: DescribeRequest, opts?: ChangeCallOptions): Promise<FormatDescription>;
+  /**
+   * Pack the engine's files and the context of every project among them as a
+   * workspace `.kpz`, to keep the workspace somewhere other than this browser.
+   * A project's context travels as its operation log.
+   */
+  exportWorkspace(): Promise<WorkspaceExport>;
+  /**
+   * Read a workspace `.kpz` back: write its files, replacing a file at the
+   * same path, and merge each project's context into the project's log.
+   */
+  importWorkspace(data: Uint8Array): Promise<WorkspaceImport>;
   cwd(): string;
   chdir(dir: string): void;
   /** Point the live stdout/stderr sinks at a destination (the active terminal). */
   setSinks(out: (s: string) => void, err: (s: string) => void): void;
 }
 
-// Monotonic counter for unique in-memfs trace paths, so a re-run never reads a
-// stale trace from a prior call.
+// Monotonic counter for unique trace paths, so a re-run never reads a stale
+// trace from a prior call.
 let traceSeq = 0;
 
 // The one active session's output sinks. Only one terminal is ever live, so a
@@ -286,16 +342,6 @@ function loadScript(src: string): Promise<void> {
 // Boot progress
 // ---------------------------------------------------------------------------
 
-/** Download progress for the engine boot, for hosts that render a bar. */
-export interface BootProgress {
-  /** Bytes received so far. */
-  loaded: number;
-  /** Total bytes (from Content-Length), or null when the server omits it. */
-  total: number | null;
-  /** True once the engine is up (terminal event). */
-  done?: boolean;
-}
-
 const bootProgressListeners = new Set<(p: BootProgress) => void>();
 let lastBootProgress: BootProgress | null = null;
 
@@ -314,100 +360,24 @@ export function onBootProgress(fn: (p: BootProgress) => void): () => void {
   return () => bootProgressListeners.delete(fn);
 }
 
-/** Wrap a response body with a byte-counting stage that reports progress. */
-function countingStream(resp: Response): ReadableStream<Uint8Array<ArrayBuffer>> {
-  const total = Number(resp.headers.get("content-length")) || null;
-  let loaded = 0;
-  emitBootProgress({ loaded: 0, total });
-  const counter = new TransformStream<Uint8Array<ArrayBuffer>, Uint8Array<ArrayBuffer>>({
-    transform(chunk, controller) {
-      loaded += chunk.byteLength;
-      emitBootProgress({ loaded, total });
-      controller.enqueue(chunk);
-    },
-  });
-  return resp.body!.pipeThrough(counter);
+// ---------------------------------------------------------------------------
+// The facade over an engine, wherever it runs
+// ---------------------------------------------------------------------------
+
+/** An engine the facade calls: on this thread, or in a Worker. */
+interface Engine {
+  /** Call an engine global, or one of the calls beside them (localCalls). */
+  call(fn: string, args: unknown[]): Promise<unknown>;
+  /** Whether the engine registered a global of this name. */
+  has(fn: string): boolean;
+  vol: MemVolume;
+  storage: StorageInfo;
+  cwd(): string;
+  chdir(dir: string): void;
 }
 
-// Fetch the wasm bytes. Prefer the precompressed `.wasm.gz` (the binary is
-// ~90 MB raw, ~20 MB gzipped) and inflate it in the browser via
-// DecompressionStream — this is portable and does not depend on the host
-// setting Content-Encoding (GitHub Pages / Docusaurus static serving do not).
-// Falls back to the raw `.wasm` if the compressed asset or the API is missing.
-// Both paths report download progress through onBootProgress.
-async function fetchWasmBytes(wasmUrl: string): Promise<ArrayBuffer | Response> {
-  if (typeof DecompressionStream !== "undefined") {
-    try {
-      const gzResp = await fetch(`${wasmUrl}.gz`);
-      if (gzResp.ok && gzResp.body) {
-        const stream = countingStream(gzResp).pipeThrough(new DecompressionStream("gzip"));
-        return await new Response(stream).arrayBuffer();
-      }
-    } catch {
-      /* fall through to the raw asset */
-    }
-  }
-  // Buffer the raw asset through the same counter so progress still reports;
-  // instantiate() accepts the ArrayBuffer.
-  const resp = await fetch(wasmUrl);
-  if (resp.ok && resp.body) {
-    return await new Response(countingStream(resp)).arrayBuffer();
-  }
-  return resp;
-}
-
-async function instantiate(
-  source: ArrayBuffer | Response,
-  importObject: WebAssembly.Imports,
-): Promise<WebAssembly.Instance> {
-  if (source instanceof Response) {
-    try {
-      const r = await WebAssembly.instantiateStreaming(source.clone(), importObject);
-      return r.instance;
-    } catch {
-      const buf = await source.arrayBuffer();
-      const r = await WebAssembly.instantiate(buf, importObject);
-      return r.instance;
-    }
-  }
-  const r = await WebAssembly.instantiate(source, importObject);
-  return r.instance;
-}
-
-// The Go class wasm_exec.js defines, and the fs/process host shims that Go's
-// js/wasm runtime reads from globalThis (see syscall/fs_js.go). We install our
-// memfs-backed shims before wasm_exec.js runs. Deliberately NOT declared
-// ambiently: global `fs`/`process` declarations would collide with
-// @types/node in consumer programs.
-interface GoInstance {
-  importObject: WebAssembly.Imports;
-  env: Record<string, string>;
-  run(instance: WebAssembly.Instance): Promise<void>;
-}
-interface WasmExecHost {
-  Go?: new () => GoInstance;
-  fs?: unknown;
-  process?: { env?: Record<string, string> };
-}
-
-/** Throw a clear error when a required engine global is missing. */
-function requireFn<T>(fn: T | undefined, name: string): T {
-  if (typeof fn !== "function") {
-    throw new Error(`engine global ${name} is not registered (wasm not booted?)`);
-  }
-  return fn;
-}
-
-/**
- * Wire the {@link KapiRuntime} facade over the engine globals and a booted
- * instance's memfs. Split from boot so the facade is unit-testable against a
- * mocked global surface; hosts should call {@link bootKapiRuntime} instead.
- */
-export function makeRuntime(mem: MemFS): KapiRuntime {
+function facade(engine: Engine): KapiRuntime {
   const dec = new TextDecoder();
-  const run = requireFn(globalThis.kapiRun, "kapiRun");
-  const preview = requireFn(globalThis.kapiPreview, "kapiPreview");
-  const inspect = requireFn(globalThis.labInspect, "labInspect");
 
   const parseInspect = (res: RawInspectResponse): InspectResult => {
     if (!res || !res.ok) return { ok: false, error: res?.error ?? "inspect failed" };
@@ -430,16 +400,13 @@ export function makeRuntime(mem: MemFS): KapiRuntime {
     request: unknown,
     opts: ChangeCallOptions | undefined,
   ): Promise<unknown> => {
-    const fn = globalThis[name];
-    if (typeof fn !== "function") {
+    if (!engine.has(name)) {
       throw new Error(
         `engine global ${name} is not registered (this engine predates the change contract entry points)`,
       );
     }
-    const raw = await (opts
-      ? fn(JSON.stringify(request), JSON.stringify(opts))
-      : fn(JSON.stringify(request)));
-    return JSON.parse(raw) as unknown;
+    const args = opts ? [JSON.stringify(request), JSON.stringify(opts)] : [JSON.stringify(request)];
+    return JSON.parse((await engine.call(name, args)) as string) as unknown;
   };
   // A read and a description answer their own type, or the refusal they were.
   const answered = <T>(v: unknown): T => {
@@ -448,41 +415,45 @@ export function makeRuntime(mem: MemFS): KapiRuntime {
   };
 
   return {
-    vol: mem.vol,
-    run: (argv: string[]) => run(argv),
-    preview: (path: string): Promise<PreviewResult> =>
-      preview(path).then((res: RawPreviewResponse) => res),
-    inspect: async (path: string): Promise<InspectResult> => parseInspect(await inspect(path)),
+    vol: engine.vol,
+    get storage() {
+      return engine.storage;
+    },
+    run: async (argv: string[]) => (await engine.call("kapiRun", [argv])) as number,
+    preview: async (path: string): Promise<PreviewResult> =>
+      (await engine.call("kapiPreview", [path])) as RawPreviewResponse,
+    inspect: async (path: string): Promise<InspectResult> =>
+      parseInspect((await engine.call("labInspect", [path])) as RawInspectResponse),
     inspectAnnotated: async (path: string, opts?: AnnotateOptions): Promise<InspectResult> => {
-      const fn = globalThis.labInspectAnnotated;
-      if (typeof fn !== "function") {
+      if (!engine.has("labInspectAnnotated")) {
         return { ok: false, error: "labInspectAnnotated unavailable in this wasm build" };
       }
       // The wasm endpoint accepts an optional JSON options string; omit it to
       // let the engine default all annotators on.
-      const res = await (opts ? fn(path, JSON.stringify(opts)) : fn(path));
-      return parseInspect(res);
+      const args = opts ? [path, JSON.stringify(opts)] : [path];
+      return parseInspect((await engine.call("labInspectAnnotated", args)) as RawInspectResponse);
     },
-    kbf: (req: KbfRequest): KbfResponse => {
-      const fn = globalThis.kbf;
-      if (typeof fn !== "function") {
+    kbf: async (req: KbfRequest): Promise<KbfResponse> => {
+      if (!engine.has("kbf")) {
         return { ok: false, error: "kbf endpoint unavailable in this wasm build" };
       }
       try {
-        return JSON.parse(fn(JSON.stringify(req))) as KbfResponse;
+        return JSON.parse(
+          (await engine.call("kbf", [JSON.stringify(req)])) as string,
+        ) as KbfResponse;
       } catch (e) {
         return { ok: false, error: `kbf request failed: ${(e as Error).message}` };
       }
     },
-    segment: (text: string, engine: string, locale: string): SegmentResult => {
-      const fn = globalThis.labSegment;
-      if (typeof fn !== "function") {
+    segment: async (text: string, engineName: string, locale: string): Promise<SegmentResult> => {
+      // The asynchronous entry point may wait for a page bridge (ICU4X);
+      // an engine that predates it answers through the synchronous one.
+      const fn = engine.has("labSegmentAsync") ? "labSegmentAsync" : "labSegment";
+      if (!engine.has(fn)) {
         return { ok: false, error: "segment endpoint unavailable in this wasm build" };
       }
       try {
-        // labSegment returns a converted JS object directly (not a JSON
-        // string): { ok, engine, segments: [{text}] } or { ok:false, error }.
-        const res = fn(text, engine, locale);
+        const res = (await engine.call(fn, [text, engineName, locale])) as RawSegmentResponse;
         if (!res || !res.ok) return { ok: false, error: res?.error ?? "segment failed" };
         const segs = (res.segments ?? []).map((s) => ({ text: s.text }));
         return { ok: true, engine: res.engine, segments: segs };
@@ -490,46 +461,31 @@ export function makeRuntime(mem: MemFS): KapiRuntime {
         return { ok: false, error: `segment request failed: ${(e as Error).message}` };
       }
     },
-    segmentEngines: (): string[] => {
-      const fn = globalThis.labSegmentEngines;
-      if (typeof fn !== "function") return [];
+    segmentEngines: async (): Promise<string[]> => {
+      if (!engine.has("labSegmentEngines")) return [];
       try {
-        return Array.from(fn() ?? []);
+        return Array.from(((await engine.call("labSegmentEngines", [])) as string[]) ?? []);
       } catch {
         return [];
       }
     },
     runWithTrace: async (argv: string[]): Promise<TraceRunResult> => {
       const tracePath = `/.lab/trace-${++traceSeq}.json`;
-      const code = await run([...argv, "--trace", tracePath]);
+      const code = (await engine.call("kapiRun", [[...argv, "--trace", tracePath]])) as number;
       try {
         // kapiRun resolves only after the command (incl. the synchronous
         // trace write) completes, so the file is present to read here.
-        return { code, trace: JSON.parse(dec.decode(mem.vol.readFile(tracePath))) };
+        const data = (await engine.call("take", [tracePath])) as Uint8Array | null;
+        return { code, trace: data ? JSON.parse(dec.decode(data)) : null };
       } catch {
         return { code, trace: null };
       }
     },
     reset: async (dir: string): Promise<void> => {
-      const fn = globalThis.kapiReset;
-      if (typeof fn === "function") {
-        const failure = await fn(dir);
-        if (failure) throw new Error(failure);
-      }
-      const base = dir.replace(/\/$/, "");
-      try {
-        for (const name of mem.vol.readdir(dir)) mem.vol.remove(`${base}/${name}`);
-      } catch {
-        /* nothing to clear */
-      }
+      await engine.call("reset", [dir]);
     },
-    removeDatabase: (path: string): boolean => {
-      const sql = globalThis.__kapiSQL;
-      if (!sql?.exists(path)) return false;
-      const res = sql.remove(path);
-      if (typeof res === "object") throw new Error(res.err);
-      return true;
-    },
+    removeDatabase: async (path: string): Promise<boolean> =>
+      (await engine.call("removeDatabase", [path])) as boolean,
     read: async (req: ReadRequest, opts?: ChangeCallOptions): Promise<ReadPage> =>
       answered<ReadPage>(await changeCall("kapiRead", req, opts)),
     apply: async (set: ChangeSet, opts?: ApplyOptions): Promise<ChangeResult> => {
@@ -541,13 +497,235 @@ export function makeRuntime(mem: MemFS): KapiRuntime {
     },
     describe: async (req: DescribeRequest, opts?: ChangeCallOptions): Promise<FormatDescription> =>
       answered<FormatDescription>(await changeCall("kapiDescribe", req, opts)),
-    cwd: () => mem.vol.cwd(),
-    chdir: (dir: string) => mem.process.chdir(dir),
+    exportWorkspace: async (): Promise<WorkspaceExport> => {
+      if (!engine.has("kapiExportWorkspace")) {
+        throw new Error("this engine predates the workspace export (kapiExportWorkspace)");
+      }
+      const raw = (await engine.call("kapiExportWorkspace", [])) as RawWorkspaceExport;
+      return {
+        data: raw.data,
+        files: raw.files,
+        projects: Array.from(raw.projects ?? []),
+        skipped: Array.from(raw.skipped ?? []),
+      };
+    },
+    importWorkspace: async (data: Uint8Array): Promise<WorkspaceImport> => {
+      if (!engine.has("kapiImportWorkspace")) {
+        throw new Error("this engine predates the workspace import (kapiImportWorkspace)");
+      }
+      return JSON.parse(
+        (await engine.call("kapiImportWorkspace", [data])) as string,
+      ) as WorkspaceImport;
+    },
+    cwd: () => engine.cwd(),
+    chdir: (dir: string) => engine.chdir(dir),
     setSinks: (out, err) => {
       outSink = out;
       errSink = err;
     },
   };
+}
+
+/** Throw a clear error when a required engine global is missing. */
+function requireFn(name: string): void {
+  if (typeof (globalThis as Record<string, unknown>)[name] !== "function") {
+    throw new Error(`engine global ${name} is not registered (wasm not booted?)`);
+  }
+}
+
+/**
+ * Wire the {@link KapiRuntime} facade over the engine globals on this thread
+ * and the engine's memfs. Its workspace lives in memory. Split from boot so
+ * the facade is unit-testable against a mocked global surface, and so a Node
+ * harness that boots the engine itself can drive it; hosts should call
+ * {@link bootKapiRuntime} instead.
+ */
+export function makeRuntime(
+  mem: MemFS,
+  storage: StorageInfo = { kind: "memory", reason: "main-thread" },
+): KapiRuntime {
+  requireFn("kapiRun");
+  requireFn("kapiPreview");
+  requireFn("labInspect");
+  const local = localCalls(mem);
+  return facade({
+    call: (fn, args) => invokeEngine(local, fn, args),
+    has: (fn) => fn in local || typeof (globalThis as Record<string, unknown>)[fn] === "function",
+    vol: mem.vol,
+    storage,
+    cwd: () => mem.vol.cwd(),
+    chdir: (dir) => mem.process.chdir(dir),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// The engine in a Worker
+// ---------------------------------------------------------------------------
+
+/** Answer a Worker's question to one of the page's capabilities. */
+async function answerBridge(name: string, args: unknown[]): Promise<unknown> {
+  const g = globalThis as Record<string, unknown>;
+  const dot = name.indexOf(".");
+  if (dot < 0) {
+    const fn = g[name];
+    if (typeof fn !== "function") throw new Error(`the page has no ${name}`);
+    return await (fn as (...a: unknown[]) => unknown)(...args);
+  }
+  const obj = g[name.slice(0, dot)] as Record<string, unknown> | undefined;
+  const member = name.slice(dot + 1);
+  if (!obj) throw new Error(`the page has no ${name.slice(0, dot)}`);
+  const v = obj[member];
+  if (typeof v === "function") return await (v as (...a: unknown[]) => unknown).apply(obj, args);
+  return await v;
+}
+
+/** Copy the bytes a message carries so the page keeps its own. */
+function ownBytes(data: Uint8Array): Uint8Array {
+  const copy = new Uint8Array(data.length);
+  copy.set(data);
+  return copy;
+}
+
+/**
+ * Boot the engine in a dedicated Worker and wire the facade to it. The page
+ * keeps a mirror of the engine's file system: the Worker sends the changes a
+ * call made before the call's answer, and a write on the page reaches the
+ * Worker before the next call (messages keep their order).
+ */
+function bootWorker(
+  worker: Worker,
+  boot: { wasmExecUrl: string; wasmUrl: string; sqliteWasmUrl: string; persist: string | null },
+): Promise<KapiRuntime> {
+  const mirror = createMemFS();
+  const send = (msg: ToWorker, transfer: Transferable[] = []) => worker.postMessage(msg, transfer);
+  const pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
+  let nextId = 1;
+  let abi: EngineABI | null = null;
+  let storage: StorageInfo = { kind: "memory" };
+
+  // The page's writes go to the mirror and to the Worker.
+  const vol: MemVolume = {
+    ...mirror.vol,
+    writeFile(p, data) {
+      mirror.vol.writeFile(p, data);
+      const path = absolute(p);
+      send({
+        t: "vol",
+        ops: [{ op: "file", path, data: ownBytes(data), mtime: mirror.mtime(path) ?? Date.now() }],
+      });
+    },
+    mkdirp(p) {
+      mirror.vol.mkdirp(p);
+      send({ t: "vol", ops: [{ op: "dir", path: absolute(p) }] });
+    },
+    remove(p) {
+      mirror.vol.remove(p);
+      send({ t: "vol", ops: [{ op: "rm", path: absolute(p) }] });
+    },
+  };
+  const absolute = (p: string) => {
+    const joined = p.startsWith("/") ? p : `${mirror.vol.cwd().replace(/\/$/, "")}/${p}`;
+    const parts: string[] = [];
+    for (const seg of joined.split("/")) {
+      if (seg === "" || seg === ".") continue;
+      if (seg === "..") parts.pop();
+      else parts.push(seg);
+    }
+    return `/${parts.join("/")}`;
+  };
+  const syncCwd = (cwd: string) => {
+    if (cwd === mirror.vol.cwd()) return;
+    try {
+      mirror.vol.mkdirp(cwd);
+      mirror.process.chdir(cwd);
+    } catch {
+      /* the mirror catches up with the next change */
+    }
+  };
+
+  return new Promise<KapiRuntime>((resolveBoot, rejectBoot) => {
+    worker.onmessage = (ev: MessageEvent<FromWorker>) => {
+      const msg = ev.data;
+      switch (msg.t) {
+        case "progress":
+          emitBootProgress(msg.progress);
+          break;
+        case "out":
+          outSink(msg.text);
+          break;
+        case "err":
+          errSink(msg.text);
+          break;
+        case "vol":
+          applyChanges(mirror, msg.ops);
+          break;
+        case "ready": {
+          applyChanges(mirror, msg.ops);
+          syncCwd(msg.cwd);
+          storage = msg.storage;
+          abi = msg.abi;
+          // engineABI() and hasEngineFunction() read the descriptor from the
+          // page; the engine's own globals are in the Worker.
+          if (abi) {
+            const descriptor = abi;
+            globalThis.kapiEngineABI = () => descriptor;
+          }
+          resolveBoot(
+            facade({
+              call: (fn, args) =>
+                new Promise((resolve, reject) => {
+                  const id = nextId++;
+                  pending.set(id, { resolve, reject });
+                  send({ t: "call", id, fn, args, bridges: presentBridges() });
+                }),
+              has: (fn) =>
+                ["removeDatabase", "reset", "take"].includes(fn) ||
+                (abi ? abi.functions.includes(fn) : false),
+              vol,
+              get storage() {
+                return storage;
+              },
+              cwd: () => mirror.vol.cwd(),
+              chdir: (dir) => {
+                mirror.process.chdir(dir);
+                send({ t: "chdir", dir: mirror.vol.cwd() });
+              },
+            }),
+          );
+          break;
+        }
+        case "boot-error":
+          rejectBoot(new Error(msg.error));
+          worker.terminate();
+          break;
+        case "result": {
+          syncCwd(msg.cwd);
+          const call = pending.get(msg.id);
+          pending.delete(msg.id);
+          if (!call) break;
+          if (msg.ok) call.resolve(msg.value);
+          else call.reject(new Error(msg.error));
+          break;
+        }
+        case "bridge":
+          answerBridge(msg.name, msg.args).then(
+            (value) => send({ t: "bridge-result", id: msg.id, ok: true, value }),
+            (e: unknown) =>
+              send({
+                t: "bridge-result",
+                id: msg.id,
+                ok: false,
+                error: e instanceof Error ? e.message : String(e),
+              }),
+          );
+          break;
+      }
+    };
+    worker.onerror = (ev) => {
+      rejectBoot(new Error(ev.message || "the engine's Worker failed to start"));
+    };
+    send({ t: "boot", boot });
+  });
 }
 
 let booting: Promise<KapiRuntime> | null = null;
@@ -561,11 +739,20 @@ export interface BootOptions {
    * it; a precompressed `.gz` sibling is preferred as for the engine.
    */
   sqliteWasmUrl?: string;
-}
-
-/** The URL of a file served in the same directory as `url`. */
-function sibling(url: string, name: string): string {
-  return url.replace(/[^/]*$/, name);
+  /**
+   * Run the engine in a dedicated Worker (the default where Worker exists),
+   * or on the page's thread with `false`. Only an engine in a Worker can keep
+   * its workspace.
+   */
+  worker?: boolean;
+  /**
+   * Keep the workspace in the origin private file system, so it outlives the
+   * page and the browser: `true` (the default) under the key `"kapi"`, a
+   * string to name the key, or `false` to keep it in memory. Pages that serve
+   * different engines on one origin (a stable and a preview build, say) name
+   * different keys, since a workspace belongs to the engine that wrote it.
+   */
+  persist?: boolean | string;
 }
 
 /**
@@ -574,12 +761,13 @@ function sibling(url: string, name: string): string {
  *
  * `wasmExecUrl` is Go's wasm_exec.js (shipped next to the engine asset);
  * `wasmUrl` is the engine binary — a precompressed sibling `<wasmUrl>.gz` is
- * preferred when the platform can inflate it (see fetchWasmBytes).
+ * preferred when the platform can inflate it.
  *
  * The engine's stores are SQL, so boot also loads SQLite (`sqlite3.wasm`,
  * see {@link BootOptions}) and installs the bridge its database driver calls
- * (sqlite.ts) before Go starts. Both run on this thread, and their databases
- * live in memory for the life of the page.
+ * (sqlite.ts) before Go starts. In a Worker, both run there and the workspace
+ * is kept across reloads where the browser allows it; `runtime.storage` says
+ * where it is.
  */
 export function bootKapiRuntime(
   wasmExecUrl: string,
@@ -587,11 +775,44 @@ export function bootKapiRuntime(
   opts: BootOptions = {},
 ): Promise<KapiRuntime> {
   if (booting) return booting;
-  booting = (async () => {
-    // Fetched beside the engine; awaited just before Go starts.
-    const sqliteReady = loadSQLite({
-      wasmUrl: opts.sqliteWasmUrl ?? sibling(wasmUrl, "sqlite3.wasm"),
+  const sqliteWasmUrl = opts.sqliteWasmUrl ?? sibling(wasmUrl, "sqlite3.wasm");
+  const inWorker = (opts.worker ?? true) && typeof Worker !== "undefined";
+  booting = (inWorker ? bootInWorker() : bootOnThisThread())
+    .then((rt) => {
+      emitBootProgress({
+        loaded: lastBootProgress?.loaded ?? 0,
+        total: lastBootProgress?.total ?? null,
+        done: true,
+      });
+      return rt;
+    })
+    .catch((error: unknown) => {
+      booting = null;
+      lastBootProgress = null;
+      throw error;
     });
+  return booting;
+
+  function bootInWorker(): Promise<KapiRuntime> {
+    // Absolute URLs: the Worker resolves relative ones against its own script.
+    const base = typeof location !== "undefined" ? location.href : undefined;
+    const abs = (u: string) => new URL(u, base).href;
+    const worker = new Worker(new URL("./worker.ts", import.meta.url), {
+      type: "module",
+      name: "kapi-engine",
+    });
+    const persist = opts.persist ?? true;
+    return bootWorker(worker, {
+      wasmExecUrl: abs(wasmExecUrl),
+      wasmUrl: abs(wasmUrl),
+      sqliteWasmUrl: abs(sqliteWasmUrl),
+      persist: persist === false ? null : persist === true ? "kapi" : persist,
+    });
+  }
+
+  async function bootOnThisThread(): Promise<KapiRuntime> {
+    // Fetched beside the engine; awaited just before Go starts.
+    const sqliteReady = loadSQLite({ wasmUrl: sqliteWasmUrl });
     sqliteReady.catch(() => {});
     const dec = new TextDecoder();
     const mem = createMemFS({
@@ -621,7 +842,7 @@ export function bootKapiRuntime(
       globalThis.__kapiCliReady = res;
     });
 
-    const source = await fetchWasmBytes(wasmUrl);
+    const source = await fetchWasmBytes(wasmUrl, emitBootProgress);
     installSQLiteBridge(await sqliteReady);
     const instance = await instantiate(source, go.importObject);
     // A startup failure must reject boot instead of leaving the ready wait pending.
@@ -631,20 +852,9 @@ export function bootKapiRuntime(
         throw new Error("kapi engine exited before becoming ready");
       }),
     ]);
-
-    emitBootProgress({
-      loaded: lastBootProgress?.loaded ?? 0,
-      total: lastBootProgress?.total ?? null,
-      done: true,
-    });
-
-    return makeRuntime(mem);
-  })().catch((error: unknown) => {
-    booting = null;
-    lastBootProgress = null;
-    throw error;
-  });
-  return booting;
+    const reason = opts.worker === false ? "main-thread" : "unsupported";
+    return makeRuntime(mem, { kind: "memory", reason });
+  }
 }
 
 /** True once boot has been started (used to skip a loading flash on re-open). */

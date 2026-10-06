@@ -114,75 +114,93 @@ export default function KbfExplorer({
       setEngineError(null);
       return;
     }
-    const round = runtime.kbf({ op: "roundtrip", kbf: kbfValue });
-    if (!round.ok) {
-      setEngineError((round.error as string) ?? "the engine rejected this document");
-      setCanonical(null);
-      setAnalysis({});
-      return;
-    }
-    setEngineError(null);
-    setCanonical({
-      output: round.output as string,
-      sha256: round.sha256 as string,
-    });
+    // The engine answers asynchronously; a later edit supersedes this pass.
+    let current = true;
+    void (async () => {
+      const round = await runtime.kbf({ op: "roundtrip", kbf: kbfValue });
+      if (!current) return;
+      if (!round.ok) {
+        setEngineError((round.error as string) ?? "the engine rejected this document");
+        setCanonical(null);
+        setAnalysis({});
+        return;
+      }
+      setEngineError(null);
+      setCanonical({
+        output: round.output as string,
+        sha256: round.sha256 as string,
+      });
 
-    const next: Record<string, BlockAnalysis> = {};
-    for (const b of blocks) {
-      const render = runtime.kbf({ op: "renderHtml", block: b });
-      const validate = runtime.kbf({ op: "validateBlock", block: b });
-      next[b.id] = {
-        html: render.ok ? (render.html as string) : "",
-        errors: validate.ok ? ((validate.errors as KbfValidationError[]) ?? []) : [],
-      };
-    }
-    setAnalysis(next);
+      const next: Record<string, BlockAnalysis> = {};
+      for (const b of blocks) {
+        const render = await runtime.kbf({ op: "renderHtml", block: b });
+        const validate = await runtime.kbf({ op: "validateBlock", block: b });
+        next[b.id] = {
+          html: render.ok ? (render.html as string) : "",
+          errors: validate.ok ? ((validate.errors as KbfValidationError[]) ?? []) : [],
+        };
+      }
+      if (current) setAnalysis(next);
+    })();
+    return () => {
+      current = false;
+    };
   }, [runtime.ready, runtime, kbfValue, parsed.file, parsed.error, blocks]);
 
   // Resolve each annotation against its target block via the Go engine.
-  const annotations = useMemo<ParsedAnnotation[]>(() => {
-    if (!runtime.ready || hideAnnotations) return [];
-    const byId = new Map(blocks.map((b) => [b.id, b]));
-    const out: ParsedAnnotation[] = [];
-    for (const line of kbflValue.split("\n")) {
-      const trimmed = line.trim();
-      if (!trimmed) continue;
-      let rec: { type?: string; id?: string; block?: string; anchor?: AnyAnchor };
-      try {
-        rec = JSON.parse(trimmed);
-      } catch {
-        continue;
-      }
-      if (rec.type !== "annotation" || !rec.anchor || !rec.block) continue;
-      const block = byId.get(rec.block);
-      if (!block) {
+  const [annotations, setAnnotations] = useState<ParsedAnnotation[]>([]);
+  useEffect(() => {
+    if (!runtime.ready || hideAnnotations) {
+      setAnnotations([]);
+      return;
+    }
+    let current = true;
+    void (async () => {
+      const byId = new Map(blocks.map((b) => [b.id, b]));
+      const out: ParsedAnnotation[] = [];
+      for (const line of kbflValue.split("\n")) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        let rec: { type?: string; id?: string; block?: string; anchor?: AnyAnchor };
+        try {
+          rec = JSON.parse(trimmed);
+        } catch {
+          continue;
+        }
+        if (rec.type !== "annotation" || !rec.anchor || !rec.block) continue;
+        const block = byId.get(rec.block);
+        if (!block) {
+          out.push({
+            id: rec.id ?? "?",
+            block: rec.block,
+            anchor: rec.anchor,
+            resolution: { ok: false, reason: "block-not-found" },
+          });
+          continue;
+        }
+        const res = await runtime.kbf({
+          op: "resolveAnchor",
+          block,
+          anchor: rec.anchor,
+        });
+        const r = (res.resolution as Record<string, unknown>) ?? {};
         out.push({
           id: rec.id ?? "?",
           block: rec.block,
           anchor: rec.anchor,
-          resolution: { ok: false, reason: "block-not-found" },
+          resolution: {
+            ok: Boolean(r.ok),
+            kind: r.kind as string | undefined,
+            reason: r.reason as string | undefined,
+            detail: describeResolution(r),
+          },
         });
-        continue;
       }
-      const res = runtime.kbf({
-        op: "resolveAnchor",
-        block,
-        anchor: rec.anchor,
-      });
-      const r = (res.resolution as Record<string, unknown>) ?? {};
-      out.push({
-        id: rec.id ?? "?",
-        block: rec.block,
-        anchor: rec.anchor,
-        resolution: {
-          ok: Boolean(r.ok),
-          kind: r.kind as string | undefined,
-          reason: r.reason as string | undefined,
-          detail: describeResolution(r),
-        },
-      });
-    }
-    return out;
+      if (current) setAnnotations(out);
+    })();
+    return () => {
+      current = false;
+    };
     // kbflValue + blocks identity drive recomputation.
   }, [runtime.ready, runtime, kbflValue, blocks, hideAnnotations]);
 

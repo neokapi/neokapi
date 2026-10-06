@@ -35,6 +35,7 @@ on:
       # change to either can break a command call the surface smoke replays.
       - "packages/kapi-lab/**"
       - "packages/engine/**"
+      - "scripts/wasm-persist/**"
       # The change contract's types, which the engine facade reads its answers by.
       - "packages/contract-types/**"
       # The TypeScript half of the KBF parity smoke. The Go half is covered by
@@ -63,6 +64,7 @@ on:
       # change to either can break a command call the surface smoke replays.
       - "packages/kapi-lab/**"
       - "packages/engine/**"
+      - "scripts/wasm-persist/**"
       # The change contract's types, which the engine facade reads its answers by.
       - "packages/contract-types/**"
       # The TypeScript half of the KBF parity smoke. The Go half is covered by
@@ -136,4 +138,13 @@ jobs:
       # toolbox rename left /lab/convert calling a verb that no longer existed.
       - name: Verify the browser command surface in wasm
         run: node --experimental-strip-types scripts/verify-snippets/command-surface-smoke.ts
+
+      # The workspace a page keeps: the engine in its Worker on opfs-sahpool,
+      # in headless Chromium without COOP/COEP headers (GitHub Pages sets
+      # none), across a reload, a browser restart, a second tab and an export.
+      - name: Install Chromium for the persistence smoke
+        run: vpx playwright install --with-deps chromium
+
+      - name: Verify the browser workspace persists
+        run: node --experimental-strip-types scripts/wasm-persist/run.ts
 

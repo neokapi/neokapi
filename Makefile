@@ -3179,6 +3179,9 @@ wasm-surface-smoke: web-wasm-cli ## Verify no browser verb answers "unknown comm
 change-wasm-smoke: web-wasm-cli ## Verify kapiRead, kapiApply and kapiDescribe in the browser WASM engine (read, edit, record, refusals)
 	node --experimental-strip-types scripts/verify-snippets/change-smoke.ts
 
+wasm-persist-smoke: web-wasm-cli ## Verify the browser engine keeps its workspace (Worker + opfs-sahpool) across reload, restart, a second tab and an export, in headless Chromium
+	node --experimental-strip-types scripts/wasm-persist/run.ts
+
 # ── Pages publishing (local) ──────────────────────────────────────────────────
 #
 # Local equivalents of the docs-kapi.yml / docs-bowrain.yml / web-landing.yml +
@@ -3404,7 +3407,7 @@ help: ## Show this help
         generate-translatability check-translatability \
         generate-docs-palette check-docs-palette \
         docs-deps docs-dev docs-wasm docs-build docs-serve docs-verify-snippets \
-        kbf-smoke kpz-smoke kpz-wasm-smoke wasm-surface-smoke change-wasm-smoke web-sqlite-wasm \
+        kbf-smoke kpz-smoke kpz-wasm-smoke wasm-surface-smoke change-wasm-smoke wasm-persist-smoke web-sqlite-wasm \
         test-stores-oneconn test-host-oneconn test-wasm-stores \
         landing-build landing-build-nb docs-build-prod bowrain-docs-build-prod publish-landing publish-website \
         emails-frontend-deps emails-extract \

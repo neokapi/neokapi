@@ -19,6 +19,12 @@ const entryPoints = [
   "src/capabilities.ts",
   "src/globals.ts",
   "src/sqlite.ts",
+  "src/locks.ts",
+  "src/storage.ts",
+  "src/fetch.ts",
+  "src/local.ts",
+  "src/protocol.ts",
+  "src/worker.ts",
 ];
 
 // Rewrites ./foo.ts → ./foo.js in relative imports so the emitted JS resolves at
@@ -32,7 +38,9 @@ const rewriteTsExtensions = {
       const contents = raw
         .replace(/from\s+(['"])(\.\.?\/[^'"]+?)\.tsx?\1/g, "from $1$2.js$1")
         .replace(/import\(\s*(['"])(\.\.?\/[^'"]+?)\.tsx?\1\s*\)/g, "import($1$2.js$1)")
-        .replace(/import\s+(['"])(\.\.?\/[^'"]+?)\.tsx?\1/g, "import $1$2.js$1");
+        .replace(/import\s+(['"])(\.\.?\/[^'"]+?)\.tsx?\1/g, "import $1$2.js$1")
+        // The Worker's script: new URL("./worker.ts", import.meta.url).
+        .replace(/new URL\(\s*(['"])(\.\.?\/[^'"]+?)\.tsx?\1/g, "new URL($1$2.js$1");
       return {
         contents,
         loader: args.path.endsWith(".tsx") ? "tsx" : "ts",

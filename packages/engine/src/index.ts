@@ -1,9 +1,10 @@
 // @neokapi/engine — the kapi content engine (compiled to WebAssembly) as a
 // typed, dependency-light npm package.
 //
-// This package owns the boot path (in-memory filesystem, SQLite bridge,
-// wasm_exec loader, instantiation, ready handshake) and the `KapiRuntime`
-// facade over the engine's global function set. The wasm binaries are NOT
+// This package owns the boot path (the engine's dedicated Worker, its file
+// system, the SQLite bridge and where the workspace is kept, the wasm_exec
+// loader, instantiation, ready handshake) and the `KapiRuntime` facade over
+// the engine's global function set. The wasm binaries are NOT
 // bundled: the engine (~20 MB gzipped) and sqlite3.wasm are assets the host
 // serves or points at (see the README for CDN vs self-hosted loading
 // patterns).
@@ -16,6 +17,7 @@
 export {
   bootKapiRuntime,
   ChangeRefused,
+  describeStorage,
   isBooted,
   makeRuntime,
   onBootProgress,
@@ -35,13 +37,17 @@ export type {
   KapiRuntime,
   KbfRequest,
   KbfResponse,
+  MemoryReason,
   PreviewBlock,
   PreviewResult,
   ReadPage,
   ReadRequest,
   SegmentPiece,
   SegmentResult,
+  StorageInfo,
   TraceRunResult,
+  WorkspaceExport,
+  WorkspaceImport,
 } from "./runtime.ts";
 
 // In-memory filesystem (the Node-fs subset Go's js/wasm runtime calls).
@@ -52,7 +58,13 @@ export type { MemFS, MemVolume } from "./memfs.ts";
 // host that starts the engine itself, such as a Node test runner, installs it
 // before Go starts).
 export { createSQLiteBridge, installSQLiteBridge, loadSQLite } from "./sqlite.ts";
-export type { LoadSQLiteOptions, SQLiteBridge, SQLiteFailure, SQLitePrepared } from "./sqlite.ts";
+export type {
+  LoadSQLiteOptions,
+  SQLiteBridge,
+  SQLiteBridgeOptions,
+  SQLiteFailure,
+  SQLitePrepared,
+} from "./sqlite.ts";
 
 // Versioned ABI: feature detection + the raw wire shapes.
 export { engineABI, hasEngineFunction, SUPPORTED_ENGINE_ABI } from "./abi.ts";
@@ -61,6 +73,8 @@ export type {
   RawInspectResponse,
   RawPreviewResponse,
   RawSegmentResponse,
+  RawWorkspaceExport,
+  WorkspaceProjectExport,
 } from "./abi.ts";
 
 // Reverse-bridge capabilities the host page may provide.
