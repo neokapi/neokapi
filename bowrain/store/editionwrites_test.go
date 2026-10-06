@@ -270,7 +270,7 @@ func TestRecordEditionWrites_KeepsWhoWroteATranslationByHand(t *testing.T) {
 	p := createTestProject(t, s)
 	pushWrites(t, s, p.ID, "", []*model.Block{blockWithText("greeting", "Hello"), blockWithText("farewell", "Goodbye")}, nil)
 	write := func(unit, rev, writer, origin string) venue.EditionWrite {
-		return venue.EditionWrite{ItemName: "en.json", Unit: unit, Block: "local-" + unit, Variant: "nb",
+		return venue.EditionWrite{ItemName: "en.json", Unit: unit, Variant: "nb",
 			Revision: rev, Writer: writer, Origin: origin}
 	}
 
@@ -280,7 +280,7 @@ func TestRecordEditionWrites_KeepsWhoWroteATranslationByHand(t *testing.T) {
 	})
 	got := writersOf(t, s, p.ID)
 	require.Len(t, got, 1, "a run's translation has no author")
-	assert.Equal(t, platstore.EditionWriter{ItemName: "en.json", Unit: "greeting", Block: "local-greeting", Variant: "nb",
+	assert.Equal(t, platstore.EditionWriter{ItemName: "en.json", Unit: "greeting", Variant: "nb",
 		Revision: "r:1111111111111111", Author: "u-ada"}, got["greeting"], "the venue holds no translation of it, and keeps its author")
 
 	// Another checkout, holding Ada's record, sends the same write.

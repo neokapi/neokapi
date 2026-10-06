@@ -4,9 +4,11 @@ import (
 	"context"
 	"log/slog"
 
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/venue"
+	"github.com/neokapi/neokapi/host"
 )
 
 // A checkout records a basis under the key its reader filed the source by: the
@@ -18,19 +20,33 @@ import (
 // a basis by equality with it, so a push sends each basis as the venue takes
 // it (venue.Basis), read off the source the push reads.
 
-// pushedSources finds the source a record names as the push reads it.
+// pushedSources finds the block a record names as the push reads it.
 type pushedSources struct {
 	c      *BowrainSourceConnector
 	source model.LocaleID
-	// items maps an item to its blocks by unit key. An item the push read and
-	// found nothing in maps to nil, so it is read once.
-	items map[string]map[string]*model.Block
+	// priors is the venue's tree the push resolved its blocks against, so an
+	// item read here for a record is keyed as the push keys it. Nil when the
+	// push could not fetch the tree.
+	priors *host.Priors
+	// items maps an item to its blocks, under the key the checkout's records
+	// name each one by and under the key the venue files it by. An item the
+	// push read and found nothing in maps to an empty index, so it is read
+	// once.
+	items map[string]blockIndex
+}
+
+// blockIndex is one item's blocks by key: local under the key the checkout's
+// records name a block by (change.BlockKey before resolution), venue under the
+// key the push resolved it to (Block.Key).
+type blockIndex struct {
+	local map[string]*model.Block
+	venue map[string]*model.Block
 }
 
 // pushedSources indexes the blocks the push scanned, under the key the venue
 // files each unit by and the key the block had before the push resolved it.
-func (c *BowrainSourceConnector) pushedSources(blockMap map[string][]*model.Block, local map[*model.Block]string) *pushedSources {
-	s := &pushedSources{c: c, source: c.sourceLanguage(), items: map[string]map[string]*model.Block{}}
+func (c *BowrainSourceConnector) pushedSources(blockMap map[string][]*model.Block, local map[*model.Block]string, priors *host.Priors) *pushedSources {
+	s := &pushedSources{c: c, source: c.sourceLanguage(), priors: priors, items: map[string]blockIndex{}}
 	for item, blocks := range blockMap {
 		s.index(item, blocks, local)
 	}
@@ -38,38 +54,52 @@ func (c *BowrainSourceConnector) pushedSources(blockMap map[string][]*model.Bloc
 }
 
 func (s *pushedSources) index(item string, blocks []*model.Block, local map[*model.Block]string) {
-	m := make(map[string]*model.Block, len(blocks))
+	idx := blockIndex{local: make(map[string]*model.Block, len(blocks)), venue: make(map[string]*model.Block, len(blocks))}
 	for _, b := range blocks {
-		if k, ok := local[b]; ok && k != "" {
-			m[k] = b
+		k := local[b]
+		if k == "" {
+			k = change.BlockKey(b)
 		}
+		idx.local[k] = b
+		idx.venue[convergence.BlockKey(b)] = b
 	}
-	for _, b := range blocks {
-		m[convergence.BlockKey(b)] = b
-	}
-	s.items[item] = m
+	s.items[item] = idx
 }
 
-// carryBases rewrites the basis of each decision as the venue takes it. A
-// basis that names another source than the one the push reads, and one whose
-// unit the push cannot find, travel as they are.
-func (s *pushedSources) carryBases(ctx context.Context, decisions []venue.UnitDecision) {
+// keyDecisions names each decision's unit as the venue files it and carries
+// its basis as the venue takes it.
+//
+// The checkout's records name a block by the key its reader gave it, and the
+// push resolves every block to a durable key against what the venue holds
+// (host.ResolveIdentity), minting one for content the venue has never seen. A
+// decision sent under the reader's key would land on no unit the venue holds,
+// so it is sent under the key the push filed its block under. A record whose
+// block the push cannot find travels as it is.
+//
+// A basis that names another source than the one the push reads travels as
+// it is: the venue grades it stale, as the checkout does.
+func (s *pushedSources) keyDecisions(ctx context.Context, decisions []venue.UnitDecision) {
 	for i := range decisions {
 		d := &decisions[i]
-		if d.Basis == "" {
+		b := s.block(ctx, d.ItemName, d.Unit)
+		if b == nil {
 			continue
 		}
-		d.Basis = venue.Basis(s.block(ctx, d.ItemName, d.Unit), s.source, d.Basis)
+		d.Unit = convergence.BlockKey(b)
+		if d.Basis != "" {
+			d.Basis = venue.Basis(b, s.source, d.Basis)
+		}
 	}
 }
 
-// block is the block keyed unit in item. An item this push did not scan (a
-// push of named paths carries the decisions of every document) is read as a
-// push of it would read it, once.
+// block is the block a record keyed unit in item names: the block the
+// checkout's records name by unit, else the one the venue files under it. An
+// item this push did not scan (a push of named paths carries the decisions of
+// every document) is read and resolved as a push of it would read it, once.
 func (s *pushedSources) block(ctx context.Context, item, unit string) *model.Block {
-	m, ok := s.items[item]
+	idx, ok := s.items[item]
 	if !ok {
-		s.items[item] = nil
+		s.items[item] = blockIndex{}
 		if !writableItemName(item) {
 			return nil
 		}
@@ -79,9 +109,16 @@ func (s *pushedSources) block(ctx context.Context, item, unit string) *model.Blo
 			return nil
 		}
 		if blocks, read := scan.blocks[item]; read {
-			s.index(item, blocks, nil)
+			local := localBlockKeys(scan.blocks)
+			if s.priors != nil {
+				host.ResolveIdentity(scan.blocks, *s.priors)
+			}
+			s.index(item, blocks, local)
 		}
-		m = s.items[item]
+		idx = s.items[item]
 	}
-	return m[unit]
+	if b := idx.local[unit]; b != nil {
+		return b
+	}
+	return idx.venue[unit]
 }

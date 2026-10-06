@@ -2182,6 +2182,10 @@ beside all of them in package-sized PRs.
     producer's score, no derivation (`core/change.Consequences`).
   - `@neokapi/kapi-format` and `@neokapi/i18n-react` are 3.0.0, the major that reads and writes
     schema 2, documented as the pair for kapi 1.3.0.
+  - A push sends each basis under the recipe's source language and Bowrain stamps every source
+    revision under the project's (`projects.default_source_language`, fixed once the project
+    holds content). The push names its language at init, and the server refuses one whose
+    language is not the project's, naming both (`venue.SourceLanguageMismatch`).
 - **Open, for the release:**
   - The kapi and plugin releases cut before this change cannot read a schema 2 catalog, and
     their push declares such a catalog empty. `dogfood-sync.yml` stops after extraction when the
@@ -2195,11 +2199,6 @@ beside all of them in package-sized PRs.
     records it in process, and the block history holds the basis of each write. `Native` stays
     process-local by design (the kitchen-sink guard lists it as derived: a reader records it each
     time it reads the file).
-  - A push sends each basis under the recipe's source language and Bowrain stamps every source
-    revision under the project's (`projects.default_source_language`, fixed once the project
-    holds content). The two are one language by contract; a project whose recipe names another
-    language than the server's reads every platform decision stale and re-sends every block on
-    each push, and nothing checks that the two agree.
   - The content memory keeps its pairs by language. Pairing a `from` and a `to` edition waits for
     a reader or a tool that produces a tone or channel edition.
   - `edit.Classify` is unchanged: it compares the source a content-memory pair holds with the

@@ -680,18 +680,25 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	//
 	// It runs BEFORE the declared tree is built, because the tree's keys are
 	// what the venue prunes against, and after the fetch, because the priors
-	// are the venue's. With no priors there is nothing to match against, and
-	// resolution is skipped entirely rather than minting: an unresolved block
-	// keys on its name, exactly as it did before any of this existed.
-	// The block history names each block by the key it had before the
-	// resolution below, which renames blocks to the venue's identities.
+	// are the venue's. A venue that holds nothing offers no priors, and every
+	// block is then minted a key of its own, as on any venue for content it
+	// has never seen. Only a push whose tree fetch failed leaves its blocks
+	// unresolved, keyed on their names.
+	//
+	// The checkout's records (the decision ledger and the block history) name
+	// each block by the key it had before the resolution below, so everything
+	// the push says about a block is sent under the key resolved here
+	// (pushedSources.keyDecisions, projectEditionWrites): the venue files
+	// content, decisions and writes under one key, Block.Key.
 	localKeys := localBlockKeys(blockMap)
+	var priors *host.Priors
 	if serverTree != nil {
 		fetched := serverTree.Tree()
-		host.ResolveIdentity(blockMap, host.Priors{
+		priors = &host.Priors{
 			Documents: fetched.Units(),
 			Units:     fetched.Priors(),
-		})
+		}
+		host.ResolveIdentity(blockMap, *priors)
 	}
 
 	// What this scan read, keyed by the identity just resolved. Together with
@@ -752,10 +759,11 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	if derr != nil {
 		return nil, derr
 	}
-	// Each basis travels as the venue takes it, so the record the venue grades
-	// is the one this checkout reads as current.
-	sources := c.pushedSources(blockMap, localKeys)
-	sources.carryBases(ctx, decisions)
+	// Each decision travels under the key the venue files its block by, and
+	// each basis as the venue takes it, so the record the venue grades is the
+	// one this checkout reads as current.
+	sources := c.pushedSources(blockMap, localKeys, priors)
+	sources.keyDecisions(ctx, decisions)
 	decisionsHash := venue.DecisionRecordsHash(decisions)
 	recordChangedHere := decisionsHash != c.cache.DecisionsSynced
 	// A record that decides nothing has nothing to tell a venue about, so what
@@ -1320,7 +1328,7 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 	// decision is durable where it lands, and the next write of the committed
 	// record carries it into the shards along with everything else this
 	// checkout holds.
-	decisionsRecorded, decisionsSkipped, err := c.recordPulledDecisions(ctx, decisions)
+	decisionsRecorded, decisionsSkipped, err := c.recordPulledDecisions(ctx, c.checkoutKeyed(ctx, decisions))
 	if err != nil {
 		return nil, err
 	}
@@ -1555,6 +1563,30 @@ type localScan struct {
 	formatless []string
 }
 
+// contentPaths lists the project-relative source files the recipe's content
+// items match, in the recipe's order. A file two items match is listed once,
+// for the first of them.
+func (c *BowrainSourceConnector) contentPaths() []string {
+	recipe := c.project.Recipe
+	seen := map[string]bool{}
+	var out []string
+	for _, it := range recipe.IterateContent() {
+		lang := string(it.Item.ResolvedSourceLanguage(it.Collection, recipe.Defaults))
+		pattern := coreproj.ResolvePathPattern(it.Item.Path, lang)
+		relPaths, err := coreproj.ExpandGlob(c.project.Root, pattern, recipe.Defaults.Exclude...)
+		if err != nil {
+			continue
+		}
+		for _, rp := range relPaths {
+			if !seen[rp] {
+				seen[rp] = true
+				out = append(out, rp)
+			}
+		}
+	}
+	return out
+}
+
 // scanLocal extracts both blocks and media from local files: block hashes,
 // blocks, media hashes (sourceID→blobKey) and media, grouped by item.
 //
@@ -1590,24 +1622,10 @@ func (c *BowrainSourceConnector) scanLocal(ctx context.Context, paths []string) 
 	vaultPath := c.project.Layout.RedactionVaultPath()
 	srcLocale := recipe.Defaults.SourceLanguage
 
-	// If no specific paths, use content entries to discover files. A file two
-	// items match is read once, for the first of them.
+	// If no specific paths, use content entries to discover files.
 	if len(paths) == 0 {
-		seen := map[string]bool{}
-		for _, it := range recipe.IterateContent() {
-			lang := string(it.Item.ResolvedSourceLanguage(it.Collection, recipe.Defaults))
-			pattern := coreproj.ResolvePathPattern(it.Item.Path, lang)
-			relPaths, err := coreproj.ExpandGlob(c.project.Root, pattern, recipe.Defaults.Exclude...)
-			if err != nil {
-				continue
-			}
-			for _, rp := range relPaths {
-				if seen[rp] {
-					continue
-				}
-				seen[rp] = true
-				paths = append(paths, filepath.Join(c.project.Root, rp))
-			}
+		for _, rp := range c.contentPaths() {
+			paths = append(paths, filepath.Join(c.project.Root, rp))
 		}
 	}
 

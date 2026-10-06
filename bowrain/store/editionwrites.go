@@ -348,12 +348,12 @@ func (r *writeRecorder) writers(ctx context.Context, item string, writes []venue
 				continue
 			}
 			if _, err := r.tx.ExecContext(ctx,
-				`INSERT INTO edition_writers (project_id, stream, item_name, unit, variant, block, revision, author, origin, written_at)
-				 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())
+				`INSERT INTO edition_writers (project_id, stream, item_name, unit, variant, revision, author, origin, written_at)
+				 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW())
 				 ON CONFLICT (project_id, stream, item_name, unit, variant) DO UPDATE SET
-				   block=EXCLUDED.block, revision=EXCLUDED.revision, author=EXCLUDED.author,
+				   revision=EXCLUDED.revision, author=EXCLUDED.author,
 				   origin=EXCLUDED.origin, written_at=EXCLUDED.written_at`,
-				r.projectID, r.stream, item, w.Unit, w.Variant, w.Block, w.Revision, r.author, w.Origin); err != nil {
+				r.projectID, r.stream, item, w.Unit, w.Variant, w.Revision, r.author, w.Origin); err != nil {
 				return nil, fmt.Errorf("record who wrote %s/%s: %w", w.Unit, w.Variant, err)
 			}
 			known[at] = platstore.EditionWriter{Revision: w.Revision, Author: r.author}
@@ -488,7 +488,7 @@ func (s *PostgresStore) EditionWriters(ctx context.Context, projectID, stream st
 		args := []any{projectID, storeutil.DefaultStream(stream)}
 		args = append(args, anyStrings(chunk)...)
 		rows, err := s.db.QueryContext(ctx,
-			`SELECT item_name, unit, block, variant, revision, author FROM edition_writers
+			`SELECT item_name, unit, variant, revision, author FROM edition_writers
 			 WHERE project_id=$1 AND stream=$2 AND item_name IN (`+placeholderList("pg", 3, len(chunk))+`)
 			 ORDER BY item_name, unit, variant`,
 			args...)
@@ -497,7 +497,7 @@ func (s *PostgresStore) EditionWriters(ctx context.Context, projectID, stream st
 		}
 		writers, err := storage.ScanRows(rows, func(sc storage.Scanner) (platstore.EditionWriter, error) {
 			var w platstore.EditionWriter
-			err := sc.Scan(&w.ItemName, &w.Unit, &w.Block, &w.Variant, &w.Revision, &w.Author)
+			err := sc.Scan(&w.ItemName, &w.Unit, &w.Variant, &w.Revision, &w.Author)
 			return w, err
 		})
 		if err != nil {

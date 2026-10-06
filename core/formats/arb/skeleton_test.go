@@ -133,8 +133,9 @@ func TestSkeletonStore_ByteExact_ARB(t *testing.T) {
 
 // TestSkeletonStore_WithTranslation_ARB exercises the re-encode path the
 // byte-exact (untranslated) test skips: every other byte is replayed from the
-// skeleton verbatim and only the translated message values change. Metadata
-// (@@locale, @-attribute objects) and structure are untouched.
+// skeleton verbatim and only the translated message values and the file's
+// @@locale change. Other metadata (@-attribute objects) and structure are
+// untouched.
 func TestSkeletonStore_WithTranslation_ARB(t *testing.T) {
 	t.Parallel()
 	input := "{\n  \"@@locale\": \"en\",\n  \"hello\": \"Hello\",\n  \"@hello\": {\n    \"description\": \"A greeting\"\n  },\n  \"goodbye\": \"Goodbye\"\n}\n"
@@ -172,9 +173,9 @@ func TestSkeletonStore_WithTranslation_ARB(t *testing.T) {
 	require.NoError(t, writer.Write(ctx, testutil.PartsToChannel(parts)))
 	writer.Close()
 
-	want := "{\n  \"@@locale\": \"en\",\n  \"hello\": \"Bonjour\",\n  \"@hello\": {\n    \"description\": \"A greeting\"\n  },\n  \"goodbye\": \"Au revoir\"\n}\n"
+	want := "{\n  \"@@locale\": \"fr\",\n  \"hello\": \"Bonjour\",\n  \"@hello\": {\n    \"description\": \"A greeting\"\n  },\n  \"goodbye\": \"Au revoir\"\n}\n"
 	assert.Equal(t, want, buf.String(),
-		"only message values change; metadata and structure replay verbatim")
+		"message values and the file's locale change; other metadata and structure replay verbatim")
 }
 
 // TestSkeletonStore_WithTranslation_PreservesICU verifies that translating the

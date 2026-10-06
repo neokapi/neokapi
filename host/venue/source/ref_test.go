@@ -66,6 +66,9 @@ type refServer struct {
 	// treeUnavailable fails the tree route, so a push cannot learn what the
 	// venue holds and says so rather than assuming.
 	treeUnavailable bool
+	// pulled are the decision records a pull answers with: the venue's
+	// ledger, each under the key the venue files its unit by.
+	pulled []venue.UnitDecision
 }
 
 // streamRef is what this venue holds on one stream.
@@ -109,7 +112,7 @@ func newRefServer(t *testing.T, projectID string, published ref.Ref) *refServer 
 			})
 		})
 		mux.HandleFunc(sync+"/pull", func(w http.ResponseWriter, _ *http.Request) {
-			answer := apiclient.RichPullResponse{Cursor: rs.streamRef(stream).Content, HasMore: false}
+			answer := apiclient.RichPullResponse{Cursor: rs.streamRef(stream).Content, HasMore: false, Decisions: rs.pulled}
 			// A venue too old to publish a ref sends no ref field at all, which
 			// is why the field is a pointer: silence and an empty ref are
 			// different facts. publishesNoRef asks for the silent one.

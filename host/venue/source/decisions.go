@@ -4,10 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"maps"
+	"path/filepath"
 
+	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/reconcile"
 	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/venue"
+	"github.com/neokapi/neokapi/host"
 )
 
 // The decisions content type, client half. A push carries the decisions that
@@ -69,12 +75,10 @@ func variantText(k model.EditionKey) string {
 // record out. What it sends is what the checkout holds: for each unit, the
 // entry recorded for the source and the translation the checkout has now.
 //
-// The item each unit is scoped to comes from the unit's document key via the
-// store's document map when one is recorded, and from the key verbatim
-// otherwise. The review path records display paths as keys until the reconcile
-// resolver is wired in, so the fallback is the common case today, and both
-// satisfy the same rule: the document the unit was decided in, as the connector
-// names items.
+// The item each unit is scoped to is the path of the document its key names
+// (itemPaths), and the scope verbatim when the scope is a path already or names
+// no document the project holds: the document the unit was decided in, as the
+// connector names items.
 func (c *BowrainSourceConnector) projectDecisions(ctx context.Context) ([]venue.UnitDecision, error) {
 	st, err := c.workingStore(ctx)
 	if err != nil {
@@ -93,10 +97,7 @@ func (c *BowrainSourceConnector) projectDecisions(ctx context.Context) ([]venue.
 		return nil, nil
 	}
 
-	docPaths := map[string]string{}
-	if m, derr := st.DocumentPaths(ctx); derr == nil {
-		docPaths = m
-	}
+	docPaths := c.itemPaths(ctx, st)
 
 	out := make([]venue.UnitDecision, 0, len(units))
 	for _, u := range units {
@@ -128,6 +129,78 @@ func (c *BowrainSourceConnector) projectDecisions(ctx context.Context) ([]venue.
 		})
 	}
 	return out, nil
+}
+
+// itemPaths maps each document key the project's records may name to the
+// path of its document. A key this checkout resolved maps to the path it
+// resolved it at (state.WorkStore.DocumentPaths), and one the project adopted
+// elsewhere to the path of its latest adoption. A source file neither names
+// maps under the key its path derives to (reconcile.DocumentKeyFor), which is
+// the key the change service files a decision under for a document no
+// extraction has resolved yet.
+func (c *BowrainSourceConnector) itemPaths(ctx context.Context, st *state.WorkStore) map[string]string {
+	out := map[string]string{}
+	if m, err := st.DocumentPaths(ctx); err == nil {
+		maps.Copy(out, m)
+	}
+	if adopted, err := st.AdoptedDocuments(ctx); err == nil {
+		for _, d := range adopted {
+			if out[d.Key] == "" && d.Key != "" {
+				out[d.Key] = d.Path
+			}
+		}
+	}
+	for _, rel := range c.contentPaths() {
+		item := filepath.ToSlash(rel)
+		if key := reconcile.DocumentKeyFor(item); out[key] == "" {
+			out[key] = item
+		}
+	}
+	return out
+}
+
+// checkoutKeyed names each pulled decision's unit by the key the checkout's
+// records name its block by.
+//
+// The venue files a unit under the key a push resolved its block to
+// (Block.Key), and the checkout names the block by the key its reader gives
+// it. A pull resolves the checkout's source against the venue's tree, as a push
+// does, and files each decision under the reader's key of the block that
+// resolves to its unit, so the change service and a flow read it on the block
+// it judges. A decision whose unit no block of the checkout resolves to, and
+// every decision when the tree cannot be read, keeps the venue's key.
+func (c *BowrainSourceConnector) checkoutKeyed(ctx context.Context, pulled []venue.UnitDecision) []venue.UnitDecision {
+	if len(pulled) == 0 || c.client == nil {
+		return pulled
+	}
+	tree, err := c.client.Tree(ctx, c.pushScope(nil))
+	if err != nil {
+		slog.DebugContext(ctx, "read the venue's tree to key pulled decisions", "error", err)
+		return pulled
+	}
+	scan, err := c.scanLocal(ctx, nil)
+	if err != nil {
+		slog.DebugContext(ctx, "read the source to key pulled decisions", "error", err)
+		return pulled
+	}
+	local := localBlockKeys(scan.blocks)
+	fetched := tree.Tree()
+	host.ResolveIdentity(scan.blocks, host.Priors{Documents: fetched.Units(), Units: fetched.Priors()})
+	type unitAt struct{ item, unit string }
+	byVenue := map[unitAt]string{}
+	for item, blocks := range scan.blocks {
+		for _, b := range blocks {
+			byVenue[unitAt{item, convergence.BlockKey(b)}] = local[b]
+		}
+	}
+	out := make([]venue.UnitDecision, len(pulled))
+	for i, d := range pulled {
+		if k, ok := byVenue[unitAt{d.ItemName, d.Unit}]; ok && k != "" {
+			d.Unit = k
+		}
+		out[i] = d
+	}
+	return out
 }
 
 // recordPulledDecisions reconciles the server's decision ledger into the

@@ -99,6 +99,9 @@ func (r *rewriter) walkTop() {
 		// substitute. "@…" and "@@…" keys are copied verbatim.
 		if !strings.HasPrefix(key, "@") {
 			r.maybeReplaceValue(key)
+		} else if v := r.cur(); key == "@@locale" && r.repl.locale != nil && v.typ == tokString {
+			r.emitReplacedString(v, *r.repl.locale)
+			r.pos++
 		} else {
 			r.copyValue()
 		}

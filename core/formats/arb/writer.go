@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
@@ -64,7 +65,7 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 	// whole block map. Each value ref renders through the renderRef the buffered
 	// path also uses.
 	if w.skeletonStore != nil && w.skeletonStore.IsStreaming() {
-		return format.StreamSkeletonWrite(ctx, w.skeletonStore, parts, w.Output, w.renderRef, nil)
+		return format.StreamSkeletonWrite(ctx, w.skeletonStore, parts, w.Output, w.renderRef, w.renderLang)
 	}
 
 	var original []byte
@@ -110,7 +111,7 @@ done:
 	}
 
 	if original != nil {
-		return w.writeFromOriginal(original, repl)
+		return w.writeFromOriginal(original, repl, layerLocale)
 	}
 	return w.writeFromScratch(repl, layerLocale)
 }
@@ -122,7 +123,32 @@ done:
 // for unchanged messages and changes only the message values that were
 // translated.
 func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocksByID map[string]*model.Block) error {
-	return format.BufferedSkeletonWrite(store, blocksByID, w.Output, w.renderRef, nil)
+	return format.BufferedSkeletonWrite(store, blocksByID, w.Output, w.renderRef, w.renderLang)
+}
+
+// renderLang writes the value of "@@locale" (the reader stores it as a
+// language entry): the locale the writer writes, so a translation's file names
+// its own language rather than its source's.
+func (w *Writer) renderLang(value string) ([]byte, error) {
+	return []byte(fileLocale(w.Locale, value)), nil
+}
+
+// fileLocale is the "@@locale" value of a file written for target, whose
+// source file declared declared: declared when the writer writes no locale or
+// the one the file declares, and otherwise target, spelled as Flutter names a
+// locale (pt_BR) unless the source spelled its own with a hyphen.
+func fileLocale(target model.LocaleID, declared string) string {
+	if target.IsEmpty() {
+		return declared
+	}
+	if declared != "" && model.NormalizeLocale(model.LocaleID(declared)) == model.NormalizeLocale(target) {
+		return declared
+	}
+	name := string(model.NormalizeLocale(target))
+	if !strings.Contains(declared, "-") {
+		name = strings.ReplaceAll(name, "-", "_")
+	}
+	return name
 }
 
 // renderRef returns the bytes a value SkeletonRef contributes for the given
@@ -204,7 +230,10 @@ func (w *Writer) collectBlock(block *model.Block, repl *replacements) error {
 
 // writeFromOriginal re-tokenizes the original bytes and rewrites changed
 // message values in place.
-func (w *Writer) writeFromOriginal(original []byte, repl *replacements) error {
+func (w *Writer) writeFromOriginal(original []byte, repl *replacements, declared string) error {
+	if locale := fileLocale(w.Locale, declared); locale != declared {
+		repl.locale = &locale
+	}
 	out, err := rewriteCatalog(original, repl)
 	if err != nil {
 		return err
@@ -216,10 +245,7 @@ func (w *Writer) writeFromOriginal(original []byte, repl *replacements) error {
 // writeFromScratch builds a canonical Dart-formatted ARB document from the
 // collected replacements when no original document is available.
 func (w *Writer) writeFromScratch(repl *replacements, locale string) error {
-	if locale == "" && !w.Locale.IsEmpty() {
-		locale = string(w.Locale)
-	}
-	out := buildCanonical(repl, locale)
+	out := buildCanonical(repl, fileLocale(w.Locale, locale))
 	_, err := io.WriteString(w.Output, out)
 	return err
 }
@@ -227,6 +253,8 @@ func (w *Writer) writeFromScratch(repl *replacements, locale string) error {
 // replacements accumulates resolved message values keyed by ARB resource key.
 type replacements struct {
 	values map[string]replValue
+	// locale, when set, replaces the value of "@@locale".
+	locale *string
 }
 
 type replValue struct {

@@ -7,6 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	coreproj "github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/reconcile"
 	"github.com/neokapi/neokapi/core/ref"
 	"github.com/neokapi/neokapi/core/venue"
 	bowrainconn "github.com/neokapi/neokapi/core/venue/connector"
@@ -25,12 +27,13 @@ import (
 // record's full fold but not that component, so this compares the two halves
 // that mean something: the record changed here, or the venue lacks what it says.
 
-// heldHere is the decisions component of the project's committed record.
-func heldHere(t *testing.T, conn *BowrainSourceConnector) string {
+// heldHere is the decisions component of the project's record as the venue
+// holds it once it took the last push: the records that push sent, each under
+// the key the venue files its unit by.
+func heldHere(t *testing.T, srv *refServer) string {
 	t.Helper()
-	records, err := conn.projectDecisions(t.Context())
-	require.NoError(t, err)
-	return venue.DecisionsComponent(records)
+	require.NotEmpty(t, srv.decisions, "a push sent the record")
+	return venue.DecisionsComponent(srv.decisions)
 }
 
 // committedApproval scaffolds a project whose committed record holds one
@@ -61,7 +64,7 @@ func TestPush_SendsTheRecordUntilTheVenueHoldsIt(t *testing.T) {
 		"the venue holds none of these decisions, so the record goes again")
 
 	// The venue now answers with exactly what this project holds.
-	srv.published.Decisions = heldHere(t, conn)
+	srv.published.Decisions = heldHere(t, srv)
 	before := srv.decisionsSent
 	_, err = conn.Push(context.Background(), bowrainconn.PushOptions{})
 	require.NoError(t, err)
@@ -74,7 +77,7 @@ func TestPush_SendsTheRecordAgainWhenTheVenueLosesIt(t *testing.T) {
 
 	_, err := conn.Push(context.Background(), bowrainconn.PushOptions{})
 	require.NoError(t, err)
-	srv.published.Decisions = heldHere(t, conn)
+	srv.published.Decisions = heldHere(t, srv)
 
 	_, err = conn.Push(context.Background(), bowrainconn.PushOptions{})
 	require.NoError(t, err)
@@ -95,7 +98,7 @@ func TestPush_TellsEachStreamWhatItHolds(t *testing.T) {
 
 	_, err := conn.Push(context.Background(), bowrainconn.PushOptions{})
 	require.NoError(t, err)
-	srv.published.Decisions = heldHere(t, conn)
+	srv.published.Decisions = heldHere(t, srv)
 
 	_, err = conn.Push(context.Background(), bowrainconn.PushOptions{})
 	require.NoError(t, err)
@@ -118,7 +121,7 @@ func TestPush_SendsTheRecordWhenItCannotAskWhatTheVenueHolds(t *testing.T) {
 
 	_, err := conn.Push(context.Background(), bowrainconn.PushOptions{})
 	require.NoError(t, err)
-	srv.published.Decisions = heldHere(t, conn)
+	srv.published.Decisions = heldHere(t, srv)
 
 	_, err = conn.Push(context.Background(), bowrainconn.PushOptions{})
 	require.NoError(t, err)
@@ -131,4 +134,28 @@ func TestPush_SendsTheRecordWhenItCannotAskWhatTheVenueHolds(t *testing.T) {
 	require.NoError(t, err)
 	assert.Greater(t, srv.decisionsSent, quiet,
 		"a push that cannot ask sends the record")
+}
+
+// A person approves a translation through the change service on a checkout
+// where no flow has run, so no extraction has resolved the document. The
+// ledger files the decision under the key the document's path derives to, and
+// the push names its item by that document's path.
+func TestPush_NamesTheItemOfADecisionNoRunResolved(t *testing.T) {
+	srv := newRefServer(t, "proj1", ref.Ref{Content: 5})
+	conn := checkoutOf(t, srv, "en-US", map[string]string{
+		"locales/en.json": `{"greeting": "Hello there", "farewell": "Goodbye now"}` + "\n",
+		"locales/fr.json": `{"greeting": "Bonjour", "farewell": "Au revoir"}` + "\n",
+	}, coreproj.Collection{Name: "site", Path: "locales/en.json", Target: "locales/{lang}.json"})
+	record := approveFrench(t, conn, "locales/en.json", "greeting")
+	require.True(t, reconcile.IsDocumentKey(record.Scope), "the ledger files the decision under a document key")
+
+	records, err := conn.projectDecisions(t.Context())
+	require.NoError(t, err)
+	require.Len(t, records, 1)
+	assert.Equal(t, "locales/en.json", records[0].ItemName, "the record names the document's path")
+
+	_, err = conn.Push(context.Background(), bowrainconn.PushOptions{})
+	require.NoError(t, err)
+	d := sentFor(t, srv, conn, "locales/en.json", "greeting")
+	assert.Equal(t, venue.ReviewStateApproved, d.ReviewState)
 }

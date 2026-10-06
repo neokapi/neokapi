@@ -13,12 +13,9 @@ type EditionWrite struct {
 	// ItemName is the item whose durable identity namespace Unit lives in.
 	ItemName string `json:"item"`
 	// Unit is the durable unit identity (convergence.BlockKey), as the push
-	// resolved it against the venue's.
+	// resolved it against the venue's. The decisions the push carries name
+	// their units by the same key.
 	Unit string `json:"unit"`
-	// Block is the key the project's own records name the unit by, its
-	// decisions among them, where that differs from Unit: a checkout names a
-	// block by its reader's key, and a push resolves it to the venue's.
-	Block string `json:"block,omitempty"`
 	// Variant is the locale (and optional tone/channel) in EditionKey text form.
 	Variant string `json:"variant"`
 	// Revision is the edition's revision the write left (model.RunsRevision).
@@ -109,5 +106,5 @@ func (w EditionWrite) Edition() string {
 // Identity is what the write says, so a producer can tell whether the write it
 // last sent for a translation has changed.
 func (w EditionWrite) Identity() string {
-	return ref.Identity(w.Block, w.Revision, w.Basis, w.Writer, w.Origin, w.GoverningFingerprint)
+	return ref.Identity(w.Revision, w.Basis, w.Writer, w.Origin, w.GoverningFingerprint)
 }

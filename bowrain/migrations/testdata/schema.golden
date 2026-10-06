@@ -418,7 +418,6 @@ dnt_entries.project_id text NOT NULL
 dnt_entries.source text NOT NULL DEFAULT ''::text
 dnt_entries.text text NOT NULL
 edition_writers.author text NOT NULL
-edition_writers.block text NOT NULL DEFAULT ''::text
 edition_writers.item_name text NOT NULL
 edition_writers.origin text NOT NULL DEFAULT ''::text
 edition_writers.project_id text NOT NULL

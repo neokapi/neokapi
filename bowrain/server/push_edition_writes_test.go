@@ -157,8 +157,8 @@ func TestSyncPush_RefusesAnApprovalOfTheTranslationThePusherWrote(t *testing.T) 
 	ctx := context.Background()
 
 	blocks := catalog(map[string]string{"greeting": "Hello world", "farewell": "Goodbye now", "title": "Welcome"})
-	// The venue knows the title by a key of its own; the checkout's decisions
-	// name it by the key its reader gives it.
+	// The venue knows the title by a key of its own, and a push names it by
+	// that key in its decisions and its writes alike.
 	blocks["locales/en.json"][2].Key = "u-title"
 	_, err := client.Push(ctx, blocks, catalogItems, nil, nil)
 	require.NoError(t, err)
@@ -176,15 +176,12 @@ func TestSyncPush_RefusesAnApprovalOfTheTranslationThePusherWrote(t *testing.T) 
 		return venue.EditionWrite{ItemName: "locales/en.json", Unit: unit, Variant: "nb", Revision: "r:" + unit,
 			Writer: venue.WriterPerson, Origin: origin}
 	}
-	title := byHand("u-title", "desktop")
-	title.Block = "title"
-
 	resp, err := client.Push(ctx, map[string][]*model.Block{}, nil, nil, []venue.UnitDecision{
 		approval("greeting", "Hello world", "Hei, verden"),
 		approval("farewell", "Goodbye now", "Ha det"),
-		approval("title", "Welcome", "Velkommen"),
+		approval("u-title", "Welcome", "Velkommen"),
 	}, apiclient.CarryEditionWrites([]venue.EditionWrite{
-		byHand("greeting", "apply"), produced("farewell", "Goodbye now"), title,
+		byHand("greeting", "apply"), produced("farewell", "Goodbye now"), byHand("u-title", "desktop"),
 	}))
 	require.NoError(t, err)
 	drainWithAuthority(t, srv)
@@ -197,12 +194,12 @@ func TestSyncPush_RefusesAnApprovalOfTheTranslationThePusherWrote(t *testing.T) 
 		refused[u.Unit] = u.Reason
 	}
 	assert.Equal(t, venue.RefusedSeparationOfDuties, refused["greeting"], "the pusher wrote it in kapi apply")
-	assert.Equal(t, venue.RefusedSeparationOfDuties, refused["title"], "the pusher wrote it in Kapi Desktop")
+	assert.Equal(t, venue.RefusedSeparationOfDuties, refused["u-title"], "the pusher wrote it in Kapi Desktop")
 	assert.NotContains(t, refused, "farewell", "a run produced it")
 
 	records := nbLedger(t, srv, pid)
 	assert.Empty(t, records["greeting"].ReviewState)
-	assert.Empty(t, records["title"].ReviewState)
+	assert.Empty(t, records["u-title"].ReviewState)
 	assert.Equal(t, venue.ReviewStateApproved, records["farewell"].ReviewState)
 }
 
