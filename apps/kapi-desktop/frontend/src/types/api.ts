@@ -1037,6 +1037,41 @@ export interface CollectionStatus {
   targetLanguages: string[];
 }
 
+/** One wording of a contested block, in placeholder form. */
+export interface KeptWording {
+  text: string;
+  /** The revision a decision names as if_match (for the held wording). */
+  rev: string;
+  /** The edition holds no wording. */
+  absent?: boolean;
+}
+
+/** One block of a conflict, with both wordings. */
+export interface KeptConflictBlock {
+  block: string;
+  /** The block's own text, for context. */
+  source: string;
+  /** What the translation's home holds now. */
+  held: KeptWording;
+  /** The wording that did not land. */
+  other: KeptWording;
+}
+
+/**
+ * A conflict `kapi status` lists: an edit another machine made to a kept
+ * draft that did not land ("edit"), or wording the workspace keeps that the
+ * translation's file, which exists now, does not hold ("file").
+ */
+export interface KeptConflict {
+  kind: "edit" | "file";
+  /** The source document an operation names. */
+  doc: string;
+  locale: string;
+  edit?: string;
+  file?: string;
+  blocks: KeptConflictBlock[];
+}
+
 /** Project-wide extraction + coverage status. */
 export interface ProjectStatus {
   projectPath: string;
