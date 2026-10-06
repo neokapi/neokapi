@@ -99,13 +99,13 @@ type WriteGateStats struct {
 	// Grants is the number of times the permit has been granted.
 	Grants uint64
 
-	// MostWaited is the largest number of grants made to other writers while
-	// one writer queued for the permit, counted to its own grant or to the
+	// MostWaited is the largest number of releases one writer waited through
+	// while it queued for the permit, counted to its own grant or to the
 	// moment it gave up. The gate serves writers in arrival order, so a
 	// writer waits through each writer queued ahead of it once and no writer
 	// twice: with n writers sharing the handle it is at most n-1, however
 	// long each of them holds the permit. A queue that let one writer pass
-	// another over would show here as a wait through many grants.
+	// another over would show here as a wait through many releases.
 	MostWaited uint64
 }
 

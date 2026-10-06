@@ -80,12 +80,11 @@ func TestWriteGate_CancelWhileQueued(t *testing.T) {
 	g.release()
 }
 
-// TestWriteGate_CountsTheGrantsAWriterWaitsThrough pins the statistic the
-// contention test reads. A writer's wait is counted in the grants made to other
-// writers between its arrival and its own grant, or the moment it gives up, and
-// a writer that arrives while the permit is held waits through none of the
-// holder's.
-func TestWriteGate_CountsTheGrantsAWriterWaitsThrough(t *testing.T) {
+// TestWriteGate_CountsTheReleasesAWriterWaitsThrough pins the statistic the
+// contention test reads. A writer's wait is counted in the releases between
+// its arrival and its own grant, or the moment it gives up, the holder's
+// included when it arrives while the permit is held.
+func TestWriteGate_CountsTheReleasesAWriterWaitsThrough(t *testing.T) {
 	db := &DB{gate: newWriteGate()}
 	g := db.gate
 	require.NoError(t, g.acquire(t.Context(), true)) // grant 1: the holder
@@ -124,7 +123,7 @@ func TestWriteGate_CountsTheGrantsAWriterWaitsThrough(t *testing.T) {
 	wg.Wait()
 
 	assert.Equal(t, WriteGateStats{Grants: 3, MostWaited: 2}, db.WriteGateStats(),
-		"a waited through no grant, c through a's, and b through a's and c's before it gave up")
+		"a waited through the holder's release, c through the holder's and a's, and b through the same two before it gave up")
 	assert.Equal(t, WriteGateStats{}, (&DB{}).WriteGateStats(), "an ungated handle has nothing to report")
 }
 
