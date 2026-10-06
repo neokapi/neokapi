@@ -215,6 +215,16 @@ the wording the workspace holds is recorded as the person's decision, and a
 translation whose file exists has the workspace's copy released once the file
 holds the chosen wording (`ReleaseKeptWording`).
 
+A third kind is a version of a document a KPZ in the project carries that was
+written from an older version than the document holds now, such as a `.kpz`
+replaced on disk while its cache held unpacked edits
+([E-09](../engine/e-09-the-change-contract.md#homes)). It lists no blocks at
+first. The person rebases it (`RebaseKeptDocument`), which carries its changes
+over onto the document through the change service and lists each block both
+versions changed, decided as above, or discards it (`DiscardKeptDocument`),
+which keeps the document as it stands. A rebase the change service refuses,
+for a stale block or a failing gate, shows the reason and settles nothing.
+
 The backend resolves the declared cross product, the project's own point and
 then each profile's channels, and lists a collection where it is actually
 governed: a collection whose profile's window has closed appears at the point

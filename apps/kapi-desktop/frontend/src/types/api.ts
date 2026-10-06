@@ -1049,6 +1049,11 @@ export interface KeptWording {
 /** One block of a conflict, with both wordings. */
 export interface KeptConflictBlock {
   block: string;
+  /**
+   * For a "document" conflict, the contested edition of the block; absent for
+   * the document's own. A decision names it in place of the locale.
+   */
+  edition?: string;
   /** The block's own text, for context. */
   source: string;
   /** What the translation's home holds now. */
@@ -1058,18 +1063,35 @@ export interface KeptConflictBlock {
 }
 
 /**
- * A conflict `kapi status` lists: an edit another machine made to a kept
- * draft that did not land ("edit"), or wording the workspace keeps that the
- * translation's file, which exists now, does not hold ("file").
+ * A conflict of the project: an edit another machine made to a kept draft
+ * that did not land ("edit"), wording the workspace keeps that the
+ * translation's file, which exists now, does not hold ("file"), or a version
+ * of a KPZ's document written from an older head that did not land
+ * ("document").
  */
 export interface KeptConflict {
-  kind: "edit" | "file";
+  kind: "edit" | "file" | "document";
   /** The source document an operation names. */
   doc: string;
   locale: string;
   edit?: string;
   file?: string;
+  /**
+   * A "document" write a rebase has carried over onto the document's head;
+   * until then it lists no blocks.
+   */
+  rebased?: boolean;
   blocks: KeptConflictBlock[];
+}
+
+/** What a rebase of a document's divergent write did. */
+export interface DocumentRebase {
+  /** Changes applied to the document's head. */
+  carried: number;
+  /** Blocks the head changed too, now listed on the conflict. */
+  contested: number;
+  /** Why the change service refused the changes; nothing was settled. */
+  refused?: string;
 }
 
 /** Project-wide extraction + coverage status. */

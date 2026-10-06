@@ -62,6 +62,7 @@ export {
     DefaultModelInfo,
     DesktopFinding,
     DetectedAIProvider,
+    DocumentRebase,
     EntityAdaptationDTO,
     EntityAnnotationDTO,
     EntityMappingDTO,

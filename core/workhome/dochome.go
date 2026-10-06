@@ -38,6 +38,9 @@ type DocLog interface {
 	DocumentSubjectHead(ctx context.Context, key string) (int64, error)
 	// Blob reads a blob from the log.
 	Blob(ctx context.Context, address string) ([]byte, error)
+	// DocumentWrites reads every write the log holds to one document, as
+	// the fold reads them.
+	DocumentWrites(ctx context.Context, key string) ([]DocWrite, error)
 }
 
 // DocCommit is one write to a document the workspace home keeps whole, as
@@ -68,6 +71,14 @@ type DocCommit struct {
 	Overridden  []change.Finding
 	// Blocks are the editions the write changed.
 	Blocks []DocTransition
+	// Decided names the blocks a person's or an agent's write wrote or kept,
+	// which settles them in every rebased divergent write.
+	Decided []DocBlock
+	// Cause, for a rebase or a discard, is the divergent write it settles,
+	// and Contested the blocks a rebase left for a person to decide. Such a
+	// write records the head's bytes again and leaves the head where it is.
+	Cause     string
+	Contested []DocBlock
 }
 
 // DocTransition is one edition a write to a whole document changed.
@@ -236,35 +247,11 @@ func (d *Documents) Open(ctx context.Context, doc string) (change.Session, error
 	if err != nil {
 		return nil, err
 	}
-	if head.Format == "" {
-		return nil, &change.Error{Code: change.CodeUnsupported, Capability: "format", Message: "no format reads " + d.Prefix + key}
-	}
-	if err := os.MkdirAll(d.WorkDir, 0o700); err != nil {
-		return nil, fmt.Errorf("workhome: %w", err)
-	}
-	dir, err := os.MkdirTemp(d.WorkDir, "doc-")
+	sess, dir, err := d.workingCopy(ctx, key, head.Format, data)
 	if err != nil {
-		return nil, fmt.Errorf("workhome: %w", err)
-	}
-	copyPath := filepath.Join(dir, pathpkg.Base(key))
-	if err := os.WriteFile(copyPath, data, 0o600); err != nil {
-		_ = os.RemoveAll(dir)
-		return nil, fmt.Errorf("workhome: %w", err)
-	}
-	ref := d.Prefix + key
-	located := filehome.Doc{Ref: ref, Path: copyPath, Format: filehome.RegistryBinding(d.Formats, head.Format, ""),
-		SourceLocale: d.SourceLocale, Editions: change.EditionsPerFile,
-		NoEditionFile: "a document kept whole in the workspace holds its own edition and the translations its format holds in the document"}
-	if info := d.Formats.FormatInfo(registry.FormatID(head.Format)); info != nil && info.Interchange {
-		located.Editions, located.TargetLocale = change.EditionsInFile, d.TargetLocale
-	}
-	inner := filehome.New(oneDoc{located}, filehome.Options{LockDir: filepath.Join(dir, "locks")})
-	sess, err := inner.Open(ctx, ref)
-	if err != nil {
-		_ = os.RemoveAll(dir)
 		return nil, err
 	}
-	return &docSession{d: d, key: key, dir: dir, copy: copyPath, inner: sess, seq: seq, head: head}, nil
+	return &docSession{d: d, key: key, dir: dir, copy: filepath.Join(dir, pathpkg.Base(key)), inner: sess, seq: seq, head: head}, nil
 }
 
 // oneDoc is the layout of one working copy.
@@ -286,9 +273,51 @@ type docSession struct {
 	inner change.Session
 	seq   int64
 	head  DocHead
+	// kept are the contested blocks a person's or an agent's change set
+	// left as they stand, which the commit records as decided.
+	kept []DocBlock
 }
 
-var _ change.StructuralSession = (*docSession)(nil)
+var (
+	_ change.StructuralSession = (*docSession)(nil)
+	_ change.DivergentSession  = (*docSession)(nil)
+	_ change.ContestedSession  = (*docSession)(nil)
+)
+
+// Divergent lists the writes to the document that did not land on the head
+// the session read, with the blocks a rebase left contested.
+func (s *docSession) Divergent() []change.DivergentWrite {
+	if len(s.head.Divergent) == 0 {
+		return nil
+	}
+	ref := s.d.Prefix + s.key
+	out := make([]change.DivergentWrite, 0, len(s.head.Divergent))
+	for _, dv := range s.head.Divergent {
+		w := change.DivergentWrite{Op: dv.Op, Before: dv.Before, After: dv.After}
+		for _, b := range dv.Contested {
+			w.Contested = append(w.Contested, change.Ref{Doc: ref, Block: b.Block, Edition: s.d.editionKey(b.Edition)})
+		}
+		out = append(out, w)
+	}
+	return out
+}
+
+// Contested reports whether a rebase left edition k of the block keyed block
+// contested. The change service asks only for a person's or an agent's
+// operation that left the edition as it stands, so a true answer is that
+// person's decision to keep the head's wording, and the commit records it.
+func (s *docSession) Contested(k model.EditionKey, block string) bool {
+	db := DocBlock{Block: block, Edition: s.d.editionName(k)}
+	for _, dv := range s.head.Divergent {
+		if slices.Contains(dv.Contested, db) {
+			if !slices.Contains(s.kept, db) {
+				s.kept = append(s.kept, db)
+			}
+			return true
+		}
+	}
+	return false
+}
 
 func (s *docSession) Info() change.DocInfo { return s.inner.Info() }
 
@@ -434,7 +463,10 @@ func (st *docStaged) Commit(ctx context.Context) error {
 		return err
 	}
 	files := st.inner.Files()
-	if !slices.ContainsFunc(files, func(f change.StagedFile) bool { return f.Written && f.After != f.Before }) {
+	writes := slices.ContainsFunc(files, func(f change.StagedFile) bool { return f.Written && f.After != f.Before })
+	rec := st.rec
+	writer := rec != nil && (rec.Actor.Kind == change.ActorPerson || rec.Actor.Kind == change.ActorAgent)
+	if !writes && (!writer || len(st.s.kept) == 0) {
 		return nil
 	}
 	data, err := os.ReadFile(st.s.copy)
@@ -443,19 +475,26 @@ func (st *docStaged) Commit(ctx context.Context) error {
 	}
 	c := DocCommit{Key: st.s.key, Path: st.s.d.Prefix + st.s.key, Expect: st.seq, Base: st.head.Op,
 		Format: st.head.Format, Data: data, Before: st.head.Rev, After: DocumentRevision(data)}
-	if rec := st.rec; rec != nil {
+	if rec != nil {
 		c.Actor, c.Origin, c.Fingerprint, c.Set, c.Overridden = rec.Actor, rec.Origin, rec.Fingerprint, rec.Set, rec.Overridden
 		if rec.Set != nil {
 			c.Note = rec.Set.Note
 		}
-		keep := rec.Actor.Kind == change.ActorPerson || rec.Actor.Kind == change.ActorAgent
 		for _, t := range rec.Transitions {
 			dt := DocTransition{Block: t.Ref.Block, Key: t.Key, Edition: editionText(t.Ref.Edition), Before: t.BeforeRev, After: t.AfterRev,
 				Basis: t.Basis, ContentHash: t.ContentHash, ContextHash: t.ContextHash, Ops: slices.Clone(t.Ops)}
-			if keep {
+			if writer {
 				dt.BeforeRuns, dt.AfterRuns = t.Before, t.After
+				c.Decided = appendBlock(c.Decided, DocBlock{Block: t.Ref.Block, Edition: st.s.d.editionName(t.Ref.Edition)})
 			}
 			c.Blocks = append(c.Blocks, dt)
+		}
+		if writer {
+			// A contested block the change set left as it stands is the
+			// decision to keep the head's wording.
+			for _, b := range st.s.kept {
+				c.Decided = appendBlock(c.Decided, b)
+			}
 		}
 	}
 	id, err := st.s.d.Log.CommitDocument(ctx, c)

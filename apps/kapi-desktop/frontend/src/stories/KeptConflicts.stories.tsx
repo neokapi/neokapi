@@ -3,7 +3,12 @@ import type { ChangeResult } from "@neokapi/contract-types";
 
 import { KeptConflicts } from "../components/KeptConflicts";
 import type { ChangeClient } from "../lib/changes";
-import { editConflict, fileConflict } from "./fixtures/keptConflicts";
+import {
+  documentConflict,
+  editConflict,
+  fileConflict,
+  rebasedDocumentConflict,
+} from "./fixtures/keptConflicts";
 
 /** A change service that applies every change set. */
 const applies: ChangeClient = {
@@ -41,7 +46,13 @@ const meta: Meta<typeof KeptConflicts> = {
   title: "Pages/Kept Conflicts",
   component: KeptConflicts,
   parameters: { layout: "padded" },
-  args: { tabID: "t1", client: applies, release: async () => {} },
+  args: {
+    tabID: "t1",
+    client: applies,
+    release: async () => {},
+    rebase: async () => ({ carried: 2, contested: 1 }),
+    discard: async () => {},
+  },
 };
 
 export default meta;
@@ -58,6 +69,36 @@ export const WordingTheFileDoesNotHold: Story = { args: { conflicts: [fileConfli
 
 /** Both kinds at once, as a project shows them. */
 export const BothKinds: Story = { args: { conflicts: [editConflict, fileConflict] } };
+
+/**
+ * The KPZ on disk was replaced while its document held an edit nobody packed:
+ * the other version waits to be rebased onto the document or discarded.
+ */
+export const DocumentVersionThatDidNotLand: Story = { args: { conflicts: [documentConflict] } };
+
+/**
+ * After the rebase: the changes to other blocks were carried over, and the
+ * block both versions changed is left, in the document's own language and in
+ * the French the catalog holds.
+ */
+export const DocumentVersionRebased: Story = { args: { conflicts: [rebasedDocumentConflict] } };
+
+/** The change service refused the rebase: nothing is settled. */
+export const DocumentRebaseRefused: Story = {
+  args: {
+    conflicts: [documentConflict],
+    rebase: async () => ({
+      carried: 1,
+      contested: 0,
+      refused: "edition en of block greeting moved",
+    }),
+  },
+};
+
+/** Every kind at once, as a project shows them. */
+export const EveryKind: Story = {
+  args: { conflicts: [documentConflict, editConflict, fileConflict] },
+};
 
 /** Deciding finds the wording moved since the read: nothing is written. */
 export const StaleDecision: Story = { args: { conflicts: [editConflict], client: stale } };

@@ -5,7 +5,12 @@ import type { ChangeResult, ChangeSet } from "@neokapi/contract-types";
 
 import { KeptConflicts } from "../components/KeptConflicts";
 import type { ChangeClient } from "../lib/changes";
-import { editConflict, fileConflict } from "../stories/fixtures/keptConflicts";
+import {
+  documentConflict,
+  editConflict,
+  fileConflict,
+  rebasedDocumentConflict,
+} from "../stories/fixtures/keptConflicts";
 
 function client(status: "applied" | "refused" = "applied") {
   const sent: ChangeSet[] = [];
@@ -105,5 +110,70 @@ describe("KeptConflicts", () => {
     expect(await screen.findByText(/changed since this conflict was read/)).toBeInTheDocument();
     expect(release).not.toHaveBeenCalled();
     expect(screen.getByTestId("kept-conflicts")).toBeInTheDocument();
+  });
+
+  it("offers a document's other version to rebase or discard, and lists no block", () => {
+    render(<KeptConflicts tabID="t1" conflicts={[documentConflict]} rebase={vi.fn()} />);
+    expect(screen.getByTestId("kept-conflict")).toHaveAttribute("data-kind", "document");
+    expect(screen.getByText(/work\.kpz!messages\.json holds another version/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Rebase onto the document" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Discard this version" })).toBeEnabled();
+    expect(screen.queryByTestId("kept-conflict-block")).not.toBeInTheDocument();
+  });
+
+  it("rebases a document's other version that leaves nothing contested", async () => {
+    const rebase = vi.fn(async () => ({ carried: 2, contested: 0 }));
+    render(<KeptConflicts tabID="t1" conflicts={[documentConflict]} rebase={rebase} />);
+    await userEvent.click(screen.getByRole("button", { name: "Rebase onto the document" }));
+    await waitFor(() => expect(screen.queryByTestId("kept-conflicts")).not.toBeInTheDocument());
+    expect(rebase).toHaveBeenCalledWith("work.kpz!messages.json", "0pcn2v7k9wq1d4e8h3s5t6u0");
+  });
+
+  it("shows why a rebase was refused and keeps the conflict", async () => {
+    const rebase = vi.fn(async () => ({ carried: 1, contested: 0, refused: "the gate failed" }));
+    render(<KeptConflicts tabID="t1" conflicts={[documentConflict]} rebase={rebase} />);
+    await userEvent.click(screen.getByRole("button", { name: "Rebase onto the document" }));
+    expect(await screen.findByText("the gate failed")).toBeInTheDocument();
+    expect(screen.getByTestId("kept-conflicts")).toBeInTheDocument();
+  });
+
+  it("discards a document's other version", async () => {
+    const discard = vi.fn(async () => {});
+    render(<KeptConflicts tabID="t1" conflicts={[documentConflict]} discard={discard} />);
+    await userEvent.click(screen.getByRole("button", { name: "Discard this version" }));
+    await waitFor(() => expect(screen.queryByTestId("kept-conflicts")).not.toBeInTheDocument());
+    expect(discard).toHaveBeenCalledWith("work.kpz!messages.json", "0pcn2v7k9wq1d4e8h3s5t6u0");
+  });
+
+  it("decides a block a rebase left, naming the block's edition", async () => {
+    const { c, sent } = client();
+    render(<KeptConflicts tabID="t1" conflicts={[rebasedDocumentConflict]} client={c} />);
+    expect(screen.getAllByTestId("kept-conflict-block")).toHaveLength(2);
+    await userEvent.click(screen.getAllByRole("button", { name: "Use this wording" })[0]);
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0].ops[0]).toEqual({
+      op: "set_content",
+      at: { doc: "work.kpz!messages.json", block: "greeting" },
+      if_match: "r:3c5e7a9b1d2f4c6e",
+      text: "Hello from the team",
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Keep this wording" }));
+    await waitFor(() => expect(sent).toHaveLength(2));
+    expect(sent[1].ops[0]).toMatchObject({
+      at: { doc: "work.kpz!messages.json", block: "greeting", edition: "fr" },
+      if_match: "r:8a6b4c2d0e1f3a5b",
+      text: "Bonjour",
+    });
+    await waitFor(() => expect(screen.queryByTestId("kept-conflicts")).not.toBeInTheDocument());
+  });
+
+  it("keeps the document's wording in every block a rebase left", async () => {
+    const discard = vi.fn(async () => {});
+    render(<KeptConflicts tabID="t1" conflicts={[rebasedDocumentConflict]} discard={discard} />);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Keep the document's wording in every block left" }),
+    );
+    await waitFor(() => expect(screen.queryByTestId("kept-conflicts")).not.toBeInTheDocument());
+    expect(discard).toHaveBeenCalledWith("work.kpz!messages.json", "0pcn2v7k9wq1d4e8h3s5t6u0");
   });
 });

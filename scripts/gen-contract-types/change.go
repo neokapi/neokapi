@@ -106,6 +106,7 @@ var (
 	changeReadTypes = []emitType{
 		{"ReadRequest", reflect.TypeFor[change.ReadRequest](), ""},
 		{"ReadPage", reflect.TypeFor[change.Page](), ""},
+		{"DivergentWrite", reflect.TypeFor[change.DivergentWrite](), ""},
 		{"BlockRead", reflect.TypeFor[change.BlockRead](), ""},
 		{"CodeRead", reflect.TypeFor[change.CodeRead](), ""},
 		{"StructureRead", reflect.TypeFor[change.StructureRead](), ""},
@@ -157,6 +158,8 @@ var changeFieldTypes = map[fieldKey]string{
 	// BlockKey), so it is what an operation's at takes; a result's reference
 	// to a document alone leaves the block out (ResultRef).
 	{reflect.TypeFor[change.BlockRead](), "Ref"}: "ChangeRef",
+	// A contested block names its block always (Documents.Rebase sets it).
+	{reflect.TypeFor[change.DivergentWrite](), "Contested"}: "ChangeRef[]",
 	// A nil map marshals as null: a format that writes no attribute.
 	{reflect.TypeFor[change.OpTable](), "SetAttribute"}: "Record<string, string[]> | null",
 	// An operation's result names its kind, which may be one a tool applies

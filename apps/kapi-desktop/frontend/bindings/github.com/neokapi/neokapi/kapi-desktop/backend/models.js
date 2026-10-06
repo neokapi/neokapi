@@ -4009,6 +4009,55 @@ export class DetectedAIProvider {
 }
 
 /**
+ * DocumentRebase is what a rebase of a document's divergent write did.
+ */
+export class DocumentRebase {
+    /**
+     * Creates a new DocumentRebase instance.
+     * @param {Partial<DocumentRebase>} [$$source = {}] - The source object to create the DocumentRebase.
+     */
+    constructor($$source = {}) {
+        if (!("carried" in $$source)) {
+            /**
+             * Carried counts the changes applied to the document's head, Contested
+             * the blocks the head changed too, which the conflict now lists.
+             * @member
+             * @type {number}
+             */
+            this["carried"] = 0;
+        }
+        if (!("contested" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["contested"] = 0;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Refused says why the change service refused the changes; nothing was
+             * settled then.
+             * @member
+             * @type {string | undefined}
+             */
+            this["refused"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DocumentRebase instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {DocumentRebase}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DocumentRebase(/** @type {Partial<DocumentRebase>} */($$parsedSource));
+    }
+}
+
+/**
  * EntityAdaptationDTO describes how to substitute an entity value.
  */
 export class EntityAdaptationDTO {
@@ -5140,8 +5189,10 @@ export class KeptConflict {
     constructor($$source = {}) {
         if (!("kind" in $$source)) {
             /**
-             * Kind is "edit" (an edit another machine made that did not land) or
-             * "file" (wording the translation's file does not hold).
+             * Kind is "edit" (an edit another machine made that did not land),
+             * "file" (wording the translation's file does not hold) or "document"
+             * (a version of a KPZ's document, written from an older head, that did
+             * not land).
              * @member
              * @type {string}
              */
@@ -5178,6 +5229,15 @@ export class KeptConflict {
              */
             this["file"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Rebased says a "document" write has been rebased onto the document's
+             * head; until then it lists no blocks.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["rebased"] = undefined;
+        }
         if (!("blocks" in $$source)) {
             /**
              * @member
@@ -5195,10 +5255,10 @@ export class KeptConflict {
      * @returns {KeptConflict}
      */
     static createFrom($$source = {}) {
-        const $$createField5_0 = $$createType78;
+        const $$createField6_0 = $$createType78;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("blocks" in $$parsedSource) {
-            $$parsedSource["blocks"] = $$createField5_0($$parsedSource["blocks"]);
+            $$parsedSource["blocks"] = $$createField6_0($$parsedSource["blocks"]);
         }
         return new KeptConflict(/** @type {Partial<KeptConflict>} */($$parsedSource));
     }
@@ -5219,6 +5279,15 @@ export class KeptConflictBlock {
              * @type {string}
              */
             this["block"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Edition, for a "document" block, is the contested edition, empty for
+             * the document's own; a decision names it in place of the locale.
+             * @member
+             * @type {string | undefined}
+             */
+            this["edition"] = undefined;
         }
         if (!("source" in $$source)) {
             /**
@@ -5253,14 +5322,14 @@ export class KeptConflictBlock {
      * @returns {KeptConflictBlock}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType79;
         const $$createField3_0 = $$createType79;
+        const $$createField4_0 = $$createType79;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("held" in $$parsedSource) {
-            $$parsedSource["held"] = $$createField2_0($$parsedSource["held"]);
+            $$parsedSource["held"] = $$createField3_0($$parsedSource["held"]);
         }
         if ("other" in $$parsedSource) {
-            $$parsedSource["other"] = $$createField3_0($$parsedSource["other"]);
+            $$parsedSource["other"] = $$createField4_0($$parsedSource["other"]);
         }
         return new KeptConflictBlock(/** @type {Partial<KeptConflictBlock>} */($$parsedSource));
     }

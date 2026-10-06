@@ -239,19 +239,30 @@ and the address of the blob holding its bytes after the write, which `blobs`
 lists too. `base` is the operation the document's head was at, `doc_before` and
 `doc_after` are its revisions (`sha256:` over the bytes), and the transitions
 are the editions the change set changed, as a write to a file records them; the
-write that opens a document carries none. The `subject` column holds
-`document:<doc key>`, and the address adds `workspace`, `document`, the base,
-both revisions, the format and the blob. The projector folds those operations
-into a third table:
+write that opens a document carries none. A person's or an agent's write also
+lists in `document.decided` the blocks it wrote or kept, each `{block,
+edition}` with `edition` empty for the document's own. A rebase or a discard of
+a divergent write names that write in `cause`, records the head's bytes again,
+and lists in `document.contested` the blocks the rebase left for a person,
+none for a discard or a rebase that carried every block over. The `subject`
+column holds `document:<doc key>`, and the address adds `workspace`,
+`document`, the base, both revisions, the format and the blob, and for a write
+with a cause, the cause and the contested blocks. The projector folds those
+operations into a third table:
 
 | Table | Key | Holds |
 | --- | --- | --- |
-| `document_head` | `key` | `path`, the reference the head was written through; `rev`; `format`; `blob`; `op`, the operation the head is at; `last`, the largest operation id folded; `divergent`, a JSON list of `{op, before, after}` for the writes that did not advance the head |
+| `document_head` | `key` | `path`, the reference the head was written through; `rev`; `format`; `blob`; `op`, the operation the head is at; `last`, the largest operation id folded; `divergent`, a JSON list of `{op, before, after, contested}` for the writes that did not advance the head, `contested` listing the blocks a rebase left |
 
-A write whose `base` equals `op` advances the head; any other is appended to
-`divergent`, and a person's or an agent's write that advances the head empties
-it. A write that arrives out of order folds the document again from every
-operation on its subject (`workhome.FoldDocument`, `Store.ReplaceDocument`).
+A write with a `cause` leaves the head where it is: it drops the divergent
+write it names when it lists nothing contested, and otherwise sets that
+write's `contested`. Any other write whose `base` equals `op` advances the
+head, and one with another base is appended to `divergent`. A person's or an
+agent's write that advances the head removes the blocks it decided from every
+`contested` list and drops a write left with none; a divergent write nobody has
+rebased stays until its rebase or discard. A write that arrives out of order
+folds the document again from every operation on its subject
+(`workhome.FoldDocument`, `Store.ReplaceDocument`).
 
 The projector also writes one `block_history_op` row per operation: its id
 (the primary key), its content address (unique) and its document, so the

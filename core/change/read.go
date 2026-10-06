@@ -51,6 +51,25 @@ type Page struct {
 	Blocks []BlockRead `json:"blocks"`
 	// Next continues the read; empty on the last page.
 	Next string `json:"next,omitempty"`
+	// Divergent lists the writes to the document as a whole that did not
+	// land on the head the page was read from (DivergentSession). Only a home
+	// that keeps documents whole reports them.
+	Divergent []DivergentWrite `json:"divergent,omitempty"`
+}
+
+// DivergentWrite is a write to a whole document that did not land: two
+// writers wrote the document from one head, and the write that sorts later
+// is kept beside the head until a person or an agent rebases or discards it.
+type DivergentWrite struct {
+	// Op is the recorded write.
+	Op string `json:"op" jsonschema:"the recorded write that did not land"`
+	// Before is the revision of the document the write was made from, and
+	// After the revision it left.
+	Before string `json:"before" jsonschema:"the revision of the document the write was made from"`
+	After  string `json:"after" jsonschema:"the revision of the document the write left"`
+	// Contested lists the blocks a rebase could not carry over, because the
+	// head changed them too. Empty until the write is rebased.
+	Contested []Ref `json:"contested,omitempty" jsonschema:"the blocks a rebase left for a person to decide; empty until the write is rebased"`
 }
 
 // BlockRead is a block as a read shows it: the reference to copy into an
@@ -251,6 +270,9 @@ func (s *Service) read(ctx context.Context, q ReadRequest, each func(b *model.Bl
 			Message: info.Doc + " changed since the page the cursor came from; read it again from the start"}
 	}
 	page.Head = head
+	if ds, ok := sess.(DivergentSession); ok {
+		page.Divergent = ds.Divergent()
+	}
 	if more {
 		page.Next = encodeCursor(head, skip+len(page.Blocks))
 	}

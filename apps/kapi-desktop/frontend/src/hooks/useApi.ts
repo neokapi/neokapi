@@ -29,6 +29,7 @@ import type {
   SessionState,
   ProjectStatus,
   KeptConflict,
+  DocumentRebase,
   ExtractResult,
   ConvergenceReport,
   ConvergePlan,
@@ -150,6 +151,10 @@ export const api = {
   getKeptConflicts: (tabID: string) => call<KeptConflict[]>("GetKeptConflicts", tabID),
   releaseKeptWording: (tabID: string, doc: string, locale: string, blocks: string[]) =>
     call<void>("ReleaseKeptWording", tabID, doc, locale, blocks),
+  rebaseKeptDocument: (tabID: string, doc: string, edit: string) =>
+    call<DocumentRebase>("RebaseKeptDocument", tabID, doc, edit),
+  discardKeptDocument: (tabID: string, doc: string, edit: string) =>
+    call<void>("DiscardKeptDocument", tabID, doc, edit),
 
   // Review surface — queue with findings enrichment and per-unit detail.
   /** The unified review queue: every unit awaiting a person across the

@@ -195,6 +195,19 @@ type ContestedSession interface {
 	Contested(k model.EditionKey, block string) bool
 }
 
+// DivergentSession is a session whose home keeps a document whole and can
+// hold, beside its head, writes to the document that did not land
+// (core/workhome.Documents). A read reports them in Page.Divergent. A block a
+// rebase of such a write left contested answers true to Contested when the
+// session is also a ContestedSession, so keeping its held wording records the
+// decision as for an edition.
+type DivergentSession interface {
+	Session
+	// Divergent lists the writes to the document that did not land, in the
+	// order they were recorded.
+	Divergent() []DivergentWrite
+}
+
 // Restructurer is the part of the service's editor that adds blocks to a
 // document and removes them. Before each pass of a stage whose Want is
 // Structural, the home reads the document as it stands: it calls

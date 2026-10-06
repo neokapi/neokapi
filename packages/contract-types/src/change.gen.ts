@@ -1251,6 +1251,35 @@ export interface ReadPage {
   blocks: BlockRead[];
   /** Next continues the read; empty on the last page. */
   next?: string;
+  /**
+   * Divergent lists the writes to the document as a whole that did not land on
+   * the head the page was read from (DivergentSession). Only a home that keeps
+   * documents whole reports them.
+   */
+  divergent?: DivergentWrite[];
+}
+
+/**
+ * DivergentWrite is a write to a whole document that did not land: two writers
+ * wrote the document from one head, and the write that sorts later is kept
+ * beside the head until a person or an agent rebases or discards it.
+ *
+ * Mirrors core/change.DivergentWrite.
+ */
+export interface DivergentWrite {
+  /** Op is the recorded write. */
+  op: string;
+  /**
+   * Before is the revision of the document the write was made from, and After
+   * the revision it left.
+   */
+  before: string;
+  after: string;
+  /**
+   * Contested lists the blocks a rebase could not carry over, because the head
+   * changed them too. Empty until the write is rebased.
+   */
+  contested?: ChangeRef[];
 }
 
 /**
