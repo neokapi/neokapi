@@ -809,7 +809,7 @@ func (a *App) statusVenue(proj *project.KapiProject) *StatusVenue {
 func AddStatusFlags(cmd Command) {
 	cmd.Flags().String("locale", "", "limit to a single target locale")
 	cmd.Flags().String("source-lang", "", "source language (overrides the project's source_language)")
-	cmd.Flags().Bool("review", false, "list the blocks awaiting review in every language, the source language among them, instead of the coverage grid; approve a translated block with `kapi apply` (kind:\"review\")")
+	cmd.Flags().Bool("review", false, "list the blocks awaiting review in every language, the source language among them, instead of the coverage grid; approve one with a decide operation sent to `kapi apply`")
 	cmd.Flags().StringSlice("lang", nil, "with --review, list only these languages (repeatable, or comma-separated); the source language is one of them")
 	cmd.Flags().Bool("json", false, "output the structured result as JSON")
 	cmd.Flags().Bool("ship", false, "emit the minimal ship.json picker manifest (locale → {shippable, state, not_governed}) instead of the coverage grid; state is established, translated, withheld or not_gated, and a language picker offers only shippable locales and badges the ones not established as AI-translated")

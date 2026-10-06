@@ -285,8 +285,9 @@ func TestStatusReview_ListsSourceUnitsAndFiltersByLanguage(t *testing.T) {
 	text := runReviewStatus(t, recipe, nil, nil)
 	assert.Contains(t, text, "en · source", "the source language is marked in the table, as a tag")
 	assert.Contains(t, text, "kapi apply", "the approval instruction stays")
-	assert.Contains(t, text, "approve source wording in the Review page of Kapi Desktop",
-		"the CLI records no source decision, and says so rather than naming a command that does not exist")
+	assert.Contains(t, text, "a decide operation with outcome establish", "the approval names the operation kapi apply takes")
+	assert.Contains(t, text, "Approve source wording the same way, with no edition",
+		"kapi apply establishes source wording too, with a decide operation that names no edition")
 	assert.Contains(t, text, "are held below the project's translate_after level", "a held source unit says why the loop is waiting")
 	// The table draws an em dash for an empty cell; the prose beside it carries
 	// none.
