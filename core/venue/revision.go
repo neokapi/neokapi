@@ -1,6 +1,7 @@
 package venue
 
 import (
+	"fmt"
 	"slices"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -52,4 +53,20 @@ func Basis(b *model.Block, source model.LocaleID, basis string) string {
 func RecordHash(b *model.Block, source model.LocaleID) string {
 	id := model.ComputeIdentity(b)
 	return model.ComputeRecordHash(id.ContentHash, id.ContextHash, SourceRevision(b, source))
+}
+
+// SourceLanguageMismatch reports why a push that takes source revisions under
+// pushed cannot land on a project written in project, or "" when the two name
+// one language. A venue stamps each source revision under its project's
+// language and grades every basis by equality with it, so a push under another
+// language would read every decision stale and send every block again on each
+// push.
+func SourceLanguageMismatch(pushed, project model.LocaleID) string {
+	if pushed.IsEmpty() || project.IsEmpty() ||
+		model.NormalizeLocale(pushed) == model.NormalizeLocale(project) {
+		return ""
+	}
+	return fmt.Sprintf("the recipe's source language is %s, and the project on the server is written in %s; "+
+		"set defaults.source_language to %s in kapi.yaml, or push to a project whose source language is %s",
+		pushed, project, project, pushed)
 }

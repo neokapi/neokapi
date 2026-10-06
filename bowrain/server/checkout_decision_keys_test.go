@@ -48,10 +48,17 @@ type keyedCheckout struct {
 
 func newKeyedCheckout(t *testing.T) *keyedCheckout {
 	t.Helper()
+	return newKeyedCheckoutIn(t, "en-US")
+}
+
+// newKeyedCheckoutIn is newKeyedCheckout for a project the server holds as
+// written in projectLanguage.
+func newKeyedCheckoutIn(t *testing.T, projectLanguage string) *keyedCheckout {
+	t.Helper()
 	srv, token := newTestServer(t)
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/test/projects", strings.NewReader(
-		`{"name":"Keys","default_source_language":"en-US","target_languages":["fr"]}`))
+		`{"name":"Keys","default_source_language":"`+projectLanguage+`","target_languages":["fr"]}`))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
 	srv.GetEcho().ServeHTTP(rec, req)
@@ -249,4 +256,28 @@ func unique(in []string) []string {
 		}
 	}
 	return out
+}
+
+// A recipe written in en-US pushed to a project the server holds as written
+// in en-GB is refused before anything is sent, with both languages named and
+// the fix. The server holds no content afterwards.
+func TestPushIsRefusedWhenTheRecipesSourceLanguageIsNotTheProjects(t *testing.T) {
+	k := newKeyedCheckoutIn(t, "en-GB")
+	_, err := k.conn.Push(context.Background(), bowrainconn.PushOptions{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "HTTP 409")
+	assert.Contains(t, err.Error(), "the recipe's source language is en-US")
+	assert.Contains(t, err.Error(), "written in en-GB")
+	assert.Contains(t, err.Error(), "set defaults.source_language to en-GB in kapi.yaml")
+	drainWithAuthority(t, k.srv)
+	rows, err := k.srv.ContentStore.GetBlocks(t.Context(), platstore.BlockQuery{ProjectID: k.pid, Stream: "main", ItemName: keyedItem})
+	require.NoError(t, err)
+	assert.Empty(t, rows, "the refused push stored nothing")
+}
+
+// The comparison is of languages, not of spellings.
+func TestPushLandsWhenTheRecipeSpellsTheProjectsLanguageAnotherWay(t *testing.T) {
+	k := newKeyedCheckoutIn(t, "en_us")
+	k.push(t)
+	k.stored(t, "greeting")
 }

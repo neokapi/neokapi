@@ -61,6 +61,9 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 		// Settings are the recipe-owned project settings the producer's recipe
 		// declares, so the answer can say which of them this push may apply.
 		Settings venue.ProjectSettings `json:"settings"`
+		// SourceLanguage is the language the producer takes each source
+		// revision under: its recipe's source language.
+		SourceLanguage model.LocaleID `json:"source_language"`
 	}
 	if err := c.Bind(&req); err != nil {
 		return apiErr(c, http.StatusBadRequest, err.Error())
@@ -88,6 +91,23 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 				return apiErr(c, http.StatusConflict, conflict.Error())
 			}
 			return serverErr(c, err)
+		}
+	}
+
+	// The project stamps every source revision under its own language, and the
+	// producer takes the revisions it compares and the bases it carries under
+	// its recipe's. Two languages would read every decision stale and send
+	// every block on every push, so a push under another language is refused
+	// before anything is computed.
+	if req.SourceLanguage != "" {
+		proj, err := s.ContentStore.GetProject(c.Request().Context(), req.ProjectID)
+		if err != nil {
+			return serverErr(c, err)
+		}
+		if proj != nil {
+			if why := venue.SourceLanguageMismatch(req.SourceLanguage, proj.DefaultSourceLanguage); why != "" {
+				return apiErr(c, http.StatusConflict, why)
+			}
 		}
 	}
 

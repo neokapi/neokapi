@@ -54,6 +54,13 @@ type PushInitRequest struct {
 	// Settings are the recipe-owned project settings the recipe declares, so
 	// the venue can answer which of them this push may apply.
 	Settings venue.ProjectSettings `json:"settings,omitempty"`
+
+	// SourceLanguage is the language the push takes each block's source
+	// revision under (TransferUnder): the recipe's source language. A venue
+	// whose project is written in another language refuses the push, since it
+	// stamps every source revision under its own and would read every basis
+	// the push carries as stale.
+	SourceLanguage model.LocaleID `json:"source_language,omitempty"`
 }
 
 // PushInitResponse is the response from the init endpoint.
@@ -457,6 +464,7 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 		ContentModelEpoch:   venue.ContentModelEpoch,
 		AllowModelDowngrade: settings.allowDowngrade,
 		Settings:            pushCtx.settings(),
+		SourceLanguage:      settings.source,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("push init: %w", err)
