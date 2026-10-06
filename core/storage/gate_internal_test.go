@@ -10,6 +10,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// waitQueued blocks until n writers are queued on g. A writer that has joined
+// the queue has an arrival order the gate will honour, so the tests below
+// sequence their writers on this instead of on a sleep.
+func waitQueued(t *testing.T, g *writeGate, n int) {
+	t.Helper()
+	require.Eventually(t, func() bool { return g.queued() == n }, 10*time.Second, time.Millisecond,
+		"expected %d writers queued for the permit", n)
+}
+
 // TestWriteGate_ServesInArrivalOrder is the property the gate exists for. A
 // mutex would not have it: Go's sync.Mutex hands a contended lock to whichever
 // goroutine the scheduler happens to wake, and only rescues a waiter after a
@@ -28,11 +37,7 @@ func TestWriteGate_ServesInArrivalOrder(t *testing.T) {
 		wg     sync.WaitGroup
 	)
 	for i := range waiters {
-		queued := make(chan struct{})
 		wg.Go(func() {
-			close(queued)
-			// The send blocks a hair after `queued` closes; the stagger below
-			// covers the gap, and this test is about order, not about timing.
 			if err := g.acquire(context.Background(), false); err != nil {
 				return
 			}
@@ -41,8 +46,7 @@ func TestWriteGate_ServesInArrivalOrder(t *testing.T) {
 			mu.Unlock()
 			g.release()
 		})
-		<-queued
-		time.Sleep(20 * time.Millisecond)
+		waitQueued(t, g, i+1)
 	}
 
 	g.release()
@@ -64,7 +68,7 @@ func TestWriteGate_CancelWhileQueued(t *testing.T) {
 	result := make(chan error, 1)
 	go func() { result <- g.acquire(ctx, false) }()
 
-	time.Sleep(50 * time.Millisecond) // let it queue
+	waitQueued(t, g, 1)
 	cancel()
 
 	select {
@@ -73,6 +77,7 @@ func TestWriteGate_CancelWhileQueued(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("a cancelled waiter never returned")
 	}
+	assert.Zero(t, g.queued(), "the cancelled waiter is still in the queue")
 
 	// The permit is still ours, and releasing it must not double-release.
 	g.release()
@@ -93,11 +98,11 @@ func TestWriteGate_CountsTheReleasesAWriterWaitsThrough(t *testing.T) {
 	// while c holds the permit.
 	var wg sync.WaitGroup
 	cHolds, cRelease := make(chan struct{}), make(chan struct{})
+	queued := 0
 	queue := func(fn func()) {
-		queued := make(chan struct{})
-		wg.Go(func() { close(queued); fn() })
-		<-queued
-		time.Sleep(20 * time.Millisecond) // let it reach the queue before the next
+		wg.Go(fn)
+		queued++
+		waitQueued(t, g, queued) // in the queue before the next arrives
 	}
 	queue(func() {
 		if g.acquire(context.Background(), false) == nil {
@@ -150,7 +155,7 @@ func TestWriteGate_StatementHolderIsNotMistakenForReentrancy(t *testing.T) {
 	result := make(chan error, 1)
 	go func() { result <- g.acquire(context.Background(), false) }()
 
-	time.Sleep(50 * time.Millisecond)
+	waitQueued(t, g, 1)
 	g.release()
 
 	select {
