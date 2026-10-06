@@ -25,12 +25,13 @@ import (
 // record's full fold but not that component, so this compares the two halves
 // that mean something: the record changed here, or the venue lacks what it says.
 
-// heldHere is the decisions component of the project's committed record.
-func heldHere(t *testing.T, conn *BowrainSourceConnector) string {
+// heldHere is the decisions component of the project's record as the venue
+// holds it once it took the last push: the records that push sent, each under
+// the key the venue files its unit by.
+func heldHere(t *testing.T, srv *refServer) string {
 	t.Helper()
-	records, err := conn.projectDecisions(t.Context())
-	require.NoError(t, err)
-	return venue.DecisionsComponent(records)
+	require.NotEmpty(t, srv.decisions, "a push sent the record")
+	return venue.DecisionsComponent(srv.decisions)
 }
 
 // committedApproval scaffolds a project whose committed record holds one
@@ -61,7 +62,7 @@ func TestPush_SendsTheRecordUntilTheVenueHoldsIt(t *testing.T) {
 		"the venue holds none of these decisions, so the record goes again")
 
 	// The venue now answers with exactly what this project holds.
-	srv.published.Decisions = heldHere(t, conn)
+	srv.published.Decisions = heldHere(t, srv)
 	before := srv.decisionsSent
 	_, err = conn.Push(context.Background(), bowrainconn.PushOptions{})
 	require.NoError(t, err)
@@ -74,7 +75,7 @@ func TestPush_SendsTheRecordAgainWhenTheVenueLosesIt(t *testing.T) {
 
 	_, err := conn.Push(context.Background(), bowrainconn.PushOptions{})
 	require.NoError(t, err)
-	srv.published.Decisions = heldHere(t, conn)
+	srv.published.Decisions = heldHere(t, srv)
 
 	_, err = conn.Push(context.Background(), bowrainconn.PushOptions{})
 	require.NoError(t, err)
@@ -95,7 +96,7 @@ func TestPush_TellsEachStreamWhatItHolds(t *testing.T) {
 
 	_, err := conn.Push(context.Background(), bowrainconn.PushOptions{})
 	require.NoError(t, err)
-	srv.published.Decisions = heldHere(t, conn)
+	srv.published.Decisions = heldHere(t, srv)
 
 	_, err = conn.Push(context.Background(), bowrainconn.PushOptions{})
 	require.NoError(t, err)
@@ -118,7 +119,7 @@ func TestPush_SendsTheRecordWhenItCannotAskWhatTheVenueHolds(t *testing.T) {
 
 	_, err := conn.Push(context.Background(), bowrainconn.PushOptions{})
 	require.NoError(t, err)
-	srv.published.Decisions = heldHere(t, conn)
+	srv.published.Decisions = heldHere(t, srv)
 
 	_, err = conn.Push(context.Background(), bowrainconn.PushOptions{})
 	require.NoError(t, err)

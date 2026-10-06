@@ -1111,11 +1111,9 @@ type TargetAuthorStore interface {
 // and the revision of the translation the write left.
 type EditionWriter struct {
 	ItemName string
-	// Unit is the durable unit, and Block the key the checkout's own records
-	// give it where that differs: a decision a checkout pushes names the
-	// unit by either.
+	// Unit is the durable unit, the key the decisions a push carries name it
+	// by.
 	Unit     string
-	Block    string
 	Variant  string
 	Revision string
 	Author   string

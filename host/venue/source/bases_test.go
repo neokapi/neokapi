@@ -97,15 +97,36 @@ func scannedSource(t *testing.T, c *BowrainSourceConnector, item, key string) *m
 	return nil
 }
 
-// sentFor is the decision record a push sent for key in French.
-func sentFor(t *testing.T, srv *refServer, key string) venue.UnitDecision {
+// filedAs is the key a venue holding nothing files the block keyed key in
+// item under, as a push resolves it.
+func filedAs(t *testing.T, c *BowrainSourceConnector, item, key string) string {
 	t.Helper()
+	scan, err := c.scanLocal(context.Background(), nil)
+	require.NoError(t, err)
+	local := localBlockKeys(scan.blocks)
+	host.ResolveIdentity(scan.blocks, host.Priors{})
+	for _, b := range scan.blocks[item] {
+		if local[b] == key {
+			return b.Key
+		}
+	}
+	t.Fatalf("the push reads no %s in %s", key, item)
+	return ""
+}
+
+// sentFor is the decision record a push sent for the block keyed key in
+// item, in French. The push sends it under the key the venue files the block
+// by, never the key the checkout's ledger names it by.
+func sentFor(t *testing.T, srv *refServer, c *BowrainSourceConnector, item, key string) venue.UnitDecision {
+	t.Helper()
+	filed := filedAs(t, c, item, key)
+	require.NotEqual(t, key, filed, "a venue holding nothing mints the block a key of its own")
 	for _, d := range srv.decisions {
-		if d.Unit == key && d.Variant == "fr" {
+		if d.ItemName == item && d.Unit == filed && d.Variant == "fr" {
 			return d
 		}
 	}
-	t.Fatalf("the push sent no record of %s", key)
+	t.Fatalf("the push sent no record of %s under %s", key, filed)
 	return venue.UnitDecision{}
 }
 
@@ -129,21 +150,23 @@ func TestPush_SendsEachBasisAsTheVenueTakesIt(t *testing.T) {
 	_, err := conn.Push(context.Background(), bowrainconn.PushOptions{})
 	require.NoError(t, err)
 
-	d := sentFor(t, srv, "greeting")
+	d := sentFor(t, srv, conn, arbSource, "greeting")
 	assert.Equal(t, venue.ReviewStateApproved, d.ReviewState)
 	assert.Equal(t, want, d.Basis, "the approval names the source as the venue takes its revision")
 	assert.Equal(t, record.Revision, d.Revision, "the translation half is unchanged")
 
+	byUnit := map[string]string{}
+	for _, key := range []string{"greeting", "farewell"} {
+		byUnit[filedAs(t, conn, arbSource, key)] = key
+	}
 	var writes int
 	for _, w := range srv.writes {
 		if w.ItemName != arbSource {
 			continue
 		}
 		writes++
-		key := w.Unit
-		if w.Block != "" {
-			key = w.Block // the key the checkout's history names the block by
-		}
+		key, ok := byUnit[w.Unit]
+		require.True(t, ok, "the write names %s by the key the venue files a block under", w.Unit)
 		assert.Equal(t, venue.WriterTool, w.Writer, "the flow wrote %s", key)
 		assert.Equal(t, venue.SourceRevision(scannedSource(t, conn, arbSource, key), "en-US"), w.Basis,
 			"the flow's write of %s names its source as the venue takes it", key)
@@ -164,7 +187,7 @@ func TestPush_OfNamedPathsSendsEveryBasisAsTheVenueTakesIt(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	d := sentFor(t, srv, "greeting")
+	d := sentFor(t, srv, conn, arbSource, "greeting")
 	assert.Equal(t, venue.SourceRevision(scannedSource(t, conn, arbSource, "greeting"), "en-US"), d.Basis)
 }
 
@@ -183,7 +206,7 @@ func TestPush_SendsAStaleBasisAsItIs(t *testing.T) {
 
 	_, err := conn.Push(context.Background(), bowrainconn.PushOptions{})
 	require.NoError(t, err)
-	d := sentFor(t, srv, "greeting")
+	d := sentFor(t, srv, conn, arbSource, "greeting")
 	assert.Equal(t, record.Basis, d.Basis)
 	assert.NotEqual(t, venue.SourceRevision(b, "en-US"), d.Basis, "the venue grades it stale")
 }

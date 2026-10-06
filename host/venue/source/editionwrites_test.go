@@ -114,7 +114,7 @@ func TestPush_SendsTheWriteOfTheTranslationTheCheckoutHolds(t *testing.T) {
 
 	var greeting *venue.EditionWrite
 	for i, w := range srv.writes {
-		if w.Unit == "greeting" || w.Block == "greeting" {
+		if w.Unit == filedAs(t, conn, "locales/en.json", "greeting") {
 			greeting = &srv.writes[i]
 		}
 	}
@@ -357,11 +357,12 @@ func TestPush_CarriesHowEachTranslationWasWritten(t *testing.T) {
 			return nil
 		})
 	require.NoError(t, err)
+	localOf := map[string]string{}
+	for key := range sources {
+		localOf[filedAs(t, conn, "locales/en.json", key)] = key
+	}
 	for _, w := range srv.writes {
-		local := w.Unit
-		if w.Block != "" {
-			local = w.Block
-		}
+		local := localOf[w.Unit]
 		assert.Equal(t, "locales/en.json", w.ItemName)
 		assert.Equal(t, "fr", w.Variant)
 		assert.Equal(t, venue.WriterTool, w.Writer, "%s: a tool in the flow wrote it", local)
@@ -385,7 +386,7 @@ func TestPush_CarriesHowEachTranslationWasWritten(t *testing.T) {
 	require.Len(t, srv.writes, 1, "the venue applied the other write, which has not changed")
 	var greeting *venue.EditionWrite
 	for i, w := range srv.writes {
-		if w.Unit == "greeting" || w.Block == "greeting" {
+		if w.Unit == filedAs(t, conn, "locales/en.json", "greeting") {
 			greeting = &srv.writes[i]
 		}
 	}

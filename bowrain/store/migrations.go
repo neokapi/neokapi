@@ -49,6 +49,7 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 // 39  an agent's pre-review of a translation
 // 40  a decision records the revisions of the pairing it blesses
 // 41  a block records its source revision; decisions drop their text hashes
+// 42  an edition write names its unit by the venue's key alone
 var Migrations = []storage.Migration{
 	{
 		Version:     24,
@@ -1637,6 +1638,16 @@ var Migrations = []storage.Migration{
 			-- stamps the revision.
 			UPDATE blocks SET properties = (properties::jsonb - '__source_settled_hash')::text
 			 WHERE properties LIKE '%"__source_settled_hash"%';
+		`,
+	},
+	{
+		Version:     42,
+		Description: "an edition write names its unit by the venue's key alone",
+		SQL: `
+			-- A push sends its decisions and its edition writes under the key
+			-- it resolved each block to (Block.Key), so a write no longer
+			-- carries the key the checkout's records give the unit beside it.
+			ALTER TABLE edition_writers DROP COLUMN IF EXISTS block;
 		`,
 	},
 }

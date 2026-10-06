@@ -127,9 +127,6 @@ func (c *BowrainSourceConnector) projectEditionWrites(ctx context.Context, block
 				Revision: r.After, Writer: r.Actor, Origin: r.Origin,
 				GoverningFingerprint: r.Producer.ContextFingerprint,
 			}
-			if w.Unit != r.Block {
-				w.Block = r.Block
-			}
 			if r.Origin != history.OriginPull {
 				// The revision of the source the write was made from. The
 				// history holds it under the key the run's reader filed the

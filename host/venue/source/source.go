@@ -680,18 +680,25 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	//
 	// It runs BEFORE the declared tree is built, because the tree's keys are
 	// what the venue prunes against, and after the fetch, because the priors
-	// are the venue's. With no priors there is nothing to match against, and
-	// resolution is skipped entirely rather than minting: an unresolved block
-	// keys on its name, exactly as it did before any of this existed.
-	// The block history names each block by the key it had before the
-	// resolution below, which renames blocks to the venue's identities.
+	// are the venue's. A venue that holds nothing offers no priors, and every
+	// block is then minted a key of its own, as on any venue for content it
+	// has never seen. Only a push whose tree fetch failed leaves its blocks
+	// unresolved, keyed on their names.
+	//
+	// The checkout's records (the decision ledger and the block history) name
+	// each block by the key it had before the resolution below, so everything
+	// the push says about a block is sent under the key resolved here
+	// (pushedSources.keyDecisions, projectEditionWrites): the venue files
+	// content, decisions and writes under one key, Block.Key.
 	localKeys := localBlockKeys(blockMap)
+	var priors *host.Priors
 	if serverTree != nil {
 		fetched := serverTree.Tree()
-		host.ResolveIdentity(blockMap, host.Priors{
+		priors = &host.Priors{
 			Documents: fetched.Units(),
 			Units:     fetched.Priors(),
-		})
+		}
+		host.ResolveIdentity(blockMap, *priors)
 	}
 
 	// What this scan read, keyed by the identity just resolved. Together with
@@ -752,10 +759,11 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	if derr != nil {
 		return nil, derr
 	}
-	// Each basis travels as the venue takes it, so the record the venue grades
-	// is the one this checkout reads as current.
-	sources := c.pushedSources(blockMap, localKeys)
-	sources.carryBases(ctx, decisions)
+	// Each decision travels under the key the venue files its block by, and
+	// each basis as the venue takes it, so the record the venue grades is the
+	// one this checkout reads as current.
+	sources := c.pushedSources(blockMap, localKeys, priors)
+	sources.keyDecisions(ctx, decisions)
 	decisionsHash := venue.DecisionRecordsHash(decisions)
 	recordChangedHere := decisionsHash != c.cache.DecisionsSynced
 	// A record that decides nothing has nothing to tell a venue about, so what
@@ -1320,7 +1328,7 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 	// decision is durable where it lands, and the next write of the committed
 	// record carries it into the shards along with everything else this
 	// checkout holds.
-	decisionsRecorded, decisionsSkipped, err := c.recordPulledDecisions(ctx, decisions)
+	decisionsRecorded, decisionsSkipped, err := c.recordPulledDecisions(ctx, c.checkoutKeyed(ctx, decisions))
 	if err != nil {
 		return nil, err
 	}

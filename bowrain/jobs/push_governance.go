@@ -118,29 +118,19 @@ func (g *pushGovernor) noteWriters(ctx context.Context, deps *WorkerDeps, projec
 			return fmt.Errorf("read who wrote the translations the push judges: %w", err)
 		}
 		for _, r := range rows {
-			w := writer{author: r.Author, revision: r.Revision}
-			known[unitVariantRef{item: r.ItemName, unit: r.Unit, variant: r.Variant}] = w
-			if r.Block != "" {
-				// The project's decisions name the unit by its own key.
-				known[unitVariantRef{item: r.ItemName, unit: r.Block, variant: r.Variant}] = w
-			}
+			known[unitVariantRef{item: r.ItemName, unit: r.Unit, variant: r.Variant}] = writer{author: r.Author, revision: r.Revision}
 		}
 	}
 	for _, w := range writes {
-		refs := []unitVariantRef{{item: w.ItemName, unit: w.Unit, variant: w.Variant}}
-		if w.Block != "" {
-			refs = append(refs, unitVariantRef{item: w.ItemName, unit: w.Block, variant: w.Variant})
-		}
-		for _, ref := range refs {
-			prev, had := known[ref]
-			switch {
-			case had && prev.revision == w.Revision:
-				// The write an earlier push recorded, sent again.
-			case w.ByHand():
-				known[ref] = writer{author: g.actor, revision: w.Revision}
-			case had:
-				delete(known, ref)
-			}
+		ref := unitVariantRef{item: w.ItemName, unit: w.Unit, variant: w.Variant}
+		prev, had := known[ref]
+		switch {
+		case had && prev.revision == w.Revision:
+			// The write an earlier push recorded, sent again.
+		case w.ByHand():
+			known[ref] = writer{author: g.actor, revision: w.Revision}
+		case had:
+			delete(known, ref)
 		}
 	}
 	g.writers = make(map[unitVariantRef]string, len(known))

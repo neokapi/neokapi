@@ -4,10 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 
+	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/venue"
+	"github.com/neokapi/neokapi/host"
 )
 
 // The decisions content type, client half. A push carries the decisions that
@@ -128,6 +131,50 @@ func (c *BowrainSourceConnector) projectDecisions(ctx context.Context) ([]venue.
 		})
 	}
 	return out, nil
+}
+
+// checkoutKeyed names each pulled decision's unit by the key the checkout's
+// records name its block by.
+//
+// The venue files a unit under the key a push resolved its block to
+// (Block.Key), and the checkout names the block by the key its reader gives
+// it. A pull resolves the checkout's source against the venue's tree, as a push
+// does, and files each decision under the reader's key of the block that
+// resolves to its unit, so the change service and a flow read it on the block
+// it judges. A decision whose unit no block of the checkout resolves to, and
+// every decision when the tree cannot be read, keeps the venue's key.
+func (c *BowrainSourceConnector) checkoutKeyed(ctx context.Context, pulled []venue.UnitDecision) []venue.UnitDecision {
+	if len(pulled) == 0 || c.client == nil {
+		return pulled
+	}
+	tree, err := c.client.Tree(ctx, c.pushScope(nil))
+	if err != nil {
+		slog.DebugContext(ctx, "read the venue's tree to key pulled decisions", "error", err)
+		return pulled
+	}
+	scan, err := c.scanLocal(ctx, nil)
+	if err != nil {
+		slog.DebugContext(ctx, "read the source to key pulled decisions", "error", err)
+		return pulled
+	}
+	local := localBlockKeys(scan.blocks)
+	fetched := tree.Tree()
+	host.ResolveIdentity(scan.blocks, host.Priors{Documents: fetched.Units(), Units: fetched.Priors()})
+	type unitAt struct{ item, unit string }
+	byVenue := map[unitAt]string{}
+	for item, blocks := range scan.blocks {
+		for _, b := range blocks {
+			byVenue[unitAt{item, convergence.BlockKey(b)}] = local[b]
+		}
+	}
+	out := make([]venue.UnitDecision, len(pulled))
+	for i, d := range pulled {
+		if k, ok := byVenue[unitAt{d.ItemName, d.Unit}]; ok && k != "" {
+			d.Unit = k
+		}
+		out[i] = d
+	}
+	return out
 }
 
 // recordPulledDecisions reconciles the server's decision ledger into the

@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -134,33 +133,19 @@ func (s e2eSession) do(t *testing.T, req *http.Request) e2eResponse {
 
 // checkout is a checkout of the session's project holding an ARB catalog
 // that declares en, with a placeholder, so a translation carries a code.
+//
+// Its pushes turn the server's own convergence off, so no draft the server
+// makes on its own lands between two steps of a test.
 func (s e2eSession) checkout(t *testing.T) *BowrainSourceConnector {
 	t.Helper()
-	return checkoutAt(t, s.url, "/"+s.ws+"/"+s.pid, s.pid, s.token, "en-US", map[string]string{
+	c := checkoutAt(t, s.url, "/"+s.ws+"/"+s.pid, s.pid, s.token, "en-US", map[string]string{
 		arbSource: `{"@@locale": "en", "greeting": "Hello {name}, read the guide", ` +
 			`"@greeting": {"placeholders": {"name": {}}}, "farewell": "Goodbye now"}` + "\n",
 	}, coreproj.Collection{Name: "app", Path: arbSource, Target: "l10n/app_{lang}.arb"})
-}
-
-// seed stores the checkout's source on the server as a client that resolves
-// no identity sends it, so the server files each unit under the format's name
-// (greeting, farewell). The checkout's ledger keys its decisions by that name,
-// and a push resolves its blocks against the units the server holds, so the
-// decisions these tests push land on the units they name. The same push turns
-// the server's own convergence off, so no draft the server makes on its own
-// lands between two steps of a test.
-func (s e2eSession) seed(t *testing.T, c *BowrainSourceConnector) {
-	t.Helper()
-	ctx := context.Background()
-	scan, err := c.scanLocal(ctx, nil)
-	require.NoError(t, err)
-	format := c.detectFormat(filepath.Join(c.project.Root, filepath.FromSlash(arbSource)))
 	settings := apiclient.NewPushContext(nil)
 	settings.Settings = venue.ProjectSettings{venue.SettingConvergePolicy: "manual"}
-	resp, err := c.client.Push(ctx, scan.blocks, []apiclient.ItemMeta{{Name: arbSource, Format: format}},
-		settings, nil, apiclient.TransferUnder("en-US"))
-	require.NoError(t, err)
-	s.settle(t, c, resp.PushID)
+	c.SetPushContext(settings)
+	return c
 }
 
 // settle waits until the worker has applied the push pushID.
@@ -207,13 +192,12 @@ func (s e2eSession) grade(t *testing.T, c *BowrainSourceConnector, key string) p
 	var u platformUnit
 	pr, err := c.client.Pull(context.Background(), 0, nil, 0)
 	require.NoError(t, err)
-	var bid string
+	var bid, unit string
 	for _, sb := range pr.Blocks {
 		if sb.ItemName != arbSource || sb.Name != key {
 			continue
 		}
-		require.Equal(t, key, sb.Unit, "the server files the unit under the name the checkout's ledger uses")
-		bid = sb.ID
+		bid, unit = sb.ID, sb.Unit
 		b := apiclient.SyncBlockToBlock(sb)
 		u.translation = model.TargetRevision(b, "fr")
 		if fr, ok := b.TargetEdition("fr"); ok {
@@ -222,7 +206,7 @@ func (s e2eSession) grade(t *testing.T, c *BowrainSourceConnector, key string) p
 	}
 	require.NotEmpty(t, bid, "the server holds %s", key)
 	for _, d := range pr.Decisions {
-		if d.ItemName == arbSource && d.Unit == key && d.Variant == "fr" {
+		if d.ItemName == arbSource && d.Unit == unit && d.Variant == "fr" {
 			u.record = d
 		}
 	}
@@ -265,7 +249,6 @@ func (s e2eSession) grade(t *testing.T, c *BowrainSourceConnector, key string) p
 func TestRevisionE2E_ACheckoutApprovalOfADeclaredLanguageFileIsCurrentOnTheServer(t *testing.T) {
 	s := newE2ESession(t)
 	c := s.checkout(t)
-	s.seed(t, c)
 	up(t, c)
 	record := approveFrench(t, c, arbSource, "greeting")
 	b := scannedSource(t, c, arbSource, "greeting")
@@ -289,8 +272,8 @@ func TestRevisionE2E_ACheckoutApprovalOfADeclaredLanguageFileIsCurrentOnTheServe
 func TestRevisionE2E_AServerDraftApprovedOnACheckoutIsCurrentOnTheServer(t *testing.T) {
 	s := newE2ESession(t)
 	c := s.checkout(t)
-	s.seed(t, c)
 	up(t, c)
+	s.push(t, c)
 
 	resp := s.call(t, http.MethodPost, "/api/v1/"+s.ws+"/"+s.pid+"/actions/main/pseudo-translate?item="+url.QueryEscape(arbSource),
 		`{"target_locale":"fr"}`)
