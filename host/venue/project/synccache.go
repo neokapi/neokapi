@@ -10,13 +10,14 @@ import (
 	coreproj "github.com/neokapi/neokapi/core/project"
 )
 
-// SyncCacheFilename is the file written under <state-dir>/work/cache/ that tracks
+// SyncCacheFilename is the file written under <state-dir>/sync/ that tracks
 // the last known server state for incremental bowrain sync.
 const SyncCacheFilename = "sync-cache.json"
 
 // SyncCache tracks the last known server state for incremental sync. It
-// lives at <state-dir>/work/cache/sync-cache.json (always gitignored — the file
-// holds claim tokens and is regenerable from server state).
+// lives at <state-dir>/sync/sync-cache.json, outside the derived work/ tree,
+// because the claim token of an anonymous project exists nowhere else. The
+// directory is kept out of version control (project.EnsureLocalDir).
 //
 // FRESHNESS IS NOT HERE. Where a stream stands — the position consumed and the
 // governance identities last confirmed — is one composite ref per stream, kept
@@ -109,9 +110,14 @@ type FileCache struct {
 }
 
 // SyncCachePathFor returns the on-disk path of the bowrain sync cache for
-// the given Layout. Bowrain owns this path; the framework Layout has no
-// notion of a sync cache.
+// the given Layout.
 func SyncCachePathFor(layout coreproj.Layout) string {
+	return filepath.Join(layout.SyncDir(), SyncCacheFilename)
+}
+
+// legacySyncCachePath is where the cache was written before it left work/. A
+// cache found only there is read, and the next Save moves it.
+func legacySyncCachePath(layout coreproj.Layout) string {
 	return filepath.Join(layout.CacheDir(), SyncCacheFilename)
 }
 
@@ -120,6 +126,9 @@ func SyncCachePathFor(layout coreproj.Layout) string {
 // and pull are responsible for repopulating it.
 func LoadSyncCache(layout coreproj.Layout) *SyncCache {
 	data, err := os.ReadFile(SyncCachePathFor(layout))
+	if err != nil && os.IsNotExist(err) {
+		data, err = os.ReadFile(legacySyncCachePath(layout))
+	}
 	if err != nil {
 		return newEmptySyncCache()
 	}
@@ -133,17 +142,22 @@ func LoadSyncCache(layout coreproj.Layout) *SyncCache {
 	return &cache
 }
 
-// Save persists the sync cache to <state-dir>/work/cache/sync-cache.json. The
-// cache directory is created if missing.
+// Save persists the sync cache to <state-dir>/sync/sync-cache.json, owner-only,
+// creating the directory if missing, and removes a copy left at the path the
+// cache had before.
 func (c *SyncCache) Save(layout coreproj.Layout) error {
-	if err := os.MkdirAll(layout.CacheDir(), 0o755); err != nil {
-		return fmt.Errorf("project: create cache dir: %w", err)
+	if _, err := coreproj.EnsureLocalDir(layout, coreproj.SyncDirName); err != nil {
+		return fmt.Errorf("project: %w", err)
 	}
 	data, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
 		return fmt.Errorf("project: marshal sync cache: %w", err)
 	}
-	return os.WriteFile(SyncCachePathFor(layout), data, 0o644)
+	if err := os.WriteFile(SyncCachePathFor(layout), data, 0o600); err != nil {
+		return err
+	}
+	_ = os.Remove(legacySyncCachePath(layout))
+	return nil
 }
 
 // NewEmptySyncCache returns a cache describing nothing yet synced. Callers use

@@ -175,6 +175,9 @@ func (a *App) RunExtract(cmd Command) error {
 	}
 	redactionVault := ""
 	if redactionSpec != nil {
+		if err := layout.PrepareVault(); err != nil {
+			return fmt.Errorf("extract: %w", err)
+		}
 		redactionVault = layout.RedactionSidecarPath(batchID)
 	}
 

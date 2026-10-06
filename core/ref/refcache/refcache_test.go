@@ -1,6 +1,7 @@
 package refcache
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -75,7 +76,7 @@ func TestMissingAndCorruptFilesCostOneRoundTripNotAWrongAnswer(t *testing.T) {
 
 	t.Run("corrupt", func(t *testing.T) {
 		layout := testLayout(t)
-		require.NoError(t, os.MkdirAll(layout.CacheDir(), 0o755))
+		require.NoError(t, os.MkdirAll(layout.SyncDir(), 0o755))
 		require.NoError(t, os.WriteFile(PathFor(layout), []byte("{not json"), 0o644))
 
 		cache := Load(layout, "https://one.test", "p1")
@@ -179,4 +180,22 @@ func TestObservedRefAnswersForTheOnlyStreamRecorded(t *testing.T) {
 
 	var absent *Cache
 	assert.True(t, absent.ObservedRef("").IsZero())
+}
+
+// A cache written while it lived under work/cache/ is read from there, and the
+// next save moves it to the sync directory.
+func TestLegacyPathIsReadAndMovedOnSave(t *testing.T) {
+	layout := testLayout(t)
+	require.NoError(t, os.MkdirAll(layout.CacheDir(), 0o755))
+	legacy := (&Cache{ServerURL: "https://one.test", ProjectID: "p1"})
+	legacy.Consume("main", 7)
+	data, err := json.Marshal(legacy)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(layout.CacheDir(), Filename), data, 0o644))
+
+	cache := Load(layout, "https://one.test", "p1")
+	assert.Equal(t, int64(7), cache.Ref("main").Content, "the cache at its old path is read")
+	require.NoError(t, cache.Save(layout))
+	assert.FileExists(t, PathFor(layout))
+	assert.NoFileExists(t, filepath.Join(layout.CacheDir(), Filename))
 }

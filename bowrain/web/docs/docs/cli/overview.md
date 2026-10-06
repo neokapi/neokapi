@@ -33,8 +33,7 @@ A connected project is a kapi project whose recipe declares a `bowrain:` block:
 - **the project's context store**: the terms, content memory, voice profiles and
   decisions, in a workspace under your data directory, shared by every checkout
 - **`.kapi/`**: this checkout's cache (gitignored as a whole): `work/store.db`,
-  its projection of the working tree, and `work/cache/sync-cache.json`, the
-  sync state
+  its projection of the working tree, and `sync/`, the sync state
 
 The CLI searches upward from the current directory, the way git finds a
 repository root. See [Project model](/cli/project-model) for the full recipe

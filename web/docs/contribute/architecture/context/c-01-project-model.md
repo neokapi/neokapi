@@ -19,9 +19,10 @@ The project's **context** lives in a per-user workspace outside every checkout,
 one database per project, reached by every clone and worktree of it
 ([C-03](c-03-context-store-and-graph.md)).
 
-`.kapi/` holds checkout-local data: the derived block store and caches, personal
-reader filters and any redaction vault. `kapi init` excludes the directory from
-version control. Derived data can be rebuilt; personal filters and withheld
+`.kapi/` holds checkout-local data: the derived block store and caches under
+`work/`, and beside them the personal reader filters, a venue's sync state and
+any redaction vault. `kapi init` excludes the directory from version control.
+Deleting `work/` loses nothing; the filters, the sync state and withheld
 originals in the vault require separate preservation.
 
 A `ProjectContext` resolves the recipe into a runtime configuration, and a
@@ -67,13 +68,13 @@ my-app/
 ├── .kapi/                      ← THIS CHECKOUT'S CACHE (ignored as a whole)
 │   ├── .gitignore              ← `*`, written by kapi init
 │   ├── filters.local.json      ← personal saved filters
-│   └── work/
+│   ├── vault/                  ← withheld originals (C-10), local-only, owner-only
+│   │   └── batches/            ← per-batch vault sidecars (C-10)
+│   ├── sync/                   ← a venue's refs (C-05) and sync cache
+│   └── work/                   ← free to delete, always
 │       ├── store.db            ← this checkout's projection (C-03)
-│       ├── vault/              ← withheld originals (C-10), local-only
-│       └── cache/              ← free to delete, always
+│       └── cache/
 │           ├── extractions/    ← per-extract batch state (M-01)
-│           ├── redaction/      ← per-batch vault sidecars (C-10)
-│           ├── refs.json       ← the observed freshness refs (C-05)
 │           └── collections/    ← overlay layers per collection
 ├── flows/                      ← file-per-flow definitions named by flows_dir (E-04), when used
 ├── src/                        ← authored sources (user-owned)
@@ -102,9 +103,12 @@ Ownership, zone by zone:
 - **`.kapi/`** holds data specific to this checkout.
   `work/store.db` is the projection of the working tree: the block cache, the
   overlays a flow wrote, the extraction stamps
-  ([C-03](c-03-context-store-and-graph.md)). Beside it sit the caches, the
-  redaction vault ([C-10](c-10-redaction.md)) and the personal saved reader
-  filters with the choice of the active one. Shared reader filters are project settings kept in the context store
+  ([C-03](c-03-context-store-and-graph.md)), with the caches beside it under
+  `work/`. Outside `work/` sit the redaction vault ([C-10](c-10-redaction.md)),
+  a venue's sync state and the personal saved reader filters with the choice of
+  the active one. `core/project.EnsureLocalDir` writes the vault and the sync
+  directory owner-only and adds each to `.kapi/.gitignore` when the file
+  ignores less than the whole directory. Shared reader filters are project settings kept in the context store
   (`core/projectdb.SettingSavedFilters`), and a project's flow files sit in the committed
   directory its recipe names with `flows_dir:`
   ([E-04](../engine/e-04-flows-and-io-binding.md)), and kapi reads nothing
@@ -142,12 +146,14 @@ rule already present is never rewritten.
 
 What deleting costs, stated exactly:
 
-- `rm -rf .kapi/work/cache` is **always free**. Everything under it is rebuilt on
-  the next run.
-- `rm -rf .kapi` costs a re-extraction and one more thing: the redaction vault
-  under `.kapi/work/vault/` holds withheld originals that are **local-only and
-  not regenerable** ([C-10](c-10-redaction.md)): never committed, never synced,
-  so nothing anywhere else has a copy. The project's terms, voice profiles,
+- `rm -rf .kapi/work` is **always free** beyond a re-extraction. Everything
+  under it is rebuilt on the next run, and a parked locale's drafts are served
+  again from the workspace home ([C-03](c-03-context-store-and-graph.md)).
+- `rm -rf .kapi` costs more: the redaction vault under `.kapi/vault/` holds
+  withheld originals that are **local-only and not regenerable**
+  ([C-10](c-10-redaction.md)): never committed, never synced, so nothing
+  anywhere else has a copy. `.kapi/sync/` holds a venue's sync state, an
+  anonymous project's claim token among it. The project's terms, voice profiles,
   content memory and decisions are in the workspace and stay
   ([C-03](c-03-context-store-and-graph.md)).
 

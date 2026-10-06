@@ -164,7 +164,7 @@ func TestPull_DecisionsSurviveDeletingTheProjection(t *testing.T) {
 		_ = os.Remove(proj.Layout.StorePath() + suffix)
 	}
 	require.NoFileExists(t, proj.Layout.StorePath())
-	require.FileExists(t, filepath.Join(proj.Layout.CacheDir(), refcache.Filename))
+	require.FileExists(t, filepath.Join(proj.Layout.SyncDir(), refcache.Filename))
 
 	second := &host.App{}
 	defer second.Shutdown()

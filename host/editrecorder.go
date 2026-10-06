@@ -66,6 +66,9 @@ func (a *App) EditRecorder(ctx context.Context, root string) (change.Recorder, e
 		return nil, fmt.Errorf("record edits: read the redaction policy: %w", err)
 	default:
 		if spec := ProjectRedaction(proj); spec != nil {
+			if err := layout.PrepareVault(); err != nil {
+				return nil, fmt.Errorf("record edits: %w", err)
+			}
 			r.redaction = &recordRedaction{spec: spec, root: layout.Root, vault: layout.RedactionVaultPath()}
 		}
 	}

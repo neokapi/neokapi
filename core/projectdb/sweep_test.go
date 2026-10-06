@@ -32,8 +32,9 @@ func flatDecisionsDir(layout project.Layout) string {
 	return filepath.Join(layout.StateDir, "units")
 }
 
-func flatVaultDir(layout project.Layout) string {
-	return filepath.Join(layout.StateDir, "vault")
+// workVaultDir is where the vault sat while it lived under work/.
+func workVaultDir(layout project.Layout) string {
+	return filepath.Join(layout.StateDir, "work", "vault")
 }
 
 func oldBlockStorePath(layout project.Layout) string {
@@ -263,30 +264,51 @@ func TestFold_MovesCommittedRecordIntoUnitState(t *testing.T) {
 	assert.True(t, ok, "an import reads the moved record")
 }
 
-// The vault holds the only copy of a withheld original. It moves for the same
-// reason the decision record does, and is the one thing under work/ that kapi
-// never deletes on its own initiative.
-func TestFold_MovesVaultIntoWork(t *testing.T) {
+// The vault holds the only copy of a withheld original. It moves out of
+// work/, which is a cache, for the same reason the decision record moves: no
+// source reproduces it.
+func TestFold_MovesVaultOutOfWork(t *testing.T) {
 	layout := newLayout(t)
-	require.NoError(t, os.MkdirAll(filepath.Join(flatVaultDir(layout), "batches"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(workVaultDir(layout), "batches"), 0o755))
 	require.NoError(t, os.WriteFile(
-		filepath.Join(flatVaultDir(layout), "redaction.json"),
+		filepath.Join(workVaultDir(layout), "redaction.json"),
 		[]byte(`{"secret":"the original"}`), 0o600))
 	require.NoError(t, os.WriteFile(
-		filepath.Join(flatVaultDir(layout), "batches", "b-1.json"),
+		filepath.Join(workVaultDir(layout), "batches", "b-1.json"),
 		[]byte(`{"secret":"nested"}`), 0o600))
 
 	openStore(t, layout)
 
 	moved, err := os.ReadFile(layout.RedactionVaultPath())
-	require.NoError(t, err, "the project vault landed under .kapi/work/vault/")
+	require.NoError(t, err, "the project vault landed in .kapi/vault/")
 	assert.JSONEq(t, `{"secret":"the original"}`, string(moved))
 
 	nested, err := os.ReadFile(filepath.Join(layout.VaultDir(), "batches", "b-1.json"))
 	require.NoError(t, err, "a subdirectory of the vault moves whole")
 	assert.JSONEq(t, `{"secret":"nested"}`, string(nested))
 
-	assert.NoDirExists(t, flatVaultDir(layout))
+	assert.NoDirExists(t, workVaultDir(layout))
+
+	info, err := os.Stat(layout.VaultDir())
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0o700), info.Mode().Perm(), "the moved vault is owner-only")
+}
+
+// The venue sync state is the checkout's position in a server's feed and an
+// anonymous project's claim token. It moves out of work/cache/ with the vault.
+func TestFold_MovesSyncStateOutOfWork(t *testing.T) {
+	layout := newLayout(t)
+	cache := filepath.Join(layout.StateDir, "work", "cache")
+	require.NoError(t, os.MkdirAll(cache, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(cache, "refs.json"), []byte(`{"project_id":"p"}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(cache, "sync-cache.json"), []byte(`{"claim_token":"t"}`), 0o644))
+
+	openStore(t, layout)
+
+	for _, name := range []string{"refs.json", "sync-cache.json"} {
+		assert.FileExists(t, filepath.Join(layout.SyncDir(), name))
+		assert.NoFileExists(t, filepath.Join(cache, name))
+	}
 }
 
 // The per-batch redaction sidecars are the one thing under the cache root that
@@ -374,9 +396,9 @@ func TestFold_SecondOpenIsANoOp(t *testing.T) {
 	require.NoError(t, state.WriteCommitted(flatDecisionsDir(layout), []state.UnitState{
 		unit("u-flat", "d-intro", "Committed under the flat layout"),
 	}))
-	require.NoError(t, os.MkdirAll(flatVaultDir(layout), 0o755))
+	require.NoError(t, os.MkdirAll(workVaultDir(layout), 0o755))
 	require.NoError(t, os.WriteFile(
-		filepath.Join(flatVaultDir(layout), "redaction.json"), []byte(`{"a":1}`), 0o600))
+		filepath.Join(workVaultDir(layout), "redaction.json"), []byte(`{"a":1}`), 0o600))
 
 	db := openStore(t, layout)
 	require.NoError(t, db.Close())
@@ -398,7 +420,7 @@ func TestFold_SecondOpenIsANoOp(t *testing.T) {
 	assert.Equal(t, firstShard, secondShard)
 	assert.Equal(t, firstVault, secondVault)
 	assert.NoDirExists(t, flatDecisionsDir(layout))
-	assert.NoDirExists(t, flatVaultDir(layout))
+	assert.NoDirExists(t, workVaultDir(layout))
 }
 
 // A collision is the case where losing something is possible, so it is the case

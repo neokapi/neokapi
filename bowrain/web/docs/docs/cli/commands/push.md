@@ -86,8 +86,9 @@ could not:
   derived from that declaration. The server refuses content at a point whose
   axis no recipe declares.
 
-`.kapi/work/cache/sync-cache.json` records the last tree the client declared
-and the ref it was committed as. It is gitignored and safe to delete: the next
+`.kapi/sync/sync-cache.json` records the last tree the client declared
+and the ref it was committed as. It is gitignored and survives deleting
+`.kapi/work/`. Deleting it loses an anonymous project's claim token; otherwise: the next
 push declares the tree again and the server tells it what it lacks.
 
 ## Decisions the server accepts

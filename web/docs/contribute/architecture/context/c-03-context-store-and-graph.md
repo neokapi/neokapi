@@ -637,9 +637,10 @@ overlays a producer serves them from back into the block store from the stamps
 the workspace home keeps, and the pass calls no provider for them. A draft a
 person or an agent has edited since is restored from the latest draft a
 producer wrote for it, which the log keeps, so the producer serves that draft
-and the edit stays kept. The redaction vault at `.kapi/work/vault/` is an
-exception: it contains withheld originals that are neither committed nor sent
-to a service. Deleting it loses those values, in kept drafts too
+and the edit stays kept. What no source reproduces sits beside `work/`: the
+redaction vault at `.kapi/vault/`, which holds withheld originals that are
+neither committed nor sent to a service, and a venue's sync state at
+`.kapi/sync/`. Deleting the vault loses those values, in kept drafts too
 ([C-10](c-10-redaction.md)).
 
 The context store has a separate lifetime in the workspace. Deleting

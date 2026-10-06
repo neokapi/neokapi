@@ -2295,7 +2295,7 @@ All of these hold before the 1.3.0 tag:
     an established translation reads as an edit and is not held to review permission. Every
     checkout's recorded ref names a decisions fold the server no longer computes, so a checkout's
     first push after the deploy is refused until it pulls, and after a reset each checkout deletes
-    `.kapi/work/cache/refs.json`. The first push that lands re-sends every block, which stamps
+    `.kapi/sync/refs.json`. The first push that lands re-sends every block, which stamps
     each source revision, logs a source change for every block and demotes every approval whose
     basis is not that revision. A checkout's approval since version 40 of a translation the
     platform holds comes back on the same push, which re-sends the checkout's decisions with each

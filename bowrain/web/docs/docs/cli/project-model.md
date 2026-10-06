@@ -16,11 +16,11 @@ my-app/
 ├── .kapi/                      # this checkout's cache, ignored as a whole
 │   ├── .gitignore              # `*`, written by kapi init
 │   ├── filters.local.json      # personal saved reader filters
-│   └── work/
+│   ├── vault/                  # withheld redaction originals (local-only)
+│   ├── sync/                   # the tree last declared to the server, and the refs
+│   └── work/                   # free to delete: rebuilt on the next run
 │       ├── store.db            # this checkout's projection of its working tree
-│       ├── vault/              # withheld redaction originals (local-only)
-│       └── cache/              # free to delete, always
-│           ├── sync-cache.json  # the tree last declared to the server
+│       └── cache/
 │           ├── extractions/
 │           └── collections/
 ├── flows/                      # file-per-flow definitions, named by flows_dir (optional)
@@ -414,7 +414,7 @@ All commands work from any subdirectory within the project. A directory holds at
 
 `.kapi/`: `kapi init` writes `.kapi/.gitignore` with one line, `*`, so none of the cache reaches git.
 
-Deleting `.kapi/work/cache/` costs nothing. Deleting `.kapi/` costs a re-extraction, and, if the project uses redaction, the withheld originals in `.kapi/work/vault/`, which are local-only by design and rebuild from nothing. Your context is in the workspace and survives it; deleting the workspace costs every project's terms, voice profiles, content memory and decisions, so push each project's context to its backend, or take a copy with `kapi context export -o <file>.kpz`, before you remove that.
+Deleting `.kapi/work/` costs a re-extraction and nothing else. Deleting `.kapi/` also costs the sync state in `.kapi/sync/` and, if the project uses redaction, the withheld originals in `.kapi/vault/`, which are local-only by design and rebuild from nothing. Your context is in the workspace and survives it; deleting the workspace costs every project's terms, voice profiles, content memory and decisions, so push each project's context to its backend, or take a copy with `kapi context export -o <file>.kpz`, before you remove that.
 
 ## Initialization
 

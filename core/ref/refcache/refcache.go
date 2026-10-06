@@ -2,12 +2,12 @@
 // the position this project has consumed and the governance identities its last
 // contact with the server established.
 //
-// The file is DESTINATION-KEYED and DISPOSABLE. Everything in it is true of one
-// server and one project and of no other, so a cache belonging to a different
-// destination is discarded rather than reconciled; and everything in it is
-// re-derivable, so deleting it costs exactly one negotiation round trip and can
-// never cost a wrong answer. That is why it is not migrated, versioned or
-// repaired: a file this side cannot read is a file this side re-fetches.
+// The file is DESTINATION-KEYED. Everything in it is true of one server and one
+// project and of no other, so a cache belonging to a different destination is
+// discarded rather than reconciled, and a file this side cannot read is a file
+// this side re-fetches. It sits beside the sync cache in the checkout's sync
+// directory (project.SyncDirName), outside the derived work/ tree, so deleting
+// `.kapi/work/` never costs a checkout the position it consumed.
 //
 // It sits in the framework, beside the ref it holds, because the transport is
 // not its only reader: the retrieval surfaces report that a project's
@@ -27,7 +27,7 @@ import (
 	"github.com/neokapi/neokapi/core/ref"
 )
 
-// Filename is the file written under <state-dir>/work/cache/.
+// Filename is the file written under <state-dir>/sync/.
 const Filename = "refs.json"
 
 // Cache is one project's refs, keyed to the destination they describe.
@@ -49,10 +49,25 @@ type Cache struct {
 	Streams map[string]ref.Ref `json:"streams,omitempty"`
 }
 
-// PathFor returns the cache's on-disk path for a project layout. Bowrain owns
-// this path; the framework layout has no notion of a sync destination.
+// PathFor returns the cache's on-disk path for a project layout.
 func PathFor(layout coreproj.Layout) string {
+	return filepath.Join(layout.SyncDir(), Filename)
+}
+
+// legacyPath is where the cache was written before it left work/. A cache
+// found only there is read, and the next Save moves it.
+func legacyPath(layout coreproj.Layout) string {
 	return filepath.Join(layout.CacheDir(), Filename)
+}
+
+// readFile reads the cache, from the path it had before when only that holds
+// one.
+func readFile(layout coreproj.Layout) ([]byte, error) {
+	data, err := os.ReadFile(PathFor(layout))
+	if err != nil && os.IsNotExist(err) {
+		return os.ReadFile(legacyPath(layout))
+	}
+	return data, err
 }
 
 // Load reads the cache for a destination, returning an empty one when the file
@@ -65,7 +80,7 @@ func PathFor(layout coreproj.Layout) string {
 func Load(layout coreproj.Layout, serverURL, projectID string) *Cache {
 	empty := &Cache{ServerURL: serverURL, ProjectID: projectID, Streams: map[string]ref.Ref{}}
 
-	data, err := os.ReadFile(PathFor(layout))
+	data, err := readFile(layout)
 	if err != nil {
 		return empty
 	}
@@ -108,7 +123,7 @@ func (c *Cache) Ref(stream string) ref.Ref {
 func LoadObserved(layout coreproj.Layout) *Cache {
 	empty := &Cache{Streams: map[string]ref.Ref{}}
 
-	data, err := os.ReadFile(PathFor(layout))
+	data, err := readFile(layout)
 	if err != nil {
 		return empty
 	}
@@ -257,20 +272,24 @@ func (c *Cache) Touch(at time.Time) {
 	}
 }
 
-// Save writes the cache under the layout's cache directory, creating it if
-// missing.
+// Save writes the cache into the layout's sync directory, creating it if
+// missing, and removes a copy left at the path the cache had before.
 func (c *Cache) Save(layout coreproj.Layout) error {
 	if c == nil {
 		return nil
 	}
-	if err := os.MkdirAll(layout.CacheDir(), 0o755); err != nil {
-		return fmt.Errorf("refcache: create cache dir: %w", err)
+	if _, err := coreproj.EnsureLocalDir(layout, coreproj.SyncDirName); err != nil {
+		return fmt.Errorf("refcache: %w", err)
 	}
 	data, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
 		return fmt.Errorf("refcache: marshal refs: %w", err)
 	}
-	return os.WriteFile(PathFor(layout), data, 0o644)
+	if err := os.WriteFile(PathFor(layout), data, 0o600); err != nil {
+		return err
+	}
+	_ = os.Remove(legacyPath(layout))
+	return nil
 }
 
 func (c *Cache) update(stream string, apply func(ref.Ref) ref.Ref) {
