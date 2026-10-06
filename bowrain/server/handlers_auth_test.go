@@ -45,6 +45,7 @@ func TestDeviceAuthStartRespectsForwardedHeaders(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/device/start",
 		strings.NewReader(startForm.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.RemoteAddr = loadBalancerAddr
 	req.Header.Set("X-Forwarded-Host", "bowrain.mymac")
 	req.Header.Set("X-Forwarded-Proto", "https")
 	rec := httptest.NewRecorder()
