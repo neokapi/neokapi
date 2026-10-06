@@ -176,7 +176,8 @@ source) and `--format` / `-f`.
 - **`kgrep`**: `-i`, `-v`, `-c`, `-n`, `-o`, `-l` / `-L`, `-w`, `-F`, `-r`,
   `-H` / `--no-filename`, repeatable `-e`, `-q`, plus `--color` and `--json`.
 - **`ksed`**: repeatable `-e` (`s/regexp/replacement/flags`), `-i` with an
-  optional attached backup suffix, `-R` to recurse, and `--print-ops`. The
+  optional attached backup suffix, `-R` to recurse, `--print-ops`, and `--force`
+  to write an edited binary document to a terminal. The
   script supports backreferences, the `g` and `i` flags, and any single-byte
   delimiter. sed's attached-suffix form (`-i.bak`) is normalised before
   dispatch.
@@ -250,7 +251,7 @@ results reliably.
 
 ## Related
 
-- [F-02: The content model](../foundations/f-02-content-model.md): blocks, the unit the toolbox projects to
+- [F-02: The content model](../foundations/f-02-content-model.md): blocks, which the toolbox projects to text
 - [E-02: The format system](../engine/e-02-format-system.md): readers, writers, writer output modes, and the skeleton store
 - [S-01: The kapi CLI](s-01-kapi-cli.md): the CLI base the utilities live in and the exit-code contract they extend
 - [S-03: Agent surfaces](s-03-agent-surfaces.md): the skill that drives the toolbox, and `kapi apply` as the reviewed-edit sibling of `ksed`
