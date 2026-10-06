@@ -77,10 +77,10 @@ func unitState(i int) state.UnitState {
 // been waiting longest, so a two-millisecond writer loses to a two-second one
 // indefinitely.
 //
-// The gate counts the queue in grants, and the test reads that count. Served in
-// arrival order, a writer that queues waits through at most one grant to each
+// The gate counts the queue in releases, and the test reads that count. Served in
+// arrival order, a writer that queues waits through at most one release by each
 // other writer, however long each of them holds the permit, so with four fat
-// writers and the drip no wait spans more than four grants. A queue that passed
+// writers and the drip no wait spans more than four releases. A queue that passed
 // the drip over would show as a wait through many. How many writes the drip
 // completes in a second depends instead on how long each fat transaction holds
 // the file, which is the speed and the load of the machine, and in
@@ -170,7 +170,7 @@ func TestWriteGate_SmallWritesAreNotStarved(t *testing.T) {
 	})
 	wg.Wait()
 	gate := raw.WriteGateStats()
-	t.Logf("the drip recorded %d decisions; the gate made %d grants, and the longest wait spanned %d of them",
+	t.Logf("the drip recorded %d decisions; the gate made %d grants, and the longest wait spanned %d releases",
 		dripOK.Load(), gate.Grants, gate.MostWaited)
 
 	assert.Zero(t, busy.Load(), "a write on the gated handle was refused for the lock")
@@ -179,7 +179,7 @@ func TestWriteGate_SmallWritesAreNotStarved(t *testing.T) {
 	assert.Equalf(t, int64(dripWrites), dripOK.Load(),
 		"the drip recorded %d of its %d decisions before the %s backstop", dripOK.Load(), dripWrites, backstop)
 	assert.LessOrEqualf(t, gate.MostWaited, uint64(fatWriters),
-		"a writer queued through %d of the %d grants; served in arrival order, it waits through each of the other %d writers at most once",
+		"a writer waited through %d releases (%d grants); served in arrival order, it waits through each of the other %d writers at most once",
 		gate.MostWaited, gate.Grants, fatWriters)
 }
 
