@@ -1,0 +1,43 @@
+# Teamboard: one product, two surfaces, one rename.
+#
+# The product renamed Workspaces to Spaces. Customers read the help articles,
+# where the new name is the only name. Developers read the API reference, where
+# the endpoint keeps /v1/workspaces because it is part of the published
+# contract. Each surface sits under its own profile, and only the help profile
+# binds the terms store that holds the rename, so the rule is in force in the
+# help articles and nowhere else.
+version: v1
+name: teamboard
+defaults:
+  source_language: en-US
+  exclude:
+    - "**/.git/**"
+
+profiles:
+  help:
+    channels: [articles]
+    # Read in by `kapi terms import --name spaces-rename context/spaces-rename.terms.json`.
+    termstore: spaces-rename
+  api:
+    channels: [reference]
+
+collections:
+  - name: help-articles
+    channel: help/articles
+    base: help
+    coordinates:
+      audience: customers
+    content:
+      - path: "**/*.md"
+  - name: api-reference
+    channel: api/reference
+    base: api
+    coordinates:
+      audience: developers
+    content:
+      - path: "**/*.md"
+
+flows:
+  check:
+    steps:
+      - tool: voice-vocab-check

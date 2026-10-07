@@ -90,6 +90,10 @@ export const DEMOS: RegistryEntry[] = [
     "title": "Nobody approves their own translation"
   },
   {
+    "id": "e2-assistant-run",
+    "title": "An assistant writes where a rename applies"
+  },
+  {
     "id": "e2-communication-is-context",
     "title": "Communication is context"
   },

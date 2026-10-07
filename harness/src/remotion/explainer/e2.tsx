@@ -7,7 +7,7 @@
  *   surfaces   the five cards fan out, each as it is named
  *   one-rule   one rule sweeps across them and three cards turn red
  *   map        the cards settle onto the map and the rules attach
- *   assistant  the rules that hold are handed over, the text is written, the check passes
+ *   assistant  a real run: kapi hands over the rule, the text is written, the check passes
  *   end        the end card
  *
  * Coordinates are the storyboard's (a 1600x900 stage).
@@ -16,6 +16,7 @@ import React from "react";
 import { useCurrentFrame } from "remotion";
 import { theme } from "../components/theme.ts";
 import { type BeatProps, Eyebrow, Rise, Stage, cardFill, drawn, ease, lerp, ruleFill, type } from "./primitives.tsx";
+import { API_FILE, API_REPLY, ARTICLE_AFTER, ARTICLE_BEFORE, ARTICLE_MARK, CHECK, CONTEXT_HEADING, CONTEXT_LEAD, CONTEXT_RULE, REPLY } from "./e2-assistant-run.ts";
 
 // ── The five surfaces ───────────────────────────────────────────────────────
 
@@ -317,43 +318,69 @@ export const MapBeat: React.FC<BeatProps> = ({ cue }) => {
 };
 
 // ── 6 · Writing with the rules ──────────────────────────────────────────────
+//
+// An editor drawn around one real run (e2-assistant-run.ts): the article as it
+// was, the context kapi handed the assistant for that file, the paragraph the
+// assistant wrote, its reason, the check it ran, and why the API page kept its
+// word. No product chrome: the frame is a plain editor, and every word in it
+// comes from the run.
 
-/** The article's three lines, the new name marked; written out a character at a time. */
-const ARTICLE: Array<Array<{ text: string; accent?: boolean }>> = [
-  [{ text: "To work together, create a" }],
-  [{ text: "Space", accent: true }, { text: " for your team and invite" }],
-  [{ text: "people to it." }],
-];
+/** A line of text with an optional mono `code` span in the middle, as rendered markdown. */
+const CodeLine: React.FC<{ x: number; y: number; line: { text: string; code?: string; after?: string }; style: Record<string, unknown> }> = ({
+  x,
+  y,
+  line,
+  style,
+}) => (
+  <text x={x} y={y} {...style}>
+    {line.text}
+    {line.code ? (
+      <tspan fontFamily={theme.fontMono} fontSize={Number(style.fontSize ?? 25) - 2}>
+        {line.code}
+      </tspan>
+    ) : null}
+    {line.after ?? ""}
+  </text>
+);
 
-const Typed: React.FC<{ shown: number }> = ({ shown }) => {
+/** The written paragraph, a character at a time, the rule's word in the accent. */
+const Written: React.FC<{ shown: number }> = ({ shown }) => {
   let left = shown;
   return (
     <>
-      {ARTICLE.map((line, li) => (
-        <text key={li} x={110} y={260 + li * 40} {...type.body()}>
-          {line.map((seg, si) => {
-            const take = Math.max(0, Math.min(seg.text.length, left));
-            left -= seg.text.length;
-            if (take <= 0) return null;
-            return (
-              <tspan key={si} {...(seg.accent ? { fill: theme.accent, fontWeight: 600 } : {})}>
-                {seg.text.slice(0, take)}
-              </tspan>
-            );
-          })}
-        </text>
-      ))}
+      {ARTICLE_AFTER.map((line, li) => {
+        const take = Math.max(0, Math.min(line.length, left));
+        left -= line.length;
+        const visible = line.slice(0, take);
+        const at = visible.indexOf(ARTICLE_MARK);
+        return (
+          <text key={li} x={110} y={260 + li * 40} {...type.body()}>
+            {at < 0 ? (
+              visible
+            ) : (
+              <>
+                {visible.slice(0, at)}
+                <tspan fill={theme.accent} fontWeight={600}>
+                  {ARTICLE_MARK}
+                </tspan>
+                {visible.slice(at + ARTICLE_MARK.length)}
+              </>
+            )}
+          </text>
+        );
+      })}
     </>
   );
 };
 
-const ARTICLE_CHARS = ARTICLE.flat().reduce((n, s) => n + s.text.length, 0);
+const AFTER_CHARS = ARTICLE_AFTER.reduce((n, l) => n + l.length, 0);
 
 export const Assistant: React.FC<BeatProps> = ({ cue }) => {
   const f = useCurrentFrame();
   const rules = ease(f, cue("hands", 84) - 2, 18);
   const writeStart = cue("that", 117) + 2;
-  const written = Math.round(ARTICLE_CHARS * Math.min(1, Math.max(0, (f - writeStart) / 40)));
+  const before = 1 - ease(f, writeStart - 10, 10);
+  const written = Math.round(AFTER_CHARS * Math.min(1, Math.max(0, (f - writeStart) / 40)));
   const reply = ease(f, cue("and", 156, 1) - 4, 16);
   const check = ease(f, cue("checks", 167), 14);
   const api = ease(f, cue("them", 212) + 4, 20);
@@ -365,15 +392,19 @@ export const Assistant: React.FC<BeatProps> = ({ cue }) => {
       <circle cx={100} cy={98} r={8} fill={theme.red} />
       <circle cx={128} cy={98} r={8} fill={theme.markStroke} />
       <circle cx={156} cy={98} r={8} fill={theme.green} />
-      <text x={800} y={105} textAnchor="middle" {...type.s()}>
-        Kapi Desktop
-      </text>
       <Eyebrow x={110} y={190} text="help/getting-started.md" />
-      <Typed shown={written} />
+      <g opacity={before}>
+        {ARTICLE_BEFORE.map((line, i) => (
+          <text key={i} x={110} y={260 + i * 40} {...type.body()}>
+            {line}
+          </text>
+        ))}
+      </g>
+      <Written shown={written} />
       <g opacity={check} transform={`translate(${384} ${450}) scale(${lerp(0.94, 1, check)}) translate(${-384} ${-450})`}>
         <rect x={104} y={420} width={560} height={60} rx={12} fill={theme.panel} stroke={theme.green} strokeWidth={3} />
         <text x={130} y={459} {...type.m()} fill={theme.green}>
-          {"✓  Checked against the rules here"}
+          {`✓  ${CHECK}`}
         </text>
       </g>
       <line x1={760} y1={126} x2={760} y2={830} stroke={theme.panelBorder} strokeWidth={2} />
@@ -381,27 +412,23 @@ export const Assistant: React.FC<BeatProps> = ({ cue }) => {
       <g opacity={rules} transform={`translate(${(1 - rules) * 30} 0)`}>
         <rect x={800} y={220} width={690} height={150} rx={14} {...ruleFill()} />
         <text x={826} y={262} {...type.s()}>
-          Rules where this text sits
+          {CONTEXT_HEADING}
         </text>
         <text x={826} y={304} {...type.body()}>
-          {"Customers · help article · after the rename"}
+          {CONTEXT_LEAD}
         </text>
         <text x={826} y={344} {...type.body()} fill={theme.accent} fontWeight={600}>
-          {"Say “Spaces”"}
+          {CONTEXT_RULE}
         </text>
       </g>
       <Rise p={reply}>
-        <text x={826} y={430} {...type.body()}>
-          Rewrote the setup steps for the
-        </text>
-        <text x={826} y={470} {...type.body()}>
-          new name. One change, checked.
-        </text>
+        {REPLY.map((line, i) => (
+          <CodeLine key={i} x={826} y={430 + i * 40} line={line} style={type.body()} />
+        ))}
       </Rise>
       <Rise p={api}>
-        <text x={800} y={760} {...type.s()}>
-          {"Same request on the API page: “workspaces” stays."}
-        </text>
+        <Eyebrow x={800} y={712} text={API_FILE} />
+        <CodeLine x={800} y={752} line={{ ...API_REPLY, text: `“${API_REPLY.text}`, after: `${API_REPLY.after}”` }} style={type.s()} />
       </Rise>
     </Stage>
   );
