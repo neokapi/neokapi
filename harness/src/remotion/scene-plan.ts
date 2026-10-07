@@ -11,6 +11,7 @@ export type SceneSpec = TimedScene & {
   caption: string;
   artifact?: string;
   beat?: string;
+  diagram?: string;
   crop?: ZoomRect;
   zoom?: number;
   highlight?: BeatHighlight;
@@ -37,6 +38,7 @@ export function mergeScenes(narration: NarrationManifest, beats: BeatsFile | nul
       caption: p.caption ?? "",
       artifact: p.artifact,
       beat: p.beat,
+      diagram: p.diagram,
       crop: p.crop,
       zoom: p.zoom,
       highlight: p.highlight,

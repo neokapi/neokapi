@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { alignScenes, sceneBoundaries, scriptCaptions, tokenize, type SpokenWord } from "./align.ts";
+import { alignScenes, sceneBoundaries, scriptCaptions, snapToPauses, tokenize, type SpokenWord } from "./align.ts";
 
 /** Speak a text at a steady 400 ms a word from `atMs`, with a pause after. */
 function speak(text: string, atMs: number, words: SpokenWord[]): number {
@@ -106,4 +106,18 @@ test("scriptCaptions spreads a run of missed words over the gap between their ne
       ["five", 2000, 2300],
     ],
   );
+});
+
+test("snapToPauses moves a cut that landed inside a missed first word into the pause before it", () => {
+  // The pause before the scene runs 27110 to 27750 ms; the transcript missed
+  // the scene's first word, so the measured cut sits at 27940, inside it.
+  const snapped = snapToPauses([0, 10200, 27940, 51690], [
+    { startMs: 9700, endMs: 10210 },
+    { startMs: 27110, endMs: 27750 },
+  ]);
+  assert.deepEqual(snapped, [0, 10010, 27550, 51690]);
+});
+
+test("snapToPauses leaves a cut with no pause near it, and the ends, where they were", () => {
+  assert.deepEqual(snapToPauses([0, 5000, 9000], [{ startMs: 1000, endMs: 1500 }]), [0, 5000, 9000]);
 });

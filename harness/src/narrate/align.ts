@@ -307,3 +307,38 @@ export function sceneBoundaries(spans: (SceneSpan | null)[], wordCounts: number[
   for (let i = 1; i < n; i++) starts[i] = Math.min(totalMs, Math.max(starts[i]!, starts[i - 1]!));
   return [...starts, totalMs];
 }
+
+/** A stretch of silence in a track, ms. */
+export interface Pause {
+  startMs: number;
+  endMs: number;
+}
+
+/** How far before a measured cut a pause may end and still take the cut. */
+const SNAP_BEFORE_MS = 1200;
+/** How far after a measured cut a pause may end and still take the cut. */
+const SNAP_AFTER_MS = 300;
+
+/**
+ * Move each inner cut into the pause the scene's first sentence follows. A cut
+ * measured from the transcript lands just before the scene's first *matched*
+ * word, so when the transcript missed the first word (a product name heard as
+ * something else) the cut falls inside that word and it is heard under the
+ * previous picture. The pause before a sentence is measured from the audio
+ * itself, so the cut goes there: CUT_LEAD_MS before the pause ends, never
+ * before it starts. A cut with no pause near it stays where it was.
+ */
+export function snapToPauses(boundaries: number[], pauses: Pause[]): number[] {
+  const out = [...boundaries];
+  for (let i = 1; i < out.length - 1; i++) {
+    const b = out[i]!;
+    let best: Pause | null = null;
+    for (const p of pauses) {
+      if (p.endMs < b - SNAP_BEFORE_MS || p.endMs > b + SNAP_AFTER_MS) continue;
+      if (!best || Math.abs(p.endMs - b) < Math.abs(best.endMs - b)) best = p;
+    }
+    if (best) out[i] = Math.max(best.startMs, best.endMs - CUT_LEAD_MS);
+  }
+  for (let i = 1; i < out.length; i++) out[i] = Math.max(out[i]!, out[i - 1]!);
+  return out;
+}

@@ -33,6 +33,7 @@ export function beatsFor(m: DemoManifest, locale: string = "en"): BeatsFile {
     if (caption) out.caption = caption;
     if (n.artifact) out.artifact = n.artifact;
     if (n.beat) out.beat = n.beat;
+    if (n.diagram) out.diagram = n.diagram;
     if (n.hold !== undefined) out.hold = n.hold;
     const crop = cropBox(n.crop);
     if (crop) out.crop = crop;

@@ -32,6 +32,7 @@ const MIN_FRAMES: Record<NarrationScene["kind"], number> = {
   terminal: 90,
   artifact: 90,
   desktop: 90,
+  diagram: 90,
 };
 
 export interface Timing {
