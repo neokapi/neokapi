@@ -72,7 +72,7 @@ func (r ContextRebuild) FormatText(w io.Writer) error {
 	for _, kind := range retired {
 		hint := ""
 		if projector.RetiredKinds[kind] == projector.KindDecision {
-			hint = " kapi context import reads the project's decisions in again from its shards."
+			hint = " kapi store import reads the project's decisions in again from its shards."
 		}
 		if _, err := fmt.Fprintf(w, "Left out %s of kind %s, which this kapi no longer applies, so the rows they wrote are not in the stores.%s\n",
 			pluralUnit(r.Retired[kind], "operation", "operations"), kind, hint); err != nil {

@@ -373,7 +373,7 @@ func TestInitCmd_voicePointer(t *testing.T) {
 			body, err := os.ReadFile(filepath.Join(dir, tt.wantFile))
 			require.NoError(t, err)
 			assert.Contains(t, string(body), "voice, Professional B2B, is held by kapi")
-			assert.Contains(t, string(body), "`kapi voice guide`")
+			assert.Contains(t, string(body), "`kapi context <path>`")
 			assert.Contains(t, out.String(), tt.wantOut)
 			if tt.wantNotOut != "" {
 				assert.NotContains(t, out.String(), tt.wantNotOut)

@@ -40,7 +40,7 @@ script:
   - comment: Commit the prepared guidance so its changes can be inspected in version control.
   - command: git add -A && git commit -qm "Adopt the context graph" && git log --oneline -1
   - comment: The files are a proposal until somebody reads them in. One command puts them in force for this project.
-  - command: kapi context import ./context
+  - command: kapi store import ./context
   - comment: One verb reconciles the project's context and the sources. No target languages, no provider, nothing to ask for.
   - command: kapi up
   - comment: The first question an agent asks. Where am I, and what governs here?

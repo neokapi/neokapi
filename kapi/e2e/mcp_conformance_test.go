@@ -138,7 +138,7 @@ vocabulary:
 	// Retrieval and the gates read the project's own store rather than the
 	// committed files, so the fixture runs the import that puts the terms
 	// bundle and the voice profile there.
-	kapi(t, "context", "import", "-p", p.Recipe)
+	kapi(t, "store", "import", "-p", p.Recipe)
 	return p
 }
 
@@ -217,7 +217,7 @@ collections:
 		Deprecated: deprecated,
 		Foreign:    foreign,
 	}
-	kapi(t, "context", "import", "-p", p.Recipe)
+	kapi(t, "store", "import", "-p", p.Recipe)
 	return p
 }
 
@@ -413,13 +413,12 @@ func TestMCPConformanceDefaultIsTheWritingSet(t *testing.T) {
 	session, ctx := startMCPServer(t)
 	byName := listTools(t, ctx, session)
 	for _, name := range []string{
-		"context_read", "context_search", "context_observe", "context_correct",
-		"context_withdraw", "context_session_summary", "check_file",
-		"read_blocks", "apply_edits", "describe_format",
+		"context_read", "context_search", "context_note", "context_session_summary",
+		"check_file", "read_blocks", "apply_edits", "describe_format",
 	} {
 		assert.Contains(t, byName, name)
 	}
-	assert.Len(t, byName, 10, "the writing set and no other tool")
+	assert.Len(t, byName, 8, "the writing set and no other tool")
 
 	var templates []string
 	for tmpl, err := range session.ResourceTemplates(ctx, nil) {
@@ -942,7 +941,7 @@ func TestMCPConformanceServerIntroducesItself(t *testing.T) {
 	require.NotEmpty(t, instructions, "the server introduces itself on initialize")
 
 	assert.Contains(t, instructions, "context_read", "ask what applies before writing")
-	assert.Contains(t, instructions, "context_observe", "record names while reading")
+	assert.Contains(t, instructions, "context_note", "record names while reading")
 	assert.Contains(t, instructions, "check_file", "run the check before reporting the work done")
 	assert.Contains(t, instructions, "nothing is recorded",
 		"an empty answer read as nothing to do is the failure the instructions exist to prevent")
@@ -981,7 +980,7 @@ func TestMCPConformanceEmptyContextTeaches(t *testing.T) {
 		text, mime := readResource(t, ctx, session, "context://docs/guide.md?project="+bare)
 		assert.Equal(t, "text/markdown", mime)
 		assert.Contains(t, text, "Nothing is recorded for this file yet.")
-		assert.Contains(t, text, "context_observe", "and says how the next answer gets better")
+		assert.Contains(t, text, "context_note", "and says how the next answer gets better")
 	})
 
 	t.Run("by location, on a project that records something", func(t *testing.T) {
@@ -1009,7 +1008,7 @@ func TestMCPConformanceEmptyContextTeaches(t *testing.T) {
 		// never makes an answer covered. It does say that someone looked here,
 		// which is what keeps `empty` meaning nothing at all.
 		proposed, proposedRecipe := writeBareProject(t, "proposed")
-		kapi(t, "context", "observe", "--term", "use", "--instead-of", "utilise",
+		kapi(t, "context", "note", "--term", "use", "--instead-of", "utilise",
 			"--seen-in", "docs/guide.md", "-p", proposedRecipe)
 
 		body, _ := readResource(t, ctx, session, "context://docs/guide.md?format=json&project="+proposed)
@@ -1127,7 +1126,7 @@ func TestMCPConformanceContextGrowthTools(t *testing.T) {
 	session, ctx := mcpServer(t, "-p", proj.Recipe)
 
 	t.Run("observe records a fact", func(t *testing.T) {
-		got := callTool(t, ctx, session, "context_observe", map[string]any{
+		got := callTool(t, ctx, session, "context_note", map[string]any{
 			"text":  "the guides address the reader as you",
 			"path":  "docs/clean.md",
 			"quote": "We rely on the content memory here.",
@@ -1136,17 +1135,17 @@ func TestMCPConformanceContextGrowthTools(t *testing.T) {
 		assert.Equal(t, "suggested", got["status"], "an observation is a suggestion until a person keeps it")
 		assert.NotEmpty(t, got["operation"], "the answer names the operation a person acts on")
 		assert.NotEmpty(t, got["session"], "everything one run records is grouped under its session")
-		assert.Contains(t, got["review"], "kapi context log --session ")
+		assert.Contains(t, got["review"], "kapi context review --session ")
 	})
 
 	t.Run("observe with nothing to say is refused", func(t *testing.T) {
-		res := rawCallTool(t, ctx, session, "context_observe", map[string]any{"text": "  "})
+		res := rawCallTool(t, ctx, session, "context_note", map[string]any{"text": "  "})
 		require.True(t, res.IsError, "must fail: an observation with no text was recorded")
 		assert.Contains(t, resultText(res), "text")
 	})
 
 	t.Run("observe with a term records a suggested rule", func(t *testing.T) {
-		got := callTool(t, ctx, session, "context_observe", map[string]any{
+		got := callTool(t, ctx, session, "context_note", map[string]any{
 			"term": "Quickcast", "instead_of": []string{"Quick cast"},
 			"path": "docs/clean.md", "quote": "Quick cast forecasts the next hour.",
 		})
@@ -1155,20 +1154,20 @@ func TestMCPConformanceContextGrowthTools(t *testing.T) {
 		recorded, _ := got["recorded"].(string)
 		assert.Contains(t, recorded, "Quick-cast", "kapi derives the variants of the form avoided")
 		next, _ := got["next"].(string)
-		assert.Contains(t, next, "kapi context keep",
+		assert.Contains(t, next, "kapi context review",
 			"the answer says a person is what establishes the rule")
 	})
 
 	t.Run("a term with no evidence is refused", func(t *testing.T) {
-		blank := rawCallTool(t, ctx, session, "context_observe", map[string]any{
+		blank := rawCallTool(t, ctx, session, "context_note", map[string]any{
 			"term": "use", "instead_of": []string{"leverage"}, "path": "  ",
 		})
 		require.True(t, blank.IsError, "must fail: a rule with a blank location was recorded")
 		assert.Contains(t, resultText(blank), "evidence")
 	})
 
-	t.Run("correct records both wordings", func(t *testing.T) {
-		got := callTool(t, ctx, session, "context_correct", map[string]any{
+	t.Run("a change records both wordings", func(t *testing.T) {
+		got := callTool(t, ctx, session, "context_note", map[string]any{
 			"from": "sign in", "to": "log in",
 			"path": "docs/clean.md", "suggest": true,
 		})
@@ -1182,8 +1181,8 @@ func TestMCPConformanceContextGrowthTools(t *testing.T) {
 		"with one wording missing": {"to": "log in", "path": "docs/clean.md"},
 		"with no evidence":         {"from": "sign in", "to": "log in"},
 	} {
-		t.Run("correct "+name+" is refused", func(t *testing.T) {
-			res := rawCallTool(t, ctx, session, "context_correct", args)
+		t.Run("a change "+name+" is refused", func(t *testing.T) {
+			res := rawCallTool(t, ctx, session, "context_note", args)
 			assert.True(t, res.IsError, "must fail: an unusable correction was recorded")
 		})
 	}
@@ -1191,8 +1190,7 @@ func TestMCPConformanceContextGrowthTools(t *testing.T) {
 	t.Run("a call naming a project that holds none is refused by name", func(t *testing.T) {
 		outside := t.TempDir()
 		for tool, args := range map[string]map[string]any{
-			"context_observe":         {"text": "a fact", "path": "docs/clean.md"},
-			"context_correct":         {"from": "sign in", "to": "log in", "path": "docs/clean.md"},
+			"context_note":            {"text": "a fact", "path": "docs/clean.md"},
 			"context_session_summary": {},
 		} {
 			args["project"] = outside
@@ -1206,7 +1204,7 @@ func TestMCPConformanceContextGrowthTools(t *testing.T) {
 		// An MCP client that could record as a person would be claiming the
 		// rights the policy reserves for one. The tools declare no actor
 		// argument, and an argument they do not declare is refused.
-		res := rawCallTool(t, ctx, session, "context_observe", map[string]any{
+		res := rawCallTool(t, ctx, session, "context_note", map[string]any{
 			"text": "a fact", "path": "docs/clean.md",
 			"actor": "person", "session": "somebody-elses",
 		})
@@ -1215,7 +1213,7 @@ func TestMCPConformanceContextGrowthTools(t *testing.T) {
 	})
 
 	t.Run("every operation is recorded as an agent", func(t *testing.T) {
-		got := callTool(t, ctx, session, "context_observe", map[string]any{
+		got := callTool(t, ctx, session, "context_note", map[string]any{
 			"text": "the release notes are written in the past tense",
 			"path": "docs/clean.md",
 		})
@@ -1250,7 +1248,7 @@ func TestMCPConformanceContextGrowthTools(t *testing.T) {
 		assert.Positive(t, got["suggested"],
 			"nobody has kept any of them, which is what the report has to say")
 		report, _ := got["report"].(string)
-		assert.Contains(t, report, "kapi context log --session ",
+		assert.Contains(t, report, "kapi context review --session ",
 			"the sentence an agent ends its report with says how to review the session")
 
 		// The CLI reads the same session back, which is what makes the
@@ -1263,9 +1261,9 @@ func TestMCPConformanceContextGrowthTools(t *testing.T) {
 	})
 }
 
-// TestMCPConformanceAgentCannotDecide: the policy reserves confirming,
-// discarding another actor's work, reverting and widening for a person, and the
-// agent surface carries no tool for any of them.
+// TestMCPConformanceAgentCannotDecide: the policy reserves keeping, dropping,
+// resetting and widening for a person, and the agent surface carries no tool
+// for any of them.
 //
 // Both halves are asserted. A tool absent from the listing but reachable by
 // name is a surface a client can still find, and a tool present but refused at
@@ -1287,11 +1285,11 @@ func TestMCPConformanceAgentCannotDecide(t *testing.T) {
 		}
 		params.Cursor = res.NextCursor
 	}
-	require.True(t, listed["context_observe"], "the agent surface records")
+	require.True(t, listed["context_note"], "the agent surface records")
 
 	for _, name := range []string{
-		"context_keep", "context_drop", "context_revert", "context_widen",
-		"keep_context", "drop_context", "revert_context", "widen_context",
+		"context_keep", "context_drop", "context_reset", "context_widen", "context_review",
+		"keep_context", "drop_context", "reset_context", "widen_context", "context_sync",
 		"context_propose", "context_confirm", "context_discard",
 	} {
 		t.Run(name+" is not on the surface", func(t *testing.T) {
@@ -1325,7 +1323,7 @@ func TestMCPConformanceCandidateCrossesProcesses(t *testing.T) {
 	proj := writeConformanceProject(t, "crossing", "translation memory", "content memory", "nb", "innholdsminne")
 
 	first, firstCtx := mcpServer(t, "-p", proj.Recipe)
-	recorded := callTool(t, firstCtx, first, "context_observe", map[string]any{
+	recorded := callTool(t, firstCtx, first, "context_note", map[string]any{
 		"term": "use", "instead_of": []string{"utilise"},
 		"path": "docs/clean.md", "quote": "Utilise the editor.",
 		"text": "the guides say use",
@@ -1354,7 +1352,7 @@ func TestMCPConformanceCandidateCrossesProcesses(t *testing.T) {
 			"must fail: a candidate was reported without saying it is one")
 		assert.Equal(t, "use", entry["replacement"])
 		assert.Equal(t, id, entry["operation"], "the id a person confirms it by")
-		assert.NotEmpty(t, entry["session"], "the session it came from, so a person can revert the run")
+		assert.NotEmpty(t, entry["session"], "the session it came from, so a person can review the run")
 
 		evidence, _ := entry["evidence"].([]any)
 		require.NotEmpty(t, evidence, "must fail: a candidate was reported with no evidence behind it")
@@ -1433,12 +1431,12 @@ func TestMCPConformanceGrowthParity(t *testing.T) {
 	overCLI := writeConformanceProject(t, "parity-cli", "translation memory", "content memory", "nb", "innholdsminne")
 	session, ctx := mcpServer(t)
 
-	callTool(t, ctx, session, "context_observe", map[string]any{
+	callTool(t, ctx, session, "context_note", map[string]any{
 		"project": overMCP.Root,
 		"term":    "use", "instead_of": []string{"utilise"},
 		"path": "docs/clean.md", "quote": "Utilise the editor.",
 	})
-	kapi(t, "context", "observe", "--term", "use", "--instead-of", "utilise",
+	kapi(t, "context", "note", "--term", "use", "--instead-of", "utilise",
 		"--seen-in", "docs/clean.md", "--quote", "Utilise the editor.", "-p", overCLI.Recipe)
 
 	fromMCP := kapiJSON(t, "context", "docs/clean.md", "-p", overMCP.Recipe, "--json")

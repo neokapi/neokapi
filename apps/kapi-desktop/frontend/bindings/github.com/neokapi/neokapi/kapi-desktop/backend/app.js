@@ -485,13 +485,13 @@ export function ContextRelates(tabID, kind, subject, limit) {
 }
 
 /**
- * ContextRevertScope reports what reverting a session would undo, for the
- * confirmation a person reads first. It records nothing.
- * @param {$models.ContextRevertRequest} req
- * @returns {$CancellablePromise<$models.ContextRevertSummary | null>}
+ * ContextResetScope reports what resetting to before the named point would
+ * set aside, for the confirmation a person reads first. It records nothing.
+ * @param {$models.ContextResetRequest} req
+ * @returns {$CancellablePromise<$models.ContextResetSummary | null>}
  */
-export function ContextRevertScope(req) {
-    return $Call.ByID(2121721019, req).then(/** @type {($result: any) => any} */(($result) => {
+export function ContextResetScope(req) {
+    return $Call.ByID(3247648414, req).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType33($result);
     }));
 }
@@ -2314,6 +2314,19 @@ export function RenderFormatConfig(formatName, config, outputFormat) {
 }
 
 /**
+ * ResetContext rewinds the project's context to before the point the request
+ * names. What was recorded from that point on is set aside, stays in the log,
+ * and the project's stores are rebuilt without it.
+ * @param {$models.ContextResetRequest} req
+ * @returns {$CancellablePromise<$models.ContextResetSummary | null>}
+ */
+export function ResetContext(req) {
+    return $Call.ByID(1815838782, req).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType33($result);
+    }));
+}
+
+/**
  * ResetSampleProject refreshes an out-of-date sample to the version embedded
  * in this kapi: it quiesces the tab's handles, backs up the existing directory
  * (so nothing is lost), re-scaffolds a fresh copy in place, and reloads the
@@ -2344,18 +2357,6 @@ export function ResetSampleProject(tabID) {
  */
 export function ResolveEntityConcepts(memoryHandle, tbHandle, entryIDs, force) {
     return $Call.ByID(4123096462, memoryHandle, tbHandle, entryIDs, force);
-}
-
-/**
- * RevertContextOperations undoes one operation or a whole session, taking
- * whatever it put in force back out of the project's stores.
- * @param {$models.ContextRevertRequest} req
- * @returns {$CancellablePromise<$models.ContextRevertSummary | null>}
- */
-export function RevertContextOperations(req) {
-    return $Call.ByID(1700784851, req).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType33($result);
-    }));
 }
 
 /**
@@ -3084,7 +3085,7 @@ const $$createType28 = $models.ContextOptionDTO.createFrom;
 const $$createType29 = $Create.Array($$createType28);
 const $$createType30 = $models.ContextRelatesResult.createFrom;
 const $$createType31 = $Create.Nullable($$createType30);
-const $$createType32 = $models.ContextRevertSummary.createFrom;
+const $$createType32 = $models.ContextResetSummary.createFrom;
 const $$createType33 = $Create.Nullable($$createType32);
 const $$createType34 = $models.ContextSearchResult.createFrom;
 const $$createType35 = $Create.Nullable($$createType34);

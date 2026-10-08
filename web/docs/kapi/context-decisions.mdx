@@ -1,77 +1,90 @@
 ---
 sidebar_position: 5
 title: Growing context
-description: "Record observations and corrections, review suggested rules, and manage established context with an auditable operation log."
-keywords: [kapi, context, observe, correct, keep, drop, withdraw, revert, widen, suggestion, established, contested, evidence, terms, content memory, agent]
+description: "An assistant notes what the project's files do and what you change; each note arrives as a suggestion; you keep, drop or widen it with kapi context review, and reset goes back to an earlier state."
+keywords: [kapi, context, note, review, keep, drop, choose, widen, reset, suggestion, rule, contested, evidence, terms, content memory, agent, session]
 ---
 
 # Growing context
 
-A new project starts with no terms, voice profile or approved wording. You can
-build its context as you work: record a consistent product name, suggest a
-preferred spelling, or capture a correction. A suggestion advises from the
-moment it is recorded, and you review what kapi learned when it suits you.
+A new project starts with no terms, voice profile or approved wording. Its
+context grows as you work: an assistant notices the name the files always use,
+or the word you changed in its draft, and records it. Each note arrives as a
+**suggestion**. A suggestion advises from the moment it is recorded, and you
+decide about it when it suits you. A suggestion you keep becomes a **rule**.
 
-The following commands record observations, show their history and manage the
-rules that checks enforce.
-
-| Verb | Does |
+| Command | Does |
 | --- | --- |
-| `kapi context observe` | record something you noticed, such as the form the project uses for a name, with where you saw it |
-| `kapi context correct` | record wording somebody changed, and the rule it implies |
-| `kapi context digest` | show what kapi learned about how the project writes since you last looked |
-| `kapi context log` | show what has been recorded and decided |
-| `kapi context keep` | establish suggestions as rules |
-| `kapi context drop` | set a suggestion aside |
-| `kapi context withdraw` | take back a suggestion you recorded |
-| `kapi context revert` | undo an operation, or everything one agent run did |
-| `kapi context widen` | put an established rule in force somewhere broader |
-| `kapi context settle` | establish the suggestions your own work backs, such as a merged change |
+| `kapi context review` | decide about what is waiting: keep, drop, choose a side, apply more widely |
+| `kapi context reset --before <when>` | go back to how the context stood at an earlier point |
+| `kapi context note` | record what you noticed, or what a person changed (an assistant runs this) |
+| `kapi context log` | list what was recorded, or what one assistant session recorded |
 
-## An agent records as it works
+## An assistant notes as it works
 
-A coding agent using kapi's [MCP server](/reference/mcp) can record consistent
-wording with `context_observe` and your edits with `context_correct`. Each call
-records one observation or correction as a suggestion.
-
-Everything it records is a suggestion under a **session** of its own, so you can
-read a run's whole contribution in one place, keep it in one command, or undo
-it in one command:
+A coding agent using kapi's [MCP server](/reference/mcp) records with the
+`context_note` tool; one running kapi from its shell runs `kapi context note`.
+Each call records one thing:
 
 ```bash
-kapi context log --session s4980103f5148      # what one run recorded
-kapi context keep --session s4980103f5148     # keep all of it
-kapi context revert --session s4980103f5148   # undo all of it
+# something the files do every time
+kapi context note --term Quickcast --instead-of "Quick cast" \
+  --seen-in docs/guide.md --quote "Quickcast forecasts the next hour."
+
+# wording a person changed, and the rule it implies
+kapi context note --from "sign in" --to "log in" --seen-in web/src/auth.tsx --suggest
+
+# a fact in prose
+kapi context note "the docs address the reader as you"
 ```
 
-It ends its report with the same session id. Nothing it recorded is in force
-until something you did backs it: you keep it, correct wording its way, or
-merge a change that writes it
-([how a suggestion becomes a rule](#how-a-suggestion-becomes-a-rule)).
+From `--term` and `--instead-of`, kapi works out the other spellings to avoid,
+with spaces, hyphens and capitals. This note avoids `Quick cast`, `Quick-cast`,
+`QuickCast` and `quickcast`.
+
+Everything one assistant run records belongs to its **session**. The assistant
+ends its report with the session's id and the command that reviews it:
+
+```bash
+kapi context log --session this           # the assistant reads back its own run
+kapi context review --session s4980103f5148
+```
+
+An assistant can take back a note of its own that was wrong, in the session
+that recorded it:
+
+```bash
+kapi context note --withdraw 0n794e2gk7 --why "recorded the wrong way round"
+```
 
 ## A suggestion never stops your work
 
-Name the form the project uses, a form it avoids, and say where you saw it:
-
-```bash
-kapi context observe --term Quickcast --instead-of "Quick cast" --seen-in docs/guide.md
-```
-
-kapi derives spelling variants, including hyphenation and capitalisation. This
-suggestion identifies `Quick cast`, `Quick-cast`, `QuickCast` and `quickcast` as
-alternatives to avoid. Checks report these forms, but suggested rules have no
-effect on scores or gate results until you keep them.
+A suggestion advises at once: `kapi context <path>` lists it under
+*Suggested, not yet established*, and checks report text that goes against it.
+No check fails on it and no score changes until it becomes a rule. A
+suggestion nobody answers keeps advising, so nothing here has to be cleared.
 
 ## Reviewing what kapi learned {#reviewing-what-kapi-learned}
 
-`kapi context digest` answers one question: what did kapi learn about how this
-project writes since you last looked? Nothing in it is waiting on you. A
-suggestion you leave alone keeps advising agents and checks, and an item you
-have already seen stays in the digest under "Earlier" rather than piling up.
-
 ```bash
-kapi context digest
+kapi context review
 ```
+
+In a terminal, review asks about each suggestion in turn and shows the
+evidence behind it:
+
+```
+[1/2] 0pjby7f9fx  Write Quickcast, not Quick cast, Quick-cast, QuickCast or quickcast.
+  seen "Quickcast forecasts the next hour." in docs/billing.md
+  noticed by claude-code
+k keep, w keep and apply more widely, d drop, s skip, q quit:
+```
+
+Each answer is recorded as you give it, so quitting part way keeps what you
+decided.
+
+Run anywhere else, such as in a script or by an assistant, review lists what
+is waiting since you last looked, with the id each decision takes:
 
 ```
 Since you last looked (Tuesday 22 September 09:14):
@@ -98,221 +111,205 @@ Suggested
 kapi knows 23 rules for Fernwell; 4 are new this week. 1 suggestion is advising.
 ```
 
-The sections come in the order you read them: conflicts that need you, the
-rules that came into force and what they rest on, suggestions grouped by theme
-(names and spellings, words to avoid, how the project writes), content drifting
-away from an established rule, and the project in numbers. Each line starts
-with the id the other verbs take:
+The sections come in the order you read them: disagreements that need you,
+the rules that came into force and what they rest on, suggestions grouped by
+theme (names and spellings, words to avoid, how the project writes), content
+drifting away from a rule, and the project in numbers.
+
+Reviewing moves your "since you last looked" marker, which kapi keeps on this
+machine and never in the project. `--peek` leaves it where it is, `--since`
+reads from a date instead, and an assistant reading the list never moves it.
+`--json` prints the same sections for a program. Kapi Desktop shows the same
+list when you open a project's Context.
+
+## Keeping a rule {#keeping-is-what-makes-a-rule-bind}
+
+Name a suggestion by its id. Any start of an id that names one suggestion will
+do, and `--keep` repeats:
 
 ```bash
-kapi context keep 0njy7pfhjp                  # keep a suggestion
-kapi context keep 0njy7pfhjp --use Quickcast  # change the form to write, then keep
-kapi context drop 0njy7pfhjp                  # set it aside
-kapi context keep 0njy7pwmtj --choose         # choose a side of a conflict
-kapi context revert 0njy7pghcn                # take an established rule back out
-```
-
-Reading the digest moves your "since you last looked" marker, which kapi keeps
-in your own kapi configuration and never in the project. `--peek` leaves it
-where it is, and an agent reading the digest never moves it. `--json` prints
-the same sections for a program. Kapi Desktop shows the same digest when you
-open a project's Context, with keys for each action.
-
-## Establishing a rule {#keeping-is-what-makes-a-rule-bind}
-
-Read what is waiting:
-
-```bash
-kapi context log --status suggested
+kapi context review --keep 0pjby7nz7z
 ```
 
 ```
-#0n79tw5k9s  2026-09-21T19:36:17Z  agent claude-code/s8d7fb12ba4c7  correct  term "component", not "widget"  "widget" became "component"  [suggested]
-  seen in docs/guide.md getting-started/p: "We utilise the widget to configure your account."
-#0n791b3t34  2026-09-21T19:22:20Z  agent claude-code/s4980103f5148  observe  "The product is written \"Acme Widget\" in headings."  [suggested]
-  seen in docs/guide.md: "We utilise the widget to configure your account."
-```
-
-Then decide, by the id in the first column. Any start of an id that names one
-operation will do, and `keep` takes several ids at once:
-
-```bash
-kapi context keep 0n79tw5k9s
-```
-
-```
-#0n79w8kr6q  2026-09-21T19:37:02Z  person  keep  of #0n79tw5k9s
+#0pjc4e498b  2026-10-08T13:03:48Z  person  keep  of #0pjby7nz7z
   written to the project's terms store
 ```
 
-Keeping writes the rule into the project's store, where every command that
-reads your project's context sees it, on any branch and in any worktree. From
-now on a use of the word fails a check, unless the rule is marked advisory, in
-which case it reports.
+A rule you keep is in force from then on, in every command that reads the
+project's context, on any branch and in any worktree. A use of the word it
+avoids fails a check, unless the rule is advisory, in which case it reports.
 
-Change the rule as you keep it:
+Change the rule as you keep it, and say why:
 
 ```bash
-kapi context keep 0n79tw5k9s --use "module" --advisory
+kapi context review --keep 0pjby7nz7z --use "module" --advisory --note "house style"
 ```
 
-Set it aside instead with `kapi context drop 0n79tw5k9s`. Either way the record stays in
-the log, so the same suggestion is recognisable the next time somebody makes it.
+Keep everything one session suggested that nothing disagrees with:
+
+```bash
+kapi context review --session s4980103f5148 --keep all
+```
+
+## Dropping a suggestion or a rule
+
+```bash
+kapi context review --drop 0pjby7f9fx --note "we say it both ways on purpose"
+```
+
+A dropped suggestion stops advising at once. Dropping a rule already in force
+takes it back out of the project's terms or content memory, so checks stop
+failing on it. The record stays either way, so the same suggestion is
+recognisable the next time somebody makes it.
+
+To change your mind about a rule, decide again: drop it, or keep a different
+one.
 
 ## How a suggestion becomes a rule {#how-a-suggestion-becomes-a-rule}
 
-Keeping is the direct way. A suggestion is also established when your own work
+Keeping is the direct way. A suggestion also becomes a rule when your own work
 backs it and nothing contradicts it:
 
-- you, or an agent recording what you changed, correct wording toward it
-  (`kapi context correct widget component`);
-- a change that writes its preferred form, or removes a form it avoids, reaches
-  the default branch (`kapi context settle --merged`, run after a merge; see
-  [the kapi loop in CI](/kapi/convergence-in-ci#settle-suggestions-after-a-merge)).
+- you change wording toward it, and an assistant records your change
+  (`kapi context note --from widget --to component --seen-in docs/guide.md`);
+- a change that writes its preferred form, or removes a form it avoids, is
+  merged to the default branch (`kapi context sync --merged`, run after a
+  merge; see [the kapi loop in CI](/kapi/convergence-in-ci#settle-suggestions-after-a-merge)).
 
-Other evidence adds to a suggestion's **standing** without establishing it:
-another session recording the same rule, an agent's edit writing the preferred
-form, and your content writing it, which `kapi check` over the whole project
-and `kapi up` count. `kapi context log` ends each suggestion's line with its
-standing as plain counts, and the context answer shows the same counts:
+Other evidence adds to a suggestion's standing without making it a rule:
+another session recording the same thing, an agent's edit writing the
+preferred form, and your content writing it, which `kapi check` over the whole
+project and `kapi up` count. The review list shows the standing as plain
+counts:
 
 ```
-#0n79tw5k9s  ...  observe  term "Quickcast", not "Quick cast"  [suggested]  seen in 3 sessions · merged in #412
+0njy7pfhjp  Write Quickcast, not Quick cast, Quick-cast, QuickCast or quickcast.
+      seen in 3 sessions · merged in #412
 ```
 
-Evidence against a suggestion is a correction away from it, its withdrawal,
-or your content moving to a form it avoids after it was recorded. Any of these
-next to evidence from you makes the suggestion contested, and it waits for you
-to decide. Time alone establishes nothing.
+Evidence against a suggestion is a change away from it, its withdrawal, or
+your content moving to a form it avoids after it was recorded. Any of these
+beside evidence from you leaves the suggestion waiting for you to decide. Time
+alone makes nothing a rule.
 
-When kapi establishes a suggestion this way it records an `establish` entry
-that names the evidence, and `kapi context revert` takes it back out like any
-kept rule.
+## When two suggestions disagree
 
-## When two rules disagree
-
-Two suggestions that name different forms for one word are **contested**. Both
-still advise, the log marks each `[contested by #<id>]` with the other side named,
-and neither can be kept on its own until you choose. `kapi context keep <id>
---choose` chooses one: it drops the other suggestions and keeps this one.
-`kapi context keep --session` leaves a contested suggestion where it is and
-says so.
-
-A suggestion that contradicts an established rule is contested too, and the
-rule stays in force. When you correct wording against an established rule
-yourself, the rule becomes contested: it reports instead of failing, so your
-own edit never fails your build. Keep the rule again, or drop your correction,
-to settle it.
-
-## Undoing
-
-An agent run can record a great deal in an evening. Undo all of it at once:
+Two suggestions that name different forms for one word are **contested**.
+Both still advise, review shows them together under *Needs you*, and neither
+can be kept on its own. Choose one side:
 
 ```bash
-kapi context revert --session s4980103f5148
+kapi context review --choose 0njy7pxnst
 ```
 
-Reverting a session deactivates its suggestions and removes any rules it
-established from the terms store or content memory. This restores the check
-results from before the session, provided no other relevant state has changed.
+The side you choose is kept and the other is dropped. `--keep all` for a
+session leaves a contested suggestion where it is and says so.
 
-Undo one operation with `kapi context revert 0n79tw5k9s`.
-
-Nothing is erased. Reverted operations stay in the log, marked reverted.
+A suggestion that contradicts a rule is contested too, and the rule stays in
+force. When you change wording against a rule yourself, the rule is contested:
+it reports instead of failing, so your own edit never fails your build. Keep
+the rule again, or drop it, to settle it.
 
 ## Where a rule holds
 
-A rule initially applies at the context coordinates of its evidence. For
-example, a term recorded in one product's reference pages does not apply to
-another product's tutorials. When a profile governs where the evidence was
-seen, the established rule holds only where that profile governs. So do the word
-rules `kapi context import` reads in for one profile: they land in the terms
-store scoped to that profile.
+A rule holds where its evidence was seen: a term noticed in one product's
+reference pages holds for that product, and stays out of another product's
+tutorials. The [Context](/kapi/context#the-context-space) page explains how the
+recipe divides a project.
 
-To apply a rule settled under one profile across the whole project:
-
-```bash
-kapi context widen 0n79tw5k9s --to project
-```
-
-To apply an established rule across the workspace:
+Apply a rule more widely as you keep it, or later, by naming a rule already in
+force:
 
 ```bash
-kapi context widen 0n79tw5k9s --to workspace
+kapi context review --keep 0pjby7nz7z --widen-to project     # across this project
+kapi context review --keep 0pjby7nz7z --widen-to workspace   # in every project you work on
+kapi context review --keep 0pjby7nz7z --widen-to mode        # across every mode, the rest unchanged
 ```
 
-That rule is then in force in every project you work on here. A project that has
-its own decision about the word keeps it, because the more specific answer
-always wins.
+A rule applied to the workspace holds in every project on this machine. A
+project with its own decision about the word keeps it, because the more
+specific answer wins.
 
-To remove a restriction on one axis while preserving the other coordinates:
+## Going back to an earlier state
+
+An assistant run can record a great deal in an evening. Go back to how the
+context stood before it:
 
 ```bash
-kapi context widen 0n79tw5k9s --to mode
+kapi context reset --before s4980103f5148 --dry-run
+kapi context reset --before s4980103f5148 --note "start over"
 ```
+
+```
+Set aside 2 suggestions and rules and 2 decisions recorded since s4980103f5148.
+  #0pjby7f9fx  2026-10-08T13:00:24Z  agent claude-code/s4980103f5148  observe  term "Quickcast", not "Quick cast", "Quick-cast", "QuickCast", "quickcast"  [suggested]
+  #0pjby7nz7z  2026-10-08T13:00:25Z  agent claude-code/s4980103f5148  correct  term "log in", not "sign in"  "sign in" became "log in"  [established]
+Recorded as reset #0pjc4e94p0; `kapi context reset --before 0pjc4e94p0` takes it back.
+```
+
+`--before` takes an assistant session, a date such as `2026-10-01`, an
+instant, or an id from `kapi context log`. Everything recorded from that point
+on is set aside, including what people decided since, and the project's terms,
+approved wording and voice are rebuilt as they stood. Nothing is erased: what
+was set aside stays in the history marked `reset`, and the reset is recorded
+too, so resetting to before it brings everything back. `--dry-run` says what
+would be set aside without doing it.
+
+Reset works on the whole context from a point onward. To change one rule,
+decide again in review.
 
 ## Who may do what
 
-People and agents can record observations and corrections. Only a person can
-keep or drop suggestions, edit another actor's suggestion, revert an established
-rule, or widen its scope. kapi rejects these operations from agents, and it
-records the evidence of a merge and the rules settled on it as a tool acting
-for the merge, never as an agent.
+People and assistants both record notes. Only a person keeps, drops or chooses
+a suggestion, changes somebody else's suggestion, applies a rule more widely,
+imports into the project's store, or resets. kapi refuses these from an assistant and
+tells it to ask you to run `kapi context review`. The evidence of a merge, and
+the rules it settles, are recorded as kapi acting for the merge, never as an
+assistant.
 
-The author of a suggestion can withdraw it. An agent can withdraw only
-suggestions recorded in its current session.
+An assistant can withdraw only its own notes, in the session that recorded
+them.
 
-## How kapi knows who recorded an entry
+## How kapi knows who recorded a note
 
-The MCP server identifies the caller as an agent, uses the client's name and
-groups its operations under one session.
-
-For shell commands, kapi detects supported agent hosts from their environment
-variables and assigns an agent identity and session automatically. An agent can
-read its current session with:
-
-```bash
-kapi context log --session this
-```
-
-Three variables cover the rest.
+The MCP server identifies the caller as an assistant, uses the client's name,
+and groups its notes under one session. For shell commands, kapi recognises
+supported agent hosts from their environment and assigns an assistant identity
+and session automatically. Three variables cover the rest:
 
 | Variable | Says |
 | --- | --- |
 | `KAPI_ACTOR` | `agent` or `person`, for a shell kapi would otherwise read the other way |
-| `KAPI_AGENT_NAME` | what the agent is called, for a host kapi does not recognise |
+| `KAPI_AGENT_NAME` | what the assistant is called, for a host kapi does not recognise |
 | `KAPI_AGENT_SESSION` | the id that groups this run, for the same case |
 
-If the host provides no session identifier, kapi derives one from the process
-tree so commands from the same run share a session. On Windows, where this
-process information is unavailable, the default identifier covers one command.
-Set `KAPI_AGENT_SESSION` to group those commands into a session.
-
-When actor detection is uncertain, kapi uses the agent role. This keeps
-suggestions subject to review and includes them in agent filters and session
-reverts.
+When the host provides no session id, kapi derives one from the process tree,
+so the commands of one run share a session. On Windows, where that information
+is unavailable, each command is its own session unless `KAPI_AGENT_SESSION` is
+set. When kapi cannot tell, it treats the caller as an assistant, so what it
+records stays a suggestion for you to review.
 
 ## `kapi apply` writes the same history
 
-The term and memory operations of `kapi apply` are decisions about the same
-context, so they appear in the same log:
+The term and content-memory changes of `kapi apply` are decisions about the
+same context, and appear in `kapi context log` beside the rest:
 
 ```
 #0n79x4m0cb  2026-09-21T19:37:31Z  person  edit  term "use", not "leverage"  [established]
   applied with `kapi apply`
 ```
 
-Asset changes applied by a person are established immediately. An agent's
-term, content-memory and recipe changes are refused, whether it sends them
-through the MCP `apply_edits` tool or runs `kapi apply` from its shell, because
-writing a rule directly is a person's decision. The agent records the rule as a
-suggestion with `kapi context observe` instead, and a person keeps it.
-`kapi context import` also establishes context directly and records one
-`import` operation per file.
+A person's changes are in force at once. An assistant's term, content-memory
+and recipe changes are refused, whether it sends them through the MCP
+`apply_edits` tool or runs `kapi apply` from its shell, because writing a rule
+directly is a person's decision. The assistant records the rule with
+`kapi context note` instead, and you keep it. `kapi store import` also puts
+context in force directly, and records each file it read.
 
 ## What to read next
 
-- [Moving context](./context-portability.mdx) carries a project's context in and
-  out of its store, as a directory of files or as one backup file.
-- [Asking what applies](./context.mdx) answers what governs one place before
-  you write there.
+- [Context](./context.mdx): what applies before you write, and where a rule
+  holds.
+- [Sharing context](./context-portability.mdx): `kapi context sync`, and
+  carrying a project's context in one file.

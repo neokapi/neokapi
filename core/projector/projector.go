@@ -463,6 +463,15 @@ func (p *Projector) catchUpLocked(ctx context.Context, mine map[string]pending) 
 	if err != nil {
 		return err
 	}
+	// A reset changes what the operations before it apply, and an operation
+	// merged in from another machine may fall inside what a reset set aside.
+	// Either is answered by rebuilding the stores from the log.
+	if rebuild, rerr := p.resetReached(ctx, ops); rerr != nil {
+		return rerr
+	} else if rebuild {
+		_, rerr := p.rebuildLocked(ctx)
+		return rerr
+	}
 	var first error
 	last := start
 	foreignBulk, stale := false, false
@@ -573,6 +582,34 @@ func (p *Projector) catchUpLocked(ctx context.Context, mine map[string]pending) 
 		}
 	}
 	return first
+}
+
+// resetReached reports whether the operations a catch-up is about to apply
+// need a rebuild instead: one of them is a reset, or one of them sorts before
+// a reset the log already holds and may therefore be one it sets aside.
+func (p *Projector) resetReached(ctx context.Context, ops []workspace.Op) (bool, error) {
+	if len(ops) == 0 {
+		return false, nil
+	}
+	for _, op := range ops {
+		if op.Kind == workspace.OpContextReset {
+			return true, nil
+		}
+	}
+	resets, err := p.log.Select(ctx, workspace.OpQuery{Project: p.key, KindPrefix: workspace.OpContextReset})
+	if err != nil || len(resets) == 0 {
+		return false, err
+	}
+	var latest string
+	for _, r := range resets {
+		latest = max(latest, r.ID)
+	}
+	for _, op := range ops {
+		if workspace.ResetKind(op.Kind) && op.ID < latest {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // forgottenAt returns the local position of the project's latest removal from

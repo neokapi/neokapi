@@ -98,7 +98,7 @@ func TestVerify_ExplicitTermsUnboundDidNotRun(t *testing.T) {
 	assert.False(t, g.Pass)
 	require.NotEmpty(t, g.Findings)
 	assert.Contains(t, g.Findings[0].Message, "the project has no terms")
-	assert.Contains(t, g.Findings[0].Suggestion, "kapi context import",
+	assert.Contains(t, g.Findings[0].Suggestion, "kapi store import",
 		"the suggestion must name a command that gives the project terms")
 	require.Len(t, out.Gates, 1)
 }

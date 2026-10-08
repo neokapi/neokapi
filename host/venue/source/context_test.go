@@ -203,7 +203,7 @@ func bindCollectionVoice(t *testing.T, conn *BowrainSourceConnector, name string
 	conn.project.Recipe.KapiProject.Defaults.Voice = &coreproj.VoiceBinding{Profile: name}
 
 	// The store is the read path, so the profile reaches a local run through
-	// `kapi context import` and no other way.
+	// `kapi store import` and no other way.
 	_, err = conn.app.ImportProjectContext(t.Context(), conn.project.Layout.RecipePath,
 		host.ContextImportRequest{Force: true})
 	require.NoError(t, err)

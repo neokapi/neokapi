@@ -133,7 +133,7 @@ checkout, branch and worktree of the project reads them:
 
 A **terms bundle** (`kind: "kapi-terms"`) serializes terms as JSON for review,
 merging and command-line processing.
-`kapi terms export` writes one and `kapi context import` reads one. The store
+`kapi terms export` writes one and `kapi store import` reads one. The store
 moves between machines as operations, through a context backend or a transfer
 file ([C-03](c-03-context-store-and-graph.md)).
 
@@ -150,7 +150,7 @@ Presence is table-level, so a project whose terms tables are empty enforces
 nothing, whether or not a database file exists
 ([C-03](c-03-context-store-and-graph.md)). A checkout carrying a terms bundle
 with an empty context store triggers a notice directing the user to
-`kapi context import` ([C-11](c-11-context-operations.md)). The bundle affects governance only after a person imports it.
+`kapi store import` ([C-11](c-11-context-operations.md)). The bundle affects governance only after a person imports it.
 
 ### The return leg: reviewed decisions come home
 
@@ -268,7 +268,7 @@ unranked substring queries.
 ### Locating declared terms: one pass, two sources
 
 A term is declared in two places. The terms store holds the concepts the
-project has decided, which is where `kapi apply`, `kapi context keep` and
+project has decided, which is where `kapi apply`, `kapi context review` and
 `kapi terms import` write. A caller holds rules of its own: a tool's
 `term_rules:` lists the wording a piece of content is held to, a bound starter
 pack carries its terms beside its voice, and the rules established across the
@@ -421,7 +421,7 @@ carries a competitor flag for a rival's name, and a concept carries an
 and forbidden terms found in source text as failing findings and a retired
 (deprecated) term as one that reports. On an advisory concept every such use
 reports without failing. A person marks a concept advisory with
-`kapi context keep --advisory`, `kapi terms import --advisory` (which marks every
+`kapi context review --keep <id> --advisory`, `kapi terms import --advisory` (which marks every
 imported concept), an `x-advisory` descrip in TBX, an `advisory` column in CSV,
 or `"advisory": true` on a `kind: term` change-set entry, which also takes
 `"competitor": true`.

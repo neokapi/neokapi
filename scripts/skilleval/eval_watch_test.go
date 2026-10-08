@@ -46,11 +46,11 @@ func TestEvalWatcherKeepsTheFirstSavedVersion(t *testing.T) {
 }
 
 func TestEvalToolCoverage(t *testing.T) {
-	missing, unclassified := evalToolCoverage([]string{"context_observe", "context_search", "future_tool"})
+	missing, unclassified := evalToolCoverage([]string{"context_note", "context_search", "future_tool"})
 	assert.Equal(t, []string{evalKindCheck}, missing, "no tool the reader counts as a check")
 	assert.Equal(t, []string{"future_tool"}, unclassified)
 
-	missing, unclassified = evalToolCoverage([]string{"context_read", "check_file", "context_withdraw"})
+	missing, unclassified = evalToolCoverage([]string{"context_read", "check_file", "context_note"})
 	assert.Empty(t, missing)
 	assert.Empty(t, unclassified)
 }

@@ -15,10 +15,10 @@ import (
 	"github.com/neokapi/neokapi/kpz"
 )
 
-// Making a project's context portable. `kapi context import <dir>` reads the
+// Making a project's context portable. `kapi store import <dir>` reads the
 // context files a person wrote into operations, and changes nothing the second
-// time; `kapi context export` writes the whole log to one transfer file, and
-// `kapi context import <file>.kpz` merges it into another machine's log, which
+// time; `kapi store export` writes the whole log to one transfer file, and
+// `kapi store import <file>.kpz` merges it into another machine's log, which
 // then holds the same stores.
 
 const portableVoiceYAML = `name: Portable Voice

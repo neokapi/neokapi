@@ -20,7 +20,7 @@ import (
 // alone. This is the whole of what the files do on their own.
 
 // ContextImportCommand is what a person runs to read a layout into the store.
-const ContextImportCommand = "kapi context import"
+const ContextImportCommand = "kapi store import"
 
 // ContextFilesNotice names the context files a checkout holds and the command
 // that reads them.

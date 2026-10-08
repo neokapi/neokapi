@@ -37,7 +37,7 @@ type Layout struct {
 // (SyncDirName) and the personal saved filters (LocalFiltersFilename).
 //
 // A person may still keep context files here, such as a terms bundle or a voice
-// profile they author: `kapi context import` reads them, through ExportLayout.
+// profile they author: `kapi store import` reads them, through ExportLayout.
 // A project that commits such files keeps its own `.kapi/.gitignore`, which
 // EnsureLayout never overwrites.
 const StateDirName = ".kapi"
@@ -90,7 +90,7 @@ func RelStatePath(parts ...string) string {
 // therefore sit flat in `.kapi/` and each profile's sit in a directory of its
 // own.
 //
-// `kapi context import` reads them into the store: a terms bundle's concepts
+// `kapi store import` reads them into the store: a terms bundle's concepts
 // scoped to the profile, and a voice profile stored by its id, bound under
 // `profiles.<name>.voice` when that id is not the profile's name. Governance is
 // resolved from the store from then on, so the path sits on ExportLayout.

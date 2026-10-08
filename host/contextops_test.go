@@ -165,9 +165,9 @@ func TestCandidateAdvisesAndConfirmedBinds(t *testing.T) {
 	assert.Equal(t, check.VerdictFailed, bound.Verdict, "and it fails the gate")
 }
 
-// TestDiscardAndRevertStopARuleAnswering covers both withdrawals, for a
-// candidate and for a rule already in force.
-func TestDiscardAndRevertStopARuleAnswering(t *testing.T) {
+// TestDroppingStopsARuleAnswering covers dropping a suggestion and dropping a
+// rule already in force, which is how a person changes their mind about one.
+func TestDroppingStopsARuleAnswering(t *testing.T) {
 	tests := []struct {
 		name    string
 		confirm bool
@@ -183,20 +183,31 @@ func TestDiscardAndRevertStopARuleAnswering(t *testing.T) {
 			},
 		},
 		{
-			name: "reverting a suggestion",
+			name:    "dropping an established rule",
+			confirm: true,
 			undo: func(t *testing.T, app *App, root, id string) {
-				_, err := app.RevertContextOperations(t.Context(), ContextRevertRequest{
+				dropped, err := app.DropContextOperation(t.Context(), ContextDropRequest{
 					Actor: person, Project: recipeOf(root), ID: id,
+				})
+				require.NoError(t, err)
+				assert.Contains(t, dropped.Landed, "taken back out of", "the rule leaves the store keeping wrote it to")
+			},
+		},
+		{
+			name: "resetting to before the suggestion",
+			undo: func(t *testing.T, app *App, root, id string) {
+				_, err := app.ResetContext(t.Context(), ContextResetRequest{
+					Actor: person, Project: recipeOf(root), Before: id,
 				})
 				require.NoError(t, err)
 			},
 		},
 		{
-			name:    "reverting an established rule",
+			name:    "resetting to before an established rule",
 			confirm: true,
 			undo: func(t *testing.T, app *App, root, id string) {
-				_, err := app.RevertContextOperations(t.Context(), ContextRevertRequest{
-					Actor: person, Project: recipeOf(root), ID: id,
+				_, err := app.ResetContext(t.Context(), ContextResetRequest{
+					Actor: person, Project: recipeOf(root), Before: id,
 				})
 				require.NoError(t, err)
 			},
@@ -227,10 +238,11 @@ func TestDiscardAndRevertStopARuleAnswering(t *testing.T) {
 	}
 }
 
-// TestRevertingASessionRestoresTheCheckExactly is the reversibility claim: what
-// a check says before an agent session and after that session is reverted are
-// the same answer, not a similar one.
-func TestRevertingASessionRestoresTheCheckExactly(t *testing.T) {
+// TestResettingBeforeASessionRestoresTheCheckExactly is the reversibility
+// claim: what a check says before an agent session and after a reset to before
+// that session are the same answer, not a similar one. A reset before the reset
+// brings the session's work back.
+func TestResettingBeforeASessionRestoresTheCheckExactly(t *testing.T) {
 	app, _ := contextOpsApp(t)
 	root := contextOpsProject(t, "ctxops-session")
 
@@ -274,19 +286,44 @@ func TestRevertingASessionRestoresTheCheckExactly(t *testing.T) {
 	assert.Equal(t, 1, summary.ByStatus[contextop.StatusEstablished])
 	assert.Equal(t, 2, summary.ByStatus[contextop.StatusSuggested])
 
-	reverted, err := app.RevertContextOperations(t.Context(), ContextRevertRequest{
-		Actor:   person,
-		Project: recipeOf(root), Session: "s-nightly",
+	preview, err := app.ContextResetScope(t.Context(), ContextResetRequest{
+		Project: recipeOf(root), Before: "s-nightly",
 	})
 	require.NoError(t, err)
-	assert.Len(t, reverted.Reverted, 3, "everything the session recorded")
-	assert.NotEmpty(t, reverted.Retracted, "and the rule it got confirmed is taken back out")
+	assert.Nil(t, preview.Reset, "a preview records nothing")
+	assert.Len(t, preview.SetAside, 3)
+
+	reset, err := app.ResetContext(t.Context(), ContextResetRequest{
+		Actor:   person,
+		Project: recipeOf(root), Before: "s-nightly",
+	})
+	require.NoError(t, err)
+	assert.Len(t, reset.SetAside, 3, "everything the session recorded")
+	assert.GreaterOrEqual(t, reset.Decisions, 1, "and the keep that established one of them")
+	require.NotNil(t, reset.Reset)
+	require.NotNil(t, reset.Rebuild, "the stores are rebuilt from the log")
 
 	after := checkWith(t, app, root)
 	assert.Equal(t, before.Findings, after.Findings, "the same findings, not similar ones")
 	assert.Equal(t, before.Summary, after.Summary)
 	assert.Equal(t, before.Summary.Failing, after.Summary.Failing)
 	assert.Equal(t, before.Verdict, after.Verdict)
+
+	summary, err = app.ContextSessionSummary(t.Context(), ContextSessionRequest{
+		Project: recipeOf(root), Session: "s-nightly",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 3, summary.ByStatus[contextop.StatusReset])
+
+	back, err := app.ResetContext(t.Context(), ContextResetRequest{
+		Actor:   person,
+		Project: recipeOf(root), Before: reset.Reset.ID,
+	})
+	require.NoError(t, err)
+	assert.Len(t, back.Restored, 3, "the session's three suggestions come back")
+	again := checkWith(t, app, root)
+	assert.Equal(t, during.Findings, again.Findings, "the check says what it said during the session")
+	assert.Equal(t, check.VerdictFailed, again.Verdict)
 }
 
 // TestAnAgentCannotConfirm drives the policy through the host API, because a
@@ -357,13 +394,13 @@ func TestAWidenedRuleAnswersInASecondProject(t *testing.T) {
 	assert.Equal(t, check.VerdictFailed, elsewhere.Verdict)
 
 	// And it can be taken back out again.
-	_, err = app.RevertContextOperations(t.Context(), ContextRevertRequest{
+	_, err = app.DropContextOperation(t.Context(), ContextDropRequest{
 		Actor:   person,
 		Project: recipeOf(first), ID: proposed.ID,
 	})
 	require.NoError(t, err)
 	assert.Empty(t, vocabularyFindings(checkWith(t, app, second)),
-		"reverting a widened rule stops it answering everywhere")
+		"dropping a widened rule stops it answering everywhere")
 }
 
 // TestApplyAssetEntriesRecordOperations holds `kapi apply` to the same history:

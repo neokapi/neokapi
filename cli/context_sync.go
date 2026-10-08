@@ -1,148 +1,89 @@
 package cli
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
+	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/host/output"
 )
 
 // The sharing half of the context surface (AD C-11). A recipe declares where
-// the project's context is shared (`context.backend`); pull and push move the
-// operations between this machine and that backend, and backend reports or
-// changes the choice for this machine.
+// the project's context is shared (`context.backend`); sync merges what other
+// machines shared and then shares what this one recorded.
 
-func newContextPullCmd(a *App) *cobra.Command {
+func newContextSyncCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "pull",
-		Short: "Merge the context other machines pushed",
-		Long: `Read what other machines pushed to the project's context backend and
-merge it into this machine's context: every suggestion, decision, term and
-approved wording, with its history.
+		Use:   "sync",
+		Short: "Share the context with the rest of the team",
+		Long: `Share this project's context through the place kapi.yaml names: first
+read what others shared and merge it here, then share what was recorded on
+this machine. Everything travels with its history: every suggestion, decision,
+term and approved wording, and the rules you applied to every project, which
+hold on every machine that syncs the project. Withheld originals stay on this
+machine. Running it twice changes nothing.
 
-A pull reads only what this machine has not seen, merges it by operation id and
-brings the stores up to date. Running it twice changes nothing.
-
-The backend is declared in kapi.yaml:
+The place is declared in kapi.yaml, where every checkout reads it:
 
   context:
     backend: git      # local, file, git or s3
 
-It exits with status 5 when the backend cannot be reached, and nothing changes.`,
-		Example: "  kapi context pull\n" +
-			"  kapi context pull --json",
+With --merged it also reads the change a range of commits made on the default
+branch and counts it as a person's signal: a suggestion whose preferred wording
+the change added, or whose avoided wording it removed, becomes a rule when
+nothing contradicts it. Run it in CI after a merge. The same range records the
+same evidence, so a second run changes nothing. A project that shares its
+context nowhere settles the merge on this machine.
+
+--no-push reads what others shared and shares nothing back, for a check or
+a fresh checkout that only needs the context to answer from.
+
+--status says where the context is shared and how far this machine and the
+shared copy were apart at the last sync, without contacting it.
+
+It exits with status 5 when the shared copy cannot be reached, and nothing
+changes here.`,
+		Example: "  kapi context sync\n" +
+			"  kapi context sync --status\n" +
+			"  kapi context sync --no-push\n" +
+			"  kapi context sync --merged HEAD~1..HEAD\n" +
+			"  kapi context sync --merged \"$BEFORE..$AFTER\" --pr 412 --merger asgeir",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			projectPath, err := RequireProjectPath(cmd)
 			if err != nil {
 				return err
 			}
-			res, err := a.PullProjectContext(cmd.Context(), projectPath)
-			if err != nil {
-				return err
-			}
-			return output.Print(cmd, res)
-		},
-	}
-	AddProjectFlag(cmd)
-	return cmd
-}
-
-func newContextPushCmd(a *App) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "push",
-		Short: "Share the context recorded on this machine",
-		Long: `Write what this machine recorded in the project's context to the context
-backend, where every other machine's next pull reads it.
-
-A push adds files and never changes one another machine wrote, so two machines
-pushing at once both succeed. When the backend has gained many operations since
-its last checkpoint, the push adds one, so a new machine's first pull starts
-from it rather than replaying everything.
-
-Withheld originals stay on this machine. The rules you widened to every
-project travel with the project, and hold on every machine that pulls it.
-
-It exits with status 5 when the backend cannot be reached; the operations stay
-queued for the next push.`,
-		Example: "  kapi context push\n" +
-			"  kapi context pull && kapi context push",
-		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			projectPath, err := RequireProjectPath(cmd)
-			if err != nil {
-				return err
-			}
-			res, err := a.PushProjectContext(cmd.Context(), projectPath)
-			if err != nil {
-				return err
-			}
-			return output.Print(cmd, res)
-		},
-	}
-	AddProjectFlag(cmd)
-	return cmd
-}
-
-// newRetiredContextCmd answers a verb that no longer exists with the one that
-// does its work, rather than reading it as a path to answer for.
-func newRetiredContextCmd(verb, instead string) *cobra.Command {
-	return &cobra.Command{
-		Use:                verb,
-		Hidden:             true,
-		DisableFlagParsing: true,
-		RunE: func(*cobra.Command, []string) error {
-			return fmt.Errorf("`kapi context %s` is retired: %s", verb, instead)
-		},
-	}
-}
-
-func newContextBackendCmd(a *App) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "backend [local | file <dir> | recipe]",
-		Short: "Show or choose where this machine shares the project's context",
-		Long: `Show which backend this project's context is shared through, where that
-was decided, and how far this machine and the backend were apart at the last
-pull or push.
-
-Name a backend to use another one on this machine only. The choice is kept in
-this machine's configuration under the project's id, and the recipe is left
-alone:
-
-  local         keep this project's context on this machine
-  file <dir>    share it through a directory, such as a mounted team share
-  recipe        use the backend kapi.yaml declares again
-
-A git or S3 backend is declared in kapi.yaml, where every checkout reads it.`,
-		Example: "  kapi context backend\n" +
-			"  kapi context backend local\n" +
-			"  kapi context backend file /Volumes/team/kapi/docs\n" +
-			"  kapi context backend recipe",
-		Args: cobra.RangeArgs(0, 2),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			projectPath, err := RequireProjectPath(cmd)
-			if err != nil {
-				return err
-			}
-			if len(args) == 0 {
+			merged, _ := cmd.Flags().GetString("merged")
+			pr, _ := cmd.Flags().GetInt("pr")
+			merger, _ := cmd.Flags().GetString("merger")
+			noPush, _ := cmd.Flags().GetBool("no-push")
+			if status, _ := cmd.Flags().GetBool("status"); status {
 				res, err := a.ContextBackend(cmd.Context(), projectPath)
 				if err != nil {
 					return err
 				}
 				return output.Print(cmd, res)
 			}
-			path := ""
-			if len(args) == 2 {
-				path = args[1]
-			}
-			res, err := a.SetContextBackend(cmd.Context(), projectPath, args[0], path)
+			res, err := a.SyncProjectContext(cmd.Context(), host.ContextSyncRequest{
+				Project: projectPath,
+				Merged:  merged,
+				PR:      pr,
+				Merger:  merger,
+				NoPush:  noPush,
+			})
 			if err != nil {
 				return err
 			}
 			return output.Print(cmd, res)
 		},
 	}
+	cmd.Flags().Bool("status", false, "say where the context is shared and how far apart this machine is, without syncing")
+	cmd.Flags().String("merged", "", "a range of commits that reached the default branch, counted as a person's signal")
+	cmd.Flags().Int("pr", 0, "the pull request that merged the range (read from the commit subject when unset)")
+	cmd.Flags().String("merger", "", "who merged it (the last commit's committer when unset)")
+	cmd.Flags().Bool("no-push", false, "read what others shared and share nothing back")
+	cmd.MarkFlagsMutuallyExclusive("status", "merged")
+	cmd.MarkFlagsMutuallyExclusive("status", "no-push")
 	AddProjectFlag(cmd)
 	return cmd
 }

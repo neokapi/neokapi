@@ -37,9 +37,9 @@ func TestMCPInstructionsCarryTheHabits(t *testing.T) {
 	text := MCPInstructions()
 	for habit, name := range map[string]string{
 		"read what applies before writing":          "context_read",
-		"record names while reading":                "context_observe",
-		"record the person's correction":            "context_correct",
-		"take back what was recorded wrongly":       "context_withdraw",
+		"record names while reading":                "context_note",
+		"record the person's correction":            "from, to, path",
+		"take back what was recorded wrongly":       "withdraw",
 		"check what you changed before saying done": "check_file",
 		"report what the session recorded":          "context_session_summary",
 		"read a file's blocks before editing it":    "read_blocks",
@@ -82,16 +82,16 @@ func TestRecordingGuidanceSaysWhatToRecordAndWhatToLeave(t *testing.T) {
 	require.NoError(t, err)
 	var observe string
 	for _, tool := range tools.Tools {
-		if tool.Name == "context_observe" {
+		if tool.Name == "context_note" {
 			observe = tool.Description
 		}
 	}
 	require.NotEmpty(t, observe)
 
 	for surface, text := range map[string]string{
-		"the server instructions":         MCPInstructions(),
-		"the answer with nothing in it":   recordingAdvice,
-		"the context_observe description": observe,
+		"the server instructions":       MCPInstructions(),
+		"the answer with nothing in it": recordingAdvice,
+		"the context_note description":  observe,
 	} {
 		for _, want := range []string{"name", "spelling variety"} {
 			assert.Containsf(t, text, want, "%s says what to record", surface)

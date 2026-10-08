@@ -26,17 +26,17 @@ one-word name, the other spelling, or the other word. Search the files for
 other forms first, and record nothing about a word they write two ways. Skip
 interface labels and wording taken from your task.
 
-- CLI: `kapi context observe --term <used> --instead-of <avoided> --seen-in <file>`,
+- CLI: `kapi context note --term <used> --instead-of <avoided> --seen-in <file>`,
   or `"<fact>"` for the variety
-- MCP: `context_observe`, with `term` and `instead_of`, or `text`
+- MCP: `context_note` (`term` and `instead_of`, or `text`)
 
-One thing per call. Withdraw a mistake with `kapi context withdraw <id>`
-(MCP: `context_withdraw`). A person decides what becomes a rule.
+One note per call; `--withdraw <id>` takes one back. A person
+decides what becomes a rule.
 
 ## 3. Record the person's corrections
 
-- CLI: `kapi context correct "<yours>" "<theirs>" --seen-in <file> --suggest`
-- MCP: `context_correct`
+- CLI: `kapi context note --from "<yours>" --to "<theirs>" --seen-in <file> --suggest`
+- MCP: `context_note` with `from`, `to`, `suggest`
 
 ## 4. Check what you changed, then report the session
 

@@ -32,7 +32,7 @@ in established coverage, which counts toward an `{ established: … }` gate.
 ## Closing
 
 Review decisions are authored records, separate from derived caches. Share them
-with the rest of the team with `kapi context push`.
+with the rest of the team with `kapi context sync`.
 
 `kapi check --ship` exits 3 while required reviews are missing and passes once
 the gate's requirements are met. The kapi-up-loop walkthrough shows this

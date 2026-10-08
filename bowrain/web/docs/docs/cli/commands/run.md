@@ -103,7 +103,7 @@ steps:
       caseSensitive: false
 ```
 
-The term step checks against the project's terms, which `kapi context import`
+The term step checks against the project's terms, which `kapi store import`
 reads into the project's store, not a list configured per step;
 `--termstore` overrides it for a single run.
 

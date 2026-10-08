@@ -9,7 +9,7 @@ import (
 	"github.com/neokapi/neokapi/core/profile"
 )
 
-// VoiceGuideOutput is the result of `kapi voice guide`.
+// VoiceGuideOutput is the result of `kapi voice show`.
 type VoiceGuideOutput struct {
 	Profile string `json:"profile"`
 	Guide   string `json:"guide"`

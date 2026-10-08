@@ -13,7 +13,7 @@ import (
 // never held this project's context is a checkout where nothing in those files
 // is in force. Every command that resolves a project says so once, on standard
 // error, so the answer a person is reading comes with the reason it is empty.
-// `kapi context import` is what reads them.
+// `kapi store import` is what reads them.
 
 // AttachContextNotice makes every command under root carry the notice. It
 // chains onto whatever the root already does before a command runs, so the
@@ -55,7 +55,7 @@ func printContextFilesNotice(a *App, cmd *cobra.Command) {
 // about kapi rather than about the project have no project to say it about.
 func skipsContextNotice(cmd *cobra.Command) bool {
 	path := cmd.CommandPath()
-	for _, verb := range []string{"context", "context search", "context import", "context export", "context pull", "context push"} {
+	for _, verb := range []string{"context", "context search", "context sync", "store import", "store export"} {
 		if path == verb || strings.HasSuffix(path, " "+verb) {
 			return true
 		}

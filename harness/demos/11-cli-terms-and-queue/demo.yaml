@@ -18,7 +18,7 @@ project: true
 # The fixture's context is a set of files until somebody reads them into this
 # machine's store, and the sandbox is a fresh one every take.
 setup:
-  - kapi context import ./context
+  - kapi store import ./context
 captureTimeoutSec: 180
 aspects:
   - one list of term rules

@@ -1,7 +1,7 @@
 // The Context pillar, and the surfaces that read the project's context graph.
 //
-// One rail, one model: Learned is the digest of what kapi learned about how
-// the project writes, and where a person reviews it; the explorer answers a
+// One rail, one model: Rules holds the rules and suggestions kapi keeps for
+// the project, and is where a person reviews them; the explorer answers a
 // question at a point, Voice reads
 // the profile governing each point whole, and the two stores hold what that
 // governance is made of. Filing the stores here says what they are — the terms
@@ -23,7 +23,7 @@ import { TermsPage } from "./TermsPage";
 import { MemoriesPage } from "./MemoriesPage";
 
 /** The surfaces filed under Context. */
-export type ContextSection = "learned" | "explorer" | "agent" | "voice" | "terms" | "memory";
+export type ContextSection = "rules" | "explorer" | "agent" | "voice" | "terms" | "memory";
 
 /** A point to open the explorer standing at, and what sent it there. */
 export interface ContextPin {
@@ -62,7 +62,7 @@ const SECTIONS: Array<{
    */
   needsCheckout?: boolean;
 }> = [
-  { id: "learned", icon: <Sparkles size={14} /> },
+  { id: "rules", icon: <Sparkles size={14} /> },
   { id: "explorer", icon: <Compass size={14} />, needsCheckout: true },
   { id: "agent", icon: <Bot size={14} />, needsCheckout: true },
   {
@@ -82,7 +82,7 @@ export function ContextHub({
   hasTargetLanguages,
   contextOnly,
 }: ContextHubProps) {
-  const [active, setActive] = useState<ContextSection>(section ?? (pin ? "explorer" : "learned"));
+  const [active, setActive] = useState<ContextSection>(section ?? (pin ? "explorer" : "rules"));
   // A pin set from inside the hub (the memory browser opening a unit) rather
   // than handed in by the router.
   const [unitPin, setUnitPin] = useState<ContextPin | null>(null);
@@ -126,10 +126,10 @@ export function ContextHub({
           <ContextExplorerView tabID={tabID} projectName={projectName} pin={unitPin ?? pin} />
         )}
         {current === "agent" && <AgentContextPane tabID={tabID} path={pin?.path} />}
-        {current === "learned" && (
+        {current === "rules" && (
           <ScrollArea className="h-full">
             <div className="mx-auto max-w-3xl px-6 py-5">
-              <h2 className="text-lg font-semibold">What kapi learned about {projectName}</h2>
+              <h2 className="text-lg font-semibold">Rules and suggestions for {projectName}</h2>
               <div className="mt-3">
                 <ContextDigestPanel
                   tabID={tabID}
@@ -168,8 +168,8 @@ export function ContextHub({
 /** A section's name on the rail, written here so it is translated. */
 function SectionLabel({ id }: { id: ContextSection }) {
   switch (id) {
-    case "learned":
-      return <>Learned</>;
+    case "rules":
+      return <>Rules</>;
     case "explorer":
       return <>Explorer</>;
     case "agent":

@@ -28,7 +28,7 @@ func TestPairedLateContextLandsAfterTheFirstContextRead(t *testing.T) {
 	stream := `{"type":"system","subtype":"init","model":"test","session_id":"s"}` + "\n" +
 		`{"type":"assistant","message":{"model":"test","content":[{"type":"tool_use","id":"t1","name":"Bash","input":{"command":"ls docs/en"}}]}}` + "\n" +
 		`{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"t1","content":"reports.md"}]}}` + "\n" +
-		`{"type":"assistant","message":{"model":"test","content":[{"type":"tool_use","id":"t2","name":"Bash","input":{"command":"kapi voice guide docs/en/reports.md"}}]}}` + "\n" +
+		`{"type":"assistant","message":{"model":"test","content":[{"type":"tool_use","id":"t2","name":"Bash","input":{"command":"kapi context docs/en/reports.md"}}]}}` + "\n" +
 		`{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"t2","content":"Write plainly."}]}}` + "\n" +
 		`{"type":"result","subtype":"success","is_error":false,"result":"done","usage":{"input_tokens":1,"output_tokens":1}}`
 	result, err := parsePairedAgentStream(t.Context(), strings.NewReader(stream), launch)
@@ -70,12 +70,12 @@ func TestPairedLateContextLandsAtTheFirstWrite(t *testing.T) {
 
 func TestPairedReadsContext(t *testing.T) {
 	shell := func(c string) map[string]any { return map[string]any{"command": c} }
-	assert.True(t, pairedReadsContext("Bash", shell("kapi voice guide docs/en/reports.md")))
+	assert.True(t, pairedReadsContext("Bash", shell("kapi context docs/en/reports.md")))
 	assert.True(t, pairedReadsContext("Bash", shell("cat STYLE.md")))
 	assert.True(t, pairedReadsContext("shell", shell("kapi check docs/en/reports.md")))
 	assert.True(t, pairedReadsContext("Read", map[string]any{"file_path": "/w/STYLE.md"}))
 	assert.True(t, pairedReadsContext("mcp__kapi__context_read", nil))
-	assert.False(t, pairedReadsContext("mcp__kapi__context_observe", nil))
+	assert.False(t, pairedReadsContext("mcp__kapi__context_note", nil))
 	assert.False(t, pairedReadsContext("Bash", shell("kapi inspect docs/en/reports.md")))
 	assert.False(t, pairedReadsContext("mcp__kapi__read_blocks", nil))
 }

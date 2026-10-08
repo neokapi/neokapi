@@ -312,8 +312,8 @@ func newStore(db *storage.DB, committedPath string) *WorkStore {
 // across and registers the checkout.
 //
 // It reads no committed record. A project's decisions live in the ledger, and
-// a directory of shards in the checkout is what `kapi context export` wrote;
-// `kapi context import` reads one back. An open that imported them would let
+// a directory of shards in the checkout is what `kapi store export` wrote;
+// `kapi store import` reads one back. An open that imported them would let
 // whichever branch a checkout sits on decide what the whole project holds.
 func (w *WorkStore) start(ctx context.Context) error {
 	if err := w.carryLegacyRows(ctx); err != nil {

@@ -2,7 +2,7 @@
 #
 # The context this project runs on ships as files under context/: the voice
 # profile, the vocabulary and the content memory. Scaffolding the sample reads
-# them into this machine's workspace with `kapi context import context`, so
+# them into this machine's workspace with `kapi store import context`, so
 # the project opens governed with no server and no provider credential
 # involved. The recipe binds the voice by the name the import stores it under.
 version: v1

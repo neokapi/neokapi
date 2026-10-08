@@ -192,7 +192,7 @@ export function HistoryCard({
           <p className="text-muted-foreground" data-slot="review-history-empty">
             {history.unread
               ? t(
-                  "This project's context files have not been read into its store yet, so nothing can be matched. `kapi context import` reads them.",
+                  "This project's context files have not been read into its store yet, so nothing can be matched. `kapi store import` reads them.",
                 )
               : (emptyText ?? t("No content-memory match for this block."))}
           </p>

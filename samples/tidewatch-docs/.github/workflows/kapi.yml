@@ -31,7 +31,7 @@ jobs:
         with:
           version: "1.3.0"
           plugins: ""
-      - run: kapi context import ./context && kapi context pull
+      - run: kapi store import ./context && kapi context sync --no-push
       - uses: neokapi/kapi-action@v1
         with:
           command: up
@@ -65,12 +65,12 @@ jobs:
         with:
           version: "1.3.0"
           plugins: ""
-      - run: kapi context import ./context && kapi context pull
+      - run: kapi store import ./context && kapi context sync --no-push
       - uses: neokapi/kapi-action@v1
         with:
           command: up
           fail-on-parked: false
-      - run: kapi context push
+      - run: kapi context sync
 
   # The site build, and the point of the whole arrangement: it does not depend on
   # the job above. A language behind its source builds and serves; the source
@@ -83,6 +83,6 @@ jobs:
         with:
           version: "1.3.0"
           plugins: ""
-      - run: kapi context import ./context && kapi context pull
+      - run: kapi store import ./context && kapi context sync --no-push
       - run: kapi up --materialize
       - run: npm ci && npm run build

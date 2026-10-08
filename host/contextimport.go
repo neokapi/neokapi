@@ -17,7 +17,7 @@ import (
 
 // Reading a `.kapi/` layout into a project's store.
 //
-// `kapi context import` is the only reader of a context file in a checkout:
+// `kapi store import` is the only reader of a context file in a checkout:
 // the terms bundle, the content-memory bundles, the voice profiles and the
 // decision record. A person runs it, and what it reads is in force from then
 // on because the store is what every other surface answers from.

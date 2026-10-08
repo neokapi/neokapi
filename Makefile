@@ -1940,10 +1940,10 @@ check-vocab-packs: ## Guard: the vocabulary packs have exactly two homes (Go emb
 # converge, check and export. A second run pulls nothing, so every stage may
 # declare it.
 l10n-context-import: bin/kapi ## Pull the repository's context from refs/kapi/context into the workspace store the loop reads
-	$(KAPI_LOOP_ENV) ./bin/kapi context pull
+	$(KAPI_LOOP_ENV) ./bin/kapi context sync --no-push
 
-l10n-context-push: bin/kapi ## Push the context this machine recorded to refs/kapi/context
-	$(KAPI_LOOP_ENV) ./bin/kapi context push
+l10n-context-push: bin/kapi ## Sync the context this machine recorded with refs/kapi/context
+	$(KAPI_LOOP_ENV) ./bin/kapi context sync
 
 l10n-review-export: bin/kapi l10n-context-import ## Emit disposable TMX/CSV review views of the project store → l10n/review/
 	@mkdir -p l10n/review
@@ -2389,7 +2389,7 @@ conversion-eval: build ## Compare converters on text-extraction completeness →
 
 # ── Authoring eval ───────────────────────────────────────────────────────────
 # Measures the authoring side: the voice checks, voice-infer, and whether
-# `kapi voice guide` steers writing toward its profile rather than just
+# `kapi voice show` steers writing toward its profile rather than just
 # improving it.
 #
 # The corpus is synthesized and says so in the data. Two of the three questions
@@ -2965,7 +2965,7 @@ check-reference-docs: i18n-catalogs ## Drift gate: fail if the committed referen
 # refs/kapi/context before checking. Without it, checks have no voice profile or
 # term rules. A pull writes nothing to the ref.
 import-dogfood-context: build ## Pull the repository's context from refs/kapi/context into the isolated store the gates use
-	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi context pull -p $(CURDIR)/kapi.yaml
+	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi context sync --no-push -p $(CURDIR)/kapi.yaml
 
 # The commit check's cost on web/docs (docs/internals/evals.md): once in a
 # scratch project under the Tidewatch sample's context, then in place under

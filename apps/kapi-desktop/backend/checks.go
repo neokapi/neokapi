@@ -733,7 +733,7 @@ func (v *pointResolver) load(ctx context.Context, pt project.GovernancePoint) *c
 
 // store returns the project's voice store, for a caller that reports on a
 // profile the resolver loaded. A recipe binds a voice by name or by the path
-// `kapi context import` filed it under, and the store answers for either.
+// `kapi store import` filed it under, and the store answers for either.
 // Best-effort: a store this build cannot open reads as nil.
 func (v *pointResolver) store(ctx context.Context) (coreprofile.Store, func()) {
 	noop := func() {}

@@ -21,7 +21,6 @@ const meta: Meta<typeof ContextDigestView> = {
     onKeepGroup: fn(),
     onDrop: fn(),
     onChoose: fn(),
-    onRevert: fn(),
     onOpenFile: fn(),
   },
   decorators: [

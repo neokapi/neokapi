@@ -2,7 +2,6 @@ package host
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -19,9 +18,8 @@ import (
 )
 
 // A project's context is shared through the backend its recipe declares under
-// `context:` (core/project.ContextBackend), or the one a person chose for this
-// machine with `kapi context backend`. Sync is explicit: `kapi context pull`
-// merges what other machines pushed, `kapi context push` writes what this one
+// `context:` (core/project.ContextBackend). Sync is explicit: `kapi context
+// sync` merges what other machines pushed and then writes what this one
 // recorded, and every answer that reads the context says how far apart the two
 // were at the last contact.
 
@@ -60,10 +58,9 @@ type ContextBackendInfo struct {
 	Kind string `json:"kind"`
 	// Location is where a shared backend keeps the context.
 	Location string `json:"location,omitempty"`
-	// From is "recipe", "machine" (this machine's override) or "default".
+	// From is "recipe" when kapi.yaml declares the backend, "default" when it
+	// declares none and the context stays on this machine.
 	From string `json:"from"`
-	// Recipe is what the recipe declares, when the machine overrides it.
-	Recipe string `json:"recipe,omitempty"`
 	// Status is how far apart this machine and the backend were at the last
 	// contact. Empty for a local backend.
 	Status *workspace.SyncStatus `json:"status,omitempty"`
@@ -78,12 +75,6 @@ func (b ContextBackendInfo) FormatText(w io.Writer) error {
 		where += " (" + b.Location + ")"
 	}
 	switch b.From {
-	case "machine":
-		fmt.Fprintf(w, "Context backend: %s, chosen on this machine", where)
-		if b.Recipe != "" {
-			fmt.Fprintf(w, "; the recipe declares %s", b.Recipe)
-		}
-		fmt.Fprintln(w, ".")
 	case "recipe":
 		fmt.Fprintf(w, "Context backend: %s, declared in the recipe.\n", where)
 	default:
@@ -104,45 +95,13 @@ func SyncLine(st *workspace.SyncStatus) string {
 	line := fmt.Sprintf("Context: %d to push, %d to pull", st.ToPush, st.ToPull)
 	switch {
 	case st.Contacted.IsZero():
-		line += " (never pulled; run `kapi context pull`)"
+		line += " (never pulled; run `kapi context sync`)"
 	case st.Error != "":
 		line += fmt.Sprintf(" (the backend could not be reached at %s)", st.Contacted.Local().Format("2006-01-02 15:04"))
 	default:
 		line += fmt.Sprintf(" (as of %s)", st.Contacted.Local().Format("2006-01-02 15:04"))
 	}
 	return line + "."
-}
-
-// contextBackendOverrides is the machine configuration file that holds the
-// backends a person chose on this machine, keyed by project identity.
-func contextBackendOverrides() string {
-	return filepath.Join(ConfigDir(), "context-backends.json")
-}
-
-func readBackendOverrides() (map[string]project.ContextBackend, error) {
-	data, err := os.ReadFile(contextBackendOverrides())
-	if errors.Is(err, os.ErrNotExist) {
-		return map[string]project.ContextBackend{}, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	out := map[string]project.ContextBackend{}
-	if err := json.Unmarshal(data, &out); err != nil {
-		return nil, fmt.Errorf("%s: %w", contextBackendOverrides(), err)
-	}
-	return out, nil
-}
-
-func writeBackendOverrides(m map[string]project.ContextBackend) error {
-	data, err := json.MarshalIndent(m, "", "  ")
-	if err != nil {
-		return err
-	}
-	if err := os.MkdirAll(filepath.Dir(contextBackendOverrides()), 0o755); err != nil {
-		return err
-	}
-	return os.WriteFile(contextBackendOverrides(), append(data, '\n'), 0o644)
 }
 
 // recipeContextBackend reads the recipe's `context:` block and nothing else.
@@ -174,7 +133,7 @@ func (a *App) ContextBackend(ctx context.Context, projectPath string) (ContextBa
 	if err != nil {
 		return ContextBackendInfo{}, err
 	}
-	info, err := resolveBackend(layout, w.Key())
+	info, err := resolveBackend(layout)
 	if err != nil {
 		return info, err
 	}
@@ -187,13 +146,9 @@ func (a *App) ContextBackend(ctx context.Context, projectPath string) (ContextBa
 	return info, nil
 }
 
-// resolveBackend combines the recipe's backend with this machine's choice.
-func resolveBackend(layout project.Layout, key workspace.ProjectKey) (ContextBackendInfo, error) {
+// resolveBackend reads the backend the recipe declares.
+func resolveBackend(layout project.Layout) (ContextBackendInfo, error) {
 	declared, err := recipeContextBackend(layout.RecipePath)
-	if err != nil {
-		return ContextBackendInfo{}, err
-	}
-	overrides, err := readBackendOverrides()
 	if err != nil {
 		return ContextBackendInfo{}, err
 	}
@@ -201,12 +156,6 @@ func resolveBackend(layout project.Layout, key workspace.ProjectKey) (ContextBac
 	spec := project.ContextBackend{}
 	if declared != nil {
 		spec, info.From = *declared, "recipe"
-	}
-	if o, ok := overrides[string(key)]; ok {
-		if declared != nil {
-			info.Recipe = declared.Kind()
-		}
-		spec, info.From = o, "machine"
 	}
 	info.Kind, info.spec = spec.Kind(), spec
 	if spec.Kind() == project.ContextBackendFile && !filepath.IsAbs(spec.Path) {
@@ -221,45 +170,6 @@ func resolveBackend(layout project.Layout, key workspace.ProjectKey) (ContextBac
 		info.Location = "s3://" + spec.Bucket + "/" + spec.Prefix
 	}
 	return info, nil
-}
-
-// SetContextBackend records this machine's choice of backend for the project:
-// "local" keeps its context here, "file" shares it through a directory, and
-// "recipe" drops the choice so the recipe's backend applies again.
-func (a *App) SetContextBackend(ctx context.Context, projectPath, kind, path string) (ContextBackendInfo, error) {
-	layout, err := project.LayoutFor(projectPath)
-	if err != nil {
-		return ContextBackendInfo{}, err
-	}
-	w, err := a.Projector(ctx, layout.Root)
-	if err != nil {
-		return ContextBackendInfo{}, err
-	}
-	overrides, err := readBackendOverrides()
-	if err != nil {
-		return ContextBackendInfo{}, err
-	}
-	switch kind {
-	case "recipe":
-		delete(overrides, string(w.Key()))
-	case project.ContextBackendLocal:
-		overrides[string(w.Key())] = project.ContextBackend{Backend: project.ContextBackendLocal}
-	case project.ContextBackendFile:
-		if path == "" {
-			return ContextBackendInfo{}, errors.New("name the directory: kapi context backend file <dir>")
-		}
-		abs, err := filepath.Abs(path)
-		if err != nil {
-			return ContextBackendInfo{}, err
-		}
-		overrides[string(w.Key())] = project.ContextBackend{Backend: project.ContextBackendFile, Path: abs}
-	default:
-		return ContextBackendInfo{}, fmt.Errorf("%q is not a choice here; use local, file <dir>, or recipe (git and s3 backends are declared in kapi.yaml)", kind)
-	}
-	if err := writeBackendOverrides(overrides); err != nil {
-		return ContextBackendInfo{}, err
-	}
-	return a.ContextBackend(ctx, projectPath)
 }
 
 // openRemote builds the remote a backend names.
@@ -313,16 +223,12 @@ func (a *App) projectSync(ctx context.Context, projectPath string) (*workspace.S
 	if err != nil {
 		return nil, err
 	}
-	info, err := resolveBackend(layout, w.Key())
+	info, err := resolveBackend(layout)
 	if err != nil {
 		return nil, err
 	}
 	if info.Kind == project.ContextBackendLocal {
-		why := "the recipe declares no context backend"
-		if info.From == "machine" {
-			why = "this machine keeps the project's context local (kapi context backend recipe undoes that)"
-		}
-		return nil, fmt.Errorf("there is nowhere to sync with: %s. Declare one in kapi.yaml, for example `context: {backend: git}`", why)
+		return nil, errors.New("there is nowhere to sync with: the recipe declares no context backend. Declare one in kapi.yaml, for example `context: {backend: git}`")
 	}
 	s, err := a.contextSync(ctx, layout, info, w)
 	if err != nil {
@@ -344,7 +250,7 @@ type ContextPull struct {
 func (r ContextPull) FormatText(w io.Writer) error {
 	switch {
 	case r.Empty:
-		fmt.Fprintf(w, "Nothing has been pushed to %s yet; `kapi context push` shares this project's context.\n", describeRemote(r.Remote))
+		fmt.Fprintf(w, "Nothing has been shared through %s yet.\n", describeRemote(r.Remote))
 	case r.Merged == 0:
 		fmt.Fprintf(w, "Up to date with %s.\n", describeRemote(r.Remote))
 	default:
@@ -464,8 +370,8 @@ func syncError(err error, verb string, queued int) error {
 		return nil
 	case errors.Is(err, workspace.ErrRemoteUnreachable):
 		return WithExitCode(ExitUnreachable, fmt.Errorf(
-			"%w\nNothing changed here. %s to be pushed; run `kapi context %s` again when the backend is reachable",
-			err, pluralUnit(queued, "operation waits", "operations wait"), verb))
+			"%w\nNothing changed here at the %s. %s to be shared; run `kapi context sync` again when the backend is reachable",
+			err, verb, pluralUnit(queued, "operation waits", "operations wait")))
 	case errors.Is(err, workspace.ErrObjectExists):
 		return fmt.Errorf("%w\nThe backend holds a file this machine was about to write with other bytes. "+
 			"That happens when two machines share one kapi data directory; give each machine its own", err)
@@ -486,7 +392,7 @@ func (a *App) ContextSyncStatus(ctx context.Context, root string) *workspace.Syn
 	if err != nil {
 		return nil
 	}
-	info, err := resolveBackend(layout, w.Key())
+	info, err := resolveBackend(layout)
 	if err != nil || info.Kind == project.ContextBackendLocal {
 		return nil
 	}
@@ -499,4 +405,95 @@ func (a *App) ContextSyncStatus(ctx context.Context, root string) *workspace.Syn
 		return nil
 	}
 	return &st
+}
+
+// ContextSyncRequest asks for one sync of a project's context with the backend
+// its recipe declares.
+type ContextSyncRequest struct {
+	// Project is the recipe path.
+	Project string
+	// Merged, PR and Merger name a change that reached the default branch, as
+	// ContextSettleRequest takes them. With Merged set, the sync also records
+	// the evidence the change carries and establishes what it backs, between
+	// the pull and the push.
+	Merged string
+	PR     int
+	Merger string
+	// NoPush reads what others shared and shares nothing back: a gate or a
+	// fresh runner that only needs the context to answer from.
+	NoPush bool
+}
+
+// ContextSyncResult reports what one sync did: the pull, the settling a merge
+// asked for, and the push. Pull and Push are nil when the recipe declares no
+// backend and the sync only settled a merge here.
+type ContextSyncResult struct {
+	Pull   *ContextPull         `json:"pull,omitempty"`
+	Settle *ContextSettleResult `json:"settle,omitempty"`
+	Push   *ContextPush         `json:"push,omitempty"`
+}
+
+// FormatText renders a sync in the order it ran.
+func (r ContextSyncResult) FormatText(w io.Writer) error {
+	if r.Pull != nil {
+		if err := r.Pull.FormatText(w); err != nil {
+			return err
+		}
+	}
+	if r.Settle != nil {
+		if err := r.Settle.FormatText(w); err != nil {
+			return err
+		}
+	}
+	if r.Push != nil {
+		return r.Push.FormatText(w)
+	}
+	if r.Pull == nil && r.Settle != nil {
+		_, err := fmt.Fprintln(w, "The recipe declares no context backend, so the context stays on this machine.")
+		return err
+	}
+	return nil
+}
+
+// SyncProjectContext pulls what other machines shared through the project's
+// backend, settles the merge the request names, and then pushes what this
+// machine recorded. A pull that fails stops the sync before anything is
+// pushed. A project whose recipe declares no backend has nothing to sync with:
+// that is an error, unless the request names a merge, which is settled here.
+// NoPush stops after the pull and the settling.
+func (a *App) SyncProjectContext(ctx context.Context, req ContextSyncRequest) (ContextSyncResult, error) {
+	var res ContextSyncResult
+	if (req.PR != 0 || req.Merger != "") && req.Merged == "" {
+		return res, errors.New("a pull request number and a merger describe a merge: name it with --merged")
+	}
+	s, err := a.projectSync(ctx, req.Project)
+	if err != nil && req.Merged == "" {
+		return res, err
+	}
+	if s != nil {
+		start := time.Now()
+		report, perr := s.Pull(ctx)
+		res.Pull = &ContextPull{PullReport: report, Seconds: time.Since(start).Seconds()}
+		if perr != nil {
+			return res, syncError(perr, "pull", res.Pull.ToPush)
+		}
+	}
+	if req.Merged != "" {
+		settled, serr := a.SettleContext(ctx, ContextSettleRequest{
+			Project: req.Project, Merged: req.Merged, PR: req.PR, Merger: req.Merger,
+		})
+		if serr != nil {
+			return res, serr
+		}
+		res.Settle = &settled
+	}
+	if s != nil && !req.NoPush {
+		start := time.Now()
+		report, perr := s.Push(ctx)
+		res.Push = &ContextPush{PushReport: report, Seconds: time.Since(start).Seconds()}
+		if perr != nil {
+			return res, syncError(perr, "push", res.Push.ToPush)
+		}
+	}
+	return res, nil
 }

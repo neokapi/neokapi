@@ -67,7 +67,7 @@ func newGovernedProject(t *testing.T) (*host.App, *bproject.Project) {
 }
 
 // readProjectContext reads the project's context layout and recipe bindings
-// into its store, which is what `kapi context import` does for a person. A
+// into its store, which is what `kapi store import` does for a person. A
 // fixture that authors a voice profile calls it: a push resolves the voice from
 // the store, and a file in the checkout reaches it no other way.
 func readProjectContext(t *testing.T, app *host.App, proj *bproject.Project) {

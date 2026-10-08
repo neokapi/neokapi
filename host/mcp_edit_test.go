@@ -413,7 +413,7 @@ func TestMCPApplyEdits_SendsAsTheCallingAgent(t *testing.T) {
 			assert.Contains(t, res.Ops[1].Error.Message, "agent actor-test-agent/"+MCPSessionID(),
 				"the refusal names the calling agent and its session")
 			if asset["op"] == "term" {
-				assert.Contains(t, res.Ops[1].Error.Message, "context_observe", "the refusal says what an agent does instead")
+				assert.Contains(t, res.Ops[1].Error.Message, "context_note", "the refusal says what an agent does instead")
 			}
 		})
 	}

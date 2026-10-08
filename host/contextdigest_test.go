@@ -49,7 +49,8 @@ func TestContextDigest_SectionsFromTheLog(t *testing.T) {
 	require.Len(t, digest.Established, 1)
 	assert.Equal(t, "Write use, not utilise.", digest.Established[0].Sentence)
 	assert.Equal(t, []string{"kept by you"}, digest.Established[0].How)
-	assert.True(t, digest.Established[0].Revertible)
+	assert.True(t, digest.Established[0].Droppable)
+	assert.True(t, digest.Established[0].Widenable)
 	assert.True(t, digest.Established[0].New, "nobody has looked, so everything is new")
 
 	require.Len(t, digest.Conflicts, 1, "the two rules for login disagree")
@@ -139,7 +140,7 @@ func TestContextDigest_ContentMovingAwayFromARuleIsDrift(t *testing.T) {
 	assert.Equal(t, 1, digest.Drift[0].Before)
 	assert.Equal(t, 3, digest.Drift[0].Rejected)
 	assert.Contains(t, digest.Drift[0].Line, `"utilise" 3 times`)
-	assert.True(t, digest.Drift[0].Rule.Revertible)
+	assert.True(t, digest.Drift[0].Rule.Droppable)
 }
 
 // TestUsage_UnchangedCountsRecordNothing: two checks over the same content

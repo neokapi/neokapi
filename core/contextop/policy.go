@@ -19,7 +19,7 @@ type Transition struct {
 	// Subject is what a subject-bearing operation is about.
 	Subject SubjectKind
 	// Target is the operation being acted on, and Targeted reports whether
-	// there is one. A revert that names a session targets no single operation.
+	// there is one. A reset names a point in the log rather than an operation.
 	Target   Record
 	Targeted bool
 	// Widening reports that the transition moves a rule to a broader point.
@@ -49,7 +49,7 @@ var ErrRefused = errors.New("refused by the context policy")
 // correction, and each of those takes effect as a suggestion that no check can
 // fail on. Only a person establishes a rule: keeping a suggestion, editing
 // what another actor suggested, importing context, writing a rule directly,
-// dropping a suggestion, reverting an established rule, and widening are all a
+// dropping a suggestion or a rule, resetting the context, and widening are all a
 // person's.
 //
 // Anyone may withdraw their own suggestion in the session that recorded it,
@@ -84,17 +84,8 @@ func PersonDecides(t Transition) error {
 			return nil
 		}
 		return refuse(t, "only a tool records evidence and settles on it")
-	case KindRevert:
-		if !t.Targeted {
-			return refuse(t, "only a person reverts a whole session")
-		}
-		if t.Target.Established {
-			return refuse(t, "only a person reverts an established rule")
-		}
-		if !sameActor(t.Actor, t.Target.Actor) {
-			return refuse(t, "only a person acts on another actor's operation")
-		}
-		return nil
+	case KindReset:
+		return refuse(t, "only a person resets the context")
 	}
 	return refuse(t, fmt.Sprintf("%q is not an operation kind", t.Kind))
 }

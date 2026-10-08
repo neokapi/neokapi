@@ -16,7 +16,8 @@ import (
 // The tool sets `kapi mcp --tools` takes.
 const (
 	// MCPSetWriting is what an assistant writing in the project needs: the
-	// context:// resources, the context tools that ask and record,
+	// context:// resources, the context tools that ask (context_read,
+	// context_search) and record (context_note, context_session_summary),
 	// check_file, and the edit contract (read_blocks reads a document's
 	// blocks, apply_edits sends the change service a change set, and
 	// describe_format says what a format supports). It is the set served when
@@ -40,9 +41,8 @@ const (
 // and a plugin's own tools, which their own flags and installation decide.
 var mcpToolSets = map[string][]string{
 	MCPSetWriting: {
-		"context_read", "context_search", "context_observe", "context_correct",
-		"context_withdraw", "context_session_summary", "check_file",
-		"read_blocks", "apply_edits", "describe_format",
+		"context_read", "context_search", "context_note", "context_session_summary",
+		"check_file", "read_blocks", "apply_edits", "describe_format",
 	},
 	MCPSetContent: {
 		"check_text", "voice_check", "voice_rewrite", "term-check",

@@ -5,7 +5,7 @@
 # The review→approve half of the kapi loop. A flow takes each unit as far
 # as a machine can (to *translated*); a person takes the ones that matter to
 # *established*. That decision is the one thing the caches can't rebuild, so it lands
-# in the project's context (shared with `kapi context push`), bound to the
+# in the project's context (shared with `kapi context sync`), bound to the
 # revision of the translation the reviewer read. The funnel is:
 #
 #   status → status --review → apply (decide) → status

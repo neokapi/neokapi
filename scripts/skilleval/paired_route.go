@@ -51,7 +51,7 @@ var (
 	// pairedContextWrite is a kapi command that writes the project's context
 	// store: a recorded observation or correction, a kept or dropped rule, a
 	// term or a content-memory pair.
-	pairedContextWrite = regexp.MustCompile(`\bkapi(?:-files)?\s+(?:context\s+(?:observe|correct|keep|drop|contest|withdraw|revert|widen|import)|terms\s+(?:add|import|set|remove)|memory\s+(?:add|import))\b`)
+	pairedContextWrite = regexp.MustCompile(`\bkapi(?:-files)?\s+(?:context\s+(?:note|review|reset|sync)|store\s+import|terms\s+(?:add|import|set|remove)|memory\s+(?:add|import))\b`)
 )
 
 // pairedRootWrites lists the files a tool call writes directly in the

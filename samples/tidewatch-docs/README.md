@@ -24,7 +24,7 @@ samples/tidewatch-docs/
 ├── docusaurus.config.ts      # the i18n block, and the source-strict/target-warn line
 ├── .gitignore                # i18n/ is build output
 ├── .github/workflows/kapi.yml # the CI leg: plan on a PR, converge on main, build regardless
-├── context/                  # read in with `kapi context import ./context`
+├── context/                  # read in with `kapi store import ./context`
 │   ├── voice.yaml            # the Northsea voice, cut to the docs channel
 │   ├── terms.json            # the vocabulary this sample ships
 │   ├── memory/               # established Norwegian wording, the recycle corpus
@@ -118,7 +118,7 @@ Three independent mechanisms, all visible in this sample:
 ## Running the journey
 
 ```bash
-kapi context import ./context             # read the sample's context into your workspace
+kapi store import ./context             # read the sample's context into your workspace
 kapi up                                   # converge; writes the i18n tree
 kapi status                               # coverage on both axes
 head -6 i18n/nb/docusaurus-plugin-content-docs/current/index.md

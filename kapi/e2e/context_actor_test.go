@@ -99,11 +99,11 @@ func TestCommandLineAgentIsRecordedAndRefusedTheDecision(t *testing.T) {
 	recipe := filepath.Join(root, "kapi.yaml")
 	agent := []string{"KAPI_ACTOR=agent", "KAPI_AGENT_NAME=codex", "KAPI_AGENT_SESSION=s-e2e-one"}
 
-	kapiEnvOK(t, agent, "context", "observe", "the docs address the reader as you",
+	kapiEnvOK(t, agent, "context", "note", "the docs address the reader as you",
 		"--seen-in", "docs/guide.md", "-p", recipe)
-	kapiEnvOK(t, agent, "context", "observe", "--term", "use", "--instead-of", "utilise",
+	kapiEnvOK(t, agent, "context", "note", "--term", "use", "--instead-of", "utilise",
 		"--seen-in", "docs/guide.md", "--quote", "We utilise the widget", "-p", recipe)
-	kapi(t, "context", "observe", "the guide is written in the present tense", "-p", recipe)
+	kapi(t, "context", "note", "the guide is written in the present tense", "-p", recipe)
 
 	all := readLog(t, nil, "context", "log", "--json", "-p", recipe)
 	require.Len(t, all, 3)
@@ -121,7 +121,7 @@ func TestCommandLineAgentIsRecordedAndRefusedTheDecision(t *testing.T) {
 	assert.Empty(t, byPerson[0].Actor.Session)
 
 	bySession := readLog(t, nil, "context", "log", "--session", "s-e2e-one", "--json", "-p", recipe)
-	assert.Len(t, bySession, 2, "`revert --session` has something to name")
+	assert.Len(t, bySession, 2, "`review --session` has something to name")
 
 	mine := readLog(t, agent, "context", "log", "--session", "this", "--json", "-p", recipe)
 	assert.Len(t, mine, 2, "the run reads its own work back without being told the id")
@@ -135,12 +135,12 @@ func TestCommandLineAgentIsRecordedAndRefusedTheDecision(t *testing.T) {
 	}
 	require.NotEmpty(t, candidate)
 
-	refused, err := kapiEnv(t, agent, "context", "keep", candidate, "-p", recipe)
+	refused, err := kapiEnv(t, agent, "context", "review", "--keep", candidate, "-p", recipe)
 	require.Error(t, err, "an agent keeping its own suggestion:\n%s", refused)
 	assert.Contains(t, refused, "only a person keeps a suggestion")
-	assert.Contains(t, refused, "kapi context log --status suggested")
+	assert.Contains(t, refused, "kapi context review")
 
-	kapi(t, "context", "keep", candidate, "-p", recipe)
+	kapi(t, "context", "review", "--keep", candidate, "-p", recipe)
 	after := readLog(t, nil, "context", "log", "--session", "s-e2e-one", "--subjects", "--json", "-p", recipe)
 	require.Len(t, after, 2)
 	var confirmed int
@@ -162,9 +162,9 @@ func TestCommandLineAgentIsDetectedFromItsHost(t *testing.T) {
 	// test process therefore stand for two commands of one agent run.
 	claudeCode := []string{"CLAUDECODE=1", "CLAUDE_CODE_SESSION_ID="}
 
-	kapiEnvOK(t, claudeCode, "context", "observe", "the guide names the product Kapi Desktop",
+	kapiEnvOK(t, claudeCode, "context", "note", "the guide names the product Kapi Desktop",
 		"--seen-in", "docs/guide.md", "-p", recipe)
-	kapiEnvOK(t, claudeCode, "context", "observe", "the guide keeps the present tense",
+	kapiEnvOK(t, claudeCode, "context", "note", "the guide keeps the present tense",
 		"--seen-in", "docs/guide.md", "-p", recipe)
 
 	recorded := readLog(t, nil, "context", "log", "--actor", "agent", "--json", "-p", recipe)
@@ -186,7 +186,7 @@ func TestAPersonInAnAgentShellSaysSo(t *testing.T) {
 	recipe := filepath.Join(root, "kapi.yaml")
 
 	kapiEnvOK(t, []string{"CLAUDECODE=1", "KAPI_ACTOR=person"},
-		"context", "observe", "the guide addresses the reader as you", "-p", recipe)
+		"context", "note", "the guide addresses the reader as you", "-p", recipe)
 
 	recorded := readLog(t, nil, "context", "log", "--json", "-p", recipe)
 	require.Len(t, recorded, 1)

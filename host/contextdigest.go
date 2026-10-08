@@ -16,7 +16,7 @@
 // new, so a surface can show them under "Earlier".
 //
 // Every surface reads the digest through ContextDigest: the desktop's project
-// home, `kapi context digest`, and later a pull-request comment.
+// home, `kapi context review`, and later a pull-request comment.
 package host
 
 import (
@@ -146,10 +146,11 @@ type DigestItem struct {
 	// Keepable reports a suggestion a person can keep as it stands. A
 	// contested suggestion with a rival waits until the rival is dropped.
 	Keepable bool `json:"keepable"`
-	// Droppable reports a suggestion a person can set aside.
+	// Droppable reports a suggestion or a rule a person can set aside. A rule
+	// in force is taken back out of the stores as it is dropped.
 	Droppable bool `json:"droppable"`
-	// Revertible reports a rule in force a person can take back out.
-	Revertible bool `json:"revertible"`
+	// Widenable reports a rule in force a person can apply more widely.
+	Widenable bool `json:"widenable"`
 	// EstablishedAt and How say, for an established rule, when it came into
 	// force and on what: "merged in #412", "your correction in billing.md",
 	// "kept by you".
@@ -182,8 +183,7 @@ type DigestConflict struct {
 	// others.
 	Sides []DigestItem `json:"sides"`
 	// ByEvidence reports a rule contested by evidence alone, with no rival
-	// rule: keeping it again is the choice, and so is reverting or dropping
-	// it.
+	// rule: keeping it again is the choice, and so is dropping it.
 	ByEvidence bool `json:"by_evidence"`
 	// Reason says what the disagreement is, in a sentence.
 	Reason string `json:"reason"`
@@ -537,7 +537,8 @@ func digestItem(r contextop.Record, collectionFor func(string) string) DigestIte
 	}
 	switch {
 	case r.Established:
-		it.Revertible = true
+		it.Droppable = true
+		it.Widenable = r.Status == contextop.StatusEstablished
 	case r.Subject.Kind == contextop.SubjectNote:
 		it.Droppable = true
 	default:
@@ -877,7 +878,7 @@ func digestDrift(r contextop.Record, acts []contextop.Record, it DigestItem) (Di
 	return DigestDrift{Rule: it, Line: usage.Line, Rejected: latest.Rejected, Before: base.Rejected}, true
 }
 
-// FormatText renders the digest the way `kapi context digest` prints it.
+// FormatText renders the digest the way `kapi context review` lists it.
 func (d ContextDigest) FormatText(w io.Writer) error {
 	var b strings.Builder
 	name := d.ProjectName
@@ -936,10 +937,12 @@ func (d ContextDigest) FormatText(w io.Writer) error {
 	}
 	b.WriteString("\n")
 	if len(d.Conflicts) > 0 || d.Numbers.Suggested > 0 {
-		b.WriteString("\nKeep a suggestion with `kapi context keep <id>`, change it as you keep it with `--use <form>`, or drop it with `kapi context drop <id>`.\n")
+		b.WriteString("\nDecide each one with `kapi context review` in a terminal, or name it: " +
+			"`kapi context review --keep <id>` (`--use <form>` changes it as you keep it, `--widen-to workspace` applies it more widely), " +
+			"`kapi context review --drop <id>`.\n")
 	}
 	if len(d.Conflicts) > 0 {
-		b.WriteString("Choose a side of a conflict with `kapi context keep <id> --choose`, which sets the other side aside.\n")
+		b.WriteString("Choose a side of a conflict with `kapi context review --choose <id>`, which sets the other side aside.\n")
 	}
 	_, err := io.WriteString(w, b.String())
 	return err

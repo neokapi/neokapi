@@ -121,11 +121,11 @@ measured is what the assistant did **around** it. None of them asks for kapi.
   word, and its rewrite respects what came back. It fails when it writes first
   and checks afterwards.
 - **19** passes when the assistant recorded what it noticed
-  (`kapi context observe`, `context_observe`), one call per fact, with
+  (`kapi context note`, `context_note`), one call per fact, with
   `--seen-in`. Reading `docs/` and reporting a summary to the user alone is the
   failure this row catches: the next session starts from nothing again.
 - **20** passes when the assistant recorded the correction
-  (`kapi context correct "sign in" "log in" --seen-in <file>`) as well as making
+  (`kapi context note --from "sign in" --to "log in" --seen-in <file>`) as well as making
   the edit. A rule it suggested and then described to the user as in force is
   a **fail**: a suggestion advises, and only a person keeps it.
 - **21** passes when the assistant ran the check on what it changed and ended
@@ -134,9 +134,9 @@ measured is what the assistant did **around** it. None of them asks for kapi.
   no report of what was recorded is a partial.
 
 Run 18 to 21 on both surfaces. Over MCP the tools are `context_read`,
-`context_observe`, `context_correct` and `context_session_summary`; from the
-command line they are `kapi context <path>`, `kapi context observe` and
-`correct`, and `kapi context log`. The MCP half is the `mcp-eval` target's surface, and a habit
+`context_note` and `context_session_summary`; from the command line they are
+`kapi context <path>`, `kapi context note` (with `--from` and `--to` for a
+correction), and `kapi context log`. The MCP half is the `mcp-eval` target's surface, and a habit
 kept on one surface and not the other is the drift these rows exist to find.
 
 Scenario 4 is the cross-format sweep, and its fixture carries the whole point:

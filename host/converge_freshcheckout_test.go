@@ -114,7 +114,7 @@ func runFreshConverge(t *testing.T, a *App, cmd *EnvCommand, recipe string) Conv
 // TestConverge_RecyclesWhatTheStoreHolds is the fresh-clone criterion under the
 // store-only contract: a checkout with no credentials converges off the content
 // memory its store holds, and `materialize: on-converge` writes the target
-// file. A bundle git carries reaches that store through `kapi context import`.
+// file. A bundle git carries reaches that store through `kapi store import`.
 func TestConverge_RecyclesWhatTheStoreHolds(t *testing.T) {
 	a, cmd, recipe := newFreshCheckoutProject(t)
 	readProjectContext(t, filepath.Dir(recipe))

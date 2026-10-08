@@ -54,8 +54,8 @@ import type {
   ContextFeedEntry,
   ContextNews,
   ContextDecisionRequest,
-  ContextRevertRequest,
-  ContextRevertSummary,
+  ContextResetRequest,
+  ContextResetSummary,
   ContextWidenPreview,
 } from "../types/api";
 import type { FlowTrace } from "@neokapi/flow-editor";
@@ -463,22 +463,21 @@ export const api = {
   /** Make a candidate binding, with whatever edit and widening was asked for. */
   keepContextSuggestion: (req: ContextDecisionRequest) =>
     call<ContextFeedEntry>("KeepContextSuggestion", req),
-  /** Reject a candidate. It stops answering at once. */
+  /** Drop a suggestion, or a rule in force, which takes it back out of the stores. */
   dropContextSuggestion: (req: ContextDecisionRequest) =>
     call<ContextFeedEntry>("DropContextSuggestion", req),
-  /** What reverting would undo, for the confirmation read first. */
-  contextRevertScope: (req: ContextRevertRequest) =>
-    call<ContextRevertSummary>("ContextRevertScope", req),
-  /** Undo one operation, or everything one session recorded. */
-  revertContextOperations: (req: ContextRevertRequest) =>
-    call<ContextRevertSummary>("RevertContextOperations", req),
+  /** What a reset would set aside, for the confirmation read first. */
+  contextResetScope: (req: ContextResetRequest) =>
+    call<ContextResetSummary>("ContextResetScope", req),
+  /** Reset the project's context to before a session, a date or an operation. */
+  resetContext: (req: ContextResetRequest) => call<ContextResetSummary>("ResetContext", req),
   /** Where a rule would answer once widened. */
   contextWidenReach: (projectKey: string, id: string, to: string) =>
     call<ContextWidenPreview>("ContextWidenReach", projectKey, id, to),
   /** Move an established rule to a broader point. */
   widenContextRule: (req: ContextDecisionRequest) =>
     call<ContextFeedEntry>("WidenContextRule", req),
-  /** What kapi learned about the tab's project; `since` empty reads the marker. */
+  /** The rules and suggestions of the tab's project; `since` empty reads the marker. */
   projectContextDigest: (tabID: string, since: string) =>
     call<ContextDigest>("ProjectContextDigest", tabID, since),
   /** Record that the person looked now; returns the marker it replaced. */

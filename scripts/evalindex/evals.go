@@ -142,7 +142,7 @@ var evals = []Eval{
 		Method: MethodBenchmark,
 		Status: StatusPartial,
 		Spends: true,
-		Corpus: "Six briefs about a synthetic product, each written with and without `kapi voice guide` as the " +
+		Corpus: "Six briefs about a synthetic product, each written with and without `kapi voice show` as the " +
 			"system turn. Both versions are scored against the reference profile and a contrasting profile " +
 			"with opposing requirements.",
 		Covers: "Whether guidance improves adherence specifically to its own profile, measured as the difference " +

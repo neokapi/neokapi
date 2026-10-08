@@ -277,7 +277,7 @@ func TestSaveVoiceProfileWritesTheAssistantPointer(t *testing.T) {
 	require.NoError(t, rerr)
 	assert.Contains(t, string(body), coreprofile.VoicePointerStart)
 	assert.Contains(t, string(body), "voice, "+profile.Name+", is held by kapi")
-	assert.Contains(t, string(body), "`kapi voice guide <path>`",
+	assert.Contains(t, string(body), "`kapi context <path>`",
 		"a recipe that declares profiles points at the per-file form")
 
 	again, err := app.SaveVoiceProfile(tab.ID, "", profile)

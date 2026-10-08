@@ -2,7 +2,7 @@ package backend
 
 // The digest on a project's Context hub: what kapi learned about how the
 // project writes since the person last looked. host.ContextDigest assembles
-// it from the operation log, the same call `kapi context digest` makes, so
+// it from the operation log, the same call `kapi context review` makes, so
 // the two surfaces show one thing.
 //
 // The "since you last looked" marker is the person's, kept in this machine

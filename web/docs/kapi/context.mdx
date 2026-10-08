@@ -1,46 +1,194 @@
 ---
 sidebar_position: 3
 title: Context
-description: "Define which voice profiles, terms and content memory apply to your content, then retrieve guidance by file path or search query."
-keywords: [kapi, context, voice profile, terms, content memory, product, channel, brand, mode, coordinates, profiles, context search, governance, profile validity]
+description: "Ask what applies before you write a file, search what the project says about a word, and see how rules and suggestions grow, where they apply, and how a team shares them."
+keywords: [kapi, context, voice profile, terms, content memory, rule, suggestion, review, sync, product, channel, brand, mode, coordinates, context search]
 ---
 
 import { AxisLadderDiagram, PipelineDiagram } from "@neokapi/docs-shared";
 
 # Context
 
-kapi stores writing guidance as **context**: approved terms, voice profiles and
-previously approved wording. Writers and agents can consult it before drafting;
-checks use the same context to evaluate the result.
+A project's **context** is what its writing keeps to: the voice, the words to
+use and to avoid, and wording already approved. Writers and agents read it
+before they draft, and `kapi check` scores the result against the same context.
 
-Two questions describe the model:
+You work with four things:
 
-- **Where does this content sit?** Every piece of content has a place in a
-  context space: the _product_ it belongs to, the _channel_ it ships on, and any
-  further axis the project declares for itself, such as a brand.
-- **What governs that place?** A point in the space binds governance: a voice
-  profile, a terms store, and the content memory of what has been said before.
+| | What it is | Where to read more |
+| --- | --- | --- |
+| **a rule** | something the project keeps to, such as "write Quickcast, not Quick cast". A check fails on it unless it is advisory. | [Growing context](/kapi/context-decisions) |
+| **a suggestion** | a rule somebody noticed and nobody has decided about yet. Checks report it and none fails on it. | [Growing context](/kapi/context-decisions) |
+| **where it applies** | the part of the project a rule or a voice holds for: one product, one channel, the whole project, or every project you work on | [below](#the-context-space) |
+| **sharing** | `kapi context sync`, which gives the rest of the team what you recorded and takes in what they did | [Sharing context](/kapi/context-portability) |
 
-This model supports consistent writing in a single language as well as
-multilingual content. [Language overrides](#one-more-axis-language) refine
-guidance within the same profile.
+The same context serves writing in one language and in many.
+[Language overrides](#one-more-axis-language) adjust a voice for one language
+and leave the rest of it alone.
 
-## The context space
+## Ask what applies here {#what-applies-here}
+
+Point `kapi context` at a file before you write it. The answer is a short brief:
+the voice to write in, one list of the words to use and to avoid there, and
+what has been suggested but not yet decided. A person can read it, and an
+assistant reads the same text.
+
+```bash
+kapi context docs/billing.md
+```
+
+```text
+# Writing docs/billing.md
+
+Voice: Fernwell. Plain, second person, for studio owners who are not accountants. Short sentences.
+
+Say this, not that:
+- Fernwell Ledger, not "the Ledger": The product. Always the full name in prose.
+- person, not "seat"
+
+Suggested, not yet established:
+- Quickcast, not "Quick cast", "Quick-cast", "QuickCast", "quickcast" (claude-code, seen in docs/billing.md)
+
+Nothing else is recorded for this file. As you read the files around it, record with context_note (or `kapi context note`) what they do every time, including names your text does not use: each product, feature and plan name as written, the spelling variety, and a word chosen over a common alternative. Leave alone a word they write more than one way, with no note about it.
+```
+
+The word list gathers every rule that holds for the file: the project's own
+terms, the rules you applied to every project, and the terms of a starter pack
+the project uses as its voice. A rule held in two places is one line. The voice
+shows only what the voice profile sets; `kapi voice show --profile <name>`
+prints all of it.
+
+The answer is for the file's content. Ask with `--comments` before you write a
+comment in a source file: a project can give its code comments guidance of
+their own, and the answer then lists the limits that hold there.
+
+```bash
+kapi context cmd/main.go --comments
+```
+
+With no file in hand (an ad-hoc draft, a starter pack), name a product from the
+recipe, a stored voice profile or a starter pack instead:
+
+```bash
+kapi context --profile marketing
+```
+
+`--json` gives the whole answer as data. `--explain` adds how kapi reached it:
+which part of the project the file sits in, which recipe line chose the voice,
+which project and which state of your context answered, whether the files on disk still match what kapi last read,
+and any notes. Two answers read from the same state can be compared directly. A
+`stale` answer means files changed since kapi last read them, and `kapi up`
+reads them again.
+
+Over [MCP](/reference/mcp) the same answer is a resource, because reading what
+applies to a place takes no arguments: `context://docs/billing.md` is the same
+text, and `context://docs/billing.md?format=json` is the document `--json`
+prints.
+
+## Search what the project says about a word
+
+The other question takes a word or a phrase and asks everything the project
+keeps:
+
+```bash
+kapi context search "sign-in"
+```
+
+<PipelineDiagram
+  channelLabel=""
+  caption="One question reaches the voice, the terms and the content memory together."
+  stages={[
+    { label: "your question", sub: '"sign-in"', role: "io" },
+    { label: "voice · terms · memory", sub: "everything that applies", role: "annotate" },
+    { label: "one answer", sub: "grouped by kind", role: "io" },
+  ]}
+/>
+
+The answer lists the terms to use, the terms to avoid with their replacements,
+and wording already approved, grouped by kind. Approved wording that contains a
+term to avoid is flagged. Each term reports how often your content uses it, as
+of the last `kapi up`, so a term added since then shows no uses until the next
+run. The desktop explorer shows the same counts.
+
+`--locale` narrows the terms to one language, and `--json` prints the same
+document the MCP `context_search` tool returns.
+
+| Question | Ask | Over [MCP](/reference/mcp) |
+| --- | --- | --- |
+| what applies **here**? | `kapi context <path>` | read `context://<path>` |
+| what do we know about **this**? | `kapi context search <query>` | call `context_search` |
+
+### An answer with nothing in it
+
+A project with nothing recorded says so:
+
+```text
+# Writing docs/billing.md
+
+Nothing is recorded for this file yet. Write as the surrounding files do.
+
+As you read the files around it, record with context_note (or `kapi context note`) what they do every time, including names your text does not use: each product, feature and plan name as written, the spelling variety, and a word chosen over a common alternative. Leave alone a word they write more than one way, with no note about it.
+```
+
+The last paragraph asks an assistant to note what it sees, and each note
+arrives as a suggestion ([Growing context](/kapi/context-decisions)). When the
+checkout carries context files that kapi has not read yet, the answer starts
+with a notice asking a person to run `kapi store import`.
+
+The JSON carries the same fact as a `coverage` value, so a script or an
+assistant can act on it. It counts what holds for the file: the voice, the
+terms and the rules you kept. A search counts the terms it matched and the
+approved wording it found.
+
+| `coverage` | What stood behind the answer |
+| --- | --- |
+| `covered` | two or more of them |
+| `thin` | one of them, or suggestions alone |
+| `empty` | nothing |
+
+Suggestions can raise an answer from `empty` to `thin` and never to `covered`.
+`coverage` describes the answer, so a search for a word nobody here has written
+about is `empty` however much the project holds elsewhere.
+
+## Rules and suggestions
+
+A new project starts with no rules. They grow out of ordinary work: an
+assistant notes the name the files always use, or the word you changed in its
+draft, and each note arrives as a suggestion. A suggestion advises from the
+moment it is recorded. Checks report it, no check fails on it, and it becomes a
+rule when you keep it with `kapi context review`, or when your own work backs
+it, such as a merged change that writes it.
+
+Use the context before, during and after writing:
+
+- **Before**: `kapi context <path>` gives a writer, a person or an agent, the
+  voice and the words to use. The [agent skill](/kapi/get-started/use-with-claude)
+  reads it automatically.
+- **During**: an agent notes what it sees and what you change, as suggestions
+  for you to decide about.
+- **After**: `kapi check` scores the result block by block against the same
+  rules, with an exit code, so they hold in the editing loop and again in CI
+  with no assistant present.
+
+[Growing context](/kapi/context-decisions) covers noting, reviewing, and going
+back to an earlier state.
+
+## Where a rule applies {#the-context-space}
 
 Different parts of a project can need different guidance. A framework and its
 companion app may have distinct voices; a marketing page and an API reference
-may use different registers. Two structural axes identify where guidance applies:
+may use different registers. The recipe says which part of the project each
+file belongs to, along two structural axes:
 
 | Axis        | Answers                        | In the recipe                                  |
 | ----------- | ------------------------------ | ---------------------------------------------- |
 | **product** | which thing this belongs to    | a key under `profiles:`                        |
 | **channel** | which surface it ships on      | a `channel:` on the collection, as `product/channel` |
 
-These two axes are **structural**: a key under `profiles:` _is_ a product, the
-channels a profile lists _are_ the channels that product ships on, and a
-collection names its point with one `channel:` reference. A project that sits
-at a single point declares no profiles at all, and the whole of it is governed
-by the project defaults.
+Each key under `profiles:` is a product, and the channels it lists are the
+surfaces that product ships on. A collection says where its files belong with
+one `channel:`. A project with one voice for everything declares no products
+at all, and the project defaults hold for every file.
 
 ```yaml title="kapi.yaml"
 profiles:
@@ -62,27 +210,22 @@ collections:
 ```
 
 This example defines one product with three channels. Add another key under
-`profiles:` for a second product. Channel names are scoped to their product, so
-two products can each have a `docs` channel with different guidance.
+`profiles:` for a second product. Channel names belong to their product, so two
+products can each have a `docs` channel with different guidance.
 
 A collection's `channel:` is always written `product/channel`. A bare channel
-name is a load error, even when exactly one product declares it; the error names
-the qualified form to paste. A collection that binds no channel is governed by
-the project's default point.
+name is a load error, even when exactly one product declares it, and the error
+names the qualified form to paste. Products and channels are lowercase,
+stable identifiers that are never translated, so guidance stays attached when
+a term is reworded. The [project file
+reference](/reference/project-file#profiles-and-channels) covers the field
+shapes in full.
 
-Products and channels are **slugs** (lowercase, stable, never translated), so
-governance binds to an identifier that does not move when a term is reworded. A
-profile or a channel may _carry_ a display concept, but resolution never looks
-at it. The [project file reference](/reference/project-file#profiles-and-channels)
-covers the field shapes in full.
+### Further axes
 
-### Declared axes
-
-Beyond product and channel, a project can name the further dimensions its
-content varies along. These axes are **declared**, under `defaults.coordinates`,
-and every collection inherits them. A collection that sits elsewhere on one
-axis overrides that axis alone with its own `coordinates:` and keeps the rest.
-The most specific value wins, per axis.
+A project can name further dimensions its content varies along, under
+`defaults.coordinates`. Every collection inherits them, and a collection that
+differs on one axis overrides that axis alone with its own `coordinates:`.
 
 ```yaml title="kapi.yaml"
 defaults:
@@ -98,52 +241,27 @@ collections:
       - path: "docs/**/*.md"
 ```
 
-Two axes have a conventional spelling. `brand` is the brand a point sits under,
-coarser than product: a workspace has brands, a brand has products, a product
-ships channels. `mode` is the kind of document at the point, in the sense the
-Diátaxis scheme means: `tutorial`, `how-to`, `reference` or `explanation`.
-The `mode` axis allows different guidance for tutorials and architecture notes. The coordinate map is open, and a project that
-splits its content some other way declares the axis it needs.
+Two axes have a conventional spelling. `brand` is coarser than product: a
+workspace has brands, a brand has products, a product ships channels. `mode` is
+the kind of document, in the sense of the Diátaxis scheme: `tutorial`,
+`how-to`, `reference` or `explanation`, which lets tutorials and architecture
+notes take different guidance. Declare whatever axis your content needs.
 
-Product and channel are never written under `coordinates:`. They are derived
-from a collection's `channel:`, and a recipe that declares one there is
-rejected at load, so the point a recipe computes and the point it states cannot
-disagree.
+Product and channel are never written under `coordinates:`. They come from a
+collection's `channel:`, and a recipe that repeats them there is rejected at
+load.
 
-## What governs a point
+### What holds for a product
 
-Three stores hold the context. They live in your
-[workspace](/kapi/project-store), one set per project, and the recipe says which
-of them applies where by naming it:
+The voice, the terms and the content memory are kept in your
+[workspace](/kapi/project-store), one set per project. The recipe says which
+voice and which terms hold for each product:
 
-| Store              | Holds                                                | Bound by                          |
-| ------------------ | ---------------------------------------------------- | --------------------------------- |
-| **voice profile**  | tone, register, style measures and pattern rules     | `defaults.voice` or a profile's `voice:`, by profile name |
-| **terms**          | the approved word for each concept, per language, and every word to avoid | the project's own terms, or a profile's `termstore:` |
-| **content memory** | source/target pairs already produced and reviewed    | the project's own content memory  |
-
-A profile binds a voice and a set of terms to its whole product; the collection's
-channel then refines the voice, selecting a channel-specific override inside the
-bound profile when one exists. A point that declares no override of its own
-falls back to the project default, the right answer for a voice that reads the
-same everywhere.
-
-Two recipe keys sit beside these bindings. A collection with no target language
-can say so with `source_only: true`, so a run reads and checks it and writes
-nothing back; the [project file reference](/reference/project-file#collections)
-covers it. And every wording rule ("write this, not that") is a term: it has
-the same shape as the `term_rules:` a check or a translation step takes, a term,
-its replacement and whether a violation fails the check. A voice file may carry
-such rules beside the voice under `terms:`, as the starter packs do, and
-`kapi context import` moves them into the project's terms. The [voice profile
-reference](/reference/serialization/voice-profile#term-rules) lists the fields.
-
-### Where a profile's context lives
-
-All of it is in the project's stores, under one profile id per voice. A profile
-that overrides the voice names the id it uses; one that overrides the terms
-names a terms store with `termstore:`. A profile that names neither is governed
-by the project defaults.
+| Context | Holds | Chosen by |
+| --- | --- | --- |
+| **voice profile** | tone, register, style measures and pattern rules | `defaults.voice`, or a product's `voice:` |
+| **terms** | the approved word for each concept, per language, and every word to avoid | the project's own terms, or a product's `termstore:` |
+| **content memory** | wording already produced and approved | the project's own content memory |
 
 ```yaml title="kapi.yaml"
 profiles:
@@ -151,57 +269,57 @@ profiles:
     channels: [docs]
     voice:
       profile: acme-labs      # this product's voice
-    termstore: labs-terms     # this product's terms, a store by name
+    termstore: labs-terms     # this product's terms
 ```
 
-Content memory and the decision record belong to the project rather than to a
-profile. Memory entries and approvals are associated with content blocks. See
-[the project store](/kapi/project-store) for what each store holds.
+Every wording rule ("write this, not that") is a term, with the same shape as
+the `term_rules:` a check or a translation step takes: a term, its replacement
+and whether a violation fails the check. A voice file may carry such rules
+under `terms:`, as the starter packs do, and `kapi store import` moves them into
+the project's terms. The [voice profile
+reference](/reference/serialization/voice-profile#term-rules) lists the fields.
 
-[`kapi context push`](/kapi/context-portability#sharing-context-through-a-backend)
-shares all of it with the project's other machines,
-and [`kapi context import`](/kapi/context-portability#reading-context-in) reads
-that shape back in.
+A collection with no target language can say so with `source_only: true`, so a
+run reads and checks it and writes nothing back; the [project file
+reference](/reference/project-file#collections) covers it.
 
-## How a point resolves
+### When more than one voice could apply {#how-a-point-resolves}
 
-Governance resolves from the broadest binding toward the most specific, and the
-most specific one that exists wins:
+The most specific guidance wins:
 
 <AxisLadderDiagram
   rungs={[
     { grade: "1", name: "project default", gloss: "defaults.voice · the project's own terms" },
-    { grade: "2", name: "profile", gloss: "profiles.<name>.voice / termstore:" },
-    { grade: "3", name: "channel", gloss: "the matching override inside the voice already selected" },
+    { grade: "2", name: "product", gloss: "profiles.<name>.voice / termstore:" },
+    { grade: "3", name: "channel", gloss: "the matching override inside that voice" },
   ]}
-  caption="A collection's point resolves up the ladder; an unbound collection stops at rung 1."
+  caption="A file takes the most specific guidance the recipe gives it; a collection with no channel takes the project default."
 />
 
-The rungs behave differently:
+- **A product chooses a voice and terms.** Its `voice:` wins as written;
+  failing that, a voice profile stored under the product's own name; failing
+  that, `defaults.voice`. Terms come from the product's `termstore:`, else from
+  the project's own terms.
+- **A channel adjusts that voice.** A channel entry inside the voice profile
+  replaces the tone, the style, or both, so a landing-page register is written
+  once beside the voice it varies. A channel with no entry takes the base voice.
 
-- **Rung 2 selects a store.** The profile's `voice:` wins as written; failing
-  that, the profile the store holds under the profile's own name; failing that,
-  `defaults.voice`. Terms are one rung: the profile's `termstore:`, else the
-  project's own terms.
-- **Rung 3 refines what rung 2 selected.** A channel entry inside the bound
-  voice profile replaces the tone, the style, or both, so a landing-page
-  register is authored once beside the voice it varies rather than duplicated
-  into a file per product-and-channel pair. A channel the profile has no entry
-  for takes the base voice.
+Terms hold on every channel. The words a product uses and avoids are the same
+on every surface it ships on, so a channel changes the register and leaves the
+terms alone.
 
-Terms apply to every channel. The words a product will and will not use are the
-same on every surface it ships on, which is why rung 3 moves the register and
-leaves the terms alone.
+kapi checks these declarations when it loads the recipe, and rejects unknown
+channels, unqualified channel references, invalid identifiers and a voice named
+two ways.
 
-kapi validates governance declarations when loading the recipe. It rejects
-unknown channels, unqualified channel references, invalid slugs and voice
-bindings that name two sources.
+`kapi context <path> --explain` says which of these chose the voice for that
+file.
 
-## Governance can have a lifetime
+### Guidance with dates
 
-A profile can declare from when until when it is the one in force. The bounds
-are a date or an RFC3339 instant, and the window is half-open: `valid_from` is
-inclusive, `valid_to` exclusive, so a `valid_to` date excludes that whole day.
+A product's guidance can hold for a period, given as a date or an RFC3339
+instant. `valid_from` is inclusive and `valid_to` exclusive, so a `valid_to`
+date excludes that whole day.
 
 ```yaml title="kapi.yaml"
 profiles:
@@ -213,214 +331,55 @@ profiles:
     valid_to: 2026-12-01
 ```
 
-A profile outside its window **stops governing**. Resolution falls through to
-the next binding (the collection's channel, then the project default) exactly
-as if the expired one were not declared, so a seasonal voice applies only within its configured dates. The same instant governs a whole run, so a long convergence
-cannot cross a boundary halfway through.
-
-The switch is always reported. The first time a run, a check or a push resolves
-through a lapsed profile it says so:
+Outside its dates the product's guidance stops holding, and the files fall
+back to the next guidance up, as if the product were not declared. One run uses
+one instant throughout, so a long run cannot cross a boundary halfway. The
+first run, check or push that falls back says so:
 
 ```
 governance: profile "acme-relaunch" expired 2026-12-01; governing with the project default
 ```
 
-`kapi context search` reads every bounded profile against the current time and
-labels it `active`, `upcoming` or `expired`, so a writer can see that the
-guidance they are about to follow has a start or an end date before it lapses.
+`kapi context search` labels each dated product `active`, `upcoming` or
+`expired`, so a writer can see that guidance has an end date before it lapses.
 
-The same half-open window scopes an individual term, which is what lets a
-vocabulary survive a rename: _recognise the old name until March_ is a different
-instruction from _never use it_, and a context answer distinguishes them.
+A single term can carry the same dates, which is how a vocabulary survives a
+rename: _recognise the old name until March_ is a different instruction from
+_never use it_.
 
-## Two questions
+### One more axis: language {#one-more-axis-language}
 
-Because the stores govern one point together, you do not ask them one at a time.
-You ask by **location** or by **content**, and kapi reads whichever stores hold
-the answer.
+Adding `target_languages` to the recipe changes nothing about where guidance
+holds. A translated block takes the guidance of its source: the voice of
+`acme/landing` is the voice its Norwegian landing page is written in, and the
+terms of `acme/docs` are the terms its German documentation uses.
 
-| Question | Ask | Over [MCP](/reference/mcp) |
-| --- | --- | --- |
-| what applies **here**? | `kapi context <path>` | read `context://<path>` |
-| what do we know about **this**? | `kapi context search <query>` | call `context_search` |
+A language adds an override inside the voice profile, next to the channel
+overrides: a `locales:` entry carries the formality, the point of view, the
+cultural notes and the examples for that language. Terms carry their
+renderings per language. What you write for one language governs every other,
+and [convergence](/kapi/convergence) keeps the languages in step.
 
-### What applies here
+## Sharing context
 
-Point `kapi context` at a file before you write it. The answer is a short brief:
-the voice in force, one list of the words to use and to avoid there, and what has
-been suggested but not yet established. It is written to be read by a person or
-dropped into a model's context.
+The context lives in your workspace on this machine, shared by every clone and
+worktree of the project. To share it with the rest of the team, name a place in
+`kapi.yaml` and run `kapi context sync`:
 
-```bash
-kapi context docs/billing.md
+```yaml title="kapi.yaml"
+context:
+  backend: git
 ```
 
-```text
-# Writing docs/billing.md
-
-Voice: Fernwell. Plain, second person, for studio owners who are not accountants. Short sentences.
-
-Say this, not that:
-- Fernwell Ledger, not "the Ledger": The product. Always the full name in prose.
-- person, not "seat"
-
-Suggested, not yet established:
-- Quickcast is the forecast feature, always one word, capital Q (claude-code, seen in README.md)
-
-Nothing else is recorded for this file. As you read the files around it, record with context_observe (or `kapi context observe`) what they do every time, including names your text does not use: each product, feature and plan name as written, the spelling variety, and a word chosen over a common alternative. Leave alone a word they write more than one way.
-```
-
-The word list merges the terms bound at the point, the rules established across
-the workspace and the terms of a starter pack bound as the voice, so a rule held
-in two places is one line naming both. The voice shows only the
-fields the profile sets. `kapi voice guide <path>` prints the full profile.
-
-Context queries, runs, checks and pushes use the same governance resolver. The
-result includes content-item channel overrides and profile validity windows. The answer
-is for the file's own content. An item that declares a file for its comments
-alone governs only those comments, so the answer comes from the next item that
-claims the file, or from the project's default point.
-
-With no file in hand (an ad-hoc draft, a starter pack), name a profile instead:
-
-```bash
-kapi context --profile marketing
-```
-
-`--explain` adds how the answer was reached: the point the file sits at, the
-recipe line that bound the voice, the project and workspace revision that
-answered, and every note. `--json` gives all of it as data. Over MCP the two
-addresses are resources rather than tools, because reading what already applies
-at a place takes no arguments; `context://docs/billing.md` is the same text, and
-`context://docs/billing.md?format=json` is the same document `--json` prints.
-
-### What do we know about this
-
-The other question takes a word or a phrase and asks it of every store the
-project binds:
-
-```bash
-kapi context search "sign-in"
-```
-
-<PipelineDiagram
-  channelLabel=""
-  caption="One question reaches every store bound at the point."
-  stages={[
-    { label: "your question", sub: '"sign-in"', role: "io" },
-    { label: "voice · terms · memory", sub: "every bound store", role: "annotate" },
-    { label: "one answer", sub: "grouped by kind", role: "io" },
-  ]}
-/>
-
-Results include preferred terms, discouraged terms and their replacements, and
-previously approved wording. They are grouped by kind and identify any store
-that could not be read.
-
-Results also show term usage counts from the context graph built by the last
-`kapi up`. A newly added term has no recorded uses until the next extraction.
-The desktop explorer and concept page use the same counts.
-
-Approved wording that contains a discouraged term is flagged. Use `--locale` to
-restrict terms to one language and `--json` for structured output matching the
-MCP tool response.
-
-### An answer with nothing in it
-
-A project with no recorded context returns an explicit empty result:
-
-```text
-# Writing docs/billing.md
-
-Nothing is recorded for this file yet. Write as the surrounding files do.
-
-As you read the files around it, record with context_observe (or `kapi context observe`) what they do every time, including names your text does not use: each product, feature and plan name as written, the spelling variety, and a word chosen over a common alternative. Leave alone a word they write more than one way.
-```
-
-The response invites an agent to record observations as suggestions
-([Growing context](/kapi/context-decisions)). If the checkout contains
-unimported context files, it instead starts with a notice asking a person to
-run `kapi context import`.
-
-The JSON carries the same fact as a `coverage` value, so a script or an
-assistant can act on it. It counts what is in force at the point: the voice
-profile, the terms bound there, and the rules you have confirmed
-([Growing context](/kapi/context-decisions)). A search counts the terms it
-matched and the prior wording it found.
-
-| `coverage` | What stood behind the answer |
-| --- | --- |
-| `covered` | two or more of them |
-| `thin` | one of them, or candidates alone |
-| `empty` | nothing |
-
-Unreviewed candidates raise coverage from `empty` to `thin`, but cannot produce
-a `covered` result. The response reports the number awaiting review in
-`kapi context log`.
-
-`coverage` describes the answer rather than the project, so a search for a word
-nobody here has written about is `empty` however much the project holds
-elsewhere.
-
-### Every answer says what it read
-
-Each answer records the project it came from, the revision of your workspace it
-was read at, and whether the content kapi holds still matches the files on disk.
-`--explain` prints them:
-
-```text
-Read from project `prj_7k2n…` at workspace revision 41, content current.
-```
-
-In the JSON the same three sit under `provenance`. Two answers carrying one
-revision were read from one state of your context, which is what lets you
-compare them. A `stale` answer means files changed since kapi last read them, so
-counts taken over your content describe the files as they were; `kapi up` reads
-them again.
-
-## Context throughout the writing process {#two-directions-around-the-writer}
-
-Use context before, during and after writing:
-
-- **Before**: the voice guide and the approved terms go into a writer's context
-  (a person's, or an agent's), to guide the draft. The [agent skill](/kapi/get-started/use-with-claude)
-  injects them automatically; `kapi context <path>` and `context_search` fetch
-  them on demand.
-- **During**: agents can record observations and corrections as suggestions
-  for review. See [Growing context](context-decisions.mdx).
-- **After**: `kapi check` scores the result block by block against the same
-  stores, with an exit code, so the rules hold in the editing loop and again in
-  CI with no assistant present.
-
-A rule an agent proposes is a **candidate**. It is reported by checks, it fails
-none of them, and it binds when you confirm it. Confirming writes it into the
-project's store through the same route `kapi apply` takes, and records the
-decision beside the evidence, so `kapi context log` is the review surface for
-the _rules_. Where the decisions are already made, `kapi apply` lands them as
-typed change-set entries directly.
-
-## One more axis: language
-
-Adding `target_languages` to the recipe adds no governance axis. A translated
-block sits at the point its source sits at, and the same profile governs it:
-the voice bound at `acme/landing` is the voice its Norwegian landing page is
-written in, and the terms bound at `acme/docs` are the terms its German
-documentation uses.
-
-What a language adds is an override *inside* the voice profile, next to the
-channel overrides: a `locales:` entry carries the formality, the point of view,
-the cultural notes and the examples that hold for that language only. Terms
-carry their renderings per language. So the thing
-you author for one language is the thing that governs every other, and the loop
-that keeps the languages in step is [convergence](/kapi/convergence).
+[Sharing context](/kapi/context-portability) covers the places you can name,
+backups, and reading context files into a project.
 
 ## Related
 
-- [Growing context](/kapi/context-decisions): proposing a rule with the evidence behind it, confirming it, and undoing a whole session of an agent's suggestions.
-- [Moving context](/kapi/context-portability): reading a checkout's context files into the store, writing the store back out as files, and carrying the whole of it as one file.
-- [Content governance for AI](/kapi/recipes/content-governance-for-ai): the how-to; author the stores and gate on them.
-- [Keep terms consistent](/kapi/recipes/terminology-checks): building and enforcing the terms store.
-- [The project store](/kapi/project-store): where the derived index of this context lives.
+- [Growing context](/kapi/context-decisions): noting a rule with the evidence behind it, reviewing suggestions, and going back to an earlier state.
+- [Sharing context](/kapi/context-portability): `kapi context sync`, and carrying a project's context in one file.
+- [Content governance for AI](/kapi/recipes/content-governance-for-ai): the how-to; set up the context and gate on it.
+- [Keep terms consistent](/kapi/recipes/terminology-checks): building and enforcing the terms.
+- [The project store](/kapi/project-store): where the context is kept on this machine.
 - [Project file reference](/reference/project-file#profiles-and-channels): the `profiles:`, `channel:` and `coordinates:` fields in full.
-- [`kapi context`](/reference/commands/context): the by-location verb's own flags and output.
-- [`kapi context search`](/reference/commands/context-search): the by-content verb's.
+- [`kapi context`](/reference/commands/context) and [`kapi context search`](/reference/commands/context-search): each command's flags and output.

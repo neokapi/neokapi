@@ -146,7 +146,7 @@ func registerEditMCPTools(server *mcp.Server, a *App) {
 			"A source edit lists the translations it made stale under invalidates. Every operation is recorded as yours, " +
 			"the calling agent's, in this server's session. Writing a term, a content-memory pair or a recipe field and " +
 			"deciding a review are a person's: those operations are refused as not_permitted. Record a term rule as a " +
-			"suggestion with context_observe, or context_correct for wording you changed. " +
+			"suggestion with context_note, with from and to for wording you changed. " +
 			"Each document's findings say what the commit check found on the edit; run check_file after a native write, " +
 			"or for what the commit check does not run.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {

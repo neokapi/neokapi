@@ -10,7 +10,7 @@ import (
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
-// authoring-effect: does `kapi voice guide` steer writing toward the profile,
+// authoring-effect: does `kapi voice show` steer writing toward the profile,
 // or does it just make the writing better?
 //
 // The second question is the one that makes this worth running. Prepending any
@@ -95,14 +95,14 @@ type SteerResult struct {
 func runSteer(ctx context.Context, bin, workdir, provider, model string) (*SteerResult, error) {
 	res := &SteerResult{Provider: provider, Model: model}
 
-	guide, err := kapiRun(ctx, bin, workdir, "voice", "guide", "--profile-file", workdir+"/voice.yaml")
+	guide, err := kapiRun(ctx, bin, workdir, "voice", "show", "--profile-file", workdir+"/voice.yaml")
 	if err != nil {
-		res.Blocked = "kapi voice guide failed: " + clip.Runes(guide, 300)
+		res.Blocked = "kapi voice show failed: " + clip.Runes(guide, 300)
 		return res, nil
 	}
 	res.Guide = strings.TrimSpace(guide)
 	if res.Guide == "" {
-		res.Blocked = "kapi voice guide produced no text, so the steered arm would be identical to the bare one"
+		res.Blocked = "kapi voice show produced no text, so the steered arm would be identical to the bare one"
 		return res, nil
 	}
 

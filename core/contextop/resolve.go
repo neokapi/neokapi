@@ -80,7 +80,7 @@ func Widen(ctx context.Context, store RuleStore, r Record) error {
 }
 
 // Narrow takes a widened rule back out of force across the workspace. It is
-// what dropping or reverting a widened rule does, and narrowing one the
+// what dropping a widened rule does, and narrowing one the
 // workspace does not hold is not an error.
 func Narrow(ctx context.Context, store RuleStore, project workspace.ProjectKey, id string) error {
 	return store.NarrowRule(ctx, widenedID(project, id))

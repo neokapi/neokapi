@@ -46,8 +46,8 @@ func (o ContextOperation) line() string {
 	if o.Target != "" {
 		parts = append(parts, "of #"+contextop.ShortID(o.Target))
 	}
-	if o.TargetSession != "" {
-		parts = append(parts, "of session "+o.TargetSession)
+	if o.Before != "" {
+		parts = append(parts, "back to before #"+contextop.ShortID(o.Before))
 	}
 	if o.Kind.Bears() {
 		status := string(o.Status)
@@ -113,28 +113,6 @@ func describeEvidence(e contextop.Evidence) string {
 		return fmt.Sprintf("%s: %q", where, e.Quote)
 	}
 	return where
-}
-
-// FormatText renders what a revert undid.
-func (r ContextRevertResult) FormatText(w io.Writer) error {
-	what := fmt.Sprintf("%d operation(s)", len(r.Reverted))
-	if r.Session != "" {
-		what = fmt.Sprintf("%s recorded by session %s", what, r.Session)
-	}
-	if _, err := fmt.Fprintf(w, "Reverted %s.\n", what); err != nil {
-		return err
-	}
-	for _, op := range r.Reverted {
-		if _, err := fmt.Fprintln(w, "  "+op.line()); err != nil {
-			return err
-		}
-	}
-	for _, retracted := range r.Retracted {
-		if _, err := fmt.Fprintf(w, "  taken back out of %s\n", retracted); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // FormatText renders what a keep did: one line per rule kept, where it was

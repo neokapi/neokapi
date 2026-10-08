@@ -34,7 +34,7 @@ git-shareable YAML file (`--profile-file`):
 
 ```bash
 # Print the rendered guide (paste into an assistant, or pipe to a file)
-kapi voice guide --pack friendly-dtc
+kapi voice show --pack friendly-dtc
 
 # Score text: file argument, --input-text, or stdin. Exits 3 when a finding
 # fails, so it gates CI. The default pass is rule-based and offline; --ai adds
@@ -126,7 +126,7 @@ Three rule fields do most of the work beyond the example above:
   inflections the exact matcher also recognises), `case_sensitive` and `scope`
   (`prose`, `code`, `heading`). A rule with only a `replacement` names a
   preferred form and rejects nothing. `kapi voice import` and
-  `kapi context import` move a file's `terms:` into the project's terms store
+  `kapi store import` move a file's `terms:` into the project's terms store
   and report how many; a file that lists its words under `vocabulary:` is
   converted the same way. The same shape is what a flow step accepts under
   `term_rules:` for `term-check`, `translate`, `recycle`, `dnt-check` and
@@ -213,8 +213,9 @@ AI agents reach voice checking through the `kapi mcp` server:
 Agents can score content for voice compliance with the `voice_check` MCP tool
 and rewrite off-voice copy with `voice_rewrite`, which lists under `skipped`
 the terms it matched and could not replace. The guide itself is read
-rather than called: `kapi voice guide` prints it, and the `context://<path>`
-resource returns it for the point a file sits at, with the terms bound there.
+rather than called: `kapi context <path>` prints it for one file, with the
+terms that apply there, and the `context://<path>` resource returns the same
+answer.
 Server deployments can expose an HTTP MCP endpoint so agents consume profiles
 and scoring without a local CLI process.
 

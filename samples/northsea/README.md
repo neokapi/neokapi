@@ -6,7 +6,7 @@ journey, govern the content you already have, stands on its own, with no
 second language, no server, and no provider credential anywhere in it.
 
 Everything here runs offline. The sample ships its context as files under
-`context/`, and `kapi context import ./context` reads them into your workspace,
+`context/`, and `kapi store import ./context` reads them into your workspace,
 where `kapi check` answers from. No network, no credential.
 
 This README follows the project's own register
@@ -36,7 +36,7 @@ here means the same thing there.
 ```
 samples/northsea/
 ├── kapi.yaml                 # the recipe: one profile, four channels
-├── context/                  # read in with `kapi context import ./context`
+├── context/                  # read in with `kapi store import ./context`
 │   ├── voice.yaml            # the house voice, with a per-channel register
 │   └── terms.json            # the vocabulary this sample ships
 ├── .kapi/
@@ -136,7 +136,7 @@ From a copy of this directory (the commands assume kapi on `PATH`):
 
 ```bash
 kapi voice validate context/voice.yaml    # the drafted profile is schema-valid
-kapi context import ./context             # read the sample's context into your workspace
+kapi store import ./context             # read the sample's context into your workspace
 kapi up                                   # reconcile the graph and the sources
 kapi context docs/berths.md               # where am I, and what governs here
 kapi context search mooring               # what do we call this, and everywhere it lands

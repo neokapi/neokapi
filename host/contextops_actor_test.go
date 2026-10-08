@@ -13,7 +13,7 @@ import (
 //
 // An operation recorded from a shell states no actor, so the environment
 // answers. These tests drive the host API with an empty actor, which is what
-// `kapi context observe` and its neighbours pass, and assert on what the log
+// `kapi context note` and its neighbours pass, and assert on what the log
 // holds afterwards.
 
 // asAgent puts the environment an agent host leaves on a command in place for
@@ -115,7 +115,7 @@ func TestACommandLineAgentIsRefusedEveryDecision(t *testing.T) {
 		Project: recipeOf(root), ID: proposed.ID,
 	})
 	require.ErrorIs(t, err, contextop.ErrRefused)
-	assert.Contains(t, err.Error(), "kapi context log --status suggested",
+	assert.Contains(t, err.Error(), "kapi context review",
 		"the refusal teaches the move that is the agent's to make")
 
 	_, err = app.DropContextOperation(t.Context(), ContextDropRequest{
@@ -123,10 +123,10 @@ func TestACommandLineAgentIsRefusedEveryDecision(t *testing.T) {
 	})
 	require.ErrorIs(t, err, contextop.ErrRefused, "a person's suggestion is not an agent's to drop")
 
-	_, err = app.RevertContextOperations(t.Context(), ContextRevertRequest{
-		Project: recipeOf(root), Session: "s-cli-2",
+	_, err = app.ResetContext(t.Context(), ContextResetRequest{
+		Project: recipeOf(root), Before: proposed.ID,
 	})
-	require.ErrorIs(t, err, contextop.ErrRefused, "reverting a whole session is a person's")
+	require.ErrorIs(t, err, contextop.ErrRefused, "resetting the context is a person's")
 
 	_, err = app.WidenContextOperation(t.Context(), ContextWidenRequest{
 		Project: recipeOf(root), ID: proposed.ID, To: WidenToWorkspace,

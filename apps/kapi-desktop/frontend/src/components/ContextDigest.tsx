@@ -1,6 +1,7 @@
-// What kapi learned about how a project writes since the person last looked.
+// The rules and suggestions kapi holds for a project, with what is new since
+// the person last looked.
 //
-// The digest is news, never a queue. The few things that need a person come
+// The view is news, never a queue. The few things that need a person come
 // first (conflicts), then the rules that came into force and on what, then
 // the suggestions grouped by theme, then content drifting away from a rule,
 // and last the project in numbers. A suggestion nobody answers keeps
@@ -9,11 +10,11 @@
 //
 // The keys act on the item under the cursor: j and k move, a keeps (or
 // chooses a side of a conflict), c changes the rule before keeping it, d
-// drops, g keeps the whole group, u reverts a rule in force, o opens the file
-// the item was seen in.
+// drops a suggestion or a rule in force, g keeps the whole group, o opens the
+// file the item was seen in.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, FileText, Undo2 } from "lucide-react";
+import { Check, FileText } from "lucide-react";
 import { t } from "@neokapi/i18n-react/runtime";
 import { Button, ErrorNotice, Input, LoadingSpinner, cn } from "@neokapi/ui-primitives";
 import type { ContextDigest, DigestItem, DigestTermRule } from "../types/api";
@@ -39,7 +40,6 @@ export interface ContextDigestViewProps {
   onDrop: (item: DigestItem) => void | Promise<void>;
   /** Choose one side of a conflict, setting the others aside. */
   onChoose: (item: DigestItem, replacement?: string) => void | Promise<void>;
-  onRevert: (item: DigestItem) => void;
   /** Open the file an item was seen in. Absent hides the links. */
   onOpenFile?: (path: string) => void;
 }
@@ -63,7 +63,6 @@ export function ContextDigestView({
   onKeepGroup,
   onDrop,
   onChoose,
-  onRevert,
   onOpenFile,
 }: ContextDigestViewProps) {
   const stops = useMemo<Stop[]>(() => {
@@ -142,12 +141,6 @@ export function ContextDigestView({
             void onKeepGroup(active.group.filter((g) => g.keepable));
           }
           break;
-        case "u":
-          if (canDecide && item.revertible) {
-            e.preventDefault();
-            onRevert(item);
-          }
-          break;
         case "o":
           if (onOpenFile && item.quote?.path) {
             e.preventDefault();
@@ -161,10 +154,10 @@ export function ContextDigestView({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [active, canDecide, keep, keyboard, onDrop, onKeepGroup, onOpenFile, onRevert, stops.length]);
+  }, [active, canDecide, keep, keyboard, onDrop, onKeepGroup, onOpenFile, stops.length]);
 
   if (error) {
-    return <ErrorNotice error={error} title="The digest could not be read" />;
+    return <ErrorNotice error={error} title="The rules and suggestions could not be read" />;
   }
   if (!digest) {
     return loading ? <LoadingSpinner /> : null;
@@ -187,7 +180,6 @@ export function ContextDigestView({
       onCancelChange={() => setChanging(null)}
       onKeep={(replacement) => void keep(stop, replacement)}
       onDrop={() => void onDrop(stop.item)}
-      onRevert={() => onRevert(stop.item)}
       onOpenFile={onOpenFile}
     />
   );
@@ -293,8 +285,8 @@ export function ContextDigestView({
             Drift
           </h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            Content is moving away from these rules. Open the files, or revert the rule if the
-            project has changed its mind.
+            Content is moving away from these rules. Open the files, or drop the rule if the project
+            has changed its mind.
           </p>
           <div className="mt-2 divide-y divide-border/60">{stopsOf("drift").map(row)}</div>
         </section>
@@ -310,7 +302,7 @@ function DigestHeading({ since, quiet }: { since?: string; quiet: boolean }) {
   if (!since) {
     return (
       <p className="text-sm text-muted-foreground">
-        Everything kapi has learned about how this project writes.
+        Every rule and suggestion kapi holds for this project.
       </p>
     );
   }
@@ -388,7 +380,6 @@ function DigestRow({
   onCancelChange,
   onKeep,
   onDrop,
-  onRevert,
   onOpenFile,
 }: {
   stop: Stop;
@@ -401,7 +392,6 @@ function DigestRow({
   onCancelChange: () => void;
   onKeep: (replacement?: string) => void;
   onDrop: () => void;
-  onRevert: () => void;
   onOpenFile?: (path: string) => void;
 }) {
   const { item, section } = stop;
@@ -500,7 +490,7 @@ function DigestRow({
           {item.keepable && (
             <Button size="sm" data-slot="keep-item" onClick={() => onKeep()}>
               <Check size={13} />
-              {section === "conflict" ? <>Choose this</> : <>Keep</>}
+              {section === "conflict" ? <>Choose this side</> : <>Keep</>}
               {kbd("a")}
             </Button>
           )}
@@ -514,13 +504,6 @@ function DigestRow({
             <Button variant="ghost" size="sm" data-slot="drop-item" onClick={onDrop}>
               Drop
               {kbd("d")}
-            </Button>
-          )}
-          {item.revertible && section !== "conflict" && (
-            <Button variant="ghost" size="sm" data-slot="revert-item" onClick={onRevert}>
-              <Undo2 size={13} />
-              Revert
-              {kbd("u")}
             </Button>
           )}
         </div>

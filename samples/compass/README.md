@@ -35,7 +35,7 @@ German and Dutch.
 ```
 samples/compass/
 ├── kapi.yaml                 # the recipe: one point, three target languages, two gates
-├── context/                  # read in with `kapi context import ./context`
+├── context/                  # read in with `kapi store import ./context`
 │   ├── voice.yaml            # the Northsea voice, cut to the one channel this ships on
 │   ├── terms.json            # the vocabulary this sample ships
 │   ├── memory/               # approved wording, per language, the recycle corpus
@@ -127,7 +127,7 @@ hold every language behind the ship gate, which is the honest answer.
 From a copy of this directory (the commands assume kapi on `PATH`):
 
 ```bash
-kapi context import ./context                     # read the sample's context into your workspace
+kapi store import ./context                     # read the sample's context into your workspace
 kapi status                                       # both axes, on one screen
 kapi context site/locales/en-GB.json              # the point, and what governs here
 kapi status --ship --emit site/ship.json          # what the site may offer today

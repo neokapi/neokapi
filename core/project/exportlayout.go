@@ -6,7 +6,7 @@ import "path/filepath"
 // bundles, the per-profile directories and the committed decision record.
 //
 // A project's context lives in the user's workspace. These files are what
-// `kapi context import` reads into it, so they are inputs to the store rather
+// `kapi store import` reads into it, so they are inputs to the store rather
 // than a place kapi resolves context from. The paths therefore sit on a value
 // of their own: a read path holds a Layout, and a Layout cannot name them.
 //

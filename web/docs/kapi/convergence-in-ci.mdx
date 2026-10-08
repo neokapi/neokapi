@@ -199,29 +199,30 @@ The [Ship gates & CI](/kapi/recipes/ship-gates-and-ci) recipe walks the
 gate end to end, including the import step that lets an `established`
 threshold pass on a runner.
 
-## Settle suggestions after a merge
+## Settle suggestions after a merge {#settle-suggestions-after-a-merge}
 
-A suggestion becomes an established rule once a person's signal backs it, and a
-change reaching the default branch is one such signal: a person reviewed and
-merged it ([how rules become established](/kapi/context-decisions#how-a-suggestion-becomes-a-rule)).
-`kapi context settle --merged <range>` reads the diff a range of commits made,
-records it as evidence for every suggestion whose preferred wording it added or
-whose rejected wording it removed, and establishes each suggestion the evidence
-now backs. It names the pull request and the merger, read from the merge
-commit when you do not pass `--pr` and `--merger`, and the same range records
-the same evidence, so a rerun changes nothing.
+A suggestion becomes a rule once a person's work backs it, and a change
+merged to the default branch is such a signal: a person reviewed and merged it
+([how a suggestion becomes a rule](/kapi/context-decisions#how-a-suggestion-becomes-a-rule)).
+`kapi context sync --merged <range>` reads the change a range of commits made,
+counts it as evidence for every suggestion whose preferred wording it added or
+whose avoided wording it removed, and makes each suggestion the evidence backs
+a rule when nothing contradicts it. It names the pull request and the merger,
+read from the last commit when you pass neither `--pr` nor `--merger`. The same
+range records the same evidence, so a rerun changes nothing.
 
-The evidence lands in the workspace the command runs against, so run it where
-that workspace persists. On a developer machine, run it after pulling the
-default branch:
+The same command syncs the context, so the rules the merge settled reach the
+rest of the team at once. A project that shares its context nowhere settles
+the merge on the machine that runs it. On a developer machine, run it after
+pulling the default branch:
 
 ```bash
 git pull
-kapi context settle --merged ORIG_HEAD..HEAD
+kapi context sync --merged ORIG_HEAD..HEAD
 ```
 
-On a runner, run it after a push to the default branch, with the kapi data
-directory kept between runs:
+On a runner, run it after a push to the default branch. With a `git` backend
+the job needs the full history and permission to push the context ref:
 
 ```yaml title=".github/workflows/settle.yml"
 name: Settle context
@@ -229,26 +230,26 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: write          # push the context ref
+
 jobs:
   settle:
     runs-on: ubuntu-latest
-    env:
-      KAPI_DATA_DIR: ${{ github.workspace }}/.kapi-data
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - uses: actions/cache@v4
-        with:
-          path: .kapi-data
-          key: kapi-data-${{ github.run_id }}
-          restore-keys: kapi-data-
       - uses: neokapi/setup-kapi@v1
       - run: >-
-          kapi context settle
+          kapi context sync
           --merged "${{ github.event.before }}..${{ github.sha }}"
           --merger "${{ github.actor }}"
 ```
+
+A project with no backend keeps what the merge settled in the runner's
+workspace, so keep the kapi data directory between runs (`KAPI_DATA_DIR` and a
+cache step) or the evidence is lost with the runner.
 
 ## Report the cost of a change on its pull request
 
@@ -301,8 +302,8 @@ stage.
   read the working tree.
 - **A runner starts with an empty context store**, because a project's terms,
   voice profiles, content memory and approvals live in a workspace on the
-  machine that holds them. Pull the project's context before the job and push
-  what the job recorded after it; see [below](#pull-context-before-push-after).
+  machine that holds them. Sync the project's context before the job and again
+  after it; see [below](#pull-context-before-push-after).
   A job never commits `.kapi/work/store.db`.
 - **The parse cache is the part to carry between runs**: `.kapi/work/cache/docs`
   is gitignored, rebuilt on a fresh runner, and keyed by each file's path and
@@ -339,55 +340,41 @@ stage.
 Everything on this page runs the loop inside your own CI. A project whose recipe declares a `bowrain:` block runs the same loop on a Bowrain server instead: `kapi up` pushes, the server catches every locale up against the workspace's shared memory and terminology, and the run streams back, with review handled in the Bowrain web app rather than in your checkout. See the [Bowrain documentation](https://bowrain.cloud/docs/).
 :::
 
-## Pull context before, push after {#pull-context-before-push-after}
+## Sync context around a job {#pull-context-before-push-after}
 
 A project that declares a [context backend](/kapi/context-portability#sharing-context-through-a-backend)
-brings its context to a runner with `kapi context pull` and shares what the job
-recorded with `kapi context push`. With the `git` backend the context is kept on
-a ref of the repository itself, so the job needs nothing but the checkout and
-permission to push:
+brings its context to a runner with `kapi context sync --no-push` before the
+job, which reads the shared context and shares nothing, and shares what the job
+recorded with `kapi context sync` after it. With the `git`
+backend the context is kept on a ref of the repository itself, so the job
+needs nothing but the checkout and permission to push:
 
 ```yaml
 permissions:
-  contents: write          # push the context ref; a job that only reads needs read
+  contents: write          # push the context ref
 steps:
   - uses: actions/checkout@v5
   - uses: neokapi/setup-kapi@v1
-  - run: kapi context pull
+  - run: kapi context sync --no-push
   - run: kapi up
-  - run: kapi context push
+  - run: kapi context sync
   - run: kapi check --ship
 ```
 
-With `kapi-action`, the `context-sync` input runs the same commands around the
-one it runs: `pull` runs `kapi context pull` before it, and `true` also runs
-`kapi context push` after it (except on a plan):
-
-```yaml
-permissions:
-  contents: write
-steps:
-  - uses: actions/checkout@v5
-  - uses: neokapi/setup-kapi@v1
-  - uses: neokapi/kapi-action@v1
-    with:
-      context-sync: "true"
-```
-
-A runner that skips the pull holds the translations the checkout carries and
+A runner that skips the sync holds the translations the checkout carries and
 no record of the source each was made from, so a source edited since a
 translation was made is not graded stale there. `kapi up` and `kapi status`
-say so in one line naming `kapi context pull`.
+say so in one line naming `kapi context sync`.
 
-`kapi context pull` fetches the ref itself (`refs/kapi/context`), which a
-checkout does not. A pull request from a fork can pull the context and cannot
-push it, so a job on one pulls and checks, and leaves pushing to a job that runs
-in the repository. A pull or push that cannot reach the backend exits with
-status 5 and changes nothing, so a job can retry it.
+`kapi context sync` fetches the context ref itself (`refs/kapi/context`),
+which a checkout does not. A pull request from a fork can read the shared
+context and cannot share back to it, so its jobs run `kapi context sync
+--no-push` and leave sharing to a job that runs in the repository. A sync that
+cannot reach the backend exits with status 5 and changes nothing, so a job can
+retry it.
 
-A job that makes no decisions only pulls. A job whose gates depend on context
-files the repository carries instead reads them with `kapi context import`
-before the gate.
+A job whose gates depend on terms or a voice the repository carries runs
+`kapi store import` before the gate, which reads them into the project's store.
 
 ## Next
 

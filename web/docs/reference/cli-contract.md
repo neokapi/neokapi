@@ -217,7 +217,7 @@ An application reads and changes content through one of four channels. Each carr
 
 The [MCP server](/reference/mcp) (`kapi mcp`) is part of the same contract: its tool names and input schemas are a stable surface for agent integrations, locked by a snapshot test (`kapi/cmd/kapi/mcp_snapshot_test.go`). New tools and new optional fields may be added; existing tools are not renamed or removed, and existing fields do not change type, without an explicit, documented decision.
 
-The `kapi.change/v1` freeze is one such decision. `apply_edits` reads `find` as placeholder text, takes an optional `path` on a `replace_text` operation, and names a piece of evidence's block `evidence[].block`; `context_observe` and `context_correct` name it `block` too. `kapi/cmd/kapi/testdata/mcp_tools.frozen.json` holds the frozen surface: a test refuses a tool that is gone and an input schema that no longer extends its frozen one, and the golden, which the snapshot test regenerates, shows every change in review. `apply_edits` declares its result with the generated `kapi.change-result/v1` schema.
+The `kapi.change/v1` freeze is one such decision. `apply_edits` reads `find` as placeholder text, takes an optional `path` on a `replace_text` operation, and names a piece of evidence's block `evidence[].block`; `context_note` names it `block` too. `kapi/cmd/kapi/testdata/mcp_tools.frozen.json` holds the frozen surface: a test refuses a tool that is gone and an input schema that no longer extends its frozen one, and the golden, which the snapshot test regenerates, shows every change in review. `apply_edits` declares its result with the generated `kapi.change-result/v1` schema.
 
 `check_text` accepts an optional `context_path`, a project-relative destination
 whose voice and terms apply to the supplied draft. It requires a bound project
@@ -298,25 +298,34 @@ the `report` gate, and `kapi apply` records the person or agent its
 environment names. See
 [Growing context](/kapi/context-decisions).
 
-Four tools record and read a project's context history: `context_observe`,
-`context_correct`, `context_withdraw` and `context_session_summary`. Each wraps
-one call in the host's context-operations API and takes the same optional
-`project` as every other project-scoped tool. `context_read` returns exactly
-the text the `context://<path>` resource returns, for a client that lists no
-resources from a template.
+Two tools record and read a project's context history: `context_note` and
+`context_session_summary`, in parity with `kapi context note` and `kapi context
+log --session this`. `context_note` records what the agent noticed (`text`, or
+`term` with `instead_of`), a change a person made (`from` and `to`), or, with
+`withdraw`, takes back a note of the same session. Each wraps the
+context-operations API in the host and takes the same optional `project` as
+every other project-scoped tool. `context_read` returns exactly the text the
+`context://<path>` resource returns, for a client that lists no resources from
+a template, and its `comments` field, like the resource's `comments` query
+parameter and `kapi context <path> --comments`, answers for the comments in a
+file.
+
+`context_note` took the place of `context_observe`, `context_correct` and
+`context_withdraw` before 1.3.0 shipped: an explicit decision to give the agent
+one recording tool, with the frozen surface edited by hand to match.
 
 None of them takes an actor. The kind is `agent`, the name is the client's own
 `initialize` name, and the session is minted once per server process, so an
 argument naming an actor or a session is refused by the schema. Evidence is
-required where a rule is stated: `context_observe` refuses a term rule with no
-`path`, and `context_correct` declares `path` as required and refuses a blank
-one. A recorded operation is a suggestion, so a check reports it with
+required where a rule is stated: `context_note` refuses a term rule, or a
+change from one wording to another, with no `path`. A recorded operation is a suggestion, so a check reports it with
 `"fails": false` and `"suggested": true`. The record carries
 `contested_by` when it disagrees with another rule.
 
-The MCP tool set excludes keeping, dropping, reverting and widening. The
-context policy reserves those operations for people. `context_withdraw` takes back only
-what the same session recorded. A by-location context answer and a
+The MCP tool set excludes keeping, dropping, widening, resetting and syncing.
+The context policy reserves those operations for people, who make them with
+`kapi context review`, `kapi context reset` and `kapi context sync`. A
+`withdraw` takes back only what the same session recorded. A by-location context answer and a
 `context_search` answer carry a `suggestions` array, each entry with `status`
 `suggested` or `contested`, `contested_by` and `suggested_by`. See
 [Growing context](/kapi/context-decisions).

@@ -19,8 +19,9 @@ import {
   ChevronRight,
   FileText,
   Inbox,
+  History,
   Terminal,
-  Undo2,
+  Trash2,
   User,
   Wrench,
 } from "lucide-react";
@@ -58,12 +59,10 @@ export interface ContextFeedProps {
   error?: unknown;
   /** Accept a candidate, with an edit when the person made one. */
   onKeep: (entry: ContextFeedEntry, edit?: ContextRuleEdit) => void | Promise<void>;
-  /** Reject a candidate. */
+  /** Drop a suggestion, or a rule in force, which takes it back out of the project's stores. */
   onDrop: (entry: ContextFeedEntry) => void | Promise<void>;
-  /** Take a rule in force back out. */
-  onRevert: (entry: ContextFeedEntry) => void;
-  /** Undo everything one session recorded. */
-  onRevertSession: (group: ContextFeedGroup) => void;
+  /** Reset the project's context to before one session. */
+  onResetSession: (group: ContextFeedGroup) => void;
   /** Open the widen preview for a rule in force. */
   onWiden: (entry: ContextFeedEntry, to: string) => void;
   /** Show the project each entry belongs to. The workspace feed does. */
@@ -84,7 +83,7 @@ const KIND_LABELS: Record<string, string> = {
   keep: "kept",
   drop: "dropped",
   withdraw: "withdrawn",
-  revert: "reverted",
+  reset: "reset",
   widen: "widened",
 };
 
@@ -94,8 +93,7 @@ export function ContextFeedList({
   error,
   onKeep,
   onDrop,
-  onRevert,
-  onRevertSession,
+  onResetSession,
   onWiden,
   showProject,
   keyboard = true,
@@ -229,8 +227,7 @@ export function ContextFeedList({
           onCancelEdit={() => setEditing(null)}
           onKeep={confirm}
           onDrop={onDrop}
-          onRevert={onRevert}
-          onRevertSession={onRevertSession}
+          onResetSession={onResetSession}
           onWiden={onWiden}
           showProject={showProject}
         />
@@ -283,8 +280,7 @@ interface SessionCardProps {
   onCancelEdit: () => void;
   onKeep: (entry: ContextFeedEntry) => void;
   onDrop: (entry: ContextFeedEntry) => void | Promise<void>;
-  onRevert: (entry: ContextFeedEntry) => void;
-  onRevertSession: (group: ContextFeedGroup) => void;
+  onResetSession: (group: ContextFeedGroup) => void;
   onWiden: (entry: ContextFeedEntry, to: string) => void;
   showProject?: boolean;
 }
@@ -303,8 +299,7 @@ function SessionCard({
   onCancelEdit,
   onKeep,
   onDrop,
-  onRevert,
-  onRevertSession,
+  onResetSession,
   onWiden,
   showProject,
 }: SessionCardProps) {
@@ -347,16 +342,16 @@ function SessionCard({
             <SessionSummaryLine group={group} />
           </p>
         </div>
-        {group.entries.some((entry) => entry.revertible) && group.session && (
+        {group.entries.some((entry) => entry.droppable) && group.session && (
           <Button
             variant="ghost"
             size="sm"
-            data-slot="revert-session"
+            data-slot="reset-session"
             className="shrink-0 text-muted-foreground"
-            onClick={() => onRevertSession(group)}
+            onClick={() => onResetSession(group)}
           >
-            <Undo2 size={13} />
-            Undo session
+            <History size={13} />
+            Reset to before this session
           </Button>
         )}
       </header>
@@ -376,7 +371,6 @@ function SessionCard({
                 onCancelEdit={onCancelEdit}
                 onKeep={() => onKeep(entry)}
                 onDrop={() => void onDrop(entry)}
-                onRevert={() => onRevert(entry)}
                 onWiden={(to) => onWiden(entry, to)}
                 showProject={showProject}
               />
@@ -441,7 +435,6 @@ interface FeedEntryCardProps {
   onCancelEdit: () => void;
   onKeep: () => void;
   onDrop: () => void;
-  onRevert: () => void;
   onWiden: (to: string) => void;
   showProject?: boolean;
 }
@@ -458,7 +451,6 @@ function FeedEntryCard({
   onCancelEdit,
   onKeep,
   onDrop,
-  onRevert,
   onWiden,
   showProject,
 }: FeedEntryCardProps) {
@@ -564,11 +556,11 @@ function FeedEntryCard({
         />
       )}
 
-      {entry.revertible && (
+      {entry.droppable && !entry.decidable && (
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" data-slot="revert-entry" onClick={onRevert}>
-            <Undo2 size={13} />
-            Undo
+          <Button variant="outline" size="sm" data-slot="drop-rule" onClick={onDrop}>
+            <Trash2 size={13} />
+            Drop
           </Button>
           {entry.widen_to.length > 0 && <WidenPicker options={entry.widen_to} onWiden={onWiden} />}
         </div>
@@ -774,12 +766,12 @@ function SubjectLine({ entry }: { entry: ContextFeedEntry }) {
       </p>
     );
   }
-  if (entry.target_session) {
+  if (entry.kind === "reset" && entry.before) {
     return (
       <p className="text-sm text-muted-foreground">
-        the whole session{" "}
+        back to before{" "}
         <span className="font-mono" translate="no">
-          {entry.target_session}
+          #{entry.before}
         </span>
       </p>
     );
@@ -811,7 +803,7 @@ function StatusBadge({
     kind === "keep" ||
     kind === "drop" ||
     kind === "withdraw" ||
-    kind === "revert" ||
+    kind === "reset" ||
     kind === "widen"
   ) {
     return null;
@@ -840,7 +832,7 @@ function StatusBadge({
   }
   return (
     <Badge variant="outline" className="text-xs text-muted-foreground">
-      {status === "dropped" ? "Dropped" : status === "withdrawn" ? "Withdrawn" : "Undone"}
+      {status === "dropped" ? "Dropped" : status === "withdrawn" ? "Withdrawn" : "Set aside"}
     </Badge>
   );
 }
@@ -850,7 +842,7 @@ export function ContextFeedHint() {
   return (
     <p className="flex items-center gap-2 text-xs text-muted-foreground">
       <Terminal size={13} className="shrink-0" />
-      An agent working in one of your projects records what it learns here.
+      An agent working in one of your projects records what it notices here.
     </p>
   );
 }

@@ -16,7 +16,7 @@ import (
 //
 // The contexts are the operation logs, never the stores: a project's stores
 // are projections of its log, and reading the package back rebuilds them by
-// merging each log the way `kapi context import` does. A terms store that sits
+// merging each log the way `kapi store import` does. A terms store that sits
 // outside every project has no log, so it travels as itself: a terms bundle
 // (terms/ktb) under termstores/, which reading the package back writes into a
 // store at the same path.

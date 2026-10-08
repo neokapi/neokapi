@@ -16,8 +16,8 @@ import (
 // one.
 //
 // A session groups everything one agent run recorded, so a person can read it
-// back with `kapi context log --session` and take the whole of it out again
-// with `kapi context revert --session`. An id that does that holds still across
+// back with `kapi context review --session` and set the whole of it aside
+// with `kapi context reset --before`. An id that does that holds still across
 // the separate kapi processes of one run and differs between runs.
 //
 // An agent host gives each command it runs a shell of its own, so kapi's pid
@@ -119,7 +119,7 @@ func isShellProcess(name string) bool {
 }
 
 // processSessionID renders a process as a session id short enough to type,
-// because reverting a session is something a person does by hand.
+// because reviewing a session is something a person does by hand.
 func processSessionID(pid int, start int64) string {
 	sum := sha256.Sum256([]byte(strconv.Itoa(pid) + ":" + strconv.FormatInt(start, 10)))
 	return "s" + hex.EncodeToString(sum[:6])

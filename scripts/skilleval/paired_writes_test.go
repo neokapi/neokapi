@@ -34,9 +34,10 @@ func TestPairedRootAndContextWrites(t *testing.T) {
 	assert.Empty(t, pairedRootWrites("Write", map[string]any{"file_path": "/cell/workspace/docs/en/a.md"}, ws))
 	assert.Empty(t, pairedRootWrites("Bash", shell("kapi apply changes.json | tee"), ws), "tee with no file writes none")
 
-	assert.Equal(t, "kapi context observe", pairedContextWriteOf("Bash", shell("kapi context observe --term X --seen-in a.md")))
+	assert.Equal(t, "kapi context note", pairedContextWriteOf("Bash", shell("kapi context note --term X --seen-in a.md")))
 	assert.Equal(t, "kapi terms add", pairedContextWriteOf("shell", shell("kapi terms add portal")))
-	assert.Equal(t, "mcp__kapi__context_correct", pairedContextWriteOf("mcp__kapi__context_correct", nil))
+	assert.Equal(t, "mcp__kapi__context_note", pairedContextWriteOf("mcp__kapi__context_note", nil))
+	assert.Equal(t, "kapi context review", pairedContextWriteOf("Bash", shell("kapi context review --keep 0n794e2gk7")))
 	assert.Empty(t, pairedContextWriteOf("mcp__kapi__context_read", nil))
 	assert.Empty(t, pairedContextWriteOf("Bash", shell("kapi context log --session this")))
 }

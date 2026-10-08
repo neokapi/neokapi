@@ -84,7 +84,12 @@ func (p *Projector) Rebuild(ctx context.Context) (RebuildReport, error) {
 	}
 	p.lock.Lock()
 	defer p.lock.Unlock()
+	return p.rebuildLocked(ctx)
+}
 
+// rebuildLocked is Rebuild for a caller already holding the store's lock.
+func (p *Projector) rebuildLocked(ctx context.Context) (RebuildReport, error) {
+	report := RebuildReport{Operations: map[string]int{}}
 	ops, err := p.log.Select(ctx, workspace.OpQuery{Project: p.key})
 	if err != nil {
 		return report, err
@@ -105,6 +110,17 @@ func (p *Projector) Rebuild(ctx context.Context) (RebuildReport, error) {
 		head = max(head, op.Seq)
 	}
 	cp, pkg, fromCheckpoint := p.latestCheckpoint(ctx, ops)
+	// What a reset set aside stays in the log and is not replayed, so the
+	// stores stand as they did before the point the reset names.
+	if aside := workspace.SetAside(ops); len(aside) > 0 {
+		kept := ops[:0:0]
+		for _, op := range ops {
+			if !aside[op.ID] {
+				kept = append(kept, op)
+			}
+		}
+		ops = kept
+	}
 
 	if err := p.reset(ctx); err != nil {
 		return report, err

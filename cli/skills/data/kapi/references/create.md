@@ -65,7 +65,7 @@ file has no such section, `kapi voice pointer` writes it
 ([project.md](project.md)).
 
 ```bash
-kapi voice guide                       # the voice to follow (no flag inside a project)
+kapi context draft.md                  # the voice and terms that apply to the file
 kapi terms lookup "dashboard" -t en  # the approved term
 ```
 
@@ -98,13 +98,13 @@ Correct the draft through `kapi apply`, with the block's `ref` and `rev` from
 
 ```bash
 kapi apply change.json
-kapi context correct "control panel" "dashboard" --seen-in draft.md --suggest
+kapi context note --from "control panel" --to "dashboard" --seen-in draft.md --suggest
 ```
 
 - The **content** operation rewrites the block through the faithful round-trip.
-- The **correction** records what you changed and, with `--suggest`, the rule it
+- The **note** records what you changed and, with `--suggest`, the rule it
   implies. `kapi check` reports the rule as a suggestion and fails nothing on
-  it until a person keeps it with `kapi context keep`, which writes it into the
+  it until a person keeps it in `kapi context review`, which writes it into the
   project's terms store.
 
 Writing a term into the store directly is a person's decision. A `term`

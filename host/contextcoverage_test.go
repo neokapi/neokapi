@@ -117,7 +117,7 @@ func TestContextPointTeachesWhenItIsEmpty(t *testing.T) {
 	text := renderAnswer(t, res)
 	assert.Contains(t, text, "Nothing is recorded for this file yet.",
 		"the text rendering says the answer is empty")
-	assert.Contains(t, text, "context_observe", "and how to make the next one better")
+	assert.Contains(t, text, "context_note", "and how to make the next one better")
 }
 
 // TestContextPointNamesACandidateAsACandidate: an answer that mentioned a

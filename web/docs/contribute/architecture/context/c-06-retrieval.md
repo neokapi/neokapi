@@ -80,6 +80,8 @@ context://profile/{name}{?format}   what a named profile holds
 ```
 
 The CLI mirrors this as `kapi context <path>` and `kapi context --profile <name>`.
+`kapi context <path> --comments`, and `comments` on the `context_read` tool,
+answer for the point a file's comments sit at instead of its content.
 The MCP server publishes the two as the resource templates
 `context-at-location` and `context-for-profile`.
 
@@ -124,7 +126,8 @@ The Markdown response provides a writing brief:
   (`host/contextrules.go`); storage keeps the three apart;
 - the suggestions under **Suggested, not yet established**, less any the list
   already states;
-- a closing line naming `context_observe` (and `kapi context observe`), for recording additional observations.
+- a closing line naming `context_note` (and `kapi context note`), for recording what the reader notices
+  while working.
 
 Notes appear in the prose only when a person or an agent must act before relying
 on the answer: a checkout whose context nobody has imported into the store, a voice or terms binding that
@@ -140,13 +143,13 @@ per-store retrieval tool: no voice-guide tool, no term-lookup tool, no
 memory-search tool. `host/mcp_tools_curation_test.go` guards the surface so a
 registry tool cannot re-shadow the primitives.
 
-**The CLI keeps its per-store verbs.** `kapi voice guide` and `kapi voice show`
-render a resolved profile as a guide; `kapi terms lookup` / `terms search` and
+**The CLI keeps its per-store verbs.** `kapi voice show` renders a named
+profile, a profile file or a starter pack as a guide; `kapi terms lookup` / `terms search` and
 `kapi memory lookup` / `memory search` query one store directly. They answer a
 narrower question than `kapi context` (*what does this store hold* rather than
 *what applies here*), which is a reasonable thing to ask of a store you opened on
-purpose. What changes is what an agent is taught: the skill drives `kapi context
-search`, so the narrow verbs stay available to a person without becoming the
+purpose. What an agent is taught differs: the skill drives `kapi context <path>` and
+`kapi context search`, so the narrow verbs stay available to a person without becoming the
 model an assistant learns.
 
 **Management verbs are not retrieval and do not fold.** `terms
@@ -274,9 +277,9 @@ in its place) as a note.
 MCP serves **tool sets** ([S-03](../surfaces/s-03-agent-surfaces.md)), and the
 writing set is the default: the two retrieval primitives with `context_read`,
 the tool form of the by-location resource, then the context write tools and the
-session read (`context_observe`, `context_correct`, `context_withdraw`,
-`context_session_summary`, [C-11](c-11-context-operations.md)), and
-`check_file`. The content, translation
+session read (`context_note`, `context_session_summary`,
+[C-11](c-11-context-operations.md)), `check_file`, and the edit contract
+(`read_blocks`, `apply_edits`, `describe_format`). The content, translation
 and review sets carry the rest of the porcelain, with three registry tools that
 have no porcelain equivalent (`translate`, `term-check`, `redact`). `kapi mcp
 --all-tools` adds the full generated surface for debugging and power use.

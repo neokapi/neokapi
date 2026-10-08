@@ -1,7 +1,7 @@
 ---
 sidebar_position: 2
 title: The project store
-description: "Where kapi stores derived content, authored context and operation history, and how to preserve or rebuild each."
+description: "Where kapi keeps what it reads from your files and the context your project works under, and how to back up or rebuild each."
 keywords: [kapi, project store, store.db, workspace, context store, context graph, blocks, review, coverage, cache, ship state]
 ---
 
@@ -9,7 +9,7 @@ keywords: [kapi, project store, store.db, workspace, context store, context grap
 
 A kapi project consists of:
 
-- the **recipe** (`kapi.yaml`), your *config*: content, governance bindings, flows, defaults, languages;
+- the **recipe** (`kapi.yaml`), your *config*: content, where each voice and set of terms applies, flows, defaults, languages;
 - the **files**, your *deliverable*: the source and target files on disk;
 - the **project store**, your *work*: what kapi derives from your files, plus
   the context the project works under and the decisions people record in it.
@@ -21,19 +21,19 @@ The storage model has two authoritative sources:
 
 ## What's in the store
 
-kapi separates derived content data from authored context. The projection
-database belongs to one checkout; the context database is shared by the
+kapi separates derived content data from authored context. The checkout index
+belongs to one checkout; the context database is shared by the
 project's checkouts in the local workspace.
 
 | Layer | Lives in | Kind | Lose it? |
 |---|---|---|---|
-| **context store** | a workspace under your data directory | **authored**: terms, voice profiles, content memory, recorded decisions | **back it up with [`kapi context export`](/kapi/context-portability)** |
-| operation history | the same workspace | every observation, proposal and decision, with the evidence behind each ([Growing context](/kapi/context-decisions)) | remains local; established context can be exported |
+| **context store** | a workspace under your data directory | **authored**: terms, voice profiles, content memory, recorded decisions | **back it up with [`kapi store export`](/kapi/context-portability#carrying-context-in-one-file)** |
+| history | the same workspace | every note, suggestion and decision, with the evidence behind each ([Growing context](/kapi/context-decisions)) | shared by `kapi context sync`, and included in an export |
 | parked drafts | the same workspace | **authored**: the drafts of a language whose files `materialize: on-converge` withholds, and the edits made to them | kept until a delivery writes them to their files |
-| projection | `.kapi/work/store.db` | **derived from your files**: the block cache, the overlays a run wrote, the extraction stamps | rebuilds on the next run |
+| checkout index | `.kapi/work/store.db` | **derived from your files**: the block cache, the overlays a run wrote, the extraction stamps | rebuilds on the next run |
 | cache | `.kapi/work/cache/` | **derived**: parse cache, extractions, collections, sync cache | rebuilds on the next run |
 
-### The projection stays with your checkout
+### The checkout index stays with your checkout
 
 `.kapi/work/store.db` holds what kapi read out of the working tree: the parsed
 blocks, the translations a run produced before you merged them, and the stamps
@@ -59,13 +59,14 @@ on macOS, `%LocalAppData%\kapi` on Windows, `~/.local/share/kapi` elsewhere.
 kapi creates the workspace on first use; no recipe setting is required.
 
 `kapi init` assigns a stable project `id:`. Clones and worktrees with that id
-share the local context store while maintaining separate projections of their
+share the local context store while maintaining separate indexes of their
 files. Switching branches preserves the context. Checks and context queries
-use the same store, so a confirmed rule is available to the next command in
+use the same store, so a rule you keep is available to the next command in
 every checkout.
 
-Use [`kapi context import`](/kapi/context-portability) to load context files
-from a checkout. They affect governance only after a person imports them.
+Use [`kapi store import`](/kapi/context-portability#reading-context-in) to read
+context files from a checkout. Nothing in them is in force until a person
+reads them in.
 
 ## What to commit, and what to ignore
 
@@ -89,8 +90,8 @@ Deletion has different consequences for each location:
 - **Deleting the workspace costs the context of every project on the machine**:
   the terms, the voice profiles, the content memory and the recorded decisions.
   A project with a [context backend](/kapi/context-portability#sharing-context-through-a-backend)
-  keeps a copy there once you push; for any other, take a copy with
-  [`kapi context export`](/kapi/context-portability#carrying-context-in-one-file)
+  keeps a copy there once you run `kapi context sync`; for any other, take a
+  copy with [`kapi store export`](/kapi/context-portability#carrying-context-in-one-file)
   before you do anything that reaches your data directory.
 
 ## Repairing non-canonical locale identifiers {#rows-filed-under-an-old-language-spelling}
@@ -101,33 +102,32 @@ leaving terms or approved wording absent from results. `kapi status` and
 `kapi up` report these rows when detected.
 
 ```bash
-kapi context locales    # inspect stored locale identifiers
-kapi context rebuild    # write the context rows again from the operation log
+kapi store locales    # inspect stored locale identifiers
+kapi store rebuild    # write the context rows again from their history
 ```
 
 kapi files every row under the canonical identifier as it writes it, so
-`kapi context rebuild` writes the project's context rows again in canonical
+`kapi store rebuild` writes the project's context rows again in canonical
 form.
 
-Rows in the projection are what kapi read out of your own files, so they are
+Rows in the checkout index are what kapi read out of your own files, so they are
 rebuilt rather than moved: delete `.kapi/work/store.db` and the next `kapi up`
 reads your files again.
 
-## Rebuilding the context store from its record
+## Rebuilding the context store from its history
 
 Every change to a project's terms, voice profiles, content memory and approvals
 is kept in `workspace.db` together with what it wrote: an import, an edit
-through `kapi apply`, a rule a person kept or reverted, the wording a run
-approved, a decision in a review. The
-project's database holds what those changes add up to, and kapi can write it
-again from the record:
+through `kapi apply`, a rule a person kept or dropped, the wording a run
+approved, a decision in a review. The project's database holds what those
+changes add up to, and kapi can write it again from the history:
 
 ```bash
-kapi context rebuild
+kapi store rebuild
 ```
 
 It empties the project's terms, voice profiles, content memory and approvals,
-and the rules the project widened to every project, then replays the record
+and the rules the project applied to every project, then replays the history
 into them. `--checkpoint` keeps a copy of the result, so the next rebuild starts
 from it and replays only the changes after it.
 The result is the store the changes left behind, so a rebuild is safe to run
@@ -171,8 +171,8 @@ Approving a translation records a **decision** in the store, and it counts from
 that moment (see [Review](/kapi/convergence#review-the-state-record)). Every
 checkout of the project reads it, and there is no second step.
 
-The decision is bound to the **revision** of the translation and
-to the revision of the source it was approved against. Editing either drops the
+The decision holds for the exact wording of the translation and of the source
+it was approved against. Editing either drops the
 block below *reviewed*, a changed link as much as a changed word. An approval
 can't silently outlive the content it approved.
 
@@ -184,8 +184,8 @@ kapi context log            # the decision, with the evidence behind it
 
 A team shares the record through the project's
 [context backend](/kapi/context-portability#sharing-context-through-a-backend):
-`kapi context push` writes it, and every other machine's `kapi context pull`
-reads it.
+`kapi context sync` shares it, and the next sync on every other machine reads
+it.
 
 The same model maps to a server-backed project: with the server plugin
 installed, it **pushes** its decisions to a remote (`kapi push`) and **pulls**
@@ -199,7 +199,7 @@ enforces nothing, `kapi up --plan` never creates state, and `kapi pack` carries
 only the parts that hold something. Only populated subsystems contribute context.
 
 The same model runs in the browser. The playground and the labs keep their
-files, the workspace and its operation log in the browser's storage for the
+files, the workspace and its history in the browser's storage for the
 site, so a project is still there after a reload or a browser restart. One tab
 holds the workspace at a time. A second tab keeps its own work in memory and
 says so beside its files, and **Use the workspace here** moves the workspace to
@@ -210,7 +210,7 @@ saves the files, each project's context and every terms store outside a
 project as a `.kpz`, and **Import workspace** reads one back into any browser,
 including the same one after a reset. A project's context can also be shared
 through a folder on your computer; see
-[Moving context](/kapi/context-portability#from-the-browser).
+[Sharing context](/kapi/context-portability#from-the-browser).
 
 ## What the store is *not*
 
@@ -223,7 +223,7 @@ through a folder on your computer; see
 
 ## See also
 
-- [Moving context](/kapi/context-portability): reading a checkout's context files into the store, writing the store back out as files, and packing it into one file for a backup or another machine.
+- [Sharing context](/kapi/context-portability): sharing the context with the team, reading a checkout's context files in, and packing it into one file for a backup or another machine.
 - [The kapi loop](/kapi/convergence): the derived ladder, gates, and review queue.
 - [Projects](/kapi/projects): how a run's source and sink resolve.
 - [Project file reference](/reference/project-file): the recipe fields, and what

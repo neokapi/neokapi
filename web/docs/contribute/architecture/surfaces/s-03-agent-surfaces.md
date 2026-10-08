@@ -72,7 +72,13 @@ cli/skills/data/kapi/
 what applies at the file before writing it, record what the project does every
 time while reading it, record the wording the person changes, and check what it
 changed before reporting the work done and saying what the session recorded.
-Each habit is its CLI command and its MCP tool. One line names the edit topic,
+Each habit is its CLI command and its MCP tool: `kapi context <path>` and
+`context_read`, `kapi context note` and `context_note` for both kinds of
+recording, and `kapi check` then `kapi context log --session this`, or
+`check_file` then `context_session_summary`. The skill teaches only the verbs
+`kapi context` lists for assistants. Review, reset and sync are a person's,
+and an assistant at most tells the person to run `kapi context review`. One
+line names the edit topic,
 `references/edit.md` (`kapi help edit`), for an assistant about to change
 content inside a file, so the edit guidance is one step from the skill; the
 references folder ships with the skill in a plugin install, and `kapi help
@@ -98,8 +104,8 @@ context discovery. Both record suggestions for review
 ([C-11](../context/c-11-context-operations.md)). During initial discovery, the
 assistant proposes context from the user's material. During a refresh, it
 compares new material with existing context and proposes changes. The user can
-keep individual suggestions or approve a prepared change set with
-`kapi apply refresh.jsonl`.
+keep individual suggestions in `kapi context review` or approve a prepared
+change set with `kapi apply refresh.jsonl`.
 
 The `i18n` concern is itself a tree. `references/i18n.md` detects the stack and
 routes into `references/i18n/`, driven by a machine-readable framework registry
@@ -191,11 +197,11 @@ Five properties hold for everything written:
 tool list and whether or not the host loads a skill. It is the only text a
 client with no skill support ever reads about kapi, so it states the task in
 about a hundred words: call `context_read` before changing a file; record with
-`context_observe` what the files do every time (names as written, the spelling
+`context_note` what the files do every time (names as written, the spelling
 variety, a word chosen over a common alternative) and leave alone a word they
-write two ways; record the person's changes with `context_correct`; take back a
-wrong record with `context_withdraw`; run `check_file` on each changed file; and
-end with `context_session_summary`.
+write two ways; record the person's changes with `context_note` too (`from`,
+`to`, `path`); take back a mistake with its `withdraw` field; run `check_file`
+on each changed file; and end with `context_session_summary`.
 
 It points at `context_read` rather than the `context://<path>` resource. Some
 clients list only concrete resources and never a resource template, so a model
@@ -532,7 +538,7 @@ none:
 
 | Set | Serves |
 | --- | --- |
-| `writing` | the `context://` resources, `context_read`, `context_search`, `context_observe`, `context_correct`, `context_withdraw`, `context_session_summary`, `check_file`, `read_blocks`, `apply_edits`, `describe_format` |
+| `writing` | the `context://` resources, `context_read`, `context_search`, `context_note`, `context_session_summary`, `check_file`, `read_blocks`, `apply_edits`, `describe_format` |
 | `content` | `check_text`, `voice_check`, `voice_rewrite`, `term-check`, `detect_format`, `redact` |
 | `translation` | `translate`, `up`, `up_plan`, `stats` |
 | `review` | `review_queue`, `review_block`, `apply_edits` |
@@ -564,11 +570,12 @@ Three curation rules are asserted by tests rather than remembered:
   from the CLI: `kapi exec` still runs both.
 - **No curated tool shadows a porcelain one.** Two names for one job means the
   caller picks wrong half the time.
-- **Nothing a person decides is agent-facing.** `context_observe` and
-  `context_correct` record what an agent may record, each as a suggestion, and
-  `context_withdraw` takes back what the same session recorded wrongly and
-  nothing else; keeping, dropping, reverting and widening are a person's, and
-  the surface carries no tool for them at all. The policy
+- **Nothing a person decides is agent-facing.** `context_note` records what an
+  agent may record, each as a suggestion: what it noticed, or a person's
+  change (`from`, `to`, `suggest`). With `withdraw` it takes back what the same
+  session recorded wrongly and nothing else. Keeping, dropping, widening,
+  resetting and sharing are a person's, and the surface carries no tool for
+  them at all. The policy
   ([C-11](../context/c-11-context-operations.md)) would refuse such a call
   before modifying context.
   The server assigns the actor identity: kind `agent`, the name from

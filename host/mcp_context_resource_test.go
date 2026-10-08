@@ -84,7 +84,7 @@ vocabulary:
 }
 
 // readProjectContext reads a fixture project's `.kapi/` layout into its store,
-// which is what `kapi context import` does for a person. A fixture that authors
+// which is what `kapi store import` does for a person. A fixture that authors
 // a voice profile or a terms bundle calls it: those files reach a gate no other
 // way.
 func readProjectContext(t *testing.T, root string) {
@@ -150,7 +150,7 @@ func TestContextResourcesAreServed(t *testing.T) {
 	for _, tmpl := range res.ResourceTemplates {
 		served[tmpl.URITemplate] = tmpl.MIMEType
 	}
-	assert.Equal(t, "text/markdown", served["context://{+path}{?format,project}"],
+	assert.Equal(t, "text/markdown", served["context://{+path}{?format,project,comments}"],
 		"the by-location address, rendered as prose for a model")
 	assert.Equal(t, "text/markdown", served["context://profile/{name}{?format,project}"],
 		"the by-name address, for a caller with no file in hand")

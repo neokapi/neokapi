@@ -18,7 +18,7 @@ export function feedEntry(entry: Partial<ContextFeedEntry> & { id: string }): Co
     scope: { level: "project", describe: "project" },
     at: "2026-09-21T09:00:00Z",
     decidable: false,
-    revertible: false,
+    droppable: entry.decidable ?? false,
     widen_to: [],
     recipe: "/fakehome/project/kapi.yaml",
     ...PROJECT,
@@ -73,12 +73,12 @@ export const CANDIDATE = feedEntry({
   },
 });
 
-/** A rule the person already accepted, which can be undone or widened. */
+/** A rule the person already accepted, which can be dropped or applied more widely. */
 export const IN_FORCE = feedEntry({
   id: "9",
   kind: "observe",
   status: "established",
-  revertible: true,
+  droppable: true,
   widen_to: ["workspace", "brand", "product"],
   at: "2026-09-21T08:40:00Z",
   subject: {

@@ -17,7 +17,7 @@ project: true
 # The sample ships its context as files, and a fresh sandbox has a store that
 # has never held them, so the take starts where a reader does.
 setup:
-  - kapi context import ./context
+  - kapi store import ./context
 captureTimeoutSec: 300
 aspects:
   - the i18n tree is build output

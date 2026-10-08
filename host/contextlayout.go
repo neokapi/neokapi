@@ -22,7 +22,7 @@ import (
 // the voice profiles and the decision record.
 //
 // A project's context lives in the user's workspace and is read from there.
-// These files are what a person authors beside it: `kapi context import` reads
+// These files are what a person authors beside it: `kapi store import` reads
 // them into operations, and nothing else opens one. The addresses are here so
 // a read path has no way to reach them.
 

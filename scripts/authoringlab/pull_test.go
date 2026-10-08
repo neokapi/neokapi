@@ -20,7 +20,7 @@ import (
 
 // TestResolvedProfileSurvivesYAML.
 //
-// The workspace binds THIS point's profile, resolved, so `kapi voice guide` with
+// The workspace binds THIS point's profile, resolved, so `kapi voice show` with
 // no flags prints what the pushed arm gets. That only holds if the resolved
 // profile survives being written out and read back — a field without a yaml tag
 // would be dropped on the way to disk, and the arm would quietly fetch a
@@ -142,15 +142,15 @@ func TestKapiCalls(t *testing.T) {
 		command string
 		want    []string
 	}{
-		{"the command the skill recommends", "kapi voice guide", []string{"kapi voice guide"}},
+		{"one voice command", "kapi voice show", []string{"kapi voice show"}},
 		{"after a cd", "cd crates && kapi context README.md", []string{"kapi context README.md"}},
-		{"piped", "kapi voice guide | head -40", []string{"kapi voice guide"}},
-		{"two of them", "kapi voice profiles; kapi voice guide", []string{"kapi voice profiles", "kapi voice guide"}},
-		{"an absolute path to it", "/usr/local/bin/kapi voice guide", []string{"/usr/local/bin/kapi voice guide"}},
+		{"piped", "kapi voice show | head -40", []string{"kapi voice show"}},
+		{"two of them", "kapi voice profiles; kapi voice show", []string{"kapi voice profiles", "kapi voice show"}},
+		{"an absolute path to it", "/usr/local/bin/kapi voice show", []string{"/usr/local/bin/kapi voice show"}},
 		// `&` both separates segments and sits inside `2>&1`, so the split leaves
 		// a redirect fragment behind. The command is shown to a reader, and
-		// `kapi voice guide 2>` is not a command anyone ran.
-		{"redirecting stderr", "kapi voice guide 2>&1", []string{"kapi voice guide"}},
+		// `kapi voice show 2>` is not a command anyone ran.
+		{"redirecting stderr", "kapi voice show 2>&1", []string{"kapi voice show"}},
 		{"redirecting and piping", "kapi context README.md 2>&1 | head", []string{"kapi context README.md"}},
 		// The word appearing in a command is not the command being run, and an
 		// arm credited with asking because it grepped for the word would be the

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-08T13:42:25Z",
+  "generatedAt": "2026-10-08T14:05:29Z",
   "commands": [
     {
       "id": "add",
@@ -565,6 +565,12 @@
       "groupID": "work",
       "flags": [
         {
+          "name": "comments",
+          "usage": "answer for the comments in the file rather than its content",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "explain",
           "usage": "add how the answer was reached: point, binding, project, revision and notes",
           "default": "false",
@@ -613,308 +619,10 @@
       "examples": [
         "kapi context docs/guide.md",
         "kapi context docs/guide.md --explain",
-        "kapi context docs/guide.md --json",
-        "kapi context --profile marketing",
-        "kapi context search widget"
-      ],
-      "offlineCapable": true,
-      "runnableInBrowser": true,
-      "demoMode": false
-    },
-    {
-      "id": "context.backend",
-      "path": [
-        "context",
-        "backend"
-      ],
-      "use": "backend [local | file \u003cdir\u003e | recipe]",
-      "short": "Show or choose where this machine shares the project's context",
-      "long": "Show which backend this project's context is shared through, where that\nwas decided, and how far this machine and the backend were apart at the last\npull or push.\n\nName a backend to use another one on this machine only. The choice is kept in\nthis machine's configuration under the project's id, and the recipe is left\nalone:\n\n  local         keep this project's context on this machine\n  file \u003cdir\u003e    share it through a directory, such as a mounted team share\n  recipe        use the backend kapi.yaml declares again\n\nA git or S3 backend is declared in kapi.yaml, where every checkout reads it.",
-      "flags": [
-        {
-          "name": "project",
-          "shorthand": "p",
-          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
-          "type": "string"
-        }
-      ],
-      "examples": [
-        "kapi context backend",
-        "kapi context backend local",
-        "kapi context backend file /Volumes/team/kapi/docs",
-        "kapi context backend recipe"
-      ],
-      "offlineCapable": true,
-      "runnableInBrowser": true,
-      "demoMode": false
-    },
-    {
-      "id": "context.correct",
-      "path": [
-        "context",
-        "correct"
-      ],
-      "use": "correct \u003cfrom\u003e \u003cto\u003e",
-      "short": "Registrer at tekst ble endret på et sted",
-      "long": "Registrer at noen endret ordlyd: hva som sto der, hva som erstattet\ndet, og hvor.\n\nEn korreksjon er dokumentasjon om hvordan dette prosjektet skriver, og den\nbilligste som finnes, fordi vurderingen allerede er gjort. Alene registrerer den\nendringen og ingenting annet.\n\nMed --propose registrerer den også regelen endringen innebærer, slik at neste\nbruk av den gamle ordlyden blir rapportert. Den regelen er en kandidat: kontroller\nrapporterer den, og ingen av dem feiler på den før noen bekrefter den.",
-      "flags": [
-        {
-          "name": "advisory",
-          "usage": "make that rule report without failing a check once kept",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "note",
-          "usage": "hvorfor",
-          "type": "string"
-        },
-        {
-          "name": "project",
-          "shorthand": "p",
-          "usage": "sti til en kapi.yaml-prosjektoppskrift eller mappen den ligger i (oppdages automatisk fra cwd hvis utelatt)",
-          "type": "string"
-        },
-        {
-          "name": "quote",
-          "usage": "setningen endringen ble gjort i",
-          "type": "string"
-        },
-        {
-          "name": "seen-in",
-          "usage": "en fil endringen ble gjort i (kan gjentas)",
-          "default": "[]",
-          "type": "stringSlice"
-        },
-        {
-          "name": "suggest",
-          "usage": "also record the rule the change implies, as a suggestion",
-          "default": "false",
-          "type": "bool"
-        }
-      ],
-      "examples": [
-        "kapi context correct \"sign in\" \"log in\" --seen-in web/src/auth.tsx",
-        "kapi context correct utilise use --seen-in docs/guide.md --suggest --advisory"
-      ],
-      "offlineCapable": true,
-      "runnableInBrowser": true,
-      "demoMode": false
-    },
-    {
-      "id": "context.digest",
-      "path": [
-        "context",
-        "digest"
-      ],
-      "use": "digest",
-      "short": "Show what kapi learned about how this project writes since you last looked",
-      "long": "Show what kapi learned about how this project writes, in the order a person\nreads it: conflicts that need you, rules that became established and on what\nevidence, suggestions grouped by theme, content drifting away from an\nestablished rule, and the project in numbers.\n\nNothing here is a queue. A suggestion nobody answers keeps advising, and an\nitem you have already seen stays in the digest under \"Earlier\". Each line\ncarries the id the other verbs take: keep a suggestion with\n\"kapi context keep \u003cid\u003e\", change it as you keep it with --use, drop it with\n\"kapi context drop \u003cid\u003e\", and take an established rule back out with\n\"kapi context revert \u003cid\u003e\".\n\nReading the digest moves your \"since you last looked\" marker, which is kept in\nthis machine's kapi config and never in the project. --peek leaves it where it\nis. An agent reading the digest never moves it.",
-      "flags": [
-        {
-          "name": "peek",
-          "usage": "leave the \"since you last looked\" marker where it is",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "project",
-          "shorthand": "p",
-          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
-          "type": "string"
-        },
-        {
-          "name": "since",
-          "usage": "show what is new after a date (2006-01-02) or instant, in place of the marker",
-          "type": "string"
-        }
-      ],
-      "examples": [
-        "kapi context digest",
-        "kapi context digest --peek",
-        "kapi context digest --since 2026-09-01",
-        "kapi context digest --json"
-      ],
-      "offlineCapable": true,
-      "runnableInBrowser": true,
-      "demoMode": false
-    },
-    {
-      "id": "context.drop",
-      "path": [
-        "context",
-        "drop"
-      ],
-      "use": "drop \u003cid\u003e",
-      "short": "Set a suggestion aside",
-      "long": "Drop a suggestion. It stops being reported at once, and the record\nof it stays in the log so the same suggestion can be recognised next time.\n\nDropping one side of a disagreement settles it: the other side is no longer\ncontested. An established rule is reverted rather than dropped.",
-      "flags": [
-        {
-          "name": "note",
-          "usage": "why",
-          "type": "string"
-        },
-        {
-          "name": "project",
-          "shorthand": "p",
-          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
-          "type": "string"
-        }
-      ],
-      "examples": [
-        "kapi context drop 0n794e2gk7",
-        "kapi context drop 0n794e2gk7 --note \"we say it both ways on purpose\""
-      ],
-      "offlineCapable": true,
-      "runnableInBrowser": true,
-      "demoMode": false
-    },
-    {
-      "id": "context.export",
-      "path": [
-        "context",
-        "export"
-      ],
-      "use": "export",
-      "short": "Skriv hele prosjektets kontekst til én fil",
-      "long": "Skriv alt dette prosjektets lager inneholder som kontekst til én enkelt fil: termene, voice-profilene, allerede godkjent ordlyd og beslutningsloggen.\n\nDette er sikkerhetskopien, og måten å flytte et prosjekts kontekst til en annen maskin på. Ingenting går tapt og ingenting flates ut: hver del følger med i den formen kapi leser den tilbake fra, og \"kapi context restore\" legger den inn i et lager med de samme identitetene den hadde.\n\nSladdede originaler er aldri i den. De blir på maskinen som sladdet dem, og ingen flagg legger dem i en fil som er ment å kopieres.\n\nBeslutningsloggen i filen er prosjektets egen, skrevet fra det loggen inneholder på tidspunktet for eksporten.\n\nMed --workspace skrives alle prosjekter du har jobbet med her i stedet for dette ene, som er sikkerhetskopien for konteksten til en hel maskin. Legg til --dry-run for å se hva den filen ville inneholde før du skriver den.",
-      "flags": [
-        {
-          "name": "output",
-          "shorthand": "o",
-          "usage": "fil å skrive til",
-          "type": "string"
-        },
-        {
-          "name": "project",
-          "shorthand": "p",
-          "usage": "sti til en kapi.yaml-prosjektoppskrift eller dens mappe (oppdages automatisk fra gjeldende mappe hvis utelatt)",
-          "type": "string"
-        }
-      ],
-      "examples": [
-        "kapi context export -o context.kpz",
-        "kapi context export -o backups/acme-context.kpz --json"
-      ],
-      "offlineCapable": true,
-      "runnableInBrowser": true,
-      "demoMode": false
-    },
-    {
-      "id": "context.import",
-      "path": [
-        "context",
-        "import"
-      ],
-      "use": "import [path | file.kpz]",
-      "short": "Les kommitterte kontekstfiler inn i dette prosjektets lager",
-      "long": "Les kontekstfilene fra en checkout inn i dette prosjektets lager: termene, voice-profilene, allerede godkjent ordlyd og loggen over hvem som godkjente det.\n\nDette er den ene kommandoen som åpner disse filene. Alt annet svarer fra lageret, så det du leser her gjelder for alle checkouts av dette prosjektet på denne maskinen – og for alle andre når de kjører det også. En person kjører det: det er en beslutning om prosjektet, og det vises i \"kapi context log\" med hver fil og de bytene som ble lest.\n\nUten sti leser det prosjektets egen \".kapi\"-katalog. Oppgi en sti for å lese en annen checkouts katalog i stedet, når du henter konteksten fra et eksisterende prosjekt.\n\nÅ kjøre det to ganger endrer ingenting. Alt matches på identiteten filen bærer, så et andre lesing finner lageret allerede inneholder det filen sier. En fil hvis bytes ikke har endret seg siden denne checkout leste den, hoppes over; --force leser den likevel.",
-      "flags": [
-        {
-          "name": "force",
-          "usage": "les alle filer, inkludert de hvis bytes ikke har endret seg",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "project",
-          "shorthand": "p",
-          "usage": "sti til en kapi.yaml-prosjektoppskrift eller dens katalog (oppdages automatisk fra gjeldende katalog hvis utelatt)",
-          "type": "string"
-        }
-      ],
-      "examples": [
-        "kapi context import",
-        "kapi context import ../other-project/.kapi",
-        "kapi context import --force",
-        "kapi context import context.kpz"
-      ],
-      "offlineCapable": true,
-      "runnableInBrowser": true,
-      "demoMode": false
-    },
-    {
-      "id": "context.keep",
-      "path": [
-        "context",
-        "keep"
-      ],
-      "use": "keep [id...]",
-      "short": "Establish suggestions as rules",
-      "long": "Keep suggestions, which establishes each rule and writes it where the rest\nof kapi reads it: the project's terms or its content memory. An established rule\nfails a check unless it is marked advisory.\n\nName one or more operations by id, or keep everything one agent session\nsuggested with --session. A contested suggestion disagrees with another rule,\nand waits until you choose: a session keep leaves it and says so, and naming it\nis refused with the other side named. Choose it with --choose, which drops the\nrival suggestions (or reverts a rival established rule) and keeps this one.\n\nChange the rule as you keep it with --use and --advisory, and widen it past the\npoint its evidence was seen at with --widen-to.",
-      "flags": [
-        {
-          "name": "advisory",
-          "usage": "make the rule report without failing a check (--advisory=false makes it fail)",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "choose",
-          "usage": "settle a conflict for this rule: set the rules it disagrees with aside, then keep it (one id)",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "note",
-          "usage": "why",
-          "type": "string"
-        },
-        {
-          "name": "project",
-          "shorthand": "p",
-          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
-          "type": "string"
-        },
-        {
-          "name": "session",
-          "usage": "keep everything one agent session suggested that nothing disagrees with",
-          "type": "string"
-        },
-        {
-          "name": "use",
-          "usage": "change what the rule says to write instead (one id)",
-          "type": "string"
-        },
-        {
-          "name": "widen-to",
-          "usage": "widen as you keep: \"workspace\", or the name of an axis the rule should stop being specific about",
-          "type": "string"
-        }
-      ],
-      "examples": [
-        "kapi context keep 0n794e2gk7",
-        "kapi context keep 0n794e2gk7 0n79gkq853",
-        "kapi context keep --session s0ab4e399",
-        "kapi context keep 0n794e2gk7 --use \"content memory\"",
-        "kapi context keep 0n794e2gk7 --advisory=false",
-        "kapi context keep 0n794e2gk7 --widen-to workspace",
-        "kapi context keep 0n794e2gk7 --choose"
-      ],
-      "offlineCapable": true,
-      "runnableInBrowser": true,
-      "demoMode": false
-    },
-    {
-      "id": "context.locales",
-      "path": [
-        "context",
-        "locales"
-      ],
-      "use": "locales",
-      "short": "Rapporter hvilken språkkode hver lagret rad er arkivert under",
-      "long": "Rapporter hvilken språkkode-stavemåte hver lagret rad har, og om det er den oppslagene spør etter.\n\nEn rad arkivert under en stavemåte ingen spør etter blir aldri matchet. Termen, den godkjente formuleringen eller overlegget den inneholder leses som fraværende, noe som ser nøyaktig ut som innhold ingen har arbeidet med ennå.\n\n--fix arkiverer prosjektets kontekstrader under den stavemåten oppslagene spør etter, uten å flytte dem ut av lageret. Termer, godkjent formulering og stemmeprofiler finnes der og ingen annen plass, så ingenting kastes: en rad hvis kanoniske stavemåte er ledig tar den, en rad som sier nøyaktig det samme som den kanoniske raden slår seg sammen med den, og en rad hvis kanoniske stavemåte allerede svarer noe annet, lar seg være og rapporteres, slik at du kan si hvilket svar som er riktig.\n\nRadene kapi leste fra dine egne filer bygges om i stedet for å flyttes. Rapporten navngir filen som skal slettes, og neste \"kapi up\" leser filene dine på nytt.",
-      "flags": [
-        {
-          "name": "project",
-          "shorthand": "p",
-          "usage": "sti til en kapi.yaml-prosjektoppskrift eller dens katalog (oppdages automatisk fra cwd hvis utelatt)",
-          "type": "string"
-        }
-      ],
-      "examples": [
-        "kapi context locales",
-        "kapi context locales --json"
+        "kapi context cmd/main.go --comments",
+        "kapi context search widget",
+        "kapi context review",
+        "kapi context sync"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -929,6 +637,7 @@
       "use": "log",
       "short": "Vis hvordan dette prosjektets kontekst ble til",
       "long": "List opp hva som er foreslått, korrigert og besluttet om dette prosjektets kontekst, nyeste først.\n\nHver linje har en operasjons-id, når den skjedde, hvem som gjorde den, hva den gjaldt og hvilken status den har: en kandidat ingen har tatt beslutning om, en bekreftet regel i kraft, eller en som ble forkastet eller reversert.\n\nId-en er det de andre kommandoene tar. Innskrenk listen med --status for å se hva som venter på en beslutning, eller med --session for å se hva én agentkjøring gjorde. \"--session this\" er den kjøringen som leser tilbake sitt eget arbeid.",
+      "groupID": "context-assistant",
       "flags": [
         {
           "name": "actor",
@@ -970,11 +679,9 @@
         }
       ],
       "examples": [
-        "kapi context log",
-        "kapi context log --status suggested",
-        "kapi context log --status contested",
-        "kapi context log --session 0ab4e399 --json",
         "kapi context log --session this",
+        "kapi context log --status suggested",
+        "kapi context log --session 0ab4e399 --json",
         "kapi context log --actor agent --since 2026-09-01"
       ],
       "offlineCapable": true,
@@ -982,15 +689,27 @@
       "demoMode": false
     },
     {
-      "id": "context.observe",
+      "id": "context.note",
       "path": [
         "context",
-        "observe"
+        "note"
       ],
-      "use": "observe [what you noticed]",
-      "short": "Registrer et faktum om hvordan dette prosjektet skriver",
-      "long": "Registrer noe du la merke til om hvordan dette prosjektet skriver: et\nproduktnavn slik det staves, en stavemåte det er konsekvent på, hvem teksten\nhenvender seg til, registeret det holder.\n\nEn observasjon angir ingen regel. Ingenting ved en kontroll endres, og ingen trenger å\nbeslutte noe om den. Det er materialet en regel foreslås fra senere, og\nå registrere det koster mindre enn å arbeide frem det samme faktumet to ganger.\n\nAngi hvor du så det med --seen-in og --quote.",
+      "use": "note [what you noticed]",
+      "short": "Record what you noticed, or what a person changed",
+      "long": "Record one thing this project's files do every time: a product,\nfeature or plan name as they write it, the spelling variety they keep to, a\nword they use where writers often use another, who the text addresses. Record\nit whether or not your own text uses it. Leave alone a word the files write\nmore than one way (record nothing about it, not even a note), an interface\nlabel, and wording taken from your task.\n\nFor a name or word, pass --term with the form the files use and --instead-of\nwith the form they avoid: the split form of a one-word name, the other\nspelling, or the other word. kapi derives the other forms to avoid: the\nspaced, hyphenated and closed spellings of a compound, each part capitalised,\nand the lower-case spelling of a capitalised term. \"--term Quickcast\n--instead-of 'Quick cast'\" avoids Quick cast, Quick-cast, QuickCast and\nquickcast. Without --term a note is a fact in prose.\n\nWhen a person changes wording, record it with --from (what was there), --to\n(what replaced it) and --seen-in. A change is evidence about how this project\nwrites. A person's change toward a rule somebody already suggested is that\nperson's backing for it, so the rule is established, and fails a check, unless\nsomething recorded argues against it. With --suggest it also records the rule\nthe change implies, so the next use of the old wording is reported. A person's\nchange that reverses a rule in force contests the rule, so their own edit\nnever fails their build.\n\nEvery note is a suggestion. Checks report it, no check fails on it, and a\nperson decides about it with \"kapi context review\". Say where you saw it with\n--seen-in and --quote. Take back a note of your own that was wrong with\n--withdraw \u003cid\u003e, in the session that recorded it.",
+      "groupID": "context-assistant",
       "flags": [
+        {
+          "name": "advisory",
+          "usage": "with --suggest: make that rule report without failing a check once kept",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "from",
+          "usage": "for a change a person made: the wording that was there",
+          "type": "string"
+        },
         {
           "name": "instead-of",
           "usage": "a form the project avoids for --term (repeatable)",
@@ -1000,46 +719,85 @@
         {
           "name": "project",
           "shorthand": "p",
-          "usage": "sti til en kapi.yaml-prosjektoppskrift eller dens mappe (oppdages automatisk fra cwd hvis utelatt)",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
           "type": "string"
         },
         {
           "name": "quote",
-          "usage": "teksten du så",
+          "usage": "the wording you saw",
           "type": "string"
         },
         {
           "name": "seen-in",
-          "usage": "en fil du så det i (kan gjentas)",
+          "usage": "a file you saw it in, or the change was made in (repeatable)",
           "default": "[]",
           "type": "stringSlice"
+        },
+        {
+          "name": "suggest",
+          "usage": "with --from and --to: also record the rule the change implies",
+          "default": "false",
+          "type": "bool"
         },
         {
           "name": "term",
           "usage": "the form the project uses for a name or word",
           "type": "string"
+        },
+        {
+          "name": "to",
+          "usage": "for a change a person made: the wording that replaced it",
+          "type": "string"
+        },
+        {
+          "name": "why",
+          "usage": "what the person said about the change, or what was wrong with the note withdrawn",
+          "type": "string"
+        },
+        {
+          "name": "withdraw",
+          "usage": "take back a note of your own by its id",
+          "type": "string"
         }
       ],
       "examples": [
-        "kapi context observe \"the docs address the reader as you\"",
-        "kapi context observe --term Quickcast --instead-of \"Quick cast\" \\",
+        "kapi context note \"the docs address the reader as you\"",
+        "kapi context note --term Quickcast --instead-of \"Quick cast\" \\",
         "--seen-in README.md --quote \"Quickcast forecasts the next hour.\"",
-        "kapi context observe \"we write use, never utilise\" --term use --instead-of utilise --instead-of utilize"
+        "kapi context note --from \"sign in\" --to \"log in\" --seen-in web/src/auth.tsx --suggest",
+        "kapi context note --withdraw 0n794e2gk7 --why \"recorded the wrong way round\""
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
       "demoMode": false
     },
     {
-      "id": "context.pull",
+      "id": "context.reset",
       "path": [
         "context",
-        "pull"
+        "reset"
       ],
-      "use": "pull",
-      "short": "Merge the context other machines pushed",
-      "long": "Read what other machines pushed to the project's context backend and\nmerge it into this machine's context: every suggestion, decision, term and\napproved wording, with its history.\n\nA pull reads only what this machine has not seen, merges it by operation id and\nbrings the stores up to date. Running it twice changes nothing.\n\nThe backend is declared in kapi.yaml:\n\n  context:\n    backend: git      # local, file, git or s3\n\nIt exits with status 5 when the backend cannot be reached, and nothing changes.",
+      "use": "reset --before \u003csession | date | id\u003e",
+      "short": "Go back to how the context stood at an earlier point",
+      "long": "Go back to how this project's context stood at an earlier point: before an\nassistant's session started, before a date or a moment, or before one entry in\n\"kapi context log\".\n\nEverything recorded from that point on is set aside: it stops answering, and\nthe project's terms, approved wording and voice are rebuilt as they stood.\nNothing is erased. What was set aside stays in the log, and the reset is\nrecorded too, so a later reset to before it brings everything back.\n\nTo change your mind about one rule, decide again in \"kapi context review\"\ninstead. --dry-run says what a reset would set aside without doing it.",
+      "groupID": "context-person",
       "flags": [
+        {
+          "name": "before",
+          "usage": "the point to go back to: an agent session, a date (2006-01-02) or instant, or an id from kapi context log",
+          "type": "string"
+        },
+        {
+          "name": "dry-run",
+          "usage": "say what the reset would set aside without recording it",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "note",
+          "usage": "why",
+          "type": "string"
+        },
         {
           "name": "project",
           "shorthand": "p",
@@ -1048,51 +806,56 @@
         }
       ],
       "examples": [
-        "kapi context pull",
-        "kapi context pull --json"
+        "kapi context reset --before s0ab4e399",
+        "kapi context reset --before 2026-10-01 --dry-run",
+        "kapi context reset --before 0n794e2gk7 --note \"back to before the import\""
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
       "demoMode": false
     },
     {
-      "id": "context.push",
+      "id": "context.review",
       "path": [
         "context",
-        "push"
+        "review"
       ],
-      "use": "push",
-      "short": "Share the context recorded on this machine",
-      "long": "Write what this machine recorded in the project's context to the context\nbackend, where every other machine's next pull reads it.\n\nA push adds files and never changes one another machine wrote, so two machines\npushing at once both succeed. When the backend has gained many operations since\nits last checkpoint, the push adds one, so a new machine's first pull starts\nfrom it rather than replaying everything.\n\nWithheld originals stay on this machine. The rules you widened to every\nproject travel with the project, and hold on every machine that pulls it.\n\nIt exits with status 5 when the backend cannot be reached; the operations stay\nqueued for the next push.",
+      "use": "review",
+      "short": "Decide about the suggestions waiting for you",
+      "long": "Walk through what has been suggested about how this project writes, and\ndecide about each one: keep it as a rule, drop it, choose a side where two\nsuggestions disagree, or apply a rule more widely than where it was seen.\n\nA suggestion nobody answers keeps advising, so nothing here has to be cleared.\nA rule you keep is in force from then on: checks fail on it unless it is\nadvisory. Dropping a rule already in force takes it back out.\n\nIn a terminal, review asks about each suggestion in turn. Elsewhere it lists\nwhat is waiting, with the id each decision takes:\n\n  --keep \u003cid\u003e        keep a suggestion (repeatable); --use changes what it says\n  --drop \u003cid\u003e        drop a suggestion or a rule (repeatable)\n  --choose \u003cid\u003e      choose one side where two suggestions disagree\n  --widen-to \u003cwhere\u003e with --keep: apply it more widely: project, workspace,\n                     or a part of where it was seen, such as mode\n\n--session narrows the review to what one assistant session suggested, and\n\"--session \u003cid\u003e --keep all\" keeps everything it suggested that nothing\ndisagrees with.\n\nReviewing moves your \"since you last looked\" marker, kept on this machine and\nnever in the project. --peek leaves it where it is.",
+      "groupID": "context-person",
       "flags": [
         {
-          "name": "project",
-          "shorthand": "p",
-          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "name": "advisory",
+          "usage": "with --keep: make the rule report without failing a check (--advisory=false makes it fail)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "choose",
+          "usage": "choose this side where two suggestions disagree: the other side is dropped and this one kept",
           "type": "string"
-        }
-      ],
-      "examples": [
-        "kapi context push",
-        "kapi context pull \u0026\u0026 kapi context push"
-      ],
-      "offlineCapable": true,
-      "runnableInBrowser": true,
-      "demoMode": false
-    },
-    {
-      "id": "context.rebuild",
-      "path": [
-        "context",
-        "rebuild"
-      ],
-      "use": "rebuild",
-      "short": "Rebuild this project's stores from the context log",
-      "long": "Empty this project's terms, content memory and voice profiles, and the rules\nit widened to the whole workspace, and write them again from the context log.\n\nEvery change to a project's context is recorded in the log with what it wrote,\nso the stores hold nothing the log does not. Rebuilding gives the same stores\nthe changes left behind. Use it when a store is damaged, or after operations from\nanother machine were merged into the log.\n\nWith --checkpoint it keeps a copy of the stores as they stand afterwards, so the\nnext rebuild starts there and replays only the changes after it.",
-      "flags": [
+        },
         {
-          "name": "checkpoint",
-          "usage": "keep a checkpoint of the rebuilt stores for the next rebuild to start from",
+          "name": "drop",
+          "usage": "drop a suggestion or a rule by id (repeatable)",
+          "default": "[]",
+          "type": "stringArray"
+        },
+        {
+          "name": "keep",
+          "usage": "keep a suggestion by id (repeatable); \"all\" with --session keeps what the session suggested",
+          "default": "[]",
+          "type": "stringArray"
+        },
+        {
+          "name": "note",
+          "usage": "why",
+          "type": "string"
+        },
+        {
+          "name": "peek",
+          "usage": "leave the \"since you last looked\" marker where it is",
           "default": "false",
           "type": "bool"
         },
@@ -1101,46 +864,37 @@
           "shorthand": "p",
           "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
           "type": "string"
-        }
-      ],
-      "examples": [
-        "kapi context rebuild",
-        "kapi context rebuild --checkpoint"
-      ],
-      "offlineCapable": true,
-      "runnableInBrowser": true,
-      "demoMode": false
-    },
-    {
-      "id": "context.revert",
-      "path": [
-        "context",
-        "revert"
-      ],
-      "use": "revert [id]",
-      "short": "Angre én operasjon, eller alt én økt gjorde",
-      "long": "Angre en operasjon. Det den satte i kraft slutter å svare, og en\nregel den ble skrevet inn i prosjektets termer, voice profile eller content memory\nfjernes igjen.\n\nMed --session angres alt én agentjobb registrerte, noe som setter\nprosjektets svar tilbake til der de var før jobben startet.\n\nIngenting slettes. De angrede operasjonene blir liggende i loggen, merket som tilbakestilt.",
-      "flags": [
-        {
-          "name": "note",
-          "usage": "hvorfor",
-          "type": "string"
-        },
-        {
-          "name": "project",
-          "shorthand": "p",
-          "usage": "sti til en kapi.yaml-prosjektoppskrift eller dens mappe (oppdages automatisk fra cwd hvis utelatt)",
-          "type": "string"
         },
         {
           "name": "session",
-          "usage": "angre alt én agentøkt registrerte",
+          "usage": "only what one assistant session suggested",
+          "type": "string"
+        },
+        {
+          "name": "since",
+          "usage": "treat what came after a date (2006-01-02) or instant as new, in place of the marker",
+          "type": "string"
+        },
+        {
+          "name": "use",
+          "usage": "with one --keep: change what the rule says to write instead",
+          "type": "string"
+        },
+        {
+          "name": "widen-to",
+          "usage": "with --keep: apply it more widely: \"project\", \"workspace\", or a part of where it was seen",
           "type": "string"
         }
       ],
       "examples": [
-        "kapi context revert 0n794e2gk7",
-        "kapi context revert --session 0ab4e399"
+        "kapi context review",
+        "kapi context review --session s0ab4e399",
+        "kapi context review --keep 0n794e2gk7 --keep 0n79gkq853",
+        "kapi context review --keep 0n794e2gk7 --use \"content memory\"",
+        "kapi context review --keep 0n794e2gk7 --widen-to workspace",
+        "kapi context review --drop 0n794e2gk7 --note \"we say it both ways on purpose\"",
+        "kapi context review --choose 0n794e2gk7",
+        "kapi context review --session s0ab4e399 --keep all"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -1155,6 +909,7 @@
       "use": "search \u003cquery\u003e",
       "short": "Spør hva prosjektets kontekst sier om et ord eller en frase",
       "long": "Still ett spørsmål og få svar fra alle butikker prosjektet\nbinder: hva noe heter, om det er frarådet, og formuleringer\nprosjektet allerede har godkjent.\n\nResultater er gruppert etter type i stedet for flettet til én rangert liste, fordi et\ntermsamsvar og et formuleringssamsvar ikke måles på sammenlignbare ting.\n\nHver term rapporterer også hvor ofte prosjektets uttrukne innhold bruker den. Tellingen\nleses fra kontekstgrafen som uttrekket skriver, så den gjelder fra\nforrige uttrekk (siste \"kapi up\") – ikke det nåværende arbeidstre: en term\nlagt til butikken siden da viser ingen bruk før neste kjøring.",
+      "groupID": "context-person",
       "flags": [
         {
           "name": "file",
@@ -1201,24 +956,31 @@
       "demoMode": false
     },
     {
-      "id": "context.settle",
+      "id": "context.sync",
       "path": [
         "context",
-        "settle"
+        "sync"
       ],
-      "use": "settle",
-      "short": "Establish the suggestions a person's signal backs",
-      "long": "Establish every suggestion that a person's signal backs and nothing\nopen contradicts.\n\nA person's signal is keeping the suggestion, a correction toward it, or the\nchange reaching the default branch. Another session recording the same rule and\nthe project's content writing the preferred form add to a suggestion's standing\nwithout establishing it. A correction away from it, its withdrawal, or content\nmoving to a rejected form leave it contested for a person to decide.\n\nWith --merged, settle first reads the change a range of commits made and\nrecords it as evidence for every suggestion whose preferred wording the change\nadded or whose rejected wording it removed. Run it in CI after a merge or a push\nto the default branch. The same range records the same evidence, so running it\ntwice changes nothing.",
+      "use": "sync",
+      "short": "Share the context with the rest of the team",
+      "long": "Share this project's context through the place kapi.yaml names: first\nread what others shared and merge it here, then share what was recorded on\nthis machine. Everything travels with its history: every suggestion, decision,\nterm and approved wording, and the rules you applied to every project, which\nhold on every machine that syncs the project. Withheld originals stay on this\nmachine. Running it twice changes nothing.\n\nThe place is declared in kapi.yaml, where every checkout reads it:\n\n  context:\n    backend: git      # local, file, git or s3\n\nWith --merged it also reads the change a range of commits made on the default\nbranch and counts it as a person's signal: a suggestion whose preferred wording\nthe change added, or whose avoided wording it removed, becomes a rule when\nnothing contradicts it. Run it in CI after a merge. The same range records the\nsame evidence, so a second run changes nothing. A project that shares its\ncontext nowhere settles the merge on this machine.\n\n--no-push reads what others shared and shares nothing back, for a check or\na fresh checkout that only needs the context to answer from.\n\n--status says where the context is shared and how far this machine and the\nshared copy were apart at the last sync, without contacting it.\n\nIt exits with status 5 when the shared copy cannot be reached, and nothing\nchanges here.",
+      "groupID": "context-person",
       "flags": [
         {
           "name": "merged",
-          "usage": "a range of commits that reached the default branch, recorded as evidence",
+          "usage": "a range of commits that reached the default branch, counted as a person's signal",
           "type": "string"
         },
         {
           "name": "merger",
           "usage": "who merged it (the last commit's committer when unset)",
           "type": "string"
+        },
+        {
+          "name": "no-push",
+          "usage": "read what others shared and share nothing back",
+          "default": "false",
+          "type": "bool"
         },
         {
           "name": "pr",
@@ -1231,78 +993,20 @@
           "shorthand": "p",
           "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
           "type": "string"
+        },
+        {
+          "name": "status",
+          "usage": "say where the context is shared and how far apart this machine is, without syncing",
+          "default": "false",
+          "type": "bool"
         }
       ],
       "examples": [
-        "kapi context settle",
-        "kapi context settle --merged HEAD~1..HEAD",
-        "kapi context settle --merged \"$BEFORE..$AFTER\" --pr 412 --merger asgeir"
-      ],
-      "offlineCapable": true,
-      "runnableInBrowser": true,
-      "demoMode": false
-    },
-    {
-      "id": "context.widen",
-      "path": [
-        "context",
-        "widen"
-      ],
-      "use": "widen \u003cid\u003e",
-      "short": "Sett en bekreftet regel i kraft et bredere sted",
-      "long": "Utvid en bekreftet regel forbi det punktet evidensen ble sett på.\n\nEn regel lært ett sted gjelder på det stedet. Utvidelse sier at den gjelder bredere: \"--to workspace\" setter den i kraft i hvert prosjekt du arbeider med her, og å navngi en akse fjerner den aksen fra regelens punkt slik at den slutter å være spesifikk om den.\n\nEt prosjekt som har sin egen beslutning om ordet beholder den. Det mer spesifikke svaret vinner alltid.",
-      "flags": [
-        {
-          "name": "note",
-          "usage": "hvorfor",
-          "type": "string"
-        },
-        {
-          "name": "project",
-          "shorthand": "p",
-          "usage": "sti til en kapi.yaml-prosjektoppskrift eller mappen den ligger i (oppdages automatisk fra cwd hvis utelatt)",
-          "type": "string"
-        },
-        {
-          "name": "to",
-          "usage": "\"workspace\", eller navnet på en akse regelen skal slutte å være spesifikk om",
-          "type": "string"
-        }
-      ],
-      "examples": [
-        "kapi context widen 0n794e2gk7 --to project",
-        "kapi context widen 0n794e2gk7 --to workspace",
-        "kapi context widen 0n794e2gk7 --to mode"
-      ],
-      "offlineCapable": true,
-      "runnableInBrowser": true,
-      "demoMode": false
-    },
-    {
-      "id": "context.withdraw",
-      "path": [
-        "context",
-        "withdraw"
-      ],
-      "use": "withdraw \u003cid\u003e",
-      "short": "Take back a suggestion you recorded",
-      "long": "Withdraw a suggestion you recorded, such as a correction entered\nbackwards. Only its author can withdraw a suggestion, and an agent only in the\nsession that recorded it. It stops being reported at once, and the log keeps\nthe record of it.",
-      "flags": [
-        {
-          "name": "note",
-          "usage": "what was wrong with it",
-          "type": "string"
-        },
-        {
-          "name": "project",
-          "shorthand": "p",
-          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
-          "type": "string"
-        }
-      ],
-      "examples": [
-        "kapi context withdraw 0n794e2gk7",
-        "kapi context withdraw 0n794e2gk7 --note \"recorded the wrong way round\""
+        "kapi context sync",
+        "kapi context sync --status",
+        "kapi context sync --no-push",
+        "kapi context sync --merged HEAD~1..HEAD",
+        "kapi context sync --merged \"$BEFORE..$AFTER\" --pr 412 --merger asgeir"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -7681,6 +7385,139 @@
       "demoMode": false
     },
     {
+      "id": "store",
+      "path": [
+        "store"
+      ],
+      "use": "store",
+      "short": "Maintain this project's context store",
+      "long": "Maintain the store this project's context lives in: the terms, the\napproved wording, the voice profiles and the history of every decision.\n\n  kapi store import    read context files, or a file written by export, into it\n  kapi store export    write it and its history to one file\n  kapi store rebuild   rebuild it from its history\n  kapi store locales   report the language each stored row is filed under",
+      "groupID": "advanced",
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "store.export",
+      "path": [
+        "store",
+        "export"
+      ],
+      "use": "export",
+      "short": "Write this project's context and its history to one file",
+      "long": "Write this project's context to one file: every suggestion, decision,\nterm, voice profile and approved wording, with the history that produced them,\nand a checkpoint so reading it back is fast.\n\nIt is the backup, and the way to carry a project's context to a machine that\ncannot reach the place it is shared. \"kapi store import \u003cfile\u003e.kpz\" merges it\nthe way \"kapi context sync\" merges what others shared, so reading one file\ntwice, or into a machine that already holds part of it, changes nothing more.\n\nWithheld originals are never in it: they stay on this machine. The rules you\napplied to every project are in it, and hold on the machine that reads it.",
+      "flags": [
+        {
+          "name": "output",
+          "shorthand": "o",
+          "usage": "file to write (required)",
+          "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi store export -o context.kpz",
+        "kapi store export -o backups/acme-context.kpz --json"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "store.import",
+      "path": [
+        "store",
+        "import"
+      ],
+      "use": "import [path | file.kpz]",
+      "short": "Read context files, or a file written by export, into this project",
+      "long": "Read a checkout's context files into this project's store: the terms,\nthe voice profiles, the wording already approved, and the record of who approved\nit.\n\nName a .kpz written by \"kapi store export\" to merge it instead, the way\n\"kapi context sync\" merges what others shared: everything it carries that this\nproject does not hold, with its history.\n\nThis is the one command that opens those files. Everything else answers from the\nstore, so what you read here is in force for every checkout of this project on\nthis machine, and for everyone else once they run it too. A person runs it: it\nis a decision about the project, and it appears in \"kapi context log\" with each\nfile and the bytes that were read.\n\nWith no path it reads the project's own \".kapi\" directory. Name a path to read\nanother checkout's directory instead, when you are bringing an existing\nproject's context across.\n\nRunning it twice changes nothing. Everything is matched by the identity the file\ncarries, so a second read finds the store already holding what the file says.\nA file whose bytes have not moved since this checkout read it is skipped;\n--force reads it anyway.",
+      "flags": [
+        {
+          "name": "force",
+          "usage": "read every file, including ones whose bytes have not moved",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi store import",
+        "kapi store import ../other-project/.kapi",
+        "kapi store import --force",
+        "kapi store import context.kpz"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "store.locales",
+      "path": [
+        "store",
+        "locales"
+      ],
+      "use": "locales",
+      "short": "Report the locale each stored row is filed under",
+      "long": "Report the locale spelling every stored row carries, and whether it\nis the one lookups ask in.\n\nA row filed under a spelling nothing asks for is never matched. The term, the\napproved wording or the overlay it holds reads as absent, which looks exactly\nlike content nobody has worked on yet.\n\nkapi files every row under the spelling lookups ask in as it writes it. A\ncontext row under another spelling is written again canonically by \"kapi\nstore rebuild\", which rewrites the project's store from its history. The rows\nkapi read out of your own files are rebuilt from the files: the report names\nthe file to delete, and the next \"kapi up\" reads your files again.",
+      "flags": [
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi store locales",
+        "kapi store locales --json"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "store.rebuild",
+      "path": [
+        "store",
+        "rebuild"
+      ],
+      "use": "rebuild",
+      "short": "Rebuild this project's store from its history",
+      "long": "Empty this project's terms, content memory and voice profiles, and the rules\nit applied to the whole workspace, and write them again from the history of\nevery change.\n\nEvery change to a project's context is recorded in that history with what it\nwrote, so the store holds nothing the history does not. Rebuilding gives the\nsame store the changes left behind. Use it when the store is damaged, or after\nchanges from another machine were merged in.\n\nWith --checkpoint it keeps a copy of the store as it stands afterwards, so the\nnext rebuild starts there and replays only the changes after it.",
+      "flags": [
+        {
+          "name": "checkpoint",
+          "usage": "keep a checkpoint of the rebuilt store for the next rebuild to start from",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi store rebuild",
+        "kapi store rebuild --checkpoint"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
       "id": "telemetry",
       "path": [
         "telemetry"
@@ -9036,107 +8873,6 @@
         "kapi voice edit",
         "kapi voice edit --profile acme-docs",
         "EDITOR=vim kapi voice edit"
-      ],
-      "offlineCapable": true,
-      "runnableInBrowser": true,
-      "demoMode": false
-    },
-    {
-      "id": "voice.guide",
-      "path": [
-        "voice",
-        "guide"
-      ],
-      "use": "guide [path]",
-      "short": "Skriv ut stemmeguiden (injiser i assistentens kontekst)",
-      "long": "Skriv ut gjeldende voice-guide.\n\nInnenfor et prosjekt velger en sti voice for innholdet i den aktuelle filen. Et element\nsom oppgir en fil kun for kommentarene dens, styrer bare de kommentarene, så\ninnholdet løses til det neste elementet som krever filen, eller til prosjektets\nstandardpunkt. --comments ber om punktet kommentarene i filen befinner seg på,\nog lister opp kommentarbegrensningene som gjelder der. Bruk --comments før du skriver\nen kommentar, i en Go-kildefil eller en annen.",
-      "flags": [
-        {
-          "name": "channel",
-          "usage": "bruk kanalspesifikke overstyringer",
-          "type": "string"
-        },
-        {
-          "name": "color",
-          "usage": "fargelegg utdata: auto, always, never",
-          "default": "auto",
-          "type": "string"
-        },
-        {
-          "name": "comments",
-          "usage": "resolve stemmen på det punktet filens kommentarer befinner seg",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "file",
-          "usage": "eksplisitt sti til ressursfil",
-          "type": "string"
-        },
-        {
-          "name": "jq",
-          "usage": "filtrer JSON-utdata gjennom et jq-uttrykk (impliserer --json)",
-          "type": "string"
-        },
-        {
-          "name": "json",
-          "usage": "Utdata i JSON-format",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "local",
-          "usage": "bruk ressurs i gjeldende katalog",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "locale",
-          "usage": "bruk språkkodespesifikke overstyringer",
-          "type": "string"
-        },
-        {
-          "name": "name",
-          "usage": "navngitt ressurs i KAPI_HOME (f.eks. --name project-terms)",
-          "type": "string"
-        },
-        {
-          "name": "output-format",
-          "usage": "Utdataformat: text (alias: table), json, yaml",
-          "type": "string"
-        },
-        {
-          "name": "pack",
-          "usage": "navn på innebygd startpakke",
-          "type": "string"
-        },
-        {
-          "name": "persona",
-          "usage": "bruk overstyringer fra en forfatter-persona (innenfor profilens rammer)",
-          "type": "string"
-        },
-        {
-          "name": "profile",
-          "usage": "navn på voice profile i det lokale lageret",
-          "type": "string"
-        },
-        {
-          "name": "profile-file",
-          "usage": "sti til en frittstående profil-YAML",
-          "type": "string"
-        },
-        {
-          "name": "project",
-          "shorthand": "p",
-          "usage": "sti til en kapi.yaml-prosjektoppskrift eller dens katalog (oppdages automatisk fra gjeldende katalog hvis utelatt)",
-          "type": "string"
-        },
-        {
-          "name": "text",
-          "usage": "Utdata i tekstformat (standard)",
-          "default": "false",
-          "type": "bool"
-        }
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,

@@ -14,7 +14,7 @@ YAML (`--profile-file`), or the local store (`--profile`). List options with
 **Inside a project, the profile is part of the context; don't pass a flag.** When
 the project binds a voice profile (a `defaults.voice` recipe entry, or a profile
 the store holds under a profile's own name), run `kapi voice check
-<file>` and `kapi voice guide` with **no**
+<file>` and `kapi context <file>` with **no**
 `--profile`/`--profile-file`/`--pack`: kapi resolves the project's voice. Pass a
 flag only for a one-off outside a project, or to override the bound profile. See
 [project.md](project.md).
@@ -73,7 +73,7 @@ Then file the profile and verify:
 
 ```bash
 kapi voice import voice.yaml                 # voice into the store, terms into the project's terms
-kapi voice guide                             # confirm it renders as intended
+kapi voice show --profile-file voice.yaml    # confirm it renders as intended
 echo "We utilize synergies." | kapi voice check --json
 ```
 
@@ -98,16 +98,16 @@ where to ask for it ([project.md](project.md)).
 ## 1. Load the guide before writing
 
 ```bash
-kapi voice guide --pack marketing-blog
+kapi voice show --pack marketing-blog
 ```
 
 Apply the tone and style; follow the **Say this, not that** list (the terms in
 force, never the forbidden or competitor ones). Then draft, and check the
 result.
 
-Inside a project, name the file you are about to edit: `kapi voice guide <file>`
+Inside a project, name the file you are about to edit: `kapi context <file>`
 answers for that file's own content. Before writing a comment, in a Go file or
-any other, ask `kapi voice guide --comments <file>`: it answers for the point
+any other, ask `kapi context <file> --comments`: it answers for the point
 the comments sit at and lists the comment limits in force there under "Code
 comments"; keep each sentence and each comment within them.
 
@@ -138,7 +138,7 @@ or phrasing. For those, rewrite the text yourself with the voice guide as
 context. Load it first:
 
 ```bash
-kapi voice guide                       # the voice to follow: your context
+kapi context blog-post.md              # the voice to follow: your context
 kapi terms lookup "<term>" -t en     # the approved wording for a flagged term
 ```
 
@@ -174,7 +174,7 @@ the change you made, with the rule it implies as a suggestion:
 
 ```bash
 kapi apply change.json
-kapi context correct utilize use --seen-in blog-post.md --suggest
+kapi context note --from utilize --to use --seen-in blog-post.md --suggest
 ```
 
 `kapi context log` carries the suggestion, and `kapi check` reports it without

@@ -52,7 +52,7 @@ func compassCheckout(t *testing.T) (recipe, root string) {
 // compassCopy is compassCheckout with the sample's shipped context read into
 // the project store: its terms, its voice profile, its content memory and its
 // decision record. That is where a person who has run
-// `kapi context import ./context` stands, and where the sample's documented
+// `kapi store import ./context` stands, and where the sample's documented
 // journey begins.
 func compassCopy(t *testing.T) (recipe, root string) {
 	t.Helper()

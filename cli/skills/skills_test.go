@@ -34,8 +34,8 @@ func TestSkillIsShort(t *testing.T) {
 	assert.Less(t, len(description), 1024)
 
 	for _, want := range []string{
-		"context_read", "context_search", "context_observe", "context_correct",
-		"context_withdraw", "context_session_summary", "check_file", "kapi help",
+		"context_read", "context_search", "context_note",
+		"context_session_summary", "check_file", "kapi help",
 	} {
 		assert.Contains(t, string(body), want)
 	}

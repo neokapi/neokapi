@@ -91,9 +91,9 @@ export const qk = {
   /** Where one rule would answer once widened. */
   contextWidenReach: (projectKey: string, id: string, to: string) =>
     ["context-widen-reach", projectKey, id, to] as const,
-  /** What reverting one operation or one session would undo. */
-  contextRevertScope: (projectKey: string, id: string, session: string) =>
-    ["context-revert-scope", projectKey, id, session] as const,
+  /** What resetting to before a point would set aside. */
+  contextResetScope: (projectKey: string, before: string) =>
+    ["context-reset-scope", projectKey, before] as const,
   /** The values one context dimension can take in a project. */
   contextOptions: (tabID: string, dimension: string) =>
     ["context-options", tabID, dimension] as const,

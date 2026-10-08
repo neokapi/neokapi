@@ -90,7 +90,7 @@ kapi check --ship --json        # structured result for a job summary
 
 One step comes first on a runner. `established` thresholds read their decisions
 from the [project store](/kapi/project-store), which starts empty on a fresh
-machine, so `kapi context import` reads the repository's context files in before
+machine, so `kapi store import` reads the repository's context files in before
 the gate runs. Nothing else is needed, since gate evaluation makes no provider
 calls. The workflow wiring is
 [Ship gates & CI](/kapi/recipes/ship-gates-and-ci).

@@ -26,7 +26,7 @@ import (
 // run refused by name even though nothing in it was decided.
 //
 // An asset apply writes the project's stores, and the profile is reached through
-// `kapi context import`.
+// `kapi store import`.
 
 const commentedVoiceYAML = `# The voice the harbour docs are written in.
 # Authored by hand: every line here is a decision someone made.

@@ -158,8 +158,8 @@ manifest kind:
 - **Context profile** (`kapi-context`): one project's shared context in the
   layout a context backend keeps: the segments of its operation log under
   `log/`, the blobs they name under `blobs/`, and a checkpoint under
-  `checkpoints/`. `kapi context export` writes one and
-  `kapi context import <file>.kpz` merges it the way a pull merges a backend,
+  `checkpoints/`. `kapi store export` writes one and
+  `kapi store import <file>.kpz` merges it the way a pull merges a backend,
   history included. Content files, blocks and skeletons are excluded
   ([C-03](../context/c-03-context-store-and-graph.md)).
 

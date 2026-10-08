@@ -331,7 +331,7 @@ that bite most often:
   `competitor: true` for a rival's name. Word rules are terms: there is one word
   list, and a voice profile holds none. The voice keeps tone, style measures,
   pattern rules and guidance; a voice file may carry word rules beside the voice
-  under `terms:` (the starter packs do), and `kapi context import` moves them
+  under `terms:` (the starter packs do), and `kapi store import` moves them
   into the terms store, converting a legacy `vocabulary:` list on the way. A
   bound starter pack's terms apply beside the project's own, named as coming
   from the pack. `kapi check` reports every word rule under the `terms`
@@ -343,7 +343,7 @@ that bite most often:
 
   A rule fails a check unless it is marked `advisory: true`, which makes a
   violation only report. A terms-store concept carries the same marking
-  (`advisory`), set by `kapi context keep --advisory` or `kapi terms import
+  (`advisory`), set by `kapi context review --keep <id> --advisory` or `kapi terms import
   --advisory`; unset fails. A suggested rule (a
   candidate nobody has confirmed) reports and never fails, and each finding in
   the check report carries `fails` (plus `suggested: true` for a candidate).
@@ -462,5 +462,5 @@ colocated with implementation, roundtrip validation for formats.
 <!-- kapi:voice (managed by kapi; refreshed by 'kapi voice pointer') -->
 ## Voice
 
-This project's voice, neokapi documentation, is held by kapi and applies to any prose written here. Some collections carry a voice of their own, so retrieve what is in force before writing, with `kapi voice guide <path>` for the file you are writing.
+This project's voice, neokapi documentation, is held by kapi and applies to any prose written here. Some collections carry a voice of their own, so retrieve what is in force before writing, with `kapi context <path>` for the file you are writing.
 <!-- /kapi:voice -->

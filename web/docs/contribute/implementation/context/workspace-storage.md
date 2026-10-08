@@ -482,7 +482,7 @@ built in memory, its tables are what a projection is entitled to hold, and every
 other table in the file belonged to a subsystem that has moved out. Virtual
 tables are dropped first, since they take their shadow tables with them. The
 whole pass is best-effort: a project that cannot be adopted keeps both copies and
-works from the context store, which `kapi context import` fills from the
+works from the context store, which `kapi store import` fills from the
 checkout's own files.
 
 ## Related

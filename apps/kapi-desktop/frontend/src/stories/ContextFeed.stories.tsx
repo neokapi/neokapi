@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { ContextFeedList } from "../components/ContextFeed";
-import { ContextRevertDialog } from "../components/ContextRevertDialog";
+import { ContextResetDialog } from "../components/ContextResetDialog";
 import { ContextWidenDialog } from "../components/ContextWidenDialog";
 import {
   CANDIDATE,
@@ -22,8 +22,7 @@ const meta: Meta<typeof ContextFeedList> = {
     keyboard: false,
     onKeep: fn(),
     onDrop: fn(),
-    onRevert: fn(),
-    onRevertSession: fn(),
+    onResetSession: fn(),
     onWiden: fn(),
   },
   decorators: [
@@ -181,16 +180,18 @@ export const WidenPastAnAxis: StoryObj<typeof ContextWidenDialog> = {
   ),
 };
 
-/** Undoing a session names how many operations go. */
-export const UndoASession: StoryObj<typeof ContextRevertDialog> = {
+/** Resetting to before a session names what it sets aside. */
+export const ResetToBeforeASession: StoryObj<typeof ContextResetDialog> = {
   render: () => (
-    <ContextRevertDialog
-      request={{ project: "kapimart", session: "sess-1" }}
+    <ContextResetDialog
+      request={{ project: "kapimart", before: "sess-1" }}
       onClose={fn()}
-      onKeep={fn()}
+      onConfirm={fn()}
       scope={{
-        session: "sess-1",
-        operations: 4,
+        before: "sess-1",
+        set_aside: 4,
+        decisions: 1,
+        restored: 0,
         rules: ['term "sign in", use "log in"'],
         subjects: [
           'term "sign in", use "log in"',

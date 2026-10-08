@@ -35,8 +35,7 @@ var ContextBackendKinds = []string{ContextBackendLocal, ContextBackendFile, Cont
 //
 // Credentials never appear here: a git backend uses the repository's own
 // remote access, and an S3 backend the standard AWS environment and profile.
-// A person can use another backend on one machine (`kapi context backend`),
-// which is kept in that machine's configuration.
+// `kapi context sync` shares the context through it.
 type ContextBackend struct {
 	// Backend names the kind: local, file, git or s3. Empty means local.
 	Backend string `yaml:"backend,omitempty" json:"backend,omitempty"`

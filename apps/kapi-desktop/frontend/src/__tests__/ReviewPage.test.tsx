@@ -888,7 +888,7 @@ describe("ReviewPage review model", () => {
     // approved; "no close match" would be a claim about the memory's contents.
     expect(empty.textContent).not.toContain("no close match");
     expect(empty.textContent).toContain("have not been read");
-    expect(empty.textContent).toContain("kapi context import");
+    expect(empty.textContent).toContain("kapi store import");
   });
 
   it("names the provenance card and carries the decision in force", async () => {

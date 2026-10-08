@@ -90,7 +90,7 @@ func TestEvalGrowCellReadsWhatAnAgentRecorded(t *testing.T) {
 	assert.Empty(t, wiring.Held, "a Measure 2 cell starts with nothing held")
 
 	deps := evalStandIn(func(ctx context.Context) {
-		_, err := evalRunKapiAs(ctx, paths, evalActorAgent, "context", "observe", "Fullhouse is one word",
+		_, err := evalRunKapiAs(ctx, paths, evalActorAgent, "context", "note", "Fullhouse is one word",
 			"--term", "Fullhouse", "--instead-of", "Full House", "--seen-in", "docs/plans.md")
 		require.NoError(t, err)
 	})

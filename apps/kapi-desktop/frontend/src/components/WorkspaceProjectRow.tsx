@@ -147,7 +147,7 @@ export function WorkspaceProjectRow({
   );
 }
 
-/** "4 new since Tuesday": what kapi learned that the person has not seen. */
+/** "4 new since Tuesday": suggestions and rules the person has not seen. */
 function NewsBadge({ news }: { news?: ContextNews }) {
   if (!news || news.new <= 0) return null;
   return (

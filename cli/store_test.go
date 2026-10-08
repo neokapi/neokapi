@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// `kapi context import|export` — the portability half of the context surface,
+// `kapi store import|export`: the portability half of the context surface,
 // CLI leg. The properties themselves are held in host; what is asserted here is
 // that each verb reaches its host function, resolves the project the way every
 // other project verb does, and renders through the result's own FormatText so
@@ -70,7 +70,7 @@ func TestContextPortability_ExportAndImportRunOnAProject(t *testing.T) {
 	a.InitRegistries()
 	t.Cleanup(a.Shutdown)
 
-	out := runContext(t, a, "import", "-p", recipe, "--json")
+	out := runStore(t, a, "import", "-p", recipe, "--json")
 	var imported struct {
 		Concepts      int `json:"concepts"`
 		VoiceProfiles int `json:"voiceProfiles"`
@@ -80,7 +80,7 @@ func TestContextPortability_ExportAndImportRunOnAProject(t *testing.T) {
 	assert.Equal(t, 1, imported.VoiceProfiles)
 
 	file := filepath.Join(t.TempDir(), "context.kpz")
-	out = runContext(t, a, "export", "-p", recipe, "-o", file, "--json")
+	out = runStore(t, a, "export", "-p", recipe, "-o", file, "--json")
 	var exported struct {
 		Operations int `json:"operations"`
 		Bytes      int `json:"bytes"`
@@ -89,14 +89,14 @@ func TestContextPortability_ExportAndImportRunOnAProject(t *testing.T) {
 	assert.Positive(t, exported.Operations)
 	assert.Positive(t, exported.Bytes)
 
-	_, err := runContextE(t, a, "export", "-p", recipe)
+	_, err := runStoreE(t, a, "export", "-p", recipe)
 	require.Error(t, err, "export names the file it writes")
 
 	clone := writePortableCLIProject(t)
 	b := &App{}
 	b.InitRegistries()
 	t.Cleanup(b.Shutdown)
-	got := runContext(t, b, "import", file, "-p", filepath.Join(clone, "kapi.yaml"))
+	got := runStore(t, b, "import", file, "-p", filepath.Join(clone, "kapi.yaml"))
 	assert.Contains(t, got, "Merged ")
 	db, err := b.ProjectDB(t.Context(), clone)
 	require.NoError(t, err)
@@ -113,14 +113,14 @@ func TestContextPortability_TextFormIsTheResultsOwnRender(t *testing.T) {
 	recipe := filepath.Join(root, "kapi.yaml")
 	a := &App{}
 
-	got := runContext(t, a, "import", "-p", recipe)
+	got := runStore(t, a, "import", "-p", recipe)
 	assert.Contains(t, got, "1 concept")
 	assert.Contains(t, got, "1 voice profile")
 
 	// The same run's --json carries the numbers the text spells out, which is
 	// what keeps a reader and a program describing one thing. It reads with
 	// --force, because this checkout has already read these bytes.
-	out := runContext(t, a, "import", "-p", recipe, "--force", "--json")
+	out := runStore(t, a, "import", "-p", recipe, "--force", "--json")
 	var imported struct {
 		Concepts      int `json:"concepts"`
 		VoiceProfiles int `json:"voiceProfiles"`
@@ -131,7 +131,7 @@ func TestContextPortability_TextFormIsTheResultsOwnRender(t *testing.T) {
 
 	// Every importer upserts by the identity its file carries, so reading the
 	// layout a third time leaves the store holding one copy of each.
-	runContext(t, a, "import", "-p", recipe)
+	runStore(t, a, "import", "-p", recipe)
 	db, err := a.ProjectDB(t.Context(), root)
 	require.NoError(t, err)
 	concepts, err := db.Terms().Count(t.Context())
@@ -149,8 +149,8 @@ func TestContextLocales_ReportsAndRebuilds(t *testing.T) {
 	a.InitRegistries()
 	t.Cleanup(a.Shutdown)
 
-	runContext(t, a, "import", "-p", recipe, "--json")
-	assert.Contains(t, runContext(t, a, "locales", "-p", recipe),
+	runStore(t, a, "import", "-p", recipe, "--json")
+	assert.Contains(t, runStore(t, a, "locales", "-p", recipe),
 		"Every row is keyed by the locale its lookups ask for.")
 
 	// A term row as a store that predates canonical locales held it.
@@ -161,7 +161,7 @@ INSERT INTO tb_terms (concept_id, text, text_lower, locale, status, part_of_spee
 VALUES ('c-widget', 'dings', 'dings', 'NB-no', 'approved', '', '', '', 0, NULL, NULL, '[]', '[]')`)
 	require.NoError(t, err)
 
-	out := runContext(t, a, "locales", "-p", recipe, "--json")
+	out := runStore(t, a, "locales", "-p", recipe, "--json")
 	var found struct {
 		Drift []struct {
 			Subsystem string `json:"subsystem"`
@@ -177,7 +177,7 @@ VALUES ('c-widget', 'dings', 'dings', 'NB-no', 'approved', '', '', '', 0, NULL, 
 	assert.Equal(t, "context", found.Drift[0].Pool)
 	assert.Equal(t, "nb-NO", found.Drift[0].Canonical)
 
-	runContext(t, a, "rebuild", "-p", recipe)
-	assert.Contains(t, runContext(t, a, "locales", "-p", recipe),
+	runStore(t, a, "rebuild", "-p", recipe)
+	assert.Contains(t, runStore(t, a, "locales", "-p", recipe),
 		"Every row is keyed by the locale its lookups ask for.")
 }

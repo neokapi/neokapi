@@ -151,7 +151,8 @@ func TestKeepingWithAnEditIsWhatTheAgentReadsNext(t *testing.T) {
 	assert.Zero(t, awaitingIn(feed), "a decided candidate awaits nobody")
 	confirmed := findFeedEntry(t, feed, proposal.ID)
 	assert.Equal(t, "established", confirmed.Status)
-	assert.True(t, confirmed.Revertible)
+	assert.True(t, confirmed.Droppable, "a rule in force can be dropped")
+	assert.False(t, confirmed.Decidable)
 	assert.Contains(t, confirmed.WidenTo, "workspace")
 	assert.Contains(t, confirmed.WidenTo, "brand")
 }
@@ -176,10 +177,10 @@ func TestDroppingStopsASuggestionAnswering(t *testing.T) {
 	assert.Equal(t, "dropped", findFeedEntry(t, feed, proposal.ID).Status)
 }
 
-// TestRevertingASessionNamesWhatItUndoes: the confirmation is read before
-// anything moves, and the revert takes every rule the session got confirmed
-// back out.
-func TestRevertingASessionNamesWhatItUndoes(t *testing.T) {
+// TestResettingToBeforeASessionNamesWhatItSetsAside: the confirmation is read
+// before anything moves, the reset sets aside every suggestion and rule the
+// session recorded, and a later reset to before it brings them back.
+func TestResettingToBeforeASessionNamesWhatItSetsAside(t *testing.T) {
 	app := newWorkspaceApp(t)
 	recipe, key := openFeedProject(t, app, "KapiMart")
 	engine := agentProcess(t, app)
@@ -189,15 +190,18 @@ func TestRevertingASessionNamesWhatItUndoes(t *testing.T) {
 	_, err := app.KeepContextSuggestion(ContextDecisionRequest{Project: key, ID: first.ID})
 	require.NoError(t, err)
 
-	scope, err := app.ContextRevertScope(ContextRevertRequest{Project: key, Session: "sess-1"})
+	scope, err := app.ContextResetScope(ContextResetRequest{Project: key, Before: "sess-1"})
 	require.NoError(t, err)
-	assert.Equal(t, 2, scope.Operations, "the confirmation names how many operations go")
+	assert.Equal(t, 2, scope.SetAside, "the confirmation names how many suggestions and rules go")
+	assert.Equal(t, 1, scope.Decisions, "the keep goes with them")
 	assert.Len(t, scope.Rules, 1, "one of them is in force")
+	assert.Empty(t, scope.Reset, "a preview records nothing")
 
-	result, err := app.RevertContextOperations(ContextRevertRequest{Project: key, Session: "sess-1"})
+	result, err := app.ResetContext(ContextResetRequest{Project: key, Before: "sess-1"})
 	require.NoError(t, err)
-	assert.Equal(t, "sess-1", result.Session)
-	assert.Equal(t, 2, result.Operations)
+	assert.Equal(t, "sess-1", result.Before)
+	assert.Equal(t, 2, result.SetAside)
+	require.NotEmpty(t, result.Reset)
 
 	feed, err := app.ContextFeed(key, 0)
 	require.NoError(t, err)
@@ -205,10 +209,14 @@ func TestRevertingASessionNamesWhatItUndoes(t *testing.T) {
 	for _, group := range feed.Groups {
 		for _, entry := range group.Entries {
 			if entry.Kind == "observe" {
-				assert.Equal(t, "reverted", entry.Status)
+				assert.Equal(t, "reset", entry.Status)
 			}
 		}
 	}
+
+	back, err := app.ResetContext(ContextResetRequest{Project: key, Before: result.Reset})
+	require.NoError(t, err)
+	assert.Equal(t, 2, back.Restored, "resetting to before the reset brings back what it set aside")
 }
 
 // TestWidenReachListsTheProjectsAndSaysWhatItDoesNotCompute: widening to the

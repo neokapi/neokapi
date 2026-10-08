@@ -55,7 +55,7 @@ func evalLoadHeldRules(ctx context.Context, paths EvalPaths, key EvalKey) ([]str
 	ids := []string{}
 	for _, convention := range key.planted() {
 		for _, rule := range convention.Rules {
-			out, err := evalRunKapiAs(ctx, paths, evalActorPerson, "context", "observe", convention.Summary,
+			out, err := evalRunKapiAs(ctx, paths, evalActorPerson, "context", "note", convention.Summary,
 				"--term", rule.Use, "--instead-of", rule.Term, "--json")
 			if err != nil {
 				return loaded, fmt.Errorf("record %q for %s: %w", rule.Term, convention.ID, err)
@@ -76,7 +76,10 @@ func evalLoadHeldRules(ctx context.Context, paths EvalPaths, key EvalKey) ([]str
 	if len(ids) == 0 {
 		return loaded, nil
 	}
-	args := append([]string{"context", "keep"}, ids...)
+	args := []string{"context", "review"}
+	for _, id := range ids {
+		args = append(args, "--keep", id)
+	}
 	if _, err := evalRunKapiAs(ctx, paths, evalActorPerson, append(args, "--json")...); err != nil {
 		return loaded, fmt.Errorf("keep the %d recorded rules: %w", len(ids), err)
 	}

@@ -21,8 +21,8 @@ import (
 // context backend keeps (the segments of the operation log, the blobs they
 // name, and a checkpoint), packed as a context .kpz (kpz.KindContext).
 //
-// `kapi context export` pushes the project into an empty layout held in memory
-// and writes it out; `kapi context import <file>.kpz` reads one back and merges
+// `kapi store export` pushes the project into an empty layout held in memory
+// and writes it out; `kapi store import <file>.kpz` reads one back and merges
 // it the way a pull merges a backend, history included. Nothing a push leaves
 // on the machine travels in it: withheld originals are never operations, and
 // the kinds projector.LocalKinds names stay behind.
@@ -65,7 +65,7 @@ func humanBytes(n int64) string {
 func (a *App) ExportProjectContext(ctx context.Context, projectPath, out string) (ContextExport, error) {
 	var res ContextExport
 	if out == "" {
-		return res, errors.New("name the file to write: kapi context export -o context.kpz")
+		return res, errors.New("name the file to write: kapi store export -o context.kpz")
 	}
 	abs, err := filepath.Abs(out)
 	if err != nil {
@@ -213,7 +213,7 @@ func (a *App) ImportContextPackage(ctx context.Context, projectPath string, pkg 
 	var res workspace.PullReport
 	switch {
 	case pkg.Kind != kpz.KindContext:
-		return res, fmt.Errorf("%s is a %s package; `kapi context import` reads a context file, which `kapi context export` writes", name, pkg.Kind)
+		return res, fmt.Errorf("%s is a %s package; `kapi store import` reads a context file, which `kapi store export` writes", name, pkg.Kind)
 	case len(pkg.Layout) == 0:
 		return res, fmt.Errorf("%s holds no context operations. A context file from an earlier kapi carried the stores rather than their history; export it again with this version", name)
 	}

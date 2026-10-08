@@ -10,7 +10,7 @@ import (
 )
 
 // MemoryRemote holds the context layout in memory. It is what a transfer
-// file is read into and written from: `kapi context export` pushes a project
+// file is read into and written from: `kapi store export` pushes a project
 // into an empty one and packs its objects into one archive, and `kapi context
 // import` unpacks an archive into one and pulls from it.
 type MemoryRemote struct {

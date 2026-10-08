@@ -17,7 +17,7 @@ import (
 // The MCP tools state the actor themselves (host/mcp_grow.go): that server
 // process is serving an agent, it knows the client's name from initialize, and
 // it mints one session for its own run. The command line has no such handle.
-// `kapi context observe` is the same command whether a person typed it or a
+// `kapi context note` is the same command whether a person typed it or a
 // coding agent ran it from its shell, and an operation that states no kind is
 // recorded as a person, which is the reading that carries a person's rights.
 //
@@ -29,7 +29,7 @@ import (
 // the entry is born a candidate, which is where it was heading anyway. Reading
 // an agent as a person puts an unreviewed rule on the record with a person's
 // standing behind it, out of reach of `kapi context log --actor agent` and of
-// `kapi context revert --session`. A marker therefore means agent. A person
+// `kapi context reset --before`. A marker therefore means agent. A person
 // typing in an agent host's shell says so with KAPI_ACTOR=person, and that
 // override is written into the operation's note, because an entry claiming a
 // person's rights under a host the environment names is one a reviewer should
@@ -41,7 +41,7 @@ const (
 	// It fills contextop.Actor.Name, which `kapi context log --actor` matches.
 	EnvAgentName = "KAPI_AGENT_NAME"
 	// EnvAgentSession groups everything one agent run records, so a person can
-	// read it back and revert it together.
+	// read it back and review it together.
 	EnvAgentSession = "KAPI_AGENT_SESSION"
 )
 

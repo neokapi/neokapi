@@ -216,7 +216,7 @@ func TestContextFilesUnread_NamesTheFilesAndTheCommand(t *testing.T) {
 	require.True(t, unread, "a store that has never held context is unread")
 	assert.Equal(t, []string{".kapi/terms.json", ".kapi/voice.yaml"}, notice.Files)
 	assert.Equal(t, ContextImportCommand, notice.Command)
-	assert.Contains(t, notice.Message(), "kapi context import")
+	assert.Contains(t, notice.Message(), "kapi store import")
 
 	// The recipe still loads: a binding nobody has read in is a notice, never a
 	// broken checkout.

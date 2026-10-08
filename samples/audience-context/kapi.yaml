@@ -3,7 +3,7 @@ name: audience-context
 
 defaults:
   source_language: en
-  # Bound by the name `kapi context import ./context` stores the voice under.
+  # Bound by the name `kapi store import ./context` stores the voice under.
   voice:
     profile: harbor-help
   coordinates:

@@ -84,7 +84,7 @@ func TestContextAnswerTextIsTaskShaped(t *testing.T) {
 // What a person or an agent must act on leads the text: context files nothing
 // has read in, a voice that would not load.
 func TestContextAnswerTextLeadsWithWhatNeedsAction(t *testing.T) {
-	notice := ContextFilesNotice{Files: []string{".kapi/terms.tbx"}, Command: "kapi context import"}
+	notice := ContextFilesNotice{Files: []string{".kapi/terms.tbx"}, Command: "kapi store import"}
 	res, err := ResolveContextAt(t.Context(), ContextPointSources{
 		Path:     "docs/a.md",
 		Unread:   &notice,

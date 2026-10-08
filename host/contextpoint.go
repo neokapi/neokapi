@@ -66,6 +66,10 @@ type ContextPointRequest struct {
 	// declares for its comments alone: every block read from it is a comment, so
 	// the answer is for the point its comments sit at.
 	Declared bool
+	// Comments answers for the point the comments in the file at Path sit at,
+	// whatever else the file holds: the voice and the limits a comment written
+	// there keeps to.
+	Comments bool
 }
 
 // DefaultContextTermsLimit caps the terms a by-location answer renders when the
@@ -181,7 +185,7 @@ type ContextPoint struct {
 // every entry so a caller reading the JSON has the standing of the entry in the
 // entry, rather than in the name of the list it arrived in.
 type ContextSuggestion struct {
-	// Operation is the id, which is what `kapi context keep` takes.
+	// Operation is the id, which is what `kapi context review --keep` takes.
 	Operation string `json:"operation,omitempty"`
 	// Kind is what the suggestion is about: `term` or `note`.
 	Kind string `json:"kind"`
@@ -325,11 +329,12 @@ func ResolveContextGovernance(proj *project.KapiProject, req ContextPointRequest
 
 // contextPathPoint is the point a by-location request resolves for the file at
 // rel, relative to the project root, at the instant at. It is the point of the
-// file's own content. A Declared request about a file an item declares for its
-// comments alone gets the point of its comments. noReader is
+// file's own content. A Comments request, and a Declared request about a file
+// an item declares for its comments alone, get the point of its comments.
+// noReader is
 // project.GovernancePoint.NoReader for the file.
 func contextPathPoint(proj *project.KapiProject, req ContextPointRequest, rel string, noReader bool, at time.Time) project.GovernancePoint {
-	return project.GovernancePoint{Path: rel, NoReader: noReader, Comments: req.Declared && proj.ClaimsOnlyComments(rel, noReader), At: at}
+	return project.GovernancePoint{Path: rel, NoReader: noReader, Comments: req.Comments || (req.Declared && proj.ClaimsOnlyComments(rel, noReader)), At: at}
 }
 
 // ContextEditionOf names the source document a translation's file holds an
@@ -422,7 +427,7 @@ func (a *App) ContextSourcesAt(cmd Command, req ContextPointRequest) (ContextPoi
 	src.Governance = rc
 
 	// The voice at the point, composed with the overrides that apply there —
-	// the same resolution `kapi voice guide` and a translating run take.
+	// the same resolution `kapi voice show` and a translating run take.
 	store, release, serr := a.VoiceLookupStore(cmd)
 	if serr != nil {
 		src.Notes = append(src.Notes, "the voice store could not be opened: "+serr.Error())
@@ -916,8 +921,8 @@ func termRank(h ContextTermHit) int {
 // reading the project, and what to leave alone. It names the conventions a
 // writer relies on whether or not the page at hand uses them, because an agent
 // told only to record what it notices records what its own page touched.
-const recordingAdvice = "As you read the files around it, record with context_observe " +
-	"(or `kapi context observe`) what they do every time, including names your text does not use: " +
+const recordingAdvice = "As you read the files around it, record with context_note " +
+	"(or `kapi context note`) what they do every time, including names your text does not use: " +
 	"each product, feature and plan name as written, the spelling variety, and a word chosen over " +
 	"a common alternative. Leave alone a word they write more than one way, with no note about it."
 

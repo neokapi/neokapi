@@ -145,8 +145,8 @@ func agentAssetRoute(kind changeKind) string {
 	if kind == kindRecipe {
 		return "ask a person to change kapi.yaml"
 	}
-	return "record the rule as a suggestion with context_observe or `kapi context observe` " +
-		"(context_correct or `kapi context correct` for wording you changed), and a person keeps it"
+	return "record the rule as a suggestion with context_note or `kapi context note` " +
+		"(with from and to for wording you changed), and a person keeps it in review"
 }
 
 // assetTarget is what an asset entry names, for the line its result prints.

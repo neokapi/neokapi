@@ -111,7 +111,7 @@ func TestContextTravelsThroughAGitRef(t *testing.T) {
 
 // TestContextSyncOfflineAndLocal covers the two ways a sync does not happen:
 // a backend that cannot be reached, which exits with its own code and keeps
-// the queue, and a machine that chose to keep the project's context local.
+// the queue, and a recipe that declares no backend.
 func TestContextSyncOfflineAndLocal(t *testing.T) {
 	first, _, _ := sharedGitProject(t)
 	ctx := t.Context()
@@ -128,19 +128,58 @@ func TestContextSyncOfflineAndLocal(t *testing.T) {
 	assert.Equal(t, 1, status.ToPush, "an unreachable backend leaves the queue as it was")
 	assert.NotEmpty(t, status.Error)
 
-	info, err := app.SetContextBackend(ctx, recipeOf(first), "local", "")
-	require.NoError(t, err)
-	assert.Equal(t, "local", info.Kind)
-	assert.Equal(t, "machine", info.From)
-	assert.Equal(t, "git", info.Recipe)
-	assert.Nil(t, app.ContextSyncStatus(ctx, first), "a local backend reports no sync line")
-	_, err = app.PullProjectContext(ctx, recipeOf(first))
-	require.ErrorContains(t, err, "there is nowhere to sync with")
+	_, err = app.SyncProjectContext(ctx, ContextSyncRequest{Project: recipeOf(first)})
+	require.Error(t, err)
+	assert.Equal(t, ExitUnreachable, ExitCode(nil, err), "a sync that cannot pull exits the same way")
 
-	info, err = app.SetContextBackend(ctx, recipeOf(first), "recipe", "")
+	info, err := app.ContextBackend(ctx, recipeOf(first))
 	require.NoError(t, err)
 	assert.Equal(t, "git", info.Kind)
 	assert.Equal(t, "recipe", info.From)
+
+	local := contextOpsProject(t, "ctxsync-local")
+	assert.Nil(t, app.ContextSyncStatus(ctx, local), "a local backend reports no sync line")
+	_, err = app.SyncProjectContext(ctx, ContextSyncRequest{Project: recipeOf(local)})
+	require.ErrorContains(t, err, "there is nowhere to sync with")
+}
+
+// TestAResetTravelsWithTheContext syncs a reset from one machine to another:
+// the second machine's stores are rebuilt without what the reset set aside,
+// and both machines' logs keep it.
+func TestAResetTravelsWithTheContext(t *testing.T) {
+	first, second, _ := sharedGitProject(t)
+	ctx := t.Context()
+	appA, _ := contextOpsApp(t)
+	appB, _ := contextOpsApp(t)
+
+	kept := proposeUtilise(t, appA, first, person)
+	_, err := appA.KeepContextOperation(ctx, ContextKeepRequest{Actor: person, Project: recipeOf(first), ID: kept.ID})
+	require.NoError(t, err)
+	synced, err := appA.SyncProjectContext(ctx, ContextSyncRequest{Project: recipeOf(first)})
+	require.NoError(t, err)
+	require.NotNil(t, synced.Pull)
+	require.NotNil(t, synced.Push)
+	assert.Positive(t, synced.Push.Pushed)
+
+	_, err = appB.SyncProjectContext(ctx, ContextSyncRequest{Project: recipeOf(second)})
+	require.NoError(t, err)
+	require.NotEmpty(t, vocabularyFindings(checkWith(t, appB, second)), "the kept rule reached the second machine")
+
+	_, err = appA.ResetContext(ctx, ContextResetRequest{Actor: person, Project: recipeOf(first), Before: kept.ID})
+	require.NoError(t, err)
+	_, err = appA.SyncProjectContext(ctx, ContextSyncRequest{Project: recipeOf(first)})
+	require.NoError(t, err)
+	_, err = appB.SyncProjectContext(ctx, ContextSyncRequest{Project: recipeOf(second)})
+	require.NoError(t, err)
+
+	assert.Empty(t, vocabularyFindings(checkWith(t, appB, second)), "the reset reached the second machine's stores")
+	log, err := appB.ContextOperations(ctx, ContextLogRequest{Project: recipeOf(second)})
+	require.NoError(t, err)
+	statuses := map[string]string{}
+	for _, op := range log.Operations {
+		statuses[op.ID] = string(op.Status)
+	}
+	assert.Equal(t, "reset", statuses[kept.ID], "the log keeps what the reset set aside")
 }
 
 // TestContextTravelsThroughARemoteTheCallerHolds is the browser engine's

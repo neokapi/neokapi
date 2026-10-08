@@ -2224,7 +2224,7 @@ func (a *App) resolveTermRules(cmd Command, source, targetLang string, point pro
 // store is what every surface reads: a gate, `kapi terms lookup`, `kapi
 // context search` and the MCP tools all answer from the one place, so a person
 // and an agent asking the same project the same question get the same answer.
-// A `.terms.json` in the checkout selects nothing; `kapi context import` reads
+// A `.terms.json` in the checkout selects nothing; `kapi store import` reads
 // one in.
 //
 // Two rungs. An explicit --termstore or the `termstore:` of the profile

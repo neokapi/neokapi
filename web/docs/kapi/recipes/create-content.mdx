@@ -40,7 +40,7 @@ With [kapi connected](/kapi/get-started/use-with-claude), the assistant is the a
 
 > Draft a release-notes page for the export feature, on brand, using our approved terms.
 
-It loads the voice and wording first (`kapi voice guide`, `kapi terms lookup`) so the first draft is already close, then loops `check_file` → revise until the gate is green. When a check flags a new term, it proposes the [close-the-loop change-set](#close-the-loop-fix-the-content-and-the-rule-together): the content fix and the term rule in one `apply`.
+It loads the voice and wording first (`kapi context <path>`, `kapi terms lookup`) so the first draft is already close, then loops `check_file` → revise until the gate is green. When a check flags a new term, it proposes the [close-the-loop change-set](#close-the-loop-fix-the-content-and-the-rule-together): the content fix and the term rule in one `apply`.
 
 </TabItem>
 <TabItem value="cli" label="CLI">
@@ -63,7 +63,7 @@ kapi check --ship                                     # in a project: every boun
 Load the voice and approved wording **before** writing so the first draft is already close:
 
 ```bash
-kapi voice guide                          # the voice to follow (no flag inside a project)
+kapi context docs/page.md                 # the voice and words that apply to the file
 kapi terms lookup "dashboard" -t en    # the approved term
 ```
 
@@ -90,7 +90,7 @@ kapi apply change.json
 
 The **content** operation rewrites the block through the faithful round-trip, refused if the block changed since you read it; the **term** operation, applied after it, is written into the [project store](/kapi/project-store)'s terms tables and recorded as a decision, so `kapi context log` names the new term and the next `kapi check` enforces it. The change set lands whole or not at all: when an operation is refused, nothing is written, and `kapi apply` names the refusal and exits non-zero. Resending a change set that landed is safe, because an operation already in place reports `unchanged`. `apply` also accepts `memory` and `recipe` operations; see [Keep source on brand](/kapi/recipes/keep-source-on-brand) for a `term` operation that adds a word rule.
 
-Writing a rule directly is your decision, so an assistant's `term`, `memory` and `recipe` operations are refused, and the change set that holds them, whether it runs `kapi apply` from its shell or sends the change set through MCP. The assistant applies the content operation on its own and records the rule as a suggestion with `kapi context correct --suggest`, which you keep with `kapi context keep` ([Growing context](/kapi/context-decisions)).
+Writing a rule directly is your decision, so an assistant's `term`, `memory` and `recipe` operations are refused, and the change set that holds them, whether it runs `kapi apply` from its shell or sends the change set through MCP. The assistant applies the content operation on its own and records the rule as a suggestion with `kapi context note --from <old> --to <new> --suggest`, which you keep with `kapi context review` ([Growing context](/kapi/context-decisions)).
 
 ## Next
 
