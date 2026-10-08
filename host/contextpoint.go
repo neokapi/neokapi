@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -249,6 +251,9 @@ type ContextPointSources struct {
 	// materials missing, while this leaves no point, and the only answer
 	// available without one is a different location's.
 	PathErr error
+	// ProfileErr is set when a named profile is declared by no recipe, held in
+	// no voice store and shipped as no pack: there is nothing to answer for.
+	ProfileErr error
 	// RecipeErr is set when the project's recipe could not be read. It is not
 	// degraded to a note either: with no recipe there is no point, and an
 	// answer saying nothing is recorded here would hide every rule the
@@ -408,6 +413,14 @@ func (a *App) ContextSourcesAt(cmd Command, req ContextPointRequest) (ContextPoi
 				src.EditionOf = &ContextEditionOf{Source: t.source, Edition: string(t.locale)}
 			}
 		}
+		// A translation the recipe keeps is a file the project will hold,
+		// written or not; any other location has to be a file or a planned one.
+		if src.EditionOf == nil {
+			if perr := contextLocationErr(root, matched, req.Path); perr != nil {
+				src.PathErr = perr
+				return src, noop
+			}
+		}
 		// A file the project's ignore rules match is content the project does not
 		// declare, so it sits at the project's default point and in no collection.
 		if !ProjectIgnores(root, matched) {
@@ -489,7 +502,8 @@ func (a *App) ContextSourcesAt(cmd Command, req ContextPointRequest) (ContextPoi
 
 // adHocVoice fills in the by-name answer when no recipe declares the profile:
 // the local voice store, then a built-in pack. It returns the note explaining
-// what was answered from, and "" when there was nothing to answer at all.
+// what was answered from. A named profile found nowhere sets src.ProfileErr
+// and returns "", because there is nothing to answer for.
 func (a *App) adHocVoice(ctx context.Context, cmd Command, src *ContextPointSources, req ContextPointRequest) string {
 	// Whatever this branch finds, it is not a project's answer, and saying so is
 	// what lets a caller tell "this project holds no answer" from "nothing was
@@ -517,7 +531,8 @@ func (a *App) adHocVoice(ctx context.Context, cmd Command, src *ContextPointSour
 		src.VoiceSource = "pack:" + req.Profile
 		return "no recipe declares this profile: answered from the built-in pack, so no terms or governance window applies"
 	}
-	return fmt.Sprintf("no profile named %q is declared by a recipe, held in the local voice store, or shipped as a pack", req.Profile)
+	src.ProfileErr = fmt.Errorf("no profile named %q is declared by a recipe, held in the local voice store, or shipped as a pack", req.Profile)
+	return ""
 }
 
 // displaySource renders where a profile was loaded from as the answer shows it:
@@ -532,6 +547,27 @@ func displaySource(root, src string) string {
 		return filepath.ToSlash(rel)
 	}
 	return src
+}
+
+// contextLocationErr refuses a location that names neither a file in the
+// project nor a file that could be written next. A file that does not exist yet
+// is answered as a planned new file when its directory exists; when the
+// directory is missing too, the location is a typo (or a mistyped address such
+// as `context://file/docs/x.md`) rather than a plan, and answering it would
+// state a governance nobody asked about.
+func contextLocationErr(root, rel, asked string) error {
+	abs := filepath.Join(root, filepath.FromSlash(rel))
+	if _, err := os.Stat(abs); err == nil || !errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	dir := filepath.Dir(abs)
+	if info, err := os.Stat(dir); err == nil && info.IsDir() {
+		return nil
+	}
+	shown := path.Dir(rel)
+	return fmt.Errorf(
+		"%s does not exist, and neither does its directory %s, so there is no file to answer for. Name a file in the project, or a new file in a directory that exists",
+		asked, shown)
 }
 
 // projectRelative renders a location as the project-relative, slash-separated
@@ -596,6 +632,9 @@ func ResolveContextAt(_ context.Context, src ContextPointSources, req ContextPoi
 	}
 	if src.PathErr != nil {
 		return nil, src.PathErr
+	}
+	if src.ProfileErr != nil {
+		return nil, src.ProfileErr
 	}
 	limit := req.Limit
 	if limit <= 0 {

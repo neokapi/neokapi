@@ -337,3 +337,42 @@ func TestContextPath_EscapingRelativePathIsRefused(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "is not inside this project")
 }
+
+// TestContextPath_LocationInAMissingDirectoryIsRefused: a location whose
+// directory does not exist is a typo, not a file anybody is about to write, so
+// it is refused with the location named rather than answered from the default
+// point.
+func TestContextPath_LocationInAMissingDirectoryIsRefused(t *testing.T) {
+	root := writeTwoVoiceProject(t)
+	foreignCwd(t)
+
+	_, err := runContextE(t, &App{}, "does/not/exist.md", "-p", root)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "does/not/exist.md does not exist, and neither does its directory does/not")
+}
+
+// TestContextPath_PlannedNewFileIsAnswered: a file that does not exist yet in a
+// directory that does is a file about to be written, and is answered at the
+// point it will sit at.
+func TestContextPath_PlannedNewFileIsAnswered(t *testing.T) {
+	root := writeTwoVoiceProject(t)
+	foreignCwd(t)
+
+	got := runContext(t, &App{}, "docs/new-page.md", "-p", root, "--explain")
+
+	assert.Contains(t, got, "# Writing docs/new-page.md")
+	assert.Contains(t, got, "Point `guides/docs`")
+}
+
+// TestContextPath_UnknownProfileIsAnError: a profile declared nowhere has no
+// answer, and saying so as the answer's body would exit 0 on a typo.
+func TestContextPath_UnknownProfileIsAnError(t *testing.T) {
+	root := writeTwoVoiceProject(t)
+	foreignCwd(t)
+
+	_, err := runContextE(t, &App{}, "--profile", "nope", "-p", root)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `no profile named "nope"`)
+}

@@ -151,6 +151,9 @@ type DigestItem struct {
 	Droppable bool `json:"droppable"`
 	// Widenable reports a rule in force a person can apply more widely.
 	Widenable bool `json:"widenable"`
+	// WidenTo are the widenings open to a widenable rule: "workspace", and
+	// each axis of its point (ContextWidenOptions).
+	WidenTo []string `json:"widen_to,omitempty"`
 	// EstablishedAt and How say, for an established rule, when it came into
 	// force and on what: "merged in #412", "your correction in billing.md",
 	// "kept by you".
@@ -538,7 +541,10 @@ func digestItem(r contextop.Record, collectionFor func(string) string) DigestIte
 	switch {
 	case r.Established:
 		it.Droppable = true
-		it.Widenable = r.Status == contextop.StatusEstablished
+		if r.Status == contextop.StatusEstablished {
+			it.WidenTo = ContextWidenOptions(r.Scope)
+			it.Widenable = len(it.WidenTo) > 0
+		}
 	case r.Subject.Kind == contextop.SubjectNote:
 		it.Droppable = true
 	default:

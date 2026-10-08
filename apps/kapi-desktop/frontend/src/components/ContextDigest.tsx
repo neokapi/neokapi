@@ -11,13 +11,15 @@
 // The keys act on the item under the cursor: j and k move, a keeps (or
 // chooses a side of a conflict), c changes the rule before keeping it, d
 // drops a suggestion or a rule in force, g keeps the whole group, o opens the
-// file the item was seen in.
+// file the item was seen in. A rule in force can be applied more widely, to
+// every project or past one axis of its point, from its row.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, FileText } from "lucide-react";
 import { t } from "@neokapi/i18n-react/runtime";
 import { Button, ErrorNotice, Input, LoadingSpinner, cn } from "@neokapi/ui-primitives";
 import type { ContextDigest, DigestItem, DigestTermRule } from "../types/api";
+import { WidenPicker } from "./ContextFeed";
 
 export interface ContextDigestViewProps {
   /** The digest, null while the first read is in flight. */
@@ -40,6 +42,11 @@ export interface ContextDigestViewProps {
   onDrop: (item: DigestItem) => void | Promise<void>;
   /** Choose one side of a conflict, setting the others aside. */
   onChoose: (item: DigestItem, replacement?: string) => void | Promise<void>;
+  /**
+   * Apply a rule in force more widely: "workspace", or the axis it stops
+   * being specific about. Absent hides the action.
+   */
+  onWiden?: (item: DigestItem, to: string) => void;
   /** Open the file an item was seen in. Absent hides the links. */
   onOpenFile?: (path: string) => void;
 }
@@ -63,6 +70,7 @@ export function ContextDigestView({
   onKeepGroup,
   onDrop,
   onChoose,
+  onWiden,
   onOpenFile,
 }: ContextDigestViewProps) {
   const stops = useMemo<Stop[]>(() => {
@@ -180,6 +188,7 @@ export function ContextDigestView({
       onCancelChange={() => setChanging(null)}
       onKeep={(replacement) => void keep(stop, replacement)}
       onDrop={() => void onDrop(stop.item)}
+      onWiden={onWiden ? (to) => onWiden(stop.item, to) : undefined}
       onOpenFile={onOpenFile}
     />
   );
@@ -380,6 +389,7 @@ function DigestRow({
   onCancelChange,
   onKeep,
   onDrop,
+  onWiden,
   onOpenFile,
 }: {
   stop: Stop;
@@ -392,9 +402,11 @@ function DigestRow({
   onCancelChange: () => void;
   onKeep: (replacement?: string) => void;
   onDrop: () => void;
+  onWiden?: (to: string) => void;
   onOpenFile?: (path: string) => void;
 }) {
   const { item, section } = stop;
+  const widenTo = item.widenable ? (item.widen_to ?? []) : [];
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (changing !== null) inputRef.current?.focus();
@@ -505,6 +517,9 @@ function DigestRow({
               Drop
               {kbd("d")}
             </Button>
+          )}
+          {onWiden && widenTo.length > 0 && section !== "conflict" && (
+            <WidenPicker options={widenTo} onWiden={onWiden} label={t("Apply more widely")} />
           )}
         </div>
       )}

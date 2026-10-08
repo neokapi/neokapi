@@ -303,6 +303,18 @@ func TestResettingBeforeASessionRestoresTheCheckExactly(t *testing.T) {
 	require.NotNil(t, reset.Reset)
 	require.NotNil(t, reset.Rebuild, "the stores are rebuilt from the log")
 
+	// The same reset again changes nothing, so it records nothing.
+	logged, err := app.ContextOperations(t.Context(), ContextLogRequest{Project: recipeOf(root)})
+	require.NoError(t, err)
+	_, err = app.ResetContext(t.Context(), ContextResetRequest{
+		Actor: person, Project: recipeOf(root), Before: "s-nightly",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "already stands as it did before s-nightly (reset #"+reset.Reset.Short+")")
+	relogged, err := app.ContextOperations(t.Context(), ContextLogRequest{Project: recipeOf(root)})
+	require.NoError(t, err)
+	assert.Len(t, relogged.Operations, len(logged.Operations), "no second reset is recorded")
+
 	after := checkWith(t, app, root)
 	assert.Equal(t, before.Findings, after.Findings, "the same findings, not similar ones")
 	assert.Equal(t, before.Summary, after.Summary)
@@ -546,4 +558,13 @@ func TestContextOperationsNeedAProject(t *testing.T) {
 	app, _ := contextOpsApp(t)
 	_, err := app.ContextOperations(t.Context(), ContextLogRequest{Project: filepath.Join(t.TempDir(), "kapi.yaml")})
 	assert.Error(t, err)
+}
+
+func TestContextWidenOptions(t *testing.T) {
+	assert.Equal(t, []string{WidenToWorkspace, "channel", "product"}, ContextWidenOptions(contextop.Scope{
+		Level:       contextop.LevelProject,
+		Coordinates: map[string]string{"product": "store", "channel": "web"},
+	}))
+	assert.Empty(t, ContextWidenOptions(contextop.Scope{Level: contextop.LevelWorkspace}),
+		"a rule answering workspace-wide has nowhere further to go")
 }

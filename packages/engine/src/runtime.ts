@@ -234,6 +234,8 @@ export interface ContextSyncStatus {
   remote: { Kind: string; Location: string };
   /** The project's operations the remote is not known to hold. */
   to_push: number;
+  /** The context operations among them, the ones a context log lists. */
+  to_push_logged: number;
   /** The operations read from the remote and not yet merged. */
   to_pull: number;
   /** When the remote was last reached (RFC 3339). */
@@ -256,6 +258,8 @@ export interface ContextPullReport extends ContextSyncStatus {
 /** What a push wrote (the `push` half of `kapi context sync --json`). */
 export interface ContextPushReport extends ContextSyncStatus {
   pushed: number;
+  /** The context operations among them (`to_push_logged`). */
+  pushed_logged: number;
   segments: number;
   blobs: number;
   checkpoint?: string;

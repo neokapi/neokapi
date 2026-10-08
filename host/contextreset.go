@@ -170,6 +170,15 @@ func (s *contextOpsSession) resetPlan(ctx context.Context, before string) (Conte
 	if point > last {
 		return ContextResetResult{}, fmt.Errorf("nothing was recorded in this project's context since %s", before)
 	}
+	// The same reset again, with nothing recorded since, would only record a
+	// second reset that changes nothing.
+	if n := len(held); n > 0 {
+		if r := held[n-1]; r.Kind == contextop.KindReset && r.Before == point && r.Status != contextop.StatusReset {
+			return ContextResetResult{}, fmt.Errorf(
+				"the context already stands as it did before %s (reset #%s), and nothing was recorded since; nothing to do",
+				before, r.Short)
+		}
+	}
 	payload := fmt.Appendf(nil, `{"before":%q}`, point)
 	planned := append(slices.Clone(ops), workspace.Op{
 		ID: workspace.NewOpID(time.Now(), last), Project: s.key, Kind: workspace.OpContextReset, Payload: payload,

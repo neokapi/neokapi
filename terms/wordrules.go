@@ -34,7 +34,7 @@ func SourceWordRules(concepts []Concept, loc model.LocaleID) []profile.TermRule 
 			rule := profile.TermRule{
 				Term:       t.Text,
 				Forms:      NormalizeForms(t.Text, t.Forms),
-				Note:       t.Note,
+				Note:       UsageNote(t.Note),
 				Competitor: t.CompetitorTerm,
 				Advisory:   c.Advisory || retired,
 				ConceptID:  c.ID,
@@ -43,9 +43,6 @@ func SourceWordRules(concepts []Concept, loc model.LocaleID) []profile.TermRule 
 				rule.Replacement = pref.Text
 			} else {
 				rule.Replacement = ReplacementFromNote(t.Note)
-			}
-			if ReplacementFromNote(rule.Note) != "" {
-				rule.Note = ""
 			}
 			out = append(out, rule)
 		}

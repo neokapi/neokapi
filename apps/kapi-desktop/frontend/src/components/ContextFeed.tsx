@@ -684,12 +684,23 @@ function EditForm({
   );
 }
 
-/** Where to widen a rule in force: the workspace, or past one axis. */
-function WidenPicker({ options, onWiden }: { options: string[]; onWiden: (to: string) => void }) {
+/**
+ * Where to widen a rule in force: the workspace, or past one axis. The label
+ * names the action where the picker sits; the activity feed says "Widen".
+ */
+export function WidenPicker({
+  options,
+  onWiden,
+  label = t("Widen"),
+}: {
+  options: string[];
+  onWiden: (to: string) => void;
+  label?: string;
+}) {
   return (
     <Select value="" onValueChange={onWiden}>
-      <SelectTrigger size="sm" className="w-44" data-slot="widen-picker" aria-label={t("Widen")}>
-        <SelectValue placeholder={t("Widen")} />
+      <SelectTrigger size="sm" className="w-44" data-slot="widen-picker" aria-label={label}>
+        <SelectValue placeholder={label} />
       </SelectTrigger>
       <SelectContent>
         {options.map((option) => (

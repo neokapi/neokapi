@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { ContextFeedList } from "../components/ContextFeed";
 import { ContextResetDialog } from "../components/ContextResetDialog";
-import { ContextWidenDialog } from "../components/ContextWidenDialog";
+import { ContextWidenDialog, widenRuleOfEntry } from "../components/ContextWidenDialog";
 import {
   CANDIDATE,
   CONTEXT_FEED,
@@ -120,10 +120,10 @@ export const NoCheckoutToDecideThrough: Story = {
 export const WidenToTheWorkspace: StoryObj<typeof ContextWidenDialog> = {
   render: () => (
     <ContextWidenDialog
-      entry={IN_FORCE}
+      rule={widenRuleOfEntry(IN_FORCE)}
       to="workspace"
       onClose={fn()}
-      onKeep={fn()}
+      onConfirm={fn()}
       preview={{
         to: "workspace",
         from: { level: "project", describe: "project brand=kapimart" },
@@ -150,10 +150,10 @@ export const WidenToTheWorkspace: StoryObj<typeof ContextWidenDialog> = {
 export const WidenPastAnAxis: StoryObj<typeof ContextWidenDialog> = {
   render: () => (
     <ContextWidenDialog
-      entry={IN_FORCE}
+      rule={widenRuleOfEntry(IN_FORCE)}
       to="product"
       onClose={fn()}
-      onKeep={fn()}
+      onConfirm={fn()}
       preview={{
         to: "product",
         from: { level: "project", describe: "project product=store" },

@@ -237,6 +237,19 @@ func TestContextResourceRejectsAnUnknownRendering(t *testing.T) {
 	assert.Contains(t, err.Error(), "unknown context rendering")
 }
 
+// TestContextResourceRefusesALocationInAMissingDirectory: a mistyped address
+// such as `context://file/docs/guide.md` names a directory the project does
+// not have, and is refused rather than answered from the default point.
+func TestContextResourceRefusesALocationInAMissingDirectory(t *testing.T) {
+	contextFixture(t)
+	session := contextClient(t, &host.App{})
+
+	_, err := session.ReadResource(t.Context(),
+		&mcp.ReadResourceParams{URI: "context://file/docs/guide.md"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "file/docs/guide.md does not exist")
+}
+
 // TestContextResourceStatesItsScope: a local answer says what it answered from,
 // so "this project holds no answer" stays distinguishable from "this scope
 // cannot hold one". The structured rendering carries it; the markdown a writer

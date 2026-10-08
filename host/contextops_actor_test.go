@@ -162,6 +162,34 @@ func TestACommandLineAgentWithdrawsItsOwnSuggestion(t *testing.T) {
 	assert.Equal(t, contextop.StatusWithdrawn, held.Operations[0].Status)
 }
 
+// TestAPersonRefusedAWithdrawalIsToldWhatTheyCanDo: a person who tries to
+// withdraw an agent's suggestion is the one who decides, so the refusal says
+// how to drop it rather than to go and ask a person.
+func TestAPersonRefusedAWithdrawalIsToldWhatTheyCanDo(t *testing.T) {
+	app, _ := contextOpsApp(t)
+	root := contextOpsProject(t, "ctxops-person-withdraw")
+
+	proposed, err := app.RecordContextObservation(t.Context(), ContextObserveRequest{
+		Actor: agentIn("s1"), Project: recipeOf(root),
+		Term: "use", InsteadOf: []string{"utilise"},
+		Evidence: []contextop.Evidence{{Path: "config/app.yaml", Quote: "We utilise the widget"}},
+	})
+	require.NoError(t, err)
+
+	_, err = app.WithdrawContextOperation(t.Context(), ContextWithdrawRequest{
+		Actor: contextop.Actor{Kind: contextop.ActorPerson}, Project: recipeOf(root), ID: proposed.ID,
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "kapi context review --drop "+contextop.ShortID(proposed.ID))
+	assert.NotContains(t, err.Error(), "deciding belongs to the person working here")
+
+	_, err = app.WithdrawContextOperation(t.Context(), ContextWithdrawRequest{
+		Actor: agentIn("s2"), Project: recipeOf(root), ID: proposed.ID,
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "deciding belongs to the person working here", "an agent is still sent to the person")
+}
+
 // TestAPersonInAnAgentShellIsOnTheRecord: the override exists for a person
 // typing in an agent host's shell, and an operation that used it says so.
 func TestAPersonInAnAgentShellIsOnTheRecord(t *testing.T) {

@@ -225,6 +225,22 @@ const WidenToWorkspace = "workspace"
 // force under every profile of its project.
 const WidenToProject = "project"
 
+// ContextWidenOptions are the widenings open to a rule at scope: the whole
+// workspace, and each axis its point is specific about. A rule already
+// answering workspace-wide has nowhere further to go.
+func ContextWidenOptions(scope contextop.Scope) []string {
+	out := []string{}
+	if scope.Level != contextop.LevelWorkspace {
+		out = append(out, WidenToWorkspace)
+	}
+	axes := make([]string, 0, len(scope.Coordinates))
+	for axis := range scope.Coordinates {
+		axes = append(axes, axis)
+	}
+	slices.Sort(axes)
+	return append(out, axes...)
+}
+
 // ContextLogSessionSelf is the value ContextLogRequest.Session takes for the
 // session this run records under. An agent that reached kapi from a shell
 // learns its session from the environment rather than from a flag, so this is
@@ -285,6 +301,17 @@ func teachRefusal(err error) error {
 	}
 	return fmt.Errorf("%w\ndeciding belongs to the person working here: "+
 		"ask them to run `kapi context review`, which walks through what is waiting", err)
+}
+
+// teachRefusalTo answers a refusal addressed to whoever was refused. An agent
+// is told to put the decision in front of the person; a person is the one who
+// decides, and is told how to set the operation aside themselves.
+func teachRefusalTo(err error, actor contextop.Actor, id string) error {
+	if err == nil || !errors.Is(err, contextop.ErrRefused) || actor.Kind != contextop.ActorPerson {
+		return teachRefusal(err)
+	}
+	return fmt.Errorf("%w\nto set aside what someone else recorded, drop it: `kapi context review --drop %s`",
+		err, contextop.ShortID(id))
 }
 
 // RecordContextObservation records something somebody noticed. A fact in
@@ -956,7 +983,7 @@ func (s *contextOpsSession) setAside(ctx context.Context, kind contextop.Kind, s
 		Note:    note,
 	})
 	if err != nil {
-		return ContextOperation{}, teachRefusal(err)
+		return ContextOperation{}, teachRefusalTo(err, actor, target.ID)
 	}
 	return s.settled(ctx, written, before)
 }

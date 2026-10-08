@@ -1,12 +1,14 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { ContextDigestView } from "../components/ContextDigest";
+import { ContextWidenDialog, widenRuleOfDigestItem } from "../components/ContextWidenDialog";
 import {
   CONTEXT_DIGEST,
   EMPTY_DIGEST,
   LAST_LOOKED,
   QUIET_DIGEST,
   onlySection,
+  studioRule,
 } from "./fixtures/contextDigest";
 
 const meta: Meta<typeof ContextDigestView> = {
@@ -21,6 +23,7 @@ const meta: Meta<typeof ContextDigestView> = {
     onKeepGroup: fn(),
     onDrop: fn(),
     onChoose: fn(),
+    onWiden: fn(),
     onOpenFile: fn(),
   },
   decorators: [
@@ -61,3 +64,38 @@ export const ReadOnly: Story = { args: { canDecide: false, onOpenFile: undefined
 
 /** The keyboard session: j and k move, a keeps, c changes, d drops, g keeps the group. */
 export const Keyboard: Story = { args: { keyboard: true } };
+
+/**
+ * A rule in force applied more widely: each established row offers "Apply
+ * more widely", to every project or past one axis of the rule's point.
+ */
+export const ApplyMoreWidely: Story = { args: { digest: onlySection("established") } };
+
+/** The preview "Apply more widely" opens before the rule answers in every project. */
+export const ApplyMoreWidelyPreview: StoryObj<typeof ContextWidenDialog> = {
+  render: () => (
+    <ContextWidenDialog
+      rule={widenRuleOfDigestItem("fernwell", studioRule())}
+      to="workspace"
+      onClose={fn()}
+      onConfirm={fn()}
+      preview={{
+        to: "workspace",
+        from: { level: "project", describe: "project product=studio" },
+        scope: { level: "workspace", describe: "workspace product=studio" },
+        rule: { kind: "term", term: "business", replacement: "studio" },
+        projects: [
+          { project_key: "fernwell", project_name: "Fernwell", current: true, checked_out: true },
+          {
+            project_key: "fernwell-site",
+            project_name: "Fernwell site",
+            current: false,
+            checked_out: true,
+          },
+        ],
+        points: [],
+        content_impact: false,
+      }}
+    />
+  ),
+};

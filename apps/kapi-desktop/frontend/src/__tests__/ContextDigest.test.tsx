@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, fireEvent } from "./testUtils";
+import { render, fireEvent, screen } from "./testUtils";
+import userEvent from "@testing-library/user-event";
 
 import { ContextDigestView } from "../components/ContextDigest";
 import {
@@ -16,6 +17,7 @@ function renderDigest(digest: ContextDigest = CONTEXT_DIGEST, extra: Record<stri
     onKeepGroup: vi.fn(),
     onDrop: vi.fn(),
     onChoose: vi.fn(),
+    onWiden: vi.fn(),
     onOpenFile: vi.fn(),
   };
   render(<ContextDigestView digest={digest} since={LAST_LOOKED} {...handlers} {...extra} />);
@@ -93,6 +95,33 @@ describe("the context digest", () => {
     expect(h.onDrop).toHaveBeenCalledWith(expect.objectContaining({ status: "established" }));
     fireEvent.click(slot("digest-suggested")!.querySelector("[data-slot='open-file']")!);
     expect(h.onOpenFile).toHaveBeenCalledWith("app/strings/en.json");
+  });
+
+  it("applies an established rule more widely, to every project or past one axis", async () => {
+    const h = renderDigest();
+    const studio = all("digest-item").find((el) => el.textContent?.includes("Write studio"));
+    expect(studio?.querySelector("[data-slot='widen-picker']")).not.toBeNull();
+    await userEvent.click(screen.getAllByLabelText("Apply more widely")[0]!);
+    await userEvent.click(screen.getByRole("option", { name: "To every project" }));
+    expect(h.onWiden).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "0njy7pghcn00000000000000" }),
+      "workspace",
+    );
+  });
+
+  it("offers to apply only rules in force more widely", () => {
+    renderDigest();
+    for (const name of ["digest-conflicts", "digest-suggested"]) {
+      expect(slot(name)!.querySelector("[data-slot='widen-picker']")).toBeNull();
+    }
+    // A rule in force with nowhere wider to go offers nothing.
+    const workspace = all("digest-item").find((el) => el.textContent?.includes("project folder"));
+    expect(workspace?.querySelector("[data-slot='widen-picker']")).toBeNull();
+  });
+
+  it("hides apply more widely when nothing can widen", () => {
+    renderDigest(CONTEXT_DIGEST, { onWiden: undefined });
+    expect(all("widen-picker")).toHaveLength(0);
   });
 
   it("keeps a group with one key", () => {

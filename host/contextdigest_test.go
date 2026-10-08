@@ -51,6 +51,9 @@ func TestContextDigest_SectionsFromTheLog(t *testing.T) {
 	assert.Equal(t, []string{"kept by you"}, digest.Established[0].How)
 	assert.True(t, digest.Established[0].Droppable)
 	assert.True(t, digest.Established[0].Widenable)
+	assert.Equal(t, ContextWidenOptions(contextop.Scope{Level: contextop.LevelProject}), digest.Established[0].WidenTo,
+		"the digest offers the widenings the feed and the CLI offer")
+	assert.Contains(t, digest.Established[0].WidenTo, WidenToWorkspace)
 	assert.True(t, digest.Established[0].New, "nobody has looked, so everything is new")
 
 	require.Len(t, digest.Conflicts, 1, "the two rules for login disagree")
