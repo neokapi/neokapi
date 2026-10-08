@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/agentrules"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 )
 
@@ -298,12 +299,13 @@ func (a *App) planRulesFiles(cmd Command, root string, proj *project.KapiProject
 	// One answer per point: places that resolve to the same point say the
 	// same thing, and a project with many collections has few points.
 	answers := map[string]rulesPointAnswer{}
+	sources := projectSourceLanguages(proj)
 	answerFor := func(sample string) (rulesPointAnswer, error) {
 		key := rulesPointKey(proj, sample, at)
 		if ans, ok := answers[key]; ok {
 			return ans, nil
 		}
-		ans, err := a.rulesAnswerAt(cmd, filepath.Join(root, filepath.FromSlash(sample)))
+		ans, err := a.rulesAnswerAt(cmd, filepath.Join(root, filepath.FromSlash(sample)), sources)
 		if err != nil {
 			return rulesPointAnswer{}, err
 		}
@@ -409,7 +411,7 @@ func rulesPointKey(proj *project.KapiProject, sample string, at time.Time) strin
 }
 
 // rulesAnswerAt reads the rules in force for the file at abs.
-func (a *App) rulesAnswerAt(cmd Command, abs string) (rulesPointAnswer, error) {
+func (a *App) rulesAnswerAt(cmd Command, abs string, sources map[string]bool) (rulesPointAnswer, error) {
 	req := ContextPointRequest{Path: abs, Limit: 1 << 16, rulesOnly: true}
 	src, release := a.ContextSourcesAt(cmd, req)
 	defer release()
@@ -422,11 +424,67 @@ func (a *App) rulesAnswerAt(cmd Command, abs string) (rulesPointAnswer, error) {
 	// the suggestions nobody has decided about (rulesOnly leaves those out).
 	// An agent's note stays a suggestion, answered by `kapi context <path>`
 	// and review, until a person's signal establishes it.
-	out := rulesPointAnswer{voice: strings.TrimSpace(res.VoiceBrief), elsewhere: res.Elsewhere, rules: orderRules(res.Rules)}
+	out := rulesPointAnswer{voice: strings.TrimSpace(res.VoiceBrief)}
 	if res.Voice != nil {
 		out.voiceName = res.Voice.Name
 	}
+	for _, r := range orderRules(res.Rules) {
+		if writtenInSource(r.Locale, sources) && ruleAWriterCanBreak(r) {
+			out.rules = append(out.rules, r)
+		}
+	}
+	for _, e := range res.Elsewhere {
+		if writtenInSource(e.Locale, sources) {
+			out.elsewhere = append(out.elsewhere, e)
+		}
+	}
 	return neutraliseAnswer(out), nil
+}
+
+// The rules files are read by an agent writing the project's source. A
+// target language is written by kapi's loop rather than by hand, so its rules
+// are left out, and so is a term that only names a concept: with nothing to
+// avoid it is no rule a writer can break.
+
+// projectSourceLanguages lists the base languages the project's content is
+// written in: the recipe's default and every collection's and item's own.
+func projectSourceLanguages(proj *project.KapiProject) map[string]bool {
+	out := map[string]bool{}
+	add := func(l model.LocaleID) {
+		if base := baseLanguage(strings.TrimSpace(string(l))); base != "" {
+			out[base] = true
+		}
+	}
+	add(proj.Defaults.SourceLanguage)
+	for i := range proj.Collections {
+		c := &proj.Collections[i]
+		add(c.SourceLanguage)
+		for _, item := range c.EffectiveItems() {
+			add(item.SourceLanguage)
+		}
+	}
+	return out
+}
+
+// writtenInSource reports whether a rule stated in loc is one for the
+// project's source. A rule with no language holds in every one.
+func writtenInSource(loc string, sources map[string]bool) bool {
+	return loc == "" || len(sources) == 0 || sources[baseLanguage(loc)]
+}
+
+// ruleAWriterCanBreak reports whether a rule asks a writer for anything: a
+// wording to avoid, the capitalisation of a name, or leaving a name
+// untranslated. A lower-case term with neither only names a concept.
+func ruleAWriterCanBreak(r ContextRule) bool {
+	if len(r.Not) > 0 {
+		return true
+	}
+	if strings.ToLower(r.Say) != r.Say {
+		return true
+	}
+	note := strings.ToLower(r.Note)
+	return strings.Contains(note, "never translate") || strings.Contains(note, "do not translate") ||
+		strings.Contains(note, "don't translate")
 }
 
 // neutraliseAnswer neutralises every stored value an answer carries into the
@@ -482,9 +540,26 @@ func neutraliseBlock(text string) string {
 	return strings.Join(lines, "\n")
 }
 
+// withoutEmDashes rewrites the em dashes in stored text, since prose written
+// into a project carries none: a single dash that introduces what follows,
+// with no colon or comma before it, becomes a colon, and any other becomes a comma, so
+// a pair around an aside reads as commas.
+func withoutEmDashes(line string) string {
+	const dash = "—"
+	if !strings.Contains(line, dash) {
+		return line
+	}
+	line = strings.ReplaceAll(line, " "+dash+" ", dash)
+	if i := strings.Index(line, dash); strings.Count(line, dash) == 1 && !strings.ContainsAny(line[:i], ":,") {
+		return line[:i] + ": " + line[i+len(dash):]
+	}
+	return strings.ReplaceAll(line, dash, ", ")
+}
+
 // neutralise removes the markup that could change how a line reads: comment
 // delimiters, code fences and a leading heading marker.
 func neutralise(line string) string {
+	line = withoutEmDashes(line)
 	for {
 		next := line
 		for _, m := range []string{"<!--", "-->", "```", "~~~"} {

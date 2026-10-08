@@ -175,8 +175,13 @@ writes:
   no file, because an agent loads the files of every folder above the one it
   works in.
 
-A list that holds a translation's rules beside the source's names each rule's
-language (`[nb]`), so an agent writing the source applies only the source's.
+The files hold the rules an agent writing the source can break: rules in the
+project's source languages that name a wording to avoid, a capitalised name, or
+a name to leave untranslated. A target language's rules stay out, because kapi's
+loop writes that language, and so does a term that only names a concept. A
+pattern's examples are whole words; a pattern over the endings of one word
+(`glossar(y|ies)`) shows none. Stored em dashes are written as a colon or a
+comma.
 
 An instruction file is a privileged surface: every agent in the tree loads it
 and acts on it. Only rules in force are written there, the terms store, the

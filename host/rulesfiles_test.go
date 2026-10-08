@@ -457,3 +457,34 @@ func TestRenderSectionBody_NeutralisesStoredText(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, ok)
 }
+
+// TestRulesFiles_OnlyRulesASourceWriterCanBreak: the files are read by an
+// agent writing the source. A target language's rule is left out, since kapi's
+// loop writes that language, and so is a lower-case term with nothing to
+// avoid. A capitalised name and a do-not-translate note stay.
+func TestRulesFiles_OnlyRulesASourceWriterCanBreak(t *testing.T) {
+	sources := map[string]bool{"en": true}
+	assert.True(t, writtenInSource("", sources))
+	assert.True(t, writtenInSource("en-US", sources))
+	assert.False(t, writtenInSource("nb", sources))
+
+	assert.True(t, ruleAWriterCanBreak(ContextRule{Say: "content memory", Not: []string{"translation memory"}}))
+	assert.True(t, ruleAWriterCanBreak(ContextRule{Say: "Bowrain"}))
+	assert.True(t, ruleAWriterCanBreak(ContextRule{Say: "kapi", Note: "Never translate."}))
+	assert.False(t, ruleAWriterCanBreak(ContextRule{Say: "caption"}))
+	assert.False(t, ruleAWriterCanBreak(ContextRule{Say: "check", Note: "Noun; a content check run over a file."}))
+}
+
+// TestNeutralise_NoEmDash: the repository's prose carries no em dash, so a
+// stored one is written as a comma.
+func TestNeutralise_NoEmDash(t *testing.T) {
+	assert.Equal(t, "Retired spelling: brand voice, which names the use case",
+		neutraliseLine("Retired spelling: brand voice — which names the use case"))
+	assert.Equal(t, "Retired positioning: say what the product does",
+		neutraliseLine("Retired positioning — say what the product does"))
+	assert.Equal(t, "Say multilingual content, or language, and recast the sentence",
+		neutraliseLine("Say multilingual content, or language — and recast the sentence"))
+	assert.Equal(t, "Extraction, not segmentation, produces blocks",
+		neutraliseLine("Extraction — not segmentation — produces blocks"))
+	assert.NotContains(t, neutraliseBlock("a—b\nc — d"), "—")
+}

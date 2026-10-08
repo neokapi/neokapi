@@ -8,41 +8,35 @@ Voice: neokapi documentation. Academic, precise register for neokapi user-facing
 Avoid:
 - Marketing superlatives and hype words (such as powerful, blazing, game-changing, cutting-edge, revolutionary, unleash)
 - Brochure framing (such as production-proven, everything you need, localize at scale, just point and go)
-- Content memory is the store; brand is a coordinate on it, not a kind of memory (such as ies)
-- Retired positioning — say what the product does, not which axis it leads with (such as brand-first)
-- Retired positioning — kapi converges content; drafting is one step in the loop
-- Retired positioning — team framing belongs to the platform, not to kapi (such as for your whole team)
-- Retired positioning — this is a content and language engine
+- Content memory is the store; brand is a coordinate on it, not a kind of memory
+- Retired positioning: say what the product does, not which axis it leads with (such as brand-first)
+- Retired positioning: kapi converges content; drafting is one step in the loop
+- Retired positioning: team framing belongs to the platform, not to kapi (such as for your whole team)
+- Retired positioning: this is a content and language engine
 - Emoji in committed prose
-- Hardcoded counts that the code controls — name categories and link to the generated reference instead (such as tools, providers, filters, languages)
-- "magic" as a claim about the product — state the mechanism; the technical sense (magic bytes, magic number) is not this rule
-- Extraction — not segmentation — produces blocks; segmentation is an opt-in overlay within a block (such as segmented into blocks)
+- Hardcoded counts that the code controls: name categories and link to the generated reference instead (such as tools, providers, filters, languages)
+- "magic" as a claim about the product: state the mechanism; the technical sense (magic bytes, magic number) is not this rule
+- Extraction, not segmentation, produces blocks; segmentation is an opt-in overlay within a block (such as segmented into blocks)
 - termbase: the store is the terms store, and its contents are terms (TBX, the ISO standard, keeps its name)
-- glossary: the store is the terms store (XLIFF 2.x's Glossary module keeps its name) (such as ies)
+- glossary: the store is the terms store (XLIFF 2.x's Glossary module keeps its name)
 (The voice continues: `kapi context <path>` gives it in full.)
 
 Say this, not that:
-- voice profile, not "brand voice" [en]: The VoiceProfile bound to a project. Retired spelling: brand voice — which names the common use case, never the mechanism.
-- Avoid "easily" [en]
-- term list, not "glossary" [en]: Simple source-to-target term mapping fed to the translate prompt. The prompt section keeps its wire name `glossary`.
-- målgruppeprofil, not "merkevarestemme" [nb]: The VoiceProfile bound to a project. Retired spelling: brand voice — which names the common use case, never the mechanism.
-- innholdsbase, not "oversettelsesminne" [nb]: The store of source/target pairs kapi reuses; backed by the memory/ package.
-- memory, not "sievepen" [en]: The built-in content memory package (memory/). Never translate.
-- Avoid "simply" [en]
-- terms store, not "termbase" (also "terms") [en]: The store of approved terminology. Retired spelling: termbase.
-- ordbank, not "termbase" [nb]: The store of approved terminology. Retired spelling: termbase.
-- text, not "translatable text" [en]: Frames the shared engine as translation-only; use neutral wording unless the context really is about translation
-- content memory, not "translation memory" [en]: The store of source/target pairs kapi reuses; backed by the memory/ package.
-- antall ord [nb]
-- blanktegn [nb]
-- block [en]: The translatable content unit in the content model (Okapi: text unit).
-- blokk [nb]: The translatable content unit in the content model (Okapi: text unit).
-- Bowrain [en]: The full-stack platform. Never translate; capitalized product name.
-- caption [en]
-- case-sensitive [en]
-- check [en]: Noun; verb: kontrollere. A content check run over a file.
-- credentials [en]: API keys and tokens in the OS keychain.
-- 94 more rules hold here: `kapi context <path>` lists them all.
+- voice profile, not "brand voice": The VoiceProfile bound to a project. Retired spelling: brand voice, which names the common use case, never the mechanism.
+- Avoid "easily"
+- term list, not "glossary": Simple source-to-target term mapping fed to the translate prompt. The prompt section keeps its wire name `glossary`.
+- memory, not "sievepen": The built-in content memory package (memory/). Never translate.
+- Avoid "simply"
+- terms store, not "termbase" (also "terms"): The store of approved terminology. Retired spelling: termbase.
+- text, not "translatable text": Frames the shared engine as translation-only; use neutral wording unless the context really is about translation
+- content memory, not "translation memory": The store of source/target pairs kapi reuses; backed by the memory/ package.
+- Bowrain: The full-stack platform. Never translate; capitalized product name.
+- kapi: The standalone CLI. Never translate; always lowercase.
+- kapi-desktop: The desktop GUI companion. Never translate; always lowercase and hyphenated.
+- KBF: Kapi Bundle Format. Never translate the acronym.
+- neokapi: Project and Go framework name. Never translate; always lowercase.
+- Okapi: The upstream Okapi Framework (Java), which neokapi reimagines and which okapi-bridge exposes. Never translate; capitalized product name. Not the animal of the same name.
+- okapi-bridge: The Java bridge exposing Okapi Framework filters to neokapi over gRPC, and its repository. Never translate; always lowercase and hyphenated.
 
 Code comments follow a voice of their own: run `kapi context <path> --comments` before you write one.
 

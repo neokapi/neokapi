@@ -451,6 +451,9 @@ func splitTopLevel(regex string) []string {
 	if min < 0 {
 		return []string{regex}
 	}
+	if min > 0 && alternationInsideWord(regex, min) {
+		return nil
+	}
 	var out []string
 	depth, start := 0, 0
 	for i, r := range regex {
@@ -469,6 +472,40 @@ func splitTopLevel(regex string) []string {
 		}
 	}
 	return append(out, regex[start:])
+}
+
+// alternationInsideWord reports whether a group holding the alternation at
+// depth sits against a word character: `glossar(y|ies)` or
+// `localiz(e|ing|ation)`. Its alternatives are then endings of one word, and
+// an ending such as `ies` read as a word to avoid misleads a writer, so the
+// pattern yields no words at all. `\b` before a group is a boundary, not a
+// letter.
+func alternationInsideWord(regex string, depth int) bool {
+	isWord := func(b byte) bool {
+		return b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z' || b >= '0' && b <= '9' || b >= 0x80
+	}
+	var opens []int
+	for i := 0; i < len(regex); i++ {
+		switch regex[i] {
+		case '(':
+			opens = append(opens, i)
+		case ')':
+			if len(opens) == 0 {
+				continue
+			}
+			o := opens[len(opens)-1]
+			opens = opens[:len(opens)-1]
+			if len(opens) != depth-1 || !strings.Contains(regex[o:i], "|") {
+				continue
+			}
+			before := o > 0 && (regex[o-1] == ']' || isWord(regex[o-1]) && (o < 2 || regex[o-2] != '\\'))
+			after := i+1 < len(regex) && (regex[i+1] == '[' || isWord(regex[i+1]))
+			if before || after {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // literalWord strips the syntax around one alternative and returns what is left

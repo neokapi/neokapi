@@ -283,3 +283,21 @@ func TestCompactGuideCarriesTheExamples(t *testing.T) {
 	assert.Contains(t, got, "RipGrep is blazingly fast")
 	assert.Contains(t, got, "ripgrep uses parallelism to search")
 }
+
+// TestPatternWords_OnlyWholeWords: a pattern's examples are words a writer
+// would type. The endings of one word (`glossar(y|ies)`) yield none, and a
+// group of whole words keeps them whatever wraps it.
+func TestPatternWords_OnlyWholeWords(t *testing.T) {
+	for _, tc := range []struct{ regex, want string }{
+		{`(?i)\bglossar(y|ies)\b`, ""},
+		{`(?i)\blocaliz(e|ing|ation|ations)\b`, ""},
+		{`(?i)translation memor(y|ies)`, ""},
+		{`(?i)\blocali[sz](e|es|ed|ing|ation|ations)\b`, ""},
+		{`(?i)(chang(er|ing)|revolutionary)`, "such as revolutionary"},
+		{`(?i)\b(?:powerful|blazing|game-changing)\b`, "such as powerful, blazing, game-changing"},
+		{`(powerful|blazing)`, "such as powerful, blazing"},
+		{`tools|providers`, "such as tools, providers"},
+	} {
+		assert.Equal(t, tc.want, patternWords(tc.regex), tc.regex)
+	}
+}
