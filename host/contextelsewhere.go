@@ -1,14 +1,17 @@
 package host
 
 import (
+	"fmt"
 	"path/filepath"
 	"slices"
 	"sort"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/terms"
 )
@@ -35,6 +38,11 @@ type ContextElsewhere struct {
 	HeldIn []string `json:"held_in"`
 	// Locale is the language the rule is stated in.
 	Locale string `json:"locale,omitempty"`
+
+	// conceptID is the concept the rule comes from, and advisory its marking,
+	// for the check that holds the wording here (keepRuleSets).
+	conceptID string
+	advisory  bool
 }
 
 // rulePlace is one place in a project a rule can hold at: the files one
@@ -287,9 +295,13 @@ func rulesElsewhere(proj *project.KapiProject, places []placePoint, store string
 			if instead == "" || mentioned[fold(instead)] {
 				continue
 			}
-			keep := byLocale[loc]
+			keep := oldWordings(byLocale[loc], instead)
+			if len(keep) == 0 {
+				continue
+			}
 			slices.Sort(keep)
-			out = append(out, ContextElsewhere{Keep: keep, Instead: instead, HeldIn: in, Locale: string(loc)})
+			out = append(out, ContextElsewhere{Keep: keep, Instead: instead, HeldIn: in, Locale: string(loc),
+				conceptID: c.ID, advisory: c.Advisory})
 		}
 	}
 	sort.SliceStable(out, func(i, j int) bool {
@@ -299,6 +311,72 @@ func rulesElsewhere(proj *project.KapiProject, places []placePoint, store string
 		return out[i].Locale < out[j].Locale
 	})
 	return out
+}
+
+// keepRuleSets turns the rules held elsewhere into the check that holds the
+// old wording at this point: the new wording is a term the check reports here,
+// with the old one as its replacement. A rename applied where the old name is
+// correct (legal/ renaming Workspace to Space) is then a finding at that file,
+// failing like any other term rule unless the concept is marked advisory.
+//
+// The new wording matches as written, so a rename to "Space" does not fire on
+// the word "space", and never inside the old wording that contains it.
+func keepRuleSets(held []ContextElsewhere) []profile.TermRuleSet {
+	var rules []profile.TermRule
+	for _, e := range held {
+		if e.Instead == "" || len(e.Keep) == 0 {
+			continue
+		}
+		rules = append(rules, profile.TermRule{
+			Term:          e.Instead,
+			Replacement:   e.Keep[0],
+			Note:          fmt.Sprintf("%s correct here; the rename to %q holds only in %s", keptWording(e.Keep), e.Instead, joinAnd(e.HeldIn)),
+			Advisory:      e.advisory,
+			ConceptID:     e.conceptID,
+			CaseSensitive: new(true),
+		})
+	}
+	if len(rules) == 0 {
+		return nil
+	}
+	return []profile.TermRuleSet{{Rules: rules, Kind: profile.VocabForbidden, From: "a rename held elsewhere in the project"}}
+}
+
+// keptWording renders the wordings to keep as the subject of a sentence.
+func keptWording(keep []string) string {
+	if len(keep) == 1 {
+		return quotedAll(keep) + " is"
+	}
+	return quotedAll(keep) + " are"
+}
+
+// oldWordings is the wordings a rule avoids that stay correct where it does
+// not hold: every avoided wording except a spelling of the one it asks for. A
+// rename to "Harbor Hosted" also avoids "Harbor-Hosted" and "HarborHosted", and
+// those are misspellings of the new name everywhere, never the name to keep.
+func oldWordings(avoided []string, instead string) []string {
+	var out []string
+	for _, w := range avoided {
+		if !sameSpelling(w, instead) {
+			out = append(out, w)
+		}
+	}
+	return out
+}
+
+// sameSpelling reports whether two wordings spell the same letters and digits,
+// ignoring case, spaces, hyphens and other punctuation.
+func sameSpelling(a, b string) bool {
+	letters := func(s string) string {
+		var sb strings.Builder
+		for _, r := range strings.ToLower(s) {
+			if unicode.IsLetter(r) || unicode.IsDigit(r) {
+				sb.WriteRune(r)
+			}
+		}
+		return sb.String()
+	}
+	return letters(a) == letters(b)
 }
 
 // baseLanguage is a locale's language subtag, folded.

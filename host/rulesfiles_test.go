@@ -73,7 +73,7 @@ func spacesProject(t *testing.T) (*App, string) {
 			"tone:\n  guidelines: Lead with the answer.\n",
 		".kapi/profiles/legal/voice.yaml": "id: legal\nname: Legal\ndescription: Exact and formal.\n",
 		"README.md":                       "Teams log in and send e-mail from a Workspace.\n",
-		"help/getting-started.md":         "Each board belongs to a Workspace.\n",
+		"help/getting-started.md":         "Each board belongs to a Workspace.\n\nThe Workspace admin invites people.\n",
 		"changelog/3.4.md":                "Workspaces are now faster.\n",
 		"api/workspaces.md":               "GET /workspaces lists every workspace.\n",
 		"legal/terms.md":                  "The Workspace is provided as is.\n",
@@ -101,6 +101,18 @@ func spacesProject(t *testing.T) (*App, string) {
 	require.NoError(t, err)
 	_, err = app.DecideContextReview(t.Context(), ContextReviewRequest{
 		Actor: person, Project: recipeOf(root), Keep: []string{space.ID}, WidenTo: "channel",
+	})
+	require.NoError(t, err)
+	// A compound name renamed with it: the rule also avoids the new name's
+	// own misspellings, "Space-Admin" and "SpaceAdmin", which are never the
+	// wording to keep where the rename does not hold.
+	admin, err := app.RecordContextObservation(t.Context(), ContextObserveRequest{
+		Actor: person, Project: recipeOf(root), Term: "Space Admin", InsteadOf: []string{"Workspace admin"},
+		Evidence: []contextop.Evidence{{Path: "help/getting-started.md", Quote: "The Workspace admin invites people"}},
+	})
+	require.NoError(t, err)
+	_, err = app.DecideContextReview(t.Context(), ContextReviewRequest{
+		Actor: person, Project: recipeOf(root), Keep: []string{admin.ID}, WidenTo: "channel",
 	})
 	require.NoError(t, err)
 	return app, root
@@ -191,6 +203,7 @@ func TestWriteRulesFiles_TheAnswerSaysTheOldNameIsCorrect(t *testing.T) {
 	}{
 		{path: "legal/terms.md", want: `- "Workspace" is correct here; do not rename it to "Space". That rename holds only in changelog/ and help/.`},
 		{path: "api/workspaces.md", want: `- "Workspace" is correct here; do not rename it to "Space".`},
+		{path: "api/workspaces.md", want: `- "Workspace admin" is correct here; do not rename it to "Space Admin".`, absent: "SpaceAdmin"},
 		{path: "help/getting-started.md", want: `Space, not "Workspace"`, absent: "is correct here"},
 	}
 	for _, tt := range tests {

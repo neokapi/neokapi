@@ -376,3 +376,42 @@ func TestContextPath_UnknownProfileIsAnError(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `no profile named "nope"`)
 }
+
+// TestContextPath_RetiredVerbNamesTheNewCommand: a verb that moved out of
+// `kapi context` would otherwise read as a planned file at the project root,
+// so a script still running it would get an answer for a file nobody meant,
+// and exit 0. Each is refused as a usage error naming where it went, and a
+// file that really has the name is still answered for as ./<name>.
+func TestContextPath_RetiredVerbNamesTheNewCommand(t *testing.T) {
+	root := writeGovernedProject(t)
+	a := &App{}
+
+	for verb, want := range map[string]string{
+		"import":   "kapi context import moved: use kapi store import",
+		"export":   "use kapi store export",
+		"rebuild":  "use kapi store rebuild",
+		"locales":  "use kapi store locales",
+		"observe":  "use kapi context note",
+		"correct":  "kapi context note --from",
+		"withdraw": "kapi context note --withdraw",
+		"keep":     "kapi context review --keep",
+		"drop":     "kapi context review --drop",
+		"widen":    "--widen-to",
+		"digest":   "use kapi context review",
+		"revert":   "kapi context reset --before",
+		"pull":     "kapi context sync --no-push",
+		"push":     "use kapi context sync",
+		"settle":   "kapi context sync --merged",
+		"backend":  "kapi context sync --status",
+	} {
+		_, err := runContextE(t, a, verb)
+		require.Errorf(t, err, "kapi context %s", verb)
+		assert.Containsf(t, err.Error(), want, "kapi context %s", verb)
+		assert.Equalf(t, host.ExitUsage, host.ExitCode(nil, err), "kapi context %s exits 2", verb)
+	}
+
+	require.NoError(t, os.WriteFile(filepath.Join(root, "import"), []byte("Import notes.\n"), 0o644))
+	assert.Contains(t, runContext(t, a, "./import"), "# Writing import")
+	_, err := runContextE(t, a, "import")
+	require.Error(t, err, "the bare verb stays refused when a file has its name")
+}

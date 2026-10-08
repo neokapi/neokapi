@@ -104,8 +104,9 @@ Apply the tone and style; follow the **Say this, not that** list (the terms in
 force, never the forbidden or competitor ones). Then draft, and check the
 result.
 
-Inside a project, name the file you are about to edit: `kapi context <file>`
-answers for that file's own content. Before writing a comment, in a Go file or
+Inside a project, the rules for each folder are in kapi's section of the
+`AGENTS.md` and `CLAUDE.md` there. For the full answer, name the file you are
+about to edit: `kapi context <file>` answers for that file's own content. Before writing a comment, in a Go file or
 any other, ask `kapi context <file> --comments`: it answers for the point
 the comments sit at and lists the comment limits in force there under "Code
 comments"; keep each sentence and each comment within them.

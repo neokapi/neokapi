@@ -53,8 +53,10 @@ func registerContextMCPTools(server *mcp.Server, a *App) {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "context_read",
-		Description: "Read what applies when you write one file, before you change it: the voice, the words " +
-			"to use and to avoid, and what has been suggested but not yet established. `path` is " +
+		Description: "Read everything that applies to one file: the voice in full, the words to use and to " +
+			"avoid, the old names that stay correct there, and what has been suggested but not yet established. " +
+			"kapi's section of AGENTS.md and CLAUDE.md states the same rules, so call this for a file no section " +
+			"covers or when you need the full answer. `path` is " +
 			"project-relative, e.g. `docs/guide.md`, or `profile/<name>` for a named profile. Set `comments` " +
 			"before writing a comment in a source file: the answer is then for the file's comments. The same " +
 			"text the context://<path> resource returns.",
@@ -77,6 +79,9 @@ func (a *App) handleContextRead(ctx context.Context, _ *mcp.CallToolRequest, in 
 	path := strings.TrimPrefix(strings.TrimSpace(in.Path), contextURIScheme)
 	if path == "" {
 		return nil, nil, errors.New("context_read: name the file you are about to write in `path`")
+	}
+	if err := retiredContextReadError(path); err != nil {
+		return nil, nil, err
 	}
 	query := url.Values{}
 	if in.Format != "" {

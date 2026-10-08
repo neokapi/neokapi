@@ -441,7 +441,7 @@ func deltaSection(base, here rulesPointAnswer) rulesSection {
 			continue
 		}
 		var keep []string
-		for _, n := range r.Not {
+		for _, n := range oldWordings(r.Not, r.Say) {
 			if !mentioned[fold(n)] {
 				keep = append(keep, n)
 			}
@@ -502,8 +502,9 @@ func renderRootSection(plan rulesPlan) string {
 	var b strings.Builder
 	b.WriteString(agentrules.StartLine + "\n")
 	b.WriteString("## Writing rules\n\n")
-	b.WriteString("These rules hold for every file in this project. kapi writes this section from the project's context " +
-		"and replaces it when the context changes, so edit outside it.\n")
+	b.WriteString("These rules hold for every file in this project. Follow them as you write; you do not need to ask " +
+		"kapi first. kapi writes this section from the project's context and replaces it when the context changes, " +
+		"so edit outside it.\n")
 	body := renderSectionBody(plan.root, "<path>")
 	if body == "" {
 		b.WriteString("\nNo writing rules are recorded for this project yet. Write as the surrounding files do.\n")
@@ -542,6 +543,8 @@ func renderRootSection(plan rulesPlan) string {
 		}
 	}
 	b.WriteString("\n" + checkLine("<path>"))
+	b.WriteString("When the files keep to a name or a word this section does not list, record it with " +
+		"`kapi context note --term <used> --instead-of <avoided> --seen-in <file>`. A person decides what becomes a rule.\n")
 	b.WriteString(agentrules.End + "\n")
 	return b.String()
 }
@@ -616,10 +619,12 @@ func capLines(text string, n int, sample string) string {
 	return strings.Join(lines[:n], "\n") + fmt.Sprintf("\n(The voice continues: `kapi context %s` gives it in full.)", sample)
 }
 
-// checkLine is the one line that names the gate.
+// checkLine names the gate, and the full answer for the case the section
+// does not cover. An agent reading the section has the rules already, so the
+// line asks for `kapi context` only when it needs more than they state.
 func checkLine(sample string) string {
-	return "Before you finish, run `kapi check <file>` on each file you changed: it reports any rule broken there. " +
-		"`kapi context " + sample + "` answers in full for one file.\n"
+	return "Before you finish, run `kapi check <file>` on each file you changed and fix what it reports. " +
+		"`kapi context " + sample + "` gives the full answer for one file when you need more than this section.\n"
 }
 
 // folderSummary renders what a folder's rules change, for the root's list.

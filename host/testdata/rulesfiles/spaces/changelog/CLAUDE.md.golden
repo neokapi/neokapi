@@ -4,7 +4,8 @@
 These rules hold for the files in changelog/, beside the project's rules in the root AGENTS.md. Where the two differ, follow this file. kapi writes this section from the project's context, so edit outside it.
 
 Say this, not that:
+- Space Admin, not "Space-Admin", "SpaceAdmin" or "Workspace admin"
 - Space, not "Workspace"
 
-Before you finish, run `kapi check <file>` on each file you changed: it reports any rule broken there. `kapi context changelog/<file>` answers in full for one file.
+Before you finish, run `kapi check <file>` on each file you changed and fix what it reports. `kapi context changelog/<file>` gives the full answer for one file when you need more than this section.
 <!-- /kapi:rules -->

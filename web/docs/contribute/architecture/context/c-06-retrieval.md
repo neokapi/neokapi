@@ -136,7 +136,12 @@ The Markdown response provides a writing brief:
   `api/workspaces.md` the line `"Workspace" is correct here; do not rename it to
   "Space". That rename holds only in help/.` Silence at an out-of-scope point
   reads to an agent as permission, and an agent told to rename everywhere
-  renames there;
+  renames there. The wording kept is the rule's old wording only: the new
+  name's own spelling variants (`Space-Admin` for `Space Admin`) are wrong
+  everywhere and never listed. `kapi check` holds the same line: the new
+  wording in a file where the old one is correct is a `terms.vocabulary`
+  finding there, which fails unless the concept is advisory
+  (`checkTerms.keepAt`);
 - the suggestions under **Suggested, not yet established**, less any the list
   already states;
 - a closing line naming `context_note` (and `kapi context note`), for recording what the reader notices
@@ -158,8 +163,9 @@ and at every place a collection item reads (one answer per distinct point), and
 writes:
 
 - the **root** `AGENTS.md` and `CLAUDE.md`: the voice brief, the rules that hold
-  at the default point, one line per folder with rules of its own, and the
-  `kapi check` line;
+  at the default point, one line per folder with rules of its own, the
+  `kapi check` line, and the `kapi context note` line for a name or word the
+  section does not list;
 - a **folder's** `AGENTS.md` and `CLAUDE.md`, for each folder whose answer
   differs from the root's: the rules the root does not state, its voice when it
   is not the root's, the **Keep as it is** lines (a root rule that does not hold

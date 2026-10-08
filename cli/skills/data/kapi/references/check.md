@@ -53,8 +53,10 @@ and fix what the context supports. The `score` is reported and decides nothing.
 Every word rule is a term, and every word-rule finding has rule id
 `terms.vocabulary` (`Forbidden term "x" found`, `Competitor term "x" found`,
 `Retired term "x" found`) wherever the rule is held. `metadata.from` names a
-source other than the project's terms: a bound pack (`pack technical-docs`) or a
-rule established across the workspace. The voice's pattern rules are
+source other than the project's terms: a bound pack (`pack technical-docs`), a
+rule established across the workspace, or `a rename held elsewhere in the
+project`: the new name in a file where the rules file says to keep the old one.
+Put the old name back there. The voice's pattern rules are
 `voice.style` and its siblings, and a translation's term findings come from the
 `terms.target` analyzer.
 
