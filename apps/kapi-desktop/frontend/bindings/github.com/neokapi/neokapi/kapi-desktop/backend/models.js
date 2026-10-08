@@ -7927,6 +7927,52 @@ export class ReviewUnitDetail {
 }
 
 /**
+ * RulesFilesDTO reports the rules files written beside a saved profile.
+ */
+export class RulesFilesDTO {
+    /**
+     * Creates a new RulesFilesDTO instance.
+     * @param {Partial<RulesFilesDTO>} [$$source = {}] - The source object to create the RulesFilesDTO.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * Changed lists the project-relative files the save created, updated or
+             * removed a section from.
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["changed"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Warning says why the files could not be written; the profile save
+             * itself succeeded.
+             * @member
+             * @type {string | undefined}
+             */
+            this["warning"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RulesFilesDTO instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {RulesFilesDTO}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType6;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("changed" in $$parsedSource) {
+            $$parsedSource["changed"] = $$createField0_0($$parsedSource["changed"]);
+        }
+        return new RulesFilesDTO(/** @type {Partial<RulesFilesDTO>} */($$parsedSource));
+    }
+}
+
+/**
  * RunError is a run failure presented as structure rather than prose.
  */
 export class RunError {
@@ -9898,64 +9944,6 @@ export class VoicePointDTO {
 }
 
 /**
- * VoicePointerDTO reports the voice pointer written beside a saved profile.
- */
-export class VoicePointerDTO {
-    /**
-     * Creates a new VoicePointerDTO instance.
-     * @param {Partial<VoicePointerDTO>} [$$source = {}] - The source object to create the VoicePointerDTO.
-     */
-    constructor($$source = {}) {
-        if (/** @type {any} */(false)) {
-            /**
-             * File is the project-relative assistant file (CLAUDE.md or AGENTS.md);
-             * empty when nothing was written.
-             * @member
-             * @type {string | undefined}
-             */
-            this["file"] = undefined;
-        }
-        if (!("action" in $$source)) {
-            /**
-             * Action is created, updated, unchanged, removed, none, or failed.
-             * @member
-             * @type {string}
-             */
-            this["action"] = "";
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * Created is true when the file itself was created by this save.
-             * @member
-             * @type {boolean | undefined}
-             */
-            this["created"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * Warning says why the pointer could not be written or could not name
-             * the voice; the profile save itself succeeded.
-             * @member
-             * @type {string | undefined}
-             */
-            this["warning"] = undefined;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new VoicePointerDTO instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {VoicePointerDTO}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new VoicePointerDTO(/** @type {Partial<VoicePointerDTO>} */($$parsedSource));
-    }
-}
-
-/**
  * VoiceSaveResult reports a save, or why it did not happen.
  */
 export class VoiceSaveResult {
@@ -10015,14 +10003,14 @@ export class VoiceSaveResult {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Pointer is what the save did to the project's assistant file: the
-             * section telling an assistant the voice is held by kapi, the same one
-             * `kapi init` and `kapi voice pointer` write. nil when the profile was
+             * RulesFiles is what the save did to the project's rules files: the
+             * section of AGENTS.md and CLAUDE.md that states the voice and the rules
+             * in force, the same one `kapi init` writes. nil when the profile was
              * refused.
              * @member
-             * @type {VoicePointerDTO | null | undefined}
+             * @type {RulesFilesDTO | null | undefined}
              */
-            this["pointer"] = undefined;
+            this["rulesFiles"] = undefined;
         }
 
         Object.assign(this, $$source);
@@ -10040,8 +10028,8 @@ export class VoiceSaveResult {
         if ("problems" in $$parsedSource) {
             $$parsedSource["problems"] = $$createField4_0($$parsedSource["problems"]);
         }
-        if ("pointer" in $$parsedSource) {
-            $$parsedSource["pointer"] = $$createField6_0($$parsedSource["pointer"]);
+        if ("rulesFiles" in $$parsedSource) {
+            $$parsedSource["rulesFiles"] = $$createField6_0($$parsedSource["rulesFiles"]);
         }
         return new VoiceSaveResult(/** @type {Partial<VoiceSaveResult>} */($$parsedSource));
     }
@@ -10501,7 +10489,7 @@ const $$createType152 = $Create.Nullable($$createType151);
 const $$createType153 = VoiceEditTargetDTO.createFrom;
 const $$createType154 = profile$0.ProfileProblem.createFrom;
 const $$createType155 = $Create.Array($$createType154);
-const $$createType156 = VoicePointerDTO.createFrom;
+const $$createType156 = RulesFilesDTO.createFrom;
 const $$createType157 = $Create.Nullable($$createType156);
 const $$createType158 = WorkspaceProject.createFrom;
 const $$createType159 = $Create.Array($$createType158);

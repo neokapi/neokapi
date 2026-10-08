@@ -38,6 +38,7 @@ func (s *contextOpsSession) landWidened(ctx context.Context, r contextop.Record)
 // landAt writes an established rule, moving the concept it joins to the
 // rule's scope when rescope is set.
 func (s *contextOpsSession) landAt(ctx context.Context, r contextop.Record, rescope bool) (string, error) {
+	s.changed = true
 	if r.Scope.Level == contextop.LevelWorkspace {
 		if _, err := s.retractFromProject(ctx, r); err != nil {
 			return "", err
@@ -171,6 +172,7 @@ func (s *contextOpsSession) retract(ctx context.Context, r contextop.Record) (st
 	if r.Status != contextop.StatusEstablished {
 		return "", nil
 	}
+	s.changed = true
 	w, err := s.writer(ctx, r)
 	if err != nil {
 		return "", err

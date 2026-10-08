@@ -110,6 +110,9 @@ func (a *App) DecideContextReview(ctx context.Context, req ContextReviewRequest)
 	if req.Replacement != "" && len(req.Keep) != 1 {
 		return out, errors.New("--use changes one rule as it is kept: name one --keep")
 	}
+	// One round of decisions writes the rules files once, at its end.
+	release := a.holdRulesFiles()
+	defer release(ctx)
 	if req.Choose != "" {
 		chosen, err := a.ChooseContextSide(ctx, ContextChooseRequest{
 			Actor: req.Actor, Project: req.Project, ID: req.Choose, Replacement: req.Replacement, Note: req.Note,

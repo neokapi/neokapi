@@ -88,7 +88,7 @@ The workflow is the same for either integration: retrieve guidance with `kapi co
 
 As it works, the agent notes what the files do every time and what you change in its drafts, with the file and sentence each came from. Each note arrives as a **suggestion**: checks report it and none fails on it until you keep it. The agent ends its report with what its session suggested and the command that reviews it, `kapi context review --session <id>`. See [Growing context](/kapi/context-decisions).
 
-The project also tells the assistant it has a voice. `kapi init` writes a short section into `CLAUDE.md`, the file Claude Code reads, naming the voice and the command that retrieves it, and `kapi voice pointer` writes or refreshes it on a project that bound its voice later. A root that holds `AGENTS.md` alone keeps the section there, and a line reading `@AGENTS.md` in a `CLAUDE.md` imports it. The section carries no guidance of its own, so a changed profile never leaves it stale.
+The project also states its rules where the assistant reads them first. `kapi init` writes a section into `CLAUDE.md`, the file Claude Code reads, and into `AGENTS.md`, which most other agents read: the voice, what to write and what not, and the `kapi check` line. A folder whose rules differ from the root's gets files of its own, so a rename kept for `help/` is stated in `help/CLAUDE.md`, and `api/CLAUDE.md` says the old name is correct there. kapi rewrites the section when the context changes and leaves the rest of each file as you wrote it; a `CLAUDE.md` that imports `@AGENTS.md` gets no section of its own. See [rules files for agents](/kapi/context#rules-files).
 
 ### What `kapi init` wires up {#what-kapi-init-wires-up}
 

@@ -453,8 +453,11 @@
           },
           "short": "Ask what applies before you write a file",
           "sync": {
-            "example": "  kapi context sync\n  kapi context sync --status\n  kapi context sync --no-push\n  kapi context sync --merged HEAD~1..HEAD\n  kapi context sync --merged \"$BEFORE..$AFTER\" --pr 412 --merger asgeir",
+            "example": "  kapi context sync\n  kapi context sync --status\n  kapi context sync --no-push\n  kapi context sync --files-only\n  kapi context sync --merged HEAD~1..HEAD\n  kapi context sync --merged \"$BEFORE..$AFTER\" --pr 412 --merger asgeir",
             "flags": {
+              "files-only": {
+                "usage": "write the project's rules files (AGENTS.md, CLAUDE.md) from this machine's context and do nothing else"
+              },
               "merged": {
                 "usage": "a range of commits that reached the default branch, counted as a person's signal"
               },
@@ -474,7 +477,7 @@
                 "usage": "say where the context is shared and how far apart this machine is, without syncing"
               }
             },
-            "long": "Share this project's context through the place kapi.yaml names: first\nread what others shared and merge it here, then share what was recorded on\nthis machine. Everything travels with its history: every suggestion, decision,\nterm and approved wording, and the rules you applied to every project, which\nhold on every machine that syncs the project. Withheld originals stay on this\nmachine. Running it twice changes nothing.\n\nThe place is declared in kapi.yaml, where every checkout reads it:\n\n  context:\n    backend: git      # local, file, git or s3\n\nWith --merged it also reads the change a range of commits made on the default\nbranch and counts it as a person's signal: a suggestion whose preferred wording\nthe change added, or whose avoided wording it removed, becomes a rule when\nnothing contradicts it. Run it in CI after a merge. The same range records the\nsame evidence, so a second run changes nothing. A project that shares its\ncontext nowhere settles the merge on this machine.\n\n--no-push reads what others shared and shares nothing back, for a check or\na fresh checkout that only needs the context to answer from.\n\n--status says where the context is shared and how far this machine and the\nshared copy were apart at the last sync, without contacting it.\n\nIt exits with status 5 when the shared copy cannot be reached, and nothing\nchanges here.",
+            "long": "Share this project's context through the place kapi.yaml names: first\nread what others shared and merge it here, then share what was recorded on\nthis machine. Everything travels with its history: every suggestion, decision,\nterm and approved wording, and the rules you applied to every project, which\nhold on every machine that syncs the project. Withheld originals stay on this\nmachine. Running it twice changes nothing.\n\nThe place is declared in kapi.yaml, where every checkout reads it:\n\n  context:\n    backend: git      # local, file, git or s3\n\nWith --merged it also reads the change a range of commits made on the default\nbranch and counts it as a person's signal: a suggestion whose preferred wording\nthe change added, or whose avoided wording it removed, becomes a rule when\nnothing contradicts it. Run it in CI after a merge. The same range records the\nsame evidence, so a second run changes nothing. A project that shares its\ncontext nowhere settles the merge on this machine.\n\n--no-push reads what others shared and shares nothing back, for a check or\na fresh checkout that only needs the context to answer from.\n\n--status says where the context is shared and how far this machine and the\nshared copy were apart at the last sync, without contacting it.\n\nOnce the context is merged, sync rewrites the project's rules files: the\nsection kapi keeps in AGENTS.md and CLAUDE.md at the project root, and in each\nfolder whose rules differ from the root's. --files-only writes those files\nfrom the context this machine holds and does nothing else, which also writes\nthem for a project that has none yet.\n\nIt exits with status 5 when the shared copy cannot be reached, and nothing\nchanges here.",
             "short": "Share the context with the rest of the team"
           }
         },
@@ -2663,8 +2666,8 @@
             "name": {
               "usage": "Project name (default: directory basename)"
             },
-            "no-pointer": {
-              "usage": "Do not write the voice pointer into CLAUDE.md or AGENTS.md"
+            "no-rules-files": {
+              "usage": "Do not write the project's rules into AGENTS.md and CLAUDE.md"
             },
             "preset": {
               "usage": "Write a named framework preset's catalog layout as collections; alias of --framework"
@@ -2676,7 +2679,7 @@
               "usage": "Target locale (repeatable)"
             }
           },
-          "long": "Create a kapi project here: a kapi.yaml recipe with collections for the\ncontent kapi found in the tree, and the wiring coding agents read.\n\nkapi init reads the files under the directory, honouring .gitignore and\nskipping dependency, vendored and build directories, and writes a collection\nfor each kind of content it recognises: documents grouped by directory\n(docs/**/*.md), a file at the root on its own (README.md), and i18n catalogs\nwhere a framework preset's layout or a file named for the source language\nmarks them. Each collection carries a comment saying what it matched. The\nresult is the same every time for the same tree, and nothing is asked.\n\nRun it again on a project that already has a recipe and it leaves your\ncollections as they are. It prints the content no collection reads yet, as\nrecipe lines to paste and as the 'kapi add' command that writes each one.\n\nThe project name defaults to the directory's basename and the source language\nto en. --target-locale (repeatable) declares target languages, and catalogs\nthen get a target beside their source. --preset \u003cname\u003e (alias --framework)\nwrites a known stack's catalog layout even before its files exist;\n--list-presets lists the presets.\n\nThe recipe gets a stable id under 'id:', which survives a rename, a move and a\nclone. --mint-id writes one into an existing recipe that has none.\n\nThe project's context (its terms, voice and recorded decisions) lives in your\nworkspace, not in the checkout. kapi keeps a cache for this checkout in .kapi/,\nwhich is ignored by version control and safe to delete.\n\nFor coding agents, kapi init writes an MCP server entry that starts\n'kapi mcp' for this project (with --tools writing,translation when the recipe\ndeclares target languages) and one short skill, SKILL.md, naming the four\nhabits kapi supports; 'kapi help \u003ctopic\u003e' serves the rest. Claude Code is\nalways wired; Cursor, VS Code, Codex and .agents/ are wired where the project\nalready keeps their directory. --agents takes a comma-separated list\n(claude-code, cursor, vscode, codex, agents), 'all' or 'none'. An MCP entry\nsomeone else wrote is left as it is. In a skill directory an earlier kapi\nfilled, the files it copied there are removed and any other file is kept.\nCodex reads its entry once you trust this repository there.\n\nWhen the project binds a voice, kapi init also writes a short section into\nCLAUDE.md or AGENTS.md saying so; --no-pointer skips it.",
+          "long": "Create a kapi project here: a kapi.yaml recipe with collections for the\ncontent kapi found in the tree, and the wiring coding agents read.\n\nkapi init reads the files under the directory, honouring .gitignore and\nskipping dependency, vendored and build directories, and writes a collection\nfor each kind of content it recognises: documents grouped by directory\n(docs/**/*.md), a file at the root on its own (README.md), and i18n catalogs\nwhere a framework preset's layout or a file named for the source language\nmarks them. Each collection carries a comment saying what it matched. The\nresult is the same every time for the same tree, and nothing is asked.\n\nRun it again on a project that already has a recipe and it leaves your\ncollections as they are. It prints the content no collection reads yet, as\nrecipe lines to paste and as the 'kapi add' command that writes each one.\n\nThe project name defaults to the directory's basename and the source language\nto en. --target-locale (repeatable) declares target languages, and catalogs\nthen get a target beside their source. --preset \u003cname\u003e (alias --framework)\nwrites a known stack's catalog layout even before its files exist;\n--list-presets lists the presets.\n\nThe recipe gets a stable id under 'id:', which survives a rename, a move and a\nclone. --mint-id writes one into an existing recipe that has none.\n\nThe project's context (its terms, voice and recorded decisions) lives in your\nworkspace, not in the checkout. kapi keeps a cache for this checkout in .kapi/,\nwhich is ignored by version control and safe to delete.\n\nFor coding agents, kapi init writes an MCP server entry that starts\n'kapi mcp' for this project (with --tools writing,translation when the recipe\ndeclares target languages) and one short skill, SKILL.md, naming the four\nhabits kapi supports; 'kapi help \u003ctopic\u003e' serves the rest. Claude Code is\nalways wired; Cursor, VS Code, Codex and .agents/ are wired where the project\nalready keeps their directory. --agents takes a comma-separated list\n(claude-code, cursor, vscode, codex, agents), 'all' or 'none'. An MCP entry\nsomeone else wrote is left as it is. In a skill directory an earlier kapi\nfilled, the files it copied there are removed and any other file is kept.\nCodex reads its entry once you trust this repository there.\n\nkapi init also writes the project's rules into AGENTS.md and CLAUDE.md, where\nagents load them without asking: the root's for the rules that hold\neverywhere, and one in each folder whose rules differ, such as a rename that\nholds in help/ and not in api/. kapi owns one marked section of each file and\nkeeps it current as the context changes; your own text around it is kept.\n--no-rules-files skips them, and 'kapi context sync --files-only' writes them\nlater.",
           "short": "Scaffold a new kapi project in the current directory"
         },
         "inspect": {
@@ -4268,30 +4271,6 @@
               }
             },
             "short": "Install a built-in starter pack into the local voice store"
-          },
-          "pointer": {
-            "flags": {
-              "color": {
-                "usage": "colorize output: auto, always, never"
-              },
-              "jq": {
-                "usage": "filter JSON output through a jq expression (implies --json)"
-              },
-              "json": {
-                "usage": "Output in JSON format"
-              },
-              "output-format": {
-                "usage": "Output format: text (alias: table), json, yaml"
-              },
-              "project": {
-                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
-              },
-              "text": {
-                "usage": "Output in text format (default)"
-              }
-            },
-            "long": "Write a short, marker-delimited section into the project's assistant file\ntelling an assistant that the project's voice is held by kapi and that\n'kapi context \u003cpath\u003e' retrieves what applies to a file. The section names the\nvoice and nothing else; the guidance itself stays one command away, so the\npointer never goes stale.\n\nAn existing CLAUDE.md or AGENTS.md at the project root takes the section\n(CLAUDE.md when both exist); with neither, CLAUDE.md is created. A section\nthat lands in AGENTS.md reaches an assistant limited to CLAUDE.md through an\nimport line there: @AGENTS.md. Running again replaces the section in place\nand leaves the rest of the file untouched. When the project binds no voice, a\nsection written earlier is removed and nothing else is written.\n\n'kapi init' writes the same section when the project it scaffolds binds a\nvoice; run this after binding one to an existing project, or after renaming\nthe profile.",
-            "short": "Write a pointer to the project's voice into its assistant file (CLAUDE.md or AGENTS.md)"
           },
           "profiles": {
             "flags": {

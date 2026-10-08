@@ -134,11 +134,19 @@ var ReSharper = DirectiveForm{Name: "ReSharper", Match: resharperRe.MatchString}
 // only what its own syntax or ecosystem needs: HTML adds conditional comments
 // and server-side includes, Markdown and MDX add Docusaurus's truncate marker.
 var HTMLComment = []DirectiveForm{
-	Markdownlint, PrettierIgnore, FormatterToggle, Suppress, VoicePointer, GeneratedRegion,
+	Markdownlint, PrettierIgnore, FormatterToggle, Suppress, KapiRules, VoicePointer, GeneratedRegion,
 }
 
-// VoicePointer bounds the region kapi writes into an agent instructions file,
-// from `<!-- kapi:voice -->` to `<!-- /kapi:voice -->`.
+// KapiRules bounds the section kapi writes into an agent rules file, from
+// `<!-- kapi:rules -->` to `<!-- /kapi:rules -->` (core/agentrules).
+var KapiRules = DirectiveForm{Name: "kapi:rules", Match: func(b string) bool {
+	return strings.HasPrefix(b, "kapi:rules") || strings.HasPrefix(b, "/kapi:rules")
+}}
+
+// VoicePointer bounds the voice pointer earlier versions of kapi wrote into
+// an agent instructions file, from `<!-- kapi:voice -->` to
+// `<!-- /kapi:voice -->`. The rules section takes its place when kapi next
+// writes the file.
 var VoicePointer = DirectiveForm{Name: "kapi:voice", Match: func(b string) bool {
 	return strings.HasPrefix(b, "kapi:voice") || strings.HasPrefix(b, "/kapi:voice")
 }}

@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/agentrules"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/stretchr/testify/assert"
@@ -252,10 +253,10 @@ func TestVoiceStarterPacksLoad(t *testing.T) {
 	assert.Empty(t, coreprofile.Blocking(probs), "a starter pack is a valid starting point")
 }
 
-// Saving a voice makes the project one with a voice, so the assistant file
-// says so: the same section `kapi init` writes, created as CLAUDE.md when no
-// assistant file exists and replaced in place on the next save.
-func TestSaveVoiceProfileWritesTheAssistantPointer(t *testing.T) {
+// Saving a voice makes the project one with a voice, so the rules files say
+// so: the same section `kapi init` writes, created in AGENTS.md and CLAUDE.md
+// when neither exists and left as it is by a save that changes nothing.
+func TestSaveVoiceProfileWritesTheRulesFiles(t *testing.T) {
 	app := NewApp()
 	tab, root := newContextProject(t, app)
 
@@ -267,24 +268,21 @@ func TestSaveVoiceProfileWritesTheAssistantPointer(t *testing.T) {
 	saved, err := app.SaveVoiceProfile(tab.ID, "", profile)
 	require.NoError(t, err)
 	require.True(t, saved.Saved)
-	require.NotNil(t, saved.Pointer)
-	assert.Equal(t, "created", saved.Pointer.Action)
-	assert.Equal(t, "CLAUDE.md", saved.Pointer.File)
-	assert.True(t, saved.Pointer.Created)
-	assert.Empty(t, saved.Pointer.Warning)
+	require.NotNil(t, saved.RulesFiles)
+	assert.Empty(t, saved.RulesFiles.Warning)
+	assert.Contains(t, saved.RulesFiles.Changed, "CLAUDE.md")
+	assert.Contains(t, saved.RulesFiles.Changed, "AGENTS.md")
 
 	body, rerr := os.ReadFile(filepath.Join(root, "CLAUDE.md"))
 	require.NoError(t, rerr)
-	assert.Contains(t, string(body), coreprofile.VoicePointerStart)
-	assert.Contains(t, string(body), "voice, "+profile.Name+", is held by kapi")
-	assert.Contains(t, string(body), "`kapi context <path>`",
-		"a recipe that declares profiles points at the per-file form")
+	assert.Contains(t, string(body), agentrules.Start)
+	assert.Contains(t, string(body), "Lead with what changed.", "the section states the voice")
+	assert.Contains(t, string(body), "`kapi check <file>`")
 
 	again, err := app.SaveVoiceProfile(tab.ID, "", profile)
 	require.NoError(t, err)
-	require.NotNil(t, again.Pointer)
-	assert.Equal(t, "unchanged", again.Pointer.Action)
-	assert.False(t, again.Pointer.Created)
+	require.NotNil(t, again.RulesFiles)
+	assert.Empty(t, again.RulesFiles.Changed, "a save that changes nothing rewrites no file")
 }
 
 // An editor that sends no constraints keeps the ones the stored profile

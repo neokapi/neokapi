@@ -21,7 +21,7 @@ import (
 // Wiring a project up for the coding agents that work in it.
 //
 // A project has a voice, terms and a check gate long before anyone tells an
-// assistant they exist. The voice pointer (host/voicepointer.go) says so in
+// assistant they exist. The rules files (host/rulesfiles.go) say so in
 // prose; this says so in the files an agent host reads as configuration: the
 // MCP server entry that starts `kapi mcp` for this project, and the short kapi
 // skill in the directory the host scans for skills. The skill names four

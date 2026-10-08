@@ -108,9 +108,10 @@ they are and prints any content no collection reads yet, with the lines to add.
 
 The last two lines are the wiring: an MCP entry that starts `kapi mcp` for this
 project, and a short kapi skill that tells an agent what to do and leaves the
-rest to `kapi help <topic>`. Once the project has a voice, `kapi init` adds a
-short section to `CLAUDE.md` pointing an assistant at it, and
-`kapi voice pointer` writes that section on its own. Choose the agents with
+rest to `kapi help <topic>`. `kapi init` also writes the project's rules into
+`AGENTS.md` and `CLAUDE.md`, at the root and in each folder whose rules differ,
+where an agent loads them without asking; see
+[rules files for agents](/kapi/context#rules-files). Choose the agents with
 `--agents`, or opt out with `--agents none`. See
 [what `kapi init` wires up](/kapi/get-started/use-with-claude#what-kapi-init-wires-up).
 

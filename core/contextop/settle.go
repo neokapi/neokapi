@@ -28,9 +28,17 @@ import (
 // suggestion contested for a person to decide. Time alone settles nothing.
 //
 // Suggestions that state the same rule (the same form to use, sharing a form
-// to avoid, at points that meet) settle together: the evidence for one is the
-// evidence for all of them, and each is established by an operation of its
-// own.
+// to avoid, at points that meet) settle together: they share one standing, and
+// each is established by an operation of its own.
+//
+// Evidence establishes a suggestion only where it was seen. A person's signal
+// counts for a suggestion when it was seen at a point the suggestion's own
+// scope covers, so a correction in the help pages establishes the help pages'
+// suggestion and leaves the same rule suggested for the legal terms a
+// suggestion there. An agent's suggestion that names no file it was seen in has
+// no place, and settling never establishes it: a person keeps it in review,
+// choosing where it holds. Settling never widens a suggestion past the point
+// it was recorded at; only a person widens.
 
 // SignalSource names where a signal's evidence came from.
 type SignalSource string
@@ -308,7 +316,11 @@ func settleGroup(records []Record, f *settleFacts, group, dropped []int, rivals 
 	}
 
 	standing := &Standing{}
-	var person, against []string
+	var against []string
+	// person lists, per member, the person signals seen where that member
+	// holds, and counted the signals the standing reports, once each.
+	person := make(map[int][]string, len(members))
+	counted := map[string]bool{}
 	sessions := map[string]bool{}
 	for _, i := range members {
 		a := records[i].Actor
@@ -334,14 +346,23 @@ func settleGroup(records []Record, f *settleFacts, group, dropped []int, rivals 
 			if len(members) == 1 && member[c.ID] {
 				continue
 			}
-			person = append(person, c.ID)
-			standing.Corrections++
+			for _, i := range members {
+				if seenWithin(records[i], c) {
+					person[i] = append(person[i], c.ID)
+				}
+			}
+			if !counted[c.ID] {
+				counted[c.ID] = true
+				standing.Corrections++
+			}
 		case from == use && slices.Contains(avoidedAll(records, members, cs), to):
 			against = append(against, c.ID)
 		}
 	}
 
-	// Merges and usage counts naming a member.
+	// Merges and usage counts naming a member. A merge signal names the
+	// member whose scope the change's files sat in (host/contextsettle.go), so
+	// it counts for that member alone.
 	var usage []Record
 	for _, i := range members {
 		for _, s := range f.signals[i] {
@@ -354,8 +375,11 @@ func settleGroup(records []Record, f *settleFacts, group, dropped []int, rivals 
 				if sig.Signal.Preferred == 0 && sig.Signal.Rejected == 0 {
 					continue
 				}
-				if !slices.Contains(person, sig.ID) {
-					person = append(person, sig.ID)
+				if !slices.Contains(person[i], sig.ID) {
+					person[i] = append(person[i], sig.ID)
+				}
+				if !counted[sig.ID] {
+					counted[sig.ID] = true
 					standing.Merges = append(standing.Merges, mergeLabel(*sig.Signal))
 				}
 			case SignalUsage:
@@ -378,7 +402,6 @@ func settleGroup(records []Record, f *settleFacts, group, dropped []int, rivals 
 			}
 		}
 	}
-	slices.Sort(person)
 	against = dedupe(against)
 	var open []string
 	for _, i := range members {
@@ -392,8 +415,13 @@ func settleGroup(records []Record, f *settleFacts, group, dropped []int, rivals 
 	for _, i := range members {
 		r := &records[i]
 		r.Standing = standing
+		backing := person[i]
+		if !placed(*r) {
+			backing = nil
+		}
+		slices.Sort(backing)
 		switch {
-		case len(person) == 0:
+		case len(backing) == 0:
 			// Nothing a person did backs it: whatever an establish operation
 			// once rested on no longer holds, and it advises.
 		case len(open) > 0:
@@ -408,9 +436,30 @@ func settleGroup(records []Record, f *settleFacts, group, dropped []int, rivals 
 			r.Status = StatusEstablished
 			r.Established = true
 		default:
-			r.pending = person
+			r.pending = backing
 		}
 	}
+}
+
+// seenWithin reports whether evidence recorded by c was seen at a point the
+// suggestion r holds at: r answers in c's project, and every coordinate r's
+// scope names is one c was seen at. A correction seen elsewhere backs the
+// suggestion recorded there, not this one.
+func seenWithin(r, c Record) bool {
+	if r.Scope.Level != LevelWorkspace && r.Project != c.Project {
+		return false
+	}
+	return r.Scope.Covers(c.Scope.Coordinates)
+}
+
+// placed reports whether settling may establish a suggestion where it was
+// recorded. An agent's suggestion that names no file it was seen in has no
+// place to hold at, so only a person establishes it, choosing where.
+func placed(r Record) bool {
+	if r.Actor.Kind != ActorAgent {
+		return true
+	}
+	return slices.ContainsFunc(r.Evidence, func(e Evidence) bool { return e.Path != "" })
 }
 
 // avoidedAll lists every form the members of a group say to avoid.

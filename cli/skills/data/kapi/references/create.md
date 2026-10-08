@@ -58,10 +58,9 @@ location and rule, with a suggested fix where available. Inspect analyzer
 coverage and review unsupported guidance separately. Use `kapi check --ship`
 when the task includes project release gates. Load the voice guide and the
 approved wording **before** writing so the first draft is already close. Inside a
-project, the assistant file (`CLAUDE.md`, or an `AGENTS.md` already at the
-root) carries a section
-saying exactly this; when a project you are standing up binds a voice and the
-file has no such section, `kapi voice pointer` writes it
+project, the `AGENTS.md` and `CLAUDE.md` at the root and in each folder with
+rules of its own state the rules that hold there; when a project you are
+standing up has none, `kapi context sync --files-only` writes them
 ([project.md](project.md)).
 
 ```bash

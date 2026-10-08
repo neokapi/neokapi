@@ -12,6 +12,9 @@ kapi holds this project's voice, terms and approved wording. Keep four habits.
 - CLI: `kapi context <file>`, and `kapi context search <word>`
 - MCP: `context_read` with the file, and `context_search`
 
+The `AGENTS.md` or `CLAUDE.md` in the folder you write in states the rules
+that hold there, including an old name that stays correct in that folder.
+
 ## 2. Record what the project does every time
 
 As you read, record what the files keep to, even what your text does not
@@ -30,8 +33,9 @@ interface labels and wording taken from your task.
   or `"<fact>"` for the variety
 - MCP: `context_note` (`term` and `instead_of`, or `text`)
 
-One note per call; `--withdraw <id>` takes one back. A person
-decides what becomes a rule.
+One note per call; `--withdraw <id>` takes one back. A note applies only
+in the file's place, so name the file you saw it in. A person decides what
+becomes a rule and where else it holds.
 
 ## 3. Record the person's corrections
 

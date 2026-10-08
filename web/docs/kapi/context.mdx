@@ -66,6 +66,16 @@ their own, and the answer then lists the limits that hold there.
 kapi context cmd/main.go --comments
 ```
 
+A rule held for one part of the project says nothing about the rest, so the
+answer for a file where it does not hold names the wording that stays as it
+is. A rename kept for the help pages leaves the API reference with the old
+name, and the answer for a file there says so plainly:
+
+```text
+Keep as it is in this file:
+- "Workspace" is correct here; do not rename it to "Space". That rename holds only in changelog/ and help/.
+```
+
 With no file in hand (an ad-hoc draft, a starter pack), name a product from the
 recipe, a stored voice profile or a starter pack instead:
 
@@ -165,13 +175,56 @@ Use the context before, during and after writing:
   voice and the words to use. The [agent skill](/kapi/get-started/use-with-claude)
   reads it automatically.
 - **During**: an agent notes what it sees and what you change, as suggestions
-  for you to decide about.
+  for you to decide about. A note applies only where the agent saw it, in that
+  file's part of the project; applying it more widely is your decision in
+  review, and evidence alone never widens it.
 - **After**: `kapi check` scores the result block by block against the same
   rules, with an exit code, so they hold in the editing loop and again in CI
   with no assistant present.
 
 [Growing context](/kapi/context-decisions) covers noting, reviewing, and going
 back to an earlier state.
+
+## Rules files for agents {#rules-files}
+
+An agent loads the `AGENTS.md` or `CLAUDE.md` of the folder it works in before
+it reads anything else, so kapi writes the project's rules there. The root's
+files state the rules that hold everywhere and name the folders with rules of
+their own; each of those folders gets files that state only what holds there:
+its voice when it has one of its own, what to write and what not, the wording
+that stays as it is, and the `kapi check` line that verifies the result. For a
+project that renamed Workspaces to Spaces in its help pages and changelog, the
+legal terms get this:
+
+```markdown title="legal/AGENTS.md"
+<!-- kapi:rules (written by kapi from this project's context; edit outside this section) -->
+## Writing rules for legal/
+
+These rules hold for the files in legal/, beside the project's rules in the root AGENTS.md. Where the two differ, follow this file. kapi writes this section from the project's context, so edit outside it.
+
+Voice: Legal. Exact and formal.
+This voice takes the place of the project's voice for these files.
+
+Keep as it is:
+- "Workspace" is correct here; do not rename it to "Space". That rename holds only in changelog/ and help/.
+
+Before you finish, run `kapi check <file>` on each file you changed: it reports any rule broken there. `kapi context legal/<file>` answers in full for one file.
+<!-- /kapi:rules -->
+```
+
+kapi owns the marked section and nothing else: your own text in the file stays
+as you wrote it, and a `CLAUDE.md` that imports `@AGENTS.md` gets no section of
+its own. A file kapi created is removed once its folder has no rules of its
+own; a file with your text in it only loses the section. Each list is capped,
+most important rules first, with the command that lists the rest, and the
+output is the same for the same context, so the files are safe to commit and
+their diffs show what changed in the rules.
+
+`kapi init` writes the files, and kapi rewrites them when the context changes:
+after a decision in `kapi context review` or in Kapi Desktop, after
+`kapi context sync`, and at the end of `kapi up`. `kapi context sync --files-only`
+writes them on demand, and `kapi init --no-rules-files` leaves a project
+without them.
 
 ## Where a rule applies {#the-context-space}
 

@@ -6,6 +6,8 @@
 //   - .kapi/        (kapi's working-state directory)
 //   - .git/         (version control)
 //   - .DS_Store     (macOS metadata)
+//   - AGENTS.md, CLAUDE.md (the rules files agents load; kapi writes a
+//     section of them from the project's context, so they are never content)
 //
 // Additional patterns can be supplied via the KAPI_IGNORE environment
 // variable (comma-separated list of patterns).
@@ -28,6 +30,8 @@ var defaultPatterns = []rule{
 	{pattern: ".kapi", dirOnly: false, negated: false},
 	{pattern: ".git", dirOnly: false, negated: false},
 	{pattern: ".DS_Store", dirOnly: false, negated: false},
+	{pattern: "AGENTS.md", dirOnly: false, negated: false},
+	{pattern: "CLAUDE.md", dirOnly: false, negated: false},
 }
 
 // rule is a single parsed ignore rule.

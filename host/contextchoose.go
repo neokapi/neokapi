@@ -42,6 +42,7 @@ func (a *App) ChooseContextSide(ctx context.Context, req ContextChooseRequest) (
 	if err != nil {
 		return ContextChooseResult{}, err
 	}
+	defer s.refreshRulesFiles(ctx)
 	chosen, err := s.ledger.Subject(ctx, req.ID)
 	if err != nil {
 		return ContextChooseResult{}, err

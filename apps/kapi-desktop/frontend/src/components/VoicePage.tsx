@@ -51,7 +51,7 @@ import type {
   VoicePoint,
   VoiceProfile,
   VoiceSaveResult,
-  VoicePointerDTO,
+  RulesFilesDTO,
 } from "../types/voice";
 import { VoiceProfileEditor } from "./voice/VoiceProfileEditor";
 import { FactGrid } from "./voice/facts";
@@ -413,22 +413,22 @@ function PointDetail({ point, onEdit }: { point: VoicePoint; onEdit?: () => void
  */
 
 /**
- * Say what the save did to the project's assistant file. A file that gained
- * the section is news the person should see, because it is a file they
- * commit; an unchanged one is not.
+ * Say what the save did to the project's rules files. A file that changed is
+ * news the person should see, because it is a file they commit; a save that
+ * changed none is not.
  */
-function notifyPointer(pointer: VoicePointerDTO | undefined): void {
-  if (!pointer) return;
-  if (pointer.action === "failed") {
+function notifyRulesFiles(files: RulesFilesDTO | undefined): void {
+  if (!files) return;
+  if (files.warning) {
     toast.error(
-      t("The voice was saved, but the assistant pointer could not be written: {reason}", {
-        reason: pointer.warning ?? "",
+      t("The voice was saved, but the rules files could not be written: {reason}", {
+        reason: files.warning,
       }),
     );
     return;
   }
-  if (pointer.action === "created" || pointer.action === "updated") {
-    toast.success(t("Wrote a pointer to the voice into {file}", { file: pointer.file ?? "" }));
+  if (files.changed?.length) {
+    toast.success(t("Wrote the voice into {files}", { files: files.changed.join(", ") }));
   }
 }
 
@@ -523,7 +523,7 @@ export function VoicePage({ tabID, result, editable = true, save, valueSets }: V
                     onSaved={(result) => {
                       setEditing(false);
                       void queries.invalidateQueries({ queryKey: qk.projectVoice(tabID) });
-                      notifyPointer(result.pointer);
+                      notifyRulesFiles(result.rulesFiles);
                     }}
                   />
                 ) : (

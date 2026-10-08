@@ -27,6 +27,11 @@ The two surfaces are held in parity by construction: the MCP tools and resources
 are thin wrappers over the same host functions the CLI verbs call, and
 conformance tests assert they agree.
 
+A third surface needs no call at all: the **rules files**. kapi writes the
+by-location answer for the project root and for every folder whose rules differ
+into a section of the `AGENTS.md` and `CLAUDE.md` there, which an agent loads
+before it reads anything ([below](#rules-files)).
+
 ## Context
 
 A caller does not have a store in mind. It has a question. The assistant asking
@@ -124,6 +129,14 @@ The Markdown response provides a writing brief:
   pack bound as the voice at render time, keyed by the wording to use, so a rule
   held in two places is one line naming where it is held (`from`)
   (`host/contextrules.go`); storage keeps the three apart;
+- **Keep as it is**: every rule the same terms store holds at another place of
+  the project (a collection item's files) and not at this point, as the wording
+  that stays correct here, with the places the rule holds at
+  (`host/contextelsewhere.go`). A rename kept for `help/` gives the answer for
+  `api/workspaces.md` the line `"Workspace" is correct here; do not rename it to
+  "Space". That rename holds only in help/.` Silence at an out-of-scope point
+  reads to an agent as permission, and an agent told to rename everywhere
+  renames there;
 - the suggestions under **Suggested, not yet established**, less any the list
   already states;
 - a closing line naming `context_note` (and `kapi context note`), for recording what the reader notices
@@ -132,9 +145,50 @@ The Markdown response provides a writing brief:
 Notes appear in the prose only when a person or an agent must act before relying
 on the answer: a checkout whose context nobody has imported into the store, a voice or terms binding that
 failed to load, a governance change since the last read, or a location a profile
-claims, which can answer differently from the rest of the project. The JSON
+claims, where the rules listed are the ones that hold and a rule held elsewhere
+does not apply. The JSON
 carries them as `attention`. Everything else, the point, the binding field, the
 scope, the provenance and every other note, is in the JSON and in `--explain`.
+
+### Rules files {#rules-files}
+
+The answer is also written where an agent reads it without asking
+(`host/rulesfiles.go`). kapi resolves the answer at the project's default point
+and at every place a collection item reads (one answer per distinct point), and
+writes:
+
+- the **root** `AGENTS.md` and `CLAUDE.md`: the voice brief, the rules that hold
+  at the default point, one line per folder with rules of its own, and the
+  `kapi check` line;
+- a **folder's** `AGENTS.md` and `CLAUDE.md`, for each folder whose answer
+  differs from the root's: the rules the root does not state, its voice when it
+  is not the root's, the **Keep as it is** lines (a root rule that does not hold
+  there, and every rule held elsewhere), and the `kapi check` line. A folder
+  holding files at several points gets a heading per pattern.
+
+Each list is capped (the rules that rule a wording out first) with the command
+that lists the rest, so a file stays short enough to load on every session.
+The output is a pure function of the context and the recipe, ordered by folder
+and rule, so a refresh that changes nothing changes no byte.
+
+kapi owns one delimited section (`<!-- kapi:rules -->` to
+`<!-- /kapi:rules -->`, `core/agentrules`) and nothing else in the file. The
+section also replaces a `<!-- kapi:voice -->` pointer section where a file holds one. A
+`CLAUDE.md` that imports `@AGENTS.md`, or is the same file, gets no section of
+its own. A folder that no longer has rules of its own loses the section, and a
+file that held nothing else is deleted. The rules files are never content
+(`core/ignore` ignores both names), so a collection globbing `**/*.md` does not
+read them.
+
+The files are written by `kapi init` and by `kapi context sync --files-only`.
+A project whose root section exists has them refreshed whenever the rules in
+force change: a context call that writes a rule into a store or takes one out
+(a keep, a drop, a choice, a widening, a reset, settling) refreshes when it
+ends, a review round refreshes once at its end, and `kapi context sync`,
+`kapi store import` and `kapi up` refresh after they run. Kapi Desktop's
+decisions go through the same host calls, and a voice saved there writes the
+files. A project without a root section was set up without them, and no
+refresh creates them.
 
 ### What folds in, and what does not
 
@@ -310,6 +364,14 @@ registry tool regardless.
   store-shaped retrieval tool actively misleading rather than merely narrow.
 - **A new registry tool does not become an agent tool by accident.** Exposure is
   a decision with a name attached.
+- **The rules reach an agent that never calls a tool.** A comparison of the
+  same rules delivered through retrieval and through a plain rules file found
+  the file broke fewer rules at a quarter of the input, and lost scoped renames
+  only where the answer was silent; the rules files carry the answer there, and
+  `kapi check` stays the gate.
+- **The rules files are committed output.** They change when the context
+  changes, so a review that keeps a rule produces a diff a reviewer reads, and
+  the dogfood loop regenerates this repository's own files.
 - **The by-location primitive resolves to the file, not to the passage.** A
   content item's own `channel:` is the finest declared point, so one file in a
   collection can answer differently from its neighbours. A point beneath the file

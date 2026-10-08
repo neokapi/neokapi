@@ -72,6 +72,12 @@ type ContextPointRequest struct {
 	// whatever else the file holds: the voice and the limits a comment written
 	// there keeps to.
 	Comments bool
+
+	// rulesOnly answers with the rules in force and nothing about how the
+	// answer was reached: no provenance, freshness, unread context files or
+	// suggestion history. The rules files read an answer per place this way
+	// (host/rulesfiles.go).
+	rulesOnly bool
 }
 
 // DefaultContextTermsLimit caps the terms a by-location answer renders when the
@@ -128,6 +134,10 @@ type ContextAnswer struct {
 	// request's limit; RulesTotal says how many there are in all.
 	Rules      []ContextRule `json:"rules,omitempty"`
 	RulesTotal int           `json:"rules_total,omitempty"`
+	// Elsewhere are the rules held at other places of the project that do not
+	// hold here, each as the wording that stays as it is at this point: an
+	// old name a rename elsewhere leaves correct in this file.
+	Elsewhere []ContextElsewhere `json:"elsewhere,omitempty"`
 	// VoiceBrief is the voice in force as the short brief the text answer
 	// leads with: its description and the tone and style fields it sets. The
 	// full guide is Voice.Guide.
@@ -287,6 +297,10 @@ type ContextPointSources struct {
 	Concepts []terms.Concept
 	// ConceptsErr is set when that resolution failed.
 	ConceptsErr error
+	// Elsewhere are the rules the same terms store holds at the project's
+	// other places and not at this point. Only a by-location answer reads
+	// them.
+	Elsewhere []ContextElsewhere
 	// Profiles are the recipe's bounded governance profiles.
 	Profiles []ContextProfileHit
 	// Freshness carries the staleness notes for the graph these materials come
@@ -464,11 +478,20 @@ func (a *App) ContextSourcesAt(cmd Command, req ContextPointRequest) (ContextPoi
 	if req.Profile != "" {
 		point.At = time.Time{}
 	}
-	concepts, cerr := a.projectConcepts(cmd, point)
-	if cerr != nil {
+	all, sel, cerr := a.storeConcepts(cmd, point)
+	switch {
+	case cerr != nil:
 		src.ConceptsErr = cerr
-	} else {
-		src.Concepts = concepts
+	case zeroPoint(point) && req.Path == "":
+		src.Concepts = all
+	default:
+		src.Concepts = terms.AtPoint(all, sel.Profile, sel.Coordinates)
+		// What the store holds at the project's other places and not here is
+		// the wording that stays as it is in this file.
+		if req.Path != "" && req.Profile == "" && !point.Comments {
+			places := placePoints(proj, a.rulePlaces(proj, root), src.At)
+			src.Elsewhere = rulesElsewhere(proj, places, sel.Path, all, src.Concepts, req.Locale, src.At)
+		}
 	}
 
 	// What the project's context operations add at this point: rules
@@ -477,6 +500,9 @@ func (a *App) ContextSourcesAt(cmd Command, req ContextPointRequest) (ContextPoi
 	// with, so a suggestion an answer mentions is one a check reports.
 	if rules, rerr := a.ContextRulesAt(ctx, projectPath, point); rerr == nil {
 		src.Rules = rules
+	}
+	if req.rulesOnly {
+		return src, noop
 	}
 	// The operations behind those suggestions, for the provenance a reader
 	// judges one by. A workspace that cannot be read leaves the answer without
@@ -730,11 +756,13 @@ func ResolveContextAt(_ context.Context, src ContextPointSources, req ContextPoi
 		}
 	}
 	// A location a profile claims is governed apart from the rest of the
-	// project, so what holds in the next file over can differ.
+	// project. The answer lists what holds here, and the wording a rule held
+	// elsewhere leaves correct here, so the note says that much and no more.
 	if src.Governance != nil && !res.Point.Default && req.Path != "" && res.Point.Profile != "" {
 		res.Attention = append(res.Attention, fmt.Sprintf(
-			"this file is governed by the `%s` profile, so what applies here can differ from the rest of the project", res.Point.Profile))
+			"this file sits under the `%s` profile: the rules below are the ones that hold for it, and a rule held elsewhere in the project does not apply here", res.Point.Profile))
 	}
+	res.Elsewhere = src.Elsewhere
 	// A profile that stopped governing on a date has to be visible; a reader is
 	// never told a rule is in force by an answer that just watched it lapse.
 	if src.Governance != nil && src.Governance.Fallback != nil {
@@ -997,6 +1025,13 @@ func (r *ContextAnswer) FormatText(w io.Writer) error {
 		}
 	}
 
+	if len(r.Elsewhere) > 0 {
+		fmt.Fprintf(w, "\nKeep as it is in %s:\n", r.subject())
+		for _, e := range r.Elsewhere {
+			fmt.Fprintln(w, elsewhereLine(e))
+		}
+	}
+
 	if suggested := r.suggestedLines(); len(suggested) > 0 {
 		fmt.Fprintln(w, "\nSuggested, not yet established:")
 		for _, line := range suggested {
@@ -1009,7 +1044,7 @@ func (r *ContextAnswer) FormatText(w io.Writer) error {
 	recordable := r.Scope != ScopeProfile
 	subject := r.subject()
 	switch {
-	case r.VoiceBrief == "" && len(r.Rules) == 0 && len(r.Suggestions) == 0:
+	case r.VoiceBrief == "" && len(r.Rules) == 0 && len(r.Suggestions) == 0 && len(r.Elsewhere) == 0:
 		fmt.Fprintf(w, "\nNothing is recorded for %s yet. Write as the surrounding files do.\n", subject)
 		if recordable {
 			fmt.Fprintln(w, "\n"+recordingAdvice)

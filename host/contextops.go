@@ -322,6 +322,7 @@ func (a *App) RecordContextObservation(ctx context.Context, req ContextObserveRe
 	if err != nil {
 		return ContextOperation{}, err
 	}
+	defer s.refreshRulesFiles(ctx)
 	subject, err := observedSubject(req)
 	if err != nil {
 		return ContextOperation{}, err
@@ -588,6 +589,7 @@ func (a *App) RecordContextCorrection(ctx context.Context, req ContextCorrectReq
 	if err != nil {
 		return ContextOperation{}, err
 	}
+	defer s.refreshRulesFiles(ctx)
 	if req.From == "" || req.To == "" {
 		return ContextOperation{}, errors.New("a correction needs the wording that was there and the wording that replaced it")
 	}
@@ -689,6 +691,7 @@ func (a *App) KeepContextOperations(ctx context.Context, req ContextKeepRequest)
 	if err != nil {
 		return ContextKeepResult{}, err
 	}
+	defer s.refreshRulesFiles(ctx)
 	if req.ID != "" {
 		req.IDs = append([]string{req.ID}, req.IDs...)
 	}
@@ -921,6 +924,7 @@ func (a *App) DropContextOperation(ctx context.Context, req ContextDropRequest) 
 	if err != nil {
 		return ContextOperation{}, err
 	}
+	defer s.refreshRulesFiles(ctx)
 	target, err := s.ledger.Subject(ctx, req.ID)
 	if err != nil {
 		return ContextOperation{}, err
@@ -949,6 +953,7 @@ func (a *App) WithdrawContextOperation(ctx context.Context, req ContextWithdrawR
 	if err != nil {
 		return ContextOperation{}, err
 	}
+	defer s.refreshRulesFiles(ctx)
 	target, err := s.ledger.Subject(ctx, req.ID)
 	if err != nil {
 		return ContextOperation{}, err
@@ -995,6 +1000,7 @@ func (a *App) WidenContextOperation(ctx context.Context, req ContextWidenRequest
 	if err != nil {
 		return ContextOperation{}, err
 	}
+	defer s.refreshRulesFiles(ctx)
 	target, err := s.ledger.Subject(ctx, req.ID)
 	if err != nil {
 		return ContextOperation{}, err
@@ -1052,6 +1058,17 @@ type contextOpsSession struct {
 	// cmd carries the project through to the appliers that land an
 	// established rule, which read it the way a command line would.
 	cmd Command
+	// changed says a rule was written to, or taken out of, a store in this
+	// call, so the project's rules files are refreshed when it ends.
+	changed bool
+}
+
+// refreshRulesFiles refreshes the project's rules files when the call changed
+// the rules in force (host/rulesfiles.go).
+func (s *contextOpsSession) refreshRulesFiles(ctx context.Context) {
+	if s.changed {
+		s.app.refreshRulesFilesQuietly(ctx, s.recipe)
+	}
 }
 
 // contextOps opens a project's context log. An empty recipe path resolves the
