@@ -32,8 +32,11 @@ demand (progressive disclosure) — plus two Claude Code hooks. It covers the lo
 - **Author & edit** — read a document's blocks (`kapi inspect`), rewrite them, and
   write them back faithfully (`kapi apply`) in any format your editor can't open
   (Word, PowerPoint, JSON, XLIFF); no second model.
-- **Voice profile** — load a voice guide, score a draft (0–100 + findings), fix what
-  drifts; the project's vocabulary and terminology enforced at the gate.
+- **Voice profile** — follow the voice and the rules kapi writes into the
+  project's `AGENTS.md` and `CLAUDE.md`, score a draft (0–100 + findings), fix
+  what drifts; the project's terms enforced at the gate.
+- **Grow the context** — record the names and corrections met while working
+  (`kapi context note`) as suggestions a person reviews.
 - **Translate & publish** — translate, enforce terminology, and round-trip into
   other languages and formats.
 - **i18n setup** — add i18n to a project.
@@ -43,7 +46,7 @@ the session's working directory and both **fail-open** (outside a project, or if
 they cannot run, the assistant proceeds normally):
 
 - **`Stop` → `kapi hook stop`.** When the assistant tries to finish, it runs the
-  project's `kapi check --ship` gates — brand voice, terminology, translation checks —
+  project's `kapi check --ship` gates — voice, terminology, translation checks —
   and, if a gate is failing, keeps the assistant working with the findings to fix.
   The skill makes the check loop the default; this hook makes it a guarantee.
 - **`PreToolUse` (Edit/Write/MultiEdit) → `kapi hook pre-edit`.** Denies direct

@@ -87,7 +87,7 @@ kapi context <file>                  # the voice and terms that apply to the fil
 kapi terms lookup "<term>" -t fr  # the approved wording
 ```
 
-Fill each entry's `<target>` following the voice guide and the approved terminology,
+Fill each entry's `<target>` following the voice and the approved terminology,
 preserving placeholders; reuse any targets prefilled from content memory. Then merge
 it back, and treat the task as unfinished until kapi confirms the result:
 

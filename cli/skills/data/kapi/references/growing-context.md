@@ -34,8 +34,8 @@ the person made.
   A name or word is a rule: pass `--term` with the form the files use and
   `--instead-of` with the form they avoid, which is the split form of a
   one-word name, the other spelling, or the other word. kapi adds the spacing,
-  hyphen and case variants (`Quickcast` avoids `Quick cast`, `Quick-cast`,
-  `QuickCast` and `quickcast`). A fact in prose, such as who the text addresses
+  hyphen and capitalisation variants (`Quickcast` avoids `Quick cast`,
+  `Quick-cast` and `QuickCast`). A fact in prose, such as who the text addresses
   or the register it keeps, states no rule.
 
   Before you record a word, search the files for its other forms (spaced,
@@ -47,8 +47,10 @@ the person made.
   you started.
 
   Everything recorded is a **suggestion**: every check reports it, and no check
-  can fail on it until a person's signal backs it. Never tell the user a rule
-  is in force because you noted one.
+  can fail on it until a person's signal backs it. A note holds only where
+  you saw it, the place of its `--seen-in` files, until a person applies it
+  more widely in review. Never tell the user a rule is in force because you
+  noted one.
 - **Record a person's change** (`--from`, `--to`) when the user changes your
   wording, and only then: their change is the person's signal, so a correction toward an existing suggestion
   establishes it. `--suggest` also records the implied rule for review. A

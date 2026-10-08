@@ -7,8 +7,9 @@ Since then 1.3 changed what several of them show:
 
 - One status vocabulary. A source unit is `written` or `established`; a target
   unit is `draft`, `translated` or `established`. Ship states are
-  `established`, `translated`, `withheld` and `not_gated`. Sign-off is gone, and
-  an assistant records a pre-review and never establishes a unit.
+  `established`, `translated`, `withheld` and `not_gated`. Text output and the
+  apps show `established` as "approved"; JSON keeps `established`. Sign-off is
+  gone, and an assistant records a pre-review and never establishes a unit.
 - `kapi check` reports `kapi.check/v2`, marks each finding `FAILS` or
   `REPORTS`, and fails on a failing finding. There are no severity grades and
   no `--strict`.
@@ -264,9 +265,10 @@ Beyond that, look at the rendered video:
 
 - **Any check output** reads `FAILS` and `REPORTS`. No finding says critical,
   major or minor, and no run prints a "Configuration warnings" block.
-- **Any status output** uses `draft`, `translated` and `established`, and a ship
-  column of `translated`, `established`, `withheld`, `not gated` or `blocked`.
-  Nothing says reviewed, approved as a state, signed off or governed.
+- **Any status output** uses `draft`, `translated` and `approved`, and a ship
+  column of `translated`, `approved`, `withheld`, `not gated` or `blocked`; JSON
+  read through `jq` keeps `established`. A rule in force says established.
+  Nothing says reviewed, signed off or governed.
 - **Terminal paths**: `kapi memory import`, `extract` and `merge` print the
   absolute sandbox path (`/private/tmp/...`). The harness rewrites it only for
   Bowrain demos, so check `kapi-bilingual-workflow` and decide whether the line

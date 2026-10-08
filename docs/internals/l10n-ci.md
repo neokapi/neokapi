@@ -213,6 +213,11 @@ re-derives a list:
 
 The gate and the delivery step read the union because a convergence run may
 legitimately have written either tier, and anything else it touched is foreign.
+
+The rules files (`AGENTS.md`, `CLAUDE.md`) are in neither set. They are
+instructions every agent in this repository loads, so a run that rewrote kapi's
+section of one is refused as foreign, and the change reaches the repository only
+through a pull request a person reviews.
 The byte gate reads only the first, because only the first is reproducible.
 
 ## In CI

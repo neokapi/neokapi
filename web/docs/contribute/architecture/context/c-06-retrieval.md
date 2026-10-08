@@ -15,7 +15,7 @@ identically on the CLI and over MCP**:
 
 | Shape | Question | CLI | MCP |
 | --- | --- | --- | --- |
-| **By location** | *what applies here?* | `kapi context <path>` | `context://<path>` resource |
+| **By location** | *what applies here?* | `kapi context <path>` | `context_read` tool, or the `context://<path>` resource |
 | **By content** | *what do we know about this?* | `kapi context search <query>` | `context_search` tool |
 
 Every asset-shaped lookup folds into one of the two. There is no retrieval
@@ -170,7 +170,27 @@ writes:
   differs from the root's: the rules the root does not state, its voice when it
   is not the root's, the **Keep as it is** lines (a root rule that does not hold
   there, and every rule held elsewhere), and the `kapi check` line. A folder
-  holding files at several points gets a heading per pattern.
+  holding files at several points gets a heading per pattern. A folder whose
+  section would repeat the nearest folder above it with rules of its own gets
+  no file, because an agent loads the files of every folder above the one it
+  works in.
+
+The files hold the rules an agent writing the source can break: rules in the
+project's source languages that name a wording to avoid, a capitalised name, or
+a name to leave untranslated. A target language's rules stay out, because kapi's
+loop writes that language, and so does a term that only names a concept. A
+pattern's examples are whole words; a pattern over the endings of one word
+(`glossar(y|ies)`) shows none. Stored em dashes are written as a colon or a
+comma.
+
+An instruction file is a privileged surface: every agent in the tree loads it
+and acts on it. Only rules in force are written there, the terms store, the
+rules a person established or widened, and the voice, so a note an agent
+recorded stays a suggestion, answered by `kapi context <path>` and review, until
+a person's signal establishes it. Stored text (a term, a note, the voice brief)
+is written as plain lines: comment delimiters, code fences and a leading
+heading marker are removed and each line is capped, so a stored value cannot
+close kapi's section or read as an instruction of its own.
 
 Each list is capped (the rules that rule a wording out first) with the command
 that lists the rest, so a file stays short enough to load on every session.
@@ -376,8 +396,9 @@ registry tool regardless.
   only where the answer was silent; the rules files carry the answer there, and
   `kapi check` stays the gate.
 - **The rules files are committed output.** They change when the context
-  changes, so a review that keeps a rule produces a diff a reviewer reads, and
-  the dogfood loop regenerates this repository's own files.
+  changes, so a review that keeps a rule produces a diff a reviewer reads. In
+  this repository the dogfood loop refuses a run that rewrote one, so the change
+  arrives as a pull request a person reviews.
 - **The by-location primitive resolves to the file, not to the passage.** A
   content item's own `channel:` is the finest declared point, so one file in a
   collection can answer differently from its neighbours. A point beneath the file

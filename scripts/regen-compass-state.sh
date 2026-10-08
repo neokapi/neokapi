@@ -51,7 +51,7 @@ rm -rf "$P/.kapi/work"
 cp -R "$SAMPLE/context/state" "$WORK/record"
 
 echo "==> read the context in"
-"$KAPI" context import "$P/context" -p "$P/kapi.yaml" >/dev/null
+"$KAPI" store import "$P/context" -p "$P/kapi.yaml" >/dev/null
 
 echo "==> decide each recorded unit again"
 python3 - "$WORK/record" > "$WORK/approve.jsonl" <<'PY'
@@ -81,7 +81,7 @@ PY
 # Reading a record in writes the ledger out to the checkout's shards, which is
 # the file form the sample ships.
 echo "==> write the ledger out"
-"$KAPI" context import "$P/context" -p "$P/kapi.yaml" >/dev/null
+"$KAPI" store import "$P/context" -p "$P/kapi.yaml" >/dev/null
 
 echo "==> settle the clock and write back"
 python3 - "$WORK/record" "$P/.kapi/state" "$SAMPLE/context/state" <<'PY'

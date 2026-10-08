@@ -730,9 +730,11 @@ change set in 49 contract-route attempts was refused `invalid`, `not_found` or
 `ambiguous`.
 
 **The MCP arm reached the contract in one family.** The server's instructions
-(`host/mcp_instructions.go` at `4adeb612f`) name `context_read`,
+(`host/mcp_instructions.go` at `4adeb612f`) named `context_read`,
 `context_observe`, `context_correct`, `context_withdraw`, `check_file` and
-`context_session_summary`, and no edit tool. Claude Code defers MCP tool
+`context_session_summary`, and no edit tool. The three recording tools are one
+tool, `context_note`, in the current surface; the tool names below are quoted
+from the recorded sessions. Claude Code defers MCP tool
 schemas, and in 17 of 21 sessions it loaded only tools the instructions name:
 15 of those then edited natively, and 2 (`recover-gate-refusal-claude-mcp-02`
 and `-03`) wrote nothing. An example of the loading is

@@ -40,7 +40,7 @@ With [kapi connected](/kapi/get-started/use-with-claude), the assistant is the a
 
 > Draft a release-notes page for the export feature, on brand, using our approved terms.
 
-It loads the voice and wording first (`kapi context <path>`, `kapi terms lookup`) so the first draft is already close, then loops `check_file` → revise until the gate is green. When a check flags a new term, it proposes the [close-the-loop change-set](#close-the-loop-fix-the-content-and-the-rule-together): the content fix and the term rule in one `apply`.
+It writes to the voice and wording kapi states in `CLAUDE.md` and `AGENTS.md`, and looks up a term those files do not list with `kapi terms lookup`, so the first draft is already close. Then it loops `check_file` → revise until the gate is green. When a check flags a wording that should become a rule, it fixes the draft and records the rule as a suggestion for you to keep, as [closing the loop](#close-the-loop-fix-the-content-and-the-rule-together) describes.
 
 </TabItem>
 <TabItem value="cli" label="CLI">

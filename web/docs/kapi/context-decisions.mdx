@@ -39,11 +39,17 @@ kapi context note "the docs address the reader as you"
 ```
 
 From `--term` and `--instead-of`, kapi works out the other spellings to avoid,
-with spaces, hyphens and capitals. This note avoids `Quick cast`, `Quick-cast`,
-`QuickCast` and `quickcast`.
+with spaces, hyphens and capitals. This note avoids `Quick cast`, `Quick-cast`
+and `QuickCast`. The lower-case `quickcast` stays allowed, because it is often
+the name's own slug; name it in `--instead-of` when the project avoids it too.
 
-Everything one assistant run records belongs to its **session**. The assistant
-ends its report with the session's id and the command that reviews it:
+A note holds only where the assistant saw it: in the part of the project the
+file in `--seen-in` belongs to. Applying it more widely is a person's decision
+in review.
+
+Everything one assistant run records belongs to its **session**. An assistant
+that recorded something ends its report with the session's id and the command
+that reviews it:
 
 ```bash
 kapi context log --session this           # the assistant reads back its own run
@@ -74,7 +80,7 @@ In a terminal, review asks about each suggestion in turn and shows the
 evidence behind it:
 
 ```
-[1/2] 0pjby7f9fx  Write Quickcast, not Quick cast, Quick-cast, QuickCast or quickcast.
+[1/2] 0pjby7f9fx  Write Quickcast, not Quick cast, Quick-cast or QuickCast.
   seen "Quickcast forecasts the next hour." in docs/billing.md
   noticed by claude-code
 k keep, w keep and apply more widely, d drop, s skip, q quit:
@@ -104,7 +110,7 @@ Established
 
 Suggested
   Names and spellings
-    0njy7pfhjp  Write Quickcast, not Quick cast, Quick-cast, QuickCast or quickcast.
+    0njy7pfhjp  Write Quickcast, not Quick cast, Quick-cast or QuickCast.
           seen "Try Quick cast today" in docs/intro.md
           seen in 2 sessions · noticed by claude
 
@@ -184,7 +190,7 @@ project and `kapi up` count. The review list shows the standing as plain
 counts:
 
 ```
-0njy7pfhjp  Write Quickcast, not Quick cast, Quick-cast, QuickCast or quickcast.
+0njy7pfhjp  Write Quickcast, not Quick cast, Quick-cast or QuickCast.
       seen in 3 sessions · merged in #412
 ```
 
@@ -215,7 +221,8 @@ the rule again, or drop it, to settle it.
 
 A rule holds where its evidence was seen: a term noticed in one product's
 reference pages holds for that product, and stays out of another product's
-tutorials. The [Context](/kapi/context#the-context-space) page explains how the
+tutorials. Evidence alone never widens a rule, and an assistant's note holds
+only where the assistant saw it until a person applies it more widely. The [Context](/kapi/context#the-context-space) page explains how the
 recipe divides a project.
 
 Apply a rule more widely as you keep it, or later, by naming a rule already in
@@ -227,7 +234,8 @@ kapi context review --keep 0pjby7nz7z --widen-to workspace   # in every project 
 kapi context review --keep 0pjby7nz7z --widen-to mode        # across every mode, the rest unchanged
 ```
 
-A rule applied to the workspace holds in every project on this machine. A
+A rule applied to the workspace holds in every project you work on, and
+`kapi context sync` carries it to every machine that syncs the project. A
 project with its own decision about the word keeps it, because the more
 specific answer wins.
 
@@ -243,7 +251,7 @@ kapi context reset --before s4980103f5148 --note "start over"
 
 ```
 Set aside 2 suggestions and rules and 2 decisions recorded since s4980103f5148.
-  #0pjby7f9fx  2026-10-08T13:00:24Z  agent claude-code/s4980103f5148  observe  term "Quickcast", not "Quick cast", "Quick-cast", "QuickCast", "quickcast"  [suggested]
+  #0pjby7f9fx  2026-10-08T13:00:24Z  agent claude-code/s4980103f5148  observe  term "Quickcast", not "Quick cast", "Quick-cast", "QuickCast"  [suggested]
   #0pjby7nz7z  2026-10-08T13:00:25Z  agent claude-code/s4980103f5148  correct  term "log in", not "sign in"  "sign in" became "log in"  [established]
 Recorded as reset #0pjc4e94p0; `kapi context reset --before 0pjc4e94p0` takes it back.
 ```

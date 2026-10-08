@@ -342,10 +342,14 @@ neighbourhood with no target half.
 
 ### context_read
 
-Read what applies when writing one file, before changing it: the voice, the
-words to use and to avoid, and what has been suggested but not yet established.
-It returns exactly the text the `context://<path>` resource returns, for a
-client that lists no resources from a template. `path` is project-relative, or
+Read everything that applies to one file: the voice in full, the words to use
+and to avoid, the old names that stay correct there, and what has been
+suggested but not yet established. kapi's section of `AGENTS.md` and
+`CLAUDE.md` states the same rules, which an assistant loads without a call
+([rules files](/kapi/context#rules-files)), so an assistant calls this for a
+file no section covers, or when it needs the full answer. It returns exactly
+the text the `context://<path>` resource returns, for a client that lists no
+resources from a template. `path` is project-relative, or
 `profile/<name>` for a named profile; `comments` answers for the comments in the
 file rather than its content.
 
@@ -363,21 +367,25 @@ A word somebody has suggested a rule or a note about comes back under
 Record what the files do every time, or what the person changed. Use `text` for
 a note, or `term` and `instead_of` for a suggested term rule: kapi adds the
 spacing, hyphen and case variants of a compound, so `Quickcast` instead of
-`Quick cast` also avoids `Quick-cast`, `QuickCast` and `quickcast`. For wording
+`Quick cast` also avoids `Quick-cast` and `QuickCast`. The lower-case
+spelling is never added; name it in `instead_of` when the project avoids it. For wording
 the person changed, pass `from`, `to` and `path`; `suggest` also records the
 rule the change implies. A term rule and a change need `path`. Pass `withdraw`
 with an id this session recorded to take that note back; a person handles
 established rules and notes from other sessions.
 
 The result is a **suggestion**: every check reports it, and none fails on it
-until a person keeps it in `kapi context review`. It is the same recording as
+until a person keeps it in `kapi context review`. It holds only where the
+assistant saw it, the part of the project `path` belongs to, until a person
+applies it more widely. It is the same recording as
 `kapi context note` on the command line.
 
 <McpToolParams name="context_note" />
 
 ### context_session_summary
 
-What this session recorded and what became of it, counted as `observed`,
+An assistant calls it only after it recorded a note. It returns what this
+session recorded and what became of it, counted as `observed`,
 `corrected`, `suggested`, `contested`, `established`, `withdrawn`, `dropped`
 and `reset`, with the sentence to end a task report on. The report ends with
 the `kapi context review --session <id>` command a person reviews the session's

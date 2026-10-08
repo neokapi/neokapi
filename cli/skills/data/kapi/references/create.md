@@ -56,15 +56,17 @@ does not change it. Read `did_not_run_cause`: `checker_invalid` means a checker
 is broken and the run cannot be trusted. Findings identify the
 location and rule, with a suggested fix where available. Inspect analyzer
 coverage and review unsupported guidance separately. Use `kapi check --ship`
-when the task includes project release gates. Load the voice guide and the
-approved wording **before** writing so the first draft is already close. Inside a
-project, the `AGENTS.md` and `CLAUDE.md` at the root and in each folder with
-rules of its own state the rules that hold there; when a project you are
+when the task includes project release gates.
+
+Inside a project, the `AGENTS.md` and `CLAUDE.md` at the root and in each
+folder with rules of its own state the voice and the rules that hold there, so
+the first draft can follow them without a lookup. When a project you are
 standing up has none, `kapi context sync --files-only` writes them
-([project.md](project.md)).
+([project.md](project.md)). Ask kapi only for a file no section covers, or for
+more than the section states:
 
 ```bash
-kapi context draft.md                  # the voice and terms that apply to the file
+kapi context draft.md                  # the full voice and terms for the file
 kapi terms lookup "dashboard" -t en  # the approved term
 ```
 

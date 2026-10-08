@@ -44,7 +44,7 @@ func registerContextMCPTools(server *mcp.Server, a *App) {
 		Name: "context_search",
 		Description: "Ask what this project says about one word or phrase: what it is called here, whether " +
 			"it is discouraged and what to say instead, and wording the project has already approved. " +
-			"For everything that applies to a file, read context://<path> instead. " +
+			"For everything that applies to a file, call context_read instead. " +
 			"An empty answer means nothing is recorded about the word; if the files always write it one " +
 			"way, record that with context_note, and leave it alone, with no note, if they write it more than one way. " +
 			"`attention` says what a person must act on, such as " +
@@ -126,7 +126,8 @@ const contextProfilePrefix = "profile/"
 // be a coin toss on `context://profile/x`, which both templates match.
 func registerContextResources(server *mcp.Server, a *App) {
 	const description = "What applies when you write at one place: the voice, the words to use and to " +
-		"avoid, and what has been suggested but not yet established. Read it before you change a file. " +
+		"avoid, and what has been suggested but not yet established. kapi's section of AGENTS.md and " +
+		"CLAUDE.md states the same rules, so read it for a file no section covers or for the full answer. " +
 		"An answer with nothing recorded says so. Returns markdown; append `?format=json` for the " +
 		"structured answer, which also names the point, the project and the revision that answered."
 

@@ -47,7 +47,7 @@ Say this, not that:
 - person, not "seat"
 
 Suggested, not yet established:
-- Quickcast, not "Quick cast", "Quick-cast", "QuickCast", "quickcast" (claude-code, seen in docs/billing.md)
+- Quickcast, not "Quick cast", "Quick-cast", "QuickCast" (claude-code, seen in docs/billing.md)
 
 Nothing else is recorded for this file. As you read the files around it, record with context_note (or `kapi context note`) what they do every time, including names your text does not use: each product, feature and plan name as written, the spelling variety, and a word chosen over a common alternative. Leave alone a word they write more than one way, with no note about it.
 ```
@@ -93,10 +93,9 @@ and any notes. Two answers read from the same state can be compared directly. A
 `stale` answer means files changed since kapi last read them, and `kapi up`
 reads them again.
 
-Over [MCP](/reference/mcp) the same answer is a resource, because reading what
-applies to a place takes no arguments: `context://docs/billing.md` is the same
-text, and `context://docs/billing.md?format=json` is the document `--json`
-prints.
+Over [MCP](/reference/mcp) the `context_read` tool returns the same answer for
+a path, and the same text is a resource: `context://docs/billing.md`, with
+`context://docs/billing.md?format=json` for the document `--json` prints.
 
 ## Search what the project says about a word
 
@@ -128,7 +127,7 @@ document the MCP `context_search` tool returns.
 
 | Question | Ask | Over [MCP](/reference/mcp) |
 | --- | --- | --- |
-| what applies **here**? | `kapi context <path>` | read `context://<path>` |
+| what applies **here**? | `kapi context <path>` | call `context_read`, or read `context://<path>` |
 | what do we know about **this**? | `kapi context search <query>` | call `context_search` |
 
 ### An answer with nothing in it
@@ -174,9 +173,10 @@ it, such as a merged change that writes it.
 
 Use the context before, during and after writing:
 
-- **Before**: `kapi context <path>` gives a writer, a person or an agent, the
-  voice and the words to use. The [agent skill](/kapi/get-started/use-with-claude)
-  reads it automatically.
+- **Before**: an agent reads the project's rules in the `AGENTS.md` or
+  `CLAUDE.md` of the folder it works in, which kapi writes from the context
+  ([below](#rules-files)). `kapi context <path>` gives a person, or an agent
+  that needs more than those files state, the full answer for one file.
 - **During**: an agent notes what it sees and what you change, as suggestions
   for you to decide about. A note applies only where the agent saw it, in that
   file's part of the project; applying it more widely is your decision in

@@ -429,7 +429,10 @@ func (a *App) ContextSourcesAt(cmd Command, req ContextPointRequest) (ContextPoi
 		}
 		// A translation the recipe keeps is a file the project will hold,
 		// written or not; any other location has to be a file or a planned one.
-		if src.EditionOf == nil {
+		// The rules files ask about a path made from a collection's pattern
+		// (`demos/x/demo.yaml` for `demos/*/demo.yaml`), whose folder need not
+		// exist, so their reads skip the check.
+		if src.EditionOf == nil && !req.rulesOnly {
 			if perr := contextLocationErr(root, matched, req.Path); perr != nil {
 				src.PathErr = perr
 				return src, noop

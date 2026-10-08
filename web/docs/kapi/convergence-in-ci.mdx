@@ -207,7 +207,9 @@ merged to the default branch is such a signal: a person reviewed and merged it
 `kapi context sync --merged <range>` reads the change a range of commits made,
 counts it as evidence for every suggestion whose preferred wording it added or
 whose avoided wording it removed, and makes each suggestion the evidence backs
-a rule when nothing contradicts it. It names the pull request and the merger,
+a rule when nothing contradicts it. A change counts only in the files where the
+suggestion holds, so a merge never applies a rule more widely than where it was
+seen. It names the pull request and the merger,
 read from the last commit when you pass neither `--pr` nor `--merger`. The same
 range records the same evidence, so a rerun changes nothing.
 

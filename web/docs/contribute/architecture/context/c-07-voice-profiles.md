@@ -336,6 +336,7 @@ Locale and channel overrides apply on top via `--locale`/`--channel`; an explici
 | `validate` | Check a profile document against the schema; blocking problems fail, advisory notes print after the verdict. |
 | `profiles` | List profiles: the voice store plus the built-in packs. |
 | `import` | Import a profile YAML into the voice store, and the word rules it carries into the project's terms store. |
+| `edit` | Open a profile from the project's store as YAML in an editor, validate what is saved, and record it as one change in the log. |
 | `pack` | Install a built-in starter pack into the voice store. |
 
 An assistant standing in a project has no reason to open `kapi.yaml` when its
@@ -468,8 +469,9 @@ reports under `skipped` what it matched and left in place.
 
 These are hand-authored because each wraps a *resource* (a voice profile, a
 terms store, a content memory) rather than a single processing tool. The
-rendered guide is **not** a tool: it is reached by reading `context://<path>` or
-`context://profile/<name>` ([C-06](c-06-retrieval.md)), because the guide is part
+rendered guide is **not** a tool: it is in the rules files, and in full through
+`context_read` or the `context://<path>` and `context://profile/<name>`
+resources ([C-06](c-06-retrieval.md)), because the guide is part
 of what applies at a point rather than a thing to ask for separately.
 
 ## Consequences

@@ -68,20 +68,21 @@ func TestPulledWorkspaceExposesTheSkill(t *testing.T) {
 			"~/.claude and the two arms are not the comparison this lab publishes")
 }
 
-// TestAPointerMakesItAsk is the follow-up experiment, not a gate.
+// TestTheRulesFilesReachTheAgent is the follow-up experiment, not a gate.
 //
-// The pulled arm's finding is that no run reached for kapi. The next question is
-// whether that is the model or the missing signpost: nothing in the workspace
-// tells an assistant that this project's wording is governed, and kapi.yaml is a
-// file it has no reason to open when the task is "write a guide".
+// The pulled arm's finding is that no run reached for kapi. The product's
+// answer is to put the rules where the agent already looks: kapi writes the
+// voice and the rules in force into AGENTS.md and CLAUDE.md, which Claude Code
+// loads without a tool call, ending on the line that asks for `kapi check`
+// before the work is done.
 //
-// So: the same workspace with three sentences of CLAUDE.md added. If the agent
-// asks now, the fix is onboarding rather than the skill's description, and the
-// recommendation on the issue is measured instead of guessed. Either outcome is
-// a result worth reading, and the assertion states which one it found.
+// So: the same workspace with the rules files kapi writes. The agent needs no
+// lookup to follow the voice; what is measured is whether it runs the check the
+// section asks for. Either outcome is a result worth reading, and the assertion
+// states which one it found.
 //
-//	LAB_PROBE=1 go test ./scripts/authoringlab -run PointerMakesItAsk -v
-func TestAPointerMakesItAsk(t *testing.T) {
+//	LAB_PROBE=1 go test ./scripts/authoringlab -run RulesFilesReachTheAgent -v
+func TestTheRulesFilesReachTheAgent(t *testing.T) {
 	if os.Getenv("LAB_PROBE") == "" {
 		t.Skip("set LAB_PROBE=1: this spends model calls")
 	}
@@ -104,13 +105,18 @@ func TestAPointerMakesItAsk(t *testing.T) {
 			run := runAgent(context.Background(), AgentOpts{
 				ClaudeBin: claudeBin, Root: root, Model: model, Prompt: point.Task,
 				KapiBin: kapiBin,
-				Arm:     armSetup{pull: true, profile: profile, pointer: labPointer(profile)},
+				Arm:     armSetup{pull: true, profile: profile, rulesFiles: true},
 			})
 			require.Empty(t, run.Err)
-			t.Logf("%s asked: %v", model, run.KapiCommands)
-			assert.NotEmpty(t, run.KapiCommands,
-				"with the project pointing at kapi in CLAUDE.md, the agent still did not ask: "+
-					"a signpost is not what the arm was missing")
+			t.Logf("%s ran: %v", model, run.KapiCommands)
+			ranCheck := false
+			for _, c := range run.KapiCommands {
+				if strings.Contains(c, "kapi check") {
+					ranCheck = true
+				}
+			}
+			assert.True(t, ranCheck,
+				"with the rules in CLAUDE.md asking for `kapi check`, the agent finished without running it")
 		})
 	}
 }

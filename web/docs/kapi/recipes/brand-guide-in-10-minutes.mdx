@@ -56,7 +56,7 @@ defaults:
 
 From then on `kapi voice edit` is how you change it: the profile opens in `$VISUAL` or `$EDITOR` as the same YAML, what you save is validated the way `kapi voice validate` validates a file, and the result goes into the store as one recorded change that `kapi context log` shows. After importing, you can delete the temporary file under `brand/`.
 
-`kapi context <path>` renders the voice and the words that apply to a file as a short markdown guide, the form an assistant reads before it drafts, so drafts start on-voice. `kapi context sync --files-only` then writes the voice and the rules into the project's `AGENTS.md` and `CLAUDE.md`, so an assistant in the tree has them before it writes.
+`kapi context sync --files-only` writes the voice and the rules into the project's `AGENTS.md` and `CLAUDE.md`, which an assistant in the tree loads before it writes, so drafts start on-voice. `kapi context <path>` prints the full answer for one file as a short markdown guide.
 
 </TabItem>
 </Tabs>

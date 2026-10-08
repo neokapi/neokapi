@@ -86,7 +86,7 @@ with two gates over the same lifecycle ladder:
 | Gate | Recipe | Question it answers |
 | --- | --- | --- |
 | `ship_gate` | `translated: 100`, `established: 50` | Is this language safe to offer at all? |
-| `established_gate` | `established: 100` | Has a person established every string in it? |
+| `established_gate` | `established: 100` | Has a person approved every string in it? |
 
 One bar for every language, deliberately. A per-locale bar would make the
 picker's three states an artefact of the recipe rather than of the work. With a
@@ -97,7 +97,7 @@ The picker reads `kapi status --ship`, whose whole output is locale →
 
 | `state` | `shippable` | In the picker |
 | --- | --- | --- |
-| `established` | true | offered, unmarked |
+| `established` | true | offered, unmarked: a person approved it |
 | `translated` | true | offered, marked **AI** |
 | `withheld` | false | not offered |
 

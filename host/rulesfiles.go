@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/agentrules"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 )
 
@@ -46,6 +47,9 @@ const (
 	rulesFileFolders = 15
 	// rulesFileVoiceLines caps the lines of the voice brief.
 	rulesFileVoiceLines = 16
+	// rulesFileLineMax caps the length of one line of a section, in
+	// characters, so stored text cannot fill an agent's context.
+	rulesFileLineMax = 1000
 	// rulesRootSample is the path the root's answer is read for. The rules
 	// files are never content (core/ignore), so it resolves at the project's
 	// default point whatever the collections claim.
@@ -295,12 +299,13 @@ func (a *App) planRulesFiles(cmd Command, root string, proj *project.KapiProject
 	// One answer per point: places that resolve to the same point say the
 	// same thing, and a project with many collections has few points.
 	answers := map[string]rulesPointAnswer{}
+	sources := projectSourceLanguages(proj)
 	answerFor := func(sample string) (rulesPointAnswer, error) {
 		key := rulesPointKey(proj, sample, at)
 		if ans, ok := answers[key]; ok {
 			return ans, nil
 		}
-		ans, err := a.rulesAnswerAt(cmd, filepath.Join(root, filepath.FromSlash(sample)))
+		ans, err := a.rulesAnswerAt(cmd, filepath.Join(root, filepath.FromSlash(sample)), sources)
 		if err != nil {
 			return rulesPointAnswer{}, err
 		}
@@ -358,9 +363,34 @@ func (a *App) planRulesFiles(cmd Command, root string, proj *project.KapiProject
 		if len(sections) == 1 && dir != "" {
 			sections[0].Pattern = ""
 		}
+		// An agent loads the rules files of every folder above the one it
+		// works in, so a folder that would repeat the nearest folder above it
+		// with rules of its own needs no file.
+		if parent := nearestRulesFolder(plan.folders, dir); parent != nil && sameSections(parent.Sections, sections) {
+			continue
+		}
 		plan.folders = append(plan.folders, rulesFolder{Dir: dir, Sections: sections})
 	}
 	return plan, nil
+}
+
+// nearestRulesFolder is the closest folder above dir that has rules of its
+// own, among folders sorted by path.
+func nearestRulesFolder(folders []rulesFolder, dir string) *rulesFolder {
+	for i := len(folders) - 1; i >= 0; i-- {
+		f := &folders[i]
+		if f.Dir != "" && strings.HasPrefix(dir, f.Dir+"/") {
+			return f
+		}
+	}
+	return nil
+}
+
+// sameSections reports whether two folders state the same sections.
+func sameSections(a, b []rulesSection) bool {
+	return slices.EqualFunc(a, b, func(x, y rulesSection) bool {
+		return x.Pattern == y.Pattern && sameSection(x, y)
+	})
 }
 
 // rulesPointKey names the point a path resolves to, so places at one point
@@ -381,7 +411,7 @@ func rulesPointKey(proj *project.KapiProject, sample string, at time.Time) strin
 }
 
 // rulesAnswerAt reads the rules in force for the file at abs.
-func (a *App) rulesAnswerAt(cmd Command, abs string) (rulesPointAnswer, error) {
+func (a *App) rulesAnswerAt(cmd Command, abs string, sources map[string]bool) (rulesPointAnswer, error) {
 	req := ContextPointRequest{Path: abs, Limit: 1 << 16, rulesOnly: true}
 	src, release := a.ContextSourcesAt(cmd, req)
 	defer release()
@@ -389,12 +419,173 @@ func (a *App) rulesAnswerAt(cmd Command, abs string) (rulesPointAnswer, error) {
 	if err != nil {
 		return rulesPointAnswer{}, err
 	}
-	out := rulesPointAnswer{voice: strings.TrimSpace(res.VoiceBrief), elsewhere: res.Elsewhere}
+	// Only rules in force reach the files: the answer's rules are the terms
+	// store, the rules a person established or widened, and the voice, never
+	// the suggestions nobody has decided about (rulesOnly leaves those out).
+	// An agent's note stays a suggestion, answered by `kapi context <path>`
+	// and review, until a person's signal establishes it.
+	out := rulesPointAnswer{voice: strings.TrimSpace(res.VoiceBrief)}
 	if res.Voice != nil {
 		out.voiceName = res.Voice.Name
 	}
-	out.rules = orderRules(res.Rules)
-	return out, nil
+	for _, r := range orderRules(res.Rules) {
+		if writtenInSource(r.Locale, sources) && ruleAWriterCanBreak(r) {
+			out.rules = append(out.rules, r)
+		}
+	}
+	for _, e := range res.Elsewhere {
+		if writtenInSource(e.Locale, sources) {
+			out.elsewhere = append(out.elsewhere, e)
+		}
+	}
+	return neutraliseAnswer(out), nil
+}
+
+// The rules files are read by an agent writing the project's source. A
+// target language is written by kapi's loop rather than by hand, so its rules
+// are left out, and so is a term that only names a concept: with nothing to
+// avoid it is no rule a writer can break.
+
+// projectSourceLanguages lists the base languages the project's content is
+// written in: the recipe's default and every collection's and item's own.
+func projectSourceLanguages(proj *project.KapiProject) map[string]bool {
+	out := map[string]bool{}
+	add := func(l model.LocaleID) {
+		if base := baseLanguage(strings.TrimSpace(string(l))); base != "" {
+			out[base] = true
+		}
+	}
+	add(proj.Defaults.SourceLanguage)
+	for i := range proj.Collections {
+		c := &proj.Collections[i]
+		add(c.SourceLanguage)
+		for _, item := range c.EffectiveItems() {
+			add(item.SourceLanguage)
+		}
+	}
+	return out
+}
+
+// writtenInSource reports whether a rule stated in loc is one for the
+// project's source. A rule with no language holds in every one.
+func writtenInSource(loc string, sources map[string]bool) bool {
+	return loc == "" || len(sources) == 0 || sources[baseLanguage(loc)]
+}
+
+// ruleAWriterCanBreak reports whether a rule asks a writer for anything: a
+// wording to avoid, the capitalisation of a name, or leaving a name
+// untranslated. A lower-case term with neither only names a concept.
+func ruleAWriterCanBreak(r ContextRule) bool {
+	if len(r.Not) > 0 {
+		return true
+	}
+	if strings.ToLower(r.Say) != r.Say {
+		return true
+	}
+	note := strings.ToLower(r.Note)
+	return strings.Contains(note, "never translate") || strings.Contains(note, "do not translate") ||
+		strings.Contains(note, "don't translate")
+}
+
+// neutraliseAnswer neutralises every stored value an answer carries into the
+// rules files.
+func neutraliseAnswer(in rulesPointAnswer) rulesPointAnswer {
+	out := rulesPointAnswer{voiceName: in.voiceName, voice: neutraliseBlock(in.voice)}
+	for _, e := range in.elsewhere {
+		e.Keep = neutraliseAll(e.Keep)
+		e.Instead = neutraliseLine(e.Instead)
+		e.HeldIn = neutraliseAll(e.HeldIn)
+		out.elsewhere = append(out.elsewhere, e)
+	}
+	for _, r := range in.rules {
+		r.Say = neutraliseLine(r.Say)
+		r.Also = neutraliseAll(r.Also)
+		r.Not = neutraliseAll(r.Not)
+		r.Note = neutraliseLine(r.Note)
+		out.rules = append(out.rules, r)
+	}
+	return out
+}
+
+// The rules files are instructions every agent in the tree loads, and what
+// they state is text somebody stored: a term, a note, a voice brief. Stored
+// text is written as plain lines inside kapi's section, so it cannot close the
+// section, open an HTML comment or a code block, or start a heading that reads
+// as an instruction of its own, and no line runs past rulesFileLineMax.
+
+// neutraliseLine renders a stored value as part of one line: whitespace,
+// newlines included, collapsed to single spaces.
+func neutraliseLine(s string) string {
+	return neutralise(strings.Join(strings.Fields(s), " "))
+}
+
+// neutraliseAll neutralises each of a list of stored values.
+func neutraliseAll(in []string) []string {
+	if in == nil {
+		return nil
+	}
+	out := make([]string, len(in))
+	for i, s := range in {
+		out[i] = neutraliseLine(s)
+	}
+	return out
+}
+
+// neutraliseBlock neutralises stored text line by line, keeping its lines.
+func neutraliseBlock(text string) string {
+	lines := strings.Split(text, "\n")
+	for i, l := range lines {
+		lines[i] = neutralise(l)
+	}
+	return strings.Join(lines, "\n")
+}
+
+// withoutEmDashes rewrites the em dashes in stored text, since prose written
+// into a project carries none: a single dash that introduces what follows,
+// with no colon or comma before it, becomes a colon, and any other becomes a comma, so
+// a pair around an aside reads as commas.
+func withoutEmDashes(line string) string {
+	const dash = "—"
+	if !strings.Contains(line, dash) {
+		return line
+	}
+	line = strings.ReplaceAll(line, " "+dash+" ", dash)
+	if i := strings.Index(line, dash); strings.Count(line, dash) == 1 && !strings.ContainsAny(line[:i], ":,") {
+		return line[:i] + ": " + line[i+len(dash):]
+	}
+	return strings.ReplaceAll(line, dash, ", ")
+}
+
+// neutralise removes the markup that could change how a line reads: comment
+// delimiters, code fences and a leading heading marker.
+func neutralise(line string) string {
+	line = withoutEmDashes(line)
+	for {
+		next := line
+		for _, m := range []string{"<!--", "-->", "```", "~~~"} {
+			next = strings.ReplaceAll(next, m, "")
+		}
+		if next == line {
+			break
+		}
+		line = next
+	}
+	if t := strings.TrimLeft(line, " \t"); strings.HasPrefix(t, "#") {
+		line = strings.TrimLeft(t, "# \t")
+	}
+	return line
+}
+
+// capLineLength shortens every line of a rendered section to rulesFileLineMax
+// characters.
+func capLineLength(section string) string {
+	lines := strings.Split(section, "\n")
+	for i, l := range lines {
+		if r := []rune(l); len(r) > rulesFileLineMax {
+			lines[i] = string(r[:rulesFileLineMax-1]) + "…"
+		}
+	}
+	return strings.Join(lines, "\n")
 }
 
 // orderRules puts the rules that rule a wording out ahead of the conventions,
@@ -589,12 +780,15 @@ func renderSectionBody(s rulesSection, sample string) string {
 	}
 	if len(s.Rules) > 0 {
 		b.WriteString("\nSay this, not that:\n")
+		// A list that mixes languages names each rule's own, so a rule for
+		// a translation is not read as one for the source.
+		showLocale := slices.ContainsFunc(s.Rules, func(r ContextRule) bool { return r.Locale != s.Rules[0].Locale })
 		for i, r := range s.Rules {
 			if i == rulesFileRules {
 				fmt.Fprintf(&b, "- %d more rules hold here: `kapi context %s` lists them all.\n", len(s.Rules)-i, sample)
 				break
 			}
-			b.WriteString(ruleLine(r, false) + "\n")
+			b.WriteString(ruleLine(r, showLocale) + "\n")
 		}
 	}
 	if len(s.Keep) > 0 {
@@ -674,12 +868,12 @@ func dedupeStrings(in []string) []string {
 // the files in folders that no longer need one.
 func writeRulesPlan(root string, plan rulesPlan) (*RulesFilesResult, error) {
 	res := &RulesFilesResult{}
-	want := map[string]string{"": renderRootSection(plan)}
+	want := map[string]string{"": capLineLength(renderRootSection(plan))}
 	for _, f := range plan.folders {
 		if f.Dir == "" {
 			continue
 		}
-		want[f.Dir] = renderFolderSection(f, "AGENTS.md")
+		want[f.Dir] = capLineLength(renderFolderSection(f, "AGENTS.md"))
 	}
 
 	dirs := make([]string, 0, len(want))

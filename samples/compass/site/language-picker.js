@@ -8,9 +8,9 @@
 // ships: established, translated, withheld, or not_gated where no gate matches,
 // which this recipe never produces because it gates every language.
 //
-//   established   the locale is offered, unmarked. A person established it.
+//   established   the locale is offered, unmarked. A person approved it.
 //   translated    the locale is offered, marked AI. It clears the ship bar, so
-//                 it is safe to read, but a person has not established every
+//                 it is safe to read, but a person has not approved every
 //                 string in it yet.
 //   !shippable    the locale is NOT offered. It exists in the
 //                           repository, it has translations, and it is not ready
