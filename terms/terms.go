@@ -46,6 +46,17 @@ func ReplacementFromNote(note string) string {
 	return strings.TrimSpace(rest)
 }
 
+// UsageNote is a term note as a reader sees it beside a finding: the note
+// itself, or "" when the note only names the replacement. The replacement is
+// reported on its own, so carrying such a note too would print it twice
+// ("use: use").
+func UsageNote(note string) string {
+	if ReplacementFromNote(note) != "" {
+		return ""
+	}
+	return note
+}
+
 // Term represents a single term in a specific locale with lifecycle metadata.
 type Term struct {
 	Text           string           `json:"text"`                      // the term text

@@ -48,3 +48,31 @@ func TestLocate_PlaceholderNamesAreNotOccurrences(t *testing.T) {
 		assert.Equal(t, strings.LastIndex(text, "vessel"), o.Start, "%s occurrence", o.Source)
 	}
 }
+
+// A store term whose note only names its replacement reads once in the
+// finding: the replacement is the suggestion, and the note adds nothing.
+func TestLocate_ReplacementNoteReadsOnce(t *testing.T) {
+	ctx := context.Background()
+	store := terms.NewInMemoryStore()
+	require.NoError(t, store.AddConcept(ctx, terms.Concept{
+		ID: "utilise",
+		Terms: []terms.Term{{
+			Text: "utilise", Locale: model.LocaleEnglish, Status: model.TermForbidden,
+			Note: terms.ReplacementNote("use"),
+		}},
+	}))
+	got, err := terms.Locate(ctx, terms.LocateRequest{
+		Text: "Utilise the import.", Store: store, Locale: model.LocaleEnglish,
+	})
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	assert.Equal(t, "use", got[0].Replacement)
+	assert.Empty(t, got[0].Note)
+
+	findings := profile.HitsToFindings([]profile.VocabHit{got[0].Hit()}, "Utilise the import.", nil)
+	require.Len(t, findings, 1)
+	assert.Equal(t, `Forbidden term "utilise" found`, findings[0].Message)
+	assert.Equal(t, `Use "use" instead`, findings[0].Suggestion)
+
+	assert.Equal(t, "say what the reader does", terms.UsageNote("say what the reader does"))
+}

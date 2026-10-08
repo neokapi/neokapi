@@ -236,7 +236,7 @@ func storeOccurrences(ctx context.Context, req LocateRequest) ([]Occurrence, err
 				Text:           req.Text[m.Position.Start:m.Position.End],
 				Term:           m.Term.Text,
 				Replacement:    replacement,
-				Note:           m.Term.Note,
+				Note:           UsageNote(m.Term.Note),
 				ConceptID:      m.Concept.ID,
 				Category:       profile.DimensionVocabulary,
 				Competitor:     m.Term.CompetitorTerm,
