@@ -178,6 +178,15 @@ writes:
 A list that holds a translation's rules beside the source's names each rule's
 language (`[nb]`), so an agent writing the source applies only the source's.
 
+An instruction file is a privileged surface: every agent in the tree loads it
+and acts on it. Only rules in force are written there, the terms store, the
+rules a person established or widened, and the voice, so a note an agent
+recorded stays a suggestion, answered by `kapi context <path>` and review, until
+a person's signal establishes it. Stored text (a term, a note, the voice brief)
+is written as plain lines: comment delimiters, code fences and a leading
+heading marker are removed and each line is capped, so a stored value cannot
+close kapi's section or read as an instruction of its own.
+
 Each list is capped (the rules that rule a wording out first) with the command
 that lists the rest, so a file stays short enough to load on every session.
 The output is a pure function of the context and the recipe, ordered by folder
@@ -382,8 +391,9 @@ registry tool regardless.
   only where the answer was silent; the rules files carry the answer there, and
   `kapi check` stays the gate.
 - **The rules files are committed output.** They change when the context
-  changes, so a review that keeps a rule produces a diff a reviewer reads, and
-  the dogfood loop regenerates this repository's own files.
+  changes, so a review that keeps a rule produces a diff a reviewer reads. In
+  this repository the dogfood loop refuses a run that rewrote one, so the change
+  arrives as a pull request a person reviews.
 - **The by-location primitive resolves to the file, not to the passage.** A
   content item's own `channel:` is the finest declared point, so one file in a
   collection can answer differently from its neighbours. A point beneath the file

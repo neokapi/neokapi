@@ -46,6 +46,9 @@ const (
 	rulesFileFolders = 15
 	// rulesFileVoiceLines caps the lines of the voice brief.
 	rulesFileVoiceLines = 16
+	// rulesFileLineMax caps the length of one line of a section, in
+	// characters, so stored text cannot fill an agent's context.
+	rulesFileLineMax = 1000
 	// rulesRootSample is the path the root's answer is read for. The rules
 	// files are never content (core/ignore), so it resolves at the project's
 	// default point whatever the collections claim.
@@ -414,12 +417,100 @@ func (a *App) rulesAnswerAt(cmd Command, abs string) (rulesPointAnswer, error) {
 	if err != nil {
 		return rulesPointAnswer{}, err
 	}
-	out := rulesPointAnswer{voice: strings.TrimSpace(res.VoiceBrief), elsewhere: res.Elsewhere}
+	// Only rules in force reach the files: the answer's rules are the terms
+	// store, the rules a person established or widened, and the voice, never
+	// the suggestions nobody has decided about (rulesOnly leaves those out).
+	// An agent's note stays a suggestion, answered by `kapi context <path>`
+	// and review, until a person's signal establishes it.
+	out := rulesPointAnswer{voice: strings.TrimSpace(res.VoiceBrief), elsewhere: res.Elsewhere, rules: orderRules(res.Rules)}
 	if res.Voice != nil {
 		out.voiceName = res.Voice.Name
 	}
-	out.rules = orderRules(res.Rules)
-	return out, nil
+	return neutraliseAnswer(out), nil
+}
+
+// neutraliseAnswer neutralises every stored value an answer carries into the
+// rules files.
+func neutraliseAnswer(in rulesPointAnswer) rulesPointAnswer {
+	out := rulesPointAnswer{voiceName: in.voiceName, voice: neutraliseBlock(in.voice)}
+	for _, e := range in.elsewhere {
+		e.Keep = neutraliseAll(e.Keep)
+		e.Instead = neutraliseLine(e.Instead)
+		e.HeldIn = neutraliseAll(e.HeldIn)
+		out.elsewhere = append(out.elsewhere, e)
+	}
+	for _, r := range in.rules {
+		r.Say = neutraliseLine(r.Say)
+		r.Also = neutraliseAll(r.Also)
+		r.Not = neutraliseAll(r.Not)
+		r.Note = neutraliseLine(r.Note)
+		out.rules = append(out.rules, r)
+	}
+	return out
+}
+
+// The rules files are instructions every agent in the tree loads, and what
+// they state is text somebody stored: a term, a note, a voice brief. Stored
+// text is written as plain lines inside kapi's section, so it cannot close the
+// section, open an HTML comment or a code block, or start a heading that reads
+// as an instruction of its own, and no line runs past rulesFileLineMax.
+
+// neutraliseLine renders a stored value as part of one line: whitespace,
+// newlines included, collapsed to single spaces.
+func neutraliseLine(s string) string {
+	return neutralise(strings.Join(strings.Fields(s), " "))
+}
+
+// neutraliseAll neutralises each of a list of stored values.
+func neutraliseAll(in []string) []string {
+	if in == nil {
+		return nil
+	}
+	out := make([]string, len(in))
+	for i, s := range in {
+		out[i] = neutraliseLine(s)
+	}
+	return out
+}
+
+// neutraliseBlock neutralises stored text line by line, keeping its lines.
+func neutraliseBlock(text string) string {
+	lines := strings.Split(text, "\n")
+	for i, l := range lines {
+		lines[i] = neutralise(l)
+	}
+	return strings.Join(lines, "\n")
+}
+
+// neutralise removes the markup that could change how a line reads: comment
+// delimiters, code fences and a leading heading marker.
+func neutralise(line string) string {
+	for {
+		next := line
+		for _, m := range []string{"<!--", "-->", "```", "~~~"} {
+			next = strings.ReplaceAll(next, m, "")
+		}
+		if next == line {
+			break
+		}
+		line = next
+	}
+	if t := strings.TrimLeft(line, " \t"); strings.HasPrefix(t, "#") {
+		line = strings.TrimLeft(t, "# \t")
+	}
+	return line
+}
+
+// capLineLength shortens every line of a rendered section to rulesFileLineMax
+// characters.
+func capLineLength(section string) string {
+	lines := strings.Split(section, "\n")
+	for i, l := range lines {
+		if r := []rune(l); len(r) > rulesFileLineMax {
+			lines[i] = string(r[:rulesFileLineMax-1]) + "…"
+		}
+	}
+	return strings.Join(lines, "\n")
 }
 
 // orderRules puts the rules that rule a wording out ahead of the conventions,
@@ -702,12 +793,12 @@ func dedupeStrings(in []string) []string {
 // the files in folders that no longer need one.
 func writeRulesPlan(root string, plan rulesPlan) (*RulesFilesResult, error) {
 	res := &RulesFilesResult{}
-	want := map[string]string{"": renderRootSection(plan)}
+	want := map[string]string{"": capLineLength(renderRootSection(plan))}
 	for _, f := range plan.folders {
 		if f.Dir == "" {
 			continue
 		}
-		want[f.Dir] = renderFolderSection(f, "AGENTS.md")
+		want[f.Dir] = capLineLength(renderFolderSection(f, "AGENTS.md"))
 	}
 
 	dirs := make([]string, 0, len(want))
