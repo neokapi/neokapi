@@ -448,7 +448,7 @@ func TestRenderSectionBody_NeutralisesStoredText(t *testing.T) {
 	assert.NotContains(t, body, "<!--")
 	assert.NotContains(t, body, "-->")
 	assert.NotContains(t, body, "```")
-	for _, line := range strings.Split(body, "\n") {
+	for line := range strings.SplitSeq(body, "\n") {
 		assert.False(t, strings.HasPrefix(strings.TrimSpace(line), "#"), "a heading from stored text: %q", line)
 		assert.LessOrEqual(t, len([]rune(line)), rulesFileLineMax, "a line over the cap")
 	}
