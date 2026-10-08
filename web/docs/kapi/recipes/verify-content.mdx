@@ -424,7 +424,7 @@ those files, that item claims their values wherever either item is listed, so
 item's point. A check that names a file, such as
 `kapi check .github/workflows/release.yaml`, checks its values too, at the next
 item that claims the file or at the project's default point, and
-`kapi voice guide` and `kapi context` answer for that point. `kapi up`,
+`kapi context <file>` answers for the same item. `kapi up`,
 `kapi merge`, `kapi extract`, flow runs, `kapi stats`, `kapi status` coverage
 and the `--ship` gates leave the values alone. `only` works for every format
 that supplies comments: YAML, the XML-based formats, HTML, Markdown, MDX, PO and
@@ -487,9 +487,9 @@ to have it report instead.
 `not_after` keeps "is used to" and "an id, used to flag" out of the rule, which
 a regular expression alone cannot say.
 
-`kapi voice guide --comments <file>` prints the voice and the limits in force
-for the comments of a file, such as a Go file, so an assistant about to write a
-comment there reads them first. Without `--comments`, the guide answers for the
+`kapi context <file> --comments` prints the voice and the limits that apply to
+the comments of a file, such as a Go file, so an assistant about to write a
+comment there reads them first. Without `--comments`, the answer is for the
 file's own content.
 
 ### Repair a comment finding

@@ -1,7 +1,7 @@
 # Voltway: one product, three surfaces, two brands.
 #
 # The context this recipe binds ships as files under context/, read in with
-# `kapi context import ./context`. No server, no provider credential: the gate
+# `kapi store import ./context`. No server, no provider credential: the gate
 # runs from what the import put in the project's store.
 version: v1
 name: voltway

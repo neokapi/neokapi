@@ -93,7 +93,7 @@ voice under a top-level `terms:` list, as the starter packs do.
 `profile.ParseVoiceFile` splits the two: the profile holds the voice, and the
 file's rules ride beside it in memory (`CarriedTerms`, with the source they come
 from) and are never stored with the profile. `kapi voice import` and
-`kapi context import` move a file's rules into the project's terms store and
+`kapi store import` move a file's rules into the project's terms store and
 report how many. A file that lists its words under `vocabulary:` is read the
 same way: a forbidden term becomes a rule, a competitor term a rule marked
 `competitor`, and a preferred term a preferred form, or an advisory rule when it
@@ -185,7 +185,7 @@ position.
 `Fails` is decided by the rule that raised the finding. A term rule, a
 prohibited or required pattern, and a shared constraint fail unless the rule is
 marked advisory. A finding raised by a suggested rule, one recorded by
-`kapi context observe` or `correct` and not yet kept, carries `Suggested` and
+`kapi context note` and not yet kept, carries `Suggested` and
 never fails. The style measures report: the voice-similarity
 check, the model-backed `voice-check`, and the comment limits under
 `style.comments`, which fail only when the profile sets `style.comments.fails:
@@ -330,14 +330,14 @@ Locale and channel overrides apply on top via `--locale`/`--channel`; an explici
 | Command | Purpose |
 | --- | --- |
 | `new` | Scaffold a commented, schema-valid profile YAML, optionally seeded from a pack. |
-| `guide` / `show` | Render the profile as a markdown voice guide to inject into an assistant's context. |
+| `show` | Render a profile, a profile file or a pack as a markdown voice guide. Inside a project, `kapi context <path>` answers with the voice in force at a file. |
 | `check` | Score text against the profile: its patterns and the word rules its file carries always, `--ai` adds the model check. Exits with the quality-gate code when a finding fails. |
 | `rewrite` | Substitute the forbidden and competitor terms the profile's file carries for their approved replacements: deterministic, offline, no model. A rule that matches without a replacement is reported under `skipped`. |
 | `validate` | Check a profile document against the schema; blocking problems fail, advisory notes print after the verdict. |
 | `profiles` | List profiles: the voice store plus the built-in packs. |
 | `import` | Import a profile YAML into the voice store, and the word rules it carries into the project's terms store. |
 | `pack` | Install a built-in starter pack into the voice store. |
-| `pointer` | Write the marker-delimited section into the project's assistant file (`CLAUDE.md`, or an `AGENTS.md` already at the root) that tells an assistant the voice is held by kapi and that `guide` retrieves it. |
+| `pointer` | Write the marker-delimited section into the project's assistant file (`CLAUDE.md`, or an `AGENTS.md` already at the root) that tells an assistant the voice is held by kapi and that `kapi context <path>` retrieves it. |
 
 The pointer exists because an assistant standing in a project has no reason to
 open `kapi.yaml` when its task is to write a guide, and so never learns the
@@ -350,7 +350,7 @@ all three go through `host.WriteVoicePointer`. The text is
 `coreprofile.RenderVoicePointer`, and `UpsertVoicePointer` replaces the section
 between its markers so a re-run is idempotent and hand-written content around
 it survives. A project that unbinds its voice has the section removed on the
-next run rather than left claiming a voice `guide` cannot resolve.
+next run rather than left claiming a voice `kapi context` cannot resolve.
 
 `check` reads its subject from `--input-text`, a positional file, or stdin.
 It returns the quality-gate sentinel when at least one finding fails, which the
@@ -401,7 +401,7 @@ written when an agent applies it, through `apply_edits` or from an agent's shell
 that uses one is refused with a message that gives the `term` form.
 
 A rule somebody notices while working is a term rule.
-`kapi context observe --term use --instead-of utilise` records a suggestion,
+`kapi context note --term use --instead-of utilise` records a suggestion,
 which checks report and fail nothing on; a person keeping
 it writes the rule into the project's terms store, where every check reads it.
 See [C-11](c-11-context-operations.md).
@@ -426,7 +426,7 @@ the short form `voice: <id>`, names a profile the project's store holds, and
 identifies the import command and the required name binding. All surfaces
 resolve profiles from the store.
 
-`kapi context import` reads the profiles a layout carries: `voice.yaml` at the
+`kapi store import` reads the profiles a layout carries: `voice.yaml` at the
 top of the layout is the project's, and `profiles/<name>/voice.yaml` belongs to
 that profile. When the recipe binds no voice under `defaults:`, the import binds
 the project's profile there (or the only profile the layout carries) and says
@@ -441,13 +441,13 @@ decision.
 
 A binding to a missing profile produces an error. This can happen when a clone
 has not imported its context or when using a new data directory. The error names the
-binding and the two commands that bring the context, `kapi context pull` when
-the project shares its context and `kapi context import` in a checkout carrying
+binding and the two commands that bring the context, `kapi context sync` when
+the project shares its context and `kapi store import` in a checkout carrying
 the profile.
 `kapi voice pack <name>` is suggested only when a starter pack carries that name,
 because for any other name it would install something else.
 
-`kapi context import` reads a profile's YAML from the layout path a directory
+`kapi store import` reads a profile's YAML from the layout path a directory
 keys it by ([C-11](c-11-context-operations.md)). The store metadata key
 `context.voiceBindings` ties a stored profile's id to the path a layout keys it
 by, so a second import of the same file keeps the id the first chose. The key is

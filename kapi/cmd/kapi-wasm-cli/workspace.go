@@ -28,7 +28,7 @@ import (
 // the engine holds into a workspace package (kpz.KindWorkspace), the files of
 // the engine's file system and the context of every project among them, and
 // kapiImportWorkspace reads one back. A project's context travels as its
-// operation log (a context package, as `kapi context export` writes one), so
+// operation log (a context package, as `kapi store export` writes one), so
 // reading it back rebuilds the project's stores by merging the log. A terms
 // store outside every project (`kapi terms import` run outside a project, or
 // one named with --file) has no log, so it travels as a terms bundle and is

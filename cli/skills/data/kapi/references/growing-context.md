@@ -1,7 +1,7 @@
 # Growing a project's context
 
 Project context records writing guidance, terms and approved wording. Build it
-from observations during ordinary work or through a dedicated discovery session.
+from notes during ordinary work or through a dedicated discovery session.
 Both approaches record operations in the context log. A suggestion becomes an
 established rule when a person's signal backs it and nothing contradicts it: a
 person keeps it, a correction toward it is recorded, or a change writing it
@@ -15,15 +15,16 @@ of the material or a substantial update to existing guidance.
 ## Everyday growth: two calls
 
 ```bash
-kapi context observe "the docs address the reader as you" --seen-in docs/guide.md
-kapi context observe --term Quickcast --instead-of "Quick cast" --seen-in README.md --quote "Quickcast forecasts the next hour"
-kapi context correct "sign in" "log in" --seen-in web/src/auth.tsx --suggest
+kapi context note "the docs address the reader as you" --seen-in docs/guide.md
+kapi context note --term Quickcast --instead-of "Quick cast" --seen-in README.md --quote "Quickcast forecasts the next hour"
+kapi context note --from "sign in" --to "log in" --seen-in web/src/auth.tsx --suggest
 ```
 
-Over MCP the same two are `context_observe` (with `term` and `instead_of`) and
-`context_correct`.
+Over MCP the same calls are `context_note`: with `term` and `instead_of`, or
+`text`, for what you noticed, and with `from`, `to` and `suggest` for a change
+the person made.
 
-- **Observe** what the project's files do every time, whether or not your own
+- **Note** what the project's files do every time, whether or not your own
   text needs it. Look for three kinds in every project:
   - each product, feature and plan name, as the files write it;
   - the spelling variety (British or American), as a fact in prose with two or
@@ -47,9 +48,9 @@ Over MCP the same two are `context_observe` (with `term` and `instead_of`) and
 
   Everything recorded is a **suggestion**: every check reports it, and no check
   can fail on it until a person's signal backs it. Never tell the user a rule
-  is in force because you observed one.
-- **Correct** when the user changes your wording, and only then: a correction
-  is the person's signal, so a correction toward an existing suggestion
+  is in force because you noted one.
+- **Record a person's change** (`--from`, `--to`) when the user changes your
+  wording, and only then: their change is the person's signal, so a correction toward an existing suggestion
   establishes it. `--suggest` also records the implied rule for review. A
   correction that reverses an established rule contests that rule, which then
   reports instead of failing.
@@ -59,10 +60,9 @@ Term rules and corrections require evidence so reviewers can compare the
 proposal with its source.
 
 Two suggestions that name different forms for one word are **contested**: both
-advise, each names the other, and a person chooses one with `kapi context keep
-<id> --choose`.
+advise, each names the other, and a person chooses one in `kapi context review`.
 
-One call records one thing. Do not batch a session's worth of observations into
+One call records one thing. Do not batch a session's worth of notes into
 a single sentence, and do not wait until the end of the task to record them.
 
 A `kapi context <path>` answer lists the suggestions at that point, each with
@@ -88,30 +88,34 @@ Read your own run back with `kapi context log --session this`, which is the
 session this command resolves for itself. End your task report with what it
 says.
 
-## Reviewing and undoing
+## Reading back, and what a person decides
 
 ```bash
 kapi context log --status suggested       # what is waiting for a decision
 kapi context log --status contested       # what disagrees with another rule
 kapi context log --session this --json    # what this run recorded
 kapi context log --session s4f1c2 --json  # what one agent run recorded
-kapi context keep 0n794e2gk7 0n79gkq853   # establish rules, and write them
-kapi context keep --session s4f1c2        # keep everything one run suggested
-kapi context drop 0n794e2gk7              # set a suggestion aside
-kapi context revert --session s4f1c2      # undo everything one run recorded
-kapi context widen 0n794e2gk7 --to project   # a rule settled under one profile, under every profile
-kapi context widen 0n794e2gk7 --to workspace # put an established rule in force everywhere
 ```
 
-Keeping, dropping, reverting and widening belong to a person. An agent that
-tries is refused, and told so. You may still withdraw a suggestion you recorded
-yourself when it turns out wrong: over the CLI with `kapi context withdraw
-<id>`, and over MCP with `context_withdraw`. That is how a
-run cleans up after itself. For everything else, end your task by reporting what
-you recorded and the command above for reviewing it, and let the user decide.
-A person reviews what kapi learned, whenever it suits them, with `kapi context
-digest` or the Learned section of Kapi Desktop; nothing you record waits on that
-review, because a suggestion advises from the moment it is recorded.
+Withdraw a note of your own when it turns out wrong, in the session that
+recorded it: `kapi context note --withdraw <id> --why "<what was wrong>"`, or
+`context_note` with `withdraw` over MCP. That is how a run cleans up after
+itself.
+
+Everything else belongs to a person, and kapi refuses it from an agent:
+keeping, dropping, choosing a side, applying a rule more widely, going back to
+an earlier state (`kapi context reset`), and sharing (`kapi context sync`). End
+your task by reporting what you recorded and telling the user how to decide
+about it:
+
+```bash
+kapi context review                       # walk the suggestions one by one
+kapi context review --session s4f1c2      # only what one run suggested
+```
+
+A person reviews whenever it suits them, in a terminal or in the Learned
+section of Kapi Desktop. Nothing you record waits on that review, because a
+suggestion advises from the moment it is recorded.
 
 ---
 
@@ -181,8 +185,8 @@ Three artifacts, all plain files the user can review before anything binds:
   from:
 
   ```bash
-  kapi context observe --term dashboard --instead-of "control panel" --seen-in docs/guide.md
-  kapi context observe --term "our platform" --instead-of Globex --seen-in web/src/pricing.tsx
+  kapi context note --term dashboard --instead-of "control panel" --seen-in docs/guide.md
+  kapi context note --term "our platform" --instead-of Globex --seen-in web/src/pricing.tsx
   ```
 
   The user then reviews a list where every entry carries its evidence, and
@@ -205,7 +209,7 @@ Three artifacts, all plain files the user can review before anything binds:
 Render, score, iterate, the loop is [voice.md](voice.md)'s:
 
 ```bash
-kapi voice guide --profile-file voice.yaml                    # the rendered guide
+kapi voice show --profile-file voice.yaml                     # the rendered guide
 kapi voice check README.md --profile-file voice.yaml --json   # score one of their own files
 ```
 
@@ -215,13 +219,14 @@ Get a person to confirm every forbidden and competitor term and every
 into `voice.yaml` and re-render until the user agrees. Never invent competitors
 or bans the user didn't confirm.
 
-Where you recorded suggestions rather than drafting a file, the review list is
-the log, and the decisions are the log's verbs:
+Where you recorded suggestions rather than drafting a file, the user decides
+about them in review:
 
 ```bash
-kapi context log --status suggested    # each entry with its evidence
-kapi context keep 0n794e2gk7 --use dashboard    # keep, editing the rule as you go
-kapi context drop 0n79gkq853
+kapi context log --status suggested             # each entry with its evidence
+kapi context review                             # the user keeps or drops each one
+kapi context review --keep 0n794e2gk7 --use dashboard   # keep, editing the rule as you go
+kapi context review --drop 0n79gkq853
 ```
 
 ## 4. Bind
@@ -251,9 +256,9 @@ kapi voice pointer     # a section in CLAUDE.md (or an AGENTS.md already there) 
 ```
 
 It writes a few sentences: the project's voice is held by kapi, it applies to
-prose written here, and `kapi voice guide` retrieves it. A recipe that places
-comments at a point of their own also gets a sentence naming
-`kapi voice guide --comments <path>`, the command for a comment's voice. Nothing
+prose written here, and `kapi context <path>` retrieves it for a file. A recipe
+that places comments at a point of their own also gets a sentence naming
+`kapi context <path> --comments`, the command for a comment's voice. Nothing
 about how to write; the guide stays one command away. `kapi init` writes the same section
 when the scaffold it creates binds a voice, and the recipe edit above is what it
 names, so run it after the edit. The section sits between `<!-- kapi:voice -->`
@@ -266,14 +271,14 @@ Materialize the terminology seed, now that the project exists:
 
 ```bash
 # preferred: each term is a suggestion with its evidence, in `kapi context log`
-kapi context observe --term dashboard --instead-of "control panel" --seen-in docs/guide.md
+kapi context note --term dashboard --instead-of "control panel" --seen-in docs/guide.md
 # bulk path for a handed-over term list (csv, tsv, json, tbx, bundle):
 kapi terms import terms.csv -s en -t fr --header
 kapi terms import vocab.csv -s en --monolingual --header
 ```
 
-The user keeps the suggestions they agree with (`kapi context keep --session
-<id>` keeps one run's). A person who has already decided can instead write the
+The user keeps the suggestions they agree with in `kapi context review`
+(`kapi context review --session <id> --keep all` keeps one run's). A person who has already decided can instead write the
 terms as `term` operations and run `kapi apply` on them, which records each as
 their decision; from your shell `kapi apply` refuses a `term` operation. A bulk
 `terms import` writes the store without recording a decision. Then verify the
@@ -295,10 +300,10 @@ Commit the configuration: `kapi.yaml`, the agent wiring `kapi init` wrote, and
 the assistant file. `.kapi/` is this checkout's cache and stays out of the
 commit. The context itself stays in the project's store, where every checkout
 reads it; `kapi context log` is where the user reads what was decided, and
-`kapi context export -o backup.kpz` is the backup. If the user works on more than
-one machine, or with other people, tell them about a context backend
-(`context: {backend: git}` in kapi.yaml, then `kapi context pull` and
-`kapi context push`) and let them decide.
+`kapi store export -o backup.kpz` is the backup. If the user works on more than
+one machine, or with other people, tell them about sharing the context
+(`context: {backend: git}` in kapi.yaml, then `kapi context sync`) and let them
+decide.
 
 ## 5. Document the workflow
 
@@ -428,7 +433,6 @@ working out what changed.
 kapi ls --untracked                 # readable files no collection governs
 kapi context docs/guide.md          # what governs one of the new files
 kapi context search "Tidewatch"     # what the record says about a name
-kapi voice guide                    # the bound profile, rendered
 kapi terms export --format json     # every concept; --format csv -s en -t fr for one pair
 ```
 
@@ -438,7 +442,7 @@ is a candidate, not a decision. Expect true positives the user will decline (a
 README, a fixture, a vendored page); that is the report working.
 
 The bound voice profile is the register baseline, and the project's terms are
-the word list: `kapi voice guide <file>` prints both for a file.
+the word list: `kapi context <file>` prints both for a file.
 
 ## 2. Draft the change set
 
@@ -449,12 +453,12 @@ below are how it changes, and `kapi context log` is how the user reads it back.
 | What moved | Route | What the user reviews |
 | --- | --- | --- |
 | A surface appeared | `kapi add <pattern> --name <collection> --channel <profile/channel>` | the `kapi.yaml` diff |
-| A term, a name, a rename, a word to avoid | `kapi context observe --term`; a `kapi apply` `term` operation, for the user to apply | the suggestion with its evidence, in `kapi context log` |
+| A term, a name, a rename, a word to avoid | `kapi context note --term`; a `kapi apply` `term` operation, for the user to apply | the suggestion with its evidence, in `kapi context log` |
 | A brand or mode axis moved | a `kapi apply` `recipe` operation, `path` `defaults.coordinates.<axis>` (or a collection's `coordinates`) and `value`, for the user to apply | the `kapi.yaml` diff |
 | Tone, style, `examples` | an edit to the profile YAML | the file diff |
 
 Two routes for the same two kinds, and the difference is who decides.
-`kapi context observe --term` records a suggestion the user keeps, each carrying
+`kapi context note --term` records a suggestion the user keeps, each carrying
 the file it came from. A `kapi apply` change set lands what the user has already
 decided, recorded as theirs, so the user runs it: kapi records each operation
 as whoever runs the command, and from your shell it refuses `term` and `recipe`

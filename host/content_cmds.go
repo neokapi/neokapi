@@ -78,7 +78,7 @@ func MatchesPathPrefix(rel string, prefixes []string) bool {
 //
 // A file is reported when kapi has a reader for its extension and it is matched
 // by no item pattern, no target template and no exclude. Files kapi cannot read
-// are not content. The recipe and the context files `kapi context import` reads
+// are not content. The recipe and the context files `kapi store import` reads
 // (a voice profile, a terms bundle, a content-memory bundle, named the way an
 // import finds them) are governance rather than governed, so they are skipped
 // even though kapi reads YAML and JSON.
@@ -170,7 +170,7 @@ func trackedPaths(proj *coreproj.KapiProject, root string) (map[string]bool, err
 	return tracked, nil
 }
 
-// isContextFile reports whether a file is named the way `kapi context import`
+// isContextFile reports whether a file is named the way `kapi store import`
 // finds a context file in a layout: a voice profile, a terms bundle or a
 // content-memory bundle.
 func isContextFile(rel string) bool {

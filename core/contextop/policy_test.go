@@ -68,10 +68,6 @@ func TestPersonDecides(t *testing.T) {
 			transition: contextop.Transition{Actor: agent("claude", "s1"), Kind: contextop.KindWithdraw, Targeted: true, Target: agentRecord},
 		},
 		{
-			name:       "an agent reverts its own suggestion",
-			transition: contextop.Transition{Actor: agent("claude", "s1"), Kind: contextop.KindRevert, Targeted: true, Target: agentRecord},
-		},
-		{
 			name:       "an agent drops its own suggestion",
 			transition: contextop.Transition{Actor: agent("claude", "s1"), Kind: contextop.KindDrop, Targeted: true, Target: agentRecord},
 			refused:    true,
@@ -107,11 +103,6 @@ func TestPersonDecides(t *testing.T) {
 			refused:    true,
 		},
 		{
-			name:       "an agent reverts an established rule",
-			transition: contextop.Transition{Actor: agent("claude", "s1"), Kind: contextop.KindRevert, Targeted: true, Target: establishedRecord},
-			refused:    true,
-		},
-		{
 			name:       "an agent withdraws an established rule",
 			transition: contextop.Transition{Actor: agent("claude", "s1"), Kind: contextop.KindWithdraw, Targeted: true, Target: establishedRecord},
 			refused:    true,
@@ -134,8 +125,8 @@ func TestPersonDecides(t *testing.T) {
 			refused:    true,
 		},
 		{
-			name:       "an agent reverts a whole session",
-			transition: contextop.Transition{Actor: agent("claude", "s1"), Kind: contextop.KindRevert},
+			name:       "an agent resets the context",
+			transition: contextop.Transition{Actor: agent("claude", "s1"), Kind: contextop.KindReset},
 			refused:    true,
 		},
 		{

@@ -63,8 +63,8 @@
 # (AD-038). Adding a collection here needs no Makefile change — see
 # docs/internals/l10n-ci.md. The context graph this project is governed by —
 # voice profile, terms, reviewed content memory — is shared on the
-# refs/kapi/context ref of this repository: `kapi context pull` reads it and
-# `kapi context push` shares what you recorded.
+# refs/kapi/context ref of this repository: `kapi context sync` reads it and
+# shares what you recorded.
 version: v1
 # This project's stable identity. It survives a rename, a move and a clone,
 # and everything kapi records about the project is keyed on it. Keep it.
@@ -101,7 +101,7 @@ defaults:
   # missing provider credential having recycled nothing.
   flow: memory-recycle
   # The voice is bound by name: the profile the project's context holds, which
-  # `kapi context pull` reads from refs/kapi/context (the `context.backend`
+  # `kapi context sync` reads from refs/kapi/context (the `context.backend`
   # above). The terms need no binding: the project has one terms store, and it
   # governs every collection.
   voice:

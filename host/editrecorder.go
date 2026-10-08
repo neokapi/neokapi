@@ -27,8 +27,8 @@ import (
 //
 // What a record keeps depends on who made the change and where the text
 // lives. A person's or an agent's edit keeps the runs around each change and
-// the change set as sent, which review, a revert by session and "who wrote
-// this" read back. A tool's edit, which a flow makes by the thousand, keeps
+// the change set as sent, which review and "who wrote this" read back. A
+// tool's edit, which a flow makes by the thousand, keeps
 // the revisions and hashes only: the file holds the text. A write to the
 // workspace home is recorded by the commit that keeps it (core/workhome),
 // with the edition it leaves, because the log is that home; the recorder

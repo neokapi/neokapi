@@ -294,7 +294,7 @@
       "method": "benchmark",
       "status": "partial",
       "spends": true,
-      "corpus": "Six briefs about a synthetic product, each written with and without `kapi voice guide` as the system turn. Both versions are scored against the reference profile and a contrasting profile with opposing requirements.",
+      "corpus": "Six briefs about a synthetic product, each written with and without `kapi voice show` as the system turn. Both versions are scored against the reference profile and a contrasting profile with opposing requirements.",
       "covers": "Whether guidance improves adherence specifically to its own profile, measured as the difference between score changes for the reference and contrasting profiles. Guided writing gained 5.8 points against the reference profile and lost 6.7 against the contrast, a difference of 12.5. Passive constructions fell from 11 to 4 across the six documents, and the writing shifted to second person.",
       "misses": "Six documents on one model. The reference gain comes entirely from reduced passive voice; neither condition used forbidden terms. The contrast loss comes from the pronoun shift under a profile with three forbidden terms and no patterns. These results demonstrate two specific effects. Declared person and sentence-length fields are supplied in the guide but have no offline scoring implementation.",
       "reproduce": "make authoring-eval",

@@ -19,7 +19,7 @@
 #
 # The project store under .kapi/ is gitignored as a whole, so nothing a run
 # leaves there reaches either list. The context a run brought home travels on
-# refs/kapi/context, and the workflow's `kapi context push` step reports it.
+# refs/kapi/context, and the workflow's `kapi context sync` step reports it.
 #
 # It then reads the derived artifacts themselves
 # (`scripts/check-derived-content.mjs`) and refuses — non-zero, naming every
@@ -51,7 +51,7 @@
 # A removal carries no content to read, so what excuses one is the context: an
 # owned artifact that disappeared is delivered only when the run brought
 # decisions home. `--decisions N` passes that count, which the nightly takes
-# from the operations its `kapi context push` step shared on refs/kapi/context.
+# from the operations its `kapi context sync` step shared on refs/kapi/context.
 # With the default of 0, a catalog or a sidecar the run removed is an erasure
 # and refuses the run. A sidecar that became identical to its source is dropped
 # by design, and it is dropped because a decision changed its wording.
@@ -351,7 +351,7 @@ EOF
 
 The run removed artifacts the loop owns and brought no decisions home. A
 removal carries no content to read, so with nothing decided behind it, it is an
-erasure. The nightly passes the count of operations `kapi context push` shared
+erasure. The nightly passes the count of operations `kapi context sync` shared
 as --decisions; a run that shared none has nothing to account for a removal.
 
 Refused, removed with no decision behind it:

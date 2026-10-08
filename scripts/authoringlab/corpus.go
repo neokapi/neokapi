@@ -113,7 +113,7 @@ func loadProfile() (*coreprofile.VoiceProfile, error) {
 // The full one, deliberately. RenderVoiceGuideCompact drops the before/after
 // examples entirely, and those are the strongest steering the profile carries
 // (#2241). The compact form is what the translation path uses; an assistant
-// handed `kapi voice guide` gets this.
+// handed `kapi voice show` gets this.
 func guideFor(base *coreprofile.VoiceProfile, p Point) (string, error) {
 	resolved := coreprofile.ResolveProfile(base, "", "", p.Persona)
 	if resolved == nil {

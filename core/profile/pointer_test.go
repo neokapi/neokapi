@@ -22,17 +22,17 @@ func TestRenderVoicePointer(t *testing.T) {
 				VoicePointerStartLine + "\n",
 				"## Voice\n",
 				"This project's voice, Professional B2B, is held by kapi and applies to any prose written here.",
-				"Retrieve what is in force before writing, with `kapi voice guide`.",
+				"Retrieve what is in force before writing, with `kapi context <path>` for the file you are writing.",
 				VoicePointerEnd + "\n",
 			},
-			absent: []string{"<path>"},
+			absent: []string{"--comments"},
 		},
 		{
 			name:    "unnamed binding",
 			pointer: VoicePointer{},
 			want: []string{
 				"This project's voice is held by kapi and applies to any prose written here.",
-				"with `kapi voice guide`.",
+				"with `kapi context <path>`",
 			},
 			absent: []string{"voice, ,"},
 		},
@@ -42,7 +42,7 @@ func TestRenderVoicePointer(t *testing.T) {
 			want: []string{
 				"This project's voice, House, is held by kapi",
 				"Some collections carry a voice of their own",
-				"`kapi voice guide <path>`",
+				"`kapi context <path>`",
 			},
 			absent: []string{"--comments"},
 		},
@@ -50,16 +50,16 @@ func TestRenderVoicePointer(t *testing.T) {
 			name:    "comments at a point of their own",
 			pointer: VoicePointer{Name: "House", PerFile: true, Comments: true},
 			want: []string{
-				"`kapi voice guide <path>` for the file you are writing.",
-				"Comments in a file can sit under a voice of their own, so retrieve that voice with `kapi voice guide --comments <path>` before writing one.",
+				"`kapi context <path>` for the file you are writing.",
+				"Comments in a file can sit under a voice of their own, so retrieve that voice with `kapi context <path> --comments` before writing one.",
 			},
 		},
 		{
 			name:    "comments at a point of their own in a project with one voice",
 			pointer: VoicePointer{Name: "House", Comments: true},
 			want: []string{
-				"with `kapi voice guide`.",
-				"`kapi voice guide --comments <path>`",
+				"Retrieve what is in force before writing",
+				"`kapi context <path> --comments`",
 			},
 		},
 	}

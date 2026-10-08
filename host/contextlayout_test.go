@@ -96,7 +96,7 @@ func writeMemoryBundle(t *testing.T, root, name string, pairs map[string]string)
 }
 
 // readProjectContext reads a fixture project's `.kapi/` layout into its store,
-// which is what `kapi context import` does for a person. A fixture that authors
+// which is what `kapi store import` does for a person. A fixture that authors
 // a voice profile or a terms bundle calls it: those files reach a gate no other
 // way.
 //
@@ -200,7 +200,7 @@ func storeCounts(t *testing.T, a *App, root string) (concepts, entries int) {
 	return concepts, entries
 }
 
-// TestImportProjectContext_ReadsTheLayout: what `kapi context import` puts into
+// TestImportProjectContext_ReadsTheLayout: what `kapi store import` puts into
 // the store for each shape of `.kapi/` layout.
 func TestImportProjectContext_ReadsTheLayout(t *testing.T) {
 	tests := []struct {

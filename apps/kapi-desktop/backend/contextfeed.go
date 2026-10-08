@@ -12,8 +12,8 @@ package backend
 //
 // Reading goes through contextop.Ledger, which folds the log and reports the
 // status each subject-bearing operation ended up at. Deciding goes through
-// host.App, which owns the policy about who may keep, drop, revert and
-// widen. This file records no operation of its own.
+// host.App, which owns the policy about who may keep, drop, widen and
+// reset. This file records no operation of its own.
 
 import (
 	"context"
@@ -117,10 +117,10 @@ type ContextFeedEntry struct {
 	ProjectKey  string `json:"project_key"`
 	ProjectName string `json:"project_name,omitempty"`
 	// Kind is "observe", "correct", "import", "edit", "keep", "drop",
-	// "withdraw", "revert", "widen", "signal" or "establish".
+	// "withdraw", "reset", "widen", "signal" or "establish".
 	Kind string `json:"kind"`
 	// Status is "suggested", "established", "contested", "withdrawn",
-	// "dropped" or "reverted".
+	// "dropped" or "reset".
 	Status string `json:"status"`
 	// ContestedBy names the operations on the other side of a disagreement,
 	// for a contested entry.
@@ -130,11 +130,11 @@ type ContextFeedEntry struct {
 	Correction  *ContextCorrectionDTO `json:"correction,omitempty"`
 	Evidence    []ContextEvidenceDTO  `json:"evidence"`
 	Scope       ContextScopeDTO       `json:"scope"`
-	// Target is the operation this one acts on, and TargetSession the session
-	// a revert undid.
-	Target        string `json:"target,omitempty"`
-	TargetSession string `json:"target_session,omitempty"`
-	Note          string `json:"note,omitempty"`
+	// Target is the operation this one acts on, and Before the first
+	// operation a reset set aside.
+	Target string `json:"target,omitempty"`
+	Before string `json:"before,omitempty"`
+	Note   string `json:"note,omitempty"`
 	// At is when the log accepted it, RFC3339 in UTC.
 	At string `json:"at"`
 	// Standing is the evidence for and against a suggestion as plain counts:
@@ -145,8 +145,10 @@ type ContextFeedEntry struct {
 	// with nothing to decide. A contested suggestion is decidable too, and
 	// keeping it waits until the other side is dropped.
 	Decidable bool `json:"decidable"`
-	// Revertible reports a rule in force that a person can take back out.
-	Revertible bool `json:"revertible"`
+	// Droppable reports a suggestion or a rule in force a person can drop. A
+	// rule in force is taken back out of the project's stores as it is
+	// dropped.
+	Droppable bool `json:"droppable"`
 	// WidenTo are the widenings open to this rule: "workspace", and each axis
 	// its point is specific about.
 	WidenTo []string `json:"widen_to"`
@@ -220,28 +222,40 @@ type ContextDecisionRequest struct {
 	Note string `json:"note,omitempty"`
 }
 
-// ContextRevertRequest undoes one operation or a whole session.
-type ContextRevertRequest struct {
+// ContextResetRequest rewinds a project's context to how it stood at a point
+// in its history.
+type ContextResetRequest struct {
 	Project string `json:"project"`
-	// ID names one operation. Session names every operation one agent session
-	// recorded. Exactly one is set.
-	ID      string `json:"id,omitempty"`
-	Session string `json:"session,omitempty"`
-	Note    string `json:"note,omitempty"`
+	// Before names the point to go back to: an agent session id (the context
+	// as it stood before the session's first operation), a date (2006-01-02)
+	// or an instant (RFC 3339), or an operation id, such as an earlier
+	// reset's.
+	Before string `json:"before"`
+	Note   string `json:"note,omitempty"`
 }
 
-// ContextRevertSummary is what a revert undid, for the confirmation a person
-// reads before asking for it and the report afterwards.
-type ContextRevertSummary struct {
-	// Session is the session reverted, empty when one operation was named.
-	Session string `json:"session,omitempty"`
-	// Operations is how many operations stop answering.
-	Operations int `json:"operations"`
-	// Rules names the rules taken back out of the project's stores.
-	Rules []string `json:"rules"`
-	// Subjects is the one-line description of each operation, so the
-	// confirmation can name what goes.
+// ContextResetSummary is what a reset sets aside, for the confirmation a
+// person reads before asking for it and the report afterwards.
+type ContextResetSummary struct {
+	// Before is the point the context goes back to, as the request named it.
+	Before string `json:"before"`
+	// SetAside is how many suggestions and rules stop answering.
+	SetAside int `json:"set_aside"`
+	// Decisions is how many other operations are set aside with them: keeps,
+	// drops, widenings and the rest of what acted on a rule after the point.
+	Decisions int `json:"decisions"`
+	// Restored is how many suggestions and rules an earlier reset set aside
+	// answer again.
+	Restored int `json:"restored"`
+	// Subjects is the one-line description of each suggestion or rule set
+	// aside, so the confirmation can name what goes.
 	Subjects []string `json:"subjects"`
+	// Rules names the rules in force that are taken back out of the
+	// project's stores.
+	Rules []string `json:"rules"`
+	// Reset is the short id of the reset recorded, empty for a preview. A
+	// later reset to before it brings back what it set aside.
+	Reset string `json:"reset,omitempty"`
 }
 
 // ContextWidenTarget is one project a widened rule would answer in.
@@ -385,9 +399,10 @@ func (a *App) DropContextSuggestion(req ContextDecisionRequest) (*ContextFeedEnt
 	return &entry, nil
 }
 
-// RevertContextOperations undoes one operation or a whole session, taking
-// whatever it put in force back out of the project's stores.
-func (a *App) RevertContextOperations(req ContextRevertRequest) (*ContextRevertSummary, error) {
+// ResetContext rewinds the project's context to before the point the request
+// names. What was recorded from that point on is set aside, stays in the log,
+// and the project's stores are rebuilt without it.
+func (a *App) ResetContext(req ContextResetRequest) (*ContextResetSummary, error) {
 	recipe, err := a.contextRecipeFor(req.Project)
 	if err != nil {
 		return nil, err
@@ -395,74 +410,65 @@ func (a *App) RevertContextOperations(req ContextRevertRequest) (*ContextRevertS
 	ctx, cancel := context.WithTimeout(context.Background(), contextFeedTimeout)
 	defer cancel()
 
-	result, err := a.hostEngine().RevertContextOperations(ctx, host.ContextRevertRequest{
+	result, err := a.hostEngine().ResetContext(ctx, host.ContextResetRequest{
 		Actor:   deskPerson(),
 		Project: recipe,
-		ID:      req.ID,
-		Session: req.Session,
+		Before:  req.Before,
 		Note:    req.Note,
 	})
 	if err != nil {
 		return nil, err
 	}
 	a.emitEvent("workspace:changed", nil)
-	out := &ContextRevertSummary{
-		Session:    result.Session,
-		Operations: len(result.Reverted),
-		Rules:      append([]string{}, result.Retracted...),
-		Subjects:   []string{},
-	}
-	for _, r := range result.Reverted {
-		if line := r.Subject.Describe(); line != "" {
-			out.Subjects = append(out.Subjects, line)
-		}
-	}
-	if out.Rules == nil {
-		out.Rules = []string{}
-	}
-	return out, nil
+	return resetSummary(result), nil
 }
 
-// ContextRevertScope reports what reverting a session would undo, for the
-// confirmation a person reads first. It records nothing.
-func (a *App) ContextRevertScope(req ContextRevertRequest) (*ContextRevertSummary, error) {
-	if (req.ID == "") == (req.Session == "") {
-		return nil, errors.New("name an operation or a session, not both and not neither")
+// ContextResetScope reports what resetting to before the named point would
+// set aside, for the confirmation a person reads first. It records nothing.
+func (a *App) ContextResetScope(req ContextResetRequest) (*ContextResetSummary, error) {
+	recipe, err := a.contextRecipeFor(req.Project)
+	if err != nil {
+		return nil, err
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), contextFeedTimeout)
 	defer cancel()
 
-	ws, err := a.hostEngine().Workspace(ctx)
+	result, err := a.hostEngine().ContextResetScope(ctx, host.ContextResetRequest{
+		Actor:   deskPerson(),
+		Project: recipe,
+		Before:  req.Before,
+		Note:    req.Note,
+	})
 	if err != nil {
 		return nil, err
 	}
-	ledger := contextop.NewLedger(ws, contextop.PersonDecides)
-	out := &ContextRevertSummary{Session: req.Session, Rules: []string{}, Subjects: []string{}}
+	return resetSummary(result), nil
+}
 
-	var targets []contextop.Record
-	if req.ID != "" {
-		target, terr := ledger.Subject(ctx, req.ID)
-		if terr != nil {
-			return nil, terr
-		}
-		targets = []contextop.Record{target}
-	} else {
-		held, herr := ledger.Records(ctx, contextop.Filter{Session: req.Session, Subjects: true})
-		if herr != nil {
-			return nil, herr
-		}
-		targets = held
+// resetSummary renders a reset, or its preview, for the confirmation.
+func resetSummary(result host.ContextResetResult) *ContextResetSummary {
+	out := &ContextResetSummary{
+		Before:    result.Before,
+		SetAside:  len(result.SetAside),
+		Decisions: result.Decisions,
+		Restored:  len(result.Restored),
+		Subjects:  []string{},
+		Rules:     []string{},
 	}
-	for _, target := range targets {
-		out.Operations++
-		if line := target.Subject.Describe(); line != "" {
-			out.Subjects = append(out.Subjects, line)
+	for _, op := range result.SetAside {
+		line := op.Subject.Describe()
+		if line == "" {
+			continue
 		}
-		if target.Established {
-			out.Rules = append(out.Rules, target.Subject.Describe())
+		out.Subjects = append(out.Subjects, line)
+		if op.Established {
+			out.Rules = append(out.Rules, line)
 		}
 	}
-	return out, nil
+	if result.Reset != nil {
+		out.Reset = result.Reset.Short
+	}
+	return out
 }
 
 // WidenContextRule moves an established rule to a broader point.
@@ -804,25 +810,25 @@ func spanOf(entries []ContextFeedEntry) (first, last string) {
 // contextFeedEntry renders one record for the feed.
 func contextFeedEntry(r contextop.Record, projectName, recipe string) ContextFeedEntry {
 	out := ContextFeedEntry{
-		ID:            r.ID,
-		Short:         contextop.ShortID(r.ID),
-		ProjectKey:    string(r.Project),
-		ProjectName:   projectName,
-		Kind:          string(r.Kind),
-		Status:        string(r.Status),
-		ContestedBy:   contextop.ShortIDs(r.ContestedBy),
-		Actor:         actorDTO(r.Actor),
-		Subject:       subjectDTO(r.Subject),
-		Evidence:      []ContextEvidenceDTO{},
-		Scope:         scopeDTO(r.Scope),
-		Target:        contextop.ShortID(r.Target),
-		TargetSession: r.TargetSession,
-		Note:          r.Note,
-		At:            r.At.UTC().Format(time.RFC3339),
-		Standing:      r.Standing.Describe(),
-		Decidable:     decidable(r),
-		WidenTo:       []string{},
-		Recipe:        recipe,
+		ID:          r.ID,
+		Short:       contextop.ShortID(r.ID),
+		ProjectKey:  string(r.Project),
+		ProjectName: projectName,
+		Kind:        string(r.Kind),
+		Status:      string(r.Status),
+		ContestedBy: contextop.ShortIDs(r.ContestedBy),
+		Actor:       actorDTO(r.Actor),
+		Subject:     subjectDTO(r.Subject),
+		Evidence:    []ContextEvidenceDTO{},
+		Scope:       scopeDTO(r.Scope),
+		Target:      contextop.ShortID(r.Target),
+		Before:      contextop.ShortID(r.Before),
+		Note:        r.Note,
+		At:          r.At.UTC().Format(time.RFC3339),
+		Standing:    r.Standing.Describe(),
+		Decidable:   decidable(r),
+		WidenTo:     []string{},
+		Recipe:      recipe,
 	}
 	if r.Correction != nil {
 		out.Correction = &ContextCorrectionDTO{From: r.Correction.From, To: r.Correction.To}
@@ -830,8 +836,9 @@ func contextFeedEntry(r contextop.Record, projectName, recipe string) ContextFee
 	for _, e := range r.Evidence {
 		out.Evidence = append(out.Evidence, ContextEvidenceDTO{Path: e.Path, Unit: e.Unit, Quote: e.Quote})
 	}
+	out.Droppable = out.Decidable
 	if r.Established && r.Kind.Bears() {
-		out.Revertible = true
+		out.Droppable = true
 		out.WidenTo = widenOptions(r.Scope)
 	}
 	return out

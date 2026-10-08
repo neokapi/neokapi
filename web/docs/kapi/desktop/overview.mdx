@@ -39,12 +39,12 @@ project's home says where it stands, on two axes:
 
 - **Content.** What has been read into the project, what has changed on disk
   since, and what is missing.
-- **Governance.** The voice profile in force, the terms store bound, when the
+- **Governance.** The voice profile in force, the terms that apply, when the
   project last converged, and whether it is in sync with the venue it declares.
 
-Below that, a **point map** gives one row per point the recipe declares, with
-the collections that sit there and the voice bound to them. Most projects are
-one point, and show one row.
+Below that, **Where content sits** gives one row for each part of the project
+the recipe declares, with the collections there and the voice that applies to
+them. Most projects have one row.
 
 **Bring up to date** is the action beneath. It runs the project's default flow
 until every gated scope ships or parks, and **Plan…** beside it shows the
@@ -53,68 +53,59 @@ before anything runs.
 
 ## Context
 
-The **Context** hub is where the graph is legible:
+The **Context** hub shows what the project keeps to:
 
-- **Explorer** answers by location and by content. Ask what applies at a file,
-  or search for a word and see the terms, the prior wording, and where each is
+- **Rules** holds the rules and suggestions kept for the project, newest since
+  you last looked first: suggestions waiting for you, the rules that came into force and what
+  they rest on, and content drifting away from a rule. See [Working beside an
+  agent](#working-beside-an-agent).
+- **Explorer** answers by file and by word. Ask what applies to a file, or
+  search for a word and see the terms, the approved wording, and where each is
   used.
 - **Agent View** shows the context an agent receives for a file you pick: the
-  point it resolves to, the voice in force, the terms that apply, and the body
-  the agent reads, word for word. It is the same answer `kapi context <path>`
-  prints.
-- **Recorded** is what you and the agents working in the project have noticed,
-  proposed and decided. See [Working beside an
-  agent](#working-beside-an-agent).
-- **Voice** renders the profile that actually governs a point: tone, style
-  rules, pattern rules, examples, and the overrides that apply.
-  Where a binding was skipped because its window had closed, the page says so
-  rather than quietly resolving past it. Editing writes the same YAML in your
+  voice, the words to use and to avoid, and the text the agent reads, word for
+  word. It is the same answer `kapi context <path>` prints.
+- **Voice** shows the voice profile that applies: tone, style rules, pattern
+  rules, examples, and the adjustments for a channel or a language. When dated
+  guidance has lapsed, the page says so. Editing writes the same YAML in your
   working tree that you would edit in git.
-- **Terms** is the concept store: the words the project has decided on, their
-  status, and their translations.
-- **Content Memory** is the record of prior wording, searchable with its
-  provenance intact.
+- **Terms** holds the words the project has decided on, their status, and their
+  translations.
+- **Content Memory** is the record of approved wording, searchable with where
+  each entry came from.
 
 ## Working beside an agent
 
-Keep the app open to review an agent's observations as it works. Suggestions
-recorded through the CLI or MCP server appear in the **Recorded** feed within a
-second or two.
+Keep the app open while an agent works. What it notes through the CLI or the
+MCP server appears in **Rules** within a second or two, as a suggestion with
+the evidence behind it: the file, the block and the sentence it was seen in.
 
-**Recorded** on the home screen carries every project's work; the same section
-inside a project's Context hub carries that project's. Each entry says what was
-done, who did it and on which machine, what the rule or the wording was, and
-the evidence behind it: the file, the block and the sentence it was seen in. The
-evidence is on the card for anything waiting on you, because it is what the
-decision rests on.
+A suggestion advises from the moment it is recorded. A check reports it and
+fails nothing, so an agent's suggestion never stops your work. It becomes a
+rule when you keep it. For each suggestion:
 
-A proposal advises from the moment it is recorded and binds only once you
-confirm it. Until then it is reported by a check as a proposal and fails
-nothing, so an agent's suggestion never stops your work.
+- **Keep** makes it a rule in the project's terms, voice profile or content
+  memory, where every check reads it.
+- **Change** edits what the rule says to write instead before you keep it.
+- **Drop** sets it aside, and it stops advising at once. Dropping a rule
+  already in force takes it back out.
+- **Choose this side** settles two suggestions that disagree about one word:
+  the side you choose is kept and the other dropped.
+- **Apply more widely** puts a rule in force across the whole project, or in
+  every project in your workspace. The confirmation says where it will hold.
 
-For each entry waiting on you:
+The keys: `j` and `k` move, `a` keeps, `c` changes, `d` drops, `o` opens the
+file the evidence came from.
 
-- **Confirm** writes the rule into the project's terms, voice profile or
-  content memory, where every check reads it and the Recorded feed keeps the
-  decision beside the evidence it rested on.
-- **Edit** changes the replacement and whether violations fail checks or only
-  report, before you accept the rule.
-- **Discard** rejects it. It stops advising at once.
-- **Undo** takes a confirmed rule back out, and **Undo session** does that for
-  everything one agent session recorded. The confirmation names how many
-  operations go.
+**Reset to before a session** goes back to how the context stood before one
+agent session started. What the session recorded, and what was decided since,
+is set aside and the terms, approved wording and voice are rebuilt as they
+stood. Nothing is erased, and the reset can itself be taken back. It is the
+same as `kapi context reset --before <session>`.
 
-The keys are the review session's: `j` and `k` move, `a` confirms, `r`
-discards, `e` edits.
-
-You can **widen** an established rule to all projects in the workspace, or
-remove one coordinate restriction within its project. The confirmation lists
-the affected scope. Run a check afterwards to see findings in the affected
-content.
-
-A count beside a project says how many decisions are waiting there. It is
-absent when there are none. Reviewing operations requires a readable local
-checkout. Context-only tabs support inspection but not these decisions.
+A count beside a project says how many suggestions are waiting there, and is
+absent when there are none. Deciding requires a readable local checkout; a
+context-only tab shows the context without these actions.
 
 ## Collections and formats
 
@@ -132,9 +123,8 @@ plugin offer to install it on first use. The
 
 ## Checks
 
-Checks are the tests for prose. A finding names the rule that fired and the
-point it is scoped to, and clicking it lands on Context there, with the rule in
-view. Fixing what a check found is the loop the app is built around: see the
+Checks are the tests for prose. A finding names the rule that fired and where
+it applies, and clicking it opens Context there, with the rule in view. Fixing what a check found is the loop the app is built around: see the
 rule, see the wording it governs, change one or the other.
 
 ## And in every language

@@ -545,14 +545,14 @@ export default function AuthoringLab(): ReactElement {
             <Markdown remarkPlugins={[remarkGfm]}>{report.tasks[audience]}</Markdown>
           </div>
           <div style={s.h}>The guide the two governed arms are held to</div>
-          {/* The guide is Markdown that `kapi voice guide` renders, so showing
+          {/* The guide is Markdown that `kapi voice show` renders, so showing
               it as monospace source shows the reader something the model never
               saw as source either. */}
           <div style={s.guide}>
             <Markdown remarkPlugins={[remarkGfm]}>{report.guides[audience]}</Markdown>
           </div>
           <p style={{ ...s.sub, margin: ".5rem 0 0" }}>
-            Rendered by <code>kapi voice guide</code> from ripgrep&apos;s own voice profile,
+            Rendered by <code>kapi voice show</code> from ripgrep&apos;s own voice profile,
             resolved at this coordinate. The pushed arm is handed this text; the pulled arm&apos;s
             workspace answers with it, checked byte for byte before the sweep runs so the two arms
             differ in delivery and not in what they were governed by. The profile itself is at the

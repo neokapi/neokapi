@@ -1,6 +1,6 @@
 # Voltway house voice.
 #
-# `kapi context import ./context` stores this voice under its name, `voltway`,
+# `kapi store import ./context` stores this voice under its name, `voltway`,
 # which is the name kapi.yaml binds, so `kapi check` scores every surface against
 # it with no flags. The same import moves the word rules under `terms:` into the
 # project's terms. The register bends per surface (channels:, below). The terms

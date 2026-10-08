@@ -20,7 +20,7 @@ import (
 // API). The folder keeps the layout a `file` backend keeps on disk, so the
 // browser and a machine whose recipe names that folder share one context.
 // kapiSyncContext pulls from the remote and pushes to it, as `kapi context
-// pull` and `kapi context push` do for the backend a recipe declares.
+// sync` does for the backend a recipe declares.
 //
 // # Page contract
 //
@@ -188,7 +188,7 @@ type syncOptions struct {
 // pushes what this engine recorded to it. args[0] is the remote (see the page
 // contract above) and args[1] the options as a JSON string, {project, pull,
 // push}. It returns a Promise of the report as a JSON string, {pull, push},
-// each the report `kapi context pull` or `kapi context push --json` prints.
+// each the report `kapi context sync --json` prints for that half.
 func kapiSyncContext(_ js.Value, args []js.Value) any {
 	var (
 		remote  *pageRemote

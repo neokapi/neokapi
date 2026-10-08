@@ -48,7 +48,7 @@ func (a *App) importScribe(ctx context.Context, recipePath string) (*importScrib
 		return nil, err
 	}
 	if resolved.Actor.Kind != contextop.ActorPerson {
-		return nil, fmt.Errorf("%s may not import context: reading a checkout's context files puts them in force for everyone working in this project, which a person decides: ask the person working here to run `kapi context import`: %w",
+		return nil, fmt.Errorf("%s may not import context: reading a checkout's context files puts them in force for everyone working in this project, which a person decides: ask the person working here to run `kapi store import`: %w",
 			resolved.Actor.String(), contextop.ErrRefused)
 	}
 	scribe := &importScribe{actor: resolved.Actor, note: resolved.NoteWith("")}

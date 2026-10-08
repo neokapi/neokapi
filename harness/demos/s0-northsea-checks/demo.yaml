@@ -37,7 +37,7 @@ setup:
   - git commit -qm "Northsea content and its context graph"
   # s0-northsea-context tells the adoption; here the context is already in the
   # store, so the recording can open on the gates.
-  - kapi context import ./context
+  - kapi store import ./context
 
 script:
   - comment: A company repository. Operator documentation, interface strings, one marketing page. One language.

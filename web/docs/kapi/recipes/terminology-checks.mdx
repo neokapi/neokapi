@@ -42,7 +42,7 @@ Ask for enforcement, or for curation:
 
 > Check the French files against our approved terms and fix what drifts.
 
-The assistant looks up approved terms before writing (`kapi terms lookup`), runs `term-check` afterwards and corrects flagged targets through the format-aware writer. It can record candidate terms with `context_observe`, including their source evidence. Review them in `kapi context log` and keep the rules you want to establish.
+The assistant looks up approved terms before writing (`kapi terms lookup`), runs `term-check` afterwards and corrects flagged targets through the format-aware writer. It can note the terms the files use with `context_note`, with the sentence each was seen in. Each note arrives as a suggestion; keep the ones you want enforced with `kapi context review`.
 
 </TabItem>
 <TabItem value="cli" label="CLI">

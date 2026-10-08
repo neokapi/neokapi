@@ -35,7 +35,7 @@ import (
 
 // pullProject is the recipe the pulled arm's workspace carries.
 //
-// A voice bound at the project's default point, which is what `kapi voice guide`
+// A voice bound at the project's default point, which is what `kapi voice show`
 // with no flags resolves and what the skill tells an assistant to run. The
 // profile beside it is this point's profile ALREADY RESOLVED (see
 // writePulledProject): a real project would resolve the persona from where the
@@ -43,7 +43,7 @@ import (
 // workspace is built rather than left for the agent to name a flag for.
 //
 // The voice is bound by name, the id the profile carries (pullProfileID); the
-// store answers for it once `kapi context import` has read `.kapi/voice.yaml`,
+// store answers for it once `kapi store import` has read `.kapi/voice.yaml`,
 // which importPulledContext runs before the agent starts.
 const pullProject = `version: v1
 name: ripgrep-docs
@@ -101,7 +101,7 @@ type armSetup struct {
 	// pull installs the project and the skill, and nothing else does.
 	pull bool
 	// profile is the voice this point resolves to, written into the project so
-	// `kapi voice guide` prints it.
+	// `kapi voice show` prints it.
 	profile *coreprofile.VoiceProfile
 	// pointer is a CLAUDE.md written beside the recipe, telling an assistant
 	// that this project's wording is governed and how to retrieve it. Empty in
@@ -152,7 +152,7 @@ func writePulledProject(tree string, profile *coreprofile.VoiceProfile) error {
 // kapi answers from, as the person who set the project up. A project's context
 // files are in force only once they are imported, and kapi refuses an agent's
 // import, so the harness does it on the person's behalf, the way a teammate
-// runs `kapi context import` once after cloning. Without it `kapi voice guide`
+// runs `kapi store import` once after cloning. Without it `kapi voice show`
 // finds the binding and no profile, and the arm fetches nothing.
 //
 // It runs with the arm's own environment, so the import lands in the store the
@@ -160,11 +160,11 @@ func writePulledProject(tree string, profile *coreprofile.VoiceProfile) error {
 func importPulledContext(ctx context.Context, kapiBin, home, tree string) error {
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, kapiBin, "context", "import", "-p", filepath.Join(tree, "kapi.yaml"))
+	cmd := exec.CommandContext(ctx, kapiBin, "store", "import", "-p", filepath.Join(tree, "kapi.yaml"))
 	cmd.Dir = tree
 	cmd.Env = append(append(agentEnv(), pullEnv(home, tree)...), "KAPI_ACTOR=person")
 	if out, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("`kapi context import` in the pulled workspace: %w: %s", err, strings.TrimSpace(string(out)))
+		return fmt.Errorf("`kapi store import` in the pulled workspace: %w: %s", err, strings.TrimSpace(string(out)))
 	}
 	return nil
 }
@@ -196,24 +196,24 @@ func pullProfileID(p *coreprofile.VoiceProfile) string {
 // Before the sweep, not after: if the two arms end up with different text the
 // comparison is between two governances rather than between two ways of
 // delivering one, and the page would say otherwise. A profile that fails to bind
-// at all is the same defect wearing a worse disguise — `kapi voice guide` would
+// at all is the same defect wearing a worse disguise: `kapi voice show` would
 // exit non-zero, the agent would shrug and write the bare document, and the arm
 // would publish as "the model ignored the context".
 func verifyPull(ctx context.Context, kapiBin, home, tree, want string) error {
-	cmd := exec.CommandContext(ctx, kapiBin, "voice", "guide")
+	cmd := exec.CommandContext(ctx, kapiBin, "voice", "show")
 	cmd.Dir = tree
 	cmd.Env = append(agentEnv(), pullEnv(home, tree)...)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
 	if err != nil {
-		return fmt.Errorf("`kapi voice guide` in the pulled workspace: %w: %s", err, strings.TrimSpace(stderr.String()))
+		return fmt.Errorf("`kapi voice show` in the pulled workspace: %w: %s", err, strings.TrimSpace(stderr.String()))
 	}
-	// The guide, wherever the command frames it. `voice guide` prints a header
+	// The guide, wherever the command frames it. `voice show` prints a header
 	// before the body, so the test is containment rather than equality.
 	if got := string(out); !strings.Contains(got, strings.TrimSpace(want)) {
 		return fmt.Errorf("the pulled arm would fetch a different guide from the one the pushed arm is given:\n"+
-			"`kapi voice guide` printed %d bytes not containing the %d-byte guide.\n"+
+			"`kapi voice show` printed %d bytes not containing the %d-byte guide.\n"+
 			"The two arms would differ in WHAT they were governed by rather than in HOW it arrived",
 			len(got), len(want))
 	}

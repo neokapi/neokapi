@@ -506,7 +506,7 @@ function SteerSection(): ReactElement | null {
       <h2 style={s.h2}>Does the voice guide steer writing, or only improve it?</h2>
       <p style={s.sub}>
         Each brief is written twice by {t.provider}:{t.model}, once with nothing and once with{" "}
-        <code style={s.code}>kapi voice guide</code> as the system turn. The user turn is identical.
+        <code style={s.code}>kapi voice show</code> as the system turn. The user turn is identical.
         Both versions are scored against the profile the guide came from and against a profile that
         wants the opposite, because any competent writing guidance raises any reasonable score. The
         measurement is the difference between the two gains.

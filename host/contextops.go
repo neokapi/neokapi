@@ -20,8 +20,8 @@
 //
 // Every transition goes through core/contextop's policy. An agent may observe
 // and record a correction, and withdraw its own suggestion in the session that
-// recorded it; only a person keeps, edits, drops, reverts an established rule
-// or widens one.
+// recorded it; only a person keeps, edits, drops or widens a rule, or resets
+// the context.
 //
 // A caller that states an actor kind is taken at its word: the MCP tools state
 // the agent, and the desktop states the person. A request that states none came
@@ -64,16 +64,6 @@ type ContextOperationList struct {
 	Project string `json:"project,omitempty"`
 	// Operations are the matching operations, newest first.
 	Operations []ContextOperation `json:"operations"`
-}
-
-// ContextRevertResult is what reverting one operation or a whole session did.
-type ContextRevertResult struct {
-	// Session is the session reverted, empty when one operation was named.
-	Session string `json:"session,omitempty"`
-	// Reverted are the operations that stopped answering.
-	Reverted []ContextOperation `json:"reverted"`
-	// Retracted names the rules taken back out of the project's stores.
-	Retracted []string `json:"retracted,omitempty"`
 }
 
 // ContextObserveRequest records something somebody noticed: a fact in prose,
@@ -128,7 +118,7 @@ type ContextLogRequest struct {
 	// Session narrows to one agent session.
 	Session string
 	// Status narrows to one status: suggested, established, contested,
-	// withdrawn, dropped or reverted.
+	// withdrawn, dropped or reset.
 	Status contextop.Status
 	// Actor narrows to one actor, by name or by kind.
 	Actor string
@@ -205,19 +195,6 @@ type ContextWithdrawRequest struct {
 	Actor   contextop.Actor
 	Project string
 	ID      string
-	Note    string
-}
-
-// ContextRevertRequest undoes one operation, or everything one session did.
-type ContextRevertRequest struct {
-	// Actor is who is acting. An empty Kind is a command line, where the
-	// environment answers (host/contextactor.go).
-	Actor   contextop.Actor
-	Project string
-	// ID is the operation to undo. Empty when Session names a whole session.
-	ID string
-	// Session undoes every operation one agent session recorded.
-	Session string
 	Note    string
 }
 
@@ -307,7 +284,7 @@ func teachRefusal(err error) error {
 		return err
 	}
 	return fmt.Errorf("%w\ndeciding belongs to the person working here: "+
-		"show them what is waiting with `kapi context log --status suggested` and let them decide", err)
+		"ask them to run `kapi context review`, which walks through what is waiting", err)
 }
 
 // RecordContextObservation records something somebody noticed. A fact in
@@ -765,7 +742,7 @@ func btoi(b bool) int {
 func keepable(r contextop.Record) error {
 	switch {
 	case r.Status == contextop.StatusContested && !r.Established && !r.ContestedByEvidence():
-		return fmt.Errorf("operation %s cannot be kept yet: %s. Choose it with `kapi context keep %s --choose`, which sets the other side aside",
+		return fmt.Errorf("operation %s cannot be kept yet: %s. Choose it with `kapi context review --choose %s`, which sets the other side aside",
 			contextop.ShortID(r.ID), contestedReason(r), contextop.ShortID(r.ID))
 	case !r.Status.Answers():
 		return fmt.Errorf("operation %s is %s: record it again to keep it", contextop.ShortID(r.ID), r.Status)
@@ -908,9 +885,10 @@ func withoutProfileAxes(coordinates map[string]string) map[string]string {
 	return out
 }
 
-// DropContextOperation sets a suggestion aside. It stops answering at once. An
-// established rule is reverted rather than dropped, because reverting is what
-// takes it back out of the stores it was written to.
+// DropContextOperation sets a suggestion or a rule aside. It stops answering at
+// once, and an established rule is taken back out of the stores keeping wrote
+// it to. Changing your mind about a rule is this: a new decision, recorded
+// beside the one it replaces.
 func (a *App) DropContextOperation(ctx context.Context, req ContextDropRequest) (ContextOperation, error) {
 	s, err := a.contextOps(ctx, req.Project)
 	if err != nil {
@@ -920,13 +898,21 @@ func (a *App) DropContextOperation(ctx context.Context, req ContextDropRequest) 
 	if err != nil {
 		return ContextOperation{}, err
 	}
-	if target.Established {
-		return ContextOperation{}, fmt.Errorf("operation %s is an established rule: revert it with `kapi context revert %s`", target.ID, target.ID)
-	}
 	if !target.Status.Answers() {
 		return ContextOperation{}, fmt.Errorf("operation %s is already %s", target.ID, target.Status)
 	}
-	return s.setAside(ctx, contextop.KindDrop, req.Actor, target, req.Note)
+	dropped, err := s.setAside(ctx, contextop.KindDrop, req.Actor, target, req.Note)
+	if err != nil || !target.Established {
+		return dropped, err
+	}
+	where, err := s.retract(ctx, target)
+	if err != nil {
+		return dropped, err
+	}
+	if where != "" {
+		dropped.Landed = joinLanded(dropped.Landed, "taken back out of "+where)
+	}
+	return dropped, nil
 }
 
 // WithdrawContextOperation takes back a suggestion its author recorded. The
@@ -941,6 +927,14 @@ func (a *App) WithdrawContextOperation(ctx context.Context, req ContextWithdrawR
 		return ContextOperation{}, err
 	}
 	return s.setAside(ctx, contextop.KindWithdraw, req.Actor, target, req.Note)
+}
+
+// joinLanded adds one more thing an operation did to the line that says so.
+func joinLanded(landed, more string) string {
+	if landed == "" {
+		return more
+	}
+	return landed + "; " + more
 }
 
 // setAside records a drop or a withdrawal and settles whatever the suggestion
@@ -965,69 +959,6 @@ func (s *contextOpsSession) setAside(ctx context.Context, kind contextop.Kind, s
 		return ContextOperation{}, teachRefusal(err)
 	}
 	return s.settled(ctx, written, before)
-}
-
-// RevertContextOperations undoes one operation, or everything one session did.
-//
-// Reverting a session puts the project's answers back where they were before
-// the session started: every suggestion it recorded stops advising, and every
-// rule of it a person kept is taken back out of the stores it was written to.
-func (a *App) RevertContextOperations(ctx context.Context, req ContextRevertRequest) (ContextRevertResult, error) {
-	s, err := a.contextOps(ctx, req.Project)
-	if err != nil {
-		return ContextRevertResult{}, err
-	}
-	if (req.ID == "") == (req.Session == "") {
-		return ContextRevertResult{}, errors.New("revert names an operation or a session, not both and not neither")
-	}
-
-	actor, note, err := s.actorFor(ctx, req.Actor, req.Note)
-	if err != nil {
-		return ContextRevertResult{}, err
-	}
-
-	var targets []contextop.Record
-	revert := contextop.Record{Actor: actor, Kind: contextop.KindRevert, Note: note, Project: s.key}
-	if req.ID != "" {
-		target, terr := s.ledger.Subject(ctx, req.ID)
-		if terr != nil {
-			return ContextRevertResult{}, terr
-		}
-		targets = append(targets, target)
-		revert.Target, revert.Project = target.ID, target.Project
-	} else {
-		held, herr := s.ledger.Records(ctx, contextop.Filter{Session: req.Session, Subjects: true})
-		if herr != nil {
-			return ContextRevertResult{}, herr
-		}
-		targets = held
-		revert.TargetSession = req.Session
-	}
-
-	before, err := s.ledger.Records(ctx, contextop.Filter{Project: s.key, Subjects: true})
-	if err != nil {
-		return ContextRevertResult{}, err
-	}
-	if _, err := s.ledger.Append(ctx, revert); err != nil {
-		return ContextRevertResult{}, teachRefusal(err)
-	}
-	if _, err := s.reconcile(ctx, before); err != nil {
-		return ContextRevertResult{}, err
-	}
-
-	out := ContextRevertResult{Session: req.Session}
-	for _, target := range targets {
-		retracted, rerr := s.retract(ctx, target)
-		if rerr != nil {
-			return ContextRevertResult{}, rerr
-		}
-		target.Status = contextop.StatusReverted
-		out.Reverted = append(out.Reverted, ContextOperation{Record: target})
-		if retracted != "" {
-			out.Retracted = append(out.Retracted, retracted)
-		}
-	}
-	return out, nil
 }
 
 // WidenContextOperation moves an established rule to a broader point: out to

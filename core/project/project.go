@@ -297,7 +297,7 @@ type LocaleDefaults struct {
 // fernwell}`.
 //
 // A recipe never names a file. The store is what every surface answers from,
-// and `kapi context import` is what reads a profile file into it, so a binding
+// and `kapi store import` is what reads a profile file into it, so a binding
 // to the file would read as in force while the store held something else.
 type VoiceBinding struct {
 	// Profile names a profile in the project's voice store, by id or by name.
@@ -410,9 +410,9 @@ func retiredFileBinding(field, path, binds, then string) error {
 func importCommandFor(path string) string {
 	dir := filepath.ToSlash(filepath.Dir(filepath.Clean(path)))
 	if dir == StateDirName {
-		return "kapi context import"
+		return "kapi store import"
 	}
-	return "kapi context import " + dir
+	return "kapi store import " + dir
 }
 
 // RedactionSpec configures content redaction. The sensitive term list itself

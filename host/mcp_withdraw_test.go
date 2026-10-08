@@ -62,19 +62,21 @@ func TestContextWithdrawTakesBackThisSessionsCandidate(t *testing.T) {
 	root := contextOpsProject(t, "withdraw-own")
 	session := growthSession(t, app)
 
-	recorded, res := callRecord(t, session, "context_correct", map[string]any{
+	recorded, res := callRecord(t, session, "context_note", map[string]any{
 		"from": "use", "to": "utilise", "path": "config/app.yaml", "suggest": true,
 		"project": recipeOf(root),
 	})
 	require.False(t, res.IsError, resultText(res))
 	require.NotEmpty(t, recorded.Operation)
 
-	withdrawn, res := callRecord(t, session, "context_withdraw", map[string]any{
-		"operation": recorded.Operation, "note": "entered backwards", "project": recipeOf(root),
+	assert.Equal(t, string(contextop.KindCorrect), recorded.Kind, "from and to record a change a person made")
+
+	withdrawn, res := callRecord(t, session, "context_note", map[string]any{
+		"withdraw": recorded.Operation, "why": "entered backwards", "project": recipeOf(root),
 	})
 	require.False(t, res.IsError, resultText(res))
 	assert.Equal(t, string(contextop.KindWithdraw), withdrawn.Kind)
-	assert.Equal(t, "withdrew operation "+recorded.Operation, withdrawn.Recorded)
+	assert.Equal(t, "withdrew note "+recorded.Operation, withdrawn.Recorded)
 
 	log, err := app.ContextOperations(t.Context(), ContextLogRequest{Project: recipeOf(root), Status: contextop.StatusSuggested})
 	require.NoError(t, err)
@@ -97,13 +99,13 @@ func TestContextWithdrawRefusesWhatIsNotThisSessions(t *testing.T) {
 		Evidence: []contextop.Evidence{{Path: "config/app.yaml"}},
 	})
 	require.NoError(t, err)
-	_, res := callRecord(t, session, "context_withdraw", map[string]any{
-		"operation": other.ID, "project": recipeOf(root),
+	_, res := callRecord(t, session, "context_note", map[string]any{
+		"withdraw": other.ID, "project": recipeOf(root),
 	})
 	require.True(t, res.IsError, "another session's suggestion is a person's to decide")
 	assert.Contains(t, resultText(res), "only its author withdraws")
 
-	mine, res := callRecord(t, session, "context_observe", map[string]any{
+	mine, res := callRecord(t, session, "context_note", map[string]any{
 		"term": "gadget", "instead_of": []string{"widget"}, "path": "config/app.yaml", "project": recipeOf(root),
 	})
 	require.False(t, res.IsError, resultText(res))
@@ -113,13 +115,19 @@ func TestContextWithdrawRefusesWhatIsNotThisSessions(t *testing.T) {
 		ID:      mine.Operation,
 	})
 	require.NoError(t, err)
-	_, res = callRecord(t, session, "context_withdraw", map[string]any{
-		"operation": mine.Operation, "project": recipeOf(root),
+	_, res = callRecord(t, session, "context_note", map[string]any{
+		"withdraw": mine.Operation, "project": recipeOf(root),
 	})
-	require.True(t, res.IsError, "an established rule is a person's to revert")
+	require.True(t, res.IsError, "an established rule is a person's to drop")
 	assert.Contains(t, resultText(res), "established")
 
-	_, res = callRecord(t, session, "context_withdraw", map[string]any{"operation": " ", "project": recipeOf(root)})
-	require.True(t, res.IsError)
-	assert.Contains(t, resultText(res), "`operation`")
+	_, res = callRecord(t, session, "context_note", map[string]any{"withdraw": " ", "project": recipeOf(root)})
+	require.True(t, res.IsError, "a blank withdraw is a note that says nothing")
+	assert.Contains(t, resultText(res), "`text`")
+
+	_, res = callRecord(t, session, "context_note", map[string]any{
+		"from": "utilise", "path": "config/app.yaml", "project": recipeOf(root),
+	})
+	require.True(t, res.IsError, "a change needs both wordings")
+	assert.Contains(t, resultText(res), "`to`")
 }

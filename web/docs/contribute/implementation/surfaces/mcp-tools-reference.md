@@ -97,7 +97,7 @@ for analyzer scope and timing boundaries.
 | Handlers | Where |
 | --- | --- |
 | `context_search`, `context_read`, the `context://` resources | `host/mcp_context.go` |
-| `context_observe`, `context_correct`, `context_withdraw`, `context_session_summary` | `host/mcp_grow.go` (each wraps one call in `host/contextops.go`) |
+| `context_note`, `context_session_summary` | `host/mcp_grow.go` (each wraps host calls in `host/contextops.go`) |
 | `up`, `up_plan` | `host/mcp_up.go` |
 | `check_text`, `check_file` | `host/mcp_check.go` |
 | `read_blocks`, `apply_edits`, `describe_format` | `host/mcp_edit.go`, over the change service `App.ChangeService` builds (`host/changes.go`) |
@@ -163,8 +163,8 @@ read it rather than a prose copy.
 | `list_formats`, `list_flows`, `list_tools` | `mcptools.ListFormatsOutput`, `ListFlowsOutput`, `ListToolsOutput` |
 | Review tools | `mcptools.ReviewQueueOutput` (each row with the `ref` review_block takes), `mcptools.ReviewBlockOutput` (the `ref` and `rev` of the edition under review and, under `block`, the `host.ReviewUnitInfo` with its review context) |
 | `check_text`, `check_file` | a `kapi.check/v2` Report; see [the JSON contract](/reference/cli-contract) |
-| `context_observe`, `context_correct`, `context_withdraw` | `host.contextRecordOutput`: the operation id, its kind and status (`suggested` or `contested`, with `contested_by` naming the other side), the session, what was recorded, the command that reviews it, and what happens to it next |
-| `context_session_summary` | `host.contextSessionOutput`: the counts `observed`, `corrected`, `suggested`, `contested`, `established`, `withdrawn`, `dropped` and `reverted`, with the sentence to end a report on and the `kapi context keep --session <id>` command a person keeps the session's suggestions with |
+| `context_note` | `host.contextRecordOutput`: the operation id, its kind (`observe`, `correct` or `withdraw`) and status (`suggested` or `contested`, with `contested_by` naming the other side), the session, what was recorded, the command that reviews it, and what happens to it next |
+| `context_session_summary` | `host.contextSessionOutput`: the counts `observed`, `corrected`, `suggested`, `contested`, `established`, `withdrawn`, `dropped` and `reset`, with the sentence to end a report on and the `kapi context review --session <id>` command a person reviews the session's suggestions with |
 | `stats` | the same document `kapi stats --json` emits |
 | A curated framework tool | `host.frameworkToolOutput`: target translations, rewritten source, properties, overlays, and annotations for the one processed block |
 

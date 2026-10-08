@@ -1160,7 +1160,7 @@ export class ContextSuggestion {
     constructor($$source = {}) {
         if (/** @type {any} */(false)) {
             /**
-             * Operation is the id, which is what `kapi context keep` takes.
+             * Operation is the id, which is what `kapi context review --keep` takes.
              * @member
              * @type {string | undefined}
              */
@@ -2054,8 +2054,7 @@ export class DigestConflict {
         if (!("by_evidence" in $$source)) {
             /**
              * ByEvidence reports a rule contested by evidence alone, with no rival
-             * rule: keeping it again is the choice, and so is reverting or dropping
-             * it.
+             * rule: keeping it again is the choice, and so is dropping it.
              * @member
              * @type {boolean}
              */
@@ -2330,19 +2329,20 @@ export class DigestItem {
         }
         if (!("droppable" in $$source)) {
             /**
-             * Droppable reports a suggestion a person can set aside.
+             * Droppable reports a suggestion or a rule a person can set aside. A rule
+             * in force is taken back out of the stores as it is dropped.
              * @member
              * @type {boolean}
              */
             this["droppable"] = false;
         }
-        if (!("revertible" in $$source)) {
+        if (!("widenable" in $$source)) {
             /**
-             * Revertible reports a rule in force a person can take back out.
+             * Widenable reports a rule in force a person can apply more widely.
              * @member
              * @type {boolean}
              */
-            this["revertible"] = false;
+            this["widenable"] = false;
         }
         if (/** @type {any} */(false)) {
             /**

@@ -323,8 +323,8 @@ A finding's `fails` field is determined by the rule and its status:
   a term rule, a voice profile's prohibited or required pattern. A rule marked
   `advisory: true`, or a terms-store concept marked advisory, reports instead. A
   retired term in the terms store reports.
-- A suggested rule, one recorded by `kapi context observe` or `correct` and not
-  yet confirmed, reports and never fails. Its finding carries `suggested: true`
+- A suggested rule, one recorded by `kapi context note` and not yet kept,
+  reports and never fails. Its finding carries `suggested: true`
   and reads `Suggested rule about "X", not yet established`.
 - Style measures report: the voice-similarity check (`--voice`), an AI voice
   judge, and comment limits, unless the profile sets

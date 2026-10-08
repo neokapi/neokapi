@@ -45,10 +45,10 @@ vi.mock("../components/ContextDigestPanel", () => ({
 import { ContextHub } from "../components/ContextHub";
 
 describe("ContextHub", () => {
-  it("opens on what kapi learned", () => {
+  it("opens on the project's rules", () => {
     render(<ContextHub tabID="t1" projectName="Northsea" />);
     expect(screen.getByText("digest for t1")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Learned" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("button", { name: "Rules" })).toHaveAttribute("aria-current", "page");
   });
 
   it("opens the explorer at a file the digest names", async () => {

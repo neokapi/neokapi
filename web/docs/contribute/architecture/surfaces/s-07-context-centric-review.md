@@ -231,7 +231,7 @@ The record lives in the project's context log, so a checkout that reads the
 project's context reads it, and it is not a decision, so loop output is never
 counted as a person's pending decision. A fresh clone holds the translations
 the repository carries and none of that record until it runs
-`kapi context pull`; `kapi up` and `kapi status` say so in one line while the
+`kapi context sync`; `kapi up` and `kapi status` say so in one line while the
 translations exist on disk and the history records nothing.
 
 Coverage grades the basis of both classes alike, by the revision of the
@@ -334,7 +334,8 @@ nothing waits on it, and there is no queue to clear.
 
 `host.App.ContextDigest` (`host/contextdigest.go`) assembles one project's
 digest from the operation log, and every surface reads it: the desktop's
-Learned section ([S-02](s-02-kapi-desktop.md)) and `kapi context digest`, with
+Rules section ([S-02](s-02-kapi-desktop.md)) and `kapi context review`, which
+walks it one item at a time in a terminal and lists it elsewhere, with
 `--json` for a program. Its sections come in the order a person reads them:
 conflicts (`contested` records, each with the rules on its other side), rules
 established and on what evidence, suggestions grouped by theme and then by
@@ -343,14 +344,18 @@ Every item carries the id the context verbs take, its rule as a sentence, the
 quotation it was seen in, its standing as plain counts and who noticed it.
 
 The actions are the context operations a person already has, and each is an
-operation in the log: keep, keep with a changed form (`--use`), drop, revert,
-and choosing a side of a conflict (`host.App.ChooseContextSide`, `kapi context
-keep --choose`), which drops each rival suggestion, reverts a rival established
-rule and keeps the chosen one, one operation per step.
+operation in the log, recorded through `host.App.DecideContextReview`: keep,
+keep with a changed form (`--use`), drop a suggestion or a rule in force, apply
+a rule more widely (`--widen-to`), and choose a side of a conflict
+(`host.App.ChooseContextSide`, `kapi context review --choose`), which drops
+each rival, takes a rival established rule back out of the stores, and keeps
+the chosen one, one operation per step. A single decision has no undo:
+changing your mind is a new decision. Going back to an earlier state is
+`kapi context reset` ([C-11](../context/c-11-context-operations.md#a-reset-goes-back-to-an-earlier-point)).
 
 "Since you last looked" belongs to the reader. It is a marker per project in the
 machine account's config (`host.ContextDigestMarkerPath`), never in the log,
-and only a person moves it: `kapi context digest` moves it after printing unless
+and only a person moves it: `kapi context review` moves it after printing unless
 `--peek` is given or the actor is an agent. The digest flags each item as new or
 not and keeps the ones already seen, so a surface shows them under "Earlier".
 

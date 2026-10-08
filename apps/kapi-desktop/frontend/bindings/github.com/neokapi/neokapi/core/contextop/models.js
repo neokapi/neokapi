@@ -40,7 +40,8 @@ export class Actor {
         if (/** @type {any} */(false)) {
             /**
              * Session groups the operations one agent run recorded, so a whole session
-             * can be reviewed or reverted together. Empty for a person and for a tool.
+             * can be reviewed together, or the context reset to before it. Empty for a
+             * person and for a tool.
              * @member
              * @type {string | undefined}
              */
@@ -333,15 +334,16 @@ export const Status = {
     StatusWithdrawn: "withdrawn",
 
     /**
-     * StatusDropped is a suggestion a person set aside. It stops answering.
+     * StatusDropped is a suggestion or a rule a person set aside. It stops
+     * answering.
      */
     StatusDropped: "dropped",
 
     /**
-     * StatusReverted is an operation somebody undid, alone or with the rest of
-     * its session. It stops answering.
+     * StatusReset is an operation a reset set aside. It stops answering, and a
+     * later reset before that one brings it back.
      */
-    StatusReverted: "reverted",
+    StatusReset: "reset",
 };
 
 /**

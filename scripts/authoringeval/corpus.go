@@ -50,7 +50,7 @@ type Plant struct {
 	//             offline.
 	//   declared  style.active_voice, style.person_pov, tone.formality and the
 	//             rest of the enum fields. Nothing offline evaluates these.
-	//             They reach `kapi voice guide` and the LLM check, and the
+	//             They reach `kapi voice show` and the LLM check, and the
 	//             deterministic scorer does not read them at all.
 	//
 	// That last row is why the corpus separates them. A profile that says

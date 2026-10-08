@@ -55,7 +55,7 @@ func readContextAt(t *testing.T, recipe string) {
 }
 
 // readContextFrom reads one directory of context files into a project's store,
-// which is `kapi context import <dir>`. A sample keeps its context under
+// which is `kapi store import <dir>`. A sample keeps its context under
 // `context/` at the project root, so that is the directory its fixtures name.
 func readContextFrom(t *testing.T, recipe, dir string) {
 	t.Helper()

@@ -45,7 +45,7 @@ type StatusOutput struct {
 	// HistoryNotPulled reports a checkout of a project that shares its
 	// context through a backend, whose translations exist on disk and whose
 	// block history records nothing: the source each was made from is in the
-	// project's context, which kapi context pull reads (HistoryNotPulledNote).
+	// project's context, which kapi context sync reads (HistoryNotPulledNote).
 	HistoryNotPulled bool `json:"history_not_pulled,omitempty"`
 	// Conflicts lists what the workspace home keeps of a translation that
 	// waits for a person: an edit two machines made from one version of a

@@ -15,13 +15,13 @@ import { api } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
 import { useInvalidateOnEvent } from "../hooks/useInvalidateOnEvent";
 import { ContextFeedList, type ContextRuleEdit } from "./ContextFeed";
-import { ContextRevertDialog } from "./ContextRevertDialog";
+import { ContextResetDialog } from "./ContextResetDialog";
 import { ContextWidenDialog } from "./ContextWidenDialog";
 import type {
   ContextFeed,
   ContextFeedEntry,
   ContextFeedGroup,
-  ContextRevertRequest,
+  ContextResetRequest,
 } from "../types/api";
 
 export interface ContextFeedPanelProps {
@@ -46,7 +46,7 @@ export function ContextFeedPanel({
 }: ContextFeedPanelProps) {
   const qc = useQueryClient();
   const [widening, setWidening] = useState<{ entry: ContextFeedEntry; to: string } | null>(null);
-  const [reverting, setReverting] = useState<ContextRevertRequest | null>(null);
+  const [resetting, setResetting] = useState<ContextResetRequest | null>(null);
 
   const key = qk.contextFeed(projectKey ?? "");
   const feedQuery = useQuery({
@@ -83,8 +83,8 @@ export function ContextFeedPanel({
       api.dropContextSuggestion({ project: entry.project_key, id: entry.id }),
     onSettled: refresh,
   });
-  const revert = useMutation({
-    mutationFn: (request: ContextRevertRequest) => api.revertContextOperations(request),
+  const reset = useMutation({
+    mutationFn: (request: ContextResetRequest) => api.resetContext(request),
     onSettled: refresh,
   });
   const widen = useMutation({
@@ -110,11 +110,8 @@ export function ContextFeedPanel({
         onDrop={async (entry) => {
           await discard.mutateAsync(entry);
         }}
-        onRevert={(entry: ContextFeedEntry) =>
-          setReverting({ project: entry.project_key, id: entry.id })
-        }
-        onRevertSession={(group: ContextFeedGroup) =>
-          setReverting({ project: group.project_key ?? "", session: group.session })
+        onResetSession={(group: ContextFeedGroup) =>
+          setResetting({ project: group.project_key ?? "", before: group.session ?? "" })
         }
         onWiden={(entry, to) => setWidening({ entry, to })}
       />
@@ -127,11 +124,11 @@ export function ContextFeedPanel({
           await widen.mutateAsync({ entry, to });
         }}
       />
-      <ContextRevertDialog
-        request={reverting}
-        onClose={() => setReverting(null)}
+      <ContextResetDialog
+        request={resetting}
+        onClose={() => setResetting(null)}
         onConfirm={async (request) => {
-          await revert.mutateAsync(request);
+          await reset.mutateAsync(request);
         }}
       />
     </div>

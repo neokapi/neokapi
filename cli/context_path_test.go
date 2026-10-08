@@ -100,6 +100,32 @@ func runContextE(t *testing.T, a *App, args ...string) (string, error) {
 	return out.String(), err
 }
 
+// runStore executes `kapi store` with the given arguments and returns what it
+// wrote to stdout.
+func runStore(t *testing.T, a *App, args ...string) string {
+	t.Helper()
+	out, err := runStoreE(t, a, args...)
+	require.NoError(t, err)
+	return out
+}
+
+// runStoreE is runStore for the cases where the refusal is the result.
+func runStoreE(t *testing.T, a *App, args ...string) (string, error) {
+	t.Helper()
+	root := &cobra.Command{Use: "kapi"}
+	AddCommandGroups(a, root)
+	output.AddPersistentFlags(root.PersistentFlags())
+	root.AddCommand(NewStoreCmd(a))
+	root.SetArgs(append([]string{"store"}, args...))
+	root.SilenceUsage, root.SilenceErrors = true, true
+
+	var out bytes.Buffer
+	root.SetOut(&out)
+	root.SetErr(&out)
+	err := root.Execute()
+	return out.String(), err
+}
+
 // TestContextPath_PrintsTheHostRender is the CLI leg of the parity contract:
 // the verb prints the answer's own FormatText, which is the body the
 // `context://` resource serves. Two renderings of one answer is how the

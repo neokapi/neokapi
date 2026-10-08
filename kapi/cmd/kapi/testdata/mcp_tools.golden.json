@@ -1483,12 +1483,12 @@
     }
   },
   {
-    "name": "context_correct",
+    "name": "context_note",
     "input_schema": {
       "additionalProperties": false,
       "properties": {
         "advisory": {
-          "description": "true when that rule should only report once a person keeps it; unset, a kept rule fails a check",
+          "description": "with suggest: the rule should only report once a person keeps it; unset, a kept rule fails a check",
           "type": "boolean"
         },
         "block": {
@@ -1496,49 +1496,7 @@
           "type": "string"
         },
         "from": {
-          "description": "the wording that was there",
-          "type": "string"
-        },
-        "note": {
-          "description": "what they said about the change",
-          "type": "string"
-        },
-        "path": {
-          "description": "the project-relative file they changed it in",
-          "type": "string"
-        },
-        "project": {
-          "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)",
-          "type": "string"
-        },
-        "quote": {
-          "description": "the sentence the change was made in",
-          "type": "string"
-        },
-        "suggest": {
-          "description": "also record the rule the change implies, so the next use of the old wording is reported",
-          "type": "boolean"
-        },
-        "to": {
-          "description": "the wording that replaced it",
-          "type": "string"
-        }
-      },
-      "required": [
-        "from",
-        "to",
-        "path"
-      ],
-      "type": "object"
-    }
-  },
-  {
-    "name": "context_observe",
-    "input_schema": {
-      "additionalProperties": false,
-      "properties": {
-        "block": {
-          "description": "the ref.block that read_blocks or kapi inspect reports",
+          "description": "for a change a person made: the wording that was there",
           "type": "string"
         },
         "instead_of": {
@@ -1552,7 +1510,7 @@
           ]
         },
         "path": {
-          "description": "the project-relative file you saw it in",
+          "description": "the project-relative file you saw it in, or the person changed it in",
           "type": "string"
         },
         "project": {
@@ -1563,12 +1521,28 @@
           "description": "the wording you saw, quoted from the file",
           "type": "string"
         },
+        "suggest": {
+          "description": "with from and to: also record the rule the change implies, so the next use of the old wording is reported",
+          "type": "boolean"
+        },
         "term": {
           "description": "the form this project uses for a name or word, e.g. Quickcast",
           "type": "string"
         },
         "text": {
           "description": "the fact, in one sentence, in your own words",
+          "type": "string"
+        },
+        "to": {
+          "description": "for a change a person made: the wording that replaced it",
+          "type": "string"
+        },
+        "why": {
+          "description": "what the person said about the change, or what was wrong with the note withdrawn",
+          "type": "string"
+        },
+        "withdraw": {
+          "description": "the id of a note this session recorded wrongly, to take it back",
           "type": "string"
         }
       },
@@ -1580,6 +1554,10 @@
     "input_schema": {
       "additionalProperties": false,
       "properties": {
+        "comments": {
+          "description": "answer for the comments in the file rather than its content",
+          "type": "boolean"
+        },
         "format": {
           "description": "markdown (default) or json",
           "type": "string"
@@ -1649,30 +1627,6 @@
           "type": "string"
         }
       },
-      "type": "object"
-    }
-  },
-  {
-    "name": "context_withdraw",
-    "input_schema": {
-      "additionalProperties": false,
-      "properties": {
-        "note": {
-          "description": "what was wrong with it",
-          "type": "string"
-        },
-        "operation": {
-          "description": "the operation id the recording call returned",
-          "type": "string"
-        },
-        "project": {
-          "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)",
-          "type": "string"
-        }
-      },
-      "required": [
-        "operation"
-      ],
       "type": "object"
     }
   },

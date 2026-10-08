@@ -124,7 +124,7 @@ func StrictDecodeProblems(err error) []coreprofile.ProfileProblem {
 // test), so an AI assistant or a human can fill it in and import it directly.
 const VoiceProfileTemplate = `# Voice profile. Fill in the fields, then:
 #   kapi voice import voice.yaml                     # save to the local store
-#   kapi voice guide --profile-file voice.yaml       # render the guide
+#   kapi voice show --profile-file voice.yaml        # render the guide
 #   echo "draft" | kapi voice check --profile-file voice.yaml --json
 # Only 'name' is required; every other field is optional. The English source
 # text always stays the key, so do not invent message IDs.
@@ -244,7 +244,7 @@ func (a *App) storeCarriedTerms(cmd Command, words []coreprofile.TermRule) (int,
 // ErrNoVoiceBound is ResolveVoiceProfileCmd's answer inside a project that
 // binds no voice at the point asked about, with no profile flag given. It is a
 // state of the project rather than a mistake in the call, so a command that
-// reports guidance (`kapi voice guide`) prints it as its answer.
+// reports guidance (`kapi voice show`) prints it as its answer.
 var ErrNoVoiceBound = errors.New("no voice profile is bound at this point, so no tone or style guidance applies; " +
 	"specify one with --profile, --profile-file, or --pack to use it anyway")
 
@@ -253,7 +253,7 @@ var ErrNoVoiceBound = errors.New("no voice profile is bound at this point, so no
 // paths, when given, are the files the caller is about to act on. The first
 // one decides which content collection's context governs the answer: a repo
 // holding two products binds a different voice per collection, so resolving
-// `kapi voice guide` against the project default would hand back the wrong
+// `kapi voice show` against the project default would hand back the wrong
 // register for half the tree.
 func (a *App) ResolveVoiceProfileCmd(cmd Command, paths ...string) (*coreprofile.VoiceProfile, string, error) {
 	file, _ := cmd.Flags().GetString("profile-file")
@@ -525,7 +525,7 @@ func (a *App) LoadCollectionVoice(ctx context.Context, proj *project.KapiProject
 // The profile comes from the project's voice store in the user's workspace,
 // selected by name: the profile the recipe binds, or for a profile that binds
 // none, the stored profile named after it. A `voice.yaml` in the checkout
-// selects nothing; `kapi context import` reads one into the store.
+// selects nothing; `kapi store import` reads one into the store.
 func (a *App) loadVoiceAtGovernance(ctx context.Context, root string, store coreprofile.Store, rc *project.ResolvedGovernance) (*coreprofile.VoiceProfile, string, bool, error) {
 	if rc == nil {
 		return nil, "", false, nil
@@ -558,7 +558,7 @@ func profileVoiceByName(ctx context.Context, store coreprofile.Store, rc *projec
 // Just `voice.yaml`, because the directory already says whose voice it is:
 // `.kapi/voice.yaml` is the project's, `.kapi/profiles/bowrain/voice.yaml` is
 // that profile's. A per-profile scope belongs in the path, not in the filename.
-// `kapi context import` is the one reader of either file.
+// `kapi store import` is the one reader of either file.
 const VoiceConventionalName = "voice.yaml"
 
 // loadBoundVoiceProfile turns a resolved voice binding into a VoiceProfile,

@@ -16,8 +16,9 @@ in the user's workspace: terms, voice profiles, approved wording and decisions.
 
 The recipe declares `context: {backend: git}`, so the project's context is
 shared on `refs/kapi/context` in this repository. A CI runner starts with an
-empty workspace; before `kapi up` the job runs `kapi context pull`, and after
-it `kapi context push` shares the decisions the run recorded. The job's
+empty workspace; before `kapi up` the job runs `kapi context sync --no-push`,
+which reads the ref and shares nothing, and after it `kapi context sync` shares
+the decisions the run recorded. The job's
 `contents: write` covers the ref.
 
 `make import-dogfood-context` pulls the ref into the isolated store used by
@@ -269,7 +270,7 @@ bowrain.cloud, nightly and on demand. It is deliberately unremarkable:
     plugins: bowrain@1.3.0-rc1
     auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
 - run: make l10n-extract
-- run: kapi context pull
+- run: kapi context sync --no-push
 - uses: neokapi/kapi-action@v1
   with:
     command: up
@@ -329,11 +330,11 @@ server venue. Everything else must isolate itself per the contract in CLAUDE.md.
 
 Three steps sit between `kapi up` and delivery, in this order.
 
-`kapi context push` is the loop's return leg for unit decisions. The pull
+`kapi context sync` is the loop's return leg for unit decisions. `kapi up`
 records the server's approved decisions in the project's decision ledger, and
-the push shares those operations on `refs/kapi/context`, where the next run and
-every checkout's pull read them. A push that cannot reach the remote exits 5
-and changes nothing, so the next run pushes what this one could not.
+the sync shares those operations on `refs/kapi/context`, where the next run and
+every checkout's sync read them. A sync that cannot reach the remote exits 5
+and changes nothing, so the next run shares what this one could not.
 
 The terminology return leg needs no step: the concept pull merges approved term
 decisions into the terms bundle itself, upsert-only and byte-stable, so a night
@@ -370,12 +371,12 @@ into main with no review and no CI.
 The gate does not require the run to have decided anything. A night that
 converged and approved nothing is the ordinary night for a repository whose
 source moves daily and whose reviewers approve in batches. What the run brought
-home to the context is reported by the `kapi context push` step, which names the
+home to the context is reported by the `kapi context sync` step, which names the
 operations it shared on `refs/kapi/context`.
 
 It does require a decision behind a **removal**. A rewrite carries content to
 read; a deletion carries none. The nightly passes the number of operations
-`kapi context push` shared as `--decisions`, and a catalog or a sidecar that
+`kapi context sync` shared as `--decisions`, and a catalog or a sidecar that
 disappeared in a run that shared none is an erasure. A run that brought
 decisions home may remove an owned artifact, which is how a narration sidecar
 that became identical to its source is dropped. The decisions account for the

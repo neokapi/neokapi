@@ -150,7 +150,7 @@ const (
 	// in the layout a context backend keeps (core/workspace), packed into one
 	// archive. Its members are the segments of the operation log under log/,
 	// the blobs they name under blobs/, and a checkpoint under checkpoints/.
-	// `kapi context export` writes one and `kapi context import` merges it
+	// `kapi store export` writes one and `kapi store import` merges it
 	// like a pull, history included.
 	//
 	// It carries no blocks, no skeletons and no source, because none of those

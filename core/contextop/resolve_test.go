@@ -41,7 +41,7 @@ func TestResolve_OnlyCandidatesAdvise(t *testing.T) {
 		{contextop.StatusSuggested, true},
 		{contextop.StatusEstablished, false},
 		{contextop.StatusDropped, false},
-		{contextop.StatusReverted, false},
+		{contextop.StatusReset, false},
 	}
 	for _, tt := range tests {
 		t.Run(string(tt.status), func(t *testing.T) {

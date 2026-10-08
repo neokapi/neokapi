@@ -11,10 +11,12 @@
 //
 // Operations go into the workspace's operation log (core/workspace) and are
 // never edited. A status is not a column that moves: keeping a suggestion
-// writes a `keep` operation naming it, dropping writes a `drop`, withdrawing
-// writes a `withdraw` and reverting writes a `revert`. [Ledger.Records] reads
-// the log and reports the status each subject-bearing operation ended up with,
-// so the history is the whole record and a surface can replay it.
+// writes a `keep` operation naming it, dropping writes a `drop` and
+// withdrawing writes a `withdraw`. A `reset` rewinds the whole context to how it
+// stood before one operation: everything after that point is set aside and
+// stays in the log. [Ledger.Records] reads the log and reports the status each
+// subject-bearing operation ended up with, so the history is the whole record
+// and a surface can replay it.
 //
 // # Suggestions advise, established rules bind
 //
@@ -87,7 +89,8 @@ type Actor struct {
 	// alone.
 	Name string `json:"name,omitempty"`
 	// Session groups the operations one agent run recorded, so a whole session
-	// can be reviewed or reverted together. Empty for a person and for a tool.
+	// can be reviewed together, or the context reset to before it. Empty for a
+	// person and for a tool.
 	Session string `json:"session,omitempty"`
 }
 
@@ -133,9 +136,12 @@ const (
 	// KindWithdraw is the author of a suggestion taking it back, in the session
 	// that recorded it. It stops answering.
 	KindWithdraw Kind = "withdraw"
-	// KindRevert undoes an earlier operation, or every operation one session
-	// recorded, and retracts whatever they put in force.
-	KindRevert Kind = "revert"
+	// KindReset rewinds a project's context to how it stood before one
+	// operation (Record.Before). Every context operation from that point up to
+	// the reset is set aside (workspace.SetAside): it stays in the log and
+	// nothing applies it. A later reset before this one sets it aside in turn,
+	// which is how a reset is taken back.
+	KindReset Kind = "reset"
 	// KindWiden moves an established rule to a broader point, or to the whole
 	// workspace.
 	KindWiden Kind = "widen"
@@ -152,7 +158,7 @@ const (
 )
 
 // Kinds is every operation kind, in the order a reader meets them.
-var Kinds = []Kind{KindObserve, KindCorrect, KindImport, KindEdit, KindKeep, KindDrop, KindWithdraw, KindRevert, KindWiden, KindSignal, KindEstablish}
+var Kinds = []Kind{KindObserve, KindCorrect, KindImport, KindEdit, KindKeep, KindDrop, KindWithdraw, KindReset, KindWiden, KindSignal, KindEstablish}
 
 // Valid reports whether k is one of the declared kinds.
 func (k Kind) Valid() bool { return slices.Contains(Kinds, k) }
@@ -183,15 +189,16 @@ const (
 	// StatusWithdrawn is a suggestion its author took back in the session that
 	// recorded it. It stops answering.
 	StatusWithdrawn Status = "withdrawn"
-	// StatusDropped is a suggestion a person set aside. It stops answering.
+	// StatusDropped is a suggestion or a rule a person set aside. It stops
+	// answering.
 	StatusDropped Status = "dropped"
-	// StatusReverted is an operation somebody undid, alone or with the rest of
-	// its session. It stops answering.
-	StatusReverted Status = "reverted"
+	// StatusReset is an operation a reset set aside. It stops answering, and a
+	// later reset before that one brings it back.
+	StatusReset Status = "reset"
 )
 
 // Statuses is every status a subject-bearing operation can hold.
-var Statuses = []Status{StatusSuggested, StatusEstablished, StatusContested, StatusWithdrawn, StatusDropped, StatusReverted}
+var Statuses = []Status{StatusSuggested, StatusEstablished, StatusContested, StatusWithdrawn, StatusDropped, StatusReset}
 
 // Valid reports whether s is one of the declared statuses.
 func (s Status) Valid() bool { return slices.Contains(Statuses, s) }
@@ -423,16 +430,15 @@ type Record struct {
 	// Target is the operation this one acts on, empty for a subject-bearing
 	// operation.
 	Target string `json:"target,omitempty"`
-	// TargetSession is the session a revert undoes, for a revert that names one
-	// rather than a single operation.
-	TargetSession string `json:"target_session,omitempty"`
+	// Before is the first operation a reset sets aside.
+	Before string `json:"before,omitempty"`
 	// Note is whatever the actor said about the operation.
 	Note string `json:"note,omitempty"`
 	// At is Go's clock at the moment the log accepted it, in UTC.
 	At time.Time `json:"at"`
 	// Status is what became of the operation, folded from the operations that
 	// name it. An operation that acts on another carries StatusEstablished
-	// unless something reverted it.
+	// unless a reset set it aside.
 	Status Status `json:"status"`
 	// ContestedBy names the operations on the other side of a disagreement,
 	// for a record at StatusContested.
@@ -465,33 +471,33 @@ func (r Record) Rule() (profile.TermRule, bool) { return r.Subject.Rule() }
 // id, the sequence, the project, the timestamp and the folded status are the
 // log's own and are not repeated here.
 type payload struct {
-	Actor         Actor       `json:"actor"`
-	Subject       Subject     `json:"subject,omitzero"`
-	Correction    *Correction `json:"correction,omitempty"`
-	Evidence      []Evidence  `json:"evidence,omitempty"`
-	Basis         Basis       `json:"basis,omitzero"`
-	Scope         Scope       `json:"scope,omitzero"`
-	Target        string      `json:"target,omitempty"`
-	TargetSession string      `json:"target_session,omitempty"`
-	Note          string      `json:"note,omitempty"`
-	Signal        *Signal     `json:"signal,omitempty"`
-	Because       []string    `json:"because,omitempty"`
+	Actor      Actor       `json:"actor"`
+	Subject    Subject     `json:"subject,omitzero"`
+	Correction *Correction `json:"correction,omitempty"`
+	Evidence   []Evidence  `json:"evidence,omitempty"`
+	Basis      Basis       `json:"basis,omitzero"`
+	Scope      Scope       `json:"scope,omitzero"`
+	Target     string      `json:"target,omitempty"`
+	Before     string      `json:"before,omitempty"`
+	Note       string      `json:"note,omitempty"`
+	Signal     *Signal     `json:"signal,omitempty"`
+	Because    []string    `json:"because,omitempty"`
 }
 
 // encode renders a record as the workspace operation that carries it.
 func encode(r Record) (workspace.Op, error) {
 	body, err := json.Marshal(payload{
-		Actor:         r.Actor,
-		Subject:       r.Subject,
-		Correction:    r.Correction,
-		Evidence:      r.Evidence,
-		Basis:         r.Basis,
-		Scope:         r.Scope,
-		Target:        r.Target,
-		TargetSession: r.TargetSession,
-		Note:          r.Note,
-		Signal:        r.Signal,
-		Because:       r.Because,
+		Actor:      r.Actor,
+		Subject:    r.Subject,
+		Correction: r.Correction,
+		Evidence:   r.Evidence,
+		Basis:      r.Basis,
+		Scope:      r.Scope,
+		Target:     r.Target,
+		Before:     r.Before,
+		Note:       r.Note,
+		Signal:     r.Signal,
+		Because:    r.Because,
 	})
 	if err != nil {
 		return workspace.Op{}, fmt.Errorf("contextop: encode %s operation: %w", r.Kind, err)
@@ -519,22 +525,22 @@ func decode(op workspace.Op) (Record, bool, error) {
 		}
 	}
 	return Record{
-		ID:            op.ID,
-		Short:         workspace.ShortOpID(op.ID),
-		Project:       op.Project,
-		Actor:         body.Actor,
-		Kind:          Kind(kind),
-		Subject:       body.Subject,
-		Correction:    body.Correction,
-		Evidence:      body.Evidence,
-		Basis:         body.Basis,
-		Scope:         body.Scope,
-		Target:        body.Target,
-		TargetSession: body.TargetSession,
-		Note:          body.Note,
-		Signal:        body.Signal,
-		Because:       body.Because,
-		At:            op.At.UTC(),
+		ID:         op.ID,
+		Short:      workspace.ShortOpID(op.ID),
+		Project:    op.Project,
+		Actor:      body.Actor,
+		Kind:       Kind(kind),
+		Subject:    body.Subject,
+		Correction: body.Correction,
+		Evidence:   body.Evidence,
+		Basis:      body.Basis,
+		Scope:      body.Scope,
+		Target:     body.Target,
+		Before:     body.Before,
+		Note:       body.Note,
+		Signal:     body.Signal,
+		Because:    body.Because,
+		At:         op.At.UTC(),
 	}, true, nil
 }
 

@@ -48,7 +48,7 @@ func TestResolveVoiceProfileCmd_UnclaimedPathKeepsTheDefault(t *testing.T) {
 	assert.Equal(t, "default voice", got.Name)
 }
 
-// Passing no path at all is the bare `kapi voice guide` case: the project
+// Passing no path at all is the bare `kapi voice show` case: the project
 // default, unchanged.
 func TestResolveVoiceProfileCmd_NoPathKeepsTheDefault(t *testing.T) {
 	root := writeTwoProductProject(t)

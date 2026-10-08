@@ -35,6 +35,6 @@ the ship check. The closing `kapi status` shows `fr` as shippable.
 
 ## Closing
 
-Share review decisions with the rest of the team with `kapi context push`.
+Share review decisions with the rest of the team with `kapi context sync`.
 For a server-connected project, `up` pushes changes, streams progress
 and pulls results; reviewers use the shared review queue.

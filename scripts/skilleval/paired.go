@@ -483,7 +483,7 @@ func readPairedContext(ctx context.Context, workspace, kapiBin string) error {
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 	//nolint:gosec // G702: kapiBin is this checkout's own build (findKapi) and the workspace a cell this run created.
-	cmd := exec.CommandContext(ctx, kapiBin, "context", "import",
+	cmd := exec.CommandContext(ctx, kapiBin, "store", "import",
 		"-p", filepath.Join(workspace, "kapi.yaml"))
 	cmd.Dir = workspace
 	cmd.Env = append([]string{

@@ -120,7 +120,7 @@ const DefaultVoiceField = "defaults.voice"
 // profile that binds neither a voice nor a terms store is therefore still a
 // profile.
 //
-// `kapi context import` reads the files under `.kapi/profiles/<name>/` into the
+// `kapi store import` reads the files under `.kapi/profiles/<name>/` into the
 // store under that name. Nothing reads them at run time.
 type Profile struct {
 	// Channels are the surfaces this product's content ships on. A

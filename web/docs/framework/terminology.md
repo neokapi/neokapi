@@ -54,7 +54,7 @@ attached to a single language-neutral concept.
 Every "write this, not that" rule is a term. A use of a forbidden or competitor
 term in source content fails a check, and a use of a deprecated (retired) term
 reports. A concept marked `advisory` makes every such use report without
-failing. `kapi context keep --advisory` and `kapi terms import --advisory` set
+failing. `kapi context review --keep <id> --advisory` and `kapi terms import --advisory` set
 the marking, as do an `x-advisory` descrip in TBX, an `advisory` column in CSV,
 and `"advisory": true` on a `kind: term` change-set entry.
 
@@ -159,7 +159,7 @@ user config directory on Linux, and resolves to
 resolved location.
 
 With no flag inside a project, the terms store is instead a set of tables in the
-project's own store, which `kapi context import` fills from a terms bundle; see
+project's own store, which `kapi store import` fills from a terms bundle; see
 [Memory & terms storage](/kapi/recipes/memory-and-terms-storage).
 
 ```bash

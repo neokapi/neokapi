@@ -165,7 +165,7 @@ func (f Filter) matches(r Record) bool {
 	if f.Project != "" && r.Project != f.Project {
 		return false
 	}
-	if f.Session != "" && r.Actor.Session != f.Session && r.TargetSession != f.Session {
+	if f.Session != "" && r.Actor.Session != f.Session {
 		return false
 	}
 	if f.Status != "" && r.Status != f.Status {
@@ -222,13 +222,22 @@ func (l *Ledger) fold(ctx context.Context) ([]Record, error) {
 	if err != nil {
 		return nil, err
 	}
+	// What a reset set aside stays in the log and takes no part in the fold:
+	// it is reported at StatusReset, beside the operations still in force.
+	aside := workspace.SetAside(ops)
 	records := make([]Record, 0, len(ops))
+	var setAside []Record
 	for _, op := range ops {
 		r, ok, derr := decode(op)
 		if derr != nil {
 			return nil, derr
 		}
 		if !ok {
+			continue
+		}
+		if aside[op.ID] {
+			r.Status = StatusReset
+			setAside = append(setAside, r)
 			continue
 		}
 		r.Status = statusAtBirth(r.Kind)
@@ -262,15 +271,6 @@ func (l *Ledger) fold(ctx context.Context) ([]Record, error) {
 
 	for _, act := range records {
 		if act.Kind.Bears() {
-			continue
-		}
-		if act.Kind == KindRevert && act.TargetSession != "" {
-			for i := range records {
-				if records[i].Kind.Bears() && records[i].Actor.Session == act.TargetSession {
-					records[i].Status = StatusReverted
-					records[i].Established = false
-				}
-			}
 			continue
 		}
 		target, ok := bearer(byID, act)
@@ -309,15 +309,17 @@ func (l *Ledger) fold(ctx context.Context) ([]Record, error) {
 			}
 		case KindSignal:
 			facts.signals[i] = append(facts.signals[i], at[act.ID])
-		case KindRevert:
-			records[i].Status = StatusReverted
-			records[i].Established = false
 		case KindWiden:
 			records[i].Scope = act.Scope
 		}
 	}
 	settle(records, facts)
 	contest(records, establishedAt)
+	if len(setAside) == 0 {
+		return records, nil
+	}
+	records = append(records, setAside...)
+	sort.SliceStable(records, func(i, j int) bool { return records[i].ID < records[j].ID })
 	return records, nil
 }
 
@@ -429,7 +431,7 @@ func find(records []Record, typed string) (Record, error) {
 }
 
 // bearer walks from an acting operation to the subject-bearing operation it
-// ultimately acts on: reverting a keep reaches the suggestion the keep
+// ultimately acts on: dropping a keep reaches the suggestion the keep
 // established. The walk is bounded by the number of records, so a chain that
 // loops (which only a hand-built log could hold) ends rather than spinning.
 func bearer(byID map[string]Record, r Record) (Record, bool) {

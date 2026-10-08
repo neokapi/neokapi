@@ -15,20 +15,18 @@ import type { ContextFeed } from "../types/api";
 function renderFeed(feed: ContextFeed = CONTEXT_FEED) {
   const onKeep = vi.fn();
   const onDrop = vi.fn();
-  const onRevert = vi.fn();
-  const onRevertSession = vi.fn();
+  const onResetSession = vi.fn();
   const onWiden = vi.fn();
   const view = render(
     <ContextFeedList
       feed={feed}
       onKeep={onKeep}
       onDrop={onDrop}
-      onRevert={onRevert}
-      onRevertSession={onRevertSession}
+      onResetSession={onResetSession}
       onWiden={onWiden}
     />,
   );
-  return { view, onKeep, onDrop, onRevert, onRevertSession, onWiden };
+  return { view, onKeep, onDrop, onResetSession, onWiden };
 }
 
 describe("the feed of recorded context operations", () => {
@@ -136,17 +134,18 @@ describe("the feed of recorded context operations", () => {
     expect(onKeep).not.toHaveBeenCalled();
   });
 
-  it("offers undo and widening on a rule in force, and neither on a candidate", () => {
-    const { onRevert, onWiden } = renderFeed();
+  it("offers dropping and widening on a rule in force, and neither on a candidate", () => {
+    const { onDrop, onWiden } = renderFeed();
     const confirmed = document.querySelector(`[data-entry='${IN_FORCE.id}']`) as HTMLElement;
     expect(confirmed.querySelector("[data-slot='keep-suggestion']")).toBeNull();
-    fireEvent.click(confirmed.querySelector("[data-slot='revert-entry']") as HTMLElement);
-    expect(onRevert).toHaveBeenCalledTimes(1);
+    fireEvent.click(confirmed.querySelector("[data-slot='drop-rule']") as HTMLElement);
+    expect(onDrop).toHaveBeenCalledWith(expect.objectContaining({ id: IN_FORCE.id }));
     expect(confirmed.querySelector("[data-slot='widen-picker']")).not.toBeNull();
     expect(onWiden).not.toHaveBeenCalled();
 
     const candidate = document.querySelector(`[data-entry='${CANDIDATE.id}']`) as HTMLElement;
-    expect(candidate.querySelector("[data-slot='revert-entry']")).toBeNull();
+    expect(candidate.querySelector("[data-slot='drop-rule']")).toBeNull();
+    expect(candidate.querySelector("[data-slot='widen-picker']")).toBeNull();
   });
 
   it("offers no decision for a project with no copy on this machine", () => {
@@ -181,16 +180,16 @@ describe("the feed of recorded context operations", () => {
     );
   });
 
-  it("offers undoing a whole session only where something is in force", () => {
-    const { onRevertSession } = renderFeed();
+  it("offers a reset to before an agent session, and none for a person's day", () => {
+    const { onResetSession } = renderFeed();
     const session = document.querySelector("[data-session='session:sess-1']") as HTMLElement;
-    fireEvent.click(session.querySelector("[data-slot='revert-session']") as HTMLElement);
-    expect(onRevertSession).toHaveBeenCalledTimes(1);
+    fireEvent.click(session.querySelector("[data-slot='reset-session']") as HTMLElement);
+    expect(onResetSession).toHaveBeenCalledTimes(1);
 
     const day = document.querySelector(
       "[data-session='actor:person/asgeir:2026-09-21']",
     ) as HTMLElement;
-    expect(day.querySelector("[data-slot='revert-session']")).toBeNull();
+    expect(day.querySelector("[data-slot='reset-session']")).toBeNull();
   });
 
   it("says nothing has been recorded rather than showing an empty list", () => {
@@ -224,8 +223,7 @@ describe("the feed of recorded context operations", () => {
         }}
         onKeep={vi.fn()}
         onDrop={vi.fn()}
-        onRevert={vi.fn()}
-        onRevertSession={vi.fn()}
+        onResetSession={vi.fn()}
         onWiden={vi.fn()}
       />,
     );

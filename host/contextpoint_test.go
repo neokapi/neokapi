@@ -318,7 +318,7 @@ func TestResolveContextAt_FreshnessLeadsTheNotes(t *testing.T) {
 }
 
 // TestResolveContextAt_RendersTheVoice: the structured answer carries the full
-// guide `kapi voice guide` prints, and the text leads with the brief: the
+// guide `kapi voice show` prints, and the text leads with the brief: the
 // description and the style fields the profile sets.
 func TestResolveContextAt_RendersTheVoice(t *testing.T) {
 	voice := pointVoice()

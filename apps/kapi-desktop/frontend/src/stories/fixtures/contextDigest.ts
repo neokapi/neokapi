@@ -24,7 +24,7 @@ export function digestItem(over: Partial<DigestItem> & { id: string }): DigestIt
     scope: "project",
     keepable: true,
     droppable: true,
-    revertible: false,
+    widenable: false,
     ...over,
   };
 }
@@ -61,8 +61,8 @@ const STUDIO = digestItem({
   established_at: ago(20),
   how: ["merged in #412", "your correction in docs/billing.md"],
   keepable: false,
-  droppable: false,
-  revertible: true,
+  droppable: true,
+  widenable: true,
 });
 const WORKSPACE = digestItem({
   id: "0njy6aaaaa00000000000000",
@@ -72,8 +72,8 @@ const WORKSPACE = digestItem({
   established_at: ago(120),
   how: ["kept by you"],
   keepable: false,
-  droppable: false,
-  revertible: true,
+  droppable: true,
+  widenable: true,
 });
 
 const QUICKCAST = digestItem({
@@ -121,8 +121,8 @@ const RECORDING = digestItem({
   established_at: ago(400),
   how: ["kept by you"],
   keepable: false,
-  droppable: false,
-  revertible: true,
+  droppable: true,
+  widenable: true,
   usage: {
     preferred: "recording",
     preferred_count: 11,

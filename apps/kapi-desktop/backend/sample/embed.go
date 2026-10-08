@@ -62,7 +62,7 @@ func Scaffold(name, targetDir string) error {
 	// Copy the context files: the voice profile, the vocabulary, the content
 	// memory and the decision record. They land on disk as authored files, the
 	// same ones a colleague would send, and seedStore below reads them into the
-	// project's store the way `kapi context import` does for a person.
+	// project's store the way `kapi store import` does for a person.
 	if err := copyEmbeddedDir("kapimart/"+ContextDirName, filepath.Join(targetDir, ContextDirName)); err != nil {
 		return fmt.Errorf("copy context files: %w", err)
 	}

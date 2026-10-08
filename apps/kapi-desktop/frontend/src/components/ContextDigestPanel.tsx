@@ -13,8 +13,7 @@ import { api } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
 import { useInvalidateOnEvent } from "../hooks/useInvalidateOnEvent";
 import { ContextDigestView } from "./ContextDigest";
-import { ContextRevertDialog } from "./ContextRevertDialog";
-import type { ContextRevertRequest, DigestItem } from "../types/api";
+import type { DigestItem } from "../types/api";
 
 /** The instant a person who never looked reads from. */
 const NEVER = "1970-01-01T00:00:00Z";
@@ -35,7 +34,6 @@ export function ContextDigestPanel({
   const qc = useQueryClient();
   // The instant this view reads from: null until the first read answers.
   const [held, setHeld] = useState<string | null>(null);
-  const [reverting, setReverting] = useState<ContextRevertRequest | null>(null);
 
   const key = qk.projectContextDigest(tabID, held ?? "");
   const query = useQuery({
@@ -83,10 +81,6 @@ export function ContextDigestPanel({
     mutationFn: (item: DigestItem) => api.dropContextSuggestion({ project, id: item.id }),
     onSettled: refresh,
   });
-  const revert = useMutation({
-    mutationFn: (request: ContextRevertRequest) => api.revertContextOperations(request),
-    onSettled: refresh,
-  });
 
   const since = held && held !== NEVER ? held : undefined;
   return (
@@ -109,15 +103,7 @@ export function ContextDigestPanel({
         onDrop={async (item) => {
           await drop.mutateAsync(item);
         }}
-        onRevert={(item) => setReverting({ project, id: item.id })}
         onOpenFile={onOpenFile}
-      />
-      <ContextRevertDialog
-        request={reverting}
-        onClose={() => setReverting(null)}
-        onConfirm={async (request) => {
-          await revert.mutateAsync(request);
-        }}
       />
     </div>
   );

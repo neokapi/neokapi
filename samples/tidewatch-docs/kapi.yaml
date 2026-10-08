@@ -15,7 +15,7 @@ defaults:
   target_languages: [nb, nl]
   materialize: on-converge
   flow: converge
-  # Bound by the name `kapi context import ./context` stores the voice under.
+  # Bound by the name `kapi store import ./context` stores the voice under.
   # The terms need no binding: the import reads them into the project's own.
   voice:
     profile: northsea

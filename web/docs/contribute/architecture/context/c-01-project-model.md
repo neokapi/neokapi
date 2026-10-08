@@ -117,7 +117,7 @@ Ownership, zone by zone:
   one context store.
 
 - **Context files** are an input to the store, never a source a gate reads.
-  `kapi context import <dir>` reads a directory of them, a terms bundle, a voice
+  `kapi store import <dir>` reads a directory of them, a terms bundle, a voice
   profile, content-memory bundles and decision-record shards, into operations
   ([C-11](c-11-context-operations.md)). The context itself moves between machines
   through a context backend or a transfer file ([C-03](c-03-context-store-and-graph.md)).

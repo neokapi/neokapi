@@ -127,7 +127,7 @@ func TestUpPlan_NeverCreatesTheProjectStore(t *testing.T) {
 }
 
 // TestUpPlan_LeverageComesFromTheStore: a clone's content-memory bundles price
-// nothing until `kapi context import` reads them, and price the run once it
+// nothing until `kapi store import` reads them, and price the run once it
 // has. The plan answers from the project store alone, so two
 // checkouts of one project quote the same work whatever their branches carry
 // (#1866).

@@ -1,9 +1,9 @@
 # Customer #1 dogfood — neokapi's own content, converged on bowrain.cloud.
 #
 # This is the workflow the product tells everyone else to write, run against the
-# repository that builds the product: install the CLI with setup-kapi, pull the
+# repository that builds the product: install the CLI with setup-kapi, sync the
 # project's context from its git ref, run the convergence verb with kapi-action,
-# push the decisions the run recorded back to the ref, and open a pull request
+# sync the decisions the run recorded back to the ref, and open a pull request
 # with the content that came back.
 # Nothing in it is bespoke: a step here that a customer could not copy is a step
 # the product is missing.
@@ -141,11 +141,12 @@ jobs:
       # The context this repository governs its content by lives in the
       # workspace store, and a runner's store starts empty. The recipe keeps it
       # on refs/kapi/context in this repository (`context: {backend: git}`), so
-      # the run pulls it from there: the terms, the voice profiles, the wording
-      # already approved and the record of who approved it. Every gate and
-      # every retrieval below answers from the store.
-      - name: Pull the project's context
-        run: kapi context pull
+      # the run reads it from there: the terms, the voice profiles, the wording
+      # already approved and the record of who approved it. --no-push shares
+      # nothing back, so this step only reads. Every gate and every retrieval
+      # below answers from the store.
+      - name: Read the project's context
+        run: kapi context sync --no-push
 
       # `kapi up` is the whole loop: the recipe declares the languages, the flow
       # and the ship gates, and the run pushes, converges on the server against
@@ -159,23 +160,25 @@ jobs:
           plan: ${{ inputs.plan || 'false' }}
 
       # The loop's return leg. `kapi up` pulls the server's ledger into the
-      # project's decision ledger, and `kapi context push` writes the operations
+      # project's decision ledger, and `kapi context sync` writes the operations
       # the run recorded to refs/kapi/context, where the next run and every
-      # checkout's `kapi context pull` read them. The job's `contents: write`
-      # covers the ref. A push that cannot reach the remote exits 5 and changes
-      # nothing, so the next run pushes what this one could not.
+      # checkout's `kapi context sync` read them. The job's `contents: write`
+      # covers the ref. A sync that cannot reach the remote exits 5 and changes
+      # nothing, so the next run shares what this one could not.
       - name: Push the decisions the run brought home
         id: record
         if: ${{ !inputs.plan }}
         run: |
           set -euo pipefail
-          log="$RUNNER_TEMP/kapi-push.log"
-          kapi context push | tee "$log"
+          log="$RUNNER_TEMP/kapi-sync.log"
+          kapi context sync | tee "$log"
+          # A sync prints a "Pulled" line before its "Pushed" line; only the
+          # latter counts what this run shared.
           pushed="$(sed -n 's/^Pushed \([0-9][0-9]*\) operation.*/\1/p' "$log")"
           # The count is also what the gate below takes as the decisions that
           # account for a removed artifact.
           echo "pushed=${pushed:-0}" >> "$GITHUB_OUTPUT"
-          echo "note=\`kapi context push\` shared ${pushed:-0} context operation(s) on refs/kapi/context." >> "$GITHUB_OUTPUT"
+          echo "note=\`kapi context sync\` shared ${pushed:-0} context operation(s) on refs/kapi/context." >> "$GITHUB_OUTPUT"
 
       # The pipeline's third stage, the other thing kapi cannot do for itself. A
       # catalog is not what a product loads: the SPAs and the landing page load

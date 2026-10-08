@@ -57,8 +57,8 @@ func TestProjectStatusNamesTheContextFilesNobodyHasRead(t *testing.T) {
 	require.NotNil(t, status.ContextFiles)
 	assert.Equal(t, ".kapi/terms.json", status.ContextFiles.Files[0])
 	assert.Contains(t, status.ContextFiles.Files, ".kapi/voice.yaml")
-	assert.Equal(t, "kapi context import", status.ContextFiles.Command)
-	assert.Contains(t, status.ContextFiles.Message, "kapi context import")
+	assert.Equal(t, "kapi store import", status.ContextFiles.Command)
+	assert.Contains(t, status.ContextFiles.Message, "kapi store import")
 }
 
 func TestProjectStatusSaysNothingOnceTheContextIsRead(t *testing.T) {
@@ -110,7 +110,7 @@ func TestWorkspaceHomeNamesTheContextFilesNobodyHasRead(t *testing.T) {
 	row := workspaceRowOf(t, home, "northsea-home")
 	require.NotNil(t, row.ContextFiles)
 	assert.Contains(t, row.ContextFiles.Files, ".kapi/voice.yaml")
-	assert.Equal(t, "kapi context import", row.ContextFiles.Command)
+	assert.Equal(t, "kapi store import", row.ContextFiles.Command)
 }
 
 func TestWorkspaceHomeSaysNothingOnceTheContextIsRead(t *testing.T) {
@@ -128,7 +128,7 @@ func TestWorkspaceHomeSaysNothingOnceTheContextIsRead(t *testing.T) {
 }
 
 // readContextInto reads a checkout's context files into the workspace this app
-// keeps its projects in, which is what a person running `kapi context import`
+// keeps its projects in, which is what a person running `kapi store import`
 // does for the store the app then answers from.
 func readContextInto(t *testing.T, app *App, recipe string) {
 	t.Helper()

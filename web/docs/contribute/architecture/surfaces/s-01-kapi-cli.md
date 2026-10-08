@@ -87,6 +87,13 @@ lands in is the decision about who it is for.
 | **Assets** | the standing resources a project draws on: content memory, terms, voice profiles, models, credentials |
 | **Advanced** | the plumbing the porcelain composes, and the machinery around it: one named flow, one registry tool, the bilingual hand-off, the package verbs, block-level inspection and measurement, the registry listings, plugin management, configuration, and the MCP server |
 
+A command family divides the same way when its verbs serve different
+readers. `kapi context` (Work) lists a person's verbs (`review`, `reset`,
+`search`, `sync`) under *Commands* and the two an assistant uses (`note`,
+`log`) under *For assistants*, and the maintenance of the store those verbs
+read is a separate command, `kapi store` (Advanced: `import`, `export`,
+`rebuild`, `locales`) ([C-11](../context/c-11-context-operations.md#surfaces)).
+
 Version, update, telemetry and shell-completion stay ungrouped, registry tools render
 no root group at all, and `kapi hook` is hidden. The [command reference](/reference/commands/up) is
 generated from the binary, so it is the current list rather than this prose.
@@ -217,7 +224,7 @@ unreadable, only unpolished.
 | 2 | `ExitUsage` | usage error, and the toolbox's grep-style "trouble" status |
 | 3 | `ExitGate` | a quality or voice gate was not met, or `kapi apply` refused a change set (nothing was written) |
 | 4 | `ExitNotRun` | a check reached no verdict: it checked no content, or an analyzer missed its canary |
-| 5 | `ExitUnreachable` | a context pull or push, or a change set's backend, could not be reached; nothing changed on either side |
+| 5 | `ExitUnreachable` | the context backend `kapi context sync` shares through, or a change set's backend, could not be reached; nothing changed on either side |
 | 130 | `ExitSignal` | interrupted (128 + SIGINT) |
 
 A draft that scores below its threshold is not a crash, and a script that
@@ -283,8 +290,8 @@ collections from existing files and records the matches in recipe comments
   `--tools writing,translation` when the recipe declares target languages, in
   each host's own configuration file (`.mcp.json`, `.cursor/mcp.json`,
   `.vscode/mcp.json`, `.codex/config.toml`);
-- a short `SKILL.md` describing context retrieval, observations, corrections
-  and checks, with CLI and MCP equivalents and session-reporting guidance.
+- a short `SKILL.md` describing context retrieval, notes about what the
+  project does and what a person changed, and checks, with CLI and MCP equivalents and session-reporting guidance.
 
 Rerunning initialization preserves existing collections and reports uncovered
 content. It updates generated MCP entries to match the recipe while preserving

@@ -11,29 +11,26 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// The decision half of the context surface (AD C-11).
+// The recording half of the context surface (AD C-11).
 //
-// A project's context grows out of ordinary work. Something is noticed and
-// recorded as a suggestion, a person decides about it, and both statements are
-// recorded so either can be looked at again or taken back. These verbs are that
-// loop from the command line: observe, correct, log, keep, drop, withdraw,
-// revert, widen.
-//
-// observe and correct are what an agent reaches for mid-task, and they exist
-// here as well as over MCP because the skill drives the command line. A habit an
-// assistant can only keep on one of the two surfaces is a habit half the
+// A project's context grows out of ordinary work. Something is noticed, or a
+// person changes wording, and it is recorded as a suggestion; a person decides
+// about it in review. note and log are what an assistant reaches for mid-task,
+// and they exist here as well as over MCP (context_note,
+// context_session_summary) because the skill drives the command line. A habit
+// an assistant can only keep on one of the two surfaces is a habit half the
 // assistants do not have.
 //
 // A suggestion advises from the moment it is recorded. A check reports it and
-// no check fails on it. A person's signal establishes it: keeping it, a
-// correction toward it, or the change reaching the default branch (settle).
-// Establishing writes the rule into the project's terms store, where every
-// check reads it.
+// no check fails on it. A person's signal establishes it: keeping it in review,
+// a change toward it, or the change reaching the default branch (`kapi context
+// sync --merged`). Establishing writes the rule into the project's terms
+// store, where every check reads it.
 
-func newContextObserveCmd(a *App) *cobra.Command {
+func newContextNoteCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "observe [what you noticed]",
-		Short: "Record something you noticed about how this project writes",
+		Use:   "note [what you noticed]",
+		Short: "Record what you noticed, or what a person changed",
 		Long: `Record one thing this project's files do every time: a product,
 feature or plan name as they write it, the spelling variety they keep to, a
 word they use where writers often use another, who the text addresses. Record
@@ -47,18 +44,26 @@ spelling, or the other word. kapi derives the other forms to avoid: the
 spaced, hyphenated and closed spellings of a compound, each part capitalised,
 and the lower-case spelling of a capitalised term. "--term Quickcast
 --instead-of 'Quick cast'" avoids Quick cast, Quick-cast, QuickCast and
-quickcast. The parts of a closed word come from an --instead-of form that
-breaks it, so a word with none varies only its case.
+quickcast. Without --term a note is a fact in prose.
 
-Everything recorded is a suggestion. Checks report it wherever the word
-appears, no check fails on it, and it is established when a person keeps it
-with "kapi context keep". Without --term an observation is a fact in prose.
+When a person changes wording, record it with --from (what was there), --to
+(what replaced it) and --seen-in. A change is evidence about how this project
+writes. A person's change toward a rule somebody already suggested is that
+person's backing for it, so the rule is established, and fails a check, unless
+something recorded argues against it. With --suggest it also records the rule
+the change implies, so the next use of the old wording is reported. A person's
+change that reverses a rule in force contests the rule, so their own edit
+never fails their build.
 
-Say where you saw it with --seen-in and --quote.`,
-		Example: "  kapi context observe \"the docs address the reader as you\"\n" +
-			"  kapi context observe --term Quickcast --instead-of \"Quick cast\" \\\n" +
+Every note is a suggestion. Checks report it, no check fails on it, and a
+person decides about it with "kapi context review". Say where you saw it with
+--seen-in and --quote. Take back a note of your own that was wrong with
+--withdraw <id>, in the session that recorded it.`,
+		Example: "  kapi context note \"the docs address the reader as you\"\n" +
+			"  kapi context note --term Quickcast --instead-of \"Quick cast\" \\\n" +
 			"    --seen-in README.md --quote \"Quickcast forecasts the next hour.\"\n" +
-			"  kapi context observe \"we write use, never utilise\" --term use --instead-of utilise --instead-of utilize",
+			"  kapi context note --from \"sign in\" --to \"log in\" --seen-in web/src/auth.tsx --suggest\n" +
+			"  kapi context note --withdraw 0n794e2gk7 --why \"recorded the wrong way round\"",
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			projectPath, err := RequireProjectPath(cmd)
@@ -71,11 +76,54 @@ Say where you saw it with --seen-in and --quote.`,
 			}
 			term, _ := cmd.Flags().GetString("term")
 			insteadOf, _ := cmd.Flags().GetStringArray("instead-of")
-			if text == "" && term == "" {
-				return errors.New("say what you noticed, or name the form the project uses with --term")
-			}
+			from, _ := cmd.Flags().GetString("from")
+			to, _ := cmd.Flags().GetString("to")
+			withdraw, _ := cmd.Flags().GetString("withdraw")
+			why, _ := cmd.Flags().GetString("why")
 			seenIn, _ := cmd.Flags().GetStringSlice("seen-in")
 			quote, _ := cmd.Flags().GetString("quote")
+			suggest, _ := cmd.Flags().GetBool("suggest")
+			advisory, _ := cmd.Flags().GetBool("advisory")
+
+			switch {
+			case withdraw != "":
+				if text != "" || term != "" || from != "" || to != "" {
+					return errors.New("--withdraw takes back an earlier note: record nothing else with it")
+				}
+				res, err := a.WithdrawContextOperation(cmd.Context(), host.ContextWithdrawRequest{
+					Project: projectPath, ID: withdraw, Note: why,
+				})
+				if err != nil {
+					return err
+				}
+				return output.Print(cmd, res)
+			case from != "" || to != "":
+				if from == "" || to == "" {
+					return errors.New("a change needs both wordings: --from (what was there) and --to (what replaced it)")
+				}
+				if text != "" || term != "" {
+					return errors.New("record a change with --from and --to alone; note what you noticed separately")
+				}
+				res, err := a.RecordContextCorrection(cmd.Context(), host.ContextCorrectRequest{
+					Project:  projectPath,
+					From:     from,
+					To:       to,
+					Evidence: evidenceFrom(seenIn, quote),
+					Suggest:  suggest,
+					Advisory: advisory,
+					Note:     why,
+				})
+				if err != nil {
+					return err
+				}
+				return output.Print(cmd, res)
+			}
+			if text == "" && term == "" {
+				return errors.New("say what you noticed, name the form the project uses with --term, or give --from and --to for a change")
+			}
+			if suggest || advisory {
+				return errors.New("--suggest and --advisory go with a change (--from and --to); a note about a term is a suggestion already")
+			}
 			res, err := a.RecordContextObservation(cmd.Context(), host.ContextObserveRequest{
 				Project:   projectPath,
 				Text:      text,
@@ -91,65 +139,14 @@ Say where you saw it with --seen-in and --quote.`,
 	}
 	cmd.Flags().String("term", "", "the form the project uses for a name or word")
 	cmd.Flags().StringArray("instead-of", nil, "a form the project avoids for --term (repeatable)")
-	cmd.Flags().StringSlice("seen-in", nil, "a file you saw it in (repeatable)")
+	cmd.Flags().String("from", "", "for a change a person made: the wording that was there")
+	cmd.Flags().String("to", "", "for a change a person made: the wording that replaced it")
+	cmd.Flags().Bool("suggest", false, "with --from and --to: also record the rule the change implies")
+	cmd.Flags().Bool("advisory", false, "with --suggest: make that rule report without failing a check once kept")
+	cmd.Flags().StringSlice("seen-in", nil, "a file you saw it in, or the change was made in (repeatable)")
 	cmd.Flags().String("quote", "", "the wording you saw")
-	AddProjectFlag(cmd)
-	return cmd
-}
-
-func newContextCorrectCmd(a *App) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "correct <from> <to>",
-		Short: "Record that wording was changed at a place",
-		Long: `Record that somebody changed wording: what was there, what replaced
-it, and where.
-
-A correction is evidence about how this project writes, and the cheapest there
-is, because the judgement has already been made. On its own it records the
-change. A person's correction toward a rule somebody already suggested is that
-person's backing for it, so the rule is established, and fails a check, unless
-something recorded argues against it.
-
-With --suggest it also records the rule the change implies, so the next use of
-the old wording is reported. That rule is a suggestion: checks report it and
-none of them fails on it until a person keeps it.
-
-A person's correction that reverses an established rule contests the rule: it
-reports instead of failing until a person keeps it again or drops the
-correction, so your own edit never fails your build.`,
-		Example: "  kapi context correct \"sign in\" \"log in\" --seen-in web/src/auth.tsx\n" +
-			"  kapi context correct utilise use --seen-in docs/guide.md --suggest --advisory",
-		Args: cobra.ExactArgs(2),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			projectPath, err := RequireProjectPath(cmd)
-			if err != nil {
-				return err
-			}
-			seenIn, _ := cmd.Flags().GetStringSlice("seen-in")
-			quote, _ := cmd.Flags().GetString("quote")
-			suggest, _ := cmd.Flags().GetBool("suggest")
-			advisory, _ := cmd.Flags().GetBool("advisory")
-			note, _ := cmd.Flags().GetString("note")
-			res, err := a.RecordContextCorrection(cmd.Context(), host.ContextCorrectRequest{
-				Project:  projectPath,
-				From:     args[0],
-				To:       args[1],
-				Evidence: evidenceFrom(seenIn, quote),
-				Suggest:  suggest,
-				Advisory: advisory,
-				Note:     note,
-			})
-			if err != nil {
-				return err
-			}
-			return output.Print(cmd, res)
-		},
-	}
-	cmd.Flags().StringSlice("seen-in", nil, "a file the change was made in (repeatable)")
-	cmd.Flags().String("quote", "", "the sentence the change was made in")
-	cmd.Flags().Bool("suggest", false, "also record the rule the change implies, as a suggestion")
-	cmd.Flags().Bool("advisory", false, "make that rule report without failing a check once kept")
-	cmd.Flags().String("note", "", "why")
+	cmd.Flags().String("withdraw", "", "take back a note of your own by its id")
+	cmd.Flags().String("why", "", "what the person said about the change, or what was wrong with the note withdrawn")
 	AddProjectFlag(cmd)
 	return cmd
 }
@@ -157,24 +154,20 @@ correction, so your own edit never fails your build.`,
 func newContextLogCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "log",
-		Short: "Show how this project's context came to be",
-		Long: `List what has been observed, corrected, imported and decided about
-this project's context, newest first.
+		Short: "List what was recorded, or what this session recorded",
+		Long: `List what has been noted, imported and decided about this project's
+context, newest first.
 
-Each line carries an operation's id, when it happened, who did it, what it was
-about and where it stands: suggested and waiting for a person, established and
-in force, contested by another rule it names, or withdrawn, dropped or
-reverted.
+Each line carries an id, when it happened, who did it, what it was about and
+where it stands: suggested and waiting for a person, established and in force,
+contested by another rule it names, or withdrawn, dropped or reset.
 
-The id is what the other verbs take: the short form a line shows, or any start
-of it that names one operation. Narrow the list with --status to see what is
-waiting for a decision, or with --session to see what one agent run did.
-"--session this" is that run reading back its own work.`,
-		Example: "  kapi context log\n" +
+"--session this" is an assistant reading back what its own run recorded, which
+is how it ends a task report. Narrow the list with --status to see what is
+waiting for a decision, or with --session to see what one run did.`,
+		Example: "  kapi context log --session this\n" +
 			"  kapi context log --status suggested\n" +
-			"  kapi context log --status contested\n" +
 			"  kapi context log --session 0ab4e399 --json\n" +
-			"  kapi context log --session this\n" +
 			"  kapi context log --actor agent --since 2026-09-01",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -215,7 +208,7 @@ waiting for a decision, or with --session to see what one agent run did.
 		},
 	}
 	cmd.Flags().String("session", "", "only what one agent session recorded, or \"this\" for the session this run records under")
-	cmd.Flags().String("status", "", "only operations at one status: suggested, established, contested, withdrawn, dropped or reverted")
+	cmd.Flags().String("status", "", "only operations at one status: suggested, established, contested, withdrawn, dropped or reset")
 	cmd.Flags().String("actor", "", "only one actor, by name or by kind")
 	cmd.Flags().String("since", "", "only what happened after a date (2006-01-02) or instant")
 	cmd.Flags().Bool("subjects", false, "only what was recorded, leaving out the decisions about it")
@@ -224,285 +217,50 @@ waiting for a decision, or with --session to see what one agent run did.
 	return cmd
 }
 
-func newContextDigestCmd(a *App) *cobra.Command {
+func newContextResetCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "digest",
-		Short: "Show what kapi learned about how this project writes since you last looked",
-		Long: `Show what kapi learned about how this project writes, in the order a person
-reads it: conflicts that need you, rules that became established and on what
-evidence, suggestions grouped by theme, content drifting away from an
-established rule, and the project in numbers.
+		Use:   "reset --before <session | date | id>",
+		Short: "Go back to how the context stood at an earlier point",
+		Long: `Go back to how this project's context stood at an earlier point: before an
+assistant's session started, before a date or a moment, or before one entry in
+"kapi context log".
 
-Nothing here is a queue. A suggestion nobody answers keeps advising, and an
-item you have already seen stays in the digest under "Earlier". Each line
-carries the id the other verbs take: keep a suggestion with
-"kapi context keep <id>", change it as you keep it with --use, drop it with
-"kapi context drop <id>", and take an established rule back out with
-"kapi context revert <id>".
+Everything recorded from that point on is set aside: it stops answering, and
+the project's terms, approved wording and voice are rebuilt as they stood.
+Nothing is erased. What was set aside stays in the log, and the reset is
+recorded too, so a later reset to before it brings everything back.
 
-Reading the digest moves your "since you last looked" marker, which is kept in
-this machine's kapi config and never in the project. --peek leaves it where it
-is. An agent reading the digest never moves it.`,
-		Example: "  kapi context digest\n" +
-			"  kapi context digest --peek\n" +
-			"  kapi context digest --since 2026-09-01\n" +
-			"  kapi context digest --json",
+To change your mind about one rule, decide again in "kapi context review"
+instead. --dry-run says what a reset would set aside without doing it.`,
+		Example: "  kapi context reset --before s0ab4e399\n" +
+			"  kapi context reset --before 2026-10-01 --dry-run\n" +
+			"  kapi context reset --before 0n794e2gk7 --note \"back to before the import\"",
 		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			projectPath, err := RequireProjectPath(cmd)
 			if err != nil {
 				return err
 			}
-			peek, _ := cmd.Flags().GetBool("peek")
-			since, _ := cmd.Flags().GetString("since")
-			req := host.ContextDigestRequest{Project: projectPath}
-			if since != "" {
-				at, perr := parseSince(since)
-				if perr != nil {
-					return perr
+			before, _ := cmd.Flags().GetString("before")
+			note, _ := cmd.Flags().GetString("note")
+			req := host.ContextResetRequest{Project: projectPath, Before: before, Note: note}
+			if dry, _ := cmd.Flags().GetBool("dry-run"); dry {
+				res, err := a.ContextResetScope(cmd.Context(), req)
+				if err != nil {
+					return err
 				}
-				req.Since = at
+				return output.Print(cmd, res)
 			}
-			digest, err := a.ContextDigest(cmd.Context(), req)
-			if err != nil {
-				return err
-			}
-			if err := output.Print(cmd, digest); err != nil {
-				return err
-			}
-			if peek || since != "" {
-				return nil
-			}
-			return a.NoteContextDigestRead(digest)
-		},
-	}
-	cmd.Flags().Bool("peek", false, "leave the \"since you last looked\" marker where it is")
-	cmd.Flags().String("since", "", "show what is new after a date (2006-01-02) or instant, in place of the marker")
-	AddProjectFlag(cmd)
-	return cmd
-}
-
-func newContextKeepCmd(a *App) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "keep [id...]",
-		Short: "Establish suggestions as rules",
-		Long: `Keep suggestions, which establishes each rule and writes it where the rest
-of kapi reads it: the project's terms or its content memory. An established rule
-fails a check unless it is marked advisory.
-
-Name one or more operations by id, or keep everything one agent session
-suggested with --session. A contested suggestion disagrees with another rule,
-and waits until you choose: a session keep leaves it and says so, and naming it
-is refused with the other side named. Choose it with --choose, which drops the
-rival suggestions (or reverts a rival established rule) and keeps this one.
-
-Change the rule as you keep it with --use and --advisory, and widen it past the
-point its evidence was seen at with --widen-to.`,
-		Example: "  kapi context keep 0n794e2gk7\n" +
-			"  kapi context keep 0n794e2gk7 0n79gkq853\n" +
-			"  kapi context keep --session s0ab4e399\n" +
-			"  kapi context keep 0n794e2gk7 --use \"content memory\"\n" +
-			"  kapi context keep 0n794e2gk7 --advisory=false\n" +
-			"  kapi context keep 0n794e2gk7 --widen-to workspace\n" +
-			"  kapi context keep 0n794e2gk7 --choose",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			projectPath, err := RequireProjectPath(cmd)
-			if err != nil {
-				return err
-			}
-			session, _ := cmd.Flags().GetString("session")
-			use, _ := cmd.Flags().GetString("use")
-			widenTo, _ := cmd.Flags().GetString("widen-to")
-			note, _ := cmd.Flags().GetString("note")
-			if choose, _ := cmd.Flags().GetBool("choose"); choose {
-				if len(args) != 1 || session != "" || widenTo != "" {
-					return errors.New("--choose settles a conflict for one rule: name one id, with no --session or --widen-to")
-				}
-				chosen, cerr := a.ChooseContextSide(cmd.Context(), host.ContextChooseRequest{
-					Project: projectPath, ID: args[0], Replacement: use, Note: note,
-				})
-				if cerr != nil {
-					return cerr
-				}
-				return output.Print(cmd, chosen)
-			}
-			res, err := a.KeepContextOperations(cmd.Context(), host.ContextKeepRequest{
-				Project:     projectPath,
-				IDs:         args,
-				Session:     session,
-				Replacement: use,
-				Advisory:    confirmAdvisory(cmd),
-				WidenTo:     widenTo,
-				Note:        note,
-			})
+			res, err := a.ResetContext(cmd.Context(), req)
 			if err != nil {
 				return err
 			}
 			return output.Print(cmd, res)
 		},
 	}
-	cmd.Flags().String("session", "", "keep everything one agent session suggested that nothing disagrees with")
-	cmd.Flags().String("use", "", "change what the rule says to write instead (one id)")
-	cmd.Flags().Bool("choose", false, "settle a conflict for this rule: set the rules it disagrees with aside, then keep it (one id)")
-	cmd.Flags().Bool("advisory", false, "make the rule report without failing a check (--advisory=false makes it fail)")
-	cmd.Flags().String("widen-to", "", "widen as you keep: \"workspace\", or the name of an axis the rule should stop being specific about")
-	cmd.Flags().String("note", "", "why")
-	AddProjectFlag(cmd)
-	return cmd
-}
-
-func newContextDropCmd(a *App) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "drop <id>",
-		Short: "Set a suggestion aside",
-		Long: `Drop a suggestion. It stops being reported at once, and the record
-of it stays in the log so the same suggestion can be recognised next time.
-
-Dropping one side of a disagreement settles it: the other side is no longer
-contested. An established rule is reverted rather than dropped.`,
-		Example: "  kapi context drop 0n794e2gk7\n" +
-			"  kapi context drop 0n794e2gk7 --note \"we say it both ways on purpose\"",
-		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			projectPath, err := RequireProjectPath(cmd)
-			if err != nil {
-				return err
-			}
-			note, _ := cmd.Flags().GetString("note")
-			res, err := a.DropContextOperation(cmd.Context(), host.ContextDropRequest{
-				Project: projectPath,
-				ID:      args[0],
-				Note:    note,
-			})
-			if err != nil {
-				return err
-			}
-			return output.Print(cmd, res)
-		},
-	}
-	cmd.Flags().String("note", "", "why")
-	AddProjectFlag(cmd)
-	return cmd
-}
-
-func newContextWithdrawCmd(a *App) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "withdraw <id>",
-		Short: "Take back a suggestion you recorded",
-		Long: `Withdraw a suggestion you recorded, such as a correction entered
-backwards. Only its author can withdraw a suggestion, and an agent only in the
-session that recorded it. It stops being reported at once, and the log keeps
-the record of it.`,
-		Example: "  kapi context withdraw 0n794e2gk7\n" +
-			"  kapi context withdraw 0n794e2gk7 --note \"recorded the wrong way round\"",
-		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			projectPath, err := RequireProjectPath(cmd)
-			if err != nil {
-				return err
-			}
-			note, _ := cmd.Flags().GetString("note")
-			res, err := a.WithdrawContextOperation(cmd.Context(), host.ContextWithdrawRequest{
-				Project: projectPath,
-				ID:      args[0],
-				Note:    note,
-			})
-			if err != nil {
-				return err
-			}
-			return output.Print(cmd, res)
-		},
-	}
-	cmd.Flags().String("note", "", "what was wrong with it")
-	AddProjectFlag(cmd)
-	return cmd
-}
-
-func newContextRevertCmd(a *App) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "revert [id]",
-		Short: "Undo one operation, or everything one session did",
-		Long: `Undo an operation. Whatever it put in force stops answering, and a
-rule it got written into the project's terms, voice profile or content memory is
-taken back out.
-
-With --session it undoes everything one agent run recorded, which puts the
-project's answers back where they were before that run started.
-
-Nothing is erased. The undone operations stay in the log, marked reverted.`,
-		Example: "  kapi context revert 0n794e2gk7\n" +
-			"  kapi context revert --session 0ab4e399",
-		Args: cobra.MaximumNArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			projectPath, err := RequireProjectPath(cmd)
-			if err != nil {
-				return err
-			}
-			session, _ := cmd.Flags().GetString("session")
-			note, _ := cmd.Flags().GetString("note")
-			id := ""
-			if len(args) == 1 {
-				id = args[0]
-			}
-			res, err := a.RevertContextOperations(cmd.Context(), host.ContextRevertRequest{
-				Project: projectPath,
-				ID:      id,
-				Session: session,
-				Note:    note,
-			})
-			if err != nil {
-				return err
-			}
-			return output.Print(cmd, res)
-		},
-	}
-	cmd.Flags().String("session", "", "undo everything one agent session recorded")
-	cmd.Flags().String("note", "", "why")
-	AddProjectFlag(cmd)
-	return cmd
-}
-
-func newContextWidenCmd(a *App) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "widen <id>",
-		Short: "Put an established rule in force somewhere broader",
-		Long: `Widen an established rule past the point its evidence was seen at.
-
-A rule learned in one place holds in that place. Widening says it holds more
-widely: "--to project" puts a rule settled under one profile in force under
-every profile of the project, "--to workspace" puts it in force in every
-project you work on here, and naming an axis drops that axis from the rule's
-point so it stops being specific about it.
-
-A project that has its own decision about the word keeps it. The more specific
-answer always wins.`,
-		Example: "  kapi context widen 0n794e2gk7 --to project\n" +
-			"  kapi context widen 0n794e2gk7 --to workspace\n" +
-			"  kapi context widen 0n794e2gk7 --to mode",
-		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			projectPath, err := RequireProjectPath(cmd)
-			if err != nil {
-				return err
-			}
-			to, _ := cmd.Flags().GetString("to")
-			if to == "" {
-				return fmt.Errorf("widen needs --to: %q, %q, or the name of an axis to widen past", host.WidenToProject, host.WidenToWorkspace)
-			}
-			note, _ := cmd.Flags().GetString("note")
-			res, err := a.WidenContextOperation(cmd.Context(), host.ContextWidenRequest{
-				Project: projectPath,
-				ID:      args[0],
-				To:      to,
-				Note:    note,
-			})
-			if err != nil {
-				return err
-			}
-			return output.Print(cmd, res)
-		},
-	}
-	cmd.Flags().String("to", "", "\"project\", \"workspace\", or the name of an axis the rule should stop being specific about")
+	cmd.Flags().String("before", "", "the point to go back to: an agent session, a date (2006-01-02) or instant, or an id from kapi context log")
+	_ = cmd.MarkFlagRequired("before")
+	cmd.Flags().Bool("dry-run", false, "say what the reset would set aside without recording it")
 	cmd.Flags().String("note", "", "why")
 	AddProjectFlag(cmd)
 	return cmd
@@ -542,64 +300,12 @@ func parseSince(value string) (time.Time, error) {
 	return at, nil
 }
 
-// confirmAdvisory is the --advisory edit a confirmation asks for: nil when the
-// flag was not given, so the rule keeps what it says.
+// confirmAdvisory is the --advisory edit a decision asks for: nil when the flag
+// was not given, so the rule keeps what it says.
 func confirmAdvisory(cmd *cobra.Command) *bool {
 	if !cmd.Flags().Changed("advisory") {
 		return nil
 	}
 	v, _ := cmd.Flags().GetBool("advisory")
 	return &v
-}
-
-func newContextSettleCmd(a *App) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "settle",
-		Short: "Establish the suggestions a person's signal backs",
-		Long: `Establish every suggestion that a person's signal backs and nothing
-open contradicts.
-
-A person's signal is keeping the suggestion, a correction toward it, or the
-change reaching the default branch. Another session recording the same rule and
-the project's content writing the preferred form add to a suggestion's standing
-without establishing it. A correction away from it, its withdrawal, or content
-moving to a rejected form leave it contested for a person to decide.
-
-With --merged, settle first reads the change a range of commits made and
-records it as evidence for every suggestion whose preferred wording the change
-added or whose rejected wording it removed. Run it in CI after a merge or a push
-to the default branch. The same range records the same evidence, so running it
-twice changes nothing.`,
-		Example: "  kapi context settle\n" +
-			"  kapi context settle --merged HEAD~1..HEAD\n" +
-			"  kapi context settle --merged \"$BEFORE..$AFTER\" --pr 412 --merger asgeir",
-		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			projectPath, err := RequireProjectPath(cmd)
-			if err != nil {
-				return err
-			}
-			merged, _ := cmd.Flags().GetString("merged")
-			pr, _ := cmd.Flags().GetInt("pr")
-			merger, _ := cmd.Flags().GetString("merger")
-			if (pr != 0 || merger != "") && merged == "" {
-				return errors.New("--pr and --merger describe a merge: name it with --merged")
-			}
-			res, err := a.SettleContext(cmd.Context(), host.ContextSettleRequest{
-				Project: projectPath,
-				Merged:  merged,
-				PR:      pr,
-				Merger:  merger,
-			})
-			if err != nil {
-				return err
-			}
-			return output.Print(cmd, res)
-		},
-	}
-	cmd.Flags().String("merged", "", "a range of commits that reached the default branch, recorded as evidence")
-	cmd.Flags().Int("pr", 0, "the pull request that merged the range (read from the commit subject when unset)")
-	cmd.Flags().String("merger", "", "who merged it (the last commit's committer when unset)")
-	AddProjectFlag(cmd)
-	return cmd
 }

@@ -33,7 +33,7 @@ func TestNorthsea_ContextArrivesThroughAnImport(t *testing.T) {
 		"the answer names the command that brings the voice in")
 
 	// The import: one command, and the sample is governed.
-	out := runContext(t, a, "import", filepath.Join(root, "context"), "-p", recipe)
+	out := runStore(t, a, "import", filepath.Join(root, "context"), "-p", recipe)
 	assert.Contains(t, out, "concept")
 	assert.Contains(t, out, "voice profile")
 
@@ -49,4 +49,4 @@ func TestNorthsea_ContextArrivesThroughAnImport(t *testing.T) {
 }
 
 // ContextImportCommandText is what every notice tells a reader to run.
-const ContextImportCommandText = "kapi context import"
+const ContextImportCommandText = "kapi store import"

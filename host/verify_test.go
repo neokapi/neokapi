@@ -367,7 +367,7 @@ func TestVerify_PreferredTermsFromTermsSource(t *testing.T) {
 // because the first kapi command run in the checkout opened it.
 //
 // The gate enforces what the store holds, so the mistranslated "Save" passes
-// until someone runs `kapi context import`. A gate that answered from the file
+// until someone runs `kapi store import`. A gate that answered from the file
 // would hold every checkout to whatever its own branch carries.
 func TestVerify_PreferredTermsFromAnUnreadTermsSource(t *testing.T) {
 	root := writeUnreadTermsSourceProject(t)

@@ -788,9 +788,9 @@ export interface ContextFeedEntry {
   short: string;
   project_key: string;
   project_name?: string;
-  /** observe, correct, import, edit, keep, drop, withdraw, revert, widen, signal, establish. */
+  /** observe, correct, import, edit, keep, drop, withdraw, reset, widen, signal, establish. */
   kind: string;
-  /** suggested, established, contested, withdrawn, dropped, reverted. */
+  /** suggested, established, contested, withdrawn, dropped, reset. */
   status: string;
   /** The operations on the other side of a disagreement, for a contested entry. */
   contested_by?: string[];
@@ -800,7 +800,8 @@ export interface ContextFeedEntry {
   evidence: ContextEvidence[];
   scope: ContextScope;
   target?: string;
-  target_session?: string;
+  /** The first operation a reset set aside, for a reset. */
+  before?: string;
   note?: string;
   /** When the log accepted it, RFC3339 in UTC. */
   at: string;
@@ -808,8 +809,8 @@ export interface ContextFeedEntry {
   standing?: string;
   /** A suggestion carrying a rule a person can keep or drop. */
   decidable: boolean;
-  /** A rule in force a person can take back out. */
-  revertible: boolean;
+  /** A suggestion or a rule in force a person can drop. Dropping a rule in force takes it back out of the project's stores. */
+  droppable: boolean;
   /** The widenings open to it: "workspace", and each axis of its point. */
   widen_to: string[];
   /** The checkout a decision goes through, absent when none is here. */
@@ -903,8 +904,10 @@ export interface DigestItem {
   new: boolean;
   scope: string;
   keepable: boolean;
+  /** A suggestion, or a rule in force, a person can drop. */
   droppable: boolean;
-  revertible: boolean;
+  /** A rule in force a person can apply more widely. */
+  widenable: boolean;
   established_at?: string;
   how?: string[];
 }
@@ -937,7 +940,7 @@ export interface DigestDrift {
   before: number;
 }
 
-/** What kapi learned about how one project writes since the person last looked. */
+/** The rules and suggestions kapi holds for one project, with what is new since the person last looked. */
 export interface ContextDigest {
   project: string;
   project_name?: string;
@@ -970,22 +973,29 @@ export interface ContextDecisionRequest {
   note?: string;
 }
 
-/** Undo one operation, or everything one session recorded. */
-export interface ContextRevertRequest {
+/** Rewind a project's context to how it stood before a point in its history. */
+export interface ContextResetRequest {
   project: string;
-  id?: string;
-  session?: string;
+  /** A session id, a date (2006-01-02), an instant, or an operation id such as an earlier reset's. */
+  before: string;
   note?: string;
 }
 
-/** What a revert undid, or would undo. */
-export interface ContextRevertSummary {
-  session?: string;
-  operations: number;
-  /** The rules taken back out of the project's stores. */
-  rules: string[];
-  /** One line per operation, so a confirmation can name what goes. */
+/** What a reset set aside, or would set aside. */
+export interface ContextResetSummary {
+  before: string;
+  /** How many suggestions and rules stop answering. */
+  set_aside: number;
+  /** How many other decisions (keeps, drops, widenings) are set aside with them. */
+  decisions: number;
+  /** How many suggestions and rules an earlier reset set aside answer again. */
+  restored: number;
+  /** One line per suggestion or rule set aside, so a confirmation can name what goes. */
   subjects: string[];
+  /** The rules in force taken back out of the project's stores. */
+  rules: string[];
+  /** The short id of the reset recorded, absent for a preview. */
+  reset?: string;
 }
 
 /** One project a widened rule would answer in. */

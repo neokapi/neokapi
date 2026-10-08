@@ -16,13 +16,13 @@ kapi. Set it up once and every surface works the same project: the desktop app,
 your assistant, and the CLI.
 
 A new project has no terms, approved wording or voice rules. Build its context
-as you work: review the observations your agent records and keep the rules you
-want `kapi check` to enforce.
+as you work: your agent suggests rules from what it notices, and you keep the
+ones you want `kapi check` to enforce.
 
 That context lives in your workspace on this machine, one store per project,
 and every checkout, worktree and clone of the project reads the same one. The
-recipe defines the content collections and their governance bindings. The
-workspace stores the context those bindings refer to.
+recipe says which files are content and which voice and terms apply to them;
+the workspace holds the voice, the terms and the rules themselves.
 
 A new project is source-only, so the loop below is about your own writing.
 [Add languages](/kapi/get-started/add-languages) when you want them.
@@ -41,17 +41,17 @@ and use the demo engine.
 
 1. **Create the project.** On the home screen, click **New Project**, name it,
    and pick a source language. Or click **KapiMart** under *sample projects* to
-   explore a realistic, pre-seeded project first: content collections, a bound
+   explore a realistic, pre-seeded project first: content collections, a
    voice profile and terms, five target languages, and a stocked content memory.
 2. **Add content.** In the **Project** view, add a pattern that matches your
    source files (for example `docs/**/*.md`). Kapi lists the matched files and
    the detected format, grouped into a collection.
 3. **Review project status.** The project home shows two axes: **Content**
    (what has been read in, what changed on disk, what is
-   missing) and **Governance** (the voice profile in force, the terms bound,
-   when it last converged). Below, the **point map** gives one row per point the
-   recipe declares. Bind a voice profile and set the default point under
-   **Project Settings**; the **Context** hub then shows what applies at any file.
+   missing) and **Governance** (the voice profile in force, the terms that apply,
+   when it last converged). Below, **Where content sits** gives one row for
+   each part of the project the recipe declares. Choose a voice profile under
+   **Project Settings**; the **Context** hub then shows what applies to any file.
 4. **Bring it up to date.** **Bring up to date** runs the project's default flow
    until every gated scope is shippable or parked for a person, the desktop form
    of `kapi up`. For a source-only project that means the checks. Anything a
@@ -60,7 +60,7 @@ and use the demo engine.
 
 <PendingMedia kind="video" scene="harness/demos/kapi-desktop-projects/demo.yaml">
   Creating a project from the New Project dialog, opening the KapiMart sample,
-  adding a content collection, and reading the two-axis standing and the point map.
+  adding a content collection, and reading the two-axis standing and where content sits.
 </PendingMedia>
 
 </TabItem>
@@ -108,7 +108,7 @@ they are and prints any content no collection reads yet, with the lines to add.
 
 The last two lines are the wiring: an MCP entry that starts `kapi mcp` for this
 project, and a short kapi skill that tells an agent what to do and leaves the
-rest to `kapi help <topic>`. Once the project binds a voice, `kapi init` adds a
+rest to `kapi help <topic>`. Once the project has a voice, `kapi init` adds a
 short section to `CLAUDE.md` pointing an assistant at it, and
 `kapi voice pointer` writes that section on its own. Choose the agents with
 `--agents`, or opt out with `--agents none`. See
@@ -146,10 +146,10 @@ filters, and any redaction vault. The derived data can be rebuilt, but deleting
 the vault loses its withheld originals. See [The project store](/kapi/project-store).
 
 Terms, voice profiles, content memory and approval records are stored in your
-workspace under the project's `id:`. Rules established in one checkout therefore
-apply across its branches and worktrees. See
-[Context portability](/kapi/context-portability) for moving that context to
-another machine or handing it to somebody else.
+workspace under the project's `id:`. A rule you keep in one checkout therefore
+applies across its branches and worktrees. See
+[Sharing context](/kapi/context-portability) for sharing that context with the
+rest of the team with `kapi context sync`.
 
 Every kapi command run anywhere in the tree finds the project by walking up,
 like git. See the [project file reference](/reference/project-file) for the full
@@ -174,42 +174,39 @@ recorded as a **suggestion** with the file it came from. It ends its report with
 what the session recorded.
 
 Checks report suggestions without changing scores or failing gates. A person
-must keep a suggestion before it becomes an established rule.
+must keep a suggestion before it becomes a rule.
 
-## 3. Read what it recorded
+## 3. Review what it suggested
 
 ```bash
-kapi context log
+kapi context review
 ```
 
 On a project where nothing has happened yet:
 
 ```
-No context operations are recorded here yet.
+Nothing is waiting for you. Assistants' notes appear here as suggestions.
 ```
 
-After a session:
+After a session, review asks about each suggestion in turn, with the file and
+sentence it was seen in:
 
 ```
-#0n791c0w3d  2026-09-21T19:22:21Z  agent claude-code/s4980103f5148  observe  term "use", not "utilise"  [suggested]
-  seen in docs/guide.md: "We utilise the widget to configure your account."
-  Every other page in docs/ says "use".
-#0n791b3t34  2026-09-21T19:22:20Z  agent claude-code/s4980103f5148  observe  "The product is written \"Acme Widget\" in headings and \"the widget\" in running text."  [suggested]
-  seen in docs/guide.md: "We utilise the widget to configure your account."
+[1/2] 0n791c0w3d  Write use, not utilise.
+  seen "We utilise the widget to configure your account." in docs/guide.md
+  noticed by claude-code
+k keep, w keep and apply more widely, d drop, s skip, q quit:
 ```
 
-Every line carries who recorded it, what it is about, where it stands, and the
-file and sentence it was seen in. `--status suggested` narrows the list to what
-is waiting for you, and `--session <id>` to one agent run.
+Answer `k` to keep a suggestion, `d` to drop it, or `s` to leave it for later.
+A suggestion you skip keeps advising. `--session <id>` narrows the review to
+one agent run, the id the agent gave at the end of its report.
 
-In Kapi Desktop the same log is the **Recorded** feed: on the home screen across
-every project, and in a project's **Context** hub for that project alone. It
-groups entries by session and shows the supporting evidence on each card.
-
-## 4. Keep what is right
+Outside a terminal, review lists what is waiting with the id each decision
+takes, and you decide by id:
 
 ```bash
-kapi context keep 0n791c0w3d
+kapi context review --keep 0n791c0w3d
 ```
 
 ```
@@ -217,15 +214,20 @@ kapi context keep 0n791c0w3d
   written to the project's terms store
 ```
 
-Keeping establishes the rule and puts it in the project's terms store, where
-every checkout reads it and `kapi context log` holds the decision beside the
-evidence it rested on. Change it as you keep it with `--use` and `--advisory`,
-or set it aside with `kapi context drop 3`. Either way the record stays in the log, so the
-same suggestion is recognisable the next time somebody makes it.
+In Kapi Desktop the same list is **Rules**, in a project's **Context** hub,
+with **Keep** and **Drop** on each suggestion and the evidence beside it.
 
-Only a person can establish rules or undo an entire session. See
-[Growing context](/kapi/context-decisions) for the available operations and
-permissions.
+## 4. What keeping does
+
+A suggestion you keep becomes a rule. It is written to the project's terms,
+where every checkout reads it, beside the evidence it rested on. Change it as
+you keep it with `--use` and `--advisory`, or drop it with `--drop`. Either way
+the record stays, so the same suggestion is recognisable the next time
+somebody makes it.
+
+Only a person keeps or drops a suggestion, or goes back to before an agent's
+session. See [Growing context](/kapi/context-decisions) for every decision and
+who may make it.
 
 ## 5. Check
 
@@ -271,6 +273,6 @@ Repeat steps 2 to 5 to build a reviewed set of rules from your writing work.
 ## Next
 
 - [Add languages](/kapi/get-started/add-languages): target locales, `kapi up`, review, gates.
-- [Growing context](/kapi/context-decisions): every verb that records and decides, and how to undo a session.
-- [Projects](/kapi/projects): the concept; ad-hoc vs project, bindings, the store.
+- [Growing context](/kapi/context-decisions): noting, reviewing, and going back to before an agent's session.
+- [Projects](/kapi/projects): the concept; ad-hoc vs project, the recipe, the store.
 - [Set up your brand guide in 10 minutes](/kapi/recipes/brand-guide-in-10-minutes): writing a voice profile by hand, when you want one.

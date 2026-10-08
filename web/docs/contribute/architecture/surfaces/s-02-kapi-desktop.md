@@ -246,7 +246,7 @@ The stores are sections of one hub, beside the graph:
 
 | Section | What it shows |
 | --- | --- |
-| **Learned** | the digest of what kapi learned about how the project writes since the person last looked (below), where a person reviews it |
+| **Rules** | the digest of the rules and suggestions kept for the project, newest since the person last looked first (below), where a person reviews them |
 | **Explorer** | the context graph, through `@neokapi/context-explorer`; the governs pane renders the same guide the retrieval surface serves ([C-06](../context/c-06-retrieval.md)) |
 | **Agent View** | the resolved context for one file as an agent receives it: `AgentContextAt` calls the desktop's `ContextAt` and renders the answer's own `FormatText`, so the body on screen is the `context://` resource body rather than a second rendering of it |
 | **Voice** | the whole resolved profile per point: tone, style patterns with severities and rates, term rules, examples, and the locale, channel and persona overrides as authored ([C-07](../context/c-07-voice-profiles.md)); the profile is edited here |
@@ -283,15 +283,18 @@ and says "still working" until nothing has been added for two minutes.
 
 Each operation shows its kind, its actor with the machine an agent ran on, the
 rule or wording it is about, its status (`suggested`, `established`,
-`contested`, `withdrawn`, `dropped` or `reverted`, with a contested entry
+`contested`, `withdrawn`, `dropped` or `reset`, with a contested entry
 reading "Contested by #n"), and its evidence: the file, the block and the
 quotation. Evidence is on the card rather than behind a disclosure for
 anything awaiting a decision, so reviewers can assess the supporting text.
 
 **Deciding goes through the host API and nothing else.** Keep, keep with an
-edit, drop, revert one operation, revert a session and widen are the backend's
-`KeepContextSuggestion`, `DropContextSuggestion` and their neighbours, which
-call `host.App.KeepContextOperation` and the host's other context operations.
+edit, drop a suggestion or a rule in force, widen, and reset the context to
+before a session are the backend's `KeepContextSuggestion`,
+`DropContextSuggestion`, `WidenContextRule` and `ResetContext`, which call
+`host.App.KeepContextOperation` and the host's other context operations. A
+reset is confirmed first: `ContextResetScope` lists what it would set aside,
+and the rules among them, without recording anything.
 The host owns the policy about who may do what; the desktop re-implements none of it. The acting actor is
 `contextop.Actor{Kind: ActorPerson}` with no name, because the app holds no
 account and the person at the keyboard is the one acting. Reading is
@@ -321,18 +324,18 @@ no count of work waiting.
 
 ### The digest
 
-A project's Context hub opens on **Learned**, the digest of what kapi learned
-about how the project writes. Review there is discovery, never a gate: a
+A project's Context hub opens on **Rules**, the digest of the rules and
+suggestions kept for the project. Review there is discovery, never a gate: a
 suggestion advises agents and checks from the moment it is recorded, and one
 nobody answers keeps advising, so the digest reads as news and carries no count
 of unread work. `host.App.ContextDigest` assembles it from the operation log,
-the same call `kapi context digest` prints, and the desktop renders it in five
+the same call `kapi context review` lists outside a terminal, and the desktop renders it in five
 sections, in this order:
 
 | Section | What a person does |
 | --- | --- |
 | **Needs you** | the conflicts: two rules that disagree about one word, or a rule the evidence turned against. Choosing a side keeps it and sets the others aside (`ChooseContextSide`) |
-| **Established** | the rules that came into force, with what they rest on ("merged in #412", "your correction in docs/billing.md", "kept by you"). Revert takes one back out |
+| **Established** | the rules that came into force, with what they rest on ("merged in #412", "your correction in docs/billing.md", "kept by you"). Drop takes one back out |
 | **Suggested** | suggestions grouped by theme (names and spellings, words to avoid, how the project writes, wording in other languages), then by collection where they sit in more than one. Keep, change then keep, drop, or keep a whole group (`KeepContextGroup`) |
 | **Drift** | an established rule whose latest usage count (from a whole-project `kapi check` or `kapi up`) writes a rejected form more often than the count taken when the rule came into force, or the first count after it |
 | **Numbers** | "kapi knows 23 rules for Fernwell; 4 are new this week" |
@@ -352,8 +355,8 @@ stay in the digest under "Earlier". A digest with nothing new says "Nothing new
 since Tuesday" beside the numbers.
 
 The keys act on the item under the cursor: `j`/`k` move, `a` keeps (or chooses
-a side), `c` changes the form to write and keeps, `d` drops, `g` keeps the
-group, `u` reverts a rule in force, and `o` opens the file. A project with no
+a side), `c` changes the form to write and keeps, `d` drops a suggestion or takes a
+rule in force back out, `g` keeps the group, and `o` opens the file. A project with no
 checkout on this machine shows its digest without the decisions.
 
 ### Governance editing

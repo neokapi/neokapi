@@ -19,7 +19,7 @@ import (
 // different documents, and one store that outlives the switch between them.
 //
 // Reading a record is explicit: opening a store reads nothing, and
-// `kapi context import` calls Import. The fixture's open() does both, which is
+// `kapi store import` calls Import. The fixture's open() does both, which is
 // what a person who has just switched branches and read the record in has.
 
 // branchRepo is a git repository with a committed record on each of two

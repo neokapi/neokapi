@@ -24,19 +24,19 @@ type ContextChooseRequest struct {
 
 // ContextChooseResult is what choosing did: the rules set aside, then the keep.
 type ContextChooseResult struct {
-	// SetAside are the drops and reverts that took the other side out.
+	// SetAside are the drops that took the other side out.
 	SetAside []ContextOperation `json:"set_aside"`
 	// Kept is the keep that established the chosen rule.
 	Kept ContextOperation `json:"kept"`
 }
 
 // ChooseContextSide settles a conflict for the rule a person chose: every
-// rival rule is set aside (a suggestion dropped, an established rule
-// reverted), and the chosen one is kept. A rule contested by evidence alone
+// rival rule is dropped (an established one is taken back out of the stores),
+// and the chosen one is kept. A rule contested by evidence alone
 // has no rival, and choosing it is keeping it.
 //
 // Each step is its own operation, so the log reads the choice the way a person
-// would have made it by hand, and each can be taken back on its own.
+// would have made it by hand.
 func (a *App) ChooseContextSide(ctx context.Context, req ContextChooseRequest) (ContextChooseResult, error) {
 	s, err := a.contextOps(ctx, req.Project)
 	if err != nil {
@@ -58,14 +58,6 @@ func (a *App) ChooseContextSide(ctx context.Context, req ContextChooseRequest) (
 		if !rival.Kind.Bears() || !rival.Status.Answers() {
 			// A signal or a correction against the rule rather than a rival
 			// rule: keeping the rule is the answer to it.
-			continue
-		}
-		if rival.Established {
-			res, verr := a.RevertContextOperations(ctx, ContextRevertRequest{Actor: req.Actor, Project: req.Project, ID: rival.ID, Note: req.Note})
-			if verr != nil {
-				return out, verr
-			}
-			out.SetAside = append(out.SetAside, res.Reverted...)
 			continue
 		}
 		op, derr := a.DropContextOperation(ctx, ContextDropRequest{Actor: req.Actor, Project: req.Project, ID: rival.ID, Note: req.Note})

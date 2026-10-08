@@ -1,13 +1,13 @@
 # Northsea — one product, one language, three surfaces.
 #
 # The context this recipe binds ships as files under context/, read in with
-# `kapi context import ./context`. No server, no provider credential: the gate
+# `kapi store import ./context`. No server, no provider credential: the gate
 # runs from what the import put in your workspace.
 version: v1
 name: northsea
 defaults:
   source_language: en-GB
-  # Bound by the name `kapi context import ./context` stores the voice under.
+  # Bound by the name `kapi store import ./context` stores the voice under.
   # The vocabulary needs no binding: the same import reads it into the
   # project's own terms, which is where `kapi apply` writes a term decision.
   voice:

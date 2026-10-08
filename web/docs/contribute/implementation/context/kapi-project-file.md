@@ -365,7 +365,7 @@ can override. Beyond locales and the parallelism/encoding knobs shown above:
   merge on top of `tools` and under a step's own config.
 - No key names a context file. `terms_source` and `memory_source` are rejected
   at load (`retiredDefaultsKeys`) with the import that reads the file.
-  [`kapi context import`](/reference/commands/context-import) reads a layout's
+  [`kapi store import`](/reference/commands/store-import) reads a layout's
   `terms.json`, its `memory/` bundles and its voice profiles into the stores,
   and binds the imported voice under `defaults.voice` when the recipe binds none
   (`project.BindVoice`, a text insertion that leaves the rest of the file as
@@ -491,7 +491,7 @@ the recipe already carries, so an applied change-set cannot re-key a project.
   `KapiProject` holds no project directory, so the hosts apply those rules
   where they turn a named path into a point (`host.ProjectIgnores`): a named
   ignored file sits at the project's default point and in no collection, for
-  `kapi check`, `kapi voice guide`, `kapi context`, a run's bindings and the
+  `kapi check`, `kapi context`, a run's bindings and the
   desktop context panes
 - Patterns are resolved relative to the project root (the recipe's parent
   directory)

@@ -58,51 +58,48 @@ collections:
 	return root
 }
 
-// voiceGuide runs `kapi voice guide` with args in the working directory.
-func voiceGuide(t *testing.T, args ...string) string {
+// contextAt runs `kapi context` with args in the working directory.
+func contextAt(t *testing.T, args ...string) string {
 	t.Helper()
-	cmd := NewVoiceCmd(&App{})
+	cmd := NewContextCmd(&App{})
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
-	cmd.SetArgs(append([]string{"guide"}, args...))
+	cmd.SetArgs(args)
 	require.NoError(t, cmd.Execute())
 	return out.String()
 }
 
-// The guide for a file answers for the file's own content, and --comments for
-// its comments. A Go file's content is its comments alone, so no item governs
-// anything else in it: the guide gives the project's voice, and --comments the
-// limits a comment there is held to.
-func TestVoiceGuideAnswersForAFilesContentAndForItsComments(t *testing.T) {
+// The answer for a file is for the file's own content, and --comments for its
+// comments. A Go file's content is its comments alone, so no item governs
+// anything else in it: the answer gives the project's voice, and --comments
+// the limits a comment there is held to.
+func TestContextAnswersForAFilesContentAndForItsComments(t *testing.T) {
 	t.Chdir(writeCommentVoiceProject(t, true))
 
-	goGuide := voiceGuide(t, filepath.Join("code", "parse.go"))
-	assert.Contains(t, goGuide, "# Voice Guide: project", "no item governs a Go file's content")
+	goGuide := contextAt(t, filepath.Join("code", "parse.go"))
+	assert.Contains(t, goGuide, "Voice: project.", "no item governs a Go file's content")
 	assert.NotContains(t, goGuide, "Code comments")
 
-	goComments := voiceGuide(t, "--comments", filepath.Join("code", "parse.go"))
-	assert.Contains(t, goComments, "# Voice Guide: source comments")
-	assert.Contains(t, goComments, "- Code comments:")
-	assert.Contains(t, goComments, "  - A declaration's doc comment: at most 120 words")
-	assert.Contains(t, goComments, "  - A sentence: at most 50 words")
+	goComments := contextAt(t, "--comments", filepath.Join("code", "parse.go"))
+	assert.Contains(t, goComments, "Voice: source comments.")
+	assert.Contains(t, goComments, "Code comments:")
+	assert.Contains(t, goComments, "a doc comment up to 120")
+	assert.Contains(t, goComments, "sentences up to 50 words")
 
-	yamlGuide := voiceGuide(t, filepath.Join("config", "app.yaml"))
-	assert.Contains(t, yamlGuide, "# Voice Guide: site", "a file a reader parses is written under its own point")
+	yamlGuide := contextAt(t, filepath.Join("config", "app.yaml"))
+	assert.Contains(t, yamlGuide, "Voice: site.", "a file a reader parses is written under its own point")
 	assert.NotContains(t, yamlGuide, "Code comments")
 
-	commented := voiceGuide(t, "--comments", filepath.Join("config", "app.yaml"))
-	assert.Contains(t, commented, "# Voice Guide: source comments", "--comments asks for the comments' point")
-	assert.Contains(t, commented, "- Code comments:")
-
-	assert.Contains(t, voiceGuide(t, "--comments"), "# Voice Guide: source comments",
-		"with no file, --comments resolves the project's comments point")
+	commented := contextAt(t, "--comments", filepath.Join("config", "app.yaml"))
+	assert.Contains(t, commented, "Voice: source comments.", "--comments asks for the comments' point")
+	assert.Contains(t, commented, "Code comments:")
 }
 
-// An item declared for its comments alone governs only the comments: the guide
+// An item declared for its comments alone governs only the comments: the answer
 // for its YAML file resolves past it to the project's point, where no item
 // claims the file, and --comments still gives the item's comment voice.
-func TestVoiceGuideAnswersForTheContentPastACommentsOnlyItem(t *testing.T) {
+func TestContextAnswersForTheContentPastACommentsOnlyItem(t *testing.T) {
 	root := writeCommentVoiceProject(t, true)
 	recipe := filepath.Join(root, "kapi.yaml")
 	data, err := os.ReadFile(recipe)
@@ -113,26 +110,26 @@ func TestVoiceGuideAnswersForTheContentPastACommentsOnlyItem(t *testing.T) {
 	require.NoError(t, os.WriteFile(recipe, data, 0o644))
 	t.Chdir(root)
 
-	guide := voiceGuide(t, filepath.Join("config", "app.yaml"))
-	assert.Contains(t, guide, "# Voice Guide: project")
+	guide := contextAt(t, filepath.Join("config", "app.yaml"))
+	assert.Contains(t, guide, "Voice: project.")
 	assert.NotContains(t, guide, "Code comments")
 
-	comments := voiceGuide(t, "--comments", filepath.Join("config", "app.yaml"))
-	assert.Contains(t, comments, "# Voice Guide: source comments")
-	assert.Contains(t, comments, "- Code comments:")
+	comments := contextAt(t, "--comments", filepath.Join("config", "app.yaml"))
+	assert.Contains(t, comments, "Voice: source comments.")
+	assert.Contains(t, comments, "Code comments:")
 }
 
 // With no comments point declared, a Go file's comments sit at its item's
-// point, so --comments gives the site voice, and the guide for the file still
-// answers for its content at the project's point.
-func TestVoiceGuideCommentsSharingTheirFilesPoint(t *testing.T) {
+// point, so --comments gives the site voice, and the answer for the file still
+// is for its content at the project's point.
+func TestContextCommentsSharingTheirFilesPoint(t *testing.T) {
 	t.Chdir(writeCommentVoiceProject(t, false))
 
-	guide := voiceGuide(t, filepath.Join("code", "parse.go"))
-	assert.Contains(t, guide, "# Voice Guide: project")
+	guide := contextAt(t, filepath.Join("code", "parse.go"))
+	assert.Contains(t, guide, "Voice: project.")
 	assert.NotContains(t, guide, "Code comments")
 
-	comments := voiceGuide(t, "--comments", filepath.Join("code", "parse.go"))
-	assert.Contains(t, comments, "# Voice Guide: site", "with no comments point, a Go file's comments sit at their item's point")
+	comments := contextAt(t, "--comments", filepath.Join("code", "parse.go"))
+	assert.Contains(t, comments, "Voice: site.", "with no comments point, a Go file's comments sit at their item's point")
 	assert.NotContains(t, comments, "Code comments")
 }

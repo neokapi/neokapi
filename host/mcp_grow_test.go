@@ -100,7 +100,7 @@ func TestMCPContextToolsNameTheBlock(t *testing.T) {
 	require.NoError(t, err)
 	seen := 0
 	for _, tool := range tools.Tools {
-		if tool.Name != "context_observe" && tool.Name != "context_correct" {
+		if tool.Name != "context_note" {
 			continue
 		}
 		seen++
@@ -116,7 +116,7 @@ func TestMCPContextToolsNameTheBlock(t *testing.T) {
 		assert.Contains(t, s.Properties["block"].Description, "ref.block")
 		assert.NotContainsf(t, s.Properties, "unit", "%s takes no unit", tool.Name)
 	}
-	assert.Equal(t, 2, seen)
+	assert.Equal(t, 1, seen)
 }
 
 func TestMCPEvidenceAndItsRequirement(t *testing.T) {
@@ -125,9 +125,9 @@ func TestMCPEvidenceAndItsRequirement(t *testing.T) {
 		[]contextop.Evidence{{Path: "docs/guide.md", Unit: "u1", Quote: "Utilise the editor"}},
 		mcpEvidence(" docs/guide.md ", "u1", "Utilise the editor "))
 
-	require.Error(t, requireEvidence("context_observe", nil))
-	assert.Contains(t, requireEvidence("context_observe", nil).Error(), "evidence")
-	assert.NoError(t, requireEvidence("context_observe", mcpEvidence("docs/guide.md", "", "")))
+	require.Error(t, requireEvidence("context_note", nil))
+	assert.Contains(t, requireEvidence("context_note", nil).Error(), "evidence")
+	assert.NoError(t, requireEvidence("context_note", mcpEvidence("docs/guide.md", "", "")))
 }
 
 // The sentence an agent ends its report with has to be usable as it stands: it
@@ -145,10 +145,9 @@ func TestSessionReportIsWhatAnAgentSays(t *testing.T) {
 	assert.Equal(t, 1, out.Corrected)
 	assert.Equal(t, 2, out.Suggested)
 	assert.Equal(t, 1, out.Contested)
-	assert.Equal(t, "kapi context log --session s4f1c2", out.Review)
+	assert.Equal(t, "kapi context review --session s4f1c2", out.Review)
 	assert.Contains(t, out.Report, "2 observations, 1 correction recorded")
 	assert.Contains(t, out.Report, "3 suggestions are waiting for a person, 1 of them contested")
-	assert.Contains(t, out.Report, "kapi context keep --session s4f1c2")
 	assert.Contains(t, out.Report, out.Review)
 
 	quiet := sessionOutput(contextop.SessionSummary{Session: "s0"})

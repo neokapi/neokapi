@@ -19,7 +19,7 @@ project: true
 # The fixture's voice profile is a file until a person reads it into this
 # machine's store, which is where the tools answer from.
 setup:
-  - kapi context import
+  - kapi store import
 outro:
   line: Add kapi to your assistant's MCP config.
   pointer: /reference/mcp

@@ -205,9 +205,11 @@ func (p *Projector) latestCheckpoint(ctx context.Context, ops []workspace.Op) (c
 		if json.Unmarshal(op.Payload, &cp) != nil || cp.Blob == "" {
 			continue
 		}
+		// A reset received after the checkpoint changes what the log before
+		// it applies, so the stores it holds no longer follow from the log.
 		stands := true
 		for _, later := range ops {
-			if later.Seq > cp.Seq && projects(later.Kind) && later.ID <= cp.Through {
+			if later.Seq > cp.Seq && (later.Kind == workspace.OpContextReset || (projects(later.Kind) && later.ID <= cp.Through)) {
 				stands = false
 				break
 			}

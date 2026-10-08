@@ -12,7 +12,7 @@ import (
 // how to write. A pointer that repeated the guide would go stale the moment
 // the profile changed, and the guide itself is one command away.
 type VoicePointer struct {
-	// Name is the voice profile's name, as `kapi voice guide` reports it.
+	// Name is the voice profile's name, as `kapi context <path>` reports it.
 	// Empty when the project binds a voice the pointer cannot name yet (a
 	// profile file the recipe points at but nobody has written).
 	Name string
@@ -55,12 +55,12 @@ func RenderVoicePointer(p VoicePointer) string {
 	}
 	b.WriteString(" is held by kapi and applies to any prose written here.")
 	if p.PerFile {
-		b.WriteString(" Some collections carry a voice of their own, so retrieve what is in force before writing, with `kapi voice guide <path>` for the file you are writing.")
+		b.WriteString(" Some collections carry a voice of their own, so retrieve what is in force before writing, with `kapi context <path>` for the file you are writing.")
 	} else {
-		b.WriteString(" Retrieve what is in force before writing, with `kapi voice guide`.")
+		b.WriteString(" Retrieve what is in force before writing, with `kapi context <path>` for the file you are writing.")
 	}
 	if p.Comments {
-		b.WriteString(" Comments in a file can sit under a voice of their own, so retrieve that voice with `kapi voice guide --comments <path>` before writing one.")
+		b.WriteString(" Comments in a file can sit under a voice of their own, so retrieve that voice with `kapi context <path> --comments` before writing one.")
 	}
 	b.WriteString("\n")
 	b.WriteString(VoicePointerEnd)

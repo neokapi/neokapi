@@ -36,7 +36,7 @@ Every change to a project's terms, voice profiles, content memory and decision
 ledger, every document adoption and every recorded edit, and every change to the
 rules widened to the whole workspace, is an operation in that log carrying the
 rows it wrote. Those stores are **projections** of the log:
-`core/projector` is their only writer, and `kapi context rebuild` empties them
+`core/projector` is their only writer, and `kapi store rebuild` empties them
 and replays the log into the same rows, starting from the latest checkpoint.
 
 A question that reaches across the two files is one query. `projectdb.DB.Join`
@@ -134,9 +134,12 @@ author and a reviewer can both run.
 ### A project's context is shared through a remote
 
 A recipe declares where a project's context is shared (`context.backend`:
-`local`, `file`, `git` or `s3`), and a person can choose another on one machine
-(`kapi context backend`, kept in the machine configuration under the project's
-id). Every shared backend is a `workspace.Remote` holding the same layout:
+`local`, `file`, `git` or `s3`). The recipe is the only place it is set, so
+every checkout of the project shares through the same backend.
+`kapi context sync` pulls, settles a merge when `--merged` names one, and
+pushes (`host.App.SyncProjectContext`); `kapi context sync --status` reports
+the backend and the last known distance without contacting it. Every shared
+backend is a `workspace.Remote` holding the same layout:
 
 | Path | Holds |
 | --- | --- |
@@ -185,8 +188,8 @@ pull`), without reaching the remote. A remote that cannot be reached is
 `ErrRemoteUnreachable`, and the CLI exits with status 5.
 
 A **transfer file** is the same layout in one `.kpz` (`kpz.KindContext`):
-`kapi context export` pushes the project into a `MemoryRemote` and packs it, and
-`kapi context import <file>.kpz` unpacks one and pulls from it.
+`kapi store export` pushes the project into a `MemoryRemote` and packs it, and
+`kapi store import <file>.kpz` unpacks one and pulls from it.
 
 ### No daemon
 
@@ -320,7 +323,7 @@ voice profiles ([C-07](c-07-voice-profiles.md)), its content memory
 editions the workspace home keeps, each a projection of the workspace's
 operation log, described below. No read path opens a file in the
 checkout to answer for any of them. A checkout may carry a terms bundle or a
-voice profile a person authored under `.kapi/`; `kapi context import` is the one
+voice profile a person authored under `.kapi/`; `kapi store import` is the one
 command that reads them ([C-11](c-11-context-operations.md)). The store moves between
 machines through a context backend or a transfer file, below.
 
@@ -356,7 +359,7 @@ well inside the 64 MiB bound. A pass that writes many rows (an import, a
 convergence run's absorbed record) collects them into one batch, recorded as one
 operation per store.
 
-`Projector.Rebuild`, behind `kapi context rebuild`, empties the projection tables
+`Projector.Rebuild`, behind `kapi store rebuild`, empties the projection tables
 and the rules the project widened, and replays the project's operations in id
 order. On a log one machine wrote, the rows it leaves equal the rows the writes
 left; the voice store stamps an edit and the version it archives from the
@@ -377,7 +380,7 @@ Each checkout's view of the ledger, and its own list of the documents it has
 read, stay readings of its files.
 
 A **checkpoint** keeps a rebuild short. `Projector.Checkpoint`, behind
-`kapi context rebuild --checkpoint`, writes every projection table as it stands
+`kapi store rebuild --checkpoint`, writes every projection table as it stands
 (rows, their rowids and the AUTOINCREMENT numbering), with the project's widened
 rules, into a `.kpz` of kind `kapi-checkpoint`, stores it as a blob and records
 a `checkpoint.write` operation naming it and the last operation it includes. A
@@ -397,9 +400,9 @@ reports it.
 A log written before an operation kind was retired still holds operations of
 that kind, because the project resets data rather than migrating it. A rebuild
 leaves them out and counts them (`RebuildReport.Retired`, from
-`projector.RetiredKinds`), and `kapi context rebuild` says how many it left
+`projector.RetiredKinds`), and `kapi store rebuild` says how many it left
 out: `unit.record`, the ledger's entries before they were `decision.record`,
-is one, and `kapi context import` reads the decisions in again from the shards.
+is one, and `kapi store import` reads the decisions in again from the shards.
 
 Callers reach the stores through the projector: `App.Projector` in host hands
 out `projector.Terms`, `projector.Memory` and `projector.Voice`, which answer
@@ -476,7 +479,7 @@ what a producer made, and from which source, is in the block history and
 nowhere else.
 
 The block history is part of the workspace log, so a checkout of a project
-that shares its context through a backend reads it with `kapi context pull`,
+that shares its context through a backend reads it with `kapi context sync`,
 and a fresh clone holds the translations the repository carries and none of the
 record of how they were written. Until it pulls, a translation whose source was
 edited before the clone's first pass is not graded stale there. `kapi up` and
@@ -655,7 +658,7 @@ The context store has a separate lifetime in the workspace. Deleting
 `<DataDir>/workspaces/` removes the terms, voice profiles, content memory,
 decisions, block history and kept drafts of every local project that no
 backend holds. Push each project to
-its backend, or write it to a transfer file with `kapi context export`, before
+its backend, or write it to a transfer file with `kapi store export`, before
 deleting the workspace.
 
 ### Locales are keyed canonically
@@ -675,7 +678,7 @@ The two pools take different remedies, because a row in one is derived and a
 row in the other is authored. The projection is a reading of the working tree,
 so deleting the database and running `kapi up` derives every row in it again.
 The context store is a projection of the operation log, and the stores
-normalize as they write, so `kapi context rebuild` writes its rows again under
+normalize as they write, so `kapi store rebuild` writes its rows again under
 the canonical spelling.
 
 ### Presence is table-level
@@ -949,7 +952,7 @@ sets `$KAPI_DATA_DIR` as part of the isolation contract.
   ([Convergence in CI](/kapi/convergence-in-ci)).
 - **A machine's context is one directory.** Backing up
   `<DataDir>/workspaces/default/` backs up every project's authored context, and
-  `kapi context export` writes one project's as one file. Deleting
+  `kapi store export` writes one project's as one file. Deleting
   it costs every project's terms, voice profiles, content memory, decisions
   and block history.
 

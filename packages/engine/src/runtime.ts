@@ -242,7 +242,7 @@ export interface ContextSyncStatus {
   error?: string;
 }
 
-/** What a pull merged (`kapi context pull --json`). */
+/** What a pull merged (the `pull` half of `kapi context sync --json`). */
 export interface ContextPullReport extends ContextSyncStatus {
   segments: number;
   merged: number;
@@ -253,7 +253,7 @@ export interface ContextPullReport extends ContextSyncStatus {
   seconds: number;
 }
 
-/** What a push wrote (`kapi context push --json`). */
+/** What a push wrote (the `push` half of `kapi context sync --json`). */
 export interface ContextPushReport extends ContextSyncStatus {
   pushed: number;
   segments: number;
@@ -374,8 +374,8 @@ export interface KapiRuntime {
   importWorkspace(data: Uint8Array): Promise<WorkspaceImport>;
   /**
    * Share a project's context through a folder: pull what others pushed to
-   * it, then push what this engine recorded, as `kapi context pull` and
-   * `kapi context push` do for a `file` backend. `folder` is a directory
+   * it, then push what this engine recorded, as `kapi context sync` does
+   * for a `file` backend. `folder` is a directory
    * handle, from `showDirectoryPicker()` or the origin private file system.
    * The folder keeps the layout a `file` backend keeps on disk, so a machine
    * whose recipe names the same folder shares the context.

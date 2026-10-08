@@ -41,7 +41,6 @@ omitted or set to "-".`,
 
 	cmd.AddCommand(
 		newVoiceNewCmd(a),
-		newVoiceGuideCmd(a),
 		newVoiceCheckCmd(a),
 		newVoiceRewriteCmd(a),
 		newVoiceValidateCmd(a),
@@ -61,9 +60,9 @@ func newVoicePointerCmd(a *App) *cobra.Command {
 		Short: "Write a pointer to the project's voice into its assistant file (CLAUDE.md or AGENTS.md)",
 		Long: `Write a short, marker-delimited section into the project's assistant file
 telling an assistant that the project's voice is held by kapi and that
-'kapi voice guide' retrieves it. The section names the voice and nothing
-else; the guide itself stays one command away, so the pointer never goes
-stale.
+'kapi context <path>' retrieves what applies to a file. The section names the
+voice and nothing else; the guidance itself stays one command away, so the
+pointer never goes stale.
 
 An existing CLAUDE.md or AGENTS.md at the project root takes the section
 (CLAUDE.md when both exist); with neither, CLAUDE.md is created. A section
@@ -105,42 +104,10 @@ the profile.`,
 	return cmd
 }
 
-func newVoiceGuideCmd(a *App) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "guide [path]",
-		Short: "Print the voice guide (inject into your assistant's context)",
-		Long: `Print the voice guide in force.
-
-Inside a project, a path selects the voice for that file's own content. An item
-that declares a file for its comments alone governs only those comments, so the
-content resolves to the next item that claims the file, or to the project's
-default point. --comments asks for the point the file's comments sit at instead,
-and lists the comment limits in force there. Ask with --comments before writing
-a comment, in a Go source file or any other.`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			profile, _, err := a.ResolveVoiceProfileCmd(cmd, args...)
-			if errors.Is(err, ErrNoVoiceBound) {
-				return printNoVoiceGuide(cmd)
-			}
-			if err != nil {
-				return err
-			}
-			return output.Print(cmd, output.VoiceGuideOutput{
-				Profile: profile.Name,
-				Guide:   coreprofile.RenderVoiceGuide(profile),
-			})
-		},
-	}
-	cmd.Flags().Bool("comments", false, "resolve the voice at the point the file's comments sit at")
-	AddProfileFlags(cmd)
-	output.AddFlags(cmd.Flags())
-	return cmd
-}
-
-// printNoVoiceGuide answers `kapi voice guide` and `show` in a project that
-// binds no voice where they were asked: that is the guidance in force, the
-// same answer `kapi context <path>` gives, and an assistant told to read the
-// guide before writing gets an answer it can act on rather than an error.
+// printNoVoiceGuide answers `kapi voice show` in a project that binds no voice
+// where it was asked: that is the guidance in force, the same answer `kapi
+// context <path>` gives, and an assistant told to read the voice before writing
+// gets an answer it can act on rather than an error.
 func printNoVoiceGuide(cmd *cobra.Command) error {
 	return output.Print(cmd, output.VoiceGuideOutput{
 		Guide: "No voice profile is bound at this point, so no tone or style guidance applies.\n",
@@ -279,8 +246,8 @@ severity, and the reason. The exit code stays 0. Rewrite those by hand and
 verify with 'kapi voice check'.
 
 Text is read from --input-text or stdin and the rewrite is printed. To fix tone,
-style, or phrasing in voice, rewrite the text yourself with the voice guide as
-context ('kapi voice guide') and apply the edit through 'kapi apply'. kapi does
+style, or phrasing in voice, rewrite the text yourself with what applies to the
+file as context ('kapi context <path>') and apply the edit through 'kapi apply'. kapi does
 not send content to a model to rewrite it.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			profile, _, err := a.ResolveVoiceProfileCmd(cmd, args...)

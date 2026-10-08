@@ -23,7 +23,7 @@ outro:
 setup:
   # The sample ships its context as files, and a fresh sandbox has a store that
   # has never held them.
-  - kapi context import ./context
+  - kapi store import ./context
 script:
   - comment: The same service is explained for four reading situations. The child page first.
   - command: kapi context site/locales/en/child.json

@@ -20,7 +20,7 @@ node samples/audience-context/run.mjs --binary bin/kapi --output /tmp/audience-r
 ```
 
 The runner copies the sample to a temporary directory, reads its `context/`
-files into the store with `kapi context import ./context` (the recipe binds the
+files into the store with `kapi store import ./context` (the recipe binds the
 voice by the name that import stores it under, `harbor-help`), disables project
 and plugin discovery outside that fixture, and uses throwaway configuration and
 cache directories. It records the binary and source hashes, context answer,

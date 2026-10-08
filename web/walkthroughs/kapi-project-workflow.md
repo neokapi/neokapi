@@ -43,5 +43,5 @@ coverage, and use `kapi extract` to prepare a translator handoff.
 ## Closing
 
 Commit `kapi.yaml` to share the workflow settings. Share the project's context
-with `kapi context push` and `kapi context pull` when another checkout needs the
+with `kapi context sync` when another checkout needs the
 same terms, memory and review decisions.

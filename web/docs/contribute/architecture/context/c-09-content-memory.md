@@ -352,7 +352,7 @@ kept out of version control**:
 The store lives in the user's workspace, one per project
 ([C-03](c-03-context-store-and-graph.md)), so a CI runner starts with an empty
 one. A job whose leverage matters reads the project's bundles in with
-`kapi context import` first, and the translation *output* is what the job
+`kapi store import` first, and the translation *output* is what the job
 commits.
 
 A project accumulates **many** memory bundles, not one (one per content surface
@@ -379,7 +379,7 @@ which is what lets a pulled decision or an approval stand rather than being
 overwritten by an unchanged file. A run stamps the targets it writes itself, so
 a convergence never reads its own output back as if a person had written it.
 
-A bundle read by `kapi context import` lands in the same tables through the same
+A bundle read by `kapi store import` lands in the same tables through the same
 importer ([C-11](c-11-context-operations.md)), so a project seeded from bundles
 and one grown from its own translations hold the same shape of entry.
 

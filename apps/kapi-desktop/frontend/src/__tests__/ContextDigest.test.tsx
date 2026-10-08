@@ -16,7 +16,6 @@ function renderDigest(digest: ContextDigest = CONTEXT_DIGEST, extra: Record<stri
     onKeepGroup: vi.fn(),
     onDrop: vi.fn(),
     onChoose: vi.fn(),
-    onRevert: vi.fn(),
     onOpenFile: vi.fn(),
   };
   render(<ContextDigestView digest={digest} since={LAST_LOOKED} {...handlers} {...extra} />);
@@ -88,10 +87,10 @@ describe("the context digest", () => {
     );
   });
 
-  it("reverts an established rule and opens the file a suggestion names", () => {
+  it("drops an established rule and opens the file a suggestion names", () => {
     const h = renderDigest();
-    fireEvent.click(slot("digest-established")!.querySelector("[data-slot='revert-item']")!);
-    expect(h.onRevert).toHaveBeenCalledTimes(1);
+    fireEvent.click(slot("digest-established")!.querySelector("[data-slot='drop-item']")!);
+    expect(h.onDrop).toHaveBeenCalledWith(expect.objectContaining({ status: "established" }));
     fireEvent.click(slot("digest-suggested")!.querySelector("[data-slot='open-file']")!);
     expect(h.onOpenFile).toHaveBeenCalledWith("app/strings/en.json");
   });

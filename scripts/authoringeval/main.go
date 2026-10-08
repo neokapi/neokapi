@@ -7,7 +7,7 @@
 //	                     declares, and stay quiet on prose that obeys it?
 //	voice-infer-quality  Does an inferred draft profile recover the profile the
 //	                     corpus was written from?
-//	authoring-effect     Does `kapi voice guide` steer an assistant's writing
+//	authoring-effect     Does `kapi voice show` steer an assistant's writing
 //	                     toward the profile, rather than just improving it?
 //
 // Everything is driven through the real kapi binary. Nothing here reimplements

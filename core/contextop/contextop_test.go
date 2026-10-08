@@ -73,7 +73,6 @@ func TestLedger_FoldsStatusFromLaterOperations(t *testing.T) {
 	}{
 		{"keeping establishes a suggestion", contextop.KindKeep, contextop.StatusEstablished},
 		{"dropping sets it aside", contextop.KindDrop, contextop.StatusDropped},
-		{"reverting undoes it", contextop.KindRevert, contextop.StatusReverted},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -122,41 +121,64 @@ func TestLedger_ConfirmCarriesEditsAndScope(t *testing.T) {
 	assert.Equal(t, contextop.LevelWorkspace, folded.Scope.Level, "keeping can widen in the same step")
 }
 
-func TestLedger_RevertingASessionUndoesEverythingItRecorded(t *testing.T) {
+func TestLedger_ResetSetsAsideEverythingAfterItsPoint(t *testing.T) {
 	ctx := context.Background()
 	ledger := contextop.NewLedger(openWorkspace(t), contextop.Allow)
 
-	for _, term := range []string{"utilise", "leverage", "synergy"} {
-		_, err := ledger.Append(ctx, contextop.Record{
+	before, err := ledger.Append(ctx, contextop.Record{
+		Project: "prj_docs", Actor: agent("claude", "s0"),
+		Kind: contextop.KindObserve, Subject: termRule("synergy", "use", false),
+	})
+	require.NoError(t, err)
+	var first string
+	for _, term := range []string{"utilise", "leverage"} {
+		r, err := ledger.Append(ctx, contextop.Record{
 			Project: "prj_docs", Actor: agent("claude", "s1"),
 			Kind: contextop.KindObserve, Subject: termRule(term, "use", false),
 		})
 		require.NoError(t, err)
+		if first == "" {
+			first = r.ID
+		}
 	}
-	kept, err := ledger.Append(ctx, contextop.Record{
-		Project: "prj_docs", Actor: agent("claude", "s2"),
+	other, err := ledger.Append(ctx, contextop.Record{
+		Project: "prj_other", Actor: agent("claude", "s1"),
 		Kind: contextop.KindObserve, Subject: termRule("utilize", "use", false),
 	})
 	require.NoError(t, err)
 
-	_, err = ledger.Append(ctx, contextop.Record{
-		Project: "prj_docs", Actor: person("asgeir"), Kind: contextop.KindRevert, TargetSession: "s1",
+	reset, err := ledger.Append(ctx, contextop.Record{
+		Project: "prj_docs", Actor: person("asgeir"), Kind: contextop.KindReset, Before: first,
 	})
 	require.NoError(t, err)
 
-	reverted, err := ledger.Records(ctx, contextop.Filter{Session: "s1", Subjects: true})
+	setAside, err := ledger.Records(ctx, contextop.Filter{Project: "prj_docs", Session: "s1", Subjects: true})
 	require.NoError(t, err)
-	require.Len(t, reverted, 3)
-	for _, r := range reverted {
-		assert.Equal(t, contextop.StatusReverted, r.Status)
+	require.Len(t, setAside, 2)
+	for _, r := range setAside {
+		assert.Equal(t, contextop.StatusReset, r.Status)
+		assert.False(t, r.Status.Answers())
 	}
-
-	other, err := ledger.Get(ctx, kept.ID)
+	kept, err := ledger.Get(ctx, before.ID)
 	require.NoError(t, err)
-	assert.Equal(t, contextop.StatusSuggested, other.Status, "another session is untouched")
+	assert.Equal(t, contextop.StatusSuggested, kept.Status, "what came before the point stands")
+	elsewhere, err := ledger.Get(ctx, other.ID)
+	require.NoError(t, err)
+	assert.Equal(t, contextop.StatusSuggested, elsewhere.Status, "another project is untouched")
+
+	// A reset before the reset takes it back.
+	_, err = ledger.Append(ctx, contextop.Record{
+		Project: "prj_docs", Actor: person("asgeir"), Kind: contextop.KindReset, Before: reset.ID,
+	})
+	require.NoError(t, err)
+	restored, err := ledger.Records(ctx, contextop.Filter{Project: "prj_docs", Session: "s1", Subjects: true})
+	require.NoError(t, err)
+	for _, r := range restored {
+		assert.Equal(t, contextop.StatusSuggested, r.Status)
+	}
 }
 
-func TestLedger_RevertReachesThroughADecision(t *testing.T) {
+func TestLedger_DropReachesThroughADecision(t *testing.T) {
 	ctx := context.Background()
 	ledger := contextop.NewLedger(openWorkspace(t), contextop.Allow)
 
@@ -175,12 +197,13 @@ func TestLedger_RevertReachesThroughADecision(t *testing.T) {
 	assert.Equal(t, proposed.ID, behind.ID, "naming a decision reaches the rule it decided")
 
 	_, err = ledger.Append(ctx, contextop.Record{
-		Project: "prj_docs", Actor: person("asgeir"), Kind: contextop.KindRevert, Target: confirmed.ID,
+		Project: "prj_docs", Actor: person("asgeir"), Kind: contextop.KindDrop, Target: confirmed.ID,
 	})
 	require.NoError(t, err)
 	folded, err := ledger.Get(ctx, proposed.ID)
 	require.NoError(t, err)
-	assert.Equal(t, contextop.StatusReverted, folded.Status)
+	assert.Equal(t, contextop.StatusDropped, folded.Status)
+	assert.False(t, folded.Established)
 }
 
 func TestLedger_Filters(t *testing.T) {

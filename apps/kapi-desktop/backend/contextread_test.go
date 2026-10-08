@@ -11,7 +11,7 @@ import (
 )
 
 // readProjectContext reads a fixture project's `.kapi/` layout and its bound
-// context files into the project's store, which is what `kapi context import`
+// context files into the project's store, which is what `kapi store import`
 // does for a person. A fixture that authors a voice profile or a terms bundle
 // calls it: those files reach a gate no other way.
 //

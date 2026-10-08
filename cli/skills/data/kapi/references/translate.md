@@ -39,7 +39,7 @@ kapi merge -i out/*.xliff                       # XLIFF/PO come via -i (repeatab
 kapi check --ship --json                              # the gate: voice + terminology + rule-based checks in one shot (prefer this)
 kapi exec term-check ./locales/en.json --target ./locales/fr.json --target-lang fr   # source POSITIONAL, its translation via --target; reports, exits 0
 kapi terms lookup "board" -t fr              # approved wording; terms uses -s/-t, not --*-lang
-kapi voice guide                                # the voice to follow (no flag inside a project)
+kapi context locales/en.json                    # the voice and terms that apply to the file
 ```
 
 Inside a project, prefer `kapi check --ship` over running `term-check` or the
@@ -71,7 +71,7 @@ each block is checked against the voice and terms as it is written. See
 
 ```bash
 kapi inspect docs/guide.md --jsonl     # the source blocks, each with its ref and rev
-kapi voice guide                       # the voice to follow (no flag inside a project)
+kapi context docs/guide.md             # the voice and terms that apply to the file
 kapi terms lookup "<term>" -t fr       # the approved wording
 printf '%s' '<change set>' | kapi apply -   # one set_content per block, "edition": "fr"
 ```
@@ -83,7 +83,7 @@ and merge it back:
 
 ```bash
 kapi extract --target-lang fr        # bilingual file with source + empty targets (out/*.xliff)
-kapi voice guide                     # the voice to follow (no flag inside a project)
+kapi context <file>                  # the voice and terms that apply to the file
 kapi terms lookup "<term>" -t fr  # the approved wording
 ```
 
@@ -172,7 +172,7 @@ block history as the flow's edit, with the source each translation was made
 from, which is how `kapi status` tells a rewritten source under the loop's
 translation from a new one. That record is part of the project's context: in a
 fresh clone of a project that shares its context through a backend, run
-`kapi context pull` first, which `kapi up` and `kapi status` remind you of while
+`kapi context sync` first, which `kapi up` and `kapi status` remind you of while
 the translations on disk have no recorded history. To see
 what a run would change, add
 `--print-ops`: the run writes no file of the project and records no change, and

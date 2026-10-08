@@ -290,8 +290,8 @@ ok(
 );
 const check = await run("check", "/project/article.md", "--no-fail");
 ok("`kapi check` runs the default checkset", check.code === 0, check.out.trim().slice(0, 160));
-const brand = await run("voice", "guide", "--pack", "technical-docs");
-ok("`kapi voice guide --pack` works offline", brand.code === 0, brand.out.trim().slice(0, 160));
+const brand = await run("voice", "show", "--pack", "technical-docs");
+ok("`kapi voice show --pack` works offline", brand.code === 0, brand.out.trim().slice(0, 160));
 
 // Installing a profile writes to a SQLite voice store, which the browser holds
 // in SQLite's WebAssembly build like every other store.
@@ -303,9 +303,9 @@ ok(
 );
 // A standalone store is consulted only once it is there, and only the driver
 // can say so: the page's file system never sees a database.
-const installed = await run("voice", "guide", "--profile", "technical-documentation");
+const installed = await run("voice", "show", "--profile", "technical-documentation");
 ok(
-  "`kapi voice guide --profile` reads the installed profile from the voice store",
+  "`kapi voice show --profile` reads the installed profile from the voice store",
   installed.code === 0 && installed.out.includes("Voice Guide: Technical Documentation"),
   installed.out.trim().slice(0, 240),
 );

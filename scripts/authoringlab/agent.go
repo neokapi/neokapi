@@ -199,7 +199,7 @@ type AgentOpts struct {
 	Model  string
 	Prompt string
 	// SystemPrompt is the governance, appended to the agent's own system prompt
-	// exactly as `kapi voice guide` output would be pasted into one. Set in the
+	// exactly as `kapi voice show` output would be pasted into one. Set in the
 	// pushed arm and in neither of the others: the pulled arm has to go and get
 	// the same text itself.
 	SystemPrompt string
@@ -460,11 +460,11 @@ func filesFromShell(command, repoDir string) []string {
 // kapiCalls picks the kapi invocations out of a shell command.
 //
 // Split on the same separators filesFromShell uses, and a segment counts when
-// its first word is the binary — so `cd crates && kapi voice guide` is found and
-// `rg kapi` is not. Recorded verbatim, because which subcommand the agent
-// reached for is the interesting part: `kapi voice guide` is the assistant
-// taking the skill's advice, and `kapi context <path>` is it asking what applies
-// where the file will sit.
+// its first word is the binary, so `cd crates && kapi context README.md` is
+// found and `rg kapi` is not. Recorded verbatim, because which subcommand the
+// agent reached for is the interesting part: `kapi context <path>` is the
+// assistant taking the skill's advice and asking what applies where the file
+// will sit.
 func kapiCalls(command string) []string {
 	var found []string
 	for _, segment := range strings.FieldsFunc(command, func(r rune) bool {
@@ -476,7 +476,7 @@ func kapiCalls(command string) []string {
 		}
 		// `&` separates segments AND appears inside `2>&1`, so splitting leaves a
 		// dangling redirect on the end of the command. The command is shown to a
-		// reader, and `kapi voice guide 2>` is not a command anyone ran.
+		// reader, and `kapi voice show 2>` is not a command anyone ran.
 		for len(fields) > 0 && danglingRedirect.MatchString(fields[len(fields)-1]) {
 			fields = fields[:len(fields)-1]
 		}

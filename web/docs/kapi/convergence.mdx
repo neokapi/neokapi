@@ -491,14 +491,14 @@ For a translation nobody has reviewed, the source it was made from is in the
 record of the run that wrote it, which the project's context keeps beside its
 decisions. In a project that shares its context through a backend, a fresh
 clone reads that context with
-[`kapi context pull`](/kapi/context-portability#sharing-context-through-a-backend).
+[`kapi context sync`](/kapi/context-portability#sharing-context-through-a-backend).
 Until it does, `kapi up` and `kapi status` say so in one line, and a source
 edited before the clone's first pass is not graded stale there:
 
 ```bash
 kapi status
 # ...
-# This checkout holds no record of the source its translations were made from; run `kapi context pull` to read the project's context before a pass grades them.
+# This checkout holds no record of the source its translations were made from; run `kapi context sync` to read the project's context before a pass grades them.
 ```
 
 The loop produces and never decides. Producing a translation is a different act
@@ -642,8 +642,8 @@ records a basis.
 />
 
 The record travels with the project through
-[`kapi context push`](/kapi/context-portability) to the project's context
-backend, or in one file with `kapi context export`. A
+[`kapi context sync`](/kapi/context-portability) through the project's context
+backend, or in one file with `kapi store export`. A
 server-connected project pushes it to the remote instead, where parked blocks
 enter the team's assignment and review queue.
 

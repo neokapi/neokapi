@@ -166,7 +166,7 @@ existing content, `if_match` (section 4).
 | Op | Body | Replaces on main | Needs the capability |
 | --- | --- | --- | --- |
 | `set_content` | exactly one of `text` (placeholder form) or `runs`; optional `path` to a plural form or select case; `basis` on a derived edition; with `if_match: "absent"` it creates the edition | `kapi apply` content entries; desktop `UpdateSourceText` and `UpdateReviewTarget`; Bowrain `PUT …/:bid` and `PUT …/:bid/runs`; server MCP `update_block`; merge and pull output; every tool's target write; Bowrain rollback | every editable format; new codes only of types the writer can synthesize |
-| `replace_text` | `edits[]`, each one of `{find, occurrence?}` (in placeholder form: an inline code has zero width unless a `<x id="…"/>` token names it), `{start, end}` (flat code points) or `{range}` (run positions), with `text`; optional `path` on the operation, or on an edit, whose own `path` overrides it | `ksed`, `kapi exec search-replace`, `case-transform`, desktop `ApplyCheckFix`, voice-rewrite substitutions, `context_correct` from and to | every editable format |
+| `replace_text` | `edits[]`, each one of `{find, occurrence?}` (in placeholder form: an inline code has zero width unless a `<x id="…"/>` token names it), `{start, end}` (flat code points) or `{range}` (run positions), with `text`; optional `path` on the operation, or on an edit, whose own `path` overrides it | `ksed`, `kapi exec search-replace`, `case-transform`, desktop `ApplyCheckFix`, voice-rewrite substitutions, `context_note` from and to | every editable format |
 | `set_attribute` | `code` (the run id placeholder text shows), `name`, `value` | nothing on main can do this (main-model §2, P3 observed) | per format, code type and attribute |
 | `mark` | a range in any of the three forms above, `type` (a vocabulary type such as `fmt:bold` or `link:hyperlink`), `attrs` | nothing on main can do this (edit-paths §4.7) | per format and type |
 | `remove_edition` | none | `kapi exec remove-target`, Bowrain revert-clear | formats that hold editions |
@@ -204,9 +204,10 @@ inference).
 - codex `edit_embedded`: a subfilter's child block is already an ordinary addressable block
   with a qualified id (`core/model/blockid.go:218-223`; main-model §2).
 - a `comment` kind: a code comment is a block of a source file (section 3.6).
-- the context lifecycle verbs (`observe`, `correct`, `keep`, `drop`, `withdraw`, `revert`,
-  `widen`, `settle`): they act on operations by id, already share one policy
-  (`core/contextop/policy.go:58-108`), and keep their commands and MCP tools.
+- the context lifecycle operations (`observe`, `correct`, `keep`, `drop`, `withdraw`,
+  `reset`, `widen`, `signal`, `establish`): they act on operations by id, share one policy
+  (`core/contextop/policy.go`), and keep their commands (`kapi context note`, `review`,
+  `reset`, `sync`) and MCP tool (`context_note`).
 
 ### 2.3 Operations on the wire
 
@@ -902,7 +903,7 @@ The research weighed it and rejected it (ws-store §4, option A):
   projecting files would rebuild git branches inside the log.
 - A union-merged log orders two concurrent edits by id with nothing marking the conflict
   (ws-store §9, observed), so projecting text from it would pick a winner silently.
-- Rebuild and `kapi context pull` would rewrite tracked files.
+- Rebuild and `kapi context sync` would rewrite tracked files.
 
 Records keyed by hashes stay true on every branch and apply wherever the content matches, the
 property that already makes decisions branch-independent (C-04:123-133). A branch switch moves
@@ -945,8 +946,8 @@ A person saving in an editor records nothing at that moment. kapi learns on the 
 (extraction, `kapi up`, the desktop's file watcher, `apps/kapi-desktop/backend/filewatcher.go:10-38`):
 the edition's revision ends no recorded chain, so the service records a `content.edit` with
 origin `observed` and an unknown actor. That is today's "taken over by a person; basis unknown"
-(S-07:204-210). When a branch merges to the default branch, `kapi context settle --merged
-<range>` already reads the diff (C-11:204-212); it attributes those transitions to the commit
+(S-07:204-210). When a branch merges to the default branch, `kapi context sync --merged
+<range>` already reads the diff (C-11, *Suggestions settle by evidence*); it attributes those transitions to the commit
 author (proposal).
 
 ### 5.8 Push, pull and Bowrain

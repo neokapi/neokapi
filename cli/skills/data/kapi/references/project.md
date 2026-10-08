@@ -68,7 +68,7 @@ tell the user to commit their context.
 
 When the project binds a voice, `kapi init` also writes a short section into the project's assistant file: an
 existing `CLAUDE.md` or `AGENTS.md` at the root, or a new `CLAUDE.md`. It says
-the voice is held by kapi and that `kapi voice guide` retrieves it, so the next
+the voice is held by kapi and that `kapi context <path>` retrieves it, so the next
 assistant in this tree asks before it writes. The section sits between
 `<!-- kapi:voice -->` markers and is replaced in place on every run; the rest of
 the file is never touched. `kapi init --no-pointer` skips it. On an existing
@@ -100,7 +100,7 @@ which files landed, since they commit them.
   commands.
 
 The ignore rule `kapi init` writes is `.kapi/.gitignore` with one line, `*`. A
-project that commits a terms bundle or a voice profile in `.kapi/` for `kapi context import` to read
+project that commits a terms bundle or a voice profile in `.kapi/` for `kapi store import` to read
 keeps an ignore rule of its own, and kapi leaves it as it is.
 
 Deleting:
@@ -115,8 +115,8 @@ Deleting:
   `.kapi/sync/`, a venue's sync state.
 - Deleting the workspace costs every project's terms, voice profiles, content
   memory and decisions. Tell the user to push each project to its context
-  backend (`kapi context push`) or take a copy first with
-  `kapi context export -o backup.kpz` in each project.
+  backend (`kapi context sync`) or take a copy first with
+  `kapi store export -o backup.kpz` in each project.
 
 ## What the recipe binds
 
@@ -144,7 +144,7 @@ collections:
 
 - **Voice profile**: `kapi voice import <file.yaml>` files one in the project's
   voice store and prints its id; bind that id under `defaults.voice.profile`.
-  `kapi voice check <file>`, `voice rewrite` and `voice guide` then resolve it
+  `kapi voice check <file>`, `voice rewrite` and `kapi context <file>` then resolve it
   with no flag, and `kapi voice edit` is how the user changes it afterwards.
   Then `kapi voice pointer`, so the assistant file names the voice.
 - **More than one voice in one repo**: declare one profile per product under
@@ -226,8 +226,8 @@ collections:
   a check of the project reads the comments and none of the values, and
   `kapi up`, merge, extract, flow runs, `kapi stats`, coverage and the ship
   gates skip the values. The item governs only the comments: `kapi check
-  <file>` naming the file checks its values too, and `kapi voice guide <file>`
-  and `kapi context <file>` answer for them, at the next item that claims the
+  <file>` naming the file checks its values too, and `kapi context <file>`
+  answers for them, at the next item that claims the
   file or the project's default point. Another item that matches the same
   files claims their values wherever either item is listed, so `kapi up`
   converges those values and the comments stay at the comments-only item's
@@ -266,7 +266,7 @@ and format stay enforced:
 
 ```bash
 kapi extract --target-lang fr        # writes out/<name>.en-to-fr.xliff (source + empty targets)
-kapi voice guide                     # the voice to follow (project-bound)
+kapi context <file>                  # the voice and terms that apply to the file
 kapi terms lookup "<term>" -t fr  # the approved wording
 ```
 

@@ -524,8 +524,7 @@ export class ContentItem {
  * 
  * Credentials never appear here: a git backend uses the repository's own
  * remote access, and an S3 backend the standard AWS environment and profile.
- * A person can use another backend on one machine (`kapi context backend`),
- * which is kept in that machine's configuration.
+ * `kapi context sync` shares the context through it.
  */
 export class ContextBackend {
     /**
@@ -1666,7 +1665,7 @@ export class PluginStatus {
  * profile that binds neither a voice nor a terms store is therefore still a
  * profile.
  * 
- * `kapi context import` reads the files under `.kapi/profiles/<name>/` into the
+ * `kapi store import` reads the files under `.kapi/profiles/<name>/` into the
  * store under that name. Nothing reads them at run time.
  */
 export class Profile {
@@ -1931,7 +1930,7 @@ export class ShipGateRule {
  * fernwell}`.
  * 
  * A recipe never names a file. The store is what every surface answers from,
- * and `kapi context import` is what reads a profile file into it, so a binding
+ * and `kapi store import` is what reads a profile file into it, so a binding
  * to the file would read as in force while the store held something else.
  */
 export class VoiceBinding {

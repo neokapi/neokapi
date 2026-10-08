@@ -46,7 +46,7 @@ func registerContextMCPTools(server *mcp.Server, a *App) {
 			"it is discouraged and what to say instead, and wording the project has already approved. " +
 			"For everything that applies to a file, read context://<path> instead. " +
 			"An empty answer means nothing is recorded about the word; if the files always write it one " +
-			"way, record that with context_observe, and leave it alone, with no note, if they write it more than one way. " +
+			"way, record that with context_note, and leave it alone, with no note, if they write it more than one way. " +
 			"`attention` says what a person must act on, such as " +
 			"context files nobody has imported.",
 	}, a.handleContextSearch)
@@ -55,7 +55,8 @@ func registerContextMCPTools(server *mcp.Server, a *App) {
 		Name: "context_read",
 		Description: "Read what applies when you write one file, before you change it: the voice, the words " +
 			"to use and to avoid, and what has been suggested but not yet established. `path` is " +
-			"project-relative, e.g. `docs/guide.md`, or `profile/<name>` for a named profile. The same " +
+			"project-relative, e.g. `docs/guide.md`, or `profile/<name>` for a named profile. Set `comments` " +
+			"before writing a comment in a source file: the answer is then for the file's comments. The same " +
 			"text the context://<path> resource returns.",
 	}, a.handleContextRead)
 
@@ -64,9 +65,10 @@ func registerContextMCPTools(server *mcp.Server, a *App) {
 
 // contextReadInput names the place a context_read answers for.
 type contextReadInput struct {
-	Path    string `json:"path" jsonschema:"the project-relative file you are about to write, or profile/<name>"`
-	Format  string `json:"format,omitempty" jsonschema:"markdown (default) or json"`
-	Project string `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
+	Path     string `json:"path" jsonschema:"the project-relative file you are about to write, or profile/<name>"`
+	Format   string `json:"format,omitempty" jsonschema:"markdown (default) or json"`
+	Comments bool   `json:"comments,omitempty" jsonschema:"answer for the comments in the file rather than its content"`
+	Project  string `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
 }
 
 // handleContextRead answers with the text the context:// resource at the same
@@ -82,6 +84,9 @@ func (a *App) handleContextRead(ctx context.Context, _ *mcp.CallToolRequest, in 
 	}
 	if in.Project != "" {
 		query.Set("project", in.Project)
+	}
+	if in.Comments {
+		query.Set("comments", "true")
 	}
 	uri := contextURIScheme + path
 	if len(query) > 0 {
@@ -99,7 +104,7 @@ const contextURIScheme = "context://"
 
 // The two resource templates, by location and by profile name.
 const (
-	contextLocationTemplate = contextURIScheme + "{+path}{?format,project}"
+	contextLocationTemplate = contextURIScheme + "{+path}{?format,project,comments}"
 	contextProfileTemplate  = contextURIScheme + contextProfilePrefix + "{name}{?format,project}"
 )
 
@@ -213,6 +218,10 @@ func parseContextURI(uri string) (ContextPointRequest, bool, string, error) {
 	if err != nil {
 		return ContextPointRequest{}, false, "", err
 	}
+	comments := false
+	if values, qerr := url.ParseQuery(query); qerr == nil {
+		comments = values.Get("comments") == "true" || values.Get("comments") == "1"
+	}
 
 	address, uerr := url.PathUnescape(address)
 	if uerr != nil {
@@ -229,7 +238,7 @@ func parseContextURI(uri string) (ContextPointRequest, bool, string, error) {
 		}
 		return ContextPointRequest{Profile: name}, asJSON, project, nil
 	}
-	return ContextPointRequest{Path: address}, asJSON, project, nil
+	return ContextPointRequest{Path: address, Comments: comments}, asJSON, project, nil
 }
 
 // contextParamsFromQuery reads the `format` and `project` parameters. An

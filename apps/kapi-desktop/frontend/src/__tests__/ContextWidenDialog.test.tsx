@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, fireEvent } from "./testUtils";
 
 import { ContextWidenDialog } from "../components/ContextWidenDialog";
-import { ContextRevertDialog } from "../components/ContextRevertDialog";
+import { ContextResetDialog } from "../components/ContextResetDialog";
 import { IN_FORCE } from "../stories/fixtures/contextFeed";
 import type { ContextWidenPreview } from "../types/api";
 
@@ -104,47 +104,58 @@ describe("the widen preview", () => {
   });
 });
 
-describe("the undo confirmation", () => {
-  it("names how many operations a session revert undoes", () => {
+describe("the reset confirmation", () => {
+  it("names what resetting to before a session sets aside", () => {
     render(
-      <ContextRevertDialog
-        request={{ project: "kapimart", session: "sess-1" }}
+      <ContextResetDialog
+        request={{ project: "kapimart", before: "sess-1" }}
         onClose={vi.fn()}
         onConfirm={vi.fn()}
         scope={{
-          session: "sess-1",
-          operations: 4,
+          before: "sess-1",
+          set_aside: 4,
+          decisions: 1,
+          restored: 0,
           rules: ['term "sign in", use "log in"'],
           subjects: ['term "sign in", use "log in"', 'voice "utilise", use "use"'],
         }}
       />,
     );
-    expect(document.querySelector("[data-slot='revert-count']")?.textContent).toContain(
-      "This undoes 4 operations.",
-    );
-    expect(document.querySelector("[data-slot='revert-count']")?.textContent).toContain(
-      "1 rule is in force",
-    );
-    expect(document.querySelector("[data-slot='revert-subjects']")?.textContent).toContain(
+    const count = document.querySelector("[data-slot='reset-count']")?.textContent;
+    expect(count).toContain("This sets aside 4 suggestions and rules.");
+    expect(count).toContain("1 rule is in force");
+    expect(count).toContain("1 later decision is set aside");
+    expect(document.querySelector("[data-slot='reset-subjects']")?.textContent).toContain(
       "utilise",
+    );
+    expect(document.querySelector("[data-slot='reset-dialog']")?.textContent).toContain(
+      "A later reset to before this one brings it back.",
     );
   });
 
-  it("undoes only once the person accepts", () => {
+  it("resets only once the person accepts", () => {
     const onConfirm = vi.fn();
-    const request = { project: "kapimart", id: "9" };
+    const request = { project: "kapimart", before: "sess-1" };
     render(
-      <ContextRevertDialog
+      <ContextResetDialog
         request={request}
         onClose={vi.fn()}
         onConfirm={onConfirm}
-        scope={{ operations: 1, rules: [], subjects: [] }}
+        scope={{
+          before: "sess-1",
+          set_aside: 1,
+          decisions: 0,
+          restored: 0,
+          rules: [],
+          subjects: [],
+        }}
       />,
     );
-    expect(document.querySelector("[data-slot='revert-count']")?.textContent).toContain(
-      "This undoes 1 operation.",
+    expect(document.querySelector("[data-slot='reset-count']")?.textContent).toContain(
+      "This sets aside 1 suggestion or rule.",
     );
-    fireEvent.click(document.querySelector("[data-slot='revert-confirm']") as HTMLElement);
+    expect(onConfirm).not.toHaveBeenCalled();
+    fireEvent.click(document.querySelector("[data-slot='reset-confirm']") as HTMLElement);
     expect(onConfirm).toHaveBeenCalledWith(request);
   });
 });

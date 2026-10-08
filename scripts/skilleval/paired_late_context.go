@@ -46,7 +46,7 @@ func pairedReadsContext(tool string, input map[string]any) bool {
 		file := filepath.ToSlash(pairedString(input, "file_path"))
 		return strings.HasSuffix(file, "STYLE.md") || strings.HasSuffix(file, ".kapi/voice.yaml")
 	case strings.HasPrefix(tool, "mcp__kapi__"):
-		return pairedContextTool.MatchString(tool) && !strings.HasSuffix(tool, "_observe") && !strings.HasSuffix(tool, "_correct")
+		return pairedContextTool.MatchString(tool) && !strings.HasSuffix(tool, "_note")
 	}
 	return false
 }

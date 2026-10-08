@@ -74,7 +74,7 @@ append-only lines on a pipe.
 | 2 | usage error: bad flags, unreadable input, no input |
 | 3 | quality gate unmet (`ErrQualityGate`) |
 | 4 | a check did not run (`ErrCheckNotRun`): no content checked, or an analyzer missed its canary |
-| 5 | a backend could not be reached (`ExitUnreachable`): a context pull or push, or a change set's backend; nothing changed |
+| 5 | a backend could not be reached (`ExitUnreachable`): the context backend `kapi context sync` shares through, or a change set's backend; nothing changed |
 | 130 | interrupted (SIGINT) |
 
 The grep-family utilities additionally use `1` for "no match", which is their

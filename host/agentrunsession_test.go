@@ -134,7 +134,7 @@ func TestOneRunIsOneSession(t *testing.T) {
 }
 
 // TestASessionIDIsShortAndSurvivesAReusedPID: the id is typed by hand at
-// `kapi context revert --session`, and a pid the machine handed out twice must
+// `kapi context reset --before`, and a pid the machine handed out twice must
 // not merge two runs.
 func TestASessionIDIsShortAndSurvivesAReusedPID(t *testing.T) {
 	id := processSessionID(50, 7)

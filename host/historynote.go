@@ -11,7 +11,7 @@ import (
 // The loop's basis lives in the project's context. Every document a run writes
 // is recorded in the block history with the source each translation was made
 // from (host/loopbasis.go), and the history is part of the workspace log, which
-// a checkout reads from the project's context backend with kapi context pull.
+// a checkout reads from the project's context backend with kapi context sync.
 // A fresh clone holds the translations the repository carries and none of that
 // record: until it pulls the context, a translation whose source was edited
 // before this checkout's first pass is not graded stale here, because nothing
@@ -25,7 +25,7 @@ import (
 // HistoryNotPulledNote is the line kapi up and kapi status print for a
 // checkout whose translations exist and whose block history records none.
 const HistoryNotPulledNote = "This checkout holds no record of the source its translations were made from; " +
-	"run `kapi context pull` to read the project's context before a pass grades them"
+	"run `kapi context sync` to read the project's context before a pass grades them"
 
 // historyNotPulled reports whether any translation the units name exists on
 // disk while the project's block history records no change at all, in a
@@ -46,9 +46,9 @@ func (a *App) historyNotPulled(ctx context.Context, root string, units []VerifyU
 }
 
 // sharesContext reports whether the project at root shares its context
-// through a backend, the recipe's or this machine's choice (resolveBackend):
-// whether kapi context pull has somewhere to read it from.
-func (a *App) sharesContext(ctx context.Context, root string) bool {
+// through the backend its recipe declares: whether kapi context sync has
+// somewhere to read it from.
+func (a *App) sharesContext(_ context.Context, root string) bool {
 	layout, err := project.LayoutFor(root)
 	if err != nil {
 		return false
@@ -57,21 +57,7 @@ func (a *App) sharesContext(ctx context.Context, root string) bool {
 	if err != nil {
 		return false
 	}
-	overrides, err := readBackendOverrides()
-	if err != nil {
-		return false
-	}
-	if len(overrides) == 0 {
-		// The project's key, which a machine's choice is filed under, is
-		// read only when this machine made one.
-		return declared.Shared()
-	}
-	w, err := a.Projector(ctx, layout.Root)
-	if err != nil {
-		return false
-	}
-	info, err := resolveBackend(layout, w.Key())
-	return err == nil && info.Kind != project.ContextBackendLocal
+	return declared.Shared()
 }
 
 // noteHistoryNotPulled prints HistoryNotPulledNote on the command's error

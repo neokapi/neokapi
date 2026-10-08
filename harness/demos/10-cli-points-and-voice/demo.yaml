@@ -23,7 +23,7 @@ needsAi: false
 # way a user types it. The sandbox lives in os.tmpdir(), outside the repo.
 project: true
 setup:
-  - kapi context import ./context
+  - kapi store import ./context
 captureTimeoutSec: 180
 aspects:
   - coordinates, not folders
@@ -43,8 +43,8 @@ script:
   - command: kapi context docs/quickstart.md --explain
   - comment: The partner page is three directories away, on another brand, and answers with the portal channel.
   - command: kapi context partner/index.md --explain
-  - comment: The voice guide for the same path. The path selects the portal's register, so no channel is named.
-  - command: kapi voice guide partner/index.md
+  - comment: What a writer reads for the same path. The path selects the portal's register, so no channel is named.
+  - command: kapi context partner/index.md
   - comment: And this is the gate, over every surface, with no flags.
   # The gate must fail here: the forbidden word on the partner page is the beat.
   - command: kapi check

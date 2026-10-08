@@ -126,7 +126,7 @@ func TestChangePolicy_AssetRefusalNamesTheRoute(t *testing.T) {
 	err := ChangePolicy{}.Permit(agent, &change.Set{}, change.Op{Kind: change.KindTerm, Body: &change.Term{Action: "upsert", Term: "use"}})
 	require.NotNil(t, err)
 	assert.Contains(t, err.Message, "agent claude/s_01")
-	assert.Contains(t, err.Message, "context_observe")
+	assert.Contains(t, err.Message, "context_note")
 
 	err = ChangePolicy{}.Permit(agent, &change.Set{}, change.Op{Kind: change.KindRecipe, Body: &change.Recipe{Path: "name", Value: []byte(`"x"`)}})
 	require.NotNil(t, err)

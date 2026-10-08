@@ -2,7 +2,7 @@
 id: c-04-block-state-and-decisions
 sidebar_position: 4
 title: "C-04: Block state and the decision record"
-description: "Architecture decision: a project's authored block state (the review ladder, approvals, parking) lives in an append-only, content-addressed decision ledger in core/state. An entry applies where the revisions of the translation and the source it blessed match the content (its hashes, for an entry recorded before revisions), so one ledger serves every checkout of a project; the .kapi/state/ shards carry one checkout's view of it as text, which kapi context import reads."
+description: "Architecture decision: a project's authored block state (the review ladder, approvals, parking) lives in an append-only, content-addressed decision ledger in core/state. An entry applies where the revisions of the translation and the source it blessed match the content (its hashes, for an entry recorded before revisions), so one ledger serves every checkout of a project; the .kapi/state/ shards carry one checkout's view of it as text, which kapi store import reads."
 keywords: [project state, decision ledger, core/state, review, approval, convergence, append-only, content-addressed, commit, revision, basis, targetHash, architecture decision, neokapi]
 ---
 
@@ -122,7 +122,7 @@ decision recorded twice, on one machine or on two whose logs are merged, is one
 operation. A re-assertion of an older entry is a new event and carries no
 address.
 
-`kapi context rebuild` therefore rebuilds the ledger with the other stores, and
+`kapi store rebuild` therefore rebuilds the ledger with the other stores, and
 a second machine that merges the log receives the decisions with it. Each
 checkout's view stays out of the log: it is a reading of that checkout's files,
 written by the store beside the journal. The embedded layout a test opens has
@@ -225,7 +225,7 @@ are one input to it: an import records each line it takes as a
 `decision.record` operation. Decisions move between machines as operations, through a context
 backend or a transfer file ([C-03](c-03-context-store-and-graph.md)).
 
-**Import.** `kapi context import` reads the shards into the ledger, and a
+**Import.** `kapi store import` reads the shards into the ledger, and a
    person runs it ([C-11](c-11-context-operations.md)). A line the
    ledger already holds costs nothing, and a line older than the entry in force at
    its pairing (by the `Updated` stamp both ends write) is left out, which is the
@@ -696,7 +696,7 @@ to account for a file it does not have.
 ### The shards' location is fixed
 
 A checkout's decision shards sit under `state/` in its `.kapi/` directory
-(`project.ExportLayout.UnitStateDir`), and `kapi context import <dir>` reads the
+(`project.ExportLayout.UnitStateDir`), and `kapi store import <dir>` reads the
 same layout under the directory it is given. The recipe has no separate binding
 for this directory. When an import, a pull or a content-memory bundle records
 decisions into a checkout, the store writes the checkout's view back to its
@@ -753,7 +753,7 @@ ladder types and the per-block rung helpers) live in `core/state` and
   history `content.edit` operations project to; the ledger holds what was
   decided about a pairing ([C-03](c-03-context-store-and-graph.md)).
 - **A transfer file carries the log, the shards carry a view.**
-  `kapi context export` writes the project's operations, so it carries every
+  `kapi store export` writes the project's operations, so it carries every
   `decision.record` whichever checkout recorded it
   ([C-03](c-03-context-store-and-graph.md)): a project whose branches answer one
   block differently has decided both, and a backup built from one checkout's view

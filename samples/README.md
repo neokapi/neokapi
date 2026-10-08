@@ -21,7 +21,7 @@ Mart is content you can put through one.
   terms, voice profiles, content memory and recorded decisions live in the
   workspace on the machine running kapi, so a sample carries them as files
   under `context/` at its root and the first step in every sample README is
-  `kapi context import ./context`. Until that runs, the sample's gates answer
+  `kapi store import ./context`. Until that runs, the sample's gates answer
   from an empty store, and kapi says so. `.kapi/` holds configuration: the
   recipe's flows, the shared filters and the ignore rule.
 - **One fiction per sample, reused everywhere.** Northsea is also the fictional

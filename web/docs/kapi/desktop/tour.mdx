@@ -23,12 +23,12 @@ anything.
 
 **Content** is what has been read into the project, what has changed on disk
 since, and what is missing. **Governance** is the voice profile in force, the
-terms store bound, when the project last converged, and whether it is in sync
+terms that apply, when the project last converged, and whether it is in sync
 with the venue it declares.
 
-Beneath, the point map gives one row per point the recipe declares, with the
-collections sitting there and the voice bound to them. A single-point project is
-one row.
+Beneath, **Where content sits** gives one row for each part of the project the
+recipe declares, with the collections there and the voice that applies to them.
+A project with one voice for everything is one row.
 
 **Bring up to date** runs the project's default flow until every gated scope
 ships or parks. **Plan…** beside it is the pre-flight: the pending work, the
@@ -41,22 +41,24 @@ runs.
     dark: "/video/kapi/kapi-desktop-projects-dark.webm",
   }}
   outdated="interface"
-  outdatedNote="The clip shows an earlier layout of the project home. The app now opens on the two-axis standing and the point map, above the convergence hero."
+  outdatedNote="The clip shows an earlier layout of the project home. The app now opens on the two-axis standing and where content sits, above the convergence hero."
 />
 
 ## The context that governs it
 
-The **Context** hub is the part of the app this tour exists for. Four surfaces,
-one graph.
+The **Context** hub is the part of the app this tour exists for.
 
-**Explorer** asks by location or by content. Point it at a file and it resolves
-what applies there. Search a word and it returns the terms that cover it, the
+**Rules** holds the rules and suggestions kept for the project, newest since
+you last looked first: what agents suggested, with the evidence behind each, and **Keep**,
+**Drop**, **Choose this side** and **Apply more widely** to decide about it.
+
+**Explorer** asks by file or by word. Give it a file and it shows what applies
+there. Search a word and it returns the terms that cover it, the
 prior wording that used it, and where.
 
-**Voice** renders the profile that governs a point, resolved rather than
-declared: tone, style rules, pattern rules, examples, and the
-locale, channel and persona overrides that apply. Where a binding was skipped
-because its validity window had closed, the page says which one and why.
+**Voice** shows the voice profile that applies, as it applies: tone, style
+rules, pattern rules, examples, and the language, channel and persona
+adjustments. When dated guidance has lapsed, the page says which and why.
 Editing writes the YAML in your working tree, the same file a reviewer reads in
 a pull request.
 
@@ -89,8 +91,8 @@ leaving every other byte as it was.
 ## Checks
 
 Checks are tests for prose, and the panel reads like a test report. A finding
-names the rule that fired and the point it is scoped to, and clicking it lands
-on Context at that point with the rule in view.
+names the rule that fired and where it applies, and clicking it opens Context
+there with the rule in view.
 
 That click is the loop: see what was found, see the rule that found it, then
 change the wording or change the rule. A finding whose rule names the wording to
@@ -127,7 +129,7 @@ Settings has four tabs: **General** for appearance, **AI Models** for the
 providers and models kapi runs with (keys stay in your OS keychain, never in the
 project file), **Plugins** for the formats and tools that extend it, and
 **Locales**. Project Settings carries the recipe itself: the languages, the
-governance bindings (the voice profile, the default point and the profiles), and
+voice and terms each part of the project uses, and
 the default flow.
 
 Plugins install from the registry in one click, and the formats and tools they

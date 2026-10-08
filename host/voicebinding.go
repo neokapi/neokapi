@@ -38,7 +38,7 @@ func boundVoiceNotHeld(field, name string, err error) error {
 	}
 	return fmt.Errorf("%s binds voice profile %q, and this machine's store for the project does not hold it: "+
 		"the project's context has not been imported or pulled here. "+
-		"Run `kapi context pull` when the project shares its context, or `kapi context import` in a checkout that carries the profile "+
+		"Run `kapi context sync` when the project shares its context, or `kapi store import` in a checkout that carries the profile "+
 		"(`kapi voice profiles` lists what the store holds): %w",
 		field, name, ErrVoiceProfileNotFound)
 }

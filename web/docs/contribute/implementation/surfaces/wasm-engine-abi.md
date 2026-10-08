@@ -138,9 +138,9 @@ official SQLite WebAssembly build, `@sqlite.org/sqlite-wasm`.
   elsewhere. `kapiExportWorkspace()` packs the engine's files and the context
   of every project among them into a workspace package (`kpz.KindWorkspace`,
   `kapi-workspace`): the files under `files/`, and per project a context
-  package under `contexts/`, the operation log `kapi context export` writes.
+  package under `contexts/`, the operation log `kapi store export` writes.
   `kapiImportWorkspace(bytes)` writes the files and merges each log, as
-  `kapi context import` does, which rebuilds the project's stores. A terms
+  `kapi store import` does, which rebuilds the project's stores. A terms
   store outside every project (one `kapi terms import --file` wrote, say) has
   no log, so it travels as a terms bundle under `termstores/`, which the
   manifest maps to the store's path, and an import adds its concepts and
@@ -159,8 +159,8 @@ official SQLite WebAssembly build, `@sqlite.org/sqlite-wasm`.
   the project's log again and rebuilds its stores.
 - **Sync through a folder.** `kapiSyncContext(remote, options)` pulls a
   project's context from a remote the page holds and pushes what the engine
-  recorded (`App.SyncProjectContextWith`, the same sync `kapi context pull`
-  and `push` run), and resolves to `{pull, push}`. The remote is an object
+  recorded (`App.SyncProjectContextWith`, the same pull and push
+  `kapi context sync` runs), and resolves to `{pull, push}`. The remote is an object
   with `list`, `get` and `put` (`kapi/cmd/kapi-wasm-cli/contextremote.go`);
   `folderRemote(handle)` (`packages/engine/src/folderremote.ts`) builds one
   over a `FileSystemDirectoryHandle`, from `showDirectoryPicker()` or the

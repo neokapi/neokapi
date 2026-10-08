@@ -140,8 +140,8 @@ func (r *ContextSearchResult) FormatText(w io.Writer) error {
 	if len(r.Terms) == 0 && len(r.Precedent) == 0 && len(r.Suggestions) == 0 {
 		fmt.Fprintf(w, "Nothing in this project's context matches %q.\n", r.Query)
 		if r.Scope != ScopeProfile {
-			fmt.Fprintln(w, "If the files always write it one way, record that with context_observe "+
-				"(or `kapi context observe`). Leave it alone, with no note, if they write it more than one way.")
+			fmt.Fprintln(w, "If the files always write it one way, record that with context_note "+
+				"(or `kapi context note`). Leave it alone, with no note, if they write it more than one way.")
 		}
 	}
 
@@ -306,7 +306,7 @@ type ContextTermHit struct {
 	// project's terms. Empty for a term the project's own store holds.
 	Scope string `json:"scope,omitempty"`
 	// Operation is the context operation a widened rule came from, which is
-	// what `kapi context log` and `kapi context revert` name it by.
+	// what `kapi context log` and `kapi context review` name it by.
 	Operation string `json:"operation,omitempty"`
 }
 

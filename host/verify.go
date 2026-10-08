@@ -756,7 +756,7 @@ func (a *App) ungovernedTermsGate(cmd Command, proj *project.KapiProject, root s
 	}
 	if len(bound) == 0 {
 		return unboundGate(gateTerms, "terms",
-			"read a terms file into the project with `kapi context import <dir>`, add terms with `kapi terms import`, or declare term_rules in the recipe"), nil
+			"read a terms file into the project with `kapi store import <dir>`, add terms with `kapi terms import`, or declare term_rules in the recipe"), nil
 	}
 	flag := "--" + gateFlagName + " " + gateTerms
 	where := strings.Join(bound, ", ")

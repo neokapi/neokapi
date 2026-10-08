@@ -12,10 +12,10 @@ Since then 1.3 changed what several of them show:
 - `kapi check` reports `kapi.check/v2`, marks each finding `FAILS` or
   `REPORTS`, and fails on a failing finding. There are no severity grades and
   no `--strict`.
-- Word rules are terms. `kapi context import` keeps the voice and moves a voice
+- Word rules are terms. `kapi store import` keeps the voice and moves a voice
   file's word rules into the terms store.
-- `.kapi/` is a cache. The context is shared with `kapi context pull` and
-  `kapi context push`; `defaults.translate_after` replaces
+- `.kapi/` is a cache. The context is shared with `kapi context sync`;
+  `defaults.translate_after` replaces
   `defaults.source_gate`.
 - `kapi init` proposes collections and writes an MCP entry and one short skill.
 - `kapi apply` reads a kapi.change/v1 change set: a term is
@@ -214,7 +214,7 @@ proposal; embedding it is a page edit after the asset is on the CDN.
 | # | Demo | Publishes as | Would fit on | Infrastructure | What changed |
 | --- | --- | --- | --- | --- | --- |
 | 18 | `s0-northsea-context` | `monolingual-context` | `kapi/context.mdx` | none | nothing in the script; the import reports the word rules it moved into terms, and each context answer ends with the #2989 recording guidance |
-| 19 | `10-cli-points-and-voice` | `cli-points-and-voice` | `kapi/projects.mdx` | none | the fixture's voice file sits under `context/`, like the samples', and `setup:` reads it with `kapi context import ./context`; the voice guide is asked for by path (`kapi voice guide partner/index.md`), and holds the portal's register and no terms; the brand coordinate is a `recipe` operation |
+| 19 | `10-cli-points-and-voice` | `cli-points-and-voice` | `kapi/projects.mdx` | none | the fixture's voice file sits under `context/`, like the samples', and `setup:` reads it with `kapi store import ./context`; the voice guide is asked for by path (`kapi context partner/index.md`), and holds the portal's register and no terms; the brand coordinate is a `recipe` operation |
 | 20 | `11-cli-terms-and-queue` | `cli-terms-and-queue` | `kapi/recipes/terminology-checks.mdx` | none | reads the same `context/` as row 19; the narration counts the four French rows it approves (it said twenty); the `--jq` filter writes one `decide` operation per row, and the narration says the queue names what a decision addresses |
 | 21 | `audience-constraints` | `audience-constraints` | `kapi/recipes/content-governance-for-ai.mdx` | none | rewritten for the screen: text output in place of several hundred lines of JSON, `ksed` edits in place of `node -e`, and one `--jq` line for the findings' provenance; the sample's `emotion: reassuring` became `warm`, which removes a configuration warning |
 | 22 | `s1-compass-converge` | `multilingual-converge` | `kapi/convergence.mdx` | none | the `ship.json` narration names Dutch's `not_governed` note |

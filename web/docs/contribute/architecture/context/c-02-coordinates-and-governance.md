@@ -147,7 +147,7 @@ checkout holding the same store and recipe resolves the same voice.
 
 A directory of context files takes the same shape: each profile's own voice and
 terms under `.kapi/profiles/<name>/`, the project default flat in `.kapi/`, and
-`kapi context import` reads it into the store
+`kapi store import` reads it into the store
 ([C-11](c-11-context-operations.md)). The import scopes a profile's terms to
 that profile. It stores a profile's voice under the id the file declares, and
 when that id is not the profile's name it writes `profiles.<name>.voice` into
@@ -194,7 +194,7 @@ Resolution walks the declared bindings **from the finest to the coarsest**:
 3. **The project's default point**: `defaults.voice` and the project's own
    terms.
 
-`kapi voice guide`, `kapi context` and a check of files named on the command
+`kapi context <path>` and a check of files named on the command
 line or through MCP `check_file` answer for a file's own content. Every block
 the project reads from a file whose comments an item claims and whose values no
 item claims is a comment (`ClaimsOnlyComments`), so a surface holding those

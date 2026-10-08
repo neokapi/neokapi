@@ -46,7 +46,7 @@ Both results include `coverage` and `provenance`. They report unreachable
 stores so you can distinguish missing context from a failed lookup.
 
 - `coverage` is `empty`, `thin` or `covered`. An **empty** result means no
-  context is recorded at that point. Its notes suggest observations you can
+  context is recorded at that point. Its notes suggest what you can
   record while working; see [growing-context.md](growing-context.md).
 - `provenance` names the project that answered, the workspace revision it was
   read at, and whether the content kapi holds still matches the files on disk.
@@ -60,7 +60,7 @@ and terms. Each includes evidence, its author and the session that recorded it.
 A `contested` suggestion conflicts with the rule named by `contested_by`.
 
 Checks report suggestions without failing on them. Describe them as pending
-suggestions until a person establishes them with `kapi context keep <id>`.
+suggestions until a person keeps them in `kapi context review`.
 
 ## A retrieved answer goes stale
 

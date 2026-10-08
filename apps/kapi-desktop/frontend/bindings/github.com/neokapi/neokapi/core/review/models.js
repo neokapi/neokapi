@@ -139,7 +139,7 @@ export class History {
              * Unread reports a checkout carrying context files whose project store has
              * never held context: a clone, before anyone read its layout in. The store
              * answers, and answers empty, which a reviewer cannot tell from a memory
-             * that genuinely holds nothing close. `kapi context import` reads the
+             * that genuinely holds nothing close. `kapi store import` reads the
              * files; until then, an empty Match means unread.
              * @member
              * @type {boolean | undefined}

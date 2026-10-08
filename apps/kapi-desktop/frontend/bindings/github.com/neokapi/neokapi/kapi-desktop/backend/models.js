@@ -2161,7 +2161,7 @@ export class ContextFeedEntry {
         if (!("kind" in $$source)) {
             /**
              * Kind is "observe", "correct", "import", "edit", "keep", "drop",
-             * "withdraw", "revert", "widen", "signal" or "establish".
+             * "withdraw", "reset", "widen", "signal" or "establish".
              * @member
              * @type {string}
              */
@@ -2170,7 +2170,7 @@ export class ContextFeedEntry {
         if (!("status" in $$source)) {
             /**
              * Status is "suggested", "established", "contested", "withdrawn",
-             * "dropped" or "reverted".
+             * "dropped" or "reset".
              * @member
              * @type {string}
              */
@@ -2222,8 +2222,8 @@ export class ContextFeedEntry {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Target is the operation this one acts on, and TargetSession the session
-             * a revert undid.
+             * Target is the operation this one acts on, and Before the first
+             * operation a reset set aside.
              * @member
              * @type {string | undefined}
              */
@@ -2234,7 +2234,7 @@ export class ContextFeedEntry {
              * @member
              * @type {string | undefined}
              */
-            this["target_session"] = undefined;
+            this["before"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -2271,13 +2271,15 @@ export class ContextFeedEntry {
              */
             this["decidable"] = false;
         }
-        if (!("revertible" in $$source)) {
+        if (!("droppable" in $$source)) {
             /**
-             * Revertible reports a rule in force that a person can take back out.
+             * Droppable reports a suggestion or a rule in force a person can drop. A
+             * rule in force is taken back out of the project's stores as it is
+             * dropped.
              * @member
              * @type {boolean}
              */
-            this["revertible"] = false;
+            this["droppable"] = false;
         }
         if (!("widen_to" in $$source)) {
             /**
@@ -2996,12 +2998,13 @@ export class ContextRelatesResult {
 }
 
 /**
- * ContextRevertRequest undoes one operation or a whole session.
+ * ContextResetRequest rewinds a project's context to how it stood at a point
+ * in its history.
  */
-export class ContextRevertRequest {
+export class ContextResetRequest {
     /**
-     * Creates a new ContextRevertRequest instance.
-     * @param {Partial<ContextRevertRequest>} [$$source = {}] - The source object to create the ContextRevertRequest.
+     * Creates a new ContextResetRequest instance.
+     * @param {Partial<ContextResetRequest>} [$$source = {}] - The source object to create the ContextResetRequest.
      */
     constructor($$source = {}) {
         if (!("project" in $$source)) {
@@ -3011,21 +3014,16 @@ export class ContextRevertRequest {
              */
             this["project"] = "";
         }
-        if (/** @type {any} */(false)) {
+        if (!("before" in $$source)) {
             /**
-             * ID names one operation. Session names every operation one agent session
-             * recorded. Exactly one is set.
+             * Before names the point to go back to: an agent session id (the context
+             * as it stood before the session's first operation), a date (2006-01-02)
+             * or an instant (RFC 3339), or an operation id, such as an earlier
+             * reset's.
              * @member
-             * @type {string | undefined}
+             * @type {string}
              */
-            this["id"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string | undefined}
-             */
-            this["session"] = undefined;
+            this["before"] = "";
         }
         if (/** @type {any} */(false)) {
             /**
@@ -3039,79 +3037,107 @@ export class ContextRevertRequest {
     }
 
     /**
-     * Creates a new ContextRevertRequest instance from a string or object.
+     * Creates a new ContextResetRequest instance from a string or object.
      * @param {any} [$$source = {}]
-     * @returns {ContextRevertRequest}
+     * @returns {ContextResetRequest}
      */
     static createFrom($$source = {}) {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new ContextRevertRequest(/** @type {Partial<ContextRevertRequest>} */($$parsedSource));
+        return new ContextResetRequest(/** @type {Partial<ContextResetRequest>} */($$parsedSource));
     }
 }
 
 /**
- * ContextRevertSummary is what a revert undid, for the confirmation a person
- * reads before asking for it and the report afterwards.
+ * ContextResetSummary is what a reset sets aside, for the confirmation a
+ * person reads before asking for it and the report afterwards.
  */
-export class ContextRevertSummary {
+export class ContextResetSummary {
     /**
-     * Creates a new ContextRevertSummary instance.
-     * @param {Partial<ContextRevertSummary>} [$$source = {}] - The source object to create the ContextRevertSummary.
+     * Creates a new ContextResetSummary instance.
+     * @param {Partial<ContextResetSummary>} [$$source = {}] - The source object to create the ContextResetSummary.
      */
     constructor($$source = {}) {
-        if (/** @type {any} */(false)) {
+        if (!("before" in $$source)) {
             /**
-             * Session is the session reverted, empty when one operation was named.
+             * Before is the point the context goes back to, as the request named it.
              * @member
-             * @type {string | undefined}
+             * @type {string}
              */
-            this["session"] = undefined;
+            this["before"] = "";
         }
-        if (!("operations" in $$source)) {
+        if (!("set_aside" in $$source)) {
             /**
-             * Operations is how many operations stop answering.
+             * SetAside is how many suggestions and rules stop answering.
              * @member
              * @type {number}
              */
-            this["operations"] = 0;
+            this["set_aside"] = 0;
+        }
+        if (!("decisions" in $$source)) {
+            /**
+             * Decisions is how many other operations are set aside with them: keeps,
+             * drops, widenings and the rest of what acted on a rule after the point.
+             * @member
+             * @type {number}
+             */
+            this["decisions"] = 0;
+        }
+        if (!("restored" in $$source)) {
+            /**
+             * Restored is how many suggestions and rules an earlier reset set aside
+             * answer again.
+             * @member
+             * @type {number}
+             */
+            this["restored"] = 0;
+        }
+        if (!("subjects" in $$source)) {
+            /**
+             * Subjects is the one-line description of each suggestion or rule set
+             * aside, so the confirmation can name what goes.
+             * @member
+             * @type {string[]}
+             */
+            this["subjects"] = [];
         }
         if (!("rules" in $$source)) {
             /**
-             * Rules names the rules taken back out of the project's stores.
+             * Rules names the rules in force that are taken back out of the
+             * project's stores.
              * @member
              * @type {string[]}
              */
             this["rules"] = [];
         }
-        if (!("subjects" in $$source)) {
+        if (/** @type {any} */(false)) {
             /**
-             * Subjects is the one-line description of each operation, so the
-             * confirmation can name what goes.
+             * Reset is the short id of the reset recorded, empty for a preview. A
+             * later reset to before it brings back what it set aside.
              * @member
-             * @type {string[]}
+             * @type {string | undefined}
              */
-            this["subjects"] = [];
+            this["reset"] = undefined;
         }
 
         Object.assign(this, $$source);
     }
 
     /**
-     * Creates a new ContextRevertSummary instance from a string or object.
+     * Creates a new ContextResetSummary instance from a string or object.
      * @param {any} [$$source = {}]
-     * @returns {ContextRevertSummary}
+     * @returns {ContextResetSummary}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType6;
-        const $$createField3_0 = $$createType6;
+        const $$createField4_0 = $$createType6;
+        const $$createField5_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("rules" in $$parsedSource) {
-            $$parsedSource["rules"] = $$createField2_0($$parsedSource["rules"]);
-        }
         if ("subjects" in $$parsedSource) {
-            $$parsedSource["subjects"] = $$createField3_0($$parsedSource["subjects"]);
+            $$parsedSource["subjects"] = $$createField4_0($$parsedSource["subjects"]);
         }
-        return new ContextRevertSummary(/** @type {Partial<ContextRevertSummary>} */($$parsedSource));
+        if ("rules" in $$parsedSource) {
+            $$parsedSource["rules"] = $$createField5_0($$parsedSource["rules"]);
+        }
+        return new ContextResetSummary(/** @type {Partial<ContextResetSummary>} */($$parsedSource));
     }
 }
 

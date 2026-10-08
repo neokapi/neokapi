@@ -26,52 +26,41 @@ import (
 // every session and forgets them at the end of it. These tools are where that
 // goes instead: one small call per habit, cheap enough to make mid-task.
 //
-// Each tool wraps exactly one call in host/contextops.go and adds no rule of
-// its own. What an agent may record is decided by core/contextop's policy, not
-// here: observe and record a correction, both of which advise and neither of
-// which can fail a check, and withdraw its own suggestion. Keeping, dropping,
-// reverting and widening belong to a person, so this surface carries no tool
-// for them at all.
+// context_note is the one recording tool, in parity with `kapi context note`:
+// what the agent noticed, what a person changed, and taking back a note of its
+// own. It wraps the calls in host/contextops.go and adds no rule of its own.
+// What an agent may record is decided by core/contextop's policy, not here:
+// every note advises and none can fail a check. Keeping, dropping, widening and
+// resetting belong to a person, so this surface carries no tool for them.
 //
 // The actor is never the caller's to state. Kind is agent, the name is what the
 // client called itself at initialize, and the session is minted once per server
-// process, so everything one run recorded reads back and reverts together.
+// process, so everything one run recorded reads back together.
 
 func init() { RegisterMCPToolFactory(registerContextGrowthMCPTools) }
 
 func registerContextGrowthMCPTools(server *mcp.Server, a *App) {
 	mcp.AddTool(server, &mcp.Tool{
-		Name: "context_observe",
-		Description: "Record one thing this project's files do every time, as soon as you notice it, " +
+		Name: "context_note",
+		Description: "Record what you noticed about how this project writes, as soon as you notice it, " +
 			"including what your own text does not use: a product, feature or plan name as written, the " +
 			"spelling variety, or a word chosen over a common alternative. For a name or word, pass `term` " +
 			"with the form the files use and `instead_of` with the form they avoid: the split form of a " +
 			"one-word name, the other spelling, or the other word. kapi adds the spacing, hyphen and case " +
 			"variants. Say anything else, such as the spelling variety, in `text`. Give `path` and `quote` " +
-			"from a file that was there before you started. Leave alone, with no note, a word the files write more than " +
-			"one way, an interface label, and wording taken from your task. It is a suggestion: checks " +
-			"report it, none fails on it, and a person keeps it.",
-	}, a.handleContextObserve)
-
-	mcp.AddTool(server, &mcp.Tool{
-		Name: "context_correct",
-		Description: "Record that the person changed your wording: `from` is what you wrote, `to` is what they " +
-			"replaced it with, and `path` is where. Call it as soon as you see the edit. Set `suggest` to also " +
-			"suggest the rule it implies.",
-	}, a.handleContextCorrect)
-
-	mcp.AddTool(server, &mcp.Tool{
-		Name: "context_withdraw",
-		Description: "Take back something this session recorded wrongly, such as a correction entered " +
-			"backwards. Name it by the `operation` id its call returned. Only this session's own " +
-			"suggestions can be withdrawn.",
-	}, a.handleContextWithdraw)
+			"from a file that was there before you started. Leave alone, with no note, a word the files write " +
+			"more than one way, an interface label, and wording taken from your task. " +
+			"When the person changes your wording, pass `from` (what you wrote), `to` (what they wrote) and " +
+			"`path`, and set `suggest` to also suggest the rule it implies. " +
+			"To take back a note of your own recorded wrongly, pass its id in `withdraw`. " +
+			"Every note is a suggestion: checks report it, none fails on it, and a person decides in review.",
+	}, a.handleContextNote)
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "context_session_summary",
 		Description: "Report what this session recorded. Call it before you say the work is done and end " +
 			"your report with what it says, including the command a person reviews the session with. " +
-			"First record, with context_observe, any name, spelling variety or word choice the files you " +
+			"First record, with context_note, any name, spelling variety or word choice the files you " +
 			"read keep every time and this session has not recorded yet.",
 	}, a.handleContextSessionSummary)
 }
@@ -92,11 +81,12 @@ type mcpSessionIdentity struct {
 }
 
 // MCPSessionID is the session `kapi mcp` records under, as `kapi context log
-// --session` and `kapi context revert --session` take it.
+// --session` and `kapi context review --session` take it.
 func MCPSessionID() string { return mcpRunSession().ID }
 
 // newSessionID mints a session id. It is short enough to type at a command
-// line, because reverting a session is something a person does by hand.
+// line, because reviewing a session, or resetting to before it, is something a
+// person does by hand.
 func newSessionID() string {
 	var raw [6]byte
 	if _, err := rand.Read(raw[:]); err != nil {
@@ -195,36 +185,22 @@ func sessionClientName(req mcp.Request) string {
 
 // ─── What the write tools take ──────────────────────────────────────────────
 
-// contextObserveInput is one thing an agent noticed while reading a project.
-type contextObserveInput struct {
+// contextNoteInput is one note: something an agent noticed while reading a
+// project, wording a person changed, or the withdrawal of a note of its own.
+type contextNoteInput struct {
 	Text      string   `json:"text,omitempty" jsonschema:"the fact, in one sentence, in your own words"`
 	Term      string   `json:"term,omitempty" jsonschema:"the form this project uses for a name or word, e.g. Quickcast"`
 	InsteadOf []string `json:"instead_of,omitempty" jsonschema:"forms the project avoids for term, e.g. Quick cast; spacing, hyphen and case variants are added for you"`
-	Path      string   `json:"path,omitempty" jsonschema:"the project-relative file you saw it in"`
+	From      string   `json:"from,omitempty" jsonschema:"for a change a person made: the wording that was there"`
+	To        string   `json:"to,omitempty" jsonschema:"for a change a person made: the wording that replaced it"`
+	Suggest   bool     `json:"suggest,omitempty" jsonschema:"with from and to: also record the rule the change implies, so the next use of the old wording is reported"`
+	Advisory  bool     `json:"advisory,omitempty" jsonschema:"with suggest: the rule should only report once a person keeps it; unset, a kept rule fails a check"`
+	Path      string   `json:"path,omitempty" jsonschema:"the project-relative file you saw it in, or the person changed it in"`
 	Block     string   `json:"block,omitempty" jsonschema:"the ref.block that read_blocks or kapi inspect reports"`
 	Quote     string   `json:"quote,omitempty" jsonschema:"the wording you saw, quoted from the file"`
+	Withdraw  string   `json:"withdraw,omitempty" jsonschema:"the id of a note this session recorded wrongly, to take it back"`
+	Why       string   `json:"why,omitempty" jsonschema:"what the person said about the change, or what was wrong with the note withdrawn"`
 	Project   string   `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
-}
-
-// contextCorrectInput is wording the person changed, at the place they changed
-// it.
-type contextCorrectInput struct {
-	From     string `json:"from" jsonschema:"the wording that was there"`
-	To       string `json:"to" jsonschema:"the wording that replaced it"`
-	Path     string `json:"path" jsonschema:"the project-relative file they changed it in"`
-	Block    string `json:"block,omitempty" jsonschema:"the ref.block that read_blocks or kapi inspect reports"`
-	Quote    string `json:"quote,omitempty" jsonschema:"the sentence the change was made in"`
-	Suggest  bool   `json:"suggest,omitempty" jsonschema:"also record the rule the change implies, so the next use of the old wording is reported"`
-	Advisory bool   `json:"advisory,omitempty" jsonschema:"true when that rule should only report once a person keeps it; unset, a kept rule fails a check"`
-	Note     string `json:"note,omitempty" jsonschema:"what they said about the change"`
-	Project  string `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
-}
-
-// contextWithdrawInput names one operation this session recorded.
-type contextWithdrawInput struct {
-	Operation string `json:"operation" jsonschema:"the operation id the recording call returned"`
-	Note      string `json:"note,omitempty" jsonschema:"what was wrong with it"`
-	Project   string `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
 }
 
 // contextSessionInput asks what one session did.
@@ -238,9 +214,10 @@ type contextSessionInput struct {
 // contextRecordOutput is what a write tool answers: the operation it recorded,
 // what that operation counts as, and how a person reviews it.
 type contextRecordOutput struct {
-	// Operation is the id, which is what `kapi context keep` takes.
+	// Operation is the id, which is what `kapi context review --keep` takes.
 	Operation string `json:"operation"`
-	// Kind is what was done: observe, correct or withdraw.
+	// Kind is what was recorded: observe for something noticed, correct for a
+	// change a person made, withdraw for a note taken back.
 	Kind string `json:"kind"`
 	// Status is what the operation counts as. `suggested` advises and fails
 	// nothing until a person keeps it; `contested` disagrees with the rules
@@ -273,13 +250,13 @@ type contextSessionOutput struct {
 	Corrected int `json:"corrected"`
 	// Suggested is how many of them are still waiting for a person, Contested
 	// how many disagree with another rule, Established how many a person kept,
-	// and Withdrawn, Dropped and Reverted what became of the rest.
+	// and Withdrawn, Dropped and Reset what became of the rest.
 	Suggested   int `json:"suggested"`
 	Contested   int `json:"contested"`
 	Established int `json:"established"`
 	Withdrawn   int `json:"withdrawn"`
 	Dropped     int `json:"dropped"`
-	Reverted    int `json:"reverted"`
+	Reset       int `json:"reset"`
 	// First and Last bound the session in time, RFC 3339.
 	First string `json:"first,omitempty"`
 	Last  string `json:"last,omitempty"`
@@ -291,42 +268,6 @@ type contextSessionOutput struct {
 
 // ─── Handlers ───────────────────────────────────────────────────────────────
 
-func (a *App) handleContextObserve(ctx context.Context, req *mcp.CallToolRequest, in contextObserveInput) (*mcp.CallToolResult, contextRecordOutput, error) {
-	recipe, err := a.RequireMCPCallProject(in.Project)
-	if err != nil {
-		return nil, contextRecordOutput{}, err
-	}
-	if strings.TrimSpace(in.Text) == "" && strings.TrimSpace(in.Term) == "" {
-		return nil, contextRecordOutput{}, errors.New(
-			"context_observe: say what you noticed in `text`, or name the form the project uses in `term`")
-	}
-	if strings.TrimSpace(in.Term) == "" && len(in.InsteadOf) > 0 {
-		return nil, contextRecordOutput{}, errors.New(
-			"context_observe: `instead_of` needs `term`, the form the project uses in their place")
-	}
-	evidence := mcpEvidence(in.Path, in.Block, in.Quote)
-	if strings.TrimSpace(in.Term) != "" {
-		if err := requireEvidence("context_observe", evidence); err != nil {
-			return nil, contextRecordOutput{}, err
-		}
-	}
-	op, err := a.RecordContextObservation(ctx, ContextObserveRequest{
-		Actor:     mcpAgentActor(req),
-		Project:   recipe,
-		Text:      in.Text,
-		Term:      in.Term,
-		InsteadOf: in.InsteadOf,
-		Evidence:  evidence,
-	})
-	if err != nil {
-		return nil, contextRecordOutput{}, err
-	}
-	a.NoteMCPSession(ctx, recipe, mcpClientName(req))
-	out := recordedOutput(op)
-	out.Next = suggestionNext(op)
-	return nil, out, nil
-}
-
 // suggestionNext says what happens to a suggestion, so an answer is never read
 // as a rule now in force.
 func suggestionNext(op ContextOperation) string {
@@ -336,9 +277,9 @@ func suggestionNext(op ContextOperation) string {
 	}
 	if _, isRule := op.Rule(); isRule {
 		return fmt.Sprintf("a suggestion: every check reports it and none can fail on it. "+
-			"It is established when a person runs `kapi context keep %s`.", contextop.ShortID(op.ID))
+			"It is established when a person keeps it in review (`kapi context review --keep %s`).", contextop.ShortID(op.ID))
 	}
-	return "a suggestion: it advises whoever reads this project's context next, and a person may keep it."
+	return "a suggestion: it advises whoever reads this project's context next, and a person may keep it in review."
 }
 
 // idList renders operation ids as a person types them.
@@ -350,18 +291,70 @@ func idList(ids []string) string {
 	return strings.Join(out, ", ")
 }
 
-func (a *App) handleContextCorrect(ctx context.Context, req *mcp.CallToolRequest, in contextCorrectInput) (*mcp.CallToolResult, contextRecordOutput, error) {
+// handleContextNote records one note. Which kind of note it is follows from
+// what the call carries: `withdraw` takes back an earlier one, `from` and `to`
+// record a change a person made, and anything else is something noticed.
+func (a *App) handleContextNote(ctx context.Context, req *mcp.CallToolRequest, in contextNoteInput) (*mcp.CallToolResult, contextRecordOutput, error) {
 	recipe, err := a.RequireMCPCallProject(in.Project)
 	if err != nil {
 		return nil, contextRecordOutput{}, err
 	}
-	if strings.TrimSpace(in.From) == "" || strings.TrimSpace(in.To) == "" {
-		return nil, contextRecordOutput{}, errors.New(
-			"context_correct: give both wordings, `from` (what was there) and `to` (what replaced it)")
+	var out contextRecordOutput
+	switch {
+	case strings.TrimSpace(in.Withdraw) != "":
+		out, err = a.noteWithdraw(ctx, req, recipe, in)
+	case strings.TrimSpace(in.From) != "" || strings.TrimSpace(in.To) != "":
+		out, err = a.noteCorrection(ctx, req, recipe, in)
+	default:
+		out, err = a.noteObservation(ctx, req, recipe, in)
+	}
+	if err != nil {
+		return nil, contextRecordOutput{}, err
+	}
+	a.NoteMCPSession(ctx, recipe, mcpClientName(req))
+	return nil, out, nil
+}
+
+func (a *App) noteObservation(ctx context.Context, req *mcp.CallToolRequest, recipe string, in contextNoteInput) (contextRecordOutput, error) {
+	if strings.TrimSpace(in.Text) == "" && strings.TrimSpace(in.Term) == "" {
+		return contextRecordOutput{}, errors.New(
+			"context_note: say what you noticed in `text`, name the form the project uses in `term`, " +
+				"or give `from` and `to` for wording a person changed")
+	}
+	if strings.TrimSpace(in.Term) == "" && len(in.InsteadOf) > 0 {
+		return contextRecordOutput{}, errors.New(
+			"context_note: `instead_of` needs `term`, the form the project uses in their place")
 	}
 	evidence := mcpEvidence(in.Path, in.Block, in.Quote)
-	if err := requireEvidence("context_correct", evidence); err != nil {
-		return nil, contextRecordOutput{}, err
+	if strings.TrimSpace(in.Term) != "" {
+		if err := requireEvidence("context_note", evidence); err != nil {
+			return contextRecordOutput{}, err
+		}
+	}
+	op, err := a.RecordContextObservation(ctx, ContextObserveRequest{
+		Actor:     mcpAgentActor(req),
+		Project:   recipe,
+		Text:      in.Text,
+		Term:      in.Term,
+		InsteadOf: in.InsteadOf,
+		Evidence:  evidence,
+	})
+	if err != nil {
+		return contextRecordOutput{}, err
+	}
+	out := recordedOutput(op)
+	out.Next = suggestionNext(op)
+	return out, nil
+}
+
+func (a *App) noteCorrection(ctx context.Context, req *mcp.CallToolRequest, recipe string, in contextNoteInput) (contextRecordOutput, error) {
+	if strings.TrimSpace(in.From) == "" || strings.TrimSpace(in.To) == "" {
+		return contextRecordOutput{}, errors.New(
+			"context_note: a change needs both wordings, `from` (what was there) and `to` (what replaced it)")
+	}
+	evidence := mcpEvidence(in.Path, in.Block, in.Quote)
+	if err := requireEvidence("context_note", evidence); err != nil {
+		return contextRecordOutput{}, err
 	}
 	op, err := a.RecordContextCorrection(ctx, ContextCorrectRequest{
 		Actor:    mcpAgentActor(req),
@@ -371,14 +364,13 @@ func (a *App) handleContextCorrect(ctx context.Context, req *mcp.CallToolRequest
 		Evidence: evidence,
 		Suggest:  in.Suggest,
 		Advisory: in.Advisory,
-		Note:     in.Note,
+		Note:     in.Why,
 	})
 	if err != nil {
-		return nil, contextRecordOutput{}, err
+		return contextRecordOutput{}, err
 	}
-	a.NoteMCPSession(ctx, recipe, mcpClientName(req))
 	out := recordedOutput(op)
-	out.Recorded = fmt.Sprintf("correction %q to %q", in.From, in.To)
+	out.Recorded = fmt.Sprintf("change %q to %q", in.From, in.To)
 	switch {
 	case in.Suggest:
 		out.Next = suggestionNext(op)
@@ -387,35 +379,27 @@ func (a *App) handleContextCorrect(ctx context.Context, req *mcp.CallToolRequest
 	default:
 		out.Next = "recorded as evidence. Pass `suggest` next time to record the rule it implies with it."
 	}
-	return nil, out, nil
+	return out, nil
 }
 
-// handleContextWithdraw withdraws an operation this session recorded. The
-// policy decides who may: an agent withdraws its own suggestions, in the
-// session that recorded them, and nothing else.
-func (a *App) handleContextWithdraw(ctx context.Context, req *mcp.CallToolRequest, in contextWithdrawInput) (*mcp.CallToolResult, contextRecordOutput, error) {
-	recipe, err := a.RequireMCPCallProject(in.Project)
-	if err != nil {
-		return nil, contextRecordOutput{}, err
-	}
-	id := strings.TrimSpace(in.Operation)
-	if id == "" {
-		return nil, contextRecordOutput{}, errors.New("context_withdraw: name the operation to withdraw in `operation`")
-	}
+// noteWithdraw withdraws a note this session recorded. The policy decides who
+// may: an agent withdraws its own suggestions, in the session that recorded
+// them, and nothing else.
+func (a *App) noteWithdraw(ctx context.Context, req *mcp.CallToolRequest, recipe string, in contextNoteInput) (contextRecordOutput, error) {
+	id := strings.TrimSpace(in.Withdraw)
 	op, err := a.WithdrawContextOperation(ctx, ContextWithdrawRequest{
 		Actor:   mcpAgentActor(req),
 		Project: recipe,
 		ID:      id,
-		Note:    in.Note,
+		Note:    in.Why,
 	})
 	if err != nil {
-		return nil, contextRecordOutput{}, err
+		return contextRecordOutput{}, err
 	}
-	a.NoteMCPSession(ctx, recipe, mcpClientName(req))
 	out := recordedOutput(op)
-	out.Recorded = "withdrew operation " + id
+	out.Recorded = "withdrew note " + id
 	out.Next = "withdrawn: it no longer advises, and the log keeps the record of it."
-	return nil, out, nil
+	return out, nil
 }
 
 func (a *App) handleContextSessionSummary(ctx context.Context, req *mcp.CallToolRequest, in contextSessionInput) (*mcp.CallToolResult, contextSessionOutput, error) {
@@ -448,7 +432,7 @@ func recordedOutput(op ContextOperation) contextRecordOutput {
 		Session:     op.Actor.Session,
 		Project:     string(op.Project),
 		Recorded:    op.Subject.Describe(),
-		Review:      "kapi context log --session " + op.Actor.Session,
+		Review:      "kapi context review --session " + op.Actor.Session,
 	}
 }
 
@@ -467,8 +451,8 @@ func sessionOutput(s contextop.SessionSummary) contextSessionOutput {
 		Established: s.ByStatus[contextop.StatusEstablished],
 		Withdrawn:   s.ByStatus[contextop.StatusWithdrawn],
 		Dropped:     s.ByStatus[contextop.StatusDropped],
-		Reverted:    s.ByStatus[contextop.StatusReverted],
-		Review:      "kapi context log --session " + s.Session,
+		Reset:       s.ByStatus[contextop.StatusReset],
+		Review:      "kapi context review --session " + s.Session,
 	}
 	if !s.First.IsZero() {
 		out.First = s.First.UTC().Format(time.RFC3339)
@@ -502,7 +486,7 @@ func sessionReport(s contextSessionOutput) string {
 		}
 		report += "."
 	}
-	return report + " Review with `" + s.Review + "`, and keep them all with `kapi context keep --session " + s.Session + "`."
+	return report + " Review with `" + s.Review + "`."
 }
 
 // mcpEvidence renders the location a call named as the evidence behind it.

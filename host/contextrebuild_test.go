@@ -107,7 +107,7 @@ func TestRebuildFromAMixedLogEqualsTheIncrementalState(t *testing.T) {
 	require.NoError(t, err)
 	_, err = app.KeepContextOperation(ctx, ContextKeepRequest{Actor: person, Project: recipeOf(root), ID: reverted.ID})
 	require.NoError(t, err)
-	_, err = app.RevertContextOperations(ctx, ContextRevertRequest{Actor: person, Project: recipeOf(root), ID: reverted.ID})
+	_, err = app.DropContextOperation(ctx, ContextDropRequest{Actor: person, Project: recipeOf(root), ID: reverted.ID})
 	require.NoError(t, err)
 
 	cmd := executionCommand(t)
@@ -205,5 +205,5 @@ func TestARebuildSaysWhatItLeftOut(t *testing.T) {
 		"  decision.record 12\n"+
 		"  terms.write     1\n"+
 		"Left out 7 operations of kind unit.record, which this kapi no longer applies, so the rows they wrote are not in the stores."+
-		" kapi context import reads the project's decisions in again from its shards.\n", out.String())
+		" kapi store import reads the project's decisions in again from its shards.\n", out.String())
 }

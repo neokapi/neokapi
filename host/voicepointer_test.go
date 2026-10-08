@@ -59,7 +59,7 @@ func TestWriteVoicePointer(t *testing.T) {
 			wantFile:   "CLAUDE.md",
 			wantAction: VoicePointerCreated,
 			wantVoice:  "Professional B2B",
-			wantIn:     []string{"# my-app\n\n" + coreprofile.VoicePointerStartLine, "voice, Professional B2B, is held by kapi", "`kapi voice guide`"},
+			wantIn:     []string{"# my-app\n\n" + coreprofile.VoicePointerStartLine, "voice, Professional B2B, is held by kapi", "`kapi context <path>`"},
 		},
 		{
 			name:       "an existing CLAUDE.md takes the section",
@@ -127,7 +127,7 @@ func TestWriteVoicePointer(t *testing.T) {
 			wantFile:   "CLAUDE.md",
 			wantAction: VoicePointerCreated,
 			wantVoice:  "House Voice",
-			wantIn:     []string{"`kapi voice guide <path>`", "Some collections carry a voice of their own"},
+			wantIn:     []string{"`kapi context <path>`", "Some collections carry a voice of their own"},
 			wantNotIn:  []string{"--comments"},
 		},
 		{
@@ -140,7 +140,7 @@ func TestWriteVoicePointer(t *testing.T) {
 			wantFile:   "CLAUDE.md",
 			wantAction: VoicePointerCreated,
 			wantVoice:  "House Voice",
-			wantIn:     []string{"`kapi voice guide <path>`", "`kapi voice guide --comments <path>`"},
+			wantIn:     []string{"`kapi context <path>`", "`kapi context <path> --comments`"},
 		},
 		{
 			name: "comments an item places at a channel get their own retrieval",
@@ -151,7 +151,7 @@ func TestWriteVoicePointer(t *testing.T) {
 			wantFile:   "CLAUDE.md",
 			wantAction: VoicePointerCreated,
 			wantVoice:  "House Voice",
-			wantIn:     []string{"`kapi voice guide --comments <path>`"},
+			wantIn:     []string{"`kapi context <path> --comments`"},
 		},
 		{
 			name: "an item declared for its comments alone gets their own retrieval",
@@ -162,7 +162,7 @@ func TestWriteVoicePointer(t *testing.T) {
 			wantFile:   "CLAUDE.md",
 			wantAction: VoicePointerCreated,
 			wantVoice:  "House Voice",
-			wantIn:     []string{"with `kapi voice guide`.", "`kapi voice guide --comments <path>`"},
+			wantIn:     []string{"Retrieve what is in force before writing", "`kapi context <path> --comments`"},
 		},
 		{
 			name: "comments: true alone places no point of their own",
@@ -306,7 +306,7 @@ func TestWriteVoicePointer_PointsAtAnUnreadBindingUnnamed(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, VoicePointerCreated, res.Action)
 	assert.Empty(t, res.Voice)
-	assert.Contains(t, res.Warning, "`kapi context import`")
+	assert.Contains(t, res.Warning, "`kapi store import`")
 
 	body, err := os.ReadFile(filepath.Join(root, "CLAUDE.md"))
 	require.NoError(t, err)

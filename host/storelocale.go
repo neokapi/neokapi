@@ -67,7 +67,7 @@ func StoreLocaleDriftWarning(drift []projectdb.LocaleDrift, layout project.Layou
 	var b strings.Builder
 	b.WriteString("warning: this project holds rows keyed by a locale spelling no lookup asks for. They are never matched.")
 	if len(authored) > 0 {
-		fmt.Fprintf(&b, " In the context store (%s): run `kapi context rebuild`, which writes the stores again from the operation log under the canonical spelling.",
+		fmt.Fprintf(&b, " In the context store (%s): run `kapi store rebuild`, which writes the stores again from the operation log under the canonical spelling.",
 			strings.Join(authored, "; "))
 	}
 	if len(derived) > 0 {
