@@ -57,7 +57,7 @@ When a command needs a profile and no `--profile`, `--profile-file`, or
 
 Every rung answers out of the project's voice store. A `voice.yaml` in the
 checkout is what
-[`kapi context import`](/reference/commands/context-import) reads; no command
+[`kapi store import`](/reference/commands/store-import) reads; no command
 that resolves a profile opens one.
 
 `--profile`, `--profile-file`, and `--pack` are mutually exclusive; passing
@@ -193,7 +193,7 @@ about it.
 
 A voice profile holds no word list. Every word rule is a term, and a voice file
 may carry its rules beside the voice under a top-level `terms:` list, as the
-starter packs do. [`kapi context import`](/reference/commands/context-import)
+starter packs do. [`kapi store import`](/reference/commands/store-import)
 and `kapi voice import` move the list into the project's terms and report how
 many rules they moved. Where a starter pack is bound as the voice, its terms
 apply beside the project's own, and a finding they raise names the pack

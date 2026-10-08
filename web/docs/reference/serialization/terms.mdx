@@ -23,7 +23,7 @@ the relations between them.
 
 A terms bundle is an **artifact**: the shape a project's terms take when they
 leave the [project store](/kapi/project-store), and the shape they are read back
-from. `kapi terms export` writes one, `kapi context import` reads one, and
+from. `kapi terms export` writes one, `kapi store import` reads one, and
 the store is what every lookup and every gate answers from.
 
 Implemented in Go at
@@ -42,10 +42,10 @@ Implemented in Go at
 ## Where an import looks for one
 
 A flow needing a project's terms reads the project's terms store; no flow opens
-a bundle. [`kapi context import`](/reference/commands/context-import) is what
+a bundle. [`kapi store import`](/reference/commands/store-import) is what
 reads one, and with no path it looks at `<project-root>/.kapi/terms.json`, the
 conventional place beside the rest of a project's context files. Name a
-directory, `kapi context import context`, to read the `terms.json` in it. The
+directory, `kapi store import context`, to read the `terms.json` in it. The
 recipe names no terms file.
 
 ## Content memory has no single conventional file

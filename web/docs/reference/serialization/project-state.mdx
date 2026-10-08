@@ -1,7 +1,7 @@
 ---
 sidebar_position: 7
 title: Project state
-description: "The decision record kapi context import reads from .kapi/state/ (JSON Lines, one shard per document, one line per block), the ledger it is written from, and the block state fields."
+description: "The decision record kapi store import reads from .kapi/state/ (JSON Lines, one shard per document, one line per block), the ledger it is written from, and the block state fields."
 keywords:
   [
     project state,
@@ -34,7 +34,7 @@ records them, and by the source and target hashes where it was recorded before
 revisions.
 
 The shards are the ledger in a form git can track: for each block, what was
-decided about the source and the translation. `kapi context import` reads that
+decided about the source and the translation. `kapi store import` reads that
 shape in, and the ledger moves between machines as operations, through a
 context backend or a transfer file.
 
@@ -86,7 +86,7 @@ from escaping the directory.
 The decisions themselves live in the project's store, where every checkout
 reads them and a `git checkout` of another branch changes nothing about them.
 The shards are what those decisions look like as reviewable text: a team that
-keeps its approvals in a pull request reads them with `kapi context import`,
+keeps its approvals in a pull request reads them with `kapi store import`,
 and the
 shards sit beside the terms and the content memory they make claims about,
 because all three are nodes of one context graph.

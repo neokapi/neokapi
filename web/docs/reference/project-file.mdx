@@ -362,7 +362,7 @@ collection's point, most specific first:
 | terms | `--termstore` → `profiles.<name>.termstore` → the project's own terms |
 
 Resolution reads stored context by name. Use
-[`kapi context import`](/reference/commands/context-import) to load context
+[`kapi store import`](/reference/commands/store-import) to load context
 files from a checkout before they affect governance.
 
 The channel then refines the voice that resolved: a matching entry under the
@@ -574,7 +574,7 @@ A recipe names no context file. A project's voice profiles, terms and content
 memory live in its store, and the recipe binds a voice or a terms store by name.
 Files carrying context (a `voice.yaml`, a `terms.json`, content-memory bundles)
 are read into the store by
-[`kapi context import`](/reference/commands/context-import), from the project's
+[`kapi store import`](/reference/commands/store-import), from the project's
 `.kapi/` directory or from a directory you name, such as a sample's `context/`.
 An edit to one of those files takes effect when you import it again.
 
@@ -605,8 +605,8 @@ that reads the file and the binding to write instead. The retired keys are
 
 A recipe that binds a voice the store does not hold, on a machine where the
 project's context has not been imported or pulled, says which binding it is and
-the command that brings it: `kapi context pull` when the project shares its
-context, or `kapi context import` in a checkout carrying the profile. See
+the command that brings it: `kapi context sync` when the project shares its
+context, or `kapi store import` in a checkout carrying the profile. See
 [Moving context](/kapi/context-portability).
 
 ### Flow Steps
@@ -678,8 +678,8 @@ The fields are in the [voice profile reference](/reference/serialization/voice-p
 ### Context backend
 
 `context:` says where the project's context is shared, so every checkout of the
-project, on every machine, pulls from and pushes to the same place with
-[`kapi context pull` and `push`](/kapi/context-portability#sharing-context-through-a-backend):
+project, on every machine, shares the same place through
+[`kapi context sync`](/kapi/context-portability#sharing-context-through-a-backend):
 
 ```yaml
 context:
@@ -700,8 +700,7 @@ context:
 
 A field that belongs to another backend is refused. Credentials never go here:
 a git backend uses the repository's own access, and an S3 backend the standard
-AWS environment, shared configuration and profile. A person can use another
-backend on one machine with `kapi context backend`.
+AWS environment, shared configuration and profile.
 
 ## Ship gates
 

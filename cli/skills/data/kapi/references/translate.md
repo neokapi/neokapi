@@ -39,7 +39,7 @@ kapi merge -i out/*.xliff                       # XLIFF/PO come via -i (repeatab
 kapi check --ship --json                              # the gate: voice + terminology + rule-based checks in one shot (prefer this)
 kapi exec term-check ./locales/en.json --target ./locales/fr.json --target-lang fr   # source POSITIONAL, its translation via --target; reports, exits 0
 kapi terms lookup "board" -t fr              # approved wording; terms uses -s/-t, not --*-lang
-kapi context locales/en.json                    # the voice and terms that apply to the file
+kapi store locales/en.json                    # the voice and terms that apply to the file
 ```
 
 Inside a project, prefer `kapi check --ship` over running `term-check` or the

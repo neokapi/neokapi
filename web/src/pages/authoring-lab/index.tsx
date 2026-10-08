@@ -552,11 +552,11 @@ export default function AuthoringLab(): ReactElement {
             <Markdown remarkPlugins={[remarkGfm]}>{report.guides[audience]}</Markdown>
           </div>
           <p style={{ ...s.sub, margin: ".5rem 0 0" }}>
-            Rendered by <code>kapi voice show</code> from ripgrep&apos;s own voice profile,
-            resolved at this coordinate. The pushed arm is handed this text; the pulled arm&apos;s
-            workspace answers with it, checked byte for byte before the sweep runs so the two arms
-            differ in delivery and not in what they were governed by. The profile itself is at the
-            bottom of the page.
+            Rendered by <code>kapi voice show</code> from ripgrep&apos;s own voice profile, resolved
+            at this coordinate. The pushed arm is handed this text; the pulled arm&apos;s workspace
+            answers with it, checked byte for byte before the sweep runs so the two arms differ in
+            delivery and not in what they were governed by. The profile itself is at the bottom of
+            the page.
           </p>
         </div>
 

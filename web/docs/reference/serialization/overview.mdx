@@ -39,7 +39,7 @@ the skeleton and parse caches beside it. It is fast, indexed, mutable and
 **A context store is authored state.** The project's own store, in a workspace
 outside the checkout, holds the content memory, the terms, the voice profiles
 and the decision ledger. Every checkout of the project reads it, nothing
-rebuilds it, and `kapi context export` is its backup. See
+rebuilds it, and `kapi store export` is its backup. See
 [the project store](/kapi/project-store).
 
 **A bundle is a portable serialization.** One reviewable, hashable, diff-able
@@ -56,7 +56,7 @@ are what you hand over, ship, or put in a pull request.
 
 Bundles serialize authored context for exchange and review.
 `kapi terms export` and `kapi memory export` write them, and
-[`kapi context import <dir>`](/kapi/context-portability#reading-context-in) reads
+[`kapi store import <dir>`](/kapi/context-portability#reading-context-in) reads
 a directory of them. The context itself moves between machines as operations,
 through a context backend or a transfer file.
 `.kapi/` is ignored by default; adjust its ignore rules if you choose it as the
