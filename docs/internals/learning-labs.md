@@ -84,6 +84,46 @@ at 96 KB of content), so a colleague opens the same sandbox. The share menu
 writes both; the page rewrites `c` as the reader moves and drops `s` once the
 session has been restored.
 
+## How a reader finds and follows the labs
+
+Four doors lead to `/learn`: the navbar's **Learn** menu (the index first,
+then one entry per series, then the engine explorers), the kapi overview's
+"Next" list, a pointer at the top of the Quick Start, and the old `/labs`
+address, which redirects. Inside, the index orders the three series and
+every card says what the lab teaches and how long it takes; a card shows
+progress from this browser, and a "continue" card reopens the last lab at
+its chapter. Each lab ends with an "up next" card for the next lab, across
+series, so the whole curriculum can be read in one sitting of about an hour.
+
+The path is the product's own: what a project is and how content is
+addressed (lab 1), the context and the two questions an agent asks (2), the
+checks as a gate and a decision that changes what it finds (3), one edit
+through the change contract (4); then the multilingual loop as an extension
+of the same point (5), recycle before AI with the demo provider (6), review
+as a change set that moves the ship manifest (7), and the hand-off formats
+(8); then the engine on its own terms, formats and the content model (9),
+tools, flows and prompts (10), and a project with memory and terms (11).
+Every chapter runs the real command, so what a reader learns is what the
+CLI does, and the "try next" lines under each lab hand the terminal over.
+
+What the earlier lab set lacked, and what this one does not yet do:
+
+- The explorers were feature demonstrations (segmentation engines, OCR,
+  conversion, the bundle format) on throwaway fixtures, each with its own
+  gate and chrome, ordered from the engine's internals outward. They remain
+  as explorers; the curriculum starts from the product's first concepts and
+  runs on the samples the recordings use.
+- The Tidewatch sample (the loop in CI) has no lab: its point is a workflow
+  file and a build, which the browser cannot run. A reading chapter on
+  `kapi check --ship` exit codes under `.github/workflows` would cover the
+  idea without the build.
+- The desktop app and the agent surfaces (the skill, MCP) are not in the
+  browser, so the labs teach the CLI's view of the same concepts and link
+  to the desktop and agent pages.
+- The lab prose is English only (the curriculum is TypeScript data, not a
+  catalog), and no narration is spoken; the harness's narration pipeline
+  could voice the chapters later.
+
 ## What the engine does not do here
 
 Every provider is the built-in demo stub, keyless and marked, so a translate
