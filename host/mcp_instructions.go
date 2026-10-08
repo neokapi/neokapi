@@ -44,8 +44,8 @@ func MCPInstructions() string {
 		"it: a name, the spelling variety, a word preferred over a common one, with its path. Leave alone a word " +
 		"the files write two ways. Record the person's edits with from, to, path; withdraw takes back a mistake. " +
 		"A person decides what becomes a rule.\n\n" +
-		"Before finishing, run check_file on each changed file and fix what it reports; after recording, end " +
-		"with context_session_summary."
+		"Finally, run check_file on each changed file; fix what it reports. " +
+		"After a note, end with context_session_summary."
 }
 
 // MCPInstructionsFor is the introduction for a server serving the given tool

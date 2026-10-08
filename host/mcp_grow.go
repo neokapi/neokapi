@@ -58,10 +58,9 @@ func registerContextGrowthMCPTools(server *mcp.Server, a *App) {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "context_session_summary",
-		Description: "Report what this session recorded. Call it before you say the work is done and end " +
-			"your report with what it says, including the command a person reviews the session with. " +
-			"First record, with context_note, any name, spelling variety or word choice the files you " +
-			"read keep every time and this session has not recorded yet.",
+		Description: "Report what this session recorded with context_note. Call it only if you recorded " +
+			"a note, and end your report with what it says, including the command a person reviews " +
+			"the session with.",
 	}, a.handleContextSessionSummary)
 }
 
