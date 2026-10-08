@@ -1,0 +1,20 @@
+# Ledgerly: invoicing for freelancers. The app's interface strings, the help
+# centre and support replies share one voice and one set of words.
+version: v1
+id: prj_compareledgerlyaaaaaaaa
+name: ledgerly
+defaults:
+  source_language: en-US
+  exclude:
+    - "**/.git/**"
+
+collections:
+  - name: app-strings
+    content:
+      - path: "locales/en.json"
+  - name: help
+    content:
+      - path: "help/**/*.md"
+  - name: support
+    content:
+      - path: "support/**/*.md"

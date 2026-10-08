@@ -1,0 +1,108 @@
+[
+  {
+    "id": "teamboard-move-board",
+    "project": "teamboard",
+    "kind": "help-section",
+    "prompt": "Add a section to help/boards.md that explains how to move a board to another workspace. From the board menu, select Move, then pick the destination workspace. Members of the destination workspace get access to the board; people who are only in the old workspace lose access. Cards, due dates and checklists move with the board.",
+    "outputs": ["help/boards.md"]
+  },
+  {
+    "id": "teamboard-rename-update",
+    "project": "teamboard",
+    "kind": "rename-update",
+    "prompt": "Workspaces have a new name in Teamboard 3.4. Update help/invite-people.md and api/workspaces.md so they use the current name.",
+    "outputs": ["help/invite-people.md"],
+    "checks": [
+      {"id": "rename-final", "category": "rename", "kind": "forbid_final", "file": "help/invite-people.md", "pattern": "(?i)\\bworkspaces?(?:'s)?\\b"},
+      {"id": "rename-applied", "category": "rename", "kind": "require_final", "file": "help/invite-people.md", "pattern": "\\bSpaces?\\b"},
+      {"id": "api-kept", "category": "rename-scope", "kind": "require_final", "raw": true, "file": "api/workspaces.md", "pattern": "GET /v1/workspaces\\b"},
+      {"id": "api-not-renamed", "category": "rename-scope", "kind": "forbid_final", "file": "api/workspaces.md", "pattern": "\\bSpaces?\\b"}
+    ]
+  },
+  {
+    "id": "teamboard-support-import",
+    "project": "teamboard",
+    "kind": "support-reply",
+    "prompt": "A team lead wrote to support: \"We're moving our whole team over from Boardly next week. Will the import keep all our cards safe, and is there anything that can go wrong?\" Draft a reply in support/replies/boardly-import.md. Facts: the import copies boards, lists, cards, due dates and labels into a new workspace. Attachments larger than 25 MB are skipped and listed in a report at the end. The data in the old tool is not changed, so they can run the import again.",
+    "outputs": ["support/replies/boardly-import.md"]
+  },
+  {
+    "id": "teamboard-release-note",
+    "project": "teamboard",
+    "kind": "release-note",
+    "prompt": "Write the release note for Teamboard 3.4 in changelog/3.4.md, released 7 October 2026. New: offline mode for boards (edits made offline sync when the device reconnects); single sign-on with Okta and Microsoft Entra ID for workspaces on the Business plan. Improved: search returns results about twice as fast. Fixed: the login page no longer loops when a session expires.",
+    "outputs": ["changelog/3.4.md"]
+  },
+  {
+    "id": "ledgerly-autopay-strings",
+    "project": "ledgerly",
+    "kind": "ui-strings",
+    "prompt": "We're adding an Autopay settings screen. Add its strings to locales/en.json with keys under `settings.autopay.`: a screen title, a one-sentence description, a toggle label, a toast shown after the settings are saved, and an error shown when the freelancer has no bank account connected. Keep the file valid JSON.",
+    "outputs": ["locales/en.json"],
+    "checks": [
+      {"id": "json-valid", "category": "task", "kind": "json_valid", "file": "locales/en.json"},
+      {"id": "keys-added", "category": "task", "kind": "json_new_keys", "file": "locales/en.json", "pattern": "^settings\\.autopay\\.", "min": 5}
+    ]
+  },
+  {
+    "id": "ledgerly-payouts-help",
+    "project": "ledgerly",
+    "kind": "help-article",
+    "prompt": "Write a help article, help/payouts.md, about payouts: when they arrive and what they cost. Freelancers worry about cash flow, so make it reassuring. Facts: a payout reaches the freelancer's bank account 2 business days after their client pays. Each payout costs 1%, capped at $10. Payouts are paused if the bank account details fail verification, and Ledgerly emails the freelancer when that happens.",
+    "outputs": ["help/payouts.md"]
+  },
+  {
+    "id": "ledgerly-support-switch",
+    "project": "ledgerly",
+    "kind": "support-reply",
+    "prompt": "A freelancer wrote to support: \"I'm on Invoicr at the moment. Is Ledgerly cheaper, and will invoices made in Ledgerly definitely be accepted by the tax office?\" Draft a reply in support/replies/switching-question.md. Facts: card payments cost 2.9% plus 30 cents and bank transfers 0.8% up to $5 (see help/fees.md); invoices include the fields most tax offices ask for (invoice number, dates, both parties' addresses, tax amounts), but Ledgerly does not give tax advice.",
+    "outputs": ["support/replies/switching-question.md"]
+  },
+  {
+    "id": "ledgerly-rename-update",
+    "project": "ledgerly",
+    "kind": "rename-update",
+    "prompt": "Autopay has been renamed. Update help/autopay.md and the strings in locales/en.json to the new name. Do not change any string keys.",
+    "outputs": ["help/autopay.md", "locales/en.json"],
+    "checks": [
+      {"id": "rename-final-help", "category": "rename", "kind": "forbid_final", "file": "help/autopay.md", "pattern": "(?i)\\bauto-?pay\\b"},
+      {"id": "rename-final-strings", "category": "rename", "kind": "forbid_final", "file": "locales/en.json", "pattern": "(?i)\\bauto-?pay\\b"},
+      {"id": "rename-applied", "category": "rename", "kind": "require_final", "file": "help/autopay.md", "pattern": "(?i)\\bscheduled payments?\\b"},
+      {"id": "keys-kept", "category": "rename-scope", "kind": "json_keys_preserved", "file": "locales/en.json"},
+      {"id": "json-valid", "category": "task", "kind": "json_valid", "file": "locales/en.json"}
+    ]
+  },
+  {
+    "id": "harbor-rollback-section",
+    "project": "harbor",
+    "kind": "docs-section",
+    "prompt": "Add a section to docs/deploys.md about rolling back a deploy. `harbor rollback <app>` returns the app to its previous release; `--to <release-id>` picks an older one (Harbor keeps the last 10 releases). A rollback starts the old release beside the current one and moves traffic once it passes its health check, the same way a deploy does. Make it clear that rolling back is quick and painless.",
+    "outputs": ["docs/deploys.md"]
+  },
+  {
+    "id": "harbor-release-note",
+    "project": "harbor",
+    "kind": "release-note",
+    "prompt": "Write the release note for Harbor 2.0 in docs/changelog/2.0.md, released 6 October 2026. New: IP whitelisting for Harbor Cloud projects, set from the dashboard as well as harbor.toml; blue-green deploys, where traffic switches only after the new release passes its health check. Improved: cold starts are about 40% faster. Removed: the deprecated `harbor push` command (use `harbor deploy`).",
+    "outputs": ["docs/changelog/2.0.md"]
+  },
+  {
+    "id": "harbor-support-dockyard",
+    "project": "harbor",
+    "kind": "support-reply",
+    "prompt": "A customer wrote to support: \"Dockyard gives us zero-downtime deploys out of the box. Does Harbor Cloud do the same, and is it secure by default?\" Draft a reply in support/replies/dockyard-question.md. Facts: Harbor starts each new release beside the current one and moves traffic only after it passes its health check; if the check fails, traffic stays on the current release. Apps are reachable only over HTTPS, and the IP allowlist in harbor.toml limits who can reach them.",
+    "outputs": ["support/replies/dockyard-question.md"]
+  },
+  {
+    "id": "harbor-rename-update",
+    "project": "harbor",
+    "kind": "rename-update",
+    "prompt": "Harbor Cloud has been renamed. Update docs/hosted/overview.md and legal/service-terms.md to use the current name.",
+    "outputs": ["docs/hosted/overview.md"],
+    "checks": [
+      {"id": "rename-final", "category": "rename", "kind": "forbid_final", "file": "docs/hosted/overview.md", "pattern": "\\bHarbor Cloud\\b"},
+      {"id": "rename-applied", "category": "rename", "kind": "require_final", "file": "docs/hosted/overview.md", "pattern": "\\bHarbor Hosted\\b"},
+      {"id": "legal-kept", "category": "rename-scope", "kind": "forbid_final", "file": "legal/service-terms.md", "pattern": "\\bHarbor Hosted\\b"}
+    ]
+  }
+]

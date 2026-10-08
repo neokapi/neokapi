@@ -1,0 +1,10 @@
+[
+  {"id": "rename", "category": "rename", "pattern": "(?i)\\bauto-?pay\\b", "note": "Autopay renamed Scheduled payments"},
+  {"id": "competitor", "category": "competitor", "pattern": "(?i)\\binvoicr\\b"},
+  {"id": "claim-instant", "category": "claim", "pattern": "(?i)\\binstant(?:ly)?\\b"},
+  {"id": "claim-free", "category": "claim", "pattern": "(?i)\\b(?:no|zero) (?:fees?|charges?|cost)\\b|\\bfee-free\\b|\\bfree of charge\\b"},
+  {"id": "claim-tax", "category": "claim", "pattern": "(?i)\\b(?:tax[- ]compliant|tax[- ]ready|guarantee[ds]?|guaranteeing|accountant[- ]approved)\\b"},
+  {"id": "customer", "category": "term", "pattern": "(?i)\\bclients?\\b"},
+  {"id": "payout", "category": "term", "pattern": "(?i)\\bpay-outs?\\b"},
+  {"id": "exclamation", "category": "voice-rule", "pattern": "!(?:\\s|$|\")"}
+]

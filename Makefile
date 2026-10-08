@@ -2570,6 +2570,37 @@ eval-grow: ## Run Measure 2: do agents record a project's conventions (consumes 
 eval-report: ## Render the agent-evaluation report and review sheet from saved attempts (no model calls)
 	$(GO) run $(GOTAGS) ./scripts/skilleval $(EVAL_FLAGS) -eval-phase report
 
+# The comparison: the same writing tasks done by agents with kapi, with the same
+# rules in CLAUDE.md and AGENTS.md, and with neither, on Claude Code and Codex.
+# Live phases bill the signed-in subscriptions; build kapi first and keep the
+# build until the report. Runbook: docs/internals/agent-comparison.md.
+COMPARE_MANIFEST ?= scripts/skilleval/testdata/compare-study.json
+COMPARE_DIR ?= harness/out/compare
+COMPARE_CELLS_DIR ?=
+COMPARE_CONCURRENCY ?= 4
+COMPARE_ARGS ?=
+COMPARE_FLAGS = -compare-manifest "$(COMPARE_MANIFEST)" -compare-dir "$(COMPARE_DIR)" \
+	$(if $(COMPARE_CELLS_DIR),-compare-cells-dir "$(COMPARE_CELLS_DIR)") -compare-concurrency $(COMPARE_CONCURRENCY) $(COMPARE_ARGS)
+.PHONY: compare-preflight compare-pilot compare-run compare-grade compare-judge compare-report
+
+compare-preflight: ## Build every comparison cell, probe the gate and the wiring (no model calls; make build first)
+	$(GO) run $(GOTAGS) ./scripts/skilleval $(COMPARE_FLAGS) -compare-phase preflight
+
+compare-pilot: ## Run the comparison pilot (consumes plan allowance)
+	$(GO) run $(GOTAGS) ./scripts/skilleval $(COMPARE_FLAGS) -compare-phase pilot -compare-live
+
+compare-run: ## Run the full comparison (consumes plan allowance)
+	$(GO) run $(GOTAGS) ./scripts/skilleval $(COMPARE_FLAGS) -compare-phase run -compare-live
+
+compare-grade: ## Grade saved comparison attempts and run kapi check over them (no model calls)
+	$(GO) run $(GOTAGS) ./scripts/skilleval $(COMPARE_FLAGS) -compare-phase grade
+
+compare-judge: ## Ask both judges about every graded attempt (consumes plan allowance)
+	$(GO) run $(GOTAGS) ./scripts/skilleval $(COMPARE_FLAGS) -compare-phase judge -compare-live
+
+compare-report: ## Render the comparison report (COMPARE_SCOPE=pilot|run|all; no model calls)
+	$(GO) run $(GOTAGS) ./scripts/skilleval $(COMPARE_FLAGS) -compare-phase report -compare-attempts $(or $(COMPARE_SCOPE),run)
+
 PRIORAB_ARGS ?=
 # Costs model calls. Two halves: a deterministic consistency check (does the
 # approved wording survive) and a judged quality score. Only the first should be

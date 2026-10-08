@@ -1,0 +1,37 @@
+# Teamboard: customer help, release notes and support replies, plus the
+# developer API reference.
+#
+# The product renamed Workspaces to Spaces. Customers only ever see the new
+# name, so a person held the rename where customers read. The API reference
+# keeps `workspace` because the endpoint names are a published contract.
+version: v1
+id: prj_compareteamboardaaaaaaa
+name: teamboard
+defaults:
+  source_language: en-US
+  exclude:
+    - "**/.git/**"
+
+profiles:
+  customer:
+    channels: [help, changelog, support]
+  api:
+    channels: [reference]
+
+collections:
+  - name: help
+    channel: customer/help
+    content:
+      - path: "help/**/*.md"
+  - name: changelog
+    channel: customer/changelog
+    content:
+      - path: "changelog/**/*.md"
+  - name: support
+    channel: customer/support
+    content:
+      - path: "support/**/*.md"
+  - name: api-reference
+    channel: api/reference
+    content:
+      - path: "api/**/*.md"

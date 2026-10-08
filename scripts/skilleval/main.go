@@ -89,6 +89,16 @@ func main() {
 		evalSessions      = flag.String("eval-sessions", "", "comma-separated evaluation session IDs to select; does not reset the attempt ceiling")
 		evalCellsDir      = flag.String("eval-cells-dir", "", "directory the evaluation cells are generated in; empty uses the system temporary directory")
 		evalAnswers       = flag.String("eval-answers", "", "a person's answers to the review sheet; empty reads review-answers.yaml in the evaluation directory")
+		compareManifest   = flag.String("compare-manifest", "", "comparison study manifest; selects the with/without-kapi comparison runner")
+		comparePhase      = flag.String("compare-phase", comparePhasePreflight, "comparison phase: preflight, pilot, run, grade, judge or report")
+		compareDir        = flag.String("compare-dir", "harness/out/compare", "directory for the comparison's evidence")
+		compareCells      = flag.String("compare-cells-dir", "", "directory the comparison cells are generated in, outside any checkout; empty uses the system temporary directory")
+		compareLive       = flag.Bool("compare-live", false, "explicitly allow subscription-backed agent and judge sessions")
+		compareRetry      = flag.Bool("compare-retry", false, "run again the attempts a rate limit, an outage or an interruption cut short")
+		compareConc       = flag.Int("compare-concurrency", 4, "sessions at once, split evenly over the hosts")
+		compareMax        = flag.Int("compare-max-attempts", 0, "run at most this many attempts in this invocation (0: all)")
+		compareSelect     = flag.String("compare-attempts", "", "live phases: comma-separated attempt IDs to run; report: scope (pilot, run or all)")
+		compareOut        = flag.String("compare-out", "", "report: file to write the markdown report to (default stdout)")
 		mode              = flag.String("mode", modeTrigger, "trigger or completion")
 		surface           = flag.String("surface", "", "limit to one surface: skill or mcp")
 		out               = flag.String("out", DefaultOut, "where to write the dataset")
@@ -158,6 +168,51 @@ func main() {
 	}
 	if *evalLive {
 		fail("eval-live requires eval-manifest")
+	}
+
+	// The comparison is a fourth entry point: the same writing tasks with kapi,
+	// with the rules in the hosts' instruction files, and with neither.
+	if *compareManifest != "" {
+		root, err := repoRoot()
+		if err != nil {
+			fail(err.Error())
+		}
+		kapiBin := findKapi(root)
+		if kapiBin == "" {
+			fail("the comparison needs this checkout's kapi: run `make build` first")
+		}
+		cells := *compareCells
+		if cells != "" {
+			if abs, err := filepath.Abs(cells); err == nil {
+				if rel, err := filepath.Rel(root, abs); err == nil && !strings.HasPrefix(rel, "..") {
+					fail("the comparison cells must sit outside this checkout, or every agent finds neokapi's own instruction files")
+				}
+				cells = abs
+			}
+		}
+		dir := *compareDir
+		if !filepath.IsAbs(dir) {
+			dir = filepath.Join(root, dir)
+		}
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
+		if flagSet("timeout") {
+			var cancel context.CancelFunc
+			ctx, cancel = context.WithTimeout(ctx, *timeout)
+			defer cancel()
+		}
+		err = executeCompare(ctx, CompareOptions{
+			ManifestPath: *compareManifest, Phase: *comparePhase, Dir: dir, CellsDir: cells, RepoRoot: root,
+			KapiBin: kapiBin, Live: *compareLive, Retry: *compareRetry, Concurrency: *compareConc,
+			MaxAttempts: *compareMax, Attempts: *compareSelect, Out: *compareOut,
+		})
+		if err != nil {
+			fail(err.Error())
+		}
+		return
+	}
+	if *compareLive {
+		fail("compare-live requires compare-manifest")
 	}
 
 	if *mode != modeTrigger && *mode != modeCompletion {

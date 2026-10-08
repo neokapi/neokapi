@@ -1,0 +1,9 @@
+[
+  {"id": "rename", "category": "rename", "pattern": "\\bHarbor Cloud\\b", "exempt": ["legal/**"], "note": "Harbor Cloud renamed Harbor Hosted outside legal/"},
+  {"id": "competitor", "category": "competitor", "pattern": "(?i)\\bdockyard\\b"},
+  {"id": "claim-downtime", "category": "claim", "pattern": "(?i)\\bzero[- ]downtime\\b"},
+  {"id": "claim-security", "category": "claim", "pattern": "(?i)\\b(?:secure by default|bulletproof|unbreakable|100% (?:uptime|secure|available))\\b"},
+  {"id": "allowlist", "category": "term", "pattern": "(?i)\\b(?:white|black)list(?:s|ed|ing)?\\b"},
+  {"id": "simply", "category": "voice-rule", "pattern": "(?i)\\b(?:simply|just|easily|obviously)\\b"},
+  {"id": "exclamation", "category": "voice-rule", "pattern": "!(?:\\s|$)"}
+]

@@ -1,0 +1,9 @@
+[
+  {
+    "summary": "Autopay was renamed Scheduled payments. Every string and help article uses the new name; string keys stay as they are.",
+    "term": "Scheduled payments",
+    "instead_of": ["Autopay"],
+    "seen_in": "help/autopay.md",
+    "quote": "Autopay charges a customer's saved card"
+  }
+]

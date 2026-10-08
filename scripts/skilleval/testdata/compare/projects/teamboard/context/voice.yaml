@@ -1,0 +1,41 @@
+name: Teamboard
+description: >-
+  Teamboard writes for busy team leads who want to get back to their work.
+  Say what to do and what happens next, in the fewest words that are still
+  friendly.
+tone:
+  personality: [plain, warm, direct]
+  formality: neutral
+  emotion: calm
+  humor: none
+  guidelines: >-
+    Address the reader as "you". Lead with the answer or the action, then the
+    detail. Use sentence case in headings. Never promise an outcome Teamboard
+    cannot control: describe what the product does and what the reader can do
+    if something goes wrong. Do not mention other products by name; say "your
+    previous tool" instead.
+style:
+  active_voice: true
+  sentence_length: short
+  person_pov: second
+  contractions: sometimes
+  prohibited_patterns:
+    - regex: '(?i)\b(?:guarantee[ds]?|guaranteeing|100% (?:uptime|safe|secure)|never (?:lose|loses|lost)|zero data loss|always (?:available|online))\b'
+      description: A promise about reliability or data safety. Describe what Teamboard does; never guarantee an outcome.
+      scope: prose
+    - regex: '!(?:\s|$)'
+      description: Exclamation mark in prose
+      scope: prose
+terms:
+  - term: Boardly
+    replacement: your previous tool
+    competitor: true
+    note: Do not name other products in anything a customer reads.
+  - term: log in
+    replacement: sign in
+    note: The verb is "sign in"; the screen is "Sign in".
+  - term: login
+    replacement: sign-in
+    note: The noun is "sign-in".
+  - term: e-mail
+    replacement: email
