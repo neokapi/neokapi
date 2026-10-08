@@ -106,7 +106,9 @@ it, and where.
 
 A correction is evidence about how this project writes, and the cheapest there
 is, because the judgement has already been made. On its own it records the
-change and nothing else.
+change. A person's correction toward a rule somebody already suggested is that
+person's backing for it, so the rule is established, and fails a check, unless
+something recorded argues against it.
 
 With --suggest it also records the rule the change implies, so the next use of
 the old wording is reported. That rule is a suggestion: checks report it and

@@ -31,9 +31,14 @@ func TestAPersonsCorrectionNeverFailsTheirBuild(t *testing.T) {
 
 	rule, err := app.ContextOperations(t.Context(), ContextLogRequest{Project: recipeOf(root), Subjects: true, Status: contextop.StatusContested})
 	require.NoError(t, err)
-	require.Len(t, rule.Operations, 1)
-	assert.Equal(t, suggested.ID, rule.Operations[0].ID)
-	assert.Equal(t, []string{correction.ID}, rule.Operations[0].ContestedBy)
+	contestedBy := map[string][]string{}
+	for _, op := range rule.Operations {
+		contestedBy[op.ID] = op.ContestedBy
+	}
+	assert.Equal(t, map[string][]string{
+		suggested.ID:  {correction.ID},
+		correction.ID: {suggested.ID},
+	}, contestedBy, "the rule and the correction each wait for a person to choose")
 
 	contested := checkWith(t, app, root)
 	assert.NotEqual(t, check.VerdictFailed, contested.Verdict, "a person's own edit never fails their build")

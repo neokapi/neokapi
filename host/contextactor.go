@@ -1,9 +1,13 @@
 package host
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/neokapi/neokapi/core/contextop"
 )
@@ -187,5 +191,56 @@ func (a *App) commandActor() (ResolvedActor, error) {
 	if underTest() && os.Getenv(EnvActor) == "" {
 		return ResolvedActor{Actor: contextop.Actor{Kind: contextop.ActorPerson}}, nil
 	}
-	return ResolveCommandActor(os.Getenv)
+	resolved, err := ResolveCommandActor(os.Getenv)
+	if err != nil {
+		return resolved, err
+	}
+	if resolved.Actor.Kind == contextop.ActorPerson && resolved.Actor.Name == "" {
+		resolved.Actor.Name = vcsPersonName()
+	}
+	return resolved, nil
+}
+
+// Who the person is.
+//
+// Two people on two machines of one team are two actors: what one of them
+// kept reads on the other's machine as kept by that person, and `kapi context
+// log --actor` tells them apart. The person's version-control identity names
+// them, read once per process, because it is the identity every commit they
+// make in the project already carries. A machine that configures none records
+// the person unnamed, which reads as "you" wherever it is shown.
+var (
+	vcsPersonOnce sync.Once
+	vcsPerson     string
+)
+
+// vcsPersonName is the person's configured identity, empty when none is set.
+func vcsPersonName() string {
+	vcsPersonOnce.Do(func() {
+		// Reading a config value is instant; the bound keeps a wedged tool from
+		// holding a command that only wanted a name.
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		vcsPerson = PersonName(func(key string) string {
+			out, err := exec.CommandContext(ctx, vcsBinary, "config", "--get", key).Output()
+			if err != nil {
+				return ""
+			}
+			return string(out)
+		})
+	})
+	return vcsPerson
+}
+
+// vcsBinary is the version-control tool whose configuration names the person.
+const vcsBinary = "git"
+
+// PersonName is the name a person's operations are recorded under, read from
+// their version-control configuration through config: the email, which is
+// what tells two people apart, and the name when no email is configured.
+func PersonName(config func(key string) string) string {
+	if email := strings.TrimSpace(config("user.email")); email != "" {
+		return email
+	}
+	return strings.TrimSpace(config("user.name"))
 }

@@ -183,6 +183,9 @@ func (r *ContextSearchResult) FormatText(w io.Writer) error {
 			if t.Domain != "" {
 				fmt.Fprintf(w, "  [%s]", t.Domain)
 			}
+			if t.Scope == string(contextop.LevelWorkspace) {
+				fmt.Fprint(w, ", across the workspace")
+			}
 			fmt.Fprintln(w)
 			if t.Definition != "" {
 				fmt.Fprintf(w, "  %-24s %s\n", "", t.Definition)
@@ -298,6 +301,13 @@ type ContextTermHit struct {
 	// content is involved without turning a context answer into a report.
 	// `kapi terms occurrences` is where the full list lives.
 	TopUses []ContextTermUse `json:"top_uses,omitempty"`
+	// Scope is "workspace" for a rule a person widened to every project of the
+	// workspace, which lives in the workspace's rule store rather than in this
+	// project's terms. Empty for a term the project's own store holds.
+	Scope string `json:"scope,omitempty"`
+	// Operation is the context operation a widened rule came from, which is
+	// what `kapi context log` and `kapi context revert` name it by.
+	Operation string `json:"operation,omitempty"`
 }
 
 // ContextTermUse is one place a term is used, as a context answer shows it.
@@ -405,6 +415,17 @@ type ContextSearchSources struct {
 	// project that genuinely holds no such term.
 	Unread *ContextFilesNotice
 
+	// RecipeErr is set when the project's recipe could not be read. The search
+	// fails with it rather than answering: the stores would still answer, but
+	// the suggestions and the places a term is used would be silently missing.
+	RecipeErr error
+
+	// Widened are the rules a person widened to the whole workspace. They
+	// answer in this project like its own terms do, beneath them, so the
+	// search reports the ones that mention the query beside the project's
+	// terms. Empty for a standalone-store query with no project in scope.
+	Widened []contextop.WidenedRule
+
 	// Operations are the project's context operations that still answer:
 	// suggestions, contested rules and notes, newest first. The search reports
 	// the ones that mention the query. Empty for a standalone-store query with
@@ -475,7 +496,11 @@ func (a *App) ContextSearchSourcesFor(cmd Command, termsPath, memoryPath string)
 	// standalone-store query.
 	src.At = a.GovernanceInstant()
 	if path, err := ResolveProjectPath(cmd); err == nil && path != "" {
-		if proj, err := project.Load(path); err == nil {
+		proj, lerr := project.LoadWithOptions(path, project.LoadOptions{SkipRequiresCheck: true})
+		if lerr != nil {
+			src.RecipeErr = fmt.Errorf("this project's recipe could not be read: %w", lerr)
+		}
+		if lerr == nil {
 			src.Recipe = proj
 			src.Profiles = profileHits(proj.ProfileWindows(), src.At)
 			if notice, unread := a.ContextFilesUnread(ctxOrBackground(cmd.Context()), path); unread {
@@ -490,6 +515,11 @@ func (a *App) ContextSearchSourcesFor(cmd Command, termsPath, memoryPath string)
 					if op.Status.Advises() {
 						src.Operations = append(src.Operations, op.Record)
 					}
+				}
+			}
+			if ws, werr := a.Workspace(ctxOrBackground(cmd.Context())); werr == nil {
+				if widened, rerr := contextop.WidenedRules(ctxOrBackground(cmd.Context()), ws); rerr == nil {
+					src.Widened = widened
 				}
 			}
 			a.bindContextGraph(ctxOrBackground(cmd.Context()), path, proj, &src)
@@ -545,6 +575,9 @@ func (a *App) bindContextGraph(ctx context.Context, projectPath string, proj *pr
 func SearchContext(ctx context.Context, src ContextSearchSources, req ContextSearchRequest) (*ContextSearchResult, error) {
 	if req.Query == "" {
 		return nil, errors.New("context search: empty query")
+	}
+	if src.RecipeErr != nil {
+		return nil, src.RecipeErr
 	}
 	limit := req.Limit
 	if limit <= 0 {
@@ -606,6 +639,9 @@ func SearchContext(ctx context.Context, src ContextSearchSources, req ContextSea
 
 	flagRetiredPrecedent(res.Terms, res.Precedent)
 	res.Notes = append(res.Notes, countTermUses(ctx, src, res.Terms)...)
+	// The rules widened to the workspace come after the project's own terms,
+	// beneath them as in a check, and carry no concept whose uses to count.
+	res.Terms = append(res.Terms, widenedTermHits(src.Widened, res.Terms, req.Query, limit)...)
 
 	// The coverage and the projection's state sit directly behind the
 	// freshness notes, ahead of the caveats about which store answered. A
@@ -632,6 +668,59 @@ func SearchContext(ctx context.Context, src ContextSearchSources, req ContextSea
 	}
 
 	return res, nil
+}
+
+// widenedTermHits answers a query from the rules widened to the workspace: a
+// hit for each form a matching rule avoids, and one for the form it says to
+// use. A term the project's own store already answered for is left out, the
+// way a project's terms hide a workspace rule about the same word in a check.
+func widenedTermHits(widened []contextop.WidenedRule, held []ContextTermHit, query string, limit int) []ContextTermHit {
+	q := strings.ToLower(strings.TrimSpace(query))
+	if q == "" || len(widened) == 0 {
+		return nil
+	}
+	seen := map[string]bool{}
+	for _, h := range held {
+		seen[strings.ToLower(h.Term)] = true
+	}
+	var out []ContextTermHit
+	add := func(hit ContextTermHit) {
+		key := strings.ToLower(hit.Term)
+		if hit.Term == "" || seen[key] || len(out) >= limit {
+			return
+		}
+		seen[key] = true
+		out = append(out, hit)
+	}
+	for _, w := range widened {
+		rule, ok := w.Subject.Rule()
+		if !ok {
+			continue
+		}
+		forms := append([]string{rule.Term}, rule.Forms...)
+		matched := strings.Contains(strings.ToLower(rule.Replacement), q)
+		for _, form := range forms {
+			matched = matched || strings.Contains(strings.ToLower(form), q)
+		}
+		if !matched {
+			continue
+		}
+		if rule.Replacement == "" {
+			add(ContextTermHit{Term: rule.Term, Status: string(model.TermPreferred), Scope: string(contextop.LevelWorkspace), Operation: w.Operation})
+			continue
+		}
+		add(ContextTermHit{Term: rule.Replacement, Status: string(model.TermPreferred), Scope: string(contextop.LevelWorkspace), Operation: w.Operation})
+		for _, form := range forms {
+			if strings.EqualFold(form, rule.Replacement) {
+				continue
+			}
+			add(ContextTermHit{
+				Term: form, Status: string(model.TermForbidden), Discouraged: true, Replacement: rule.Replacement,
+				Scope: string(contextop.LevelWorkspace), Operation: w.Operation,
+			})
+		}
+	}
+	return out
 }
 
 // suggestionsAbout picks the operations that mention a query: a term rule

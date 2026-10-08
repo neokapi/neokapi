@@ -172,8 +172,10 @@ into a log that holds nothing of the project starts from the newest checkpoint
 whose segment list covers every operation up to it, and still merges every
 segment, so the history travels. The kinds `projector.LocalKinds` names never
 leave the machine: the project's registration and its removal
-(`project.register`, `project.forget`), its checkpoints, and rules a person
-widened to the whole workspace.
+(`project.register`, `project.forget`) and its checkpoints. A rule a person
+widened to the whole workspace is a `rules.write` operation recorded under the
+project that decided it, so it travels with the project and every machine that
+pulls it holds the rule in its own workspace.
 
 What the workspace knows about a remote is kept in `workspace.db`, keyed by the
 project and the remote: the operation ids the remote holds, the segments read

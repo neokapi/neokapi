@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"path/filepath"
 	"strings"
 	"time"
@@ -259,6 +260,10 @@ func (a *App) applyTermEntry(ctx context.Context, cmd Command, e changeEntry) as
 		concepts[target].Unscope()
 		changed = true
 	}
+	if e.Rescope && target < held && !sameScope(concepts[target], e.Profile, e.Coordinates) {
+		concepts[target].ScopeToPoint(e.Profile, e.Coordinates)
+		changed = true
+	}
 	if !changed {
 		res.Status = "skipped"
 		res.Detail = "already present"
@@ -267,7 +272,7 @@ func (a *App) applyTermEntry(ctx context.Context, cmd Command, e changeEntry) as
 	// A new concept for a rule seen at a profile's point holds there. A term
 	// joining a concept the project already holds keeps that concept's scope.
 	if target >= held {
-		concepts[target].ScopeToProfile(e.Profile)
+		concepts[target].ScopeToPoint(e.Profile, e.Coordinates)
 	}
 	if err := tb.AddConcept(ctx, concepts[target]); err != nil {
 		return errResult(res, fmt.Sprintf("write concept %s: %v", concepts[target].ID, err))
@@ -276,6 +281,12 @@ func (a *App) applyTermEntry(ctx context.Context, cmd Command, e changeEntry) as
 	res.Status = "applied"
 	res.Detail = landedTerms
 	return res
+}
+
+// sameScope reports whether a concept is scoped to exactly this profile and
+// these coordinates.
+func sameScope(c terms.Concept, profile string, coordinates map[string]string) bool {
+	return c.Profile() == profile && maps.Equal(c.Coordinates(), coordinates)
 }
 
 // termDecision is one term entry as apply reads it off the ledger

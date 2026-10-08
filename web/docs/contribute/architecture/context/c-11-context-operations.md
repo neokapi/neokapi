@@ -240,10 +240,13 @@ The fold marks a disagreement `contested` and names the other side in
   and keeps the chosen side, one operation per step.
 - A suggestion that contradicts an established rule is contested by the rule,
   and the rule stays in force.
-- A person's correction that reverses an established rule contests the rule.
-  The rule is taken out of the terms store and reports instead of failing,
-  until the person keeps it again or drops or reverts the correction, so a
-  person's own edit never fails their build.
+- A person's correction that reverses an established rule contests the rule,
+  and the rule contests the correction. The rule is taken out of the terms
+  store and reports instead of failing, until a person keeps it again or drops
+  or reverts the correction, so a person's own edit never fails their build.
+  Keeping the correction is a choice like any other side's: `keep` refuses it
+  and names the rule, and `keep --choose` reverts the rule and keeps the
+  correction.
 
 `kapi context keep --session <id>` keeps everything one session suggested and
 leaves each contested suggestion for later, naming the other side.
@@ -324,26 +327,47 @@ declared axes is that project. A rule answers where its scope covers the point
 being checked, so a rule seen in one product's reference pages says nothing
 about another product's tutorials.
 
-A rule lands in the terms store at its profile's point too. Keeping or settling
-a rule whose evidence was seen where a profile governs writes its concept with
-that profile in `terms.PropProfile`, and so does `kapi context import` for the
-word rules in a profile's own voice or terms file under `.kapi/profiles/<name>/`.
-Both writes go through the projector like every other store write.
-`projectConcepts` keeps, at a point, the concepts scoped to no profile and the
-ones scoped to the profile governing there (`terms.AtProfile`), so checks,
-retrieval and the translation tools hold a profile's rule to that profile's
-content. The project-wide answer, asked with no point, lists every concept.
+A rule lands in the terms store at its point too. Keeping or settling a rule
+whose evidence was seen where a profile governs writes its concept with that
+profile in `terms.PropProfile` and the point's coordinates in
+`terms.PropCoordinates` (`channel=app,product=quickcast`). `kapi context import`
+scopes the word rules in a profile's own voice or terms file under
+`.kapi/profiles/<name>/` to that profile. Both writes go through the projector
+like every other store write. `projectConcepts` keeps, at a point, the concepts
+that hold there (`terms.AtPoint`): scoped to no profile or to the profile
+governing there, and to no coordinates or to coordinates the point sits at. A
+rule kept from an app's strings therefore says nothing about the same
+product's documentation, and checks, retrieval and the translation tools all
+read the same filter. The project-wide answer, asked with no point, lists every
+concept.
 
 Keeping is also the moment a person may **widen**, with `--widen-to`, or later
-with `kapi context widen`. Naming an axis drops it
-from the rule's point, so a rule learned at one mode answers at every mode of
-its brand. Naming `workspace` puts the rule in force in every project of the
-workspace.
+with `kapi context widen`. The steps nest:
+
+| `--to` | What the rule's scope drops | Where it then holds |
+| --- | --- | --- |
+| an axis, such as `channel` | that axis; `product` drops the profile too | every value of the axis, at the rest of the point |
+| `project` | the profile and the axes it derives (`product`, `channel`) | every point of the project |
+| `workspace` | the profile, its axes and the project | every project of the workspace |
+
+An axis no profile derives, such as a brand the recipe declares, stays through
+`project` and `workspace`, so a rule widened from one brand's project holds
+wherever that brand does. Widening moves the rule's concept with it: the
+concept a keep wrote is rescoped to the wider point in the same write.
 
 Workspace-wide rules use `workspace.Rule` rows in `workspace.db`. Each row
 contains an id, kind, source project and opaque JSON payload. This keeps
 workspace storage independent of the rule type. Project-specific terms take
-precedence over workspace rules for the same term.
+precedence over workspace rules for the same term, and `kapi context search`
+reports a workspace rule beside the project's terms, marked as holding across
+the workspace.
+
+A widened rule is written through the projector as a `rules.write` operation
+recorded under the project that decided it, so it travels like every other
+operation of the project: a push carries it, a pull or an import applies it to
+the receiving machine's workspace, and a checkpoint holds the project's widened
+rules. Narrowing it, by reverting the rule or contesting it, travels the same
+way.
 
 ### One policy function
 
@@ -471,7 +495,11 @@ argument and refuses one: the kind is `agent`, the name comes from the client's
 own `initialize`, and the session is minted once per server process, so
 operations from one run can be read and reverted together. Shell commands use
 environment-based actor detection to distinguish people from supported agent
-hosts.
+hosts. A person is named by their git identity (`user.email`, or `user.name`
+when no email is set), so two people on two machines of one team are two
+actors: `kapi context log --actor` tells them apart, and the digest shows a
+teammate's operation under the teammate's name and the reader's own as "you".
+A machine with no git identity records the person unnamed.
 
 Evidence is required where a rule is stated. `context_observe` refuses a term
 rule with no `path`, and `context_correct` declares the path as a required

@@ -61,8 +61,8 @@ pushing at once both succeed. When the backend has gained many operations since
 its last checkpoint, the push adds one, so a new machine's first pull starts
 from it rather than replaying everything.
 
-Withheld originals and the rules you widened to every project stay on this
-machine.
+Withheld originals stay on this machine. The rules you widened to every
+project travel with the project, and hold on every machine that pulls it.
 
 It exits with status 5 when the backend cannot be reached; the operations stay
 queued for the next push.`,

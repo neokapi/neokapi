@@ -627,6 +627,10 @@ type StoreSelection struct {
 	// empty at the project's default point. A concept scoped to another
 	// profile does not hold there (terms.AtProfile).
 	Profile string
+	// Coordinates are the coordinates of the point the selection was made
+	// for. A concept scoped to other coordinates does not hold there
+	// (terms.AtPoint).
+	Coordinates map[string]string
 }
 
 // InProject reports whether the project's own store governs this selection.

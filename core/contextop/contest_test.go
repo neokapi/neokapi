@@ -84,6 +84,9 @@ func TestContest_APersonsCorrectionReversesAnEstablishedRule(t *testing.T) {
 	assert.Equal(t, contextop.StatusContested, st, "a person's own edit contests the rule it reverses")
 	assert.Equal(t, []string{fix.ID}, by)
 	assert.NotContains(t, by, agentFix.ID)
+	st, by = status(t, ledger, fix.ID)
+	assert.Equal(t, contextop.StatusContested, st, "and the rule contests the correction, so neither is kept without a choice")
+	assert.Equal(t, []string{rule.ID}, by)
 
 	held, err := ledger.Get(ctx, rule.ID)
 	require.NoError(t, err)
@@ -94,6 +97,9 @@ func TestContest_APersonsCorrectionReversesAnEstablishedRule(t *testing.T) {
 	require.NoError(t, err)
 	st, _ = status(t, ledger, rule.ID)
 	assert.Equal(t, contextop.StatusEstablished, st)
+	st, by = status(t, ledger, fix.ID)
+	assert.Equal(t, contextop.StatusSuggested, st, "a correction the person answered contests nothing")
+	assert.Empty(t, by)
 }
 
 func TestResolve_ContestedRulesAdvise(t *testing.T) {

@@ -71,9 +71,10 @@ placeholders come with it and the originals do not. The same holds for a parked
 language's drafts: they travel with their withheld values replaced, and read
 whole only on the machine that withheld them.
 
-Rules you widened to every project stay on your machine too: they belong to
-your workspace, not to the project. The derived stores and caches under
-`.kapi/work/` are rebuilt from your content files.
+Rules you widened to every project travel with the project that decided them.
+A machine that pulls the project, or reads its export, holds them in its own
+workspace and applies them to every project there. The derived stores and
+caches under `.kapi/work/` are rebuilt from your content files.
 
 ## Sharing context through a backend
 

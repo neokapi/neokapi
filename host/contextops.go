@@ -813,7 +813,7 @@ func (s *contextOpsSession) keep(ctx context.Context, actor contextop.Actor, not
 		return ContextOperation{}, teachRefusal(err)
 	}
 	target.Status = contextop.StatusEstablished
-	landed, err := s.land(ctx, target)
+	landed, err := s.landAt(ctx, target, req.WidenTo != "")
 	if err != nil {
 		return ContextOperation{}, err
 	}
@@ -848,22 +848,36 @@ func editSubject(subject contextop.Subject, replacement string, advisory *bool) 
 }
 
 // widenScope moves a scope outward. "workspace" puts the rule in force in every
-// project; any other value names a coordinate axis the rule stops being
-// specific about.
+// project; "project" in every profile and channel of this one; any other value
+// names a coordinate axis the rule stops being specific about.
+//
+// The steps nest. Widening to the project drops the profile the evidence was
+// seen under, and with it the product and channel axes the profile derives,
+// so the rule holds at every point of the project. Widening to the workspace
+// drops them too, and the project. An axis no profile derives, such as a
+// brand the recipe declares, stays: a rule widened from one brand's project
+// holds wherever that brand does.
 func widenScope(target contextop.Record, to string) (contextop.Scope, error) {
 	scope := target.Scope
 	switch to {
 	case WidenToWorkspace:
+		if scope.Level == contextop.LevelWorkspace {
+			return contextop.Scope{}, errors.New("this rule already holds across the workspace")
+		}
 		scope.Level = contextop.LevelWorkspace
+		scope.AllProfiles = false
+		scope.Coordinates = withoutProfileAxes(scope.Coordinates)
 		return scope, nil
 	case WidenToProject:
 		if scope.Level == contextop.LevelWorkspace {
 			return contextop.Scope{}, errors.New("this rule holds across the workspace, which includes the project")
 		}
-		if target.Basis.Profile == "" || scope.AllProfiles {
+		narrowed := withoutProfileAxes(scope.Coordinates)
+		if scope.AllProfiles || (target.Basis.Profile == "" && len(narrowed) == len(scope.Coordinates)) {
 			return contextop.Scope{}, errors.New("this rule already holds across the project: it was settled under no profile")
 		}
 		scope.AllProfiles = true
+		scope.Coordinates = narrowed
 		return scope, nil
 	}
 	if _, ok := scope.Coordinates[to]; !ok {
@@ -877,6 +891,21 @@ func widenScope(target contextop.Record, to string) (contextop.Scope, error) {
 	}
 	scope.Coordinates = widened
 	return scope, nil
+}
+
+// withoutProfileAxes drops the axes a profile derives (product and channel)
+// from a scope's coordinates, keeping the rest.
+func withoutProfileAxes(coordinates map[string]string) map[string]string {
+	out := make(map[string]string, len(coordinates))
+	for axis, value := range coordinates {
+		if axis != project.ProductAxis && axis != project.ChannelAxis {
+			out[axis] = value
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 // DropContextOperation sets a suggestion aside. It stops answering at once. An
@@ -1035,7 +1064,7 @@ func (a *App) WidenContextOperation(ctx context.Context, req ContextWidenRequest
 		return ContextOperation{}, teachRefusal(err)
 	}
 	target.Scope = widened
-	landed, err := s.land(ctx, target)
+	landed, err := s.landWidened(ctx, target)
 	if err != nil {
 		return ContextOperation{}, err
 	}

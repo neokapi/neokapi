@@ -14,9 +14,13 @@ import (
 
 // LocalKinds are the operation kinds that stay on the machine that recorded
 // them when a project's context is shared (workspace.Sync): the project's
-// registration, its checkpoints, and the rules a person widened to the whole
-// workspace, which belong to this machine's workspace rather than the project.
-var LocalKinds = []string{workspace.OpRegisterProject, workspace.OpForgetProject, KindCheckpoint, KindRules}
+// registration and its checkpoints.
+//
+// A rule a person widened to the whole workspace travels. It was decided in
+// this project and is recorded under it, so every machine that pulls the
+// project, or imports its export, holds the rule in its own workspace and
+// answers with it the way the machine that widened it does.
+var LocalKinds = []string{workspace.OpRegisterProject, workspace.OpForgetProject, KindCheckpoint}
 
 // Syncer is the projector as a shared context's workspace.Applier: it applies
 // what a pull merged, and reads and writes the checkpoints a remote carries.
@@ -42,8 +46,8 @@ func (s syncer) Apply(ctx context.Context, rebuild bool) error {
 // Checkpoint writes the project's projections as a checkpoint file for a
 // remote, with the parts of its larger tables stored as blobs of this
 // workspace (CheckpointMark names them, and a push carries them). It records
-// nothing in the log, and it leaves out the rules the project widened to the
-// workspace, which stay on this machine.
+// nothing in the log. The rules the project widened to the workspace are in
+// it, so a first pull that starts from the checkpoint holds them too.
 func (s syncer) Checkpoint(ctx context.Context, segments []string) ([]byte, string, error) {
 	p := s.p
 	if p.log == nil {
@@ -60,7 +64,7 @@ func (s syncer) Checkpoint(ctx context.Context, segments []string) ([]byte, stri
 	}
 	mark := kpz.CheckpointMark{Project: string(p.key), Segments: slices.Clone(segments)}
 	for _, op := range ops {
-		if projects(op.Kind) && op.Kind != KindRules {
+		if projects(op.Kind) {
 			mark.Operations++
 			mark.Through = max(mark.Through, op.ID)
 		}
@@ -72,7 +76,6 @@ func (s syncer) Checkpoint(ctx context.Context, segments []string) ([]byte, stri
 	if err != nil {
 		return nil, "", err
 	}
-	tables = slices.DeleteFunc(tables, func(t kpz.TableDoc) bool { return t.Table == rulesTable })
 	if tables, mark.Parts, err = p.storeParts(ctx, tables); err != nil {
 		return nil, "", err
 	}
