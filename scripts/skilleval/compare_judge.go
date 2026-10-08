@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -32,7 +33,7 @@ import (
 // it answered, and one under another rubric is asked again.
 
 // compareRubricVersion names the rubric below. Change it with the questions.
-const compareRubricVersion = "v3-observable"
+const compareRubricVersion = "v4-observable"
 
 // compareCriteria are the rubric's questions, in the order the report prints
 // them, each with an example that passes and one that fails.
@@ -46,8 +47,8 @@ var compareCriteria = []struct{ ID, Question, Yes, No string }{
 	{"plain", "Is it free of promotional and emotional wording: superlatives, intensifiers and sales language such as \"powerful\", \"seamless\", \"effortless\", \"blazing\", \"easy\", \"quick and painless\", \"we're excited\", \"great news\", \"rest assured\", \"don't worry\"?",
 		"\"Cold starts are about 40% faster.\"",
 		"\"Cold starts are now blazing fast, so you can rest assured your apps feel snappy.\""},
-	{"faithful", "Does every factual statement come from the task's facts, without added promises, numbers, features or reassurances the task does not give?",
-		"Task: payouts arrive in 2 business days. Text: \"Your payout reaches your bank 2 business days after your customer pays.\"",
+	{"faithful", "Does every factual statement come from the task's facts or from the files as they were before the change (shown below), without promises, numbers, features or reassurances found in neither? Facts carried over from the file before the change are faithful.",
+		"Task: payouts arrive in 2 business days. Text: \"Your payout reaches your bank 2 business days after your customer pays.\" / A rename update that keeps the file's existing sentence \"Apps run in three regions.\"",
 		"Task: payouts arrive in 2 business days. Text: \"Most payouts arrive the same day, and you'll never wait more than 2 days.\""},
 	{"short", "Are the sentences short: almost every sentence 25 words or fewer, and no paragraph longer than four sentences?",
 		"Three sentences of 9, 14 and 12 words.",
@@ -108,12 +109,30 @@ func compareJudgePrompt(project CompareProject, task CompareTask, text string) s
 	b.WriteString("## The task\n\n" + task.Prompt + "\n\n")
 	b.WriteString("## What the writer produced\n\nFor a new file, the whole file. For a changed file, only the lines the writer added or changed (for a JSON file, the keys and values, which are interface strings). Lines that sit between them are not shown, and headings, list markers and code are not sentences.\n\n")
 	b.WriteString(text + "\n\n")
+	if before := compareFilesBefore(project, text); before != "" {
+		b.WriteString("## The changed files as they were before the change\n\n" + before + "\n\n")
+	}
 	b.WriteString("## Questions\n\nWhich product names and terms the writer used is checked separately: do not judge which names or terms appear. Answer each question about the text as written, not about how good it is overall. Answer yes unless you can quote the words that make the answer no.\n\n")
 	for _, criterion := range compareCriteria {
 		fmt.Fprintf(&b, "- %s: %s\n  Yes, for example: %s\n  No, for example: %s\n", criterion.ID, criterion.Question, criterion.Yes, criterion.No)
 	}
 	b.WriteString("\nDo not use any tools. Reply with one JSON object and nothing else, of the form {\"address\": true, \"lead\": false, \"plain\": true, \"faithful\": true, \"short\": true, \"reason\": \"for each no, the quoted words\"}.\n")
 	return b.String()
+}
+
+// compareChangedHeader finds the files a grade's text marks as changed.
+var compareChangedHeader = regexp.MustCompile(`(?m)^### (\S+) \(changed\)$`)
+
+// compareFilesBefore renders each file the text changed as the project held
+// it, so a judge can tell a fact carried over from one the writer added.
+func compareFilesBefore(project CompareProject, text string) string {
+	var b strings.Builder
+	for _, match := range compareChangedHeader.FindAllStringSubmatch(text, -1) {
+		if original, ok := project.Files[match[1]]; ok {
+			fmt.Fprintf(&b, "### %s (before)\n\n%s\n\n", match[1], strings.TrimSpace(string(original)))
+		}
+	}
+	return strings.TrimSpace(b.String())
 }
 
 // compareParseVerdict reads the JSON object a judge replied with.

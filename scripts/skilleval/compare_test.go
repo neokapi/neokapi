@@ -219,3 +219,12 @@ func TestCompareRefusesACellTheSandboxCannotRead(t *testing.T) {
 	_, err = compareDenyRead("/private/tmp/kapi-compare-cells/a")
 	assert.NoError(t, err)
 }
+
+func TestCompareJudgeSeesChangedFilesBefore(t *testing.T) {
+	project, err := loadCompareProject("harbor")
+	require.NoError(t, err)
+	before := compareFilesBefore(project, "### docs/hosted/overview.md (changed)\n\nHarbor Hosted runs in three regions.\n\n### support/replies/new.md (new)\n\nHi")
+	assert.Contains(t, before, "### docs/hosted/overview.md (before)")
+	assert.Contains(t, before, "Harbor Cloud runs in three regions")
+	assert.NotContains(t, before, "support/replies/new.md")
+}
