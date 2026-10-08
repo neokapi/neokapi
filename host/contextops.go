@@ -303,6 +303,17 @@ func teachRefusal(err error) error {
 		"ask them to run `kapi context review`, which walks through what is waiting", err)
 }
 
+// teachRefusalTo answers a refusal addressed to whoever was refused. An agent
+// is told to put the decision in front of the person; a person is the one who
+// decides, and is told how to set the operation aside themselves.
+func teachRefusalTo(err error, actor contextop.Actor, id string) error {
+	if err == nil || !errors.Is(err, contextop.ErrRefused) || actor.Kind != contextop.ActorPerson {
+		return teachRefusal(err)
+	}
+	return fmt.Errorf("%w\nto set aside what someone else recorded, drop it: `kapi context review --drop %s`",
+		err, contextop.ShortID(id))
+}
+
 // RecordContextObservation records something somebody noticed. A fact in
 // prose implies no rule; an observation naming a term states a term rule that
 // advises from this moment and binds once a person keeps it.
@@ -972,7 +983,7 @@ func (s *contextOpsSession) setAside(ctx context.Context, kind contextop.Kind, s
 		Note:    note,
 	})
 	if err != nil {
-		return ContextOperation{}, teachRefusal(err)
+		return ContextOperation{}, teachRefusalTo(err, actor, target.ID)
 	}
 	return s.settled(ctx, written, before)
 }
