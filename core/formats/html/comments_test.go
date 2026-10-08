@@ -71,6 +71,7 @@ const directiveFixture = `<body>
   <!--suppress HtmlUnknownTag -->
   <!-- ReSharper disable MarkupTextTypo -->
   <!-- kapi:voice -->
+  <!-- kapi:rules -->
   <!-- BEGIN:downloads-cli -->
   <!--$-->
 </body>

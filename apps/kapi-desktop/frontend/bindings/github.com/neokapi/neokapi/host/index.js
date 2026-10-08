@@ -9,6 +9,7 @@ export {
     ContextCoverage,
     ContextDigest,
     ContextEditionOf,
+    ContextElsewhere,
     ContextFilesNotice,
     ContextNews,
     ContextPoint,

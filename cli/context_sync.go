@@ -40,11 +40,18 @@ a fresh checkout that only needs the context to answer from.
 --status says where the context is shared and how far this machine and the
 shared copy were apart at the last sync, without contacting it.
 
+Once the context is merged, sync rewrites the project's rules files: the
+section kapi keeps in AGENTS.md and CLAUDE.md at the project root, and in each
+folder whose rules differ from the root's. --files-only writes those files
+from the context this machine holds and does nothing else, which also writes
+them for a project that has none yet.
+
 It exits with status 5 when the shared copy cannot be reached, and nothing
 changes here.`,
 		Example: "  kapi context sync\n" +
 			"  kapi context sync --status\n" +
 			"  kapi context sync --no-push\n" +
+			"  kapi context sync --files-only\n" +
 			"  kapi context sync --merged HEAD~1..HEAD\n" +
 			"  kapi context sync --merged \"$BEFORE..$AFTER\" --pr 412 --merger asgeir",
 		Args: cobra.NoArgs,
@@ -57,6 +64,7 @@ changes here.`,
 			pr, _ := cmd.Flags().GetInt("pr")
 			merger, _ := cmd.Flags().GetString("merger")
 			noPush, _ := cmd.Flags().GetBool("no-push")
+			filesOnly, _ := cmd.Flags().GetBool("files-only")
 			if status, _ := cmd.Flags().GetBool("status"); status {
 				res, err := a.ContextBackend(cmd.Context(), projectPath)
 				if err != nil {
@@ -65,11 +73,12 @@ changes here.`,
 				return output.Print(cmd, res)
 			}
 			res, err := a.SyncProjectContext(cmd.Context(), host.ContextSyncRequest{
-				Project: projectPath,
-				Merged:  merged,
-				PR:      pr,
-				Merger:  merger,
-				NoPush:  noPush,
+				Project:   projectPath,
+				Merged:    merged,
+				PR:        pr,
+				Merger:    merger,
+				NoPush:    noPush,
+				FilesOnly: filesOnly,
 			})
 			if err != nil {
 				return err
@@ -82,7 +91,11 @@ changes here.`,
 	cmd.Flags().Int("pr", 0, "the pull request that merged the range (read from the commit subject when unset)")
 	cmd.Flags().String("merger", "", "who merged it (the last commit's committer when unset)")
 	cmd.Flags().Bool("no-push", false, "read what others shared and share nothing back")
+	cmd.Flags().Bool("files-only", false, "write the project's rules files (AGENTS.md, CLAUDE.md) from this machine's context and do nothing else")
 	cmd.MarkFlagsMutuallyExclusive("status", "merged")
+	cmd.MarkFlagsMutuallyExclusive("files-only", "status")
+	cmd.MarkFlagsMutuallyExclusive("files-only", "merged")
+	cmd.MarkFlagsMutuallyExclusive("files-only", "no-push")
 	cmd.MarkFlagsMutuallyExclusive("status", "no-push")
 	AddProjectFlag(cmd)
 	return cmd

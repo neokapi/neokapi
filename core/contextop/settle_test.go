@@ -14,7 +14,8 @@ var mergeTool = contextop.Actor{Kind: contextop.ActorTool, Name: "settle-merged"
 
 func observe(t *testing.T, l *contextop.Ledger, actor contextop.Actor, term, use string) contextop.Record {
 	t.Helper()
-	r, err := l.Append(t.Context(), contextop.Record{Project: "prj", Actor: actor, Kind: contextop.KindObserve, Subject: termRule(term, use, false)})
+	r, err := l.Append(t.Context(), contextop.Record{Project: "prj", Actor: actor, Kind: contextop.KindObserve, Subject: termRule(term, use, false),
+		Evidence: []contextop.Evidence{{Path: "docs/guide.md"}}})
 	require.NoError(t, err)
 	return r
 }
@@ -223,6 +224,75 @@ func copyLog(t *testing.T, from, to *workspace.Workspace) {
 	require.NoError(t, err)
 	_, err = to.Record(context.Background(), ops...)
 	require.NoError(t, err)
+}
+
+// TestSettle_EvidenceEstablishesOnlyWhereItWasSeen: an agent's note applies
+// where it was seen (R19.13). The same rename noted in the help pages, in the
+// legal terms and with no file at all settles as one group, and a person's
+// signal establishes only the note recorded where the signal was seen. The
+// note with no file it was seen in waits for a person.
+func TestSettle_EvidenceEstablishesOnlyWhereItWasSeen(t *testing.T) {
+	help := map[string]string{"product": "customer", "channel": "help"}
+	legal := map[string]string{"product": "legal", "channel": "terms"}
+	note := func(l *contextop.Ledger, session, path string, at map[string]string) contextop.Record {
+		r := contextop.Record{Project: "prj", Actor: agent("claude", session), Kind: contextop.KindObserve,
+			Subject: termRule("Workspace", "Space", false), Scope: contextop.Scope{Level: contextop.LevelProject, Coordinates: at}}
+		if path != "" {
+			r.Evidence = []contextop.Evidence{{Path: path}}
+		}
+		out, err := l.Append(t.Context(), r)
+		require.NoError(t, err)
+		return out
+	}
+	tests := []struct {
+		name       string
+		correction map[string]string
+		merge      string
+		want       map[string]contextop.Status
+	}{
+		{
+			name:       "a correction in the help pages",
+			correction: help,
+			want:       map[string]contextop.Status{"help": contextop.StatusEstablished, "legal": contextop.StatusSuggested, "nowhere": contextop.StatusSuggested},
+		},
+		{
+			name:  "a merge that changed the legal terms",
+			merge: "legal",
+			want:  map[string]contextop.Status{"help": contextop.StatusSuggested, "legal": contextop.StatusEstablished, "nowhere": contextop.StatusSuggested},
+		},
+		{
+			name:       "a correction with no place",
+			correction: map[string]string{},
+			want:       map[string]contextop.Status{"help": contextop.StatusSuggested, "legal": contextop.StatusSuggested, "nowhere": contextop.StatusSuggested},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := contextop.NewLedger(openWorkspace(t), contextop.PersonDecides)
+			notes := map[string]contextop.Record{
+				"help":    note(l, "s1", "help/start.md", help),
+				"legal":   note(l, "s2", "legal/terms.md", legal),
+				"nowhere": note(l, "s3", "", nil),
+			}
+			if tt.correction != nil {
+				_, err := l.Append(t.Context(), contextop.Record{Project: "prj", Actor: person("asgeir"), Kind: contextop.KindCorrect,
+					Correction: &contextop.Correction{From: "Workspace", To: "Space"},
+					Scope:      contextop.Scope{Level: contextop.LevelProject, Coordinates: tt.correction}})
+				require.NoError(t, err)
+			}
+			if tt.merge != "" {
+				signal(t, l, notes[tt.merge].ID, contextop.Signal{Source: contextop.SignalMerge, Commit: "abc1234def", Preferred: 1})
+			}
+			settleAll(t, l)
+			for which, want := range tt.want {
+				got, _ := status(t, l, notes[which].ID)
+				assert.Equal(t, want, got, which)
+				r, err := l.Get(t.Context(), notes[which].ID)
+				require.NoError(t, err)
+				assert.Equal(t, notes[which].Scope, r.Scope, "settling never moves a note's scope")
+			}
+		})
+	}
 }
 
 func ids(ops []workspace.Op) []string {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/preset"
@@ -283,63 +284,46 @@ func TestInitCmd_mintID(t *testing.T) {
 	assert.Equal(t, string(body), string(after), "a second mint writes nothing")
 }
 
-// kapi init points an assistant at the voice the project binds: a recipe
-// carrying one gets a CLAUDE.md section naming it, and an AGENTS.md already at
-// the root takes the section instead. A scaffolded recipe binds no voice, so
-// both scaffolds and --no-pointer write nothing.
-func TestInitCmd_voicePointer(t *testing.T) {
+// kapi init writes the project's rules where agents load them: AGENTS.md and
+// CLAUDE.md at the root, holding the voice a recipe binds. A CLAUDE.md already
+// there keeps its own text, and --no-rules-files writes nothing.
+func TestInitCmd_rulesFiles(t *testing.T) {
 	const packRecipe = "version: v1\nname: my-app\ndefaults:\n  source_language: en\n  voice:\n    pack: professional-b2b\n"
 
 	tests := []struct {
-		name string
-		args []string
-		// recipe pre-seeds kapi.yaml, so init adopts a project that already
-		// binds a voice. Empty scaffolds one.
+		name   string
+		args   []string
 		recipe string
 		files  map[string]string
-		// wantFile is the assistant file expected to hold the section,
-		// relative to the project dir; empty when none may exist.
-		wantFile string
-		wantOut  string
-		// wantNotOut must be absent from stdout.
-		wantNotOut string
+		// want says whether the rules files are written.
+		want bool
+		// wantVoice is a line the root's section must carry.
+		wantVoice string
 	}{
 		{
-			name:       "a bound voice creates CLAUDE.md",
-			args:       []string{"--name", "my-app"},
-			recipe:     packRecipe,
-			wantFile:   "CLAUDE.md",
-			wantOut:    "agents: ",
-			wantNotOut: "@AGENTS.md",
+			name:      "a bound voice is stated in both files",
+			args:      []string{"--name", "my-app"},
+			recipe:    packRecipe,
+			want:      true,
+			wantVoice: "Voice: Professional B2B.",
 		},
 		{
-			name:     "an existing CLAUDE.md takes the section",
-			args:     []string{"--name", "my-app"},
-			recipe:   packRecipe,
-			files:    map[string]string{"CLAUDE.md": "# Rules\n"},
-			wantFile: "CLAUDE.md",
-			wantOut:  "voice pointer written",
+			name:      "an existing CLAUDE.md keeps its own text",
+			args:      []string{"--name", "my-app"},
+			recipe:    packRecipe,
+			files:     map[string]string{"CLAUDE.md": "# Rules\n"},
+			want:      true,
+			wantVoice: "Voice: Professional B2B.",
 		},
 		{
-			name:     "an AGENTS.md alone takes the section and earns the import hint",
-			args:     []string{"--name", "my-app"},
-			recipe:   packRecipe,
-			files:    map[string]string{"AGENTS.md": "# Agents\n"},
-			wantFile: "AGENTS.md",
-			wantOut:  "@AGENTS.md",
-		},
-		{
-			name:   "--no-pointer skips it",
-			args:   []string{"--name", "my-app", "--no-pointer"},
+			name:   "--no-rules-files skips them",
+			args:   []string{"--name", "my-app", "--no-rules-files"},
 			recipe: packRecipe,
 		},
 		{
-			name: "the content scaffold binds no voice and writes nothing",
+			name: "a scaffold with no context still names the check",
 			args: []string{"--name", "my-app"},
-		},
-		{
-			name: "a translation scaffold binds no voice and writes nothing",
-			args: []string{"--name", "my-app", "--target-locale", "fr"},
+			want: true,
 		},
 	}
 	for _, tt := range tests {
@@ -362,24 +346,25 @@ func TestInitCmd_voicePointer(t *testing.T) {
 			require.NoError(t, cmd.Execute())
 			assert.Empty(t, errOut.String(), "no warning on the happy path")
 
-			if tt.wantFile == "" {
-				for _, name := range []string{"CLAUDE.md", "AGENTS.md"} {
-					_, err := os.Stat(filepath.Join(dir, name))
+			for _, name := range []string{"AGENTS.md", "CLAUDE.md"} {
+				body, err := os.ReadFile(filepath.Join(dir, name))
+				if !tt.want {
 					assert.True(t, os.IsNotExist(err), "no %s is created", name)
+					continue
 				}
-				assert.NotContains(t, out.String(), "agents:")
-				return
+				require.NoError(t, err)
+				assert.Contains(t, string(body), "<!-- kapi:rules")
+				assert.Contains(t, string(body), "`kapi check <file>`")
+				if tt.wantVoice != "" {
+					assert.Contains(t, string(body), tt.wantVoice)
+				}
+				if seed, ok := tt.files[name]; ok {
+					assert.True(t, strings.HasPrefix(string(body), seed), "hand-written content in %s survives", name)
+				}
+				assert.Contains(t, out.String(), "rules:  "+name)
 			}
-			body, err := os.ReadFile(filepath.Join(dir, tt.wantFile))
-			require.NoError(t, err)
-			assert.Contains(t, string(body), "voice, Professional B2B, is held by kapi")
-			assert.Contains(t, string(body), "`kapi context <path>`")
-			assert.Contains(t, out.String(), tt.wantOut)
-			if tt.wantNotOut != "" {
-				assert.NotContains(t, out.String(), tt.wantNotOut)
-			}
-			for rel, seed := range tt.files {
-				assert.Contains(t, string(body), seed, "hand-written content in %s survives", rel)
+			if !tt.want {
+				assert.NotContains(t, out.String(), "rules:")
 			}
 		})
 	}
@@ -387,7 +372,7 @@ func TestInitCmd_voicePointer(t *testing.T) {
 
 // A re-run on an initialized project keeps the section as it is and says
 // nothing about it; a voice changed in between is reflected in place.
-func TestInitCmd_voicePointerOnRerun(t *testing.T) {
+func TestInitCmd_rulesFilesOnRerun(t *testing.T) {
 	app := newAppForTest(t)
 	dir := t.TempDir()
 	recipe := filepath.Join(dir, project.RecipeFileName)
@@ -404,22 +389,22 @@ func TestInitCmd_voicePointerOnRerun(t *testing.T) {
 	}
 
 	run()
-	first, err := os.ReadFile(filepath.Join(dir, "CLAUDE.md"))
+	first, err := os.ReadFile(filepath.Join(dir, "AGENTS.md"))
 	require.NoError(t, err)
-	assert.Contains(t, string(first), "voice, Professional B2B, is held by kapi")
+	assert.Contains(t, string(first), "Voice: Professional B2B.")
 
 	out := run()
 	assert.Contains(t, out, "already initialized")
-	assert.NotContains(t, out, "agents:", "an unchanged pointer earns no line on a re-run")
-	second, err := os.ReadFile(filepath.Join(dir, "CLAUDE.md"))
+	assert.NotContains(t, out, "rules:", "unchanged rules files earn no line on a re-run")
+	second, err := os.ReadFile(filepath.Join(dir, "AGENTS.md"))
 	require.NoError(t, err)
 	assert.Equal(t, string(first), string(second))
 
 	require.NoError(t, os.WriteFile(recipe, []byte("version: v1\nname: my-app\ndefaults:\n  source_language: en\n  voice:\n    pack: technical-docs\n"), 0o644))
 	out = run()
-	assert.Contains(t, out, "voice pointer written")
-	third, err := os.ReadFile(filepath.Join(dir, "CLAUDE.md"))
+	assert.Contains(t, out, "rules:  AGENTS.md (updated)")
+	third, err := os.ReadFile(filepath.Join(dir, "AGENTS.md"))
 	require.NoError(t, err)
-	assert.Contains(t, string(third), "voice, Technical Documentation, is held by kapi")
+	assert.Contains(t, string(third), "Voice: Technical Documentation.")
 	assert.NotContains(t, string(third), "Professional B2B")
 }

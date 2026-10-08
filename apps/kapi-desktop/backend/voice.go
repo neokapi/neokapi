@@ -126,24 +126,20 @@ type VoiceSaveResult struct {
 	// Guide is the profile as a tool would read it, rendered from what was
 	// saved.
 	Guide string `json:"guide,omitempty"`
-	// Pointer is what the save did to the project's assistant file: the
-	// section telling an assistant the voice is held by kapi, the same one
-	// `kapi init` and `kapi voice pointer` write. nil when the profile was
+	// RulesFiles is what the save did to the project's rules files: the
+	// section of AGENTS.md and CLAUDE.md that states the voice and the rules
+	// in force, the same one `kapi init` writes. nil when the profile was
 	// refused.
-	Pointer *VoicePointerDTO `json:"pointer,omitempty"`
+	RulesFiles *RulesFilesDTO `json:"rulesFiles,omitempty"`
 }
 
-// VoicePointerDTO reports the voice pointer written beside a saved profile.
-type VoicePointerDTO struct {
-	// File is the project-relative assistant file (CLAUDE.md or AGENTS.md);
-	// empty when nothing was written.
-	File string `json:"file,omitempty"`
-	// Action is created, updated, unchanged, removed, none, or failed.
-	Action string `json:"action"`
-	// Created is true when the file itself was created by this save.
-	Created bool `json:"created,omitempty"`
-	// Warning says why the pointer could not be written or could not name
-	// the voice; the profile save itself succeeded.
+// RulesFilesDTO reports the rules files written beside a saved profile.
+type RulesFilesDTO struct {
+	// Changed lists the project-relative files the save created, updated or
+	// removed a section from.
+	Changed []string `json:"changed,omitempty"`
+	// Warning says why the files could not be written; the profile save
+	// itself succeeded.
 	Warning string `json:"warning,omitempty"`
 }
 
@@ -376,28 +372,27 @@ func (a *App) SaveVoiceProfile(tabID, profileName string, profile coreprofile.Vo
 	out.Recorded = saved.Recorded
 	out.Guide = coreprofile.RenderVoiceGuide(&profile)
 
-	// The project has a voice from this point on, so the assistant file says
-	// so. The recipe on disk is what the pointer reads; a project this tab
-	// holds unsaved would point at a voice the file does not bind yet.
-	out.Pointer = a.writeVoicePointer(root)
+	// The project has this voice from now on, so the rules files agents load
+	// say so. The recipe on disk is what they are written from; a project this
+	// tab holds unsaved would state a voice the recipe does not bind yet.
+	out.RulesFiles = a.writeRulesFiles(root)
 	return out, nil
 }
 
-// writeVoicePointer writes the section that tells an assistant the project's
-// voice is held by kapi, through the same host code `kapi init` uses, and
-// reports the outcome for the editor. A failure is reported rather than
-// returned: the profile is saved, and the pointer is the smaller of the two.
-func (a *App) writeVoicePointer(root string) *VoicePointerDTO {
-	res, err := a.hostEngine().WriteVoicePointer(context.Background(), root)
+// writeRulesFiles writes the project's rules files through the same host code
+// `kapi init` uses, and reports what changed for the editor. A failure is
+// reported rather than returned: the profile is saved, and the files are the
+// smaller of the two.
+func (a *App) writeRulesFiles(root string) *RulesFilesDTO {
+	res, err := a.hostEngine().WriteRulesFiles(context.Background(), filepath.Join(root, project.RecipeFileName))
 	if err != nil {
-		return &VoicePointerDTO{Action: "failed", Warning: err.Error()}
+		return &RulesFilesDTO{Warning: err.Error()}
 	}
-	return &VoicePointerDTO{
-		File:    relSource(root, res.File),
-		Action:  string(res.Action),
-		Created: res.Created,
-		Warning: res.Warning,
+	out := &RulesFilesDTO{}
+	for _, f := range res.Changed() {
+		out.Changed = append(out.Changed, f.Path)
 	}
+	return out
 }
 
 // validateVoiceProfile runs the three stages `kapi voice validate` runs.

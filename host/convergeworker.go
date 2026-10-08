@@ -183,6 +183,11 @@ var convergeWorkerFields = map[string]workerFieldPolicy{
 	// parent's plugin subprocesses out from under the agent it is serving.
 	"mcpPluginMu":       fieldOwned,
 	"mcpPluginSessions": fieldOwned,
+	// A review round holds the rules files' refresh on the App it runs on; a
+	// converge worker records no decision and holds nothing.
+	"rulesHold":    fieldOwned,
+	"rulesHeld":    fieldOwned,
+	"rulesPending": fieldOwned,
 	// The parent owns the --explain collector and renders the transcript once.
 	// The LLM recorder is process-wide, so a worker's calls are still captured
 	// into the parent's collector; a worker holding its own would flush a

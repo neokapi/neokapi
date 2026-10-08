@@ -196,6 +196,10 @@ func (a *App) ExecuteUp(cmd Command, projectPath string) error {
 	printing := a.printOps != nil
 	if printing {
 		untilGate, maxPasses = false, 1
+	} else {
+		// The rules files state the context this run converged under, so
+		// they are written once the run is over.
+		defer a.refreshRulesFilesAfterUp(cmd, projectPath)
 	}
 
 	// The recipe's source language governs the run, whatever the run prints —

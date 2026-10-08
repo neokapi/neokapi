@@ -184,13 +184,29 @@ meet) and reads the evidence for the group from the log:
 | Its author withdraws it | `withdraw` | Against |
 | The content moves to a rejected form after it was recorded | `signal` with source `usage` | Against |
 
-A group with a person signal and nothing against it is established. A group
+The group shares one standing, and each member is settled on the person
+signals seen **where that member holds**. A correction counts for a member whose
+scope covers the point the correction was recorded at (`seenWithin`), and a
+merge signal names the member whose scope the change's files sat in, so it
+counts for that member alone. Suggestions at a point with no coordinates meet
+every other point, so a group can span the help pages and the legal terms
+through one of them; the evidence is still read per member, and a correction
+in the help pages establishes the help pages' suggestion and leaves the legal
+terms' suggestion as it was.
+
+A member with a person signal and nothing against it is established. A member
 with a person signal and a signal against it, or a rival rule that disagrees
-with it, is contested and waits for a person. A group without a person signal
+with it, is contested and waits for a person. A member without a person signal
 stays a suggestion whatever its standing, and time alone settles nothing. The
 correction a suggestion was drawn from is not evidence for that suggestion
 alone. A person dropping the rule sets aside what was recorded before the
 drop, together with the evidence gathered before it.
+
+An agent's suggestion applies only where it was seen until a person widens it
+in review (`placed`). One that names no file it was seen in has no place, so
+settling never establishes it; a person keeps it and chooses where it holds.
+Settling records an `establish` with the suggestion's own scope and never
+changes it: evidence establishes a rule where it was seen and widens nothing.
 
 When the log supports establishing a suggestion that no `establish` names yet,
 `Ledger.Settle` records one: actor `tool settle`, the suggestion as its target,
@@ -301,6 +317,10 @@ carrying the rows the decision wrote, whose origin names the operation it
 carries out. The context operations fold into statuses; the store operations
 replay into the stores.
 
+A call that lands a rule in a store or takes one out also refreshes the
+project's rules files when it ends, so the `AGENTS.md` and `CLAUDE.md` an agent
+loads state the rules now in force ([C-06](c-06-retrieval.md#rules-files)).
+
 `kapi apply` records one `edit` operation for each term or content-memory
 operation it applies, established from the start and attributed to the person
 who ran the command. The transport stamps the actor and a change set has no
@@ -366,6 +386,13 @@ rule kept from an app's strings therefore says nothing about the same
 product's documentation, and checks, retrieval and the translation tools all
 read the same filter. The project-wide answer, asked with no point, lists every
 concept.
+
+An answer for a point names the rules held at the project's other places and
+not there, as the wording that stays correct
+([C-06](c-06-retrieval.md#the-prose-is-the-task)). Without that line an agent
+told to rename something everywhere renames it at a point the rule never
+reached, and its note of the rename there would then be a suggestion at that
+point too.
 
 Keeping is also the moment a person may **widen**, with
 `kapi context review --keep <id> --widen-to <where>`; the same flags on a rule

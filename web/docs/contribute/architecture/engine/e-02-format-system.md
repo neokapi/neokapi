@@ -670,7 +670,8 @@ as a code span, a fenced or indented code block, an HTML tag or a backslash
 escape, or the document is refused. So is a comment closing on `--!>`, which the
 Markdown parser and an HTML parser close in different places. A comment is named
 for the section it sits in, as in `comment/install/from-homebrew`. The
-Docusaurus `truncate` marker, the region kapi writes for a voice pointer, the
+Docusaurus `truncate` marker, the section kapi writes into a rules file (and a
+`kapi:voice` pointer section), the
 markers of a generated region and markdownlint and Prettier instructions are
 directives.
 

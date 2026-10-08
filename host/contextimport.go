@@ -232,7 +232,7 @@ func pluralUnit(n int, one, many string) string {
 //
 // projectPath is the recipe or the project root; both resolve the way `-p`
 // does.
-func (a *App) ImportProjectContext(ctx context.Context, projectPath string, req ContextImportRequest) (ContextImport, error) {
+func (a *App) ImportProjectContext(ctx context.Context, projectPath string, req ContextImportRequest) (_ ContextImport, err error) {
 	var res ContextImport
 
 	layout, err := project.LayoutFor(projectPath)
@@ -247,6 +247,12 @@ func (a *App) ImportProjectContext(ctx context.Context, projectPath string, req 
 		return res, err
 	}
 	res.Dir = reportedPath(layout.Root, from.StateDir)
+	// What was read in is what the rules files state from now on.
+	defer func() {
+		if err == nil {
+			a.refreshRulesFilesQuietly(ctx, layout.RecipePath)
+		}
+	}()
 	// Word rules a voice file carries land in terms in the project's source
 	// language, which the recipe declares.
 	defer a.scopeSourceLang()()

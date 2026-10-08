@@ -212,16 +212,13 @@ export interface ProfileProblem {
   warning?: boolean;
 }
 
-/** What a save did to the project's assistant file: the section telling an
- * assistant the voice is held by kapi, the same one `kapi init` writes. */
-export interface VoicePointerDTO {
-  /** Project-relative assistant file (CLAUDE.md or AGENTS.md); empty when nothing was written. */
-  file?: string;
-  /** created, updated, unchanged, removed, none, or failed. */
-  action: string;
-  /** True when the file itself was created by this save. */
-  created?: boolean;
-  /** Why the pointer could not be written or could not name the voice. */
+/** What a save did to the project's rules files: the section of AGENTS.md and
+ * CLAUDE.md that states the voice and the rules in force, the same one
+ * `kapi init` writes. */
+export interface RulesFilesDTO {
+  /** Project-relative files the save changed. */
+  changed?: string[];
+  /** Why the files could not be written. */
   warning?: string;
 }
 
@@ -236,7 +233,7 @@ export interface VoiceSaveResult {
   problems: ProfileProblem[];
   guide?: string;
   /** Absent when the profile was refused. */
-  pointer?: VoicePointerDTO;
+  rulesFiles?: RulesFilesDTO;
 }
 
 /** The values a constrained field accepts, and what happens to one outside. */

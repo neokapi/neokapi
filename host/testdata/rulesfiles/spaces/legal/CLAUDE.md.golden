@@ -1,0 +1,13 @@
+<!-- kapi:rules (written by kapi from this project's context; edit outside this section) -->
+## Writing rules for legal/
+
+These rules hold for the files in legal/, beside the project's rules in the root AGENTS.md. Where the two differ, follow this file. kapi writes this section from the project's context, so edit outside it.
+
+Voice: Legal. Exact and formal.
+This voice takes the place of the project's voice for these files.
+
+Keep as it is:
+- "Workspace" is correct here; do not rename it to "Space". That rename holds only in changelog/ and help/.
+
+Before you finish, run `kapi check <file>` on each file you changed: it reports any rule broken there. `kapi context legal/<file>` answers in full for one file.
+<!-- /kapi:rules -->

@@ -259,56 +259,6 @@ func (o VoiceImportOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// VoicePointerOutput is the result of `kapi voice pointer`: what happened to
-// the section in the project's assistant file.
-type VoicePointerOutput struct {
-	// File is the assistant file the section lives in; empty when nothing
-	// was written.
-	File string `json:"file,omitempty"`
-	// Created is true when File was created by this run.
-	Created bool `json:"created,omitempty"`
-	// Action is created, updated, unchanged, removed or none.
-	Action string `json:"action"`
-	// Voice is the name the section carries.
-	Voice string `json:"voice,omitempty"`
-	// Warning says why the voice could not be named.
-	Warning string `json:"warning,omitempty"`
-}
-
-// FormatText prints one line saying what was done, plus the import hint when
-// the section landed in AGENTS.md and a warning when the voice has no name.
-func (o VoicePointerOutput) FormatText(w io.Writer) error {
-	var line string
-	switch o.Action {
-	case "created":
-		line = "Wrote the voice pointer to " + o.File
-	case "updated":
-		line = "Wrote the voice pointer into " + o.File
-	case "unchanged":
-		line = fmt.Sprintf("The voice pointer in %s is current", o.File)
-	case "removed":
-		line = fmt.Sprintf("Removed the voice pointer from %s: the project binds no voice", o.File)
-	default:
-		line = "No voice is bound; nothing written"
-	}
-	if o.Voice != "" && o.Action != "removed" {
-		line += " (voice: " + o.Voice + ")"
-	}
-	fmt.Fprintln(w, line)
-	if (o.Action == "created" || o.Action == "updated") && strings.HasSuffix(o.File, AssistantFileHint) {
-		fmt.Fprintln(w, "An assistant that reads only CLAUDE.md picks it up through an import line there: @AGENTS.md")
-	}
-	if o.Warning != "" {
-		fmt.Fprintf(w, "warning: could not name the voice: %s\n", o.Warning)
-	}
-	return nil
-}
-
-// AssistantFileHint is the file whose section earns the import hint: an
-// assistant limited to CLAUDE.md reaches an AGENTS.md section through an
-// import line there.
-const AssistantFileHint = "AGENTS.md"
-
 // findingOutcome names what a finding does to a check: "fails" or "reports".
 func findingOutcome(f profile.VoiceFinding) string {
 	return outcome(f.Fails && !f.Suggested)

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-08T14:05:29Z",
+  "generatedAt": "2026-10-08T16:33:51Z",
   "commands": [
     {
       "id": "add",
@@ -963,9 +963,15 @@
       ],
       "use": "sync",
       "short": "Share the context with the rest of the team",
-      "long": "Share this project's context through the place kapi.yaml names: first\nread what others shared and merge it here, then share what was recorded on\nthis machine. Everything travels with its history: every suggestion, decision,\nterm and approved wording, and the rules you applied to every project, which\nhold on every machine that syncs the project. Withheld originals stay on this\nmachine. Running it twice changes nothing.\n\nThe place is declared in kapi.yaml, where every checkout reads it:\n\n  context:\n    backend: git      # local, file, git or s3\n\nWith --merged it also reads the change a range of commits made on the default\nbranch and counts it as a person's signal: a suggestion whose preferred wording\nthe change added, or whose avoided wording it removed, becomes a rule when\nnothing contradicts it. Run it in CI after a merge. The same range records the\nsame evidence, so a second run changes nothing. A project that shares its\ncontext nowhere settles the merge on this machine.\n\n--no-push reads what others shared and shares nothing back, for a check or\na fresh checkout that only needs the context to answer from.\n\n--status says where the context is shared and how far this machine and the\nshared copy were apart at the last sync, without contacting it.\n\nIt exits with status 5 when the shared copy cannot be reached, and nothing\nchanges here.",
+      "long": "Share this project's context through the place kapi.yaml names: first\nread what others shared and merge it here, then share what was recorded on\nthis machine. Everything travels with its history: every suggestion, decision,\nterm and approved wording, and the rules you applied to every project, which\nhold on every machine that syncs the project. Withheld originals stay on this\nmachine. Running it twice changes nothing.\n\nThe place is declared in kapi.yaml, where every checkout reads it:\n\n  context:\n    backend: git      # local, file, git or s3\n\nWith --merged it also reads the change a range of commits made on the default\nbranch and counts it as a person's signal: a suggestion whose preferred wording\nthe change added, or whose avoided wording it removed, becomes a rule when\nnothing contradicts it. Run it in CI after a merge. The same range records the\nsame evidence, so a second run changes nothing. A project that shares its\ncontext nowhere settles the merge on this machine.\n\n--no-push reads what others shared and shares nothing back, for a check or\na fresh checkout that only needs the context to answer from.\n\n--status says where the context is shared and how far this machine and the\nshared copy were apart at the last sync, without contacting it.\n\nOnce the context is merged, sync rewrites the project's rules files: the\nsection kapi keeps in AGENTS.md and CLAUDE.md at the project root, and in each\nfolder whose rules differ from the root's. --files-only writes those files\nfrom the context this machine holds and does nothing else, which also writes\nthem for a project that has none yet.\n\nIt exits with status 5 when the shared copy cannot be reached, and nothing\nchanges here.",
       "groupID": "context-person",
       "flags": [
+        {
+          "name": "files-only",
+          "usage": "write the project's rules files (AGENTS.md, CLAUDE.md) from this machine's context and do nothing else",
+          "default": "false",
+          "type": "bool"
+        },
         {
           "name": "merged",
           "usage": "a range of commits that reached the default branch, counted as a person's signal",
@@ -1005,6 +1011,7 @@
         "kapi context sync",
         "kapi context sync --status",
         "kapi context sync --no-push",
+        "kapi context sync --files-only",
         "kapi context sync --merged HEAD~1..HEAD",
         "kapi context sync --merged \"$BEFORE..$AFTER\" --pr 412 --merger asgeir"
       ],
@@ -5514,8 +5521,8 @@
           "type": "string"
         },
         {
-          "name": "no-pointer",
-          "usage": "Ikke skriv stemmeviseren inn i CLAUDE.md eller AGENTS.md",
+          "name": "no-rules-files",
+          "usage": "Do not write the project's rules into AGENTS.md and CLAUDE.md",
           "default": "false",
           "type": "bool"
         },
@@ -9012,55 +9019,6 @@
         {
           "name": "text",
           "usage": "Skriv ut i tekstformat (standard)",
-          "default": "false",
-          "type": "bool"
-        }
-      ],
-      "offlineCapable": true,
-      "runnableInBrowser": true,
-      "demoMode": false
-    },
-    {
-      "id": "voice.pointer",
-      "path": [
-        "voice",
-        "pointer"
-      ],
-      "use": "pointer",
-      "short": "Skriv en peker til prosjektets stemprofil inn i assistentfilen (CLAUDE.md eller AGENTS.md)",
-      "long": "Skriv en kort, avmerket seksjon inn i prosjektets assistentfil\nsom forteller en assistent at prosjektets stemme er lagret i kapi, og at\n'kapi voice guide' henter den frem. Seksjonen angir kun stemmenavnet\nog ingenting annet; selve guiden er ett kommando unna, så pekeren blir aldri utdatert.\n\nEn eksisterende CLAUDE.md eller AGENTS.md i prosjektets rotmappe mottar seksjonen\n(CLAUDE.md når begge finnes); hvis ingen av dem finnes, opprettes CLAUDE.md. En seksjon\nsom havner i AGENTS.md nås av en assistent begrenset til CLAUDE.md via en\nimportlinje der: @AGENTS.md. Å kjøre kommandoen på nytt erstatter seksjonen på stedet\nog lar resten av filen være uberørt. Når prosjektet ikke har noen tilknyttet stemme,\nfjernes en tidligere skrevet seksjon og ingenting annet skrives.\n\n'kapi init' skriver den samme seksjonen når prosjektet det bygger opp har en tilknyttet\nstemme; kjør denne kommandoen etter at du har knyttet en stemme til et eksisterende prosjekt,\neller etter at du har gitt profilen nytt navn.",
-      "flags": [
-        {
-          "name": "color",
-          "usage": "fargelegg utdata: auto, always, never",
-          "default": "auto",
-          "type": "string"
-        },
-        {
-          "name": "jq",
-          "usage": "filtrer JSON-utdata gjennom et jq-uttrykk (medfører --json)",
-          "type": "string"
-        },
-        {
-          "name": "json",
-          "usage": "Utdata i JSON-format",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "output-format",
-          "usage": "Utdataformat: text (alias: table), json, yaml",
-          "type": "string"
-        },
-        {
-          "name": "project",
-          "shorthand": "p",
-          "usage": "sti til en kapi.yaml-prosjektoppskrift eller dens katalog (oppdages automatisk fra gjeldende katalog hvis utelatt)",
-          "type": "string"
-        },
-        {
-          "name": "text",
-          "usage": "Utdata i tekstformat (standard)",
           "default": "false",
           "type": "bool"
         }

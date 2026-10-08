@@ -91,9 +91,8 @@ writes them onto the term, so the check matches them exactly
 (`kapi terms expand --locale nb`; `--dry-run` prints what would be added, and
 `--overwrite` asks again about terms that already declare forms). Once the
 profile is bound in a project,
-`kapi voice pointer` writes the section in `CLAUDE.md` (or an `AGENTS.md`
-already at the root) that tells the next assistant the voice is held by kapi and
-where to ask for it ([project.md](project.md)).
+`kapi context sync --files-only` writes it into the project's `AGENTS.md` and
+`CLAUDE.md`, where the next assistant loads it ([project.md](project.md)).
 
 ## 1. Load the guide before writing
 

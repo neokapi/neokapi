@@ -10,7 +10,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/neokapi/neokapi/cli/skills"
-	"github.com/neokapi/neokapi/host/output"
 )
 
 // NewInitCmd returns `kapi init`: scaffold a new kapi project in the current
@@ -27,7 +26,7 @@ func NewInitCmd(a *App) *cobra.Command {
 		framework    string
 		presetName   string
 		listPresets  bool
-		noPointer    bool
+		noRulesFiles bool
 		mintID       bool
 		agents       string
 	)
@@ -74,8 +73,13 @@ someone else wrote is left as it is. In a skill directory an earlier kapi
 filled, the files it copied there are removed and any other file is kept.
 Codex reads its entry once you trust this repository there.
 
-When the project binds a voice, kapi init also writes a short section into
-CLAUDE.md or AGENTS.md saying so; --no-pointer skips it.`,
+kapi init also writes the project's rules into AGENTS.md and CLAUDE.md, where
+agents load them without asking: the root's for the rules that hold
+everywhere, and one in each folder whose rules differ, such as a rename that
+holds in help/ and not in api/. kapi owns one marked section of each file and
+keeps it current as the context changes; your own text around it is kept.
+--no-rules-files skips them, and 'kapi context sync --files-only' writes them
+later.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// --list-presets: print the preset catalog and exit (absorbs the
 			// former `kapi presets list`, #1078 C1).
@@ -132,7 +136,7 @@ CLAUDE.md or AGENTS.md saying so; --no-pointer skips it.`,
 			}
 
 			// The agent wiring follows the scaffold for the same reason the
-			// voice pointer does: it is about the tools around the project
+			// rules files do: it is about the tools around the project
 			// rather than the project, and a file it cannot write is reported
 			// without undoing an init that succeeded.
 			if !chosen {
@@ -152,22 +156,21 @@ CLAUDE.md or AGENTS.md saying so; --no-pointer skips it.`,
 				printAgentWiring(cmd, wiring)
 			}
 
-			if noPointer {
+			if noRulesFiles {
 				return nil
 			}
 
-			// The pointer is what tells an assistant standing in this tree
-			// that the project has a voice. It follows the scaffold rather
-			// than being part of it because naming the voice may need the
-			// project store, which InitProject has no reason to open. A
-			// pointer that cannot be written is reported and does not undo
-			// an init that succeeded.
-			ptr, perr := a.WriteVoicePointer(CmdContext(cmd), root)
-			if perr != nil {
-				fmt.Fprintf(cmd.ErrOrStderr(), "warning: voice pointer: %v\n", perr)
+			// The rules files are what an agent standing in this tree loads
+			// without asking. They follow the scaffold rather than being part
+			// of it because they read the project's context, which InitProject
+			// has no reason to open. A file that cannot be written is reported
+			// and does not undo an init that succeeded.
+			files, ferr := a.WriteRulesFiles(CmdContext(cmd), res.RecipePath)
+			if ferr != nil {
+				fmt.Fprintf(cmd.ErrOrStderr(), "warning: rules files: %v\n", ferr)
 				return nil
 			}
-			printInitPointer(cmd, ptr, res.AlreadyInitialized)
+			printInitRulesFiles(cmd, files, res.AlreadyInitialized)
 			return nil
 		},
 	}
@@ -178,7 +181,7 @@ CLAUDE.md or AGENTS.md saying so; --no-pointer skips it.`,
 	cmd.Flags().StringVar(&framework, "framework", "", "Write a known stack's catalog layout as collections (see 'kapi init --list-presets')")
 	cmd.Flags().StringVar(&presetName, "preset", "", "Write a named framework preset's catalog layout as collections; alias of --framework")
 	cmd.Flags().BoolVar(&listPresets, "list-presets", false, "List available presets (framework scaffolds and per-format parsing presets) and exit")
-	cmd.Flags().BoolVar(&noPointer, "no-pointer", false, "Do not write the voice pointer into CLAUDE.md or AGENTS.md")
+	cmd.Flags().BoolVar(&noRulesFiles, "no-rules-files", false, "Do not write the project's rules into AGENTS.md and CLAUDE.md")
 	cmd.Flags().BoolVar(&mintID, "mint-id", false, "Write a stable project id into a recipe that has none, and print the id")
 	cmd.Flags().StringVar(&agents, "agents", "", "Coding agents to wire this project for: a comma-separated list of claude-code, cursor, vscode, codex, agents; 'all'; or 'none' (default: claude-code plus every host already used here)")
 	cmd.MarkFlagsMutuallyExclusive("preset", "framework")
@@ -270,7 +273,7 @@ func shellQuote(s string) string {
 //
 // The label says which of the two a line is about, because they answer
 // different questions: `mcp` is a server an agent host starts, `skill` is
-// guidance it loads. `agents` stays the voice pointer's label.
+// guidance it loads. `rules` labels the rules files.
 func printAgentWiring(cmd *cobra.Command, res *AgentWiringResult) {
 	w := cmd.OutOrStdout()
 	for _, file := range res.Files {
@@ -302,34 +305,16 @@ func countFiles(n int) string {
 	return fmt.Sprintf("%d files", n)
 }
 
-// printInitPointer reports what init did to the assistant file. On a fresh
-// project every outcome that wrote something is listed beside the recipe and
-// the state directory; on a re-run only a change is worth a line.
-func printInitPointer(cmd *cobra.Command, ptr *VoicePointerResult, rerun bool) {
+// printInitRulesFiles reports what init did to the rules files. On a fresh
+// project every file is listed beside the recipe; on a re-run only a change is
+// worth a line.
+func printInitRulesFiles(cmd *cobra.Command, res *RulesFilesResult, rerun bool) {
+	files := res.Files
+	if rerun {
+		files = res.Changed()
+	}
 	w := cmd.OutOrStdout()
-	switch ptr.Action {
-	case VoicePointerCreated:
-		fmt.Fprintf(w, "  agents: %s (voice pointer for assistants)\n", ptr.File)
-	case VoicePointerUpdated:
-		fmt.Fprintf(w, "  agents: %s (voice pointer written)\n", ptr.File)
-	case VoicePointerUnchanged:
-		if !rerun {
-			fmt.Fprintf(w, "  agents: %s (voice pointer current)\n", ptr.File)
-		}
-	case VoicePointerRemoved:
-		fmt.Fprintf(w, "  agents: %s (voice pointer removed: no voice bound)\n", ptr.File)
+	for _, f := range files {
+		fmt.Fprintf(w, "  rules:  %s (%s)\n", f.Path, f.Action)
 	}
-	// A root that holds AGENTS.md alone keeps it, so say how an assistant
-	// limited to CLAUDE.md reaches the section that just landed there.
-	if wrotePointer(ptr.Action) && strings.HasSuffix(ptr.File, output.AssistantFileHint) {
-		fmt.Fprintf(w, "          an assistant that reads only CLAUDE.md picks it up with @%s\n", output.AssistantFileHint)
-	}
-	if ptr.Warning != "" {
-		fmt.Fprintf(cmd.ErrOrStderr(), "warning: voice pointer could not name the voice: %s\n", ptr.Warning)
-	}
-}
-
-// wrotePointer reports whether the action put the section into the file.
-func wrotePointer(a VoicePointerAction) bool {
-	return a == VoicePointerCreated || a == VoicePointerUpdated
 }

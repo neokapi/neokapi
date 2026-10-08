@@ -221,6 +221,13 @@ type App struct {
 	// They live as long as the MCP server does and are closed by Shutdown.
 	mcpPluginMu       sync.Mutex
 	mcpPluginSessions []*pluginMCPSession
+
+	// rulesHold defers the rules files' refreshes while a run of decisions is
+	// recorded (holdRulesFiles): rulesHeld counts the holds, and rulesPending
+	// names the projects whose context changed meanwhile.
+	rulesHold    sync.Mutex
+	rulesHeld    int
+	rulesPending map[string]bool
 }
 
 // pluginsDirList returns the first plugin discovery root: --plugin-dir when

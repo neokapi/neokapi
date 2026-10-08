@@ -66,16 +66,19 @@ The recipe is the configuration, and it is committed. The project's **context**
 the user's workspace, one store per project, shared by every checkout. Never
 tell the user to commit their context.
 
-When the project binds a voice, `kapi init` also writes a short section into the project's assistant file: an
-existing `CLAUDE.md` or `AGENTS.md` at the root, or a new `CLAUDE.md`. It says
-the voice is held by kapi and that `kapi context <path>` retrieves it, so the next
-assistant in this tree asks before it writes. The section sits between
-`<!-- kapi:voice -->` markers and is replaced in place on every run; the rest of
-the file is never touched. `kapi init --no-pointer` skips it. On an existing
-project, `kapi voice pointer` writes or refreshes the same section: run it after
-you bind a voice under `defaults.voice`, and tell the user which file it went
-into, since they commit it. A section that landed in `AGENTS.md` reaches an
-assistant limited to `CLAUDE.md` through an import line, `@AGENTS.md`.
+`kapi init` also writes the project's rules where agents load them without a
+tool call: a section of `AGENTS.md` and `CLAUDE.md` at the root for the rules
+that hold everywhere, and in each folder whose rules differ from the root's. A
+folder's file says what holds there, including the wording that stays as it
+is: a rename held for `help/` leaves `api/AGENTS.md` saying the old name is
+correct in `api/`. Each section ends with the `kapi check` line. The section
+sits between `<!-- kapi:rules -->` markers and the rest of each file is never
+touched; a file kapi created is removed once its folder has no rules of its
+own, and a `CLAUDE.md` that imports `@AGENTS.md` gets no section of its own.
+kapi rewrites the files when the context changes (`kapi context review`,
+`kapi context sync`, `kapi up`); `kapi context sync --files-only` writes them
+on demand, and `kapi init --no-rules-files` skips them. Tell the user which
+files changed, since they commit them.
 
 `kapi init` also writes the MCP entry that starts `kapi mcp` for this project
 (`.mcp.json` for Claude Code, `.cursor/mcp.json`, `.vscode/mcp.json`,
@@ -146,7 +149,7 @@ collections:
   voice store and prints its id; bind that id under `defaults.voice.profile`.
   `kapi voice check <file>`, `voice rewrite` and `kapi context <file>` then resolve it
   with no flag, and `kapi voice edit` is how the user changes it afterwards.
-  Then `kapi voice pointer`, so the assistant file names the voice.
+  Then `kapi context sync --files-only`, so the rules files state the voice.
 - **More than one voice in one repo**: declare one profile per product under
   `profiles:`, list the channels that product ships on, and bind each *named*
   collection to one of them with `channel:`. Runs split per distinct resolution,

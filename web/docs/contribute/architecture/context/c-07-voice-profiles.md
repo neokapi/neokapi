@@ -337,20 +337,15 @@ Locale and channel overrides apply on top via `--locale`/`--channel`; an explici
 | `profiles` | List profiles: the voice store plus the built-in packs. |
 | `import` | Import a profile YAML into the voice store, and the word rules it carries into the project's terms store. |
 | `pack` | Install a built-in starter pack into the voice store. |
-| `pointer` | Write the marker-delimited section into the project's assistant file (`CLAUDE.md`, or an `AGENTS.md` already at the root) that tells an assistant the voice is held by kapi and that `kapi context <path>` retrieves it. |
 
-The pointer exists because an assistant standing in a project has no reason to
-open `kapi.yaml` when its task is to write a guide, and so never learns the
-project has a voice. The section names the voice, says kapi holds it, and gives
-the retrieval command; it carries none of the guidance, which stays one command
-away and so cannot go stale in the file. `kapi init` writes it whenever the
-project it scaffolds or adopts binds a voice (`--no-pointer` opts out), the
-desktop writes it when a profile is saved, and `pointer` writes it on demand;
-all three go through `host.WriteVoicePointer`. The text is
-`coreprofile.RenderVoicePointer`, and `UpsertVoicePointer` replaces the section
-between its markers so a re-run is idempotent and hand-written content around
-it survives. A project that unbinds its voice has the section removed on the
-next run rather than left claiming a voice `kapi context` cannot resolve.
+An assistant standing in a project has no reason to open `kapi.yaml` when its
+task is to write a guide, and so never learns the project has a voice. The
+voice in force therefore goes into the project's rules files: the voice brief
+in the root's `AGENTS.md` and `CLAUDE.md`, and in a folder whose files sit
+under a voice of their own, that voice with a line saying it takes the place of
+the project's ([C-06](c-06-retrieval.md#rules-files)). `kapi init` writes the
+files, the desktop writes them when a profile is saved, and they are refreshed
+when the context changes, so a changed profile changes the files with it.
 
 `check` reads its subject from `--input-text`, a positional file, or stdin.
 It returns the quality-gate sentinel when at least one finding fails, which the

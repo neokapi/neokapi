@@ -58,7 +58,7 @@ func TestMCPInstructionsCarryTheHabits(t *testing.T) {
 func TestMCPInstructionsReadAsInstructions(t *testing.T) {
 	text := MCPInstructions()
 	assert.NotContains(t, text, "—", "no em dash in agent-facing prose")
-	assert.LessOrEqual(t, len(strings.Fields(text)), 135, "about a hundred and thirty words; a longer text is a decision rather than a drift")
+	assert.LessOrEqual(t, len(strings.Fields(text)), 145, "about a hundred and forty words, with the old names that stay correct and the path a note was seen in (R19.12, R19.13); a longer text is a decision rather than a drift")
 	assert.NotContains(t, text, "portal", "the paired study's gate task turns on that word, so no agent-facing text uses it")
 }
 

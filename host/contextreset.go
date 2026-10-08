@@ -105,6 +105,7 @@ func (a *App) ResetContext(ctx context.Context, req ContextResetRequest) (Contex
 	if err != nil {
 		return ContextResetResult{}, err
 	}
+	defer s.refreshRulesFiles(ctx)
 	actor, note, err := s.actorFor(ctx, req.Actor, req.Note)
 	if err != nil {
 		return ContextResetResult{}, err
@@ -129,6 +130,7 @@ func (a *App) ResetContext(ctx context.Context, req ContextResetRequest) (Contex
 		return out, fmt.Errorf("the reset is recorded, and rebuilding the stores from the log failed (`kapi store rebuild` tries again): %w", err)
 	}
 	out.Rebuild = &rebuilt
+	s.changed = true
 	return out, nil
 }
 

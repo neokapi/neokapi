@@ -112,10 +112,10 @@ type armSetup struct {
 	pointer string
 }
 
-// labPointer is the assistant file `kapi init` writes for a project that
-// binds this profile: a title, then the section coreprofile.RenderVoicePointer
-// renders, which is the same text the product writes into CLAUDE.md or
-// AGENTS.md.
+// labPointer is the assistant file `kapi init` wrote for a project that bound
+// this profile when the lab ran: a title, then the voice pointer section. The
+// product now writes the rules themselves (host/rulesfiles.go); the lab keeps
+// the pointer it measured.
 //
 // It says nothing about HOW to write, only that the project holds a voice and
 // where to ask for it. A pointer that carried the guidance would be the pushed
@@ -126,8 +126,15 @@ func labPointer(profile *coreprofile.VoiceProfile) string {
 	if profile != nil {
 		name = profile.Name
 	}
+	voice := ""
+	if name != "" {
+		voice = ", " + name + ","
+	}
 	return "# " + filepath.Base(LabRepo) + "\n\n" +
-		coreprofile.RenderVoicePointer(coreprofile.VoicePointer{Name: name})
+		"<!-- kapi:voice (managed by kapi; refreshed by 'kapi voice pointer') -->\n## Voice\n\n" +
+		"This project's voice" + voice + " is held by kapi and applies to any prose written here. " +
+		"Retrieve what is in force before writing, with `kapi context <path>` for the file you are writing.\n" +
+		"<!-- /kapi:voice -->\n"
 }
 
 // writePulledProject binds the voice to the workspace the way a project does.

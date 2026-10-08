@@ -145,10 +145,11 @@ not on merge.
 ### `kapi init` wires an agent up {#kapi-init-wires-an-agent-up}
 
 A project has a voice, terms and a check gate long before anyone tells an
-assistant they exist. The voice pointer says so in prose, in `CLAUDE.md` or
-`AGENTS.md`. The wiring says so in the files an agent host reads as
-configuration, so an agent opened in the project finds kapi with nothing else
-installed:
+assistant they exist. The rules files state them, in the `AGENTS.md` and
+`CLAUDE.md` an agent loads before it reads anything
+([below](#the-rules-files)). The wiring says so in the files an agent host
+reads as configuration, so an agent opened in the project finds kapi with
+nothing else installed:
 
 | Host | What is written | Convention |
 | --- | --- | --- |
@@ -191,15 +192,46 @@ Five properties hold for everything written:
   closed list in `cli/skills/retired.sha256`, and removed. Anything else stays,
   and `kapi init` names it.
 
+### The rules files {#the-rules-files}
+
+An agent reads the `AGENTS.md` or `CLAUDE.md` of its folder before any tool
+call, and a rule stated there is followed more often, at a fraction of the
+input, than the same rule fetched through retrieval. So `kapi init` writes the
+project's rules into those files, and kapi keeps them current: the root's for
+the rules that hold everywhere, with one line per folder that has rules of its
+own, and a pair in each such folder stating only what holds there. A folder's
+section names the wording that stays as it is, plainly: a rename held for
+`help/` gives `api/AGENTS.md` the line `"Workspace" is correct here; do not
+rename it to "Space"`. Every section ends with the one line that names
+`kapi check`, which stays the gate. What goes into each section, the budget,
+and when the files are refreshed are in
+[C-06](../context/c-06-retrieval.md#rules-files).
+
+Four properties hold for the rules files:
+
+- **kapi owns one section.** It sits between `<!-- kapi:rules -->` markers;
+  the person's text around it is never touched, and a file holding an
+  unterminated section is refused rather than guessed at.
+- **A file kapi created is removed when nothing else is in it.** A folder that
+  no longer has rules of its own loses the section; the file goes only when
+  the section was all it held.
+- **One copy per agent.** A `CLAUDE.md` that imports `@AGENTS.md`, or is the
+  same file, gets no section, so Claude Code reads the rules once.
+- **No new verb.** `kapi init` writes them, the context surfaces refresh them,
+  and `kapi context sync --files-only` writes them on demand;
+  `kapi init --no-rules-files` opts a project out.
+
 ### The MCP server introduces itself
 
 `initialize` carries an `instructions` string to every client, ahead of the
 tool list and whether or not the host loads a skill. It is the only text a
 client with no skill support ever reads about kapi, so it states the task in
-about a hundred words: call `context_read` before changing a file; record with
+about a hundred and forty words: call `context_read` before changing a file,
+which also names the old names that stay correct there; record with
 `context_note` what the files do every time (names as written, the spelling
-variety, a word chosen over a common alternative) and leave alone a word they
-write two ways; record the person's changes with `context_note` too (`from`,
+variety, a word chosen over a common alternative), with the path it was seen
+in, since a note applies only there, and leave alone a word they write two
+ways; record the person's changes with `context_note` too (`from`,
 `to`, `path`); take back a mistake with its `withdraw` field; run `check_file`
 on each changed file; and end with `context_session_summary`.
 
@@ -688,6 +720,9 @@ between revising content and troubleshooting the command.
   documents, so a command change and its skill update are one reviewed change.
 - A project is wired for the agents that work in it by the command that creates
   it, so the first hour needs no install step and no hand-written JSON.
+- The rules reach an agent that calls no tool, scoped per folder, and the old
+  name a scoped rename leaves correct is stated where it applies rather than
+  left to silence.
 - Progressive disclosure keeps the router cheap and loads detail only on a match.
 - The attended loops call no provider: the assistant writes, kapi round-trips,
   refuses an edit whose block moved since it was read, and gates.

@@ -73,6 +73,7 @@ var pageLiterals = []string{"<!-- not a comment -->", "<!-- not a comment, inden
 // alone.
 const directiveFixture = "<!-- truncate -->\n" +
 	"<!-- kapi:voice -->\n" +
+	"<!-- kapi:rules -->\n" +
 	"<!-- BEGIN: gap-analysis report (generated) -->\n" +
 	"<!-- markdownlint-disable MD033 -->\n" +
 	"<!-- prettier-ignore -->\n" +

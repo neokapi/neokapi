@@ -84,6 +84,7 @@ func (a *App) SettleContext(ctx context.Context, req ContextSettleRequest) (Cont
 	if err != nil {
 		return ContextSettleResult{}, err
 	}
+	defer s.refreshRulesFiles(ctx)
 	out := ContextSettleResult{Signals: []ContextOperation{}, Established: []string{}}
 	if req.Merged != "" {
 		out.Range = req.Merged

@@ -439,6 +439,10 @@ type ContextSyncRequest struct {
 	// NoPush reads what others shared and shares nothing back: a gate or a
 	// fresh runner that only needs the context to answer from.
 	NoPush bool
+	// FilesOnly writes the project's rules files from the context this
+	// machine holds and does nothing else: no pull, no settling, no push. It
+	// writes them in a project that has none yet (host/rulesfiles.go).
+	FilesOnly bool
 }
 
 // ContextSyncResult reports what one sync did: the pull, the settling a merge
@@ -448,10 +452,29 @@ type ContextSyncResult struct {
 	Pull   *ContextPull         `json:"pull,omitempty"`
 	Settle *ContextSettleResult `json:"settle,omitempty"`
 	Push   *ContextPush         `json:"push,omitempty"`
+	// RulesFiles is what refreshing the rules files did once the context was
+	// merged and settled: nil for a project that has none.
+	RulesFiles *RulesFilesResult `json:"rules_files,omitempty"`
+	// RulesFilesError says why the rules files could not be refreshed. The
+	// sync itself succeeded.
+	RulesFilesError string `json:"rules_files_error,omitempty"`
+	// filesOnly says the sync wrote the rules files and nothing else.
+	filesOnly bool
 }
 
 // FormatText renders a sync in the order it ran.
 func (r ContextSyncResult) FormatText(w io.Writer) error {
+	if r.filesOnly {
+		return r.RulesFiles.FormatText(w)
+	}
+	if err := r.formatSync(w); err != nil {
+		return err
+	}
+	return r.formatRulesFiles(w)
+}
+
+// formatSync renders the pull, the settling and the push.
+func (r ContextSyncResult) formatSync(w io.Writer) error {
 	if r.Pull != nil {
 		if err := r.Pull.FormatText(w); err != nil {
 			return err
@@ -483,6 +506,17 @@ func (a *App) SyncProjectContext(ctx context.Context, req ContextSyncRequest) (C
 	if (req.PR != 0 || req.Merger != "") && req.Merged == "" {
 		return res, errors.New("a pull request number and a merger describe a merge: name it with --merged")
 	}
+	if req.FilesOnly {
+		if req.Merged != "" || req.NoPush {
+			return res, errors.New("--files-only writes the rules files and nothing else: it takes no --merged or --no-push")
+		}
+		files, err := a.WriteRulesFiles(ctx, req.Project)
+		if err != nil {
+			return res, err
+		}
+		res.RulesFiles, res.filesOnly = files, true
+		return res, nil
+	}
 	s, err := a.projectSync(ctx, req.Project)
 	if err != nil && req.Merged == "" {
 		return res, err
@@ -512,5 +546,26 @@ func (a *App) SyncProjectContext(ctx context.Context, req ContextSyncRequest) (C
 			return res, syncError(perr, "push", res.Push.ToPush)
 		}
 	}
+	// What was merged and settled is what the rules files state.
+	files, ferr := a.RefreshRulesFiles(ctx, req.Project)
+	if ferr != nil {
+		res.RulesFilesError = ferr.Error()
+	}
+	res.RulesFiles = files
 	return res, nil
+}
+
+// formatRulesFiles reports the rules files a sync changed, after what it
+// merged, or why they could not be refreshed.
+func (r ContextSyncResult) formatRulesFiles(w io.Writer) (err error) {
+	defer func() {
+		if err == nil && r.RulesFilesError != "" {
+			_, err = fmt.Fprintf(w, "The rules files could not be refreshed: %s\n", r.RulesFilesError)
+		}
+	}()
+	changed := r.RulesFiles.Changed()
+	if len(changed) == 0 {
+		return nil
+	}
+	return (&RulesFilesResult{Files: changed}).FormatText(w)
 }

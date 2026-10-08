@@ -249,23 +249,23 @@ collections:
     format: markdown
 ```
 
-Then point the next assistant at the voice you bound:
+Then write the rules where the next assistant loads them:
 
 ```bash
-kapi voice pointer     # a section in CLAUDE.md (or an AGENTS.md already there) naming the voice
+kapi context sync --files-only   # the project's rules into AGENTS.md and CLAUDE.md
 ```
 
-It writes a few sentences: the project's voice is held by kapi, it applies to
-prose written here, and `kapi context <path>` retrieves it for a file. A recipe
-that places comments at a point of their own also gets a sentence naming
-`kapi context <path> --comments`, the command for a comment's voice. Nothing
-about how to write; the guide stays one command away. `kapi init` writes the same section
-when the scaffold it creates binds a voice, and the recipe edit above is what it
-names, so run it after the edit. The section sits between `<!-- kapi:voice -->`
-markers and is replaced in place; hand-written content around it is kept. Tell
-the user which file it went into: they commit it with the recipe, and a section
-that landed in `AGENTS.md` reaches an assistant limited to `CLAUDE.md` through
-an `@AGENTS.md` line.
+kapi writes the rules that hold in each folder into a section of the
+`AGENTS.md` and `CLAUDE.md` there: the root's for the rules that hold
+everywhere, and one in each folder whose rules differ. A rename held for
+`help/` gives `help/AGENTS.md` the new name and `api/AGENTS.md` a line saying
+the old name is correct there. Each section states the voice, what to write
+and what not, the wording to keep, and the `kapi check` line, and stays short;
+`kapi context <path>` answers in full for one file. `kapi init` writes the same
+files, and kapi rewrites them when the context changes: after
+`kapi context review`, `kapi context sync` and `kapi up`. The section sits
+between `<!-- kapi:rules -->` markers; hand-written content around it is kept.
+Tell the user which files changed: they commit them with the recipe.
 
 Materialize the terminology seed, now that the project exists:
 
@@ -297,7 +297,7 @@ each language as not gated rather than shippable. Say which of these the
 project's CI should run and which files it should check.
 
 Commit the configuration: `kapi.yaml`, the agent wiring `kapi init` wrote, and
-the assistant file. `.kapi/` is this checkout's cache and stays out of the
+the rules files. `.kapi/` is this checkout's cache and stays out of the
 commit. The context itself stays in the project's store, where every checkout
 reads it; `kapi context log` is where the user reads what was decided, and
 `kapi store export -o backup.kpz` is the backup. If the user works on more than
@@ -310,9 +310,9 @@ decide.
 End by telling the user, concretely:
 
 - **What exists**: `kapi.yaml`, the voice profile and terms in the project's
-  store, the content mapping, and the assistant file (`CLAUDE.md`, or an
-  `AGENTS.md` already at the root) that points the next assistant at the
-  voice.
+  store, the content mapping, and the rules files (`AGENTS.md` and
+  `CLAUDE.md`, at the root and in each folder with rules of its own) that
+  state the rules for the next assistant.
 - **The standing instruction**: run `kapi check --ship` before shipping content
   and fix what it flags ([project.md](project.md)); in a translation project,
   `kapi up` catches locales up ([translate.md](translate.md)).
