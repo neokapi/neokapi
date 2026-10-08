@@ -90,7 +90,7 @@ jobs:
 
       - uses: actions/setup-go@v7
         with:
-          go-version: "1.27.0"
+          go-version: "1.27.1"
           cache: true
 
       # Node plus the workspace dependencies: every smoke boots the engine over

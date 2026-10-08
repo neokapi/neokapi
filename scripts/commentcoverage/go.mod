@@ -1,6 +1,6 @@
 module github.com/neokapi/neokapi/scripts/commentcoverage
 
-go 1.27.0
+go 1.27.1
 
 // commentcoverage holds the recipe to every tracked file whose comments it
 // checks. It needs only the framework module, so it lives in its own module
