@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/bmatcuk/doublestar/v4"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/ignore"
@@ -218,121 +219,126 @@ func (rf ResolvedFile) CommentsOnly() bool {
 // expanded means the recipe declares content this call cannot account for, and
 // every derivation downstream (coverage, plan, checks, review, extract) reads a
 // short list as a smaller universe rather than as an error. Callers must not
-// discard the error — an empty result and a failed resolution are different
+// discard the error: an empty result and a failed resolution are different
 // facts.
+//
+// A match that cannot be read, such as a dangling symbolic link, is left out of
+// the list and handed to OnUnreadableContent, which the CLI reports on stderr.
+// ResolveContentReport returns the same matches to its caller.
 func (ctx *ProjectContext) ResolveContent(reg *registry.FormatRegistry) ([]ResolvedFile, error) {
+	res, err := ctx.ResolveContentReport(reg)
+	return res.Files, err
+}
+
+// UnreadableMatch is a path a content pattern matched whose file cannot be
+// read: a dangling symbolic link, or a link whose target cannot be opened.
+type UnreadableMatch struct {
+	Relative string // slash-separated, relative to the project directory
+	Err      error
+}
+
+// OnUnreadableContent is called by content resolution with the matches it left
+// out because they cannot be read, when there are any. Nil by default, so the
+// framework prints nothing on its own; the host sets it once at startup, as it
+// sets OnKeyWarnings, and it is read, not synchronised.
+var OnUnreadableContent func(projectDir string, unreadable []UnreadableMatch)
+
+// ContentResolution is what ResolveContentReport resolved: the files, and the
+// matches it left out because they cannot be read.
+type ContentResolution struct {
+	Files      []ResolvedFile
+	Unreadable []UnreadableMatch
+}
+
+// ResolveContentReport is ResolveContent, also naming the matches it left out
+// because they cannot be read.
+func (ctx *ProjectContext) ResolveContentReport(reg *registry.FormatRegistry) (ContentResolution, error) {
 	if ctx.Project == nil || len(ctx.Project.Collections) == 0 {
-		return nil, nil
+		return ContentResolution{}, nil
 	}
 
 	ig := ignore.ForProjectDir(ctx.ProjectDir)
+
+	// The items with a pattern, in recipe order across collections.
+	// EffectiveItems preserves the recipe's own order, so the index here
+	// addresses the item a person edits even though its path has the
+	// collection's base folded in.
+	type resolvingItem struct {
+		item   ContentItem
+		ci, ii int
+	}
+	var items []resolvingItem
+	var patterns []string
+	for ci, coll := range ctx.Project.Collections {
+		for ii, item := range coll.EffectiveItems() {
+			// Reject an empty pattern and one that escapes the project root.
+			if item.Path == "" || strings.Contains(item.Path, "..") || filepath.IsAbs(item.Path) {
+				continue
+			}
+			// A pattern that will not expand is a fault in the recipe (an
+			// unclosed `[`/`{`). Dropping its item would shrink the universe
+			// every count downstream is taken over, so resolution fails and
+			// names the collection and the pattern.
+			if !doublestar.ValidatePattern(item.Path) {
+				where := "content"
+				if coll.Name != "" {
+					where = fmt.Sprintf("content collection %q", coll.Name)
+				}
+				return ContentResolution{}, fmt.Errorf("%s: pattern %q cannot be expanded, so its content would resolve to nothing. Fix the pattern in the recipe: %w",
+					where, item.Path, doublestar.ErrBadPattern)
+			}
+			items = append(items, resolvingItem{item: item, ci: ci, ii: ii})
+			patterns = append(patterns, item.Path)
+		}
+	}
+
+	// Every pattern resolves against one walk of the project, which never
+	// reads an excluded or ignored directory. The ignore rules apply before
+	// anything is opened, so a file under an ignored directory is never
+	// looked at. A match that cannot be read (a dangling link) is left out
+	// and recorded in Unreadable, which the hosts report.
+	var res ContentResolution
+	unreadable := map[string]bool{}
+	expanded, err := ExpandGlobs(ctx.ProjectDir, patterns, GlobOptions{
+		Excludes:  ctx.Project.Defaults.Exclude,
+		Ignore:    ig,
+		FilesOnly: true,
+		OnUnreadable: func(rel string, err error) {
+			if !unreadable[rel] {
+				unreadable[rel] = true
+				res.Unreadable = append(res.Unreadable, UnreadableMatch{Relative: rel, Err: err})
+			}
+		},
+	})
+	if err != nil {
+		return ContentResolution{}, fmt.Errorf("resolve content: %w", err)
+	}
 
 	// The files the items match, by slash-relative path, and the order in which
 	// an item first matched each.
 	matched := map[string]*resolvingFile{}
 	var order []string
-	for ci, coll := range ctx.Project.Collections {
-		collName := coll.Name
-		// EffectiveItems preserves the recipe's own order, so the index here
-		// addresses the item a person edits even though its path has the
-		// collection's base folded in.
-		for ii, item := range coll.EffectiveItems() {
-			if item.Path == "" {
-				continue
+	for k, ri := range items {
+		for _, relSlash := range expanded[k] {
+			f := matched[relSlash]
+			if f == nil {
+				f = &resolvingFile{ctx: ctx, reg: reg, rel: relSlash}
+				matched[relSlash] = f
+				order = append(order, relSlash)
 			}
-			// Reject patterns that escape the project root.
-			if strings.Contains(item.Path, "..") {
-				continue
-			}
-			if filepath.IsAbs(item.Path) {
-				continue
-			}
-
-			// Expand via ExpandGlob (doublestar) so `**` recurses like the
-			// content-listing path does — filepath.Glob has no `**` support
-			// and silently matched only one directory level. Project-wide
-			// excludes apply here exactly as they do for `kapi ls`.
-			//
-			// A pattern that will not expand is a fault in the recipe (doublestar
-			// reports path.ErrBadPattern for an unclosed `[`/`{`), and it used to
-			// `continue` — dropping the whole item silently. This is the single
-			// content-resolution seam for ls, extract, merge --materialize, up and
-			// ExtractToBlockStore, so a dropped item is invisible everywhere
-			// downstream: coverage cannot tell "this collection has no units" from
-			// "this collection never resolved", and the locale's percentages are
-			// computed over a smaller universe and read as complete (#1449's shape,
-			// one layer earlier). Name the collection, the item and the pattern so
-			// the typo is fixable from the message alone.
-			rels, err := ExpandGlob(ctx.ProjectDir, item.Path, ctx.Project.Defaults.Exclude...)
-			if err != nil {
-				where := "content"
-				if collName != "" {
-					where = fmt.Sprintf("content collection %q", collName)
-				}
-				return nil, fmt.Errorf("%s: pattern %q cannot be expanded, so its content would resolve to nothing. Fix the pattern in the recipe: %w",
-					where, item.Path, err)
-			}
-			matches := make([]string, 0, len(rels))
-			for _, rel := range rels {
-				matches = append(matches, filepath.Join(ctx.ProjectDir, rel))
-			}
-
-			for _, f := range matches {
-				info, err := os.Stat(f)
-				if err != nil {
-					// ExpandGlob matched this path, so something is there; a stat
-					// that then fails means present-but-unreadable (permissions, a
-					// broken symlink, a race with a delete) — not absent.
-					//
-					// The two used to share one `continue`, which is the same
-					// conflation the ExpandGlob error above was hardened against,
-					// one file at a time instead of one pattern at a time: the file
-					// vanished from `kapi ls`, was never extracted, and coverage was
-					// computed over the smaller universe — so the locale read 100%
-					// translated while that file shipped untranslated, and it never
-					// appeared in ExtractStats.Skipped either.
-					return nil, fmt.Errorf("content %s matched %s, but it cannot be read, "+
-						"so it would silently drop out of every count: %w", item.Path, f, err)
-				}
-				if info.IsDir() {
-					// A directory match is expected and correct: ExpandGlob returns
-					// directories for patterns like `src/**`, and a directory holds
-					// no content of its own. The files under it arrive as their own
-					// matches.
-					continue
-				}
-
-				// Verify the file is within the project root.
-				absFile, _ := filepath.Abs(f)
-				if !strings.HasPrefix(absFile, ctx.ProjectDir+string(filepath.Separator)) {
-					continue
-				}
-
-				rel, _ := filepath.Rel(ctx.ProjectDir, f)
-
-				// Apply ignore rules.
-				relSlash := filepath.ToSlash(rel)
-				if ig.Match(relSlash, false) {
-					continue
-				}
-
-				f := matched[relSlash]
-				if f == nil {
-					f = &resolvingFile{ctx: ctx, reg: reg, rel: relSlash}
-					matched[relSlash] = f
-					order = append(order, relSlash)
-				}
-				if !f.claims.decided() {
-					f.claims.offer(item, ci, ii, f.noReader)
-				}
+			if !f.claims.decided() {
+				f.claims.offer(ri.item, ri.ci, ri.ii, f.noReader)
 			}
 		}
 	}
-	files := make([]ResolvedFile, 0, len(order))
+	res.Files = make([]ResolvedFile, 0, len(order))
 	for _, rel := range order {
-		files = append(files, matched[rel].resolved())
+		res.Files = append(res.Files, matched[rel].resolved())
 	}
-	return files, nil
+	if len(res.Unreadable) > 0 && OnUnreadableContent != nil {
+		OnUnreadableContent(ctx.ProjectDir, res.Unreadable)
+	}
+	return res, nil
 }
 
 // ResolvePaths resolves the files among rels, paths relative to the project
@@ -355,7 +361,7 @@ func (ctx *ProjectContext) ResolvePaths(reg *registry.FormatRegistry, rels []str
 	var files []ResolvedFile
 	for _, rel := range rels {
 		relSlash := filepath.ToSlash(rel)
-		if !filepath.IsLocal(filepath.FromSlash(rel)) || claimed[relSlash] || ig.Match(relSlash, false) {
+		if !filepath.IsLocal(filepath.FromSlash(rel)) || claimed[relSlash] || ig.MatchPath(relSlash) {
 			continue
 		}
 		f := &resolvingFile{ctx: ctx, reg: reg, rel: relSlash, open: func() (io.ReadSeeker, error) { return nil, os.ErrNotExist }}

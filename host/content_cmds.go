@@ -143,19 +143,15 @@ func trackedPaths(proj *coreproj.KapiProject, root string) (map[string]bool, err
 	// item's targets are tracked: a later item's target for the same source is
 	// a file the loop never writes, and a copy of it on disk is untracked.
 	claimed := map[string]bool{}
-	for _, it := range proj.IterateContent() {
+	items := proj.IterateContent()
+	expanded, err := coreproj.ExpandItems(proj, root, items, coreproj.GlobOptions{Excludes: proj.Defaults.Exclude})
+	if err != nil {
+		return nil, err
+	}
+	for k, it := range items {
 		lang := string(it.Item.ResolvedSourceLanguage(it.Collection, proj.Defaults))
 		pattern := coreproj.ResolvePathPattern(it.Item.Path, lang)
-		rels, err := coreproj.ExpandGlob(root, pattern, proj.Defaults.Exclude...)
-		if err != nil {
-			where := "content"
-			if it.Collection != nil && it.Collection.Name != "" {
-				where = fmt.Sprintf("content collection %q", it.Collection.Name)
-			}
-			return nil, fmt.Errorf("%s: pattern %q cannot be expanded, so its content would resolve to nothing. Fix the pattern in the recipe: %w",
-				where, it.Item.Path, err)
-		}
-		for _, rel := range rels {
+		for _, rel := range expanded[k] {
 			rel = filepath.ToSlash(rel)
 			if claimed[rel] {
 				continue

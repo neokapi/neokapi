@@ -128,6 +128,20 @@ func (m *Matcher) Match(relPath string, isDir bool) bool {
 	return ignored
 }
 
+// MatchPath reports whether the file at relPath is ignored, either by a rule
+// that matches it or because a directory above it is ignored. It is what a walk
+// that never enters an ignored directory decides for a path it is handed
+// without walking to it, such as one listed by a git index.
+func (m *Matcher) MatchPath(relPath string) bool {
+	relPath = filepath.ToSlash(relPath)
+	for i := range len(relPath) {
+		if relPath[i] == '/' && m.Match(relPath[:i], true) {
+			return true
+		}
+	}
+	return m.Match(relPath, false)
+}
+
 // matchRule checks whether a pattern matches a relative path.
 // Supports:
 //   - Simple globs: *.json, temp.*

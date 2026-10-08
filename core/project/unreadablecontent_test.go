@@ -14,14 +14,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// #1474 item 3. ResolveContent stat'ed every glob match behind
-// `if err != nil || info.IsDir() { continue }`, so a file that MATCHED the
-// pattern but could not be read was dropped exactly like a directory — the one
-// case that is legitimate. This is the single content-resolution seam for ls,
-// extract, merge --materialize, up and ExtractToBlockStore, so the file vanished
-// from every count at once: coverage was computed over the smaller universe and
-// the locale read 100% translated while that file shipped untranslated, and it
-// never appeared in ExtractStats.Skipped either.
+// A file that matches a content pattern and cannot be read, such as a dangling
+// symbolic link, is left out of the resolved list and named in the report, so a
+// host can say which file every count is taken without. Failing the whole
+// resolution instead stopped `kapi status` over one broken link.
 
 func resolveContentProject(t *testing.T, pattern string) (*project.ProjectContext, string) {
 	t.Helper()
@@ -51,22 +47,27 @@ func contentRegistry(t *testing.T) *registry.FormatRegistry {
 	return reg
 }
 
-// TestResolveContent_UnreadableMatchFailsNamingTheFile is the regression: a
-// dangling symlink matches the pattern (something IS there under that name) and
-// then cannot be stat'ed. Present-but-unreadable must not read as absent.
-func TestResolveContent_UnreadableMatchFailsNamingTheFile(t *testing.T) {
+// TestResolveContent_UnreadableMatchIsReportedNotFatal: a dangling symlink
+// matches the pattern (something IS there under that name) and cannot be read.
+// The readable files still resolve, and the report names the broken one.
+func TestResolveContent_UnreadableMatchIsReportedNotFatal(t *testing.T) {
 	pctx, dir := resolveContentProject(t, "src/*.json")
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "src", "en.json"),
 		[]byte(`{"a":"b"}`), 0o644))
 	broken := filepath.Join(dir, "src", "gone.json")
 	require.NoError(t, os.Symlink(filepath.Join(dir, "src", "never-existed.json"), broken))
 
+	res, err := pctx.ResolveContentReport(contentRegistry(t))
+	require.NoError(t, err, "one broken link must not stop resolution")
+	require.Len(t, res.Files, 1)
+	assert.Equal(t, filepath.Join("src", "en.json"), res.Files[0].Relative)
+	require.Len(t, res.Unreadable, 1, "the broken link is named, never silently dropped")
+	assert.Equal(t, "src/gone.json", res.Unreadable[0].Relative)
+	require.ErrorIs(t, res.Unreadable[0].Err, os.ErrNotExist)
+
 	files, err := pctx.ResolveContent(contentRegistry(t))
-	require.Error(t, err,
-		"a match that cannot be read must fail resolution, not silently shrink the universe")
-	assert.Contains(t, err.Error(), "gone.json", "the message must name the file")
-	assert.Contains(t, err.Error(), "silently drop out of every count")
-	assert.Empty(t, files, "resolution failed, so no partial file list is returned")
+	require.NoError(t, err)
+	assert.Len(t, files, 1, "ResolveContent resolves the same files")
 }
 
 // TestResolveContent_DirectoryMatchIsNotAnError is the discriminating control:

@@ -16,6 +16,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/ignore"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 )
@@ -66,8 +67,15 @@ func check(recipe string, tracked []string) (report, error) {
 	for _, rf := range resolved {
 		claimed[filepath.ToSlash(rf.Relative)] = true
 	}
+	// A file the project's ignore rules cover, such as one under a nested
+	// `.kapi/` state directory, is never read as content, so no collection
+	// can claim it.
+	ig := ignore.ForProjectDir(filepath.Dir(recipe))
 	r := report{checked: map[string]int{}, unclaimed: map[string][]string{}}
 	for _, path := range tracked {
+		if ig.MatchPath(path) {
+			continue
+		}
 		for _, f := range families {
 			if !f.has(path) {
 				continue

@@ -9,6 +9,30 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// MatchPath ignores a file under an ignored directory, as a walk that never
+// enters that directory does.
+func TestMatchPath(t *testing.T) {
+	m := New()
+	m.AddPattern("node_modules/")
+	m.AddPattern("*.tmp")
+	tests := []struct {
+		path string
+		want bool
+	}{
+		{"src/en.json", false},
+		{"harness/.kapi/data/cldr.md", true},
+		{"web/node_modules/pkg/index.js", true},
+		{"node_modules", false}, // a file of that name; the rule is for directories
+		{"src/a.tmp", true},
+		{".git/config", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			assert.Equal(t, tt.want, m.MatchPath(tt.path))
+		})
+	}
+}
+
 func TestDefaultRules(t *testing.T) {
 	m := New()
 

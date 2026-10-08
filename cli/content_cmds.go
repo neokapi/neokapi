@@ -3,8 +3,10 @@ package cli
 import (
 	"fmt"
 	"path/filepath"
+	"slices"
 	"sort"
 
+	"github.com/neokapi/neokapi/core/ignore"
 	coreproj "github.com/neokapi/neokapi/core/project"
 
 	"github.com/neokapi/neokapi/core/registry"
@@ -263,24 +265,21 @@ standing ("2 to push" / "synced"), derived from the sync cache.
 					items = append(items, it)
 				}
 			}
-			for _, it := range append(items, commentItems...) {
-				lang := string(it.Item.ResolvedSourceLanguage(it.Collection, proj.Defaults))
-				pattern := coreproj.ResolvePathPattern(it.Item.Path, lang)
-				// `ls` does not go through project.ResolveContent, so it carried
-				// its own copy of the same swallow: a pattern that cannot be
-				// expanded dropped its collection and `ls` printed a short list
-				// with exit 0 — the listing a user checks to confirm the recipe
-				// tracks what they think it does.
-				rels, gerr := coreproj.ExpandGlob(root, pattern, proj.Defaults.Exclude...)
-				if gerr != nil {
-					where := "content"
-					if it.Collection != nil && it.Collection.Name != "" {
-						where = fmt.Sprintf("content collection %q", it.Collection.Name)
-					}
-					return fmt.Errorf("%s: pattern %q cannot be expanded, so its content would resolve to nothing. Fix the pattern in the recipe: %w",
-						where, it.Item.Path, gerr)
-				}
-				for _, rp := range rels {
+			ordered := slices.Concat(items, commentItems)
+			// Every pattern resolves in one walk that skips the excluded and
+			// ignored directories, as content resolution does. A pattern that
+			// cannot be expanded fails the listing rather than shortening it:
+			// it is the listing a user checks to confirm the recipe tracks
+			// what they think it does.
+			expanded, gerr := coreproj.ExpandItems(proj, root, ordered, coreproj.GlobOptions{
+				Excludes: proj.Defaults.Exclude,
+				Ignore:   ignore.ForProjectDir(root),
+			})
+			if gerr != nil {
+				return gerr
+			}
+			for k, it := range ordered {
+				for _, rp := range expanded[k] {
 					if seen[rp] || !MatchesPathPrefix(rp, args) {
 						continue
 					}
