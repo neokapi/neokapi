@@ -2,12 +2,13 @@
 
 The comparison asks one question: does a project's context, held in kapi, make
 coding agents write better than the same rules held without kapi? The same
-writing tasks run in three arms on Claude Code and on Codex, with the same
+writing tasks run in four arms on Claude Code and on Codex, with the same
 prompt and model:
 
 | Arm | What the cell holds |
 | --- | --- |
-| `kapi` | `kapi init --agents all` (the MCP entry and the skill for each host), the recipe, the voice read in with `kapi context import`, and each held rename recorded and kept by a person. The voice file is removed afterwards, because the context lives in the store. |
+| `kapi` | `kapi init --agents all --no-rules-files` (the MCP entry and the skill for each host), the recipe, the voice read in with `kapi store import`, and each held rename noted and kept by a person with `kapi context review --keep`. The voice file is removed afterwards, because the context lives in the store. |
+| `kapifiles` | The same kapi project with the rules files kapi writes: a section of `AGENTS.md` and `CLAUDE.md` at the root and in each folder whose rules differ, refreshed with `kapi context sync --files-only` once the rules are held. |
 | `rulesfile` | The same rules as a writing guide in `CLAUDE.md` and `AGENTS.md`, which each host loads into every session by itself. |
 | `bare` | The content and nothing else. |
 
@@ -21,8 +22,9 @@ Three sample projects (Teamboard, a planning app; Ledgerly, invoicing for
 freelancers; Harbor, a deploy tool). Each holds a rename, the house voice, a
 competitor's name, banned claims and a few house words. Teamboard and Harbor
 hold their rename in one part of the project only (customer help, not the API
-reference; the docs, not the legal terms), recorded at a file in that part, so
-the recipe's profiles decide where it is in force. `context/rules.md` is the
+reference; the docs, not the legal terms), noted at a file in that part and
+kept with `--widen-to channel`, so it holds across that profile and nowhere
+else. `context/rules.md` is the
 same set of rules written as a style guide, and a test
 (`TestCompareArmsHoldTheSameRules`) fails when the two drift apart.
 
@@ -89,7 +91,9 @@ valid for the attempt timeout plus 15 minutes; refresh the login, or export a
 
 ## Changing the verbs
 
-The harness runs two context verbs itself, as the person who holds the
-renames: `compareVerbRecord` and `compareVerbKeep` in `compare.go`. A rename
-of `observe` changes that line; the transcript reader counts `observe` and
-`note`, and `context_observe` and `context_note`, as records.
+The harness runs three kapi verbs itself, as the person who sets the project
+up: `compareVerbImport`, `compareVerbRecord` and `compareVerbKeep` in
+`compare.go`. A change to the CLI is an edit there. A removed verb does not
+always fail: `kapi context import`, after the verb moved to `kapi store`, was
+read as a path, so preflight's gate probe and the context read are what catch
+a project that did not load.
