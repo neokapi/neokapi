@@ -2,7 +2,7 @@
 // A decision is stale when its source basis differs from the current source hash.
 // The pane displays derived coverage and ship status and marks stale rows.
 
-import { Badge, Progress, Separator, cn } from "@neokapi/ui-primitives";
+import { Badge, Progress, Separator, cn, statusWord } from "@neokapi/ui-primitives";
 import { EmptyHint, LocalePill, useResource } from "@neokapi/concept-ui";
 import { t } from "@neokapi/i18n-react/runtime";
 import { FileText, Files, TriangleAlert } from "lucide-react";
@@ -40,7 +40,7 @@ function ShipBadge({ state }: { state?: string }) {
       className={cn("font-normal", SHIP_TONE[state])}
       data-ship-state={state}
     >
-      {state}
+      {statusWord(state)}
     </Badge>
   );
 }

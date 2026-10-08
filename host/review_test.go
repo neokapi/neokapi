@@ -320,10 +320,10 @@ func assertCommittedUnits(t *testing.T, root string, want int, msg string) {
 
 // TestReviewQueueText_NamesTheEstablishedRung: the footer tells a reviewer
 // where an approval puts the unit, in the ladder's own word.
-func TestReviewQueueText_NamesTheEstablishedRung(t *testing.T) {
+func TestReviewQueueText_NamesTheApprovedRung(t *testing.T) {
 	out := reviewQueueOutput{Pending: []ReviewQueueItem{{Locale: "nb", File: "nb.json", Key: "a", Source: "Apple"}}}
 	var b strings.Builder
 	require.NoError(t, out.FormatText(&b))
-	assert.Contains(t, b.String(), "the block becomes `established`")
+	assert.Contains(t, b.String(), "the block is approved")
 	assert.NotContains(t, b.String(), "reviewed")
 }

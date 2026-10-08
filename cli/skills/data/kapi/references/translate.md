@@ -216,8 +216,9 @@ before the run did and the run may still be going: read `run.state`, and ask
 **transport only**: they move project state and never translate. There is no
 `kapi sync`.
 
-Review promotes a translation past `translated` to `established`. The queue and the
-approval are two commands:
+Review approves a translation, moving it past `translated` to the approved rung.
+Output a person reads says "approved"; JSON, the recipe and `kapi apply` keep the
+status value `established`. The queue and the approval are two commands:
 
 ```bash
 kapi status --review              # blocks awaiting a person, in every language
@@ -244,7 +245,7 @@ assistant pre-reviews with `apply_edits`: a `decide` operation at that `ref`,
 `reasons`. The person working the queue reads it beside the block; an
 assistant's `establish` or `reject` is refused as `not_permitted`.
 
-The decision lands in the project store and counts the edition as `established`,
+The decision lands in the project store and counts the edition as approved,
 so the next `kapi up` sees it shipped. `kapi check --ship` is the opt-in release
 bar: it runs the project's voice, terminology and rule-based gates plus the
 `ship_gate` / `source_gate` coverage gates and exits non-zero only when you ask

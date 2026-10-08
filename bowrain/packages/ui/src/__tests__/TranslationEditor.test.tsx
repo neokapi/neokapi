@@ -188,7 +188,7 @@ describe("TranslationEditor — the search and the counts are server queries", (
     );
     const text = screen.getByTestId("progress-text").textContent ?? "";
     expect(text).toContain("44%");
-    expect(text).toContain("7 established");
+    expect(text).toContain("7 approved");
     expect(text).toContain("20 pending");
   });
 });
@@ -216,7 +216,7 @@ describe("TranslationEditor — review actions persist as decide operations", ()
       expect(screen.getByTestId("status-bar").textContent).toContain("Block 2 of 3"),
     );
     await user.click(screen.getByTestId("prev-block-btn"));
-    expect(screen.getByText("Established")).toBeInTheDocument();
+    expect(screen.getByText("Approved")).toBeInTheDocument();
   });
 
   it("Reject sends a reject decision (re-enters the work queue)", async () => {
@@ -247,7 +247,7 @@ describe("TranslationEditor — review actions persist as decide operations", ()
     await user.click(screen.getByTestId("approve-btn"));
 
     await waitFor(() =>
-      expect(screen.getByText("Couldn't mark the block as established")).toBeInTheDocument(),
+      expect(screen.getByText("Couldn't mark the block as approved")).toBeInTheDocument(),
     );
     expect(adapter.opsOf("decide")).toHaveLength(1);
     // Approve only advances after a SUCCESSFUL persist — on failure the
@@ -255,7 +255,7 @@ describe("TranslationEditor — review actions persist as decide operations", ()
     // error refers to the block on screen.
     expect(screen.getByTestId("status-bar").textContent).toContain("Block 1 of 3");
     expect(screen.getByText("Translated")).toBeInTheDocument();
-    expect(screen.queryByText("Established")).not.toBeInTheDocument();
+    expect(screen.queryByText("Approved")).not.toBeInTheDocument();
   });
 
   it("disables Approve for an untranslated block (the server would 422 it)", async () => {
@@ -287,7 +287,7 @@ describe("TranslationEditor — saving an edit preserves the per-locale review s
     const { adapter } = renderEditor({ view: "visual", blocks: [reviewed] });
     await waitForBlocks(1);
 
-    expect(screen.getByText("Established")).toBeInTheDocument();
+    expect(screen.getByText("Approved")).toBeInTheDocument();
 
     await user.click(screen.getByTestId("target-display"));
     await screen.findByTestId("unified-target-editor");
@@ -298,7 +298,7 @@ describe("TranslationEditor — saving an edit preserves the per-locale review s
     // applies (statusAfterEdit), so the optimistic {text, status} entry keeps
     // Established, matching the change service, which leaves an unchanged
     // translation as it stands.
-    await waitFor(() => expect(screen.getByText("Established")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Approved")).toBeInTheDocument());
     expect(screen.queryByText("Translated")).not.toBeInTheDocument();
   });
 });

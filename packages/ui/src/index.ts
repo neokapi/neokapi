@@ -179,6 +179,7 @@ export {
   ATTENTION_STATUSES,
   STATUS_LADDERS,
   statusMeta,
+  statusWord,
   type StatusLadder,
   type ContentStatus,
   type SourceStatus,

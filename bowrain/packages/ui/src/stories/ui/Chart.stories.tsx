@@ -35,7 +35,7 @@ const data = [
 
 const config: ChartConfig = {
   translated: { label: "Translated", color: "var(--chart-1)" },
-  established: { label: "Established", color: "var(--chart-2)" },
+  established: { label: "Approved", color: "var(--chart-2)" },
 };
 
 export const Default: Story = {

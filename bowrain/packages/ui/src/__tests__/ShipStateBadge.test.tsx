@@ -6,7 +6,7 @@ import { ShipStateBadge, termsNotGoverned } from "../components/ShipStateBadge";
 describe("ShipStateBadge", () => {
   it("renders the established state with its label", () => {
     render(<ShipStateBadge state="established" />);
-    expect(screen.getByTestId("ship-state-established")).toHaveTextContent("Established");
+    expect(screen.getByTestId("ship-state-established")).toHaveTextContent("Approved");
   });
 
   it("renders the translated state with its label", () => {
@@ -53,8 +53,8 @@ describe("ShipStateBadge", () => {
   it("compact variant renders icon-only with an accessible label", () => {
     render(<ShipStateBadge state="established" compact />);
     const badge = screen.getByTestId("ship-state-established");
-    expect(badge).toHaveAttribute("aria-label", "Established");
-    expect(badge).not.toHaveTextContent("Established");
+    expect(badge).toHaveAttribute("aria-label", "Approved");
+    expect(badge).not.toHaveTextContent("Approved");
   });
 
   it("shows the explanation and count details in the tooltip on hover", async () => {
@@ -65,7 +65,7 @@ describe("ShipStateBadge", () => {
     await user.hover(screen.getByTestId("ship-state-translated"));
     const tip = await screen.findAllByText(/AI-shippable/i);
     expect(tip.length).toBeGreaterThan(0);
-    expect((await screen.findAllByText(/12 of 50 blocks established/)).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText(/12 of 50 blocks approved/)).length).toBeGreaterThan(0);
   });
 
   it("mentions failing checks in the tooltip when present", async () => {

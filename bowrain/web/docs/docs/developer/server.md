@@ -109,8 +109,8 @@ The server holds each operation to what the sender may do on the project:
 - `decide` records a review decision. `establish` takes the `review`
   permission for the language and is held to the workspace's
   separation-of-duties policy; a change set that also writes the translation
-  it establishes approves the sender's own wording. `reject` returns the translation to draft and
-  `withdraw` to translated; moving an established translation takes `review`.
+  it approves is approving the sender's own wording. `reject` returns the translation to draft and
+  `withdraw` to translated; moving an approved translation takes `review`.
   Each decision is written to the decision ledger and the workspace's content
   memory, as approve-passing writes it. `advise` records a pre-review: the
   `score` (required, 0 to 100) and `reasons` an agent gives the translation,
@@ -262,7 +262,7 @@ refuses a translation.
 
 A push asserts the ref it last observed only for the governance it writes. It
 asserts the decisions component when its records include a decision (a review
-state, an established rung, a parked translation, an assignee or a note), and
+state, an approval, a parked translation, an assignee or a note), and
 the server refuses it with `409 governance_moved` when another decision has
 landed since. Records that say only what was produced for a block assert nothing
 and merge by record time. The decisions component folds decisions alone, so the

@@ -150,7 +150,7 @@ func TestReplayPendingChangesPermanent4xx(t *testing.T) {
 				calls++
 				w.WriteHeader(tc.status)
 				_, _ = w.Write([]byte(`{"schema":"kapi.change-result/v1","status":"refused","record":null,"docs":[],"ops":[{"i":0,"op":"decide","status":"refused","error":{"code":"` +
-					string(tc.code) + `","message":"block b1 has no fr translation to establish"}}]}`))
+					string(tc.code) + `","message":"block b1 has no fr translation to approve"}}]}`))
 			})
 			q := newTestQueue(t)
 			if app.offlineQueue != nil {

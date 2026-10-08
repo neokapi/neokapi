@@ -28,7 +28,7 @@ const config: WalkthroughEmbedConfig = {
     {
       command: "kapi status",
       narration:
-        "status derives coverage from the content and recorded decisions. French is 100% translated and 0% established, so human review remains pending.",
+        "status derives coverage from the content and recorded decisions. French is 100% translated and 0% approved, so human review remains pending.",
     },
     {
       command: "kapi status --review",
@@ -43,7 +43,7 @@ const config: WalkthroughEmbedConfig = {
     {
       command: "kapi status",
       narration:
-        "Established coverage increases to 33% after the recorded approval. This coverage counts toward an established gate.",
+        "Approved coverage increases to 33% after the recorded approval. This coverage counts toward an approval gate.",
     },
   ],
 };

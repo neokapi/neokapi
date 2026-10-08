@@ -24,7 +24,7 @@ One row per scope, a locale or a `locale/collection` pair, with the number of
 blocks, one column per rung of the target ladder (the share of blocks that have
 reached drafting, translation, review), a pipeline bar showing distance to the
 bar, and a **ship** column. Ship is a verdict rather than a percentage: it
-reads the ship state, `established` (a person established the content) or
+reads the ship state, `approved` (a person approved the content) or
 `translated` (translated with its checks green), when the scope clears its
 gate, `blocked: <rung>` naming the first unmet gate so it points at the work,
 or `not gated` when no gate matches the scope.

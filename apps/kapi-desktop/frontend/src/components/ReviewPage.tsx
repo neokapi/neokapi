@@ -1163,7 +1163,7 @@ export function ReviewPage({
               {(queue ?? []).length === 0
                 ? queueWarnings.length > 0
                   ? t("Nothing to review in the content this project could read.")
-                  : t("Review queue empty. Every translated block is established.")
+                  : t("Review queue empty. Every translated block is approved.")
                 : t("Nothing matches this filter.")}
             </p>
           </CardContent>

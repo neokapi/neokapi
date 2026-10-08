@@ -166,7 +166,7 @@ describe("ReviewSurface — approve/reject persist as decide operations", () => 
       if_match: mockRevision(testBlocks[0], "fr-FR"),
       outcome: "establish",
     });
-    expect(screen.getByTestId("review-status-b1").textContent).toBe("Established");
+    expect(screen.getByTestId("review-status-b1").textContent).toBe("Approved");
     // The document's margin states the same thing.
     expect(screen.getByTestId("review-block-b1")).toHaveAttribute("data-status", "established");
   });
@@ -178,7 +178,7 @@ describe("ReviewSurface — approve/reject persist as decide operations", () => 
     // b3 starts reviewed (per-locale Edition.Status in the payload).
     await openBlock(user, "b3");
 
-    expect(screen.getByTestId("review-status-b3").textContent).toBe("Established");
+    expect(screen.getByTestId("review-status-b3").textContent).toBe("Approved");
     await user.click(screen.getByTestId("reject-b3"));
 
     await waitFor(() => expect(adapter.opsOf("decide")).toHaveLength(1));
@@ -237,7 +237,7 @@ describe("ReviewSurface — approve/reject persist as decide operations", () => 
 
     // The call was attempted, the failure surfaced, and the chip reverted.
     await waitFor(() =>
-      expect(screen.getByText("Couldn't mark the block as established")).toBeInTheDocument(),
+      expect(screen.getByText("Couldn't mark the block as approved")).toBeInTheDocument(),
     );
     expect(adapter.opsOf("decide")).toHaveLength(1);
     expect(screen.getByTestId("review-status-b1").textContent).toBe("Translated");
@@ -266,7 +266,7 @@ describe("ReviewSurface — approve/reject persist as decide operations", () => 
     expect(second.if_match).not.toBe(read);
     expect(second).toMatchObject({ at: { block: "b1" }, outcome: "establish" });
     await waitFor(() =>
-      expect(screen.getByTestId("review-status-b1").textContent).toBe("Established"),
+      expect(screen.getByTestId("review-status-b1").textContent).toBe("Approved"),
     );
   });
 

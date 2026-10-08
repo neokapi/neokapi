@@ -136,7 +136,7 @@ export function applyMockChanges(store: MockChangeStore, set: ContentChangeSet):
         refuse(i, {
           error: {
             code: "unsupported",
-            message: `block ${block.id} has no ${locale} translation to establish: translate it first`,
+            message: `block ${block.id} has no ${locale} translation to approve: translate it first`,
           },
         });
         return;

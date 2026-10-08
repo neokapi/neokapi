@@ -97,8 +97,8 @@ defaults:
 | `ship_gates` | ShipGateRule[] | Scoped ship-gate rules; the most specific matching rule wins (see [Ship gates](#ship-gates))               |
 | `gates`    | map            | Named gate registry a `ship_gates` rule can reference by name (see [Ship gates](#ship-gates))               |
 | `source_gate` | Gate        | Coverage gate over the source authoring ladder (see [source_gate](#source_gate))                            |
-| `established_gate` | Gate    | A single catch-all established gate: the bar a locale must clear to ship *established* rather than *translated* (see [Ship gates](#ship-gates)) |
-| `established_gates` | ShipGateRule[] | Scoped established-gate rules, in the same `when`/`gate` form as `ship_gates`; the most specific rule wins. With neither key set, no locale ships established |
+| `established_gate` | Gate    | A single catch-all approval gate: the bar a locale must clear to ship *approved* rather than *translated* (see [Ship gates](#ship-gates)) |
+| `established_gates` | ShipGateRule[] | Scoped approval-gate rules, in the same `when`/`gate` form as `ship_gates`; the most specific rule wins. With neither key set, no locale ships approved |
 
 ### Project identity
 
@@ -471,7 +471,7 @@ it is ready rather than redone when it changes. See
 defaults:
   translate_after: written   # the default: written source whose checks pass
                              # translates (no human bottleneck)
-  # translate_after: established  # wait until a person establishes the source
+  # translate_after: established  # wait until a person approves the source
   # translate_after: none         # opt out: raw fan-out, no hold
 ```
 
@@ -479,7 +479,7 @@ defaults:
 | ---------- | ----------------------------------------------------------------------- |
 | _(unset)_     | Runner applies the default (`written`)                                  |
 | `written`     | **Default**: written source translates once its checks pass             |
-| `established` | A person established the source (voice-critical or regulated content)  |
+| `established` | A person approved the source (voice-critical or regulated content)     |
 | `none`        | Deliberate opt-out: translate without settling the source first         |
 
 On a connected project, a source below this level **holds** the convergence run
@@ -705,9 +705,9 @@ AWS environment, shared configuration and profile.
 ## Ship gates
 
 Ship gates decide when translated content is *shippable*: coverage thresholds
-over the target lifecycle ladder (`draft` → `translated` → `established` →
-`established`), enforced by [`kapi check --ship`](/reference/commands/check) and
-driven toward by [`kapi up`](/reference/commands/up). The model (ladders,
+over the target lifecycle ladder (`draft` → `translated` → `established`,
+where `established` is the rung `kapi status` shows as *approved*), enforced by
+[`kapi check --ship`](/reference/commands/check) and driven toward by [`kapi up`](/reference/commands/up). The model (ladders,
 derived state, review) is [the kapi loop](/kapi/convergence); this section is
 the schema. All of these keys are top-level (siblings of `defaults`) and
 optional: with none set, nothing is gated.
@@ -718,16 +718,16 @@ optional: with none set, nothing is gated.
 | `ship_gates`  | ShipGateRule[] | Scoped rules, each a selector plus a gate; when present it replaces `ship_gate`                    |
 | `gates`       | map            | Named gate registry; a `ship_gates` rule references an entry with `gate: <name>`                   |
 | `source_gate` | Gate           | A gate over the source ladder (`written` → `established`)                                          |
-| `established_gate` | Gate      | A single catch-all established gate, in the same threshold form as `ship_gate`                     |
-| `established_gates` | ShipGateRule[] | Scoped established-gate rules; the most specific rule wins                                 |
+| `established_gate` | Gate      | A single catch-all approval gate, in the same threshold form as `ship_gate`                        |
+| `established_gates` | ShipGateRule[] | Scoped approval-gate rules; the most specific rule wins                                    |
 
-A scope that ships has one of two ship states. It ships **established**
-when it clears its established gate, and **translated**, as AI translation,
-when it clears its ship gate but not an established gate. `kapi
-status`, `kapi up`, `kapi status --ship` and the ship-aware language picker
-all read these words. With neither established key set, no scope ships
-established. A project that delivers only established content says so in its
-ship gate, e.g. `ship_gate: { established: 100 }`.
+A scope that ships has one of two ship states. It ships **approved**
+when it clears its approval gate, and **translated**, as AI translation,
+when it clears its ship gate but not an approval gate. `kapi status` and
+`kapi up` print these words; `kapi status --ship` and the ship-aware language
+picker spell the approved state `established`. With neither `established_gate`
+nor `established_gates` set, no scope ships approved. A project that delivers
+only approved content says so in its ship gate, e.g. `ship_gate: { established: 100 }`.
 
 A scope no ship gate rule matches is *not gated*. `kapi status` and `kapi up`
 name it not gated rather than shippable, and `kapi status --ship` records
@@ -749,8 +749,8 @@ a gate matches it. Each scope reads as one of three
 A gate maps a lifecycle state to a threshold. A scope clears the gate when, for
 every threshold, at least that percent of its blocks are at that state or higher
 on the ladder. A threshold is a percent, 0–100; a threshold of 0 means "not
-required". `established: 80` reads *at least 80% established*. Only a person
-establishes a block, so an `established` threshold always counts people.
+required". `established: 80` reads *at least 80% approved*. Only a person
+approves a block, so an `established` threshold always counts people.
 
 **Simple form**, one bar for the whole project:
 

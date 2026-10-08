@@ -1129,7 +1129,7 @@ func (c *changeAssets) prepareDecision(actor change.Actor, op change.Op, target 
 		return &change.Error{Code: change.CodeUnsupported, Capability: "decide.withdraw", Message: "withdrawing a decision is not recorded by this host"}
 	case target.Role == change.RoleAuthoritative && body.Outcome != change.OutcomeEstablish:
 		return &change.Error{Code: change.CodeUnsupported, Capability: "decide." + string(body.Outcome),
-			Message: "the document's own edition is established by a person; it takes no other decision"}
+			Message: "the document's own edition is approved by a person; it takes no other decision"}
 	}
 	return nil
 }

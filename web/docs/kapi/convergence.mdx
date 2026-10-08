@@ -33,7 +33,7 @@ Three roles, kept separate:
 - **The loop produces**: `kapi up` drives each block as far up its lifecycle
   as a flow can take it unaided (typically to *translated*).
 - **Review promotes**: a person advances a block past what a machine can decide
-  (*translated → established*).
+  (*translated → approved*).
 - **The gate releases**: it drives nothing and answers one question, *is this
   scope shippable?*
 
@@ -67,7 +67,7 @@ absent target sits below the lowest rung; a present, non-empty target is at leas
   rungs={[
     { grade: "1", name: "draft", gloss: "a machine placeholder, or a target whose source has moved" },
     { grade: "2", name: "translated", gloss: "a real translation exists and passes its checks" },
-    { grade: "3", name: "established", gloss: "a person reviewed or edited this exact pair" },
+    { grade: "3", name: "approved", gloss: "a person reviewed or edited this exact pair" },
   ]}
   caption="Target lifecycle: how far a translation has progressed."
 />
@@ -77,14 +77,17 @@ Source content has its own, shorter ladder:
 <AxisLadderDiagram
   rungs={[
     { grade: "1", name: "written", gloss: "source content exists" },
-    { grade: "2", name: "established", gloss: "a person reviewed the source" },
+    { grade: "2", name: "approved", gloss: "a person reviewed the source" },
   ]}
   caption="Source authoring readiness: the source-side counterpart."
 />
 
+The recipe and the JSON reports spell the approved rung `established`, so a
+gate threshold on it reads `established: 80`.
+
 Where state is recorded depends on the carrier. A plain target file (JSON, an
 XLIFF, …) records presence only, so a file-based project reads a present target
-as *translated*. The higher rungs ride a carrier that can hold them: *established*
+as *translated*. The higher rungs ride a carrier that can hold them: *approved*
 comes from an approval recorded in the project's
 [block-state record](#review-the-state-record) (below), and a
 `.kpz` parcel carries the full status across a hand-off.
@@ -100,8 +103,8 @@ percent of its blocks have reached that rung or higher.
 ship_gate: { translated: 100, established: 80 }
 ```
 
-This reads *"every block translated, and the important 80% established; ship the long
-tail machine-translated."* A bare `100% established` is the degenerate case.
+This reads *"every block translated, and the important 80% approved; ship the long
+tail machine-translated."* A bare `100% approved` is the degenerate case.
 
 Gates can be selected by rule, so different collections or locales answer to
 different bars (the most specific matching rule wins):
@@ -126,20 +129,20 @@ does not is withheld:
 
 | State | What it means |
 | --- | --- |
-| **established** | The scope clears its established gate (`established_gate` / `established_gates`): a person established the content. |
-| **translated** | The scope clears its ship gate and no established gate: translated, with its checks green, and shipped as AI translation. |
+| **approved** | The scope clears its approval gate (`established_gate` / `established_gates`): a person approved the content. |
+| **translated** | The scope clears its ship gate and no approval gate: translated, with its checks green, and shipped as AI translation. |
 | **withheld** | The scope does not ship. It is short of its gate, or it holds stale wording, a translation a reviewer turned down, a failing check, or terms that were not checked. These hold a scope back whether or not a gate matches it. |
 | **not gated** | No gate matches the scope, and nothing withholds it. |
 
 A project chooses which it delivers through its ship gate: `{ translated: 100 }`
-delivers translated content, `{ established: 100 }` only established content.
+delivers translated content, `{ established: 100 }` only approved content.
 A project with no gates has only withheld and not-gated scopes, and a `kapi
 up` run that converges says that no ship gates are declared. Nothing withholds
 a not-gated scope, so a language picker offers it by default.
 
-### Who establishes a block {#approver-classes}
+### Who approves a block {#approver-classes}
 
-*Established* is the one human rung: a person reviewed or edited this exact
+*Approved* is the one human rung: a person reviewed or edited this exact
 translation. An agent pre-reviews a block with a score and its reasons, which
 the review queue shows, and its judgement never counts as a person's, so every
 `established` threshold counts people. Gates still differ by scope, so tiers
@@ -208,10 +211,10 @@ Read the loop left to right:
 
 1. **Settle the source.** Check terminology and mark the terms that must not be
    translated, check voice profile, run the source checks. This lifts source
-   blocks onto their ladder (*written → established*) and marks any that fail.
+   blocks onto their ladder (*written → approved*) and marks any that fail.
 2. **Hold the source.** `defaults.translate_after` (`written` by default, or
-   `established`) is the level each block's source must reach before it is
-   translated. A block below it **holds**: settling the source first is cheaper
+   `established` for approved source) is the level each block's source must
+   reach before it is translated. A block below it **holds**: settling the source first is cheaper
    than a machine translation of content you are about to change.
 3. **Translate the approved source.** Only settled source fans out per locale,
    memory-first: recycle what you have already translated, AI-translate the
@@ -235,11 +238,11 @@ standing against its gate, recomputed on every run:
 
 ```bash
 kapi status
-# source      2 blocks · written 100% · established 0%
+# source      2 blocks · written 100% · approved 0%
 #
-# scope  blocks  draft  translated  established  pipeline         ship
-# de         42   100%        100%          80%  ██████████ 100%  translated
-# nb         42   100%         60%           0%  ███░░░░░░░  30%  blocked: translate
+# scope  blocks  draft  translated  approved  pipeline         ship
+# de         42   100%        100%       80%  ██████████ 100%  translated
+# nb         42   100%         60%        0%  ███░░░░░░░  30%  blocked: translate
 #
 # 1 of 2 scopes ready to ship
 ```
@@ -428,8 +431,8 @@ step. Take a German scope fully caught up under
 
 ```bash
 kapi status
-# scope  blocks  draft  translated  established  pipeline         ship
-# de         42   100%        100%         100%  ██████████ 100%  translated
+# scope  blocks  draft  translated  approved  pipeline         ship
+# de         42   100%        100%      100%  ██████████ 100%  translated
 ```
 
 Edit one source string. Nothing flags the change and no state is written; the
@@ -441,8 +444,8 @@ does not apply:
 
 ```bash
 kapi status
-# scope  blocks  draft  translated  established  pipeline         ship
-# de         42   100%         98%          98%  █████████░  99%  blocked: stale
+# scope  blocks  draft  translated  approved  pipeline         ship
+# de         42   100%         98%       98%  █████████░  99%  blocked: stale
 #
 # 1 block(s) stale: the source changed since the translation was decided.
 # They do not ship until you re-review them with `kapi status --review`.
@@ -466,8 +469,8 @@ kapi up --passes 1
 # Re-drafted 1 stale block(s) against the current source. They return to
 # review un-approved (the earlier approval is not restored).
 kapi status
-# scope  blocks  draft  translated  established  pipeline         ship
-# de         42   100%        100%          98%  █████████░  99%  blocked: stale
+# scope  blocks  draft  translated  approved  pipeline         ship
+# de         42   100%        100%       98%  █████████░  99%  blocked: stale
 ```
 
 The re-draft holds however the block is identified. Where the edit re-keys the
@@ -574,8 +577,8 @@ defaults:
 
 ## Review: the state record {#review-the-state-record}
 
-A machine takes a block to *translated*; a person takes it to *established*. That
-approval is an authored **decision** (who established which exact
+A machine takes a block to *translated*; a person takes it to *approved*. That
+approval is an authored **decision** (who approved which exact
 translation), so it is recorded in the [project store](/kapi/project-store),
 where it is durable at once and every checkout of the project reads it. The
 content memory holds none of it.
@@ -598,12 +601,12 @@ kapi apply <<<'{"ops":[{"op":"decide","at":{"doc":"src/en.json","block":"save.la
 An approval is about a **pairing**: this rendering, *of this source*. The
 record binds both halves by revision, the same token `kapi inspect` shows: the
 translation it blesses, and the **basis**, the source it blessed that
-translation for. Editing either afterwards drops the block back below *established*,
+translation for. Editing either afterwards drops the block back below *approved*,
 a changed link or other inline code as much as a changed word, so an approval
 can't silently outlive the content it approved on either side. An approval
 recorded by an earlier release binds the two texts alone, and keeps answering
 that way until the block is decided again. Once recorded, coverage reads the
-block as *established*, `established%` climbs, and a `{ established: … }` gate
+block as *approved*, `approved%` climbs, and a `{ established: … }` gate
 flips to shippable.
 
 A block whose **source** moved reads as *stale*: it holds a target, so it sits at
@@ -632,13 +635,13 @@ records a basis.
     },
     { label: "either side edited", role: "translate", edge: "a recorded revision no longer matches" },
     {
-      label: "block reads below established",
+      label: "block reads below approved",
       role: "qa",
       edge: "re-derived on the next run",
       loop: ["re-approve with kapi apply", "binds to the new pairing"],
     },
   ]}
-  caption="An approval binds to the pairing it blesses (the translation, and the source it was approved for): edit either and the block falls below established until someone approves the new pair."
+  caption="An approval binds to the pairing it blesses (the translation, and the source it was approved for): edit either and the block falls below approved until someone approves the new pair."
 />
 
 The record travels with the project through
@@ -649,12 +652,12 @@ enter the team's assignment and review queue.
 
 This is distinct from the content memory: a `memory` operation through `kapi apply` adds
 a source→target pair to the **recycle** corpus for future leverage and never
-promotes a block to *established*.
+promotes a block to *approved*.
 
 Run the loop yourself: this is the real kapi compiled to WebAssembly, working on
 an in-memory project. `status` shows the translated-but-unreviewed state,
 `status --review` lists the worklist, `apply` records the block state in the
-project store, and the closing `status` shows *established* climb:
+project store, and the closing `status` shows *approved* climb:
 
 <KapiGuidedEmbed id="kapi-review-and-approve" />
 

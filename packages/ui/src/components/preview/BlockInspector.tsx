@@ -5,6 +5,7 @@ import { DirectionalText, localeOfVariant } from "../../lib/text-direction";
 import { Badge } from "../ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 import { Separator } from "../ui/separator";
+import { statusWord } from "../ui/status-badge";
 import { runPosOf, runsPlainText } from "./anchor";
 import RunSequence from "./RunSequence";
 import { runSummary } from "./runSummary";
@@ -210,7 +211,7 @@ function TargetRow({
           {variant}
         </Badge>
         <span className={cn("font-medium", STATUS_TONE[status] ?? "text-muted-foreground")}>
-          {status || "new"}
+          {statusWord(status) || "new"}
         </span>
         {typeof meta?.score === "number" && meta.score > 0 && (
           <span className="text-muted-foreground">score {meta.score.toFixed(2)}</span>

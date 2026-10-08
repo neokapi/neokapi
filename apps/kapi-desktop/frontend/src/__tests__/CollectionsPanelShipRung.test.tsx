@@ -32,6 +32,6 @@ describe("rungFor", () => {
     const translated = rungFor(scope({ gated: true, shipState: "translated" }));
     expect(translated.key).toBe("shippable");
     expect(translated.label).toBe("Ships translated");
-    expect(rungFor(scope({ gated: true, shipState: "established" })).label).toBe("Established");
+    expect(rungFor(scope({ gated: true, shipState: "established" })).label).toBe("Approved");
   });
 });

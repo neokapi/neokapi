@@ -302,7 +302,7 @@ func TestHandleBulkReviewBlocks(t *testing.T) {
 	assert.True(t, resp.Results[1].OK)
 	// An untranslated block has no translation to establish, per block.
 	assert.False(t, resp.Results[2].OK)
-	assert.Contains(t, resp.Results[2].Error, "no fr translation to establish")
+	assert.Contains(t, resp.Results[2].Error, "no fr translation to approve")
 	assert.False(t, resp.Results[3].OK)
 	assert.Contains(t, resp.Results[3].Error, "block not found")
 

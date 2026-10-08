@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-08T14:05:29Z",
+  "generatedAt": "2026-10-08T14:55:32Z",
   "tools": [
     {
       "name": "apply_edits",
@@ -1479,7 +1479,7 @@
     },
     {
       "name": "review_block",
-      "description": "Read one block's review picture: ref and rev, the reference and revision of the edition under review, and the block itself, under block: source and target text, ladder status, the last recorded decision (with identity), and the context the decision is made in: the point governing the file (voice guidance, term rules, coordinates), the blocks before and after it as run sequences, the prior approved version and the content-memory match with its wording, the check findings with their run anchors, and the AI pre-review score. Address it with the ref a review_queue row carries, or a ref read_blocks reports with the translation's edition. A block in the project's source language is read from its source file and returns its authoring rung with no target half. To record a pre-review, send apply_edits a decide operation with at set to ref, if_match set to rev, outcome advise, a score from 0 to 100 and your reasons: it is bound to the wording you read, a later edit drops it, and it never establishes the block.",
+      "description": "Read one block's review picture: ref and rev, the reference and revision of the edition under review, and the block itself, under block: source and target text, ladder status, the last recorded decision (with identity), and the context the decision is made in: the point governing the file (voice guidance, term rules, coordinates), the blocks before and after it as run sequences, the prior approved version and the content-memory match with its wording, the check findings with their run anchors, and the AI pre-review score. Address it with the ref a review_queue row carries, or a ref read_blocks reports with the translation's edition. A block in the project's source language is read from its source file and returns its authoring rung with no target half. To record a pre-review, send apply_edits a decide operation with at set to ref, if_match set to rev, outcome advise, a score from 0 to 100 and your reasons: it is bound to the wording you read, a later edit drops it, and it never approves the block.",
       "surface": "review",
       "params": [
         {

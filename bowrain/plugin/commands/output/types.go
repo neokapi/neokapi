@@ -454,7 +454,7 @@ func (o PushOutput) formatUndeclared(w io.Writer) {
 func (o PushOutput) FormatGovernance(w io.Writer) {
 	for _, r := range o.VerdictsRefused {
 		fmt.Fprintf(w, "%d %s not accepted for %s: %s\n",
-			r.Count, plural(r.Kind, r.Count), r.Locale, r.Reason)
+			r.Count, plural(r.Kind, r.Count), r.Locale, venue.ReasonLabel(r.Reason))
 	}
 	if o.VerdictsRetired > 0 {
 		fmt.Fprintf(w, "%d local record(s) now match the platform; they will not be sent again\n",

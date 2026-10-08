@@ -425,10 +425,10 @@ offsets into the same flat text the block already carries.
 A separate subpath turns the project's ship status into a language picker's
 render model. A minimal manifest, emitted by the CLI, keys each locale to
 *shippable* (nothing withholds it, so it is safe to offer) and its ship state:
-`established` when it clears its established gate (a person established the
-content), `translated` when it clears its ship gate only, `withheld`, or
+`established` when it clears its approval gate, `established_gate` (a person
+approved the content), `translated` when it clears its ship gate only, `withheld`, or
 `not_gated` when no gate matches it. A not-gated locale is offered unless the
-caller asks for gated locales only. A locale that ships but is not established
+caller asks for gated locales only. A locale that ships but is not approved
 is AI work and is the only case this layer badges. Display labels derive from
 each locale code as its endonym through `Intl.DisplayNames`, so no per-locale
 label table is needed; an explicit label still wins, for the codes `Intl` cannot

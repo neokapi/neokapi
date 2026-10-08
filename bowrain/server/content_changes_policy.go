@@ -78,7 +78,7 @@ func (p *streamPolicy) Permit(actor change.Actor, set *change.Set, op change.Op)
 	}
 	if actor.Kind == change.ActorPerson && decide != nil && decide.Outcome == change.OutcomeAdvise {
 		return notPermittedTo("a person", "decide advise",
-			"a pre-review is an agent's, and the review queue shows it as AI advice; establish or reject the translation")
+			"a pre-review is an agent's, and the review queue shows it as AI advice; approve or reject the translation")
 	}
 	if op.Kind == change.KindProvenance && actor.Kind != change.ActorTool {
 		return notPermittedTo("a "+string(actor.Kind), "record provenance", "only a tool says how it produced an edition")
@@ -98,7 +98,7 @@ func (p *streamPolicy) Permit(actor change.Actor, set *change.Set, op change.Op)
 	case change.KindDecide:
 		locale, _ := p.editionLocale(op.At.Edition)
 		if decide != nil && decide.Outcome == change.OutcomeEstablish {
-			return p.need(platauth.PermReview, locale, "establish a translation")
+			return p.need(platauth.PermReview, locale, "approve a translation")
 		}
 		return p.need(platauth.PermTranslate, locale, "decide on a translation")
 	case change.KindAnnotate, change.KindUnannotate:

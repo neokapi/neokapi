@@ -15,7 +15,7 @@ scenes:
 ## Story
 
 This walkthrough follows a project from translation through review to a passing
-ship gate. The gate requires 100% translated and 100% established content.
+ship gate. The gate requires 100% translated and 100% approved content.
 
 `kapi up --plan` previews pending units, exact content-memory matches, remaining
 AI work and estimated tokens. `kapi up` fills the translations from content

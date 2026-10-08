@@ -270,7 +270,7 @@ func TestRefusedChangeSetSurfacesToCaller(t *testing.T) {
 		err    bool
 	}{
 		{"a refused change set", http.StatusUnprocessableEntity,
-			`{"schema":"kapi.change-result/v1","status":"refused","record":null,"docs":[],"ops":[{"i":0,"op":"decide","status":"refused","error":{"code":"unsupported","message":"block b1 has no fr translation to establish"}}]}`, false},
+			`{"schema":"kapi.change-result/v1","status":"refused","record":null,"docs":[],"ops":[{"i":0,"op":"decide","status":"refused","error":{"code":"unsupported","message":"block b1 has no fr translation to approve"}}]}`, false},
 		{"a rejected request", http.StatusForbidden, `{"error":"forbidden","message":"no access to the project"}`, true},
 	}
 	for _, tc := range cases {

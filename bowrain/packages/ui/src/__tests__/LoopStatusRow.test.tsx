@@ -115,7 +115,7 @@ describe("LoopStatusRow", () => {
     const ship = screen.getByTestId("loop-card-ship");
     expect(within(ship).getByText("5")).toBeInTheDocument();
     expect(within(ship).getByText(/of 10 locales shippable/)).toBeInTheDocument();
-    expect(within(ship).getByText(/3 established · 2 translated · 5 pending/)).toBeInTheDocument();
+    expect(within(ship).getByText(/3 approved · 2 translated · 5 pending/)).toBeInTheDocument();
     // Full coverage: no partial-coverage qualifier.
     expect(within(ship).queryByText(/across/)).not.toBeInTheDocument();
   });
@@ -137,7 +137,7 @@ describe("LoopStatusRow", () => {
     const ship = screen.getByTestId("loop-card-ship");
     expect(within(ship).getByText("4")).toBeInTheDocument();
     expect(within(ship).getByText(/of 5 locales shippable/)).toBeInTheDocument();
-    expect(ship.textContent).toContain("3 established · 1 translated · 1 pending");
+    expect(ship.textContent).toContain("3 approved · 1 translated · 1 pending");
   });
 
   it("labels a partial ship rollup with its project coverage", () => {

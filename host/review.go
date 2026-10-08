@@ -117,7 +117,7 @@ func (o reviewQueueOutput) FormatText(w io.Writer) error {
 	}
 	t.Render()
 	fmt.Fprintln(w)
-	fmt.Fprintln(w, "Approve a block with `kapi apply`: a decide operation with outcome establish, at the block's document, key and edition, and if_match set to the revision `kapi inspect` reports. The decision lands in the project store and the block becomes `established`.")
+	fmt.Fprintln(w, "Approve a block with `kapi apply`: a decide operation with outcome establish, at the block's document, key and edition, and if_match set to the revision `kapi inspect` reports. The decision lands in the project store and the block is approved.")
 	if sources > 0 {
 		fmt.Fprintln(w, "Blocks marked `source` are the project's own source language. Approve source wording the same way, with no edition.")
 	}

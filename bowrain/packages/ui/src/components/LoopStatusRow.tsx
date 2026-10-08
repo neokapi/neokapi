@@ -325,7 +325,7 @@ export function LoopStatusRow({
               </span>
             </div>
             <p className="text-xs text-muted-foreground">
-              {ship.established} established · {ship.translated} translated · {ship.pending} pending
+              {ship.established} approved · {ship.translated} translated · {ship.pending} pending
               {ship.countedProjects < ship.totalProjects
                 ? ` · across ${ship.countedProjects} of ${ship.totalProjects} projects`
                 : ""}
