@@ -267,9 +267,8 @@ func TestWriteRulesFiles_KeepsWhatAPersonWrote(t *testing.T) {
 }
 
 // TestWriteRulesFiles_ThisRepositorysClaudeFile: the hand-written CLAUDE.md at
-// the root of this repository, which carries the voice pointer earlier kapi
-// versions wrote, keeps every line of its own when the section replaces the
-// pointer.
+// the root of this repository keeps every line of its own when kapi rewrites
+// its section for another project's rules.
 func TestWriteRulesFiles_ThisRepositorysClaudeFile(t *testing.T) {
 	repo, err := os.ReadFile(filepath.Join("..", "CLAUDE.md"))
 	require.NoError(t, err)
