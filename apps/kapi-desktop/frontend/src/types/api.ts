@@ -908,6 +908,8 @@ export interface DigestItem {
   droppable: boolean;
   /** A rule in force a person can apply more widely. */
   widenable: boolean;
+  /** The widenings open to a widenable rule: "workspace", and each axis of its point. */
+  widen_to?: string[];
   established_at?: string;
   how?: string[];
 }

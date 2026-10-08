@@ -11,6 +11,11 @@ const ago = (hours: number) => new Date(Date.now() - hours * hour).toISOString()
 /** The marker: the person last looked two days ago. */
 export const LAST_LOOKED = ago(48);
 
+/** The rule "Write studio, not business." as the digest holds it, for the widen stories. */
+export function studioRule(): DigestItem {
+  return STUDIO;
+}
+
 export function digestItem(over: Partial<DigestItem> & { id: string }): DigestItem {
   return {
     short: over.id.slice(0, 10),
@@ -49,6 +54,7 @@ const STUDIO = digestItem({
   status: "established",
   subject: { kind: "term", term: { term: "business", replacement: "studio" } },
   quote: { path: "docs/billing.md", quote: "Upgrade your business plan." },
+  scope: "project product=studio",
   standing: "seen in 3 sessions · 41 of 43 uses in docs/ · merged in #412",
   usage: {
     preferred: "studio",
@@ -63,6 +69,7 @@ const STUDIO = digestItem({
   keepable: false,
   droppable: true,
   widenable: true,
+  widen_to: ["workspace", "product"],
 });
 const WORKSPACE = digestItem({
   id: "0njy6aaaaa00000000000000",
@@ -123,6 +130,7 @@ const RECORDING = digestItem({
   keepable: false,
   droppable: true,
   widenable: true,
+  widen_to: ["workspace"],
   usage: {
     preferred: "recording",
     preferred_count: 11,

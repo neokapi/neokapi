@@ -547,3 +547,12 @@ func TestContextOperationsNeedAProject(t *testing.T) {
 	_, err := app.ContextOperations(t.Context(), ContextLogRequest{Project: filepath.Join(t.TempDir(), "kapi.yaml")})
 	assert.Error(t, err)
 }
+
+func TestContextWidenOptions(t *testing.T) {
+	assert.Equal(t, []string{WidenToWorkspace, "channel", "product"}, ContextWidenOptions(contextop.Scope{
+		Level:       contextop.LevelProject,
+		Coordinates: map[string]string{"product": "store", "channel": "web"},
+	}))
+	assert.Empty(t, ContextWidenOptions(contextop.Scope{Level: contextop.LevelWorkspace}),
+		"a rule answering workspace-wide has nowhere further to go")
+}

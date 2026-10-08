@@ -1,10 +1,12 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, fireEvent } from "./testUtils";
 
-import { ContextWidenDialog } from "../components/ContextWidenDialog";
+import { ContextWidenDialog, widenRuleOfEntry } from "../components/ContextWidenDialog";
 import { ContextResetDialog } from "../components/ContextResetDialog";
 import { IN_FORCE } from "../stories/fixtures/contextFeed";
 import type { ContextWidenPreview } from "../types/api";
+
+const RULE = widenRuleOfEntry(IN_FORCE);
 
 const TO_WORKSPACE: ContextWidenPreview = {
   to: "workspace",
@@ -41,7 +43,7 @@ describe("the widen preview", () => {
   it("names every project a workspace-wide rule would answer in", () => {
     render(
       <ContextWidenDialog
-        entry={IN_FORCE}
+        rule={RULE}
         to="workspace"
         onClose={vi.fn()}
         onConfirm={vi.fn()}
@@ -59,7 +61,7 @@ describe("the widen preview", () => {
   it("says plainly that it has not counted the content the rule touches", () => {
     render(
       <ContextWidenDialog
-        entry={IN_FORCE}
+        rule={RULE}
         to="workspace"
         onClose={vi.fn()}
         onConfirm={vi.fn()}
@@ -74,7 +76,7 @@ describe("the widen preview", () => {
   it("lists the recipe's points for a widening past one axis", () => {
     render(
       <ContextWidenDialog
-        entry={IN_FORCE}
+        rule={RULE}
         to="product"
         onClose={vi.fn()}
         onConfirm={vi.fn()}
@@ -91,7 +93,7 @@ describe("the widen preview", () => {
     const onConfirm = vi.fn();
     render(
       <ContextWidenDialog
-        entry={IN_FORCE}
+        rule={RULE}
         to="workspace"
         onClose={vi.fn()}
         onConfirm={onConfirm}
@@ -100,7 +102,7 @@ describe("the widen preview", () => {
     );
     expect(onConfirm).not.toHaveBeenCalled();
     fireEvent.click(document.querySelector("[data-slot='widen-confirm']") as HTMLElement);
-    expect(onConfirm).toHaveBeenCalledWith(IN_FORCE, "workspace");
+    expect(onConfirm).toHaveBeenCalledWith(RULE, "workspace");
   });
 });
 

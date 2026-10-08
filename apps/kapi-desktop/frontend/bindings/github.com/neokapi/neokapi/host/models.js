@@ -2346,6 +2346,15 @@ export class DigestItem {
         }
         if (/** @type {any} */(false)) {
             /**
+             * WidenTo are the widenings open to a widenable rule: "workspace", and
+             * each axis of its point (ContextWidenOptions).
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["widen_to"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * EstablishedAt and How say, for an established rule, when it came into
              * force and on what: "merged in #412", "your correction in billing.md",
              * "kept by you".
@@ -2375,7 +2384,8 @@ export class DigestItem {
         const $$createField6_0 = $$createType46;
         const $$createField9_0 = $$createType48;
         const $$createField10_0 = $$createType49;
-        const $$createField18_0 = $$createType17;
+        const $$createField17_0 = $$createType17;
+        const $$createField19_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("subject" in $$parsedSource) {
             $$parsedSource["subject"] = $$createField5_0($$parsedSource["subject"]);
@@ -2389,8 +2399,11 @@ export class DigestItem {
         if ("noticed_by" in $$parsedSource) {
             $$parsedSource["noticed_by"] = $$createField10_0($$parsedSource["noticed_by"]);
         }
+        if ("widen_to" in $$parsedSource) {
+            $$parsedSource["widen_to"] = $$createField17_0($$parsedSource["widen_to"]);
+        }
         if ("how" in $$parsedSource) {
-            $$parsedSource["how"] = $$createField18_0($$parsedSource["how"]);
+            $$parsedSource["how"] = $$createField19_0($$parsedSource["how"]);
         }
         return new DigestItem(/** @type {Partial<DigestItem>} */($$parsedSource));
     }

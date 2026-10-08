@@ -225,6 +225,22 @@ const WidenToWorkspace = "workspace"
 // force under every profile of its project.
 const WidenToProject = "project"
 
+// ContextWidenOptions are the widenings open to a rule at scope: the whole
+// workspace, and each axis its point is specific about. A rule already
+// answering workspace-wide has nowhere further to go.
+func ContextWidenOptions(scope contextop.Scope) []string {
+	out := []string{}
+	if scope.Level != contextop.LevelWorkspace {
+		out = append(out, WidenToWorkspace)
+	}
+	axes := make([]string, 0, len(scope.Coordinates))
+	for axis := range scope.Coordinates {
+		axes = append(axes, axis)
+	}
+	slices.Sort(axes)
+	return append(out, axes...)
+}
+
 // ContextLogSessionSelf is the value ContextLogRequest.Session takes for the
 // session this run records under. An agent that reached kapi from a shell
 // learns its session from the environment rather than from a flag, so this is

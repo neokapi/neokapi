@@ -13,6 +13,11 @@ import { api } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
 import { useInvalidateOnEvent } from "../hooks/useInvalidateOnEvent";
 import { ContextDigestView } from "./ContextDigest";
+import {
+  ContextWidenDialog,
+  widenRuleOfDigestItem,
+  type ContextWidenRule,
+} from "./ContextWidenDialog";
 import type { DigestItem } from "../types/api";
 
 /** The instant a person who never looked reads from. */
@@ -81,6 +86,14 @@ export function ContextDigestPanel({
     mutationFn: (item: DigestItem) => api.dropContextSuggestion({ project, id: item.id }),
     onSettled: refresh,
   });
+  // Applying a rule more widely is the activity feed's widening: the same
+  // preview, then the same backend call.
+  const [widening, setWidening] = useState<{ rule: ContextWidenRule; to: string } | null>(null);
+  const widen = useMutation({
+    mutationFn: ({ rule, to }: { rule: ContextWidenRule; to: string }) =>
+      api.widenContextRule({ project: rule.project_key, id: rule.id, widen_to: to }),
+    onSettled: refresh,
+  });
 
   const since = held && held !== NEVER ? held : undefined;
   return (
@@ -103,7 +116,16 @@ export function ContextDigestPanel({
         onDrop={async (item) => {
           await drop.mutateAsync(item);
         }}
+        onWiden={(item, to) => setWidening({ rule: widenRuleOfDigestItem(project, item), to })}
         onOpenFile={onOpenFile}
+      />
+      <ContextWidenDialog
+        rule={widening?.rule ?? null}
+        to={widening?.to ?? ""}
+        onClose={() => setWidening(null)}
+        onConfirm={async (rule, to) => {
+          await widen.mutateAsync({ rule, to });
+        }}
       />
     </div>
   );

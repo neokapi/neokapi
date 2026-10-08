@@ -20,7 +20,6 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 
@@ -839,25 +838,9 @@ func contextFeedEntry(r contextop.Record, projectName, recipe string) ContextFee
 	out.Droppable = out.Decidable
 	if r.Established && r.Kind.Bears() {
 		out.Droppable = true
-		out.WidenTo = widenOptions(r.Scope)
+		out.WidenTo = host.ContextWidenOptions(r.Scope)
 	}
 	return out
-}
-
-// widenOptions are the widenings open to a rule: the whole workspace, and each
-// axis its point is specific about. A rule already answering workspace-wide
-// has nowhere further to go.
-func widenOptions(scope contextop.Scope) []string {
-	out := []string{}
-	if scope.Level != contextop.LevelWorkspace {
-		out = append(out, host.WidenToWorkspace)
-	}
-	axes := make([]string, 0, len(scope.Coordinates))
-	for axis := range scope.Coordinates {
-		axes = append(axes, axis)
-	}
-	sort.Strings(axes)
-	return append(out, axes...)
 }
 
 // actorDTO renders an actor, splitting a "<client>@<host>" name so a reader

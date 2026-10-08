@@ -28,24 +28,59 @@ import {
 } from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
-import type { ContextFeedEntry, ContextWidenPreview } from "../types/api";
+import type { ContextFeedEntry, ContextWidenPreview, DigestItem } from "../types/api";
 
 /** The heading above each part of the preview. */
 const LABEL = "text-xs font-medium uppercase tracking-wider text-muted-foreground";
 
+/**
+ * A rule in force as the widen preview needs it. The activity feed and the
+ * rules view each hold the rule in their own shape, and both widen through
+ * the same backend call.
+ */
+export interface ContextWidenRule {
+  /** The project's workspace key. */
+  project_key: string;
+  id: string;
+  /** The term the rule is about, empty for a rule that names none. */
+  term: string;
+  /** How far the rule answers now, as the log prints it. */
+  scope: string;
+}
+
+/** The rule a feed entry holds. */
+export function widenRuleOfEntry(entry: ContextFeedEntry): ContextWidenRule {
+  return {
+    project_key: entry.project_key,
+    id: entry.id,
+    term: entry.subject.term ?? "",
+    scope: entry.scope.describe,
+  };
+}
+
+/** The rule a digest item holds, in the project the digest is about. */
+export function widenRuleOfDigestItem(project: string, item: DigestItem): ContextWidenRule {
+  return {
+    project_key: project,
+    id: item.id,
+    term: item.subject.term?.term ?? "",
+    scope: item.scope,
+  };
+}
+
 export interface ContextWidenDialogProps {
   /** The rule being widened, null when the dialog is closed. */
-  entry: ContextFeedEntry | null;
+  rule: ContextWidenRule | null;
   /** "workspace", or the axis the rule would stop being specific about. */
   to: string;
   onClose: () => void;
-  onConfirm: (entry: ContextFeedEntry, to: string) => Promise<void> | void;
+  onConfirm: (rule: ContextWidenRule, to: string) => Promise<void> | void;
   /** Pre-loaded reach for Storybook and tests, which reach no backend. */
   preview?: ContextWidenPreview;
 }
 
 export function ContextWidenDialog({
-  entry,
+  rule,
   to,
   onClose,
   onConfirm,
@@ -53,16 +88,16 @@ export function ContextWidenDialog({
 }: ContextWidenDialogProps) {
   const [widening, setWidening] = useState(false);
   const reachQuery = useQuery({
-    queryKey: qk.contextWidenReach(entry?.project_key ?? "", entry?.id ?? "", to),
-    queryFn: () => api.contextWidenReach(entry?.project_key ?? "", entry?.id ?? "", to),
-    enabled: !!entry && !!to && !preview,
+    queryKey: qk.contextWidenReach(rule?.project_key ?? "", rule?.id ?? "", to),
+    queryFn: () => api.contextWidenReach(rule?.project_key ?? "", rule?.id ?? "", to),
+    enabled: !!rule && !!to && !preview,
   });
-  if (!entry) return null;
+  if (!rule) return null;
   const reach = preview ?? reachQuery.data ?? null;
 
   const confirm = () => {
     setWidening(true);
-    void Promise.resolve(onConfirm(entry, to)).finally(() => {
+    void Promise.resolve(onConfirm(rule, to)).finally(() => {
       setWidening(false);
       onClose();
     });
@@ -75,11 +110,11 @@ export function ContextWidenDialog({
           <DialogTitle>
             {to === "workspace" ? (
               <>
-                Put <span translate="no">{entry.subject.term}</span> in force everywhere?
+                Put <span translate="no">{rule.term}</span> in force everywhere?
               </>
             ) : (
               <>
-                Stop <span translate="no">{entry.subject.term}</span> being specific about{" "}
+                Stop <span translate="no">{rule.term}</span> being specific about{" "}
                 <span translate="no">{to}</span>?
               </>
             )}
@@ -95,7 +130,7 @@ export function ContextWidenDialog({
           <div>
             <div className={LABEL}>Now</div>
             <div className="mt-1 font-mono text-xs" translate="no">
-              {entry.scope.describe}
+              {rule.scope}
             </div>
           </div>
           {reach && (

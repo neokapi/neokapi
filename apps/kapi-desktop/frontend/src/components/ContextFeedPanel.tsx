@@ -16,7 +16,7 @@ import { qk } from "../lib/queryKeys";
 import { useInvalidateOnEvent } from "../hooks/useInvalidateOnEvent";
 import { ContextFeedList, type ContextRuleEdit } from "./ContextFeed";
 import { ContextResetDialog } from "./ContextResetDialog";
-import { ContextWidenDialog } from "./ContextWidenDialog";
+import { ContextWidenDialog, widenRuleOfEntry, type ContextWidenRule } from "./ContextWidenDialog";
 import type {
   ContextFeed,
   ContextFeedEntry,
@@ -45,7 +45,7 @@ export function ContextFeedPanel({
   keyboard = true,
 }: ContextFeedPanelProps) {
   const qc = useQueryClient();
-  const [widening, setWidening] = useState<{ entry: ContextFeedEntry; to: string } | null>(null);
+  const [widening, setWidening] = useState<{ rule: ContextWidenRule; to: string } | null>(null);
   const [resetting, setResetting] = useState<ContextResetRequest | null>(null);
 
   const key = qk.contextFeed(projectKey ?? "");
@@ -88,8 +88,8 @@ export function ContextFeedPanel({
     onSettled: refresh,
   });
   const widen = useMutation({
-    mutationFn: ({ entry, to }: { entry: ContextFeedEntry; to: string }) =>
-      api.widenContextRule({ project: entry.project_key, id: entry.id, widen_to: to }),
+    mutationFn: ({ rule, to }: { rule: ContextWidenRule; to: string }) =>
+      api.widenContextRule({ project: rule.project_key, id: rule.id, widen_to: to }),
     onSettled: refresh,
   });
 
@@ -113,15 +113,15 @@ export function ContextFeedPanel({
         onResetSession={(group: ContextFeedGroup) =>
           setResetting({ project: group.project_key ?? "", before: group.session ?? "" })
         }
-        onWiden={(entry, to) => setWidening({ entry, to })}
+        onWiden={(entry, to) => setWidening({ rule: widenRuleOfEntry(entry), to })}
       />
 
       <ContextWidenDialog
-        entry={widening?.entry ?? null}
+        rule={widening?.rule ?? null}
         to={widening?.to ?? ""}
         onClose={() => setWidening(null)}
-        onConfirm={async (entry, to) => {
-          await widen.mutateAsync({ entry, to });
+        onConfirm={async (rule, to) => {
+          await widen.mutateAsync({ rule, to });
         }}
       />
       <ContextResetDialog
