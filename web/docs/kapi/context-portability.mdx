@@ -127,6 +127,13 @@ Context: 2 to push, 0 to pull (as of 2026-09-26 10:03).
 `kapi status`, `kapi context <path>` and the context an assistant reads end
 with the same `Context:` line, so you know when there is something to sync.
 
+Keeping a rule, or importing a voice or terms, also writes to the project's
+stores, and those writes travel with the context. When the count includes
+them, the line says how many of the operations `kapi context log` lists, as in
+`Context: 9 to push (2 in kapi context log, 7 store writes)`. Before the first
+sync nothing has been read from the shared copy, so the line says that what
+waits to pull is not known yet.
+
 A clone fetches branches and tags and leaves the context ref alone;
 `kapi context sync` fetches it. A pull request from a fork can read the shared
 context and cannot share back to it.

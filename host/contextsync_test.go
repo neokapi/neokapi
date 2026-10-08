@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -98,6 +99,7 @@ func TestContextTravelsThroughAGitRef(t *testing.T) {
 	status := appB.ContextSyncStatus(ctx, second)
 	require.NotNil(t, status)
 	assert.Equal(t, 1, status.ToPush)
+	assert.Equal(t, 1, status.ToPushLogged, "a suggestion is a context operation the log lists")
 	_, err = appB.PushProjectContext(ctx, recipeOf(second))
 	require.NoError(t, err)
 	back, err := appA.PullProjectContext(ctx, recipeOf(first))
@@ -223,4 +225,36 @@ func TestContextTravelsThroughARemoteTheCallerHolds(t *testing.T) {
 	require.NoError(t, err)
 	assert.Zero(t, again.Pull.Merged)
 	assert.Nil(t, again.Push, "a push that was not asked for does not run")
+}
+
+// TestSyncLine says what it counts: the push count names how much of it a
+// context log lists, and a backend never pulled from has no pull count yet.
+func TestSyncLine(t *testing.T) {
+	at := time.Date(2026, 9, 26, 10, 3, 0, 0, time.Local)
+	tests := []struct {
+		name string
+		st   workspace.SyncStatus
+		want string
+	}{
+		{
+			name: "never pulled",
+			st:   workspace.SyncStatus{ToPush: 3, ToPushLogged: 3},
+			want: "Context: 3 to push; what waits to pull is not known until the first pull (run `kapi context sync`).",
+		},
+		{
+			name: "store writes beside the logged operations",
+			st:   workspace.SyncStatus{ToPush: 9, ToPushLogged: 2, ToPull: 1, Contacted: at},
+			want: "Context: 9 to push (2 in `kapi context log`, 7 store writes), 1 to pull (as of 2026-09-26 10:03).",
+		},
+		{
+			name: "in step",
+			st:   workspace.SyncStatus{Contacted: at},
+			want: "Context: 0 to push, 0 to pull (as of 2026-09-26 10:03).",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, SyncLine(&tt.st))
+		})
+	}
 }

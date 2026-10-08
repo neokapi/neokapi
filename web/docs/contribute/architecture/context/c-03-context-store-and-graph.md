@@ -184,7 +184,9 @@ What the workspace knows about a remote is kept in `workspace.db`, keyed by the
 project and the remote: the operation ids the remote holds, the segments read
 and whether they are merged, and the last contact. That is what the sync line
 every context answer and `kapi status` carry is counted from (`N to push, M to
-pull`), without reaching the remote. A remote that cannot be reached is
+pull`), without reaching the remote. The push count splits off the context
+operations (`context.*` kinds, the ones a context log lists) from the store
+writes beside them, and a remote never contacted reports no pull count. A remote that cannot be reached is
 `ErrRemoteUnreachable`, and the CLI exits with status 5.
 
 A **transfer file** is the same layout in one `.kpz` (`kpz.KindContext`):

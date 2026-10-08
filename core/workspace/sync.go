@@ -115,6 +115,10 @@ type SyncStatus struct {
 	Remote RemoteDescriptor `json:"remote"`
 	// ToPush counts the project's operations the remote is not known to hold.
 	ToPush int `json:"to_push"`
+	// ToPushLogged counts the context operations among them, the ones `kapi
+	// context log` lists. The rest are the writes to the project's stores that
+	// keeping a rule or importing a voice or terms made.
+	ToPushLogged int `json:"to_push_logged"`
 	// ToPull counts the operations in segments read from the remote and not
 	// yet merged.
 	ToPull int `json:"to_pull"`
@@ -147,6 +151,8 @@ type PushReport struct {
 	SyncStatus
 	// Pushed counts the operations written.
 	Pushed int `json:"pushed"`
+	// PushedLogged counts the context operations among them (ToPushLogged).
+	PushedLogged int `json:"pushed_logged"`
 	// Segments counts the segment files written.
 	Segments int `json:"segments"`
 	// Blobs counts the blobs written.
@@ -236,7 +242,7 @@ func (s *Sync) Status(ctx context.Context) (SyncStatus, error) {
 	if err != nil {
 		return st, err
 	}
-	if st.ToPush, err = s.countToPush(ctx, db); err != nil {
+	if st.ToPush, st.ToPushLogged, err = s.countToPush(ctx, db); err != nil {
 		return st, err
 	}
 	if err := db.QueryRowContext(ctx,
@@ -272,20 +278,35 @@ func (s *Sync) localKindsClause() (string, []any) {
 // latest removal from the workspace (the ones before it built a context the
 // removal deleted), that the remote is not known to hold.
 
-func (s *Sync) countToPush(ctx context.Context, db *storage.DB) (int, error) {
+func (s *Sync) countToPush(ctx context.Context, db *storage.DB) (total, logged int, err error) {
 	removed, err := removalAt(ctx, db, s.key)
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 	clause, kindArgs := s.localKindsClause()
-	args := append([]any{string(s.key), removed}, kindArgs...)
+	args := append([]any{contextKindPattern, string(s.key), removed}, kindArgs...)
 	args = append(args, s.rid)
-	var n int
-	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM workspace_ops o WHERE o.project = ? AND o.seq > ?`+clause+`
-AND NOT EXISTS (SELECT 1 FROM workspace_sync_known k WHERE k.remote = ? AND k.id = o.id)`, args...).Scan(&n); err != nil {
-		return 0, fmt.Errorf("workspace: count operations to push: %w", err)
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*), COALESCE(SUM(CASE WHEN o.kind LIKE ? THEN 1 ELSE 0 END), 0)
+FROM workspace_ops o WHERE o.project = ? AND o.seq > ?`+clause+`
+AND NOT EXISTS (SELECT 1 FROM workspace_sync_known k WHERE k.remote = ? AND k.id = o.id)`, args...).Scan(&total, &logged); err != nil {
+		return 0, 0, fmt.Errorf("workspace: count operations to push: %w", err)
 	}
-	return n, nil
+	return total, logged, nil
+}
+
+// contextKindPattern matches the kinds of the context operations
+// (core/contextop.OpKindPrefix), the ones a context log lists.
+const contextKindPattern = "context.%"
+
+// countLogged counts the context operations among ops.
+func countLogged(ops []Op) int {
+	n := 0
+	for _, op := range ops {
+		if strings.HasPrefix(op.Kind, strings.TrimSuffix(contextKindPattern, "%")) {
+			n++
+		}
+	}
+	return n
 }
 
 func (s *Sync) opsToPush(ctx context.Context, db *storage.DB) ([]Op, error) {
@@ -895,7 +916,7 @@ VALUES (?, ?, 0, 1, ?) ON CONFLICT(remote, name) DO UPDATE SET applied = 1, pend
 		}
 		report.written = append(report.written, seg.Name)
 	}
-	report.Pushed, report.Segments = len(ops), len(segs)
+	report.Pushed, report.PushedLogged, report.Segments = len(ops), countLogged(ops), len(segs)
 	return nil
 }
 

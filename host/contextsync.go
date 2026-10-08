@@ -92,16 +92,32 @@ func SyncLine(st *workspace.SyncStatus) string {
 	if st == nil {
 		return ""
 	}
-	line := fmt.Sprintf("Context: %d to push, %d to pull", st.ToPush, st.ToPull)
+	line := fmt.Sprintf("Context: %d to push%s", st.ToPush, pushedSplit(st.ToPush, st.ToPushLogged))
+	if st.Contacted.IsZero() {
+		// Nothing has been read from the backend, so what waits there is not
+		// known: saying 0 would claim it is empty.
+		return line + "; what waits to pull is not known until the first pull (run `kapi context sync`)."
+	}
+	line += fmt.Sprintf(", %d to pull", st.ToPull)
 	switch {
-	case st.Contacted.IsZero():
-		line += " (never pulled; run `kapi context sync`)"
 	case st.Error != "":
 		line += fmt.Sprintf(" (the backend could not be reached at %s)", st.Contacted.Local().Format("2006-01-02 15:04"))
 	default:
 		line += fmt.Sprintf(" (as of %s)", st.Contacted.Local().Format("2006-01-02 15:04"))
 	}
 	return line + "."
+}
+
+// pushedSplit says how many of the operations a push counts `kapi context log`
+// lists, when not all of them: the rest are the writes to the project's stores
+// that keeping a rule or importing a voice or terms made, which travel with
+// the context and are not context operations of their own.
+func pushedSplit(total, logged int) string {
+	if total == 0 || logged == total {
+		return ""
+	}
+	return fmt.Sprintf(" (%d in `kapi context log`, %s)", logged,
+		pluralUnit(total-logged, "store write", "store writes"))
 }
 
 // recipeContextBackend reads the recipe's `context:` block and nothing else.
@@ -279,8 +295,9 @@ func (r ContextPush) FormatText(w io.Writer) error {
 	if r.Pushed == 0 {
 		fmt.Fprintf(w, "Nothing to push to %s.\n", describeRemote(r.Remote))
 	} else {
-		fmt.Fprintf(w, "Pushed %s to %s in %.1fs.\n",
-			pluralUnit(r.Pushed, "operation", "operations"), describeRemote(r.Remote), r.Seconds)
+		fmt.Fprintf(w, "Pushed %s%s to %s in %.1fs.\n",
+			pluralUnit(r.Pushed, "operation", "operations"), pushedSplit(r.Pushed, r.PushedLogged),
+			describeRemote(r.Remote), r.Seconds)
 	}
 	if r.Checkpoint != "" {
 		fmt.Fprintf(w, "Wrote a checkpoint through %s for a fast first pull.\n", workspace.ShortOpID(r.Checkpoint))
