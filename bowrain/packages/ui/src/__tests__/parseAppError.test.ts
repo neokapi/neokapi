@@ -260,7 +260,7 @@ describe("parseAppError", () => {
         '{"error":"insufficient permissions"}',
         '{"error":"no review permission for fr"}',
         '{"error":"no access to language: fr"}',
-        '{"error":"moving an established translation takes the review permission for fr"}',
+        '{"error":"moving an approved translation takes the review permission for fr"}',
         '{"error":"you may not translate fr: it takes the translate permission"}',
       ]) {
         const parsed = parseAppError(new Error(`403: ${body}`));

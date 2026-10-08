@@ -32,7 +32,7 @@ func TestStatusText_SaysApprovedForThePersonRung(t *testing.T) {
 	}}}
 	var grid strings.Builder
 	out.writeCoverageGrid(&grid)
-	header := strings.SplitN(grid.String(), "\n", 2)[0]
+	header, _, _ := strings.Cut(grid.String(), "\n")
 	assert.Contains(t, header, "approved")
 	assert.NotContains(t, grid.String(), "established")
 	assert.Equal(t, "approved", shipCell(out.Locales[0], output.NewTable(&grid).Styles()))
