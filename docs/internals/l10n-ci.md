@@ -213,6 +213,11 @@ re-derives a list:
 
 The gate and the delivery step read the union because a convergence run may
 legitimately have written either tier, and anything else it touched is foreign.
+
+The loop-owned set includes every `AGENTS.md` and `CLAUDE.md`. kapi rewrites the
+`kapi:rules` section of each from the project's context at the end of `kapi up`
+and `kapi context sync`, so a decision the run brings home changes those files
+with no source change behind it.
 The byte gate reads only the first, because only the first is reproducible.
 
 ## In CI
