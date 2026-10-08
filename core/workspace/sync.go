@@ -27,8 +27,7 @@ import (
 //
 // Only one project's operations travel: a remote belongs to one project. The
 // kinds named in SyncOptions.LocalKinds stay on the machine that recorded
-// them: the project's registration, its checkpoints, and rules a person
-// widened to the whole workspace.
+// them: the project's registration and its checkpoints.
 
 // syncMigrationsTable is the sync state's own migration ledger inside
 // `workspace.db`.

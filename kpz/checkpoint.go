@@ -6,7 +6,8 @@ package kpz
 // table of rows exactly as the store holds them, plus the rules the project
 // widened to the workspace. core/projector writes one and reads it back, so a
 // rebuild loads the latest checkpoint and replays only the operations after
-// it.
+// it, and a first pull from a remote starts from one with the widened rules
+// in place.
 //
 // The rows travel as the store holds them rather than as the authored bundles
 // a context package carries, because a rebuild has to land on the rows the

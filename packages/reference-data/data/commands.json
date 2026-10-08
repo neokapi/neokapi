@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-06T20:57:51Z",
+  "generatedAt": "2026-10-08T13:42:25Z",
   "commands": [
     {
       "id": "add",
@@ -656,7 +656,7 @@
       ],
       "use": "correct \u003cfrom\u003e \u003cto\u003e",
       "short": "Record that wording was changed at a place",
-      "long": "Record that somebody changed wording: what was there, what replaced\nit, and where.\n\nA correction is evidence about how this project writes, and the cheapest there\nis, because the judgement has already been made. On its own it records the\nchange and nothing else.\n\nWith --suggest it also records the rule the change implies, so the next use of\nthe old wording is reported. That rule is a suggestion: checks report it and\nnone of them fails on it until a person keeps it.\n\nA person's correction that reverses an established rule contests the rule: it\nreports instead of failing until a person keeps it again or drops the\ncorrection, so your own edit never fails your build.",
+      "long": "Record that somebody changed wording: what was there, what replaced\nit, and where.\n\nA correction is evidence about how this project writes, and the cheapest there\nis, because the judgement has already been made. On its own it records the\nchange. A person's correction toward a rule somebody already suggested is that\nperson's backing for it, so the rule is established, and fails a check, unless\nsomething recorded argues against it.\n\nWith --suggest it also records the rule the change implies, so the next use of\nthe old wording is reported. That rule is a suggestion: checks report it and\nnone of them fails on it until a person keeps it.\n\nA person's correction that reverses an established rule contests the rule: it\nreports instead of failing until a person keeps it again or drops the\ncorrection, so your own edit never fails your build.",
       "flags": [
         {
           "name": "advisory",
@@ -777,7 +777,7 @@
       ],
       "use": "export",
       "short": "Write this project's context and its history to one file",
-      "long": "Write this project's context to one file: every suggestion, decision,\nterm, voice profile and approved wording, with the history that produced them,\nand a checkpoint so reading it back is fast.\n\nIt is the backup, and the way to carry a project's context to a machine that\ncannot reach its context backend. \"kapi context import \u003cfile\u003e.kpz\" merges it\nthe way \"kapi context pull\" merges a backend, so reading one file twice, or\ninto a machine that already holds part of it, changes nothing more.\n\nWithheld originals are never in it, and neither are the rules you widened to\nevery project: both stay on this machine.",
+      "long": "Write this project's context to one file: every suggestion, decision,\nterm, voice profile and approved wording, with the history that produced them,\nand a checkpoint so reading it back is fast.\n\nIt is the backup, and the way to carry a project's context to a machine that\ncannot reach its context backend. \"kapi context import \u003cfile\u003e.kpz\" merges it\nthe way \"kapi context pull\" merges a backend, so reading one file twice, or\ninto a machine that already holds part of it, changes nothing more.\n\nWithheld originals are never in it: they stay on this machine. The rules you\nwidened to every project are in it, and hold on the machine that reads it.",
       "flags": [
         {
           "name": "output",
@@ -1063,7 +1063,7 @@
       ],
       "use": "push",
       "short": "Share the context recorded on this machine",
-      "long": "Write what this machine recorded in the project's context to the context\nbackend, where every other machine's next pull reads it.\n\nA push adds files and never changes one another machine wrote, so two machines\npushing at once both succeed. When the backend has gained many operations since\nits last checkpoint, the push adds one, so a new machine's first pull starts\nfrom it rather than replaying everything.\n\nWithheld originals and the rules you widened to every project stay on this\nmachine.\n\nIt exits with status 5 when the backend cannot be reached; the operations stay\nqueued for the next push.",
+      "long": "Write what this machine recorded in the project's context to the context\nbackend, where every other machine's next pull reads it.\n\nA push adds files and never changes one another machine wrote, so two machines\npushing at once both succeed. When the backend has gained many operations since\nits last checkpoint, the push adds one, so a new machine's first pull starts\nfrom it rather than replaying everything.\n\nWithheld originals stay on this machine. The rules you widened to every\nproject travel with the project, and hold on every machine that pulls it.\n\nIt exits with status 5 when the backend cannot be reached; the operations stay\nqueued for the next push.",
       "flags": [
         {
           "name": "project",

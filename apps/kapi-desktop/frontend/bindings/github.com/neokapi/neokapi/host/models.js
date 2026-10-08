@@ -1441,6 +1441,25 @@ export class ContextTermHit {
              */
             this["top_uses"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Scope is "workspace" for a rule a person widened to every project of the
+             * workspace, which lives in the workspace's rule store rather than in this
+             * project's terms. Empty for a term the project's own store holds.
+             * @member
+             * @type {string | undefined}
+             */
+            this["scope"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Operation is the context operation a widened rule came from, which is
+             * what `kapi context log` and `kapi context revert` name it by.
+             * @member
+             * @type {string | undefined}
+             */
+            this["operation"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }

@@ -14,7 +14,8 @@ import (
 //
 //   - a person's correction that reverses an established rule, recorded after
 //     the rule was last established: the rule is contested by the correction,
-//     so it reports instead of failing the person's own edit;
+//     so it reports instead of failing the person's own edit, and the
+//     correction by the rule, so neither is kept until a person chooses;
 //   - a suggestion that disagrees with an established rule: the suggestion is
 //     contested by the rule, and the rule stays in force;
 //   - two suggestions that disagree: both are contested, each naming the other.
@@ -43,7 +44,11 @@ func contest(records []Record, establishedAt []int64) {
 			}
 			cs := rule.MatchesCase()
 			if formKey(corr.Correction.From, cs) == formKey(rule.Replacement, cs) && slices.Contains(avoided(rule, cs), formKey(corr.Correction.To, cs)) {
+				// Both sides wait for a person: the rule reports instead of
+				// failing, and the correction cannot be kept until somebody
+				// chooses it over the rule.
 				markContested(&records[e], corr.ID)
+				markContested(&records[c], rec.ID)
 			}
 		}
 	}

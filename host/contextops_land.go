@@ -8,6 +8,7 @@ import (
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projector"
 )
 
@@ -25,6 +26,18 @@ import (
 // the workspace's rule store instead, and the project copy is taken back out:
 // one rule, one home.
 func (s *contextOpsSession) land(ctx context.Context, r contextop.Record) (string, error) {
+	return s.landAt(ctx, r, false)
+}
+
+// landWidened writes a rule a person just widened. Its concept was scoped to
+// the narrower point the rule held at, so the concept moves with it.
+func (s *contextOpsSession) landWidened(ctx context.Context, r contextop.Record) (string, error) {
+	return s.landAt(ctx, r, true)
+}
+
+// landAt writes an established rule, moving the concept it joins to the
+// rule's scope when rescope is set.
+func (s *contextOpsSession) landAt(ctx context.Context, r contextop.Record, rescope bool) (string, error) {
 	if r.Scope.Level == contextop.LevelWorkspace {
 		if _, err := s.retractFromProject(ctx, r); err != nil {
 			return "", err
@@ -40,6 +53,7 @@ func (s *contextOpsSession) land(ctx context.Context, r contextop.Record) (strin
 	}
 	landed := ""
 	for _, entry := range s.assetEntries(r) {
+		entry.Rescope = rescope
 		res := s.app.applyAssetEntry(ctx, s.cmd, entry)
 		if res.Status == "error" {
 			return "", fmt.Errorf("keep %s: %s", contextop.ShortID(r.ID), res.Detail)
@@ -199,11 +213,9 @@ func (s *contextOpsSession) retractFromProject(ctx context.Context, r contextop.
 // when the rule avoids nothing.
 func (s *contextOpsSession) assetEntries(r contextop.Record) []changeEntry {
 	// A rule holds at the point its evidence was seen: a profile's point when
-	// a profile governed there. Widening past it is a person's act.
-	profile := r.Basis.Profile
-	if r.Scope.Level == contextop.LevelWorkspace || r.Scope.AllProfiles {
-		profile = ""
-	}
+	// a profile governed there, at the coordinates of the file it was seen in.
+	// Widening past it is a person's act.
+	profile, coordinates := landingScope(r)
 	switch {
 	case r.Subject.Kind == contextop.SubjectTerm && r.Subject.Term != nil:
 		rule := *r.Subject.Term
@@ -216,6 +228,7 @@ func (s *contextOpsSession) assetEntries(r contextop.Record) []changeEntry {
 				Status:      string(model.TermPreferred),
 				Profile:     profile,
 				AllProfiles: r.Scope.AllProfiles,
+				Coordinates: coordinates,
 			}}
 		}
 		forms := storedForms(rule)
@@ -232,6 +245,7 @@ func (s *contextOpsSession) assetEntries(r contextop.Record) []changeEntry {
 				Competitor:  rule.Competitor,
 				Profile:     profile,
 				AllProfiles: r.Scope.AllProfiles,
+				Coordinates: coordinates,
 			})
 		}
 		return out
@@ -247,6 +261,24 @@ func (s *contextOpsSession) assetEntries(r contextop.Record) []changeEntry {
 		}}
 	}
 	return nil
+}
+
+// landingScope is the profile and the coordinates an established rule's
+// concept is scoped to in the project's terms store.
+//
+// A rule kept where it was seen holds at that profile and those coordinates.
+// Widening past an axis drops it from the coordinates, and widening past the
+// product axis, which is the profile's own, drops the profile too. A rule a
+// person widened to the project or the workspace holds across the project.
+func landingScope(r contextop.Record) (string, map[string]string) {
+	if r.Scope.Level == contextop.LevelWorkspace || r.Scope.AllProfiles {
+		return "", nil
+	}
+	profile := r.Basis.Profile
+	if _, ok := r.Scope.Coordinates[project.ProductAxis]; !ok {
+		profile = ""
+	}
+	return profile, r.Scope.Coordinates
 }
 
 // storedForms lists the forms of a term rule the terms store can hold. The

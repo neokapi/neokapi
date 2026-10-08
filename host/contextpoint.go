@@ -245,6 +245,11 @@ type ContextPointSources struct {
 	// materials missing, while this leaves no point, and the only answer
 	// available without one is a different location's.
 	PathErr error
+	// RecipeErr is set when the project's recipe could not be read. It is not
+	// degraded to a note either: with no recipe there is no point, and an
+	// answer saying nothing is recorded here would hide every rule the
+	// project holds from the caller writing the file.
+	RecipeErr error
 	// Collection is the content collection claiming Path, empty when none does.
 	Collection string
 	// Voice is the profile in force at the point, already composed with the
@@ -359,7 +364,7 @@ func (a *App) ContextSourcesAt(cmd Command, req ContextPointRequest) (ContextPoi
 	proj, lerr := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if lerr != nil {
 		src.Path = req.Path
-		src.Notes = append(src.Notes, "this project's recipe could not be read, so no point could be resolved: "+lerr.Error())
+		src.RecipeErr = fmt.Errorf("this project's recipe could not be read, so no point could be resolved: %w", lerr)
 		return src, noop
 	}
 	src.Recipe = proj
@@ -581,6 +586,9 @@ func ResolveContextAt(_ context.Context, src ContextPointSources, req ContextPoi
 	// Falling through to the project's default point would hand back another
 	// location's voice, terms and guidance in the wording a resolved point gets,
 	// and the caller has nothing in the answer to tell the two apart.
+	if src.RecipeErr != nil {
+		return nil, src.RecipeErr
+	}
 	if src.PathErr != nil {
 		return nil, src.PathErr
 	}

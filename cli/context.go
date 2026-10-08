@@ -236,8 +236,8 @@ cannot reach its context backend. "kapi context import <file>.kpz" merges it
 the way "kapi context pull" merges a backend, so reading one file twice, or
 into a machine that already holds part of it, changes nothing more.
 
-Withheld originals are never in it, and neither are the rules you widened to
-every project: both stay on this machine.`,
+Withheld originals are never in it: they stay on this machine. The rules you
+widened to every project are in it, and hold on the machine that reads it.`,
 		Example: "  kapi context export -o context.kpz\n" +
 			"  kapi context export -o backups/acme-context.kpz --json",
 		Args: cobra.NoArgs,

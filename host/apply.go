@@ -60,6 +60,14 @@ type changeEntry struct {
 	// holds across the project. Only a rule a person widened to the project
 	// sets it.
 	AllProfiles bool
+	// Coordinates scope a new term's concept to the point a rule's evidence
+	// was seen at (terms.PropCoordinates), beside its profile. Only a kept or
+	// settled rule sets them.
+	Coordinates map[string]string
+	// Rescope moves the concept a term joins to Profile and Coordinates, for a
+	// rule a person widened: its concept was scoped to the narrower point the
+	// rule held at, and now holds where the rule does.
+	Rescope bool
 	// Advisory, for a discouraged term, makes a use of it report without
 	// failing a check.
 	Advisory bool

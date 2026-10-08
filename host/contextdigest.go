@@ -258,6 +258,9 @@ func (a *App) ContextDigest(ctx context.Context, req ContextDigestRequest) (Cont
 	if proj != nil && len(proj.Collections) > 0 {
 		collectionFor = proj.CollectionForPath
 	}
+	if reader, rerr := a.commandActor(); rerr == nil {
+		records = seenBy(records, reader.Actor)
+	}
 	out := buildDigest(records, key, since, a.GovernanceInstant(), collectionFor)
 	if reg, ok, lerr := ws.Lookup(ctx, key); lerr == nil && ok {
 		out.ProjectName = workspaceRegistrationName(reg)
@@ -515,6 +518,10 @@ func digestItem(r contextop.Record, collectionFor func(string) string) DigestIte
 		At:        r.At,
 		Scope:     r.Scope.Describe(),
 	}
+	if it.Sentence == "" && r.Correction != nil {
+		// A correction that states no rule of its own is the change itself.
+		it.Sentence = fmt.Sprintf("Changed %q to %q.", r.Correction.From, r.Correction.To)
+	}
 	for i := range r.Evidence {
 		e := r.Evidence[i]
 		if it.Quote == nil || (it.Quote.Quote == "" && e.Quote != "") {
@@ -768,6 +775,24 @@ func becauseLines(because []string, byID map[string]contextop.Record) []string {
 		case ev.Kind == contextop.KindKeep:
 			out = append(out, "kept by "+actorPhrase(ev.Actor, false))
 		}
+	}
+	return out
+}
+
+// seenBy returns the records as the person reading the digest sees them: what
+// they did themselves carries no name, so it reads as "you", and what a
+// teammate did carries the teammate's. The records are copied, never changed in
+// place.
+func seenBy(records []contextop.Record, reader contextop.Actor) []contextop.Record {
+	if reader.Kind != contextop.ActorPerson || reader.Name == "" {
+		return records
+	}
+	out := make([]contextop.Record, len(records))
+	for i, r := range records {
+		if r.Actor.Kind == contextop.ActorPerson && r.Actor.Name == reader.Name {
+			r.Actor.Name = ""
+		}
+		out[i] = r
 	}
 	return out
 }

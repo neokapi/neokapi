@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-06T20:57:51Z",
+  "generatedAt": "2026-10-08T13:42:25Z",
   "commands": [
     {
       "id": "add",
@@ -1063,7 +1063,7 @@
       ],
       "use": "push",
       "short": "Share the context recorded on this machine",
-      "long": "Write what this machine recorded in the project's context to the context\nbackend, where every other machine's next pull reads it.\n\nA push adds files and never changes one another machine wrote, so two machines\npushing at once both succeed. When the backend has gained many operations since\nits last checkpoint, the push adds one, so a new machine's first pull starts\nfrom it rather than replaying everything.\n\nWithheld originals and the rules you widened to every project stay on this\nmachine.\n\nIt exits with status 5 when the backend cannot be reached; the operations stay\nqueued for the next push.",
+      "long": "Write what this machine recorded in the project's context to the context\nbackend, where every other machine's next pull reads it.\n\nA push adds files and never changes one another machine wrote, so two machines\npushing at once both succeed. When the backend has gained many operations since\nits last checkpoint, the push adds one, so a new machine's first pull starts\nfrom it rather than replaying everything.\n\nWithheld originals stay on this machine. The rules you widened to every\nproject travel with the project, and hold on every machine that pulls it.\n\nIt exits with status 5 when the backend cannot be reached; the operations stay\nqueued for the next push.",
       "flags": [
         {
           "name": "project",

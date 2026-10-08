@@ -2109,10 +2109,22 @@ func (a *App) ResolveTermsStore(cmd Command, point project.GovernancePoint) (Sto
 	if err != nil {
 		return StoreSelection{}, err
 	}
+	coordinates := pointCoordinates(proj, rc, point)
 	if bound != "" {
-		return StoreSelection{Path: bound, Profile: rc.Profile}, nil
+		return StoreSelection{Path: bound, Profile: rc.Profile, Coordinates: coordinates}, nil
 	}
-	return StoreSelection{Root: root, Profile: rc.Profile}, nil
+	return StoreSelection{Root: root, Profile: rc.Profile, Coordinates: coordinates}, nil
+}
+
+// pointCoordinates are the coordinates of a point: the project's defaults,
+// what the profile and channel governing there derive, and what the collection
+// holding the point declares.
+func pointCoordinates(proj *project.KapiProject, rc *project.ResolvedGovernance, point project.GovernancePoint) map[string]string {
+	collection := point.Collection
+	if point.Path != "" {
+		collection = proj.CollectionForPath(point.Path)
+	}
+	return project.MergeCoordinates(proj.Defaults.Coordinates, rc.Ref().Coordinates(), collectionCoordinates(proj, collection))
 }
 
 // requireNamedTermsStore refuses a terms store the caller named with
@@ -2220,15 +2232,17 @@ func (a *App) resolveTermRules(cmd Command, source, targetLang string, point pro
 // terms answer.
 //
 // point scopes the resolution to the terms binding governing there, and to the
-// concepts that hold at the profile governing there: a concept scoped to one
-// profile (terms.PropProfile) holds only where that profile governs. The zero
-// point is the project-wide answer, which lists every concept.
+// concepts that hold at that point: a concept scoped to one profile
+// (terms.PropProfile) holds only where that profile governs, and one scoped to
+// coordinates (terms.PropCoordinates) only where the point sits at them, so a
+// rule kept from the app's strings says nothing about the docs. The zero point
+// is the project-wide answer, which lists every concept.
 func (a *App) projectConcepts(cmd Command, point project.GovernancePoint) ([]sqlterms.Concept, error) {
-	concepts, profile, err := a.storeConcepts(cmd, point)
+	concepts, sel, err := a.storeConcepts(cmd, point)
 	if err != nil || zeroPoint(point) {
 		return concepts, err
 	}
-	return sqlterms.AtProfile(concepts, profile), nil
+	return sqlterms.AtPoint(concepts, sel.Profile, sel.Coordinates), nil
 }
 
 // zeroPoint reports the point that names no location, which asks for the
@@ -2238,48 +2252,48 @@ func zeroPoint(point project.GovernancePoint) bool {
 }
 
 // storeConcepts reads every concept in the terms store governing a point, with
-// the profile governing there.
-func (a *App) storeConcepts(cmd Command, point project.GovernancePoint) ([]sqlterms.Concept, string, error) {
+// the selection that names the profile and the coordinates there.
+func (a *App) storeConcepts(cmd Command, point project.GovernancePoint) ([]sqlterms.Concept, StoreSelection, error) {
 	sel, err := a.ResolveTermsStore(cmd, point)
 	if err != nil {
-		return nil, "", err
+		return nil, StoreSelection{}, err
 	}
 	ctx := CmdContext(cmd)
 	if sel.InProject() {
 		db, err := a.ProjectDB(ctx, sel.Root)
 		if errors.Is(err, errNoProjectStore) {
-			return nil, "", nil
+			return nil, sel, nil
 		}
 		if err != nil {
-			return nil, "", err
+			return nil, sel, err
 		}
 		if db.Terms() == nil {
-			return nil, "", nil
+			return nil, sel, nil
 		}
 		concepts, err := db.Terms().Concepts(ctx)
 		if err != nil {
-			return nil, "", fmt.Errorf("list terms concepts: %w", err)
+			return nil, sel, fmt.Errorf("list terms concepts: %w", err)
 		}
-		return concepts, sel.Profile, nil
+		return concepts, sel, nil
 	}
 	if err := requireNamedTermsStore(cmd, sel); err != nil {
-		return nil, "", err
+		return nil, sel, err
 	}
 	if sel.Path != "" {
 		if held, _ := storage.Exists(sel.Path); held {
 			tb, err := sqlterms.NewSQLiteStore(sel.Path)
 			if err != nil {
-				return nil, "", fmt.Errorf("open terms %q: %w", sel.Path, err)
+				return nil, sel, fmt.Errorf("open terms %q: %w", sel.Path, err)
 			}
 			defer tb.Close()
 			concepts, err := tb.Concepts(ctx)
 			if err != nil {
-				return nil, "", fmt.Errorf("list terms concepts: %w", err)
+				return nil, sel, fmt.Errorf("list terms concepts: %w", err)
 			}
-			return concepts, sel.Profile, nil
+			return concepts, sel, nil
 		}
 	}
-	return nil, "", nil
+	return nil, sel, nil
 }
 
 // runProjectStepsOver runs a project flow's steps over an explicit input set.
