@@ -132,8 +132,8 @@ subsequent operations to each subject:
 `kapi context note --term Quickcast --instead-of "Quick cast"` records the
 form the project uses and a form it avoids. `contextop.AvoidedForms` derives
 the rest deterministically, with no model: the `--instead-of` forms, then the
-spacing, hyphen and case variants of a compound. The rule above avoids
-`Quick cast`, `Quick-cast`, `QuickCast` and `quickcast`.
+spacing, hyphen and capitalisation variants of a compound. The rule above
+avoids `Quick cast`, `Quick-cast` and `QuickCast`.
 
 A compound's parts come from the term's own spaces, hyphens and case changes,
 or, for a closed word such as `Quickcast`, from an `--instead-of` form that

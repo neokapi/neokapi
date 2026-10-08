@@ -79,7 +79,7 @@ narration:
       Then the review queue, filtered to French. A second call opens one unit
       and returns what the decision is made in: the point governing the file,
       the voice in force there, the neighbouring blocks, and the version
-      established last time, when there is one.
+      approved last time, when there is one.
 
   - id: approve
     kind: terminal

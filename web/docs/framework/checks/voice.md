@@ -212,10 +212,11 @@ AI agents reach voice checking through the `kapi mcp` server:
 
 Agents can score content for voice compliance with the `voice_check` MCP tool
 and rewrite off-voice copy with `voice_rewrite`, which lists under `skipped`
-the terms it matched and could not replace. The guide itself is read
-rather than called: `kapi context <path>` prints it for one file, with the
-terms that apply there, and the `context://<path>` resource returns the same
-answer.
+the terms it matched and could not replace. An agent reads the voice itself
+from the section kapi writes into the project's `AGENTS.md` and `CLAUDE.md`.
+For the full voice of one file, `kapi context <path>` prints it with the terms
+that apply there, and the `context_read` tool and the `context://<path>`
+resource return the same answer.
 Server deployments can expose an HTTP MCP endpoint so agents consume profiles
 and scoring without a local CLI process.
 

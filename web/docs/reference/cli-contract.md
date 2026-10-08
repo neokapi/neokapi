@@ -319,7 +319,8 @@ None of them takes an actor. The kind is `agent`, the name is the client's own
 argument naming an actor or a session is refused by the schema. Evidence is
 required where a rule is stated: `context_note` refuses a term rule, or a
 change from one wording to another, with no `path`. A recorded operation is a suggestion, so a check reports it with
-`"fails": false` and `"suggested": true`. The record carries
+`"fails": false` and `"suggested": true`, and it holds only at the part of the
+project its `path` belongs to until a person widens it. The record carries
 `contested_by` when it disagrees with another rule.
 
 The MCP tool set excludes keeping, dropping, widening, resetting and syncing.

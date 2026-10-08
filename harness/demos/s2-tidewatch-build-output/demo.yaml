@@ -32,7 +32,7 @@ script:
   - command: ls docs
   - comment: The i18n tree is not in git. It is written by the loop from the source and the committed context, so a clone regenerates it and no diff ever carries a generated translation.
   - command: cat .gitignore
-  - comment: One verb. Established wording is recycled; only the remainder reaches a provider.
+  - comment: One verb. Approved wording is recycled; only the remainder reaches a provider.
   - command: kapi up
   - comment: Norwegian ships on translated work. Dutch parks, because nothing in it has been read by a person.
   - command: kapi status

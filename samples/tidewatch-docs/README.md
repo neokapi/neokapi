@@ -27,7 +27,7 @@ samples/tidewatch-docs/
 ├── context/                  # read in with `kapi store import ./context`
 │   ├── voice.yaml            # the Northsea voice, cut to the docs channel
 │   ├── terms.json            # the vocabulary this sample ships
-│   ├── memory/               # established Norwegian wording, the recycle corpus
+│   ├── memory/               # approved Norwegian wording, the recycle corpus
 │   └── state/                # the review record
 ├── .kapi/
 │   └── .gitignore            # work/ is derived; the rest of .kapi/ is config
@@ -47,7 +47,7 @@ the point of having both:
 | --- | --- | --- |
 | The target | `site/locales/<lang>.json`, **committed** | `i18n/<lang>/…`, **gitignored** |
 | Why | the app's catalogs are the record a reviewer diffs | a Docusaurus i18n tree is build output, regenerated from the source plus the project's context |
-| The reviewable record is | the catalogs, plus the decisions | the established wording, plus the decisions |
+| The reviewable record is | the catalogs, plus the decisions | the approved wording, plus the decisions |
 
 Both are real conventions. This repository's own docs collections are arranged
 the second way. What matters is that generated translations never arrive in a

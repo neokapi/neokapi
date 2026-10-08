@@ -20,6 +20,8 @@ team.
 | `kapi context sync` | take in what the rest of the team recorded, and share what you recorded |
 | `kapi context sync --no-push` | take in what the rest of the team recorded and share nothing, as a check or a fresh checkout does |
 | `kapi context sync --status` | see where the context is shared and whether there is anything to sync |
+| `kapi context sync --merged <range>` | in CI after a merge: take in what others shared, count what the merge wrote as a person's backing, and share the result |
+| `kapi context sync --files-only` | rewrite the project's rules files (`AGENTS.md`, `CLAUDE.md`) from the context on this machine, and nothing else |
 | `kapi store export -o <file>.kpz` | back the context up, or carry it to a machine that cannot reach the shared copy |
 | `kapi store import <file>.kpz` | merge such a file, the way a sync does |
 | `kapi store import [dir]` | read terms, voice profiles and approvals kept as files into the project |
@@ -111,7 +113,9 @@ Context: 0 to push, 0 to pull (as of 2026-09-26 10:03).
 ```
 
 A sync first reads what others shared and merges it here, then shares what
-this machine recorded. Running it twice changes nothing. Each machine only
+this machine recorded, and then rewrites the project's
+[rules files](/kapi/context#rules-files) so the next agent session reads what
+the team decided. Running it twice changes nothing. Each machine only
 adds files of its own to the shared copy, so two people syncing at once both
 succeed.
 

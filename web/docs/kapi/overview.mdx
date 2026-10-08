@@ -52,9 +52,10 @@ the others:
 
 - **Kapi CLI**: a single binary that operates directly on files. Best for
   automation, scripting, and CI.
-- **Your AI agent**: the agent skill and the MCP server are how the context
-  reaches whichever AI you already use: Claude, or any skill/MCP-capable tool,
-  driving kapi by plain language inside its guardrails. See
+- **Your AI agent**: kapi writes the project's rules into `AGENTS.md` and
+  `CLAUDE.md`, which the agent loads as it starts, and the agent skill and the
+  MCP server let whichever AI you already use (Claude, or any skill/MCP-capable
+  tool) drive kapi by plain language inside its guardrails. See
   [Use with Claude](/kapi/get-started/use-with-claude).
 - **Kapi Desktop**: a visual app where a person reads and edits the project's
   context (voice, terms, memory, coordinates), sees where it stands, and works

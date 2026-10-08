@@ -42,6 +42,13 @@ person reviewed *this exact translation* and let it stand is something someone
 did, and it has to be stored somewhere. There is one such rung, and the
 ladder has no second human rung above it.
 
+The stored value of that rung is `established`, in the state store, on the
+wire, in JSON and in the recipe's gate keys. User surfaces show it as
+**approved** (`model.StatusLabel`, `venue.ReasonLabel`, and `statusWord` in
+`@neokapi/ui-primitives` map the value to the word at display), because
+*established* also names a rule in force ([C-11](c-11-context-operations.md)),
+and a person reads the two differently.
+
 The source ladder is not merely reported: it gates the loop symmetrically with
 the target ladder. Just as a target below its ship gate cannot ship, source below
 the project's `defaults.translate_after` level (`model.DefaultTranslateAfter`,

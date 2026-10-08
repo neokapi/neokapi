@@ -41,7 +41,7 @@ script:
   - comment: Each approval is in the record as it is made, attributable, and reviewable in the context log.
   - comment: A decision unparks the language, so run the loop again. The drafts it already made are recycled, so the provider is asked for nothing a second time.
   - command: kapi up
-  - comment: Dutch is offered now, in the translated state, because not every string in it is established.
+  - comment: Dutch is offered now, in the translated state, because not every string in it is approved.
   - command: kapi status --ship --emit site/ship.json
   - command: cat site/ship.json
   - comment: Establish the rest of Norwegian, and the same file says so.
@@ -96,11 +96,11 @@ narration:
     kind: terminal
     through: 19
     highlight: { text: [nl, nb] }
-    caption: Dutch offered as translated. Norwegian is established.
+    caption: Dutch offered as translated. Norwegian is approved.
     text: >-
       Dutch is offered now, in the translated state, because not every string
-      in it is established. Establish the rest of Norwegian and the same file
-      moves it to established. Three languages, two states, and none of them
+      in it is approved. Approve the rest of Norwegian and the same file
+      offers it as approved. Three languages, two states, and none of them
       configured by hand.
 
   - id: picker

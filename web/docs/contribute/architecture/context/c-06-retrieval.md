@@ -15,7 +15,7 @@ identically on the CLI and over MCP**:
 
 | Shape | Question | CLI | MCP |
 | --- | --- | --- | --- |
-| **By location** | *what applies here?* | `kapi context <path>` | `context://<path>` resource |
+| **By location** | *what applies here?* | `kapi context <path>` | `context_read` tool, or the `context://<path>` resource |
 | **By content** | *what do we know about this?* | `kapi context search <query>` | `context_search` tool |
 
 Every asset-shaped lookup folds into one of the two. There is no retrieval
@@ -170,7 +170,13 @@ writes:
   differs from the root's: the rules the root does not state, its voice when it
   is not the root's, the **Keep as it is** lines (a root rule that does not hold
   there, and every rule held elsewhere), and the `kapi check` line. A folder
-  holding files at several points gets a heading per pattern.
+  holding files at several points gets a heading per pattern. A folder whose
+  section would repeat the nearest folder above it with rules of its own gets
+  no file, because an agent loads the files of every folder above the one it
+  works in.
+
+A list that holds a translation's rules beside the source's names each rule's
+language (`[nb]`), so an agent writing the source applies only the source's.
 
 Each list is capped (the rules that rule a wording out first) with the command
 that lists the rest, so a file stays short enough to load on every session.

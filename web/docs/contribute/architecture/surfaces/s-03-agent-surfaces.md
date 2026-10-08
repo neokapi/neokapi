@@ -68,12 +68,14 @@ cli/skills/data/kapi/
     └── i18n/           …per-ecosystem playbooks + a machine-readable registry
 ```
 
-`SKILL.md` is the **four habits** an assistant keeps inside other work: ask
-what applies at the file before writing it, record what the project does every
-time while reading it, record the wording the person changes, and check what it
-changed before reporting the work done and saying what the session recorded.
-Each habit is its CLI command and its MCP tool: `kapi context <path>` and
-`context_read`, `kapi context note` and `context_note` for both kinds of
+`SKILL.md` is the **four habits** an assistant keeps inside other work: follow
+the rules kapi writes into `AGENTS.md` and `CLAUDE.md`, record what the project
+does every time while reading it, record the wording the person changes, and
+check what it changed before reporting the work done and saying what the
+session recorded. The first habit asks kapi only for a file no section covers,
+or for the full answer, with `kapi context <path>` or `context_read`. The other
+habits are each a CLI command and an MCP tool: `kapi context note` and
+`context_note` for both kinds of
 recording, and `kapi check` then `kapi context log --session this`, or
 `check_file` then `context_session_summary`. The skill teaches only the verbs
 `kapi context` lists for assistants. Review, reset and sync are a person's,
@@ -226,14 +228,16 @@ Four properties hold for the rules files:
 `initialize` carries an `instructions` string to every client, ahead of the
 tool list and whether or not the host loads a skill. It is the only text a
 client with no skill support ever reads about kapi, so it states the task in
-about a hundred and forty words: call `context_read` before changing a file,
-which also names the old names that stay correct there; record with
+about a hundred and forty words: follow the rules in kapi's section of
+`AGENTS.md` and `CLAUDE.md`, and call `context_read` only for a file no section
+covers or for the full answer, which also names the old names that stay correct
+there; record with
 `context_note` what the files do every time (names as written, the spelling
 variety, a word chosen over a common alternative), with the path it was seen
 in, since a note applies only there, and leave alone a word they write two
 ways; record the person's changes with `context_note` too (`from`,
 `to`, `path`); take back a mistake with its `withdraw` field; run `check_file`
-on each changed file; and end with `context_session_summary`.
+on each changed file; and, after a note, end with `context_session_summary`.
 
 It points at `context_read` rather than the `context://<path>` resource. Some
 clients list only concrete resources and never a resource template, so a model
@@ -356,7 +360,8 @@ elsewhere, edited in place.
 Both loops are provider-free by default. The assistant is the writer; kapi is the
 format engine and the checker.
 
-The ordinary authoring loop uses `kapi context <path>` before editing and
+The ordinary authoring loop follows the rules files while editing, asks
+`kapi context <path>` only where they do not cover a file, and runs
 `kapi check <path>` afterwards. The file path determines the applicable voice
 channel and terms. The assistant reads analyzer coverage alongside findings;
 a passing score establishes only the checks that ran. In a repository the loop
@@ -366,7 +371,8 @@ spans, so the check costs one read per changed file and runs after every edit.
 `kapi check --ship` enforces project release policy when that is part of the
 task.
 
-For MCP, context retrieval uses the existing `context://<path>` resource.
+For MCP, a file the rules files do not cover is answered by `context_read`,
+which returns the text of the `context://<path>` resource.
 `check_file` checks saved content in its project scope. A draft can be checked
 with `check_text` and `context_path`, the intended project-relative destination.
 This binds the same voice and terms without reading the destination file.

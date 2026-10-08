@@ -21,7 +21,7 @@ import TabItem from "@theme/TabItem";
 
 The first two live in your [workspace](/kapi/project-store), one set per project, shared by every checkout. [`kapi context sync`](/kapi/context-portability#sharing-context-through-a-backend) shares them with the rest of the team, and `kapi store export` backs them up.
 
-The rules run in **two directions** around the agent: injected *before* it writes (`kapi context <path>` puts the voice and the approved terms into its context, so drafts start compliant) and gated *after* (`kapi check` scores the result, block by block, exit code and all). Style linters for prose stop at regex over plain text; kapi's checks are format-aware and block-anchored: they read the content inside `.docx`, JSON catalogs, and HTML, locate each finding to an addressable block an agent can fix, and extend across every target language.
+The rules run in **two directions** around the agent: stated *before* it writes (kapi writes the voice and the approved terms into the project's `AGENTS.md` and `CLAUDE.md`, which the agent loads without a tool call, so drafts start compliant) and gated *after* (`kapi check` scores the result, block by block, exit code and all). Style linters for prose stop at regex over plain text; kapi's checks are format-aware and block-anchored: they read the content inside `.docx`, JSON catalogs, and HTML, locate each finding to an addressable block an agent can fix, and extend across every target language.
 
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
@@ -33,13 +33,13 @@ The rules run in **two directions** around the agent: injected *before* it write
 </TabItem>
 <TabItem value="agent" label="Agent (Claude)">
 
-With the rules bound in the project, governance is automatic: the [skill](/kapi/get-started/use-with-claude) pulls the guide and terms into context before writing and runs the gate after. Two prompts to bootstrap the artifacts themselves:
+With the rules bound in the project, governance is automatic: the agent reads the rules kapi writes into `CLAUDE.md` and `AGENTS.md` before writing, asks `kapi context <path>` only for a file those rules do not cover, and runs the gate after. Two prompts to bootstrap the artifacts themselves:
 
 > Draft a voice profile from our README and landing copy, and bind it in the recipe.
 
 > Extract candidate terms from `docs/` and add the ones I approve to our terms store.
 
-The Claude Code plugin's Stop hook checks the ship gate before task completion. Agents note what they see and what you change with `context_note`, and each note arrives as a suggestion; a person keeps the right ones with `kapi context review`. See [Growing context](/kapi/context-decisions) for reviewing and for going back to before an agent's session.
+The Claude Code plugin's Stop hook checks the ship gate before task completion. Agents note what they see and what you change with `context_note`, and each note arrives as a suggestion that holds only where it was seen; a person keeps the right ones with `kapi context review`. See [Growing context](/kapi/context-decisions) for reviewing and for going back to before an agent's session.
 
 </TabItem>
 <TabItem value="cli" label="CLI">

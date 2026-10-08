@@ -21,7 +21,7 @@ You describe the outcome; Claude runs kapi. kapi supplies the guardrails (the fa
 | You work in… | Use | How it drives kapi |
 |---|---|---|
 | **Chat** (Claude Code, plain-language prompts) | the **Agent Skill** (`SKILL.md`) | Claude runs `kapi` commands itself and loops until the gates pass |
-| **IDE** (Claude Desktop, Cursor, Windsurf, VS Code) | the **MCP server** (`kapi mcp`) | the `context://` answer for each file it writes, `context_note` for what it notices, and `check_file`; `--tools` adds [more sets](/reference/mcp#available-tools) |
+| **IDE** (Claude Desktop, Cursor, Windsurf, VS Code) | the **MCP server** (`kapi mcp`) | the rules in `AGENTS.md` and `CLAUDE.md`, `context_read` for a file they do not cover, `context_note` for what it notices, and `check_file`; `--tools` adds [more sets](/reference/mcp#available-tools) |
 | **CI** (no assistant in the loop) | the **CLI** directly | `kapi check` / `kapi check --ship` exit non-zero, failing the build |
 
 <details>
@@ -84,9 +84,9 @@ An unreadable, empty, or malformed hook payload; a session directory kapi cannot
 
 The wire shapes are Claude Code's, and Claude Code versions its own hook schema; kapi does not add a version of its own. What is stable here is the policy in the table: fail open, and report the bypass.
 
-The workflow is the same for either integration: retrieve guidance with `kapi context <path>`, apply edits with `kapi apply`, and run `kapi check` to verify the result. A [project](/kapi/get-started/first-project) says which voice and terms apply to each file. For example, ask: “Check `README.md` against our voice profile and fix the failing findings.”
+The workflow is the same for either integration: the agent writes to the rules in `CLAUDE.md` and `AGENTS.md`, asks `kapi context <path>` only for a file those rules do not cover, and runs `kapi check` on each file it changed. A [project](/kapi/get-started/first-project) says which voice and terms apply to each file. For example, ask: “Check `README.md` against our voice profile and fix the failing findings.”
 
-As it works, the agent notes what the files do every time and what you change in its drafts, with the file and sentence each came from. Each note arrives as a **suggestion**: checks report it and none fails on it until you keep it. The agent ends its report with what its session suggested and the command that reviews it, `kapi context review --session <id>`. See [Growing context](/kapi/context-decisions).
+As it works, the agent notes what the files do every time and what you change in its drafts, with the file and sentence each came from. Each note arrives as a **suggestion**: checks report it and none fails on it until you keep it. An agent that noted something ends its report with what its session suggested and the command that reviews it, `kapi context review --session <id>`. A note holds only in the files where the agent saw it until you widen it in review. See [Growing context](/kapi/context-decisions).
 
 The project also states its rules where the assistant reads them first. `kapi init` writes a section into `CLAUDE.md`, the file Claude Code reads, and into `AGENTS.md`, which most other agents read: the voice, what to write and what not, and the `kapi check` line. A folder whose rules differ from the root's gets files of its own, so a rename kept for `help/` is stated in `help/CLAUDE.md`, and `api/CLAUDE.md` says the old name is correct there. kapi rewrites the section when the context changes and leaves the rest of each file as you wrote it; a `CLAUDE.md` that imports `@AGENTS.md` gets no section of its own. See [rules files for agents](/kapi/context#rules-files).
 
@@ -109,8 +109,11 @@ Claude Code is wired every time. The others are wired when the project already k
 ```bash
 kapi init --agents claude-code,cursor   # exactly these
 kapi init --agents all                  # every agent kapi knows
-kapi init --agents none                 # write no agent files
+kapi init --agents none                 # write no agent configuration
 ```
+
+`--agents` chooses the configuration each agent reads. The rules files are
+written for every agent; `kapi init --no-rules-files` leaves them out.
 
 Everything it writes is inside the project, and it writes nothing but a command: no shell, no environment, no credential. An entry called `kapi` that you wrote or changed is left exactly as it is; an entry exactly as `kapi init` wrote it follows the recipe, so adding target languages and running `kapi init` again gives the agent the translation tools. Running `kapi init` again is also how a project you created earlier gets the same wiring. A skill directory an earlier kapi filled with reference files is cleared of the files kapi wrote there, and any file of yours in it stays.
 

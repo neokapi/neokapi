@@ -96,9 +96,9 @@ narration:
     through: 11
     caption: The portal's register, selected by the path.
     text: >-
-      Ask for the voice guide by path and the portal's register comes back
-      with no channel named on the command line. The guide holds tone, style
-      and examples. The terms are held once for the whole company, which is why
+      Ask what applies to the partner page and the portal's register comes
+      back with no channel named on the command line. The answer holds the
+      tone, the style and the examples. The terms are held once for the whole company, which is why
       both answers above listed the same ones.
 
   - id: gate

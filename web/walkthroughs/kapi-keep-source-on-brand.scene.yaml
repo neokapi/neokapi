@@ -10,7 +10,7 @@
 # (--profile-file); `kapi voice check` reads text from --input-text/stdin and
 # scores it. `kapi voice rewrite` is the deterministic, offline term
 # substitution — kapi does not send content to a model to rewrite it; tone and
-# style fixes go through `kapi apply` with the voice guide as context.
+# style fixes go through `kapi apply` with the voice as context.
 # The former seed fixtures (product-page.md, voice.yaml) were not in the
 # playground kit, so both are inline files now.
 #
@@ -86,6 +86,6 @@ steps:
     narration: >-
       voice rewrite substitutes forbidden and competitor terms for their
       replacements, offline, and reports each change. Tone and style
-      fixes go through kapi apply, with the voice guide as context.
+      fixes go through kapi apply, with the voice as context.
     offline: false
   - comment: Re-check until the gate is green — the same loop `kapi check --ship` enforces in a project

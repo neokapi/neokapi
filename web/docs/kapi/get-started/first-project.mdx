@@ -97,6 +97,8 @@ Initialized kapi project "acme-docs"
     docs/**/*.md  markdown, 12 files
   mcp:    .mcp.json (created: kapi mcp --project kapi.yaml)
   skill:  .claude/skills/kapi (created: 1 file)
+  rules:  AGENTS.md (created)
+  rules:  CLAUDE.md (created)
 ```
 
 The collections are the files kapi reads as content: documents grouped by
@@ -106,13 +108,15 @@ carries a comment in the recipe saying what it matched. Change them freely;
 `kapi add "<pattern>"` adds another. Running `kapi init` again leaves them as
 they are and prints any content no collection reads yet, with the lines to add.
 
-The last two lines are the wiring: an MCP entry that starts `kapi mcp` for this
-project, and a short kapi skill that tells an agent what to do and leaves the
-rest to `kapi help <topic>`. `kapi init` also writes the project's rules into
-`AGENTS.md` and `CLAUDE.md`, at the root and in each folder whose rules differ,
-where an agent loads them without asking; see
+The last four lines are the wiring: an MCP entry that starts `kapi mcp` for
+this project, a short kapi skill that tells an agent what to do and leaves the
+rest to `kapi help <topic>`, and the project's rules written into `AGENTS.md`
+and `CLAUDE.md`. Those two files sit at the root and in each folder whose rules
+differ, where an agent loads them without asking. A new project has no rules
+yet, so its section says so and names `kapi check`; see
 [rules files for agents](/kapi/context#rules-files). Choose the agents with
-`--agents`, or opt out with `--agents none`. See
+`--agents`, or opt out with `--agents none`; `--no-rules-files` leaves out the
+rules files. See
 [what `kapi init` wires up](/kapi/get-started/use-with-claude#what-kapi-init-wires-up).
 
 For a known stack, `kapi init --preset react-i18next` (or `nextjs`, `vue-i18n`,
@@ -168,11 +172,12 @@ it an ordinary writing task: fix a page, draft a section, rename a feature
 across the docs. Claude Code asks you to approve the project MCP server the
 first time, so review `.mcp.json` the way you would any file a repository ships.
 
-While it works, the agent reads what applies at each file it touches and
+While it works, the agent follows the rules in `CLAUDE.md` or `AGENTS.md` and
 **records what it notices**: how you spell your own product, which word you use
 where two would do, and every wording you change in its draft. Each of those is
-recorded as a **suggestion** with the file it came from. It ends its report with
-what the session recorded.
+recorded as a **suggestion** with the file it came from, and holds only where
+the agent saw it. An agent that recorded something ends its report with what
+the session recorded.
 
 Checks report suggestions without changing scores or failing gates. A person
 must keep a suggestion before it becomes a rule.
@@ -221,8 +226,17 @@ with **Keep** and **Drop** on each suggestion and the evidence beside it.
 ## 4. What keeping does
 
 A suggestion you keep becomes a rule. It is written to the project's terms,
-where every checkout reads it, beside the evidence it rested on. Change it as
-you keep it with `--use` and `--advisory`, or drop it with `--drop`. Either way
+where every checkout reads it, beside the evidence it rested on. kapi also
+rewrites its section of `CLAUDE.md` and `AGENTS.md`, so the next agent session
+reads the rule there:
+
+```
+Say this, not that:
+- use, not "utilise"
+```
+
+Change it as you keep it with `--use` and `--advisory`, or drop it with
+`--drop`. Either way
 the record stays, so the same suggestion is recognisable the next time
 somebody makes it.
 
@@ -240,13 +254,13 @@ Before you kept anything, the suggestion read as a note and the check passed:
 
 ```
   outcome  rule              location                                    message
-  REPORTS  terms.vocabulary  docs/guide.md:getting-started/next-steps/p  Suggested rule about "utilise", not yet established: Every other page in docs/ says "use".
+  REPORTS  terms.vocabulary  docs/guide.md:getting-started/next-steps/p  Suggested rule about "utilise", not yet established
                                                                          ↳ Use "use" instead
-  REPORTS  terms.vocabulary  docs/guide.md:getting-started/p             Suggested rule about "utilise", not yet established: Every other page in docs/ says "use".
+  REPORTS  terms.vocabulary  docs/guide.md:getting-started/p             Suggested rule about "utilise", not yet established
                                                                          ↳ Use "use" instead
 
 PASS configured checks: 0 failing, 2 reported · score 100/100
-  Coverage: 2 analyzer runs completed.
+  Coverage: 1 analyzer run completed.
   Context: docs/guide.md; voice none (project); terms none loaded
 ```
 

@@ -62,14 +62,14 @@ try {
   if (version.exitCode !== 0) throw new Error(version.stderr);
   // The sample's context is files until somebody reads them in, and a person
   // is who does that, so the run says so rather than being read as an agent.
-  const imported = spawnSync(binary, ["context", "import", "./context", "-p", "kapi.yaml"], {
+  const imported = spawnSync(binary, ["store", "import", "./context", "-p", "kapi.yaml"], {
     cwd: sandbox,
     env: { ...env, KAPI_ACTOR: "person" },
     encoding: "utf8",
     timeout: 60_000,
     maxBuffer: 8 * 1024 * 1024,
   });
-  if (imported.status !== 0) throw new Error(imported.stderr || "context import failed");
+  if (imported.status !== 0) throw new Error(imported.stderr || "store import failed");
   const cases = [
     { id: "clean", text: null, expected: 0 },
     { id: "assurance", text: "A video appointment is risk-free.", expected: 1 },

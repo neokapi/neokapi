@@ -62,9 +62,11 @@ The **Context** hub shows what the project keeps to:
 - **Explorer** answers by file and by word. Ask what applies to a file, or
   search for a word and see the terms, the approved wording, and where each is
   used.
-- **Agent View** shows the context an agent receives for a file you pick: the
-  voice, the words to use and to avoid, and the text the agent reads, word for
-  word. It is the same answer `kapi context <path>` prints.
+- **Agent View** shows the full answer an agent receives when it asks about a
+  file you pick: the voice, the words to use and to avoid, and the text the
+  agent reads, word for word. It is the same answer `kapi context <path>`
+  prints. An agent working in the tree reads the same rules from the
+  `AGENTS.md` and `CLAUDE.md` files kapi writes, without asking.
 - **Voice** shows the voice profile that applies: tone, style rules, pattern
   rules, examples, and the adjustments for a channel or a language. When dated
   guidance has lapsed, the page says so. Editing writes the same YAML in your

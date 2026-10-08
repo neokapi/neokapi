@@ -319,14 +319,14 @@ function PullResult(): ReactElement | null {
       )}
       {none && (
         <p style={{ ...s.sub, margin: ".7rem 0 0", lineHeight: 1.55 }}>
-          A follow-up says what was missing. Adding a three-sentence <code>CLAUDE.md</code> — the
-          project&apos;s voice is held by kapi, retrieve it before writing — flipped both models it
-          was tried on. Claude Sonnet 5 then ran the whole loop unprompted: loaded the skill, asked{" "}
-          <code>kapi context GUIDE.md</code> what applied, fetched the guide, wrote, and checked its
-          own draft with <code>kapi voice check</code>. Two runs is enough to say the signpost was
-          missing and not enough to say how often, so it is{" "}
-          <a href="https://github.com/neokapi/neokapi/issues/2250">an issue</a> rather than a fourth
-          column.
+          A follow-up says what was missing. Adding a three-sentence <code>CLAUDE.md</code>, saying
+          that kapi held the project&apos;s voice, flipped both models it was tried on: Claude
+          Sonnet 5 then loaded the skill, asked <code>kapi context GUIDE.md</code> what applied,
+          wrote, and checked its own draft. Two runs said the signpost was missing, not how often (
+          <a href="https://github.com/neokapi/neokapi/issues/2250">issue #2250</a>). kapi now writes
+          the voice and the rules in force into the project&apos;s <code>AGENTS.md</code> and{" "}
+          <code>CLAUDE.md</code> itself, so an assistant has them without asking; the lab&apos;s
+          rules-files arm measures that file.
         </p>
       )}
     </div>
