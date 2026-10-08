@@ -78,7 +78,7 @@ const referenceProfileID = "harbourlight"
 
 // referenceProfile defines the expected voice profile for voice-infer-quality.
 // The on-profile documents are written to this profile. Rules include the forms
-// produced by kapi voice expand, including inflections such as "utilizes" for
+// produced by kapi terms expand, including inflections such as "utilizes" for
 // "utilize".
 const referenceProfile = `name: Harbourlight
 description: Plain, direct voice for a port logistics tool

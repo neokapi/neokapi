@@ -230,7 +230,7 @@ func prepareCompareCell(ctx context.Context, root string, project CompareProject
 
 // compareWireKapi brings a cell to the state a kapi project is in once a
 // person has set it up: `kapi init --agents all`, the project's recipe, its
-// voice read into the store with `kapi context import`, and each held rule
+// voice read into the store with `kapi store import`, and each held rule
 // recorded and kept. The voice file is then removed: a kapi project keeps its
 // context in the store, not in the checkout.
 func compareWireKapi(ctx context.Context, paths ComparePaths, env []string, project CompareProject, rulesFiles bool, wiring *CompareWiring) error {

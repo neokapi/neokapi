@@ -273,7 +273,7 @@ kapi context <file>                  # the voice and terms that apply to the fil
 kapi terms lookup "<term>" -t fr  # the approved wording
 ```
 
-Fill the `<target>` of each entry in the bilingual file, following the voice guide
+Fill the `<target>` of each entry in the bilingual file, following the voice
 and the approved terminology, and preserving placeholders; reuse any targets kapi
 pre-filled from content memory. Then:
 

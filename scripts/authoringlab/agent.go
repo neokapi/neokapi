@@ -153,6 +153,12 @@ func runAgent(ctx context.Context, opts AgentOpts) AgentRun {
 			r.Err = err.Error()
 			return r
 		}
+		if opts.Arm.rulesFiles {
+			if err := writeLabRulesFiles(ctx, opts.KapiBin, home, tree); err != nil {
+				r.Err = err.Error()
+				return r
+			}
+		}
 		bin, err := kapiOnlyBin(home, opts.KapiBin)
 		if err != nil {
 			r.Err = err.Error()

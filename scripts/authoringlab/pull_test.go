@@ -71,6 +71,36 @@ func TestPulledWorkspaceServesTheGuide(t *testing.T) {
 		coreprofile.ResolveProfile(base, "", "", p.Persona), guide))
 }
 
+// TestRulesFilesArmCarriesKapisSection: the rules-files arm's CLAUDE.md is
+// the section kapi writes, naming the voice the store holds, so the follow-up
+// experiment measures the file a user of `kapi init` has. Skipped without the
+// archive or the binary.
+func TestRulesFilesArmCarriesKapisSection(t *testing.T) {
+	root := testRepoRoot(t)
+	if _, err := pristineTar(root); err != nil {
+		t.Skip("no subject archive: ./scripts/fetch-lab-repo.sh")
+	}
+	kapiBin, err := findKapi(root)
+	if err != nil {
+		t.Skip("no kapi binary: make build")
+	}
+	base, err := loadProfile()
+	require.NoError(t, err)
+	profile := coreprofile.ResolveProfile(base, "", "", points[0].Persona)
+
+	home := t.TempDir()
+	tree, err := prepareWorkspace(t.Context(), root, home, armSetup{pull: true, profile: profile, rulesFiles: true})
+	require.NoError(t, err)
+	require.NoError(t, importPulledContext(t.Context(), kapiBin, home, tree))
+	require.NoError(t, writeLabRulesFiles(t.Context(), kapiBin, home, tree))
+
+	body, err := os.ReadFile(filepath.Join(tree, "CLAUDE.md"))
+	require.NoError(t, err)
+	assert.Contains(t, string(body), "<!-- kapi:rules")
+	assert.Contains(t, string(body), profile.Name, "the section names the voice in force")
+	assert.Contains(t, string(body), "kapi check", "the section ends on the check")
+}
+
 // TestPulledWorkspaceCarriesTheSkillAndNothingElseDoes.
 //
 // The arms differ in the workspace, so what each workspace holds IS the

@@ -14,9 +14,9 @@ import "sort"
 // "going". Morphology is per-language knowledge, and the tools that do it
 // properly — LanguageTool, Acrolinx — carry a linguistic pack per language.
 //
-// So the forms come from the profile, filled in at authoring time by
-// `kapi voice expand`, which asks a model for them once in the profile's own
-// language and writes them into a diff a person reviews. The knowledge is the
+// So the forms come from the term, filled in at authoring time by
+// `kapi terms expand`, which asks a model for them once in the term's own
+// language and writes them into the terms a person reviews. The knowledge is the
 // model's; the matching stays exact, free, deterministic and language-neutral.
 // See issue #2226.
 

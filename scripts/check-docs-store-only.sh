@@ -4,7 +4,7 @@
 #
 # A project's terms, voice profiles, content memory and unit decisions live in
 # the per-user workspace store. One command reads a checkout's context files
-# into it, `kapi context import`, and a person runs it. Nothing else opens one.
+# into it, `kapi store import`, and a person runs it. Nothing else opens one.
 #
 # Prose that tells a reader to commit their context, that names `.kapi/terms.json`
 # as the thing a gate reads, or that names the retired `kapi commit`, describes a

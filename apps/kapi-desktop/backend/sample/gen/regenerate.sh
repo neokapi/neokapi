@@ -89,7 +89,7 @@ python3 "$GEN/lib/recipe.py" pin-recycle "$P/kapi.yaml"
 # The context files are inert until they are read into this machine's store,
 # which a person decides, so the import says whose decision this run is.
 echo "==> read the context in"
-KAPI_ACTOR=person "$KAPI" context import "$P/context" -p "$P/kapi.yaml" >/dev/null
+KAPI_ACTOR=person "$KAPI" store import "$P/context" -p "$P/kapi.yaml" >/dev/null
 
 echo "==> converge (offline: content memory only)"
 "$KAPI" up -p "$P/kapi.yaml" >/dev/null 2>&1 || true
@@ -114,7 +114,7 @@ KAPI_ACTOR=person "$KAPI" apply -p "$P/kapi.yaml" "$WORK/approve.jsonl" >/dev/nu
 # ships them in a context file beside the other context, which scaffolding
 # merges the way a pull does.
 rm -rf "$P/context/state" "$P/context/context.kpz"
-KAPI_ACTOR=person "$KAPI" context export -p "$P/kapi.yaml" -o "$P/context/context.kpz" >/dev/null
+KAPI_ACTOR=person "$KAPI" store export -p "$P/kapi.yaml" -o "$P/context/context.kpz" >/dev/null
 
 # The corpus must not already hold the answers, or the absorber correctly
 # declines to learn them and the memory comes back empty of provenance. The

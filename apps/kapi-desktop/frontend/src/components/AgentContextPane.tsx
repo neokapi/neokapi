@@ -1,8 +1,9 @@
 // What an agent is told about a file.
 //
-// An agent working in this project reads the `context://<path>` resource; a
-// person at a terminal runs `kapi context <path>`. One host resolution answers
-// both, and this pane shows that answer for a file the reader picks: the point
+// An agent working in this project reads kapi's section of AGENTS.md and
+// CLAUDE.md, and the `context_read` tool or `context://<path>` resource for
+// more; a person at a terminal runs `kapi context <path>`. One host resolution
+// answers all of them, and this pane shows that answer for a file the reader picks: the point
 // it resolves to, the voice in force, the terms that apply, and the body the
 // agent receives word for word.
 

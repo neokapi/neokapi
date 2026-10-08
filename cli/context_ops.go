@@ -41,10 +41,9 @@ label, and wording taken from your task.
 For a name or word, pass --term with the form the files use and --instead-of
 with the form they avoid: the split form of a one-word name, the other
 spelling, or the other word. kapi derives the other forms to avoid: the
-spaced, hyphenated and closed spellings of a compound, each part capitalised,
-and the lower-case spelling of a capitalised term. "--term Quickcast
---instead-of 'Quick cast'" avoids Quick cast, Quick-cast, QuickCast and
-quickcast. Without --term a note is a fact in prose.
+spaced, hyphenated and closed spellings of a compound, each part
+capitalised. "--term Quickcast --instead-of 'Quick cast'" avoids Quick cast,
+Quick-cast and QuickCast. Without --term a note is a fact in prose.
 
 When a person changes wording, record it with --from (what was there), --to
 (what replaced it) and --seen-in. A change is evidence about how this project

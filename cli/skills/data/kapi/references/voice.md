@@ -1,8 +1,9 @@
 # Keep content in voice
 
 Score and fix content against a voice profile with the local `kapi` CLI,
-offline, with no account. One loop: load the voice guide before writing, score a
-draft, fix what drifts.
+offline, with no account. One loop: write in the voice, score a draft, fix what
+drifts. Inside a project, the voice is stated in the `AGENTS.md` and `CLAUDE.md`
+kapi writes; outside one, `kapi voice show` renders a profile to read.
 
 ## Profiles
 
@@ -134,11 +135,11 @@ Rewrite the off-voice text on-brand **yourself**, route the change through kapi'
 write verb, then re-check. kapi does not send content to a model to rewrite it:
 `kapi voice rewrite` only substitutes the forbidden and competitor terms a voice
 file carries with their approved replacements, deterministically and offline; it won't fix tone, style,
-or phrasing. For those, rewrite the text yourself with the voice guide as
-context. Load it first:
+or phrasing. For those, rewrite the text yourself in the voice the rules file
+states, or ask for the full answer when it does not cover the file:
 
 ```bash
-kapi context blog-post.md              # the voice to follow: your context
+kapi context blog-post.md              # the full voice and terms for the file
 kapi terms lookup "<term>" -t en     # the approved wording for a flagged term
 ```
 
@@ -211,7 +212,7 @@ violations were found and left for you. Rewrite those yourself and verify with
 `kapi voice check`.
 
 It only changes the terms the voice file carries; it won't fix tone, style, or
-phrasing. For those, rewrite the text yourself with the voice guide as context
+phrasing. For those, rewrite the text yourself in the project's voice
 and apply through `kapi apply`.
 
 ## CI / quality gate

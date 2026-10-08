@@ -53,7 +53,8 @@ func registerContextGrowthMCPTools(server *mcp.Server, a *App) {
 			"When the person changes your wording, pass `from` (what you wrote), `to` (what they wrote) and " +
 			"`path`, and set `suggest` to also suggest the rule it implies. " +
 			"To take back a note of your own recorded wrongly, pass its id in `withdraw`. " +
-			"Every note is a suggestion: checks report it, none fails on it, and a person decides in review.",
+			"Every note is a suggestion: checks report it, none fails on it, and it holds only where you saw it " +
+			"until a person decides about it in review.",
 	}, a.handleContextNote)
 
 	mcp.AddTool(server, &mcp.Tool{

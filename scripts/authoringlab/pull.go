@@ -87,11 +87,6 @@ func prepareWorkspace(ctx context.Context, root, home string, arm armSetup) (str
 	if err := writePulledProject(tree, arm.profile); err != nil {
 		return "", err
 	}
-	if arm.pointer != "" {
-		if err := os.WriteFile(filepath.Join(tree, "CLAUDE.md"), []byte(arm.pointer), 0o644); err != nil {
-			return "", err
-		}
-	}
 	return tree, copyTree(filepath.Join(root, "cli", "skills", "data", "kapi"),
 		filepath.Join(tree, ".claude", "skills", "kapi"))
 }
@@ -103,38 +98,35 @@ type armSetup struct {
 	// profile is the voice this point resolves to, written into the project so
 	// `kapi voice show` prints it.
 	profile *coreprofile.VoiceProfile
-	// pointer is a CLAUDE.md written beside the recipe, telling an assistant
-	// that this project's wording is governed and how to retrieve it. Empty in
-	// the published arm, which is the point: the sweep measures whether the
-	// skill alone is enough. The follow-up experiment (probe_test.go) sets it to
-	// the section `kapi init` writes, to measure what onboarding hands an
-	// assistant.
-	pointer string
+	// rulesFiles has kapi write the project's rules into AGENTS.md and
+	// CLAUDE.md, the files an assistant loads without a tool call, once the
+	// context is imported (writeLabRulesFiles). Off in the published arm, which
+	// measures whether the skill alone is enough. The follow-up experiment
+	// (probe_test.go) turns it on, to measure what a project set up by
+	// `kapi init` hands an assistant.
+	rulesFiles bool
 }
 
-// labPointer is the assistant file `kapi init` wrote for a project that bound
-// this profile when the lab ran: a title, then the voice pointer section. The
-// product now writes the rules themselves (host/rulesfiles.go); the lab keeps
-// the pointer it measured.
+// writeLabRulesFiles has kapi write the project's rules files into the
+// workspace: the section of AGENTS.md and CLAUDE.md it keeps at the project
+// root, stating the voice and the rules in force. It is the real generator,
+// `kapi context sync --files-only`, run after importPulledContext so the
+// section states what the store holds, and run as the person who set the
+// project up, the way `kapi init` writes them.
 //
-// It says nothing about HOW to write, only that the project holds a voice and
-// where to ask for it. A pointer that carried the guidance would be the pushed
-// arm with extra steps. The lab writes it as CLAUDE.md, the file the agent
-// under test reads and the one a fresh `kapi init` creates.
-func labPointer(profile *coreprofile.VoiceProfile) string {
-	name := ""
-	if profile != nil {
-		name = profile.Name
+// The lab measures what the product hands an assistant, so the section is
+// never written by hand here: a lab string would drift from what kapi writes
+// and measure a file no user has.
+func writeLabRulesFiles(ctx context.Context, kapiBin, home, tree string) error {
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, kapiBin, "context", "sync", "--files-only", "-p", filepath.Join(tree, "kapi.yaml"))
+	cmd.Dir = tree
+	cmd.Env = append(append(agentEnv(), pullEnv(home, tree)...), "KAPI_ACTOR=person")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("`kapi context sync --files-only` in the pulled workspace: %w: %s", err, strings.TrimSpace(string(out)))
 	}
-	voice := ""
-	if name != "" {
-		voice = ", " + name + ","
-	}
-	return "# " + filepath.Base(LabRepo) + "\n\n" +
-		"<!-- kapi:voice (managed by kapi; refreshed by 'kapi voice pointer') -->\n## Voice\n\n" +
-		"This project's voice" + voice + " is held by kapi and applies to any prose written here. " +
-		"Retrieve what is in force before writing, with `kapi context <path>` for the file you are writing.\n" +
-		"<!-- /kapi:voice -->\n"
+	return nil
 }
 
 // writePulledProject binds the voice to the workspace the way a project does.
