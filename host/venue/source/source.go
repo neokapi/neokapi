@@ -1570,13 +1570,12 @@ func (c *BowrainSourceConnector) contentPaths() []string {
 	recipe := c.project.Recipe
 	seen := map[string]bool{}
 	var out []string
-	for _, it := range recipe.IterateContent() {
-		lang := string(it.Item.ResolvedSourceLanguage(it.Collection, recipe.Defaults))
-		pattern := coreproj.ResolvePathPattern(it.Item.Path, lang)
-		relPaths, err := coreproj.ExpandGlob(c.project.Root, pattern, recipe.Defaults.Exclude...)
-		if err != nil {
-			continue
-		}
+	// One walk resolves every item; an item whose pattern is malformed
+	// contributes nothing, as it always has here.
+	items := recipe.KapiProject.IterateContent()
+	expanded, _ := coreproj.ExpandItems(&recipe.KapiProject, c.project.Root, items,
+		coreproj.GlobOptions{Excludes: recipe.Defaults.Exclude})
+	for _, relPaths := range expanded {
 		for _, rp := range relPaths {
 			if !seen[rp] {
 				seen[rp] = true

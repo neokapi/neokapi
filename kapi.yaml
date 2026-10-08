@@ -153,6 +153,10 @@ defaults:
     - "bowrain/web/docs/i18n/**"
     - "harness/public/**"
     - "**/testdata/**"
+    # Local run output, gitignored. Excluded so resolution never walks it.
+    - "bench/pseudobench/results/**"
+    - "bench/pseudobench/output/**"
+    - "harness/out/**"
     # What the comment collections below leave out. This list is the only
     # allowlist `make check-comment-coverage` accepts, so each entry says why.
     # Build output.

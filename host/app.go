@@ -386,6 +386,21 @@ func (a *App) Init() error {
 		}
 	}
 
+	// A file a content pattern matches and nobody can read (a dangling link)
+	// is left out of resolution rather than failing it, and named here once
+	// per run so no count is silently taken without it.
+	project.OnUnreadableContent = func(projectDir string, unreadable []project.UnreadableMatch) {
+		if a.Quiet {
+			return
+		}
+		for _, u := range unreadable {
+			if _, seen := warned.LoadOrStore(projectDir+"\x00unreadable\x00"+u.Relative, true); seen {
+				continue
+			}
+			fmt.Fprintf(os.Stderr, "warning: %s matches the recipe's content but cannot be read, so it is left out: %v\n", u.Relative, u.Err)
+		}
+	}
+
 	// Install the LLM recorder before any provider is constructed, so --explain
 	// sees every call the run makes.
 	a.StartExplain()

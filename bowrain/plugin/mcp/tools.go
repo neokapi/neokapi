@@ -356,14 +356,11 @@ func handleProjectLsFast(a *cli.App, proj *project.Project, input MCPLsInput) (*
 	// A file is claimed by the first item that matches it, so it is listed
 	// once, with that item's format.
 	seen := map[string]bool{}
-	for _, it := range recipe.IterateContent() {
-		lang := string(it.Item.ResolvedSourceLanguage(it.Collection, recipe.Defaults))
-		pattern := coreproj.ResolvePathPattern(it.Item.Path, lang)
-		relPaths, err := coreproj.ExpandGlob(proj.Root, pattern, recipe.Defaults.Exclude...)
-		if err != nil {
-			continue
-		}
-		for _, rp := range relPaths {
+	items := recipe.KapiProject.IterateContent()
+	expanded, _ := coreproj.ExpandItems(&recipe.KapiProject, proj.Root, items,
+		coreproj.GlobOptions{Excludes: recipe.Defaults.Exclude})
+	for k, it := range items {
+		for _, rp := range expanded[k] {
 			if seen[rp] || !matchesMCPPathFilter(rp, input.Paths) {
 				continue
 			}
