@@ -163,6 +163,7 @@ func preflightCompare(ctx context.Context, opts CompareOptions, m CompareManifes
 					}
 				}
 				p, err := prepareCompareAttempt(ctx, opts.CellsDir, opts.KapiBin, m, attempt)
+				compareDiscardTmp(p.TmpDir)
 				if err != nil {
 					return fmt.Errorf("%s: %w", attempt.ID, err)
 				}
@@ -175,7 +176,7 @@ func preflightCompare(ctx context.Context, opts CompareOptions, m CompareManifes
 				if p.Server != nil {
 					tools = fmt.Sprintf(" (MCP tools: %s)", strings.Join(p.Server.Tools, ", "))
 				}
-				fmt.Printf("%s: %s, %s%s\n", attempt.ID, state, strings.Join(p.Wiring.Files, " "), tools)
+				fmt.Printf("%s: %s, %s%s; %s\n", attempt.ID, state, strings.Join(p.Wiring.Files, " "), tools, p.Sandbox)
 			}
 		}
 	}
@@ -274,6 +275,7 @@ func runCompareAttempt(ctx context.Context, opts CompareOptions, m CompareManife
 	defer save()
 	prepared, err := prepareCompareAttempt(ctx, opts.CellsDir, opts.KapiBin, m, attempt)
 	_ = os.WriteFile(filepath.Join(dir, "prepared.json"), compareMustJSON(prepared), 0o600)
+	defer compareDiscardTmp(prepared.TmpDir)
 	if err != nil {
 		result.Error = err.Error()
 		return result
@@ -459,4 +461,11 @@ func compareRunCommand(ctx context.Context, dir string, env []string, stdin stri
 	command.WaitDelay = 2 * time.Second
 	err := command.Run()
 	return stdout.String(), stderr.String(), err
+}
+
+// compareDiscardTmp removes a cell's temporary directory.
+func compareDiscardTmp(dir string) {
+	if dir != "" && strings.HasPrefix(filepath.Base(dir), "kpe-") {
+		_ = os.RemoveAll(dir)
+	}
 }

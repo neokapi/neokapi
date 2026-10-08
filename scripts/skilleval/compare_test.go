@@ -3,8 +3,10 @@ package main
 import (
 	"maps"
 	"math"
+	"os"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -176,11 +178,11 @@ func TestCompareBootstrapStaysWithinTasks(t *testing.T) {
 }
 
 func TestCompareParseVerdict(t *testing.T) {
-	answers, reason, err := compareParseVerdict("Here: {\"register\": true, \"address\": true, \"restraint\": false, \"concision\": true, \"publishable\": false, \"reason\": \"hype\"}")
+	answers, reason, err := compareParseVerdict("Here: {\"address\": true, \"lead\": true, \"plain\": false, \"faithful\": true, \"short\": false, \"reason\": \"blazing\"}")
 	require.NoError(t, err)
-	assert.False(t, answers["restraint"])
-	assert.Equal(t, "hype", reason)
-	_, _, err = compareParseVerdict("{\"register\": true}")
+	assert.False(t, answers["plain"])
+	assert.Equal(t, "blazing", reason)
+	_, _, err = compareParseVerdict("{\"address\": true}")
 	assert.Error(t, err)
 }
 
@@ -199,4 +201,21 @@ func TestCompareScheduleIsCompleteAndInterleaved(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, full, len(m.Tasks)*m.Repeats*len(m.Arms)*len(m.Hosts))
 	assert.NotEqual(t, full[0].Arm+full[1].Arm+full[2].Arm, strings.Repeat(full[0].Arm, 3), "the order interleaves the arms")
+}
+
+func TestCompareCodexRunsInWorkspaceWrite(t *testing.T) {
+	ep := EvalPrepared{Session: EvalSession{Host: PairedAgentSpec{Host: "codex", Model: "m", Effort: "medium"}},
+		Paths: comparePaths("/cells/a", "teamboard"), Env: []string{"PATH=/cells/a/bin"}}
+	config := compareCodexConfig(ep, "/tmp/kpe-x")
+	assert.Contains(t, config, "sandbox_mode = \"workspace-write\"")
+	assert.NotContains(t, config, "danger-full-access")
+	assert.Contains(t, config, "writable_roots = [\"/cells/a\", \"/tmp/kpe-x\"]")
+	assert.Contains(t, config, "network_access = false")
+}
+
+func TestCompareRefusesACellTheSandboxCannotRead(t *testing.T) {
+	_, err := compareDenyRead("/private/tmp/claude-" + strconv.Itoa(os.Getuid()) + "/cells/a")
+	require.Error(t, err)
+	_, err = compareDenyRead("/private/tmp/kapi-compare-cells/a")
+	assert.NoError(t, err)
 }

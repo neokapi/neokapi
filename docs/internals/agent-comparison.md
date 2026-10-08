@@ -51,7 +51,12 @@ attempts a rate limit, an outage or an interruption cut short.
 The cells are generated outside the checkout (the system temporary directory,
 or `COMPARE_CELLS_DIR`), each with its own HOME, private PATH and kapi roots.
 Claude reads only the project's own settings; Codex gets a CODEX_HOME of its
-own that marks the cell as trusted. Claude needs a keychain token that stays
+own that marks the cell as trusted. Every cell is sandboxed. Claude's sandbox is on, with writes limited to the
+cell and its temporary directory, reads of the developer's home and the shared
+temporary directories denied, no network, and no unsandboxed fallback; the
+kapi binary is copied into the cell so nothing needs the checkout. Codex runs
+in `workspace-write` with the same writable roots and no network.
+Claude needs a keychain token that stays
 valid for the attempt timeout plus 15 minutes; refresh the login, or export a
 `CLAUDE_CODE_OAUTH_TOKEN` from `claude setup-token`, before a live phase.
 
@@ -68,8 +73,12 @@ valid for the attempt timeout plus 15 minutes; refresh the login, or export a
   see over-application of a scoped rename, and a capitalised rename matches
   case-sensitively.
 - **Voice fit** (`compare_judge.go`): two judges from different model families
-  answer five yes/no questions about what each attempt wrote, without being
-  told the arm or the host. The score is the share of yes answers, averaged
+  answer five yes/no questions about what each attempt wrote (reader
+  addressed as "you", opens with the answer or the change, no promotional
+  wording, no facts beyond the task's, short sentences), each with a passing
+  and a failing example, without being told the arm or the host. A judge
+  quotes the words behind every "no". Changing a question means changing
+  `compareRubricVersion`, which makes the judge phase ask again. The score is the share of yes answers, averaged
   over both judges. It is reported as validated only when the judges agree at
   Cohen's kappa of at least 0.6 over at least 30 paired answers.
 - **Intervals**: Wilson for shares, and a percentile bootstrap that resamples

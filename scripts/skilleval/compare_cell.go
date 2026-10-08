@@ -84,18 +84,24 @@ func compareRunIn(ctx context.Context, dir string, env []string, actor, name str
 
 // compareToolPath fills the cell's private bin directory: the ordinary
 // editing tools in every arm, and kapi's names only in the kapi arm. An arm
-// without kapi has no kapi to find.
+// without kapi has no kapi to find. The binary is copied into the cell (a hard
+// link where the volume allows), so the sandbox can deny every read of the
+// checkout and of the developer's home.
 func compareToolPath(paths ComparePaths, arm, kapiBin string) error {
 	if arm == compareArmKapi {
 		if kapiBin == "" {
 			return errors.New("the kapi arm needs this checkout's kapi binary; run `make build` first")
+		}
+		cellKapi, err := compareLinkKapi(paths, kapiBin)
+		if err != nil {
+			return fmt.Errorf("copy kapi into the cell: %w", err)
 		}
 		for _, name := range evalKapiNames {
 			destination := filepath.Join(paths.Bin, name)
 			if _, err := os.Lstat(destination); err == nil {
 				continue
 			}
-			if err := os.Symlink(kapiBin, destination); err != nil {
+			if err := os.Symlink(cellKapi, destination); err != nil {
 				return err
 			}
 		}
@@ -119,6 +125,30 @@ func compareToolPath(paths ComparePaths, arm, kapiBin string) error {
 		}
 	}
 	return nil
+}
+
+// compareCellKapi is where a cell keeps its own copy of the binary under test.
+func compareCellKapi(paths ComparePaths) string {
+	return filepath.Join(paths.Root, "kapi-bin", "kapi")
+}
+
+// compareLinkKapi puts the binary under test into the cell.
+func compareLinkKapi(paths ComparePaths, kapiBin string) (string, error) {
+	destination := compareCellKapi(paths)
+	if _, err := os.Stat(destination); err == nil {
+		return destination, nil
+	}
+	if err := os.MkdirAll(filepath.Dir(destination), 0o700); err != nil {
+		return "", err
+	}
+	if err := os.Link(kapiBin, destination); err == nil {
+		return destination, nil
+	}
+	data, err := os.ReadFile(kapiBin)
+	if err != nil {
+		return "", err
+	}
+	return destination, os.WriteFile(destination, data, 0o700)
 }
 
 // prepareCompareCell builds one cell: the project's content under git, then
@@ -332,6 +362,11 @@ type ComparePrepared struct {
 	Prompt     string           `json:"-"`
 	Timeout    time.Duration    `json:"timeout"`
 	MaxTurns   int              `json:"max_turns"`
+	// TmpDir is the cell's own temporary directory, short because Claude
+	// Code keeps sockets under it, and removed when the attempt ends.
+	TmpDir string `json:"tmp_dir"`
+	// Sandbox says how the host confines the agent's commands.
+	Sandbox string `json:"sandbox"`
 }
 
 // prepareCompareAttempt prepares one attempt's cell and host, with no model call.
@@ -351,8 +386,12 @@ func prepareCompareAttempt(ctx context.Context, cellsDir, kapiBin string, m Comp
 		return p, err
 	}
 	p.Env = compareEnv(p.Paths, project.Name)
+	if p.TmpDir, err = makePairedCellTmp(); err != nil {
+		return p, err
+	}
+	p.Env = append(p.Env, "TMPDIR="+p.TmpDir, "CLAUDE_CODE_TMPDIR="+p.TmpDir)
 	if attempt.Arm == compareArmKapi {
-		server, serverErr := probeEvalServer(ctx, p.Paths, kapiBin)
+		server, serverErr := probeEvalServer(ctx, p.Paths, compareCellKapi(p.Paths))
 		p.Server = server
 		switch {
 		case serverErr != nil:
@@ -404,6 +443,10 @@ func prepareCompareClaude(ctx context.Context, p *ComparePrepared) error {
 		p.Env = append(p.Env, "CLAUDE_CODE_OAUTH_TOKEN="+token)
 		p.AuthMode = "claude.ai subscription"
 	}
+	deny, err := compareDenyRead(p.Paths.Root)
+	if err != nil {
+		p.Blockers = append(p.Blockers, err.Error())
+	}
 	settings := map[string]any{
 		"autoMemoryEnabled":          false,
 		"enableAllProjectMcpServers": true,
@@ -411,8 +454,19 @@ func prepareCompareClaude(ctx context.Context, p *ComparePrepared) error {
 			"defaultMode": "acceptEdits",
 			"allow":       []string{"Bash", "Read", "Edit", "Write", "Glob", "Grep", "Skill", "mcp__kapi__*"},
 		},
+		// Every Bash command runs in Claude's sandbox: it writes only inside
+		// the cell and its temporary directory, reads nothing of the checkout,
+		// the developer's home or the shared temporary directories, and
+		// reaches no network host (the tasks need none; the model API and the
+		// kapi MCP server run outside the sandbox).
 		"sandbox": map[string]any{
-			"enabled": false,
+			"enabled":                  true,
+			"autoAllowBashIfSandboxed": true,
+			"allowUnsandboxedCommands": false,
+			"filesystem": map[string]any{
+				"allowWrite": []string{p.Paths.Root, p.TmpDir},
+				"denyRead":   deny,
+			},
 			"network": map[string]any{"allowedDomains": []string{}, "strictAllowlist": true},
 		},
 	}
@@ -429,7 +483,28 @@ func prepareCompareClaude(ctx context.Context, p *ComparePrepared) error {
 		"--max-turns", strconv.Itoa(p.MaxTurns),
 	}
 	p.Env = append(p.Env, "CLAUDE_CODE_DISABLE_BUNDLED_SKILLS=1")
+	p.Sandbox = "claude sandbox: writes limited to the cell and its TMPDIR, no network, unsandboxed fallback refused"
 	return nil
+}
+
+// compareDenyRead are the places a cell's commands may not read: the
+// developer's home (which holds this checkout and its evidence) and the
+// temporary directories Claude Code shares between sessions. A cell inside
+// one of them could not run its own commands, so it is refused.
+func compareDenyRead(root string) ([]string, error) {
+	deny := pairedSharedTemp()
+	if home, err := os.UserHomeDir(); err == nil {
+		deny = append([]string{home}, deny...)
+	}
+	resolved := pairedResolve(root)
+	for _, dir := range deny {
+		for _, candidate := range []string{root, resolved} {
+			if candidate == dir || strings.HasPrefix(candidate, dir+string(filepath.Separator)) {
+				return deny, fmt.Errorf("the cell %s lies under %s, which the sandbox denies; choose a cells directory outside it (for example /tmp/kapi-compare-cells)", root, dir)
+			}
+		}
+	}
+	return deny, nil
 }
 
 // prepareCompareCodex marks the cell's repository as trusted in the cell's
@@ -442,7 +517,7 @@ func prepareCompareCodex(ctx context.Context, p *ComparePrepared, kapiBin string
 		Paths:      p.Paths,
 		Wiring:     EvalWiring{Harness: []string{}},
 		Executable: p.Executable,
-		KapiBin:    kapiBin,
+		KapiBin:    compareCellKapi(p.Paths),
 		Env:        p.Env,
 		Blockers:   []string{},
 	}
@@ -473,9 +548,10 @@ func prepareCompareCodex(ctx context.Context, p *ComparePrepared, kapiBin string
 			p.AuthMode = "ChatGPT subscription"
 		}
 	}
-	if err := os.WriteFile(filepath.Join(p.Paths.State, "codex", "config.toml"), []byte(evalCodexConfig(ep)), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(p.Paths.State, "codex", "config.toml"), []byte(compareCodexConfig(ep, p.TmpDir)), 0o600); err != nil {
 		return err
 	}
+	p.Sandbox = "codex workspace-write: writable roots are the cell and its TMPDIR, no network, /tmp excluded"
 	p.Args = []string{"exec", "--strict-config", "--ignore-rules", "--json", "--skip-git-repo-check"}
 	if p.Attempt.Arm == compareArmKapi {
 		p.Args = append(p.Args, "-c", evalCodexForwardedEnv(p.Env))
@@ -490,4 +566,18 @@ func prepareCompareCodex(ctx context.Context, p *ComparePrepared, kapiBin string
 	}
 	p.Args = append(p.Args, "--model", p.Attempt.Host.Model, "--cd", p.Paths.Repo, "-")
 	return nil
+}
+
+// compareCodexConfig is the cell's own Codex configuration: the evaluation's
+// configuration with the sandbox in workspace-write mode, writable only in the
+// cell and its temporary directory, with no network.
+func compareCodexConfig(ep EvalPrepared, tmp string) string {
+	config := evalCodexConfig(ep)
+	config = strings.Replace(config, "sandbox_mode = \"danger-full-access\"\n", "sandbox_mode = \"workspace-write\"\n", 1)
+	roots := []string{strconv.Quote(ep.Paths.Root)}
+	if tmp != "" {
+		roots = append(roots, strconv.Quote(tmp))
+	}
+	head, rest, _ := strings.Cut(config, "[features]\n")
+	return head + "[sandbox_workspace_write]\nwritable_roots = [" + strings.Join(roots, ", ") + "]\nnetwork_access = false\nexclude_slash_tmp = true\nexclude_tmpdir_env_var = false\n[features]\n" + rest
 }

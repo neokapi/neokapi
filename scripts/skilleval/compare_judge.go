@@ -24,15 +24,34 @@ import (
 // yes/no questions. Two judges from different model families score every
 // attempt. The judged score is published only when they agree at Cohen's
 // kappa >= 0.6, the bar the context eval sets.
+//
+// The questions ask about what can be pointed at in the text, each with an
+// example that passes and one that fails, and a judge quotes the words behind
+// every "no". Impression questions ("does it match the register") left two
+// judges near chance agreement, so none is asked. A verdict records the rubric
+// it answered, and one under another rubric is asked again.
+
+// compareRubricVersion names the rubric below. Change it with the questions.
+const compareRubricVersion = "v3-observable"
 
 // compareCriteria are the rubric's questions, in the order the report prints
-// them.
-var compareCriteria = []struct{ ID, Question string }{
-	{"register", "Do the tone and register match the voice described above?"},
-	{"address", "Does it address the reader the way the voice asks (for example as \"you\", or in the imperative where the voice says so)?"},
-	{"restraint", "Is it free of hype, superlatives, filler and claims that go beyond the facts given in the task?"},
-	{"concision", "Is it concise, with sentence length and structure that fit the voice?"},
-	{"publishable", "Would an editor who owns this voice publish it without any voice edits?"},
+// them, each with an example that passes and one that fails.
+var compareCriteria = []struct{ ID, Question, Yes, No string }{
+	{"address", "Is the reader addressed directly, as \"you\" or with imperative instructions, everywhere the text speaks to them? Answer no if it refers to the reader in the third person (\"users\", \"customers\", \"the user\", \"teams can\") anywhere it could have said \"you\".",
+		"\"Select Move, then pick the destination.\" / \"You keep the data in your previous tool.\"",
+		"\"Users can move a board by selecting Move.\" / \"Customers will find their data intact.\""},
+	{"lead", "Does the first sentence of prose say what the reader needs: the answer to their question, the action to take, or the change? Skip titles, headings, dates, greetings and sign-offs: they are not the opening. In a release note or any list of changes, answer yes when each item opens with what changed. Answer no only when the first sentence of prose is thanks, a restatement of the question, a preview of what follows (\"Here's what you need to know\"), or background.",
+		"\"Hi Sam,\" then \"The import copies your boards, lists and cards into a new Space.\" / A release note whose items read \"Offline mode: edit boards without a connection.\"",
+		"\"Hi Sam,\" then \"Thanks for reaching out about moving your team.\" / \"Here's what the import does and what to watch for.\""},
+	{"plain", "Is it free of promotional and emotional wording: superlatives, intensifiers and sales language such as \"powerful\", \"seamless\", \"effortless\", \"blazing\", \"easy\", \"quick and painless\", \"we're excited\", \"great news\", \"rest assured\", \"don't worry\"?",
+		"\"Cold starts are about 40% faster.\"",
+		"\"Cold starts are now blazing fast, so you can rest assured your apps feel snappy.\""},
+	{"faithful", "Does every factual statement come from the task's facts, without added promises, numbers, features or reassurances the task does not give?",
+		"Task: payouts arrive in 2 business days. Text: \"Your payout reaches your bank 2 business days after your customer pays.\"",
+		"Task: payouts arrive in 2 business days. Text: \"Most payouts arrive the same day, and you'll never wait more than 2 days.\""},
+	{"short", "Are the sentences short: almost every sentence 25 words or fewer, and no paragraph longer than four sentences?",
+		"Three sentences of 9, 14 and 12 words.",
+		"A 40-word sentence joining three clauses with \"and\" and \"which\"."},
 }
 
 // compareKappaBar is the agreement a judged score needs to be reported as validated.
@@ -41,6 +60,7 @@ const compareKappaBar = 0.6
 // CompareVerdict is one judge's answer for one attempt.
 type CompareVerdict struct {
 	Judge      PairedAgentSpec `json:"judge"`
+	Rubric     string          `json:"rubric"`
 	Answers    map[string]bool `json:"answers"`
 	Reason     string          `json:"reason,omitempty"`
 	Error      string          `json:"error,omitempty"`
@@ -48,7 +68,7 @@ type CompareVerdict struct {
 }
 
 func (v CompareVerdict) complete() bool {
-	if v.Error != "" {
+	if v.Error != "" || v.Rubric != compareRubricVersion {
 		return false
 	}
 	for _, criterion := range compareCriteria {
@@ -83,16 +103,16 @@ func compareVoiceSection(rules string) string {
 
 func compareJudgePrompt(project CompareProject, task CompareTask, text string) string {
 	var b strings.Builder
-	b.WriteString("You review writing for a software company against its house voice. Read the voice, the task the writer was given, and what the writer produced, then answer five yes/no questions.\n\n")
+	b.WriteString("You review writing for a software company against its house voice. Read the voice, the task the writer was given, and what the writer produced, then answer five yes/no questions about what is in the text.\n\n")
 	b.WriteString("## The voice\n\n" + compareVoiceSection(string(project.Rules)) + "\n\n")
 	b.WriteString("## The task\n\n" + task.Prompt + "\n\n")
-	b.WriteString("## What the writer produced\n\nFor a new file, the whole file. For a changed file, only the lines the writer added or changed (for a JSON file, the keys and values). Lines that sit between them are not shown.\n\n")
+	b.WriteString("## What the writer produced\n\nFor a new file, the whole file. For a changed file, only the lines the writer added or changed (for a JSON file, the keys and values, which are interface strings). Lines that sit between them are not shown, and headings, list markers and code are not sentences.\n\n")
 	b.WriteString(text + "\n\n")
-	b.WriteString("## Questions\n\nWhich product names and terms the writer used is checked separately: do not judge word choice of names or terms. Judge the writing around them.\n\n")
+	b.WriteString("## Questions\n\nWhich product names and terms the writer used is checked separately: do not judge which names or terms appear. Answer each question about the text as written, not about how good it is overall. Answer yes unless you can quote the words that make the answer no.\n\n")
 	for _, criterion := range compareCriteria {
-		fmt.Fprintf(&b, "- %s: %s\n", criterion.ID, criterion.Question)
+		fmt.Fprintf(&b, "- %s: %s\n  Yes, for example: %s\n  No, for example: %s\n", criterion.ID, criterion.Question, criterion.Yes, criterion.No)
 	}
-	b.WriteString("\nDo not use any tools. Reply with one JSON object and nothing else, of the form {\"register\": true, \"address\": true, \"restraint\": false, \"concision\": true, \"publishable\": false, \"reason\": \"one sentence\"}.\n")
+	b.WriteString("\nDo not use any tools. Reply with one JSON object and nothing else, of the form {\"address\": true, \"lead\": false, \"plain\": true, \"faithful\": true, \"short\": true, \"reason\": \"for each no, the quoted words\"}.\n")
 	return b.String()
 }
 
@@ -166,7 +186,7 @@ func judgeCompare(ctx context.Context, opts CompareOptions, m CompareManifest) e
 					return
 				}
 				task, err := findCompareTask(j.grade.Attempt.Task)
-				verdict := CompareVerdict{Judge: j.judge}
+				verdict := CompareVerdict{Judge: j.judge, Rubric: compareRubricVersion}
 				if err == nil {
 					var project CompareProject
 					project, err = loadCompareProject(task.Project)
@@ -196,7 +216,7 @@ func judgeCompare(ctx context.Context, opts CompareOptions, m CompareManifest) e
 // runCompareJudge asks one judge, in a throwaway home with no tools, no MCP
 // server and no project, and reads its verdict.
 func runCompareJudge(ctx context.Context, opts CompareOptions, judge PairedAgentSpec, prompt string) CompareVerdict {
-	verdict := CompareVerdict{Judge: judge}
+	verdict := CompareVerdict{Judge: judge, Rubric: compareRubricVersion}
 	started := time.Now()
 	defer func() { verdict.DurationMS = time.Since(started).Milliseconds() }()
 	home, err := os.MkdirTemp("", "kapi-compare-judge-")
