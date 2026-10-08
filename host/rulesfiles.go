@@ -358,9 +358,34 @@ func (a *App) planRulesFiles(cmd Command, root string, proj *project.KapiProject
 		if len(sections) == 1 && dir != "" {
 			sections[0].Pattern = ""
 		}
+		// An agent loads the rules files of every folder above the one it
+		// works in, so a folder that would repeat the nearest folder above it
+		// with rules of its own needs no file.
+		if parent := nearestRulesFolder(plan.folders, dir); parent != nil && sameSections(parent.Sections, sections) {
+			continue
+		}
 		plan.folders = append(plan.folders, rulesFolder{Dir: dir, Sections: sections})
 	}
 	return plan, nil
+}
+
+// nearestRulesFolder is the closest folder above dir that has rules of its
+// own, among folders sorted by path.
+func nearestRulesFolder(folders []rulesFolder, dir string) *rulesFolder {
+	for i := len(folders) - 1; i >= 0; i-- {
+		f := &folders[i]
+		if f.Dir != "" && strings.HasPrefix(dir, f.Dir+"/") {
+			return f
+		}
+	}
+	return nil
+}
+
+// sameSections reports whether two folders state the same sections.
+func sameSections(a, b []rulesSection) bool {
+	return slices.EqualFunc(a, b, func(x, y rulesSection) bool {
+		return x.Pattern == y.Pattern && sameSection(x, y)
+	})
 }
 
 // rulesPointKey names the point a path resolves to, so places at one point
@@ -589,12 +614,15 @@ func renderSectionBody(s rulesSection, sample string) string {
 	}
 	if len(s.Rules) > 0 {
 		b.WriteString("\nSay this, not that:\n")
+		// A list that mixes languages names each rule's own, so a rule for
+		// a translation is not read as one for the source.
+		showLocale := slices.ContainsFunc(s.Rules, func(r ContextRule) bool { return r.Locale != s.Rules[0].Locale })
 		for i, r := range s.Rules {
 			if i == rulesFileRules {
 				fmt.Fprintf(&b, "- %d more rules hold here: `kapi context %s` lists them all.\n", len(s.Rules)-i, sample)
 				break
 			}
-			b.WriteString(ruleLine(r, false) + "\n")
+			b.WriteString(ruleLine(r, showLocale) + "\n")
 		}
 	}
 	if len(s.Keep) > 0 {

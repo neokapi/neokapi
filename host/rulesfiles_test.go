@@ -351,3 +351,54 @@ func TestWriteRulesFiles_PatternWithAFolderWildcard(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, rulesFilesIn(t, root), "AGENTS.md")
 }
+
+// TestWriteRulesFiles_NestedFolderRepeatingItsParent: two collections at one
+// point, one reading legal/ and one legal/archive/, write one file, in
+// legal/. An agent in legal/archive/ loads it from the folder above.
+func TestWriteRulesFiles_NestedFolderRepeatingItsParent(t *testing.T) {
+	app, _ := contextOpsApp(t)
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
+	for rel, body := range map[string]string{
+		"kapi.yaml": "version: v1\nid: prj_rulesfilesnestedfolder\nname: nested\n" +
+			"defaults:\n  source_language: en\n" +
+			"profiles:\n  legal:\n    channels: [terms, archive]\n" +
+			"collections:\n" +
+			"  - name: terms\n    channel: legal/terms\n    source_only: true\n    content:\n      - path: \"legal/*.md\"\n" +
+			"  - name: archive\n    channel: legal/archive\n    source_only: true\n    content:\n      - path: \"legal/archive/*.md\"\n",
+		".kapi/voice.yaml":                "id: house\nname: House\ndescription: Plain and direct.\n",
+		".kapi/profiles/legal/voice.yaml": "id: legal\nname: Legal\ndescription: Exact and formal.\n",
+		"legal/terms.md":                  "Terms.\n",
+		"legal/archive/2020.md":           "Old terms.\n",
+	} {
+		full := filepath.Join(root, filepath.FromSlash(rel))
+		require.NoError(t, os.MkdirAll(filepath.Dir(full), 0o755))
+		require.NoError(t, os.WriteFile(full, []byte(body), 0o644))
+	}
+	_, err = app.ImportProjectContext(t.Context(), recipeOf(root), ContextImportRequest{})
+	require.NoError(t, err)
+
+	_, err = app.WriteRulesFiles(t.Context(), recipeOf(root))
+	require.NoError(t, err)
+	files := rulesFilesIn(t, root)
+	assert.Contains(t, files, "legal/AGENTS.md")
+	assert.Contains(t, files["legal/AGENTS.md"], "Exact and formal")
+	assert.NotContains(t, files, "legal/archive/AGENTS.md")
+}
+
+// TestRenderSectionBody_NamesTheLanguageOfATranslationsRule: a list that
+// holds a rule for a translation beside the source's rules names its
+// language, so an agent writing the source does not apply it.
+func TestRenderSectionBody_NamesTheLanguageOfATranslationsRule(t *testing.T) {
+	body := renderSectionBody(rulesSection{Rules: []ContextRule{
+		{Say: "content memory", Not: []string{"translation memory"}},
+		{Say: "innholdsbase", Not: []string{"oversettelsesminne"}, Locale: "nb"},
+	}}, "<path>")
+	assert.Contains(t, body, `- content memory, not "translation memory"`+"\n")
+	assert.Contains(t, body, `- innholdsbase, not "oversettelsesminne" [nb]`)
+
+	single := renderSectionBody(rulesSection{Rules: []ContextRule{
+		{Say: "content memory", Not: []string{"translation memory"}},
+	}}, "<path>")
+	assert.NotContains(t, single, "[")
+}
