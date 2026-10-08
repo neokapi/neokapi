@@ -47,13 +47,16 @@ func ObservedRule(term string, insteadOf []string) profile.TermRule {
 //     `QuickCast`. A lower-case phrase such as `sign in` yields nothing: its
 //     hyphenated and closed spellings are often words of their own (the
 //     `sign-in` page), so only the forms given in insteadOf are avoided.
-//   - A capitalised compound yields its lower-case spelling: `KapiDesktop`
-//     gives `kapidesktop`. A single word does not: `Team` or `Rota` is an
-//     ordinary word the project also writes in lower case, and a rule that
-//     avoided `team` would fail the project's own text. A single word that is
-//     a coined name names its lower-case misuse in insteadOf.
+//   - The term's lower-case spelling is never derived. `sign out` is how prose
+//     writes the label `Sign out`, and `quickcast` is the slug of the name
+//     `Quickcast`; avoiding either would fail the project's own text. A coined
+//     name names its lower-case misuse in insteadOf.
 //
 // The term itself is never among the forms, and each form is listed once.
+//
+// A form that differs from the term only in case cannot be held by the terms
+// store a kept rule lands in, which folds case; [SplitForms] says which forms
+// land there and which the rule enforces by itself.
 func AvoidedForms(term string, insteadOf []string) []string {
 	term = strings.TrimSpace(term)
 	if term == "" {
@@ -98,10 +101,44 @@ func AvoidedForms(term string, insteadOf []string) []string {
 			add(strings.Join(titled, ""))
 		}
 	}
-	if capitalised && len(parts) >= 2 {
-		add(strings.ToLower(term))
-	}
 	return out
+}
+
+// SplitForms divides the forms a term rule avoids by where a kept rule
+// enforces them. stored are the forms the terms store holds as forbidden
+// terms beside the form to use. caseOnly differ from the form to use only in
+// case: the store folds case, so such a form would land on the preferred term
+// itself, and the rule enforces it from the operation log instead
+// (Resolve). Every surface that lands, retracts or enforces a kept rule
+// divides its forms here, so the store, the check and the log agree on what
+// the rule avoids.
+func SplitForms(rule profile.TermRule) (stored, caseOnly []string) {
+	for _, form := range append([]string{rule.Term}, rule.Forms...) {
+		switch {
+		case form == "":
+		case rule.Replacement != "" && strings.EqualFold(form, rule.Replacement):
+			if form != rule.Replacement {
+				caseOnly = append(caseOnly, form)
+			}
+		default:
+			stored = append(stored, form)
+		}
+	}
+	return stored, caseOnly
+}
+
+// caseOnlyRule is the part of a kept rule the terms store cannot hold: its
+// forms that differ from the form to use only in case, matched as written. It
+// reports false for a rule with no such form.
+func caseOnlyRule(rule profile.TermRule) (profile.TermRule, bool) {
+	_, caseOnly := SplitForms(rule)
+	if len(caseOnly) == 0 {
+		return profile.TermRule{}, false
+	}
+	out := rule
+	out.Term, out.Forms = caseOnly[0], caseOnly[1:]
+	out.CaseSensitive = new(true)
+	return out, true
 }
 
 // compoundParts splits a term at its spaces, hyphens and underscores, and at

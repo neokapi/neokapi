@@ -72,7 +72,7 @@ func TestKeepSessionLeavesContestedSuggestions(t *testing.T) {
 	rule, ok := quick.Rule()
 	require.True(t, ok)
 	assert.Equal(t, "Quick cast", rule.Term)
-	assert.Equal(t, []string{"Quick-cast", "QuickCast", "quickcast"}, rule.Forms)
+	assert.Equal(t, []string{"Quick-cast", "QuickCast"}, rule.Forms)
 
 	res, err := app.KeepContextOperations(t.Context(), ContextKeepRequest{Actor: person, Project: recipeOf(root), Session: "s1"})
 	require.NoError(t, err)

@@ -281,19 +281,13 @@ func landingScope(r contextop.Record) (string, map[string]string) {
 	return profile, r.Scope.Coordinates
 }
 
-// storedForms lists the forms of a term rule the terms store can hold. The
-// store folds case, so a form that differs from the form to use only in case
-// would land on the preferred term itself; such a form stays in the rule and
-// out of the store.
+// storedForms lists the forms of a term rule the terms store can hold
+// (contextop.SplitForms). A form that differs from the form to use only in
+// case stays in the rule and out of the store, and the check enforces it from
+// the operation log.
 func storedForms(rule coreprofile.TermRule) []string {
-	var out []string
-	for _, form := range append([]string{rule.Term}, rule.Forms...) {
-		if form == "" || (rule.Replacement != "" && strings.EqualFold(form, rule.Replacement)) {
-			continue
-		}
-		out = append(out, form)
-	}
-	return out
+	stored, _ := contextop.SplitForms(rule)
+	return stored
 }
 
 // sourceLocale is the language an established term is recorded in: the project's

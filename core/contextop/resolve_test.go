@@ -195,3 +195,27 @@ func termsOf(rules []profile.TermRule) []string {
 	}
 	return out
 }
+
+// A kept rule lands in the terms store, which folds case, so its forms that
+// differ from the form to use only in case are enforced from the log: kept, it
+// avoids what it avoided as a suggestion.
+func TestResolve_KeptRuleEnforcesTheFormsTheStoreCannotHold(t *testing.T) {
+	rule := contextop.ObservedRule("Quickcast", []string{"Quick cast"})
+	kept := contextop.Record{
+		ID: "1", Seq: 1, Project: "prj_docs", Kind: contextop.KindObserve,
+		Subject: contextop.Subject{Kind: contextop.SubjectTerm, Term: &rule},
+		Status:  contextop.StatusEstablished, Established: true,
+		Scope: contextop.Scope{Level: contextop.LevelProject},
+	}
+	got := contextop.Resolve([]contextop.Record{kept}, nil, contextop.ResolveRequest{Project: "prj_docs"})
+	require.Len(t, got.Binding, 1)
+	assert.Equal(t, "QuickCast", got.Binding[0].Term)
+	assert.Empty(t, got.Binding[0].Forms)
+	assert.True(t, got.Binding[0].MatchesCase(), "the form to use itself never matches")
+	assert.Empty(t, got.Advisory)
+
+	plain := contextop.ObservedRule("use", []string{"utilise"})
+	kept.Subject = contextop.Subject{Kind: contextop.SubjectTerm, Term: &plain}
+	got = contextop.Resolve([]contextop.Record{kept}, nil, contextop.ResolveRequest{Project: "prj_docs"})
+	assert.Empty(t, got.Binding, "the store holds every form of this rule")
+}

@@ -132,8 +132,10 @@ type ResolveRequest struct {
 // Resolution is what the context operations add to the vocabulary a project's
 // own stores already carry.
 type Resolution struct {
-	// Binding are workspace-wide established rules. They are in force at the
-	// severity each one carries, the same as a rule in the project's own store.
+	// Binding are workspace-wide established rules, and the forms of this
+	// project's kept rules the terms store cannot hold (SplitForms). They are
+	// in force at the severity each one carries, the same as a rule in the
+	// project's own store.
 	Binding []profile.TermRule
 	// Advisory are the suggestions and the contested rules: advice nobody has
 	// established, or that disagrees with another rule. They
@@ -194,6 +196,33 @@ func Resolve(records []Record, widened []WidenedRule, req ResolveRequest) Resolu
 		}
 		seen[key] = true
 		binding = append(binding, rule)
+	}
+	// A rule kept in this project lands in its terms store, all but the forms
+	// that differ from the form to use only in case, which the store folds onto
+	// the preferred term. Those are enforced from here, so a kept rule avoids
+	// what it avoided as a suggestion.
+	kept := map[string]bool{}
+	for _, r := range order(records) {
+		if !r.Established || !r.Kind.Bears() || r.Status != StatusEstablished {
+			continue
+		}
+		if r.Scope.Level == LevelWorkspace || r.Project != req.Project || !r.Scope.Covers(req.Coordinates) {
+			continue
+		}
+		rule, ok := r.Rule()
+		if !ok {
+			continue
+		}
+		partial, ok := caseOnlyRule(rule)
+		if !ok {
+			continue
+		}
+		key := termKey(rule.Replacement)
+		if kept[key] {
+			continue
+		}
+		kept[key] = true
+		binding = append(binding, partial)
 	}
 	sortRules(binding)
 	out.Binding = binding
