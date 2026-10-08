@@ -55,7 +55,10 @@ own that marks the cell as trusted. Every cell is sandboxed. Claude's sandbox is
 cell and its temporary directory, reads of the developer's home and the shared
 temporary directories denied, no network, and no unsandboxed fallback; the
 kapi binary is copied into the cell so nothing needs the checkout. Codex runs
-in `workspace-write` with the same writable roots and no network.
+in `workspace-write` with the same writable roots and no network. The cells
+directory must sit outside the developer's home and outside Claude Code's
+shared temporary directories (`/tmp/claude-<uid>`), which the sandbox denies;
+a cell there is refused at preparation.
 Claude needs a keychain token that stays
 valid for the attempt timeout plus 15 minutes; refresh the login, or export a
 `CLAUDE_CODE_OAUTH_TOKEN` from `claude setup-token`, before a live phase.
