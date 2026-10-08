@@ -1,0 +1,33 @@
+# Harbor: developer documentation, release notes and support replies, plus
+# the legal terms for the hosted service.
+#
+# The hosted service was renamed Harbor Hosted. The legal terms keep the name
+# the signed contracts use until they are renewed, so the rename is held where
+# the documentation sits and nowhere else.
+version: v1
+id: prj_compareharboraaaaaaaaaa
+name: harbor
+defaults:
+  source_language: en-US
+  exclude:
+    - "**/.git/**"
+
+profiles:
+  docs:
+    channels: [guides, support]
+  legal:
+    channels: [terms]
+
+collections:
+  - name: docs
+    channel: docs/guides
+    content:
+      - path: "docs/**/*.md"
+  - name: support
+    channel: docs/support
+    content:
+      - path: "support/**/*.md"
+  - name: legal
+    channel: legal/terms
+    content:
+      - path: "legal/**/*.md"

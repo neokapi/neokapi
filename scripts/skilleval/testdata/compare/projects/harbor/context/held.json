@@ -1,0 +1,9 @@
+[
+  {
+    "summary": "Harbor Cloud was renamed Harbor Hosted. The documentation and support replies use the new name; the legal terms keep the contracted name until renewal.",
+    "term": "Harbor Hosted",
+    "instead_of": ["Harbor Cloud"],
+    "seen_in": "docs/index.md",
+    "quote": "Harbor Hosted, the managed platform we run for you"
+  }
+]

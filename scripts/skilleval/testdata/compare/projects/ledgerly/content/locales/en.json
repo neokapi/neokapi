@@ -1,0 +1,19 @@
+{
+  "nav.invoices": "Invoices",
+  "nav.customers": "Customers",
+  "nav.payouts": "Payouts",
+  "nav.settings": "Settings",
+  "invoices.new": "New invoice",
+  "invoices.empty": "You haven't sent an invoice yet. Create one and send it in a minute.",
+  "invoices.sent_toast": "Invoice sent to {customer}.",
+  "invoices.overdue_badge": "Overdue",
+  "customers.add": "Add customer",
+  "customers.empty": "Add your first customer to start invoicing.",
+  "payouts.next": "Next payout: {amount} on {date}",
+  "payouts.bank_missing": "Connect a bank account to receive payouts.",
+  "autopay.title": "Autopay",
+  "autopay.description": "Charge a customer's saved card automatically when an invoice is due.",
+  "autopay.enable": "Turn on Autopay",
+  "autopay.enabled_toast": "Autopay is on for {customer}.",
+  "autopay.card_missing": "{customer} has no saved card, so Autopay can't charge them."
+}

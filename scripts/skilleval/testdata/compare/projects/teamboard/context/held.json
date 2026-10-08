@@ -1,0 +1,9 @@
+[
+  {
+    "summary": "Workspaces were renamed Spaces in Teamboard 3.4. Customers only ever see the new name; the API keeps workspace.",
+    "term": "Space",
+    "instead_of": ["Workspace"],
+    "seen_in": "help/getting-started.md",
+    "quote": "Each board belongs to a Space"
+  }
+]

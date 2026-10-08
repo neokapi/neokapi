@@ -1,0 +1,47 @@
+name: Ledgerly
+description: >-
+  Ledgerly writes for freelancers who are good at their work and short on time
+  for admin. Be friendly and exact: say what happens to their money, when, and
+  what it costs.
+tone:
+  personality: [friendly, exact, reassuring]
+  formality: neutral
+  emotion: calm
+  humor: none
+  guidelines: >-
+    Address the reader as "you". Give real numbers and dates instead of
+    adjectives like "fast" or "low". Never imply that money moves instantly or
+    for free, and never promise anything about taxes: Ledgerly does not give tax
+    advice, so point the reader to their accountant. Do not mention other
+    products by name. Interface strings use sentence case, and buttons start
+    with a verb and have no full stop.
+style:
+  active_voice: true
+  sentence_length: short
+  person_pov: second
+  contractions: sometimes
+  prohibited_patterns:
+    - regex: '(?i)\binstant(?:ly)?\b'
+      description: Payouts and payments are never instant. Give the real timing.
+      scope: prose
+    - regex: '(?i)\b(?:no|zero) (?:fees?|charges?|cost)\b|\bfee-free\b|\bfree of charge\b'
+      description: A claim that a payment costs nothing. Give the real fee.
+      scope: prose
+    - regex: '(?i)\b(?:tax[- ]compliant|tax[- ]ready|guarantee[ds]?|guaranteeing|accountant[- ]approved)\b'
+      description: A promise about taxes or outcomes. Ledgerly gives no tax advice and guarantees nothing.
+      scope: prose
+    - regex: '!(?:\s|$|")'
+      description: Exclamation mark
+      scope: prose
+terms:
+  - term: Invoicr
+    replacement: other invoicing tools
+    competitor: true
+    note: Do not name other products.
+  - term: client
+    replacement: customer
+    note: Ledgerly calls the people a freelancer bills customers, everywhere.
+  - term: clients
+    replacement: customers
+  - term: pay-out
+    replacement: payout

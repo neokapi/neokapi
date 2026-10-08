@@ -1,0 +1,8 @@
+[
+  {"id": "rename", "category": "rename", "pattern": "(?i)\\bworkspaces?(?:'s)?\\b", "exempt": ["api/**"], "note": "Workspace renamed Space where customers read"},
+  {"id": "competitor", "category": "competitor", "pattern": "(?i)\\bboardly\\b"},
+  {"id": "claim", "category": "claim", "pattern": "(?i)\\b(?:guarantee[ds]?|guaranteeing|100% (?:uptime|safe|secure)|never (?:lose|loses|lost)|zero data loss|always (?:available|online))\\b"},
+  {"id": "sign-in", "category": "term", "pattern": "(?i)\\blog(?:ged|ging)? ?in(?:to)?\\b|\\blogins?\\b"},
+  {"id": "email", "category": "term", "pattern": "(?i)\\be-mails?\\b"},
+  {"id": "exclamation", "category": "voice-rule", "pattern": "!(?:\\s|$)"}
+]

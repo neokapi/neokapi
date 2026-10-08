@@ -1,0 +1,44 @@
+name: Harbor
+description: >-
+  Harbor writes for developers in the middle of a task. Tell them what to run
+  and what happens, precisely, and get out of the way.
+tone:
+  personality: [precise, plain, direct]
+  formality: neutral
+  emotion: neutral
+  humor: none
+  guidelines: >-
+    Write instructions in the imperative and address the reader as "you".
+    Present tense. Put commands, flags, paths and config keys in backticks.
+    State what Harbor does and under which conditions; never make an
+    unqualified claim about uptime or security. Do not call a step simple or
+    easy, and do not mention other products by name.
+style:
+  active_voice: true
+  sentence_length: medium
+  person_pov: second
+  contractions: never
+  prohibited_patterns:
+    - regex: '(?i)\bzero[- ]downtime\b'
+      description: An unqualified uptime claim. Say what Harbor does (traffic moves after the health check passes).
+      scope: prose
+    - regex: '(?i)\b(?:secure by default|bulletproof|unbreakable|100% (?:uptime|secure|available))\b'
+      description: An unqualified security or availability claim.
+      scope: prose
+    - regex: '(?i)\b(?:simply|just|easily|obviously)\b'
+      description: Do not call a step simple. Remove the word.
+      scope: prose
+    - regex: '!(?:\s|$)'
+      description: Exclamation mark
+      scope: prose
+terms:
+  - term: Dockyard
+    replacement: other deployment tools
+    competitor: true
+    note: Do not name other products.
+  - term: whitelist
+    replacement: allowlist
+  - term: whitelisting
+    replacement: allowlisting
+  - term: blacklist
+    replacement: denylist
