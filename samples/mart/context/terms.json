@@ -1,0 +1,201 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "kapi-terms",
+  "concepts": [
+    {
+      "id": "term:en:kapimart",
+      "domain": "product",
+      "definition": "The storefront and order platform. A product name: the same in every language, in Latin script.",
+      "source": "terminology",
+      "terms": [
+        { "text": "KapiMart", "locale": "en", "status": "preferred" },
+        { "text": "KapiMart", "locale": "fr", "status": "preferred" },
+        { "text": "KapiMart", "locale": "de", "status": "preferred" },
+        { "text": "KapiMart", "locale": "ja", "status": "preferred" }
+      ],
+      "created_at": "2026-02-01T09:00:00Z",
+      "updated_at": "2026-02-01T09:00:00Z"
+    },
+    {
+      "id": "term:en:bowmart",
+      "domain": "product",
+      "definition": "The same product under the bowrain instance's name. A product name: never translated.",
+      "source": "terminology",
+      "terms": [
+        { "text": "BowMart", "locale": "en", "status": "preferred" },
+        { "text": "BowMart", "locale": "fr", "status": "preferred" },
+        { "text": "BowMart", "locale": "de", "status": "preferred" },
+        { "text": "BowMart", "locale": "ja", "status": "preferred" }
+      ],
+      "created_at": "2026-02-01T09:00:00Z",
+      "updated_at": "2026-02-01T09:00:00Z"
+    },
+    {
+      "id": "term:en:ai-assistant",
+      "domain": "product",
+      "definition": "The assistant that drafts product descriptions and replies. Customer-facing copy says \"AI assistant\", never \"Copilot\" or \"bot\".",
+      "source": "terminology",
+      "terms": [
+        { "text": "AI assistant", "locale": "en", "status": "preferred" },
+        { "text": "Copilot", "locale": "en", "status": "forbidden", "note": "use: AI assistant" },
+        { "text": "bot", "locale": "en", "status": "forbidden", "note": "use: AI assistant" },
+        { "text": "assistant IA", "locale": "fr", "status": "preferred" },
+        { "text": "KI-Assistent", "locale": "de", "status": "preferred" },
+        { "text": "AIアシスタント", "locale": "ja", "status": "preferred" }
+      ],
+      "created_at": "2026-02-01T09:00:00Z",
+      "updated_at": "2026-02-01T09:00:00Z"
+    },
+    {
+      "id": "term:en:cart",
+      "domain": "shop",
+      "definition": "The items a shopper has picked and not yet paid for.",
+      "source": "terminology",
+      "terms": [
+        { "text": "cart", "locale": "en", "status": "preferred" },
+        { "text": "basket", "locale": "en", "status": "deprecated", "note": "use: cart" },
+        { "text": "panier", "locale": "fr", "status": "preferred" },
+        { "text": "Warenkorb", "locale": "de", "status": "preferred" },
+        { "text": "カート", "locale": "ja", "status": "preferred" }
+      ],
+      "created_at": "2026-02-01T09:00:00Z",
+      "updated_at": "2026-02-01T09:00:00Z"
+    },
+    {
+      "id": "term:en:checkout",
+      "domain": "shop",
+      "definition": "The step where a shopper pays for the cart.",
+      "source": "terminology",
+      "terms": [
+        { "text": "checkout", "locale": "en", "status": "preferred" },
+        { "text": "paiement", "locale": "fr", "status": "preferred" },
+        { "text": "Kasse", "locale": "de", "status": "preferred" },
+        { "text": "お支払い", "locale": "ja", "status": "preferred" }
+      ],
+      "created_at": "2026-02-01T09:00:00Z",
+      "updated_at": "2026-02-01T09:00:00Z"
+    },
+    {
+      "id": "term:en:dashboard",
+      "domain": "shop",
+      "definition": "The one screen a retailer runs the shop from.",
+      "source": "terminology",
+      "terms": [
+        { "text": "dashboard", "locale": "en", "status": "preferred" },
+        { "text": "tableau de bord", "locale": "fr", "status": "preferred" },
+        { "text": "Übersicht", "locale": "de", "status": "preferred" },
+        { "text": "ダッシュボード", "locale": "ja", "status": "preferred" }
+      ],
+      "created_at": "2026-02-01T09:00:00Z",
+      "updated_at": "2026-02-01T09:00:00Z"
+    },
+    {
+      "id": "term:en:account",
+      "domain": "shop",
+      "definition": "A shopper's sign-in, orders and saved addresses.",
+      "source": "terminology",
+      "terms": [
+        { "text": "account", "locale": "en", "status": "preferred" },
+        { "text": "compte", "locale": "fr", "status": "preferred" },
+        { "text": "Konto", "locale": "de", "status": "preferred" },
+        { "text": "アカウント", "locale": "ja", "status": "preferred" }
+      ],
+      "created_at": "2026-02-01T09:00:00Z",
+      "updated_at": "2026-02-01T09:00:00Z"
+    },
+    {
+      "id": "term:en:order",
+      "domain": "shop",
+      "definition": "A paid cart, from confirmation to delivery.",
+      "source": "terminology",
+      "terms": [
+        { "text": "order", "locale": "en", "status": "preferred" },
+        { "text": "commande", "locale": "fr", "status": "preferred" },
+        { "text": "Bestellung", "locale": "de", "status": "preferred" },
+        { "text": "注文", "locale": "ja", "status": "preferred" }
+      ],
+      "created_at": "2026-02-01T09:00:00Z",
+      "updated_at": "2026-02-01T09:00:00Z"
+    },
+    {
+      "id": "term:en:subtotal",
+      "domain": "shop",
+      "definition": "The cart's total before shipping and tax.",
+      "source": "terminology",
+      "terms": [
+        { "text": "subtotal", "locale": "en", "status": "preferred" },
+        { "text": "sous-total", "locale": "fr", "status": "preferred" },
+        { "text": "Zwischensumme", "locale": "de", "status": "preferred" },
+        { "text": "小計", "locale": "ja", "status": "preferred" }
+      ],
+      "created_at": "2026-02-01T09:00:00Z",
+      "updated_at": "2026-02-01T09:00:00Z"
+    },
+    {
+      "id": "term:en:paypal",
+      "domain": "brand",
+      "definition": "A third-party payment brand, kept as written in every language.",
+      "source": "terminology",
+      "terms": [
+        { "text": "PayPal", "locale": "en", "status": "preferred" },
+        { "text": "PayPal", "locale": "fr", "status": "preferred" },
+        { "text": "PayPal", "locale": "de", "status": "preferred" },
+        { "text": "PayPal", "locale": "ja", "status": "preferred" }
+      ],
+      "created_at": "2026-02-01T09:00:00Z",
+      "updated_at": "2026-02-01T09:00:00Z"
+    },
+    {
+      "id": "term:en:apple-pay",
+      "domain": "brand",
+      "definition": "A third-party payment brand, kept as written in every language.",
+      "source": "terminology",
+      "terms": [
+        { "text": "Apple Pay", "locale": "en", "status": "preferred" },
+        { "text": "Apple Pay", "locale": "fr", "status": "preferred" },
+        { "text": "Apple Pay", "locale": "de", "status": "preferred" },
+        { "text": "Apple Pay", "locale": "ja", "status": "preferred" }
+      ],
+      "created_at": "2026-02-01T09:00:00Z",
+      "updated_at": "2026-02-01T09:00:00Z"
+    },
+    {
+      "id": "term:en:use",
+      "domain": "voice",
+      "definition": "Mart writes plainly: a shop owner uses a tool. The business register's verbs are not used.",
+      "source": "terminology",
+      "terms": [
+        { "text": "use", "locale": "en", "status": "preferred" },
+        { "text": "leverage", "locale": "en", "status": "forbidden", "note": "use: use" },
+        { "text": "utilize", "locale": "en", "status": "forbidden", "note": "use: use" }
+      ],
+      "created_at": "2026-02-01T09:00:00Z",
+      "updated_at": "2026-02-01T09:00:00Z"
+    },
+    {
+      "id": "term:en:useful",
+      "domain": "voice",
+      "definition": "Name the concrete benefit instead of inflating it.",
+      "source": "terminology",
+      "terms": [
+        { "text": "useful", "locale": "en", "status": "preferred" },
+        { "text": "game-changing", "locale": "en", "status": "forbidden", "note": "use: useful, or describe the concrete benefit" },
+        { "text": "revolutionary", "locale": "en", "status": "forbidden", "note": "use: useful, or describe the concrete benefit" }
+      ],
+      "created_at": "2026-02-01T09:00:00Z",
+      "updated_at": "2026-02-01T09:00:00Z"
+    },
+    {
+      "id": "term:en:synergy",
+      "domain": "voice",
+      "definition": "Marketing inflation. Drop the word and name the actual benefit.",
+      "source": "terminology",
+      "terms": [
+        { "text": "synergy", "locale": "en", "status": "forbidden", "note": "drop it; name the actual benefit" },
+        { "text": "seamless", "locale": "en", "status": "forbidden", "note": "drop it; say what connects to what" }
+      ],
+      "created_at": "2026-02-01T09:00:00Z",
+      "updated_at": "2026-02-01T09:00:00Z"
+    }
+  ]
+}

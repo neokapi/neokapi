@@ -29,6 +29,7 @@
     "@neokapi/flow-editor": "*",
     "@neokapi/kapi-format": "*",
     "@neokapi/kapi-lab": "*",
+    "@neokapi/kapi-learn": "*",
     "@neokapi/kapi-playground": "*",
     "@neokapi/i18n-react": "*",
     "@neokapi/reference-data": "*",

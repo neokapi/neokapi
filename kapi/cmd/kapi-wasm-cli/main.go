@@ -29,6 +29,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"sync"
@@ -230,11 +231,21 @@ func runOnce(argv []string) (code int) {
 
 	root := buildRoot()
 	root.SetArgs(argv)
-	if err := root.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, "Error:", err)
-		return 1
+	executed, err := root.ExecuteC()
+	if err == nil {
+		return 0
 	}
-	return 0
+	// The same exit codes the native binary reports (cli.Run): a failing
+	// gate is 3, a usage error 2, a silent exit carries its code with no
+	// message. A page teaching `kapi check` reads the code the CI would.
+	code = cli.ExitCode(root, err)
+	if executed == nil {
+		executed = root
+	}
+	if code != cli.ExitSignal && !errors.Is(err, cli.ErrSilentExit) {
+		cli.PrintCommandError(executed, err, code)
+	}
+	return code
 }
 
 // buildRoot constructs a fresh kapi root command with the browser-safe

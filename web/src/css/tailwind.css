@@ -33,6 +33,12 @@
 /* The "Try Neokapi" modal renders ui-primitives (Dialog) + a few Tailwind
  * utilities inside a .kapi-reference scope on the landing page. */
 @source "../components/TryNeokapi";
+/* The learning labs (@neokapi/kapi-learn) draw the preview kit's
+ * DocumentViewer and CodeView inside their files pane, in a `.kapi-reference`
+ * scope; scan the package, the docs adapters and the index page. */
+@source "../../../packages/kapi-learn/src";
+@source "../components/Learn";
+@source "../pages/learn";
 
 /* Map the ui-primitives `dark:` variant onto Docusaurus's data-theme switch. */
 @custom-variant dark (&:is([data-theme="dark"] *));

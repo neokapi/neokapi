@@ -95,9 +95,17 @@ const PAGES = [
     },
   },
   {
-    url: "/labs",
-    label: "labs overview",
+    url: "/learn",
+    label: "learning labs index",
     gate: null, // static index — links only, nothing to activate
+  },
+  {
+    url: "/learn/northsea-project",
+    label: "a learning lab page",
+    gate: {
+      description: 'the poster\'s Play button (".kl-play" boots the shared engine)',
+      click: (page) => page.click(".kl-play"),
+    },
   },
   {
     url: "/reference/formats/androidxml",

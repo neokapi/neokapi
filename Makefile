@@ -3198,6 +3198,19 @@ docs-verify-snippets: web-wasm-cli ## Verify every RunnableSnippet + scene smoke
 kbf-smoke: web-wasm-cli ## Verify KBF Go(wasm)↔TS parity for the docs Tests page (serialization, preview, anchors, validation)
 	node --experimental-strip-types scripts/verify-snippets/kbf-smoke.ts
 
+# The learning labs (/learn) run the sample projects under samples/ in the
+# browser engine. learn-gen writes the samples into the module the player
+# seeds from; learn-verify runs every lab's chapters in Node against the wasm
+# and holds each command to the exit code and output the chapter declares.
+learn-gen: ## Write samples/ into packages/kapi-learn/src/samples.gen.ts (the learning labs' fixtures)
+	node --experimental-strip-types scripts/learn-gen/gen.ts
+
+learn-gen-check: ## Fail when samples.gen.ts is stale against samples/
+	node --experimental-strip-types scripts/learn-gen/gen.ts --check
+
+learn-verify: web-wasm-cli ## Run every learning lab's chapters in the wasm engine and hold them to their declared exit codes and output
+	node --experimental-strip-types scripts/learn-verify/verify.ts
+
 kpz-smoke: build ## Verify the resumable .kpz workspace lifecycle (open→step→finish == one-shot; pack stable)
 	bash scripts/kpz-smoke.sh $(BIN_DIR)/kapi
 
@@ -3438,6 +3451,7 @@ help: ## Show this help
         generate-translatability check-translatability \
         generate-docs-palette check-docs-palette \
         docs-deps docs-dev docs-wasm docs-build docs-serve docs-verify-snippets \
+        learn-gen learn-gen-check learn-verify \
         kbf-smoke kpz-smoke kpz-wasm-smoke wasm-surface-smoke change-wasm-smoke wasm-persist-smoke web-sqlite-wasm \
         test-stores-oneconn test-host-oneconn test-wasm-stores \
         landing-build landing-build-nb docs-build-prod bowrain-docs-build-prod publish-landing publish-website \

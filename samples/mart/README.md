@@ -45,6 +45,8 @@ samples/mart/
 │   ├── fr.json          # French — complete
 │   ├── de.json          # German — partial (~70%)
 │   └── ja.json          # Japanese — partial (~30%)
+├── context/
+│   └── terms.json       # the terms as a bundle: read in with `kapi store import ./context`
 ├── glossary.csv         # term, fr, de, ja, note (DNT marked)
 ├── brand/
 │   ├── forbidden-terms.txt   # one term per line, for a brand check
@@ -55,6 +57,14 @@ samples/mart/
 Two source formats exercise the engine's round-trip: `src/en.json` for
 structured key-value content, and `src/about.md` for prose. The locale JSON
 files share the exact same key set as the source.
+
+`context/terms.json` carries the same vocabulary as `glossary.csv` and
+`brand/`, in the bundle a project reads in with `kapi store import ./context`:
+the product and payment names as concepts with the same term in every locale,
+the shop vocabulary with its French, German and Japanese renderings, and the
+brand words as forbidden terms beside the word to use instead. The learning
+labs under `/learn` seed a project from it; the CSV and the brand files stay
+for the interchange and brand-check examples.
 
 ## Locales and completion
 

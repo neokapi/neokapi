@@ -250,8 +250,11 @@ const config: Config = {
           { from: "/kapi/get-started/use-with-mcp", to: "/kapi/get-started/use-with-claude" },
           // The Models & Providers lab was removed (it demonstrated provider
           // APIs, not neokapi functionality); provider setup lives in the
-          // Use-with-Claude/models docs, and /labs maps the remaining labs.
-          { from: "/lab/models", to: "/labs" },
+          // Use-with-Claude/models docs. The labs overview that mapped the
+          // remaining explorers became the learning labs index at /learn,
+          // which lists the explorers at its foot.
+          { from: "/lab/models", to: "/learn" },
+          { from: "/labs", to: "/learn" },
           // The file-format vocabulary rename (.klf → .kbf → .kbf.json, .klz → .kpz):
           // the *format* is a hard rename with no back-compat, but the
           // published doc URLs are indexed, so the old routes redirect. These
@@ -822,6 +825,10 @@ const config: Config = {
     // where a variant exists, English otherwise. See the plugin.
     "./plugins/reference-locale.mjs",
 
+    // One page per learning lab (/learn/<id>), from the curriculum in
+    // @neokapi/kapi-learn. See the plugin.
+    "./plugins/learn-routes.ts",
+
     // Silence a few benign third-party webpack warnings. Each predicate is
     // scoped to the specific offending module/message so an equivalent warning
     // from our OWN code is never suppressed.
@@ -1111,14 +1118,20 @@ const config: Config = {
         },
         {
           type: "dropdown",
-          label: "Labs",
+          label: "Learn",
           position: "left",
           items: [
-            // A Labs overview heads the list (what each lab teaches + a
-            // suggested order). AI/ML (local LLM, OCR, ASR) is embedded inside
-            // the relevant labs; plugins load on demand from the navbar status
-            // widget. Old per-topic routes redirect to their new home.
-            { label: "Labs overview", to: "/labs" },
+            // The learning labs: three series in the sample projects, each lab
+            // a scripted session in the browser engine (/learn, one page per
+            // lab under /learn/<id>). The engine explorers that open one part
+            // of the engine on a file of the reader's own follow; the index
+            // lists them too. Plugins load on demand from the navbar status
+            // widget.
+            { label: "Learn kapi", to: "/learn" },
+            { label: "Start here: one language", to: "/learn/northsea-project" },
+            { label: "Add languages", to: "/learn/compass-axis" },
+            { label: "The content engine", to: "/learn/mart-formats" },
+            { type: "html", value: '<hr class="dropdown-separator">' },
             { label: "Flow workspace", to: "/lab" },
             { label: "Segmentation", to: "/lab/segmentation" },
             { label: "File conversion", to: "/lab/convert" },
