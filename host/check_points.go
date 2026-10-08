@@ -23,6 +23,9 @@ type atPoint struct {
 	// widened to the whole workspace, which bind, and candidates nobody has
 	// decided on, which advise (core/contextop).
 	context contextop.Resolution
+	// keep is the renames held elsewhere that leave the old wording correct
+	// here, as rules against the new wording (checkTerms.keepAt).
+	keep []profile.TermRuleSet
 	// coordinates are the point's coordinates, which an established rule's
 	// scope is matched against when a check counts its uses.
 	coordinates map[string]string
@@ -88,6 +91,11 @@ func (a *App) governFile(ctx context.Context, voice *checkVoice, vocab *checkTer
 			if at.context, err = vocab.contextAt(point); err != nil {
 				return fileGovernance{}, err
 			}
+			if !comments {
+				if at.keep, err = vocab.keepAt(point); err != nil {
+					return fileGovernance{}, err
+				}
+			}
 			if at.coordinates, err = vocab.coordinatesAt(point); err != nil {
 				return fileGovernance{}, err
 			}
@@ -109,6 +117,7 @@ func (a *App) governFile(ctx context.Context, voice *checkVoice, vocab *checkTer
 func (o checkRunOptions) govern(g fileGovernance) checkRunOptions {
 	o.profile, o.voiceContext, o.terms, o.point = g.content.profile, g.content.voiceContext, g.content.terms, g.content.point
 	o.context = g.content.context
+	o.keep = g.content.keep
 	o.comments = nil
 	if g.apart() {
 		comments := g.comments
@@ -119,7 +128,7 @@ func (o checkRunOptions) govern(g fileGovernance) checkRunOptions {
 
 // here is the governance at the file's own point.
 func (o checkRunOptions) here() atPoint {
-	return atPoint{point: o.point, profile: o.profile, voiceContext: o.voiceContext, terms: o.terms, context: o.context}
+	return atPoint{point: o.point, profile: o.profile, voiceContext: o.voiceContext, terms: o.terms, context: o.context, keep: o.keep}
 }
 
 // pointGroup is the blocks of one file held to one point.
@@ -196,6 +205,7 @@ func (e *checkExecution) recordContexts(file, destination string, opts checkRunO
 		at := opts
 		at.profile, at.voiceContext, at.terms, at.point = opts.comments.profile, opts.comments.voiceContext, opts.comments.terms, opts.comments.point
 		at.context = opts.comments.context
+		at.keep = opts.comments.keep
 		at.comments = nil
 		e.recordContext(file, destination, at)
 	}

@@ -261,7 +261,9 @@ everywhere, and one in each folder whose rules differ. A rename held for
 `help/` gives `help/AGENTS.md` the new name and `api/AGENTS.md` a line saying
 the old name is correct there. Each section states the voice, what to write
 and what not, the wording to keep, and the `kapi check` line, and stays short;
-`kapi context <path>` answers in full for one file. `kapi init` writes the same
+`kapi context <path>` gives the full answer for one file. An agent follows the
+section without asking first, and `kapi check` flags the new name in a folder
+whose section says to keep the old one. `kapi init` writes the same
 files, and kapi rewrites them when the context changes: after
 `kapi context review`, `kapi context sync` and `kapi up`. The section sits
 between `<!-- kapi:rules -->` markers; hand-written content around it is kept.

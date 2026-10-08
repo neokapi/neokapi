@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-08T14:55:32Z",
+  "generatedAt": "2026-10-08T18:17:00Z",
   "tools": [
     {
       "name": "apply_edits",
@@ -349,7 +349,7 @@
     },
     {
       "name": "context_read",
-      "description": "Read what applies when you write one file, before you change it: the voice, the words to use and to avoid, and what has been suggested but not yet established. `path` is project-relative, e.g. `docs/guide.md`, or `profile/\u003cname\u003e` for a named profile. Set `comments` before writing a comment in a source file: the answer is then for the file's comments. The same text the context://\u003cpath\u003e resource returns.",
+      "description": "Read everything that applies to one file: the voice in full, the words to use and to avoid, the old names that stay correct there, and what has been suggested but not yet established. kapi's section of AGENTS.md and CLAUDE.md states the same rules, so call this for a file no section covers or when you need the full answer. `path` is project-relative, e.g. `docs/guide.md`, or `profile/\u003cname\u003e` for a named profile. Set `comments` before writing a comment in a source file: the answer is then for the file's comments. The same text the context://\u003cpath\u003e resource returns.",
       "surface": "writing",
       "params": [
         {

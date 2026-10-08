@@ -940,7 +940,8 @@ func TestMCPConformanceServerIntroducesItself(t *testing.T) {
 	instructions := init.Instructions
 	require.NotEmpty(t, instructions, "the server introduces itself on initialize")
 
-	assert.Contains(t, instructions, "context_read", "ask what applies before writing")
+	assert.Contains(t, instructions, "AGENTS.md and CLAUDE.md", "follow the rules files kapi writes")
+	assert.Contains(t, instructions, "context_read", "ask for the full answer where no rules section covers a file")
 	assert.Contains(t, instructions, "context_note", "record names while reading")
 	assert.Contains(t, instructions, "check_file", "run the check before reporting the work done")
 	assert.Contains(t, instructions, "nothing is recorded",

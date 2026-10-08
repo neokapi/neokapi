@@ -36,20 +36,27 @@ func TestMCPInstructionsNameOnlyTheWritingSet(t *testing.T) {
 func TestMCPInstructionsCarryTheHabits(t *testing.T) {
 	text := MCPInstructions()
 	for habit, name := range map[string]string{
-		"read what applies before writing":          "context_read",
-		"record names while reading":                "context_note",
-		"record the person's correction":            "from, to, path",
-		"take back what was recorded wrongly":       "withdraw",
-		"check what you changed before saying done": "check_file",
-		"report what the session recorded":          "context_session_summary",
-		"read a file's blocks before editing it":    "read_blocks",
-		"send an edit through the contract":         "apply_edits",
-		"learn what a format accepts":               "describe_format",
+		"ask for the full answer where no rules file covers a file": "context_read",
+		"rely on the rules files kapi writes":                       "AGENTS.md and CLAUDE.md",
+		"record names while reading":                                "context_note",
+		"record the person's correction":                            "from, to, path",
+		"take back what was recorded wrongly":                       "withdraw",
+		"check what you changed before saying done":                 "check_file",
+		"report what the session recorded":                          "context_session_summary",
+		"read a file's blocks before editing it":                    "read_blocks",
+		"send an edit through the contract":                         "apply_edits",
+		"learn what a format accepts":                               "describe_format",
 	} {
 		assert.Containsf(t, text, name, "the instructions carry the habit: %s", habit)
 	}
 	assert.Contains(t, text, "A person decides what becomes a rule",
 		"an agent that reports what it recorded as a rule in force is the failure this sentence prevents")
+	// The rules files already hold the answer. An agent told to ask before
+	// every change pays a round trip and the tool schemas it loads for an
+	// answer it has (the comparison eval measured 3.8 times the input tokens of
+	// a hand-written rules file, for the same rule-following).
+	assert.NotRegexp(t, `(?i)before (you change|you write|writing|every)[^.]*context_read`, text,
+		"context_read is for a file no rules section covers, not a step before every change")
 }
 
 // TestMCPInstructionsReadAsInstructions keeps the text to the register the
@@ -58,7 +65,7 @@ func TestMCPInstructionsCarryTheHabits(t *testing.T) {
 func TestMCPInstructionsReadAsInstructions(t *testing.T) {
 	text := MCPInstructions()
 	assert.NotContains(t, text, "—", "no em dash in agent-facing prose")
-	assert.LessOrEqual(t, len(strings.Fields(text)), 145, "about a hundred and forty words, with the old names that stay correct and the path a note was seen in (R19.12, R19.13); a longer text is a decision rather than a drift")
+	assert.LessOrEqual(t, len(strings.Fields(text)), 145, "about a hundred and forty words, with the rules files first, the old names that stay correct and the path a note was seen in (R19.12, R19.13); a longer text is a decision rather than a drift")
 	assert.NotContains(t, text, "portal", "the paired study's gate task turns on that word, so no agent-facing text uses it")
 }
 

@@ -750,6 +750,10 @@ type checkRunOptions struct {
 	// widened to the whole workspace, which bind, and candidates nobody has
 	// decided on, which are reported and fail nothing (core/contextop).
 	context contextop.Resolution
+	// keep is the renames held elsewhere in the project that leave the old
+	// wording correct at this point, each as a rule against the new wording
+	// (checkTerms.keepAt).
+	keep []profile.TermRuleSet
 	// usage counts the uses of each suggestion's forms, for a check of the
 	// whole project, and is nil otherwise.
 	usage *contextUsage
@@ -904,6 +908,7 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 		// rules established across the workspace, and a bound starter pack's
 		// terms. One analyzer checks them all.
 		words := append(contextop.Resolution{Binding: g.at.context.Binding}.RuleSets(), profile.CarriedRuleSets(g.at.profile)...)
+		words = append(words, g.at.keep...)
 		asked := g.at.voiceContext.Selection == "override"
 		if g.at.terms == nil && len(words) == 0 {
 			opts.execution.skipped("terms", file, "No terms were bound.")
@@ -1457,6 +1462,10 @@ type checkTerms struct {
 	proj  *project.KapiProject
 	root  string
 	cache map[string]terms.Terminology
+	// keep caches keepAt by point, and places the project's places, resolved
+	// on first use.
+	keep   map[string][]profile.TermRuleSet
+	places []placePoint
 	// rules is what the project's context operations add at a point: the rules
 	// a person widened to the whole workspace, and the candidates nobody has
 	// decided on. nil when the project has recorded none.
@@ -1544,6 +1553,42 @@ func (t *checkTerms) contextAt(point project.GovernancePoint) (contextop.Resolut
 		return contextop.Resolution{}, nil
 	}
 	return t.rules.at(point)
+}
+
+// keepAt is the renames held at the project's other places and not at a
+// point, as rules against the new wording there (keepRuleSets): the same
+// rules the context answer and the rules files name as "keep as it is". It
+// answers nil outside a project, for the project-wide point, and for comments,
+// which the answer names no such rule for either.
+func (t *checkTerms) keepAt(point project.GovernancePoint) ([]profile.TermRuleSet, error) {
+	if t == nil || t.proj == nil || point.Comments || point.Path == "" {
+		return nil, nil
+	}
+	rc, err := t.resolve(point)
+	if err != nil || rc == nil {
+		return nil, err
+	}
+	key := rc.Profile + "\x00" + rc.Channel
+	if sets, ok := t.keep[key]; ok {
+		return sets, nil
+	}
+	all, sel, err := t.app.storeConcepts(t.cmd, point)
+	if err != nil {
+		return nil, err
+	}
+	var sets []profile.TermRuleSet
+	if len(all) > 0 {
+		if t.places == nil {
+			t.places = placePoints(t.proj, t.app.rulePlaces(t.proj, t.root), time.Time{})
+		}
+		here := terms.AtPoint(all, sel.Profile, sel.Coordinates)
+		sets = keepRuleSets(rulesElsewhere(t.proj, t.places, sel.Path, all, here, "", time.Time{}))
+	}
+	if t.keep == nil {
+		t.keep = map[string][]profile.TermRuleSet{}
+	}
+	t.keep[key] = sets
+	return sets, nil
 }
 
 // coordinatesAt is the coordinates of one point, nil when the project has

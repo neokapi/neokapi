@@ -64,6 +64,9 @@ with reset.`,
 			path := ""
 			if len(args) == 1 {
 				path = args[0]
+				if err := host.RetiredContextVerbError(path); err != nil {
+					return err
+				}
 			}
 			profile, _ := cmd.Flags().GetString("profile")
 			if path == "" && profile == "" {

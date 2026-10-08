@@ -263,14 +263,20 @@ func TestPairedProjectFreeSkillMirrorsTheShippedSkill(t *testing.T) {
 	}
 
 	// Both skills name the edit topic, so an agent in either arm is one step
-	// from the edit guidance.
-	pointer := "Before you change content inside a file, read `references/edit.md`"
+	// from the edit guidance: the shipped skill as the help topic, since kapi
+	// init writes no references folder, and the project-free one as its file.
 	shippedSkill, err := os.ReadFile(filepath.Join(root, "cli", "skills", "data", "kapi", "SKILL.md"))
 	require.NoError(t, err)
 	mirrorSkill, err := pairedFixtures.ReadFile("testdata/paired/skills/" + pairedFilesAlias + "/SKILL.md")
 	require.NoError(t, err)
-	for name, body := range map[string][]byte{"shipped": shippedSkill, "project-free": mirrorSkill} {
-		assert.Contains(t, strings.Join(strings.Fields(string(body)), " "), pointer, "the %s skill names the edit topic", name)
+	for name, check := range map[string]struct {
+		body    []byte
+		pointer string
+	}{
+		"shipped":      {shippedSkill, "run `kapi help edit`"},
+		"project-free": {mirrorSkill, "Before you change content inside a file, read `references/edit.md`"},
+	} {
+		assert.Contains(t, strings.Join(strings.Fields(string(check.body)), " "), check.pointer, "the %s skill names the edit topic", name)
 	}
 
 	taskHints := regexp.MustCompile(`app_en\.arb|inboxCount|unread message|messages\.po|--target-lang nb|welcome\.md|upgrade\.md|reports\.md|help\.html|exportData|importData|Harbor|overview page|file of its own`)

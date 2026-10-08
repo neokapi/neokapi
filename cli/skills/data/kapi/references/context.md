@@ -1,8 +1,11 @@
 # Ask what applies here
 
-Retrieve the project's content context before writing: the voice profile and
-terms that apply to the file, together with previously approved wording.
-Guidance can vary by location, so retrieve it for the file you plan to edit.
+kapi writes the rules that hold in each folder into a section of the
+`AGENTS.md` and `CLAUDE.md` there, which your host loads by itself. Follow
+those. Retrieve the full context for a file only when no section covers it, or
+when you need more than the section states: the whole voice profile, every
+term past a capped list, and previously approved wording. Guidance can vary by
+location, so retrieve it for the file you plan to edit.
 
 ## Retrieve context by location or search
 
@@ -16,8 +19,7 @@ kapi context search "sign in" --json
 ```
 
 `kapi context <path>` returns the file's resolved point, full voice guidance,
-applicable terms, pending suggestions and governance windows. Read the result
-before editing the file.
+applicable terms, pending suggestions and governance windows.
 
 `kapi context search` searches for a word or phrase across the project's
 configured stores. The usage count on each term is as of the last `kapi up`: a term
