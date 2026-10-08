@@ -322,3 +322,32 @@ func TestRefreshRulesFiles_FollowsADecision(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(body), `sign in, not "log in"`)
 }
+
+// TestWriteRulesFiles_PatternWithAFolderWildcard: a collection whose pattern
+// puts a wildcard in a folder (`demos/*/demo.yaml`) is read at a path made
+// from the pattern, whose folder does not exist. The rules files are written
+// all the same.
+func TestWriteRulesFiles_PatternWithAFolderWildcard(t *testing.T) {
+	app, _ := contextOpsApp(t)
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
+	for rel, body := range map[string]string{
+		"kapi.yaml": "version: v1\nid: prj_rulesfilesfolderwildcard\nname: demos\n" +
+			"defaults:\n  source_language: en\n  target_languages: [nb]\n" +
+			"profiles:\n  product:\n    channels: [demos]\n" +
+			"collections:\n  - name: demos\n    channel: product/demos\n    base: demos\n    content:\n" +
+			"      - path: \"*/demo.yaml\"\n        target: \"{dir}/demo.{lang}.yaml\"\n",
+		".kapi/voice.yaml":      "id: house\nname: House\ndescription: Plain and direct.\n",
+		"demos/intro/demo.yaml": "title: Intro\n",
+	} {
+		full := filepath.Join(root, filepath.FromSlash(rel))
+		require.NoError(t, os.MkdirAll(filepath.Dir(full), 0o755))
+		require.NoError(t, os.WriteFile(full, []byte(body), 0o644))
+	}
+	_, err = app.ImportProjectContext(t.Context(), recipeOf(root), ContextImportRequest{})
+	require.NoError(t, err)
+
+	_, err = app.WriteRulesFiles(t.Context(), recipeOf(root))
+	require.NoError(t, err)
+	assert.Contains(t, rulesFilesIn(t, root), "AGENTS.md")
+}
