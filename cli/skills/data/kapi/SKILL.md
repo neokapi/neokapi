@@ -42,7 +42,7 @@ files write two ways.
 - CLI: `kapi check <file>...`
 - MCP: `check_file` on each changed file
 
-Fix what it reports; exit 4 means it did not run. If you recorded anything,
+Fix what it reports; exit 4 means it did not run. After a note,
 end with `kapi context log --session this` (MCP: `context_session_summary`).
 
 Before you edit Word, XLIFF or other files your tools cannot edit safely,
