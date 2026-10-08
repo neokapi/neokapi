@@ -254,13 +254,13 @@ func compareWireKapi(ctx context.Context, paths ComparePaths, env []string, proj
 	if err := os.WriteFile(voice, project.Voice, 0o600); err != nil {
 		return err
 	}
-	if _, err := run("context", "import", "--json"); err != nil {
+	if _, err := run(append(slices.Clone(compareVerbImport), "--json")...); err != nil {
 		return err
 	}
 	if err := os.Remove(voice); err != nil {
 		return err
 	}
-	wiring.Steps = append(wiring.Steps, "kapi context import: the voice and its word rules into the store; the voice file removed")
+	wiring.Steps = append(wiring.Steps, "kapi "+strings.Join(compareVerbImport, " ")+": the voice and its word rules into the store; the voice file removed")
 	for _, held := range project.Held {
 		args := append(slices.Clone(compareVerbRecord), held.Summary, "--term", held.Term)
 		for _, avoided := range held.InsteadOf {
@@ -280,7 +280,11 @@ func compareWireKapi(ctx context.Context, paths ComparePaths, env []string, proj
 		if recorded.ID == "" {
 			return fmt.Errorf("the record of %q carries no id: %s", held.Term, strings.TrimSpace(out))
 		}
-		if _, err := run(append(slices.Clone(compareVerbKeep), recorded.ID, "--json")...); err != nil {
+		keep := append(slices.Clone(compareVerbKeep), recorded.ID)
+		if held.WidenTo != "" {
+			keep = append(keep, "--widen-to", held.WidenTo)
+		}
+		if _, err := run(append(keep, "--json")...); err != nil {
 			return err
 		}
 		wiring.Steps = append(wiring.Steps, fmt.Sprintf("held: %s, not %s, recorded at %s and kept by a person", held.Term, strings.Join(held.InsteadOf, ", "), held.SeenIn))

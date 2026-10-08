@@ -83,12 +83,14 @@ const (
 	comparePhaseReport    = "report"
 )
 
-// The context verbs the harness itself runs as a person, while it holds a
-// project's rules. The transcript reader knows both spellings of the record verb
-// (observe and note), so studies run under either read the same way.
+// The kapi verbs the harness itself runs as a person, while it sets up a
+// project: reading the voice into the store, noting each held rename, and
+// keeping the note as a rule. They are named here and nowhere else, so a
+// change to the CLI is one edit; the transcript reader is separate.
 var (
+	compareVerbImport = []string{"store", "import"}
 	compareVerbRecord = []string{"context", "note"}
-	compareVerbKeep   = []string{"context", "keep"}
+	compareVerbKeep   = []string{"context", "review", "--keep"}
 )
 
 // CompareManifest freezes a study's inputs.
@@ -169,6 +171,10 @@ type CompareHeld struct {
 	InsteadOf []string `json:"instead_of"`
 	SeenIn    string   `json:"seen_in"`
 	Quote     string   `json:"quote"`
+	// WidenTo is the axis the person drops as they keep the rule, so it holds
+	// across every channel of the profile it was seen in: a note holds only at
+	// the point it was seen until a person widens it.
+	WidenTo string `json:"widen_to,omitempty"`
 }
 
 // CompareProject is one sample project: its content, its recipe, the context

@@ -4,6 +4,7 @@
     "term": "Harbor Hosted",
     "instead_of": ["Harbor Cloud"],
     "seen_in": "docs/index.md",
+    "widen_to": "channel",
     "quote": "Harbor Hosted, the managed platform we run for you"
   }
 ]

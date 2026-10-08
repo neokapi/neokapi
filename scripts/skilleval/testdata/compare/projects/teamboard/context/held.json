@@ -4,6 +4,7 @@
     "term": "Space",
     "instead_of": ["Workspace"],
     "seen_in": "help/getting-started.md",
+    "widen_to": "channel",
     "quote": "Each board belongs to a Space"
   }
 ]
