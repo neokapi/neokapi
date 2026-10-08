@@ -86,7 +86,7 @@ func wilson(k, n int) (lo, hi float64) {
 	denominator := 1 + z*z/float64(n)
 	centre := (p + z*z/(2*float64(n))) / denominator
 	half := z * math.Sqrt(p*(1-p)/float64(n)+z*z/(4*float64(n)*float64(n))) / denominator
-	return centre - half, centre + half
+	return math.Max(0, centre-half), math.Min(1, centre+half)
 }
 
 // stratum is one task's values for one group.
