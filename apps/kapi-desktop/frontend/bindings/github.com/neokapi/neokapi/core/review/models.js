@@ -543,7 +543,7 @@ export class Point {
         if (/** @type {any} */(false)) {
             /**
              * Voice is the profile in force with the guidance it renders: the same
-             * prose `kapi voice guide` prints and the translate prompt carries.
+             * prose `kapi voice show` prints and the translate prompt carries.
              * @member
              * @type {Voice | null | undefined}
              */
@@ -868,7 +868,7 @@ export class Voice {
         if (/** @type {any} */(false)) {
             /**
              * Guide is the profile rendered as prose for a model: the same rendering
-             * `kapi voice guide` prints and the translation prompt carries, so what a
+             * `kapi voice show` prints and the translation prompt carries, so what a
              * reviewer reads here is what generation was held to.
              * @member
              * @type {string | undefined}

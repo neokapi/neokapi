@@ -195,7 +195,7 @@ func TestWideningToTheWorkspaceKeepsAnAxisNoProfileDerives(t *testing.T) {
 
 // TestKeepingAContestedCorrectionWaitsForAChoice: a person's correction that
 // reverses an established rule and the rule contest each other. Keeping the
-// correction is refused with the rule named, and choosing it reverts the rule.
+// correction is refused with the rule named, and choosing it drops the rule.
 func TestKeepingAContestedCorrectionWaitsForAChoice(t *testing.T) {
 	ctx := t.Context()
 	app, _ := contextOpsApp(t)
@@ -221,7 +221,7 @@ func TestKeepingAContestedCorrectionWaitsForAChoice(t *testing.T) {
 	chosen, err := app.ChooseContextSide(ctx, ContextChooseRequest{Actor: person, Project: recipeOf(root), ID: corrected.ID})
 	require.NoError(t, err)
 	require.Len(t, chosen.SetAside, 1)
-	assert.Equal(t, rule.ID, chosen.SetAside[0].ID)
+	assert.Equal(t, rule.ID, chosen.SetAside[0].Target, "the rule is dropped")
 
 	log, err := app.ContextOperations(ctx, ContextLogRequest{Project: recipeOf(root), Subjects: true})
 	require.NoError(t, err)
@@ -229,7 +229,7 @@ func TestKeepingAContestedCorrectionWaitsForAChoice(t *testing.T) {
 	for _, op := range log.Operations {
 		status[op.ID] = op.Status
 	}
-	assert.Equal(t, contextop.StatusReverted, status[rule.ID])
+	assert.Equal(t, contextop.StatusDropped, status[rule.ID])
 	assert.Equal(t, contextop.StatusEstablished, status[corrected.ID])
 }
 

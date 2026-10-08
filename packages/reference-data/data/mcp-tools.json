@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-10-08T13:42:25Z",
+  "generatedAt": "2026-10-08T14:05:29Z",
   "tools": [
     {
       "name": "apply_edits",
-      "description": "Apply a kapi.change/v1 change set: the one write verb. Each content operation addresses one edition of one block with at, the ref read_blocks reports, and carries if_match, the rev you read. Several operations may name one block, each with the rev you read. set_content replaces the text (keep the \u003cx id=\"…\"/\u003e placeholders; with if_match \"absent\" and an edition it creates that translation, which is how a translation's file is written), replace_text changes part of it by find (placeholder text, as read_blocks shows it), by start and end, or by range, set_attribute changes an inline code's attribute such as a link's href (code, name, value), mark wraps text in a new code such as fmt:bold, and remove_edition drops a translation. A plural or select branch is the operation's path. In a JSON, YAML or ARB catalog, insert_block adds a key (doc, name, after or before, and its text per language in editions) and delete_block removes one with its translations (at, and if_match mapping the catalog's own language to the rev you read). describe_format says which operations a format supports. A refused change set writes nothing: an edition that moved since you read it is refused as stale with its current revision and text, an edit that drops, invents or unbalances an inline code or flattens a plural is refused as guard, an edit that introduces a failing term or voice finding is refused as gate_failed with the findings (rewrite the wording they name and resend; only a person can override), and every other operation reports not_applied. Each refusal carries a code and the field at fault: re-read, fix the operation and resend. Status partial means some of it landed: a write interrupted after some documents were written (docs says which), or a store operation refused after the content was written, which carries its error. Re-read the documents before you send more. mode preview computes and checks the change set and returns a diff per document without writing. A source edit lists the translations it made stale under invalidates. Every operation is recorded as yours, the calling agent's, in this server's session. Writing a term, a content-memory pair or a recipe field and deciding a review are a person's: those operations are refused as not_permitted. Record a term rule as a suggestion with context_observe, or context_correct for wording you changed. Each document's findings say what the commit check found on the edit; run check_file after a native write, or for what the commit check does not run.",
+      "description": "Apply a kapi.change/v1 change set: the one write verb. Each content operation addresses one edition of one block with at, the ref read_blocks reports, and carries if_match, the rev you read. Several operations may name one block, each with the rev you read. set_content replaces the text (keep the \u003cx id=\"…\"/\u003e placeholders; with if_match \"absent\" and an edition it creates that translation, which is how a translation's file is written), replace_text changes part of it by find (placeholder text, as read_blocks shows it), by start and end, or by range, set_attribute changes an inline code's attribute such as a link's href (code, name, value), mark wraps text in a new code such as fmt:bold, and remove_edition drops a translation. A plural or select branch is the operation's path. In a JSON, YAML or ARB catalog, insert_block adds a key (doc, name, after or before, and its text per language in editions) and delete_block removes one with its translations (at, and if_match mapping the catalog's own language to the rev you read). describe_format says which operations a format supports. A refused change set writes nothing: an edition that moved since you read it is refused as stale with its current revision and text, an edit that drops, invents or unbalances an inline code or flattens a plural is refused as guard, an edit that introduces a failing term or voice finding is refused as gate_failed with the findings (rewrite the wording they name and resend; only a person can override), and every other operation reports not_applied. Each refusal carries a code and the field at fault: re-read, fix the operation and resend. Status partial means some of it landed: a write interrupted after some documents were written (docs says which), or a store operation refused after the content was written, which carries its error. Re-read the documents before you send more. mode preview computes and checks the change set and returns a diff per document without writing. A source edit lists the translations it made stale under invalidates. Every operation is recorded as yours, the calling agent's, in this server's session. Writing a term, a content-memory pair or a recipe field and deciding a review are a person's: those operations are refused as not_permitted. Record a term rule as a suggestion with context_note, with from and to for wording you changed. Each document's findings say what the commit check found on the edit; run check_file after a native write, or for what the commit check does not run.",
       "surface": "writing",
       "params": [
         {
@@ -263,33 +263,15 @@
       ]
     },
     {
-      "name": "context_correct",
-      "description": "Record that the person changed your wording: `from` is what you wrote, `to` is what they replaced it with, and `path` is where. Call it as soon as you see the edit. Set `suggest` to also suggest the rule it implies.",
+      "name": "context_note",
+      "description": "Record what you noticed about how this project writes, as soon as you notice it, including what your own text does not use: a product, feature or plan name as written, the spelling variety, or a word chosen over a common alternative. For a name or word, pass `term` with the form the files use and `instead_of` with the form they avoid: the split form of a one-word name, the other spelling, or the other word. kapi adds the spacing, hyphen and case variants. Say anything else, such as the spelling variety, in `text`. Give `path` and `quote` from a file that was there before you started. Leave alone, with no note, a word the files write more than one way, an interface label, and wording taken from your task. When the person changes your wording, pass `from` (what you wrote), `to` (what they wrote) and `path`, and set `suggest` to also suggest the rule it implies. To take back a note of your own recorded wrongly, pass its id in `withdraw`. Every note is a suggestion: checks report it, none fails on it, and a person decides in review.",
       "surface": "writing",
       "params": [
-        {
-          "name": "from",
-          "type": "string",
-          "required": true,
-          "description": "the wording that was there"
-        },
-        {
-          "name": "path",
-          "type": "string",
-          "required": true,
-          "description": "the project-relative file they changed it in"
-        },
-        {
-          "name": "to",
-          "type": "string",
-          "required": true,
-          "description": "the wording that replaced it"
-        },
         {
           "name": "advisory",
           "type": "boolean",
           "required": false,
-          "description": "true when that rule should only report once a person keeps it; unset, a kept rule fails a check"
+          "description": "with suggest: the rule should only report once a person keeps it; unset, a kept rule fails a check"
         },
         {
           "name": "block",
@@ -298,41 +280,10 @@
           "description": "the ref.block that read_blocks or kapi inspect reports"
         },
         {
-          "name": "note",
+          "name": "from",
           "type": "string",
           "required": false,
-          "description": "what they said about the change"
-        },
-        {
-          "name": "project",
-          "type": "string",
-          "required": false,
-          "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"
-        },
-        {
-          "name": "quote",
-          "type": "string",
-          "required": false,
-          "description": "the sentence the change was made in"
-        },
-        {
-          "name": "suggest",
-          "type": "boolean",
-          "required": false,
-          "description": "also record the rule the change implies, so the next use of the old wording is reported"
-        }
-      ]
-    },
-    {
-      "name": "context_observe",
-      "description": "Record one thing this project's files do every time, as soon as you notice it, including what your own text does not use: a product, feature or plan name as written, the spelling variety, or a word chosen over a common alternative. For a name or word, pass `term` with the form the files use and `instead_of` with the form they avoid: the split form of a one-word name, the other spelling, or the other word. kapi adds the spacing, hyphen and case variants. Say anything else, such as the spelling variety, in `text`. Give `path` and `quote` from a file that was there before you started. Leave alone, with no note, a word the files write more than one way, an interface label, and wording taken from your task. It is a suggestion: checks report it, none fails on it, and a person keeps it.",
-      "surface": "writing",
-      "params": [
-        {
-          "name": "block",
-          "type": "string",
-          "required": false,
-          "description": "the ref.block that read_blocks or kapi inspect reports"
+          "description": "for a change a person made: the wording that was there"
         },
         {
           "name": "instead_of",
@@ -344,7 +295,7 @@
           "name": "path",
           "type": "string",
           "required": false,
-          "description": "the project-relative file you saw it in"
+          "description": "the project-relative file you saw it in, or the person changed it in"
         },
         {
           "name": "project",
@@ -359,6 +310,12 @@
           "description": "the wording you saw, quoted from the file"
         },
         {
+          "name": "suggest",
+          "type": "boolean",
+          "required": false,
+          "description": "with from and to: also record the rule the change implies, so the next use of the old wording is reported"
+        },
+        {
           "name": "term",
           "type": "string",
           "required": false,
@@ -369,12 +326,30 @@
           "type": "string",
           "required": false,
           "description": "the fact, in one sentence, in your own words"
+        },
+        {
+          "name": "to",
+          "type": "string",
+          "required": false,
+          "description": "for a change a person made: the wording that replaced it"
+        },
+        {
+          "name": "why",
+          "type": "string",
+          "required": false,
+          "description": "what the person said about the change, or what was wrong with the note withdrawn"
+        },
+        {
+          "name": "withdraw",
+          "type": "string",
+          "required": false,
+          "description": "the id of a note this session recorded wrongly, to take it back"
         }
       ]
     },
     {
       "name": "context_read",
-      "description": "Read what applies when you write one file, before you change it: the voice, the words to use and to avoid, and what has been suggested but not yet established. `path` is project-relative, e.g. `docs/guide.md`, or `profile/\u003cname\u003e` for a named profile. The same text the context://\u003cpath\u003e resource returns.",
+      "description": "Read what applies when you write one file, before you change it: the voice, the words to use and to avoid, and what has been suggested but not yet established. `path` is project-relative, e.g. `docs/guide.md`, or `profile/\u003cname\u003e` for a named profile. Set `comments` before writing a comment in a source file: the answer is then for the file's comments. The same text the context://\u003cpath\u003e resource returns.",
       "surface": "writing",
       "params": [
         {
@@ -382,6 +357,12 @@
           "type": "string",
           "required": true,
           "description": "the project-relative file you are about to write, or profile/\u003cname\u003e"
+        },
+        {
+          "name": "comments",
+          "type": "boolean",
+          "required": false,
+          "description": "answer for the comments in the file rather than its content"
         },
         {
           "name": "format",
@@ -399,7 +380,7 @@
     },
     {
       "name": "context_search",
-      "description": "Ask what this project says about one word or phrase: what it is called here, whether it is discouraged and what to say instead, and wording the project has already approved. For everything that applies to a file, read context://\u003cpath\u003e instead. An empty answer means nothing is recorded about the word; if the files always write it one way, record that with context_observe, and leave it alone, with no note, if they write it more than one way. `attention` says what a person must act on, such as context files nobody has imported.",
+      "description": "Ask what this project says about one word or phrase: what it is called here, whether it is discouraged and what to say instead, and wording the project has already approved. For everything that applies to a file, read context://\u003cpath\u003e instead. An empty answer means nothing is recorded about the word; if the files always write it one way, record that with context_note, and leave it alone, with no note, if they write it more than one way. `attention` says what a person must act on, such as context files nobody has imported.",
       "surface": "writing",
       "params": [
         {
@@ -442,7 +423,7 @@
     },
     {
       "name": "context_session_summary",
-      "description": "Report what this session recorded. Call it before you say the work is done and end your report with what it says, including the command a person reviews the session with. First record, with context_observe, any name, spelling variety or word choice the files you read keep every time and this session has not recorded yet.",
+      "description": "Report what this session recorded. Call it before you say the work is done and end your report with what it says, including the command a person reviews the session with. First record, with context_note, any name, spelling variety or word choice the files you read keep every time and this session has not recorded yet.",
       "surface": "writing",
       "params": [
         {
@@ -456,31 +437,6 @@
           "type": "string",
           "required": false,
           "description": "the session to summarize (default: this MCP server's own)"
-        }
-      ]
-    },
-    {
-      "name": "context_withdraw",
-      "description": "Take back something this session recorded wrongly, such as a correction entered backwards. Name it by the `operation` id its call returned. Only this session's own suggestions can be withdrawn.",
-      "surface": "writing",
-      "params": [
-        {
-          "name": "operation",
-          "type": "string",
-          "required": true,
-          "description": "the operation id the recording call returned"
-        },
-        {
-          "name": "note",
-          "type": "string",
-          "required": false,
-          "description": "what was wrong with it"
-        },
-        {
-          "name": "project",
-          "type": "string",
-          "required": false,
-          "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"
         }
       ]
     },
@@ -2432,7 +2388,7 @@
       "mimeType": "text/markdown"
     },
     {
-      "uriTemplate": "context://{+path}{?format,project}",
+      "uriTemplate": "context://{+path}{?format,project,comments}",
       "name": "context-at-location",
       "title": "Context at a location",
       "description": "What applies when you write at one place: the voice, the words to use and to avoid, and what has been suggested but not yet established. Read it before you change a file. An answer with nothing recorded says so. Returns markdown; append `?format=json` for the structured answer, which also names the point, the project and the revision that answered. The path is project-relative, e.g. `context://docs/guide.md`; `?project=\u003cpath\u003e` reads another project.",

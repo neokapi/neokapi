@@ -1454,7 +1454,7 @@ export class ContextTermHit {
         if (/** @type {any} */(false)) {
             /**
              * Operation is the context operation a widened rule came from, which is
-             * what `kapi context log` and `kapi context revert` name it by.
+             * what `kapi context log` and `kapi context review` name it by.
              * @member
              * @type {string | undefined}
              */
