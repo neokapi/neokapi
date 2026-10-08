@@ -1,6 +1,6 @@
 module github.com/neokapi/neokapi/plugins/sourcecode
 
-go 1.27.0
+go 1.27.1
 
 require (
 	github.com/neokapi/neokapi v0.0.0

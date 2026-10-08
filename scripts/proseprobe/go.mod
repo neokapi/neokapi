@@ -1,6 +1,6 @@
 module github.com/neokapi/neokapi/scripts/proseprobe
 
-go 1.27.0
+go 1.27.1
 
 // proseprobe scores the Prose maturity axis by running the rung tests it finds
 // across the workspace and the plugin modules. It links nothing from the
