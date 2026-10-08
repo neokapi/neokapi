@@ -23,7 +23,7 @@ inputs:
       Released kapi that generates the locale. Pinned rather than resolved so
       every docs build regenerates the locale with one known CLI.
     required: false
-    default: "1.3.0-rc6"
+    default: "1.3.0-rc7"
 
 runs:
   using: composite

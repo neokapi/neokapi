@@ -80,8 +80,8 @@ jobs:
           # extractor writes cannot read them, and the step after extraction
           # stops the run on that rather than push past it; bump both lines to
           # a release that reads them.
-          version: 1.3.0-rc6
-          plugins: bowrain@1.3.0-rc6
+          version: 1.3.0-rc7
+          plugins: bowrain@1.3.0-rc7
           auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
 
       # The one thing kapi cannot do for itself. Five collections declare
