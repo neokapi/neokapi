@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -88,7 +89,7 @@ func compareRunIn(ctx context.Context, dir string, env []string, actor, name str
 // link where the volume allows), so the sandbox can deny every read of the
 // checkout and of the developer's home.
 func compareToolPath(paths ComparePaths, arm, kapiBin string) error {
-	if arm == compareArmKapi {
+	if compareKapiArm(arm) {
 		if kapiBin == "" {
 			return errors.New("the kapi arm needs this checkout's kapi binary; run `make build` first")
 		}
@@ -196,8 +197,8 @@ func prepareCompareCell(ctx context.Context, root string, project CompareProject
 		return paths, wiring, err
 	}
 	switch arm {
-	case compareArmKapi:
-		if err := compareWireKapi(ctx, paths, env, project, kapiBin, &wiring); err != nil {
+	case compareArmKapi, compareArmKapiFiles:
+		if err := compareWireKapi(ctx, paths, env, project, arm == compareArmKapiFiles, &wiring); err != nil {
 			return paths, wiring, err
 		}
 		if err := commit("Wire the project for kapi"); err != nil {
@@ -232,15 +233,19 @@ func prepareCompareCell(ctx context.Context, root string, project CompareProject
 // voice read into the store with `kapi context import`, and each held rule
 // recorded and kept. The voice file is then removed: a kapi project keeps its
 // context in the store, not in the checkout.
-func compareWireKapi(ctx context.Context, paths ComparePaths, env []string, project CompareProject, kapiBin string, wiring *CompareWiring) error {
+func compareWireKapi(ctx context.Context, paths ComparePaths, env []string, project CompareProject, rulesFiles bool, wiring *CompareWiring) error {
 	kapi := filepath.Join(paths.Bin, "kapi")
 	run := func(args ...string) (string, error) {
 		return compareRunIn(ctx, paths.Repo, env, evalActorPerson, kapi, args...)
 	}
-	if _, err := run("init", "--agents", "all"); err != nil {
+	initArgs := []string{"init", "--agents", "all"}
+	if !rulesFiles {
+		initArgs = append(initArgs, "--no-rules-files")
+	}
+	if _, err := run(initArgs...); err != nil {
 		return err
 	}
-	wiring.Steps = append(wiring.Steps, "kapi init --agents all")
+	wiring.Steps = append(wiring.Steps, "kapi "+strings.Join(initArgs, " "))
 	if err := os.WriteFile(filepath.Join(paths.Repo, "kapi.yaml"), project.Recipe, 0o600); err != nil {
 		return err
 	}
@@ -279,6 +284,21 @@ func compareWireKapi(ctx context.Context, paths ComparePaths, env []string, proj
 			return err
 		}
 		wiring.Steps = append(wiring.Steps, fmt.Sprintf("held: %s, not %s, recorded at %s and kept by a person", held.Term, strings.Join(held.InsteadOf, ", "), held.SeenIn))
+	}
+	if rulesFiles {
+		// kapi refreshes the rules files when a rule lands; the sync is the
+		// manual trigger, run once so the files reflect everything held.
+		if _, err := run("context", "sync", "--files-only"); err != nil {
+			return err
+		}
+		written, err := compareRulesFiles(paths.Repo)
+		if err != nil {
+			return err
+		}
+		if len(written) == 0 {
+			return errors.New("kapi wrote no rules files")
+		}
+		wiring.Steps = append(wiring.Steps, "kapi context sync --files-only: rules files "+strings.Join(written, ", "))
 	}
 	if len(project.Held) != 0 {
 		answer, err := compareRunIn(ctx, paths.Repo, env, "", kapi, "context", project.Held[0].SeenIn)
@@ -390,7 +410,7 @@ func prepareCompareAttempt(ctx context.Context, cellsDir, kapiBin string, m Comp
 		return p, err
 	}
 	p.Env = append(p.Env, "TMPDIR="+p.TmpDir, "CLAUDE_CODE_TMPDIR="+p.TmpDir)
-	if attempt.Arm == compareArmKapi {
+	if compareKapiArm(attempt.Arm) {
 		server, serverErr := probeEvalServer(ctx, p.Paths, compareCellKapi(p.Paths))
 		p.Server = server
 		switch {
@@ -553,7 +573,7 @@ func prepareCompareCodex(ctx context.Context, p *ComparePrepared, kapiBin string
 	}
 	p.Sandbox = "codex workspace-write: writable roots are the cell and its TMPDIR, no network, /tmp excluded"
 	p.Args = []string{"exec", "--strict-config", "--ignore-rules", "--json", "--skip-git-repo-check"}
-	if p.Attempt.Arm == compareArmKapi {
+	if compareKapiArm(p.Attempt.Arm) {
 		p.Args = append(p.Args, "-c", evalCodexForwardedEnv(p.Env))
 		codex, err := probeEvalCodexWiring(ctx, ep)
 		p.Codex = codex
@@ -580,4 +600,28 @@ func compareCodexConfig(ep EvalPrepared, tmp string) string {
 	}
 	head, rest, _ := strings.Cut(config, "[features]\n")
 	return head + "[sandbox_workspace_write]\nwritable_roots = [" + strings.Join(roots, ", ") + "]\nnetwork_access = false\nexclude_slash_tmp = true\nexclude_tmpdir_env_var = false\n[features]\n" + rest
+}
+
+// compareRulesFiles lists the AGENTS.md and CLAUDE.md files under a
+// repository, outside the wiring folders.
+func compareRulesFiles(repo string) ([]string, error) {
+	found := []string{}
+	err := filepath.WalkDir(repo, func(name string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		rel, err := filepath.Rel(repo, name)
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() && rel != "." && strings.HasPrefix(entry.Name(), ".") {
+			return filepath.SkipDir
+		}
+		if !entry.IsDir() && (entry.Name() == "AGENTS.md" || entry.Name() == "CLAUDE.md") {
+			found = append(found, filepath.ToSlash(rel))
+		}
+		return nil
+	})
+	slices.Sort(found)
+	return found, err
 }

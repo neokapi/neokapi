@@ -411,17 +411,14 @@ func renderCompareReport(m CompareManifest, scope string, records []compareRecor
 		}
 	}
 
-	b.WriteString("\n## Differences: kapi arm minus each other arm\n\nNegative violations and positive voice favour kapi. An interval that spans 0 is no measured difference.\n\n| Host | Versus | Violations per attempt | Voice score | Input tokens | Wall time (s) |\n|---|---|---|---|---|---|\n")
+	b.WriteString("\n## Differences: each kapi arm minus each other arm\n\nNegative violations and positive voice favour the first arm. An interval that spans 0 is no measured difference.\n\n| Host | Arms | Violations per attempt | Voice score | Input tokens | Wall time (s) |\n|---|---|---|---|---|---|\n")
 	for _, host := range hosts {
-		k := groups[key(host, compareArmKapi)]
-		if k == nil {
-			continue
-		}
-		for _, arm := range m.Arms {
-			if arm == compareArmKapi {
+		for _, pair := range compareDiffPairs(m.Arms) {
+			k, o := groups[key(host, pair[0])], groups[key(host, pair[1])]
+			if k == nil || o == nil {
 				continue
 			}
-			o := groups[key(host, arm)]
+			arm := pair[0] + " - " + pair[1]
 			vd, vlo, vhi := bootstrapDiff(k.Violations, o.Violations, seed)
 			sd, slo, shi := bootstrapDiff(k.Voice, o.Voice, seed)
 			td, tlo, thi := bootstrapDiff(k.Input, o.Input, seed)
@@ -635,4 +632,24 @@ func compareHostNames(hosts []PairedAgentSpec) string {
 		out = append(out, fmt.Sprintf("%s (%s, %s effort)", host.Host, host.Model, host.Effort))
 	}
 	return strings.Join(out, ", ")
+}
+
+// compareDiffPairs are the comparisons the report draws: each kapi arm against
+// each arm without kapi, and the rules-files arm against the plain kapi arm.
+func compareDiffPairs(arms []string) [][2]string {
+	pairs := [][2]string{}
+	for _, first := range arms {
+		if !compareKapiArm(first) {
+			continue
+		}
+		for _, second := range arms {
+			if !compareKapiArm(second) {
+				pairs = append(pairs, [2]string{first, second})
+			}
+		}
+	}
+	if slices.Contains(arms, compareArmKapi) && slices.Contains(arms, compareArmKapiFiles) {
+		pairs = append(pairs, [2]string{compareArmKapiFiles, compareArmKapi})
+	}
+	return pairs
 }

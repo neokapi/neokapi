@@ -5,7 +5,7 @@
     {"host": "claude", "model": "claude-sonnet-5", "effort": "high"},
     {"host": "codex", "model": "gpt-5.6-terra", "effort": "medium"}
   ],
-  "arms": ["kapi", "rulesfile", "bare"],
+  "arms": ["kapi", "kapifiles", "rulesfile", "bare"],
   "tasks": [
     "teamboard-move-board",
     "teamboard-rename-update",

@@ -29,6 +29,11 @@ import (
 //     a person. The context files are removed after the import, because a
 //     kapi project keeps its context in the store, so the agent learns the
 //     rules from kapi or from the files around it.
+//   - kapifiles: the same kapi project, with the rules files kapi writes
+//     (a delimited section of AGENTS.md and CLAUDE.md at the root and in each
+//     folder whose rules differ) as `kapi init` and `kapi context sync
+//     --files-only` leave them. The kapi arm opts out of them with
+//     `--no-rules-files`, so the two differ only in those files.
 //   - rulesfile: the same rules written as a style guide in CLAUDE.md and
 //     AGENTS.md, the instruction files each host loads on its own. This is
 //     the realistic alternative, and the strongest one available without
@@ -55,12 +60,16 @@ const compareSchema = 1
 
 // The arms.
 const (
-	compareArmKapi  = "kapi"
-	compareArmRules = "rulesfile"
-	compareArmBare  = "bare"
+	compareArmKapi      = "kapi"
+	compareArmKapiFiles = "kapifiles"
+	compareArmRules     = "rulesfile"
+	compareArmBare      = "bare"
 )
 
-var compareArms = []string{compareArmKapi, compareArmRules, compareArmBare}
+var compareArms = []string{compareArmKapi, compareArmKapiFiles, compareArmRules, compareArmBare}
+
+// compareKapiArm reports an arm whose cell is a kapi project.
+func compareKapiArm(arm string) bool { return arm == compareArmKapi || arm == compareArmKapiFiles }
 
 // The phases. Preflight prepares every cell of a phase and probes it with no
 // model call; pilot and run start live sessions; grade, judge and report read
@@ -75,10 +84,10 @@ const (
 )
 
 // The context verbs the harness itself runs as a person, while it holds a
-// project's rules. A rename of the verbs (observe to note) changes these two
-// names and nothing else here; the transcript reader knows both spellings.
+// project's rules. The transcript reader knows both spellings of the record verb
+// (observe and note), so studies run under either read the same way.
 var (
-	compareVerbRecord = []string{"context", "observe"}
+	compareVerbRecord = []string{"context", "note"}
 	compareVerbKeep   = []string{"context", "keep"}
 )
 
@@ -378,7 +387,11 @@ var compareKapiMention = regexp.MustCompile(`(?i)\bkapi\b|\bcontext_|\bmcp\b|\bs
 func compareContentPath(name string) bool {
 	name = path.Clean(name)
 	switch name {
-	case "kapi.yaml", "CLAUDE.md", "AGENTS.md", ".mcp.json":
+	case "kapi.yaml", ".mcp.json":
+		return false
+	}
+	switch path.Base(name) {
+	case "CLAUDE.md", "AGENTS.md":
 		return false
 	}
 	first, _, _ := strings.Cut(name, "/")

@@ -79,6 +79,12 @@ func TestCompareArmsHoldTheSameRules(t *testing.T) {
 	}
 }
 
+func TestCompareRulesFilesAreNotContent(t *testing.T) {
+	assert.False(t, compareContentPath("legal/AGENTS.md"))
+	assert.False(t, compareContentPath("CLAUDE.md"))
+	assert.True(t, compareContentPath("legal/service-terms.md"))
+}
+
 func TestCompareProseDropsCode(t *testing.T) {
 	text := "Use `harbor whitelist` here.\n\n```toml\nwhitelist = true\n```\n\nSee [the list](whitelist.md).\n"
 	assert.NotContains(t, compareProse("docs/x.md", text), "whitelist")
