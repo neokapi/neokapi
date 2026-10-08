@@ -74,8 +74,9 @@ valid for the attempt timeout plus 15 minutes; refresh the login, or export a
   leave no old name in scope and must leave the out-of-scope file alone.
 - **kapi check**: every attempt's files, from every arm, are laid over the
   baseline in a grader cell that holds the rules and checked with
-  `kapi check --diff-against`. It is reported beside the graders. It does not
-  see over-application of a scoped rename, and a capitalised rename matches
+  `kapi check --diff-against`. It is reported beside the graders. It reports
+  a scoped rename applied where the old name stays correct (the new name in a
+  file under a "Keep as it is" rule), and a capitalised rename matches
   case-sensitively.
 - **Voice fit** (`compare_judge.go`): two judges from different model families
   answer five yes/no questions about what each attempt wrote (reader
@@ -93,7 +94,7 @@ valid for the attempt timeout plus 15 minutes; refresh the login, or export a
 
 The harness runs three kapi verbs itself, as the person who sets the project
 up: `compareVerbImport`, `compareVerbRecord` and `compareVerbKeep` in
-`compare.go`. A change to the CLI is an edit there. A removed verb does not
-always fail: `kapi context import`, after the verb moved to `kapi store`, was
-read as a path, so preflight's gate probe and the context read are what catch
-a project that did not load.
+`compare.go`. A change to the CLI is an edit there. A verb retired from
+`kapi context` exits 2 and names its replacement; a verb removed elsewhere may
+not fail, so preflight's gate probe and the context read are what catch a
+project that did not load.
