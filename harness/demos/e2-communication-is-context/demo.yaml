@@ -1,0 +1,60 @@
+id: e2-communication-is-context
+title: Communication is context
+subtitle: One decision becomes a different rule on each surface it reaches.
+kind: explainer
+# An explainer: no capture, no terminal. Every scene is a drawn diagram beat
+# (src/remotion/explainer/e2/), animated under its narration and held until the
+# words end. The storyboard the founder approved fixes the composition, the
+# words and the palette of every beat; the narration lines are final.
+terminal: explainer
+brand: kapi
+needsAi: false
+aspects:
+  - content sits at a point
+  - a rule belongs to a place
+artifacts: []
+narration:
+  - id: title
+    kind: diagram
+    diagram: title
+    text: ""
+    hold: 3.5
+  - id: rename
+    kind: diagram
+    diagram: rename
+    hold: 10.6
+    text: >-
+      Your team renames a feature. Workspaces are now to be called Spaces.
+      Simple, until you look at all the surfaces where the word sits.
+  - id: surfaces
+    kind: diagram
+    diagram: surfaces
+    hold: 13.8
+    text: >-
+      Help articles should say Spaces. The API keeps its old name. The
+      changelog keeps what shipped. The migration guide needs both. Support
+      recognises the old name and never uses it.
+  - id: one-rule
+    kind: diagram
+    diagram: one-rule
+    hold: 6.2
+    text: Write that down as one rule and it is wrong in most of those places.
+  - id: map
+    kind: diagram
+    diagram: map
+    hold: 11.0
+    text: >-
+      kapi records where each piece of content sits: who it is for, where it
+      appears and when. Each rule belongs to a place, not to the whole project.
+  - id: assistant
+    kind: diagram
+    diagram: assistant
+    hold: 9.2
+    text: >-
+      So when you or your assistant writes, kapi hands over the rules that hold
+      right there, and checks the result against them.
+  - id: end
+    kind: diagram
+    diagram: end
+    hold: 9.5
+    text: One decision, many rules. Context decides where each belongs. Read how context works.

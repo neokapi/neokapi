@@ -56,6 +56,10 @@ export const darkTheme = {
   // the stroke of a box around a region.
   markFill: "rgba(255,212,121,0.34)",
   markStroke: "#ff7a45",
+  // Tinted fills behind an accent, a passing and a failing element.
+  accentSoft: "rgba(122,162,255,0.10)",
+  greenSoft: "#183324",
+  redSoft: "#3a1c22",
   fontSans: sansStack,
   fontMono: monoStack,
 
@@ -93,6 +97,9 @@ export const lightTheme: Theme = {
   resultBg: "rgba(15,23,42,0.04)",
   markFill: "rgba(255,190,60,0.42)",
   markStroke: "#e8641f",
+  accentSoft: "rgba(79,70,229,0.08)",
+  greenSoft: "#e3f1e6",
+  redSoft: "#fbe6e4",
   fontSans: sansStack,
   fontMono: monoStack,
 

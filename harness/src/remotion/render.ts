@@ -52,6 +52,8 @@ export interface RenderOptions {
   /** Narration locale (default "en"). Non-default locales render from
    *  narration-<locale>.json into out/<id>-<locale>[-light].mp4. */
   locale?: string;
+  /** Skip the demo when it has no capture.json (default). An explainer has none. */
+  requireCapture?: boolean;
 }
 
 /** Output path for a demo in a given theme + locale (dark/en are the unsuffixed defaults). */
@@ -65,7 +67,7 @@ export async function renderDemo(id: string, opts: RenderOptions = {}): Promise<
   const themeMode: ThemeMode = opts.themeMode ?? "dark";
   const locale = resolveLocale(opts.locale);
   const capJson = path.join(publicDemoDir(id), "capture.json");
-  if (!fs.existsSync(capJson)) {
+  if ((opts.requireCapture ?? true) && !fs.existsSync(capJson)) {
     console.warn(`  ! no capture for ${id} — skipping render`);
     return null;
   }

@@ -19,7 +19,7 @@ import { downloadWhisperModel, installWhisperCpp, toCaptions, transcribe, type L
 import type { CaptionsFile, NarrationScene, TimedCaption } from "../types.ts";
 import { run } from "../lib/exec.ts";
 import { isDefaultLocale, localeSuffix } from "../lib/locale.ts";
-import { alignScenes, sceneBoundaries, scriptCaptions, tokenize, type SpokenWord } from "./align.ts";
+import { alignScenes, sceneBoundaries, scriptCaptions, snapToPauses, tokenize, type Pause, type SpokenWord } from "./align.ts";
 
 /** The whisper.cpp release the harness builds; needs cmake on this machine. */
 export const WHISPER_CPP_VERSION = "1.7.6";
@@ -83,6 +83,24 @@ async function to16k(wav: string): Promise<string> {
   const r = await run("ffmpeg", ["-y", "-i", wav, "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", out], { timeoutMs: 120_000 });
   if (r.code !== 0) throw new Error(`ffmpeg resample failed: ${r.stderr.slice(-400)}`);
   return out;
+}
+
+/** The pauses in a track, from ffmpeg's silencedetect: where a cut can fall between sentences. */
+export async function detectPauses(wav: string): Promise<Pause[]> {
+  const r = await run("ffmpeg", ["-hide_banner", "-i", wav, "-af", "silencedetect=noise=-40dB:d=0.12", "-f", "null", "-"], { timeoutMs: 120_000 });
+  if (r.code !== 0) return [];
+  const pauses: Pause[] = [];
+  let start: number | null = null;
+  for (const line of r.stderr.split("\n")) {
+    const s = /silence_start: ([\d.]+)/.exec(line);
+    if (s) start = Math.round(Number(s[1]) * 1000);
+    const e = /silence_end: ([\d.]+)/.exec(line);
+    if (e && start !== null) {
+      pauses.push({ startMs: start, endMs: Math.round(Number(e[1]) * 1000) });
+      start = null;
+    }
+  }
+  return pauses;
 }
 
 /** Transcribe one narration WAV into timed word captions (ms from its start). */
@@ -220,6 +238,7 @@ export async function attachCaptions(draft: NarrationDraft, ctx: CaptionContext)
         texts.map((t) => tokenize(t).length),
         totalMs,
       );
+      boundaries = snapToPauses(boundaries, await detectPauses(wav));
       sceneTiming = "measured";
       ctx.log(`aligned ${Math.round(coverage * 100)}% of the script to the transcript; scene cuts measured`);
     } else {

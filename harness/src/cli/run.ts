@@ -158,7 +158,9 @@ async function main() {
       // record real command output (no Claude); Claude demos run a live session.
       // A non-default --locale is passed through so the recorded app UI can run
       // in that language (see record-desktop.ts uiLocale).
-      if (m.terminal === "desktop") await captureDesktopDemo(m, { force, uiLocale: locale });
+      // An explainer is drawn, not recorded: there is nothing to capture.
+      if (m.terminal === "explainer") console.log("  · explainer: drawn beats, nothing to capture");
+      else if (m.terminal === "desktop") await captureDesktopDemo(m, { force, uiLocale: locale });
       else if (m.terminal === "shell" || (m.script?.length ?? 0) > 0) await captureScript(m, { force });
       else await captureDemo(m, { force });
     }
@@ -205,7 +207,7 @@ async function main() {
     if (only.includes("render")) {
       console.log(`\n━━ render · ${m.id} (${themes.join(", ")}${isDefaultLocale(locale) ? "" : `; ${locale}`}) ━━`);
       for (const themeMode of themes) {
-        await renderDemo(m.id, { force, quality, themeMode, locale });
+        await renderDemo(m.id, { force, quality, themeMode, locale, requireCapture: m.terminal !== "explainer" });
       }
     }
   }

@@ -147,6 +147,7 @@ export function loadManifest(id: string, demosDir: string = DEMOS_DIR): DemoMani
   // need no Claude `prompt`; a Claude demo needs one.
   const isShell = m.terminal === "shell" || (Array.isArray(m.script) && m.script.length > 0);
   const isDesktop = m.terminal === "desktop";
+  const isExplainer = m.terminal === "explainer";
   if (!m.title) throw new Error(`demo ${id}: title is required`);
   if (isShell) {
     if (!Array.isArray(m.script) || m.script.length === 0) {
@@ -161,8 +162,8 @@ export function loadManifest(id: string, demosDir: string = DEMOS_DIR): DemoMani
         );
       }
     });
-  } else if (!isDesktop && !m.prompt) {
-    throw new Error(`demo ${id}: prompt is required (or set terminal: shell/desktop)`);
+  } else if (!isDesktop && !isExplainer && !m.prompt) {
+    throw new Error(`demo ${id}: prompt is required (or set terminal: shell/desktop/explainer)`);
   }
   m.artifacts ??= [];
   m.narration ??= [];
@@ -188,6 +189,12 @@ export function loadManifest(id: string, demosDir: string = DEMOS_DIR): DemoMani
     }
     if (n.kind === "desktop" && !n.beat) {
       throw new Error(`${where} is kind=desktop but has no beat id`);
+    }
+    if (isExplainer !== (n.kind === "diagram")) {
+      throw new Error(`${where}: an explainer is made of kind=diagram scenes, and only an explainer has them`);
+    }
+    if (n.kind === "diagram" && !n.diagram) {
+      throw new Error(`${where} is kind=diagram but names no diagram`);
     }
     validateBeatFields(n, where, { isShell, scriptSteps });
     if (n.through !== undefined) {

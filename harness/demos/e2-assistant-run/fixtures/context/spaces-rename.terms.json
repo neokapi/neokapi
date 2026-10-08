@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "kapi-terms",
+  "concepts": [
+    {
+      "id": "term:en-US:space",
+      "domain": "product",
+      "definition": "A shared area where a team keeps its boards and invites people. Renamed from \"Workspace\"; customers only ever see the new name.",
+      "source": "terminology",
+      "terms": [
+        { "text": "Space", "locale": "en-US", "status": "preferred" },
+        { "text": "Workspace", "locale": "en-US", "status": "forbidden", "note": "use: Space" }
+      ],
+      "created_at": "2026-10-01T09:00:00Z",
+      "updated_at": "2026-10-01T09:00:00Z"
+    }
+  ]
+}

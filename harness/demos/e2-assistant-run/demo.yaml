@@ -1,0 +1,27 @@
+id: e2-assistant-run
+title: An assistant writes where a rename applies
+subtitle: The run behind beat 6 of the E2 explainer.
+kind: use-case
+# A live Claude session with the kapi plugin in a two-surface project. It is
+# never rendered as a video of its own: beat 6 of e2-communication-is-context
+# draws an editor around this run's own words (the context kapi returned for
+# the help article, the text the assistant wrote, and the check result).
+#
+# fixtures/kapi.yaml binds the rename only to the help profile, so the help
+# article is told "Space, not Workspace" and the API reference is told
+# nothing. The prompt asks for an edit to both files and does not mention the
+# rename; what the assistant learns about it comes from kapi.
+terminal: claude
+needsAi: false
+project: true
+setup:
+  - kapi terms import --name spaces-rename context/spaces-rename.terms.json
+  - git init -q && git add -A && git -c user.name=Teamboard -c user.email=docs@teamboard.example commit -qm "Teamboard docs"
+captureTimeoutSec: 420
+prompt: >-
+  Tighten the opening paragraph of help/getting-started.md for new customers,
+  then give the summary line in api/workspaces.md the same pass.
+aspects:
+  - the rules that hold where you write
+artifacts: []
+narration: []

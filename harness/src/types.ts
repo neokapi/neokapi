@@ -44,8 +44,11 @@ export interface DemoManifest {
    *                        (src/driver/record-desktop.ts) against the real desktop frontend and
    *                        writes screencast.json + light/dark webms; the renderer replays the
    *                        screencast inside the macOS window frame with per-beat zoom.
+   *   "explainer"        — an animated diagram explainer: no capture, every scene is a
+   *                        `kind: diagram` beat drawn in React/SVG (src/remotion/explainer/),
+   *                        timed to its narration.
    */
-  terminal?: "claude" | "shell" | "desktop";
+  terminal?: "claude" | "shell" | "desktop" | "explainer";
   /** Card branding: "claude" (default) → kapi × Claude Code lockup; "kapi" → toolbox lockup; "desktop" → kapi · Desktop; "bowrain" → Bowrain logo + wordmark. */
   brand?: "claude" | "kapi" | "desktop" | "bowrain";
   /**
@@ -282,9 +285,10 @@ export interface NarrationSpec {
    * - "terminal": shows the Claude Code session replay (the real transcript).
    * - "artifact": full-screen a captured artifact.
    * - "desktop": replays a Kapi Desktop screencast beat inside the macOS window (with zoom).
+   * - "diagram": an animated diagram beat of an explainer (see `diagram`).
    * - "outro": closing card.
    */
-  kind: "title" | "prompt" | "terminal" | "artifact" | "desktop" | "outro";
+  kind: "title" | "prompt" | "terminal" | "artifact" | "desktop" | "diagram" | "outro";
   /** The spoken narration for this scene. */
   text: string;
   /**
@@ -298,6 +302,8 @@ export interface NarrationSpec {
   artifact?: string;
   /** For kind="desktop": which screencast beat id to play (see screencast.json). */
   beat?: string;
+  /** For kind="diagram": which of the explainer's diagram beats to draw. */
+  diagram?: string;
   /**
    * Seconds the scene stays on screen at least. The desktop recorder keeps the
    * beat on camera this long, so the recorded beat is about as long as the
@@ -359,8 +365,8 @@ export interface DemoCapture {
   tagline?: string;
   aspects: string[];
   prompt: string;
-  /** "claude" (default), "shell", or "desktop" — selects the scene renderer + card branding. */
-  terminal?: "claude" | "shell" | "desktop";
+  /** "claude" (default), "shell", "desktop" or "explainer": selects the scene renderer + card branding. */
+  terminal?: "claude" | "shell" | "desktop" | "explainer";
   brand?: "claude" | "kapi" | "desktop" | "bowrain";
   /** Working-directory label shown in the terminal title bar (shell demos). */
   cwd?: string;
@@ -494,6 +500,7 @@ export interface ScenePresentation {
   caption?: string;
   artifact?: string;
   beat?: string;
+  diagram?: string;
   hold?: number;
   /** A crop box; a selector crop is resolved by the recorder into screencast.json. */
   crop?: ZoomRect;

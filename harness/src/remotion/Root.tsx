@@ -4,6 +4,7 @@ import type { BeatsFile, CapturedArtifact, CaptionsFile, DemoCapture, NarrationM
 import { Demo, type DemoProps } from "./Demo.tsx";
 import { Sizzle, sizzleCalcMeta } from "./compositions/Sizzle.tsx";
 import { MultimodalSample, SAMPLE_FPS, SAMPLE_WIDTH, SAMPLE_HEIGHT, SAMPLE_FRAMES } from "./compositions/MultimodalSample.tsx";
+import { EXPLAINERS, Explainer, explainerCalcMeta } from "./explainer/Explainer.tsx";
 import { computeTiming } from "./timeline.ts";
 import { mergeScenes, transitionFrames } from "./scene-plan.ts";
 import { FPS, WIDTH, HEIGHT } from "./components/theme.ts";
@@ -86,7 +87,7 @@ export const RemotionRoot: React.FC = () => {
   return (
     <>
       <Folder name="Demos">
-        {DEMOS.filter((d) => d.id !== "bowrain-sizzle").map((d) => (
+        {DEMOS.filter((d) => d.id !== "bowrain-sizzle" && !(d.id in EXPLAINERS)).map((d) => (
           <Composition
             key={d.id}
             id={d.id}
@@ -97,6 +98,22 @@ export const RemotionRoot: React.FC = () => {
             height={HEIGHT}
             defaultProps={{ id: d.id }}
             calculateMetadata={calcMeta}
+          />
+        ))}
+      </Folder>
+      <Folder name="Explainers">
+        {/* Drawn diagram explainers: no capture, every beat a React/SVG diagram. */}
+        {DEMOS.filter((d) => d.id in EXPLAINERS).map((d) => (
+          <Composition
+            key={d.id}
+            id={d.id}
+            component={Explainer}
+            durationInFrames={FPS}
+            fps={FPS}
+            width={WIDTH}
+            height={HEIGHT}
+            defaultProps={{ id: d.id }}
+            calculateMetadata={explainerCalcMeta}
           />
         ))}
       </Folder>
