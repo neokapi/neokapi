@@ -1833,11 +1833,6 @@ L10N_COMPILE_TARGETS := \
 # therefore appends the spec it needs to the plain list.
 L10N_SIDECAR_SPEC       := :(glob)harness/demos/*/demo.*.yaml
 L10N_SIDECAR_SPEC_SH    := ':(glob)harness/demos/*/demo.*.yaml'
-# The rules files: the kapi:rules section of each AGENTS.md and CLAUDE.md,
-# which `kapi up` and `kapi context sync` rewrite from the project's context
-# (host/rulesfiles.go). A decision brought home changes them with no source
-# change behind it, so the loop owns them like the sidecars.
-L10N_RULES_FILES_SPEC   := :(glob)**/AGENTS.md :(glob)**/CLAUDE.md
 # `*` in a git glob pathspec does not cross a `/`, so this is the English
 # renders at the top of the directory and none of the per-locale trees below it.
 L10N_MAIL_RENDER_SPEC    := :(glob)bowrain/mailer/templates/*.html
@@ -2131,10 +2126,10 @@ l10n-derived-paths: ## Print the git pathspecs l10n-verify byte-gates
 	@echo "$(L10N_DERIVED) $(L10N_MAIL_RENDER_SPEC)"
 
 l10n-loop-owned-paths: ## Print the git pathspecs the loop owns (target tier, gated on content rather than bytes)
-	@echo "$(L10N_LOOP_CATALOGS) $(L10N_SIDECAR_SPEC) $(L10N_RULES_FILES_SPEC)"
+	@echo "$(L10N_LOOP_CATALOGS) $(L10N_SIDECAR_SPEC)"
 
 l10n-owned-paths: ## Print every committed artifact this pipeline owns (both tiers)
-	@echo "$(L10N_DERIVED) $(L10N_MAIL_RENDER_SPEC) $(L10N_LOOP_CATALOGS) $(L10N_SIDECAR_SPEC) $(L10N_RULES_FILES_SPEC)"
+	@echo "$(L10N_DERIVED) $(L10N_MAIL_RENDER_SPEC) $(L10N_LOOP_CATALOGS) $(L10N_SIDECAR_SPEC)"
 
 # The byte gate. It asserts generated-vs-source consistency over the tier that is
 # a function of committed source alone: the generated inventories, the English
