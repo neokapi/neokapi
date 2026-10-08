@@ -181,7 +181,7 @@ describe("HomePage merged collection surface", () => {
     // fr-FR clears its established gate → Established; de-DE has established
     // units but clears no gate → In review. ("In review" also appears in the
     // timeline legend, hence getAllByText.)
-    expect(screen.getAllByText("Established").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Approved").length).toBeGreaterThan(0);
     expect(screen.getAllByText("In review").length).toBeGreaterThan(0);
     // The project-wide overview is now the per-language completeness timeline.
     expect(screen.getByText("Completeness by language")).toBeInTheDocument();

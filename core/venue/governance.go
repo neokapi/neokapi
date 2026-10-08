@@ -41,6 +41,17 @@ const (
 	RefusedStaleRejection = "the rejection names a translation the platform no longer holds"
 )
 
+// ReasonLabel is the wording a person reads for a refusal reason. The reasons
+// above are wire values a producer compares against, so they keep their
+// spelling; a surface that prints one passes it through here, which says
+// "approved" for a translation a person approved.
+func ReasonLabel(reason string) string {
+	if reason == RefusedEstablishedWithdrawal {
+		return "withdrawing an approved translation needs review permission"
+	}
+	return reason
+}
+
 // Kinds of claim a refusal counts.
 const (
 	VerdictApproval = "approval"

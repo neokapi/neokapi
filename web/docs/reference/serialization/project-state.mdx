@@ -106,8 +106,8 @@ the version rides the single-document serialization of the same records.
 | `scope` | string | The document the block belongs to, and the shard it is written into. Part of the record's identity: a block id is unique inside its document and nowhere wider. |
 | `unit` | string | Block identity: the block's content hash, the same key the block tables and overlays address it by. |
 | `variant` | object | The locale, and optional tone/channel, this state applies to. |
-| `status` | string | Target ladder position: draft → translated → established. |
-| `sourceStatus` | string | Source ladder position: written → established. |
+| `status` | string | Target ladder position: draft → translated → established (approved). |
+| `sourceStatus` | string | Source ladder position: written → established (approved). |
 | `origin` | object | Provenance of the current target (engine/tool/reference). |
 | `targetHash` | string | Content hash of the translation this state blesses. |
 | `revision` | string | Revision of the translation this state blesses, inline codes included: the token `kapi inspect` prints. Absent on a record made before revisions, and on a source approval. |

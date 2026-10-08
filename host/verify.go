@@ -511,7 +511,7 @@ func (a *App) verifySourceGate(ctx context.Context, proj *project.KapiProject, r
 		g.Findings = append(g.Findings, verifyFinding{
 			Gate:       gateSource,
 			Fails:      true,
-			Message:    fmt.Sprintf("source %s readiness %d%% is below the required %d%%", sf.State, int(sf.Actual), sf.Required),
+			Message:    fmt.Sprintf("source %s readiness %d%% is below the required %d%%", model.StatusLabel(sf.State), int(sf.Actual), sf.Required),
 			Suggestion: "run the source checks (e.g. voice/terminology) and resolve findings, or relax the source gate",
 		})
 	}
@@ -594,7 +594,7 @@ func (a *App) verifyShip(cmd Command, proj *project.KapiProject, root string, un
 				Gate:       gateShip,
 				Locale:     lc.Locale,
 				Fails:      true,
-				Message:    fmt.Sprintf("%s: %s coverage %d%% is below the required %d%%", scope, sf.State, int(sf.Actual), sf.Required),
+				Message:    fmt.Sprintf("%s: %s coverage %d%% is below the required %d%%", scope, model.StatusLabel(sf.State), int(sf.Actual), sf.Required),
 				Suggestion: "translate or review more content for this locale, or relax its ship gate",
 			})
 		}

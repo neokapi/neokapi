@@ -102,7 +102,7 @@ const CONTENT_META: Record<string, StatusMeta> = {
     status: "established",
     tone: "settled",
     get label() {
-      return t("Established", "content status");
+      return t("Approved", "content status");
     },
   },
 };
@@ -119,7 +119,7 @@ const SOURCE_META: Record<string, StatusMeta> = {
     status: "established",
     tone: "settled",
     get label() {
-      return t("Established", "source status");
+      return t("Approved", "source status");
     },
   },
 };
@@ -156,6 +156,15 @@ export function statusMeta(ladder: StatusLadder, status: string): StatusMeta {
       label: status,
     }
   );
+}
+
+/**
+ * The lowercase word a compact view prints for a lifecycle or ship status.
+ * Content a person approved reads as "approved"; the value on the wire, in the
+ * store and in the recipe stays `established`, so only the text changes.
+ */
+export function statusWord(status: string): string {
+  return status === "established" ? "approved" : status;
 }
 
 export interface StatusBadgeProps extends React.ComponentProps<"span"> {

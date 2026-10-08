@@ -4,7 +4,7 @@
 #
 # The review→approve half of the kapi loop. A flow takes each unit as far
 # as a machine can (to *translated*); a person takes the ones that matter to
-# *established*. That decision is the one thing the caches can't rebuild, so it lands
+# *approved*. That decision is the one thing the caches can't rebuild, so it lands
 # in the project's context (shared with `kapi context sync`), bound to the
 # revision of the translation the reviewer read. The funnel is:
 #
@@ -55,20 +55,20 @@ files:
       {"op":"decide","at":{"doc":"messages.json","block":"greeting","edition":"fr"},"if_match":"r:1a83287c7ed96132","outcome":"establish"}
 
 steps:
-  - comment: The project is translated — a machine took every unit to *translated*. Now a person takes the ones that matter to *established*.
+  - comment: The project is translated. A machine took every unit to *translated*; now a person takes the ones that matter to *approved*.
   - command: kapi status
-    narration: status derives coverage from the content and recorded decisions. French is 100% translated and 0% established, so human review remains pending.
+    narration: status derives coverage from the content and recorded decisions. French is 100% translated and 0% approved, so human review remains pending.
     # smoke:false — needs the multi-file project seeded; the wasm review loop is
     # covered by scripts/verify-snippets/review-smoke.ts, which seeds a project.
     smoke: false
   - command: kapi status --review
     narration: List translated units awaiting approval, each with the source document, block and language a decision names.
     smoke: false
-  - comment: Approving a unit is a decision, recorded with kapi apply. review.jsonl establishes the greeting unit's fr translation.
+  - comment: Approving a unit is a decision, recorded with kapi apply. review.jsonl approves the greeting unit's fr translation.
   - command: kapi apply review.jsonl
     narration: apply binds the approval to the revision of the translation the reviewer read. Editing that translation later requires another review.
     smoke: false
   - command: kapi status
-    narration: Established coverage increases to 33% after the recorded approval. This coverage counts toward an established gate.
+    narration: Approved coverage increases to 33% after the recorded approval. This coverage counts toward an approval gate.
     smoke: false
   - comment: The gate is the consequence — `kapi check --ship` exits 3 while a required review is missing, and clears once the decisions land. See the kapi-up-loop walkthrough for the block-then-clear moment end to end.

@@ -90,7 +90,7 @@ func (s *Server) HandleBulkReviewBlocks(c echo.Context) error {
 	outcome, landsOn := change.OutcomeWithdraw, model.TargetStatusTranslated
 	switch {
 	case req.Approve && req.Status != "":
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "status only applies when approve is false (approval always lands on established)"})
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "status only applies when approve is false (approval always lands on approved)"})
 	case req.Approve:
 		outcome, landsOn = change.OutcomeEstablish, model.TargetStatusEstablished
 	case req.Status == string(model.TargetStatusDraft):

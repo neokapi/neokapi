@@ -24,7 +24,10 @@ it. The gate model is [the kapi loop](/kapi/convergence); the schema is the
 | ----------- | ------------------------------------------------------------- | ------------------------------------------------- |
 | Contractual | A person approves every block                                   | `{ translated: 100, established: 100 }` |
 | Mid-tier    | Everything translated, the important 80% human-reviewed        | `{ translated: 100, established: 80 }`               |
-| Long tail   | Everything translated, AI reviews count as reviewed   | `{ translated: 100, established: 100 }` |
+| Long tail   | Everything translated, AI reviews count as reviewed   | `{ translated: 100 }` |
+
+A gate spells the approved rung `established`: `established: 80` asks for at
+least 80% of blocks approved by a person.
 
 ## The recipe
 
@@ -59,8 +62,8 @@ is evaluated per (collection, locale) and the most specific rule wins.
 
 The `machine` tier ships what is translated and passes its checks. An agent
 can pre-review that tail with a score and its reasons, which the review queue
-shows, but only a person establishes a block, so the `established` tiers always
-measure people. See [who establishes a block](/kapi/convergence#approver-classes).
+shows, but only a person approves a block, so the `established` tiers always
+measure people. See [who approves a block](/kapi/convergence#approver-classes).
 
 ## Trade-offs
 

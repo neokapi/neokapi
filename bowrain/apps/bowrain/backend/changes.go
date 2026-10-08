@@ -269,7 +269,7 @@ func decideCached(b *model.Block, locale model.LocaleID, outcome change.Outcome)
 	case change.OutcomeEstablish:
 		if !held || strings.TrimSpace(b.TargetText(locale)) == "" {
 			return false, &change.Error{Code: change.CodeUnsupported, Capability: "decide.establish",
-				Message: fmt.Sprintf("block %s has no %s translation to establish: translate it first", b.ID, locale)}
+				Message: fmt.Sprintf("block %s has no %s translation to approve: translate it first", b.ID, locale)}
 		}
 		if from.Rank() >= model.TargetStatusEstablished.Rank() {
 			return false, nil

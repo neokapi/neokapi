@@ -144,7 +144,7 @@ describe("StatusBadge", () => {
   const contentLabels: Record<string, string> = {
     draft: "Draft",
     translated: "Translated",
-    established: "Established",
+    established: "Approved",
   };
   const contentTones: Record<string, string> = {
     draft: "start",
@@ -166,7 +166,7 @@ describe("StatusBadge", () => {
 
   const sourceLabels: Record<string, string> = {
     written: "Written",
-    established: "Established",
+    established: "Approved",
   };
   const sourceTones: Record<string, string> = {
     written: "middle",

@@ -538,7 +538,7 @@ export function TranslationEditor({
         );
         setError({
           title: reviewed
-            ? "Couldn't mark the block as established"
+            ? "Couldn't mark the block as approved"
             : "Couldn't update the review status",
           cause: e,
         });
@@ -744,8 +744,7 @@ export function TranslationEditor({
   );
 
   const progressBreakdown: string[] = [];
-  if (statusCounts.established > 0)
-    progressBreakdown.push(`${statusCounts.established} established`);
+  if (statusCounts.established > 0) progressBreakdown.push(`${statusCounts.established} approved`);
   if (statusCounts.translated > 0) progressBreakdown.push(`${statusCounts.translated} translated`);
   if (statusCounts.draft > 0) progressBreakdown.push(`${statusCounts.draft} draft`);
   if (statusCounts["not-started"] > 0)

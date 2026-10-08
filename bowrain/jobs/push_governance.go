@@ -291,7 +291,7 @@ func newPushGovernor(
 		return g, nil // nothing to judge; no permission lookups, no gate
 	}
 	if deps.ReviewAuthority == nil {
-		return nil, errors.New("this deployment cannot resolve review permissions, so a push carrying approvals or withdrawing an established translation is refused")
+		return nil, errors.New("this deployment cannot resolve review permissions, so a push carrying approvals or withdrawing an approved translation is refused")
 	}
 
 	locales := verdictLocales(staged, decisions)

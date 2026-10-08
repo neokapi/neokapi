@@ -1,7 +1,7 @@
 ---
 title: Ship-Aware Language Picker
-description: "A locale ships established (a person established it) or translated (translated with its checks green). Emit a ship.json manifest with kapi status --ship and drive a language picker that hides locales that do not ship and flags the translated ones as AI."
-keywords: [ship gate, established gate, ship.json, language picker, ship state, AI badge, kapi status, neokapi-i18n]
+description: "A locale ships approved (a person approved it) or translated (translated with its checks green). Emit a ship.json manifest with kapi status --ship and drive a language picker that hides locales that do not ship and flags the translated ones as AI."
+keywords: [ship gate, approval gate, ship.json, language picker, ship state, AI badge, kapi status, neokapi-i18n]
 ---
 
 # Ship-aware language picker
@@ -9,29 +9,30 @@ keywords: [ship gate, established gate, ship.json, language picker, ship state, 
 A project decides which translated versions to offer its users. neokapi models
 that decision with **two gates**, both declared in `kapi.yaml`, both evaluated
 the same way against the target status ladder
-(`draft → translated → established`):
+(`draft → translated → approved`):
 
 - **The ship gate**: the bar to go live. A locale that clears it ships
   `translated`: translated with its checks green, and safe to offer. It is the
   `ship_gate` / `ship_gates` configuration.
-- **The established gate**: the bar to ship `established`, meaning a person
-  established the content. It is the `established_gate` / `established_gates`
-  configuration.
+- **The approval gate**: the bar to ship approved, meaning a person approved
+  the content. It is the `established_gate` / `established_gates`
+  configuration. The recipe and `ship.json` spell the approved rung and state
+  `established`.
 
 A locale that ships `translated` is AI work, and the picker marks it. A project
-that delivers only established content says so in its ship gate
+that delivers only approved content says so in its ship gate
 (`ship_gate: { established: 100 }`).
 
-## Declaring the established gate
+## Declaring the approval gate
 
-The established gate uses the same three additive forms and the same
+The approval gate uses the same three additive forms and the same
 precedence as the ship gate, and resolves a `gate:` name against the shared
 `gates:` registry:
 
 ```yaml
 # kapi.yaml
 ship_gate: { translated: 100 } # go live once fully translated
-established_gate: { established: 100 } # ship established once a person established every translation
+established_gate: { established: 100 } # ship approved once a person approved every translation
 ```
 
 A rule list narrows the bar per collection or locale, most-specific rule wins:
@@ -43,9 +44,9 @@ established_gates:
   - gate: { established: 80 }
 ```
 
-:::note With no established gate, nothing ships established
+:::note With no approval gate, nothing ships approved
 
-A project with **no** established gate has no locale in the `established`
+A project with **no** approval gate has no locale in the `established`
 state: every locale that ships reads `translated`, marked AI.
 
 :::
@@ -89,7 +90,7 @@ its ship state:
 }
 ```
 
-Here French ships established (no badge), German ships translated (flagged
+Here French ships approved (no badge), German ships translated (flagged
 AI), Dutch ships the same way in a language no terms govern, Swedish has no
 gate and is offered as not gated, and Japanese is withheld.
 
@@ -97,8 +98,8 @@ gate and is offered as not gated, and Japanese is withheld.
 
 | `state` | Meaning | `shippable` |
 | --- | --- | --- |
-| `established` | An established gate matches the locale and the locale clears it: a person established the content. | `true` |
-| `translated` | A ship gate matches the locale and the locale clears it, and no established gate is met: the locale ships as AI translation. | `true` |
+| `established` | An approval gate matches the locale and the locale clears it: a person approved the content. | `true` |
+| `translated` | A ship gate matches the locale and the locale clears it, and no approval gate is met: the locale ships as AI translation. | `true` |
 | `withheld` | The locale does not ship: it is short of its gate, or stale, rejected or failing content, or unchecked terms, hold it back. | `false` |
 | `not_gated` | No gate matches the locale, and nothing withholds it. | `true` |
 
@@ -185,7 +186,7 @@ throws.
 includes a not-gated locale. Pass `includeNotGated: false` to offer only the
 locales that clear a gate. Each entry carries the manifest's `state` and a
 `badge`: `'ai'` when the locale ships but is not `established`, and `null` when
-it is. **`'ai'` is the only badge this layer emits; an established locale has
+it is. **`'ai'` is the only badge this layer emits; an approved locale has
 no badge.** A React binding wraps the same two functions and takes the same options
 as a third argument:
 
@@ -216,7 +217,7 @@ tooling.
 
 ## Compatibility
 
-The established gate is additive. A recipe that declares none has every
+The approval gate is additive. A recipe that declares none has every
 shipping locale read `translated`. The picker helper degrades safely when
 `ship.json` is absent, and reads an entry with no `state` by its `shippable`
 flag alone, so a project can adopt the manifest and the picker independently.

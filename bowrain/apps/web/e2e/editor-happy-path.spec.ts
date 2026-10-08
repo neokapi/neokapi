@@ -168,7 +168,7 @@ test.describe("Editor happy path", () => {
     await expect(page.getByTestId("progress-text")).toContainText("1 established");
     await expect(page.getByTestId("target-display")).toContainText(FRENCH_TEXT);
     await expect(
-      page.getByTestId("visual-editor-card").getByText("Established", { exact: true }),
+      page.getByTestId("visual-editor-card").getByText("Approved", { exact: true }),
     ).toBeVisible();
 
     // ── 6. Export ────────────────────────────────────────────────────────────

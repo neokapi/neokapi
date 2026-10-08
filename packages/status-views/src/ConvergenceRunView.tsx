@@ -9,6 +9,7 @@ import {
   Progress,
   SimpleTooltip,
   cn,
+  statusWord,
 } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import type {
@@ -319,7 +320,7 @@ function ConvergeOutcomeBlock({
             {result.stallReason === "source_not_ready"
               ? t(
                   "Nothing was produced for any language: the source has not reached {level}, the level translation waits for. Settle it in the Review page's source lane.",
-                  { level: result.translateAfter || "written" },
+                  { level: statusWord(result.translateAfter || "written") },
                 )
               : t(
                   "Their translations were held in every language. Settle them in the Review page's source lane.",

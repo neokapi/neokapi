@@ -176,7 +176,7 @@ func TestDecide_ALocaleWithNoTranslationIsNotEstablished(t *testing.T) {
 	assert.Equal(t, http.StatusUnprocessableEntity, rec.Code, rec.Body.String())
 	require.NotNil(t, res.Ops[0].Error)
 	assert.Equal(t, change.CodeUnsupported, res.Ops[0].Error.Code)
-	assert.Contains(t, res.Ops[0].Error.Message, "no fr translation to establish")
+	assert.Contains(t, res.Ops[0].Error.Message, "no fr translation to approve")
 	assert.False(t, holdsTarget(getStoredBlock(t, cs, pid, bid), "fr"), "a refused approval must not create a target")
 
 	rec, res = decideOn(t, srv, cs, pid, bid, "fr", change.OutcomeWithdraw)

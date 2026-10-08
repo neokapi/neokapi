@@ -188,7 +188,7 @@ const STATUS_PHRASES: Record<number, Phrase> = {
 export const PERMISSION_REFUSALS: readonly string[] = [
   "insufficient permissions",
   "insufficient project permissions",
-  "moving an established translation takes the review permission for ",
+  "moving an approved translation takes the review permission for ",
   "you may not ",
   "no access to language: ",
   "no review permission for ",

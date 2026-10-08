@@ -79,7 +79,7 @@ tape:
 
 # Recording fixtures: the kit catalog, the committed content-memory bundle that
 # supplies the French, the
-# recipe with a translated+established ship gate, and the reviewer's change-set.
+# recipe with a translated+approved ship gate, and the reviewer's change-set.
 # The recording starts from an unproduced project — `kapi up` does the work.
 seed:
   - messages.json
@@ -170,7 +170,7 @@ files:
       {"op":"decide","at":{"doc":"messages.json","block":"items.cart","edition":"fr"},"if_match":"r:5d8eff15e7ca8118","outcome":"establish"}
 
 steps:
-  - comment: The ship gate wants translated 100% and established 100%. A machine can meet the first; only a person can meet the second.
+  - comment: The ship gate wants translated 100% and approved 100%. A machine can meet the first; only a person can meet the second.
   - command: kapi memory import project.memory.json
     narration: Import the committed bundle into the project's content memory. The flow reuses these translations without calling a provider.
     offline: false
@@ -188,7 +188,7 @@ steps:
     offline: true
     smoke: false
   - command: kapi check --ship
-    narration: Established coverage is 0%, so check --ship fails with exit code 3. A release pipeline can use this exit status to enforce the gate.
+    narration: Approved coverage is 0%, so check --ship fails with exit code 3. A release pipeline can use this exit status to enforce the gate.
     offline: false
   - comment: A person reads the three translations and records the decisions.
   - command: kapi apply review.jsonl
@@ -199,6 +199,6 @@ steps:
     narration: The ship check now passes with exit code 0. The recorded approvals satisfy the review requirement without retranslating the content.
     offline: false
   - command: kapi status
-    narration: French is shippable, with 100% translated and 100% established coverage.
+    narration: French is shippable, with 100% translated and 100% approved coverage.
     offline: true
     smoke: false

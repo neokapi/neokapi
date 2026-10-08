@@ -357,7 +357,7 @@ export function ReviewSurface({
         );
         setError({
           title: reviewed
-            ? "Couldn't mark the block as established"
+            ? "Couldn't mark the block as approved"
             : "Couldn't update the review status",
           cause: e,
         });

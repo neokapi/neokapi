@@ -60,15 +60,15 @@ export function termsNotGoverned(stats: Pick<LocaleTranslationStats, "compliance
 
 const stateStyles: Record<ShipState, { label: string; className: string; explanation: string }> = {
   established: {
-    label: "Established",
+    label: "Approved",
     className: "border-success/40 bg-success/15 text-success",
-    explanation: "Fully translated, the checks pass, and a person established every translation.",
+    explanation: "Fully translated, the checks pass, and a person approved every translation.",
   },
   translated: {
     label: "Translated",
     className: "border-info/40 bg-info/15 text-info",
     explanation:
-      "Fully translated and the checks pass, but not every translation is established. AI-shippable.",
+      "Fully translated and the checks pass, but not every translation is approved. AI-shippable.",
   },
   pending: {
     label: "Pending",
@@ -93,7 +93,7 @@ function tooltipContent(props: ShipStateBadgeProps): React.ReactNode {
   const meta = stateStyles[state];
   const details: string[] = [];
   if (totalBlocks !== undefined && approvedBlocks !== undefined) {
-    details.push(`${approvedBlocks} of ${totalBlocks} blocks established`);
+    details.push(`${approvedBlocks} of ${totalBlocks} blocks approved`);
   }
   if (failingChecks !== undefined && failingChecks > 0) {
     details.push(`${failingChecks} failing ${failingChecks === 1 ? "check" : "checks"}`);

@@ -231,14 +231,16 @@ func (o StatusOutput) FormatText(w io.Writer) error {
 //
 // Ship is a verdict, not a percentage. A percentage there would invite the
 // question "is 80% shippable?", whose answer is always no — a gate either holds
-// or it does not. So the column reads the ship state (`established` or
+// or it does not. So the column reads the ship state (`approved` or
 // `translated`) or `blocked: <rung>`, naming the
 // first unmet gate so it points at the work; the numbers live in the stage
 // columns, and the pipeline bar carries distance-to-the-bar at a glance.
 func (o StatusOutput) writeCoverageGrid(w io.Writer) {
 	headers := make([]string, 0, len(statusLadder)+4)
 	headers = append(headers, "scope", "blocks")
-	headers = append(headers, statusLadder...)
+	for _, rung := range statusLadder {
+		headers = append(headers, model.StatusLabel(rung))
+	}
 	headers = append(headers, "pipeline", "ship")
 
 	t := output.NewTable(w).Accent(0).Headers(headers...)
@@ -565,7 +567,7 @@ var sourceLadder = gate.SourceLadder()
 func writeSourceLine(w io.Writer, sc SourceCoverage) {
 	cells := make([]string, 0, len(sourceLadder))
 	for _, s := range sourceLadder {
-		cells = append(cells, fmt.Sprintf("%s %d%%", s, sc.Pct[s]))
+		cells = append(cells, fmt.Sprintf("%s %d%%", model.StatusLabel(s), sc.Pct[s]))
 	}
 	var standing string
 	switch {
@@ -574,7 +576,7 @@ func writeSourceLine(w io.Writer, sc SourceCoverage) {
 	case sc.Shippable:
 		standing = " · ready"
 	default:
-		standing = " · blocked: " + sc.Pending[0].State
+		standing = " · blocked: " + model.StatusLabel(sc.Pending[0].State)
 	}
 	statusLabel(w, "source")
 	fmt.Fprintf(w, "%d blocks · %s%s\n\n", sc.Total, strings.Join(cells, " · "), standing)
@@ -590,7 +592,7 @@ func scopeLabel(lc LocaleCoverage) string {
 }
 
 // shipCell renders the ship verdict: the state the scope ships at
-// (`established`, or `translated` as AI translation), `blocked: <rung>`
+// (`approved`, or `translated` as AI translation), `blocked: <rung>`
 // naming the first unmet gate, or `not gated` when no gate matches the scope
 // and nothing withholds it.
 //
@@ -622,7 +624,7 @@ func shipCell(lc LocaleCoverage, s *output.Styles) string {
 	}
 	switch lc.ShipState {
 	case ShipStateEstablished:
-		return s.Success.Render(string(ShipStateEstablished))
+		return s.Success.Render(model.StatusLabel(string(ShipStateEstablished)))
 	case ShipStateTranslated:
 		return s.Success.Render(string(ShipStateTranslated))
 	case ShipStateNotGated:
@@ -632,7 +634,7 @@ func shipCell(lc LocaleCoverage, s *output.Styles) string {
 }
 
 // shipBlockingLabel names the blocking gate in the CLI's own vocabulary: the
-// ladder rungs are lifecycle states ("established"), but a verdict reads as the
+// ladder rungs are lifecycle states ("approved"), but a verdict reads as the
 // action that clears them ("review").
 func shipBlockingLabel(lc LocaleCoverage) string {
 	blocking := lc.Blocking
@@ -835,6 +837,6 @@ func AddStatusFlags(cmd Command) {
 	cmd.Flags().Bool("review", false, "list the blocks awaiting review in every language, the source language among them, instead of the coverage grid; approve one with a decide operation sent to `kapi apply`")
 	cmd.Flags().StringSlice("lang", nil, "with --review, list only these languages (repeatable, or comma-separated); the source language is one of them")
 	cmd.Flags().Bool("json", false, "output the structured result as JSON")
-	cmd.Flags().Bool("ship", false, "emit the minimal ship.json picker manifest (locale → {shippable, state, not_governed}) instead of the coverage grid; state is established, translated, withheld or not_gated, and a language picker offers only shippable locales and badges the ones not established as AI-translated")
+	cmd.Flags().Bool("ship", false, "emit the minimal ship.json picker manifest (locale → {shippable, state, not_governed}) instead of the coverage grid; state is established (approved by a person), translated, withheld or not_gated, and a language picker offers only shippable locales and badges the ones not approved as AI-translated")
 	cmd.Flags().String("emit", "", "with --ship, write the manifest to this path (e.g. ship.json) instead of stdout")
 }

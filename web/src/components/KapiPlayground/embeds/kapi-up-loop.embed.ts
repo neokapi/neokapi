@@ -42,7 +42,7 @@ const config: WalkthroughEmbedConfig = {
     },
     {
       command: "kapi status",
-      narration: "French is shippable, with 100% translated and 100% established coverage.",
+      narration: "French is shippable, with 100% translated and 100% approved coverage.",
     },
   ],
 };

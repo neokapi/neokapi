@@ -438,7 +438,7 @@ and writes it back unchanged when it rewrites the bundle.
 | Field     | Type       | Required | Description                                                                                                                |
 | --------- | ---------- | -------- | -------------------------------------------------------------------------------------------------------------------------- |
 | `runs`    | Run[]      | yes      | The edition's content as a run sequence, using the same run primitives as every other edition. Written as `[]` when empty. |
-| `status`  | string     | no       | Lifecycle state: `written` or `established` for a source; `draft`, `translated` or `established` for a translation. Omitted when none is recorded. |
+| `status`  | string     | no       | Lifecycle state: `written` or `established` for a source; `draft`, `translated` or `established` for a translation. `established` is the state `kapi status` shows as *approved*. Omitted when none is recorded. |
 | `origin`  | Origin     | no       | How the content was produced and what governed it. Omitted when it records nothing.                                       |
 | `score`   | number     | no       | The producer's quality score for a translation or other derived edition. Omitted when zero. The source carries none.      |
 | `derived` | Derivation | no       | The edition this one was made from. Omitted for an edition nothing derived it from.                                        |

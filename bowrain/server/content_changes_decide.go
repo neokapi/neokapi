@@ -91,7 +91,7 @@ func (d *streamDecisions) Prepare(ctx context.Context, _ change.Actor, op change
 	case change.OutcomeEstablish:
 		if strings.TrimSpace(target.Text) == "" {
 			return &change.Error{Code: change.CodeUnsupported, Capability: "decide.establish",
-				Message: fmt.Sprintf("block %s has no %s translation to establish: translate it first", target.Ref.Block, locale)}
+				Message: fmt.Sprintf("block %s has no %s translation to approve: translate it first", target.Ref.Block, locale)}
 		}
 		// The row is the translation before the change set lands, and
 		// target.Rev the one the decision binds to once it has. When they
@@ -120,7 +120,7 @@ func (d *streamDecisions) Prepare(ctx context.Context, _ change.Actor, op change
 	default:
 		if held && currentStatus == model.TargetStatusEstablished && !allowsLanguage(d.c, platauth.PermReview, locale) {
 			return &change.Error{Code: change.CodeNotPermitted,
-				Message: "moving an established translation takes the review permission for " + locale}
+				Message: "moving an approved translation takes the review permission for " + locale}
 		}
 	}
 	return nil

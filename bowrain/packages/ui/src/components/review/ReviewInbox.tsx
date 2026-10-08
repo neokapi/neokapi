@@ -144,8 +144,7 @@ export function ReviewInbox({
                       <p className="truncate font-medium">{p.projectName}</p>
                       <p className="flex items-center gap-3 text-xs text-muted-foreground">
                         <span className="inline-flex items-center gap-1">
-                          <ShieldCheck className="h-3 w-3 text-success" /> {p.established}{" "}
-                          established
+                          <ShieldCheck className="h-3 w-3 text-success" /> {p.established} approved
                         </span>
                         <span className="inline-flex items-center gap-1">
                           <Sparkles className="h-3 w-3 text-info" /> {p.translated} translated
