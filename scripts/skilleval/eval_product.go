@@ -206,8 +206,11 @@ func evalSettleAgent(session string) contextop.Actor {
 
 func evalSettleObserve(actor contextop.Actor, term, use string) contextop.Record {
 	rule := contextop.ObservedRule(use, []string{term})
+	// An agent names the file it saw a rule in: a note with no place applies
+	// nowhere settling can establish it (R19.13).
 	return contextop.Record{Project: evalSettleProject, Actor: actor, Kind: contextop.KindObserve,
-		Subject: contextop.Subject{Kind: contextop.SubjectTerm, Term: &rule}}
+		Subject:  contextop.Subject{Kind: contextop.SubjectTerm, Term: &rule},
+		Evidence: []contextop.Evidence{{Path: "docs/guide.md"}}}
 }
 
 // evalSettleOutcome settles a log and reads it back as the status of each

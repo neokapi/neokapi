@@ -165,7 +165,7 @@ func globSample(pattern string) (string, bool) {
 		return "", false
 	}
 	var segs []string
-	for _, seg := range strings.Split(pattern, "/") {
+	for seg := range strings.SplitSeq(pattern, "/") {
 		if seg == "**" {
 			continue
 		}
