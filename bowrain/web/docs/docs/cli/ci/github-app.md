@@ -129,7 +129,10 @@ Download the app's private key and configure the server:
 GITHUB_APP_ID=<app id>
 GITHUB_APP_PRIVATE_KEY_FILE=/etc/bowrain/github-app.pem  # or GITHUB_APP_PRIVATE_KEY with the PEM text
 GITHUB_APP_WEBHOOK_SECRET=<webhook secret>
+GITHUB_API_URL=https://<host>/api/v3  # GitHub Enterprise Server only; omit for github.com
 ```
+
+The server and the worker read the same variables; set them on both.
 
 ## Related
 

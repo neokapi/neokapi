@@ -373,6 +373,7 @@ func run() error {
 	// more conveniently under systemd/compose, as a file path.
 	cfg.GitHubAppID = os.Getenv("GITHUB_APP_ID")
 	cfg.GitHubAppWebhookSecret = os.Getenv("GITHUB_APP_WEBHOOK_SECRET")
+	cfg.GitHubAPIURL = os.Getenv("GITHUB_API_URL")
 	if v := os.Getenv("GITHUB_APP_PRIVATE_KEY"); v != "" {
 		cfg.GitHubAppPrivateKey = v
 	} else if v := os.Getenv("GITHUB_APP_PRIVATE_KEY_FILE"); v != "" {

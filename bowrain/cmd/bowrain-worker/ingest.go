@@ -51,11 +51,18 @@ func newIngestFetcher(cs store.ContentStore, configs *bstore.ConnectorConfigStor
 	}
 	if appID != "" || appKey != "" {
 		app, err := forge.NewGitHubApp(appID, appKey, os.Getenv("GITHUB_APP_WEBHOOK_SECRET"))
+		if err == nil {
+			// GITHUB_API_URL points a GitHub Enterprise Server deployment at
+			// its own API (https://<host>/api/v3); empty is api.github.com.
+			if v := os.Getenv("GITHUB_API_URL"); v != "" {
+				err = app.SetAPIBase(v)
+			}
+		}
 		if err != nil {
 			slog.Error("github app misconfigured, app-mode forge ingest disabled", "error", err)
 		} else {
 			bowconn.RegisterForgeApp(connReg, formatReg, app)
-			slog.Info("github app enabled for forge ingest", "app_id", appID)
+			slog.Info("github app enabled for forge ingest", "app_id", appID, "api", app.APIBase())
 		}
 	}
 

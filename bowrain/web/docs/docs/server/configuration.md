@@ -189,8 +189,10 @@ falls back to local mock responses.
 | `GITHUB_APP_ID` | The registered GitHub App's id |
 | `GITHUB_APP_PRIVATE_KEY_FILE` / `GITHUB_APP_PRIVATE_KEY` | The app's private key, as a file path or PEM text |
 | `GITHUB_APP_WEBHOOK_SECRET` | The app's webhook secret |
+| `GITHUB_API_URL` | Base URL of the GitHub REST API the app calls. Defaults to `https://api.github.com`; a GitHub Enterprise Server deployment sets `https://<host>/api/v3` |
 
-See [The Bowrain GitHub App](/cli/ci/github-app) for registering the app.
+The worker reads the same variables for app-mode ingest. See
+[The Bowrain GitHub App](/cli/ci/github-app) for registering the app.
 
 ### Rate limiting
 
