@@ -481,7 +481,7 @@ func TestLoadProjectInteractive_ExecStep_DeclineIsRemembered(t *testing.T) {
 		Out:     discardWriter{},
 	})
 	require.Error(t, err, "a declined project is not re-asked into an approval")
-	assert.Contains(t, err.Error(), host.ExecTrustPath())
+	assert.Contains(t, err.Error(), "kapi trust revoke "+path)
 }
 
 // TestLoadProjectInteractive_ExecStep_EditingTheCommandReAsks is what makes the

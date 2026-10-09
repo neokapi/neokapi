@@ -1,0 +1,19 @@
+{
+  "path": "/work/app/kapi.yaml",
+  "sites": [
+    {
+      "where": "flows.default.steps[0]",
+      "kind": "tool",
+      "name": "external-command",
+      "detail": "/bin/echo"
+    }
+  ],
+  "digest": "3a1f",
+  "status": "allowed",
+  "recorded": {
+    "decision": "allow",
+    "recorded_at": "2026-10-09T08:00:00Z",
+    "digest": "3a1f"
+  },
+  "record": "/home/me/.config/kapi/trust.json"
+}

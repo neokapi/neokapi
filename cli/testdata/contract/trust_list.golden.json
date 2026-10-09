@@ -1,0 +1,31 @@
+{
+  "record": "/home/me/.config/kapi/trust.json",
+  "entries": [
+    {
+      "path": "/work/app/kapi.yaml",
+      "kind": "recipe",
+      "decision": "allow",
+      "recorded_at": "2026-10-09T08:00:00Z",
+      "digest": "3a1f",
+      "status": "current"
+    },
+    {
+      "path": "/work/old/kapi.yaml",
+      "kind": "recipe",
+      "decision": "deny",
+      "recorded_at": "2026-10-01T08:00:00Z",
+      "digest": "9c2e",
+      "status": "changed",
+      "detail": "the recipe changed what it runs; the next run asks again"
+    },
+    {
+      "path": "/work/web/vite.config.ts",
+      "kind": "formatter",
+      "decision": "allow",
+      "recorded_at": "2026-10-02T08:00:00Z",
+      "digest": "77b0",
+      "status": "unverified",
+      "detail": "a formatter decision; its digest covers the formatter's executable and configuration, which kapi apply checks at the edit"
+    }
+  ]
+}

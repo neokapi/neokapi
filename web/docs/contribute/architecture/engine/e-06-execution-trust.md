@@ -108,6 +108,26 @@ The stored record answers *what was approved*, not *which project was trusted*:
 Declines are remembered too, and a declined recipe says how to answer again,
 so a person is never asked repeatedly for an answer they have already given.
 
+### `kapi trust` is the record's front door
+
+The record is read and changed through one command family, in `host/exectrustadmin.go`
+with a cobra shell in `cli/trust.go`. Exec is the only trust decision kapi
+keeps, so the family is flat and every verb is about the exec surface:
+
+| Verb | What it does |
+| --- | --- |
+| `kapi trust list` | Every recorded decision: path, allow or deny, when, and how it stands against the file at that path now. `current` means the next run honours it silently; `changed` means the recipe runs something else and the next run asks again; `missing` and `unreadable` name a recipe that is gone or does not load; `unverified` is a formatter decision, whose digest covers files only `kapi apply` reads. |
+| `kapi trust show [-p]` | What the recipe would run (`ExecSurface`) and the decision recorded for it, without starting a run. |
+| `kapi trust revoke <path>` | Withdraws the decision, allow or deny, so the next run asks again. Withdrawing a decision nobody recorded succeeds and says so. |
+| `kapi trust allow [-p]` | Records an allow for what the recipe runs now, without a run. It shows the surface and confirms at a terminal; with no terminal it records nothing unless `--yes` is given. |
+
+`allow` takes `--yes` where the gate does not, because the command is itself
+the explicit act the gate's prompt asks for: a person who types `kapi trust
+allow --yes` has chosen this recipe, which a script passing `--yes` for plugin
+installs has not. The environment grant stays process-scoped: `show` reports
+it, and neither `allow` nor the gate records it. `list` and `show` take
+`--out json`.
+
 ### `--yes` does not grant execution trust
 
 `--yes` means *"do not stop for prompts I would obviously accept"*, and it is
@@ -125,8 +145,8 @@ affirmative value; reading `KAPI_TRUST_EXEC=0` as "yes" would be the wrong
 failure for a switch like this.
 
 With no terminal and no opt-in, kapi **refuses**, naming the recipe, the sites,
-and both ways to answer. Assuming yes when there is nobody to ask would make the
-gate a formality.
+and the ways to answer: `kapi trust allow` from a terminal, or the opt-in.
+Assuming yes when there is nobody to ask would make the gate a formality.
 
 ### Refusal is enforced under tool construction, not only at load
 
@@ -201,8 +221,8 @@ present to ask. A decision is recorded only by answering that prompt.
   scrolled away by the thing it is asking about.
 - **Losing the record costs one prompt.** It is not authoritative state; an
   unreadable or corrupt file is treated as "nothing decided yet" rather than as
-  an error, and the file is plain JSON so a decision can be withdrawn by deleting
-  its entry.
+  an error. `kapi trust revoke` withdraws a decision, and the file is plain
+  JSON for a person reading it.
 
 ## Related
 

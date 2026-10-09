@@ -180,7 +180,7 @@ func TestCommentFormatterTrust(t *testing.T) {
 
 		a.isTTY = func() bool { return false }
 		out, _, _ = applyWithInput(t, a, "", repairEntry(t, a, file))
-		assertFormatterNotRun(t, out.Comments, file, marker, "was declined", ExecTrustPath())
+		assertFormatterNotRun(t, out.Comments, file, marker, "was declined", "kapi trust revoke")
 	})
 
 	t.Run("must fail: a change to the configuration file that selects the formatter voids the allow", func(t *testing.T) {

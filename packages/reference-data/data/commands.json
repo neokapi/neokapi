@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-09T17:20:39Z",
+  "generatedAt": "2026-10-09T17:44:50Z",
   "commands": [
     {
       "id": "add",
@@ -8685,6 +8685,109 @@
       "offlineCapable": false,
       "runnableInBrowser": true,
       "demoMode": true
+    },
+    {
+      "id": "trust",
+      "path": [
+        "trust"
+      ],
+      "use": "trust",
+      "short": "List, inspect and change which projects may run commands",
+      "long": "List, inspect and change which projects may run commands.\n\nA recipe that names an exec-class step (external-command, script, or the exec\nformat) runs code the recipe chooses, with your privileges and your\nenvironment. kapi asks once per project before running it and remembers the\nanswer, allow or deny, against a fingerprint of the commands shown. A recipe\nedit that changes what would run asks again. A comment edit's project\nformatter is decided the same way and kept in the same record, keyed by the\nconfiguration file that selects it.\n\nThese commands read and change that record, which is kept in the kapi config\ndirectory, not in the project. They are about execution only: plugin installs\nand package adoption are confirmed at the time and keep no record.\n\nKAPI_TRUST_EXEC=1 grants trust to one process without consulting or writing\nthe record; it is for automation and is not shown here as a decision.",
+      "groupID": "advanced",
+      "examples": [
+        "kapi trust list",
+        "kapi trust show -p ./app",
+        "kapi trust allow -p ./app",
+        "kapi trust revoke ./app"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": false,
+      "demoMode": false
+    },
+    {
+      "id": "trust.allow",
+      "path": [
+        "trust",
+        "allow"
+      ],
+      "use": "allow",
+      "short": "Record that a project may run the commands its recipe names",
+      "long": "Record an allow for what the recipe runs now, without starting a run. The\ncommands are shown first and confirmed at the terminal. With no terminal\nattached nothing is recorded unless --yes is given.\n\nAn allow is keyed to the commands shown: a recipe edit that changes them asks\nagain. To grant one process trust without recording anything, set\nKAPI_TRUST_EXEC=1 instead.",
+      "flags": [
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi trust allow -p ./app",
+        "kapi trust allow -p ./app --yes"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": false,
+      "demoMode": false
+    },
+    {
+      "id": "trust.list",
+      "path": [
+        "trust",
+        "list"
+      ],
+      "use": "list",
+      "short": "List every recorded decision and whether it still applies",
+      "long": "List every recorded decision: the path it is keyed by, allow or deny, when it\nwas recorded, and how it stands against what is at the path now.\n\n  current     the recipe still runs what was decided; the next run honours it\n  changed     the recipe runs something else now; the next run asks again\n  missing     nothing is at the path any more\n  unreadable  the recipe at the path does not load\n  unverified  a formatter decision; kapi apply checks it at the edit",
+      "offlineCapable": true,
+      "runnableInBrowser": false,
+      "demoMode": false
+    },
+    {
+      "id": "trust.revoke",
+      "path": [
+        "trust",
+        "revoke"
+      ],
+      "use": "revoke [path]",
+      "short": "Withdraw the decision recorded for a project",
+      "long": "Withdraw the decision recorded for a project, allow or deny, so the next run\nasks again. The path names the recipe or its directory; a formatter decision\nis named by the configuration file kapi trust list shows for it. Withdrawing\na decision nobody recorded reports that and succeeds.",
+      "flags": [
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi trust revoke ./app",
+        "kapi trust revoke -p ./app"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": false,
+      "demoMode": false
+    },
+    {
+      "id": "trust.show",
+      "path": [
+        "trust",
+        "show"
+      ],
+      "use": "show",
+      "short": "Show what a recipe would run and the decision that applies",
+      "long": "Show the commands a recipe would run and the decision recorded for them,\nwithout starting a run. Inside a project no flag is needed; -p names one.",
+      "flags": [
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        }
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": false,
+      "demoMode": false
     },
     {
       "id": "unpack",
