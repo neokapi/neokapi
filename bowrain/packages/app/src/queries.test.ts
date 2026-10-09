@@ -1,6 +1,53 @@
 import { describe, it, expect, vi } from "vite-plus/test";
+import { QueryClient } from "@tanstack/react-query";
 import type { ApiAdapter } from "@neokapi/ui";
-import { projectQueryOptions, projectDetailQueryOptions } from "./queries";
+import {
+  invalidateProjectQueries,
+  projectQueryOptions,
+  projectDetailQueryOptions,
+  projectsQueryOptions,
+} from "./queries";
+
+/**
+ * The workspace home cards and the Files stat read each project's item and
+ * word counts from the projects list, not from the project's own entry. A
+ * mutation that refreshed only the project left the cards on the previous
+ * counts until the list's stale time ran out (#746).
+ */
+describe("invalidateProjectQueries", () => {
+  const seeded = async () => {
+    const api = {
+      getProject: vi.fn().mockResolvedValue({ id: "p1", name: "Proj", item_count: 0 }),
+      listProjects: vi.fn().mockResolvedValue([{ id: "p1", name: "Proj", item_count: 0 }]),
+    } as unknown as ApiAdapter;
+    const client = new QueryClient();
+    await client.fetchQuery(projectQueryOptions(api, "acme", "p1", "main"));
+    await client.fetchQuery(projectDetailQueryOptions(api, "acme", "p1", "main"));
+    await client.fetchQuery(projectsQueryOptions(api, "acme"));
+    await client.fetchQuery(projectsQueryOptions(api, "other"));
+    return client;
+  };
+
+  it("marks the project's entries and the workspace's project list stale", async () => {
+    const client = await seeded();
+
+    invalidateProjectQueries(client, "acme", "p1");
+
+    expect(client.getQueryState(["project", "acme", "p1", "main"])?.isInvalidated).toBe(true);
+    expect(client.getQueryState(["project", "acme", "p1", "main", "full"])?.isInvalidated).toBe(
+      true,
+    );
+    expect(client.getQueryState(["projects", "acme"])?.isInvalidated).toBe(true);
+  });
+
+  it("leaves another workspace's project list alone", async () => {
+    const client = await seeded();
+
+    invalidateProjectQueries(client, "acme", "p1");
+
+    expect(client.getQueryState(["projects", "other"])?.isInvalidated).toBe(false);
+  });
+});
 
 /**
  * Reading a project used to mean reading every item in it: the server builds

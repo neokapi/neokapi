@@ -31,7 +31,11 @@ import type {
   StreamDiffResult,
   StreamInfo,
 } from "@neokapi/ui";
-import { projectDetailQueryOptions, voiceProfilesQueryOptions } from "../../queries";
+import {
+  invalidateProjectQueries,
+  projectDetailQueryOptions,
+  voiceProfilesQueryOptions,
+} from "../../queries";
 import { usePlatform } from "../../platform";
 import type { WorkspaceRouteContext } from "..";
 
@@ -99,7 +103,7 @@ export function ProjectDetailRoute() {
   // ── File handlers ────────────────────────────────────────────────────
 
   const invalidateProject = useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: ["project", ws, project.id] });
+    invalidateProjectQueries(queryClient, ws, project.id);
   }, [queryClient, ws, project.id]);
 
   // Files the server declined to import on the last upload (and why).
