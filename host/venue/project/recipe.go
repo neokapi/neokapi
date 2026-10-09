@@ -20,9 +20,6 @@ import (
 // ServerSpec captures the optional bowrain-server connection details.
 type ServerSpec = schema.ServerSpec
 
-// HooksSpec maps lifecycle trigger names to a list of flow names.
-type HooksSpec = schema.HooksSpec
-
 // AutomationSpec defines a single local automation rule.
 type AutomationSpec = schema.AutomationSpec
 
@@ -41,7 +38,8 @@ type VoiceEntry = schema.VoiceEntry
 // ProjectURLInfo holds the parts extracted from a compound project URL.
 type ProjectURLInfo = schema.ProjectURLInfo
 
-// Hook trigger names. Hooks run synchronously around lifecycle operations.
+// Automation trigger names: the lifecycle points at which a local automation
+// fires.
 const (
 	HookPrePush  = schema.HookPrePush
 	HookPostPush = schema.HookPostPush
@@ -79,8 +77,8 @@ func FormatProjectURL(serverURL, workspace, projectID string) string {
 //
 // It embeds the framework's KapiProject so consumers can read framework
 // fields directly (recipe.Defaults, recipe.Content, recipe.Plugins, ...)
-// and adds bowrain-specific extension fields (Server, Hooks, Automations,
-// Assets, BrandVoice) at the same YAML top level.
+// and adds bowrain-specific extension fields (Server, Automations, Assets,
+// BrandVoice) at the same YAML top level.
 //
 // On disk, a Recipe is just a *.kapi file with extra top-level keys. The
 // framework loader (coreproj.Load) sees those keys as unknowns and
@@ -92,7 +90,6 @@ type Recipe struct {
 	coreproj.KapiProject `yaml:",inline"`
 
 	Server      *ServerSpec      `yaml:"bowrain,omitempty" json:"bowrain,omitempty"`
-	Hooks       HooksSpec        `yaml:"hooks,omitempty" json:"hooks,omitempty"`
 	Automations []AutomationSpec `yaml:"automations,omitempty" json:"automations,omitempty"`
 	Assets      *AssetsSpec      `yaml:"assets,omitempty" json:"assets,omitempty"`
 	BrandVoice  *VoiceSpec       `yaml:"brand_voice,omitempty" json:"brand_voice,omitempty"`
@@ -108,6 +105,12 @@ func LoadRecipe(path string) (*Recipe, error) {
 	var r Recipe
 	if err := yaml.Unmarshal(data, &r); err != nil {
 		return nil, fmt.Errorf("parse recipe: %w", err)
+	}
+	// Recipe embeds KapiProject inline, so a top-level key no field matches is
+	// dropped rather than routed to Extras, and the registered decoder for a
+	// retired key never runs. Refuse it here.
+	if err := schema.CheckRetiredProjectKeys(data); err != nil {
+		return nil, fmt.Errorf("invalid recipe: %w", err)
 	}
 	if err := r.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid recipe: %w", err)
@@ -158,9 +161,6 @@ func (r *Recipe) Validate() error {
 	}
 	if err := r.Server.Validate(); err != nil {
 		return fmt.Errorf("%s.%w", schema.VenueKey, err)
-	}
-	if err := r.Hooks.Validate(); err != nil {
-		return fmt.Errorf("hooks: %w", err)
 	}
 	for i, auto := range r.Automations {
 		if err := auto.Validate(); err != nil {

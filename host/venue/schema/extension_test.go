@@ -75,21 +75,37 @@ func TestServerSpec_ResolvedConverge(t *testing.T) {
 	assert.Equal(t, ConvergeOnPush, (*ServerSpec)(nil).ResolvedConverge(), "nil is safe")
 }
 
-func TestHooksDecoder_Valid(t *testing.T) {
-	n := decode(t, `
-pre-push: [qa]
-post-pull: [update-stats]
-`)
-	assert.NoError(t, hooksDecoder.Decode(n))
+// A retired top-level key fails the recipe with the replacement named,
+// instead of being preserved as an unknown extension that nothing reads.
+func TestRetiredProjectKeys_RejectTheRecipe(t *testing.T) {
+	require.Contains(t, RetiredProjectKeys, "hooks")
+	for key, replacement := range RetiredProjectKeys {
+		t.Run(key, func(t *testing.T) {
+			group, ok := coreproj.ExtensionRegistered(coreproj.ScopeProject, key)
+			require.True(t, ok, "a retired key is registered so the loader refuses it")
+			assert.Equal(t, Group, group)
+
+			var p coreproj.KapiProject
+			require.NoError(t, yaml.Unmarshal([]byte("version: v1\nname: t\n"+key+":\n  pre-push: [qa]\n"), &p))
+			err := p.Validate()
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), key+": is no longer a recipe key")
+			assert.Contains(t, err.Error(), replacement)
+		})
+	}
 }
 
-func TestHooksDecoder_RejectsUnknownTrigger(t *testing.T) {
-	n := decode(t, `
-weird-trigger: [some-flow]
-`)
-	err := hooksDecoder.Decode(n)
+// CheckRetiredProjectKeys gives a typed loader the same refusal from the raw
+// document, and stays silent on a recipe without a retired key or one that
+// does not parse.
+func TestCheckRetiredProjectKeys(t *testing.T) {
+	err := CheckRetiredProjectKeys([]byte("version: v1\nhooks:\n  pre-push: [qa]\n"))
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "weird-trigger")
+	assert.Contains(t, err.Error(), "hooks: is no longer a recipe key. Use automations:")
+
+	assert.NoError(t, CheckRetiredProjectKeys([]byte("version: v1\nautomations: []\n")))
+	assert.NoError(t, CheckRetiredProjectKeys([]byte("")))
+	assert.NoError(t, CheckRetiredProjectKeys([]byte("- not: a mapping\n")))
 }
 
 func TestAutomationsDecoder_Valid(t *testing.T) {
@@ -236,8 +252,6 @@ plugins:
 bowrain:
   url: https://bowrain.example.com/my-team/abc123
   stream: $auto
-hooks:
-  pre-push: [qa]
 automations:
   - name: auto-translate
     trigger: post-push

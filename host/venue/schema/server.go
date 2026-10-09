@@ -1,13 +1,13 @@
 // Package schema declares the bowrain extension schema for kapi recipes.
 //
 // The framework's core/project package is platform-neutral. This package
-// adds bowrain-specific top-level keys (server, hooks, automations,
-// assets, brand_voice) and per-content keys (collection, base, assets,
+// adds bowrain-specific top-level keys (bowrain, automations, assets,
+// brand_voice) and per-content keys (collection, base, assets,
 // asset_max_size) by registering decoders with core/project's extension
 // registry.
 //
 // Blank-importing this package teaches a host binary to validate and
-// round-trip bowrain recipes. The Go types (ServerSpec, HooksSpec, ...)
+// round-trip bowrain recipes. The Go types (ServerSpec, AutomationSpec, ...)
 // are aliased back into host/venue/project for backwards compatibility.
 package schema
 
@@ -23,8 +23,8 @@ import (
 // with Server is bowrain-connected and can be operated by `kapi push`,
 // `kapi pull`, etc.
 //
-// Only the connection coordinates live here. Lifecycle policy (hooks,
-// automations) and content/governance features (assets, voice) are
+// Only the connection coordinates live here. Lifecycle policy
+// (automations) and content/governance features (assets, voice) are
 // top-level on KapiProject — they describe project policy that may run
 // regardless of which CLI is driving the recipe.
 type ServerSpec struct {

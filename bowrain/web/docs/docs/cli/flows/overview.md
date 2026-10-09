@@ -103,6 +103,6 @@ configurable parameters.
 ## Next steps
 
 - [Custom flows](/cli/flows/custom-flows)
-- [Hooks](/cli/flows/hooks)
+- [Automation](/server/automation)
 - [Run command reference](/cli/commands/run)
 - [Server-side flows](/server/flows)

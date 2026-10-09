@@ -410,7 +410,7 @@ Pin the CLI version to avoid surprises from new releases:
 
 - [The loop in CI](/cli/ci/overview): every CI and delivery surface, the exit-code contract, CI authentication
 - [CLI Overview](/cli/overview)
-- [Flow Hooks](/cli/flows/hooks)
+- [Automation](/server/automation)
 - [kapi up](/cli/commands/up): run the kapi loop on the server (push → catch up → pull)
 - [kapi push](/cli/commands/push) and [kapi pull](/cli/commands/pull)
 - [kapi auth](/cli/commands/auth)

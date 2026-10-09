@@ -278,6 +278,9 @@ const config: Config = {
           { from: "/notes/sync-protocol", to: "/cli/overview" },
           { from: "/notes/translation-job-queue", to: "/server/automation" },
           { from: "/notes/translator-workflow", to: "/server/review" },
+          // The recipe's `hooks:` block was retired in favour of
+          // `automations:`, which the automation page documents.
+          { from: "/cli/flows/hooks", to: "/server/automation" },
           // The hub the product calls Context was documented as Brand while the
           // app still routed /brand. The pages now carry the mechanism's name —
           // the context graph and the voice profiles on it — and brand is the

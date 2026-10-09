@@ -135,11 +135,6 @@ collections:
 bowrain:
   url: https://app.bowrain.cloud/my-team/abc123
   stream: $auto
-
-# Hooks: flows to run at lifecycle points (schema only; see /cli/flows/hooks)
-hooks:
-  pre-push: [qa, term-check]
-  post-pull: [segmentation]
 ```
 
 See [Project Model](/cli/project-model) for the full recipe schema.

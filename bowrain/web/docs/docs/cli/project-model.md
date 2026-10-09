@@ -98,10 +98,6 @@ bowrain:
   converge: on-push          # on-push (default) | manual
 
 # Top-level lifecycle policy:
-hooks:
-  pre-push: [qa]
-  post-pull: [segmentation]
-
 automations:
   - name: pull-after-push
     trigger: post-push
@@ -134,7 +130,6 @@ assets:
 | `established_gate`, `established_gates` | gate, list | The bar for a locale to ship approved: a person approved the content |
 | `gates`        | map            | Named gates the rules above may reference                               |
 | `bowrain`      | object         | Bowrain-server connection coordinates (venue key)                       |
-| `hooks`        | map            | Flows declared at lifecycle points (`pre-push`, `post-pull`, …); schema-only, see [Hooks](/cli/flows/hooks) |
 | `automations`  | list           | Local automation rules (see [Automations](#automations))               |
 | `assets`       | object         | Asset (image/binary) policy                                            |
 | `brand_voice`  | object         | A venue key the server also accepts for a profile and channel binding; bind the voice with `defaults.voice` or a profile's `voice:` instead |
@@ -206,7 +201,7 @@ before and after. Its runs read the value it holds.
 
 Lifecycle (`hooks`, `automations`) and asset policy (`assets`) live at the **top level** of the recipe, not under `bowrain:`: they describe project-owned policy, not server identity.
 
-The framework has no built-in notion of a server: `bowrain:` (and `hooks:`, `automations:`, `assets:`, `brand_voice:`) are bowrain **recipe extensions** decoded only when the `kapi-bowrain` plugin is installed (the framework round-trips them verbatim otherwise). kapi identifies the connection through the venue flag on the plugin's schema registration and reads `url:` and `converge:`. So `kapi init` / `kapi init-connect` (and `kapi config server.url …`) declare `requires: { bowrain: "*" }` whenever they write a `bowrain:` block. A plain `kapi` binary without the plugin then refuses the recipe with an actionable "requires the bowrain plugin" error rather than silently ignoring the connection. See [C-01: The project model](https://neokapi.github.io/contribute/architecture/context/c-01-project-model).
+The framework has no built-in notion of a server: `bowrain:` (and `automations:`, `assets:`, `brand_voice:`) are bowrain **recipe extensions** decoded only when the `kapi-bowrain` plugin is installed (the framework round-trips them verbatim otherwise). kapi identifies the connection through the venue flag on the plugin's schema registration and reads `url:` and `converge:`. So `kapi init` / `kapi init-connect` (and `kapi config server.url …`) declare `requires: { bowrain: "*" }` whenever they write a `bowrain:` block. A plain `kapi` binary without the plugin then refuses the recipe with an actionable "requires the bowrain plugin" error rather than silently ignoring the connection. See [C-01: The project model](https://neokapi.github.io/contribute/architecture/context/c-01-project-model).
 
 ## Content Collections
 
@@ -389,8 +384,6 @@ automations:
 | `trigger` | Lifecycle point: `pre-push`, `post-push`, `pre-pull`, `post-pull`, `pre-flow`, `post-flow` |
 | `actions` | List of actions (`run_flow`, `wait_translate`, `pull`, `push`)                             |
 | `enabled` | Optional boolean (defaults to `true`)                                                      |
-
-The top-level `hooks:` map is validated but not executed; see [Hooks](/cli/flows/hooks).
 
 ## Project Discovery
 
