@@ -74,7 +74,7 @@ func (c *commentDocs) is(path string) bool {
 	if _, member := parseEntryLocator(path); member {
 		return false
 	}
-	if _, ok := a.commentProviderFor(path); !ok {
+	if !a.hasCommentProvider(path) {
 		if _, plugin := commentPluginHintFor(path); !plugin {
 			return false
 		}

@@ -121,7 +121,7 @@ func repoCommentRewrites(t *testing.T, a *App, language string) (files, unlocate
 			continue
 		}
 		file := filepath.Join(root, rel)
-		p, ok := a.commentProviderFor(file)
+		p, ok := a.commentProviderFor(t.Context(), file)
 		if !ok || p.Language() != language {
 			continue
 		}
@@ -318,7 +318,7 @@ func proseP3Sourcecode(t *testing.T, language string) {
 	t.Run("must fail: a host renderer that writes code after the comment is refused by the plugin's reading", func(t *testing.T) {
 		a := tsRewriteApp(t, nil)
 		file := rewriteProject(t, f, nil)
-		p, ok := a.commentProviderFor(file)
+		p, ok := a.commentProviderFor(t.Context(), file)
 		require.True(t, ok)
 		broken := injectingPluginRenderer{Provider: p, Rewriter: p.(comment.Rewriter)}
 		_, err := comment.Rewrite(broken, file, []byte(f.src), nil, comment.Target{ID: f.lineID}, "Anything.", comment.RenderOptions{})

@@ -347,7 +347,8 @@ func (a *App) commentProviderForEdit(file string, formats *checkFormats) (commen
 			return p, true
 		}
 	}
-	return a.commentProviderFor(file)
+	p, _ := a.lookupCommentProvider(file)
+	return p, p != nil
 }
 
 // unifiedDiff is the change from before to after in file, as git writes a

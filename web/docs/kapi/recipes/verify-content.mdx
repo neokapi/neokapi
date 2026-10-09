@@ -78,7 +78,8 @@ kapi check blog-post.md --profile-file brand/voice.yaml
 versions, and analyzer coverage. `evaluation.context.stale` indicates that the
 stored content no longer matches the files on disk. This metadata is
 informational and does not change scores, verdicts or exit codes. Checks outside
-a project omit `evaluation.context`.
+a project omit `evaluation.context`. `kapi check --ship --json` carries the same
+object at the top level of its gate output, once for every gate it ran.
 
 Field-by-field, the Report is documented in [Checks](/framework/checks); the flags in the [`check` reference](/reference/commands/check).
 

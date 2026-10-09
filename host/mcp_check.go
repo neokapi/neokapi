@@ -110,6 +110,7 @@ type checkFileInput struct {
 
 // checkTextMCP runs the source-side content checkset over a text snippet.
 func (a *App) checkTextMCP(ctx context.Context, in checkTextInput) (*mcp.CallToolResult, check.Report, error) {
+	ctx = observePlugins(ctx)
 	execution := newCheckExecution()
 	contextStart := time.Now()
 	a.InitRegistries()
@@ -206,6 +207,7 @@ func (a *App) resolveTextCheckContext(ctx context.Context, projectPath, contextP
 // checkFileMCP runs the content checkset over a file's content, optionally with
 // the bilingual checks when a target is supplied.
 func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToolResult, check.Report, error) {
+	ctx = observePlugins(ctx)
 	execution := newCheckExecution()
 	contextStart := time.Now()
 	a.InitRegistries()

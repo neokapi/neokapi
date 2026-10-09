@@ -116,6 +116,12 @@ type verifyOutput struct {
 	// loaded, each once, as a kapi.check/v2 report carries them. They never
 	// change a gate's verdict or the run's.
 	Warnings []check.Warning `json:"warnings,omitempty"`
+	// Evaluation is what the whole run was evaluated against, assembled once
+	// over every gate, as a kapi.check/v2 report carries it: the project and
+	// its context revision, the build, the plugins any gate reached, and the
+	// coverage of every analyzer the gates recorded. Nothing reads it to
+	// decide a gate or the run.
+	Evaluation *check.Evaluation `json:"evaluation,omitempty"`
 }
 
 // FormatText renders the verify result as a human-readable summary,
@@ -335,6 +341,12 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 	if cmd != nil && cmd.Context() == nil {
 		cmd.SetContext(context.Background())
 	}
+	// Every gate derives its context from the command, so the ledger the
+	// evaluation record reads its plugins from is attached there: a read any
+	// gate makes under it, through any path, records the plugin it reached.
+	if cmd != nil {
+		cmd.SetContext(observePlugins(cmd.Context()))
+	}
 
 	projectPath, err := RequireProjectPath(cmd)
 	if err != nil {
@@ -489,6 +501,9 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 
 	out := buildVerifyOutput(gates)
 	out.Warnings = check.MergeWarnings(warnings.merged(), unread.warnings())
+	// After the verdict: the record reports what the run read, and nothing
+	// above reads it.
+	out.Evaluation = a.verifyEvaluation(CmdContext(cmd), cmd, out.Gates)
 	unread.warn(a, cmd)
 	return out, nil
 }
@@ -898,7 +913,7 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 		fmtName, fmtCfg := formats.forFile(a, f)
 		var blocks []*model.Block
 		var rerr error
-		if p, ok := a.commentLayerFor(f, fmtName); ok {
+		if p, ok := a.commentLayerFor(ctx, f, fmtName); ok {
 			// The voice governs a comment layer the way it governs any content.
 			var layer *commentLayer
 			locate := func(src []byte) (*commentLayer, error) { return locateComments(f, src, p, formats.directivesFor(f)) }
@@ -1916,6 +1931,9 @@ func (a *App) readBlocks(ctx context.Context, path, sourceLang string) ([]*model
 // readBlocksValidated, so every caller that does not opt into Reader
 // Validation-Mode keeps the byte-identical lenient behavior.
 func (a *App) readBlocksAs(ctx context.Context, path, fmtName string, cfg map[string]any, sourceLang string) ([]*model.Block, error) {
+	// The plugin the format comes from, for the evaluation record of the check
+	// or gate run reading under ctx. A cached read reached it too.
+	a.recordFormatPlugin(ctx, path, fmtName)
 	// When the project document cache is open, serve unchanged files from it,
 	// streaming the parts one at a time and projecting out the translatable blocks
 	// — the read/coverage path never reconstructs output, so it never opens the
@@ -2078,6 +2096,7 @@ func streamIntoRecorder(ctx context.Context, reader format.DataFormatReader, rec
 // pre-RVM readBlocks: no diagnostics, errors propagate unchanged. fmtName
 // overrides format detection (empty = detect by extension).
 func (a *App) readBlocksValidated(ctx context.Context, path, fmtName string, cfg map[string]any, sourceLang string, mode format.ValidationMode) ([]*model.Block, []format.Diagnostic, error) {
+	a.recordFormatPlugin(ctx, path, fmtName)
 	if fmtName == "" {
 		detected, err := a.FormatReg.Detect(path, registry.DetectOptions{ExtensionOnly: true})
 		if err != nil {

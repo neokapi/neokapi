@@ -98,7 +98,7 @@ func formsProject(t *testing.T, f sourcecodeFormsFile) string {
 // the file's project uses, as kapi apply holds it.
 func heldRewriter(t *testing.T, a *App, file string) (comment.Provider, *formattedRewriter) {
 	t.Helper()
-	p, ok := a.commentProviderFor(file)
+	p, ok := a.commentProviderFor(t.Context(), file)
 	require.True(t, ok, "no comment provider reads %s", file)
 	held, ok := withCommentFormatter(p, file, newFormatterTrust(true)).(*formattedRewriter)
 	require.True(t, ok, "comments in %s are not held to a formatter", p.Language())
@@ -206,7 +206,7 @@ func proseP4Sourcecode(t *testing.T, language string) {
 			file := filepath.Join(dir, "legacy.js")
 			const legacy = "<!-- A legacy comment.\nvar x = 1;\n"
 			require.NoError(t, os.WriteFile(file, []byte(legacy), 0o644))
-			p, ok := a.commentProviderFor(file)
+			p, ok := a.commentProviderFor(t.Context(), file)
 			require.True(t, ok)
 			located, err := comment.Locate(p, file, []byte(legacy), nil)
 			require.NoError(t, err)
@@ -222,7 +222,7 @@ func proseP4Sourcecode(t *testing.T, language string) {
 	t.Run("must fail: a renderer that writes */ as it is into a JSDoc block is refused by the plugin's reading", func(t *testing.T) {
 		a := tsRewriteApp(t, nil)
 		file := formsProject(t, f)
-		p, ok := a.commentProviderFor(file)
+		p, ok := a.commentProviderFor(t.Context(), file)
 		require.True(t, ok)
 		broken := rawTerminatorPluginRenderer{Provider: p, Rewriter: p.(comment.Rewriter)}
 		_, err := comment.Rewrite(broken, file, []byte(f.src), nil, comment.Target{ID: f.jsdoc}, "Holds */ inside.", comment.RenderOptions{})

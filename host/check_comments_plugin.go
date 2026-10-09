@@ -1,6 +1,7 @@
 package host
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"slices"
@@ -14,17 +15,43 @@ import (
 // commentProviderFor returns the provider that reads path's comments: the one an
 // installed plugin declares for the file's extension, else the built-in
 // provider for it. An installed plugin takes precedence over a built-in, as it
-// does for a format.
-func (a *App) commentProviderFor(path string) (comment.Provider, bool) {
+// does for a format. A plugin's provider is recorded in the ledger ctx carries,
+// so the evaluation record of the operation names the plugin that located the
+// comments. A context carrying no ledger records nothing.
+func (a *App) commentProviderFor(ctx context.Context, path string) (comment.Provider, bool) {
+	p, route := a.lookupCommentProvider(path)
+	if route != nil {
+		pluginLedgerFrom(ctx).served(route.Plugin.Name(), route.Plugin.Version(), "comments:"+route.Language.Language)
+	}
+	return p, p != nil
+}
+
+// lookupCommentProvider is the lookup behind commentProviderFor, recording
+// nothing: for a caller that asks whether a file is a comment document, or
+// edits one, rather than checking it. route is the installed plugin's route
+// when a plugin's provider answers, and nil for a built-in provider.
+func (a *App) lookupCommentProvider(path string) (comment.Provider, *pluginhost.CommentRoute) {
 	if a.PluginHost != nil {
 		ext := strings.ToLower(filepath.Ext(path))
 		for _, r := range a.PluginHost.CommentRoutes() {
 			if slices.ContainsFunc(r.Language.Extensions, func(e string) bool { return strings.ToLower(e) == ext }) {
-				return pluginhost.CommentProvider(a.DaemonPool(), r), true
+				return pluginhost.CommentProvider(a.DaemonPool(), r), r
 			}
 		}
 	}
-	return commentProviders.For(path)
+	p, ok := commentProviders.For(path)
+	if !ok {
+		return nil, nil
+	}
+	return p, nil
+}
+
+// hasCommentProvider reports whether any provider, a plugin's or a built-in,
+// reads path's comments. It records nothing: asking whether a plugin would
+// read a file is not a plugin serving a read.
+func (a *App) hasCommentProvider(path string) bool {
+	p, _ := a.lookupCommentProvider(path)
+	return p != nil
 }
 
 // commentPluginHint is what kapi knows, with no plugin installed, about a
@@ -79,7 +106,7 @@ func (a *App) missingCommentReader(path string) error {
 	if !ok {
 		return nil
 	}
-	if _, ok := a.commentProviderFor(path); ok {
+	if a.hasCommentProvider(path) {
 		return nil
 	}
 	if _, err := a.FormatReg.Detect(path, registry.DetectOptions{ExtensionOnly: true}); err == nil {

@@ -2,10 +2,7 @@ package host
 
 import (
 	"context"
-	"path/filepath"
-	"slices"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/neokapi/neokapi/core/check"
@@ -32,13 +29,33 @@ var evaluationClock = time.Now
 
 // checkEvaluation assembles the record for one run: the project it read its
 // governance from, the build and plugins that ran it, and what each analyzer
-// covered.
+// covered. The plugins are read from the ledger ctx carries, which the
+// operation attached when it began (observePlugins).
 func (a *App) checkEvaluation(ctx context.Context, cmd Command, e *checkExecution) *check.Evaluation {
 	var analyzers []check.AnalyzerExecution
 	if e != nil {
 		analyzers = e.Analyzers
 	}
-	return buildEvaluation(a.checkProvenance(ctx, cmd), a.evaluationPlugins(e), analyzers)
+	return buildEvaluation(a.checkProvenance(ctx, cmd), a.evaluationPlugins(pluginLedgerFrom(ctx)), analyzers)
+}
+
+// verifyEvaluation assembles the one record a gate run carries, over every
+// gate: the analyzers each gate recorded, under the project and the plugins
+// the run as a whole reached.
+func (a *App) verifyEvaluation(ctx context.Context, cmd Command, gates []verifyGateResult) *check.Evaluation {
+	return buildEvaluation(a.checkProvenance(ctx, cmd), a.evaluationPlugins(pluginLedgerFrom(ctx)), gateAnalyzers(gates))
+}
+
+// gateAnalyzers is every analyzer execution the gates recorded, in gate order,
+// the list the run's coverage projects.
+func gateAnalyzers(gates []verifyGateResult) []check.AnalyzerExecution {
+	var analyzers []check.AnalyzerExecution
+	for _, g := range gates {
+		if g.Execution != nil {
+			analyzers = append(analyzers, g.Execution.Analyzers...)
+		}
+	}
+	return analyzers
 }
 
 // buildEvaluation is the whole shape of the record, assembled from the facts a
@@ -82,13 +99,13 @@ func (a *App) checkProvenance(ctx context.Context, cmd Command) *check.ContextPr
 
 // evaluationPlugins names the plugins that served the run, with the version
 // each one's manifest declares and what it did for this run.
-func (a *App) evaluationPlugins(e *checkExecution) []check.EvaluationPlugin {
-	if e == nil || len(e.plugins) == 0 {
+func (a *App) evaluationPlugins(l *pluginLedger) []check.EvaluationPlugin {
+	if l == nil || len(l.serves) == 0 {
 		return nil
 	}
-	out := make([]check.EvaluationPlugin, 0, len(e.plugins))
-	for name, serves := range e.plugins {
-		p := check.EvaluationPlugin{Name: name, Version: e.pluginVersions[name]}
+	out := make([]check.EvaluationPlugin, 0, len(l.serves))
+	for name, serves := range l.serves {
+		p := check.EvaluationPlugin{Name: name, Version: l.versions[name]}
 		if p.Version == "" && a.PluginHost != nil {
 			if installed := a.PluginHost.Plugin(name); installed != nil {
 				p.Version = installed.Version()
@@ -104,11 +121,17 @@ func (a *App) evaluationPlugins(e *checkExecution) []check.EvaluationPlugin {
 	return out
 }
 
-// recordFormatPlugin records the plugin that reads file under the format the
-// run resolved for it. An empty fmtName means the format the file's extension
-// detects. A format a kapi binary carries itself records nothing.
-func (a *App) recordFormatPlugin(e *checkExecution, file, fmtName string) {
-	if e == nil || a.PluginHost == nil {
+// recordFormatPlugin records, in the ledger ctx carries, the plugin that reads
+// file under the format the run resolved for it. An empty fmtName means the
+// format the file's extension detects. A format a kapi binary carries itself
+// records nothing, and so does a context carrying no ledger.
+//
+// It sits at the reads themselves (readBlocksAs, readBlocksValidated,
+// readWithExtents) rather than at their callers, so a gate or a check that
+// reaches a plugin through any of them is recorded without naming it.
+func (a *App) recordFormatPlugin(ctx context.Context, file, fmtName string) {
+	ledger := pluginLedgerFrom(ctx)
+	if ledger == nil || a.PluginHost == nil {
 		return
 	}
 	id := fmtName
@@ -129,23 +152,7 @@ func (a *App) recordFormatPlugin(e *checkExecution, file, fmtName string) {
 	}
 	for _, name := range ids {
 		if route := a.PluginHost.FormatRoute(name); route != nil {
-			e.served(route.Plugin.Name(), route.Plugin.Version(), "format:"+name)
-			return
-		}
-	}
-}
-
-// recordCommentPlugin records the plugin that locates the comments of a file
-// whose comments are all a check reads in it. The lookup matches the one
-// commentProviderFor dispatches on, so the record names the plugin that ran.
-func (a *App) recordCommentPlugin(e *checkExecution, file string) {
-	if e == nil || a.PluginHost == nil {
-		return
-	}
-	ext := strings.ToLower(filepath.Ext(file))
-	for _, r := range a.PluginHost.CommentRoutes() {
-		if slices.ContainsFunc(r.Language.Extensions, func(x string) bool { return strings.ToLower(x) == ext }) {
-			e.served(r.Plugin.Name(), r.Plugin.Version(), "comments:"+r.Language.Language)
+			ledger.served(route.Plugin.Name(), route.Plugin.Version(), "format:"+name)
 			return
 		}
 	}

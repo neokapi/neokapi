@@ -58,19 +58,17 @@ func commentsAnalyzer(p comment.Provider) string { return "comments." + p.Langua
 // commentLayerFor returns the provider that reads a file for its comments,
 // when the comments are all a check can read in it: no format was declared for
 // the file, no reader claims its extension, and a language provider does.
-func (a *App) commentLayerFor(file, fmtName string) (comment.Provider, bool) {
+func (a *App) commentLayerFor(ctx context.Context, file, fmtName string) (comment.Provider, bool) {
 	if fmtName != "" {
 		return nil, false
 	}
-	p, ok := a.commentProviderFor(file)
-	if !ok {
-		return nil, false
-	}
 	// Detection by extension fails exactly when no format claims the extension.
+	// Asked first, so a provider is looked up, and its plugin recorded, only
+	// for a file the layer reads.
 	if _, err := a.FormatReg.Detect(file, registry.DetectOptions{ExtensionOnly: true}); err == nil {
 		return nil, false
 	}
-	return p, true
+	return a.commentProviderFor(ctx, file)
 }
 
 // NoReaderFor reports that no format reader claims the file's extension, so a
@@ -134,7 +132,7 @@ func (a *App) checkCommentFile(ctx context.Context, file string, p comment.Provi
 // its reader never reads the values.
 func (a *App) checkCommentsOnlyFile(ctx context.Context, file, fmtName string, validateMode format.ValidationMode, opts checkRunOptions) ([]*model.Block, []check.Diagnostic, error) {
 	return a.checkCommentLayer(ctx, file, validateMode, opts, "The recipe declares the file for its comments alone, so no reader parses its values.", func(src []byte) (*commentLayer, error) {
-		return a.declaredComments(file, fmtName, src, opts.formats.directivesFor(file))
+		return a.declaredComments(ctx, file, fmtName, src, opts.formats.directivesFor(file))
 	})
 }
 
@@ -231,10 +229,10 @@ func locateComments(file string, src []byte, p comment.Provider, directives comm
 // as the one the sourcecode plugin supplies for the Ruby files its format reads.
 // A file neither supplies gives a layer whose comment analyzer did not run,
 // which is never a pass.
-func (a *App) declaredComments(file, fmtName string, src []byte, directives comment.Directives) (*commentLayer, error) {
+func (a *App) declaredComments(ctx context.Context, file, fmtName string, src []byte, directives comment.Directives) (*commentLayer, error) {
 	p, ok := commentProviders.ForFormat(fmtName)
 	if !ok {
-		p, ok = a.commentProviderFor(file)
+		p, ok = a.commentProviderFor(ctx, file)
 	}
 	if !ok {
 		return &commentLayer{
@@ -260,7 +258,7 @@ func (a *App) readDeclaredComments(ctx context.Context, file, fmtName string, op
 		name = string(id)
 	}
 	return a.readCommentLayer(ctx, file, opts.execution, func(src []byte) (*commentLayer, error) {
-		return a.declaredComments(file, name, src, opts.formats.directivesFor(file))
+		return a.declaredComments(ctx, file, name, src, opts.formats.directivesFor(file))
 	})
 }
 
@@ -355,7 +353,7 @@ func formatterAnalyzer(file string, src []byte, located *comment.File, blocks []
 // comment, and only they carry diagnostics.
 func (a *App) readSourceForCheck(ctx context.Context, u VerifyUnit, execution *checkExecution) ([]*model.Block, []check.Diagnostic, error) {
 	name, _ := a.unitFormat(u.SourceFormat, u.SourceConfig)
-	if p, ok := a.commentLayerFor(u.SourcePath, name); ok {
+	if p, ok := a.commentLayerFor(ctx, u.SourcePath, name); ok {
 		layer, err := a.readCommentLayer(ctx, u.SourcePath, execution, func(src []byte) (*commentLayer, error) {
 			return locateComments(u.SourcePath, src, p, u.Directives)
 		})
@@ -386,7 +384,7 @@ func (a *App) readSourceForCheck(ctx context.Context, u VerifyUnit, execution *c
 		name = string(id)
 	}
 	layer, err := a.readCommentLayer(ctx, u.SourcePath, execution, func(src []byte) (*commentLayer, error) {
-		return a.declaredComments(u.SourcePath, name, src, u.Directives)
+		return a.declaredComments(ctx, u.SourcePath, name, src, u.Directives)
 	})
 	if err != nil {
 		return nil, nil, err

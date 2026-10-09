@@ -305,11 +305,10 @@ type blockLocator func(ctx context.Context, content []byte) (scopedRead, error)
 // checked with. When a recipe declares the comments of a file a reader parses,
 // the comment blocks join the reader's, and when it declares the file for its
 // comments alone they are its only blocks.
-func (a *App) locatorFor(run diffCheckRun, path string) blockLocator {
+func (a *App) locatorFor(ctx context.Context, run diffCheckRun, path string) blockLocator {
 	fmtName, cfg := run.opts.formats.forFile(a, path)
 	directives := run.opts.formats.directivesFor(path)
-	if p, ok := a.commentLayerFor(path, fmtName); ok {
-		a.recordCommentPlugin(run.opts.execution, path)
+	if p, ok := a.commentLayerFor(ctx, path, fmtName); ok {
 		return func(_ context.Context, content []byte) (scopedRead, error) {
 			layer, err := locateComments(path, content, p, directives)
 			if err != nil {
@@ -325,10 +324,9 @@ func (a *App) locatorFor(run diffCheckRun, path string) blockLocator {
 		}
 		fmtName = string(detected)
 	}
-	a.recordFormatPlugin(run.opts.execution, path, fmtName)
 	if run.opts.formats.commentsOnly(path) {
-		return func(_ context.Context, content []byte) (scopedRead, error) {
-			layer, err := a.declaredComments(path, fmtName, content, directives)
+		return func(ctx context.Context, content []byte) (scopedRead, error) {
+			layer, err := a.declaredComments(ctx, path, fmtName, content, directives)
 			if err != nil {
 				return scopedRead{}, err
 			}
@@ -342,7 +340,7 @@ func (a *App) locatorFor(run diffCheckRun, path string) blockLocator {
 		if err != nil || !declared {
 			return read, err
 		}
-		layer, err := a.declaredComments(path, fmtName, content, directives)
+		layer, err := a.declaredComments(ctx, path, fmtName, content, directives)
 		if err != nil {
 			return scopedRead{}, err
 		}
@@ -359,7 +357,7 @@ func (a *App) locatorFor(run diffCheckRun, path string) blockLocator {
 // ones the change touched. It fills entry with the outcome and returns the
 // findings and how many blocks it checked.
 func (a *App) checkDiffFile(ctx context.Context, run diffCheckRun, f diffscope.File, abs string, entry *check.ScopeFile) ([]check.Diagnostic, int, error) {
-	locate := a.locatorFor(run, abs)
+	locate := a.locatorFor(ctx, run, abs)
 	if locate == nil {
 		entry.Status, entry.Reason = check.ScopeNoReader, "no format reads this file"
 		// A file whose comments a plugin reads names that plugin, and a check over
@@ -574,6 +572,7 @@ type scopedRead struct {
 // translatable blocks and where each sits in content. source is the language
 // the content is read in, the language of the project the check acts on.
 func (a *App) readWithExtents(ctx context.Context, path string, content []byte, fmtName string, cfg map[string]any, source string) (scopedRead, error) {
+	a.recordFormatPlugin(ctx, path, fmtName)
 	reader, err := a.FormatReg.NewReader(registry.FormatID(fmtName))
 	if err != nil {
 		return scopedRead{}, fmt.Errorf("no reader for %q: %w", fmtName, err)

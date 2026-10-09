@@ -203,8 +203,12 @@ results can be interpreted later from logs and reports:
 
 Evaluation metadata does not affect scores, verdicts or gates, and is omitted
 from human-readable output. Every producer of a `kapi.check/v2` Report carries the
-record. `kapi check --ship` reports gates rather than a Report, so it carries
-none.
+record. `kapi check --ship` reports gates rather than a Report and carries the
+same record once, at the top level of its output, for the whole run: `analyzers`
+covers what every gate recorded, and `plugins` names every plugin any gate
+reached. The ship gate is the form of the check that runs in CI, where a verdict
+is read later against a context that has moved on, so the record says which
+project, which revision and which build the gates were evaluated against.
 
 For a project file, omit MCP `profile_file` and `profile_pack` to retain its
 applicable profile and channel. An explicit profile replaces that voice
