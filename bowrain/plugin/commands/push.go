@@ -24,7 +24,7 @@ var pushCmd = &cobra.Command{
 	Short: "Upload local changes and terminology edits to the server",
 	Long: `Upload local changes to the server.
 
-Only changed blocks are sent. Runs pre-push hooks if configured.
+Only changed blocks are sent. Runs the recipe's pre-push automations if any.
 
 When the project is claimed into a workspace and a baseline was pulled, push
 also reconciles local terminology edits against that baseline. Ordinary edits

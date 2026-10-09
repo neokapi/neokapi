@@ -207,9 +207,8 @@ func runServerUp(cmd *cobra.Command, proj *project.Project) error {
 		jsonStream = output.NewNDJSONStream(cmd.OutOrStdout())
 	}
 
-	// Recipe pre-push automations run before the push, exactly as they did for
-	// the retired `kapi sync` (up subsumed sync — the hooks must not silently
-	// stop firing for projects that migrated CI from sync to up).
+	// Recipe pre-push automations run before the push, as they do for
+	// `kapi push`: a project that drives CI through up keeps its guardrails.
 	if err := runLocalAutomations(cmd, proj, "pre-push"); err != nil {
 		return fmt.Errorf("pre-push automation: %w", err)
 	}

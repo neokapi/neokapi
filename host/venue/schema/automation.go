@@ -5,7 +5,8 @@ import (
 	"fmt"
 )
 
-// Hook trigger names. Hooks run synchronously around lifecycle operations.
+// Automation trigger names: the lifecycle points around push, pull and a flow
+// run at which a local automation fires.
 const (
 	HookPrePush  = "pre-push"
 	HookPostPush = "post-push"
@@ -22,27 +23,6 @@ const (
 	ActionPull          = "pull"
 	ActionPush          = "push"
 )
-
-// HooksSpec maps lifecycle trigger names to a list of flow names that should
-// run when the trigger fires. Hooks complement server-side automation by
-// providing a synchronous local hook point.
-type HooksSpec map[string][]string
-
-// Validate checks that all triggers and flow names in the hooks block are
-// well-formed.
-func (h HooksSpec) Validate() error {
-	for trigger, flows := range h {
-		if err := ValidateHookTrigger(trigger); err != nil {
-			return err
-		}
-		for i, flowName := range flows {
-			if flowName == "" {
-				return fmt.Errorf("hooks[%s][%d]: flow name is required", trigger, i)
-			}
-		}
-	}
-	return nil
-}
 
 // AutomationSpec defines a single local automation rule. Automations group
 // one or more actions under a trigger and may be enabled/disabled.
@@ -81,7 +61,7 @@ type ActionConfig struct {
 	Config map[string]string `yaml:"config,omitempty" json:"config,omitempty"`
 }
 
-// ValidateHookTrigger checks that trigger is one of the known hook names.
+// ValidateHookTrigger checks that trigger is one of the known trigger names.
 func ValidateHookTrigger(trigger string) error {
 	switch trigger {
 	case HookPrePush, HookPostPush, HookPrePull, HookPostPull, HookPreFlow, HookPostFlow:

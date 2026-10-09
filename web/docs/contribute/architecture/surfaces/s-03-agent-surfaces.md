@@ -325,8 +325,7 @@ nothing to read and nothing to report. Likewise "there is no kapi project here"
 is nothing to gate, not a guard that failed. Warning on either would make every
 session outside a project noisy, which is how a guard gets uninstalled.
 
-These are the assistant-integration hooks. They are unrelated to a recipe's
-`hooks:` block, a separate lifecycle mechanism.
+These are the assistant-integration hooks.
 
 ### The two loops the skill drives
 

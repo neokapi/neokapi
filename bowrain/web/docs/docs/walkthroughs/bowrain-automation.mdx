@@ -19,9 +19,7 @@ policy and CI pipelines.
 Declare `automations:` at the top level of the `kapi.yaml` recipe. A
 pre-push check rule, for example, fires before `kapi push` completes, so source
 never reaches the server without passing your checks. Local rules give a
-developer guardrails on their own machine. (The recipe also accepts a `hooks:`
-block, but hooks are schema-only, [not executed](/cli/flows/hooks);
-use `automations:`.)
+developer guardrails on their own machine.
 
 ## The server side
 

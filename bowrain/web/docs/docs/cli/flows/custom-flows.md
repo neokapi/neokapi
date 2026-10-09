@@ -186,7 +186,7 @@ kapi run my-flow
 
 ## Next steps
 
-- [Flow hooks](/cli/flows/hooks)
+- [Automation](/server/automation)
 - [Run command](/cli/commands/run)
 - [Available formats](https://neokapi.github.io/formats)
 - [Tool reference](https://neokapi.github.io/tools)

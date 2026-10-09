@@ -43,7 +43,6 @@
     ],
     "schema_extensions": [
       {"name": "bowrain",      "scope": "project", "group": "bowrain", "venue": true},
-      {"name": "hooks",        "scope": "project", "group": "bowrain", "depends_on": "bowrain"},
       {"name": "automations",  "scope": "project", "group": "bowrain", "depends_on": "bowrain"},
       {"name": "assets",       "scope": "project", "group": "bowrain", "depends_on": "bowrain"},
       {"name": "brand_voice",  "scope": "project", "group": "bowrain", "depends_on": "bowrain"},

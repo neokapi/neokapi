@@ -29,6 +29,21 @@ func recipeExtensionFields(t *testing.T) []string {
 	return names
 }
 
+// liveProjectExtensions is the registered project-scope extension set less
+// the retired keys, which are registered only so the loader refuses them and
+// have no field on Recipe.
+func liveProjectExtensions(t *testing.T) []string {
+	t.Helper()
+	var live []string
+	for _, name := range coreproj.RegisteredExtensions(coreproj.ScopeProject) {
+		if _, retired := schema.RetiredProjectKeys[name]; retired {
+			continue
+		}
+		live = append(live, name)
+	}
+	return live
+}
+
 // TestRecipe_CoversAllRegisteredProjectExtensions is the schema-extension
 // drift guard: every project-scope extension registered by
 // host/venue/schema must have a matching typed field on Recipe (and
@@ -48,7 +63,7 @@ func TestRecipe_CoversAllRegisteredProjectExtensions(t *testing.T) {
 		require.Equal(t, schema.Group, group, "unexpected extension group for %q", name)
 	}
 
-	assert.ElementsMatch(t, registered, recipeExtensionFields(t),
+	assert.ElementsMatch(t, liveProjectExtensions(t), recipeExtensionFields(t),
 		"Recipe's typed extension fields must match the project-scope extensions registered by host/venue/schema — add the missing field AND its Recipe.Validate fan-out")
 }
 
@@ -64,9 +79,6 @@ func TestRecipeValidate_FanOutPerExtensionBlock(t *testing.T) {
 		schema.VenueKey: func(r *Recipe) {
 			r.Server = &ServerSpec{URL: "ftp://bowrain.example.com/team/proj"}
 		},
-		"hooks": func(r *Recipe) {
-			r.Hooks = HooksSpec{"not-a-trigger": {"qa"}}
-		},
 		"automations": func(r *Recipe) {
 			r.Automations = []AutomationSpec{{ /* missing name */ }}
 		},
@@ -74,7 +86,7 @@ func TestRecipeValidate_FanOutPerExtensionBlock(t *testing.T) {
 		"brand_voice": nil, // VoiceSpec.Validate is a no-op today
 	}
 
-	registered := coreproj.RegisteredExtensions(coreproj.ScopeProject)
+	registered := liveProjectExtensions(t)
 	probeKeys := make([]string, 0, len(probes))
 	for k := range probes {
 		probeKeys = append(probeKeys, k)

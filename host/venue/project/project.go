@@ -5,8 +5,8 @@
 // package. This package adds:
 //
 //   - The bowrain Recipe type (recipe.go) that embeds the framework
-//     KapiProject and layers bowrain extensions (Server, Hooks,
-//     Automations, Assets, BrandVoice) on top.
+//     KapiProject and layers bowrain extensions (Server, Automations,
+//     Assets, BrandVoice) on top.
 //   - The bowrain workflow context (Project, this file) that bundles a
 //     loaded Recipe with its on-disk Layout for use by the source
 //     connector and the bowrain CLI.

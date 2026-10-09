@@ -174,7 +174,6 @@ const sidebars: SidebarsConfig = {
       items: [
         "cli/flows/overview",
         "cli/flows/custom-flows",
-        "cli/flows/hooks",
       ],
     },
     {
