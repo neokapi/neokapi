@@ -180,7 +180,6 @@ defaults:
     - "apps/kapi-desktop/backend/sample/**"
     - "bowrain/apps/bowrain/samples/**"
     - "**/e2e/fixtures/**"
-    - "**/e2e/seed/**"
 
 # Governance bound to a product. Two products share one repository and one kapi
 # project, so the profile is what tells their content apart; the channels it

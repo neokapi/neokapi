@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/internal/jsonscan"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/safeio"
 )
@@ -109,7 +110,7 @@ func (r *Reader) readStreaming(ctx context.Context, ch chan<- model.PartResult) 
 		return true
 	}
 
-	ss := newStreamScanner(bufio.NewReader(safeio.DefaultBudget().Reader(r.Doc.Reader)))
+	ss := jsonscan.NewStream(bufio.NewReader(safeio.DefaultBudget().Reader(r.Doc.Reader)), scanPrefix)
 	r.streamWalkTop(ctx, ch, ss, sourceLanguage, srcLocale)
 	r.skelFlush()
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
@@ -119,9 +120,9 @@ func (r *Reader) readStreaming(ctx context.Context, ch chan<- model.PartResult) 
 // streamWalkTop walks the top-level object from the streaming scanner, emitting
 // non-"strings" structure verbatim to the skeleton and processing each entry of
 // "strings" one at a time (buffered as a bounded token slice).
-func (r *Reader) streamWalkTop(ctx context.Context, ch chan<- model.PartResult, ss *streamScanner, srcLang string, srcLocale model.LocaleID) {
-	first, err := ss.next()
-	if err != nil || first.typ != tokObjectStart {
+func (r *Reader) streamWalkTop(ctx context.Context, ch chan<- model.PartResult, ss *jsonscan.StreamScanner, srcLang string, srcLocale model.LocaleID) {
+	first, err := ss.Next()
+	if err != nil || first.Type != jsonscan.ObjectStart {
 		r.skelToken(first)
 		return
 	}
@@ -129,26 +130,26 @@ func (r *Reader) streamWalkTop(ctx context.Context, ch chan<- model.PartResult, 
 	counter := 0
 	noteCounter := 0
 	for {
-		tok, err := ss.next()
+		tok, err := ss.Next()
 		if err != nil {
 			ch <- model.PartResult{Error: fmt.Errorf("xcstrings: %w", err)}
 			return
 		}
-		switch tok.typ {
-		case tokEOF:
+		switch tok.Type {
+		case jsonscan.EOF:
 			return
-		case tokObjectEnd:
+		case jsonscan.ObjectEnd:
 			r.skelToken(tok) // }
-			if eof, e := ss.next(); e == nil && eof.typ == tokEOF {
-				r.skelText(eof.prefix)
+			if eof, e := ss.Next(); e == nil && eof.Type == jsonscan.EOF {
+				r.skelText(eof.Prefix)
 			}
 			return
-		case tokComma:
+		case jsonscan.Comma:
 			r.skelToken(tok)
-		case tokString:
-			field := tok.value
+		case jsonscan.String:
+			field := tok.Value
 			r.skelToken(tok) // field key
-			colon, cerr := ss.next()
+			colon, cerr := ss.Next()
 			if cerr != nil {
 				ch <- model.PartResult{Error: fmt.Errorf("xcstrings: %w", cerr)}
 				return
@@ -157,7 +158,7 @@ func (r *Reader) streamWalkTop(ctx context.Context, ch chan<- model.PartResult, 
 			if field == "strings" {
 				r.streamWalkStrings(ctx, ch, ss, srcLang, srcLocale, &counter, &noteCounter)
 			} else {
-				val, verr := ss.next()
+				val, verr := ss.Next()
 				if verr != nil {
 					ch <- model.PartResult{Error: fmt.Errorf("xcstrings: %w", verr)}
 					return
@@ -172,28 +173,28 @@ func (r *Reader) streamWalkTop(ctx context.Context, ch chan<- model.PartResult, 
 
 // streamWalkStrings walks the "strings" object, buffering and processing each
 // entry independently so memory stays bounded to one entry.
-func (r *Reader) streamWalkStrings(ctx context.Context, ch chan<- model.PartResult, ss *streamScanner, srcLang string, srcLocale model.LocaleID, counter, noteCounter *int) {
-	open, err := ss.next()
-	if err != nil || open.typ != tokObjectStart {
+func (r *Reader) streamWalkStrings(ctx context.Context, ch chan<- model.PartResult, ss *jsonscan.StreamScanner, srcLang string, srcLocale model.LocaleID, counter, noteCounter *int) {
+	open, err := ss.Next()
+	if err != nil || open.Type != jsonscan.ObjectStart {
 		r.copyValueStream(ss, open)
 		return
 	}
 	r.skelToken(open) // {
 	for {
-		tok, err := ss.next()
+		tok, err := ss.Next()
 		if err != nil {
 			ch <- model.PartResult{Error: fmt.Errorf("xcstrings: %w", err)}
 			return
 		}
-		switch tok.typ {
-		case tokEOF, tokObjectEnd:
+		switch tok.Type {
+		case jsonscan.EOF, jsonscan.ObjectEnd:
 			r.skelToken(tok) // }
 			return
-		case tokComma:
+		case jsonscan.Comma:
 			r.skelToken(tok)
-		case tokString:
+		case jsonscan.String:
 			keyTok := tok
-			colon, cerr := ss.next()
+			colon, cerr := ss.Next()
 			if cerr != nil {
 				ch <- model.PartResult{Error: fmt.Errorf("xcstrings: %w", cerr)}
 				return
@@ -215,29 +216,29 @@ func (r *Reader) streamWalkStrings(ctx context.Context, ch chan<- model.PartResu
 
 // bufferValue reads a complete JSON value (the next token and, for an
 // object/array, its balanced remainder) into a token slice.
-func bufferValue(ss *streamScanner) ([]token, error) {
-	first, err := ss.next()
+func bufferValue(ss *jsonscan.StreamScanner) ([]jsonscan.Token, error) {
+	first, err := ss.Next()
 	if err != nil {
 		return nil, err
 	}
-	toks := []token{first}
-	if first.typ != tokObjectStart && first.typ != tokArrayStart {
+	toks := []jsonscan.Token{first}
+	if first.Type != jsonscan.ObjectStart && first.Type != jsonscan.ArrayStart {
 		return toks, nil
 	}
 	depth := 1
 	for depth > 0 {
-		t, err := ss.next()
+		t, err := ss.Next()
 		if err != nil {
 			return toks, err
 		}
-		if t.typ == tokEOF {
+		if t.Type == jsonscan.EOF {
 			return toks, nil
 		}
 		toks = append(toks, t)
-		switch t.typ {
-		case tokObjectStart, tokArrayStart:
+		switch t.Type {
+		case jsonscan.ObjectStart, jsonscan.ArrayStart:
 			depth++
-		case tokObjectEnd, tokArrayEnd:
+		case jsonscan.ObjectEnd, jsonscan.ArrayEnd:
 			depth--
 		}
 	}
@@ -249,7 +250,7 @@ func bufferValue(ss *streamScanner) ([]token, error) {
 // emits the entry's blocks (emitEntry / emitCommentFallback, in lockstep with
 // the block counter), and runs the slice-based skelWalker over the buffered
 // entry tokens to emit its byte-exact skeleton (with the same counter).
-func (r *Reader) processEntry(ctx context.Context, ch chan<- model.PartResult, keyTok, colon token, entryToks []token, srcLang string, srcLocale model.LocaleID, counter, noteCounter *int) bool {
+func (r *Reader) processEntry(ctx context.Context, ch chan<- model.PartResult, keyTok, colon jsonscan.Token, entryToks []jsonscan.Token, srcLang string, srcLocale model.LocaleID, counter, noteCounter *int) bool {
 	r.skelToken(keyTok)
 	r.skelToken(colon)
 
@@ -259,13 +260,13 @@ func (r *Reader) processEntry(ctx context.Context, ch chan<- model.PartResult, k
 	b.WriteString(`{"sourceLanguage":`)
 	b.WriteString(strconv.Quote(srcLang))
 	b.WriteString(`,"strings":{`)
-	b.WriteString(keyTok.raw)
+	b.WriteString(keyTok.Raw)
 	b.WriteString(`:`)
 	for _, t := range entryToks {
-		b.WriteString(t.raw)
+		b.WriteString(t.Raw)
 	}
 	b.WriteString(`}}`)
-	entryKey := keyTok.value
+	entryKey := keyTok.Value
 
 	before := *counter
 	cat, err := parseCatalog([]byte(b.String()))
@@ -288,22 +289,22 @@ func (r *Reader) processEntry(ctx context.Context, ch chan<- model.PartResult, k
 
 // copyValueStream copies a value whose first token has already been read to the
 // skeleton verbatim; for an object/array it consumes the balanced remainder.
-func (r *Reader) copyValueStream(ss *streamScanner, first token) {
+func (r *Reader) copyValueStream(ss *jsonscan.StreamScanner, first jsonscan.Token) {
 	r.skelToken(first)
-	if first.typ != tokObjectStart && first.typ != tokArrayStart {
+	if first.Type != jsonscan.ObjectStart && first.Type != jsonscan.ArrayStart {
 		return
 	}
 	depth := 1
 	for depth > 0 {
-		t, err := ss.next()
-		if err != nil || t.typ == tokEOF {
+		t, err := ss.Next()
+		if err != nil || t.Type == jsonscan.EOF {
 			return
 		}
 		r.skelToken(t)
-		switch t.typ {
-		case tokObjectStart, tokArrayStart:
+		switch t.Type {
+		case jsonscan.ObjectStart, jsonscan.ArrayStart:
 			depth++
-		case tokObjectEnd, tokArrayEnd:
+		case jsonscan.ObjectEnd, jsonscan.ArrayEnd:
 			depth--
 		}
 	}
@@ -349,10 +350,10 @@ func (r *Reader) skelText(s string) {
 }
 
 // skelToken appends a token's prefix and raw bytes to the skeleton buffer.
-func (r *Reader) skelToken(tok token) {
+func (r *Reader) skelToken(tok jsonscan.Token) {
 	if r.skeletonStore != nil {
-		r.skelBuf.WriteString(tok.prefix)
-		r.skelBuf.WriteString(tok.raw)
+		r.skelBuf.WriteString(tok.Prefix)
+		r.skelBuf.WriteString(tok.Raw)
 	}
 }
 

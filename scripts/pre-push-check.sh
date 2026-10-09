@@ -70,6 +70,11 @@ echo ""
 run_check "Absolute home paths" ./scripts/check-abs-paths.sh
 run_check "Public documentation boundary" ./scripts/check-docs-bowrain-clean.sh
 
+# A copied seed document can only land under one of the two e2e trees.
+if matches '^bowrain/e2e/' '^bowrain/apps/web/e2e/'; then
+    run_check "E2E seed documents live once" ./scripts/check-e2e-seed-dupes.sh
+fi
+
 # Ungated too: retired framing lands wherever prose is edited, and it degrades
 # quietly — a stale phrase reads as intentional to the next reader.
 run_check "Retired framing in user-facing prose" ./scripts/check-vocabulary.sh

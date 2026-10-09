@@ -82,7 +82,7 @@ test.describe("Editor happy path", () => {
     await page.goto(`/${wsSlug}/p/${projectId}/s/main/source`);
     await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 15000 });
 
-    const seedFile = path.resolve(__dirname, "seed", FILE_NAME);
+    const seedFile = path.resolve(__dirname, "../../../e2e/shared/seed-files", FILE_NAME);
     await page.locator('input[type="file"]').setInputFiles([
       {
         name: FILE_NAME,
