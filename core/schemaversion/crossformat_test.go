@@ -4,9 +4,9 @@ import (
 	"archive/zip"
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -164,12 +164,12 @@ func TestEveryFormatAppliesTheSameVersionRule(t *testing.T) {
 				require.True(t, ok, "%s declares a parseable SchemaVersion", f.name)
 				version := strings.NewReplacer(
 					"{current}", f.current,
-					"{major}", fmt.Sprint(major),
+					"{major}", strconv.Itoa(major),
 				).Replace(tc.version)
 
 				err := f.read(version)
 				if tc.want.accept {
-					assert.NoError(t, err, "%s must read schemaVersion %q", f.name, version)
+					require.NoError(t, err, "%s must read schemaVersion %q", f.name, version)
 					continue
 				}
 				require.Error(t, err, "%s must refuse schemaVersion %q", f.name, version)
@@ -198,7 +198,7 @@ func TestErrorIsUnwrappable(t *testing.T) {
 	_, err := schemaversion.Check("kbf", "9.0", "1.0", "2.0")
 	wrapped := fmt.Errorf("open bundle: %w", err)
 	var sv *schemaversion.Error
-	require.True(t, errors.As(wrapped, &sv))
+	require.ErrorAs(t, wrapped, &sv)
 	assert.Equal(t, 9, sv.Major)
 	assert.Equal(t, []string{"1.0", "2.0"}, sv.Supported)
 	assert.Equal(t, "kbf: unsupported major schemaVersion 9 (this build reads 1.0 and 2.0)", err.Error())
