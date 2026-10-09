@@ -150,7 +150,10 @@ export function useLabSession({
   const sandbox = `/learn/${lab.id}`;
 
   const seedFiles = useMemo<LabFile[]>(
-    () => [...SAMPLE_TREES[lab.sample], ...(lab.files ?? [])],
+    () => [
+      ...((SAMPLE_TREES as Record<string, readonly LabFile[]>)[lab.sample] ?? []),
+      ...(lab.files ?? []),
+    ],
     [lab],
   );
 

@@ -8,12 +8,15 @@ import type { Lab, SampleId, SampleInfo, Series, SeriesId } from "./types.ts";
 import { NORTHSEA_LABS } from "./labs/northsea.ts";
 import { COMPASS_LABS } from "./labs/compass.ts";
 import { MART_LABS } from "./labs/mart.ts";
+import { EXPLORE_LABS } from "./labs/explore.ts";
 
 export type {
   Chapter,
   ChapterLook,
+  ChapterStage,
   Lab,
   LabFile,
+  LabKind,
   SampleId,
   SampleInfo,
   Series,
@@ -45,6 +48,14 @@ export const SERIES: readonly Series[] = [
       "A storefront's catalog and prose, through the engine's own verbs: inspect the model behind any format, run tools and flows with every prompt in the open, then set up a project that remembers its memory and terms and holds a draft to them.",
     sample: "mart",
   },
+  {
+    id: "explore",
+    title: "Explore the engine",
+    tagline: "One part of the engine at a time, on a file you bring.",
+    description:
+      "The engine explorers, played as labs: the flow workspace, the segmentation comparison, format conversion, document structure from a PDF, vision, audio and video, the bundle format, and a free terminal. Each chapter sets what the explorer shows and says what to look at; every explorer takes your own files too.",
+    sample: "engine",
+  },
 ];
 
 export const SAMPLES: Record<SampleId, SampleInfo> = {
@@ -69,9 +80,26 @@ export const SAMPLES: Record<SampleId, SampleInfo> = {
       "A storefront and order platform for small retailers: an interface catalog, an About page, three locales at different stages, its terms and a content memory.",
     source: "samples/mart",
   },
+  engine: {
+    id: "engine",
+    name: "Engine explorers",
+    blurb:
+      "The engine's own fixtures: a few documents in several formats, three PDFs, images with printed and handwritten text, a short clip, and a content bundle. Every explorer takes a file you bring as well.",
+    source: "web/static/samples",
+  },
 };
 
-export const LABS: readonly Lab[] = [...NORTHSEA_LABS, ...COMPASS_LABS, ...MART_LABS];
+export const LABS: readonly Lab[] = [
+  ...NORTHSEA_LABS,
+  ...COMPASS_LABS,
+  ...MART_LABS,
+  ...EXPLORE_LABS,
+];
+
+/** An explorer lab puts an engine explorer on the stage instead of a terminal. */
+export function isExplorerLab(lab: Lab): boolean {
+  return lab.kind === "explorer";
+}
 
 const BY_ID = new Map(LABS.map((lab) => [lab.id, lab]));
 

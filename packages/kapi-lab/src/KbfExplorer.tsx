@@ -16,6 +16,11 @@ export interface KbfExplorerProps {
   defaultSampleId?: string;
   /** Hide the annotation overlay panel (e.g. for a compact inline embed). */
   hideAnnotations?: boolean;
+  /**
+   * Start with the engine when mounted, with no Run gate of its own: for a
+   * host whose own Play already asked the reader (the learning labs).
+   */
+  autoStart?: boolean;
 }
 
 interface KbfValidationError {
@@ -62,9 +67,10 @@ export default function KbfExplorer({
   assets,
   defaultSampleId,
   hideAnnotations,
+  autoStart = false,
 }: KbfExplorerProps): React.ReactElement {
-  const runtime = useLabRuntime(assets, { autoBoot: false });
-  const gate = useRunGate(runtime);
+  const runtime = useLabRuntime(assets, { autoBoot: autoStart });
+  const gate = useRunGate(runtime, { autoArm: autoStart });
 
   const initial = kbfSampleById(defaultSampleId ?? "full");
   const [sampleId, setSampleId] = useState(initial.id);

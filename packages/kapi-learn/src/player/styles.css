@@ -207,6 +207,31 @@
   padding: 0.6rem 0.75rem;
 }
 
+/* An explorer on the stage: a light surface at the explorer's own height,
+   with the poster over it until Play. */
+.kl-stage--explorer {
+  height: auto;
+  min-height: clamp(320px, 54vh, 560px);
+  background: var(--kl-surface);
+  border: 1px solid var(--kl-border);
+  box-shadow: none;
+}
+
+.kl-stage__body {
+  padding: 0.75rem;
+  min-width: 0;
+}
+
+.kl-stage--explorer .kl-poster {
+  min-height: clamp(320px, 54vh, 560px);
+}
+
+.kl-try--prose li {
+  font-size: 0.86rem;
+  line-height: 1.45;
+  color: var(--kl-muted);
+}
+
 .kl-terminal .xterm {
   height: 100%;
 }

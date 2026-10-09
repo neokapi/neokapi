@@ -124,6 +124,11 @@ export interface ConversionExplorerProps {
   sampleIds?: string[];
   /** Output format whose pill is active on first render (default: doclang). */
   defaultTarget?: string;
+  /**
+   * Start with the engine when mounted, with no Run gate of its own: for a
+   * host whose own Play already asked the reader (the learning labs).
+   */
+  autoStart?: boolean;
 }
 
 export default function ConversionExplorer({
@@ -131,9 +136,10 @@ export default function ConversionExplorer({
   defaultSampleId,
   sampleIds,
   defaultTarget,
+  autoStart = false,
 }: ConversionExplorerProps): React.ReactElement {
-  const runtime = useLabRuntime(assets, { autoBoot: false });
-  const gate = useRunGate(runtime);
+  const runtime = useLabRuntime(assets, { autoBoot: autoStart });
+  const gate = useRunGate(runtime, { autoArm: autoStart });
   const offered = sampleIds ?? DEFAULT_SAMPLE_IDS;
 
   const initial =

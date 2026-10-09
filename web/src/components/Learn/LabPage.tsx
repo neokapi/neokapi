@@ -4,6 +4,7 @@ import Link from "@docusaurus/Link";
 import BrowserOnly from "@docusaurus/BrowserOnly";
 import { useHistory, useLocation } from "@docusaurus/router";
 import {
+  isExplorerLab,
   labById,
   labsInSeries,
   nextLab,
@@ -15,17 +16,25 @@ import { CHAPTER_PARAM, parseLabLink } from "@neokapi/kapi-learn/deeplink";
 import { useKapiPlaygroundConfig } from "../KapiPlayground/config";
 import { ChunkSafeSuspense } from "../ChunkErrorBoundary";
 import { lazyWithRetry } from "../../lib/chunkReload";
+import { renderStage } from "./stages";
 import "./learn.css";
 
 // The page for one learning lab, at /learn/<id> (routes are added by
 // web/plugins/learn-routes.ts). The chrome and the chapter list render on the
 // server, so the page reads without JavaScript and a shared link previews;
 // the player, with xterm and the engine boot path, is one lazy chunk that
-// loads in the browser and fetches nothing until Play.
+// loads in the browser and fetches nothing until Play. A terminal lab gets
+// the lab player; an explorer lab gets the explorer player, whose stage is
+// one of the engine explorers (see stages.tsx).
 
 const LazyPlayer = lazyWithRetry(async () => {
   const mod = await import("@neokapi/kapi-learn/player");
   return { default: mod.LabPlayer };
+});
+
+const LazyExplorerPlayer = lazyWithRetry(async () => {
+  const mod = await import("@neokapi/kapi-learn/player");
+  return { default: mod.ExplorerPlayer };
 });
 
 export interface LabPageProps {
@@ -79,22 +88,24 @@ function PlayerHost({ lab }: { lab: Lab }): React.ReactElement {
     [history],
   );
 
-  return (
-    <LazyPlayer
-      lab={lab}
-      series={series}
-      sample={sample}
-      assets={assets}
-      link={link}
-      onChapterChange={onChapterChange}
-      indexHref="/learn"
-      position={{ index: lab.position, of: siblings.length }}
-      upNext={
-        next
-          ? { id: next.id, title: next.title, tagline: next.tagline, href: `/learn/${next.id}` }
-          : undefined
-      }
-    />
+  const shared = {
+    lab,
+    series,
+    sample,
+    assets,
+    link,
+    onChapterChange,
+    indexHref: "/learn",
+    position: { index: lab.position, of: siblings.length },
+    upNext: next
+      ? { id: next.id, title: next.title, tagline: next.tagline, href: `/learn/${next.id}` }
+      : undefined,
+  };
+
+  return isExplorerLab(lab) ? (
+    <LazyExplorerPlayer {...shared} renderStage={renderStage} />
+  ) : (
+    <LazyPlayer {...shared} />
   );
 }
 

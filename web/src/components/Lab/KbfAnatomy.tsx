@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "@docusaurus/Link";
 import { tokenize } from "@neokapi/ui-primitives/preview";
 import type { Token } from "@neokapi/ui-primitives/preview";
@@ -12,8 +12,26 @@ import styles from "./KbfAnatomy.module.css";
 // lines and shows the structured explanation. Static by construction: no
 // engine, no network — the interactive round-trip lives further down the page.
 
-export default function KbfAnatomy(): React.ReactElement {
-  const [selected, setSelected] = useState<TermId>("envelope");
+export interface KbfAnatomyProps {
+  /** The part to explain first, and to follow when a host changes it (the learning labs). */
+  part?: TermId;
+}
+
+export default function KbfAnatomy({ part }: KbfAnatomyProps = {}): React.ReactElement {
+  const [selected, setSelected] = useState<TermId>(part ?? "envelope");
+  const paneRef = useRef<HTMLDivElement>(null);
+  // A host-chosen part is selected and brought into view; a reader's own click
+  // on a line selects without scrolling, since the line is already in view.
+  useEffect(() => {
+    if (!part) return;
+    setSelected(part);
+    const id = window.setTimeout(() => {
+      paneRef.current
+        ?.querySelector<HTMLElement>("[data-active]")
+        ?.scrollIntoView({ block: "center", behavior: "smooth" });
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [part]);
 
   // Tokenize the whole document once; lines align 1:1 with ANATOMY_LINES.
   const tokenLines = useMemo(() => tokenize(ANATOMY_TEXT.trimEnd(), "json"), []);
@@ -23,6 +41,7 @@ export default function KbfAnatomy(): React.ReactElement {
     <div className="grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
       {/* Source pane */}
       <div
+        ref={paneRef}
         className={`${styles.code} overflow-auto rounded-lg border bg-card`}
         style={{ maxHeight: "34rem" }}
         aria-label="Annotated .kbf.json source; select a line to explain the part it belongs to"
@@ -35,6 +54,7 @@ export default function KbfAnatomy(): React.ReactElement {
               return (
                 <span
                   key={i}
+                  data-active={active || undefined}
                   onClick={() => lineTerm && setSelected(lineTerm)}
                   className={`flex cursor-pointer items-start pr-3 ${
                     active

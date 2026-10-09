@@ -1,16 +1,25 @@
 // The curriculum's shape: series of labs, labs of chapters.
 //
-// A lab is a short, scripted session in a sample project: each chapter runs
-// one command in the lab shell against the real engine and says what to look
-// at. The player plays chapters like a video plays scenes; the verifier
-// (scripts/learn-verify) runs every chapter in Node and holds the lab to the
-// exit codes and output it declares. Pure data: no React, no engine imports,
-// so the Docusaurus build can read it to make one page per lab.
+// A lab is a short, scripted session. A terminal lab runs in a sample
+// project: each chapter runs one command in the lab shell against the real
+// engine and says what to look at. An explorer lab puts one of the engine
+// explorers on the stage instead: each chapter sets what the explorer shows
+// and says what to look at. The player plays chapters like a video plays
+// scenes; the verifier (scripts/learn-verify) runs every terminal chapter in
+// Node and holds the lab to the exit codes and output it declares. Pure data:
+// no React, no engine imports, so the Docusaurus build can read it to make
+// one page per lab.
 
-/** The sample project a lab runs in; the files come from samples/<id>/. */
-export type SampleId = "northsea" | "compass" | "mart";
+/**
+ * The sample project a lab runs in; the files come from samples/<id>/. An
+ * explorer lab runs on the engine's own fixtures, under "engine".
+ */
+export type SampleId = "northsea" | "compass" | "mart" | "engine";
 
-export type SeriesId = "start-here" | "add-languages" | "engine";
+export type SeriesId = "start-here" | "add-languages" | "engine" | "explore";
+
+/** A terminal lab types commands into a shell; an explorer lab drives an explorer. */
+export type LabKind = "terminal" | "explorer";
 
 /** A text file written into the sandbox, relative to the lab's working directory. */
 export interface LabFile {
@@ -24,6 +33,17 @@ export interface ChapterLook {
   file?: string;
   /** The reading to open it in (default "preview"; "raw" for a JSON or YAML file). */
   view?: "preview" | "blocks" | "raw";
+}
+
+/**
+ * What an explorer chapter puts on the stage: the explorer by id (the host
+ * resolves it; a lab's `explorer` is the default) and the props the chapter
+ * gives it, in the explorer's own logical terms (a sample name, a scenario,
+ * a target format). The host maps them to the component's props.
+ */
+export interface ChapterStage {
+  explorer?: string;
+  [prop: string]: unknown;
 }
 
 export interface Chapter {
@@ -49,6 +69,10 @@ export interface Chapter {
   look?: ChapterLook;
   /** A remark drawn after the output: what to take from it. */
   note?: string;
+  /** For an explorer lab: what the stage shows during this chapter. */
+  stage?: ChapterStage;
+  /** A short label for the chapter list where there is no command (an explorer chapter). */
+  hint?: string;
 }
 
 export interface Lab {
@@ -63,6 +87,14 @@ export interface Lab {
   /** What the lab teaches, one paragraph. */
   summary: string;
   sample: SampleId;
+  /** Terminal (the default) or explorer. */
+  kind?: LabKind;
+  /** For an explorer lab: the explorer on the stage, unless a chapter names another. */
+  explorer?: string;
+  /** Whether the engine boots on Play (default true). An explorer that runs only ML models says false. */
+  engine?: boolean;
+  /** Plugins (by the plugin manager's id) to download on Play, before the first chapter. */
+  plugins?: string[];
   /** Files written over the sample before the first chapter (a lab-specific starting state). */
   files?: LabFile[];
   /** Commands run before the first chapter, silently, to reach the starting state. */

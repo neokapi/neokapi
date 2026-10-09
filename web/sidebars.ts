@@ -292,7 +292,7 @@ const sidebars: SidebarsConfig = {
         "reference/serialization/project-state",
         "reference/serialization/voice-profile",
         "reference/serialization/choosing",
-        { type: "link", label: "Bundle anatomy", href: "/kbf-lab" },
+        { type: "link", label: "Bundle anatomy", href: "/learn/kbf-anatomy" },
       ],
     },
   ],

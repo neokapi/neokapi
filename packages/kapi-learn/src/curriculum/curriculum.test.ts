@@ -23,24 +23,32 @@ describe("curriculum", () => {
       const labs = labsInSeries(s.id);
       expect(labs.length).toBeGreaterThan(0);
       expect(labs.map((l) => l.position)).toEqual(labs.map((_, i) => i + 1));
-      for (const lab of labs) expect(lab.sample).toBe(s.sample);
+      // The explorer series runs on the engine's own fixtures, except the free
+      // terminal, which opens a sample project to type into.
+      if (s.id !== "explore") for (const lab of labs) expect(lab.sample).toBe(s.sample);
     }
   });
 
-  it("runs every lab in a sample the generator carries", () => {
+  it("runs every terminal lab in a sample the generator carries", () => {
     for (const lab of LABS) {
       expect(SAMPLES[lab.sample]).toBeDefined();
-      expect(SAMPLE_TREES[lab.sample].length).toBeGreaterThan(0);
+      if (lab.kind === "explorer") continue;
+      const tree = (SAMPLE_TREES as Record<string, readonly unknown[]>)[lab.sample];
+      expect(tree?.length, `${lab.id}: no sample tree for ${lab.sample}`).toBeGreaterThan(0);
     }
   });
 
-  it("gives every chapter a command or a file to look at, and an expectation where a command runs", () => {
+  it("gives every chapter something to run or show, and an expectation where a command runs", () => {
     for (const lab of LABS) {
       for (const ch of lab.chapters) {
-        expect(ch.command || ch.look?.file || ch.files?.length, `${lab.id}/${ch.id}`).toBeTruthy();
+        const has =
+          ch.command || ch.look?.file || ch.files?.length || (lab.kind === "explorer" && ch.stage);
+        expect(has, `${lab.id}/${ch.id}`).toBeTruthy();
         expect(ch.narration.length).toBeGreaterThan(20);
         if (ch.exit !== undefined) expect(ch.command).toBeTruthy();
+        if (lab.kind === "explorer") expect(ch.command, `${lab.id}/${ch.id}`).toBeUndefined();
       }
+      if (lab.kind === "explorer") expect(lab.explorer, `${lab.id}: no explorer`).toBeTruthy();
     }
   });
 

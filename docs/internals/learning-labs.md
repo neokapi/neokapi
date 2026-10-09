@@ -65,6 +65,35 @@ and `setup` (commands run silently before it, named in the terminal's first
 line). The labs after the first in a series use `setup` to reach the state
 the earlier labs left, so each lab stands alone.
 
+## Explorer labs
+
+The fourth series puts the engine explorers on the stage instead of a
+terminal: the flow workspace, the segmentation comparison, conversion, the
+PDF structure viewer, vision, audio and video, the bundle anatomy, and a
+free terminal (which is an ordinary terminal lab in the KapiMart sample).
+An explorer lab has `kind: "explorer"`, an `explorer` id, and chapters whose
+`stage` says what the explorer shows, in the explorer's own terms: a sample
+name, a scenario, a target format, an anatomy part. A chapter may name
+another explorer in its `stage.explorer`; the media lab moves from the
+recorded showcase to the live audio and video explorers that way.
+
+The ids are resolved by the docs site in
+`web/src/components/Learn/stages.tsx`, which also maps the logical props to
+the component's: sample names to `/samples/` URLs, the model base for the
+ONNX models, the recorded traces for the flow workspace. The explorer player
+(`ExplorerPlayer`) boots what the lab declares on Play, the engine unless
+`engine: false` and the `plugins` it names, and then mounts the explorer with
+`autoStart`, so the poster is the only gate: each explorer gained an
+`autoStart` prop (and the segmentation lab `defaultSampleId` and `autoRun`,
+the anatomy viewer `part`) for exactly this. The stage remounts only when a
+chapter changes what it shows, so a chapter that only narrates leaves the
+explorer and its state alone.
+
+The old routes (`/lab`, `/lab/*`, `/playground-cli`, `/kbf-lab`) redirect to
+the labs. The verifier covers terminal labs only; an explorer lab is checked
+by the site build (the plugin resolves every lab) and by `assert-no-eager-engine`,
+which presses Play on the vision lab and expects the model fetch.
+
 ## Changing a sample
 
 The samples are the fixtures. After editing anything under `samples/`, run
@@ -110,9 +139,10 @@ What the earlier lab set lacked, and what this one does not yet do:
 
 - The explorers were feature demonstrations (segmentation engines, OCR,
   conversion, the bundle format) on throwaway fixtures, each with its own
-  gate and chrome, ordered from the engine's internals outward. They remain
-  as explorers; the curriculum starts from the product's first concepts and
-  runs on the samples the recordings use.
+  gate and chrome, ordered from the engine's internals outward. They are now
+  the fourth series, each played through the same player with chapters that
+  say what to look at; the curriculum starts from the product's first
+  concepts and runs on the samples the recordings use.
 - The Tidewatch sample (the loop in CI) has no lab: its point is a workflow
   file and a build, which the browser cannot run. A reading chapter on
   `kapi check --ship` exit codes under `.github/workflows` would cover the

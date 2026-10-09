@@ -102,7 +102,10 @@ function hostFor(sandbox: string): ShellHost {
 
 function seed(lab: Lab, sandbox: string): void {
   mem.vol.mkdirp(sandbox);
-  for (const f of SAMPLE_TREES[lab.sample]) {
+  const tree = (SAMPLE_TREES as Record<string, readonly { path: string; content: string }[]>)[
+    lab.sample
+  ];
+  for (const f of tree ?? []) {
     const abs = `${sandbox}/${f.path}`;
     const slash = abs.lastIndexOf("/");
     if (slash > 0) mem.vol.mkdirp(abs.slice(0, slash));
@@ -197,7 +200,10 @@ async function runLab(lab: Lab): Promise<Failure[]> {
 
 async function main(): Promise<void> {
   const wanted = process.argv.slice(2);
-  const labs = wanted.length ? LABS.filter((l) => wanted.includes(l.id)) : LABS;
+  // Explorer labs drive a browser component rather than the shell; their
+  // chapters carry no command to hold to.
+  const terminalLabs = LABS.filter((l) => l.kind !== "explorer");
+  const labs = wanted.length ? terminalLabs.filter((l) => wanted.includes(l.id)) : terminalLabs;
   if (wanted.length && labs.length !== wanted.length) {
     const known = new Set(LABS.map((l) => l.id));
     for (const w of wanted) if (!known.has(w)) console.error(c.red(`unknown lab: ${w}`));

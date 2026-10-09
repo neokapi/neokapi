@@ -28,6 +28,11 @@ export interface PdfExplorerProps {
    * switcher; the first is selected on load. Takes precedence over sampleUrl.
    */
   samples?: PdfSampleSpec[];
+  /**
+   * Start with the engine and the pdfium plugin when mounted, with no Run gate
+   * of its own: for a host whose own Play already asked the reader.
+   */
+  autoStart?: boolean;
 }
 
 // PdfExplorer parses a PDF — a bundled sample or one the visitor uploads —
@@ -41,11 +46,12 @@ export default function PdfExplorer({
   sampleUrl,
   sampleName,
   samples,
+  autoStart = false,
 }: PdfExplorerProps): React.ReactElement {
-  const runtime = useLabRuntime(assets, { autoBoot: false });
+  const runtime = useLabRuntime(assets, { autoBoot: autoStart });
   // PDF parsing needs the pdfium plugin (PDFium-wasm); download it via the
   // manager on Run so the navbar status widget reflects it.
-  const gate = useRunGate(runtime, { requires: ["pdfium"] });
+  const gate = useRunGate(runtime, { requires: ["pdfium"], autoArm: autoStart });
   const library = useFileLibrary({ sampleIds: [] }); // no text samples; we seed PDFs
 
   const [selection, setSelection] = useState<FileSelection>({

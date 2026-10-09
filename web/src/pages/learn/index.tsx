@@ -20,29 +20,6 @@ import "../../components/Learn/learn.css";
 // Static: nothing here touches the engine. The "continue" card and the
 // progress bars read this browser's progress on the client.
 
-const EXPLORERS: { to: string; name: string; teaches: string }[] = [
-  { to: "/lab", name: "Flow workspace", teaches: "build a flow and watch its trace" },
-  {
-    to: "/lab/segmentation",
-    name: "Segmentation",
-    teaches: "compare sentence splitters on your text",
-  },
-  {
-    to: "/lab/convert",
-    name: "File conversion",
-    teaches: "re-express a format and see what survives",
-  },
-  {
-    to: "/lab/structure",
-    name: "Structure and layout",
-    teaches: "reading order and geometry from a PDF",
-  },
-  { to: "/lab/vision", name: "Vision", teaches: "OCR and layout on an image" },
-  { to: "/lab/media", name: "Audio and video", teaches: "transcripts on the way to subtitles" },
-  { to: "/playground-cli", name: "CLI playground", teaches: "a free terminal with sample files" },
-  { to: "/kbf-lab", name: "KBF anatomy", teaches: "the bundle format, part by part" },
-];
-
 function LabCard({ lab, done }: { lab: Lab; done: number }): React.ReactElement {
   const commands = lab.chapters.filter((c) => c.command).length;
   const pct = Math.round((done / lab.chapters.length) * 100);
@@ -54,7 +31,8 @@ function LabCard({ lab, done }: { lab: Lab; done: number }): React.ReactElement 
           <span className="kl-card__meta">
             {lab.chapters.length} chapters
             <br />
-            {commands} commands · {lab.minutes} min
+            {commands > 0 ? `${commands} commands · ` : ""}
+            {lab.minutes} min
           </span>
           <span className="kl-card__play">
             <Play size={18} fill="currentColor" />
@@ -213,26 +191,6 @@ export default function LearnIndexPage(): React.ReactElement {
         {SERIES.map((s, i) => (
           <SeriesSection key={s.id} index={i + 1} seriesId={s.id} />
         ))}
-
-        <section className="kl-explorers" aria-labelledby="explorers">
-          <h2 id="explorers">
-            <Translate id="learn.explorers.title">Engine explorers</Translate>
-          </h2>
-          <p>
-            <Translate id="learn.explorers.lead">
-              Beyond the labs, a set of explorers opens one part of the engine at a time on a file
-              you bring: segmentation, conversion, document structure, vision, audio and video, the
-              bundle format, and a free terminal.
-            </Translate>
-          </p>
-          <ul>
-            {EXPLORERS.map((e) => (
-              <li key={e.to}>
-                <Link to={e.to}>{e.name}</Link> <span>· {e.teaches}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
       </main>
     </Layout>
   );

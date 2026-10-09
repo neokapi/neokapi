@@ -18,6 +18,10 @@ export interface PosterProps {
   /** The engine is already up from another lab: Play needs no download. */
   warm: boolean;
   onStart: () => void;
+  /** What Play loads, in a sentence (default: the engine). */
+  hint?: string;
+  /** What is loading right now, as a label beside the progress bar. */
+  loadingLabel?: string;
 }
 
 function mb(bytes: number): string {
@@ -33,6 +37,8 @@ export default function Poster({
   error,
   warm,
   onStart,
+  hint,
+  loadingLabel,
 }: PosterProps): React.ReactElement {
   const loading = status === "booting" || status === "seeding";
   const frac =
@@ -52,12 +58,13 @@ export default function Poster({
         <h2 className="kl-poster__title">{lab.title}</h2>
         <p className="kl-poster__tagline">{lab.tagline}</p>
         <p className="kl-poster__meta">
-          {lab.chapters.length} chapters · {commands} commands · about {lab.minutes} min
+          {lab.chapters.length} chapters
+          {commands > 0 ? ` · ${commands} commands` : ""} · about {lab.minutes} min
         </p>
 
         {status === "error" ? (
           <div className="kl-poster__error" role="alert">
-            <p>The engine could not start: {error}</p>
+            <p>The lab could not start: {error}</p>
             <button type="button" className="kl-btn kl-btn--primary" onClick={onStart}>
               <RotateCcw size={16} aria-hidden="true" />
               Try again
@@ -74,11 +81,13 @@ export default function Poster({
             <p>
               {status === "seeding"
                 ? `Opening the ${sample.name} sample…`
-                : frac !== null && bootProgress
-                  ? `Downloading the kapi engine · ${mb(bootProgress.loaded)} of ${mb(bootProgress.total ?? 0)}`
-                  : warm
-                    ? "Starting the engine…"
-                    : "Starting the kapi engine…"}
+                : loadingLabel
+                  ? `${loadingLabel}${frac !== null && bootProgress ? ` · ${mb(bootProgress.loaded)} of ${mb(bootProgress.total ?? 0)}` : "…"}`
+                  : frac !== null && bootProgress
+                    ? `Downloading the kapi engine · ${mb(bootProgress.loaded)} of ${mb(bootProgress.total ?? 0)}`
+                    : warm
+                      ? "Starting the engine…"
+                      : "Starting the kapi engine…"}
             </p>
           </div>
         ) : (
@@ -94,7 +103,8 @@ export default function Poster({
             <p className="kl-poster__hint">
               {warm
                 ? "The engine is already running in this tab."
-                : "Runs the real kapi engine in your browser: a 20 MB download, once, kept for this session. Nothing leaves your machine."}
+                : (hint ??
+                  "Runs the real kapi engine in your browser: a 20 MB download, once, kept for this session. Nothing leaves your machine.")}
             </p>
           </div>
         )}

@@ -116,15 +116,11 @@ const PAGES = [
     },
   },
   {
-    url: "/lab/vision",
-    label: "Vision Lab",
+    url: "/learn/vision",
+    label: "the vision lab (an explorer lab)",
     gate: {
-      description:
-        'LabLaunch "Open experiment", then RunGate "Run in your browser" (fetches the PP-OCRv5 ONNX models)',
-      click: async (page) => {
-        await page.click('button:has-text("Open experiment")');
-        await page.click('button:has-text("Run in your browser")');
-      },
+      description: 'the poster\'s Play button (".kl-play" fetches the PP-OCRv5 ONNX models)',
+      click: (page) => page.click(".kl-play"),
     },
   },
 ];
