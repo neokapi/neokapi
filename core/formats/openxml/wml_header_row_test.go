@@ -54,7 +54,7 @@ func TestHandbookHeaderRowAndListStyles(t *testing.T) {
 	assert.Equal(t, model.RoleListItem,
 		roles["A registered business in a supported country"],
 		"a List Bullet paragraph is a list item")
-	assert.Equal(t, "",
+	assert.Empty(t,
 		roles["Everything a new marketplace seller needs in the first ninety days"],
 		"the Subtitle style's numPr names no list")
 	assert.Equal(t, model.RoleHeading, roles["2.1 Five steps to your first order"])
