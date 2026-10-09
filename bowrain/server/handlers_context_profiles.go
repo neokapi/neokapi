@@ -509,7 +509,7 @@ func (s *Server) workspaceConceptCount(ctx context.Context, wsSlug string) int {
 	if s.wsStores == nil || wsSlug == "" {
 		return 0
 	}
-	tb, err := s.wsStores.getTerms(wsSlug)
+	tb, err := s.wsStores.getTerms(ctx, wsSlug)
 	if err != nil {
 		return 0
 	}

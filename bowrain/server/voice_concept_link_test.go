@@ -48,7 +48,7 @@ func TestPromoteRuleToTerms_JoinsTheReplacementsConcept(t *testing.T) {
 	require.NotEmpty(t, conceptID)
 	assert.Equal(t, []knowledge.EventType{knowledge.EventConceptCreated}, eventTypes(events))
 
-	tb, err := srv.wsStores.getTerms(wsSlug)
+	tb, err := srv.wsStores.getTerms(t.Context(), wsSlug)
 	require.NoError(t, err)
 	c, ok, err := tb.GetConcept(ctx, conceptID)
 	require.NoError(t, err)
@@ -105,7 +105,7 @@ func TestPromoteRuleToTerms_UsesProjectSourceLocale(t *testing.T) {
 	_, conceptID, _, err := srv.promoteRuleToTerms(ctx, "acme", "ws-acme", coreprofile.SuggestedRule{Term: "nutzen"})
 	require.NoError(t, err)
 
-	tb, err := srv.wsStores.getTerms("acme")
+	tb, err := srv.wsStores.getTerms(t.Context(), "acme")
 	require.NoError(t, err)
 	c, ok, err := tb.GetConcept(ctx, conceptID)
 	require.NoError(t, err)
@@ -139,7 +139,7 @@ func TestLandWordRules_WritesThePacksTerms(t *testing.T) {
 	assert.True(t, byTerm["Globex"].Competitor)
 	assert.True(t, byTerm["simply"].Advisory)
 
-	tb, err := srv.wsStores.getTerms("acme")
+	tb, err := srv.wsStores.getTerms(t.Context(), "acme")
 	require.NoError(t, err)
 	concepts, err := tb.Concepts(ctx)
 	require.NoError(t, err)

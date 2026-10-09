@@ -47,7 +47,7 @@ func TestPromoteEntityToConcept(t *testing.T) {
 	require.NotEmpty(t, concept.ID)
 
 	// A real terms concept with the entity text as an approved source-locale term.
-	tb, err := s.wsStores.getTerms("rc")
+	tb, err := s.wsStores.getTerms(t.Context(), "rc")
 	require.NoError(t, err)
 	got, ok, err := tb.GetConcept(ctx, concept.ID)
 	require.NoError(t, err)
@@ -87,7 +87,7 @@ func TestPromoteEntityToConcept_DoNotTranslateIsProposed(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, concept.ID)
 
-	tb, err := s.wsStores.getTerms("rc")
+	tb, err := s.wsStores.getTerms(t.Context(), "rc")
 	require.NoError(t, err)
 	_, ok, err := tb.GetConcept(ctx, concept.ID)
 	require.NoError(t, err)

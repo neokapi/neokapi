@@ -226,7 +226,7 @@ func (s *Server) checksAtPoint(ctx context.Context, projectID, stream, itemName,
 	checks.DNT = jobs.ProjectDNTTerms(proj)
 	voiceCtx := s.editorVoiceContext()
 	if voiceCtx.Stores != nil && workspaceSlug != "" {
-		checks.Terms, err = voiceCtx.Stores.getTerms(workspaceSlug)
+		checks.Terms, err = voiceCtx.Stores.getTerms(ctx, workspaceSlug)
 		if err != nil {
 			return checks, fmt.Errorf("check terms: %w", err)
 		}

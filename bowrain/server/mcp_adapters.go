@@ -57,7 +57,7 @@ type memoryResolverAdapter struct {
 }
 
 func (a *memoryResolverAdapter) GetMemory(workspaceID string) (memory.Store, error) {
-	return a.ws.getMemory(workspaceID)
+	return a.ws.getMemory(context.Background(), workspaceID)
 }
 
 // tbResolverAdapter bridges workspaceStores → MCPServer.TermsResolver. The MCP
@@ -73,5 +73,5 @@ func (a *tbResolverAdapter) GetTB(workspaceID string) (terms.Store, error) {
 	if slug == "" {
 		slug = workspaceID
 	}
-	return a.s.wsStores.getTerms(slug)
+	return a.s.wsStores.getTerms(context.Background(), slug)
 }

@@ -86,7 +86,7 @@ func TestPendingReview_EntriesCarryTermAndVoiceEvidence(t *testing.T) {
 	ok := pendingFrBlock("ok", "Close the app", "Fermer l'application")           // clears every bar
 	projID, ids := seedGovernedProject(t, s, wsID, []*model.Block{bad, miss, low, ok})
 
-	tb, err := s.wsStores.getTerms("rc")
+	tb, err := s.wsStores.getTerms(t.Context(), "rc")
 	require.NoError(t, err)
 	seedTermUnificationConcepts(t, tb)
 
@@ -193,7 +193,7 @@ func TestApprovePassing_SkipsAreNamedByTheBarTheyMissed(t *testing.T) {
 	ok := pendingFrBlock("ok", "Close the app", "Fermer l'application")           // approved
 	projID, ids := seedGovernedProject(t, s, wsID, []*model.Block{bad, low, ok})
 
-	tb, err := s.wsStores.getTerms("rc")
+	tb, err := s.wsStores.getTerms(t.Context(), "rc")
 	require.NoError(t, err)
 	seedTermUnificationConcepts(t, tb)
 

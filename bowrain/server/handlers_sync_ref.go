@@ -69,7 +69,7 @@ func (s *Server) refSource(ctx context.Context, projectID string) bowsync.RefSou
 	if slug == "" {
 		return src
 	}
-	tb, err := s.wsStores.getTerms(slug)
+	tb, err := s.wsStores.getTerms(ctx, slug)
 	if err != nil || tb == nil {
 		return src
 	}
@@ -168,7 +168,7 @@ func (s *Server) assertTermsRef(c echo.Context, wsSlug string) error {
 	if expected == "" || s.wsStores == nil || wsSlug == "" {
 		return nil
 	}
-	tb, err := s.wsStores.getTerms(wsSlug)
+	tb, err := s.wsStores.getTerms(c.Request().Context(), wsSlug)
 	if err != nil || tb == nil {
 		// A terminology store this server cannot open is a fault to fix, not a
 		// conflict to report: refusing the write would turn an operational

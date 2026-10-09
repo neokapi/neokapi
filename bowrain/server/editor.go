@@ -111,7 +111,11 @@ func (ws *workspaceStores) getOrCreate(wsSlug string) *workspaceMemoryTerms {
 	return w
 }
 
-func (ws *workspaceStores) getMemory(wsSlug string) (memory.Store, error) {
+// getMemory returns the workspace's content memory, opened on first use. The
+// store is cached and outlives the call that opened it; ctx bounds the
+// one-time schema migration that first use runs, and a migration the
+// context cancels is rolled back and retried by the next caller.
+func (ws *workspaceStores) getMemory(ctx context.Context, wsSlug string) (memory.Store, error) {
 	w := ws.getOrCreate(wsSlug)
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -127,7 +131,7 @@ func (ws *workspaceStores) getMemory(wsSlug string) (memory.Store, error) {
 		return nil, errNoPgDB
 	}
 
-	opened, err := sqlmemory.NewPostgresStoreFromDB(ws.pgDB, wsSlug)
+	opened, err := sqlmemory.NewPostgresStoreFromDBContext(ctx, ws.pgDB, wsSlug)
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +139,9 @@ func (ws *workspaceStores) getMemory(wsSlug string) (memory.Store, error) {
 	return opened, nil
 }
 
-func (ws *workspaceStores) getTerms(wsSlug string) (terms.Store, error) {
+// getTerms returns the workspace's terms store, opened on first use, under
+// the same contract as getMemory.
+func (ws *workspaceStores) getTerms(ctx context.Context, wsSlug string) (terms.Store, error) {
 	w := ws.getOrCreate(wsSlug)
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -151,7 +157,7 @@ func (ws *workspaceStores) getTerms(wsSlug string) (terms.Store, error) {
 		return nil, errNoPgDB
 	}
 
-	opened, err := sqlterms.NewPostgresStoreFromDB(ws.pgDB, wsSlug)
+	opened, err := sqlterms.NewPostgresStoreFromDBContext(ctx, ws.pgDB, wsSlug)
 	if err != nil {
 		return nil, err
 	}
@@ -837,7 +843,7 @@ func editorTerms(ctx context.Context, voiceCtx editorVoiceContext, workspaceSlug
 	if voiceCtx.Stores == nil || workspaceSlug == "" {
 		return nil
 	}
-	tb, err := voiceCtx.Stores.getTerms(workspaceSlug)
+	tb, err := voiceCtx.Stores.getTerms(ctx, workspaceSlug)
 	if err != nil {
 		slog.WarnContext(ctx, "terms resolution failed; translating without terminology",
 			"workspace", workspaceSlug, "error", err)
@@ -857,7 +863,7 @@ func editorMemory(ctx context.Context, voiceCtx editorVoiceContext, workspaceSlu
 	if voiceCtx.Stores == nil || workspaceSlug == "" {
 		return nil
 	}
-	tm, err := voiceCtx.Stores.getMemory(workspaceSlug)
+	tm, err := voiceCtx.Stores.getMemory(ctx, workspaceSlug)
 	if err != nil {
 		slog.WarnContext(ctx, "content memory unavailable; translating without prior versions",
 			"workspace", workspaceSlug, "error", err)
@@ -1022,7 +1028,7 @@ func editorMemoryTranslate(ctx context.Context, cs store.ContentStore, commit co
 		return nil, err
 	}
 
-	tm, err := wsStores.getMemory(ws)
+	tm, err := wsStores.getMemory(ctx, ws)
 	if err != nil {
 		return nil, fmt.Errorf("init content memory: %w", err)
 	}
@@ -1034,7 +1040,7 @@ func editorMemoryTranslate(ctx context.Context, cs store.ContentStore, commit co
 	// The rules the workspace terms impose, the derivation the translate jobs
 	// use, so a match that breaks one is left untranslated here as it is there.
 	var rules []coreprofile.TermRule
-	if tb, terr := wsStores.getTerms(ws); terr == nil {
+	if tb, terr := wsStores.getTerms(ctx, ws); terr == nil {
 		rules, err = jobs.TermRulesFromConcepts(ctx, tb, projectID, proj.DefaultSourceLanguage, model.LocaleID(targetLocale))
 		if err != nil {
 			slog.WarnContext(ctx, "terms read failed; recycling without term rules", "project_id", projectID, "error", err)
@@ -1080,7 +1086,7 @@ func editorTermEnforce(ctx context.Context, cs store.ContentStore, wsStores *wor
 		return nil, err
 	}
 
-	tb, err := wsStores.getTerms(ws)
+	tb, err := wsStores.getTerms(ctx, ws)
 	if err != nil {
 		return nil, fmt.Errorf("init terms: %w", err)
 	}
@@ -1196,7 +1202,7 @@ func newMemoryLookup(ctx context.Context, cs store.ContentStore, wsStores *works
 	if err != nil {
 		return nil, err
 	}
-	tm, err := wsStores.getMemory(ws)
+	tm, err := wsStores.getMemory(ctx, ws)
 	if err != nil {
 		return nil, fmt.Errorf("init content memory: %w", err)
 	}
@@ -1251,7 +1257,7 @@ func editorLookupTermsForBlock(ctx context.Context, cs store.ContentStore, wsSto
 		return nil, err
 	}
 
-	tb, err := wsStores.getTerms(ws)
+	tb, err := wsStores.getTerms(ctx, ws)
 	if err != nil {
 		return nil, fmt.Errorf("init terms: %w", err)
 	}

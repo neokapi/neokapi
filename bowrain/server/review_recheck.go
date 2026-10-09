@@ -391,7 +391,7 @@ func (s *Server) workspaceTermsByID(ctx context.Context, wsID string) (terms.Sto
 	if slug == "" {
 		slug = wsID
 	}
-	return s.wsStores.getTerms(slug)
+	return s.wsStores.getTerms(ctx, slug)
 }
 
 // conceptHasForbiddenTerm reports whether a concept carries any forbidden or

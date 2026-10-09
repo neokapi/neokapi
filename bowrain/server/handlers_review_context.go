@@ -298,7 +298,7 @@ func (s *Server) reviewHistory(
 	recorded string,
 ) review.History {
 	var h review.History
-	tm, err := s.wsStores.getMemory(ws)
+	tm, err := s.wsStores.getMemory(ctx, ws)
 	if err != nil {
 		point.Notes = append(point.Notes, "the content memory could not be read: "+err.Error())
 		return h

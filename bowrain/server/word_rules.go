@@ -16,7 +16,7 @@ func (s *Server) workspaceWordRules(ctx context.Context, wsSlug string, loc mode
 	if s.wsStores == nil || wsSlug == "" {
 		return nil, nil
 	}
-	tb, err := s.wsStores.getTerms(wsSlug)
+	tb, err := s.wsStores.getTerms(ctx, wsSlug)
 	if errors.Is(err, errNoPgDB) {
 		return nil, nil
 	}

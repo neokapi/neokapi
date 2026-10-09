@@ -33,9 +33,16 @@ type PostgresStore struct {
 var _ fw.VersionReader = (*PostgresStore)(nil)
 
 // NewPostgresStoreFromDB creates a PostgresStore using an existing shared PgDB
-// connection. workspaceID scopes all entries to a specific workspace.
+// connection. workspaceID scopes all entries to a specific workspace. The
+// schema migration runs under storage.DefaultMigrationTimeout.
 func NewPostgresStoreFromDB(db *storage.PgDB, workspaceID string) (*PostgresStore, error) {
-	if err := storage.MigratePostgresNS(db, "tm_schema_migrations", Migrations); err != nil {
+	return NewPostgresStoreFromDBContext(context.Background(), db, workspaceID)
+}
+
+// NewPostgresStoreFromDBContext is NewPostgresStoreFromDB with the schema
+// migration bounded by the caller's context.
+func NewPostgresStoreFromDBContext(ctx context.Context, db *storage.PgDB, workspaceID string) (*PostgresStore, error) {
+	if err := storage.MigratePostgresNSContext(ctx, db, "tm_schema_migrations", Migrations); err != nil {
 		return nil, fmt.Errorf("migrate content memory schema: %w", err)
 	}
 	return &PostgresStore{db: db, workspaceID: workspaceID}, nil

@@ -853,7 +853,7 @@ func (s *Server) HandleGetMemoryEntries(c echo.Context) error {
 	projectID := c.QueryParam("project_id")
 	limit, offset := pageParams(c, 50, maxListPageSize)
 
-	tm, err := s.wsStores.getMemory(ws)
+	tm, err := s.wsStores.getMemory(c.Request().Context(), ws)
 	if err != nil {
 		return serverErr(c, err)
 	}
@@ -915,7 +915,7 @@ func (s *Server) HandleGetMemoryCount(c echo.Context) error {
 
 	ws := c.Param("ws")
 
-	tm, err := s.wsStores.getMemory(ws)
+	tm, err := s.wsStores.getMemory(c.Request().Context(), ws)
 	if err != nil {
 		return serverErr(c, err)
 	}
@@ -943,7 +943,7 @@ func (s *Server) HandleAddMemoryEntry(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
-	tm, err := s.wsStores.getMemory(ws)
+	tm, err := s.wsStores.getMemory(c.Request().Context(), ws)
 	if err != nil {
 		return serverErr(c, err)
 	}
@@ -991,7 +991,7 @@ func (s *Server) HandleUpdateMemoryEntry(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
-	tm, err := s.wsStores.getMemory(ws)
+	tm, err := s.wsStores.getMemory(c.Request().Context(), ws)
 	if err != nil {
 		return serverErr(c, err)
 	}
@@ -1040,7 +1040,7 @@ func (s *Server) HandleDeleteMemoryEntry(c echo.Context) error {
 	ws := c.Param("ws")
 	eid := c.Param("eid")
 
-	tm, err := s.wsStores.getMemory(ws)
+	tm, err := s.wsStores.getMemory(c.Request().Context(), ws)
 	if err != nil {
 		return serverErr(c, err)
 	}

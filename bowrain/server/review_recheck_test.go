@@ -267,7 +267,7 @@ func TestReviewRecheck_ConceptForbiddenTermDemotesAndRequeues(t *testing.T) {
 	// Mark a concept with a forbidden fr term "utiliser" (the governed outcome; RV-E
 	// reacts to the resulting event, downstream of the change-set gate). The
 	// concept has a source term and a fr term to use, so it governs fr.
-	tb, err := s.wsStores.getTerms("rc")
+	tb, err := s.wsStores.getTerms(t.Context(), "rc")
 	require.NoError(t, err)
 	cid := id.New()
 	require.NoError(t, tb.AddConcept(ctx, terms.Concept{
@@ -337,7 +337,7 @@ func TestReviewRecheck_ConceptLeavesUngovernedLanguageAlone(t *testing.T) {
 	projID, ids := seedGovernedProject(t, s, wsID, []*model.Block{b1})
 	require.Equal(t, model.TargetStatusEstablished, frStatus(t, s, projID, ids["Use the app"]))
 
-	tb, err := s.wsStores.getTerms("rc")
+	tb, err := s.wsStores.getTerms(t.Context(), "rc")
 	require.NoError(t, err)
 	cid := id.New()
 	require.NoError(t, tb.AddConcept(ctx, terms.Concept{
@@ -390,7 +390,7 @@ func TestReviewRecheck_ConceptMandatedTermAbsenceDemotesAndRequeues(t *testing.T
 
 	// Give the "app" concept a mandated (preferred) fr rendering "application". The
 	// governed outcome; RV-F reacts to the resulting concept event.
-	tb, err := s.wsStores.getTerms("rc")
+	tb, err := s.wsStores.getTerms(t.Context(), "rc")
 	require.NoError(t, err)
 	cid := id.New()
 	require.NoError(t, tb.AddConcept(ctx, terms.Concept{
@@ -453,7 +453,7 @@ func TestReviewRecheck_RulePromotionScopedToPromotedTerm(t *testing.T) {
 	// being promoted now.
 	profile := &coreprofile.VoiceProfile{ID: "p-rc", Name: "RC Voice", Scope: wsID}
 	require.NoError(t, s.VoiceStore.CreateProfile(ctx, profile))
-	tb, err := s.wsStores.getTerms("rc")
+	tb, err := s.wsStores.getTerms(t.Context(), "rc")
 	require.NoError(t, err)
 	require.NoError(t, tb.AddConcept(ctx, terms.Concept{ID: "c-ancien", Terms: []terms.Term{
 		{Text: "ancien", Locale: "fr", Status: model.TermForbidden},

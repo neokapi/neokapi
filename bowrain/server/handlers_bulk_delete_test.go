@@ -34,7 +34,7 @@ func bulkDeleteCtx(t *testing.T, srv *Server, ws, body string) (echo.Context, *h
 // seedMemoryEntries adds n content-memory entries and returns their ids.
 func seedMemoryEntries(t *testing.T, srv *Server, ws string, ids ...string) {
 	t.Helper()
-	tm, err := srv.wsStores.getMemory(ws)
+	tm, err := srv.wsStores.getMemory(t.Context(), ws)
 	require.NoError(t, err)
 	for _, entryID := range ids {
 		require.NoError(t, tm.Add(t.Context(), memory.Entry{
@@ -76,7 +76,7 @@ func TestHandleBulkDeleteMemoryEntries(t *testing.T) {
 			assert.Empty(t, r.Error)
 		}
 
-		tm, err := srv.wsStores.getMemory(ws)
+		tm, err := srv.wsStores.getMemory(t.Context(), ws)
 		require.NoError(t, err)
 		_, ok, err := tm.GetEntry(t.Context(), "e1")
 		require.NoError(t, err)

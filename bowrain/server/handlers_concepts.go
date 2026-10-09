@@ -189,7 +189,7 @@ func (s *Server) HandleListConcepts(c echo.Context) error {
 		})
 	}
 
-	tb, err := s.wsStores.getTerms(ws)
+	tb, err := s.wsStores.getTerms(c.Request().Context(), ws)
 	if err != nil {
 		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
@@ -259,7 +259,7 @@ func (s *Server) HandleGetConceptCount(c echo.Context) error {
 	if s.wsStores == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
-	tb, err := s.wsStores.getTerms(c.Param("ws"))
+	tb, err := s.wsStores.getTerms(c.Request().Context(), c.Param("ws"))
 	if err != nil {
 		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
@@ -295,7 +295,7 @@ func (s *Server) HandleGetConceptStatusCounts(c echo.Context) error {
 	if s.wsStores == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
-	tb, err := s.wsStores.getTerms(c.Param("ws"))
+	tb, err := s.wsStores.getTerms(c.Request().Context(), c.Param("ws"))
 	if err != nil {
 		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
@@ -330,7 +330,7 @@ func (s *Server) HandleGetConceptLocaleCoverage(c echo.Context) error {
 	if s.wsStores == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
-	tb, err := s.wsStores.getTerms(c.Param("ws"))
+	tb, err := s.wsStores.getTerms(c.Request().Context(), c.Param("ws"))
 	if err != nil {
 		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
@@ -397,7 +397,7 @@ func (s *Server) HandleCreateConcept(c echo.Context) error {
 		return conceptGovernedConflict(c, "a concept created with its do-not-translate flag set")
 	}
 
-	tb, err := s.wsStores.getTerms(ws)
+	tb, err := s.wsStores.getTerms(c.Request().Context(), ws)
 	if err != nil {
 		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
@@ -434,7 +434,7 @@ func (s *Server) HandleGetConcept(c echo.Context) error {
 	if s.wsStores == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
-	tb, err := s.wsStores.getTerms(c.Param("ws"))
+	tb, err := s.wsStores.getTerms(c.Request().Context(), c.Param("ws"))
 	if err != nil {
 		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
@@ -470,7 +470,7 @@ func (s *Server) HandleUpdateConcept(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
-	tb, err := s.wsStores.getTerms(ws)
+	tb, err := s.wsStores.getTerms(c.Request().Context(), ws)
 	if err != nil {
 		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
@@ -628,7 +628,7 @@ func (s *Server) HandleListConceptRelations(c echo.Context) error {
 	if s.wsStores == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
-	tb, err := s.wsStores.getTerms(c.Param("ws"))
+	tb, err := s.wsStores.getTerms(c.Request().Context(), c.Param("ws"))
 	if err != nil {
 		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
@@ -667,7 +667,7 @@ func (s *Server) HandleAddConceptRelation(c echo.Context) error {
 		return conceptGovernedConflict(c, "a REPLACED_BY relation")
 	}
 
-	tb, err := s.wsStores.getTerms(c.Param("ws"))
+	tb, err := s.wsStores.getTerms(c.Request().Context(), c.Param("ws"))
 	if err != nil {
 		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
@@ -703,7 +703,7 @@ func (s *Server) HandleDeleteConceptRelation(c echo.Context) error {
 	wsID, _ := c.Get("workspace_id").(string)
 	actor, _ := c.Get("user_id").(string)
 
-	tb, err := s.wsStores.getTerms(c.Param("ws"))
+	tb, err := s.wsStores.getTerms(c.Request().Context(), c.Param("ws"))
 	if err != nil {
 		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
@@ -733,7 +733,7 @@ func (s *Server) HandleConceptBlastRadius(c echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
-	engine, err := s.knowledgeEngineFor(c.Param("ws"))
+	engine, err := s.knowledgeEngineFor(c.Request().Context(), c.Param("ws"))
 	if err != nil {
 		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
@@ -1055,7 +1055,7 @@ func (s *Server) HandleImportConceptsCSV(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
-	tb, err := s.wsStores.getTerms(c.Param("ws"))
+	tb, err := s.wsStores.getTerms(c.Request().Context(), c.Param("ws"))
 	if err != nil {
 		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
@@ -1084,7 +1084,7 @@ func (s *Server) HandleImportConceptsJSON(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
-	tb, err := s.wsStores.getTerms(c.Param("ws"))
+	tb, err := s.wsStores.getTerms(c.Request().Context(), c.Param("ws"))
 	if err != nil {
 		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
@@ -1103,7 +1103,7 @@ func (s *Server) HandleExportConceptsJSON(c echo.Context) error {
 	if s.wsStores == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
-	tb, err := s.wsStores.getTerms(c.Param("ws"))
+	tb, err := s.wsStores.getTerms(c.Request().Context(), c.Param("ws"))
 	if err != nil {
 		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}

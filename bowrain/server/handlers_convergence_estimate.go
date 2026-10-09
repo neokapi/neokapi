@@ -76,10 +76,10 @@ func (o *convergenceOrchestrator) buildConvergenceEstimate(ctx context.Context, 
 	var tb terms.Terminology
 	if s.wsStores != nil {
 		slug := o.workspaceSlug(ctx, proj)
-		if resolved, err := s.wsStores.getMemory(slug); err == nil {
+		if resolved, err := s.wsStores.getMemory(ctx, slug); err == nil {
 			tm = resolved
 		}
-		if resolved, err := s.wsStores.getTerms(slug); err == nil {
+		if resolved, err := s.wsStores.getTerms(ctx, slug); err == nil {
 			tb = resolved
 		}
 	}
