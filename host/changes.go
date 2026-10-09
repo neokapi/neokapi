@@ -544,6 +544,9 @@ func (a *App) detectChangeFormat(path, entry string, plainText bool) (string, er
 		return "", err
 	}
 	defer f.Close()
+	if name, ok := a.resolveNamedFile(path, f); ok {
+		return name, nil
+	}
 	if name, err := a.FormatReg.Detector().Detect(path, f, ""); err == nil && name != "" {
 		return name, nil
 	}

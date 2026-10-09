@@ -15,7 +15,12 @@ import (
 const DefaultBuiltInPriority = 50
 
 // DefaultPluginPriority is the default priority for plugin-provided formats.
-const DefaultPluginPriority = 100
+// It sits below DefaultBuiltInPriority, so a detector that ranks by priority
+// alone prefers a built-in format to a plugin's claiming the same extension
+// or MIME type. The registry ranks engines before priorities (see
+// registry.FormatRegistry.Resolve); the detector's own order follows the
+// same policy for the callers that ask it directly.
+const DefaultPluginPriority = 25
 
 // Detector determines the data format of a document using multiple strategies.
 type Detector struct {

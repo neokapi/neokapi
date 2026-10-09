@@ -147,14 +147,20 @@ declare it.
 in-repo kapi stays isolated from the developer's installed plugins.
 `kapi plugin install` then writes into that root, and refuses when it is empty.
 
-**Precedence over built-ins.** A plugin capability that collides with a
-*built-in* one (a plugin reader for a format the framework also ships natively)
-**overrides the built-in**, because installing a plugin for a format is an
-explicit signal to prefer it. Built-ins remain the fallback when the plugin is
-absent, so behaviour degrades gracefully. Plugin-versus-plugin collisions still
-error; plugin-versus-built-in is resolved in the plugin's favour via the format
-registry's source and priority (`SetFormatSource` assigns
-`format.DefaultPluginPriority` = 100 over `format.DefaultBuiltInPriority` = 50).
+**Precedence against built-ins.** A plugin format registered under the *same
+name* as a built-in one (kapi-pdfium's `pdf` over the core PDF reader)
+replaces the built-in's reader and writer: a plugin that ships a format under
+the framework's own name is one written to replace it. A plugin format under
+its own name that claims an *extension* a built-in also claims (`okf_json`
+beside `json`) does not: detection is native-first, and the plugin's format
+serves the extension only where no built-in claims it or where the user
+prefers the plugin's engine with `--engine`, a recipe's `defaults.engine` or
+`defaults.formats.<name>.engine`, or the config's `formats.engine` (see
+[E-02](e-02-format-system.md#format-detection)). `SetFormatSource` gives a
+plugin's formats `format.DefaultPluginPriority`, which sits below
+`format.DefaultBuiltInPriority` so a detector ranking by priority alone (MIME
+type) agrees with the engine order. Plugin-versus-plugin collisions on a name
+keep the first registration.
 
 A consolidated dispatch cache at `$XDG_CACHE_HOME/kapi/plugins-cache.json`
 (`KAPI_PLUGIN_CACHE` overrides the path) holds

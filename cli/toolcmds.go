@@ -320,7 +320,13 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 			})
 		},
 	}
-	a.AddInputFlags(cmd)
+	// A tool whose own parameters take the --engine name keeps it; the
+	// format engine then comes from the recipe or the config.
+	if _, own := ToolSchema.Properties[host.EngineFlagName]; ToolSchema != nil && own {
+		a.AddInputFlagsWithoutEngine(cmd)
+	} else {
+		a.AddInputFlags(cmd)
+	}
 	if takesTarget {
 		a.AddTargetLangFlag(cmd.Flags())
 	}

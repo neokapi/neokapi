@@ -164,11 +164,49 @@ func (a *App) explicitOrDetected(path string, content io.ReadSeeker) (string, bo
 	if detectPath == StdinName {
 		detectPath = ""
 	}
+	if name, ok := a.resolveNamedFile(detectPath, content); ok {
+		return name, true
+	}
 	if name, err := a.FormatReg.Detector().Detect(detectPath, content, ""); err == nil && name != "" {
 		return name, true
 	}
 	return "", false
 }
+
+// resolveNamedFile resolves a file with an extension through the registry's
+// engine resolver (the one every named-file entry point uses), sniffing the
+// content it is handed when the chosen engine's formats need telling apart.
+// A path without an extension, or one no format claims, reports false so the
+// caller can sniff the content on its own.
+func (a *App) resolveNamedFile(path string, content io.ReadSeeker) (string, bool) {
+	if format.Ext(path) == "" {
+		return "", false
+	}
+	opts := registry.DetectOptions{}
+	if a.ProjectContext != nil {
+		opts = a.ProjectContext.DetectOptions(nil)
+	}
+	if content != nil {
+		opts.Content = func() (io.ReadSeeker, error) {
+			if _, err := content.Seek(0, io.SeekStart); err != nil {
+				return nil, err
+			}
+			return unclosable{content}, nil
+		}
+	}
+	name, err := a.FormatReg.Detect(path, opts)
+	if content != nil {
+		_, _ = content.Seek(0, io.SeekStart)
+	}
+	if err != nil || name == "" {
+		return "", false
+	}
+	return string(name), true
+}
+
+// unclosable hands a stream to a sniff that closes what it is given, without
+// closing the caller's stream.
+type unclosable struct{ io.ReadSeeker }
 
 // StreamBlocks opens path (or stdin), detects its format, and calls fn for each
 // Block part in document order. Read-only — the backbone of cat and grep.

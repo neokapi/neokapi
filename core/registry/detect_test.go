@@ -32,21 +32,21 @@ func TestDetect(t *testing.T) {
 	t.Run("zero options detect a file, falling back to extension when unreadable", func(t *testing.T) {
 		reg := newReg()
 		// The path does not exist: content sniffing is skipped and the
-		// deterministic extension/priority pick applies (plugin priority wins).
+		// deterministic engine/priority pick applies (the built-in wins).
 		name, err := reg.Detect(filepath.Join(t.TempDir(), "missing.json"), DetectOptions{})
 		require.NoError(t, err)
-		assert.Equal(t, FormatID("okf_json"), name)
+		assert.Equal(t, FormatID("json"), name)
 	})
 
 	t.Run("ExtensionOnly accepts a path or a bare extension", func(t *testing.T) {
 		reg := newReg()
 		name, err := reg.Detect("some/dir/file.json", DetectOptions{ExtensionOnly: true})
 		require.NoError(t, err)
-		assert.Equal(t, FormatID("okf_json"), name)
+		assert.Equal(t, FormatID("json"), name)
 
 		name, err = reg.Detect(".json", DetectOptions{ExtensionOnly: true})
 		require.NoError(t, err)
-		assert.Equal(t, FormatID("okf_json"), name)
+		assert.Equal(t, FormatID("json"), name)
 
 		_, err = reg.Detect("no-extension", DetectOptions{ExtensionOnly: true})
 		assert.Error(t, err)

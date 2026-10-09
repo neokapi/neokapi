@@ -32,6 +32,7 @@ import (
 	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/yamledit"
 
 	"gopkg.in/yaml.v3"
@@ -207,6 +208,13 @@ type Defaults struct {
 	ParallelBlocks int                       `yaml:"parallel_blocks,omitempty" json:"parallel_blocks,omitempty"`
 	Encoding       string                    `yaml:"encoding,omitempty" json:"encoding,omitempty"`
 	Formats        map[string]FormatDefaults `yaml:"formats,omitempty" json:"formats,omitempty"`
+
+	// Engine is the format engine the project prefers for a file whose
+	// extension both a built-in format and a plugin's claim: "native" (the
+	// built-in formats) or the name of a plugin the recipe declares. Empty
+	// prefers the built-in formats. An explicit `--engine` on the run ranks
+	// above it; the user config's `formats.engine` ranks below it.
+	Engine string `yaml:"engine,omitempty" json:"engine,omitempty"`
 
 	// Exclude is a list of glob patterns skipped during content scanning.
 	Exclude []string `yaml:"exclude,omitempty" json:"exclude,omitempty"`
@@ -450,9 +458,16 @@ func (r *RedactionSpec) validate() error {
 
 // FormatDefaults holds project-level default settings for a specific format.
 type FormatDefaults struct {
-	Preset   string         `yaml:"preset,omitempty" json:"preset,omitempty"`
-	Config   map[string]any `yaml:"config,omitempty" json:"config,omitempty"`
-	Priority int            `yaml:"priority,omitempty" json:"priority,omitempty"`
+	Preset string         `yaml:"preset,omitempty" json:"preset,omitempty"`
+	Config map[string]any `yaml:"config,omitempty" json:"config,omitempty"`
+	// Priority ranks this format among the formats of its own engine that
+	// claim the same extension; higher wins. It never moves a file to
+	// another engine: Engine does that.
+	Priority int `yaml:"priority,omitempty" json:"priority,omitempty"`
+	// Engine pins the engine that serves the extensions this format claims:
+	// "native" or a declared plugin's name. The entry's key names a format
+	// (`json`) or an extension (`.json`).
+	Engine string `yaml:"engine,omitempty" json:"engine,omitempty"`
 }
 
 // Conflict policy values for Defaults.Merge.ConflictPolicy (AD-017).
@@ -618,7 +633,11 @@ func (t MemoryDefaults) validate() error {
 type PluginSpec struct {
 	Version          string `yaml:"version,omitempty" json:"version,omitempty"`
 	FrameworkVersion string `yaml:"framework_version,omitempty" json:"framework_version,omitempty"`
-	FormatPriority   int    `yaml:"format_priority,omitempty" json:"format_priority,omitempty"`
+	// FormatPriority ranks this plugin among the plugins the recipe declares
+	// when several claim an extension no built-in format does: higher comes
+	// first, and equal ranks fall to name order. The built-in formats come
+	// before every plugin unless Defaults.Engine names one.
+	FormatPriority int `yaml:"format_priority,omitempty" json:"format_priority,omitempty"`
 }
 
 // UnmarshalYAML implements custom YAML unmarshaling for PluginSpec.
@@ -1070,6 +1089,9 @@ func (p *KapiProject) validate(opts LoadOptions) error {
 	if _, known := model.ResolveTranslateAfter(p.Defaults.TranslateAfter); !known {
 		return fmt.Errorf("defaults.translate_after: %q is not a source level. Use written (the default), established or none", p.Defaults.TranslateAfter)
 	}
+	if err := p.validateEngines(); err != nil {
+		return err
+	}
 	if err := validateDirectives("defaults.comments.directives", p.Defaults.Comments.Directives, nil); err != nil {
 		return err
 	}
@@ -1163,6 +1185,30 @@ func (p *KapiProject) validate(opts LoadOptions) error {
 // It validates and does not rewrite. What the recipe holds stays what the user
 // wrote, so a later save round-trips their file rather than restyling it;
 // canonicalization happens where a locale becomes internal state instead.
+// validateEngines checks that every engine the recipe names is the built-in
+// one or a plugin the recipe declares. A plugin the recipe leaves out never
+// serves its content, so naming it as the engine would select nothing.
+func (p *KapiProject) validateEngines() error {
+	check := func(field, engine string) error {
+		if engine == "" || registry.NormalizeEngine(engine) == registry.SourceBuiltIn {
+			return nil
+		}
+		if _, declared := p.Plugins[engine]; declared {
+			return nil
+		}
+		return fmt.Errorf("%s: %q is not an engine this recipe can use. Use native, or the name of a plugin the recipe declares under plugins", field, engine)
+	}
+	if err := check("defaults.engine", p.Defaults.Engine); err != nil {
+		return err
+	}
+	for _, name := range sortedKeys(p.Defaults.Formats) {
+		if err := check("defaults.formats."+name+".engine", p.Defaults.Formats[name].Engine); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (p *KapiProject) validateLocales() error {
 	check := func(field string, id model.LocaleID) error {
 		if id == "" {

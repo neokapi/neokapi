@@ -60,6 +60,10 @@ type App struct {
 	Encoding   string
 	SourceLang string
 	TargetLang string
+	// EngineFlag is --engine: the format engine preferred for a detected file
+	// whose extension several engines claim, "native" or a plugin name. It
+	// ranks above a recipe's defaults.engine and the config's formats.engine.
+	EngineFlag string
 
 	// ConvTiming makes kconv report each file's conversion time on stderr —
 	// the in-process cost, so the figure is comparable with what conversion
@@ -309,7 +313,21 @@ func (a *App) AddProcessingFlags(cmd Command) {
 // format reader, which labels each block with it and, for a multilingual file
 // that names no source, picks the source variant by it.
 func (a *App) AddInputFlags(cmd Command) {
+	a.addInputFlags(cmd, true)
+}
+
+// AddInputFlagsWithoutEngine is AddInputFlags for a command whose own
+// parameters take the --engine name (entity-extract's extraction engine). The
+// format engine then comes from the recipe or the config.
+func (a *App) AddInputFlagsWithoutEngine(cmd Command) {
+	a.addInputFlags(cmd, false)
+}
+
+func (a *App) addInputFlags(cmd Command, withEngine bool) {
 	cmd.Flags().StringVarP(&a.FormatFlag, "format", "f", "", "override input format detection")
+	if withEngine {
+		a.AddEngineFlag(cmd.Flags())
+	}
 	a.AddEncodingFlag(cmd.Flags(), "e", "input file encoding")
 	a.AddSourceLangFlag(cmd.Flags())
 }
@@ -444,6 +462,10 @@ func (a *App) Init() error {
 
 	// Apply format priority overrides from configuration.
 	a.applyFormatPriorities(a.Config.FormatPriorities())
+	// Apply the engine the config prefers and the one --engine forces.
+	if err := a.ApplyEngineSelection(); err != nil {
+		return err
+	}
 
 	// Build the metadata Translator from --lang / KAPI_LANG / config /
 	// POSIX env vars, merging the CLI module's own embedded catalogs

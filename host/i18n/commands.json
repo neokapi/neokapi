@@ -47,6 +47,9 @@
             "encoding": {
               "usage": "input/output encoding"
             },
+            "engine": {
+              "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
+            },
             "format": {
               "usage": "format of every document the change set names (default: what the recipe binds, else auto-detect)"
             },
@@ -527,6 +530,9 @@
               "encoding": {
                 "usage": "input file encoding"
               },
+              "engine": {
+                "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
+              },
               "fail-on-unknown": {
                 "usage": "exit with error if any file cannot be processed (default: skip with warning)"
               },
@@ -594,6 +600,9 @@
               },
               "encoding": {
                 "usage": "input file encoding"
+              },
+              "engine": {
+                "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
               },
               "fail-on-unknown": {
                 "usage": "exit with error if any file cannot be processed (default: skip with warning)"
@@ -663,6 +672,9 @@
               "encoding": {
                 "usage": "input file encoding"
               },
+              "engine": {
+                "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
+              },
               "fail-on-unknown": {
                 "usage": "exit with error if any file cannot be processed (default: skip with warning)"
               },
@@ -728,6 +740,9 @@
               "encoding": {
                 "usage": "input file encoding"
               },
+              "engine": {
+                "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
+              },
               "fail-on-unknown": {
                 "usage": "exit with error if any file cannot be processed (default: skip with warning)"
               },
@@ -783,6 +798,9 @@
               },
               "encoding": {
                 "usage": "input file encoding"
+              },
+              "engine": {
+                "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
               },
               "fail-on-unknown": {
                 "usage": "exit with error if any file cannot be processed (default: skip with warning)"
@@ -917,6 +935,9 @@
               "encoding": {
                 "usage": "input file encoding"
               },
+              "engine": {
+                "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
+              },
               "fail-on-unknown": {
                 "usage": "exit with error if any file cannot be processed (default: skip with warning)"
               },
@@ -990,6 +1011,9 @@
               },
               "encoding": {
                 "usage": "input file encoding"
+              },
+              "engine": {
+                "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
               },
               "fail-on-unknown": {
                 "usage": "exit with error if any file cannot be processed (default: skip with warning)"
@@ -1066,6 +1090,9 @@
               "encoding": {
                 "usage": "input file encoding"
               },
+              "engine": {
+                "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
+              },
               "fail-on-unknown": {
                 "usage": "exit with error if any file cannot be processed (default: skip with warning)"
               },
@@ -1131,6 +1158,9 @@
               "encoding": {
                 "usage": "input file encoding"
               },
+              "engine": {
+                "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
+              },
               "fail-on-unknown": {
                 "usage": "exit with error if any file cannot be processed (default: skip with warning)"
               },
@@ -1187,6 +1217,9 @@
               },
               "encoding": {
                 "usage": "input file encoding"
+              },
+              "engine": {
+                "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
               },
               "expansion-percent": {
                 "usage": "Extra padding percentage added to simulate translation expansion (0 = no padding)"
@@ -1335,6 +1368,9 @@
               "encoding": {
                 "usage": "input file encoding"
               },
+              "engine": {
+                "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
+              },
               "fail-on-unknown": {
                 "usage": "exit with error if any file cannot be processed (default: skip with warning)"
               },
@@ -1443,6 +1479,9 @@
               "encoding": {
                 "usage": "input file encoding"
               },
+              "engine": {
+                "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
+              },
               "fail-on-unknown": {
                 "usage": "exit with error if any file cannot be processed (default: skip with warning)"
               },
@@ -1529,6 +1568,9 @@
               "encoding": {
                 "usage": "input file encoding"
               },
+              "engine": {
+                "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
+              },
               "entity-types": {
                 "usage": "Entity categories to redact: person"
               },
@@ -1593,6 +1635,9 @@
               },
               "encoding": {
                 "usage": "input file encoding"
+              },
+              "engine": {
+                "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
               },
               "fail-on-unknown": {
                 "usage": "exit with error if any file cannot be processed (default: skip with warning)"
@@ -1672,6 +1717,9 @@
               "encoding": {
                 "usage": "input file encoding"
               },
+              "engine": {
+                "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
+              },
               "fail-on-unknown": {
                 "usage": "exit with error if any file cannot be processed (default: skip with warning)"
               },
@@ -1743,6 +1791,9 @@
               "encoding": {
                 "usage": "input file encoding"
               },
+              "engine": {
+                "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
+              },
               "fail-on-unknown": {
                 "usage": "exit with error if any file cannot be processed (default: skip with warning)"
               },
@@ -1807,6 +1858,9 @@
               },
               "encoding": {
                 "usage": "input file encoding"
+              },
+              "engine": {
+                "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
               },
               "fail-on-unknown": {
                 "usage": "exit with error if any file cannot be processed (default: skip with warning)"
@@ -1995,6 +2049,9 @@
               "encoding": {
                 "usage": "input file encoding"
               },
+              "engine": {
+                "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
+              },
               "fail-on-unknown": {
                 "usage": "exit with error if any file cannot be processed (default: skip with warning)"
               },
@@ -2063,6 +2120,9 @@
               },
               "encoding": {
                 "usage": "input file encoding"
+              },
+              "engine": {
+                "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
               },
               "fail-on-unknown": {
                 "usage": "exit with error if any file cannot be processed (default: skip with warning)"
@@ -2213,6 +2273,9 @@
               "encoding": {
                 "usage": "input file encoding"
               },
+              "engine": {
+                "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
+              },
               "fail-on-unknown": {
                 "usage": "exit with error if any file cannot be processed (default: skip with warning)"
               },
@@ -2262,6 +2325,9 @@
               },
               "encoding": {
                 "usage": "input file encoding"
+              },
+              "engine": {
+                "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
               },
               "fail-on-unknown": {
                 "usage": "exit with error if any file cannot be processed (default: skip with warning)"
@@ -2325,6 +2391,9 @@
               },
               "encoding": {
                 "usage": "input file encoding"
+              },
+              "engine": {
+                "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
               },
               "fail-on-unknown": {
                 "usage": "exit with error if any file cannot be processed (default: skip with warning)"
@@ -2390,6 +2459,9 @@
               },
               "encoding": {
                 "usage": "input file encoding"
+              },
+              "engine": {
+                "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
               },
               "fail-on-unknown": {
                 "usage": "exit with error if any file cannot be processed (default: skip with warning)"
@@ -2461,6 +2533,9 @@
               },
               "encoding": {
                 "usage": "input file encoding"
+              },
+              "engine": {
+                "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
               },
               "fail-on-unknown": {
                 "usage": "exit with error if any file cannot be processed (default: skip with warning)"
@@ -2550,6 +2625,9 @@
               },
               "encoding": {
                 "usage": "input file encoding"
+              },
+              "engine": {
+                "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
               },
               "fail-on-unknown": {
                 "usage": "exit with error if any file cannot be processed (default: skip with warning)"
@@ -2774,6 +2852,9 @@
           "flags": {
             "encoding": {
               "usage": "input encoding"
+            },
+            "engine": {
+              "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
             },
             "format": {
               "usage": "input format (default: what the recipe binds, else auto-detect by extension/content)"
@@ -3367,6 +3448,9 @@
             "encoding": {
               "usage": "input file encoding"
             },
+            "engine": {
+              "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
+            },
             "explain": {
               "usage": "print the resolved source → sink bindings and exit without running"
             },
@@ -3492,6 +3576,9 @@
             "encoding": {
               "usage": "input file encoding"
             },
+            "engine": {
+              "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
+            },
             "explain": {
               "usage": "print the resolved source → sink bindings and exit without running"
             },
@@ -3562,6 +3649,9 @@
           "flags": {
             "encoding": {
               "usage": "input encoding"
+            },
+            "engine": {
+              "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
             },
             "format": {
               "usage": "input format (default: auto-detect by extension/content)"
@@ -3983,6 +4073,9 @@
             "encoding": {
               "usage": "input file encoding"
             },
+            "engine": {
+              "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
+            },
             "explain": {
               "usage": "print the resolved source → sink bindings and exit without running"
             },
@@ -4091,6 +4184,9 @@
             },
             "encoding": {
               "usage": "input file encoding"
+            },
+            "engine": {
+              "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
             },
             "explain": {
               "usage": "print the resolved source → sink bindings and exit without running"

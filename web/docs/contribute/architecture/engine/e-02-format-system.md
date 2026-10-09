@@ -175,13 +175,34 @@ resolves the reference to the appropriate factory.
 
 ### Format detection
 
-`Detect(path, DetectOptions)` resolves the format for a path. By default it
-detects by extension **and**, when that extension is claimed by more than one
-format, by reading the file head to decide between them (`.xliff` can be XLIFF
-1.x or 2.x; `.xml` is claimed by several formats). `DetectOptions` carries
-`ExtensionOnly` for the deterministic extension/priority pick, plus source
-restriction and per-call priority overrides. Only the head of the file is read;
-any read error falls back to the extension pick.
+`Detect(path, DetectOptions)` resolves the format for a path, and
+`Resolve(path, DetectOptions)` is the same call with the decision reported
+(the format, its engine, the rule that chose the engine, and every claimant).
+Every surface that detects a format for a named file goes through it: the tool
+and flow runners, the toolbox, project content resolution, merge and the
+desktop. A file resolves to the same format from each.
+
+Resolution ranks engines before formats. An engine is a format provider: the
+built-in formats (`native`) or one plugin. For an extension several engines
+claim, the engine order decides the provider, first to last: a per-format pin
+(`DetectOptions.FormatEngines`, from a recipe's
+`defaults.formats.<name>.engine`), the host's override (`SetEngineOverride`,
+from `--engine`), the detection's preference (`DetectOptions.Engine`, from
+`defaults.engine`), the host's default (`SetDefaultEngine`, from the config's
+`formats.engine`), the built-in formats, the ranked plugins
+(`DetectOptions.EngineOrder`, from `plugins.<name>.format_priority`), then
+every other source in name order. The first engine with a claimant wins. A
+priority never moves a format across engines: within the chosen engine, the
+file head decides when several of its formats claim the extension (`.xliff`
+can be XLIFF 1.x or 2.x; `.xml` is claimed by several formats), and the
+formats' priorities decide otherwise. `DetectOptions` also carries
+`ExtensionOnly` for the deterministic pick without reading the file,
+`AllowedSources` for the project's source restriction, `PriorityOverrides` for
+per-call priorities and `Writer` to resolve the format that writes a path.
+Only the head of the file is read; any read error falls back to the extension
+pick. `WriterFormatFor` resolves the writer for an output path within the
+reader's engine first, so a format named with `--format` pins the reader and
+the writer to one engine.
 
 Each format registers a `FormatSignature` declaring the MIME types, extensions,
 magic bytes, and optional sniff function it claims, so the cascade is data-driven

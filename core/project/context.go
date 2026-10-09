@@ -1,11 +1,13 @@
 package project
 
 import (
+	"cmp"
 	"fmt"
 	"io"
 	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/bmatcuk/doublestar/v4"
@@ -34,6 +36,13 @@ type ProjectContext struct {
 	ParallelBlocks int      // block-level parallelism (0 = flow default)
 	LocaleFormat   string   // "bcp-47" (default) or "posix"
 	FormatDefaults map[string]FormatDefaults
+
+	// Engine is the engine the recipe prefers (defaults.engine) for a file
+	// whose extension several engines claim; "" prefers the built-in formats.
+	Engine string
+	// EngineOrder ranks the declared plugins after the built-in formats: by
+	// plugins.<name>.format_priority, highest first, then by name.
+	EngineOrder []string
 }
 
 // NewProjectContext creates a ProjectContext from a loaded project and its
@@ -44,11 +53,20 @@ func NewProjectContext(proj *KapiProject, projectPath string) *ProjectContext {
 		dir = abs
 	}
 
-	// Resolve allowed format sources from declared plugins.
-	sources := []string{registry.SourceBuiltIn}
+	// Resolve allowed format sources from declared plugins, ranked by
+	// format_priority and then name so detection is the same for every
+	// reader of the recipe.
+	plugins := make([]string, 0, len(proj.Plugins))
 	for name := range proj.Plugins {
-		sources = append(sources, name)
+		plugins = append(plugins, name)
 	}
+	slices.SortFunc(plugins, func(a, b string) int {
+		if c := cmp.Compare(proj.Plugins[b].FormatPriority, proj.Plugins[a].FormatPriority); c != 0 {
+			return c
+		}
+		return strings.Compare(a, b)
+	})
+	sources := append([]string{registry.SourceBuiltIn}, plugins...)
 
 	// Resolve locale defaults. The recipe keeps whatever style it was written
 	// in; everything downstream of here is canonical BCP-47, so a project
@@ -78,6 +96,8 @@ func NewProjectContext(proj *KapiProject, projectPath string) *ProjectContext {
 		ParallelBlocks: proj.Defaults.ParallelBlocks,
 		LocaleFormat:   localeFormat,
 		FormatDefaults: proj.Defaults.Formats,
+		Engine:         proj.Defaults.Engine,
+		EngineOrder:    plugins,
 	}
 }
 
@@ -131,35 +151,45 @@ func (ctx *ProjectContext) detectFormat(reg *registry.FormatRegistry, path strin
 	if format.Ext(path) == "" {
 		return ""
 	}
-	// DetectFile is content-aware: when an extension is shared by several
-	// formats (.xliff 1.x/2.x, .xml, …) the file head disambiguates, so a 2.x
-	// XLIFF isn't read by the 1.x reader. Falls back to extension-only.
-	// Priority overrides from `defaults.formats[name].priority` let a recipe pick
-	// the preferred engine when several formats claim an extension (e.g. okf_vtt
-	// over okf_regex for .srt).
-	name, err := reg.Detect(path, registry.DetectOptions{AllowedSources: ctx.AllowedSources, PriorityOverrides: ctx.formatPriorityOverrides(), Content: content})
+	// Detection is content-aware: when an extension is shared by several
+	// formats of the chosen engine (.xliff 1.x/2.x, .xml, …) the file head
+	// disambiguates, so a 2.x XLIFF isn't read by the 1.x reader. Falls back
+	// to extension-only.
+	name, err := reg.Detect(path, ctx.DetectOptions(content))
 	if err != nil {
 		return ""
 	}
 	return string(name)
 }
 
-// formatPriorityOverrides returns the per-format detection priorities declared
-// in the project's defaults.formats, or nil when none are set.
-func (ctx *ProjectContext) formatPriorityOverrides() map[string]int {
-	if len(ctx.FormatDefaults) == 0 {
-		return nil
+// DetectOptions is the detection the recipe declares: its sources, the
+// engine it prefers and how it ranks its plugins, the engine it pins per
+// format (defaults.formats.<name>.engine) and the priorities it sets among
+// an engine's formats (defaults.formats.<name>.priority). content supplies
+// the file's bytes when several formats claim its extension; nil reads the
+// file at the path.
+func (ctx *ProjectContext) DetectOptions(content func() (io.ReadSeeker, error)) registry.DetectOptions {
+	opts := registry.DetectOptions{
+		AllowedSources: ctx.AllowedSources,
+		Engine:         ctx.Engine,
+		EngineOrder:    ctx.EngineOrder,
+		Content:        content,
 	}
-	var overrides map[string]int
 	for name, fd := range ctx.FormatDefaults {
 		if fd.Priority != 0 {
-			if overrides == nil {
-				overrides = make(map[string]int, len(ctx.FormatDefaults))
+			if opts.PriorityOverrides == nil {
+				opts.PriorityOverrides = make(map[string]int, len(ctx.FormatDefaults))
 			}
-			overrides[name] = fd.Priority
+			opts.PriorityOverrides[name] = fd.Priority
+		}
+		if fd.Engine != "" {
+			if opts.FormatEngines == nil {
+				opts.FormatEngines = make(map[string]string, len(ctx.FormatDefaults))
+			}
+			opts.FormatEngines[name] = fd.Engine
 		}
 	}
-	return overrides
+	return opts
 }
 
 // --- Content resolution ---

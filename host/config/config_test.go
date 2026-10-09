@@ -9,6 +9,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestFormatEngine(t *testing.T) {
+	cfg := NewAppConfig()
+	assert.Empty(t, cfg.FormatEngine())
+	cfg.Set(KeyFormatsEngine, " okapi-bridge ")
+	assert.Equal(t, "okapi-bridge", cfg.FormatEngine())
+}
+
 func TestFormatPrioritiesEmpty(t *testing.T) {
 	cfg := NewAppConfig()
 	priorities := cfg.FormatPriorities()
