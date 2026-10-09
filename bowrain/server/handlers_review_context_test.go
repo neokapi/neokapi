@@ -80,7 +80,7 @@ func TestReviewContext_GathersEveryLayer(t *testing.T) {
 	require.Len(t, stored, 3)
 	middleID := stored[1].Block.ID
 
-	tb, terr := s.wsStores.getTerms("rc")
+	tb, terr := s.wsStores.getTerms(t.Context(), "rc")
 	require.NoError(t, terr)
 	seedTermUnificationConcepts(t, tb)
 	// A word rule on the source language: the workspace forbids "leverage".
@@ -422,7 +422,7 @@ func TestReviewContext_ReadsTheSameFactsAsTheHost(t *testing.T) {
 	// The same store implementation on both sides, so the two lookups classify
 	// a match the same way and the comparison is about the assemblers.
 	s.wsStores.memoryFactory = func() memory.Store { return memory.NewInMemoryStore() }
-	serverMemory, merr := s.wsStores.getMemory("rc")
+	serverMemory, merr := s.wsStores.getMemory(t.Context(), "rc")
 	require.NoError(t, merr)
 	require.NoError(t, serverMemory.Add(ctx, entry))
 	localMemory := memory.NewInMemoryStore()

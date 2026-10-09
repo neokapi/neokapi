@@ -76,7 +76,7 @@ func (s *Server) rebuildContextGraph(g *platgraph.SQLGraphStore, ev platev.Event
 	// one, so the slug is resolved from the project when the event does not
 	// carry it (a connector ingest publishes no workspace).
 	if slug := s.workspaceSlug(ctx, ev.Data["workspace_slug"], proj.WorkspaceID); slug != "" {
-		if tb, terr := s.wsStores.getTerms(slug); terr == nil {
+		if tb, terr := s.wsStores.getTerms(ctx, slug); terr == nil {
 			in.Terms = tb
 		} else {
 			slog.Warn("context graph: no terminology for the workspace",

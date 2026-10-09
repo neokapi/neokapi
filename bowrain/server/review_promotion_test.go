@@ -41,7 +41,7 @@ func TestReviewBlock_PromotesApprovedWordingIntoMemory(t *testing.T) {
 	bid := rows[0].ID
 
 	// The workspace SLUG routes the memory ("test"), not the workspace id.
-	tm, err := s.wsStores.getMemory("test")
+	tm, err := s.wsStores.getMemory(t.Context(), "test")
 	require.NoError(t, err)
 	before, err := tm.Count(ctx)
 	require.NoError(t, err)

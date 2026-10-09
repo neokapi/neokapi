@@ -69,7 +69,7 @@ func (s *Server) HandleBulkDeleteMemoryEntries(c echo.Context) error {
 		return errResp
 	}
 
-	tm, err := s.wsStores.getMemory(c.Param("ws"))
+	tm, err := s.wsStores.getMemory(c.Request().Context(), c.Param("ws"))
 	if err != nil {
 		return serverErr(c, err)
 	}

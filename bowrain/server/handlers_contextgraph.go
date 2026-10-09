@@ -268,7 +268,7 @@ func (s *Server) conceptProjectsByScan(
 	limit int,
 	names map[string]string,
 ) error {
-	engine, err := s.knowledgeEngineFor(c.Param("ws"))
+	engine, err := s.knowledgeEngineFor(c.Request().Context(), c.Param("ws"))
 	if err != nil {
 		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
@@ -471,7 +471,7 @@ func (s *Server) conceptFor(ctx context.Context, wsSlug, conceptID string) (term
 	if s.wsStores == nil {
 		return terms.Concept{}, false, nil
 	}
-	tb, err := s.wsStores.getTerms(wsSlug)
+	tb, err := s.wsStores.getTerms(ctx, wsSlug)
 	if err != nil {
 		return terms.Concept{}, false, err
 	}

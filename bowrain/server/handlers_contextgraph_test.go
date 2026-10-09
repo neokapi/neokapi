@@ -52,7 +52,7 @@ func newContextGraphHarness(t *testing.T) *cgHarness {
 	require.NoError(t, g.EnsureGraph(t.Context()))
 	srv.GraphStore = g
 
-	tb, err := srv.wsStores.getTerms(cgWorkspace)
+	tb, err := srv.wsStores.getTerms(t.Context(), cgWorkspace)
 	require.NoError(t, err)
 	return &cgHarness{srv: srv, graph: g, terms: tb}
 }

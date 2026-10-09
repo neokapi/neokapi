@@ -38,7 +38,7 @@ func seedConcept(t *testing.T, tb terms.Store, id, text, definition string) {
 // termsRef reads the terms component the workspace currently stands at.
 func termsRef(t *testing.T, h *kgHarness) string {
 	t.Helper()
-	tb, err := h.srv.wsStores.getTerms(kgTestWS)
+	tb, err := h.srv.wsStores.getTerms(t.Context(), kgTestWS)
 	require.NoError(t, err)
 	component, err := bowsync.TermsComponentOf(t.Context(), tb)
 	require.NoError(t, err)

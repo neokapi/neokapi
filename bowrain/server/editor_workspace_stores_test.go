@@ -50,7 +50,7 @@ func TestWorkspaceStores_ConcurrentFirstUseOpensOneStore(t *testing.T) {
 					time.Sleep(openCost)
 					return &testMemoryStore{memory.NewInMemoryStore()}
 				}
-				return func(slug string) (any, error) { return ws.getMemory(slug) }
+				return func(slug string) (any, error) { return ws.getMemory(t.Context(), slug) }
 			},
 		},
 		{
@@ -61,7 +61,7 @@ func TestWorkspaceStores_ConcurrentFirstUseOpensOneStore(t *testing.T) {
 					time.Sleep(openCost)
 					return newTestTermsStore()
 				}
-				return func(slug string) (any, error) { return ws.getTerms(slug) }
+				return func(slug string) (any, error) { return ws.getTerms(t.Context(), slug) }
 			},
 		},
 	}
@@ -105,21 +105,21 @@ func TestWorkspaceStores_DistinctWorkspacesGetDistinctStores(t *testing.T) {
 	ws.memoryFactory = func() memory.Store { return &testMemoryStore{memory.NewInMemoryStore()} }
 	ws.termsFactory = func() terms.Store { return newTestTermsStore() }
 
-	acmeMemory, err := ws.getMemory("acme")
+	acmeMemory, err := ws.getMemory(t.Context(), "acme")
 	require.NoError(t, err)
-	globexMemory, err := ws.getMemory("globex")
+	globexMemory, err := ws.getMemory(t.Context(), "globex")
 	require.NoError(t, err)
 	assert.NotSame(t, acmeMemory, globexMemory)
 
-	acmeTerms, err := ws.getTerms("acme")
+	acmeTerms, err := ws.getTerms(t.Context(), "acme")
 	require.NoError(t, err)
-	globexTerms, err := ws.getTerms("globex")
+	globexTerms, err := ws.getTerms(t.Context(), "globex")
 	require.NoError(t, err)
 	assert.NotSame(t, acmeTerms, globexTerms)
 
 	// And a second call for a slug already opened returns the cached store
 	// rather than opening a new one.
-	again, err := ws.getMemory("acme")
+	again, err := ws.getMemory(t.Context(), "acme")
 	require.NoError(t, err)
 	assert.Same(t, acmeMemory, again)
 }

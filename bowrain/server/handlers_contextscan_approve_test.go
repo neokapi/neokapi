@@ -89,7 +89,7 @@ func TestContextScanApprove_AppliesProfileAndTermsInOneCall(t *testing.T) {
 	assert.Zero(t, got.ConceptsExisting)
 	require.Len(t, got.ConceptIDs, 2)
 
-	tb, err := srv.wsStores.getTerms(approveWSSlug)
+	tb, err := srv.wsStores.getTerms(t.Context(), approveWSSlug)
 	require.NoError(t, err)
 	concept, ok, err := tb.GetConcept(t.Context(), got.ConceptIDs[0])
 	require.NoError(t, err)
@@ -120,7 +120,7 @@ func TestContextScanApprove_RetryIsIdempotent(t *testing.T) {
 	assert.Zero(t, got.ConceptsCreated)
 	assert.Equal(t, 2, got.ConceptsExisting)
 
-	tb, err := srv.wsStores.getTerms(approveWSSlug)
+	tb, err := srv.wsStores.getTerms(t.Context(), approveWSSlug)
 	require.NoError(t, err)
 	count, err := tb.Count(t.Context())
 	require.NoError(t, err)
@@ -145,7 +145,7 @@ func TestContextScanApprove_ValidatesBeforeWriting(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, profiles, "nothing is written when the request does not validate")
 
-	tb, err := srv.wsStores.getTerms(approveWSSlug)
+	tb, err := srv.wsStores.getTerms(t.Context(), approveWSSlug)
 	require.NoError(t, err)
 	count, err := tb.Count(t.Context())
 	require.NoError(t, err)

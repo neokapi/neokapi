@@ -42,7 +42,7 @@ func (s *Server) promoteRuleToTerms(ctx context.Context, wsSlug, wsID string, ru
 	if s.wsStores == nil {
 		return false, "", nil, errors.New("terms store not configured")
 	}
-	tb, err := s.wsStores.getTerms(wsSlug)
+	tb, err := s.wsStores.getTerms(ctx, wsSlug)
 	if err != nil {
 		return false, "", nil, err
 	}
@@ -82,7 +82,7 @@ func (s *Server) demoteRuleFromTerms(ctx context.Context, wsSlug, wsID, term str
 	if s.wsStores == nil {
 		return false, errors.New("terms store not configured")
 	}
-	tb, err := s.wsStores.getTerms(wsSlug)
+	tb, err := s.wsStores.getTerms(ctx, wsSlug)
 	if err != nil {
 		return false, err
 	}
@@ -100,7 +100,7 @@ func (s *Server) landWordRules(ctx context.Context, wsSlug, wsID string, rules [
 	if len(rules) == 0 || s.wsStores == nil {
 		return 0, nil
 	}
-	tb, err := s.wsStores.getTerms(wsSlug)
+	tb, err := s.wsStores.getTerms(ctx, wsSlug)
 	if errors.Is(err, errNoPgDB) {
 		slog.WarnContext(ctx, "no terms store: a voice file's word rules were not landed", "workspace", wsSlug, "rules", len(rules))
 		return 0, nil

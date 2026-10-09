@@ -304,7 +304,7 @@ func (l *reviewLedger) resolveCorpus(ctx context.Context) bool {
 	if !l.resolveScope(ctx) {
 		return false
 	}
-	tm, terr := l.srv.wsStores.getMemory(l.workspaceSlug)
+	tm, terr := l.srv.wsStores.getMemory(ctx, l.workspaceSlug)
 	if terr != nil {
 		slog.WarnContext(ctx, "memory promotion skipped: workspace memory unavailable",
 			"workspace", l.workspaceSlug, "error", terr)

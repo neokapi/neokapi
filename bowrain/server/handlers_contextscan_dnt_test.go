@@ -31,7 +31,7 @@ func TestContextScanApprove_DoNotTranslateTermIsProposed(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 
-	tb, err := srv.wsStores.getTerms(approveWSSlug)
+	tb, err := srv.wsStores.getTerms(t.Context(), approveWSSlug)
 	require.NoError(t, err)
 	all, err := tb.Concepts(t.Context())
 	require.NoError(t, err)

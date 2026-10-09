@@ -169,20 +169,10 @@ linters:
       # enforced on non-test code.
       - linters: [contextcheck]
         path: _test\.go
-      # The lazy workspace-store getters (getMemory/getTB) run schema migrations on
-      # first use, and the shared migration runner (storage.runMigrations)
-      # intentionally uses a detached context: a one-time DDL migration must run
-      # to completion and the cached store must outlive whichever request
-      # happened to trigger init — it must not be torn down by that request's
-      # cancellation. Threading a context through the shared migration machinery
-      # (used by auth/jobs/store/tm/tb alike) is a separate storage-layer effort
-      # (see P06); until then this specific chain is a deliberate boundary.
-      # TODO(P06): thread ctx through storage.runMigrations and drop this rule.
-      - linters: [contextcheck]
-        text: "MigratePostgresNS->runMigrations"
-      # The local SQLite migration runner (storage.Migrate) is the same
-      # deliberate boundary: one-time DDL that must run to completion on a
-      # store that outlives the triggering call. Same P06 effort retires it.
+      # The local SQLite migration runner (storage.Migrate) is a deliberate
+      # boundary: one-time DDL that must run to completion on a store that
+      # outlives the triggering call. storage.MigrateContext takes a context
+      # for callers that hold one.
       - linters: [contextcheck]
         text: "Migrate->Exec"
       # flow.PartCache.OpenDocument is a framework interface without a ctx

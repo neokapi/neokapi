@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -31,11 +32,11 @@ var errKnowledgeUnavailable = errors.New("brand knowledge graph not configured")
 // terms; the read-side walk methods (EvaluateChangeSet, ConceptUsage) take
 // the workspace ID separately so they can filter stored projects by
 // Project.WorkspaceID.
-func (s *Server) knowledgeEngineFor(wsSlug string) (*knowledge.Engine, error) {
+func (s *Server) knowledgeEngineFor(ctx context.Context, wsSlug string) (*knowledge.Engine, error) {
 	if s.KnowledgeStore == nil || s.ContentStore == nil || s.wsStores == nil {
 		return nil, errKnowledgeUnavailable
 	}
-	tb, err := s.wsStores.getTerms(wsSlug)
+	tb, err := s.wsStores.getTerms(ctx, wsSlug)
 	if err != nil {
 		return nil, err
 	}

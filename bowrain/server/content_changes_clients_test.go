@@ -183,7 +183,7 @@ func TestLookupMemoryForBlock_ServesTheRunsAMatchSaves(t *testing.T) {
 	pid, ids := seedReviewProject(t, cs, []*model.Block{b})
 	bid := ids["Hello "]
 
-	mem, err := srv.wsStores.getMemory("acme")
+	mem, err := srv.wsStores.getMemory(t.Context(), "acme")
 	require.NoError(t, err)
 	require.NoError(t, mem.Add(t.Context(), memory.Entry{
 		ID: "m1",

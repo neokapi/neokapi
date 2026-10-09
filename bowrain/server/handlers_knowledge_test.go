@@ -87,7 +87,7 @@ func (h *kgHarness) req(method, target, body string, perms platauth.Permission, 
 // so a test can seed concepts and relations the handlers will read.
 func (h *kgHarness) tb(t *testing.T) terms.Store {
 	t.Helper()
-	tb, err := h.srv.wsStores.getTerms(kgTestWS)
+	tb, err := h.srv.wsStores.getTerms(t.Context(), kgTestWS)
 	require.NoError(t, err)
 	return tb
 }

@@ -378,7 +378,7 @@ func TestHandleBulkApplyMemory(t *testing.T) {
 	pid, ids := seedEditorBulkProject(t, cs)
 	ctx := t.Context()
 
-	tm, err := srv.wsStores.getMemory("acme")
+	tm, err := srv.wsStores.getMemory(t.Context(), "acme")
 	require.NoError(t, err)
 	require.NoError(t, tm.Add(ctx, memory.Entry{
 		ID: "seed-untranslated",

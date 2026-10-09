@@ -169,7 +169,7 @@ func (s *Server) promoteEntityToConcept(ctx context.Context, wsSlug, wsID, actor
 		return concept, err
 	}
 
-	tb, err := s.wsStores.getTerms(wsSlug)
+	tb, err := s.wsStores.getTerms(ctx, wsSlug)
 	if err != nil {
 		return concept, err
 	}

@@ -28,7 +28,7 @@ func TestHandleCheckVoice_WholeWordAndConceptID(t *testing.T) {
 
 	profile := &coreprofile.VoiceProfile{ID: "p-check", Scope: "ws-check", Name: "Check"}
 	require.NoError(t, srv.VoiceStore.CreateProfile(ctx, profile))
-	tb, err := srv.wsStores.getTerms("check")
+	tb, err := srv.wsStores.getTerms(t.Context(), "check")
 	require.NoError(t, err)
 	require.NoError(t, tb.AddConcept(ctx, terms.Concept{ID: "c-use", Terms: []terms.Term{
 		{Text: "adopt", Locale: "en", Status: model.TermPreferred},

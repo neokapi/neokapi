@@ -638,7 +638,7 @@ func (s *Server) HandleMergeChangeSet(c echo.Context) error {
 		}
 	}
 
-	engine, err := s.knowledgeEngineFor(c.Param("ws"))
+	engine, err := s.knowledgeEngineFor(c.Request().Context(), c.Param("ws"))
 	if err != nil {
 		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
@@ -703,7 +703,7 @@ func (s *Server) HandleAbandonChangeSet(c echo.Context) error {
 		return c.JSON(http.StatusConflict, ErrorResponse{Error: fmt.Sprintf("change-set is already %s", cs.Status)})
 	}
 
-	engine, err := s.knowledgeEngineFor(c.Param("ws"))
+	engine, err := s.knowledgeEngineFor(c.Request().Context(), c.Param("ws"))
 	if err != nil {
 		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
@@ -753,7 +753,7 @@ func (s *Server) HandleChangeSetBlastRadius(c echo.Context) error {
 		return c.JSON(http.StatusOK, cs.Impact.Report())
 	}
 
-	engine, err := s.knowledgeEngineFor(c.Param("ws"))
+	engine, err := s.knowledgeEngineFor(c.Request().Context(), c.Param("ws"))
 	if err != nil {
 		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
@@ -794,7 +794,7 @@ func (s *Server) evaluateChangeSetImpact(ctx context.Context, engine *knowledge.
 // endpoint back to a live scan. A walk that ran out of budget IS stored — with
 // its Partial flag intact, so the floor still reads as a floor.
 func (s *Server) recordChangeSetImpact(ctx context.Context, wsSlug, wsID, changesetID string) {
-	engine, err := s.knowledgeEngineFor(wsSlug)
+	engine, err := s.knowledgeEngineFor(ctx, wsSlug)
 	if err != nil {
 		slog.DebugContext(ctx, "no blast-radius summary at submit: knowledge engine unavailable",
 			"workspace_id", wsID, "change_set_id", changesetID, "error", err)
@@ -832,7 +832,7 @@ func (s *Server) HandleStartPilot(c echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
 		return err
 	}
-	engine, err := s.knowledgeEngineFor(c.Param("ws"))
+	engine, err := s.knowledgeEngineFor(c.Request().Context(), c.Param("ws"))
 	if err != nil {
 		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
@@ -871,7 +871,7 @@ func (s *Server) HandleStopPilot(c echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
 		return err
 	}
-	engine, err := s.knowledgeEngineFor(c.Param("ws"))
+	engine, err := s.knowledgeEngineFor(c.Request().Context(), c.Param("ws"))
 	if err != nil {
 		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
@@ -911,7 +911,7 @@ func (s *Server) HandleTrialFindings(c echo.Context) error {
 	if s.KnowledgeStore == nil {
 		return serverErrStatus(c, http.StatusServiceUnavailable, errKnowledgeUnavailable)
 	}
-	engine, err := s.knowledgeEngineFor(c.Param("ws"))
+	engine, err := s.knowledgeEngineFor(c.Request().Context(), c.Param("ws"))
 	if err != nil {
 		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}

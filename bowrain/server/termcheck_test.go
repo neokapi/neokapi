@@ -130,7 +130,7 @@ func TestTermAwareShipPredicateUnification(t *testing.T) {
 	bOK := reviewedBlock("ok", "Close the app", "Fermer l'application")           // clean
 	projID, ids := seedGovernedProject(t, s, wsID, []*model.Block{bBad, bMiss, bOK})
 
-	tb, err := s.wsStores.getTerms("rc")
+	tb, err := s.wsStores.getTerms(t.Context(), "rc")
 	require.NoError(t, err)
 	useID, appID := seedTermUnificationConcepts(t, tb)
 
@@ -204,7 +204,7 @@ func TestApprovePassingExcludesTermViolations(t *testing.T) {
 	bOK := translatedFrBlock("ok", "Close the app", "Fermer l'application")
 	projID, ids := seedGovernedProject(t, s, wsID, []*model.Block{bBad, bMiss, bOK})
 
-	tb, err := s.wsStores.getTerms("rc")
+	tb, err := s.wsStores.getTerms(t.Context(), "rc")
 	require.NoError(t, err)
 	seedTermUnificationConcepts(t, tb)
 
@@ -365,7 +365,7 @@ func governingConcept() terms.Concept {
 // another bar calls it, so that bar is the one its result turns on.
 func seedCheckedTerminology(t *testing.T, s *Server, slug string) {
 	t.Helper()
-	tb, err := s.wsStores.getTerms(slug)
+	tb, err := s.wsStores.getTerms(t.Context(), slug)
 	require.NoError(t, err)
 	require.NoError(t, tb.AddConcept(context.Background(), governingConcept()))
 }
