@@ -65,9 +65,9 @@ collections:
 func keptAtDocs(t *testing.T, app *App, root string) ContextOperation {
 	t.Helper()
 	op, err := app.RecordContextObservation(t.Context(), ContextObserveRequest{
-		Actor:    person,
-		Project:  recipeOf(root),
-		Term:     "use", InsteadOf: []string{"utilise"},
+		Actor:   person,
+		Project: recipeOf(root),
+		Term:    "use", InsteadOf: []string{"utilise"},
 		Evidence: []contextop.Evidence{{Path: "docs/a.md", Unit: "p", Quote: "We utilise the widget"}},
 	})
 	require.NoError(t, err)
