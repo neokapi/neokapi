@@ -824,6 +824,14 @@ ci-tidy: ## Mirror the CI `tidy-check` job: go mod tidy across all modules + fai
 #   bowrain/plugin     framework + host + cli + bowrain/core (bowrain behavior + the kapi-bowrain plugin binary)
 #   bowrain            framework + host + bowrain/core (the platform; host for the host/flowdef flow catalog)
 #
+# Last, scripts/check-workspace-versions.sh diffs each module's GOWORK=off
+# version selection against the workspace's. go.work unifies versions, so a
+# bump in one go.mod raises the dependency for every module while the others'
+# go.mod files still name the old version; the isolated build then compiles
+# against a different library than the workspace build. A direct dependency
+# that differs fails the audit (raise the require and tidy); an indirect one
+# is only reported.
+#
 # bowrain and bowrain/plugin are not isolation boundaries (they legitimately depend
 # on several modules), but they are audited for the same go.mod/go.sum tidiness —
 # e.g. a require that should be indirect after a package moves. CI's Tidy Check
@@ -836,7 +844,7 @@ ci-tidy: ## Mirror the CI `tidy-check` job: go mod tidy across all modules + fai
 # (embeds don't affect dependency resolution), so the boundary contract holds.
 AUDIT_MODULES := . host cli bowrain/core kapi apps/kapi-desktop bowrain/plugin bowrain
 
-audit-modules: i18n-catalogs ## Assert module isolation + go.mod/go.sum tidiness (fails on drift)
+audit-modules: i18n-catalogs ## Assert module isolation + go.mod/go.sum tidiness + go.mod/go.work version agreement (fails on drift)
 	@set -e; rc=0; for dir in $(AUDIT_MODULES); do \
 	  echo ">> audit $$dir"; \
 	  pkgs="./..."; [ "$$dir" = "apps/kapi-desktop" ] && pkgs="./backend/..."; \
@@ -903,7 +911,8 @@ audit-modules: i18n-catalogs ## Assert module isolation + go.mod/go.sum tidiness
 	done; \
 	[ $$rc -eq 0 ] || exit 1
 	@$(ROOT_DIR)/scripts/check-ts-license-boundary.sh
-	@echo "audit-modules: all module boundaries clean and go.mod/go.sum tidy"
+	@$(ROOT_DIR)/scripts/check-workspace-versions.sh $(AUDIT_MODULES)
+	@echo "audit-modules: all module boundaries clean, go.mod/go.sum tidy, go.mod and go.work versions agree"
 
 # check-module-boundaries asserts the package-level license/architecture
 # boundaries the tree relies on but no CI job enforced (audit-modules, which also
@@ -988,7 +997,8 @@ check-module-boundaries: i18n-catalogs ## Assert kapi-desktop cli/cobra-free + A
 	    exit 1; \
 	  fi
 	@$(ROOT_DIR)/scripts/check-ts-license-boundary.sh
-	@echo "check-module-boundaries: kapi-desktop cli/cobra-free, bowrain/core framework-only, Apache modules AGPL-free, kapi-bowrain Apache-clean, no Apache TypeScript reaching AGPL"
+	@$(ROOT_DIR)/scripts/check-workspace-versions.sh $(AUDIT_MODULES)
+	@echo "check-module-boundaries: kapi-desktop cli/cobra-free, bowrain/core framework-only, Apache modules AGPL-free, kapi-bowrain Apache-clean, no Apache TypeScript reaching AGPL, go.mod and go.work versions agree"
 
 # ── Parity (head-to-head against okapi-bridge) ──────────────────────────────
 #
