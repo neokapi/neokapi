@@ -105,6 +105,7 @@ and configure the server:
 GITHUB_APP_ID=<app id>
 GITHUB_APP_PRIVATE_KEY_FILE=/etc/bowrain/github-app.pem   # or GITHUB_APP_PRIVATE_KEY (PEM text)
 GITHUB_APP_WEBHOOK_SECRET=<webhook secret>
+GITHUB_API_URL=https://<host>/api/v3   # GitHub Enterprise Server only; omit for github.com
 ```
 
 Installing the app on a repository is then the only per-repo step. GitHub

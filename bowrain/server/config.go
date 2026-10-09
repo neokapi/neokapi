@@ -166,6 +166,12 @@ type Config struct {
 	GitHubAppPrivateKey    string // PEM (the downloaded .pem file's contents)
 	GitHubAppWebhookSecret string // the app's webhook secret
 
+	// GitHubAPIURL is the base URL of the GitHub REST API the app calls
+	// (GITHUB_API_URL). Empty means https://api.github.com. A GitHub
+	// Enterprise Server deployment sets https://<host>/api/v3. The value must
+	// be an absolute http(s) URL; otherwise the app is disabled at boot.
+	GitHubAPIURL string
+
 	// PulseEnabled mounts the public Pulse activity dashboard surface (the
 	// /api/v1/pulse routes with their access middleware and response cache,
 	// plus PulseUIDir SPA serving). Off by default — the platform's public

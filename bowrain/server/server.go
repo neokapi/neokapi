@@ -425,18 +425,9 @@ func NewServer(cfg Config) *Server {
 	// `auth: app` (per-installation tokens, no stored credentials) and the
 	// app-level webhook endpoint accepts pushes for every installation. Wired
 	// before connector rehydration so persisted app-mode configs come back.
-	var githubApp *forge.GitHubApp
-	if cfg.GitHubAppID != "" || cfg.GitHubAppPrivateKey != "" || cfg.GitHubAppWebhookSecret != "" {
-		app, err := forge.NewGitHubApp(cfg.GitHubAppID, cfg.GitHubAppPrivateKey, cfg.GitHubAppWebhookSecret)
-		if err != nil {
-			// A half-configured app must be loud: silently ignoring it would
-			// strand every auth:app connector.
-			slog.Error("github app disabled (incomplete or invalid GITHUB_APP_* config)", "error", err)
-		} else {
-			githubApp = app
-			connector.RegisterForgeApp(connReg, formatReg, app)
-			slog.Info("github app enabled for forge delivery", "app_id", cfg.GitHubAppID)
-		}
+	githubApp := newGitHubApp(&cfg)
+	if githubApp != nil {
+		connector.RegisterForgeApp(connReg, formatReg, githubApp)
 	}
 
 	s := &Server{

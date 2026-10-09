@@ -80,8 +80,23 @@ func NewGitHubApp(appID, privateKeyPEM, webhookSecret string) (*GitHubApp, error
 func (a *GitHubApp) WebhookSecret() string { return a.webhookSecret }
 
 // SetAPIBase overrides the GitHub API base URL — GitHub Enterprise Server
-// serves the v3 API under the instance host (https://<host>/api/v3).
-func (a *GitHubApp) SetAPIBase(u string) { a.baseURL = strings.TrimSuffix(u, "/") }
+// serves the v3 API under the instance host (https://<host>/api/v3). The
+// value must be an absolute http(s) URL, so a typo is refused here rather
+// than failing every request after it.
+func (a *GitHubApp) SetAPIBase(u string) error {
+	parsed, err := url.Parse(u)
+	if err != nil {
+		return fmt.Errorf("github api url %q: %w", u, err)
+	}
+	if (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
+		return fmt.Errorf("github api url %q: want an absolute http(s) URL such as https://<host>/api/v3", u)
+	}
+	a.baseURL = strings.TrimSuffix(u, "/")
+	return nil
+}
+
+// APIBase returns the GitHub REST API base URL the app calls.
+func (a *GitHubApp) APIBase() string { return a.api() }
 
 func (a *GitHubApp) api() string {
 	if a.baseURL != "" {

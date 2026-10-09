@@ -92,7 +92,7 @@ func setupServerWithAppTrees(t *testing.T, treeFiles map[string][]string) *Serve
 	require.NoError(t, err)
 	gh := fakeGitHub(t, treeFiles)
 	t.Cleanup(gh.Close)
-	app.SetAPIBase(gh.URL)
+	require.NoError(t, app.SetAPIBase(gh.URL))
 	s.GitHubApp = app
 
 	// Installation 42 belongs to ws1 — the state every test in this file starts
