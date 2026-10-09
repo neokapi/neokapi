@@ -3211,6 +3211,12 @@ learn-gen-check: ## Fail when samples.gen.ts is stale against samples/
 learn-verify: web-wasm-cli ## Run every learning lab's chapters in the wasm engine and hold them to their declared exit codes and output
 	node --experimental-strip-types scripts/learn-verify/verify.ts
 
+learn-samples: ## Write the Office documents the File conversion lab converts into web/static/samples/ (needs uv)
+	uv run scripts/learn-gen/office.py
+
+learn-samples-check: ## Fail when the committed Office samples differ from what scripts/learn-gen/office.py writes (needs uv)
+	uv run scripts/learn-gen/office.py --check
+
 kpz-smoke: build ## Verify the resumable .kpz workspace lifecycle (open→step→finish == one-shot; pack stable)
 	bash scripts/kpz-smoke.sh $(BIN_DIR)/kapi
 
@@ -3451,7 +3457,7 @@ help: ## Show this help
         generate-translatability check-translatability \
         generate-docs-palette check-docs-palette \
         docs-deps docs-dev docs-wasm docs-build docs-serve docs-verify-snippets \
-        learn-gen learn-gen-check learn-verify \
+        learn-gen learn-gen-check learn-verify learn-samples learn-samples-check \
         kbf-smoke kpz-smoke kpz-wasm-smoke wasm-surface-smoke change-wasm-smoke wasm-persist-smoke web-sqlite-wasm \
         test-stores-oneconn test-host-oneconn test-wasm-stores \
         landing-build landing-build-nb docs-build-prod bowrain-docs-build-prod publish-landing publish-website \
