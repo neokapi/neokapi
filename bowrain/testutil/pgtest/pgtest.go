@@ -16,6 +16,7 @@ package pgtest
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -25,6 +26,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/neokapi/neokapi/bowrain/storage"
@@ -204,14 +206,62 @@ func NewTestDBWithMaxConns(t *testing.T, maxConns int32) *storage.PgDB {
 // relocatable, and the ALTER is a no-op when it is already in public.
 func anchorExtensionsInPublic(db *storage.PgDB) error {
 	for _, ext := range []string{"pg_trgm"} {
-		if _, err := db.Exec("CREATE EXTENSION IF NOT EXISTS " + ext + " WITH SCHEMA public"); err != nil {
-			return fmt.Errorf("create %s: %w", ext, err)
-		}
-		if _, err := db.Exec("ALTER EXTENSION " + ext + " SET SCHEMA public"); err != nil {
-			return fmt.Errorf("relocate %s to public: %w", ext, err)
+		if err := anchorExtensionInPublic(db, ext); err != nil {
+			return err
 		}
 	}
 	return nil
+}
+
+// extensionLockKey keys the advisory lock that serializes CREATE EXTENSION
+// across every session on the database. Any constant works, as long as every
+// creator takes the same one.
+const extensionLockKey int64 = 0x6b61706970677478
+
+// anchorExtensionInPublic creates one extension in public and relocates it
+// there when a dead schema holds it.
+//
+// The integration lane runs several test binaries at once against the one
+// database BOWRAIN_TEST_POSTGRES_URL names, and each binary's first NewTestDB
+// runs this. CREATE EXTENSION IF NOT EXISTS is not atomic: two sessions that
+// both find the extension absent both try to insert its catalog row, and the
+// loser fails with 23505 (pg_extension_name_index) or 42710 (duplicate_object).
+// sharedMu serializes only one process. The transaction-scoped advisory lock
+// serializes every session on the server, and a loser against a creator that
+// took no lock is read as "already created" rather than as a failure.
+func anchorExtensionInPublic(db *storage.PgDB, ext string) error {
+	err := func() error {
+		tx, err := db.Begin()
+		if err != nil {
+			return fmt.Errorf("begin: %w", err)
+		}
+		defer func() { _ = tx.Rollback() }()
+		if _, err := tx.Exec("SELECT pg_advisory_xact_lock($1)", extensionLockKey); err != nil {
+			return fmt.Errorf("lock extension creation: %w", err)
+		}
+		if _, err := tx.Exec("CREATE EXTENSION IF NOT EXISTS " + ext + " WITH SCHEMA public"); err != nil {
+			return err
+		}
+		return tx.Commit()
+	}()
+	if err != nil && !extensionAlreadyExists(err) {
+		return fmt.Errorf("create %s: %w", ext, err)
+	}
+	if _, err := db.Exec("ALTER EXTENSION " + ext + " SET SCHEMA public"); err != nil {
+		return fmt.Errorf("relocate %s to public: %w", ext, err)
+	}
+	return nil
+}
+
+// extensionAlreadyExists reports the two errors a concurrent creator can
+// raise after CREATE EXTENSION IF NOT EXISTS found the extension absent:
+// unique_violation on the catalog row, and duplicate_object.
+func extensionAlreadyExists(err error) bool {
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) {
+		return false
+	}
+	return pgErr.Code == "23505" || pgErr.Code == "42710"
 }
 
 // openWithSchema opens a PgDB where every connection in the pool
