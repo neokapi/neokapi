@@ -137,4 +137,3 @@ func (a *App) projectPoint(
 	}
 	return row, nil
 }
-
