@@ -41,6 +41,9 @@ type projectStores struct {
 	// bound the workspace and key each store was opened under.
 	projectors map[string]*projector.Projector
 	bound      map[string]boundProject
+	// keyed holds the writer of each project store opened by workspace key
+	// alone, for a project with no checkout on this machine (ProjectorFor).
+	keyed map[workspace.ProjectKey]*projector.Projector
 
 	// root is the workspace directory this App was told to use. Empty means the
 	// machine account's default, resolved on first use so a test that sets
@@ -75,6 +78,7 @@ func (a *App) ensureProjectStores() *projectStores {
 			graphs:     map[string]*graph.SQLiteGraphStore{},
 			projectors: map[string]*projector.Projector{},
 			bound:      map[string]boundProject{},
+			keyed:      map[workspace.ProjectKey]*projector.Projector{},
 			ws:         map[string]*workspace.Workspace{},
 			wsErr:      map[string]error{},
 			keptKeys:   map[string]*keptDocKeys{},
@@ -346,6 +350,57 @@ func (a *App) Projector(ctx context.Context, root string) (*projector.Projector,
 	if !ok {
 		return nil, fmt.Errorf("project store: no projector bound for %s", abs)
 	}
+	return p, nil
+}
+
+// ProjectorFor returns the one writer of a registered project's stores by its
+// workspace key, bound to the project's context store in the workspace and to
+// nothing in a checkout. It is how a decision lands for a project that has no
+// checkout on this machine: the terms store, the content memory and the log
+// all live in the workspace, so a kept rule is written where every checkout of
+// the project reads it.
+//
+// It is opened once per key and memoized, like Projector. The context store is
+// the one handle the workspace holds for the project, so a projector opened
+// through a checkout of the same project shares its lock and the two never
+// interleave a write.
+func (a *App) ProjectorFor(ctx context.Context, key workspace.ProjectKey) (*projector.Projector, error) {
+	if key == "" {
+		return nil, workspace.ErrNoProjectKey
+	}
+	s := a.ensureProjectStores()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if p, ok := s.keyed[key]; ok {
+		return p, nil
+	}
+	// Opening is App lifecycle, not request work: the same reasoning as
+	// ProjectDB's.
+	openCtx := context.WithoutCancel(ctxOrBackground(ctx))
+	ws, err := s.workspaceAt(openCtx, s.workspaceRootFor(""))
+	if err != nil {
+		return nil, err
+	}
+	raw, err := ws.Context(openCtx, key)
+	if err != nil {
+		return nil, fmt.Errorf("open the context store of %s: %w", key, err)
+	}
+	st, err := projector.ContextStores(raw)
+	if err != nil {
+		return nil, err
+	}
+	var log projector.Log
+	if !ws.Describe().ReadOnly {
+		log = ws
+	}
+	p, err := projector.New(log, key, st)
+	if err != nil {
+		return nil, err
+	}
+	if err := p.CatchUp(openCtx); err != nil {
+		return nil, fmt.Errorf("apply the context log to the store of %s: %w", key, err)
+	}
+	s.keyed[key] = p
 	return p, nil
 }
 

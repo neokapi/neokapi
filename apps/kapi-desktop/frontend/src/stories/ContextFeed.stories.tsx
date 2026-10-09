@@ -130,17 +130,35 @@ export const WidenToTheWorkspace: StoryObj<typeof ContextWidenDialog> = {
         scope: { level: "workspace", describe: "workspace brand=kapimart" },
         rule: IN_FORCE.subject,
         projects: [
-          { project_key: "kapimart", project_name: "KapiMart", current: true, checked_out: true },
-          { project_key: "bowmart", project_name: "BowMart", current: false, checked_out: true },
-          {
-            project_key: "handbook",
-            project_name: "Old Handbook",
-            current: false,
-            checked_out: false,
-          },
+          { project_key: "bowmart", project_name: "BowMart", checked_out: true },
+          { project_key: "handbook", project_name: "Old Handbook", checked_out: false },
         ],
         points: [],
-        content_impact: false,
+        units: [
+          {
+            project_key: "bowmart",
+            document: "docs/checkout.md",
+            unit: "p4",
+            text: "Utilise the saved basket to finish later.",
+            matches: 1,
+          },
+        ],
+        coverage: {
+          examined: [{ project_key: "bowmart", project_name: "BowMart", units: 63, matched: 1 }],
+          not_examined: [
+            {
+              project_key: "kapimart",
+              project_name: "KapiMart",
+              reason: "no projection of its content is built on this machine",
+            },
+            {
+              project_key: "handbook",
+              project_name: "Old Handbook",
+              reason: "no checkout on this machine",
+            },
+          ],
+          truncated: false,
+        },
       }}
     />
   ),
@@ -162,19 +180,41 @@ export const WidenPastAnAxis: StoryObj<typeof ContextWidenDialog> = {
         projects: [],
         points: [
           {
+            project_key: "kapimart",
             ref: "marketing/web",
             label: "marketing/web",
             coordinates: { product: "marketing", channel: "web" },
             collections: ["campaigns", "landing"],
           },
           {
+            project_key: "kapimart",
             ref: "support/help",
             label: "support/help",
             coordinates: { product: "support", channel: "help" },
             collections: ["help-centre"],
           },
         ],
-        content_impact: false,
+        units: [
+          {
+            project_key: "kapimart",
+            document: "campaigns/spring.md",
+            unit: "p7",
+            text: "Utilise the spring offer before it ends.",
+            matches: 1,
+          },
+          {
+            project_key: "kapimart",
+            document: "help/returns.md",
+            unit: "p2",
+            text: "Utilise the returns portal to print a label.",
+            matches: 1,
+          },
+        ],
+        coverage: {
+          examined: [{ project_key: "kapimart", project_name: "KapiMart", units: 140, matched: 2 }],
+          not_examined: [],
+          truncated: false,
+        },
       }}
     />
   ),

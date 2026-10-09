@@ -77,29 +77,10 @@ func (a *App) ProjectPoints(tabID string) (*ProjectPointsResult, error) {
 	}
 	defer release()
 
-	byRef := collectionsByPoint(proj, at)
-
-	refs := []project.ChannelRef{{}}
-	for _, name := range sortedKeys(proj.Profiles) {
-		channels := proj.Profiles[name].Channels
-		if len(channels) == 0 {
-			// A profile that declares no channel is still a point: it can bind
-			// a voice, and content can name it.
-			refs = append(refs, project.ChannelRef{Profile: name})
-			continue
-		}
-		for _, ch := range channels {
-			if ch.ID == "" {
-				continue
-			}
-			refs = append(refs, project.ChannelRef{Profile: name, Channel: ch.ID})
-		}
-	}
-
-	for _, ref := range refs {
-		row, err := a.projectPoint(ctx, proj, root, store, ref, at, byRef)
+	for _, point := range host.DeclaredPoints(proj, at) {
+		row, err := a.projectPoint(ctx, proj, root, store, point, at)
 		if err != nil {
-			out.Notes = append(out.Notes, fmt.Sprintf("%s: %v", pointRefLabel(ref), err))
+			out.Notes = append(out.Notes, fmt.Sprintf("%s: %v", host.PointLabel(point.Ref), err))
 			continue
 		}
 		out.Points = append(out.Points, row)
@@ -113,10 +94,10 @@ func (a *App) projectPoint(
 	proj *project.KapiProject,
 	root string,
 	store coreprofile.Store,
-	ref project.ChannelRef,
+	point host.DeclaredPoint,
 	at time.Time,
-	byRef map[string][]string,
 ) (ProjectPointDTO, error) {
+	ref := point.Ref
 	pt := project.GovernancePoint{Profile: ref.Profile, At: at}
 	declared, err := proj.ResolveGovernanceFor(project.GovernancePoint{Profile: ref.Profile})
 	if err != nil {
@@ -125,12 +106,12 @@ func (a *App) projectPoint(
 
 	row := ProjectPointDTO{
 		Ref:         ref.String(),
-		Label:       pointRefLabel(ref),
+		Label:       host.PointLabel(ref),
 		Profile:     ref.Profile,
 		Channel:     ref.Channel,
 		Default:     ref.Profile == "",
-		Coordinates: project.MergeCoordinates(proj.Defaults.Coordinates, ref.Coordinates(), nil),
-		Collections: byRef[ref.String()],
+		Coordinates: point.Coordinates,
+		Collections: point.Collections,
 		VoiceField:  declared.VoiceField,
 		TermStore:   declared.TermStore,
 		Validity:    validityDTO(declared.Validity, at),
@@ -157,28 +138,3 @@ func (a *App) projectPoint(
 	return row, nil
 }
 
-// pointRefLabel names a point for a reader.
-func pointRefLabel(ref project.ChannelRef) string {
-	if s := ref.String(); s != "" {
-		return s
-	}
-	return "project default"
-}
-
-// collectionsByPoint groups collections by the point they resolve to at the
-// instant, keyed the way a point addresses itself.
-func collectionsByPoint(proj *project.KapiProject, at time.Time) map[string][]string {
-	out := map[string][]string{}
-	for _, coll := range proj.Collections {
-		if coll.Name == "" {
-			continue
-		}
-		rc, err := proj.ResolveGovernanceFor(project.GovernancePoint{Collection: coll.Name, At: at})
-		if err != nil {
-			continue
-		}
-		key := rc.Ref().String()
-		out[key] = append(out[key], coll.Name)
-	}
-	return out
-}

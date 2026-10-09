@@ -42,16 +42,41 @@ func (a *App) applyAssetEntry(ctx context.Context, cmd Command, e changeEntry) a
 	}
 
 	switch e.Kind {
-	case kindTerm:
-		return a.applyTermEntry(ctx, cmd, e)
-	case kindMemory:
-		return a.applyMemoryEntry(ctx, cmd, e)
+	case kindTerm, kindMemory:
+		_, root, err := a.resolveProjectRoot(cmd)
+		if err != nil {
+			return errResult(res, err.Error())
+		}
+		w, err := a.Projector(ctx, root)
+		if err != nil {
+			return errResult(res, err.Error())
+		}
+		return a.applyAssetEntryTo(ctx, w, e)
 	case kindRecipe:
 		return a.applyRecipeEntry(cmd, e)
 	default:
 		res.Status = "error"
 		res.Detail = fmt.Sprintf("unsupported asset kind %q", e.Kind)
 		return res
+	}
+}
+
+// applyAssetEntryTo lands a term or a content-memory entry through the
+// projector given, which is how a kept rule reaches a project's stores whether
+// or not a checkout of the project is on this machine. A recipe entry edits a
+// file, so it has no such path.
+func (a *App) applyAssetEntryTo(ctx context.Context, w *projector.Projector, e changeEntry) assetResult {
+	res := assetResult{Kind: e.Kind, Op: e.Op}
+	if err := ctx.Err(); err != nil {
+		return errResult(res, err.Error())
+	}
+	switch e.Kind {
+	case kindTerm:
+		return a.applyTermEntryTo(ctx, w, e)
+	case kindMemory:
+		return a.applyMemoryEntryTo(ctx, w, e)
+	default:
+		return errResult(res, fmt.Sprintf("asset kind %q lands in a checkout, not in a store", e.Kind))
 	}
 }
 
@@ -206,8 +231,8 @@ const (
 	landedMemory = "the project's content memory"
 )
 
-// applyTermEntry upserts a term into the project's terms store.
-func (a *App) applyTermEntry(ctx context.Context, cmd Command, e changeEntry) assetResult {
+// applyTermEntryTo upserts a term into the terms store the projector writes.
+func (a *App) applyTermEntryTo(ctx context.Context, w *projector.Projector, e changeEntry) assetResult {
 	res := assetResult{Kind: e.Kind, Op: e.Op, Target: e.Term}
 
 	if e.Op != "" && e.Op != "upsert" {
@@ -217,14 +242,6 @@ func (a *App) applyTermEntry(ctx context.Context, cmd Command, e changeEntry) as
 		return errResult(res, "term: empty term")
 	}
 
-	_, root, err := a.resolveProjectRoot(cmd)
-	if err != nil {
-		return errResult(res, err.Error())
-	}
-	w, err := a.Projector(ctx, root)
-	if err != nil {
-		return errResult(res, err.Error())
-	}
 	tb := w.With(projector.Origin{By: "apply"}).Terms()
 	if tb == nil {
 		return errResult(res, fmt.Sprintf("term: %v", projectdb.ErrNoStore))
@@ -313,8 +330,9 @@ func termIndex(c *terms.Concept, text string, locale model.LocaleID) int {
 // memory → the project's content memory
 // ---------------------------------------------------------------------------
 
-// applyMemoryEntry adds a source→target pair to the project's content memory.
-func (a *App) applyMemoryEntry(ctx context.Context, cmd Command, e changeEntry) assetResult {
+// applyMemoryEntryTo adds a source→target pair to the content memory the
+// projector writes.
+func (a *App) applyMemoryEntryTo(ctx context.Context, w *projector.Projector, e changeEntry) assetResult {
 	res := assetResult{Kind: e.Kind, Op: e.Op, Target: e.Source}
 
 	if e.Op != "" && e.Op != "add" {
@@ -338,14 +356,6 @@ func (a *App) applyMemoryEntry(ctx context.Context, cmd Command, e changeEntry) 
 		return errResult(res, fmt.Sprintf("memory: status must be empty or %q", model.TargetStatusEstablished))
 	}
 
-	_, root, err := a.resolveProjectRoot(cmd)
-	if err != nil {
-		return errResult(res, err.Error())
-	}
-	w, err := a.Projector(ctx, root)
-	if err != nil {
-		return errResult(res, err.Error())
-	}
 	tm := w.With(projector.Origin{By: "apply"}).Memory()
 	if tm == nil {
 		return errResult(res, fmt.Sprintf("memory: %v", projectdb.ErrNoStore))

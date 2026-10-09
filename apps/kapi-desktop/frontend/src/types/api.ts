@@ -813,7 +813,7 @@ export interface ContextFeedEntry {
   droppable: boolean;
   /** The widenings open to it: "workspace", and each axis of its point. */
   widen_to: string[];
-  /** The checkout a decision goes through, absent when none is here. */
+  /** The project's checkout on this machine, absent when none is here. A decision needs none. */
   recipe?: string;
 }
 
@@ -1000,36 +1000,74 @@ export interface ContextResetSummary {
   reset?: string;
 }
 
-/** One project a widened rule would answer in. */
+/** One other project a widened rule would newly answer in. */
 export interface ContextWidenTarget {
   project_key: string;
   project_name?: string;
-  /** The project the rule already answers in. */
-  current: boolean;
+  /** A copy of the project's files is on this machine. */
   checked_out: boolean;
 }
 
-/** One point in the recipe a widened rule would newly answer at. */
+/** One declared point a widened rule would newly answer at. */
 export interface ContextWidenPoint {
+  project_key: string;
   ref: string;
   label: string;
   coordinates?: Record<string, string>;
   collections: string[];
 }
 
-/** Where a rule would answer once widened, read before accepting it. */
+/** One unit a widened rule would newly match. */
+export interface ContextWidenUnit {
+  project_key: string;
+  /** The file, relative to the project root, and the block in it. */
+  document: string;
+  unit: string;
+  /** The unit's source text, cut to an excerpt. */
+  text: string;
+  /** How many times the text holds a form the rule avoids. */
+  matches: number;
+}
+
+/** One project whose projection the preview read units from. */
+export interface ContextWidenExamined {
+  project_key: string;
+  project_name?: string;
+  /** How many units the projection holds, and how many the rule would newly match. */
+  units: number;
+  matched: number;
+}
+
+/** One project the preview could not read units from, and why. */
+export interface ContextWidenGap {
+  project_key: string;
+  project_name?: string;
+  reason: string;
+}
+
+/** What the preview read units from and what it did not. */
+export interface ContextWidenCoverage {
+  examined: ContextWidenExamined[];
+  not_examined: ContextWidenGap[];
+  /** `units` holds the first of more; `examined` carries the full counts. */
+  truncated: boolean;
+}
+
+/** What a rule would newly govern once widened, read before accepting it. */
 export interface ContextWidenPreview {
   /** "workspace", or the axis dropped. */
   to: string;
   from: ContextScope;
   scope: ContextScope;
   rule: ContextSubject;
-  /** The workspace's projects, for a widening to the workspace. */
+  /** The other projects the rule would newly answer in, for a widening to the workspace. */
   projects: ContextWidenTarget[];
-  /** The recipe's points newly covered, for a widening past one axis. */
+  /** The declared points newly covered, in every project whose recipe is on this machine. */
   points: ContextWidenPoint[];
-  /** Always false: which content the rule touches is not computed. */
-  content_impact: boolean;
+  /** The units newly matched, in every project whose projection is built on this machine. */
+  units: ContextWidenUnit[];
+  /** Which projects the units were read from, and which were not. */
+  coverage: ContextWidenCoverage;
 }
 
 /** Per-collection translation status rendered on the project home. */

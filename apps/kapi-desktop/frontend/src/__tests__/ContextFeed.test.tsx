@@ -148,7 +148,7 @@ describe("the feed of recorded context operations", () => {
     expect(candidate.querySelector("[data-slot='widen-picker']")).toBeNull();
   });
 
-  it("offers no decision for a project with no copy on this machine", () => {
+  it("decides on a project with no copy on this machine, and says where the decision lands", () => {
     const feed: ContextFeed = {
       ...CONTEXT_FEED,
       groups: [
@@ -161,9 +161,9 @@ describe("the feed of recorded context operations", () => {
       ],
     };
     renderFeed(feed);
-    expect(document.querySelector("[data-slot='keep-suggestion']")).toBeNull();
-    expect(document.querySelector("[data-slot='context-undecidable']")?.textContent).toContain(
-      "No copy of this project is on this machine",
+    expect(document.querySelector("[data-slot='keep-suggestion']")).not.toBeNull();
+    expect(document.querySelector("[data-slot='context-no-checkout']")?.textContent).toContain(
+      "No copy of this project is on this machine. A decision is recorded in the workspace",
     );
   });
 

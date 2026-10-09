@@ -219,10 +219,11 @@ func TestResettingToBeforeASessionNamesWhatItSetsAside(t *testing.T) {
 	assert.Equal(t, 2, back.Restored, "resetting to before the reset brings back what it set aside")
 }
 
-// TestWidenReachListsTheProjectsAndSaysWhatItDoesNotCompute: widening to the
-// workspace names every registered project, and reports that content impact is
-// not part of the answer.
-func TestWidenReachListsTheProjectsAndSaysWhatItDoesNotCompute(t *testing.T) {
+// TestWidenReachListsTheOtherProjectsAndWhatItDidNotRead: widening to the
+// workspace names every other registered project, and the preview says which
+// projects it read units from and which it could not, so the dialog states
+// coverage rather than showing a zero.
+func TestWidenReachListsTheOtherProjectsAndWhatItDidNotRead(t *testing.T) {
 	app := newWorkspaceApp(t)
 	recipe, key := openFeedProject(t, app, "KapiMart")
 	_, second := openFeedProject(t, app, "BowMart")
@@ -237,16 +238,22 @@ func TestWidenReachListsTheProjectsAndSaysWhatItDoesNotCompute(t *testing.T) {
 	assert.Equal(t, "workspace", preview.Scope.Level)
 	assert.Equal(t, "project", preview.From.Level)
 	assert.Equal(t, "sign in", preview.Rule.Term)
-	assert.False(t, preview.ContentImpact, "reach is listed; impact is not computed")
 
-	keys := map[string]bool{}
-	for _, p := range preview.Projects {
-		keys[p.ProjectKey] = p.Current
+	require.Len(t, preview.Projects, 1, "the rule already answers in its own project")
+	assert.Equal(t, second, preview.Projects[0].ProjectKey)
+	assert.Equal(t, "BowMart", preview.Projects[0].ProjectName)
+	assert.True(t, preview.Projects[0].CheckedOut)
+
+	// Neither checkout has a projection built, so no units were read, and
+	// the preview says so for each rather than counting nothing.
+	assert.Empty(t, preview.Units)
+	assert.Empty(t, preview.Coverage.Examined)
+	reasons := map[string]string{}
+	for _, gap := range preview.Coverage.NotExamined {
+		reasons[gap.ProjectKey] = gap.Reason
 	}
-	assert.Len(t, keys, 2)
-	assert.True(t, keys[key], "the rule already answers in its own project")
-	require.Contains(t, keys, second)
-	assert.False(t, keys[second], "and would newly answer in the other")
+	assert.Equal(t, host.ContextWidenNoProjection, reasons[key])
+	assert.Equal(t, host.ContextWidenNoProjection, reasons[second])
 }
 
 // TestWidenPastAnAxisNamesThePointsItWouldNewlyCover: dropping an axis widens
@@ -284,6 +291,55 @@ func TestWidenPastAnAxisNamesThePointsItWouldNewlyCover(t *testing.T) {
 	assert.NotContains(t, preview.Scope.Coordinates, "product")
 	require.NotEmpty(t, preview.Points, "the recipe declares a point the widened rule newly covers")
 	assert.Equal(t, "marketing/web", preview.Points[0].Ref)
+	assert.Equal(t, id, preview.Points[0].ProjectKey)
+}
+
+// TestAProjectWithNoCheckoutIsDecidedOnThroughTheWorkspace: a project
+// registered from another machine has its log and its stores in this
+// workspace and none of its files. The feed reads it, a decision on it is
+// recorded and lands in the stores the workspace holds for it, and the widen
+// preview says its files were not here to read.
+func TestAProjectWithNoCheckoutIsDecidedOnThroughTheWorkspace(t *testing.T) {
+	app := newWorkspaceApp(t)
+	ctx := context.Background()
+	ws, err := app.hostEngine().Workspace(ctx)
+	require.NoError(t, err)
+	key := project.NewID()
+	_, err = ws.Register(ctx, workspace.ProjectKey(key), "Archive", "")
+	require.NoError(t, err)
+	rule := contextop.ObservedRule("log in", []string{"sign in"})
+	suggested, err := contextop.NewLedger(ws, contextop.PersonDecides).Append(ctx, contextop.Record{
+		Actor:    contextop.Actor{Kind: contextop.ActorAgent, Name: "claude@studio", Session: "sess-1"},
+		Kind:     contextop.KindObserve,
+		Project:  workspace.ProjectKey(key),
+		Subject:  contextop.Subject{Kind: contextop.SubjectTerm, Term: &rule},
+		Evidence: []contextop.Evidence{{Path: "docs/a.md", Unit: "unit-1"}},
+		Scope:    contextop.Scope{Level: contextop.LevelProject},
+	})
+	require.NoError(t, err)
+
+	feed, err := app.ContextFeed("", 0)
+	require.NoError(t, err)
+	entry := findFeedEntry(t, feed, suggested.ID)
+	assert.Empty(t, entry.Recipe, "no checkout is here")
+	assert.Equal(t, "Archive", entry.ProjectName)
+	assert.True(t, entry.Decidable)
+
+	kept, err := app.KeepContextSuggestion(ContextDecisionRequest{Project: key, ID: suggested.ID})
+	require.NoError(t, err)
+	assert.Equal(t, "keep", kept.Kind)
+	assert.Equal(t, "Archive", kept.ProjectName)
+
+	feed, err = app.ContextFeed(key, 0)
+	require.NoError(t, err)
+	assert.Equal(t, "established", findFeedEntry(t, feed, suggested.ID).Status)
+	assert.Zero(t, awaitingIn(feed))
+
+	preview, err := app.ContextWidenReach(key, suggested.ID, host.WidenToWorkspace)
+	require.NoError(t, err)
+	require.Len(t, preview.Coverage.NotExamined, 1)
+	assert.Equal(t, key, preview.Coverage.NotExamined[0].ProjectKey)
+	assert.Equal(t, host.ContextWidenNoCheckout, preview.Coverage.NotExamined[0].Reason)
 }
 
 // TestAPersonsWorkGroupsByDay: a person at a terminal records no session, so

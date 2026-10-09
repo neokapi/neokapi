@@ -1,14 +1,16 @@
-// What widening a rule would reach, read before anybody accepts it.
+// What widening a rule would newly govern, read before anybody accepts it.
 //
 // Widening to the workspace puts the rule in force in every project this
-// machine account works on, so the dialog lists them by name. Widening past an
-// axis keeps the rule in its project and stops it being specific about that
-// axis, so the dialog lists the points in the recipe the rule would newly
-// answer at.
+// machine account works on, so the dialog lists the other projects by name.
+// Widening past an axis keeps the rule in its project and stops it being
+// specific about that axis. Either way the dialog lists the declared points
+// the rule would newly answer at and, wherever a projection of the content is
+// built on this machine, the units it would newly match.
 //
-// Reach is not impact. Which files hold the term, and how many times, is not
-// computed: the host API offers no such preview, and a count invented here
-// would be a second answer about content that the engine never gave.
+// Coverage is stated, never implied. The backend says which projects it read
+// units from and which it could not, with the reason, and the dialog repeats
+// that in as many words, so an empty list reads as "not read" rather than
+// "none".
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -32,6 +34,9 @@ import type { ContextFeedEntry, ContextWidenPreview, DigestItem } from "../types
 
 /** The heading above each part of the preview. */
 const LABEL = "text-xs font-medium uppercase tracking-wider text-muted-foreground";
+
+/** How many matched units the dialog lists before it says how many more there are. */
+const UNITS_SHOWN = 12;
 
 /**
  * A rule in force as the widen preview needs it. The activity feed and the
@@ -146,16 +151,14 @@ export function ContextWidenDialog({
             <ErrorNotice error={reachQuery.error} title="The rule's reach could not be read" />
           ) : !reach ? (
             <LoadingSpinner />
-          ) : to === "workspace" ? (
-            <ProjectReach preview={reach} />
           ) : (
-            <PointReach preview={reach} />
+            <>
+              {to === "workspace" && <ProjectReach preview={reach} />}
+              <PointReach preview={reach} rule={rule} />
+              <UnitReach preview={reach} />
+              <Coverage preview={reach} />
+            </>
           )}
-
-          <p data-slot="widen-impact" className="text-xs text-muted-foreground">
-            This is where the rule would answer. How much content it touches is not counted here;
-            run a check afterwards to see what it reports.
-          </p>
         </div>
 
         <DialogFooter>
@@ -176,25 +179,20 @@ export function ContextWidenDialog({
   );
 }
 
-/** Every project a workspace-wide rule would answer in. */
+/** The other projects a workspace-wide rule would newly answer in. */
 function ProjectReach({ preview }: { preview: ContextWidenPreview }) {
-  const others = preview.projects.filter((p) => !p.current);
+  const n = preview.projects.length;
   return (
     <div>
       <div className={LABEL}>
-        {others.length === 0
+        {n === 0
           ? "No other project is in your workspace yet"
-          : `It would newly answer in ${others.length} other ${others.length === 1 ? "project" : "projects"}`}
+          : `It would newly answer in ${n} other ${n === 1 ? "project" : "projects"}`}
       </div>
       <ul className="mt-1 space-y-1" data-slot="widen-projects">
         {preview.projects.map((project) => (
           <li key={project.project_key} className="flex items-center gap-2 text-xs">
             <span translate="no">{project.project_name || project.project_key}</span>
-            {project.current && (
-              <Badge variant="outline" className="text-muted-foreground">
-                Already
-              </Badge>
-            )}
             {!project.checked_out && (
               <span className="text-muted-foreground">no copy on this machine</span>
             )}
@@ -205,13 +203,14 @@ function ProjectReach({ preview }: { preview: ContextWidenPreview }) {
   );
 }
 
-/** The recipe's points a widened rule would newly answer at. */
-function PointReach({ preview }: { preview: ContextWidenPreview }) {
+/** The declared points a widened rule would newly answer at. */
+function PointReach({ preview, rule }: { preview: ContextWidenPreview; rule: ContextWidenRule }) {
   if (preview.points.length === 0) {
     return (
       <p className="text-xs text-muted-foreground" data-slot="widen-points">
-        The recipe declares no other point that differs only in this axis, so the rule answers where
-        it already does.
+        {preview.to === "workspace"
+          ? "No recipe on this machine declares another point the rule would newly answer at."
+          : "The recipe declares no other point that differs only in this axis, so the rule answers where it already does."}
       </p>
     );
   }
@@ -223,8 +222,13 @@ function PointReach({ preview }: { preview: ContextWidenPreview }) {
       </div>
       <ul className="mt-1 space-y-1.5" data-slot="widen-points">
         {preview.points.map((point) => (
-          <li key={point.ref || point.label}>
+          <li key={`${point.project_key}:${point.ref || point.label}`}>
             <div className="flex flex-wrap items-center gap-1">
+              {point.project_key !== rule.project_key && (
+                <Badge variant="outline" className="text-muted-foreground" translate="no">
+                  {point.project_key}
+                </Badge>
+              )}
               <span className="font-mono text-xs" translate="no">
                 {point.label}
               </span>
@@ -241,5 +245,56 @@ function PointReach({ preview }: { preview: ContextWidenPreview }) {
         ))}
       </ul>
     </div>
+  );
+}
+
+/** The units a widened rule would newly match, where a projection was read. */
+function UnitReach({ preview }: { preview: ContextWidenPreview }) {
+  const matched = preview.coverage.examined.reduce((n, e) => n + e.matched, 0);
+  if (preview.coverage.examined.length === 0) return null;
+  const shown = preview.units.slice(0, UNITS_SHOWN);
+  const more = matched - shown.length;
+  return (
+    <div>
+      <div className={LABEL}>
+        {matched === 0
+          ? "No unit would newly match"
+          : `It would newly match ${matched} ${matched === 1 ? "unit" : "units"}`}
+      </div>
+      {shown.length > 0 && (
+        <ul className="mt-1 space-y-1" data-slot="widen-units">
+          {shown.map((unit) => (
+            <li key={`${unit.project_key}:${unit.document}#${unit.unit}`} className="text-xs">
+              <span className="font-mono" translate="no">
+                {unit.document} · {unit.unit}
+              </span>
+              <div className="line-clamp-2 text-[11px] text-muted-foreground" translate="no">
+                {unit.text}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      {more > 0 && <p className="mt-1 text-xs text-muted-foreground">and {more} more</p>}
+    </div>
+  );
+}
+
+/** What the units were read from and what they were not, in the backend's words. */
+function Coverage({ preview }: { preview: ContextWidenPreview }) {
+  const { examined, not_examined } = preview.coverage;
+  const read = examined.map(
+    (e) => `${e.project_name || e.project_key} (${e.units} ${e.units === 1 ? "unit" : "units"})`,
+  );
+  return (
+    <p data-slot="widen-coverage" className="text-xs text-muted-foreground">
+      {read.length > 0 ? `Units were read from ${read.join(", ")}.` : "No units were read."}
+      {not_examined.map((gap) => (
+        <span key={gap.project_key}>
+          {" "}
+          <span translate="no">{gap.project_name || gap.project_key}</span>: {gap.reason}.
+        </span>
+      ))}
+    </p>
   );
 }
