@@ -40,15 +40,8 @@ func checkEnvelope(f *File) error {
 	if f.Kind != Kind {
 		return fmt.Errorf("kmb: unexpected kind %q (want %q)", f.Kind, Kind)
 	}
-	major, ok := schemaversion.Major(f.SchemaVersion)
-	if !ok {
-		return fmt.Errorf("kmb: invalid schemaVersion %q", f.SchemaVersion)
-	}
-	wantMajor, _ := schemaversion.Major(SchemaVersion)
-	if major != wantMajor {
-		return fmt.Errorf("kmb: unsupported major schemaVersion %d (this build speaks %s)", major, SchemaVersion)
-	}
-	return nil
+	_, err := schemaversion.Check("kmb", f.SchemaVersion, SchemaVersion)
+	return err
 }
 
 // ModelEntries converts the file's wire entries back to memory.Entry values.

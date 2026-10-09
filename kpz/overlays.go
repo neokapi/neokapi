@@ -72,12 +72,8 @@ func unmarshalOverlaySet(data []byte) ([]OverlayDoc, error) {
 	if set.Kind != OverlaySetKind {
 		return nil, fmt.Errorf("unexpected kind %q (want %q)", set.Kind, OverlaySetKind)
 	}
-	major, ok := schemaversion.Major(set.SchemaVersion)
-	if !ok {
-		return nil, fmt.Errorf("invalid schemaVersion %q", set.SchemaVersion)
-	}
-	if wantMajor, _ := schemaversion.Major(OverlaySetVersion); major != wantMajor {
-		return nil, fmt.Errorf("unsupported major schemaVersion %d (this build speaks %s)", major, OverlaySetVersion)
+	if _, err := schemaversion.Check("overlay set", set.SchemaVersion, OverlaySetVersion); err != nil {
+		return nil, err
 	}
 	return set.Overlays, nil
 }

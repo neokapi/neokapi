@@ -52,18 +52,12 @@ func checkEnvelope(f *File) error {
 	if !slices.Contains(ReadableKinds, f.Kind) {
 		return fmt.Errorf("kbf: unexpected kind %q (want %q)", f.Kind, Kind)
 	}
-	major, ok := schemaversion.Major(f.SchemaVersion)
-	if !ok {
-		return fmt.Errorf("kbf: invalid schemaVersion %q", f.SchemaVersion)
+	major, err := schemaversion.Check("kbf", f.SchemaVersion, SchemaVersionV1, SchemaVersion)
+	if err != nil {
+		return err
 	}
-	current, _ := schemaversion.Major(SchemaVersion)
-	v1, _ := schemaversion.Major(SchemaVersionV1)
-	switch major {
-	case current:
-	case v1:
+	if v1, _ := schemaversion.Major(SchemaVersionV1); major == v1 {
 		f.SchemaVersion = SchemaVersion
-	default:
-		return fmt.Errorf("kbf: unsupported major schemaVersion %d (this build reads %s and %s)", major, SchemaVersionV1, SchemaVersion)
 	}
 	return nil
 }
