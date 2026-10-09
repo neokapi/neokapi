@@ -107,8 +107,8 @@ the licence line, over these seams.
   part-to-proto translation.
 - **First services on framework tools.** The first two services already exist as
   framework tools and need assembly, not new mechanism: a term tagger runs
-  `term-lookup` and `term-extract` (`terms/tool.go`) to write term overlays and
-  candidate concepts; a graph analyzer reads blocks and their term and entity
+  `term-lookup` (`terms/tool.go`) and `term-extract` (`core/ai/tools`) to write
+  term overlays and candidate concepts; a graph analyzer reads blocks and their term and entity
   overlays and writes the connective edges into the graph store. Each is its own
   queue-backed service, triggered by the content-changed event.
 - **Incremental graph analysis.** The graph writer reprojects a whole scope's

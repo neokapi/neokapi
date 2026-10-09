@@ -152,7 +152,7 @@ violations.
 
 ## Pipeline Tools
 
-The terminology tools run as ordinary pipeline stages ([E-03](/contribute/architecture/engine/e-03-tool-system)). Every governed step takes its rules under one key, `term_rules:`, as `[]profile.TermRule`:
+The terminology tools run as ordinary pipeline stages ([E-03](/contribute/architecture/engine/e-03-tool-system)). Every governed step takes its rules under one key, `term_rules:`, as `[]profile.TermRule`. `term-check` and `dnt-check` are registered in `core/tools/register.go`, so a recipe or `kapi exec` names them; `term-lookup` and `term-enforce` are library stages in `terms/tool.go` that the runner appends behind any registered tool whose schema requires a terms store (`host/flow.go`), and `kapi tools` does not list them:
 
 **`term-lookup`** (Enrich). Runs `terms.Locate` over the source with the store and the step's `term_rules:`, and attaches a `TermAnnotation` per occurrence as an overlay span whose `Range` is the occurrence's `model.Anchor`. Downstream tools (AI translate, checks) use these annotations for context.
 

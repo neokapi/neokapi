@@ -428,7 +428,12 @@ or `"advisory": true` on a `kind: term` change-set entry, which also takes
 
 ### Pipeline tools
 
-The framework ships terminology tools as ordinary pipeline stages:
+The framework ships terminology tools as ordinary pipeline stages. Five of them
+are registered, so a recipe, a flow or `kapi exec` names them: `term-check`,
+`dnt-check`, `term-extract`, `entity-extract` and the `redact` / `unredact`
+pair. `term-lookup` and `term-enforce` are library stages in `terms/tool.go`:
+the runner appends them behind any registered tool whose schema requires a terms
+store, whenever one is open, and `kapi tools` does not list them.
 
 - **`term-lookup`** (enrich): records where the source uses a declared term,
   as term annotations with run-anchored positions. It reads both sources through

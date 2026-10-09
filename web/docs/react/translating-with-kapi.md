@@ -56,7 +56,7 @@ kapi translate i18n/ --target-lang ja
 
 Each call accumulates a target locale in place. To redirect output to a different file, pass `-o target-dir/`; the input stays untouched.
 
-kapi supports Anthropic, OpenAI, Google Gemini, Azure OpenAI, and local Ollama models. Select the provider (and optionally the model) with flags, or in a flow's step config:
+kapi supports the AI providers listed under [Translation](/framework/translation), local Ollama models among them. Select the provider (and optionally the model) with flags, or in a flow's step config:
 
 ```bash
 kapi translate i18n/ --target-lang fr --provider anthropic
@@ -168,8 +168,8 @@ name: MyApp
 defaults:
   source_language: en
   target_languages: [de, fr, ja, nb]
-  # The voice is bound by the name `kapi store import i18n` stores it under;
-  # the same import reads i18n/terms.json into the project's own terms.
+  # The voice profile `kapi store import` read from .kapi/voice.yaml, bound
+  # by its name; the same import reads .kapi/terms.json into the project's terms.
   voice:
     profile: myapp
 collections:
@@ -181,28 +181,37 @@ collections:
 ```
 i18n/
 ├── src/                    source KBF catalogs (from `neokapi-i18n extract`)
-├── de/ fr/ ja/ nb/         per-locale targets (from kapi)
-├── terms.json              terms, read in by `kapi store import i18n`
-└── voice.yaml              voice profile, read in by the same import
+└── de/ fr/ ja/ nb/         per-locale targets (from `kapi merge`)
+.kapi/
+├── terms.json              terms, read in by `kapi store import`
+├── voice.yaml              voice profile, read in by the same import
+└── work/                   content memory and pseudo-locale output (ignored by git)
 ```
 
 The content memory's local store and the pseudo-locale output are rebuildable
 state, so they live under `.kapi/work/`, in the checkout's cache that git never
-sees. An edit to `i18n/voice.yaml`
-or `i18n/terms.json` takes effect when you run `kapi store import i18n` again.
-Define a `translate` flow in the recipe (for example `recycle` → `translate` → `qa`), then:
+sees. The terms and the voice profile are files you commit; an edit to
+`.kapi/voice.yaml` or `.kapi/terms.json` takes effect when you run
+`kapi store import` again. See [Context portability](/kapi/context-portability).
 
 ```json title="package.json"
 {
   "scripts": {
     "i18n:extract": "vp neokapi-i18n extract",
-    "i18n:translate": "kapi run translate",
+    "i18n:translate": "kapi up && kapi merge",
     "i18n:compile": "vp neokapi-i18n compile i18n/ --out public/translations"
   }
 }
 ```
 
-`kapi run` discovers the nearest `kapi.yaml` recipe (or pass `-p kapi.yaml`) and executes the flow with the project's declared source and target languages and defaults. See [Flows](/framework/flows) and the [project model](/contribute/architecture/context/c-01-project-model).
+`kapi up` discovers the nearest `kapi.yaml` recipe (or pass `-p kapi.yaml`) and
+runs the project's default flow over every declared target language: content
+memory reuse, then AI translation, then the bound checks, looping until each
+locale clears its ship gate or parks for a person. `kapi merge` writes the
+per-locale catalogs the recipe maps. `kapi status` reports the coverage per
+locale without running anything, and `kapi run <flow>` runs one named flow for a
+single pass. See [Convergence](/kapi/convergence), [Flows](/framework/flows) and
+the [project model](/contribute/architecture/context/c-01-project-model).
 
 ## Drive it from Claude
 
