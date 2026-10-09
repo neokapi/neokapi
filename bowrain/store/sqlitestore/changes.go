@@ -107,7 +107,9 @@ func (s *SQLiteStore) queryChangeSet(ctx context.Context, query string, args []a
 		if err := rows.Scan(&e.Seq, &e.BlockID, &e.ChangeType, &e.Locale, &e.ContentHash, &loggedStr); err != nil {
 			return nil, fmt.Errorf("scan change entry: %w", err)
 		}
-		e.LoggedAt, _ = time.Parse(time.RFC3339, loggedStr)
+		if e.LoggedAt, err = storeutil.ParseStoredTime("logged_at", loggedStr); err != nil {
+			return nil, fmt.Errorf("change log entry %d: %w", e.Seq, err)
+		}
 		entries = append(entries, e)
 	}
 	if err := rows.Err(); err != nil {

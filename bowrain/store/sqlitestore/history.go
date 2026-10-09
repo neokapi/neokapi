@@ -42,10 +42,8 @@ func (s *SQLiteStore) GetBlockHistory(ctx context.Context, projectID, stream, bl
 		if err := rows.Scan(&e.Seq, &e.ChangeType, &e.Text, &e.Coded, &e.Origin, &e.Author, &createdStr); err != nil {
 			return nil, fmt.Errorf("scan block history entry: %w", err)
 		}
-		e.Timestamp, _ = time.Parse(time.RFC3339, createdStr)
-		if e.Timestamp.IsZero() {
-			// SQLite CURRENT_TIMESTAMP uses "2006-01-02 15:04:05" format.
-			e.Timestamp, _ = time.Parse("2006-01-02 15:04:05", createdStr)
+		if e.Timestamp, err = storeutil.ParseStoredTime("created_at", createdStr); err != nil {
+			return nil, fmt.Errorf("block history entry %d: %w", e.Seq, err)
 		}
 		entries = append(entries, e)
 	}

@@ -354,8 +354,12 @@ func scanCollection(row scanner) (*platstore.Collection, error) {
 		return nil, fmt.Errorf("scan collection: %w", err)
 	}
 	c.Kind = platstore.CollectionKind(kindStr)
-	c.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
-	c.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
+	if c.CreatedAt, err = storeutil.ParseStoredTime("created_at", createdStr); err != nil {
+		return nil, fmt.Errorf("collection %s: %w", c.ID, err)
+	}
+	if c.UpdatedAt, err = storeutil.ParseStoredTime("updated_at", updatedStr); err != nil {
+		return nil, fmt.Errorf("collection %s: %w", c.ID, err)
+	}
 	if err := json.Unmarshal([]byte(configJSON), &c.ConnectorConfig); err != nil {
 		c.ConnectorConfig = map[string]string{}
 	}
@@ -524,8 +528,12 @@ func scanItem(row scanner) (*platstore.Item, error) {
 	if err != nil {
 		return nil, fmt.Errorf("scan item: %w", err)
 	}
-	item.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
-	item.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
+	if item.CreatedAt, err = storeutil.ParseStoredTime("created_at", createdStr); err != nil {
+		return nil, fmt.Errorf("item %s: %w", item.ID, err)
+	}
+	if item.UpdatedAt, err = storeutil.ParseStoredTime("updated_at", updatedStr); err != nil {
+		return nil, fmt.Errorf("item %s: %w", item.ID, err)
+	}
 	if err := json.Unmarshal([]byte(propsJSON), &item.Properties); err != nil {
 		item.Properties = map[string]string{}
 	}
@@ -1604,7 +1612,9 @@ func (s *SQLiteStore) GetVersion(ctx context.Context, versionID string) (*platst
 	if err != nil {
 		return nil, fmt.Errorf("scan version: %w", err)
 	}
-	v.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
+	if v.CreatedAt, err = storeutil.ParseStoredTime("created_at", createdStr); err != nil {
+		return nil, fmt.Errorf("version %s: %w", v.ID, err)
+	}
 	return &v, nil
 }
 
@@ -1619,10 +1629,13 @@ func (s *SQLiteStore) ListVersions(ctx context.Context, projectID, stream string
 	return storage.ScanRows(rows, func(row scanner) (*platstore.Version, error) {
 		var v platstore.Version
 		var createdStr string
-		if err := row.Scan(&v.ID, &v.ProjectID, &v.Label, &v.Description, &v.BlockCount, &createdStr); err != nil {
+		err := row.Scan(&v.ID, &v.ProjectID, &v.Label, &v.Description, &v.BlockCount, &createdStr)
+		if err != nil {
 			return nil, fmt.Errorf("scan version: %w", err)
 		}
-		v.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
+		if v.CreatedAt, err = storeutil.ParseStoredTime("created_at", createdStr); err != nil {
+			return nil, fmt.Errorf("version %s: %w", v.ID, err)
+		}
 		return &v, nil
 	})
 }
@@ -1725,12 +1738,15 @@ func scanProject(row scanner) (*platstore.Project, error) {
 		p.DashboardVisibility = "private"
 	}
 	p.Archived = archived != 0
-	if archivedAtStr.Valid {
-		t, _ := time.Parse(time.RFC3339, archivedAtStr.String)
-		p.ArchivedAt = &t
+	if p.ArchivedAt, err = storeutil.ParseOptionalStoredTime("archived_at", archivedAtStr); err != nil {
+		return nil, fmt.Errorf("project %s: %w", p.ID, err)
 	}
-	p.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
-	p.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
+	if p.CreatedAt, err = storeutil.ParseStoredTime("created_at", createdStr); err != nil {
+		return nil, fmt.Errorf("project %s: %w", p.ID, err)
+	}
+	if p.UpdatedAt, err = storeutil.ParseStoredTime("updated_at", updatedStr); err != nil {
+		return nil, fmt.Errorf("project %s: %w", p.ID, err)
+	}
 	if err := json.Unmarshal([]byte(propsJSON), &p.Properties); err != nil {
 		p.Properties = map[string]string{}
 	}
@@ -1754,8 +1770,12 @@ func scanStoredBlock(row scanner) (*venue.StoredBlock, error) {
 	}
 
 	sb.Block.Translatable = translatable != 0
-	sb.StoredAt, _ = time.Parse(time.RFC3339, storedStr)
-	sb.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
+	if sb.StoredAt, err = storeutil.ParseStoredTime("stored_at", storedStr); err != nil {
+		return nil, fmt.Errorf("block %s: %w", sb.Block.ID, err)
+	}
+	if sb.UpdatedAt, err = storeutil.ParseStoredTime("updated_at", updatedStr); err != nil {
+		return nil, fmt.Errorf("block %s: %w", sb.Block.ID, err)
+	}
 
 	sb.Block.SetSourceRuns(bstore.UnmarshalSourceRuns(sourceJSON))
 	if err := json.Unmarshal([]byte(propsJSON), &sb.Block.Properties); err != nil {
@@ -1909,8 +1929,12 @@ func scanAsset(row assetScanner) (*venue.Asset, error) {
 	if err != nil {
 		return nil, fmt.Errorf("scan asset: %w", err)
 	}
-	a.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
-	a.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
+	if a.CreatedAt, err = storeutil.ParseStoredTime("created_at", createdStr); err != nil {
+		return nil, fmt.Errorf("asset %s: %w", a.ID, err)
+	}
+	if a.UpdatedAt, err = storeutil.ParseStoredTime("updated_at", updatedStr); err != nil {
+		return nil, fmt.Errorf("asset %s: %w", a.ID, err)
+	}
 	if err := json.Unmarshal([]byte(propsJSON), &a.Properties); err != nil {
 		a.Properties = map[string]string{}
 	}
@@ -2006,8 +2030,12 @@ func scanAssetVariant(row assetScanner) (*venue.AssetVariant, error) {
 	if err != nil {
 		return nil, fmt.Errorf("scan asset variant: %w", err)
 	}
-	v.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
-	v.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
+	if v.CreatedAt, err = storeutil.ParseStoredTime("created_at", createdStr); err != nil {
+		return nil, fmt.Errorf("asset variant %s/%s: %w", v.AssetID, v.Locale, err)
+	}
+	if v.UpdatedAt, err = storeutil.ParseStoredTime("updated_at", updatedStr); err != nil {
+		return nil, fmt.Errorf("asset variant %s/%s: %w", v.AssetID, v.Locale, err)
+	}
 	if err := json.Unmarshal([]byte(propsJSON), &v.Properties); err != nil {
 		v.Properties = map[string]string{}
 	}

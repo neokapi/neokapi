@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neokapi/neokapi/bowrain/store/internal/storeutil"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/id"
 )
@@ -367,25 +368,27 @@ func scanConvergenceRun(row scannable) (*ConvergenceRun, error) {
 			return nil, fmt.Errorf("unmarshal run standing for %s: %w", r.ID, err)
 		}
 	}
-	if createdStr != "" {
-		r.CreatedAt, _ = time.Parse(rfc3339Nano, createdStr)
+	var err error
+	if r.CreatedAt, err = storeutil.ParseStoredTime("created_at", createdStr); err != nil {
+		return nil, fmt.Errorf("convergence run %s: %w", r.ID, err)
 	}
-	r.FinishedAt = parseOptionalTime(finishedStr)
-	r.LastActivity = parseOptionalTime(activityStr)
+	if r.FinishedAt, err = parseOptionalTime("finished_at", finishedStr); err != nil {
+		return nil, fmt.Errorf("convergence run %s: %w", r.ID, err)
+	}
+	if r.LastActivity, err = parseOptionalTime("last_activity", activityStr); err != nil {
+		return nil, fmt.Errorf("convergence run %s: %w", r.ID, err)
+	}
 	return &r, nil
 }
 
 // parseOptionalTime parses a nullable/empty RFC3339Nano timestamp column into
-// an optional *time.Time (nil when absent), the store's shared representation
-// for finished_at / last_activity.
-func parseOptionalTime(s sql.NullString) *time.Time {
-	if !s.Valid || s.String == "" {
-		return nil
-	}
-	t, err := time.Parse(rfc3339Nano, s.String)
-	if err != nil {
-		return nil
+// an optional *time.Time in UTC (nil when absent), the store's shared
+// representation for finished_at / last_activity.
+func parseOptionalTime(column string, s sql.NullString) (*time.Time, error) {
+	t, err := storeutil.ParseOptionalStoredTime(column, s)
+	if err != nil || t == nil {
+		return nil, err
 	}
 	tu := t.UTC()
-	return &tu
+	return &tu, nil
 }

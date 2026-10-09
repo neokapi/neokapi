@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/neokapi/neokapi/bowrain/store/internal/storeutil"
 )
 
 // ErrForgeInstallationNotFound is returned when no installation row matches —
@@ -225,7 +227,11 @@ func scanForgeInstallation(sc scanner) (ForgeInstallation, error) {
 	if err != nil {
 		return ForgeInstallation{}, fmt.Errorf("scan forge installation: %w", err)
 	}
-	inst.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
-	inst.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
+	if inst.CreatedAt, err = storeutil.ParseStoredTime("created_at", createdStr); err != nil {
+		return ForgeInstallation{}, fmt.Errorf("forge installation %d: %w", inst.InstallationID, err)
+	}
+	if inst.UpdatedAt, err = storeutil.ParseStoredTime("updated_at", updatedStr); err != nil {
+		return ForgeInstallation{}, fmt.Errorf("forge installation %d: %w", inst.InstallationID, err)
+	}
 	return inst, nil
 }
