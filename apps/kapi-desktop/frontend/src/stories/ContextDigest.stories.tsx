@@ -85,16 +85,26 @@ export const ApplyMoreWidelyPreview: StoryObj<typeof ContextWidenDialog> = {
         scope: { level: "workspace", describe: "workspace product=studio" },
         rule: { kind: "term", term: "business", replacement: "studio" },
         projects: [
-          { project_key: "fernwell", project_name: "Fernwell", current: true, checked_out: true },
-          {
-            project_key: "fernwell-site",
-            project_name: "Fernwell site",
-            current: false,
-            checked_out: true,
-          },
+          { project_key: "fernwell-site", project_name: "Fernwell site", checked_out: true },
         ],
         points: [],
-        content_impact: false,
+        units: [
+          {
+            project_key: "fernwell-site",
+            document: "pages/about.md",
+            unit: "p2",
+            text: "The business opened its doors in 2019.",
+            matches: 1,
+          },
+        ],
+        coverage: {
+          examined: [
+            { project_key: "fernwell", project_name: "Fernwell", units: 48, matched: 0 },
+            { project_key: "fernwell-site", project_name: "Fernwell site", units: 21, matched: 1 },
+          ],
+          not_examined: [],
+          truncated: false,
+        },
       }}
     />
   ),

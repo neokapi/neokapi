@@ -52,10 +52,14 @@ func (s *contextOpsSession) landAt(ctx context.Context, r contextop.Record, resc
 		}
 		return "the whole workspace", nil
 	}
+	w, err := s.projector(ctx)
+	if err != nil {
+		return "", err
+	}
 	landed := ""
 	for _, entry := range s.assetEntries(r) {
 		entry.Rescope = rescope
-		res := s.app.applyAssetEntry(ctx, s.cmd, entry)
+		res := s.app.applyAssetEntryTo(ctx, w, entry)
 		if res.Status == "error" {
 			return "", fmt.Errorf("keep %s: %s", contextop.ShortID(r.ID), res.Detail)
 		}
@@ -155,10 +159,20 @@ func (s *contextOpsSession) settle(ctx context.Context) ([]string, error) {
 	return out, nil
 }
 
+// projector is the one writer of the project's stores: the checkout's, or,
+// for a project with no checkout on this machine, the one bound to its
+// context store in the workspace.
+func (s *contextOpsSession) projector(ctx context.Context) (*projector.Projector, error) {
+	if s.checkedOut() {
+		return s.app.Projector(ctx, s.root)
+	}
+	return s.app.ProjectorFor(ctx, s.key)
+}
+
 // writer is the project's projector, stamping what it writes with the
 // operation that caused it.
 func (s *contextOpsSession) writer(ctx context.Context, r contextop.Record) (*projector.Projector, error) {
-	w, err := s.app.Projector(ctx, s.root)
+	w, err := s.projector(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -307,7 +321,7 @@ func (s *contextOpsSession) sourceLocale() string {
 // that already existed must leave that concept's other terms where they are. A
 // concept the term was alone in goes with it.
 func (s *contextOpsSession) retractTerm(ctx context.Context, rule coreprofile.TermRule) (string, error) {
-	w, err := s.app.Projector(ctx, s.root)
+	w, err := s.projector(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -343,7 +357,7 @@ func (s *contextOpsSession) retractTerm(ctx context.Context, rule coreprofile.Te
 
 // retractMemoryPair removes a pair from the project's content memory.
 func (s *contextOpsSession) retractMemoryPair(ctx context.Context, pair contextop.MemoryPair) (string, error) {
-	w, err := s.app.Projector(ctx, s.root)
+	w, err := s.projector(ctx)
 	if err != nil {
 		return "", err
 	}

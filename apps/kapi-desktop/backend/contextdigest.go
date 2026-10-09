@@ -68,7 +68,7 @@ func (a *App) KeepContextGroup(projectKey string, ids []string) (int, error) {
 	if len(ids) == 0 {
 		return 0, errors.New("name the suggestions to keep")
 	}
-	recipe, err := a.contextRecipeFor(projectKey)
+	project, err := contextProjectKey(projectKey)
 	if err != nil {
 		return 0, err
 	}
@@ -76,7 +76,7 @@ func (a *App) KeepContextGroup(projectKey string, ids []string) (int, error) {
 	defer cancel()
 	res, err := a.hostEngine().KeepContextOperations(ctx, host.ContextKeepRequest{
 		Actor:   deskPerson(),
-		Project: recipe,
+		Project: project,
 		IDs:     ids,
 	})
 	a.emitEvent("workspace:changed", nil)
@@ -87,7 +87,7 @@ func (a *App) KeepContextGroup(projectKey string, ids []string) (int, error) {
 // rival rules are set aside and the chosen one is kept, with the edit the
 // person made to it.
 func (a *App) ChooseContextSide(req ContextDecisionRequest) (*ContextFeedEntry, error) {
-	recipe, err := a.contextRecipeFor(req.Project)
+	project, err := contextProjectKey(req.Project)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +95,7 @@ func (a *App) ChooseContextSide(req ContextDecisionRequest) (*ContextFeedEntry, 
 	defer cancel()
 	res, err := a.hostEngine().ChooseContextSide(ctx, host.ContextChooseRequest{
 		Actor:       deskPerson(),
-		Project:     recipe,
+		Project:     project,
 		ID:          req.ID,
 		Replacement: req.Replacement,
 		Note:        req.Note,
@@ -104,8 +104,7 @@ func (a *App) ChooseContextSide(req ContextDecisionRequest) (*ContextFeedEntry, 
 	if err != nil {
 		return nil, err
 	}
-	entry := contextFeedEntry(res.Kept.Record, "", recipe)
-	return &entry, nil
+	return a.decidedEntry(ctx, res.Kept, project)
 }
 
 // ContextNews reports, for each project whose digest holds something the

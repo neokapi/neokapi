@@ -125,13 +125,32 @@ func (a *App) ResetContext(ctx context.Context, req ContextResetRequest) (Contex
 		return ContextResetResult{}, teachRefusal(err)
 	}
 	out.Reset = &ContextOperation{Record: written}
-	rebuilt, err := a.RebuildProjectContext(ctx, s.recipe, false)
+	rebuilt, err := s.rebuild(ctx)
 	if err != nil {
 		return out, fmt.Errorf("the reset is recorded, and rebuilding the stores from the log failed (`kapi store rebuild` tries again): %w", err)
 	}
 	out.Rebuild = &rebuilt
 	s.changed = true
 	return out, nil
+}
+
+// rebuild replays the log into the project's stores after a reset: through
+// the checkout when there is one, and straight into the workspace's stores
+// for a project with no checkout on this machine.
+func (s *contextOpsSession) rebuild(ctx context.Context) (ContextRebuild, error) {
+	if s.checkedOut() {
+		return s.app.RebuildProjectContext(ctx, s.recipe, false)
+	}
+	var res ContextRebuild
+	w, err := s.app.ProjectorFor(ctx, s.key)
+	if err != nil {
+		return res, err
+	}
+	start := time.Now()
+	report, err := w.Rebuild(ctx)
+	res.Operations, res.Failed, res.From, res.Retired = report.Operations, report.Failed, report.Checkpoint, report.Retired
+	res.Seconds = time.Since(start).Seconds()
+	return res, err
 }
 
 // ContextResetScope reports what resetting to req.Before would set aside,

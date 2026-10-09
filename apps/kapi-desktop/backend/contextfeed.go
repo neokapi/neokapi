@@ -10,15 +10,17 @@ package backend
 // agent's next read carries it. The two processes share a store and nothing
 // else: no IPC, no service between them.
 //
-// Reading goes through contextop.Ledger, which folds the log and reports the
-// status each subject-bearing operation ended up at. Deciding goes through
-// host.App, which owns the policy about who may keep, drop, widen and
-// reset. This file records no operation of its own.
+// Reading and deciding both go through host.App, which folds the log, reports
+// the status each subject-bearing operation ended up at, and owns the policy
+// about who may keep, drop, widen and reset. Every call names the project by
+// its workspace key, which the host resolves to a checkout on this machine
+// when there is one and to the project's stores in the workspace otherwise,
+// so a project registered from another machine is decided on here too. This
+// file records no operation of its own.
 
 import (
 	"context"
 	"errors"
-	"fmt"
 	"path/filepath"
 	"strings"
 	"time"
@@ -151,8 +153,9 @@ type ContextFeedEntry struct {
 	// WidenTo are the widenings open to this rule: "workspace", and each axis
 	// its point is specific about.
 	WidenTo []string `json:"widen_to"`
-	// Recipe is the checkout a decision about this entry is made through,
-	// empty when no readable checkout of the project is on this machine.
+	// Recipe is the checkout of the project on this machine, empty when none
+	// is here. A decision needs none: it is recorded in the workspace, where
+	// the project's terms and content memory live.
 	Recipe string `json:"recipe,omitempty"`
 }
 
@@ -171,7 +174,7 @@ type ContextFeedGroup struct {
 	// more than one.
 	ProjectKey  string `json:"project_key,omitempty"`
 	ProjectName string `json:"project_name,omitempty"`
-	// Recipe is the checkout decisions about this group go through.
+	// Recipe is the checkout of the project on this machine, when one is here.
 	Recipe string `json:"recipe,omitempty"`
 	// First and Last bound the group in time, RFC3339 in UTC.
 	First string `json:"first"`
@@ -257,19 +260,19 @@ type ContextResetSummary struct {
 	Reset string `json:"reset,omitempty"`
 }
 
-// ContextWidenTarget is one project a widened rule would answer in.
+// ContextWidenTarget is one other project a widened rule would newly answer
+// in.
 type ContextWidenTarget struct {
 	ProjectKey  string `json:"project_key"`
 	ProjectName string `json:"project_name,omitempty"`
-	// Current is true for the project the rule already answers in.
-	Current bool `json:"current"`
 	// CheckedOut reports a copy of the project's files on this machine.
 	CheckedOut bool `json:"checked_out"`
 }
 
-// ContextWidenPoint is one point in the project's recipe a widened rule would
-// newly answer at.
+// ContextWidenPoint is one declared point a widened rule would newly answer
+// at.
 type ContextWidenPoint struct {
+	ProjectKey string `json:"project_key"`
 	// Ref addresses the point the way a collection names it.
 	Ref         string            `json:"ref"`
 	Label       string            `json:"label"`
@@ -278,8 +281,50 @@ type ContextWidenPoint struct {
 	Collections []string `json:"collections"`
 }
 
+// ContextWidenUnit is one unit a widened rule would newly match.
+type ContextWidenUnit struct {
+	ProjectKey string `json:"project_key"`
+	// Document is the file, relative to the project root, and Unit the block
+	// in it.
+	Document string `json:"document"`
+	Unit     string `json:"unit"`
+	// Text is the unit's source text, cut to an excerpt.
+	Text string `json:"text"`
+	// Matches is how many times the text holds a form the rule avoids.
+	Matches int `json:"matches"`
+}
+
+// ContextWidenExamined is one project whose projection the preview read.
+type ContextWidenExamined struct {
+	ProjectKey  string `json:"project_key"`
+	ProjectName string `json:"project_name,omitempty"`
+	// Units is how many units the projection holds and Matched how many the
+	// widened rule would newly match.
+	Units   int `json:"units"`
+	Matched int `json:"matched"`
+}
+
+// ContextWidenGap is one project the preview could not read units from.
+type ContextWidenGap struct {
+	ProjectKey  string `json:"project_key"`
+	ProjectName string `json:"project_name,omitempty"`
+	// Reason says why: its files are not on this machine, no projection of
+	// its content is built here, or the rule names no wording to look for.
+	Reason string `json:"reason"`
+}
+
+// ContextWidenCoverage says which projects the preview read units from and
+// which it did not, so the dialog states what was counted and what was not.
+type ContextWidenCoverage struct {
+	Examined    []ContextWidenExamined `json:"examined"`
+	NotExamined []ContextWidenGap      `json:"not_examined"`
+	// Truncated reports that Units holds the first of more; Examined carries
+	// the full counts.
+	Truncated bool `json:"truncated"`
+}
+
 // ContextWidenPreview is what widening a rule would change, read before a
-// person accepts it.
+// person accepts it. It is host.ContextWidenPreview as the dialog shows it.
 type ContextWidenPreview struct {
 	// To is the widening asked for: "workspace", or the axis dropped.
 	To string `json:"to"`
@@ -288,16 +333,17 @@ type ContextWidenPreview struct {
 	Scope ContextScopeDTO `json:"scope"`
 	// Rule is the rule itself, so the preview names what would reach further.
 	Rule ContextSubjectDTO `json:"rule"`
-	// Projects are the workspace's projects the widened rule answers in,
-	// listed for a widening to the workspace.
+	// Projects are the other projects of the workspace the widened rule would
+	// newly answer in, listed for a widening to the workspace.
 	Projects []ContextWidenTarget `json:"projects"`
-	// Points are the recipe's declared points the widened rule newly covers,
-	// listed for a widening past one axis.
+	// Points are the declared points the widened rule newly covers, in every
+	// project whose recipe is on this machine.
 	Points []ContextWidenPoint `json:"points"`
-	// ContentImpact is false: which files hold the term, and how many times,
-	// is not computed here. The frontend says so in as many words rather than
-	// letting a reader read reach as impact.
-	ContentImpact bool `json:"content_impact"`
+	// Units are the units the rule would newly match, in every project whose
+	// projection is built on this machine.
+	Units []ContextWidenUnit `json:"units"`
+	// Coverage says what the units were read from and what they were not.
+	Coverage ContextWidenCoverage `json:"coverage"`
 }
 
 // ContextFeed reads the workspace's context operations, newest first, grouped
@@ -322,9 +368,12 @@ func (a *App) contextFeed(ctx context.Context, key workspace.ProjectKey, limit i
 	if err != nil {
 		return nil, err
 	}
-	ledger := contextop.NewLedger(ws, contextop.PersonDecides)
-
-	all, err := ledger.Records(ctx, contextop.Filter{})
+	// One more than the limit, so a cut feed says so.
+	log, err := a.hostEngine().ContextOperations(ctx, host.ContextLogRequest{
+		Project:     string(key),
+		AllProjects: key == "",
+		Limit:       limit + 1,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -334,12 +383,9 @@ func (a *App) contextFeed(ctx context.Context, key workspace.ProjectKey, limit i
 		Groups:     []ContextFeedGroup{},
 		ReadOnly:   ws.Describe().ReadOnly,
 	}
-	shown := make([]contextop.Record, 0, len(all))
-	for _, r := range all {
-		if key != "" && r.Project != key {
-			continue
-		}
-		shown = append(shown, r)
+	shown := make([]contextop.Record, 0, len(log.Operations))
+	for _, op := range log.Operations {
+		shown = append(shown, op.Record)
 	}
 	if len(shown) > limit {
 		shown, out.Truncated = shown[:limit], true
@@ -351,7 +397,7 @@ func (a *App) contextFeed(ctx context.Context, key workspace.ProjectKey, limit i
 // KeepContextSuggestion establishes a suggestion, with whatever edit and
 // whatever widening the person asked for in the same step.
 func (a *App) KeepContextSuggestion(req ContextDecisionRequest) (*ContextFeedEntry, error) {
-	recipe, err := a.contextRecipeFor(req.Project)
+	project, err := contextProjectKey(req.Project)
 	if err != nil {
 		return nil, err
 	}
@@ -360,7 +406,7 @@ func (a *App) KeepContextSuggestion(req ContextDecisionRequest) (*ContextFeedEnt
 
 	written, err := a.hostEngine().KeepContextOperation(ctx, host.ContextKeepRequest{
 		Actor:       deskPerson(),
-		Project:     recipe,
+		Project:     project,
 		ID:          req.ID,
 		Replacement: req.Replacement,
 		Advisory:    req.Advisory,
@@ -371,13 +417,12 @@ func (a *App) KeepContextSuggestion(req ContextDecisionRequest) (*ContextFeedEnt
 		return nil, err
 	}
 	a.emitEvent("workspace:changed", nil)
-	entry := contextFeedEntry(written.Record, "", recipe)
-	return &entry, nil
+	return a.decidedEntry(ctx, written, project)
 }
 
 // DropContextSuggestion sets a suggestion aside. It stops answering at once.
 func (a *App) DropContextSuggestion(req ContextDecisionRequest) (*ContextFeedEntry, error) {
-	recipe, err := a.contextRecipeFor(req.Project)
+	project, err := contextProjectKey(req.Project)
 	if err != nil {
 		return nil, err
 	}
@@ -386,7 +431,7 @@ func (a *App) DropContextSuggestion(req ContextDecisionRequest) (*ContextFeedEnt
 
 	written, err := a.hostEngine().DropContextOperation(ctx, host.ContextDropRequest{
 		Actor:   deskPerson(),
-		Project: recipe,
+		Project: project,
 		ID:      req.ID,
 		Note:    req.Note,
 	})
@@ -394,15 +439,14 @@ func (a *App) DropContextSuggestion(req ContextDecisionRequest) (*ContextFeedEnt
 		return nil, err
 	}
 	a.emitEvent("workspace:changed", nil)
-	entry := contextFeedEntry(written.Record, "", recipe)
-	return &entry, nil
+	return a.decidedEntry(ctx, written, project)
 }
 
 // ResetContext rewinds the project's context to before the point the request
 // names. What was recorded from that point on is set aside, stays in the log,
 // and the project's stores are rebuilt without it.
 func (a *App) ResetContext(req ContextResetRequest) (*ContextResetSummary, error) {
-	recipe, err := a.contextRecipeFor(req.Project)
+	project, err := contextProjectKey(req.Project)
 	if err != nil {
 		return nil, err
 	}
@@ -411,7 +455,7 @@ func (a *App) ResetContext(req ContextResetRequest) (*ContextResetSummary, error
 
 	result, err := a.hostEngine().ResetContext(ctx, host.ContextResetRequest{
 		Actor:   deskPerson(),
-		Project: recipe,
+		Project: project,
 		Before:  req.Before,
 		Note:    req.Note,
 	})
@@ -425,7 +469,7 @@ func (a *App) ResetContext(req ContextResetRequest) (*ContextResetSummary, error
 // ContextResetScope reports what resetting to before the named point would
 // set aside, for the confirmation a person reads first. It records nothing.
 func (a *App) ContextResetScope(req ContextResetRequest) (*ContextResetSummary, error) {
-	recipe, err := a.contextRecipeFor(req.Project)
+	project, err := contextProjectKey(req.Project)
 	if err != nil {
 		return nil, err
 	}
@@ -434,7 +478,7 @@ func (a *App) ContextResetScope(req ContextResetRequest) (*ContextResetSummary, 
 
 	result, err := a.hostEngine().ContextResetScope(ctx, host.ContextResetRequest{
 		Actor:   deskPerson(),
-		Project: recipe,
+		Project: project,
 		Before:  req.Before,
 		Note:    req.Note,
 	})
@@ -472,7 +516,7 @@ func resetSummary(result host.ContextResetResult) *ContextResetSummary {
 
 // WidenContextRule moves an established rule to a broader point.
 func (a *App) WidenContextRule(req ContextDecisionRequest) (*ContextFeedEntry, error) {
-	recipe, err := a.contextRecipeFor(req.Project)
+	project, err := contextProjectKey(req.Project)
 	if err != nil {
 		return nil, err
 	}
@@ -481,7 +525,7 @@ func (a *App) WidenContextRule(req ContextDecisionRequest) (*ContextFeedEntry, e
 
 	written, err := a.hostEngine().WidenContextOperation(ctx, host.ContextWidenRequest{
 		Actor:   deskPerson(),
-		Project: recipe,
+		Project: project,
 		ID:      req.ID,
 		To:      req.WidenTo,
 		Note:    req.Note,
@@ -490,142 +534,98 @@ func (a *App) WidenContextRule(req ContextDecisionRequest) (*ContextFeedEntry, e
 		return nil, err
 	}
 	a.emitEvent("workspace:changed", nil)
-	entry := contextFeedEntry(written.Record, "", recipe)
-	return &entry, nil
+	return a.decidedEntry(ctx, written, project)
 }
 
-// ContextWidenReach reports where a rule would answer once widened: the
-// workspace's projects for a widening to the workspace, and the recipe's
-// declared points the rule newly covers for a widening past one axis.
-//
-// It reports reach and not impact. Which files hold the term, and how many
-// times, would have to be read out of the content, and the host API computes
-// no such preview, so the surface says as much rather than implying the two
-// are the same.
+// ContextWidenReach reports what a rule would newly govern once widened: the
+// other projects for a widening to the workspace, the declared points it
+// would newly cover, and the units it would newly match wherever a projection
+// is built on this machine. The host computes it (host.PreviewContextWidening)
+// and says which projects it could not read, so the dialog states what was
+// counted and what was not.
 func (a *App) ContextWidenReach(projectKey, id, to string) (*ContextWidenPreview, error) {
-	if to == "" {
-		return nil, errors.New("name what to widen to")
+	project, err := contextProjectKey(projectKey)
+	if err != nil {
+		return nil, err
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), contextFeedTimeout)
 	defer cancel()
 
-	ws, err := a.hostEngine().Workspace(ctx)
+	preview, err := a.hostEngine().PreviewContextWidening(ctx, host.ContextWidenPreviewRequest{
+		Project: project,
+		ID:      id,
+		To:      to,
+	})
 	if err != nil {
 		return nil, err
 	}
-	target, err := contextop.NewLedger(ws, contextop.PersonDecides).Subject(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	widened, err := widenedScope(target.Scope, to)
-	if err != nil {
-		return nil, err
-	}
-	out := &ContextWidenPreview{
-		To:       to,
-		From:     scopeDTO(target.Scope),
-		Scope:    scopeDTO(widened),
-		Rule:     subjectDTO(target.Subject),
-		Projects: []ContextWidenTarget{},
-		Points:   []ContextWidenPoint{},
-	}
-	if projectKey == "" {
-		projectKey = string(target.Project)
-	}
-
-	if to == host.WidenToWorkspace {
-		registrations, rerr := ws.Projects(ctx)
-		if rerr != nil {
-			return nil, rerr
-		}
-		for _, reg := range registrations {
-			out.Projects = append(out.Projects, ContextWidenTarget{
-				ProjectKey:  string(reg.Key),
-				ProjectName: workspaceDisplayName(reg),
-				Current:     reg.Key == target.Project,
-				CheckedOut:  len(liveCheckouts(reg)) > 0,
-			})
-		}
-		return out, nil
-	}
-
-	recipe, err := a.contextRecipeFor(projectKey)
-	if err != nil {
-		// The rule's own project has no checkout here, so the recipe's points
-		// cannot be read. The scope change is still worth showing.
-		return out, nil
-	}
-	proj, err := project.LoadWithOptions(recipe, project.LoadOptions{SkipRequiresCheck: true})
-	if err != nil {
-		return nil, fmt.Errorf("read the recipe to see where the rule would reach: %w", err)
-	}
-	out.Points = newlyCoveredPoints(proj, target.Scope, widened, a.hostEngine().GovernanceInstant())
-	return out, nil
+	return widenPreviewDTO(preview), nil
 }
 
-// newlyCoveredPoints lists the recipe's declared points the widened scope
-// covers and the narrow one does not.
-func newlyCoveredPoints(proj *project.KapiProject, from, to contextop.Scope, at time.Time) []ContextWidenPoint {
-	byRef := collectionsByPoint(proj, at)
-	out := []ContextWidenPoint{}
-	for _, ref := range declaredPointRefs(proj) {
-		coordinates := project.MergeCoordinates(proj.Defaults.Coordinates, ref.Coordinates(), nil)
-		if from.Covers(coordinates) || !to.Covers(coordinates) {
-			continue
-		}
-		collections := byRef[ref.String()]
-		if collections == nil {
-			collections = []string{}
-		}
-		out = append(out, ContextWidenPoint{
-			Ref:         ref.String(),
-			Label:       pointRefLabel(ref),
-			Coordinates: coordinates,
-			Collections: collections,
+// widenPreviewDTO renders a preview for the dialog.
+func widenPreviewDTO(preview host.ContextWidenPreview) *ContextWidenPreview {
+	out := &ContextWidenPreview{
+		To:       preview.To,
+		From:     scopeDTO(preview.From),
+		Scope:    scopeDTO(preview.Scope),
+		Rule:     subjectDTO(preview.Rule),
+		Projects: make([]ContextWidenTarget, 0, len(preview.Projects)),
+		Points:   make([]ContextWidenPoint, 0, len(preview.Points)),
+		Units:    make([]ContextWidenUnit, 0, len(preview.Units)),
+		Coverage: ContextWidenCoverage{
+			Examined:    make([]ContextWidenExamined, 0, len(preview.Coverage.Examined)),
+			NotExamined: make([]ContextWidenGap, 0, len(preview.Coverage.NotExamined)),
+			Truncated:   preview.Coverage.Truncated,
+		},
+	}
+	for _, p := range preview.Projects {
+		out.Projects = append(out.Projects, ContextWidenTarget{ProjectKey: string(p.Key), ProjectName: p.Name, CheckedOut: p.CheckedOut})
+	}
+	for _, p := range preview.Points {
+		out.Points = append(out.Points, ContextWidenPoint{
+			ProjectKey:  string(p.Project),
+			Ref:         p.Ref,
+			Label:       p.Label,
+			Coordinates: p.Coordinates,
+			Collections: p.Collections,
+		})
+	}
+	for _, u := range preview.Units {
+		out.Units = append(out.Units, ContextWidenUnit{
+			ProjectKey: string(u.Project),
+			Document:   u.Document,
+			Unit:       u.Unit,
+			Text:       u.Text,
+			Matches:    u.Matches,
+		})
+	}
+	for _, e := range preview.Coverage.Examined {
+		out.Coverage.Examined = append(out.Coverage.Examined, ContextWidenExamined{
+			ProjectKey: string(e.Project), ProjectName: e.Name, Units: e.Units, Matched: e.Matched,
+		})
+	}
+	for _, g := range preview.Coverage.NotExamined {
+		out.Coverage.NotExamined = append(out.Coverage.NotExamined, ContextWidenGap{
+			ProjectKey: string(g.Project), ProjectName: g.Name, Reason: g.Reason,
 		})
 	}
 	return out
 }
 
-// declaredPointRefs is every point the recipe declares: the project's own, and
-// each profile's channels.
-func declaredPointRefs(proj *project.KapiProject) []project.ChannelRef {
-	refs := []project.ChannelRef{{}}
-	for _, name := range sortedKeys(proj.Profiles) {
-		channels := proj.Profiles[name].Channels
-		if len(channels) == 0 {
-			refs = append(refs, project.ChannelRef{Profile: name})
-			continue
-		}
-		for _, ch := range channels {
-			if ch.ID == "" {
-				continue
-			}
-			refs = append(refs, project.ChannelRef{Profile: name, Channel: ch.ID})
-		}
+// decidedEntry renders the operation a decision recorded, named and placed
+// the way the feed shows it.
+func (a *App) decidedEntry(ctx context.Context, written host.ContextOperation, key string) (*ContextFeedEntry, error) {
+	ws, err := a.hostEngine().Workspace(ctx)
+	if err != nil {
+		return nil, err
 	}
-	return refs
-}
-
-// widenedScope is the scope a rule answers at once widened. It mirrors what
-// host.WidenContextOperation will do, for a preview that has to show the
-// result before anything is recorded.
-func widenedScope(scope contextop.Scope, to string) (contextop.Scope, error) {
-	if to == host.WidenToWorkspace {
-		scope.Level = contextop.LevelWorkspace
-		return scope, nil
+	registry, err := a.contextProjectIndex(ctx, ws)
+	if err != nil {
+		return nil, err
 	}
-	if _, ok := scope.Coordinates[to]; !ok {
-		return contextop.Scope{}, fmt.Errorf("this rule sits at no %q, so there is nothing to widen past (its point is %s)", to, scope.Describe())
-	}
-	widened := make(map[string]string, len(scope.Coordinates))
-	for axis, value := range scope.Coordinates {
-		if axis != to {
-			widened[axis] = value
-		}
-	}
-	scope.Coordinates = widened
-	return scope, nil
+	pk := workspace.ProjectKey(key)
+	entry := contextFeedEntry(written.Record, registry.name(pk), registry.recipe(pk))
+	return &entry, nil
 }
 
 // contextProjectIndex reads the registry once, so the feed can name a project
@@ -668,36 +668,15 @@ func liveCheckouts(reg workspace.Registration) []string {
 	return out
 }
 
-// contextRecipeFor is the recipe a decision about one project goes through.
-//
-// Every context operation names a project by its workspace key, and the host
-// API resolves a project from a recipe path, so a decision needs a checkout on
-// this machine. A project registered from a machine that no longer has it can
-// be read here and not decided on.
-func (a *App) contextRecipeFor(key string) (string, error) {
+// contextProjectKey checks that a decision names its project. The host
+// resolves the key to a checkout on this machine when one is here, and to the
+// project's stores in the workspace otherwise. An empty key would resolve a
+// project from the working directory, which is no project of the desktop's.
+func contextProjectKey(key string) (string, error) {
 	if key == "" {
 		return "", errors.New("name the project the operation belongs to")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), contextFeedTimeout)
-	defer cancel()
-
-	ws, err := a.hostEngine().Workspace(ctx)
-	if err != nil {
-		return "", err
-	}
-	reg, ok, err := ws.Lookup(ctx, workspace.ProjectKey(key))
-	if err != nil {
-		return "", err
-	}
-	if !ok {
-		return "", fmt.Errorf("this workspace holds no project %q", key)
-	}
-	live := liveCheckouts(reg)
-	if len(live) == 0 {
-		return "", fmt.Errorf("no copy of %s is on this machine, so a decision cannot be written into its files",
-			workspaceDisplayName(reg))
-	}
-	return filepath.Join(live[0], project.RecipeFileName), nil
+	return key, nil
 }
 
 // deskPerson is who the desktop records as. The app holds no account, and the

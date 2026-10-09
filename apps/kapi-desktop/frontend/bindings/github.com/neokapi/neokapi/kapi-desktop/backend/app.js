@@ -516,14 +516,12 @@ export function ContextSearch(tabID, query, locale, limit) {
 }
 
 /**
- * ContextWidenReach reports where a rule would answer once widened: the
- * workspace's projects for a widening to the workspace, and the recipe's
- * declared points the rule newly covers for a widening past one axis.
- * 
- * It reports reach and not impact. Which files hold the term, and how many
- * times, would have to be read out of the content, and the host API computes
- * no such preview, so the surface says as much rather than implying the two
- * are the same.
+ * ContextWidenReach reports what a rule would newly govern once widened: the
+ * other projects for a widening to the workspace, the declared points it
+ * would newly cover, and the units it would newly match wherever a projection
+ * is built on this machine. The host computes it (host.PreviewContextWidening)
+ * and says which projects it could not read, so the dialog states what was
+ * counted and what was not.
  * @param {string} projectKey
  * @param {string} id
  * @param {string} to

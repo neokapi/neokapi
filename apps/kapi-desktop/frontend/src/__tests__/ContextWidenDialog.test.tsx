@@ -14,12 +14,23 @@ const TO_WORKSPACE: ContextWidenPreview = {
   scope: { level: "workspace", describe: "workspace brand=kapimart" },
   rule: { kind: "voice", term: "utilise", replacement: "use" },
   projects: [
-    { project_key: "kapimart", project_name: "KapiMart", current: true, checked_out: true },
-    { project_key: "bowmart", project_name: "BowMart", current: false, checked_out: true },
-    { project_key: "archive", project_name: "Archive", current: false, checked_out: false },
+    { project_key: "bowmart", project_name: "BowMart", checked_out: true },
+    { project_key: "archive", project_name: "Archive", checked_out: false },
   ],
   points: [],
-  content_impact: false,
+  units: [],
+  coverage: {
+    examined: [{ project_key: "bowmart", project_name: "BowMart", units: 12, matched: 0 }],
+    not_examined: [
+      {
+        project_key: "kapimart",
+        project_name: "KapiMart",
+        reason: "no projection of its content is built on this machine",
+      },
+      { project_key: "archive", project_name: "Archive", reason: "no checkout on this machine" },
+    ],
+    truncated: false,
+  },
 };
 
 const PAST_AN_AXIS: ContextWidenPreview = {
@@ -30,13 +41,27 @@ const PAST_AN_AXIS: ContextWidenPreview = {
   projects: [],
   points: [
     {
+      project_key: "kapimart",
       ref: "marketing/web",
       label: "marketing/web",
       coordinates: { product: "marketing", channel: "web" },
       collections: ["campaigns"],
     },
   ],
-  content_impact: false,
+  units: [
+    {
+      project_key: "kapimart",
+      document: "campaigns/launch.md",
+      unit: "p3",
+      text: "Utilise the new store.",
+      matches: 1,
+    },
+  ],
+  coverage: {
+    examined: [{ project_key: "kapimart", project_name: "KapiMart", units: 40, matched: 1 }],
+    not_examined: [],
+    truncated: false,
+  },
 };
 
 describe("the widen preview", () => {
@@ -51,14 +76,14 @@ describe("the widen preview", () => {
       />,
     );
     const projects = document.querySelector("[data-slot='widen-projects']");
-    expect(projects?.textContent).toContain("KapiMart");
+    expect(projects?.textContent).not.toContain("KapiMart");
     expect(projects?.textContent).toContain("BowMart");
     expect(projects?.textContent).toContain("Archive");
     expect(projects?.textContent).toContain("no copy on this machine");
     expect(document.body.textContent).toContain("It would newly answer in 2 other projects");
   });
 
-  it("says plainly that it has not counted the content the rule touches", () => {
+  it("says which projects it read units from and which it could not, in the backend's words", () => {
     render(
       <ContextWidenDialog
         rule={RULE}
@@ -68,8 +93,30 @@ describe("the widen preview", () => {
         preview={TO_WORKSPACE}
       />,
     );
-    expect(document.querySelector("[data-slot='widen-impact']")?.textContent).toContain(
-      "How much content it touches is not counted here",
+    const coverage = document.querySelector("[data-slot='widen-coverage']")?.textContent;
+    expect(coverage).toContain("Units were read from BowMart (12 units).");
+    expect(coverage).toContain("KapiMart: no projection of its content is built on this machine.");
+    expect(coverage).toContain("Archive: no checkout on this machine.");
+    expect(document.body.textContent).toContain("No unit would newly match");
+    expect(document.querySelector("[data-slot='widen-units']")).toBeNull();
+  });
+
+  it("lists the units a widening past an axis would newly match", () => {
+    render(
+      <ContextWidenDialog
+        rule={RULE}
+        to="product"
+        onClose={vi.fn()}
+        onConfirm={vi.fn()}
+        preview={PAST_AN_AXIS}
+      />,
+    );
+    expect(document.body.textContent).toContain("It would newly match 1 unit");
+    const units = document.querySelector("[data-slot='widen-units']");
+    expect(units?.textContent).toContain("campaigns/launch.md · p3");
+    expect(units?.textContent).toContain("Utilise the new store.");
+    expect(document.querySelector("[data-slot='widen-coverage']")?.textContent).toContain(
+      "Units were read from KapiMart (40 units).",
     );
   });
 

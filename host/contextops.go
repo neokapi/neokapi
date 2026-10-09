@@ -27,6 +27,12 @@
 // the agent, and the desktop states the person. A request that states none came
 // from a command line, where the environment answers
 // (host/contextactor.go).
+//
+// Every request names its project the same way (contextOps): by the recipe
+// path of a checkout, or by the workspace key a project is registered under. A
+// project registered from another machine has its log, its terms and its
+// content memory in this workspace and none of its files, and the key is how
+// a surface reads and decides on it here.
 package host
 
 import (
@@ -113,8 +119,13 @@ type ContextCorrectRequest struct {
 
 // ContextLogRequest narrows a reading of a project's context history.
 type ContextLogRequest struct {
-	// Project is the recipe path. Empty reads the whole workspace.
+	// Project is the recipe path, or the workspace key of a project with no
+	// checkout on this machine. Empty resolves the project the way every other
+	// command does.
 	Project string
+	// AllProjects reads every project in the workspace instead, for a surface
+	// that shows the workspace's whole feed. Project is then left unread.
+	AllProjects bool
 	// Session narrows to one agent session.
 	Session string
 	// Status narrows to one status: suggested, established, contested,
@@ -138,7 +149,8 @@ type ContextKeepRequest struct {
 	// Actor is who is acting. An empty Kind is a command line, where the
 	// environment answers (host/contextactor.go).
 	Actor contextop.Actor
-	// Project is the recipe path.
+	// Project is the recipe path, or the workspace key of a project with no
+	// checkout on this machine.
 	Project string
 	// ID names one operation to keep, and IDs several; both may be given.
 	// Naming a decision about a rule reaches the rule.
@@ -460,6 +472,9 @@ func (s *contextOpsSession) observedInFiles(ctx context.Context, subject context
 // of forms, which are folded (foldedText). read is false when no reader opens
 // the file.
 func (s *contextOpsSession) blocksHoldForm(ctx context.Context, rel string, forms []string) (seen, read bool) {
+	if !s.checkedOut() {
+		return false, false
+	}
 	svc, err := s.app.ChangeService(ctx, ChangeServiceOptions{Project: s.recipe, Origin: "context"})
 	if err != nil {
 		return false, false
@@ -544,8 +559,12 @@ func (s *contextOpsSession) entriesContradict(ctx context.Context, rule profile.
 
 // entriesHolding lists the blocks of the project's file at rel, other than
 // except, whose text or an edition the file holds matches re. A file the
-// project cannot read lists none.
+// project cannot read lists none, and a project with no checkout has none to
+// read.
 func (s *contextOpsSession) entriesHolding(ctx context.Context, rel, except string, re *regexp.Regexp) []string {
+	if !s.checkedOut() {
+		return nil
+	}
 	svc, err := s.app.ChangeService(ctx, ChangeServiceOptions{Project: s.recipe, Origin: "context"})
 	if err != nil {
 		return nil
@@ -627,18 +646,32 @@ func (a *App) RecordContextCorrection(ctx context.Context, req ContextCorrectReq
 	return s.settled(ctx, written, before)
 }
 
-// ContextOperations reads a project's context history, newest first.
+// ContextOperations reads a project's context history, newest first, or the
+// whole workspace's when the request asks for every project.
 func (a *App) ContextOperations(ctx context.Context, req ContextLogRequest) (ContextOperationList, error) {
-	s, err := a.contextOps(ctx, req.Project)
-	if err != nil {
-		return ContextOperationList{}, err
+	var (
+		ledger *contextop.Ledger
+		key    workspace.ProjectKey
+	)
+	if req.AllProjects {
+		ws, err := a.Workspace(ctx)
+		if err != nil {
+			return ContextOperationList{}, err
+		}
+		ledger = contextop.NewLedger(ws, contextop.PersonDecides)
+	} else {
+		s, err := a.contextOps(ctx, req.Project)
+		if err != nil {
+			return ContextOperationList{}, err
+		}
+		ledger, key = s.ledger, s.key
 	}
 	session, err := a.logSession(req.Session)
 	if err != nil {
 		return ContextOperationList{}, err
 	}
-	records, err := s.ledger.Records(ctx, contextop.Filter{
-		Project:  s.key,
+	records, err := ledger.Records(ctx, contextop.Filter{
+		Project:  key,
 		Session:  session,
 		Status:   req.Status,
 		Actor:    req.Actor,
@@ -649,7 +682,7 @@ func (a *App) ContextOperations(ctx context.Context, req ContextLogRequest) (Con
 	if err != nil {
 		return ContextOperationList{}, err
 	}
-	out := ContextOperationList{Project: string(s.key), Operations: make([]ContextOperation, 0, len(records))}
+	out := ContextOperationList{Project: string(key), Operations: make([]ContextOperation, 0, len(records))}
 	for _, r := range records {
 		out.Operations = append(out.Operations, ContextOperation{Record: r})
 	}
@@ -1046,34 +1079,126 @@ func (a *App) ContextSessionSummary(ctx context.Context, req ContextSessionReque
 }
 
 // contextOpsSession is one project's context log, opened once for one call.
+//
+// A session opened by key for a project with no checkout on this machine has
+// no recipe, root or loaded project: it reads and writes the project's stores
+// in the workspace and nothing in its files.
 type contextOpsSession struct {
 	app    *App
 	ledger *contextop.Ledger
 	ws     *workspace.Workspace
 	key    workspace.ProjectKey
-	proj   *project.KapiProject
-	// recipe is the recipe path and root the directory holding it.
+	// proj is the loaded recipe, nil without a checkout.
+	proj *project.KapiProject
+	// recipe is the recipe path and root the directory holding it, both
+	// empty without a checkout.
 	recipe string
 	root   string
-	// cmd carries the project through to the appliers that land an
-	// established rule, which read it the way a command line would.
-	cmd Command
 	// changed says a rule was written to, or taken out of, a store in this
 	// call, so the project's rules files are refreshed when it ends.
 	changed bool
 }
 
+// checkedOut reports a session over a checkout on this machine.
+func (s *contextOpsSession) checkedOut() bool { return s.recipe != "" }
+
 // refreshRulesFiles refreshes the project's rules files when the call changed
-// the rules in force (host/rulesfiles.go).
+// the rules in force (host/rulesfiles.go). A project with no checkout has no
+// files to refresh.
 func (s *contextOpsSession) refreshRulesFiles(ctx context.Context) {
-	if s.changed {
+	if s.changed && s.checkedOut() {
 		s.app.refreshRulesFilesQuietly(ctx, s.recipe)
 	}
 }
 
-// contextOps opens a project's context log. An empty recipe path resolves the
-// project the way every other command does.
-func (a *App) contextOps(ctx context.Context, recipePath string) (*contextOpsSession, error) {
+// contextOps opens a project's context log.
+//
+// project is the recipe path of a checkout, or the workspace key a project is
+// registered under. An empty path resolves the project the way every other
+// command does. A key opens the checkout the registry lists when a readable
+// one is on this machine, and the project's stores in the workspace alone
+// otherwise, which is enough to read its log and to decide on it: a kept rule
+// lands in the terms store or content memory the workspace holds for the
+// project, and the next checkout anywhere reads it from there.
+//
+// A value that names a file or a directory is a path. One that names nothing
+// on disk and is registered is a key; one that names nothing and is not
+// registered is reported the way a mistyped path always was.
+func (a *App) contextOps(ctx context.Context, project string) (*contextOpsSession, error) {
+	if key, ok, err := a.registeredContextProject(ctx, project); err != nil {
+		return nil, err
+	} else if ok {
+		return a.contextOpsFor(ctx, key)
+	}
+	return a.contextOpsAt(ctx, project)
+}
+
+// registeredContextProject reports whether project names a workspace key
+// rather than a path: nothing on disk has that name, and the registry holds
+// it.
+func (a *App) registeredContextProject(ctx context.Context, project string) (workspace.ProjectKey, bool, error) {
+	if project == "" {
+		return "", false, nil
+	}
+	if _, err := os.Stat(project); err == nil {
+		return "", false, nil
+	}
+	ws, err := a.Workspace(ctx)
+	if err != nil {
+		return "", false, err
+	}
+	key := workspace.ProjectKey(project)
+	_, ok, err := ws.Lookup(ctx, key)
+	if err != nil {
+		return "", false, err
+	}
+	return key, ok, nil
+}
+
+// contextOpsFor opens a registered project's context log by its key: through
+// a checkout on this machine when the registry lists a readable one of this
+// project, and over the workspace's stores alone otherwise.
+func (a *App) contextOpsFor(ctx context.Context, key workspace.ProjectKey) (*contextOpsSession, error) {
+	ws, err := a.Workspace(ctx)
+	if err != nil {
+		return nil, err
+	}
+	reg, ok, err := ws.Lookup(ctx, key)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, fmt.Errorf("this workspace holds no project %q", key)
+	}
+	if recipe := registeredCheckout(reg); recipe != "" {
+		return a.contextOpsAt(ctx, recipe)
+	}
+	return &contextOpsSession{
+		app:    a,
+		ledger: contextop.NewLedger(ws, contextop.PersonDecides),
+		ws:     ws,
+		key:    key,
+	}, nil
+}
+
+// registeredCheckout is the recipe of the first checkout a registration lists
+// that is readable on this machine and still belongs to the project, empty
+// when there is none. A checkout that was deleted, or whose directory now
+// holds another project, stays in the registry until something opens the
+// project again, so each one is checked rather than trusted.
+func registeredCheckout(reg workspace.Registration) string {
+	for _, dir := range reg.Checkouts {
+		recipe := filepath.Join(dir, project.RecipeFileName)
+		if identity, _ := recipeIdentity(recipe); identity == string(reg.Key) {
+			return recipe
+		}
+	}
+	return ""
+}
+
+// contextOpsAt opens a project's context log through its checkout. An empty
+// recipe path resolves the project the way every other command does.
+func (a *App) contextOpsAt(ctx context.Context, recipePath string) (*contextOpsSession, error) {
 	cmd := NewEnvCommand(ctx, "context")
 	cmd.Flags().String(projectFlagName, recipePath, "")
 	resolved, err := ResolveProjectPath(cmd)
@@ -1083,7 +1208,6 @@ func (a *App) contextOps(ctx context.Context, recipePath string) (*contextOpsSes
 	if resolved == "" {
 		return nil, errors.New("no kapi project: context operations belong to a project")
 	}
-	cmd.Flags().Set(projectFlagName, resolved) //nolint:errcheck // the flag was just registered as a string
 
 	ws, err := a.Workspace(ctx)
 	if err != nil {
@@ -1105,7 +1229,6 @@ func (a *App) contextOps(ctx context.Context, recipePath string) (*contextOpsSes
 		proj:   proj,
 		recipe: resolved,
 		root:   filepath.Dir(resolved),
-		cmd:    cmd,
 	}, nil
 }
 
@@ -1127,7 +1250,12 @@ func (s *contextOpsSession) stamp(r contextop.Record, evidence []contextop.Evide
 // basisAt resolves what governs where the evidence was seen, and the point the
 // rule is therefore scoped to. Evidence naming no path resolves the project's
 // own default point, which is where a fact about the project as a whole sits.
+// Without a checkout there is no recipe to resolve against, and the rule is
+// scoped to the project as a whole.
 func (s *contextOpsSession) basisAt(evidence []contextop.Evidence) (contextop.Basis, contextop.Scope) {
+	if s.proj == nil {
+		return contextop.Basis{}, contextop.Scope{Level: contextop.LevelProject}
+	}
 	point := project.GovernancePoint{At: s.app.GovernanceInstant()}
 	var collection string
 	for _, e := range evidence {

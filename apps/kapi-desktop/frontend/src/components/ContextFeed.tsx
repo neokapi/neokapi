@@ -583,16 +583,14 @@ function DecisionActions({
   onDrop: () => void;
   onOpenEdit: () => void;
 }) {
-  if (!entry.recipe) {
-    return (
-      <p data-slot="context-undecidable" className="mt-2 text-xs text-muted-foreground">
-        No copy of this project is on this machine, so a decision cannot be written into its files.
-        Clone it anywhere and run kapi once.
-      </p>
-    );
-  }
   return (
     <div data-slot="context-actions" className="mt-2 flex flex-wrap items-center gap-2">
+      {!entry.recipe && (
+        <p data-slot="context-no-checkout" className="basis-full text-xs text-muted-foreground">
+          No copy of this project is on this machine. A decision is recorded in the workspace, where
+          the project's terms and content memory live.
+        </p>
+      )}
       <Button size="sm" data-slot="keep-suggestion" onClick={onKeep}>
         <Check size={13} />
         Keep

@@ -105,6 +105,9 @@ func (a *App) SettleContext(ctx context.Context, req ContextSettleRequest) (Cont
 // recordMerge reads the change a range made and records a merge signal for
 // every suggestion it bears on.
 func (s *contextOpsSession) recordMerge(ctx context.Context, req ContextSettleRequest) ([]ContextOperation, string, error) {
+	if !s.checkedOut() {
+		return nil, "", fmt.Errorf("a merge is read from the project's git history, and no checkout of %s is on this machine", s.key)
+	}
 	rng := strings.TrimSpace(req.Merged)
 	head := rng
 	if i := strings.LastIndex(rng, ".."); i >= 0 {
