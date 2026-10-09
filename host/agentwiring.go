@@ -263,30 +263,37 @@ func DetectAgentHosts(root string) []AgentHost {
 const mcpServerName = "kapi"
 
 // mcpServerEntry is one stdio MCP server as every host spells it: a type, a
-// command and its arguments. Nothing else is written.
+// command and its arguments. The JSON hosts get nothing else.
+//
+// EnvVars names the variables a host forwards from its own environment to the
+// server by name. Only Codex has that key (`env_vars`); it is left out of the
+// JSON hosts' entries, whose `env` takes values rather than names.
 type mcpServerEntry struct {
 	Type    string   `json:"type"`
 	Command string   `json:"command"`
 	Args    []string `json:"args"`
+	EnvVars []string `json:"-"`
 }
 
 // mcpToolsFlag is the `kapi mcp` flag that names the tool sets served.
 const mcpToolsFlag = "--tools"
 
 // kapiMCPEntry is the entry kapi writes for a project: `kapi mcp` for its
-// recipe, with the tool sets named when there are any.
+// recipe, with the tool sets named when there are any, and the root variables
+// (RootEnvVars) for a host that forwards variables by name.
 func kapiMCPEntry(recipe string, tools []string) mcpServerEntry {
 	args := []string{"mcp", "--project", recipe}
 	if len(tools) > 0 {
 		args = append(args, mcpToolsFlag, strings.Join(tools, ","))
 	}
-	return mcpServerEntry{Type: "stdio", Command: "kapi", Args: args}
+	return mcpServerEntry{Type: "stdio", Command: "kapi", Args: args, EnvVars: slices.Clone(RootEnvVars)}
 }
 
 // isKapiWrittenEntry reports whether held is an entry exactly as kapi writes
-// it for this recipe, whatever tool sets it names. Such an entry is refreshed
-// to the current one; any other entry called kapi is someone's choice and is
-// kept.
+// it for this recipe, whatever tool sets it names and whichever release's root
+// variables it forwards. Such an entry is refreshed to the current one; any
+// other entry called kapi is someone's choice and is kept, including one
+// forwarding a variable kapi never named.
 func isKapiWrittenEntry(held mcpServerEntry, recipe string) bool {
 	if held.Command != "kapi" || (held.Type != "" && held.Type != "stdio") {
 		return false
@@ -294,6 +301,11 @@ func isKapiWrittenEntry(held mcpServerEntry, recipe string) bool {
 	base := []string{"mcp", "--project", recipe}
 	if len(held.Args) < len(base) || !slices.Equal(held.Args[:len(base)], base) {
 		return false
+	}
+	for _, name := range held.EnvVars {
+		if !slices.Contains(RootEnvVars, name) {
+			return false
+		}
 	}
 	rest := held.Args[len(base):]
 	return len(rest) == 0 || (len(rest) == 2 && rest[0] == mcpToolsFlag && rest[1] != "")
@@ -327,6 +339,23 @@ func entryRecipe(entry mcpServerEntry) string {
 // mcpConfigFile is one host's MCP configuration: where it lives under the
 // project root, and the key its servers sit under. Claude Code and Cursor read
 // `mcpServers`; VS Code reads `servers`.
+//
+// What each host hands a stdio server for an environment decides whether the
+// entry has to name kapi's root variables (RootEnvVars):
+//
+//   - Codex: a fixed set (see codexEnvVarsKey) plus the names under
+//     `env_vars`. Measured; the entry names the roots.
+//   - Claude Code: `.mcp.json` entries take an `env` map of values and expand
+//     `${VAR}` from the shell that started Claude Code. Whether the server
+//     inherits the rest of that environment is not verified against a
+//     release; nothing is written, since a value here would be one machine's
+//     path in a committed file.
+//   - Cursor: `.cursor/mcp.json` takes `env` (values, `${env:NAME}` expansion)
+//     and `envFile`. Third-party guides describe an isolated server
+//     environment; not verified. Nothing is written, for the same reason.
+//   - VS Code: `.vscode/mcp.json` takes `env` (values, `${input:…}` and
+//     `${workspaceFolder}` expansion). Inheritance not verified. Nothing is
+//     written.
 type mcpConfigFile struct {
 	path       string
 	serversKey string
@@ -555,42 +584,79 @@ func upsertCodexMCPServerEntry(path string, entry mcpServerEntry) (AgentWiringFi
 	return out, nil
 }
 
-// codexEntry reads a Codex server table holding a command and its arguments
-// and nothing else, the shape kapi writes.
+// codexEntry reads a Codex server table holding a command, its arguments and
+// the variables it forwards (or none, as an earlier kapi wrote), and nothing
+// else: the shape kapi writes.
 func codexEntry(table any) (mcpServerEntry, bool) {
 	fields, ok := table.(map[string]any)
-	if !ok || len(fields) != 2 {
+	if !ok {
 		return mcpServerEntry{}, false
 	}
 	command, ok := fields["command"].(string)
 	if !ok {
 		return mcpServerEntry{}, false
 	}
-	list, ok := fields["args"].([]any)
+	args, ok := codexStringList(fields["args"])
 	if !ok {
 		return mcpServerEntry{}, false
 	}
-	entry := mcpServerEntry{Type: "stdio", Command: command}
-	for _, a := range list {
-		s, ok := a.(string)
-		if !ok {
+	entry := mcpServerEntry{Type: "stdio", Command: command, Args: args}
+	known := 2
+	if raw, held := fields[codexEnvVarsKey]; held {
+		known++
+		if entry.EnvVars, ok = codexStringList(raw); !ok {
 			return mcpServerEntry{}, false
 		}
-		entry.Args = append(entry.Args, s)
+	}
+	if len(fields) != known {
+		return mcpServerEntry{}, false
 	}
 	return entry, true
 }
 
+// codexStringList reads a TOML array of strings.
+func codexStringList(raw any) ([]string, bool) {
+	list, ok := raw.([]any)
+	if !ok {
+		return nil, false
+	}
+	out := make([]string, 0, len(list))
+	for _, a := range list {
+		s, ok := a.(string)
+		if !ok {
+			return nil, false
+		}
+		out = append(out, s)
+	}
+	return out, true
+}
+
+// codexEnvVarsKey is the server-table key naming the variables Codex forwards
+// from its own environment to the server. Codex starts a stdio server with a
+// fixed set (HOME, PATH, USER, LOGNAME, SHELL, LANG, TERM, TMPDIR and the
+// macOS text-encoding variable, measured on codex-cli 0.155.1) and drops every
+// other variable not listed here.
+const codexEnvVarsKey = "env_vars"
+
 // codexMCPServerBlock renders kapi's server as the table Codex reads. Codex
 // takes a server with a `command` as a stdio server, so the entry carries the
-// command and its arguments and nothing else.
+// command, its arguments and, when the entry forwards any, the variables under
+// `env_vars`. An entry an earlier kapi wrote forwards none and renders without
+// the key, so the text on disk is reproduced and can be replaced.
 func codexMCPServerBlock(entry mcpServerEntry) string {
-	args := make([]string, 0, len(entry.Args))
-	for _, arg := range entry.Args {
-		args = append(args, strconv.Quote(arg))
+	quote := func(items []string) string {
+		quoted := make([]string, 0, len(items))
+		for _, item := range items {
+			quoted = append(quoted, strconv.Quote(item))
+		}
+		return strings.Join(quoted, ", ")
 	}
-	return fmt.Sprintf("[%s.%s]\ncommand = %s\nargs = [%s]\n",
-		codexMCPServersTable, mcpServerName, strconv.Quote(entry.Command), strings.Join(args, ", "))
+	block := fmt.Sprintf("[%s.%s]\ncommand = %s\nargs = [%s]\n",
+		codexMCPServersTable, mcpServerName, strconv.Quote(entry.Command), quote(entry.Args))
+	if len(entry.EnvVars) > 0 {
+		block += fmt.Sprintf("%s = [%s]\n", codexEnvVarsKey, quote(entry.EnvVars))
+	}
+	return block
 }
 
 // describeMCPEntry renders the entry as the command line it launches, which is

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -103,12 +104,77 @@ func TestAgentWiringWritesCodexTOML(t *testing.T) {
 
 	written, err := os.ReadFile(filepath.Join(root, ".codex/config.toml"))
 	require.NoError(t, err)
-	assert.Equal(t, "[mcp_servers.kapi]\ncommand = \"kapi\"\nargs = [\"mcp\", \"--project\", \"kapi.yaml\"]\n",
+	assert.Equal(t, "[mcp_servers.kapi]\ncommand = \"kapi\"\nargs = [\"mcp\", \"--project\", \"kapi.yaml\"]\n"+
+		"env_vars = ["+quotedList(host.RootEnvVars)+"]\n",
 		string(written))
 
 	require.Len(t, res.Files, 1, "Codex takes the server entry; the skill reaches it through .agents")
 	assert.Equal(t, ".codex/config.toml", res.Files[0].Path)
 	assert.Equal(t, host.AgentWiringCreated, res.Files[0].Action)
+}
+
+// quotedList renders names the way a TOML array of strings holds them.
+func quotedList(names []string) string {
+	quoted := make([]string, 0, len(names))
+	for _, name := range names {
+		quoted = append(quoted, strconv.Quote(name))
+	}
+	return strings.Join(quoted, ", ")
+}
+
+// TestAgentWiringCodexForwardsEveryRoot is issue #2923. Codex starts a stdio
+// server with a fixed environment and drops the rest, so the entry names every
+// variable kapi resolves a root from; a kapi started by Codex then keeps its
+// stores where the shell's kapi keeps them.
+func TestAgentWiringCodexForwardsEveryRoot(t *testing.T) {
+	root, _ := wire(t, []host.AgentHost{host.AgentHostCodex})
+	written, err := os.ReadFile(filepath.Join(root, ".codex/config.toml"))
+	require.NoError(t, err)
+	for _, name := range []string{"KAPI_DATA_DIR", "KAPI_CONFIG_DIR", "XDG_DATA_HOME", "XDG_CACHE_HOME",
+		"KAPI_PLUGINS_DIR", "KAPI_PLUGINS_DIR_ONLY", "KAPI_PROJECT", "KAPI_NO_PROJECT"} {
+		assert.Contains(t, string(written), strconv.Quote(name))
+	}
+}
+
+// An entry an earlier kapi wrote forwards no variable. It is kapi's own, so a
+// run refreshes it to forward the roots; an entry forwarding a variable kapi
+// never named is someone's and is kept.
+func TestAgentWiringRefreshesACodexEntryWithoutEnvVars(t *testing.T) {
+	root := t.TempDir()
+	held := "# mine\n[sandbox_workspace_write]\nnetwork_access = true\n\n" +
+		"[mcp_servers.kapi]\ncommand = \"kapi\"\nargs = [\"mcp\", \"--project\", \"kapi.yaml\"]\n"
+	require.NoError(t, os.MkdirAll(filepath.Join(root, ".codex"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, ".codex/config.toml"), []byte(held), 0o644))
+
+	res, err := host.WriteAgentWiring(host.AgentWiringOptions{Root: root, Hosts: []host.AgentHost{host.AgentHostCodex}})
+	require.NoError(t, err)
+	assert.Equal(t, host.AgentWiringUpdated, res.Files[0].Action)
+	written, err := os.ReadFile(filepath.Join(root, ".codex/config.toml"))
+	require.NoError(t, err)
+	assert.True(t, strings.HasPrefix(string(written), "# mine\n[sandbox_workspace_write]\nnetwork_access = true\n"), "the rest of the file is untouched:\n%s", written)
+	assert.Equal(t, 1, strings.Count(string(written), "[mcp_servers.kapi]"))
+	assert.Contains(t, string(written), "env_vars = ["+quotedList(host.RootEnvVars)+"]\n")
+
+	theirs := "[mcp_servers.kapi]\ncommand = \"kapi\"\nargs = [\"mcp\", \"--project\", \"kapi.yaml\"]\nenv_vars = [\"KAPI_DATA_DIR\", \"MY_TOKEN\"]\n"
+	require.NoError(t, os.WriteFile(filepath.Join(root, ".codex/config.toml"), []byte(theirs), 0o644))
+	res, err = host.WriteAgentWiring(host.AgentWiringOptions{Root: root, Hosts: []host.AgentHost{host.AgentHostCodex}})
+	require.NoError(t, err)
+	assert.Equal(t, host.AgentWiringKept, res.Files[0].Action)
+	written, err = os.ReadFile(filepath.Join(root, ".codex/config.toml"))
+	require.NoError(t, err)
+	assert.Equal(t, theirs, string(written))
+}
+
+// The JSON hosts take an `env` map of values, not names to forward, and a
+// value would be one machine's path in a committed file. Their entries carry
+// no environment.
+func TestAgentWiringJSONHostsCarryNoEnv(t *testing.T) {
+	root, _ := wire(t, []host.AgentHost{host.AgentHostClaudeCode, host.AgentHostCursor, host.AgentHostVSCode})
+	for path, key := range map[string]string{".mcp.json": "mcpServers", ".cursor/mcp.json": "mcpServers", ".vscode/mcp.json": "servers"} {
+		entry := readJSON(t, filepath.Join(root, path))[key].(map[string]any)["kapi"].(map[string]any)
+		assert.NotContains(t, entry, "env", path)
+		assert.NotContains(t, entry, "env_vars", path)
+	}
 }
 
 // TestAgentWiringAppendsToAPersonsCodexConfig: the file carries their sandbox,

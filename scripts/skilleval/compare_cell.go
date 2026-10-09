@@ -578,7 +578,6 @@ func prepareCompareCodex(ctx context.Context, p *ComparePrepared, kapiBin string
 	p.Sandbox = "codex workspace-write: writable roots are the cell and its TMPDIR, no network, /tmp excluded"
 	p.Args = []string{"exec", "--strict-config", "--ignore-rules", "--json", "--skip-git-repo-check"}
 	if compareKapiArm(p.Attempt.Arm) {
-		p.Args = append(p.Args, "-c", evalCodexForwardedEnv(p.Env))
 		codex, err := probeEvalCodexWiring(ctx, ep)
 		p.Codex = codex
 		switch {

@@ -32,19 +32,20 @@ func TestEvalCodexConfigTrustsTheFixtureAndNamesNoServer(t *testing.T) {
 		"the shell tool a session runs commands with carries the cell's own roots")
 }
 
-// Codex hands a stdio MCP server a filtered environment, so what the cell's
-// kapi server sees is what the launch names.
-func TestEvalCodexForwardsEveryKapiRoot(t *testing.T) {
+// Codex hands a stdio MCP server a filtered environment. The roots the cell
+// sets are the ones `kapi init` names under env_vars in the fixture, which the
+// probe reads back from Codex, so every root the cell sets is one the probe
+// requires.
+func TestEvalCodexProbeRequiresEveryRootTheCellSets(t *testing.T) {
 	paths := evalPaths(filepath.Join(t.TempDir(), "release-note-codex"))
 
-	override := evalCodexForwardedEnv(evalEnv(paths))
-
-	assert.True(t, strings.HasPrefix(override, "mcp_servers.kapi.env_vars=["), "rendered %s", override)
-	for _, name := range []string{"KAPI_DATA_DIR", "KAPI_CONFIG_DIR", "KAPI_PLUGINS_DIR", "KAPI_PLUGINS_DIR_ONLY", "XDG_DATA_HOME", "XDG_CACHE_HOME"} {
-		assert.Contains(t, override, strconv.Quote(name))
+	for _, pair := range evalEnv(paths) {
+		key, _, ok := strings.Cut(pair, "=")
+		if ok && (strings.HasPrefix(key, "KAPI_") || strings.HasPrefix(key, "XDG_")) {
+			assert.Contains(t, evalCodexForwardedRoots, key, "the cell sets %s, which the probe does not require of the server entry", key)
+		}
 	}
-	assert.NotContains(t, override, "CODEX_HOME", "only the kapi roots travel to the server")
-	assert.NotContains(t, override, "GIT_AUTHOR_NAME")
+	assert.NotContains(t, evalCodexForwardedRoots, "CODEX_HOME", "only the kapi roots are required of the server")
 }
 
 // A cells directory the person names is where the fixtures are generated, so a

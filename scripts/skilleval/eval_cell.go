@@ -756,9 +756,10 @@ func prepareEvalClaude(ctx context.Context, p *EvalPrepared) error {
 // repository there, and the server entry itself stays as the product wrote it.
 //
 // Codex starts a stdio MCP server with a filtered environment: HOME, PATH and a
-// few locale variables reach it and everything else is dropped. So this cell's
-// kapi roots are named on the launch itself, through the `env_vars` list Codex
-// forwards from its own environment.
+// few locale variables reach it and everything else is dropped. The server
+// entry `kapi init` writes names kapi's roots under `env_vars`, and the probe
+// reads them back from Codex, so a launch that forwarded nothing of its own
+// still starts a server that keeps its stores in the cell.
 func prepareEvalCodex(ctx context.Context, p *EvalPrepared) error {
 	originalHome, err := os.UserHomeDir()
 	if err != nil {
@@ -792,10 +793,8 @@ func prepareEvalCodex(ctx context.Context, p *EvalPrepared) error {
 		return err
 	}
 	p.Wiring.Harness = append(p.Wiring.Harness,
-		"codex config.toml: this cell's own CODEX_HOME marks the fixture as a trusted project, which stands for the trust prompt a person accepts, and is what makes Codex read the .codex/config.toml `kapi init` wrote",
-		"codex mcp_servers.kapi.env_vars: the cell's kapi roots are forwarded to the server on the launch, because Codex hands a stdio MCP server HOME, PATH and locale variables and drops the rest")
-	p.Args = append([]string{"exec", "--strict-config", "--ignore-rules", "--json", "--skip-git-repo-check",
-		"-c", evalCodexForwardedEnv(p.Env)},
+		"codex config.toml: this cell's own CODEX_HOME marks the fixture as a trusted project, which stands for the trust prompt a person accepts, and is what makes Codex read the .codex/config.toml `kapi init` wrote")
+	p.Args = append([]string{"exec", "--strict-config", "--ignore-rules", "--json", "--skip-git-repo-check"},
 		"--model", p.Session.Host.Model, "--cd", p.Paths.Repo, "-")
 	codex, err := probeEvalCodexWiring(ctx, *p)
 	p.Codex = codex
@@ -840,22 +839,13 @@ func evalTrustedPaths(repo string) []string {
 	return paths
 }
 
-// evalCodexForwardedEnv renders the `-c` override naming the cell
-// variables Codex forwards to the kapi server it starts.
-func evalCodexForwardedEnv(env []string) string {
-	names := []string{}
-	for _, pair := range env {
-		key, _, ok := strings.Cut(pair, "=")
-		if ok && (strings.HasPrefix(key, "KAPI_") || strings.HasPrefix(key, "XDG_")) {
-			names = pairedUnique(names, key)
-		}
-	}
-	sort.Strings(names)
-	quoted := make([]string, 0, len(names))
-	for _, name := range names {
-		quoted = append(quoted, strconv.Quote(name))
-	}
-	return "mcp_servers.kapi.env_vars=[" + strings.Join(quoted, ",") + "]"
+// evalCodexForwardedRoots are the cell variables the kapi server Codex starts
+// has to see, or it would keep its stores under HOME rather than in the cell.
+// `kapi init` names them under `mcp_servers.kapi.env_vars` in the fixture's
+// own `.codex/config.toml` (host.RootEnvVars), and the probe below reads them
+// back from Codex, so a launch forwards nothing by hand.
+var evalCodexForwardedRoots = []string{
+	"KAPI_DATA_DIR", "KAPI_CONFIG_DIR", "KAPI_PLUGINS_DIR", "KAPI_PLUGINS_DIR_ONLY", "XDG_DATA_HOME", "XDG_CACHE_HOME",
 }
 
 // EvalCodexWiring is what Codex answers about this cell, read from its own
@@ -883,7 +873,7 @@ func probeEvalCodexWiring(ctx context.Context, p EvalPrepared) (*EvalCodexWiring
 	wiring := &EvalCodexWiring{
 		Trusted: evalTrustedPaths(p.Paths.Repo), Servers: []string{}, Args: []string{}, EnvVars: []string{},
 	}
-	probe := exec.CommandContext(ctx, p.Executable, "mcp", "-c", evalCodexForwardedEnv(p.Env), "list", "--json")
+	probe := exec.CommandContext(ctx, p.Executable, "mcp", "list", "--json")
 	probe.Dir = p.Paths.Repo
 	probe.Env = p.Env
 	out, err := probe.Output()
@@ -921,9 +911,9 @@ func probeEvalCodexWiring(ctx context.Context, p EvalPrepared) (*EvalCodexWiring
 	}
 	wiring.Resolved = resolved
 	wiring.UnderTest = resolved == p.KapiBin
-	for _, name := range []string{"KAPI_DATA_DIR", "KAPI_CONFIG_DIR", "KAPI_PLUGINS_DIR_ONLY", "XDG_DATA_HOME"} {
+	for _, name := range evalCodexForwardedRoots {
 		if !slices.Contains(wiring.EnvVars, name) {
-			return wiring, fmt.Errorf("the launch forwards no %s, so the cell's kapi roots would not reach the server", name)
+			return wiring, fmt.Errorf("the server entry `kapi init` wrote forwards no %s, so the cell's kapi roots would not reach the server", name)
 		}
 	}
 	return wiring, nil
