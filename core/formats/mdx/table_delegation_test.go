@@ -227,8 +227,8 @@ func TestJSXChildDelegationStopsWhereTheSpecDoes(t *testing.T) {
 		},
 		{
 			name:    "child the markdown reader cannot reconstruct",
-			src:     "<Callout>\n\nA tick \\``code` in a sentence.\n\n</Callout>\n",
-			jsxText: []string{"A tick \\``code` in a sentence."},
+			src:     "<Callout>\n\nLine one\\\n  line two\n===\n\n</Callout>\n",
+			jsxText: []string{"Line one\\\n  line two\n==="},
 		},
 		{
 			name:     "block-level child",
