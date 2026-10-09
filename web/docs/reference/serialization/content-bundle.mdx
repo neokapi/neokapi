@@ -160,7 +160,7 @@ A `Document` is one source file's worth of extracted content.
 | Field          | Type     | Required | Description                                                               |
 | -------------- | -------- | -------- | ------------------------------------------------------------------------- |
 | `id`           | string   | yes      | Stable identifier for the document within the file.                       |
-| `documentType` | string   | yes      | Source format discriminator. The Go implementation defines `"jsx"`.       |
+| `documentType` | string   | yes      | Source format discriminator. Both implementations define `"jsx"`.         |
 | `path`         | string   | yes      | Path of the source file the content was extracted from.                   |
 | `sourceHash`   | string   | no       | Content hash of the original source file. Omitted when empty.             |
 | `skeleton`     | Skeleton | no       | Reference to the opaque skeleton used to reconstruct the source on merge. |

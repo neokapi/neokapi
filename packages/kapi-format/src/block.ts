@@ -532,8 +532,12 @@ export function isOverlaySetPath(path: string): boolean {
   return path.toLowerCase().endsWith(OverlaySetExt);
 }
 
-/** Format of an extracted document's source. */
-export type DocumentType = "jsx" | "html" | "markdown" | "generic";
+/**
+ * Format of an extracted document's source. Mirrors the `DocumentType`
+ * constants in Go `core/kbf/schema.go`; `core/kbf` asserts the two lists
+ * agree, so a value added on one side fails the other side's tests.
+ */
+export type DocumentType = "jsx";
 
 /**
  * Reference to the opaque skeleton payload a merge step consumes to
