@@ -87,6 +87,7 @@ func (s *settingsStore) load() {
 	if err != nil {
 		return
 	}
+	// A corrupt settings file keeps the defaults so the app still starts; the next save rewrites it.
 	_ = json.Unmarshal(data, &s.settings)
 }
 

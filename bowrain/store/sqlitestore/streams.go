@@ -348,11 +348,16 @@ func scanStream(row scanner) (*platstore.Stream, error) {
 	st.Locked = locked != 0
 	st.LockedBy = lockedBy
 	if lockedAtStr != nil {
-		t, _ := time.Parse(time.RFC3339, *lockedAtStr)
+		t, err := storeutil.ParseStoredTime("locked_at", *lockedAtStr)
+		if err != nil {
+			return nil, fmt.Errorf("stream %s: %w", st.Name, err)
+		}
 		st.LockedAt = &t
 	}
 	st.Visibility = platstore.StreamVisibility(visibility)
-	st.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
+	if st.CreatedAt, err = storeutil.ParseStoredTime("created_at", createdStr); err != nil {
+		return nil, fmt.Errorf("stream %s: %w", st.Name, err)
+	}
 	return &st, nil
 }
 
@@ -368,7 +373,9 @@ func scanStreamTag(row scanner) (*platstore.StreamTag, error) {
 		return nil, fmt.Errorf("scan stream tag: %w", err)
 	}
 	tag.Kind = platstore.StreamTagKind(kindStr)
-	tag.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
+	if tag.CreatedAt, err = storeutil.ParseStoredTime("created_at", createdStr); err != nil {
+		return nil, fmt.Errorf("stream tag %s: %w", tag.Name, err)
+	}
 	if metaStr != "" && metaStr != "{}" {
 		if err := json.Unmarshal([]byte(metaStr), &tag.Metadata); err != nil {
 			return nil, fmt.Errorf("unmarshal stream tag metadata: %w", err)

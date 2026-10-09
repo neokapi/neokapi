@@ -305,6 +305,7 @@ func readFiltersFile(path string) filtersFile {
 	if err != nil {
 		return f
 	}
+	// A corrupt filters file reads as no filters so the app still starts; the next write replaces it.
 	_ = json.Unmarshal(data, &f)
 	return f
 }

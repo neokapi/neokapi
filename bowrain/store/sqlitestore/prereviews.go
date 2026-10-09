@@ -72,7 +72,9 @@ func (s *SQLiteStore) PreReviews(ctx context.Context, projectID, stream string, 
 		if err := json.Unmarshal([]byte(reasons), &r.Reasons); err != nil {
 			return nil, fmt.Errorf("decode the reasons of the pre-review of block %s: %w", r.BlockID, err)
 		}
-		r.At, _ = time.Parse(time.RFC3339Nano, raw)
+		if r.At, err = storeutil.ParseStoredTime("created_at", raw); err != nil {
+			return nil, fmt.Errorf("pre-review of block %s: %w", r.BlockID, err)
+		}
 		out = append(out, r)
 	}
 	return out, rows.Err()
