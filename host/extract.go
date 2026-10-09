@@ -466,7 +466,7 @@ func (a *App) extractOne(ctx context.Context, task extractTask) (project.Extract
 		FormatID:     task.source.Format,
 		Reader:       sourceFile,
 	}
-	if err := reader.Open(ctx, doc); err != nil {
+	if err := format.OpenDocument(ctx, reader, doc); err != nil {
 		if skelStore != nil {
 			_ = skelStore.Close()
 		}

@@ -487,6 +487,52 @@ tags, whitespace, and attributes, which risks losing information.
 
 ---
 
+## Document encoding
+
+A reader never decodes a charset. Every caller opens a document through
+`format.OpenDocument`, the ingestion seam, which settles the document's
+encoding against its bytes and hands the reader UTF-8:
+
+1. A byte-order mark wins. It is evidence in the file: a UTF-8 mark keeps the
+   bytes as they are, a UTF-16 mark selects that decoder, whatever was
+   declared.
+2. A declared encoding other than UTF-8 (`--encoding`, the recipe's
+   `defaults.encoding`) selects its decoder from the `core/encoding` registry.
+3. With neither, the bytes pass through as UTF-8.
+
+On return `doc.Encoding` names the encoding the document was read as, and the
+reader copies it onto the root `Layer`. `doc.EncodingSettled` reports whether
+a mark or a declaration settled it. A reader with a charset heuristic of its
+own, such as the XML prolog or the PO header, applies it only when the
+document is unsettled; a settled document is UTF-8 whatever its prolog says,
+and `format.XMLCharsetReader(r.Doc)` is the `encoding/xml` `CharsetReader`
+that keeps the decoder from refusing the prolog. Keep the prolog in the
+skeleton as it is: the writer encodes it back in the same charset.
+
+Write-back mirrors the read. `SetEncoding` on `BaseFormatWriter` installs the
+encoder for the run's charset, so a writer serialises UTF-8 and the base
+encodes the whole output stream. The rule by writer family:
+
+- A skeleton-based writer and a generative writer both emit text, so the base
+  re-encodes everything they write. A skeleton holds the source's decoded
+  text, so an untouched document is written back byte for byte, prolog
+  included.
+- A byte-faithful writer (a ZIP container, an image, a compiled catalog, or a
+  plugin whose process encodes its own output) declares `Binary: true` on
+  `BaseFormatWriter`; its reader declares `Binary: true` on the
+  `FormatSignature`. The seam hands such a reader the bytes as they are, and
+  the base applies no charset and no output option to such a writer.
+- A byte-order mark the charset cannot carry keeps the output UTF-8, mark
+  included: the mark is what the next read settles the encoding by.
+- `output.encoding` in a format's config wins over the run's encoding.
+
+`TestDeclaredEncodingSelectsTheCodec` and `TestDeclaredEncodingRoundTrip` in
+`core/formats` are the conformance tests: every text format reads an
+ISO-8859-1, windows-1252 and Shift_JIS document declared as such and writes
+it back unchanged. A new format joins the sweep through `bomSweepFormats`.
+
+---
+
 ## Run Metadata Fields
 
 An inline-code run carries more than just the raw markup. These fields help
@@ -521,11 +567,11 @@ carry matching `yaml`/`json` tags for the incoming keys.
 
 ```go
 type Config struct {
-    Encoding string `yaml:"encoding" json:"encoding"`
+    Indent string `yaml:"indent" json:"indent"`
 }
 
 func (c *Config) FormatName() string { return "myformat" }
-func (c *Config) Reset()             { c.Encoding = "UTF-8" }
+func (c *Config) Reset()             { c.Indent = "  " }
 func (c *Config) Validate() error    { return nil }
 
 func (c *Config) ApplyMap(values map[string]any) error {

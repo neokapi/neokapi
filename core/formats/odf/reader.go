@@ -96,6 +96,7 @@ func (r *Reader) Signature() format.FormatSignature {
 		},
 		Extensions: []string{".odt", ".ods", ".odp", ".odg", ".odf"},
 		MagicBytes: [][]byte{{0x50, 0x4B, 0x03, 0x04}}, // PK ZIP header
+		Binary:     true,
 	}
 }
 

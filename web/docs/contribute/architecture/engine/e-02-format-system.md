@@ -100,13 +100,28 @@ formats embed:
 A concrete format implements the format-specific parsing and serialization and
 delegates lifecycle to the base embed.
 
+A document's **charset** is settled once, at the ingestion seam. Every caller
+that reads a document opens it through `format.OpenDocument`, which decodes
+the bytes to UTF-8 before the reader sees them: a byte-order mark wins, then
+the declared encoding (`--encoding`, the recipe's `defaults.encoding`), and
+with neither the bytes pass through as UTF-8. The reader records the settled
+encoding on the root `Layer`, and a reader with a charset heuristic of its own
+(the XML prolog, the PO header) applies it only to a document the seam left
+unsettled. On the way out `BaseFormatWriter.SetEncoding` installs the matching
+encoder, so a writer serialises UTF-8 and the base encodes the whole stream in
+the run's charset. A format whose bytes are not text declares `Binary` on its
+signature and its writer, and the seam hands it the bytes as they are. The
+contributor guide's [document encoding](../../formats.md#document-encoding)
+section states the rule for a format author.
+
 `BaseFormatWriter` also owns the shared **byte-level output options**
 (`format.OutputOptions`): `output.bom` (`add|remove|keep`), `output.newline`
-(`lf|crlf|keep`), and `output.encoding` (any charset in `core/encoding`; default
-UTF-8 passthrough). Readers already normalize BOM, charset, and newlines at parse
-time, so these exist only to control *output* style; they are writer
-configuration rather than a pipeline stage. They are set under the reserved `output` key of the ordinary
-per-format config (`defaults.formats[<id>].config` in a `kapi.yaml` recipe);
+(`lf|crlf|keep`), and `output.encoding` (any charset in `core/encoding`; an
+explicit value wins over the run's encoding). Readers already normalize BOM and
+newlines at parse time, so these exist only to control *output* style; they
+are writer configuration rather than a pipeline stage. They are set under the
+reserved `output` key of the ordinary per-format config
+(`defaults.formats[<id>].config` in a `kapi.yaml` recipe);
 `format.SplitOutputConfig` strips that key before per-format reader/writer config
 is applied, and the base writer wraps its output stream with the post-encode chain
 (newline conversion → BOM policy → charset encoding), so every writer that embeds

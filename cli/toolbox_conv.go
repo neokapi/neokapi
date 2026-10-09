@@ -72,7 +72,7 @@ document skeleton; a cross-format conversion reconstructs from the content model
 	f.StringVarP(&a.FormatFlag, "format", "f", "", "input format (default: auto-detect by extension/content)")
 	a.AddEngineFlag(f)
 	a.AddSourceLangFlag(f)
-	a.AddEncodingFlag(f, "", "input/output encoding")
+	a.AddEncodingFlag(f, "", "charset the input is read in and the output written in; a byte-order mark in the file wins (default: the recipe's defaults.encoding, then UTF-8)")
 	f.BoolVar(&a.ConvTiming, "timing", false, "report each file's conversion time on stderr")
 	return cmd
 }

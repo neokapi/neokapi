@@ -757,7 +757,7 @@ func readReturnedXLIFF(ctx context.Context, path string) (*returnedFile, error) 
 		return nil, err
 	}
 	defer f.Close()
-	if err := reader.Open(ctx, &model.RawDocument{URI: path, Reader: f, FormatID: "xliff2"}); err != nil {
+	if err := format.OpenDocument(ctx, reader, &model.RawDocument{URI: path, Reader: f, FormatID: "xliff2"}); err != nil {
 		return nil, fmt.Errorf("xliff2 open: %w", err)
 	}
 	defer reader.Close()

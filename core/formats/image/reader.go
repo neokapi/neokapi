@@ -91,7 +91,8 @@ func (r *Reader) Signature() format.FormatSignature {
 			{0x49, 0x49, 0x2a, 0x00}, // TIFF little-endian
 			{0x4d, 0x4d, 0x00, 0x2a}, // TIFF big-endian
 		},
-		Sniff: Sniff,
+		Sniff:  Sniff,
+		Binary: true,
 	}
 }
 

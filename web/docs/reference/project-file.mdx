@@ -436,7 +436,7 @@ bounded profile against the current time and labels it `active`, `upcoming` or
 | `locale_format`    | string              | Locale style for the `{lang}` placeholder: `bcp-47` (default) or `posix`                                                 |
 | `concurrency`      | int                 | Number of files to process in parallel                                                                                   |
 | `parallel_blocks`  | int                 | Number of blocks to process in parallel within a file                                                                    |
-| `encoding`         | string              | Input file encoding (default: `utf-8`)                                                                                   |
+| `encoding`         | string              | Charset the files are read in and written back in (default: `utf-8`). A byte-order mark in a file wins over it; `--encoding` on the command line wins over the recipe. Binary formats (Office documents, images) are not affected |
 | `exclude`          | string[]            | Glob patterns no collection claims: content scanning skips them, and a file you name that one matches sits at the project's default point (e.g. `**/*.generated.json`) |
 | `engine`           | string              | The format engine preferred for a file whose extension both a built-in format and a plugin's claim: `native` or a declared plugin's name (see [Format engines](#format-engines)) |
 | `formats`          | map                 | Per-format `preset`, `config`, `engine` and detection `priority` overrides (see [formats](#formats))                     |

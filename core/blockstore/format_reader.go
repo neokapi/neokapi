@@ -72,7 +72,7 @@ func (s *formatReaderStore) load(ctx context.Context) {
 		s.loadErr = errors.New("blockstore: format reader factory returned nil RawDocument")
 		return
 	}
-	if err := reader.Open(ctx, doc); err != nil {
+	if err := format.OpenDocument(ctx, reader, doc); err != nil {
 		s.loadErr = fmt.Errorf("blockstore: format reader open: %w", err)
 		return
 	}

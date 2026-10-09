@@ -277,6 +277,7 @@ func (a *App) runUpPlan(cmd Command, proj *project.KapiProject, projectPath stri
 	// The plan is priced in the language the run would work in, which is the
 	// recipe's unless --source-lang names another (host/sourcelang.go).
 	a.ResolveSourceLang(proj.Defaults.SourceLanguage)
+	a.ResolveEncoding(proj.Defaults.Encoding)
 
 	plan, err := a.computeProjectPlan(ctx, proj, projectPath, planRun{cmd: cmd, noChecks: BoolFlag(cmd, "no-checks")})
 	if err != nil {

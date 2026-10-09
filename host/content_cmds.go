@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	coreproj "github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
@@ -38,7 +39,7 @@ func (a *App) CountFileBlocks(ctx context.Context, absPath string, fmtID registr
 		return 0, 0, err
 	}
 	doc := &model.RawDocument{URI: absPath, SourceLocale: srcLocale, Reader: io.NopCloser(bytes.NewReader(data))}
-	if err := reader.Open(ctx, doc); err != nil {
+	if err := format.OpenDocument(ctx, reader, doc); err != nil {
 		return 0, 0, err
 	}
 	for res := range reader.Read(ctx) {

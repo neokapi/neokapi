@@ -1,6 +1,7 @@
 package format
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -154,7 +155,10 @@ func (o *OutputOptions) setOption(key string, value any) error {
 // Wrap layers the configured post-encode steps over w. The writer produces
 // UTF-8 bytes; the chain applies, in order: newline normalization, the BOM
 // policy (in UTF-8 space, so a kept/added U+FEFF is converted with the rest of
-// the stream), then charset conversion via the core/encoding registry. Close
+// the stream), then charset conversion via the core/encoding registry. A
+// byte-order mark the charset cannot carry keeps the output UTF-8: the mark is
+// the evidence the next read settles the encoding by, so it wins over the
+// configured charset on this side as it does on the reading side. Close
 // flushes the chain but does not close w. Returns an error for an unknown
 // charset or when no encoding resolver is registered.
 func (o OutputOptions) Wrap(w io.Writer) (io.WriteCloser, error) {
@@ -167,9 +171,9 @@ func (o OutputOptions) Wrap(w io.Writer) (io.WriteCloser, error) {
 		if err != nil {
 			return nil, fmt.Errorf("output.encoding: %w", err)
 		}
-		tw := transform.NewWriter(pipe.Writer, enc.NewEncoder())
-		pipe.Writer = tw
-		pipe.closers = append(pipe.closers, tw)
+		cw := &charsetWriter{next: pipe.Writer, enc: enc, name: o.Encoding}
+		pipe.Writer = cw
+		pipe.closers = append(pipe.closers, cw)
 	}
 	if o.BOM == BOMAdd || o.BOM == BOMRemove {
 		bw := &bomWriter{next: pipe.Writer, add: o.BOM == BOMAdd}
@@ -203,6 +207,83 @@ func (p *outputPipeline) Close() error {
 }
 
 var utf8BOM = []byte{0xEF, 0xBB, 0xBF}
+
+// charsetWriter encodes the UTF-8 stream in the output charset. It holds the
+// first bytes until it can tell whether the writer emitted a byte-order mark:
+// a mark the charset cannot carry (any single-byte or multi-byte charset that
+// is not a Unicode form) keeps the output UTF-8, mark included.
+type charsetWriter struct {
+	next    io.Writer
+	enc     encoding.Encoding
+	name    string    // the charset, for the error a text it cannot carry raises
+	out     io.Writer // the destination once decided: the encoder or next
+	closer  io.Closer // the encoder, when one is in use
+	head    []byte    // buffered head bytes (< 3) while undecided
+	decided bool
+}
+
+func (c *charsetWriter) Write(p []byte) (int, error) {
+	if c.decided {
+		n, err := c.out.Write(p)
+		return n, c.wrap(err)
+	}
+	total := len(p)
+	c.head = append(c.head, p...)
+	if len(c.head) < len(utf8BOM) && strings.HasPrefix(string(utf8BOM), string(c.head)) {
+		return total, nil
+	}
+	if err := c.decide(); err != nil {
+		return 0, c.wrap(err)
+	}
+	return total, nil
+}
+
+// wrap names the charset in an error the encoder raised, so a text the charset
+// cannot carry is reported as such rather than as a bare transform failure.
+func (c *charsetWriter) wrap(err error) error {
+	if err == nil {
+		return nil
+	}
+	return fmt.Errorf("write in %s: %w", c.name, err)
+}
+
+// decide picks the destination from the buffered head and forwards it.
+func (c *charsetWriter) decide() error {
+	c.decided = true
+	head := c.head
+	c.head = nil
+	if bytes.HasPrefix(head, utf8BOM) && !canEncode(c.enc, UTF8BOM) {
+		c.out = c.next
+	} else {
+		tw := transform.NewWriter(c.next, c.enc.NewEncoder())
+		c.out, c.closer = tw, tw
+	}
+	if len(head) == 0 {
+		return nil
+	}
+	_, err := c.out.Write(head)
+	return err
+}
+
+// Close decides a still-buffered head (streams shorter than three bytes) and
+// flushes the encoder.
+func (c *charsetWriter) Close() error {
+	if !c.decided {
+		if err := c.decide(); err != nil {
+			return err
+		}
+	}
+	if c.closer == nil {
+		return nil
+	}
+	return c.wrap(c.closer.Close())
+}
+
+// canEncode reports whether enc can represent s.
+func canEncode(enc encoding.Encoding, s string) bool {
+	_, err := enc.NewEncoder().String(s)
+	return err == nil
+}
 
 // bomWriter enforces the BOM policy on a UTF-8 stream. It buffers up to the
 // first three bytes to detect a writer-emitted BOM, then either guarantees

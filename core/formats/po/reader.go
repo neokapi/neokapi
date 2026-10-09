@@ -112,8 +112,10 @@ func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 	// If there was no BOM, peek at the header's `Content-Type:
 	// charset=...` declaration and transcode if it isn't UTF-8.
 	// The charset line uses ASCII bytes only, so it decodes the
-	// same in UTF-8 / windows-1252 / ISO-8859-X.
-	if charset := detectHeaderCharset(raw); charset != "" && !isUTF8Charset(charset) {
+	// same in UTF-8 / windows-1252 / ISO-8859-X. A document the
+	// ingestion seam settled (format.OpenDocument) is UTF-8 already,
+	// whatever its header says.
+	if charset := detectHeaderCharset(raw); !doc.EncodingSettled && charset != "" && !isUTF8Charset(charset) {
 		em := coreenc.NewEncoderManager()
 		decoded, derr := em.Decode(raw, charset)
 		if derr == nil {
@@ -769,8 +771,12 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 			// `charset=UTF-8` because the reader transcodes input to
 			// UTF-8 unconditionally. Mirror that so windows-1252 / etc.
 			// fixtures round-trip with the declared charset matching
-			// the actual byte encoding.
-			headerContent := rewriteHeaderCharset(entry.msgstr)
+			// the actual byte encoding. A document settled to another
+			// charset is written back in it, so its header stays.
+			headerContent := entry.msgstr
+			if !(r.Doc.EncodingSettled && !isUTF8Charset(r.Doc.Encoding)) {
+				headerContent = rewriteHeaderCharset(entry.msgstr)
+			}
 			for hdrLine := range strings.SplitSeq(strings.TrimRight(headerContent, "\n"), "\n") {
 				escaped := strings.ReplaceAll(hdrLine, `\`, `\\`)
 				escaped = strings.ReplaceAll(escaped, `"`, `\"`)

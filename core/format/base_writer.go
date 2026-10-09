@@ -30,17 +30,29 @@ type BaseFormatWriter struct {
 	// offered as `convert` targets (a converted interchange file carries no
 	// skeleton and cannot be merged back). See AD-005 "Writer output modes".
 	Interchange bool
+	// Binary declares that the writer emits bytes that are not text in a
+	// charset: a ZIP container, an image, a compiled catalog, or bytes another
+	// process already encoded. The run's encoding is recorded on such a writer
+	// and never applied to its output, and neither are the shared output
+	// options. A reader declares the same on its FormatSignature.
+	Binary bool
 
 	// OutputOpts are the shared byte-level output options (BOM policy,
 	// newline style, output charset). When non-passthrough, Output is
 	// wrapped with the post-encode chain so every writer that embeds the
-	// base inherits the behavior. Set via SetOutputOptions.
+	// base inherits the behavior. Set via SetOutputOptions. An output.encoding
+	// here wins over the run's Encoding; with none, the writer encodes its
+	// text in Encoding.
 	OutputOpts OutputOptions
 
 	// rawOutput is the unwrapped destination (file or caller writer);
 	// outputWrap is the post-encode chain pending a flush on Close.
 	rawOutput  io.Writer
 	outputWrap io.Closer
+	// encodingErr holds a failure to build the output chain after SetEncoding,
+	// which cannot report one itself; the next SetOutput, SetOutputWriter or
+	// Close returns it.
+	encodingErr error
 }
 
 // Name returns the format identifier.
@@ -83,15 +95,17 @@ func (b *BaseFormatWriter) SetOutputOptions(opts OutputOptions) error {
 }
 
 // applyOutputWrap (re)derives Output from the raw destination and the
-// configured output options. Passthrough options leave Output as the raw
-// destination, preserving historical behavior exactly.
+// effective output options. Passthrough options leave Output as the raw
+// destination.
 func (b *BaseFormatWriter) applyOutputWrap() error {
 	b.outputWrap = nil
+	b.encodingErr = nil
 	b.Output = b.rawOutput
-	if b.rawOutput == nil || b.OutputOpts.IsZero() {
+	opts := b.EffectiveOutputOptions()
+	if b.rawOutput == nil || opts.IsZero() {
 		return nil
 	}
-	wc, err := b.OutputOpts.Wrap(b.rawOutput)
+	wc, err := opts.Wrap(b.rawOutput)
 	if err != nil {
 		return err
 	}
@@ -100,20 +114,40 @@ func (b *BaseFormatWriter) applyOutputWrap() error {
 	return nil
 }
 
+// EffectiveOutputOptions are the output options the writer's bytes pass
+// through: the configured OutputOpts, with the run's Encoding filling in an
+// unset output.encoding. A Binary writer has none.
+func (b *BaseFormatWriter) EffectiveOutputOptions() OutputOptions {
+	if b.Binary {
+		return OutputOptions{}
+	}
+	opts := b.OutputOpts
+	if opts.Encoding == "" {
+		opts.Encoding = b.Encoding
+	}
+	return opts
+}
+
 // SetLocale sets the target locale for writing.
 func (b *BaseFormatWriter) SetLocale(locale model.LocaleID) {
 	b.Locale = locale
 }
 
-// SetEncoding sets the output encoding.
+// SetEncoding sets the charset the writer encodes its text in. A failure to
+// build the output chain (an unknown charset) is reported by the next
+// SetOutput, SetOutputWriter or Close.
 func (b *BaseFormatWriter) SetEncoding(encoding string) {
 	b.Encoding = encoding
+	if err := b.applyOutputWrap(); err != nil {
+		b.encodingErr = err
+	}
 }
 
 // Close flushes the output-option chain (if any) and closes the output file
 // if one was opened.
 func (b *BaseFormatWriter) Close() error {
-	var firstErr error
+	firstErr := b.encodingErr
+	b.encodingErr = nil
 	if b.outputWrap != nil {
 		firstErr = b.outputWrap.Close()
 		b.outputWrap = nil

@@ -58,6 +58,7 @@ func (a *App) ResolveMCPProject(cmd Command) error {
 	a.ProjectContext = project.NewProjectContext(proj, path)
 	a.mcpRecipePath = path
 	a.ResolveSourceLang(a.ProjectContext.SourceLocale)
+	a.ResolveEncoding(a.ProjectContext.Encoding)
 	return nil
 }
 

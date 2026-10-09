@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"syscall/js"
 
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
 )
@@ -71,7 +72,7 @@ func doPreview(path string) (result any) {
 		Encoding:     "UTF-8",
 		Reader:       io.NopCloser(bytes.NewReader(data)),
 	}
-	if err := reader.Open(ctx, doc); err != nil {
+	if err := format.OpenDocument(ctx, reader, doc); err != nil {
 		reader.Close()
 		return errorResult(err.Error())
 	}

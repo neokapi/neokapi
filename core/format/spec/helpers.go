@@ -159,15 +159,22 @@ func MergeConfig(base, overlay map[string]any) map[string]any {
 // the streamed parts. Used by the native spec runner; the parity
 // runner reuses it for its native side.
 func ReadParts(reader format.DataFormatReader, input []byte) ([]*model.Part, error) {
+	return ReadPartsIn(reader, input, "UTF-8")
+}
+
+// ReadPartsIn is ReadParts for an input declared to be in encoding; the
+// document goes through the ingestion seam (format.OpenDocument) as it would
+// from the CLI.
+func ReadPartsIn(reader format.DataFormatReader, input []byte, encoding string) ([]*model.Part, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	doc := &model.RawDocument{
 		SourceLocale: model.LocaleID("en"),
 		TargetLocale: model.LocaleID("fr"),
-		Encoding:     "UTF-8",
+		Encoding:     encoding,
 		Reader:       io.NopCloser(bytes.NewReader(input)),
 	}
-	if err := reader.Open(ctx, doc); err != nil {
+	if err := format.OpenDocument(ctx, reader, doc); err != nil {
 		return nil, fmt.Errorf("open: %w", err)
 	}
 	defer reader.Close()
@@ -187,10 +194,19 @@ func ReadParts(reader format.DataFormatReader, input []byte) ([]*model.Part, err
 // supplied as the skeleton source (skeleton-based writers — html, json — need
 // it for faithful reconstruction).
 func WriteParts(w format.DataFormatWriter, parts []*model.Part, original []byte) ([]byte, error) {
+	return WritePartsIn(w, parts, original, "")
+}
+
+// WritePartsIn is WriteParts for output encoded in encoding; an empty
+// encoding leaves the writer's own default (UTF-8).
+func WritePartsIn(w format.DataFormatWriter, parts []*model.Part, original []byte, encoding string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	if oc, ok := w.(format.OriginalContentSetter); ok && len(original) > 0 {
 		oc.SetOriginalContent(original)
+	}
+	if encoding != "" {
+		w.SetEncoding(encoding)
 	}
 	var buf bytes.Buffer
 	if err := w.SetOutputWriter(&buf); err != nil {

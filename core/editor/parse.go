@@ -35,7 +35,7 @@ type ParseResult struct {
 func ParseItem(ctx context.Context, reader format.DataFormatReader, doc *model.RawDocument,
 	sourceLocale, formatName, itemName string) (*ParseResult, error) {
 
-	if err := reader.Open(ctx, doc); err != nil {
+	if err := format.OpenDocument(ctx, reader, doc); err != nil {
 		return nil, fmt.Errorf("parse %q: %w", itemName, err)
 	}
 

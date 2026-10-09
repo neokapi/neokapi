@@ -20,5 +20,6 @@ func registerPDF(reg *registry.FormatRegistry) {
 			MIMETypes:  []string{"application/pdf"},
 			Extensions: []string{".pdf"},
 			MagicBytes: [][]byte{[]byte("%PDF-")},
+			Binary:     true,
 		}, "PDF (PDFium/WASM)")
 }

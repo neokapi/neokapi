@@ -1013,6 +1013,7 @@ func (r *Reader) readContentStreaming(ctx context.Context, ch chan<- model.PartR
 	rawText := string(content)
 	decoder := xml.NewDecoder(strings.NewReader(rawText))
 	decoder.Strict = false
+	decoder.CharsetReader = format.XMLCharsetReader(r.Doc)
 
 	s := &xliff2StreamState{
 		reader:       r,

@@ -264,7 +264,7 @@ func (w *Writer) replaySkeleton(blockAt func(int) *model.Block) error {
 				// both rewrites so the parity round-trip matches the
 				// reference engine instead of preserving the source's
 				// original prologue verbatim.
-				data = normalizeTSPrologue(data)
+				data = normalizeTSPrologue(data, w.EffectiveOutputOptions().Encoding)
 				firstText = false
 			}
 			pendingText = append(pendingText[:0], data...)
@@ -916,7 +916,8 @@ func writeTSRunsXML(buf *strings.Builder, runs []model.Run, escapeApos bool) {
 //
 //   - The XML declaration is force-emitted as
 //     `<?xml version="1.0" encoding="UTF-8"?>` regardless of what the
-//     source declared. Woodstox normalises the encoding token to its
+//     source declared, naming the charset the writer encodes in when the
+//     run set one. Woodstox normalises the encoding token to its
 //     canonical (UTF-8) form and the filter discards the `standalone`
 //     attribute.
 //   - The DOCTYPE renders the internal-subset brackets — Woodstox's
@@ -930,7 +931,10 @@ func writeTSRunsXML(buf *strings.Builder, runs []model.Run, escapeApos bool) {
 // some files that way), insert one. When the source had no DOCTYPE,
 // don't add one — Woodstox only fires a DTD event when the source
 // actually contained one.
-func normalizeTSPrologue(data []byte) []byte {
+func normalizeTSPrologue(data []byte, encoding string) []byte {
+	if encoding == "" {
+		encoding = "UTF-8"
+	}
 	// Preserve a leading UTF-8 BOM if present.
 	var bom []byte
 	body := data
@@ -953,7 +957,7 @@ func normalizeTSPrologue(data []byte) []byte {
 	body = body[leadStart:]
 
 	// Rewrite or insert the XML declaration.
-	canonicalDecl := []byte(`<?xml version="1.0" encoding="UTF-8"?>`)
+	canonicalDecl := []byte(`<?xml version="1.0" encoding="` + encoding + `"?>`)
 	if bytes.HasPrefix(body, []byte("<?xml")) {
 		if end := bytes.Index(body, []byte("?>")); end >= 0 {
 			tail := append([]byte{}, body[end+2:]...)

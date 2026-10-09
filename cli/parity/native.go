@@ -84,7 +84,7 @@ func TryRunNative(t *testing.T, req NativeRequest) ([]*model.Part, error) {
 		MimeType:     req.MimeType,
 		Reader:       io.NopCloser(bytes.NewReader(req.InputBytes)),
 	}
-	if err := reader.Open(ctx, doc); err != nil {
+	if err := format.OpenDocument(ctx, reader, doc); err != nil {
 		return nil, fmt.Errorf("open: %w", err)
 	}
 
@@ -176,7 +176,7 @@ func RunNativeRoundTrip(t *testing.T, req NativeRoundTripRequest) NativeRoundTri
 		MimeType:     req.MimeType,
 		Reader:       io.NopCloser(bytes.NewReader(req.InputBytes)),
 	}
-	if err := reader.Open(ctx, doc); err != nil {
+	if err := format.OpenDocument(ctx, reader, doc); err != nil {
 		t.Fatalf("RunNativeRoundTrip: open: %v", err)
 	}
 

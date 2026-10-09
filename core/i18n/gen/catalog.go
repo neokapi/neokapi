@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/format"
 	jsonfmt "github.com/neokapi/neokapi/core/formats/json"
 	"github.com/neokapi/neokapi/core/formats/mo"
 	"github.com/neokapi/neokapi/core/model"
@@ -329,7 +330,7 @@ func readEntries(path string, cfgValues map[string]any) ([]entry, error) {
 		Encoding:     "UTF-8",
 		Reader:       f,
 	}
-	if err := reader.Open(ctx, doc); err != nil {
+	if err := format.OpenDocument(ctx, reader, doc); err != nil {
 		return nil, err
 	}
 	defer func() { _ = reader.Close() }()

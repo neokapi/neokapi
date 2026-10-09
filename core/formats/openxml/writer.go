@@ -1112,6 +1112,7 @@ func NewWriter() *Writer {
 	return &Writer{
 		FormatName:       "openxml",
 		RequiresSkeleton: true,
+		Binary:           true,
 		cfg:              cfg,
 	}
 }

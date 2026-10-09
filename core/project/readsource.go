@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/neokapi/neokapi/core/blockstore"
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
 )
@@ -48,7 +49,7 @@ func ReadSourceBlocks(
 		FormatID:     formatName,
 		Reader:       f,
 	}
-	if err := reader.Open(ctx, doc); err != nil {
+	if err := format.OpenDocument(ctx, reader, doc); err != nil {
 		return nil, nil, err
 	}
 	defer reader.Close()
