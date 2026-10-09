@@ -69,7 +69,7 @@ if [ -n "$AUTH_HEADER_FILE" ]; then
 fi
 
 ASSET_URL=$(curl -sL \
-    "${CURL_AUTH_ARGS[@]}" \
+    ${CURL_AUTH_ARGS[@]+"${CURL_AUTH_ARGS[@]}"} \
     -H "Accept: application/vnd.github+json" \
     "$API_URL" \
     | python3 -c "
@@ -92,7 +92,7 @@ fi
 
 echo "  Downloading from: $ASSET_URL"
 HTTP_CODE=$(curl -sL -w "%{http_code}" \
-    "${CURL_AUTH_ARGS[@]}" \
+    ${CURL_AUTH_ARGS[@]+"${CURL_AUTH_ARGS[@]}"} \
     -H "Accept: application/octet-stream" \
     -o "$TMPDIR/$ASSET_NAME" \
     "$ASSET_URL")
