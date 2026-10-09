@@ -852,12 +852,8 @@ func read(zr *zip.Reader) (*Package, error) {
 		return nil, fmt.Errorf("kpz: unknown kind %q (want %q, %q, %q, %q or %q)",
 			manifest.Kind, KindProject, KindInterchange, KindContext, KindCheckpoint, KindWorkspace)
 	}
-	major, vok := schemaversion.Major(manifest.SchemaVersion)
-	if !vok {
-		return nil, fmt.Errorf("kpz: invalid schemaVersion %q", manifest.SchemaVersion)
-	}
-	if wantMajor, _ := schemaversion.Major(SchemaVersion); major != wantMajor {
-		return nil, fmt.Errorf("kpz: unsupported major schemaVersion %d (this build speaks %s)", major, SchemaVersion)
+	if _, err := schemaversion.Check("kpz", manifest.SchemaVersion, SchemaVersion); err != nil {
+		return nil, err
 	}
 
 	// Every name in the manifest is content. Validate the whole path surface
