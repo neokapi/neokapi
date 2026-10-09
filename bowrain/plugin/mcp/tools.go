@@ -1,9 +1,13 @@
-// Package bowrainmcp registers bowrain-specific MCP tools (project_status,
-// project_push, project_pull, project_ls, project_config, list_flows) on
-// the shared `mcp` command's MCP server. The host (kapi or bowrain CLI)
-// blank-imports github.com/neokapi/neokapi/bowrain/plugin (which pulls in
-// this package) and the tools become available alongside the kapi MCP
-// tools registered by the host's own init().
+// Package bowrainmcp registers the bowrain MCP tools on the shared `mcp`
+// command's MCP server. The kapi-bowrain binary blank-imports
+// github.com/neokapi/neokapi/bowrain/plugin (which pulls in this package) and
+// serves them from `kapi-bowrain mcp-server` alongside the kapi MCP tools
+// registered by host's own init().
+//
+// The tools the plugin manifest declares under `mcp_tools` join kapi's own
+// surface through the `kapi mcp` proxy. A tool registered here and left
+// undeclared is reachable only by a client that starts the plugin's server
+// itself, and each such registration says why it stays off kapi's surface.
 package bowrainmcp
 
 import (
@@ -58,6 +62,9 @@ func registerBowrainTools(server *mcp.Server, a *cli.App) {
 		return handleProjectLs(ctx, a, input)
 	})
 
+	// Undeclared: the recipe is kapi's, and kapi reads it through its own
+	// surfaces. Serving it here would put a kapi concern behind a plugin's
+	// name.
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "project_config",
 		Description: "Read project configuration from the .kapi recipe",
@@ -65,13 +72,11 @@ func registerBowrainTools(server *mcp.Server, a *cli.App) {
 		return handleProjectConfig(a, input)
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
-		Name:        "list_flows",
-		Description: "List available processing flows (built-in and project-defined)",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, input MCPProjectInput) (*mcp.CallToolResult, MCPListFlowsOutput, error) {
-		return handleBowrainListFlows(a, input)
-	})
-
+	// Undeclared: kapi answers "what do we call this here" with
+	// context_search, and two names for one job make the caller pick wrong
+	// half the time. Whether context_search reaches the workspace graph for a
+	// connected project, or this tool joins the surface under its own name,
+	// is still to be decided.
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "concept_search",
 		Description: "Search the workspace brand knowledge graph for governed concepts (terms, status, domain) matching a query",
@@ -199,21 +204,6 @@ type MCPConfigOutput struct {
 	ServerURL       string          `json:"server_url,omitempty"`
 	ProjectID       string          `json:"project_id,omitempty"`
 	ContentCount    int             `json:"content_count"`
-}
-
-type MCPFlowEntry struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Source      string `json:"source"`
-	Steps       int    `json:"steps,omitempty"`
-}
-
-type MCPListFlowsOutput struct {
-	Flows []MCPFlowEntry `json:"flows"`
-	Total int            `json:"total"`
-	// Warning says why the project's own flows are missing, when its recipe
-	// does not load.
-	Warning string `json:"warning,omitempty"`
 }
 
 // --- Handlers ---
@@ -457,39 +447,6 @@ func handleProjectConfig(a *cli.App, input MCPProjectInput) (*mcp.CallToolResult
 		out.ProjectID = recipe.Server.ProjectID()
 	}
 
-	return nil, out, nil
-}
-
-// handleBowrainListFlows lists what `kapi flows` lists for the project in
-// scope (cli.FlowListing): the composed built-in flows, then the recipe's own,
-// inline and in its `flows_dir:`, each name once for the flow `kapi run`
-// resolves it to. With no project in scope it lists the built-in flows. A
-// recipe that does not load still lists them, and the warning says why the
-// project's are missing.
-func handleBowrainListFlows(a *cli.App, input MCPProjectInput) (*mcp.CallToolResult, MCPListFlowsOutput, error) {
-	recipePath, err := a.ResolveMCPCallProject(input.Project)
-	if err != nil {
-		return nil, MCPListFlowsOutput{}, err
-	}
-	flows, err := cli.FlowListing(recipePath)
-
-	out := MCPListFlowsOutput{Flows: make([]MCPFlowEntry, 0, len(flows))}
-	if err != nil {
-		out.Warning = err.Error()
-	}
-	for _, f := range flows {
-		source := "builtin"
-		if f.Path != "" {
-			source = "project"
-		}
-		out.Flows = append(out.Flows, MCPFlowEntry{
-			Name:        f.Name,
-			Description: f.Description,
-			Source:      source,
-			Steps:       f.Steps,
-		})
-	}
-	out.Total = len(out.Flows)
 	return nil, out, nil
 }
 

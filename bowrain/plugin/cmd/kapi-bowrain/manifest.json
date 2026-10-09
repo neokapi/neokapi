@@ -34,9 +34,12 @@
         "subcommands": ["list", "create"]}
     ],
     "mcp_tools": [
-      {"name": "project_status", "description": "Show sync status for a bowrain project"},
-      {"name": "project_pull",   "description": "Pull translations from Bowrain Server"},
-      {"name": "project_push",   "description": "Push local changes to Bowrain Server"}
+      {"name": "project_status",    "description": "Show sync status for a bowrain project"},
+      {"name": "project_pull",      "description": "Pull translations from Bowrain Server"},
+      {"name": "project_push",      "description": "Push local changes to Bowrain Server"},
+      {"name": "project_ls",        "description": "List tracked files with their sync standing"},
+      {"name": "concept_story",     "description": "Show the timeline of a governed concept"},
+      {"name": "experiment_status", "description": "Report context-graph change-sets and their blast radius"}
     ],
     "schema_extensions": [
       {"name": "bowrain",      "scope": "project", "group": "bowrain", "venue": true},
