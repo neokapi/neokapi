@@ -115,6 +115,28 @@ func TestCLIJSONContract(t *testing.T) {
 				DurationMs: 1200, FilesProcessed: 4, Message: "Merged 4 file(s)",
 			},
 		},
+		{
+			name: "trust_list",
+			data: output.TrustListOutput{
+				Record: "/home/me/.config/kapi/trust.json",
+				Entries: []output.TrustListEntry{
+					{Path: "/work/app/kapi.yaml", Kind: "recipe", Decision: "allow", RecordedAt: "2026-10-09T08:00:00Z", Digest: "3a1f", Status: output.TrustStatusCurrent},
+					{Path: "/work/old/kapi.yaml", Kind: "recipe", Decision: "deny", RecordedAt: "2026-10-01T08:00:00Z", Digest: "9c2e", Status: output.TrustStatusChanged, Detail: "the recipe changed what it runs; the next run asks again"},
+					{Path: "/work/web/vite.config.ts", Kind: "formatter", Decision: "allow", RecordedAt: "2026-10-02T08:00:00Z", Digest: "77b0", Status: output.TrustStatusUnverified, Detail: "a formatter decision; its digest covers the formatter's executable and configuration, which kapi apply checks at the edit"},
+				},
+			},
+		},
+		{
+			name: "trust_show",
+			data: output.TrustShowOutput{
+				Path:     "/work/app/kapi.yaml",
+				Sites:    []output.TrustSite{{Where: "flows.default.steps[0]", Kind: "tool", Name: "external-command", Detail: "/bin/echo"}},
+				Digest:   "3a1f",
+				Status:   output.TrustShowAllowed,
+				Recorded: &output.TrustRecorded{Decision: "allow", RecordedAt: "2026-10-09T08:00:00Z", Digest: "3a1f"},
+				Record:   "/home/me/.config/kapi/trust.json",
+			},
+		},
 	}
 
 	for _, tc := range cases {

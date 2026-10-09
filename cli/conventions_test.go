@@ -39,6 +39,8 @@ var listCommands = [][]string{
 	{"config", "unset"},
 	{"config", "path"},
 	{"credentials", "list"},
+	{"trust", "list"},
+	{"trust", "show"},
 	{"version"},
 	{"status"},
 	{"stats"},

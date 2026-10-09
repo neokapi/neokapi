@@ -82,8 +82,9 @@ type execTrustFile struct {
 }
 
 // ExecTrustPath returns the absolute path of the execution-trust record.
-// Exported so the prompt and the refusal messages can name it — the file is
-// plain JSON, and deleting an entry is how a decision is withdrawn.
+// Exported so the prompt and the refusal messages can name it. The file is
+// plain JSON; `kapi trust list` reads it and `kapi trust revoke` withdraws a
+// decision (host/exectrustadmin.go).
 func ExecTrustPath() string {
 	return filepath.Join(ConfigDir(), execTrustFileName)
 }
@@ -209,8 +210,8 @@ func (a *App) ensureExecTrust(recipePath string, proj *project.KapiProject, opts
 		a.execTrustGranted = true
 		return nil
 	case found && decision == execTrustDeny:
-		return fmt.Errorf("%w: %s was declined (edit or delete its entry in %s to answer again)",
-			ErrExecNotTrusted, recipePath, ExecTrustPath())
+		return fmt.Errorf("%w: %s was declined (run kapi trust revoke %s to answer again)",
+			ErrExecNotTrusted, recipePath, recipePath)
 	}
 
 	out := opts.Out
@@ -223,8 +224,8 @@ func (a *App) ensureExecTrust(recipePath string, proj *project.KapiProject, opts
 	}
 
 	if !isTTY() {
-		return fmt.Errorf("%w: %s\n%s\nno terminal is attached, so there is nobody to ask. Run kapi once interactively to answer, or set %s=1 if this project is trusted by whoever configured this environment",
-			ErrExecNotTrusted, recipePath, formatExecSites(sites), execTrustEnvVar)
+		return fmt.Errorf("%w: %s\n%s\nno terminal is attached, so there is nobody to ask. Approve it from a terminal with kapi trust allow -p %s, or set %s=1 if this project is trusted by whoever configured this environment",
+			ErrExecNotTrusted, recipePath, formatExecSites(sites), recipePath, execTrustEnvVar)
 	}
 
 	in := opts.In
@@ -260,7 +261,9 @@ func printExecTrustPrompt(w io.Writer, recipePath string, sites []project.ExecSi
 	fmt.Fprintln(w, formatExecSites(sites))
 	fmt.Fprintln(w, "They run with your privileges and your environment, including any provider")
 	fmt.Fprintln(w, "API keys kapi can read. Approve only if you trust the source of this project.")
-	fmt.Fprintf(w, "The answer is remembered in %s and is asked again if the recipe changes what it runs.\n\n", ExecTrustPath())
+	fmt.Fprintf(w, "The answer is remembered in %s and is asked again if the recipe changes what it runs.\n", ExecTrustPath())
+	fmt.Fprintln(w, "kapi trust list shows the recorded answers and kapi trust revoke withdraws one.")
+	fmt.Fprintln(w)
 }
 
 // formatExecSites renders the surface as one indented line per site.
@@ -301,7 +304,7 @@ func (a *App) checkExecToolAllowed(toolName string) error {
 		a.execTrustGranted = true
 		return nil
 	}
-	return fmt.Errorf("%w: the %q step has not been approved for this project (run kapi interactively once to answer, or set %s=1)",
+	return fmt.Errorf("%w: the %q step has not been approved for this project (approve it with kapi trust allow, or set %s=1)",
 		ErrExecNotTrusted, toolName, execTrustEnvVar)
 }
 

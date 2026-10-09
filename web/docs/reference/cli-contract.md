@@ -358,6 +358,18 @@ consent; `KAPI_TRUST_EXEC=1` is the opt-in for automation, and the general
 these tools outright. See
 [E-06](/contribute/architecture/engine/e-06-execution-trust).
 
+`kapi trust` reads and changes the record. `kapi trust list --json` returns
+`{record, entries[]}`, each entry `{path, kind, decision, recorded_at, digest,
+status, detail?}` with `kind` one of `recipe` or `formatter` and `status` one
+of `current`, `changed`, `missing`, `unreadable` or `unverified`. `kapi trust
+show --json` returns `{path, sites[], digest?, status, recorded?, env_granted?,
+record}`, each site `{where, kind, name, detail?}`, `status` one of `allowed`,
+`declined`, `undecided`, `changed` or `nothing_to_decide`, and `recorded`
+`{decision, recorded_at, digest}` when the record holds an entry for the path.
+`kapi trust revoke` and `kapi trust allow` return `{path, removed, decision?,
+record}` and `{path, sites[], digest?, recorded, reason?, record}`. Both
+documents are locked by `cli/testdata/contract/trust_*.golden.json`.
+
 ## Tool registration invariants
 
 Four properties of a built-in tool's registration are asserted over the populated registry, in `core/tools/registration_invariants_test.go`, because each one fails silently when it is left to review:

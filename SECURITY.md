@@ -78,7 +78,9 @@ remembered only for as long as what it approved stays the same:
 - The answer is stored under the kapi config directory — not in the project's
   own `.kapi/`, which is disposable and would carry the answer to the next
   person — and it is keyed to a fingerprint of the commands approved. Editing
-  the recipe to run something else asks again.
+  the recipe to run something else asks again. `kapi trust list` shows the
+  recorded answers, `kapi trust show` what a recipe would run, `kapi trust
+  revoke` withdraws an answer and `kapi trust allow` records one without a run.
 - With no terminal attached, kapi refuses rather than assuming consent. The
   general-purpose `--yes` flag does not grant this: unattended pipelines
   already pass it for other prompts, so it is not evidence that anyone

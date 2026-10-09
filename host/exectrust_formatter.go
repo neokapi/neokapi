@@ -107,8 +107,8 @@ func (t *formatterTrust) decide(key, digest string, site project.ExecSite) error
 	case found && decision == execTrustAllow:
 		return nil
 	case found && decision == execTrustDeny:
-		return fmt.Errorf("running %s, which %s selects, was declined (edit or delete its entry in %s to answer again)",
-			site.Name, DisplayName(key), ExecTrustPath())
+		return fmt.Errorf("running %s, which %s selects, was declined (run kapi trust revoke %s to answer again)",
+			site.Name, DisplayName(key), key)
 	}
 	if t.ask == nil {
 		return fmt.Errorf("%s selects %s, which runs code the project controls, and no one has allowed it to run: %s",
@@ -209,5 +209,6 @@ func printFormatterTrustPrompt(w io.Writer, site project.ExecSite) {
 	fmt.Fprintln(w, "\nIt runs with your privileges and your environment, including any provider API")
 	fmt.Fprintln(w, "keys kapi can read, and it runs code the project controls: its executable and")
 	fmt.Fprintln(w, "the configuration it loads. Approve only if you trust the source of this project.")
-	fmt.Fprintf(w, "The answer is remembered in %s and is asked again if the formatter, what runs it or its configuration changes.\n\n", ExecTrustPath())
+	fmt.Fprintf(w, "The answer is remembered in %s and is asked again if the formatter, what runs it or its configuration changes.\n", ExecTrustPath())
+	fmt.Fprintf(w, "kapi trust list shows the recorded answers and kapi trust revoke %s withdraws this one.\n\n", site.Where)
 }

@@ -56,6 +56,11 @@ var browserGaps = map[string]browserGap{
 		group:  "assets",
 		reason: "credentials live in the operating system keychain, which the browser has no access to",
 	},
+	"trust": {
+		short:  "List, inspect and change which projects may run commands",
+		group:  "advanced",
+		reason: "the browser build grants execution trust to every recipe, since a page's recipe cannot start a subprocess, so there is no record to list or change",
+	},
 	"telemetry": {
 		short:  "Show or change anonymous usage telemetry (status, on, off)",
 		reason: "the browser build never collects or reports telemetry, so there is nothing to configure",
@@ -192,6 +197,7 @@ func BrowserCommandSet(a *App) []*cobra.Command {
 		NewVoiceCmd(a),
 		newBrowserGapCmd("credentials"),
 		NewConfigCmd(a),
+		newBrowserGapCmd("trust"),
 		newBrowserGapCmd("telemetry"),
 		NewVersionCmd(a, "kapi"),
 		newBrowserGapCmd("update"),

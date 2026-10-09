@@ -269,8 +269,10 @@ also build it from the finding you are fixing.
   plugin, without a formatter that runs on the file, or without that trust, the
   edit is refused as `unsupported` and nothing is written. The trust is
   execution trust: the user answers the prompt `kapi apply` shows in a
-  terminal, once per formatter configuration. Report such a refusal to the
-  user rather than setting `KAPI_TRUST_EXEC` or answering the prompt yourself.
+  terminal, once per formatter configuration. `kapi trust list` shows the
+  recorded answers and `kapi trust revoke <path>` withdraws one. Report such a
+  refusal to the user rather than setting `KAPI_TRUST_EXEC`, answering the
+  prompt or running `kapi trust allow` yourself.
   Keep JSDoc tags such as `@param` and every `{@link}`: dropping one refuses
   the edit.
 - The result carries the findings of a check scoped to what was written. A
