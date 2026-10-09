@@ -3,18 +3,28 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"time"
 )
 
+// NoSuccessfulFilesError reports an experiment in which the engine produced no
+// successful file. Such a run measures the time the engine took to do nothing,
+// so it is not a result: runEngines turns it into a failed run, and main exits
+// without writing the dataset.
+type NoSuccessfulFilesError struct {
+	Engine    string
+	Attempted int
+}
+
+func (e *NoSuccessfulFilesError) Error() string {
+	return fmt.Sprintf("%s: 0 of %d files succeeded; the run produced nothing to publish", e.Engine, e.Attempted)
+}
+
 // runBenchmarks executes the mixed experiment for all engines.
 func runBenchmarks(cfg *Config) (*Report, error) {
-	report := &Report{
-		Metadata: collectMetadata(),
-	}
-
 	engines, daemon, err := buildEngines(cfg)
 	if err != nil {
 		return nil, err
@@ -27,12 +37,28 @@ func runBenchmarks(cfg *Config) (*Report, error) {
 		return nil, fmt.Errorf("no engines available")
 	}
 
+	return runEngines(engines, cfg, daemon)
+}
+
+// runEngines runs one experiment per engine and assembles the report. An
+// engine whose experiment produced no successful file fails the whole run:
+// the error names the engine, and no report is returned, so nothing reaches
+// the dataset.
+func runEngines(engines []Engine, cfg *Config, daemon *DaemonProcess) (*Report, error) {
+	report := &Report{
+		Metadata: collectMetadata(),
+	}
+
 	for _, engine := range engines {
 		fmt.Printf("\n=== %s ===\n", engine.Name())
 
 		result, err := runExperiment(engine, cfg, daemon)
 		if err != nil {
 			fmt.Printf("  ERROR: %v\n", err)
+			var none *NoSuccessfulFilesError
+			if errors.As(err, &none) {
+				return nil, err
+			}
 			continue
 		}
 
@@ -123,7 +149,7 @@ func runExperiment(engine Engine, cfg *Config, daemon *DaemonProcess) (*Experime
 	}
 
 	if len(wallTimes) == 0 {
-		return nil, fmt.Errorf("all iterations failed")
+		return nil, &NoSuccessfulFilesError{Engine: engine.Name(), Attempted: len(cfg.Fixtures)}
 	}
 
 	exp := &ExperimentResult{
@@ -158,6 +184,13 @@ func runExperiment(engine Engine, cfg *Config, daemon *DaemonProcess) (*Experime
 		exp.FilesVerified, exp.FilesAttempted, exp.TotalPseudoChars)
 	if exp.FilesUnverified > 0 {
 		fmt.Printf("  ⚠ %d files succeeded but produced zero pseudo runes\n", exp.FilesUnverified)
+	}
+	// FilesUnverified draws the line between a fast engine and a fast engine
+	// that did nothing for the files it wrote. An engine that wrote nothing at
+	// all is the case below that line: its timing describes no work, so the
+	// experiment is not a result.
+	if exp.FilesSucceeded == 0 {
+		return nil, &NoSuccessfulFilesError{Engine: engine.Name(), Attempted: exp.FilesAttempted}
 	}
 
 	// Collect daemon RSS stats.
