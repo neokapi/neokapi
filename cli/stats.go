@@ -38,6 +38,6 @@ no FILE means the project's tracked content; FILE "-" reads standard input.`,
 	f.StringVarP(&a.FormatFlag, "format", "f", "", "input format (default: auto-detect by extension/content)")
 	a.AddEngineFlag(f)
 	a.AddSourceLangFlag(f)
-	a.AddEncodingFlag(f, "", "charset the input is read in; a byte-order mark in the file wins (default: the recipe's defaults.encoding, then UTF-8)")
+	a.AddEncodingFlag(f, "", "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)")
 	return cmd
 }

@@ -155,7 +155,7 @@ func (c *FileConnector) fetchFile(ctx context.Context, path string) (*platconn.C
 		FormatID: formatName,
 		Reader:   f,
 	}
-	if err := reader.Open(ctx, doc); err != nil {
+	if err := format.OpenDocument(ctx, reader, doc); err != nil {
 		f.Close()
 		return nil, fmt.Errorf("open document %s: %w", path, err)
 	}
@@ -303,7 +303,7 @@ func (c *FileConnector) reparseSourceSkeleton(ctx context.Context, item *platcon
 		Reader:       f,
 		TargetLocale: item.Locale,
 	}
-	if err := reader.Open(ctx, doc); err != nil {
+	if err := format.OpenDocument(ctx, reader, doc); err != nil {
 		return nil, nil, false
 	}
 	var sourceBlocks []*model.Block

@@ -65,7 +65,7 @@ func (a *App) RunInspect(ctx context.Context, cmd Command, args []string, outFor
 	if err != nil {
 		return err
 	}
-	changes := a.newCommandChanges(cmd, recipe, ChangeServiceOptions{Origin: "inspect", Format: a.FormatFlag, TargetLocale: model.LocaleID(a.TargetLang), SourceLocale: model.LocaleID(a.SourceLang)})
+	changes := a.newCommandChanges(cmd, recipe, ChangeServiceOptions{Origin: "inspect", Format: a.FormatFlag, Encoding: a.Encoding, TargetLocale: model.LocaleID(a.TargetLang), SourceLocale: model.LocaleID(a.SourceLang)})
 	src := inspectSources{changes: changes, editions: a.projectEditions(recipe), comments: a.newCommentDocs(recipe)}
 
 	streaming := outFormat == "jsonl"
@@ -146,7 +146,7 @@ func (a *App) inspectDocument(ctx context.Context, cmd Command, src inspectSourc
 			return err
 		}
 		defer cleanup()
-		if svc, err = a.changeService(ctx, cmd, ChangeServiceOptions{Origin: "inspect", Root: filepath.Dir(path), Format: a.FormatFlag, TargetLocale: model.LocaleID(a.TargetLang), SourceLocale: model.LocaleID(a.SourceLang)}); err != nil {
+		if svc, err = a.changeService(ctx, cmd, ChangeServiceOptions{Origin: "inspect", Root: filepath.Dir(path), Format: a.FormatFlag, Encoding: a.Encoding, TargetLocale: model.LocaleID(a.TargetLang), SourceLocale: model.LocaleID(a.SourceLang)}); err != nil {
 			return err
 		}
 		doc, label = filepath.Base(path), StdinName
@@ -295,7 +295,7 @@ func (a *App) projectEditions(recipe string) func(doc string) []model.EditionKey
 // does not load.
 func (a *App) lazyProjectLayout(recipe string) func() *projectChangeLayout {
 	return sync.OnceValue(func() *projectChangeLayout {
-		l, err := a.newProjectLayout(ChangeServiceOptions{Project: recipe, Format: a.FormatFlag, SourceLocale: model.LocaleID(a.SourceLang)})
+		l, err := a.newProjectLayout(ChangeServiceOptions{Project: recipe, Format: a.FormatFlag, Encoding: a.Encoding, SourceLocale: model.LocaleID(a.SourceLang)})
 		if err != nil {
 			return nil
 		}

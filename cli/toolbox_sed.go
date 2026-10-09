@@ -113,7 +113,7 @@ With no FILE, or when FILE is "-", standard input is read.`,
 	f.StringVarP(&a.FormatFlag, "format", "f", "", "input/output format (default: what the recipe binds, else auto-detect by extension/content)")
 	a.AddEngineFlag(f)
 	a.AddSourceLangFlag(f)
-	a.AddEncodingFlag(f, "", "charset the input is read in and the output written in; a byte-order mark in the file wins (default: the recipe's defaults.encoding, then UTF-8)")
+	a.AddEncodingFlag(f, "", "charset the input is read in and the output written in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)")
 
 	// -i takes an OPTIONAL backup suffix: `-i` (no backup) or `-i.bak`.
 	inPlaceFlag = RegisterInPlace(f, "edit files in place; append a backup SUFFIX if given (e.g. -i.bak)")

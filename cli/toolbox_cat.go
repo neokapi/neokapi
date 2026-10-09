@@ -47,7 +47,7 @@ With no FILE, or when FILE is "-", standard input is read.`,
 	f.StringVarP(&a.FormatFlag, "format", "f", "", "input format (default: auto-detect by extension/content)")
 	a.AddEngineFlag(f)
 	a.AddSourceLangFlag(f)
-	a.AddEncodingFlag(f, "", "charset the input is read in; a byte-order mark in the file wins (default: the recipe's defaults.encoding, then UTF-8)")
+	a.AddEncodingFlag(f, "", "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)")
 	f.Bool("json", false, "emit blocks as JSON instead of plain text")
 	return cmd
 }

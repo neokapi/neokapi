@@ -133,7 +133,7 @@ comment failed; 5 when a backend did not answer.`,
 	f.StringVar(&out, "out", "", "outside a project, the file to write the one edition the change set adds to a document (a translation of it); inside one, the recipe's target names it")
 	f.StringVarP(&a.FormatFlag, "format", "f", "", "format of every document the change set names (default: what the recipe binds, else auto-detect)")
 	a.AddEngineFlag(f)
-	a.AddEncodingFlag(f, "", "charset the input is read in and the output written in; a byte-order mark in the file wins (default: the recipe's defaults.encoding, then UTF-8)")
+	a.AddEncodingFlag(f, "", "charset the input is read in and the output written in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)")
 	inPlaceFlag = RegisterInPlace(f, "keep a copy of each file the change set replaces, with the SUFFIX given (--in-place=.bak)")
 	// Asset operations are written into the project's committed sources, so
 	// apply is a project verb and names its project the way every other one
