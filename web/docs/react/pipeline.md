@@ -19,7 +19,7 @@ Three phases, one contract: the KBF directory archive. A fourth optional phase, 
       sub: "KBF archive",
       role: "io",
       edge: "neokapi-i18n extract",
-      loop: ["kapi translate / pseudo-translate / qa / review", "accumulate target locales in place"],
+      loop: ["kapi translate / pseudo-translate / check", "accumulate target locales in place"],
     },
     {
       label: "public/translations/{locale}.json",
@@ -61,7 +61,7 @@ Each line is the element's W3C ITS classification, the gate that decided its fat
 The extractor walks every `.jsx` / `.tsx` file in your project and produces translatable blocks. Plain `.ts` (and `.mts` / `.cts`) modules are parsed as TypeScript too, and their `t()` calls are extracted when the glob includes them (`--src "src/**/*.{ts,tsx,jsx}"`). A file that cannot be parsed is reported with a warning naming it, so nothing goes missing silently. Two output modes:
 
 - **Default**: per-file `.kbf.json` under `--out` (default `i18n/`). Human-readable, git-diffable.
-- **`--stream`**: NDJSON block records on stdout. File discovery happens via `--src` glob when stdin is a terminal; kapi's exec format can pipe NUL-separated paths to stdin for batch-controlled extraction.
+- **`--stream`**: NDJSON block records on stdout, for a consumer of your own. File discovery happens via `--src` glob when stdin is a terminal; a caller can pipe NUL-separated paths to stdin instead. kapi reads the `.kbf.json` files, not the stream.
 
 ```bash
 # Default: write .kbf.json files for inspection / commit.
@@ -157,7 +157,7 @@ kapi translate i18n/ --target-lang ja
 
 Each run **accumulates** a target locale into the same `.kbf.json`. The writer is locale-additive by design: existing targets stay put, the requested locale is added or updated in place. No `-o` needed unless you want to redirect output.
 
-`kapi` supports Anthropic, OpenAI, Azure OpenAI, Google Gemini, and Ollama. It preserves placeholders, inline element tokens, and plural/select structure; AI providers that mangle them are automatically wrapped with recovery logic.
+`kapi` supports the AI providers listed under [Translation](/framework/translation). It preserves placeholders, inline element tokens, and plural/select structure; AI providers that mangle them are automatically wrapped with recovery logic.
 
 ### Path B: Pseudo-translate
 
@@ -196,7 +196,7 @@ Both keep everything under one `i18n/` directory. Because the source lives under
 
 ### Project-driven flow with `kapi.yaml`
 
-If you already use a [`kapi.yaml` project file](/contribute/architecture/context/c-01-project-model) to define your workflow, declare each archive-backed collection with an `exec` format pointing at neokapi-i18n (or any other extractor):
+For an app you translate every release, drive the same archive from a [`kapi.yaml` recipe](/contribute/architecture/context/c-01-project-model) instead of flags on every call. `kapi init --framework neokapi-i18n` writes one: a collection that reads the bundler's catalogs under `i18n/src/` and maps each to a per-locale target under `i18n/{lang}/`:
 
 ```yaml title="kapi.yaml"
 version: v1
@@ -205,38 +205,39 @@ defaults:
   source_language: en
   target_languages: [fr, de, ja]
 collections:
-  - name: ui
-    # Block state lives in the project cache (gitignored, regenerable).
-    content:
-      - path: "src/**/*.tsx"
-        format:
-          name: exec
-          config:
-            command: "vp neokapi-i18n extract --stream"
+  - path: "i18n/src/**/*.kbf.json"
+    format: kbf
+    target: "i18n/{lang}/{path}.kbf.json"
 ```
 
-```bash
-# 1. Extract: kapi runs the declared command for each collection and
-#    streams NDJSON blocks into the collection's block store.
-kapi extract -p kapi.yaml
+The extract phase stays with the bundler plugin; kapi reads what it wrote:
 
-# 2. Translate: run a composed flow over the project for each target language.
-kapi run translate-qa -p kapi.yaml
+```bash
+# 1. Extract: the bundler plugin writes one catalog per source file under i18n/src/.
+vp neokapi-i18n extract
+
+# 2. Converge: run the project's flow over every target language in the recipe,
+#    looping until each locale clears its ship gate or parks for a person.
+kapi up
+
+# 3. Materialize the per-locale catalogs the recipe maps, then compile them.
+kapi merge
+vp neokapi-i18n compile i18n/ --out public/translations
 ```
 
-The `command` string picks the package manager (`vp`, `pnpm`, `npm`, `yarn`, or a direct binary path), so the project declares its preferences explicitly without kapi making assumptions. `kapi run` then executes the named [flow](/framework/flows) against the project's extracted blocks for each target language.
+`kapi up` re-reads the collection before each pass, so a changed catalog is picked up without a separate import step. Without a flow of its own, the recipe runs the built-in default: content memory reuse, then AI translation, then the project's bound checks. A locale that is behind is reported as pending; `kapi up` never fails on target-language drift. `kapi status` shows the coverage per locale without running anything, and `kapi check --ship` enforces the gates, for example before a release tag. With `defaults.materialize: on-converge` in the recipe (or `kapi up --materialize`), the loop writes the target files itself for the locales whose gates are met, and the `kapi merge` step falls away. `kapi run <flow>` runs one named [flow](/framework/flows) for a single pass over the same recipe.
 
-### Standalone pipe (no `kapi.yaml`)
+### Ad-hoc commands (no `kapi.yaml`)
 
-For ad-hoc projects, skip `kapi.yaml` entirely and compose with Unix pipes:
+For a quick run, skip the recipe and point the commands at the archive:
 
 ```bash
-vp neokapi-i18n extract --stream > i18n/blocks.ndjson
+vp neokapi-i18n extract
 kapi pseudo-translate i18n/
 vp neokapi-i18n compile i18n/ --out public/translations
 ```
 
-Same underlying wire format (NDJSON on the extract stage, KBF from there on); the declarative `kapi.yaml` form factors the pipe into the project file.
+Each command reads and writes the same `.kbf.json` files; the recipe form only records the languages, the flow and the gates once so that `kapi up` can repeat it.
 
 ## Phase 3: compile
 
