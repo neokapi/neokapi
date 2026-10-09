@@ -1,4 +1,4 @@
-import { queryOptions } from "@tanstack/react-query";
+import { queryOptions, type QueryClient } from "@tanstack/react-query";
 import type { ApiAdapter, TranslationDashboardItemOpts } from "@neokapi/ui";
 
 export const configQueryOptions = (api: ApiAdapter) =>
@@ -79,6 +79,23 @@ export const projectDetailQueryOptions = (
     queryFn: () => api.getProject(workspaceSlug, projectId, stream, { view: "full" }),
     staleTime: 30_000,
   });
+
+/**
+ * Refetches every cached read of one project after a mutation: the project's
+ * own entries (summary and full detail, every stream) and the workspace's
+ * project list. The list carries each project's `item_count` and `word_count`,
+ * which the workspace home cards and its Files stat render, so an upload or a
+ * removed file that refreshed only the project's entry left the cards on their
+ * previous counts until the list's stale time ran out.
+ */
+export function invalidateProjectQueries(
+  queryClient: QueryClient,
+  workspaceSlug: string,
+  projectId: string,
+): void {
+  void queryClient.invalidateQueries({ queryKey: ["project", workspaceSlug, projectId] });
+  void queryClient.invalidateQueries({ queryKey: ["projects", workspaceSlug] });
+}
 
 export const activitiesQueryOptions = (api: ApiAdapter, workspaceSlug: string) =>
   queryOptions({

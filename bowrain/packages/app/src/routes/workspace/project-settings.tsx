@@ -27,7 +27,11 @@ import {
 } from "@neokapi/ui";
 import { Compass, Workflow } from "lucide-react";
 import type { WorkspaceRouteContext } from "..";
-import { projectQueryOptions, voiceProfilesQueryOptions } from "../../queries";
+import {
+  invalidateProjectQueries,
+  projectQueryOptions,
+  voiceProfilesQueryOptions,
+} from "../../queries";
 import { ModelQualityCard } from "./model-quality-card";
 
 export function ProjectSettingsRoute() {
@@ -50,7 +54,7 @@ export function ProjectSettingsRoute() {
   }, [project.name, activeWorkspace.name]);
 
   const invalidateProject = useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: ["project", ws, project.id] });
+    invalidateProjectQueries(queryClient, ws, project.id);
   }, [queryClient, ws, project.id]);
 
   const setProperty = async (key: string, value: string) => {
