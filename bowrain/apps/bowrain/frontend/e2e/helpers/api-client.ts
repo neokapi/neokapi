@@ -6,9 +6,13 @@
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
+import { CONCEPTS, MEMORY_ENTRIES } from "../../../../../e2e/shared/seed-data";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+/** The seed documents shared by every e2e suite (bowrain/e2e/shared/seed-files). */
+const SEED_FILES_DIR = path.resolve(__dirname, "../../../../../e2e/shared/seed-files");
 
 const BASE_URL = process.env.BOWRAIN_SERVER_URL || "http://localhost:8080";
 const API = `${BASE_URL}/api/v1`;
@@ -182,10 +186,8 @@ export async function uploadSeedFiles(
   projectId: string,
   fileNames: string[],
 ): Promise<void> {
-  // Reuse web app's seed files
-  const seedDir = path.resolve(__dirname, "../../../../web/e2e/seed");
   for (const name of fileNames) {
-    await uploadFile(token, wsSlug, projectId, path.join(seedDir, name));
+    await uploadFile(token, wsSlug, projectId, path.join(SEED_FILES_DIR, name));
   }
 }
 
@@ -219,9 +221,9 @@ export async function seedMemoryEntries(
   wsSlug: string,
   entriesPath?: string,
 ): Promise<number> {
-  const filePath =
-    entriesPath || path.resolve(__dirname, "../../../../web/e2e/seed/memory-entries.json");
-  const entries: Entry[] = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+  const entries: Entry[] = entriesPath
+    ? JSON.parse(fs.readFileSync(entriesPath, "utf-8"))
+    : MEMORY_ENTRIES;
   for (const entry of entries) {
     await apiPost(`/workspaces/${wsSlug}/tm`, token, entry);
   }
@@ -249,9 +251,9 @@ export async function seedConcepts(
   wsSlug: string,
   conceptsPath?: string,
 ): Promise<number> {
-  const filePath =
-    conceptsPath || path.resolve(__dirname, "../../../../web/e2e/seed/concepts.json");
-  const concepts: Concept[] = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+  const concepts: Concept[] = conceptsPath
+    ? JSON.parse(fs.readFileSync(conceptsPath, "utf-8"))
+    : CONCEPTS;
   for (const concept of concepts) {
     await apiPost(`/workspaces/${wsSlug}/concepts`, token, concept);
   }
