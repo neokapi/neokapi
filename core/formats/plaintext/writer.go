@@ -8,6 +8,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/projection"
 )
 
 // Writer implements DataFormatWriter for plain text files.
@@ -110,6 +111,11 @@ func (w *Writer) writeBlock(part *model.Part) error {
 	block, ok := part.Resource.(*model.Block)
 	if !ok {
 		return errors.New("plaintext writer: expected Block resource")
+	}
+	// A drawing's object name or alt text, a core property: kept about the
+	// document, not a line of it.
+	if projection.IsMetadata(block) {
+		return nil
 	}
 
 	text := w.renderText(block)

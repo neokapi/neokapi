@@ -130,6 +130,9 @@ func ProjectStream(parts []*model.Part) *RenderNode {
 			if b.Properties[model.PropTableVMerge] == "continue" {
 				continue
 			}
+			if IsMetadata(b) {
+				continue
+			}
 			n := ProjectBlock(b)
 			// A bare table cell whose enclosing frame is not a row means the
 			// reader did not emit row groups; buffer it for flat-cell assembly.

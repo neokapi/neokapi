@@ -360,6 +360,11 @@ func asciidocCellSpan(b *model.Block) string {
 // writeBlockNormalized renders one block with canonical AsciiDoc markers keyed
 // on its semantic role.
 func (w *Writer) writeBlockNormalized(block *model.Block, sep func() error) error {
+	// A drawing's object name or alt text, a core property: kept about the
+	// document, not a line of it.
+	if projection.IsMetadata(block) {
+		return nil
+	}
 	role := block.SemanticRole()
 
 	// Code blocks render their verbatim source text (no inline-markup
