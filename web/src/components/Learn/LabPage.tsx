@@ -3,6 +3,7 @@ import Layout from "@theme/Layout";
 import Link from "@docusaurus/Link";
 import BrowserOnly from "@docusaurus/BrowserOnly";
 import { useHistory, useLocation } from "@docusaurus/router";
+import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
 import {
   isExplorerLab,
   labById,
@@ -76,6 +77,15 @@ function PlayerHost({ lab }: { lab: Lab }): React.ReactElement {
   const link = useMemo(() => parseLabLink(location.search), []); // eslint-disable-line react-hooks/exhaustive-deps
   const siblings = labsInSeries(lab.series);
   const next = nextLab(lab.id);
+  // The player renders plain anchors, so every site path it is handed carries
+  // the base URL: "/" in production, a /web/prs/<N>/… slot for a PR preview.
+  const { siteConfig } = useDocusaurusContext();
+  const base = siteConfig.baseUrl.replace(/\/$/, "");
+  const withBase = useCallback((path: string) => `${base}${path}`, [base]);
+  const labForPlayer = useMemo(
+    () => ({ ...lab, docs: lab.docs.map((d) => ({ ...d, href: withBase(d.href) })) }),
+    [lab, withBase],
+  );
 
   const onChapterChange = useCallback(
     (chapterId: string) => {
@@ -89,16 +99,21 @@ function PlayerHost({ lab }: { lab: Lab }): React.ReactElement {
   );
 
   const shared = {
-    lab,
+    lab: labForPlayer,
     series,
     sample,
     assets,
     link,
     onChapterChange,
-    indexHref: "/learn",
+    indexHref: withBase("/learn"),
     position: { index: lab.position, of: siblings.length },
     upNext: next
-      ? { id: next.id, title: next.title, tagline: next.tagline, href: `/learn/${next.id}` }
+      ? {
+          id: next.id,
+          title: next.title,
+          tagline: next.tagline,
+          href: withBase(`/learn/${next.id}`),
+        }
       : undefined,
   };
 

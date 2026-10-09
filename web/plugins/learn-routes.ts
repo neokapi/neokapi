@@ -15,14 +15,18 @@
 import type { LoadContext, Plugin } from "@docusaurus/types";
 import { LABS } from "@neokapi/kapi-learn/curriculum";
 
-export default function learnRoutesPlugin(_context: LoadContext): Plugin<undefined> {
+export default function learnRoutesPlugin(context: LoadContext): Plugin<undefined> {
+  // A route is registered under the site's base URL: "/" in production, a
+  // /web/prs/<N>/… slot for a pull request preview. Links and pages written
+  // under src/ get the prefix from Docusaurus; a plugin's route states it.
+  const base = context.baseUrl.replace(/\/$/, "");
   return {
     name: "neokapi-learn-routes",
 
     async contentLoaded({ actions }) {
       for (const lab of LABS) {
         actions.addRoute({
-          path: `/learn/${lab.id}`,
+          path: `${base}/learn/${lab.id}`,
           component: "@site/src/components/Learn/LabPage",
           exact: true,
           props: { labId: lab.id },
