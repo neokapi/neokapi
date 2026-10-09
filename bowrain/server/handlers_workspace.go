@@ -16,6 +16,7 @@ import (
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
+	coreproj "github.com/neokapi/neokapi/core/project"
 )
 
 // WorkspaceRequest is the request body for creating/updating a workspace.
@@ -479,6 +480,12 @@ func (s *Server) HandleListWorkspaceProjects(c echo.Context) error {
 // ProjectRequest is the request body for creating a project in a workspace.
 // The workspace is the route's, not the body's.
 type ProjectRequest struct {
+	// ID is the project's own id when the connecting recipe carries one
+	// (`id:` in kapi.yaml, as `kapi init` mints). The project keeps it, so it
+	// is named the same way locally and here, and a second clone connecting
+	// with the same id is answered with the project this workspace already
+	// holds. An id held by a project outside the workspace is refused.
+	ID                    string   `json:"id,omitempty"`
 	Name                  string   `json:"name"`
 	DefaultSourceLanguage string   `json:"default_source_language"`
 	TargetLanguages       []string `json:"target_languages"`
@@ -521,6 +528,9 @@ func (s *Server) HandleCreateWorkspaceProject(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return apiErr(c, http.StatusBadRequest, err.Error())
 	}
+	if err := coreproj.ValidateID(req.ID); err != nil {
+		return apiErr(c, http.StatusBadRequest, err.Error())
+	}
 
 	locales := make([]model.LocaleID, len(req.TargetLanguages))
 	for i, l := range req.TargetLanguages {
@@ -529,6 +539,18 @@ func (s *Server) HandleCreateWorkspaceProject(c echo.Context) error {
 
 	workspaceID, _ := c.Get("workspace_id").(string)
 	ctx := c.Request().Context()
+
+	// A project already here under the id sent is the one connecting: a
+	// second clone of a recipe this workspace knows. It is answered with the
+	// existing project, before the abuse cap, which counts projects made.
+	if req.ID != "" {
+		if existing, err := s.Services.Project.GetProject(ctx, req.ID); err == nil {
+			if existing.WorkspaceID != workspaceID {
+				return apiErr(c, http.StatusConflict, "a project with this id already exists outside this workspace")
+			}
+			return c.JSON(http.StatusOK, existing)
+		}
+	}
 
 	// A project is a container, not value: customers split and merge them for
 	// tooling reasons, so metering one only made them contort their structure to
@@ -559,6 +581,7 @@ func (s *Server) HandleCreateWorkspaceProject(c echo.Context) error {
 	}
 
 	p := &store.Project{
+		ID:                    req.ID,
 		Name:                  req.Name,
 		DefaultSourceLanguage: model.LocaleID(req.DefaultSourceLanguage),
 		TargetLanguages:       locales,

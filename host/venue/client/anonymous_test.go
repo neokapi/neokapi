@@ -24,6 +24,8 @@ func TestCreateAnonymousProject(t *testing.T) {
 			if targets, ok := req["target_languages"].([]any); assert.True(t, ok, "target_languages must be []any") {
 				assert.Equal(t, []any{"nb", "fr"}, targets)
 			}
+			_, hasID := req["id"]
+			assert.False(t, hasID, "a recipe with no id sends none")
 
 			w.WriteHeader(http.StatusCreated)
 			_ = json.NewEncoder(w).Encode(map[string]string{
@@ -33,10 +35,32 @@ func TestCreateAnonymousProject(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		projectID, claimToken, err := CreateAnonymousProject(t.Context(), srv.URL, "my-project", "en", []string{"nb", "fr"}, "")
+		projectID, claimToken, err := CreateAnonymousProject(t.Context(), srv.URL,
+			NewProject{Name: "my-project", SourceLocale: "en", TargetLocales: []string{"nb", "fr"}}, "")
 		require.NoError(t, err)
 		assert.Equal(t, "proj_123", projectID)
 		assert.Equal(t, "clm_abc456", claimToken)
+	})
+
+	t.Run("sends the recipe's id", func(t *testing.T) {
+		const id = "prj_mfrggzdfmztwq2lknnwg23tp"
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var req map[string]any
+			assert.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+			assert.Equal(t, id, req["id"])
+
+			w.WriteHeader(http.StatusCreated)
+			_ = json.NewEncoder(w).Encode(map[string]string{
+				"project_id":  id,
+				"claim_token": "clm_kept",
+			})
+		}))
+		defer srv.Close()
+
+		projectID, _, err := CreateAnonymousProject(t.Context(), srv.URL,
+			NewProject{ID: id, Name: "my-project", SourceLocale: "en"}, "")
+		require.NoError(t, err)
+		assert.Equal(t, id, projectID, "the venue keeps the id it was sent")
 	})
 
 	t.Run("with email", func(t *testing.T) {
@@ -54,7 +78,8 @@ func TestCreateAnonymousProject(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		projectID, _, err := CreateAnonymousProject(t.Context(), srv.URL, "my-project", "en", nil, "user@example.com")
+		projectID, _, err := CreateAnonymousProject(t.Context(), srv.URL,
+			NewProject{Name: "my-project", SourceLocale: "en"}, "user@example.com")
 		require.NoError(t, err)
 		assert.Equal(t, "proj_789", projectID)
 	})
@@ -73,7 +98,8 @@ func TestCreateAnonymousProject(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		projectID, _, err := CreateAnonymousProject(t.Context(), srv.URL, "my-project", "en", nil, "")
+		projectID, _, err := CreateAnonymousProject(t.Context(), srv.URL,
+			NewProject{Name: "my-project", SourceLocale: "en"}, "")
 		require.NoError(t, err)
 		assert.Equal(t, "proj_dyn", projectID)
 	})
@@ -85,7 +111,8 @@ func TestCreateAnonymousProject(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		_, _, err := CreateAnonymousProject(t.Context(), srv.URL, "my-project", "en", []string{"nb"}, "")
+		_, _, err := CreateAnonymousProject(t.Context(), srv.URL,
+			NewProject{Name: "my-project", SourceLocale: "en", TargetLocales: []string{"nb"}}, "")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "HTTP 500")
 	})
@@ -101,7 +128,8 @@ func TestCreateAnonymousProject(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		projectID, claimToken, err := CreateAnonymousProject(t.Context(), srv.URL+"/", "test", "en", []string{"de"}, "")
+		projectID, claimToken, err := CreateAnonymousProject(t.Context(), srv.URL+"/",
+			NewProject{Name: "test", SourceLocale: "en", TargetLocales: []string{"de"}}, "")
 		require.NoError(t, err)
 		assert.Equal(t, "proj_456", projectID)
 		assert.Equal(t, "clm_def789", claimToken)
@@ -131,6 +159,8 @@ func TestCreateAuthenticatedProject(t *testing.T) {
 				assert.Equal(t, "en", req["default_source_language"])
 				_, hasWorkspace := req["workspace"]
 				assert.False(t, hasWorkspace, "workspace belongs in the URL, not the body")
+				_, hasID := req["id"]
+				assert.False(t, hasID, "a recipe with no id sends none")
 				w.WriteHeader(http.StatusCreated)
 				_ = json.NewEncoder(w).Encode(map[string]any{"id": "proj_auth_123"})
 			default:
@@ -140,10 +170,32 @@ func TestCreateAuthenticatedProject(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		projectID, wsSlug, err := CreateAuthenticatedProject(t.Context(), srv.URL, "my-token", "my-project", "en", nil, "")
+		projectID, wsSlug, err := CreateAuthenticatedProject(t.Context(), srv.URL, "my-token",
+			NewProject{Name: "my-project", SourceLocale: "en"}, "")
 		require.NoError(t, err)
 		assert.Equal(t, "proj_auth_123", projectID)
 		assert.Equal(t, "my-ws", wsSlug, "slug falls back to the resolved workspace when the response omits it")
+	})
+
+	t.Run("sends the recipe's id and accepts a project the venue already held", func(t *testing.T) {
+		const id = "prj_mfrggzdfmztwq2lknnwg23tp"
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/api/v1/team-ws/projects", r.URL.Path)
+			var req map[string]any
+			assert.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+			assert.Equal(t, id, req["id"])
+			// 200, not 201: the venue answers with the project it already had
+			// under this id, as it does for a second clone.
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(map[string]any{"id": id, "workspace_slug": "team-ws"})
+		}))
+		defer srv.Close()
+
+		projectID, wsSlug, err := CreateAuthenticatedProject(t.Context(), srv.URL, "my-token",
+			NewProject{ID: id, Name: "my-project", SourceLocale: "en"}, "team-ws")
+		require.NoError(t, err)
+		assert.Equal(t, id, projectID)
+		assert.Equal(t, "team-ws", wsSlug)
 	})
 
 	t.Run("explicit workspace skips resolution and posts to the scoped route", func(t *testing.T) {
@@ -163,7 +215,8 @@ func TestCreateAuthenticatedProject(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		projectID, wsSlug, err := CreateAuthenticatedProject(t.Context(), srv.URL, "my-token", "my-project", "en", nil, "team-ws")
+		projectID, wsSlug, err := CreateAuthenticatedProject(t.Context(), srv.URL, "my-token",
+			NewProject{Name: "my-project", SourceLocale: "en"}, "team-ws")
 		require.NoError(t, err)
 		assert.False(t, listed, "an explicit workspace must not trigger workspace resolution")
 		assert.Equal(t, "proj_ws_456", projectID)
@@ -177,7 +230,8 @@ func TestCreateAuthenticatedProject(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		_, _, err := CreateAuthenticatedProject(t.Context(), srv.URL, "bad-token", "my-project", "en", nil, "team-ws")
+		_, _, err := CreateAuthenticatedProject(t.Context(), srv.URL, "bad-token",
+			NewProject{Name: "my-project", SourceLocale: "en"}, "team-ws")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "HTTP 401")
 	})
@@ -190,7 +244,8 @@ func TestCreateAuthenticatedProject(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		_, _, err := CreateAuthenticatedProject(t.Context(), srv.URL, "my-token", "my-project", "en", nil, "")
+		_, _, err := CreateAuthenticatedProject(t.Context(), srv.URL, "my-token",
+			NewProject{Name: "my-project", SourceLocale: "en"}, "")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "no workspace available")
 	})

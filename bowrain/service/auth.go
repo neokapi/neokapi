@@ -302,15 +302,19 @@ func (s *AuthService) Store() auth.AuthStore {
 }
 
 // CreateAnonymousProject creates an unclaimed project with a claim token.
-// Returns the plaintext claim token (caller must persist it).
-func (s *AuthService) CreateAnonymousProject(ctx context.Context, name, sourceLoc string, targetLocs []string) (projectID, claimToken string, err error) {
+// Returns the plaintext claim token (caller must persist it). The project
+// keeps projectID when the caller sends one (a recipe's own `id:`), and is
+// minted one otherwise.
+func (s *AuthService) CreateAnonymousProject(ctx context.Context, projectID, name, sourceLoc string, targetLocs []string) (_, claimToken string, err error) {
 	if name == "" {
 		return "", "", errors.New("project name is required")
 	}
 	if sourceLoc == "" {
 		return "", "", errors.New("source locale is required")
 	}
-	projectID = id.New()
+	if projectID == "" {
+		projectID = id.New()
+	}
 
 	// Generate claim token: clm_ + 32 random hex bytes.
 	tokenBytes := make([]byte, 32)
