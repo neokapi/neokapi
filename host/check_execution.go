@@ -17,30 +17,65 @@ type checkExecution struct {
 	// warnings collects the configuration warnings of the voice profiles the
 	// operation loads, and report hands them to the Report.
 	warnings voiceWarnings
-	// plugins maps each plugin that served the operation to what it served,
-	// such as `format:pdf`, and pluginVersions to the version it declared.
-	// The evaluation record reads both (host/check_evaluation.go).
-	plugins        map[string]map[string]bool
-	pluginVersions map[string]string
+}
+
+// pluginLedger records the plugins that served one operation: each plugin and
+// what it did, such as `format:pdf`, with the version its manifest declares.
+// The evaluation record reads it (host/check_evaluation.go).
+//
+// The ledger travels in the operation's context rather than on an execution.
+// A gate run holds one execution per gate and reads files through paths that
+// hold none, and every one of those reads can reach a plugin. The read sites
+// record into whatever ledger their context carries, so a surface that
+// attaches one at its start lists every plugin its run reached, and a context
+// carrying none records nothing. One ledger belongs to one operation, never to
+// App: MCP requests must not share it.
+type pluginLedger struct {
+	serves   map[string]map[string]bool
+	versions map[string]string
+}
+
+func newPluginLedger() *pluginLedger {
+	return &pluginLedger{serves: map[string]map[string]bool{}, versions: map[string]string{}}
 }
 
 // served records that a plugin read a format, located a language's comments or
-// ran an analysis for this operation. A nil execution records nothing.
-func (e *checkExecution) served(plugin, pluginVersion, capability string) {
-	if e == nil || plugin == "" {
+// ran an analysis. A nil ledger records nothing.
+func (l *pluginLedger) served(plugin, pluginVersion, capability string) {
+	if l == nil || plugin == "" {
 		return
 	}
-	if e.plugins == nil {
-		e.plugins = map[string]map[string]bool{}
-		e.pluginVersions = map[string]string{}
+	if l.serves[plugin] == nil {
+		l.serves[plugin] = map[string]bool{}
 	}
-	if e.plugins[plugin] == nil {
-		e.plugins[plugin] = map[string]bool{}
-	}
-	e.plugins[plugin][capability] = true
+	l.serves[plugin][capability] = true
 	if pluginVersion != "" {
-		e.pluginVersions[plugin] = pluginVersion
+		l.versions[plugin] = pluginVersion
 	}
+}
+
+type pluginLedgerKey struct{}
+
+// withPluginLedger returns ctx carrying ledger, so every read made under it
+// records the plugin it reached.
+func withPluginLedger(ctx context.Context, ledger *pluginLedger) context.Context {
+	return context.WithValue(ctx, pluginLedgerKey{}, ledger)
+}
+
+// observePlugins returns ctx carrying a fresh ledger: the start of one check
+// operation, whose record names the plugins reached from here on.
+func observePlugins(ctx context.Context) context.Context {
+	return withPluginLedger(ctx, newPluginLedger())
+}
+
+// pluginLedgerFrom returns the ledger ctx carries, or nil, which records
+// nothing.
+func pluginLedgerFrom(ctx context.Context) *pluginLedger {
+	if ctx == nil {
+		return nil
+	}
+	l, _ := ctx.Value(pluginLedgerKey{}).(*pluginLedger)
+	return l
 }
 
 // termMatching records how a terminology check matched terms for its target

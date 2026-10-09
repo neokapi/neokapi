@@ -94,7 +94,9 @@ report a result, so the verdict can be read again later:
 `evaluation.context.project` and `evaluation.context.revision` (the workspace
 position the terms, voice rules and decisions were read at),
 `evaluation.tool.version`, and `evaluation.analyzers`, which says which
-analyzers covered the content and which did not.
+analyzers covered the content and which did not. `kapi check --ship --json`
+carries the same object at the top level of its gate output, once for the whole
+run, so a gate result quoted from a CI log can be read against the same facts.
 
 `evaluation.context.stale` means the blocks kapi holds were read from files that
 have since changed, so anything counted over content is out of date. Run

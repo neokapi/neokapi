@@ -240,7 +240,7 @@ func TestCommentFormatterTrust(t *testing.T) {
 	t.Run("must fail: a formatter resolved without trust runs nothing when called directly", func(t *testing.T) {
 		a := declaredFormatterApp(t)
 		file, marker, _ := installedFormatterProject(t)
-		p, ok := a.commentProviderFor(file)
+		p, ok := a.commentProviderFor(t.Context(), file)
 		require.True(t, ok)
 		f := resolveCommentFormatter(p, file, p.(commentRewriteDeclarer).Rewrite(), newFormatterTrust(false))
 		_, err := f.run(file, []byte(rewriteTS))

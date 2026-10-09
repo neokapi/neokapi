@@ -93,7 +93,7 @@ func tsProject(t *testing.T, files map[string]string) string {
 // comment id has in file, as the plugin locates it.
 func pluginCommentEntry(t *testing.T, a *App, file, id, text string) map[string]any {
 	t.Helper()
-	p, ok := a.commentProviderFor(file)
+	p, ok := a.commentProviderFor(t.Context(), file)
 	require.True(t, ok, "no comment provider reads %s", file)
 	src, err := os.ReadFile(file)
 	require.NoError(t, err)
@@ -263,7 +263,7 @@ func TestPluginCommentRewrite(t *testing.T) {
 	t.Run("must fail: a host renderer that writes code after the comment is refused by the plugin's reading", func(t *testing.T) {
 		a := tsRewriteApp(t, nil)
 		file := tsProject(t, nil)
-		p, ok := a.commentProviderFor(file)
+		p, ok := a.commentProviderFor(t.Context(), file)
 		require.True(t, ok)
 		broken := injectingPluginRenderer{Provider: p, Rewriter: p.(comment.Rewriter)}
 		_, err := comment.Rewrite(broken, file, []byte(rewriteTS), nil, comment.Target{ID: "func/parse"}, "Parses the input.", comment.RenderOptions{})
@@ -275,7 +275,7 @@ func TestPluginCommentRewrite(t *testing.T) {
 	t.Run("must fail: a host renderer that misindents a comment is refused by oxfmt", func(t *testing.T) {
 		a := tsRewriteApp(t, nil)
 		file := tsProject(t, nil)
-		p, ok := a.commentProviderFor(file)
+		p, ok := a.commentProviderFor(t.Context(), file)
 		require.True(t, ok)
 		broken := misindentingPluginRenderer{Provider: p, Rewriter: p.(comment.Rewriter)}
 		held := &formattedRewriter{Provider: broken, Rewriter: broken, commentFormatter: resolveCommentFormatter(p, file, p.(commentRewriteDeclarer).Rewrite(), newFormatterTrust(true))}

@@ -1,0 +1,149 @@
+{
+  "pass": false,
+  "verdict": "failed",
+  "gates": [
+    {
+      "execution": {
+        "analyzers": [
+          {
+            "id": "voice.rules",
+            "status": "passed",
+            "file": "docs/guide.md",
+            "required": false,
+            "findings": 0,
+            "canary": {
+              "status": "caught",
+              "probes": 1
+            }
+          },
+          {
+            "id": "voice.rules",
+            "status": "passed",
+            "file": "docs/intro.md",
+            "required": false,
+            "findings": 0,
+            "canary": {
+              "status": "caught",
+              "probes": 1
+            }
+          }
+        ],
+        "timings": {
+          "context_ms": 0,
+          "extraction_ms": 0,
+          "analyzers_ms": 0,
+          "report_ms": 0,
+          "total_ms": 0
+        }
+      },
+      "gate": "voice",
+      "pass": true,
+      "verdict": "passed",
+      "findings": [],
+      "coverage": {
+        "files": 2,
+        "blocks": 14
+      }
+    },
+    {
+      "execution": {
+        "analyzers": [
+          {
+            "id": "checks.target",
+            "status": "passed",
+            "file": "docs/guide.md",
+            "required": true,
+            "findings": 0,
+            "canary": {
+              "status": "caught",
+              "probes": 1
+            }
+          },
+          {
+            "id": "checks.target",
+            "status": "findings",
+            "file": "docs/intro.md",
+            "required": true,
+            "findings": 1,
+            "canary": {
+              "status": "caught",
+              "probes": 1
+            }
+          }
+        ],
+        "timings": {
+          "context_ms": 0,
+          "extraction_ms": 0,
+          "analyzers_ms": 0,
+          "report_ms": 0,
+          "total_ms": 0
+        }
+      },
+      "gate": "qa",
+      "pass": false,
+      "verdict": "failed",
+      "findings": [
+        {
+          "gate": "qa",
+          "file": "docs/intro.md",
+          "locale": "nb",
+          "fails": true,
+          "message": "placeholder {name} is missing from the target",
+          "suggestion": "restore the placeholder in the translation"
+        }
+      ],
+      "coverage": {
+        "files": 2,
+        "blocks": 14
+      }
+    },
+    {
+      "gate": "ship",
+      "pass": true,
+      "verdict": "passed",
+      "findings": []
+    }
+  ],
+  "summary": {
+    "gates": 3,
+    "passed": 2,
+    "failed": 1,
+    "did_not_run": 0,
+    "findings": 1,
+    "failing": 1,
+    "reporting": 0
+  },
+  "evaluation": {
+    "at": "2026-03-17T09:45:00Z",
+    "context": {
+      "project": "prj_aaaabbbbccccddddeeee",
+      "name": "Acme Documentation",
+      "revision": 412,
+      "stale": false
+    },
+    "tool": {
+      "name": "kapi",
+      "version": "1.3.0",
+      "commit": "b1a3033dc"
+    },
+    "plugins": [
+      {
+        "name": "sourcecode",
+        "version": "1.2.0",
+        "serves": [
+          "comments:python"
+        ]
+      }
+    ],
+    "analyzers": [
+      {
+        "id": "checks.target",
+        "ran": 2
+      },
+      {
+        "id": "voice.rules",
+        "ran": 2
+      }
+    ]
+  }
+}

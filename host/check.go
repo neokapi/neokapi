@@ -332,7 +332,9 @@ func (a *App) ComputeDeclaredCheck(cmd Command, files []string) (check.Report, e
 func (a *App) computeCheck(cmd Command, args []string, declared bool) (check.Report, error) {
 	execution := newCheckExecution()
 	a.InitRegistries()
-	ctx := CmdContext(cmd)
+	// Every read under this context records the plugin it reaches, for the
+	// evaluation record the report carries.
+	ctx := observePlugins(CmdContext(cmd))
 
 	targetFile, _ := cmd.Flags().GetString("target")
 	diff, err := a.diffSourceFromFlags(cmd)
@@ -446,7 +448,6 @@ func (a *App) computeCheck(cmd Command, args []string, declared bool) (check.Rep
 		// `--target` names the translated rendering of one source file, so both
 		// files carry the source's reader binding.
 		fmtName, fmtCfg := opts.formats.forFile(a, sourcePath)
-		a.recordFormatPlugin(execution, sourcePath, fmtName)
 		unit := VerifyUnit{
 			SourcePath:   sourcePath,
 			TargetPath:   targetFile,
@@ -623,11 +624,9 @@ func (a *App) checkFileBlocks(ctx context.Context, file string, validateMode for
 	var diags []check.Diagnostic
 
 	fmtName, fmtCfg := opts.formats.forFile(a, file)
-	if p, ok := a.commentLayerFor(file, fmtName); ok {
-		a.recordCommentPlugin(opts.execution, file)
+	if p, ok := a.commentLayerFor(ctx, file, fmtName); ok {
 		return a.checkCommentFile(ctx, file, p, validateMode, opts)
 	}
-	a.recordFormatPlugin(opts.execution, file, fmtName)
 	if opts.formats.commentsOnly(file) && !opts.named {
 		return a.checkCommentsOnlyFile(ctx, file, fmtName, validateMode, opts)
 	}
@@ -1017,7 +1016,7 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 				return nil, derr
 			}
 			defer closeT()
-			opts.execution.served(checkPluginName, pluginVersion, "analyzer:voice.similarity")
+			pluginLedgerFrom(ctx).served(checkPluginName, pluginVersion, "analyzer:voice.similarity")
 			vf, verr := voiceSimilarityFindings(g.blocks, refs, t, opts.voiceMin)
 			if verr != nil {
 				return nil, fmt.Errorf("voice check: %w", verr)

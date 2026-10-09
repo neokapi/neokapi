@@ -258,9 +258,14 @@ carries `plugins` (`name`, `version`, `serves`). `Decide` never reads the
 record, so it leaves `pass`, `verdict`, `summary` and the exit code as
 they are, and the human output carries none of it. Every producer of a
 `kapi.check/v2` Report supplies it: `kapi check` whole or scoped to a diff, and
-the MCP `check_file` and `check_text` tools. `kapi check --ship` reports gates rather
-than a Report and carries no evaluation record, and neither does the findings
-roll-up of `kapi exec <check>`. See [Checks](/framework/checks) for the fields.
+the MCP `check_file` and `check_text` tools. `kapi check --ship` reports gates
+rather than a Report and carries the same `evaluation` object at its top level,
+assembled once for the whole run: `analyzers` covers the analyzers of every
+gate, and `plugins` names every plugin any gate reached, whether it read a
+format, located a language's comments or ran an analysis. The findings roll-up
+of `kapi exec <check>` carries none. The `ship_gates` golden under
+`host/testdata/evaluation/` pins the gate output with the record. See
+[Checks](/framework/checks) for the fields.
 
 The optional `warnings` array is also additive to `kapi.check/v2`, and the
 `kapi check --ship` result carries the same array at its top level. Each entry
