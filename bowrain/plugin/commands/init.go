@@ -145,6 +145,10 @@ func newRecipeFromFlags(sourceLocale string) *project.Recipe {
 	if initTargets != "" {
 		r.Defaults.TargetLanguages = parseTargetLocales(initTargets)
 	}
+	// Every project is born with a stable identity, as `kapi init` scaffolds
+	// one, so what it records and the venue it connects to are keyed on the
+	// id rather than on a name the user is free to edit.
+	r.ID = coreproj.NewID()
 	return r
 }
 
@@ -443,21 +447,9 @@ func runInitAnonymous(ctx context.Context, cwd string, recipe *project.Recipe, s
 		recipe.Defaults.SourceLanguage = "en"
 	}
 
-	var targets []string
-	for _, t := range recipe.Defaults.TargetLanguages {
-		targets = append(targets, string(t))
-	}
-
 	fmt.Printf("Creating project on %s...\n", serverURL)
 
-	projectID, claimToken, err := client.CreateAnonymousProject(
-		ctx,
-		serverURL,
-		projectName,
-		string(recipe.Defaults.SourceLanguage),
-		targets,
-		email,
-	)
+	projectID, claimToken, err := client.CreateAnonymousProject(ctx, serverURL, venueProject(recipe, projectName), email)
 	if err != nil {
 		return nil, fmt.Errorf("create anonymous project: %w", err)
 	}
@@ -495,22 +487,10 @@ func runInitCreateAuthenticated(ctx context.Context, cwd string, recipe *project
 		recipe.Defaults.SourceLanguage = "en"
 	}
 
-	var targets []string
-	for _, t := range recipe.Defaults.TargetLanguages {
-		targets = append(targets, string(t))
-	}
-
 	fmt.Printf("Creating project on %s...\n", auth.ServerURL)
 
 	projectID, workspaceSlug, err := client.CreateAuthenticatedProject(
-		ctx,
-		auth.ServerURL,
-		auth.AccessToken,
-		projectName,
-		string(recipe.Defaults.SourceLanguage),
-		targets,
-		workspace,
-	)
+		ctx, auth.ServerURL, auth.AccessToken, venueProject(recipe, projectName), workspace)
 	if err != nil {
 		return nil, fmt.Errorf("create project: %w", err)
 	}

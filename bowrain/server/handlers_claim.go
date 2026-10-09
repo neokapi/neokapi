@@ -11,10 +11,16 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
+	coreproj "github.com/neokapi/neokapi/core/project"
 )
 
 // AnonymousProjectRequest is the request body for creating an anonymous project.
 type AnonymousProjectRequest struct {
+	// ID is the project's own id when the connecting recipe carries one
+	// (`id:` in kapi.yaml, as `kapi init` mints). The project keeps it, so it
+	// is named the same way locally and here. An anonymous caller cannot be
+	// handed a project that already exists under the id, so that is refused.
+	ID                    string   `json:"id,omitempty"`
 	Name                  string   `json:"name"`
 	DefaultSourceLanguage string   `json:"default_source_language"`
 	TargetLanguages       []string `json:"target_languages"` // optional; empty = dynamic
@@ -44,9 +50,18 @@ func (s *Server) HandleCreateAnonymousProject(c echo.Context) error {
 	if req.Name == "" || req.DefaultSourceLanguage == "" {
 		return apiErr(c, http.StatusBadRequest, "name and default_source_language are required")
 	}
+	if err := coreproj.ValidateID(req.ID); err != nil {
+		return apiErr(c, http.StatusBadRequest, err.Error())
+	}
 
 	ctx := c.Request().Context()
-	projectID, claimToken, err := s.Services.Auth.CreateAnonymousProject(ctx, req.Name, req.DefaultSourceLanguage, req.TargetLanguages)
+	if req.ID != "" && s.Services.Project != nil {
+		if _, err := s.Services.Project.GetProject(ctx, req.ID); err == nil {
+			return apiErr(c, http.StatusConflict,
+				"a project with this id already exists on this server; sign in and connect to it with --project")
+		}
+	}
+	projectID, claimToken, err := s.Services.Auth.CreateAnonymousProject(ctx, req.ID, req.Name, req.DefaultSourceLanguage, req.TargetLanguages)
 	if err != nil {
 		return serverErr(c, err)
 	}

@@ -44,7 +44,7 @@ func TestClientServerSyncContract(t *testing.T) {
 	//    workspace-scoped /api/v1/:ws/projects (AD-011). PRE-FIX this 404'd
 	//    because the client used the non-existent flat /api/v1/projects.
 	projectID, wsSlug, err := client.CreateAuthenticatedProject(
-		ctx, ts.URL, token, "Integration Project", "en", []string{"fr", "de"}, "")
+		ctx, ts.URL, token, client.NewProject{Name: "Integration Project", SourceLocale: "en", TargetLocales: []string{"fr", "de"}}, "")
 	require.NoError(t, err, "create must hit the workspace-scoped route, not a flat 404")
 	require.NotEmpty(t, projectID)
 	assert.Equal(t, "test", wsSlug)

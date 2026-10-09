@@ -42,6 +42,25 @@ var initConnectCmd = &cobra.Command{
 	RunE:         runInitConnect,
 }
 
+// venueProject is what the recipe tells a venue about itself when it
+// connects: its own id when it has one, the name it goes by, and its
+// languages. The venue keeps the id, so the project is named the same way
+// locally and there, and a second clone connecting with the same id is
+// answered with the project the venue already holds. A recipe with no id
+// sends none and the venue mints one.
+func venueProject(recipe *project.Recipe, name string) client.NewProject {
+	var targets []string
+	for _, t := range recipe.Defaults.TargetLanguages {
+		targets = append(targets, string(t))
+	}
+	return client.NewProject{
+		ID:            recipe.ID,
+		Name:          name,
+		SourceLocale:  string(recipe.Defaults.SourceLanguage),
+		TargetLocales: targets,
+	}
+}
+
 func runInitConnect(cmd *cobra.Command, _ []string) error {
 	ctx := cmd.Context()
 
@@ -69,14 +88,11 @@ func runInitConnect(cmd *cobra.Command, _ []string) error {
 	if recipe.Defaults.SourceLanguage == "" {
 		recipe.Defaults.SourceLanguage = "en"
 	}
-	var targets []string
-	for _, t := range recipe.Defaults.TargetLanguages {
-		targets = append(targets, string(t))
-	}
 	projectName := recipe.Name
 	if projectName == "" {
 		projectName = filepath.Base(proj.Root)
 	}
+	venueProj := venueProject(recipe, projectName)
 
 	switch {
 	case connectProjectID != "":
@@ -87,8 +103,7 @@ func runInitConnect(cmd *cobra.Command, _ []string) error {
 
 	case connectAnonymous:
 		fmt.Printf("Creating project on %s...\n", serverURL)
-		projectID, claimToken, err := client.CreateAnonymousProject(
-			ctx, serverURL, projectName, string(recipe.Defaults.SourceLanguage), targets, connectEmail)
+		projectID, claimToken, err := client.CreateAnonymousProject(ctx, serverURL, venueProj, connectEmail)
 		if err != nil {
 			return fmt.Errorf("create anonymous project on %s: %w", serverURL, err)
 		}
@@ -121,7 +136,7 @@ func runInitConnect(cmd *cobra.Command, _ []string) error {
 		// connectWorkspace ("" → resolve the account's workspace; non-empty →
 		// create under that workspace, for users who belong to several).
 		projectID, workspaceSlug, err := client.CreateAuthenticatedProject(
-			ctx, targetServer, auth.AccessToken, projectName, string(recipe.Defaults.SourceLanguage), targets, connectWorkspace)
+			ctx, targetServer, auth.AccessToken, venueProj, connectWorkspace)
 		if err != nil {
 			return fmt.Errorf("create project: %w", err)
 		}

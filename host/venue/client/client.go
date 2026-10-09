@@ -413,18 +413,48 @@ func (c *BowrainClient) GetProjectMetadata(ctx context.Context) (*ProjectMetadat
 	return &meta, nil
 }
 
+// NewProject is what a project tells a venue about itself when it connects.
+type NewProject struct {
+	// ID is the project's own id, the recipe's `id:`, when it has one. The
+	// venue keeps it instead of minting another, so the project is named the
+	// same way locally and on the venue, and a second clone connecting with
+	// the same id is answered with the project the venue already holds. A
+	// recipe with no id sends none and the venue mints one.
+	ID string
+	// Name labels the project on the venue.
+	Name string
+	// SourceLocale is the project's default source language.
+	SourceLocale string
+	// TargetLocales may be empty, which the venue reads as dynamic.
+	TargetLocales []string
+}
+
+// payload is the request body the create routes take.
+func (p NewProject) payload() map[string]any {
+	payload := map[string]any{
+		"name":                    p.Name,
+		"default_source_language": p.SourceLocale,
+	}
+	if p.ID != "" {
+		payload["id"] = p.ID
+	}
+	if len(p.TargetLocales) > 0 {
+		payload["target_languages"] = p.TargetLocales
+	}
+	return payload
+}
+
+// createdOrRecognized reports whether a create route accepted the project:
+// 201 for one it made, 200 for one it already held under the id sent.
+func createdOrRecognized(status int) bool {
+	return status == http.StatusCreated || status == http.StatusOK
+}
+
 // CreateAnonymousProject creates a new anonymous project on a Bowrain server.
 // No authentication is required. Returns the project ID and claim token.
 // If email is non-empty, the server sends a claim email to that address.
-// targetLocales may be empty (server treats as dynamic).
-func CreateAnonymousProject(ctx context.Context, serverURL, name, sourceLocale string, targetLocales []string, email string) (projectID, claimToken string, err error) {
-	payload := map[string]any{
-		"name":                    name,
-		"default_source_language": sourceLocale,
-	}
-	if len(targetLocales) > 0 {
-		payload["target_languages"] = targetLocales
-	}
+func CreateAnonymousProject(ctx context.Context, serverURL string, p NewProject, email string) (projectID, claimToken string, err error) {
+	payload := p.payload()
 	if email != "" {
 		payload["email"] = email
 	}
@@ -446,7 +476,7 @@ func CreateAnonymousProject(ctx context.Context, serverURL, name, sourceLocale s
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusCreated {
+	if !createdOrRecognized(resp.StatusCode) {
 		respBody, _ := io.ReadAll(resp.Body)
 		return "", "", NewStatusError("create anonymous project", resp.StatusCode, respBody)
 	}
@@ -463,8 +493,9 @@ func CreateAnonymousProject(ctx context.Context, serverURL, name, sourceLocale s
 }
 
 // CreateAuthenticatedProject creates a project on the server as an authenticated user.
-// The project is created in the user's workspace. Returns the project ID.
-func CreateAuthenticatedProject(ctx context.Context, serverURL, token, name, sourceLocale string, targetLocales []string, workspace string) (projectID, workspaceSlug string, err error) {
+// The project is created in the user's workspace. Returns the project ID,
+// which is p.ID when one was sent and the venue accepted it.
+func CreateAuthenticatedProject(ctx context.Context, serverURL, token string, p NewProject, workspace string) (projectID, workspaceSlug string, err error) {
 	// AD-011: authenticated projects are created under the workspace-scoped
 	// collection (POST /api/v1/:ws/projects). There is no flat /api/v1/projects
 	// create route, so resolve the caller's workspace when one isn't supplied
@@ -481,15 +512,7 @@ func CreateAuthenticatedProject(ctx context.Context, serverURL, token, name, sou
 		workspace = wss[0].Slug
 	}
 
-	payload := map[string]any{
-		"name":                    name,
-		"default_source_language": sourceLocale,
-	}
-	if len(targetLocales) > 0 {
-		payload["target_languages"] = targetLocales
-	}
-
-	body, err := json.Marshal(payload)
+	body, err := json.Marshal(p.payload())
 	if err != nil {
 		return "", "", fmt.Errorf("marshal request: %w", err)
 	}
@@ -508,7 +531,7 @@ func CreateAuthenticatedProject(ctx context.Context, serverURL, token, name, sou
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusCreated {
+	if !createdOrRecognized(resp.StatusCode) {
 		respBody, _ := io.ReadAll(resp.Body)
 		return "", "", NewStatusError("create project", resp.StatusCode, respBody)
 	}
