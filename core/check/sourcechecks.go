@@ -21,25 +21,95 @@ import (
 // The ids of the source-side checkers: the name each records its findings
 // under, and the name each is documented by. A finding's stable rule id is
 // `<family>.<category>`, and the family is the one the venue attributes the
-// checker to (`hygiene`, `length`, `pattern` in host.collectFileDiagnostics),
-// not the id here.
+// checker to (host.collectFileDiagnostics reports the content-lint checker's
+// findings under `hygiene`), not the id here.
 //
 // They are exported because a checker off the registry is still something a user
 // meets and something documentation is written for, and this file is the only
-// record of which ones exist. [SourceCheckIDs] is the list; the reference
-// generator holds the authored dossiers under `scripts/gen-refs/nativedocs` to
-// it, so retiring a checker fails the build until its dossier goes with it, and
-// adding one fails until it has a dossier.
+// record of which ones exist. [SourceChecks] is the list, with the family and
+// the categories each reports; the reference generator holds the authored
+// dossiers under `scripts/gen-refs/nativedocs` to it, so retiring a checker
+// fails the build until its dossier goes with it, adding one fails until it has
+// a dossier, and a dossier names exactly the rule ids the checker reports.
 const (
 	ContentLintID   = "content-lint"
 	SourceLengthID  = "length-check"
 	SourcePatternID = "pattern-check"
 )
 
+// The families the source-side checkers' findings are reported under: the
+// first segment of the rule id a user reads, `hygiene.doubled-word`.
+const (
+	FamilyHygiene = "hygiene"
+	FamilyLength  = "length"
+	FamilyPattern = "pattern"
+	FamilyComment = "comment"
+)
+
+// The categories the content-lint checker reports, under [FamilyHygiene].
+const (
+	CategoryEmpty              = "empty"
+	CategoryLeadingWhitespace  = "leading-whitespace"
+	CategoryTrailingWhitespace = "trailing-whitespace"
+	CategoryDoubleSpaces       = "double-spaces"
+	CategoryDoubledWord        = "doubled-word"
+	CategoryControlChar        = "control-char"
+)
+
+// The categories the length checker reports, under [FamilyLength].
+const (
+	CategoryMaxChars = "max-chars-exceeded"
+	CategoryMaxWords = "max-words-exceeded"
+)
+
+// The categories the pattern checker reports, under [FamilyPattern].
+const (
+	CategoryForbiddenPattern = "forbidden-pattern"
+	CategoryPatternMissing   = "pattern-missing"
+)
+
+// SourceCheck is one source-side checker as a reader meets it: the id the code
+// registers it under, the family its findings are reported under, and the
+// categories it reports. A finding's rule id is `<Family>.<category>`.
+type SourceCheck struct {
+	ID         string
+	Family     string
+	Categories []string
+}
+
+// RuleIDs returns the rule ids the checker's findings carry, in the order the
+// checker reports them.
+func (c SourceCheck) RuleIDs() []string {
+	out := make([]string, 0, len(c.Categories))
+	for _, category := range c.Categories {
+		out = append(out, RuleID(c.Family, category))
+	}
+	return out
+}
+
+// SourceChecks returns every source-side checker, in the order `kapi check`
+// runs them, with the rule ids each reports.
+func SourceChecks() []SourceCheck {
+	return []SourceCheck{
+		{ID: ContentLintID, Family: FamilyHygiene, Categories: []string{
+			CategoryEmpty, CategoryLeadingWhitespace, CategoryTrailingWhitespace,
+			CategoryDoubleSpaces, CategoryDoubledWord, CategoryControlChar,
+		}},
+		{ID: SourceLengthID, Family: FamilyLength, Categories: []string{CategoryMaxChars, CategoryMaxWords}},
+		{ID: SourcePatternID, Family: FamilyPattern, Categories: []string{CategoryForbiddenPattern, CategoryPatternMissing}},
+		{ID: CommentStyleID, Family: FamilyComment, Categories: []string{CategorySentenceLength, CategoryCommentLength, CategoryCommentDensity}},
+	}
+}
+
 // SourceCheckIDs returns the ids of every source-side checker, in the order
 // `kapi check` runs them.
 func SourceCheckIDs() []string {
-	return []string{ContentLintID, SourceLengthID, SourcePatternID, CommentStyleID}
+	checks := SourceChecks()
+	ids := make([]string, 0, len(checks))
+	for _, c := range checks {
+		ids = append(ids, c.ID)
+	}
+	return ids
 }
 
 // NewContentLintTool creates the generic, source-side content-hygiene checker.
@@ -74,7 +144,7 @@ func NewContentLintTool() *tool.BaseTool {
 func contentLintFindings(text string, isComment bool) []Finding {
 	if strings.TrimSpace(text) == "" {
 		return []Finding{{
-			Category: "empty",
+			Category: CategoryEmpty,
 			Fails:    true,
 			Message:  "Content is empty or whitespace-only",
 		}}
@@ -84,7 +154,7 @@ func contentLintFindings(text string, isComment bool) []Finding {
 
 	if LeadingWhitespace(text) != "" {
 		findings = append(findings, Finding{
-			Category: "leading-whitespace",
+			Category: CategoryLeadingWhitespace,
 			Message:  "Content has leading whitespace",
 		})
 	}
@@ -95,7 +165,7 @@ func contentLintFindings(text string, isComment bool) []Finding {
 	// nothing else can tell the two apart for it.
 	if StrayTrailingWhitespace(text) != "" {
 		findings = append(findings, Finding{
-			Category: "trailing-whitespace",
+			Category: CategoryTrailingWhitespace,
 			Message:  "Content has trailing whitespace",
 		})
 	}
@@ -108,14 +178,14 @@ func contentLintFindings(text string, isComment bool) []Finding {
 	}
 	if doubleSpaces(text) {
 		findings = append(findings, Finding{
-			Category: "double-spaces",
+			Category: CategoryDoubleSpaces,
 			Message:  "Content contains consecutive spaces",
 		})
 	}
 
 	if word := DoubledWord(text, ""); word != "" {
 		findings = append(findings, Finding{
-			Category:     "doubled-word",
+			Category:     CategoryDoubledWord,
 			Message:      fmt.Sprintf("Content contains a doubled word: %q", word),
 			OriginalText: word,
 		})
@@ -123,7 +193,7 @@ func contentLintFindings(text string, isComment bool) []Finding {
 
 	if r, ok := firstControlChar(text); ok {
 		findings = append(findings, Finding{
-			Category: "control-char",
+			Category: CategoryControlChar,
 			Message:  fmt.Sprintf("Content contains a stray control character (U+%04X)", r),
 		})
 	}
@@ -164,7 +234,7 @@ func absoluteLengthFindings(text, subject string, maxChars, maxWords int) []Find
 		charCount := len([]rune(text))
 		if charCount > maxChars {
 			findings = append(findings, Finding{
-				Category: "max-chars-exceeded",
+				Category: CategoryMaxChars,
 				Fails:    true,
 				Message:  fmt.Sprintf("%s has %d characters, exceeds maximum of %d", subject, charCount, maxChars),
 			})
@@ -174,7 +244,7 @@ func absoluteLengthFindings(text, subject string, maxChars, maxWords int) []Find
 		wordCount := model.CountWords(text)
 		if wordCount > maxWords {
 			findings = append(findings, Finding{
-				Category: "max-words-exceeded",
+				Category: CategoryMaxWords,
 				Fails:    true,
 				Message:  fmt.Sprintf("%s has %d words, exceeds maximum of %d", subject, wordCount, maxWords),
 			})
@@ -229,7 +299,7 @@ func NewSourcePatternTool(rules []PatternRule) (*tool.BaseTool, error) {
 		for _, rule := range compiled {
 			if rule.MustMatch && !rule.re.MatchString(text) {
 				findings = append(findings, Finding{
-					Category: "pattern-missing",
+					Category: CategoryPatternMissing,
 					Fails:    true,
 					Message: fmt.Sprintf("Pattern %q (%s): required pattern not found in source",
 						rule.Name, rule.Pattern),
@@ -238,7 +308,7 @@ func NewSourcePatternTool(rules []PatternRule) (*tool.BaseTool, error) {
 			if rule.MustNotMatch {
 				if loc := rule.re.FindString(text); loc != "" {
 					findings = append(findings, Finding{
-						Category: "forbidden-pattern",
+						Category: CategoryForbiddenPattern,
 						Fails:    true,
 						Message: fmt.Sprintf("Pattern %q (%s): forbidden pattern found in source",
 							rule.Name, rule.Pattern),
@@ -256,11 +326,11 @@ func NewSourcePatternTool(rules []PatternRule) (*tool.BaseTool, error) {
 // HygieneCanaries is the known-bad input the content-hygiene checker must flag.
 func HygieneCanaries() []Canary {
 	return []Canary{
-		{Name: "doubled word", Block: CanaryBlock("A canary with a doubled doubled word."), Expect: "doubled-word"},
+		{Name: "doubled word", Block: CanaryBlock("A canary with a doubled doubled word."), Expect: CategoryDoubledWord},
 		{
 			Name:   "double space in a comment",
 			Block:  commentCanary("func/Canary", true, "A canary comment with two  spaces.\nIts next line holds no column."),
-			Expect: "double-spaces",
+			Expect: CategoryDoubleSpaces,
 		},
 	}
 }
@@ -272,14 +342,14 @@ func LengthCanaries(maxChars, maxWords int) []Canary {
 		out = append(out, Canary{
 			Name:   fmt.Sprintf("%d characters", maxChars+1),
 			Block:  CanaryBlock(strings.Repeat("x", maxChars+1)),
-			Expect: "max-chars-exceeded",
+			Expect: CategoryMaxChars,
 		})
 	}
 	if maxWords > 0 {
 		out = append(out, Canary{
 			Name:   fmt.Sprintf("%d words", maxWords+1),
 			Block:  CanaryBlock(strings.TrimSpace(strings.Repeat("w ", maxWords+1))),
-			Expect: "max-words-exceeded",
+			Expect: CategoryMaxWords,
 		})
 	}
 	return out
@@ -303,13 +373,13 @@ func PatternCanaries(rules []PatternRule) ([]Canary, string) {
 			if !ok {
 				return nil, fmt.Sprintf("no text can contain the forbidden pattern %q", rule.Pattern)
 			}
-			out = append(out, Canary{Name: "forbidden " + rule.Name, Block: CanaryBlock(text), Expect: "forbidden-pattern"})
+			out = append(out, Canary{Name: "forbidden " + rule.Name, Block: CanaryBlock(text), Expect: CategoryForbiddenPattern})
 		case rule.MustMatch:
 			text, ok := TextNotMatching(re)
 			if !ok {
 				return nil, fmt.Sprintf("every text satisfies the required pattern %q", rule.Pattern)
 			}
-			out = append(out, Canary{Name: "required " + rule.Name, Block: CanaryBlock(text), Expect: "pattern-missing"})
+			out = append(out, Canary{Name: "required " + rule.Name, Block: CanaryBlock(text), Expect: CategoryPatternMissing})
 		}
 	}
 	return out, ""

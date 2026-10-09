@@ -18,7 +18,7 @@ import (
 // The check family and analyzers of the comment limits a voice profile sets.
 // A finding's rule is `comment.<category>`, such as `comment.sentence-length`.
 const (
-	commentCheck            = "comment"
+	commentCheck            = check.FamilyComment
 	commentSentenceAnalyzer = "comment.sentence-length"
 	commentLengthAnalyzer   = "comment.length"
 	commentDensityAnalyzer  = "comment.density"

@@ -24,12 +24,18 @@ nativedocs/
 ### Source check documentation
 
 The `checks/` sidecars document checks run directly by `kapi check`
-(`core/check/sourcechecks.go`). These checks have no registry entry or schema,
-so their sidecars do not generate Format or Tool Reference cards.
+(`core/check/sourcechecks.go`). These checks have no registry entry or schema.
+`gen-refs` builds `checks.json` from `core/check.SourceChecks`, which names
+each check, the family its rule ids carry (`hygiene` for `content-lint`) and
+the rule ids it reports, and overlays the sidecar's prose. The website renders
+one page per check under `/reference/checks/<id>` beside the formats and tools.
 
-`gen-refs` compares the sidecars with `core/check.SourceCheckIDs` in both
-directions. Each check requires a sidecar, and each sidecar must name a check.
-Add or remove the sidecar together with the check implementation.
+`gen-refs` compares the sidecars with that list in both directions. Each check
+requires a sidecar, and each sidecar must name a check. A check sidecar also
+sets `displayName` and documents every rule id the check reports under
+`rules`, each with its `severity`, what it `reports` and the `fix`; a rule the
+check never reports, or one left out, fails the build. Add or remove the
+sidecar, and its rules, together with the check implementation.
 
 ## Schema
 
@@ -71,7 +77,7 @@ Regenerate and check after editing:
 
 ```bash
 make generate-reference-docs        # → packages/reference-data/data/*.json
-make generate-reference-pages       # → web/docs/reference/{commands,formats,tools}
+make generate-reference-pages       # → web/docs/reference/{commands,formats,tools,checks}
 make check-reference-prose          # the register gate over these files
 ```
 

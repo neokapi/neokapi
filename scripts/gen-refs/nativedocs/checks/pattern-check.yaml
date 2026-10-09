@@ -2,7 +2,18 @@
 # Source: core/check/sourcechecks.go (NewSourcePatternTool, PatternRule);
 # flags in cli/check.go.
 # A check, not a registry tool: it is configured by CLI flags, not a schema.
+# The rule ids are held to the ones core/check.SourceChecks reports.
+displayName: Pattern Check
 description: Require a pattern to appear in every source block, or forbid one from appearing at all.
+rules:
+  - id: pattern.forbidden-pattern
+    severity: major
+    reports: The block's source text matches a pattern given with `--forbid`. The finding carries the text it matched.
+    fix: Remove or reword the matched text, or drop the pattern from the run when the text is intended.
+  - id: pattern.pattern-missing
+    severity: major
+    reports: The block's source text does not match a pattern given with `--require`. Every block is held to every required pattern.
+    fix: Add the required text to the block, or narrow the run to the files the requirement applies to.
 overview: |
   The **Pattern Check** holds each translatable block's source text to regular
   expressions the caller names. `--forbid` gives a pattern that must not appear

@@ -118,6 +118,10 @@ func localeWorkspace(t *testing.T) (outDir, coreDir, cliDir string) {
 	require.NoError(t, writeJSON(filepath.Join(outDir, "formats.json"), Dataset{GeneratedAt: "2026-09-05T00:00:00Z", Kind: KindFormat, Entries: []Entry{
 		{ID: "markdown", Source: SourceBuiltIn, Kind: KindFormat, DisplayName: "Markdown", Description: "Read Markdown."},
 	}}))
+	require.NoError(t, writeJSON(filepath.Join(outDir, "checks.json"), Dataset{GeneratedAt: "2026-09-05T00:00:00Z", Kind: KindCheck, Entries: []Entry{
+		{ID: "content-lint", Source: SourceBuiltIn, Kind: KindCheck, DisplayName: "Content Lint", Description: "Report hygiene defects.", RuleFamily: "hygiene",
+			Rules: []CheckRule{{ID: "hygiene.empty", Severity: "major", Reports: "The block holds nothing.", Fix: "Give it content."}}},
+	}}))
 	require.NoError(t, writeJSON(filepath.Join(outDir, "commands.json"), CommandDataset{GeneratedAt: "2026-09-05T00:00:00Z", Commands: []CommandEntry{
 		{ID: "add", Path: []string{"add"}, Use: "add", Short: "Add patterns"},
 	}}))
@@ -146,6 +150,16 @@ func TestWriteLocaleVariants(t *testing.T) {
 	var models ModelDataset
 	require.NoError(t, readJSON(filepath.Join(outDir, "qps", "models.json"), &models))
 	assert.Equal(t, "À ñöţé.", models.Models[0].Note)
+
+	// A check's prose comes from its dossier alone, so with no translated
+	// dossier the variant carries the English entry, rules and all.
+	var checks Dataset
+	require.NoError(t, readJSON(filepath.Join(outDir, "qps", "checks.json"), &checks))
+	require.Len(t, checks.Entries, 1)
+	assert.Equal(t, "Content Lint", checks.Entries[0].DisplayName)
+	assert.Equal(t, "hygiene", checks.Entries[0].RuleFamily)
+	require.Len(t, checks.Entries[0].Rules, 1)
+	assert.Equal(t, "Give it content.", checks.Entries[0].Rules[0].Fix)
 
 	// nb has a core catalog only, and a partial one: everything else keeps its English.
 	var nbTools Dataset
@@ -196,10 +210,11 @@ func TestLocaleVariantDrift(t *testing.T) {
 	require.Len(t, problems, 1)
 	assert.Contains(t, problems[0], "nb/tools.json")
 
-	// A locale with a catalog and no variant at all.
+	// A locale with a catalog and no variant at all: one problem per file the
+	// variant lacks, beside the stale nb one.
 	writeFile(t, coreDir, "de.json", `{}`)
 	problems = localeVariantDrift(outDir, coreDir, cliDir, "")
-	assert.Len(t, problems, 5)
+	assert.Len(t, problems, 1+len(localeFiles))
 }
 
 // The variants of the committed dataset round-trip its bytes: a locale with
@@ -237,6 +252,9 @@ func TestWriteLocaleVariants_OverlaysTranslatedDossiers(t *testing.T) {
 	writeFile(t, docs, "qps/tools/segment.yaml", "description: Ðöššîéŕ đéšçŕîþţîöñ\noverview: Ṕšéüđö övéŕvîéŵ\nlimitations:\n  - Öñé\n")
 	writeFile(t, docs, "qps/tools/renamed.yaml", "overview: documents nothing\n")
 	writeFile(t, docs, "qps/formats/markdown.yaml", "overview: Ḿàŕķđöŵñ övéŕvîéŵ\n")
+	// A translated check dossier carries the rules' prose by rule id. A rule
+	// the check no longer reports is target drift, skipped like a renamed tool.
+	writeFile(t, docs, "qps/checks/content-lint.yaml", "displayName: Çöñţéñţ Ļîñţ\nrules:\n  - id: hygiene.empty\n    fix: Ĝîvé îţ çöñţéñţ.\n  - id: hygiene.gone\n    fix: documents nothing\n")
 
 	require.NoError(t, writeLocaleVariants(outDir, coreDir, cliDir, docs, []string{"qps", "nb"}))
 
@@ -249,6 +267,12 @@ func TestWriteLocaleVariants_OverlaysTranslatedDossiers(t *testing.T) {
 	var formats Dataset
 	require.NoError(t, readJSON(filepath.Join(outDir, "qps", "formats.json"), &formats))
 	assert.Equal(t, "Ḿàŕķđöŵñ övéŕvîéŵ", formats.Entries[0].Doc.Overview)
+	var checks Dataset
+	require.NoError(t, readJSON(filepath.Join(outDir, "qps", "checks.json"), &checks))
+	assert.Equal(t, "Çöñţéñţ Ļîñţ", checks.Entries[0].DisplayName)
+	require.Len(t, checks.Entries[0].Rules, 1, "the rules stay the ones the code reports")
+	assert.Equal(t, "Ĝîvé îţ çöñţéñţ.", checks.Entries[0].Rules[0].Fix)
+	assert.Equal(t, "The block holds nothing.", checks.Entries[0].Rules[0].Reports, "a field the translation lacks keeps its English")
 
 	// nb has no translated dossiers: the variant keeps whatever the English
 	// dataset carried.
@@ -256,6 +280,9 @@ func TestWriteLocaleVariants_OverlaysTranslatedDossiers(t *testing.T) {
 	require.NoError(t, readJSON(filepath.Join(outDir, "nb", "tools.json"), &nbTools))
 	assert.Equal(t, "Split blocks.", nbTools.Entries[0].Description)
 	assert.Nil(t, nbTools.Entries[0].Doc)
+	var nbChecks Dataset
+	require.NoError(t, readJSON(filepath.Join(outDir, "nb", "checks.json"), &nbChecks))
+	assert.Equal(t, "Give it content.", nbChecks.Entries[0].Rules[0].Fix, "one locale's overlay leaves the English the next derives from alone")
 
 	assert.Empty(t, localeVariantDrift(outDir, coreDir, cliDir, docs))
 	writeFile(t, docs, "qps/tools/segment.yaml", "overview: changed\n")

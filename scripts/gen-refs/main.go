@@ -69,11 +69,11 @@ func main() {
 	}
 }
 
-// buildEntries collects the native formats and tools, overlays the authored doc
-// sidecars, and appends the okapi-bridge entries when the plugin dir is present.
-// It is the shared core of `run` (which writes the dataset) and `checkDrift`
-// (which compares it against the committed files).
-func buildEntries(bridgeDir, pluginsDir, metaPath, nativeDocsDir string) (formats, tools []Entry, resolveExt func(string) string, bridgePresent bool, err error) {
+// buildEntries collects the native formats, tools and checks, overlays the
+// authored doc sidecars, and appends the okapi-bridge entries when the plugin
+// dir is present. It is the shared core of `run` (which writes the dataset) and
+// `checkDrift` (which compares it against the committed files).
+func buildEntries(bridgeDir, pluginsDir, metaPath, nativeDocsDir string) (formats, tools, checks []Entry, resolveExt func(string) string, bridgePresent bool, err error) {
 	meta, err := loadNativeMeta(metaPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "warning: native metadata unavailable (%v); descriptions may be sparse\n", err)
@@ -86,16 +86,16 @@ func buildEntries(bridgeDir, pluginsDir, metaPath, nativeDocsDir string) (format
 
 	// Overlay authored native doc sidecars.
 	if err := overlayNativeDocs(nativeDocsDir, KindFormat, formatEntries); err != nil {
-		return nil, nil, nil, false, err
+		return nil, nil, nil, nil, false, err
 	}
 	if err := overlayNativeDocs(nativeDocsDir, KindTool, toolEntries); err != nil {
-		return nil, nil, nil, false, err
+		return nil, nil, nil, nil, false, err
 	}
-	// The check dossiers overlay onto nothing — they document the source-side
-	// checkers, which carry no registry entry — so they are verified against the
-	// set core/check names rather than merged.
-	if err := verifyCheckDocs(nativeDocsDir, check.SourceCheckIDs()); err != nil {
-		return nil, nil, nil, false, fmt.Errorf("verify check docs: %w", err)
+	// The check entries are built from the set core/check names and the
+	// dossiers under checks/, which are the only source of their prose.
+	checkEntries, err := collectChecks(nativeDocsDir, check.SourceChecks())
+	if err != nil {
+		return nil, nil, nil, nil, false, fmt.Errorf("collect check docs: %w", err)
 	}
 
 	// Append bridge entries (non-fatal if the plugin dir is absent).
@@ -109,7 +109,7 @@ func buildEntries(bridgeDir, pluginsDir, metaPath, nativeDocsDir string) (format
 	case errors.Is(berr, os.ErrNotExist):
 		fmt.Fprintf(os.Stderr, "warning: okapi-bridge plugin dir not found at %s; emitting built-in entries only\n", bridgeDir)
 	default:
-		return nil, nil, nil, false, fmt.Errorf("read bridge: %w", berr)
+		return nil, nil, nil, nil, false, fmt.Errorf("read bridge: %w", berr)
 	}
 
 	// Append in-repo Mode-C plugin formats (e.g. PDF via kapi-pdfium). Like the
@@ -125,18 +125,19 @@ func buildEntries(bridgeDir, pluginsDir, metaPath, nativeDocsDir string) (format
 	case errors.Is(perr, os.ErrNotExist):
 		// no in-repo plugins dir; fine
 	default:
-		return nil, nil, nil, false, fmt.Errorf("read plugins: %w", perr)
+		return nil, nil, nil, nil, false, fmt.Errorf("read plugins: %w", perr)
 	}
 
 	sortEntries(formatEntries)
 	sortEntries(toolEntries)
-	return formatEntries, toolEntries, extensionResolver(freg), bridgePresent, nil
+	// The checks keep the order `kapi check` runs them in.
+	return formatEntries, toolEntries, checkEntries, extensionResolver(freg), bridgePresent, nil
 }
 
 func run(bridgeDir, pluginsDir, metaPath, nativeDocsDir, outDir, coreCatalogs, cliCatalogs string, locales []string) error {
 	now := time.Now().UTC().Format(time.RFC3339)
 
-	formatEntries, toolEntries, resolveExt, _, err := buildEntries(bridgeDir, pluginsDir, metaPath, nativeDocsDir)
+	formatEntries, toolEntries, checkEntries, resolveExt, _, err := buildEntries(bridgeDir, pluginsDir, metaPath, nativeDocsDir)
 	if err != nil {
 		return err
 	}
@@ -150,12 +151,15 @@ func run(bridgeDir, pluginsDir, metaPath, nativeDocsDir, outDir, coreCatalogs, c
 	if err := writeJSON(filepath.Join(outDir, "tools.json"), Dataset{GeneratedAt: now, Kind: KindTool, Entries: toolEntries}); err != nil {
 		return err
 	}
+	if err := writeJSON(filepath.Join(outDir, "checks.json"), Dataset{GeneratedAt: now, Kind: KindCheck, Entries: checkEntries}); err != nil {
+		return err
+	}
 
 	if err := writeJSON(filepath.Join(outDir, "format-families.json"), buildFamilyDataset(now, formatEntries, resolveExt)); err != nil {
 		return err
 	}
 
-	all := append(append([]Entry{}, formatEntries...), toolEntries...)
+	all := append(append(append([]Entry{}, formatEntries...), toolEntries...), checkEntries...)
 	gaps := detectGaps(all)
 	report := GapReport{GeneratedAt: now, Summary: summarize(gaps), Gaps: gaps}
 	if err := writeJSON(filepath.Join(outDir, "reference-gaps.json"), report); err != nil {
@@ -190,8 +194,8 @@ func run(bridgeDir, pluginsDir, metaPath, nativeDocsDir, outDir, coreCatalogs, c
 		return err
 	}
 
-	fmt.Printf("wrote %s/{formats,format-families,tools,reference-gaps,commands,prompts,models,mcp-tools}.json: %d formats, %d tools, %d commands, %d prompts, %d models, %d MCP tools\n",
-		outDir, len(formatEntries), len(toolEntries), len(cmdDataset.Commands), len(promptDataset.Prompts), len(modelDataset.Models), len(mcpDataset.Tools))
+	fmt.Printf("wrote %s/{formats,format-families,tools,checks,reference-gaps,commands,prompts,models,mcp-tools}.json: %d formats, %d tools, %d checks, %d commands, %d prompts, %d models, %d MCP tools\n",
+		outDir, len(formatEntries), len(toolEntries), len(checkEntries), len(cmdDataset.Commands), len(promptDataset.Prompts), len(modelDataset.Models), len(mcpDataset.Tools))
 
 	printGapSummary(report)
 

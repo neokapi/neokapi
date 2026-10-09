@@ -14,6 +14,7 @@
 //   web/docs/reference/commands/<slug>.mdx
 //   web/docs/reference/formats/<slug>.mdx
 //   web/docs/reference/tools/<slug>.mdx
+//   web/docs/reference/checks/<slug>.mdx
 //
 // Routes (docs routeBasePath is "/"): /reference/<kind>/<slug>.
 //
@@ -32,6 +33,7 @@ import { fileURLToPath } from "node:url";
 import commandsJson from "@neokapi/reference-data/data/commands.json" with { type: "json" };
 import formatsJson from "@neokapi/reference-data/data/formats.json" with { type: "json" };
 import toolsJson from "@neokapi/reference-data/data/tools.json" with { type: "json" };
+import checksJson from "@neokapi/reference-data/data/checks.json" with { type: "json" };
 import type {
   CommandDataset,
   CommandEntry,
@@ -41,6 +43,7 @@ import type {
 
 import {
   builtinToolIds,
+  checkSlug,
   commandSlug,
   formatSlug,
   toolSlug,
@@ -49,6 +52,7 @@ import { referenceTitle } from "../src/components/reference/titles.ts";
 
 const commands = commandsJson as unknown as CommandDataset;
 const formats = formatsJson as unknown as ReferenceDataset;
+const checks = checksJson as unknown as ReferenceDataset;
 const tools = toolsJson as unknown as ReferenceDataset;
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -209,12 +213,49 @@ function toolPage(entry: ReferenceEntry, builtins: ReadonlySet<string>): PageSpe
   return { file: join(OUT_ROOT, "tools", `${slug}.mdx`), body };
 }
 
+// ── Check pages ──────────────────────────────────────────────────────────────
+
+function checkPage(entry: ReferenceEntry): PageSpec {
+  const slug = checkSlug(entry);
+  const desc = clampDescription(
+    entry.description ||
+      firstLine(entry.doc?.overview) ||
+      `The ${entry.displayName} check in kapi check.`,
+  );
+  const title = referenceTitle(entry.displayName, "check");
+
+  const fm = frontmatter({
+    id: slug,
+    title: yamlScalar(title),
+    description: yamlScalar(desc),
+    sidebar_label: yamlScalar(entry.displayName),
+    slug: `/reference/checks/${slug}`,
+    hide_table_of_contents: "true",
+  });
+
+  const body = [
+    fm,
+    "",
+    HEADER,
+    "",
+    `import CheckReferencePage from "@site/src/components/reference/pages/CheckReferencePage";`,
+    "",
+    `# ${title}`,
+    "",
+    `<CheckReferencePage id={${JSON.stringify(entry.id)}} />`,
+    "",
+  ].join("\n");
+
+  return { file: join(OUT_ROOT, "checks", `${slug}.mdx`), body };
+}
+
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 function main(): void {
   const specs: PageSpec[] = [];
 
-  // Deterministic order: by id (commands), by id (formats), by source+id (tools).
+  // Deterministic order: by id (commands), by id (formats), by source+id (tools),
+  // by id (checks).
   const sortedCommands = [...commands.commands].sort((a, b) => a.id.localeCompare(b.id));
   for (const cmd of sortedCommands) specs.push(commandPage(cmd));
 
@@ -226,6 +267,9 @@ function main(): void {
     (a, b) => a.source.localeCompare(b.source) || a.id.localeCompare(b.id),
   );
   for (const t of sortedTools) specs.push(toolPage(t, builtins));
+
+  const sortedChecks = [...checks.entries].sort((a, b) => a.id.localeCompare(b.id));
+  for (const c of sortedChecks) specs.push(checkPage(c));
 
   // Collision guard: slugs must be unique per kind.
   const seen = new Map<string, string>();
@@ -240,7 +284,7 @@ function main(): void {
   // Wipe + rewrite each subdir so removed/renamed entries don't leave stale
   // pages. The kept reference/index.mdx lives in OUT_ROOT (not a subdir), so it
   // is untouched.
-  for (const sub of ["commands", "formats", "tools"]) {
+  for (const sub of ["commands", "formats", "tools", "checks"]) {
     const dir = join(OUT_ROOT, sub);
     rmSync(dir, { recursive: true, force: true });
     mkdirSync(dir, { recursive: true });
@@ -254,11 +298,12 @@ function main(): void {
     commands: sortedCommands.length,
     formats: sortedFormats.length,
     tools: sortedTools.length,
+    checks: sortedChecks.length,
   };
   console.log(
     `gen-reference-pages: wrote ${specs.length} pages ` +
-      `(${counts.commands} commands, ${counts.formats} formats, ${counts.tools} tools) ` +
-      `→ ${OUT_ROOT}/{commands,formats,tools}`,
+      `(${counts.commands} commands, ${counts.formats} formats, ${counts.tools} tools, ${counts.checks} checks) ` +
+      `→ ${OUT_ROOT}/{commands,formats,tools,checks}`,
   );
 }
 

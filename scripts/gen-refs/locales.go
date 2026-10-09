@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -33,7 +34,7 @@ import (
 // site building one locale swaps the directory and nothing else.
 
 // localeFiles are the datasets that carry prose a reference page prints.
-var localeFiles = []string{"tools.json", "formats.json", "commands.json", "models.json"}
+var localeFiles = []string{"tools.json", "formats.json", "checks.json", "commands.json", "models.json"}
 
 // englishDatasets is the committed English dataset, read back from the output
 // directory: the variants derive from what is committed, so a run that only
@@ -42,6 +43,7 @@ var localeFiles = []string{"tools.json", "formats.json", "commands.json", "model
 type englishDatasets struct {
 	tools    Dataset
 	formats  Dataset
+	checks   Dataset
 	commands CommandDataset
 	models   ModelDataset
 }
@@ -52,6 +54,9 @@ func readEnglishDatasets(outDir string) (*englishDatasets, error) {
 		return nil, err
 	}
 	if err := readJSON(filepath.Join(outDir, "formats.json"), &e.formats); err != nil {
+		return nil, err
+	}
+	if err := readJSON(filepath.Join(outDir, "checks.json"), &e.checks); err != nil {
 		return nil, err
 	}
 	if err := readJSON(filepath.Join(outDir, "commands.json"), &e.commands); err != nil {
@@ -267,10 +272,11 @@ func localizeModels(ds ModelDataset, cat map[string]any, cov *localeCoverage) Mo
 	return out
 }
 
-// localeVariant is one locale's four datasets and what they cover.
+// localeVariant is one locale's five datasets and what they cover.
 type localeVariant struct {
 	tools    Dataset
 	formats  Dataset
+	checks   Dataset
 	commands CommandDataset
 	models   ModelDataset
 	coverage localeCoverage
@@ -285,6 +291,15 @@ func localizeAll(english *englishDatasets, cats *localeCatalogs, nativeDocs, loc
 	if v.formats, err = localizeEntries(english.formats, cats.core, "formats", locale, &v.coverage); err != nil {
 		return nil, err
 	}
+	// A check's prose comes from its dossier alone, so the variant starts as
+	// the English entries and the translated dossier overlays them.
+	v.checks = english.checks
+	v.checks.Entries = slices.Clone(english.checks.Entries)
+	for i := range v.checks.Entries {
+		// The rules are overlaid in place, and the English entries serve
+		// every locale, so each variant edits a list of its own.
+		v.checks.Entries[i].Rules = slices.Clone(v.checks.Entries[i].Rules)
+	}
 	v.commands = localizeCommands(english.commands, cats.cli, &v.coverage)
 	v.models = localizeModels(english.models, cats.core, &v.coverage)
 	if nativeDocs != "" {
@@ -293,6 +308,9 @@ func localizeAll(english *englishDatasets, cats *localeCatalogs, nativeDocs, loc
 			return nil, err
 		}
 		if err := overlayLocaleDocs(dir, KindFormat, v.formats.Entries, &v.coverage); err != nil {
+			return nil, err
+		}
+		if err := overlayLocaleDocs(dir, KindCheck, v.checks.Entries, &v.coverage); err != nil {
 			return nil, err
 		}
 	}
@@ -346,6 +364,7 @@ func (v *localeVariant) files() map[string]any {
 	return map[string]any{
 		"tools.json":    v.tools,
 		"formats.json":  v.formats,
+		"checks.json":   v.checks,
 		"commands.json": v.commands,
 		"models.json":   v.models,
 	}

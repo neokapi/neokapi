@@ -1,0 +1,32 @@
+---
+id: checks
+title: Check Reference
+sidebar_label: Browse all checks
+description: Every check kapi check runs over source content, with the rule ids its findings carry and what fixes each, generated from the code.
+keywords: [check, reference, rule id, hygiene, length, pattern, comment, kapi check]
+---
+
+import CheckReferenceList from "@site/src/components/reference/CheckReferenceList";
+
+# Check Reference
+
+`kapi check` runs a set of checks over source content and reports each finding
+under a stable rule id, such as `hygiene.doubled-word`. This page lists every
+check with the rule ids it reports; each check's page says what each rule
+reports, at which severity, and what fixes it.
+
+The rule id's first segment is the **rule family**, which differs from the name
+the code registers the check under: the `content-lint` check reports under
+`hygiene`. A finding names the family, so the family is what to look up here.
+
+This page is **generated from the code**: the checks, their families and their
+rule ids come from the check package, and a CI drift gate fails the build when
+the committed dataset no longer matches, so it cannot name a rule kapi does not
+report.
+
+<CheckReferenceList />
+
+The voice and terminology checks are configured by the project's context rather
+than by a flag, and their rules are the ones a voice profile or a terms store
+declares. [Checks](/framework/checks) describes the report they share with the
+checks above, the verdict, and what fails.

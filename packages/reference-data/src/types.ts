@@ -26,8 +26,24 @@ import type { ComponentSchema, ToolDocParam } from "@neokapi/contract-types";
 /** Which engine provides an entry. */
 export type ReferenceSource = "built-in" | "okapi" | "plugin";
 
-/** Whether an entry is a data format or a processing tool. */
-export type ReferenceKind = "format" | "tool";
+/** Whether an entry is a data format, a processing tool or a check `kapi check` runs. */
+export type ReferenceKind = "format" | "tool" | "check";
+
+/**
+ * One rule id a check reports, as a reader meets it in a findings table. The
+ * id comes from the code (core/check.SourceChecks); the rest is authored in the
+ * check's dossier.
+ */
+export interface CheckRule {
+  /** The stable rule id a finding carries, e.g. "hygiene.doubled-word". */
+  id: string;
+  /** The severity the finding is reported at: minor, major or critical. */
+  severity?: string;
+  /** Markdown. What the rule reports. */
+  reports?: string;
+  /** Markdown. What to change so the finding goes away. */
+  fix?: string;
+}
 
 /** A worked configuration example. */
 export interface ReferenceExample {
@@ -56,7 +72,7 @@ export interface ReferenceDoc {
   wikiUrl?: string;
 }
 
-/** One format or tool in the reference dataset. */
+/** One format, tool or check in the reference dataset. */
 export interface ReferenceEntry {
   id: string;
   source: ReferenceSource;
@@ -64,6 +80,15 @@ export interface ReferenceEntry {
   displayName: string;
   /** Markdown — see markdown-in-ui.md. */
   description?: string;
+
+  // Check-only metadata.
+  /**
+   * The first segment of the rule ids a check's findings carry ("hygiene" for
+   * content-lint), which differs from the id the code registers the check under.
+   */
+  ruleFamily?: string;
+  /** The rule ids the check reports, in the order it reports them. */
+  rules?: CheckRule[];
 
   // Format-only metadata.
   extensions?: string[];

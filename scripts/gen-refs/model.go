@@ -15,22 +15,20 @@ const (
 	SourcePlugin = "plugin"
 )
 
-// Kind discriminates formats from tools in the unified dataset.
+// Kind discriminates formats, tools and checks in the unified dataset.
 const (
 	KindFormat = "format"
 	KindTool   = "tool"
+	// KindCheck is the source-side checkers of `kapi check`, which are check
+	// infrastructure rather than registry tools (see core/check.SourceChecks).
+	// A check entry is built from that list, so its id, its rule family and
+	// its rule ids come from the code, and its prose from the dossier under
+	// nativedocs/checks/. See collectChecks.
+	KindCheck = "check"
 )
 
-// KindCheck is a third sidecar kind, and the only one with no dataset entry
-// behind it: the source-side checkers of `kapi check`, which are check
-// infrastructure rather than registry tools (see core/check.SourceCheckIDs).
-// Their dossiers under nativedocs/checks/ document rules a user meets by their
-// stable id, so they are authored and held to the same register as the rest;
-// they simply have no card to overlay onto. See verifyCheckDocs.
-const KindCheck = "check"
-
-// Entry is one format or tool in the reference dataset. The shape is shared
-// by the website reference pages and the kapi-desktop Storybook via the
+// Entry is one format, tool or check in the reference dataset. The shape is
+// shared by the website reference pages and the kapi-desktop Storybook via the
 // @neokapi/reference-data package — keep the JSON tags in sync with
 // packages/reference-data/src/types.ts.
 type Entry struct {
@@ -39,6 +37,13 @@ type Entry struct {
 	Kind        string `json:"kind"`
 	DisplayName string `json:"displayName"`
 	Description string `json:"description,omitempty"` // markdown
+
+	// Check-only metadata. RuleFamily is the first segment of the rule ids a
+	// finding carries (`hygiene` for content-lint), which differs from the id
+	// the code registers the checker under, and Rules are the rule ids the
+	// checker reports, each with what it reports and how to fix it.
+	RuleFamily string      `json:"ruleFamily,omitempty"`
+	Rules      []CheckRule `json:"rules,omitempty"`
 
 	// Format-only metadata.
 	Extensions []string `json:"extensions,omitempty"`
@@ -147,6 +152,21 @@ type DocExample struct {
 	Config      string `json:"config,omitempty"`
 	Input       string `json:"input,omitempty"`
 	Output      string `json:"output,omitempty"`
+}
+
+// CheckRule is one rule id a check reports, as a reader meets it in a
+// findings table. The id comes from the code (core/check.SourceCheck.RuleIDs);
+// the rest is authored in the check's dossier.
+type CheckRule struct {
+	// ID is the stable rule id a finding carries, `hygiene.doubled-word`.
+	ID string `json:"id"`
+	// Severity is the severity the finding is reported at: minor, major or
+	// critical.
+	Severity string `json:"severity,omitempty"`
+	// Reports says what the rule reports. Markdown.
+	Reports string `json:"reports,omitempty"`
+	// Fix says what to change so the finding goes away. Markdown.
+	Fix string `json:"fix,omitempty"`
 }
 
 // Dataset is the top-level JSON document for formats.json / tools.json.
