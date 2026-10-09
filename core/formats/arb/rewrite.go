@@ -3,6 +3,8 @@ package arb
 import (
 	"fmt"
 	"strings"
+
+	"github.com/neokapi/neokapi/core/internal/jsonscan"
 )
 
 // rewriteCatalog re-tokenizes the original document and writes it back, leaving
@@ -14,9 +16,12 @@ import (
 // "<key>" : "<value>" pair whose key is a message key (not "@…"/"@@…") and has
 // a replacement gets its value string substituted. Attribute objects ("@<id>")
 // and global metadata ("@@<name>") are copied verbatim.
+// scanPrefix names this format in the shared JSON scanner's error messages.
+const scanPrefix = "arb scanner"
+
 func rewriteCatalog(original []byte, repl *replacements) ([]byte, error) {
-	sc := newScanner(original)
-	tokens, err := sc.scan()
+	sc := jsonscan.New(original, scanPrefix)
+	tokens, err := sc.Scan()
 	if err != nil {
 		return nil, err
 	}
@@ -26,8 +31,8 @@ func rewriteCatalog(original []byte, repl *replacements) ([]byte, error) {
 		return nil, rw.err
 	}
 	// Trailing whitespace lives on the EOF token's prefix.
-	if rw.pos < len(tokens) && tokens[rw.pos].typ == tokEOF {
-		rw.out.WriteString(tokens[rw.pos].prefix)
+	if rw.pos < len(tokens) && tokens[rw.pos].Type == jsonscan.EOF {
+		rw.out.WriteString(tokens[rw.pos].Prefix)
 	}
 	return []byte(rw.out.String()), nil
 }
@@ -35,20 +40,20 @@ func rewriteCatalog(original []byte, repl *replacements) ([]byte, error) {
 // rewriter walks the token stream, copying tokens verbatim and substituting
 // message value strings as directed by repl.
 type rewriter struct {
-	tokens []token
+	tokens []jsonscan.Token
 	pos    int
 	out    strings.Builder
 	repl   *replacements
 	err    error
 }
 
-func (r *rewriter) emit(t token) {
-	r.out.WriteString(t.prefix)
-	r.out.WriteString(t.raw)
+func (r *rewriter) emit(t jsonscan.Token) {
+	r.out.WriteString(t.Prefix)
+	r.out.WriteString(t.Raw)
 }
 
-func (r *rewriter) emitReplacedString(t token, newValue string) {
-	r.out.WriteString(t.prefix)
+func (r *rewriter) emitReplacedString(t jsonscan.Token, newValue string) {
+	r.out.WriteString(t.Prefix)
 	r.out.WriteString(encodeJSONString(newValue))
 }
 
@@ -58,17 +63,17 @@ func (r *rewriter) fail(format string, args ...any) {
 	}
 }
 
-func (r *rewriter) cur() token {
+func (r *rewriter) cur() jsonscan.Token {
 	if r.pos < len(r.tokens) {
 		return r.tokens[r.pos]
 	}
-	return token{typ: tokEOF}
+	return jsonscan.Token{Type: jsonscan.EOF}
 }
 
 // walkTop walks the flat top-level object of the ARB document.
 func (r *rewriter) walkTop() {
 	t := r.cur()
-	if t.typ != tokObjectStart {
+	if t.Type != jsonscan.ObjectStart {
 		r.fail("expected top-level object")
 		return
 	}
@@ -76,21 +81,21 @@ func (r *rewriter) walkTop() {
 	r.pos++
 	for r.err == nil {
 		t := r.cur()
-		if t.typ == tokObjectEnd {
+		if t.Type == jsonscan.ObjectEnd {
 			r.emit(t)
 			r.pos++
 			return
 		}
-		if t.typ == tokComma {
+		if t.Type == jsonscan.Comma {
 			r.emit(t)
 			r.pos++
 			continue
 		}
-		if t.typ != tokString {
-			r.fail("expected key in top object, got %v", t.typ)
+		if t.Type != jsonscan.String {
+			r.fail("expected key in top object, got %v", t.Type)
 			return
 		}
-		key := t.value
+		key := t.Value
 		r.emit(t)
 		r.pos++
 		r.emitColon()
@@ -99,7 +104,7 @@ func (r *rewriter) walkTop() {
 		// substitute. "@…" and "@@…" keys are copied verbatim.
 		if !strings.HasPrefix(key, "@") {
 			r.maybeReplaceValue(key)
-		} else if v := r.cur(); key == "@@locale" && r.repl.locale != nil && v.typ == tokString {
+		} else if v := r.cur(); key == "@@locale" && r.repl.locale != nil && v.Type == jsonscan.String {
 			r.emitReplacedString(v, *r.repl.locale)
 			r.pos++
 		} else {
@@ -114,7 +119,7 @@ func (r *rewriter) walkTop() {
 func (r *rewriter) maybeReplaceValue(key string) {
 	valTok := r.cur()
 	rep, hasRep := r.repl.lookup(key)
-	if valTok.typ == tokString && hasRep && rep.set && valTok.value != rep.value {
+	if valTok.Type == jsonscan.String && hasRep && rep.set && valTok.Value != rep.value {
 		r.emitReplacedString(valTok, rep.value)
 		r.pos++
 		return
@@ -125,8 +130,8 @@ func (r *rewriter) maybeReplaceValue(key string) {
 // emitColon copies the ':' separator token.
 func (r *rewriter) emitColon() {
 	t := r.cur()
-	if t.typ != tokColon {
-		r.fail("expected ':', got %v", t.typ)
+	if t.Type != jsonscan.Colon {
+		r.fail("expected ':', got %v", t.Type)
 		return
 	}
 	r.emit(t)
@@ -137,23 +142,23 @@ func (r *rewriter) emitColon() {
 // keeping nested structure balanced.
 func (r *rewriter) copyValue() {
 	t := r.cur()
-	switch t.typ {
-	case tokObjectStart, tokArrayStart:
+	switch t.Type {
+	case jsonscan.ObjectStart, jsonscan.ArrayStart:
 		r.emit(t)
 		r.pos++
 		depth := 1
 		for depth > 0 && r.err == nil {
 			t := r.cur()
-			if t.typ == tokEOF {
+			if t.Type == jsonscan.EOF {
 				r.fail("unexpected EOF while copying value")
 				return
 			}
 			r.emit(t)
 			r.pos++
-			switch t.typ {
-			case tokObjectStart, tokArrayStart:
+			switch t.Type {
+			case jsonscan.ObjectStart, jsonscan.ArrayStart:
 				depth++
-			case tokObjectEnd, tokArrayEnd:
+			case jsonscan.ObjectEnd, jsonscan.ArrayEnd:
 				depth--
 			}
 		}

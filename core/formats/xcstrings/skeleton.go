@@ -1,6 +1,10 @@
 package xcstrings
 
-import "strconv"
+import (
+	"strconv"
+
+	"github.com/neokapi/neokapi/core/internal/jsonscan"
+)
 
 // This file implements the reader-side byte-exact skeleton emission for Apple
 // String Catalogs. It re-tokenizes the original document and walks the token
@@ -21,16 +25,16 @@ import "strconv"
 // no-skeleton path (which also has no original to splice, producing scratch
 // output) — never a panic.
 func (r *Reader) emitSkeleton(content []byte) {
-	sc := newScanner(content)
-	tokens, err := sc.scan()
+	sc := jsonscan.New(content, scanPrefix)
+	tokens, err := sc.Scan()
 	if err != nil {
 		return
 	}
 	sw := &skelWalker{r: r, tokens: tokens}
 	sw.walkTop()
 	// Trailing whitespace lives on the EOF token's prefix.
-	if sw.pos < len(tokens) && tokens[sw.pos].typ == tokEOF {
-		r.skelText(tokens[sw.pos].prefix)
+	if sw.pos < len(tokens) && tokens[sw.pos].Type == jsonscan.EOF {
+		r.skelText(tokens[sw.pos].Prefix)
 	}
 	r.skelFlush()
 }
@@ -41,17 +45,17 @@ func (r *Reader) emitSkeleton(content []byte) {
 // raw value bytes.
 type skelWalker struct {
 	r       *Reader
-	tokens  []token
+	tokens  []jsonscan.Token
 	pos     int
 	counter int  // block-ID counter, advanced in lockstep with emitLeaf
 	skip    bool // true while walking a stale-skipped entry's leaves
 }
 
-func (s *skelWalker) cur() token {
+func (s *skelWalker) cur() jsonscan.Token {
 	if s.pos < len(s.tokens) {
 		return s.tokens[s.pos]
 	}
-	return token{typ: tokEOF}
+	return jsonscan.Token{Type: jsonscan.EOF}
 }
 
 // tok copies the current token to the skeleton buffer and advances.
@@ -61,7 +65,7 @@ func (s *skelWalker) tok() {
 }
 
 func (s *skelWalker) walkTop() {
-	if s.cur().typ != tokObjectStart {
+	if s.cur().Type != jsonscan.ObjectStart {
 		// Not the expected shape — copy everything verbatim so output is still
 		// byte-exact (no Refs, but identity holds).
 		s.copyRest()
@@ -70,15 +74,15 @@ func (s *skelWalker) walkTop() {
 	s.tok() // {
 	for {
 		t := s.cur()
-		switch t.typ {
-		case tokObjectEnd:
+		switch t.Type {
+		case jsonscan.ObjectEnd:
 			s.tok()
 			return
-		case tokComma:
+		case jsonscan.Comma:
 			s.tok()
 			continue
-		case tokString:
-			key := t.value
+		case jsonscan.String:
+			key := t.Value
 			s.tok() // key
 			s.colon()
 			if key == "strings" {
@@ -86,7 +90,7 @@ func (s *skelWalker) walkTop() {
 			} else {
 				s.copyValue()
 			}
-		case tokEOF:
+		case jsonscan.EOF:
 			return
 		default:
 			s.tok()
@@ -95,26 +99,26 @@ func (s *skelWalker) walkTop() {
 }
 
 func (s *skelWalker) walkStrings() {
-	if s.cur().typ != tokObjectStart {
+	if s.cur().Type != jsonscan.ObjectStart {
 		s.copyValue()
 		return
 	}
 	s.tok() // {
 	for {
 		t := s.cur()
-		switch t.typ {
-		case tokObjectEnd:
+		switch t.Type {
+		case jsonscan.ObjectEnd:
 			s.tok()
 			return
-		case tokComma:
+		case jsonscan.Comma:
 			s.tok()
 			continue
-		case tokString:
-			entryKey := t.value
+		case jsonscan.String:
+			entryKey := t.Value
 			s.tok() // entry key
 			s.colon()
 			s.walkEntry(entryKey)
-		case tokEOF:
+		case jsonscan.EOF:
 			return
 		default:
 			s.tok()
@@ -123,7 +127,7 @@ func (s *skelWalker) walkStrings() {
 }
 
 func (s *skelWalker) walkEntry(entryKey string) {
-	if s.cur().typ != tokObjectStart {
+	if s.cur().Type != jsonscan.ObjectStart {
 		s.copyValue()
 		return
 	}
@@ -134,16 +138,16 @@ func (s *skelWalker) walkEntry(entryKey string) {
 	s.tok() // {
 	for {
 		t := s.cur()
-		switch t.typ {
-		case tokObjectEnd:
+		switch t.Type {
+		case jsonscan.ObjectEnd:
 			s.tok()
 			s.skip = false
 			return
-		case tokComma:
+		case jsonscan.Comma:
 			s.tok()
 			continue
-		case tokString:
-			field := t.value
+		case jsonscan.String:
+			field := t.Value
 			s.tok() // field key
 			s.colon()
 			if field == "localizations" {
@@ -151,7 +155,7 @@ func (s *skelWalker) walkEntry(entryKey string) {
 			} else {
 				s.copyValue()
 			}
-		case tokEOF:
+		case jsonscan.EOF:
 			s.skip = false
 			return
 		default:
@@ -164,27 +168,27 @@ func (s *skelWalker) walkEntry(entryKey string) {
 // "extractionState":"stale" pair without consuming tokens. It balances nested
 // braces so it only inspects the entry's own top-level fields.
 func (s *skelWalker) entryIsStale(objStart int) bool {
-	if objStart >= len(s.tokens) || s.tokens[objStart].typ != tokObjectStart {
+	if objStart >= len(s.tokens) || s.tokens[objStart].Type != jsonscan.ObjectStart {
 		return false
 	}
 	depth := 0
 	for i := objStart; i < len(s.tokens); i++ {
 		t := s.tokens[i]
-		switch t.typ {
-		case tokObjectStart, tokArrayStart:
+		switch t.Type {
+		case jsonscan.ObjectStart, jsonscan.ArrayStart:
 			depth++
-		case tokObjectEnd, tokArrayEnd:
+		case jsonscan.ObjectEnd, jsonscan.ArrayEnd:
 			depth--
 			if depth == 0 {
 				return false
 			}
-		case tokString:
+		case jsonscan.String:
 			// Only inspect fields at the entry's own depth (depth == 1).
-			if depth == 1 && t.value == "extractionState" {
+			if depth == 1 && t.Value == "extractionState" {
 				// next non-colon token is the value
-				if i+2 < len(s.tokens) && s.tokens[i+1].typ == tokColon &&
-					s.tokens[i+2].typ == tokString {
-					return s.tokens[i+2].value == "stale"
+				if i+2 < len(s.tokens) && s.tokens[i+1].Type == jsonscan.Colon &&
+					s.tokens[i+2].Type == jsonscan.String {
+					return s.tokens[i+2].Value == "stale"
 				}
 			}
 		}
@@ -193,28 +197,28 @@ func (s *skelWalker) entryIsStale(objStart int) bool {
 }
 
 func (s *skelWalker) walkLocalizations(base valueRef) {
-	if s.cur().typ != tokObjectStart {
+	if s.cur().Type != jsonscan.ObjectStart {
 		s.copyValue()
 		return
 	}
 	s.tok() // {
 	for {
 		t := s.cur()
-		switch t.typ {
-		case tokObjectEnd:
+		switch t.Type {
+		case jsonscan.ObjectEnd:
 			s.tok()
 			return
-		case tokComma:
+		case jsonscan.Comma:
 			s.tok()
 			continue
-		case tokString:
-			lang := t.value
+		case jsonscan.String:
+			lang := t.Value
 			s.tok() // lang key
 			s.colon()
 			vr := base
 			vr.Lang = lang
 			s.walkLocalization(vr)
-		case tokEOF:
+		case jsonscan.EOF:
 			return
 		default:
 			s.tok()
@@ -223,22 +227,22 @@ func (s *skelWalker) walkLocalizations(base valueRef) {
 }
 
 func (s *skelWalker) walkLocalization(base valueRef) {
-	if s.cur().typ != tokObjectStart {
+	if s.cur().Type != jsonscan.ObjectStart {
 		s.copyValue()
 		return
 	}
 	s.tok() // {
 	for {
 		t := s.cur()
-		switch t.typ {
-		case tokObjectEnd:
+		switch t.Type {
+		case jsonscan.ObjectEnd:
 			s.tok()
 			return
-		case tokComma:
+		case jsonscan.Comma:
 			s.tok()
 			continue
-		case tokString:
-			field := t.value
+		case jsonscan.String:
+			field := t.Value
 			s.tok() // field key
 			s.colon()
 			switch field {
@@ -251,7 +255,7 @@ func (s *skelWalker) walkLocalization(base valueRef) {
 			default:
 				s.copyValue()
 			}
-		case tokEOF:
+		case jsonscan.EOF:
 			return
 		default:
 			s.tok()
@@ -260,22 +264,22 @@ func (s *skelWalker) walkLocalization(base valueRef) {
 }
 
 func (s *skelWalker) walkVariations(base valueRef, sub string) {
-	if s.cur().typ != tokObjectStart {
+	if s.cur().Type != jsonscan.ObjectStart {
 		s.copyValue()
 		return
 	}
 	s.tok() // {
 	for {
 		t := s.cur()
-		switch t.typ {
-		case tokObjectEnd:
+		switch t.Type {
+		case jsonscan.ObjectEnd:
 			s.tok()
 			return
-		case tokComma:
+		case jsonscan.Comma:
 			s.tok()
 			continue
-		case tokString:
-			field := t.value
+		case jsonscan.String:
+			field := t.Value
 			s.tok() // field key
 			s.colon()
 			switch field {
@@ -296,7 +300,7 @@ func (s *skelWalker) walkVariations(base valueRef, sub string) {
 			default:
 				s.copyValue()
 			}
-		case tokEOF:
+		case jsonscan.EOF:
 			return
 		default:
 			s.tok()
@@ -305,26 +309,26 @@ func (s *skelWalker) walkVariations(base valueRef, sub string) {
 }
 
 func (s *skelWalker) walkCategoryMap(base valueRef, kind valueKind, sub string) {
-	if s.cur().typ != tokObjectStart {
+	if s.cur().Type != jsonscan.ObjectStart {
 		s.copyValue()
 		return
 	}
 	s.tok() // {
 	for {
 		t := s.cur()
-		switch t.typ {
-		case tokObjectEnd:
+		switch t.Type {
+		case jsonscan.ObjectEnd:
 			s.tok()
 			return
-		case tokComma:
+		case jsonscan.Comma:
 			s.tok()
 			continue
-		case tokString:
-			category := t.value
+		case jsonscan.String:
+			category := t.Value
 			s.tok() // category key
 			s.colon()
 			s.walkCategoryBody(base, kind, sub, category)
-		case tokEOF:
+		case jsonscan.EOF:
 			return
 		default:
 			s.tok()
@@ -333,22 +337,22 @@ func (s *skelWalker) walkCategoryMap(base valueRef, kind valueKind, sub string) 
 }
 
 func (s *skelWalker) walkCategoryBody(base valueRef, kind valueKind, sub, category string) {
-	if s.cur().typ != tokObjectStart {
+	if s.cur().Type != jsonscan.ObjectStart {
 		s.copyValue()
 		return
 	}
 	s.tok() // {
 	for {
 		t := s.cur()
-		switch t.typ {
-		case tokObjectEnd:
+		switch t.Type {
+		case jsonscan.ObjectEnd:
 			s.tok()
 			return
-		case tokComma:
+		case jsonscan.Comma:
 			s.tok()
 			continue
-		case tokString:
-			field := t.value
+		case jsonscan.String:
+			field := t.Value
 			s.tok() // field key
 			s.colon()
 			if field == "stringUnit" {
@@ -360,7 +364,7 @@ func (s *skelWalker) walkCategoryBody(base valueRef, kind valueKind, sub, catego
 			} else {
 				s.copyValue()
 			}
-		case tokEOF:
+		case jsonscan.EOF:
 			return
 		default:
 			s.tok()
@@ -369,26 +373,26 @@ func (s *skelWalker) walkCategoryBody(base valueRef, kind valueKind, sub, catego
 }
 
 func (s *skelWalker) walkSubstitutions(base valueRef) {
-	if s.cur().typ != tokObjectStart {
+	if s.cur().Type != jsonscan.ObjectStart {
 		s.copyValue()
 		return
 	}
 	s.tok() // {
 	for {
 		t := s.cur()
-		switch t.typ {
-		case tokObjectEnd:
+		switch t.Type {
+		case jsonscan.ObjectEnd:
 			s.tok()
 			return
-		case tokComma:
+		case jsonscan.Comma:
 			s.tok()
 			continue
-		case tokString:
-			name := t.value
+		case jsonscan.String:
+			name := t.Value
 			s.tok() // substitution name
 			s.colon()
 			s.walkSubstitution(base, name)
-		case tokEOF:
+		case jsonscan.EOF:
 			return
 		default:
 			s.tok()
@@ -397,22 +401,22 @@ func (s *skelWalker) walkSubstitutions(base valueRef) {
 }
 
 func (s *skelWalker) walkSubstitution(base valueRef, name string) {
-	if s.cur().typ != tokObjectStart {
+	if s.cur().Type != jsonscan.ObjectStart {
 		s.copyValue()
 		return
 	}
 	s.tok() // {
 	for {
 		t := s.cur()
-		switch t.typ {
-		case tokObjectEnd:
+		switch t.Type {
+		case jsonscan.ObjectEnd:
 			s.tok()
 			return
-		case tokComma:
+		case jsonscan.Comma:
 			s.tok()
 			continue
-		case tokString:
-			field := t.value
+		case jsonscan.String:
+			field := t.Value
 			s.tok() // field key
 			s.colon()
 			if field == "variations" {
@@ -420,7 +424,7 @@ func (s *skelWalker) walkSubstitution(base valueRef, name string) {
 			} else {
 				s.copyValue()
 			}
-		case tokEOF:
+		case jsonscan.EOF:
 			return
 		default:
 			s.tok()
@@ -434,7 +438,7 @@ func (s *skelWalker) walkSubstitution(base valueRef, name string) {
 // fields are copied verbatim, matching the reader (which carries state as a
 // block property, not a translatable block).
 func (s *skelWalker) walkStringUnit(vr valueRef) {
-	if s.cur().typ != tokObjectStart {
+	if s.cur().Type != jsonscan.ObjectStart {
 		s.copyValue()
 		return
 	}
@@ -449,27 +453,27 @@ func (s *skelWalker) walkStringUnit(vr valueRef) {
 	s.tok() // {
 	for {
 		t := s.cur()
-		switch t.typ {
-		case tokObjectEnd:
+		switch t.Type {
+		case jsonscan.ObjectEnd:
 			s.tok()
 			return
-		case tokComma:
+		case jsonscan.Comma:
 			s.tok()
 			continue
-		case tokString:
-			field := t.value
+		case jsonscan.String:
+			field := t.Value
 			s.tok() // field key
 			s.colon()
 			valTok := s.cur()
-			if field == "value" && !s.skip && valTok.typ == tokString {
+			if field == "value" && !s.skip && valTok.Type == jsonscan.String {
 				// Emit Ref in place of the raw value; its prefix (whitespace
-				// before the value token) is preserved as Text by skelRef.
-				s.r.skelRef(valTok.prefix, blockID)
+				// before the value jsonscan.Token) is preserved as Text by skelRef.
+				s.r.skelRef(valTok.Prefix, blockID)
 				s.pos++
 			} else {
 				s.copyValue()
 			}
-		case tokEOF:
+		case jsonscan.EOF:
 			return
 		default:
 			s.tok()
@@ -479,7 +483,7 @@ func (s *skelWalker) walkStringUnit(vr valueRef) {
 
 // colon copies the ':' separator token.
 func (s *skelWalker) colon() {
-	if s.cur().typ == tokColon {
+	if s.cur().Type == jsonscan.Colon {
 		s.tok()
 	}
 }
@@ -489,20 +493,20 @@ func (s *skelWalker) colon() {
 // writing to the skeleton buffer.
 func (s *skelWalker) copyValue() {
 	t := s.cur()
-	switch t.typ {
-	case tokObjectStart, tokArrayStart:
+	switch t.Type {
+	case jsonscan.ObjectStart, jsonscan.ArrayStart:
 		s.tok()
 		depth := 1
 		for depth > 0 {
 			t := s.cur()
-			if t.typ == tokEOF {
+			if t.Type == jsonscan.EOF {
 				return
 			}
 			s.tok()
-			switch t.typ {
-			case tokObjectStart, tokArrayStart:
+			switch t.Type {
+			case jsonscan.ObjectStart, jsonscan.ArrayStart:
 				depth++
-			case tokObjectEnd, tokArrayEnd:
+			case jsonscan.ObjectEnd, jsonscan.ArrayEnd:
 				depth--
 			}
 		}
@@ -514,7 +518,7 @@ func (s *skelWalker) copyValue() {
 // copyRest copies all remaining tokens verbatim (used when the top-level shape
 // is unexpected, guaranteeing byte-exact identity even off the happy path).
 func (s *skelWalker) copyRest() {
-	for s.pos < len(s.tokens) && s.cur().typ != tokEOF {
+	for s.pos < len(s.tokens) && s.cur().Type != jsonscan.EOF {
 		s.tok()
 	}
 }

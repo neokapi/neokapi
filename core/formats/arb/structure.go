@@ -5,6 +5,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/formats/internal/jsonobject"
+	"github.com/neokapi/neokapi/core/internal/jsonscan"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -120,13 +121,13 @@ func message(d *jsonobject.Doc, i int, id string) (*jsonobject.Member, error) {
 
 // parseTop reads doc's tokens into its objects; an ARB catalog is one object.
 func parseTop(doc []byte, i int) (*jsonobject.Doc, error) {
-	toks, err := newScanner(doc).scan()
+	toks, err := jsonscan.New(doc, scanPrefix).Scan()
 	if err != nil {
 		return nil, format.StructureErrorf(i, format.StructureUnsupported, "the catalog does not read as JSON: %v", err)
 	}
 	out := make([]jsonobject.Token, len(toks))
 	for j, t := range toks {
-		out[j] = jsonobject.Token{Kind: objectKind(t.typ), Prefix: t.prefix, Raw: t.raw, Text: t.value}
+		out[j] = jsonobject.Token{Kind: objectKind(t.Type), Prefix: t.Prefix, Raw: t.Raw, Text: t.Value}
 	}
 	d, err := jsonobject.Parse(doc, out)
 	if err != nil {
@@ -138,23 +139,23 @@ func parseTop(doc []byte, i int) (*jsonobject.Doc, error) {
 	return d, nil
 }
 
-func objectKind(t tokenType) jsonobject.Kind {
+func objectKind(t jsonscan.TokenType) jsonobject.Kind {
 	switch t {
-	case tokObjectStart:
+	case jsonscan.ObjectStart:
 		return jsonobject.ObjectStart
-	case tokObjectEnd:
+	case jsonscan.ObjectEnd:
 		return jsonobject.ObjectEnd
-	case tokArrayStart:
+	case jsonscan.ArrayStart:
 		return jsonobject.ArrayStart
-	case tokArrayEnd:
+	case jsonscan.ArrayEnd:
 		return jsonobject.ArrayEnd
-	case tokColon:
+	case jsonscan.Colon:
 		return jsonobject.Colon
-	case tokComma:
+	case jsonscan.Comma:
 		return jsonobject.Comma
-	case tokString:
+	case jsonscan.String:
 		return jsonobject.String
-	case tokEOF:
+	case jsonscan.EOF:
 		return jsonobject.EOF
 	}
 	return jsonobject.Scalar

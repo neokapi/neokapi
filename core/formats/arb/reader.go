@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/internal/jsonscan"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/safeio"
 )
@@ -130,7 +131,7 @@ func (r *Reader) readStreaming(ctx context.Context, ch chan<- model.PartResult) 
 		return true
 	}
 
-	ss := newStreamScanner(bufio.NewReader(safeio.DefaultBudget().Reader(r.Doc.Reader)))
+	ss := jsonscan.NewStream(bufio.NewReader(safeio.DefaultBudget().Reader(r.Doc.Reader)), scanPrefix)
 	if r.streamWalkTop(ctx, ch, ss, loc, descriptions, hints) {
 		r.skelFlush()
 	}
@@ -142,59 +143,59 @@ func (r *Reader) readStreaming(ctx context.Context, ch chan<- model.PartResult) 
 // mirroring skeletonTop but building and emitting each block inline (from the
 // scanned value + the pass-1 metadata) and standing a ref in for its value.
 // Returns true on success (skeleton should be flushed).
-func (r *Reader) streamWalkTop(ctx context.Context, ch chan<- model.PartResult, ss *streamScanner, loc model.LocaleID, descriptions map[string]string, hints map[string][]placeholderHint) bool {
-	tok, err := ss.next()
+func (r *Reader) streamWalkTop(ctx context.Context, ch chan<- model.PartResult, ss *jsonscan.StreamScanner, loc model.LocaleID, descriptions map[string]string, hints map[string][]placeholderHint) bool {
+	tok, err := ss.Next()
 	if err != nil {
 		ch <- model.PartResult{Error: fmt.Errorf("arb: %w", err)}
 		return false
 	}
-	if tok.typ != tokObjectStart {
+	if tok.Type != jsonscan.ObjectStart {
 		r.skelToken(tok)
 		return true
 	}
 	r.skelToken(tok) // {
 	counter := 0
 	for {
-		tok, err := ss.next()
+		tok, err := ss.Next()
 		if err != nil {
 			ch <- model.PartResult{Error: fmt.Errorf("arb: %w", err)}
 			return false
 		}
-		switch tok.typ {
-		case tokEOF:
+		switch tok.Type {
+		case jsonscan.EOF:
 			return true
-		case tokObjectEnd:
+		case jsonscan.ObjectEnd:
 			r.skelToken(tok) // }
 			// Trailing whitespace after the top-level object rides on the EOF
 			// token's prefix (mirrors emitSkeleton).
-			if eof, e := ss.next(); e == nil && eof.typ == tokEOF {
-				r.skelText(eof.prefix)
+			if eof, e := ss.Next(); e == nil && eof.Type == jsonscan.EOF {
+				r.skelText(eof.Prefix)
 			}
 			return true
-		case tokComma:
+		case jsonscan.Comma:
 			r.skelToken(tok)
-		case tokString:
-			key := tok.value
+		case jsonscan.String:
+			key := tok.Value
 			r.skelToken(tok) // key
-			colon, cerr := ss.next()
+			colon, cerr := ss.Next()
 			if cerr != nil {
 				ch <- model.PartResult{Error: fmt.Errorf("arb: %w", cerr)}
 				return false
 			}
 			r.skelToken(colon) // :
-			val, verr := ss.next()
+			val, verr := ss.Next()
 			if verr != nil {
 				ch <- model.PartResult{Error: fmt.Errorf("arb: %w", verr)}
 				return false
 			}
-			if !strings.HasPrefix(key, "@") && val.typ == tokString {
+			if !strings.HasPrefix(key, "@") && val.Type == jsonscan.String {
 				counter++
-				res := &resource{id: key, value: val.value, raw: val.raw, description: descriptions[key], placeholders: hints[key]}
+				res := &resource{id: key, value: val.Value, raw: val.Raw, description: descriptions[key], placeholders: hints[key]}
 				block := r.blockFor(res, loc, counter)
 				if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 					return false
 				}
-				r.skelText(val.prefix)
+				r.skelText(val.Prefix)
 				r.skelRef(block.ID)
 			} else if key != "@@locale" || !r.skelLocale(val) {
 				// "@<id>" / "@@<global>" / unexpected — copy the value verbatim.
@@ -208,22 +209,22 @@ func (r *Reader) streamWalkTop(ctx context.Context, ch chan<- model.PartResult, 
 
 // copyValueStream copies a value whose first token has already been read to the
 // skeleton verbatim; for an object/array it consumes the balanced remainder.
-func (r *Reader) copyValueStream(ss *streamScanner, first token) {
+func (r *Reader) copyValueStream(ss *jsonscan.StreamScanner, first jsonscan.Token) {
 	r.skelToken(first)
-	if first.typ != tokObjectStart && first.typ != tokArrayStart {
+	if first.Type != jsonscan.ObjectStart && first.Type != jsonscan.ArrayStart {
 		return
 	}
 	depth := 1
 	for depth > 0 {
-		t, err := ss.next()
-		if err != nil || t.typ == tokEOF {
+		t, err := ss.Next()
+		if err != nil || t.Type == jsonscan.EOF {
 			return
 		}
 		r.skelToken(t)
-		switch t.typ {
-		case tokObjectStart, tokArrayStart:
+		switch t.Type {
+		case jsonscan.ObjectStart, jsonscan.ArrayStart:
 			depth++
-		case tokObjectEnd, tokArrayEnd:
+		case jsonscan.ObjectEnd, jsonscan.ArrayEnd:
 			depth--
 		}
 	}
@@ -278,10 +279,10 @@ func (r *Reader) skelRef(id string) {
 }
 
 // skelToken appends a token's prefix and raw bytes to the skeleton buffer.
-func (r *Reader) skelToken(tok token) {
+func (r *Reader) skelToken(tok jsonscan.Token) {
 	if r.skeletonStore != nil {
-		r.skelBuf.WriteString(tok.prefix)
-		r.skelBuf.WriteString(tok.raw)
+		r.skelBuf.WriteString(tok.Prefix)
+		r.skelBuf.WriteString(tok.Raw)
 	}
 }
 
@@ -289,15 +290,15 @@ func (r *Reader) skelToken(tok token) {
 // quotes, so a writer for another locale writes that locale's name there
 // (Writer.renderLang). A value spelled with escapes is left to the caller to
 // copy verbatim, and skelLocale reports false.
-func (r *Reader) skelLocale(tok token) bool {
-	if tok.typ != tokString || tok.raw != `"`+tok.value+`"` {
+func (r *Reader) skelLocale(tok jsonscan.Token) bool {
+	if tok.Type != jsonscan.String || tok.Raw != `"`+tok.Value+`"` {
 		return false
 	}
 	if r.skeletonStore != nil {
-		r.skelBuf.WriteString(tok.prefix)
+		r.skelBuf.WriteString(tok.Prefix)
 		r.skelBuf.WriteString(`"`)
 		r.skelFlush()
-		r.skeletonStore.WriteLang(tok.value)
+		r.skeletonStore.WriteLang(tok.Value)
 		r.skelBuf.WriteString(`"`)
 	}
 	return true
@@ -397,9 +398,9 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	// The skeleton stands a ref in for each message value, so the writer
 	// re-encodes it; each value keeps the spelling the file gives it, which
 	// the writer writes back while the value is unchanged.
-	var tokens []token
+	var tokens []jsonscan.Token
 	if r.skeletonStore != nil {
-		if tokens, err = newScanner(content).scan(); err == nil {
+		if tokens, err = jsonscan.New(content, scanPrefix).Scan(); err == nil {
 			rawValues(tokens, cat.resources)
 		}
 	}
@@ -439,12 +440,12 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 // and the writer's EntriesWritten check (used by the merge wiring) lets the
 // caller fall back to the non-skeleton writer. A file parseCatalog accepted
 // always tokenizes.
-func (r *Reader) emitSkeleton(tokens []token, blockIDByKey map[string]string) {
+func (r *Reader) emitSkeleton(tokens []jsonscan.Token, blockIDByKey map[string]string) {
 	pos := 0
 	r.skeletonTop(tokens, &pos, blockIDByKey)
 	// Trailing whitespace lives on the EOF token's prefix.
-	if pos < len(tokens) && tokens[pos].typ == tokEOF {
-		r.skelText(tokens[pos].prefix)
+	if pos < len(tokens) && tokens[pos].Type == jsonscan.EOF {
+		r.skelText(tokens[pos].Prefix)
 	}
 	r.skelFlush()
 }
@@ -452,23 +453,23 @@ func (r *Reader) emitSkeleton(tokens []token, blockIDByKey map[string]string) {
 // rawValues records, on each message resource, its value as the document's
 // tokens spell it. A key written twice takes the spelling of its last
 // occurrence, as its value does.
-func rawValues(tokens []token, resources map[string]*resource) {
-	if len(tokens) == 0 || tokens[0].typ != tokObjectStart {
+func rawValues(tokens []jsonscan.Token, resources map[string]*resource) {
+	if len(tokens) == 0 || tokens[0].Type != jsonscan.ObjectStart {
 		return
 	}
 	depth := 0
 	for i := 0; i < len(tokens); i++ {
-		switch tokens[i].typ {
-		case tokObjectStart, tokArrayStart:
+		switch tokens[i].Type {
+		case jsonscan.ObjectStart, jsonscan.ArrayStart:
 			depth++
-		case tokObjectEnd, tokArrayEnd:
+		case jsonscan.ObjectEnd, jsonscan.ArrayEnd:
 			depth--
-		case tokString:
-			if depth != 1 || i+2 >= len(tokens) || tokens[i+1].typ != tokColon || tokens[i+2].typ != tokString {
+		case jsonscan.String:
+			if depth != 1 || i+2 >= len(tokens) || tokens[i+1].Type != jsonscan.Colon || tokens[i+2].Type != jsonscan.String {
 				continue
 			}
-			if res, ok := resources[tokens[i].value]; ok && !strings.HasPrefix(tokens[i].value, "@") {
-				res.raw = tokens[i+2].raw
+			if res, ok := resources[tokens[i].Value]; ok && !strings.HasPrefix(tokens[i].Value, "@") {
+				res.raw = tokens[i+2].Raw
 			}
 			i += 2
 		}
@@ -476,12 +477,12 @@ func rawValues(tokens []token, resources map[string]*resource) {
 }
 
 // skeletonTop walks the flat top-level object, emitting skeleton entries.
-func (r *Reader) skeletonTop(tokens []token, pos *int, blockIDByKey map[string]string) {
-	if *pos >= len(tokens) || tokens[*pos].typ != tokObjectStart {
+func (r *Reader) skeletonTop(tokens []jsonscan.Token, pos *int, blockIDByKey map[string]string) {
+	if *pos >= len(tokens) || tokens[*pos].Type != jsonscan.ObjectStart {
 		// Not the expected shape — copy whatever remains verbatim so the
 		// skeleton still reproduces the bytes (the writer would then emit no
 		// refs, equivalent to the original).
-		for *pos < len(tokens) && tokens[*pos].typ != tokEOF {
+		for *pos < len(tokens) && tokens[*pos].Type != jsonscan.EOF {
 			r.skelToken(tokens[*pos])
 			*pos++
 		}
@@ -491,21 +492,21 @@ func (r *Reader) skeletonTop(tokens []token, pos *int, blockIDByKey map[string]s
 	*pos++
 	for *pos < len(tokens) {
 		tok := tokens[*pos]
-		switch tok.typ {
-		case tokObjectEnd:
+		switch tok.Type {
+		case jsonscan.ObjectEnd:
 			r.skelToken(tok)
 			*pos++
 			return
-		case tokComma:
+		case jsonscan.Comma:
 			r.skelToken(tok)
 			*pos++
 			continue
-		case tokString:
-			key := tok.value
+		case jsonscan.String:
+			key := tok.Value
 			r.skelToken(tok) // key
 			*pos++
 			// Colon.
-			if *pos < len(tokens) && tokens[*pos].typ == tokColon {
+			if *pos < len(tokens) && tokens[*pos].Type == jsonscan.Colon {
 				r.skelToken(tokens[*pos])
 				*pos++
 			}
@@ -529,9 +530,9 @@ func (r *Reader) skeletonTop(tokens []token, pos *int, blockIDByKey map[string]s
 // skeletonRefValue writes a Ref for a string message value (its prefix as Text,
 // then the Ref in place of the raw quoted bytes). A non-string value (invalid
 // ARB) is copied verbatim defensively.
-func (r *Reader) skeletonRefValue(tokens []token, pos *int, blockID string) {
-	if *pos < len(tokens) && tokens[*pos].typ == tokString {
-		r.skelText(tokens[*pos].prefix)
+func (r *Reader) skeletonRefValue(tokens []jsonscan.Token, pos *int, blockID string) {
+	if *pos < len(tokens) && tokens[*pos].Type == jsonscan.String {
+		r.skelText(tokens[*pos].Prefix)
 		r.skelRef(blockID)
 		*pos++
 		return
@@ -541,27 +542,27 @@ func (r *Reader) skeletonRefValue(tokens []token, pos *int, blockID string) {
 
 // skeletonCopyValue copies an arbitrary JSON value (scalar/object/array) to the
 // skeleton verbatim, keeping nested structure balanced.
-func (r *Reader) skeletonCopyValue(tokens []token, pos *int) {
+func (r *Reader) skeletonCopyValue(tokens []jsonscan.Token, pos *int) {
 	if *pos >= len(tokens) {
 		return
 	}
 	tok := tokens[*pos]
-	switch tok.typ {
-	case tokObjectStart, tokArrayStart:
+	switch tok.Type {
+	case jsonscan.ObjectStart, jsonscan.ArrayStart:
 		r.skelToken(tok)
 		*pos++
 		depth := 1
 		for depth > 0 && *pos < len(tokens) {
 			t := tokens[*pos]
-			if t.typ == tokEOF {
+			if t.Type == jsonscan.EOF {
 				return
 			}
 			r.skelToken(t)
 			*pos++
-			switch t.typ {
-			case tokObjectStart, tokArrayStart:
+			switch t.Type {
+			case jsonscan.ObjectStart, jsonscan.ArrayStart:
 				depth++
-			case tokObjectEnd, tokArrayEnd:
+			case jsonscan.ObjectEnd, jsonscan.ArrayEnd:
 				depth--
 			}
 		}
