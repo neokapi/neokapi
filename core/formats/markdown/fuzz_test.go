@@ -412,6 +412,10 @@ func FuzzRoundTripMarkdown(f *testing.F) {
 	// walking past it took the line's own indent into the spelling.
 	f.Add([]byte(" \\\n0"))
 	f.Add([]byte("a\n \\\n0"))
+	// #2635: a reference link was resolved inline and its definition's title
+	// written as a bare paragraph, so the one block was two on re-read.
+	f.Add([]byte("[][R]\n\n[R]:0 '0'"))
+	f.Add([]byte("See [R] here.\n\n[R]: /x 'T'\n"))
 	seedDamagedMarkdown(f)
 
 	f.Fuzz(func(t *testing.T, data []byte) {

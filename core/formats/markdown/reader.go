@@ -591,6 +591,16 @@ func (r *Reader) scanReferenceVisibility(doc ast.Node) {
 	})
 }
 
+// The parts a link reference definition travels as: a Data part carrying its
+// resolved label, destination and title, then a block for the label when a
+// shortcut or collapsed reference shows it and one for the title when any
+// reference uses the label.
+const (
+	dataLinkReferenceDefinition = "link-reference-definition"
+	blockTypeRefLabel           = "link-reference-label"
+	blockTypeRefTitle           = "link-reference-title"
+)
+
 // emitLinkReferenceDefinition emits one `[label]: url "title"` block. The
 // label and title are extracted as translatable text runs when the
 // matching shortcut/collapsed reference is visible (label) or any
@@ -644,20 +654,25 @@ func (r *Reader) emitLinkReferenceDefinition(ctx context.Context, ch chan<- mode
 	// lines came back on one (#2462).
 	spans, located := scanRefDefinition(def)
 
-	// The simple case: no translatable parts → emit as Data so the
-	// non-skeleton write path can still reconstruct the line, and let
-	// the skeleton path replay the definition's own bytes.
+	// The definition rides the stream as Data whether or not any of it is
+	// translatable: the non-skeleton write path spells a reference link as a
+	// reference, so it needs the definition to resolve it (#2635). A
+	// translatable label or title follows as a block of its own, and the
+	// writer fills it in.
+	r.dataCounter++
+	data := &model.Data{
+		ID:   fmt.Sprintf("d%d", r.dataCounter),
+		Name: dataLinkReferenceDefinition,
+		Properties: map[string]string{
+			"label":       label,
+			"destination": urlLiteral,
+			"title":       string(n.Title),
+		},
+	}
+
+	// The simple case: no translatable parts, so the skeleton path replays
+	// the definition's own bytes.
 	if !labelVisible && !titleUsed {
-		r.dataCounter++
-		data := &model.Data{
-			ID:   fmt.Sprintf("d%d", r.dataCounter),
-			Name: "link-reference-definition",
-			Properties: map[string]string{
-				"label":       label,
-				"destination": urlLiteral,
-				"title":       string(n.Title),
-			},
-		}
 		// Nothing here is translatable, so the definition's own source bytes go
 		// straight into the skeleton whether or not the scanner could place its
 		// parts. Rebuilding it from the resolved values spelled "[a]: dest"
@@ -680,6 +695,7 @@ func (r *Reader) emitLinkReferenceDefinition(ctx context.Context, ch chan<- mode
 	// + `addToQueue(node.getTitle().toString(), isRefTextUsed(refText), REFERENCE)`
 	// pattern: each translatable atom becomes its own short text unit so
 	// the content memory keys cleanly off the source string.
+	r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
 	if !located {
 		r.emitRebuiltReferenceDefinition(ctx, ch, n, def, label, urlLiteral, labelVisible, titleUsed)
 		if defEnd < len(r.source) && r.source[defEnd] == '\n' {
@@ -696,7 +712,7 @@ func (r *Reader) emitLinkReferenceDefinition(ctx context.Context, ch chan<- mode
 	}
 	r.skelText(string(def[:spans.labelStart]))
 	if labelVisible {
-		r.emitRefAtom(ctx, ch, labelText, kindRefLabel, "link-reference-label")
+		r.emitRefAtom(ctx, ch, labelText, kindRefLabel, blockTypeRefLabel)
 	} else {
 		r.skelText(labelText)
 	}
@@ -704,7 +720,7 @@ func (r *Reader) emitLinkReferenceDefinition(ctx context.Context, ch chan<- mode
 	if spans.titleStart >= 0 {
 		titleText := string(def[spans.titleStart:spans.titleEnd])
 		if titleUsed {
-			r.emitRefAtom(ctx, ch, titleText, kindRefTitle, "link-reference-title")
+			r.emitRefAtom(ctx, ch, titleText, kindRefTitle, blockTypeRefTitle)
 		} else {
 			r.skelText(titleText)
 		}
@@ -736,7 +752,7 @@ func (r *Reader) emitRebuiltReferenceDefinition(ctx context.Context, ch chan<- m
 
 	r.skelText("[")
 	if labelVisible {
-		r.emitRefAtom(ctx, ch, label, kindRefLabel, "link-reference-label")
+		r.emitRefAtom(ctx, ch, label, kindRefLabel, blockTypeRefLabel)
 	} else {
 		r.skelText(label)
 	}
@@ -749,7 +765,7 @@ func (r *Reader) emitRebuiltReferenceDefinition(ctx context.Context, ch chan<- m
 	open, close := titleDelimiters(def, string(n.Title))
 	r.skelText(" " + open)
 	if titleUsed {
-		r.emitRefAtom(ctx, ch, string(n.Title), kindRefTitle, "link-reference-title")
+		r.emitRefAtom(ctx, ch, string(n.Title), kindRefTitle, blockTypeRefTitle)
 	} else {
 		r.skelText(string(n.Title))
 	}
