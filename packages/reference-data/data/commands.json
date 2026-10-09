@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-09T16:32:38Z",
+  "generatedAt": "2026-10-09T17:04:50Z",
   "commands": [
     {
       "id": "add",
@@ -4192,6 +4192,11 @@
         {
           "name": "target-lang",
           "usage": "target language (e.g. fr, de-DE); one per run",
+          "type": "string"
+        },
+        {
+          "name": "term-rules",
+          "usage": "YAML or JSON file of term rules to check against instead of the project's terms store: a `term_rules:` list of {term, replacement}, the shape the MCP tool takes",
           "type": "string"
         },
         {

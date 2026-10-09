@@ -755,17 +755,13 @@ type bilingualCase struct {
 	badTarget  string
 	goodTarget string
 	// mcpArgs and cliArgs carry the tool's own configuration on each surface.
-	mcpArgs map[string]any
-	cliArgs []string
-	// cliDriven is false for a tool the CLI cannot be given the same
-	// configuration as the MCP call, where the fixtures are still held to
-	// must-fail and must-pass. term-check is the one: `kapi exec term-check`
-	// resolves its rules from a project's terms store and has no flag for the
-	// ad-hoc rules an MCP call sends, so the two surfaces cannot be handed the
-	// same input. The project-resolved path is compared end to end in
+	// term-check takes its rules as `term_rules` over MCP and as a file of the
+	// same shape through `kapi exec term-check --term-rules`; the
+	// project-resolved path is compared end to end in
 	// TestMCPConformanceCheckFileBilingualParity, where both surfaces read the
 	// same terms store.
-	cliDriven bool
+	mcpArgs map[string]any
+	cliArgs []string
 }
 
 func TestMCPConformanceBilingualChecksParity(t *testing.T) {
@@ -775,6 +771,12 @@ func TestMCPConformanceBilingualChecksParity(t *testing.T) {
 	dir := t.TempDir()
 	const targetLang = "nb"
 
+	// The same rules on both surfaces: inline over MCP, as a file of the same
+	// shape on the command line.
+	termRules := filepath.Join(dir, "term-rules.yaml")
+	require.NoError(t, os.WriteFile(termRules,
+		[]byte("term_rules:\n  - term: content memory\n    replacement: innholdsminnet\n"), 0o644))
+
 	cases := []bilingualCase{
 		{
 			tool:       "dnt-check",
@@ -783,21 +785,18 @@ func TestMCPConformanceBilingualChecksParity(t *testing.T) {
 			goodTarget: "Åpne Kapi dashboard.",
 			mcpArgs:    map[string]any{"terms": []string{"dashboard"}},
 			cliArgs:    []string{"--terms", "dashboard"},
-			cliDriven:  true,
 		},
 		{
 			tool:       "placeholder-check",
 			source:     "Hello {name}",
 			badTarget:  "Hei {navn}",
 			goodTarget: "Hei {name}",
-			cliDriven:  true,
 		},
 		{
 			tool:       "qa",
 			source:     "Save the document.",
 			badTarget:  "Lagre lagre dokumentet.",
 			goodTarget: "Lagre dokumentet.",
-			cliDriven:  true,
 		},
 		{
 			tool:       "term-check",
@@ -807,6 +806,7 @@ func TestMCPConformanceBilingualChecksParity(t *testing.T) {
 			mcpArgs: map[string]any{"term_rules": []map[string]string{
 				{"term": "content memory", "replacement": "innholdsminnet"},
 			}},
+			cliArgs: []string{"--term-rules", termRules},
 		},
 	}
 
@@ -839,10 +839,6 @@ func TestMCPConformanceBilingualChecksParity(t *testing.T) {
 						require.Empty(t, reported,
 							"must fail: %s reported a translation that satisfies it", tc.tool)
 					}
-					if !tc.cliDriven {
-						return
-					}
-
 					file := writeBilingual(t, dir, tc.tool+"-"+name+".xlf", tc.source, target, targetLang)
 					cli := kapiJSON(t, append([]string{"exec", tc.tool, file,
 						"--target-lang", targetLang, "--json"}, tc.cliArgs...)...)
