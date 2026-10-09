@@ -178,13 +178,11 @@ so a typo cannot become an identity nothing checks. The recipe's `locale_format`
 (`bcp-47`, the default, or `posix`) governs only how a locale is spelled in the
 paths kapi writes; internally there is one spelling.
 
-:::warning `-p` is `--progress` under `kapi exec`
-On `kapi exec <tool>` the `-p` shorthand is bound to `--progress`, the progress
-bar; those commands take no `--project` flag. So `kapi exec translate -p
-kapi.yaml` parses as a progress request with a stray positional argument, not as
-a load-project request. Give `kapi exec` its project context through the upward
-walk instead: run it from inside the tree, or point `KAPI_PROJECT` at the recipe.
-:::
+`kapi exec <tool>` takes `-p` / `--project` like every other project-aware
+command, and its progress bar is `--progress` with no shorthand. Naming a
+project changes what governs the run (the recipe's tool presets, term rules
+and stores); the files named on the command line stay the files named, each
+read by the format its extension calls for.
 
 ### One output contract
 
