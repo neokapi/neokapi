@@ -56,3 +56,11 @@ func (a *App) ResolveEncoding(recipe string) string {
 	a.Encoding = ResolveEncodingName(a.Encoding, recipe)
 	return a.Encoding
 }
+
+// scopeEncoding bounds a resolved encoding to one run, as scopeSourceLang does
+// for the source language: a long-lived App must not read a second project in
+// the first project's charset. Call as `defer a.scopeEncoding()()`.
+func (a *App) scopeEncoding() func() {
+	named := a.Encoding
+	return func() { a.Encoding = named }
+}

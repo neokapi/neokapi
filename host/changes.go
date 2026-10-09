@@ -65,6 +65,10 @@ type ChangeServiceOptions struct {
 	// for a format whose reader has to be told it (a PO catalog's msgstr).
 	// Changes takes it from --target-lang.
 	TargetLocale model.LocaleID
+	// Encoding is the charset the documents are in, as a command's --encoding
+	// names it. Empty takes the recipe's defaults.encoding, then UTF-8. A call
+	// names its own, rather than reading the flag a command left on the App.
+	Encoding string
 	// AnyPath, outside a project, resolves a reference that leaves Root as a
 	// path on the file system relative to Root, as a command line names the
 	// files it is given. Without it such a reference is refused.
@@ -117,7 +121,7 @@ func (a *App) Changes(cmd Command, origin string) (*change.Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	return a.changeService(cmd.Context(), cmd, ChangeServiceOptions{Project: recipe, Origin: origin, Format: a.FormatFlag,
+	return a.changeService(cmd.Context(), cmd, ChangeServiceOptions{Project: recipe, Origin: origin, Format: a.FormatFlag, Encoding: a.Encoding,
 		TargetLocale: model.LocaleID(a.TargetLang), SourceLocale: model.LocaleID(a.SourceLang)})
 }
 
@@ -194,7 +198,7 @@ func (a *App) changeHome(opts ChangeServiceOptions) (changeHome, error) {
 		out = filepath.Join(wd, out)
 	}
 	return changeHome{
-		layout: &dirChangeLayout{app: a, root: dir, format: opts.Format, target: opts.TargetLocale, anywhere: opts.AnyPath, plainText: opts.PlainText,
+		layout: &dirChangeLayout{app: a, root: dir, format: opts.Format, target: opts.TargetLocale, enc: ResolveEncodingName(opts.Encoding, ""), anywhere: opts.AnyPath, plainText: opts.PlainText,
 			source: model.LocaleID(ResolveSourceLocale(string(opts.SourceLocale), "")), sourceNamed: opts.SourceLocale != "", out: out},
 		// Every kapi process of this user finds the same lock files for a
 		// document outside a project, whatever its temporary directory.
@@ -379,6 +383,9 @@ type dirChangeLayout struct {
 	format string
 	source model.LocaleID
 	target model.LocaleID
+	// enc is the charset the documents are read and written in
+	// (ChangeServiceOptions.Encoding, then UTF-8).
+	enc string
 	// anywhere resolves a reference that leaves root as a path on the file
 	// system (ChangeServiceOptions.AnyPath).
 	anywhere bool
@@ -411,7 +418,7 @@ func (l *dirChangeLayout) Locate(_ context.Context, doc string) (filehome.Doc, e
 			return filehome.Doc{}, err
 		}
 	}
-	enc := l.app.InputEncoding()
+	enc := l.enc
 	d := filehome.Doc{
 		Ref: ref, Path: path, Entry: entry,
 		Format:       l.app.formatBinding(name, nil, enc),
@@ -618,7 +625,7 @@ func (a *App) newProjectLayout(opts ChangeServiceOptions) (*projectChangeLayout,
 	return &projectChangeLayout{
 		app: a, root: pctx.ProjectDir, proj: proj, pctx: pctx, format: opts.Format, target: opts.TargetLocale,
 		source:     model.LocaleID(ResolveSourceLocale(string(opts.SourceLocale), proj.Defaults.SourceLanguage)),
-		enc:        ResolveEncodingName(a.Encoding, proj.Defaults.Encoding),
+		enc:        ResolveEncodingName(opts.Encoding, proj.Defaults.Encoding),
 		writerHook: opts.WriterHook,
 	}, nil
 }

@@ -104,6 +104,10 @@ func (r *daemonReader) Signature() format.FormatSignature {
 	return r.signature
 }
 
+// DecodesInput marks that the daemon applies the declared encoding itself: the
+// host forwards doc.Encoding in the process header beside the bytes or a path.
+func (r *daemonReader) DecodesInput() {}
+
 // Open captures the document for the upcoming Read call. It does not
 // open a daemon connection — that happens lazily in Read.
 func (r *daemonReader) Open(_ context.Context, doc *model.RawDocument) error {
@@ -263,6 +267,8 @@ func newDaemonWriter(pool *DaemonPool, plugin *Plugin, formatName string) *daemo
 		formatName: formatName,
 	}
 	w.FormatName = formatName
+	// The daemon encodes the bytes it returns; the host applies no charset to them.
+	w.Binary = true
 	return w
 }
 

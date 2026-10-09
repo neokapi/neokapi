@@ -102,7 +102,7 @@ any block matched, 1 if none did, 2 on error.`,
 	f.StringVarP(&a.FormatFlag, "format", "f", "", "input format (default: auto-detect by extension/content)")
 	a.AddEngineFlag(f)
 	a.AddSourceLangFlag(f)
-	a.AddEncodingFlag(f, "", "input encoding")
+	a.AddEncodingFlag(f, "", "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)")
 
 	// Full classic shorthand surface — kapi's persistent flags are never inherited
 	// (busybox root, or detached proxy), so -v/-c/-q are ours to define.

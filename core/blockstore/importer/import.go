@@ -151,7 +151,7 @@ func ImportFromFormat(
 	doc *model.RawDocument,
 	opts Options,
 ) (*Report, error) {
-	if err := reader.Open(ctx, doc); err != nil {
+	if err := format.OpenDocument(ctx, reader, doc); err != nil {
 		return nil, fmt.Errorf("importer: open format reader: %w", err)
 	}
 	defer reader.Close()

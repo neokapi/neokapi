@@ -123,7 +123,7 @@ func (r *Reader) readBuffered(ctx context.Context, ch chan<- model.PartResult, l
 	prologue, tsTag := extractTSPrologue(rawText)
 	lineBreak := detectLineBreak(rawText)
 	rawAt := func(start, end int64) string { return rawText[start:end] }
-	r.walkTokens(ctx, ch, newTSDecoder(bytes.NewReader(content)), locale, prologue, tsTag, lineBreak,
+	r.walkTokens(ctx, ch, newTSDecoder(bytes.NewReader(content), format.XMLCharsetReader(r.Doc)), locale, prologue, tsTag, lineBreak,
 		rawAt, func(int64) {}, func() int64 { return 0 })
 }
 
@@ -149,15 +149,16 @@ func (r *Reader) readStreaming(ctx context.Context, ch chan<- model.PartResult, 
 		}
 		return string(b)
 	}
-	r.walkTokens(ctx, ch, newTSDecoder(cr), locale, prologue, tsTag, lineBreak, rawAt, cr.DiscardTo, cr.Base)
+	r.walkTokens(ctx, ch, newTSDecoder(cr, format.XMLCharsetReader(r.Doc)), locale, prologue, tsTag, lineBreak, rawAt, cr.DiscardTo, cr.Base)
 	if sliceErr != nil {
 		ch <- model.PartResult{Error: sliceErr}
 	}
 }
 
 // newTSDecoder builds an xml.Decoder configured for Qt TS's lenient dialect.
-func newTSDecoder(r io.Reader) *xml.Decoder {
+func newTSDecoder(r io.Reader, charsetReader func(string, io.Reader) (io.Reader, error)) *xml.Decoder {
 	decoder := xml.NewDecoder(r)
+	decoder.CharsetReader = charsetReader
 	decoder.Strict = false
 	decoder.AutoClose = xml.HTMLAutoClose
 	decoder.Entity = xml.HTMLEntity

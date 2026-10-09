@@ -74,6 +74,8 @@ func (a *App) ToolConfigForUnit(
 		// across projects must not carry one recipe's answer into the next.
 		defer a.scopeSourceLang()()
 		a.ResolveSourceLang(proj.Defaults.SourceLanguage)
+		defer a.scopeEncoding()()
+		a.ResolveEncoding(proj.Defaults.Encoding)
 
 		point := a.GovernancePointFor(unit.Collection, unit.Path)
 		b, berr := a.resolveBindingsFor(cmd, proj, recipePath, point, unit.TargetLang)

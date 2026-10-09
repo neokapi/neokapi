@@ -35,7 +35,17 @@ func ExtractRules(content []byte) (*RuleSet, []ExternalRef, error) {
 // xml reader resolve ITS in a first pass over a re-openable input. The returned
 // RuleSet and external refs are identical to ExtractRules on the same bytes.
 func ExtractRulesReader(r io.Reader) (*RuleSet, []ExternalRef, error) {
-	return parseRulesStream(xml.NewDecoder(r))
+	return ExtractRulesReaderWith(r, nil)
+}
+
+// ExtractRulesReaderWith is ExtractRulesReader with charsetReader installed as
+// the decoder's CharsetReader, for a document whose prolog names a charset its
+// bytes are no longer in (format.XMLCharsetReader). A nil charsetReader leaves
+// the decoder's own prolog handling in force.
+func ExtractRulesReaderWith(r io.Reader, charsetReader func(string, io.Reader) (io.Reader, error)) (*RuleSet, []ExternalRef, error) {
+	dec := xml.NewDecoder(r)
+	dec.CharsetReader = charsetReader
+	return parseRulesStream(dec)
 }
 
 // ExternalRef describes one <its:rules xlink:href="..."> reference

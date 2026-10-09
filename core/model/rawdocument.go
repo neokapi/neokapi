@@ -4,13 +4,24 @@ import "io"
 
 // RawDocument represents an unprocessed input document.
 type RawDocument struct {
-	URI          string
-	Encoding     string
-	SourceLocale LocaleID
-	TargetLocale LocaleID
-	MimeType     string
-	FormatID     string // e.g., "html", "xliff", "docx"
-	Reader       io.ReadCloser
+	URI string
+	// Encoding is the charset the document is in. A caller declares it (the
+	// --encoding flag, the recipe's defaults.encoding) and the ingestion seam
+	// (format.OpenDocument) settles it against the bytes, so by the time a
+	// reader sees the document it names the encoding the document was read as.
+	Encoding string
+	// EncodingSettled reports that the ingestion seam settled Encoding from a
+	// byte-order mark or a declaration and, where that was not UTF-8,
+	// transcoded Reader to UTF-8. A reader then takes the bytes as UTF-8 and
+	// applies no charset heuristic of its own (an XML prolog, a PO header).
+	// When it is false the bytes are as the source holds them, and a reader
+	// with such a heuristic may still apply it.
+	EncodingSettled bool
+	SourceLocale    LocaleID
+	TargetLocale    LocaleID
+	MimeType        string
+	FormatID        string // e.g., "html", "xliff", "docx"
+	Reader          io.ReadCloser
 
 	// ReaderAt, with Size, is an optional random-access view over the same
 	// bytes as Reader. A container format (ZIP-backed: OOXML, ODF, EPUB, IDML)

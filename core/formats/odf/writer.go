@@ -40,6 +40,7 @@ func NewWriter() *Writer {
 	return &Writer{
 		FormatName:       "odf",
 		RequiresSkeleton: true,
+		Binary:           true,
 	}
 }
 

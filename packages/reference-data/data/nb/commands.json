@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-09T17:44:50Z",
+  "generatedAt": "2026-10-09T21:30:59Z",
   "commands": [
     {
       "id": "add",
@@ -4658,7 +4658,7 @@
         {
           "name": "encoding",
           "shorthand": "e",
-          "usage": "input file encoding",
+          "usage": "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)",
           "type": "string"
         },
         {

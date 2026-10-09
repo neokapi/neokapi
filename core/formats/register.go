@@ -102,7 +102,8 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 				{0x49, 0x49, 0x2a, 0x00},
 				{0x4d, 0x4d, 0x00, 0x2a},
 			},
-			Sniff: imagefmt.Sniff,
+			Sniff:  imagefmt.Sniff,
+			Binary: true,
 		}, "Image")
 	// The writer emits the (possibly localized) image bytes — the whole-image
 	// localization sink, e.g. pseudo-localized variants.
@@ -340,6 +341,7 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 		format.FormatSignature{
 			MIMETypes:  []string{"application/x-gettext-translation"},
 			Extensions: []string{".mo"},
+			Binary:     true,
 		}, "MO (Gettext, binary)")
 	reg.RegisterWriter("mo", func() format.DataFormatWriter { return mo.NewWriter() })
 	registerSchemaAndDecoder(o, reg, "mo", func() format.DataFormatReader { return mo.NewReader() })
@@ -421,6 +423,7 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 			MIMETypes:  []string{"audio/wav", "audio/mpeg", "audio/mp4", "audio/flac", "audio/ogg"},
 			Extensions: []string{".wav", ".mp3", ".m4a", ".aac", ".flac", ".ogg", ".opus"},
 			MagicBytes: [][]byte{[]byte("RIFF"), []byte("ID3"), []byte("OggS"), []byte("fLaC")},
+			Binary:     true,
 		}, "Audio")
 	reg.RegisterWriter("audio", func() format.DataFormatWriter { return audio.NewWriter() })
 
@@ -433,6 +436,7 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 		format.FormatSignature{
 			MIMETypes:  []string{"video/mp4", "video/quicktime", "video/x-matroska", "video/webm"},
 			Extensions: []string{".mp4", ".mov", ".m4v", ".mkv", ".webm", ".avi"},
+			Binary:     true,
 		}, "Video")
 	reg.RegisterWriter("video", func() format.DataFormatWriter { return video.NewWriter() })
 
@@ -480,6 +484,7 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 			},
 			Extensions: []string{".docx", ".docm", ".dotx", ".dotm", ".xlsx", ".xlsm", ".xltx", ".xltm", ".pptx", ".pptm", ".ppsx", ".potx"},
 			MagicBytes: [][]byte{{0x50, 0x4B, 0x03, 0x04}},
+			Binary:     true,
 		}, "Office Open XML")
 	reg.RegisterWriter("openxml", func() format.DataFormatWriter { return openxml.NewWriter() })
 	registerSchemaAndDecoder(o, reg, "openxml", func() format.DataFormatReader { return openxml.NewReader() })
@@ -550,6 +555,7 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 			},
 			Extensions: []string{".odt", ".ods", ".odp", ".odg", ".odf"},
 			MagicBytes: [][]byte{{0x50, 0x4B, 0x03, 0x04}},
+			Binary:     true,
 		}, "Open Document Format")
 	reg.RegisterWriter("odf", func() format.DataFormatWriter { return odf.NewWriter() })
 	registerSchemaAndDecoder(o, reg, "odf", func() format.DataFormatReader { return odf.NewReader() })
@@ -564,6 +570,7 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 			Sniff: func(data []byte) bool {
 				return bytes.Contains(data, []byte("application/epub+zip"))
 			},
+			Binary: true,
 		}, "EPUB E-Book")
 	reg.RegisterWriter("epub", func() format.DataFormatWriter { return epub.NewWriter() })
 	registerSchemaAndDecoder(o, reg, "epub", func() format.DataFormatReader { return epub.NewReader() })
@@ -589,6 +596,7 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 			},
 			Extensions: []string{".zip", ".tar", ".tgz", ".tar.gz"},
 			MagicBytes: [][]byte{{0x50, 0x4B, 0x03, 0x04}, {0x1f, 0x8b}},
+			Binary:     true,
 		}, "Archive (ZIP/TAR)")
 	reg.SetFormatPriority("archive", format.DefaultBuiltInPriority-10)
 

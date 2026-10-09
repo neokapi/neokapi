@@ -64,6 +64,7 @@ func (r *WasmReader) Signature() format.FormatSignature {
 		MIMETypes:  []string{"application/pdf"},
 		Extensions: []string{".pdf"},
 		MagicBytes: [][]byte{[]byte("%PDF-")},
+		Binary:     true,
 	}
 }
 

@@ -328,7 +328,7 @@ func (a *App) addInputFlags(cmd Command, withEngine bool) {
 	if withEngine {
 		a.AddEngineFlag(cmd.Flags())
 	}
-	a.AddEncodingFlag(cmd.Flags(), "e", "input file encoding")
+	a.AddEncodingFlag(cmd.Flags(), "e", "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)")
 	a.AddSourceLangFlag(cmd.Flags())
 }
 

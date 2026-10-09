@@ -204,7 +204,7 @@ func (p pass) read(ctx context.Context, reader format.DataFormatReader, writer f
 			_ = store.Close()
 		}
 	}()
-	if err := reader.Open(ctx, doc); err != nil {
+	if err := format.OpenDocument(ctx, reader, doc); err != nil {
 		return fmt.Errorf("open %s: %w", p.src, err)
 	}
 	rctx, cancel := context.WithCancel(ctx)
@@ -233,7 +233,7 @@ func (p pass) read(ctx context.Context, reader format.DataFormatReader, writer f
 // neither the input nor the block stream is held whole.
 func (p pass) stream(ctx context.Context, reader format.DataFormatReader, writer format.DataFormatWriter, doc *model.RawDocument) error {
 	store := format.NewWiredStreamingSkeleton(reader, writer)
-	if err := reader.Open(ctx, doc); err != nil {
+	if err := format.OpenDocument(ctx, reader, doc); err != nil {
 		reader.Close()
 		if store != nil {
 			_ = store.Close()
@@ -309,7 +309,7 @@ func (p pass) buffered(ctx context.Context, reader format.DataFormatReader, writ
 	if store != nil {
 		defer store.Close()
 	}
-	if err := reader.Open(ctx, doc); err != nil {
+	if err := format.OpenDocument(ctx, reader, doc); err != nil {
 		reader.Close()
 		return fmt.Errorf("open %s: %w", p.src, err)
 	}

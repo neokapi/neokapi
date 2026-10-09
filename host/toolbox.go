@@ -265,7 +265,7 @@ func (a *App) streamBlocks(ctx context.Context, path string, fn func(index int, 
 	if err := src.rawDocument(doc); err != nil {
 		return fmtName, err
 	}
-	if err := reader.Open(ctx, doc); err != nil {
+	if err := format.OpenDocument(ctx, reader, doc); err != nil {
 		return fmtName, fmt.Errorf("open %s: %w", DisplayName(path), err)
 	}
 

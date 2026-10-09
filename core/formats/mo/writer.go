@@ -44,7 +44,7 @@ type Writer struct {
 // NewWriter creates a new MO writer.
 func NewWriter() *Writer {
 	return &Writer{
-		FormatName: "mo", Interchange: true,
+		FormatName: "mo", Interchange: true, Binary: true,
 		cfg: &Config{},
 	}
 }

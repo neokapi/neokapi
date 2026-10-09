@@ -131,7 +131,7 @@ func htmlToText(ctx context.Context, uri string, data []byte) (string, error) {
 // readerText drives a format reader over doc and concatenates the plain
 // source text of every translatable block, separated by blank lines.
 func readerText(ctx context.Context, r format.DataFormatReader, doc *model.RawDocument) (string, error) {
-	if err := r.Open(ctx, doc); err != nil {
+	if err := format.OpenDocument(ctx, r, doc); err != nil {
 		return "", err
 	}
 	defer r.Close()

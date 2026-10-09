@@ -42,6 +42,7 @@ func NewWriter() *Writer {
 	return &Writer{
 		FormatName:       "epub",
 		RequiresSkeleton: true,
+		Binary:           true,
 	}
 }
 

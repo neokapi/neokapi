@@ -22,6 +22,7 @@ import (
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/safeio"
 	"github.com/neokapi/neokapi/core/tool"
@@ -134,6 +135,18 @@ func (a *App) RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 	}
 	if len(files) == 0 {
 		return errors.New("no files to process")
+	}
+
+	// In a project the recipe's defaults.encoding is the charset the run reads
+	// and writes in unless --encoding named one. The exec verb resolves no
+	// ProjectContext, so the recipe is read here for that one default.
+	if cfg.Project != "" {
+		proj, perr := project.LoadWithOptions(cfg.Project, project.LoadOptions{SkipRequiresCheck: true})
+		if perr != nil {
+			return fmt.Errorf("load project %s: %w", cfg.Project, perr)
+		}
+		defer a.scopeEncoding()()
+		a.ResolveEncoding(proj.Defaults.Encoding)
 	}
 
 	concurrency := cfg.Concurrency
@@ -502,7 +515,7 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 		Reader:       io.NopCloser(bytes.NewReader(content)),
 	}
 
-	if err := reader.Open(ctx, doc); err != nil {
+	if err := format.OpenDocument(ctx, reader, doc); err != nil {
 		if !cfg.FailOnUnknown {
 			if !cfg.NoWarn {
 				warnf(progress, "Warning: skipping %q: %v\n", filePath, err)
@@ -705,6 +718,7 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 
 		locale := model.LocaleID(cfg.TargetLang)
 		writer.SetLocale(locale)
+		writer.SetEncoding(a.InputEncoding())
 
 		// The writer renders into a file staged beside the destination, which
 		// commits through the file home a change set commits through.

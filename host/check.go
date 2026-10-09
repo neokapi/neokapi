@@ -294,6 +294,7 @@ func (a *App) applyProjectSourceLang(cmd Command) {
 		return
 	}
 	a.ResolveSourceLang(proj.Defaults.SourceLanguage)
+	a.ResolveEncoding(proj.Defaults.Encoding)
 }
 
 // runShipCheck is `kapi check --ship`: the project gate mode that absorbed the

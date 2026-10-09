@@ -93,10 +93,12 @@ type FormatSignature struct {
 	Extensions []string          // e.g., [".html", ".htm", ".xhtml"]
 	MagicBytes [][]byte          // Byte prefixes to match
 	Sniff      func([]byte) bool // Custom content sniffing function (optional)
-	// Binary marks a format whose reader consumes binary content (e.g. gettext
-	// .mo, video containers). It tells detection NOT to decline this format for
-	// binary input the way it does for a text format matched only by extension.
-	// Formats that declare MagicBytes or a Sniff are already treated as binary-
-	// capable; set this only for binary formats that have neither.
+	// Binary marks a format whose reader consumes bytes that are not text in a
+	// charset: a ZIP container, an image, a compiled catalog. Detection then
+	// does not decline the format for binary input the way it does for a text
+	// format matched only by extension, and OpenDocument hands the reader the
+	// bytes as they are instead of decoding them by the declared encoding.
+	// Every binary format declares it, with or without MagicBytes; the writer
+	// declares the same on its BaseFormatWriter.
 	Binary bool
 }

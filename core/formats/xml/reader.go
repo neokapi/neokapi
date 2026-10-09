@@ -239,7 +239,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	// honor translateRule, withinTextRule, locNoteRule, etc. Rules
 	// embedded later in the document override earlier ones (ITS 2.0
 	// §5.4 last-rule-wins).
-	embedded, externals, err := its.ExtractRules(content)
+	embedded, externals, err := its.ExtractRulesReaderWith(bytes.NewReader(content), format.XMLCharsetReader(r.Doc))
 	if err != nil {
 		// RVM: the ITS pre-scan parses the whole document, so a malformed file
 		// fails here before the streaming token loop. Surface it as the same
@@ -282,7 +282,7 @@ func (r *Reader) readContentStreaming(ctx context.Context, ch chan<- model.PartR
 	if err != nil {
 		return false
 	}
-	embedded, externals, rerr := its.ExtractRulesReader(safeio.DefaultBudget().Reader(f))
+	embedded, externals, rerr := its.ExtractRulesReaderWith(safeio.DefaultBudget().Reader(f), format.XMLCharsetReader(r.Doc))
 	f.Close()
 	if rerr != nil {
 		// The rules scan parses the whole document, so a malformed file fails
@@ -1920,6 +1920,7 @@ func (r *Reader) readContentCore(ctx context.Context, ch chan<- model.PartResult
 	if cr != nil {
 		decoder = xml.NewDecoder(cr)
 	}
+	decoder.CharsetReader = format.XMLCharsetReader(r.Doc)
 	s := &xmlParseState{
 		reader:        r,
 		ctx:           ctx,

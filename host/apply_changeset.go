@@ -127,7 +127,7 @@ func (a *App) RunApply(cmd Command, path string, opts ApplyOptions) error {
 		res, _, err = a.applyCommentChange(cmd, set, root, opts.BackupSuffix, path == "" || path == StdinName)
 	} else {
 		svcOpts := ChangeServiceOptions{
-			Project: recipe, Origin: "apply", Format: a.FormatFlag, SourceLocale: model.LocaleID(a.SourceLang),
+			Project: recipe, Origin: "apply", Format: a.FormatFlag, Encoding: a.Encoding, SourceLocale: model.LocaleID(a.SourceLang),
 			AnyPath: recipe == "", BackupSuffix: opts.BackupSuffix, EditionOut: opts.Out,
 			TargetLocale: targetLocaleOf(set, a.changeSourceLocale(recipe)),
 		}

@@ -592,7 +592,7 @@ func (a *App) readWithExtents(ctx context.Context, path string, content []byte, 
 		Encoding:     a.InputEncoding(),
 		Reader:       io.NopCloser(bytes.NewReader(content)),
 	}
-	if err := reader.Open(ctx, doc); err != nil {
+	if err := format.OpenDocument(ctx, reader, doc); err != nil {
 		return scopedRead{}, fmt.Errorf("open %q: %w", filepath.Base(path), err)
 	}
 	var out scopedRead

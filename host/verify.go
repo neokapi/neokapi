@@ -2037,7 +2037,7 @@ func (a *App) recordAndCollectBlocks(ctx context.Context, path, fmtName string, 
 		Encoding:     a.InputEncoding(),
 		Reader:       io.NopCloser(bytes.NewReader(content)),
 	}
-	if err := reader.Open(ctx, doc); err != nil {
+	if err := format.OpenDocument(ctx, reader, doc); err != nil {
 		return nil, fmt.Errorf("open %q: %w", filepath.Base(path), err)
 	}
 
@@ -2141,7 +2141,7 @@ func (a *App) readBlocksValidated(ctx context.Context, path, fmtName string, cfg
 		Encoding:     declaredEnc,
 		Reader:       io.NopCloser(bytes.NewReader(content)),
 	}
-	if err := reader.Open(ctx, doc); err != nil {
+	if err := format.OpenDocument(ctx, reader, doc); err != nil {
 		return nil, nil, fmt.Errorf("open %q: %w", filepath.Base(path), err)
 	}
 

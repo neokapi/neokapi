@@ -1924,7 +1924,7 @@ func (c *BowrainSourceConnector) readBlocksAndMedia(ctx context.Context, filePat
 		doc.ReaderAt, doc.Size = f, info.Size()
 	}
 
-	if err := reader.Open(ctx, doc); err != nil {
+	if err := format.OpenDocument(ctx, reader, doc); err != nil {
 		return nil, nil, fmt.Errorf("open document %s: %w", filePath, err)
 	}
 
@@ -2135,7 +2135,7 @@ func (c *BowrainSourceConnector) writeTranslatedFile(ctx context.Context, source
 		FormatID: formatName,
 		Reader:   f,
 	}
-	if err := reader.Open(ctx, doc); err != nil {
+	if err := format.OpenDocument(ctx, reader, doc); err != nil {
 		f.Close()
 		return fmt.Errorf("open document %s: %w", sourcePath, err)
 	}

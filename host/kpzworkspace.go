@@ -197,7 +197,7 @@ func captureSkeletonBytes(ctx context.Context, reg *registry.FormatRegistry, for
 		FormatID:     string(formatID),
 		Reader:       io.NopCloser(bytes.NewReader(data)),
 	}
-	if err := reader.Open(ctx, doc); err != nil {
+	if err := format.OpenDocument(ctx, reader, doc); err != nil {
 		return nil, err
 	}
 	for res := range reader.Read(ctx) {

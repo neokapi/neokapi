@@ -65,6 +65,7 @@ func (r *Reader) Signature() format.FormatSignature {
 			// Check for "mimetype" entry with "application/epub+zip"
 			return bytes.Contains(data, []byte("application/epub+zip"))
 		},
+		Binary: true,
 	}
 }
 

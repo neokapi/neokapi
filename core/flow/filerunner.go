@@ -289,12 +289,9 @@ func (r *FileRunner) RunFile(ctx context.Context, flowName string, tools []tool.
 		return fmt.Errorf("no writer for %q: %w", fmtName, err)
 	}
 
-	// Apply writer configuration (encoding, output options, project defaults).
-	if r.cfg.ConfigureWriter != nil {
-		if err := r.cfg.ConfigureWriter(writer, fmtName); err != nil {
-			reader.Close()
-			return fmt.Errorf("configure writer for %q: %w", fmtName, err)
-		}
+	if err := r.configureWriter(writer, fmtName); err != nil {
+		reader.Close()
+		return err
 	}
 
 	return r.RunFileWithReaderWriter(ctx, flowName, tools, inputPath, outputPath, targetLang, reader, writer)
@@ -337,6 +334,19 @@ func (r *FileRunner) RunFileProcessOnly(ctx context.Context, flowName string, to
 	return r.RunFileToStore(ctx, flowName, tools, inputPath, targetLang, reader)
 }
 
+// configureWriter gives writer the run's encoding, so it writes back in the
+// charset the input was read in, then applies the ConfigureWriter callback
+// (project encoding, shared output options, format defaults) over it.
+func (r *FileRunner) configureWriter(writer format.DataFormatWriter, fmtName registry.FormatID) error {
+	writer.SetEncoding(r.cfg.Encoding)
+	if r.cfg.ConfigureWriter != nil {
+		if err := r.cfg.ConfigureWriter(writer, fmtName); err != nil {
+			return fmt.Errorf("configure writer for %q: %w", fmtName, err)
+		}
+	}
+	return nil
+}
+
 // openReader opens reader over a budget-bounded streaming source for inputPath.
 // The reader pulls bytes on demand (phase 1: no eager whole-file os.ReadFile);
 // the caller is responsible for closing the reader, which closes the source.
@@ -351,7 +361,7 @@ func (r *FileRunner) openReader(ctx context.Context, reader format.DataFormatRea
 	if bs, ok := source.(*budgetedSource); ok && bs.readerAt != nil {
 		doc.ReaderAt, doc.Size = bs.readerAt, bs.size
 	}
-	if err := reader.Open(ctx, doc); err != nil {
+	if err := format.OpenDocument(ctx, reader, doc); err != nil {
 		reader.Close()
 		return fmt.Errorf("open %q: %w", filepath.Base(inputPath), err)
 	}
@@ -1074,10 +1084,8 @@ func (r *FileRunner) RunSkeletonReconstruct(ctx context.Context, flowName string
 	if !ok {
 		return fmt.Errorf("format %q cannot reconstruct from a skeleton (no skeleton consumer)", formatID)
 	}
-	if r.cfg.ConfigureWriter != nil {
-		if err := r.cfg.ConfigureWriter(writer, formatID); err != nil {
-			return fmt.Errorf("configure writer for %q: %w", formatID, err)
-		}
+	if err := r.configureWriter(writer, formatID); err != nil {
+		return err
 	}
 
 	parts, err := partsFromSkeleton(skelBytes)
@@ -1419,11 +1427,9 @@ func (r *FileRunner) RunStream(ctx context.Context, flowName string, tools []too
 		reader.Close()
 		return fmt.Errorf("no writer for %q: %w", fmtID, err)
 	}
-	if r.cfg.ConfigureWriter != nil {
-		if err := r.cfg.ConfigureWriter(writer, fmtID); err != nil {
-			reader.Close()
-			return fmt.Errorf("configure writer for %q: %w", fmtID, err)
-		}
+	if err := r.configureWriter(writer, fmtID); err != nil {
+		reader.Close()
+		return err
 	}
 
 	// A writer that needs the original bytes (OpenXML/AsciiDoc) is not a

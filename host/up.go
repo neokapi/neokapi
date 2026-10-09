@@ -207,6 +207,7 @@ func (a *App) ExecuteUp(cmd Command, projectPath string) error {
 	// rather than inside one of its arms. The plan preamble below and the loop
 	// itself then read the same language (host/sourcelang.go).
 	a.ResolveSourceLang(proj.Defaults.SourceLanguage)
+	a.ResolveEncoding(proj.Defaults.Encoding)
 
 	// The run is live by default: --json streams the convergence
 	// events as NDJSON (one event per line, a final result record) for

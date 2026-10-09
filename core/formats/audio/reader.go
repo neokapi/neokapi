@@ -39,6 +39,7 @@ func (r *Reader) Signature() format.FormatSignature {
 		MIMETypes:  []string{"audio/wav", "audio/mpeg", "audio/mp4", "audio/flac", "audio/ogg"},
 		Extensions: []string{".wav", ".mp3", ".m4a", ".aac", ".flac", ".ogg", ".opus"},
 		MagicBytes: [][]byte{[]byte("RIFF"), []byte("ID3"), []byte("OggS"), []byte("fLaC")},
+		Binary:     true,
 	}
 }
 

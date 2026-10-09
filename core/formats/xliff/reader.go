@@ -295,10 +295,18 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		ch <- model.PartResult{Error: fmt.Errorf("xliff: reading: %w", err)}
 		return
 	}
-	rawText, srcCharset, err := transcodeToUTF8(raw)
-	if err != nil {
-		ch <- model.PartResult{Error: fmt.Errorf("xliff: parsing: %w", err)}
-		return
+	// The ingestion seam (format.OpenDocument) decodes by a byte-order mark or
+	// a declared encoding before the bytes arrive here; the prolog's charset is
+	// the heuristic for a document it left unsettled.
+	var rawText, srcCharset string
+	if r.Doc.EncodingSettled {
+		rawText, srcCharset = sanitizeXMLControlChars(string(raw)), r.Doc.Encoding
+	} else {
+		rawText, srcCharset, err = transcodeToUTF8(raw)
+		if err != nil {
+			ch <- model.PartResult{Error: fmt.Errorf("xliff: parsing: %w", err)}
+			return
+		}
 	}
 	// OkapiCompatConfig.SimulateBrokenWindows1252Read: when the source
 	// declared a non-UTF-8 charset, replace every non-ASCII rune in

@@ -150,7 +150,7 @@ func (r *Reader) readBuffered(ctx context.Context, ch chan<- model.PartResult, l
 	rawText := string(utf8Bytes)
 
 	rawAt := func(start, end int64) string { return rawText[start:end] }
-	r.walkTokens(ctx, ch, newTMXDecoder(strings.NewReader(rawText)), layer, locale, rawAt, func(int64) {}, hadUTF8BOM)
+	r.walkTokens(ctx, ch, newTMXDecoder(strings.NewReader(rawText), format.XMLCharsetReader(r.Doc)), layer, locale, rawAt, func(int64) {}, hadUTF8BOM)
 }
 
 // readStreaming walks the decoder over a bounded CaptureReader window: raw
@@ -178,7 +178,7 @@ func (r *Reader) readStreaming(ctx context.Context, ch chan<- model.PartResult, 
 		}
 		return string(b)
 	}
-	r.walkTokens(ctx, ch, newTMXDecoder(cr), layer, locale, rawAt, cr.DiscardTo, hadUTF8BOM)
+	r.walkTokens(ctx, ch, newTMXDecoder(cr, format.XMLCharsetReader(r.Doc)), layer, locale, rawAt, cr.DiscardTo, hadUTF8BOM)
 	if sliceErr != nil {
 		ch <- model.PartResult{Error: sliceErr}
 	}
@@ -186,8 +186,9 @@ func (r *Reader) readStreaming(ctx context.Context, ch chan<- model.PartResult, 
 
 // newTMXDecoder builds an xml.Decoder configured for TMX's lenient dialect
 // (DTD declarations, HTML entity/auto-close tolerance).
-func newTMXDecoder(r io.Reader) *xml.Decoder {
+func newTMXDecoder(r io.Reader, charsetReader func(string, io.Reader) (io.Reader, error)) *xml.Decoder {
 	decoder := xml.NewDecoder(r)
+	decoder.CharsetReader = charsetReader
 	decoder.Strict = false
 	decoder.AutoClose = xml.HTMLAutoClose
 	decoder.Entity = xml.HTMLEntity

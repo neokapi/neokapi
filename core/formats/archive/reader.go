@@ -62,6 +62,7 @@ func (r *Reader) Signature() format.FormatSignature {
 		},
 		Extensions: []string{".zip", ".tar", ".tgz", ".tar.gz"},
 		MagicBytes: [][]byte{{0x50, 0x4B, 0x03, 0x04}, {0x1f, 0x8b}},
+		Binary:     true,
 	}
 }
 
@@ -166,13 +167,15 @@ func (r *Reader) emitChild(ctx context.Context, ch chan<- model.PartResult, root
 		sa.SetSubfilterResolver(r.resolver)
 	}
 
+	// An entry is read in the encoding declared for the archive: the container
+	// is binary, so the declaration reaches the text inside it here.
 	subDoc := &model.RawDocument{
 		URI:          name,
 		SourceLocale: locale,
-		Encoding:     "UTF-8",
+		Encoding:     r.Doc.Encoding,
 		Reader:       io.NopCloser(bytes.NewReader(content)),
 	}
-	if err := subReader.Open(ctx, subDoc); err != nil {
+	if err := format.OpenDocument(ctx, subReader, subDoc); err != nil {
 		return r.emitData(ctx, ch, name, uint64(len(content)))
 	}
 

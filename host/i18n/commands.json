@@ -45,7 +45,7 @@
               "usage": "compute and check the change set, print a diff per document, and write nothing"
             },
             "encoding": {
-              "usage": "input/output encoding"
+              "usage": "charset the input is read in and the output written in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)"
             },
             "engine": {
               "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
@@ -528,7 +528,7 @@
                 "usage": "max parallel files (0 = auto)"
               },
               "encoding": {
-                "usage": "input file encoding"
+                "usage": "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)"
               },
               "engine": {
                 "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
@@ -599,7 +599,7 @@
                 "usage": "Create a target even for non-translatable blocks"
               },
               "encoding": {
-                "usage": "input file encoding"
+                "usage": "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)"
               },
               "engine": {
                 "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
@@ -670,7 +670,7 @@
                 "usage": "max parallel files (0 = auto)"
               },
               "encoding": {
-                "usage": "input file encoding"
+                "usage": "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)"
               },
               "engine": {
                 "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
@@ -738,7 +738,7 @@
                 "usage": "max parallel files (0 = auto)"
               },
               "encoding": {
-                "usage": "input file encoding"
+                "usage": "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)"
               },
               "engine": {
                 "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
@@ -797,7 +797,7 @@
                 "usage": "max parallel files (0 = auto)"
               },
               "encoding": {
-                "usage": "input file encoding"
+                "usage": "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)"
               },
               "engine": {
                 "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
@@ -859,7 +859,7 @@
                 "usage": "saved credential name to use (see 'kapi credentials list')"
               },
               "encoding": {
-                "usage": "input file encoding"
+                "usage": "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)"
               },
               "engine": {
                 "usage": "llm (AI provider; default) / ner (local on-device model: nothing leaves the machine) / hybrid (both) (LLM (AI provider), Local NER (on-device), Hybrid (NER + LLM))"
@@ -933,7 +933,7 @@
                 "usage": "max parallel files (0 = auto)"
               },
               "encoding": {
-                "usage": "input file encoding"
+                "usage": "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)"
               },
               "engine": {
                 "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
@@ -1010,7 +1010,7 @@
                 "usage": "max parallel files (0 = auto)"
               },
               "encoding": {
-                "usage": "input file encoding"
+                "usage": "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)"
               },
               "engine": {
                 "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
@@ -1088,7 +1088,7 @@
                 "usage": "saved credential name to use (see 'kapi credentials list')"
               },
               "encoding": {
-                "usage": "input file encoding"
+                "usage": "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)"
               },
               "engine": {
                 "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
@@ -1156,7 +1156,7 @@
                 "usage": "max parallel files (0 = auto)"
               },
               "encoding": {
-                "usage": "input file encoding"
+                "usage": "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)"
               },
               "engine": {
                 "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
@@ -1216,7 +1216,7 @@
                 "usage": "max parallel files (0 = auto)"
               },
               "encoding": {
-                "usage": "input file encoding"
+                "usage": "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)"
               },
               "engine": {
                 "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
@@ -1366,7 +1366,7 @@
                 "usage": "Semicolon-separated list of words allowed to repeat (e.g. sie;vous;nous)"
               },
               "encoding": {
-                "usage": "input file encoding"
+                "usage": "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)"
               },
               "engine": {
                 "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
@@ -1477,7 +1477,7 @@
                 "usage": "Reduce score by 1%% when multiple identical exact matches are returned"
               },
               "encoding": {
-                "usage": "input file encoding"
+                "usage": "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)"
               },
               "engine": {
                 "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
@@ -1566,7 +1566,7 @@
                 "usage": "Detection backends to run: rules and/or entities"
               },
               "encoding": {
-                "usage": "input file encoding"
+                "usage": "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)"
               },
               "engine": {
                 "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
@@ -1634,7 +1634,7 @@
                 "usage": "max parallel files (0 = auto)"
               },
               "encoding": {
-                "usage": "input file encoding"
+                "usage": "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)"
               },
               "engine": {
                 "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
@@ -1715,7 +1715,7 @@
                 "usage": "saved credential name to use (see 'kapi credentials list')"
               },
               "encoding": {
-                "usage": "input file encoding"
+                "usage": "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)"
               },
               "engine": {
                 "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
@@ -1789,7 +1789,7 @@
                 "usage": "max parallel files (0 = auto)"
               },
               "encoding": {
-                "usage": "input file encoding"
+                "usage": "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)"
               },
               "engine": {
                 "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
@@ -1857,7 +1857,7 @@
                 "usage": "Make the period character match every character including line-feed"
               },
               "encoding": {
-                "usage": "input file encoding"
+                "usage": "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)"
               },
               "engine": {
                 "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
@@ -1941,7 +1941,7 @@
                 "usage": "Stored credential name"
               },
               "encoding": {
-                "usage": "input file encoding"
+                "usage": "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)"
               },
               "engine": {
                 "usage": "Which segmenter to use; the default needs no configuration (Rule-based (hybrid SRX/UAX-29), Unicode baseline (UAX-29), LLM (semantic chunks))"
@@ -2047,7 +2047,7 @@
                 "usage": "max parallel files (0 = auto)"
               },
               "encoding": {
-                "usage": "input file encoding"
+                "usage": "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)"
               },
               "engine": {
                 "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
@@ -2119,7 +2119,7 @@
                 "usage": "Subject domain for terminology extraction (e.g. medical legal technology)"
               },
               "encoding": {
-                "usage": "input file encoding"
+                "usage": "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)"
               },
               "engine": {
                 "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
@@ -2194,7 +2194,7 @@
                 "usage": "saved credential name to use (see 'kapi credentials list')"
               },
               "encoding": {
-                "usage": "input file encoding"
+                "usage": "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)"
               },
               "engine": {
                 "usage": "Translation engine: an AI model or a machine-translation provider (AI (LLM), Machine translation)"
@@ -2271,7 +2271,7 @@
                 "usage": "max parallel files (0 = auto)"
               },
               "encoding": {
-                "usage": "input file encoding"
+                "usage": "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)"
               },
               "engine": {
                 "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
@@ -2324,7 +2324,7 @@
                 "usage": "max parallel files (0 = auto)"
               },
               "encoding": {
-                "usage": "input file encoding"
+                "usage": "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)"
               },
               "engine": {
                 "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
@@ -2390,7 +2390,7 @@
                 "usage": "saved credential name to use (see 'kapi credentials list')"
               },
               "encoding": {
-                "usage": "input file encoding"
+                "usage": "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)"
               },
               "engine": {
                 "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
@@ -2458,7 +2458,7 @@
                 "usage": "Subject domain hint for the analysis (e.g. medical legal technology)"
               },
               "encoding": {
-                "usage": "input file encoding"
+                "usage": "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)"
               },
               "engine": {
                 "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
@@ -2532,7 +2532,7 @@
                 "usage": "Correct whitespace after question marks"
               },
               "encoding": {
-                "usage": "input file encoding"
+                "usage": "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)"
               },
               "engine": {
                 "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
@@ -2624,7 +2624,7 @@
                 "usage": "max parallel files (0 = auto)"
               },
               "encoding": {
-                "usage": "input file encoding"
+                "usage": "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)"
               },
               "engine": {
                 "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
@@ -2851,7 +2851,7 @@
           "example": "  kapi inspect report.docx\n  kapi inspect --jsonl 'docs/**/*.md' | jq '{ref, rev}'\n  kapi inspect --output-format yaml report.dclg.xml\n  kapi inspect report.docx --render html,markdown   # each block rendered per format\n  kapi inspect -p site/kapi.yaml site/docs/guide.md\n  cat page.html | kapi inspect -f html",
           "flags": {
             "encoding": {
-              "usage": "input encoding"
+              "usage": "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)"
             },
             "engine": {
               "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
@@ -3446,7 +3446,7 @@
               "usage": "saved credential name to use (see 'kapi credentials list')"
             },
             "encoding": {
-              "usage": "input file encoding"
+              "usage": "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)"
             },
             "engine": {
               "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
@@ -3574,7 +3574,7 @@
               "usage": "saved credential name to use (see 'kapi credentials list')"
             },
             "encoding": {
-              "usage": "input file encoding"
+              "usage": "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)"
             },
             "engine": {
               "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
@@ -3648,7 +3648,7 @@
           "example": "  kapi stats report.docx\n  kapi stats 'src/**'                       # every file under src, any depth\n  kapi stats --output-format json 'docs/**/*.md' | jq '.total.words'\n  kapi stats                                # inside a project: its tracked content\n  cat page.html | kapi stats -f html",
           "flags": {
             "encoding": {
-              "usage": "input encoding"
+              "usage": "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)"
             },
             "engine": {
               "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
@@ -4071,7 +4071,7 @@
               "usage": "saved credential name to use (see 'kapi credentials list')"
             },
             "encoding": {
-              "usage": "input file encoding"
+              "usage": "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)"
             },
             "engine": {
               "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
@@ -4221,7 +4221,7 @@
               "usage": "saved credential name to use (see 'kapi credentials list')"
             },
             "encoding": {
-              "usage": "input file encoding"
+              "usage": "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)"
             },
             "engine": {
               "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"

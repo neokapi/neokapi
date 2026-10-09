@@ -98,6 +98,7 @@ func (a *App) flowDocumentsIn(ctx context.Context, cmd Command, root string, sou
 	fc := &flowChanges{app: a, ctx: ctx, root: root, print: a.printOps, home: home, source: source}
 	fc.changes = a.newCommandChanges(flowHookCommand(ctx, cmd, recipe), recipe, ChangeServiceOptions{
 		Format:       a.FormatFlag,
+		Encoding:     a.Encoding,
 		SourceLocale: source,
 		// The follower reads revisions and applies the run's own
 		// operations; it shows no edition's basis.

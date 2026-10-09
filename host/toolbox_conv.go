@@ -194,7 +194,7 @@ func (a *App) convertDocument(ctx context.Context, path string, toFmt registry.F
 	if err := src.rawDocument(doc); err != nil {
 		return err
 	}
-	if err := reader.Open(ctx, doc); err != nil {
+	if err := format.OpenDocument(ctx, reader, doc); err != nil {
 		return fmt.Errorf("open %s: %w", DisplayName(path), err)
 	}
 

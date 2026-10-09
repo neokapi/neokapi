@@ -21,7 +21,7 @@ type Writer struct {
 
 // NewWriter constructs an image writer.
 func NewWriter() *Writer {
-	return &Writer{FormatName: "image", RequiresSkeleton: true}
+	return &Writer{FormatName: "image", RequiresSkeleton: true, Binary: true}
 }
 
 // Write consumes the part stream and writes the first Media part's image bytes.
