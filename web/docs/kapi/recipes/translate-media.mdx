@@ -18,7 +18,7 @@ There are two ways to take a media file into another language, usable together o
 - **Translate the text inside it**: speech in audio, dialogue and on-screen text in video, words in an image. kapi recognizes the text, translates it, and writes a subtitle file or a translated caption.
 - **Replace the whole file**: when the file itself is the deliverable, supply a translated version per language and kapi carries it through as that language's asset (no text-to-speech, no re-encoding; you provide the file).
 
-Recognition runs on your machine; try it with no install in the [in-browser labs](/lab/media). The translating model is the one you already configured; see [Choose a translation model](/kapi/recipes/choose-a-translation-provider).
+Recognition runs on your machine; try it with no install in the [in-browser labs](/learn/media). The translating model is the one you already configured; see [Choose a translation model](/kapi/recipes/choose-a-translation-provider).
 
 <PipelineDiagram
   stages={[
@@ -63,5 +63,5 @@ In a project, the flows run without `-i` across the declared content, and output
 
 ## Next
 
-- [In-browser labs](/lab/media): the same recognition, client-side, nothing to install.
+- [In-browser labs](/learn/media): the same recognition, client-side, nothing to install.
 - [Keep terms consistent](/kapi/recipes/terminology-checks): terminology enforcement on subtitle output.

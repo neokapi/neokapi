@@ -27,8 +27,6 @@ export interface FilesPaneProps {
   version: number;
 }
 
-const dec = new TextDecoder();
-
 function Tree({
   nodes,
   depth,

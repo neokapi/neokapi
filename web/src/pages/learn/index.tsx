@@ -134,7 +134,7 @@ export default function LearnIndexPage(): React.ReactElement {
       description={translate({
         id: "learn.page.description",
         message:
-          "Learn kapi by running it: eleven short labs in three sample projects, each a scripted session in the real kapi engine running in your browser. Press play, watch the commands run, then type your own.",
+          "Learn kapi by running it: short labs in three sample projects and a series of engine explorers, each a session in the real kapi engine running in your browser. Press play, watch the commands run, then type your own.",
       })}
     >
       <main className="kapi-reference kl-index">

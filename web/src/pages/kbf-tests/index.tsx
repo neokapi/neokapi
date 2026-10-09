@@ -47,8 +47,8 @@ export default function KbfTestsPage(): React.ReactElement {
 
         <LabFootnote>
           Curious how a document flows through these operations? Read the{" "}
-          <Link to="/learn/kbf-anatomy">anatomy of a KBF document</Link> and round-trip one live, or consult
-          the <Link to="/reference/serialization/content-bundle">specification</Link>.
+          <Link to="/learn/kbf-anatomy">anatomy of a KBF document</Link> and round-trip one live, or
+          consult the <Link to="/reference/serialization/content-bundle">specification</Link>.
         </LabFootnote>
       </LabPageShell>
     </Layout>

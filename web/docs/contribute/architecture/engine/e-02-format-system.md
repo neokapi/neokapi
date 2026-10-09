@@ -331,7 +331,7 @@ it can write via `GenerativeWriter.Generative()` (the inverse of
 registry records them on `FormatInfo.Generative` / `FormatInfo.Interchange`:
 probed once from the built-in writer at registration, and for plugin formats taken
 from the cached manifest's `generative` / `interchange` capabilities, so
-conversion, the [Conversion lab](/lab/convert), and `kapi formats` read one
+conversion, the [Conversion lab](/learn/conversion), and `kapi formats` read one
 authoritative source **without loading any plugin**. Neither is derived from
 `SkeletonStoreConsumer` (nearly every writer consumes a skeleton if offered, so
 that bit does not distinguish a target) nor probed empirically.

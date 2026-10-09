@@ -34,8 +34,16 @@ export { default as AudioExplorer } from "./AudioExplorer";
 export type { AudioExplorerProps, AudioSampleSpec } from "./AudioExplorer";
 export { default as VideoExplorer } from "./VideoExplorer";
 export type { VideoExplorerProps, VideoSampleSpec } from "./VideoExplorer";
-export { default as ConversionExplorer, GENERATIVE_TARGETS } from "./ConversionExplorer";
-export type { ConversionExplorerProps, ConversionTarget } from "./ConversionExplorer";
+export {
+  default as ConversionExplorer,
+  DOCUMENT_FAMILIES,
+  DOCUMENT_TARGETS,
+} from "./ConversionExplorer";
+export type {
+  ConversionExplorerProps,
+  ConversionSampleSpec,
+  ConversionTarget,
+} from "./ConversionExplorer";
 // FlowBuilderRunner is the flow surface; FlowLab is its public name (ContentLab's sibling).
 export { default as FlowBuilderRunner, default as FlowLab } from "./FlowBuilderRunner";
 export type {

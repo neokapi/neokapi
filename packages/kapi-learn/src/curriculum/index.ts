@@ -1,4 +1,5 @@
-// The curriculum: three series, eleven labs, one sample project each.
+// The curriculum: three series of terminal labs, one sample project each, and a
+// fourth series that puts the engine explorers on the stage.
 //
 // Pure data. The player (../player) runs it in the browser, the verifier
 // (scripts/learn-verify) runs it in Node, and the docs site reads it at build

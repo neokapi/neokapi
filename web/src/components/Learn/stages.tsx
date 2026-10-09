@@ -122,6 +122,7 @@ function ExplorerStage({ stage, ctx }: { stage: ResolvedStage; ctx: StageContext
           assets={ctx.assets}
           defaultSampleId={str(p.sample)}
           defaultTarget={str(p.target)}
+          samples={list(p.files).map((name) => ({ url: samplesBase + name, name }))}
           autoStart
         />
       );

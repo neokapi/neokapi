@@ -167,78 +167,102 @@ export const segmentation: Lab = {
   ],
 };
 
+// The Office documents the conversion lab converts, served under /samples/ and
+// written by scripts/learn-gen/office.py (`make learn-samples`).
+const HANDBOOK = "kapimart-partner-handbook.docx";
+const WORKBOOK = "kapimart-regional-sales.xlsx";
+const DECK = "kapimart-partner-kickoff.pptx";
+const OFFICE = [HANDBOOK, WORKBOOK, DECK];
+
 export const conversion: Lab = {
   id: "conversion",
   series: "explore",
   position: 3,
   title: "File conversion",
-  tagline: "One document, every serialization, and what each one keeps.",
+  tagline:
+    "A Word handbook, an Excel workbook and a slide deck, rewritten as the document formats the engine generates.",
   summary:
-    "The engine reads a document into the content model and a writer puts it out again in any generative format. This lab opens one document every way at once: the model-level tabs stay the same while the output format changes, which is the point. Each chapter picks an input and a target; the Rendered pane reads the converted output back through the engine.",
+    "The engine reads a document into the content model and a writer puts it out again in any document format it generates: HTML, Markdown, DocLang, AsciiDoc, MDX and plain text. This lab opens one document every way at once: the model-level tabs stay the same while the output format changes, which is the point. The inputs are KapiMart's Office documents, so the structure that has to survive is real: headings at two levels, lists, a table with a header row, bold text and links, a figure, three worksheets with currency and date formats, and a deck with a table and speaker notes.",
   sample: "engine",
   kind: "explorer",
   explorer: "conversion",
   concepts: [
     "reader and writer",
     "generative format",
-    "round trip",
+    "document family",
     "structure",
     "inline formatting",
   ],
   docs: [DOCS.formats, DOCS.formatMaturity, DOCS.contentModel],
-  minutes: 5,
+  minutes: 7,
   chapters: [
     {
-      id: "md-doclang",
-      title: "Markdown to DocLang",
+      id: "docx-markdown",
+      title: "A Word handbook to Markdown",
       narration:
-        "An article with headings, a list and inline emphasis, re-expressed as DocLang, the engine's own structural XML. Every heading level and inline code survives, because both formats carry the same model.",
-      hint: "article.md → DocLang",
-      stage: { sample: "article-md", target: "doclang" },
+        "The KapiMart partner handbook: a title, numbered headings at two levels, a list of steps, a fee table with a header row, bold and struck-through text, two links and a figure. Each becomes the Markdown that says the same thing, and the figure keeps its alt text.",
+      hint: "handbook.docx → Markdown",
+      stage: { files: OFFICE, sample: HANDBOOK, target: "markdown" },
     },
     {
-      id: "md-html",
-      title: "Markdown to HTML",
+      id: "docx-html",
+      title: "The same handbook as HTML",
       narration:
-        "The same article as HTML. Compare the Rendered pane with the Preview tab: the writer reconstructed the document from the model, and the two read alike.",
-      hint: "article.md → HTML",
-      stage: { sample: "article-md", target: "html" },
+        "Compare the Rendered pane with the Preview tab: the writer rebuilt the page from the model, and the two read alike. The table has a header row and the links point where the document did.",
+      hint: "handbook.docx → HTML",
+      stage: { files: OFFICE, sample: HANDBOOK, target: "html" },
+    },
+    {
+      id: "docx-doclang",
+      title: "The same handbook as DocLang",
+      narration:
+        "DocLang is the engine's own structural XML: every heading carries its level, inline marks are elements, and the table is rows of cells. It is the shape the other writers are reading from.",
+      hint: "handbook.docx → DocLang",
+      stage: { files: OFFICE, sample: HANDBOOK, target: "doclang" },
+    },
+    {
+      id: "xlsx-markdown",
+      title: "A workbook to Markdown",
+      narration:
+        "Three worksheets become three sections, each a heading with a table. The cells keep the formats the sheet shows: euro amounts, thousands separators, percentages and dates as Excel displays them, not the raw numbers underneath.",
+      hint: "sales.xlsx → Markdown",
+      stage: { files: OFFICE, sample: WORKBOOK, target: "markdown" },
+    },
+    {
+      id: "xlsx-html",
+      title: "The workbook as HTML",
+      narration:
+        "The same three grids as HTML tables, header rows included. Open the Blocks tab: every cell is a block with its address, which is what makes a spreadsheet reviewable cell by cell.",
+      hint: "sales.xlsx → HTML",
+      stage: { files: OFFICE, sample: WORKBOOK, target: "html" },
+    },
+    {
+      id: "pptx-markdown",
+      title: "A slide deck to Markdown",
+      narration:
+        "Each slide's title is a heading and its text follows. The fee table on the fourth slide is a table with a header row, and the speaker notes sit under the slide they were written for. The layouts and master behind the slides stay in the template.",
+      hint: "kickoff.pptx → Markdown",
+      stage: { files: OFFICE, sample: DECK, target: "markdown" },
     },
     {
       id: "md-asciidoc",
       title: "Markdown to AsciiDoc",
       narration:
-        "A table survives the crossing into AsciiDoc because the model holds it as a table, not as pipes and dashes.",
+        "Text formats cross too. A Markdown article with a table and a code block, re-expressed as AsciiDoc: the table survives because the model holds it as a table, not as pipes and dashes.",
       hint: "article.md → AsciiDoc",
-      stage: { sample: "article-md", target: "asciidoc" },
-    },
-    {
-      id: "html-md",
-      title: "HTML to Markdown",
-      narration:
-        "The other direction. A page's markup becomes Markdown's lighter syntax; what Markdown cannot say, such as an attribute, is the limit of the target rather than a loss in the model.",
-      hint: "page.html → Markdown",
-      stage: { sample: "page-html", target: "markdown" },
-    },
-    {
-      id: "json-yaml",
-      title: "A catalog to YAML",
-      narration:
-        "Keyed formats convert too: a JSON catalog as YAML keeps every key path, so the blocks are the same blocks with the same names.",
-      hint: "messages.json → YAML",
-      stage: { sample: "messages-json", target: "yaml" },
+      stage: { files: OFFICE, sample: "article-md", target: "asciidoc" },
     },
     {
       id: "plaintext",
       title: "Down to plain text",
       narration:
-        "Plain text is the floor: structure and inline formatting have nowhere to go, and the Rendered pane shows what is left. Skeleton-driven formats such as Word and InDesign are deliberately absent as targets: they inject into an original file rather than generating one.",
-      hint: "article.md → plain text",
-      stage: { sample: "article-md", target: "plaintext" },
+        "Plain text is the floor: structure and inline formatting have nowhere to go, and the Rendered pane shows what is left of the handbook. Word, Excel and PowerPoint are absent as targets on purpose: those writers put translated text back into the original file rather than generating a new one, which is how a translated document keeps its layout.",
+      hint: "handbook.docx → plain text",
+      stage: { files: OFFICE, sample: HANDBOOK, target: "plaintext" },
     },
   ],
   tryNext: [
-    "Upload a Markdown or HTML file of your own and try each target.",
+    "Upload a Word, Excel or PowerPoint file of your own and try each target.",
     "Switch to the Blocks tab and watch it stay the same across targets.",
   ],
 };

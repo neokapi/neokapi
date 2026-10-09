@@ -105,6 +105,25 @@ changes what every chapter prints.
 brand words, as the bundle `kapi store import ./context` reads, so the Mart
 project lab imports its vocabulary the way the Northsea and Compass labs do.
 
+The File conversion lab converts three Office documents rather than text
+samples: a Word handbook, an Excel workbook and a PowerPoint deck for KapiMart,
+served from `web/static/samples/` and named in the lab's chapters by file name.
+`scripts/learn-gen/office.py` writes them (`make learn-samples`, run through
+`uv`, which installs python-docx, openpyxl and python-pptx for the run), with a
+fixed date in the document properties and a fixed timestamp on every zip entry,
+so `make learn-samples-check` can hold the committed files to the script. Each
+document carries what has to survive a format crossing: headings at two levels,
+Word's own list styles, a table whose first row is a header row, bold and
+struck-through runs, hyperlinks through the Hyperlink style, a figure with alt
+text, three worksheets with currency, percentage and date formats, a slide table
+and speaker notes. `core/formats/openxml/wml_header_row_test.go` reads the
+handbook, so a regeneration that loses one of those fails a Go test.
+
+The explorer offers as targets the generative writers the engine reports in a
+document family (`family` in `kapi formats list --json`: rich-markup and
+plain-text), so a document converts to HTML, Markdown, DocLang, AsciiDoc, MDX
+and plain text, and never to a string catalog or a media format.
+
 ## Deep links
 
 `/learn/<id>?c=<chapter-id>` opens a lab at a chapter. `&s=<token>` adds the
