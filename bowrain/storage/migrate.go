@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 )
 
 // Migration represents a single schema migration step.
@@ -20,6 +21,15 @@ type Migration struct {
 	SQL         string
 }
 
+// DefaultMigrationTimeout bounds one migration pass when the caller supplies
+// no deadline of its own: Migrate, MigratePostgres and MigratePostgresNS all
+// run under it. A pass that cannot finish inside it fails naming the statement
+// it was on, instead of waiting until something outside the process (a test
+// binary's alarm, an orchestrator's health check) kills it without saying
+// where it stalled. A caller expecting a longer pass passes its own context to
+// the *Context variant.
+const DefaultMigrationTimeout = 2 * time.Minute
+
 // migrationDB is the common surface the migration runner needs from *DB
 // (SQLite) and *PgDB (PostgreSQL).
 type migrationDB interface {
@@ -32,9 +42,8 @@ type migrationDB interface {
 // current version from tableName, and applies every migration above it in a
 // transaction, recording each with insertSQL (which takes version and
 // description as its two parameters in the dialect's placeholder style).
-func runMigrations(db migrationDB, tableName, createTableSQL, insertSQL string, migrations []Migration) error {
-	ctx := context.Background()
-
+// Every statement runs under ctx, so its deadline bounds the whole pass.
+func runMigrations(ctx context.Context, db migrationDB, tableName, createTableSQL, insertSQL string, migrations []Migration) error {
 	if _, err := db.ExecContext(ctx, createTableSQL); err != nil {
 		return fmt.Errorf("create migrations table: %w", err)
 	}
@@ -73,11 +82,20 @@ func runMigrations(db migrationDB, tableName, createTableSQL, insertSQL string, 
 	return nil
 }
 
-// Migrate applies schema migrations to the SQLite database.
-// It creates a migrations tracking table if it doesn't exist,
-// then applies any migrations whose version exceeds the current version.
+// Migrate applies schema migrations to the SQLite database under
+// DefaultMigrationTimeout. It creates a migrations tracking table if it
+// doesn't exist, then applies any migrations whose version exceeds the
+// current version.
 func Migrate(db *DB, migrations []Migration) error {
-	return runMigrations(db, "schema_migrations", `
+	ctx, cancel := context.WithTimeout(context.Background(), DefaultMigrationTimeout)
+	defer cancel()
+	return MigrateContext(ctx, db, migrations)
+}
+
+// MigrateContext is Migrate under the caller's context; its deadline bounds
+// the pass.
+func MigrateContext(ctx context.Context, db *DB, migrations []Migration) error {
+	return runMigrations(ctx, db, "schema_migrations", `
 		CREATE TABLE IF NOT EXISTS schema_migrations (
 			version     INTEGER PRIMARY KEY,
 			description TEXT NOT NULL,
