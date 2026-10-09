@@ -101,3 +101,38 @@ subtest named after an absolute fixture path put a home directory into a
 tracked file. Name subtests after a repo-relative path (see `fixtureName` in
 `core/formats/openxml/validity_test.go`); the guard catches the artefact if a
 generator regresses.
+
+## Go module versions under `go.work`
+
+`go.work` unifies version selection across every module it lists. A bump in
+one module's `go.mod` raises that dependency for all of them, while the other
+modules' `go.mod` files keep naming the old version. The isolated build
+(`GOWORK=off`, which module isolation, `go install` and downstream consumers
+use) then compiles against a different library than the workspace build, and
+nothing in the diff says so. A bowrain-only refresh once moved the XML parser
+under the framework's XLIFF 2 reader this way (#2633).
+
+`scripts/check-workspace-versions.sh` diffs the versions `go list -m all`
+resolves under the workspace against the ones each isolated module resolves
+with `GOWORK=off`, and prints every dependency whose version differs, with
+both versions. It runs at the end of `make audit-modules` and of
+`make check-module-boundaries` (the *Module boundaries* job in
+`.github/workflows/ci.yml`).
+
+```bash
+./scripts/check-workspace-versions.sh              # the isolated modules
+./scripts/check-workspace-versions.sh . host       # a subset
+./scripts/check-workspace-versions.sh --self-test  # prove the comparison both ways
+```
+
+A **direct** dependency that differs fails the check: the module's own
+`go.mod` is wrong about what its code imports. Raise the require to the
+workspace version in that module (`cd <module> && GOWORK=off go get
+<path>@<version>`), then `make ci-tidy`, and commit what it produces. An
+**indirect** dependency that differs is only reported: the module does not
+import it, and the isolated tidy run in `audit-modules` keeps its `go.sum`
+honest for it.
+
+The `scripts/*` members of `go.work` are not compared. They resolve this
+repository's modules through the workspace alone, with no `replace`, so they
+have no `GOWORK=off` answer to compare against.
