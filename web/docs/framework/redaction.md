@@ -70,7 +70,7 @@ Redaction finds sensitive spans with one or both detectors:
   (both, merged).
   With `engine: ner` the step carries no remote-egress side effect, so the
   placement pass accepts it ahead of `redact` without qualification. The
-  browser [Lab](/lab) runs this end to end with a GLiNER ONNX model loaded
+  browser [Flow workspace lab](/learn/flow-workspace?c=redaction) runs this end to end with a GLiNER ONNX model loaded
   in the page.
 
 Each match is assigned a category. The recommended categories are `person`,

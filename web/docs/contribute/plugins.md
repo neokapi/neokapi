@@ -207,7 +207,7 @@ drives a local [Ollama](https://ollama.com) runtime rather than bundling an
 inference engine: Ollama already runs GGUF models on the GPU (Metal/CUDA) and is
 managed through `kapi models ollama` and `--provider ollama`, a free, private
 alternative to the paid cloud providers. In the browser, the
-[Core Framework lab](/lab) runs a local model via WebGPU instead, since a web
+[Flow workspace lab](/learn/flow-workspace) runs a local model via WebGPU instead, since a web
 page cannot reach a local daemon.
 
 A minimal Go reference plugin in
