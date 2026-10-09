@@ -65,6 +65,14 @@ export function builtinToolIds(entries: readonly ReferenceEntry[]): Set<string> 
   return set;
 }
 
+/**
+ * Check slug. Every check is built-in and its id is unique, so the sanitized
+ * id is enough — e.g. "content-lint" → "content-lint".
+ */
+export function checkSlug(entry: ReferenceEntry): string {
+  return sanitize(entry.id);
+}
+
 /** Public route path for an entry's static page (without the docs baseUrl). */
 export function commandHref(cmd: CommandEntry): string {
   return `/reference/commands/${commandSlug(cmd)}`;
@@ -74,4 +82,7 @@ export function formatHref(entry: ReferenceEntry): string {
 }
 export function toolHref(entry: ReferenceEntry, builtinIds: ReadonlySet<string>): string {
   return `/reference/tools/${toolSlug(entry, builtinIds)}`;
+}
+export function checkHref(entry: ReferenceEntry): string {
+  return `/reference/checks/${checkSlug(entry)}`;
 }

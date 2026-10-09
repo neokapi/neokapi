@@ -27,8 +27,10 @@ off-brand term, a doubled word. `kapi check` runs a **content-first** checkset
 over any file, with no translation needed, and returns one stable, machine-readable
 [`kapi.check/v2` Report](#the-report): `pass`, a 0–100 score, and a finding
 per **stable rule id** (`length.max-chars-exceeded`, `hygiene.doubled-word`, …)
-anchored to the exact **block**. Each finding either fails or reports, as the
-rule that raised it says (see [What fails](#what-fails)). The command **exits
+anchored to the exact **block**. The [Check reference](/reference/checks)
+documents every rule id the source checks report and what fixes each. Each
+finding either fails or reports, as the rule that raised it says (see [What
+fails](#what-fails)). The command **exits
 non-zero when a finding fails**, so a regression is caught in CI, or inside an
 AI assistant's fix-loop, the same way a failing test is. The assistant drafts,
 the checks tell it which block and which rule broke, it fixes that block

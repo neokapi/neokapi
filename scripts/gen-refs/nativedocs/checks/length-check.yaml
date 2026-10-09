@@ -2,7 +2,18 @@
 # Source: core/check/sourcechecks.go (NewSourceLengthTool,
 # absoluteLengthFindings); flags in cli/check.go.
 # A check, not a registry tool: it is configured by CLI flags, not a schema.
+# The rule ids are held to the ones core/check.SourceChecks reports.
+displayName: Length Check
 description: Hold each source block to an absolute character or word limit.
+rules:
+  - id: length.max-chars-exceeded
+    severity: major
+    reports: The block's source text holds more characters than `--max-chars` allows. The finding names the limit and the count.
+    fix: Shorten the source text, or raise the limit when the ceiling is wrong for this content.
+  - id: length.max-words-exceeded
+    severity: major
+    reports: The block's source text holds more words than `--max-words` allows. The finding names the limit and the count.
+    fix: Shorten the source text, or raise the limit when the ceiling is wrong for this content.
 overview: |
   The **Length Check** holds every translatable block's source text to an
   absolute ceiling: `--max-chars` for characters and `--max-words` for words,

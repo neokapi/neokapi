@@ -828,8 +828,8 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 	if err := a.runFamily(ctx, blocks, hygiene); err != nil {
 		return nil, fmt.Errorf("hygiene check %s: %w", DisplayName(file), err)
 	}
-	diags = append(diags, mapBlockDeltas(blocks, seen, "hygiene", file)...)
-	if err := opts.execution.probed("hygiene", file, len(diags), start, true, func() (check.CanaryOutcome, error) {
+	diags = append(diags, mapBlockDeltas(blocks, seen, check.FamilyHygiene, file)...)
+	if err := opts.execution.probed(check.FamilyHygiene, file, len(diags), start, true, func() (check.CanaryOutcome, error) {
 		return probeTool(ctx, hygiene, check.HygieneCanaries(), "")
 	}); err != nil {
 		return nil, fmt.Errorf("hygiene check %s: %w", DisplayName(file), err)
@@ -846,14 +846,14 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 		if err := a.runFamily(ctx, blocks, lengthTool); err != nil {
 			return nil, fmt.Errorf("length check %s: %w", DisplayName(file), err)
 		}
-		diags = append(diags, mapBlockDeltas(blocks, seen, "length", file)...)
-		if err := opts.execution.probed("length", file, len(diags)-before, start, true, func() (check.CanaryOutcome, error) {
+		diags = append(diags, mapBlockDeltas(blocks, seen, check.FamilyLength, file)...)
+		if err := opts.execution.probed(check.FamilyLength, file, len(diags)-before, start, true, func() (check.CanaryOutcome, error) {
 			return probeTool(ctx, lengthTool, check.LengthCanaries(opts.maxChars, opts.maxWords), "")
 		}); err != nil {
 			return nil, fmt.Errorf("length check %s: %w", DisplayName(file), err)
 		}
 	} else {
-		opts.execution.skipped("length", file, "No length limit was configured.")
+		opts.execution.skipped(check.FamilyLength, file, "No length limit was configured.")
 	}
 
 	// Pattern — forbidden (must-not-match) and required (must-match).
@@ -867,15 +867,15 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 		if err := a.runFamily(ctx, blocks, patternTool); err != nil {
 			return nil, fmt.Errorf("pattern check %s: %w", DisplayName(file), err)
 		}
-		diags = append(diags, mapBlockDeltas(blocks, seen, "pattern", file)...)
-		if err := opts.execution.probed("pattern", file, len(diags)-before, start, true, func() (check.CanaryOutcome, error) {
+		diags = append(diags, mapBlockDeltas(blocks, seen, check.FamilyPattern, file)...)
+		if err := opts.execution.probed(check.FamilyPattern, file, len(diags)-before, start, true, func() (check.CanaryOutcome, error) {
 			canaries, uncheckable := check.PatternCanaries(rules)
 			return probeTool(ctx, patternTool, canaries, uncheckable)
 		}); err != nil {
 			return nil, fmt.Errorf("pattern check %s: %w", DisplayName(file), err)
 		}
 	} else {
-		opts.execution.skipped("pattern", file, "No explicit patterns were configured.")
+		opts.execution.skipped(check.FamilyPattern, file, "No explicit patterns were configured.")
 	}
 
 	// Each group of blocks is held to the terms and the voice of the point it

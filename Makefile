@@ -3076,7 +3076,7 @@ generate-docs-palette: ## Generate the Docusaurus + diagram-kit palettes from th
 check-docs-palette: ## Drift gate: fail if a committed docs palette is stale vs. its brand tokens
 	node --no-warnings --experimental-strip-types packages/docs-palette/cli/gen-docs-palette.ts -check
 
-generate-reference-pages: i18n-catalogs ## Generate static per-entry reference MDX pages (R4, #673) → web/docs/reference/{commands,formats,tools}
+generate-reference-pages: i18n-catalogs ## Generate static per-entry reference MDX pages (R4, #673) → web/docs/reference/{commands,formats,tools,checks}
 	cd web && node --no-warnings --experimental-strip-types scripts/gen-reference-pages.ts
 
 # ── Documentation Site ──────────────────────────────────────────────────────

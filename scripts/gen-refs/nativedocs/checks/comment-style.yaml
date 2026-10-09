@@ -3,7 +3,22 @@
 # CommentLimits); the limits come from core/profile/comments.go (CommentRules),
 # and host/check_comment_limits.go runs the analyzers.
 # A check, not a registry tool: the voice profile at a comment's point configures it.
+# The rule ids are held to the ones core/check.SourceChecks reports.
+displayName: Comment Style
 description: Hold the comments in source files to the sentence and comment word limits a voice profile sets for them.
+rules:
+  - id: comment.sentence-length
+    severity: minor
+    reports: A sentence in a comment holds more words than the limit under `style.comments` in the voice profile. Over the minor limit the finding is minor; over the major limit it is major. The finding points at the sentence inside its comment and quotes it.
+    fix: Split the sentence, or cut the words it does not need.
+  - id: comment.length
+    severity: major
+    reports: A comment holds more words than the limit for what it documents. The doc comment of a package or module, a declaration's doc comment and every other comment each have a limit of their own.
+    fix: Shorten the comment, or move what it explains to the documentation it belongs in.
+  - id: comment.density
+    severity: major
+    reports: In a check scoped to a diff, a change adds at least the minimum number of comment lines to a file, and more comment lines for each code line than the ratio allows.
+    fix: Cut the comments the change adds to what the code needs, or raise the ratio in the voice profile.
 overview: |
   The **Comment Style** check reads the comments a comment layer locates and
   holds them to the limits under `style.comments` in the voice profile at the

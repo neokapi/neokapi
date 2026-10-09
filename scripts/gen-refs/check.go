@@ -26,7 +26,7 @@ import (
 //
 // The gate never writes; it only reads the committed files and compares.
 func checkDrift(bridgeDir, pluginsDir, metaPath, nativeDocsDir, outDir, coreCatalogs, cliCatalogs string) error {
-	formatEntries, toolEntries, resolveExt, bridgePresent, err := buildEntries(bridgeDir, pluginsDir, metaPath, nativeDocsDir)
+	formatEntries, toolEntries, checkEntries, resolveExt, bridgePresent, err := buildEntries(bridgeDir, pluginsDir, metaPath, nativeDocsDir)
 	if err != nil {
 		return err
 	}
@@ -37,7 +37,7 @@ func checkDrift(bridgeDir, pluginsDir, metaPath, nativeDocsDir, outDir, coreCata
 	// Rebuild the gap report from the same entries the live generator would use,
 	// so a stale reference-gaps.json (e.g. a sidecar added without regenerating)
 	// is also caught.
-	all := append(append([]Entry{}, formatEntries...), toolEntries...)
+	all := append(append(append([]Entry{}, formatEntries...), toolEntries...), checkEntries...)
 	wantGaps := detectGaps(all)
 	wantSummary := summarize(wantGaps)
 
@@ -48,6 +48,11 @@ func checkDrift(bridgeDir, pluginsDir, metaPath, nativeDocsDir, outDir, coreCata
 	}
 	if diff := compareBuiltInDataset(filepath.Join(outDir, "tools.json"), KindTool, toolEntries); diff != "" {
 		problems = append(problems, "tools.json: "+diff)
+	}
+	// Every check entry is built-in, so the whole file is gated: a rule the
+	// code adds or a dossier edit fails this until the dataset is regenerated.
+	if diff := compareBuiltInDataset(filepath.Join(outDir, "checks.json"), KindCheck, checkEntries); diff != "" {
+		problems = append(problems, "checks.json: "+diff)
 	}
 	if diff := compareFamilies(filepath.Join(outDir, "format-families.json"), buildFamilyDataset("", formatEntries, resolveExt)); diff != "" {
 		problems = append(problems, "format-families.json: "+diff)
@@ -87,8 +92,8 @@ func checkDrift(bridgeDir, pluginsDir, metaPath, nativeDocsDir, outDir, coreCata
 		return errors.New("committed reference dataset is stale; run `make generate-reference-docs` and commit the result")
 	}
 
-	fmt.Printf("reference dataset is fresh (built-in subset: %d formats, %d tools, %d gaps, %d prompts, %d models)\n",
-		countBuiltIn(formatEntries), countBuiltIn(toolEntries), len(builtInGaps(wantGaps)), len(wantPrompts.Prompts), len(collectModelDataset("").Models))
+	fmt.Printf("reference dataset is fresh (built-in subset: %d formats, %d tools, %d checks, %d gaps, %d prompts, %d models)\n",
+		countBuiltIn(formatEntries), countBuiltIn(toolEntries), len(checkEntries), len(builtInGaps(wantGaps)), len(wantPrompts.Prompts), len(collectModelDataset("").Models))
 	return nil
 }
 

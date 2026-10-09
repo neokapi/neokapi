@@ -1,0 +1,203 @@
+{
+  "generatedAt": "2026-10-09T17:19:45Z",
+  "kind": "check",
+  "entries": [
+    {
+      "id": "content-lint",
+      "source": "built-in",
+      "kind": "check",
+      "displayName": "Content Lint",
+      "description": "Report the text-hygiene defects of a single source text, covering emptiness, stray whitespace, spacing and repetition.",
+      "ruleFamily": "hygiene",
+      "rules": [
+        {
+          "id": "hygiene.empty",
+          "severity": "major",
+          "reports": "The block holds nothing but whitespace. It is the only finding reported for that block, because the rest have nothing to judge.",
+          "fix": "Give the block content, or remove the block from the source."
+        },
+        {
+          "id": "hygiene.leading-whitespace",
+          "severity": "minor",
+          "reports": "Whitespace at the start of the block that an author left there.",
+          "fix": "Remove the leading whitespace from the source text."
+        },
+        {
+          "id": "hygiene.trailing-whitespace",
+          "severity": "minor",
+          "reports": "Whitespace at the end of the block, beyond a single terminating line break, that an author left there.",
+          "fix": "Remove the trailing whitespace from the source text."
+        },
+        {
+          "id": "hygiene.double-spaces",
+          "severity": "minor",
+          "reports": "Two or more spaces between two pieces of content on one line. In a comment the finding is major and covers a run of exactly two spaces.",
+          "fix": "Replace the run of spaces with one space."
+        },
+        {
+          "id": "hygiene.doubled-word",
+          "severity": "minor",
+          "reports": "A word immediately repeated, compared without regard to case. The finding quotes the word.",
+          "fix": "Remove the repeated word."
+        },
+        {
+          "id": "hygiene.control-char",
+          "severity": "minor",
+          "reports": "A stray control character, named by its code point. Tab, carriage return and line feed are ordinary whitespace and are never reported.",
+          "fix": "Remove the control character, or replace it with the character the text needs."
+        }
+      ],
+      "doc": {
+        "overview": "The **Content Lint** check is the always-on half of `kapi check`. It reads each\ntranslatable block's source text on its own, with no target and no locale\ncomparison, and reports what is wrong with the shape of the content:\n\n- `hygiene.empty`: the block holds nothing but whitespace. Major, and the only\n  finding reported for that block, because the rest have nothing to judge.\n- `hygiene.leading-whitespace` and `hygiene.trailing-whitespace`: whitespace on\n  an edge that an author left there.\n- `hygiene.double-spaces`: two or more spaces between two pieces of content on\n  one line.\n- `hygiene.doubled-word`: a word immediately repeated, compared without regard\n  to case.\n- `hygiene.control-char`: a stray control character. Tab, carriage return and\n  line feed are ordinary whitespace and are not reported.\n\nEverything but the emptiness finding is minor, so a document of nits still\npasses an ordinary gate and shows in the score. The exception is a double\nspace in a comment, which is major.\n\nEvery one of these is a judgement about *shape*, and shape is judged over the\nblock's runs rather than its plain text. A placeholder is content: it holds a\nposition, so the space beside it separates it from a word rather than trailing\noff the content's edge. An inline code span stands whole, so what an\nauthor wrote inside backticks is quoted rather than graded, so two spaces in a\ncode span are the example rather than a defect. And a single terminating line break is\nthe content's line ending, which formats such as a YAML block scalar require, so\nit is not whitespace anyone left behind.\n",
+        "limitations": [
+          "Reads source text only; a mismatch between a source and its translation is the bilingual `qa` check's question.",
+          "Judges shape rather than language, and performs no spelling, grammar or style analysis.",
+          "Runs over translatable blocks; content a reader surfaces as structure or code is never graded."
+        ],
+        "processingNotes": [
+          "Always on. It needs no configuration and has no flag to enable or disable it.",
+          "Findings carry the stable rule id `hygiene.\u003ccategory\u003e` and the block's location, so a fix loop can address the exact block and track a rule across iterations.",
+          "The double-space rule discounts a run of spaces that indents a continuation line, because that is the source's line structure rather than spacing inside a sentence.",
+          "In a comment, the double-space rule reports only a run of exactly two spaces between two characters, and not one that ends where a word starts on the line above or below, or one inside backticks or double quotes, because a comment lays text out in columns and quotes literal text. A double space it does report is major.",
+          "The doubled-word rule reports a repeated *word*, so a repeated glyph or bullet, the notation an author meant to show, is not one."
+        ]
+      }
+    },
+    {
+      "id": "length-check",
+      "source": "built-in",
+      "kind": "check",
+      "displayName": "Length Check",
+      "description": "Hold each source block to an absolute character or word limit.",
+      "ruleFamily": "length",
+      "rules": [
+        {
+          "id": "length.max-chars-exceeded",
+          "severity": "major",
+          "reports": "The block's source text holds more characters than `--max-chars` allows. The finding names the limit and the count.",
+          "fix": "Shorten the source text, or raise the limit when the ceiling is wrong for this content."
+        },
+        {
+          "id": "length.max-words-exceeded",
+          "severity": "major",
+          "reports": "The block's source text holds more words than `--max-words` allows. The finding names the limit and the count.",
+          "fix": "Shorten the source text, or raise the limit when the ceiling is wrong for this content."
+        }
+      ],
+      "doc": {
+        "overview": "The **Length Check** holds every translatable block's source text to an\nabsolute ceiling: `--max-chars` for characters and `--max-words` for words,\neach reported as `length.max-chars-exceeded` or `length.max-words-exceeded` at\nmajor severity.\n\nBoth are off unless asked for, and a limit of `0` is the way to leave one off.\nA negative limit is refused rather than ignored, so a typo in a recipe or a\nscript is an error at the point it is written.\n\nCharacters are counted as runes, so a limit means the same thing whatever\nscript the content is in, and a word is counted the way the rest of the engine\ncounts words.\n\nThe bar is the *source* text, which is what makes this a source-side check: it\nanswers \"is what we wrote short enough\", the question a UI string or a push\nnotification has before any translation exists. Whether a translation fits\nwhere its source did is a different question, asked by the bilingual `qa`\ncheck, which compares the two.\n",
+        "parameters": {
+          "--max-chars": {
+            "description": "Maximum characters a source block may hold.",
+            "help": "Reports a block whose source is longer than this many characters. Counted\nin runes. Left off by `0`, which is the default.\n",
+            "values": "integer ≥ 0 (default `0`, off)"
+          },
+          "--max-words": {
+            "description": "Maximum words a source block may hold.",
+            "help": "Reports a block whose source holds more than this many words. Left off by\n`0`, which is the default.\n",
+            "values": "integer ≥ 0 (default `0`, off)"
+          }
+        },
+        "limitations": [
+          "Measures the source only; it does not compare a translation against its source.",
+          "An absolute ceiling rather than a ratio; there is no percentage-of-source model here.",
+          "The limit is one number for the whole run; a per-collection or per-key ceiling is a recipe-level concern."
+        ],
+        "processingNotes": [
+          "Off unless a limit is given, so an ordinary check run reports nothing from it.",
+          "Runs over translatable blocks; content a reader surfaces as structure or code is never measured.",
+          "A negative limit is an error rather than a silently disabled check."
+        ]
+      }
+    },
+    {
+      "id": "pattern-check",
+      "source": "built-in",
+      "kind": "check",
+      "displayName": "Pattern Check",
+      "description": "Require a pattern to appear in every source block, or forbid one from appearing at all.",
+      "ruleFamily": "pattern",
+      "rules": [
+        {
+          "id": "pattern.forbidden-pattern",
+          "severity": "major",
+          "reports": "The block's source text matches a pattern given with `--forbid`. The finding carries the text it matched.",
+          "fix": "Remove or reword the matched text, or drop the pattern from the run when the text is intended."
+        },
+        {
+          "id": "pattern.pattern-missing",
+          "severity": "major",
+          "reports": "The block's source text does not match a pattern given with `--require`. Every block is held to every required pattern.",
+          "fix": "Add the required text to the block, or narrow the run to the files the requirement applies to."
+        }
+      ],
+      "doc": {
+        "overview": "The **Pattern Check** holds each translatable block's source text to regular\nexpressions the caller names. `--forbid` gives a pattern that must not appear\nand `--require` one that must, both repeatable, and both reported at major\nseverity: `pattern.forbidden-pattern` when a forbidden pattern is found, and\n`pattern.pattern-missing` when a required one is absent. A forbidden-pattern\nfinding carries the text it matched, so the block and the offending words are\nboth named.\n\nThe patterns are Go regular expressions, matched as written: no implicit case\nfolding and no implicit word boundaries, so `(?i)todo` is how case is ignored\nand `\\bdraft\\b` is how a whole word is asked for. An empty pattern, one that\ndoes not compile, or a rule that both requires and forbids is refused when the\ncheck is built, rather than quietly passing everything.\n\nIt is the escape hatch beside the checks that know what they are looking for.\nA voice profile carries the vocabulary a project decided, and terms carry the\nwords it agreed on; a pattern is for the bar that has no vocabulary behind it,\nsuch as a placeholder syntax that must survive or a marker that must never ship.\n",
+        "parameters": {
+          "--forbid": {
+            "description": "A regular expression that must not appear in the source.",
+            "help": "Reports every block whose source matches. Repeatable, so several\nprohibitions can be given in one run.\n",
+            "values": "Go regular expression, repeatable"
+          },
+          "--require": {
+            "description": "A regular expression that must appear in the source.",
+            "help": "Reports every block whose source does not match. Repeatable. Applied per\nblock, so a pattern only one section of a document carries reports\neverywhere else.\n",
+            "values": "Go regular expression, repeatable"
+          }
+        },
+        "limitations": [
+          "Reads source text only; whether a translation preserved a pattern is the bilingual `qa` check's question.",
+          "A required pattern is asked of every block, so it suits a rule that is true of each block rather than of a document as a whole.",
+          "Matching is over the block's plain text, so a pattern cannot address the runs a placeholder or an inline code stands for."
+        ],
+        "processingNotes": [
+          "Off unless a pattern is given, so an ordinary check run reports nothing from it.",
+          "Runs over translatable blocks; content a reader surfaces as structure or code is never matched.",
+          "An empty or uncompilable pattern, and a rule that both requires and forbids, are errors when the check is built."
+        ]
+      }
+    },
+    {
+      "id": "comment-style",
+      "source": "built-in",
+      "kind": "check",
+      "displayName": "Comment Style",
+      "description": "Hold the comments in source files to the sentence and comment word limits a voice profile sets for them.",
+      "ruleFamily": "comment",
+      "rules": [
+        {
+          "id": "comment.sentence-length",
+          "severity": "minor",
+          "reports": "A sentence in a comment holds more words than the limit under `style.comments` in the voice profile. Over the minor limit the finding is minor; over the major limit it is major. The finding points at the sentence inside its comment and quotes it.",
+          "fix": "Split the sentence, or cut the words it does not need."
+        },
+        {
+          "id": "comment.length",
+          "severity": "major",
+          "reports": "A comment holds more words than the limit for what it documents. The doc comment of a package or module, a declaration's doc comment and every other comment each have a limit of their own.",
+          "fix": "Shorten the comment, or move what it explains to the documentation it belongs in."
+        },
+        {
+          "id": "comment.density",
+          "severity": "major",
+          "reports": "In a check scoped to a diff, a change adds at least the minimum number of comment lines to a file, and more comment lines for each code line than the ratio allows.",
+          "fix": "Cut the comments the change adds to what the code needs, or raise the ratio in the voice profile."
+        }
+      ],
+      "doc": {
+        "overview": "The **Comment Style** check reads the comments a comment layer locates and\nholds them to the limits under `style.comments` in the voice profile at the\npoint the comments sit at. A profile without that section asks for nothing,\nand the check reports its analyzers as not requested.\n\n- `comment.sentence-length`: a sentence over the minor word limit is a minor\n  finding, and one over the major limit a major finding. The finding points at\n  the sentence inside its comment and quotes it.\n- `comment.length`: a comment over the word limit for what it documents is a\n  major finding. The doc comment of a package or module, a declaration's doc\n  comment and every other comment each have a limit of their own.\n- `comment.density`: in a check scoped to a diff, a change that adds at least\n  the minimum number of comment lines to a file, and more comment lines for\n  each code line than the ratio allows, is a major finding. A line holding a\n  comment and nothing else is a comment line, a line holding anything outside\n  a comment is a code line, and the package doc comment, a directive and a\n  blank line count as neither.\n\nA sentence is found with the UAX #29 sentence break over the comment's prose.\nThe lines a comment wraps a sentence over are joined first, because the\nsentence break ends a sentence at every line break. A blank line, a line of\ncode, and a divider line such as `── Section ──` end a sentence, and a\ndivider's title is a sentence of its own. A heading, a list item and a\ndocumentation tag such as `@param` each start one. A word holds a letter or a\ndigit, so a code span, a reference, a link or a dash standing alone is never\ncounted.\n",
+        "limitations": [
+          "Reads comments only; the blocks a format reader extracts are never held to comment limits.",
+          "Needs the UAX 29 sentence break, which a build without ICU lacks. The sentence check then did not run, and the run is not a pass.",
+          "Counts words by whitespace, so a language written without spaces between words is held to the limits as one long word per stretch."
+        ],
+        "processingNotes": [
+          "Each analyzer catches canaries built from the limits in force beside every file. The wrapped sentence canary is one sentence over three lines, so a check that ends a sentence at a line break misses it.",
+          "In a check scoped to a diff, the limits apply to the comments the change touched.",
+          "Density counts lines from where the comment reader places each comment, never from comment markers, and its canary is a block comment no marker opens. A check over whole files reports density as unsupported.",
+          "Findings count toward the same severity gate as any other finding. `kapi check` fails on a critical finding by default, and `kapi check --ship` fails its checks gate on a major one."
+        ]
+      }
+    }
+  ]
+}
