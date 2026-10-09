@@ -13,7 +13,7 @@
 // session and forwards calls to the tools this plugin declares under
 // `mcp_tools` in its manifest, so an agent connected to kapi reaches them
 // through the one surface. An MCP client may still address this binary
-// directly, which is how the tools it serves beyond the declared three are
+// directly, which is how the tools it serves but leaves undeclared are
 // reached.
 //
 // All bowrain commands (push, pull, status, auth, ...) live as

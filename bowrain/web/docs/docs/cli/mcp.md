@@ -5,7 +5,7 @@ title: MCP Server
 
 # Using the bowrain plugin with AI assistants
 
-kapi (with the bowrain plugin) exposes project management capabilities as an [MCP](https://modelcontextprotocol.io/) (Model Context Protocol) server. This lets AI tools like Claude, GitHub Copilot, Cursor, Windsurf, and other MCP-compatible agents check project status, list tracked files, push and pull, manage flows, and consult the workspace's context graph, all through structured tool calls.
+kapi (with the bowrain plugin) exposes project management capabilities as an [MCP](https://modelcontextprotocol.io/) (Model Context Protocol) server. This lets AI tools like Claude, GitHub Copilot, Cursor, Windsurf, and other MCP-compatible agents check project status, list tracked files, push and pull, and consult the workspace's context graph, all through structured tool calls.
 
 ## Quick start
 
@@ -123,21 +123,27 @@ If `kapi` is not in your `$PATH`, use the full path to the binary (for example `
 
 ## Available tools
 
-Once connected, your AI assistant can call these tools:
+Once connected, your AI assistant can call these tools beside the [kapi MCP tools](https://neokapi.github.io/reference/mcp):
 
 | Tool                | What it does                                                                          |
 | ------------------- | ------------------------------------------------------------------------------------- |
-| `project_config`    | Read project configuration from the `kapi.yaml` recipe                                |
 | `project_status`    | Show sync status: pending push/pull counts, server connection                         |
 | `project_ls`        | List tracked files with optional stats (word counts, dirty detection)                 |
 | `project_push`      | Upload local changes to Bowrain Server                                                |
 | `project_pull`      | Download results from Bowrain Server                                                  |
-| `list_flows`        | List available flows (built-in and project-defined)                                   |
-| `concept_search`    | Search the workspace context graph for governed concepts                              |
 | `concept_story`     | Show the chronological timeline of a governed concept                                 |
 | `experiment_status` | Report context-graph change-sets, with detail and blast radius for one change-set     |
 
-The three concept tools read the workspace [context graph](/server/context); they require a project connected to a workspace on a Bowrain server.
+The two context-graph tools read the workspace [context graph](/server/context); they require a project connected to a workspace on a Bowrain server.
+
+Two more tools are served only by the plugin's own MCP server, `kapi-bowrain mcp-server`, for a client configured to start that binary directly:
+
+| Tool             | What it does                                             |
+| ---------------- | -------------------------------------------------------- |
+| `project_config` | Read project configuration from the `kapi.yaml` recipe   |
+| `concept_search` | Search the workspace context graph for governed concepts |
+
+The recipe is kapi's, and kapi's own tools read it. `context_search` on the kapi surface answers what a project calls something; `concept_search` reads the workspace graph instead.
 
 ## Example conversations
 
@@ -161,12 +167,6 @@ The assistant calls `project_ls` with `dirty: true` and returns only files with 
 
 The assistant calls `project_ls` with `stats: true` and returns a breakdown of every tracked file with block counts, word counts, and totals.
 
-### "Show me the project config"
-
-> What locales are configured for this project?
-
-The assistant calls `project_config` and returns the project name, source locale, target locales, server URL, and file mapping count.
-
 ### "Push my changes"
 
 > Push the latest changes to the server
@@ -185,23 +185,17 @@ The assistant calls `project_pull` with `locales: ["fr", "de"]` and returns how 
 
 The assistant calls `project_push` with `dry_run: true` and shows what would be uploaded without making any changes.
 
-### "Is this term allowed here?"
+### "How did this term get its status?"
 
-> Is "e-shop" a term we still use?
+> Why is "e-shop" deprecated?
 
-The assistant calls `concept_search` with the query and reads the concept's status, and `concept_story` for how it got there.
+The assistant calls `concept_story` with the concept's ID and reads the revisions, observations and comments that led to the status.
 
 ## Tool reference
 
 ### project_status
 
 Show project sync status. Returns local project info when no server is configured.
-
-No parameters.
-
-### project_config
-
-Read project configuration from the `kapi.yaml` recipe at the project root.
 
 No parameters.
 
@@ -235,24 +229,6 @@ Download results from Bowrain Server.
 | `force`   | bool     | no       | Re-download everything even if unchanged     |
 | `dry_run` | bool     | no       | Show what would change without writing files |
 
-### list_flows
-
-List available processing flows. Returns both built-in flows and project-defined flows (inline on the recipe and from the recipe's `flows_dir`).
-
-No parameters.
-
-### concept_search
-
-Search the workspace [context graph](/server/context) for governed concepts (terms, status, domain) matching a query.
-
-| Parameter | Type   | Required | Description                                                              |
-| --------- | ------ | -------- | ------------------------------------------------------------------------ |
-| `query`   | string | no       | Free-text query against the term text                                    |
-| `status`  | string | no       | Filter by term lifecycle status (preferred, admitted, deprecated, forbidden) |
-| `market`  | string | no       | Filter by market validity tag                                            |
-| `domain`  | string | no       | Filter by subject-field domain                                           |
-| `limit`   | int    | no       | Maximum number of concepts to return (default 50)                        |
-
 ### concept_story
 
 Show the chronological timeline of a governed concept: revisions, observations, comments, and change-sets.
@@ -269,6 +245,26 @@ Report context-graph change-sets. With a `changeset_id`, returns that change-set
 | -------------- | ------ | -------- | ---------------------------------------------------------------------- |
 | `changeset_id` | string | no       | A change-set ID to detail; omit to list all change-sets                |
 | `status`       | string | no       | When listing, filter by status (draft, in_review, approved, merged, abandoned) |
+
+### Served only by `kapi-bowrain mcp-server`
+
+#### project_config
+
+Read project configuration from the `kapi.yaml` recipe at the project root.
+
+No parameters.
+
+#### concept_search
+
+Search the workspace [context graph](/server/context) for governed concepts (terms, status, domain) matching a query.
+
+| Parameter | Type   | Required | Description                                                              |
+| --------- | ------ | -------- | ------------------------------------------------------------------------ |
+| `query`   | string | no       | Free-text query against the term text                                    |
+| `status`  | string | no       | Filter by term lifecycle status (preferred, admitted, deprecated, forbidden) |
+| `market`  | string | no       | Filter by market validity tag                                            |
+| `domain`  | string | no       | Filter by subject-field domain                                           |
+| `limit`   | int    | no       | Maximum number of concepts to return (default 50)                        |
 
 ## How it works
 
