@@ -64,7 +64,122 @@ type dmlParser struct {
 	// each shape boundary. It is the only signal PresentationML gives for a
 	// paragraph's role — there is no w:pStyle on a slide.
 	phType string
+
+	// emitPart surfaces a slide table's topology (a:tbl → table Group, a:tr →
+	// table-row Group) beside the blocks, the shape the Word parser emits for
+	// w:tbl, so cross-format writers and core/projection rebuild the grid. Nil
+	// when a caller reads blocks only; the cells still carry their role.
+	emitPart    func(*model.Part)
+	structStack []structFrame
+	// cellDepth is the a:tc nesting the parser is inside; a paragraph there is
+	// a table cell. pendingColSpan and pendingRowSpan are the open cell's
+	// gridSpan and rowSpan, applied to its first paragraph; pendingMerged
+	// marks a cell that only continues a span from the left or above.
+	cellDepth      int
+	pendingColSpan int
+	pendingRowSpan int
+	pendingMerged  bool
+	// headerRow is set by the table's <a:tblPr firstRow="1">, PowerPoint's
+	// statement that the first row is a header row; rowIndex counts the
+	// a:tr of the open table so that row's cells take the header role.
+	headerRow bool
+	rowIndex  int
 }
+
+// openTableStruct brackets a DrawingML table (a:tbl / a:tr) as a Group and
+// tracks the cell (a:tc) the parser is entering, with the spans its attributes
+// declare (ECMA-376-1 §21.1.3.16). Additive stand-off structure: the skeleton
+// is untouched, so the byte-exact round-trip is unaffected.
+func (p *dmlParser) openTableStruct(t xml.StartElement) {
+	switch t.Name.Local {
+	case "tbl":
+		p.headerRow, p.rowIndex = false, 0
+	case "tr":
+		p.rowIndex++
+	case "tblPr":
+		p.headerRow = dmlTrue(attrVal(t, "firstRow"))
+		return
+	}
+	switch t.Name.Local {
+	case "tbl", "tr":
+		if p.emitPart == nil {
+			return
+		}
+		kind := "table"
+		if t.Name.Local == "tr" {
+			kind = "table-row"
+		}
+		// Block ids are tu<n> off the same counter, so a group id drawn from it
+		// is unique across every part of the deck.
+		*p.blockCounter++
+		id := fmt.Sprintf("tg%d", *p.blockCounter)
+		p.structStack = append(p.structStack, structFrame{kind: kind, id: id})
+		p.emitPart(&model.Part{Type: model.PartGroupStart, Resource: &model.GroupStart{ID: id, Name: kind, Type: kind}})
+	case "tc":
+		p.cellDepth++
+		p.pendingColSpan, _ = strconv.Atoi(attrVal(t, "gridSpan"))
+		p.pendingRowSpan, _ = strconv.Atoi(attrVal(t, "rowSpan"))
+		p.pendingMerged = dmlTrue(attrVal(t, "hMerge")) || dmlTrue(attrVal(t, "vMerge"))
+	}
+}
+
+// closeTableStruct closes the Group a:tbl / a:tr opened, or leaves the cell.
+func (p *dmlParser) closeTableStruct(name string) {
+	switch name {
+	case "tbl", "tr":
+		if p.emitPart == nil {
+			return
+		}
+		kind := "table"
+		if name == "tr" {
+			kind = "table-row"
+		}
+		if n := len(p.structStack); n > 0 && p.structStack[n-1].kind == kind {
+			f := p.structStack[n-1]
+			p.structStack = p.structStack[:n-1]
+			p.emitPart(&model.Part{Type: model.PartGroupEnd, Resource: &model.GroupEnd{ID: f.id}})
+		}
+	case "tc":
+		if p.cellDepth > 0 {
+			p.cellDepth--
+		}
+		p.pendingColSpan, p.pendingRowSpan, p.pendingMerged = 0, 0, false
+	}
+}
+
+// markTableCell gives a paragraph inside an a:tc the table-cell role (the
+// header role in a first row the table declares as one), and the cell's first
+// paragraph its spans. A cell that only continues a merge from a
+// neighbour is marked the way a Word vMerge continuation is, so the projection
+// leaves it out and the originating cell's span covers the position.
+func (p *dmlParser) markTableCell(block *model.Block) {
+	if block.SemanticRole() != "" {
+		return
+	}
+	role := model.RoleTableCell
+	if p.headerRow && p.rowIndex == 1 {
+		role = model.RoleTableHeader
+	}
+	block.SetSemanticRole(role, 0)
+	if p.pendingMerged {
+		block.Properties[model.PropTableVMerge] = "continue"
+	}
+	if p.pendingColSpan > 1 || p.pendingRowSpan > 1 {
+		if s, ok := block.Structure(); ok && s != nil {
+			if p.pendingColSpan > 1 {
+				s.ColSpan = p.pendingColSpan
+			}
+			if p.pendingRowSpan > 1 {
+				s.RowSpan = p.pendingRowSpan
+			}
+		}
+	}
+	// The spans belong to the cell's first paragraph only.
+	p.pendingColSpan, p.pendingRowSpan = 0, 0
+}
+
+// dmlTrue reads an ST_Boolean attribute, which PowerPoint writes as "1".
+func dmlTrue(v string) bool { return v == "1" || v == "true" }
 
 // emuToPt converts English Metric Units (914400 EMU/inch, 12700 EMU/point) to
 // points — the absolute unit the GeometryAnnotation BBox carries (Resolution 0).
@@ -126,6 +241,9 @@ func (p *dmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 				if err := p.parseTextBody(d, partPath, emitBlock); err != nil {
 					return err
 				}
+			case "tbl", "tr", "tc", "tblPr":
+				p.openTableStruct(t)
+				p.skelWriteStartElement(d, t)
 			default:
 				p.captureShapeGeometry(t)
 				if p.cfg != nil && p.cfg.ExtractNonTranslatableContent() && isDrawingPropertyElement(t) {
@@ -140,8 +258,11 @@ func (p *dmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 			}
 
 		case xml.EndElement:
-			if t.Name.Local == "grpSp" {
+			switch t.Name.Local {
+			case "grpSp":
 				p.groupDepth--
+			case "tbl", "tr", "tc":
+				p.closeTableStruct(t.Name.Local)
 			}
 			p.skelWriteEndElement(d)
 
@@ -451,6 +572,9 @@ func (p *dmlParser) parseParagraph(d *rawDecoder, partPath string, emitBlock fun
 				}
 				if role, level := p.placeholderRole(); role != "" {
 					block.SetSemanticRole(role, level)
+				}
+				if p.cellDepth > 0 {
+					p.markTableCell(block)
 				}
 				p.attachShapeGeometry(block)
 				applyPPTXPartFacets(block, partPath)

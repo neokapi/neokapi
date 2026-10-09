@@ -258,6 +258,8 @@ export function BatchExplorer(props: BatchExplorerProps): React.ReactElement {
 export interface ConversionExplorerProps {
   defaultSampleId?: string;
   sampleIds?: string[];
+  /** Office documents served under /samples/, fetched on mount. */
+  samples?: { url: string; name?: string }[];
   defaultTarget?: string;
 }
 

@@ -323,6 +323,11 @@ func (w *Writer) writeBlock(b *strings.Builder, blk *model.Block) {
 	if blk.Type == "omml-nor" {
 		return
 	}
+	// A drawing's object name or alt text, a core property: kept about the
+	// document, not a line of it.
+	if projection.IsMetadata(blk) {
+		return
+	}
 	role := blk.SemanticRole()
 	if role == "" {
 		role = typeToRole[blk.Type]

@@ -23,6 +23,12 @@ export interface VisionExplorerProps {
    * CORS-blocked for browser fetch, so the docs site stages the models locally.
    */
   modelBase?: string;
+  /**
+   * Start armed, with no Run gate of its own: for a host whose own Play
+   * already asked the reader (the learning labs). Recognition runs on the
+   * first sample as soon as it mounts.
+   */
+  autoStart?: boolean;
 }
 
 interface Raster {
@@ -54,6 +60,7 @@ const roleColor = (r: string): string => ROLE_COLOR[r] ?? "#64748b";
 export default function VisionExplorer({
   samples = [],
   modelBase,
+  autoStart = false,
 }: VisionExplorerProps): React.ReactElement {
   const [src, setSrc] = useState<string | null>(samples[0]?.url ?? null);
   const [raster, setRaster] = useState<Raster | null>(null);
@@ -180,7 +187,7 @@ export default function VisionExplorer({
 
   // Nothing loads on mount: the OCR models (and the first sample's processing)
   // are gated behind the shared RunGate — `armed` flips on the reader's press.
-  const [armed, setArmed] = useState(false);
+  const [armed, setArmed] = useState(autoStart);
   const visionGate: RunGateState = {
     armed,
     ready: armed,

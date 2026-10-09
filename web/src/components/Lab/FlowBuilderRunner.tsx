@@ -43,7 +43,7 @@ export interface FlowBuilderRunnerProps {
 // Recorded `kapi run --trace` outputs from native runs — the workspace replays
 // them to show what live wasm runs can't: parallel workers and channel
 // buffering.
-const RECORDED_TRACES = [
+export const RECORDED_TRACES = [
   {
     name: "Pseudo-translate JSON",
     description: "Basic native pipeline with 6 Parts",

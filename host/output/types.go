@@ -63,7 +63,12 @@ type FormatInfo struct {
 	Editable bool `json:"editable"`
 	// RoundTrip reports the writer reconstructs from a skeleton, so an edit
 	// changes only the edited text and the rest is byte-for-byte preserved.
-	RoundTrip  bool     `json:"round_trip,omitempty"`
+	RoundTrip bool `json:"round_trip,omitempty"`
+	// Family is the content shape the format carries (rich-markup, office-doc,
+	// catalog-keyvalue, …): one of registry.FormatFamilies. A surface that
+	// offers conversion targets narrows the generative writers by it, so a
+	// document converts to the document formats and a catalog to the catalogs.
+	Family     string   `json:"family,omitempty"`
 	Source     string   `json:"source,omitempty"`
 	Extensions []string `json:"extensions,omitempty"`
 	MimeTypes  []string `json:"mime_types,omitempty"`

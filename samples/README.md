@@ -30,7 +30,12 @@ Mart is content you can put through one.
   the recording.
 - **The sample is the fixture.** A harness demo seeds its sandbox from the
   sample directory with `fixturesFrom:` rather than keeping a private copy, so
-  the tree in a recording is the tree a reader clones.
+  the tree in a recording is the tree a reader clones. The learning labs on
+  the docs site (`/learn`) seed the browser engine the same way:
+  `make learn-gen` writes Northsea, Compass and Mart into
+  `packages/kapi-learn/src/samples.gen.ts`, and `make learn-verify` runs every
+  lab's commands against them. Change a sample, then run both. See
+  [docs/internals/learning-labs.md](../docs/internals/learning-labs.md).
 - **In-fiction copy is written in the fiction's own register.** The restrained
   register in `docs/internals/brand-communication.md` governs a sample's README
   and any prose *about* the sample, not the product copy inside it.

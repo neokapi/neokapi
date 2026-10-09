@@ -229,6 +229,11 @@ export interface FlowBuilderRunnerProps {
    * viewport).
    */
   fill?: boolean;
+  /**
+   * Start with the engine when mounted, with no Run gate of its own: for a
+   * host whose own Play already asked the reader (the learning labs).
+   */
+  autoStart?: boolean;
 }
 
 // FlowBuilderRunner is the lab's flow workspace: a learner picks a teaching
@@ -247,9 +252,10 @@ export default function FlowBuilderRunner({
   scenarioIds,
   recordedTraces,
   fill,
+  autoStart = false,
 }: FlowBuilderRunnerProps): React.ReactElement {
-  const runtime = useLabRuntime(assets, { autoBoot: false });
-  const gate = useRunGate(runtime);
+  const runtime = useLabRuntime(assets, { autoBoot: autoStart });
+  const gate = useRunGate(runtime, { autoArm: autoStart });
 
   const toolInfos = useMemo(() => buildToolInfos(), []);
 

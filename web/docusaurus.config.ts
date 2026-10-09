@@ -250,8 +250,21 @@ const config: Config = {
           { from: "/kapi/get-started/use-with-mcp", to: "/kapi/get-started/use-with-claude" },
           // The Models & Providers lab was removed (it demonstrated provider
           // APIs, not neokapi functionality); provider setup lives in the
-          // Use-with-Claude/models docs, and /labs maps the remaining labs.
-          { from: "/lab/models", to: "/labs" },
+          // Use-with-Claude/models docs. The labs overview that mapped the
+          // remaining explorers became the learning labs index at /learn,
+          // which lists the explorers at its foot.
+          { from: "/lab/models", to: "/learn" },
+          { from: "/labs", to: "/learn" },
+          // The engine explorers are labs now (series 4 of /learn), each with
+          // the same player, poster and chapters as the rest.
+          { from: "/lab", to: "/learn/flow-workspace" },
+          { from: "/lab/segmentation", to: "/learn/segmentation" },
+          { from: "/lab/convert", to: "/learn/conversion" },
+          { from: "/lab/structure", to: "/learn/structure" },
+          { from: "/lab/vision", to: "/learn/vision" },
+          { from: "/lab/media", to: "/learn/media" },
+          { from: "/playground-cli", to: "/learn/free-terminal" },
+          { from: "/kbf-lab", to: "/learn/kbf-anatomy" },
           // The file-format vocabulary rename (.klf → .kbf → .kbf.json, .klz → .kpz):
           // the *format* is a hard rename with no back-compat, but the
           // published doc URLs are indexed, so the old routes redirect. These
@@ -274,7 +287,7 @@ const config: Config = {
           { from: "/reference/kbf/vs-xliff", to: "/reference/serialization/choosing" },
           { from: "/reference/kbf/package", to: "/reference/serialization/project-archive" },
           { from: "/reference/formats/klf", to: "/reference/formats/kbf" },
-          { from: "/klf-lab", to: "/kbf-lab" },
+          { from: "/klf-lab", to: "/learn/kbf-anatomy" },
           { from: "/klf-tests", to: "/kbf-tests" },
           {
             from: "/contribute/architecture/025-klf-package",
@@ -822,6 +835,10 @@ const config: Config = {
     // where a variant exists, English otherwise. See the plugin.
     "./plugins/reference-locale.mjs",
 
+    // One page per learning lab (/learn/<id>), from the curriculum in
+    // @neokapi/kapi-learn. See the plugin.
+    "./plugins/learn-routes.ts",
+
     // Silence a few benign third-party webpack warnings. Each predicate is
     // scoped to the specific offending module/message so an equivalent warning
     // from our OWN code is never suppressed.
@@ -1111,22 +1128,28 @@ const config: Config = {
         },
         {
           type: "dropdown",
-          label: "Labs",
+          label: "Learn",
           position: "left",
           items: [
-            // A Labs overview heads the list (what each lab teaches + a
-            // suggested order). AI/ML (local LLM, OCR, ASR) is embedded inside
-            // the relevant labs; plugins load on demand from the navbar status
-            // widget. Old per-topic routes redirect to their new home.
-            { label: "Labs overview", to: "/labs" },
-            { label: "Flow workspace", to: "/lab" },
-            { label: "Segmentation", to: "/lab/segmentation" },
-            { label: "File conversion", to: "/lab/convert" },
-            { label: "Structure and layout", to: "/lab/structure" },
-            { label: "Vision", to: "/lab/vision" },
-            { label: "Audio and video", to: "/lab/media" },
-            { label: "CLI playground", to: "/playground-cli" },
-            { label: "KBF anatomy", to: "/kbf-lab" },
+            // The learning labs: three series in the sample projects, each lab
+            // a scripted session in the browser engine (/learn, one page per
+            // lab under /learn/<id>). The engine explorers that open one part
+            // of the engine on a file of the reader's own follow; the index
+            // lists them too. Plugins load on demand from the navbar status
+            // widget.
+            { label: "Learn kapi", to: "/learn" },
+            { label: "Start here: one language", to: "/learn/northsea-project" },
+            { label: "Add languages", to: "/learn/compass-axis" },
+            { label: "The content engine", to: "/learn/mart-formats" },
+            { type: "html", value: '<hr class="dropdown-separator">' },
+            { label: "Flow workspace", to: "/learn/flow-workspace" },
+            { label: "Segmentation", to: "/learn/segmentation" },
+            { label: "File conversion", to: "/learn/conversion" },
+            { label: "Structure and layout", to: "/learn/structure" },
+            { label: "Vision", to: "/learn/vision" },
+            { label: "Audio and video", to: "/learn/media" },
+            { label: "Bundle anatomy", to: "/learn/kbf-anatomy" },
+            { label: "Free terminal", to: "/learn/free-terminal" },
           ],
         },
         {

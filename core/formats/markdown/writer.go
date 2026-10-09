@@ -918,31 +918,6 @@ func (w *Writer) writeFromEvents(events []*model.Part, out io.Writer) error {
 	return flushCells()
 }
 
-// isDrawingMetadata reports whether a block carries a drawing's non-visual
-// property (its name, accessibility description, or object title) rather than
-// document content. Keyed on the reader's own "element" discriminator, not on
-// the block Type, because "property" also covers genuinely visible text — a VML
-// textpath string, an mc:AlternateContent fallback — and document metadata.
-func isDrawingMetadata(b *model.Block) bool {
-	if b.Type != "property" {
-		return false
-	}
-	switch b.Properties["element"] {
-	case "drawing-name", "drawing-descr", "drawing-title":
-		return true
-	}
-	return false
-}
-
-// isDocMetadata reports whether a block is a document core property — a
-// dc:title, dc:creator, cp:keywords extracted from an OPC package's
-// docProps/core.xml. Keyed on the part path because "property" as a Type also
-// covers visible text (a VML textpath string), and the element names alone
-// (title, subject, …) are too generic to claim across formats.
-func isDocMetadata(b *model.Block) bool {
-	return b.Type == "property" && b.Properties["partPath"] == "docProps/core.xml"
-}
-
 // isCellBlock reports whether a block carries a table-cell role.
 func isCellBlock(b *model.Block) bool {
 	role := b.SemanticRole()
@@ -1011,15 +986,13 @@ func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
 	// turns one image into four stray lines — a name, a filename, and the alt
 	// text twice, once per non-visual-properties element. The alt text reaches
 	// the output through the image run's own attributes instead.
-	if isDrawingMetadata(block) {
-		return nil
-	}
 	// A document's core properties — title, author, keywords, category — are
-	// metadata about the file, not positions in its flow. They are real
-	// translation units (a document title is translated), but rendering them as
-	// paragraphs appends the author's name and keyword list after the last real
-	// paragraph as if the document said them. Generative-path only.
-	if isDocMetadata(block) {
+	// metadata about the file in the same way: real translation units (a
+	// document title is translated), but rendering them as paragraphs appends
+	// the author's name and keyword list after the last real paragraph as if
+	// the document said them. Generative-path only; projection.IsMetadata is
+	// the one rule every generative writer and the preview share.
+	if projection.IsMetadata(block) {
 		return nil
 	}
 

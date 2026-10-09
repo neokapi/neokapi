@@ -36,6 +36,13 @@ on:
       - "packages/kapi-lab/**"
       - "packages/engine/**"
       - "scripts/wasm-persist/**"
+      # The learning labs run the sample projects through the lab shell; a
+      # change to a lab, the shell, the samples or the generator that writes
+      # them into the player's module is what learn-verify reruns.
+      - "packages/kapi-learn/**"
+      - "scripts/learn-verify/**"
+      - "scripts/learn-gen/**"
+      - "samples/**"
       # The change contract's types, which the engine facade reads its answers by.
       - "packages/contract-types/**"
       # The TypeScript half of the KBF parity smoke. The Go half is covered by
@@ -65,6 +72,13 @@ on:
       - "packages/kapi-lab/**"
       - "packages/engine/**"
       - "scripts/wasm-persist/**"
+      # The learning labs run the sample projects through the lab shell; a
+      # change to a lab, the shell, the samples or the generator that writes
+      # them into the player's module is what learn-verify reruns.
+      - "packages/kapi-learn/**"
+      - "scripts/learn-verify/**"
+      - "scripts/learn-gen/**"
+      - "samples/**"
       # The change contract's types, which the engine facade reads its answers by.
       - "packages/contract-types/**"
       # The TypeScript half of the KBF parity smoke. The Go half is covered by
@@ -138,6 +152,16 @@ jobs:
       # toolbox rename left /lab/convert calling a verb that no longer existed.
       - name: Verify the browser command surface in wasm
         run: node --experimental-strip-types scripts/verify-snippets/command-surface-smoke.ts
+
+      # The learning labs (/learn): the samples the player seeds from must be
+      # the ones under samples/, and every chapter of every lab must run in the
+      # wasm with the exit code and output it declares, through the same lab
+      # shell the browser uses. See docs/internals/learning-labs.md.
+      - name: Verify the learning labs' sample module is current
+        run: node --experimental-strip-types scripts/learn-gen/gen.ts --check
+
+      - name: Verify every learning lab in wasm
+        run: node --experimental-strip-types scripts/learn-verify/verify.ts
 
       # The workspace a page keeps: the engine in its Worker on opfs-sahpool,
       # in headless Chromium without COOP/COEP headers (GitHub Pages sets

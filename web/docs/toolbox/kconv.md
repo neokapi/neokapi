@@ -55,7 +55,7 @@ You can read (convert **from**) any supported format. You can write (convert
 - **Data and catalogs**: JSON, YAML, and the resource-string formats
 
 Run `kapi formats` for the full set, or try the
-[Conversion lab](/lab/convert) to convert in your browser.
+[Conversion lab](/learn/conversion) to convert in your browser.
 
 **Not conversion targets:**
 

@@ -2,12 +2,14 @@ package openxml
 
 import (
 	"archive/zip"
+	"cmp"
 	"encoding/xml"
 	"errors"
 	"fmt"
 	"io"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/safeio"
@@ -51,6 +53,11 @@ type containerInfo struct {
 	// cellStyles resolves an XLSX cell's style index to its number-format
 	// code, and carries the workbook's date epoch.
 	cellStyles *cellStyles
+	// slideOrder is a presentation's slide parts in show order, read from
+	// presentation.xml's sldIdLst. Part names follow creation order (a slide
+	// moved to the front keeps its number), so the list is the only source
+	// of the order the deck plays in. Nil when it could not be read.
+	slideOrder []string
 }
 
 // relationship represents an OpenXML relationship entry.
@@ -145,6 +152,9 @@ func parseContainer(zr *zip.Reader, cfg *Config) (*containerInfo, error) {
 
 	// Find main document part
 	info.mainDocumentPart = findMainDocumentPart(info.relationships)
+	if info.docType == docTypePPTX {
+		info.slideOrder = parseSlideOrder(zr, info)
+	}
 
 	// Build ordered list of translatable parts
 	info.translatableParts = buildTranslatableParts(info, cfg)
@@ -436,45 +446,79 @@ func appendChartAndDiagramParts(parts []string, info *containerInfo) []string {
 	return parts
 }
 
-// buildPPTXParts returns the ordered translatable parts for a PPTX document.
-func buildPPTXParts(info *containerInfo, cfg *Config) []string {
-	var slides, notes, masters, layouts, comments []string
+// PresentationML relationship types (ECMA-376-1 §13.3): the parts a deck
+// reaches from presentation.xml and from each slide.
+const (
+	relTypeSlide       = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide"
+	relTypeNotesSlide  = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesSlide"
+	relTypeSlideMaster = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster"
+	relTypeSlideLayout = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout"
+)
 
-	// Discover parts from content types stored in relationships
+// buildPPTXParts returns the ordered translatable parts for a PPTX document:
+// the slides in show order, each followed by its speaker notes, then (with the
+// masters option on) the masters and layouts, the comments, and the document
+// properties.
+//
+// Every relationship list in the package is scanned, so a part reachable from
+// two places is seen twice: a slide is the target of presentation.xml and of
+// its own notes slide. Each part is collected once.
+//
+// A layout is template furniture like the master it derives from: its text is
+// the editor's prompt ("Click to edit Master title style"), drawn on no slide.
+// Upstream Okapi extracts layouts and masters under the one masters option
+// (PowerpointDocument.slideFragmentsFor), and so does this.
+func buildPPTXParts(info *containerInfo, cfg *Config) []string {
+	seen := make(map[string]bool)
+	var slides, notes, masters, layouts, comments []string
+	collect := func(list *[]string, target string) {
+		if seen[target] {
+			return
+		}
+		seen[target] = true
+		*list = append(*list, target)
+	}
+
 	for relsPath, rels := range info.relationships {
 		for _, rel := range rels {
 			target := resolveRelTarget(relsPath, rel.Target)
-
 			switch rel.Type {
-			case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide":
-				slides = append(slides, target)
-			case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesSlide":
+			case relTypeSlide:
+				collect(&slides, target)
+			case relTypeNotesSlide:
 				if cfg.TranslateSlideNotes {
-					notes = append(notes, target)
+					collect(&notes, target)
 				}
-			case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster":
+			case relTypeSlideMaster:
 				if cfg.TranslateSlideMasters {
-					masters = append(masters, target)
+					collect(&masters, target)
 				}
-			case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout":
-				layouts = append(layouts, target)
-			case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments":
+			case relTypeSlideLayout:
+				if cfg.TranslateSlideMasters {
+					collect(&layouts, target)
+				}
+			case relTypeComments:
 				if cfg.TranslateComments {
-					comments = append(comments, target)
+					collect(&comments, target)
 				}
 			}
 		}
 	}
 
-	slices.Sort(slides)
-	slices.Sort(notes)
-	slices.Sort(masters)
-	slices.Sort(layouts)
-	slices.Sort(comments)
+	slides = orderSlides(slides, info.slideOrder)
+	slices.SortFunc(masters, naturalCompare)
+	slices.SortFunc(layouts, naturalCompare)
+	slices.SortFunc(comments, naturalCompare)
 
+	// Each slide is followed by its speaker notes, so the notes sit under
+	// the slide they are about in any export; a notes part no slide claims
+	// follows the deck.
 	var parts []string
-	parts = append(parts, slides...)
-	parts = append(parts, notes...)
+	for _, slide := range slides {
+		parts = append(parts, slide)
+		parts = append(parts, notesOf(slide, notes, info.relationships)...)
+	}
+	parts = append(parts, orderNotes(notes, slides, info.relationships)...)
 	parts = append(parts, masters...)
 	parts = append(parts, layouts...)
 	parts = append(parts, comments...)
@@ -485,6 +529,168 @@ func buildPPTXParts(info *containerInfo, cfg *Config) []string {
 	}
 
 	return parts
+}
+
+// orderSlides puts the slide parts in show order. A slide the sldIdLst does not
+// name follows the named ones, and with no list at all the parts sort by their
+// number.
+func orderSlides(slides, show []string) []string {
+	present := make(map[string]bool, len(slides))
+	for _, s := range slides {
+		present[s] = true
+	}
+	placed := make(map[string]bool, len(slides))
+	var out []string
+	for _, s := range show {
+		if present[s] && !placed[s] {
+			placed[s] = true
+			out = append(out, s)
+		}
+	}
+	var rest []string
+	for _, s := range slides {
+		if !placed[s] {
+			rest = append(rest, s)
+		}
+	}
+	slices.SortFunc(rest, naturalCompare)
+	return append(out, rest...)
+}
+
+// notesOf returns the notes parts a slide's own relationships name, among
+// those collected for the deck.
+func notesOf(slide string, notes []string, rels map[string][]relationship) []string {
+	var out []string
+	relsPath := partRelsPath(slide)
+	for _, rel := range rels[relsPath] {
+		if rel.Type != relTypeNotesSlide {
+			continue
+		}
+		target := resolveRelTarget(relsPath, rel.Target)
+		if slices.Contains(notes, target) {
+			out = append(out, target)
+		}
+	}
+	return out
+}
+
+// orderNotes returns the notes parts no slide claims, by number.
+func orderNotes(notes, slides []string, rels map[string][]relationship) []string {
+	claimed := make(map[string]bool, len(notes))
+	for _, slide := range slides {
+		for _, n := range notesOf(slide, notes, rels) {
+			claimed[n] = true
+		}
+	}
+	var rest []string
+	for _, n := range notes {
+		if !claimed[n] {
+			rest = append(rest, n)
+		}
+	}
+	slices.SortFunc(rest, naturalCompare)
+	return rest
+}
+
+// partRelsPath is the relationships part of a package part:
+// ppt/slides/slide1.xml → ppt/slides/_rels/slide1.xml.rels.
+func partRelsPath(part string) string {
+	dir, base := "", part
+	if idx := strings.LastIndex(part, "/"); idx >= 0 {
+		dir, base = part[:idx+1], part[idx+1:]
+	}
+	return dir + "_rels/" + base + ".rels"
+}
+
+// parseSlideOrder reads the presentation part's <p:sldIdLst> and resolves each
+// <p:sldId r:id> through the part's relationships to a slide part, in show
+// order. Nil when the part or the list cannot be read; buildPPTXParts then
+// falls back to the parts' numbering.
+func parseSlideOrder(zr *zip.Reader, info *containerInfo) []string {
+	main := info.mainDocumentPart
+	if main == "" {
+		return nil
+	}
+	f := zipFileByName(zr, main)
+	if f == nil {
+		return nil
+	}
+	rc, err := f.Open()
+	if err != nil {
+		return nil
+	}
+	defer rc.Close()
+
+	relsPath := partRelsPath(main)
+	byID := make(map[string]string)
+	for _, rel := range info.relationships[relsPath] {
+		byID[rel.ID] = resolveRelTarget(relsPath, rel.Target)
+	}
+
+	dec := xml.NewDecoder(rc)
+	var order []string
+	inList := false
+	for {
+		tok, err := dec.Token()
+		if err != nil {
+			return order
+		}
+		switch t := tok.(type) {
+		case xml.StartElement:
+			switch t.Name.Local {
+			case "sldIdLst":
+				inList = true
+			case "sldId":
+				if !inList {
+					continue
+				}
+				// <p:sldId id="256" r:id="rId2"/>: the bare id is the slide's
+				// own number; the relationship id names the part.
+				for _, a := range t.Attr {
+					if a.Name.Local == "id" && a.Name.Space != "" {
+						if target, ok := byID[a.Value]; ok {
+							order = append(order, target)
+						}
+					}
+				}
+			}
+		case xml.EndElement:
+			if t.Name.Local == "sldIdLst" {
+				return order
+			}
+		}
+	}
+}
+
+// naturalCompare orders part names with their digit runs compared as numbers,
+// so slide2.xml sorts before slide10.xml.
+func naturalCompare(a, b string) int {
+	for a != "" && b != "" {
+		da, db := leadingDigits(a), leadingDigits(b)
+		if da > 0 && db > 0 {
+			na, _ := strconv.Atoi(a[:da])
+			nb, _ := strconv.Atoi(b[:db])
+			if na != nb {
+				return cmp.Compare(na, nb)
+			}
+			a, b = a[da:], b[db:]
+			continue
+		}
+		if a[0] != b[0] {
+			return cmp.Compare(a[0], b[0])
+		}
+		a, b = a[1:], b[1:]
+	}
+	return cmp.Compare(len(a), len(b))
+}
+
+// leadingDigits is the length of the digit run s starts with.
+func leadingDigits(s string) int {
+	n := 0
+	for n < len(s) && s[n] >= '0' && s[n] <= '9' {
+		n++
+	}
+	return n
 }
 
 // resolveRelTarget resolves a relationship target relative to a .rels file path.

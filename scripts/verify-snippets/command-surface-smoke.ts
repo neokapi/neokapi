@@ -147,34 +147,50 @@ mem.vol.writeFile("/project/article.md", enc.encode(MARKDOWN));
 
 const formats = await run("formats", "list", "--json");
 ok("ConversionExplorer: `formats list --json` exits 0", formats.code === 0, formats.out.trim());
-let generative: string[] = [];
+let documentTargets: string[] = [];
 try {
   const parsed = JSON.parse(formats.out) as {
-    formats?: { name: string; has_writer?: boolean; generative?: boolean; interchange?: boolean }[];
+    formats?: {
+      name: string;
+      has_writer?: boolean;
+      generative?: boolean;
+      interchange?: boolean;
+      family?: string;
+    }[];
   };
-  generative = (parsed.formats ?? [])
-    .filter((f) => f.has_writer && f.generative && !f.interchange)
+  // The lab's own rule (ConversionExplorer.tsx): a generative writer, outside
+  // the interchange formats, in a document family.
+  const DOCUMENT_FAMILIES = new Set(["rich-markup", "plain-text"]);
+  documentTargets = (parsed.formats ?? [])
+    .filter(
+      (f) => f.has_writer && f.generative && !f.interchange && DOCUMENT_FAMILIES.has(f.family ?? ""),
+    )
     .map((f) => f.name);
 } catch (e) {
   ok("ConversionExplorer: formats JSON parses", false, String(e));
 }
 ok(
-  "ConversionExplorer: the engine reports generative targets",
-  generative.length > 0,
-  `${generative.length} targets`,
+  "ConversionExplorer: the engine reports document conversion targets",
+  documentTargets.length > 0,
+  `${documentTargets.length} targets`,
 );
 
-// Convert to each of ConversionExplorer's own GENERATIVE_TARGETS — the pills it
-// opens on and falls back to. Every one must serialize a prose document, since
-// that is what the Conversion Lab's samples are. (The engine reports a wider
-// generative set, some of it keyed-catalog or media-only; the lab surfaces those
-// too, and a pill whose writer rejects a given input reports the error inline.)
-const LAB_TARGETS = ["doclang", "markdown", "html", "asciidoc", "json", "yaml", "plaintext"];
+// Convert to each of ConversionExplorer's own DOCUMENT_TARGETS, the pills it
+// opens on and falls back to. Every one must be among the engine's document
+// targets and serialize a prose document.
+const LAB_TARGETS = ["doclang", "markdown", "html", "asciidoc", "mdx", "plaintext"];
 for (const fmt of LAB_TARGETS) {
   ok(
-    `ConversionExplorer: the engine still reports \`${fmt}\` as generative`,
-    generative.includes(fmt),
-    generative.join(" "),
+    `ConversionExplorer: the engine still reports \`${fmt}\` as a document target`,
+    documentTargets.includes(fmt),
+    documentTargets.join(" "),
+  );
+}
+for (const fmt of ["json", "yaml", "androidxml", "audio"]) {
+  ok(
+    `ConversionExplorer: \`${fmt}\` is not offered as a document target`,
+    !documentTargets.includes(fmt),
+    documentTargets.join(" "),
   );
 }
 for (const fmt of LAB_TARGETS) {

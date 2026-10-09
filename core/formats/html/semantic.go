@@ -376,6 +376,12 @@ func (w *Writer) emitBlock(st *semanticState, b *model.Block) error {
 		return w.semLine(st, frag.String())
 	}
 
+	// A drawing's object name or alt text, a core property: kept about the
+	// document, not a line of it. The image carries its alt text itself.
+	if projection.IsMetadata(b) {
+		return nil
+	}
+
 	role := b.SemanticRole()
 	if role == "" {
 		role = b.Type

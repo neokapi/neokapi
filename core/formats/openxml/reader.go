@@ -340,6 +340,9 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				skeletonStore: r.skeletonStore,
 				rels:          relsMap,
 				slideNum:      pptxSlideNum(partPath),
+				// Surface slide-table topology (a:tbl/a:tr → Groups, cells →
+				// RoleTableCell), as the Word parser does for w:tbl.
+				emitPart: func(part *model.Part) { r.emit(ctx, ch, part) },
 			}
 			err = parser.parsePart(partData, partPath, emitBlock)
 			if err != nil {

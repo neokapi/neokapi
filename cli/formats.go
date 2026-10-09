@@ -129,6 +129,7 @@ func listFormats(a *App, cmd *cobra.Command, fmtMime, fmtExt string) error {
 			Interchange: info.Interchange,
 			Editable:    info.Editable,
 			RoundTrip:   info.RoundTrip,
+			Family:      string(info.Family),
 			Source:      info.Source,
 			Extensions:  info.Extensions,
 			MimeTypes:   info.MimeTypes,

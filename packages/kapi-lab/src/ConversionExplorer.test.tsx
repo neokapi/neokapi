@@ -1,22 +1,26 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
-import ConversionExplorer, { GENERATIVE_TARGETS } from "./ConversionExplorer";
+import ConversionExplorer, { DOCUMENT_FAMILIES, DOCUMENT_TARGETS } from "./ConversionExplorer";
 
 afterEach(cleanup);
 
-describe("GENERATIVE_TARGETS", () => {
-  it("offers generative document/data writers", () => {
-    const ids = GENERATIVE_TARGETS.map((t) => t.id);
-    for (const id of ["doclang", "markdown", "html", "json"]) {
+describe("DOCUMENT_TARGETS", () => {
+  it("offers the document writers the engine generates", () => {
+    const ids = DOCUMENT_TARGETS.map((t) => t.id);
+    for (const id of ["doclang", "markdown", "html", "asciidoc", "plaintext"]) {
       expect(ids).toContain(id);
     }
   });
 
-  it("excludes skeleton-driven and bilingual-interchange formats", () => {
-    const ids = GENERATIVE_TARGETS.map((t) => t.id);
+  it("offers no catalog, skeleton-bound, media or interchange format", () => {
+    const ids = DOCUMENT_TARGETS.map((t) => t.id);
+    // A Word document is not a string catalog.
+    for (const id of ["json", "yaml", "properties", "androidxml", "applestrings", "resx"]) {
+      expect(ids).not.toContain(id);
+    }
     // Skeleton-driven / binary writers need the original file.
-    for (const id of ["openxml", "odf", "idml", "epub", "csv", "image"]) {
+    for (const id of ["openxml", "odf", "idml", "epub", "csv", "image", "audio", "video"]) {
       expect(ids).not.toContain(id);
     }
     // Bilingual interchange belongs to the extract/merge loop, not convert.
@@ -25,8 +29,12 @@ describe("GENERATIVE_TARGETS", () => {
     }
   });
 
+  it("names the document families the engine declares", () => {
+    expect([...DOCUMENT_FAMILIES].sort()).toEqual(["plain-text", "rich-markup"]);
+  });
+
   it("gives every target an output extension", () => {
-    for (const t of GENERATIVE_TARGETS) {
+    for (const t of DOCUMENT_TARGETS) {
       expect(t.ext.length).toBeGreaterThan(0);
       expect(t.label.length).toBeGreaterThan(0);
     }
@@ -47,5 +55,25 @@ describe("ConversionExplorer", () => {
     // The input picker still lays out behind the zero-shift gate overlay.
     render(<ConversionExplorer assets={null} />);
     expect(screen.getByText("Input")).toBeTruthy();
+  });
+
+  it("selects a served sample by name once it loads", async () => {
+    const bytes = new TextEncoder().encode("# Served\n");
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async () =>
+      new Response(bytes, { status: 200 })) as unknown as typeof globalThis.fetch;
+    try {
+      render(
+        <ConversionExplorer
+          assets={null}
+          samples={[{ url: "/samples/handbook.md", name: "handbook.md" }]}
+          defaultSampleId="handbook.md"
+        />,
+      );
+      // The selector shows the requested file once the fetch has landed.
+      expect(await screen.findByText("handbook.md")).toBeTruthy();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 });

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   configurePlugins,
   bootEngine,
@@ -425,17 +425,27 @@ function SegCell({
 
 export interface SegmentationLabInnerProps {
   assets: LabRuntimeAssets | null;
+  /** The sample text to start from (default: the first). */
+  defaultSampleId?: string;
+  /**
+   * Run the comparison as soon as the lab mounts, for a host whose own Play
+   * already asked the reader (the learning labs).
+   */
+  autoRun?: boolean;
 }
 
 export default function SegmentationLabInner({
   assets,
+  defaultSampleId,
+  autoRun = false,
 }: SegmentationLabInnerProps): React.ReactElement {
   const mgr = usePluginManager();
+  const initialSample = SAMPLES.find((s) => s.id === defaultSampleId) ?? SAMPLES[0];
   // Two mutually-exclusive input modes, chosen by a toggle: "text" (a sample or
   // your own typing) or "file" (uploaded, parsed by its own reader).
   const [inputMode, setInputMode] = useState<"text" | "file">("text");
-  const [text, setText] = useState(SAMPLES[0].text);
-  const [locale, setLocale] = useState(SAMPLES[0].locale);
+  const [text, setText] = useState(initialSample.text);
+  const [locale, setLocale] = useState(initialSample.locale);
   const [file, setFile] = useState<FileSourceValue | null>(null);
 
   const [selected, setSelected] = useState<Set<string>>(new Set(DEFAULT_SELECTED));
@@ -623,6 +633,17 @@ export default function SegmentationLabInner({
       setRunning(false);
     })();
   };
+
+  // A host that chose the sample for the reader runs the comparison as soon as
+  // the lab mounts; the engine is up already, so the instant engines answer
+  // at once and the opt-in models stay opt-in.
+  const autoRanRef = useRef(false);
+  useEffect(() => {
+    if (!autoRun || autoRanRef.current) return;
+    autoRanRef.current = true;
+    runCompare();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoRun]);
 
   const hasResults = Object.keys(results).length > 0;
   const selectedDefs = ENGINES.filter((d) => selected.has(d.id));

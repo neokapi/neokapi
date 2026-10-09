@@ -22,8 +22,9 @@ type paraRole struct {
 
 // styleRoleMap maps a paragraph styleId to the semantic role it implies. It is
 // built from word/styles.xml by resolving each paragraph style's w:name,
-// w:outlineLvl, and basedOn chain against the well-known heading/title
-// conventions (only styles that resolve to a role are recorded). A nil/empty
+// w:outlineLvl, w:numPr and basedOn chain against the well-known heading/title
+// conventions and the list styles (only styles that resolve to a role are
+// recorded). A nil/empty
 // map is valid: roleForParaStyle then falls back to the language-independent
 // built-in styleId heuristic, so headings still resolve when styles.xml is
 // absent or was not loaded.
@@ -36,6 +37,7 @@ type rawStyle struct {
 	name       string // <w:name w:val> (localized, e.g. "heading 1")
 	basedOn    string // <w:basedOn w:val>
 	outlineLvl int    // <w:pPr><w:outlineLvl w:val>; -1 when absent
+	numbered   bool   // <w:pPr><w:numPr><w:numId> names a list: the style's paragraphs are list items
 }
 
 // headingNumRE matches both the language-independent built-in heading styleId
@@ -56,6 +58,7 @@ func buildStyleRoleMap(stylesXML []byte) styleRoleMap {
 	dec := xml.NewDecoder(bytes.NewReader(stylesXML))
 	raws := make(map[string]*rawStyle)
 	var cur *rawStyle
+	inNumPr := false
 	for {
 		tok, err := dec.Token()
 		if err != nil {
@@ -88,13 +91,29 @@ func buildStyleRoleMap(stylesXML []byte) styleRoleMap {
 						cur.outlineLvl = n
 					}
 				}
+			case "numPr":
+				inNumPr = cur != nil
+			case "numId":
+				// A list style names a numbering definition. Word's Subtitle
+				// style carries a numPr with an outline level and no numId,
+				// and numId 0 switches numbering off, so neither is a list.
+				if inNumPr {
+					if v := attrLocalVal(t, "val"); v != "" && v != "0" {
+						cur.numbered = true
+					}
+				}
 			}
 		case xml.EndElement:
-			if t.Name.Local == "style" && cur != nil {
-				if cur.id != "" {
-					raws[cur.id] = cur
+			switch t.Name.Local {
+			case "numPr":
+				inNumPr = false
+			case "style":
+				if cur != nil {
+					if cur.id != "" {
+						raws[cur.id] = cur
+					}
+					cur = nil
 				}
-				cur = nil
 			}
 		}
 	}
@@ -140,6 +159,13 @@ func resolveStyleRole(id string, raws map[string]*rawStyle, visited map[string]b
 	}
 	if r.outlineLvl >= 0 {
 		return paraRole{role: model.RoleHeading, level: min(r.outlineLvl+1, 9)}
+	}
+	// A list style (Word's "List Bullet", "List Number" and what is based on
+	// them) carries the numbering in its own pPr, so its paragraphs declare
+	// no numPr of their own. The style marks them as list items the way a
+	// paragraph-level numPr does.
+	if r.numbered {
+		return paraRole{role: model.RoleListItem}
 	}
 	if r.basedOn != "" {
 		return resolveStyleRole(r.basedOn, raws, visited)
@@ -213,7 +239,8 @@ func attrLocalVal(start xml.StartElement, local string) string {
 
 // applyParagraphRole records the semantic role a paragraph implies on its
 // Block: a heading/title style wins (numbered headings keep their heading
-// role), otherwise a numbering declaration marks the block as a list item, and
+// role), otherwise a list style or a numbering declaration marks the block as
+// a list item, and
 // failing both a note part (footnotes/endnotes) supplies a footnote role. It
 // also records the part's plane (header/footer → furniture) and per-paragraph
 // visibility (a fully hidden paragraph → hidden) — the §8 structure facets.
@@ -231,8 +258,13 @@ func (p *wmlParser) applyParagraphRole(block *model.Block, paraStyleID, rawParaP
 		// A plain paragraph inside a w:tc is the table cell's content; tag it
 		// so the table/table-row Groups + cells form the canonical shape
 		// cross-format writers and projection reconstruct. A styled paragraph
-		// (heading, list) inside a cell keeps its stronger role.
-		block.SetSemanticRole(model.RoleTableCell, 0)
+		// (heading, list) inside a cell keeps its stronger role. A header
+		// row's cells take the header role.
+		role := model.RoleTableCell
+		if p.rowHeader {
+			role = model.RoleTableHeader
+		}
+		block.SetSemanticRole(role, 0)
 		// Apply a horizontal cell merge (w:gridSpan) to the cell's first
 		// paragraph so spanned grids reconstruct aligned, then consume it.
 		if p.pendingColSpan > 1 {

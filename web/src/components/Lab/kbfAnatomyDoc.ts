@@ -1,4 +1,4 @@
-// The worked example behind the KBF anatomy page (/kbf-lab): one realistic
+// The worked example behind the bundle anatomy lab (/learn/kbf-anatomy): one realistic
 // extracted source file, serialized field-by-field so every line of the
 // resulting `.kbf.json` text is tagged with the anatomical part it belongs to
 // (envelope, generator, project, document, block, editions, run, placeholders,
