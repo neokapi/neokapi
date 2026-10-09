@@ -268,8 +268,13 @@ const (
 	KeyPluginsDirectory  = "plugins.directory"
 	KeyPluginsRegistry   = "plugins.registry"
 	KeyFormatsPriorities = "formats.priorities"
-	KeyLanguage          = "language"
-	KeyUpdateChannel     = "update.channel"
+	// KeyFormatsEngine is the format engine preferred for a file whose
+	// extension both a built-in format and a plugin's claim: "native" or a
+	// plugin name. A recipe's defaults.engine and the --engine flag rank
+	// above it; unset prefers the built-in formats.
+	KeyFormatsEngine = "formats.engine"
+	KeyLanguage      = "language"
+	KeyUpdateChannel = "update.channel"
 	// KeyAIProvider / KeyAIModel are the default AI provider and model used by AI
 	// tools (ai-translate, qa, voice-check, …) and flows when no
 	// --provider/--model flag or recipe default is given. Set e.g. to "ollama"
@@ -497,6 +502,12 @@ func GlobalConfigValues(appName ...string) (map[string]string, error) {
 		out[k] = v.GetString(k)
 	}
 	return out, nil
+}
+
+// FormatEngine returns the configured default format engine ("native" or a
+// plugin name), or "" when unset.
+func (c *AppConfig) FormatEngine() string {
+	return strings.TrimSpace(c.v.GetString(KeyFormatsEngine))
 }
 
 // FormatPriorities returns the configured format priority overrides.

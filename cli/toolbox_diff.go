@@ -75,6 +75,7 @@ Exit status is 0 when the inputs are equivalent, 1 when they differ, 2 on error.
 	f.BoolVarP(&brief, "brief", "q", false, "report only whether the inputs differ, not the changes")
 	f.BoolVar(&stat, "stat", false, "print a one-line summary of the changes before the diff")
 	f.StringVarP(&a.FormatFlag, "format", "f", "", "input format (default: auto-detect by extension/content)")
+	a.AddEngineFlag(f)
 	a.AddSourceLangFlag(f)
 	a.AddEncodingFlag(f, "", "input encoding")
 	f.String("color", "auto", "colorize the diff: auto, always, never")

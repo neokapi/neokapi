@@ -354,10 +354,17 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 		}
 	}
 
-	// Resolve format: mapping > global -f flag > auto-detect by extension.
+	// Resolve format: mapping > global -f flag > detection. Detection is
+	// the project's when a recipe is in scope (its sources, engine and
+	// per-format pins), and the registry's otherwise; the two rank the
+	// engines the same way, so the file reads with the same format from
+	// every entry point.
 	fmtName := matchFormatMapping(filePath, cfg.FormatMappings)
 	if fmtName == "" {
 		fmtName = a.FormatFlag
+	}
+	if fmtName == "" && a.ProjectContext != nil {
+		fmtName = a.ProjectContext.DetectFormat(a.FormatReg, filePath)
 	}
 	if fmtName == "" {
 		// Content-aware: an extension claimed by several formats (.xliff 1.x/2.x,
@@ -419,13 +426,13 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 		// extension differs from the input's). For a same-extension round trip,
 		// keep the reader's format so an ambiguous extension that was content-
 		// detected (e.g. .xliff → xliff2) isn't downgraded to the 1.x writer.
+		// The writer comes from the reader's engine (WriterFormatFor), so a
+		// format named with -f pins the reader and the writer to one engine.
 		if !cfg.InPlace {
 			outExt := format.Ext(outputPath)
 			inExt := format.Ext(filePath)
 			if outExt != "" && outExt != inExt {
-				if det, err := a.FormatReg.Detect(outputPath, registry.DetectOptions{ExtensionOnly: true}); err == nil && det != "" {
-					writerFormatName = string(det)
-				}
+				writerFormatName = string(a.FormatReg.WriterFormatFor(registry.FormatID(registryName), outputPath))
 			}
 		}
 		var err error

@@ -123,12 +123,92 @@ func TestDetectFormat_PluginFiltered(t *testing.T) {
 	ctx := NewProjectContext(&KapiProject{Version: CurrentVersion}, "/tmp/test/project.kapi")
 	assert.Equal(t, "json", ctx.DetectFormat(reg, "file.json"))
 
-	// With plugin: plugin wins (higher priority).
+	// With the plugin declared: the built-in still wins (native first).
 	ctx2 := NewProjectContext(&KapiProject{
 		Version: CurrentVersion,
 		Plugins: map[string]PluginSpec{"okapi-bridge": {}},
 	}, "/tmp/test/project.kapi")
-	assert.Equal(t, "okf_json", ctx2.DetectFormat(reg, "file.json"))
+	assert.Equal(t, "json", ctx2.DetectFormat(reg, "file.json"))
+
+	// With the plugin declared and preferred: its format wins.
+	ctx3 := NewProjectContext(&KapiProject{
+		Version:  CurrentVersion,
+		Plugins:  map[string]PluginSpec{"okapi-bridge": {}},
+		Defaults: Defaults{Engine: "okapi-bridge"},
+	}, "/tmp/test/project.kapi")
+	assert.Equal(t, "okf_json", ctx3.DetectFormat(reg, "file.json"))
+
+	// A preference for a plugin the recipe does not declare selects nothing
+	// from it: detection stays scoped to the declared sources.
+	ctx4 := NewProjectContext(&KapiProject{
+		Version:  CurrentVersion,
+		Defaults: Defaults{Engine: "okapi-bridge"},
+	}, "/tmp/test/project.kapi")
+	assert.Equal(t, "json", ctx4.DetectFormat(reg, "file.json"))
+}
+
+// defaults.formats.<name>.engine pins one format's extensions to an engine
+// while the rest of the project keeps the engine order.
+func TestDetectFormat_FormatEnginePin(t *testing.T) {
+	reg := registry.NewFormatRegistry()
+	registerBuiltIn(reg, "json", ".json")
+	registerBuiltIn(reg, "xml", ".xml")
+	for _, name := range []string{"okf_json", "okf_xml"} {
+		reg.RegisterFormatInfo(registry.FormatID(name), registry.FormatInfo{
+			Extensions: []string{"." + name[len("okf_"):]},
+			Source:     "okapi-bridge",
+			HasReader:  true,
+		})
+	}
+	plugins := map[string]PluginSpec{"okapi-bridge": {}}
+
+	ctx := NewProjectContext(&KapiProject{
+		Version:  CurrentVersion,
+		Plugins:  plugins,
+		Defaults: Defaults{Formats: map[string]FormatDefaults{"json": {Engine: "okapi-bridge"}}},
+	}, "/tmp/test/project.kapi")
+	assert.Equal(t, "okf_json", ctx.DetectFormat(reg, "file.json"))
+	assert.Equal(t, "xml", ctx.DetectFormat(reg, "file.xml"))
+
+	// The pin ranks above the project's engine preference, and an extension
+	// names the same thing as a format.
+	ctx2 := NewProjectContext(&KapiProject{
+		Version: CurrentVersion,
+		Plugins: plugins,
+		Defaults: Defaults{
+			Engine:  "okapi-bridge",
+			Formats: map[string]FormatDefaults{".json": {Engine: "native"}},
+		},
+	}, "/tmp/test/project.kapi")
+	assert.Equal(t, "json", ctx2.DetectFormat(reg, "file.json"))
+	assert.Equal(t, "okf_xml", ctx2.DetectFormat(reg, "file.xml"))
+}
+
+// plugins.<name>.format_priority ranks the declared plugins behind the
+// built-in formats: the higher-ranked plugin serves an extension both claim
+// and no built-in does.
+func TestDetectFormat_PluginFormatPriorityRanksPlugins(t *testing.T) {
+	reg := registry.NewFormatRegistry()
+	registerBuiltIn(reg, "json", ".json")
+	reg.RegisterFormatInfo("okf_regex", registry.FormatInfo{Extensions: []string{".srt"}, Source: "okapi-bridge", HasReader: true})
+	reg.RegisterFormatInfo("av_srt", registry.FormatInfo{Extensions: []string{".srt"}, Source: "kapi-av", HasReader: true})
+	reg.RegisterFormatInfo("okf_json", registry.FormatInfo{Extensions: []string{".json"}, Source: "okapi-bridge", HasReader: true})
+
+	ctx := NewProjectContext(&KapiProject{
+		Version: CurrentVersion,
+		Plugins: map[string]PluginSpec{"okapi-bridge": {}, "kapi-av": {}},
+	}, "/tmp/test/project.kapi")
+	assert.Equal(t, []string{"kapi-av", "okapi-bridge"}, ctx.EngineOrder, "name order at equal rank")
+	assert.Equal(t, "av_srt", ctx.DetectFormat(reg, "clip.srt"))
+
+	ctx2 := NewProjectContext(&KapiProject{
+		Version: CurrentVersion,
+		Plugins: map[string]PluginSpec{"okapi-bridge": {FormatPriority: 200}, "kapi-av": {}},
+	}, "/tmp/test/project.kapi")
+	assert.Equal(t, []string{"okapi-bridge", "kapi-av"}, ctx2.EngineOrder)
+	assert.Equal(t, []string{registry.SourceBuiltIn, "okapi-bridge", "kapi-av"}, ctx2.AllowedSources)
+	assert.Equal(t, "okf_regex", ctx2.DetectFormat(reg, "clip.srt"))
+	assert.Equal(t, "json", ctx2.DetectFormat(reg, "file.json"), "a rank never moves a plugin ahead of the built-in formats")
 }
 
 func TestDetectFormat_EmptyExtension(t *testing.T) {

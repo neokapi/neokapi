@@ -45,6 +45,7 @@ With no FILE, or when FILE is "-", standard input is read.`,
 	f.BoolVarP(&recursive, "recursive", "r", false, "recurse into directory arguments")
 	f.StringVar(&targetLoc, "target", "", "print the target translation for LOCALE instead of the source")
 	f.StringVarP(&a.FormatFlag, "format", "f", "", "input format (default: auto-detect by extension/content)")
+	a.AddEngineFlag(f)
 	a.AddSourceLangFlag(f)
 	a.AddEncodingFlag(f, "", "input encoding")
 	f.Bool("json", false, "emit blocks as JSON instead of plain text")

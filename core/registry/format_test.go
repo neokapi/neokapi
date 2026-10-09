@@ -296,9 +296,10 @@ func TestResolveFormatWithPriority(t *testing.T) {
 	regStubSig(reg, "okapi-html", "Okapi HTML", []string{"text/html"}, []string{".html"})
 	reg.SetFormatSource("okapi-html", "okapi")
 
-	// Plugin format should win by default (priority 100 > 50).
+	// The built-in format wins by default: the plugin default priority sits
+	// below the built-in one.
 	name := reg.ResolveFormat("text/html")
-	assert.Equal(t, FormatID("okapi-html"), name)
+	assert.Equal(t, FormatID("html"), name)
 }
 
 func TestResolveFormatConfigOverride(t *testing.T) {
@@ -575,24 +576,30 @@ func TestRegisterFormatInfoPriorityInDetection(t *testing.T) {
 	// Built-in HTML at default priority (50).
 	regStubSig(reg, "html", "HTML", []string{"text/html"}, []string{".html"})
 
-	// Bridge HTML registered via metadata only — gets plugin priority (100).
+	// Bridge HTML registered via metadata only gets the plugin priority.
 	reg.RegisterFormatInfo("okf_html@1.46.0", FormatInfo{
 		DisplayName: "Okapi HTML",
 		MimeTypes:   []string{"text/html"},
 		Extensions:  []string{".html"},
 		Source:      "okapi-bridge",
 	})
+	assert.Equal(t, format.DefaultPluginPriority, reg.FormatInfo("okf_html@1.46.0").Priority)
 
-	// Bridge format should win (priority 100 > 50).
+	// The built-in wins by extension (engine order) and by MIME type
+	// (priority order).
 	name, err := reg.DetectByExtension(".html")
 	require.NoError(t, err)
-	assert.Equal(t, FormatID("okf_html@1.46.0"), name)
+	assert.Equal(t, FormatID("html"), name)
 
 	name = reg.ResolveFormat("text/html")
-	assert.Equal(t, FormatID("okf_html@1.46.0"), name)
+	assert.Equal(t, FormatID("html"), name)
 
-	// Override built-in to have higher priority — should win.
-	reg.SetFormatPriority("html", 200)
+	// A raised priority moves the bridge format ahead by MIME type, where the
+	// detector ranks by priority alone, and never by extension, where the
+	// engine order is decided first.
+	reg.SetFormatPriority("okf_html@1.46.0", 200)
+	name = reg.ResolveFormat("text/html")
+	assert.Equal(t, FormatID("okf_html@1.46.0"), name)
 	name, err = reg.DetectByExtension(".html")
 	require.NoError(t, err)
 	assert.Equal(t, FormatID("html"), name)
@@ -633,7 +640,7 @@ func TestDetectByExtensionForSources(t *testing.T) {
 		return newStubReaderWithSig("json", "JSON", []string{"application/json"}, []string{".json"})
 	}, format.FormatSignature{Extensions: []string{".json"}}, "JSON")
 
-	// Register a plugin JSON format (higher priority).
+	// Register a plugin JSON format.
 	reg.RegisterFormatInfo("okf_json", FormatInfo{
 		DisplayName: "Okapi JSON",
 		Extensions:  []string{".json"},
@@ -642,30 +649,35 @@ func TestDetectByExtensionForSources(t *testing.T) {
 	})
 	reg.SetFormatPriority("okf_json", format.DefaultPluginPriority)
 
-	// Without source filter: plugin wins (higher priority).
+	// Without source filter: the built-in wins (native first).
 	name, err := reg.DetectByExtension(".json")
 	require.NoError(t, err)
-	assert.Equal(t, FormatID("okf_json"), name)
+	assert.Equal(t, FormatID("json"), name)
 
 	// With source filter: only built-in allowed.
 	name, err = reg.DetectByExtensionForSources(".json", []string{SourceBuiltIn})
 	require.NoError(t, err)
 	assert.Equal(t, FormatID("json"), name)
 
-	// With source filter including the plugin.
+	// With source filter including the plugin: the built-in still wins.
 	name, err = reg.DetectByExtensionForSources(".json", []string{SourceBuiltIn, "okapi-bridge"})
 	require.NoError(t, err)
-	assert.Equal(t, FormatID("okf_json"), name, "plugin format should win when its source is allowed")
+	assert.Equal(t, FormatID("json"), name, "the built-in wins when both sources are allowed")
+
+	// With the plugin alone allowed, its format is the only candidate.
+	name, err = reg.DetectByExtensionForSources(".json", []string{"okapi-bridge"})
+	require.NoError(t, err)
+	assert.Equal(t, FormatID("okf_json"), name)
 
 	// Nil sources = no filter = same as DetectByExtension.
 	name, err = reg.DetectByExtensionForSources(".json", nil)
 	require.NoError(t, err)
-	assert.Equal(t, FormatID("okf_json"), name)
+	assert.Equal(t, FormatID("json"), name)
 
 	// Empty sources = no filter.
 	name, err = reg.DetectByExtensionForSources(".json", []string{})
 	require.NoError(t, err)
-	assert.Equal(t, FormatID("okf_json"), name)
+	assert.Equal(t, FormatID("json"), name)
 
 	// Unknown extension with restrictive filter.
 	_, err = reg.DetectByExtensionForSources(".xyz", []string{SourceBuiltIn})

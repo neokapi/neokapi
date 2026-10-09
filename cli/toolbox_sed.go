@@ -111,6 +111,7 @@ With no FILE, or when FILE is "-", standard input is read.`,
 	f.BoolVar(&force, "force", false, "write an edited binary document (.docx, .idml, …) to the terminal anyway")
 	f.BoolVar(&printOps, "print-ops", false, "print the change set the substitutions compile to (kapi.change/v1) and change nothing")
 	f.StringVarP(&a.FormatFlag, "format", "f", "", "input/output format (default: what the recipe binds, else auto-detect by extension/content)")
+	a.AddEngineFlag(f)
 	a.AddSourceLangFlag(f)
 	a.AddEncodingFlag(f, "", "input/output encoding")
 

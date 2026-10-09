@@ -95,6 +95,7 @@ FILE "-" reads standard input.`,
 	f.BoolVar(&jsonl, "jsonl", false, "stream one JSON object per line (JSONL) instead of a JSON array")
 	f.StringSliceVar(&render, "render", nil, "also render each block to these formats (html, markdown, asciidoc) under \"projected\"")
 	f.StringVarP(&a.FormatFlag, "format", "f", "", "input format (default: what the recipe binds, else auto-detect by extension/content)")
+	a.AddEngineFlag(f)
 	a.AddTargetLangFlag(f)
 	a.AddEncodingFlag(f, "", "input encoding")
 	AddProjectFlag(cmd)

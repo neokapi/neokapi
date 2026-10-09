@@ -234,12 +234,13 @@ func TestDetectByMIMEPriority(t *testing.T) {
 		MIMETypes: []string{"text/html"},
 	})
 
-	// Both start at DefaultBuiltInPriority (50). Give okapi-html plugin priority.
+	// Both start at DefaultBuiltInPriority. The plugin default sits below it,
+	// so the built-in keeps the MIME type.
 	d.SetPriority("okapi-html", format.DefaultPluginPriority)
 
 	name, err := d.DetectByMIME("text/html")
 	require.NoError(t, err)
-	assert.Equal(t, "okapi-html", name)
+	assert.Equal(t, "html", name)
 }
 
 func TestDetectByMIMEPriorityOverride(t *testing.T) {
@@ -251,14 +252,12 @@ func TestDetectByMIMEPriorityOverride(t *testing.T) {
 		MIMETypes: []string{"text/html"},
 	})
 
-	// Plugin gets default higher priority.
-	d.SetPriority("okapi-html", format.DefaultPluginPriority)
-	// Config override makes built-in preferred.
-	d.SetPriority("html", 200)
+	// A raised priority makes the plugin format preferred.
+	d.SetPriority("okapi-html", 200)
 
 	name, err := d.DetectByMIME("text/html")
 	require.NoError(t, err)
-	assert.Equal(t, "html", name)
+	assert.Equal(t, "okapi-html", name)
 }
 
 func TestDetectByExtensionPriority(t *testing.T) {
@@ -273,7 +272,7 @@ func TestDetectByExtensionPriority(t *testing.T) {
 
 	name, err := d.DetectByExtension(".html")
 	require.NoError(t, err)
-	assert.Equal(t, "okapi-html", name)
+	assert.Equal(t, "html", name)
 }
 
 func TestDetectByExtensionPriorityOverride(t *testing.T) {
@@ -284,12 +283,11 @@ func TestDetectByExtensionPriorityOverride(t *testing.T) {
 	d.Register("okapi-html", format.FormatSignature{
 		Extensions: []string{".html"},
 	})
-	d.SetPriority("okapi-html", format.DefaultPluginPriority)
-	d.SetPriority("html", 200)
+	d.SetPriority("okapi-html", 200)
 
 	name, err := d.DetectByExtension(".html")
 	require.NoError(t, err)
-	assert.Equal(t, "html", name)
+	assert.Equal(t, "okapi-html", name)
 }
 
 func TestDetectByContentMagicBytesPriority(t *testing.T) {
@@ -305,7 +303,7 @@ func TestDetectByContentMagicBytesPriority(t *testing.T) {
 	reader := strings.NewReader("<html><body>test</body></html>")
 	name, err := d.DetectByContent(reader)
 	require.NoError(t, err)
-	assert.Equal(t, "okapi-html", name)
+	assert.Equal(t, "html", name)
 }
 
 func TestDetectByContentSniffPriority(t *testing.T) {
@@ -325,7 +323,7 @@ func TestDetectByContentSniffPriority(t *testing.T) {
 	reader := strings.NewReader(`{"key": "value"}`)
 	name, err := d.DetectByContent(reader)
 	require.NoError(t, err)
-	assert.Equal(t, "okapi-json", name)
+	assert.Equal(t, "json", name)
 }
 
 func TestDetectCascadeWithPriority(t *testing.T) {
@@ -340,21 +338,21 @@ func TestDetectCascadeWithPriority(t *testing.T) {
 		Extensions: []string{".html"},
 		MagicBytes: [][]byte{[]byte("<html")},
 	})
-	d.SetPriority("okapi-html", format.DefaultPluginPriority)
+	d.SetPriority("okapi-html", 200)
 
-	// MIME detection should pick higher-priority format.
+	// MIME detection picks the higher-priority format.
 	reader := strings.NewReader("content")
 	name, err := d.Detect("file.html", reader, "text/html")
 	require.NoError(t, err)
 	assert.Equal(t, "okapi-html", name)
 
-	// Extension detection should pick higher-priority format.
+	// Extension detection picks the higher-priority format.
 	reader = strings.NewReader("content")
 	name, err = d.Detect("file.html", reader, "")
 	require.NoError(t, err)
 	assert.Equal(t, "okapi-html", name)
 
-	// Content detection should pick higher-priority format.
+	// Content detection picks the higher-priority format.
 	reader = strings.NewReader("<html><body>test</body></html>")
 	name, err = d.Detect("file.unknown", reader, "")
 	require.NoError(t, err)
@@ -377,10 +375,12 @@ func TestDetectByExtensionUniqueFormatsUnaffectedByPriority(t *testing.T) {
 	assert.Equal(t, "csv", name)
 }
 
+// A built-in format outranks a plugin's by default: the detector is
+// native-first on its own, as the registry's engine order is.
 func TestDefaultPriorityConstants(t *testing.T) {
 	assert.Equal(t, 50, format.DefaultBuiltInPriority)
-	assert.Equal(t, 100, format.DefaultPluginPriority)
-	assert.Greater(t, format.DefaultPluginPriority, format.DefaultBuiltInPriority)
+	assert.Equal(t, 25, format.DefaultPluginPriority)
+	assert.Greater(t, format.DefaultBuiltInPriority, format.DefaultPluginPriority)
 }
 
 // A binary file whose extension claims a text format (the icudtl.dat → fixedwidth

@@ -478,7 +478,11 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 	if declaredFormat == "" {
 		declaredFormat = itemFormatName(item)
 	}
-	var detectFormat func(string) registry.FormatID
+	// With nothing declared, a project run detects within the recipe's
+	// sources and engine preference, as the batch path (processFlowFile)
+	// does; the runner falls back to the registry for a file those do not
+	// read.
+	detectFormat := a.projectDetectFormat()
 	if declaredFormat != "" {
 		detectFormat = func(string) registry.FormatID { return registry.FormatID(declaredFormat) }
 	}
@@ -1093,6 +1097,7 @@ func (a *App) processFlowFileNative(ctx context.Context, cmd Command, flowName, 
 		Encoding:     a.InputEncoding(),
 		Store:        projStore,
 		ProjectRoot:  projRoot,
+		DetectFormat: a.projectDetectFormat(),
 		Home:         home,
 		Documents:    docs,
 	})
@@ -1276,6 +1281,19 @@ func itemFormatName(item *project.ContentItem) string {
 // the same rule content resolution applies, so a file cannot be read under one
 // item's rules and written under another's. nil when no recipe is in scope, the
 // input lies outside the project root, or no item claims it.
+// projectDetectFormat is the project's format detection for a file runner,
+// nil outside a project. The runner falls back to the registry's detection
+// for a file the project's sources do not read.
+func (a *App) projectDetectFormat() func(string) registry.FormatID {
+	if a.ProjectContext == nil {
+		return nil
+	}
+	pctx := a.ProjectContext
+	return func(path string) registry.FormatID {
+		return registry.FormatID(pctx.DetectFormat(a.FormatReg, path))
+	}
+}
+
 func (a *App) projectItemFor(inputPath string) *project.ContentItem {
 	if a.ProjectContext == nil || a.ProjectContext.Project == nil {
 		return nil

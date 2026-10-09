@@ -736,6 +736,18 @@ export class Defaults {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Engine is the format engine the project prefers for a file whose
+             * extension both a built-in format and a plugin's claim: "native" (the
+             * built-in formats) or the name of a plugin the recipe declares. Empty
+             * prefers the built-in formats. An explicit `--engine` on the run ranks
+             * above it; the user config's `formats.engine` ranks below it.
+             * @member
+             * @type {string | undefined}
+             */
+            this["engine"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * Exclude is a list of glob patterns skipped during content scanning.
              * @member
              * @type {string[] | undefined}
@@ -869,17 +881,17 @@ export class Defaults {
     static createFrom($$source = {}) {
         const $$createField1_0 = $$createType1;
         const $$createField10_0 = $$createType11;
-        const $$createField11_0 = $$createType0;
-        const $$createField12_0 = $$createType12;
-        const $$createField13_0 = $$createType13;
-        const $$createField14_0 = $$createType14;
-        const $$createField15_0 = $$createType15;
-        const $$createField16_0 = $$createType8;
-        const $$createField17_0 = $$createType16;
-        const $$createField18_0 = $$createType18;
-        const $$createField19_0 = $$createType4;
-        const $$createField20_0 = $$createType20;
-        const $$createField21_0 = $$createType22;
+        const $$createField12_0 = $$createType0;
+        const $$createField13_0 = $$createType12;
+        const $$createField14_0 = $$createType13;
+        const $$createField15_0 = $$createType14;
+        const $$createField16_0 = $$createType15;
+        const $$createField17_0 = $$createType8;
+        const $$createField18_0 = $$createType16;
+        const $$createField19_0 = $$createType18;
+        const $$createField20_0 = $$createType4;
+        const $$createField21_0 = $$createType20;
+        const $$createField22_0 = $$createType22;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_languages" in $$parsedSource) {
             $$parsedSource["target_languages"] = $$createField1_0($$parsedSource["target_languages"]);
@@ -888,37 +900,37 @@ export class Defaults {
             $$parsedSource["formats"] = $$createField10_0($$parsedSource["formats"]);
         }
         if ("exclude" in $$parsedSource) {
-            $$parsedSource["exclude"] = $$createField11_0($$parsedSource["exclude"]);
+            $$parsedSource["exclude"] = $$createField12_0($$parsedSource["exclude"]);
         }
         if ("merge" in $$parsedSource) {
-            $$parsedSource["merge"] = $$createField12_0($$parsedSource["merge"]);
+            $$parsedSource["merge"] = $$createField13_0($$parsedSource["merge"]);
         }
         if ("memory" in $$parsedSource) {
-            $$parsedSource["memory"] = $$createField13_0($$parsedSource["memory"]);
+            $$parsedSource["memory"] = $$createField14_0($$parsedSource["memory"]);
         }
         if ("segmentation" in $$parsedSource) {
-            $$parsedSource["segmentation"] = $$createField14_0($$parsedSource["segmentation"]);
+            $$parsedSource["segmentation"] = $$createField15_0($$parsedSource["segmentation"]);
         }
         if ("annotations" in $$parsedSource) {
-            $$parsedSource["annotations"] = $$createField15_0($$parsedSource["annotations"]);
+            $$parsedSource["annotations"] = $$createField16_0($$parsedSource["annotations"]);
         }
         if ("redaction" in $$parsedSource) {
-            $$parsedSource["redaction"] = $$createField16_0($$parsedSource["redaction"]);
+            $$parsedSource["redaction"] = $$createField17_0($$parsedSource["redaction"]);
         }
         if ("comments" in $$parsedSource) {
-            $$parsedSource["comments"] = $$createField17_0($$parsedSource["comments"]);
+            $$parsedSource["comments"] = $$createField18_0($$parsedSource["comments"]);
         }
         if ("voice" in $$parsedSource) {
-            $$parsedSource["voice"] = $$createField18_0($$parsedSource["voice"]);
+            $$parsedSource["voice"] = $$createField19_0($$parsedSource["voice"]);
         }
         if ("coordinates" in $$parsedSource) {
-            $$parsedSource["coordinates"] = $$createField19_0($$parsedSource["coordinates"]);
+            $$parsedSource["coordinates"] = $$createField20_0($$parsedSource["coordinates"]);
         }
         if ("tools" in $$parsedSource) {
-            $$parsedSource["tools"] = $$createField20_0($$parsedSource["tools"]);
+            $$parsedSource["tools"] = $$createField21_0($$parsedSource["tools"]);
         }
         if ("locales" in $$parsedSource) {
-            $$parsedSource["locales"] = $$createField21_0($$parsedSource["locales"]);
+            $$parsedSource["locales"] = $$createField22_0($$parsedSource["locales"]);
         }
         return new Defaults(/** @type {Partial<Defaults>} */($$parsedSource));
     }
@@ -1010,10 +1022,23 @@ export class FormatDefaults {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Priority ranks this format among the formats of its own engine that
+             * claim the same extension; higher wins. It never moves a file to
+             * another engine: Engine does that.
              * @member
              * @type {number | undefined}
              */
             this["priority"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Engine pins the engine that serves the extensions this format claims:
+             * "native" or a declared plugin's name. The entry's key names a format
+             * (`json`) or an extension (`.json`).
+             * @member
+             * @type {string | undefined}
+             */
+            this["engine"] = undefined;
         }
 
         Object.assign(this, $$source);
@@ -1590,6 +1615,10 @@ export class PluginSpec {
         }
         if (/** @type {any} */(false)) {
             /**
+             * FormatPriority ranks this plugin among the plugins the recipe declares
+             * when several claim an extension no built-in format does: higher comes
+             * first, and equal ranks fall to name order. The built-in formats come
+             * before every plugin unless Defaults.Engine names one.
              * @member
              * @type {number | undefined}
              */

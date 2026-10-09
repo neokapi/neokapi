@@ -180,6 +180,13 @@ type FormatRegistry struct {
 	onMiss       func()
 	onMissMu     sync.Mutex
 	onMissLoaded bool
+
+	// engineOverride is the engine the host forces for every detection (the
+	// --engine flag) and defaultEngine the one it configured as the default
+	// (formats.engine), both as registry sources. See Resolve for where each
+	// ranks.
+	engineOverride string
+	defaultEngine  string
 }
 
 // NewFormatRegistry creates a new FormatRegistry.
@@ -527,9 +534,11 @@ func (r *FormatRegistry) getOrCreateInfo(name FormatID) *FormatInfo {
 	return info
 }
 
-// DetectOptions parameterizes [FormatRegistry.Detect]. The zero value asks for
-// the default behavior: all sources allowed, registry priorities, content
-// sniffing when several formats claim the extension.
+// DetectOptions parameterizes [FormatRegistry.Detect] and
+// [FormatRegistry.Resolve]. The zero value asks for the default behavior:
+// all sources allowed, the native-first engine order, registry priorities,
+// content sniffing when several of the chosen engine's formats claim the
+// extension.
 type DetectOptions struct {
 	// AllowedSources restricts detection to formats whose Source matches one
 	// of these entries; nil or empty allows all sources. This enables
@@ -543,48 +552,67 @@ type DetectOptions struct {
 	// PriorityOverrides maps a format name to a priority that takes
 	// precedence over the registry's stored priority for this detection only
 	// — used by project-scoped detection so a recipe's
-	// `defaults.formats[name].priority` can pick the preferred engine for an
-	// extension claimed by several formats (e.g. okf_vtt over okf_regex for
-	// .srt) without mutating global registry state (which would race across
-	// open projects). Content sniffing still decides among candidates that
-	// claim the same extension; the overrides only break the deterministic
-	// extension/priority tie when sniffing is inconclusive.
+	// `defaults.formats[name].priority` can pick the preferred format for an
+	// extension claimed by several formats of one engine (e.g. okf_vtt over
+	// okf_regex for .srt) without mutating global registry state (which would
+	// race across open projects). A priority never moves a format across
+	// engines: the engine order decides the engine first.
 	PriorityOverrides map[string]int
 
+	// Engine is the engine this detection prefers: "native" or a plugin
+	// name. A recipe's defaults.engine fills it. The host's override
+	// (SetEngineOverride) ranks above it and the host's default
+	// (SetDefaultEngine) below it.
+	Engine string
+
+	// EngineOrder ranks the engines consulted after the preferred ones and
+	// the built-in formats: a project ranks its declared plugins by
+	// plugins.<name>.format_priority. Sources it leaves out follow in name
+	// order.
+	EngineOrder []string
+
+	// FormatEngines pins an engine for an extension (".html") or for a format
+	// name: a file whose extension that format claims resolves to the pinned
+	// engine's format for it. A pin ranks above every other engine
+	// preference. A recipe's defaults.formats.<name>.engine fills it.
+	FormatEngines map[string]string
+
+	// Writer resolves the format that writes the path rather than the one
+	// that reads it: only formats with a writer are candidates.
+	Writer bool
+
 	// ExtensionOnly skips content sniffing: detection resolves purely on the
-	// path's extension (plus AllowedSources/PriorityOverrides). Use it when
+	// path's extension (plus the engine and priority options). Use it when
 	// the path does not name a readable file — an output path that doesn't
 	// exist yet, or a bare extension like ".json" passed as the path.
 	ExtensionOnly bool
 
 	// Content, when set, supplies the file's content to sniff in place of the
 	// file at path, for a file held somewhere other than the disk, such as a git
-	// object. It is called only when several formats claim the extension. Content
-	// it cannot supply falls back to the extension pick, as an unreadable file
-	// does.
+	// object. It is called only when several of the chosen engine's formats
+	// claim the extension. Content it cannot supply falls back to the
+	// extension pick, as an unreadable file does.
 	Content func() (io.ReadSeeker, error)
 }
 
 // Detect resolves the format for path. By default it detects by extension
-// AND, when that extension is claimed by more than one format, by content:
-// an ".xliff" can be XLIFF 1.x or 2.x, and ".xml" is claimed by many formats;
-// the file head decides which. Only the file head is read; on any read error
-// (or opts.ExtensionOnly) it falls back to the deterministic
-// extension/priority pick. See [DetectOptions] for source restriction and
-// per-call priority overrides.
+// AND, when that extension is claimed by more than one format of the chosen
+// engine, by content: an ".xliff" can be XLIFF 1.x or 2.x, and ".xml" is
+// claimed by many formats; the file head decides which. Only the file head
+// is read; on any read error (or opts.ExtensionOnly) it falls back to the
+// deterministic extension/priority pick. See [DetectOptions] for source
+// restriction, engine preference and per-call priority overrides, and
+// [FormatRegistry.Resolve] for the decision trace.
 //
 // Detect replaces the older DetectByExtension / DetectByExtensionForSources /
 // DetectByExtensionForSourcesWithPriorities / DetectFile /
 // DetectFileWithPriorities ladder, which remains as deprecated wrappers.
 func (r *FormatRegistry) Detect(path string, opts DetectOptions) (FormatID, error) {
-	if opts.ExtensionOnly {
-		ext := format.Ext(path)
-		return r.detectByExtension(ext, opts.AllowedSources, opts.PriorityOverrides)
+	res, err := r.Resolve(path, opts)
+	if err != nil {
+		return "", err
 	}
-	if opts.Content != nil {
-		return r.detectContent(path, opts.AllowedSources, opts.PriorityOverrides, opts.Content)
-	}
-	return r.detectFile(path, opts.AllowedSources, opts.PriorityOverrides)
+	return res.Format, nil
 }
 
 // WriterFormatFor returns the format that writes outputPath for content read
@@ -592,12 +620,18 @@ func (r *FormatRegistry) Detect(path string, opts DetectOptions) (FormatID, erro
 // same-out round-trip), but a different output extension selects a different
 // writer: the output path is the caller's intent declaration, and it is how a
 // recipe target whose extension differs from its source projects cross-format
-// without a dedicated writer flag. Shared by the host flow runner and the
-// bowrain pull so both
-// venues project cross-format targets identically.
+// without a dedicated writer flag. The writer comes from the reader's engine
+// when that engine writes the extension, so a format named with --format pins
+// the reader and the writer to one engine. Shared by the host flow runner and
+// the bowrain pull so both venues project cross-format targets identically.
 func (r *FormatRegistry) WriterFormatFor(readerFormat FormatID, outputPath string) FormatID {
 	if ext := format.Ext(outputPath); ext != "" {
-		if det, err := r.Detect(outputPath, DetectOptions{ExtensionOnly: true}); err == nil && det != "" {
+		opts := DetectOptions{
+			ExtensionOnly: true,
+			Writer:        true,
+			FormatEngines: map[string]string{ext: r.FormatSource(readerFormat)},
+		}
+		if det, err := r.Detect(outputPath, opts); err == nil && det != "" {
 			return det
 		}
 	}
@@ -610,7 +644,7 @@ func (r *FormatRegistry) WriterFormatFor(readerFormat FormatID, outputPath strin
 //
 // Deprecated: use [FormatRegistry.Detect] with DetectOptions{ExtensionOnly: true}.
 func (r *FormatRegistry) DetectByExtension(ext string) (FormatID, error) {
-	return r.detectByExtensionAny(ext)
+	return r.Detect(ext, DetectOptions{ExtensionOnly: true})
 }
 
 // DetectByExtensionForSources detects a format by extension, restricted to
@@ -620,7 +654,7 @@ func (r *FormatRegistry) DetectByExtension(ext string) (FormatID, error) {
 // Deprecated: use [FormatRegistry.Detect] with DetectOptions{ExtensionOnly:
 // true, AllowedSources: allowedSources}.
 func (r *FormatRegistry) DetectByExtensionForSources(ext string, allowedSources []string) (FormatID, error) {
-	return r.detectByExtension(ext, allowedSources, nil)
+	return r.Detect(ext, DetectOptions{ExtensionOnly: true, AllowedSources: allowedSources})
 }
 
 // DetectByExtensionForSourcesWithPriorities is DetectByExtensionForSources with
@@ -629,7 +663,7 @@ func (r *FormatRegistry) DetectByExtensionForSources(ext string, allowedSources 
 // Deprecated: use [FormatRegistry.Detect] with DetectOptions{ExtensionOnly:
 // true, AllowedSources: allowedSources, PriorityOverrides: overrides}.
 func (r *FormatRegistry) DetectByExtensionForSourcesWithPriorities(ext string, allowedSources []string, overrides map[string]int) (FormatID, error) {
-	return r.detectByExtension(ext, allowedSources, overrides)
+	return r.Detect(ext, DetectOptions{ExtensionOnly: true, AllowedSources: allowedSources, PriorityOverrides: overrides})
 }
 
 // DetectFile detects a format for a file by extension and, when that extension
@@ -638,7 +672,7 @@ func (r *FormatRegistry) DetectByExtensionForSourcesWithPriorities(ext string, a
 // Deprecated: use [FormatRegistry.Detect] with DetectOptions{AllowedSources:
 // allowedSources}.
 func (r *FormatRegistry) DetectFile(path string, allowedSources []string) (FormatID, error) {
-	return r.detectFile(path, allowedSources, nil)
+	return r.Detect(path, DetectOptions{AllowedSources: allowedSources})
 }
 
 // DetectFileWithPriorities is DetectFile with per-call priority overrides.
@@ -646,143 +680,16 @@ func (r *FormatRegistry) DetectFile(path string, allowedSources []string) (Forma
 // Deprecated: use [FormatRegistry.Detect] with DetectOptions{AllowedSources:
 // allowedSources, PriorityOverrides: overrides}.
 func (r *FormatRegistry) DetectFileWithPriorities(path string, allowedSources []string, overrides map[string]int) (FormatID, error) {
-	return r.detectFile(path, allowedSources, overrides)
+	return r.Detect(path, DetectOptions{AllowedSources: allowedSources, PriorityOverrides: overrides})
 }
 
-// detectByExtension resolves a format purely from an extension, honouring the
-// allowed-source restriction and per-call priority overrides. With neither
-// restriction it delegates to the detector (which gets the onMiss lazy-load
-// retry via detectByExtensionAny).
-func (r *FormatRegistry) detectByExtension(ext string, allowedSources []string, overrides map[string]int) (FormatID, error) {
-	if len(allowedSources) == 0 && len(overrides) == 0 {
-		return r.detectByExtensionAny(ext)
+// openFile opens the file at path for a content sniff.
+func openFile(path string) (io.ReadSeeker, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
 	}
-	var allowed map[string]bool
-	if len(allowedSources) > 0 {
-		allowed = make(map[string]bool, len(allowedSources))
-		for _, s := range allowedSources {
-			allowed[s] = true
-		}
-	}
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	ext = strings.ToLower(ext)
-	if ext == "" {
-		return "", errors.New("empty extension")
-	}
-
-	var bestName FormatID
-	bestPriority := -1
-	for name, info := range r.infos {
-		source := info.Source
-		if source == "" {
-			source = SourceBuiltIn
-		}
-		if allowed != nil && !allowed[source] {
-			continue
-		}
-		for _, e := range info.Extensions {
-			if strings.ToLower(e) == ext {
-				pri := r.detector.Priority(string(name))
-				if ov, ok := overrides[string(name)]; ok {
-					pri = ov
-				}
-				if bestName == "" || pri > bestPriority || (pri == bestPriority && string(name) < string(bestName)) {
-					bestName = name
-					bestPriority = pri
-				}
-			}
-		}
-	}
-	if bestName != "" {
-		return bestName, nil
-	}
-	return "", fmt.Errorf("no format found for extension %q with allowed sources", ext)
-}
-
-// detectByExtensionAny is the unrestricted extension lookup: it asks the
-// detector directly and, on a miss, triggers lazy loading (e.g., starting
-// bridge processes) via the onMiss callback and retries once.
-func (r *FormatRegistry) detectByExtensionAny(ext string) (FormatID, error) {
-	if name, err := r.detector.DetectByExtension(ext); err == nil {
-		return FormatID(name), nil
-	}
-	if r.triggerOnMiss() {
-		name, err := r.detector.DetectByExtension(ext)
-		return FormatID(name), err
-	}
-	return "", fmt.Errorf("no format found for extension %q", ext)
-}
-
-// detectFile detects a format for a file by extension AND, when that extension
-// is claimed by more than one format, by content. This stops a file from being
-// resolved purely on its extension when several formats share it. Only the
-// file head is read; on any read error it falls back to extension-only
-// detection.
-func (r *FormatRegistry) detectFile(path string, allowedSources []string, overrides map[string]int) (FormatID, error) {
-	return r.detectContent(path, allowedSources, overrides, func() (io.ReadSeeker, error) {
-		f, err := os.Open(path)
-		if err != nil {
-			return nil, err
-		}
-		return f, nil
-	})
-}
-
-// detectContent is detectFile with the content to sniff supplied by open, which
-// is called only when several formats claim the extension. A content that
-// implements io.Closer is closed after the sniff.
-func (r *FormatRegistry) detectContent(path string, allowedSources []string, overrides map[string]int, open func() (io.ReadSeeker, error)) (FormatID, error) {
-	ext := format.Ext(path)
-	if ext == "" {
-		return "", fmt.Errorf("no extension to detect: %q", path)
-	}
-
-	var allowed map[string]bool
-	if len(allowedSources) > 0 {
-		allowed = make(map[string]bool, len(allowedSources))
-		for _, s := range allowedSources {
-			allowed[s] = true
-		}
-	}
-
-	// Collect the formats claiming this extension (honouring allowed sources).
-	r.mu.RLock()
-	cands := make(map[string]bool)
-	for name, info := range r.infos {
-		src := info.Source
-		if src == "" {
-			src = SourceBuiltIn
-		}
-		if allowed != nil && !allowed[src] {
-			continue
-		}
-		for _, e := range info.Extensions {
-			if strings.ToLower(e) == ext {
-				cands[string(name)] = true
-				break
-			}
-		}
-	}
-	r.mu.RUnlock()
-
-	// More than one claimant → let the content sniff pick among them.
-	if len(cands) > 1 {
-		if content, err := open(); err == nil {
-			name, derr := r.detector.DetectByContent(content)
-			if c, ok := content.(io.Closer); ok {
-				_ = c.Close()
-			}
-			if derr == nil && cands[name] {
-				return FormatID(name), nil
-			}
-		}
-	}
-
-	// Single claimant, unreadable file, or content didn't match a candidate:
-	// fall back to the deterministic extension/priority pick.
-	return r.detectByExtension(ext, allowedSources, overrides)
+	return f, nil
 }
 
 // NewReader creates a new reader instance for the given format name.

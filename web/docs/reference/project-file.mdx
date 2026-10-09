@@ -87,7 +87,7 @@ defaults:
 | `collections` | Collection[] | The content this project governs (see [Collections](#collections))                                          |
 | `profiles` | map            | Governance bound per product, keyed by profile name (see [Profiles and channels](#profiles-and-channels))    |
 | `preset`   | string         | A framework preset name (see [`kapi init`](/reference/commands/init) `--list-presets`) (e.g., `nextjs`, `react-intl`) applied to formats    |
-| `plugins`  | map            | Plugin requirements keyed by name (e.g., `okapi: "^1.47.0"`)                                                 |
+| `plugins`  | map            | Plugin requirements keyed by name (e.g., `okapi: "^1.47.0"`). The long form takes `version`, `framework_version` and `format_priority` (see [Format engines](#format-engines)) |
 | `requires` | map            | Plugin name → semver constraint that gates loading; the recipe refuses to load without a registered plugin  |
 | `flows`    | map            | Named flow definitions (see [Flow Steps](#flow-steps))                                                       |
 | `flows_dir` | string        | A directory, relative to the recipe, holding one YAML file per flow (see [Flow files](#flow-files)). No default |
@@ -438,7 +438,8 @@ bounded profile against the current time and labels it `active`, `upcoming` or
 | `parallel_blocks`  | int                 | Number of blocks to process in parallel within a file                                                                    |
 | `encoding`         | string              | Input file encoding (default: `utf-8`)                                                                                   |
 | `exclude`          | string[]            | Glob patterns no collection claims: content scanning skips them, and a file you name that one matches sits at the project's default point (e.g. `**/*.generated.json`) |
-| `formats`          | map                 | Per-format `preset`, `config`, and detection `priority` overrides (see [formats](#formats))                              |
+| `engine`           | string              | The format engine preferred for a file whose extension both a built-in format and a plugin's claim: `native` or a declared plugin's name (see [Format engines](#format-engines)) |
+| `formats`          | map                 | Per-format `preset`, `config`, `engine` and detection `priority` overrides (see [formats](#formats))                     |
 | `merge`            | MergeDefaults       | How `kapi merge` resolves a translator's target against an existing target or content-memory entry (see [merge](#merge)) |
 | `memory`           | MemoryDefaults      | Content-memory pre-fill on `kapi extract` and write-back on `kapi merge` (see [memory](#memory))                         |
 | `segmentation`     | SegmentationDefaults | Opt-in sentence-level segmentation overlay applied on extract (see [segmentation](#segmentation))                       |
@@ -496,12 +497,13 @@ while you still tune individual formats in one place. Each entry takes:
 | ---------- | ------ | --------------------------------------------------------------------------------------------------- |
 | `preset`   | string | A named format preset applied to this format (see [`kapi formats`](/reference/commands/formats))    |
 | `config`   | map    | Reader option overrides for this format (merged under, and overridable by, a content item's `format.config`) |
-| `priority` | int    | Detection priority; higher wins when several formats claim the same extension                        |
+| `engine`   | string | The engine that serves the extensions this format claims: `native` or a declared plugin's name. The entry's key names a format (`json`) or an extension (`.json`) |
+| `priority` | int    | Detection priority among the formats of one engine; higher wins when several claim the same extension |
 
-`priority` is the engine-pin escape hatch. Most extensions map to one format, but
-some are claimed by several: `.srt` by both `okf_vtt` and `okf_regex`, `.txt` by
-several plain-text engines. Bumping the preferred one steers auto-detection
-without naming a format on every item:
+`priority` breaks a tie inside one engine. Most extensions map to one format, but
+some are claimed by several formats of the same plugin: `.srt` by both `okf_vtt`
+and `okf_regex`. Bumping the preferred one steers auto-detection without naming
+a format on every item. `engine` moves an extension to another engine:
 
 ```yaml
 plugins:
@@ -510,6 +512,8 @@ defaults:
   formats:
     okf_vtt:
       priority: 110 # .srt → WebVTT engine (beats okf_regex)
+    html:
+      engine: okapi-bridge # .html → the bridge's okf_html, not the built-in html
     okf_json:
       config:
         useFullKeyPath: true
@@ -520,10 +524,49 @@ collections:
         target: "output/{lang}"
 ```
 
-Plugin formats already outrank built-in ones by default (priority 100 vs 50), so
-declaring `okapi-bridge` is enough for `input/*` to resolve to the `okf_*`
-engines; `priority` only matters to break ties between formats from the same
-source.
+A priority never moves a file to another engine: the engine is chosen first
+(see [Format engines](#format-engines)), and the priorities rank that engine's
+formats.
+
+#### Format engines
+
+A format engine is a provider of formats: `native` (the formats kapi ships) or a
+plugin, named as the recipe declares it (`okapi-bridge`). When a built-in format
+and a plugin's format claim the same extension, the engine order decides which
+reads the file. The order, first to last:
+
+1. The engine `defaults.formats.<name>.engine` pins for the extension.
+2. The engine `--engine` names on the run.
+3. The engine `defaults.engine` names.
+4. The engine `formats.engine` names in the user config.
+5. `native`.
+6. The declared plugins, ranked by `plugins.<name>.format_priority` (highest
+   first) and then by name.
+
+The first engine with a format for the extension wins; when several of its
+formats claim the extension, the file's content and then `priority` decide
+among them. Detection stays within the recipe's sources: the built-in formats
+and the plugins under `plugins:`. A plugin installed on the machine but not
+declared serves none of the project's files, and an engine named under
+`defaults.engine` or `defaults.formats.<name>.engine` must be `native` or a
+declared plugin.
+
+```yaml
+plugins:
+  okapi-bridge:
+    format_priority: 200 # ahead of kapi-av where both claim an extension
+  kapi-av: "*"
+defaults:
+  engine: okapi-bridge # the bridge reads every extension it claims
+  formats:
+    .json:
+      engine: native # except JSON, which the built-in format reads
+```
+
+A format named outright, with `--format`, `--map` or a content item's
+`format:`, is read by that format whatever the engine order says, and its
+writer comes from the same engine. `kapi formats` lists each format with its
+engine under `source`.
 
 #### merge
 

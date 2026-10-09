@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-09T17:04:50Z",
+  "generatedAt": "2026-10-09T17:20:39Z",
   "commands": [
     {
       "id": "add",
@@ -90,6 +90,11 @@
         {
           "name": "encoding",
           "usage": "inn-/utkoding",
+          "type": "string"
+        },
+        {
+          "name": "engine",
+          "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)",
           "type": "string"
         },
         {
@@ -1153,6 +1158,11 @@
           "type": "string"
         },
         {
+          "name": "engine",
+          "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)",
+          "type": "string"
+        },
+        {
           "name": "fail-on-unknown",
           "usage": "avslutt med feil hvis noen filer ikke kan behandles (standard: hopp over med advarsel)",
           "default": "false",
@@ -1295,6 +1305,11 @@
           "type": "string"
         },
         {
+          "name": "engine",
+          "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)",
+          "type": "string"
+        },
+        {
           "name": "fail-on-unknown",
           "usage": "avslutt med feil hvis noen filer ikke kan behandles (standard: hopp over med advarsel)",
           "default": "false",
@@ -1429,6 +1444,11 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "tegnkoding for inndatafil",
+          "type": "string"
+        },
+        {
+          "name": "engine",
+          "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)",
           "type": "string"
         },
         {
@@ -1567,6 +1587,11 @@
           "type": "string"
         },
         {
+          "name": "engine",
+          "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)",
+          "type": "string"
+        },
+        {
           "name": "fail-on-unknown",
           "usage": "avslutt med feil hvis noen filer ikke kan behandles (standard: hopp over med advarsel)",
           "default": "false",
@@ -1678,6 +1703,11 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "tegnkoding for inndatafil",
+          "type": "string"
+        },
+        {
+          "name": "engine",
+          "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)",
           "type": "string"
         },
         {
@@ -1950,6 +1980,11 @@
           "type": "string"
         },
         {
+          "name": "engine",
+          "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)",
+          "type": "string"
+        },
+        {
           "name": "fail-on-unknown",
           "usage": "avslutt med feil hvis noen filer ikke kan behandles (standard: hopp over med advarsel)",
           "default": "false",
@@ -2096,6 +2131,11 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "tegnkoding for inndatafil",
+          "type": "string"
+        },
+        {
+          "name": "engine",
+          "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)",
           "type": "string"
         },
         {
@@ -2246,6 +2286,11 @@
           "type": "string"
         },
         {
+          "name": "engine",
+          "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)",
+          "type": "string"
+        },
+        {
           "name": "fail-on-unknown",
           "usage": "avslutt med feil hvis en fil ikke kan behandles (standard: hopp over med advarsel)",
           "default": "false",
@@ -2378,6 +2423,11 @@
           "type": "string"
         },
         {
+          "name": "engine",
+          "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)",
+          "type": "string"
+        },
+        {
           "name": "fail-on-unknown",
           "usage": "avslutt med feil hvis en fil ikke kan behandles (standard: hopp over med advarsel)",
           "default": "false",
@@ -2492,6 +2542,11 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "tegnkoding for inndatafil",
+          "type": "string"
+        },
+        {
+          "name": "engine",
+          "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)",
           "type": "string"
         },
         {
@@ -2791,6 +2846,11 @@
           "type": "string"
         },
         {
+          "name": "engine",
+          "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)",
+          "type": "string"
+        },
+        {
           "name": "fail-on-unknown",
           "usage": "avslutt med feil hvis en fil ikke kan behandles (standard: hopp over med advarsel)",
           "default": "false",
@@ -3009,6 +3069,11 @@
           "type": "string"
         },
         {
+          "name": "engine",
+          "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)",
+          "type": "string"
+        },
+        {
           "name": "fail-on-unknown",
           "usage": "avslutt med feil hvis en fil ikke kan behandles (standard: hopp over med advarsel)",
           "default": "false",
@@ -3185,6 +3250,11 @@
           "type": "string"
         },
         {
+          "name": "engine",
+          "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)",
+          "type": "string"
+        },
+        {
           "name": "entity-types",
           "usage": "Enhetskategorier som skal sladdes: person",
           "default": "[]",
@@ -3313,6 +3383,11 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "tegnkoding for inndatafil",
+          "type": "string"
+        },
+        {
+          "name": "engine",
+          "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)",
           "type": "string"
         },
         {
@@ -3468,6 +3543,11 @@
           "type": "string"
         },
         {
+          "name": "engine",
+          "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)",
+          "type": "string"
+        },
+        {
           "name": "fail-on-unknown",
           "usage": "avslutt med feil hvis en fil ikke kan behandles (standard: hopp over med advarsel)",
           "default": "false",
@@ -3614,6 +3694,11 @@
           "type": "string"
         },
         {
+          "name": "engine",
+          "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)",
+          "type": "string"
+        },
+        {
           "name": "fail-on-unknown",
           "usage": "avslutt med feil hvis en fil ikke kan behandles (standard: hopp over med advarsel)",
           "default": "false",
@@ -3743,6 +3828,11 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "tegnkoding for inndata",
+          "type": "string"
+        },
+        {
+          "name": "engine",
+          "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)",
           "type": "string"
         },
         {
@@ -4119,6 +4209,11 @@
           "type": "string"
         },
         {
+          "name": "engine",
+          "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)",
+          "type": "string"
+        },
+        {
           "name": "fail-on-unknown",
           "usage": "avslutt med feil hvis en fil ikke kan behandles (standard: hopp over med advarsel)",
           "default": "false",
@@ -4253,6 +4348,11 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "innfiltegnsetting",
+          "type": "string"
+        },
+        {
+          "name": "engine",
+          "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)",
           "type": "string"
         },
         {
@@ -4562,6 +4662,11 @@
           "type": "string"
         },
         {
+          "name": "engine",
+          "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)",
+          "type": "string"
+        },
+        {
           "name": "fail-on-unknown",
           "usage": "exit with error if any file cannot be processed (default: skip with warning)",
           "default": "false",
@@ -4663,6 +4768,11 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "tegnkoding for inndatafil",
+          "type": "string"
+        },
+        {
+          "name": "engine",
+          "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)",
           "type": "string"
         },
         {
@@ -4788,6 +4898,11 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "tegnkoding for inndatafil",
+          "type": "string"
+        },
+        {
+          "name": "engine",
+          "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)",
           "type": "string"
         },
         {
@@ -4921,6 +5036,11 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "tegnkoding for inndatafil",
+          "type": "string"
+        },
+        {
+          "name": "engine",
+          "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)",
           "type": "string"
         },
         {
@@ -5065,6 +5185,11 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "innfilkoding",
+          "type": "string"
+        },
+        {
+          "name": "engine",
+          "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)",
           "type": "string"
         },
         {
@@ -5244,6 +5369,11 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "innfilkoding",
+          "type": "string"
+        },
+        {
+          "name": "engine",
+          "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)",
           "type": "string"
         },
         {
@@ -5706,6 +5836,11 @@
         {
           "name": "encoding",
           "usage": "inngangskoding",
+          "type": "string"
+        },
+        {
+          "name": "engine",
+          "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)",
           "type": "string"
         },
         {
@@ -7065,6 +7200,11 @@
           "type": "string"
         },
         {
+          "name": "engine",
+          "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)",
+          "type": "string"
+        },
+        {
           "name": "explain",
           "usage": "skriv ut de løste kilde → mottaker-bindingene og avslutt uten å kjøre",
           "default": "false",
@@ -7316,6 +7456,11 @@
           "type": "string"
         },
         {
+          "name": "engine",
+          "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)",
+          "type": "string"
+        },
+        {
           "name": "explain",
           "usage": "skriv ut de løste kilde → mål-bindingene og avslutt uten å kjøre",
           "default": "false",
@@ -7451,6 +7596,11 @@
         {
           "name": "encoding",
           "usage": "innkoding",
+          "type": "string"
+        },
+        {
+          "name": "engine",
+          "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)",
           "type": "string"
         },
         {
@@ -8409,6 +8559,11 @@
           "type": "string"
         },
         {
+          "name": "engine",
+          "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)",
+          "type": "string"
+        },
+        {
           "name": "explain",
           "usage": "skriv ut de løste kilde → mål-bindingene og avslutt uten å kjøre",
           "default": "false",
@@ -8623,6 +8778,11 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "tegnkoding for inndatafil",
+          "type": "string"
+        },
+        {
+          "name": "engine",
+          "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)",
           "type": "string"
         },
         {
