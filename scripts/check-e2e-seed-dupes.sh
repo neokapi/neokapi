@@ -124,7 +124,7 @@ fi
 # Run the self-test first: a matcher that silently stops matching is worse than
 # no check at all, and it costs milliseconds.
 if ! self_test >/dev/null; then
-  echo "✖ check-e2e-seed-dupes.sh: self-test failed — the matcher is broken."
+  echo "✖ check-e2e-seed-dupes.sh: self-test failed: the matcher is broken."
   self_test || true
   exit 1
 fi
