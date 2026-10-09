@@ -204,8 +204,17 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 				// Tools that require a terms store (e.g. term-check) get the
 				// project's term rules injected when none were supplied
 				// programmatically. This makes `kapi term-check fr.json`
-				// enforce the project terms store with no flag.
+				// enforce the project terms store with no flag. A rules file
+				// named with --term-rules is the run's input instead, the way
+				// an MCP call hands the tool its rules.
 				if ToolRequires(ToolSchema, schema.RequiresTerms) {
+					if file, _ := cmd.Flags().GetString(host.TermRulesFlag); file != "" {
+						rules, lerr := host.LoadTermRulesFile(file)
+						if lerr != nil {
+							return nil, lerr
+						}
+						config["term_rules"] = rules
+					}
 					if _, ok := config["term_rules"]; !ok {
 						rules, gerr := a.ResolveTermRules(cmd, effectiveLang)
 						if gerr != nil {
@@ -351,6 +360,7 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 				cmd.Flags().String("credential", "", "saved credential name to use (see 'kapi credentials list')")
 			case schema.RequiresTerms:
 				cmd.Flags().String("termstore", "", "named terms or path to a terms store (defaults to the project terms store)")
+				cmd.Flags().String(host.TermRulesFlag, "", host.TermRulesFlagUsage)
 			case schema.RequiresMemory:
 				cmd.Flags().String("memory", "", "named memory or path to a .db (defaults to the project content memory)")
 			}

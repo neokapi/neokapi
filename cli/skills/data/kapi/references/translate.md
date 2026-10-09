@@ -257,6 +257,7 @@ for it; ordinary target drift never blocks.
 kapi terms import terms.csv --format csv -s en -t fr --local   # also: json, tbx
 kapi terms lookup "checkout" -s en -t fr --json
 kapi exec term-check ./locales/en.json --target ./locales/fr.json --target-lang fr --json   # flag wrong/missing terms (reports; kapi check gates)
+kapi exec term-check ./locales/en.json --target ./locales/fr.json --target-lang fr --term-rules rules.yaml   # ad-hoc rules from a file (a `term_rules:` list) instead of the project's terms store
 kapi terms occurrences "checkout"                                        # where the term (or a concept id) is used in the extracted content
 kapi terms validate                                                      # structural errors; target terms with no forms
 kapi terms expand --dry-run                                              # propose each target term's forms (plural, definite...)
