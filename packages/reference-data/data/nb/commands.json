@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-08T21:45:19Z",
+  "generatedAt": "2026-10-09T16:32:38Z",
   "commands": [
     {
       "id": "add",
@@ -1220,10 +1220,15 @@
         },
         {
           "name": "progress",
-          "shorthand": "p",
           "usage": "vis fremdriftslinje",
           "default": "false",
           "type": "bool"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
         },
         {
           "name": "source-lang",
@@ -1357,10 +1362,15 @@
         },
         {
           "name": "progress",
-          "shorthand": "p",
           "usage": "vis fremdriftslinje",
           "default": "false",
           "type": "bool"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
         },
         {
           "name": "source-lang",
@@ -1489,10 +1499,15 @@
         },
         {
           "name": "progress",
-          "shorthand": "p",
           "usage": "vis fremdriftslinje",
           "default": "false",
           "type": "bool"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
         },
         {
           "name": "source-lang",
@@ -1596,10 +1611,15 @@
         },
         {
           "name": "progress",
-          "shorthand": "p",
           "usage": "vis fremdriftslinje",
           "default": "false",
           "type": "bool"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
         },
         {
           "name": "source-lang",
@@ -1705,10 +1725,15 @@
         },
         {
           "name": "progress",
-          "shorthand": "p",
           "usage": "vis fremdriftslinje",
           "default": "false",
           "type": "bool"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
         },
         {
           "name": "source-lang",
@@ -1842,10 +1867,15 @@
         },
         {
           "name": "progress",
-          "shorthand": "p",
           "usage": "vis fremdriftslinje",
           "default": "false",
           "type": "bool"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
         },
         {
           "name": "provider",
@@ -1981,10 +2011,15 @@
         },
         {
           "name": "progress",
-          "shorthand": "p",
           "usage": "vis fremdriftslinje",
           "default": "false",
           "type": "bool"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
         },
         {
           "name": "send-as-stdin",
@@ -2131,10 +2166,15 @@
         },
         {
           "name": "progress",
-          "shorthand": "p",
           "usage": "vis fremdriftslinje",
           "default": "false",
           "type": "bool"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
         },
         {
           "name": "replace-with-space",
@@ -2272,10 +2312,15 @@
         },
         {
           "name": "progress",
-          "shorthand": "p",
           "usage": "vis fremdriftslinje",
           "default": "false",
           "type": "bool"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
         },
         {
           "name": "provider",
@@ -2383,10 +2428,15 @@
         },
         {
           "name": "progress",
-          "shorthand": "p",
           "usage": "vis fremdriftslinje",
           "default": "false",
           "type": "bool"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
         },
         {
           "name": "source-lang",
@@ -2518,10 +2568,15 @@
         },
         {
           "name": "progress",
-          "shorthand": "p",
           "usage": "vis fremdriftslinje",
           "default": "false",
           "type": "bool"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
         },
         {
           "name": "source-lang",
@@ -2855,10 +2910,15 @@
         },
         {
           "name": "progress",
-          "shorthand": "p",
           "usage": "vis fremdriftslinje",
           "default": "false",
           "type": "bool"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
         },
         {
           "name": "provider",
@@ -3051,10 +3111,15 @@
         },
         {
           "name": "progress",
-          "shorthand": "p",
           "usage": "vis fremdriftslinje",
           "default": "false",
           "type": "bool"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
         },
         {
           "name": "source-lang",
@@ -3192,10 +3257,15 @@
         },
         {
           "name": "progress",
-          "shorthand": "p",
           "usage": "vis fremdriftslinje",
           "default": "false",
           "type": "bool"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
         },
         {
           "name": "rules-path",
@@ -3313,10 +3383,15 @@
         },
         {
           "name": "progress",
-          "shorthand": "p",
           "usage": "vis fremdriftslinje",
           "default": "false",
           "type": "bool"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
         },
         {
           "name": "remove-block-if-empty",
@@ -3459,10 +3534,15 @@
         },
         {
           "name": "progress",
-          "shorthand": "p",
           "usage": "vis fremdriftslinje",
           "default": "false",
           "type": "bool"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
         },
         {
           "name": "provider",
@@ -3595,10 +3675,15 @@
         },
         {
           "name": "progress",
-          "shorthand": "p",
           "usage": "vis fremdriftslinje",
           "default": "false",
           "type": "bool"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
         },
         {
           "name": "script-file",
@@ -3734,10 +3819,15 @@
         },
         {
           "name": "progress",
-          "shorthand": "p",
           "usage": "vis fremdriftslinje",
           "default": "false",
           "type": "bool"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
         },
         {
           "name": "reg-ex",
@@ -3914,10 +4004,15 @@
         },
         {
           "name": "progress",
-          "shorthand": "p",
           "usage": "vis fremdriftslinje",
           "default": "false",
           "type": "bool"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
         },
         {
           "name": "provider",
@@ -4068,10 +4163,15 @@
         },
         {
           "name": "progress",
-          "shorthand": "p",
           "usage": "vis fremdriftslinje",
           "default": "false",
           "type": "bool"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
         },
         {
           "name": "source-lang",
@@ -4200,10 +4300,15 @@
         },
         {
           "name": "progress",
-          "shorthand": "p",
           "usage": "vis fremdriftslinje",
           "default": "false",
           "type": "bool"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
         },
         {
           "name": "provider",
@@ -4370,10 +4475,15 @@
         },
         {
           "name": "progress",
-          "shorthand": "p",
           "usage": "vis fremdriftslinje",
           "default": "false",
           "type": "bool"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
         },
         {
           "name": "provider",
@@ -4497,10 +4607,15 @@
         },
         {
           "name": "progress",
-          "shorthand": "p",
           "usage": "show progress bar",
           "default": "false",
           "type": "bool"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
         },
         {
           "name": "source-lang",
@@ -4607,10 +4722,15 @@
         },
         {
           "name": "progress",
-          "shorthand": "p",
           "usage": "vis fremdriftslinje",
           "default": "false",
           "type": "bool"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
         },
         {
           "name": "source-lang",
@@ -4720,10 +4840,15 @@
         },
         {
           "name": "progress",
-          "shorthand": "p",
           "usage": "vis fremdriftslinje",
           "default": "false",
           "type": "bool"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
         },
         {
           "name": "provider",
@@ -4854,10 +4979,15 @@
         },
         {
           "name": "progress",
-          "shorthand": "p",
           "usage": "vis fremdriftslinje",
           "default": "false",
           "type": "bool"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
         },
         {
           "name": "provider",
@@ -5018,10 +5148,15 @@
         },
         {
           "name": "progress",
-          "shorthand": "p",
           "usage": "vis fremdriftslinje",
           "default": "false",
           "type": "bool"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
         },
         {
           "name": "remove-zero-width-chars",
@@ -5156,10 +5291,15 @@
         },
         {
           "name": "progress",
-          "shorthand": "p",
           "usage": "vis fremdriftslinje",
           "default": "false",
           "type": "bool"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
         },
         {
           "name": "source-lang",

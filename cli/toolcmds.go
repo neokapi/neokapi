@@ -321,7 +321,11 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 	cmd.Flags().Bool("fail-on-unknown", false, "exit with error if any file cannot be processed (default: skip with warning)")
 	cmd.Flags().Bool("strict", false, "alias for --fail-on-unknown")
 	cmd.Flags().Bool("no-warn", false, "suppress warnings for skipped files")
-	cmd.Flags().BoolP("progress", "p", false, "show progress bar")
+	// -p is the project flag here as on every other project-aware command.
+	// Naming a project changes what governs the run; the files named stay
+	// the files named, read by the format each calls for.
+	AddProjectFlag(cmd)
+	cmd.Flags().Bool("progress", false, "show progress bar")
 	cmd.Flags().Bool("pack", false, "when transforming a .kpz, also eject the result to the .kpz (auto-pack)")
 	switch {
 	case info.WritesOutput && takesTarget:

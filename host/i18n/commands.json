@@ -563,6 +563,9 @@
               "progress": {
                 "usage": "show progress bar"
               },
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
+              },
               "source-lang": {
                 "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)"
               },
@@ -627,6 +630,9 @@
               },
               "progress": {
                 "usage": "show progress bar"
+              },
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
               },
               "source-lang": {
                 "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)"
@@ -693,6 +699,9 @@
               "progress": {
                 "usage": "show progress bar"
               },
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
+              },
               "source-lang": {
                 "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)"
               },
@@ -742,6 +751,9 @@
               },
               "progress": {
                 "usage": "show progress bar"
+              },
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
               },
               "source-lang": {
                 "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)"
@@ -795,6 +807,9 @@
               },
               "progress": {
                 "usage": "show progress bar"
+              },
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
               },
               "source-lang": {
                 "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)"
@@ -864,6 +879,9 @@
               "progress": {
                 "usage": "show progress bar"
               },
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
+              },
               "provider": {
                 "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Claude Code, Ollama, Demo (illustrative))"
               },
@@ -931,6 +949,9 @@
               },
               "progress": {
                 "usage": "show progress bar"
+              },
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
               },
               "send-as-stdin": {
                 "usage": "Send text via stdin instead of command arguments"
@@ -1006,6 +1027,9 @@
               "progress": {
                 "usage": "show progress bar"
               },
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
+              },
               "replace-with-space": {
                 "usage": "Replace line-break inline codes with spaces instead of removing them entirely"
               },
@@ -1078,6 +1102,9 @@
               "progress": {
                 "usage": "show progress bar"
               },
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
+              },
               "provider": {
                 "usage": "Multimodal AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Claude Code, Ollama, Demo (illustrative))"
               },
@@ -1130,6 +1157,9 @@
               },
               "progress": {
                 "usage": "show progress bar"
+              },
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
               },
               "source-lang": {
                 "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)"
@@ -1196,6 +1226,9 @@
               },
               "progress": {
                 "usage": "show progress bar"
+              },
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
               },
               "source-lang": {
                 "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)"
@@ -1365,6 +1398,9 @@
               "progress": {
                 "usage": "show progress bar"
               },
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
+              },
               "provider": {
                 "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Claude Code, Ollama, Demo (illustrative))"
               },
@@ -1461,6 +1497,9 @@
               "progress": {
                 "usage": "show progress bar"
               },
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
+              },
               "source-lang": {
                 "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)"
               },
@@ -1529,6 +1568,9 @@
               "progress": {
                 "usage": "show progress bar"
               },
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
+              },
               "rules-path": {
                 "usage": "Path to a redaction rules YAML file"
               },
@@ -1587,6 +1629,9 @@
               },
               "progress": {
                 "usage": "show progress bar"
+              },
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
               },
               "remove-block-if-empty": {
                 "usage": "Remove the block entirely if it has no remaining targets after removal"
@@ -1663,6 +1708,9 @@
               "progress": {
                 "usage": "show progress bar"
               },
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
+              },
               "provider": {
                 "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Claude Code, Ollama, Demo (illustrative))"
               },
@@ -1727,6 +1775,9 @@
               },
               "progress": {
                 "usage": "show progress bar"
+              },
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
               },
               "script-file": {
                 "usage": "Path to a .js file"
@@ -1795,6 +1846,9 @@
               },
               "progress": {
                 "usage": "show progress bar"
+              },
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
               },
               "reg-ex": {
                 "usage": "Enable regular expression mode for all search patterns"
@@ -1886,6 +1940,9 @@
               "progress": {
                 "usage": "show progress bar"
               },
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
+              },
               "provider": {
                 "usage": "AI provider id (anthropic"
               },
@@ -1962,6 +2019,9 @@
               "progress": {
                 "usage": "show progress bar"
               },
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
+              },
               "source-lang": {
                 "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)"
               },
@@ -2027,6 +2087,9 @@
               },
               "progress": {
                 "usage": "show progress bar"
+              },
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
               },
               "provider": {
                 "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Claude Code, Ollama, Demo (illustrative))"
@@ -2112,6 +2175,9 @@
               "progress": {
                 "usage": "show progress bar"
               },
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
+              },
               "provider": {
                 "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Claude Code, Ollama, Demo (illustrative))"
               },
@@ -2171,6 +2237,9 @@
               "progress": {
                 "usage": "show progress bar"
               },
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
+              },
               "source-lang": {
                 "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)"
               },
@@ -2223,6 +2292,9 @@
               },
               "progress": {
                 "usage": "show progress bar"
+              },
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
               },
               "source-lang": {
                 "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)"
@@ -2280,6 +2352,9 @@
               },
               "progress": {
                 "usage": "show progress bar"
+              },
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
               },
               "provider": {
                 "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Claude Code, Ollama, Demo (illustrative))"
@@ -2345,6 +2420,9 @@
               },
               "progress": {
                 "usage": "show progress bar"
+              },
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
               },
               "provider": {
                 "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Claude Code, Ollama, Demo (illustrative))"
@@ -2426,6 +2504,9 @@
               "progress": {
                 "usage": "show progress bar"
               },
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
+              },
               "remove-zero-width-chars": {
                 "usage": "Remove zero-width spaces and joiners"
               },
@@ -2493,6 +2574,9 @@
               },
               "progress": {
                 "usage": "show progress bar"
+              },
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
               },
               "source-lang": {
                 "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)"
