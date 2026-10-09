@@ -3406,8 +3406,12 @@ func codeSpanFences(n *ast.CodeSpan, source []byte) (string, string) {
 	if openStart > 0 && source[openStart-1] == ' ' {
 		openStart--
 	}
+	// A backslash-escaped backtick is a literal, not a fence character
+	// (CommonMark 2.4), so the walk stops at one: "\``code`" opens with one
+	// tick, and counting the escaped one made the rebuilt opener a tick longer
+	// than the source spelled (#2618).
 	ticks := 0
-	for openStart > 0 && source[openStart-1] == '`' {
+	for openStart > 0 && source[openStart-1] == '`' && !backslashEscaped(source, openStart-1) {
 		openStart--
 		ticks++
 	}
@@ -3431,6 +3435,9 @@ func codeSpanFences(n *ast.CodeSpan, source []byte) (string, string) {
 	if closeEnd < len(source) && source[closeEnd] == ' ' {
 		closeEnd++
 	}
+	// No escape check here: a backslash inside the content is a literal that
+	// never escapes the fence after it, and a backslash past the fence stops
+	// the walk before it reaches the backtick it escapes.
 	ticks = 0
 	for closeEnd < len(source) && source[closeEnd] == '`' {
 		closeEnd++

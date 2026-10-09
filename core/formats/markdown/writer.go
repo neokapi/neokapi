@@ -2149,7 +2149,7 @@ func opensInlineMarkup(s string) bool {
 
 // backslashEscaped reports whether the byte at i is already escaped: preceded
 // by an odd number of backslashes.
-func backslashEscaped(s string, i int) bool {
+func backslashEscaped[S string | []byte](s S, i int) bool {
 	n := 0
 	for j := i - 1; j >= 0 && s[j] == '\\'; j-- {
 		n++
