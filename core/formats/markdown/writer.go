@@ -36,6 +36,10 @@ type Writer struct {
 	// CommonMark reads them as two adjacent quotations rather than one with two
 	// paragraphs.
 	prevQuoteID string
+	// pendingDef is the link reference definition whose Data part was the
+	// last thing read on the generative path, held until the blocks carrying
+	// its label and title have arrived.
+	pendingDef *mdRefDefinition
 }
 
 // blockContext is one open structural container on the generative path.
@@ -206,6 +210,13 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 				}
 			case model.PartGroupStart, model.PartGroupEnd:
 				events = append(events, part)
+			case model.PartData:
+				// A link reference definition is the one Data part the
+				// generative path writes: the references to it are written as
+				// references, so it has to be there to resolve them.
+				if d, ok := part.Resource.(*model.Data); ok && blocksByID == nil && d.Name == dataLinkReferenceDefinition {
+					events = append(events, part)
+				}
 			}
 		}
 	}
@@ -262,6 +273,61 @@ const (
 	subTypeLinkTitle  = "md:link-title"
 	subTypeImageTitle = "md:image-title"
 )
+
+// The sub-types the markdown reader gives a reference-style link's and image's
+// codes. Their closing code's Data is the reference's own spelling, from the
+// `]` that ends the text to the end of the label, which is what the writer
+// puts back: the definition the label names travels as a part of its own.
+const (
+	subTypeLinkRef  = "md:link-ref"
+	subTypeImageRef = "md:image-ref"
+)
+
+// isReferenceLink reports whether a paired code is a reference-style link or
+// image rather than an inline one.
+func isReferenceLink(r *model.PcOpenRun) bool {
+	return r.SubType == subTypeLinkRef || r.SubType == subTypeImageRef
+}
+
+// referenceCloser returns a reference's closing spelling for a block the
+// generative path lays out itself. A label may hold a line ending, and inside
+// a container the source spelling carries the next line's prefix with it; the
+// label matches with its whitespace collapsed (CommonMark 4.7), so one space
+// stands in for the line ending and the prefix after it.
+func referenceCloser(data string) string {
+	if !strings.ContainsAny(data, "\r\n") {
+		return data
+	}
+	var sb strings.Builder
+	for i := 0; i < len(data); i++ {
+		c := data[i]
+		if c != '\n' && c != '\r' {
+			sb.WriteByte(c)
+			continue
+		}
+		sb.WriteByte(' ')
+		for i+1 < len(data) && strings.IndexByte(" \t>\r\n", data[i+1]) >= 0 {
+			i++
+		}
+	}
+	return sb.String()
+}
+
+// refTitleSpelling spells a definition's title between the delimiters that
+// need no escape, so the title re-reads as the same text: double quotes,
+// single quotes, then parentheses, and double quotes with escapes when the
+// title holds all three.
+func refTitleSpelling(title string) string {
+	switch {
+	case !strings.Contains(title, `"`):
+		return `"` + title + `"`
+	case !strings.Contains(title, "'"):
+		return "'" + title + "'"
+	case !strings.ContainsAny(title, "()"):
+		return "(" + title + ")"
+	}
+	return `"` + escapeLinkTitle(title) + `"`
+}
 
 // mdInlineTag maps a canonical inline run Type to its Markdown delimiters
 // (open, close). Used by the cross-format semantic export path so inline
@@ -380,6 +446,8 @@ func renderInline(runs []model.Run, escapeAngle bool) string {
 // replaces the writer's former bespoke run loop; WalkInline now handles run
 // decoding + plural/select 'other'-branch resolution. Like the old loop it never
 // consults a run's Data — the same Markdown results whatever the source format.
+// The one exception is a code the markdown reader sub-typed as a reference
+// link or image, whose closing Data is markdown's own spelling of the label.
 type mdInlineSink struct {
 	sb          strings.Builder
 	open        []mdOpenTag // stack of open paired codes, innermost last
@@ -407,6 +475,7 @@ type mdOpenTag struct {
 	attrs   map[string]string // a link's or image's attributes
 	destKey string            // model.AttrHref or model.AttrSrc; empty for anything else
 	title   bool              // the pair holds the title of the link or image that just closed
+	ref     bool              // the pair is a reference-style link or image
 }
 
 // mdPendingClose is a link's or image's closing markup, held until the sink
@@ -537,13 +606,13 @@ func (s *mdInlineSink) Open(r *model.PcOpenRun) {
 	case "link:hyperlink":
 		// [text](href "title") — the link text is the paired content.
 		s.sb.WriteString("[")
-		s.open = append(s.open, mdOpenTag{attrs: r.Attrs, destKey: model.AttrHref})
+		s.open = append(s.open, mdOpenTag{attrs: r.Attrs, destKey: model.AttrHref, ref: isReferenceLink(r)})
 	case "media:image", "link:image":
 		// ![alt](src "title"). The alt text is the paired content, except
 		// where a reader does not offer it for translation and records it on
 		// the alt attribute instead (markdown's translateImageAlt: false).
 		s.sb.WriteString("![" + r.Attr(model.AttrAlt))
-		s.open = append(s.open, mdOpenTag{attrs: r.Attrs, destKey: model.AttrSrc})
+		s.open = append(s.open, mdOpenTag{attrs: r.Attrs, destKey: model.AttrSrc, ref: isReferenceLink(r)})
 	default:
 		if m, ok := mdInlineTag[r.Type]; ok {
 			open, close := s.emphasisSpelling(m[0], m[1])
@@ -571,7 +640,7 @@ func (s *mdInlineSink) emphasisSpelling(open, close string) (string, string) {
 	return strings.ReplaceAll(open, "*", "_"), strings.ReplaceAll(close, "*", "_")
 }
 
-func (s *mdInlineSink) Close(*model.PcCloseRun) {
+func (s *mdInlineSink) Close(r *model.PcCloseRun) {
 	s.spellHeldBreak("")
 	n := len(s.open)
 	if n == 0 {
@@ -585,6 +654,14 @@ func (s *mdInlineSink) Close(*model.PcCloseRun) {
 		return
 	}
 	s.flushPending()
+	if tag.ref && r != nil && r.Data != "" {
+		// A reference link is written back as a reference: its definition
+		// is a part of its own and the writer spells that too. Resolving it
+		// inline here left the definition's title block to become a
+		// paragraph (#2635).
+		s.sb.WriteString(referenceCloser(r.Data))
+		return
+	}
 	if tag.destKey != "" {
 		s.pending = &mdPendingClose{attrs: tag.attrs, destKey: tag.destKey}
 		return
@@ -855,10 +932,29 @@ func (w *Writer) writeFromEvents(events []*model.Part, out io.Writer) error {
 	for i := 0; i < len(events); i++ {
 		part := events[i]
 		switch part.Type {
+		case model.PartData:
+			d, ok := part.Resource.(*model.Data)
+			if !ok || d.Name != dataLinkReferenceDefinition {
+				continue
+			}
+			if err := w.flushDefinition(out); err != nil {
+				return err
+			}
+			if err := flushCells(); err != nil {
+				return err
+			}
+			w.pendingDef = &mdRefDefinition{
+				label:       d.Properties["label"],
+				destination: d.Properties["destination"],
+				title:       d.Properties["title"],
+			}
 		case model.PartGroupStart:
 			g, ok := part.Resource.(*model.GroupStart)
 			if !ok {
 				continue
+			}
+			if err := w.flushDefinition(out); err != nil {
+				return err
 			}
 			if err := flushCells(); err != nil {
 				return err
@@ -878,6 +974,9 @@ func (w *Writer) writeFromEvents(events []*model.Part, out io.Writer) error {
 				})
 			}
 		case model.PartGroupEnd:
+			if err := w.flushDefinition(out); err != nil {
+				return err
+			}
 			if err := flushCells(); err != nil {
 				return err
 			}
@@ -888,6 +987,12 @@ func (w *Writer) writeFromEvents(events []*model.Part, out io.Writer) error {
 			block, ok := part.Resource.(*model.Block)
 			if !ok {
 				continue
+			}
+			if w.pendingDef != nil && w.pendingDef.take(block, w.blockRuns(block)) {
+				continue
+			}
+			if err := w.flushDefinition(out); err != nil {
+				return err
 			}
 			// A bare table cell outside any table group means the reader knows
 			// each cell's address but has no row container to bracket — a
@@ -914,6 +1019,9 @@ func (w *Writer) writeFromEvents(events []*model.Part, out io.Writer) error {
 				return err
 			}
 		}
+	}
+	if err := w.flushDefinition(out); err != nil {
+		return err
 	}
 	return flushCells()
 }
@@ -1000,29 +1108,9 @@ func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
 	if role0 == "" {
 		role0 = block.Type
 	}
-	isItem := role0 == model.RoleListItem
-	quoteID := w.innermostQuoteID()
-
-	if !w.firstBlock {
-		// Consecutive items of one list are a tight list: one newline, not the
-		// blank line every other block pair takes. A blank line between items
-		// makes CommonMark render each `<li>` as its own paragraph, which is a
-		// different document.
-		sep := "\n\n"
-		switch {
-		case isItem && w.prevListItem:
-			sep = "\n"
-		case quoteID != "" && quoteID == w.prevQuoteID:
-			// Blank line INSIDE the quote, not around it.
-			sep = "\n" + strings.TrimRight(strings.Repeat("> ", w.quoteDepth()), " ") + "\n"
-		}
-		if _, err := fmt.Fprint(out, sep); err != nil {
-			return err
-		}
+	if err := w.separateBlock(role0 == model.RoleListItem, out); err != nil {
+		return err
 	}
-	w.firstBlock = false
-	w.prevListItem = isItem
-	w.prevQuoteID = quoteID
 
 	// Structure prefix/suffix, keyed on the normalized semantic role (WS6).
 	// SemanticRole drives clean cross-format export (any source → Markdown);
@@ -1123,23 +1211,97 @@ func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
 		text = escapeBlockMarkerLines(foldBlankLines(text))
 	}
 
-	// A block inside a <blockquote> bracket is quoted regardless of its own
-	// role: the marker goes on every line, including continuation lines, or
-	// the quotation ends after the first one.
-	if q := w.quoteDepth(); q > 0 {
-		marker := strings.Repeat("> ", q)
-		body := prefix + text + suffix
-		lines := strings.Split(body, "\n")
-		for i, ln := range lines {
-			lines[i] = marker + ln
-		}
-		prefix, text, suffix = "", strings.Join(lines, "\n"), ""
-	}
-
-	if _, err := fmt.Fprint(out, prefix, text, suffix); err != nil {
+	if _, err := fmt.Fprint(out, w.quoteBody(prefix+text+suffix)); err != nil {
 		return err
 	}
 	return nil
+}
+
+// separateBlock writes the separator between the previous block and the one
+// about to be written, and records the one about to be written as previous.
+func (w *Writer) separateBlock(isItem bool, out io.Writer) error {
+	quoteID := w.innermostQuoteID()
+	if !w.firstBlock {
+		// Consecutive items of one list are a tight list: one newline, not the
+		// blank line every other block pair takes. A blank line between items
+		// makes CommonMark render each `<li>` as its own paragraph, which is a
+		// different document.
+		sep := "\n\n"
+		switch {
+		case isItem && w.prevListItem:
+			sep = "\n"
+		case quoteID != "" && quoteID == w.prevQuoteID:
+			// Blank line INSIDE the quote, not around it.
+			sep = "\n" + strings.TrimRight(strings.Repeat("> ", w.quoteDepth()), " ") + "\n"
+		}
+		if _, err := fmt.Fprint(out, sep); err != nil {
+			return err
+		}
+	}
+	w.firstBlock = false
+	w.prevListItem = isItem
+	w.prevQuoteID = quoteID
+	return nil
+}
+
+// quoteBody marks a block's rendered body for the block quotes it sits in. A
+// block inside a <blockquote> bracket is quoted regardless of its own role:
+// the marker goes on every line, including continuation lines, or the
+// quotation ends after the first one.
+func (w *Writer) quoteBody(body string) string {
+	q := w.quoteDepth()
+	if q == 0 {
+		return body
+	}
+	marker := strings.Repeat("> ", q)
+	lines := strings.Split(body, "\n")
+	for i, ln := range lines {
+		lines[i] = marker + ln
+	}
+	return strings.Join(lines, "\n")
+}
+
+// mdRefDefinition is a link reference definition the generative path holds
+// back until the blocks that carry its translatable label and title have
+// arrived, so the definition is written once, with their text in place.
+type mdRefDefinition struct {
+	label, destination, title string
+}
+
+// take fills the definition from one of its own blocks and reports whether
+// the block was one: the reader emits a visible label and a used title as
+// blocks right after the definition's Data part.
+func (d *mdRefDefinition) take(block *model.Block, runs []model.Run) bool {
+	switch block.Type {
+	case blockTypeRefLabel:
+		if text := model.RenderRunsWithData(runs); text != "" {
+			d.label = text
+		}
+	case blockTypeRefTitle:
+		d.title = model.RenderRunsWithData(runs)
+	default:
+		return false
+	}
+	return true
+}
+
+// flushDefinition writes the definition held back, if any, as a block of its
+// own: `[label]: destination "title"`.
+func (w *Writer) flushDefinition(out io.Writer) error {
+	def := w.pendingDef
+	if def == nil {
+		return nil
+	}
+	w.pendingDef = nil
+	if err := w.separateBlock(false, out); err != nil {
+		return err
+	}
+	text := "[" + def.label + "]: " + def.destination
+	if def.title != "" {
+		text += " " + refTitleSpelling(def.title)
+	}
+	_, err := fmt.Fprint(out, w.quoteBody(text))
+	return err
 }
 
 // mdCell is one table cell: its rendered text and the column it occupies
