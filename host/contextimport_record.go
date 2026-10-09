@@ -74,17 +74,18 @@ func (s *importScribe) read(ctx context.Context, src contextSource, n int, diges
 
 // readRecord records the decision record the import read. A record is a
 // directory of shards rather than one file, so it is recorded as the directory
-// with the number of decisions it carried.
-func (s *importScribe) readRecord(ctx context.Context, rel string, n int) error {
-	return s.record(ctx, rel, "", fmt.Sprintf("decision record %s, %s", rel, pluralUnit(n, "decision", "decisions")))
+// with the number of decisions it carried, and its digest is the one
+// state.CommittedDigest takes over every shard.
+func (s *importScribe) readRecord(ctx context.Context, rel string, n int, digest string) error {
+	return s.record(ctx, rel, digest, fmt.Sprintf("decision record %s, %s", rel, pluralUnit(n, "decision", "decisions")))
 }
 
 // record appends one import operation naming a source the import read. What a
 // person imports is established from the start.
 //
-// The evidence carries the source's project-relative path and, for a single
-// file, the SHA-256 of the bytes that were read, so a reader of the log can
-// tell which version of a file is in force.
+// The evidence carries the source's project-relative path and the SHA-256 of
+// the bytes that were read (over every shard, for the decision record), so a
+// reader of the log can tell which version of a source is in force.
 func (s *importScribe) record(ctx context.Context, rel, digest, subject string) error {
 	if !s.records() {
 		return nil

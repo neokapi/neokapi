@@ -321,11 +321,6 @@ func (a *App) ImportProjectContext(ctx context.Context, projectPath string, req 
 			return res, err
 		}
 	}
-	if stamped {
-		if err := a.saveImportStamps(ctx, stamps); err != nil {
-			return res, err
-		}
-	}
 	if res.Entries > 0 {
 		if tm := projector.MemoryView(db); tm != nil {
 			a.RebuildMemorySearchIndexes(ctx, tm)
@@ -344,18 +339,62 @@ func (a *App) ImportProjectContext(ctx context.Context, projectPath string, req 
 	}
 	res.ProfileVoices = profileVoices
 
+	// The decision record is a directory of shards, stamped as one source by
+	// a digest over every shard, the way a single file is stamped by its bytes.
+	// A record at bytes this checkout has read is skipped and counted with the
+	// files, so a second run of the same import reads nothing and says so.
 	recordDir := from.Export().UnitStateDir()
-	n, err := importDecisionRecord(ctx, db.Work(), recordDir)
-	if err != nil {
-		return res, err
+	if committedRecordExists(recordDir) {
+		recordRel := relSlash(from.Root, recordDir)
+		digest, derr := state.CommittedDigest(recordDir)
+		if derr != nil {
+			return res, derr
+		}
+		key := importStampKey(projectKey, checkout, recordRel)
+		if !req.Force && stamps[key] == digest {
+			res.Unchanged++
+		} else {
+			n, rerr := importDecisionRecord(ctx, db.Work(), recordDir)
+			if rerr != nil {
+				return res, rerr
+			}
+			res.Decisions = n
+			// Reading the record writes the project's own record out again,
+			// so the stamp is taken after the read: the bytes on disk now are
+			// the bytes the next run finds.
+			if digest, derr = state.CommittedDigest(recordDir); derr != nil {
+				return res, derr
+			}
+			stamps[key], stamped = digest, true
+			if n > 0 {
+				if err := scribe.readRecord(ctx, recordRel, n, digest); err != nil {
+					return res, err
+				}
+			}
+		}
 	}
-	res.Decisions = n
-	if n > 0 {
-		if err := scribe.readRecord(ctx, relSlash(from.Root, recordDir), n); err != nil {
+	if stamped {
+		if err := a.saveImportStamps(ctx, stamps); err != nil {
 			return res, err
 		}
 	}
 	return res, nil
+}
+
+// committedRecordExists reports whether dir holds at least one decision shard.
+// A project with no record has nothing to stamp, and is not counted as a
+// source already read.
+func committedRecordExists(dir string) bool {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return false
+	}
+	for _, e := range entries {
+		if !e.IsDir() && strings.HasSuffix(e.Name(), state.CommittedExt) {
+			return true
+		}
+	}
+	return false
 }
 
 // bindImportedVoice binds the voice an import brought when the recipe binds none
