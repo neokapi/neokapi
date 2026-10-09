@@ -158,7 +158,7 @@ nothing else installed:
 | Claude Code | `.mcp.json` (`mcpServers`), `.claude/skills/kapi/SKILL.md` | [project MCP file](https://code.claude.com/docs/en/mcp), [project skills](https://code.claude.com/docs/en/skills) |
 | Cursor | `.cursor/mcp.json` (`mcpServers`) | [Cursor MCP](https://cursor.com/docs/context/mcp) |
 | VS Code | `.vscode/mcp.json` (`servers`) | [MCP configuration reference](https://code.visualstudio.com/docs/agents/reference/mcp-configuration) |
-| Codex | `.codex/config.toml` (`mcp_servers`) | read once the person trusts the repository |
+| Codex | `.codex/config.toml` (`mcp_servers`, with `env_vars` naming the variables kapi resolves its roots from, `host.RootEnvVars`) | read once the person trusts the repository; Codex starts a stdio server with a fixed environment and forwards other variables only by name |
 | Cross-client | `.agents/skills/kapi/SKILL.md` | [Agent Skills client guide](https://agentskills.io/client-implementation/adding-skills-support) |
 
 Host configuration follows each client's documented format.
