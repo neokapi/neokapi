@@ -292,8 +292,12 @@ type wmlParser struct {
 	// structStack tracks the open table/table-row groups so a closing element
 	// pops the matching one; cellDepth tracks w:tc nesting so a paragraph inside
 	// a cell is tagged RoleTableCell. groupCounter names the emitted groups.
-	structStack  []structFrame
-	cellDepth    int
+	structStack []structFrame
+	cellDepth   int
+	// rowHeader is set by the open row's <w:trPr><w:tblHeader/>, Word's
+	// statement that the row repeats as a header on every page, so its cells
+	// take the table-header role rather than the table-cell role.
+	rowHeader    bool
 	groupCounter int
 	// path addresses each block by part plus table/row/cell position — see
 	// structural_name.go. It is maintained regardless of emitPart, because a
@@ -554,6 +558,12 @@ func (p *wmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 					p.resolveCellVMerge()
 				}
 				p.skelText(raw)
+			case "tblHeader":
+				// Row property (<w:trPr> child): the row is a header row.
+				if p.cellDepth == 0 {
+					p.rowHeader = tblHeaderOn(t)
+				}
+				p.skelWriteStartElement(d, t)
 			default:
 				p.skelWriteStartElement(d, t)
 			}

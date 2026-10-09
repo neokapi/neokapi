@@ -83,6 +83,7 @@ func (p *wmlParser) openTableStruct(name string) {
 		p.structStack = append(p.structStack, structFrame{kind: "table-row", id: id})
 		p.emitPart(&model.Part{Type: model.PartGroupStart, Resource: &model.GroupStart{ID: id, Name: "table-row", Type: "table-row"}})
 		p.cellCol = 0 // grid column cursor resets each row
+		p.rowHeader = false
 	case "tc":
 		p.cellDepth++
 		p.pendingColSpan = 0 // a fresh cell; its tcPr (if any) sets the span
@@ -236,6 +237,9 @@ func (p *wmlParser) handleTableRow(d *rawDecoder, start xml.StartElement) error 
 				// continues normal processing for the rest of the row.
 				p.skelWriteString(startRaw)
 				p.openTableStruct("tr")
+				if trPrHasHeader(raw) {
+					p.rowHeader = true
+				}
 				emitPending()
 				p.skelText(raw)
 				return nil
@@ -324,4 +328,44 @@ func trPrHasRowDeletion(raw string) bool {
 			}
 		}
 	}
+}
+
+// tblHeaderRE matches a <w:tblHeader> row property with its attribute list.
+var tblHeaderRE = regexp.MustCompile(`<w:tblHeader\b([^>]*)>`)
+
+// onOffValRE picks the w:val out of a raw attribute list.
+var onOffValRE = regexp.MustCompile(`\bw:val="([^"]*)"`)
+
+// trPrHasHeader reports whether the captured XML of a <w:trPr> marks the row as
+// a header row (ECMA-376-1 §17.4.49): a <w:tblHeader/> whose w:val is absent or
+// on.
+func trPrHasHeader(raw string) bool {
+	m := tblHeaderRE.FindStringSubmatch(raw)
+	if m == nil {
+		return false
+	}
+	v := onOffValRE.FindStringSubmatch(m[1])
+	if v == nil {
+		return true
+	}
+	return onOffValue(v[1])
+}
+
+// tblHeaderOn reads a <w:tblHeader> start element's w:val the same way.
+func tblHeaderOn(t xml.StartElement) bool {
+	for _, a := range t.Attr {
+		if a.Name.Local == "val" {
+			return onOffValue(a.Value)
+		}
+	}
+	return true
+}
+
+// onOffValue interprets an ST_OnOff value (ECMA-376-1 §17.17.4).
+func onOffValue(v string) bool {
+	switch v {
+	case "0", "false", "off":
+		return false
+	}
+	return true
 }

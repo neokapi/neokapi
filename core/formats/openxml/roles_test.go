@@ -151,3 +151,55 @@ func TestNative_DocxHeadingRole(t *testing.T) {
 		}
 	}
 }
+
+// Word's list styles ("List Bullet", "List Number") carry the numbering in the
+// style's own pPr, so a paragraph in one declares no numPr itself. The style
+// resolves to the list-item role, a style based on it inherits it, and a
+// numbered heading keeps its heading role.
+func TestBuildStyleRoleMap_ListStyles(t *testing.T) {
+	stylesXML := []byte(`<?xml version="1.0"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:style w:type="paragraph" w:default="1" w:styleId="Normal">
+    <w:name w:val="Normal"/>
+  </w:style>
+  <w:style w:type="paragraph" w:styleId="ListBullet">
+    <w:name w:val="List Bullet"/>
+    <w:basedOn w:val="Normal"/>
+    <w:pPr><w:numPr><w:numId w:val="1"/></w:numPr></w:pPr>
+  </w:style>
+  <w:style w:type="paragraph" w:styleId="ListNumber">
+    <w:name w:val="List Number"/>
+    <w:basedOn w:val="Normal"/>
+    <w:pPr><w:numPr><w:numId w:val="5"/></w:numPr></w:pPr>
+  </w:style>
+  <w:style w:type="paragraph" w:styleId="Checklist">
+    <w:name w:val="Checklist"/>
+    <w:basedOn w:val="ListBullet"/>
+  </w:style>
+  <w:style w:type="paragraph" w:styleId="Heading1">
+    <w:name w:val="heading 1"/>
+    <w:pPr><w:numPr><w:numId w:val="7"/></w:numPr><w:outlineLvl w:val="0"/></w:pPr>
+  </w:style>
+  <w:style w:type="paragraph" w:styleId="Subtitle">
+    <w:name w:val="Subtitle"/>
+    <w:basedOn w:val="Normal"/>
+    <w:pPr><w:numPr><w:ilvl w:val="1"/></w:numPr></w:pPr>
+  </w:style>
+  <w:style w:type="paragraph" w:styleId="NoNumbering">
+    <w:name w:val="No Numbering"/>
+    <w:pPr><w:numPr><w:numId w:val="0"/></w:numPr></w:pPr>
+  </w:style>
+</w:styles>`)
+
+	m := buildStyleRoleMap(stylesXML)
+	require.NotNil(t, m)
+
+	assert.Equal(t, paraRole{role: model.RoleListItem}, m["ListBullet"])
+	assert.Equal(t, paraRole{role: model.RoleListItem}, m["ListNumber"])
+	assert.Equal(t, paraRole{role: model.RoleListItem}, m["Checklist"], "inherited through basedOn")
+	assert.Equal(t, paraRole{role: model.RoleHeading, level: 1}, m["Heading1"], "a numbered heading stays a heading")
+	for _, id := range []string{"Normal", "Subtitle", "NoNumbering"} {
+		_, ok := m[id]
+		assert.False(t, ok, "%s is not a list style: an outline level alone or numId 0 names no list", id)
+	}
+}
