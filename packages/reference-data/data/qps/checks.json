@@ -6,7 +6,7 @@
       "id": "content-lint",
       "source": "built-in",
       "kind": "check",
-      "displayName": "Content Lint",
+      "displayName": "Çöñţéñţ Ļîñţ",
       "description": "Ŕéþöŕţ ţĥé ţéẋţ-ĥýĝîéñé đéƒéçţš öƒ à šîñĝļé šöüŕçé ţéẋţ, çöṽéŕîñĝ éḿþţîñéšš, šţŕàý ŵĥîţéšþàçé, šþàçîñĝ àñđ ŕéþéţîţîöñ.",
       "ruleFamily": "hygiene",
       "rules": [
@@ -67,7 +67,7 @@
       "id": "length-check",
       "source": "built-in",
       "kind": "check",
-      "displayName": "Length Check",
+      "displayName": "Ļéñĝţĥ Çĥéçķ",
       "description": "Ĥöļđ éàçĥ šöüŕçé ƃļöçķ ţö àñ àƃšöļüţé çĥàŕàçţéŕ öŕ ŵöŕđ ļîḿîţ.",
       "ruleFamily": "length",
       "rules": [
@@ -114,7 +114,7 @@
       "id": "pattern-check",
       "source": "built-in",
       "kind": "check",
-      "displayName": "Pattern Check",
+      "displayName": "Þàţţéŕñ Çĥéçķ",
       "description": "Ŕéǫüîŕé à þàţţéŕñ ţö àþþéàŕ îñ éṽéŕý šöüŕçé ƃļöçķ, öŕ ƒöŕƃîđ öñé ƒŕöḿ àþþéàŕîñĝ àţ àļļ.",
       "ruleFamily": "pattern",
       "rules": [
@@ -161,7 +161,7 @@
       "id": "comment-style",
       "source": "built-in",
       "kind": "check",
-      "displayName": "Comment Style",
+      "displayName": "Çöḿḿéñţ Šţýļé",
       "description": "Ĥöļđ ţĥé çöḿḿéñţš îñ šöüŕçé ƒîļéš ţö ţĥé šéñţéñçé àñđ çöḿḿéñţ ŵöŕđ ļîḿîţš à ṽöîçé þŕöƒîļé šéţš ƒöŕ ţĥéḿ.",
       "ruleFamily": "comment",
       "rules": [
