@@ -15,12 +15,15 @@ import (
 
 // kapiReset starts a directory of the page's file system over as a fresh tab
 // would find it, before the host clears the directory's files. args[0] is the
-// directory. Every project at or below it is forgotten in the workspace, its
-// stores closed (App.ForgetProjectsUnder), so a project seeded there again
-// begins with an empty context; then every database at or below it goes, since
-// the page's file system never sees them. The workspace's own databases stay,
-// holding every other project. A reset waits for a command or a change call
-// that is running, and one that starts after it waits for it (engineMu).
+// directory. Every project checked out at or below it is forgotten in the
+// workspace, its stores closed (App.ForgetProjectsUnder), so a project seeded
+// there again begins with an empty context. That reaches a project a previous
+// page left: the workspace persists while the page's files do not, so the
+// registry is read, and a project held open on another directory is forgotten
+// whole. Then every database at or below the directory goes, since the page's
+// file system never sees them. The workspace's own databases stay, holding
+// every other project. A reset waits for a command or a change call that is
+// running, and one that starts after it waits for it (engineMu).
 //
 // It returns a Promise that resolves to null, or to the error's message.
 func kapiReset(_ js.Value, args []js.Value) any {

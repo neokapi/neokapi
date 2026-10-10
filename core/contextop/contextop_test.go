@@ -373,3 +373,47 @@ func TestSubjectDescribe(t *testing.T) {
 		})
 	}
 }
+
+// A project removed from the workspace (workspace.Forget) begins again with an
+// empty record: what was recorded before the removal built a context the
+// removal deleted, so the log reports nothing of it, as the projector replays
+// nothing of it. What is recorded after the removal, and every other project,
+// reads as before.
+func TestLedger_RemovalDropsWhatCameBefore(t *testing.T) {
+	ctx := context.Background()
+	ws := openWorkspace(t)
+	ledger := contextop.NewLedger(ws, contextop.Allow)
+
+	for _, term := range []string{"utilise", "leverage"} {
+		_, err := ledger.Append(ctx, contextop.Record{
+			Project: "prj_docs", Actor: agent("claude", "s1"),
+			Kind: contextop.KindObserve, Subject: termRule(term, "use", false),
+		})
+		require.NoError(t, err)
+	}
+	other, err := ledger.Append(ctx, contextop.Record{
+		Project: "prj_other", Actor: agent("claude", "s1"),
+		Kind: contextop.KindObserve, Subject: termRule("utilize", "use", false),
+	})
+	require.NoError(t, err)
+
+	_, err = ws.Register(ctx, "prj_docs", "docs", "")
+	require.NoError(t, err)
+	require.NoError(t, ws.Forget(ctx, "prj_docs"))
+
+	after, err := ledger.Append(ctx, contextop.Record{
+		Project: "prj_docs", Actor: agent("claude", "s2"),
+		Kind: contextop.KindObserve, Subject: termRule("synergy", "use", false),
+	})
+	require.NoError(t, err)
+
+	docs, err := ledger.Records(ctx, contextop.Filter{Project: "prj_docs"})
+	require.NoError(t, err)
+	require.Len(t, docs, 1, "only what was recorded after the removal")
+	assert.Equal(t, after.ID, docs[0].ID)
+
+	elsewhere, err := ledger.Records(ctx, contextop.Filter{Project: "prj_other"})
+	require.NoError(t, err)
+	require.Len(t, elsewhere, 1, "another project is untouched")
+	assert.Equal(t, other.ID, elsewhere[0].ID)
+}

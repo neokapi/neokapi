@@ -572,12 +572,21 @@ func (a *App) CloseProjectDB(root string) error {
 	return db.Close()
 }
 
-// ForgetProjectsUnder closes the store of every project this App holds at or
-// below dir and forgets each one in its workspace (workspace.Forget), so kapi
-// run there again registers the project afresh with an empty context. It is
-// for a host whose projects come and go inside one process and that is about
-// to clear their directory: the browser playground's reset, where the files
-// go with the page's file system and the databases with the driver.
+// ForgetProjectsUnder forgets every project checked out at or below dir in its
+// workspace (workspace.Forget), so kapi run there again registers the project
+// afresh with an empty context. It is for a host whose projects come and go
+// inside one process and that is about to clear their directory: the browser
+// playground's reset, where the files go with the page's file system and the
+// databases with the driver.
+//
+// Two kinds of project are found there. A store this App holds open for a root
+// under dir is closed and its project forgotten. A project the workspace
+// registers with a checkout under dir is forgotten as well, whether or not
+// anything is open on it: the workspace outlives the page, so a project a
+// previous page left there would otherwise keep its context while its files
+// are gone. A project is one context wherever it is checked out, and it is
+// forgotten whole: a project also checked out outside dir loses the context
+// those checkouts shared and starts over on its next open there too.
 //
 // As with CloseProjectDB, nothing may be using the stores.
 func (a *App) ForgetProjectsUnder(ctx context.Context, dir string) error {
@@ -585,10 +594,9 @@ func (a *App) ForgetProjectsUnder(ctx context.Context, dir string) error {
 	if err != nil {
 		return fmt.Errorf("project store: resolve %q: %w", dir, err)
 	}
-	s := a.projectStores
-	if s == nil {
-		return nil
-	}
+	// Created rather than tested for: an App that has opened nothing yet still
+	// has a workspace to read, and a fresh page's first act is this reset.
+	s := a.ensureProjectStores()
 	type held struct {
 		db    *projectdb.DB
 		bound boundProject
@@ -604,13 +612,55 @@ func (a *App) ForgetProjectsUnder(ctx context.Context, dir string) error {
 		delete(s.projectors, root)
 		delete(s.bound, root)
 	}
+	// The workspace a checkout under dir registers in, opened if this App has
+	// not reached it yet, beside every workspace it has.
+	workspaces := make([]*workspace.Workspace, 0, len(s.ws)+1)
+	if ws, err := s.workspaceAt(ctx, s.workspaceRootFor(abs)); err == nil {
+		workspaces = append(workspaces, ws)
+	}
+	for root, ws := range s.ws {
+		if root != s.workspaceRootFor(abs) {
+			workspaces = append(workspaces, ws)
+		}
+	}
 	s.mu.Unlock()
 
 	var errs []error
+	forgotten := map[*workspace.Workspace]map[workspace.ProjectKey]bool{}
+	forget := func(ws *workspace.Workspace, key workspace.ProjectKey) {
+		if ws == nil || key == "" || ws.Describe().ReadOnly {
+			return
+		}
+		if forgotten[ws] == nil {
+			forgotten[ws] = map[workspace.ProjectKey]bool{}
+		}
+		if forgotten[ws][key] {
+			return
+		}
+		forgotten[ws][key] = true
+		errs = append(errs, ws.Forget(ctx, key))
+	}
 	for _, g := range gone {
 		errs = append(errs, g.db.Close())
-		if ws := g.bound.ws; ws != nil && !ws.Describe().ReadOnly && g.bound.key != "" {
-			errs = append(errs, ws.Forget(ctx, g.bound.key))
+		forget(g.bound.ws, g.bound.key)
+	}
+	within := NormalizeCheckoutPath(abs)
+	for _, ws := range workspaces {
+		if ws.Describe().ReadOnly {
+			continue
+		}
+		regs, err := ws.Projects(ctx)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		for _, reg := range regs {
+			for _, checkout := range reg.Checkouts {
+				if pathWithin(checkout, within) {
+					forget(ws, reg.Key)
+					break
+				}
+			}
 		}
 	}
 	return errors.Join(errs...)

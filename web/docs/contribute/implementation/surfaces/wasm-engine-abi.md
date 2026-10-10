@@ -236,14 +236,20 @@ official SQLite WebAssembly build, `@sqlite.org/sqlite-wasm`.
   Commands typed in a lab resolve stores as natively: inside a project they use
   the project's, and outside one the standalone store a flag or the working
   directory names.
-- **Starting a directory over.** `kapiReset(dir)` forgets every project at or
-  below `dir` in the workspace (`App.ForgetProjectsUnder`, which closes its
-  stores and calls `workspace.Forget`), then removes every database there
-  outside the workspace's own. A project seeded there again begins with an
-  empty context, because the projector replays only what the log holds after a
-  project's latest removal. `KapiRuntime.reset(dir)` calls it and then clears
-  the directory's files; the playground's Reset button and the terminal's `rm`
-  (through `KapiRuntime.removeDatabase`) use them.
+- **Starting a directory over.** `kapiReset(dir)` forgets every project
+  checked out at or below `dir` in the workspace (`App.ForgetProjectsUnder`,
+  which closes the stores it holds there, reads the registry for the projects a
+  previous page registered there, and calls `workspace.Forget` for each), then
+  removes every database there outside the workspace's own. A project seeded
+  there again begins with an empty context and an empty record, because the
+  projector replays, and the context ledger reports, only what the log holds
+  after a project's latest removal. A project is keyed by
+  its recipe's `id:` or `name:`, so the same sample seeded in two directories
+  is one project with one context, and a reset under either directory forgets
+  it whole: the learning labs reset their whole `/learn` tree on Play for that
+  reason. `KapiRuntime.reset(dir)` calls it and then clears the directory's
+  files; the playground's Reset button and the terminal's `rm` (through
+  `KapiRuntime.removeDatabase`) use them.
 - **Tested in Node.** `make test-wasm-stores` runs the store suites under
   `GOOS=js` in Node over the same bridge (`scripts/wasm-stores/`), and the
   change service's suites beside them ([The change
