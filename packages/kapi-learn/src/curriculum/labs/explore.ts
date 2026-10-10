@@ -477,7 +477,7 @@ export const freeTerminal: Lab = {
   title: "Free terminal",
   tagline: "A terminal of your own, with sample files to start from.",
   summary:
-    "The same terminal the labs type into, with nothing scripted. The KapiMart files are in the sandbox, with a page, a bilingual file and a properties file beside them, and the commands below are openers. Type anything the browser engine supports; help lists what the terminal itself knows, and the files pane takes your own files.",
+    "The same terminal the labs type into, with nothing scripted. The KapiMart files are in the sandbox, with a page, a release note and a properties file beside them, and the commands below are openers. Type anything the browser engine supports; help lists what the terminal itself knows, and the files pane takes your own files.",
   sample: "mart",
   kind: "playground",
   files: [
@@ -487,9 +487,9 @@ export const freeTerminal: Lab = {
         '<!doctype html>\n<html lang="en">\n  <head>\n    <meta charset="utf-8" />\n    <title>Welcome</title>\n  </head>\n  <body>\n    <h1>Welcome aboard</h1>\n    <p>Thanks for trying <strong>kapi</strong>. Edit this file and run a command.</p>\n    <a href="/docs">Read the documentation</a>\n  </body>\n</html>\n',
     },
     {
-      path: "app.xliff",
+      path: "notes.md",
       content:
-        '<?xml version="1.0" encoding="UTF-8"?>\n<xliff xmlns="urn:oasis:names:tc:xliff:document:2.2" version="2.2" srcLang="en" trgLang="fr">\n  <file id="app.json" original="app.json">\n    <unit id="greeting">\n      <segment>\n        <source>Hello, World!</source>\n      </segment>\n    </unit>\n    <unit id="farewell">\n      <segment>\n        <source>See you tomorrow</source>\n      </segment>\n    </unit>\n  </file>\n</xliff>\n',
+        "# Release notes\n\nThe **2.4** release adds saved carts. A shopper who leaves comes back to what they picked.\n\n## Changes\n\n- Saved carts, kept for thirty days\n- Faster checkout on a returning visit\n- [Read the guide](/docs/saved-carts)\n",
     },
     {
       path: "app.properties",
@@ -505,7 +505,7 @@ export const freeTerminal: Lab = {
     "kapi --help",
     "kapi stats src/en.json",
     "kapi inspect page.html",
-    "kapi pseudo-translate app.xliff -o app.qps.xliff",
+    "kapi pseudo-translate notes.md -o notes.qps.md",
     "kapi inspect app.properties | head -20",
     "kapi formats",
   ],

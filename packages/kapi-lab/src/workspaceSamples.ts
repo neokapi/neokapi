@@ -1,6 +1,6 @@
 // Workspace demo fixtures for the .kpz WorkspaceExplorer / ProjectExplorer.
 //
-// The sample data (JSON + Office OOXML packages + their per-sample en→fr TMX)
+// The sample data (JSON + Office OOXML packages + their per-sample en→fr content-memory bundle)
 // now lives in the single source of truth at
 // `@neokapi/kapi-playground/samples`, so the bytes are defined exactly once and
 // shared with the docs CLI playground picker. This module re-exports the

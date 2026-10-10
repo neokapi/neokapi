@@ -46,25 +46,27 @@ samples/mart/
 │   ├── de.json          # German — partial (~70%)
 │   └── ja.json          # Japanese — partial (~30%)
 ├── context/
-│   └── terms.json       # the terms as a bundle: read in with `kapi store import ./context`
-├── glossary.csv         # term, fr, de, ja, note (DNT marked)
-├── brand/
-│   ├── forbidden-terms.txt   # one term per line, for a brand check
-│   └── README.md             # forbidden→preferred substitutions, naming rules
-└── memory.tmx           # TMX 1.4, en→fr, with exact and fuzzy matches
+│   ├── terms.json       # the terms as a bundle
+│   └── memory/
+│       └── mart-fr.memory.json   # approved en→fr pairs, exact and near matches
+└── brand/
+    ├── forbidden-terms.txt   # one term per line, for a brand check
+    └── README.md             # forbidden→preferred substitutions, naming rules
 ```
 
 Two source formats exercise the engine's round-trip: `src/en.json` for
 structured key-value content, and `src/about.md` for prose. The locale JSON
 files share the exact same key set as the source.
 
-`context/terms.json` carries the same vocabulary as `glossary.csv` and
-`brand/`, in the bundle a project reads in with `kapi store import ./context`:
-the product and payment names as concepts with the same term in every locale,
-the shop vocabulary with its French, German and Japanese renderings, and the
-brand words as forbidden terms beside the word to use instead. The learning
-labs under `/learn` seed a project from it; the CSV and the brand files stay
-for the interchange and brand-check examples.
+`context/` is what a project reads in with `kapi store import ./context`.
+`terms.json` carries the vocabulary as a bundle: the product and payment names
+as concepts with the same term in every locale, the shop vocabulary with its
+French, German and Japanese renderings, and the brand words as forbidden terms
+beside the word to use instead. `memory/mart-fr.memory.json` is the content
+memory in its own form: five approved English to French pairs, three that
+match a catalog string exactly and two that are near matches, so a recycle
+step has both kinds to show. The learning labs under `/learn` seed a project
+from both; the brand files stay for the brand-check example.
 
 ## Locales and completion
 
@@ -91,10 +93,11 @@ that key has not been translated yet.
 
 ## Terms and brand
 
-`glossary.csv` maps each term to its French, German, and Japanese forms with a
-note column. Do-not-translate terms (the three product names and third-party
-brands PayPal and Apple Pay) are marked `DNT` in the note. It also encodes the
-preference for "AI assistant" over "Copilot".
+`context/terms.json` gives each concept its French, German and Japanese terms
+and a definition. The product names and the third-party brands PayPal and
+Apple Pay carry the same term in every locale, which is how a do-not-translate
+term is expressed. It also encodes the preference for "AI assistant" over
+"Copilot".
 
 `brand/forbidden-terms.txt` lists marketing words a brand check should flag;
 `brand/README.md` gives the preferred substitutions and the naming rules.
@@ -117,13 +120,14 @@ This sequence is the recurring story for BowMart correction-loop demos:
 1. The AI assistant suggests `tableau de bord` for the German string
    `account.title`, carrying a French term into German.
 2. **Maya** corrects the German to `Übersicht` (consistent with the
-   `Dashboard → de: Übersicht` row in `glossary.csv`).
+   `dashboard` concept in `context/terms.json`, whose German term is
+   `Übersicht`).
 3. The correction becomes a rule: "Dashboard in de is `Übersicht`, not
    `tableau de bord`," recorded as a project check.
 4. **Jonas** reviews and approves the rule.
 5. On the next locale and the next time the term appears, the check enforces the
    approved translation automatically, so the same mistake is not repeated.
 
-The term list backs this loop: the rule that Maya's correction produces matches
-the `Dashboard` row, so the demo's "learned rule" and the committed
-`glossary.csv` agree.
+The terms back this loop: the rule that Maya's correction produces matches the
+`dashboard` concept, so the demo's "learned rule" and the committed
+`context/terms.json` agree.

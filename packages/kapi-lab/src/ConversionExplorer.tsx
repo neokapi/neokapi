@@ -96,13 +96,7 @@ function targetLabel(id: string, displayName?: string): string {
   return id;
 }
 
-const DEFAULT_SAMPLE_IDS = [
-  "article-md",
-  "page-html",
-  "report-doclang",
-  "messages-json",
-  "app-xliff",
-];
+const DEFAULT_SAMPLE_IDS = ["article-md", "page-html", "report-doclang", "messages-json"];
 
 /** Tab value prefix for an output-format pill (e.g. "out:markdown"). */
 const OUT_PREFIX = "out:";

@@ -67,8 +67,8 @@ export const CONTENT_LESSONS: ContentLesson[] = [
     id: "bilingual",
     label: "Source ↔ target",
     description:
-      "A target is a first-class, variant-keyed record on the Block rather than a second copy of the file. This bilingual XLIFF already carries a French target for every segment: the Preview's source↔target toggle swaps between them, and each Block lists its target alongside its source.",
-    sampleId: "greeting-bilingual-xliff",
+      "A target is a first-class, variant-keyed record on the Block rather than a second copy of the file. This string catalog carries a French entry for every string: the reader gives each one a Block with the English source and the French edition on it, the Preview's source↔target toggle swaps between them, and each Block lists its editions.",
+    sampleId: "greeting-xcstrings",
     spec: { tab: "preview" },
   },
   {
