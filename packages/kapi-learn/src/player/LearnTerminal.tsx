@@ -211,7 +211,7 @@ export default function LearnTerminal({
     };
 
     term.writeln(
-      "\x1b[1mkapi\x1b[0m runs here, in your browser. The chapters type for you; type your own commands any time (\x1b[33mhelp\x1b[0m lists what this terminal knows).",
+      "\x1b[1mkapi\x1b[0m runs here, in your browser. Type your own commands any time (\x1b[33mhelp\x1b[0m lists what this terminal knows).",
     );
     prompt();
     const disposer = term.onData((d) => void onData(d));
@@ -242,7 +242,12 @@ export default function LearnTerminal({
       },
       write: (text) => term.write(text),
       clear: () => term.clear(),
-      focus: () => term.focus(),
+      // Without scrolling: a chapter that runs focuses the terminal, and the
+      // page stays where the reader left it, on the stage or on the card.
+      focus: () => {
+        if (term.textarea) term.textarea.focus({ preventScroll: true });
+        else term.focus();
+      },
     };
     onReady(handle);
 

@@ -2,9 +2,9 @@ import React, { useEffect, useRef } from "react";
 import { Check, ChevronRight, CircleDashed } from "lucide-react";
 import type { Chapter } from "../curriculum/types.ts";
 
-// The chapter list beside the stage, the way a video site lists what plays
-// next: number, title, the command it runs (or what it shows), and whether it
-// has run.
+// The chapter list beside the stage: number, title, the command it runs (or
+// what it shows), and whether it has run. Pressing one jumps there; the
+// chapters before it run at once.
 
 export interface ChapterRailProps {
   chapters: readonly Chapter[];
@@ -27,10 +27,20 @@ export default function ChapterRail({
 }: ChapterRailProps): React.ReactElement {
   const listRef = useRef<HTMLOListElement>(null);
 
-  // Keep the chapter in view visible as autoplay moves on.
+  // Keep the chapter in view visible as the reader steps on, scrolling the
+  // list alone: scrollIntoView would scroll the page as well, and pull the
+  // stage out of view just as the chapter changes it.
   useEffect(() => {
-    const item = listRef.current?.querySelector<HTMLElement>(`[data-index="${current}"]`);
-    item?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    const list = listRef.current;
+    const item = list?.querySelector<HTMLElement>(`[data-index="${current}"]`);
+    if (!list || !item) return;
+    const top =
+      item.getBoundingClientRect().top - list.getBoundingClientRect().top + list.scrollTop;
+    const bottom = top + item.offsetHeight;
+    if (top < list.scrollTop) list.scrollTo({ top, behavior: "smooth" });
+    else if (bottom > list.scrollTop + list.clientHeight) {
+      list.scrollTo({ top: bottom - list.clientHeight, behavior: "smooth" });
+    }
   }, [current]);
 
   return (

@@ -1,5 +1,6 @@
-// The curriculum: three series of terminal labs, one sample project each, and a
-// fourth series that puts the engine explorers on the stage.
+// The curriculum: terminal labs in three sample projects, a lab that draws the
+// context graph while its commands run, and a series that puts the engine
+// explorers on the stage.
 //
 // Pure data. The player (../player) runs it in the browser, the verifier
 // (scripts/learn-verify) runs it in Node, and the docs site reads it at build
@@ -8,6 +9,7 @@
 import type { Lab, SampleId, SampleInfo, Series, SeriesId } from "./types.ts";
 import { NORTHSEA_LABS } from "./labs/northsea.ts";
 import { COMPASS_LABS } from "./labs/compass.ts";
+import { CONTEXT_LABS } from "./labs/context.ts";
 import { MART_LABS } from "./labs/mart.ts";
 import { EXPLORE_LABS } from "./labs/explore.ts";
 
@@ -42,6 +44,14 @@ export const SERIES: readonly Series[] = [
     sample: "compass",
   },
   {
+    id: "context",
+    title: "The context engine",
+    tagline: "What the project knows, drawn as it grows.",
+    description:
+      "One lab that draws the context graph above the terminal: the content and the point it sits at, the voice and terms in force there, the content memory and the record of decisions. Read the context in, converge, review, and watch what each command adds.",
+    sample: "compass",
+  },
+  {
     id: "engine",
     title: "The content engine",
     tagline: "Formats, tools, flows and stores, one command at a time.",
@@ -54,7 +64,7 @@ export const SERIES: readonly Series[] = [
     title: "Explore the engine",
     tagline: "One part of the engine at a time, on a file you bring.",
     description:
-      "The engine explorers, played as labs: the flow workspace, the segmentation comparison, format conversion, document structure from a PDF, vision, audio and video, the bundle format, and a free terminal. Each chapter sets what the explorer shows and says what to look at; every explorer takes your own files too.",
+      "The engine explorers, played as labs or opened as playgrounds: the flow workspace, the segmentation comparison, format conversion, document structure from a PDF, vision, audio and video, the bundle format, and a free terminal. A chapter sets what the explorer shows and says what to look at; a playground opens the explorer and leaves it to you. Every explorer takes your own files too.",
     sample: "engine",
   },
 ];
@@ -93,13 +103,22 @@ export const SAMPLES: Record<SampleId, SampleInfo> = {
 export const LABS: readonly Lab[] = [
   ...NORTHSEA_LABS,
   ...COMPASS_LABS,
+  ...CONTEXT_LABS,
   ...MART_LABS,
   ...EXPLORE_LABS,
 ];
 
-/** An explorer lab puts an engine explorer on the stage instead of a terminal. */
+/**
+ * An explorer lab puts an engine explorer on the stage instead of a terminal;
+ * so does a playground that names one.
+ */
 export function isExplorerLab(lab: Lab): boolean {
-  return lab.kind === "explorer";
+  return lab.kind === "explorer" || (lab.kind === "playground" && !!lab.explorer);
+}
+
+/** A playground has no chapters: Play opens the stage with a few things to try. */
+export function isPlaygroundLab(lab: Lab): boolean {
+  return lab.kind === "playground";
 }
 
 const BY_ID = new Map(LABS.map((lab) => [lab.id, lab]));

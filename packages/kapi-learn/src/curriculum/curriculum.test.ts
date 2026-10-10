@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { LABS, SERIES, SAMPLES, labById, labsInSeries, nextLab, previousLab } from "./index.ts";
+import {
+  LABS,
+  SERIES,
+  SAMPLES,
+  isExplorerLab,
+  isPlaygroundLab,
+  labById,
+  labsInSeries,
+  nextLab,
+  previousLab,
+} from "./index.ts";
 import { SAMPLE_TREES } from "../samples.gen.ts";
 
 describe("curriculum", () => {
@@ -32,7 +42,7 @@ describe("curriculum", () => {
   it("runs every terminal lab in a sample the generator carries", () => {
     for (const lab of LABS) {
       expect(SAMPLES[lab.sample]).toBeDefined();
-      if (lab.kind === "explorer") continue;
+      if (isExplorerLab(lab)) continue;
       const tree = (SAMPLE_TREES as Record<string, readonly unknown[]>)[lab.sample];
       expect(tree?.length, `${lab.id}: no sample tree for ${lab.sample}`).toBeGreaterThan(0);
     }
@@ -46,9 +56,23 @@ describe("curriculum", () => {
         expect(has, `${lab.id}/${ch.id}`).toBeTruthy();
         expect(ch.narration.length).toBeGreaterThan(20);
         if (ch.exit !== undefined) expect(ch.command).toBeTruthy();
-        if (lab.kind === "explorer") expect(ch.command, `${lab.id}/${ch.id}`).toBeUndefined();
+        if (isExplorerLab(lab)) expect(ch.command, `${lab.id}/${ch.id}`).toBeUndefined();
       }
       if (lab.kind === "explorer") expect(lab.explorer, `${lab.id}: no explorer`).toBeTruthy();
+      if (!isPlaygroundLab(lab)) expect(lab.chapters.length, `${lab.id}`).toBeGreaterThan(0);
+    }
+  });
+
+  it("gives a playground no chapters and something to try", () => {
+    const playgrounds = LABS.filter(isPlaygroundLab);
+    expect(playgrounds.map((l) => l.id)).toEqual(["structure", "vision", "free-terminal"]);
+    for (const lab of playgrounds) {
+      expect(lab.chapters).toEqual([]);
+      expect(lab.tryNext?.length ?? 0).toBeGreaterThan(1);
+      // An explorer playground states what its stage shows; a terminal one
+      // opens the sample and offers commands.
+      if (lab.explorer) expect(lab.stage).toBeDefined();
+      else for (const t of lab.tryNext ?? []) expect(t.startsWith("kapi ")).toBe(true);
     }
   });
 

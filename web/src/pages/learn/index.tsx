@@ -22,16 +22,17 @@ import "../../components/Learn/learn.css";
 
 function LabCard({ lab, done }: { lab: Lab; done: number }): React.ReactElement {
   const commands = lab.chapters.filter((c) => c.command).length;
-  const pct = Math.round((done / lab.chapters.length) * 100);
+  const playground = lab.chapters.length === 0;
+  const pct = playground ? 0 : Math.round((done / lab.chapters.length) * 100);
   return (
     <li>
       <Link className={`kl-card kl-card--${lab.sample}`} to={`/learn/${lab.id}`}>
         <div className="kl-card__poster" aria-hidden="true">
           <span className="kl-card__num">{String(lab.position).padStart(2, "0")}</span>
           <span className="kl-card__meta">
-            {lab.chapters.length} chapters
+            {playground ? "Playground" : `${lab.chapters.length} chapters`}
             <br />
-            {commands > 0 ? `${commands} commands · ` : ""}
+            {commands > 0 ? `${commands} commands, ` : ""}
             {lab.minutes} min
           </span>
           <span className="kl-card__play">
@@ -134,7 +135,7 @@ export default function LearnIndexPage(): React.ReactElement {
       description={translate({
         id: "learn.page.description",
         message:
-          "Learn kapi by running it: short labs in three sample projects and a series of engine explorers, each a session in the real kapi engine running in your browser. Press play, watch the commands run, then type your own.",
+          "Learn kapi by running it: short labs in three sample projects, one that draws the context graph as it grows, and a series of engine explorers, each a session in the real kapi engine running in your browser. Press play, step through the chapters at your own pace, then type your own commands.",
       })}
     >
       <main className="kapi-reference kl-index">
@@ -149,9 +150,9 @@ export default function LearnIndexPage(): React.ReactElement {
             <p className="kl-index__lead">
               <Translate id="learn.hero.lead">
                 Every lab is a short session in a sample company's repository, run by the real kapi
-                engine in your browser. Press play and the chapters type the commands for you, one
-                at a time, with a line on what each one shows. Pause and type your own at any point;
-                share a link to the chapter you are on.
+                engine in your browser. Press play and the first chapter runs; each Next runs the
+                following one, with a line on what it shows. Type your own commands at any point,
+                and share a link to the chapter you are on.
               </Translate>
             </p>
             <ul className="kl-index__how">

@@ -1,21 +1,25 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { BookOpen, Pause, Play, RotateCcw, Share2, SkipBack, SkipForward } from "lucide-react";
+import { RotateCcw, Share2 } from "lucide-react";
 import { isBooted } from "@neokapi/kapi-playground/runtime";
 import { PLUGIN_DESCRIPTORS } from "@neokapi/kapi-playground/plugins";
 import type { Lab, SampleInfo, Series } from "../curriculum/types.ts";
 import type { LabLink } from "../deeplink.ts";
+import AboutLab from "./AboutLab.tsx";
+import ChapterCard from "./ChapterCard.tsx";
 import ChapterRail from "./ChapterRail.tsx";
-import Narration from "./Narration.tsx";
 import Poster from "./Poster.tsx";
 import ShareMenu from "./ShareMenu.tsx";
+import StageFrame from "./StageFrame.tsx";
+import TryCard from "./TryCard.tsx";
 import { useExplorerSession } from "./useExplorerSession.ts";
-import type { LabAssets } from "./types.ts";
-import type { UpNext } from "./LabPlayer.tsx";
+import type { LabAssets, UpNext } from "./types.ts";
 import "./styles.css";
 
 // The player for an explorer lab: the same chrome as the terminal labs, with
 // one of the engine explorers on the stage. Each chapter resolves to an
 // explorer and the props it shows; the host turns those into the component.
+// A playground mounts the explorer the lab names, with the lab's own stage
+// props, and offers what to try instead of chapters.
 
 /** What a chapter puts on the stage, resolved: the explorer id and its logical props. */
 export interface ResolvedStage {
@@ -45,8 +49,8 @@ export interface ExplorerPlayerProps {
 }
 
 function resolveStage(lab: Lab, index: number): ResolvedStage {
-  const ch = lab.chapters[index];
-  const { explorer, ...props } = ch?.stage ?? {};
+  const source = lab.chapters.length > 0 ? lab.chapters[index]?.stage : lab.stage;
+  const { explorer, ...props } = source ?? {};
   return { explorer: (explorer as string | undefined) ?? lab.explorer ?? "", props };
 }
 
@@ -77,10 +81,12 @@ export default function ExplorerPlayer({
   });
   const [shareOpen, setShareOpen] = useState(false);
   const [stageEpoch, setStageEpoch] = useState(0);
+  const playground = lab.chapters.length === 0;
   const chapter = lab.chapters[session.current];
   const ready = session.status === "ready" || session.status === "running";
   const warm = typeof window !== "undefined" && isBooted();
   const total = lab.chapters.length;
+  const atEnd = !playground && session.visited.size >= total;
 
   const stage = useMemo(() => resolveStage(lab, session.current), [lab, session.current]);
   // The stage remounts only when what it shows changes, so a chapter that
@@ -104,7 +110,7 @@ export default function ExplorerPlayer({
     (e: React.KeyboardEvent<HTMLDivElement>) => {
       const target = e.target as HTMLElement;
       if (target.closest("input, textarea, select, [contenteditable], .kl-share, .xterm")) return;
-      if (!ready) return;
+      if (!ready || playground) return;
       if (e.key === "ArrowRight") {
         e.preventDefault();
         session.next();
@@ -113,7 +119,7 @@ export default function ExplorerPlayer({
         session.previous();
       }
     },
-    [ready, session],
+    [playground, ready, session],
   );
 
   return (
@@ -124,17 +130,14 @@ export default function ExplorerPlayer({
     >
       <header className="kl-head">
         <div className="kl-head__text">
-          <p className="kl-head__eyebrow">
+          <p className="kl-head__crumbs">
             <a href={indexHref}>Learn kapi</a>
-            <span aria-hidden="true">›</span>
+            <span aria-hidden="true">/</span>
             <span>{series.title}</span>
             {position && (
-              <>
-                <span aria-hidden="true">·</span>
-                <span>
-                  Lab {position.index} of {position.of}
-                </span>
-              </>
+              <span className="kl-head__pos">
+                Lab {position.index} of {position.of}
+              </span>
             )}
           </p>
           <h1 className="kl-head__title">{lab.title}</h1>
@@ -146,15 +149,15 @@ export default function ExplorerPlayer({
             className="kl-btn"
             onClick={() => setStageEpoch((n) => n + 1)}
             disabled={!ready}
-            title="Reload the explorer for this chapter"
+            title="Reload the explorer"
           >
             <RotateCcw size={15} aria-hidden="true" />
-            Reset
+            Reload
           </button>
           <div className="kl-share-anchor">
             <button
               type="button"
-              className="kl-btn kl-btn--primary"
+              className="kl-btn"
               onClick={() => setShareOpen((v) => !v)}
               aria-expanded={shareOpen}
               aria-haspopup="dialog"
@@ -175,9 +178,9 @@ export default function ExplorerPlayer({
         </div>
       </header>
 
-      <div className="kl-main">
+      <div className={`kl-main${playground ? " kl-main--single" : ""}`}>
         <div className="kl-stage-col">
-          <div className="kl-stage kl-stage--explorer" tabIndex={-1}>
+          <StageFrame expandable={ready} className="kl-stage--explorer" label="Explorer">
             {ready && (
               <div className="kl-stage__body" key={stageKey}>
                 {renderStage(stage, { assets, ready })}
@@ -197,144 +200,62 @@ export default function ExplorerPlayer({
                 loadingLabel={session.loading ? `Loading ${session.loading}` : undefined}
               />
             )}
-          </div>
-
-          <div className="kl-transport" role="group" aria-label="Lab transport">
-            <div className="kl-transport__buttons">
-              <button
-                type="button"
-                className="kl-tbtn"
-                onClick={session.previous}
-                disabled={!ready || session.current === 0}
-                aria-label="Previous chapter"
-                title="Previous chapter (←)"
-              >
-                <SkipBack size={18} aria-hidden="true" />
-              </button>
-              {session.playing ? (
-                <button
-                  type="button"
-                  className="kl-tbtn kl-tbtn--main"
-                  onClick={session.pause}
-                  aria-label="Pause"
-                >
-                  <Pause size={22} aria-hidden="true" fill="currentColor" />
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="kl-tbtn kl-tbtn--main"
-                  onClick={session.play}
-                  disabled={!ready || session.current >= total - 1}
-                  aria-label="Play: walk the chapters with a pause to read"
-                >
-                  <Play size={22} aria-hidden="true" fill="currentColor" />
-                </button>
-              )}
-              <button
-                type="button"
-                className="kl-tbtn"
-                onClick={session.next}
-                disabled={!ready || session.current >= total - 1}
-                aria-label="Next chapter"
-                title="Next chapter (→)"
-              >
-                <SkipForward size={18} aria-hidden="true" />
-              </button>
-            </div>
-            <div className="kl-scrub" role="list" aria-label="Chapters">
-              {lab.chapters.map((ch, i) => {
-                const seen = session.visited.has(ch.id);
-                return (
-                  <button
-                    key={ch.id}
-                    type="button"
-                    role="listitem"
-                    className={`kl-scrub__seg kl-scrub__seg--${seen ? "done" : "pending"}${i === session.current ? " kl-scrub__seg--current" : ""}`}
-                    onClick={() => session.goTo(i)}
-                    disabled={!ready}
-                    aria-label={`Chapter ${i + 1}: ${ch.title}`}
-                    aria-current={i === session.current ? "step" : undefined}
-                    title={`${i + 1}. ${ch.title}`}
-                  />
-                );
-              })}
-            </div>
-            <div className="kl-transport__counter" aria-live="polite">
-              {session.current + 1} / {total}
-            </div>
-          </div>
+          </StageFrame>
 
           {chapter && (
-            <Narration
+            <ChapterCard
               chapter={chapter}
               index={session.current}
               total={total}
-              done={session.visited.has(chapter.id)}
+              ran={session.visited.has(chapter.id)}
               exitCode={null}
-              onOpenFile={() => {}}
+              ready={ready}
+              busy={false}
+              nextChapter={lab.chapters[session.current + 1]}
+              atEnd={atEnd && session.current === total - 1}
+              upNext={upNext}
+              onPrevious={session.previous}
+              onNext={session.next}
             />
           )}
+
+          {(playground || (atEnd && session.current === total - 1)) &&
+            lab.tryNext &&
+            lab.tryNext.length > 0 && (
+              <TryCard
+                items={lab.tryNext}
+                mode="prose"
+                ready={ready}
+                title={playground ? "Try" : "Try next"}
+              />
+            )}
         </div>
 
-        <aside className="kl-rail" aria-label="Chapters and more">
-          <div className="kl-rail__head">
-            <span>Chapters</span>
-            <span className="kl-rail__count">
-              {session.visited.size}/{total} seen
-            </span>
-          </div>
-          <ChapterRail
-            chapters={lab.chapters}
-            current={session.current}
-            executed={0}
-            visited={session.visited}
-            ready={ready}
-            onSelect={session.goTo}
-          />
-          {upNext && (
-            <a className="kl-upnext" href={upNext.href}>
-              <span className="kl-upnext__eyebrow">Up next</span>
-              <span className="kl-upnext__title">{upNext.title}</span>
-              <span className="kl-upnext__tagline">{upNext.tagline}</span>
-            </a>
-          )}
-          <section className="kl-about">
-            <h3 className="kl-about__title">
-              <BookOpen size={14} aria-hidden="true" /> About this lab
-            </h3>
-            <p>{lab.summary}</p>
-            <p className="kl-about__sample">
-              <strong>{sample.name}.</strong> {sample.blurb}
-            </p>
-            <ul className="kl-concepts" aria-label="Concepts">
-              {lab.concepts.map((c) => (
-                <li key={c}>{c}</li>
-              ))}
-            </ul>
-            <ul className="kl-docs" aria-label="Read on">
-              {lab.docs.map((d) => (
-                <li key={d.href}>
-                  <a href={d.href}>{d.label}</a>
-                </li>
-              ))}
-            </ul>
-            {lab.tryNext && lab.tryNext.length > 0 && (
-              <>
-                <h4 className="kl-about__sub">Try next</h4>
-                <ul className="kl-try kl-try--prose">
-                  {lab.tryNext.map((t) => (
-                    <li key={t}>{t}</li>
-                  ))}
-                </ul>
-              </>
-            )}
-            <p className="kl-about__keys">
-              Keys: <kbd>→</kbd> next · <kbd>←</kbd> back
-            </p>
-          </section>
-        </aside>
+        {!playground && (
+          <aside className="kl-rail" aria-label="Chapters">
+            <p className="kl-rail__head">Chapters</p>
+            <ChapterRail
+              chapters={lab.chapters}
+              current={session.current}
+              executed={0}
+              visited={session.visited}
+              ready={ready}
+              onSelect={session.goTo}
+            />
+          </aside>
+        )}
       </div>
+
+      <AboutLab
+        lab={lab}
+        sample={sample}
+        upNext={upNext}
+        keys={
+          playground
+            ? undefined
+            : "Keys: the right arrow shows the next chapter, the left arrow goes back."
+        }
+      />
     </div>
   );
 }
