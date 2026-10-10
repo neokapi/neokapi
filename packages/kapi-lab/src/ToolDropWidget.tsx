@@ -515,7 +515,7 @@ export default function ToolDropWidget({
       <GateOverlay
         gate={gate}
         title={`kapi ${tool}`}
-        description="Runs on the file you pick, in your browser. Nothing leaves your machine."
+        description="Runs on the file you pick, in your browser."
       />
     </div>
   );
