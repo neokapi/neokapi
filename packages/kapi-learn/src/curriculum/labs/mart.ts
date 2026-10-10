@@ -3,7 +3,7 @@
 //
 // KapiMart is a storefront for small retailers: an interface catalog in
 // nested JSON, an About page in Markdown, three locales at different stages,
-// a glossary and a content memory. The labs run the engine's own verbs on it,
+// terms and a content memory. The labs run the engine's own verbs on it,
 // ad hoc first and then inside a project it sets up itself.
 
 import type { Lab } from "../types.ts";
@@ -240,13 +240,13 @@ export const martProject: Lab = {
   title: "A project remembers",
   tagline: "Set up a project, give it memory and terms, and hold a draft to them.",
   summary:
-    "Ad hoc, nothing is kept between runs. A project keeps a content memory, a terms store and a record. This lab sets one up around KapiMart with kapi init, imports a TMX and the vocabulary, holds a returned draft to the terms, catches brand words in a new page, and runs the loop.",
+    "Ad hoc, nothing is kept between runs. A project keeps a content memory, a terms store and a record. This lab sets one up around KapiMart with kapi init, reads its context in, approved French pairs and the vocabulary, holds a returned draft to the terms, catches brand words in a new page, and runs the loop.",
   sample: "mart",
   concepts: [
     "kapi init",
     "kapi add",
+    "store import",
     "content memory",
-    "TMX",
     "terms store",
     "term-check",
     "kapi up",
@@ -282,20 +282,20 @@ export const martProject: Lab = {
       expect: ["fr", "ja", "not gated"],
     },
     {
-      id: "memory",
-      title: "Import a content memory",
+      id: "import",
+      title: "Read the context in",
       narration:
-        "A TMX from an earlier vendor is the interchange tier. Imported into the project's content memory, its pairs are reused before any provider is asked.",
-      command: "kapi memory import memory.tmx -s en -t fr",
-      expect: ["Imported 5 entries"],
+        "The context arrives as files under context/, in two kinds. The terms carry the product and payment names kept as written in every language, the shop words with their renderings, and the brand's forbidden words beside the word to use instead. The content memory carries approved French pairs from earlier work, in the memory's own form. One import reads both into the project's store.",
+      command: "kapi store import ./context",
+      expect: ["14 concepts", "5 content-memory entries"],
     },
     {
-      id: "terms",
-      title: "Import the vocabulary",
+      id: "memory",
+      title: "What the memory holds",
       narration:
-        "The terms arrive as a bundle: the product and payment names kept as written in every language, the shop words with their renderings, and the brand's forbidden words beside the word to use instead.",
-      command: "kapi store import ./context",
-      expect: ["14 concepts"],
+        "Approved pairs, source beside target. The recycle step reads these before any provider is asked, so a string the shop has already translated is never drafted again.",
+      command: "kapi memory search cart",
+      expect: ["Add to cart", "Ajouter au panier"],
     },
     {
       id: "context",
@@ -368,7 +368,7 @@ export const martProject: Lab = {
   tryNext: [
     "kapi status --review --lang ja | head -10",
     "kapi context search panier",
-    "kapi memory search cart",
+    "kapi memory stats",
   ],
 };
 

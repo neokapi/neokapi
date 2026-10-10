@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "kapi-memory",
+  "entries": [
+    {
+      "id": "mart-fr:add-to-cart",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [{ "text": "Add to cart" }],
+        "fr": [{ "text": "Ajouter au panier" }]
+      },
+      "created": "2026-01-20T10:00:00Z",
+      "updated": "2026-01-20T10:00:00Z"
+    },
+    {
+      "id": "mart-fr:subtotal",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [{ "text": "Subtotal" }],
+        "fr": [{ "text": "Sous-total" }]
+      },
+      "created": "2026-01-20T10:00:00Z",
+      "updated": "2026-01-20T10:00:00Z"
+    },
+    {
+      "id": "mart-fr:sign-out",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [{ "text": "Sign out" }],
+        "fr": [{ "text": "Se déconnecter" }]
+      },
+      "created": "2026-01-20T10:00:00Z",
+      "updated": "2026-01-20T10:00:00Z"
+    },
+    {
+      "id": "mart-fr:cart-empty",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [{ "text": "Your cart is empty." }],
+        "fr": [{ "text": "Votre panier est vide." }]
+      },
+      "note": "A near match: the catalog's string goes on to say \"Browse products to get started.\"",
+      "created": "2026-01-20T10:00:00Z",
+      "updated": "2026-01-20T10:00:00Z"
+    },
+    {
+      "id": "mart-fr:continue-shopping",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [{ "text": "Continue shopping now" }],
+        "fr": [{ "text": "Continuer mes achats maintenant" }]
+      },
+      "note": "A near match: the catalog's string is \"Continue shopping\".",
+      "created": "2026-01-20T10:00:00Z",
+      "updated": "2026-01-20T10:00:00Z"
+    }
+  ]
+}

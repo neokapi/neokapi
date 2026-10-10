@@ -304,10 +304,10 @@ export const compassHandoff: Lab = {
   title: "Hand off, and carry work in one file",
   tagline: "A bilingual file for a translator, and a parcel for another machine.",
   summary:
-    "Not every translation happens inside the loop. kapi extract writes a bilingual file per source and language, pre-filled from the content memory, for a translator or a CAT tool, and kapi merge takes it back. A .kpz carries the whole working state between machines without a server. This lab does both.",
+    "Not every translation happens inside the loop. kapi extract writes a bilingual file per source and language, pre-filled from the content memory, for a translator or the tool they work in, and kapi merge takes it back. A .kpz carries the whole working state between machines without a server. This lab does both.",
   sample: "compass",
   setup: ["kapi store import ./context", "kapi up"],
-  concepts: ["extract", "XLIFF", "merge", ".kpz parcel"],
+  concepts: ["extract", "bilingual exchange file", "merge", ".kpz parcel"],
   docs: [DOCS.bilingual, DOCS.sharing],
   minutes: 4,
   chapters: [
@@ -315,7 +315,7 @@ export const compassHandoff: Lab = {
       id: "extract",
       title: "A bilingual file per language",
       narration:
-        "kapi extract writes XLIFF, pre-filled from the content memory: every German unit comes back as an exact match, so a translator starts from what the project already established.",
+        "kapi extract writes one bilingual exchange file per language, in XLIFF, the format translation tools read. It is pre-filled from the content memory: every German unit comes back as an exact match, so a translator starts from what the project already established.",
       command: "kapi extract --target-lang de",
       expect: ["format=xliff2", "exact=38"],
     },
@@ -360,7 +360,7 @@ export const compassHandoff: Lab = {
     },
   ],
   tryNext: [
-    "kapi extract --target-lang nl --format po",
+    "kapi extract --target-lang nl",
     "kapi memory search berth | head -4",
     "kapi unpack compass.kpz --help",
   ],
