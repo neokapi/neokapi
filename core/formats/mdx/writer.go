@@ -58,7 +58,8 @@ var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 // become MDX converts to Markdown.
 func NewWriter() *Writer {
 	return &Writer{
-		BaseFormatWriter: format.BaseFormatWriter{FormatName: "mdx", RequiresSkeleton: true},
+		FormatName:       "mdx",
+		RequiresSkeleton: true,
 		firstBlock:       true,
 	}
 }
