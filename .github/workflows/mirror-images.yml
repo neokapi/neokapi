@@ -1,0 +1,41 @@
+name: Mirror images
+
+# Copies a third-party image the test suite runs into ghcr.io/neokapi so CI
+# pulls it with the workflow token instead of from Docker Hub unauthenticated,
+# whose pull limit a busy day exhausts (#3130). Dispatch it once per new tag,
+# then point the test at the new tag.
+
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: Source image on Docker Hub (owner/name)
+        required: true
+        default: versity/versitygw
+      tag:
+        description: Tag to mirror
+        required: true
+        default: v1.8.0
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  mirror:
+    name: Mirror ${{ inputs.source }}:${{ inputs.tag }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - name: Login to ghcr.io
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Mirror the image
+        env:
+          SOURCE: ${{ inputs.source }}
+          TAG: ${{ inputs.tag }}
+        run: bash scripts/mirror-image.sh "$SOURCE" "$TAG"
