@@ -178,7 +178,7 @@ ok(
 // Convert to each of ConversionExplorer's own DOCUMENT_TARGETS, the pills it
 // opens on and falls back to. Every one must be among the engine's document
 // targets and serialize a prose document.
-const LAB_TARGETS = ["doclang", "markdown", "html", "asciidoc", "mdx", "plaintext"];
+const LAB_TARGETS = ["doclang", "markdown", "html", "asciidoc", "plaintext"];
 for (const fmt of LAB_TARGETS) {
   ok(
     `ConversionExplorer: the engine still reports \`${fmt}\` as a document target`,
@@ -186,7 +186,7 @@ for (const fmt of LAB_TARGETS) {
     documentTargets.join(" "),
   );
 }
-for (const fmt of ["json", "yaml", "androidxml", "audio"]) {
+for (const fmt of ["json", "yaml", "androidxml", "audio", "mdx"]) {
   ok(
     `ConversionExplorer: \`${fmt}\` is not offered as a document target`,
     !documentTargets.includes(fmt),

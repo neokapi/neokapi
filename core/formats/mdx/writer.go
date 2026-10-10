@@ -49,10 +49,17 @@ type Writer struct {
 var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 
 // NewWriter creates a new MDX writer.
+//
+// The writer is skeleton-bound: it replays an MDX file's own skeleton, with
+// its ESM, JSX and expressions kept byte for byte, and has no way to write
+// those from the content model. Without a skeleton it could only emit the
+// Markdown spans, which is what the Markdown writer is for, so MDX is not a
+// conversion target: `kconv --to mdx` is refused, and a document that should
+// become MDX converts to Markdown.
 func NewWriter() *Writer {
 	return &Writer{
-		FormatName: "mdx",
-		firstBlock: true,
+		BaseFormatWriter: format.BaseFormatWriter{FormatName: "mdx", RequiresSkeleton: true},
+		firstBlock:       true,
 	}
 }
 

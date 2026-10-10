@@ -46,8 +46,8 @@ export interface ConversionSampleSpec {
 }
 
 // The families whose generative writers are document conversion targets: text
-// with block structure and inline styling (HTML, Markdown, DocLang, AsciiDoc,
-// MDX) and plain text. The engine declares every format's family
+// with block structure and inline styling (HTML, Markdown, DocLang, AsciiDoc)
+// and plain text. The engine declares every format's family
 // (`kapi formats list --json`), so the pills follow the registry rather than a
 // list kept here. A catalog writer (JSON, YAML, .strings) is generative too,
 // but a Word document does not convert to a string catalog; those belong to
@@ -63,7 +63,6 @@ export const DOCUMENT_TARGETS: ConversionTarget[] = [
   { id: "doclang", label: "DocLang", ext: "dclg.xml" },
   { id: "html", label: "HTML", ext: "html" },
   { id: "markdown", label: "Markdown", ext: "md" },
-  { id: "mdx", label: "MDX", ext: "mdx" },
   { id: "plaintext", label: "Plain Text", ext: "txt" },
 ];
 
