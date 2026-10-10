@@ -133,9 +133,9 @@
 
 .kapi-guided {
   display: grid;
-  /* Rail is a fixed 300px; terminal+files get the bulk of the modal width — at
-     the 1200px modal cap a wide CLI command no longer wraps. */
-  grid-template-columns: 300px 1fr;
+  /* The rail is a fixed 260px; the terminal gets the rest of the modal, which
+     at a laptop width is over a hundred columns with the files pane folded. */
+  grid-template-columns: 260px 1fr;
   gap: 1rem;
   align-items: stretch;
   width: 100%;

@@ -71,6 +71,11 @@
   min-height: 460px;
 }
 
+/* The files pane is folded away: the terminal takes the whole width. */
+.kapi-pg-layout--nofiles {
+  grid-template-columns: 1fr;
+}
+
 .kapi-pg-wrapper--fill .kapi-pg-layout {
   flex: 1;
   min-height: 0;
@@ -576,8 +581,8 @@
   background: var(--kpg-surface);
   color: var(--kpg-fg);
   border-radius: var(--ifm-global-radius, 10px);
-  width: min(1200px, 100%);
-  height: min(800px, 92vh);
+  width: min(1640px, 100%);
+  height: min(960px, 94vh);
   display: flex;
   flex-direction: column;
   overflow: hidden;

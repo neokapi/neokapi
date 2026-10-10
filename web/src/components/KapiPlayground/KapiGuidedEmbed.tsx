@@ -204,6 +204,8 @@ const LazyGuidedModal = React.lazy(async () => {
                   bootOnMount
                   cmd={config.steps[0]?.command}
                   autoRun={false}
+                  // The terminal gets the width; the files pane opens from the toolbar.
+                  filesDefaultOpen={false}
                   showToolbar={false}
                   fill
                 />

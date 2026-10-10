@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
-import { Maximize2, Minimize2 } from "lucide-react";
+import { FolderOpen, Maximize2, Minimize2 } from "lucide-react";
 import KapiTerminal from "./KapiTerminal";
 import type { KapiTerminalHandle } from "./KapiTerminal";
 import FilesPanel from "./FilesPanel";
@@ -65,6 +65,12 @@ export interface KapiEmbedProps extends KapiRunRequest {
   storageKey?: string;
   /** Show the maximize toggle (the modal supplies its own chrome). */
   showToolbar?: boolean;
+  /**
+   * Whether the files pane is open to begin with (default true). A host
+   * whose width the terminal needs, such as the guided modal, starts it
+   * folded; the toolbar's Files control opens it.
+   */
+  filesDefaultOpen?: boolean;
   /** Render to fill its container (used inside the modal). */
   fill?: boolean;
   ref?: React.Ref<KapiEmbedHandle>;
@@ -201,6 +207,7 @@ export default function KapiEmbed({
   bootOnMount = false,
   showToolbar = true,
   fill = false,
+  filesDefaultOpen = true,
   ref,
 }: KapiEmbedProps): React.ReactElement {
   const [runtime, setRuntime] = useState<KapiRuntime | null>(null);
@@ -212,6 +219,7 @@ export default function KapiEmbed({
   const [bootAttempt, setBootAttempt] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0);
   const [maximized, setMaximized] = useState(false);
+  const [filesOpen, setFilesOpen] = useState(filesDefaultOpen);
   const termRef = useRef<KapiTerminalHandle>(null);
   const pendingRequest = useRef<KapiRunRequest | null>(null);
   const bump = useCallback(() => setRefreshKey((k) => k + 1), []);
@@ -426,6 +434,16 @@ export default function KapiEmbed({
           <button
             type="button"
             className="kapi-pg-icon-btn"
+            onClick={() => setFilesOpen((v) => !v)}
+            aria-pressed={filesOpen}
+            aria-label={filesOpen ? "Hide the files pane" : "Show the files pane"}
+            title={filesOpen ? "Hide files" : "Show files"}
+          >
+            <FolderOpen size={16} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className="kapi-pg-icon-btn"
             onClick={() => setMaximized((m) => !m)}
             aria-label={maximized ? "Restore size" : "Maximize"}
             title={maximized ? "Restore" : "Maximize"}
@@ -438,13 +456,15 @@ export default function KapiEmbed({
           </button>
         </div>
       )}
-      <div className="kapi-pg-layout">
+      <div className={`kapi-pg-layout${filesOpen ? "" : " kapi-pg-layout--nofiles"}`}>
         <div className="kapi-pg-term-pane">
           <KapiTerminal ref={termRef} runtime={runtime} onFsChange={bump} />
         </div>
-        <div className="kapi-pg-files-pane">
-          <FilesPanel runtime={runtime} refreshKey={refreshKey} onChange={bump} />
-        </div>
+        {filesOpen && (
+          <div className="kapi-pg-files-pane">
+            <FilesPanel runtime={runtime} refreshKey={refreshKey} onChange={bump} />
+          </div>
+        )}
       </div>
     </div>
   );
