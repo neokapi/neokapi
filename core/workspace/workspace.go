@@ -241,8 +241,9 @@ ON CONFLICT(project, path) DO UPDATE SET seen_at = excluded.seen_at`,
 }
 
 // Forget removes a project from the workspace: its registration, the checkouts
-// recorded against it, and the context store holding its terms, voice profiles,
-// content memory and recorded decisions.
+// recorded against it, the record of which context files those checkouts read
+// in, and the context store holding its terms, voice profiles, content memory
+// and recorded decisions.
 //
 // It is the one destructive operation a workspace offers, so a caller asks for
 // it deliberately and nothing calls it on the way to something else. The files
@@ -267,6 +268,11 @@ func (w *Workspace) Forget(ctx context.Context, key ProjectKey) error {
 	if _, err := w.sync(); err != nil {
 		return err
 	}
+	// The import stamps' table is created on first use, which a workspace
+	// nothing has imported into has not had.
+	if _, err := w.imports(); err != nil {
+		return err
+	}
 
 	tx, err := w.registry.BeginTx(ctx, nil)
 	if err != nil {
@@ -280,6 +286,12 @@ func (w *Workspace) Forget(ctx context.Context, key ProjectKey) error {
 	if _, err := tx.ExecContext(ctx,
 		`DELETE FROM workspace_projects WHERE key = ?`, string(key)); err != nil {
 		return fmt.Errorf("workspace: forget %s: %w", key, err)
+	}
+	// What a checkout read into the store went with the store, so the next
+	// import reads every file again rather than finding it already read.
+	if _, err := tx.ExecContext(ctx,
+		`DELETE FROM workspace_context_imports WHERE project = ?`, string(key)); err != nil {
+		return fmt.Errorf("workspace: forget the imports of %s: %w", key, err)
 	}
 	// The sync state is keyed by the project and the remote (Sync.rid).
 	prefix := string(key) + " "

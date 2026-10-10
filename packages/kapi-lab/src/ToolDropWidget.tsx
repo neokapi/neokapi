@@ -19,14 +19,15 @@ export interface DropInput {
   binary: boolean;
 }
 
-// What the widget renders after a run:
+// What the widget renders under the command's output after a run:
 //   "output" — the file the tool wrote, in the full OutputView (Blocks/Structure/
 //              Native + download). The default; best for file-producing tools.
+//   "text"   — nothing beyond the output itself. For tools that report.
 //   "stat"   — a compact metric card parsed from a tool's --json stdout
-//              (stats → blocks / words / characters). For tools that report, not rewrite.
+//              (stats → blocks / words / characters), beside the output.
 //   "diff"   — before/after source text side by side, plus a download. For
 //              transforms a learner wants to compare at a glance.
-export type ToolDropRender = "output" | "stat" | "diff";
+export type ToolDropRender = "output" | "text" | "stat" | "diff";
 
 export interface ToolDropStat {
   label: string;
@@ -68,7 +69,11 @@ export interface ToolDropWidgetProps {
    * cards to show. Defaults to the `kapi stats --json` parser.
    */
   parseStat?: (stdout: string) => ToolDropStat[];
-  /** Run automatically once the runtime is ready and on input change. Default true. */
+  /**
+   * Run as soon as the engine is ready and again on every input change,
+   * instead of waiting for the Run control. Default false: the reader runs
+   * the command, the way a terminal would.
+   */
   autoRun?: boolean;
   className?: string;
 }
@@ -110,14 +115,31 @@ function offeredSamples(sampleIds?: string[]): HeroSample[] {
     .filter((s): s is HeroSample => !!s);
 }
 
-// ToolDropWidget is the reusable no-terminal "drop a file → see the result"
-// surface. A learner drops a file (or picks a sample), the widget runs ONE tool
-// on it in the shared kapi WASM, and renders the result — the written file
-// (OutputView), a parsed stat card, or a before/after diff — with a download.
+/** Quote an argument the way a shell line would show it. */
+function shellWord(a: string): string {
+  return /^[A-Za-z0-9_@%+=:,./-]+$/.test(a) ? a : `'${a.replace(/'/g, "'\\''")}'`;
+}
+
+/** The command line as the reader would type it: the widget's own paths replaced by names. */
+export function commandLine(argv: string[], names: Record<string, string>): string {
+  return ["kapi", ...argv.map((a) => shellWord(names[a] ?? a))].join(" ");
+}
+
+interface RunResult {
+  code: number;
+  output: string;
+}
+
+// ToolDropWidget is the reusable no-terminal "pick a file, run one command,
+// read the result" surface. A learner drops a file (or picks a sample); the
+// widget shows the command it is about to run, runs it in the shared kapi
+// WASM when Run is pressed, shows what the command printed, and renders the
+// result — the written file (OutputView), a parsed stat card, or a
+// before/after diff — with a download.
 //
-// It is lazy: the WASM boots only when the host mounts it (useLabRuntime boots
-// on first render of the booting subtree), and runs are namespaced per widget
-// instance so two widgets on a page never collide in the in-memory filesystem.
+// It is lazy: the WASM boots only when the reader presses the gate's Run, and
+// runs are namespaced per widget instance so two widgets on a page never
+// collide in the in-memory filesystem.
 export default function ToolDropWidget({
   assets,
   tool,
@@ -130,7 +152,7 @@ export default function ToolDropWidget({
   acceptBinary = true,
   render = "output",
   parseStat = parseStatsStat,
-  autoRun = true,
+  autoRun = false,
   className,
 }: ToolDropWidgetProps): React.ReactElement {
   const runtime = useLabRuntime(assets, { autoBoot: false });
@@ -154,14 +176,46 @@ export default function ToolDropWidget({
     after: string;
     bytes: Uint8Array;
   } | null>(null);
+  const [result, setResult] = useState<RunResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
 
-  const pickSample = useCallback((s: HeroSample) => {
-    setInput({ name: s.filename, bytes: s.bytes(), binary: s.binary });
+  // The paths this instance owns, and the names the reader sees for them.
+  const inPath = `/project/${ns}-${input.name}`;
+  const outName = `out/${input.name}`;
+  const outAbs = `/project/${ns}-out-${input.name}`;
+  const recipeAbs = `/project/${ns}/kapi.yaml`;
+
+  const argv = useMemo<string[] | null>(() => {
+    if (recipe) return ["run", "lab", "-p", recipeAbs, "-i", inPath, "-o", outAbs, ...extraArgs];
+    if (buildArgv) return [...buildArgv(inPath, outAbs), ...extraArgs];
+    return null;
+  }, [recipe, buildArgv, extraArgs, inPath, outAbs, recipeAbs]);
+
+  const shown = useMemo(
+    () =>
+      argv
+        ? commandLine(argv, { [inPath]: input.name, [outAbs]: outName, [recipeAbs]: "kapi.yaml" })
+        : `kapi ${tool}`,
+    [argv, inPath, input.name, outAbs, outName, recipeAbs, tool],
+  );
+
+  const clearResult = useCallback(() => {
+    setResult(null);
+    setStats(null);
+    setDiff(null);
+    setOutPath(null);
     setError(null);
   }, []);
+
+  const pickSample = useCallback(
+    (s: HeroSample) => {
+      setInput({ name: s.filename, bytes: s.bytes(), binary: s.binary });
+      clearResult();
+    },
+    [clearResult],
+  );
 
   const acceptFiles = useCallback(
     async (files: FileList | File[]) => {
@@ -174,39 +228,33 @@ export default function ToolDropWidget({
         return;
       }
       setInput({ name: f.name, bytes, binary });
-      setError(null);
+      clearResult();
     },
-    [acceptBinary],
+    [acceptBinary, clearResult],
   );
 
   const runTool = useCallback(async () => {
-    if (!runtime.ready) return;
+    if (!runtime.ready || !argv) {
+      if (!argv) setError("ToolDropWidget needs either buildArgv or recipe.");
+      return;
+    }
     setBusy(true);
     setError(null);
     // Namespace input + output under the instance id so concurrent widgets on
     // one page never overwrite each other's files in the shared memfs.
-    const inPath = runtime.writeFile(`${ns}-${input.name}`, input.bytes);
-    const outPath = `/project/${ns}-out-${input.name}`;
-
-    let argv: string[];
+    runtime.writeFile(`${ns}-${input.name}`, input.bytes);
     if (recipe) {
       // The recipe goes in a directory of its own: the run leaves a `.kapi/`
       // state dir beside it, and in /project that dir would have no
       // `kapi.yaml` beside it, which fails every later command run there.
       runtime.mkdir(ns);
-      const recipePath = runtime.writeFile(`${ns}/kapi.yaml`, recipe());
-      argv = ["run", "lab", "-p", recipePath, "-i", inPath, "-o", outPath, ...extraArgs];
-    } else if (buildArgv) {
-      argv = [...buildArgv(inPath, outPath), ...extraArgs];
-    } else {
-      setError("ToolDropWidget needs either buildArgv or recipe.");
-      setBusy(false);
-      return;
+      runtime.writeFile(`${ns}/kapi.yaml`, recipe());
     }
 
+    const { code, output } = await runtime.runCapture(argv);
+    setResult({ code, output: stripAnsi(output) });
+
     if (render === "stat") {
-      // Stat tools report on stdout; capture it and parse to cards.
-      const { code, output } = await runtime.runCapture(argv);
       const cards = parseStat(output);
       if (code !== 0 && cards.length === 0) {
         setError(output.trim() || `the run exited ${code}`);
@@ -217,9 +265,13 @@ export default function ToolDropWidget({
       setBusy(false);
       return;
     }
+    if (render === "text") {
+      if (code !== 0) setError(`the run exited ${code}`);
+      setBusy(false);
+      return;
+    }
 
-    const code = await runtime.run(argv);
-    const outBytes = runtime.readBytes(outPath);
+    const outBytes = runtime.readBytes(outAbs);
     if (code !== 0 && !outBytes) {
       setError(`the run exited ${code}`);
       setBusy(false);
@@ -236,7 +288,7 @@ export default function ToolDropWidget({
       const after = input.binary ? "" : dec.decode(outBytes);
       setDiff({ before, after, bytes: outBytes });
     } else {
-      setOutPath(outPath);
+      setOutPath(outAbs);
       setVersion((v) => v + 1);
     }
     setBusy(false);
@@ -244,20 +296,19 @@ export default function ToolDropWidget({
     runtime.ready,
     runtime.mkdir,
     runtime.writeFile,
-    runtime.run,
     runtime.runCapture,
     runtime.readBytes,
     ns,
     input,
+    argv,
     recipe,
-    buildArgv,
-    extraArgs,
     render,
     parseStat,
+    outAbs,
   ]);
 
-  // Auto-run once ready and whenever the input changes. Debounced so a fast
-  // sample-swap or a config-driven recipe re-render coalesces into one run.
+  // Only on request: run once ready and whenever the input changes. Debounced
+  // so a fast sample-swap or a config-driven recipe re-render coalesces.
   useEffect(() => {
     if (!autoRun || !runtime.ready) return;
     const h = setTimeout(() => void runTool(), 200);
@@ -266,7 +317,7 @@ export default function ToolDropWidget({
 
   return (
     <div className={cn("kapi-reference relative flex flex-col gap-3 text-foreground", className)}>
-      {/* Drop-zone + sample chips. */}
+      {/* The input: a drop-zone with sample chips. */}
       <div
         className={cn(
           "flex flex-col gap-2 rounded-lg border border-dashed bg-card p-3 transition-colors",
@@ -326,36 +377,64 @@ export default function ToolDropWidget({
               {s.label}
             </button>
           ))}
-          {/* When autoRun is on (the default for the demos) the tool runs live
-              on every file/sample/config change, so a Run button would be a
-              false affordance — the status line below is the feedback. Only an
-              explicit-run widget (autoRun=false) shows the button. */}
-          {!autoRun && (
-            <Button
-              type="button"
-              size="sm"
-              className="ml-auto"
-              onClick={() => void runTool()}
-              disabled={!runtime.ready || busy}
-            >
-              <Play /> Run
-            </Button>
-          )}
         </div>
+      </div>
+
+      {/* The command, and the control that runs it. */}
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card px-3 py-2">
+        <code className="min-w-0 flex-1 font-mono text-sm">
+          <span className="text-muted-foreground" aria-hidden="true">
+            ${" "}
+          </span>
+          {shown}
+        </code>
+        {result && !busy && (
+          <span
+            className={cn(
+              "text-xs tabular-nums",
+              result.code === 0 ? "text-muted-foreground" : "text-destructive",
+            )}
+          >
+            exited {result.code}
+          </span>
+        )}
+        <Button
+          type="button"
+          size="sm"
+          onClick={() => void runTool()}
+          disabled={!runtime.ready || busy}
+        >
+          <Play /> {result ? "Run again" : "Run"}
+        </Button>
       </div>
 
       {/* Status line. */}
       <div
         className={cn("min-h-[1.2rem] text-sm text-muted-foreground", error && "text-destructive")}
       >
-        {runtime.status === "booting" && "Booting kapi (first run downloads ~13 MB)…"}
+        {runtime.status === "booting" && "Starting the kapi engine…"}
         {runtime.status === "error" && `Failed to start: ${runtime.error}`}
         {runtime.ready && busy && `Running ${tool}…`}
         {runtime.ready && !busy && error && `Error: ${error}`}
+        {runtime.ready &&
+          !busy &&
+          !error &&
+          !result &&
+          "Press Run to run the command on this file."}
       </div>
 
-      {/* Result. */}
-      <div className="min-h-[420px]">
+      {/* What the command printed. */}
+      {result && (
+        <div className="flex flex-col gap-1">
+          <span className="text-xs font-medium text-muted-foreground">Output</span>
+          <pre className="m-0 max-h-72 overflow-auto rounded-md bg-[#14151c] px-3 py-2 font-mono text-[0.8rem] leading-relaxed text-[#d8dbe6]">
+            {result.output.trim() === "" ? "(no output)" : result.output}
+          </pre>
+        </div>
+      )}
+
+      {/* The result, by kind. */}
+      <div className={cn(render === "text" ? "" : "min-h-[320px]")}>
         {render === "stat" && stats && (
           <div className="flex flex-wrap gap-2">
             {stats.map((s) => (
@@ -364,9 +443,7 @@ export default function ToolDropWidget({
                 className="flex min-w-[6rem] flex-col gap-0.5 rounded-lg border bg-card px-4 py-3"
               >
                 <span className="text-2xl font-bold tabular-nums">{s.value}</span>
-                <span className="text-xs uppercase tracking-wide text-muted-foreground">
-                  {s.label}
-                </span>
+                <span className="text-xs text-muted-foreground">{s.label}</span>
               </div>
             ))}
           </div>
@@ -426,11 +503,20 @@ export default function ToolDropWidget({
         )}
 
         {render === "output" && outPath && (
-          <OutputView runtime={runtime} path={outPath} version={version} />
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-muted-foreground">
+              The file it wrote, {outName}
+            </span>
+            <OutputView runtime={runtime} path={outPath} version={version} />
+          </div>
         )}
       </div>
 
-      <GateOverlay gate={gate} title="Tool" description="Drop in a file and run a tool on it." />
+      <GateOverlay
+        gate={gate}
+        title={`kapi ${tool}`}
+        description="Runs on the file you pick, in your browser."
+      />
     </div>
   );
 }

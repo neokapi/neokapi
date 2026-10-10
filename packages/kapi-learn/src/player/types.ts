@@ -42,4 +42,12 @@ export interface TerminalHandle {
   focus(): void;
 }
 
+/** The lab that follows, for the chapter card's last step and the about section. */
+export interface UpNext {
+  id: string;
+  title: string;
+  tagline: string;
+  href: string;
+}
+
 export type { KapiRuntime };

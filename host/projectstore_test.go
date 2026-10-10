@@ -324,3 +324,90 @@ func TestForgetProjectsUnder_StartsTheProjectsThereAfresh(t *testing.T) {
 	assert.Equal(t, 1, concepts(outside))
 	require.NoError(t, a.ForgetProjectsUnder(ctx, t.TempDir()), "a directory holding no project is not an error")
 }
+
+// The workspace outlives the process that wrote it: in the browser the
+// databases persist while the page's files do not, and a new page holds no
+// store open. Forgetting the projects under a directory reaches the ones the
+// workspace registers with a checkout there, so the project a previous page
+// left begins again with an empty context rather than keeping it beside files
+// that are gone.
+func TestForgetProjectsUnder_ReachesProjectsNoStoreIsOpenOn(t *testing.T) {
+	// Both Apps resolve the one workspace the data root holds, the way the
+	// browser's engine does, and the second has opened nothing when it forgets.
+	t.Setenv(EnvDataDir, t.TempDir())
+	ctx := t.Context()
+	parent := t.TempDir()
+	inside := filepath.Join(parent, "demo")
+	outside := storeRoot(t)
+	seed := func(a *App, root string) {
+		require.NoError(t, project.EnsureLayout(project.Layout{
+			Root: root, StateDir: filepath.Join(root, project.StateDirName),
+		}))
+		require.NoError(t, os.WriteFile(filepath.Join(root, project.RecipeFileName),
+			[]byte("version: v1\nname: "+filepath.Base(root)+"\n"), 0o644))
+		p, err := a.Projector(ctx, root)
+		require.NoError(t, err)
+		require.NoError(t, p.Terms().AddConcept(ctx, terms.Concept{
+			ID:    "c-dashboard",
+			Terms: []terms.Term{{Text: "dashboard", Locale: model.LocaleEnglish}},
+		}))
+	}
+	first := &App{}
+	seed(first, inside)
+	seed(first, outside)
+	first.Shutdown()
+
+	second := &App{}
+	defer second.Shutdown()
+	require.NoError(t, second.ForgetProjectsUnder(ctx, parent))
+
+	concepts := func(root string) int {
+		db, err := second.ProjectDB(ctx, root)
+		require.NoError(t, err)
+		cs, err := db.Terms().Concepts(ctx)
+		require.NoError(t, err)
+		return len(cs)
+	}
+	assert.Zero(t, concepts(inside), "the project a previous process left opens with an empty context")
+	assert.Equal(t, 1, concepts(outside), "a project checked out elsewhere keeps its context")
+}
+
+// Two checkouts of one project share one context, and the project is forgotten
+// whole: a reset under one checkout starts the project over at the other too.
+// It is what lets a browser page that seeds the same sample in several
+// directories begin each one from nothing.
+func TestForgetProjectsUnder_ForgetsAProjectWhole(t *testing.T) {
+	a := &App{}
+	defer a.Shutdown()
+	a.SetWorkspaceRoot(t.TempDir())
+	ctx := t.Context()
+
+	labs := t.TempDir()
+	one := filepath.Join(labs, "lab-one")
+	two := filepath.Join(labs, "lab-two")
+	for _, root := range []string{one, two} {
+		require.NoError(t, project.EnsureLayout(project.Layout{
+			Root: root, StateDir: filepath.Join(root, project.StateDirName),
+		}))
+		require.NoError(t, os.WriteFile(filepath.Join(root, project.RecipeFileName),
+			[]byte("version: v1\nname: sample\n"), 0o644))
+	}
+	p, err := a.Projector(ctx, one)
+	require.NoError(t, err)
+	require.NoError(t, p.Terms().AddConcept(ctx, terms.Concept{
+		ID:    "c-dashboard",
+		Terms: []terms.Term{{Text: "dashboard", Locale: model.LocaleEnglish}},
+	}))
+	concepts := func(root string) int {
+		db, err := a.ProjectDB(ctx, root)
+		require.NoError(t, err)
+		cs, err := db.Terms().Concepts(ctx)
+		require.NoError(t, err)
+		return len(cs)
+	}
+	require.Equal(t, 1, concepts(two), "the second checkout reads the context the first wrote")
+
+	require.NoError(t, a.ForgetProjectsUnder(ctx, labs))
+	assert.Zero(t, concepts(one))
+	assert.Zero(t, concepts(two))
+}

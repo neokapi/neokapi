@@ -14,11 +14,11 @@ export interface StatsWidgetProps {
   className?: string;
 }
 
-// StatsWidget runs `kapi stats <in> --json` on a dropped file and renders a
-// compact metric card — translatable blocks, source words, and characters
-// parsed from the captured JSON. Stats operates on the extracted content
-// (not raw bytes), so boilerplate and markup are excluded.
-// A thin wrapper over ToolDropWidget in "stat" render mode.
+// StatsWidget runs `kapi stats <in>` on a dropped file and shows what it
+// prints: translatable blocks, source words and characters, counted off the
+// extracted content (not raw bytes), so boilerplate and markup are excluded.
+// A thin wrapper over ToolDropWidget in "text" render mode: the command and
+// its output are the whole result.
 export default function StatsWidget({
   assets,
   sampleIds,
@@ -31,9 +31,9 @@ export default function StatsWidget({
       assets={assets}
       tool="stats"
       // stats reports on stdout; the out path is unused but kept for the
-      // shared argv shape. --json makes the output machine-parseable.
-      buildArgv={(inPath) => ["stats", inPath, "--json"]}
-      render="stat"
+      // shared argv shape.
+      buildArgv={(inPath) => ["stats", inPath]}
+      render="text"
       sampleIds={sampleIds}
       autoSampleId={autoSampleId}
       initialInput={initialInput}

@@ -166,7 +166,7 @@ func (a *App) convertDocument(ctx context.Context, path string, toFmt registry.F
 				return fmt.Errorf("cannot convert to %q: it is a bilingual translation-interchange format. Use `kapi extract --format %s` (it captures the source skeleton so `kapi merge` can round-trip translations back into the original) rather than `convert`", toFmt, toFmt)
 			}
 			if !info.Generative {
-				return fmt.Errorf("cannot convert to %q: it is a packaged format that can only be written by updating an existing %s file, not generated from %s", toFmt, toFmt, inFmt)
+				return fmt.Errorf("cannot convert to %q: its writer only writes back into an existing %s file and cannot generate one from %s", toFmt, toFmt, inFmt)
 			}
 		}
 	}

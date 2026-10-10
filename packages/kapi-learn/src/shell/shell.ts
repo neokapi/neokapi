@@ -396,10 +396,19 @@ async function runSegment(
   return host.runKapi(argv, { out, err });
 }
 
+// The engine writes colour for the terminal whatever it is writing to, so
+// what a pipe or a redirection takes is made plain here, as a shell hands a
+// program or a file what a command writes to something other than a
+// terminal: a `--json` answer redirected to a file has to parse as JSON.
+// eslint-disable-next-line no-control-regex
+const COLOUR = /\x1b\[[0-9;]*m/g;
+const plain = (s: string): string => s.replace(COLOUR, "");
+
 /**
  * Run a line. Output reaches the sinks as it is produced, except what a pipe
- * or a redirection takes. Resolves the last segment's exit code; a line the
- * shell cannot read reports the reason on standard error and resolves 2.
+ * or a redirection takes, which is stripped of the colour the engine writes
+ * for the terminal. Resolves the last segment's exit code; a line the shell
+ * cannot read reports the reason on standard error and resolves 2.
  */
 export async function runLine(host: ShellHost, line: string, sinks: ShellSinks): Promise<number> {
   const parsed = parseLine(line);
@@ -458,13 +467,16 @@ export async function runLine(host: ShellHost, line: string, sinks: ShellSinks):
       sinks.err(`${e instanceof Error ? e.message : String(e)}\n`);
       code = 1;
     }
+    // Stripped once the segment is done rather than chunk by chunk, since a
+    // chunk boundary can fall inside an escape sequence.
+    if (!last) captured.text = plain(captured.text);
 
     // Redirected streams land in their files once the segment is done, so a
     // command that reads the file it writes sees the previous contents.
     for (const [abs, entry] of files) {
       const slash = abs.lastIndexOf("/");
       if (slash > 0) host.mkdirp(abs.slice(0, slash));
-      const fresh = entry.chunks.join("");
+      const fresh = plain(entry.chunks.join(""));
       const previous = entry.append && host.exists(abs) ? readText(host, abs) : "";
       host.writeFile(abs, enc.encode(previous + fresh));
     }

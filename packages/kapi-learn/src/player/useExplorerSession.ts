@@ -4,10 +4,11 @@
 // An explorer lab has no sandbox and no transcript. The poster's Play loads
 // what the lab declares (the engine unless it says otherwise, and the plugins
 // it names, with their download shown), and from then on a chapter is a view:
-// the stage's props for it, and the narration beside it. Chapters can be read
-// in any order; autoplay walks them with a pause to read.
+// the stage's props for it, and the narration beside it. The reader moves
+// between chapters with Previous and Next, or from the list; nothing moves on
+// a timer. A playground has no chapters: Play opens the stage and that is all.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   configurePlugins,
   bootEngine,
@@ -29,8 +30,6 @@ export interface UseExplorerSessionOptions {
   assets: LabAssets;
   link?: LabLink;
   onChapterChange?: (chapter: Chapter, index: number) => void;
-  /** Walk the chapters with a reading pause as soon as the stage is up. */
-  autoplay?: boolean;
 }
 
 export interface ExplorerSession {
@@ -42,29 +41,18 @@ export interface ExplorerSession {
   current: number;
   /** Chapters the reader has viewed. */
   visited: ReadonlySet<string>;
-  playing: boolean;
   start: () => void;
-  play: () => void;
-  pause: () => void;
   goTo: (index: number) => void;
   next: () => void;
   previous: () => void;
   shareLink: () => { url: string; tooLarge: boolean; bytes: number };
 }
 
-function readingPause(ch: Chapter): number {
-  const words = ch.narration.split(/\s+/).length;
-  return Math.min(20000, 4000 + words * 220);
-}
-
-const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
-
 export function useExplorerSession({
   lab,
   assets,
   link,
   onChapterChange,
-  autoplay = false,
 }: UseExplorerSessionOptions): ExplorerSession {
   const [status, setStatus] = useState<SessionStatus>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -72,14 +60,12 @@ export function useExplorerSession({
   const [loading, setLoading] = useState<string | null>(null);
   const [current, setCurrent] = useState(0);
   const [visited, setVisited] = useState<ReadonlySet<string>>(new Set());
-  const [playing, setPlaying] = useState(false);
   const currentRef = useRef(0);
-  const playingRef = useRef(false);
-  const playToken = useRef(0);
   const startedRef = useRef(false);
 
   const view = useCallback(
     (index: number) => {
+      if (lab.chapters.length === 0) return;
       const i = Math.max(0, Math.min(lab.chapters.length - 1, index));
       currentRef.current = i;
       setCurrent(i);
@@ -92,42 +78,9 @@ export function useExplorerSession({
     [lab, onChapterChange],
   );
 
-  const pause = useCallback(() => {
-    playingRef.current = false;
-    playToken.current++;
-    setPlaying(false);
-  }, []);
-
-  const play = useCallback(() => {
-    if (playingRef.current) return;
-    playingRef.current = true;
-    setPlaying(true);
-    const token = ++playToken.current;
-    void (async () => {
-      while (playingRef.current && token === playToken.current) {
-        const i = currentRef.current;
-        if (i + 1 >= lab.chapters.length) break;
-        await sleep(readingPause(lab.chapters[i]));
-        if (!playingRef.current || token !== playToken.current) break;
-        view(i + 1);
-      }
-      if (token === playToken.current) {
-        playingRef.current = false;
-        setPlaying(false);
-      }
-    })();
-  }, [lab, view]);
-
-  const goTo = useCallback(
-    (index: number) => {
-      pause();
-      view(index);
-    },
-    [pause, view],
-  );
-
-  const next = useCallback(() => goTo(currentRef.current + 1), [goTo]);
-  const previous = useCallback(() => goTo(currentRef.current - 1), [goTo]);
+  const goTo = useCallback((index: number) => view(index), [view]);
+  const next = useCallback(() => view(currentRef.current + 1), [view]);
+  const previous = useCallback(() => view(currentRef.current - 1), [view]);
 
   const start = useCallback(() => {
     if (startedRef.current) return;
@@ -167,7 +120,6 @@ export function useExplorerSession({
         setStatus("ready");
         const wanted = link?.chapter ? lab.chapters.findIndex((c) => c.id === link.chapter) : -1;
         view(wanted > 0 ? wanted : 0);
-        if (autoplay) play();
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
         setStatus("error");
@@ -178,7 +130,7 @@ export function useExplorerSession({
         setLoading(null);
       }
     })();
-  }, [assets, autoplay, lab, link, play, view]);
+  }, [assets, lab, link, view]);
 
   const shareLink = useCallback(() => {
     const path = typeof window !== "undefined" ? window.location.pathname : `/learn/${lab.id}`;
@@ -187,8 +139,6 @@ export function useExplorerSession({
     return { url: origin + formatLabLink(path, { chapter: ch?.id }), tooLarge: false, bytes: 0 };
   }, [lab]);
 
-  useEffect(() => () => pause(), [pause]);
-
   return {
     status,
     error,
@@ -196,10 +146,7 @@ export function useExplorerSession({
     loading,
     current,
     visited,
-    playing,
     start,
-    play,
-    pause,
     goTo,
     next,
     previous,

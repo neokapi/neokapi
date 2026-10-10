@@ -186,6 +186,36 @@ func (f Filter) matches(r Record) bool {
 	return true
 }
 
+// sinceRemoval drops the operations recorded before their project's latest
+// removal from the workspace (workspace.Forget). Those built a context the
+// removal deleted, and the projector replays none of them, so the log reports
+// none of them either: a project registered again begins with an empty record.
+// The position compared is the log's own (Op.Seq), as the projector compares
+// it, so an operation merged in after the removal counts whatever its id.
+func (l *Ledger) sinceRemoval(ctx context.Context, ops []workspace.Op) ([]workspace.Op, error) {
+	removals, err := l.log.Select(ctx, workspace.OpQuery{KindPrefix: workspace.OpForgetProject})
+	if err != nil {
+		return nil, err
+	}
+	if len(removals) == 0 {
+		return ops, nil
+	}
+	removedAt := map[workspace.ProjectKey]int64{}
+	for _, op := range removals {
+		if op.Kind == workspace.OpForgetProject && op.Project != "" {
+			removedAt[op.Project] = max(removedAt[op.Project], op.Seq)
+		}
+	}
+	kept := ops[:0]
+	for _, op := range ops {
+		if at, ok := removedAt[op.Project]; ok && op.Seq < at {
+			continue
+		}
+		kept = append(kept, op)
+	}
+	return kept, nil
+}
+
 // Get returns one operation by id.
 func (l *Ledger) Get(ctx context.Context, id string) (Record, error) {
 	all, err := l.fold(ctx)
@@ -219,6 +249,10 @@ func (l *Ledger) Subject(ctx context.Context, id string) (Record, error) {
 // operations that named it left it at.
 func (l *Ledger) fold(ctx context.Context) ([]Record, error) {
 	ops, err := l.log.Select(ctx, workspace.OpQuery{KindPrefix: OpKindPrefix})
+	if err != nil {
+		return nil, err
+	}
+	ops, err = l.sinceRemoval(ctx, ops)
 	if err != nil {
 		return nil, err
 	}

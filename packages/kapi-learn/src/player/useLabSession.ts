@@ -7,9 +7,11 @@
 // into it, and both paths run the same lab shell.
 //
 // Chapters run in order, and only in order: `executed` is how many have run,
-// and the chapter in view (`current`) may be anywhere. Running a chapter
-// requires every earlier one to have run, so a jump ahead replays the
-// chapters in between at once, without typing them out.
+// and the chapter in view (`current`) is one of them. Play runs the first
+// chapter; Next runs the one after the last that ran, or moves the view
+// forward when an earlier chapter is in view; Previous moves the view back
+// and runs nothing. A jump ahead from the list replays the chapters in
+// between at once, without typing them out. Nothing moves on a timer.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { configurePlugins, bootEngine } from "@neokapi/kapi-playground/plugins";
@@ -39,6 +41,12 @@ export interface UseLabSessionOptions {
   onChapterChange?: (chapter: Chapter, index: number) => void;
 }
 
+/** What a quiet run returns: the exit code and everything it printed. */
+export interface CaptureResult {
+  code: number;
+  out: string;
+}
+
 export interface LabSession {
   status: SessionStatus;
   error: string | null;
@@ -47,8 +55,6 @@ export interface LabSession {
   current: number;
   /** How many chapters have run, from the first. */
   executed: number;
-  /** Autoplay is on: chapters run one after another with a pause to read. */
-  playing: boolean;
   /** A chapter or a typed command is running. */
   busy: boolean;
   /** The exit code of the last command, or null. */
@@ -70,21 +76,21 @@ export interface LabSession {
   /** A session restored from a shared link. */
   restored: boolean;
 
-  /** Boot the engine and seed the sandbox. Idempotent. */
+  /** Boot the engine, seed the sandbox and run the first chapter. Idempotent. */
   start: () => void;
-  play: () => void;
-  pause: () => void;
-  /** Run the chapter in view, typed out. Requires it to be the next unrun chapter. */
-  runCurrent: () => Promise<void>;
-  /** Run the chapter in view at once if it has not run, then view the next. */
-  stepForward: () => Promise<void>;
+  /** Run the next chapter, or view the next one when an earlier chapter is in view. */
+  next: () => Promise<void>;
   /** View the previous chapter; nothing runs. */
-  stepBack: () => void;
+  previous: () => void;
   /** View a chapter; chapters before it that have not run are replayed at once. */
   goTo: (index: number) => Promise<void>;
   /** Run a line the reader typed. */
   runLine: (line: string) => Promise<number>;
-  /** Start the lab over: a fresh sandbox, an empty transcript. */
+  /** Type a line at the prompt and run it, as a chapter would. */
+  typeLine: (line: string) => Promise<number>;
+  /** Run a line with nothing on the terminal, and return what it printed. */
+  runCapture: (line: string) => Promise<CaptureResult>;
+  /** Start the lab over: a fresh sandbox, an empty transcript, the first chapter run again. */
   reset: () => Promise<void>;
   /** A link to this lab at the chapter in view, with the reader's files when asked. */
   shareLink: (includeFiles: boolean) => { url: string; tooLarge: boolean; bytes: number };
@@ -97,13 +103,16 @@ export interface LabSession {
 
 const enc = new TextEncoder();
 
-/** How long autoplay waits after a chapter, for the narration to be read. */
-function readingPause(ch: Chapter): number {
-  const words = ch.narration.split(/\s+/).length;
-  return Math.min(14000, 1800 + words * 190);
-}
-
-const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+/**
+ * Every lab's sandbox sits under one directory, and Play starts the whole
+ * directory over rather than the lab's own. The engine keys a project by its
+ * recipe's name, so the labs that run in one sample are one project with one
+ * context wherever they are seeded, and resetting only this lab's directory
+ * would leave the context another lab built (its decisions, its memory) in
+ * force here. The workspace also outlives the page, so the reset reaches a
+ * project a previous visit left behind.
+ */
+const LEARN_ROOT = "/learn";
 
 const DIM = (s: string) => `\x1b[2m${s}\x1b[0m`;
 const RED = (s: string) => `\x1b[31m${s}\x1b[0m`;
@@ -122,7 +131,6 @@ export function useLabSession({
   const [bootProgress, setBootProgress] = useState<BootProgress | null>(null);
   const [current, setCurrent] = useState(0);
   const [executed, setExecuted] = useState(0);
-  const [playing, setPlaying] = useState(false);
   const [busy, setBusy] = useState(false);
   const [lastExit, setLastExit] = useState<number | null>(null);
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
@@ -140,14 +148,22 @@ export function useLabSession({
   const lastFingerprints = useRef<Map<string, string>>(new Map());
   const executedRef = useRef(0);
   const currentRef = useRef(0);
-  const playingRef = useRef(false);
   const busyRef = useRef(false);
   const startedRef = useRef(false);
   const chapterRunningRef = useRef<string | undefined>(undefined);
   const showHiddenRef = useRef(false);
-  const playToken = useRef(0);
+  // Set once the player is gone. The engine outlives the page's React tree,
+  // so a run of chapters that was under way when the reader left the lab
+  // would otherwise keep driving it, into the sandbox the next lab reseeds.
+  const disposedRef = useRef(false);
+  useEffect(() => {
+    disposedRef.current = false;
+    return () => {
+      disposedRef.current = true;
+    };
+  }, []);
 
-  const sandbox = `/learn/${lab.id}`;
+  const sandbox = `${LEARN_ROOT}/${lab.id}`;
 
   const seedFiles = useMemo<LabFile[]>(
     () => [
@@ -282,10 +298,38 @@ export function useLabSession({
     [hostFor, refreshFiles],
   );
 
+  /** Run a line quietly: nothing on the terminal, nothing in the transcript. */
+  const runCapture = useCallback(
+    async (line: string): Promise<CaptureResult> => {
+      const rt = runtimeRef.current;
+      if (!rt) return { code: 1, out: "" };
+      let out = "";
+      const sinks: ShellSinks = {
+        out: (s) => {
+          out += s;
+        },
+        err: (s) => {
+          out += s;
+        },
+      };
+      const code = await shellRun(hostFor(rt), line, sinks);
+      return { code, out };
+    },
+    [hostFor],
+  );
+
+  const typeLine = useCallback(async (line: string): Promise<number> => {
+    const term = terminalRef.current;
+    if (!term || busyRef.current) return 1;
+    term.focus();
+    return term.typeAndRun(line, true);
+  }, []);
+
   // ── Chapters ─────────────────────────────────────────────────────────────
 
   const view = useCallback(
     (index: number) => {
+      if (lab.chapters.length === 0) return;
       const i = Math.max(0, Math.min(lab.chapters.length - 1, index));
       currentRef.current = i;
       setCurrent(i);
@@ -305,7 +349,7 @@ export function useLabSession({
     async (i: number, animate: boolean) => {
       const term = terminalRef.current;
       const ch = lab.chapters[i];
-      if (!ch || i !== executedRef.current) return;
+      if (!ch || i !== executedRef.current || disposedRef.current) return;
       chapterRunningRef.current = ch.id;
       try {
         for (const f of ch.files ?? []) {
@@ -330,74 +374,37 @@ export function useLabSession({
     [lab, refreshFiles, writeFile],
   );
 
-  const pause = useCallback(() => {
-    playingRef.current = false;
-    playToken.current++;
-    setPlaying(false);
-  }, []);
-
-  /** Autoplay from the chapter in view to the end, unless paused. */
-  const play = useCallback(() => {
-    if (playingRef.current) return;
-    playingRef.current = true;
-    setPlaying(true);
-    const token = ++playToken.current;
-    void (async () => {
-      // Catch up to the chapter in view at once, then play from there.
-      while (executedRef.current < currentRef.current && playingRef.current) {
-        await runChapter(executedRef.current, false);
-      }
-      while (playingRef.current && token === playToken.current) {
-        const i = currentRef.current;
-        if (i < executedRef.current) {
-          // Viewing a chapter that already ran: move on to the first unrun one.
-          if (executedRef.current >= lab.chapters.length) break;
-          view(executedRef.current);
-          continue;
-        }
-        await runChapter(i, true);
-        if (!playingRef.current || token !== playToken.current) break;
-        if (i + 1 >= lab.chapters.length) break;
-        await sleep(readingPause(lab.chapters[i]));
-        if (!playingRef.current || token !== playToken.current) break;
-        view(i + 1);
-      }
-      if (token === playToken.current) {
-        playingRef.current = false;
-        setPlaying(false);
-      }
-    })();
+  const next = useCallback(async () => {
+    if (busyRef.current) return;
+    const i = currentRef.current;
+    const n = lab.chapters.length;
+    if (i + 1 < executedRef.current) {
+      // An earlier chapter is in view: move on without running anything.
+      view(i + 1);
+      return;
+    }
+    if (executedRef.current < n) {
+      const target = executedRef.current;
+      await runChapter(target, true);
+      view(target);
+    }
   }, [lab, runChapter, view]);
 
-  const runCurrent = useCallback(async () => {
-    if (busyRef.current) return;
-    const i = currentRef.current;
-    if (i !== executedRef.current) return;
-    await runChapter(i, true);
-  }, [runChapter]);
-
-  const stepForward = useCallback(async () => {
-    if (busyRef.current) return;
-    pause();
-    const i = currentRef.current;
-    if (i === executedRef.current) await runChapter(i, false);
-    if (i + 1 < lab.chapters.length) view(i + 1);
-  }, [lab, pause, runChapter, view]);
-
-  const stepBack = useCallback(() => {
-    pause();
-    view(currentRef.current - 1);
-  }, [pause, view]);
+  const previous = useCallback(() => {
+    if (currentRef.current > 0) view(currentRef.current - 1);
+  }, [view]);
 
   const goTo = useCallback(
     async (index: number) => {
       if (busyRef.current) return;
-      pause();
       const i = Math.max(0, Math.min(lab.chapters.length - 1, index));
-      while (executedRef.current < i) await runChapter(executedRef.current, false);
+      // Replay the chapters up to this one at once, and type the last one.
+      while (executedRef.current <= i && executedRef.current < lab.chapters.length) {
+        await runChapter(executedRef.current, executedRef.current === i);
+      }
       view(i);
     },
-    [lab, pause, runChapter, view],
+    [lab, runChapter, view],
   );
 
   // ── Boot and seed ────────────────────────────────────────────────────────
@@ -405,9 +412,11 @@ export function useLabSession({
   const seed = useCallback(
     async (rt: KapiRuntime) => {
       try {
-        await rt.reset(sandbox);
-      } catch {
-        /* a fresh directory has nothing to reset */
+        await rt.reset(LEARN_ROOT);
+      } catch (e) {
+        // A failed reset leaves another lab's context in force, which the
+        // reader would take for this lab's. Say so where a developer looks.
+        console.warn(`learn: could not start ${LEARN_ROOT} over:`, e);
       }
       rt.vol.mkdirp(sandbox);
       for (const f of seedFiles) {
@@ -452,6 +461,7 @@ export function useLabSession({
         setStatus("seeding");
         await seed(rt);
         const term = terminalRef.current;
+        const wanted = link?.chapter ? lab.chapters.findIndex((c) => c.id === link.chapter) : -1;
         if (link?.session) {
           for (const f of link.session.files) {
             const abs = `${sandbox}/${f.path}`;
@@ -473,24 +483,27 @@ export function useLabSession({
         lastFingerprints.current = fingerprintTree(rt.vol, sandbox);
         refreshFiles(false);
         setStatus("ready");
-        const wanted = link?.chapter ? lab.chapters.findIndex((c) => c.id === link.chapter) : -1;
         if (link?.session) {
-          // The shared files are the state after the chapters before this one.
+          // The shared files are the state after the chapters before this
+          // one; the linked chapter itself runs on top of them.
           const at = Math.max(0, wanted);
           executedRef.current = at;
           setExecuted(at);
-          view(at);
           term?.write(DIM("# restored from a shared link") + "\r\n");
-        } else {
-          // Play was pressed: catch up to the linked chapter at once, then
-          // play from there, as a video resumes at the time in its link.
-          if (wanted > 0) {
-            while (executedRef.current < wanted) await runChapter(executedRef.current, false);
-            view(wanted);
-          } else {
-            view(0);
+          await runChapter(at, true);
+          view(at);
+        } else if (lab.chapters.length > 0) {
+          // Play was pressed: run up to the linked chapter at once and type
+          // that one out, or run the first chapter.
+          const upto = Math.max(0, wanted);
+          while (
+            !disposedRef.current &&
+            executedRef.current <= upto &&
+            executedRef.current < lab.chapters.length
+          ) {
+            await runChapter(executedRef.current, executedRef.current === upto);
           }
-          play();
+          if (!disposedRef.current) view(upto);
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
@@ -501,12 +514,11 @@ export function useLabSession({
         setBootProgress(null);
       }
     })();
-  }, [assets, lab, link, play, prepare, refreshFiles, runChapter, sandbox, seed, view]);
+  }, [assets, lab, link, prepare, refreshFiles, runChapter, sandbox, seed, view]);
 
   const reset = useCallback(async () => {
     const rt = runtimeRef.current;
     if (!rt || busyRef.current) return;
-    pause();
     busyRef.current = true;
     setBusy(true);
     try {
@@ -522,12 +534,15 @@ export function useLabSession({
       refreshFiles(false);
       setLastChanged(new Set());
       setSelectedFile(null);
-      view(0);
     } finally {
       busyRef.current = false;
       setBusy(false);
     }
-  }, [pause, prepare, refreshFiles, sandbox, seed, view]);
+    if (lab.chapters.length > 0) {
+      await runChapter(0, true);
+      view(0);
+    }
+  }, [lab, prepare, refreshFiles, runChapter, sandbox, seed, view]);
 
   // ── Share, read, inspect ─────────────────────────────────────────────────
 
@@ -589,16 +604,12 @@ export function useLabSession({
     return `${lab.sample}${rel}`;
   }, [lab.sample, sandbox]);
 
-  // Stop autoplay when the page goes away.
-  useEffect(() => () => pause(), [pause]);
-
   return {
     status,
     error,
     bootProgress,
     current,
     executed,
-    playing,
     busy,
     lastExit,
     transcript,
@@ -616,13 +627,12 @@ export function useLabSession({
     },
     restored,
     start,
-    play,
-    pause,
-    runCurrent,
-    stepForward,
-    stepBack,
+    next,
+    previous,
     goTo,
     runLine,
+    typeLine,
+    runCapture,
     reset,
     shareLink,
     readFile,

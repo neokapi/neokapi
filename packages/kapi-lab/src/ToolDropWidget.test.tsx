@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import ToolDropWidget, { parseStatsStat } from "./ToolDropWidget";
+import ToolDropWidget, { commandLine, parseStatsStat } from "./ToolDropWidget";
 import PseudoTranslateWidget from "./PseudoTranslateWidget";
 import StatsWidget from "./StatsWidget";
 import SearchReplaceWidget, { buildSearchReplaceRecipe } from "./SearchReplaceWidget";
@@ -74,6 +74,25 @@ describe("parseStatsStat", () => {
   });
 });
 
+// ── The command line the reader sees ────────────────────────────────────────
+
+describe("commandLine", () => {
+  it("shows the widget's own paths under the names the reader knows", () => {
+    const line = commandLine(
+      ["pseudo-translate", "/project/r1-messages.json", "-o", "/project/r1-out-messages.json"],
+      {
+        "/project/r1-messages.json": "messages.json",
+        "/project/r1-out-messages.json": "out/messages.json",
+      },
+    );
+    expect(line).toBe("kapi pseudo-translate messages.json -o out/messages.json");
+  });
+
+  it("quotes an argument a shell would need quoted", () => {
+    expect(commandLine(["ksed", "s/a b/c/"], {})).toBe("kapi ksed 's/a b/c/'");
+  });
+});
+
 // ── Idle render (assets=null → no WASM boot) ─────────────────────────────────
 
 describe("ToolDropWidget (idle)", () => {
@@ -130,7 +149,8 @@ describe("ToolDropWidget (idle)", () => {
 // ── Variants render at idle ──────────────────────────────────────────────────
 
 describe("per-tool variants (idle)", () => {
-  const pressRun = () => fireEvent.click(screen.getByRole("button", { name: /run/i }));
+  const pressRun = () =>
+    fireEvent.click(screen.getByRole("button", { name: /run in your browser/i }));
 
   it("PseudoTranslateWidget renders after Run", () => {
     render(<PseudoTranslateWidget assets={null} />);
@@ -138,10 +158,11 @@ describe("per-tool variants (idle)", () => {
     expect(screen.getByText(/Try a sample/i)).toBeTruthy();
   });
 
-  it("StatsWidget renders after Run", () => {
+  it("StatsWidget renders after Run, showing the command it will run", () => {
     render(<StatsWidget assets={null} />);
     pressRun();
     expect(screen.getByText(/Try a sample/i)).toBeTruthy();
+    expect(screen.getByText(/kapi stats messages\.json/)).toBeTruthy();
   });
 
   it("SearchReplaceWidget renders find/replace inputs and a regex toggle", () => {

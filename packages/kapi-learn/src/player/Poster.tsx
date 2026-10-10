@@ -46,20 +46,19 @@ export default function Poster({
       ? Math.min(1, bootProgress.loaded / bootProgress.total)
       : null;
   const commands = lab.chapters.filter((c) => c.command).length;
+  const shape =
+    lab.chapters.length === 0
+      ? "A playground"
+      : `${lab.chapters.length} chapters${commands > 0 ? `, ${commands} commands` : ""}`;
 
   return (
     <div className={`kl-poster kl-poster--${lab.sample}`} data-status={status}>
       <div className="kl-poster__inner">
-        <div className="kl-poster__eyebrow">
-          <span>{seriesTitle}</span>
-          <span aria-hidden="true">·</span>
-          <span>{sample.name}</span>
-        </div>
+        <p className="kl-poster__eyebrow">{seriesTitle}</p>
         <h2 className="kl-poster__title">{lab.title}</h2>
         <p className="kl-poster__tagline">{lab.tagline}</p>
         <p className="kl-poster__meta">
-          {lab.chapters.length} chapters
-          {commands > 0 ? ` · ${commands} commands` : ""} · about {lab.minutes} min
+          {shape}, about {lab.minutes} min, in the {sample.name} sample.
         </p>
 
         {status === "error" ? (

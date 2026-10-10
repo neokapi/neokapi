@@ -12,7 +12,8 @@ reader-facing description is the index page itself.
 | The curriculum (series, labs, chapters) | `packages/kapi-learn/src/curriculum/` |
 | The sample projects, as a module the player seeds from | `packages/kapi-learn/src/samples.gen.ts`, written by `scripts/learn-gen/gen.ts` from `samples/` |
 | The lab shell (pipes, redirections, the builtins between kapi commands) | `packages/kapi-learn/src/shell/` |
-| The player (poster, terminal, transport, chapters, files pane, share) | `packages/kapi-learn/src/player/` |
+| The player (poster, stage frame, terminal, chapter card, chapter list, files pane, share) | `packages/kapi-learn/src/player/` |
+| The lenses: views drawn above the terminal from the engine's answers | `packages/kapi-learn/src/lens/` |
 | Deep links and progress | `packages/kapi-learn/src/deeplink.ts`, `progress.ts` |
 | The docs pages: the index and one route per lab | `web/src/pages/learn/index.tsx`, `web/src/components/Learn/LabPage.tsx`, `web/plugins/learn-routes.ts` |
 | The verifier | `scripts/learn-verify/verify.ts`, `make learn-verify` |
@@ -33,10 +34,15 @@ output substrings that command must produce. A chapter may also write files
 first (the edit a reviewer makes, shown in the files pane) and name a file to
 open when it has run.
 
-The player runs the chapters in order and only in order. Jumping ahead
-replays the chapters in between at once; a deep link to a later chapter does
-the same after the engine is up. The reader can type their own commands at
-any point; that pauses autoplay and leaves the chapter count where it was.
+The player runs the chapters in order and only in order, and nothing moves on
+a timer. Play runs the first chapter; the chapter card's Next runs the one
+after the last that ran (it names it, so the reader knows what is coming) and
+Previous looks back without running anything. Jumping ahead from the chapter
+list replays the chapters in between at once; a deep link to a later chapter
+does the same after the engine is up. The reader can type their own commands
+at any point; that leaves the chapter count where it was. The stage has an
+Expand control that takes it to the whole window, which a kapi report needs:
+the page column fits eighty-odd characters.
 
 The commands are the ones the sample READMEs and the harness demos use, in
 the lab shell's syntax: quotes, `|` between the builtins (`head`, `tail`,
@@ -64,6 +70,15 @@ has two levers: `files` (written over the sample before the first chapter)
 and `setup` (commands run silently before it, named in the terminal's first
 line). The labs after the first in a series use `setup` to reach the state
 the earlier labs left, so each lab stands alone.
+
+Every lab seeds its sandbox under `/learn/<id>`, and Play starts the whole
+`/learn` tree over (`KapiRuntime.reset`), not the lab's own directory. The
+engine keys a project by its recipe's `name:`, so every lab that runs in one
+sample is one project with one context, and the workspace outlives the page:
+resetting only this lab's directory would leave the decisions and the memory
+another lab, or an earlier visit, built in force here. The reset forgets the
+project in the workspace, which empties its stores and its record alike
+(`App.ForgetProjectsUnder`).
 
 ## Explorer labs
 
@@ -94,6 +109,37 @@ the labs. The verifier covers terminal labs only; an explorer lab is checked
 by the site build (the plugin resolves every lab) and by `assert-no-eager-engine`,
 which presses Play on the vision lab and expects the model fetch.
 
+## Playgrounds
+
+A lab with `kind: "playground"` has no chapters. Play opens the stage and a
+"Try" card: in a terminal playground (`free-terminal`) the items are commands
+the player types and runs when pressed; in an explorer playground (`vision`,
+`structure`) they are prompts in prose and the lab's `stage` says what the
+explorer shows. The verifier skips playgrounds; the curriculum test holds
+them to having something to try.
+
+## Lenses
+
+A lab with `lens` draws a view above the terminal and rebuilds it after
+every command settles, from the engine's own answers (`runCapture` on the
+session runs a line with nothing on the terminal and returns what it
+printed). The registry is `lens/index.ts`; the one lens is the context graph
+(`lens/contextGraph.ts` builds it from `kapi ls --stats`, `kapi status`,
+`kapi context <file>`, `kapi terms search`, `kapi terms occurrences`, `kapi
+memory stats` and `kapi context log`, all `--json`; `lens/layout.ts` places
+it; `lens/ContextGraphLens.tsx` draws it). A chapter's `focus` names the part
+the view brings forward (`content`, `point`, `context`, `terms`, `memory`,
+`editions`, `record`); a node that appeared since the previous snapshot
+pulses once, and pressing a node lists what the engine said about it. The
+record row holds the context operations the log prints (imports, notes,
+rules) and, beside them, the blocks a person established in each edition,
+counted from the established share `kapi status` reports, because the
+context log leaves block decisions out. In a lens lab the chapter card sits
+between the view and the terminal, so Next is pressed with the graph in
+sight. The context engine lab (`labs/context.ts`, the Compass sample) is the
+one lab with a lens: read the context in, converge, review, converge again,
+and watch what each command adds.
+
 ## Changing a sample
 
 The samples are the fixtures. After editing anything under `samples/`, run
@@ -121,8 +167,8 @@ handbook, so a regeneration that loses one of those fails a Go test.
 
 The explorer offers as targets the generative writers the engine reports in a
 document family (`family` in `kapi formats list --json`: rich-markup and
-plain-text), so a document converts to HTML, Markdown, DocLang, AsciiDoc, MDX
-and plain text, and never to a string catalog or a media format.
+plain-text), so a document converts to HTML, Markdown, DocLang, AsciiDoc and
+plain text, and never to a string catalog or a media format.
 
 ## Deep links
 

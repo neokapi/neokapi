@@ -182,7 +182,7 @@ export const conversion: Lab = {
   tagline:
     "A Word handbook, an Excel workbook and a slide deck, rewritten as the document formats the engine generates.",
   summary:
-    "The engine reads a document into the content model and a writer puts it out again in any document format it generates: HTML, Markdown, DocLang, AsciiDoc, MDX and plain text. This lab opens one document every way at once: the model-level tabs stay the same while the output format changes, which is the point. The inputs are KapiMart's Office documents, so the structure that has to survive is real: headings at two levels, lists, a table with a header row, bold text and links, a figure, three worksheets with currency and date formats, and a deck with a table and speaker notes.",
+    "The engine reads a document into the content model and a writer puts it out again in any document format it generates: HTML, Markdown, DocLang, AsciiDoc and plain text. This lab opens one document every way at once: the model-level tabs stay the same while the output format changes, which is the point. The inputs are KapiMart's Office documents, so the structure that has to survive is real: headings at two levels, lists, a table with a header row, bold text and links, a figure, three worksheets with currency and date formats, and a deck with a table and speaker notes.",
   sample: "engine",
   kind: "explorer",
   explorer: "conversion",
@@ -274,43 +274,21 @@ export const structure: Lab = {
   title: "Structure and layout",
   tagline: "Reading order, outline and geometry, recovered from a PDF.",
   summary:
-    "A PDF carries positioned text and little else. The engine's PDF reader, bridged to PDFium in WebAssembly, recovers the text with its geometry, and the structure tier infers the outline and the reading order. This lab opens three PDFs in the shared viewer: Layout places each block on the page, Structure shows the outline, Blocks lists the content.",
+    "A PDF carries positioned text and little else. The engine's PDF reader, bridged to PDFium in WebAssembly, recovers the text with its geometry, and the structure tier infers the outline and the reading order. This playground opens three PDFs in the shared viewer: Layout places each block on the page, Structure shows the outline, Blocks lists the content. Upload a PDF of your own to read it the same way.",
   sample: "engine",
-  kind: "explorer",
+  kind: "playground",
   explorer: "pdf",
   plugins: ["pdfium"],
+  stage: { samples: ["report.pdf", "invoice.pdf", "anatomy.pdf"] },
   concepts: ["geometry", "reading order", "structure tier", "PDFium bridge"],
   docs: [DOCS.structure, DOCS.formats],
   minutes: 4,
-  chapters: [
-    {
-      id: "report",
-      title: "A report with headings and a table",
-      narration:
-        "Open the Layout tab and compare the block positions with the page: the headings, the body text and the table cells each sit where the PDF drew them. Then open Structure for the outline the engine inferred.",
-      hint: "report.pdf",
-      stage: { samples: ["report.pdf", "invoice.pdf", "anatomy.pdf"] },
-    },
-    {
-      id: "invoice",
-      title: "An invoice: columns",
-      narration:
-        "Columns are where reading order goes wrong. Switch the file to the invoice and check the Blocks order against the page, especially the line items and the totals.",
-      hint: "invoice.pdf",
-      stage: { samples: ["invoice.pdf", "report.pdf", "anatomy.pdf"] },
-    },
-    {
-      id: "anatomy",
-      title: "The minimal case",
-      narration:
-        "A one-page document with a title and two paragraphs: the smallest PDF the reader turns into blocks, useful for seeing the geometry fields themselves.",
-      hint: "anatomy.pdf",
-      stage: { samples: ["anatomy.pdf", "report.pdf", "invoice.pdf"] },
-    },
-  ],
+  chapters: [],
   tryNext: [
+    "Open the Layout tab on the report and compare the block positions with the page: headings, body text and table cells sit where the PDF drew them.",
+    "Switch to the invoice and check the Blocks order against the page. Columns are where reading order goes wrong.",
+    "Open Structure on any file for the outline the engine inferred, then compare it with the document's own headings.",
     "Upload a PDF of your own and read its Layout tab.",
-    "Compare the Structure outline with the document's own headings.",
   ],
 };
 
@@ -321,50 +299,23 @@ export const vision: Lab = {
   title: "Vision",
   tagline: "Text and layout recognised in an image, on your device.",
   summary:
-    "The native kapi-vision plugin reads text and page layout from images with two ONNX models. This lab runs the same models in the browser: recognition first, layout on request. Each chapter picks an image; select a box on the image or a line in the list and the other highlights.",
+    "The native kapi-vision plugin reads text and page layout from images with two ONNX models. This playground runs the same models in the browser: recognition first, layout on request. Pick an image, or drop one of your own; select a box on the image or a line in the list and the other highlights.",
   sample: "engine",
-  kind: "explorer",
+  kind: "playground",
   explorer: "vision",
   engine: false,
   plugins: ["vision"],
+  stage: { samples: ["document", "hello", "handwriting", "report.docx"] },
   concepts: ["OCR", "layout regions", "geometry", "handwriting fallback"],
   docs: [DOCS.multimodal],
   minutes: 4,
-  chapters: [
-    {
-      id: "document",
-      title: "A printed page",
-      narration:
-        "Recognition runs when the image opens. Each line comes back with its text and its box. Press Layout to run the second model, which labels regions: title, paragraph, table, figure.",
-      hint: "document.png",
-      stage: { samples: ["document", "hello", "handwriting", "report.docx"] },
-    },
-    {
-      id: "hello",
-      title: "A short sample",
-      narration:
-        "A few words at a large size: the fast case, and a good one for reading the geometry values.",
-      hint: "hello.png",
-      stage: { samples: ["hello", "document", "handwriting", "report.docx"] },
-    },
-    {
-      id: "handwriting",
-      title: "Handwriting",
-      narration:
-        "Printed-text recognition struggles here. Turn on the handwriting fallback: low-confidence lines are read again by a second model, loaded on first use.",
-      hint: "handwriting.png",
-      stage: { samples: ["handwriting", "document", "hello", "report.docx"] },
-    },
-    {
-      id: "embedded",
-      title: "An image inside a document",
-      narration:
-        "A Word file with an embedded image. The engine extracts the image through the document's reader, and recognition runs on that, which is how a figure's text reaches a translation.",
-      hint: "report.docx",
-      stage: { samples: ["report.docx", "document", "hello", "handwriting"] },
-    },
+  chapters: [],
+  tryNext: [
+    "Recognition runs when the printed page opens: each line comes back with its text and its box. Press Layout to run the second model, which labels regions.",
+    "Open the handwriting sample and turn on the handwriting fallback: low-confidence lines are read again by a second model, loaded on first use.",
+    "Open the Word file: the engine extracts its embedded image through the document's reader and recognition runs on that.",
+    "Drop a photo of a page or a sign onto the explorer.",
   ],
-  tryNext: ["Drop a photo of a page or a sign onto the explorer."],
 };
 
 export const media: Lab = {
@@ -526,88 +477,37 @@ export const freeTerminal: Lab = {
   title: "Free terminal",
   tagline: "A terminal of your own, with sample files to start from.",
   summary:
-    "The same terminal the labs type into, with nothing scripted beyond a few openers. The KapiMart files are in the sandbox, and each chapter drops in one more sample in another format and runs a first command on it. Type anything the browser engine supports; help lists what the terminal itself knows.",
+    "The same terminal the labs type into, with nothing scripted. The KapiMart files are in the sandbox, with a page, a bilingual file and a properties file beside them, and the commands below are openers. Type anything the browser engine supports; help lists what the terminal itself knows, and the files pane takes your own files.",
   sample: "mart",
+  kind: "playground",
+  files: [
+    {
+      path: "page.html",
+      content:
+        '<!doctype html>\n<html lang="en">\n  <head>\n    <meta charset="utf-8" />\n    <title>Welcome</title>\n  </head>\n  <body>\n    <h1>Welcome aboard</h1>\n    <p>Thanks for trying <strong>kapi</strong>. Edit this file and run a command.</p>\n    <a href="/docs">Read the documentation</a>\n  </body>\n</html>\n',
+    },
+    {
+      path: "app.xliff",
+      content:
+        '<?xml version="1.0" encoding="UTF-8"?>\n<xliff xmlns="urn:oasis:names:tc:xliff:document:2.2" version="2.2" srcLang="en" trgLang="fr">\n  <file id="app.json" original="app.json">\n    <unit id="greeting">\n      <segment>\n        <source>Hello, World!</source>\n      </segment>\n    </unit>\n    <unit id="farewell">\n      <segment>\n        <source>See you tomorrow</source>\n      </segment>\n    </unit>\n  </file>\n</xliff>\n',
+    },
+    {
+      path: "app.properties",
+      content:
+        "# Application strings\napp.title = Welcome aboard\napp.greeting = Hello, World!\ncart.empty = Your cart is empty\n",
+    },
+  ],
   concepts: ["ad-hoc commands", "formats", "the browser engine"],
   docs: [DOCS.commands, DOCS.quickstart],
   minutes: 5,
-  chapters: [
-    {
-      id: "help",
-      title: "What runs here",
-      narration:
-        "The browser build mirrors the native command set verb for verb. The verbs it cannot run, such as plugins and credentials, say why.",
-      command: "kapi --help",
-      expect: ["Usage:"],
-    },
-    {
-      id: "json",
-      title: "A JSON catalog",
-      narration: "KapiMart's catalog, measured.",
-      command: "kapi stats src/en.json",
-      expect: ["Words:"],
-      look: { file: "src/en.json", view: "preview" },
-    },
-    {
-      id: "html",
-      title: "An HTML page",
-      narration: "A page is dropped into the sandbox and inspected: the text, free of its markup.",
-      files: [
-        {
-          path: "page.html",
-          content:
-            '<!doctype html>\n<html lang="en">\n  <head>\n    <meta charset="utf-8" />\n    <title>Welcome</title>\n  </head>\n  <body>\n    <h1>Welcome aboard</h1>\n    <p>Thanks for trying <strong>kapi</strong>. Edit this file and run a command.</p>\n    <a href="/docs">Read the documentation</a>\n  </body>\n</html>\n',
-        },
-      ],
-      command: "kapi inspect page.html",
-      expect: ["Welcome aboard"],
-      look: { file: "page.html", view: "blocks" },
-    },
-    {
-      id: "xliff",
-      title: "A bilingual file",
-      narration:
-        "An XLIFF holds source and target together. Pseudo-translation fills the targets with accented text, which a layout test needs and a reviewer never mistakes for a translation.",
-      files: [
-        {
-          path: "app.xliff",
-          content:
-            '<?xml version="1.0" encoding="UTF-8"?>\n<xliff xmlns="urn:oasis:names:tc:xliff:document:2.2" version="2.2" srcLang="en" trgLang="fr">\n  <file id="app.json" original="app.json">\n    <unit id="greeting">\n      <segment>\n        <source>Hello, World!</source>\n      </segment>\n    </unit>\n    <unit id="farewell">\n      <segment>\n        <source>See you tomorrow</source>\n      </segment>\n    </unit>\n  </file>\n</xliff>\n',
-        },
-      ],
-      command: "kapi pseudo-translate app.xliff -o app.qps.xliff",
-      expect: ["completed"],
-      look: { file: "app.qps.xliff", view: "raw" },
-    },
-    {
-      id: "properties",
-      title: "A Java properties file",
-      narration: "One more format, one more reader, the same blocks.",
-      files: [
-        {
-          path: "app.properties",
-          content:
-            "# Application strings\napp.title = Welcome aboard\napp.greeting = Hello, World!\ncart.empty = Your cart is empty\n",
-        },
-      ],
-      command: "kapi inspect app.properties | head -20",
-      expect: ["app.title"],
-      look: { file: "app.properties", view: "blocks" },
-    },
-    {
-      id: "yours",
-      title: "Your own files",
-      narration:
-        "Add a file with the files pane's upload button, then run a command on it. Everything stays in this tab; download what you want to keep.",
-      command: "ls",
-      expect: ["src/"],
-    },
-  ],
+  chapters: [],
   tryNext: [
+    "kapi --help",
+    "kapi stats src/en.json",
+    "kapi inspect page.html",
+    "kapi pseudo-translate app.xliff -o app.qps.xliff",
+    "kapi inspect app.properties | head -20",
     "kapi formats",
-    "kapi tools schema translate",
-    "kconv src/about.md -o about.adoc",
-    "kapi check src/about.md --forbid 'seamless'",
   ],
 };
 

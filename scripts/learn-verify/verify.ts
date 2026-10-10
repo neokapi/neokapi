@@ -202,7 +202,7 @@ async function main(): Promise<void> {
   const wanted = process.argv.slice(2);
   // Explorer labs drive a browser component rather than the shell; their
   // chapters carry no command to hold to.
-  const terminalLabs = LABS.filter((l) => l.kind !== "explorer");
+  const terminalLabs = LABS.filter((l) => l.kind !== "explorer" && l.kind !== "playground");
   const labs = wanted.length ? terminalLabs.filter((l) => wanted.includes(l.id)) : terminalLabs;
   if (wanted.length && labs.length !== wanted.length) {
     const known = new Set(LABS.map((l) => l.id));
