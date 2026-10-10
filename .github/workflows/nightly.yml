@@ -14,6 +14,9 @@ on:
 
 permissions:
   contents: read
+  # The suites pull the mirrored third-party images under ghcr.io/neokapi
+  # (scripts/mirror-image.sh) with the workflow token.
+  packages: read
 
 concurrency:
   group: nightly
@@ -73,6 +76,14 @@ jobs:
         uses: ./.github/actions/apt-install
         with:
           packages: libgtk-4-dev libwebkitgtk-6.0-dev libicu-dev pkg-config
+
+      # host/s3remote runs the mirrored S3 gateway from ghcr.io.
+      - name: Login to ghcr.io
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       # A registry that refuses a pull fails here, by image name, rather than
       # inside whichever test reached for its image first.
