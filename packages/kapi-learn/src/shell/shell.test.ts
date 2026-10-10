@@ -162,6 +162,25 @@ describe("runLine", () => {
     expect(c.out()).toBe("one\n");
   });
 
+  it("strips the engine's colour from what a pipe or a redirection takes", async () => {
+    const coloured = '\x1b[1;34m"op"\x1b[0m: \x1b[32m"decide"\x1b[0m\n';
+    const { host, read } = makeHost((_argv, sk) => {
+      // Written in two chunks that split an escape sequence.
+      sk.out(coloured.slice(0, 3));
+      sk.out(coloured.slice(3));
+      return 0;
+    });
+    const a = sinks();
+    await runLine(host, "kapi status --json > out.json", a.sinks);
+    expect(read("/work/out.json")).toBe('"op": "decide"\n');
+    const b = sinks();
+    await runLine(host, "kapi status --json | head -1", b.sinks);
+    expect(b.out()).toBe('"op": "decide"\n');
+    const c = sinks();
+    await runLine(host, "kapi status --json", c.sinks);
+    expect(c.out()).toBe(coloured);
+  });
+
   it("redirects stderr to /dev/null and keeps the exit code", async () => {
     const { host, read } = makeHost((_argv, sk) => {
       sk.out('{"pass":false}\n');
