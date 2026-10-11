@@ -1,10 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FolderOpen, RotateCcw, Share2 } from "lucide-react";
 import { isBooted } from "@neokapi/kapi-playground/runtime";
 import type { Lab, SampleInfo, Series } from "../curriculum/types.ts";
 import type { LabLink } from "../deeplink.ts";
 import { LENSES } from "../lens/index.ts";
-import type { Focus, GraphModel } from "../lens/index.ts";
+import type { Focus } from "../lens/index.ts";
 import AboutLab from "./AboutLab.tsx";
 import ChapterCard from "./ChapterCard.tsx";
 import ChapterRail from "./ChapterRail.tsx";
@@ -15,6 +15,7 @@ import ShareMenu from "./ShareMenu.tsx";
 import StageFrame from "./StageFrame.tsx";
 import TryCard from "./TryCard.tsx";
 import { useLabSession } from "./useLabSession.ts";
+import { useLens } from "./useLens.ts";
 import type { LabAssets, UpNext } from "./types.ts";
 import "./styles.css";
 
@@ -100,31 +101,7 @@ export default function LabPlayer({
 
   // The lens: rebuilt from the engine's answers after every command settles.
   const lens = lab.lens ? LENSES[lab.lens] : undefined;
-  const [graph, setGraph] = useState<GraphModel | null>(null);
-  const [graphBusy, setGraphBusy] = useState(false);
-  const graphRef = useRef<GraphModel | null>(null);
-  const previousRef = useRef<GraphModel | null>(null);
-  const { runCapture, version, busy } = session;
-  useEffect(() => {
-    if (!lens || !ready || busy) return;
-    let cancelled = false;
-    const h = setTimeout(() => {
-      setGraphBusy(true);
-      void lens
-        .build(runCapture)
-        .then((m) => {
-          if (cancelled) return;
-          previousRef.current = graphRef.current;
-          graphRef.current = m;
-          setGraph(m);
-        })
-        .finally(() => !cancelled && setGraphBusy(false));
-    }, 250);
-    return () => {
-      cancelled = true;
-      clearTimeout(h);
-    };
-  }, [lens, ready, busy, version, runCapture]);
+  const { graph, previous, loading: graphBusy } = useLens(lens, session, ready);
 
   // The chapter card sits under the terminal, where the output it explains
   // is; with a lens the view above the terminal is what the chapter changes,
@@ -223,7 +200,7 @@ export default function LabPlayer({
           {ready ? (
             <lens.Component
               model={graph}
-              previous={previousRef.current}
+              previous={previous}
               focus={(chapter?.focus as Focus | undefined) ?? "all"}
               loading={graphBusy}
             />

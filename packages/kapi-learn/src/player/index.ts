@@ -3,6 +3,8 @@
 
 export { default as LabPlayer } from "./LabPlayer.tsx";
 export type { LabPlayerProps } from "./LabPlayer.tsx";
+export { default as LabPlayerTour } from "./LabPlayerTour.tsx";
+export type { LabPlayerTourProps } from "./LabPlayerTour.tsx";
 export { default as ExplorerPlayer } from "./ExplorerPlayer.tsx";
 export type {
   ExplorerPlayerProps,

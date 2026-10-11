@@ -37,7 +37,7 @@ export interface ChapterCardProps {
 }
 
 /** The narration with the words to notice set in bold. */
-function withNotice(text: string, notice: string[] | undefined): React.ReactNode {
+export function withNotice(text: string, notice: string[] | undefined): React.ReactNode {
   if (!notice || notice.length === 0) return text;
   const escaped = notice.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
   const re = new RegExp(`(${escaped.join("|")})`, "g");
@@ -54,7 +54,7 @@ function withNotice(text: string, notice: string[] | undefined): React.ReactNode
 }
 
 /** What to say about the command's exit, before and after it runs. */
-function exitNote(chapter: Chapter, ran: boolean, exitCode: number | null): string | null {
+export function exitNote(chapter: Chapter, ran: boolean, exitCode: number | null): string | null {
   const expected = chapter.exit ?? 0;
   if (ran && exitCode !== null) {
     if (exitCode === 0) return null;

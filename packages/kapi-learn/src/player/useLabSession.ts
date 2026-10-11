@@ -12,6 +12,11 @@
 // forward when an earlier chapter is in view; Previous moves the view back
 // and runs nothing. A jump ahead from the list replays the chapters in
 // between at once, without typing them out. Nothing moves on a timer.
+//
+// The tour layout reads each chapter before it runs: with `runFirst: false`
+// Play leaves the first chapter in view, `show` views a chapter (the next
+// unrun one included) without running it, and `run` runs the chapter in view
+// when it is the next to run.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { configurePlugins, bootEngine } from "@neokapi/kapi-playground/plugins";
@@ -39,6 +44,11 @@ export interface UseLabSessionOptions {
   link?: LabLink;
   /** Called when the chapter in view changes, so the host can keep the URL current. */
   onChapterChange?: (chapter: Chapter, index: number) => void;
+  /**
+   * Run the first chapter on Play and on Start over (the default), or leave it
+   * in view for the reader to run.
+   */
+  runFirst?: boolean;
 }
 
 /** What a quiet run returns: the exit code and everything it printed. */
@@ -84,6 +94,10 @@ export interface LabSession {
   previous: () => void;
   /** View a chapter; chapters before it that have not run are replayed at once. */
   goTo: (index: number) => Promise<void>;
+  /** View a chapter without running it; unrun chapters before it are replayed at once. */
+  show: (index: number) => Promise<void>;
+  /** Run the chapter in view, when it is the next one to run. */
+  run: () => Promise<void>;
   /** Run a line the reader typed. */
   runLine: (line: string) => Promise<number>;
   /** Type a line at the prompt and run it, as a chapter would. */
@@ -125,6 +139,7 @@ export function useLabSession({
   assets,
   link,
   onChapterChange,
+  runFirst = true,
 }: UseLabSessionOptions): LabSession {
   const [status, setStatus] = useState<SessionStatus>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -336,7 +351,8 @@ export function useLabSession({
       const ch = lab.chapters[i];
       markPosition(lab.id, ch.id);
       onChapterChange?.(ch, i);
-      if (ch.look?.file) {
+      // A chapter's file opens once the chapter has run and the file is there.
+      if (ch.look?.file && i < executedRef.current) {
         setSelectedFile(ch.look.file);
         setSelectedView(ch.look.view);
       }
@@ -406,6 +422,27 @@ export function useLabSession({
     },
     [lab, runChapter, view],
   );
+
+  const show = useCallback(
+    async (index: number) => {
+      if (busyRef.current) return;
+      const i = Math.max(0, Math.min(lab.chapters.length - 1, index));
+      // Replay the unrun chapters before this one at once; this one waits for Run.
+      while (executedRef.current < i) {
+        await runChapter(executedRef.current, false);
+      }
+      view(i);
+    },
+    [lab, runChapter, view],
+  );
+
+  const run = useCallback(async () => {
+    if (busyRef.current) return;
+    const i = currentRef.current;
+    if (i !== executedRef.current || i >= lab.chapters.length) return;
+    await runChapter(i, true);
+    view(i);
+  }, [lab, runChapter, view]);
 
   // ── Boot and seed ────────────────────────────────────────────────────────
 
@@ -490,15 +527,17 @@ export function useLabSession({
           executedRef.current = at;
           setExecuted(at);
           term?.write(DIM("# restored from a shared link") + "\r\n");
-          await runChapter(at, true);
+          if (runFirst) await runChapter(at, true);
           view(at);
         } else if (lab.chapters.length > 0) {
           // Play was pressed: run up to the linked chapter at once and type
-          // that one out, or run the first chapter.
+          // that one out, or run the first chapter. A player that leaves the
+          // chapter in view for the reader to run stops before it.
           const upto = Math.max(0, wanted);
+          const last = runFirst ? upto : upto - 1;
           while (
             !disposedRef.current &&
-            executedRef.current <= upto &&
+            executedRef.current <= last &&
             executedRef.current < lab.chapters.length
           ) {
             await runChapter(executedRef.current, executedRef.current === upto);
@@ -514,7 +553,7 @@ export function useLabSession({
         setBootProgress(null);
       }
     })();
-  }, [assets, lab, link, prepare, refreshFiles, runChapter, sandbox, seed, view]);
+  }, [assets, lab, link, prepare, refreshFiles, runChapter, runFirst, sandbox, seed, view]);
 
   const reset = useCallback(async () => {
     const rt = runtimeRef.current;
@@ -539,10 +578,10 @@ export function useLabSession({
       setBusy(false);
     }
     if (lab.chapters.length > 0) {
-      await runChapter(0, true);
+      if (runFirst) await runChapter(0, true);
       view(0);
     }
-  }, [lab, prepare, refreshFiles, runChapter, sandbox, seed, view]);
+  }, [lab, prepare, refreshFiles, runChapter, runFirst, sandbox, seed, view]);
 
   // ── Share, read, inspect ─────────────────────────────────────────────────
 
@@ -630,6 +669,8 @@ export function useLabSession({
     next,
     previous,
     goTo,
+    show,
+    run,
     runLine,
     typeLine,
     runCapture,

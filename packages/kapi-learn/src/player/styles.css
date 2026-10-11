@@ -1546,6 +1546,299 @@
   border-radius: 999px;
 }
 
+/* ── Tour layout ──────────────────────────────────────────────────────────── */
+/* LabPlayerTour: the steps as chips across the top, the step's card beside
+   the stage, the files pane under both. The card's Run is the loud element. */
+
+.klt-stepper {
+  margin: 0 0 1rem;
+}
+
+.klt-stepper__row {
+  list-style: none;
+  margin: 0;
+  padding: 0.15rem 0 0.4rem;
+  display: flex;
+  gap: 0.35rem;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.klt-stepper__row li {
+  flex: none;
+}
+
+.klt-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  max-width: 240px;
+  padding: 0.3rem 0.7rem 0.3rem 0.35rem;
+  border: 1px solid var(--kl-border);
+  border-radius: 999px;
+  background: var(--kl-surface);
+  color: var(--kl-muted);
+  font: inherit;
+  font-size: 0.82rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.klt-step:hover:not(:disabled) {
+  background: var(--kl-soft);
+}
+
+.klt-step:disabled {
+  cursor: default;
+}
+
+.klt-step__num {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--kl-soft);
+  color: var(--kl-muted);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+
+.klt-step__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.klt-step--done {
+  color: var(--kl-fg);
+}
+
+.klt-step--done .klt-step__num {
+  background: var(--kl-primary);
+  color: var(--kl-primary-fg);
+}
+
+.klt-step--up .klt-step__num {
+  background: var(--kl-accent);
+  color: var(--kl-accent-fg);
+}
+
+.klt-step--current {
+  color: var(--kl-fg);
+  border-color: var(--kl-accent);
+  background: color-mix(in oklab, var(--kl-accent) 16%, transparent);
+  font-weight: 600;
+}
+
+.klt-step__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.klt-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.klt-main {
+  display: grid;
+  grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: stretch;
+}
+
+@media (max-width: 1000px) {
+  .klt-main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* With a lens the stage column is tall; the card keeps its own height. */
+.kl-player--lens .klt-main {
+  align-items: start;
+}
+
+.klt-side {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.klt-stage-col {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.klt-stage-col .kl-stage--lens {
+  margin-bottom: 0;
+}
+
+.klt-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 1rem 1.1rem 1.1rem;
+  border: 1px solid var(--kl-border);
+  border-radius: var(--kl-radius);
+  background: var(--kl-surface);
+  min-height: clamp(320px, 54vh, 560px);
+}
+
+@media (max-width: 1000px) {
+  .klt-card {
+    min-height: 0;
+  }
+}
+
+.klt-card:focus {
+  outline: none;
+}
+
+.klt-card__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 0.84rem;
+  color: var(--kl-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.klt-card__state {
+  font-size: 0.74rem;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--kl-border);
+}
+
+.klt-card__state--ran {
+  border-color: var(--kl-primary);
+  background: var(--kl-primary);
+  color: var(--kl-primary-fg);
+}
+
+.klt-card__title {
+  margin: 0;
+  font-size: 1.3rem;
+  line-height: 1.25;
+  font-weight: 700;
+}
+
+.klt-card__text {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+.klt-card__files {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin: 0;
+  font-size: 0.86rem;
+  color: var(--kl-muted);
+}
+
+.klt-card__files svg {
+  flex: none;
+  margin-top: 0.2rem;
+}
+
+.klt-card__cmd {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  background: var(--kl-stage);
+  color: var(--kl-stage-fg);
+  font-family: var(--kl-mono);
+  font-size: 0.8rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.klt-card__cmd svg {
+  flex: none;
+  margin-top: 0.1rem;
+  opacity: 0.7;
+}
+
+.klt-card__cmd code {
+  font-family: inherit;
+  font-size: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+}
+
+.klt-card__exit {
+  margin: -0.2rem 0 0;
+  font-size: 0.8rem;
+  color: var(--kl-muted);
+}
+
+.klt-card__note {
+  margin: 0;
+  padding-left: 0.75rem;
+  border-left: 3px solid var(--kl-accent);
+  font-size: 0.92rem;
+  color: var(--kl-muted);
+}
+
+.klt-card .kl-linkbtn {
+  align-self: flex-start;
+}
+
+.klt-card__actions {
+  display: flex;
+  align-items: stretch;
+  gap: 0.5rem;
+  margin-top: auto;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--kl-border);
+}
+
+.klt-run {
+  flex: 1;
+  justify-content: center;
+  padding: 0.65rem 1rem;
+  font-size: 0.95rem;
+  border-color: var(--kl-primary);
+  background: var(--kl-primary);
+  color: var(--kl-primary-fg);
+}
+
+.klt-run:hover:not(:disabled) {
+  background: var(--kl-primary);
+  color: var(--kl-primary-fg);
+  filter: brightness(1.12);
+}
+
+.klt-next {
+  flex: 1;
+  min-width: 0;
+  margin-left: 0;
+}
+
+.klt-card__done {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--kl-muted);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .kl-node,
   .kl-edge path {
