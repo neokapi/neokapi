@@ -38,6 +38,56 @@ const LazyExplorerPlayer = lazyWithRetry(async () => {
   return { default: mod.ExplorerPlayer };
 });
 
+// Two layouts for a terminal lab, kept side by side while one is chosen: the
+// standard player, with the chapter list beside the stage, and the tour, with
+// the steps across the top and the step's card beside the stage. The URL's
+// `layout` names the one in use; the switch above the player sets it.
+const LazyTourPlayer = lazyWithRetry(async () => {
+  const mod = await import("@neokapi/kapi-learn/player");
+  return { default: mod.LabPlayerTour };
+});
+
+const LAYOUT_PARAM = "layout";
+type LabLayout = "rail" | "tour";
+
+function layoutOf(search: string): LabLayout {
+  return new URLSearchParams(search).get(LAYOUT_PARAM) === "tour" ? "tour" : "rail";
+}
+
+function LayoutSwitch({
+  layout,
+  onChange,
+}: {
+  layout: LabLayout;
+  onChange: (layout: LabLayout) => void;
+}): React.ReactElement {
+  const options: { id: LabLayout; label: string }[] = [
+    { id: "rail", label: "Chapter list" },
+    { id: "tour", label: "Tour" },
+  ];
+  return (
+    <div
+      className="kl-layout"
+      role="group"
+      aria-label="Layout"
+      title="Switching restarts the lab at the chapter in view"
+    >
+      <span className="kl-layout__label">Layout</span>
+      {options.map((o) => (
+        <button
+          key={o.id}
+          type="button"
+          className={`kl-layout__opt${o.id === layout ? " kl-layout__opt--on" : ""}`}
+          aria-pressed={o.id === layout}
+          onClick={() => onChange(o.id)}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export interface LabPageProps {
   labId: string;
 }
@@ -72,9 +122,12 @@ function PlayerHost({ lab }: { lab: Lab }): React.ReactElement {
   const history = useHistory();
   const series = seriesById(lab.series);
   const sample = SAMPLES[lab.sample];
-  // Read once: the link the page opened with. Later chapter changes rewrite
-  // the query without re-reading it, so the player is never re-seeded.
-  const link = useMemo(() => parseLabLink(location.search), []); // eslint-disable-line react-hooks/exhaustive-deps
+  // The link the page opened with, read once per layout. Later chapter
+  // changes rewrite the query without re-reading it, so the player is never
+  // re-seeded; a layout switch remounts the player, which then opens at the
+  // chapter the URL names.
+  const layout = layoutOf(location.search);
+  const link = useMemo(() => parseLabLink(location.search), [layout]); // eslint-disable-line react-hooks/exhaustive-deps
   const siblings = labsInSeries(lab.series);
   const next = nextLab(lab.id);
   // The player renders plain anchors, so every site path it is handed carries
@@ -98,6 +151,17 @@ function PlayerHost({ lab }: { lab: Lab }): React.ReactElement {
     [history],
   );
 
+  const setLayout = useCallback(
+    (next: LabLayout) => {
+      const params = new URLSearchParams(window.location.search);
+      if (next === "rail") params.delete(LAYOUT_PARAM);
+      else params.set(LAYOUT_PARAM, next);
+      const query = params.toString();
+      history.replace({ pathname: window.location.pathname, search: query ? `?${query}` : "" });
+    },
+    [history],
+  );
+
   const shared = {
     lab: labForPlayer,
     series,
@@ -117,10 +181,12 @@ function PlayerHost({ lab }: { lab: Lab }): React.ReactElement {
       : undefined,
   };
 
-  return isExplorerLab(lab) ? (
-    <LazyExplorerPlayer {...shared} renderStage={renderStage} />
-  ) : (
-    <LazyPlayer {...shared} />
+  if (isExplorerLab(lab)) return <LazyExplorerPlayer {...shared} renderStage={renderStage} />;
+  return (
+    <>
+      <LayoutSwitch layout={layout} onChange={setLayout} />
+      {layout === "tour" ? <LazyTourPlayer {...shared} /> : <LazyPlayer {...shared} />}
+    </>
   );
 }
 

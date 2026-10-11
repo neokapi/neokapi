@@ -377,3 +377,36 @@
 .kl-explorers li span {
   color: var(--muted-foreground, var(--ifm-color-emphasis-600));
 }
+
+/* ── Layout switch ───────────────────────────────────────────────────────── */
+/* Above a terminal lab while two layouts are compared. */
+
+.kl-layout {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.3rem;
+  margin: -0.5rem 0 0.75rem;
+  font-size: 0.8rem;
+  color: var(--muted-foreground, var(--ifm-color-emphasis-600));
+}
+
+.kl-layout__label {
+  margin-right: 0.2rem;
+}
+
+.kl-layout__opt {
+  padding: 0.15rem 0.6rem;
+  border: 1px solid var(--border, var(--ifm-color-emphasis-300));
+  border-radius: 999px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.kl-layout__opt--on {
+  background: var(--foreground, var(--ifm-font-color-base));
+  color: var(--background, var(--ifm-background-color));
+  border-color: transparent;
+}
