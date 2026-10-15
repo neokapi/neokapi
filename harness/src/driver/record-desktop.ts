@@ -838,7 +838,7 @@ async function projectsWalk(c: WalkCtx): Promise<void> {
   // Name it, create it, take the input/output template, and land on the
   // project home. Nothing is governed yet, which is what the next beats change.
   await beat("new-project", null, async () => {
-    await humanClick(page, page.locator('button:has-text("New Project")').first());
+    await humanClick(page, page.locator('button:has-text("New project")').first());
     await page.waitForTimeout(400);
     await humanType(page, page.locator('input[placeholder="My App"]'), "Acme Help Center");
     await page.waitForTimeout(600);
