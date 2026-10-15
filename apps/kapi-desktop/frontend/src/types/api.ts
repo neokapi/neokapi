@@ -650,6 +650,12 @@ export interface WorkspaceProject {
   /** Set while a checkout carries context files this project's store has never
    *  held: the files, and the command that reads them. */
   context_files?: ContextFilesNotice;
+  /** The project's context in numbers and its latest session. */
+  context?: ContextProjectStanding;
+  /** Where the project's context is kept and how far it reaches. */
+  sharing?: ProjectSharing;
+  /** The voice profile the recipe binds at the default point, as the recipe names it. */
+  voice?: string;
 }
 
 /** The workspace and the projects it holds: the app's first screen. */
@@ -724,6 +730,186 @@ export interface WorkspaceRemoval {
   store: string;
   /** The directories it has been seen at. Their files are untouched. */
   checkouts: string[];
+}
+
+// --- The home and the Context hub: standings, sharing, assistants ---
+
+/** One session's part in a project's context: an agent run, or a person's or a tool's work on one day. */
+export interface ContextActivity {
+  actor: { kind: string; name?: string; session?: string };
+  /** The session's latest operation in the project, RFC3339. */
+  at: string;
+  /** An agent session with an operation in the last two minutes. */
+  working: boolean;
+  /** The session's observations. */
+  recorded: number;
+  /** The session's corrections. */
+  corrected: number;
+  /** Digest theme ("names", "words", "writing", "memory") to what the session recorded that the person has not seen. */
+  new_by_theme?: Record<string, number>;
+}
+
+/** One project's context in numbers, for the list of every project. */
+export interface ContextProjectStanding {
+  project: string;
+  project_name?: string;
+  /** Rules in force. */
+  rules: number;
+  /** Suggestions advising. */
+  suggested: number;
+  /** Disagreements that need a person. */
+  conflicts: number;
+  /** Items recorded since the person last looked. */
+  new: number;
+  /** The person's marker, absent when they never looked. */
+  since?: string;
+  /** The most recent session that recorded or corrected something. */
+  latest?: ContextActivity;
+}
+
+/** How far apart this machine and a shared backend were at the last contact. */
+export interface ContextSyncStatus {
+  remote: { Kind: string; Location: string };
+  /** Operations the backend is not known to hold. */
+  to_push: number;
+  /** The context operations among them, the ones the history lists. */
+  to_push_logged: number;
+  /** Operations read from the backend and not yet merged. */
+  to_pull: number;
+  /** When the backend was last reached, absent when never. */
+  contacted?: string;
+  /** What the last attempt to reach it reported. */
+  error?: string;
+}
+
+/** Where a project's context is kept and how far it reaches. */
+export interface ProjectSharing {
+  /** "local", "file", "git" or "s3". */
+  kind: string;
+  /** Where a shared backend keeps the context. */
+  location?: string;
+  /** "recipe" when kapi.yaml names the backend, "default" when it names none. */
+  from: string;
+  /** Absent for a local backend. */
+  status?: ContextSyncStatus;
+  /** The host of the Bowrain server the recipe connects to. */
+  venue_host?: string;
+  venue_url?: string;
+  /** The workspace directory on this machine. */
+  workspace: string;
+}
+
+/** The `context:` block of a recipe: where the project's context is shared. */
+export interface ContextBackendSpec {
+  /** "local" (or absent), "file", "git" or "s3". */
+  backend?: string;
+  /** git: the ref the context is kept on. Default refs/kapi/context. */
+  ref?: string;
+  /** git: the remote. Default origin. */
+  remote?: string;
+  /** file: the directory, relative to the recipe or absolute. */
+  path?: string;
+  bucket?: string;
+  prefix?: string;
+  region?: string;
+  endpoint?: string;
+}
+
+/** What a pull merged. */
+export interface ContextPull extends ContextSyncStatus {
+  segments: number;
+  merged: number;
+  rebuilt?: boolean;
+  checkpoint?: string;
+  empty?: boolean;
+  seconds: number;
+}
+
+/** What a push wrote. */
+export interface ContextPush extends ContextSyncStatus {
+  pushed: number;
+  pushed_logged: number;
+  segments: number;
+  blobs: number;
+  checkpoint?: string;
+  seconds: number;
+}
+
+/** What one rules-file write did to each file. */
+export interface RulesFilesResult {
+  files: Array<{
+    path: string;
+    /** "created", "updated", "unchanged", "removed" or "deleted". */
+    action: string;
+  }>;
+}
+
+/** What one sync did: the pull, the push, and the rules files written after. */
+export interface ContextSyncResult {
+  pull?: ContextPull;
+  settle?: { range?: string; commit?: string; signals: unknown[]; established: string[] };
+  push?: ContextPush;
+  rules_files?: RulesFilesResult;
+  /** Why the rules files could not be written. The sync itself succeeded. */
+  rules_files_error?: string;
+}
+
+/** One rule a person applied to every project in the workspace. */
+export interface WorkspaceRule {
+  id: string;
+  short: string;
+  sentence: string;
+  subject: DigestSubject;
+  /** The project it was decided in. */
+  project_key: string;
+  project_name?: string;
+  /** When it came into force. */
+  at: string;
+  /** On what: "kept by you", "merged in #412". */
+  how?: string[];
+}
+
+/** One assistant a project can be connected to. */
+export interface AgentHostStatus {
+  /** "claude-code", "cursor", "vscode", "codex" or "claude-desktop". */
+  host: string;
+  label: string;
+  /** In use here, or for Claude Desktop, its configuration folder exists. */
+  detected: boolean;
+  /** Its configuration starts kapi's server for this project. */
+  wired: boolean;
+  /** Relative to the project; Claude Desktop's own file by absolute path. */
+  files?: string[];
+}
+
+/** One file a connection wrote. */
+export interface AgentWiringFile {
+  /** "mcp" or "skill". */
+  kind: string;
+  host: string;
+  path: string;
+  /** "created", "updated", "unchanged" or "kept". */
+  action: string;
+  detail?: string;
+  removed?: string[];
+  kept?: string[];
+}
+
+/** What connecting an assistant wrote. */
+export interface AgentWiringResult {
+  hosts?: string[];
+  files?: AgentWiringFile[];
+}
+
+/** One rules file kapi writes for a project. */
+export interface RulesFileView {
+  /** Relative to the project root. */
+  path: string;
+  /** The folder whose rules it states, empty for the root. */
+  folder: string;
+  /** kapi's section as it would be written now. */
+  section: string;
+  exists: boolean;
 }
 
 // --- Context operations: the feed, and the decisions made on it ---
