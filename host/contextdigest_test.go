@@ -242,3 +242,136 @@ func TestDigestUsageLine(t *testing.T) {
 	assert.Equal(t, `docs/ says "studio" 41 times and "business" twice`, u.Line)
 	assert.Equal(t, `The project says "Quickcast" once`, digestUsage("Quickcast", []string{"Quick cast"}, 1, 0, "").Line)
 }
+
+// TestContextStandings_EveryProjectWithItsLatestSession: one project holds an
+// agent's suggestions and a person's keep, the other nothing. Both are listed,
+// the first with its numbers and the agent's session as the latest, which the
+// keep does not displace.
+func TestContextStandings_EveryProjectWithItsLatestSession(t *testing.T) {
+	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
+	app, _ := contextOpsApp(t)
+	busy := contextOpsProject(t, "ctxops-standing-busy")
+	quiet := contextOpsProject(t, "ctxops-standing-quiet")
+	ctx := t.Context()
+
+	kept := proposeUtilise(t, app, busy, agentIn("s1"))
+	_, err := app.RecordContextObservation(ctx, ContextObserveRequest{
+		Actor: agentIn("s2"), Project: recipeOf(busy),
+		Term: "Quickcast", InsteadOf: []string{"Quick cast"},
+		Evidence: []contextop.Evidence{{Path: "config/app.yaml", Quote: "Try Quick cast today"}},
+	})
+	require.NoError(t, err)
+	_, err = app.KeepContextOperations(ctx, ContextKeepRequest{Actor: contextop.Actor{Kind: contextop.ActorPerson}, Project: recipeOf(busy), IDs: []string{kept.ID}})
+	require.NoError(t, err)
+	ws, err := app.Workspace(ctx)
+	require.NoError(t, err)
+	_, err = ws.Register(ctx, workspace.ProjectKey(projectIDFor("ctxops-standing-quiet")), "ctxops-standing-quiet", quiet)
+	require.NoError(t, err)
+
+	standings, err := app.ContextStandings(ctx)
+	require.NoError(t, err)
+	byName := map[string]ContextProjectStanding{}
+	for _, s := range standings {
+		byName[s.ProjectName] = s
+	}
+	require.Contains(t, byName, "ctxops-standing-busy")
+	require.Contains(t, byName, "ctxops-standing-quiet", "a project with nothing recorded is listed too")
+
+	b := byName["ctxops-standing-busy"]
+	assert.Equal(t, 1, b.Rules)
+	assert.Equal(t, 1, b.Suggested)
+	assert.Equal(t, 0, b.Conflicts)
+	assert.Equal(t, 2, b.New, "nobody has looked, so the rule and the suggestion are new")
+	require.NotNil(t, b.Latest)
+	assert.Equal(t, "s2", b.Latest.Actor.Session, "the person's keep leaves the agent's session as the latest")
+	assert.True(t, b.Latest.Working, "the session recorded a moment ago")
+	assert.Equal(t, 1, b.Latest.Recorded)
+	assert.Equal(t, map[string]int{DigestThemeNames: 1}, b.Latest.NewByTheme)
+
+	q := byName["ctxops-standing-quiet"]
+	assert.Zero(t, q.Rules)
+	assert.Zero(t, q.New)
+	assert.Nil(t, q.Latest)
+}
+
+// TestLatestActivity covers what the host API stamps with the wall clock: a
+// session gone quiet, a marker that hides earlier items, a dropped suggestion,
+// and a person's work grouped by day.
+func TestLatestActivity(t *testing.T) {
+	now := time.Date(2026, 10, 16, 12, 0, 0, 0, time.UTC)
+	ago := func(m int) time.Time { return now.Add(-time.Duration(m) * time.Minute) }
+	key := workspace.ProjectKey("prj_standing")
+	other := workspace.ProjectKey("prj_other")
+	codex := contextop.Actor{Kind: contextop.ActorAgent, Name: "codex", Session: "c1"}
+	claude := contextop.Actor{Kind: contextop.ActorAgent, Name: "claude-code", Session: "k1"}
+	person := contextop.Actor{Kind: contextop.ActorPerson}
+	name := contextop.Subject{Kind: contextop.SubjectTerm, Term: &profile.TermRule{Term: "Kapi Mart", Replacement: "KapiMart"}}
+	word := contextop.Subject{Kind: contextop.SubjectTerm, Term: &profile.TermRule{Term: "basket", Replacement: "cart"}}
+	note := contextop.Subject{Kind: contextop.SubjectNote, Text: "The store copy addresses the shopper as you."}
+	observe := func(id string, actor contextop.Actor, at time.Time, s contextop.Subject, status contextop.Status) contextop.Record {
+		return contextop.Record{ID: id, Project: key, Kind: contextop.KindObserve, Actor: actor, At: at, Subject: s, Status: status}
+	}
+
+	tests := []struct {
+		name    string
+		records []contextop.Record // newest first
+		since   time.Time
+		want    *ContextActivity
+	}{
+		{
+			name: "nothing recorded",
+			records: []contextop.Record{
+				{ID: "01", Project: other, Kind: contextop.KindObserve, Actor: codex, At: ago(1), Subject: name, Status: contextop.StatusSuggested},
+			},
+		},
+		{
+			name: "a session still recording is working",
+			records: []contextop.Record{
+				observe("03", codex, ago(1), name, contextop.StatusSuggested),
+				observe("02", claude, ago(30), word, contextop.StatusSuggested),
+			},
+			want: &ContextActivity{Actor: codex, At: ago(1), Working: true, Recorded: 1, NewByTheme: map[string]int{DigestThemeNames: 1}},
+		},
+		{
+			name: "a session silent for two minutes is not",
+			records: []contextop.Record{
+				observe("02", codex, ago(2), name, contextop.StatusSuggested),
+				observe("01", codex, ago(5), word, contextop.StatusSuggested),
+			},
+			want: &ContextActivity{Actor: codex, At: ago(2), Recorded: 2, NewByTheme: map[string]int{DigestThemeNames: 1, DigestThemeWords: 1}},
+		},
+		{
+			name: "a keep after the session does not displace it",
+			records: []contextop.Record{
+				{ID: "04", Project: key, Kind: contextop.KindKeep, Target: "02", Actor: person, At: ago(1)},
+				{ID: "03", Project: key, Kind: contextop.KindCorrect, Actor: claude, At: ago(20), Subject: word, Status: contextop.StatusSuggested,
+					Correction: &contextop.Correction{From: "basket", To: "cart"}},
+				observe("02", claude, ago(25), name, contextop.StatusEstablished),
+			},
+			want: &ContextActivity{Actor: claude, At: ago(20), Recorded: 1, Corrected: 1, NewByTheme: map[string]int{DigestThemeNames: 1, DigestThemeWords: 1}},
+		},
+		{
+			name: "the marker and a drop leave items out of what is new",
+			records: []contextop.Record{
+				observe("03", claude, ago(10), note, contextop.StatusSuggested),
+				observe("02", claude, ago(20), word, contextop.StatusDropped),
+				observe("01", claude, ago(40), name, contextop.StatusSuggested),
+			},
+			since: ago(30),
+			want:  &ContextActivity{Actor: claude, At: ago(10), Recorded: 3, NewByTheme: map[string]int{DigestThemeWriting: 1}},
+		},
+		{
+			name: "a person's work groups by day and is never working",
+			records: []contextop.Record{
+				observe("02", person, ago(1), name, contextop.StatusSuggested),
+				observe("01", person, now.Add(-36*time.Hour), word, contextop.StatusSuggested),
+			},
+			want: &ContextActivity{Actor: person, At: ago(1), Recorded: 1, NewByTheme: map[string]int{DigestThemeNames: 1}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, latestActivity(tt.records, key, tt.since, now))
+		})
+	}
+}
