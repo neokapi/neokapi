@@ -187,13 +187,17 @@ sets, and the queue drains as before when nobody else touched those blocks.
 
 ### 2. Placeholders on the page
 
-Both are first publishes, and both count among the ten that were never
-published.
+All three are first publishes. Rows 16 and 17 count among the ten that were
+never published. Row 26 has no take and no script in the tree yet:
+`harness/demos/kapi-desktop-context/demo.yaml` is written once the desktop's
+context home and hub land, and it is numbered after the others so no row
+reference changes.
 
 | # | Demo | Publishes as | Placeholder on | Infrastructure | What changed |
 | --- | --- | --- | --- | --- | --- |
 | 16 | `kapi-desktop-review` | `kapi-desktop-review` | `kapi/recipes/review-and-approve.mdx`, `kapi/recipes/translate-content.mdx` | desktop recorder | one human rung: Approve, with no sign-off control; the translation sits in the inline-code editor (codes as chips) rather than a text box, and Approve waits until the unit is read through the change service; a **Changes** card follows Provenance; every walk selector still renders |
 | 17 | `bowrain-desktop-automations` | `bowrain-desktop-automations` | Bowrain `walkthroughs/bowrain-automation.mdx` | stack + seed (#2597 gives the seed a source ready to run) | narration only: two sentences cut; the run row and the delivery panel's review link still render |
+| 26 | `kapi-desktop-context` | `kapi-desktop-context` | `kapi/desktop/tour.mdx` | desktop recorder (wbridge, no server); the `live` beat runs `kapi context note` as `claude-code` against the sample under the isolation environment, off camera | new: "What your assistant noticed, and what you decide." The home's What's new row for KapiMart; the project's What's new with Needs you first and the suggestions grouped by theme; `a` keeps a name ("kept by you"); `c` changes a word and "Keep with this form"; Choose this side; Assistant's brief for a file listing the kept rule, with the rules file section below; a note recorded off camera appearing on the home within a second; Share with On this Mac marked, Shared with your team not yet, Managed on Bowrain not connected |
 
 `kapi-desktop-projects` (row 5) also fills the video placeholders on
 `kapi/get-started/add-languages.mdx` and `kapi/get-started/first-project.mdx`.
@@ -306,7 +310,7 @@ Per video:
    `Content-Length` on the CDN with the local file.
 2. Remove the `outdated` and `outdatedNote` props from every `<ThemedVideo>`
    whose video was re-recorded (rows 1 to 15), and replace the `<PendingMedia>`
-   placeholders filled by rows 5, 16 and 17.
+   placeholders filled by rows 5, 16, 17 and 26.
 3. Dispatch the docs builds for `/next/` and production as in
    [regenerating docs assets](regenerating-docs-assets.md).
 
