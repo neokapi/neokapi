@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projector"
@@ -115,6 +116,51 @@ type WorkspaceHome struct {
 	ReadOnly bool `json:"read_only"`
 	// Projects are the registered projects, most recently active first.
 	Projects []WorkspaceProject `json:"projects"`
+}
+
+// WorkspaceRule is one rule a person applied more widely, to every project in
+// the workspace: the home lists it under the rules that hold everywhere.
+type WorkspaceRule struct {
+	// ID names the operation whose rule it is, and Short the form a person
+	// types.
+	ID    string `json:"id"`
+	Short string `json:"short"`
+	// Sentence is the rule as a sentence, and Subject the rule itself.
+	Sentence string            `json:"sentence"`
+	Subject  contextop.Subject `json:"subject"`
+	// ProjectKey is the project the rule was decided in, and ProjectName what
+	// a person calls it.
+	ProjectKey  string `json:"project_key"`
+	ProjectName string `json:"project_name,omitempty"`
+	// At is when the rule came into force, and How on what: "kept by you",
+	// "merged in #412".
+	At  time.Time `json:"at"`
+	How []string  `json:"how,omitempty"`
+}
+
+// WorkspaceRules lists the rules in force in every project of the workspace,
+// oldest first.
+func (a *App) WorkspaceRules() ([]WorkspaceRule, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), workspaceHomeTimeout)
+	defer cancel()
+	held, err := a.hostEngine().ContextWorkspaceRules(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]WorkspaceRule, 0, len(held))
+	for _, r := range held {
+		out = append(out, WorkspaceRule{
+			ID:          r.ID,
+			Short:       r.Short,
+			Sentence:    r.Sentence,
+			Subject:     r.Subject,
+			ProjectKey:  r.Project,
+			ProjectName: r.ProjectName,
+			At:          r.At,
+			How:         r.How,
+		})
+	}
+	return out, nil
 }
 
 // WorkspaceRemoval is what removing a project from the workspace will delete.

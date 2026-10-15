@@ -487,6 +487,86 @@ func latestActivity(records []contextop.Record, key workspace.ProjectKey, since,
 	return out
 }
 
+// ContextWorkspaceRule is one rule a person applied to the whole workspace:
+// it holds in every project, beside each project's own rules.
+type ContextWorkspaceRule struct {
+	// ID names the operation whose rule it is, and Short the form a person
+	// types.
+	ID    string `json:"id"`
+	Short string `json:"short"`
+	// Sentence is the rule as a sentence, and Subject the rule itself.
+	Sentence string            `json:"sentence"`
+	Subject  contextop.Subject `json:"subject"`
+	// Project is the project the rule was decided in, and ProjectName what a
+	// person calls it.
+	Project     string `json:"project"`
+	ProjectName string `json:"project_name,omitempty"`
+	// At is when the rule came into force, and How on what: "kept by you",
+	// "merged in #412".
+	At  time.Time `json:"at"`
+	How []string  `json:"how,omitempty"`
+}
+
+// ContextWorkspaceRules lists the rules in force across the workspace, the
+// ones every check resolves beside a project's own (contextop.WidenedRules),
+// oldest first, each with how it came into force.
+func (a *App) ContextWorkspaceRules(ctx context.Context) ([]ContextWorkspaceRule, error) {
+	ws, err := a.Workspace(ctx)
+	if err != nil {
+		return nil, err
+	}
+	widened, err := contextop.WidenedRules(ctx, ws)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]ContextWorkspaceRule, 0, len(widened))
+	if len(widened) == 0 {
+		return out, nil
+	}
+	records, err := contextop.NewLedger(ws, contextop.PersonDecides).Records(ctx, contextop.Filter{})
+	if err != nil {
+		return nil, err
+	}
+	if reader, rerr := a.commandActor(); rerr == nil {
+		records = seenBy(records, reader.Actor)
+	}
+	names := map[workspace.ProjectKey]string{}
+	if regs, rerr := ws.Projects(ctx); rerr == nil {
+		for _, reg := range regs {
+			names[reg.Key] = workspaceRegistrationName(reg)
+		}
+	}
+	return workspaceRules(widened, records, names), nil
+}
+
+// workspaceRules renders the widened rules, reading how each came into force
+// from the folded log. A rule whose operation the log no longer holds keeps
+// the moment it was widened and says nothing of how.
+func workspaceRules(widened []contextop.WidenedRule, records []contextop.Record, names map[workspace.ProjectKey]string) []ContextWorkspaceRule {
+	byID := make(map[string]contextop.Record, len(records))
+	for _, r := range records {
+		byID[r.ID] = r
+	}
+	acts := digestActs(records, byID)
+	out := make([]ContextWorkspaceRule, 0, len(widened))
+	for _, w := range widened {
+		rule := ContextWorkspaceRule{
+			ID:          w.Operation,
+			Short:       contextop.ShortID(w.Operation),
+			Sentence:    ruleSentence(w.Subject),
+			Subject:     w.Subject,
+			Project:     string(w.Project),
+			ProjectName: names[w.Project],
+			At:          w.At,
+		}
+		if r, ok := byID[w.Operation]; ok && r.Project == w.Project {
+			rule.At, rule.How = establishment(r, acts[r.ID], byID)
+		}
+		out = append(out, rule)
+	}
+	return out
+}
+
 // contextActivityGroup is the session an operation belongs to.
 func contextActivityGroup(r contextop.Record) string {
 	if r.Actor.Session != "" {

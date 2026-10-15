@@ -375,3 +375,42 @@ func TestLatestActivity(t *testing.T) {
 		})
 	}
 }
+
+// TestContextWorkspaceRules_WidenedAsKept: a rule kept and widened to the
+// workspace is listed with the project it was decided in and how, and a rule
+// kept in the project alone is not.
+func TestContextWorkspaceRules_WidenedAsKept(t *testing.T) {
+	app, _ := contextOpsApp(t)
+	root := contextOpsProject(t, "ctxops-widened")
+	ctx := t.Context()
+
+	none, err := app.ContextWorkspaceRules(ctx)
+	require.NoError(t, err)
+	assert.Empty(t, none)
+
+	widened := proposeUtilise(t, app, root, agentIn("s1"))
+	_, err = app.KeepContextOperations(ctx, ContextKeepRequest{
+		Actor: contextop.Actor{Kind: contextop.ActorPerson}, Project: recipeOf(root),
+		IDs: []string{widened.ID}, WidenTo: WidenToWorkspace,
+	})
+	require.NoError(t, err)
+	local, err := app.RecordContextObservation(ctx, ContextObserveRequest{
+		Actor: agentIn("s2"), Project: recipeOf(root),
+		Term: "farewell", InsteadOf: []string{"Goodbye"},
+		Evidence: []contextop.Evidence{{Path: "config/app.yaml", Unit: "farewell", Quote: "Goodbye"}},
+	})
+	require.NoError(t, err)
+	_, err = app.KeepContextOperations(ctx, ContextKeepRequest{Actor: contextop.Actor{Kind: contextop.ActorPerson}, Project: recipeOf(root), IDs: []string{local.ID}})
+	require.NoError(t, err)
+
+	rules, err := app.ContextWorkspaceRules(ctx)
+	require.NoError(t, err)
+	require.Len(t, rules, 1)
+	r := rules[0]
+	assert.Equal(t, widened.ID, r.ID)
+	assert.Equal(t, contextop.ShortID(widened.ID), r.Short)
+	assert.Equal(t, "Write use, not utilise.", r.Sentence)
+	assert.Equal(t, "ctxops-widened", r.ProjectName)
+	assert.Equal(t, []string{"kept by you"}, r.How)
+	assert.False(t, r.At.IsZero())
+}
