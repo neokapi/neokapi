@@ -767,9 +767,16 @@ export interface ContextProjectStanding {
   latest?: ContextActivity;
 }
 
+/** A remote a project's context syncs with. The Go struct carries no JSON tags. */
+export interface RemoteDescriptor {
+  /** "file", "git", "s3" or "transfer". */
+  Kind: string;
+  Location: string;
+}
+
 /** How far apart this machine and a shared backend were at the last contact. */
-export interface ContextSyncStatus {
-  remote: { Kind: string; Location: string };
+export interface SyncStatus {
+  remote: RemoteDescriptor;
   /** Operations the backend is not known to hold. */
   to_push: number;
   /** The context operations among them, the ones the history lists. */
@@ -791,7 +798,7 @@ export interface ProjectSharing {
   /** "recipe" when kapi.yaml names the backend, "default" when it names none. */
   from: string;
   /** Absent for a local backend. */
-  status?: ContextSyncStatus;
+  status?: SyncStatus;
   /** The host of the Bowrain server the recipe connects to. */
   venue_host?: string;
   venue_url?: string;
@@ -800,7 +807,7 @@ export interface ProjectSharing {
 }
 
 /** The `context:` block of a recipe: where the project's context is shared. */
-export interface ContextBackendSpec {
+export interface ContextBackend {
   /** "local" (or absent), "file", "git" or "s3". */
   backend?: string;
   /** git: the ref the context is kept on. Default refs/kapi/context. */
@@ -816,7 +823,7 @@ export interface ContextBackendSpec {
 }
 
 /** What a pull merged. */
-export interface ContextPull extends ContextSyncStatus {
+export interface ContextPull extends SyncStatus {
   segments: number;
   merged: number;
   rebuilt?: boolean;
@@ -826,7 +833,7 @@ export interface ContextPull extends ContextSyncStatus {
 }
 
 /** What a push wrote. */
-export interface ContextPush extends ContextSyncStatus {
+export interface ContextPush extends SyncStatus {
   pushed: number;
   pushed_logged: number;
   segments: number;
@@ -835,19 +842,31 @@ export interface ContextPush extends ContextSyncStatus {
   seconds: number;
 }
 
+/** One file a rules-file write wrote or considered. */
+export interface RulesFile {
+  /** Project-relative, slash-separated. */
+  path: string;
+  /** "created", "updated", "unchanged", "removed" or "deleted". */
+  action: string;
+}
+
 /** What one rules-file write did to each file. */
 export interface RulesFilesResult {
-  files: Array<{
-    path: string;
-    /** "created", "updated", "unchanged", "removed" or "deleted". */
-    action: string;
-  }>;
+  files: RulesFile[];
+}
+
+/** What settling a merge did. A sync from the desktop names no merge, so it carries none. */
+export interface ContextSettleResult {
+  range?: string;
+  commit?: string;
+  signals: unknown[];
+  established: string[];
 }
 
 /** What one sync did: the pull, the push, and the rules files written after. */
 export interface ContextSyncResult {
   pull?: ContextPull;
-  settle?: { range?: string; commit?: string; signals: unknown[]; established: string[] };
+  settle?: ContextSettleResult;
   push?: ContextPush;
   rules_files?: RulesFilesResult;
   /** Why the rules files could not be written. The sync itself succeeded. */
@@ -878,7 +897,7 @@ export interface AgentHostStatus {
   detected: boolean;
   /** Its configuration starts kapi's server for this project. */
   wired: boolean;
-  /** Relative to the project; Claude Desktop's own file by absolute path. */
+  /** Relative to the project, for a connected project host. For Claude Desktop, its own file by absolute path, connected or not. */
   files?: string[];
 }
 

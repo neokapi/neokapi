@@ -803,9 +803,10 @@ export class AgentHostStatus {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Files are the files that carry the connection: relative to the project
-             * for a project host, the absolute path of Claude Desktop's own
-             * configuration for it.
+             * Files are the files that carry the connection, relative to the
+             * project, for a project host that is connected. For Claude Desktop it is
+             * the absolute path of the person's own configuration file whether or not
+             * it is connected yet, so a confirmation can name the file Connect writes.
              * @member
              * @type {string[] | undefined}
              */
