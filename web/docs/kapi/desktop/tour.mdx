@@ -2,24 +2,116 @@
 sidebar_position: 2
 title: A guided tour
 sidebar_label: A guided tour
-description: "A walk through Kapi Desktop's surfaces: where a project stands, the context that governs it, its collections and formats, checks, and the multilingual half."
-keywords: [Kapi, desktop app, tour, context, voice profile, terms, content memory, collections, checks, review]
+description: "A walk through Kapi Desktop's surfaces: what your assistants noticed and what you decide, what an assistant reads, where the context is shared, and then the project's files, checks, flows and the multilingual half."
+keywords: [Kapi, desktop app, tour, context, what's new, assistant, share, voice profile, terms, content memory, collections, checks, review]
 ---
 
-import { ThemedVideo } from "@neokapi/docs-shared";
+import { PendingMedia, ThemedVideo } from "@neokapi/docs-shared";
 
 # A guided tour
 
-kapi holds the context for one project, and Kapi Desktop is where a person reads
-and edits it. This tour walks each surface in the order the app presents them.
-For what the app is and how to install it, see the
-[overview](/kapi/desktop/overview).
+Kapi Desktop is where you read what your projects write by and decide about
+what your assistants noticed. This tour walks each surface in the order the
+app presents them, the context first and the files after. For what the app is
+and how to install it, see the [overview](/kapi/desktop/overview).
+
+## What's new
+
+The app opens on **Your context**: one sentence counting the rules kapi holds
+and the suggestions advising, then **What's new**, with a row for each project
+where an assistant noticed something since you last looked. **Review** on a
+row opens the project on its own What's new.
+
+There, what needs you comes first: two suggestions that disagree about one
+word. The rest follow grouped by theme, each with the sentence it was seen in
+and the assistant that noticed it. **Keep** (`a`), **Change** (`c`) and
+**Drop** (`d`) decide about one; **Choose this side** settles a disagreement;
+**Apply more widely** puts a rule in force across the project or the
+workspace.
+
+<PendingMedia
+  kind="video"
+  scene="harness/demos/kapi-desktop-context/demo.yaml"
+  title="What your assistant noticed, and what you decide"
+>
+  The home with the KapiMart sample listed, and What's new reading "6 new.
+  claude-code noticed 3 names and 1 word; codex 1 needs you." Review opens the
+  project on What's new: what needs you first, then the suggestions grouped by
+  theme, each with the sentence it was seen in. `a` on a name moves it to the
+  established rules, marked "kept by you". `c` on a word takes a typed form and
+  keeps it with that form. Choose this side settles the disagreement. Assistant
+  shows the kept rule in the brief for a file, with the rules file section
+  below it. Back on the home, an assistant records a note from a terminal off
+  camera, and its row appears within a second. Share shows On this Mac marked,
+  Shared with your team not yet set up, and the managed rung not connected.
+</PendingMedia>
+
+[Review what your assistant
+noticed](/kapi/desktop/recipes/review-what-your-assistant-noticed) is the same
+walk, step by step, on the sample.
+
+## Ask
+
+**Ask** asks by file or by word. Give it a file and it shows what applies
+there. Search a word and it returns the terms that cover it, the prior wording
+that used it, and where.
+
+## What your assistant reads
+
+**Assistant** shows what an assistant working in the project is told.
+**Connected assistants** has a row for Claude Code, Cursor, VS Code, Codex and
+Claude Desktop, each connected or with **Connect**, which writes the files
+`kapi init` writes. **Rules files** shows the section kapi writes into
+`AGENTS.md` and `CLAUDE.md`, which an assistant reads as it starts. **The
+brief for a file** is the full answer an assistant gets for one file, the same
+text `kapi context <path>` prints. See [Connect an
+assistant](/kapi/desktop/recipes/connect-an-assistant).
+
+## Voice, terms and content memory
+
+**Voice** shows the voice profile that applies, as it applies: tone, style
+rules, pattern rules, examples, and the language, channel and persona
+adjustments. When dated guidance has lapsed, the page says which and why.
+Editing writes the YAML in your working tree, the same file a reviewer reads in
+a pull request.
+
+**Terms** is the concept store: the words the project decided on, their status,
+their definitions, and their translations.
+
+**Content Memory** is the record of prior wording, searchable, with provenance
+intact so you can see where a phrasing came from before you reuse it.
+
+## History
+
+**History** lists what was recorded in the project, session by session, and
+who decided what. **Reset to before this session** on a session goes back to
+how the context stood before it started. Nothing is erased, and the reset can
+itself be taken back.
+
+## Share
+
+**Share** shows how far the project's context reaches, as three rungs. **On
+this Mac** is where every project starts: every clone and worktree on this
+machine reads the same context. **Shared with your team** is a git ref, a
+folder or an S3 bucket that every machine syncs with **Sync now**. See [Share
+context with your team](/kapi/desktop/recipes/share-context-with-your-team).
+
+:::note[Works with Bowrain]
+The third rung is **Managed on Bowrain**: "Bowrain holds every project's
+context in one workspace, with roles, review and a record of who decided what,
+and runs the project's loop on the server." A project whose recipe declares a
+`bowrain:` block reaches a Bowrain server, and the rung reads, for example,
+"Connected to app.bowrain.cloud (acme/help)." The **kapi-bowrain** plugin
+(`brew install neokapi/tap/bowrain-cli`) carries the transport. **About
+Bowrain** on the rung opens [How Bowrain and kapi fit
+together](https://bowrain.cloud/docs/getting-started/kapi-vs-bowrain), which
+says what each rung adds.
+:::
 
 ## Where the project stands
 
-The desktop opens to your projects and reopens the ones you had last time. A
-project's home answers "where is this" on two axes before it offers to do
-anything.
+The **Project** section answers "where is this" on two axes before it offers
+to do anything.
 
 **Content** is what has been read into the project, what has changed on disk
 since, and what is missing. **Governance** is the voice profile in force, the
@@ -43,30 +135,6 @@ runs.
   outdated="interface"
   outdatedNote="The clip shows an earlier layout of the project home. The app now opens on the two-axis standing and where content sits, above the convergence hero."
 />
-
-## The context that governs it
-
-The **Context** hub is the part of the app this tour exists for.
-
-**Rules** holds the rules and suggestions kept for the project, newest since
-you last looked first: what agents suggested, with the evidence behind each, and **Keep**,
-**Drop**, **Choose this side** and **Apply more widely** to decide about it.
-
-**Explorer** asks by file or by word. Give it a file and it shows what applies
-there. Search a word and it returns the terms that cover it, the
-prior wording that used it, and where.
-
-**Voice** shows the voice profile that applies, as it applies: tone, style
-rules, pattern rules, examples, and the language, channel and persona
-adjustments. When dated guidance has lapsed, the page says which and why.
-Editing writes the YAML in your working tree, the same file a reviewer reads in
-a pull request.
-
-**Terms** is the concept store: the words the project decided on, their status,
-their definitions, and their translations.
-
-**Content Memory** is the record of prior wording, searchable, with provenance
-intact so you can see where a phrasing came from before you reuse it.
 
 ## Collections and formats
 
@@ -157,14 +225,6 @@ keyboard-first, with an optional AI pre-review to triage a long queue. See
 
 A project that declares no target languages is complete without this, and
 Review stays quiet.
-
-:::note[Works with Bowrain]
-A project whose recipe declares a `bowrain:` block reaches a Bowrain server for
-the shared work: one content memory and terminology across projects, team review,
-and convergence runs on the organization's keys. The **kapi-bowrain** plugin
-(`brew install neokapi/tap/bowrain-cli`) carries the transport. See the
-[Bowrain documentation](https://bowrain.cloud/docs/).
-:::
 
 ## Next
 
