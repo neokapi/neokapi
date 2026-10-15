@@ -82,7 +82,5 @@ export const CONNECT_CURSOR_RESULT: AgentWiringResult = {
 /** What connecting Claude Desktop wrote. */
 export const CONNECT_CLAUDE_DESKTOP_RESULT: AgentWiringResult = {
   hosts: ["claude-desktop"],
-  files: [
-    { kind: "mcp", host: "claude-desktop", path: CLAUDE_DESKTOP_CONFIG, action: "updated" },
-  ],
+  files: [{ kind: "mcp", host: "claude-desktop", path: CLAUDE_DESKTOP_CONFIG, action: "updated" }],
 };
