@@ -161,12 +161,12 @@ const NeokapiFeatures: ProductItem[] = [
     description: translate({
       id: "home.feat.context.description",
       message:
-        "Bind terms and writing guidance to your project's collections. Inspect which guidance applies before you edit a help article, an API reference or a legal notice.",
+        "Bind terms and writing guidance to your project's collections. Inspect which guidance applies before you edit a help article, an API reference or a legal notice. Kapi Desktop shows what your assistants noticed and where each project's context lives.",
     }),
-    link: "/kapi/overview",
+    link: "/kapi/desktop/overview",
     linkText: translate({
       id: "home.feat.context.linkText",
-      message: "How it works",
+      message: "Kapi Desktop",
     }),
   },
   {
