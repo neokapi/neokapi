@@ -1,20 +1,30 @@
-import { useState } from "react";
-import { FolderKanban, FolderOpen, Sparkles, Workflow, X } from "lucide-react";
-import { Button, ErrorNotice, SimpleTooltip } from "@neokapi/ui-primitives";
+import { useMemo, useState } from "react";
+import { FolderOpen, Plus, Workflow } from "lucide-react";
+import { t } from "@neokapi/i18n-react/runtime";
+import {
+  Button,
+  ErrorNotice,
+  PageHeader,
+  SectionHeading,
+  SimpleTooltip,
+} from "@neokapi/ui-primitives";
 import { useShortenHome } from "../hooks/useShortenHome";
+import { standingsOf } from "../hooks/useAppInit";
 import { ConnectAICard } from "./ConnectAICard";
-import { ContextFeedHint } from "./ContextFeed";
-import { ContextFeedPanel } from "./ContextFeedPanel";
 import { RemoveProjectDialog } from "./RemoveProjectDialog";
+import { StartHere } from "./StartHere";
+import { WhatsNew, WorkspaceNumbers } from "./WhatsNew";
 import { WorkspaceConflicts } from "./WorkspaceConflicts";
 import { WorkspaceProjectRow } from "./WorkspaceProjectRow";
+import { WorkspaceRules } from "./WorkspaceRules";
 import type {
   AIDetectionResult,
   ContextNews,
-  ContextFeed,
+  ContextProjectStanding,
   KeptConflict,
   WorkspaceHome,
   WorkspaceProject,
+  WorkspaceRule,
 } from "../types/api";
 
 interface AppHomeProps {
@@ -22,11 +32,21 @@ interface AppHomeProps {
   workspace: WorkspaceHome | null;
   /** Why the workspace could not be read, when it could not. */
   workspaceError?: unknown;
+  /** Every project's context in numbers. Absent reads them off the workspace's rows. */
+  standings?: ContextProjectStanding[] | null;
   /** What each project's digest holds that the person has not seen. */
   news?: ContextNews[] | null;
-  /** Pre-loaded feed for Storybook and tests, which reach no backend. */
-  feed?: ContextFeed;
-  samplesDismissed: boolean;
+  /** Pre-loaded workspace rules for Storybook and tests, which reach no backend. */
+  workspaceRules?: WorkspaceRule[];
+  /** The Start here steps were dismissed. */
+  startHereDismissed: boolean;
+  onDismissStartHere: () => void;
+  /** A project tab is open, so Start here can connect an assistant to it. */
+  hasOpenProject: boolean;
+  /** Open the most recent project tab on its Assistant section. */
+  onConnectAssistant: () => void;
+  /** Open a project on its What's new, by workspace key. */
+  onOpenWhatsNew: (key: string) => void;
   /** Open a project from one of its checkouts, by recipe path. */
   onOpenCheckout: (recipe: string) => void;
   /** Open a project with no checkout here, on its context alone. */
@@ -37,7 +57,6 @@ interface AppHomeProps {
   onOpenProject: () => void;
   onNavigate: (view: string) => void;
   onCreateSampleProject: (name: string) => void;
-  onDismissSamples: () => void;
   /** Pre-loaded AI detection for Storybook/tests — forwarded to ConnectAICard. */
   aiDetection?: AIDetectionResult;
   /** Pre-loaded .kpz document conflicts for Storybook and tests. */
@@ -45,18 +64,24 @@ interface AppHomeProps {
 }
 
 /**
- * The app's first screen: this machine account's workspace.
+ * The app's first screen: the context this machine account's projects write
+ * by, and what the assistants working in them noticed.
  *
- * Every project kapi has run in is here, whichever surface ran it. A repository
- * set up from a terminal appears without anyone opening it in the app, and a
- * project opened here with "Open a Project" joins the same list.
+ * Every project kapi has run in is listed, whichever surface ran it. A
+ * repository set up from a terminal appears without anyone opening it in the
+ * app, and a folder opened here joins the same list.
  */
 export function AppHome({
   workspace,
   workspaceError,
+  standings: given,
   news,
-  feed,
-  samplesDismissed,
+  workspaceRules,
+  startHereDismissed,
+  onDismissStartHere,
+  hasOpenProject,
+  onConnectAssistant,
+  onOpenWhatsNew,
   onOpenCheckout,
   onOpenContext,
   onForgetProject,
@@ -64,7 +89,6 @@ export function AppHome({
   onOpenProject,
   onNavigate,
   onCreateSampleProject,
-  onDismissSamples,
   aiDetection,
   documentConflicts,
 }: AppHomeProps) {
@@ -72,68 +96,69 @@ export function AppHome({
   const [removing, setRemoving] = useState<WorkspaceProject | null>(null);
   const projects = workspace?.projects ?? [];
   const newsByProject = new Map((news ?? []).map((row) => [row.project, row]));
+  const derived = useMemo(() => standingsOf(workspace), [workspace]);
+  const standings = given ?? derived;
+
   return (
-    <div className="mx-auto max-w-3xl p-6">
-      <div className="mb-8 flex items-center gap-4">
-        <img src="/neokapi-logo.png" alt="neokapi" className="h-12 w-12 drop-shadow-lg" />
-        <div>
-          <h1 className="text-xl font-semibold">Welcome to Kapi</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Your project&apos;s context, applied to real files, for people and agents.
-          </p>
-        </div>
+    <div data-slot="app-home" className="mx-auto max-w-3xl space-y-8 p-6">
+      <div>
+        <PageHeader
+          className="mb-3"
+          title="Your context"
+          subtitle="What your projects write by, and what your assistants noticed."
+          actions={
+            <>
+              <Button
+                variant="link"
+                size="sm"
+                data-slot="home-history"
+                className="h-auto px-0"
+                onClick={() => onNavigate("history")}
+              >
+                History
+              </Button>
+              {workspace?.location && (
+                <SimpleTooltip
+                  content={t("Where Kapi keeps the context of every project you work on")}
+                >
+                  <span
+                    className="max-w-64 truncate font-mono text-[11px] text-muted-foreground/70"
+                    translate="no"
+                  >
+                    {shortenHome(workspace.location)}
+                  </span>
+                </SimpleTooltip>
+              )}
+            </>
+          }
+        />
+        <WorkspaceNumbers standings={standings} />
       </div>
 
       {/* A .kpz document whose other version did not land, in a project or in
           none: decided here, so one outside every project has a place. */}
-      <div className="mb-8 empty:hidden">
+      <div className="empty:hidden">
         <WorkspaceConflicts conflicts={documentConflicts} />
       </div>
 
-      {/* Primary: start or open a project. This is the day-to-day model. */}
-      <section className="mb-8">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          Projects
-        </h2>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Button
-            variant="outline"
-            onClick={onNewProject}
-            className="h-auto whitespace-normal rounded-lg border-primary/30 bg-primary/5 p-5 text-left flex-col items-start hover:border-primary/50 hover:bg-primary/10"
-          >
-            <FolderKanban size={22} className="mb-2 text-primary" />
-            <div className="text-base font-semibold">New Project</div>
-            <div className="text-xs text-muted-foreground font-normal">
-              Create a Kapi project with content, flows, and languages
-            </div>
-          </Button>
-          <Button
-            variant="outline"
-            onClick={onOpenProject}
-            className="h-auto whitespace-normal rounded-lg border-primary/30 bg-primary/5 p-5 text-left flex-col items-start hover:border-primary/50 hover:bg-primary/10"
-          >
-            <FolderOpen size={22} className="mb-2 text-primary" />
-            <div className="text-base font-semibold">Open a Project</div>
-            <div className="text-xs text-muted-foreground font-normal">
-              Open an existing kapi project folder from disk
-            </div>
-          </Button>
-        </div>
-      </section>
+      <WhatsNew standings={standings} onOpen={onOpenWhatsNew} />
 
       {/* The workspace: every project kapi has run in, from any surface. */}
-      <section className="mb-8">
-        <div className="mb-3 flex items-baseline justify-between gap-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            Your Projects
-          </h2>
-          {workspace?.location && (
-            <SimpleTooltip content="Where Kapi keeps the context of every project you work on">
-              <span className="truncate font-mono text-[11px] text-muted-foreground/70">
-                {shortenHome(workspace.location)}
-              </span>
-            </SimpleTooltip>
-          )}
+      <section data-slot="home-projects" aria-labelledby="home-projects-heading">
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <div id="home-projects-heading">
+            <SectionHeading>Projects</SectionHeading>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={onNewProject}>
+              <Plus size={14} />
+              New project
+            </Button>
+            <Button variant="outline" size="sm" onClick={onOpenProject}>
+              <FolderOpen size={14} />
+              Open a folder
+            </Button>
+          </div>
         </div>
 
         {workspaceError ? (
@@ -154,30 +179,32 @@ export function AppHome({
         ) : (
           workspace && (
             <p className="text-sm text-muted-foreground">
-              Nothing here yet. Projects appear as soon as Kapi runs in them, whether you open one
-              here or run <code className="font-mono text-xs">kapi</code> in a folder.
+              Nothing here yet. Projects appear as soon as kapi runs in them, whether you open one
+              here or run{" "}
+              <code className="font-mono text-xs" translate="no">
+                kapi
+              </code>{" "}
+              in a folder.
             </p>
           )
         )}
         {workspace?.read_only && (
-          <p className="mt-2 text-xs text-muted-foreground">
+          <p className="mt-2 text-[11px] text-muted-foreground">
             This workspace is open for reading only, so nothing new registers here.
           </p>
         )}
       </section>
 
-      {/* What has been recorded about context, across every project. An agent
-          works in another process; this is where its proposals arrive and
-          where they are decided. */}
-      <section className="mb-8">
-        <div className="mb-3 flex items-baseline justify-between gap-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            Recorded
-          </h2>
-          <ContextFeedHint />
-        </div>
-        <ContextFeedPanel feed={feed} />
-      </section>
+      <WorkspaceRules rules={workspaceRules} />
+
+      {!startHereDismissed && (
+        <StartHere
+          onDismiss={onDismissStartHere}
+          onCreateSampleProject={onCreateSampleProject}
+          onConnectAssistant={onConnectAssistant}
+          hasOpenProject={hasOpenProject}
+        />
+      )}
 
       <RemoveProjectDialog
         project={removing}
@@ -187,43 +214,9 @@ export function AppHome({
 
       {/* First-run: connect an AI provider. The card renders only when no
           provider is configured anywhere, and disappears once one is. */}
-      <ConnectAICard detection={aiDetection} />
-
-      {/* Sample projects — shown until explicitly dismissed */}
-      {!samplesDismissed && (
-        <section className="mb-8">
-          <div className="mb-3 flex items-center gap-2 text-sm font-medium text-muted-foreground">
-            <Sparkles size={14} />
-            <span className="flex-1">New to Kapi? Try a sample project</span>
-            <SimpleTooltip content="Dismiss">
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={onDismissSamples}
-                className="text-muted-foreground/60"
-                aria-label="Dismiss"
-              >
-                <X size={14} />
-              </Button>
-            </SimpleTooltip>
-          </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Button
-              variant="outline"
-              data-testid="sample-kapimart"
-              onClick={() => onCreateSampleProject("kapimart")}
-              className="h-auto whitespace-normal rounded-lg border-primary/20 bg-primary/5 p-4 text-left flex-col items-start hover:border-primary/40 hover:bg-primary/10"
-            >
-              <div className="text-sm font-medium">KapiMart</div>
-              <p className="mt-1 text-xs text-muted-foreground font-normal">
-                A realistic multilingual project with docs, store UI, Office documents, and
-                templates: 4 content collections, 5 target languages, 1000+ memory entries. No
-                plugins needed.
-              </p>
-            </Button>
-          </div>
-        </section>
-      )}
+      <div className="empty:hidden">
+        <ConnectAICard detection={aiDetection} />
+      </div>
 
       {/* Secondary: ad-hoc quick tools — one-off, no project required. */}
       <section>

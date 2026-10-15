@@ -2,6 +2,7 @@
 // dismisses them. Settings brings them back.
 
 import { X } from "lucide-react";
+import { t } from "@neokapi/i18n-react/runtime";
 import { Button, SectionHeading, SimpleTooltip } from "@neokapi/ui-primitives";
 
 /** The desktop overview in the kapi docs; external links open in the browser. */
@@ -30,7 +31,7 @@ export function StartHere({
         <div id="start-here-heading">
           <SectionHeading>Start here</SectionHeading>
         </div>
-        <SimpleTooltip content="Dismiss">
+        <SimpleTooltip content={t("Dismiss")}>
           <Button
             variant="ghost"
             size="icon-xs"
@@ -75,7 +76,7 @@ export function StartHere({
               Connect an assistant
             </Button>
           ) : (
-            <SimpleTooltip content="Open a project first">
+            <SimpleTooltip content={t("Open a project first")}>
               {/* A disabled button takes no focus, so the wrapper carries it and the tooltip. */}
               <span className="inline-flex shrink-0" tabIndex={0}>
                 <Button size="sm" variant="outline" data-slot="start-here-connect" disabled>
