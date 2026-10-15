@@ -488,3 +488,43 @@ func TestNeutralise_NoEmDash(t *testing.T) {
 		neutraliseLine("Extraction — not segmentation — produces blocks"))
 	assert.NotContains(t, neutraliseBlock("a—b\nc — d"), "—")
 }
+
+// TestPlanRulesFiles_NamesWhatAWriteWrites: the plan names every file a write
+// then creates, with the section the write puts there, and writes nothing
+// itself. A CLAUDE.md that imports AGENTS.md is left out.
+func TestPlanRulesFiles_NamesWhatAWriteWrites(t *testing.T) {
+	app, root := spacesProject(t)
+
+	plan, err := app.PlanRulesFiles(t.Context(), recipeOf(root))
+	require.NoError(t, err)
+	require.NotEmpty(t, plan)
+	assert.Empty(t, rulesFilesIn(t, root), "planning writes nothing")
+	assert.Equal(t, "AGENTS.md", plan[0].Path, "the root comes first")
+	assert.Empty(t, plan[0].Folder)
+	for _, f := range plan {
+		assert.False(t, f.Exists, f.Path)
+	}
+
+	_, err = app.WriteRulesFiles(t.Context(), recipeOf(root))
+	require.NoError(t, err)
+	written := rulesFilesIn(t, root)
+	paths := make([]string, 0, len(plan))
+	for _, f := range plan {
+		paths = append(paths, f.Path)
+		assert.Contains(t, written[f.Path], strings.TrimSpace(f.Section), f.Path)
+	}
+	assert.Equal(t, sortedKeys(written), paths)
+
+	again, err := app.PlanRulesFiles(t.Context(), recipeOf(root))
+	require.NoError(t, err)
+	for _, f := range again {
+		assert.True(t, f.Exists, f.Path)
+	}
+
+	require.NoError(t, os.WriteFile(filepath.Join(root, "CLAUDE.md"), []byte("@AGENTS.md\n"), 0o644))
+	imported, err := app.PlanRulesFiles(t.Context(), recipeOf(root))
+	require.NoError(t, err)
+	for _, f := range imported {
+		assert.NotEqual(t, "CLAUDE.md", f.Path, "a CLAUDE.md importing AGENTS.md gets no section")
+	}
+}

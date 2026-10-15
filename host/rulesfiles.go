@@ -868,20 +868,8 @@ func dedupeStrings(in []string) []string {
 // the files in folders that no longer need one.
 func writeRulesPlan(root string, plan rulesPlan) (*RulesFilesResult, error) {
 	res := &RulesFilesResult{}
-	want := map[string]string{"": capLineLength(renderRootSection(plan))}
-	for _, f := range plan.folders {
-		if f.Dir == "" {
-			continue
-		}
-		want[f.Dir] = capLineLength(renderFolderSection(f, "AGENTS.md"))
-	}
-
-	dirs := make([]string, 0, len(want))
-	for dir := range want {
-		dirs = append(dirs, dir)
-	}
-	sort.Strings(dirs)
-	for _, dir := range dirs {
+	want := rulesPlanSections(plan)
+	for _, dir := range sortedRulesDirs(want) {
 		files, err := writeFolderRules(root, dir, want[dir])
 		if err != nil {
 			return res, err
@@ -904,6 +892,77 @@ func writeRulesPlan(root string, plan rulesPlan) (*RulesFilesResult, error) {
 	}
 	sort.SliceStable(res.Files, func(i, j int) bool { return res.Files[i].Path < res.Files[j].Path })
 	return res, nil
+}
+
+// rulesPlanSections is the section each folder's files carry, by folder
+// ("" for the root).
+func rulesPlanSections(plan rulesPlan) map[string]string {
+	want := map[string]string{"": capLineLength(renderRootSection(plan))}
+	for _, f := range plan.folders {
+		if f.Dir == "" {
+			continue
+		}
+		want[f.Dir] = capLineLength(renderFolderSection(f, "AGENTS.md"))
+	}
+	return want
+}
+
+// sortedRulesDirs is the folders of a plan's sections, the root first.
+func sortedRulesDirs(want map[string]string) []string {
+	dirs := make([]string, 0, len(want))
+	for dir := range want {
+		dirs = append(dirs, dir)
+	}
+	sort.Strings(dirs)
+	return dirs
+}
+
+// RulesFilePlan is one rules file kapi writes for a project, with the section
+// it puts there.
+type RulesFilePlan struct {
+	// Path is the file, project-relative and slash-separated.
+	Path string `json:"path"`
+	// Folder is the folder it states the rules of, empty for the root.
+	Folder string `json:"folder"`
+	// Section is kapi's section of the file as WriteRulesFiles would write it
+	// now.
+	Section string `json:"section"`
+	// Exists reports that the file is on disk.
+	Exists bool `json:"exists"`
+}
+
+// PlanRulesFiles reports the rules files WriteRulesFiles writes for a
+// project, the root's first, each with the section it would write now. It
+// writes nothing. A CLAUDE.md that reaches the section through AGENTS.md is
+// left out, since kapi writes no section into it.
+func (a *App) PlanRulesFiles(ctx context.Context, recipePath string) ([]RulesFilePlan, error) {
+	cmd, root, proj, err := a.rulesProject(ctx, recipePath)
+	if err != nil {
+		return nil, err
+	}
+	plan, err := a.planRulesFiles(cmd, root, proj)
+	if err != nil {
+		return nil, err
+	}
+	want := rulesPlanSections(plan)
+	var out []RulesFilePlan
+	for _, dir := range sortedRulesDirs(want) {
+		agents := filepath.Join(root, filepath.FromSlash(dir), "AGENTS.md")
+		claude := filepath.Join(root, filepath.FromSlash(dir), "CLAUDE.md")
+		for _, path := range []string{agents, claude} {
+			doc, rerr := os.ReadFile(path)
+			if path == claude && (sameInode(agents, claude) || (rerr == nil && agentrules.ImportsAgents(doc))) {
+				continue
+			}
+			out = append(out, RulesFilePlan{
+				Path:    relSlash(root, path),
+				Folder:  dir,
+				Section: want[dir],
+				Exists:  rerr == nil,
+			})
+		}
+	}
+	return out, nil
 }
 
 // writeFolderRules writes a folder's section into its AGENTS.md and CLAUDE.md.
