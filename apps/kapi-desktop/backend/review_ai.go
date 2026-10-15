@@ -113,7 +113,7 @@ func (a *App) ReviewAIAction(tabID, locale, file, key, action, instruction strin
 	})
 	mark := a.aiActivity.lastID()
 
-	// The unit's own point: what governs this file decides the voice, the
+	// The unit's own point: what governs this file sets the voice, the
 	// terminology and the tool presets every action below is built with.
 	unit := host.UnitRef{Collection: rf.Collection, Path: rf.Relative, TargetLang: locale}
 

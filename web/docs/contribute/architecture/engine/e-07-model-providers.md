@@ -36,7 +36,7 @@ enforcement, and checks in the same flow.
 
 Model APIs come with practical constraints: rate limits, cost per token,
 transient failures, and variable latency. The framework's answer is to keep the
-provider interface thin and let the calling tool decide how much work to batch
+provider interface thin and leave it to the calling tool to set how much work to batch
 into a single request and how many requests to run in parallel. Workspace-scale
 orchestration (asynchronous job queues, multi-tenant quotas) belongs to a
 platform layer rather than to the framework primitives.

@@ -300,7 +300,7 @@ func (g *termGate) snapshotGoverns(ctx context.Context, tgtLoc model.LocaleID) b
 		concepts, err := g.tb.Concepts(ctx)
 		if err != nil {
 			// The snapshot is in memory, so a read does not fail in practice.
-			// Should one, the gate decides on no concepts and says so.
+			// Should one, the gate runs with no concepts and says so.
 			slog.ErrorContext(ctx, "termcheck: terms snapshot unreadable; its locales read as ungoverned by terms",
 				"error", err)
 		}

@@ -9,7 +9,7 @@
 // (core/plugin/conformance) has to launch a plugin the same way, or "passes
 // conformance" stops predicting "behaves under kapi" — and core may not import
 // host. A second copy of the list would drift, and the failure mode of drift is
-// a key kapi believes it removed.
+// a key kapi reports as removed and leaves in place.
 //
 // It deliberately depends on nothing but the standard library. Its parent,
 // core/credentials, reaches the OS keychain; the conformance harness is

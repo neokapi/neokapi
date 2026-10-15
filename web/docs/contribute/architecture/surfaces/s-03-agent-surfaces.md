@@ -495,7 +495,7 @@ change content and may pre-review (`decide` with `advise`). Its `term`,
 what to do instead: record a suggestion, ask a person, or read the edition and
 send its revision. A tool in a flow may choose `report`, because its drafts
 meet the ship gates later, and only a tool records how it produced an edition.
-A tool decides only with `advise`, as an agent does; a pull or a merge that
+A tool records a decision only with `advise`, as an agent does; a pull or a merge that
 carries a person's decision sends it as that person. The transport names the
 sender, and a sender of any other kind, or of none, is refused every
 operation.
@@ -557,8 +557,8 @@ source-language setting takes precedence over the recipe. Calls without a
 project use the server default.
 
 **The tool list is fixed at startup.** A client reads `tools/list` once, so
-which tools exist is fixed when the server starts. A per-call project decides
-what governs the content, and for a registry tool it decides the target-language
+which tools exist is fixed when the server starts. A per-call project determines
+what governs the content, and for a registry tool it sets the target-language
 default; it does not add or remove tools.
 
 `kapi mcp` starts a stdio JSON-RPC server. Its surface is a **decision with a

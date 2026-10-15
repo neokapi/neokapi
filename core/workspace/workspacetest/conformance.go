@@ -1,7 +1,7 @@
 // Package workspacetest is the conformance suite every workspace backend must
 // pass.
 //
-// A backend decides where a workspace's authoritative copy lives. The callers
+// A backend determines where a workspace's authoritative copy lives. The callers
 // above it (core/projectdb, the host) are written against the interface and
 // nothing else, so what an adapter owes them has to be stated somewhere both an
 // adapter author and a reviewer can run. This is that statement: one table of

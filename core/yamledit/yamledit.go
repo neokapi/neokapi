@@ -583,7 +583,7 @@ func setTrailingBlanks(text string, want int) string {
 
 // detectIndent reads the nesting width from the document itself, so a file
 // written with two spaces is not silently reflowed to the encoder's four. The
-// first line indented under a mapping key decides it; a document with no nested
+// first line indented under a mapping key sets it; a document with no nested
 // block has none to copy and takes DefaultIndent.
 func detectIndent(doc []byte) int {
 	for line := range strings.SplitSeq(string(doc), "\n") {

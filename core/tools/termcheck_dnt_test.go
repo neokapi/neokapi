@@ -47,7 +47,7 @@ func TestTermCheck_DoNotTranslate(t *testing.T) {
 }
 
 // TestTermCheck_DoNotTranslateLeavesOtherRulesAlone is the control: beside a
-// do-not-translate rule, an ordinary rule decides what it decides without one.
+// do-not-translate rule, an ordinary rule reports what it reports without one.
 func TestTermCheck_DoNotTranslateLeavesOtherRulesAlone(t *testing.T) {
 	save := coreprofile.TermRule{Term: "save", Replacement: "lagre"}
 	for _, target := range []string{"Lagre i kapi.", "Spar i kapi."} {

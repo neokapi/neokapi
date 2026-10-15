@@ -36,7 +36,7 @@ declares a binding only when it is intrinsic to the flow (e.g. a check flow that
 produces no document sets `sink: none`), and never a path:
 
 ```yaml
-sink: none        # only when intrinsic; otherwise omit and let the run decide
+sink: none        # only when intrinsic; otherwise omit it and the run sets it
 steps:
   - tool: qa
 ```

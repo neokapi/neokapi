@@ -317,7 +317,7 @@ func parseWMLStyleEntry(style *xmlNode) *wmlStyleEntry {
 // collectRPrChildren returns each element child of an rPr node as an
 // rPrNode (non-element children — whitespace CharData — are dropped; they
 // carry no formatting). Style-reference children (pStyle/rStyle) are
-// retained here because the resolver decides per-context what to do with
+// retained here because the resolver handles them per context
 // them (a run's rStyle points into the chain; it is not a formatting prop).
 func collectRPrChildren(rPr *xmlNode) []rPrNode {
 	var out []rPrNode

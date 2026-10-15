@@ -14,7 +14,7 @@ interface ThemedVideoProps {
   /**
    * Marks the recording as no longer matching the current release, rendering a
    * banner above the player while the player keeps working. Opt-in per embed:
-   * the page decides, because only the page knows which release its prose
+   * each page sets it, because only the page states which release its prose
    * describes. `"interface"` when the recorded screens no longer exist;
    * `"wording"` when only the narration's terminology is retired.
    */

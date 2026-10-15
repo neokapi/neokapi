@@ -274,7 +274,7 @@ export function SettingsBillingRoute() {
   const isOwner = activeWorkspace.role === "owner";
 
   // Only plans this deployment can actually sell, and only ones above the current
-  // plan — the server decides purchasability, so no button here can 503.
+  // plan — the server sets purchasability, so no button here can 503.
   const upgradeable = (plans?.plans ?? []).filter((p) => p.purchasable && !p.current);
   const creditPack = plans?.credit_pack;
 

@@ -108,7 +108,7 @@ func pluginFamily(declared string) registry.FormatFamily {
 
 // formatRoutes returns every FormatRoute the host knows about. Unlike
 // the public CommandRoutes / MCPRoutes, format routes don't yet need a
-// stable public listing API — but the format-factory code wants one, so
+// stable public listing API — but the format-factory code needs one, so
 // we expose it here as a package-private helper.
 func (h *Host) formatRoutes() []*FormatRoute {
 	h.mu.RLock()

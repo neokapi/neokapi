@@ -462,7 +462,7 @@ func (a *App) Init() error {
 
 	// Apply format priority overrides from configuration.
 	a.applyFormatPriorities(a.Config.FormatPriorities())
-	// Apply the engine the config prefers and the one --engine forces.
+	// Apply the engine the config selects and the one --engine forces.
 	if err := a.ApplyEngineSelection(); err != nil {
 		return err
 	}

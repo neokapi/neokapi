@@ -150,8 +150,8 @@ func NewTermCheckTool(cfg *TermCheckConfig) *tool.BaseTool {
 // TermCheckViolations is term-check's decision for one source and target
 // text: the messages of the demanded rules the target does not satisfy, sorted
 // into the violations that fail and those that only warn. A surface that holds
-// content to term rules outside a pipeline calls it, so it decides exactly
-// what the tool decides.
+// content to term rules outside a pipeline calls it, so it reports exactly
+// what the tool reports.
 func TermCheckViolations(cfg *TermCheckConfig, source, target string) (errs, warns []string) {
 	targetText := check.PlaceholderText(target)
 	for _, use := range sourceUses(source, cfg) {

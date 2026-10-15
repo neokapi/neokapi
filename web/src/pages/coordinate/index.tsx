@@ -764,7 +764,7 @@ export default function Coordinate(): ReactElement {
       <main className="container margin-vert--lg">
         <h1>Translation reuse report</h1>
         <p style={styles.lede}>
-          When an author edits an English sentence, kapi decides whether the approved Norwegian
+          When an author edits an English sentence, kapi determines whether the approved Norwegian
           still applies. Four evals run that decision on real cases and show what the tool wrote
           each time.
         </p>

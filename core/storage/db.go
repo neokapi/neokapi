@@ -118,7 +118,7 @@ type Options struct {
 	CrossProcessWrites bool
 }
 
-// ProjectOptions is what a multi-subsystem store wants: three settings that
+// ProjectOptions configures a multi-subsystem store: three settings that
 // belong together. The gate orders the writers this process controls, the
 // advisory lock orders the ones it does not, and IMMEDIATE keeps whatever
 // reaches SQLite in a queue it will wait in rather than refuse.

@@ -415,7 +415,7 @@ drafted it, so a run started by a source change has pending work and produces.
 For a block nobody has decided, the venue's ledger row carries the basis of the
 latest draft: one its own run made, or one a run on a checkout made, which the
 push carries beside the decisions
-([S-07](../surfaces/s-07-context-centric-review.md#a-push-carries-decisions-the-venue-decides)).
+([S-07](../surfaces/s-07-context-centric-review.md#a-push-carries-decisions-the-venue-settles-them)).
 A basis record from a push carries the basis and nothing else: it never
 replaces a decision, and it leaves an undecided row's rung, note and assignee
 as they were. A translation a checkout pulled from the venue sends no basis,

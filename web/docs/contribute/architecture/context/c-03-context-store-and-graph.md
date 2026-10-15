@@ -488,7 +488,7 @@ edited before the clone's first pass is not graded stale there. `kapi up` and
 `kapi status` say so in one line (`host.HistoryNotPulledNote`) when the project
 names a backend, translations exist on disk and the history records nothing. A
 push to a venue carries the same record for the documents it reads
-([S-07](../surfaces/s-07-context-centric-review.md#a-push-carries-decisions-the-venue-decides)).
+([S-07](../surfaces/s-07-context-centric-review.md#a-push-carries-decisions-the-venue-settles-them)).
 
 An edit made outside kapi records nothing when it happens. The next read
 through the change service finds it: the service shows each block it reads to

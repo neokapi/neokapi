@@ -382,7 +382,7 @@ func (a *App) noteCorrection(ctx context.Context, req *mcp.CallToolRequest, reci
 	return out, nil
 }
 
-// noteWithdraw withdraws a note this session recorded. The policy decides who
+// noteWithdraw withdraws a note this session recorded. The policy determines who
 // may: an agent withdraws its own suggestions, in the session that recorded
 // them, and nothing else.
 func (a *App) noteWithdraw(ctx context.Context, req *mcp.CallToolRequest, recipe string, in contextNoteInput) (contextRecordOutput, error) {

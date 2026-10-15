@@ -37,8 +37,8 @@ type ProjectContext struct {
 	LocaleFormat   string   // "bcp-47" (default) or "posix"
 	FormatDefaults map[string]FormatDefaults
 
-	// Engine is the engine the recipe prefers (defaults.engine) for a file
-	// whose extension several engines claim; "" prefers the built-in formats.
+	// Engine is the engine the recipe selects (defaults.engine) for a file
+	// whose extension several engines claim; "" selects the built-in formats.
 	Engine string
 	// EngineOrder ranks the declared plugins after the built-in formats: by
 	// plugins.<name>.format_priority, highest first, then by name.

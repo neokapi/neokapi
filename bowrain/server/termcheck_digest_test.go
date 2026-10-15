@@ -33,13 +33,13 @@ func kapiConcept(doNotTranslate bool) terms.Concept {
 	}
 }
 
-// Marking a concept do-not-translate changes what the gate decides about
+// Marking a concept do-not-translate changes the gate's result for
 // unchanged content, so it must change the digest. Without this, merging the
 // governed change-set that sets the flag left every stored verdict in place and
 // the next pass counted answers computed under the old predicate.
 func TestSnapshotDigestMovesWithDoNotTranslate(t *testing.T) {
 	assert.NotEqual(t, digestOf(t, kapiConcept(false)), digestOf(t, kapiConcept(true)),
-		"the flag decides whether a target must keep the term, so it is governance the digest covers")
+		"the flag determines whether a target must keep the term, so it is governance the digest covers")
 }
 
 // Declared forms widen what satisfies a rule, so a synced forms edit changes

@@ -537,7 +537,7 @@ prints a change set with no operation, which applies and writes nothing.
 
 A printing `kapi up` runs one pass. A gated pass drafts into its private tree
 as any pass does (`Options.WriteUnder` lets the printing home write there),
-the gate decides from the drafts, and delivery prints what it would commit for
+the gate evaluates the drafts, and delivery prints what it would commit for
 each locale that clears its gate; a parked locale is named and prints nothing.
 A printing run records no change, absorbs nothing into the content memory and
 stamps nothing. As any pass does, it extracts the source into the derived store

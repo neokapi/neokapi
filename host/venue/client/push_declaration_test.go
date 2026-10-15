@@ -39,7 +39,7 @@ func commitCapture(t *testing.T, got *PushCommitRequest) *httptest.Server {
 	}))
 }
 
-// The declaration rides on the commit, because that is where the server decides
+// The declaration rides on the commit, because that is where the server determines
 // what this push is authoritative about.
 func TestPushDeclaresTheKeysItsReadersEmit(t *testing.T) {
 	var got PushCommitRequest

@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// A scope's ship state takes one of three values. A matched gate decides
+// A scope's ship state takes one of three values. A matched gate selects
 // between shippable and withheld. A scope no gate matches is not_gated, whatever
 // its coverage, unless something withholds it.
 

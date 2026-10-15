@@ -195,7 +195,7 @@ func buildEditLadder(ctx context.Context) (*EditLadder, error) {
 // rather than against a floor chosen to lose.
 const ladderFillFloor = 95
 
-// fillPolicy is how a run of the recycle tool decides to write a target.
+// fillPolicy is the rule a run of the recycle tool applies to write a target.
 type fillPolicy int
 
 const (

@@ -54,7 +54,7 @@ terminology violations) still counts as translated, which it is, and holds its
 locale out of shipping until the finding is fixed. 'kapi status' runs the same checks and
 reports the same verdict. --no-checks opts out.
 
-The materialize policy decides whether the run owns delivery of the
+The materialize policy determines whether the run owns delivery of the
 target-language files. Under 'defaults.materialize: on-converge' (or the
 --materialize flag) it does, and the ship gate holds it back: each pass drafts
 into a run-local tree, and only a locale whose gated scopes are all shippable

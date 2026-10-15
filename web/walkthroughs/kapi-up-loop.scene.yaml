@@ -170,7 +170,7 @@ files:
       {"op":"decide","at":{"doc":"messages.json","block":"items.cart","edition":"fr"},"if_match":"r:5d8eff15e7ca8118","outcome":"establish"}
 
 steps:
-  - comment: The ship gate wants translated 100% and approved 100%. A machine can meet the first; only a person can meet the second.
+  - comment: The ship gate requires translated 100% and approved 100%. A machine can meet the first; only a person can meet the second.
   - command: kapi memory import project.memory.json
     narration: Import the committed bundle into the project's content memory. The flow reuses these translations without calling a provider.
     offline: false

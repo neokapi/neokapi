@@ -295,9 +295,8 @@ whose schema declares it: `recycle` *requires* a memory, and `translate`
 
 The `translate` tool offers a block's prior answer to the model as reference,
 gated as above, under `reuse: prior` (the default); `reuse: none` sends no
-reference, which is what a run wants when it is re-translating everything
-after a voice change the old wording should not anchor, or does not want to
-pay for the lookup. The reference is per block and travels beside the block in a batch,
+reference, which suits a run that re-translates everything after a voice
+change the old wording should not anchor, or that skips the cost of the lookup. The reference is per block and travels beside the block in a batch,
 never in the shared preamble, so one block's history is not offered to another.
 It is part of the prompt's context digest, so a translation cached under one
 prior version is not served after the chain moves.

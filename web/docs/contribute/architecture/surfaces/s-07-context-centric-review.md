@@ -255,7 +255,7 @@ the row with the source it drafted against, beside the decision it may not
 replace, and the next pass counts the block as awaiting review rather than as
 work ([C-04](../context/c-04-block-state-and-decisions.md)).
 
-### A push carries decisions; the venue decides
+### A push carries decisions; the venue settles them
 
 A working copy holds its own decision record, and `kapi push` sends it with the
 content it judges. A decision names the translation and the source it blesses by

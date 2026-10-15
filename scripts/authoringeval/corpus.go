@@ -119,7 +119,7 @@ vocabulary:
 //
 // Steering an assistant with any writing guidance improves any reasonable
 // score, so "the guided text scores better" is not evidence that the guide
-// works. This profile wants the opposite of the reference on every axis it
+// works. This profile asks for the opposite of the reference on every axis it
 // can: third person, passive, long sentences, formal, and it forbids the plain
 // words the reference prefers. A guide that steers toward Harbourlight
 // specifically moves the reference score and leaves this one alone.

@@ -736,7 +736,7 @@ export class Defaults {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Engine is the format engine the project prefers for a file whose
+             * Engine is the format engine the project selects for a file whose
              * extension both a built-in format and a plugin's claim: "native" (the
              * built-in formats) or the name of a plugin the recipe declares. Empty
              * prefers the built-in formats. An explicit `--engine` on the run ranks

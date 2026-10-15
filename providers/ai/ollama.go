@@ -176,8 +176,8 @@ func (p *OllamaProvider) buildRequest(messages []Message, format any, stream boo
 		return nil, err
 	}
 	// Reasoning-capable models (e.g. qwen3) otherwise emit a <think> block that
-	// consumes the output budget and truncates the translation. kapi wants the
-	// answer, not the chain of thought, so reasoning is hard-disabled on every
+	// consumes the output budget and truncates the translation. kapi uses the
+	// answer and discards the chain of thought, so reasoning is hard-disabled on every
 	// call; non-reasoning models ignore the flag.
 	noThink := false
 	return &ollamaChatRequest{
