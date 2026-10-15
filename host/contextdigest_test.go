@@ -414,3 +414,36 @@ func TestContextWorkspaceRules_WidenedAsKept(t *testing.T) {
 	assert.Equal(t, []string{"kept by you"}, r.How)
 	assert.False(t, r.At.IsZero())
 }
+
+// TestContextDigest_ACorrectionAndItsOppositeAreTwoSides: a correction that
+// suggests a rule is evidence against the opposite suggestion and a rival to
+// it at once. The digest lists one disagreement with both rules as its sides,
+// so a person chooses between them.
+func TestContextDigest_ACorrectionAndItsOppositeAreTwoSides(t *testing.T) {
+	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
+	app, _ := contextOpsApp(t)
+	root := contextOpsProject(t, "ctxops-correction-rival")
+	ctx := t.Context()
+
+	corrected, err := app.RecordContextCorrection(ctx, ContextCorrectRequest{
+		Actor: agentIn("s1"), Project: recipeOf(root), From: "log in", To: "sign in", Suggest: true,
+	})
+	require.NoError(t, err)
+	opposite, err := app.RecordContextObservation(ctx, ContextObserveRequest{
+		Actor: agentIn("s2"), Project: recipeOf(root), Term: "log in", InsteadOf: []string{"sign in"},
+	})
+	require.NoError(t, err)
+
+	digest, err := app.ContextDigest(ctx, ContextDigestRequest{Project: recipeOf(root)})
+	require.NoError(t, err)
+	require.Len(t, digest.Conflicts, 1)
+	c := digest.Conflicts[0]
+	assert.False(t, c.ByEvidence)
+	ids := []string{}
+	for _, side := range c.Sides {
+		ids = append(ids, side.ID)
+		assert.True(t, side.Keepable)
+	}
+	assert.ElementsMatch(t, []string{corrected.ID, opposite.ID}, ids)
+	assert.Equal(t, 1, digest.Numbers.Conflicts)
+}

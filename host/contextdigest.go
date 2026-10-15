@@ -901,7 +901,10 @@ func digestConflict(r contextop.Record, byID map[string]contextop.Record, taken 
 	c := DigestConflict{Sides: []DigestItem{}}
 	taken[r.ID] = true
 	c.Sides = append(c.Sides, side(r))
-	if r.ContestedByEvidence() {
+	// A correction that suggests the opposite rule is evidence against this
+	// one and a rival to it at once: the person chooses between the two rules,
+	// so it is listed as a side rather than as the evidence alone.
+	if r.ContestedByEvidence() && !contestedByRival(r, byID, taken) {
 		c.ByEvidence = true
 		c.Reason = contestedByEvidenceReason(r, byID)
 		return c
@@ -925,6 +928,18 @@ func digestConflict(r contextop.Record, byID map[string]contextop.Record, taken 
 		c.ByEvidence = true
 	}
 	return c
+}
+
+// contestedByRival reports a record contested by a rule of its own that the
+// digest has not yet listed: a suggestion or a correction stating a rule.
+func contestedByRival(r contextop.Record, byID map[string]contextop.Record, taken map[string]bool) bool {
+	for _, id := range r.ContestedBy {
+		other, ok := byID[id]
+		if ok && !taken[id] && other.Kind.Bears() && other.Subject.Kind == contextop.SubjectTerm {
+			return true
+		}
+	}
+	return false
 }
 
 // contestedByEvidenceReason says what turned the evidence against a rule.
