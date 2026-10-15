@@ -1,0 +1,94 @@
+---
+id: share-context-with-your-team
+title: "Share context with your team"
+sidebar_label: "Share context with your team"
+description: "Use Kapi Desktop's Share section to move a project's context from this Mac to a place every machine syncs: a git ref, a folder or an S3 bucket."
+keywords: [Kapi Desktop, share, sync, context, git, folder, S3, workspace, kapi context sync, team]
+---
+
+# Share context with your team
+
+**Goal:** have everyone who works on a project read the same rules, terms,
+voice profile and content memory, and see what everyone else's assistants
+noticed. The project's **Share** section shows how far its context reaches and
+sets up the next step.
+
+**For the command line**, see [Sharing context](/kapi/context-portability),
+which covers `kapi context sync` and every flag.
+
+## On this Mac
+
+Every project starts here. Share marks the first rung and reads "In your
+workspace at `<path>`. Every clone and worktree of this project on this Mac
+reads it."
+
+Your workspace is one folder for your account on this machine, and it holds
+the context of every project you work on. kapi joins a checkout to its
+project by the `id:` in `kapi.yaml`, so a second clone, a worktree or a branch
+of the same repository reads the same context. A rule you keep in one is in
+force in all of them, with nothing to sync. Another machine, or another person,
+reads none of it until you share it.
+
+## Choose a place to share it
+
+The second rung reads "Not yet. Name a place and sync, and every machine that
+syncs the project reads the same context." Click **Set up sharing** and choose
+one of three places:
+
+| Place | What it needs | Who can reach it |
+| --- | --- | --- |
+| **git** | the project's own repository; kapi keeps the context in a ref outside every branch, `refs/kapi/context` on `origin` unless you name others | whoever can push a branch can push it |
+| **a folder** | a path every machine mounts, such as a team share | whoever the filesystem lets in |
+| **S3** | a bucket, with a prefix, a region and an endpoint for an S3-compatible service | whoever your AWS credentials let in |
+
+Credentials never go in the recipe. git uses the access you already have to
+the repository. S3 reads the standard AWS environment, shared configuration
+and profile on each machine.
+
+Saving writes a `context:` block into `kapi.yaml`, for example:
+
+```yaml title="kapi.yaml"
+context:
+  backend: git
+  ref: refs/kapi/context
+```
+
+Commit the recipe, so every checkout of the project names the same place.
+
+## Sync
+
+Saving offers **Sync now**. A sync takes in what the rest of the team shared
+and merges it here, then shares what this machine recorded, then rewrites the
+project's rules files so the next assistant session reads what the team
+decided. The rung shows the result, such as "Pulled 3, pushed 2, rules files
+written". Running it twice changes nothing, and two people who sync at once
+both succeed.
+
+Between syncs the rung says where the context is shared and how far apart this
+machine and the shared copy were at the last sync:
+
+> Through git (origin refs/kapi/context). 2 to push, 0 to pull, as of 10:03.
+
+A teammate who pulls the recipe opens the project and clicks **Sync now** on
+the same rung. A fresh clone fetches branches and tags and leaves the context
+ref alone, so the first sync is what brings the context in.
+
+When the place cannot be reached, the rung ends "The place could not be
+reached at 10:03." Nothing changes here: what this machine recorded waits, and
+the next sync shares it.
+
+## A managed workspace
+
+The third rung is a managed workspace: a server that holds every project's
+context in one workspace, with roles, review and a record of who decided what,
+and runs the project's loop on the server. A project reaches one through the
+venue its recipe declares, which is separate from the `context:` place, and
+the rung then names the server and the project there. The note in the
+[tour](/kapi/desktop/tour#share) says where to read more.
+
+## Next
+
+- [Sharing context](/kapi/context-portability): `kapi context sync`, its
+  status line, and what travels with the context.
+- [Connect an assistant](/kapi/desktop/recipes/connect-an-assistant): give
+  each teammate's assistant the same rules.

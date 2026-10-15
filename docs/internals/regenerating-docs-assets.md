@@ -52,7 +52,7 @@ in env.
 | kapi monolingual journey (`monolingual-governance`, `monolingual-context`) | `kapi/recipes/keep-source-on-brand.mdx`, `kapi/context.mdx` | harness demos `s0-northsea-checks`, `s0-northsea-context` (scripted shell, seeded from `samples/northsea`) | `web/static/video/kapi/` |
 | kapi multilingual convergence and ship states (`multilingual-converge`, `multilingual-ship-states`) | `kapi/get-started/add-languages.mdx`, `kapi/recipes/machine-ship-strategy.mdx` | harness demos `s1-compass-converge`, `s1-compass-ship-gate` (scripted shell, seeded from `samples/compass`) | `web/static/video/kapi/` |
 | kapi docs-site convergence and coverage (`docs-site-convergence`, `docs-coverage-in-ci`) | `kapi/convergence.mdx`, `kapi/convergence-in-ci.mdx` | harness demos `s2-tidewatch-build-output`, `s2-tidewatch-ci` (scripted shell, seeded from `samples/tidewatch-docs`) | `web/static/video/kapi/` |
-| Kapi Desktop tour (`kapi-desktop-*`) | `kapi/desktop/overview.mdx`, `kapi/desktop/tour.mdx` | harness desktop demos `kapi-desktop-{projects,content,flows,config,explorer,review}` | `web/static/video/kapi/` |
+| Kapi Desktop tour (`kapi-desktop-*`) | `kapi/desktop/overview.mdx`, `kapi/desktop/tour.mdx` | harness desktop demos `kapi-desktop-{context,projects,content,flows,config,explorer,review}` | `web/static/video/kapi/` |
 | bowrain CLI videos (`/video/bowrain-cli/bowrain-cli-*`) | bowrain walkthroughs | harness demos `bowrain-cli-getting-started`, `bowrain-cli-auth-and-workspaces` (need a server) | `bowrain/web/docs/static/video/bowrain-cli/` |
 | bowrain web framed videos (`/video/bowrain-web/bowrain-web-*`) | `server/web-overview.mdx` | harness demos `bowrain-web-{editor,governance,review,correction-loop,collaboration}` (need a server) | `bowrain/web/docs/static/video/bowrain-web/` |
 | bowrain desktop framed videos (`/video/bowrain-desktop/bowrain-desktop-*`) | `server/desktop-app.mdx` | harness demos `bowrain-desktop-{dashboard,automations}` | `bowrain/web/docs/static/video/bowrain-desktop/` |
@@ -69,7 +69,7 @@ node --experimental-strip-types scripts/walkthrough-gen/gen.ts --all
 
 # desktop tour, one at a time (each self-manages an isolated real stack via wbridge)
 cd harness
-for id in projects content flows config explorer; do
+for id in context projects content flows config explorer; do
   vpx tsx src/cli/run.ts kapi-desktop-$id --force --theme=both
 done
 

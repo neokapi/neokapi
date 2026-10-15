@@ -168,8 +168,9 @@ name: MyApp
 defaults:
   source_language: en
   target_languages: [de, fr, ja, nb]
-  # The voice profile `kapi store import` read from .kapi/voice.yaml, bound
-  # by its name; the same import reads .kapi/terms.json into the project's terms.
+  # The voice profile `kapi store import context` read from context/voice.yaml,
+  # bound by its name; the same import reads context/terms.json into the
+  # project's terms.
   voice:
     profile: myapp
 collections:
@@ -182,17 +183,18 @@ collections:
 i18n/
 ├── src/                    source KBF catalogs (from `neokapi-i18n extract`)
 └── de/ fr/ ja/ nb/         per-locale targets (from `kapi merge`)
+context/
+├── terms.json              terms, read in by `kapi store import context`
+└── voice.yaml              voice profile, read in by the same import
 .kapi/
-├── terms.json              terms, read in by `kapi store import`
-├── voice.yaml              voice profile, read in by the same import
 └── work/                   content memory and pseudo-locale output (ignored by git)
 ```
 
 The content memory's local store and the pseudo-locale output are rebuildable
 state, so they live under `.kapi/work/`, in the checkout's cache that git never
-sees. The terms and the voice profile are files you commit; an edit to
-`.kapi/voice.yaml` or `.kapi/terms.json` takes effect when you run
-`kapi store import` again. See [Context portability](/kapi/context-portability).
+sees. The terms and the voice profile are files you commit under `context/`;
+an edit to `context/voice.yaml` or `context/terms.json` takes effect when you
+run `kapi store import context` again. See [Context portability](/kapi/context-portability).
 
 ```json title="package.json"
 {

@@ -3,7 +3,7 @@ id: s-02-kapi-desktop
 sidebar_position: 2
 title: "S-02: Kapi Desktop"
 description: "Kapi Desktop uses the shared host runtime for project management, context review and content processing, with a Wails v3 backend and React frontend."
-keywords: [neokapi, architecture decision, Kapi Desktop, Wails, desktop app, module isolation, workspace, context hub, context operations, point map, governance, review, credential vault]
+keywords: [neokapi, architecture decision, Kapi Desktop, Wails, desktop app, module isolation, workspace, context hub, context operations, sharing, context backend, agent wiring, rules files, point map, governance, review, credential vault]
 ---
 
 import { SwimlaneDiagram } from "@neokapi/docs-shared";
@@ -13,19 +13,21 @@ import { SwimlaneDiagram } from "@neokapi/docs-shared";
 ## Summary
 
 Kapi Desktop is a Wails v3 application at `apps/kapi-desktop/` (module
-`github.com/neokapi/neokapi/kapi-desktop`). It opens on the **workspace**: every
-project this machine account has run kapi in, whichever surface ran it
-([C-03](../context/c-03-context-store-and-graph.md)), beside a feed of what
-people and agents have recorded about their context
-([C-11](../context/c-11-context-operations.md)). Projects open from there as
-tabs, several at a time, and each gets a visual surface: a project home that
-opens on what the project stands at and a map of its coordinate points, a
-Context hub that opens on the digest of what kapi learned about how the project
-writes, beside the graph explorer, the voice profile, the terms and the content
-memory, a checks panel, a
-review queue, governance editing on the recipe, a runner that brings the project
-up to date through the same venue the CLI uses, a tool reference, and an
-OS-keychain credential vault. It depends on the framework and `host` only. It
+`github.com/neokapi/neokapi/kapi-desktop`). It opens on the **workspace**,
+titled "Your context": what each project holds that the person has not seen,
+every project this machine account has run kapi in, whichever surface ran it
+([C-03](../context/c-03-context-store-and-graph.md)), and the rules that hold
+in all of them. The record of what people and agents have recorded about their
+context ([C-11](../context/c-11-context-operations.md)) is a History view of
+its own. Projects open from there as tabs, several at a time, on a Context hub
+that opens on the digest of what kapi learned about how the project writes,
+beside the graph explorer, what an assistant working in the project reads, the
+voice profile, the terms, the content memory, the project's history and where
+its context is shared. Each tab also carries a project section with what the
+project stands at and a map of its coordinate points, a checks panel, a review
+queue, governance editing on the recipe, a runner that brings the project up to
+date through the same venue the CLI uses, a tool reference, and an OS-keychain
+credential vault. It depends on the framework and `host` only. It
 links neither Cobra nor the `cli` module, and no package from the platform
 layer, which `make audit-modules` asserts by inspecting the transitive package
 list of `./backend/...`.
@@ -158,7 +160,43 @@ agent whose recorded change produced the text in force.
 
 ### The app opens on the workspace
 
-The first screen reads the workspace's project registry
+The first screen is the workspace home, one reading column titled "Your
+context". Top to bottom it holds a sentence of numbers, **What's new**,
+**Projects**, **Holds in every project**, **Start here** and the quick tools.
+
+`host.App.ContextStandings` answers the numbers, What's new and each project
+row's context line from one fold of the log over every registered project. A
+`ContextProjectStanding` carries the project's rules in force, the suggestions
+advising, the conflicts, what is new since the person's marker (below), and the
+latest session's activity as a `ContextActivity`: its actor, what it recorded
+and corrected, what is new by digest theme, and `Working`, which holds while an
+agent session has added an operation within the last two minutes, the feed's
+quiet rule. The numbers read "kapi knows 61 rules across 5 projects. 7
+suggestions are advising.", with a second sentence naming a session that is
+working. What's new lists only the projects with something new, newest first,
+as "4 new since Tuesday. claude-code noticed 3 names and 1 word."; a project
+with a conflict adds "1 needs you", and its button reads Decide in place of
+Review. A row opens the project's tab on What's new.
+
+Each project row's second line gives the voice profile governing the project's
+default point, the rules in force, one word for where its context is shared
+(`ProjectSharing`, under [Sharing and the ladder of
+reach](#sharing-and-the-ladder-of-reach)) and the last activity. **Holds in
+every project** lists the rules applied to the workspace (`WorkspaceRules`),
+each with the project it was decided in and how it came into force. Those rules
+live in the workspace's own rule table, which every project on this machine
+reads.
+
+**Start here** is three steps for a first run: open a project or try the
+sample, connect an assistant, come back to What's new. Dismissing it is a
+setting in the desktop's own settings (`StartHereDismissed`, through
+`DismissStartHere` and `RestoreStartHere`), the way the sample cards are
+dismissed, so it stays dismissed across launches until Settings restores it.
+
+The feed of every project's operations is **History**, a view reached from a
+link beside the title ([the feed](#the-feed-of-recorded-context-operations)).
+
+The Projects section reads the workspace's project registry
 ([C-03](../context/c-03-context-store-and-graph.md)): every project this machine account
 has run kapi in, whichever surface ran it. A project registers the first time
 kapi opens it, so the desktop lists a repository set up from a terminal without
@@ -192,7 +230,8 @@ avoids interpreting filesystem events from SQLite database and WAL files.
 
 ### The project home and the point map
 
-A project tab opens on the project's **standing**, in the two-axis shape
+A project tab opens on its Context hub (below), and a persisted view opens
+where it was. The **Project** section shows the project's **standing**, in the two-axis shape
 `kapi status` prints: content on one row, governance on the other, and the
 venue and stream on the identity line. Below it, the point map lists every
 coordinate point the recipe declares ([C-02](../context/c-02-coordinates-and-governance.md)),
@@ -242,16 +281,23 @@ that governs it, not where it was written.
 
 ### The Context hub
 
-The stores are sections of one hub, beside the graph:
+The stores are sections of one hub, beside the graph, in this order:
 
-| Section | What it shows |
-| --- | --- |
-| **Rules** | the digest of the rules and suggestions kept for the project, newest since the person last looked first (below), where a person reviews them |
-| **Explorer** | the context graph, through `@neokapi/context-explorer`; the governs pane renders the same guide the retrieval surface serves ([C-06](../context/c-06-retrieval.md)) |
-| **Agent View** | the resolved context for one file as an agent receives it: `AgentContextAt` calls the desktop's `ContextAt` and renders the answer's own `FormatText`, so the body on screen is the `context://` resource body rather than a second rendering of it |
-| **Voice** | the whole resolved profile per point: tone, style patterns with severities and rates, term rules, examples, and the locale, channel and persona overrides as authored ([C-07](../context/c-07-voice-profiles.md)); the profile is edited here |
-| **Terms** | the terms store: search, facets, provenance, concept relations |
-| **Content Memory** | the content memory: search, facets, activity, provenance, the languages gate |
+| Section (id) | What it shows | Answered by |
+| --- | --- | --- |
+| **What's new** (`rules`) | the digest of the rules and suggestions kept for the project, newest since the person last looked first ([below](#the-digest)), where a person reviews them | `ProjectContextDigest`, over `host.App.ContextDigest` |
+| **Ask** (`explorer`) | the context graph by file and by word, through `@neokapi/context-explorer`; the governs pane renders the same guide the retrieval surface serves ([C-06](../context/c-06-retrieval.md)) | `ContextAt`, `ContextGoverns`, `ContextLives`, `ContextRelates`, `ContextSearch` |
+| **Assistant** (`agent`) | what an assistant working in the project reads: the connected assistants, the rules files, and the brief for one file ([below](#connecting-an-assistant)). The brief is the resolved context for one file as an agent receives it: `AgentContextAt` calls the desktop's `ContextAt` and renders the answer's own `FormatText`, so the body on screen is the `context://` resource body rather than a second rendering of it | `AgentHosts`, `ConnectAgentHost`, `RulesFiles`, `WriteRulesFiles`, `AgentContextAt` |
+| **Voice** | the whole resolved profile per point: tone, style patterns with severities and rates, term rules, examples, and the locale, channel and persona overrides as authored ([C-07](../context/c-07-voice-profiles.md)); the profile is edited here | `ProjectVoice`, `SaveVoiceProfile` |
+| **Terms** | the terms store: search, facets, provenance, concept relations | `SearchTerms` |
+| **Content Memory** (`memory`) | the content memory: search, facets, activity, provenance, the languages gate | `SearchMemoryEntries` |
+| **History** (`history`) | the project's feed ([below](#the-feed-of-recorded-context-operations)), with a reset to before each session | `ContextFeed` with the project key, `ContextResetScope`, `ResetContext` |
+| **Share** (`share`) | how far the project's context reaches, as three rungs ([below](#sharing-and-the-ladder-of-reach)) | `ProjectSharing`, `SetProjectSharing`, `SyncProjectContext` |
+
+Each id is routable, so a persisted view and a link from the home land on its
+section. Each section carries a caption naming the command that does the same
+on the command line: `kapi context review`, `kapi context log`, `kapi context
+sync`, `kapi init`.
 
 The voice section resolves every point the recipe declares twice: as declared,
 and at the governance instant. A binding whose window excluded the instant is
@@ -271,8 +317,9 @@ The app is meant to sit open beside an agent that is working. The agent runs in
 another process, through the CLI or its MCP server, and records what it learns
 as context operations in this machine account's workspace log
 ([C-11](../context/c-11-context-operations.md)). The desktop reads that log and
-shows it in two places: as a feed of every project's operations on the
-workspace home, and as each project's digest in its Context hub.
+shows it in three places: as each project's digest in its What's new, as the
+project's History, and as the workspace-wide History view the home links to,
+which is the same feed read with no project key.
 
 The feed groups by session. An agent session is the id its operations carry, so
 one run is one card however long it lasts. A person at a terminal and a tool
@@ -317,15 +364,16 @@ recorded elsewhere appears within a second. The previous answer stays mounted th
 keeps the scroll position and a half-typed edit through an agent recording in
 the middle of it.
 
-Beside each project on the home sits what its digest holds that the person has
-not seen, "4 new since Tuesday" (`host.App.ContextNews`, one fold of the log
-for every project). A project with nothing new shows nothing: the home carries
-no count of work waiting.
+The home's What's new rows carry what each project's digest holds that the
+person has not seen (`host.App.ContextStandings`, one fold of the log for every
+registered project). A project with nothing new has no row: the home carries no
+count of work waiting.
 
 ### The digest
 
-A project's Context hub opens on **Rules**, the digest of the rules and
-suggestions kept for the project. Review there is discovery, never a gate: a
+A project's Context hub opens on **What's new**, the digest of the rules and
+suggestions kept for the project, under the heading "What's new for" and the
+project's name. Review there is discovery, never a gate: a
 suggestion advises agents and checks from the moment it is recorded, and one
 nobody answers keeps advising, so the digest reads as news and carries no count
 of unread work. `host.App.ContextDigest` assembles it from the operation log,
@@ -358,6 +406,70 @@ The keys act on the item under the cursor: `j`/`k` move, `a` keeps (or chooses
 a side), `c` changes the form to write and keeps, `d` drops a suggestion or takes a
 rule in force back out, `g` keeps the group, and `o` opens the file. A project with no
 checkout on this machine shows its digest without the decisions.
+
+### Sharing and the ladder of reach
+
+**Share** shows how far a project's context reaches, as three rungs: on this
+machine, shared through a backend, and a managed venue. The current rung is
+marked, and the project rows on the home carry the same answer as one word.
+
+The backend resolves it through `host`. `ContextBackend` returns the
+`ContextBackendInfo` the recipe declares: the kind, its location, and whether
+it came from the recipe or the default. `ContextSyncStatus` returns how far
+apart this machine and the shared copy were at the last sync, without
+contacting the backend. `ProjectSharing` folds the two with the workspace
+directory on this machine and the venue the recipe declares into one answer. A project
+with no readable checkout here is `local`, from the default.
+
+The first rung is the workspace itself
+([C-03](../context/c-03-context-store-and-graph.md)): every clone and worktree
+of the project on this machine reads the same context store. The second offers
+the three backends C-03 defines: `git`, a ref of the project's own repository
+outside every branch; `file`, a directory; and `s3`, a bucket with a prefix, a
+region and an endpoint. **Set up sharing** is `SetProjectSharing`, which writes
+the `context:` block into the tab's recipe through the same project update path
+a Project Settings edit takes, so undo, redo and the file watcher see it, and
+which refuses an unknown kind in the words the CLI uses. Credentials stay out
+of the recipe: each backend reads its own access on the machine. **Sync now**
+is one `host.App.SyncProjectContext`, the call `kapi context sync` makes: pull
+and merge, push, and rewrite the rules files. When the backend cannot be
+reached, the host's error is shown unchanged and nothing changes on this
+machine. A sync that merged anything emits `workspace:changed`, so the home
+refetches.
+
+The third rung is the convergence venue the recipe declares, read the way
+[the runner](#runs-go-through-the-up-venue) reads it. A venue and a backend are
+separate keys of the recipe: the backend is where the context's operations are
+shared, and the venue is where the project converges and a team reviews. The
+rung shows whether a venue is declared and where it points, and offers no sync
+of its own.
+
+### Connecting an assistant
+
+The Assistant section's first part has one row for each host
+`host.WriteAgentWiring` writes for (Claude Code, Cursor, VS Code, Codex) and
+one for Claude Desktop. `AgentHosts` reports for each whether it is detected,
+through `host.DetectAgentHosts` for the four and the presence of its
+configuration directory for Claude Desktop, and whether kapi's entry for this
+recipe is present, read back through a reader in `host` so the desktop parses
+none of the files itself. `ConnectAgentHost` calls `host.WriteAgentWiring` for
+the four with the skill tree `kapi init` passes, so the desktop writes the
+files the CLI writes: `.mcp.json` and `.claude/skills/kapi` for Claude Code,
+`.cursor/mcp.json`, `.vscode/mcp.json` and `.codex/config.toml`.
+
+Claude Desktop reads one user-level file, `claude_desktop_config.json` in its
+application-support directory. The host layer writes only inside a project, so
+that entry is the desktop backend's to write. After the person confirms, it
+adds a `kapi` server entry that names the absolute path of the `kapi` binary
+and the recipe, and keeps every other key in the file.
+
+The second part shows the rules files
+([C-06](../context/c-06-retrieval.md#rules-files)) as kapi would write them.
+`RulesFiles` reads through a read-only planner in `host`, which resolves the
+sections `WriteRulesFiles` writes and writes nothing, so opening the section
+changes no file. **Write them now** is `host.App.WriteRulesFiles`. The third
+part is the brief for one file, described in the hub's table. A context-only
+tab has no checkout to write into, so it shows no hosts.
 
 ### Governance editing
 
@@ -446,6 +558,21 @@ the rest of the tree uses. Seeding bulk-loads the entries and then rebuilds the
 search and fuzzy side-tables, so the sample's memory answers search as well as
 exact lookup.
 
+After the context import, the sample records two assistant sessions through
+the host's recording calls (`RecordContextObservation` and
+`RecordContextCorrection`), as `claude-code` and then `codex`, each under a
+stable session id. Every piece of evidence quotes text in the sample's files,
+because the host refuses evidence it cannot find. The first session notes a
+name, a word to use, a spelling, a correction a person made and one observation
+about how the store copy addresses the reader. The second takes the other side
+of the correction and notes one more name, so the digest opens with a conflict
+under Needs you, and a first-time user practises keeping, changing, dropping,
+choosing and resetting on the real surfaces with no model call.
+
+Seeding is idempotent: it runs only when the project's log holds no agent
+session, read from the ledger, so reopening or resetting the sample records
+nothing twice.
+
 ### Three faces, one record
 
 kapi answers the same questions from the CLI, over MCP, and from the desktop.
@@ -532,6 +659,10 @@ the package manager.
   `cli` or platform import fails `make audit-modules`, not a review.
 - A project bound to a convergence venue converges there from the desktop as
   from the CLI, so the team's state has one home.
+- The desktop writes the recipe's `context:` block, the agent wiring and the
+  rules files through the host calls the CLI makes, so a project shared or
+  connected from the desktop is the project `kapi context sync` and `kapi init`
+  see.
 - Tabs support several open projects. Each project-scoped method requires a
   `tabID` to route operations to the correct project.
 - `kapi.yaml` recipes stay shareable workflow documents: open, edit, save,

@@ -39,14 +39,15 @@ open it. On first open, the **Connect your AI** card offers whatever it detects
 with no key, a local Ollama model, or a stored API key) in one click; or skip
 and use the demo engine.
 
-1. **Create the project.** On the home screen, click **New Project**, name it,
-   and pick a source language. Or click **KapiMart** under *sample projects* to
-   explore a realistic, pre-seeded project first: content collections, a
+1. **Create the project.** On the home screen, click **New project**, name it,
+   and pick a source language. Or click **Try the sample** under **Start here**
+   to explore a realistic, pre-seeded project first: content collections, a
    voice profile and terms, five target languages, and a stocked content memory.
+   The sample arrives with an assistant's notes to review.
 2. **Add content.** In the **Project** view, add a pattern that matches your
    source files (for example `docs/**/*.md`). Kapi lists the matched files and
    the detected format, grouped into a collection.
-3. **Review project status.** The project home shows two axes: **Content**
+3. **Review project status.** The **Project** section shows two axes: **Content**
    (what has been read in, what changed on disk, what is
    missing) and **Governance** (the voice profile in force, the terms that apply,
    when it last converged). Below, **Where content sits** gives one row for
@@ -57,6 +58,11 @@ and use the demo engine.
    of `kapi up`. For a source-only project that means the checks. Anything a
    machine cannot decide lands in the **Review** queue; see
    [Review & approve](/kapi/recipes/review-and-approve).
+5. **Come back to What's new.** What an assistant noticed while it worked
+   appears under **What's new**, on the home and in the project's **Context**
+   hub. Keep what is right and change or drop the rest; [review what your
+   assistant noticed](/kapi/desktop/recipes/review-what-your-assistant-noticed)
+   walks through it on the sample.
 
 <PendingMedia kind="video" scene="harness/demos/kapi-desktop-projects/demo.yaml">
   Creating a project from the New Project dialog, opening the KapiMart sample,
@@ -220,8 +226,9 @@ kapi context review --keep 0n791c0w3d
   written to the project's terms store
 ```
 
-In Kapi Desktop the same list is **Rules**, in a project's **Context** hub,
-with **Keep** and **Drop** on each suggestion and the evidence beside it.
+In Kapi Desktop the same list is **What's new**, in a project's **Context**
+hub, with **Keep**, **Change** and **Drop** on each suggestion and the evidence
+beside it.
 
 ## 4. What keeping does
 

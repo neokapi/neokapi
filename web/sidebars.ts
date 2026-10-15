@@ -152,6 +152,21 @@ const sidebars: SidebarsConfig = {
         { type: "doc", id: "kapi/desktop/tour", label: "A guided tour" },
         {
           type: "doc",
+          id: "kapi/desktop/recipes/review-what-your-assistant-noticed",
+          label: "Review what your assistant noticed",
+        },
+        {
+          type: "doc",
+          id: "kapi/desktop/recipes/connect-an-assistant",
+          label: "Connect an assistant",
+        },
+        {
+          type: "doc",
+          id: "kapi/desktop/recipes/share-context-with-your-team",
+          label: "Share context with your team",
+        },
+        {
+          type: "doc",
           id: "kapi/desktop/recipes/author-a-project-visually",
           label: "Author a project",
         },

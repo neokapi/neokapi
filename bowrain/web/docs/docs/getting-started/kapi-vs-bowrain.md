@@ -33,6 +33,42 @@ voice profiles, terms and content memory. Bowrain also provides:
   can apply to content from several projects. See the
   [Context hub](/server/context).
 
+## From one machine to a workspace
+
+Kapi Desktop shows how far a project's context reaches, as three rungs in a
+project's **Share** section. The context is the same on every rung: rules,
+terms, voice profiles, content memory, and what assistants noticed. What
+changes is who reads it and where it is decided.
+
+- **On this Mac.** kapi keeps the context in a workspace on your machine. Every
+  clone and worktree of the project there reads it, and nobody else does.
+- **Shared with your team.** The recipe names a place: a git ref in the
+  project's own repository, a folder, or an S3 bucket. `kapi context sync`
+  takes in what others shared and shares what your machine recorded, so every
+  machine that syncs reads the same context. Each person still decides on
+  their own machine.
+- **Managed on Bowrain.** A Bowrain workspace holds every project's context in
+  one place, on the server. A project reaches it through the `bowrain:` block
+  in its recipe and the kapi-bowrain plugin, and Kapi Desktop then names the
+  server and the project there.
+
+A shared place gives every machine the same context. A workspace gives the
+team one place to decide it, and adds what a shared place has no means to
+hold:
+
+- **Roles.** Who may review, approve and change the context is set per member.
+  See [Members and roles](/server/members-and-roles).
+- **Review on the record.** A named reviewer approves, and the decision stays
+  in the audit trail. See [Review](/server/review).
+- **Connectors.** Content from content platforms, design tools and
+  repositories meets the same context as your checkouts. See
+  [Connectors](/server/connectors).
+- **Server automation.** Rules respond to events across the workspace, for
+  content from any connector. See [Automation](/server/automation).
+- **The loop on the server.** `kapi up` on a connected project runs the loop
+  on the server, on the organization's keys and its shared content memory and
+  terms. See [`kapi up`](/cli/commands/up).
+
 ## kapi in two roles
 
 - **The engine underneath.** The same format handling, checks, and flow
