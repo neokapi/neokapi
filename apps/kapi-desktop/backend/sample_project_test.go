@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/kapi-desktop/backend/sample"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -284,4 +285,45 @@ func TestResetSampleProject_TabStaysUsable(t *testing.T) {
 	require.NoError(t, err, "plan must be derivable immediately after a reset")
 	_, err = app.GetConvergence(tab.ID)
 	require.NoError(t, err, "convergence must be derivable immediately after a reset")
+}
+
+// TestCreateSampleProject_ArrivesWithAnAssistantSession: the sample opens with
+// the two assistant sessions recorded, the home row reads them (codex the
+// latest, one disagreement, the voice the recipe binds), and opening the
+// sample again records nothing more.
+func TestCreateSampleProject_ArrivesWithAnAssistantSession(t *testing.T) {
+	t.Setenv("KAPI_HOME_DIR", t.TempDir())
+	t.Setenv(host.EnvDataDir, t.TempDir())
+	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
+	app := NewApp()
+	t.Cleanup(app.shutdownEngine)
+
+	tab, err := app.CreateSampleProject("kapimart")
+	require.NoError(t, err)
+	t.Cleanup(func() { app.CloseProject(tab.ID) })
+
+	home, err := app.ListWorkspaceProjects()
+	require.NoError(t, err)
+	require.Len(t, home.Projects, 1)
+	row := home.Projects[0]
+	assert.Equal(t, "kapimart", row.Voice)
+	require.NotNil(t, row.Sharing)
+	assert.Equal(t, project.ContextBackendLocal, row.Sharing.Kind)
+	require.NotNil(t, row.Context)
+	assert.Equal(t, 1, row.Context.Conflicts)
+	assert.Equal(t, 5, row.Context.Suggested, "three names, a word and a note")
+	assert.Positive(t, row.Context.Rules, "the imported terms are rules in force")
+	require.NotNil(t, row.Context.Latest)
+	assert.Equal(t, "codex", row.Context.Latest.Actor.Name)
+	assert.Equal(t, 2, row.Context.Latest.Recorded)
+	assert.Equal(t, map[string]int{host.DigestThemeNames: 1, host.DigestThemeWords: 1}, row.Context.Latest.NewByTheme)
+
+	before, err := app.hostEngine().ContextOperations(t.Context(), host.ContextLogRequest{Project: tab.Path})
+	require.NoError(t, err)
+	again, err := app.CreateSampleProject("kapimart")
+	require.NoError(t, err)
+	assert.Equal(t, tab.ID, again.ID)
+	after, err := app.hostEngine().ContextOperations(t.Context(), host.ContextLogRequest{Project: tab.Path})
+	require.NoError(t, err)
+	assert.Len(t, after.Operations, len(before.Operations), "the sessions are recorded once")
 }
