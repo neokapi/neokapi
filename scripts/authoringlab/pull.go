@@ -87,7 +87,7 @@ func prepareWorkspace(ctx context.Context, root, home string, arm armSetup) (str
 	if err := writePulledProject(tree, arm.profile); err != nil {
 		return "", err
 	}
-	return tree, copyTree(filepath.Join(root, "cli", "skills", "data", "kapi"),
+	return tree, copyTree(filepath.Join(root, "host", "skills", "data", "kapi"),
 		filepath.Join(tree, ".claude", "skills", "kapi"))
 }
 

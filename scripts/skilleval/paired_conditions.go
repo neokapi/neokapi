@@ -107,7 +107,7 @@ func installPairedSkill(launch PairedLaunch, arm pairedArm) error {
 	if arm.Skill == "kapi" {
 		source := launch.SkillSource
 		if source == "" {
-			source = filepath.Join(launch.RepoRoot, "cli", "skills", "data", "kapi")
+			source = filepath.Join(launch.RepoRoot, "host", "skills", "data", "kapi")
 		}
 		return copyTree(source, destination)
 	}

@@ -255,7 +255,7 @@ func executePairedWith(ctx context.Context, opts PairedOptions, deps pairedDepen
 	}
 	if opts.Phase == "preflight" || !opts.Live {
 		opts.kapiBin = findKapi(opts.RepoRoot)
-		opts.skillSource = filepath.Join(opts.RepoRoot, "cli", "skills", "data", "kapi")
+		opts.skillSource = filepath.Join(opts.RepoRoot, "host", "skills", "data", "kapi")
 		return preflightPaired(ctx, opts, manifest, deps)
 	}
 	if err := checkPairedLocation(opts.Dir); err != nil {
@@ -611,7 +611,7 @@ func preparePairedInputs(ctx context.Context, opts PairedOptions, deps pairedDep
 	if err := pairedCopyFile(binary, inputs.Kapi, 0o500); err != nil {
 		return inputs, fmt.Errorf("copy kapi into the study: %w", err)
 	}
-	if err := copyTree(filepath.Join(opts.RepoRoot, "cli", "skills", "data", "kapi"), inputs.Skill); err != nil {
+	if err := copyTree(filepath.Join(opts.RepoRoot, "host", "skills", "data", "kapi"), inputs.Skill); err != nil {
 		return inputs, fmt.Errorf("copy the kapi skill into the study: %w", err)
 	}
 	if inputs.KapiHash, err = pairedFileHash(inputs.Kapi); err != nil {
