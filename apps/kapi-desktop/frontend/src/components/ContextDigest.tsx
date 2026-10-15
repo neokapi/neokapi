@@ -535,8 +535,11 @@ function Noticed({ item }: { item: DigestItem }) {
   return who.name ? <>Noticed by {who.name}</> : <>Noticed by you</>;
 }
 
-/** The rule as a sentence, with the forms set apart from the words around them. */
-function RuleSentence({ item }: { item: DigestItem }) {
+/**
+ * The rule as a sentence, with the forms set apart from the words around them.
+ * The workspace's rules on the home read through it too.
+ */
+export function RuleSentence({ item }: { item: Pick<DigestItem, "subject" | "sentence"> }) {
   const s = item.subject;
   if (s.kind === "term" && s.term) {
     const avoid = <Forms rule={s.term} />;
