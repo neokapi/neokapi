@@ -3,7 +3,7 @@
 # marketplace repo.
 #
 # This is a RELEASE step, not a build step. The kapi binary build never depends
-# on the marketplace repo: the skill source of truth lives in cli/skills/data,
+# on the marketplace repo: the skill source of truth lives in host/skills/data,
 # is embedded into the binary, and `kapi skills export` (run by `make
 # plugin-bundle`) regenerates the same bytes into <src>/plugins/kapi/skills.
 # This script only mirrors that already-assembled bundle into the marketplace

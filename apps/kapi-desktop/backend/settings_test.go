@@ -246,3 +246,29 @@ func TestSaveSettingsDoesNotPersistTelemetry(t *testing.T) {
 	assert.False(t, reloaded.settings.TelemetryDisabled, "telemetry opt-out must not land in settings.json")
 	assert.Empty(t, reloaded.settings.MachineID, "machine id must not land in settings.json")
 }
+
+// TestStartHere_DismissAndRestore: dismissing the home's Start here steps is
+// kept across launches, and restoring them brings them back.
+func TestStartHere_DismissAndRestore(t *testing.T) {
+	app := isolatedSettingsApp(t)
+	assert.False(t, app.GetSettings().StartHereDismissed)
+
+	require.NoError(t, app.DismissStartHere())
+	reloaded := &settingsStore{filePath: app.settings.filePath}
+	reloaded.load()
+	assert.True(t, reloaded.settings.StartHereDismissed)
+
+	require.NoError(t, app.RestoreStartHere())
+	reloaded = &settingsStore{filePath: app.settings.filePath}
+	reloaded.load()
+	assert.False(t, reloaded.settings.StartHereDismissed)
+}
+
+// TestStartHere_ReportsAWriteThatFailed: a settings file that cannot be
+// written is reported rather than passed over.
+func TestStartHere_ReportsAWriteThatFailed(t *testing.T) {
+	blocked := filepath.Join(t.TempDir(), "file")
+	require.NoError(t, os.WriteFile(blocked, nil, 0o600))
+	app := &App{settings: &settingsStore{filePath: filepath.Join(blocked, "settings.json")}}
+	require.Error(t, app.DismissStartHere())
+}

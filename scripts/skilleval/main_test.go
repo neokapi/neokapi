@@ -269,7 +269,7 @@ func TestIsolationEnvHonoursTheContract(t *testing.T) {
 // agent with no skill installed, and every positive fails for the wrong reason.
 func TestTheSkillIsWhereWeCopyItFrom(t *testing.T) {
 	r := root(t)
-	skill := filepath.Join(r, "cli", "skills", "data", "kapi", "SKILL.md")
+	skill := filepath.Join(r, "host", "skills", "data", "kapi", "SKILL.md")
 	_, err := os.Stat(skill)
 	require.NoError(t, err, "the shipped skill is not at %s", skill)
 

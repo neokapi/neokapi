@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projector"
@@ -68,6 +69,41 @@ type WorkspaceProject struct {
 	// them. The first readable checkout answers, since the rest carry their
 	// own branch's copy of the same files.
 	ContextFiles *ContextFilesNoticeDTO `json:"context_files,omitempty"`
+	// Context is the project's context in numbers and its latest session,
+	// nil when the workspace log could not be read.
+	Context *host.ContextProjectStanding `json:"context,omitempty"`
+	// Sharing is where the project's context is kept and how far it reaches,
+	// read from the first readable checkout's recipe. A project with no
+	// readable checkout keeps its context in this machine's workspace.
+	Sharing *ProjectSharing `json:"sharing,omitempty"`
+	// Voice is the voice profile the recipe binds at the project's default
+	// point, as the recipe names it, when a checkout here says.
+	Voice string `json:"voice,omitempty"`
+}
+
+// ProjectSharing is where a project's context is kept and how far it reaches:
+// this machine's workspace, a place the recipe names under `context:`, and the
+// Bowrain server its `bowrain:` block connects it to.
+type ProjectSharing struct {
+	// Kind is local, file, git or s3.
+	Kind string `json:"kind"`
+	// Location is where a shared backend keeps the context, as kapi context
+	// backend prints it.
+	Location string `json:"location,omitempty"`
+	// From is "recipe" when kapi.yaml names the backend and "default" when it
+	// names none.
+	From string `json:"from"`
+	// Status is how far apart this machine and the backend were at the last
+	// contact, read without reaching the backend. Nil for a local backend.
+	Status *workspace.SyncStatus `json:"status,omitempty"`
+	// VenueHost is the host of the Bowrain server the recipe's venue block
+	// names, and VenueURL the project URL as written there. Both are empty
+	// when the recipe declares none.
+	VenueHost string `json:"venue_host,omitempty"`
+	VenueURL  string `json:"venue_url,omitempty"`
+	// Workspace is the workspace directory on this machine, which holds the
+	// project's context whatever the backend.
+	Workspace string `json:"workspace"`
 }
 
 // WorkspaceHome is the first screen: where this machine account's workspace is
@@ -80,6 +116,51 @@ type WorkspaceHome struct {
 	ReadOnly bool `json:"read_only"`
 	// Projects are the registered projects, most recently active first.
 	Projects []WorkspaceProject `json:"projects"`
+}
+
+// WorkspaceRule is one rule a person applied more widely, to every project in
+// the workspace: the home lists it under the rules that hold everywhere.
+type WorkspaceRule struct {
+	// ID names the operation whose rule it is, and Short the form a person
+	// types.
+	ID    string `json:"id"`
+	Short string `json:"short"`
+	// Sentence is the rule as a sentence, and Subject the rule itself.
+	Sentence string            `json:"sentence"`
+	Subject  contextop.Subject `json:"subject"`
+	// ProjectKey is the project the rule was decided in, and ProjectName what
+	// a person calls it.
+	ProjectKey  string `json:"project_key"`
+	ProjectName string `json:"project_name,omitempty"`
+	// At is when the rule came into force, and How on what: "kept by you",
+	// "merged in #412".
+	At  time.Time `json:"at"`
+	How []string  `json:"how,omitempty"`
+}
+
+// WorkspaceRules lists the rules in force in every project of the workspace,
+// oldest first.
+func (a *App) WorkspaceRules() ([]WorkspaceRule, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), workspaceHomeTimeout)
+	defer cancel()
+	held, err := a.hostEngine().ContextWorkspaceRules(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]WorkspaceRule, 0, len(held))
+	for _, r := range held {
+		out = append(out, WorkspaceRule{
+			ID:          r.ID,
+			Short:       r.Short,
+			Sentence:    r.Sentence,
+			Subject:     r.Subject,
+			ProjectKey:  r.Project,
+			ProjectName: r.ProjectName,
+			At:          r.At,
+			How:         r.How,
+		})
+	}
+	return out, nil
 }
 
 // WorkspaceRemoval is what removing a project from the workspace will delete.
@@ -116,8 +197,20 @@ func (a *App) ListWorkspaceProjects() (*WorkspaceHome, error) {
 	if err != nil {
 		return nil, err
 	}
+	standings := map[string]host.ContextProjectStanding{}
+	if list, serr := a.hostEngine().ContextStandings(ctx); serr == nil {
+		for _, s := range list {
+			standings[s.Project] = s
+		}
+	} else {
+		a.logger.Printf("read the context standings: %v", serr)
+	}
 	for _, reg := range regs {
 		row := workspaceProjectOf(reg)
+		if s, ok := standings[row.Key]; ok {
+			row.Context = &s
+		}
+		row.Sharing = &ProjectSharing{Kind: project.ContextBackendLocal, From: "default", Workspace: desc.Location}
 		for _, checkout := range row.Checkouts {
 			if checkout.Missing {
 				continue
@@ -125,11 +218,34 @@ func (a *App) ListWorkspaceProjects() (*WorkspaceHome, error) {
 			if notice := a.contextFilesNotice(checkout.Recipe); notice != nil {
 				row.ContextFiles = notice
 			}
+			proj, lerr := project.LoadWithOptions(checkout.Recipe, project.LoadOptions{SkipRequiresCheck: true})
+			if lerr != nil {
+				proj = nil
+			}
+			row.Sharing = a.projectSharingAt(ctx, checkout.Recipe, proj, desc.Location)
+			row.Voice = defaultVoice(proj, a.hostEngine().GovernanceInstant())
 			break
 		}
 		home.Projects = append(home.Projects, row)
 	}
 	return home, nil
+}
+
+// defaultVoice is the voice profile a recipe binds at the project's default
+// point, as the recipe names it: a profile in the project's store, or a
+// starter pack. Empty when the recipe binds none or cannot be resolved.
+func defaultVoice(proj *project.KapiProject, at time.Time) string {
+	if proj == nil {
+		return ""
+	}
+	rc, err := proj.ResolveGovernanceFor(project.GovernancePoint{At: at})
+	if err != nil || rc == nil || rc.Voice == nil {
+		return ""
+	}
+	if rc.Voice.Profile != "" {
+		return rc.Voice.Profile
+	}
+	return rc.Voice.Pack
 }
 
 // workspaceProjectOf renders one registration for the home screen, stamping

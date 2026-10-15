@@ -1863,8 +1863,8 @@ beside all of them in package-sized PRs.
   `apply_edits` and `describe_format` in the default `writing` set, and `review_block` replacing
   `review_unit` in the `review` set; the MCP golden regenerated once.
   Delete `ApplyEditsTool`, `changeEntry` and `EditDocument`. Skill references
-  (`cli/skills/data/kapi/references/{edit,create,toolbox,translate,project,voice,growing-context}.md`)
-  and the docs that show change sets (50 files under `web/docs`, `cli/skills` and `docs` mention `kapi
+  (`host/skills/data/kapi/references/{edit,create,toolbox,translate,project,voice,growing-context}.md`)
+  and the docs that show change sets (50 files under `web/docs`, `host/skills` and `docs` mention `kapi
   apply` or `apply_edits`) change in the same PR. New AD E-09.
 - **Acceptance:** a race test with two processes editing different blocks of one file under 50 forced
   interleavings loses no edit (the judge's harness); the conformance suite passes on the file home

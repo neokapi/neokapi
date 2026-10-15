@@ -201,7 +201,7 @@ func makeEvalStudyRecord(ctx context.Context, opts EvalOptions) (evalStudyRecord
 	if record.CodeHash, err = pairedTreeHash(filepath.Join(opts.RepoRoot, "scripts", "skilleval")); err != nil {
 		return record, err
 	}
-	if record.SkillHash, err = pairedTreeHash(filepath.Join(opts.RepoRoot, "cli", "skills", "data", "kapi")); err != nil {
+	if record.SkillHash, err = pairedTreeHash(filepath.Join(opts.RepoRoot, "host", "skills", "data", "kapi")); err != nil {
 		return record, err
 	}
 	record.KapiHash, record.KapiVersion = "unavailable", "unavailable"

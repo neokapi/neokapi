@@ -191,7 +191,7 @@ func buildWorkspace(dir string, sc *Scenario, repoRoot, kapiBin, arm string) err
 	if err := os.MkdirAll(skillDst, 0o755); err != nil {
 		return err
 	}
-	return copyTree(filepath.Join(repoRoot, "cli", "skills", "data", "kapi"), skillDst)
+	return copyTree(filepath.Join(repoRoot, "host", "skills", "data", "kapi"), skillDst)
 }
 
 // mcpConfigName is the file handed to --strict-mcp-config, which is what keeps

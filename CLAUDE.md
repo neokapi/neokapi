@@ -450,7 +450,7 @@ and flow name against the code before publishing.
   Index, docs-asset runbooks, brand communication, workspace paths. Unpublished
   by design — contributor machine setup and working notes, not product
   documentation.
-- **kapi agent skill** — `cli/skills/data/kapi/` (`SKILL.md` + `references/`),
+- **kapi agent skill** — `host/skills/data/kapi/` (`SKILL.md` + `references/`),
   the shipped guidance for driving kapi itself.
 
 Terminology maps from Okapi: Filter → DataFormat, Step → Tool, Pipeline → Flow,

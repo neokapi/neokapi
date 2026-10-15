@@ -351,6 +351,234 @@ func (a *App) ContextNews(ctx context.Context) ([]ContextNews, error) {
 	return out, nil
 }
 
+// ContextSessionQuietAfter is how long a session must have been silent before
+// a surface calls it finished. A session with an operation more recent than
+// this is working now, and a summary of it would count half its work.
+const ContextSessionQuietAfter = 2 * time.Minute
+
+// ContextActivity is one session's part in a project's context: an agent
+// session, or a person's or a tool's work on one local day.
+type ContextActivity struct {
+	// Actor is who did it.
+	Actor contextop.Actor `json:"actor"`
+	// At is the session's latest operation in the project.
+	At time.Time `json:"at"`
+	// Working reports an agent session with an operation in the last
+	// ContextSessionQuietAfter.
+	Working bool `json:"working"`
+	// Recorded counts the session's observations, and Corrected its
+	// corrections.
+	Recorded  int `json:"recorded"`
+	Corrected int `json:"corrected"`
+	// NewByTheme counts, per digest theme (DigestThemeNames and its
+	// neighbours), what the session recorded that the digest still holds and
+	// the person has not seen.
+	NewByTheme map[string]int `json:"new_by_theme,omitempty"`
+}
+
+// ContextProjectStanding is one project's context in numbers, for a list of
+// every project in the workspace.
+type ContextProjectStanding struct {
+	Project     string `json:"project"`
+	ProjectName string `json:"project_name,omitempty"`
+	// Rules counts the rules in force, Suggested the suggestions advising and
+	// Conflicts the disagreements that need a person.
+	Rules     int `json:"rules"`
+	Suggested int `json:"suggested"`
+	Conflicts int `json:"conflicts"`
+	// New counts the digest's items recorded since the person last looked.
+	New int `json:"new"`
+	// Since is the person's marker for the project, zero when they never
+	// looked.
+	Since time.Time `json:"since,omitzero"`
+	// Latest is the most recent session that recorded or corrected
+	// something in the project, nil when none has.
+	Latest *ContextActivity `json:"latest,omitempty"`
+}
+
+// ContextStandings reports every project registered in the workspace with its
+// context in numbers and its latest session. It folds the log once, and
+// includes a project with nothing recorded, so a list can show every project
+// beside its numbers.
+func (a *App) ContextStandings(ctx context.Context) ([]ContextProjectStanding, error) {
+	ws, err := a.Workspace(ctx)
+	if err != nil {
+		return nil, err
+	}
+	regs, err := ws.Projects(ctx)
+	if err != nil {
+		return nil, err
+	}
+	records, err := contextop.NewLedger(ws, contextop.PersonDecides).Records(ctx, contextop.Filter{})
+	if err != nil {
+		return nil, err
+	}
+	if reader, rerr := a.commandActor(); rerr == nil {
+		records = seenBy(records, reader.Actor)
+	}
+	markers := loadDigestMarkers()
+	// The wall clock rather than the run's governance instant: a desktop
+	// holds one App for hours, and "working now" is about this moment.
+	now := time.Now().UTC()
+	out := make([]ContextProjectStanding, 0, len(regs))
+	for _, reg := range regs {
+		since := markers.Projects[string(reg.Key)]
+		s := contextStanding(records, reg.Key, since, now)
+		s.ProjectName = workspaceRegistrationName(reg)
+		out = append(out, s)
+	}
+	return out, nil
+}
+
+// contextStanding folds one project's standing from the log, newest first as
+// contextop.Ledger.Records returns it.
+func contextStanding(records []contextop.Record, key workspace.ProjectKey, since, now time.Time) ContextProjectStanding {
+	d := buildDigest(records, key, since, now, nil)
+	return ContextProjectStanding{
+		Project:   string(key),
+		Rules:     d.Numbers.Rules,
+		Suggested: d.Numbers.Suggested,
+		Conflicts: d.Numbers.Conflicts,
+		New:       d.Numbers.New,
+		Since:     since,
+		Latest:    latestActivity(records, key, since, now),
+	}
+}
+
+// latestActivity is the most recent session that recorded or corrected
+// something in a project. Sessions group the way the feed groups them: an
+// agent's by the session id its operations carry, a person's or a tool's by
+// actor and local day. A keep or a drop never makes a session the latest, so
+// a person deciding leaves the assistant's session in place.
+func latestActivity(records []contextop.Record, key workspace.ProjectKey, since, now time.Time) *ContextActivity {
+	var out *ContextActivity
+	group := ""
+	for _, r := range records {
+		if r.Project == key && (r.Kind == contextop.KindObserve || r.Kind == contextop.KindCorrect) {
+			group = contextActivityGroup(r)
+			out = &ContextActivity{Actor: r.Actor}
+			break
+		}
+	}
+	if out == nil {
+		return nil
+	}
+	for _, r := range records {
+		if r.Project != key || contextActivityGroup(r) != group {
+			continue
+		}
+		if r.At.After(out.At) {
+			out.At = r.At
+		}
+		switch r.Kind {
+		case contextop.KindObserve:
+			out.Recorded++
+		case contextop.KindCorrect:
+			out.Corrected++
+		}
+		if r.Kind.Bears() && r.Status.Answers() && r.Subject.Kind != contextop.SubjectNone && (since.IsZero() || r.At.After(since)) {
+			if out.NewByTheme == nil {
+				out.NewByTheme = map[string]int{}
+			}
+			out.NewByTheme[digestTheme(r.Subject)]++
+		}
+	}
+	out.Working = out.Actor.Kind == contextop.ActorAgent && now.Sub(out.At) < ContextSessionQuietAfter
+	return out
+}
+
+// ContextWorkspaceRule is one rule a person applied to the whole workspace:
+// it holds in every project, beside each project's own rules.
+type ContextWorkspaceRule struct {
+	// ID names the operation whose rule it is, and Short the form a person
+	// types.
+	ID    string `json:"id"`
+	Short string `json:"short"`
+	// Sentence is the rule as a sentence, and Subject the rule itself.
+	Sentence string            `json:"sentence"`
+	Subject  contextop.Subject `json:"subject"`
+	// Project is the project the rule was decided in, and ProjectName what a
+	// person calls it.
+	Project     string `json:"project"`
+	ProjectName string `json:"project_name,omitempty"`
+	// At is when the rule came into force, and How on what: "kept by you",
+	// "merged in #412".
+	At  time.Time `json:"at"`
+	How []string  `json:"how,omitempty"`
+}
+
+// ContextWorkspaceRules lists the rules in force across the workspace, the
+// ones every check resolves beside a project's own (contextop.WidenedRules),
+// oldest first, each with how it came into force.
+func (a *App) ContextWorkspaceRules(ctx context.Context) ([]ContextWorkspaceRule, error) {
+	ws, err := a.Workspace(ctx)
+	if err != nil {
+		return nil, err
+	}
+	widened, err := contextop.WidenedRules(ctx, ws)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]ContextWorkspaceRule, 0, len(widened))
+	if len(widened) == 0 {
+		return out, nil
+	}
+	records, err := contextop.NewLedger(ws, contextop.PersonDecides).Records(ctx, contextop.Filter{})
+	if err != nil {
+		return nil, err
+	}
+	if reader, rerr := a.commandActor(); rerr == nil {
+		records = seenBy(records, reader.Actor)
+	}
+	names := map[workspace.ProjectKey]string{}
+	if regs, rerr := ws.Projects(ctx); rerr == nil {
+		for _, reg := range regs {
+			names[reg.Key] = workspaceRegistrationName(reg)
+		}
+	}
+	return workspaceRules(widened, records, names), nil
+}
+
+// workspaceRules renders the widened rules, reading how each came into force
+// from the folded log. A rule whose operation the log no longer holds keeps
+// the moment it was widened and says nothing of how.
+func workspaceRules(widened []contextop.WidenedRule, records []contextop.Record, names map[workspace.ProjectKey]string) []ContextWorkspaceRule {
+	byID := make(map[string]contextop.Record, len(records))
+	for _, r := range records {
+		byID[r.ID] = r
+	}
+	acts := digestActs(records, byID)
+	out := make([]ContextWorkspaceRule, 0, len(widened))
+	for _, w := range widened {
+		rule := ContextWorkspaceRule{
+			ID:          w.Operation,
+			Short:       contextop.ShortID(w.Operation),
+			Sentence:    ruleSentence(w.Subject),
+			Subject:     w.Subject,
+			Project:     string(w.Project),
+			ProjectName: names[w.Project],
+			At:          w.At,
+		}
+		if r, ok := byID[w.Operation]; ok && r.Project == w.Project {
+			rule.At, rule.How = establishment(r, acts[r.ID], byID)
+		}
+		out = append(out, rule)
+	}
+	return out
+}
+
+// contextActivityGroup is the session an operation belongs to.
+func contextActivityGroup(r contextop.Record) string {
+	if r.Actor.Session != "" {
+		return "session:" + r.Actor.Session
+	}
+	kind := r.Actor.Kind
+	if kind == "" {
+		kind = contextop.ActorPerson
+	}
+	return "actor:" + string(kind) + "/" + r.Actor.Name + ":" + r.At.Local().Format(time.DateOnly)
+}
+
 // workspaceRegistrationName is what a person calls a registered project.
 func workspaceRegistrationName(reg workspace.Registration) string {
 	if reg.Name != "" {
@@ -673,7 +901,10 @@ func digestConflict(r contextop.Record, byID map[string]contextop.Record, taken 
 	c := DigestConflict{Sides: []DigestItem{}}
 	taken[r.ID] = true
 	c.Sides = append(c.Sides, side(r))
-	if r.ContestedByEvidence() {
+	// A correction that suggests the opposite rule is evidence against this
+	// one and a rival to it at once: the person chooses between the two rules,
+	// so it is listed as a side rather than as the evidence alone.
+	if r.ContestedByEvidence() && !contestedByRival(r, byID, taken) {
 		c.ByEvidence = true
 		c.Reason = contestedByEvidenceReason(r, byID)
 		return c
@@ -697,6 +928,18 @@ func digestConflict(r contextop.Record, byID map[string]contextop.Record, taken 
 		c.ByEvidence = true
 	}
 	return c
+}
+
+// contestedByRival reports a record contested by a rule of its own that the
+// digest has not yet listed: a suggestion or a correction stating a rule.
+func contestedByRival(r contextop.Record, byID map[string]contextop.Record, taken map[string]bool) bool {
+	for _, id := range r.ContestedBy {
+		other, ok := byID[id]
+		if ok && !taken[id] && other.Kind.Bears() && other.Subject.Kind == contextop.SubjectTerm {
+			return true
+		}
+	}
+	return false
 }
 
 // contestedByEvidenceReason says what turned the evidence against a rule.

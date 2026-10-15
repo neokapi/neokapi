@@ -128,6 +128,7 @@ var (
 	DetectAgentHosts             = host.DetectAgentHosts
 	ParseAgentHosts              = host.ParseAgentHosts
 	WriteAgentWiring             = host.WriteAgentWiring
+	MCPToolSets                  = host.MCPToolSets
 	AiProgressWriter             = host.AiProgressWriter
 	AllKBF                       = host.AllKBF
 	ApplyAIDefaults              = host.ApplyAIDefaults

@@ -21,6 +21,9 @@ import * as profile$0 from "../core/profile/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as review$0 from "../core/review/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as workspace$0 from "../core/workspace/models.js";
 
 /**
  * AIModelOrigin says which layer supplied the effective value.
@@ -122,6 +125,332 @@ export class AIModelResolution {
     static createFrom($$source = {}) {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new AIModelResolution(/** @type {Partial<AIModelResolution>} */($$parsedSource));
+    }
+}
+
+/**
+ * AgentHost names one coding-agent host a project can be wired for.
+ * @readonly
+ * @enum {string}
+ */
+export const AgentHost = {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero: "",
+
+    /**
+     * AgentHostClaudeCode is Claude Code: `.mcp.json` at the project root, and
+     * project skills under `.claude/skills/`.
+     */
+    AgentHostClaudeCode: "claude-code",
+
+    /**
+     * AgentHostCursor is Cursor: `.cursor/mcp.json`.
+     */
+    AgentHostCursor: "cursor",
+
+    /**
+     * AgentHostVSCode is Visual Studio Code: `.vscode/mcp.json`, whose servers
+     * sit under `servers` rather than `mcpServers`.
+     */
+    AgentHostVSCode: "vscode",
+
+    /**
+     * AgentHostCodex is Codex: `.codex/config.toml`, the repository's own layer
+     * of the configuration Codex reads, whose servers sit under `mcp_servers`.
+     * Codex loads that layer for a repository the person has trusted, so the
+     * entry starts answering the first time they open the project there.
+     */
+    AgentHostCodex: "codex",
+
+    /**
+     * AgentHostAgents is the cross-client skills convention, `.agents/skills/`,
+     * which several hosts scan alongside their own directory.
+     */
+    AgentHostAgents: "agents",
+};
+
+/**
+ * AgentWiringAction is what writing one file did.
+ * @readonly
+ * @enum {string}
+ */
+export const AgentWiringAction = {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero: "",
+
+    /**
+     * AgentWiringCreated: the file did not exist and now holds kapi's entry.
+     */
+    AgentWiringCreated: "created",
+
+    /**
+     * AgentWiringUpdated: an existing file gained kapi's entry, or a file the
+     * skill ships was refreshed.
+     */
+    AgentWiringUpdated: "updated",
+
+    /**
+     * AgentWiringUnchanged: the file already held exactly this.
+     */
+    AgentWiringUnchanged: "unchanged",
+
+    /**
+     * AgentWiringKept: the file already names a server called kapi, so it was
+     * read and left as it is.
+     */
+    AgentWiringKept: "kept",
+};
+
+/**
+ * AgentWiringFile is one file, or one skill directory, the wiring touched.
+ */
+export class AgentWiringFile {
+    /**
+     * Creates a new AgentWiringFile instance.
+     * @param {Partial<AgentWiringFile>} [$$source = {}] - The source object to create the AgentWiringFile.
+     */
+    constructor($$source = {}) {
+        if (!("kind" in $$source)) {
+            /**
+             * Kind says whether this is an MCP configuration file or a skill.
+             * @member
+             * @type {AgentWiringKind}
+             */
+            this["kind"] = AgentWiringKind.$zero;
+        }
+        if (!("host" in $$source)) {
+            /**
+             * Host is the agent host this file is read by.
+             * @member
+             * @type {AgentHost}
+             */
+            this["host"] = AgentHost.$zero;
+        }
+        if (!("path" in $$source)) {
+            /**
+             * Path is project-relative and slash-separated, so it reads the same on
+             * every machine.
+             * @member
+             * @type {string}
+             */
+            this["path"] = "";
+        }
+        if (!("action" in $$source)) {
+            /**
+             * Action is what happened to it.
+             * @member
+             * @type {AgentWiringAction}
+             */
+            this["action"] = AgentWiringAction.$zero;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Detail says what is in it, for a line a person reads: the server command
+             * for a config file, the file count for a skill directory.
+             * @member
+             * @type {string | undefined}
+             */
+            this["detail"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Removed lists, for a skill directory, the files an earlier kapi copied
+             * there that this run removed, relative to the skill directory.
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["removed"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Kept lists, for a skill directory, the files in it that kapi did not
+             * write and left in place, relative to the skill directory.
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["kept"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new AgentWiringFile instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {AgentWiringFile}
+     */
+    static createFrom($$source = {}) {
+        const $$createField5_0 = $$createType0;
+        const $$createField6_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("removed" in $$parsedSource) {
+            $$parsedSource["removed"] = $$createField5_0($$parsedSource["removed"]);
+        }
+        if ("kept" in $$parsedSource) {
+            $$parsedSource["kept"] = $$createField6_0($$parsedSource["kept"]);
+        }
+        return new AgentWiringFile(/** @type {Partial<AgentWiringFile>} */($$parsedSource));
+    }
+}
+
+/**
+ * AgentWiringKind says what an entry is, because the two answer different
+ * questions for whoever reads the output: a server an agent host starts, or
+ * guidance it loads.
+ * @readonly
+ * @enum {string}
+ */
+export const AgentWiringKind = {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero: "",
+
+    /**
+     * AgentWiringMCP is an MCP configuration file.
+     */
+    AgentWiringMCP: "mcp",
+
+    /**
+     * AgentWiringSkill is one skill's directory.
+     */
+    AgentWiringSkill: "skill",
+};
+
+/**
+ * AgentWiringResult reports what WriteAgentWiring did.
+ */
+export class AgentWiringResult {
+    /**
+     * Creates a new AgentWiringResult instance.
+     * @param {Partial<AgentWiringResult>} [$$source = {}] - The source object to create the AgentWiringResult.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * Hosts are the hosts that were wired, in agentHostOrder.
+             * @member
+             * @type {AgentHost[] | undefined}
+             */
+            this["hosts"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Files lists every file and skill directory touched, in the order they
+             * were written.
+             * @member
+             * @type {AgentWiringFile[] | undefined}
+             */
+            this["files"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new AgentWiringResult instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {AgentWiringResult}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType1;
+        const $$createField1_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("hosts" in $$parsedSource) {
+            $$parsedSource["hosts"] = $$createField0_0($$parsedSource["hosts"]);
+        }
+        if ("files" in $$parsedSource) {
+            $$parsedSource["files"] = $$createField1_0($$parsedSource["files"]);
+        }
+        return new AgentWiringResult(/** @type {Partial<AgentWiringResult>} */($$parsedSource));
+    }
+}
+
+/**
+ * ContextActivity is one session's part in a project's context: an agent
+ * session, or a person's or a tool's work on one local day.
+ */
+export class ContextActivity {
+    /**
+     * Creates a new ContextActivity instance.
+     * @param {Partial<ContextActivity>} [$$source = {}] - The source object to create the ContextActivity.
+     */
+    constructor($$source = {}) {
+        if (!("actor" in $$source)) {
+            /**
+             * Actor is who did it.
+             * @member
+             * @type {contextop$0.Actor}
+             */
+            this["actor"] = (new contextop$0.Actor());
+        }
+        if (!("at" in $$source)) {
+            /**
+             * At is the session's latest operation in the project.
+             * @member
+             * @type {string}
+             */
+            this["at"] = "0001-01-01T00:00:00.000Z";
+        }
+        if (!("working" in $$source)) {
+            /**
+             * Working reports an agent session with an operation in the last
+             * ContextSessionQuietAfter.
+             * @member
+             * @type {boolean}
+             */
+            this["working"] = false;
+        }
+        if (!("recorded" in $$source)) {
+            /**
+             * Recorded counts the session's observations, and Corrected its
+             * corrections.
+             * @member
+             * @type {number}
+             */
+            this["recorded"] = 0;
+        }
+        if (!("corrected" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["corrected"] = 0;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * NewByTheme counts, per digest theme (DigestThemeNames and its
+             * neighbours), what the session recorded that the digest still holds and
+             * the person has not seen.
+             * @member
+             * @type {{ [_ in string]?: number } | undefined}
+             */
+            this["new_by_theme"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ContextActivity instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ContextActivity}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType4;
+        const $$createField5_0 = $$createType5;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("actor" in $$parsedSource) {
+            $$parsedSource["actor"] = $$createField0_0($$parsedSource["actor"]);
+        }
+        if ("new_by_theme" in $$parsedSource) {
+            $$parsedSource["new_by_theme"] = $$createField5_0($$parsedSource["new_by_theme"]);
+        }
+        return new ContextActivity(/** @type {Partial<ContextActivity>} */($$parsedSource));
     }
 }
 
@@ -320,19 +649,19 @@ export class ContextAnswer {
      * @returns {ContextAnswer}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType1;
-        const $$createField1_0 = $$createType3;
-        const $$createField2_0 = $$createType4;
-        const $$createField5_0 = $$createType6;
-        const $$createField6_0 = $$createType8;
-        const $$createField7_0 = $$createType10;
-        const $$createField9_0 = $$createType12;
-        const $$createField10_0 = $$createType14;
-        const $$createField11_0 = $$createType16;
-        const $$createField13_0 = $$createType18;
-        const $$createField15_0 = $$createType19;
-        const $$createField16_0 = $$createType19;
-        const $$createField17_0 = $$createType21;
+        const $$createField0_0 = $$createType7;
+        const $$createField1_0 = $$createType9;
+        const $$createField2_0 = $$createType10;
+        const $$createField5_0 = $$createType12;
+        const $$createField6_0 = $$createType14;
+        const $$createField7_0 = $$createType16;
+        const $$createField9_0 = $$createType18;
+        const $$createField10_0 = $$createType20;
+        const $$createField11_0 = $$createType22;
+        const $$createField13_0 = $$createType24;
+        const $$createField15_0 = $$createType0;
+        const $$createField16_0 = $$createType0;
+        const $$createField17_0 = $$createType26;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("constraints" in $$parsedSource) {
             $$parsedSource["constraints"] = $$createField0_0($$parsedSource["constraints"]);
@@ -492,11 +821,11 @@ export class ContextDigest {
      * @returns {ContextDigest}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType23;
-        const $$createField4_0 = $$createType25;
-        const $$createField5_0 = $$createType27;
-        const $$createField6_0 = $$createType29;
-        const $$createField7_0 = $$createType30;
+        const $$createField3_0 = $$createType28;
+        const $$createField4_0 = $$createType30;
+        const $$createField5_0 = $$createType32;
+        const $$createField6_0 = $$createType34;
+        const $$createField7_0 = $$createType35;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("conflicts" in $$parsedSource) {
             $$parsedSource["conflicts"] = $$createField3_0($$parsedSource["conflicts"]);
@@ -610,8 +939,8 @@ export class ContextElsewhere {
      * @returns {ContextElsewhere}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType19;
-        const $$createField2_0 = $$createType19;
+        const $$createField0_0 = $$createType0;
+        const $$createField2_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("keep" in $$parsedSource) {
             $$parsedSource["keep"] = $$createField0_0($$parsedSource["keep"]);
@@ -660,7 +989,7 @@ export class ContextFilesNotice {
      * @returns {ContextFilesNotice}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType19;
+        const $$createField0_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("files" in $$parsedSource) {
             $$parsedSource["files"] = $$createField0_0($$parsedSource["files"]);
@@ -731,6 +1060,254 @@ export class ContextNews {
     static createFrom($$source = {}) {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new ContextNews(/** @type {Partial<ContextNews>} */($$parsedSource));
+    }
+}
+
+/**
+ * ContextOperation is one recorded change to a project's context, as a surface
+ * shows it.
+ */
+export class ContextOperation {
+    /**
+     * Creates a new ContextOperation instance.
+     * @param {Partial<ContextOperation>} [$$source = {}] - The source object to create the ContextOperation.
+     */
+    constructor($$source = {}) {
+        if (!("id" in $$source)) {
+            /**
+             * ID names the operation in every log that holds it (workspace.NewOpID):
+             * time-ordered, so a merged log folds in one order on every machine.
+             * @member
+             * @type {string}
+             */
+            this["id"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Short is the id as a log line shows it and a person types it: its first
+             * characters (workspace.ShortOpID). Every verb that takes an id resolves
+             * an unambiguous prefix, so the short form is enough.
+             * @member
+             * @type {string | undefined}
+             */
+            this["short"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Project is the project whose work produced the operation. A widened rule
+             * keeps it, because provenance survives widening.
+             * @member
+             * @type {workspace$0.ProjectKey | undefined}
+             */
+            this["project"] = undefined;
+        }
+        if (!("actor" in $$source)) {
+            /**
+             * Actor is who did it.
+             * @member
+             * @type {contextop$0.Actor}
+             */
+            this["actor"] = (new contextop$0.Actor());
+        }
+        if (!("kind" in $$source)) {
+            /**
+             * Kind is what was done.
+             * @member
+             * @type {contextop$0.Kind}
+             */
+            this["kind"] = contextop$0.Kind.$zero;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Subject is what it was about, empty for an operation that acts on another.
+             * @member
+             * @type {contextop$0.Subject | undefined}
+             */
+            this["subject"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Correction is the wording a correct operation changed.
+             * @member
+             * @type {contextop$0.Correction | null | undefined}
+             */
+            this["correction"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Evidence is where the subject was seen.
+             * @member
+             * @type {contextop$0.Evidence[] | undefined}
+             */
+            this["evidence"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Basis is what governed when it was recorded.
+             * @member
+             * @type {contextop$0.Basis | undefined}
+             */
+            this["basis"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Scope is how far the subject answers.
+             * @member
+             * @type {contextop$0.Scope | undefined}
+             */
+            this["scope"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Target is the operation this one acts on, empty for a subject-bearing
+             * operation.
+             * @member
+             * @type {string | undefined}
+             */
+            this["target"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Before is the first operation a reset sets aside.
+             * @member
+             * @type {string | undefined}
+             */
+            this["before"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Note is whatever the actor said about the operation.
+             * @member
+             * @type {string | undefined}
+             */
+            this["note"] = undefined;
+        }
+        if (!("at" in $$source)) {
+            /**
+             * At is Go's clock at the moment the log accepted it, in UTC.
+             * @member
+             * @type {string}
+             */
+            this["at"] = "0001-01-01T00:00:00.000Z";
+        }
+        if (!("status" in $$source)) {
+            /**
+             * Status is what became of the operation, folded from the operations that
+             * name it. An operation that acts on another carries StatusEstablished
+             * unless a reset set it aside.
+             * @member
+             * @type {contextop$0.Status}
+             */
+            this["status"] = contextop$0.Status.$zero;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * ContestedBy names the operations on the other side of a disagreement,
+             * for a record at StatusContested.
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["contested_by"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Established reports that the subject is established: a person kept it,
+             * imported it or wrote it, or settling established it on evidence that
+             * includes a person's signal. It stays true while a correction contests
+             * the rule, which is what tells a contested rule from a contested
+             * suggestion.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["established"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Signal is the evidence a signal operation carries.
+             * @member
+             * @type {contextop$0.Signal | null | undefined}
+             */
+            this["signal"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Because names the operations an establish operation rested on.
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["because"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Standing counts the evidence for and against a suggestion, folded from
+             * the log. It is set on a term rule that settling considers.
+             * @member
+             * @type {contextop$0.Standing | null | undefined}
+             */
+            this["standing"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Landed names what a keep wrote and where, or what a contest took out of
+             * force, empty for every other operation. It is the assetResult detail from
+             * the applier that wrote it.
+             * @member
+             * @type {string | undefined}
+             */
+            this["landed"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ContextOperation instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ContextOperation}
+     */
+    static createFrom($$source = {}) {
+        const $$createField3_0 = $$createType4;
+        const $$createField5_0 = $$createType36;
+        const $$createField6_0 = $$createType38;
+        const $$createField7_0 = $$createType40;
+        const $$createField8_0 = $$createType41;
+        const $$createField9_0 = $$createType42;
+        const $$createField15_0 = $$createType0;
+        const $$createField17_0 = $$createType44;
+        const $$createField18_0 = $$createType0;
+        const $$createField19_0 = $$createType46;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("actor" in $$parsedSource) {
+            $$parsedSource["actor"] = $$createField3_0($$parsedSource["actor"]);
+        }
+        if ("subject" in $$parsedSource) {
+            $$parsedSource["subject"] = $$createField5_0($$parsedSource["subject"]);
+        }
+        if ("correction" in $$parsedSource) {
+            $$parsedSource["correction"] = $$createField6_0($$parsedSource["correction"]);
+        }
+        if ("evidence" in $$parsedSource) {
+            $$parsedSource["evidence"] = $$createField7_0($$parsedSource["evidence"]);
+        }
+        if ("basis" in $$parsedSource) {
+            $$parsedSource["basis"] = $$createField8_0($$parsedSource["basis"]);
+        }
+        if ("scope" in $$parsedSource) {
+            $$parsedSource["scope"] = $$createField9_0($$parsedSource["scope"]);
+        }
+        if ("contested_by" in $$parsedSource) {
+            $$parsedSource["contested_by"] = $$createField15_0($$parsedSource["contested_by"]);
+        }
+        if ("signal" in $$parsedSource) {
+            $$parsedSource["signal"] = $$createField17_0($$parsedSource["signal"]);
+        }
+        if ("because" in $$parsedSource) {
+            $$parsedSource["because"] = $$createField18_0($$parsedSource["because"]);
+        }
+        if ("standing" in $$parsedSource) {
+            $$parsedSource["standing"] = $$createField19_0($$parsedSource["standing"]);
+        }
+        return new ContextOperation(/** @type {Partial<ContextOperation>} */($$parsedSource));
     }
 }
 
@@ -813,7 +1390,7 @@ export class ContextPoint {
      * @returns {ContextPoint}
      */
     static createFrom($$source = {}) {
-        const $$createField5_0 = $$createType31;
+        const $$createField5_0 = $$createType47;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("coordinates" in $$parsedSource) {
             $$parsedSource["coordinates"] = $$createField5_0($$parsedSource["coordinates"]);
@@ -881,7 +1458,7 @@ export class ContextPrecedentHit {
      * @returns {ContextPrecedentHit}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType19;
+        const $$createField4_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("discouraged" in $$parsedSource) {
             $$parsedSource["discouraged"] = $$createField4_0($$parsedSource["discouraged"]);
@@ -905,6 +1482,98 @@ export const ContextProfileHit = review$0.ProfileValidity;
  */
 
 /**
+ * ContextProjectStanding is one project's context in numbers, for a list of
+ * every project in the workspace.
+ */
+export class ContextProjectStanding {
+    /**
+     * Creates a new ContextProjectStanding instance.
+     * @param {Partial<ContextProjectStanding>} [$$source = {}] - The source object to create the ContextProjectStanding.
+     */
+    constructor($$source = {}) {
+        if (!("project" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["project"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["project_name"] = undefined;
+        }
+        if (!("rules" in $$source)) {
+            /**
+             * Rules counts the rules in force, Suggested the suggestions advising and
+             * Conflicts the disagreements that need a person.
+             * @member
+             * @type {number}
+             */
+            this["rules"] = 0;
+        }
+        if (!("suggested" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["suggested"] = 0;
+        }
+        if (!("conflicts" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["conflicts"] = 0;
+        }
+        if (!("new" in $$source)) {
+            /**
+             * New counts the digest's items recorded since the person last looked.
+             * @member
+             * @type {number}
+             */
+            this["new"] = 0;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Since is the person's marker for the project, zero when they never
+             * looked.
+             * @member
+             * @type {string | undefined}
+             */
+            this["since"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Latest is the most recent session that recorded or corrected
+             * something in the project, nil when none has.
+             * @member
+             * @type {ContextActivity | null | undefined}
+             */
+            this["latest"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ContextProjectStanding instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ContextProjectStanding}
+     */
+    static createFrom($$source = {}) {
+        const $$createField7_0 = $$createType49;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("latest" in $$parsedSource) {
+            $$parsedSource["latest"] = $$createField7_0($$parsedSource["latest"]);
+        }
+        return new ContextProjectStanding(/** @type {Partial<ContextProjectStanding>} */($$parsedSource));
+    }
+}
+
+/**
  * ContextProvenance says which project a retrieval answer came from and what
  * state it was read at.
  * 
@@ -925,6 +1594,262 @@ export const ContextProvenance = check$0.ContextProvenance;
  * and a check result reporting one shape under one set of field names.
  * @typedef {check$0.ContextProvenance} ContextProvenance
  */
+
+/**
+ * ContextPull reports what a pull merged.
+ */
+export class ContextPull {
+    /**
+     * Creates a new ContextPull instance.
+     * @param {Partial<ContextPull>} [$$source = {}] - The source object to create the ContextPull.
+     */
+    constructor($$source = {}) {
+        if (!("remote" in $$source)) {
+            /**
+             * Remote describes the remote.
+             * @member
+             * @type {workspace$0.RemoteDescriptor}
+             */
+            this["remote"] = (new workspace$0.RemoteDescriptor());
+        }
+        if (!("to_push" in $$source)) {
+            /**
+             * ToPush counts the project's operations the remote is not known to hold.
+             * @member
+             * @type {number}
+             */
+            this["to_push"] = 0;
+        }
+        if (!("to_push_logged" in $$source)) {
+            /**
+             * ToPushLogged counts the context operations among them, the ones `kapi
+             * context log` lists. The rest are the writes to the project's stores that
+             * keeping a rule or importing a voice or terms made.
+             * @member
+             * @type {number}
+             */
+            this["to_push_logged"] = 0;
+        }
+        if (!("to_pull" in $$source)) {
+            /**
+             * ToPull counts the operations in segments read from the remote and not
+             * yet merged.
+             * @member
+             * @type {number}
+             */
+            this["to_pull"] = 0;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Contacted is when the remote was last reached; zero when never.
+             * @member
+             * @type {string | undefined}
+             */
+            this["contacted"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Error is what the last attempt to reach it reported, empty when it
+             * succeeded.
+             * @member
+             * @type {string | undefined}
+             */
+            this["error"] = undefined;
+        }
+        if (!("segments" in $$source)) {
+            /**
+             * Segments counts the segments read.
+             * @member
+             * @type {number}
+             */
+            this["segments"] = 0;
+        }
+        if (!("merged" in $$source)) {
+            /**
+             * Merged counts the operations the log did not hold before.
+             * @member
+             * @type {number}
+             */
+            this["merged"] = 0;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Rebuilt reports that the stores were written again from the log.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["rebuilt"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Checkpoint is the operation a first pull started from, when the remote
+             * held a checkpoint it could use.
+             * @member
+             * @type {string | undefined}
+             */
+            this["checkpoint"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Empty reports that the remote lists no segments at all: nothing has
+             * been pushed to it yet.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["empty"] = undefined;
+        }
+        if (!("seconds" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["seconds"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ContextPull instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ContextPull}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType50;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("remote" in $$parsedSource) {
+            $$parsedSource["remote"] = $$createField0_0($$parsedSource["remote"]);
+        }
+        return new ContextPull(/** @type {Partial<ContextPull>} */($$parsedSource));
+    }
+}
+
+/**
+ * ContextPush reports what a push wrote.
+ */
+export class ContextPush {
+    /**
+     * Creates a new ContextPush instance.
+     * @param {Partial<ContextPush>} [$$source = {}] - The source object to create the ContextPush.
+     */
+    constructor($$source = {}) {
+        if (!("remote" in $$source)) {
+            /**
+             * Remote describes the remote.
+             * @member
+             * @type {workspace$0.RemoteDescriptor}
+             */
+            this["remote"] = (new workspace$0.RemoteDescriptor());
+        }
+        if (!("to_push" in $$source)) {
+            /**
+             * ToPush counts the project's operations the remote is not known to hold.
+             * @member
+             * @type {number}
+             */
+            this["to_push"] = 0;
+        }
+        if (!("to_push_logged" in $$source)) {
+            /**
+             * ToPushLogged counts the context operations among them, the ones `kapi
+             * context log` lists. The rest are the writes to the project's stores that
+             * keeping a rule or importing a voice or terms made.
+             * @member
+             * @type {number}
+             */
+            this["to_push_logged"] = 0;
+        }
+        if (!("to_pull" in $$source)) {
+            /**
+             * ToPull counts the operations in segments read from the remote and not
+             * yet merged.
+             * @member
+             * @type {number}
+             */
+            this["to_pull"] = 0;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Contacted is when the remote was last reached; zero when never.
+             * @member
+             * @type {string | undefined}
+             */
+            this["contacted"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Error is what the last attempt to reach it reported, empty when it
+             * succeeded.
+             * @member
+             * @type {string | undefined}
+             */
+            this["error"] = undefined;
+        }
+        if (!("pushed" in $$source)) {
+            /**
+             * Pushed counts the operations written.
+             * @member
+             * @type {number}
+             */
+            this["pushed"] = 0;
+        }
+        if (!("pushed_logged" in $$source)) {
+            /**
+             * PushedLogged counts the context operations among them (ToPushLogged).
+             * @member
+             * @type {number}
+             */
+            this["pushed_logged"] = 0;
+        }
+        if (!("segments" in $$source)) {
+            /**
+             * Segments counts the segment files written.
+             * @member
+             * @type {number}
+             */
+            this["segments"] = 0;
+        }
+        if (!("blobs" in $$source)) {
+            /**
+             * Blobs counts the blobs written.
+             * @member
+             * @type {number}
+             */
+            this["blobs"] = 0;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Checkpoint is the operation of the checkpoint written, when one was.
+             * @member
+             * @type {string | undefined}
+             */
+            this["checkpoint"] = undefined;
+        }
+        if (!("seconds" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["seconds"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ContextPush instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ContextPush}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType50;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("remote" in $$parsedSource) {
+            $$parsedSource["remote"] = $$createField0_0($$parsedSource["remote"]);
+        }
+        return new ContextPush(/** @type {Partial<ContextPush>} */($$parsedSource));
+    }
+}
 
 /**
  * ContextRule is one line of that list: the wording to use, the wording to
@@ -997,9 +1922,9 @@ export class ContextRule {
      * @returns {ContextRule}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType19;
-        const $$createField2_0 = $$createType19;
-        const $$createField5_0 = $$createType19;
+        const $$createField1_0 = $$createType0;
+        const $$createField2_0 = $$createType0;
+        const $$createField5_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("also" in $$parsedSource) {
             $$parsedSource["also"] = $$createField1_0($$parsedSource["also"]);
@@ -1186,14 +2111,14 @@ export class ContextSearchResult {
      * @returns {ContextSearchResult}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType6;
-        const $$createField4_0 = $$createType21;
-        const $$createField5_0 = $$createType10;
-        const $$createField6_0 = $$createType33;
-        const $$createField7_0 = $$createType14;
-        const $$createField8_0 = $$createType12;
-        const $$createField9_0 = $$createType19;
-        const $$createField10_0 = $$createType19;
+        const $$createField3_0 = $$createType12;
+        const $$createField4_0 = $$createType26;
+        const $$createField5_0 = $$createType16;
+        const $$createField6_0 = $$createType52;
+        const $$createField7_0 = $$createType20;
+        const $$createField8_0 = $$createType18;
+        const $$createField9_0 = $$createType0;
+        const $$createField10_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("provenance" in $$parsedSource) {
             $$parsedSource["provenance"] = $$createField3_0($$parsedSource["provenance"]);
@@ -1220,6 +2145,71 @@ export class ContextSearchResult {
             $$parsedSource["notes"] = $$createField10_0($$parsedSource["notes"]);
         }
         return new ContextSearchResult(/** @type {Partial<ContextSearchResult>} */($$parsedSource));
+    }
+}
+
+/**
+ * ContextSettleResult is what settling did.
+ */
+export class ContextSettleResult {
+    /**
+     * Creates a new ContextSettleResult instance.
+     * @param {Partial<ContextSettleResult>} [$$source = {}] - The source object to create the ContextSettleResult.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * Range and Commit are the merge the evidence came from, when one was
+             * named.
+             * @member
+             * @type {string | undefined}
+             */
+            this["range"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["commit"] = undefined;
+        }
+        if (!("signals" in $$source)) {
+            /**
+             * Signals are the merge signals recorded, one per suggestion the change
+             * wrote the preferred form for or removed a rejected form of.
+             * @member
+             * @type {ContextOperation[]}
+             */
+            this["signals"] = [];
+        }
+        if (!("established" in $$source)) {
+            /**
+             * Established names the suggestions settling established.
+             * @member
+             * @type {string[]}
+             */
+            this["established"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ContextSettleResult instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ContextSettleResult}
+     */
+    static createFrom($$source = {}) {
+        const $$createField2_0 = $$createType54;
+        const $$createField3_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("signals" in $$parsedSource) {
+            $$parsedSource["signals"] = $$createField2_0($$parsedSource["signals"]);
+        }
+        if ("established" in $$parsedSource) {
+            $$parsedSource["established"] = $$createField3_0($$parsedSource["established"]);
+        }
+        return new ContextSettleResult(/** @type {Partial<ContextSettleResult>} */($$parsedSource));
     }
 }
 
@@ -1375,10 +2365,10 @@ export class ContextSuggestion {
      * @returns {ContextSuggestion}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType19;
-        const $$createField5_0 = $$createType19;
-        const $$createField13_0 = $$createType35;
-        const $$createField14_0 = $$createType37;
+        const $$createField3_0 = $$createType0;
+        const $$createField5_0 = $$createType0;
+        const $$createField13_0 = $$createType40;
+        const $$createField14_0 = $$createType46;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("contested_by" in $$parsedSource) {
             $$parsedSource["contested_by"] = $$createField3_0($$parsedSource["contested_by"]);
@@ -1393,6 +2383,87 @@ export class ContextSuggestion {
             $$parsedSource["standing"] = $$createField14_0($$parsedSource["standing"]);
         }
         return new ContextSuggestion(/** @type {Partial<ContextSuggestion>} */($$parsedSource));
+    }
+}
+
+/**
+ * ContextSyncResult reports what one sync did: the pull, the settling a merge
+ * asked for, and the push. Pull and Push are nil when the recipe declares no
+ * backend and the sync only settled a merge here.
+ */
+export class ContextSyncResult {
+    /**
+     * Creates a new ContextSyncResult instance.
+     * @param {Partial<ContextSyncResult>} [$$source = {}] - The source object to create the ContextSyncResult.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {ContextPull | null | undefined}
+             */
+            this["pull"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {ContextSettleResult | null | undefined}
+             */
+            this["settle"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {ContextPush | null | undefined}
+             */
+            this["push"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * RulesFiles is what refreshing the rules files did once the context was
+             * merged and settled: nil for a project that has none.
+             * @member
+             * @type {RulesFilesResult | null | undefined}
+             */
+            this["rules_files"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * RulesFilesError says why the rules files could not be refreshed. The
+             * sync itself succeeded.
+             * @member
+             * @type {string | undefined}
+             */
+            this["rules_files_error"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ContextSyncResult instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ContextSyncResult}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType56;
+        const $$createField1_0 = $$createType58;
+        const $$createField2_0 = $$createType60;
+        const $$createField3_0 = $$createType62;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("pull" in $$parsedSource) {
+            $$parsedSource["pull"] = $$createField0_0($$parsedSource["pull"]);
+        }
+        if ("settle" in $$parsedSource) {
+            $$parsedSource["settle"] = $$createField1_0($$parsedSource["settle"]);
+        }
+        if ("push" in $$parsedSource) {
+            $$parsedSource["push"] = $$createField2_0($$parsedSource["push"]);
+        }
+        if ("rules_files" in $$parsedSource) {
+            $$parsedSource["rules_files"] = $$createField3_0($$parsedSource["rules_files"]);
+        }
+        return new ContextSyncResult(/** @type {Partial<ContextSyncResult>} */($$parsedSource));
     }
 }
 
@@ -1551,7 +2622,7 @@ export class ContextTermHit {
      * @returns {ContextTermHit}
      */
     static createFrom($$source = {}) {
-        const $$createField12_0 = $$createType39;
+        const $$createField12_0 = $$createType64;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("top_uses" in $$parsedSource) {
             $$parsedSource["top_uses"] = $$createField12_0($$parsedSource["top_uses"]);
@@ -1886,7 +2957,7 @@ export class ConvergeLocaleResult {
      * @returns {ConvergeLocaleResult}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType40;
+        const $$createField3_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pct" in $$parsedSource) {
             $$parsedSource["pct"] = $$createField3_0($$parsedSource["pct"]);
@@ -2068,9 +3139,9 @@ export class ConvergeOutput {
      * @returns {ConvergeOutput}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType42;
-        const $$createField4_0 = $$createType44;
-        const $$createField15_0 = $$createType46;
+        const $$createField3_0 = $$createType66;
+        const $$createField4_0 = $$createType68;
+        const $$createField15_0 = $$createType70;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("locales" in $$parsedSource) {
             $$parsedSource["locales"] = $$createField3_0($$parsedSource["locales"]);
@@ -2159,7 +3230,7 @@ export class DigestConflict {
      * @returns {DigestConflict}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType25;
+        const $$createField0_0 = $$createType30;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("sides" in $$parsedSource) {
             $$parsedSource["sides"] = $$createField0_0($$parsedSource["sides"]);
@@ -2219,7 +3290,7 @@ export class DigestDrift {
      * @returns {DigestDrift}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType24;
+        const $$createField0_0 = $$createType29;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("rule" in $$parsedSource) {
             $$parsedSource["rule"] = $$createField0_0($$parsedSource["rule"]);
@@ -2264,7 +3335,7 @@ export class DigestGroup {
      * @returns {DigestGroup}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType25;
+        const $$createField1_0 = $$createType30;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("items" in $$parsedSource) {
             $$parsedSource["items"] = $$createField1_0($$parsedSource["items"]);
@@ -2461,12 +3532,12 @@ export class DigestItem {
      * @returns {DigestItem}
      */
     static createFrom($$source = {}) {
-        const $$createField5_0 = $$createType47;
-        const $$createField6_0 = $$createType48;
-        const $$createField9_0 = $$createType50;
-        const $$createField10_0 = $$createType51;
-        const $$createField17_0 = $$createType19;
-        const $$createField19_0 = $$createType19;
+        const $$createField5_0 = $$createType36;
+        const $$createField6_0 = $$createType71;
+        const $$createField9_0 = $$createType73;
+        const $$createField10_0 = $$createType4;
+        const $$createField17_0 = $$createType0;
+        const $$createField19_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("subject" in $$parsedSource) {
             $$parsedSource["subject"] = $$createField5_0($$parsedSource["subject"]);
@@ -2598,7 +3669,7 @@ export class DigestTheme {
      * @returns {DigestTheme}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType53;
+        const $$createField2_0 = $$createType75;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("groups" in $$parsedSource) {
             $$parsedSource["groups"] = $$createField2_0($$parsedSource["groups"]);
@@ -2676,7 +3747,7 @@ export class DigestUsage {
      * @returns {DigestUsage}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType19;
+        const $$createField2_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("rejected" in $$parsedSource) {
             $$parsedSource["rejected"] = $$createField2_0($$parsedSource["rejected"]);
@@ -2769,6 +3840,120 @@ export const ReviewQueue = convergence$0.ReviewQueue;
  * pending counts beside it (alias of convergence.ReviewQueue).
  * @typedef {convergence$0.ReviewQueue} ReviewQueue
  */
+
+/**
+ * RulesFile is one file the rules were written to.
+ */
+export class RulesFile {
+    /**
+     * Creates a new RulesFile instance.
+     * @param {Partial<RulesFile>} [$$source = {}] - The source object to create the RulesFile.
+     */
+    constructor($$source = {}) {
+        if (!("path" in $$source)) {
+            /**
+             * Path is project-relative and slash-separated.
+             * @member
+             * @type {string}
+             */
+            this["path"] = "";
+        }
+        if (!("action" in $$source)) {
+            /**
+             * @member
+             * @type {RulesFileAction}
+             */
+            this["action"] = RulesFileAction.$zero;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RulesFile instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {RulesFile}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new RulesFile(/** @type {Partial<RulesFile>} */($$parsedSource));
+    }
+}
+
+/**
+ * RulesFileAction is what writing the rules did to one file.
+ * @readonly
+ * @enum {string}
+ */
+export const RulesFileAction = {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero: "",
+
+    /**
+     * RulesFileCreated: the file did not exist and now holds kapi's section.
+     */
+    RulesFileCreated: "created",
+
+    /**
+     * RulesFileUpdated: kapi's section was added to the file or rewritten.
+     */
+    RulesFileUpdated: "updated",
+
+    /**
+     * RulesFileUnchanged: the file already held this section.
+     */
+    RulesFileUnchanged: "unchanged",
+
+    /**
+     * RulesFileRemoved: the folder has no rules of its own any more, so the
+     * section was taken out and the person's own text left in place.
+     */
+    RulesFileRemoved: "removed",
+
+    /**
+     * RulesFileDeleted: the folder has no rules of its own any more and the
+     * file held nothing but kapi's section, so the file was deleted.
+     */
+    RulesFileDeleted: "deleted",
+};
+
+/**
+ * RulesFilesResult reports what writing the rules files did.
+ */
+export class RulesFilesResult {
+    /**
+     * Creates a new RulesFilesResult instance.
+     * @param {Partial<RulesFilesResult>} [$$source = {}] - The source object to create the RulesFilesResult.
+     */
+    constructor($$source = {}) {
+        if (!("files" in $$source)) {
+            /**
+             * Files are every rules file kapi wrote or considered, by path.
+             * @member
+             * @type {RulesFile[]}
+             */
+            this["files"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RulesFilesResult instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {RulesFilesResult}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType77;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("files" in $$parsedSource) {
+            $$parsedSource["files"] = $$createField0_0($$parsedSource["files"]);
+        }
+        return new RulesFilesResult(/** @type {Partial<RulesFilesResult>} */($$parsedSource));
+    }
+}
 
 /**
  * The convergence report MODEL and the per-block ladder helpers live in the
@@ -2891,9 +4076,9 @@ export class UpPlanOutput {
      * @returns {UpPlanOutput}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType55;
-        const $$createField4_0 = $$createType54;
-        const $$createField8_0 = $$createType46;
+        const $$createField3_0 = $$createType79;
+        const $$createField4_0 = $$createType78;
+        const $$createField8_0 = $$createType70;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("scopes" in $$parsedSource) {
             $$parsedSource["scopes"] = $$createField3_0($$parsedSource["scopes"]);
@@ -3080,59 +4265,83 @@ export class UpPlanScope {
 }
 
 // Private type creation functions
-const $$createType0 = profile$0.ConstraintResolution.createFrom;
-const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = ContextEditionOf.createFrom;
-const $$createType3 = $Create.Nullable($$createType2);
-const $$createType4 = ContextPoint.createFrom;
-const $$createType5 = check$0.ContextProvenance.createFrom;
-const $$createType6 = $Create.Nullable($$createType5);
-const $$createType7 = review$0.Voice.createFrom;
-const $$createType8 = $Create.Nullable($$createType7);
-const $$createType9 = ContextTermHit.createFrom;
-const $$createType10 = $Create.Array($$createType9);
-const $$createType11 = ContextSuggestion.createFrom;
-const $$createType12 = $Create.Array($$createType11);
-const $$createType13 = review$0.ProfileValidity.createFrom;
-const $$createType14 = $Create.Array($$createType13);
-const $$createType15 = ContextRule.createFrom;
+const $$createType0 = $Create.Array($Create.Any);
+const $$createType1 = $Create.Array($Create.Any);
+const $$createType2 = AgentWiringFile.createFrom;
+const $$createType3 = $Create.Array($$createType2);
+const $$createType4 = contextop$0.Actor.createFrom;
+const $$createType5 = $Create.Map($Create.Any, $Create.Any);
+const $$createType6 = profile$0.ConstraintResolution.createFrom;
+const $$createType7 = $Create.Array($$createType6);
+const $$createType8 = ContextEditionOf.createFrom;
+const $$createType9 = $Create.Nullable($$createType8);
+const $$createType10 = ContextPoint.createFrom;
+const $$createType11 = check$0.ContextProvenance.createFrom;
+const $$createType12 = $Create.Nullable($$createType11);
+const $$createType13 = review$0.Voice.createFrom;
+const $$createType14 = $Create.Nullable($$createType13);
+const $$createType15 = ContextTermHit.createFrom;
 const $$createType16 = $Create.Array($$createType15);
-const $$createType17 = ContextElsewhere.createFrom;
+const $$createType17 = ContextSuggestion.createFrom;
 const $$createType18 = $Create.Array($$createType17);
-const $$createType19 = $Create.Array($Create.Any);
-const $$createType20 = ContextFilesNotice.createFrom;
-const $$createType21 = $Create.Nullable($$createType20);
-const $$createType22 = DigestConflict.createFrom;
-const $$createType23 = $Create.Array($$createType22);
-const $$createType24 = DigestItem.createFrom;
-const $$createType25 = $Create.Array($$createType24);
-const $$createType26 = DigestTheme.createFrom;
-const $$createType27 = $Create.Array($$createType26);
-const $$createType28 = DigestDrift.createFrom;
-const $$createType29 = $Create.Array($$createType28);
-const $$createType30 = DigestNumbers.createFrom;
-const $$createType31 = $Create.Map($Create.Any, $Create.Any);
-const $$createType32 = ContextPrecedentHit.createFrom;
-const $$createType33 = $Create.Array($$createType32);
-const $$createType34 = contextop$0.Evidence.createFrom;
-const $$createType35 = $Create.Array($$createType34);
-const $$createType36 = contextop$0.Standing.createFrom;
-const $$createType37 = $Create.Nullable($$createType36);
-const $$createType38 = ContextTermUse.createFrom;
-const $$createType39 = $Create.Array($$createType38);
-const $$createType40 = $Create.Map($Create.Any, $Create.Any);
-const $$createType41 = ConvergeLocaleResult.createFrom;
-const $$createType42 = $Create.Array($$createType41);
-const $$createType43 = ParkedScope.createFrom;
-const $$createType44 = $Create.Array($$createType43);
-const $$createType45 = check$0.Warning.createFrom;
-const $$createType46 = $Create.Array($$createType45);
-const $$createType47 = contextop$0.Subject.createFrom;
-const $$createType48 = $Create.Nullable($$createType34);
-const $$createType49 = DigestUsage.createFrom;
-const $$createType50 = $Create.Nullable($$createType49);
-const $$createType51 = contextop$0.Actor.createFrom;
-const $$createType52 = DigestGroup.createFrom;
-const $$createType53 = $Create.Array($$createType52);
-const $$createType54 = UpPlanScope.createFrom;
-const $$createType55 = $Create.Array($$createType54);
+const $$createType19 = review$0.ProfileValidity.createFrom;
+const $$createType20 = $Create.Array($$createType19);
+const $$createType21 = ContextRule.createFrom;
+const $$createType22 = $Create.Array($$createType21);
+const $$createType23 = ContextElsewhere.createFrom;
+const $$createType24 = $Create.Array($$createType23);
+const $$createType25 = ContextFilesNotice.createFrom;
+const $$createType26 = $Create.Nullable($$createType25);
+const $$createType27 = DigestConflict.createFrom;
+const $$createType28 = $Create.Array($$createType27);
+const $$createType29 = DigestItem.createFrom;
+const $$createType30 = $Create.Array($$createType29);
+const $$createType31 = DigestTheme.createFrom;
+const $$createType32 = $Create.Array($$createType31);
+const $$createType33 = DigestDrift.createFrom;
+const $$createType34 = $Create.Array($$createType33);
+const $$createType35 = DigestNumbers.createFrom;
+const $$createType36 = contextop$0.Subject.createFrom;
+const $$createType37 = contextop$0.Correction.createFrom;
+const $$createType38 = $Create.Nullable($$createType37);
+const $$createType39 = contextop$0.Evidence.createFrom;
+const $$createType40 = $Create.Array($$createType39);
+const $$createType41 = contextop$0.Basis.createFrom;
+const $$createType42 = contextop$0.Scope.createFrom;
+const $$createType43 = contextop$0.Signal.createFrom;
+const $$createType44 = $Create.Nullable($$createType43);
+const $$createType45 = contextop$0.Standing.createFrom;
+const $$createType46 = $Create.Nullable($$createType45);
+const $$createType47 = $Create.Map($Create.Any, $Create.Any);
+const $$createType48 = ContextActivity.createFrom;
+const $$createType49 = $Create.Nullable($$createType48);
+const $$createType50 = workspace$0.RemoteDescriptor.createFrom;
+const $$createType51 = ContextPrecedentHit.createFrom;
+const $$createType52 = $Create.Array($$createType51);
+const $$createType53 = ContextOperation.createFrom;
+const $$createType54 = $Create.Array($$createType53);
+const $$createType55 = ContextPull.createFrom;
+const $$createType56 = $Create.Nullable($$createType55);
+const $$createType57 = ContextSettleResult.createFrom;
+const $$createType58 = $Create.Nullable($$createType57);
+const $$createType59 = ContextPush.createFrom;
+const $$createType60 = $Create.Nullable($$createType59);
+const $$createType61 = RulesFilesResult.createFrom;
+const $$createType62 = $Create.Nullable($$createType61);
+const $$createType63 = ContextTermUse.createFrom;
+const $$createType64 = $Create.Array($$createType63);
+const $$createType65 = ConvergeLocaleResult.createFrom;
+const $$createType66 = $Create.Array($$createType65);
+const $$createType67 = ParkedScope.createFrom;
+const $$createType68 = $Create.Array($$createType67);
+const $$createType69 = check$0.Warning.createFrom;
+const $$createType70 = $Create.Array($$createType69);
+const $$createType71 = $Create.Nullable($$createType39);
+const $$createType72 = DigestUsage.createFrom;
+const $$createType73 = $Create.Nullable($$createType72);
+const $$createType74 = DigestGroup.createFrom;
+const $$createType75 = $Create.Array($$createType74);
+const $$createType76 = RulesFile.createFrom;
+const $$createType77 = $Create.Array($$createType76);
+const $$createType78 = UpPlanScope.createFrom;
+const $$createType79 = $Create.Array($$createType78);

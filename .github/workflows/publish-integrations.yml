@@ -11,7 +11,7 @@ name: Publish integrations
 # surface (neither a Claude Code plugin nor a SKILL.md can pin "requires kapi >= X").
 #
 # This does NOT build the kapi binary: the skill source of truth is
-# cli/skills/data, copied directly into both distributions.
+# host/skills/data, copied directly into both distributions.
 #
 # Requires a repo secret PLUGIN_PUBLISH_TOKEN with contents:write on BOTH
 # neokapi/claude-plugins and neokapi/agent-skills (the default GITHUB_TOKEN cannot
@@ -65,7 +65,7 @@ jobs:
           src=packages/kapi-claude-plugin
           rm -rf "$src/plugins/kapi/skills"
           mkdir -p "$src/plugins/kapi/skills"
-          cp -R cli/skills/data/kapi "$src/plugins/kapi/skills/kapi"
+          cp -R host/skills/data/kapi "$src/plugins/kapi/skills/kapi"
           test -f "$src/plugins/kapi/skills/kapi/SKILL.md"
 
       - name: Publish to neokapi/claude-plugins
@@ -89,4 +89,4 @@ jobs:
           VERSION: ${{ steps.ver.outputs.version }}
         run: |
           set -euo pipefail
-          scripts/publish-skill.sh cli/skills/data/kapi neokapi/agent-skills
+          scripts/publish-skill.sh host/skills/data/kapi neokapi/agent-skills

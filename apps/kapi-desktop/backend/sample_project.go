@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -35,6 +36,7 @@ func (a *App) CreateSampleProject(name string) (*TabInfo, error) {
 	// opens cleanly instead of failing with a YAML unmarshal error.
 	if _, err := os.Stat(kapiPath); err == nil {
 		if tab, err := a.OpenProject(kapiPath); err == nil {
+			a.seedSampleSessions(name, kapiPath)
 			return tab, nil
 		}
 		a.logger.Printf("sample %q recipe is stale/unparseable, re-scaffolding", name)
@@ -49,14 +51,34 @@ func (a *App) CreateSampleProject(name string) (*TabInfo, error) {
 		if err := sample.Scaffold(name, targetDir); err != nil {
 			return nil, fmt.Errorf("re-scaffold stale sample project: %w", err)
 		}
+		a.seedSampleSessions(name, kapiPath)
 		return a.OpenProject(kapiPath)
 	}
 
 	if err := sample.Scaffold(name, targetDir); err != nil {
 		return nil, fmt.Errorf("scaffold sample project: %w", err)
 	}
+	a.seedSampleSessions(name, kapiPath)
 
 	return a.OpenProject(kapiPath)
+}
+
+// seedSampleSessions records the sample's assistant sessions, so What's new
+// has an assistant's notes to review on first open. A sample whose log
+// already holds an agent session is left as it is. A failure is logged and
+// does not keep the sample from opening: it is a project without the notes,
+// and nothing else is missing from it.
+func (a *App) seedSampleSessions(name, kapiPath string) {
+	ctx, cancel := context.WithTimeout(context.Background(), contextFeedTimeout)
+	defer cancel()
+	seeded, err := sample.SeedSessions(ctx, a.hostEngine(), name, kapiPath)
+	if err != nil {
+		a.logger.Printf("sample %q: %v", name, err)
+		return
+	}
+	if seeded {
+		a.emitEvent("workspace:changed", nil)
+	}
 }
 
 // SampleInfo describes whether an open project is a scaffolded sample and

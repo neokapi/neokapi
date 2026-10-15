@@ -57,6 +57,14 @@ import type {
   ContextResetRequest,
   ContextResetSummary,
   ContextWidenPreview,
+  WorkspaceRule,
+  ProjectSharing,
+  ContextBackendSpec,
+  ContextSyncResult,
+  AgentHostStatus,
+  AgentWiringResult,
+  RulesFileView,
+  RulesFilesResult,
 } from "../types/api";
 import type { FlowTrace } from "@neokapi/flow-editor";
 
@@ -440,6 +448,29 @@ export const api = {
   forgetWorkspaceProject: (key: string) => call<void>("ForgetWorkspaceProject", key),
   /** Open a project no checkout on this machine carries, on its context alone. */
   openWorkspaceContext: (key: string) => call<TabInfo>("OpenWorkspaceContext", key),
+  /** The rules a person applied to every project in the workspace, oldest first. */
+  workspaceRules: () => call<WorkspaceRule[]>("WorkspaceRules"),
+
+  // Where a project's context reaches: this machine, a place the recipe names
+  // under `context:`, and a Bowrain server.
+  /** Where the tab's project keeps its context and how far it reaches. */
+  projectSharing: (tabID: string) => call<ProjectSharing>("ProjectSharing", tabID),
+  /** Write the `context:` block of the tab's recipe; a local spec removes it. */
+  setProjectSharing: (tabID: string, spec: ContextBackendSpec) =>
+    call<ProjectSharing>("SetProjectSharing", tabID, spec),
+  /** Pull and push the tab's project's context, as `kapi context sync` does. */
+  syncProjectContext: (tabID: string) => call<ContextSyncResult>("SyncProjectContext", tabID),
+
+  // What an assistant reads: the connection per host, and the rules files.
+  /** The assistants the tab's project can be connected to, and whether each is. */
+  agentHosts: (tabID: string) => call<AgentHostStatus[]>("AgentHosts", tabID),
+  /** Connect one assistant: the files `kapi init` writes, or Claude Desktop's own file. */
+  connectAgentHost: (tabID: string, host: string) =>
+    call<AgentWiringResult>("ConnectAgentHost", tabID, host),
+  /** The rules files kapi writes for the tab's project, with each section as written now. */
+  rulesFiles: (tabID: string) => call<RulesFileView[]>("RulesFiles", tabID),
+  /** Write the tab's project's rules files. */
+  writeRulesFiles: (tabID: string) => call<RulesFilesResult>("WriteRulesFiles", tabID),
 
   /** The resolved context for one file, as an agent receives it. */
   agentContextAt: (tabID: string, path: string, limit: number) =>
@@ -496,6 +527,7 @@ export const api = {
       theme: string;
       ui_language?: string;
       samples_dismissed?: boolean;
+      start_here_dismissed?: boolean;
       telemetry_disabled?: boolean;
       telemetry_notice_shown?: boolean;
       machine_id?: string;
@@ -506,6 +538,9 @@ export const api = {
   setTelemetryEnabled: (enabled: boolean) => call<void>("SetTelemetryEnabled", enabled),
   markTelemetryNoticeShown: () => call<void>("MarkTelemetryNoticeShown"),
   dismissSamples: () => call<void>("DismissSamples"),
+  /** Hide the home's Start here steps; Settings brings them back. */
+  dismissStartHere: () => call<void>("DismissStartHere"),
+  restoreStartHere: () => call<void>("RestoreStartHere"),
   getTheme: () => call<string>("GetTheme"),
   setTheme: (theme: string) => call<void>("SetTheme", theme),
   getUILanguage: () => call<string>("GetUILanguage"),

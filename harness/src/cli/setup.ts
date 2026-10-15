@@ -55,7 +55,7 @@ async function buildKapiIfMissing(): Promise<void> {
 
 /**
  * Assemble the Claude Code plugin bundle the capture stage loads with
- * `--plugin-dir`. The skill source of truth is cli/skills/data, and the root
+ * `--plugin-dir`. The skill source of truth is host/skills/data, and the root
  * Makefile's `plugin-bundle` target is the one place that copies it into
  * <plugin>/plugins/kapi/skills (gitignored), so the harness runs that target
  * rather than keeping a second copy of the layout.

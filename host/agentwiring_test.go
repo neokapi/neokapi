@@ -514,3 +514,52 @@ func TestAgentWiringRemovesFilesAnEarlierKapiCopied(t *testing.T) {
 	assert.Equal(t, []string{"NOTES.md"}, file.Kept)
 	assert.Equal(t, "1 file", file.Detail)
 }
+
+// TestReadAgentWiringReadsWhatWasWritten: before wiring no host is wired;
+// after wiring every host reads wired with the files that carry it; an entry
+// a person wrote for this recipe reads wired too, and one for another recipe
+// does not.
+func TestReadAgentWiringReadsWhatWasWritten(t *testing.T) {
+	root := t.TempDir()
+	for h, st := range host.ReadAgentWiring(root, "kapi.yaml", testSkills()) {
+		assert.False(t, st.Wired, "%s before wiring", h)
+		assert.Empty(t, st.Files, "%s before wiring", h)
+	}
+
+	_, err := host.WriteAgentWiring(host.AgentWiringOptions{Root: root, Hosts: host.AgentHosts(), Recipe: "kapi.yaml", Skills: testSkills()})
+	require.NoError(t, err)
+	got := host.ReadAgentWiring(root, "kapi.yaml", testSkills())
+	assert.Equal(t, host.AgentWiringStatus{Wired: true, Files: []string{".mcp.json", ".claude/skills/kapi", ".claude/skills/other"}}, got[host.AgentHostClaudeCode])
+	assert.Equal(t, host.AgentWiringStatus{Wired: true, Files: []string{".cursor/mcp.json"}}, got[host.AgentHostCursor])
+	assert.Equal(t, host.AgentWiringStatus{Wired: true, Files: []string{".vscode/mcp.json"}}, got[host.AgentHostVSCode])
+	assert.Equal(t, host.AgentWiringStatus{Wired: true, Files: []string{".codex/config.toml"}}, got[host.AgentHostCodex])
+	assert.Equal(t, host.AgentWiringStatus{Files: []string{".agents/skills/kapi", ".agents/skills/other"}}, got[host.AgentHostAgents],
+		"the cross-client skills directory carries no MCP entry")
+
+	other := host.ReadAgentWiring(root, "other.yaml", nil)
+	assert.False(t, other[host.AgentHostCursor].Wired, "the entry runs kapi mcp for another recipe")
+
+	mine := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(mine, ".mcp.json"),
+		[]byte(`{"mcpServers": {"kapi": {"command": "/opt/kapi/bin/kapi", "args": ["mcp", "--project", "`+filepath.Join(mine, "kapi.yaml")+`"], "env": {"A": "b"}}}}`), 0o600))
+	assert.True(t, host.ReadAgentWiring(mine, "kapi.yaml", nil)[host.AgentHostClaudeCode].Wired,
+		"a person's own entry for this recipe serves it")
+}
+
+func TestServesRecipe(t *testing.T) {
+	tests := []struct {
+		args []string
+		want bool
+	}{
+		{[]string{"mcp", "--project", "kapi.yaml"}, true},
+		{[]string{"mcp", "--project", "kapi.yaml", "--tools", "writing"}, true},
+		{[]string{"mcp", "-p", "/work/site/kapi.yaml"}, true},
+		{[]string{"mcp", "--project", "/elsewhere/kapi.yaml"}, false},
+		{[]string{"serve", "--project", "kapi.yaml"}, false},
+		{[]string{"mcp"}, false},
+		{nil, false},
+	}
+	for _, tt := range tests {
+		assert.Equal(t, tt.want, host.ServesRecipe(tt.args, "kapi.yaml", "/work/site/kapi.yaml"), "%v", tt.args)
+	}
+}

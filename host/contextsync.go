@@ -162,6 +162,18 @@ func (a *App) ContextBackend(ctx context.Context, projectPath string) (ContextBa
 	return info, nil
 }
 
+// ResolveContextBackend reads which backend a recipe shares its project's
+// context through, and where. It reads the recipe and nothing else: it opens
+// no store and leaves Status empty, so a surface listing many projects can ask
+// it of each one. ContextSyncStatus answers how far apart the two are.
+func ResolveContextBackend(recipePath string) (ContextBackendInfo, error) {
+	layout, err := project.LayoutFor(recipePath)
+	if err != nil {
+		return ContextBackendInfo{}, err
+	}
+	return resolveBackend(layout)
+}
+
 // resolveBackend reads the backend the recipe declares.
 func resolveBackend(layout project.Layout) (ContextBackendInfo, error) {
 	declared, err := recipeContextBackend(layout.RecipePath)

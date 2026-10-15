@@ -548,7 +548,7 @@ collections:
       - path: "bowrain/apps/bowrain/build/**/*.{yaml,yml}"
         comments:
           only: true
-      - path: "{.github,.skills,apps/kapi-desktop/build,bowrain/deploy,bowrain/docker,bowrain/e2e,cli,core,docs,harness,scripts,specs,web/demos,web/scenes,web/walkthroughs}/**/*.{yaml,yml}"
+      - path: "{.github,.skills,apps/kapi-desktop/build,bowrain/deploy,bowrain/docker,bowrain/e2e,cli,core,docs,harness,host,scripts,specs,web/demos,web/scenes,web/walkthroughs}/**/*.{yaml,yml}"
         comments:
           only: true
       - path: "bowrain/*.yaml"

@@ -1,6 +1,6 @@
 export const meta = {
   name: 'i18n-triage',
-  description: 'Sweep every framework in the kapi skill\'s i18n registry (cli/skills/data/kapi/references/i18n/frameworks.yaml) for ecosystem drift — new majors, deprecations, stewardship changes — re-score the Toil Index with citations, and optionally apply the updates to the registry and playbooks',
+  description: 'Sweep every framework in the kapi skill\'s i18n registry (host/skills/data/kapi/references/i18n/frameworks.yaml) for ecosystem drift — new majors, deprecations, stewardship changes — re-score the Toil Index with citations, and optionally apply the updates to the registry and playbooks',
   whenToUse: 'Run quarterly, or after a big ecosystem event (framework major, library abandonment/revival). Default (no args) = sweep + triage report. args: {mode:"triage|apply", frameworks:[ids], limit:N}',
   phases: [
     { title: 'Prep', detail: 'one agent: parse frameworks.yaml into the entry list (id, watch watermarks, toil, status)' },
@@ -25,7 +25,7 @@ const MODE = cfg.mode || 'triage' // 'triage' | 'apply'
 const ONLY = Array.isArray(cfg.frameworks) ? cfg.frameworks : null
 const LIMIT = typeof cfg.limit === 'number' ? cfg.limit : 0
 
-const REGISTRY = 'cli/skills/data/kapi/references/i18n/frameworks.yaml'
+const REGISTRY = 'host/skills/data/kapi/references/i18n/frameworks.yaml'
 const RUBRIC = 'docs/internals/i18n-toil.md'
 
 // ── Phase 1: Prep — parse the registry ─────────────────────────────────────
@@ -139,7 +139,7 @@ Proposed: status=${r.proposed_status || '(unchanged)'}, toil(recommended w,x,s,r
 Steps:
 1. Read ${RUBRIC} §2-§3 (scoring criteria + rules) and the registry ${REGISTRY}.
 2. Update the "${r.id}" entry: watch.latest_verified, watch.verified (today), and — only where the findings justify it per the rubric — toil vectors, grade (recompute per §1 from the recommended vector), status, buys, notes.
-3. Update the matching playbook cli/skills/data/kapi/references/i18n/${entry ? entry.reference : ''} so its prose, grade table, and setup steps agree with the registry again. Keep the file's existing structure; change only what the findings require.
+3. Update the matching playbook host/skills/data/kapi/references/i18n/${entry ? entry.reference : ''} so its prose, grade table, and setup steps agree with the registry again. Keep the file's existing structure; change only what the findings require.
 4. Validate: node -e "require('./node_modules/js-yaml').load(require('fs').readFileSync('${REGISTRY}','utf8'))" (repo root) must pass; grades in the playbook table must match the registry.
 5. IMPORTANT change control (rubric §3.7): do not edit ${RUBRIC} or this workflow in the same change.
 

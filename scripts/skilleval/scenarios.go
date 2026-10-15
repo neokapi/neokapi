@@ -2,7 +2,7 @@ package main
 
 import "strings"
 
-// Scenarios correspond to cli/skills/EVALS.md. Each defines a prompt, workspace
+// Scenarios correspond to host/skills/EVALS.md. Each defines a prompt, workspace
 // and expectation. Every file named in a prompt must exist before the agent
 // starts, and cross-format tasks need fixtures in multiple formats.
 //

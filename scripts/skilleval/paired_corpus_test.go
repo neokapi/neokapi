@@ -173,7 +173,7 @@ func TestPairedForbiddenTermPrimesNoArm(t *testing.T) {
 	}
 	forbidden := regexp.MustCompile(`(?i)\bportal`)
 	sources := []string{}
-	for _, dir := range []string{filepath.Join(root, "cli", "skills", "data", "kapi")} {
+	for _, dir := range []string{filepath.Join(root, "host", "skills", "data", "kapi")} {
 		require.NoError(t, filepath.WalkDir(dir, func(path string, entry fs.DirEntry, err error) error {
 			if err == nil && !entry.IsDir() {
 				sources = append(sources, path)
@@ -223,7 +223,7 @@ func TestPairedProjectFreeSkillMirrorsTheShippedSkill(t *testing.T) {
 	// project a catalog holds one edition, and a second is refused.
 	noProject := map[string]bool{`"editions": {"en": {"text": "Checkout"}}},`: true}
 	for _, name := range []string{"edit.md", "toolbox.md"} {
-		shipped, err := os.ReadFile(filepath.Join(root, "cli", "skills", "data", "kapi", "references", name))
+		shipped, err := os.ReadFile(filepath.Join(root, "host", "skills", "data", "kapi", "references", name))
 		require.NoError(t, err)
 		shippedLines := map[string]bool{}
 		for _, line := range pairedFenceLines(string(shipped)) {
@@ -246,7 +246,7 @@ func TestPairedProjectFreeSkillMirrorsTheShippedSkill(t *testing.T) {
 	// as programs installed beside it.
 	ownWay := regexp.MustCompile(`^They install with the kapi CLI`)
 	for _, name := range []string{"edit.md", "toolbox.md"} {
-		shipped, err := os.ReadFile(filepath.Join(root, "cli", "skills", "data", "kapi", "references", name))
+		shipped, err := os.ReadFile(filepath.Join(root, "host", "skills", "data", "kapi", "references", name))
 		require.NoError(t, err)
 		mirror, err := pairedFixtures.ReadFile("testdata/paired/skills/" + pairedFilesAlias + "/references/" + name)
 		require.NoError(t, err)
@@ -265,7 +265,7 @@ func TestPairedProjectFreeSkillMirrorsTheShippedSkill(t *testing.T) {
 	// Both skills name the edit topic, so an agent in either arm is one step
 	// from the edit guidance: the shipped skill as the help topic, since kapi
 	// init writes no references folder, and the project-free one as its file.
-	shippedSkill, err := os.ReadFile(filepath.Join(root, "cli", "skills", "data", "kapi", "SKILL.md"))
+	shippedSkill, err := os.ReadFile(filepath.Join(root, "host", "skills", "data", "kapi", "SKILL.md"))
 	require.NoError(t, err)
 	mirrorSkill, err := pairedFixtures.ReadFile("testdata/paired/skills/" + pairedFilesAlias + "/SKILL.md")
 	require.NoError(t, err)

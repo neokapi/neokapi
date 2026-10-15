@@ -2,6 +2,7 @@ package backend
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
@@ -19,11 +20,14 @@ const (
 
 // AppSettings holds persisted user preferences.
 type AppSettings struct {
-	Theme            string         `json:"theme"`                       // "system", "dark", or "light"
-	UILanguage       string         `json:"ui_language,omitempty"`       // BCP-47 UI language code, e.g. "en" or "qps"
-	SamplesDismissed bool           `json:"samples_dismissed,omitempty"` // true after user dismisses sample project cards
-	HiddenLocales    []string       `json:"hidden_locales,omitempty"`    // locale codes to hide from selectors
-	CustomLocales    []CustomLocale `json:"custom_locales,omitempty"`    // additional locales not in the well-known list
+	Theme            string `json:"theme"`                       // "system", "dark", or "light"
+	UILanguage       string `json:"ui_language,omitempty"`       // BCP-47 UI language code, e.g. "en" or "qps"
+	SamplesDismissed bool   `json:"samples_dismissed,omitempty"` // true after user dismisses sample project cards
+	// StartHereDismissed is true after the person dismisses the home's Start
+	// here steps. Settings can bring them back.
+	StartHereDismissed bool           `json:"start_here_dismissed,omitempty"`
+	HiddenLocales      []string       `json:"hidden_locales,omitempty"` // locale codes to hide from selectors
+	CustomLocales      []CustomLocale `json:"custom_locales,omitempty"` // additional locales not in the well-known list
 
 	// Mode persists the app's project-first vs ad-hoc preference across
 	// launches. Empty (legacy settings) is treated as AppModeProjects.
@@ -92,18 +96,30 @@ func (s *settingsStore) load() {
 }
 
 func (s *settingsStore) save() {
+	_ = s.persist()
+}
+
+// persist writes the settings file and reports a failure, for a caller that
+// tells the person their change was not kept.
+func (s *settingsStore) persist() error {
 	data, err := json.MarshalIndent(s.settings, "", "  ")
 	if err != nil {
-		return
+		return err
 	}
 	dir := filepath.Dir(s.filePath)
-	_ = os.MkdirAll(dir, 0o755)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("create the settings folder: %w", err)
+	}
 
 	tmp := s.filePath + ".tmp"
 	if err := os.WriteFile(tmp, data, 0o644); err != nil {
-		return
+		return fmt.Errorf("write the settings: %w", err)
 	}
-	_ = os.Rename(tmp, s.filePath)
+	if err := os.Rename(tmp, s.filePath); err != nil {
+		_ = os.Remove(tmp)
+		return fmt.Errorf("replace the settings: %w", err)
+	}
+	return nil
 }
 
 // --- App methods ---
@@ -209,6 +225,22 @@ func (a *App) DismissSamples() {
 	defer a.settings.mu.Unlock()
 	a.settings.settings.SamplesDismissed = true
 	a.settings.save()
+}
+
+// DismissStartHere hides the home's Start here steps.
+func (a *App) DismissStartHere() error {
+	a.settings.mu.Lock()
+	defer a.settings.mu.Unlock()
+	a.settings.settings.StartHereDismissed = true
+	return a.settings.persist()
+}
+
+// RestoreStartHere shows the home's Start here steps again.
+func (a *App) RestoreStartHere() error {
+	a.settings.mu.Lock()
+	defer a.settings.mu.Unlock()
+	a.settings.settings.StartHereDismissed = false
+	return a.settings.persist()
 }
 
 // normalizeMode coerces a persisted/requested mode into one of the two valid

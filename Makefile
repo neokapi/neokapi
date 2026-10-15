@@ -1230,7 +1230,7 @@ build-bowrain-plugin: i18n-catalogs ## Build the kapi-bowrain plugin binary (man
 
 PLUGIN_DIR := packages/kapi-claude-plugin
 PLUGIN_SKILLS_DIR := $(PLUGIN_DIR)/plugins/kapi/skills
-SKILLS_SRC := cli/skills/data
+SKILLS_SRC := host/skills/data
 plugin-bundle: ## Assemble the Claude Code plugin skills/ from the source tree (gitignored; built for release)
 	@rm -rf $(PLUGIN_SKILLS_DIR)
 	@mkdir -p $(PLUGIN_SKILLS_DIR)
@@ -3044,7 +3044,7 @@ check-docs-prose: build import-dogfood-context ## Gate: the documentation passes
 	@# collection declared. A reader meets the README before anything else.
 	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi check 'README.md' 'bowrain/README.md' \
 		-p $(CURDIR)/kapi.yaml
-	@# NOT the agent skill, and not by omission. Gating cli/skills reports 30
+	@# NOT the agent skill, and not by omission. Gating host/skills reports 30
 	@# failing findings, every one of them correct-by-design: @angular/localize and
 	@# expo-localization are third-party identifiers, gen-l10n is a Flutter tool,
 	@# and EVALS.md quotes user prompts verbatim because the skill description is

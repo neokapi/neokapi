@@ -73,7 +73,7 @@ func pairedTestOptions(t *testing.T) PairedOptions {
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "bin"), 0o700))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "bin", "kapi"), []byte("test binary fixture"), 0o700))
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "scripts", "skilleval"), 0o700))
-	require.NoError(t, os.MkdirAll(filepath.Join(root, "cli", "skills", "data", "kapi"), 0o700))
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "host", "skills", "data", "kapi"), 0o700))
 	return PairedOptions{
 		ManifestPath: "testdata/paired-study.json", Phase: "smoke", Dir: t.TempDir(),
 		RepoRoot: root, Live: true, MaxAttempts: 2,
@@ -292,7 +292,7 @@ func TestPairedResumeSurvivesARebuild(t *testing.T) {
 	assert.Equal(t, "test binary fixture", string(copied))
 
 	require.NoError(t, os.WriteFile(filepath.Join(opts.RepoRoot, "bin", "kapi"), []byte("rebuilt at another date"), 0o700))
-	require.NoError(t, os.WriteFile(filepath.Join(opts.RepoRoot, "cli", "skills", "data", "kapi", "SKILL.md"), []byte("edited"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(opts.RepoRoot, "host", "skills", "data", "kapi", "SKILL.md"), []byte("edited"), 0o600))
 	opts.MaxAttempts = 4
 	require.NoError(t, executePairedWith(context.Background(), opts, deps))
 	assert.Equal(t, 4, calls)

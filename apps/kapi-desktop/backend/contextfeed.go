@@ -41,11 +41,6 @@ const contextFeedTimeout = 30 * time.Second
 // this is a bound on the screen rather than on the store.
 const contextFeedDefaultLimit = 200
 
-// contextSessionQuietAfter is how long a session must have been silent before
-// the feed calls it finished. A summary that appears while an agent is still
-// recording would be a count of half its work.
-const contextSessionQuietAfter = 2 * time.Minute
-
 // ContextActorDTO is who performed an operation.
 type ContextActorDTO struct {
 	// Kind is "person", "agent" or "tool".
@@ -739,7 +734,7 @@ func groupContextFeed(records []contextop.Record, registry *contextProjectIndex,
 		first, last := spanOf(group.Entries)
 		group.First, group.Last = first, last
 		if parsed, err := time.Parse(time.RFC3339, last); err == nil {
-			group.Quiet = now.Sub(parsed) >= contextSessionQuietAfter
+			group.Quiet = now.Sub(parsed) >= host.ContextSessionQuietAfter
 		}
 		out = append(out, *group)
 	}

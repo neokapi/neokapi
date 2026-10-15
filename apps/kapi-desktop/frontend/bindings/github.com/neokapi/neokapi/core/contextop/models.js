@@ -92,6 +92,110 @@ export const ActorKind = {
 };
 
 /**
+ * Basis is the governance in force when the operation was recorded. A rule
+ * suggested under one voice profile and kept under another is a rule that
+ * deserves a second look, and the basis is what makes that visible.
+ */
+export class Basis {
+    /**
+     * Creates a new Basis instance.
+     * @param {Partial<Basis>} [$$source = {}] - The source object to create the Basis.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * Profile and Channel are the point the project resolved.
+             * @member
+             * @type {string | undefined}
+             */
+            this["profile"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["channel"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * ProfileID and ProfileVersion identify the voice profile that governed.
+             * @member
+             * @type {string | undefined}
+             */
+            this["profile_id"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["profile_version"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Fingerprint is the governing context fingerprint
+             * (profile.GovernanceContext), so a staleness gate can tell whether the
+             * basis still holds.
+             * @member
+             * @type {string | undefined}
+             */
+            this["fingerprint"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Basis instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {Basis}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Basis(/** @type {Partial<Basis>} */($$parsedSource));
+    }
+}
+
+/**
+ * Correction is the wording someone changed, carried by a correct operation.
+ */
+export class Correction {
+    /**
+     * Creates a new Correction instance.
+     * @param {Partial<Correction>} [$$source = {}] - The source object to create the Correction.
+     */
+    constructor($$source = {}) {
+        if (!("from" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["from"] = "";
+        }
+        if (!("to" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["to"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Correction instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {Correction}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Correction(/** @type {Partial<Correction>} */($$parsedSource));
+    }
+}
+
+/**
  * Evidence is where the subject was seen: a file in the project, a unit inside
  * it, and the wording as it stood. A rule with no evidence behind it is a
  * preference somebody typed; a rule with evidence can be argued with.
@@ -150,6 +254,116 @@ export class Evidence {
 }
 
 /**
+ * Kind says what an operation did.
+ * @readonly
+ * @enum {string}
+ */
+export const Kind = {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero: "",
+
+    /**
+     * KindObserve records something somebody noticed: a fact in prose, or the
+     * form the project uses for a word with the forms it avoids, which is a
+     * term rule. It advises from the moment it is recorded.
+     */
+    KindObserve: "observe",
+
+    /**
+     * KindCorrect records that someone changed wording from one form to another
+     * at a location. It carries both wordings, and it may carry the term rule
+     * drawn from them.
+     */
+    KindCorrect: "correct",
+
+    /**
+     * KindImport records one context file a person read into the project's
+     * stores. What a person imports is established from the start.
+     */
+    KindImport: "import",
+
+    /**
+     * KindEdit records a rule or a store a person wrote directly, with `kapi
+     * apply` or an editor. It is established from the start.
+     */
+    KindEdit: "edit",
+
+    /**
+     * KindKeep establishes an earlier suggestion, optionally with edits to the
+     * rule. Only a person keeps.
+     */
+    KindKeep: "keep",
+
+    /**
+     * KindDrop is a person setting a suggestion aside. It stops answering.
+     */
+    KindDrop: "drop",
+
+    /**
+     * KindWithdraw is the author of a suggestion taking it back, in the session
+     * that recorded it. It stops answering.
+     */
+    KindWithdraw: "withdraw",
+
+    /**
+     * KindReset rewinds a project's context to how it stood before one
+     * operation (Record.Before). Every context operation from that point up to
+     * the reset is set aside (workspace.SetAside): it stays in the log and
+     * nothing applies it. A later reset before this one sets it aside in turn,
+     * which is how a reset is taken back.
+     */
+    KindReset: "reset",
+
+    /**
+     * KindWiden moves an established rule to a broader point, or to the whole
+     * workspace.
+     */
+    KindWiden: "widen",
+
+    /**
+     * KindSignal records evidence about a suggestion that no person recorded
+     * by hand: the change that reached the default branch, or how often the
+     * project's content writes the preferred and the rejected forms. It names
+     * the suggestion it bears on and carries a [Signal].
+     */
+    KindSignal: "signal",
+
+    /**
+     * KindEstablish records that settling established a suggestion, naming
+     * the operations the establishment rested on (Record.Because). Its id is
+     * derived from that evidence, so two machines settling the same thing
+     * record one operation. It is applied like a keep.
+     */
+    KindEstablish: "establish",
+};
+
+/**
+ * Level says how far a subject's answer reaches.
+ * @readonly
+ * @enum {string}
+ */
+export const Level = {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero: "",
+
+    /**
+     * LevelProject keeps a rule in the project whose evidence produced it. It
+     * is where everything starts.
+     */
+    LevelProject: "project",
+
+    /**
+     * LevelWorkspace puts a rule in every project of the workspace. Only a
+     * person widens to it.
+     */
+    LevelWorkspace: "workspace",
+};
+
+/**
  * MemoryPair is a source and its translation, for the content memory.
  */
 export class MemoryPair {
@@ -200,6 +414,191 @@ export class MemoryPair {
         return new MemoryPair(/** @type {Partial<MemoryPair>} */($$parsedSource));
     }
 }
+
+/**
+ * Scope is where a subject answers: how far it reaches, and the coordinates of
+ * the point its evidence was seen at.
+ * 
+ * Widening to a broader point drops the axes the rule should stop being
+ * specific about, so a rule seen in one product's reference pages can be
+ * widened to the brand by dropping product and mode. Widening to the project
+ * drops the profile the evidence was seen under, and widening to the workspace
+ * drops the project too.
+ */
+export class Scope {
+    /**
+     * Creates a new Scope instance.
+     * @param {Partial<Scope>} [$$source = {}] - The source object to create the Scope.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {Level | undefined}
+             */
+            this["level"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Coordinates are the axes of the point (project.MergeCoordinates), omitted
+             * where the rule answers regardless of them.
+             * @member
+             * @type {{ [_ in string]?: string } | undefined}
+             */
+            this["coordinates"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * AllProfiles says a project-level rule holds under every profile of the
+             * project, rather than under the profile its evidence was seen under
+             * (Basis.Profile). A person sets it by widening the rule to the project.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["all_profiles"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Scope instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {Scope}
+     */
+    static createFrom($$source = {}) {
+        const $$createField1_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("coordinates" in $$parsedSource) {
+            $$parsedSource["coordinates"] = $$createField1_0($$parsedSource["coordinates"]);
+        }
+        return new Scope(/** @type {Partial<Scope>} */($$parsedSource));
+    }
+}
+
+/**
+ * Signal is the evidence a signal operation carries.
+ */
+export class Signal {
+    /**
+     * Creates a new Signal instance.
+     * @param {Partial<Signal>} [$$source = {}] - The source object to create the Signal.
+     */
+    constructor($$source = {}) {
+        if (!("source" in $$source)) {
+            /**
+             * Source is where the evidence came from.
+             * @member
+             * @type {SignalSource}
+             */
+            this["source"] = SignalSource.$zero;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Commit is the commit that reached the default branch, for a merge.
+             * @member
+             * @type {string | undefined}
+             */
+            this["commit"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * PR is the pull request that merged it, where known.
+             * @member
+             * @type {number | undefined}
+             */
+            this["pr"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Merger is who merged it, where known.
+             * @member
+             * @type {string | undefined}
+             */
+            this["merger"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Preferred counts the uses of the form to write: added lines for a merge,
+             * uses in content for a usage count.
+             * @member
+             * @type {number | undefined}
+             */
+            this["preferred"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Rejected counts the uses of the forms to avoid: removed lines for a
+             * merge, uses in content for a usage count.
+             * @member
+             * @type {number | undefined}
+             */
+            this["rejected"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Within is the part of the project a usage count covers, as a path
+             * prefix: "docs/". Empty covers the whole project.
+             * @member
+             * @type {string | undefined}
+             */
+            this["within"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Session is the agent session whose edit an applied signal records.
+             * @member
+             * @type {string | undefined}
+             */
+            this["session"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Signal instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {Signal}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Signal(/** @type {Partial<Signal>} */($$parsedSource));
+    }
+}
+
+/**
+ * SignalSource names where a signal's evidence came from.
+ * @readonly
+ * @enum {string}
+ */
+export const SignalSource = {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero: "",
+
+    /**
+     * SignalMerge is a change that reached the project's default branch: a
+     * merged pull request or a push. It is a person's signal, because a person
+     * merged it.
+     */
+    SignalMerge: "merge",
+
+    /**
+     * SignalUsage counts how often the project's content writes the preferred
+     * form and the rejected forms. It adds to a suggestion's standing, and
+     * content moving to a rejected form counts against it.
+     */
+    SignalUsage: "usage",
+
+    /**
+     * SignalApplied is an agent's applied edit writing the preferred form. It
+     * adds to a suggestion's standing and establishes nothing, because an
+     * agent following a suggestion is no person's signal.
+     */
+    SignalApplied: "applied",
+};
 
 /**
  * Standing is the evidence for and against a suggestion, as plain counts. It
@@ -277,9 +676,9 @@ export class Standing {
      * @returns {Standing}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType0;
-        const $$createField3_0 = $$createType2;
-        const $$createField6_0 = $$createType0;
+        const $$createField2_0 = $$createType1;
+        const $$createField3_0 = $$createType3;
+        const $$createField6_0 = $$createType1;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("merges" in $$parsedSource) {
             $$parsedSource["merges"] = $$createField2_0($$parsedSource["merges"]);
@@ -396,8 +795,8 @@ export class Subject {
      * @returns {Subject}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType4;
-        const $$createField2_0 = $$createType6;
+        const $$createField1_0 = $$createType5;
+        const $$createField2_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("term" in $$parsedSource) {
             $$parsedSource["term"] = $$createField1_0($$parsedSource["term"]);
@@ -490,10 +889,11 @@ export class Uses {
 }
 
 // Private type creation functions
-const $$createType0 = $Create.Array($Create.Any);
-const $$createType1 = Uses.createFrom;
-const $$createType2 = $Create.Nullable($$createType1);
-const $$createType3 = profile$0.TermRule.createFrom;
-const $$createType4 = $Create.Nullable($$createType3);
-const $$createType5 = MemoryPair.createFrom;
-const $$createType6 = $Create.Nullable($$createType5);
+const $$createType0 = $Create.Map($Create.Any, $Create.Any);
+const $$createType1 = $Create.Array($Create.Any);
+const $$createType2 = Uses.createFrom;
+const $$createType3 = $Create.Nullable($$createType2);
+const $$createType4 = profile$0.TermRule.createFrom;
+const $$createType5 = $Create.Nullable($$createType4);
+const $$createType6 = MemoryPair.createFrom;
+const $$createType7 = $Create.Nullable($$createType6);

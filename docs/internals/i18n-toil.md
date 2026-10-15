@@ -7,7 +7,7 @@
 This is the rubric behind kapi's i18n framework advice: a measure of the
 **ongoing maintenance cost** an i18n stack imposes on a team: the recurring
 cost, after setup. It is the contract that the `kapi` Agent Skill's i18n
-references (`cli/skills/data/kapi/references/i18n/`), the
+references (`host/skills/data/kapi/references/i18n/`), the
 `refresh-i18n-framework` skill (`.skills/`), and the `i18n-triage` workflow
 (`.claude/workflows/i18n-triage.js`) operate against. The research base lives
 in the private strategy repository under `graveyard/i18n-skill/research-*.md`
@@ -171,7 +171,7 @@ adjusts axes the same way any other tool does, by criteria rather than by fiat:
 ## 4. The registry (`frameworks.yaml`)
 
 Machine-readable source of truth for the skill's routing and the triage
-workflow, at `cli/skills/data/kapi/references/i18n/frameworks.yaml` (it ships
+workflow, at `host/skills/data/kapi/references/i18n/frameworks.yaml` (it ships
 inside the skill so the agent can consult it). Schema per entry:
 
 ```yaml
@@ -219,7 +219,7 @@ gets an explicit warning (grade T3+, or E ≥ 2); `avoid` means do not start new
   stewardship change), proposes re-scores with citations, and applies the
   sticky-anchor rule: an uncited score move is suppressed. Run it periodically
   (quarterly, or when a big ecosystem event lands).
-- **Skill evals**: `cli/skills/EVALS.md` carries the trigger scenarios for
+- **Skill evals**: `host/skills/EVALS.md` carries the trigger scenarios for
   the adoption flows; re-run after changing the SKILL.md description.
 - **Lockstep**: preset ids, format ids, and flags named in the references are
   claims about the CLI; a change to either side lands in one PR.
