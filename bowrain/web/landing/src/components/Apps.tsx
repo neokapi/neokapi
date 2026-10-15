@@ -23,7 +23,7 @@ const PLACES = [
     icon: Terminal,
     where: t("From your checkout"),
     body: t(
-      "kapi retrieves project context, runs checks locally and in CI, and provides tools for AI assistants over MCP.",
+      "kapi retrieves project context, runs checks locally and in CI, and provides tools for AI assistants over MCP. Kapi Desktop shows the context one machine holds; a workspace holds it for everyone.",
     ),
   },
 ];
