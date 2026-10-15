@@ -59,7 +59,7 @@ import type {
   ContextWidenPreview,
   WorkspaceRule,
   ProjectSharing,
-  ContextBackendSpec,
+  ContextBackend,
   ContextSyncResult,
   AgentHostStatus,
   AgentWiringResult,
@@ -456,7 +456,7 @@ export const api = {
   /** Where the tab's project keeps its context and how far it reaches. */
   projectSharing: (tabID: string) => call<ProjectSharing>("ProjectSharing", tabID),
   /** Write the `context:` block of the tab's recipe; a local spec removes it. */
-  setProjectSharing: (tabID: string, spec: ContextBackendSpec) =>
+  setProjectSharing: (tabID: string, spec: ContextBackend) =>
     call<ProjectSharing>("SetProjectSharing", tabID, spec),
   /** Pull and push the tab's project's context, as `kapi context sync` does. */
   syncProjectContext: (tabID: string) => call<ContextSyncResult>("SyncProjectContext", tabID),

@@ -64,9 +64,10 @@ type AgentHostStatus struct {
 	// Wired reports that the assistant's configuration starts kapi's MCP
 	// server for this project.
 	Wired bool `json:"wired"`
-	// Files are the files that carry the connection: relative to the project
-	// for a project host, the absolute path of Claude Desktop's own
-	// configuration for it.
+	// Files are the files that carry the connection, relative to the
+	// project, for a project host that is connected. For Claude Desktop it is
+	// the absolute path of the person's own configuration file whether or not
+	// it is connected yet, so a confirmation can name the file Connect writes.
 	Files []string `json:"files,omitempty"`
 }
 
@@ -246,24 +247,24 @@ const claudeDesktopConfigFile = "claude_desktop_config.json"
 const claudeDesktopServersKey = "mcpServers"
 
 // claudeDesktopStatus reads whether Claude Desktop starts kapi's server for
-// the recipe. False when the platform's location is not known.
+// the recipe, and names the file it reads. False when the platform's location
+// is not known.
 func claudeDesktopStatus(recipe string) (AgentHostStatus, bool) {
 	dir, ok := claudeDesktopConfigDir()
 	if !ok {
 		return AgentHostStatus{}, false
 	}
-	st := AgentHostStatus{Host: agentHostClaudeDesktop, Label: "Claude Desktop"}
+	path := filepath.Join(dir, claudeDesktopConfigFile)
+	st := AgentHostStatus{Host: agentHostClaudeDesktop, Label: "Claude Desktop", Files: []string{path}}
 	if info, err := os.Stat(dir); err == nil && info.IsDir() {
 		st.Detected = true
 	}
-	path := filepath.Join(dir, claudeDesktopConfigFile)
 	abs, err := filepath.Abs(recipe)
 	if err != nil {
 		return st, true
 	}
 	if entry, ok := readClaudeDesktopEntry(path); ok && host.ServesRecipe(entry.Args, abs, abs) {
 		st.Wired = true
-		st.Files = []string{path}
 	}
 	return st, true
 }
