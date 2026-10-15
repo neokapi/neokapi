@@ -434,6 +434,18 @@ func WriteAgentWiring(opts AgentWiringOptions) (*AgentWiringResult, error) {
 	return res, nil
 }
 
+// MCPToolSets returns the `kapi mcp --tools` sets kapi init writes into a
+// project's MCP entry: the default writing set alone, which needs no flag, or
+// the writing and translation sets when the recipe declares target languages.
+// Either way the agent reaches the structured edit path, which the writing set
+// holds (host/mcp_sets.go).
+func MCPToolSets(targetLanguages []string) []string {
+	if len(targetLanguages) == 0 {
+		return nil
+	}
+	return []string{"writing", "translation"}
+}
+
 // AgentWiringStatus is how one host is wired for a project, as its files
 // stand.
 type AgentWiringStatus struct {
