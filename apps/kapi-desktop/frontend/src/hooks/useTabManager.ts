@@ -18,6 +18,12 @@ export interface TabState {
 }
 
 /**
+ * Views that sit over every tab rather than inside one: the home, the
+ * workspace's history, and the app's settings. Clicking a tab dismisses them.
+ */
+export const GLOBAL_OVERLAYS: ReadonlySet<string> = new Set(["home", "history", "app-settings"]);
+
+/**
  * Where a newly opened project tab lands: its Context hub. A project that has
  * to be set up first (empty, or matching a preset) lands on the page that sets
  * it up, which is the project home.
@@ -41,7 +47,7 @@ export function useTabManager() {
   const activeTab = tabs.find((t) => t.info.id === activeTabID) ?? null;
 
   // Global overlays don't change the tab's view — clicking a tab dismisses them.
-  const isGlobalOverlay = globalView === "home" || globalView === "app-settings";
+  const isGlobalOverlay = GLOBAL_OVERLAYS.has(globalView);
   const effectiveView = isGlobalOverlay
     ? globalView
     : mode === "projects" && activeTab
@@ -54,7 +60,7 @@ export function useTabManager() {
       // the alias so the Project sidebar item highlights and the tab's stored
       // view stays canonical.
       const view = v === "content" ? "project-home" : v;
-      if (view === "home" || view === "app-settings") {
+      if (GLOBAL_OVERLAYS.has(view)) {
         setGlobalView(view);
       } else if (mode === "projects" && activeTabID) {
         setGlobalView(""); // clear global overlay

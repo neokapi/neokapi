@@ -48,7 +48,10 @@ export function WorkspaceRules({ rules: given }: WorkspaceRulesProps) {
                 <p className="text-sm leading-snug">
                   <RuleSentence item={rule} />
                 </p>
-                <p data-slot="workspace-rule-how" className="mt-0.5 text-[11px] text-muted-foreground">
+                <p
+                  data-slot="workspace-rule-how"
+                  className="mt-0.5 text-[11px] text-muted-foreground"
+                >
                   {ruleMeta(rule)}
                 </p>
               </div>

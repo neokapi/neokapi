@@ -38,17 +38,12 @@ export function useAppInit() {
     queryFn: () => api.contextNews(),
   });
 
-  // Optimistic dismissal — flips immediately, before the settings refetch.
-  const [dismissedOverride, setDismissedOverride] = useState(false);
   // Start here can be dismissed on the home and brought back from Settings,
   // so its override holds either answer until the settings refetch agrees.
   const [startHereOverride, setStartHereOverride] = useState<boolean | null>(null);
 
   const workspace = workspaceQuery.data ?? null;
   const workspaceError = workspaceQuery.error;
-  const samplesDismissed = settingsQuery.data
-    ? dismissedOverride || !!settingsQuery.data.samples_dismissed
-    : true;
   // Hidden until the settings are read, so it never flashes up and away.
   const startHereDismissed = settingsQuery.data
     ? (startHereOverride ?? !!settingsQuery.data.start_here_dismissed)
@@ -110,16 +105,6 @@ export function useAppInit() {
     return () => document.removeEventListener("click", handler);
   }, []);
 
-  const dismissSamples = useCallback(() => {
-    setDismissedOverride(true);
-    api
-      .dismissSamples()
-      .catch(() => {})
-      .finally(() => {
-        void qc.invalidateQueries({ queryKey: qk.settings() });
-      });
-  }, [qc]);
-
   const setStartHere = useCallback(
     (dismissed: boolean) => {
       setStartHereOverride(dismissed);
@@ -139,11 +124,9 @@ export function useAppInit() {
     workspaceError,
     news: newsQuery.data ?? null,
     standings,
-    samplesDismissed,
     startHereDismissed,
     refreshWorkspace,
     forgetProject,
-    dismissSamples,
     dismissStartHere,
     restoreStartHere,
   };

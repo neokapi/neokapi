@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import type { ContextNews, KapiProject, FlowSpec, WorkspaceHome } from "../types/api";
+import type {
+  ContextNews,
+  ContextProjectStanding,
+  KapiProject,
+  FlowSpec,
+  WorkspaceHome,
+} from "../types/api";
 import { ProjectErrorBoundary } from "./ProjectErrorBoundary";
 import type { TabState } from "../hooks/useTabManager";
 import type { ProjectHistory } from "../hooks/useProjectHistory";
@@ -11,7 +17,8 @@ import { ToolboxPage } from "./ToolboxPage";
 import { TermsPage } from "./TermsPage";
 import { MemoriesPage } from "./MemoriesPage";
 import { ChecksPanel } from "./ChecksPanel";
-import { ContextHub, type ContextPin } from "./ContextHub";
+import { ContextHub, contextSectionOf, type ContextPin } from "./ContextHub";
+import { HistoryView } from "./HistoryView";
 import { ReviewPage, type ReviewScope } from "./ReviewPage";
 import { FormatsPage } from "./FormatsPage";
 import { SettingsPage } from "./SettingsPage";
@@ -67,7 +74,18 @@ interface ViewSwitchProps {
   workspaceError?: unknown;
   /** What each project's digest holds that the person has not seen. */
   news?: ContextNews[] | null;
-  samplesDismissed: boolean;
+  /** Every project's context in numbers. */
+  standings?: ContextProjectStanding[] | null;
+  /** The home's Start here steps were dismissed. */
+  startHereDismissed: boolean;
+  onDismissStartHere: () => void;
+  onRestoreStartHere: () => void;
+  /** A project tab is open, so the home can connect an assistant to it. */
+  hasOpenProject: boolean;
+  /** Open the most recent project tab on its Assistant section. */
+  onConnectAssistant: () => void;
+  /** Open a project on its What's new, by workspace key. */
+  onOpenWhatsNew: (key: string) => void;
   /** Open a project from one of its checkouts, by recipe path. */
   onOpenCheckout: (recipe: string) => void;
   /** Open a project with no checkout here, on its context alone. */
@@ -77,7 +95,6 @@ interface ViewSwitchProps {
   onNewProject: () => void;
   onOpenProject: () => void;
   onCreateSampleProject: (name: string) => void;
-  onDismissSamples: () => void;
   /** Reset an out-of-date sample project to the version bundled with this kapi. */
   onResetSample: (tabID: string) => void;
   /** An open project tab to offer ad-hoc flow adoption into ({id,name}). */
@@ -95,14 +112,19 @@ export function ViewSwitch({
   workspace,
   workspaceError,
   news,
-  samplesDismissed,
+  standings,
+  startHereDismissed,
+  onDismissStartHere,
+  onRestoreStartHere,
+  hasOpenProject,
+  onConnectAssistant,
+  onOpenWhatsNew,
   onOpenCheckout,
   onOpenContext,
   onForgetProject,
   onNewProject,
   onOpenProject,
   onCreateSampleProject,
-  onDismissSamples,
   onResetSample,
   adoptTarget,
 }: ViewSwitchProps) {
@@ -195,7 +217,12 @@ export function ViewSwitch({
         workspace={workspace}
         workspaceError={workspaceError}
         news={news}
-        samplesDismissed={samplesDismissed}
+        standings={standings}
+        startHereDismissed={startHereDismissed}
+        onDismissStartHere={onDismissStartHere}
+        hasOpenProject={hasOpenProject}
+        onConnectAssistant={onConnectAssistant}
+        onOpenWhatsNew={onOpenWhatsNew}
         onOpenCheckout={onOpenCheckout}
         onOpenContext={onOpenContext}
         onForgetProject={onForgetProject}
@@ -203,10 +230,18 @@ export function ViewSwitch({
         onOpenProject={onOpenProject}
         onNavigate={navigate}
         onCreateSampleProject={onCreateSampleProject}
-        onDismissSamples={onDismissSamples}
       />
     );
   }
+
+  // The workspace's history — a global overlay like the home it opens from.
+  if (effectiveView === "history") {
+    return <HistoryView onBack={() => navigate("home")} />;
+  }
+
+  const settings = (
+    <SettingsPage startHereDismissed={startHereDismissed} onRestoreStartHere={onRestoreStartHere} />
+  );
 
   // Ad-hoc views
   if (mode === "adhoc") {
@@ -231,7 +266,7 @@ export function ViewSwitch({
         return <FormatsPage />;
       case "settings":
       case "app-settings":
-        return <SettingsPage />;
+        return settings;
       default:
         return null;
     }
@@ -239,13 +274,16 @@ export function ViewSwitch({
 
   // Global app settings — accessible from any mode via bottom gear icon
   if (effectiveView === "app-settings") {
-    return <SettingsPage />;
+    return settings;
   }
 
   // Project views — require an active tab
   if (!activeTab) return null;
 
   const tabID = activeTab.info.id;
+  // "context:<section>" opens the hub on one section; the view's base is the route.
+  const route = effectiveView.split(":")[0];
+  const hubSection = contextSectionOf(effectiveView);
 
   // A context-only tab has no recipe and no files, so every project surface
   // but the Context hub has nothing to read. It opens on the hub and stays
@@ -258,7 +296,12 @@ export function ViewSwitch({
           content is not. Clone the repository and run Kapi in it to reunite the two.
         </div>
         <div className="min-h-0 flex-1">
-          <ContextHub tabID={tabID} projectName={activeTab.info.name} contextOnly />
+          <ContextHub
+            tabID={tabID}
+            projectName={activeTab.info.name}
+            section={hubSection}
+            contextOnly
+          />
         </div>
       </div>
     );
@@ -270,7 +313,7 @@ export function ViewSwitch({
   // crashing the webview. The boundary key includes pluginsResolved so a
   // successful install remounts the view.
   const projectView = ((): ReactNode => {
-    switch (effectiveView) {
+    switch (route) {
       // `content` folds into the merged project home (issue #1068). Kept as an
       // alias so existing onNavigate("content") calls and saved deep links still
       // resolve to the collection-centric surface.
@@ -380,13 +423,7 @@ export function ViewSwitch({
             key={contextEntry.current}
             tabID={tabID}
             projectName={history.project.name}
-            section={
-              effectiveView === "termbases"
-                ? "terms"
-                : effectiveView === "memories"
-                  ? "memory"
-                  : undefined
-            }
+            section={hubSection}
             pin={contextPin ?? undefined}
             hasTargetLanguages={(history.project.defaults?.target_languages?.length ?? 0) > 0}
             contextOnly={activeTab.info.context_only}

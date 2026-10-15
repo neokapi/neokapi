@@ -74,6 +74,18 @@ const SECTIONS: Array<{
   { id: "memory", icon: <Database size={14} />, localeGated: true },
 ];
 
+/**
+ * The section a view opens the hub on: "context:<section>" names one, and the
+ * stores' own view ids stay routable so a persisted view lands where it did.
+ */
+export function contextSectionOf(view: string): ContextSection | undefined {
+  if (view === "termbases") return "terms";
+  if (view === "memories") return "memory";
+  const [base, section] = view.split(":");
+  if (base !== "context" || !section) return undefined;
+  return SECTIONS.find((s) => s.id === section)?.id;
+}
+
 export function ContextHub({
   tabID,
   projectName,

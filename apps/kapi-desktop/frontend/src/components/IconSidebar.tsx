@@ -48,6 +48,7 @@ const adhocItems: SidebarItem[] = [
     view: "home",
     icon: <Home size={20} strokeWidth={SW} />,
     label: "Home",
+    activeViews: ["history"],
   },
   { type: "separator" },
   {
@@ -84,6 +85,8 @@ const projectItems: SidebarItem[] = [
     icon: <Home size={20} strokeWidth={SW} />,
     label: "Home",
     alwaysEnabled: true,
+    // The workspace's history opens from the home and belongs to it.
+    activeViews: ["history"],
   },
   { type: "separator" },
   {
