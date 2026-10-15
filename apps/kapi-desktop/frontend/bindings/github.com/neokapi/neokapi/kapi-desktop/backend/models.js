@@ -11,6 +11,9 @@ import { Create as $Create } from "@wailsio/runtime";
 import * as check$0 from "../../core/check/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as contextop$0 from "../../core/contextop/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as convergence$0 from "../../core/convergence/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -27,6 +30,9 @@ import * as profile$0 from "../../core/profile/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as review$0 from "../../core/review/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as workspace$0 from "../../core/workspace/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as host$0 from "../../host/models.js";
@@ -752,6 +758,79 @@ export class AgentContextView {
 }
 
 /**
+ * AgentHostStatus is one assistant the project can be connected to.
+ */
+export class AgentHostStatus {
+    /**
+     * Creates a new AgentHostStatus instance.
+     * @param {Partial<AgentHostStatus>} [$$source = {}] - The source object to create the AgentHostStatus.
+     */
+    constructor($$source = {}) {
+        if (!("host" in $$source)) {
+            /**
+             * Host is claude-code, cursor, vscode, codex or claude-desktop, and
+             * Label what to call it on screen.
+             * @member
+             * @type {string}
+             */
+            this["host"] = "";
+        }
+        if (!("label" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["label"] = "";
+        }
+        if (!("detected" in $$source)) {
+            /**
+             * Detected reports that the assistant is in use here: the project keeps
+             * its folder (Claude Code always counts, as kapi init counts it), or, for
+             * Claude Desktop, its configuration folder exists on this machine.
+             * @member
+             * @type {boolean}
+             */
+            this["detected"] = false;
+        }
+        if (!("wired" in $$source)) {
+            /**
+             * Wired reports that the assistant's configuration starts kapi's MCP
+             * server for this project.
+             * @member
+             * @type {boolean}
+             */
+            this["wired"] = false;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Files are the files that carry the connection: relative to the project
+             * for a project host, the absolute path of Claude Desktop's own
+             * configuration for it.
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["files"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new AgentHostStatus instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {AgentHostStatus}
+     */
+    static createFrom($$source = {}) {
+        const $$createField4_0 = $$createType6;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("files" in $$parsedSource) {
+            $$parsedSource["files"] = $$createField4_0($$parsedSource["files"]);
+        }
+        return new AgentHostStatus(/** @type {Partial<AgentHostStatus>} */($$parsedSource));
+    }
+}
+
+/**
  * AnnotateEntitiesRequest is the request to batch-annotate entities on content-memory entries.
  */
 export class AnnotateEntitiesRequest {
@@ -878,6 +957,15 @@ export class AppSettings {
         }
         if (/** @type {any} */(false)) {
             /**
+             * StartHereDismissed is true after the person dismisses the home's Start
+             * here steps. Settings can bring them back.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["start_here_dismissed"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * locale codes to hide from selectors
              * @member
              * @type {string[] | undefined}
@@ -958,18 +1046,18 @@ export class AppSettings {
      * @returns {AppSettings}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType6;
-        const $$createField4_0 = $$createType19;
-        const $$createField6_0 = $$createType6;
+        const $$createField4_0 = $$createType6;
+        const $$createField5_0 = $$createType19;
+        const $$createField7_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("hidden_locales" in $$parsedSource) {
-            $$parsedSource["hidden_locales"] = $$createField3_0($$parsedSource["hidden_locales"]);
+            $$parsedSource["hidden_locales"] = $$createField4_0($$parsedSource["hidden_locales"]);
         }
         if ("custom_locales" in $$parsedSource) {
-            $$parsedSource["custom_locales"] = $$createField4_0($$parsedSource["custom_locales"]);
+            $$parsedSource["custom_locales"] = $$createField5_0($$parsedSource["custom_locales"]);
         }
         if ("last_open_projects" in $$parsedSource) {
-            $$parsedSource["last_open_projects"] = $$createField6_0($$parsedSource["last_open_projects"]);
+            $$parsedSource["last_open_projects"] = $$createField7_0($$parsedSource["last_open_projects"]);
         }
         return new AppSettings(/** @type {Partial<AppSettings>} */($$parsedSource));
     }
@@ -7300,6 +7388,97 @@ export class ProjectServer {
 }
 
 /**
+ * ProjectSharing is where a project's context is kept and how far it reaches:
+ * this machine's workspace, a place the recipe names under `context:`, and the
+ * Bowrain server its `bowrain:` block connects it to.
+ */
+export class ProjectSharing {
+    /**
+     * Creates a new ProjectSharing instance.
+     * @param {Partial<ProjectSharing>} [$$source = {}] - The source object to create the ProjectSharing.
+     */
+    constructor($$source = {}) {
+        if (!("kind" in $$source)) {
+            /**
+             * Kind is local, file, git or s3.
+             * @member
+             * @type {string}
+             */
+            this["kind"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Location is where a shared backend keeps the context, as kapi context
+             * backend prints it.
+             * @member
+             * @type {string | undefined}
+             */
+            this["location"] = undefined;
+        }
+        if (!("from" in $$source)) {
+            /**
+             * From is "recipe" when kapi.yaml names the backend and "default" when it
+             * names none.
+             * @member
+             * @type {string}
+             */
+            this["from"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Status is how far apart this machine and the backend were at the last
+             * contact, read without reaching the backend. Nil for a local backend.
+             * @member
+             * @type {workspace$0.SyncStatus | null | undefined}
+             */
+            this["status"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * VenueHost is the host of the Bowrain server the recipe's venue block
+             * names, and VenueURL the project URL as written there. Both are empty
+             * when the recipe declares none.
+             * @member
+             * @type {string | undefined}
+             */
+            this["venue_host"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["venue_url"] = undefined;
+        }
+        if (!("workspace" in $$source)) {
+            /**
+             * Workspace is the workspace directory on this machine, which holds the
+             * project's context whatever the backend.
+             * @member
+             * @type {string}
+             */
+            this["workspace"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ProjectSharing instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ProjectSharing}
+     */
+    static createFrom($$source = {}) {
+        const $$createField3_0 = $$createType127;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("status" in $$parsedSource) {
+            $$parsedSource["status"] = $$createField3_0($$parsedSource["status"]);
+        }
+        return new ProjectSharing(/** @type {Partial<ProjectSharing>} */($$parsedSource));
+    }
+}
+
+/**
  * ProjectStatus bundles the per-collection summaries.
  * 
  * HasData reports whether the project's block store exists and has been
@@ -7376,8 +7555,8 @@ export class ProjectStatus {
      * @returns {ProjectStatus}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType127;
-        const $$createField5_0 = $$createType129;
+        const $$createField4_0 = $$createType129;
+        const $$createField5_0 = $$createType131;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("collections" in $$parsedSource) {
             $$parsedSource["collections"] = $$createField4_0($$parsedSource["collections"]);
@@ -7430,7 +7609,7 @@ export class ProjectVoiceResult {
      * @returns {ProjectVoiceResult}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType131;
+        const $$createField1_0 = $$createType133;
         const $$createField2_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("points" in $$parsedSource) {
@@ -7771,7 +7950,7 @@ export class RecipeGovernanceDTO {
      * @returns {RecipeGovernanceDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType133;
+        const $$createField0_0 = $$createType135;
         const $$createField1_0 = $$createType6;
         const $$createField2_0 = $$createType6;
         const $$createField3_0 = $$createType6;
@@ -7858,7 +8037,7 @@ export class RelationDTO {
      * @returns {RelationDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField5_0 = $$createType135;
+        const $$createField5_0 = $$createType137;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("validity" in $$parsedSource) {
             $$parsedSource["validity"] = $$createField5_0($$parsedSource["validity"]);
@@ -8145,9 +8324,9 @@ export class ReviewUnitDetail {
      * @returns {ReviewUnitDetail}
      */
     static createFrom($$source = {}) {
-        const $$createField10_0 = $$createType137;
+        const $$createField10_0 = $$createType139;
         const $$createField12_0 = $$createType25;
-        const $$createField15_0 = $$createType139;
+        const $$createField15_0 = $$createType141;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("origin" in $$parsedSource) {
             $$parsedSource["origin"] = $$createField10_0($$parsedSource["origin"]);
@@ -8159,6 +8338,62 @@ export class ReviewUnitDetail {
             $$parsedSource["context"] = $$createField15_0($$parsedSource["context"]);
         }
         return new ReviewUnitDetail(/** @type {Partial<ReviewUnitDetail>} */($$parsedSource));
+    }
+}
+
+/**
+ * RulesFileView is one rules file kapi writes for a project.
+ */
+export class RulesFileView {
+    /**
+     * Creates a new RulesFileView instance.
+     * @param {Partial<RulesFileView>} [$$source = {}] - The source object to create the RulesFileView.
+     */
+    constructor($$source = {}) {
+        if (!("path" in $$source)) {
+            /**
+             * Path is the file, relative to the project root.
+             * @member
+             * @type {string}
+             */
+            this["path"] = "";
+        }
+        if (!("folder" in $$source)) {
+            /**
+             * Folder is the folder whose rules it states, empty for the root.
+             * @member
+             * @type {string}
+             */
+            this["folder"] = "";
+        }
+        if (!("section" in $$source)) {
+            /**
+             * Section is kapi's section of the file as it would be written now.
+             * @member
+             * @type {string}
+             */
+            this["section"] = "";
+        }
+        if (!("exists" in $$source)) {
+            /**
+             * Exists reports that the file is on disk.
+             * @member
+             * @type {boolean}
+             */
+            this["exists"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RulesFileView instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {RulesFileView}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new RulesFileView(/** @type {Partial<RulesFileView>} */($$parsedSource));
     }
 }
 
@@ -8296,7 +8531,7 @@ export class RunError {
      * @returns {RunError}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType141;
+        const $$createField3_0 = $$createType143;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("actions" in $$parsedSource) {
             $$parsedSource["actions"] = $$createField3_0($$parsedSource["actions"]);
@@ -8575,10 +8810,10 @@ export class RunEvent {
      * @returns {RunEvent}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType143;
-        const $$createField8_0 = $$createType145;
-        const $$createField11_0 = $$createType147;
-        const $$createField12_0 = $$createType149;
+        const $$createField4_0 = $$createType145;
+        const $$createField8_0 = $$createType147;
+        const $$createField11_0 = $$createType149;
+        const $$createField12_0 = $$createType151;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("error" in $$parsedSource) {
             $$parsedSource["error"] = $$createField4_0($$parsedSource["error"]);
@@ -8700,8 +8935,8 @@ export class RunTraces {
      * @returns {RunTraces}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType151;
-        const $$createField2_0 = $$createType153;
+        const $$createField1_0 = $$createType153;
+        const $$createField2_0 = $$createType155;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("steps" in $$parsedSource) {
             $$parsedSource["steps"] = $$createField1_0($$parsedSource["steps"]);
@@ -8827,7 +9062,7 @@ export class SaveUserFlowRequest {
      * @returns {SaveUserFlowRequest}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType151;
+        const $$createField3_0 = $$createType153;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("steps" in $$parsedSource) {
             $$parsedSource["steps"] = $$createField3_0($$parsedSource["steps"]);
@@ -9107,7 +9342,7 @@ export class TermDTO {
      */
     static createFrom($$source = {}) {
         const $$createField6_0 = $$createType6;
-        const $$createField8_0 = $$createType135;
+        const $$createField8_0 = $$createType137;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("forms" in $$parsedSource) {
             $$parsedSource["forms"] = $$createField6_0($$parsedSource["forms"]);
@@ -9336,8 +9571,8 @@ export class ToolInfo {
     static createFrom($$source = {}) {
         const $$createField6_0 = $$createType6;
         const $$createField7_0 = $$createType6;
-        const $$createField10_0 = $$createType155;
-        const $$createField11_0 = $$createType155;
+        const $$createField10_0 = $$createType157;
+        const $$createField11_0 = $$createType157;
         const $$createField12_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tags" in $$parsedSource) {
@@ -9551,7 +9786,7 @@ export class UserFlowDetail {
      * @returns {UserFlowDetail}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType151;
+        const $$createField4_0 = $$createType153;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("steps" in $$parsedSource) {
             $$parsedSource["steps"] = $$createField4_0($$parsedSource["steps"]);
@@ -10138,12 +10373,12 @@ export class VoicePointDTO {
         const $$createField2_0 = $$createType13;
         const $$createField3_0 = $$createType6;
         const $$createField4_0 = $$createType6;
-        const $$createField7_0 = $$createType157;
-        const $$createField9_0 = $$createType159;
+        const $$createField7_0 = $$createType159;
+        const $$createField9_0 = $$createType161;
         const $$createField11_0 = $$createType121;
         const $$createField12_0 = $$createType123;
         const $$createField13_0 = $$createType6;
-        const $$createField14_0 = $$createType160;
+        const $$createField14_0 = $$createType162;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("point" in $$parsedSource) {
             $$parsedSource["point"] = $$createField0_0($$parsedSource["point"]);
@@ -10258,8 +10493,8 @@ export class VoiceSaveResult {
      * @returns {VoiceSaveResult}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType162;
-        const $$createField6_0 = $$createType164;
+        const $$createField4_0 = $$createType164;
+        const $$createField6_0 = $$createType166;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("problems" in $$parsedSource) {
             $$parsedSource["problems"] = $$createField4_0($$parsedSource["problems"]);
@@ -10417,7 +10652,7 @@ export class WorkspaceHome {
      * @returns {WorkspaceHome}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType166;
+        const $$createField2_0 = $$createType168;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("projects" in $$parsedSource) {
             $$parsedSource["projects"] = $$createField2_0($$parsedSource["projects"]);
@@ -10482,6 +10717,34 @@ export class WorkspaceProject {
              */
             this["context_files"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Context is the project's context in numbers and its latest session,
+             * nil when the workspace log could not be read.
+             * @member
+             * @type {host$0.ContextProjectStanding | null | undefined}
+             */
+            this["context"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Sharing is where the project's context is kept and how far it reaches,
+             * read from the first readable checkout's recipe. A project with no
+             * readable checkout keeps its context in this machine's workspace.
+             * @member
+             * @type {ProjectSharing | null | undefined}
+             */
+            this["sharing"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Voice is the voice profile the recipe binds at the project's default
+             * point, as the recipe names it, when a checkout here says.
+             * @member
+             * @type {string | undefined}
+             */
+            this["voice"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -10492,14 +10755,22 @@ export class WorkspaceProject {
      * @returns {WorkspaceProject}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType168;
-        const $$createField4_0 = $$createType129;
+        const $$createField3_0 = $$createType170;
+        const $$createField4_0 = $$createType131;
+        const $$createField5_0 = $$createType172;
+        const $$createField6_0 = $$createType174;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("checkouts" in $$parsedSource) {
             $$parsedSource["checkouts"] = $$createField3_0($$parsedSource["checkouts"]);
         }
         if ("context_files" in $$parsedSource) {
             $$parsedSource["context_files"] = $$createField4_0($$parsedSource["context_files"]);
+        }
+        if ("context" in $$parsedSource) {
+            $$parsedSource["context"] = $$createField5_0($$parsedSource["context"]);
+        }
+        if ("sharing" in $$parsedSource) {
+            $$parsedSource["sharing"] = $$createField6_0($$parsedSource["sharing"]);
         }
         return new WorkspaceProject(/** @type {Partial<WorkspaceProject>} */($$parsedSource));
     }
@@ -10565,6 +10836,102 @@ export class WorkspaceRemoval {
             $$parsedSource["checkouts"] = $$createField3_0($$parsedSource["checkouts"]);
         }
         return new WorkspaceRemoval(/** @type {Partial<WorkspaceRemoval>} */($$parsedSource));
+    }
+}
+
+/**
+ * WorkspaceRule is one rule a person applied more widely, to every project in
+ * the workspace: the home lists it under the rules that hold everywhere.
+ */
+export class WorkspaceRule {
+    /**
+     * Creates a new WorkspaceRule instance.
+     * @param {Partial<WorkspaceRule>} [$$source = {}] - The source object to create the WorkspaceRule.
+     */
+    constructor($$source = {}) {
+        if (!("id" in $$source)) {
+            /**
+             * ID names the operation whose rule it is, and Short the form a person
+             * types.
+             * @member
+             * @type {string}
+             */
+            this["id"] = "";
+        }
+        if (!("short" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["short"] = "";
+        }
+        if (!("sentence" in $$source)) {
+            /**
+             * Sentence is the rule as a sentence, and Subject the rule itself.
+             * @member
+             * @type {string}
+             */
+            this["sentence"] = "";
+        }
+        if (!("subject" in $$source)) {
+            /**
+             * @member
+             * @type {contextop$0.Subject}
+             */
+            this["subject"] = (new contextop$0.Subject());
+        }
+        if (!("project_key" in $$source)) {
+            /**
+             * ProjectKey is the project the rule was decided in, and ProjectName what
+             * a person calls it.
+             * @member
+             * @type {string}
+             */
+            this["project_key"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["project_name"] = undefined;
+        }
+        if (!("at" in $$source)) {
+            /**
+             * At is when the rule came into force, and How on what: "kept by you",
+             * "merged in #412".
+             * @member
+             * @type {string}
+             */
+            this["at"] = "0001-01-01T00:00:00.000Z";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["how"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new WorkspaceRule instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {WorkspaceRule}
+     */
+    static createFrom($$source = {}) {
+        const $$createField3_0 = $$createType175;
+        const $$createField7_0 = $$createType6;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("subject" in $$parsedSource) {
+            $$parsedSource["subject"] = $$createField3_0($$parsedSource["subject"]);
+        }
+        if ("how" in $$parsedSource) {
+            $$parsedSource["how"] = $$createField7_0($$parsedSource["how"]);
+        }
+        return new WorkspaceRule(/** @type {Partial<WorkspaceRule>} */($$parsedSource));
     }
 }
 
@@ -10695,46 +11062,53 @@ const $$createType122 = VoiceFallbackDTO.createFrom;
 const $$createType123 = $Create.Nullable($$createType122);
 const $$createType124 = ProjectPointDTO.createFrom;
 const $$createType125 = $Create.Array($$createType124);
-const $$createType126 = CollectionStatus.createFrom;
-const $$createType127 = $Create.Array($$createType126);
-const $$createType128 = ContextFilesNoticeDTO.createFrom;
-const $$createType129 = $Create.Nullable($$createType128);
-const $$createType130 = VoicePointDTO.createFrom;
-const $$createType131 = $Create.Array($$createType130);
-const $$createType132 = RecipeAxisDTO.createFrom;
+const $$createType126 = workspace$0.SyncStatus.createFrom;
+const $$createType127 = $Create.Nullable($$createType126);
+const $$createType128 = CollectionStatus.createFrom;
+const $$createType129 = $Create.Array($$createType128);
+const $$createType130 = ContextFilesNoticeDTO.createFrom;
+const $$createType131 = $Create.Nullable($$createType130);
+const $$createType132 = VoicePointDTO.createFrom;
 const $$createType133 = $Create.Array($$createType132);
-const $$createType134 = ValidityDTO.createFrom;
-const $$createType135 = $Create.Nullable($$createType134);
-const $$createType136 = model$0.Origin.createFrom;
+const $$createType134 = RecipeAxisDTO.createFrom;
+const $$createType135 = $Create.Array($$createType134);
+const $$createType136 = ValidityDTO.createFrom;
 const $$createType137 = $Create.Nullable($$createType136);
-const $$createType138 = review$0.Context.createFrom;
+const $$createType138 = model$0.Origin.createFrom;
 const $$createType139 = $Create.Nullable($$createType138);
-const $$createType140 = RunErrorAction.createFrom;
-const $$createType141 = $Create.Array($$createType140);
-const $$createType142 = RunError.createFrom;
-const $$createType143 = $Create.Nullable($$createType142);
-const $$createType144 = flow$0.StepSnapshot.createFrom;
-const $$createType145 = $Create.Array($$createType144);
-const $$createType146 = convergence$0.Event.createFrom;
-const $$createType147 = $Create.Nullable($$createType146);
-const $$createType148 = host$0.ConvergeOutput.createFrom;
+const $$createType140 = review$0.Context.createFrom;
+const $$createType141 = $Create.Nullable($$createType140);
+const $$createType142 = RunErrorAction.createFrom;
+const $$createType143 = $Create.Array($$createType142);
+const $$createType144 = RunError.createFrom;
+const $$createType145 = $Create.Nullable($$createType144);
+const $$createType146 = flow$0.StepSnapshot.createFrom;
+const $$createType147 = $Create.Array($$createType146);
+const $$createType148 = convergence$0.Event.createFrom;
 const $$createType149 = $Create.Nullable($$createType148);
-const $$createType150 = flow$0.FlowStep.createFrom;
-const $$createType151 = $Create.Array($$createType150);
-const $$createType152 = RunTraceFile.createFrom;
+const $$createType150 = host$0.ConvergeOutput.createFrom;
+const $$createType151 = $Create.Nullable($$createType150);
+const $$createType152 = flow$0.FlowStep.createFrom;
 const $$createType153 = $Create.Array($$createType152);
-const $$createType154 = IOPort.createFrom;
+const $$createType154 = RunTraceFile.createFrom;
 const $$createType155 = $Create.Array($$createType154);
-const $$createType156 = VoiceBindingDTO.createFrom;
-const $$createType157 = $Create.Nullable($$createType156);
-const $$createType158 = profile$0.VoiceProfile.createFrom;
+const $$createType156 = IOPort.createFrom;
+const $$createType157 = $Create.Array($$createType156);
+const $$createType158 = VoiceBindingDTO.createFrom;
 const $$createType159 = $Create.Nullable($$createType158);
-const $$createType160 = VoiceEditTargetDTO.createFrom;
-const $$createType161 = profile$0.ProfileProblem.createFrom;
-const $$createType162 = $Create.Array($$createType161);
-const $$createType163 = RulesFilesDTO.createFrom;
-const $$createType164 = $Create.Nullable($$createType163);
-const $$createType165 = WorkspaceProject.createFrom;
-const $$createType166 = $Create.Array($$createType165);
-const $$createType167 = WorkspaceCheckout.createFrom;
+const $$createType160 = profile$0.VoiceProfile.createFrom;
+const $$createType161 = $Create.Nullable($$createType160);
+const $$createType162 = VoiceEditTargetDTO.createFrom;
+const $$createType163 = profile$0.ProfileProblem.createFrom;
+const $$createType164 = $Create.Array($$createType163);
+const $$createType165 = RulesFilesDTO.createFrom;
+const $$createType166 = $Create.Nullable($$createType165);
+const $$createType167 = WorkspaceProject.createFrom;
 const $$createType168 = $Create.Array($$createType167);
+const $$createType169 = WorkspaceCheckout.createFrom;
+const $$createType170 = $Create.Array($$createType169);
+const $$createType171 = host$0.ContextProjectStanding.createFrom;
+const $$createType172 = $Create.Nullable($$createType171);
+const $$createType173 = ProjectSharing.createFrom;
+const $$createType174 = $Create.Nullable($$createType173);
+const $$createType175 = contextop$0.Subject.createFrom;

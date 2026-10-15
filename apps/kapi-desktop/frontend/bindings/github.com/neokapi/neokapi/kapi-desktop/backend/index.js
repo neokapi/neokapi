@@ -18,6 +18,7 @@ export {
     AddRelationRequest,
     AdoptFlowResult,
     AgentContextView,
+    AgentHostStatus,
     AnnotateEntitiesRequest,
     AnnotateResult,
     AppSettings,
@@ -114,6 +115,7 @@ export {
     ProjectPointDTO,
     ProjectPointsResult,
     ProjectServer,
+    ProjectSharing,
     ProjectStatus,
     ProjectVoiceResult,
     ProviderInfo,
@@ -125,6 +127,7 @@ export {
     ResourceInfo,
     ReviewAIActionResult,
     ReviewUnitDetail,
+    RulesFileView,
     RulesFilesDTO,
     RunError,
     RunErrorAction,
@@ -159,5 +162,6 @@ export {
     WorkspaceCheckout,
     WorkspaceHome,
     WorkspaceProject,
-    WorkspaceRemoval
+    WorkspaceRemoval,
+    WorkspaceRule
 } from "./models.js";
