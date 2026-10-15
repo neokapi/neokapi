@@ -1,7 +1,7 @@
 # kapi skill — triggering evals
 
 A maintainer checklist for verifying that the `kapi` Agent Skill
-(`cli/skills/data/kapi/SKILL.md`) **triggers on the right tasks and not the
+(`host/skills/data/kapi/SKILL.md`) **triggers on the right tasks and not the
 wrong ones**. Run it after editing the skill's `description` (the only field
 loaded at agent startup, and the sole lever on triggering — across every tool
 that reads `SKILL.md`: Claude Code, Copilot, Cursor, …).

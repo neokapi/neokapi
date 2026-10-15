@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/neokapi/neokapi/cli/skills"
+	"github.com/neokapi/neokapi/host/skills"
 )
 
 // SetupHelpTopics replaces cobra's help command with one that also serves the

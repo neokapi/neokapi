@@ -5,14 +5,14 @@
 # ecosystem.
 #
 # This is a RELEASE step, not a build step. The source of truth is the skill
-# directory in the monorepo (e.g. cli/skills/data/kapi), in lockstep with the CLI
+# directory in the monorepo (e.g. host/skills/data/kapi), in lockstep with the CLI
 # surface; this mirrors that directory into a same-named subdir of the collection
 # repo (e.g. agent-skills/kapi/), the layout the skills CLI expects for a
 # multi-skill repo. The repo's root README (the collection index) is left alone,
 # so independent per-skill publishes don't clobber each other.
 #
 # Usage: scripts/publish-skill.sh <skill-src-dir> <owner/repo>
-#   e.g. scripts/publish-skill.sh cli/skills/data/kapi neokapi/agent-skills
+#   e.g. scripts/publish-skill.sh host/skills/data/kapi neokapi/agent-skills
 #
 # Requires push access to the target repo (the gh credential helper locally, or a
 # PAT/deploy key in CI). Pass STAMP=<iso8601> for a reproducible commit.

@@ -96,7 +96,7 @@ func pairedSkillDir(workspace, host, skill string) string {
 }
 
 // installPairedSkill copies the arm's skill into the workspace. The kapi skill
-// is the one the binary ships (cli/skills/data/kapi), from the study's own copy
+// is the one the binary ships (host/skills/data/kapi), from the study's own copy
 // in a live phase; the project-free skill is the evaluation's own text for the
 // alias, embedded with the corpus.
 func installPairedSkill(launch PairedLaunch, arm pairedArm) error {

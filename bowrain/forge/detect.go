@@ -17,7 +17,7 @@ import (
 //
 // The i18n signal table below mirrors the catalog-location knowledge of the
 // kapi skill's i18n framework registry —
-// cli/skills/data/kapi/references/i18n/frameworks.yaml — which is the source
+// host/skills/data/kapi/references/i18n/frameworks.yaml — which is the source
 // of truth (catalog layouts, detect files). When the registry gains or changes
 // a framework's catalog layout, update the table here to match.
 

@@ -42,7 +42,7 @@ cd "$(git rev-parse --show-toplevel)"
 # own internals, the front-door READMEs and the platform's CLI docs.
 TREES=(
   web/docs
-  cli/skills
+  host/skills
   docs/internals
   README.md
   CONTRIBUTING.md
@@ -93,7 +93,7 @@ ALLOWLIST=(
   "web/docs/kapi/recipes/memory-and-terms-storage.mdx"
   # SKILL.md tells an agent that reading a checkout's context files is the
   # person's to do.
-  "cli/skills/data/kapi/SKILL.md"
+  "host/skills/data/kapi/SKILL.md"
   # The platform's CLI docs describe the same artifact layout for the same
   # reason the framework's reference does.
   "bowrain/web/docs/docs/cli/overview.md"

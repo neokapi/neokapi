@@ -27,17 +27,17 @@ checkout).
   (`.claude/workflows/i18n-triage.js`) — sweeps every registry entry for
   drift, suppresses uncited score moves, and (mode=apply) lands the updates.
 - **Building/adopting i18n in a user project**: that is the *kapi skill's*
-  job (`cli/skills/data/kapi/references/i18n.md`), not this one.
+  job (`host/skills/data/kapi/references/i18n.md`), not this one.
 
 ## The artifacts (all must stay in agreement)
 
 | Artifact | Role |
 |---|---|
-| `cli/skills/data/kapi/references/i18n/frameworks.yaml` | Registry: detection signals, catalog layout, kapi preset/flags, toil vectors (stock + recommended), grade, status, `buys`, watch watermarks |
-| `cli/skills/data/kapi/references/i18n/<ecosystem>.md` | Playbook: grade table, opinionated defaults, per-framework Idiom / Recommended config / kapi / Footguns |
-| `cli/skills/data/kapi/references/i18n.md` | Router: detection table + Toil Index summary |
+| `host/skills/data/kapi/references/i18n/frameworks.yaml` | Registry: detection signals, catalog layout, kapi preset/flags, toil vectors (stock + recommended), grade, status, `buys`, watch watermarks |
+| `host/skills/data/kapi/references/i18n/<ecosystem>.md` | Playbook: grade table, opinionated defaults, per-framework Idiom / Recommended config / kapi / Footguns |
+| `host/skills/data/kapi/references/i18n.md` | Router: detection table + Toil Index summary |
 | `docs/internals/i18n-toil.md` | The rubric (change-controlled — see Footguns) |
-| `cli/skills/EVALS.md` | Trigger evals — extend when adding ecosystems |
+| `host/skills/EVALS.md` | Trigger evals — extend when adding ecosystems |
 
 ## Mode A — refresh an existing framework
 
@@ -66,7 +66,7 @@ checkout).
    (grade table row, prose, setup steps). Keep them in exact agreement — the
    registry is the source of truth for numbers.
 6. **Validate**:
-   `node -e "require('./node_modules/js-yaml').load(require('fs').readFileSync('cli/skills/data/kapi/references/i18n/frameworks.yaml','utf8'))"`
+   `node -e "require('./node_modules/js-yaml').load(require('fs').readFileSync('host/skills/data/kapi/references/i18n/frameworks.yaml','utf8'))"`
    (run at the repo root), then grep the playbook grade table against the
    registry grades. If the
    change alters when the skill should *trigger* (rare), update the SKILL.md
@@ -95,7 +95,7 @@ checkout).
    per-framework sections → Verify). New file ⇒ add a routing row to
    `references/i18n.md`.
 5. **Evals** — new ecosystem ⇒ add a positive trigger prompt to
-   `cli/skills/EVALS.md` ("Add i18n to this <X> app") and re-run the
+   `host/skills/EVALS.md` ("Add i18n to this <X> app") and re-run the
    checklist if the SKILL.md description changed.
 6. **Validate** as in Mode A, and run `make dev-skills` so the in-repo
    dogfood copy picks the change up.
@@ -110,7 +110,7 @@ checkout).
   for T0). If the formula feels wrong, that's a rubric issue to raise
   separately, not to route around.
 - **Skill files ship standalone.** The plugin bundle copies only
-  `cli/skills/data/kapi/` — playbooks must not reference repo paths outside
+  `host/skills/data/kapi/` — playbooks must not reference repo paths outside
   the skill tree (URLs are fine). The rubric stays in `docs/internals/`; the
   playbooks carry only grades and the compact axis summary.
 - **Don't let `recommended` vectors assume tools the playbook never tells the
@@ -124,8 +124,8 @@ checkout).
 ## References
 
 - Rubric: [`docs/internals/i18n-toil.md`](../../docs/internals/i18n-toil.md)
-- Registry + playbooks: `cli/skills/data/kapi/references/i18n/`
+- Registry + playbooks: `host/skills/data/kapi/references/i18n/`
 - Fleet sweep: `.claude/workflows/i18n-triage.js`
 - Research base: `strategy/i18n-skill/research-*.md`
 - Skill architecture + lockstep rule: `web/docs/contribute/architecture/surfaces/s-03-agent-surfaces.md`
-- Trigger evals: `cli/skills/EVALS.md`
+- Trigger evals: `host/skills/EVALS.md`

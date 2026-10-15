@@ -9,7 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/neokapi/neokapi/cli/skills"
+	"github.com/neokapi/neokapi/host/skills"
 )
 
 // NewInitCmd returns `kapi init`: scaffold a new kapi project in the current

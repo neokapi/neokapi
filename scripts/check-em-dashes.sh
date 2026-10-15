@@ -58,7 +58,7 @@
 #                    entry, so the inputs alone would leave a gap.
 #
 #   --part docs      Every .md/.mdx under web/docs, docs/internals and
-#                    cli/skills/data, plus the sample READMEs and every
+#                    host/skills/data, plus the sample READMEs and every
 #                    harness/demos/*/demo.yaml. Fenced code blocks hold CLI
 #                    output and config, where a dash is data, so they are
 #                    skipped for both the count and the word total behind the
@@ -289,7 +289,7 @@ check_docs() {
   if out=$(git ls-files -- \
       'web/docs/**/*.md' 'web/docs/**/*.mdx' \
       'docs/internals/**/*.md' 'docs/internals/**/*.mdx' \
-      'cli/skills/data/**/*.md' 'cli/skills/data/**/*.mdx' \
+      'host/skills/data/**/*.md' 'host/skills/data/**/*.mdx' \
       'web/blog/**/*.md' 'web/blog/**/*.mdx' \
       'samples/README.md' 'samples/*/README.md' \
       'harness/demos/*/demo.yaml' ':!harness/demos/_retired/*' |

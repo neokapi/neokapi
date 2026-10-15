@@ -678,8 +678,8 @@ func (r *Report) stamp(opts Options, claudeBin string) {
 	r.Runner = Runner{
 		ClaudeVersion: firstLine(run(claudeBin, "--version")),
 		Model:         model,
-		SkillCommit:   firstLine(run("git", "-C", opts.RepoRoot, "log", "-1", "--format=%h", "--", "cli/skills/data/kapi")),
-		SkillModified: firstLine(run("git", "-C", opts.RepoRoot, "log", "-1", "--format=%ad", "--date=short", "--", "cli/skills/data/kapi")),
+		SkillCommit:   firstLine(run("git", "-C", opts.RepoRoot, "log", "-1", "--format=%h", "--", "host/skills/data/kapi")),
+		SkillModified: firstLine(run("git", "-C", opts.RepoRoot, "log", "-1", "--format=%ad", "--date=short", "--", "host/skills/data/kapi")),
 		Host:          firstLine(run("uname", "-sm")),
 		Kapi:          strings.TrimPrefix(opts.KapiBin, opts.RepoRoot+"/"),
 		KapiVersion:   scrubPaths(firstLine(kapiProbe(context.Background(), opts.KapiBin, "version"))),

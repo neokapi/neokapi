@@ -1,4 +1,4 @@
-# SHA-256 of every file under cli/skills/data/kapi that a kapi release copied
+# SHA-256 of every file under host/skills/data/kapi that a kapi release copied
 # into a project's skill directory (from #2886, when kapi init began wiring
 # agents, to the release that wrote the one short SKILL.md instead). A file
 # with one of these digests is kapi's own, and a re-run of kapi init removes

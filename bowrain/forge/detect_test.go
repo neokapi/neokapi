@@ -186,7 +186,7 @@ func TestDetectRepoContent_PatternsOverride(t *testing.T) {
 }
 
 // Catalog signals across ecosystems: the table mirrors the i18n framework
-// registry (cli/skills/data/kapi/references/i18n/frameworks.yaml).
+// registry (host/skills/data/kapi/references/i18n/frameworks.yaml).
 func TestDetectRepoContent_FrameworkTable(t *testing.T) {
 	tests := []struct {
 		name    string

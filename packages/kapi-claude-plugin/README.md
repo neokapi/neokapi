@@ -58,6 +58,6 @@ they cannot run, the assistant proceeds normally):
 
 This marketplace is **generated** from the [neokapi
 monorepo](https://github.com/neokapi/neokapi): the skill source of truth lives in
-`cli/skills/data`, is embedded in the `kapi` binary, exported into the bundle
+`host/skills/data`, is embedded in the `kapi` binary, exported into the bundle
 (`make plugin-bundle`), and published here (`make publish-plugin`). Edit the skill
 in the monorepo, not here.

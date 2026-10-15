@@ -300,7 +300,7 @@ removed; user-authored files remain intact.
 
 The skill stays short because the binary carries the rest. `kapi help` prints
 the command overview and then the topics; `kapi help <topic>` prints one,
-served from the embedded skill references (`cli/skills`), with links between
+served from the embedded skill references (`host/skills`), with links between
 references rewritten as the `kapi help` command that serves each. An agent
 therefore reads the guidance of the binary it is running. A topic that shares a
 name with a command (`check`, `context`, `translate`, `voice`) prints the guide

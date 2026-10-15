@@ -13,7 +13,7 @@ import { CycleDiagram } from "@neokapi/docs-shared";
 ## Summary
 
 An AI assistant reaches kapi through two surfaces over one implementation. The
-**Agent Skill**, one short `SKILL.md` sourced at `cli/skills/data/kapi/`,
+**Agent Skill**, one short `SKILL.md` sourced at `host/skills/data/kapi/`,
 teaches an assistant that runs shell commands *when* to reach for kapi and
 *which* verb to run, and `kapi help <topic>` serves the reference files beside
 it. The **MCP server**
@@ -52,7 +52,7 @@ when the task matches.
 ### A skill is a directory, and its source lives beside the CLI
 
 ```
-cli/skills/data/kapi/
+host/skills/data/kapi/
 ├── SKILL.md            four habits, each in its CLI and MCP form, under 365 words
 └── references/         the topics `kapi help <topic>` serves
     ├── edit.md         read → edit → write → verify
@@ -90,7 +90,7 @@ to record (names as written, the spelling variety, a word chosen over a common
 alternative) and what to leave alone (a word the project writes two ways, an
 interface label, the wording of the task), because an assistant that reaches
 kapi from the shell reads the skill and no tool description. The skill's description stays under the 1,024
-characters agent hosts load at startup, and `cli/skills/skills_test.go` holds
+characters agent hosts load at startup, and `host/skills/skills_test.go` holds
 both limits.
 
 The references carry the task detail, one per concern, and the binary serves
@@ -114,7 +114,7 @@ routes into `references/i18n/`, driven by a machine-readable framework registry
 (`frameworks.yaml`) carrying detection signals, catalog layouts, kapi presets,
 and a maintenance-cost grade per framework.
 
-The source lives in `cli/skills/data` because the skill names specific commands
+The source lives in `host/skills/data` because the skill names specific commands
 and flags. A verb change and its skill update are then one reviewed change, and
 the reviewer sees both.
 
@@ -132,7 +132,7 @@ The following targets distribute copies from one source tree:
 | `make publish-plugin` | mirrors that bundle to the `neokapi-plugins` marketplace repo |
 | `make publish-skill` | mirrors the portable skill into the agent-skills collection, for any `SKILL.md`-aware tool |
 | `make dev-skills` | copies `SKILL.md` into this repo's own `.claude/skills` for dogfooding |
-| `cli/skills` (`go:embed`) | the `SKILL.md` `kapi init` writes into a project (see [the wiring below](#kapi-init-wires-an-agent-up)), and the topics `kapi help` serves |
+| `host/skills` (`go:embed`) | the `SKILL.md` `kapi init` writes into a project (see [the wiring below](#kapi-init-wires-an-agent-up)), and the topics `kapi help` serves |
 
 The embedded copy is the one a release can make a promise about. A plugin
 cannot pin a CLI version, so a marketplace skill that named an unreleased
@@ -191,7 +191,7 @@ Five properties hold for everything written:
 - **The skill directory holds what this binary ships.** `SKILL.md` is refreshed.
   A file an earlier kapi copied there (a reference file from before the skill
   was one file) is recognised by its content, against the embedded tree and the
-  closed list in `cli/skills/retired.sha256`, and removed. Anything else stays,
+  closed list in `host/skills/retired.sha256`, and removed. Anything else stays,
   and `kapi init` names it.
 
 ### The rules files {#the-rules-files}
