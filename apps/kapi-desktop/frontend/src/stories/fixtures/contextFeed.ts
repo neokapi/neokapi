@@ -134,3 +134,29 @@ export const EMPTY_FEED: ContextFeed = {
   truncated: false,
   read_only: false,
 };
+
+/** A person reset the project to before claude's session. */
+export const RESET = feedEntry({
+  id: "0nk3reset00000000000001",
+  short: "0nk3reset0",
+  kind: "reset",
+  status: "",
+  before: "sess-1",
+  actor: { kind: "person", name: "asgeir" },
+  at: "2026-09-22T10:15:00Z",
+});
+
+/** A feed whose latest session is a reset, which can itself be taken back. */
+export const RESET_FEED: ContextFeed = {
+  groups: [
+    feedGroup({
+      id: "actor:person/asgeir:2026-09-22",
+      day: "2026-09-22",
+      actor: { kind: "person", name: "asgeir" },
+      entries: [RESET],
+    }),
+    ...CONTEXT_FEED.groups,
+  ],
+  truncated: false,
+  read_only: false,
+};

@@ -22,6 +22,7 @@ import {
   History,
   Terminal,
   Trash2,
+  Undo2,
   User,
   Wrench,
 } from "lucide-react";
@@ -63,6 +64,11 @@ export interface ContextFeedProps {
   onDrop: (entry: ContextFeedEntry) => void | Promise<void>;
   /** Reset the project's context to before one session. */
   onResetSession: (group: ContextFeedGroup) => void;
+  /**
+   * Reset the project's context to before one operation: a reset's own, which
+   * brings back everything it set aside. Absent hides the action.
+   */
+  onResetBefore?: (entry: ContextFeedEntry) => void;
   /** Open the widen preview for a rule in force. */
   onWiden: (entry: ContextFeedEntry, to: string) => void;
   /** Show the project each entry belongs to. The workspace feed does. */
@@ -94,6 +100,7 @@ export function ContextFeedList({
   onKeep,
   onDrop,
   onResetSession,
+  onResetBefore,
   onWiden,
   showProject,
   keyboard = true,
@@ -228,6 +235,7 @@ export function ContextFeedList({
           onKeep={confirm}
           onDrop={onDrop}
           onResetSession={onResetSession}
+          onResetBefore={feed?.read_only ? undefined : onResetBefore}
           onWiden={onWiden}
           showProject={showProject}
         />
@@ -281,6 +289,7 @@ interface SessionCardProps {
   onKeep: (entry: ContextFeedEntry) => void;
   onDrop: (entry: ContextFeedEntry) => void | Promise<void>;
   onResetSession: (group: ContextFeedGroup) => void;
+  onResetBefore?: (entry: ContextFeedEntry) => void;
   onWiden: (entry: ContextFeedEntry, to: string) => void;
   showProject?: boolean;
 }
@@ -300,6 +309,7 @@ function SessionCard({
   onKeep,
   onDrop,
   onResetSession,
+  onResetBefore,
   onWiden,
   showProject,
 }: SessionCardProps) {
@@ -372,6 +382,7 @@ function SessionCard({
                 onKeep={() => onKeep(entry)}
                 onDrop={() => void onDrop(entry)}
                 onWiden={(to) => onWiden(entry, to)}
+                onResetBefore={onResetBefore ? () => onResetBefore(entry) : undefined}
                 showProject={showProject}
               />
             </li>
@@ -436,6 +447,8 @@ interface FeedEntryCardProps {
   onKeep: () => void;
   onDrop: () => void;
   onWiden: (to: string) => void;
+  /** Take a reset back. Present only on a reset the person may undo. */
+  onResetBefore?: () => void;
   showProject?: boolean;
 }
 
@@ -452,6 +465,7 @@ function FeedEntryCard({
   onKeep,
   onDrop,
   onWiden,
+  onResetBefore,
   showProject,
 }: FeedEntryCardProps) {
   const coordinates = Object.entries(entry.scope.coordinates ?? {});
@@ -554,6 +568,15 @@ function FeedEntryCard({
           onDrop={onDrop}
           onOpenEdit={onOpenEdit}
         />
+      )}
+
+      {entry.kind === "reset" && onResetBefore && (
+        <div className="mt-2">
+          <Button variant="outline" size="sm" data-slot="reset-reset" onClick={onResetBefore}>
+            <Undo2 size={13} />
+            Take this reset back
+          </Button>
+        </div>
       )}
 
       {entry.droppable && !entry.decidable && (

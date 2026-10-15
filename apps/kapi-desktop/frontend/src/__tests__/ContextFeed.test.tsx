@@ -7,6 +7,8 @@ import {
   CONTEXT_FEED,
   EMPTY_FEED,
   IN_FORCE,
+  RESET,
+  RESET_FEED,
   feedEntry,
   feedGroup,
 } from "../stories/fixtures/contextFeed";
@@ -16,6 +18,7 @@ function renderFeed(feed: ContextFeed = CONTEXT_FEED) {
   const onKeep = vi.fn();
   const onDrop = vi.fn();
   const onResetSession = vi.fn();
+  const onResetBefore = vi.fn();
   const onWiden = vi.fn();
   const view = render(
     <ContextFeedList
@@ -23,10 +26,11 @@ function renderFeed(feed: ContextFeed = CONTEXT_FEED) {
       onKeep={onKeep}
       onDrop={onDrop}
       onResetSession={onResetSession}
+      onResetBefore={onResetBefore}
       onWiden={onWiden}
     />,
   );
-  return { view, onKeep, onDrop, onResetSession, onWiden };
+  return { view, onKeep, onDrop, onResetSession, onResetBefore, onWiden };
 }
 
 describe("the feed of recorded context operations", () => {
@@ -230,5 +234,26 @@ describe("the feed of recorded context operations", () => {
     const still = document.querySelector("[data-slot='context-edit'] input") as HTMLInputElement;
     expect(still).not.toBeNull();
     expect(still.value).toBe("half typed");
+  });
+});
+
+describe("taking a reset back", () => {
+  it("offers a reset entry the reset of itself", () => {
+    const { onResetBefore } = renderFeed(RESET_FEED);
+    const entry = document.querySelector(`[data-entry='${RESET.id}']`) as HTMLElement;
+    const take = entry.querySelector("[data-slot='reset-reset']") as HTMLElement;
+    expect(take.textContent?.trim()).toBe("Take this reset back");
+    fireEvent.click(take);
+    expect(onResetBefore).toHaveBeenCalledWith(RESET);
+  });
+
+  it("offers it on reset entries only", () => {
+    renderFeed(RESET_FEED);
+    expect(document.querySelectorAll("[data-slot='reset-reset']")).toHaveLength(1);
+  });
+
+  it("offers nothing in a workspace open for reading only", () => {
+    renderFeed({ ...RESET_FEED, read_only: true });
+    expect(document.querySelector("[data-slot='reset-reset']")).toBeNull();
   });
 });
