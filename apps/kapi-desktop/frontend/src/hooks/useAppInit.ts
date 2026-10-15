@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./useApi";
 import { qk } from "../lib/queryKeys";
 import { useInvalidateOnEvent } from "./useInvalidateOnEvent";
+import type { ContextProjectStanding, WorkspaceHome } from "../types/api";
 
 /**
  * App-level initialization: theme, the workspace's projects, external link
@@ -15,6 +16,9 @@ import { useInvalidateOnEvent } from "./useInvalidateOnEvent";
  * server registering a project moves the workspace's operation log, the backend
  * watcher notices within a second and emits `workspace:changed`, and this
  * refetches. Nothing tells the app directly.
+ *
+ * Each project's context in numbers rides on its row of the workspace list,
+ * so the home's standings follow the same query and the same events.
  */
 export function useAppInit() {
   const qc = useQueryClient();
@@ -36,12 +40,20 @@ export function useAppInit() {
 
   // Optimistic dismissal — flips immediately, before the settings refetch.
   const [dismissedOverride, setDismissedOverride] = useState(false);
+  // Start here can be dismissed on the home and brought back from Settings,
+  // so its override holds either answer until the settings refetch agrees.
+  const [startHereOverride, setStartHereOverride] = useState<boolean | null>(null);
 
   const workspace = workspaceQuery.data ?? null;
   const workspaceError = workspaceQuery.error;
   const samplesDismissed = settingsQuery.data
     ? dismissedOverride || !!settingsQuery.data.samples_dismissed
     : true;
+  // Hidden until the settings are read, so it never flashes up and away.
+  const startHereDismissed = settingsQuery.data
+    ? (startHereOverride ?? !!settingsQuery.data.start_here_dismissed)
+    : true;
+  const standings = useMemo(() => standingsOf(workspace), [workspace]);
 
   const refreshWorkspace = useCallback(() => {
     void qc.invalidateQueries({ queryKey: qk.workspaceProjects() });
@@ -108,13 +120,46 @@ export function useAppInit() {
       });
   }, [qc]);
 
+  const setStartHere = useCallback(
+    (dismissed: boolean) => {
+      setStartHereOverride(dismissed);
+      (dismissed ? api.dismissStartHere() : api.restoreStartHere())
+        .catch(() => {})
+        .finally(() => {
+          void qc.invalidateQueries({ queryKey: qk.settings() });
+        });
+    },
+    [qc],
+  );
+  const dismissStartHere = useCallback(() => setStartHere(true), [setStartHere]);
+  const restoreStartHere = useCallback(() => setStartHere(false), [setStartHere]);
+
   return {
     workspace,
     workspaceError,
     news: newsQuery.data ?? null,
+    standings,
     samplesDismissed,
+    startHereDismissed,
     refreshWorkspace,
     forgetProject,
     dismissSamples,
+    dismissStartHere,
+    restoreStartHere,
   };
+}
+
+/**
+ * Every project's context in numbers, from the rows of the workspace list.
+ * A row the backend could not read the standing of is left out. Null while
+ * the workspace is being read.
+ */
+export function standingsOf(workspace: WorkspaceHome | null): ContextProjectStanding[] | null {
+  if (!workspace) return null;
+  const out: ContextProjectStanding[] = [];
+  for (const row of workspace.projects) {
+    if (!row.context) continue;
+    out.push({ ...row.context, project_name: row.context.project_name || row.name });
+  }
+  return out;
 }
