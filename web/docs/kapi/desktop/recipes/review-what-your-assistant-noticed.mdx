@@ -1,0 +1,87 @@
+---
+id: review-what-your-assistant-noticed
+title: "Review what your assistant noticed"
+sidebar_label: "Review what your assistant noticed"
+description: "Open the KapiMart sample in Kapi Desktop and review the notes two assistant sessions left on it: choose a side, keep, change and drop, see the kept rule in what the assistant reads, and reset to before a session."
+keywords: [Kapi Desktop, what's new, suggestion, keep, change, drop, choose this side, assistant, history, reset, sample]
+---
+
+# Review what your assistant noticed
+
+**Goal:** practise the loop you run after every assistant session, on a
+project where nothing you do matters. You decide about what two assistants
+noticed in the KapiMart sample, see a kept rule reach the assistant, and go
+back to before a session.
+
+The sample arrives with the notes already recorded, so no model runs and you
+need no assistant of your own. You need [Kapi
+Desktop](/kapi/get-started/installation#install-kapi-desktop) and nothing
+else. For what each surface is, see the [overview](/kapi/desktop/overview).
+
+## Steps
+
+1. **Open the sample.** On the home, under **Start here**, click **Try the
+   sample**. kapi creates KapiMart, reads its voice profile, terms and content
+   memory into your workspace, and records two assistant sessions against its
+   files: claude-code first, then codex.
+2. **Read the news on the home.** **What's new** has a row for KapiMart that
+   says how much is new and who noticed it. Because the two assistants disagree
+   about one wording, the row adds "1 needs you" and its button reads
+   **Decide**.
+3. **Open What's new.** Click **Decide**. The project opens on **What's new for
+   KapiMart**. Each suggestion shows the sentence it was seen in, the file, and
+   which assistant noticed it.
+4. **Settle the disagreement first.** What needs you comes first. claude-code
+   recorded a correction a person made to its draft, *log in* changed to *sign
+   in*. codex, later, noticed the files write *log in*. Read both, then click
+   **Choose this side** on the one you want the store to use. That side is kept
+   and the other dropped.
+5. **Keep a name.** Under the names and spellings, move to the suggestion that
+   the store writes *KapiMart*, not *Kapi Mart*, with `j` and `k`, and press
+   `a`. It moves to the established rules, marked "kept by you".
+6. **Change a word as you keep it.** Move to the suggestion that the copy says
+   *cart*, not *basket*, and press `c`. Type the form you want the rule to ask
+   for, such as *shopping cart*, and choose **Keep with this form**.
+7. **Drop one.** Move to a suggestion you would not make a rule, for example
+   the observation about how the store copy addresses the shopper, and press
+   `d`. It stops advising at once.
+8. **Open the file the evidence came from.** On any remaining suggestion,
+   press `o`. The file opens at the sentence the assistant quoted.
+9. **See what the assistant reads.** Open **Assistant**. Under **The brief for
+   a file**, pick one of the store's pages. The kept name and the word you
+   changed are in the list of words to use, the same text `kapi context
+   <path>` prints. Below it, **Rules files** shows the section kapi writes into
+   `AGENTS.md` and `CLAUDE.md`, which the next session reads as it starts.
+10. **Go back to before a session.** Open **History** and find the codex
+    session. Click **Reset to before this session**. What codex recorded is
+    set aside, and so is everything decided after it started, which includes
+    your decisions in steps 4 to 7. What's new shows claude-code's suggestions
+    as they first arrived.
+11. **Take the reset back.** Nothing was erased: what the reset set aside stays
+    in History, marked as reset, and the reset is recorded as yours. Resetting
+    to before it brings everything back.
+
+A check reports a suggestion and fails nothing. After step 5, `kapi check`
+fails on any page that writes *Kapi Mart*, because the suggestion became a
+rule.
+
+## The same on the command line
+
+```bash
+kapi context review                         # what is waiting, one at a time
+kapi context review --keep <id>             # keep a suggestion
+kapi context review --keep <id> --use "shopping cart"   # keep it with another form
+kapi context review --drop <id>             # drop one
+kapi context review --choose <id>           # choose this side of a disagreement
+kapi context reset --before <session>       # go back to before a session
+```
+
+[Growing context](/kapi/context-decisions) covers every decision and who may
+make it.
+
+## Next
+
+- [Connect an assistant](/kapi/desktop/recipes/connect-an-assistant): put
+  your own assistant on a project, so it records what it notices.
+- [Share context with your team](/kapi/desktop/recipes/share-context-with-your-team):
+  let every machine read the rules you kept.
