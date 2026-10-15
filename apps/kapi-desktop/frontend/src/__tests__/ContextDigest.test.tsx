@@ -150,3 +150,18 @@ describe("the context digest", () => {
     expect(slot("digest-empty")).not.toBeNull();
   });
 });
+
+describe("an empty digest", () => {
+  it("links to the Assistant section when it can", () => {
+    const onConnectAssistant = vi.fn();
+    renderDigest(EMPTY_DIGEST, { onConnectAssistant, since: undefined });
+    const link = screen.getByRole("button", { name: "Connect an assistant to start." });
+    fireEvent.click(link);
+    expect(onConnectAssistant).toHaveBeenCalled();
+  });
+
+  it("leaves the link out when there is no Assistant section to open", () => {
+    renderDigest(EMPTY_DIGEST, { since: undefined });
+    expect(screen.queryByRole("button", { name: "Connect an assistant to start." })).toBeNull();
+  });
+});

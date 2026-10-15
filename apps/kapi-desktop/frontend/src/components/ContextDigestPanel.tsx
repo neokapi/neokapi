@@ -29,12 +29,15 @@ export interface ContextDigestPanelProps {
   canDecide?: boolean;
   /** Open the explorer at a file the digest names. */
   onOpenFile?: (path: string) => void;
+  /** Open the project's Assistant section, from the empty digest. */
+  onConnectAssistant?: () => void;
 }
 
 export function ContextDigestPanel({
   tabID,
   canDecide = true,
   onOpenFile,
+  onConnectAssistant,
 }: ContextDigestPanelProps) {
   const qc = useQueryClient();
   // The instant this view reads from: null until the first read answers.
@@ -118,6 +121,7 @@ export function ContextDigestPanel({
         }}
         onWiden={(item, to) => setWidening({ rule: widenRuleOfDigestItem(project, item), to })}
         onOpenFile={onOpenFile}
+        onConnectAssistant={onConnectAssistant}
       />
       <ContextWidenDialog
         rule={widening?.rule ?? null}
