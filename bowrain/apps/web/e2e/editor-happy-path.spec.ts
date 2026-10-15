@@ -156,7 +156,7 @@ test.describe("Editor happy path", () => {
       ops: { op: string; outcome?: string }[];
     };
     expect(decision.ops[0]).toMatchObject({ op: "decide", outcome: "establish" });
-    await expect(page.getByTestId("progress-text")).toContainText("1 established");
+    await expect(page.getByTestId("progress-text")).toContainText("1 approved");
 
     // ── 5. RELOAD — the review decision must survive a full page reload ─────
     await page.reload();
@@ -165,7 +165,7 @@ test.describe("Editor happy path", () => {
 
     // Server returned per-locale Edition.Status for fr: the progress breakdown
     // counts it and the (still-selected-first) block's card shows the badge.
-    await expect(page.getByTestId("progress-text")).toContainText("1 established");
+    await expect(page.getByTestId("progress-text")).toContainText("1 approved");
     await expect(page.getByTestId("target-display")).toContainText(FRENCH_TEXT);
     await expect(
       page.getByTestId("visual-editor-card").getByText("Approved", { exact: true }),
