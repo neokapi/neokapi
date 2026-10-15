@@ -434,6 +434,131 @@ func WriteAgentWiring(opts AgentWiringOptions) (*AgentWiringResult, error) {
 	return res, nil
 }
 
+// AgentWiringStatus is how one host is wired for a project, as its files
+// stand.
+type AgentWiringStatus struct {
+	// Wired reports that the host's MCP configuration names a server called
+	// kapi that runs `kapi mcp` for this project's recipe, whoever wrote it.
+	Wired bool `json:"wired"`
+	// Files are the files and skill directories that carry the wiring,
+	// relative to the project root, each one present on disk.
+	Files []string `json:"files,omitempty"`
+}
+
+// ReadAgentWiring reports, for every host kapi wires, whether a project at
+// root is wired for it, reading the files WriteAgentWiring writes and writing
+// nothing. skills is the tree WriteAgentWiring would copy, so a skill
+// directory counts only when it is one kapi writes; nil reads no skill
+// directory. A file that cannot be read reads as not wired.
+func ReadAgentWiring(root, recipe string, skills fs.FS) map[AgentHost]AgentWiringStatus {
+	name := filepath.Base(recipe)
+	if recipe == "" {
+		name = project.RecipeFileName
+	}
+	var shipped []string
+	if skills != nil {
+		if entries, err := fs.ReadDir(skills, "."); err == nil {
+			for _, e := range entries {
+				if e.IsDir() {
+					shipped = append(shipped, e.Name())
+				}
+			}
+		}
+	}
+	out := make(map[AgentHost]AgentWiringStatus, len(agentHostOrder))
+	for _, host := range agentHostOrder {
+		var st AgentWiringStatus
+		configPath := ""
+		var args []string
+		if cfg, ok := agentMCPConfigs[host]; ok {
+			configPath = cfg.path
+			args = jsonMCPServerArgs(filepath.Join(root, filepath.FromSlash(cfg.path)), cfg.serversKey)
+		} else if host == AgentHostCodex {
+			configPath = codexMCPConfigPath
+			args = codexMCPServerArgs(filepath.Join(root, filepath.FromSlash(codexMCPConfigPath)))
+		}
+		if args != nil && ServesRecipe(args, name, filepath.Join(root, name)) {
+			st.Wired = true
+			st.Files = append(st.Files, configPath)
+		}
+		if dir, ok := agentSkillDirs[host]; ok {
+			for _, skill := range shipped {
+				rel := path.Join(dir, skill)
+				if info, err := os.Stat(filepath.Join(root, filepath.FromSlash(rel))); err == nil && info.IsDir() {
+					st.Files = append(st.Files, rel)
+				}
+			}
+		}
+		out[host] = st
+	}
+	return out
+}
+
+// ServesRecipe reports whether the arguments of an MCP server entry run
+// `kapi mcp` for the recipe, named as the entry kapi writes names it or by its
+// absolute path.
+func ServesRecipe(args []string, name, abs string) bool {
+	if len(args) == 0 || args[0] != "mcp" {
+		return false
+	}
+	for i := 1; i+1 < len(args); i++ {
+		if args[i] != "--project" && args[i] != "-p" {
+			continue
+		}
+		if v := args[i+1]; v == name || filepath.Clean(v) == filepath.Clean(abs) {
+			return true
+		}
+	}
+	return false
+}
+
+// jsonMCPServerArgs is the arguments of the server called kapi in a JSON MCP
+// configuration, nil when the file names none or cannot be read.
+func jsonMCPServerArgs(path, serversKey string) []string {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	var doc map[string]json.RawMessage
+	if json.Unmarshal(raw, &doc) != nil {
+		return nil
+	}
+	var servers map[string]struct {
+		Args []string `json:"args"`
+	}
+	if json.Unmarshal(doc[serversKey], &servers) != nil {
+		return nil
+	}
+	entry, ok := servers[mcpServerName]
+	if !ok {
+		return nil
+	}
+	return append([]string{}, entry.Args...)
+}
+
+// codexMCPServerArgs is the arguments of the server called kapi in a Codex
+// configuration, nil when the file names none or cannot be read.
+func codexMCPServerArgs(path string) []string {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	var doc map[string]any
+	if toml.Unmarshal(raw, &doc) != nil {
+		return nil
+	}
+	servers, _ := doc[codexMCPServersTable].(map[string]any)
+	table, _ := servers[mcpServerName].(map[string]any)
+	if table == nil {
+		return nil
+	}
+	args, ok := codexStringList(table["args"])
+	if !ok {
+		return nil
+	}
+	return append([]string{}, args...)
+}
+
 // upsertMCPServerEntry adds kapi's server to an MCP configuration file without
 // disturbing anything else in it.
 //
