@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
+	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/profile/packs"
@@ -190,7 +191,20 @@ func openVoiceStoreAt(dbPath string) (*voicestore.SQLiteStore, error) {
 // SaveProfileToStore creates or updates a profile in the local store, returning
 // a typed import result. The word rules the profile's file carries are terms,
 // and land in the project's terms store.
+//
+// A project's store is the context everyone working in it writes to, so only a
+// person writes a profile there; a standalone voice.db belongs to whoever opened
+// it.
 func (a *App) SaveProfileToStore(cmd Command, profile *coreprofile.VoiceProfile, srcPath string) error {
+	sel, err := a.ResolveVoiceStore(cmd)
+	if err != nil {
+		return err
+	}
+	if sel.InProject() {
+		if err := a.mayWriteVoice(contextop.Actor{}); err != nil {
+			return err
+		}
+	}
 	store, _, release, err := a.OpenVoiceStore(cmd)
 	if err != nil {
 		return err

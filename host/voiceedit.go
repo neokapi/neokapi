@@ -85,6 +85,10 @@ func (a *App) EditVoiceProfile(ctx context.Context, cmd Command, req VoiceEditRe
 		return res, errors.New("voice: this project has no voice store")
 	}
 
+	if err := a.mayWriteVoice(contextop.Actor{}); err != nil {
+		return res, err
+	}
+
 	var prof *coreprofile.VoiceProfile
 	if name := strings.TrimSpace(req.Profile); name != "" {
 		prof, err = lookupProfileIn(ctx, store, name)
@@ -176,6 +180,29 @@ func readEditedProfile(data []byte) (*coreprofile.VoiceProfile, error) {
 		prof.Constraints = []coreprofile.Constraint{}
 	}
 	return prof, nil
+}
+
+// mayWriteVoice reports whether actor may write a project's voice profile
+// directly, before anything is written.
+//
+// The context policy makes a direct write a person's decision. The ledger
+// applies it when the write is recorded, which is after the store holds the
+// profile, so a write path asks here first and a refused agent leaves the store
+// as it found it. An empty kind leaves the environment to answer, as
+// recordVoiceWrite does.
+func (a *App) mayWriteVoice(actor contextop.Actor) error {
+	if actor.Kind == "" {
+		resolved, err := a.commandActor()
+		if err != nil {
+			return err
+		}
+		actor = resolved.Actor
+	}
+	return teachRefusal(contextop.PersonDecides(contextop.Transition{
+		Actor:   actor,
+		Kind:    contextop.KindEdit,
+		Subject: contextop.SubjectNote,
+	}))
 }
 
 // recordVoiceEdit puts the edit on the project's context record, as the person
