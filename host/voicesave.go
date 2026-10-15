@@ -123,6 +123,9 @@ func (a *App) SaveVoiceProfileAt(
 	if prof == nil {
 		return res, errors.New("voice: no profile to save")
 	}
+	if err := a.mayWriteVoice(actor); err != nil {
+		return res, err
+	}
 	recipePath := filepath.Join(root, project.RecipeFileName)
 	w, err := a.Projector(ctx, root)
 	if err != nil {
