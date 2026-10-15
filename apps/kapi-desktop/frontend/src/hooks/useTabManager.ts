@@ -17,6 +17,15 @@ export interface TabState {
   view: string;
 }
 
+/**
+ * Where a newly opened project tab lands: its Context hub. A project that has
+ * to be set up first (empty, or matching a preset) lands on the page that sets
+ * it up, which is the project home.
+ */
+export function landingView(empty: boolean, detectedPreset?: string): string {
+  return empty || detectedPreset ? "project-home" : "context";
+}
+
 export function useTabManager() {
   const { showError } = useError();
   // Project-first: default to "projects" until the persisted app mode loads.
@@ -75,14 +84,18 @@ export function useTabManager() {
     }
   }, []);
 
+  // `view` opens the tab on a view of the caller's choosing, a tab already
+  // open included; absent, a new tab lands where landingView says.
   const addTab = useCallback(
-    async (tab: TabInfo, project: KapiProject) => {
+    async (tab: TabInfo, project: KapiProject, view?: string) => {
+      const reopen = (prev: TabState[]) =>
+        view ? prev.map((t) => (t.info.id === tab.id ? { ...t, view } : t)) : prev;
       // A context-only tab carries no recipe and no files, so the questions
       // asked of a checkout (is it empty, which preset, are its plugins
       // installed) have no subject. It opens straight on the Context hub.
       if (tab.context_only) {
         setTabs((prev) => {
-          if (prev.some((t) => t.info.id === tab.id)) return prev;
+          if (prev.some((t) => t.info.id === tab.id)) return reopen(prev);
           return [
             ...prev,
             {
@@ -90,7 +103,7 @@ export function useTabManager() {
               project,
               isEmpty: false,
               pluginsResolved: true,
-              view: "context",
+              view: view ?? "context",
             },
           ];
         });
@@ -110,7 +123,7 @@ export function useTabManager() {
       const pluginStatus = await api.checkProjectPlugins(tab.id);
 
       setTabs((prev) => {
-        if (prev.some((t) => t.info.id === tab.id)) return prev;
+        if (prev.some((t) => t.info.id === tab.id)) return reopen(prev);
         return [
           ...prev,
           {
@@ -120,7 +133,7 @@ export function useTabManager() {
             detectedPreset: detected,
             pluginsResolved: pluginStatus?.satisfied ?? true,
             pluginIssues: pluginStatus?.issues,
-            view: "project-home",
+            view: view ?? landingView(!!empty, detected),
           },
         ];
       });
@@ -143,6 +156,14 @@ export function useTabManager() {
       });
       return remaining;
     });
+  }, []);
+
+  // Bring an open tab forward on one view, e.g. a project's Assistant section.
+  const openTabOn = useCallback((id: string, view: string) => {
+    setTabs((prev) => prev.map((t) => (t.info.id === id ? { ...t, view } : t)));
+    setActiveTabID(id);
+    setMode("projects");
+    setGlobalView("");
   }, []);
 
   const updateTab = useCallback((id: string, patch: Partial<TabState>) => {
@@ -191,12 +212,12 @@ export function useTabManager() {
   // Open a project from one of its checkouts, by recipe path. The workspace
   // home and the native Projects menu both land here.
   const openRecent = useCallback(
-    async (path: string) => {
+    async (path: string, view?: string) => {
       try {
         const tab = await api.openProject(path);
         if (tab) {
           const proj = await api.getProject(tab.id);
-          if (proj) await addTab(tab, proj);
+          if (proj) await addTab(tab, proj, view);
         }
       } catch (err) {
         showError("Failed to open the project", err);
@@ -208,10 +229,10 @@ export function useTabManager() {
   // Open a project the workspace holds and no checkout on this machine
   // carries. The tab reads its context and has no files to show.
   const openWorkspaceContext = useCallback(
-    async (key: string) => {
+    async (key: string, view?: string) => {
       try {
         const tab = await api.openWorkspaceContext(key);
-        if (tab) await addTab(tab, { version: "v1", name: tab.name });
+        if (tab) await addTab(tab, { version: "v1", name: tab.name }, view);
       } catch (err) {
         showError("Failed to open the project's context", err);
       }
@@ -383,6 +404,7 @@ export function useTabManager() {
     closeTab,
     updateTab,
     updateTabInfo,
+    openTabOn,
     switchMode,
     openProject,
     openRecent,
