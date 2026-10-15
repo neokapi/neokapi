@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { fn } from "storybook/test";
 import { SettingsPage } from "../components/SettingsPage";
 
 const meta: Meta<typeof SettingsPage> = {
@@ -26,5 +27,14 @@ export const Default: Story = {
 export const DarkTheme: Story = {
   args: {
     theme: "dark",
+  },
+};
+
+/** The home's Start here steps were dismissed; Settings offers them back. */
+export const StartHereDismissed: Story = {
+  args: {
+    theme: "system",
+    startHereDismissed: true,
+    onRestoreStartHere: fn(),
   },
 };
