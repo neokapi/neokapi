@@ -8,7 +8,6 @@ import { RulesFilesView } from "../components/RulesFilesView";
 import { api } from "../hooks/useApi";
 import {
   CLAUDE_DESKTOP_CONFIG,
-  CLAUDE_DESKTOP_WITH_PATH,
   CONNECT_CLAUDE_DESKTOP_RESULT,
   CONNECT_CURSOR_RESULT,
   HOSTS_ALL_CONNECTED,
@@ -130,7 +129,7 @@ describe("connected assistants", () => {
     await userEvent.click(connectButton("claude-desktop")!);
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText(/^This writes an entry/).textContent).toBe(
-      "This writes an entry into your own Claude Desktop configuration.",
+      `This writes an entry into your own Claude Desktop configuration at ${CLAUDE_DESKTOP_CONFIG}.`,
     );
     expect(connect).not.toHaveBeenCalled();
 
@@ -145,12 +144,13 @@ describe("connected assistants", () => {
     expect(connect).toHaveBeenCalledWith("t1", "claude-desktop");
   });
 
-  it("names Claude Desktop's configuration when the backend sends its path", async () => {
-    render(<AssistantHosts tabID="t1" hosts={[CLAUDE_DESKTOP_WITH_PATH]} />);
+  it("ends the question without a path when the backend sends none", async () => {
+    const noPath = { ...HOSTS_NONE_CONNECTED[4], files: undefined };
+    render(<AssistantHosts tabID="t1" hosts={[noPath]} />);
     await userEvent.click(connectButton("claude-desktop")!);
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText(/^This writes an entry/).textContent).toBe(
-      `This writes an entry into your own Claude Desktop configuration at ${CLAUDE_DESKTOP_CONFIG}.`,
+      "This writes an entry into your own Claude Desktop configuration.",
     );
   });
 

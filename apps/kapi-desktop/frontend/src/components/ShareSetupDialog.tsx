@@ -22,7 +22,7 @@ import {
   cn,
 } from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
-import type { ContextBackendSpec, ProjectSharing } from "../types/api";
+import type { ContextBackend, ProjectSharing } from "../types/api";
 
 /** The places a recipe can share a project's context through. */
 export type ShareKind = "git" | "file" | "s3";
@@ -49,7 +49,7 @@ const EMPTY: ShareFields = {
 };
 
 /** The `context:` block for a kind, with every empty field left out. */
-export function shareSpec(kind: ShareKind, f: ShareFields): ContextBackendSpec {
+export function shareSpec(kind: ShareKind, f: ShareFields): ContextBackend {
   const v = (s: string) => s.trim() || undefined;
   switch (kind) {
     case "git":

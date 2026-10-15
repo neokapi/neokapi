@@ -35,20 +35,14 @@ const codex = (wired: boolean): AgentHostStatus => ({
   wired,
   files: wired ? [".codex/config.toml"] : undefined,
 });
-// The backend names Claude Desktop's configuration once it starts kapi's server.
+// The backend names Claude Desktop's configuration whether or not it is connected.
 const claudeDesktop = (wired: boolean, detected = true): AgentHostStatus => ({
   host: "claude-desktop",
   label: "Claude Desktop",
   detected,
   wired,
-  files: wired ? [CLAUDE_DESKTOP_CONFIG] : undefined,
-});
-
-/** Claude Desktop installed and not connected, with its configuration's path sent ahead. */
-export const CLAUDE_DESKTOP_WITH_PATH: AgentHostStatus = {
-  ...claudeDesktop(false),
   files: [CLAUDE_DESKTOP_CONFIG],
-};
+});
 
 /** Every assistant on this Mac is connected to the project. */
 export const HOSTS_ALL_CONNECTED: AgentHostStatus[] = [

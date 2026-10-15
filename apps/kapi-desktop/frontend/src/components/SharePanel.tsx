@@ -25,7 +25,7 @@ import { useInvalidateOnEvent } from "../hooks/useInvalidateOnEvent";
 import { useShortenHome } from "../hooks/useShortenHome";
 import { ShareSetupDialog } from "./ShareSetupDialog";
 import { api } from "../hooks/useApi";
-import type { ContextSyncResult, ContextSyncStatus, ProjectSharing } from "../types/api";
+import type { ContextSyncResult, ProjectSharing, SyncStatus } from "../types/api";
 
 /** Paths, places and hosts: the project's own values, in the app's mono font. */
 const MONO = "font-mono text-xs text-foreground";
@@ -301,7 +301,7 @@ function Through({ kind, location }: { kind: string; location?: string }) {
 }
 
 /** How far this Mac and the place are apart, as of the last contact. */
-function Standing({ status }: { status: ContextSyncStatus }) {
+function Standing({ status }: { status: SyncStatus }) {
   if (!status.contacted) {
     return <>{status.to_push} to push. What waits to pull is known after the first sync.</>;
   }
