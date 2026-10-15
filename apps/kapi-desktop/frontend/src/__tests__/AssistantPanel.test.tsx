@@ -5,9 +5,10 @@ import { render, screen, waitFor, within } from "./testUtils";
 import { AssistantPanel } from "../components/AssistantPanel";
 import { AssistantHosts, canConnect, orderHosts } from "../components/AssistantHosts";
 import { RulesFilesView } from "../components/RulesFilesView";
-import { api } from "../components/contextTypes";
+import { api } from "../hooks/useApi";
 import {
   CLAUDE_DESKTOP_CONFIG,
+  CLAUDE_DESKTOP_WITH_PATH,
   CONNECT_CLAUDE_DESKTOP_RESULT,
   CONNECT_CURSOR_RESULT,
   HOSTS_ALL_CONNECTED,
@@ -129,7 +130,7 @@ describe("connected assistants", () => {
     await userEvent.click(connectButton("claude-desktop")!);
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText(/^This writes an entry/).textContent).toBe(
-      `This writes an entry into your own Claude Desktop configuration at ${CLAUDE_DESKTOP_CONFIG}.`,
+      "This writes an entry into your own Claude Desktop configuration.",
     );
     expect(connect).not.toHaveBeenCalled();
 
@@ -142,6 +143,15 @@ describe("connected assistants", () => {
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Connect" }),
     );
     expect(connect).toHaveBeenCalledWith("t1", "claude-desktop");
+  });
+
+  it("names Claude Desktop's configuration when the backend sends its path", async () => {
+    render(<AssistantHosts tabID="t1" hosts={[CLAUDE_DESKTOP_WITH_PATH]} />);
+    await userEvent.click(connectButton("claude-desktop")!);
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(/^This writes an entry/).textContent).toBe(
+      `This writes an entry into your own Claude Desktop configuration at ${CLAUDE_DESKTOP_CONFIG}.`,
+    );
   });
 
   it("connects every other assistant without asking", async () => {

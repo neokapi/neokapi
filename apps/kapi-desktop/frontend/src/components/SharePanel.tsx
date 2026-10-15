@@ -24,13 +24,8 @@ import { qk } from "../lib/queryKeys";
 import { useInvalidateOnEvent } from "../hooks/useInvalidateOnEvent";
 import { useShortenHome } from "../hooks/useShortenHome";
 import { ShareSetupDialog } from "./ShareSetupDialog";
-import {
-  api,
-  contextQk,
-  type ContextSyncResult,
-  type ProjectSharing,
-  type SyncStatus,
-} from "./contextTypes";
+import { api } from "../hooks/useApi";
+import type { ContextSyncResult, ContextSyncStatus, ProjectSharing } from "../types/api";
 
 /** Paths, places and hosts: the project's own values, in the app's mono font. */
 const MONO = "font-mono text-xs text-foreground";
@@ -73,7 +68,7 @@ export function SharePanel({ tabID, sharing: given, contextOnly, onSetUp }: Shar
   const [result, setResult] = useState<ContextSyncResult | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
 
-  const key = contextQk.projectSharing(tabID);
+  const key = qk.projectSharing(tabID);
   const query = useQuery({
     queryKey: key,
     queryFn: () => api.projectSharing(tabID),
@@ -306,7 +301,7 @@ function Through({ kind, location }: { kind: string; location?: string }) {
 }
 
 /** How far this Mac and the place are apart, as of the last contact. */
-function Standing({ status }: { status: SyncStatus }) {
+function Standing({ status }: { status: ContextSyncStatus }) {
   if (!status.contacted) {
     return <>{status.to_push} to push. What waits to pull is known after the first sync.</>;
   }

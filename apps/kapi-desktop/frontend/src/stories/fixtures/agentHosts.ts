@@ -1,7 +1,7 @@
 // The assistants kapi can connect for one project: every one connected, none
 // connected, and Claude Desktop absent from this Mac.
 
-import type { AgentHostStatus, AgentWiringResult } from "../../components/contextTypes";
+import type { AgentHostStatus, AgentWiringResult } from "../../types/api";
 
 /** Claude Desktop's own configuration, under a home that resolves on no machine. */
 export const CLAUDE_DESKTOP_CONFIG =
@@ -35,13 +35,20 @@ const codex = (wired: boolean): AgentHostStatus => ({
   wired,
   files: wired ? [".codex/config.toml"] : undefined,
 });
+// The backend names Claude Desktop's configuration once it starts kapi's server.
 const claudeDesktop = (wired: boolean, detected = true): AgentHostStatus => ({
   host: "claude-desktop",
   label: "Claude Desktop",
   detected,
   wired,
-  files: detected ? [CLAUDE_DESKTOP_CONFIG] : undefined,
+  files: wired ? [CLAUDE_DESKTOP_CONFIG] : undefined,
 });
+
+/** Claude Desktop installed and not connected, with its configuration's path sent ahead. */
+export const CLAUDE_DESKTOP_WITH_PATH: AgentHostStatus = {
+  ...claudeDesktop(false),
+  files: [CLAUDE_DESKTOP_CONFIG],
+};
 
 /** Every assistant on this Mac is connected to the project. */
 export const HOSTS_ALL_CONNECTED: AgentHostStatus[] = [

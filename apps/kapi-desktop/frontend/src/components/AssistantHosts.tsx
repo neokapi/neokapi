@@ -21,7 +21,9 @@ import {
   cn,
 } from "@neokapi/ui-primitives";
 import { useShortenHome } from "../hooks/useShortenHome";
-import { api, contextQk, type AgentHostStatus, type AgentWiringResult } from "./contextTypes";
+import { api } from "../hooks/useApi";
+import { qk } from "../lib/queryKeys";
+import type { AgentHostStatus, AgentWiringResult } from "../types/api";
 
 /** The assistant whose configuration is the person's own. */
 export const CLAUDE_DESKTOP = "claude-desktop";
@@ -57,7 +59,7 @@ export function AssistantHosts({ tabID, hosts: given, contextOnly }: AssistantHo
   const [wrote, setWrote] = useState<{ host: string; result: AgentWiringResult } | null>(null);
   const [failed, setFailed] = useState<{ host: string; error: unknown } | null>(null);
 
-  const key = contextQk.agentHosts(tabID);
+  const key = qk.agentHosts(tabID);
   const query = useQuery({
     queryKey: key,
     queryFn: () => api.agentHosts(tabID),

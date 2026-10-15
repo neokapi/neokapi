@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { render, screen, waitFor } from "./testUtils";
 
 import { BOWRAIN_ABOUT_URL, SharePanel, shareRung, venueProject } from "../components/SharePanel";
-import { api } from "../components/contextTypes";
+import { api } from "../hooks/useApi";
 import {
   BOWRAIN_CONNECTED,
   CONTACTED,

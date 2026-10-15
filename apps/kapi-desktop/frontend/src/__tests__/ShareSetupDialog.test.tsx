@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { render, screen } from "./testUtils";
 
 import { ShareSetupDialog, missingField, shareSpec } from "../components/ShareSetupDialog";
-import { api } from "../components/contextTypes";
+import { api } from "../hooks/useApi";
 import { GIT_IN_SYNC } from "../stories/fixtures/sharing";
 
 const slot = (name: string) => document.querySelector(`[data-slot='${name}']`);

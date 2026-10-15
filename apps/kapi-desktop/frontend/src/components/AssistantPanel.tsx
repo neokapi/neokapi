@@ -9,7 +9,7 @@ import { PageHeader, SectionHeading } from "@neokapi/ui-primitives";
 import { AgentContextPane } from "./AgentContextPane";
 import { AssistantHosts } from "./AssistantHosts";
 import { RulesFilesView } from "./RulesFilesView";
-import type { AgentHostStatus, RulesFileView } from "./contextTypes";
+import type { AgentHostStatus, RulesFileView } from "../types/api";
 
 export interface AssistantPanelProps {
   tabID: string;

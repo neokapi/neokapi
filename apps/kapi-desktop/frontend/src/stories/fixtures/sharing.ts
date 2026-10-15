@@ -2,7 +2,7 @@
 // ladder: this Mac only, shared through git (in step, and with pushes
 // waiting), a place that could not be reached, and connected to Bowrain.
 
-import type { ContextSyncResult, ProjectSharing, SyncStatus } from "../../components/contextTypes";
+import type { ContextSyncResult, ContextSyncStatus, ProjectSharing } from "../../types/api";
 
 /** The workspace directory, under a home that resolves on no machine. */
 export const WORKSPACE_DIR = "/fakehome/.local/share/kapi/workspaces/default";
@@ -16,7 +16,7 @@ export const CONTACTED = (() => {
 
 const GIT_REMOTE = { Kind: "git", Location: "origin refs/kapi/context" };
 
-function status(over: Partial<SyncStatus>): SyncStatus {
+function status(over: Partial<ContextSyncStatus>): ContextSyncStatus {
   return {
     remote: GIT_REMOTE,
     to_push: 0,

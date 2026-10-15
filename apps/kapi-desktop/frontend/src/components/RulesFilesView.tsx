@@ -17,7 +17,9 @@ import {
   LoadingSpinner,
 } from "@neokapi/ui-primitives";
 import { useInvalidateOnEvent } from "../hooks/useInvalidateOnEvent";
-import { api, contextQk, type RulesFileView, type RulesFilesResult } from "./contextTypes";
+import { api } from "../hooks/useApi";
+import { qk } from "../lib/queryKeys";
+import type { RulesFileView, RulesFilesResult } from "../types/api";
 
 export interface RulesFilesViewProps {
   tabID: string;
@@ -27,7 +29,7 @@ export interface RulesFilesViewProps {
 
 export function RulesFilesView({ tabID, rulesFiles: given }: RulesFilesViewProps) {
   const qc = useQueryClient();
-  const key = contextQk.rulesFiles(tabID);
+  const key = qk.rulesFiles(tabID);
   const query = useQuery({
     queryKey: key,
     queryFn: () => api.rulesFiles(tabID),

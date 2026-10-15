@@ -1,7 +1,7 @@
 // The rules files kapi writes for the Fernwell project: written at the root
 // and in one folder, and not written yet.
 
-import type { RulesFileView, RulesFilesResult } from "../../components/contextTypes";
+import type { RulesFileView, RulesFilesResult } from "../../types/api";
 
 const ROOT_SECTION = `<!-- kapi:rules (written by kapi from this project's context; edit outside this section) -->
 ## Writing rules
