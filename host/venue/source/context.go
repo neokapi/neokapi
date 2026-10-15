@@ -19,7 +19,7 @@ import (
 // this is where that field earns its place. A workspace-owned collection is the
 // server's — the pull records it and that is the whole of it, because there is
 // no local governance for it to conflict with. A recipe-owned collection is
-// git's: the pull records what the server thinks, compares it with what the
+// git's: the pull records what the server holds, compares it with what the
 // recipe says, and REPORTS a difference rather than resolving one.
 //
 // The asymmetry is the point. Governance that could be rewritten by a pull is

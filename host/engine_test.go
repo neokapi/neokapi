@@ -163,7 +163,7 @@ func TestEngineSelection_ConfigDefault(t *testing.T) {
 
 // A project run reads with the recipe's engine: native unless
 // defaults.engine names the plugin, and never a plugin the recipe does not
-// declare, whatever the run prefers.
+// declare, whatever the run selects.
 func TestEngineSelection_ProjectRun(t *testing.T) {
 	run := func(t *testing.T, proj *project.KapiProject, engineFlag string) *pluginJSON {
 		t.Helper()

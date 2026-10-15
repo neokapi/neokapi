@@ -158,7 +158,7 @@ it through one shared helper, `host.ResolveProjectPath`, re-exported as
   caption="Project resolution: an explicit flag wins, an opt-out stops discovery, and otherwise the walk finds the nearest kapi.yaml the way git finds .git."
 />
 
-The upward walk is what makes a project feel like a repository: run a verb
+The upward walk is what makes a project work like a repository: run a verb
 anywhere inside the tree and it binds to the recipe above it. `KAPI_NO_PROJECT`
 is the opt-out, and anything that runs *inside* a project tree without wanting
 to act on it (a test harness, a nested build) depends on it. Setting

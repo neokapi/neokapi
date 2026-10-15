@@ -485,7 +485,7 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 	// (#1936). See host/convergedrafts.go.
 	//
 	// A run that prints its change set drafts the same way, into the same
-	// private tree, so its gate decides from the same output; delivery then
+	// private tree, so its gate evaluates the same output; delivery then
 	// prints what it would commit.
 	if deliveryIsGated(proj, opts) {
 		endDrafts, derr := a.beginConvergeDrafts(projectPath, projectDir)

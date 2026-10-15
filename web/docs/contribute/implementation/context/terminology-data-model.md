@@ -147,7 +147,7 @@ concept that declared it, its status or whether a rule hit fails,
 whether it is do-not-translate, byte offsets into the text, and a
 `model.Anchor` into the runs (`model.RangeAnchorForBytes`). Rule hits come
 first, then store matches, deduped across the candidate languages. An
-occurrence is a use, not a verdict; the consuming gate decides which uses are
+occurrence is a use, not a verdict; the consuming gate determines which uses are
 violations.
 
 ## Pipeline Tools

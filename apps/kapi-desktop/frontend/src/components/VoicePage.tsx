@@ -1,6 +1,6 @@
 // Context › Voice — the profile that governs each point, read whole.
 //
-// The voice profile decides what `kapi check` fails on, what a review finding
+// The voice profile determines what `kapi check` fails on, what a review finding
 // says, and how an AI proposal is worded. The page answers three questions in
 // the order a reader asks them: which point am I standing at, which profile
 // governs there and why that one, and what does that profile actually say.

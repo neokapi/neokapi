@@ -81,7 +81,7 @@ func TestProhibitedPatternsAreEnforced(t *testing.T) {
 	assert.True(t, hits[0].Fails,
 		"the pack's rule is not advisory, so a match fails")
 
-	// The score moves, so the rule decides something.
+	// The score moves, so the rule has an effect.
 	findings := profile.Findings(p, "This is gonna work", nil)
 	assert.Less(t, profile.CalculateScore(findings).Overall, 100)
 }

@@ -303,7 +303,7 @@ func matchingText(pattern string) (string, bool) {
 // Locating a term and objecting to it are different questions, and only the
 // second is this gate's. A terms store holds preferred and approved terms too;
 // term-lookup annotates those for context and is right to. Here they are simply
-// uses of words the project likes.
+// uses of words the project approves.
 //
 // A rule the caller declared is a violation by construction, so it keeps the
 // kind its rule set gave it and fails unless the rule is advisory or

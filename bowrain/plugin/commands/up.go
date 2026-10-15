@@ -52,7 +52,7 @@ translations land in the team's review queue on the server.
 
 The push phase carries the same payload as kapi push: content blocks, governed
 terminology edits, and the recipe-bound voice profile (upserted into the
-workspace's voice profiles by name; the recipe decides whether one is bound).
+workspace's voice profiles by name; the recipe states whether one is bound).
 
   --local   run the loop on this machine instead, then push the results so the
             server stays up to date.

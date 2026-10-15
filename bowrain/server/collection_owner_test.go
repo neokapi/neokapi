@@ -15,7 +15,7 @@ import (
 
 // The ownership gate on the collections API, against a real SQLite content
 // store: a collection the recipe declares cannot be updated, deleted or
-// uploaded into over the API, and the refusal says the recipe decides. A
+// uploaded into over the API, and the refusal names the recipe as the owner. A
 // workspace-owned collection is untouched by the gate.
 
 // seedOwnedCollection stores a non-default collection under the given owner.

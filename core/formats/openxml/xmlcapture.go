@@ -140,7 +140,7 @@ func captureAlternateContent(d *rawDecoder, start xml.StartElement) (string, err
 				// Choice's Requires attribute and full subtree. Per
 				// the MCE spec a Choice consumer MAY select the first
 				// supported Choice — Okapi simply preserves every
-				// Choice and lets the rendering pipeline decide,
+				// Choice and leaves the selection to the rendering pipeline,
 				// which is byte-faithful to the source for any
 				// document that already had its wrapper survive a
 				// Word save/load round-trip. The schema allows only

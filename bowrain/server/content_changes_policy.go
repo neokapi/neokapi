@@ -41,7 +41,7 @@ type changeSender struct {
 //     than advise, which records a pre-review and takes translate for the
 //     language. A pre-review is an agent's: the review queue shows it as AI
 //     advice, so a person sends establish, reject or withdraw instead. Only a
-//     tool records provenance, and a tool decides nothing.
+//     tool records provenance, and a tool records no decision.
 type streamPolicy struct {
 	ctx    context.Context //nolint:containedctx // the policy answers within one request
 	s      *Server

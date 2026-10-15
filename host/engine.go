@@ -20,7 +20,7 @@ func (a *App) AddEngineFlag(f *pflag.FlagSet) {
 	f.StringVar(&a.EngineFlag, EngineFlagName, "", EngineFlagUsage)
 }
 
-// ApplyEngineSelection hands the registry the engine the config prefers and
+// ApplyEngineSelection hands the registry the engine the config selects and
 // the one --engine forces, checking that the latter names an installed
 // engine. It runs once the plugin host has registered its formats, so the
 // check sees every engine.

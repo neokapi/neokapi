@@ -3709,7 +3709,7 @@ func (r *Reader) buildImageRuns(b *runBuilder, n *ast.Image, source []byte, idCo
 }
 
 // untranslatedAltText returns an image's alt text for a configuration that does
-// not offer it for translation. The flag decides whose the alt text is, not
+// not offer it for translation. The flag determines whose the alt text is, not
 // whether it survives: with it off the alt bytes were in neither the runs nor
 // the skeleton, so the writer had nothing to put back and `![alt](s)` came out
 // as `![](s)` (#2447).

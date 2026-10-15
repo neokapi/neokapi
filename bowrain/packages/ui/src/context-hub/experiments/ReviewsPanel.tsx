@@ -41,7 +41,8 @@ export function ReviewsPanel({ changeset }: ReviewsPanelProps) {
 
   const isReviewing = changeset.status === "in_review";
   const isAuthor = !!currentUserId && currentUserId === changeset.created_by;
-  // The server decides this, not the client: it knows the whole membership.
+  // The server sets this rather than the client, because it holds the whole
+  // membership.
   // Treating it as the single source keeps the button and the rule in step.
   const soloReview = isAuthor && changeset.solo_review;
   const blocked = isAuthor && !soloReview;

@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// withTerminalStdin makes the resolver believe stdin is an interactive
+// withTerminalStdin makes the resolver treat stdin as an interactive
 // terminal for the duration of the test. Under `go test` stdin is always
 // redirected, so without this seam the exact condition behind the reported
 // `kapi stats` hang can never be reproduced.

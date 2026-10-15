@@ -73,7 +73,7 @@ kapi check --ship        # enforce the gates: the pre-release bar, exit 3 when u
 </TabItem>
 </Tabs>
 
-## How the gate thinks
+## How the gate works
 
 Each translation climbs a ladder (draft, translated, approved) and a **ship gate** is coverage thresholds over that ladder (`{ translated: 100, established: 80 }`). `kapi up` produces, review promotes, `kapi check --ship` releases. [The kapi loop](/kapi/convergence) explains the model.
 

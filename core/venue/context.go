@@ -21,7 +21,7 @@ import (
 // Ownership of a context entity: which side of the sync is authoritative for
 // it. Recipe-owned means kapi.yaml decides, so the server stores the entry and
 // reads it but never rewrites it, and a pull leaves the local governance alone.
-// Workspace-owned means the server decides, and the recipe has no say.
+// Workspace-owned means the server's copy governs, and the recipe has no say.
 const (
 	ContextOwnerRecipe    = "recipe"
 	ContextOwnerWorkspace = "workspace"

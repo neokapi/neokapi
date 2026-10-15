@@ -468,8 +468,8 @@ BOWRAIN_TERM_BLOCK_TEXT="<block source>" BOWRAIN_TERM_TEXT="<term>" \
 ```
 
 The last two name the block the governance walk's closing beat films.
-`VisualEditorLayout` docks the term sidebar for a block the terms store decides
-for and for no other, so the seed asks the server which block that is
+`VisualEditorLayout` docks the term sidebar for the block the terms store governs
+and for no other, so the seed asks the server which block that is
 (`ensureTermAnchor` in `scripts/seed-bowrain.ts`) and writes both values to
 `harness/.env`. The walk steps to that block by its text and fails the take when
 the sidebar is absent or names a different term, rather than filming the block's

@@ -66,7 +66,7 @@ func RedactAtIngest(
 	}
 	if spec.Rules == "" && !hasDetector(spec.Detectors, "entities") {
 		// Rules detection with no rules file redacts nothing, silently. Say so
-		// rather than let a project believe it is protected.
+		// rather than leave the project's owner believing it is protected.
 		return errors.New("redaction is enabled but no rules file is set. Add defaults.redaction.rules to the recipe")
 	}
 	if vaultPath == "" {

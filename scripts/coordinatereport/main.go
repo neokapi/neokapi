@@ -128,7 +128,7 @@ type Version struct {
 	Governed bool `json:"governed"`
 }
 
-// Chain is one block's history at one point, and what the gate decides.
+// Chain is one block's history at one point, and the gate's result.
 type Chain struct {
 	Case        string    `json:"case"`
 	Unit        string    `json:"unit"`

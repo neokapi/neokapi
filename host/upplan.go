@@ -225,7 +225,7 @@ func (o UpPlanOutput) FormatText(w io.Writer) error {
 			"so this run leaves them as they are. They are not priced. Add a drafting step, or "+
 			"converge them at a venue whose flow has one.\n", o.Totals.OutOfReach, o.Flow)
 	}
-	// The flow decides whether there is a bill at all, so it is read before the
+	// The flow determines whether there is a bill at all, so it is read before the
 	// configured default: naming a provider for a flow that never calls one is
 	// how a run with no credentials was quoted 487k tokens (#1866).
 	if !o.FlowCallsProvider {

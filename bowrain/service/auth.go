@@ -510,7 +510,7 @@ func (s *AuthService) ValidateAPIToken(ctx context.Context, plaintext string) (*
 
 // AcceptInvite adds a user to the workspace if the invite is valid.
 //
-// An invite carries a role, so possession of the code decides what the accepting
+// An invite carries a role, so possession of the code determines what the accepting
 // user becomes — up to owner. Two invite shapes are supported, and the
 // difference is exactly whether Email is set:
 //

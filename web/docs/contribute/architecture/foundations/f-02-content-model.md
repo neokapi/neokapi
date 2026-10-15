@@ -146,8 +146,8 @@ Resource types:
   by the content model, path-based plugin IO, and model-provider parts
   ([E-07](../engine/e-07-model-providers.md)).
 
-`PartResult{Part, Error}` carries content and errors on the same channel, letting
-a tool decide how to handle an error (skip, retry, fail) without a second
+`PartResult{Part, Error}` carries content and errors on the same channel, so
+a tool's author can choose how to handle an error (skip, retry, fail) without a second
 channel.
 
 ### Block

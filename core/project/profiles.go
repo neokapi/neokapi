@@ -492,7 +492,7 @@ type GovernancePoint struct {
 	// window excludes it does not govern, and resolution falls through to the
 	// next binding as if it were absent. The zero value is the AS-DECLARED
 	// view: every declared binding governs and carries its window unapplied,
-	// which is what a surface reporting the recipe wants and what no run does.
+	// which a surface reporting the recipe needs and no run does.
 	At time.Time
 }
 

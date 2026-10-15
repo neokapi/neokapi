@@ -137,7 +137,7 @@ func assertUnreadReported(t *testing.T, warnings []check.Warning, stderr, file s
 
 // A project-wide `kapi check --ship` over a project that declares a collection
 // in a plugin format this machine lacks checks the collections it can read and
-// lets their gates decide the exit code. The collection it could not read is
+// lets their gates set the exit code. The collection it could not read is
 // named, and none of its files counts as checked.
 func TestCheckShipSkipsDeclaredContentWithNoReader(t *testing.T) {
 	root := unreadProject(t, cleanContent)

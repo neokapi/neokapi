@@ -38,7 +38,7 @@ script:
   - command: kapi status
   - comment: Front matter is content, so a title in a sidebar and a description in a search result converge with the prose.
   - command: head -6 i18n/nb/docusaurus-plugin-content-docs/current/index.md
-  - comment: And only Norwegian is on disk. The ship gate decides delivery, so a parked language has no files rather than unblessed ones.
+  - comment: And only Norwegian is on disk. The ship gate controls delivery, so a parked language has no files rather than unblessed ones.
   - command: find i18n -name '*.md' | sort
 
 artifacts:

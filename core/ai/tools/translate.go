@@ -84,7 +84,7 @@ type AITranslateTool struct {
 	// sending to the provider. It is a fact about the run, not about the
 	// content, so it lives here rather than on the target's provenance: the
 	// translation was made by this engine whenever it was first made, and what
-	// the run wants to report is that it cost nothing this time (#2356).
+	// the run reports is that it cost nothing this time (#2356).
 	reused atomic.Int64
 }
 
@@ -185,7 +185,7 @@ const (
 	// still hold. The default.
 	ReusePrior = "prior"
 	// ReuseNone sends no reference. The block is translated as if it had no
-	// history, which is what a run wants when it is re-translating deliberately
+	// history, which suits a run that re-translates deliberately
 	// — a voice change the old wording should not anchor — or when it does not
 	// want to pay for the lookup.
 	ReuseNone = "none"

@@ -161,7 +161,7 @@ What deleting costs, stated exactly:
 
 `kapi init` scans the directory (honouring every `.gitignore`, skipping hidden,
 dependency, vendored and build directories) and writes a recipe with a
-collection for each kind of content it recognises. The format registry decides
+collection for each kind of content it recognises. The format registry determines
 what a document is: a built-in format whose family carries documents (marked-up
 text, office documents, timed text) is content wherever it sits, grouped by
 top-level directory and extension, with a file at the root as an entry of its

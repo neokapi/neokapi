@@ -209,7 +209,7 @@ type Defaults struct {
 	Encoding       string                    `yaml:"encoding,omitempty" json:"encoding,omitempty"`
 	Formats        map[string]FormatDefaults `yaml:"formats,omitempty" json:"formats,omitempty"`
 
-	// Engine is the format engine the project prefers for a file whose
+	// Engine is the format engine the project selects for a file whose
 	// extension both a built-in format and a plugin's claim: "native" (the
 	// built-in formats) or the name of a plugin the recipe declares. Empty
 	// prefers the built-in formats. An explicit `--engine` on the run ranks

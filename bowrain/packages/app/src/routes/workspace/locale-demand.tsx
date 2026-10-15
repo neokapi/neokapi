@@ -32,7 +32,7 @@ export function LocaleDemandRoute() {
     return [project.default_source_language, ...project.target_languages];
   }, [project]);
 
-  // The page decides live-vs-sample once per mount, so wait for the project
+  // The page settles live-vs-sample once per mount, so wait for the project
   // list (usually already in the router loader cache) and remount on change.
   if (isPending) return null;
 

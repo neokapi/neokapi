@@ -1,6 +1,6 @@
 # Format engine selection
 
-How kapi decides which engine reads a file whose extension more than one
+How kapi selects the engine that reads a file whose extension more than one
 format claims, where that decision is made, and where a person steers it.
 
 This is a working note for contributors. The user-facing description is the

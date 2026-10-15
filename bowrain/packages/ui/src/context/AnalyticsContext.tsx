@@ -3,7 +3,7 @@ import { createContext, useContext, useMemo, type ReactNode } from "react";
 /**
  * Product-analytics capture seam for shared components (epic 018, workstream
  * B). Components call `useAnalytics().capture(event, props)` at mutation/submit
- * call sites; the host app decides where the events go. The web shell bridges
+ * call sites; the host app routes the events. The web shell bridges
  * this to PostHog through the platform adapter (`platform.analytics.capture`);
  * the desktop shell mounts no provider, so every capture is a no-op — the same
  * omit-and-no-op contract as the platform seam's `analytics` member.
