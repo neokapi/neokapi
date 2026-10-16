@@ -72,7 +72,7 @@ export function findingToneBadgeClass(tone: FindingTone): string {
     case "destructive":
       return "border-destructive/40 bg-destructive/10 text-destructive";
     case "warning":
-      return "border-warning/40 bg-warning/10 text-warning";
+      return "border-warning/40 bg-warning/10 text-warning-ink";
     default:
       return "text-muted-foreground";
   }
@@ -84,7 +84,7 @@ export function findingToneTextClass(tone: FindingTone): string {
     case "destructive":
       return "text-destructive";
     case "warning":
-      return "text-warning";
+      return "text-warning-ink";
     default:
       return "text-muted-foreground";
   }

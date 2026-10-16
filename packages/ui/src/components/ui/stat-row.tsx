@@ -48,13 +48,11 @@ export interface StatRowProps extends Omit<React.ComponentProps<"ul">, "children
   items: readonly StatItem[];
 }
 
-// `--warning` is a fill colour that holds dark ink, and as ink on a light
-// ground it reads at about 2.3:1. Mixed with its own ink it clears 4.9:1, and
-// on a dark ground the fill colour is legible as it is.
+// `--warning` is a fill colour, too light to read as ink on a light ground;
+// `--warning-ink` is the amber a count is written in.
 const TONE_CLASS: Record<StatTone, string> = {
   default: "text-foreground",
-  warning:
-    "text-[color-mix(in_oklch,var(--warning)_60%,var(--warning-foreground))] dark:text-warning",
+  warning: "text-warning-ink",
   muted: "text-muted-foreground",
 };
 

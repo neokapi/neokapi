@@ -16,8 +16,9 @@ import { SimpleTooltip } from "./tooltip";
  * initials taken from its own name on the neutral tint, so an assistant this
  * build has not heard of still gets a mark.
  *
- * The hues come from the prism ramp `CoordinateChip` draws its axes from, at
- * the same tint and ink lightness, so a mark beside a chip reads as one
+ * The colours are the `--actor-*` tokens in semantic-colors.css: a tint, an
+ * ink and a border per assistant, from the prism ramp `CoordinateChip` draws
+ * its axes from at the same lightness, so a mark beside a chip reads as one
  * drawing. The full name is the accessible name and the tooltip, because the
  * letters and the hue are a shorthand.
  */
@@ -45,8 +46,11 @@ interface ActorMeta {
   initials?: string;
   /** The icon, for an actor drawn without initials. */
   icon?: React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
-  /** A prism-ramp hue in degrees. Absent means the neutral tint. */
-  hue?: number;
+  /**
+   * The actor's tint, ink and border, as the `--actor-*` token utilities.
+   * Absent means the neutral tint.
+   */
+  colors?: string;
   /** The display name in the active UI language. */
   readonly label: string;
 }
@@ -54,11 +58,33 @@ interface ActorMeta {
 // Product names are never translated. "You" and "Sync" are UI copy, so their
 // labels are getters, read at render time like StatusBadge's.
 const ACTORS: Record<KnownActor, ActorMeta> = {
-  "claude-code": { initials: "CC", hue: 300, label: "Claude Code" },
-  "claude-desktop": { initials: "CD", hue: 15, label: "Claude Desktop" },
-  codex: { initials: "CX", hue: 250, label: "Codex" },
-  cursor: { initials: "CU", hue: 150, label: "Cursor" },
-  vscode: { initials: "VS", hue: 195, label: "VS Code" },
+  "claude-code": {
+    initials: "CC",
+    colors:
+      "border-actor-claude-code-border bg-actor-claude-code text-actor-claude-code-foreground",
+    label: "Claude Code",
+  },
+  "claude-desktop": {
+    initials: "CD",
+    colors:
+      "border-actor-claude-desktop-border bg-actor-claude-desktop text-actor-claude-desktop-foreground",
+    label: "Claude Desktop",
+  },
+  codex: {
+    initials: "CX",
+    colors: "border-actor-codex-border bg-actor-codex text-actor-codex-foreground",
+    label: "Codex",
+  },
+  cursor: {
+    initials: "CU",
+    colors: "border-actor-cursor-border bg-actor-cursor text-actor-cursor-foreground",
+    label: "Cursor",
+  },
+  vscode: {
+    initials: "VS",
+    colors: "border-actor-vscode-border bg-actor-vscode text-actor-vscode-foreground",
+    label: "VS Code",
+  },
   person: {
     icon: User,
     get label() {
@@ -129,13 +155,6 @@ const SIZE_CLASS: Record<ActorMarkSize, { box: string; icon: string }> = {
   lg: { box: "size-7 rounded-[7px] text-xs", icon: "size-4" },
 };
 
-// The hued tint, ink and border at the lightness and chroma of the coordinate
-// axis pairs in semantic-colors.css, with the hue left to `--mark-hue`. One
-// class string for every hue keeps the pairs from drifting apart, and the dark
-// values keep the ink above 8:1 on its tint in both themes.
-const HUED_CLASS =
-  "border-[oklch(0.89_0.055_var(--mark-hue))] bg-[oklch(0.945_0.035_var(--mark-hue))] text-[oklch(0.44_0.13_var(--mark-hue))] dark:border-[oklch(0.38_0.06_var(--mark-hue))] dark:bg-[oklch(0.3_0.045_var(--mark-hue))] dark:text-[oklch(0.84_0.09_var(--mark-hue))]";
-
 // The neutral is CoordinateChip's: the tint an axis nobody named falls back to.
 const NEUTRAL_CLASS = "border-border bg-axis-unknown text-axis-unknown-foreground";
 
@@ -168,7 +187,6 @@ export function ActorMark({
   size = "md",
   decorative = false,
   className,
-  style,
   ...props
 }: ActorMarkProps) {
   const known = knownActor(actor);
@@ -177,7 +195,6 @@ export function ActorMark({
   const label = (!assistant && name?.trim()) || actorLabel(actor);
   const initials = actorInitials(actor, name);
   const Icon = initials ? undefined : (meta?.icon ?? User);
-  const hue = meta?.hue;
   const sizes = SIZE_CLASS[size];
 
   const mark = (
@@ -190,10 +207,9 @@ export function ActorMark({
       className={cn(
         "inline-grid shrink-0 place-items-center overflow-hidden border leading-none font-semibold select-none",
         sizes.box,
-        hue === undefined ? NEUTRAL_CLASS : HUED_CLASS,
+        meta?.colors ?? NEUTRAL_CLASS,
         className,
       )}
-      style={hue === undefined ? style : ({ "--mark-hue": hue, ...style } as React.CSSProperties)}
       {...props}
     >
       {Icon ? <Icon aria-hidden className={sizes.icon} /> : initials}
