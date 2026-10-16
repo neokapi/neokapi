@@ -14,15 +14,17 @@ import { t } from "@neokapi/i18n-react/runtime";
 import {
   ActorMark,
   Button,
+  CoordinateChip,
   Input,
   ListDetailEmpty,
   ListDetailPane,
   ListDetailToolbar,
+  SimpleTooltip,
   When,
   cn,
 } from "@neokapi/ui-primitives";
 import type { DigestItem, DigestTermRule } from "../types/api";
-import type { DigestRow } from "../lib/digestRows";
+import { scopeParts, type DigestRow } from "../lib/digestRows";
 import { ConflictQuestion, RuleSentence, themeLabel } from "./DigestRule";
 import { WidenPicker } from "./ContextFeed";
 
@@ -420,14 +422,51 @@ function ItemFacts({ item, established }: { item: DigestItem; established?: bool
       )}
       {item.scope && (
         <Fact label={<>Scope</>}>
-          <span className="font-mono text-[11px]" translate="no">
-            {item.scope}
-          </span>
+          <ScopeRail scope={item.scope} />
         </Fact>
       )}
       {item.standing && <Fact label={<>Standing</>}>{item.standing}</Fact>}
     </dl>
   );
+}
+
+/**
+ * How far a rule answers: its level in words, then a chip for each axis of
+ * its point, as the Assistant draws a point. The host's own description is
+ * the level's tooltip.
+ */
+function ScopeRail({ scope }: { scope: string }) {
+  const { level, coordinates } = scopeParts(scope);
+  return (
+    <span data-slot="digest-scope" className="inline-flex flex-wrap items-center gap-1.5">
+      <SimpleTooltip
+        content={
+          <span className="font-mono" translate="no">
+            {scope}
+          </span>
+        }
+      >
+        <span data-slot="digest-scope-level">{scopeLevelLabel(level)}</span>
+      </SimpleTooltip>
+      {coordinates.map(([axis, value]) => (
+        <CoordinateChip key={axis} axis={axis} value={value} />
+      ))}
+    </span>
+  );
+}
+
+/** A scope's level in words, written here so it is translated. */
+function scopeLevelLabel(level: string): string {
+  switch (level) {
+    case "":
+    case "project":
+      return t("Project");
+    case "workspace":
+      return t("Workspace");
+    case "project (every profile)":
+      return t("Project, every profile");
+  }
+  return level;
 }
 
 function Fact({ label, children }: { label: React.ReactNode; children: React.ReactNode }) {

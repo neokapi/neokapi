@@ -3,7 +3,7 @@ import { render, fireEvent, screen, within } from "./testUtils";
 import userEvent from "@testing-library/user-event";
 
 import { ContextDigestView } from "../components/ContextDigest";
-import { defaultRowKey, digestRows, nextRowKey } from "../lib/digestRows";
+import { defaultRowKey, digestRows, nextRowKey, scopeParts } from "../lib/digestRows";
 import {
   CONTEXT_DIGEST,
   EMPTY_DIGEST,
@@ -203,6 +203,20 @@ describe("a suggestion", () => {
     expect(slot("digest-facts")).toHaveTextContent("kapimart-sample-claude-code");
     expect(slot("digest-facts")).toHaveTextContent("Names and spellings");
     expect(slot("digest-facts")).toHaveTextContent("Website");
+  });
+
+  it("draws its scope as the level and a chip for each axis of its point", () => {
+    renderDigest(SAMPLE_DIGEST, { defaultSelected: kapiMart });
+    const scope = slot("digest-scope")!;
+    expect(slot("digest-scope-level")).toHaveTextContent("Project");
+    const chips = Array.from(scope.querySelectorAll("[data-slot='coordinate-chip']"));
+    expect(chips.map((c) => [c.getAttribute("data-axis"), c.textContent])).toEqual([
+      ["brand", "kapimart"],
+      ["channel", "web"],
+      ["mode", "how-to"],
+      ["product", "kapimart"],
+    ]);
+    expect(scope).not.toHaveTextContent("brand=kapimart");
   });
 
   it("keeps with the button and with a, and moves on to the next suggestion", () => {
@@ -443,6 +457,23 @@ describe("an empty digest", () => {
   it("leaves the button out when there is no Assistant section to open", () => {
     renderDigest(EMPTY_DIGEST, { since: undefined });
     expect(screen.queryByRole("button", { name: "Connect an assistant" })).toBeNull();
+  });
+});
+
+describe("a scope description", () => {
+  it("splits into its level and its point", () => {
+    expect(scopeParts("project")).toEqual({ level: "project", coordinates: [] });
+    expect(scopeParts("workspace product=studio")).toEqual({
+      level: "workspace",
+      coordinates: [["product", "studio"]],
+    });
+    expect(scopeParts("project (every profile) brand=kapimart,channel=web")).toEqual({
+      level: "project (every profile)",
+      coordinates: [
+        ["brand", "kapimart"],
+        ["channel", "web"],
+      ],
+    });
   });
 });
 

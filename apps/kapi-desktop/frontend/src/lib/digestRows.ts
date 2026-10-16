@@ -129,3 +129,35 @@ export function nextRowKey(
   for (let i = at - 1; i >= 0; i--) if (qualifies(rows[i])) return rows[i].key;
   return null;
 }
+
+/** A rule's scope as the host describes it, split into its level and its point. */
+export interface ScopeParts {
+  /** "project", "workspace", or "project (every profile)". */
+  level: string;
+  /** The point's axes and values, in the order the host wrote them. */
+  coordinates: Array<[axis: string, value: string]>;
+}
+
+/**
+ * Split a scope description (`contextop.Scope.Describe`): the level, then,
+ * after a space, the point as comma-separated `axis=value` pairs, as in
+ * "project brand=kapimart,channel=web". The level may hold a space of its own
+ * ("project (every profile)"), so the point starts at the last space before
+ * its first `=`.
+ */
+export function scopeParts(describe: string): ScopeParts {
+  const text = describe.trim();
+  const eq = text.indexOf("=");
+  if (eq === -1) return { level: text, coordinates: [] };
+  const space = text.lastIndexOf(" ", eq);
+  const level = space === -1 ? "" : text.slice(0, space).trim();
+  const coordinates = text
+    .slice(space + 1)
+    .split(",")
+    .map((pair): [string, string] | null => {
+      const at = pair.indexOf("=");
+      return at > 0 ? [pair.slice(0, at), pair.slice(at + 1)] : null;
+    })
+    .filter((pair): pair is [string, string] => pair !== null);
+  return { level, coordinates };
+}
