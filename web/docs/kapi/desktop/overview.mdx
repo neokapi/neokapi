@@ -165,15 +165,18 @@ through it.
 
 ## History, and going back
 
-**History** lists what was recorded in the project, session by session: what
-each assistant noticed, what each person decided, and when. The caption reads
-"`kapi context log`".
+**History** lists what was recorded in the project, one session per row,
+newest first: the assistant or the person who worked, when, and how many
+operations the session holds. Select a session and the pane beside the list
+shows its operations: what the assistant noticed, what a person decided, and
+when. `kapi context log` prints the same record.
 
-Each session has **Reset to before this session**. It goes back to how the
-context stood before that session started. What the session recorded, and what
-was decided since, is set aside, and the terms, approved wording and voice are
-rebuilt as they stood. Nothing is erased: what was set aside stays in History,
-marked as reset. The reset is recorded too, so resetting to before it brings
+An assistant's session has **Reset to before this session** above its
+operations. It goes back to how the context stood before that session started.
+What the session recorded, and what was decided since, is set aside, and the
+terms, approved wording and voice are rebuilt as they stood. What was set aside
+stays in History, marked as set aside. The reset is recorded too, in the
+session of the person who made it, and **Take this reset back** there brings
 everything back. It is the same as `kapi context reset --before <session>`.
 
 The History link on the home opens the same record for every project in the

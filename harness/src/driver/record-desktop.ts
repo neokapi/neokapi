@@ -802,17 +802,16 @@ function contextSection(page: Page, label: string): Locator {
  *  therefore opens KapiMart first and reads its terms and its memory.
  *
  *  Both stores open on a search, because the question a reader has is "what did
- *  we agree for this word", not "what does this tab look like". The two search
- *  boxes behave differently and the walk drives each as it is: the concept
- *  search filters as you type (debounced, ConceptList.tsx), the memory search
- *  runs on Enter (MemorySearchBar.tsx says so in its own header). */
+ *  we agree for this word", not "what does this tab look like". Each store is a
+ *  list beside a detail pane: the search at the top of the list filters as you
+ *  type (debounced, ConceptsView.tsx and MemoryListDetail.tsx), and the row
+ *  selected in the list opens in the pane beside it. */
 async function explorerWalk(c: WalkCtx): Promise<void> {
   const { page, beat, beatEls, cursorTo, sidebar } = c;
-  // Terms in a project is the concept workspace (ConceptsView over
-  // @neokapi/concept-ui), which carries no testids: its search box is the one
-  // labelled control, and each concept is a button in the divided list.
+  // Terms in a project is a list of concepts beside a detail pane
+  // (ConceptsView): its search box is labelled, and each concept is a row.
   const conceptSearch = 'input[aria-label="Search concepts"]';
-  const conceptRow = "ul.divide-y li button";
+  const conceptRow = '[data-slot="terms-concept"]';
   // Open the project's Terms and search it in one beat: the result of the
   // search is the beat, not the tab it happened on.
   // Getting to the store is not a beat, so it happens before one starts: a beat
@@ -833,24 +832,27 @@ async function explorerWalk(c: WalkCtx): Promise<void> {
     // unfiltered list underneath it.
     await page.waitForTimeout(1800);
   });
-  // Open the concept the search found: its definition, and its approved terms
-  // per language with the status that marks the preferred one.
-  await beatEls("concept", ['section:has(h3:has-text("Geography"))', conceptRow], async () => {
+  // Select the concept the search found: the pane beside the list shows its
+  // definition, the forms it retires, and its terms per language with the
+  // status that marks the preferred one.
+  const conceptDetail = '[data-slot="terms-concept-detail"]';
+  await beatEls("concept", [conceptRow, `${conceptDetail} [data-slot="list-detail-toolbar"]`, '[data-slot="terms-discouraged"]', '[data-slot="terms-translations"]'], async () => {
     await humanClick(page, page.locator(conceptRow).first());
+    await page.waitForSelector(conceptDetail, { timeout: 20_000 });
     await page.waitForTimeout(2400);
   });
-  // Content Memory, searched the same way. This box submits on Enter.
+  // Content Memory, searched the same way: the list narrows as you type.
   await beatEls("search-tm", ['[data-testid="tm-search"]', '[data-testid^="tm-entry-"]'], async () => {
     await humanClick(page, contextSection(page, "Content Memory"));
     await page.waitForSelector('[data-testid="tm-search"]', { timeout: 30_000 });
     await page.waitForTimeout(800);
-    await humanType(page, page.getByTestId("tm-search"), "checkout", { submit: true });
+    await humanType(page, page.getByTestId("tm-search"), "checkout");
     await page.waitForSelector('[data-testid^="tm-entry-"]', { timeout: 30_000 });
     await page.waitForTimeout(1600);
   });
-  // One entry, opened: the source string beside its translations, with inline
-  // formatting kept as tags and names held as placeholders.
-  await beatEls("inspect-tm", ['[data-testid^="tm-entry-"]'], async () => {
+  // One pair, selected: the source string and its translation in full in the
+  // pane, with inline formatting kept as tags and names held as placeholders.
+  await beatEls("inspect-tm", ['[data-testid^="tm-entry-"]', '[data-slot="memory-pair-detail"]'], async () => {
     const first = page.locator('[data-testid^="tm-entry-"]').first();
     await first.scrollIntoViewIfNeeded().catch(() => {});
     await page.waitForTimeout(300);
