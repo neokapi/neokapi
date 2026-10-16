@@ -45,7 +45,8 @@ func hostRow(t *testing.T, rows []AgentHostStatus, name string) AgentHostStatus 
 // writes the files `kapi init` writes for it, byte for byte, and the row then
 // reads connected with those files.
 func TestConnectAgentHost_WritesWhatKapiInitWrites(t *testing.T) {
-	claudeDesktopAt(t, filepath.Join(t.TempDir(), "missing"))
+	missing := filepath.Join(t.TempDir(), "missing")
+	claudeDesktopAt(t, missing)
 	app := newWorkspaceApp(t)
 	tab, recipe := openSharingProject(t, app, "Wiring")
 	root := filepath.Dir(recipe)
@@ -60,7 +61,10 @@ func TestConnectAgentHost_WritesWhatKapiInitWrites(t *testing.T) {
 	assert.Equal(t, []string{"claude-code", "cursor", "vscode", "codex", "claude-desktop"}, names)
 	assert.True(t, hostRow(t, rows, "claude-code").Detected, "Claude Code counts as in use, as kapi init counts it")
 	assert.False(t, hostRow(t, rows, "cursor").Detected)
-	assert.False(t, hostRow(t, rows, "claude-desktop").Detected, "its configuration folder does not exist")
+	desktop := hostRow(t, rows, "claude-desktop")
+	assert.False(t, desktop.Detected, "its configuration folder does not exist")
+	assert.Equal(t, []string{filepath.Join(missing, claudeDesktopConfigFile)}, desktop.Files,
+		"the file Connect would write is named before it is written")
 
 	for _, h := range []string{"claude-code", "cursor", "vscode", "codex"} {
 		_, err := app.ConnectAgentHost(tab, h)
@@ -135,6 +139,11 @@ func TestConnectAgentHost_ClaudeDesktop(t *testing.T) {
 	abs, err := filepath.Abs(recipe)
 	require.NoError(t, err)
 
+	rows, err := app.AgentHosts(tab)
+	require.NoError(t, err)
+	assert.Equal(t, AgentHostStatus{Host: agentHostClaudeDesktop, Label: "Claude Desktop", Detected: true,
+		Files: []string{config}}, hostRow(t, rows, agentHostClaudeDesktop), "named before it is connected")
+
 	res, err := app.ConnectAgentHost(tab, agentHostClaudeDesktop)
 	require.NoError(t, err)
 	require.Len(t, res.Files, 1)
@@ -153,7 +162,7 @@ func TestConnectAgentHost_ClaudeDesktop(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, fs.FileMode(0o600), info.Mode().Perm(), "the file keeps its mode")
 
-	rows, err := app.AgentHosts(tab)
+	rows, err = app.AgentHosts(tab)
 	require.NoError(t, err)
 	assert.Equal(t, AgentHostStatus{Host: agentHostClaudeDesktop, Label: "Claude Desktop", Detected: true, Wired: true,
 		Files: []string{config}}, hostRow(t, rows, agentHostClaudeDesktop))
