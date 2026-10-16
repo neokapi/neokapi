@@ -3,16 +3,19 @@
 // tool call, so this is the part of the context it always has.
 //
 // A file kapi has not written yet is marked, and Write them now writes every
-// missing one, the way `kapi context sync --files-only` does.
+// missing one, the way `kapi context sync --files-only` does. Until one is
+// written, the empty state says where the rules go.
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronRight } from "lucide-react";
+import { t } from "@neokapi/i18n-react/runtime";
+import { ChevronRight, FileText } from "lucide-react";
 import {
   Badge,
   Button,
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
+  EmptyState,
   ErrorNotice,
   LoadingSpinner,
 } from "@neokapi/ui-primitives";
@@ -46,48 +49,56 @@ export function RulesFilesView({ tabID, rulesFiles: given }: RulesFilesViewProps
 
   const files = given ?? query.data ?? null;
   const missing = (files ?? []).some((f) => !f.exists);
+  // Nothing written yet: the empty state carries the one action.
+  const noneWritten = !!files && files.length > 0 && files.every((f) => !f.exists);
+  const writeButton = (
+    <Button
+      size="sm"
+      variant="outline"
+      data-slot="rules-files-write"
+      disabled={write.isPending}
+      onClick={() => write.mutate()}
+    >
+      {write.isPending && <LoadingSpinner size="sm" />}
+      Write them now
+    </Button>
+  );
 
   return (
     <div data-slot="rules-files">
-      <p className="text-sm text-muted-foreground">
-        kapi writes the rules into <code translate="no">AGENTS.md</code> and{" "}
-        <code translate="no">CLAUDE.md</code>, which an assistant reads as it starts.
-      </p>
-
       {query.error && !given ? (
-        <ErrorNotice
-          error={query.error}
-          title="The rules files could not be read"
-          className="mt-3"
-        />
+        <ErrorNotice error={query.error} title="The rules files could not be read" />
       ) : !files ? (
-        query.isLoading && <LoadingSpinner className="mt-3" />
+        query.isLoading && <LoadingSpinner />
       ) : files.length === 0 ? (
-        <p data-slot="rules-files-none" className="mt-3 text-sm text-muted-foreground">
-          No rules files: the project&apos;s context holds no rules yet.
-        </p>
+        <div data-slot="rules-files-none">
+          <EmptyState
+            icon={<FileText size={20} className="mx-auto" />}
+            title="No rules files"
+            description="The project's context holds no rules yet, so kapi writes no file."
+          />
+        </div>
       ) : (
-        <ul className="mt-3 divide-y divide-border/60 border-y border-border/60">
-          {files.map((f) => (
-            <RulesFileRow key={f.path} file={f} />
-          ))}
-        </ul>
+        <>
+          {noneWritten && (
+            <div data-slot="rules-files-empty" className="mb-3">
+              <EmptyState
+                icon={<FileText size={20} className="mx-auto" />}
+                title="No rules file written yet"
+                description={rulesFilesHelp()}
+                action={writeButton}
+              />
+            </div>
+          )}
+          <ul className="divide-y divide-border/60 border-y border-border/60">
+            {files.map((f) => (
+              <RulesFileRow key={f.path} file={f} />
+            ))}
+          </ul>
+          {missing && !noneWritten && <div className="mt-3">{writeButton}</div>}
+        </>
       )}
 
-      {missing && (
-        <div className="mt-3 flex items-center gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            data-slot="rules-files-write"
-            disabled={write.isPending}
-            onClick={() => write.mutate()}
-          >
-            Write them now
-          </Button>
-          {write.isPending && <LoadingSpinner size="sm" />}
-        </div>
-      )}
       {write.data && <WroteRulesFiles result={write.data} />}
       {write.error && (
         <ErrorNotice
@@ -96,11 +107,14 @@ export function RulesFilesView({ tabID, rulesFiles: given }: RulesFilesViewProps
           className="mt-2"
         />
       )}
-
-      <p className="mt-3 text-[11px] text-muted-foreground">
-        The same as <code translate="no">kapi context sync --files-only</code>.
-      </p>
     </div>
+  );
+}
+
+/** Where kapi writes the rules: the empty state's text and the tab's tooltip. */
+export function rulesFilesHelp(): string {
+  return t(
+    "kapi writes the rules into AGENTS.md and CLAUDE.md, which an assistant reads as it starts.",
   );
 }
 

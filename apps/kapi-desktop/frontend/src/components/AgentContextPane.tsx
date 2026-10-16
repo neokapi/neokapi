@@ -3,9 +3,10 @@
 // An agent working in this project reads kapi's section of AGENTS.md and
 // CLAUDE.md, and the `context_read` tool or `context://<path>` resource for
 // more; a person at a terminal runs `kapi context <path>`. One host resolution
-// answers all of them, and this pane shows that answer for a file the reader picks: the point
-// it resolves to, the voice in force, the terms that apply, and the body the
-// agent receives word for word.
+// answers all of them, and this pane shows that answer for a file the reader
+// picks: the point it resolves to, the voice in force, the terms that apply,
+// and the body the agent receives word for word. The picker spans the pane,
+// and the answer flows below it in the page, which scrolls.
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -17,7 +18,6 @@ import {
   EmptyState,
   ErrorNotice,
   LoadingSpinner,
-  ScrollArea,
   Select,
   SelectContent,
   SelectItem,
@@ -53,46 +53,40 @@ export function AgentContextPane({ tabID, path }: AgentContextPaneProps) {
   });
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="shrink-0 border-b border-border px-6 py-3">
-        <Select value={selected} onValueChange={setSelected}>
-          <SelectTrigger size="sm" className="w-full max-w-xl" aria-label={t("Choose a file")}>
-            <SelectValue placeholder={t("Choose a file")} />
-          </SelectTrigger>
-          <SelectContent>
-            {files.map((file) => (
-              <SelectItem key={file.value} value={file.value}>
-                {/* A path and the collection claiming it are the project's own
-                    content, so neither is translated. */}
-                <span translate="no">{file.value}</span>
-                {file.label && (
-                  <span translate="no" className="ml-2 text-xs text-muted-foreground">
-                    {file.label}
-                  </span>
-                )}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+    <div data-slot="agent-context" className="space-y-4">
+      <Select value={selected} onValueChange={setSelected}>
+        <SelectTrigger size="sm" className="w-full" aria-label={t("Choose a file")}>
+          <SelectValue placeholder={t("Choose a file")} />
+        </SelectTrigger>
+        <SelectContent>
+          {files.map((file) => (
+            <SelectItem key={file.value} value={file.value}>
+              {/* A path and the collection claiming it are the project's own
+                  content, so neither is translated. */}
+              <span translate="no">{file.value}</span>
+              {file.label && (
+                <span translate="no" className="ml-2 text-xs text-muted-foreground">
+                  {file.label}
+                </span>
+              )}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
 
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="px-6 py-4">
-          {!selected ? (
-            <EmptyState
-              icon={<FileSearch size={20} />}
-              title="No file chosen"
-              description="Choose a file above to read what an agent is told about it."
-            />
-          ) : answerQuery.isLoading ? (
-            <LoadingSpinner />
-          ) : answerQuery.error ? (
-            <ErrorNotice error={answerQuery.error} title="This file's context could not be read" />
-          ) : answerQuery.data ? (
-            <AgentContextBody view={answerQuery.data} />
-          ) : null}
-        </div>
-      </ScrollArea>
+      {!selected ? (
+        <EmptyState
+          icon={<FileSearch size={20} className="mx-auto" />}
+          title="No file chosen"
+          description="Choose a file above to read what an agent is told about it."
+        />
+      ) : answerQuery.isLoading ? (
+        <LoadingSpinner />
+      ) : answerQuery.error ? (
+        <ErrorNotice error={answerQuery.error} title="This file's context could not be read" />
+      ) : answerQuery.data ? (
+        <AgentContextBody view={answerQuery.data} />
+      ) : null}
     </div>
   );
 }
