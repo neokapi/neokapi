@@ -57,7 +57,9 @@ export const Drift: Story = { args: { digest: onlySection("drift") } };
 export const NothingNew: Story = { args: { digest: QUIET_DIGEST } };
 
 /** A project nobody has looked at and nothing is recorded about. */
-export const Empty: Story = { args: { digest: EMPTY_DIGEST, since: undefined } };
+export const Empty: Story = {
+  args: { digest: EMPTY_DIGEST, since: undefined, onConnectAssistant: fn() },
+};
 
 /** No checkout of the project on this machine: the digest reads, and offers no decisions. */
 export const ReadOnly: Story = { args: { canDecide: false, onOpenFile: undefined } };

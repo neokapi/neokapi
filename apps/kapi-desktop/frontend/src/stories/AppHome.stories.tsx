@@ -1,11 +1,15 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { AppHome } from "../components/AppHome";
-import { CONTEXT_FEED } from "./fixtures/contextFeed";
 import { documentConflict } from "./fixtures/keptConflicts";
+import {
+  LOCATION,
+  ONE_PROJECT_ROWS,
+  SEVERAL_ROWS,
+  WORKSPACE_RULES,
+  workspaceOf,
+} from "./fixtures/standings";
 import type { WorkspaceHome } from "../types/api";
-
-const LOCATION = "/fakehome/.local/share/kapi/workspaces/default";
 
 function workspace(projects: WorkspaceHome["projects"]): WorkspaceHome {
   return { location: LOCATION, read_only: false, projects };
@@ -16,7 +20,12 @@ const meta: Meta<typeof AppHome> = {
   component: AppHome,
   tags: ["autodocs"],
   args: {
-    samplesDismissed: false,
+    workspaceRules: [],
+    startHereDismissed: false,
+    hasOpenProject: false,
+    onDismissStartHere: fn(),
+    onConnectAssistant: fn(),
+    onOpenWhatsNew: fn(),
     onOpenCheckout: fn(),
     onOpenContext: fn(),
     onForgetProject: fn(),
@@ -24,7 +33,6 @@ const meta: Meta<typeof AppHome> = {
     onOpenProject: fn(),
     onNavigate: fn(),
     onCreateSampleProject: fn(),
-    onDismissSamples: fn(),
   },
   parameters: {
     layout: "fullscreen",
@@ -34,35 +42,44 @@ const meta: Meta<typeof AppHome> = {
 export default meta;
 type Story = StoryObj<typeof AppHome>;
 
-/** The ordinary case: a few projects, each with one checkout here. */
-export const WithProjects: Story = {
+/** The first run: nothing has registered, nothing is recorded, and Start here carries the screen. */
+export const FirstRun: Story = {
+  args: { workspace: workspace([]) },
+};
+
+/** One project with four new items while claude-code is working in it. */
+export const OneProjectWorking: Story = {
   args: {
-    workspace: workspace([
-      {
-        key: "prj_acmeapp",
-        name: "Acme App",
-        last_active: "2026-09-20T14:30:00Z",
-        checkouts: [
-          {
-            path: "/fakehome/projects/acme-app",
-            recipe: "/fakehome/projects/acme-app/kapi.yaml",
-            missing: false,
-          },
-        ],
-      },
-      {
-        key: "prj_website",
-        name: "Website",
-        last_active: "2026-09-18T09:15:00Z",
-        checkouts: [
-          {
-            path: "/fakehome/projects/website",
-            recipe: "/fakehome/projects/website/kapi.yaml",
-            missing: false,
-          },
-        ],
-      },
-    ]),
+    workspace: workspaceOf(ONE_PROJECT_ROWS),
+    hasOpenProject: true,
+  },
+};
+
+/**
+ * Several projects, newest session first. KapiMart holds a disagreement, so
+ * its row reads Decide; Field Guide is quiet and has no row under What's new.
+ */
+export const SeveralProjects: Story = {
+  args: {
+    workspace: workspaceOf(SEVERAL_ROWS),
+    startHereDismissed: true,
+  },
+};
+
+/** Two rules hold in every project: one kept in a review, one merged. */
+export const WithWorkspaceRules: Story = {
+  args: {
+    workspace: workspaceOf(SEVERAL_ROWS),
+    workspaceRules: WORKSPACE_RULES,
+    startHereDismissed: true,
+  },
+};
+
+/** A workspace directory that refuses writes: readable, and nothing new joins. */
+export const ReadOnlyWorkspace: Story = {
+  args: {
+    startHereDismissed: true,
+    workspace: workspaceOf(ONE_PROJECT_ROWS, true),
   },
 };
 
@@ -72,7 +89,8 @@ export const WithProjects: Story = {
  */
 export const WithDocumentConflict: Story = {
   args: {
-    ...WithProjects.args,
+    workspace: workspaceOf(ONE_PROJECT_ROWS),
+    startHereDismissed: true,
     documentConflicts: [
       {
         ...documentConflict,
@@ -82,16 +100,6 @@ export const WithDocumentConflict: Story = {
   },
 };
 
-/** Nothing has registered yet, so the sample cards carry the screen. */
-export const Empty: Story = {
-  args: { workspace: workspace([]) },
-};
-
-/** Sample cards hidden after the user dismisses them. */
-export const SamplesDismissed: Story = {
-  args: { workspace: workspace([]), samplesDismissed: true },
-};
-
 /**
  * Two worktrees of one repository are one project with two places to open it
  * from; a checkout that went away is shown as missing rather than dropped; and
@@ -99,7 +107,7 @@ export const SamplesDismissed: Story = {
  */
 export const CheckoutsAndLosses: Story = {
   args: {
-    samplesDismissed: true,
+    startHereDismissed: true,
     workspace: workspace([
       {
         key: "prj_kapimart",
@@ -140,71 +148,11 @@ export const CheckoutsAndLosses: Story = {
   },
 };
 
-/** A workspace directory that refuses writes: readable, and nothing new joins. */
-export const ReadOnlyWorkspace: Story = {
-  args: {
-    samplesDismissed: true,
-    workspace: {
-      location: LOCATION,
-      read_only: true,
-      projects: [
-        {
-          key: "prj_acmeapp",
-          name: "Acme App",
-          last_active: "2026-09-20T14:30:00Z",
-          checkouts: [
-            {
-              path: "/fakehome/projects/acme-app",
-              recipe: "/fakehome/projects/acme-app/kapi.yaml",
-              missing: false,
-            },
-          ],
-        },
-      ],
-    },
-  },
-};
-
 /** The workspace could not be opened at all. */
 export const WorkspaceUnreadable: Story = {
   args: {
-    samplesDismissed: true,
+    startHereDismissed: true,
     workspace: null,
     workspaceError: new Error("workspace: /fakehome/Dropbox/kapi is inside a synchronized folder"),
-  },
-};
-
-/**
- * An agent has been working in KapiMart while the app was open: its proposal
- * is on the feed with the evidence behind it, and the line beside the project
- * says what is new since the person last looked there.
- */
-export const WithRecordedWork: Story = {
-  args: {
-    samplesDismissed: true,
-    news: [
-      {
-        project: "prj_kapimart",
-        project_name: "KapiMart",
-        new: 1,
-        conflicts: 0,
-        since: new Date(Date.now() - 2 * 86_400_000).toISOString(),
-      },
-    ],
-    feed: CONTEXT_FEED,
-    workspace: workspace([
-      {
-        key: "prj_kapimart",
-        name: "KapiMart",
-        last_active: "2026-09-21T09:00:00Z",
-        checkouts: [
-          {
-            path: "/fakehome/src/kapimart",
-            recipe: "/fakehome/src/kapimart/kapi.yaml",
-            missing: false,
-          },
-        ],
-      },
-    ]),
   },
 };

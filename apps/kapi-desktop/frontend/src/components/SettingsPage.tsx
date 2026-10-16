@@ -4,6 +4,7 @@ import { loadTranslations, setTranslations, t } from "@neokapi/i18n-react/runtim
 import { api, type VersionInfo } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import {
+  Button,
   Card,
   CardContent,
   Switch,
@@ -43,14 +44,25 @@ export interface SettingsPageProps {
   theme?: ThemeMode;
   /** Pre-loaded UI language for Storybook — skips api.getSettings(). */
   uiLanguage?: UILanguage;
+  /** Whether the home's Start here steps are dismissed, as the app holds it. */
+  startHereDismissed?: boolean;
+  /** Bring Start here back. Absent writes the setting directly. */
+  onRestoreStartHere?: () => void;
 }
 
-export function SettingsPage({ theme: propTheme, uiLanguage: propLang }: SettingsPageProps = {}) {
+export function SettingsPage({
+  theme: propTheme,
+  uiLanguage: propLang,
+  startHereDismissed: propStartHere,
+  onRestoreStartHere,
+}: SettingsPageProps = {}) {
   const [theme, setTheme] = useState<ThemeMode>(propTheme ?? "system");
   const [uiLanguage, setUILanguage] = useState<UILanguage>(propLang ?? "en");
   const [loading, setLoading] = useState(!propTheme);
   const [version, setVersion] = useState<VersionInfo | null>(null);
   const [telemetryOn, setTelemetryOn] = useState(true);
+  const [startHereRead, setStartHereRead] = useState(false);
+  const startHereDismissed = propStartHere ?? startHereRead;
 
   const { showError } = useError();
 
@@ -76,6 +88,7 @@ export function SettingsPage({ theme: propTheme, uiLanguage: propLang }: Setting
           const l = (settings.ui_language || "en") as UILanguage;
           setUILanguage(l);
           setTelemetryOn(!settings.telemetry_disabled);
+          setStartHereRead(!!settings.start_here_dismissed);
         }
       })
       .catch((err) => {
@@ -123,6 +136,15 @@ export function SettingsPage({ theme: propTheme, uiLanguage: propLang }: Setting
     },
     [showError],
   );
+
+  const handleRestoreStartHere = useCallback(() => {
+    if (onRestoreStartHere) {
+      onRestoreStartHere();
+      return;
+    }
+    setStartHereRead(false);
+    api.restoreStartHere().catch((err) => showError("Failed to save the setting", err));
+  }, [onRestoreStartHere, showError]);
 
   const handleLanguageChange = useCallback(
     async (next: UILanguage) => {
@@ -211,6 +233,26 @@ export function SettingsPage({ theme: propTheme, uiLanguage: propLang }: Setting
                   Pseudo English expands strings and adds accents, which is useful for multilingual
                   checks.
                 </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <div className="mb-3 text-sm font-medium">{t("Home")}</div>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-xs text-muted-foreground">
+                    {t("Start here walks through a first project and a first assistant.")}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    data-slot="restore-start-here"
+                    disabled={!startHereDismissed}
+                    onClick={handleRestoreStartHere}
+                  >
+                    Show Start here again
+                  </Button>
+                </div>
               </CardContent>
             </Card>
 

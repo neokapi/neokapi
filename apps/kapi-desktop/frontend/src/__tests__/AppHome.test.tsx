@@ -2,6 +2,12 @@ import { render, screen } from "./testUtils";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi } from "vitest";
 import { AppHome } from "../components/AppHome";
+import {
+  ONE_PROJECT_ROWS,
+  SEVERAL_ROWS,
+  WORKSPACE_RULES,
+  workspaceOf,
+} from "../stories/fixtures/standings";
 import type { WorkspaceHome, WorkspaceProject } from "../types/api";
 
 const emptyWorkspace: WorkspaceHome = {
@@ -12,7 +18,12 @@ const emptyWorkspace: WorkspaceHome = {
 
 const defaultProps = {
   workspace: emptyWorkspace,
-  samplesDismissed: false,
+  workspaceRules: [],
+  startHereDismissed: false,
+  hasOpenProject: false,
+  onDismissStartHere: vi.fn(),
+  onConnectAssistant: vi.fn(),
+  onOpenWhatsNew: vi.fn(),
   onOpenCheckout: vi.fn(),
   onOpenContext: vi.fn(),
   onForgetProject: vi.fn(),
@@ -20,7 +31,6 @@ const defaultProps = {
   onOpenProject: vi.fn(),
   onNavigate: vi.fn(),
   onCreateSampleProject: vi.fn(),
-  onDismissSamples: vi.fn(),
 };
 
 /** One project with one live checkout. */
@@ -44,38 +54,112 @@ function withProjects(...projects: WorkspaceProject[]): WorkspaceHome {
   return { ...emptyWorkspace, projects };
 }
 
+const slot = (name: string) => document.querySelector(`[data-slot='${name}']`);
+
 describe("AppHome", () => {
-  it("shows sample project cards when not dismissed", () => {
+  it("opens on your context, with what it is", () => {
     render(<AppHome {...defaultProps} />);
-    expect(screen.getByText("KapiMart")).toBeInTheDocument();
-    expect(screen.getByText(/New to Kapi/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Your context" })).toBeInTheDocument();
+    expect(
+      screen.getByText("What your projects write by, and what your assistants noticed."),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/workspaces\/default/)).toBeInTheDocument();
   });
 
-  it("hides sample project cards when dismissed", () => {
-    render(<AppHome {...defaultProps} samplesDismissed={true} />);
-    expect(screen.queryByText("KapiMart")).not.toBeInTheDocument();
-    expect(screen.queryByText("OkapiMart")).not.toBeInTheDocument();
+  it("composes the sections in the order a reader meets them", () => {
+    render(
+      <AppHome
+        {...defaultProps}
+        workspace={workspaceOf(SEVERAL_ROWS)}
+        workspaceRules={WORKSPACE_RULES}
+      />,
+    );
+    const order = [
+      "workspace-numbers",
+      "whats-new",
+      "home-projects",
+      "workspace-rules",
+      "start-here",
+    ].map((name) => slot(name));
+    expect(order.every(Boolean)).toBe(true);
+    for (let i = 1; i < order.length; i++) {
+      expect(
+        order[i - 1]!.compareDocumentPosition(order[i]!) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    }
+    const quickTools = screen.getByText("Quick tools");
+    expect(
+      slot("start-here")!.compareDocumentPosition(quickTools) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
-  it("calls onCreateSampleProject with 'kapimart' when clicking KapiMart", async () => {
+  it("reads the standings off the workspace's rows", () => {
+    render(<AppHome {...defaultProps} workspace={workspaceOf(ONE_PROJECT_ROWS)} />);
+    expect(
+      screen.getByText("kapi knows 23 rules across 1 project. 4 suggestions are advising."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("claude-code is working in Acme Help Center now.")).toBeInTheDocument();
+  });
+
+  it("opens a project on its What's new from the row", async () => {
+    const onOpenWhatsNew = vi.fn();
+    render(
+      <AppHome
+        {...defaultProps}
+        workspace={workspaceOf(ONE_PROJECT_ROWS)}
+        onOpenWhatsNew={onOpenWhatsNew}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Review" }));
+    expect(onOpenWhatsNew).toHaveBeenCalledWith("prj_acmehelp");
+  });
+
+  it("says nothing is recorded on a first run", () => {
+    render(<AppHome {...defaultProps} />);
+    expect(screen.getByText("Nothing is recorded yet.")).toBeInTheDocument();
+    expect(slot("whats-new")).toBeNull();
+  });
+
+  it("no longer carries the raw feed", () => {
+    render(<AppHome {...defaultProps} />);
+    expect(screen.queryByText("Recorded")).not.toBeInTheDocument();
+    expect(slot("context-feed-panel")).toBeNull();
+  });
+
+  it("opens the workspace's history from beside the title", async () => {
+    const onNavigate = vi.fn();
+    render(<AppHome {...defaultProps} onNavigate={onNavigate} />);
+    await userEvent.click(screen.getByRole("button", { name: "History" }));
+    expect(onNavigate).toHaveBeenCalledWith("history");
+  });
+
+  it("shows Start here until it is dismissed", async () => {
+    const onDismissStartHere = vi.fn();
+    const { rerender } = render(
+      <AppHome {...defaultProps} onDismissStartHere={onDismissStartHere} />,
+    );
+    expect(screen.getByText("Start here")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Dismiss Start here" }));
+    expect(onDismissStartHere).toHaveBeenCalled();
+    rerender(<AppHome {...defaultProps} startHereDismissed />);
+    expect(screen.queryByText("Start here")).not.toBeInTheDocument();
+  });
+
+  it("creates the sample from Start here", async () => {
     const onCreateSampleProject = vi.fn();
     render(<AppHome {...defaultProps} onCreateSampleProject={onCreateSampleProject} />);
-    await userEvent.click(screen.getByText("KapiMart"));
+    await userEvent.click(screen.getByTestId("sample-kapimart"));
     expect(onCreateSampleProject).toHaveBeenCalledWith("kapimart");
   });
 
-  it("calls onDismissSamples when clicking dismiss button", async () => {
-    const onDismissSamples = vi.fn();
-    render(<AppHome {...defaultProps} onDismissSamples={onDismissSamples} />);
-    await userEvent.click(screen.getByRole("button", { name: "Dismiss" }));
-    expect(onDismissSamples).toHaveBeenCalled();
-  });
-
-  it("renders quick action buttons", () => {
-    render(<AppHome {...defaultProps} />);
-    expect(screen.getByText("New Project")).toBeInTheDocument();
-    expect(screen.getByText("Open a Project")).toBeInTheDocument();
-    expect(screen.getByText("Design a Flow")).toBeInTheDocument();
+  it("starts and opens projects from small buttons beside the heading", async () => {
+    const onNewProject = vi.fn();
+    const onOpenProject = vi.fn();
+    render(<AppHome {...defaultProps} onNewProject={onNewProject} onOpenProject={onOpenProject} />);
+    await userEvent.click(screen.getByRole("button", { name: "New project" }));
+    await userEvent.click(screen.getByRole("button", { name: "Open a folder" }));
+    expect(onNewProject).toHaveBeenCalled();
+    expect(onOpenProject).toHaveBeenCalled();
   });
 
   it("offers no quick-tool run door", () => {
@@ -85,29 +169,10 @@ describe("AppHome", () => {
     expect(screen.queryByText("Run a Tool")).not.toBeInTheDocument();
   });
 
-  it("leads with a project-first Projects section", () => {
-    render(<AppHome {...defaultProps} />);
-    const projects = screen.getByText("Projects");
-    const quickTools = screen.getByText("Quick tools");
-    expect(projects).toBeInTheDocument();
-    expect(quickTools).toBeInTheDocument();
-    // Project section comes before the secondary quick-tools group in the DOM.
-    expect(
-      projects.compareDocumentPosition(quickTools) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-  });
-
   it("labels the ad-hoc tools as secondary one-off quick tools", () => {
     render(<AppHome {...defaultProps} />);
     expect(screen.getByText("Quick tools")).toBeInTheDocument();
     expect(screen.getByText(/don't need a project/i)).toBeInTheDocument();
-  });
-
-  it("calls onNewProject when clicking New Project", async () => {
-    const onNewProject = vi.fn();
-    render(<AppHome {...defaultProps} onNewProject={onNewProject} />);
-    await userEvent.click(screen.getByText("New Project"));
-    expect(onNewProject).toHaveBeenCalled();
   });
 
   it("navigates to flows from quick tools", async () => {
@@ -121,8 +186,8 @@ describe("AppHome", () => {
   // because kapi has run in it, whichever surface ran.
   describe("the workspace list", () => {
     it("lists what the workspace holds, and where the workspace is", () => {
-      render(<AppHome {...defaultProps} workspace={withProjects(project())} samplesDismissed />);
-      expect(screen.getByText("Your Projects")).toBeInTheDocument();
+      render(<AppHome {...defaultProps} workspace={withProjects(project())} />);
+      expect(screen.getByText("Projects")).toBeInTheDocument();
       expect(screen.getByText("KapiMart")).toBeInTheDocument();
       expect(screen.getByText("prj_kapimart")).toBeInTheDocument();
       expect(screen.getByText(/workspaces\/default/)).toBeInTheDocument();
@@ -188,7 +253,7 @@ describe("AppHome", () => {
           },
         ],
       });
-      render(<AppHome {...defaultProps} workspace={withProjects(gone)} samplesDismissed />);
+      render(<AppHome {...defaultProps} workspace={withProjects(gone)} />);
       expect(screen.getByText("KapiMart")).toBeInTheDocument();
       expect(screen.getByTestId("checkout-missing")).toBeInTheDocument();
       expect(screen.getByText("Missing")).toBeInTheDocument();

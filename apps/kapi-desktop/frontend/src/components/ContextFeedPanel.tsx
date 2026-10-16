@@ -113,6 +113,11 @@ export function ContextFeedPanel({
         onResetSession={(group: ContextFeedGroup) =>
           setResetting({ project: group.project_key ?? "", before: group.session ?? "" })
         }
+        // Resetting to before a reset brings back everything it set aside,
+        // as `kapi context reset --before <reset id>` does.
+        onResetBefore={(entry: ContextFeedEntry) =>
+          setResetting({ project: entry.project_key, before: entry.id })
+        }
         onWiden={(entry, to) => setWidening({ rule: widenRuleOfEntry(entry), to })}
       />
 

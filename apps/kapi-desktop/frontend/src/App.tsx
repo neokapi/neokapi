@@ -3,7 +3,7 @@ import { useNeokapi } from "@neokapi/i18n-react/runtime";
 import type { KapiProject } from "./types/api";
 import { api } from "./hooks/useApi";
 import { useProjectHistory } from "./hooks/useProjectHistory";
-import { useTabManager } from "./hooks/useTabManager";
+import { GLOBAL_OVERLAYS, useTabManager } from "./hooks/useTabManager";
 import { useAppInit } from "./hooks/useAppInit";
 import { useMenuEvents } from "./hooks/useMenuEvents";
 import { ErrorProvider } from "./components/ErrorBanner";
@@ -57,12 +57,31 @@ function AppInner() {
     workspace,
     workspaceError,
     news,
-    samplesDismissed,
+    standings,
+    startHereDismissed,
     refreshWorkspace,
     forgetProject,
-    dismissSamples,
+    dismissStartHere,
+    restoreStartHere,
   } = useAppInit();
   const tm = useTabManager();
+
+  // What's new on the home opens a project on its own What's new: from a
+  // checkout on this machine when there is one, on its context alone when not.
+  const openWhatsNew = useCallback(
+    (key: string) => {
+      const row = workspace?.projects.find((p) => p.key === key);
+      const live = row?.checkouts.find((c) => !c.missing);
+      if (live) void tm.openRecent(live.recipe, "context:rules");
+      else void tm.openWorkspaceContext(key, "context:rules");
+    },
+    [workspace, tm],
+  );
+  // Start here connects an assistant in the most recently opened project.
+  const latestTab = tm.tabs[tm.tabs.length - 1];
+  const connectAssistant = useCallback(() => {
+    if (latestTab) tm.openTabOn(latestTab.info.id, "context:agent");
+  }, [latestTab, tm]);
   const { hasActive: hasRunningFlow } = useJobFeed();
 
   const emptyProject: KapiProject = { version: "v1", name: "" };
@@ -88,7 +107,7 @@ function AppInner() {
   // project names or file paths.
   useEffect(() => {
     const view = tm.effectiveView;
-    const route = view === "home" || view === "app-settings" ? view : `${tm.mode}/${view}`;
+    const route = GLOBAL_OVERLAYS.has(view) ? view : `${tm.mode}/${view.split(":")[0]}`;
     capturePageview(route);
   }, [tm.mode, tm.effectiveView]);
 
@@ -328,7 +347,13 @@ function AppInner() {
                 workspace={workspace}
                 workspaceError={workspaceError}
                 news={news}
-                samplesDismissed={samplesDismissed}
+                standings={standings}
+                startHereDismissed={startHereDismissed}
+                onDismissStartHere={dismissStartHere}
+                onRestoreStartHere={restoreStartHere}
+                hasOpenProject={!!latestTab}
+                onConnectAssistant={connectAssistant}
+                onOpenWhatsNew={openWhatsNew}
                 onOpenCheckout={tm.openRecent}
                 onOpenContext={tm.openWorkspaceContext}
                 onForgetProject={forgetProject}
@@ -338,7 +363,6 @@ function AppInner() {
                 }}
                 onOpenProject={tm.openProject}
                 onCreateSampleProject={tm.createSampleProject}
-                onDismissSamples={dismissSamples}
                 onResetSample={tm.resetSample}
                 adoptTarget={(() => {
                   // In ad-hoc mode, offer adoption into the active project tab, or

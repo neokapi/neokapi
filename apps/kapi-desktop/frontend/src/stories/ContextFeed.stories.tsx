@@ -8,6 +8,7 @@ import {
   CONTEXT_FEED,
   EMPTY_FEED,
   IN_FORCE,
+  RESET_FEED,
   feedEntry,
   feedGroup,
 } from "./fixtures/contextFeed";
@@ -23,6 +24,7 @@ const meta: Meta<typeof ContextFeedList> = {
     onKeep: fn(),
     onDrop: fn(),
     onResetSession: fn(),
+    onResetBefore: fn(),
     onWiden: fn(),
   },
   decorators: [
@@ -93,6 +95,9 @@ export const StillWorking: Story = {
     } satisfies ContextFeed,
   },
 };
+
+/** A person reset the project to before claude's session; the reset itself can be taken back. */
+export const AfterAReset: Story = { args: { feed: RESET_FEED } };
 
 /** Nothing has been recorded in this workspace yet. */
 export const Empty: Story = {

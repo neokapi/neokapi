@@ -838,7 +838,7 @@ async function projectsWalk(c: WalkCtx): Promise<void> {
   // Name it, create it, take the input/output template, and land on the
   // project home. Nothing is governed yet, which is what the next beats change.
   await beat("new-project", null, async () => {
-    await humanClick(page, page.locator('button:has-text("New Project")').first());
+    await humanClick(page, page.locator('button:has-text("New project")').first());
     await page.waitForTimeout(400);
     await humanType(page, page.locator('input[placeholder="My App"]'), "Acme Help Center");
     await page.waitForTimeout(600);
@@ -896,6 +896,9 @@ async function projectsWalk(c: WalkCtx): Promise<void> {
   await page.waitForTimeout(500);
   await landOnHome(page);
   await humanClick(page, page.getByTestId("sample-kapimart"));
+  // A new project tab opens on its Context hub; the plan is on the project home.
+  await page.waitForSelector('button[aria-label="Project"]:not([disabled])', { timeout: 60_000 });
+  await humanClick(page, sidebar("Project"));
   await page.waitForSelector('[data-slot="hero-plan"]', { timeout: 60_000 });
   await page.waitForTimeout(1200);
   await beatEls("plan", ['[data-slot="converge-plan-dialog"]'], async () => {
@@ -995,6 +998,9 @@ async function openSample(page: Page, testid: string, readyLabel: string): Promi
   // Wait until the project has opened and its plugins resolve (the gated sidebar
   // item becomes enabled), so subsequent clicks land on a ready project.
   await page.waitForSelector(ready, { timeout: 60_000 });
+  // A new project tab opens on its Context hub; land on the project home, as
+  // the branch above does, so every caller starts from the same place.
+  await humanClick(page, page.locator('button[aria-label="Project"]'));
   await page.waitForTimeout(1200);
 }
 

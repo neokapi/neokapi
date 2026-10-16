@@ -48,6 +48,7 @@ const adhocItems: SidebarItem[] = [
     view: "home",
     icon: <Home size={20} strokeWidth={SW} />,
     label: "Home",
+    activeViews: ["history"],
   },
   { type: "separator" },
   {
@@ -84,22 +85,25 @@ const projectItems: SidebarItem[] = [
     icon: <Home size={20} strokeWidth={SW} />,
     label: "Home",
     alwaysEnabled: true,
+    // The workspace's history opens from the home and belongs to it.
+    activeViews: ["history"],
   },
   { type: "separator" },
-  {
-    type: "item",
-    view: "project-home",
-    icon: <FolderKanban size={20} strokeWidth={SW} />,
-    label: "Project",
-  },
   {
     type: "item",
     view: "context",
     icon: <Compass size={20} strokeWidth={SW} />,
     label: "Context",
     // Terms and Content Memory are sections of the hub; their view ids stay
-    // routable so a persisted view still opens where it used to.
+    // routable so a persisted view still opens where it used to. A view of
+    // the form "context:<section>" opens the hub on one section.
     activeViews: ["termbases", "memories"],
+  },
+  {
+    type: "item",
+    view: "project-home",
+    icon: <FolderKanban size={20} strokeWidth={SW} />,
+    label: "Project",
   },
   {
     type: "item",
@@ -151,7 +155,10 @@ export function IconSidebar({
             return null;
           }
           const disabled = mode === "projects" && projectDisabled && !item.alwaysEnabled;
-          const isActive = active === item.view || (item.activeViews?.includes(active) ?? false);
+          const isActive =
+            active === item.view ||
+            active.startsWith(`${item.view}:`) ||
+            (item.activeViews?.includes(active) ?? false);
           const title = disabled ? `${item.label} (open a project first)` : item.label;
           return (
             <SimpleTooltip key={item.view} content={title} side="right">

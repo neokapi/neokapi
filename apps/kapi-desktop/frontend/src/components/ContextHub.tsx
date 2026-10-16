@@ -1,29 +1,52 @@
 // The Context pillar, and the surfaces that read the project's context graph.
 //
-// One rail, one model: Rules holds the rules and suggestions kapi keeps for
-// the project, and is where a person reviews them; the explorer answers a
-// question at a point, Voice reads
-// the profile governing each point whole, and the two stores hold what that
-// governance is made of. Filing the stores here says what they are — the terms
-// a project has agreed and the wording it has already approved are OF its
-// context, not separate cabinets beside it.
+// One rail, in the order a person meets it: What's new holds the rules and
+// suggestions kapi keeps for the project and is where a person reviews them;
+// Ask answers a question at a point; Assistant shows what an assistant reads;
+// Voice reads the profile governing each point whole; the two stores hold
+// what that governance is made of; History lists every operation, with the
+// resets; Share says how far the context reaches. Filing the stores here says
+// what they are: the terms a project has agreed and the wording it has
+// already approved are part of its context.
 //
 // Memory stays behind the gate the sidebar applies: a project with no target
 // languages is not shown a surface it has nothing to put in.
 
 import { useState } from "react";
-import { BookOpen, Bot, Compass, Database, MessageSquareQuote, Sparkles } from "lucide-react";
-import { ScrollArea, cn } from "@neokapi/ui-primitives";
+import { useQuery } from "@tanstack/react-query";
+import {
+  BookOpen,
+  Bot,
+  Compass,
+  Database,
+  History,
+  MessageSquareQuote,
+  Share2,
+  Sparkles,
+} from "lucide-react";
+import { LoadingSpinner, PageHeader, ScrollArea, cn } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
-import { AgentContextPane } from "./AgentContextPane";
+import { api } from "../hooks/useApi";
+import { qk } from "../lib/queryKeys";
+import { AssistantPanel } from "./AssistantPanel";
 import { ContextDigestPanel } from "./ContextDigestPanel";
 import { ContextExplorerView } from "./ContextExplorerView";
+import { ContextFeedPanel } from "./ContextFeedPanel";
 import { VoicePage } from "./VoicePage";
 import { TermsPage } from "./TermsPage";
 import { MemoriesPage } from "./MemoriesPage";
+import { SharePanel } from "./SharePanel";
 
 /** The surfaces filed under Context. */
-export type ContextSection = "rules" | "explorer" | "agent" | "voice" | "terms" | "memory";
+export type ContextSection =
+  | "rules"
+  | "explorer"
+  | "agent"
+  | "voice"
+  | "terms"
+  | "memory"
+  | "history"
+  | "share";
 
 /** A point to open the explorer standing at, and what sent it there. */
 export interface ContextPin {
@@ -64,7 +87,9 @@ const SECTIONS: Array<{
 }> = [
   { id: "rules", icon: <Sparkles size={14} /> },
   { id: "explorer", icon: <Compass size={14} />, needsCheckout: true },
-  { id: "agent", icon: <Bot size={14} />, needsCheckout: true },
+  // A context-only tab keeps the Assistant: its connections part says a
+  // checkout is needed, and the parts that read files stay out.
+  { id: "agent", icon: <Bot size={14} /> },
   {
     id: "voice",
     icon: <MessageSquareQuote size={14} />,
@@ -72,7 +97,22 @@ const SECTIONS: Array<{
   },
   { id: "terms", icon: <BookOpen size={14} /> },
   { id: "memory", icon: <Database size={14} />, localeGated: true },
+  { id: "history", icon: <History size={14} /> },
+  // A context-only tab keeps Share: the panel offers it the first rung only.
+  { id: "share", icon: <Share2 size={14} /> },
 ];
+
+/**
+ * The section a view opens the hub on: "context:<section>" names one, and the
+ * stores' own view ids stay routable so a persisted view lands where it did.
+ */
+export function contextSectionOf(view: string): ContextSection | undefined {
+  if (view === "termbases") return "terms";
+  if (view === "memories") return "memory";
+  const [base, section] = view.split(":");
+  if (base !== "context" || !section) return undefined;
+  return SECTIONS.find((s) => s.id === section)?.id;
+}
 
 export function ContextHub({
   tabID,
@@ -96,6 +136,7 @@ export function ContextHub({
   // A section the project's languages or its missing checkout gated away must
   // not stay selected.
   const current = sections.some((s) => s.id === active) ? active : sections[0].id;
+  const offers = (id: ContextSection) => sections.some((s) => s.id === id);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -125,25 +166,34 @@ export function ContextHub({
         {current === "explorer" && (
           <ContextExplorerView tabID={tabID} projectName={projectName} pin={unitPin ?? pin} />
         )}
-        {current === "agent" && <AgentContextPane tabID={tabID} path={pin?.path} />}
+        {current === "agent" && (
+          <ScrollArea className="h-full">
+            <div className="mx-auto max-w-3xl px-6 py-5">
+              <AssistantPanel tabID={tabID} path={pin?.path} contextOnly={contextOnly} />
+            </div>
+          </ScrollArea>
+        )}
         {current === "rules" && (
           <ScrollArea className="h-full">
             <div className="mx-auto max-w-3xl px-6 py-5">
-              <h2 className="text-lg font-semibold">Rules and suggestions for {projectName}</h2>
-              <div className="mt-3">
-                <ContextDigestPanel
-                  tabID={tabID}
-                  canDecide={!contextOnly}
-                  onOpenFile={
-                    contextOnly
-                      ? undefined
-                      : (path) => {
-                          setUnitPin({ path });
-                          setActive("explorer");
-                        }
-                  }
-                />
-              </div>
+              <PageHeader
+                className="mb-3"
+                title={t("What's new for {project}", { project: projectName })}
+                subtitle={<ReviewCommand />}
+              />
+              <ContextDigestPanel
+                tabID={tabID}
+                canDecide={!contextOnly}
+                onOpenFile={
+                  contextOnly
+                    ? undefined
+                    : (path) => {
+                        setUnitPin({ path });
+                        setActive("explorer");
+                      }
+                }
+                onConnectAssistant={offers("agent") ? () => setActive("agent") : undefined}
+              />
             </div>
           </ScrollArea>
         )}
@@ -160,8 +210,57 @@ export function ContextHub({
             }}
           />
         )}
+        {current === "history" && (
+          <ScrollArea className="h-full">
+            <div className="mx-auto max-w-3xl px-6 py-5">
+              <PageHeader className="mb-3" title="History" subtitle={<LogCommand />} />
+              <ProjectHistory tabID={tabID} />
+            </div>
+          </ScrollArea>
+        )}
+        {current === "share" && (
+          <ScrollArea className="h-full">
+            <div className="mx-auto max-w-3xl px-6 py-5">
+              <SharePanel tabID={tabID} contextOnly={contextOnly} />
+            </div>
+          </ScrollArea>
+        )}
       </div>
     </div>
+  );
+}
+
+/**
+ * The project's own feed. The feed is narrowed by the workspace's key for the
+ * project, which the digest's first read carries; this shares that read.
+ */
+function ProjectHistory({ tabID }: { tabID: string }) {
+  const digest = useQuery({
+    queryKey: qk.projectContextDigest(tabID, ""),
+    queryFn: () => api.projectContextDigest(tabID, ""),
+  });
+  const key = digest.data?.project;
+  if (!key) return digest.isLoading ? <LoadingSpinner /> : null;
+  return <ContextFeedPanel projectKey={key} />;
+}
+
+/*
+ * The command a section does the work of, for the reader who has a terminal.
+ * Share and Assistant name theirs inside their own panels, the same way.
+ */
+function ReviewCommand() {
+  return (
+    <span data-slot="context-section-command">
+      The same as <code translate="no">kapi context review</code>.
+    </span>
+  );
+}
+
+function LogCommand() {
+  return (
+    <span data-slot="context-section-command">
+      The same as <code translate="no">kapi context log</code>.
+    </span>
   );
 }
 
@@ -169,16 +268,20 @@ export function ContextHub({
 function SectionLabel({ id }: { id: ContextSection }) {
   switch (id) {
     case "rules":
-      return <>Rules</>;
+      return <>What&apos;s new</>;
     case "explorer":
-      return <>Explorer</>;
+      return <>Ask</>;
     case "agent":
-      return <>Agent View</>;
+      return <>Assistant</>;
     case "voice":
       return <>Voice</>;
     case "terms":
       return <>Terms</>;
     case "memory":
       return <>Content Memory</>;
+    case "history":
+      return <>History</>;
+    case "share":
+      return <>Share</>;
   }
 }

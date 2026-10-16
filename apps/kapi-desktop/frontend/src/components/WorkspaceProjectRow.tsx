@@ -3,7 +3,7 @@ import { t } from "@neokapi/i18n-react/runtime";
 import { Badge, Button, SimpleTooltip, When } from "@neokapi/ui-primitives";
 import { useShortenHome } from "../hooks/useShortenHome";
 import { formatLook } from "./ContextDigest";
-import type { ContextNews, WorkspaceProject } from "../types/api";
+import type { ContextNews, ProjectSharing, WorkspaceProject } from "../types/api";
 
 interface WorkspaceProjectRowProps {
   project: WorkspaceProject;
@@ -48,14 +48,8 @@ export function WorkspaceProjectRow({
           <div className="flex items-baseline gap-2">
             <span className="truncate text-sm font-medium">{project.name}</span>
             <NewsBadge news={news} />
-            {project.last_active && (
-              <When
-                iso={project.last_active}
-                relative
-                className="shrink-0 text-xs text-muted-foreground"
-              />
-            )}
           </div>
+          <ProjectFacts project={project} />
           <div className="truncate font-mono text-[11px] text-muted-foreground/70">
             {project.key}
           </div>
@@ -157,4 +151,58 @@ function NewsBadge({ news }: { news?: ContextNews }) {
         : t("{count} new", { count: news.new })}
     </Badge>
   );
+}
+
+/** "voice Fernwell · 23 rules · on this Mac · 2 h ago": the project in one line. */
+function ProjectFacts({ project }: { project: WorkspaceProject }) {
+  const parts: React.ReactNode[] = [
+    project.voice ? (
+      <span key="voice">{t("voice {voice}", { voice: project.voice })}</span>
+    ) : (
+      <span key="voice" className="text-muted-foreground/60">
+        no voice bound
+      </span>
+    ),
+  ];
+  if (project.context) {
+    parts.push(
+      <span key="rules">
+        {t("{rules, plural, one {# rule} other {# rules}}", { rules: project.context.rules })}
+      </span>,
+    );
+  }
+  const reach = sharingWord(project.sharing);
+  if (reach) parts.push(<span key="sharing">{reach}</span>);
+  if (project.last_active) {
+    parts.push(<When key="active" iso={project.last_active} relative />);
+  }
+  return (
+    <p
+      data-slot="workspace-project-facts"
+      className="mt-0.5 flex flex-wrap items-baseline gap-x-1 text-[11px] text-muted-foreground"
+    >
+      {parts.map((part, i) => (
+        <span key={i} className="inline-flex items-baseline gap-x-1">
+          {i > 0 && <span aria-hidden>·</span>}
+          {part}
+        </span>
+      ))}
+    </p>
+  );
+}
+
+/** How far the project's context reaches, in the one word the row has room for. */
+export function sharingWord(sharing?: ProjectSharing): string {
+  if (!sharing) return "";
+  if (sharing.venue_host) return t("Bowrain {host}", { host: sharing.venue_host });
+  switch (sharing.kind) {
+    case "git":
+      return t("shared through git");
+    case "file":
+      return t("shared through a folder");
+    case "s3":
+      return t("shared through S3");
+    default:
+      return t("on this Mac");
+  }
 }

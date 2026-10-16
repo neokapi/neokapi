@@ -78,6 +78,8 @@ export const qk = {
   // Settings / system
   settings: () => ["settings"] as const,
   workspaceProjects: () => ["workspace-projects"] as const,
+  /** The rules a person applied to every project in the workspace. */
+  workspaceRules: () => ["workspace-rules"] as const,
   /** What removing one project from the workspace will delete. */
   workspaceRemoval: (key: string) => ["workspace-removal", key] as const,
   /** The resolved context for one file, as an agent receives it. */

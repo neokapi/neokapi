@@ -49,6 +49,8 @@ export interface ContextDigestViewProps {
   onWiden?: (item: DigestItem, to: string) => void;
   /** Open the file an item was seen in. Absent hides the links. */
   onOpenFile?: (path: string) => void;
+  /** Open the project's Assistant section. Absent leaves the empty text without its link. */
+  onConnectAssistant?: () => void;
 }
 
 /** One item the cursor can stand on, with what its keys do. */
@@ -72,6 +74,7 @@ export function ContextDigestView({
   onChoose,
   onWiden,
   onOpenFile,
+  onConnectAssistant,
 }: ContextDigestViewProps) {
   const stops = useMemo<Stop[]>(() => {
     if (!digest) return [];
@@ -202,6 +205,19 @@ export function ContextDigestView({
           Nothing is recorded yet. When you or an agent working here notice a name, a word the
           project avoids or how it addresses its readers, it appears here, and it advises agents and
           checks from the moment it is recorded.
+          {onConnectAssistant && (
+            <>
+              {" "}
+              <button
+                type="button"
+                data-slot="digest-connect-assistant"
+                onClick={onConnectAssistant}
+                className="text-foreground underline underline-offset-2 hover:text-primary"
+              >
+                Connect an assistant to start.
+              </button>
+            </>
+          )}
         </p>
       )}
 
@@ -535,8 +551,11 @@ function Noticed({ item }: { item: DigestItem }) {
   return who.name ? <>Noticed by {who.name}</> : <>Noticed by you</>;
 }
 
-/** The rule as a sentence, with the forms set apart from the words around them. */
-function RuleSentence({ item }: { item: DigestItem }) {
+/**
+ * The rule as a sentence, with the forms set apart from the words around them.
+ * The workspace's rules on the home read through it too.
+ */
+export function RuleSentence({ item }: { item: Pick<DigestItem, "subject" | "sentence"> }) {
   const s = item.subject;
   if (s.kind === "term" && s.term) {
     const avoid = <Forms rule={s.term} />;

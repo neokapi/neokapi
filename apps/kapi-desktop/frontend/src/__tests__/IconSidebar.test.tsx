@@ -58,4 +58,27 @@ describe("IconSidebar", () => {
     expect(screen.getByRole("button", { name: "Formats" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Checks" })).not.toBeInTheDocument();
   });
+
+  it("puts Context first among the project's items", () => {
+    render(
+      <IconSidebar mode="projects" active="home" onChange={vi.fn()} hasTargetLanguages={true} />,
+    );
+    const labels = screen.getAllByRole("button").map((b) => b.getAttribute("aria-label"));
+    expect(labels).toEqual([
+      "Home",
+      "Context",
+      "Project",
+      "Checks",
+      "Review",
+      "Toolbox",
+      "Project Settings",
+      "App Settings",
+    ]);
+  });
+
+  it("keeps Context lit while the hub is open on one of its sections", () => {
+    render(<IconSidebar mode="projects" active="context:agent" onChange={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "Context" }).className).toContain("bg-primary");
+    expect(screen.getByRole("button", { name: "Project" }).className).not.toContain("bg-primary");
+  });
 });

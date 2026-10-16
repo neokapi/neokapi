@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { WorkspaceProjectRow } from "../components/WorkspaceProjectRow";
+import { SEVERAL_ROWS } from "./fixtures/standings";
 
 const meta: Meta<typeof WorkspaceProjectRow> = {
   title: "Components/WorkspaceProjectRow",
@@ -85,4 +86,19 @@ export const NoCheckoutHere: Story = {
       checkouts: [],
     },
   },
+};
+
+/** The line under the name: the voice, the rules and how far the context reaches. */
+export const WithContext: Story = {
+  args: { project: SEVERAL_ROWS[0] },
+};
+
+/** A project shared through git, with two worktrees here. */
+export const SharedThroughGit: Story = {
+  args: { project: SEVERAL_ROWS[1] },
+};
+
+/** A project connected to a Bowrain server, with no checkout here and no voice bound. */
+export const OnBowrain: Story = {
+  args: { project: SEVERAL_ROWS[2] },
 };
