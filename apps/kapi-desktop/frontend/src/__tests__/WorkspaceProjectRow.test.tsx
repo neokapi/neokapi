@@ -95,7 +95,7 @@ describe("a project on the workspace home", () => {
     renderRow({
       context_files: { files: ["kapi/terms.yaml"], command: "kapi store import", message: "" },
     });
-    expect(screen.getByTestId("workspace-context-files")).toHaveTextContent("unread files");
+    expect(screen.getByTestId("workspace-context-files")).toHaveTextContent("Unread files");
   });
 });
 

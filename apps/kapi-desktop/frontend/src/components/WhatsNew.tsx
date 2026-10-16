@@ -207,7 +207,7 @@ function WhatsNewRow({
         size="sm"
         variant="outline"
         data-slot="whats-new-open"
-        className="shrink-0"
+        className="min-w-[4.5rem] shrink-0"
         onClick={(e) => {
           e.stopPropagation();
           onOpen();

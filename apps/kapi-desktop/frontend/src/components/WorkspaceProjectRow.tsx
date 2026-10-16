@@ -109,7 +109,7 @@ export function WorkspaceProjectRow({
             {project.context &&
               t("{rules, plural, one {# rule} other {# rules}}", { rules: project.context.rules })}
           </span>
-          <span data-slot="workspace-project-reach" className="min-w-0">
+          <span data-slot="workspace-project-reach" className="flex min-w-0 items-center">
             {reach && (
               <SimpleTooltip content={reachDetail(project.sharing, shortenHome)}>
                 <span className="inline-flex max-w-full items-center gap-1" tabIndex={0}>
@@ -257,7 +257,7 @@ function ContextFilesBadge({ notice }: { notice: ContextFilesNotice }) {
         className="border-warning/60 text-[11px] font-normal text-[color-mix(in_oklch,var(--warning)_60%,var(--warning-foreground))] dark:text-warning"
       >
         <FileWarning aria-hidden />
-        {t("unread files")}
+        {t("Unread files")}
       </Badge>
     </SimpleTooltip>
   );
