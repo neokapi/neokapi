@@ -74,12 +74,16 @@ export function coordinatesOf(properties?: Record<string, string>): Array<[strin
 export interface ConceptProvenance {
   /** The oldest entry with an actor: who brought the concept into the workspace. */
   added?: ConceptStoryEntry;
-  /** The newest revision or change-set with an actor, when it is not the entry that added it. */
+  /** The newest revision with an actor, when it is not the entry that added it. */
   changed?: ConceptStoryEntry;
 }
 
-/** The story entries that change a concept itself, rather than talk about it. */
-const CHANGING_KINDS: ReadonlySet<ConceptStoryEntry["kind"]> = new Set(["revision", "changeset"]);
+/**
+ * The story entries that change a concept itself, rather than talk about it. A
+ * merged change-set writes a revision of its own, so a change-set entry (one
+ * opened or abandoned) is not a change to the concept.
+ */
+const CHANGING_KINDS: ReadonlySet<ConceptStoryEntry["kind"]> = new Set(["revision"]);
 
 function time(entry: ConceptStoryEntry): number {
   const at = Date.parse(entry.at);

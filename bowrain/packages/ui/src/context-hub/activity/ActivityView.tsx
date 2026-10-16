@@ -376,7 +376,13 @@ function SessionRow({ session, nameOf }: { session: ActivitySession; nameOf: Nam
       }
     >
       <span translate="no">{name}</span>
-      <When iso={session.last} relative className="ml-1.5 text-[11px] text-muted-foreground" />
+      {/* The day is the group's heading, so the row carries the time of day. */}
+      <When
+        iso={session.last}
+        dateStyle="none"
+        timeStyle="short"
+        className="ml-1.5 text-[11px] text-muted-foreground tabular-nums"
+      />
     </ListDetailItem>
   );
 }
@@ -436,9 +442,9 @@ function SessionDetail({
             <When iso={session.last} />
           )}
         </dd>
-        {counts.length > 0 && (
+        {session.items.length > 1 && counts.length > 0 && (
           <>
-            <dt className="text-[11px] text-muted-foreground">Changed</dt>
+            <dt className="text-[11px] text-muted-foreground">Recorded</dt>
             <dd className="min-w-0 tabular-nums">
               {counts.map(([category, count]) => categoryCount(category, count)).join(" · ")}
             </dd>

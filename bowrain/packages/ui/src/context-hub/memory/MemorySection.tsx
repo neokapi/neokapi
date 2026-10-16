@@ -239,26 +239,30 @@ export function MemorySection({ defaultSelected, defaultMarked }: MemorySectionP
   } else if (list.isLoading || !ws) {
     body = <LoadingSpinner />;
   } else if (entries.length === 0 && !q) {
+    // The page's handle stays on it when it is empty, so a link to the content
+    // memory is seen to arrive before anything is held in it.
     body = (
-      <EmptyState
-        className="mx-auto w-full max-w-md"
-        icon={<Languages className="mx-auto size-5" />}
-        title={
-          target
-            ? t("No approved wording into {language} yet", {
-                language: formatLocale(target, { uiLocale: locale, variant: "short" }).name,
-              })
-            : t("No approved wording yet")
-        }
-        description={t(
-          "Each translation a reviewer approves is kept here, so every project in the workspace can reuse it.",
-        )}
-        action={
-          <Button size="sm" variant="outline" onClick={() => setAdding(true)}>
-            Add entry
-          </Button>
-        }
-      />
+      <div data-testid="tm-browser" data-slot="memory-browser" data-empty="">
+        <EmptyState
+          className="mx-auto w-full max-w-md"
+          icon={<Languages className="mx-auto size-5" />}
+          title={
+            target
+              ? t("No approved wording into {language} yet", {
+                  language: formatLocale(target, { uiLocale: locale, variant: "short" }).name,
+                })
+              : t("No approved wording yet")
+          }
+          description={t(
+            "Each translation a reviewer approves is kept here, so every project in the workspace can reuse it.",
+          )}
+          action={
+            <Button size="sm" variant="outline" onClick={() => setAdding(true)}>
+              Add entry
+            </Button>
+          }
+        />
+      </div>
     );
   } else {
     const listPane = (

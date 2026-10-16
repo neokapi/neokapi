@@ -111,6 +111,14 @@ describe("provenanceOf", () => {
     expect(changed?.actor).toBe("maria");
   });
 
+  it("does not read an opened change-set as a change to the concept", () => {
+    const { changed } = provenanceOf([
+      entry({ kind: "revision", at: "2026-06-01T09:00:00Z", actor: "alex" }),
+      entry({ kind: "changeset", at: "2026-06-13T10:00:00Z", actor: "sam" }),
+    ]);
+    expect(changed).toBeUndefined();
+  });
+
   it("does not repeat the adder as the last change", () => {
     const { added, changed } = provenanceOf([entry({ actor: "alex" })]);
     expect(added?.actor).toBe("alex");
