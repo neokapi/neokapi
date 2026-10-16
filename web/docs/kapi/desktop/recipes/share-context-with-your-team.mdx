@@ -18,9 +18,10 @@ which covers `kapi context sync` and every flag.
 
 ## On this Mac
 
-Every project starts here. Share marks the first rung and reads "In your
-workspace at `<path>`. Every clone and worktree of this project on this Mac
-reads it."
+Every project starts here. Share marks the first rung as current, and its
+card reads "Every clone and worktree of this project on this Mac reads the
+same context." **Workspace** names your workspace folder by its last two
+segments. Hover over it for the full path.
 
 Your workspace is one folder for your account on this machine, and it holds
 the context of every project you work on. kapi joins a checkout to its
@@ -31,9 +32,9 @@ reads none of it until you share it.
 
 ## Choose a place to share it
 
-The second rung reads "Not yet. Name a place and sync, and every machine that
-syncs the project reads the same context." Click **Set up sharing** and choose
-one of three places:
+Click **Set up sharing** on the first rung's card. The second rung's card,
+**Shared with your team**, offers the same button. Choose one of three
+places:
 
 | Place | What it needs | Who can reach it |
 | --- | --- | --- |
@@ -60,22 +61,29 @@ Commit the recipe, so every checkout of the project names the same place.
 Saving offers **Sync now**. A sync takes in what the rest of the team shared
 and merges it here, then shares what this machine recorded, then rewrites the
 project's rules files so the next assistant session reads what the team
-decided. The rung shows the result, such as "Pulled 3, pushed 2, rules files
+decided. The card shows the result, such as "Pulled 3, pushed 2, rules files
 written". Running it twice changes nothing, and two people who sync at once
 both succeed.
 
-Between syncs the rung says where the context is shared and how far apart this
-machine and the shared copy were at the last sync:
+Between syncs the second rung is current, and its card says where the context
+is shared and how far apart this machine and the shared copy were at the last
+sync:
 
-> Through git (origin refs/kapi/context). 2 to push, 0 to pull, as of 10:03.
+| Fact | Example |
+| --- | --- |
+| **Through** | git, `origin refs/kapi/context` |
+| **Last sync** | 10:03 |
+| **To push** | 2 |
+| **To pull** | 0 |
 
-A teammate who pulls the recipe opens the project and clicks **Sync now** on
-the same rung. A fresh clone fetches branches and tags and leaves the context
-ref alone, so the first sync is what brings the context in.
+**Change** opens the same dialog, to name another place. A teammate who pulls
+the recipe opens the project and clicks **Sync now** on the same card. A fresh
+clone fetches branches and tags and leaves the context ref alone, so the first
+sync is what brings the context in.
 
-When the place cannot be reached, the rung ends "The place could not be
-reached at 10:03." Nothing changes here: what this machine recorded waits, and
-the next sync shares it.
+When the place cannot be reached, the card says "The place could not be
+reached at 10:03." and shows the error the place returned. Nothing changes
+here: what this machine recorded waits, and the next sync shares it.
 
 ## A managed workspace
 
@@ -83,7 +91,7 @@ The third rung is a managed workspace: a server that holds every project's
 context in one workspace, with roles, review and a record of who decided what,
 and runs the project's loop on the server. A project reaches one through the
 venue its recipe declares, which is separate from the `context:` place, and
-the rung then names the server and the project there. The note in the
+the rung's card then names the server and the workspace there. The note in the
 [tour](/kapi/desktop/tour#share) says where to read more.
 
 ## Next
