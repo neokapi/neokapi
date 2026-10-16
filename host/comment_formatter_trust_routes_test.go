@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"testing"
@@ -136,21 +137,24 @@ func TestFormatterTrustRoutes(t *testing.T) {
 		marker := filepath.Join(t.TempDir(), "ran")
 		realNode, err := exec.LookPath("node")
 		require.NoError(t, err, "the shim fixture runs node")
-		entryPath, err := filepath.Abs(filepath.Join("..", "node_modules", "vite-plus", "bin", "oxfmt"))
-		require.NoError(t, err)
-		entry, err := filepath.EvalSymlinks(entryPath)
-		require.NoError(t, err, "the shim fixture runs the repository's vite-plus oxfmt; run `vp install` at the repository root")
 		require.NoError(t, os.MkdirAll(bin, 0o755))
 		node := filepath.Join(bin, "node")
 		require.NoError(t, os.WriteFile(node, []byte("#!/bin/sh\nexec '"+realNode+"' \"$@\"\n"), 0o755))
 		// The repository's own pnpm shim, marking each run and pointing at the
-		// vite-plus entry by its absolute path, so it keeps the NODE_PATH the
-		// entry resolves its modules through.
+		// oxfmt entry by its absolute path, so it keeps the NODE_PATH the entry
+		// resolves its modules through. The shim names the entry relative to
+		// node_modules/.bin, in whichever package owns the oxfmt bin.
 		repoShim, err := os.ReadFile(repoOxfmt(t))
 		require.NoError(t, err)
 		shim := strings.Replace(string(repoShim), "#!/bin/sh\n", "#!/bin/sh\necho ran >> '"+marker+"'\n", 1)
 		require.Contains(t, shim, `"$basedir/node"`, "the repository's oxfmt is a pnpm shim")
-		shim = strings.ReplaceAll(shim, `"$basedir/../vite-plus/bin/oxfmt"`, "'"+entry+"'")
+		entryRef := regexp.MustCompile(`"\$basedir/\.\./[^"]+"`).FindString(shim)
+		require.NotEmpty(t, entryRef, "the repository's oxfmt shim runs an entry beside node_modules/.bin")
+		entryPath, err := filepath.Abs(filepath.Join("..", "node_modules", strings.Trim(strings.TrimPrefix(entryRef, `"$basedir/../`), `"`)))
+		require.NoError(t, err)
+		entry, err := filepath.EvalSymlinks(entryPath)
+		require.NoError(t, err, "the shim fixture runs the repository's oxfmt entry; run `vp install` at the repository root")
+		shim = strings.ReplaceAll(shim, entryRef, "'"+entry+"'")
 		require.NoError(t, os.WriteFile(filepath.Join(bin, "oxfmt"), []byte(shim), 0o755))
 		allowAtPrompt(t, a, file, marker)
 
