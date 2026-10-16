@@ -307,8 +307,26 @@ function EvidenceTab({ conceptId, nameOf }: { conceptId: string; nameOf: NameRes
   );
 }
 
+/**
+ * The address an observation's source opens, or null. The URL is workspace
+ * data any member can record, so only an http or https address becomes a link;
+ * any other scheme, such as `javascript:`, is shown as the source's name alone.
+ */
+export function observationLink(url: string | undefined): string | null {
+  if (!url) return null;
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return null;
+  }
+  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return null;
+  return parsed.href;
+}
+
 function EvidenceLine({ observation, nameOf }: { observation: Observation; nameOf: NameResolver }) {
   const who = observation.created_by ? nameOf(observation.created_by) : "";
+  const link = observationLink(observation.url);
   return (
     <li data-slot="concept-observation" data-kind={observation.kind} className="space-y-1">
       <blockquote className="max-w-prose border-l-2 border-border pl-2 text-sm" translate="no">
@@ -318,11 +336,12 @@ function EvidenceLine({ observation, nameOf }: { observation: Observation; nameO
         <Badge variant="outline" className="h-4 px-1.5 text-[11px]">
           {observationKindLabel(observation.kind)}
         </Badge>
-        {observation.url ? (
+        {link ? (
           <a
-            href={observation.url}
+            href={link}
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
+            data-slot="concept-observation-link"
             className="min-w-0 truncate underline-offset-2 hover:text-foreground hover:underline"
             translate="no"
           >

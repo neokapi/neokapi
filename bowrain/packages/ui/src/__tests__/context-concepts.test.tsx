@@ -241,6 +241,40 @@ describe("ConceptsSection", () => {
     expect(onOpenExperiments).toHaveBeenCalled();
   });
 
+  it("links an observation's source only for an http or https address", async () => {
+    const user = userEvent.setup();
+    const observation = (id: string, source: string, url: string) => ({
+      id,
+      workspace_id: "ws-1",
+      concept_id: "c-cart",
+      kind: "web" as const,
+      quote: `Quote from ${source}`,
+      source,
+      url,
+      created_by: "u-alex",
+      created_at: "2026-06-10T09:00:00Z",
+    });
+    const adapter = mockAdapter({
+      listObservations: vi
+        .fn()
+        .mockResolvedValue([
+          observation("o-1", "Rival landing page", "https://example.com/rival"),
+          observation("o-2", "Planted note", "javascript:alert(document.cookie)"),
+        ]),
+    });
+    renderSection(<ConceptsSection selectedId="c-cart" />, adapter);
+
+    await user.click(await screen.findByRole("tab", { name: "Evidence" }));
+    const safe = await screen.findByText("Rival landing page");
+    expect(safe.closest("a")).toHaveAttribute("href", "https://example.com/rival");
+    expect(safe.closest("a")).toHaveAttribute("rel", "noopener noreferrer");
+
+    // A script address is the source's name alone: there is nothing to click.
+    const planted = screen.getByText("Planted note");
+    expect(planted.closest("a")).toBeNull();
+    expect(document.querySelector('a[href^="javascript:"]')).toBeNull();
+  });
+
   it("says the workspace has no concepts yet", async () => {
     const adapter = mockAdapter({
       listConcepts: vi.fn().mockResolvedValue({ concepts: [], total_count: 0 }),
