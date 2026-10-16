@@ -198,7 +198,7 @@ function RuleDetail({ row, canDecide, onDrop, onWiden, onOpenFile }: DigestDetai
           {drift.line}
         </p>
       )}
-      <ItemBody item={item} onOpenFile={onOpenFile} />
+      <ItemBody item={item} onOpenFile={onOpenFile} withUsage={item.usage?.line !== drift?.line} />
       <ItemFacts item={item} established />
       {item.how && item.how.length > 0 && (
         <div data-slot="digest-how" className="flex flex-col gap-1">
@@ -336,16 +336,19 @@ function itemNote(item: DigestItem): string | undefined {
  * The evidence: the assistant's note, the sentence the item was seen in as a
  * quotation with its file beneath, and the project's own words back to it.
  * `onOpenFile` makes the file a link; `withKey` shows that `o` follows it too,
- * which holds for every item but a disagreement's second side.
+ * which holds for every item but a disagreement's second side. `withUsage`
+ * leaves the usage line out where the pane already says it, as Drift does.
  */
 function ItemBody({
   item,
   onOpenFile: open,
   withKey = true,
+  withUsage = true,
 }: {
   item: DigestItem;
   onOpenFile?: (path: string) => void;
   withKey?: boolean;
+  withUsage?: boolean;
 }) {
   const note = itemNote(item);
   const quote = item.quote;
@@ -382,7 +385,7 @@ function ItemBody({
           )}
         </figure>
       )}
-      {item.usage && (
+      {withUsage && item.usage && (
         <p data-slot="digest-usage" className="text-sm">
           {item.usage.line}
         </p>

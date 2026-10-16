@@ -303,6 +303,8 @@ export function ContextDigestView({
                   data-slot="digest-suggested"
                   label={t("Suggested")}
                   count={inGroup("suggested").length}
+                  // Its own header stays above a theme header sliding off under it.
+                  className="[&>[data-slot=list-detail-group]]:z-10"
                 >
                   {inGroup("suggested").length > THEME_HEADERS_ABOVE
                     ? digest.suggested.map((theme) => {
@@ -310,16 +312,25 @@ export function ContextDigestView({
                           (r) => r.item.theme === theme.theme,
                         );
                         if (ofTheme.length === 0) return null;
-                        return [
-                          <ListDetailGroup
-                            key={`theme:${theme.theme}`}
-                            data-slot="digest-theme"
-                            label={themeLabel(theme.theme)}
-                            count={ofTheme.length}
-                            className="top-[30px] font-medium"
-                          />,
-                          ...ofTheme.map(row),
-                        ];
+                        // Each theme holds its own header, so the next theme's
+                        // pushes it off as the list scrolls. It sticks below
+                        // the Suggested header, which is 30px tall.
+                        return (
+                          <div
+                            key={theme.theme}
+                            role="group"
+                            aria-label={themeLabel(theme.theme)}
+                            className="flex flex-col gap-px"
+                          >
+                            <ListDetailGroup
+                              data-slot="digest-theme"
+                              label={themeLabel(theme.theme)}
+                              count={ofTheme.length}
+                              className="top-[30px] font-medium"
+                            />
+                            {ofTheme.map(row)}
+                          </div>
+                        );
                       })
                     : inGroup("suggested").map(row)}
                 </ListDetailGroup>
