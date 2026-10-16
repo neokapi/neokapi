@@ -24,8 +24,10 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/wailsapp/wails/v3/pkg/application"
 	"log"
 	"net/http"
 	"os"
@@ -129,6 +131,15 @@ func main() {
 	}
 
 	app := backend.NewApp()
+	// Wails runs the service's startup hook before the window opens; the
+	// bridge is that lifecycle for a recording, so it runs the same hook, which
+	// starts the workspace watcher. Without it an assistant's note recorded
+	// from a terminal never reaches the page, because nothing emits
+	// workspace:changed.
+	if err := app.ServiceStartup(context.Background(), application.ServiceOptions{}); err != nil {
+		log.Fatalf("wbridge: service startup: %v", err)
+	}
+	defer func() { _ = app.ServiceShutdown() }()
 	appVal := reflect.ValueOf(app)
 
 	// Stream backend events (plugin install, flow:event, …) to connected
