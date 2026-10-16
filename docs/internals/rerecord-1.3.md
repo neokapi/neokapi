@@ -188,16 +188,14 @@ sets, and the queue drains as before when nobody else touched those blocks.
 ### 2. Placeholders on the page
 
 All three are first publishes. Rows 16 and 17 count among the ten that were
-never published. Row 26 has no take and no script in the tree yet:
-`harness/demos/kapi-desktop-context/demo.yaml` is written once the desktop's
-context home and hub land, and it is numbered after the others so no row
-reference changes.
+never published. Row 26 is numbered after the others so no row reference
+changes.
 
 | # | Demo | Publishes as | Placeholder on | Infrastructure | What changed |
 | --- | --- | --- | --- | --- | --- |
 | 16 | `kapi-desktop-review` | `kapi-desktop-review` | `kapi/recipes/review-and-approve.mdx`, `kapi/recipes/translate-content.mdx` | desktop recorder | one human rung: Approve, with no sign-off control; the translation sits in the inline-code editor (codes as chips) rather than a text box, and Approve waits until the unit is read through the change service; a **Changes** card follows Provenance; every walk selector still renders |
 | 17 | `bowrain-desktop-automations` | `bowrain-desktop-automations` | Bowrain `walkthroughs/bowrain-automation.mdx` | stack + seed (#2597 gives the seed a source ready to run) | narration only: two sentences cut; the run row and the delivery panel's review link still render |
-| 26 | `kapi-desktop-context` | `kapi-desktop-context` | `kapi/desktop/tour.mdx` | desktop recorder (wbridge, no server); the `live` beat runs `kapi context note` as `claude-code` against the sample under the isolation environment, off camera | new: "What your assistant noticed, and what you decide." The home's What's new row for KapiMart; the project's What's new with Needs you first and the suggestions grouped by theme; `a` keeps a name ("kept by you"); `c` changes a word and "Keep with this form"; Choose this side; Assistant's brief for a file listing the kept rule, with the rules file section below; a note recorded off camera appearing on the home within a second; Share with On this Mac marked, Shared with your team not yet, Managed on Bowrain not connected |
+| 26 | `kapi-desktop-context` | `kapi-desktop-context` | `kapi/desktop/tour.mdx` | desktop recorder (wbridge, no server) and `make build` for `bin/kapi`; the `live` beat runs `kapi context note` as `claude-code` against the sample in the recorder's isolated data directory, off camera | new: "What your assistant noticed, and what you decide." The home's What's new row for KapiMart; Decide opens the project's What's new with Needs you first; `a` keeps the KapiMart name ("kept by you"); `c` keeps the cart rule as shopping cart ("Keep with this form"); Choose this side keeps sign in; Assistant's brief for `src/en/store-ui.json` lists the kept rule; a note recorded off camera brings KapiMart back under What's new within a second; Share with On this Mac marked, Shared with your team not yet, Managed on Bowrain not connected |
 
 `kapi-desktop-projects` (row 5) also fills the video placeholders on
 `kapi/get-started/add-languages.mdx` and `kapi/get-started/first-project.mdx`.
@@ -301,6 +299,7 @@ Per video:
 | `08-mcp-tools` | the session reads the unit with `review_block` and sends `apply_edits` a `decide` with outcome `advise`, not an approval; the queue artifact still lists the unit, now with `aiScore` |
 | `kapi-desktop-review` | the unit shows one human action (Approve) and no sign-off control; the history layer reads "Already approved"; the translation shows its codes as chips in the editor, and the `a` keystroke lands while the editor does not hold focus; the Changes card reads "No change recorded" for an untouched unit; the batch approval clears every clean unit with no "Batch approval stopped" notice, since nothing changes them during the take |
 | `kapi-desktop-explorer` | the Context hub opens on Learned; the walk then opens Terms, then Content Memory |
+| `kapi-desktop-context` | the `home` beat shows no "is working" sentence, and its What's new row reads "codex noticed 1 name and 1 word. 1 needs you." with Decide; after the keep, change and choose beats, Established opens on "Write sign in, not log in", "Write shopping cart, not basket" and "Write KapiMart, not Kapi Mart / Kapi-Mart", each "kept by you"; the brief for `src/en/store-ui.json` lists `basket` as Discouraged, say `shopping cart` instead; the `live` row reads "claude-code noticed 1 word." and the home says claude-code is working in KapiMart now; Share names the workspace under `~/Library/Application Support/kapi` |
 | desktop and web demos | the recorder log reports no inert crop and no selector that matched nothing |
 
 ## After publishing
@@ -334,7 +333,3 @@ one parked draft's block, merged, or a parked draft a person edited whose
 translation's file was written since without it. The second is the easier
 fixture to seed. Neither the `kapi-kpz-workspace` guided embed nor any other
 walkthrough edits a source inside a `.kpz`; its narration is unchanged.
-
-No walkthrough shows the context digest or the Learned section on its own;
-`kapi-desktop-explorer` passes the Learned rail entry on its way to Terms. A
-beat for it needs a sample with something learned to show.
