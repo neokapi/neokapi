@@ -1,7 +1,7 @@
 import { render, screen } from "./testUtils";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi } from "vitest";
-import { AppHome, lastSegment } from "../components/AppHome";
+import { AppHome } from "../components/AppHome";
 import {
   ONE_PROJECT_ROWS,
   SEVERAL_ROWS,
@@ -351,13 +351,5 @@ describe("AppHome", () => {
       );
       expect(screen.getByText(/could not be read/)).toBeInTheDocument();
     });
-  });
-});
-
-describe("the last segment of a path", () => {
-  it("takes the directory's own name on either separator", () => {
-    expect(lastSegment("/fakehome/.local/share/kapi/workspaces/default")).toBe("default");
-    expect(lastSegment("C:\\Users\\me\\kapi\\workspaces\\team\\")).toBe("team");
-    expect(lastSegment("default")).toBe("default");
   });
 });

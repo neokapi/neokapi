@@ -16,7 +16,7 @@ import { RemoveProjectDialog } from "./RemoveProjectDialog";
 import { StartHere } from "./StartHere";
 import { WhatsNew, WorkspaceNumbers } from "./WhatsNew";
 import { WorkspaceConflicts } from "./WorkspaceConflicts";
-import { WorkspaceProjectRow } from "./WorkspaceProjectRow";
+import { WorkspaceProjectRow, lastSegment } from "./WorkspaceProjectRow";
 import { WorkspaceRules } from "./WorkspaceRules";
 import type {
   AIDetectionResult,
@@ -258,10 +258,4 @@ function WorkspaceLocation({ location }: { location: string }) {
       </span>
     </SimpleTooltip>
   );
-}
-
-/** The last segment of a path, on either separator. */
-export function lastSegment(path: string): string {
-  const parts = path.split(/[\\/]+/).filter(Boolean);
-  return parts[parts.length - 1] ?? path;
 }

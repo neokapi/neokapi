@@ -191,9 +191,7 @@ function ProjectMenu({
               checkout.missing ? (
                 <DropdownMenuItem key={checkout.path} disabled data-testid="checkout-missing">
                   <FolderX />
-                  <span className="min-w-0 flex-1 truncate font-mono text-xs" translate="no">
-                    {shortenHome(checkout.path)}
-                  </span>
+                  <CheckoutPath path={checkout.path} shortenHome={shortenHome} />
                   <Badge variant="outline" className="text-[11px] font-normal">
                     {t("Missing")}
                   </Badge>
@@ -205,9 +203,7 @@ function ProjectMenu({
                   onSelect={() => onOpenCheckout(checkout.recipe)}
                 >
                   <FolderOpen />
-                  <span className="min-w-0 flex-1 truncate font-mono text-xs" translate="no">
-                    {shortenHome(checkout.path)}
-                  </span>
+                  <CheckoutPath path={checkout.path} shortenHome={shortenHome} />
                 </DropdownMenuItem>
               ),
             )}
@@ -234,6 +230,40 @@ function ProjectMenu({
       </DropdownMenuContent>
     </DropdownMenu>
   );
+}
+
+/**
+ * A checkout in the menu: the folder's own name, which is what tells two
+ * worktrees apart, over the folder it sits in.
+ */
+function CheckoutPath({
+  path,
+  shortenHome,
+}: {
+  path: string;
+  shortenHome: (path: string) => string;
+}) {
+  return (
+    <span className="flex min-w-0 flex-1 flex-col" translate="no">
+      <span className="truncate font-mono text-xs">{lastSegment(path)}</span>
+      <span className="truncate font-mono text-[11px] text-muted-foreground">
+        {shortenHome(parentOf(path))}
+      </span>
+    </span>
+  );
+}
+
+/** The last segment of a path, on either separator. */
+export function lastSegment(path: string): string {
+  const parts = path.split(/[\\/]+/).filter(Boolean);
+  return parts[parts.length - 1] ?? path;
+}
+
+/** The path without its last segment. */
+export function parentOf(path: string): string {
+  const trimmed = path.replace(/[\\/]+$/, "");
+  const at = Math.max(trimmed.lastIndexOf("/"), trimmed.lastIndexOf("\\"));
+  return at > 0 ? trimmed.slice(0, at) : trimmed.slice(0, at + 1);
 }
 
 /** Context files in a checkout that the project's store has never read. */

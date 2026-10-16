@@ -5,6 +5,8 @@ import { render, screen, waitFor } from "./testUtils";
 
 import {
   WorkspaceProjectRow,
+  lastSegment,
+  parentOf,
   projectReach,
   reachDetail,
   sharingWord,
@@ -116,8 +118,12 @@ describe("the row's menu", () => {
       checkouts: [checkout("fernwell"), checkout("fernwell-fix")],
     });
     expect(screen.getAllByTestId("workspace-project")).toHaveLength(1);
-    expect(await openMenu()).toEqual(["/fakehome/src/fernwell-fix", "Copy path", "Remove"]);
-    await userEvent.click(screen.getByTestId("checkout-open"));
+    expect((await openMenu()).slice(1)).toEqual(["Copy path", "Remove"]);
+    // The folder's own name tells two worktrees apart; the folder it sits in is under it.
+    const other = screen.getByTestId("checkout-open");
+    expect(other).toHaveTextContent("fernwell-fix");
+    expect(other).toHaveTextContent("/fakehome/src");
+    await userEvent.click(other);
     expect(onOpenCheckout).toHaveBeenCalledWith("/fakehome/src/fernwell-fix/kapi.yaml");
   });
 
@@ -184,5 +190,20 @@ describe("how far a project's context reaches", () => {
       "Connected to Bowrain at app.bowrain.cloud",
     );
     expect(reachDetail(at("local"))).toBe("On this Mac");
+  });
+});
+
+describe("the parts of a path", () => {
+  it("takes the folder's own name on either separator", () => {
+    expect(lastSegment("/fakehome/.local/share/kapi/workspaces/default")).toBe("default");
+    expect(lastSegment("D:\\work\\kapi\\workspaces\\team\\")).toBe("team");
+    expect(lastSegment("default")).toBe("default");
+  });
+
+  it("takes the folder a path sits in", () => {
+    expect(parentOf("/fakehome/src/kapimart-release")).toBe("/fakehome/src");
+    expect(parentOf("/fakehome/src/kapimart/")).toBe("/fakehome/src");
+    expect(parentOf("C:\\src\\kapimart")).toBe("C:\\src");
+    expect(parentOf("/kapimart")).toBe("/");
   });
 });
