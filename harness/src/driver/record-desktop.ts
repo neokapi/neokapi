@@ -156,15 +156,23 @@ const KAPI_DESKTOP_DIR = path.join(REPO_ROOT, "apps", "kapi-desktop");
 // Isolated roots so the real app never touches the developer's own data
 // (honored via KAPI_CONFIG_DIR / KAPI_HOME_DIR / KAPI_DESKTOP_CONFIG_DIR — see
 // backend/paths.go). The home dir holds created projects (project walkthrough).
-const ISO_BASE = path.join(os.tmpdir(), "kapi-desktop-demo");
+//
+// The temporary directory is named by its real path. On macOS os.tmpdir() is a
+// symlink under /var, and the backend records a checkout by its resolved
+// /private/var path, so with the link as KAPI_HOME_DIR the app could not
+// shorten a checkout to ~/KapiProjects/… and the take showed the whole path.
+const ISO_BASE = path.join(fs.realpathSync(os.tmpdir()), "kapi-desktop-demo");
 const ISO_DIR = path.join(ISO_BASE, "kapi");
 const ISO_HOME = path.join(ISO_BASE, "home");
 const ISO_DESKTOP = path.join(ISO_BASE, "desktop");
 // The data root holds the workspace: every project's terms, voice profiles,
 // content memory and recorded decisions. KAPI_DATA_DIR names it outright, so
 // a sample created on camera registers here and never in the developer's own
-// workspace (host/datadir.go).
-const ISO_DATA = path.join(ISO_BASE, "data");
+// workspace (host/datadir.go). It sits where a Mac keeps it, under the
+// isolated home, so the app names it ~/Library/Application Support/kapi.
+// resetHome keeps it between the two passes.
+const ISO_DATA_PARENT = "Library";
+const ISO_DATA = path.join(ISO_HOME, ISO_DATA_PARENT, "Application Support", "kapi");
 const ICU_PKGCONFIG = "/opt/homebrew/opt/icu4c/lib/pkgconfig";
 // The wbridge is built from source (no release ldflags), so core/version.Version
 // defaults to "dev". The plugin registry filters by min_kapi_version (okapi-bridge
@@ -313,13 +321,31 @@ async function launchPeer(slug: string): Promise<{ peer: PeerSession; teardown: 
   };
 }
 
+/**
+ * The variables an agent host exports to every command it runs, which kapi
+ * reads as "an agent is driving this" (agentHostMarkers in
+ * host/contextactor.go). A recorder started from an assistant's shell would
+ * hand them to the desktop backend, and the backend would then act as that
+ * assistant: the sample's scaffold is refused its context import, which is a
+ * person's decision. The shipped app is started by a person, so the
+ * recording backend runs without them.
+ */
+const AGENT_HOST_MARKERS = ["CLAUDECODE", "CLAUDE_CODE_SESSION_ID", "CODEX_SESSION_ID"];
+
+/** The developer's environment without the agent-host markers. */
+function personEnv(): NodeJS.ProcessEnv {
+  const env = { ...process.env };
+  for (const name of AGENT_HOST_MARKERS) delete env[name];
+  return env;
+}
+
 /** Env for the Go builds/run: cgo + fts5 deps + isolated config/home roots. */
 function goEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
   const pkg = fs.existsSync(ICU_PKGCONFIG)
     ? `${ICU_PKGCONFIG}:${process.env.PKG_CONFIG_PATH ?? ""}`
     : process.env.PKG_CONFIG_PATH ?? "";
   return {
-    ...process.env,
+    ...personEnv(),
     CGO_ENABLED: "1",
     PKG_CONFIG_PATH: pkg,
     KAPI_CONFIG_DIR: ISO_DIR,
@@ -2426,8 +2452,12 @@ export async function recordDesktop(id: string, opts: RecordOptions = {}): Promi
         console.warn(`  ! could not close the open projects on the wbridge: ${(e as Error)?.message}`);
       }
     }
-    fs.rmSync(ISO_HOME, { recursive: true, force: true });
+    // The workspace lives under the home (ISO_DATA) and the running backend
+    // holds it open, so everything else in the home goes and it stays.
     fs.mkdirSync(ISO_HOME, { recursive: true });
+    for (const entry of fs.readdirSync(ISO_HOME)) {
+      if (entry !== ISO_DATA_PARENT) fs.rmSync(path.join(ISO_HOME, entry), { recursive: true, force: true });
+    }
   };
 
   // Clear any installed plugins before each theme so install walkthroughs start
