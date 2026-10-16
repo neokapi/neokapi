@@ -2386,7 +2386,7 @@ async function bowrainDesktopAutomationsWalk(c: WalkCtx): Promise<void> {
  *  rule with the count of corrections behind it, grouped Suggested and
  *  Established, and the selected rule's acts and facts in the pane. */
 async function bowrainCorrectionLoopWalk(c: WalkCtx): Promise<void> {
-  const { page, beatEls, cursorTo } = c;
+  const { page, beatEls, beatSpan, cursorTo } = c;
   const startUrl = new URL(page.url());
   const themeQ = startUrl.searchParams.get("theme") ? `?theme=${startUrl.searchParams.get("theme")}` : "";
   // The page opened at origin/<slug>; that pathname is the workspace base,
@@ -2414,25 +2414,38 @@ async function bowrainCorrectionLoopWalk(c: WalkCtx): Promise<void> {
 
   // The candidates: each one a phrasing the team kept correcting, with the
   // count of corrections standing behind it. The first is selected, and the
-  // pane beside the list gives its count again with its kind.
-  await beatEls("candidates", review, async () => {
+  // pane beside the list gives its count again with its kind. The pane's
+  // toolbar and facts run its full width, so the crop is drawn from the
+  // rule's name and the two values.
+  const facts = '[data-slot="candidate-facts"]';
+  await beatSpan("candidates", async (mark) => {
     await cursorTo(suggested, 900);
     await page.waitForTimeout(2600);
+    await mark(page.getByText("Review suggested rules"));
+    await mark(page.getByTestId("voice-review-list"));
+    await mark(page.locator('[data-slot="candidate-detail"] [data-slot="list-detail-toolbar"] h2'));
+    await mark(page.locator(`${facts} span.tabular-nums`));
+    await mark(page.locator(`${facts} span.inline-flex`));
   });
 
   // The blast radius, before anything lands: pick a project, open a candidate's
-  // impact dialog, and hold on it while the numbers are read.
-  await beatEls("evaluate", ['[role="dialog"]'], async () => {
+  // impact dialog, and hold on it while the numbers are read. The crop spans
+  // the project picker, the button and the dialog, so both acts are on camera.
+  await beatSpan("evaluate", async (mark) => {
     const sel = page.locator("select").first();
     await humanClick(page, sel);
     await sel.selectOption({ index: 1 });
     await page.waitForTimeout(700);
     const preview = page.locator('[data-slot="evaluate-candidate"]').first();
     await preview.waitFor({ timeout: 10_000 });
+    await mark(sel);
+    await mark(preview);
     await cursorTo('[data-slot="evaluate-candidate"]');
     await humanClick(page, preview);
     await page.waitForSelector('[role="dialog"]', { timeout: 20_000 });
-    await page.waitForTimeout(3400);
+    await page.waitForTimeout(600);
+    await mark(page.locator('[role="dialog"]'));
+    await page.waitForTimeout(2800);
   });
 
   // Promote it. The rule leaves Suggested once the list is read again, and
