@@ -33,6 +33,18 @@ export function ContextDashboardRoute() {
       onViewVoice={() =>
         void navigate({ to: "/$workspace/context/voice", params: { workspace: ws } })
       }
+      onOpenConcept={(cid) =>
+        void navigate({ to: "/$workspace/context/concepts/$cid", params: { workspace: ws, cid } })
+      }
+      onOpenReview={(profileId) =>
+        void navigate({
+          to: "/$workspace/context/voice/review/$profileId",
+          params: { workspace: ws, profileId },
+        })
+      }
+      onViewActivity={() =>
+        void navigate({ to: "/$workspace/context/activity", params: { workspace: ws } })
+      }
       onOpenProject={(projectId) =>
         void navigate({
           to: "/$workspace/p/$projectId/s/$stream",

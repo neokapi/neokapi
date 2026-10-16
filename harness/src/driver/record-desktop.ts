@@ -2301,7 +2301,7 @@ async function bowrainCorrectionLoopWalk(c: WalkCtx): Promise<void> {
 
   // The candidates: each one a phrasing the team kept correcting, with the
   // count of corrections standing behind it.
-  await beatEls("candidates", ['text=Review suggested rules', "ul"], async () => {
+  await beatEls("candidates", ['text=Review suggested rules', '[data-testid="voice-review-list"]'], async () => {
     await page.waitForTimeout(2600);
   });
 

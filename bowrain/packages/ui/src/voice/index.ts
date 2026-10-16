@@ -16,7 +16,10 @@ export { VoicePreview } from "./VoicePreview";
 export { PatternListEditor } from "./PatternListEditor";
 export { ExamplesEditor } from "./ExamplesEditor";
 export { PersonasEditor } from "./PersonasEditor";
-export { CandidateRulesList } from "./CandidateRulesList";
+export { CandidateReview } from "./CandidateReview";
+export type { CandidateReviewProps } from "./CandidateReview";
+export { candidateRows } from "./candidateRows";
+export type { CandidateRow, CandidateRowGroup } from "./candidateRows";
 export { BlastRadiusSummary } from "./BlastRadiusSummary";
 export { DriftAlert } from "./DriftAlert";
 export {

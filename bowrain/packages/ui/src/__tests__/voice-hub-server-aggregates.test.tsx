@@ -11,7 +11,8 @@ import type { ApiAdapter } from "../api/adapter";
 import type { Workspace } from "../types/api";
 import type { ChangeSet } from "../types/brand-graph";
 import { VocabularyByStatus, LocaleCoveragePanel } from "../context-hub/dashboard/CoveragePanel";
-import { PendingDecisions } from "../context-hub/dashboard/PendingDecisions";
+import { WhatsNew } from "../context-hub/dashboard/WhatsNew";
+import { whatsNewRows } from "../context-hub/dashboard/newsRows";
 import { VoiceDashboardView } from "../context-hub/dashboard/VoiceDashboardView";
 import { PendingConceptChanges } from "../context-hub/concepts/PendingConceptChanges";
 import { ActivityView } from "../context-hub/activity/ActivityView";
@@ -118,7 +119,9 @@ describe("LocaleCoveragePanel", () => {
   });
 });
 
-describe("PendingDecisions", () => {
+describe("WhatsNew", () => {
+  const waiting = (cs: ChangeSet) => whatsNewRows([cs], []);
+
   it("shows the blast radius stored on the change-set without walking content", async () => {
     const adapter = mockAdapter();
     const cs = changeset({
@@ -132,13 +135,12 @@ describe("PendingDecisions", () => {
         computed_at: "2026-06-13T00:00:00Z",
       },
     });
-    renderWithProviders(<PendingDecisions changesets={[cs]} />, adapter);
+    renderWithProviders(<WhatsNew rows={waiting(cs)} keyboard={false} />, adapter);
 
-    await waitFor(() => expect(screen.getByText("34")).toBeInTheDocument());
-    expect(screen.getByText("210")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("34 blocks")).toBeInTheDocument());
     expect(screen.getByText("+12 new")).toBeInTheDocument();
     expect(screen.getByText("−7 resolved")).toBeInTheDocument();
-    // The live walk is the slowest read in the platform; the inbox never runs it.
+    // The live walk is the slowest read in the platform; the dashboard never runs it.
     expect(adapter.getChangesetBlastRadius).not.toHaveBeenCalled();
   });
 
@@ -157,21 +159,75 @@ describe("PendingDecisions", () => {
         computed_at: "2026-06-13T00:00:00Z",
       },
     });
-    renderWithProviders(<PendingDecisions changesets={[cs]} />, adapter);
+    renderWithProviders(<WhatsNew rows={waiting(cs)} keyboard={false} />, adapter);
 
-    await waitFor(() => expect(screen.getByText("≥34")).toBeInTheDocument());
-    expect(screen.getByText("partial")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("≥34 blocks")).toBeInTheDocument());
   });
 
   it("says a proposal has no measurement rather than claiming nothing is affected", async () => {
     const adapter = mockAdapter();
-    renderWithProviders(<PendingDecisions changesets={[changeset({})]} />, adapter);
+    renderWithProviders(<WhatsNew rows={waiting(changeset({}))} keyboard={false} />, adapter);
+    await waitFor(() => expect(screen.getByText("not measured")).toBeInTheDocument());
+  });
 
-    await waitFor(() =>
-      expect(
-        screen.getByText("Blast radius is measured when a proposal is submitted."),
-      ).toBeInTheDocument(),
+  it("leads a change-set's row with who proposed it, and opens it from one button", async () => {
+    const adapter = mockAdapter({
+      listMembers: vi
+        .fn()
+        .mockResolvedValue([
+          { user_id: "sam", user: { name: "Sam Okafor", email: "sam@example.com" } },
+        ]),
+    });
+    const onOpenChangeset = vi.fn();
+    renderWithProviders(
+      <WhatsNew
+        rows={waiting(changeset({}))}
+        nameOf={(id) => (id === "sam" ? "Sam Okafor" : (id ?? ""))}
+        onOpenChangeset={onOpenChangeset}
+        keyboard={false}
+      />,
+      adapter,
     );
+    expect(screen.getByRole("img", { name: "Sam Okafor" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Review" }));
+    expect(onOpenChangeset).toHaveBeenCalledWith("cs-1");
+  });
+
+  it("opens a voice profile's review from its row, as Decide while a disagreement waits", async () => {
+    const adapter = mockAdapter();
+    const onOpenReview = vi.fn();
+    const rows = whatsNewRows(
+      [],
+      [
+        {
+          id: "vp-1",
+          name: "Core voice",
+          candidates: [
+            {
+              term: "log in",
+              replacement: "sign in",
+              correction_count: 4,
+              dimension: "vocabulary",
+              status: "pending",
+            },
+            {
+              term: "log in",
+              replacement: "log on",
+              correction_count: 3,
+              dimension: "vocabulary",
+              status: "pending",
+            },
+          ],
+        },
+      ],
+    );
+    renderWithProviders(
+      <WhatsNew rows={rows} onOpenReview={onOpenReview} keyboard={false} />,
+      adapter,
+    );
+    expect(screen.getByText("1 needs you")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Decide" }));
+    expect(onOpenReview).toHaveBeenCalledWith("vp-1");
   });
 });
 
@@ -189,6 +245,46 @@ describe("PendingConceptChanges", () => {
 });
 
 describe("VoiceDashboardView", () => {
+  it("counts each suggestion once over every profile, and a disagreement as needing you", async () => {
+    const shared = [
+      {
+        term: "utilize",
+        replacement: "use",
+        correction_count: 5,
+        dimension: "vocabulary",
+        status: "pending",
+      },
+      {
+        term: "log in",
+        replacement: "sign in",
+        correction_count: 4,
+        dimension: "vocabulary",
+        status: "pending",
+      },
+      {
+        term: "log in",
+        replacement: "log on",
+        correction_count: 3,
+        dimension: "vocabulary",
+        status: "pending",
+      },
+    ];
+    const adapter = mockAdapter({
+      listVoiceProfiles: vi.fn().mockResolvedValue([
+        { id: "vp-1", name: "Core voice" },
+        { id: "vp-2", name: "Support voice" },
+      ]),
+      listVoiceCandidates: vi.fn().mockResolvedValue(shared),
+      getChangesetCounts: vi.fn().mockResolvedValue({ total: 2, by_status: { in_review: 2 } }),
+    });
+    renderWithProviders(<VoiceDashboardView keyboard={false} />, adapter);
+
+    await waitFor(() => expect(screen.getByText("3 suggestions")).toBeInTheDocument());
+    expect(screen.getByText("3 need you")).toBeInTheDocument();
+    expect(adapter.listVoiceCandidates).toHaveBeenCalledTimes(2);
+    expect(screen.getAllByText("Core voice").length).toBeGreaterThan(0);
+  });
+
   it("takes its metric counts from the count endpoints, not from limit=1 lists", async () => {
     const adapter = mockAdapter({
       getConceptStatusCounts: vi.fn().mockResolvedValue({ total: 412, by_status: {} }),

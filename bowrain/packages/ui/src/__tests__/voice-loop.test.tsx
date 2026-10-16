@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vite-plus/test";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { CandidateRulesList } from "../voice/CandidateRulesList";
+import { CandidateReview } from "../voice/CandidateReview";
 import { BlastRadiusSummary } from "../voice/BlastRadiusSummary";
 import { DriftAlert } from "../voice/DriftAlert";
 import type { CandidateRule, BlastRadius, DriftResult } from "../voice/types";
@@ -13,6 +13,13 @@ const pending: CandidateRule = {
   dimension: "vocabulary",
   status: "pending",
 };
+const second: CandidateRule = {
+  term: "synergy",
+  replacement: "teamwork",
+  correction_count: 3,
+  dimension: "tone",
+  status: "pending",
+};
 const promoted: CandidateRule = {
   term: "leverage",
   replacement: "use",
@@ -21,42 +28,158 @@ const promoted: CandidateRule = {
   status: "promoted",
   promoted_version: 3,
   auto: true,
+  decided_at: "2026-10-01T09:00:00Z",
+};
+const rejected: CandidateRule = {
+  term: "disrupt",
+  replacement: "improve",
+  correction_count: 3,
+  dimension: "vocabulary",
+  status: "rejected",
+  decided_by: "u-maria",
+  decided_at: "2026-10-02T09:00:00Z",
 };
 
-describe("CandidateRulesList", () => {
-  it("renders the term, replacement, and correction count", () => {
-    render(<CandidateRulesList candidates={[pending]} />);
-    expect(screen.getByText("utilize")).toBeInTheDocument();
-    expect(screen.getByText("use")).toBeInTheDocument();
-    expect(screen.getByText("4 corrections")).toBeInTheDocument();
+const names = (id: string | null | undefined) => (id === "u-maria" ? "Maria Lund" : (id ?? ""));
+
+function review(
+  candidates: CandidateRule[],
+  props: Partial<React.ComponentProps<typeof CandidateReview>> = {},
+) {
+  const onPromote = vi.fn();
+  const onReject = vi.fn();
+  render(
+    <CandidateReview
+      candidates={candidates}
+      onPromote={onPromote}
+      onReject={onReject}
+      nameOf={names}
+      {...props}
+    />,
+  );
+  return { onPromote, onReject };
+}
+
+const detail = () => document.querySelector<HTMLElement>('[data-slot="candidate-detail"]')!;
+const selectedRow = () =>
+  document.querySelector<HTMLElement>('[data-slot="candidate-item"][aria-selected="true"]');
+
+describe("CandidateReview", () => {
+  it("opens on the first suggestion, with the rule as the detail's title", () => {
+    review([pending, second]);
+    expect(selectedRow()?.dataset.term).toBe("utilize");
+    const toolbar = within(detail()).getByRole("heading");
+    expect(toolbar).toHaveTextContent("Write use, not utilize");
+    expect(within(detail()).getByText("4")).toBeInTheDocument();
   });
 
-  it("fires onPromote and onReject for an actionable candidate", async () => {
-    const onPromote = vi.fn();
-    const onReject = vi.fn();
-    render(<CandidateRulesList candidates={[pending]} onPromote={onPromote} onReject={onReject} />);
-    await userEvent.click(screen.getByRole("button", { name: "Promote" }));
-    await userEvent.click(screen.getByRole("button", { name: "Reject" }));
-    expect(onPromote).toHaveBeenCalledWith(pending);
+  it("promotes from the toolbar and moves on to the next suggestion", async () => {
+    const { onPromote } = review([pending, second]);
+    await userEvent.click(within(detail()).getByRole("button", { name: "Promote" }));
+    expect(onPromote).toHaveBeenCalledWith(pending, undefined);
+    expect(selectedRow()?.dataset.term).toBe("synergy");
+    const decided = document.querySelector<HTMLElement>('[data-term="utilize"]');
+    expect(decided?.dataset.decided).toBe("true");
+  });
+
+  it("answers the desktop's keys: a promotes, d rejects, j and k move", () => {
+    const { onPromote, onReject } = review([pending, second]);
+    fireEvent.keyDown(window, { key: "j" });
+    expect(selectedRow()?.dataset.term).toBe("synergy");
+    fireEvent.keyDown(window, { key: "k" });
+    expect(selectedRow()?.dataset.term).toBe("utilize");
+    fireEvent.keyDown(window, { key: "d" });
     expect(onReject).toHaveBeenCalledWith(pending);
+    fireEvent.keyDown(window, { key: "a" });
+    expect(onPromote).toHaveBeenCalledWith(second, undefined);
   });
 
-  it("does not offer actions for a promoted candidate and shows its version", () => {
-    const onPromote = vi.fn();
-    render(<CandidateRulesList candidates={[promoted]} onPromote={onPromote} />);
-    expect(screen.queryByRole("button", { name: "Promote" })).not.toBeInTheDocument();
-    expect(screen.getByText(/auto-promoted/)).toBeInTheDocument();
-    expect(screen.getByText(/v3/)).toBeInTheDocument();
+  it("changes the form before promoting it", async () => {
+    const { onPromote } = review([pending]);
+    fireEvent.keyDown(window, { key: "c" });
+    const field = screen.getByRole("textbox", { name: "What to write instead" });
+    await userEvent.clear(field);
+    await userEvent.type(field, "apply{Enter}");
+    expect(onPromote).toHaveBeenCalledWith(pending, "apply");
   });
 
-  it("disables the row being acted on", () => {
-    render(<CandidateRulesList candidates={[pending]} onPromote={vi.fn()} busyTerm="utilize" />);
-    expect(screen.getByRole("button", { name: "Promote" })).toBeDisabled();
+  it("puts a phrasing corrected two ways under Needs you, each form with its own choice", async () => {
+    const employ: CandidateRule = { ...pending, replacement: "employ", correction_count: 2 };
+    const { onPromote, onReject } = review([pending, employ]);
+    const group = document.querySelector<HTMLElement>('[data-slot="review-conflicts"]')!;
+    expect(group).toHaveTextContent("Needs you");
+    expect(within(detail()).getByRole("heading")).toHaveTextContent("use or employ for utilize?");
+    const choices = within(detail()).getAllByRole("button", { name: "Choose this form" });
+    expect(choices).toHaveLength(2);
+    await userEvent.click(choices[1]);
+    expect(onPromote).toHaveBeenCalledWith(employ, undefined);
+    expect(onReject).not.toHaveBeenCalled();
   });
 
-  it("renders an empty state", () => {
-    render(<CandidateRulesList candidates={[]} />);
-    expect(screen.getByText(/No candidate rules yet/)).toBeInTheDocument();
+  it("keeps decided rules in closed groups, with who decided and when", async () => {
+    review([pending, promoted, rejected]);
+    expect(document.querySelector('[data-term="leverage"]')).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Established" }));
+    await userEvent.click(document.querySelector<HTMLElement>('[data-term="leverage"]')!);
+    expect(within(detail()).queryByRole("button", { name: "Promote" })).toBeNull();
+    expect(detail()).toHaveTextContent("Automatically, at the profile's threshold");
+    expect(detail()).toHaveTextContent("v3");
+    await userEvent.click(screen.getByRole("button", { name: "Rejected" }));
+    await userEvent.click(document.querySelector<HTMLElement>('[data-term="disrupt"]')!);
+    expect(detail()).toHaveTextContent("Maria Lund");
+  });
+
+  it("names the reader's own decision as theirs", async () => {
+    review([rejected], { currentUserId: "u-maria" });
+    await userEvent.click(screen.getByRole("button", { name: "Rejected" }));
+    await userEvent.click(document.querySelector<HTMLElement>('[data-term="disrupt"]')!);
+    expect(within(detail()).getByText("You")).toBeInTheDocument();
+  });
+
+  it("offers Preview impact only once a project is chosen to evaluate against", async () => {
+    const onEvaluate = vi.fn();
+    const { rerender } = render(
+      <CandidateReview candidates={[pending]} onPromote={vi.fn()} onReject={vi.fn()} />,
+    );
+    expect(within(detail()).queryByRole("button", { name: "Preview impact" })).toBeNull();
+    rerender(
+      <CandidateReview
+        candidates={[pending]}
+        onPromote={vi.fn()}
+        onReject={vi.fn()}
+        onEvaluate={onEvaluate}
+      />,
+    );
+    await userEvent.click(within(detail()).getByRole("button", { name: "Preview impact" }));
+    expect(onEvaluate).toHaveBeenCalledWith(pending);
+  });
+
+  it("disables the acts on the rule being decided", () => {
+    review([pending], { busyTerm: "utilize" });
+    expect(within(detail()).getByRole("button", { name: "Promote" })).toBeDisabled();
+  });
+
+  it("puts a failed decision back, selected, with the reason", () => {
+    const { rerender } = render(
+      <CandidateReview candidates={[pending, second]} onPromote={vi.fn()} onReject={vi.fn()} />,
+    );
+    fireEvent.keyDown(window, { key: "a" });
+    expect(selectedRow()?.dataset.term).toBe("synergy");
+    rerender(
+      <CandidateReview
+        candidates={[pending, second]}
+        onPromote={vi.fn()}
+        onReject={vi.fn()}
+        failed={{ term: "utilize", error: new Error("forbidden") }}
+      />,
+    );
+    expect(selectedRow()?.dataset.term).toBe("utilize");
+    expect(detail()).toHaveTextContent("The decision was not recorded");
+  });
+
+  it("says what would appear when nothing is suggested", () => {
+    review([]);
+    expect(screen.getByText("No suggested rules yet")).toBeInTheDocument();
   });
 });
 
