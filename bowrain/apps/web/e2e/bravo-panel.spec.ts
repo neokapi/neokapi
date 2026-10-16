@@ -1,5 +1,4 @@
 import { test, expect, type Page } from "@playwright/test";
-import { TEST_IDS } from "@neokapi/ui/test-ids";
 import { authenticate, getOrCreateWorkspace, waitForServer } from "./helpers/api-client";
 
 const BASE_URL = process.env.BOWRAIN_URL || "http://localhost:8080";
@@ -51,7 +50,7 @@ test.describe("Bravo Panel", () => {
     // Wait for the app shell to settle (avatar area rendered), then assert the
     // @bravo trigger is not present at all.
     await page.waitForLoadState("networkidle");
-    await expect(page.getByTestId(TEST_IDS.bravo.trigger)).toHaveCount(0);
+    await expect(page.getByTestId("bravo-trigger")).toHaveCount(0);
   });
 
   // Interactive coverage for the enabled surface. Skipped unless the workspace
@@ -67,7 +66,7 @@ test.describe("Bravo Panel", () => {
       await injectAuthCookie(page, token);
       await page.goto(`/${wsSlug}`);
 
-      const trigger = page.getByTestId(TEST_IDS.bravo.trigger);
+      const trigger = page.getByTestId("bravo-trigger");
       await expect(trigger).toBeVisible({ timeout: 10000 });
     });
 
@@ -75,12 +74,12 @@ test.describe("Bravo Panel", () => {
       await injectAuthCookie(page, token);
       await page.goto(`/${wsSlug}`);
 
-      const trigger = page.getByTestId(TEST_IDS.bravo.trigger);
+      const trigger = page.getByTestId("bravo-trigger");
       await expect(trigger).toBeVisible({ timeout: 10000 });
 
       await trigger.click();
 
-      await expect(page.getByTestId(TEST_IDS.bravo.newConversationHeader)).toBeVisible({
+      await expect(page.getByTestId("bravo-new-conversation-header")).toBeVisible({
         timeout: 5000,
       });
     });
@@ -89,11 +88,11 @@ test.describe("Bravo Panel", () => {
       await injectAuthCookie(page, token);
       await page.goto(`/${wsSlug}`);
 
-      const trigger = page.getByTestId(TEST_IDS.bravo.trigger);
+      const trigger = page.getByTestId("bravo-trigger");
       await expect(trigger).toBeVisible({ timeout: 10000 });
       await trigger.click();
 
-      await expect(page.getByTestId(TEST_IDS.bravo.newConversationHeader)).toBeVisible({
+      await expect(page.getByTestId("bravo-new-conversation-header")).toBeVisible({
         timeout: 5000,
       });
     });
@@ -102,11 +101,11 @@ test.describe("Bravo Panel", () => {
       await injectAuthCookie(page, token);
       await page.goto(`/${wsSlug}`);
 
-      const trigger = page.getByTestId(TEST_IDS.bravo.trigger);
+      const trigger = page.getByTestId("bravo-trigger");
       await expect(trigger).toBeVisible({ timeout: 10000 });
 
       await trigger.click();
-      await expect(page.getByTestId(TEST_IDS.bravo.newConversationHeader)).toBeVisible({
+      await expect(page.getByTestId("bravo-new-conversation-header")).toBeVisible({
         timeout: 5000,
       });
 
@@ -120,7 +119,7 @@ test.describe("Bravo Panel", () => {
       await injectAuthCookie(page, token);
       await page.goto(`/${wsSlug}`);
 
-      const trigger = page.getByTestId(TEST_IDS.bravo.trigger);
+      const trigger = page.getByTestId("bravo-trigger");
       await expect(trigger).toBeVisible({ timeout: 10000 });
     });
   });

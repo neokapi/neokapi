@@ -21,7 +21,6 @@ import {
 } from "../stories/mock-adapter";
 import { sampleProject } from "../stories/fixtures";
 import type { MockAdapter } from "../stories/mock-adapter";
-import { TEST_IDS } from "../test-ids";
 import { scanVoice } from "../context-scan/artefacts";
 
 // jsdom lacks the pointer APIs Radix Select relies on, so a trigger click
@@ -69,11 +68,11 @@ describe("ContextScanInput", () => {
     const onStarted = vi.fn();
     renderWithProviders(<ContextScanInput onStarted={onStarted} />, adapter);
 
-    const start = screen.getByTestId(TEST_IDS.contextScan.start);
+    const start = screen.getByTestId("context-scan-start");
     expect(start).toBeDisabled();
     expect(screen.getByText("Add at least one source to start.")).toBeInTheDocument();
 
-    await user.type(screen.getByTestId(TEST_IDS.contextScan.input), "We write plainly.");
+    await user.type(screen.getByTestId("context-scan-input"), "We write plainly.");
     expect(start).toBeEnabled();
 
     await user.click(start);
@@ -88,7 +87,7 @@ describe("ContextScanInput", () => {
     const adapter = createMockAdapter();
     renderWithProviders(<ContextScanInput onStarted={vi.fn()} />, adapter);
 
-    const urlInput = screen.getByTestId(TEST_IDS.contextScan.urlInput);
+    const urlInput = screen.getByTestId("context-scan-url-input");
     await user.type(urlInput, "http://insecure.example{Enter}");
     expect(screen.getByText("Only https:// links can be fetched.")).toBeInTheDocument();
 
@@ -114,7 +113,7 @@ describe("ContextScanInput", () => {
     expect(screen.getByText("brand-guide.docx")).toBeInTheDocument();
     expect(screen.getByText("pitch-deck.pdf")).toBeInTheDocument();
 
-    await user.click(screen.getByTestId(TEST_IDS.contextScan.start));
+    await user.click(screen.getByTestId("context-scan-start"));
 
     // The pdf comes back skipped with the deferred-extractor reason, and the
     // start PAUSES: proceeding now would navigate to the job page and unmount
@@ -128,7 +127,7 @@ describe("ContextScanInput", () => {
 
     // A second, explicit click confirms and starts without re-uploading; only
     // the accepted file's blob key goes into the scan request.
-    const start = screen.getByTestId(TEST_IDS.contextScan.start);
+    const start = screen.getByTestId("context-scan-start");
     expect(start).toHaveTextContent("Start anyway");
     await user.click(start);
     await waitFor(() => expect(onStarted).toHaveBeenCalledTimes(1));
@@ -147,7 +146,7 @@ describe("ContextScanInput", () => {
 
     const fileInput = container.querySelector<HTMLInputElement>('input[type="file"]');
     await user.upload(fileInput!, [new File(["x"], "deck.pdf", { type: "application/pdf" })]);
-    await user.click(screen.getByTestId(TEST_IDS.contextScan.start));
+    await user.click(screen.getByTestId("context-scan-start"));
 
     await waitFor(() =>
       expect(
@@ -174,7 +173,7 @@ describe("ContextScanProgress", () => {
 
   it("renders the progress percentage and milestone steps", () => {
     render(<ContextScanProgress job={baseJob} />);
-    expect(screen.getByTestId(TEST_IDS.contextScan.progress)).toBeInTheDocument();
+    expect(screen.getByTestId("context-scan-progress")).toBeInTheDocument();
     expect(screen.getByText("60%")).toBeInTheDocument();
     expect(screen.getByText("Drafting your voice profile")).toBeInTheDocument();
   });
@@ -229,7 +228,7 @@ describe("ContextScanReview", () => {
       adapter,
     );
 
-    const badges = screen.getAllByTestId(TEST_IDS.contextScan.fieldConfidence);
+    const badges = screen.getAllByTestId("context-scan-field-confidence");
     // tone, style, examples
     expect(badges).toHaveLength(3);
     expect(screen.getByText("82% confidence")).toBeInTheDocument();
@@ -253,11 +252,11 @@ describe("ContextScanReview", () => {
     await user.type(nameInput, "Edited Voice");
 
     // Deselect the second candidate term ("stream").
-    const rows = screen.getAllByTestId(TEST_IDS.contextScan.termRow);
+    const rows = screen.getAllByTestId("context-scan-term-row");
     expect(rows).toHaveLength(3);
     await user.click(screen.getByLabelText("Include stream"));
 
-    await user.click(screen.getByTestId(TEST_IDS.contextScan.approve));
+    await user.click(screen.getByTestId("context-scan-approve"));
 
     await waitFor(() => expect(onApproved).toHaveBeenCalledTimes(1));
     expect(createVoiceProfile).toHaveBeenCalledTimes(1);
@@ -285,7 +284,7 @@ describe("ContextScanReview", () => {
       adapter,
     );
     await user.clear(screen.getByLabelText("Name"));
-    expect(screen.getByTestId(TEST_IDS.contextScan.approve)).toBeDisabled();
+    expect(screen.getByTestId("context-scan-approve")).toBeDisabled();
   });
 });
 
@@ -302,7 +301,7 @@ describe("ContextScanLiveTester", () => {
       adapter,
     );
 
-    const tester = screen.getByTestId(TEST_IDS.contextScan.liveTester);
+    const tester = screen.getByTestId("context-scan-live-tester");
     const textarea = tester.querySelector("textarea");
     expect(textarea).not.toBeNull();
 
@@ -415,7 +414,7 @@ describe("ContextScanAxes", () => {
   it("renders nothing when the scan proposed no axes", () => {
     const adapter = createMockAdapter();
     renderWithProviders(<ContextScanAxes axes={[]} />, adapter);
-    expect(screen.queryByTestId(TEST_IDS.contextScan.axes)).not.toBeInTheDocument();
+    expect(screen.queryByTestId("context-scan-axes")).not.toBeInTheDocument();
   });
 });
 

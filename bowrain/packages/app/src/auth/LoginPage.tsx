@@ -7,7 +7,6 @@ import {
   CardDescription,
   Button,
   LogIn,
-  TEST_IDS,
 } from "@neokapi/ui";
 
 export function LoginPage() {
@@ -35,7 +34,7 @@ export function LoginPage() {
               onClick={handleLogin}
               className="w-full"
               size="lg"
-              data-testid={TEST_IDS.auth.loginSsoButton}
+              data-testid="auth-login-sso-button"
             >
               Sign in with SSO
             </Button>

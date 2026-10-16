@@ -14,7 +14,6 @@ import { useApi } from "../context/ApiContext";
 import { useWorkspace } from "../context/WorkspaceContext";
 import type { ContextScanAxis } from "../types/api";
 import { Loader2 } from "../components/icons";
-import { TEST_IDS } from "../test-ids";
 
 /**
  * The two axes derived from a collection's `channel:` rather than declared on
@@ -47,7 +46,7 @@ export interface ContextScanAxesProps {
 export function ContextScanAxes({ axes }: ContextScanAxesProps) {
   if (axes.length === 0) return null;
   return (
-    <Card className="p-5 space-y-4" data-testid={TEST_IDS.contextScan.axes}>
+    <Card className="p-5 space-y-4" data-testid="context-scan-axes">
       <div className="space-y-1">
         <h2 className="text-sm font-semibold">Where this content varies</h2>
         <p className="text-xs text-muted-foreground">

@@ -1,8 +1,4 @@
 import { test, expect, type Page } from "@playwright/test";
-// Leaf subpath export bypasses the @neokapi/ui barrel (which transitively
-// imports JSON vocabularies that break Node-ESM Playwright collection).
-// See bowrain/packages/ui/package.json `exports."./test-ids"`.
-import { TEST_IDS } from "@neokapi/ui/test-ids";
 import {
   authenticate,
   deleteAllEditorProjects,
@@ -56,10 +52,10 @@ test.describe("Blank-workspace onboarding", () => {
     await injectAuthCookie(page, token);
     await page.goto(`/${wsSlug}`);
 
-    await expect(page.getByTestId(TEST_IDS.onboarding.emptyProjects)).toBeVisible({
+    await expect(page.getByTestId("empty-projects")).toBeVisible({
       timeout: 15000,
     });
-    const prompt = page.getByTestId(TEST_IDS.onboarding.starterPrompt);
+    const prompt = page.getByTestId("starter-prompt");
     await expect(prompt).toBeVisible();
     await expect(prompt).toContainText("Install the kapi skill");
     await expect(prompt).toContainText("the Blank Inc. workspace");
@@ -73,24 +69,24 @@ test.describe("Blank-workspace onboarding", () => {
 
     await expect(page).toHaveURL(new RegExp(`/${wsSlug}/context/profiles`), { timeout: 15000 });
 
-    const lanes = page.getByTestId(TEST_IDS.onboarding.contextLanes);
+    const lanes = page.getByTestId("context-onboarding");
     await expect(lanes).toBeVisible({ timeout: 15000 });
 
     // Lane one: the user's own assistant, with the prompt to hand it.
     await expect(lanes).toContainText("Build your brand starter pack with your AI");
-    const prompt = lanes.getByTestId(TEST_IDS.onboarding.starterPrompt);
+    const prompt = lanes.getByTestId("starter-prompt");
     await expect(prompt).toContainText("Install the kapi skill");
     await expect(prompt).toContainText("the Blank Inc. workspace");
 
     // Lane two: the hosted scan, which this stack runs.
-    await expect(page.getByTestId(TEST_IDS.onboarding.contextScanCard)).toBeVisible();
+    await expect(page.getByTestId("context-onboarding-scan")).toBeVisible();
   });
 
   test("the hosted lane opens the scan intake", async ({ page }) => {
     await injectAuthCookie(page, token);
     await page.goto(`/${wsSlug}/context/profiles`);
 
-    await page.getByTestId(TEST_IDS.onboarding.contextScanButton).click();
+    await page.getByTestId("context-onboarding-scan-btn").click();
 
     await expect(page).toHaveURL(new RegExp(`/${wsSlug}/context/scan`), { timeout: 15000 });
   });
@@ -100,10 +96,10 @@ test.describe("Blank-workspace onboarding", () => {
     await injectAuthCookie(page, token);
     await page.goto(`/${wsSlug}/context/profiles`);
 
-    await expect(page.getByTestId(TEST_IDS.onboarding.contextLanes)).toBeVisible({
+    await expect(page.getByTestId("context-onboarding")).toBeVisible({
       timeout: 15000,
     });
-    await page.getByTestId(TEST_IDS.onboarding.copyStarterPrompt).click();
+    await page.getByTestId("copy-starter-prompt").click();
 
     const clipboard = await page.evaluate(() => navigator.clipboard.readText());
     expect(clipboard).toContain("Install the kapi skill");

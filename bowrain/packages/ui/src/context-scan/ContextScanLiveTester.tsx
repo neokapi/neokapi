@@ -6,7 +6,6 @@ import { VoiceScoreGauge } from "../voice/VoiceScoreGauge";
 import { complianceBar } from "../voice/complianceBar";
 import { VoiceFindingsList } from "../voice/VoiceFindingsList";
 import { useCheckVoiceDraft } from "../hooks/useContextScanApi";
-import { TEST_IDS } from "../test-ids";
 
 export interface ContextScanLiveTesterProps {
   /** The draft under review — checks run against the current edits. */
@@ -39,7 +38,7 @@ export function ContextScanLiveTester({ profile, debounceMs = 500 }: ContextScan
   }, [text, profile, debounceMs, mutate]);
 
   return (
-    <Card data-testid={TEST_IDS.contextScan.liveTester} className="p-5 space-y-4">
+    <Card data-testid="context-scan-live-tester" className="p-5 space-y-4">
       <div>
         <h2 className="text-sm font-semibold">Try it on your copy</h2>
         <p className="text-xs text-muted-foreground mt-1">

@@ -1,8 +1,4 @@
 import { test, expect, type Page } from "@playwright/test";
-// Leaf subpath export bypasses the @neokapi/ui barrel (which transitively
-// imports JSON vocabularies that break Node-ESM Playwright collection).
-// See bowrain/packages/ui/package.json `exports."./test-ids"`.
-import { TEST_IDS } from "@neokapi/ui/test-ids";
 import {
   authenticate,
   getOrCreateWorkspace,
@@ -55,7 +51,7 @@ test.describe("Claim Flow", () => {
     // Should show the "Sign in to claim" page.
     await expect(page.getByText("Claim Project")).toBeVisible({ timeout: 10000 });
     await expect(page.getByText("Sign in to claim this project")).toBeVisible();
-    await expect(page.getByTestId(TEST_IDS.auth.claimSubmit)).toBeVisible();
+    await expect(page.getByTestId("auth-claim-submit")).toBeVisible();
   });
 
   test("auto-claims project when authenticated", async ({ page }) => {

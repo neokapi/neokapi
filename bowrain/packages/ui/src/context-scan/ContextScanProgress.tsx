@@ -1,6 +1,5 @@
 import { Button, Card, Progress } from "@neokapi/ui-primitives";
 import type { ContextScanJob } from "../types/api";
-import { TEST_IDS } from "../test-ids";
 import { AlertTriangle, Check, Loader2 } from "../components/icons";
 
 export interface ContextScanProgressProps {
@@ -25,7 +24,7 @@ const STEPS: { at: number; label: string }[] = [
 export function ContextScanProgress({ job, onRetry }: ContextScanProgressProps) {
   if (job.status === "failed") {
     return (
-      <Card data-testid={TEST_IDS.contextScan.progress} className="p-6 space-y-4">
+      <Card data-testid="context-scan-progress" className="p-6 space-y-4">
         <div className="flex items-center gap-2">
           <AlertTriangle className="w-4 h-4 text-destructive" />
           <h2 className="text-sm font-semibold">The scan could not complete</h2>
@@ -48,7 +47,7 @@ export function ContextScanProgress({ job, onRetry }: ContextScanProgressProps) 
   const activeIndex = progress >= 100 ? STEPS.length : STEPS.findIndex((s) => progress <= s.at);
 
   return (
-    <Card data-testid={TEST_IDS.contextScan.progress} className="p-6 space-y-5">
+    <Card data-testid="context-scan-progress" className="p-6 space-y-5">
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold">Scanning your brand</h2>

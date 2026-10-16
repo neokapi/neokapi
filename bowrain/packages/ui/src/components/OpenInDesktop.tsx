@@ -1,6 +1,5 @@
 import { Button, useIsMobile } from "@neokapi/ui-primitives";
 import { useState, useEffect, useCallback } from "react";
-import { TEST_IDS } from "../test-ids";
 import { X, Monitor } from "./icons";
 
 interface OpenInDesktopProps {
@@ -82,7 +81,7 @@ export function OpenInDesktop({ projectId, serverURL, workspaceSlug }: OpenInDes
   return (
     <div
       className="mb-4 flex items-center justify-between rounded-lg border border-border bg-muted/50 px-4 py-3"
-      data-testid={TEST_IDS.editor.openInDesktopBanner}
+      data-testid="open-in-desktop-banner"
     >
       <div className="flex items-center gap-3">
         <Monitor className="w-5 h-5 text-muted-foreground" />
@@ -90,7 +89,7 @@ export function OpenInDesktop({ projectId, serverURL, workspaceSlug }: OpenInDes
           <p className="text-sm font-medium">Open in Bowrain Desktop</p>
           <p
             className="text-xs text-muted-foreground"
-            data-testid={showFallback ? TEST_IDS.editor.desktopNotFoundMessage : undefined}
+            data-testid={showFallback ? "editor-desktop-not-found" : undefined}
           >
             {showFallback
               ? `Bowrain Desktop not found.`
@@ -105,7 +104,7 @@ export function OpenInDesktop({ projectId, serverURL, workspaceSlug }: OpenInDes
               href="https://bowrain.dev/download"
               target="_blank"
               rel="noopener noreferrer"
-              data-testid={TEST_IDS.editor.desktopDownloadLink}
+              data-testid="editor-desktop-download-link"
             >
               Download{osLabel}
             </a>
@@ -115,7 +114,7 @@ export function OpenInDesktop({ projectId, serverURL, workspaceSlug }: OpenInDes
             variant="outline"
             size="sm"
             onClick={handleOpen}
-            data-testid={TEST_IDS.editor.openInDesktopButton}
+            data-testid="open-in-desktop-btn"
             data-href={deepLink}
           >
             Open in Bowrain{osLabel}
@@ -125,7 +124,7 @@ export function OpenInDesktop({ projectId, serverURL, workspaceSlug }: OpenInDes
           onClick={handleDismiss}
           className="p-1 rounded hover:bg-muted text-muted-foreground"
           aria-label="Dismiss"
-          data-testid={TEST_IDS.editor.openInDesktopDismiss}
+          data-testid="dismiss-open-in-desktop"
         >
           <X className="w-4 h-4" />
         </button>
