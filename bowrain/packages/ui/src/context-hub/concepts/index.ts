@@ -1,12 +1,14 @@
-// Framework concept UI (R4) — the Concepts section now reuses @neokapi/concept-ui
-// (the same components kapi-desktop runs), driven by a RestConceptDataSource over
-// the workspace ApiAdapter with bowrain's full feature set + governed editing.
+// The Concepts section: the workspace's concepts as a list beside a detail pane,
+// on the shared list-and-detail primitives and @neokapi/concept-ui's model,
+// written through a RestConceptDataSource with governed editing.
 export { ConceptsSection } from "./ConceptsSection";
 export type { ConceptsSectionProps } from "./ConceptsSection";
 export { PendingConceptChanges, usePendingConceptChanges } from "./PendingConceptChanges";
 export type { PendingConceptChangesProps } from "./PendingConceptChanges";
-export { ConceptStorySection } from "./ConceptStorySection";
-export type { ConceptStorySectionProps } from "./ConceptStorySection";
+export { ConceptDetail } from "./ConceptDetail";
+export type { ConceptDetailProps } from "./ConceptDetail";
+export { GovernedEditDialog } from "./GovernedEditDialog";
+export type { GovernedEditDialogProps } from "./GovernedEditDialog";
 export { ConceptEditDialog } from "./ConceptEditDialog";
 export type { ConceptEditDialogProps } from "./ConceptEditDialog";
 export {

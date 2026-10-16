@@ -1,9 +1,9 @@
-// Pure presentation of the brand activity timeline (AD-021). The workspace
-// activity feed is one server read — every governed and ordinary write to the
-// graph is recorded there — so this file no longer weaves anything: it maps a
-// recorded activity to a row, names the type families the category filter asks
-// the server for, and groups a page by day. Kept React-free so all three are
-// unit-tested directly.
+// Pure presentation of the workspace's context activity (AD-021). The workspace
+// activity feed is one server read, and every governed and ordinary write to
+// the graph is recorded there, so this file weaves nothing: it maps a recorded
+// activity to a row, names the type families the category filter asks the
+// server for, folds a page into sessions (one person's run of work), and groups
+// sessions by day. Kept React-free so each step is unit-tested directly.
 import type { ActivityInfo, ConceptInfo } from "../../types/api";
 
 export type ActivityCategory = "experiment" | "concept" | "observation" | "comment";
@@ -54,13 +54,15 @@ export function categoryForType(type: string): ActivityCategory | null {
   return null;
 }
 
-/** One row of the brand timeline (pure data; the view adds icons and links). */
+/** One recorded operation (pure data; the view adds icons and links). */
 export interface FeedItem {
   id: string;
   at: string;
   category: ActivityCategory | null;
   type: string;
   actor?: string;
+  /** The actor's name as the server recorded it, for when the member list cannot name them. */
+  actorName?: string;
   /** The concept or change-set the event is about, named when it can be. */
   title: string;
   detail?: string;
@@ -92,6 +94,7 @@ export function toFeedItem(activity: ActivityInfo, names: EntityNames = {}): Fee
     category: categoryForType(activity.type),
     type: activity.type,
     actor: activity.actor_id,
+    actorName: activity.actor_name || undefined,
     title: name ?? activity.summary,
     detail: name ? activity.summary : undefined,
     conceptId,
@@ -151,6 +154,107 @@ export function groupByDay(items: FeedItem[], now: number = Date.now()): DayGrou
       groups.push(group);
     }
     group.items.push(item);
+  }
+  return groups;
+}
+
+// ── Sessions ──────────────────────────────────────────────────────────────────
+
+/**
+ * How long one person may pause and still be in the same session. A reviewer
+ * who approves three change-sets over a coffee is one session; the same
+ * reviewer the next morning is another.
+ */
+export const SESSION_GAP_MS = 30 * 60_000;
+
+/** One person's run of work: consecutive operations by one actor, close together in time. */
+export interface ActivitySession {
+  /** The id of the session's newest operation, which stays its id as older pages load. */
+  id: string;
+  actor: string;
+  /** The actor's recorded name, when the server carried one. */
+  actorName?: string;
+  /** The newest operation's instant. */
+  last: string;
+  /** The oldest operation's instant. */
+  first: string;
+  /** The operations, newest first. */
+  items: FeedItem[];
+}
+
+function instant(iso: string): number {
+  const ms = Date.parse(iso);
+  return Number.isNaN(ms) ? 0 : ms;
+}
+
+/**
+ * sessionsOf folds a newest-first feed into sessions. An operation joins the
+ * session before it when the same actor recorded it within `gapMs` of that
+ * session's oldest operation; anything else starts a new session. Two people
+ * working at once therefore read as alternating sessions, in the order they
+ * acted, rather than as one merged run.
+ */
+export function sessionsOf(items: FeedItem[], gapMs: number = SESSION_GAP_MS): ActivitySession[] {
+  const sessions: ActivitySession[] = [];
+  let current: ActivitySession | undefined;
+  for (const item of items) {
+    const actor = item.actor ?? "";
+    if (current && current.actor === actor && instant(current.first) - instant(item.at) <= gapMs) {
+      current.items.push(item);
+      current.first = item.at;
+      current.actorName ??= item.actorName;
+      continue;
+    }
+    current = {
+      id: item.id,
+      actor,
+      actorName: item.actorName,
+      last: item.at,
+      first: item.at,
+      items: [item],
+    };
+    sessions.push(current);
+  }
+  return sessions;
+}
+
+/** The operations in a session that record a review's verdict: who decided what stays. */
+export function decisionsOf(session: ActivitySession): FeedItem[] {
+  return session.items.filter((item) => item.type === "review.decided");
+}
+
+/** How many of a session's operations fall in each category, in the canonical order, zeros left out. */
+export function categoryCounts(session: ActivitySession): Array<[ActivityCategory, number]> {
+  const counts = new Map<ActivityCategory, number>();
+  for (const item of session.items) {
+    if (item.category) counts.set(item.category, (counts.get(item.category) ?? 0) + 1);
+  }
+  return ACTIVITY_CATEGORIES.filter((c) => counts.has(c)).map((c) => [c, counts.get(c)!]);
+}
+
+/** A day's sessions, newest first, under a relative label. */
+export interface SessionDayGroup {
+  key: string;
+  label: string;
+  sessions: ActivitySession[];
+}
+
+/** groupSessionsByDay buckets newest-first sessions by the day of their newest operation. */
+export function groupSessionsByDay(
+  sessions: ActivitySession[],
+  now: number = Date.now(),
+): SessionDayGroup[] {
+  const groups: SessionDayGroup[] = [];
+  const byKey = new Map<string, SessionDayGroup>();
+  for (const session of sessions) {
+    const key = dayKey(session.last);
+    let group = byKey.get(key);
+    if (!group) {
+      group = { key, label: dayLabel(session.last, now), sessions: [] };
+      byKey.set(key, group);
+      groups.push(group);
+    }
+    group.sessions.push(session);
   }
   return groups;
 }

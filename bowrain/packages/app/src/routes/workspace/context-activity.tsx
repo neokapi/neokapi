@@ -3,6 +3,11 @@ import { useNavigate, useParams, useRouteContext } from "@tanstack/react-router"
 import { ActivityView } from "@neokapi/ui";
 import type { WorkspaceRouteContext } from "..";
 
+/**
+ * ContextActivityRoute is the workspace's context activity as a list of
+ * sessions beside a detail pane. An operation about a concept opens it in the
+ * Concepts list; one about a change-set opens its review.
+ */
 export function ContextActivityRoute() {
   const navigate = useNavigate();
   const { workspace } = useParams({ strict: false });

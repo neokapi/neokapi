@@ -1052,11 +1052,12 @@ export {
   EmptyState as ContextHubEmptyState,
   formatDate as voiceHubFormatDate,
   formatRelative as voiceHubFormatRelative,
-  // Concepts section — framework concept UI (R4) on @neokapi/concept-ui.
+  // Concepts section — a list beside a detail pane on @neokapi/concept-ui's model.
   ConceptsSection,
   PendingConceptChanges,
   usePendingConceptChanges,
-  ConceptStorySection,
+  ConceptDetail,
+  GovernedEditDialog,
   ConceptEditDialog,
   createRestConceptSource,
   GovernedEditError,
@@ -1065,6 +1066,7 @@ export {
   ExperimentsView,
   ExperimentDetailView,
   ActivityView,
+  MemorySection,
   VoiceDashboardView,
   RollupMatrix,
 } from "./context-hub";
@@ -1076,12 +1078,14 @@ export type {
   ProfileCardProps,
   ConceptsSectionProps,
   PendingConceptChangesProps,
-  ConceptStorySectionProps,
+  ConceptDetailProps,
+  GovernedEditDialogProps,
   ConceptEditDialogProps,
   RestConceptSourceOptions,
   ExperimentsViewProps,
   ExperimentDetailViewProps,
   ActivityViewProps,
+  MemorySectionProps,
   VoiceDashboardViewProps,
 } from "./context-hub";
 
