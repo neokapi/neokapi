@@ -528,3 +528,94 @@ func TestPlanRulesFiles_NamesWhatAWriteWrites(t *testing.T) {
 		assert.NotEqual(t, "CLAUDE.md", f.Path, "a CLAUDE.md importing AGENTS.md gets no section")
 	}
 }
+
+// storefrontRecipe is one profile whose folders each hold files at two
+// points: the folder's own channel, and the reference channel that the error
+// catalogue and the API page share across folders.
+const storefrontRecipe = `version: v1
+id: ` + "prj_rulesfilesstoreaaaaaaaa" + `
+name: storefront
+defaults:
+  source_language: en
+profiles:
+  shop:
+    channels: [web, reference, store, legal]
+collections:
+  - name: website
+    base: web
+    channel: shop/web
+    source_only: true
+    content:
+      - path: "en/api-reference.md"
+        channel: shop/reference
+      - path: "en/**/*.md"
+  - name: store
+    base: src
+    channel: shop/store
+    source_only: true
+    content:
+      - path: "en/error-messages.properties"
+        channel: shop/reference
+      - path: "en/*.properties"
+  - name: contracts
+    base: legal
+    channel: shop/legal
+    source_only: true
+    content:
+      - path: "en/*.md"
+`
+
+// TestWriteRulesFiles_AFolderHoldingTheRuleKeepsNoOldWording: a rule kept at
+// the reference point holds for one file of src/en/ and one of web/en/. The
+// other files of those folders sit at a point the rule is held elsewhere
+// from, but a folder's rules are stated per folder: a folder the rule holds
+// in writes the new wording and never also keeps the old one. A folder the
+// rule holds nowhere in keeps it.
+func TestWriteRulesFiles_AFolderHoldingTheRuleKeepsNoOldWording(t *testing.T) {
+	app, _ := contextOpsApp(t)
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
+	for rel, body := range map[string]string{
+		"kapi.yaml":                        storefrontRecipe,
+		"web/en/api-reference.md":          "Log in before you call the API.\n",
+		"web/en/getting-started.md":        "Log in to the store.\n",
+		"src/en/error-messages.properties": "auth.required=Log in to continue.\n",
+		"src/en/labels.properties":         "button.login=Log in\n",
+		"legal/en/terms.md":                "You log in at your own risk.\n",
+	} {
+		full := filepath.Join(root, filepath.FromSlash(rel))
+		require.NoError(t, os.MkdirAll(filepath.Dir(full), 0o755))
+		require.NoError(t, os.WriteFile(full, []byte(body), 0o644))
+	}
+	signIn, err := app.RecordContextObservation(t.Context(), ContextObserveRequest{
+		Actor: person, Project: recipeOf(root), Term: "sign in", InsteadOf: []string{"log in"},
+		Evidence: []contextop.Evidence{{Path: "src/en/error-messages.properties", Quote: "Log in to continue"}},
+	})
+	require.NoError(t, err)
+	_, err = app.DecideContextReview(t.Context(), ContextReviewRequest{
+		Actor: person, Project: recipeOf(root), Keep: []string{signIn.ID},
+	})
+	require.NoError(t, err)
+
+	_, err = app.WriteRulesFiles(t.Context(), recipeOf(root))
+	require.NoError(t, err)
+	got := rulesFilesIn(t, root)
+
+	rootLines := map[string]string{}
+	for line := range strings.SplitSeq(got["AGENTS.md"], "\n") {
+		if dir, rest, ok := strings.Cut(strings.TrimPrefix(line, "- "), "/: "); ok && strings.HasPrefix(line, "- ") {
+			rootLines[dir] = rest
+		}
+	}
+	const keep = `keep "log in" (do not rename it to "sign in")`
+	const write = `write "sign in", not "log in"`
+	for _, dir := range []string{"src/en", "web/en"} {
+		assert.Contains(t, rootLines[dir], write, dir)
+		assert.NotContains(t, rootLines[dir], keep, dir)
+		assert.NotContains(t, got[dir+"/AGENTS.md"], "is correct here", dir)
+	}
+	assert.Contains(t, rootLines["legal/en"], keep)
+	assert.NotContains(t, rootLines["legal/en"], write)
+	assert.Contains(t, got["legal/en/AGENTS.md"],
+		`"log in" is correct here; do not rename it to "sign in". That rename holds only in src/en/ and web/en/.`)
+}
