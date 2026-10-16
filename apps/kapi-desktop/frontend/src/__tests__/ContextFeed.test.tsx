@@ -256,4 +256,10 @@ describe("taking a reset back", () => {
     renderFeed({ ...RESET_FEED, read_only: true });
     expect(document.querySelector("[data-slot='reset-reset']")).toBeNull();
   });
+
+  it("counts the reset in its session's summary", () => {
+    renderFeed(RESET_FEED);
+    const session = document.querySelector("[data-session='actor:person/asgeir:2026-09-22']");
+    expect(session?.querySelector("[data-slot='session-summary']")?.textContent).toBe("1 reset");
+  });
 });

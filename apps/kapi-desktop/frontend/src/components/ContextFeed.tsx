@@ -400,6 +400,9 @@ function SessionSummaryLine({ group }: { group: ContextFeedGroup }) {
   if (group.corrected > 0) parts.push(`${group.corrected} corrected`);
   if (group.kept > 0) parts.push(`${group.kept} kept`);
   if (group.dropped > 0) parts.push(`${group.dropped} dropped`);
+  const resets = group.entries.filter((entry) => entry.kind === "reset").length;
+  if (resets > 0)
+    parts.push(t("{count, plural, one {# reset} other {# resets}}", { count: resets }));
   return (
     <>
       {parts.length > 0 ? parts.join(", ") : `${group.entries.length} operations`}
