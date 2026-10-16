@@ -1518,15 +1518,20 @@ async function contextWalk(c: WalkCtx): Promise<void> {
   await settle();
 
   // The brief an assistant gets for the store's interface strings, which the
-  // kept word now governs.
+  // kept word now governs. Assistant opens on its Rules files tab, so the
+  // beat clicks the brief's tab first.
   await humanClick(page, contextSection(page, "Assistant"));
   await page.waitForSelector('[data-slot="rules-files"]', { timeout: 30_000 });
   await page.waitForTimeout(1000);
-  // The crop runs from the file picker down to the kept rule's line in the
-  // brief's terms, which carries no handle of its own.
+  // The crop runs from the brief's tab and the file picker down to the kept
+  // rule's line in the brief's terms, which carries no handle of its own.
+  const briefTab = page.getByTestId("assistant-tab-brief");
   const picker = page.locator('[aria-label="Choose a file"]');
   const keptTerm = page.locator('[data-slot="assistant-brief"] li').filter({ hasText: "say shopping cart instead" });
   await beatSpan("assistant", async (mark) => {
+    await humanClick(page, briefTab);
+    await page.waitForSelector('[data-slot="assistant-brief"]', { timeout: 10_000 });
+    await page.waitForTimeout(600);
     await centre(page, page.locator('[data-slot="assistant-brief"]'));
     await humanClick(page, picker);
     await page.waitForTimeout(700);
@@ -1535,6 +1540,7 @@ async function contextWalk(c: WalkCtx): Promise<void> {
     await keptTerm.first().waitFor({ state: "visible", timeout: 10_000 });
     await page.waitForTimeout(900);
     await moveTo(page, ...(await centreOf(keptTerm)));
+    await mark(briefTab);
     await mark(picker);
     await mark(keptTerm);
     await page.waitForTimeout(1500);
