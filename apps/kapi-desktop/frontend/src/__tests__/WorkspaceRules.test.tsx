@@ -21,12 +21,9 @@ describe("the rules that hold in every project", () => {
     ]);
   });
 
-  it("says how a rule gets here when none does", () => {
+  it("draws nothing when no rule holds in every project", () => {
     render(<WorkspaceRules rules={[]} />);
-    expect(
-      screen.getByText(
-        "Nothing yet. A rule you apply more widely in a project's review holds here, in every project you work on.",
-      ),
-    ).toBeInTheDocument();
+    expect(all("workspace-rules")).toHaveLength(0);
+    expect(screen.queryByText("Holds in every project")).not.toBeInTheDocument();
   });
 });
