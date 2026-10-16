@@ -15,8 +15,9 @@ aspects:
   - A note arriving from outside the app
   - How far the context reaches
 
-# keep, change and choose carry no crop: the walk crops each to the row it
-# acts on and the rule that row became (beatSpan in record-desktop.ts).
+# keep, change, choose and assistant carry no crop: the walk crops each to
+# what it marks during the beat (beatSpan in record-desktop.ts), the row acted
+# on and the rule it became, or the file picker and the kept rule's line.
 #
 # The sample arrives with two assistant sessions (claude-code, then codex),
 # seeded by the desktop backend when the sample is created. The walk creates
@@ -84,7 +85,7 @@ narration:
     kind: desktop
     beat: assistant
     caption: The brief for one file carries your rule.
-    crop: { selector: '[data-slot="assistant-brief"]' }
+    highlight: { selector: '[data-slot="assistant-brief"] li:has-text("say shopping cart instead")' }
     text: >-
       Assistant shows what an assistant reads. For the store's interface
       strings, the brief marks basket as discouraged and says shopping cart

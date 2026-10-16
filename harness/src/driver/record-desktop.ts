@@ -1350,6 +1350,13 @@ const LIVE_NOTE = [
   "--quote", "Sandbox accounts are limited to 100 requests per second.",
 ];
 
+/** The point a cursor rests on for an element: a little in from its left edge, on its middle line. */
+async function centreOf(locator: Locator): Promise<[number, number]> {
+  const box = await locator.first().boundingBox();
+  if (!box) throw new Error("kapi-desktop-context: an element the cursor should rest on is not on the page");
+  return [box.x + Math.min(box.width / 2, 160), box.y + box.height / 2];
+}
+
 /** Scroll an element to the middle of its scroller, as a reader would. */
 async function centre(page: Page, locator: Locator): Promise<void> {
   await locator.evaluate((el) => el.scrollIntoView({ behavior: "smooth", block: "center" }));
@@ -1521,13 +1528,22 @@ async function contextWalk(c: WalkCtx): Promise<void> {
   await humanClick(page, contextSection(page, "Assistant"));
   await page.waitForSelector('[data-slot="rules-files"]', { timeout: 30_000 });
   await page.waitForTimeout(1000);
-  await beatEls("assistant", ['[data-slot="assistant-brief"]'], async () => {
+  // The crop runs from the file picker down to the kept rule's line in the
+  // brief's terms, which carries no handle of its own.
+  const picker = page.locator('[aria-label="Choose a file"]');
+  const keptTerm = page.locator('[data-slot="assistant-brief"] li').filter({ hasText: "say shopping cart instead" });
+  await beatSpan("assistant", async (mark) => {
     await centre(page, page.locator('[data-slot="assistant-brief"]'));
-    await humanClick(page, page.locator('[aria-label="Choose a file"]'));
+    await humanClick(page, picker);
     await page.waitForTimeout(700);
     await humanClick(page, page.locator('[role="option"]').filter({ hasText: "src/en/store-ui.json" }).first());
     await page.getByTestId("agent-context-text").waitFor({ state: "visible", timeout: 30_000 });
-    await page.waitForTimeout(2400);
+    await keptTerm.first().waitFor({ state: "visible", timeout: 10_000 });
+    await page.waitForTimeout(900);
+    await moveTo(page, ...(await centreOf(keptTerm)));
+    await mark(picker);
+    await mark(keptTerm);
+    await page.waitForTimeout(1500);
   });
 
   // Back on the home, a note arrives from outside the app. The home learns of
