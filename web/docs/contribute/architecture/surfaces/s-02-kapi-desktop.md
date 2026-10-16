@@ -160,32 +160,42 @@ agent whose recorded change produced the text in force.
 
 ### The app opens on the workspace
 
-The first screen is the workspace home, one reading column titled "Your
-context". Top to bottom it holds a sentence of numbers, **What's new**,
-**Projects**, **Holds in every project**, **Start here** and the quick tools.
+The first screen is the workspace home, titled "Your context", in the overview
+shape of the page patterns guide (`packages/ui/docs/page-patterns.md`): a page
+header, a row of labelled counts, and two lists of rows that each lead to a
+project. Top to bottom it holds the counts, **What's new**, **Projects**,
+**Holds in every project** (drawn only while the workspace holds a rule) and
+**Start here**, which comes first instead on an empty workspace. The header
+names the workspace directory by its last segment, with the full path in the
+tooltip.
 
-`host.App.ContextStandings` answers the numbers, What's new and each project
-row's context line from one fold of the log over every registered project. A
+`host.App.ContextStandings` answers the counts, What's new and each project
+row's rules column from one fold of the log over every registered project. A
 `ContextProjectStanding` carries the project's rules in force, the suggestions
 advising, the conflicts, what is new since the person's marker (below), and the
 latest session's activity as a `ContextActivity`: its actor, what it recorded
 and corrected, what is new by digest theme, and `Working`, which holds while an
 agent session has added an operation within the last two minutes, the feed's
-quiet rule. The numbers read "kapi knows 61 rules across 5 projects. 7
-suggestions are advising.", with a second sentence naming a session that is
-working. What's new lists only the projects with something new, newest first,
-as "4 new since Tuesday. claude-code noticed 3 names and 1 word."; a project
-with a conflict adds "1 needs you", and its button reads Decide in place of
-Review. A row opens the project's tab on What's new.
+quiet rule. The counts are drawn by `StatRow`: projects, rules, suggestions,
+and the conflicts as "needs you", in the warning ink while there are any. No
+sentence on the page is generated from a number. What's new lists the projects
+with something new, a suggestion advising, a conflict or a working session,
+newest session first. A row is the latest session's actor as an `ActorMark`,
+the project and how long ago, one chip per digest theme the session noticed
+("3 names", "1 word") and a warning chip for the conflicts, then one button,
+Decide while there is a conflict and Review otherwise, which opens the
+project's tab on What's new. A working session adds a chip with a live dot.
 
-Each project row's second line gives the voice profile governing the project's
-default point, the rules in force, one word for where its context is shared
-(`ProjectSharing`, under [Sharing and the ladder of
-reach](#sharing-and-the-ladder-of-reach)) and the last activity. **Holds in
-every project** lists the rules applied to the workspace (`WorkspaceRules`),
-each with the project it was decided in and how it came into force. Those rules
-live in the workspace's own rule table, which every project on this machine
-reads.
+Each project row is one line of aligned columns: the voice profile governing
+the project's default point, the rules in force, an icon and one word for where
+its context is shared (`ProjectSharing`, under [Sharing and the ladder of
+reach](#sharing-and-the-ladder-of-reach)) and the last activity. Open opens the
+first checkout still present; the row's menu holds the other checkouts, Copy
+path and Remove, and the first checkout's path is the tooltip on the name.
+**Holds in every project** lists the rules applied to the workspace
+(`WorkspaceRules`), each with the project it was decided in and how it came
+into force. Those rules live in the workspace's own rule table, which every
+project on this machine reads.
 
 **Start here** is three steps for a first run: open a project or try the
 sample, connect an assistant, come back to What's new. Dismissing it is a
