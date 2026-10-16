@@ -312,7 +312,7 @@ func TestCreateSampleProject_ArrivesWithAnAssistantSession(t *testing.T) {
 	require.NotNil(t, row.Context)
 	assert.Equal(t, 1, row.Context.Conflicts)
 	assert.Equal(t, 5, row.Context.Suggested, "three names, a word and a note")
-	assert.Positive(t, row.Context.Rules, "the imported terms are rules in force")
+	assert.Zero(t, row.Context.Rules, "a file read in is not a rule decided in review")
 	require.NotNil(t, row.Context.Latest)
 	assert.Equal(t, "codex", row.Context.Latest.Actor.Name)
 	assert.Equal(t, 2, row.Context.Latest.Recorded)

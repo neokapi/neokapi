@@ -98,6 +98,18 @@ export function AppHome({
   const newsByProject = new Map((news ?? []).map((row) => [row.project, row]));
   const derived = useMemo(() => standingsOf(workspace), [workspace]);
   const standings = given ?? derived;
+  // On a first visit nothing is registered, so the three steps come first and
+  // the sections that would only say "nothing yet" wait until there is a
+  // project to fill them.
+  const empty = !workspaceError && !!workspace && projects.length === 0;
+  const startHere = !startHereDismissed && (
+    <StartHere
+      onDismiss={onDismissStartHere}
+      onCreateSampleProject={onCreateSampleProject}
+      onConnectAssistant={onConnectAssistant}
+      hasOpenProject={hasOpenProject}
+    />
+  );
 
   return (
     <div data-slot="app-home" className="mx-auto max-w-3xl space-y-8 p-6">
@@ -140,6 +152,8 @@ export function AppHome({
       <div className="empty:hidden">
         <WorkspaceConflicts conflicts={documentConflicts} />
       </div>
+
+      {empty && startHere}
 
       <WhatsNew standings={standings} onOpen={onOpenWhatsNew} />
 
@@ -195,16 +209,9 @@ export function AppHome({
         )}
       </section>
 
-      <WorkspaceRules rules={workspaceRules} />
+      {!empty && <WorkspaceRules rules={workspaceRules} />}
 
-      {!startHereDismissed && (
-        <StartHere
-          onDismiss={onDismissStartHere}
-          onCreateSampleProject={onCreateSampleProject}
-          onConnectAssistant={onConnectAssistant}
-          hasOpenProject={hasOpenProject}
-        />
-      )}
+      {!empty && startHere}
 
       <RemoveProjectDialog
         project={removing}

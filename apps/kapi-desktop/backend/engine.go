@@ -3,6 +3,7 @@ package backend
 import (
 	"context"
 	"errors"
+	"github.com/neokapi/neokapi/core/contextop"
 
 	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/host"
@@ -48,6 +49,11 @@ func (a *App) hostEngine() *host.App {
 		// owner: a rescan per run would pay the discovery cost every time and
 		// could hand two runs different plugin sets.
 		e.InitPluginHost()
+		// The person at the keyboard is the one acting, whichever shell
+		// launched the app: a terminal inside an agent host leaves that
+		// host's marker in the environment, and read from there the
+		// person's imports and decisions would be refused as an agent's.
+		e.ActAs(contextop.Actor{Kind: contextop.ActorPerson})
 		a.engine = e
 	}
 	return a.engine
@@ -64,6 +70,8 @@ func (a *App) borrowEngine(run *host.App) *host.App {
 	owner := a.hostEngine()
 	owner.ShareProjectStores(run)
 	run.PluginHost = owner.PluginHost
+	// A borrowed App records as the owner does: the person at the keyboard.
+	run.ActAs(contextop.Actor{Kind: contextop.ActorPerson})
 	return run
 }
 

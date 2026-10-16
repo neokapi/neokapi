@@ -24,8 +24,10 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/wailsapp/wails/v3/pkg/application"
 	"log"
 	"net/http"
 	"os"
@@ -129,6 +131,14 @@ func main() {
 	}
 
 	app := backend.NewApp()
+	// Wails runs the service's startup hook before the window opens; the
+	// bridge is that lifecycle for a recording, so it runs the same hook, which
+	// starts the workspace watcher. Without it an assistant's note recorded
+	// from a terminal never reaches the page, because nothing emits
+	// workspace:changed.
+	if err := app.ServiceStartup(context.Background(), application.ServiceOptions{}); err != nil {
+		log.Fatalf("wbridge: service startup: %v", err)
+	}
 	appVal := reflect.ValueOf(app)
 
 	// Stream backend events (plugin install, flow:event, …) to connected
@@ -243,7 +253,12 @@ func main() {
 	// /wevents holds a stream open for the life of the page, so a write
 	// deadline would cut it; the header read is what needs a bound (G114).
 	srv := &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
-	log.Fatal(srv.ListenAndServe())
+	err := srv.ListenAndServe()
+	// The recorder stops the bridge with a signal, so this runs only when the
+	// listener itself fails; it still releases the stores the way the desktop
+	// does on quit.
+	_ = app.ServiceShutdown()
+	log.Fatal(err)
 }
 
 func kapiConfigInfo() string {

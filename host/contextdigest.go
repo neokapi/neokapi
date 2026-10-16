@@ -32,6 +32,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/neokapi/neokapi/core/contextop"
@@ -619,6 +620,11 @@ func buildDigest(records []contextop.Record, key workspace.ProjectKey, since, no
 			continue
 		}
 		switch {
+		case r.Kind == contextop.KindImport:
+			// A file read in is a record of where terms, a voice or wording
+			// came from, not a rule a person decided: it stays in the log and
+			// out of the digest, where "established" means a rule in force.
+			continue
 		case r.Status == contextop.StatusContested:
 			if conflicted[r.ID] {
 				continue
@@ -1284,6 +1290,13 @@ func MarkContextDigestSeen(key workspace.ProjectKey, at time.Time) (time.Time, e
 	if key == "" {
 		return time.Time{}, errors.New("name the project whose digest was read")
 	}
+	// One read-modify-write at a time in this process: a surface that opens a
+	// digest can mark it seen twice in one moment (React runs an effect twice
+	// in development), and two writers racing on one temporary file lost the
+	// rename. Another process writes its own temporary file, so the rename
+	// stays whole across processes too.
+	digestMarkerMu.Lock()
+	defer digestMarkerMu.Unlock()
 	m := loadDigestMarkers()
 	previous := m.Projects[string(key)]
 	if at.Before(previous) {
@@ -1298,8 +1311,22 @@ func MarkContextDigestSeen(key workspace.ProjectKey, at time.Time) (time.Time, e
 	if err != nil {
 		return previous, err
 	}
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, append(data, '\n'), 0o600); err != nil {
+	f, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".*.tmp")
+	if err != nil {
+		return previous, fmt.Errorf("write the digest marker: %w", err)
+	}
+	tmp := f.Name()
+	if _, err := f.Write(append(data, '\n')); err != nil {
+		_ = f.Close()
+		_ = os.Remove(tmp)
+		return previous, fmt.Errorf("write the digest marker: %w", err)
+	}
+	if err := f.Close(); err != nil {
+		_ = os.Remove(tmp)
+		return previous, fmt.Errorf("write the digest marker: %w", err)
+	}
+	if err := os.Chmod(tmp, 0o600); err != nil {
+		_ = os.Remove(tmp)
 		return previous, fmt.Errorf("write the digest marker: %w", err)
 	}
 	if err := os.Rename(tmp, path); err != nil {
@@ -1308,6 +1335,10 @@ func MarkContextDigestSeen(key workspace.ProjectKey, at time.Time) (time.Time, e
 	}
 	return previous, nil
 }
+
+// digestMarkerMu serialises the marker file's read-modify-write in this
+// process.
+var digestMarkerMu sync.Mutex
 
 // loadDigestMarkers reads the marker file. A missing or unreadable file means
 // nobody has looked, which is the same starting state as an empty one.

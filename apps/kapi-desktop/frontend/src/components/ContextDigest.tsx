@@ -226,9 +226,6 @@ export function ContextDigestView({
           <h3 id="digest-conflicts" className="text-base font-semibold">
             Needs you
           </h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            These rules disagree. Choose the one the project goes by, and the others are set aside.
-          </p>
           <div className="mt-3 space-y-4">
             {digest.conflicts.map((c) => (
               <div
@@ -484,7 +481,12 @@ function DigestRow({
       )}
       <p className="mt-1 text-xs text-muted-foreground">
         {item.how && item.how.length > 0 ? item.how.join(" · ") : <Noticed item={item} />}
-        {item.standing && <> · {item.standing}</>}
+        {item.standing && (
+          <>
+            {" · "}
+            {item.standing}
+          </>
+        )}
       </p>
 
       {canDecide && changing !== null && (

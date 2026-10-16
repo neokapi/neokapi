@@ -58,6 +58,23 @@ describe("what is new across the workspace", () => {
     ]);
   });
 
+  it("keeps a project whose suggestions still wait after the marker moved", () => {
+    // Opening a project on its What's new moves the marker at once, so a
+    // fresh sample would otherwise vanish from the home with its suggestions
+    // still undecided.
+    const seen = {
+      ...ACME,
+      new: 0,
+      since: new Date().toISOString(),
+      suggested: 5,
+      latest: { ...ACME.latest!, new_by_theme: undefined },
+    };
+    render(<WhatsNew standings={[seen]} onOpen={vi.fn()} />);
+    expect(all("whats-new-sentence").map((p) => p.textContent)).toEqual([
+      "5 suggestions are advising. claude-code recorded 4 notes.",
+    ]);
+  });
+
   it("reads Decide for a project that needs a person and Review otherwise", () => {
     render(<WhatsNew standings={SEVERAL} onOpen={vi.fn()} />);
     expect(all("whats-new-open").map((b) => b.textContent)).toEqual(["Review", "Decide", "Review"]);
