@@ -44,13 +44,16 @@ runs:
     # serves both as application/octet-stream, which PowerShell reads as bytes
     # it cannot run. GitHub serves the same files as text, so the variable
     # names the one for the runner's platform there, pinned to a vite-plus
-    # commit.
+    # commit. The main installer that downloads it sets Set-StrictMode, so the
+    # pinned install-legacy.ps1 has to be strict-mode clean: the pin must be at
+    # or after upstream commit ae0ec12d0, which wraps its pipeline results in
+    # @(...) before reading .Count.
     - name: Install Vite+ and the Node.js runtime
       id: vp-setup
       uses: voidzero-dev/setup-vp@v1
       continue-on-error: true
       env:
-        VP_LEGACY_INSTALLER_URL: ${{ runner.os == 'Windows' && 'https://raw.githubusercontent.com/voidzero-dev/vite-plus/9fd0d0ae6e775db361d3d5f9f3a18b47bc195420/packages/cli/install-legacy.ps1' || 'https://raw.githubusercontent.com/voidzero-dev/vite-plus/9fd0d0ae6e775db361d3d5f9f3a18b47bc195420/packages/cli/install-legacy.sh' }}
+        VP_LEGACY_INSTALLER_URL: ${{ runner.os == 'Windows' && 'https://raw.githubusercontent.com/voidzero-dev/vite-plus/ae0ec12d06181bad1549b98ef3aac70c970c3556/packages/cli/install-legacy.ps1' || 'https://raw.githubusercontent.com/voidzero-dev/vite-plus/ae0ec12d06181bad1549b98ef3aac70c970c3556/packages/cli/install-legacy.sh' }}
       with:
         version: "0.1.23"
         node-version: ${{ inputs.node-version }}
@@ -69,7 +72,7 @@ runs:
       if: steps.vp-setup.outcome == 'failure'
       uses: voidzero-dev/setup-vp@v1
       env:
-        VP_LEGACY_INSTALLER_URL: ${{ runner.os == 'Windows' && 'https://raw.githubusercontent.com/voidzero-dev/vite-plus/9fd0d0ae6e775db361d3d5f9f3a18b47bc195420/packages/cli/install-legacy.ps1' || 'https://raw.githubusercontent.com/voidzero-dev/vite-plus/9fd0d0ae6e775db361d3d5f9f3a18b47bc195420/packages/cli/install-legacy.sh' }}
+        VP_LEGACY_INSTALLER_URL: ${{ runner.os == 'Windows' && 'https://raw.githubusercontent.com/voidzero-dev/vite-plus/ae0ec12d06181bad1549b98ef3aac70c970c3556/packages/cli/install-legacy.ps1' || 'https://raw.githubusercontent.com/voidzero-dev/vite-plus/ae0ec12d06181bad1549b98ef3aac70c970c3556/packages/cli/install-legacy.sh' }}
       with:
         version: "0.1.23"
         node-version: ${{ inputs.node-version }}
