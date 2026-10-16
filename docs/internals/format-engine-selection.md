@@ -81,6 +81,28 @@ behind `resolveFormatRef`, the toolbox's `--format`, the `.kpz` detector and
 
 `--engine` never rewrites a named format: it ranks engines for detection only.
 
+## Kapi Desktop
+
+The desktop backend sets the registry's default engine from the config's
+`formats.engine` when it starts (`backend.NewApp`), so a file resolves to the
+same format as it does under the CLI. `DetectFormat` resolves a path outside
+a project by extension; `DetectProjectFormat` and the file listing go through
+`ProjectContext.DetectFormat`, which carries the recipe's sources, preference
+and pins. `ListFormats` reports each format's `engine`, `priority` and
+`shared_extensions`, read by three surfaces:
+
+- The format selector (`packages/ui`, `FormatSelect`) shows the engine beside
+  a plugin's format or one whose extension another engine claims, and marks
+  such an extension with `*`.
+- A content item whose files more than one engine reads gets an engine choice
+  (`CollectionsPanel`): Auto leaves the file to the project's engine order, and
+  an engine pins the item to that engine's format for the files, computed from
+  the listing with the registry's rule (`frontend/src/lib/engines.ts`,
+  `engineFormatFor`).
+- Project settings hold `defaults.engine` beside the declared plugins and an
+  engine per entry of `defaults.formats`. Removing a plugin clears the engines
+  that named it.
+
 ## The engine order
 
 First to last. Each line names the option the stage reads and the surface that

@@ -53,8 +53,13 @@ export interface ProjectSettingsPageProps {
 
 const ENCODING_OPTIONS = ["UTF-8", "UTF-16", "ISO-8859-1", "Windows-1252", "Shift_JIS", "EUC-JP"];
 
-/** Default priority value used when "prefer plugin formats" is toggled on. */
+/** Default priority value used when "rank ahead of other plugins" is toggled on. */
 const PLUGIN_PREFER_PRIORITY = 200;
+
+/** The engine select's value for the built-in engine, which the recipe leaves unset. */
+const NATIVE_ENGINE_OPTION = "__native__";
+/** The format default's engine value for "the project's engine". */
+const PROJECT_ENGINE_OPTION = "__project__";
 
 /** Version pin modes for the UI. */
 type VersionPin = "none" | "compatible" | "gte" | "exact";
@@ -123,6 +128,8 @@ export function ProjectSettingsPage({
 
   // Detect missing plugins (in project but not installed).
   const missingPlugins = Object.keys(plugins).filter((name) => !installedByName.has(name));
+  // The engines a recipe may name: native and its declared plugins.
+  const declaredPlugins = Object.keys(plugins).sort();
 
   // --- Update helpers ---
 
@@ -140,7 +147,7 @@ export function ProjectSettingsPage({
   const updateFormatDefault = (fmt: string, patch: Partial<FormatDefaults>) => {
     const current = formatDefaults[fmt] ?? {};
     const updated = { ...current, ...patch };
-    const isEmpty = !updated.preset && !updated.priority && !updated.config;
+    const isEmpty = !updated.preset && !updated.priority && !updated.config && !updated.engine;
     const next = { ...formatDefaults };
     if (isEmpty) {
       delete next[fmt];
@@ -338,8 +345,23 @@ export function ProjectSettingsPage({
                             } else {
                               const next = { ...plugins };
                               delete next[name];
+                              // A removed plugin can no longer be the
+                              // project's engine or a format's.
+                              const nextFormats = Object.fromEntries(
+                                Object.entries(formatDefaults).map(([k, fd]) => [
+                                  k,
+                                  fd.engine === name ? { ...fd, engine: undefined } : fd,
+                                ]),
+                              );
                               onUpdate({
                                 ...project,
+                                defaults: {
+                                  ...defaults,
+                                  engine: defaults.engine === name ? undefined : defaults.engine,
+                                  formats: Object.keys(nextFormats).length
+                                    ? nextFormats
+                                    : undefined,
+                                },
                                 plugins: Object.keys(next).length ? next : undefined,
                               });
                             }
@@ -353,7 +375,9 @@ export function ProjectSettingsPage({
                       </label>
                       {inProject && (
                         <div className="flex items-center gap-2">
-                          <Label className="text-xs text-muted-foreground">Prefer formats</Label>
+                          <Label className="text-xs text-muted-foreground">
+                            {t("Rank ahead of other plugins")}
+                          </Label>
                           <Switch
                             checked={isPreferred}
                             onCheckedChange={(checked) =>
@@ -413,6 +437,39 @@ export function ProjectSettingsPage({
                   </div>
                 );
               })}
+
+              {declaredPlugins.length > 0 && (
+                <div className="border-t pt-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Label className="text-xs text-muted-foreground">{t("Format engine")}</Label>
+                    <Select
+                      value={defaults.engine || NATIVE_ENGINE_OPTION}
+                      onValueChange={(v) =>
+                        updateDefaults({ engine: v === NATIVE_ENGINE_OPTION ? undefined : v })
+                      }
+                    >
+                      <SelectTrigger className="h-7 w-48 text-xs" aria-label={t("Format engine")}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={NATIVE_ENGINE_OPTION}>
+                          {t("native (default)")}
+                        </SelectItem>
+                        {declaredPlugins.map((name) => (
+                          <SelectItem key={name} value={name}>
+                            {name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {t(
+                      "The engine that reads a file whose extension both a built-in format and a plugin's claim. A content item's format and a format default's engine override it.",
+                    )}
+                  </p>
+                </div>
+              )}
 
               {installedByName.size === 0 && (
                 <p className="text-xs text-muted-foreground">
@@ -522,7 +579,7 @@ export function ProjectSettingsPage({
                     <div className="mb-2 flex items-center gap-2">
                       <Badge variant="outline">{fmt}</Badge>
                     </div>
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-4 gap-3">
                       <div>
                         <Label className="mb-0.5 block text-xs text-muted-foreground">Preset</Label>
                         <Input
@@ -550,6 +607,37 @@ export function ProjectSettingsPage({
                           className="h-7 text-xs"
                           min={0}
                         />
+                      </div>
+                      <div>
+                        <Label className="mb-0.5 block text-xs text-muted-foreground">
+                          {t("Engine")}
+                        </Label>
+                        <Select
+                          value={fd.engine || PROJECT_ENGINE_OPTION}
+                          onValueChange={(v) =>
+                            updateFormatDefault(fmt, {
+                              engine: v === PROJECT_ENGINE_OPTION ? undefined : v,
+                            })
+                          }
+                        >
+                          <SelectTrigger
+                            className="h-7 text-xs"
+                            aria-label={t("Engine for {fmt}", { fmt })}
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={PROJECT_ENGINE_OPTION}>
+                              {t("Project engine")}
+                            </SelectItem>
+                            <SelectItem value="native">native</SelectItem>
+                            {declaredPlugins.map((name) => (
+                              <SelectItem key={name} value={name}>
+                                {name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div>
                         <Label className="mb-0.5 block text-xs text-muted-foreground">Config</Label>

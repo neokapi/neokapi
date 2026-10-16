@@ -770,7 +770,10 @@ export function DetectAIProviders() {
 }
 
 /**
- * DetectFormat returns the detected format name for a file path.
+ * DetectFormat returns the format name for a file path outside any project:
+ * the registry's resolver by extension, under the config's engine default.
+ * A path in an open project goes through DetectProjectFormat, which adds the
+ * recipe's sources, engine preference and pins.
  * @param {string} path
  * @returns {$CancellablePromise<string>}
  */

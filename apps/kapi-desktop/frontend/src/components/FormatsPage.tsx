@@ -16,8 +16,10 @@ import {
   ChevronRight,
   X,
   BookOpen,
+  Cpu,
 } from "lucide-react";
 import type { FormatInfo, PluginDocs, PluginDocsSummary, FilterDoc } from "../types/api";
+import { engineOf } from "../lib/engines";
 import type { ComponentSchema } from "@neokapi/ui-primitives";
 import {
   Button,
@@ -272,14 +274,30 @@ function FormatSection({
 
                   {f.extensions && f.extensions.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-1.5">
-                      {f.extensions.map((ext) => (
-                        <span
-                          key={ext}
-                          className="text-[10px] px-1.5 py-px rounded bg-muted text-muted-foreground font-mono"
-                        >
-                          {ext}
-                        </span>
-                      ))}
+                      {f.extensions.map((ext) => {
+                        const shared = f.shared_extensions?.some(
+                          (s) => s.toLowerCase() === ext.toLowerCase(),
+                        );
+                        return (
+                          <span
+                            key={ext}
+                            className="text-[10px] px-1.5 py-px rounded bg-muted text-muted-foreground font-mono"
+                            title={
+                              shared
+                                ? t(
+                                    "Another engine also reads {ext}; the project's engine order decides",
+                                    {
+                                      ext,
+                                    },
+                                  )
+                                : undefined
+                            }
+                          >
+                            {ext}
+                            {shared ? "*" : ""}
+                          </span>
+                        );
+                      })}
                     </div>
                   )}
                   <div className="flex items-center gap-2 mt-1.5 text-[10px] text-muted-foreground">
@@ -563,9 +581,10 @@ function FormatDetail({
             <FileOutput size={12} className="text-primary" /> Writer
           </div>
         )}
-        {formatInfo?.source && formatInfo.source !== "built-in" && (
+        {formatInfo && (
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Plug size={12} /> {formatInfo.source}
+            {engineOf(formatInfo) === "native" ? <Cpu size={12} /> : <Plug size={12} />}{" "}
+            {t("Engine: {engine}", { engine: engineOf(formatInfo) })}
           </div>
         )}
         {filterDoc?.wikiUrl && (
