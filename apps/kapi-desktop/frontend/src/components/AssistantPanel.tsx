@@ -64,11 +64,13 @@ export function AssistantPanel({
       {!contextOnly && (
         <Tabs value={tab} onValueChange={(v) => setTab(v as AssistantTab)} className="mt-8 gap-4">
           <TabsList variant="line">
-            <SimpleTooltip content={rulesFilesHelp()}>
-              <TabsTrigger value="rules" data-testid="assistant-tab-rules">
-                Rules files
-              </TabsTrigger>
-            </SimpleTooltip>
+            <TabsTrigger value="rules" data-testid="assistant-tab-rules">
+              {/* On the label, not the trigger: a tooltip trigger sets its own
+                  data-state, which hides the tab's active style. */}
+              <SimpleTooltip content={rulesFilesHelp()}>
+                <span data-slot="assistant-tab-rules-label">Rules files</span>
+              </SimpleTooltip>
+            </TabsTrigger>
             <TabsTrigger value="brief" data-testid="assistant-tab-brief">
               The brief for a file
             </TabsTrigger>

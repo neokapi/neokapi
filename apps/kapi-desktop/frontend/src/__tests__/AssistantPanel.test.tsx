@@ -64,9 +64,13 @@ describe("What your assistant reads", () => {
       "Rules files",
       "The brief for a file",
     ]);
-    expect(screen.getByRole("tab", { name: "Rules files" })).toHaveAttribute(
-      "aria-selected",
-      "true",
+    const rules = screen.getByRole("tab", { name: "Rules files" });
+    expect(rules).toHaveAttribute("aria-selected", "true");
+    // The active style keys on data-state, which a tooltip wrapper would overwrite.
+    expect(rules).toHaveAttribute("data-state", "active");
+    expect(screen.getByRole("tab", { name: "The brief for a file" })).toHaveAttribute(
+      "data-state",
+      "inactive",
     );
     expect(document.querySelector("[data-slot='rules-files']")).not.toBeNull();
     expect(document.querySelector("[data-slot='assistant-brief']")).toBeNull();
