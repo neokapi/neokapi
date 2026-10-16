@@ -10,6 +10,7 @@
     "Fact": "span",
     "Label": "label",
     "SectionHeading": "h2",
+    "ShareSentence": "p",
     "SheetDescription": "p",
     "SheetTitle": "h2",
     "TabButton": "button",

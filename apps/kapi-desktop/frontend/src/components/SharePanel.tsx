@@ -249,7 +249,7 @@ function RungIcon({ rung }: { rung: ShareRung }) {
 }
 
 /** The card's one sentence. */
-function Sentence({ children }: { children: React.ReactNode }) {
+function ShareSentence({ children }: { children: React.ReactNode }) {
   return (
     <p data-slot="share-state" className="mt-1 text-sm text-muted-foreground">
       {children}
@@ -316,9 +316,9 @@ function MacCard({
   const shorten = useShortenHome();
   return (
     <>
-      <Sentence>
+      <ShareSentence>
         Every clone and worktree of this project on this Mac reads the same context.
-      </Sentence>
+      </ShareSentence>
       <ShareFacts>
         <ShareFact label="Workspace">
           <SimpleTooltip content={<span translate="no">{shorten(sharing.workspace)}</span>}>
@@ -366,10 +366,10 @@ function TeamCard({
   if (!sharingSetUp(sharing)) {
     return (
       <>
-        <Sentence>
+        <ShareSentence>
           Every machine that syncs this project reads the same context, through a git ref, a folder
           or an S3 bucket.
-        </Sentence>
+        </ShareSentence>
         {contextOnly ? (
           <NeedsCheckout />
         ) : (
@@ -385,7 +385,7 @@ function TeamCard({
   const status = sharing.status;
   return (
     <>
-      <Sentence>Every machine that syncs this project reads the same context.</Sentence>
+      <ShareSentence>Every machine that syncs this project reads the same context.</ShareSentence>
       <ShareFacts>
         <ShareFact label="Through">
           <PlaceKind kind={sharing.kind} />
@@ -533,10 +533,10 @@ function BowrainCard({ sharing }: { sharing: ProjectSharing }) {
   if (!sharing.venue_host) {
     return (
       <>
-        <Sentence>
+        <ShareSentence>
           Bowrain holds every project&apos;s context in one workspace, with roles, review and a
           record of who decided what, and runs the project&apos;s loop on the server.
-        </Sentence>
+        </ShareSentence>
         <Actions>
           <Button size="sm" variant="outline" asChild>
             <a href={BOWRAIN_ABOUT_URL} data-slot="share-about-bowrain">
@@ -550,7 +550,7 @@ function BowrainCard({ sharing }: { sharing: ProjectSharing }) {
   const venue = venueParts(sharing.venue_url);
   return (
     <>
-      <Sentence>The recipe connects this project to a Bowrain server.</Sentence>
+      <ShareSentence>The recipe connects this project to a Bowrain server.</ShareSentence>
       <ShareFacts>
         <ShareFact label="Server">
           <MonoChip slot="share-server">{sharing.venue_host}</MonoChip>
