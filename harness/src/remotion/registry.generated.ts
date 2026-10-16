@@ -110,6 +110,10 @@ export const DEMOS: RegistryEntry[] = [
     "title": "Nothing is read until you read it"
   },
   {
+    "id": "kapi-desktop-context",
+    "title": "What your assistant noticed, and what you decide."
+  },
+  {
     "id": "kapi-desktop-explorer",
     "title": "What did we agree for this word?"
   },
