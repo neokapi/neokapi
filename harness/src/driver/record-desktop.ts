@@ -1480,6 +1480,13 @@ async function contextWalk(c: WalkCtx): Promise<void> {
   // on, so the cursor follows it to the rule it became rather than resting on
   // the space the control left.
   const restOn = async (item: Locator) => moveTo(page, ...(await centreOf(item)));
+  // The same, once the act's last words are spoken: no smooth scroll and no
+  // long pause, so the slice ends with the narration over it. A slice longer
+  // than its narration plays faster, and the acts drift off their words.
+  const follow = async (item: Locator) => {
+    await item.scrollIntoViewIfNeeded();
+    await restOn(item);
+  };
   // The screencast runs a few tenths of a second ahead of the clock the beats
   // are timed by, so a beat's slice ends a moment after the walk has moved on.
   // A still second after each beat keeps the next scroll out of its last frames.
@@ -1555,11 +1562,10 @@ async function contextWalk(c: WalkCtx): Promise<void> {
     await mark(word);
     await mark(page.locator('[data-slot="digest-change"]'));
     await humanClick(page, page.locator('[data-slot="keep-changed"]'));
-    await page.waitForTimeout(900);
-    await centre(page, page.locator(kept).first());
-    await restOn(page.locator(kept).first());
+    await page.waitForTimeout(500);
+    await follow(page.locator(kept).first());
     await mark(page.locator(kept).first());
-    await page.waitForTimeout(1200);
+    await page.waitForTimeout(600);
   });
   await settle();
 
@@ -1581,11 +1587,10 @@ async function contextWalk(c: WalkCtx): Promise<void> {
     await cue("choose", 11.1);
     await humanClick(page, side.locator('[data-slot="keep-item"]'));
     await page.waitForSelector('[data-slot="digest-conflicts"]', { state: "detached", timeout: 15_000 });
-    await page.waitForTimeout(900);
-    await centre(page, page.locator(kept).first());
-    await restOn(page.locator(kept).first());
+    await page.waitForTimeout(400);
+    await follow(page.locator(kept).first());
     for (let i = 0; i < 3; i++) await mark(page.locator(kept).nth(i));
-    await page.waitForTimeout(1200);
+    await page.waitForTimeout(600);
   });
   await settle();
 
@@ -1649,8 +1654,8 @@ async function contextWalk(c: WalkCtx): Promise<void> {
     await cue("chip", 11.9);
     await cursorTo(`${row} [data-slot="whats-new-chip"]`, 600);
     await cue("working", 14.6);
-    await cursorTo(`${row} [data-slot="workspace-working"]`, 700);
-    await page.waitForTimeout(800);
+    await cursorTo(`${row} [data-slot="workspace-working"]`, 500);
+    await page.waitForTimeout(200);
   });
   await settle();
 
