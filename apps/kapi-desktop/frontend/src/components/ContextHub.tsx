@@ -213,12 +213,14 @@ export function ContextHub({
           />
         )}
         {current === "history" && (
-          <ScrollArea className="h-full">
-            <div className="mx-auto max-w-3xl px-6 py-5">
-              <PageHeader className="mb-3" title="History" />
+          // History is a list of sessions beside a detail pane, each scrolling
+          // on its own, so the section holds a fixed height as What's new does.
+          <div className="flex h-full min-h-0 flex-col">
+            <PageHeader className="mb-0 shrink-0 px-6 pt-5 pb-3" title="History" />
+            <div className="min-h-0 flex-1 border-t border-border">
               <ProjectHistory tabID={tabID} />
             </div>
-          </ScrollArea>
+          </div>
         )}
         {current === "share" && (
           <ScrollArea className="h-full">
