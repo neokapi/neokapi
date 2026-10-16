@@ -1,19 +1,36 @@
-// The all-surfaces voice compliance rollup (AD-021): one matrix answering "how
-// compliant is every project right now?" — a row per project with its effective
-// voice profile, latest score, per-dimension low point, trend, drift flag, and
-// last activity. It reads the workspace rollup endpoint (a pure aggregation of
-// stored scores) and complements the per-project ComplianceOverview drill-down.
-import { Badge, Card, CardContent, Skeleton, cn } from "@neokapi/ui-primitives";
-import { Activity, AlertTriangle, ArrowDown, ArrowRight, ArrowUp } from "../../components/icons";
+// The workspace's projects on the context dashboard, as aligned rows in the
+// shape Kapi Desktop's home lists them: the project, the voice profile bound
+// to it, its latest compliance score against that profile's own bar, the
+// trend, whether it is drifting, when it was last checked, and Open. It reads
+// the workspace rollup endpoint (a pure aggregation of stored scores) (AD-021).
+import { t } from "@neokapi/i18n-react/runtime";
+import {
+  Badge,
+  Button,
+  EmptyState,
+  SectionHeading,
+  SimpleTooltip,
+  Skeleton,
+  When,
+  cn,
+} from "@neokapi/ui-primitives";
+import { AlertTriangle, ArrowDown, ArrowRight, ArrowUp, Folder } from "../../components/icons";
 import type { VoiceRollupEntry, VoiceTrend } from "../../voice/types";
 import { useVoiceProfiles, useVoiceRollup } from "../../hooks/useVoiceApi";
 import { DEFAULT_MIN_SCORE, barForProfile, scoreTextClass } from "../../voice/complianceBar";
-import { EmptyState, formatRelative } from "../shell/atoms";
 
 export interface RollupMatrixProps {
-  /** Opens a project's own brand view when a row is clicked. Rows are static when omitted. */
+  /** Opens a project's own page. Rows carry no button when omitted. */
   onOpenProject?: (projectId: string) => void;
 }
+
+/**
+ * The columns every row shares, so the list reads as one table: icon, name,
+ * profile, score, trend, drift, last checked, Open. A narrow pane keeps the
+ * name and the button.
+ */
+const COLUMNS =
+  "grid-cols-[16px_minmax(0,1fr)_auto] @2xl:grid-cols-[16px_minmax(0,1fr)_9rem_2.5rem_1.25rem_5.5rem_7rem_4.5rem]";
 
 export function RollupMatrix({ onOpenProject }: RollupMatrixProps) {
   const { data, isLoading } = useVoiceRollup();
@@ -21,168 +38,142 @@ export function RollupMatrix({ onOpenProject }: RollupMatrixProps) {
   const rows = data?.projects ?? [];
 
   return (
-    <Card>
-      <CardContent className="space-y-4 p-4">
-        <div>
-          <h3 className="flex items-center gap-2 text-sm font-medium">
-            <Activity className="size-4 text-muted-foreground" />
-            Compliance across projects
-          </h3>
-          <p className="text-xs text-muted-foreground">
-            Every project's brand health at a glance: effective profile, latest score, and drift.
-          </p>
+    <section data-slot="dashboard-projects" aria-labelledby="dashboard-projects-heading">
+      <div id="dashboard-projects-heading">
+        <SectionHeading>Projects</SectionHeading>
+      </div>
+      {isLoading ? (
+        <Skeleton className="mt-2 h-32 w-full" />
+      ) : rows.length === 0 ? (
+        <EmptyState
+          className="mt-2"
+          title={t("No projects yet")}
+          description={t(
+            "Voice checks score project content. Create a project and run a check to see it here.",
+          )}
+        />
+      ) : (
+        <div className="@container mt-1.5">
+          <div className="divide-y divide-border/50">
+            {rows.map((row) => (
+              <ProjectRow
+                key={row.project_id}
+                row={row}
+                bar={barForProfile(profiles, row.profile_id)}
+                onOpenProject={onOpenProject}
+              />
+            ))}
+          </div>
+          {data && data.total > rows.length && (
+            <p className="mt-2 px-2 text-[11px] text-muted-foreground">
+              {t("Showing {shown} of {total} projects.", {
+                shown: rows.length,
+                total: data.total,
+              })}
+            </p>
+          )}
         </div>
-
-        {isLoading ? (
-          <Skeleton className="h-40 w-full" />
-        ) : rows.length === 0 ? (
-          <EmptyState
-            icon={<Activity />}
-            title="No projects yet"
-            description="Voice checks score project content. Create a project and run a check to see it here."
-            className="py-10"
-          />
-        ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[40rem] border-collapse text-sm">
-                <thead>
-                  <tr className="border-b text-left text-xs text-muted-foreground">
-                    <th scope="col" className="py-2 pr-3 font-medium">
-                      Project
-                    </th>
-                    <th scope="col" className="px-3 py-2 font-medium">
-                      Profile
-                    </th>
-                    <th scope="col" className="px-3 py-2 text-right font-medium">
-                      Score
-                    </th>
-                    <th scope="col" className="px-3 py-2 text-center font-medium">
-                      Trend
-                    </th>
-                    <th scope="col" className="px-3 py-2 font-medium">
-                      Drift
-                    </th>
-                    <th scope="col" className="py-2 pl-3 text-right font-medium">
-                      Last activity
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row) => (
-                    <RollupRow
-                      key={row.project_id}
-                      row={row}
-                      bar={barForProfile(profiles, row.profile_id)}
-                      onOpenProject={onOpenProject}
-                    />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {data && data.total > rows.length && (
-              <p className="text-xs text-muted-foreground">
-                Showing {rows.length} of {data.total} projects.
-              </p>
-            )}
-          </>
-        )}
-      </CardContent>
-    </Card>
+      )}
+    </section>
   );
 }
 
-function RollupRow({
+function ProjectRow({
   row,
   bar = DEFAULT_MIN_SCORE,
   onOpenProject,
 }: {
   row: VoiceRollupEntry;
-  /** The row's own profile bar — each project is judged against its own. */
+  /** The row's own profile bar: each project is judged against its own. */
   bar?: number;
   onOpenProject?: (projectId: string) => void;
 }) {
   return (
-    <tr className="border-b last:border-0">
-      <td className="py-2.5 pr-3">
-        {onOpenProject ? (
-          <button
-            type="button"
-            onClick={() => onOpenProject(row.project_id)}
-            className="truncate text-left font-medium text-foreground hover:text-primary hover:underline"
-          >
-            {row.project_name}
-          </button>
-        ) : (
-          <span className="truncate font-medium text-foreground">{row.project_name}</span>
-        )}
-      </td>
-      <td className="px-3 py-2.5">
-        {row.profile_name ? (
-          <span className="text-muted-foreground">{row.profile_name}</span>
-        ) : (
-          <span className="text-muted-foreground/60">Unbound</span>
-        )}
-      </td>
-      <td className="px-3 py-2.5 text-right tabular-nums">
-        {row.overall === null ? (
-          <span className="text-muted-foreground/60">·</span>
-        ) : (
-          <span
-            data-testid="rollup-score"
-            data-below-bar={row.overall < bar}
-            className={cn("font-semibold", scoreTextClass(row.overall, bar))}
-          >
-            {row.overall}
-          </span>
-        )}
-      </td>
-      <td className="px-3 py-2.5 text-center">
+    <div
+      data-testid="dashboard-project"
+      data-project={row.project_id}
+      className={cn("grid h-11 items-center gap-x-3 px-2", COLUMNS)}
+    >
+      <Folder aria-hidden className="size-4 text-muted-foreground" />
+      <span className="truncate text-sm" translate="no">
+        {row.project_name}
+      </span>
+      <div className="hidden text-[11px] text-muted-foreground @2xl:contents">
+        <span data-slot="dashboard-project-profile" className="truncate" translate="no">
+          {row.profile_name ?? <span className="text-muted-foreground/60">no voice</span>}
+        </span>
+        <span className="text-right text-sm tabular-nums">
+          {row.overall === null ? (
+            <span className="text-[11px] text-muted-foreground/60">·</span>
+          ) : (
+            <SimpleTooltip
+              content={t("Compliance {score} against a bar of {bar}", {
+                score: row.overall,
+                bar,
+              })}
+            >
+              <span
+                data-testid="rollup-score"
+                data-below-bar={row.overall < bar}
+                tabIndex={0}
+                className={cn("font-semibold", scoreTextClass(row.overall, bar))}
+              >
+                {row.overall}
+              </span>
+            </SimpleTooltip>
+          )}
+        </span>
         <TrendCell trend={row.trend} />
-      </td>
-      <td className="px-3 py-2.5">
-        {row.drift?.drifted ? (
-          <Badge className="gap-1 border-warning/40 bg-warning/10 font-medium text-warning">
-            <AlertTriangle className="size-3" />
-            Drifting
-          </Badge>
-        ) : row.overall === null ? (
-          <span className="text-muted-foreground/60">·</span>
-        ) : (
-          <span className="text-xs text-muted-foreground">Stable</span>
+        <span className="flex min-w-0 items-center">
+          {row.drift?.drifted ? (
+            <Badge
+              variant="outline"
+              data-slot="dashboard-project-drift"
+              className="gap-1 border-warning/60 text-[11px] font-normal text-[color-mix(in_oklch,var(--warning)_60%,var(--warning-foreground))] dark:text-warning"
+            >
+              <AlertTriangle aria-hidden className="size-3" />
+              Drifting
+            </Badge>
+          ) : row.overall === null ? null : (
+            <span>Stable</span>
+          )}
+        </span>
+        <span className="truncate">
+          {row.last_scored_at ? <When iso={row.last_scored_at} relative /> : <>never checked</>}
+        </span>
+      </div>
+      <div className="flex items-center justify-end">
+        {onOpenProject && (
+          <Button size="sm" variant="outline" onClick={() => onOpenProject(row.project_id)}>
+            Open
+          </Button>
         )}
-      </td>
-      <td className="py-2.5 pl-3 text-right text-muted-foreground">
-        {row.last_scored_at ? formatRelative(row.last_scored_at) : "Never"}
-      </td>
-    </tr>
+      </div>
+    </div>
   );
 }
 
 function TrendCell({ trend }: { trend: VoiceTrend }) {
-  switch (trend) {
-    case "up":
-      return (
-        <span className="inline-flex text-success" title="Improving">
-          <ArrowUp className="size-4" />
-          <span className="sr-only">Improving</span>
-        </span>
-      );
-    case "down":
-      return (
-        <span className="inline-flex text-destructive" title="Declining">
-          <ArrowDown className="size-4" />
-          <span className="sr-only">Declining</span>
-        </span>
-      );
-    case "flat":
-      return (
-        <span className="inline-flex text-muted-foreground" title="Steady">
-          <ArrowRight className="size-4" />
-          <span className="sr-only">Steady</span>
-        </span>
-      );
-    default:
-      return <span className="text-muted-foreground/60">·</span>;
-  }
+  const meta =
+    trend === "up"
+      ? { icon: ArrowUp, label: t("Improving"), tone: "text-success" }
+      : trend === "down"
+        ? { icon: ArrowDown, label: t("Declining"), tone: "text-destructive" }
+        : trend === "flat"
+          ? { icon: ArrowRight, label: t("Steady"), tone: "text-muted-foreground" }
+          : null;
+  if (!meta) return <span />;
+  const Icon = meta.icon;
+  return (
+    <SimpleTooltip content={meta.label}>
+      <span
+        role="img"
+        aria-label={meta.label}
+        tabIndex={0}
+        className={cn("inline-flex", meta.tone)}
+      >
+        <Icon aria-hidden className="size-3.5" />
+      </span>
+    </SimpleTooltip>
+  );
 }

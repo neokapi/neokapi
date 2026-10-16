@@ -1,27 +1,38 @@
-// Dashboard — the brand control room (AD-021). It answers the questions a brand
-// steward actually asks: what needs my decision, is compliance holding, how much
-// brand language exists and how completely does it span the workspace, and what
-// moved recently. The governance inbox leads because it is what a steward acts
-// on; coverage, compliance, and recent change fan out below it. Built entirely
-// on the real concept, change-set, market, and voice profile hooks.
-import { useMemo } from "react";
-import { One, Other, Plural } from "@neokapi/i18n-react/runtime";
-import { Button, Card, CardContent, Skeleton, cn } from "@neokapi/ui-primitives";
-import { Network, FlaskConical, Palette, Shield, ArrowRight, Pencil } from "../../components/icons";
-import type { ChangeSet } from "../../types/brand-graph";
+// The workspace's context dashboard (AD-021), in the overview shape Kapi
+// Desktop's home has: labelled counts, then What's new (the change-sets a
+// steward decides and the rules the team's corrections suggest, each a row
+// leading to where it is decided), then the projects as aligned rows. Below
+// them sit what the platform knows and the desktop does not: one project's
+// compliance over time, terminology by status and by language, the markets,
+// and the concepts changed most recently. Nothing here is edited in place.
+import { useCallback, useMemo } from "react";
+import { useQueries, type UseQueryResult } from "@tanstack/react-query";
+import { t } from "@neokapi/i18n-react/runtime";
+import {
+  Button,
+  SectionHeading,
+  Skeleton,
+  StatRow,
+  When,
+  cn,
+  type StatItem,
+} from "@neokapi/ui-primitives";
+import { ArrowRight } from "../../components/icons";
 import type { ConceptInfo } from "../../types/api";
+import type { CandidateRule } from "../../voice/types";
+import { useApi } from "../../context/ApiContext";
+import { useWorkspace } from "../../context/WorkspaceContext";
 import { useChangesetCounts, useChangesets } from "../../hooks/useChangesetsApi";
 import { useConcepts, useConceptStatusCounts } from "../../hooks/useConceptsApi";
 import { useUserDisplayNames } from "../../hooks/useMembersApi";
-import { useVoiceProfiles } from "../../hooks/useVoiceApi";
+import { useVoiceProfiles, useVoiceRollup } from "../../hooks/useVoiceApi";
 import { TERMINAL_CHANGESET_STATUSES } from "../../types/brand-graph";
 import { ContextHub } from "../shell/ContextHub";
-import { ChangeSetStatusBadge, EmptyState, formatRelative } from "../shell/atoms";
-import { sortByRecent } from "./metrics";
-import { PendingDecisions } from "./PendingDecisions";
 import { ComplianceOverview } from "./ComplianceOverview";
 import { RollupMatrix } from "./RollupMatrix";
 import { VocabularyByStatus, LocaleCoveragePanel, MarketsPanel } from "./CoveragePanel";
+import { WhatsNew } from "./WhatsNew";
+import { suggestionTotals, whatsNewRows, type ProfileCandidates } from "./newsRows";
 
 export interface VoiceDashboardViewProps {
   onOpenExperiment?: (changesetId: string) => void;
@@ -29,8 +40,14 @@ export interface VoiceDashboardViewProps {
   onViewConcepts?: () => void;
   onViewVoice?: () => void;
   onOpenConcept?: (conceptId: string) => void;
-  /** Opens a project's own brand view from the compliance rollup. */
+  /** Opens a project's own page from the projects list. */
   onOpenProject?: (projectId: string) => void;
+  /** Opens a voice profile's suggested-rule review. */
+  onOpenReview?: (profileId: string) => void;
+  /** Opens the workspace's context activity. */
+  onViewActivity?: () => void;
+  /** Take the keyboard for What's new. */
+  keyboard?: boolean;
 }
 
 export function VoiceDashboardView({
@@ -40,103 +57,183 @@ export function VoiceDashboardView({
   onViewVoice,
   onOpenConcept,
   onOpenProject,
+  onOpenReview,
+  onViewActivity,
+  keyboard = true,
 }: VoiceDashboardViewProps) {
   const { data: conceptCounts, isLoading: conceptsLoading } = useConceptStatusCounts();
   const { data: csCounts, isLoading: countsLoading } = useChangesetCounts();
   const { data: changesets, isLoading: csLoading } = useChangesets();
-  const { data: profiles } = useVoiceProfiles();
+  const { data: profiles, isLoading: profilesLoading } = useVoiceProfiles();
+  const { data: rollup, isLoading: rollupLoading } = useVoiceRollup();
+  const { nameOf } = useUserDisplayNames();
+  const candidates = useProfileCandidates(profiles);
 
-  const changesetList = useMemo(() => changesets ?? [], [changesets]);
-  const recentExperiments = useMemo(() => sortByRecent(changesetList).slice(0, 5), [changesetList]);
+  const rows = useMemo(
+    () => whatsNewRows(changesets ?? [], candidates.profiles),
+    [changesets, candidates.profiles],
+  );
+  const totals = useMemo(() => suggestionTotals(candidates.profiles), [candidates.profiles]);
 
   // The counts span every change-set, not the page the list returned. Pending
   // is what a steward must decide (in review, or approved awaiting merge);
   // active is everything the lifecycle has not settled.
   const pendingCount = countFor(csCounts?.by_status, ["in_review", "approved"]);
   const activeCount = activeFromCounts(csCounts?.total, csCounts?.by_status);
+  const needsYou = pendingCount + totals.conflicts;
+
+  const countsLoaded =
+    !conceptsLoading && !countsLoading && !profilesLoading && !rollupLoading && !candidates.loading;
+  const items: StatItem[] = [
+    {
+      id: "projects",
+      value: rollup?.total ?? 0,
+      label: t("{count, plural, one {project} other {projects}}", "a count on the dashboard", {
+        count: rollup?.total ?? 0,
+      }),
+    },
+    {
+      id: "concepts",
+      value: conceptCounts?.total ?? 0,
+      label: t("{count, plural, one {concept} other {concepts}}", "a count on the dashboard", {
+        count: conceptCounts?.total ?? 0,
+      }),
+      onClick: onViewConcepts,
+    },
+    {
+      id: "suggestions",
+      value: totals.suggestions,
+      label: t(
+        "{count, plural, one {suggestion} other {suggestions}}",
+        "a count on the dashboard",
+        { count: totals.suggestions },
+      ),
+      hint: t(
+        "Rules your team's repeated corrections suggest. Each waits for a reviewer to promote or reject it.",
+      ),
+    },
+    {
+      id: "needs-you",
+      value: needsYou,
+      label: t("{count, plural, one {needs you} other {need you}}", "a count on the dashboard", {
+        count: needsYou,
+      }),
+      tone: needsYou > 0 ? "warning" : "muted",
+      hint: t(
+        "Change-sets in review or approved and waiting to merge, and phrasings your team corrected to more than one form.",
+      ),
+    },
+    {
+      id: "experiments",
+      value: activeCount,
+      label: t(
+        "{count, plural, one {active experiment} other {active experiments}}",
+        "a count on the dashboard",
+        { count: activeCount },
+      ),
+      tone: "muted",
+      onClick: onViewExperiments,
+    },
+    {
+      id: "voice-profiles",
+      value: profiles?.length ?? 0,
+      label: t(
+        "{count, plural, one {voice profile} other {voice profiles}}",
+        "a count on the dashboard",
+        { count: profiles?.length ?? 0 },
+      ),
+      tone: "muted",
+      onClick: onViewVoice,
+    },
+  ];
 
   return (
     <ContextHub
       title="Dashboard"
-      description="The state of your brand language at a glance: pending decisions, compliance, coverage, and recent change."
-      width="wide"
+      description="What your workspace's context holds, and what waits for a decision."
+      actions={
+        onViewActivity && (
+          <Button
+            variant="link"
+            size="sm"
+            data-slot="dashboard-activity"
+            className="h-auto px-0"
+            onClick={onViewActivity}
+          >
+            Activity
+          </Button>
+        )
+      }
     >
-      <div className="space-y-6">
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <MetricCard
-            icon={<Network />}
-            label="Concepts"
-            value={conceptsLoading ? undefined : (conceptCounts?.total ?? 0)}
-            onClick={onViewConcepts}
-          />
-          <MetricCard
-            icon={<Shield />}
-            label="Pending decisions"
-            value={countsLoading ? undefined : pendingCount}
-            emphasis={pendingCount > 0}
-            onClick={onViewExperiments}
-          />
-          <MetricCard
-            icon={<FlaskConical />}
-            label="Active experiments"
-            value={countsLoading ? undefined : activeCount}
-            onClick={onViewExperiments}
-          />
-          <MetricCard
-            icon={<Palette />}
-            label="Voice profiles"
-            value={profiles?.length}
-            onClick={onViewVoice}
-          />
-        </div>
+      <div data-slot="context-dashboard" className="space-y-8">
+        {countsLoaded ? (
+          <StatRow data-slot="dashboard-numbers" items={items} />
+        ) : (
+          <Skeleton className="h-11 w-full max-w-xl" />
+        )}
 
-        <PendingDecisions
-          changesets={changesetList}
-          loading={csLoading}
-          onOpen={onOpenExperiment}
+        <WhatsNew
+          rows={rows}
+          loading={csLoading || candidates.loading}
+          nameOf={nameOf}
+          onOpenChangeset={onOpenExperiment}
+          onOpenReview={onOpenReview}
+          keyboard={keyboard}
         />
 
         <RollupMatrix onOpenProject={onOpenProject} />
 
         <ComplianceOverview />
 
-        <div className="grid gap-3 lg:grid-cols-3">
+        <div className="grid gap-8 lg:grid-cols-3">
           <VocabularyByStatus />
           <LocaleCoveragePanel />
           <MarketsPanel />
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Card>
-            <CardContent className="p-4">
-              <SectionHeader title="Recent experiments" onMore={onViewExperiments} />
-              {csLoading ? (
-                <Skeleton className="h-24 w-full" />
-              ) : recentExperiments.length === 0 ? (
-                <EmptyState
-                  title="No experiments yet"
-                  description="Open a change-set to propose a governed edit to your brand language."
-                  className="py-8"
-                />
-              ) : (
-                <ul className="divide-y">
-                  {recentExperiments.map((cs) => (
-                    <ChangeSetRow
-                      key={cs.id}
-                      changeset={cs}
-                      onOpen={onOpenExperiment ? () => onOpenExperiment(cs.id) : undefined}
-                    />
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
-
-          <RecentConcepts onViewConcepts={onViewConcepts} onOpenConcept={onOpenConcept} />
-        </div>
+        <RecentConcepts onViewConcepts={onViewConcepts} onOpenConcept={onOpenConcept} />
       </div>
     </ContextHub>
   );
+}
+
+// ── Suggested rules, per voice profile ────────────────────────────────────────
+
+/**
+ * Every voice profile's open candidates, read through the same query the
+ * profile's review reads, so opening a review answers from the cache.
+ */
+function useProfileCandidates(profiles: { id: string; name: string }[] | undefined): {
+  profiles: ProfileCandidates[];
+  loading: boolean;
+} {
+  const api = useApi();
+  const { activeWorkspace } = useWorkspace();
+  const ws = activeWorkspace?.slug ?? "";
+  const list = useMemo(() => profiles ?? [], [profiles]);
+  // A stable combine lets the query cache hand back the same object while
+  // nothing changed, so the rows built from it keep their identity.
+  const combine = useCallback(
+    (results: UseQueryResult<CandidateRule[]>[]) => ({
+      profiles: list.map((profile, i) => ({
+        id: profile.id,
+        name: profile.name,
+        candidates: results[i]?.data ?? [],
+      })),
+      loading: results.some((r) => r.isLoading),
+    }),
+    [list],
+  );
+  return useQueries({
+    queries: list.map((profile) => ({
+      // The key useVoiceCandidates gives a profile's open candidates.
+      queryKey: ["voice-candidates", ws, profile.id, 3, false],
+      queryFn: () => api.listVoiceCandidates(ws, profile.id),
+      enabled: !!ws,
+      staleTime: 15_000,
+    })),
+    combine,
+  });
 }
 
 // ── Change-set counts ─────────────────────────────────────────────────────────
@@ -150,7 +247,7 @@ function countFor(byStatus: Record<string, number> | undefined, statuses: string
 /**
  * Change-sets the lifecycle has not settled, as total minus the terminal
  * buckets. Counting the non-terminal statuses instead would undercount a status
- * this build does not know — and `total` already includes those.
+ * this build does not know, and `total` already includes those.
  */
 function activeFromCounts(
   total: number | undefined,
@@ -175,166 +272,77 @@ function RecentConcepts({
   const concepts = data?.concepts ?? [];
 
   return (
-    <Card>
-      <CardContent className="p-4">
-        <SectionHeader title="Recently changed concepts" onMore={onViewConcepts} />
-        {isLoading ? (
-          <Skeleton className="h-24 w-full" />
-        ) : concepts.length === 0 ? (
-          <EmptyState
-            title="No concepts yet"
-            description="Capture your first brand concept to start the graph."
-            className="py-8"
-          />
-        ) : (
-          <ul className="divide-y">
-            {concepts.map((concept) => (
-              <ConceptRow
-                key={concept.id}
-                concept={concept}
-                onOpen={onOpenConcept ? () => onOpenConcept(concept.id) : undefined}
-              />
-            ))}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-// ── Small presentational helpers ──────────────────────────────────────────────
-
-function MetricCard({
-  icon,
-  label,
-  value,
-  emphasis,
-  onClick,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value?: number;
-  emphasis?: boolean;
-  onClick?: () => void;
-}) {
-  const Tag = onClick ? "button" : "div";
-  return (
-    <Tag
-      type={onClick ? "button" : undefined}
-      onClick={onClick}
-      className={cn(
-        "flex items-center gap-3 rounded-lg border bg-card p-4 text-left",
-        onClick && "transition-colors hover:border-primary/40 hover:bg-muted/30",
-      )}
-    >
-      <span
-        className={cn(
-          "flex size-9 shrink-0 items-center justify-center rounded-md [&_svg]:size-5",
-          emphasis ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground",
-        )}
-      >
-        {icon}
-      </span>
-      <div className="min-w-0">
-        {value === undefined ? (
-          <Skeleton className="h-6 w-10" />
-        ) : (
-          <div
-            className={cn(
-              "text-2xl font-semibold leading-tight tabular-nums",
-              emphasis && "text-primary",
-            )}
-          >
-            {value.toLocaleString()}
-          </div>
-        )}
-        <div className="text-xs text-muted-foreground">{label}</div>
-      </div>
-    </Tag>
-  );
-}
-
-function SectionHeader({ title, onMore }: { title: string; onMore?: () => void }) {
-  return (
-    <div className="mb-3 flex items-center justify-between gap-2">
-      <h3 className="text-sm font-medium">{title}</h3>
-      {onMore && (
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-7 text-xs text-muted-foreground"
-          onClick={onMore}
-        >
-          View all
-          <ArrowRight />
-        </Button>
-      )}
-    </div>
-  );
-}
-
-function ChangeSetRow({ changeset, onOpen }: { changeset: ChangeSet; onOpen?: () => void }) {
-  const { nameOf } = useUserDisplayNames();
-  const Tag = onOpen ? "button" : "div";
-  return (
-    <li>
-      <Tag
-        type={onOpen ? "button" : undefined}
-        onClick={onOpen}
-        className={cn(
-          "flex w-full items-center gap-3 py-2.5 text-left",
-          onOpen && "transition-colors hover:bg-muted/30",
-        )}
-      >
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-medium text-foreground">{changeset.name}</div>
-          <div className="text-xs text-muted-foreground">
-            {nameOf(changeset.created_by)} · {formatRelative(changeset.updated_at)}
-          </div>
+    <section data-slot="dashboard-concepts" aria-labelledby="dashboard-concepts-heading">
+      <div className="flex items-center justify-between gap-2">
+        <div id="dashboard-concepts-heading">
+          <SectionHeading>Recently changed concepts</SectionHeading>
         </div>
-        <ChangeSetStatusBadge status={changeset.status} />
-      </Tag>
-    </li>
+        {onViewConcepts && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 text-[11px] text-muted-foreground"
+            onClick={onViewConcepts}
+          >
+            View all
+            <ArrowRight />
+          </Button>
+        )}
+      </div>
+      {isLoading ? (
+        <Skeleton className="mt-2 h-24 w-full" />
+      ) : concepts.length === 0 ? (
+        <p className="mt-2 text-sm text-muted-foreground">
+          No concepts yet. A concept holds what your workspace calls one idea, in each language.
+        </p>
+      ) : (
+        <div className="mt-1.5 divide-y divide-border/50">
+          {concepts.map((concept) => (
+            <ConceptRow
+              key={concept.id}
+              concept={concept}
+              onOpen={onOpenConcept ? () => onOpenConcept(concept.id) : undefined}
+            />
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
 function ConceptRow({ concept, onOpen }: { concept: ConceptInfo; onOpen?: () => void }) {
   const Tag = onOpen ? "button" : "div";
   return (
-    <li>
-      <Tag
-        type={onOpen ? "button" : undefined}
-        onClick={onOpen}
-        className={cn(
-          "flex w-full items-center gap-3 py-2.5 text-left",
-          onOpen && "transition-colors hover:bg-muted/30",
-        )}
-      >
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-full border bg-muted/40 text-muted-foreground [&_svg]:size-4">
-          <Pencil />
+    <Tag
+      type={onOpen ? "button" : undefined}
+      data-slot="dashboard-concept"
+      onClick={onOpen}
+      className={cn(
+        "grid h-10 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 rounded-md px-2 text-left",
+        onOpen && "transition-colors hover:bg-muted/50",
+      )}
+    >
+      <span className="flex min-w-0 items-baseline gap-1.5">
+        <span className="truncate text-sm" translate="no">
+          {conceptDisplayName(concept)}
         </span>
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-medium text-foreground">
-            {conceptDisplayName(concept)}
-          </div>
-          <div className="text-xs text-muted-foreground">
-            {concept.domain ? `${concept.domain} · ` : ""}
-            <Plural count={concept.terms.length}>
-              <One>{concept.terms.length} term</One>
-              <Other>{concept.terms.length} terms</Other>
-            </Plural>{" "}
-            · {formatRelative(concept.updated_at || concept.created_at)}
-          </div>
-        </div>
-        <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
-      </Tag>
-    </li>
+        <span className="shrink-0 text-[11px] text-muted-foreground">
+          {concept.domain ? `${concept.domain} · ` : ""}
+          {t("{count, plural, one {# term} other {# terms}}", { count: concept.terms.length })}
+        </span>
+      </span>
+      <When
+        iso={concept.updated_at || concept.created_at}
+        relative
+        className="text-[11px] whitespace-nowrap text-muted-foreground"
+      />
+    </Tag>
   );
 }
 
 function conceptDisplayName(concept: ConceptInfo): string {
   if (concept.terms.length === 0) return concept.domain || concept.id;
-  const preferred = concept.terms.find((t) => t.status === "preferred");
-  const english = concept.terms.find((t) => t.locale.startsWith("en"));
+  const preferred = concept.terms.find((term) => term.status === "preferred");
+  const english = concept.terms.find((term) => term.locale.startsWith("en"));
   return (preferred ?? english ?? concept.terms[0]).text;
 }

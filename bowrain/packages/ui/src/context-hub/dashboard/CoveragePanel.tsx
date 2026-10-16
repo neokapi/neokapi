@@ -1,187 +1,158 @@
-// Coverage panels for the Voice dashboard (AD-021): how much brand language
-// exists and how completely it spans the workspace. Three self-contained cards —
-// vocabulary by lifecycle status, per-locale completeness, and the markets a
-// workspace has defined.
-import { Badge, Card, CardContent, Skeleton, cn } from "@neokapi/ui-primitives";
-import { One, Other, Plural } from "@neokapi/i18n-react/runtime";
-import { Tag, Languages, Globe } from "../../components/icons";
+// How much terminology the workspace holds and how far it spans, on the
+// context dashboard (AD-021): concepts by the status of their terms, as
+// labelled counts; each language's share of concepts with a term in it; and
+// the markets the workspace defines. Each reads a server aggregate rather than
+// folding a page of concepts.
+import { t } from "@neokapi/i18n-react/runtime";
+import {
+  LocaleLabel,
+  SectionHeading,
+  Skeleton,
+  StatRow,
+  cn,
+  type StatItem,
+} from "@neokapi/ui-primitives";
 import type { TermStatus } from "../../types/brand-graph";
 import { useConceptLocaleCoverage, useConceptStatusCounts } from "../../hooks/useConceptsApi";
 import { useMarkets } from "../../hooks/useMarketsApi";
-import { TermStatusBadge, EmptyState } from "../shell/atoms";
 
 // ── Vocabulary by status ──────────────────────────────────────────────────────
 
-const STATUS_BAR: Record<TermStatus, string> = {
-  preferred: "bg-success",
-  approved: "bg-primary",
-  admitted: "bg-warning",
-  proposed: "bg-muted-foreground/40",
-  deprecated: "bg-muted-foreground/30",
-  forbidden: "bg-destructive",
-};
-
 const SHOWN_STATUSES: TermStatus[] = ["preferred", "approved", "admitted", "proposed", "forbidden"];
 
-function PanelShell({
-  icon,
-  title,
-  description,
-  children,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <Card className="h-full">
-      <CardContent className="flex h-full flex-col gap-3 p-4">
-        <div>
-          <h3 className="flex items-center gap-2 text-sm font-medium">
-            <span className="text-muted-foreground [&_svg]:size-4">{icon}</span>
-            {title}
-          </h3>
-          <p className="text-xs text-muted-foreground">{description}</p>
-        </div>
-        <div className="flex-1">{children}</div>
-      </CardContent>
-    </Card>
-  );
+function statusLabel(status: TermStatus): string {
+  switch (status) {
+    case "preferred":
+      return t("preferred", "a term status, as a count's label");
+    case "approved":
+      return t("approved", "a term status, as a count's label");
+    case "admitted":
+      return t("admitted", "a term status, as a count's label");
+    case "proposed":
+      return t("proposed", "a term status, as a count's label");
+    case "forbidden":
+      return t("forbidden", "a term status, as a count's label");
+    default:
+      return status;
+  }
 }
 
+/** Concepts carrying a term at each status, as labelled counts. */
 export function VocabularyByStatus() {
-  // One count over the whole vocabulary. The buckets overlap — a concept counts
-  // under every status one of its terms carries — so they do not sum to total.
-  const { data, isLoading: loading } = useConceptStatusCounts();
-
+  // One count over the whole vocabulary. The buckets overlap (a concept counts
+  // under every status one of its terms carries), so they do not sum to total.
+  const { data, isLoading } = useConceptStatusCounts();
   const byStatus = data?.by_status ?? {};
-  const totalCount = data?.total ?? 0;
-  const max = Math.max(totalCount, ...SHOWN_STATUSES.map((s) => byStatus[s] ?? 0), 1);
+  const items: StatItem[] = SHOWN_STATUSES.map((status) => ({
+    id: status,
+    value: byStatus[status] ?? 0,
+    label: statusLabel(status),
+    tone: status === "proposed" || status === "forbidden" ? "muted" : "default",
+    hint: t(
+      "Concepts with a term at this status. A concept counts under each status its terms carry.",
+    ),
+  }));
 
   return (
-    <PanelShell
-      icon={<Tag />}
-      title="Vocabulary by status"
-      description="Concepts carrying a term at each lifecycle stage."
-    >
-      {loading ? (
-        <Skeleton className="h-32 w-full" />
-      ) : totalCount === 0 ? (
-        <EmptyState title="No concepts yet" className="py-6" />
+    <section data-slot="dashboard-terms" aria-labelledby="dashboard-terms-heading">
+      <div id="dashboard-terms-heading">
+        <SectionHeading>Terms by status</SectionHeading>
+      </div>
+      {isLoading ? (
+        <Skeleton className="mt-2 h-10 w-full" />
+      ) : (data?.total ?? 0) === 0 ? (
+        <p className="mt-2 text-sm text-muted-foreground">No concepts yet</p>
       ) : (
-        <ul className="space-y-2.5">
-          {SHOWN_STATUSES.map((status) => (
-            <li key={status} className="space-y-1">
-              <div className="flex items-center justify-between">
-                <TermStatusBadge status={status} className="text-[10px]" />
-                <span className="text-sm tabular-nums text-muted-foreground">
-                  {byStatus[status] ?? 0}
-                </span>
-              </div>
-              <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                <div
-                  className={cn("h-full rounded-full", STATUS_BAR[status])}
-                  style={{ width: `${Math.round(((byStatus[status] ?? 0) / max) * 100)}%` }}
-                />
-              </div>
-            </li>
-          ))}
-        </ul>
+        <StatRow className="mt-2 gap-x-6" items={items} />
       )}
-    </PanelShell>
+    </section>
   );
 }
 
 // ── Locale coverage ───────────────────────────────────────────────────────────
 
+/** Each language's share of the workspace's concepts with a term in it, most complete first. */
 export function LocaleCoveragePanel({ limit = 8 }: { limit?: number }) {
-  // Counted over the whole workspace, most complete locale first — a page of
-  // concepts folded client-side reported the coverage of that page, not of the
-  // vocabulary.
   const { data, isLoading } = useConceptLocaleCoverage();
   const coverage = (data?.locales ?? []).slice(0, limit);
 
   return (
-    <PanelShell
-      icon={<Languages />}
-      title="Locale coverage"
-      description="Share of concepts with a term in each locale."
-    >
+    <section data-slot="dashboard-languages" aria-labelledby="dashboard-languages-heading">
+      <div id="dashboard-languages-heading">
+        <SectionHeading>Languages</SectionHeading>
+      </div>
       {isLoading ? (
-        <Skeleton className="h-32 w-full" />
+        <Skeleton className="mt-2 h-24 w-full" />
       ) : coverage.length === 0 ? (
-        <EmptyState title="No terms in target languages yet" className="py-6" />
+        <p className="mt-2 text-sm text-muted-foreground">No terms in target languages yet</p>
       ) : (
-        <ul className="space-y-2.5">
+        <ul role="list" className="mt-1.5 divide-y divide-border/50">
           {coverage.map((row) => (
-            <li key={row.locale} className="space-y-1">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-medium text-foreground">{row.locale}</span>
-                <span className="tabular-nums text-muted-foreground">
-                  {row.present}/{row.total} · {row.pct}%
-                </span>
-              </div>
-              <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                <div
+            <li
+              key={row.locale}
+              data-slot="dashboard-language"
+              className="grid h-9 grid-cols-[minmax(0,1fr)_auto_4rem] items-center gap-x-3 px-2"
+            >
+              <LocaleLabel locale={row.locale} className="truncate text-sm" />
+              <span className="text-[11px] text-muted-foreground tabular-nums">
+                {row.present}/{row.total} · {row.pct}%
+              </span>
+              <span aria-hidden className="h-1.5 overflow-hidden rounded-full bg-muted">
+                <span
                   className={cn(
-                    "h-full rounded-full",
+                    "block h-full rounded-full",
                     row.pct >= 80 ? "bg-success" : row.pct >= 40 ? "bg-primary" : "bg-warning",
                   )}
                   style={{ width: `${row.pct}%` }}
                 />
-              </div>
+              </span>
             </li>
           ))}
         </ul>
       )}
-    </PanelShell>
+    </section>
   );
 }
 
 // ── Markets ───────────────────────────────────────────────────────────────────
 
+/** The markets the workspace defines: a name and the languages it covers. */
 export function MarketsPanel() {
   const { data: markets, isLoading } = useMarkets();
   const list = markets ?? [];
 
   return (
-    <PanelShell
-      icon={<Globe />}
-      title="Markets"
-      description="Workspace scopes that give validity tags a stable vocabulary."
-    >
+    <section data-slot="dashboard-markets" aria-labelledby="dashboard-markets-heading">
+      <div id="dashboard-markets-heading">
+        <SectionHeading>Markets</SectionHeading>
+      </div>
       {isLoading ? (
-        <Skeleton className="h-32 w-full" />
+        <Skeleton className="mt-2 h-24 w-full" />
       ) : list.length === 0 ? (
-        <EmptyState
-          title="No markets defined"
-          description="Define a market, a name plus the locales it covers, to scope terms by region."
-          className="py-6"
-        />
+        <p className="mt-2 text-sm text-muted-foreground">
+          No markets defined. A market names a region and its languages, so a term can be valid in
+          one and not another.
+        </p>
       ) : (
-        <ul className="space-y-2">
+        <ul role="list" className="mt-1.5 divide-y divide-border/50">
           {list.map((market) => (
             <li
               key={market.id}
-              className="flex items-center justify-between gap-2 rounded-md border bg-card/50 px-2.5 py-2"
+              data-slot="dashboard-market"
+              className="grid h-9 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 px-2"
             >
-              <div className="min-w-0">
-                <div className="truncate text-sm font-medium capitalize">{market.name}</div>
-                {market.description && (
-                  <div className="truncate text-xs text-muted-foreground">{market.description}</div>
-                )}
-              </div>
-              <Badge variant="outline" className="shrink-0 text-[10px]">
-                <Plural count={market.locales.length}>
-                  <One>{market.locales.length} locale</One>
-                  <Other>{market.locales.length} locales</Other>
-                </Plural>
-              </Badge>
+              <span className="truncate text-sm capitalize" title={market.description || undefined}>
+                {market.name}
+              </span>
+              <span className="text-[11px] text-muted-foreground tabular-nums">
+                {t("{count, plural, one {# language} other {# languages}}", {
+                  count: market.locales.length,
+                })}
+              </span>
             </li>
           ))}
         </ul>
       )}
-    </PanelShell>
+    </section>
   );
 }
