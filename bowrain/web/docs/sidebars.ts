@@ -232,6 +232,7 @@ const sidebars: SidebarsConfig = {
       className: "sidebar-section-heading",
       items: [
         "developer/server",
+        "developer/app-shells",
         "developer/connectors",
         "developer/content-store",
         "developer/events",
