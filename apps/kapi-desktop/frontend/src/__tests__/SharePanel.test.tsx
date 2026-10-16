@@ -284,10 +284,11 @@ describe("choosing a rung to read about", () => {
     expect(rung("bowrain")).toHaveAttribute("aria-checked", "true");
     expect(marked()).toEqual(["mac"]);
     expect(sentence()).toBe(ABOUT);
-    expect(within(card()).getByRole("link", { name: "About Bowrain" })).toHaveAttribute(
-      "href",
-      BOWRAIN_ABOUT_URL,
-    );
+    const about = within(card()).getByRole("link", { name: "About Bowrain" });
+    expect(about).toHaveAttribute("href", BOWRAIN_ABOUT_URL);
+    // Both links on the page open the way every external link in the app does.
+    expect(about).toHaveAttribute("target", "_blank");
+    expect(about).toHaveAttribute("rel", "noopener noreferrer");
 
     await userEvent.click(rung("team")!);
     expect(card().dataset.rung).toBe("team");
