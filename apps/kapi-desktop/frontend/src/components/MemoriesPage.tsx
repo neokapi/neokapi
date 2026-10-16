@@ -1,30 +1,33 @@
+// A project's content memory, or a named one: its pairs as a list beside a
+// detail pane (MemoryListDetail). With no store open, the page lists the named
+// stores to open one from.
+
 import { useState, useEffect, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { t } from "@neokapi/i18n-react/runtime";
 import { Database, Plus, FolderOpen, X, AlertTriangle } from "lucide-react";
 import {
   Button,
-  Card,
-  CardContent,
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  EmptyState,
   Label,
   Input,
   PageHeader,
-  ChartContainer,
   SimpleTooltip,
-  type ChartConfig,
+  type MemoryAdapter,
+  type ResourceInfo,
 } from "@neokapi/ui-primitives";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { api } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
 import { useError } from "./ErrorBanner";
 import { useActiveFilter } from "../context/ActiveFilterContext";
 import { useMemoryAdapter } from "../hooks/useMemoryAdapter";
 import { useLocales } from "../hooks/useLocales";
-import { MemoryBrowser, ResourceCard, type ResourceInfo } from "@neokapi/ui-primitives";
+import { MemoryListDetail } from "./MemoryListDetail";
+import { StoreList } from "./StoreList";
 
 export interface MemoriesPageProps {
   /** Project tab ID — when set, shows the project-scoped Memory. */
@@ -38,22 +41,19 @@ export interface MemoriesPageProps {
    * none to open — the ad-hoc store has no project to stand in.
    */
   onOpenUnit?: (unitPath: string) => void;
+  /**
+   * A store already open, for Storybook: skips the handle lookup and reads the
+   * entries through this adapter.
+   */
+  store?: { name: string; adapter: MemoryAdapter; count?: number; defaultSelected?: string };
 }
-
-interface ActivityPoint {
-  date: string;
-  count: number;
-}
-
-const chartConfig: ChartConfig = {
-  count: { label: "Entries", color: "var(--chart-1)" },
-};
 
 export function MemoriesPage({
   tabID,
   resources: propResources,
   forceLoading = false,
   onOpenUnit,
+  store,
 }: MemoriesPageProps = {}) {
   const qc = useQueryClient();
   const [handle, setHandle] = useState<string | null>(null);
@@ -64,6 +64,7 @@ export function MemoriesPage({
   const [corruptPath, setCorruptPath] = useState<string | null>(null);
   const [corruptName, setCorruptName] = useState("");
   const [recovering, setRecovering] = useState(false);
+  const [adding, setAdding] = useState(false);
 
   const { showError } = useError();
   const { locales } = useLocales();
@@ -88,32 +89,24 @@ export function MemoriesPage({
   // the source plus the chosen targets, while the bilingual target defaults to a
   // chosen target. No filter → show all.
   const filterLangs = activeFilter?.languages ?? [];
-  const scopeLocales = filterLangs.length
-    ? [sourceLang, ...filterLangs].filter(Boolean)
-    : undefined;
   const activeHandle = projectHandle || handle;
-  const adapter = useMemoryAdapter(activeHandle, tabID, onOpenUnit);
+  const hostAdapter = useMemoryAdapter(activeHandle, tabID, onOpenUnit);
+  const adapter = store?.adapter ?? hostAdapter;
 
-  // Dashboard stats (count, activity) for whichever content memory is open — project OR
-  // named. Both use the same view, so a named content memory shows the same activity chart.
+  // The count in the header, for whichever store is open: the project's or a
+  // named one. Both open on the same list and detail.
   const statsQuery = useQuery({
     queryKey: qk.memoryStats(activeHandle ?? ""),
     queryFn: () => api.getMemoryStats(activeHandle!),
     enabled: !!activeHandle,
   });
-  const activityQuery = useQuery({
-    queryKey: qk.memoryActivityStats(activeHandle ?? ""),
-    queryFn: () => api.getMemoryActivityStats(activeHandle!),
-    enabled: !!activeHandle,
-  });
   const projectStats = activeHandle ? (statsQuery.data ?? null) : null;
-  const activityStats: ActivityPoint[] = activeHandle ? (activityQuery.data ?? []) : [];
 
   // Named-content memory list — only when there is no project content memory to show instead.
   const resourcesQuery = useQuery({
     queryKey: qk.namedMemories(),
     queryFn: () => api.listNamedMemories(),
-    enabled: !propResources && !forceLoading && !projectHandle,
+    enabled: !propResources && !forceLoading && !projectHandle && !store,
   });
   const resources: ResourceInfo[] = propResources ?? resourcesQuery.data ?? [];
   const loading = forceLoading || (!propResources && !projectHandle && resourcesQuery.isLoading);
@@ -201,17 +194,19 @@ export function MemoriesPage({
     }
   }, [handle, refreshResources]);
 
-  // Open content memory view — identical dashboard (stats + activity chart + browser) whether
-  // the content memory is project-scoped or a named/ad-hoc one. Only the header differs.
-  if (activeHandle && adapter) {
-    const isProject = !!projectHandle;
+  // An open store, project-scoped or named: the header, then the pairs as a
+  // list beside a detail pane filling the rest of the page.
+  if (adapter && (activeHandle || store)) {
+    const isProject = !!projectHandle || !!store;
+    const count = store?.count ?? projectStats?.count;
     return (
-      <div className="p-6">
+      <div className="flex h-full min-h-0 flex-col">
         <PageHeader
-          title={isProject ? "Project Content Memory" : memoryName}
+          className="mb-0 shrink-0 px-6 pt-5 pb-3"
+          title={store?.name ?? (isProject ? "Project Content Memory" : memoryName)}
           subtitle={
-            projectStats
-              ? `${projectStats.count.toLocaleString()} entries`
+            count !== undefined
+              ? t("{count, plural, one {# entry} other {# entries}}", { count })
               : memoryPath || undefined
           }
           backButton={
@@ -228,59 +223,33 @@ export function MemoriesPage({
               </SimpleTooltip>
             )
           }
+          actions={
+            <Button size="sm" data-slot="memory-add" onClick={() => setAdding(true)}>
+              <Plus size={12} />
+              Add entry
+            </Button>
+          }
         />
-
-        {/* Activity chart */}
-        {activityStats.length > 0 && (
-          <Card className="mb-6">
-            <CardContent className="p-4">
-              <div className="mb-2 text-sm font-medium">Activity</div>
-              <ChartContainer config={chartConfig} className="aspect-auto h-40 w-full">
-                <AreaChart data={activityStats} margin={{ left: 0, right: 0, top: 4, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis
-                    dataKey="date"
-                    tickFormatter={(v: string) => {
-                      const d = new Date(v);
-                      return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-                    }}
-                    className="text-[10px]"
-                  />
-                  <YAxis width={40} className="text-[10px]" />
-                  <Tooltip
-                    labelFormatter={(v: unknown) =>
-                      typeof v === "string" ? new Date(v).toLocaleDateString() : ""
-                    }
-                    formatter={(v) => [`${String(v)} entries`, "Entries"]}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="count"
-                    stroke="var(--color-count)"
-                    fill="var(--color-count)"
-                    fillOpacity={0.15}
-                    strokeWidth={2}
-                  />
-                </AreaChart>
-              </ChartContainer>
-            </CardContent>
-          </Card>
-        )}
-
-        <MemoryBrowser
-          adapter={adapter}
-          locales={locales}
-          scopeLocales={scopeLocales}
-          targetLocales={filterLangs.length ? filterLangs : undefined}
-          onError={showError}
-        />
+        <div className="min-h-0 flex-1 border-t border-border">
+          <MemoryListDetail
+            adapter={adapter}
+            handle={activeHandle ?? `story:${store?.name ?? ""}`}
+            targetLocales={filterLangs.length ? filterLangs : undefined}
+            locales={locales}
+            sourceLocale={sourceLang}
+            adding={adding}
+            onAddingChange={setAdding}
+            defaultSelected={store?.defaultSelected}
+            onError={showError}
+          />
+        </div>
       </div>
     );
   }
 
-  // Resource picker view — no content memory open.
+  // No store open: the named stores, one row each, to open one from.
   return (
-    <div className="p-6">
+    <div className="mx-auto max-w-3xl p-6">
       <PageHeader
         title="Content Memories"
         actions={
@@ -297,43 +266,28 @@ export function MemoriesPage({
         }
       />
 
-      {/* No project content memory hint */}
       {tabID && !projectHandle && !loading && (
-        <Card className="mb-4 border-dashed">
-          <CardContent className="p-4 text-center text-sm text-muted-foreground">
-            <Database size={16} className="mx-auto mb-1 opacity-50" />
-            No project content memory found. Run a translation flow to create one automatically, or
-            create one below.
-          </CardContent>
-        </Card>
+        <EmptyState
+          className="mb-4"
+          icon={<Database size={20} />}
+          title="This project has no content memory"
+          description="One is created the first time a translation flow runs. You can also create one here, or open one you already have."
+        />
       )}
 
-      <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-        {loading
-          ? [0, 1, 2].map((i) => (
-              <ResourceCard key={i} loading name="" path="" onClick={() => {}} />
-            ))
-          : resources.map((r) => (
-              <ResourceCard
-                key={r.path}
-                name={r.name}
-                path={r.path}
-                size={r.size}
-                modified={r.modified}
-                icon={<Database size={18} />}
-                onClick={() => void handleOpen(r.path, r.name)}
-              />
-            ))}
-      </div>
+      <StoreList
+        stores={resources}
+        loading={loading}
+        icon={<Database size={16} />}
+        onOpen={(r) => void handleOpen(r.path, r.name)}
+        aria-label={t("Content memories")}
+      />
 
-      {/* Empty state */}
       {!loading && resources.length === 0 && !tabID && (
-        <Card className="border-dashed">
-          <CardContent className="p-8 text-center">
-            <Database size={24} className="mx-auto mb-2 text-muted-foreground/50" />
-            <p className="mb-3 text-sm text-muted-foreground">
-              No content memories found. Create one or open a .db file.
-            </p>
+        <EmptyState
+          icon={<Database size={24} className="text-muted-foreground/50" />}
+          title="No content memories found. Create one or open a .db file."
+          action={
             <div className="flex justify-center gap-2">
               <Button size="sm" onClick={() => setShowCreateDialog(true)}>
                 New memory
@@ -342,8 +296,8 @@ export function MemoriesPage({
                 Open File...
               </Button>
             </div>
-          </CardContent>
-        </Card>
+          }
+        />
       )}
 
       {/* Create dialog */}
