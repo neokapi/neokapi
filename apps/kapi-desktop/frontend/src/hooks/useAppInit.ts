@@ -5,6 +5,53 @@ import { qk } from "../lib/queryKeys";
 import { useInvalidateOnEvent } from "./useInvalidateOnEvent";
 import type { ContextProjectStanding, WorkspaceHome } from "../types/api";
 
+/** The schemes a link may hand to the system browser. */
+const EXTERNAL_SCHEMES = new Set(["http:", "https:", "mailto:"]);
+
+/** What a click on a link does: stay in the app, open a URL outside it, or nothing. */
+export type LinkClickAction = { kind: "app" } | { kind: "open"; url: string } | { kind: "refuse" };
+
+/**
+ * What a click on a link with this href does. A fragment or a path ("#…",
+ * "/…") stays in the app. An absolute http, https or mailto URL opens in the
+ * system browser. Anything else is refused and neither opens nor navigates the
+ * webview: a `javascript:`, `file:` or `data:` URL, a protocol-relative
+ * "//host" that would load another origin into the webview, and an href that
+ * does not parse. Links can carry project data, such as a recipe's URLs, so
+ * the scheme is checked here for every link in the app.
+ */
+export function linkClickAction(href: string | null): LinkClickAction {
+  if (!href || href.startsWith("#")) return { kind: "app" };
+  if (href.startsWith("/") && !href.startsWith("//")) return { kind: "app" };
+  let url: URL;
+  try {
+    url = new URL(href);
+  } catch {
+    return { kind: "refuse" };
+  }
+  return EXTERNAL_SCHEMES.has(url.protocol) ? { kind: "open", url: url.href } : { kind: "refuse" };
+}
+
+/** Handle a click on the document: act on the link it landed in, if any. */
+export function interceptLinkClick(e: MouseEvent, open: (url: string) => void): void {
+  const target = e.target as Element | null;
+  const anchor = target?.closest?.("a[href]") as HTMLAnchorElement | null;
+  if (!anchor) return;
+  const action = linkClickAction(anchor.getAttribute("href"));
+  if (action.kind === "app") return;
+  e.preventDefault();
+  if (action.kind === "open") open(action.url);
+}
+
+/** Open a URL in the system browser, or in a new window outside Wails. */
+function openInSystemBrowser(url: string): void {
+  import("@wailsio/runtime")
+    .then((m) => m.Browser.OpenURL(url))
+    .catch(() => {
+      window.open(url, "_blank", "noopener,noreferrer");
+    });
+}
+
 /**
  * App-level initialization: theme, the workspace's projects, external link
  * intercept.
@@ -87,20 +134,10 @@ export function useAppInit() {
   // The backend's workspace watcher, and every registration this app makes.
   useInvalidateOnEvent("workspace:changed", [qk.workspaceProjects(), qk.contextNews()]);
 
-  // Intercept external link clicks and open in the system browser.
+  // Intercept link clicks: an http, https or mailto link opens in the system
+  // browser, and any other scheme is refused.
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      const anchor = (e.target as HTMLElement).closest("a[href]") as HTMLAnchorElement | null;
-      if (!anchor) return;
-      const href = anchor.getAttribute("href");
-      if (!href || href.startsWith("#") || href.startsWith("/")) return;
-      e.preventDefault();
-      import("@wailsio/runtime")
-        .then((m) => m.Browser.OpenURL(href))
-        .catch(() => {
-          window.open(href, "_blank");
-        });
-    };
+    const handler = (e: MouseEvent) => interceptLinkClick(e, openInSystemBrowser);
     document.addEventListener("click", handler);
     return () => document.removeEventListener("click", handler);
   }, []);
