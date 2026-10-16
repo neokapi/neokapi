@@ -33,6 +33,11 @@ brew install neokapi/tap/kapi-cli
 winget install Neokapi.KapiCli
 ```
 
+The Windows build updates through WinGet. On Windows, `kapi update` prints
+`winget upgrade Neokapi.KapiCli` and leaves the binary in place; the
+self-update index that replaces the binary on macOS and Linux has no Windows
+entry.
+
 :::warning WinGet is behind the current release
 
 WinGet still publishes kapi 1.0.2, so this command installs a build far older

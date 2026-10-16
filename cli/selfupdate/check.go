@@ -3,11 +3,13 @@ package selfupdate
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -46,9 +48,22 @@ type Release struct {
 	Platform registry.PlatformEntry
 }
 
+// ErrWindowsViaWinget reports that the running build is Windows and the
+// release index has no entry for it. The Windows build is signed outside the
+// release workflow and installed and updated through winget, so the index
+// carries no Windows entry; `kapi update` points at winget instead of
+// reporting a missing release.
+var ErrWindowsViaWinget = errors.New("the Windows build of kapi is updated through winget")
+
 // FetchLatest resolves the newest CLI version for the running platform from the
 // release index. It performs network I/O and does not consult the cache.
 func FetchLatest(ctx context.Context, channel string) (*Release, error) {
+	return fetchLatest(ctx, channel, runtime.GOOS, registry.PlatformKey())
+}
+
+// fetchLatest is FetchLatest with the running platform passed in, so a test
+// can stand on Windows from any host.
+func fetchLatest(ctx context.Context, channel, goos, platKey string) (*Release, error) {
 	if channel == "" {
 		channel = version.Channel()
 	}
@@ -58,9 +73,28 @@ func FetchLatest(ctx context.Context, channel string) (*Release, error) {
 	}
 	v, plat, err := idx.Resolve(indexName, "", channel, version.Version)
 	if err != nil {
+		if windowsUnindexed(idx, goos, platKey) {
+			return nil, ErrWindowsViaWinget
+		}
 		return nil, err
 	}
 	return &Release{Version: v, Platform: plat}, nil
+}
+
+// windowsUnindexed reports whether goos is windows and no version in idx has
+// an entry for platKey. A Windows entry, once published, takes the verified
+// download path like every other platform, so this answers only for the
+// no-entry case.
+func windowsUnindexed(idx *registry.IndexV2, goos, platKey string) bool {
+	if goos != "windows" {
+		return false
+	}
+	for _, ve := range idx.Plugins[indexName].Versions {
+		if _, ok := ve.Platforms[platKey]; ok {
+			return false
+		}
+	}
+	return true
 }
 
 // IsNewer reports whether latest is a strictly newer release than the running

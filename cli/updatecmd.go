@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -73,6 +74,10 @@ SHA-256 and cosign signature, and replaces the binary in place.
 			}
 
 			rel, err := selfupdate.FetchLatest(ctx, channel)
+			if errors.Is(err, selfupdate.ErrWindowsViaWinget) {
+				fmt.Fprint(out, windowsWingetNotice(channel))
+				return nil
+			}
 			if err != nil {
 				return fmt.Errorf("check for updates: %w", err)
 			}
@@ -118,6 +123,14 @@ SHA-256 and cosign signature, and replaces the binary in place.
 	cmd.Flags().BoolVar(&refreshCache, "refresh-cache", false, "refresh the update-check cache and exit (internal)")
 	_ = cmd.Flags().MarkHidden("refresh-cache")
 	return cmd
+}
+
+// windowsWingetNotice is what `kapi update` prints on a Windows build when the
+// release index has no entry for it: the Windows build is installed and
+// updated through winget.
+func windowsWingetNotice(channel string) string {
+	return fmt.Sprintf("The Windows build of kapi is installed and updated through winget. Update it with:\n\n    %s\n",
+		selfupdate.UpgradeCommand(selfupdate.SourceWinget, channel))
 }
 
 func channelLabel(channel string) string {

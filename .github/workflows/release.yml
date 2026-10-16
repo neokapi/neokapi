@@ -579,8 +579,10 @@ jobs:
           ISSUER="https://token.actions.githubusercontent.com"
 
           # Build per-platform args for a given archive prefix (kapi-cli). The
-          # kapi CLI ships darwin/linux (Windows kapi is signed + published out
-          # of band, so it is not yet in the self-update index).
+          # index covers darwin/linux only: the Windows kapi is Authenticode-
+          # signed and published out of band, and installs and updates through
+          # winget (Neokapi.KapiCli), so `kapi update` on Windows points at
+          # winget instead of at this index (#2628).
           build_args() {
             local prefix="$1"; shift
             CLI_ARGS=()
