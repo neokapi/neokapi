@@ -231,7 +231,11 @@ kapi-files kconv contract.docx --to md -o contract.md   # a Markdown copy to quo
 back the ones that support it (read-only formats like PDF are reported as an
 error, never silently mangled). The set includes formats served by the
 okapi-bridge when it is installed. Confirm what reads and writes with
-`kapi-files formats --json` (`has_reader` / `has_writer`).
+`kapi-files formats --json` (`has_reader` / `has_writer`). When a built-in
+format and a plugin's both read an extension (`kapi-files formats` marks it
+with `*`), `kapi-files formats explain <file>` says which one reads the file
+and why; `--engine okapi-bridge` prefers the plugin for a run, and
+`-f html@okapi-bridge` names the plugin's format outright.
 
 ## How to apply
 
