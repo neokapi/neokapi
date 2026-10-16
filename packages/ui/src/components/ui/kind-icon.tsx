@@ -199,7 +199,11 @@ export function KindIcon({
       role={decorative ? undefined : "img"}
       aria-label={decorative ? undefined : label}
       aria-hidden={decorative || undefined}
-      className={cn("inline-flex shrink-0 items-center justify-center", TONE_CLASS[meta.tone], className)}
+      className={cn(
+        "inline-flex shrink-0 items-center justify-center",
+        TONE_CLASS[meta.tone],
+        className,
+      )}
       {...props}
     >
       <Icon aria-hidden className={size === "sm" ? "size-3.5" : "size-4"} />

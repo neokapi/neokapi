@@ -1,5 +1,13 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, renderHook, screen, within } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  renderHook,
+  screen,
+  within,
+} from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import {
@@ -181,9 +189,11 @@ describe("ListDetailList", () => {
     render(<Suggestions />);
     expect(within(listbox()).getAllByRole("group")).toHaveLength(2);
     const needsYou = within(listbox()).getByRole("group", { name: "Needs you" });
-    expect(within(needsYou).getAllByRole("option").map((o) => o.textContent)).toEqual([
-      "sign in or log in",
-    ]);
+    expect(
+      within(needsYou)
+        .getAllByRole("option")
+        .map((o) => o.textContent),
+    ).toEqual(["sign in or log in"]);
     expect(within(listbox()).getByRole("group", { name: "Suggested" })).toBeTruthy();
   });
 

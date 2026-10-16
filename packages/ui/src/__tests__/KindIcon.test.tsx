@@ -86,7 +86,12 @@ describe("digestKind", () => {
       expect(DIGEST_KINDS, theme).toContain(kind);
       expect(digestKind({ theme, status: "suggested" })).toBe(kind);
     }
-    expect(THEME_KINDS).toEqual({ names: "name", words: "word", writing: "note", memory: "memory" });
+    expect(THEME_KINDS).toEqual({
+      names: "name",
+      words: "word",
+      writing: "note",
+      memory: "memory",
+    });
   });
 
   it("draws a contested item as a disagreement and an established one as a rule, whatever its theme", () => {

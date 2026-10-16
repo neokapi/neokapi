@@ -94,12 +94,7 @@ function Stat({ item }: { item: StatItem }) {
     <>
       <span className="sr-only">{phrase}</span>
       <span aria-hidden className="flex flex-col items-start">
-        <span
-          className={cn(
-            "text-xl leading-tight font-semibold tabular-nums",
-            TONE_CLASS[tone],
-          )}
-        >
+        <span className={cn("text-xl leading-tight font-semibold tabular-nums", TONE_CLASS[tone])}>
           {value}
         </span>
         <span className="text-[11px] text-muted-foreground">{item.label}</span>

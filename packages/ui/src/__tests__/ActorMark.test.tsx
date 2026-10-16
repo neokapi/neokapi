@@ -1,12 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import {
-  ActorMark,
-  KNOWN_ACTORS,
-  actorInitials,
-  actorLabel,
-} from "../components/ui/actor-mark";
+import { ActorMark, KNOWN_ACTORS, actorInitials, actorLabel } from "../components/ui/actor-mark";
 
 afterEach(cleanup);
 
@@ -47,9 +42,9 @@ describe("ActorMark", () => {
     expect(initials).toEqual(["CC", "CD", "CX", "CU", "VS"]);
     const hues = ASSISTANTS.map((actor) => {
       const { container, unmount } = render(<ActorMark actor={actor} />);
-      const hue = (container.querySelector("[data-slot=actor-mark]") as HTMLElement).style.getPropertyValue(
-        "--mark-hue",
-      );
+      const hue = (
+        container.querySelector("[data-slot=actor-mark]") as HTMLElement
+      ).style.getPropertyValue("--mark-hue");
       unmount();
       return hue;
     });
@@ -78,10 +73,11 @@ describe("ActorMark", () => {
   });
 
   it("takes a person's initials and name from the name it is given", () => {
-    render(<ActorMark actor="person" name="Asgeir Frimannsson" />);
-    const mark = screen.getByRole("img", { name: "Asgeir Frimannsson" });
-    expect(mark.textContent).toBe("AF");
-    expect(actorInitials("person", "Asgeir")).toBe("AS");
+    render(<ActorMark actor="person" name="Ingrid Solberg" />);
+    const mark = screen.getByRole("img", { name: "Ingrid Solberg" });
+    expect(mark.textContent).toBe("IS");
+    expect(actorInitials("person", "Ola")).toBe("OL");
+    expect(actorInitials("person", "Anne-Marie de la Cruz")).toBe("AC");
     expect(actorInitials("person", "  ")).toBeNull();
   });
 

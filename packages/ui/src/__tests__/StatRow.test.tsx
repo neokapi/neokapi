@@ -30,7 +30,12 @@ describe("StatRow", () => {
     render(<StatRow items={OVERVIEW} aria-label="Your context" />);
     const list = screen.getByRole("list", { name: "Your context" });
     const items = within(list).getAllByRole("listitem");
-    expect(items.map(spokenText)).toEqual(["4 projects", "61 rules", "11 suggestions", "1 needs you"]);
+    expect(items.map(spokenText)).toEqual([
+      "4 projects",
+      "61 rules",
+      "11 suggestions",
+      "1 needs you",
+    ]);
   });
 
   it("draws the value and the label, hidden from assistive technology so they are read once", () => {
@@ -99,7 +104,9 @@ describe("StatRow", () => {
   });
 
   it("makes a count with a hint focusable, so the hint is reachable from the keyboard", () => {
-    render(<StatRow items={[{ value: 11, label: "suggestions", hint: "Advising, not yet kept" }]} />);
+    render(
+      <StatRow items={[{ value: 11, label: "suggestions", hint: "Advising, not yet kept" }]} />,
+    );
     const item = screen.getByRole("listitem");
     const focusable = item.querySelector('[tabindex="0"]');
     expect(focusable).not.toBeNull();

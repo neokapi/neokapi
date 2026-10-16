@@ -596,12 +596,7 @@ export type { FormatSchema, FormatParamsValue } from "./components/filter/types"
 // something, what kind of thing a digest row is, and the list-and-detail shape
 export { StatRow } from "./components/ui/stat-row";
 export type { StatItem, StatRowProps, StatTone } from "./components/ui/stat-row";
-export {
-  ActorMark,
-  KNOWN_ACTORS,
-  actorInitials,
-  actorLabel,
-} from "./components/ui/actor-mark";
+export { ActorMark, KNOWN_ACTORS, actorInitials, actorLabel } from "./components/ui/actor-mark";
 export type { ActorMarkProps, ActorMarkSize, KnownActor } from "./components/ui/actor-mark";
 export {
   KindIcon,
