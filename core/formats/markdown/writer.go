@@ -467,15 +467,37 @@ type mdInlineSink struct {
 	// from a TEXT run, which output() may have to escape. Delimiters the sink
 	// writes as markup are not recorded: those are meant to pair.
 	litDelims []int
+	// lastClosed is the emphasis or strong pair whose closer the sink wrote
+	// last, so the next closer can tell whether it would touch it.
+	lastClosed mdClosedEmphasis
+	// heldClose is an emphasis closer that would touch lastClosed's, held back
+	// until the byte after it is known (see spellHeldClose).
+	heldClose *mdHeldClose
 }
 
 // mdOpenTag is one entry of the open-paired-code stack.
 type mdOpenTag struct {
 	close   string            // the markup that closes the pair
+	at      int               // the offset of an emphasis or strong pair's opener
 	attrs   map[string]string // a link's or image's attributes
 	destKey string            // model.AttrHref or model.AttrSrc; empty for anything else
 	title   bool              // the pair holds the title of the link or image that just closed
 	ref     bool              // the pair is a reference-style link or image
+}
+
+// mdClosedEmphasis locates an emphasis or strong pair in the output: a run of
+// n delimiter characters at openAt and another at closeAt. A zero n is no pair.
+type mdClosedEmphasis struct {
+	char            byte
+	openAt, closeAt int
+	n               int
+}
+
+// mdHeldClose is an emphasis closer held back because it would touch the
+// closer of the pair written just before it.
+type mdHeldClose struct {
+	tag   mdOpenTag
+	inner mdClosedEmphasis
 }
 
 // mdPendingClose is a link's or image's closing markup, held until the sink
@@ -498,6 +520,9 @@ func (s *mdInlineSink) Text(t string) {
 	if s.title != nil {
 		s.title.WriteString(t)
 		return
+	}
+	if t != "" {
+		s.spellHeldClose(firstRune(t))
 	}
 	s.flushPending()
 	s.spellHeldBreak(t)
@@ -605,19 +630,23 @@ func (s *mdInlineSink) Open(r *model.PcOpenRun) {
 	switch r.Type {
 	case "link:hyperlink":
 		// [text](href "title") — the link text is the paired content.
+		s.spellHeldClose('[')
 		s.sb.WriteString("[")
 		s.open = append(s.open, mdOpenTag{attrs: r.Attrs, destKey: model.AttrHref, ref: isReferenceLink(r)})
 	case "media:image", "link:image":
 		// ![alt](src "title"). The alt text is the paired content, except
 		// where a reader does not offer it for translation and records it on
 		// the alt attribute instead (markdown's translateImageAlt: false).
+		s.spellHeldClose('!')
 		s.sb.WriteString("![" + r.Attr(model.AttrAlt))
 		s.open = append(s.open, mdOpenTag{attrs: r.Attrs, destKey: model.AttrSrc, ref: isReferenceLink(r)})
 	default:
 		if m, ok := mdInlineTag[r.Type]; ok {
+			s.spellHeldClose(firstRune(m[0]))
 			open, close := s.emphasisSpelling(m[0], m[1])
+			at := s.sb.Len()
 			s.sb.WriteString(open)
-			s.open = append(s.open, mdOpenTag{close: close})
+			s.open = append(s.open, mdOpenTag{close: close, at: at})
 		} else {
 			s.open = append(s.open, mdOpenTag{})
 		}
@@ -659,14 +688,124 @@ func (s *mdInlineSink) Close(r *model.PcCloseRun) {
 		// is a part of its own and the writer spells that too. Resolving it
 		// inline here left the definition's title block to become a
 		// paragraph (#2635).
+		s.spellHeldClose(']')
 		s.sb.WriteString(referenceCloser(r.Data))
 		return
 	}
 	if tag.destKey != "" {
+		s.spellHeldClose(']')
 		s.pending = &mdPendingClose{attrs: tag.attrs, destKey: tag.destKey}
 		return
 	}
+	if tag.close == "" {
+		return
+	}
+	s.spellHeldClose(firstRune(tag.close))
+	if isEmphasisDelimiter(tag.close) {
+		// Two closers of the same character written back-to-back form one
+		// run, and CommonMark 6.2's rule of three can keep that run from
+		// pairing with the inner opener: "_!*!0*_" rebuilt as "*!*!0**" came
+		// back as different pairs around different text (#3106). The closer is
+		// held until the byte after it is known, and spellHeldClose re-spells
+		// one of the two pairs.
+		closed := mdClosedEmphasis{char: tag.close[0], openAt: tag.at, closeAt: s.sb.Len(), n: len(tag.close)}
+		if s.lastClosed.n > 0 && s.lastClosed.char == closed.char && s.lastClosed.closeAt+s.lastClosed.n == closed.closeAt {
+			s.heldClose = &mdHeldClose{tag: tag, inner: s.lastClosed}
+			return
+		}
+		s.lastClosed = closed
+	}
 	s.sb.WriteString(tag.close)
+}
+
+// isEmphasisDelimiter reports whether close is the closer of an emphasis or
+// strong pair: a run of one character that CommonMark 6.2 pairs by flanking.
+func isEmphasisDelimiter(close string) bool {
+	return close != "" && (close[0] == '*' || close[0] == '_') && strings.Trim(close, close[:1]) == ""
+}
+
+// spellHeldClose writes the emphasis closer Close held back, now that next, the
+// rune that will follow it, is known. Written as it was opened, the closer
+// touches the inner pair's closer and the two form one run. One of the pairs
+// is re-spelled with underscores instead: the inner one where an underscore
+// can open and close in its place, otherwise the outer one, and neither when
+// the bytes around them let neither pair, which leaves the run as it was.
+//
+// The check is CommonMark 6.2 applied to the bytes as they will stand: the
+// re-spelled runs on their own, and the run that keeps its character beside
+// an underscore, which is punctuation to the flanking rules.
+func (s *mdInlineSink) spellHeldClose(next rune) {
+	h := s.heldClose
+	if h == nil {
+		return
+	}
+	s.heldClose = nil
+	out := s.sb.String()
+	outer := mdClosedEmphasis{char: h.tag.close[0], openAt: h.tag.at, closeAt: len(out), n: len(h.tag.close)}
+	inner := h.inner
+	closer := h.tag.close
+	switch {
+	case pairRespells(out, inner, outer, next, true):
+		out = respellDelimiters(out, inner, '_')
+	case pairRespells(out, inner, outer, next, false):
+		out = respellDelimiters(out, outer, '_')
+		outer.char = '_'
+		closer = strings.Repeat("_", outer.n)
+	default:
+		s.lastClosed = outer
+		s.sb.WriteString(closer)
+		return
+	}
+	s.sb.Reset()
+	s.sb.WriteString(out)
+	s.lastClosed = outer
+	s.sb.WriteString(closer)
+}
+
+// pairRespells reports whether re-spelling one of two touching pairs with
+// underscores lets both pair: the inner one when innerFirst is set, otherwise
+// the outer one. out holds everything up to the outer closer, which is not
+// written yet, and next is the rune that will follow that closer.
+func pairRespells(out string, inner, outer mdClosedEmphasis, next rune, innerFirst bool) bool {
+	innerChar, outerChar := inner.char, outer.char
+	if innerFirst {
+		innerChar = '_'
+	} else {
+		outerChar = '_'
+	}
+	// The inner opener and closer, with the outer closer right after the
+	// inner one.
+	innerOpen, _ := delimiterFlanking(innerChar, runeBefore(out, inner.openAt), runeAfter(out, inner.openAt+inner.n))
+	_, innerClose := delimiterFlanking(innerChar, runeBefore(out, inner.closeAt), rune(outerChar))
+	// The outer opener as it stands, and the outer closer between the inner
+	// closer and whatever follows.
+	outerOpen, _ := delimiterFlanking(outerChar, runeBefore(out, outer.openAt), runeAfter(out, outer.openAt+outer.n))
+	_, outerClose := delimiterFlanking(outerChar, rune(innerChar), next)
+	return innerOpen && innerClose && outerOpen && outerClose
+}
+
+// respellDelimiters rewrites both runs of pair e in out with char. A closer
+// that is not written yet lies past the end of out and is the caller's to
+// spell.
+func respellDelimiters(out string, e mdClosedEmphasis, char byte) string {
+	b := []byte(out)
+	for i := e.openAt; i < e.openAt+e.n && i < len(b); i++ {
+		b[i] = char
+	}
+	for i := e.closeAt; i < e.closeAt+e.n && i < len(b); i++ {
+		b[i] = char
+	}
+	return string(b)
+}
+
+// firstRune returns the first rune of s, or a space for an empty string, which
+// is what CommonMark 6.2 treats the start and the end of the text as.
+func firstRune(s string) rune {
+	if s == "" {
+		return ' '
+	}
+	r, _ := utf8.DecodeRuneInString(s)
+	return r
 }
 
 func (s *mdInlineSink) Placeholder(r *model.PlaceholderRun) {
@@ -677,6 +816,12 @@ func (s *mdInlineSink) Placeholder(r *model.PlaceholderRun) {
 	if s.title != nil {
 		s.title.WriteString(r.Equiv)
 		return
+	}
+	switch {
+	case r.Type == "media:image" || r.Type == "link:image":
+		s.spellHeldClose('!')
+	case r.Equiv != "":
+		s.spellHeldClose(firstRune(r.Equiv))
 	}
 	s.flushPending()
 	s.spellHeldBreak(r.Equiv)
@@ -845,20 +990,25 @@ func scanDelimiterRuns(out string) []delimRun {
 		for j < len(out) && out[j] == c {
 			j++
 		}
-		before, after := runeBefore(out, i), runeAfter(out, j)
-		beforeSpace, beforePunct := unicode.IsSpace(before), isMarkdownPunct(before)
-		afterSpace, afterPunct := unicode.IsSpace(after), isMarkdownPunct(after)
-		left := !afterSpace && (!afterPunct || beforeSpace || beforePunct)
-		right := !beforeSpace && (!beforePunct || afterSpace || afterPunct)
-		r := delimRun{char: c, start: i, end: j, canOpen: left, canClose: right}
-		if c == '_' {
-			r.canOpen = left && (!right || beforePunct)
-			r.canClose = right && (!left || afterPunct)
-		}
+		r := delimRun{char: c, start: i, end: j}
+		r.canOpen, r.canClose = delimiterFlanking(c, runeBefore(out, i), runeAfter(out, j))
 		runs = append(runs, r)
 		i = j
 	}
 	return runs
+}
+
+// delimiterFlanking applies CommonMark 6.2 to a run of c with the given runes
+// on either side: whether the run can open and whether it can close.
+func delimiterFlanking(c byte, before, after rune) (canOpen, canClose bool) {
+	beforeSpace, beforePunct := unicode.IsSpace(before), isMarkdownPunct(before)
+	afterSpace, afterPunct := unicode.IsSpace(after), isMarkdownPunct(after)
+	left := !afterSpace && (!afterPunct || beforeSpace || beforePunct)
+	right := !beforeSpace && (!beforePunct || afterSpace || afterPunct)
+	if c == '_' {
+		return left && (!right || beforePunct), right && (!left || afterPunct)
+	}
+	return left, right
 }
 
 // runeBefore and runeAfter give the rune on each side of a delimiter run. The
@@ -888,6 +1038,7 @@ func isMarkdownPunct(r rune) bool {
 
 func (s *mdInlineSink) flush() {
 	s.heldBreak = false
+	s.spellHeldClose(' ')
 	s.spellPendingTitle()
 	s.flushPending()
 	for _, tag := range slices.Backward(s.open) {
