@@ -52,7 +52,7 @@ jobs:
       # Install vp + vpx, mirroring the setup-node-ui composite the rest of CI
       # uses. The kapi-format / neokapi-i18n build.mjs shell out to `vpx` (e.g.
       # `vpx tsc`), so it must be on PATH for the build step below.
-      - uses: voidzero-dev/setup-vp@v1
+      - uses: voidzero-dev/setup-vp@v1.21.2
         with:
           version: "0.1.23"
           node-version: "24"
