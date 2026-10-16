@@ -37,10 +37,6 @@ const hostOrder = () =>
   );
 const connectButton = (host: string) =>
   hostRow(host)?.querySelector<HTMLButtonElement>("[data-slot='assistant-host-connect']") ?? null;
-const connectedButton = (host: string) =>
-  hostRow(host)?.querySelector<HTMLButtonElement>(
-    "[data-slot='assistant-host-connected-button']",
-  ) ?? null;
 const caption = (host: string) =>
   hostRow(host)?.querySelector("[data-slot='assistant-host-connected']")?.textContent?.trim() ??
   null;
@@ -167,14 +163,14 @@ describe("What your assistant reads", () => {
 });
 
 describe("connected assistants", () => {
-  it("marks each connected assistant with a filled dot, Connected, and a disabled button", () => {
+  it("marks each connected assistant with a filled dot and Connected, and gives its row no button", () => {
     render(<AssistantHosts tabID="t1" hosts={HOSTS_ALL_CONNECTED} />);
     for (const host of ["claude-code", "cursor", "vscode", "codex", "claude-desktop"]) {
       expect(dot(host)?.className).toContain("bg-success");
       expect(caption(host)).toBe("Connected");
-      expect(connectedButton(host)).toBeDisabled();
-      expect(connectedButton(host)).toHaveTextContent(/^Connected$/);
+      expect(hostRow(host)?.querySelector("button")).toBeNull();
     }
+    expect(screen.queryAllByRole("button")).toHaveLength(0);
     expect(screen.queryByRole("button", { name: "Connect" })).toBeNull();
     expect(screen.queryByText(/kapi init/)).toBeNull();
     expect(screen.queryByText(/not connected/)).toBeNull();
@@ -184,7 +180,6 @@ describe("connected assistants", () => {
     render(<AssistantHosts tabID="t1" hosts={HOSTS_NONE_CONNECTED} />);
     for (const host of ["claude-code", "cursor", "vscode", "codex", "claude-desktop"]) {
       expect(connectButton(host)).not.toBeNull();
-      expect(connectedButton(host)).toBeNull();
       expect(caption(host)).toBeNull();
       expect(dot(host)?.className).not.toContain("bg-success");
     }
@@ -198,7 +193,7 @@ describe("connected assistants", () => {
     expect(hostRow("vscode")?.dataset.absent).toBe("true");
     expect(hostRow("claude-desktop")?.dataset.absent).toBe("true");
     expect(connectButton("claude-desktop")).toBeNull();
-    expect(connectedButton("claude-desktop")).toBeNull();
+    expect(hostRow("claude-code")?.querySelector("button")).toBeNull();
     expect(connectButton("vscode")).not.toBeNull();
   });
 

@@ -1,7 +1,7 @@
 // The assistants kapi can connect to one project, one row each: a status dot
-// and the name, "Connected" after it when the assistant is, and one button,
-// Connect or a disabled Connected. The files that carry a connection are the
-// caption's tooltip.
+// and the name, with "Connected" after it when the assistant is connected and
+// Connect at the end of the row when it can be. The files that carry a
+// connection are the caption's tooltip.
 //
 // Connect writes the files `kapi init` writes for that assistant and lists
 // what it wrote. Claude Desktop reads a configuration file of the person's
@@ -128,7 +128,7 @@ export function AssistantHosts({ tabID, hosts: given, contextOnly }: AssistantHo
   );
 }
 
-/** One assistant: its status dot and name, and Connect or a disabled Connected. */
+/** One assistant: its status dot and name, and Connect when it is not connected. */
 function HostRow({
   host,
   shorten,
@@ -189,23 +189,17 @@ function HostRow({
             </SimpleTooltip>
           )}
         </p>
-        {host.wired ? (
-          <Button size="sm" variant="outline" data-slot="assistant-host-connected-button" disabled>
-            Connected
+        {canConnect(host) && (
+          <Button
+            size="sm"
+            variant="outline"
+            data-slot="assistant-host-connect"
+            disabled={disabled}
+            onClick={onConnect}
+          >
+            {busy && <LoadingSpinner size="sm" />}
+            Connect
           </Button>
-        ) : (
-          canConnect(host) && (
-            <Button
-              size="sm"
-              variant="outline"
-              data-slot="assistant-host-connect"
-              disabled={disabled}
-              onClick={onConnect}
-            >
-              {busy && <LoadingSpinner size="sm" />}
-              Connect
-            </Button>
-          )
         )}
       </div>
       {wrote && <WroteFiles result={wrote} shorten={shorten} />}
