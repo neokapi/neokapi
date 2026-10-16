@@ -100,7 +100,7 @@ export function ContextDigestPanel({
 
   const since = held && held !== NEVER ? held : undefined;
   return (
-    <div data-slot="context-digest-panel">
+    <div data-slot="context-digest-panel" className="h-full min-h-0">
       <ContextDigestView
         digest={query.data ?? null}
         loading={query.isLoading}

@@ -1,25 +1,50 @@
-// The rules and suggestions kapi holds for a project, with what is new since
-// the person last looked.
+// What's new for a project: the rules and suggestions kapi holds for it, as a
+// list and a detail pane.
 //
-// The view is news, never a queue. The few things that need a person come
-// first (conflicts), then the rules that came into force and on what, then
-// the suggestions grouped by theme, then content drifting away from a rule,
-// and last the project in numbers. A suggestion nobody answers keeps
-// advising, so nothing here counts unread work and nothing has to be cleared:
-// what the person has already seen stays, under "Earlier".
+// The list is one line per item in five groups: Needs you (each
+// disagreement), Suggested (every suggestion, theme by theme), Established
+// (rules that came into force since the person last looked), Earlier (rules
+// in force from before that, collapsed) and Drift. The detail pane holds the
+// selected item's evidence, who noticed it and when, and the decisions open
+// on it. A suggestion nobody answers keeps advising, so nothing here counts
+// unread work and nothing has to be cleared.
 //
-// The keys act on the item under the cursor: j and k move, a keeps (or
-// chooses a side of a conflict), c changes the rule before keeping it, d
-// drops a suggestion or a rule in force, g keeps the whole group, o opens the
-// file the item was seen in. A rule in force can be applied more widely, to
-// every project or past one axis of its point, from its row.
+// The keys act on the selected row: j and k (and the arrows) move, a keeps a
+// suggestion or chooses a disagreement's first side, c changes the rule
+// before keeping it, d drops a suggestion or a rule in force, g keeps every
+// suggestion that shares the selected one's theme and collection, o opens the
+// file the item was seen in, Esc closes the change field. After a decision
+// the selection moves on to the next row that waits for one, and the decided
+// row stays dimmed until the digest is read again.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, FileText } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { t } from "@neokapi/i18n-react/runtime";
-import { Button, ErrorNotice, Input, LoadingSpinner, cn } from "@neokapi/ui-primitives";
-import type { ContextDigest, DigestItem, DigestTermRule } from "../types/api";
-import { WidenPicker } from "./ContextFeed";
+import {
+  Button,
+  EmptyState,
+  ErrorNotice,
+  KindIcon,
+  ListDetail,
+  ListDetailGroup,
+  ListDetailItem,
+  ListDetailList,
+  LoadingSpinner,
+  cn,
+  digestKind,
+  useListNavigation,
+} from "@neokapi/ui-primitives";
+import type { ContextDigest, DigestItem } from "../types/api";
+import { defaultRowKey, digestRows, nextRowKey, type DigestRow } from "../lib/digestRows";
+import { ConflictLine, RuleLine, themeLabel } from "./DigestRule";
+import {
+  DigestDetail,
+  DigestNothingSelected,
+  NoticedMark,
+  type DigestChange,
+} from "./ContextDigestDetail";
+
+export { RuleSentence } from "./DigestRule";
 
 export interface ContextDigestViewProps {
   /** The digest, null while the first read is in flight. */
@@ -35,9 +60,15 @@ export interface ContextDigestViewProps {
   canDecide?: boolean;
   /** Take the keyboard. */
   keyboard?: boolean;
+  /**
+   * The row to open on, by its key in the list (`suggested:<id>`,
+   * `established:<id>`, …). Absent opens on the first row that needs a
+   * person, else the first suggestion.
+   */
+  defaultSelected?: string;
   /** Keep a suggestion, changing what it says to write when a form is given. */
   onKeep: (item: DigestItem, replacement?: string) => void | Promise<void>;
-  /** Keep every suggestion of one group. */
+  /** Keep every suggestion of one theme and collection. */
   onKeepGroup: (items: DigestItem[]) => void | Promise<void>;
   onDrop: (item: DigestItem) => void | Promise<void>;
   /** Choose one side of a conflict, setting the others aside. */
@@ -49,17 +80,17 @@ export interface ContextDigestViewProps {
   onWiden?: (item: DigestItem, to: string) => void;
   /** Open the file an item was seen in. Absent hides the links. */
   onOpenFile?: (path: string) => void;
-  /** Open the project's Assistant section. Absent leaves the empty text without its link. */
+  /** Open the project's Assistant section. Absent leaves the empty state without its button. */
   onConnectAssistant?: () => void;
 }
 
-/** One item the cursor can stand on, with what its keys do. */
-interface Stop {
-  item: DigestItem;
-  /** "conflict", "established", "suggested" or "drift". */
-  section: string;
-  group?: DigestItem[];
-}
+/** A group holding more of these suggestions is split under a header per theme. */
+const THEME_HEADERS_ABOVE = 12;
+
+/** The keys that move the selection from anywhere on the page. */
+const MOVE_KEYS = new Set(["j", "k", "ArrowDown", "ArrowUp"]);
+
+const NONE: ReadonlySet<string> = new Set();
 
 export function ContextDigestView({
   digest,
@@ -68,6 +99,7 @@ export function ContextDigestView({
   since,
   canDecide = true,
   keyboard = true,
+  defaultSelected,
   onKeep,
   onKeepGroup,
   onDrop,
@@ -76,530 +108,395 @@ export function ContextDigestView({
   onOpenFile,
   onConnectAssistant,
 }: ContextDigestViewProps) {
-  const stops = useMemo<Stop[]>(() => {
-    if (!digest) return [];
-    const out: Stop[] = [];
-    for (const c of digest.conflicts)
-      for (const side of c.sides) out.push({ item: side, section: "conflict" });
-    for (const it of digest.established) out.push({ item: it, section: "established" });
-    for (const theme of digest.suggested)
-      for (const g of theme.groups)
-        for (const it of g.items) out.push({ item: it, section: "suggested", group: g.items });
-    for (const d of digest.drift) out.push({ item: d.rule, section: "drift" });
-    return out;
-  }, [digest]);
-
-  const [cursor, setCursor] = useState(0);
-  const [changing, setChanging] = useState<{ id: string; form: string } | null>(null);
-  const active = stops[Math.min(cursor, stops.length - 1)];
-
-  const keep = useCallback(
-    (stop: Stop, replacement?: string) => {
-      setChanging(null);
-      return stop.section === "conflict"
-        ? onChoose(stop.item, replacement)
-        : onKeep(stop.item, replacement);
-    },
-    [onChoose, onKeep],
+  const rows = useMemo(() => (digest ? digestRows(digest) : []), [digest]);
+  const [earlierOpen, setEarlierOpen] = useState(false);
+  const visible = useMemo(
+    () => (earlierOpen ? rows : rows.filter((r) => r.group !== "earlier")),
+    [rows, earlierOpen],
   );
 
+  // Rows decided on this screen, until the digest is read again: a decided
+  // row stays in the list, dimmed, and the selection passes over it.
+  const [pending, setPending] = useState<{ of: ContextDigest | null; keys: ReadonlySet<string> }>({
+    of: null,
+    keys: NONE,
+  });
+  const decided = pending.of === digest ? pending.keys : NONE;
+
+  const [chosen, setChosen] = useState<string | null>(defaultSelected ?? null);
+  const selectedKey =
+    chosen && visible.some((r) => r.key === chosen) ? chosen : defaultRowKey(visible, decided);
+  const selected = visible.find((r) => r.key === selectedKey);
+
+  const [change, setChange] = useState<DigestChange | null>(null);
+  const activeChange = change && change.key === selectedKey ? change : null;
+
+  const select = useCallback((key: string) => {
+    setChosen(key);
+    setChange(null);
+  }, []);
+  const nav = useListNavigation({
+    ids: visible.map((r) => r.key),
+    selectedId: selectedKey,
+    onSelect: select,
+  });
+
+  /** Mark rows decided and move the selection past them. */
+  const advance = (from: DigestRow, also: string[] = []) => {
+    const keys = new Set([...decided, from.key, ...also]);
+    setPending({ of: digest, keys });
+    setChange(null);
+    setChosen(nextRowKey(visible, from.key, keys));
+  };
+  const keep = (row: DigestRow, replacement?: string) => {
+    advance(row);
+    void onKeep(row.item, replacement);
+  };
+  const choose = (row: DigestRow, side: DigestItem, replacement?: string) => {
+    advance(row);
+    void onChoose(side, replacement);
+  };
+  const drop = (row: DigestRow, item: DigestItem) => {
+    advance(row);
+    void onDrop(item);
+  };
+  const keepGroup = (row: DigestRow) => {
+    const items = (row.siblings ?? []).filter((s) => s.keepable);
+    if (items.length === 0) return false;
+    const ids = new Set(items.map((i) => i.id));
+    const keys = rows
+      .filter((r) => r.group === "suggested" && ids.has(r.item.id))
+      .map((r) => r.key);
+    advance(row, keys);
+    void onKeepGroup(items);
+    return true;
+  };
+  const startChange = (row: DigestRow, item: DigestItem) =>
+    setChange({ key: row.key, itemId: item.id, form: item.subject.term?.replacement ?? "" });
+
+  // The page's keys, read through a ref so the listener is bound once and
+  // always acts on the row selected now.
+  const container = useRef<HTMLDivElement>(null);
+  const onKey = useRef<(e: KeyboardEvent) => void>(() => {});
+  onKey.current = (e) => {
+    if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || e.isComposing) return;
+    const el = e.target instanceof Element ? e.target : null;
+    if (
+      el?.closest(
+        'input, textarea, select, [contenteditable="true"], [role="dialog"], [role="menu"]',
+      )
+    ) {
+      return;
+    }
+    // A listbox other than this list (a select's options) keeps its keys.
+    const box = el?.closest('[role="listbox"]');
+    if (
+      box &&
+      !(box.getAttribute("data-slot") === "list-detail-list" && container.current?.contains(box))
+    ) {
+      return;
+    }
+    if (MOVE_KEYS.has(e.key)) {
+      if (nav.handleKey(e)) e.preventDefault();
+      return;
+    }
+    if (e.key === "Escape") {
+      setChange(null);
+      return;
+    }
+    const row = selected;
+    if (!row) return;
+    const first = row.conflict?.sides[0];
+    const subject =
+      row.group === "conflict" ? first : row.group === "suggested" ? row.item : undefined;
+    let acted = false;
+    switch (e.key) {
+      case "a":
+        if (!canDecide || !subject?.keepable) break;
+        if (row.group === "conflict") choose(row, subject);
+        else keep(row);
+        acted = true;
+        break;
+      case "c":
+        if (!canDecide || !subject?.keepable || !subject.subject.term) break;
+        startChange(row, subject);
+        acted = true;
+        break;
+      case "d": {
+        if (!canDecide) break;
+        // A disagreement with a rival offers no Drop: choosing one side sets the others aside.
+        const target =
+          row.group === "conflict"
+            ? row.conflict!.sides.length === 1
+              ? first
+              : undefined
+            : row.item;
+        if (!target?.droppable) break;
+        drop(row, target);
+        acted = true;
+        break;
+      }
+      case "g":
+        if (canDecide && row.group === "suggested") acted = keepGroup(row);
+        break;
+      case "o": {
+        const path = (first ?? row.item).quote?.path;
+        if (!onOpenFile || !path) break;
+        onOpenFile(path);
+        acted = true;
+        break;
+      }
+    }
+    if (acted) e.preventDefault();
+  };
   useEffect(() => {
     if (!keyboard) return;
-    const onKey = (e: KeyboardEvent) => {
-      const el = e.target as HTMLElement | null;
-      const tag = el?.tagName ?? "";
-      if (tag === "TEXTAREA" || tag === "INPUT" || tag === "SELECT") {
-        if (e.key === "Escape") {
-          el?.blur();
-          setChanging(null);
-        }
-        return;
-      }
-      if (e.metaKey || e.ctrlKey || e.altKey || !active) return;
-      const { item } = active;
-      switch (e.key) {
-        case "j":
-        case "ArrowDown":
-          e.preventDefault();
-          setCursor((at) => Math.min(at + 1, stops.length - 1));
-          break;
-        case "k":
-        case "ArrowUp":
-          e.preventDefault();
-          setCursor((at) => Math.max(at - 1, 0));
-          break;
-        case "a":
-          if (canDecide && item.keepable) {
-            e.preventDefault();
-            void keep(active);
-          }
-          break;
-        case "c":
-          if (canDecide && item.keepable && item.subject.term) {
-            e.preventDefault();
-            setChanging({ id: item.id, form: item.subject.term.replacement ?? "" });
-          }
-          break;
-        case "d":
-          if (canDecide && item.droppable) {
-            e.preventDefault();
-            void onDrop(item);
-          }
-          break;
-        case "g":
-          if (canDecide && active.group) {
-            e.preventDefault();
-            void onKeepGroup(active.group.filter((g) => g.keepable));
-          }
-          break;
-        case "o":
-          if (onOpenFile && item.quote?.path) {
-            e.preventDefault();
-            onOpenFile(item.quote.path);
-          }
-          break;
-        case "Escape":
-          setChanging(null);
-          break;
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [active, canDecide, keep, keyboard, onDrop, onKeepGroup, onOpenFile, stops.length]);
+    const listener = (e: KeyboardEvent) => onKey.current(e);
+    window.addEventListener("keydown", listener);
+    return () => window.removeEventListener("keydown", listener);
+  }, [keyboard]);
 
   if (error) {
-    return <ErrorNotice error={error} title="The rules and suggestions could not be read" />;
+    return (
+      <div className="p-6">
+        <ErrorNotice error={error} title="The rules and suggestions could not be read" />
+      </div>
+    );
   }
   if (!digest) {
-    return loading ? <LoadingSpinner /> : null;
-  }
-
-  const quiet =
-    digest.numbers.new === 0 && digest.conflicts.length === 0 && digest.drift.length === 0;
-  const row = (stop: Stop) => (
-    <DigestRow
-      key={stop.item.id}
-      stop={stop}
-      active={active?.item.id === stop.item.id}
-      canDecide={canDecide}
-      changing={changing?.id === stop.item.id ? changing.form : null}
-      onFocus={() => setCursor(stops.indexOf(stop))}
-      onChangeForm={(form) => setChanging({ id: stop.item.id, form })}
-      onStartChange={() =>
-        setChanging({ id: stop.item.id, form: stop.item.subject.term?.replacement ?? "" })
-      }
-      onCancelChange={() => setChanging(null)}
-      onKeep={(replacement) => void keep(stop, replacement)}
-      onDrop={() => void onDrop(stop.item)}
-      onWiden={onWiden ? (to) => onWiden(stop.item, to) : undefined}
-      onOpenFile={onOpenFile}
-    />
-  );
-  const stopsOf = (section: string) => stops.filter((s) => s.section === section);
-
-  return (
-    <div data-slot="context-digest" className="space-y-8">
-      <DigestHeading since={since} quiet={quiet} />
-      {stops.length === 0 && digest.numbers.rules === 0 && (
-        <p data-slot="digest-empty" className="text-sm text-muted-foreground">
-          Nothing is recorded yet. When you or an agent working here notice a name, a word the
-          project avoids or how it addresses its readers, it appears here, and it advises agents and
-          checks from the moment it is recorded.
-          {onConnectAssistant && (
-            <>
-              {" "}
-              <button
-                type="button"
-                data-slot="digest-connect-assistant"
-                onClick={onConnectAssistant}
-                className="text-foreground underline underline-offset-2 hover:text-primary"
-              >
-                Connect an assistant to start.
-              </button>
-            </>
-          )}
-        </p>
-      )}
-
-      {digest.conflicts.length > 0 && (
-        <section data-slot="digest-conflicts" aria-labelledby="digest-conflicts">
-          <h3 id="digest-conflicts" className="text-base font-semibold">
-            Needs you
-          </h3>
-          <div className="mt-3 space-y-4">
-            {digest.conflicts.map((c) => (
-              <div
-                key={c.sides[0]?.id}
-                className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3"
-              >
-                <p className="text-xs text-muted-foreground">{c.reason}</p>
-                <div className="mt-2 divide-y divide-border/60">
-                  {stopsOf("conflict")
-                    .filter((s) => c.sides.some((side) => side.id === s.item.id))
-                    .map(row)}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {digest.established.length > 0 && (
-        <section data-slot="digest-established" aria-labelledby="digest-established">
-          <h3 id="digest-established" className="text-base font-semibold">
-            Established
-          </h3>
-          <NewThenEarlier stops={stopsOf("established")} row={row} />
-        </section>
-      )}
-
-      {digest.suggested.length > 0 && (
-        <section data-slot="digest-suggested" aria-labelledby="digest-suggested">
-          <h3 id="digest-suggested" className="text-base font-semibold">
-            Suggested
-          </h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Each suggestion already advises agents and checks. Keeping one makes it a rule that
-            checks enforce.
-          </p>
-          {digest.suggested.map((theme) => (
-            <div key={theme.theme} data-slot="digest-theme" className="mt-4">
-              <ThemeTitle theme={theme.theme} />
-              {theme.groups.map((g) => (
-                <div key={g.collection ?? ""} data-slot="digest-group" className="mt-2">
-                  <div className="flex items-center justify-between gap-2">
-                    {g.collection ? (
-                      <p className="text-xs text-muted-foreground">
-                        In <span className="font-medium text-foreground">{g.collection}</span>
-                      </p>
-                    ) : (
-                      <span />
-                    )}
-                    {canDecide && g.items.filter((i) => i.keepable).length > 1 && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        data-slot="keep-group"
-                        onClick={() => void onKeepGroup(g.items.filter((i) => i.keepable))}
-                      >
-                        <Check size={13} />
-                        Keep all {g.items.filter((i) => i.keepable).length}
-                        <kbd className="ml-1 rounded border border-border/60 px-1 text-[10px]">
-                          g
-                        </kbd>
-                      </Button>
-                    )}
-                  </div>
-                  <NewThenEarlier
-                    stops={stopsOf("suggested").filter((s) => s.group === g.items)}
-                    row={row}
-                  />
-                </div>
-              ))}
-            </div>
-          ))}
-        </section>
-      )}
-
-      {digest.drift.length > 0 && (
-        <section data-slot="digest-drift" aria-labelledby="digest-drift">
-          <h3 id="digest-drift" className="text-base font-semibold">
-            Drift
-          </h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Content is moving away from these rules. Open the files, or drop the rule if the project
-            has changed its mind.
-          </p>
-          <div className="mt-2 divide-y divide-border/60">{stopsOf("drift").map(row)}</div>
-        </section>
-      )}
-
-      <DigestNumbers digest={digest} />
-    </div>
-  );
-}
-
-/** The line that says what "new" is measured from. */
-function DigestHeading({ since, quiet }: { since?: string; quiet: boolean }) {
-  if (!since) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        Every rule and suggestion kapi holds for this project.
-      </p>
-    );
-  }
-  const when = formatLook(since);
-  return quiet ? (
-    <p data-slot="digest-quiet" className="text-sm">
-      Nothing new since {when}.
-    </p>
-  ) : (
-    <p className="text-sm text-muted-foreground">Since you last looked, {when}.</p>
-  );
-}
-
-/** A theme's title, written here so it is translated with the rest. */
-function ThemeTitle({ theme }: { theme: string }) {
-  const cls = "text-sm font-medium";
-  switch (theme) {
-    case "names":
-      return <h4 className={cls}>Names and spellings</h4>;
-    case "words":
-      return <h4 className={cls}>Words to avoid</h4>;
-    case "writing":
-      return <h4 className={cls}>How the project writes</h4>;
-    case "memory":
-      return <h4 className={cls}>Wording in other languages</h4>;
-  }
-  return <h4 className={cls}>{theme}</h4>;
-}
-
-/** The new items, then the ones the person has already seen under "Earlier". */
-function NewThenEarlier({ stops, row }: { stops: Stop[]; row: (s: Stop) => React.ReactNode }) {
-  const fresh = stops.filter((s) => s.item.new);
-  const seen = stops.filter((s) => !s.item.new);
-  return (
-    <>
-      {fresh.length > 0 && <div className="mt-2 divide-y divide-border/60">{fresh.map(row)}</div>}
-      {seen.length > 0 && (
-        <div data-slot="digest-earlier" className="mt-3">
-          <p className="text-xs text-muted-foreground">Earlier</p>
-          <div className="mt-1 divide-y divide-border/60 opacity-80">{seen.map(row)}</div>
-        </div>
-      )}
-    </>
-  );
-}
-
-/** The project in numbers. */
-function DigestNumbers({ digest }: { digest: ContextDigest }) {
-  const name = digest.project_name || digest.project;
-  const { rules, new_this_week: week, suggested } = digest.numbers;
-  return (
-    <p
-      data-slot="digest-numbers"
-      className="border-t border-border pt-3 text-sm text-muted-foreground"
-    >
-      {t("kapi knows {rules, plural, one {# rule} other {# rules}} for {name}", { rules, name })}
-      {week > 0 && t("; {week, plural, one {# is} other {# are}} new this week", { week })}.{" "}
-      {suggested > 0 &&
-        t("{suggested, plural, one {# suggestion is} other {# suggestions are}} advising.", {
-          suggested,
-        })}
-    </p>
-  );
-}
-
-/** One item: the rule as a sentence, where it was seen, and what backs it. */
-function DigestRow({
-  stop,
-  active,
-  canDecide,
-  changing,
-  onFocus,
-  onChangeForm,
-  onStartChange,
-  onCancelChange,
-  onKeep,
-  onDrop,
-  onWiden,
-  onOpenFile,
-}: {
-  stop: Stop;
-  active: boolean;
-  canDecide: boolean;
-  changing: string | null;
-  onFocus: () => void;
-  onChangeForm: (form: string) => void;
-  onStartChange: () => void;
-  onCancelChange: () => void;
-  onKeep: (replacement?: string) => void;
-  onDrop: () => void;
-  onWiden?: (to: string) => void;
-  onOpenFile?: (path: string) => void;
-}) {
-  const { item, section } = stop;
-  const widenTo = item.widenable ? (item.widen_to ?? []) : [];
-  const inputRef = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    if (changing !== null) inputRef.current?.focus();
-  }, [changing]);
-  const kbd = (key: string) =>
-    active ? (
-      <kbd className="ml-1 rounded border border-border/60 px-1 text-[10px]">{key}</kbd>
+    return loading ? (
+      <div className="p-6">
+        <LoadingSpinner />
+      </div>
     ) : null;
+  }
+  if (rows.length === 0) {
+    return (
+      <div className="mx-auto max-w-xl p-6">
+        <DigestEmpty digest={digest} since={since} onConnectAssistant={onConnectAssistant} />
+      </div>
+    );
+  }
+
+  const inGroup = (group: DigestRow["group"]) => visible.filter((r) => r.group === group);
+  const earlier = rows.filter((r) => r.group === "earlier");
+  const row = (r: DigestRow) => <DigestListRow key={r.key} row={r} decided={decided.has(r.key)} />;
 
   return (
-    <div
-      data-slot="digest-item"
-      data-active={active || undefined}
-      onClick={onFocus}
-      className={cn("relative py-2.5 pl-4 pr-1", active && "rounded-md bg-accent/50")}
-    >
-      {item.new && (
-        <span
-          aria-label={t("New since you last looked")}
-          className="absolute left-1 top-4 size-1.5 rounded-full bg-primary"
-        />
-      )}
-      <p className="text-sm leading-snug">
-        <RuleSentence item={item} />
-      </p>
-      {item.quote && (item.quote.quote || item.quote.path) && (
-        <p className="mt-1 text-xs text-muted-foreground">
-          {item.quote.quote && (
-            <q className="italic" translate="no">
-              {item.quote.quote}
-            </q>
-          )}{" "}
-          {item.quote.path &&
-            (onOpenFile ? (
-              <button
-                type="button"
-                data-slot="open-file"
-                className="inline-flex items-center gap-1 text-foreground underline-offset-2 hover:underline"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onOpenFile(item.quote!.path!);
-                }}
-              >
-                <FileText size={11} />
-                <span translate="no">{item.quote.path}</span>
-                {kbd("o")}
-              </button>
-            ) : (
-              <span className="font-mono" translate="no">
-                {item.quote.path}
-              </span>
-            ))}
-        </p>
-      )}
-      {item.usage && (
-        <p data-slot="digest-usage" className="mt-1 text-xs">
-          {item.usage.line}
-        </p>
-      )}
-      <p className="mt-1 text-xs text-muted-foreground">
-        {item.how && item.how.length > 0 ? item.how.join(" · ") : <Noticed item={item} />}
-        {item.standing && (
+    <div ref={container} data-slot="context-digest" className="h-full min-h-0">
+      <ListDetail
+        list={
           <>
-            {" · "}
-            {item.standing}
+            <DigestCaption digest={digest} since={since} />
+            <ListDetailList selectedId={selectedKey} onSelect={select} aria-label={t("What's new")}>
+              {inGroup("conflict").length > 0 && (
+                <ListDetailGroup
+                  data-slot="digest-conflicts"
+                  label={t("Needs you")}
+                  count={inGroup("conflict").length}
+                >
+                  {inGroup("conflict").map(row)}
+                </ListDetailGroup>
+              )}
+              {inGroup("suggested").length > 0 && (
+                <ListDetailGroup
+                  data-slot="digest-suggested"
+                  label={t("Suggested")}
+                  count={inGroup("suggested").length}
+                >
+                  {inGroup("suggested").length > THEME_HEADERS_ABOVE
+                    ? digest.suggested.map((theme) => {
+                        const ofTheme = inGroup("suggested").filter(
+                          (r) => r.item.theme === theme.theme,
+                        );
+                        if (ofTheme.length === 0) return null;
+                        return [
+                          <ListDetailGroup
+                            key={`theme:${theme.theme}`}
+                            data-slot="digest-theme"
+                            label={themeLabel(theme.theme)}
+                            count={ofTheme.length}
+                            className="top-[30px] font-medium"
+                          />,
+                          ...ofTheme.map(row),
+                        ];
+                      })
+                    : inGroup("suggested").map(row)}
+                </ListDetailGroup>
+              )}
+              {inGroup("established").length > 0 && (
+                <ListDetailGroup
+                  data-slot="digest-established"
+                  label={t("Established")}
+                  count={inGroup("established").length}
+                >
+                  {inGroup("established").map(row)}
+                </ListDetailGroup>
+              )}
+              {earlier.length > 0 && (
+                <ListDetailGroup
+                  data-slot="digest-earlier"
+                  data-open={earlierOpen || undefined}
+                  label={
+                    <button
+                      type="button"
+                      data-slot="digest-earlier-toggle"
+                      aria-expanded={earlierOpen}
+                      onClick={() => setEarlierOpen((open) => !open)}
+                      className="inline-flex items-center gap-1 rounded-sm hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+                    >
+                      <ChevronRight
+                        aria-hidden
+                        className={cn("size-3 transition-transform", earlierOpen && "rotate-90")}
+                      />
+                      Earlier
+                    </button>
+                  }
+                  count={earlier.length}
+                >
+                  {earlierOpen ? earlier.map(row) : null}
+                </ListDetailGroup>
+              )}
+              {inGroup("drift").length > 0 && (
+                <ListDetailGroup
+                  data-slot="digest-drift"
+                  label={t("Drift")}
+                  count={inGroup("drift").length}
+                >
+                  {inGroup("drift").map(row)}
+                </ListDetailGroup>
+              )}
+            </ListDetailList>
           </>
-        )}
-      </p>
-
-      {canDecide && changing !== null && (
-        <div data-slot="digest-change" className="mt-2 flex items-center gap-2">
-          <Input
-            ref={inputRef}
-            value={changing}
-            onChange={(e) => onChangeForm(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                onKeep(changing);
-              }
-            }}
-            className="h-8 max-w-64 font-mono"
-            translate="no"
-            aria-label={t("What to write instead")}
-          />
-          <Button size="sm" data-slot="keep-changed" onClick={() => onKeep(changing)}>
-            <Check size={13} />
-            Keep with this form
-          </Button>
-          <Button variant="ghost" size="sm" onClick={onCancelChange}>
-            Cancel
-          </Button>
-        </div>
-      )}
-
-      {canDecide && changing === null && (
-        <div data-slot="digest-actions" className="mt-2 flex flex-wrap items-center gap-2">
-          {item.keepable && (
-            <Button size="sm" data-slot="keep-item" onClick={() => onKeep()}>
-              <Check size={13} />
-              {section === "conflict" ? <>Choose this side</> : <>Keep</>}
-              {kbd("a")}
-            </Button>
-          )}
-          {item.keepable && item.subject.term && (
-            <Button variant="outline" size="sm" data-slot="change-item" onClick={onStartChange}>
-              Change
-              {kbd("c")}
-            </Button>
-          )}
-          {item.droppable && section !== "conflict" && (
-            <Button variant="ghost" size="sm" data-slot="drop-item" onClick={onDrop}>
-              Drop
-              {kbd("d")}
-            </Button>
-          )}
-          {onWiden && widenTo.length > 0 && section !== "conflict" && (
-            <WidenPicker options={widenTo} onWiden={onWiden} label={t("Apply more widely")} />
-          )}
-        </div>
-      )}
+        }
+        detail={
+          selected ? (
+            <DigestDetail
+              key={selected.key}
+              row={selected}
+              canDecide={canDecide}
+              change={activeChange}
+              onKeep={(replacement) => keep(selected, replacement)}
+              onChoose={(side, replacement) => choose(selected, side, replacement)}
+              onDrop={(item) => drop(selected, item)}
+              onWiden={onWiden ? (to) => onWiden(selected.item, to) : undefined}
+              onOpenFile={onOpenFile}
+              onStartChange={(item) => startChange(selected, item)}
+              onChangeForm={(form) => setChange((c) => (c ? { ...c, form } : c))}
+              onCancelChange={() => setChange(null)}
+            />
+          ) : (
+            <DigestNothingSelected />
+          )
+        }
+      />
     </div>
   );
 }
 
-/** Who recorded an item. */
-function Noticed({ item }: { item: DigestItem }) {
-  const who = item.noticed_by;
-  if (who.kind === "agent") return <>Noticed by {who.name || "an agent"}</>;
-  if (who.kind === "tool") return <>Noticed by kapi {who.name}</>;
-  return who.name ? <>Noticed by {who.name}</> : <>Noticed by you</>;
-}
-
-/**
- * The rule as a sentence, with the forms set apart from the words around them.
- * The workspace's rules on the home read through it too.
- */
-export function RuleSentence({ item }: { item: Pick<DigestItem, "subject" | "sentence"> }) {
-  const s = item.subject;
-  if (s.kind === "term" && s.term) {
-    const avoid = <Forms rule={s.term} />;
-    return s.term.replacement ? (
-      <>
-        Write <Form>{s.term.replacement}</Form>, not {avoid}
-      </>
-    ) : (
-      <>Avoid {avoid}</>
-    );
+/** One row of the list: what kind of thing it is, the rule on one line, and who noticed it. */
+function DigestListRow({ row, decided }: { row: DigestRow; decided: boolean }) {
+  const { item } = row;
+  let trailing: React.ReactNode;
+  if (row.conflict) {
+    trailing = row.conflict.sides.map((side) => (
+      <NoticedMark key={side.id} who={side.noticed_by} />
+    ));
+  } else if (row.group === "established" || row.group === "earlier") {
+    trailing = <KeptBy item={item} />;
+  } else if (row.group === "suggested") {
+    trailing = <NoticedMark who={item.noticed_by} />;
   }
-  if (s.kind === "memory" && s.memory) {
-    return (
-      <>
-        Translate <Form>{s.memory.source}</Form> into {s.memory.target_locale} as{" "}
-        <Form>{s.memory.target}</Form>
-      </>
-    );
-  }
-  return <>{s.text || item.sentence}</>;
-}
-
-function Form({ children }: { children: React.ReactNode }) {
   return (
-    <span className="font-medium" translate="no">
-      {children}
-    </span>
+    <ListDetailItem
+      id={row.key}
+      data-slot="digest-item"
+      data-id={item.id}
+      data-group={row.group}
+      data-decided={decided || undefined}
+      className={cn(decided && "opacity-50")}
+      leading={<KindIcon kind={row.drift ? "drift" : digestKind(item)} />}
+      trailing={trailing}
+    >
+      {row.conflict ? <ConflictLine conflict={row.conflict} /> : <RuleLine item={item} />}
+    </ListDetailItem>
   );
 }
 
-/** The forms a rule avoids, as "a, b or c". */
-function Forms({ rule }: { rule: DigestTermRule }) {
-  const forms = [rule.term ?? "", ...(rule.forms ?? [])].filter(Boolean);
+/** How a rule in force came to be, as the muted caption at the end of its row. */
+function KeptBy({ item }: { item: DigestItem }) {
+  const how = item.how?.[0];
+  const who = item.noticed_by;
+  const text = how || (who.kind === "person" ? who.name || t("you") : who.name);
+  if (!text) return null;
+  return <span className="max-w-32 truncate text-[11px] text-muted-foreground">{text}</span>;
+}
+
+const CAPTION_CLASS = "px-4 pt-3 pb-0.5 text-[11px] text-muted-foreground";
+
+/** The line above the list: how much is new, measured from when the person last looked. */
+function DigestCaption({ digest, since }: { digest: ContextDigest; since?: string }) {
+  const count = digest.numbers.new;
+  const quiet = count === 0 && digest.conflicts.length === 0 && digest.drift.length === 0;
+  if (since && quiet) {
+    return (
+      <p data-slot="digest-quiet" className={CAPTION_CLASS}>
+        {t("Nothing new since {when}.", { when: formatLook(since) })}
+      </p>
+    );
+  }
+  if (count === 0) return null;
   return (
-    <span translate="no" className="text-muted-foreground">
-      {forms.map((f, i) => (
-        <span key={f}>
-          {i > 0 && (i === forms.length - 1 ? " / " : ", ")}
-          <span className="line-through decoration-muted-foreground/50">{f}</span>
-        </span>
-      ))}
-    </span>
+    <p data-slot="digest-new" className={CAPTION_CLASS}>
+      {since
+        ? t("{count} new since {when}", { count, when: formatLook(since) })
+        : t("{count} new", { count })}
+    </p>
+  );
+}
+
+/** A digest with nothing in it: what would appear, and the one action that fills it. */
+function DigestEmpty({
+  digest,
+  since,
+  onConnectAssistant,
+}: {
+  digest: ContextDigest;
+  since?: string;
+  onConnectAssistant?: () => void;
+}) {
+  if (digest.numbers.rules > 0) {
+    return (
+      <div data-slot="digest-settled">
+        <EmptyState
+          title={
+            since
+              ? t("Nothing new since {when}.", { when: formatLook(since) })
+              : t("Nothing to review")
+          }
+          description={t(
+            "Every rule kapi holds for this project is settled. What an assistant notices next appears here.",
+          )}
+        />
+      </div>
+    );
+  }
+  return (
+    <div data-slot="digest-empty">
+      <EmptyState
+        title={t("Nothing is recorded yet")}
+        description={t(
+          "When you or an assistant working here notice a name, a word the project avoids or how it addresses its readers, it appears here. It advises assistants and checks from the moment it is recorded.",
+        )}
+        action={
+          onConnectAssistant && (
+            <Button size="sm" data-slot="digest-connect-assistant" onClick={onConnectAssistant}>
+              Connect an assistant
+            </Button>
+          )
+        }
+      />
+    </div>
   );
 }
 
