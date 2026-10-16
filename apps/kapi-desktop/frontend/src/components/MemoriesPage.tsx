@@ -45,7 +45,13 @@ export interface MemoriesPageProps {
    * A store already open, for Storybook: skips the handle lookup and reads the
    * entries through this adapter.
    */
-  store?: { name: string; adapter: MemoryAdapter; count?: number; defaultSelected?: string };
+  store?: {
+    name: string;
+    adapter: MemoryAdapter;
+    count?: number;
+    defaultSelected?: string;
+    initial?: React.ComponentProps<typeof MemoryListDetail>["initial"];
+  };
 }
 
 export function MemoriesPage({
@@ -240,6 +246,7 @@ export function MemoriesPage({
             adding={adding}
             onAddingChange={setAdding}
             defaultSelected={store?.defaultSelected}
+            initial={store?.initial}
             onError={showError}
           />
         </div>

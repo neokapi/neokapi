@@ -12,6 +12,11 @@ function renderMemory(
   const adapter = makeMemoryAdapter(entries);
   const spies = {
     search: vi.spyOn(adapter, "search"),
+    searchFiltered: vi.spyOn(adapter, "searchFiltered" as never) as unknown as ReturnType<
+      typeof vi.fn
+    >,
+    deleteEntries: vi.spyOn(adapter, "deleteEntries"),
+    lookup: vi.spyOn(adapter, "lookup" as never) as unknown as ReturnType<typeof vi.fn>,
     updateEntry: vi.spyOn(adapter, "updateEntry"),
     deleteEntry: vi.spyOn(adapter, "deleteEntry"),
     addEntry: vi.spyOn(adapter, "addEntry"),
@@ -29,6 +34,15 @@ const detail = () => document.querySelector("[data-slot='memory-pair-detail']") 
 
 async function loaded() {
   await waitFor(() => expect(pairRows().length).toBeGreaterThan(0));
+}
+
+const ids = () => pairRows().map((r) => r.getAttribute("data-list-detail-id"));
+
+/** Type into the filter bar and press Enter, the way a search is sent. */
+function searchFor(text: string) {
+  const input = screen.getByTestId("filterbar-search");
+  fireEvent.change(input, { target: { value: text } });
+  fireEvent.keyDown(input, { key: "Enter" });
 }
 
 describe("pairs of a content memory entry", () => {
@@ -113,25 +127,22 @@ describe("Content memory as a list of pairs beside a detail pane", () => {
     expect(detail().textContent).toContain("Zur Kasse gehen");
   });
 
-  it("moves the selection with the list's keys, and down from the search goes into the list", async () => {
+  it("moves the selection with the list's keys", async () => {
     renderMemory();
     await loaded();
-    const search = screen.getByTestId("tm-search");
-    fireEvent.keyDown(search, { key: "ArrowDown" });
-    expect(pair("1::fr-FR").getAttribute("aria-selected")).toBe("true");
+    fireEvent.click(pair("1::fr-FR"));
     const list = screen.getByRole("listbox", { name: "Entries" });
-    expect(document.activeElement).toBe(list);
     fireEvent.keyDown(list, { key: "j" });
     expect(pair("1::de-DE").getAttribute("aria-selected")).toBe("true");
+    fireEvent.keyDown(list, { key: "End" });
+    expect(pair("3::nb-NO").getAttribute("aria-selected")).toBe("true");
   });
 
-  it("filters as you type, through the store's own search", async () => {
+  it("searches the store when Enter sends the search", async () => {
     const { spies } = renderMemory();
     await loaded();
-    fireEvent.change(screen.getByTestId("tm-search"), { target: { value: "cart" } });
-    await waitFor(() =>
-      expect(pairRows().map((r) => r.getAttribute("data-list-detail-id"))).toEqual(["3::nb-NO"]),
-    );
+    searchFor("cart");
+    await waitFor(() => expect(ids()).toEqual(["3::nb-NO"]));
     expect(spies.search).toHaveBeenLastCalledWith("cart", "", "", 0, MEMORY_PAGE);
     expect(screen.getByText("1 entry matches")).toBeInTheDocument();
   });
@@ -213,5 +224,219 @@ describe("Content memory as a list of pairs beside a detail pane", () => {
     renderMemory([]);
     await waitFor(() => expect(screen.getByText("No approved wording yet")).toBeInTheDocument());
     expect(screen.queryByRole("listbox")).toBeNull();
+  });
+});
+
+describe("the filter bar: the store's facets and filter tokens", () => {
+  it("offers a field for each facet the store counts", async () => {
+    renderMemory();
+    await loaded();
+    fireEvent.click(screen.getByRole("button", { name: /Filters/ }));
+    for (const key of ["language:", "target:", "project:", "entity:", "import:", "codes:"]) {
+      expect(screen.getByText(key)).toBeInTheDocument();
+    }
+  });
+
+  it("narrows through the store's filtered search when a token is typed", async () => {
+    const { spies } = renderMemory();
+    await loaded();
+    searchFor("codes:with");
+    await waitFor(() => expect(ids()).toEqual(["2::fr-FR", "3::nb-NO"]));
+    expect(spies.searchFiltered).toHaveBeenLastCalledWith(
+      "",
+      "",
+      "",
+      { has_codes: true },
+      0,
+      MEMORY_PAGE,
+    );
+  });
+
+  it("adds a token from the Filters menu, by facet and value", async () => {
+    const { spies } = renderMemory();
+    await loaded();
+    fireEvent.click(screen.getByRole("button", { name: /Filters/ }));
+    fireEvent.click(screen.getByText("entity:"));
+    fireEvent.click(screen.getByText("entity:person · 1"));
+    await waitFor(() => expect(ids()).toEqual(["3::nb-NO"]));
+    expect(spies.searchFiltered).toHaveBeenLastCalledWith(
+      "",
+      "",
+      "",
+      { entity_types: ["entity:person"] },
+      0,
+      MEMORY_PAGE,
+    );
+  });
+
+  it("narrows by import session and by project", async () => {
+    const { spies } = renderMemory();
+    await loaded();
+    searchFor("import:imp-1");
+    await waitFor(() => expect(ids()).toEqual(["3::nb-NO"]));
+    expect(spies.searchFiltered).toHaveBeenLastCalledWith(
+      "",
+      "",
+      "",
+      { session_ids: ["imp-1"] },
+      0,
+      MEMORY_PAGE,
+    );
+    fireEvent.click(screen.getByText("imp-1").parentElement!.querySelector("button")!);
+    searchFor("project:kapimart");
+    await waitFor(() => expect(ids()).toEqual(["1::fr-FR", "1::de-DE", "2::fr-FR"]));
+  });
+
+  it("keeps the pairs into one target language with target:", async () => {
+    const { spies } = renderMemory();
+    await loaded();
+    searchFor("target:de-DE");
+    await waitFor(() => expect(ids()).toEqual(["1::de-DE"]));
+    expect(spies.search).toHaveBeenLastCalledWith("", "", "de-DE", 0, MEMORY_PAGE);
+  });
+
+  it("searches the wording in one language with language:", async () => {
+    const { spies } = renderMemory();
+    await loaded();
+    searchFor("language:nb-NO handlekurven");
+    await waitFor(() => expect(ids()).toEqual(["3::nb-NO"]));
+    expect(spies.search).toHaveBeenLastCalledWith("handlekurven", "nb-NO", "", 0, MEMORY_PAGE);
+  });
+});
+
+describe("marking entries and acting on all of them", () => {
+  const mark = (id: string) =>
+    fireEvent.click(pair(id).querySelector("[data-slot='memory-mark']") as HTMLElement);
+  const bulk = () => document.querySelector("[data-slot='memory-bulk-detail']") as HTMLElement;
+
+  it("marks a row's entry from its box without moving the selection", async () => {
+    renderMemory(SAMPLE_ENTRIES, { defaultSelected: "3::nb-NO" });
+    await loaded();
+    mark("1::fr-FR");
+    expect(pair("1::fr-FR").hasAttribute("data-marked")).toBe(true);
+    // Both pairs of the entry are marked: the mark is the entry's.
+    expect(pair("1::de-DE").hasAttribute("data-marked")).toBe(true);
+    expect(pair("3::nb-NO").getAttribute("aria-selected")).toBe("true");
+    expect(within(bulk()).getByRole("heading").textContent).toBe("1 entry marked");
+  });
+
+  it("marks the selected row with x, and every entry in view with Mark all shown", async () => {
+    renderMemory();
+    await loaded();
+    fireEvent.click(pair("2::fr-FR"));
+    fireEvent.keyDown(screen.getByRole("listbox", { name: "Entries" }), { key: "x" });
+    expect(pair("2::fr-FR").hasAttribute("data-marked")).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Mark all shown" }));
+    expect(within(bulk()).getByRole("heading").textContent).toBe("3 entries marked");
+    fireEvent.click(screen.getByRole("button", { name: "Unmark all shown" }));
+    expect(bulk()).toBeNull();
+  });
+
+  it("deletes every marked entry after a confirmation, from the toolbar", async () => {
+    const { spies } = renderMemory();
+    await loaded();
+    mark("1::fr-FR");
+    mark("2::fr-FR");
+    fireEvent.click(within(bulk()).getByRole("button", { name: /Delete/ }));
+    expect(spies.deleteEntries).not.toHaveBeenCalled();
+    fireEvent.click(within(bulk()).getByRole("button", { name: "Confirm" }));
+    await waitFor(() => expect(spies.deleteEntries).toHaveBeenCalledWith(["1", "2"]));
+    await waitFor(() => expect(ids()).toEqual(["3::nb-NO"]));
+    expect(bulk()).toBeNull();
+  });
+
+  it("marks the names in every marked entry, and clears the marks", async () => {
+    renderMemory();
+    await loaded();
+    mark("1::fr-FR");
+    mark("3::nb-NO");
+    fireEvent.click(bulk().querySelector("[data-slot='memory-bulk-mark-entities']") as HTMLElement);
+    expect(await screen.findByText(/across 2 selected entries/)).toBeInTheDocument();
+    fireEvent.click(bulk().querySelector("[data-slot='memory-bulk-clear']") as HTMLElement);
+    expect(bulk()).toBeNull();
+  });
+});
+
+describe("Find similar: the fuzzy lookup as a mode of the search", () => {
+  it("looks up wording like a sentence and lists the matches with their scores", async () => {
+    const { spies } = renderMemory(SAMPLE_ENTRIES, { sourceLocale: "en-US" });
+    await loaded();
+    fireEvent.click(screen.getByRole("radio", { name: "Find similar" }));
+    const input = screen.getByTestId("tm-lookup");
+    fireEvent.change(input, { target: { value: "Proceed to checkout" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    await waitFor(() =>
+      expect(spies.lookup).toHaveBeenCalledWith(
+        expect.objectContaining({
+          text: "Proceed to checkout",
+          source_locale: "en-US",
+          target_locale: "fr-FR",
+          entities: [],
+        }),
+      ),
+    );
+    await waitFor(() => expect(ids()[0]).toBe("1::fr-FR"));
+    expect(pair("1::fr-FR").querySelector("[data-slot='memory-match-score']")?.textContent).toBe(
+      "100%",
+    );
+    fireEvent.click(pair("1::fr-FR"));
+    expect(detail().querySelector("[data-slot='memory-match']")).not.toBeNull();
+  });
+
+  it("matches the names marked in the sentence as placeholders", async () => {
+    const { spies } = renderMemory(SAMPLE_ENTRIES, { sourceLocale: "en-US" });
+    await loaded();
+    fireEvent.click(screen.getByRole("radio", { name: "Find similar" }));
+    const input = screen.getByTestId("tm-lookup") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "Alice added 3 items to the cart" } });
+    input.setSelectionRange(0, 5);
+    fireEvent.mouseUp(input);
+    fireEvent.click(screen.getByRole("button", { name: "Person" }));
+    fireEvent.keyDown(input, { key: "Enter" });
+    await waitFor(() =>
+      expect(spies.lookup).toHaveBeenCalledWith(
+        expect.objectContaining({
+          entities: [{ text: "Alice", type: "entity:person", start: 0, end: 5 }],
+        }),
+      ),
+    );
+    await waitFor(() => expect(ids()).toContain("3::nb-NO"));
+    fireEvent.click(pair("3::nb-NO"));
+    expect(detail().querySelector("[data-slot='memory-match']")?.textContent).toContain(
+      "Alice takes the place of Bob",
+    );
+  });
+
+  it("goes back to the search, and its filters, in one click", async () => {
+    renderMemory();
+    await loaded();
+    fireEvent.click(screen.getByRole("radio", { name: "Find similar" }));
+    expect(screen.queryByTestId("filterbar-search")).toBeNull();
+    fireEvent.click(screen.getByRole("radio", { name: "Search" }));
+    expect(screen.getByTestId("filterbar-search")).toBeInTheDocument();
+    await loaded();
+  });
+});
+
+describe("the pair, or every language the entry holds", () => {
+  it("toggles the detail between the pair and all its languages, and keeps the choice", async () => {
+    renderMemory(SAMPLE_ENTRIES, { defaultSelected: "1::fr-FR" });
+    await waitFor(() => expect(detail()).not.toBeNull());
+    const locales = () =>
+      Array.from(detail().querySelectorAll("[data-slot='memory-variant']")).map((v) =>
+        v.getAttribute("data-locale"),
+      );
+    expect(locales()).toEqual(["en-US", "fr-FR"]);
+    fireEvent.click(within(detail()).getByRole("radio", { name: "All languages" }));
+    expect(locales()).toEqual(["en-US", "fr-FR", "de-DE"]);
+    expect(detail().querySelector("[data-slot='memory-other-languages']")).toBeNull();
+    fireEvent.click(pair("2::fr-FR"));
+    expect(within(detail()).getByRole("radio", { name: "All languages" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    fireEvent.click(within(detail()).getByRole("radio", { name: "Pair" }));
+    fireEvent.click(pair("1::de-DE"));
+    expect(locales()).toEqual(["en-US", "de-DE"]);
   });
 });

@@ -6,6 +6,7 @@ import type {
   MemoryAdapter,
   MemoryEntryDTO,
   MemoryFacets,
+  MemorySearchFilter,
   VariantInputDTO,
 } from "@neokapi/ui-primitives";
 
@@ -115,12 +116,23 @@ export const SAMPLE_ENTRIES: MemoryEntryDTO[] = [
         ],
       },
     },
+    entities: [
+      {
+        placeholder_id: "e1",
+        type: "entity:person",
+        values: {
+          "en-US": { text: "Bob", start: 0, end: 3 },
+          "nb-NO": { text: "Bob", start: 0, end: 3 },
+        },
+      },
+    ],
     origins: [
       {
         source: "import",
         key: "legacy/store-nb.json",
         added_at: at(400),
         added_by: "kapi memory import",
+        session_id: "imp-1",
       },
     ],
     created_at: at(400),
@@ -168,18 +180,84 @@ function variantsFrom(input: Record<string, VariantInputDTO>): MemoryEntryDTO["v
   return variants;
 }
 
-/** An adapter over an in-memory copy of `entries`, paged as the host pages it. */
+/** Whether an entry carries inline codes in any of its languages. */
+function hasCodes(e: MemoryEntryDTO): boolean {
+  return Object.values(e.variants).some((v) => v.runs.some((r) => !("text" in r)));
+}
+
+/** An adapter over an in-memory copy of `entries`, paged and faceted as the host does. */
 export function makeMemoryAdapter(entries: MemoryEntryDTO[] = SAMPLE_ENTRIES): MemoryAdapter {
   let data = structuredClone(entries);
   let seq = 0;
-  const matches = (e: MemoryEntryDTO, q: string) =>
-    Object.values(e.variants).some((v) => v.text.toLowerCase().includes(q.toLowerCase()));
+
+  const find = (
+    query: string,
+    anyLocale: string,
+    requireLocale: string,
+    filter: MemorySearchFilter = {},
+  ) =>
+    data.filter((e) => {
+      const variants = Object.values(e.variants).filter(
+        (v) => !anyLocale || v.locale === anyLocale,
+      );
+      if (query && !variants.some((v) => v.text.toLowerCase().includes(query.toLowerCase())))
+        return false;
+      if (anyLocale && variants.length === 0) return false;
+      if (requireLocale && !e.variants[requireLocale]) return false;
+      if (filter.project_id !== undefined && e.project_id !== filter.project_id) return false;
+      if (filter.entity_types?.length) {
+        const types = new Set((e.entities ?? []).map((m) => m.type));
+        if (!filter.entity_types.every((type) => types.has(type))) return false;
+      }
+      if (filter.session_ids?.length) {
+        const sessions = new Set((e.origins ?? []).map((o) => o.session_id));
+        if (!filter.session_ids.some((id) => sessions.has(id))) return false;
+      }
+      if (filter.has_codes === true && !hasCodes(e)) return false;
+      if (filter.has_codes === false && hasCodes(e)) return false;
+      return true;
+    });
+
+  const facetsOf = (found: MemoryEntryDTO[]): MemoryFacets => {
+    const count = <K>(keys: K[]) => {
+      const m = new Map<K, number>();
+      for (const k of keys) m.set(k, (m.get(k) ?? 0) + 1);
+      return [...m];
+    };
+    return {
+      locales: count(found.flatMap((e) => Object.keys(e.variants))).map(([locale, n]) => ({
+        locale,
+        count: n,
+      })),
+      projects: count(found.map((e) => e.project_id)).map(([project_id, n]) => ({
+        project_id,
+        count: n,
+      })),
+      entity_types: count(found.flatMap((e) => (e.entities ?? []).map((m) => m.type))).map(
+        ([type, n]) => ({ type, count: n }),
+      ),
+      import_sessions: count(
+        found.flatMap((e) =>
+          (e.origins ?? []).filter((o) => o.session_id).map((o) => o.session_id!),
+        ),
+      ).map(([session_id, n]) => ({
+        session_id,
+        file_key: "legacy/store-nb.json",
+        imported_at: at(400),
+        count: n,
+      })),
+      has_codes: found.filter(hasCodes).length,
+      no_codes: found.filter((e) => !hasCodes(e)).length,
+    };
+  };
 
   return {
-    async search(query, _anyLocale, requireLocale, offset, limit) {
-      const found = data.filter(
-        (e) => (!query || matches(e, query)) && (!requireLocale || !!e.variants[requireLocale]),
-      );
+    async search(query, anyLocale, requireLocale, offset, limit) {
+      const found = find(query, anyLocale, requireLocale);
+      return { entries: found.slice(offset, offset + limit), total_count: found.length };
+    },
+    async searchFiltered(query, anyLocale, requireLocale, filter, offset, limit) {
+      const found = find(query, anyLocale, requireLocale, filter);
       return { entries: found.slice(offset, offset + limit), total_count: found.length };
     },
     async getEntry(id) {
@@ -213,19 +291,39 @@ export function makeMemoryAdapter(entries: MemoryEntryDTO[] = SAMPLE_ENTRIES): M
     async annotateEntities(req) {
       return { entries_updated: req.entry_ids.length, entities_added: req.patterns.length };
     },
-    async getFacets(): Promise<MemoryFacets> {
-      const counts = new Map<string, number>();
-      for (const e of data) {
-        for (const l of Object.keys(e.variants)) counts.set(l, (counts.get(l) ?? 0) + 1);
-      }
-      return {
-        locales: [...counts].map(([locale, count]) => ({ locale, count })),
-        projects: [],
-        entity_types: [],
-        import_sessions: [],
-        has_codes: 0,
-        no_codes: 0,
-      };
+    async lookup(req) {
+      // Word overlap with the source wording stands in for the store's fuzzy match.
+      const words = new Set(req.text.toLowerCase().split(/\W+/).filter(Boolean));
+      return data
+        .map((entry) => {
+          const source = entry.variants[entry.hint_src_lang] ?? Object.values(entry.variants)[0];
+          const theirs = source.text.toLowerCase().split(/\W+/).filter(Boolean);
+          const shared = theirs.filter((w) => words.has(w)).length;
+          return { entry, score: theirs.length ? shared / Math.max(theirs.length, words.size) : 0 };
+        })
+        .filter((m) => m.score >= req.min_score)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, req.max_results)
+        .map((m) => ({
+          ...m,
+          match_type: m.score === 1 ? "exact" : "fuzzy",
+          entity_adaptations: req.entities.length
+            ? [
+                {
+                  placeholder_id: "e1",
+                  type: req.entities[0].type,
+                  stored_value: "Bob",
+                  current_value: req.entities[0].text,
+                },
+              ]
+            : [],
+        }));
+    },
+    async getFacets() {
+      return facetsOf(data);
+    },
+    async getFacetsFiltered(query, anyLocale, requireLocale, filter) {
+      return facetsOf(find(query, anyLocale, requireLocale, filter));
     },
     async resolvePoint(entry) {
       return entry.unit ? { profile: "kapimart-store", collection: "store" } : null;

@@ -68,6 +68,66 @@ export const ThreeLanguages: Story = {
   ),
 };
 
+/** Every language the entry holds, from the toggle in the detail's toolbar. */
+export const AllLanguages: Story = {
+  render: () => (
+    <MemoriesPage
+      store={{
+        name: "Project Content Memory",
+        adapter: makeMemoryAdapter(),
+        count: SAMPLE_ENTRIES.length,
+        defaultSelected: "1::fr-FR",
+        initial: { view: "all" },
+      }}
+    />
+  ),
+};
+
+/** Narrowed by a facet from the filter bar: the entries with inline codes. */
+export const FilteredByFacet: Story = {
+  render: () => (
+    <MemoriesPage
+      store={{
+        name: "Project Content Memory",
+        adapter: makeMemoryAdapter(),
+        count: SAMPLE_ENTRIES.length,
+        initial: { tokens: [{ key: "codes", value: "with" }] },
+      }}
+    />
+  ),
+};
+
+/** Two entries marked: the detail pane holds what can be done to both. */
+export const EntriesMarked: Story = {
+  render: () => (
+    <MemoriesPage
+      store={{
+        name: "Project Content Memory",
+        adapter: makeMemoryAdapter(),
+        count: SAMPLE_ENTRIES.length,
+        initial: { marked: ["1", "2"] },
+      }}
+    />
+  ),
+};
+
+/** The same in the dark theme. */
+export const EntriesMarkedDark: Story = { ...EntriesMarked, globals: { theme: "dark" } };
+
+/** Find similar: the matches for a sentence, best first, with their scores. */
+export const FindSimilar: Story = {
+  render: () => (
+    <MemoriesPage
+      store={{
+        name: "Project Content Memory",
+        adapter: makeMemoryAdapter(),
+        count: SAMPLE_ENTRIES.length,
+        initial: { lookup: "Proceed to the checkout" },
+      }}
+    />
+  ),
+};
+
 /** A store of five hundred entries: the list reads a page at a time. */
 export const ManyEntries: Story = {
   render: () => (

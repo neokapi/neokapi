@@ -2,14 +2,17 @@
 //
 // An entry holds one sentence in several languages. The list has one row per
 // pair, the entry's source text and one of its other languages, so an entry in
-// three languages is two rows. The search at the top of the list filters as
-// you type; the store answers it, a page at a time. A language picker beside it
-// narrows the rows to one target language when the store holds several.
+// three languages is two rows. The filter bar at the top of the list searches
+// the store on Enter and narrows it by the facets the store counts (language,
+// target language, project, entity, import, inline codes), as typed tokens or
+// from its Filters menu. Find similar, beside it, looks up wording like a
+// sentence instead, and lists the matches best first with their scores.
 //
-// The detail pane holds the selected pair: the source and the target in full,
-// with their inline codes as chips, the entry's other languages, where the
-// entry came from, and the unit it was approved for. Edit, Mark entities and
-// Delete sit in the pane's toolbar; Add entry is the page's.
+// The box at the start of a row marks its entry, as does x on the selected
+// row, and Mark all shown marks every entry in view. While any entry is marked
+// the detail pane holds what can be done to all of them; otherwise it holds the
+// selected pair, with the toolbar's toggle between the pair and every language
+// the entry holds.
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -19,97 +22,47 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { ArrowRight, Database, FileText, Search, Upload, User, Wrench } from "lucide-react";
+import { Check, Database } from "lucide-react";
 import { t } from "@neokapi/i18n-react/runtime";
-import { flattenRuns, type Run } from "@neokapi/kapi-format";
+import type { Run } from "@neokapi/kapi-format";
 import {
-  ActorMark,
   Button,
   CodedTextDisplay,
-  ConfirmDeleteButton,
-  CoordinateChip,
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
   EmptyState,
-  EntityAnnotationDialog,
   ErrorNotice,
-  InlineCodeEditor,
-  Input,
-  Label,
+  FilterBar,
   ListDetail,
   ListDetailEmpty,
   ListDetailItem,
   ListDetailList,
-  ListDetailPane,
-  ListDetailToolbar,
   LoadingSpinner,
   LocaleLabel,
-  LocaleSelect,
-  SimpleTooltip,
-  Textarea,
-  When,
-  codedToRuns,
-  runsToCoded,
-  useDebounced,
+  ToggleGroup,
+  ToggleGroupItem,
+  cn,
+  type EntityAnnotationDTO,
+  type FilterToken,
   type LocaleInfo,
+  type LookupMemoryRequest,
   type MemoryAdapter,
   type MemoryEntryDTO,
-  type MemoryPointDTO,
-  type OriginDTO,
-  type SpanInfo,
-  type VariantDTO,
+  type MemoryMatchDTO,
   type VariantInputDTO,
 } from "@neokapi/ui-primitives";
+import { memoryFilterFields, memoryQueryParts, memoryTargets } from "../lib/memoryFilters";
+import { pairsOf, variantInput, type MemoryPair } from "../lib/memoryPairs";
+import { MemoryLookupBar } from "./MemoryLookupBar";
+import { AddEntryDialog, BulkDetail, PairDetail, type MemoryView } from "./MemoryPairDetail";
+
+export { pairsOf, sourceLocaleOf, type MemoryPair } from "../lib/memoryPairs";
 
 /** How many entries one read of the store carries. */
 export const MEMORY_PAGE = 100;
 
-/** One row of the list: an entry's source and one of its other languages. */
-export interface MemoryPair {
-  /** `<entry id>::<target locale>`, unique in the list. */
-  id: string;
-  entry: MemoryEntryDTO;
-  source: string;
-  /** Empty for an entry that holds its source language alone. */
-  target: string;
-}
+/** How the search at the top of the list asks the store. */
+type SearchMode = "search" | "lookup";
 
-/** The language an entry is read from: its hint, else the first it holds. */
-export function sourceLocaleOf(entry: MemoryEntryDTO): string {
-  if (entry.hint_src_lang && entry.variants[entry.hint_src_lang]) return entry.hint_src_lang;
-  return Object.keys(entry.variants)[0] ?? "";
-}
-
-/** The rows an entry contributes: one per language other than its source. */
-export function pairsOf(entry: MemoryEntryDTO, targets?: ReadonlySet<string>): MemoryPair[] {
-  const source = sourceLocaleOf(entry);
-  const others = Object.keys(entry.variants).filter((l) => l !== source);
-  if (others.length === 0) {
-    return targets ? [] : [{ id: `${entry.id}::`, entry, source, target: "" }];
-  }
-  return others
-    .filter((l) => !targets || targets.has(l))
-    .map((target) => ({ id: `${entry.id}::${target}`, entry, source, target }));
-}
-
-/** A variant as the store takes it back: the runs, and the text they flatten to. */
-function variantInput(runs: Run[]): VariantInputDTO {
-  const input: VariantInputDTO = { text: flattenRuns(runs) };
-  if (runs.length > 0) input.runs = runs;
-  return input;
-}
-
-/** The editor's shape for a variant. A plural or a select opens as plain text. */
-function editable(runs: Run[]): { codedText: string; spans: SpanInfo[] } {
-  try {
-    return runsToCoded(runs);
-  } catch {
-    return { codedText: "", spans: [] };
-  }
-}
+const NO_MARKS: ReadonlyMap<string, MemoryEntryDTO> = new Map();
 
 export interface MemoryListDetailProps {
   /** The store, through the host's adapter. */
@@ -127,6 +80,16 @@ export interface MemoryListDetailProps {
   onAddingChange?: (open: boolean) => void;
   /** The pair to open on, by its id. Absent opens with nothing selected. */
   defaultSelected?: string;
+  /**
+   * The state to open in, for Storybook: filter tokens, the detail's view, the
+   * entries marked once they load, or a Find similar lookup already run.
+   */
+  initial?: {
+    tokens?: FilterToken[];
+    view?: MemoryView;
+    marked?: string[];
+    lookup?: string;
+  };
   onError?: (message: string, details?: unknown) => void;
 }
 
@@ -139,33 +102,57 @@ export function MemoryListDetail({
   adding = false,
   onAddingChange,
   defaultSelected,
+  initial,
   onError,
 }: MemoryListDetailProps) {
   const qc = useQueryClient();
-  const [text, setText] = useState("");
-  const query = useDebounced(text.trim());
-  const [language, setLanguage] = useState("");
+  const [mode, setMode] = useState<SearchMode>(initial?.lookup ? "lookup" : "search");
+  const [search, setSearch] = useState("");
+  const [tokens, setTokens] = useState<FilterToken[]>(initial?.tokens ?? []);
+  const [lookupReq, setLookupReq] = useState<LookupMemoryRequest | null>(null);
+  const [view, setView] = useState<MemoryView>(initial?.view ?? "pair");
+  const [marked, setMarked] = useState<ReadonlyMap<string, MemoryEntryDTO>>(NO_MARKS);
+  const [selectedId, setSelectedId] = useState<string | null>(defaultSelected ?? null);
 
-  // The languages the store holds, for the picker beside the search.
+  const parts = useMemo(() => memoryQueryParts(tokens, targetLocales), [tokens, targetLocales]);
+  const targets = useMemo(() => memoryTargets(tokens, targetLocales), [tokens, targetLocales]);
+  const filtered = Object.keys(parts.filter).length > 0;
+
+  // The facets the store counts for what is in view, as the filter bar's fields.
   const facets = useQuery({
-    queryKey: ["tm", "facets", handle],
-    queryFn: () => (adapter.getFacets ? adapter.getFacets() : null),
+    queryKey: ["tm", "facets", handle, search, parts],
+    queryFn: async () => {
+      if (adapter.getFacetsFiltered) {
+        return adapter.getFacetsFiltered(
+          search,
+          parts.anyLocale,
+          parts.requireLocale,
+          parts.filter,
+        );
+      }
+      return adapter.getFacets ? adapter.getFacets() : null;
+    },
+    placeholderData: keepPreviousData,
   });
+  const fields = useMemo(() => memoryFilterFields(facets.data), [facets.data]);
   const storeLocales = useMemo(
     () => (facets.data?.locales ?? []).map((l) => l.locale),
     [facets.data],
   );
 
-  // A target picked here wins; the Active Filter's languages apply otherwise.
-  const targets = useMemo<ReadonlySet<string> | undefined>(() => {
-    if (language) return new Set([language]);
-    return targetLocales?.length ? new Set(targetLocales) : undefined;
-  }, [language, targetLocales]);
-  const requireLocale = targets?.size === 1 ? [...targets][0] : "";
-
   const list = useInfiniteQuery({
-    queryKey: ["tm", "entries", handle, query, requireLocale],
-    queryFn: ({ pageParam }) => adapter.search(query, "", requireLocale, pageParam, MEMORY_PAGE),
+    queryKey: ["tm", "entries", handle, search, parts],
+    queryFn: ({ pageParam }) =>
+      filtered && adapter.searchFiltered
+        ? adapter.searchFiltered(
+            search,
+            parts.anyLocale,
+            parts.requireLocale,
+            parts.filter,
+            pageParam,
+            MEMORY_PAGE,
+          )
+        : adapter.search(search, parts.anyLocale, parts.requireLocale, pageParam, MEMORY_PAGE),
     initialPageParam: 0,
     getNextPageParam: (last, pages) => {
       const loaded = pages.reduce((n, p) => n + (p.entries?.length ?? 0), 0);
@@ -179,10 +166,55 @@ export function MemoryListDetail({
     [list.data],
   );
   const total = list.data?.pages[0]?.total_count ?? 0;
-  const pairs = useMemo(() => entries.flatMap((e) => pairsOf(e, targets)), [entries, targets]);
 
-  const [selectedId, setSelectedId] = useState<string | null>(defaultSelected ?? null);
-  const selected = pairs.find((p) => p.id === selectedId) ?? null;
+  const lookup = useQuery({
+    queryKey: ["tm", "lookup", handle, lookupReq],
+    enabled: mode === "lookup" && !!lookupReq && !!adapter.lookup,
+    queryFn: async () => (await adapter.lookup!(lookupReq!)) ?? [],
+  });
+
+  // The rows: the search's pairs, or in Find similar one pair per match.
+  const { rows, matchOf } = useMemo(() => {
+    if (mode === "search") {
+      return {
+        rows: entries.flatMap((e) => pairsOf(e, targets)),
+        matchOf: new Map<string, MemoryMatchDTO>(),
+      };
+    }
+    const byId = new Map<string, MemoryMatchDTO>();
+    const out: MemoryPair[] = [];
+    for (const m of lookup.data ?? []) {
+      const into = lookupReq?.target_locale;
+      const pair = pairsOf(m.entry).find((p) => p.target === into) ?? pairsOf(m.entry, targets)[0];
+      if (!pair || byId.has(pair.id)) continue;
+      byId.set(pair.id, m);
+      out.push(pair);
+    }
+    return { rows: out, matchOf: byId };
+  }, [mode, entries, targets, lookup.data, lookupReq]);
+
+  const selected = rows.find((p) => p.id === selectedId) ?? null;
+
+  const toggleMark = (entry: MemoryEntryDTO) =>
+    setMarked((prev) => {
+      const next = new Map(prev);
+      if (next.has(entry.id)) next.delete(entry.id);
+      else next.set(entry.id, entry);
+      return next;
+    });
+  const shownEntries = useMemo(() => {
+    const seen = new Map<string, MemoryEntryDTO>();
+    for (const row of rows) seen.set(row.entry.id, row.entry);
+    return [...seen.values()];
+  }, [rows]);
+  const allMarked = shownEntries.length > 0 && shownEntries.every((e) => marked.has(e.id));
+  const toggleAll = () =>
+    setMarked((prev) => {
+      const next = new Map(prev);
+      if (allMarked) for (const e of shownEntries) next.delete(e.id);
+      else for (const e of shownEntries) next.set(e.id, e);
+      return next;
+    });
 
   const refresh = () => void qc.invalidateQueries({ queryKey: ["tm"] });
   const update = useMutation({
@@ -216,6 +248,15 @@ export function MemoryListDetail({
     onError: (err) => onError?.(t("The entry could not be deleted"), err),
     onSettled: refresh,
   });
+  const removeMarked = useMutation({
+    mutationFn: (ids: string[]) => adapter.deleteEntries(ids),
+    onSuccess: (_, ids) => {
+      setMarked(NO_MARKS);
+      if (selected && ids.includes(selected.entry.id)) setSelectedId(null);
+    },
+    onError: (err) => onError?.(t("The entries could not be deleted"), err),
+    onSettled: refresh,
+  });
   const add = useMutation({
     mutationFn: (req: { source: string; target: string; srcLocale: string; tgtLocale: string }) =>
       adapter.addEntry({
@@ -230,15 +271,43 @@ export function MemoryListDetail({
     onSettled: refresh,
   });
 
+  const firstTarget =
+    parts.requireLocale ||
+    targetLocales?.[0] ||
+    storeLocales.find((l) => l !== (sourceLocale || storeLocales[0])) ||
+    "";
+
+  const runLookup = (text: string, entities: EntityAnnotationDTO[]) => {
+    setSelectedId(null);
+    setLookupReq({
+      text,
+      entities,
+      source_locale: sourceLocale || storeLocales[0] || "",
+      target_locale: firstTarget,
+      min_score: 0.5,
+      max_results: 10,
+    });
+  };
+
+  // The opening state a story asks for, applied once the store has answered.
+  const opened = useRef(false);
+  useEffect(() => {
+    if (opened.current || !initial || entries.length === 0 || !facets.data) return;
+    opened.current = true;
+    if (initial.marked?.length) {
+      const wanted = new Set(initial.marked);
+      setMarked(new Map(entries.filter((e) => wanted.has(e.id)).map((e) => [e.id, e])));
+    }
+    if (initial.lookup) runLookup(initial.lookup, []);
+  });
+
   const addDialog = (
     <AddEntryDialog
       open={adding}
       onOpenChange={(open) => onAddingChange?.(open)}
       locales={locales}
       defaultSource={sourceLocale || storeLocales[0] || ""}
-      defaultTarget={
-        language || targetLocales?.[0] || storeLocales.find((l) => l !== sourceLocale) || ""
-      }
+      defaultTarget={firstTarget}
       busy={add.isPending}
       onSubmit={(req) => add.mutate(req)}
     />
@@ -258,7 +327,7 @@ export function MemoryListDetail({
       </div>
     );
   }
-  if (entries.length === 0 && !query && !language) {
+  if (entries.length === 0 && !search && tokens.length === 0 && mode === "search") {
     return (
       <div className="p-6">
         <EmptyState
@@ -278,59 +347,82 @@ export function MemoryListDetail({
     );
   }
 
+  const narrowed = mode === "search" && (!!search || tokens.length > 0);
   const listPane = (
     <>
       <div className="sticky top-0 z-10 space-y-1.5 bg-background px-2 pt-2 pb-1">
-        <div className="relative">
-          <Search
-            aria-hidden
-            className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground"
+        {mode === "search" ? (
+          <div data-slot="memory-filter-bar">
+            <FilterBar
+              filters={tokens}
+              onFiltersChange={setTokens}
+              search={search}
+              onSearchChange={setSearch}
+              fields={fields}
+              placeholder={t("Search wording")}
+            />
+          </div>
+        ) : (
+          <MemoryLookupBar
+            onLookup={runLookup}
+            busy={lookup.isFetching}
+            defaultText={initial?.lookup}
           />
-          <Input
-            type="search"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => {
-              // Down from the search goes into the list, onto its first row.
-              if (e.key === "ArrowDown" && pairs.length > 0) {
-                e.preventDefault();
-                setSelectedId((id) => id ?? pairs[0].id);
-                e.currentTarget
-                  .closest("[data-pane='list']")
-                  ?.querySelector<HTMLElement>("[role='listbox']")
-                  ?.focus();
-              }
-            }}
-            placeholder={t("Search wording")}
-            aria-label="Search content memory"
-            data-testid="tm-search"
-            className="h-8 pl-8 text-sm"
-          />
+        )}
+        <div className="flex items-center gap-2 px-1 text-[11px] text-muted-foreground">
+          {rows.length > 0 && (
+            <button
+              type="button"
+              data-slot="memory-mark-all"
+              onClick={toggleAll}
+              className="rounded hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+            >
+              {allMarked ? <>Unmark all shown</> : <>Mark all shown</>}
+            </button>
+          )}
+          {narrowed && (
+            <span className="tabular-nums">
+              {t("{count, plural, one {# entry matches} other {# entries match}}", {
+                count: total,
+              })}
+            </span>
+          )}
+          {adapter.lookup && (
+            <ToggleGroup
+              type="single"
+              variant="outline"
+              size="sm"
+              value={mode}
+              onValueChange={(next) => {
+                if (!next) return;
+                setMode(next as SearchMode);
+                setSelectedId(null);
+              }}
+              aria-label={t("How to search")}
+              data-slot="memory-search-mode"
+              className="ml-auto"
+            >
+              <ToggleGroupItem value="search" className="h-6 px-2 text-[11px]">
+                Search
+              </ToggleGroupItem>
+              <ToggleGroupItem value="lookup" className="h-6 px-2 text-[11px]">
+                Find similar
+              </ToggleGroupItem>
+            </ToggleGroup>
+          )}
         </div>
-        {storeLocales.length > 2 && (
-          <LocaleSelect
-            value={language}
-            onChange={setLanguage}
-            locales={storeLocales.map((code) => ({
-              code,
-              displayName: locales.find((l) => l.code === code)?.displayName ?? code,
-            }))}
-            placeholder={t("Every language")}
-            clearLabel={t("Every language")}
-            aria-label={t("Target language")}
-            data-slot="memory-language"
-            className="h-8 w-full"
-          />
-        )}
-        {(query || language) && (
-          <p className="px-1 text-[11px] text-muted-foreground tabular-nums">
-            {t("{count, plural, one {# entry matches} other {# entries match}}", { count: total })}
-          </p>
-        )}
       </div>
-      {pairs.length === 0 ? (
+      {rows.length === 0 ? (
         <p className="px-4 py-6 text-center text-xs text-muted-foreground">
-          No entry matches this search.
+          {mode === "search" ? (
+            <>No entry matches this search.</>
+          ) : lookup.isFetching ? (
+            <>Looking up similar wording.</>
+          ) : lookupReq ? (
+            <>No similar wording in this store.</>
+          ) : (
+            <>Type a sentence and press Enter to find wording like it.</>
+          )}
         </p>
       ) : (
         <ListDetailList
@@ -338,13 +430,26 @@ export function MemoryListDetail({
           onSelect={setSelectedId}
           aria-label={t("Entries")}
           className="pt-0"
+          onKeyDown={(e) => {
+            // x marks the selected row's entry, as the box at its start does.
+            if (e.key === "x" && !e.metaKey && !e.ctrlKey && !e.altKey && selected) {
+              e.preventDefault();
+              toggleMark(selected.entry);
+            }
+          }}
         >
-          {pairs.map((pair) => (
-            <PairRow key={pair.id} pair={pair} />
+          {rows.map((pair) => (
+            <PairRow
+              key={pair.id}
+              pair={pair}
+              marked={marked.has(pair.entry.id)}
+              score={matchOf.get(pair.id)?.score}
+              onToggleMark={() => toggleMark(pair.entry)}
+            />
           ))}
         </ListDetailList>
       )}
-      {list.hasNextPage && (
+      {mode === "search" && list.hasNextPage && (
         <div className="px-2 pb-3">
           <Button
             variant="ghost"
@@ -362,51 +467,90 @@ export function MemoryListDetail({
     </>
   );
 
+  let detail: React.ReactNode;
+  if (marked.size > 0) {
+    detail = (
+      <BulkDetail
+        entries={[...marked.values()]}
+        adapter={adapter}
+        search={search}
+        deleting={removeMarked.isPending}
+        onDelete={() => removeMarked.mutate([...marked.keys()])}
+        onClear={() => setMarked(NO_MARKS)}
+        onAnnotated={refresh}
+      />
+    );
+  } else if (selected) {
+    detail = (
+      <PairDetail
+        key={selected.id}
+        pair={selected}
+        adapter={adapter}
+        search={search}
+        saving={update.isPending}
+        view={view}
+        onViewChange={setView}
+        match={matchOf.get(selected.id)}
+        onSelect={setSelectedId}
+        onSave={(locale, runs) => update.mutateAsync({ entry: selected.entry, locale, runs })}
+        onDelete={() => remove.mutate(selected.entry)}
+        onAnnotated={refresh}
+      />
+    );
+  } else {
+    detail = (
+      <ListDetailEmpty
+        title={t("Choose an entry to see it here")}
+        description={t("The source and its translation in full, and where the entry came from.")}
+      />
+    );
+  }
+
   return (
     <div data-testid="tm-browser" data-slot="memory-browser" className="h-full min-h-0">
-      <ListDetail
-        list={listPane}
-        listWidth={340}
-        detail={
-          selected ? (
-            <PairDetail
-              key={selected.id}
-              pair={selected}
-              adapter={adapter}
-              search={query}
-              saving={update.isPending}
-              onSelect={setSelectedId}
-              onSave={(locale, runs) => update.mutateAsync({ entry: selected.entry, locale, runs })}
-              onDelete={() => remove.mutate(selected.entry)}
-              onAnnotated={refresh}
-            />
-          ) : (
-            <ListDetailEmpty
-              title={t("Choose an entry to see it here")}
-              description={t(
-                "The source and its translation in full, and where the entry came from.",
-              )}
-            />
-          )
-        }
-      />
+      <ListDetail list={listPane} listWidth={380} detail={detail} />
       {addDialog}
     </div>
   );
 }
 
-/** One pair in the list: the source text on one line, and the target's language. */
-function PairRow({ pair }: { pair: MemoryPair }) {
+/** One pair in the list: its mark, the source text on one line, and the target's language. */
+function PairRow({
+  pair,
+  marked,
+  score,
+  onToggleMark,
+}: {
+  pair: MemoryPair;
+  marked: boolean;
+  /** The match score, in Find similar. */
+  score?: number;
+  onToggleMark: () => void;
+}) {
   const variant = pair.entry.variants[pair.source];
   return (
     <ListDetailItem
       id={pair.id}
       data-slot="memory-pair"
       data-testid={`tm-entry-${pair.entry.id}${pair.target ? `-${pair.target}` : ""}`}
+      data-marked={marked || undefined}
       // Rows off screen skip layout and paint, so a store of thousands of
       // entries scrolls as lightly as a short one.
       className="[contain-intrinsic-size:auto_36px] [content-visibility:auto]"
-      trailing={pair.target ? <LocaleLabel locale={pair.target} compact /> : undefined}
+      leading={<MarkBox marked={marked} onToggle={onToggleMark} />}
+      trailing={
+        <>
+          {score !== undefined && (
+            <span
+              data-slot="memory-match-score"
+              className="text-[11px] text-muted-foreground tabular-nums"
+            >
+              {Math.round(score * 100)}%
+            </span>
+          )}
+          {pair.target && <LocaleLabel locale={pair.target} compact />}
+        </>
+      }
     >
       <CodedTextDisplay
         runs={variant?.runs}
@@ -414,501 +558,34 @@ function PairRow({ pair }: { pair: MemoryPair }) {
         locale={pair.source}
         className="[&_*]:whitespace-nowrap"
       />
+      {marked && <span className="sr-only">{t("marked", "content memory entry")}</span>}
     </ListDetailItem>
   );
 }
 
-interface PairDetailProps {
-  pair: MemoryPair;
-  adapter: MemoryAdapter;
-  /** The search in the list, the pattern Mark entities starts from. */
-  search: string;
-  saving: boolean;
-  onSelect: (pairId: string) => void;
-  onSave: (locale: string, runs: Run[]) => Promise<void>;
-  onDelete: () => void;
-  onAnnotated: () => void;
-}
-
-/** The selected pair: both sides in full, the other languages, provenance, and where it is used. */
-function PairDetail({
-  pair,
-  adapter,
-  search,
-  saving,
-  onSelect,
-  onSave,
-  onDelete,
-  onAnnotated,
-}: PairDetailProps) {
-  const { entry, source, target } = pair;
-  const [editing, setEditing] = useState<string | null>(null);
-  const [marking, setMarking] = useState(false);
-  const others = Object.keys(entry.variants).filter((l) => l !== source && l !== target);
-  const sourceSpans = useMemo(
-    () => editable(entry.variants[source]?.runs ?? []).spans,
-    [entry, source],
-  );
-
-  return (
-    <ListDetailPane
-      data-slot="memory-pair-detail"
-      data-entry={entry.id}
-      toolbar={
-        <ListDetailToolbar
-          title={
-            <span className="flex min-w-0 items-center gap-1.5">
-              <LocaleLabel locale={source} variant="short" />
-              {target && (
-                <>
-                  <ArrowRight aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
-                  <LocaleLabel locale={target} variant="short" />
-                </>
-              )}
-            </span>
-          }
-          actions={
-            <>
-              {target && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  data-slot="memory-edit"
-                  disabled={saving}
-                  onClick={() => setEditing(target)}
-                >
-                  Edit
-                </Button>
-              )}
-              {adapter.annotateEntities && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  data-slot="memory-mark-entities"
-                  onClick={() => setMarking(true)}
-                >
-                  Mark entities
-                </Button>
-              )}
-              <ConfirmDeleteButton onDelete={onDelete} mode="text" size="sm" />
-            </>
-          }
-        />
-      }
-    >
-      <VariantBlock
-        label={<>Source</>}
-        locale={source}
-        variant={entry.variants[source]}
-        editing={editing === source}
-        sourceSpans={[]}
-        onEdit={() => setEditing(source)}
-        onCancel={() => setEditing(null)}
-        onSave={async (runs) => {
-          await onSave(source, runs);
-          setEditing(null);
-        }}
-      />
-      {target && (
-        <VariantBlock
-          label={<>Target</>}
-          locale={target}
-          variant={entry.variants[target]}
-          editing={editing === target}
-          sourceSpans={sourceSpans}
-          onEdit={() => setEditing(target)}
-          onCancel={() => setEditing(null)}
-          onSave={async (runs) => {
-            await onSave(target, runs);
-            setEditing(null);
-          }}
-        />
-      )}
-
-      {others.length > 0 && (
-        <p
-          data-slot="memory-other-languages"
-          className="flex flex-wrap items-center gap-1.5 text-xs"
-        >
-          <span className="text-muted-foreground">Also in</span>
-          {others.map((locale) => (
-            <button
-              key={locale}
-              type="button"
-              onClick={() => onSelect(`${entry.id}::${locale}`)}
-              className="rounded focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
-            >
-              <LocaleLabel locale={locale} compact className="hover:underline" />
-            </button>
-          ))}
-        </p>
-      )}
-
-      {entry.note && (
-        <p className="max-w-prose text-xs text-muted-foreground" translate="no">
-          {entry.note}
-        </p>
-      )}
-
-      <Provenance entry={entry} />
-      <WhereUsed entry={entry} adapter={adapter} />
-
-      {adapter.annotateEntities && (
-        <EntityAnnotationDialog
-          open={marking}
-          onClose={() => setMarking(false)}
-          selectedCount={1}
-          initialPattern={search}
-          onApply={async (patterns) => {
-            const result = await adapter.annotateEntities!({ entry_ids: [entry.id], patterns });
-            onAnnotated();
-            return result;
-          }}
-        />
-      )}
-    </ListDetailPane>
-  );
-}
-
-/** One side of the pair in full: its language, its wording, and the editor when open. */
-function VariantBlock({
-  label,
-  locale,
-  variant,
-  editing,
-  sourceSpans,
-  onEdit,
-  onCancel,
-  onSave,
-}: {
-  label: React.ReactNode;
-  locale: string;
-  variant?: VariantDTO;
-  editing: boolean;
-  sourceSpans: SpanInfo[];
-  onEdit: () => void;
-  onCancel: () => void;
-  onSave: (runs: Run[]) => Promise<void>;
-}) {
-  const initial = useMemo(() => editable(variant?.runs ?? []), [variant]);
-  return (
-    <section data-slot="memory-variant" data-locale={locale} className="group/variant space-y-1">
-      <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-        <span>{label}</span>
-        <LocaleLabel locale={locale} compact />
-        {!editing && (
-          <Button
-            variant="ghost"
-            size="xs"
-            className="ml-auto h-5 px-1.5 text-[11px] text-muted-foreground opacity-0 group-hover/variant:opacity-100 focus-visible:opacity-100"
-            onClick={onEdit}
-            aria-label={t("Edit the {language} wording", { language: locale })}
-          >
-            Edit
-          </Button>
-        )}
-      </div>
-      {editing ? (
-        <InlineCodeEditor
-          initialCodedText={initial.codedText || variant?.text || ""}
-          initialSpans={initial.spans}
-          sourceSpans={sourceSpans}
-          onSave={(codedText, spans) => void onSave(codedText ? codedToRuns(codedText, spans) : [])}
-          onCancel={onCancel}
-          compact
-        />
-      ) : (
-        <CodedTextDisplay
-          runs={variant?.runs}
-          text={variant?.text}
-          locale={locale}
-          className="block max-w-prose text-sm leading-relaxed"
-        />
-      )}
-    </section>
-  );
-}
-
-const ORIGIN_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
-  file: FileText,
-  tool: Wrench,
-  import: Upload,
-  user: User,
-};
-
-/** Where an entry came from: each origin with its file, when, and who added it. */
-function Provenance({ entry }: { entry: MemoryEntryDTO }) {
-  const origins = entry.origins ?? [];
-  return (
-    <section data-slot="memory-provenance" aria-label={t("Where it came from")}>
-      <h3 className="mb-1.5 text-[11px] font-medium text-muted-foreground">Where it came from</h3>
-      {origins.length === 0 ? (
-        <p className="text-xs text-muted-foreground">
-          Added <When iso={entry.created_at} relative />
-          {entry.updated_at && entry.updated_at !== entry.created_at && (
-            <>
-              {", changed "}
-              <When iso={entry.updated_at} relative />
-            </>
-          )}
-        </p>
-      ) : (
-        <ul className="space-y-1.5">
-          {origins.map((origin, i) => (
-            <OriginLine key={`${origin.source}:${origin.key ?? ""}:${i}`} origin={origin} />
-          ))}
-        </ul>
-      )}
-      {entry.project_id && (
-        <p data-slot="memory-project-scope" className="mt-1.5 text-[11px] text-muted-foreground">
-          Scoped to this project
-        </p>
-      )}
-    </section>
-  );
-}
-
-function OriginLine({ origin }: { origin: OriginDTO }) {
-  const Icon = ORIGIN_ICONS[origin.source] ?? FileText;
-  return (
-    <li
-      data-slot="memory-origin"
-      className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-sm"
-    >
-      <Icon aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
-      {origin.key ? (
-        <SimpleTooltip content={origin.key}>
-          <span className="min-w-0 truncate font-mono text-xs" translate="no">
-            {origin.key}
-          </span>
-        </SimpleTooltip>
-      ) : (
-        <span className="text-xs">{originWord(origin.source)}</span>
-      )}
-      <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-        <When iso={origin.added_at} relative />
-        {origin.added_by && (
-          <>
-            <span aria-hidden>·</span>
-            <ActorMark
-              actor={origin.source === "user" ? "person" : origin.added_by}
-              name={origin.added_by}
-              size="sm"
-              decorative
-            />
-            <span translate="no">{origin.added_by}</span>
-          </>
-        )}
-      </span>
-      {origin.reference && (
-        <span
-          className="basis-full truncate pl-5 font-mono text-[10px] text-muted-foreground"
-          translate="no"
-        >
-          {origin.reference}
-        </span>
-      )}
-    </li>
-  );
-}
-
-/** What kind of origin an entry has, in the active UI language. */
-function originWord(source: string): string {
-  switch (source) {
-    case "file":
-      return t("From a file", "memory origin");
-    case "tool":
-      return t("From a tool", "memory origin");
-    case "import":
-      return t("Imported", "memory origin");
-    case "user":
-      return t("Added by hand", "memory origin");
-    default:
-      return source;
-  }
-}
-
-/** The last segment of a unit id, which is the part that identifies it. */
-function shortUnit(unit: string): string {
-  const parts = unit.split(/[:/]/);
-  return parts[parts.length - 1] || unit;
-}
-
 /**
- * The unit an entry was approved for and the point it sits at. A contested
- * entry records its own point; for the rest, a host holding the project's
- * recipe resolves where the unit sits, and one that cannot shows no point.
+ * The box that marks a row's entry. A click on it marks and leaves the
+ * selection where it is; the list's x does the same from the keyboard, so the
+ * box itself stays out of the tab order and out of the row's name.
  */
-function WhereUsed({ entry, adapter }: { entry: MemoryEntryDTO; adapter: MemoryAdapter }) {
-  const stored = entry.point;
-  const [resolved, setResolved] = useState<MemoryPointDTO | null>(null);
-  const live = useRef(true);
-  useEffect(() => {
-    live.current = true;
-    setResolved(null);
-    if (stored || !entry.unit || !adapter.resolvePoint) return;
-    void adapter
-      .resolvePoint(entry)
-      .then((p) => live.current && setResolved(p))
-      .catch(() => live.current && setResolved(null));
-    return () => {
-      live.current = false;
-    };
-  }, [entry, stored, adapter]);
-
-  if (!entry.unit) return null;
-  const point = stored ?? resolved;
-  const rungs: Array<[string, string]> = [];
-  if (point?.profile) rungs.push(["profile", point.profile]);
-  if (point?.channel) rungs.push(["channel", point.channel]);
-  if (point?.collection) rungs.push(["collection", point.collection]);
-
+function MarkBox({ marked, onToggle }: { marked: boolean; onToggle: () => void }) {
   return (
-    <section data-slot="memory-where-used" aria-label={t("Where it is used")}>
-      <h3 className="mb-1.5 text-[11px] font-medium text-muted-foreground">Where it is used</h3>
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        {entry.unit &&
-          (adapter.openUnit ? (
-            <SimpleTooltip content={entry.unit}>
-              <Button
-                variant="link"
-                size="sm"
-                data-testid="entry-unit"
-                className="h-auto p-0 font-mono text-xs"
-                onClick={() => adapter.openUnit!(entry)}
-              >
-                {shortUnit(entry.unit)}
-              </Button>
-            </SimpleTooltip>
-          ) : (
-            <SimpleTooltip content={entry.unit}>
-              <span className="font-mono text-xs" data-testid="entry-unit" translate="no">
-                {shortUnit(entry.unit)}
-              </span>
-            </SimpleTooltip>
-          ))}
-        {rungs.map(([axis, value]) => (
-          <SimpleTooltip
-            key={axis}
-            content={
-              stored ? t("This answer was approved at this point") : t("Where this block sits")
-            }
-          >
-            <span>
-              <CoordinateChip axis={axis} value={value} />
-            </span>
-          </SimpleTooltip>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-/** Add a pair by hand: the source and the target, each with its language. */
-function AddEntryDialog({
-  open,
-  onOpenChange,
-  locales,
-  defaultSource,
-  defaultTarget,
-  busy,
-  onSubmit,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  locales: LocaleInfo[];
-  defaultSource: string;
-  defaultTarget: string;
-  busy: boolean;
-  onSubmit: (req: { source: string; target: string; srcLocale: string; tgtLocale: string }) => void;
-}) {
-  const [source, setSource] = useState("");
-  const [target, setTarget] = useState("");
-  const [srcLocale, setSrcLocale] = useState(defaultSource);
-  const [tgtLocale, setTgtLocale] = useState(defaultTarget);
-  // The defaults arrive with the store's languages; a choice already made stands.
-  useEffect(() => setSrcLocale((v) => v || defaultSource), [defaultSource]);
-  useEffect(() => setTgtLocale((v) => v || defaultTarget), [defaultTarget]);
-  useEffect(() => {
-    if (!open) {
-      setSource("");
-      setTarget("");
-    }
-  }, [open]);
-  const ready = source.trim() && target.trim() && srcLocale && tgtLocale && srcLocale !== tgtLocale;
-
-  const languageField = (
-    id: string,
-    value: string,
-    onChange: (v: string) => void,
-    label: string,
-  ) =>
-    locales.length > 0 ? (
-      <LocaleSelect
-        id={id}
-        value={value}
-        onChange={onChange}
-        locales={locales}
-        aria-label={label}
-      />
-    ) : (
-      <Input
-        id={id}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        aria-label={label}
-        className="font-mono"
-      />
-    );
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg" data-slot="memory-add-dialog">
-        <DialogHeader>
-          <DialogTitle>Add an entry</DialogTitle>
-        </DialogHeader>
-        <div className="grid grid-cols-[8rem_minmax(0,1fr)] items-start gap-x-3 gap-y-3">
-          <Label htmlFor="memory-add-src-locale" className="pt-2 text-xs text-muted-foreground">
-            Source language
-          </Label>
-          {languageField("memory-add-src-locale", srcLocale, setSrcLocale, t("Source language"))}
-          <Label htmlFor="memory-add-source" className="pt-2 text-xs text-muted-foreground">
-            Source
-          </Label>
-          <Textarea
-            id="memory-add-source"
-            value={source}
-            onChange={(e) => setSource(e.target.value)}
-            rows={2}
-          />
-          <Label htmlFor="memory-add-tgt-locale" className="pt-2 text-xs text-muted-foreground">
-            Target language
-          </Label>
-          {languageField("memory-add-tgt-locale", tgtLocale, setTgtLocale, t("Target language"))}
-          <Label htmlFor="memory-add-target" className="pt-2 text-xs text-muted-foreground">
-            Target
-          </Label>
-          <Textarea
-            id="memory-add-target"
-            value={target}
-            onChange={(e) => setTarget(e.target.value)}
-            rows={2}
-          />
-        </div>
-        <DialogFooter>
-          <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button
-            size="sm"
-            data-slot="memory-add-confirm"
-            disabled={!ready || busy}
-            onClick={() => onSubmit({ source, target, srcLocale, tgtLocale })}
-          >
-            Add entry
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <span
+      aria-hidden
+      data-slot="memory-mark"
+      onClick={(e) => {
+        // A handled click leaves the row's own selection alone.
+        e.preventDefault();
+        onToggle();
+      }}
+      className={cn(
+        "flex size-3.5 cursor-pointer items-center justify-center rounded-[4px] border",
+        marked
+          ? "border-primary bg-primary text-primary-foreground"
+          : "border-muted-foreground/40 hover:border-foreground",
+      )}
+    >
+      {marked && <Check className="size-3" />}
+    </span>
   );
 }

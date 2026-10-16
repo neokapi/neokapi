@@ -803,9 +803,11 @@ function contextSection(page: Page, label: string): Locator {
  *
  *  Both stores open on a search, because the question a reader has is "what did
  *  we agree for this word", not "what does this tab look like". Each store is a
- *  list beside a detail pane: the search at the top of the list filters as you
- *  type (debounced, ConceptsView.tsx and MemoryListDetail.tsx), and the row
- *  selected in the list opens in the pane beside it. */
+ *  list beside a detail pane, with its search at the top of the list, and the
+ *  row selected in the list opens in the pane beside it. The two searches are
+ *  driven as they behave: the concept search filters as you type (debounced,
+ *  ConceptsView.tsx), the memory search is the filter bar's and is sent on
+ *  Enter (MemoryListDetail.tsx). */
 async function explorerWalk(c: WalkCtx): Promise<void> {
   const { page, beat, beatEls, cursorTo, sidebar } = c;
   // Terms in a project is a list of concepts beside a detail pane
@@ -841,12 +843,14 @@ async function explorerWalk(c: WalkCtx): Promise<void> {
     await page.waitForSelector(conceptDetail, { timeout: 20_000 });
     await page.waitForTimeout(2400);
   });
-  // Content Memory, searched the same way: the list narrows as you type.
-  await beatEls("search-tm", ['[data-testid="tm-search"]', '[data-testid^="tm-entry-"]'], async () => {
+  // Content Memory, searched from the filter bar at the top of its list. This
+  // search is sent on Enter, and the bar's tokens narrow it by facet.
+  const memorySearch = '[data-testid="tm-browser"] [data-testid="filterbar-search"]';
+  await beatEls("search-tm", ['[data-slot="memory-filter-bar"]', '[data-testid^="tm-entry-"]'], async () => {
     await humanClick(page, contextSection(page, "Content Memory"));
-    await page.waitForSelector('[data-testid="tm-search"]', { timeout: 30_000 });
+    await page.waitForSelector(memorySearch, { timeout: 30_000 });
     await page.waitForTimeout(800);
-    await humanType(page, page.getByTestId("tm-search"), "checkout");
+    await humanType(page, page.locator(memorySearch), "checkout", { submit: true });
     await page.waitForSelector('[data-testid^="tm-entry-"]', { timeout: 30_000 });
     await page.waitForTimeout(1600);
   });
