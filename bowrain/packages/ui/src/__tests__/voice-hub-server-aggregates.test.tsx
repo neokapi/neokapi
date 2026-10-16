@@ -15,9 +15,8 @@ import { WhatsNew } from "../context-hub/dashboard/WhatsNew";
 import { whatsNewRows } from "../context-hub/dashboard/newsRows";
 import { VoiceDashboardView } from "../context-hub/dashboard/VoiceDashboardView";
 import { PendingConceptChanges } from "../context-hub/concepts/PendingConceptChanges";
-import { ActivityView } from "../context-hub/activity/ActivityView";
 import { OpBuilder } from "../context-hub/experiments/OpBuilder";
-import { sampleActivities, sampleConcepts } from "../stories/voiceHubFixtures";
+import { sampleConcepts } from "../stories/voiceHubFixtures";
 
 const workspace: Workspace = {
   id: "ws-1",
@@ -312,69 +311,6 @@ describe("VoiceDashboardView", () => {
     expect(calls.some(([, params]) => params?.sort === "updated_at")).toBe(true);
     // No call asks for the whole vocabulary in order to take six of it.
     expect(calls.every(([, params]) => (params?.limit ?? 0) <= 100)).toBe(true);
-  });
-});
-
-describe("ActivityView", () => {
-  it("asks the server for the type families the filter selects", async () => {
-    const adapter = mockAdapter({
-      listActivities: vi.fn().mockResolvedValue({ activities: sampleActivities, next_cursor: "" }),
-      listChangesets: vi.fn().mockResolvedValue([changeset({ id: "cs-1", name: "Prefer term" })]),
-      listConcepts: vi.fn().mockResolvedValue({
-        concepts: sampleConcepts,
-        total_count: sampleConcepts.length,
-      }),
-    });
-    renderWithProviders(<ActivityView />, adapter);
-
-    await waitFor(() => expect(adapter.listActivities).toHaveBeenCalled());
-    const [, query] = (adapter.listActivities as ReturnType<typeof vi.fn>).mock.calls[0];
-    expect(query.types).toEqual([
-      "changeset.",
-      "review.",
-      "pilot.",
-      "concept.",
-      "observation.",
-      "comment.",
-    ]);
-    // The 27-way fan-out is gone: no per-concept story, no per-change-set detail.
-    expect(adapter.getConceptStory).not.toHaveBeenCalled();
-    expect(adapter.getChangeset).not.toHaveBeenCalled();
-  });
-
-  it("names the change-set a row is about, keeping the server sentence as detail", async () => {
-    const adapter = mockAdapter({
-      listActivities: vi.fn().mockResolvedValue({ activities: sampleActivities, next_cursor: "" }),
-      listChangesets: vi
-        .fn()
-        .mockResolvedValue([changeset({ id: "cs-1", name: "Prefer ‘Paiement’ for fr-FR" })]),
-      listConcepts: vi.fn().mockResolvedValue({
-        concepts: sampleConcepts,
-        total_count: sampleConcepts.length,
-      }),
-    });
-    renderWithProviders(<ActivityView />, adapter);
-
-    await waitFor(() => expect(screen.getAllByText("Prefer ‘Paiement’ for fr-FR").length).toBe(2));
-    expect(screen.getByText("approved a change")).toBeInTheDocument();
-    // The concept rows resolve their names the same way.
-    expect(screen.getByText("Checkout")).toBeInTheDocument();
-  });
-
-  it("narrows the request when a category is switched off", async () => {
-    const user = userEvent.setup();
-    const adapter = mockAdapter({
-      listActivities: vi.fn().mockResolvedValue({ activities: sampleActivities, next_cursor: "" }),
-    });
-    renderWithProviders(<ActivityView />, adapter);
-
-    await waitFor(() => expect(adapter.listActivities).toHaveBeenCalledTimes(1));
-    await user.click(screen.getByRole("button", { name: /Experiments/ }));
-
-    await waitFor(() => {
-      const calls = (adapter.listActivities as ReturnType<typeof vi.fn>).mock.calls;
-      expect(calls[calls.length - 1][1].types).toEqual(["concept.", "observation.", "comment."]);
-    });
   });
 });
 

@@ -19,7 +19,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { t } from "@neokapi/i18n-react/runtime";
+import { t, useNeokapi } from "@neokapi/i18n-react/runtime";
 import {
   Button,
   EmptyState,
@@ -37,6 +37,7 @@ import {
   SelectTrigger,
   SelectValue,
   cn,
+  formatLocale,
   useDebounced,
 } from "@neokapi/ui-primitives";
 import { Check, Languages, Plus, Search } from "../../components/icons";
@@ -72,6 +73,7 @@ export interface MemorySectionProps {
 export function MemorySection({ defaultSelected, defaultMarked }: MemorySectionProps) {
   const api = useApi();
   const qc = useQueryClient();
+  const { locale } = useNeokapi();
   const { activeWorkspace } = useWorkspace();
   const ws = activeWorkspace?.slug ?? "";
   const { data: projects } = useProjects();
@@ -243,7 +245,9 @@ export function MemorySection({ defaultSelected, defaultMarked }: MemorySectionP
         icon={<Languages className="mx-auto size-5" />}
         title={
           target
-            ? t("No approved wording into {language} yet", { language: target })
+            ? t("No approved wording into {language} yet", {
+                language: formatLocale(target, { uiLocale: locale, variant: "short" }).name,
+              })
             : t("No approved wording yet")
         }
         description={t(
