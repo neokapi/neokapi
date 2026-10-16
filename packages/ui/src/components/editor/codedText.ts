@@ -1,4 +1,4 @@
-import { type Run, flattenRuns } from "@neokapi/kapi-format";
+import { type ModelRunSpec, type Run, flattenRuns, projectRuns } from "@neokapi/kapi-format";
 
 import type { SpanInfo } from "../../types/span";
 import { semanticLabel } from "./tagSemantics";
@@ -85,82 +85,74 @@ export function spanLabel(span: SpanInfo): string {
 }
 
 /**
- * Convert an RFC 0001 Run sequence into read-only display segments.
- * Text runs become text segments; ph / pcOpen / pcClose / sub runs
- * become tag segments rendered as chips. Structured plural / select
- * runs are flattened to their ICU text form (read-only display has
- * no per-form chip affordance), keeping the display lossless for the
- * common inline-code cases while staying robust for the rest.
+ * A run sequence as chip segments: text as text, each inline code as a chip,
+ * and a plural or select as its ICU spelling, which a flat chip row has no
+ * per-form affordance for. Every kind in RUN_KINDS is answered, so a kind added
+ * to the model fails to compile here until it says how it reads.
  *
- * Mirrors the span mapping in `runsCodedBridge.runsToCoded`, but
- * tolerates plural / select instead of throwing.
+ * The chip carries the run's fields under the span names the editor's chip node
+ * reads; `runsCodedBridge.codedToRuns` reads them back, so a subblock keeps its
+ * `ref` in `sub_type` and returns as a sub run.
+ */
+export const CHIP_SEGMENTS: ModelRunSpec<CodedSegment> = {
+  text: (r) => ({ type: "text", value: r.text }),
+  ph: (r) => ({
+    type: "tag",
+    spanInfo: {
+      span_type: "placeholder",
+      type: r.ph.type,
+      sub_type: r.ph.subType,
+      id: r.ph.id,
+      data: r.ph.data,
+      equiv_text: r.ph.equiv,
+      display_text: r.ph.disp,
+    },
+  }),
+  pcOpen: (r) => ({
+    type: "tag",
+    spanInfo: {
+      span_type: "opening",
+      type: r.pcOpen.type,
+      sub_type: r.pcOpen.subType,
+      id: r.pcOpen.id,
+      data: r.pcOpen.data,
+      equiv_text: r.pcOpen.equiv,
+      display_text: r.pcOpen.disp,
+    },
+  }),
+  pcClose: (r) => ({
+    type: "tag",
+    spanInfo: {
+      span_type: "closing",
+      type: r.pcClose.type,
+      sub_type: r.pcClose.subType,
+      id: r.pcClose.id,
+      data: r.pcClose.data,
+      equiv_text: r.pcClose.equiv,
+    },
+  }),
+  sub: (r) => ({
+    type: "tag",
+    spanInfo: {
+      span_type: "placeholder",
+      type: "sub",
+      sub_type: r.sub.ref,
+      id: r.sub.id,
+      data: `[${r.sub.equiv}]`,
+      equiv_text: r.sub.equiv,
+    },
+  }),
+  plural: (r) => ({ type: "text", value: flattenRuns([r]) }),
+  select: (r) => ({ type: "text", value: flattenRuns([r]) }),
+  fallback: (kind) => ({ type: "text", value: `{${kind}}` }),
+};
+
+/**
+ * Project a Run sequence into read-only display segments through
+ * {@link CHIP_SEGMENTS}. Empty text runs contribute no segment.
  */
 export function runsToSegments(runs: readonly Run[]): CodedSegment[] {
-  const segments: CodedSegment[] = [];
-  for (const r of runs) {
-    if ("text" in r) {
-      if (r.text) segments.push({ type: "text", value: r.text });
-      continue;
-    }
-    if ("ph" in r) {
-      segments.push({
-        type: "tag",
-        spanInfo: {
-          span_type: "placeholder",
-          type: r.ph.type,
-          sub_type: r.ph.subType,
-          id: r.ph.id,
-          data: r.ph.data,
-          equiv_text: r.ph.equiv,
-          display_text: r.ph.disp,
-        },
-      });
-      continue;
-    }
-    if ("pcOpen" in r) {
-      segments.push({
-        type: "tag",
-        spanInfo: {
-          span_type: "opening",
-          type: r.pcOpen.type,
-          sub_type: r.pcOpen.subType,
-          id: r.pcOpen.id,
-          data: r.pcOpen.data,
-          equiv_text: r.pcOpen.equiv,
-          display_text: r.pcOpen.disp,
-        },
-      });
-      continue;
-    }
-    if ("pcClose" in r) {
-      segments.push({
-        type: "tag",
-        spanInfo: {
-          span_type: "closing",
-          type: r.pcClose.type,
-          sub_type: r.pcClose.subType,
-          id: r.pcClose.id,
-          data: r.pcClose.data,
-          equiv_text: r.pcClose.equiv,
-        },
-      });
-      continue;
-    }
-    if ("sub" in r) {
-      segments.push({
-        type: "tag",
-        spanInfo: {
-          span_type: "placeholder",
-          type: "sub",
-          id: r.sub.id,
-          data: `[${r.sub.equiv}]`,
-          equiv_text: r.sub.equiv,
-        },
-      });
-      continue;
-    }
-    // plural / select: flatten to their ICU text form for display.
-    segments.push({ type: "text", value: flattenRuns([r]) });
-  }
-  return segments;
+  return projectRuns(runs, CHIP_SEGMENTS).filter(
+    (seg) => seg.type !== "text" || seg.value.length > 0,
+  );
 }

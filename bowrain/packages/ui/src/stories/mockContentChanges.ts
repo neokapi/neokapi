@@ -14,9 +14,13 @@ import {
   type OpResult,
 } from "@neokapi/contract-types";
 import { projectRuns, type ModelRunSpec, type Run } from "@neokapi/kapi-format";
-import { runsToCoded } from "@neokapi/ui-primitives";
-import { ABSENT_REVISION, type ChangeResult, type ContentChangeSet } from "../api/contentChanges";
-import { getTargetCoded, getTargetStatus, getTargetText } from "../components/editor/blockStatus";
+import {
+  ABSENT_REVISION,
+  placeholderText,
+  type ChangeResult,
+  type ContentChangeSet,
+} from "../api/contentChanges";
+import { getTargetStatus, getTargetText } from "../components/editor/blockStatus";
 import type { BlockInfo, BlockNote, TargetStatus } from "../types/api";
 
 /** FNV-1a over a string, as 16 hex digits: a stand-in for a content revision. */
@@ -29,10 +33,16 @@ function fnv64(s: string): string {
   return h.toString(16).padStart(16, "0");
 }
 
+/** A translation's content as the revision reads it: its text, and its runs with each code by id. */
+function contentKey(block: BlockInfo, locale: string): string {
+  const runs = (block.targets_runs?.[locale] ?? []) as Run[];
+  return `${getTargetText(block, locale)}\u0000${placeholderText(runs)}`;
+}
+
 /** The revision a mock block's translation in one language holds. */
 export function mockRevision(block: BlockInfo, locale: string): string {
   if (block.targets?.[locale] == null) return ABSENT_REVISION;
-  return `r:${fnv64(`${getTargetText(block, locale)}\u0000${getTargetCoded(block, locale)}`)}`;
+  return `r:${fnv64(contentKey(block, locale))}`;
 }
 
 /** A block as the mock serves it: with each translation's revision. */
@@ -49,11 +59,19 @@ export function writeTranslation(
   block: BlockInfo,
   locale: string,
   text: string,
-  coded: string,
+  runs: Run[] | undefined,
   status: TargetStatus,
 ): void {
   block.targets = { ...block.targets, [locale]: { text, status } };
-  block.targets_coded = { ...block.targets_coded, [locale]: coded };
+  if (runs !== undefined) {
+    // The runs a change carries are the served runs without native code
+    // data, which a mock block does without.
+    const served = runs as unknown as NonNullable<BlockInfo["targets_runs"]>[string];
+    block.targets_runs = { ...block.targets_runs, [locale]: served };
+  } else if (block.targets_runs?.[locale]) {
+    const { [locale]: _gone, ...rest } = block.targets_runs;
+    block.targets_runs = rest;
+  }
 }
 
 /** The text a reload shows for runs: their text, without the codes. */
@@ -185,24 +203,18 @@ export function applyMockChanges(store: MockChangeStore, set: ContentChangeSet):
           break;
         }
         result.before = mockRevision(block, locale);
-        const coded = runs !== undefined ? safeCoded(runs as Run[]) : text;
-        if (runs !== undefined) {
-          // The runs a change carries are the served runs without native code
-          // data, which a mock block does without.
-          const served = runs as unknown as NonNullable<BlockInfo["targets_runs"]>[string];
-          block.targets_runs = { ...block.targets_runs, [locale]: served };
-        } else if (block.targets_runs?.[locale]) {
-          const { [locale]: _gone, ...rest } = block.targets_runs;
-          block.targets_runs = rest;
-        }
-        const prevCoded = getTargetCoded(block, locale);
+        // The server demotes on the runs: an edit that only moves a code is
+        // a change. A translation served without runs compares its text.
+        const prevRuns = (block.targets_runs?.[locale] ?? []) as Run[];
         const changed =
-          prevCoded !== "" ? coded !== prevCoded : text !== getTargetText(block, locale);
+          prevRuns.length > 0 && runs !== undefined
+            ? placeholderText(runs as Run[]) !== placeholderText(prevRuns)
+            : text !== getTargetText(block, locale);
         writeTranslation(
           block,
           locale,
           text,
-          coded,
+          runs as Run[] | undefined,
           changed ? "translated" : getTargetStatus(block, locale),
         );
         result.after = mockRevision(block, locale);
@@ -273,13 +285,4 @@ export function applyMockChanges(store: MockChangeStore, set: ContentChangeSet):
     docs: docs(true),
     ops: results,
   };
-}
-
-/** Coded text for runs, or "" for a plural the coded form cannot hold. */
-function safeCoded(runs: Run[]): string {
-  try {
-    return runsToCoded(runs).codedText;
-  } catch {
-    return "";
-  }
 }

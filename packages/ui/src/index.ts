@@ -422,7 +422,12 @@ export type { SpanTypeInfo, ColorScheme, SpanConstraints } from "./vocabularies"
 
 // Editor primitives — inline code rendering
 export { TagChipComponent } from "./components/editor/TagChipComponent";
-export { parseCodedSegments, segmentsToCodedText, spanLabel } from "./components/editor/codedText";
+export {
+  parseCodedSegments,
+  segmentsToCodedText,
+  spanLabel,
+  runsToSegments,
+} from "./components/editor/codedText";
 export type { CodedSegment } from "./components/editor/codedText";
 export { codedToRuns, runsToCoded } from "./components/editor/runsCodedBridge";
 export { codedToEditText, editTextToCoded, editTextToSegments } from "./components/editor/editText";

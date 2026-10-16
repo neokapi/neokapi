@@ -845,6 +845,8 @@ export interface BlockInfo {
   targets_coded?: Record<string, string>;
   translatable: boolean;
   has_spans: boolean;
+  /** Whether the source carries an inline code, as the server read it. */
+  has_inline_codes?: boolean;
   properties: Record<string, string>;
   entities?: EntityInfo[];
   /**

@@ -84,7 +84,7 @@ describe("normalizeServerBlock", () => {
     expect(block.has_spans).toBe(false);
   });
 
-  it("keeps the typed runs and drops only the server-side flag", () => {
+  it("keeps the typed runs and the server's inline-code flag", () => {
     const block = normalizeServerBlock(
       serverBlock({
         source_runs: boldName,
@@ -97,9 +97,9 @@ describe("normalizeServerBlock", () => {
     // anchor to.
     expect(block.source_runs).toEqual(boldName);
     expect(block.targets_runs).toEqual({ fr: boldName });
-    // `has_inline_codes` is the server's spelling of `has_spans`; only the
-    // normalised field survives.
-    expect(block.has_inline_codes).toBeUndefined();
+    // `has_inline_codes` is the server's flag; the run-native surfaces read
+    // it, and the normalised `has_spans` is derived beside it.
+    expect(block.has_inline_codes).toBe(true);
     expect(block.has_spans).toBe(true);
   });
 });

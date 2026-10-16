@@ -3,18 +3,21 @@
  *
  * Replaces three pre-existing editing paths in `TranslationEditor`:
  *
- *   1. The `TargetCellEditor` (Lexical chips) for `has_spans` blocks.
- *   2. The plain `<textarea>` for non-`has_spans` blocks.
+ *   1. The `TargetCellEditor` (Lexical chips) for blocks with inline codes.
+ *   2. The plain `<textarea>` for blocks without them.
  *   3. The `PluralTargetCell` dialog opened from the toolbar.
  *
  * One editor surface, identical chip rendering everywhere, plural
  * authoring is a mode toggle inside it. The Lexical-based
  * `InlineCodeEditor` from `@neokapi/ui-primitives` is the body in
- * every case — flat, plural-form-zero, plural-form-other, no-spans
+ * every case — flat, plural-form-zero, plural-form-other, no-codes
  * (degrades to plain-text editing).
  *
- * State + save semantics live in `useUnifiedTargetEditor`. This file
- * is presentation. See AD #408 / #409 for the design.
+ * The editor's state is runs: the flat translation as one `Run[]`, a plural
+ * as one `Run[]` per form. The editor body holds text with chips, and the two
+ * meet at `editorText.ts`, the one place runs become editor text and an edit
+ * becomes runs again. A save hands the parent runs, which it sends as a change
+ * (`set_content` with runs, a plural as one plural run). See AD #408 / #409.
  */
 
 import type { ReactElement } from "react";
@@ -29,35 +32,29 @@ import {
   SelectTrigger,
   SelectValue,
   cn,
-  codedToRuns,
-  parsePluralFormForChips,
-  runsToCoded,
   type InlineCodeEditorHandle,
-  type SpanInfo as PrimitiveSpanInfo,
+  type SpanInfo,
 } from "@neokapi/ui-primitives";
 
 import type { PluralForm, Run } from "@neokapi/kapi-format";
-import { flattenRuns, pluralPivotCandidates, runKindOf } from "@neokapi/kapi-format";
+import { pluralPivotCandidates } from "@neokapi/kapi-format";
 
 import { toKapiBlock } from "./blockAdapter";
-import { getTargetText } from "./editor/blockStatus";
-import type { BlockInfo, SpanInfo } from "../types/api";
+import { pluralForms, pluralOf, soloPlural, sourceRuns, targetRuns } from "./editor/blockContent";
+import { codeSpans, fromEditorText, toEditorText } from "./editor/editorText";
+import type { BlockInfo } from "../types/api";
 
 /** CLDR plural-form display order. */
 const FORMS: readonly PluralForm[] = ["zero", "one", "two", "few", "many", "other"];
 
-export type UnifiedSaveResult =
-  | { kind: "flat"; codedText: string; spans: PrimitiveSpanInfo[] }
-  /**
-   * A plural target: `runs` is the one plural run, each form's codes kept,
-   * which is what a save sends; `text` is its ICU spelling, for display.
-   */
-  | { kind: "plural"; text: string; runs: Run[] }
-  /**
-   * A translation built outside the editor and saved as given, such as a
-   * content-memory match a reviewer uses: its runs keep the match's codes.
-   */
-  | { kind: "runs"; runs: Run[] };
+/**
+ * What a save hands the parent: the translation as runs, each code kept. A
+ * plural is one plural run carrying its forms; a translation built outside
+ * the editor (a content-memory match a reviewer uses) is its runs as given.
+ */
+export interface UnifiedSaveResult {
+  runs: Run[];
+}
 
 /**
  * Imperative surface of an open target editor. `insertText` inserts plain
@@ -77,7 +74,7 @@ export interface UnifiedTargetEditorProps {
   locale: string;
   /**
    * Save handler. Wrapper figures out flat vs plural and calls back
-   * with the right shape; the parent sends its runs as a change
+   * with the translation's runs; the parent sends them as a change
    * (`set_content` with runs, a plural as one plural run).
    */
   onSave: (result: UnifiedSaveResult) => void | Promise<void>;
@@ -97,14 +94,8 @@ export interface UnifiedTargetEditorProps {
   handleRef?: React.Ref<UnifiedTargetEditorHandle>;
 }
 
-/**
- * Shape of a single form's editable state. Mirrors what
- * `InlineCodeEditor` consumes/emits.
- */
-interface FormState {
-  codedText: string;
-  spans: SpanInfo[];
-}
+/** The runs of each plural form the editor holds. */
+type Forms = Partial<Record<PluralForm, Run[]>>;
 
 export function UnifiedTargetEditor({
   block,
@@ -114,31 +105,23 @@ export function UnifiedTargetEditor({
   compact,
   handleRef,
 }: UnifiedTargetEditorProps): ReactElement {
-  // Stable identity: `block.source_spans ?? []` would mint a NEW array every
-  // render for span-less blocks, which recomputes `initial` below and makes
-  // the reset effect wipe in-progress edits (flatState → seeded state) on any
-  // parent re-render — the Lexical DOM keeps the text, but Save then submits
-  // the stale (empty) state.
-  const { source_spans: servedSpans, source_runs: sourceRuns } = block;
-  const sourceSpans = useMemo(
-    () => editorSourceSpans(servedSpans, sourceRuns),
-    [servedSpans, sourceRuns],
-  );
+  // The source codes the editor offers as chips. Derived from the block
+  // itself (a stable identity), so a parent re-render does not mint a new
+  // array, recompute `initial` and wipe in-progress edits.
+  const sourceSpans = useMemo(() => editorSourceSpans(block), [block]);
   const adaptedBlock = useMemo(() => toKapiBlock(block), [block]);
   const candidates = useMemo(() => pluralPivotCandidates(adaptedBlock), [adaptedBlock]);
 
   const initial = useMemo(
-    () => seedInitialState(block, locale, sourceSpans),
-    [block, locale, sourceSpans],
+    () => seedInitialState(block, locale, candidates[0]?.name ?? ""),
+    [block, locale, candidates],
   );
 
   const [mode, setMode] = useState<"flat" | "plural">(initial.mode);
   const [activeForm, setActiveForm] = useState<PluralForm>(initial.activeForm);
   const [pivot, setPivot] = useState<string>(initial.pivot);
-  const [flatState, setFlatState] = useState<FormState>(initial.flat);
-  const [pluralForms, setPluralForms] = useState<Partial<Record<PluralForm, FormState>>>(
-    initial.forms,
-  );
+  const [flatRuns, setFlatRuns] = useState<Run[]>(initial.flat);
+  const [forms, setForms] = useState<Forms>(initial.forms);
   const [saving, setSaving] = useState(false);
 
   // Forward `insertText` to whichever InlineCodeEditor body is mounted
@@ -159,27 +142,21 @@ export function UnifiedTargetEditor({
     setMode(initial.mode);
     setActiveForm(initial.activeForm);
     setPivot(initial.pivot);
-    setFlatState(initial.flat);
-    setPluralForms(initial.forms);
+    setFlatRuns(initial.flat);
+    setForms(initial.forms);
   }, [initial]);
 
-  const formsPresent = useMemo(
-    () => FORMS.filter((f) => pluralForms[f] !== undefined),
-    [pluralForms],
-  );
+  const formsPresent = useMemo(() => FORMS.filter((f) => forms[f] !== undefined), [forms]);
 
-  // Capture the live state of the currently-mounted InlineCodeEditor
+  // Capture the live state of the currently-mounted InlineCodeEditor as runs,
   // so a form-tab switch (or mode toggle) doesn't lose unsaved edits.
   const handleEditorChange = useCallback(
-    (codedText: string, spans: PrimitiveSpanInfo[]) => {
-      const cast = spans as SpanInfo[];
+    (codedText: string, spans: SpanInfo[]) => {
+      const runs = fromEditorText(codedText, spans);
       if (mode === "flat") {
-        setFlatState({ codedText, spans: cast });
+        setFlatRuns(runs);
       } else {
-        setPluralForms((prev) => ({
-          ...prev,
-          [activeForm]: { codedText, spans: cast },
-        }));
+        setForms((prev) => ({ ...prev, [activeForm]: runs }));
       }
     },
     [mode, activeForm],
@@ -189,10 +166,10 @@ export function UnifiedTargetEditor({
     setSaving(true);
     try {
       if (mode === "flat") {
-        await onSave({ kind: "flat", codedText: flatState.codedText, spans: flatState.spans });
+        await onSave({ runs: flatRuns });
         return;
       }
-      await onSave({ kind: "plural", ...serialiseForms(pivot, pluralForms) });
+      await onSave({ runs: pluralRun(pivot, forms) });
     } finally {
       setSaving(false);
     }
@@ -201,10 +178,7 @@ export function UnifiedTargetEditor({
   const upgradeToPlural = () => {
     if (!pivot) return;
     // Seed `other` from the current flat state; leave the rest empty.
-    setPluralForms({
-      ...emptyForms(),
-      other: { codedText: flatState.codedText, spans: flatState.spans },
-    });
+    setForms({ other: flatRuns });
     setActiveForm("other");
     setMode("plural");
   };
@@ -212,22 +186,24 @@ export function UnifiedTargetEditor({
   const flattenBack = () => {
     // Take the `other` form as the new flat state (matches
     // `downgradePluralTarget` semantics in @neokapi/kapi-format).
-    const otherState = pluralForms.other ?? Object.values(pluralForms)[0] ?? blankFormState();
-    setFlatState(otherState);
+    setFlatRuns(forms.other ?? Object.values(forms)[0] ?? []);
     setMode("flat");
   };
 
   const switchActiveForm = (form: PluralForm) => {
     if (form === activeForm) return;
     // The mounted editor's onChange has already persisted activeForm
-    // into pluralForms[activeForm]. Mounting a new form is just a
-    // matter of switching active and remounting the editor body
-    // (we re-key it on activeForm below).
+    // into forms[activeForm]. Mounting a new form is just a matter of
+    // switching active and remounting the editor body (we re-key it
+    // on activeForm below).
     setActiveForm(form);
   };
 
   const editorKey = mode === "plural" ? `plural:${activeForm}` : "flat";
-  const editorState = mode === "plural" ? (pluralForms[activeForm] ?? blankFormState()) : flatState;
+  const editorRuns = mode === "plural" ? (forms[activeForm] ?? []) : flatRuns;
+  // The body reads its initial text once, on mount; it is re-keyed on every
+  // mode or form switch, so this is the state the editor opens on.
+  const editorText = useMemo(() => toEditorText(editorRuns), [editorRuns]);
 
   return (
     <div className="space-y-3" data-testid="unified-target-editor" data-mode={mode}>
@@ -250,9 +226,9 @@ export function UnifiedTargetEditor({
       ) : null}
       <InlineCodeEditor
         key={editorKey}
-        initialCodedText={editorState.codedText}
-        initialSpans={editorState.spans as PrimitiveSpanInfo[]}
-        sourceSpans={sourceSpans as PrimitiveSpanInfo[]}
+        initialCodedText={editorText.codedText}
+        initialSpans={editorText.spans}
+        sourceSpans={sourceSpans}
         onSave={() => void handleSave()}
         onCancel={onCancel}
         onChange={handleEditorChange}
@@ -396,176 +372,71 @@ interface SeededState {
   mode: "flat" | "plural";
   activeForm: PluralForm;
   pivot: string;
-  flat: FormState;
-  forms: Partial<Record<PluralForm, FormState>>;
+  flat: Run[];
+  forms: Forms;
 }
 
-function seedInitialState(block: BlockInfo, locale: string, sourceSpans: SpanInfo[]): SeededState {
-  const rawTarget = getTargetText(block, locale);
-  const codedTarget = block.targets_coded?.[locale] ?? "";
+/**
+ * The state the editor opens on. A translation that is one plural (a plural
+ * run, or ICU text spelling one) opens on its forms, each with its codes. A
+ * message that is one plural, not yet translated, opens in plural mode on the
+ * source's pivot: the forms are the target language's, which need not be the
+ * source's, so only `other` opens and the person fills the rest. Anything
+ * else opens flat, with `defaultPivot` offered for an upgrade.
+ */
+function seedInitialState(block: BlockInfo, locale: string, defaultPivot: string): SeededState {
+  const target = targetRuns(block, locale);
 
-  // A translation that is one plural opens on its forms, each with its codes.
-  const targetPlural = soloPlural(block.targets_runs?.[locale] as Run[] | undefined);
+  const targetPlural = pluralOf(target);
   if (targetPlural) {
-    const forms = formsOf(targetPlural.plural.forms);
-    if (forms) {
-      return {
-        mode: "plural",
-        activeForm: forms.other ? "other" : ((Object.keys(forms)[0] as PluralForm) ?? "other"),
-        pivot: targetPlural.plural.pivot,
-        flat: blankFormState(),
-        forms,
-      };
-    }
-  }
-  // A message that is one plural, not yet translated, opens in plural mode on
-  // the source's pivot. The forms are the target language's, which need not
-  // be the source's, so only `other` opens; the person fills the rest.
-  const sourcePlural = soloPlural(block.source_runs as Run[] | undefined);
-  if (sourcePlural && !rawTarget) {
-    return {
-      mode: "plural",
-      activeForm: "other",
-      pivot: sourcePlural.plural.pivot,
-      flat: blankFormState(),
-      forms: { other: blankFormState() },
-    };
-  }
-
-  // A plural written in this session lives in `targets[locale]` as ICU
-  // syntax; if we recognise that shape, switch straight into per-form mode.
-  const preview = parsePluralFormForChips(rawTarget, sourceSpans as PrimitiveSpanInfo[], "other");
-  if (preview) {
-    const forms = decodePluralForms(rawTarget, sourceSpans);
-    const adapted = toKapiBlock(block);
-    const candidates = pluralPivotCandidates(adapted);
+    const forms = pluralForms(targetPlural);
     return {
       mode: "plural",
       activeForm: forms.other ? "other" : ((Object.keys(forms)[0] as PluralForm) ?? "other"),
-      pivot: preview.pivot || candidates[0]?.name || "",
-      flat: blankFormState(),
+      pivot: targetPlural.plural.pivot,
+      flat: [],
       forms,
     };
   }
 
-  // Flat path. Prefer the coded representation for chip rendering;
-  // fall back to plain `targets[locale]` otherwise (and synthesise
-  // empty spans).
-  const flat: FormState = codedTarget
-    ? { codedText: codedTarget, spans: sourceSpans }
-    : { codedText: rawTarget, spans: [] };
-
-  const adapted = toKapiBlock(block);
-  const candidates = pluralPivotCandidates(adapted);
-  return {
-    mode: "flat",
-    activeForm: "other",
-    pivot: candidates[0]?.name ?? "",
-    flat,
-    forms: {},
-  };
-}
-
-function decodePluralForms(
-  icuString: string,
-  sourceSpans: SpanInfo[],
-): Partial<Record<PluralForm, FormState>> {
-  const out: Partial<Record<PluralForm, FormState>> = {};
-  for (const form of FORMS) {
-    const preview = parsePluralFormForChips(icuString, sourceSpans as PrimitiveSpanInfo[], form);
-    if (preview && preview.shownForm === form) {
-      out[form] = { codedText: preview.codedText, spans: preview.spans as SpanInfo[] };
-    }
+  const sourcePlural = soloPlural(sourceRuns(block));
+  if (sourcePlural && target.length === 0) {
+    return {
+      mode: "plural",
+      activeForm: "other",
+      pivot: sourcePlural.plural.pivot,
+      flat: [],
+      forms: { other: [] },
+    };
   }
-  return out;
-}
 
-function blankFormState(): FormState {
-  return { codedText: "", spans: [] };
-}
-
-type PluralOnly = Extract<Run, { plural: unknown }>;
-
-/** The plural run a sequence consists of, or null when it holds anything else. */
-function soloPlural(runs: readonly Run[] | undefined): PluralOnly | null {
-  if (!runs || runs.length !== 1) return null;
-  return runKindOf(runs[0]) === "plural" ? (runs[0] as PluralOnly) : null;
+  return { mode: "flat", activeForm: "other", pivot: defaultPivot, flat: target, forms: {} };
 }
 
 /**
- * Each form of a plural as the coded state its editor body opens on, or null
- * when a form holds a run coded text cannot carry (a nested plural or select),
- * which the per-form editor would lose.
+ * The source codes the editor offers as chips: the source's, or, for a
+ * message that is one plural, the codes of its `other` form (the variable a
+ * form repeats, say), so each target form can place them.
  */
-function formsOf(
-  forms: Partial<Record<PluralForm, Run[]>>,
-): Partial<Record<PluralForm, FormState>> | null {
-  const out: Partial<Record<PluralForm, FormState>> = {};
-  for (const form of FORMS) {
-    const runs = forms[form];
-    if (!runs) continue;
-    try {
-      const coded = runsToCoded(runs);
-      out[form] = { codedText: coded.codedText, spans: coded.spans as SpanInfo[] };
-    } catch {
-      return null;
-    }
-  }
-  return out;
-}
-
-/**
- * The source codes the editor offers as chips: the spans the payload carries,
- * else, for a message that is one plural, the codes of its `other` form (the
- * variable a form repeats, say), so each target form can place them.
- */
-function editorSourceSpans(
-  served: SpanInfo[] | undefined,
-  sourceRuns: BlockInfo["source_runs"],
-): SpanInfo[] {
-  if (served && served.length > 0) return served;
-  const plural = soloPlural(sourceRuns as Run[] | undefined);
-  const other = plural?.plural.forms.other;
-  if (!other) return served ?? [];
-  try {
-    return runsToCoded(other).spans as SpanInfo[];
-  } catch {
-    return served ?? [];
-  }
-}
-
-function emptyForms(): Partial<Record<PluralForm, FormState>> {
-  return {};
+function editorSourceSpans(block: BlockInfo): SpanInfo[] {
+  const runs = sourceRuns(block);
+  const plural = soloPlural(runs);
+  return codeSpans(plural ? (plural.plural.forms.other ?? []) : runs);
 }
 
 // ─── Save serialisation ───────────────────────────────────────────
 
-function serialiseForms(
-  pivot: string,
-  forms: Partial<Record<PluralForm, FormState>>,
-): { text: string; runs: Run[] } {
-  // Build a plural Run with each form's coded state converted into
-  // typed Runs: that run, codes and all, is what a save sends. Its
-  // `flattenRuns` spelling is the canonical ICU plural string, which
-  // the surfaces show until the block is read back.
-  const formRuns: Partial<Record<PluralForm, Run[]>> = {};
+/**
+ * The plural run a save sends: each form's runs under its name, codes and
+ * all. ICU plural rules require an `other` case, so an absent one is sent
+ * empty rather than left out.
+ */
+function pluralRun(pivot: string, forms: Forms): Run[] {
+  const formRuns: Forms = {};
   for (const form of FORMS) {
-    const state = forms[form];
-    if (!state) continue;
-    formRuns[form] = codedToRuns(state.codedText, state.spans as PrimitiveSpanInfo[]);
+    const runs = forms[form];
+    if (runs) formRuns[form] = runs;
   }
-  // Ensure at least an `other` form exists — ICU plural rules require
-  // a fallback case, and `flattenRuns` would otherwise emit a string
-  // the resolver couldn't match against.
   if (!formRuns.other) formRuns.other = [];
-
-  const plural: Run[] = [{ plural: { pivot, forms: formRuns } }];
-  return { text: flattenRuns(plural), runs: plural };
+  return [{ plural: { pivot, forms: formRuns } }];
 }
-
-// ─── Re-exports for type compatibility ────────────────────────────
-
-// `runsToCoded` is consumed inside the file but also worth re-exporting
-// so consumers seeding a UnifiedTargetEditor from typed Run[] can
-// produce the matching FormState shape without a second import path.
-export { runsToCoded };
