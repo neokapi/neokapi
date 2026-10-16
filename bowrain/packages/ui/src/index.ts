@@ -855,7 +855,7 @@ export {
   VoicePreview,
   PatternListEditor,
   ExamplesEditor,
-  CandidateRulesList,
+  CandidateReview,
   BlastRadiusSummary,
   DriftAlert,
   starterPacks,
@@ -870,7 +870,13 @@ export {
   minScoreFieldValue,
   parseMinScore,
 } from "./voice";
-export type { ScoreBand, HasMinScore, ProfileBarSource, ParsedMinScore } from "./voice";
+export type {
+  ScoreBand,
+  HasMinScore,
+  ProfileBarSource,
+  ParsedMinScore,
+  CandidateReviewProps,
+} from "./voice";
 // The voice bound at a point: the property key and the shared picker's options.
 export { VOICE_PROFILE_KEY, voiceProfileOptions } from "./voice/binding";
 export type {

@@ -241,6 +241,8 @@ export interface SuggestedRule {
   replacement: string;
   correction_count: number;
   dimension: Dimension;
+  /** The concept the phrasing already denotes in the workspace's terms, when it denotes one. */
+  concept_id?: string;
 }
 
 export type RuleDecisionStatus = "pending" | "approved" | "rejected" | "promoted";

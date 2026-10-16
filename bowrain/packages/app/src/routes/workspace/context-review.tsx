@@ -1,13 +1,14 @@
 import { useEffect, useState, useCallback } from "react";
-import { useParams, useRouteContext } from "@tanstack/react-router";
+import { useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
 import {
-  CandidateRulesList,
+  CandidateReview,
   BlastRadiusSummary,
-  DriftAlert,
+  Badge,
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  SimpleTooltip,
   useVoiceCandidates,
   usePromoteVoiceRule,
   useRejectVoiceRule,
@@ -15,33 +16,40 @@ import {
   useVoiceDrift,
   useVoiceProfile,
   useProjects,
+  useUserDisplayNames,
   PageHeader,
 } from "@neokapi/ui";
-import type { CandidateRule, BlastRadius } from "@neokapi/ui";
+import type { CandidateRule, BlastRadius, DriftResult } from "@neokapi/ui";
 import type { WorkspaceRouteContext } from "..";
 
 /**
  * ContextReviewRoute is the correction-learning loop's review surface: the
- * candidate rules a team's corrections have produced for a profile, with
- * Promote / Reject. Pick a project to also preview a candidate's blast radius
- * across that project's content and to see its compliance-drift status (AD-019).
+ * rules a team's repeated corrections suggest for a voice profile, as a list
+ * and a detail pane. Promote writes a rule into the workspace's terms as a
+ * versioned check, Reject stops it surfacing again. Choose a project in the
+ * header to preview a rule's blast radius over that project's content and to
+ * see whether its compliance is drifting (AD-019).
  */
 export function ContextReviewRoute() {
-  const { activeWorkspace } = useRouteContext({ strict: false }) as WorkspaceRouteContext;
-  const { profileId } = useParams({ strict: false });
+  const navigate = useNavigate();
+  const { activeWorkspace, user } = useRouteContext({ strict: false }) as WorkspaceRouteContext;
+  const { workspace, profileId } = useParams({ strict: false });
   const pid = profileId ?? "";
 
   const { data: profile } = useVoiceProfile(pid);
   const { data: projects = [] } = useProjects();
   const [projectId, setProjectId] = useState("");
-  const [showHistory, setShowHistory] = useState(false);
-  const { data: candidates = [], isLoading } = useVoiceCandidates(pid, { all: showHistory });
+  // Decided rules are part of the list, in closed groups, so who decided what
+  // stays one click away.
+  const { data: candidates, isLoading, error } = useVoiceCandidates(pid, { all: true });
   const promote = usePromoteVoiceRule(pid);
   const reject = useRejectVoiceRule(pid);
   const evaluate = useEvaluateVoiceRule(pid);
   const { data: drift } = useVoiceDrift(projectId);
+  const { nameOf } = useUserDisplayNames();
 
   const [preview, setPreview] = useState<{ term: string; radius: BlastRadius } | null>(null);
+  const [failed, setFailed] = useState<{ term: string; error: unknown } | null>(null);
 
   useEffect(() => {
     if (activeWorkspace) {
@@ -50,18 +58,26 @@ export function ContextReviewRoute() {
   }, [activeWorkspace, profile?.name]);
 
   const onPromote = useCallback(
-    (c: CandidateRule) => {
-      promote.mutate({
-        term: c.term,
-        replacement: c.replacement,
-        correction_count: c.correction_count,
-      });
+    (c: CandidateRule, replacement?: string) => {
+      setFailed(null);
+      promote.mutate(
+        {
+          term: c.term,
+          replacement: replacement ?? c.replacement,
+          correction_count: c.correction_count,
+        },
+        { onError: (err) => setFailed({ term: c.term, error: err }) },
+      );
     },
     [promote],
   );
   const onReject = useCallback(
     (c: CandidateRule) => {
-      reject.mutate({ term: c.term, replacement: c.replacement });
+      setFailed(null);
+      reject.mutate(
+        { term: c.term, replacement: c.replacement },
+        { onError: (err) => setFailed({ term: c.term, error: err }) },
+      );
     },
     [reject],
   );
@@ -86,51 +102,52 @@ export function ContextReviewRoute() {
         : undefined;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-6">
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
       <PageHeader
+        className="mb-0"
+        eyebrow={profile?.name}
         title="Review suggested rules"
-        subtitle="Voice checks act like tests for AI output. Repeated corrections become candidate rules. Promote one to harden it into a check on every future generation, or reject it to stop it re-surfacing."
+        actions={
+          <>
+            {projectId && drift?.drifted ? <DriftChip drift={drift} /> : null}
+            <label className="flex items-center gap-2 text-sm">
+              <span className="text-[11px] text-muted-foreground">Evaluate against</span>
+              <select
+                value={projectId}
+                onChange={(e) => setProjectId(e.target.value)}
+                className="rounded-md border bg-background px-2 py-1 text-sm"
+              >
+                <option value="">a project…</option>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </>
+        }
       />
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <label className="flex items-center gap-2 text-sm">
-          <span className="text-muted-foreground">Evaluate against</span>
-          <select
-            value={projectId}
-            onChange={(e) => setProjectId(e.target.value)}
-            className="rounded-md border bg-background px-2 py-1 text-sm"
-          >
-            <option value="">a project…</option>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex items-center gap-2 text-xs text-muted-foreground">
-          <input
-            type="checkbox"
-            checked={showHistory}
-            onChange={(e) => setShowHistory(e.target.checked)}
-          />
-          Show decided
-        </label>
-      </div>
-
-      {projectId && drift ? <DriftAlert drift={drift} /> : null}
-
-      {isLoading ? (
-        <div className="py-8 text-center text-sm text-muted-foreground">Loading candidates…</div>
-      ) : (
-        <CandidateRulesList
-          candidates={candidates}
-          onPromote={onPromote}
-          onReject={onReject}
-          onEvaluate={projectId ? onEvaluate : undefined}
-          busyTerm={busyTerm}
-        />
-      )}
+      <CandidateReview
+        className="min-h-0 flex-1"
+        candidates={candidates ?? null}
+        loading={isLoading}
+        error={error}
+        busyTerm={busyTerm}
+        failed={failed}
+        onPromote={onPromote}
+        onReject={onReject}
+        onEvaluate={projectId ? onEvaluate : undefined}
+        onOpenConcept={(cid) =>
+          void navigate({
+            to: "/$workspace/context/concepts/$cid",
+            params: { workspace: workspace ?? "", cid },
+          })
+        }
+        nameOf={nameOf}
+        currentUserId={user?.id}
+      />
 
       <Dialog open={preview !== null} onOpenChange={(open) => !open && setPreview(null)}>
         <DialogContent>
@@ -141,5 +158,29 @@ export function ContextReviewRoute() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+/** The chosen project's compliance drift, as a status with its numbers in the tooltip. */
+function DriftChip({ drift }: { drift: DriftResult }) {
+  return (
+    <SimpleTooltip
+      content={
+        <>
+          Recent average {drift.recent_avg.toFixed(1)}, baseline {drift.baseline_avg.toFixed(1)},
+          down {drift.drop.toFixed(1)} over {drift.recent_days} days
+          {drift.reason ? `. ${drift.reason}` : ""}
+        </>
+      }
+    >
+      <Badge
+        variant="outline"
+        data-slot="review-drift"
+        tabIndex={0}
+        className="border-warning/60 text-[11px] font-normal text-[color-mix(in_oklch,var(--warning)_60%,var(--warning-foreground))] dark:text-warning"
+      >
+        Compliance drifting
+      </Badge>
+    </SimpleTooltip>
   );
 }
