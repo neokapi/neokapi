@@ -174,6 +174,18 @@ describe("ContextHub", () => {
     digest.mockRestore();
   });
 
+  it("gives History the full height, so its list and detail scroll on their own", async () => {
+    const digest = vi.spyOn(api, "projectContextDigest").mockResolvedValue(CONTEXT_DIGEST);
+    render(<ContextHub tabID="t1" projectName="Northsea" section="history" />);
+    const feed = await screen.findByText(`feed for ${CONTEXT_DIGEST.project}`);
+    // No scrolling column around the panel: it fills the section's height.
+    expect(feed.closest("[data-slot='scroll-area']")).toBeNull();
+    expect(feed.closest(".max-w-3xl")).toBeNull();
+    expect(feed.parentElement?.className).toContain("flex-1");
+    expect(screen.getByRole("heading", { name: "History" })).toBeInTheDocument();
+    digest.mockRestore();
+  });
+
   it("routes a view to the section it names", () => {
     expect(contextSectionOf("context:agent")).toBe("agent");
     expect(contextSectionOf("context:history")).toBe("history");

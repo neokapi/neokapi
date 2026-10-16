@@ -4,16 +4,24 @@ import { ContextFeedList } from "../components/ContextFeed";
 import { ContextResetDialog } from "../components/ContextResetDialog";
 import { ContextWidenDialog, widenRuleOfEntry } from "../components/ContextWidenDialog";
 import {
+  AWAITING_FEED,
   CANDIDATE,
   CONTEXT_FEED,
   EMPTY_FEED,
   IN_FORCE,
+  MANY_SESSIONS_FEED,
   RESET_FEED,
   feedEntry,
   feedGroup,
 } from "./fixtures/contextFeed";
 import type { ContextFeed } from "../types/api";
 
+/**
+ * History: one row per session in the list, newest first, and the selected
+ * session's operations in the detail pane, with its reset in the toolbar. A
+ * proposal keeps Keep, Edit and Drop on its row, and its evidence opens under
+ * the row.
+ */
 const meta: Meta<typeof ContextFeedList> = {
   title: "Components/ContextFeed",
   component: ContextFeedList,
@@ -29,7 +37,7 @@ const meta: Meta<typeof ContextFeedList> = {
   },
   decorators: [
     (Story) => (
-      <div className="mx-auto max-w-3xl p-6">
+      <div className="h-[560px] border border-border bg-background">
         <Story />
       </div>
     ),
@@ -42,7 +50,31 @@ type Story = StoryObj<typeof ContextFeedList>;
 /** An agent session with a decision waiting, beside a person's own day. */
 export const Default: Story = {};
 
-/** The workspace feed, where each operation names the project it came from. */
+/** The same in the dark theme. */
+export const DefaultDark: Story = { globals: { theme: "dark" } };
+
+/** Two proposals waiting in one session, beside a rule already in force. */
+export const ProposalAwaitingADecision: Story = {
+  args: { feed: AWAITING_FEED, defaultSelected: "session:sess-1" },
+};
+
+/** The same in the dark theme. */
+export const ProposalAwaitingADecisionDark: Story = {
+  args: { feed: AWAITING_FEED, defaultSelected: "session:sess-1" },
+  globals: { theme: "dark" },
+};
+
+/** A person's day selected: a note they recorded, with nothing to reset. */
+export const SessionSelected: Story = {
+  args: { defaultSelected: "actor:person/asgeir:2026-09-21" },
+};
+
+/** A long history: the list scrolls on its own, and the oldest operations are cut off. */
+export const ManySessions: Story = {
+  args: { feed: MANY_SESSIONS_FEED, showProject: true },
+};
+
+/** The workspace feed, where each session names the project it came from. */
 export const AcrossProjects: Story = {
   args: {
     showProject: true,
@@ -76,10 +108,11 @@ export const AcrossProjects: Story = {
         }),
       ],
     } satisfies ContextFeed,
+    defaultSelected: "session:sess-2",
   },
 };
 
-/** A session still recording: the summary says so rather than counting. */
+/** A session still recording: the counts say so. */
 export const StillWorking: Story = {
   args: {
     feed: {
@@ -96,12 +129,47 @@ export const StillWorking: Story = {
   },
 };
 
-/** A person reset the project to before claude's session; the reset itself can be taken back. */
+/** A person reset the project to before claude's session; the toolbar takes the reset back. */
 export const AfterAReset: Story = { args: { feed: RESET_FEED } };
+
+/** The same in the dark theme. */
+export const AfterAResetDark: Story = {
+  args: { feed: RESET_FEED },
+  globals: { theme: "dark" },
+};
+
+/** The session the reset set aside, still listed, with its operations marked. */
+export const SessionSetAside: Story = {
+  args: {
+    feed: {
+      ...RESET_FEED,
+      groups: RESET_FEED.groups.map((g) =>
+        g.id === "session:sess-1"
+          ? {
+              ...g,
+              awaiting: 0,
+              entries: g.entries.map((e) => ({
+                ...e,
+                status: "reset",
+                decidable: false,
+                droppable: false,
+              })),
+            }
+          : g,
+      ),
+    } satisfies ContextFeed,
+    defaultSelected: "session:sess-1",
+  },
+};
 
 /** Nothing has been recorded in this workspace yet. */
 export const Empty: Story = {
   args: { feed: EMPTY_FEED },
+};
+
+/** A workspace open for reading only: the reset cannot be taken back here. */
+export const ReadOnly: Story = {
+  args: { feed: { ...RESET_FEED, read_only: true } },
 };
 
 /** A project the workspace holds and no checkout here carries. */

@@ -83,18 +83,38 @@ adjustments. When dated guidance has lapsed, the page says which and why.
 Editing writes the YAML in your working tree, the same file a reviewer reads in
 a pull request.
 
-**Terms** is the concept store: the words the project decided on, their status,
-their definitions, and their translations.
+**Terms** lists the words the project decided on, one concept per row: the
+term, its status, and how many languages it has terms in. The search at the top
+of the list narrows it as you type. Select a concept and the pane beside the
+list shows its definition, the forms it retires with what to write instead,
+its terms language by language, where it came from, and the concepts it relates
+to. **Relate** links it to another concept.
 
-**Content Memory** is the record of prior wording, searchable, with provenance
-intact so you can see where a phrasing came from before you reuse it.
+**Content Memory** lists the approved wording one pair per row: the source
+sentence, and the language it was translated into. The filter bar at the top of
+the list searches on Enter, and **Filters** narrows the list by language, target
+language, project, the kinds of name an entry holds, the import it came from,
+or whether it carries inline codes; each choice shows as a token you can also
+type, such as `target:fr-FR`. **Find similar** looks up wording like a sentence
+you type instead, with the names in it marked, and lists the matches best first
+with their scores. Select a pair to read both sides in full, with inline
+formatting kept as tags, the file the entry came from and the unit it was
+approved for. **Pair** and **All languages** above it switch between the pair
+and every language the entry holds, beside **Edit**, **Mark entities** and
+**Delete**. The box at the start of a row marks its entry, and with entries
+marked, **Delete** and **Mark entities** act on all of them. **Add entry** sits
+at the top of the page.
 
 ## History
 
-**History** lists what was recorded in the project, session by session, and
-who decided what. **Reset to before this session** on a session goes back to
-how the context stood before it started. Nothing is erased, and the reset can
-itself be taken back.
+**History** lists what was recorded in the project, one session per row, newest
+first: who worked, when, and how many operations the session holds. Select a
+session to see its operations beside the list. A suggestion still waiting for a
+decision keeps **Keep**, **Edit** and **Drop** on its row, with the sentence it
+was seen in behind a click. **Reset to before this session**, above the
+operations, goes back to how the context stood before the session started. The
+reset is recorded too, and **Take this reset back** on it brings back what it
+set aside.
 
 ## Share
 

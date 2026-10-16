@@ -1,229 +1,110 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { useState } from "react";
-import { BookOpen, Plus, FolderOpen, X, Upload } from "lucide-react";
 import { TermsPage } from "../components/TermsPage";
-import {
-  Button,
-  TermsBrowser,
-  ResourceCard,
-  type TermsAdapter,
-  type ConceptDTO,
-} from "@neokapi/ui-primitives";
+import { SAMPLE_CONCEPTS, manyConcepts, storyConceptSource } from "./fixtures/concepts";
 
-const SAMPLE_CONCEPTS: ConceptDTO[] = [
-  {
-    id: "c1",
-    project_id: "",
-    domain: "Legal",
-    definition: "A legally binding agreement between parties",
-    source: "terminology",
-    terms: [
-      { text: "contract", locale: "en-US", status: "preferred" },
-      { text: "contrat", locale: "fr-FR", status: "approved" },
-      { text: "Vertrag", locale: "de-DE", status: "approved" },
-    ],
-    created_at: new Date(Date.now() - 3600000).toISOString(),
-    updated_at: new Date(Date.now() - 3600000).toISOString(),
-  },
-  {
-    id: "c2",
-    project_id: "proj-1",
-    domain: "Software",
-    definition: "A reusable interface component",
-    source: "terminology",
-    terms: [
-      { text: "widget", locale: "en-US", status: "preferred" },
-      { text: "widget", locale: "fr-FR", status: "approved" },
-      { text: "gadget", locale: "fr-FR", status: "deprecated", note: "Use 'widget' instead" },
-    ],
-    created_at: new Date(Date.now() - 86400000).toISOString(),
-    updated_at: new Date(Date.now() - 86400000).toISOString(),
-  },
-  {
-    id: "c3",
-    project_id: "",
-    domain: "Medical",
-    definition: "Inflammation of the appendix",
-    source: "terminology",
-    terms: [
-      { text: "appendicitis", locale: "en-US", status: "preferred", part_of_speech: "noun" },
-      { text: "appendicite", locale: "fr-FR", status: "approved", gender: "feminine" },
-    ],
-    created_at: new Date(Date.now() - 172800000).toISOString(),
-    updated_at: new Date(Date.now() - 172800000).toISOString(),
-  },
-];
-
-function createMockAdapter(concepts: ConceptDTO[]): TermsAdapter {
-  let data = [...concepts];
-  return {
-    async search(query) {
-      const filtered = query
-        ? data.filter(
-            (c) =>
-              c.terms.some((t) => t.text.toLowerCase().includes(query.toLowerCase())) ||
-              c.domain.toLowerCase().includes(query.toLowerCase()),
-          )
-        : data;
-      return { concepts: filtered, total_count: filtered.length };
-    },
-    async getConcept(id) {
-      return data.find((c) => c.id === id) ?? null;
-    },
-    async addConcept(req) {
-      data.push({
-        id: String(Date.now()),
-        project_id: req.project_id ?? "",
-        domain: req.domain,
-        definition: req.definition,
-        source: "terminology",
-        terms: req.terms,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      });
-    },
-    async updateConcept(req) {
-      data = data.map((c) =>
-        c.id === req.concept_id
-          ? {
-              ...c,
-              domain: req.domain,
-              definition: req.definition,
-              terms: req.terms,
-              updated_at: new Date().toISOString(),
-            }
-          : c,
-      );
-    },
-    async deleteConcept(id) {
-      data = data.filter((c) => c.id !== id);
-    },
-    async deleteConcepts(ids) {
-      const idSet = new Set(ids);
-      data = data.filter((c) => !idSet.has(c.id));
-    },
-  };
-}
-
-function SimulatedTermsPage() {
-  const [handle, setHandle] = useState<string | null>(null);
-  const adapter = handle ? createMockAdapter(SAMPLE_CONCEPTS) : null;
-
-  const resources = [
-    {
-      name: "my-terms",
-      path: "~/.config/kapi/terms/my-terms.db",
-      size: 262144,
-      modified: new Date(Date.now() - 7200000).toISOString(),
-    },
-    {
-      name: "voice-terms",
-      path: "~/.config/kapi/terms/brand-terms.db",
-      size: 131072,
-      modified: new Date(Date.now() - 172800000).toISOString(),
-    },
-  ];
-
-  if (handle && adapter) {
-    return (
-      <div className="p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setHandle(null)}
-              className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
-            >
-              <X size={16} />
-            </button>
-            <h1 className="text-lg font-semibold">my-terms</h1>
-          </div>
-        </div>
-        <TermsBrowser adapter={adapter} />
-      </div>
-    );
-  }
-
-  return (
-    <div className="p-6">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Terms</h1>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm">
-            <FolderOpen size={12} /> Open File...
-          </Button>
-          <Button size="sm">
-            <Plus size={12} /> New Terms
-          </Button>
-        </div>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-        {resources.map((r) => (
-          <ResourceCard
-            key={r.path}
-            name={r.name}
-            path={r.path}
-            size={r.size}
-            modified={r.modified}
-            icon={<BookOpen size={18} />}
-            onClick={() => setHandle("mock-handle")}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-const meta: Meta<typeof SimulatedTermsPage> = {
+/**
+ * Terms: a store's concepts as a list beside a detail pane, with the search at
+ * the top of the list. With no store open, the named stores are listed one row
+ * each.
+ */
+const meta: Meta<typeof TermsPage> = {
   title: "Pages/TermsPage",
-  component: SimulatedTermsPage,
+  component: TermsPage,
   tags: ["autodocs"],
-  parameters: {
-    docs: {
-      description: {
-        component:
-          "Terms browser with resource picker, card-based concept display, multi-locale terms with status badges, and CRUD operations.",
-      },
-    },
-  },
+  parameters: { layout: "fullscreen" },
+  decorators: [
+    (Story) => (
+      <div className="h-screen bg-background">
+        <Story />
+      </div>
+    ),
+  ],
 };
 
 export default meta;
-type Story = StoryObj<typeof SimulatedTermsPage>;
+type Story = StoryObj<typeof TermsPage>;
 
-export const Default: Story = {};
+/** The project's terms, open, with nothing selected yet. */
+export const OpenStore: Story = {
+  render: () => (
+    <TermsPage
+      store={{ name: "Project Terms", source: storyConceptSource(), count: SAMPLE_CONCEPTS.length }}
+    />
+  ),
+};
 
-/**
- * Real component with pre-loaded resources (no Wails API calls).
- */
-export const WithResources: StoryObj<typeof TermsPage> = {
+/** A concept selected: its terms by language, what it replaces, where it came from. */
+export const ConceptSelected: Story = {
+  render: () => (
+    <TermsPage
+      store={{
+        name: "Project Terms",
+        source: storyConceptSource(),
+        count: SAMPLE_CONCEPTS.length,
+        defaultSelected: "c1",
+      }}
+    />
+  ),
+};
+
+/** The same in the dark theme. */
+export const ConceptSelectedDark: Story = {
+  ...ConceptSelected,
+  globals: { theme: "dark" },
+};
+
+/** A store of a thousand concepts: the list reads a page at a time. */
+export const ManyConcepts: Story = {
+  render: () => (
+    <TermsPage
+      store={{
+        name: "Project Terms",
+        source: storyConceptSource(manyConcepts(1000)),
+        count: 1000,
+        defaultSelected: "m0",
+      }}
+    />
+  ),
+};
+
+/** An open store with nothing in it yet. */
+export const EmptyStore: Story = {
+  render: () => (
+    <TermsPage store={{ name: "Project Terms", source: storyConceptSource([]), count: 0 }} />
+  ),
+};
+
+/** No store open: the named stores, one row each. */
+export const WithResources: Story = {
   render: () => (
     <TermsPage
       resources={[
         {
           name: "my-terms",
-          path: "~/.config/kapi/terms/my-terms.db",
+          path: "/stores/terms/my-terms.db",
           size: 262144,
-          modified: new Date(Date.now() - 7200000).toISOString(),
+          modified: "2026-10-14T10:00:00Z",
         },
         {
           name: "voice-terms",
-          path: "~/.config/kapi/terms/brand-terms.db",
+          path: "/stores/terms/voice-terms.db",
           size: 131072,
-          modified: new Date(Date.now() - 172800000).toISOString(),
+          modified: "2026-10-12T10:00:00Z",
         },
       ]}
     />
   ),
 };
 
-/**
- * Real component with empty resources list.
- */
-export const Empty: StoryObj<typeof TermsPage> = {
+/** The store list in the dark theme. */
+export const WithResourcesDark: Story = { ...WithResources, globals: { theme: "dark" } };
+
+/** No named stores to open. */
+export const Empty: Story = {
   render: () => <TermsPage resources={[]} />,
 };
 
-/** Loading state showing skeleton ResourceCards. */
-export const Loading: StoryObj<typeof TermsPage> = {
+/** Loading the named stores. */
+export const Loading: Story = {
   render: () => <TermsPage resources={[]} forceLoading />,
 };
