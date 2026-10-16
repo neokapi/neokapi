@@ -1172,6 +1172,13 @@ func (r *Reader) emitHeading(ctx context.Context, ch chan<- model.PartResult, n 
 		r.blockCounter--
 		return
 	}
+	// A setext heading spans the lines of the paragraph it underlines, and
+	// its hard breaks contribute a bare "\n" the way a paragraph's do, so the
+	// continuation prefix the parser stripped reaches the writer the same way
+	// (#3104). See emitParagraph for why a soft break leaves it unset.
+	if prefix := hardBreakLinePrefix(n, source); prefix != "" {
+		block.Properties[BlockPropLinePrefix] = prefix
+	}
 
 	absStart, _ := fullNodeAbsRange(n, source, baseOffset)
 	lineStart, lineEnd := nodeAbsRange(n, source, baseOffset)

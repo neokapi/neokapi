@@ -278,8 +278,8 @@ func TestTableRowsRideGroups(t *testing.T) {
 // --- Treatment A: markdown-opaque fallback blocks (#928) ---
 
 // TestMarkdownOpaqueFallbackSurfacesBlocks verifies that when a Markdown span
-// fails byte-exact reconstruction (here a setext heading whose second line is
-// indented after a hard break, which the rebuild drops)
+// fails byte-exact reconstruction (here a code span whose closing fence follows
+// a bare carriage return, which the rebuild drops)
 // the span is kept verbatim opaque
 // AND, when the flag is on, the prose the markdown sub-reader already parsed
 // is surfaced as non-translatable
@@ -287,11 +287,11 @@ func TestTableRowsRideGroups(t *testing.T) {
 // only the opaque Data is emitted (identical pre-#928 part stream). Both
 // directions round-trip byte-for-byte.
 func TestMarkdownOpaqueFallbackSurfacesBlocks(t *testing.T) {
-	// A setext heading whose second line is indented after a hard break: the
-	// rebuild drops the indent, so the markdown reader does not reconstruct
-	// the span byte-for-byte and the opaque fallback takes over. The same
-	// shape is divergingSrc in opaque_diagnostic_test.go.
-	src := []byte("line one\\\n  line two\n===\n")
+	// A code span whose closing fence follows a bare carriage return on the
+	// next line: the rebuild drops the "\r", so the markdown reader does not
+	// reconstruct the span byte-for-byte and the opaque fallback takes over.
+	// The same shape is divergingSrc in opaque_diagnostic_test.go.
+	src := []byte(divergingSrc)
 
 	// Flag ON: opaque Data + a non-translatable block carrying the prose.
 	onParts, onStore := readPartsExtract(t, src, true)
