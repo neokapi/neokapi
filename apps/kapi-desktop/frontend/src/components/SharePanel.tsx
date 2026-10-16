@@ -539,8 +539,14 @@ function BowrainCard({ sharing }: { sharing: ProjectSharing }) {
         </ShareSentence>
         <Actions>
           <Button size="sm" variant="outline" asChild>
-            <a href={BOWRAIN_ABOUT_URL} data-slot="share-about-bowrain">
+            <a
+              href={BOWRAIN_ABOUT_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-slot="share-about-bowrain"
+            >
               About Bowrain
+              <ExternalLink size={13} aria-hidden />
             </a>
           </Button>
         </Actions>
