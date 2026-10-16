@@ -17,7 +17,7 @@ import { ScrollArea } from "./scroll-area";
  * The list is a listbox whose selection follows focus. Arrow keys, `j` and `k`,
  * Home and End move the selection while the list has focus, and the list names
  * the selected row through `aria-activedescendant`, so focus stays on the list
- * and the rows are not tab stops. `useListNavigation` is the same model for a
+ * and Tab leaves it in one step. `useListNavigation` is the same model for a
  * page that moves the selection from elsewhere.
  *
  *     <ListDetail
@@ -216,7 +216,7 @@ export function ListDetailGroup({
   className,
   ...props
 }: ListDetailGroupProps) {
-  // The group is named by its label alone; the count is drawn, not read.
+  // The group is named by its label alone, so its name does not run into the count.
   const labelId = React.useId();
   const header = (
     <div

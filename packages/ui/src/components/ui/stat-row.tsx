@@ -14,9 +14,9 @@ import { SimpleTooltip } from "./tooltip";
  * label sits under it at the caption step in the muted ink.
  *
  * `warning` is for the one count that waits for a person. `muted` is for a
- * count that is context rather than news. A zero is drawn as `0`: a count
- * that drops out of the row when it reaches zero reads as a row that changed
- * shape, so a caller that means to hide one omits the item.
+ * count that sets context. A zero is drawn as `0`: a count that drops out of
+ * the row when it reaches zero reads as a row that changed shape, so a caller
+ * that means to hide one omits the item.
  *
  * Each count is read as one phrase ("4 projects"), in the order the active
  * language puts a number and its noun.
@@ -29,7 +29,10 @@ export type StatTone = "default" | "warning" | "muted";
 export interface StatItem {
   /** The count. Formatted for the UI language. */
   value: number;
-  /** What it counts, already in the form that agrees with the value ("1 project"). */
+  /**
+   * What it counts, in the UI language and in the form that agrees with the
+   * value: the caller passes it through `t()` or a plural.
+   */
   label: string;
   /** `warning` for the one count that needs a person. */
   tone?: StatTone;
@@ -81,11 +84,12 @@ export function StatRow({ items, className, ...props }: StatRowProps) {
 }
 
 function Stat({ item }: { item: StatItem }) {
+  const { label, hint } = item;
   const tone = item.tone ?? "default";
   const value = formatCount(item.value);
   const phrase = t("{value} {label}", "a count and what it counts, e.g. 4 projects", {
     value,
-    label: item.label,
+    label,
   });
 
   // The phrase is what assistive technology reads; the drawn value and label
@@ -97,7 +101,7 @@ function Stat({ item }: { item: StatItem }) {
         <span className={cn("text-xl leading-tight font-semibold tabular-nums", TONE_CLASS[tone])}>
           {value}
         </span>
-        <span className="text-[11px] text-muted-foreground">{item.label}</span>
+        <span className="text-[11px] text-muted-foreground">{label}</span>
       </span>
     </>
   );
@@ -110,7 +114,7 @@ function Stat({ item }: { item: StatItem }) {
     >
       {body}
     </button>
-  ) : item.hint ? (
+  ) : hint ? (
     // A count with a hint takes focus, so the hint is reachable from the
     // keyboard as well as on hover.
     <span
@@ -123,8 +127,8 @@ function Stat({ item }: { item: StatItem }) {
 
   return (
     <li data-slot="stat" data-tone={tone}>
-      {focusable && item.hint ? (
-        <SimpleTooltip content={item.hint}>{focusable}</SimpleTooltip>
+      {focusable && hint ? (
+        <SimpleTooltip content={hint}>{focusable}</SimpleTooltip>
       ) : (
         (focusable ?? body)
       )}

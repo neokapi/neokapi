@@ -156,7 +156,7 @@ export interface ActorMarkProps extends Omit<React.ComponentProps<"span">, "chil
   size?: ActorMarkSize;
   /**
    * The name is printed beside the mark already: hide the mark from assistive
-   * technology and drop the tooltip, so the name is not read twice.
+   * technology and drop the tooltip, so the name is read once.
    */
   decorative?: boolean;
 }

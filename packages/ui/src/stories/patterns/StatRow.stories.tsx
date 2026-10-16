@@ -5,8 +5,8 @@ import type { StatItem } from "../../components/ui/stat-row";
 
 /**
  * A row of labelled counts, the second region of an overview page. Each
- * number is a count with a label rather than a clause in a sentence, and the
- * one count that waits for a person takes the warning ink.
+ * number is a count with a label, and the one count that waits for a person
+ * takes the warning ink.
  */
 const meta: Meta<typeof StatRow> = {
   title: "Patterns/StatRow",
@@ -64,7 +64,7 @@ export const WithAWarningCount: Story = {
   ),
 };
 
-/** Many counts in a narrow pane wrap onto a second line rather than squeezing. */
+/** Many counts in a narrow pane wrap onto further lines. */
 export const ManyOnANarrowPane: Story = {
   name: "Many on a narrow pane",
   render: () => (
