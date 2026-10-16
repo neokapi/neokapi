@@ -173,6 +173,7 @@ const ISO_DESKTOP = path.join(ISO_BASE, "desktop");
 // resetHome keeps it between the two passes.
 const ISO_DATA_PARENT = "Library";
 const ISO_DATA = path.join(ISO_HOME, ISO_DATA_PARENT, "Application Support", "kapi");
+const ISO_XDG_DATA = path.join(ISO_BASE, "xdg-data");
 const ICU_PKGCONFIG = "/opt/homebrew/opt/icu4c/lib/pkgconfig";
 // The wbridge is built from source (no release ldflags), so core/version.Version
 // defaults to "dev". The plugin registry filters by min_kapi_version (okapi-bridge
@@ -334,6 +335,9 @@ function goEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
     KAPI_HOME_DIR: ISO_HOME,
     KAPI_DESKTOP_CONFIG_DIR: ISO_DESKTOP,
     KAPI_DATA_DIR: ISO_DATA,
+    // KAPI_DATA_DIR wins over XDG_DATA_HOME for the workspace; this keeps the
+    // user plugin root and anything else kapi derives from it isolated too.
+    XDG_DATA_HOME: ISO_XDG_DATA,
     // Discover plugins ONLY from the isolated config dir — never the developer's
     // or the machine's globally-installed plugins (so the recorded plugin list
     // is just what the demo installs). Named explicitly rather than relying on
@@ -1394,7 +1398,6 @@ function recordLiveNote(): void {
   execFileSync(kapi, ["context", "note", ...LIVE_NOTE, "-p", recipe], {
     env: {
       ...goEnv(),
-      XDG_DATA_HOME: path.join(ISO_BASE, "xdg-data"),
       XDG_CACHE_HOME: path.join(ISO_BASE, "xdg-cache"),
       KAPI_ACTOR: "agent",
       KAPI_AGENT_NAME: "claude-code",
