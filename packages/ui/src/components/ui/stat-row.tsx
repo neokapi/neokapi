@@ -66,7 +66,9 @@ function formatCount(value: number): string {
 /** A row of labelled counts that wraps on a narrow pane. */
 export function StatRow({ items, className, ...props }: StatRowProps) {
   return (
+    // An unstyled list loses its role in Safari, so it is spelt out.
     <ul
+      role="list"
       data-slot="stat-row"
       className={cn("flex flex-wrap items-start gap-x-7 gap-y-3", className)}
       {...props}

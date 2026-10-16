@@ -216,10 +216,10 @@ export function ListDetailGroup({
   className,
   ...props
 }: ListDetailGroupProps) {
-  const headerId = React.useId();
+  // The group is named by its label alone; the count is drawn, not read.
+  const labelId = React.useId();
   const header = (
     <div
-      id={headerId}
       data-slot="list-detail-group"
       className={cn(
         "sticky top-0 z-10 -mx-2 flex items-baseline justify-between gap-2 bg-background px-4 pt-2.5 pb-1 text-[11px] font-semibold text-muted-foreground",
@@ -227,7 +227,9 @@ export function ListDetailGroup({
       )}
       {...(children === undefined ? props : {})}
     >
-      <span className="min-w-0 truncate">{label}</span>
+      <span id={labelId} className="min-w-0 truncate">
+        {label}
+      </span>
       {count !== undefined && <span className="shrink-0 tabular-nums">{count}</span>}
     </div>
   );
@@ -235,7 +237,7 @@ export function ListDetailGroup({
   return (
     <div
       role="group"
-      aria-labelledby={headerId}
+      aria-labelledby={labelId}
       className={cn("flex flex-col gap-px", className)}
       {...props}
     >
