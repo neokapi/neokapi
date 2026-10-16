@@ -133,3 +133,16 @@ appears once per page and never as a caption under a section.
 - Empty states use `EmptyState` with one action.
 - Stories cover empty, one item, many items and long content, in light and
   dark.
+
+## Components
+
+- **`StatRow`** draws the overview's labelled counts in a row, with the warning
+  ink for the one count that needs a person.
+- **`ActorMark`** names who did something with two letters and a hue for each
+  assistant host, and a neutral mark for a person or a sync.
+- **`KindIcon`** marks what kind of thing a digest row is: a name, a word, a
+  note, wording in another language, a disagreement, an established rule or
+  drift.
+- **`ListDetail`** is the list-and-detail shape: a keyboard-driven list of
+  one-line rows, grouped under sticky headers, beside a detail pane whose
+  toolbar holds the item's actions.
