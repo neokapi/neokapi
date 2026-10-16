@@ -170,7 +170,10 @@ writes:
   differs from the root's: the rules the root does not state, its voice when it
   is not the root's, the **Keep as it is** lines (a root rule that does not hold
   there, and every rule held elsewhere), and the `kapi check` line. A folder
-  holding files at several points gets a heading per pattern. A folder whose
+  holding files at several points gets a heading per pattern, and a rule that
+  holds at any of those points is written under its pattern and never also
+  kept as it is under another: the folder's file says one thing about a
+  wording. A folder whose
   section would repeat the nearest folder above it with rules of its own gets
   no file, because an agent loads the files of every folder above the one it
   works in.

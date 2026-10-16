@@ -319,7 +319,14 @@ func (a *App) planRulesFiles(cmd Command, root string, proj *project.KapiProject
 	}
 	plan.root = rulesSection{Voice: base.voice, Rules: base.rules}
 
-	byDir := map[string][]rulesSection{}
+	// The answer at each point a folder holds files at. A folder's sections
+	// are decided together, since what one point keeps as it is depends on
+	// what the folder's other points write.
+	type placeAnswer struct {
+		place rulePlace
+		ans   rulesPointAnswer
+	}
+	byDir := map[string][]placeAnswer{}
 	seen := map[string]map[string]bool{}
 	for _, place := range a.rulePlaces(proj, root) {
 		if place.Dir != "" {
@@ -339,9 +346,7 @@ func (a *App) planRulesFiles(cmd Command, root string, proj *project.KapiProject
 		if aerr != nil {
 			return plan, aerr
 		}
-		section := deltaSection(base, ans)
-		section.Pattern = place.Pattern
-		byDir[place.Dir] = append(byDir[place.Dir], section)
+		byDir[place.Dir] = append(byDir[place.Dir], placeAnswer{place: place, ans: ans})
 	}
 
 	dirs := make([]string, 0, len(byDir))
@@ -350,8 +355,16 @@ func (a *App) planRulesFiles(cmd Command, root string, proj *project.KapiProject
 	}
 	sort.Strings(dirs)
 	for _, dir := range dirs {
+		folder := map[string]bool{}
+		for _, pa := range byDir[dir] {
+			for _, r := range pa.ans.rules {
+				folder[wordingKey(r.Say, r.Locale)] = true
+			}
+		}
 		var sections []rulesSection
-		for _, s := range byDir[dir] {
+		for _, pa := range byDir[dir] {
+			s := deltaSection(base, pa.ans, folder)
+			s.Pattern = pa.place.Pattern
 			if !s.empty() && !slices.ContainsFunc(sections, func(o rulesSection) bool { return sameSection(o, s) }) {
 				sections = append(sections, s)
 			}
@@ -610,7 +623,12 @@ func orderRules(rules []ContextRule) []ContextRule {
 // root does not state, the root's rules that do not hold here as wording to
 // keep, the rules held elsewhere that leave a wording as it is here, and the
 // voice when it is not the root's.
-func deltaSection(base, here rulesPointAnswer) rulesSection {
+//
+// folder holds the wordingKey of every rule in force at any point of the
+// place's folder. A rule the folder holds for some of its files is written
+// in the folder's file, so the folder never also keeps the wording that rule
+// renames: an agent reading one file for the folder cannot be told both.
+func deltaSection(base, here rulesPointAnswer, folder map[string]bool) rulesSection {
 	var s rulesSection
 	baseKeys := map[string]bool{}
 	for _, r := range base.rules {
@@ -628,7 +646,7 @@ func deltaSection(base, here rulesPointAnswer) rulesSection {
 		}
 	}
 	for _, r := range base.rules {
-		if hereKeys[ruleKey(r)] || r.Say == "" || len(r.Not) == 0 || mentioned[fold(r.Say)] {
+		if hereKeys[ruleKey(r)] || folder[wordingKey(r.Say, r.Locale)] || r.Say == "" || len(r.Not) == 0 || mentioned[fold(r.Say)] {
 			continue
 		}
 		var keep []string
@@ -641,7 +659,12 @@ func deltaSection(base, here rulesPointAnswer) rulesSection {
 			s.Keep = append(s.Keep, ContextElsewhere{Keep: keep, Instead: r.Say, HeldIn: []string{"the rest of the project"}, Locale: r.Locale})
 		}
 	}
-	s.Keep = mergeKeep(append(s.Keep, here.elsewhere...))
+	for _, e := range here.elsewhere {
+		if !folder[wordingKey(e.Instead, e.Locale)] {
+			s.Keep = append(s.Keep, e)
+		}
+	}
+	s.Keep = mergeKeep(s.Keep)
 	switch {
 	case here.voice != "" && here.voice != base.voice:
 		s.Voice = here.voice
@@ -669,6 +692,12 @@ func mergeKeep(in []ContextElsewhere) []ContextElsewhere {
 		out = append(out, e)
 	}
 	return out
+}
+
+// wordingKey identifies a rule by the wording it asks for and the language it
+// is stated in, which is what a wording to keep names as Instead.
+func wordingKey(say, locale string) string {
+	return fold(say) + "|" + locale
 }
 
 // ruleKey identifies a rule by its wordings.
