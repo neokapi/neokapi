@@ -5,6 +5,7 @@ import { VoiceDashboardView } from "./VoiceDashboardView";
 import { voiceHubOverrides } from "../../stories/voiceHubFixtures";
 import { createProvidersDecorator } from "../../stories/decorators";
 import type { ApiAdapter } from "../../api/adapter";
+import type { CandidateRule } from "../../voice/types";
 
 // Compliance is project-scoped and not part of the shared brand fixtures, so the
 // stories layer a couple of projects with brand-check history on top.
@@ -92,7 +93,59 @@ const rollup = {
   offset: 0,
 };
 
+// What each profile's review lists: a phrasing the team corrected two ways and
+// two suggestions on the core voice, one approved rule on the support voice.
+const candidatesByProfile: Record<string, CandidateRule[]> = {
+  "vp-1": [
+    {
+      term: "log in",
+      replacement: "sign in",
+      correction_count: 5,
+      dimension: "vocabulary",
+      status: "pending",
+    },
+    {
+      term: "log in",
+      replacement: "log on",
+      correction_count: 3,
+      dimension: "vocabulary",
+      status: "pending",
+    },
+    {
+      term: "utilize",
+      replacement: "use",
+      correction_count: 7,
+      dimension: "vocabulary",
+      status: "pending",
+    },
+    {
+      term: "Dear valued customer",
+      replacement: "Hello",
+      correction_count: 3,
+      dimension: "tone",
+      status: "pending",
+    },
+  ],
+  "vp-2": [
+    {
+      term: "Globex",
+      replacement: "",
+      correction_count: 5,
+      dimension: "vocabulary",
+      status: "approved",
+    },
+    {
+      term: "synergy",
+      replacement: "teamwork",
+      correction_count: 4,
+      dimension: "vocabulary",
+      status: "pending",
+    },
+  ],
+};
+
 const complianceOverrides: Partial<ApiAdapter> = {
+  listVoiceCandidates: async (_ws, profileId) => candidatesByProfile[profileId] ?? [],
   listProjects: async () => projects as never,
   getVoiceScores: async () => storedScores as never,
   getVoiceTrends: async () => trends as never,
@@ -141,6 +194,11 @@ const meta: Meta<typeof VoiceDashboardView> = {
     onViewConcepts: fn(),
     onViewVoice: fn(),
     onOpenConcept: fn(),
+    onOpenProject: fn(),
+    onOpenReview: fn(),
+    onViewActivity: fn(),
+    // Stories on one docs page would all answer the same key.
+    keyboard: false,
   },
   decorators: [
     (Story) => (
@@ -154,10 +212,58 @@ const meta: Meta<typeof VoiceDashboardView> = {
 export default meta;
 type Story = StoryObj<typeof VoiceDashboardView>;
 
+/** Counts, What's new with change-sets and suggested rules, the projects, then the rest. */
 export const Default: Story = {
   decorators: [populated],
+  globals: { theme: "light" },
 };
 
+export const DefaultDark: Story = {
+  decorators: [populated],
+  globals: { theme: "dark" },
+};
+
+/** Nothing waits: no change-set in review and no suggested rule. */
+export const NothingWaits: Story = {
+  decorators: [
+    createProvidersDecorator(undefined, {
+      ...voiceHubOverrides,
+      ...complianceOverrides,
+      listChangesets: async () => [],
+      getChangesetCounts: async () => ({ total: 0, by_status: {} }),
+      listVoiceCandidates: async () => [],
+    }),
+  ],
+  globals: { theme: "light" },
+};
+
+/** Long project, profile and change-set names truncate on their rows. */
+export const LongContent: Story = {
+  decorators: [
+    createProvidersDecorator(undefined, {
+      ...voiceHubOverrides,
+      ...complianceOverrides,
+      getVoiceRollup: async () =>
+        ({
+          ...rollup,
+          projects: rollup.projects.map((p) => ({
+            ...p,
+            project_name: `${p.project_name} for the northern European storefronts and their help centre`,
+            profile_name: p.profile_name && `${p.profile_name} for customer support and sales`,
+          })),
+        }) as never,
+      listVoiceProfiles: async () =>
+        profiles.map((p) => ({
+          ...p,
+          name: `${p.name} for every customer-facing channel`,
+        })) as never,
+    }),
+  ],
+  globals: { theme: "light" },
+};
+
+/** A workspace with nothing in it yet. */
 export const Empty: Story = {
   decorators: [empty],
+  globals: { theme: "light" },
 };

@@ -25,7 +25,7 @@ import {
 } from "@neokapi/ui-primitives";
 import { ErrorNotice } from "../errors";
 import type { CandidateRule } from "./types";
-import { candidateKind, rowCorrections, type CandidateRow } from "./candidateRows";
+import { dimensionKind, type CandidateRow } from "./candidateRows";
 import { CandidateSentence, ConflictQuestion } from "./CandidateRule";
 
 /** A rule's form being changed before it is promoted: the row, the form it started from, and what is typed. */
@@ -181,7 +181,7 @@ function CandidateRuleDetail({
         </Fact>
         <Fact label={<>Kind</>}>
           <span className="inline-flex items-center gap-1.5">
-            <KindIcon kind={candidateKind(row)} decorative />
+            <KindIcon kind={dimensionKind(candidate.dimension)} decorative />
             {dimensionLabel(candidate.dimension)}
           </span>
         </Fact>
@@ -307,12 +307,11 @@ function ConflictDetail({
           })}
         </div>
       </div>
-      <dl className={FACTS_CLASS}>
-        <Fact label={<>Corrections</>}>
-          <span className="tabular-nums">{rowCorrections(row)}</span>
-        </Fact>
-        <ConceptFact candidate={row.candidate} onOpenConcept={onOpenConcept} />
-      </dl>
+      {row.candidate.concept_id && (
+        <dl className={FACTS_CLASS}>
+          <ConceptFact candidate={row.candidate} onOpenConcept={onOpenConcept} />
+        </dl>
+      )}
     </ListDetailPane>
   );
 }

@@ -185,8 +185,9 @@ export function VoiceDashboardView({
 
         <ComplianceOverview />
 
-        <div className="grid gap-8 lg:grid-cols-3">
-          <VocabularyByStatus />
+        <VocabularyByStatus />
+
+        <div className="grid gap-8 lg:grid-cols-2">
           <LocaleCoveragePanel />
           <MarketsPanel />
         </div>
