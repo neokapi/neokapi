@@ -20,17 +20,13 @@ describe("the workspace numbers", () => {
   it("states the rules, the projects and the suggestions in one sentence", () => {
     render(<WorkspaceNumbers standings={SEVERAL} />);
     expect(
-      screen.getByText(
-        "kapi knows 61 rules across 4 projects. 11 suggestions are advising.",
-      ),
+      screen.getByText("kapi knows 61 rules across 4 projects. 11 suggestions are advising."),
     ).toBeInTheDocument();
   });
 
   it("says who is working where while a session is working", () => {
     render(<WorkspaceNumbers standings={ONE_WORKING} />);
-    expect(
-      screen.getByText("claude-code is working in Acme Help Center now."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("claude-code is working in Acme Help Center now.")).toBeInTheDocument();
   });
 
   it("says nothing is recorded when no project holds a rule or a suggestion", () => {
@@ -64,11 +60,7 @@ describe("what is new across the workspace", () => {
 
   it("reads Decide for a project that needs a person and Review otherwise", () => {
     render(<WhatsNew standings={SEVERAL} onOpen={vi.fn()} />);
-    expect(all("whats-new-open").map((b) => b.textContent)).toEqual([
-      "Review",
-      "Decide",
-      "Review",
-    ]);
+    expect(all("whats-new-open").map((b) => b.textContent)).toEqual(["Review", "Decide", "Review"]);
   });
 
   it("pulses the dot only while the session is working", () => {

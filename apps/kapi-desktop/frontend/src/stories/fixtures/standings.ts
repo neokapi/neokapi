@@ -188,4 +188,9 @@ export function workspaceOf(projects: WorkspaceProject[], readOnly = false): Wor
 export const ONE_PROJECT_ROWS: WorkspaceProject[] = [ACME_ROW];
 
 /** The rows of the several-project home. */
-export const SEVERAL_ROWS: WorkspaceProject[] = [ACME_ROW, KAPIMART_ROW, FIELD_GUIDE_ROW, HANDBOOK_ROW];
+export const SEVERAL_ROWS: WorkspaceProject[] = [
+  ACME_ROW,
+  KAPIMART_ROW,
+  FIELD_GUIDE_ROW,
+  HANDBOOK_ROW,
+];

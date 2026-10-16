@@ -2,7 +2,12 @@ import { render, screen } from "./testUtils";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi } from "vitest";
 import { AppHome } from "../components/AppHome";
-import { ONE_PROJECT_ROWS, SEVERAL_ROWS, WORKSPACE_RULES, workspaceOf } from "../stories/fixtures/standings";
+import {
+  ONE_PROJECT_ROWS,
+  SEVERAL_ROWS,
+  WORKSPACE_RULES,
+  workspaceOf,
+} from "../stories/fixtures/standings";
 import type { WorkspaceHome, WorkspaceProject } from "../types/api";
 
 const emptyWorkspace: WorkspaceHome = {
@@ -150,9 +155,7 @@ describe("AppHome", () => {
   it("starts and opens projects from small buttons beside the heading", async () => {
     const onNewProject = vi.fn();
     const onOpenProject = vi.fn();
-    render(
-      <AppHome {...defaultProps} onNewProject={onNewProject} onOpenProject={onOpenProject} />,
-    );
+    render(<AppHome {...defaultProps} onNewProject={onNewProject} onOpenProject={onOpenProject} />);
     await userEvent.click(screen.getByRole("button", { name: "New project" }));
     await userEvent.click(screen.getByRole("button", { name: "Open a folder" }));
     expect(onNewProject).toHaveBeenCalled();

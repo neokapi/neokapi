@@ -6,7 +6,9 @@ import { api } from "../hooks/useApi";
 import { landingView, useTabManager } from "../hooks/useTabManager";
 import { ErrorProvider } from "../components/ErrorBanner";
 
-const wrapper = ({ children }: { children: ReactNode }) => <ErrorProvider>{children}</ErrorProvider>;
+const wrapper = ({ children }: { children: ReactNode }) => (
+  <ErrorProvider>{children}</ErrorProvider>
+);
 
 const TAB = { id: "tab-1", name: "KapiMart", path: "/fakehome/src/kapimart/kapi.yaml" };
 
