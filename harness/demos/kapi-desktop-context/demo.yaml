@@ -85,7 +85,6 @@ narration:
     kind: desktop
     beat: assistant
     caption: The brief for one file carries your rule.
-    highlight: { selector: '[data-slot="assistant-brief"] li:has-text("say shopping cart instead")' }
     text: >-
       Assistant shows what an assistant reads. For the store's interface
       strings, the brief marks basket as discouraged and says shopping cart
