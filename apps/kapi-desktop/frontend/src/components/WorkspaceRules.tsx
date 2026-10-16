@@ -1,6 +1,7 @@
 // The rules that hold in every project: each one a person applied to the
 // whole workspace from a project's review. One row per rule, the sentence and
-// then who decided it, where and when.
+// then who decided it, where and when. With no such rule the section is not
+// drawn at all.
 
 import { useQuery } from "@tanstack/react-query";
 import { t } from "@neokapi/i18n-react/runtime";
@@ -27,6 +28,8 @@ export function WorkspaceRules({ rules: given }: WorkspaceRulesProps) {
   useInvalidateOnEvent("workspace:changed", [qk.workspaceRules()]);
 
   const rules = given ?? query.data ?? null;
+  const failed = !!query.error && !given;
+  if (!failed && (rules === null || rules.length === 0)) return null;
 
   return (
     <section data-slot="workspace-rules" aria-labelledby="workspace-rules-heading">
@@ -34,13 +37,8 @@ export function WorkspaceRules({ rules: given }: WorkspaceRulesProps) {
         <SectionHeading>Holds in every project</SectionHeading>
       </div>
       <div className="mt-2">
-        {query.error && !given ? (
+        {failed || !rules ? (
           <ErrorNotice error={query.error} title="The workspace's rules could not be read" />
-        ) : rules === null ? null : rules.length === 0 ? (
-          <p data-slot="workspace-rules-empty" className="text-sm text-muted-foreground">
-            Nothing yet. A rule you apply more widely in a project&apos;s review holds here, in
-            every project you work on.
-          </p>
         ) : (
           <div className="divide-y divide-border/60">
             {rules.map((rule) => (
