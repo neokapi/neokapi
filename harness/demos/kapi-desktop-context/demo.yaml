@@ -100,8 +100,8 @@ narration:
     text: >-
       Back on the home, a note arrives from a terminal off screen, recorded as
       claude-code: the docs say sandbox, not test mode. Within a second the
-      KapiMart row says claude-code noticed a word, and the home says it is
-      working there now.
+      KapiMart row carries claude-code's mark and a chip for one word, and the
+      home says it is working there now.
 
   - id: share
     kind: desktop
