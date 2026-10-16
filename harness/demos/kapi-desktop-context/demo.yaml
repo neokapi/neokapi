@@ -16,8 +16,9 @@ aspects:
   - How far the context reaches
 
 # keep, change, choose and assistant carry no crop: the walk crops each to
-# what it marks during the beat (beatSpan in record-desktop.ts), the row acted
-# on and the rule it became, or the file picker and the kept rule's line.
+# what it marks during the beat (beatSpan in record-desktop.ts): the row acted
+# on in What's new's list, the field or the sides in its detail pane, and the
+# rule it became; or the file picker and the kept rule's line.
 #
 # The sample arrives with two assistant sessions (claude-code, then codex),
 # seeded by the desktop backend when the sample is created. The walk creates
@@ -48,7 +49,7 @@ narration:
     kind: desktop
     beat: whats-new
     caption: The disagreement comes first.
-    crop: { selector: ['[data-slot="context-section-command"]', '[data-slot="digest-conflicts"]'] }
+    crop: { selector: ['[data-slot="list-detail-list"]', '[data-slot="list-detail-toolbar"]', '[data-slot="digest-conflict-sides"]'] }
     text: >-
       Decide opens the project on What's new, with the disagreement first.
       codex says log in, claude-code says sign in, and each side quotes the
@@ -60,7 +61,7 @@ narration:
     caption: One key keeps a suggestion.
     text: >-
       claude-code noticed that the product name is written as one word,
-      KapiMart. Pressing a keeps the suggestion, and it moves up to Established
+      KapiMart. Pressing a keeps the suggestion, and it moves to Established
       as a rule, kept by you.
 
   - id: change
