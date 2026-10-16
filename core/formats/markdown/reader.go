@@ -3448,12 +3448,16 @@ func codeSpanFences(n *ast.CodeSpan, source []byte) (string, string) {
 	// code span closing on the next line of a blockquote left the "> " to
 	// neither the content nor the fence, and the rebuilt second line opened
 	// with no marker (#2525).
+	//
+	// The prefix comes before the padding space: taking one space as padding
+	// first left the walk standing after a space rather than a line ending,
+	// so a fence indented by two or more spaces, or by a bare carriage return,
+	// was never reached and the span fell back to a bare backtick (#3105).
 	closeStart := contentEnd
-	closeEnd := contentEnd
+	closeEnd := forwardOverLinePrefix(source, contentEnd)
 	if closeEnd < len(source) && source[closeEnd] == ' ' {
 		closeEnd++
 	}
-	closeEnd = forwardOverLinePrefix(source, closeEnd)
 	closeEnd = forwardOverContinuationPrefix(source, closeEnd)
 	if closeEnd < len(source) && source[closeEnd] == ' ' {
 		closeEnd++
@@ -3498,15 +3502,15 @@ func backOverContinuationPrefix(source []byte, i int) int {
 // caller is ALREADY on — the indentation and blockquote markers that follow a
 // line ending the content itself carried. It returns i unchanged when the byte
 // before i is not a line ending, so it never eats a marker's own padding.
+//
+// A carriage return after the line ending is a line ending of its own to the
+// parser, which skips it with the indentation (see softBreakContinuation), so
+// the walk takes it the same way.
 func forwardOverLinePrefix(source []byte, i int) int {
 	if i <= 0 || i > len(source) || source[i-1] != '\n' {
 		return i
 	}
-	j := i
-	for j < len(source) && (source[j] == ' ' || source[j] == '\t' || source[j] == '>') {
-		j++
-	}
-	return j
+	return skipLinePrefix(source, i)
 }
 
 func forwardOverContinuationPrefix(source []byte, i int) int {
@@ -3515,13 +3519,20 @@ func forwardOverContinuationPrefix(source []byte, i int) int {
 		j++
 	}
 	if j < len(source) && source[j] == '\n' {
-		j++
-		for j < len(source) && (source[j] == ' ' || source[j] == '\t' || source[j] == '>') {
-			j++
-		}
-		return j
+		return skipLinePrefix(source, j+1)
 	}
 	return i
+}
+
+// skipLinePrefix steps from i, the first byte of a line, over the bytes the
+// parser strips before a continuation line's content: indentation, blockquote
+// markers and bare carriage returns.
+func skipLinePrefix(source []byte, i int) int {
+	j := i
+	for j < len(source) && (source[j] == ' ' || source[j] == '\t' || source[j] == '\r' || source[j] == '>') {
+		j++
+	}
+	return j
 }
 
 // linkImageAttrs builds the format-neutral attribute map carried on a link or
