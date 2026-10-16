@@ -267,7 +267,7 @@ const SAMPLE_CHECKOUT = digestItem({
     term: { term: "check-out", replacement: "checkout", forms: ["check out"] },
     text: "Checkout is one word, as a noun and as an adjective.",
   },
-  quote: { path: "web/en/faq.md", quote: "offer localized checkout experiences" },
+  quote: { path: "web/en/faq.md", quote: "checkout flow into any website or mobile application." },
   collection: "Website",
   noticed_by: CLAUDE_CODE,
   scope: WEB,
