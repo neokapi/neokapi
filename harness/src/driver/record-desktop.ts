@@ -1602,20 +1602,23 @@ async function contextWalk(c: WalkCtx): Promise<void> {
   await page.waitForTimeout(1000);
   // The crop runs from the brief's tab and the file picker down to the kept
   // rule's line in the brief's terms, which carries no handle of its own.
+  // The brief's tab opens before the beat, so the file is chosen as the
+  // narration names it.
   const briefTab = page.getByTestId("assistant-tab-brief");
   const picker = page.locator('[aria-label="Choose a file"]');
   const keptTerm = page.locator('[data-slot="assistant-brief"] li').filter({ hasText: "say shopping cart instead" });
+  await humanClick(page, briefTab);
+  await page.waitForSelector('[data-slot="assistant-brief"]', { timeout: 10_000 });
+  await page.waitForTimeout(600);
+  await centre(page, page.locator('[data-slot="assistant-brief"]'));
   await beatSpan("assistant", async (mark) => {
-    await humanClick(page, briefTab);
-    await page.waitForSelector('[data-slot="assistant-brief"]', { timeout: 10_000 });
-    await page.waitForTimeout(600);
-    await centre(page, page.locator('[data-slot="assistant-brief"]'));
+    await cue("for", 3.0);
     await humanClick(page, picker);
     await page.waitForTimeout(700);
     await humanClick(page, page.locator('[role="option"]').filter({ hasText: "src/en/store-ui.json" }).first());
     await page.getByTestId("agent-context-text").waitFor({ state: "visible", timeout: 30_000 });
     await keptTerm.first().waitFor({ state: "visible", timeout: 10_000 });
-    await page.waitForTimeout(900);
+    await cue("basket", 5.8);
     await moveTo(page, ...(await centreOf(keptTerm)));
     await mark(briefTab);
     await mark(picker);
