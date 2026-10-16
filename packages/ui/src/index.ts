@@ -374,6 +374,7 @@ export {
 } from "./components/composites/filter-bar";
 export {
   FormatSelect,
+  formatEngine,
   type FormatInfo as FormatSelectInfo,
   type FormatSelectProps,
 } from "./components/composites/format-select";

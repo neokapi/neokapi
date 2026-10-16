@@ -1,8 +1,11 @@
 /**
- * FormatSelect — searchable format selector using Popover + Command (cmdk).
+ * FormatSelect: searchable format selector using Popover + Command (cmdk).
  *
  * The cmdk Command component handles filtering automatically by matching
- * typed text against item content. Groups by source (built-in vs plugin).
+ * typed text against item content. Groups by source (built-in vs plugin). A
+ * format's engine is shown beside its name when it is a plugin's or when
+ * another engine also claims one of its extensions, and such an extension is
+ * marked with "*": for a file with it, the project's engine order decides.
  */
 
 import { useState, useMemo } from "react";
@@ -26,6 +29,10 @@ export interface FormatInfo {
   display_name?: string;
   extensions?: string[];
   source?: string;
+  /** The engine the format belongs to: "native" or a plugin's name. */
+  engine?: string;
+  /** Extensions a format of another engine also claims. */
+  shared_extensions?: string[];
 }
 
 export interface FormatSelectProps {
@@ -42,6 +49,35 @@ function formatDisplayLabel(f: FormatInfo): string {
   const isPlugin = f.source && f.source !== "built-in";
   if (displayName !== f.name || isPlugin) return `${displayName} (${f.name})`;
   return displayName;
+}
+
+/** The engine a format belongs to, as the listing names it. */
+export function formatEngine(f: FormatInfo): string {
+  if (f.engine) return f.engine;
+  if (!f.source || f.source === "built-in") return "native";
+  return f.source;
+}
+
+/** Whether the engine badge is shown: a plugin's format, or a contested extension. */
+function showsEngine(f: FormatInfo): boolean {
+  return formatEngine(f) !== "native" || (f.shared_extensions?.length ?? 0) > 0;
+}
+
+/** The format's extensions, with those another engine also claims marked. */
+function extensionList(f: FormatInfo): string {
+  const shared = new Set((f.shared_extensions ?? []).map((e) => e.toLowerCase()));
+  return (f.extensions ?? []).map((e) => (shared.has(e.toLowerCase()) ? `${e}*` : e)).join(" ");
+}
+
+function EngineBadge({ format }: { format: FormatInfo }) {
+  return (
+    <span
+      className="shrink-0 rounded bg-muted px-1 py-px text-[10px] leading-none text-muted-foreground"
+      title={`Engine: ${formatEngine(format)}`}
+    >
+      {formatEngine(format)}
+    </span>
+  );
 }
 
 /** Searchable format selector with built-in/plugin grouping and file extensions. */
@@ -81,7 +117,10 @@ export function FormatSelect({
             className,
           )}
         >
-          <span className="truncate">{triggerLabel}</span>
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate">{triggerLabel}</span>
+            {selected && showsEngine(selected) && <EngineBadge format={selected} />}
+          </span>
           <div className="flex shrink-0 items-center gap-0.5">
             {selected && (
               <span
@@ -117,10 +156,13 @@ export function FormatSelect({
                     data-checked={f.name === value}
                   >
                     <div className="flex w-full items-start gap-3">
-                      <span className="min-w-0 flex-1 break-words">{f.display_name || f.name}</span>
+                      <span className="flex min-w-0 flex-1 items-center gap-1.5">
+                        <span className="min-w-0 break-words">{f.display_name || f.name}</span>
+                        {showsEngine(f) && <EngineBadge format={f} />}
+                      </span>
                       {f.extensions && f.extensions.length > 0 && (
                         <span className="shrink-0 max-w-[55%] text-right text-[10px] leading-relaxed text-muted-foreground">
-                          {f.extensions.join(" ")}
+                          {extensionList(f)}
                         </span>
                       )}
                     </div>
@@ -142,11 +184,15 @@ export function FormatSelect({
                     data-checked={f.name === value}
                   >
                     <div className="flex w-full items-start gap-3">
-                      <span className="min-w-0 flex-1 break-words">{f.display_name || f.name}</span>
-                      <span className="shrink-0 max-w-[55%] text-right text-[10px] leading-relaxed text-muted-foreground">
-                        {f.source}
-                        {f.extensions?.length ? ` · ${f.extensions.join(" ")}` : ""}
+                      <span className="flex min-w-0 flex-1 items-center gap-1.5">
+                        <span className="min-w-0 break-words">{f.display_name || f.name}</span>
+                        <EngineBadge format={f} />
                       </span>
+                      {f.extensions && f.extensions.length > 0 && (
+                        <span className="shrink-0 max-w-[55%] text-right text-[10px] leading-relaxed text-muted-foreground">
+                          {extensionList(f)}
+                        </span>
+                      )}
                     </div>
                   </CommandItem>
                 ))}

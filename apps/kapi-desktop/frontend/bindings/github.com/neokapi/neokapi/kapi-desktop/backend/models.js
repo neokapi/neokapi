@@ -5115,10 +5115,37 @@ export class FormatInfo {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Source is the registry source: "built-in" or a plugin's name. Engine is
+             * the same provider under the name a person uses: "native" or the plugin.
              * @member
              * @type {string | undefined}
              */
             this["source"] = undefined;
+        }
+        if (!("engine" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["engine"] = "";
+        }
+        if (!("priority" in $$source)) {
+            /**
+             * Priority ranks the format among its engine's formats claiming the same
+             * extension; it never moves a file to another engine.
+             * @member
+             * @type {number}
+             */
+            this["priority"] = 0;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * SharedExtensions lists the extensions a format of another engine also
+             * claims: the ones the engine order decides for a file.
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["shared_extensions"] = undefined;
         }
         if (!("has_schema" in $$source)) {
             /**
@@ -5139,12 +5166,16 @@ export class FormatInfo {
     static createFrom($$source = {}) {
         const $$createField2_0 = $$createType6;
         const $$createField3_0 = $$createType6;
+        const $$createField9_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("extensions" in $$parsedSource) {
             $$parsedSource["extensions"] = $$createField2_0($$parsedSource["extensions"]);
         }
         if ("mime_types" in $$parsedSource) {
             $$parsedSource["mime_types"] = $$createField3_0($$parsedSource["mime_types"]);
+        }
+        if ("shared_extensions" in $$parsedSource) {
+            $$parsedSource["shared_extensions"] = $$createField9_0($$parsedSource["shared_extensions"]);
         }
         return new FormatInfo(/** @type {Partial<FormatInfo>} */($$parsedSource));
     }

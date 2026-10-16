@@ -9,8 +9,14 @@ const sampleFormats: FormatInfo[] = [
   { name: "po", display_name: "Gettext PO", extensions: [".po", ".pot"] },
   { name: "properties", display_name: "Java Properties", extensions: [".properties"] },
   { name: "markdown", display_name: "Markdown", extensions: [".md"] },
-  { name: "html", display_name: "HTML", extensions: [".html", ".htm"] },
-  { name: "xml", display_name: "XML", extensions: [".xml"] },
+  {
+    name: "html",
+    display_name: "HTML",
+    extensions: [".html", ".htm"],
+    engine: "native",
+    shared_extensions: [".html", ".htm"],
+  },
+  { name: "xml", display_name: "XML", extensions: [".xml"], shared_extensions: [".xml"] },
   { name: "csv", display_name: "CSV", extensions: [".csv"] },
   { name: "yaml", display_name: "YAML", extensions: [".yaml", ".yml"] },
   { name: "resx", display_name: "ResX (.NET)", extensions: [".resx"] },
@@ -22,8 +28,16 @@ const sampleFormats: FormatInfo[] = [
     display_name: "HTML (Okapi)",
     extensions: [".html", ".htm"],
     source: "okapi",
+    engine: "okapi",
+    shared_extensions: [".html", ".htm"],
   },
-  { name: "okf_xml", display_name: "XML (Okapi)", extensions: [".xml"], source: "okapi" },
+  {
+    name: "okf_xml",
+    display_name: "XML (Okapi)",
+    extensions: [".xml"],
+    source: "okapi",
+    shared_extensions: [".xml"],
+  },
   { name: "okf_xliff", display_name: "XLIFF (Okapi)", extensions: [".xlf"], source: "okapi" },
   { name: "okf_po", display_name: "PO (Okapi)", extensions: [".po"], source: "okapi" },
   {
@@ -62,7 +76,7 @@ const meta: Meta<typeof FormatSelect> = {
     docs: {
       description: {
         component:
-          "Searchable format selector with built-in/plugin grouping, file extensions, and clear-to-auto-detect. Built on shadcn Combobox.",
+          "Searchable format selector with built-in/plugin grouping, file extensions, and clear-to-auto-detect. A format's engine is shown when it is a plugin's or when another engine also claims one of its extensions (marked *). Built on shadcn Combobox.",
       },
     },
   },

@@ -28,6 +28,11 @@ import {
   LocaleSelect,
   MultiLocaleSelect,
   FormatSelect,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
   ConfirmDeleteButton,
   LocalePill,
   localeLabel,
@@ -59,6 +64,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api, call, type OutputFileInfo } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
 import { FormatConfigDialog, type FormatConfigValue } from "./FormatConfigDialog";
+import { engineFormatFor, engineOf, enginesForFormat } from "../lib/engines";
 import { CollectionPointBadge, CollectionPointFields } from "./CollectionPointFields";
 import type { RecipeGovernance } from "./GovernanceSettings";
 import { TranslationStatusPanel } from "./TranslationStatusPanel";
@@ -222,6 +228,9 @@ function formatSize(bytes: number): string {
 function formatName(f?: FormatSpec): string {
   return f?.name ?? "";
 }
+
+/** The engine choice that leaves a content item to the project's engine order. */
+const AUTO_ENGINE = "__auto__";
 
 /**
  * The single extension a glob targets (e.g. "input/*.json" → ".json"), or
@@ -945,6 +954,22 @@ export function CollectionsPanel({
     // A single explicit format → configure that format on the item. Otherwise the
     // item auto-detects (wildcard) → configure the matched formats project-wide.
     const isWildcard = !fmt;
+    // The engine choice: offered when more than one engine reads the item's
+    // files. Naming an engine pins the item to that engine's format for them;
+    // Auto leaves the file to the project's engine order.
+    const engineBase = fmt || (matchedFormats.length === 1 ? matchedFormats[0] : "");
+    const engineChoiceEngines = engineBase ? enginesForFormat(formats, engineBase) : [];
+    const engineChoice =
+      engineChoiceEngines.length > 1
+        ? {
+            base: engineBase,
+            engines: engineChoiceEngines,
+            value: fmt ? engineOf(formats.find((f) => f.name === fmt) ?? {}) : AUTO_ENGINE,
+            note: fmt
+              ? t("Pinned to {fmt}", { fmt })
+              : t("Read as {fmt} under the project's engine order", { fmt: engineBase }),
+          }
+        : null;
 
     return (
       <div className="space-y-2">
@@ -979,6 +1004,37 @@ export function CollectionsPanel({
             />
           </div>
         </div>
+        {engineChoice && (
+          <div>
+            <Label className="mb-0.5 block text-xs text-muted-foreground">{t("Engine")}</Label>
+            <div className="flex flex-wrap items-center gap-2">
+              <Select
+                value={engineChoice.value}
+                onValueChange={(v) => {
+                  if (v === AUTO_ENGINE) {
+                    onItemChange({ ...item, format: undefined });
+                    return;
+                  }
+                  const name = engineFormatFor(formats, engineChoice.base, v);
+                  if (name) onItemChange({ ...item, format: { name } });
+                }}
+              >
+                <SelectTrigger className="h-7 w-56 text-xs" aria-label={t("Engine")}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={AUTO_ENGINE}>{t("Auto (project order)")}</SelectItem>
+                  {engineChoice.engines.map((e) => (
+                    <SelectItem key={e} value={e}>
+                      {e}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <span className="text-xs text-muted-foreground">{engineChoice.note}</span>
+            </div>
+          </div>
+        )}
         <div>
           <Label className="mb-0.5 block text-xs text-muted-foreground">
             Base{" "}

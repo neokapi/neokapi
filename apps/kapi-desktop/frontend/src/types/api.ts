@@ -45,6 +45,11 @@ export interface ProjectDefaults {
   concurrency?: number;
   parallel_blocks?: number;
   encoding?: string;
+  /**
+   * The format engine preferred for a file whose extension both a built-in
+   * format and a declared plugin's claim: "native" or a plugin's name.
+   */
+  engine?: string;
   formats?: Record<string, FormatDefaults>;
   /** The default flow `kapi up` / Bring up to date converges with. */
   flow?: string;
@@ -64,6 +69,8 @@ export interface FormatDefaults {
   preset?: string;
   config?: Record<string, unknown>;
   priority?: number;
+  /** The engine pinned for the extensions this format claims. */
+  engine?: string;
 }
 
 /**
@@ -233,7 +240,14 @@ export interface FormatInfo {
   mime_types?: string[];
   has_reader: boolean;
   has_writer: boolean;
+  /** The registry source: "built-in" or a plugin's name. */
   source?: string;
+  /** The engine the format belongs to: "native" or a plugin's name. */
+  engine?: string;
+  /** Rank among the engine's own formats claiming the same extension. */
+  priority?: number;
+  /** Extensions a format of another engine also claims. */
+  shared_extensions?: string[];
   has_schema: boolean;
 }
 

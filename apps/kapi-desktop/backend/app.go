@@ -178,6 +178,10 @@ func NewApp() *App {
 	if err := aiCfg.Load(); err != nil {
 		logger.Printf("ai config: %v", err)
 	}
+	// The config's formats.engine is the engine detection prefers when the
+	// recipe names none, here as in the CLI, so a file resolves to the same
+	// format from both.
+	formatReg.SetDefaultEngine(aiCfg.FormatEngine())
 
 	app := &App{
 		formatReg:     formatReg,
@@ -1173,8 +1177,17 @@ type FormatInfo struct {
 	MimeTypes   []string `json:"mime_types,omitempty"`
 	HasReader   bool     `json:"has_reader"`
 	HasWriter   bool     `json:"has_writer"`
-	Source      string   `json:"source,omitempty"`
-	HasSchema   bool     `json:"has_schema"`
+	// Source is the registry source: "built-in" or a plugin's name. Engine is
+	// the same provider under the name a person uses: "native" or the plugin.
+	Source string `json:"source,omitempty"`
+	Engine string `json:"engine"`
+	// Priority ranks the format among its engine's formats claiming the same
+	// extension; it never moves a file to another engine.
+	Priority int `json:"priority"`
+	// SharedExtensions lists the extensions a format of another engine also
+	// claims: the ones the engine order decides for a file.
+	SharedExtensions []string `json:"shared_extensions,omitempty"`
+	HasSchema        bool     `json:"has_schema"`
 }
 
 // ListFormats returns all registered formats with full metadata.
@@ -1191,6 +1204,8 @@ func (a *App) ListFormats() []FormatInfo {
 	}
 
 	t := a.T()
+	engines := a.formatReg.ExtensionEngines()
+	detector := a.formatReg.Detector()
 	var infos []FormatInfo
 	for _, fi := range allInfos {
 		name := string(fi.Name)
@@ -1200,15 +1215,24 @@ func (a *App) ListFormats() []FormatInfo {
 			}
 		}
 		_, hasSchema := a.schemaReg.GetSchema(name)
+		var shared []string
+		for _, ext := range fi.Extensions {
+			if len(engines[strings.ToLower(ext)]) > 1 {
+				shared = append(shared, ext)
+			}
+		}
 		infos = append(infos, FormatInfo{
-			Name:        name,
-			DisplayName: t.T(i18n.Scope("formats."+name+".displayName"), fi.DisplayName),
-			Extensions:  fi.Extensions,
-			MimeTypes:   fi.MimeTypes,
-			HasReader:   fi.HasReader,
-			HasWriter:   fi.HasWriter,
-			Source:      fi.Source,
-			HasSchema:   hasSchema,
+			Name:             name,
+			DisplayName:      t.T(i18n.Scope("formats."+name+".displayName"), fi.DisplayName),
+			Extensions:       fi.Extensions,
+			MimeTypes:        fi.MimeTypes,
+			HasReader:        fi.HasReader,
+			HasWriter:        fi.HasWriter,
+			Source:           fi.Source,
+			Engine:           registry.EngineName(fi.Source),
+			Priority:         detector.Priority(name),
+			SharedExtensions: shared,
+			HasSchema:        hasSchema,
 		})
 	}
 	return infos
