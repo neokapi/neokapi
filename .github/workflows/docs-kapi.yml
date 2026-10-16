@@ -228,7 +228,7 @@ jobs:
             echo "::warning::${STABLE_TAG} is missing assets for at least one platform; the installation page keeps its committed links"
           fi
 
-      - uses: voidzero-dev/setup-vp@v1
+      - uses: voidzero-dev/setup-vp@v1.21.2
         with:
           node-version: "22"
           cache: true
