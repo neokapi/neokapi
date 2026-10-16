@@ -11,6 +11,7 @@
  *   span_type: 'opening'     ↔  PcOpenRun         ({=equiv})
  *   span_type: 'closing'     ↔  PcCloseRun        ({/=equiv})
  *   span_type: 'placeholder' ↔  PlaceholderRun    ({equiv})
+ *   placeholder, type 'sub'  ↔  SubRun            ([equiv], ref in sub_type)
  *   plain text segment       ↔  TextRun
  *
  * The flat-text marker form (`{=equiv}`) is what `flattenRuns` from
@@ -22,14 +23,19 @@
  * See AD #408 / #409.
  */
 
-import type { Run } from "@neokapi/kapi-format";
+import { projectRuns, type ModelRunSpec, type Run } from "@neokapi/kapi-format";
 
-import { parseCodedSegments, segmentsToCodedText, type CodedSegment } from "./codedText";
+import {
+  CHIP_SEGMENTS,
+  parseCodedSegments,
+  segmentsToCodedText,
+  type CodedSegment,
+} from "./codedText";
 import type { SpanInfo } from "../../types/span";
 
 /**
  * Parse `(codedText, spans)` into a Run sequence. Every coded
- * marker becomes one typed Run (PcOpen / PcClose / Placeholder)
+ * marker becomes one typed Run (PcOpen / PcClose / Placeholder / Sub)
  * carrying the corresponding span's `equiv_text` as the run's
  * `equiv` field — that's what `flattenRuns` reads when producing
  * the inline form for ICU strings or `__t`/`__tx` fallbacks.
@@ -40,89 +46,33 @@ export function codedToRuns(codedText: string, spans: SpanInfo[]): Run[] {
 }
 
 /**
- * Inverse of `codedToRuns`. Walks a Run sequence and produces a
- * coded text string + parallel spans array. Plural / select wrapper
- * runs are intentionally rejected (`throw`) — callers should split
- * those into per-form Run sequences before round-tripping, since
- * coded text is a flat single-form representation.
+ * The flat editor's reading of a run: every inline code is a chip, and a
+ * plural or select wrapper is refused, because coded text is a single-form
+ * representation. Callers split a plural into per-form sequences first.
+ */
+const FLAT_SEGMENTS: ModelRunSpec<CodedSegment> = {
+  ...CHIP_SEGMENTS,
+  plural: () => {
+    throw new Error(
+      "runsToCoded: plural/select runs cannot be flattened to coded text. " +
+        "Call runsToCoded on each form's content individually.",
+    );
+  },
+  select: () => {
+    throw new Error(
+      "runsToCoded: plural/select runs cannot be flattened to coded text. " +
+        "Call runsToCoded on each form's content individually.",
+    );
+  },
+};
+
+/**
+ * Inverse of `codedToRuns`. Projects a Run sequence through
+ * {@link FLAT_SEGMENTS} into a coded text string + parallel spans array.
+ * Plural / select wrapper runs throw.
  */
 export function runsToCoded(runs: readonly Run[]): { codedText: string; spans: SpanInfo[] } {
-  const segments: CodedSegment[] = [];
-  for (const r of runs) {
-    if ("text" in r) {
-      segments.push({ type: "text", value: r.text });
-      continue;
-    }
-    if ("ph" in r) {
-      segments.push({
-        type: "tag",
-        spanInfo: {
-          span_type: "placeholder",
-          type: r.ph.type,
-          sub_type: r.ph.subType,
-          id: r.ph.id,
-          data: r.ph.data,
-          equiv_text: r.ph.equiv,
-          display_text: r.ph.disp,
-        },
-      });
-      continue;
-    }
-    if ("pcOpen" in r) {
-      segments.push({
-        type: "tag",
-        spanInfo: {
-          span_type: "opening",
-          type: r.pcOpen.type,
-          sub_type: r.pcOpen.subType,
-          id: r.pcOpen.id,
-          data: r.pcOpen.data,
-          equiv_text: r.pcOpen.equiv,
-          display_text: r.pcOpen.disp,
-        },
-      });
-      continue;
-    }
-    if ("pcClose" in r) {
-      segments.push({
-        type: "tag",
-        spanInfo: {
-          span_type: "closing",
-          type: r.pcClose.type,
-          sub_type: r.pcClose.subType,
-          id: r.pcClose.id,
-          data: r.pcClose.data,
-          equiv_text: r.pcClose.equiv,
-        },
-      });
-      continue;
-    }
-    if ("sub" in r) {
-      // Subblock references aren't a chip-editor concept — they
-      // represent embedded sub-documents (HTML inside a YAML field,
-      // etc.) and stay opaque to the in-cell translator. Render as
-      // a placeholder marker keyed on equiv so the coded round-trip
-      // still survives.
-      segments.push({
-        type: "tag",
-        spanInfo: {
-          span_type: "placeholder",
-          type: "sub",
-          id: r.sub.id,
-          data: `[${r.sub.equiv}]`,
-          equiv_text: r.sub.equiv,
-        },
-      });
-      continue;
-    }
-    if ("plural" in r || "select" in r) {
-      throw new Error(
-        "runsToCoded: plural/select runs cannot be flattened to coded text. " +
-          "Call runsToCoded on each form's content individually.",
-      );
-    }
-  }
-  return segmentsToCodedText(segments);
+  return segmentsToCodedText(projectRuns(runs, FLAT_SEGMENTS));
 }
 
 // ─── Internals ───────────────────────────────────────────────────
@@ -162,6 +112,12 @@ function segmentsToRuns(segments: readonly CodedSegment[]): Run[] {
         break;
       case "placeholder":
       default:
+        if (span.type === "sub") {
+          // A subblock reference chip carries the referenced block in
+          // `sub_type` (see CHIP_SEGMENTS), so it returns as the sub run it was.
+          out.push({ sub: { id: span.id, ref: span.sub_type ?? "", equiv } });
+          break;
+        }
         out.push({
           ph: {
             id: span.id,

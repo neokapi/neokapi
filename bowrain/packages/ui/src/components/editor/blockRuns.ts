@@ -58,8 +58,8 @@ function codeRuns(runs: Run[] | undefined): { codedText: string; spans: SpanInfo
  * projection.
  */
 export function normalizeServerBlock(raw: ServerBlockInfo): BlockInfo {
-  const { has_inline_codes, ...block } = raw;
-  const { source_runs, targets_runs } = block;
+  const block = raw;
+  const { has_inline_codes, source_runs, targets_runs } = block;
 
   let sourceCoded = block.source_coded;
   let sourceSpans = block.source_spans;

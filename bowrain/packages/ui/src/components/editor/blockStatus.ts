@@ -105,40 +105,6 @@ export function rollbackTargetStatus(
   return withTargetStatus(block, locale, snapshot.status);
 }
 
-/** Coded target text for a locale ("" when the payload carries none). */
-export function getTargetCoded(block: BlockInfo, locale: string): string {
-  return block.targets_coded?.[locale] ?? "";
-}
-
-/**
- * The per-locale status a target carries after a person saves it for `locale`.
- * A person who changes a translation makes it translated, whatever rung it
- * stood on: a review decision judged the wording it replaced, and a draft a
- * person has rewritten is their translation (change.Consequences). Re-saving
- * identical content changes nothing and keeps the status. The optimistic write
- * mirrors that so the chip matches what a reload fetches.
- *
- * `newCoded` is the coded text of the saved runs. Pass it whenever the save
- * carries runs: coded text encodes the inline codes, so an edit that only moves
- * or retypes a code — identical once flattened, a different run sequence to the
- * server — is seen as the change it is. Without it the comparison falls back to
- * plain text and can miss such an edit.
- */
-export function statusAfterEdit(
-  block: BlockInfo,
-  locale: string,
-  newText: string,
-  newCoded?: string,
-): TargetStatus {
-  const prev = getTargetStatus(block, locale);
-  const prevCoded = getTargetCoded(block, locale);
-  const changed =
-    newCoded !== undefined && prevCoded !== ""
-      ? newCoded !== prevCoded
-      : newText !== getTargetText(block, locale);
-  return changed ? "translated" : prev;
-}
-
 /**
  * Return a copy of the block naming `rev` as the revision of its translation
  * for `locale`: the revision a save left it at, which the next change names.

@@ -36,8 +36,7 @@ import {
   type ModelRunSpec,
   type Run,
 } from "@neokapi/kapi-format";
-import { codedToRuns, type SpanInfo as PrimitiveSpanInfo } from "@neokapi/ui-primitives";
-import { getTargetText } from "../components/editor/blockStatus";
+import { targetRuns } from "../components/editor/blockContent";
 import type { BlockInfo, ReviewRung } from "../types/api";
 
 /** A change set of content operations (kapi.change/v1). */
@@ -151,18 +150,12 @@ export function setTranslation(
 
 /**
  * A block's translation in one language as runs, codes included: the typed runs
- * the server served, else the coded text the editor renders, else its text as
- * one run. Empty when the block holds no translation there. An edit built on
- * these keeps the translation's codes; one built on its plain text would drop
- * them.
+ * the server served, else its text as one run. Empty when the block holds no
+ * translation there. An edit built on these keeps the translation's codes; one
+ * built on its plain text would drop them.
  */
 export function translationRuns(block: BlockInfo, locale: string): Run[] {
-  const runs = block.targets_runs?.[locale];
-  if (runs && runs.length > 0) return runs as Run[];
-  const coded = block.targets_coded?.[locale];
-  if (coded) return codedToRuns(coded, (block.source_spans ?? []) as PrimitiveSpanInfo[]) as Run[];
-  const text = getTargetText(block, locale);
-  return text ? [{ text }] : [];
+  return targetRuns(block, locale);
 }
 
 /**

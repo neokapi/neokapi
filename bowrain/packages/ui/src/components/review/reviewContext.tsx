@@ -106,5 +106,5 @@ export function matchSaveResult(match: ReviewMemoryMatch): UnifiedSaveResult {
     match.target_runs && match.target_runs.length > 0
       ? (match.target_runs as Run[])
       : [{ text: match.target }];
-  return { kind: "runs", runs };
+  return { runs };
 }

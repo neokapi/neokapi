@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
+import { flattenRuns, isPlural } from "@neokapi/kapi-format";
 
 import { UnifiedTargetEditor } from "../../components/UnifiedTargetEditor";
 import type { BlockInfo } from "../../types/api";
@@ -95,9 +96,7 @@ export default meta;
 type Story = StoryObj<typeof UnifiedTargetEditor>;
 
 function Wrapper({ block, locale = "de" }: { block: BlockInfo; locale?: string }) {
-  const [savedFlat, setSavedFlat] = useState<{ codedText: string; spansCount: number } | null>(
-    null,
-  );
+  const [savedFlat, setSavedFlat] = useState<{ text: string; runs: number } | null>(null);
   const [savedPlural, setSavedPlural] = useState<string | null>(null);
   const [open, setOpen] = useState(true);
 
@@ -114,10 +113,13 @@ function Wrapper({ block, locale = "de" }: { block: BlockInfo; locale?: string }
           block={block}
           locale={locale}
           onSave={(result) => {
-            if (result.kind === "flat") {
-              setSavedFlat({ codedText: result.codedText, spansCount: result.spans.length });
-            } else if (result.kind === "plural") {
-              setSavedPlural(result.text);
+            // A plural saves as one plural run; anything else is the flat
+            // translation's runs. Both are shown through flattenRuns, the
+            // one string form that keeps every code and form.
+            if (isPlural(result.runs)) {
+              setSavedPlural(flattenRuns(result.runs));
+            } else {
+              setSavedFlat({ text: flattenRuns(result.runs), runs: result.runs.length });
             }
             setOpen(false);
           }}
@@ -130,8 +132,7 @@ function Wrapper({ block, locale = "de" }: { block: BlockInfo; locale?: string }
       )}
       {savedFlat && (
         <pre style={{ background: "#f4f4f5", padding: 8, borderRadius: 4, marginTop: 12 }}>
-          flat saved → codedText={JSON.stringify(savedFlat.codedText)} spans=
-          {savedFlat.spansCount}
+          flat saved → {JSON.stringify(savedFlat.text)} ({savedFlat.runs} runs)
         </pre>
       )}
       {savedPlural && (

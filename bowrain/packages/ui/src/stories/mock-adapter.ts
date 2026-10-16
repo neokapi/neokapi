@@ -630,7 +630,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     failApplyChanges: false,
     editElsewhere: (blockId, locale, text) => {
       const blk = _blocks.find((b) => b.id === blockId);
-      if (blk) writeTranslation(blk, locale, text, text, "translated");
+      if (blk) writeTranslation(blk, locale, text, [{ text }], "translated");
     },
     approvePassingReviewCalls,
     createSourceProposalCalls,

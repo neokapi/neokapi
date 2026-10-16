@@ -1,63 +1,76 @@
-import { flattenRuns, type Run } from "@neokapi/kapi-format";
-import { codedToRuns, runsToCoded } from "@neokapi/ui-primitives";
+import { flattenRuns, projectRuns, type ModelRunSpec, type Run } from "@neokapi/kapi-format";
 import { placeholderText } from "../../api/contentChanges";
-import type { BlockInfo } from "../../types/api";
+import type { BlockInfo, TargetStatus } from "../../types/api";
 import type { UnifiedSaveResult } from "../UnifiedTargetEditor";
-import { statusAfterEdit, withTargetEntry, withTargetRevision } from "./blockStatus";
+import { getTargetStatus, getTargetText, withTargetEntry, withTargetRevision } from "./blockStatus";
 
 /**
  * A translation a person saves, in each shape a surface needs: the runs the
  * change carries (codes and plural forms kept), the text a block shows until
- * it is read back, the coded text of a flat translation, and the wording the
- * stale prompt shows as theirs.
+ * it is read back, and the wording the stale prompt shows as theirs.
  */
 export interface SavedTranslation {
   runs: Run[];
   text: string;
-  /** The editor's coded text; absent for a plural, which coded text cannot hold. */
-  coded?: string;
   mine: string;
 }
 
-/** Inline-code markers in coded text: the plain text is the coded text without them. */
-const CODE_MARKERS = /[-]/g;
+/**
+ * The text a block shows for saved runs until it is read back: the text runs,
+ * each inline code contributing nothing, and a plural or select as its ICU
+ * spelling, the one flat form that keeps every branch.
+ */
+const SHOWN_TEXT: ModelRunSpec<string> = {
+  text: (r) => r.text,
+  ph: { dropped: "the text a block shows carries no inline codes; the runs keep them" },
+  pcOpen: { dropped: "the text a block shows carries no inline codes; the runs keep them" },
+  pcClose: { dropped: "the text a block shows carries no inline codes; the runs keep them" },
+  sub: { dropped: "the text a block shows carries no inline codes; the runs keep them" },
+  plural: (r) => flattenRuns([r]),
+  select: (r) => flattenRuns([r]),
+  fallback: () => "",
+};
 
 /** What the target editor's result saves. */
 export function savedTranslation(result: UnifiedSaveResult): SavedTranslation {
-  if (result.kind === "runs") return savedRuns(result.runs);
-  if (result.kind === "plural") {
-    return { runs: result.runs, text: result.text, mine: result.text };
-  }
-  const runs = codedToRuns(result.codedText, result.spans) as Run[];
+  return savedRuns(result.runs);
+}
+
+/** What a run sequence saves, from the editor or built outside it (a match, a term insert). */
+export function savedRuns(runs: Run[]): SavedTranslation {
   return {
     runs,
-    text: result.codedText.replace(CODE_MARKERS, ""),
-    coded: result.codedText,
+    text: projectRuns(runs, SHOWN_TEXT).join(""),
     mine: placeholderText(runs),
   };
 }
 
-/** What a run sequence built outside the editor (a match, a term insert) saves. */
-export function savedRuns(runs: Run[]): SavedTranslation {
-  try {
-    const { codedText } = runsToCoded(runs);
-    return {
-      runs,
-      text: codedText.replace(CODE_MARKERS, ""),
-      coded: codedText,
-      mine: placeholderText(runs),
-    };
-  } catch {
-    // A plural or select has no coded form; it shows as its ICU spelling.
-    const text = flattenRuns(runs);
-    return { runs, text, mine: text };
-  }
+/**
+ * The per-locale status a target carries after a person saves it for `locale`.
+ * A person who changes a translation makes it translated, whatever rung it
+ * stood on: a review decision judged the wording it replaced, and a draft a
+ * person has rewritten is their translation (change.Consequences). Re-saving
+ * identical content changes nothing and keeps the status. The optimistic write
+ * mirrors that so the chip matches what a reload fetches.
+ *
+ * Two translations are the same when their runs read the same: the text and
+ * each code by its id, in order. An edit that only moves or retypes a code is
+ * seen as the change it is; a block served without runs compares its text.
+ */
+export function statusAfterEdit(block: BlockInfo, locale: string, saved: SavedTranslation) {
+  const prev = getTargetStatus(block, locale);
+  const prevRuns = block.targets_runs?.[locale];
+  const changed =
+    prevRuns && prevRuns.length > 0
+      ? placeholderText(prevRuns as Run[]) !== placeholderText(saved.runs)
+      : saved.text !== getTargetText(block, locale);
+  return (changed ? "translated" : prev) satisfies TargetStatus;
 }
 
 /**
  * The block as a reload would fetch it after the save landed at revision
- * `after`: the translation's text, runs and coded form, and the status the
- * change service gives a person's edit (see `statusAfterEdit`).
+ * `after`: the translation's text and runs, and the status the change service
+ * gives a person's edit (see `statusAfterEdit`).
  */
 export function withSavedTranslation(
   block: BlockInfo,
@@ -68,14 +81,13 @@ export function withSavedTranslation(
   const next = withTargetRevision(
     withTargetEntry(block, locale, {
       text: saved.text,
-      status: statusAfterEdit(block, locale, saved.text, saved.coded),
+      status: statusAfterEdit(block, locale, saved),
     }),
     locale,
     after,
   );
   return {
     ...next,
-    targets_coded: { ...block.targets_coded, [locale]: saved.coded ?? "" },
     targets_runs: {
       ...block.targets_runs,
       [locale]: saved.runs as NonNullable<BlockInfo["targets_runs"]>[string],

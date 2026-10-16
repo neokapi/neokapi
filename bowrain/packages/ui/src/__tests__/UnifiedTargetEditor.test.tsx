@@ -2,6 +2,7 @@ import { createRef } from "react";
 import { describe, it, expect, vi } from "vite-plus/test";
 import { render, screen, waitFor, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { Run } from "@neokapi/kapi-format";
 
 import {
   UnifiedTargetEditor,
@@ -10,35 +11,34 @@ import {
 } from "../components/UnifiedTargetEditor";
 import type { BlockInfo } from "../types/api";
 
+const count: Run = { ph: { id: "0", type: "jsx:var", data: "{count}", equiv: "count" } };
+const runs = (list: Run[]) => list as NonNullable<BlockInfo["source_runs"]>;
+
 function makeBlock(overrides: Partial<BlockInfo> = {}): BlockInfo {
   return {
     id: "b1",
     source: "You have {count} messages",
-    has_spans: true,
-    source_spans: [
-      {
-        span_type: "placeholder",
-        type: "jsx:var",
-        id: "0",
-        data: "{count}",
-        equiv_text: "count",
-      },
-    ],
+    source_runs: runs([{ text: "You have " }, count, { text: " messages" }]),
+    has_inline_codes: true,
     targets: {},
-    targets_coded: {},
     translatable: true,
     properties: {},
     ...overrides,
   };
 }
 
+/** A block whose translation carries the placeholder as a run. */
+const translated = () =>
+  makeBlock({
+    targets: { de: "Sie haben {count} Nachrichten" },
+    targets_runs: { de: runs([{ text: "Sie haben " }, count, { text: " Nachrichten" }]) },
+  });
+
 describe("UnifiedTargetEditor — initial mode", () => {
   it("opens in flat mode for a plain target", () => {
-    const block = makeBlock({
-      targets: { de: "Sie haben {count} Nachrichten" },
-      targets_coded: { de: "Sie haben \uE003 Nachrichten" },
-    });
-    render(<UnifiedTargetEditor block={block} locale="de" onSave={vi.fn()} onCancel={vi.fn()} />);
+    render(
+      <UnifiedTargetEditor block={translated()} locale="de" onSave={vi.fn()} onCancel={vi.fn()} />,
+    );
     expect(screen.getByTestId("unified-target-editor").getAttribute("data-mode")).toBe("flat");
   });
 
@@ -56,8 +56,8 @@ describe("UnifiedTargetEditor — initial mode", () => {
   it("hides the upgrade affordance when there are no pivot candidates", () => {
     const block = makeBlock({
       source: "Welcome back!",
-      source_spans: [],
-      has_spans: false,
+      source_runs: undefined,
+      has_inline_codes: false,
     });
     render(<UnifiedTargetEditor block={block} locale="de" onSave={vi.fn()} onCancel={vi.fn()} />);
     expect(screen.queryByTestId("upgrade-to-plural")).not.toBeInTheDocument();
@@ -65,53 +65,36 @@ describe("UnifiedTargetEditor — initial mode", () => {
 });
 
 describe("UnifiedTargetEditor — flat save", () => {
-  it("calls onSave with kind:'flat' carrying coded text + spans", async () => {
+  it("calls onSave with the translation's runs, its codes kept", async () => {
     const user = userEvent.setup();
     const onSave = vi.fn();
-    const block = makeBlock({
-      targets: { de: "Sie haben {count} Nachrichten" },
-      targets_coded: { de: "Sie haben \uE003 Nachrichten" },
-    });
-    render(<UnifiedTargetEditor block={block} locale="de" onSave={onSave} onCancel={vi.fn()} />);
+    render(
+      <UnifiedTargetEditor block={translated()} locale="de" onSave={onSave} onCancel={vi.fn()} />,
+    );
     await user.click(screen.getByTestId("unified-save"));
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
     const arg = onSave.mock.calls[0][0] as UnifiedSaveResult;
-    expect(arg.kind).toBe("flat");
-    if (arg.kind === "flat") {
-      // Coded text + spans match the seeded targets_coded value.
-      expect(arg.codedText).toBe("Sie haben \uE003 Nachrichten");
-      expect(arg.spans).toHaveLength(1);
-      expect(arg.spans[0].equiv_text).toBe("count");
-    }
+    expect(arg.runs).toEqual([{ text: "Sie haben " }, count, { text: " Nachrichten" }]);
   });
 
-  it("seeds flat state from plain targets[locale] when no coded version exists", async () => {
+  it("seeds flat state from plain targets[locale] when the block serves no runs", async () => {
     const user = userEvent.setup();
     const onSave = vi.fn();
-    const block = makeBlock({
-      targets: { de: "Plain text" },
-      targets_coded: {},
-    });
+    const block = makeBlock({ targets: { de: "Plain text" } });
     render(<UnifiedTargetEditor block={block} locale="de" onSave={onSave} onCancel={vi.fn()} />);
     await user.click(screen.getByTestId("unified-save"));
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
     const arg = onSave.mock.calls[0][0] as UnifiedSaveResult;
-    expect(arg.kind).toBe("flat");
-    if (arg.kind === "flat") {
-      expect(arg.codedText).toBe("Plain text");
-      expect(arg.spans).toEqual([]);
-    }
+    expect(arg.runs).toEqual([{ text: "Plain text" }]);
   });
 });
 
 describe("UnifiedTargetEditor — mode toggle", () => {
   it("upgrades flat → plural and seeds 'other' from the flat state", async () => {
     const user = userEvent.setup();
-    const block = makeBlock({
-      targets: { de: "Sie haben {count} Nachrichten" },
-      targets_coded: { de: "Sie haben \uE003 Nachrichten" },
-    });
-    render(<UnifiedTargetEditor block={block} locale="de" onSave={vi.fn()} onCancel={vi.fn()} />);
+    render(
+      <UnifiedTargetEditor block={translated()} locale="de" onSave={vi.fn()} onCancel={vi.fn()} />,
+    );
 
     await user.click(screen.getByTestId("upgrade-to-plural"));
 
@@ -139,12 +122,12 @@ describe("UnifiedTargetEditor — mode toggle", () => {
     await user.click(screen.getByTestId("unified-save"));
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
     const arg = onSave.mock.calls[0][0] as UnifiedSaveResult;
-    expect(arg.kind).toBe("flat");
+    expect(arg.runs).toEqual([{ text: "Sie haben {count} Nachrichten" }]);
   });
 });
 
 describe("UnifiedTargetEditor — plural save", () => {
-  it("serialises forms back into ICU syntax via flattenRuns", async () => {
+  it("saves a plural edited from ICU text as one plural run with its forms", async () => {
     const user = userEvent.setup();
     const onSave = vi.fn();
     const block = makeBlock({
@@ -156,55 +139,52 @@ describe("UnifiedTargetEditor — plural save", () => {
     await user.click(screen.getByTestId("unified-save"));
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
     const arg = onSave.mock.calls[0][0] as UnifiedSaveResult;
-    expect(arg.kind).toBe("plural");
-    if (arg.kind === "plural") {
-      expect(arg.text.startsWith("{count, plural,")).toBe(true);
-      expect(arg.text).toContain("one {");
-      expect(arg.text).toContain("other {");
-      // Placeholder marker survives the round-trip via codedToRuns +
-      // flattenRuns; the actual `count` token resolves through the
-      // source spans.
-      expect(arg.text).toContain("{count}");
-      // What a save sends is the plural run itself, each form's codes kept.
-      expect(arg.runs).toHaveLength(1);
-      const [run] = arg.runs;
-      expect(run).toHaveProperty("plural.pivot", "count");
-      expect(JSON.stringify(run)).toContain('"ph"');
-    }
+    // What a save sends is the plural run itself; a form that was ICU text
+    // stays text, so nothing the person did not type is invented.
+    expect(arg.runs).toEqual([
+      {
+        plural: {
+          pivot: "count",
+          forms: {
+            one: [{ text: "Sie haben 1 Nachricht" }],
+            other: [{ text: "Sie haben {count} Nachrichten" }],
+          },
+        },
+      },
+    ]);
   });
 
   // A message that is one plural (ARB, ICU) arrives as runs. Its translation
   // opens on its forms, and an untranslated one opens in plural mode on the
   // source's pivot with the source's variable offered as a chip.
-  const n = { ph: { id: "n", type: "code:variable", data: "#", equiv: "#" } };
+  const n: Run = { ph: { id: "n", type: "code:variable", data: "#", equiv: "#" } };
   const pluralMessage = (translated: boolean): BlockInfo =>
     makeBlock({
       source: " messages",
-      source_spans: undefined,
-      source_runs: [
+      source_runs: runs([
         {
           plural: {
             pivot: "count",
             forms: { one: [n, { text: " message" }], other: [n, { text: " messages" }] },
           },
         },
-      ],
+      ]),
       targets: translated ? { de: { text: " Nachrichten", status: "translated" } } : {},
       targets_runs: translated
         ? {
-            de: [
+            de: runs([
               {
                 plural: {
                   pivot: "count",
                   forms: { one: [n, { text: " Nachricht" }], other: [n, { text: " Nachrichten" }] },
                 },
               },
-            ],
+            ]),
           }
         : {},
     });
 
-  it("opens a plural translation on its forms and saves it whole", async () => {
+  it("opens a plural translation on its forms and saves it whole, each form's codes kept", async () => {
     const user = userEvent.setup();
     const onSave = vi.fn();
     render(
@@ -220,26 +200,17 @@ describe("UnifiedTargetEditor — plural save", () => {
     await user.click(screen.getByTestId("unified-save"));
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
     const arg = onSave.mock.calls[0][0] as UnifiedSaveResult;
-    expect(arg.kind).toBe("plural");
-    if (arg.kind === "plural") {
-      expect(arg.runs).toEqual([
-        {
-          plural: {
-            pivot: "count",
-            forms: {
-              one: [
-                expect.objectContaining({ ph: expect.objectContaining({ id: "n" }) }),
-                { text: " Nachricht" },
-              ],
-              other: [
-                expect.objectContaining({ ph: expect.objectContaining({ id: "n" }) }),
-                { text: " Nachrichten" },
-              ],
-            },
+    expect(arg.runs).toEqual([
+      {
+        plural: {
+          pivot: "count",
+          forms: {
+            one: [n, { text: " Nachricht" }],
+            other: [n, { text: " Nachrichten" }],
           },
         },
-      ]);
-    }
+      },
+    ]);
   });
 
   it("opens an untranslated plural message in plural mode on the source's pivot", () => {
@@ -282,17 +253,19 @@ describe("UnifiedTargetEditor — form tabs", () => {
 });
 
 describe("UnifiedTargetEditor — imperative insertText handle", () => {
-  it("exposes the handle via handleRef while mounted", () => {
-    const ref = createRef<UnifiedTargetEditorHandle>();
-    const block = makeBlock({
+  const plain = () =>
+    makeBlock({
       source: "Hello",
-      source_spans: [],
-      has_spans: false,
+      source_runs: undefined,
+      has_inline_codes: false,
       targets: { de: "Bonjour" },
     });
+
+  it("exposes the handle via handleRef while mounted", () => {
+    const ref = createRef<UnifiedTargetEditorHandle>();
     const { unmount } = render(
       <UnifiedTargetEditor
-        block={block}
+        block={plain()}
         locale="de"
         onSave={vi.fn()}
         onCancel={vi.fn()}
@@ -310,15 +283,9 @@ describe("UnifiedTargetEditor — imperative insertText handle", () => {
     const user = userEvent.setup();
     const onSave = vi.fn();
     const ref = createRef<UnifiedTargetEditorHandle>();
-    const block = makeBlock({
-      source: "Hello",
-      source_spans: [],
-      has_spans: false,
-      targets: { de: "Bonjour" },
-    });
     render(
       <UnifiedTargetEditor
-        block={block}
+        block={plain()}
         locale="de"
         onSave={onSave}
         onCancel={vi.fn()}
@@ -337,10 +304,7 @@ describe("UnifiedTargetEditor — imperative insertText handle", () => {
     await user.click(screen.getByTestId("unified-save"));
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
     const arg = onSave.mock.calls[0][0] as UnifiedSaveResult;
-    expect(arg.kind).toBe("flat");
-    if (arg.kind === "flat") {
-      expect(arg.codedText).toBe("Bonjour monde");
-    }
+    expect(arg.runs).toEqual([{ text: "Bonjour monde" }]);
   });
 });
 

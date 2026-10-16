@@ -10,7 +10,6 @@ import {
   getTargetStatus,
   getTargetText,
   rollbackTargetStatus,
-  statusAfterEdit,
   withTargetEntry,
   withTargetStatus,
 } from "../components/editor/blockStatus";
@@ -126,53 +125,6 @@ describe("getBlockStatus — per-locale Edition.Status", () => {
     const block = makeBlock({ fr: "Bonjour" }, { "translation-status": "reviewed" });
     expect(getBlockStatus(block, "fr")).toBe("established");
     expect(getBlockStatus(block, "de")).toBe("not-started");
-  });
-});
-
-describe("statusAfterEdit — an edit invalidates a stale review decision", () => {
-  it("demotes established to translated when the text changes", () => {
-    const established = makeBlock({ fr: { text: "Bonjour", status: "established" } });
-    expect(statusAfterEdit(established, "fr", "Salut")).toBe("translated");
-  });
-
-  it("keeps the status when re-saving identical content", () => {
-    const established = makeBlock({ fr: { text: "Bonjour", status: "established" } });
-    expect(statusAfterEdit(established, "fr", "Bonjour")).toBe("established");
-  });
-
-  it("makes a draft a person rewrote translated, as the change service does", () => {
-    expect(
-      statusAfterEdit(makeBlock({ fr: { text: "Bonjour", status: "draft" } }), "fr", "Salut"),
-    ).toBe("translated");
-    expect(
-      statusAfterEdit(makeBlock({ fr: { text: "Bonjour", status: "translated" } }), "fr", "Salut"),
-    ).toBe("translated");
-    expect(statusAfterEdit(makeBlock({ fr: "Bonjour" }), "fr", "Salut")).toBe("translated");
-    // Saving the same wording is no edit: the rung stays where it was.
-    expect(
-      statusAfterEdit(makeBlock({ fr: { text: "Bonjour", status: "draft" } }), "fr", "Bonjour"),
-    ).toBe("draft");
-  });
-
-  it("compares coded text when the save carries runs", () => {
-    // Identical once flattened, a different run sequence to the server: the
-    // inline code moved. The server demotes on the runs, so the optimistic copy
-    // must too — comparing plain text alone would keep a stale "established".
-    const plain = "Bonjour monde";
-    const before = "\uE001Bonjour\uE002 monde";
-    const moved = "Bonjour \uE001monde\uE002";
-    const established: BlockInfo = {
-      ...makeBlock({ fr: { text: plain, status: "established" } }),
-      targets_coded: { fr: before },
-    };
-    expect(statusAfterEdit(established, "fr", plain, moved)).toBe("translated");
-    expect(statusAfterEdit(established, "fr", plain, before)).toBe("established");
-  });
-
-  it("falls back to plain text when no coded text is available", () => {
-    const established = makeBlock({ fr: { text: "Bonjour", status: "established" } });
-    expect(statusAfterEdit(established, "fr", "Bonjour", "Bonjour")).toBe("established");
-    expect(statusAfterEdit(established, "fr", "Salut", "Salut")).toBe("translated");
   });
 });
 
