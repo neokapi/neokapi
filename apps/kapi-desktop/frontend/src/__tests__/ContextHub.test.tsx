@@ -31,24 +31,94 @@ vi.mock("../components/ContextDigestPanel", () => ({
   ContextDigestPanel: ({
     tabID,
     onOpenFile,
+    onConnectAssistant,
   }: {
     tabID: string;
     onOpenFile?: (p: string) => void;
+    onConnectAssistant?: () => void;
   }) => (
     <div>
       digest for {tabID}
       <button onClick={() => onOpenFile?.("docs/billing.md")}>open file</button>
+      {onConnectAssistant && <button onClick={onConnectAssistant}>connect</button>}
     </div>
   ),
 }));
+vi.mock("../components/AgentContextPane", () => ({
+  AgentContextPane: ({ tabID }: { tabID: string }) => <div>brief for {tabID}</div>,
+}));
+vi.mock("../components/ContextFeedPanel", () => ({
+  ContextFeedPanel: ({ projectKey }: { projectKey?: string }) => (
+    <div>feed for {projectKey}</div>
+  ),
+}));
 
-import { ContextHub } from "../components/ContextHub";
+import { ContextHub, contextSectionOf } from "../components/ContextHub";
+import { api } from "../hooks/useApi";
+import { CONTEXT_DIGEST } from "../stories/fixtures/contextDigest";
+
+const railLabels = () =>
+  Array.from(
+    screen.getByRole("navigation", { name: "Context sections" }).querySelectorAll("button"),
+  ).map((b) => b.textContent);
 
 describe("ContextHub", () => {
-  it("opens on the project's rules", () => {
+  it("opens on What's new for the project", () => {
     render(<ContextHub tabID="t1" projectName="Northsea" />);
     expect(screen.getByText("digest for t1")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Rules" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("heading", { name: "What's new for Northsea" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "What's new" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+  });
+
+  it("names the sections in the order a person meets them", () => {
+    render(<ContextHub tabID="t1" projectName="Northsea" hasTargetLanguages />);
+    expect(railLabels()).toEqual([
+      "What's new",
+      "Ask",
+      "Assistant",
+      "Voice",
+      "Terms",
+      "Content Memory",
+      "History",
+    ]);
+  });
+
+  it("names the command each section does the work of", async () => {
+    render(<ContextHub tabID="t1" projectName="Northsea" />);
+    const command = () => document.querySelector("[data-slot='context-section-command']");
+    expect(command()?.textContent).toBe("The same as kapi context review");
+    await userEvent.click(screen.getByRole("button", { name: "History" }));
+    expect(command()?.textContent).toBe("kapi context log");
+    await userEvent.click(screen.getByRole("button", { name: "Assistant" }));
+    expect(command()?.textContent).toBe("kapi init");
+    await userEvent.click(screen.getByRole("button", { name: "Voice" }));
+    expect(command()?.textContent).toBe("");
+  });
+
+  it("goes to the Assistant from the empty digest's link", async () => {
+    render(<ContextHub tabID="t1" projectName="Northsea" />);
+    await userEvent.click(screen.getByRole("button", { name: "connect" }));
+    expect(screen.getByText("brief for t1")).toBeInTheDocument();
+  });
+
+  it("lists the project's own history", async () => {
+    const digest = vi.spyOn(api, "projectContextDigest").mockResolvedValue(CONTEXT_DIGEST);
+    render(<ContextHub tabID="t1" projectName="Northsea" section="history" />);
+    expect(await screen.findByText(`feed for ${CONTEXT_DIGEST.project}`)).toBeInTheDocument();
+    expect(digest).toHaveBeenCalledWith("t1", "");
+    digest.mockRestore();
+  });
+
+  it("routes a view to the section it names", () => {
+    expect(contextSectionOf("context:agent")).toBe("agent");
+    expect(contextSectionOf("context:history")).toBe("history");
+    expect(contextSectionOf("termbases")).toBe("terms");
+    expect(contextSectionOf("memories")).toBe("memory");
+    expect(contextSectionOf("context")).toBeUndefined();
+    expect(contextSectionOf("context:nowhere")).toBeUndefined();
   });
 
   it("opens the explorer at a file the digest names", async () => {
