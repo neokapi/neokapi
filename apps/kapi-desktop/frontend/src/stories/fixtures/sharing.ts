@@ -1,6 +1,7 @@
 // Where the Fernwell project's context lives, one fixture per rung of the
 // ladder: this Mac only, shared through git (in step, and with pushes
-// waiting), a place that could not be reached, and connected to Bowrain.
+// waiting), a place that could not be reached, and connected to Bowrain with
+// and without a team place.
 
 import type { ContextSyncResult, ProjectSharing, SyncStatus } from "../../types/api";
 
@@ -55,6 +56,15 @@ export const GIT_NEVER_SYNCED: ProjectSharing = {
   status: status({ to_push: 4, to_push_logged: 4, contacted: undefined }),
 };
 
+/** Shared through a folder every machine mounts, with nothing waiting. */
+export const FOLDER_IN_SYNC: ProjectSharing = {
+  kind: "file",
+  location: "/Volumes/team/kapi/fernwell",
+  from: "recipe",
+  status: status({ remote: { Kind: "file", Location: "/Volumes/team/kapi/fernwell" } }),
+  workspace: WORKSPACE_DIR,
+};
+
 /** Shared through a folder that could not be reached at the last attempt. */
 export const FOLDER_UNREACHABLE: ProjectSharing = {
   kind: "file",
@@ -81,6 +91,13 @@ export const S3_IN_SYNC: ProjectSharing = {
 /** Connected to Bowrain, and shared through git as well. */
 export const BOWRAIN_CONNECTED: ProjectSharing = {
   ...GIT_IN_SYNC,
+  venue_host: "app.bowrain.cloud",
+  venue_url: "https://app.bowrain.cloud/acme/help",
+};
+
+/** Connected to Bowrain, with no team place named under `context:`. */
+export const BOWRAIN_WITHOUT_TEAM: ProjectSharing = {
+  ...LOCAL_SHARING,
   venue_host: "app.bowrain.cloud",
   venue_url: "https://app.bowrain.cloud/acme/help",
 };
