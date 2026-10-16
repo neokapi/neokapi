@@ -1442,6 +1442,10 @@ async function contextWalk(c: WalkCtx): Promise<void> {
     await humanClick(page, item);
     await page.waitForTimeout(500);
   };
+  // An act removes the control it was made with, or moves the row it was made
+  // on, so the cursor follows it to the rule it became rather than resting on
+  // the space the control left.
+  const restOn = async (item: Locator) => moveTo(page, ...(await centreOf(item)));
   // The screencast runs a few tenths of a second ahead of the clock the beats
   // are timed by, so a beat's slice ends a moment after the walk has moved on.
   // A still second after each beat keeps the next scroll out of its last frames.
@@ -1478,6 +1482,7 @@ async function contextWalk(c: WalkCtx): Promise<void> {
     await page.keyboard.press("a");
     await page.waitForTimeout(900);
     await centre(page, page.locator(kept).first());
+    await restOn(page.locator(kept).first());
     await mark(page.locator(kept).first());
     await page.waitForTimeout(1200);
   });
@@ -1502,6 +1507,7 @@ async function contextWalk(c: WalkCtx): Promise<void> {
     await humanClick(page, page.locator('[data-slot="keep-changed"]'));
     await page.waitForTimeout(900);
     await centre(page, page.locator(kept).first());
+    await restOn(page.locator(kept).first());
     await mark(page.locator(kept).first());
     await page.waitForTimeout(1200);
   });
@@ -1524,6 +1530,7 @@ async function contextWalk(c: WalkCtx): Promise<void> {
     await page.waitForSelector('[data-slot="digest-conflicts"]', { state: "detached", timeout: 15_000 });
     await page.waitForTimeout(900);
     await centre(page, page.locator(kept).first());
+    await restOn(page.locator(kept).first());
     for (let i = 0; i < 3; i++) await mark(page.locator(kept).nth(i));
     await page.waitForTimeout(1200);
   });
@@ -1565,8 +1572,10 @@ async function contextWalk(c: WalkCtx): Promise<void> {
   await humanClick(page, sidebar("Home"));
   await page.waitForSelector('[data-slot="home-projects"]', { timeout: 20_000 });
   await page.waitForTimeout(1000);
+  // The cursor waits on the row's mark, which names who noticed something
+  // last and is what the note changes.
   await beatEls("live", home, async () => {
-    await cursorTo('[data-slot="workspace-numbers"]', 800);
+    await cursorTo(`${row} [data-slot="whats-new-actor"]`, 800);
     await page.waitForTimeout(1500);
     // The row is already there: the rules kept on camera are new since the
     // person looked. What the note changes is who noticed something: the row
