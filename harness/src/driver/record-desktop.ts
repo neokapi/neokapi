@@ -1432,6 +1432,10 @@ async function contextWalk(c: WalkCtx): Promise<void> {
     await humanClick(page, item.locator("p").first());
     await page.waitForTimeout(500);
   };
+  // The screencast runs a few tenths of a second ahead of the clock the beats
+  // are timed by, so a beat's slice ends a moment after the walk has moved on.
+  // A still second after each beat keeps the next scroll out of its last frames.
+  const settle = () => page.waitForTimeout(1000);
 
   await freshContextSample(page);
 
@@ -1439,6 +1443,7 @@ async function contextWalk(c: WalkCtx): Promise<void> {
     await cursorTo(`${row} [data-slot="whats-new-sentence"]`, 900);
     await page.waitForTimeout(1500);
   });
+  await settle();
 
   // The button reads Decide while the project holds a disagreement.
   await beatEls("whats-new", ['[data-slot="context-section-command"]', '[data-slot="digest-conflicts"]'], async () => {
@@ -1448,6 +1453,7 @@ async function contextWalk(c: WalkCtx): Promise<void> {
     await cursorTo('[data-slot="digest-conflicts"] [data-slot="digest-item"]');
     await page.waitForTimeout(1200);
   });
+  await settle();
 
   // The product name, kept with one key. The crop holds the row where the key
   // was pressed and the rule where it landed.
@@ -1462,6 +1468,7 @@ async function contextWalk(c: WalkCtx): Promise<void> {
     await mark(page.locator(kept).first());
     await page.waitForTimeout(1200);
   });
+  await settle();
 
   // A word, kept in the form the terms prefer. The field opens holding the
   // suggestion's own form, so it is selected and typed over. The row sits
@@ -1485,6 +1492,7 @@ async function contextWalk(c: WalkCtx): Promise<void> {
     await mark(page.locator(kept).first());
     await page.waitForTimeout(1200);
   });
+  await settle();
 
   // The disagreement: claude-code's side, which a person's correction backs.
   // It sits at the top of the page, so the rules kept so far take its place
@@ -1504,6 +1512,7 @@ async function contextWalk(c: WalkCtx): Promise<void> {
     for (let i = 0; i < 3; i++) await mark(page.locator(kept).nth(i));
     await page.waitForTimeout(1200);
   });
+  await settle();
 
   // The brief an assistant gets for the store's interface strings, which the
   // kept word now governs.
@@ -1527,6 +1536,7 @@ async function contextWalk(c: WalkCtx): Promise<void> {
     await mark(keptTerm);
     await page.waitForTimeout(1500);
   });
+  await settle();
 
   // Back on the home, a note arrives from outside the app. The home learns of
   // it from the backend's workspace watcher, as the shipped app does, and the
@@ -1551,6 +1561,7 @@ async function contextWalk(c: WalkCtx): Promise<void> {
     await cursorTo(`${row} [data-slot="whats-new-sentence"]`, 700);
     await page.waitForTimeout(1500);
   });
+  await settle();
 
   // How far the project's context reaches.
   await humanClick(page, sidebar("Context"));
@@ -1562,6 +1573,7 @@ async function contextWalk(c: WalkCtx): Promise<void> {
     await cursorTo('[data-slot="share-rung"][data-current]', 800);
     await page.waitForTimeout(2000);
   });
+  await settle();
 }
 
 // ── Bowrain web walkthroughs ─────────────────────────────────────────────────
