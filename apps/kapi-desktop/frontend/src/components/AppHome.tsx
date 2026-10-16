@@ -20,7 +20,6 @@ import { WorkspaceProjectRow, lastSegment } from "./WorkspaceProjectRow";
 import { WorkspaceRules } from "./WorkspaceRules";
 import type {
   AIDetectionResult,
-  ContextNews,
   ContextProjectStanding,
   KeptConflict,
   WorkspaceHome,
@@ -35,11 +34,6 @@ interface AppHomeProps {
   workspaceError?: unknown;
   /** Every project's context in numbers. Absent reads them off the workspace's rows. */
   standings?: ContextProjectStanding[] | null;
-  /**
-   * What each project's digest holds that the person has not seen. The home
-   * reads the same counts off `standings`, so it does not draw these.
-   */
-  news?: ContextNews[] | null;
   /** Pre-loaded workspace rules for Storybook and tests, which reach no backend. */
   workspaceRules?: WorkspaceRule[];
   /** The Start here steps were dismissed. */

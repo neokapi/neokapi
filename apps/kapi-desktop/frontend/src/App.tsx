@@ -56,7 +56,6 @@ function AppInner() {
   const {
     workspace,
     workspaceError,
-    news,
     standings,
     startHereDismissed,
     refreshWorkspace,
@@ -346,7 +345,6 @@ function AppInner() {
                 updateTab={tm.updateTab}
                 workspace={workspace}
                 workspaceError={workspaceError}
-                news={news}
                 standings={standings}
                 startHereDismissed={startHereDismissed}
                 onDismissStartHere={dismissStartHere}

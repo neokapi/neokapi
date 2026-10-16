@@ -58,13 +58,12 @@ export function ContextFeedPanel({
     placeholderData: (previous) => previous,
   });
 
-  // An agent's proposal reaches the screen through the workspace watcher, and
-  // the project list carries the same counts.
-  useInvalidateOnEvent("workspace:changed", [key, qk.contextNews()]);
+  // An agent's proposal reaches the screen through the workspace watcher, which
+  // also moves the project list and the counts it carries.
+  useInvalidateOnEvent("workspace:changed", [key]);
 
   const refresh = useCallback(() => {
     void qc.invalidateQueries({ queryKey: key });
-    void qc.invalidateQueries({ queryKey: qk.contextNews() });
     void qc.invalidateQueries({ queryKey: qk.workspaceProjects() });
   }, [qc, key]);
 
