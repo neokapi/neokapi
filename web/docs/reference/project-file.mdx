@@ -565,8 +565,16 @@ defaults:
 
 A format named outright, with `--format`, `--map` or a content item's
 `format:`, is read by that format whatever the engine order says, and its
-writer comes from the same engine. `kapi formats` lists each format with its
-engine under `source`.
+writer comes from the same engine. To name the format of one engine for a
+file several engines read, add the engine to the reference: `html@okapi-bridge`
+is the bridge's HTML format and `okf_html@native` the built-in one. Under a
+`defaults.formats.<name>.engine` pin, the bare name resolves to the pinned
+engine's format. The version and preset parts keep their places:
+`name[@engine][@version][:preset]`.
+
+`kapi formats` lists each format with its engine and marks an extension more
+than one engine claims. `kapi formats explain <file>` says which format reads
+a file, from which engine and by which rule, under the recipe in scope.
 
 #### merge
 

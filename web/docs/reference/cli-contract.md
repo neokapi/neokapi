@@ -358,6 +358,16 @@ consent; `KAPI_TRUST_EXEC=1` is the opt-in for automation, and the general
 these tools outright. See
 [E-06](/contribute/architecture/engine/e-06-execution-trust).
 
+`kapi formats explain --json <file>...` returns `{files[]}`, one entry per
+path: `{path, format?, engine?, rule?, content?, order?[], candidates?[],
+error?}`, each candidate `{format, engine}`. `rule` is the registry's rule
+(`native first`, `engine override`, `engine preference`, `engine default`,
+`format engine`, `engine order`) or `content item format` / `format flag`
+when the format was named rather than detected; a path no format reads
+carries `error` and no `format`. `kapi formats --json` entries carry `engine`
+beside `source` and `shared_extensions`, the extensions another engine also
+claims. Locked by `cli/testdata/contract/formats_explain.golden.json`.
+
 `kapi trust` reads and changes the record. `kapi trust list --json` returns
 `{record, entries[]}`, each entry `{path, kind, decision, recorded_at, digest,
 status, detail?}` with `kind` one of `recipe` or `formatter` and `status` one

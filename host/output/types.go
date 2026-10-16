@@ -68,10 +68,17 @@ type FormatInfo struct {
 	// catalog-keyvalue, …): one of registry.FormatFamilies. A surface that
 	// offers conversion targets narrows the generative writers by it, so a
 	// document converts to the document formats and a catalog to the catalogs.
-	Family     string   `json:"family,omitempty"`
-	Source     string   `json:"source,omitempty"`
-	Extensions []string `json:"extensions,omitempty"`
-	MimeTypes  []string `json:"mime_types,omitempty"`
+	Family string `json:"family,omitempty"`
+	// Source is the registry source the format comes from: "built-in" or a
+	// plugin's name. Engine is the same provider under the name a person
+	// uses for it: "native" for the built-in formats, else the plugin's name.
+	Source string `json:"source,omitempty"`
+	Engine string `json:"engine,omitempty"`
+	// SharedExtensions lists the format's extensions that a format of another
+	// engine also claims: the ones the engine order decides.
+	SharedExtensions []string `json:"shared_extensions,omitempty"`
+	Extensions       []string `json:"extensions,omitempty"`
+	MimeTypes        []string `json:"mime_types,omitempty"`
 }
 
 // FormatsListOutput represents the list of formats.
@@ -85,10 +92,11 @@ func (f FormatsListOutput) FormatText(w io.Writer) error {
 
 	t := NewTable(w).Accent(0).Headers(
 		T("formats.header.format"), T("formats.header.name"), T("formats.header.read"),
-		T("formats.header.write"), T("formats.header.edit"), T("formats.header.source"),
+		T("formats.header.write"), T("formats.header.edit"), T("formats.header.engine"),
 		T("formats.header.extensions"), T("formats.header.mimeTypes"))
 	s := t.Styles()
 
+	shared := false
 	for _, info := range f.Formats {
 		// Faithful round-tripping is the stronger guarantee, so it reads as a
 		// word rather than a checkmark; plain editable is a plain yes.
@@ -99,21 +107,104 @@ func (f FormatsListOutput) FormatText(w io.Writer) error {
 		case info.Editable:
 			edit = s.Success.Render("yes")
 		}
+		// An extension another engine also claims is marked: the engine
+		// order, not this row alone, says which format reads such a file.
+		exts := make([]string, 0, len(info.Extensions))
+		for _, ext := range info.Extensions {
+			if slices.Contains(info.SharedExtensions, ext) {
+				ext += "*"
+				shared = true
+			}
+			exts = append(exts, ext)
+		}
+		engine := info.Engine
+		if engine == "" {
+			engine = info.Source
+		}
 		t.Row(
 			info.Name,
 			info.DisplayName,
 			s.YesNo(info.HasReader),
 			s.YesNo(info.HasWriter),
 			edit,
-			s.Dim(info.Source),
-			s.Dim(strings.Join(info.Extensions, ", ")),
+			s.Dim(engine),
+			s.Dim(strings.Join(exts, ", ")),
 			s.Dim(strings.Join(info.MimeTypes, ", ")),
 		)
 	}
 	t.Render()
 
 	fmt.Fprintln(w)
+	if shared {
+		Note(w, "%s", T("formats.shared.note"))
+	}
 	Note(w, T("formats.total"), f.Total)
+	return nil
+}
+
+// FormatExplainOutput is `kapi formats explain`: for each path, the format
+// that reads it, the engine the format belongs to and the rule that chose
+// the engine, as the registry's resolver reports them.
+type FormatExplainOutput struct {
+	Files []FormatExplanation `json:"files"`
+}
+
+// FormatExplanation is the resolution of one path.
+type FormatExplanation struct {
+	Path string `json:"path"`
+	// Format is the format that reads the file; empty when none does, in
+	// which case Error says why.
+	Format string `json:"format,omitempty"`
+	// Engine is the format's engine: "native" or a plugin's name.
+	Engine string `json:"engine,omitempty"`
+	// Rule is the rule that chose the engine: one of the registry's
+	// resolution rules ("native first", "engine override", …), or "content
+	// item format" when a content item of the recipe names the format.
+	Rule string `json:"rule,omitempty"`
+	// Content reports that the file's content chose among the engine's
+	// formats claiming the extension.
+	Content bool `json:"content,omitempty"`
+	// Order is the engine order consulted, first to last.
+	Order []string `json:"order,omitempty"`
+	// Candidates is every format claiming the extension within the allowed
+	// sources, each with its engine.
+	Candidates []FormatCandidate `json:"candidates,omitempty"`
+	// Error reports a path no format reads.
+	Error string `json:"error,omitempty"`
+}
+
+// FormatCandidate is one format claiming an extension.
+type FormatCandidate struct {
+	Format string `json:"format"`
+	Engine string `json:"engine"`
+}
+
+func (f FormatExplainOutput) FormatText(w io.Writer) error {
+	s := Theme(w)
+	for i, file := range f.Files {
+		if i > 0 {
+			fmt.Fprintln(w)
+		}
+		if file.Error != "" {
+			fmt.Fprintf(w, T("formats.explain.error")+"\n", file.Path, s.Error.Render(file.Error))
+			continue
+		}
+		fmt.Fprintf(w, T("formats.explain.chosen")+"\n", file.Path, s.Accent.Render(file.Format), file.Engine)
+		fmt.Fprintf(w, "  "+T("formats.explain.rule")+"\n", file.Rule)
+		if file.Content {
+			fmt.Fprintf(w, "  %s\n", T("formats.explain.content"))
+		}
+		if len(file.Order) > 0 {
+			fmt.Fprintf(w, "  "+T("formats.explain.order")+"\n", s.Muted.Render(strings.Join(file.Order, ", ")))
+		}
+		if len(file.Candidates) > 0 {
+			cands := make([]string, 0, len(file.Candidates))
+			for _, c := range file.Candidates {
+				cands = append(cands, c.Format+" ("+c.Engine+")")
+			}
+			fmt.Fprintf(w, "  "+T("formats.explain.candidates")+"\n", s.Muted.Render(strings.Join(cands, ", ")))
+		}
+	}
 	return nil
 }
 
@@ -599,6 +690,7 @@ type FormatInfoOutput struct {
 	Class       string            `json:"class,omitempty"`
 	Version     string            `json:"version,omitempty"`
 	Source      string            `json:"source,omitempty"`
+	Engine      string            `json:"engine,omitempty"`
 	HasReader   bool              `json:"has_reader"`
 	HasWriter   bool              `json:"has_writer"`
 	Editable    bool              `json:"editable"`
@@ -629,7 +721,9 @@ func (o FormatInfoOutput) FormatText(w io.Writer) error {
 	if o.Version != "" {
 		fmt.Fprintf(w, "  Version:    %s\n", o.Version)
 	}
-	if o.Source != "" {
+	if o.Engine != "" {
+		fmt.Fprintf(w, "  Engine:     %s\n", o.Engine)
+	} else if o.Source != "" {
 		fmt.Fprintf(w, "  Source:     %s\n", o.Source)
 	}
 

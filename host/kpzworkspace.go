@@ -569,7 +569,10 @@ func splitLocales(s string) []string {
 // embedded source document.
 func (a *App) kpzDetectFormat(sourcePath string) func(string) registry.FormatID {
 	if a.FormatFlag != "" {
-		name := preset.ParseFormatRef(a.FormatFlag).RegistryName()
+		name, err := a.FormatRefName(a.FormatFlag)
+		if err != nil {
+			name = preset.ParseFormatRef(a.FormatFlag).RegistryName()
+		}
 		return func(string) registry.FormatID { return registry.FormatID(name) }
 	}
 	if det, err := a.FormatReg.Detect(sourcePath, registry.DetectOptions{ExtensionOnly: true}); err == nil && det != "" {

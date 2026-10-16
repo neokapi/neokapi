@@ -15,7 +15,9 @@ finds the project by walking up from the current directory, like git.
   (`kapi translate`) or the optional `--ai` checks. The rule-based voice and
   terminology checks need none.
 - `kapi formats --json` reports whether a format is editable and round-trips
-  faithfully. Check that before relying on preservation.
+  faithfully. Check that before relying on preservation. `kapi formats explain
+  <file>` reports which format reads a file under the project's recipe, from
+  which engine (native or a plugin) and by which rule.
 
 ## When to set one up
 

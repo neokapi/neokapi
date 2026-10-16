@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-15T21:44:21Z",
+  "generatedAt": "2026-10-16T21:39:04Z",
   "commands": [
     {
       "id": "add",
@@ -5635,6 +5635,44 @@
         "kapi formats --mime text/html",
         "kapi formats --ops html --json",
         "kapi formats --ops"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "formats.explain",
+      "path": [
+        "formats",
+        "explain"
+      ],
+      "use": "explain \u003cfile\u003e...",
+      "short": "▒ Šàý ŵĥîçĥ ƒöŕḿàţ ŕéàđš à ƒîļé, àñđ ŵĥý ▒",
+      "long": "▒ Ŕéšöļṽé éàçĥ ƒîļé ţĥé ŵàý à ŕüñ đöéš àñđ ŕéþöŕţ ţĥé đéçîšîöñ: ţĥé ƒöŕḿàţ\nţĥàţ ŕéàđš îţ, ţĥé éñĝîñé ţĥé ƒöŕḿàţ ƃéļöñĝš ţö (ñàţîṽé, öŕ à þļüĝîñ šüçĥ àš\nöķàþî-ƃŕîđĝé), ţĥé ŕüļé ţĥàţ çĥöšé ţĥé éñĝîñé, ţĥé éñĝîñéš çöñšüļţéđ îñ öŕđéŕ\nàñđ éṽéŕý ƒöŕḿàţ çļàîḿîñĝ ţĥé ƒîļé'š éẋţéñšîöñ.\n\nŢĥé ŕéçîþé îñ šçöþé šüþþļîéš îţš đéçļàŕéđ þļüĝîñš, îţš éñĝîñé þŕéƒéŕéñçé\n(đéƒàüļţš.éñĝîñé) àñđ îţš þéŕ-ƒöŕḿàţ þîñš (đéƒàüļţš.ƒöŕḿàţš.\u003cñàḿé\u003e.éñĝîñé);\nà çöñţéñţ îţéḿ ţĥàţ ñàḿéš ţĥé ƒîļé'š ƒöŕḿàţ îš ŕéþöŕţéđ àš šüçĥ. Ŵîţĥöüţ à\nŕéçîþé ţĥé îñšţàļļéđ éñĝîñéš àþþļý, ñàţîṽé ƒîŕšţ. --éñĝîñé ŕàñķš àñ éñĝîñé\nàƃöṽé ţĥé ŕéçîþé'š þŕéƒéŕéñçé, àš îţ đöéš öñ à ŕüñ, àñđ --ƒöŕḿàţ ñàḿéš ţĥé\nƒöŕḿàţ öüţŕîĝĥţ: à ŕéƒéŕéñçé šüçĥ àš ĥţḿļ@öķàþî-ƃŕîđĝé ŕéšöļṽéš ţö ţĥàţ\néñĝîñé'š ƒöŕḿàţ ƒöŕ ţĥé šàḿé ƒîļéš. ▒",
+      "flags": [
+        {
+          "name": "engine",
+          "usage": "▒ ƒöŕḿàţ éñĝîñé ƒöŕ đéţéçţéđ ƒîļéš: ñàţîṽé öŕ à þļüĝîñ ñàḿé (đéƒàüļţ: ñàţîṽé, ţĥéñ þļüĝîñš) ▒",
+          "type": "string"
+        },
+        {
+          "name": "format",
+          "shorthand": "f",
+          "usage": "▒ ñàḿé ţĥé ƒöŕḿàţ öüţŕîĝĥţ, àš à ŕüñ'š --ƒöŕḿàţ đöéš (ñàḿé[@éñĝîñé][:þŕéšéţ]) ▒",
+          "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "▒ þàţĥ ţö à ķàþî.ýàḿļ þŕöĵéçţ ŕéçîþé öŕ îţš đîŕéçţöŕý (àüţö-đîšçöṽéŕéđ ƒŕöḿ çŵđ îƒ öḿîţţéđ) ▒",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi formats explain src/messages.json",
+        "kapi formats explain --engine okapi-bridge docs/index.html",
+        "kapi formats explain -f html@okapi-bridge docs/index.html",
+        "kapi formats explain --json content/*.xml"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,

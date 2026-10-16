@@ -47,8 +47,39 @@ order for the callers that ask it directly.
 
 The trace (`registry.Resolution`) names the format, its engine, the rule that
 chose the engine, whether content decided within it, the engine order consulted
-and every claimant. `kapi formats explain` is the planned surface for it
-(#640, phase 3).
+and every claimant. `kapi formats explain <file>...` prints it
+(`host.App.ExplainFormats`, `output.FormatExplainOutput`), under the recipe in
+scope and the run's `--engine`. A content item that names the file's format is
+reported under its own rule (`content item format`), and `--format` under
+`format flag`; neither consults the order.
+
+## The engine index
+
+`FormatRegistry.ExtensionEngines` groups the claimed extensions by engine
+(`core/registry/engine_index.go`). `kapi formats list` reads it to fill each
+format's `engine` and `shared_extensions`, and marks a shared extension with
+`*` in the table: a file with that extension is read by whichever engine the
+order chooses, not by the row alone.
+
+`EngineFormat(name, engine)` is the index read the other way: the format of
+`engine` for the logical format `name` names, which is `name` itself when it
+belongs to the engine and otherwise the engine's reader claiming the most of
+`name`'s extensions (priority, then name order, break a tie). A name no format
+carries is read as an extension, so `strings@okapi-bridge` works. A format
+reference carries the engine as `name[@engine][@version][:preset]`
+(`preset.ParseFormatRef`: a token after `@` starting with a digit is the
+version, any other the engine). The host resolves it in `App.formatRefName`,
+behind `resolveFormatRef`, the toolbox's `--format`, the `.kpz` detector and
+`kconv --to`:
+
+- `html` names the built-in HTML format, whatever the engine order prefers.
+- `html@okapi-bridge` names the bridge's HTML format; `okf_html@native` the
+  built-in one.
+- Under a recipe that pins the format's engine
+  (`defaults.formats.html.engine: okapi-bridge`), a bare `html` names the
+  pinned engine's format. An engine in the reference ranks above the pin.
+
+`--engine` never rewrites a named format: it ranks engines for detection only.
 
 ## The engine order
 
@@ -113,6 +144,15 @@ config (`App.AddInputFlagsWithoutEngine`).
 
 - `core/registry/engine_test.go`: the order, the pin, scoping, the onMiss
   guard, the writer pin.
+- `core/registry/engine_index_test.go`: the extension index, shared
+  extensions, `EngineFormat`.
+- `core/preset/formatref_test.go`: the `@engine` token beside `@version` and
+  `:preset`.
+- `host/formats_explain_test.go`: `@engine` references and the recipe's pin
+  through `--format`; `kapi formats explain` without a recipe, under one, and
+  for a content item that names the format.
+- `cli/formats_explain_test.go`: the command's text and JSON, `--engine`,
+  `--format`, and the engine column and marks of `kapi formats list`.
 - `core/project/context_test.go`: `defaults.engine`,
   `defaults.formats.<name>.engine`, `format_priority` ranking.
 - `host/engine_test.go`: the same file resolves to the same engine from

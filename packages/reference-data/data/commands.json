@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-15T21:44:21Z",
+  "generatedAt": "2026-10-16T21:39:04Z",
   "commands": [
     {
       "id": "add",
@@ -5635,6 +5635,44 @@
         "kapi formats --mime text/html",
         "kapi formats --ops html --json",
         "kapi formats --ops"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "formats.explain",
+      "path": [
+        "formats",
+        "explain"
+      ],
+      "use": "explain \u003cfile\u003e...",
+      "short": "Say which format reads a file, and why",
+      "long": "Resolve each file the way a run does and report the decision: the format\nthat reads it, the engine the format belongs to (native, or a plugin such as\nokapi-bridge), the rule that chose the engine, the engines consulted in order\nand every format claiming the file's extension.\n\nThe recipe in scope supplies its declared plugins, its engine preference\n(defaults.engine) and its per-format pins (defaults.formats.\u003cname\u003e.engine);\na content item that names the file's format is reported as such. Without a\nrecipe the installed engines apply, native first. --engine ranks an engine\nabove the recipe's preference, as it does on a run, and --format names the\nformat outright: a reference such as html@okapi-bridge resolves to that\nengine's format for the same files.",
+      "flags": [
+        {
+          "name": "engine",
+          "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)",
+          "type": "string"
+        },
+        {
+          "name": "format",
+          "shorthand": "f",
+          "usage": "name the format outright, as a run's --format does (name[@engine][:preset])",
+          "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi formats explain src/messages.json",
+        "kapi formats explain --engine okapi-bridge docs/index.html",
+        "kapi formats explain -f html@okapi-bridge docs/index.html",
+        "kapi formats explain --json content/*.xml"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,

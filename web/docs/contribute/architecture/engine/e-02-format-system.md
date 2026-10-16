@@ -185,8 +185,11 @@ callers:
    one name keep the first registered.
 
 A format reference in user-facing configuration uses the syntax
-`name[@version][:preset]`, e.g. `okf_html@1.46.0:wellFormed`. The registry
-resolves the reference to the appropriate factory.
+`name[@engine][@version][:preset]`, e.g. `okf_html@1.46.0:wellFormed` or
+`html@okapi-bridge`. A token after `@` that starts with a digit is a version;
+any other names the engine whose format for the same extensions the reference
+means (`FormatRegistry.EngineFormat`). The registry resolves the reference to
+the appropriate factory.
 
 ### Format detection
 
@@ -195,7 +198,8 @@ resolves the reference to the appropriate factory.
 (the format, its engine, the rule that chose the engine, and every claimant).
 Every surface that detects a format for a named file goes through it: the tool
 and flow runners, the toolbox, project content resolution, merge and the
-desktop. A file resolves to the same format from each.
+desktop. A file resolves to the same format from each, and `kapi formats
+explain` prints the decision for one.
 
 Resolution ranks engines before formats. An engine is a format provider: the
 built-in formats (`native`) or one plugin. For an extension several engines
