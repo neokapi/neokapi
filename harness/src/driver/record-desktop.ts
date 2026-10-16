@@ -2307,26 +2307,54 @@ async function bowrainDesktopAutomationsWalk(c: WalkCtx): Promise<void> {
 
 /** Bowrain web: the correction-learning loop. Candidate rules drawn from a
  *  team's corrections, a blast-radius preview held while its numbers are read,
- *  and promotion into a versioned check. The voice profile's review route is
+ *  and promotion into the workspace's terms. The voice profile's review route is
  *  /:ws/context/voice/review/:profileId (routes/index.tsx `context` → `voice` →
  *  `review/$profileId`); the workspace slug comes from BOWRAIN_WORKSPACE_SLUG
  *  and the profile id from BOWRAIN_DEMO_PROFILE_ID (both printed by
- *  harness/scripts/seed-correction-loop.mjs). */
+ *  harness/scripts/seed-correction-loop.mjs).
+ *
+ *  Each pass promotes a rule, and the review lists it under Established from
+ *  then on, so a dark pass on the light pass's workspace starts one rule
+ *  short. A second seed run's workspace and profile, given as
+ *  BOWRAIN_WORKSPACE_SLUG_DARK and BOWRAIN_DEMO_PROFILE_ID_DARK, give the dark
+ *  pass the same list; the same session token reaches both, since one user
+ *  seeds both.
+ *
+ *  The review is a list beside a detail pane (CandidateReview): one row per
+ *  rule with the count of corrections behind it, grouped Suggested and
+ *  Established, and the selected rule's acts and facts in the pane. */
 async function bowrainCorrectionLoopWalk(c: WalkCtx): Promise<void> {
-  const { page, beat, beatEls, cursorTo } = c;
+  const { page, beatEls, cursorTo } = c;
   const startUrl = new URL(page.url());
   const themeQ = startUrl.searchParams.get("theme") ? `?theme=${startUrl.searchParams.get("theme")}` : "";
-  // The page opened at origin/<slug>; that pathname is the workspace base.
-  const wsBase = `${startUrl.origin}${startUrl.pathname}`.replace(/\/$/, "");
-  const profileId = process.env.BOWRAIN_DEMO_PROFILE_ID || "";
+  // The page opened at origin/<slug>; that pathname is the workspace base,
+  // unless the dark pass has a workspace of its own.
+  const dark = startUrl.searchParams.get("theme") === "dark";
+  const darkSlug = dark ? process.env.BOWRAIN_WORKSPACE_SLUG_DARK || "" : "";
+  const wsBase = darkSlug
+    ? `${startUrl.origin}/${darkSlug}`
+    : `${startUrl.origin}${startUrl.pathname}`.replace(/\/$/, "");
+  const profileId =
+    (darkSlug && process.env.BOWRAIN_DEMO_PROFILE_ID_DARK) || process.env.BOWRAIN_DEMO_PROFILE_ID || "";
+  // The list and the selected rule's toolbar and facts, under the page's title.
+  const review = [
+    "text=Review suggested rules",
+    '[data-testid="voice-review-list"]',
+    '[data-slot="candidate-detail"] [data-slot="list-detail-toolbar"]',
+    '[data-slot="candidate-facts"]',
+  ];
+  const suggested = '[data-slot="candidate-item"][data-group="suggested"]';
 
   await page.goto(`${wsBase}/context/voice/review/${profileId}${themeQ}`, { waitUntil: "domcontentloaded" });
   await injectCursor(page); // goto wiped the page-injected cursor; re-add it
+  await page.waitForSelector(suggested, { timeout: 30_000 });
   await page.waitForTimeout(1800);
 
   // The candidates: each one a phrasing the team kept correcting, with the
-  // count of corrections standing behind it.
-  await beatEls("candidates", ['text=Review suggested rules', '[data-testid="voice-review-list"]'], async () => {
+  // count of corrections standing behind it. The first is selected, and the
+  // pane beside the list gives its count again with its kind.
+  await beatEls("candidates", review, async () => {
+    await cursorTo(suggested, 900);
     await page.waitForTimeout(2600);
   });
 
@@ -2334,34 +2362,43 @@ async function bowrainCorrectionLoopWalk(c: WalkCtx): Promise<void> {
   // impact dialog, and hold on it while the numbers are read.
   await beatEls("evaluate", ['[role="dialog"]'], async () => {
     const sel = page.locator("select").first();
-    if (await sel.count()) {
-      await humanClick(page, sel);
-      await sel.selectOption({ index: 1 }).catch(() => {});
-      await page.waitForTimeout(700);
-    }
-    const preview = page.getByRole("button", { name: /Preview impact/i }).first();
-    if (await preview.count()) {
-      await cursorTo('button:has-text("Preview impact")');
-      await humanClick(page, preview);
-    }
+    await humanClick(page, sel);
+    await sel.selectOption({ index: 1 });
+    await page.waitForTimeout(700);
+    const preview = page.locator('[data-slot="evaluate-candidate"]').first();
+    await preview.waitFor({ timeout: 10_000 });
+    await cursorTo('[data-slot="evaluate-candidate"]');
+    await humanClick(page, preview);
     await page.waitForSelector('[role="dialog"]', { timeout: 20_000 });
     await page.waitForTimeout(3400);
   });
 
-  // Promote it. The candidate leaves the queue as a versioned rule that every
-  // later run enforces. The impact dialog is dismissed here rather than at the
-  // end of the beat above, because a beat's crop is resolved once its actions
-  // have settled: an Escape inside that beat closes the dialog it framed and
-  // the crop resolves against nothing.
-  await beat("promote", null, async () => {
-    await page.keyboard.press("Escape").catch(() => {});
+  // Promote it. The rule leaves Suggested once the list is read again, and
+  // Established, a closed group, counts it; the beat opens the group and
+  // selects the rule, whose pane gives its status, who promoted it and when.
+  // The impact dialog is dismissed here rather than at the end of the beat
+  // above, because a beat's crop is resolved once its actions have settled:
+  // an Escape inside that beat closes the dialog it framed and the crop
+  // resolves against nothing.
+  const establishedToggle = page.locator('[data-slot="review-established"] button[aria-expanded]');
+  await beatEls("promote", review, async () => {
+    await page.keyboard.press("Escape");
+    await page.waitForSelector('[role="dialog"]', { state: "detached", timeout: 10_000 });
     await page.waitForTimeout(600);
-    const promote = page.getByRole("button", { name: /^Promote$/ }).first();
-    if (await promote.count()) {
-      await cursorTo('button:has-text("Promote")');
-      await humanClick(page, promote);
-    }
-    await page.waitForTimeout(3000);
+    // The rule promoted is the one selected, found again under Established by its term.
+    const term = await page.locator(`${suggested}[aria-selected="true"]`).getAttribute("data-term");
+    if (!term) throw new Error("bowrain-web-correction-loop: no suggested rule is selected to promote");
+    const promoted = page.locator(`[data-slot="candidate-item"][data-group="promoted"][data-term="${term}"]`);
+    await cursorTo('[data-slot="promote-candidate"]');
+    await humanClick(page, page.locator('[data-slot="promote-candidate"]').first());
+    await establishedToggle.waitFor({ timeout: 15_000 });
+    await page.waitForTimeout(1200);
+    await humanClick(page, establishedToggle);
+    await promoted.waitFor({ timeout: 10_000 });
+    await page.waitForTimeout(500);
+    await humanClick(page, promoted);
+    await page.locator('[data-slot="candidate-facts"]').filter({ hasText: "Promoted" }).waitFor({ timeout: 10_000 });
+    await page.waitForTimeout(1500);
   });
 }
 
