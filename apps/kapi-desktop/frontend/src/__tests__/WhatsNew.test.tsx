@@ -108,7 +108,10 @@ describe("what is new across the workspace", () => {
 
   it("draws the chip that needs a person in the warning ink, and no other", () => {
     render(<WhatsNew standings={SEVERAL} onOpen={vi.fn()} />);
-    const warned = all("whats-new-chip").filter((c) => c.className.includes("border-warning"));
+    const warned = all("whats-new-chip").filter(
+      (c) => c.getAttribute("data-variant") === "warning",
+    );
+    expect(warned.every((c) => c.className.includes("text-warning-ink"))).toBe(true);
     expect(warned.map((c) => c.getAttribute("data-kind"))).toEqual(["conflict"]);
   });
 

@@ -218,11 +218,6 @@ function openLabel(row: NewsRow): React.ReactNode {
   }
 }
 
-// `--warning` is a fill colour that holds dark ink; as ink on a light ground it
-// needs mixing with its own ink to stay legible, as StatRow and KindIcon do.
-const WARNING_CHIP =
-  "border-warning/60 text-[color-mix(in_oklch,var(--warning)_60%,var(--warning-foreground))] dark:text-warning";
-
 const CHIP = "text-[11px] font-normal tabular-nums";
 
 function Chip({
@@ -238,11 +233,11 @@ function Chip({
 }) {
   const chip = (
     <Badge
-      variant="outline"
+      variant={warning ? "warning" : "outline"}
       data-slot="whats-new-chip"
       data-kind={kind}
       tabIndex={hint ? 0 : undefined}
-      className={cn(CHIP, warning ? WARNING_CHIP : "text-muted-foreground")}
+      className={cn(CHIP, !warning && "text-muted-foreground")}
     >
       {kind && <KindIcon kind={kind} decorative />}
       {children}

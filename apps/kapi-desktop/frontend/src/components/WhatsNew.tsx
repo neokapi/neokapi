@@ -190,12 +190,12 @@ function WhatsNewRow({
           {chips.map(({ kind, label, warning }) => (
             <Badge
               key={kind}
-              variant="outline"
+              variant={warning ? "warning" : "outline"}
               data-slot="whats-new-chip"
               data-kind={kind}
               className={cn(
                 "text-[11px] font-normal tabular-nums",
-                warning ? WARNING_CHIP : "text-muted-foreground",
+                !warning && "text-muted-foreground",
               )}
             >
               {isDigestKind(kind) && <KindIcon kind={kind} decorative />}
@@ -219,11 +219,6 @@ function WhatsNewRow({
     </div>
   );
 }
-
-// `--warning` is a fill colour that holds dark ink; as ink on a light ground it
-// needs mixing with its own ink to stay legible, as StatRow and KindIcon do.
-const WARNING_CHIP =
-  "border-warning/60 text-[color-mix(in_oklch,var(--warning)_60%,var(--warning-foreground))] dark:text-warning";
 
 /** One chip on a What's new row: a count of one kind of thing. */
 export interface NewsChip {

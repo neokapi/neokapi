@@ -395,7 +395,7 @@ function TeamCard({
       </ShareFacts>
       {status?.error && (
         <div className="mt-3">
-          <p className="flex items-center gap-1.5 text-sm text-[color-mix(in_oklch,var(--warning)_60%,var(--warning-foreground))] dark:text-warning">
+          <p className="flex items-center gap-1.5 text-sm text-warning-ink">
             <TriangleAlert size={14} aria-hidden className="shrink-0" />
             {status.contacted ? (
               <span>
