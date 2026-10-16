@@ -809,7 +809,7 @@ function contextSection(page: Page, label: string): Locator {
  *  ConceptsView.tsx), the memory search is the filter bar's and is sent on
  *  Enter (MemoryListDetail.tsx). */
 async function explorerWalk(c: WalkCtx): Promise<void> {
-  const { page, beat, beatEls, cursorTo, sidebar } = c;
+  const { page, beatEls, beatSpan, cursorTo, sidebar } = c;
   // Terms in a project is a list of concepts beside a detail pane
   // (ConceptsView): its search box is labelled, and each concept is a row.
   const conceptSearch = 'input[aria-label="Search concepts"]';
@@ -837,11 +837,20 @@ async function explorerWalk(c: WalkCtx): Promise<void> {
   // Select the concept the search found: the pane beside the list shows its
   // definition, the forms it retires, and its terms per language with the
   // status that marks the preferred one.
+  //
+  // The pane's sections run its full width, so a crop over any of them is the
+  // whole window. The walk marks what fills them instead: the row, the
+  // concept's name, its definition (as wide as a line of prose) and the last
+  // term's status.
   const conceptDetail = '[data-slot="terms-concept-detail"]';
-  await beatEls("concept", [conceptRow, `${conceptDetail} [data-slot="list-detail-toolbar"]`, '[data-slot="terms-discouraged"]', '[data-slot="terms-translations"]'], async () => {
+  await beatSpan("concept", async (mark) => {
     await humanClick(page, page.locator(conceptRow).first());
     await page.waitForSelector(conceptDetail, { timeout: 20_000 });
     await page.waitForTimeout(2400);
+    await mark(page.locator(conceptRow).first());
+    await mark(page.locator(`${conceptDetail} [data-slot="list-detail-toolbar"] h2`));
+    await mark(page.locator(`${conceptDetail} p.max-w-prose`));
+    await mark(page.locator(`${conceptDetail} [data-slot="terms-translations"] [data-slot="term-status"]`).last());
   });
   // Content Memory, searched from the filter bar at the top of its list. This
   // search is sent on Enter, and the bar's tokens narrow it by facet.
@@ -857,13 +866,21 @@ async function explorerWalk(c: WalkCtx): Promise<void> {
   // One pair, selected: the source string and its translation in full in the
   // pane, the other languages the entry holds, the file it came from and the
   // key that uses it.
-  await beatEls("inspect-tm", ['[data-testid^="tm-entry-"]', '[data-slot="memory-pair-detail"]'], async () => {
+  // As with the concept, the crop is drawn from what fills the pane: the row,
+  // the pair's languages, the source (as wide as a line of prose) and the key.
+  const pairDetail = '[data-slot="memory-pair-detail"]';
+  await beatSpan("inspect-tm", async (mark) => {
     const first = page.locator('[data-testid^="tm-entry-"]').first();
     await first.scrollIntoViewIfNeeded().catch(() => {});
     await page.waitForTimeout(300);
     await cursorTo('[data-testid^="tm-entry-"]');
-    await humanClick(page, first).catch(() => {});
+    await humanClick(page, first);
+    await page.waitForSelector(pairDetail, { timeout: 20_000 });
     await page.waitForTimeout(2400);
+    await mark(first);
+    await mark(page.locator(`${pairDetail} [data-slot="list-detail-toolbar"] h2`));
+    await mark(page.locator(`${pairDetail} [data-slot="memory-variant"] .max-w-prose`));
+    await mark(page.locator(`${pairDetail} [data-testid="entry-unit"]`));
   });
 }
 
