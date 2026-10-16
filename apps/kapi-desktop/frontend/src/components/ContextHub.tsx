@@ -246,10 +246,16 @@ function ProjectHistory({ tabID }: { tabID: string }) {
   return <ContextFeedPanel projectKey={key} />;
 }
 
-/** The command each section does the work of, for the reader who has a terminal. */
+/**
+ * The command each section does the work of, for the reader who has a
+ * terminal. Terms and Content Memory have none: their pages search and look
+ * up, which are two commands, so neither is the page's equivalent.
+ */
 const SECTION_COMMANDS: Partial<Record<ContextSection, string>> = {
   rules: "kapi context review",
+  explorer: "kapi context <path>",
   agent: "kapi init",
+  voice: "kapi voice show",
   history: "kapi context log",
   share: "kapi context sync",
 };
@@ -262,7 +268,7 @@ function SectionCommand({ section }: { section: ContextSection }) {
   const command = SECTION_COMMANDS[section];
   if (!command) return null;
   return (
-    <SimpleTooltip content={t("The same as {command} in a terminal", { command })}>
+    <SimpleTooltip content={t("The same in the terminal")}>
       <code
         data-slot="context-section-command"
         translate="no"

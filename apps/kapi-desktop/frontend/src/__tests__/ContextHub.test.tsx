@@ -136,7 +136,12 @@ describe("ContextHub", () => {
     expect(commands()[0].textContent).toBe("kapi context sync");
     await userEvent.click(screen.getByRole("button", { name: "Assistant" }));
     expect(commands()[0].textContent).toBe("kapi init");
+    await userEvent.click(screen.getByRole("button", { name: "Ask" }));
+    expect(commands()[0].textContent).toBe("kapi context <path>");
     await userEvent.click(screen.getByRole("button", { name: "Voice" }));
+    expect(commands()[0].textContent).toBe("kapi voice show");
+    // Terms and Content Memory search and look up: no one command is the page.
+    await userEvent.click(screen.getByRole("button", { name: "Terms" }));
     expect(commands()).toHaveLength(0);
     vi.restoreAllMocks();
   });
