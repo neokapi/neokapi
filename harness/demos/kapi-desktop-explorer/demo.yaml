@@ -12,8 +12,7 @@ aspects:
   - Terms
   - Content memory
   - Multi-locale terms
-  - Inline formatting
-  - Entity placeholders
+  - Where a memory entry came from
 
 # A "desktop" demo replays the recorded Kapi Desktop screencast (public/<id>/
 # screencast.{json,webm}) inside the macOS window frame. Each narration scene of
@@ -44,8 +43,8 @@ narration:
     caption: Its approved terms, language by language.
     text: >-
       A concept carries a definition and the approved term for it in every
-      language the project ships. A status badge marks the preferred wording and
-      flags the ones that have been retired.
+      language the project ships. A status badge marks the preferred wording,
+      and admitted marks a form that may stand beside it, as cart does here.
 
   - id: search-tm
     kind: desktop
@@ -59,11 +58,11 @@ narration:
   - id: inspect-tm
     kind: desktop
     beat: inspect-tm
-    caption: Formatting kept as tags, names kept as placeholders.
+    caption: The pair in full, and where it came from.
     text: >-
-      An entry pairs a source string with its translations. Bold text and links
-      are kept as tags rather than as literal markup, and a name is held as a
-      placeholder, so the entry can be reused with a different one in it.
+      Selecting a pair shows the source and its translation in full, and the
+      other languages the entry holds. It also names the file the pair came
+      from and the key that uses it.
 
   - id: outro
     kind: outro

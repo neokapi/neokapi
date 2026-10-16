@@ -23,6 +23,7 @@ import { injectCursor, moveTo, humanClick, humanType, idle, setClickSink } from 
 import { loadEnv } from "../lib/env.ts";
 import { FULL_WINDOW_FIT, frameGeometry, isWebDemo, MAX_CROP_SCALE, regionFit, unionRect } from "../lib/crop.ts";
 import type { ElementBox } from "../lib/crop.ts";
+import { cueAt, narrationCues, type Cue } from "../lib/cues.ts";
 
 // Load harness/.env (the seed writes BOWRAIN_SESSION_TOKEN etc. there) BEFORE
 // the module-level BOWRAIN_* consts below read process.env. loadEnv() is
@@ -641,6 +642,13 @@ interface WalkCtx {
   beatSpan: (id: string, fn: (mark: (target: Locator) => Promise<void>) => Promise<void>) => Promise<void>;
   /** Move the visible cursor onto an element's centre. */
   cursorTo: (selector: string, duration?: number) => Promise<void>;
+  /**
+   * Wait, inside a beat, until its narration speaks `word` (the first word of
+   * the beat's captions that matches it, case and punctuation aside), so an
+   * act lands as the narration names it. Without captions, or without the
+   * word, it waits until `fallbackSec` from the beat's start.
+   */
+  cue: (word: string, fallbackSec: number) => Promise<void>;
   /** A sidebar nav button by its aria-label. */
   sidebar: (label: string) => Locator;
   /**
@@ -678,8 +686,14 @@ function translatePath(itemName: string): string {
   return itemName.split("/").map(encodeURIComponent).join("/");
 }
 
-function makeCtx(page: Page, t0: number, beats: Beat[], peer: PeerSession | undefined, specs: Record<string, BeatSpec>, holds: Record<string, number>, demoId: string): WalkCtx {
+function makeCtx(page: Page, t0: number, beats: Beat[], peer: PeerSession | undefined, specs: Record<string, BeatSpec>, holds: Record<string, number>, demoId: string, cues: Record<string, Cue[]>): WalkCtx {
   const now = () => (Date.now() - t0) / 1000;
+  // The beat on camera now, for cue().
+  let current = { id: "", tStart: 0 };
+  const cue = async (word: string, fallbackSec: number) => {
+    const remaining = (cueAt(cues[current.id], word) ?? fallbackSec) - (now() - current.tStart);
+    if (remaining > 0) await page.waitForTimeout(Math.round(remaining * 1000));
+  };
   const sidebar = (label: string) => page.locator(`button[aria-label="${label}"]`);
   // Keep the beat on camera for its hold: the manifest's `hold`, else the
   // measured length of the narration over it when a narration.json exists.
@@ -692,6 +706,7 @@ function makeCtx(page: Page, t0: number, beats: Beat[], peer: PeerSession | unde
   };
   const beat = async (id: string, zoom: ZoomRect | null, fn: () => Promise<void>) => {
     const tStart = now();
+    current = { id, tStart };
     await fn();
     await holdUntil(id, tStart);
     const spec = specs[id];
@@ -759,6 +774,7 @@ function makeCtx(page: Page, t0: number, beats: Beat[], peer: PeerSession | unde
   };
   const beatEls = async (id: string, selectors: string[], fn: () => Promise<void>) => {
     const tStart = now();
+    current = { id, tStart };
     await fn();
     await holdUntil(id, tStart);
     const spec = specs[id];
@@ -771,6 +787,7 @@ function makeCtx(page: Page, t0: number, beats: Beat[], peer: PeerSession | unde
   // union is the band of the window that held each of them when it was marked.
   const beatSpan = async (id: string, fn: (mark: (target: Locator) => Promise<void>) => Promise<void>) => {
     const tStart = now();
+    current = { id, tStart };
     const boxes: (ElementBox | null)[] = [];
     await fn(async (target) => {
       boxes.push(await target.first().boundingBox({ timeout: 2000 }).catch(() => null));
@@ -783,7 +800,7 @@ function makeCtx(page: Page, t0: number, beats: Beat[], peer: PeerSession | unde
     const highlight = spec?.highlightSelector ? await unionZoom([spec.highlightSelector], 0.01) : undefined;
     beats.push({ id, tStart, tEnd: now(), zoom, ...(highlight !== undefined ? { highlight } : {}) });
   };
-  return { page, beat, beatEls, beatSpan, cursorTo, sidebar, peer };
+  return { page, beat, beatEls, beatSpan, cursorTo, cue, sidebar, peer };
 }
 
 /** A Context hub section tab by its label. The hub's own nav carries the
@@ -809,7 +826,7 @@ function contextSection(page: Page, label: string): Locator {
  *  ConceptsView.tsx), the memory search is the filter bar's and is sent on
  *  Enter (MemoryListDetail.tsx). */
 async function explorerWalk(c: WalkCtx): Promise<void> {
-  const { page, beat, beatEls, cursorTo, sidebar } = c;
+  const { page, beatEls, beatSpan, cursorTo, sidebar } = c;
   // Terms in a project is a list of concepts beside a detail pane
   // (ConceptsView): its search box is labelled, and each concept is a row.
   const conceptSearch = 'input[aria-label="Search concepts"]';
@@ -837,11 +854,20 @@ async function explorerWalk(c: WalkCtx): Promise<void> {
   // Select the concept the search found: the pane beside the list shows its
   // definition, the forms it retires, and its terms per language with the
   // status that marks the preferred one.
+  //
+  // The pane's sections run its full width, so a crop over any of them is the
+  // whole window. The walk marks what fills them instead: the row, the
+  // concept's name, its definition (as wide as a line of prose) and the last
+  // term's status.
   const conceptDetail = '[data-slot="terms-concept-detail"]';
-  await beatEls("concept", [conceptRow, `${conceptDetail} [data-slot="list-detail-toolbar"]`, '[data-slot="terms-discouraged"]', '[data-slot="terms-translations"]'], async () => {
+  await beatSpan("concept", async (mark) => {
     await humanClick(page, page.locator(conceptRow).first());
     await page.waitForSelector(conceptDetail, { timeout: 20_000 });
     await page.waitForTimeout(2400);
+    await mark(page.locator(conceptRow).first());
+    await mark(page.locator(`${conceptDetail} [data-slot="list-detail-toolbar"] h2`));
+    await mark(page.locator(`${conceptDetail} p.max-w-prose`));
+    await mark(page.locator(`${conceptDetail} [data-slot="terms-translations"] [data-slot="term-status"]`).last());
   });
   // Content Memory, searched from the filter bar at the top of its list. This
   // search is sent on Enter, and the bar's tokens narrow it by facet.
@@ -855,14 +881,23 @@ async function explorerWalk(c: WalkCtx): Promise<void> {
     await page.waitForTimeout(1600);
   });
   // One pair, selected: the source string and its translation in full in the
-  // pane, with inline formatting kept as tags and names held as placeholders.
-  await beatEls("inspect-tm", ['[data-testid^="tm-entry-"]', '[data-slot="memory-pair-detail"]'], async () => {
+  // pane, the other languages the entry holds, the file it came from and the
+  // key that uses it.
+  // As with the concept, the crop is drawn from what fills the pane: the row,
+  // the pair's languages, the source (as wide as a line of prose) and the key.
+  const pairDetail = '[data-slot="memory-pair-detail"]';
+  await beatSpan("inspect-tm", async (mark) => {
     const first = page.locator('[data-testid^="tm-entry-"]').first();
     await first.scrollIntoViewIfNeeded().catch(() => {});
     await page.waitForTimeout(300);
     await cursorTo('[data-testid^="tm-entry-"]');
-    await humanClick(page, first).catch(() => {});
+    await humanClick(page, first);
+    await page.waitForSelector(pairDetail, { timeout: 20_000 });
     await page.waitForTimeout(2400);
+    await mark(first);
+    await mark(page.locator(`${pairDetail} [data-slot="list-detail-toolbar"] h2`));
+    await mark(page.locator(`${pairDetail} [data-slot="memory-variant"] .max-w-prose`));
+    await mark(page.locator(`${pairDetail} [data-testid="entry-unit"]`));
   });
 }
 
@@ -1429,7 +1464,7 @@ function recordLiveNote(): void {
  * Established, so each crop is the union of the two (beatSpan).
  */
 async function contextWalk(c: WalkCtx): Promise<void> {
-  const { page, beatEls, beatSpan, cursorTo, sidebar } = c;
+  const { page, beatEls, beatSpan, cursorTo, cue, sidebar } = c;
   const row = `[data-slot="whats-new-row"][data-project="${CONTEXT_SAMPLE_KEY}"]`;
   const home = ['[data-slot="workspace-numbers"]', '[data-slot="whats-new"]', '[data-slot="home-projects"]'];
   const suggestion = (text: string) =>
@@ -1441,16 +1476,37 @@ async function contextWalk(c: WalkCtx): Promise<void> {
     await humanClick(page, item);
     await page.waitForTimeout(500);
   };
+  // An act removes the control it was made with, or moves the row it was made
+  // on, so the cursor follows it to the rule it became rather than resting on
+  // the space the control left.
+  const restOn = async (item: Locator) => moveTo(page, ...(await centreOf(item)));
+  // The same, once the act's last words are spoken: no smooth scroll and no
+  // long pause, so the slice ends with the narration over it. A slice longer
+  // than its narration plays faster, and the acts drift off their words.
+  const follow = async (item: Locator) => {
+    await item.scrollIntoViewIfNeeded();
+    await restOn(item);
+  };
   // The screencast runs a few tenths of a second ahead of the clock the beats
   // are timed by, so a beat's slice ends a moment after the walk has moved on.
   // A still second after each beat keeps the next scroll out of its last frames.
   const settle = () => page.waitForTimeout(1000);
+  // The disagreement's two sides in the detail pane, codex's and claude-code's.
+  const codexSide = page.locator('[data-slot="digest-side"]').filter({ hasText: "Write log in" }).first();
+  const side = page.locator('[data-slot="digest-side"]').filter({ hasText: "Write sign in" }).first();
+  // Each beat acts when its narration names the act (cue), so the screen and
+  // the words over it agree.
 
   await freshContextSample(page);
 
-  // The row reads by its chips: what codex noticed, by kind, and the one that
-  // needs a person.
+  // The row reads by its mark and its chips: codex was the last to work there,
+  // and what it noticed, by kind, with the one that needs a person.
   await beatEls("home", home, async () => {
+    await cue("row", 3.2);
+    await restOn(page.locator(row));
+    await cue("codex", 7.2);
+    await cursorTo(`${row} [data-slot="whats-new-actor"]`, 700);
+    await cue("noticed", 9.7);
     await cursorTo(`${row} [data-slot="whats-new-chips"]`, 900);
     await page.waitForTimeout(1500);
   });
@@ -1463,6 +1519,10 @@ async function contextWalk(c: WalkCtx): Promise<void> {
     await page.waitForSelector('[data-slot="digest-conflicts"]', { timeout: 60_000 });
     await page.waitForTimeout(1500);
     await cursorTo('[data-slot="digest-conflicts"] [data-slot="digest-item"]');
+    await cue("codex", 5.4);
+    await restOn(codexSide);
+    await cue("claude-code", 7.4);
+    await restOn(side);
     await page.waitForTimeout(1200);
   });
   await settle();
@@ -1474,9 +1534,11 @@ async function contextWalk(c: WalkCtx): Promise<void> {
   await beatSpan("keep", async (mark) => {
     await select(name);
     await mark(name);
+    await cue("keeps", 6.5);
     await page.keyboard.press("a");
     await page.waitForTimeout(900);
     await centre(page, page.locator(kept).first());
+    await restOn(page.locator(kept).first());
     await mark(page.locator(kept).first());
     await page.waitForTimeout(1200);
   });
@@ -1489,6 +1551,7 @@ async function contextWalk(c: WalkCtx): Promise<void> {
   await centre(page, word);
   await beatSpan("change", async (mark) => {
     await select(word);
+    await cue("c", 7.2);
     await page.keyboard.press("c");
     const form = page.locator('[data-slot="digest-change"] input');
     await form.waitFor({ state: "visible", timeout: 10_000 });
@@ -1499,10 +1562,10 @@ async function contextWalk(c: WalkCtx): Promise<void> {
     await mark(word);
     await mark(page.locator('[data-slot="digest-change"]'));
     await humanClick(page, page.locator('[data-slot="keep-changed"]'));
-    await page.waitForTimeout(900);
-    await centre(page, page.locator(kept).first());
+    await page.waitForTimeout(500);
+    await follow(page.locator(kept).first());
     await mark(page.locator(kept).first());
-    await page.waitForTimeout(1200);
+    await page.waitForTimeout(600);
   });
   await settle();
 
@@ -1511,20 +1574,23 @@ async function contextWalk(c: WalkCtx): Promise<void> {
   // claude-code's, the change a person made, by its text rather than its
   // place. The row leaves the list, and the beat ends on the three rules kept.
   const disagreement = page.locator('[data-slot="digest-conflicts"] [data-slot="digest-item"]').first();
-  const side = page.locator('[data-slot="digest-side"]').filter({ hasText: "Write sign in" }).first();
   await centre(page, disagreement);
   await beatSpan("choose", async (mark) => {
     await select(disagreement);
     await side.waitFor({ state: "visible", timeout: 10_000 });
     await mark(disagreement);
     await mark(page.locator('[data-slot="digest-conflict-sides"]'));
-    await page.waitForTimeout(1200);
+    await cue("codex", 2.8);
+    await restOn(codexSide);
+    await cue("claude-code's", 6.5);
+    await restOn(side);
+    await cue("choose", 11.1);
     await humanClick(page, side.locator('[data-slot="keep-item"]'));
     await page.waitForSelector('[data-slot="digest-conflicts"]', { state: "detached", timeout: 15_000 });
-    await page.waitForTimeout(900);
-    await centre(page, page.locator(kept).first());
+    await page.waitForTimeout(400);
+    await follow(page.locator(kept).first());
     for (let i = 0; i < 3; i++) await mark(page.locator(kept).nth(i));
-    await page.waitForTimeout(1200);
+    await page.waitForTimeout(600);
   });
   await settle();
 
@@ -1536,20 +1602,23 @@ async function contextWalk(c: WalkCtx): Promise<void> {
   await page.waitForTimeout(1000);
   // The crop runs from the brief's tab and the file picker down to the kept
   // rule's line in the brief's terms, which carries no handle of its own.
+  // The brief's tab opens before the beat, so the file is chosen as the
+  // narration names it.
   const briefTab = page.getByTestId("assistant-tab-brief");
   const picker = page.locator('[aria-label="Choose a file"]');
   const keptTerm = page.locator('[data-slot="assistant-brief"] li').filter({ hasText: "say shopping cart instead" });
+  await humanClick(page, briefTab);
+  await page.waitForSelector('[data-slot="assistant-brief"]', { timeout: 10_000 });
+  await page.waitForTimeout(600);
+  await centre(page, page.locator('[data-slot="assistant-brief"]'));
   await beatSpan("assistant", async (mark) => {
-    await humanClick(page, briefTab);
-    await page.waitForSelector('[data-slot="assistant-brief"]', { timeout: 10_000 });
-    await page.waitForTimeout(600);
-    await centre(page, page.locator('[data-slot="assistant-brief"]'));
+    await cue("for", 3.0);
     await humanClick(page, picker);
     await page.waitForTimeout(700);
     await humanClick(page, page.locator('[role="option"]').filter({ hasText: "src/en/store-ui.json" }).first());
     await page.getByTestId("agent-context-text").waitFor({ state: "visible", timeout: 30_000 });
     await keptTerm.first().waitFor({ state: "visible", timeout: 10_000 });
-    await page.waitForTimeout(900);
+    await cue("basket", 5.8);
     await moveTo(page, ...(await centreOf(keptTerm)));
     await mark(briefTab);
     await mark(picker);
@@ -1564,12 +1633,16 @@ async function contextWalk(c: WalkCtx): Promise<void> {
   await humanClick(page, sidebar("Home"));
   await page.waitForSelector('[data-slot="home-projects"]', { timeout: 20_000 });
   await page.waitForTimeout(1000);
+  // The cursor waits on the row's mark, which names who noticed something
+  // last and is what the note changes.
   await beatEls("live", home, async () => {
-    await cursorTo('[data-slot="workspace-numbers"]', 800);
-    await page.waitForTimeout(1500);
+    await cursorTo(`${row} [data-slot="whats-new-actor"]`, 800);
     // The row is already there: the rules kept on camera are new since the
     // person looked. What the note changes is who noticed something: the row
-    // takes claude-code's mark, and a chip says it is working there now.
+    // takes claude-code's mark, and a chip says it is working there now. The
+    // note is recorded once the narration has said what it holds, so the row
+    // changes as the narration says it does.
+    await cue("test", 7.2);
     recordLiveNote();
     await page
       .locator(
@@ -1581,9 +1654,11 @@ async function contextWalk(c: WalkCtx): Promise<void> {
           "kapi-desktop-context: the note recorded as claude-code did not reach the home within 10 s (no claude-code mark and working chip on the row)",
         );
       });
-    await page.waitForTimeout(600);
-    await cursorTo(`${row} [data-slot="workspace-working"]`, 700);
-    await page.waitForTimeout(1500);
+    await cue("chip", 11.9);
+    await cursorTo(`${row} [data-slot="whats-new-chip"]`, 600);
+    await cue("working", 14.6);
+    await cursorTo(`${row} [data-slot="workspace-working"]`, 500);
+    await page.waitForTimeout(200);
   });
   await settle();
 
@@ -2297,61 +2372,118 @@ async function bowrainDesktopAutomationsWalk(c: WalkCtx): Promise<void> {
 
 /** Bowrain web: the correction-learning loop. Candidate rules drawn from a
  *  team's corrections, a blast-radius preview held while its numbers are read,
- *  and promotion into a versioned check. The voice profile's review route is
+ *  and promotion into the workspace's terms. The voice profile's review route is
  *  /:ws/context/voice/review/:profileId (routes/index.tsx `context` → `voice` →
  *  `review/$profileId`); the workspace slug comes from BOWRAIN_WORKSPACE_SLUG
  *  and the profile id from BOWRAIN_DEMO_PROFILE_ID (both printed by
- *  harness/scripts/seed-correction-loop.mjs). */
+ *  harness/scripts/seed-correction-loop.mjs).
+ *
+ *  Each pass promotes a rule, and the review lists it under Established from
+ *  then on, so a dark pass on the light pass's workspace starts one rule
+ *  short. A second seed run's workspace and profile, given as
+ *  BOWRAIN_WORKSPACE_SLUG_DARK and BOWRAIN_DEMO_PROFILE_ID_DARK, give the dark
+ *  pass the same list; the same session token reaches both, since one user
+ *  seeds both.
+ *
+ *  The review is a list beside a detail pane (CandidateReview): one row per
+ *  rule with the count of corrections behind it, grouped Suggested and
+ *  Established, and the selected rule's acts and facts in the pane. */
 async function bowrainCorrectionLoopWalk(c: WalkCtx): Promise<void> {
-  const { page, beat, beatEls, cursorTo } = c;
+  const { page, beatEls, beatSpan, cursorTo } = c;
   const startUrl = new URL(page.url());
   const themeQ = startUrl.searchParams.get("theme") ? `?theme=${startUrl.searchParams.get("theme")}` : "";
-  // The page opened at origin/<slug>; that pathname is the workspace base.
-  const wsBase = `${startUrl.origin}${startUrl.pathname}`.replace(/\/$/, "");
-  const profileId = process.env.BOWRAIN_DEMO_PROFILE_ID || "";
+  // The page opened at origin/<slug>; that pathname is the workspace base,
+  // unless the dark pass has a workspace of its own.
+  const dark = startUrl.searchParams.get("theme") === "dark";
+  const darkSlug = dark ? process.env.BOWRAIN_WORKSPACE_SLUG_DARK || "" : "";
+  const wsBase = darkSlug
+    ? `${startUrl.origin}/${darkSlug}`
+    : `${startUrl.origin}${startUrl.pathname}`.replace(/\/$/, "");
+  const profileId =
+    (darkSlug && process.env.BOWRAIN_DEMO_PROFILE_ID_DARK) || process.env.BOWRAIN_DEMO_PROFILE_ID || "";
+  // The list and the selected rule's toolbar and facts, under the page's title.
+  const review = [
+    "text=Review suggested rules",
+    '[data-testid="voice-review-list"]',
+    '[data-slot="candidate-detail"] [data-slot="list-detail-toolbar"]',
+    '[data-slot="candidate-facts"]',
+  ];
+  const suggested = '[data-slot="candidate-item"][data-group="suggested"]';
+  // The screencast runs a few tenths of a second ahead of the clock the beats
+  // are timed by, so a still second after a beat keeps the next act (the
+  // project picker, the Escape that closes the dialog) out of its last frames.
+  const settle = () => page.waitForTimeout(1000);
 
   await page.goto(`${wsBase}/context/voice/review/${profileId}${themeQ}`, { waitUntil: "domcontentloaded" });
   await injectCursor(page); // goto wiped the page-injected cursor; re-add it
+  await page.waitForSelector(suggested, { timeout: 30_000 });
   await page.waitForTimeout(1800);
 
   // The candidates: each one a phrasing the team kept correcting, with the
-  // count of corrections standing behind it.
-  await beatEls("candidates", ['text=Review suggested rules', '[data-testid="voice-review-list"]'], async () => {
+  // count of corrections standing behind it. The first is selected, and the
+  // pane beside the list gives its count again with its kind. The pane's
+  // toolbar and facts run its full width, so the crop is drawn from the
+  // rule's name and the two values.
+  const facts = '[data-slot="candidate-facts"]';
+  await beatSpan("candidates", async (mark) => {
+    await cursorTo(suggested, 900);
     await page.waitForTimeout(2600);
+    await mark(page.getByText("Review suggested rules"));
+    await mark(page.getByTestId("voice-review-list"));
+    await mark(page.locator('[data-slot="candidate-detail"] [data-slot="list-detail-toolbar"] h2'));
+    await mark(page.locator(`${facts} span.tabular-nums`));
+    await mark(page.locator(`${facts} span.inline-flex`));
   });
+  await settle();
 
-  // The blast radius, before anything lands: pick a project, open a candidate's
-  // impact dialog, and hold on it while the numbers are read.
-  await beatEls("evaluate", ['[role="dialog"]'], async () => {
-    const sel = page.locator("select").first();
-    if (await sel.count()) {
-      await humanClick(page, sel);
-      await sel.selectOption({ index: 1 }).catch(() => {});
-      await page.waitForTimeout(700);
-    }
-    const preview = page.getByRole("button", { name: /Preview impact/i }).first();
-    if (await preview.count()) {
-      await cursorTo('button:has-text("Preview impact")');
-      await humanClick(page, preview);
-    }
+  // The blast radius, before anything lands: open a candidate's impact dialog
+  // and hold on it while the numbers are read. The project it is priced over
+  // is chosen first, between the beats: the picker sits at the window's far
+  // edge, and a crop that reached it left the dialog small in a shot of
+  // empty page. The crop spans the button and the dialog.
+  const sel = page.locator("select").first();
+  await humanClick(page, sel);
+  await sel.selectOption({ index: 1 });
+  const preview = page.locator('[data-slot="evaluate-candidate"]').first();
+  await preview.waitFor({ timeout: 10_000 });
+  await page.waitForTimeout(700);
+  await beatSpan("evaluate", async (mark) => {
+    await mark(preview);
+    await cursorTo('[data-slot="evaluate-candidate"]');
+    await humanClick(page, preview);
     await page.waitForSelector('[role="dialog"]', { timeout: 20_000 });
-    await page.waitForTimeout(3400);
-  });
-
-  // Promote it. The candidate leaves the queue as a versioned rule that every
-  // later run enforces. The impact dialog is dismissed here rather than at the
-  // end of the beat above, because a beat's crop is resolved once its actions
-  // have settled: an Escape inside that beat closes the dialog it framed and
-  // the crop resolves against nothing.
-  await beat("promote", null, async () => {
-    await page.keyboard.press("Escape").catch(() => {});
     await page.waitForTimeout(600);
-    const promote = page.getByRole("button", { name: /^Promote$/ }).first();
-    if (await promote.count()) {
-      await cursorTo('button:has-text("Promote")');
-      await humanClick(page, promote);
-    }
-    await page.waitForTimeout(3000);
+    await mark(page.locator('[role="dialog"]'));
+    await page.waitForTimeout(2800);
+  });
+  await settle();
+
+  // Promote it. The rule leaves Suggested once the list is read again, and
+  // Established, a closed group, counts it; the beat opens the group and
+  // selects the rule, whose pane gives its status, who promoted it and when.
+  // The impact dialog is dismissed here rather than at the end of the beat
+  // above, because a beat's crop is resolved once its actions have settled:
+  // an Escape inside that beat closes the dialog it framed and the crop
+  // resolves against nothing.
+  const establishedToggle = page.locator('[data-slot="review-established"] button[aria-expanded]');
+  await beatEls("promote", review, async () => {
+    await page.keyboard.press("Escape");
+    await page.waitForSelector('[role="dialog"]', { state: "detached", timeout: 10_000 });
+    await page.waitForTimeout(600);
+    // The rule promoted is the one selected, found again under Established by its term.
+    const term = await page.locator(`${suggested}[aria-selected="true"]`).getAttribute("data-term");
+    if (!term) throw new Error("bowrain-web-correction-loop: no suggested rule is selected to promote");
+    const promoted = page.locator(`[data-slot="candidate-item"][data-group="promoted"][data-term="${term}"]`);
+    await cursorTo('[data-slot="promote-candidate"]');
+    await humanClick(page, page.locator('[data-slot="promote-candidate"]').first());
+    await establishedToggle.waitFor({ timeout: 15_000 });
+    await page.waitForTimeout(1200);
+    await humanClick(page, establishedToggle);
+    await promoted.waitFor({ timeout: 10_000 });
+    await page.waitForTimeout(500);
+    await humanClick(page, promoted);
+    await page.locator('[data-slot="candidate-facts"]').filter({ hasText: "Promoted" }).waitFor({ timeout: 10_000 });
+    await page.waitForTimeout(1500);
   });
 }
 
@@ -2379,21 +2511,23 @@ async function runWalkthrough(
   peer: PeerSession | undefined,
   specs: Record<string, BeatSpec>,
   holds: Record<string, number>,
+  cues: Record<string, Cue[]>,
 ): Promise<Beat[]> {
   const walk = WALKTHROUGHS[demoId];
   if (!walk) throw new Error(`no walkthrough registered for "${demoId}"`);
   const beats: Beat[] = [];
-  await walk(makeCtx(page, t0, beats, peer, specs, holds, demoId));
+  await walk(makeCtx(page, t0, beats, peer, specs, holds, demoId, cues));
   return beats;
 }
 
-/** What one theme's take needs beyond the page: the manifest's beat specs and the narration's holds. */
+/** What one theme's take needs beyond the page: the manifest's beat specs, the narration's holds and its word cues. */
 interface TakeOptions {
   web?: { slug: string };
   ready?: string;
   uiLocale?: string;
   specs: Record<string, BeatSpec>;
   holds: Record<string, number>;
+  cues: Record<string, Cue[]>;
 }
 
 async function recordTheme(
@@ -2404,7 +2538,7 @@ async function recordTheme(
   demoId: string,
   take: TakeOptions,
 ): Promise<{ webm: string; beats: Beat[]; clicks: number[] }> {
-  const { web, ready, uiLocale, specs, holds } = take;
+  const { web, ready, uiLocale, specs, holds, cues } = take;
   const videoDir = ensureDir(path.join(outDir, `_rec-${theme}`));
   const context = await browser.newContext({
     viewport: { width: WIDTH, height: HEIGHT },
@@ -2524,7 +2658,7 @@ async function recordTheme(
   setClickSink((atMs) => clicks.push(Number(((atMs - t0) / 1000).toFixed(3))));
   let beats: Beat[];
   try {
-    beats = await runWalkthrough(page, t0, demoId, peer, specs, holds);
+    beats = await runWalkthrough(page, t0, demoId, peer, specs, holds, cues);
   } finally {
     setClickSink(null);
     if (peerTeardown) await peerTeardown();
@@ -2642,6 +2776,7 @@ export async function recordDesktop(id: string, opts: RecordOptions = {}): Promi
   }
   const specs = opts.beats ?? {};
   const holds = narrationHolds(outDir, uiLocale);
+  const cues = narrationCues(outDir, uiLocale);
   const heldIds = Object.keys(specs).filter((id) => specs[id]?.hold !== undefined);
   if (heldIds.length || Object.keys(holds).length) {
     console.log(`  · beat holds: ${heldIds.length} from demo.yaml, ${Object.keys(holds).filter((id) => !heldIds.includes(id)).length} from the narration`);
@@ -2655,9 +2790,9 @@ export async function recordDesktop(id: string, opts: RecordOptions = {}): Promi
     const browser = await chromium.launch();
     try {
       console.log(`  · recording bowrain web (light) @ ${BOWRAIN_BASE}/${slug}`);
-      const light = await recordTheme(browser, BOWRAIN_BASE, "light", outDir, id, { web: { slug }, specs, holds });
+      const light = await recordTheme(browser, BOWRAIN_BASE, "light", outDir, id, { web: { slug }, specs, holds, cues });
       console.log("  · recording bowrain web (dark)");
-      const dark = await recordTheme(browser, BOWRAIN_BASE, "dark", outDir, id, { web: { slug }, specs, holds });
+      const dark = await recordTheme(browser, BOWRAIN_BASE, "dark", outDir, id, { web: { slug }, specs, holds, cues });
       const screencast: Screencast = {
         width: WIDTH,
         height: HEIGHT,
@@ -2686,9 +2821,9 @@ export async function recordDesktop(id: string, opts: RecordOptions = {}): Promi
       '[data-testid^="project-card"], [data-testid="empty-projects"], [data-testid="new-project-btn"], [data-testid="nav-translate"]';
     try {
       console.log(`  · recording bowrain desktop (light) @ ${stack.url}`);
-      const light = await recordTheme(browser, stack.url, "light", outDir, id, { ready, specs, holds });
+      const light = await recordTheme(browser, stack.url, "light", outDir, id, { ready, specs, holds, cues });
       console.log("  · recording bowrain desktop (dark)");
-      const dark = await recordTheme(browser, stack.url, "dark", outDir, id, { ready, specs, holds });
+      const dark = await recordTheme(browser, stack.url, "dark", outDir, id, { ready, specs, holds, cues });
       const screencast: Screencast = {
         width: WIDTH,
         height: HEIGHT,
@@ -2797,11 +2932,11 @@ export async function recordDesktop(id: string, opts: RecordOptions = {}): Promi
     console.log(`  · recording light theme${uiLocale ? ` (ui ${uiLocale})` : ""}`);
     await resetHome();
     await resetPlugins();
-    const light = await recordTheme(browser, url, "light", outDir, id, { uiLocale, specs, holds });
+    const light = await recordTheme(browser, url, "light", outDir, id, { uiLocale, specs, holds, cues });
     console.log(`  · recording dark theme${uiLocale ? ` (ui ${uiLocale})` : ""}`);
     await resetHome();
     await resetPlugins();
-    const dark = await recordTheme(browser, url, "dark", outDir, id, { uiLocale, specs, holds });
+    const dark = await recordTheme(browser, url, "dark", outDir, id, { uiLocale, specs, holds, cues });
 
     const screencast: Screencast = {
       width: WIDTH,

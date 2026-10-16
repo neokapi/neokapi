@@ -16,7 +16,7 @@ outro:
 aspects:
   - Corrections that recur become candidates
   - The blast radius, before it lands
-  - Promoted into a versioned check
+  - Promoted into the workspace's terms
 
 narration:
   - id: title
@@ -24,7 +24,7 @@ narration:
     text: >-
       Bowrain collects recurring corrections as candidates. A reviewer inspects
       their effect and explicitly promotes a candidate before it becomes a
-      versioned check.
+      check.
 
   - id: candidates
     kind: desktop
@@ -42,7 +42,6 @@ narration:
     beat: evaluate
     caption: How much content this would newly flag.
     hold: 17
-    crop: { selector: '[role="dialog"]' }
     text: >-
       Before promoting anything, preview the blast radius. The dialog counts how
       much of the content already in the project this rule would newly flag, so
@@ -52,16 +51,16 @@ narration:
   - id: promote
     kind: desktop
     beat: promote
-    caption: Promoted, and versioned on the profile.
+    caption: Promoted into the terms, and recorded as yours.
     hold: 18
     text: >-
-      Promote it, and the correction becomes a deterministic check, versioned on
-      the voice profile and used by later checks governed by that profile, for the people writing
-      and the AI tools alike. The candidate leaves the queue, and compliance is
-      watched from then on for drift.
+      Promote it, and the correction becomes a rule in the workspace's terms,
+      which later checks enforce for the people writing and the AI tools alike.
+      The candidate leaves Suggested for Established, which records who
+      promoted it and when.
 
   - id: outro
     kind: outro
     text: >-
       Review the recurring correction, inspect its scope, then promote the
-      candidate. Later checks can apply that versioned rule where it belongs.
+      candidate. Later checks can apply that rule where it belongs.

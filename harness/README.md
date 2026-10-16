@@ -155,7 +155,10 @@ without a new TTS call.
 For a desktop demo the natural order is narrate, then record: the recorder reads
 the measured length of each beat's narration from `narration.json` and keeps the
 beat on camera that long, so the recorded beat is about as long as the words over
-it. A `hold:` on the scene in `demo.yaml` sets it explicitly.
+it. A `hold:` on the scene in `demo.yaml` sets it explicitly. A walk can also wait
+inside a beat for a word of its narration (`cue("choose", 11)`, read from
+`captions.json`), so a click lands as the narration names it; the seconds are
+the fallback when there are no captions.
 
 ## Narration backends (pluggable)
 
