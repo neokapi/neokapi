@@ -321,31 +321,13 @@ async function launchPeer(slug: string): Promise<{ peer: PeerSession; teardown: 
   };
 }
 
-/**
- * The variables an agent host exports to every command it runs, which kapi
- * reads as "an agent is driving this" (agentHostMarkers in
- * host/contextactor.go). A recorder started from an assistant's shell would
- * hand them to the desktop backend, and the backend would then act as that
- * assistant: the sample's scaffold is refused its context import, which is a
- * person's decision. The shipped app is started by a person, so the
- * recording backend runs without them.
- */
-const AGENT_HOST_MARKERS = ["CLAUDECODE", "CLAUDE_CODE_SESSION_ID", "CODEX_SESSION_ID"];
-
-/** The developer's environment without the agent-host markers. */
-function personEnv(): NodeJS.ProcessEnv {
-  const env = { ...process.env };
-  for (const name of AGENT_HOST_MARKERS) delete env[name];
-  return env;
-}
-
 /** Env for the Go builds/run: cgo + fts5 deps + isolated config/home roots. */
 function goEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
   const pkg = fs.existsSync(ICU_PKGCONFIG)
     ? `${ICU_PKGCONFIG}:${process.env.PKG_CONFIG_PATH ?? ""}`
     : process.env.PKG_CONFIG_PATH ?? "";
   return {
-    ...personEnv(),
+    ...process.env,
     CGO_ENABLED: "1",
     PKG_CONFIG_PATH: pkg,
     KAPI_CONFIG_DIR: ISO_DIR,
