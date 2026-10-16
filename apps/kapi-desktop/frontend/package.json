@@ -35,7 +35,7 @@
     "@radix-ui/react-slot": "^1.3.3",
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/react-query": "^5.104.1",
-    "@wailsio/runtime": "^3.0.0-beta.27",
+    "@wailsio/runtime": "^3.0.0-beta.29",
     "@xyflow/react": "^12.11.6",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

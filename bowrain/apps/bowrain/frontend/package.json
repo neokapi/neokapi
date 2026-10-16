@@ -26,7 +26,7 @@
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/react-query": "^5.104.1",
     "@tanstack/react-router": "^1.170.41",
-    "@wailsio/runtime": "^3.0.0-beta.27",
+    "@wailsio/runtime": "^3.0.0-beta.29",
     "@xyflow/react": "^12.11.6",
     "lexical": "^0.52.0",
     "lucide-react": "^1.50.0",
