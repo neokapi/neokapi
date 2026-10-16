@@ -3,7 +3,7 @@
 ## Purpose
 
 Remove stale xfails, raise `divergence_kind` coverage toward 100%, and
-reconcile `parity-annotations.yaml` against reality. The "assertions now pass
+reconcile the okapi-bridge `parity/annotations/<format>.yaml` files against reality. The "assertions now pass
 — remove the tag" runner log is the only safety net catching stale xfails;
 this ritual is where it gets read.
 
@@ -18,11 +18,11 @@ this ritual is where it gets read.
 ```bash
 # Enumerate xfails + annotations:
 grep -rn "expected_fail" core/formats/*/spec.yaml | wc -l
-ls core/formats/*/parity-annotations.yaml
+ls <okapi-bridge>/parity/annotations/*.yaml
 # Tracked-issue states (GitHub, this repo):
 gh issue view <ids> --json state,updatedAt
 # Live runner truth (requires sandbox):
-make parity-sandbox && make parity-test   # capture the full log
+(cd <okapi-bridge> && make parity-test)  # capture the full log
 ```
 
 Known tracked-open natives: pdf #617, xliff2 #560, archive #504, openxml
@@ -31,7 +31,7 @@ RunFonts — never gloss a FAIL as "pre-existing"; investigate.
 ## Steps
 
 1. **Census**: enumerate every `expected_fail` across `core/formats/*/spec.yaml`
-   and every `parity-annotations.yaml` entry. For each, assert:
+   and every okapi-bridge `parity/annotations/<format>.yaml` entry. For each, assert:
    - `divergence_kind` is set (raise coverage toward 100% — add the missing
      ones, grounded in spec + Okapi citations);
    - it is **not** `native-bug` (if it is → that's a bug to fix via
@@ -41,7 +41,7 @@ RunFonts — never gloss a FAIL as "pre-existing"; investigate.
    - it cites the format spec **and** the Okapi class/method.
 2. **Stale xfails**: run the parity suite and grep the log for xfails whose
    assertions now pass — remove those tags. Treat
-   `parity-annotations.yaml` reason text as suspect until re-verified against
+   annotation reason text as suspect until re-verified against
    a live `PARITY_DUMP` (it has been stale/inverted before).
 3. **Issue reconciliation**: `gh issue view` every issue id referenced by an
    xfail/annotation. Closed issue + still-xfailed → either the fix never

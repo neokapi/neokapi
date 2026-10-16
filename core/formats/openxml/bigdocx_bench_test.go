@@ -26,7 +26,7 @@ import (
 func BenchmarkBigDocxRoundtrip(b *testing.B) {
 	path := os.Getenv("BIG_DOCX")
 	if path == "" {
-		path = "../../../.parity/okapi-testdata/1.48.0/integration-tests/okapi/src/test/resources/openxml/docx/big.docx"
+		path = "../../../okapi-testdata/1.48.0-v4/integration-tests/okapi/src/test/resources/openxml/docx/big.docx"
 	}
 	original, err := os.ReadFile(path)
 	if err != nil {

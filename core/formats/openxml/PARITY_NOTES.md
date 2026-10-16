@@ -1,19 +1,18 @@
 # OpenXML parity divergence — working notes
 
 Snapshot of the native OpenXML reader/writer divergence against the
-okapi reference engine in `cli/parity/roundtrip` (suite
+okapi reference engine in okapi-bridge `parity/roundtrip` (suite
 `TestRoundTrip_Coverage/openxml`).
 
 This file is a working note for the next iteration of OpenXML parity
 work. It is **not** an architecture decision and **not** user-facing
 docs.
 
-> **Per-fixture annotations live in
-> [`parity-annotations.yaml`](parity-annotations.yaml)** — that file is
-> the single source of truth that feeds the parity harness (which
-> consults it to skip okapi-incapable fixtures), the
-> [/parity/fixtures dashboard](/parity/fixtures) (which renders
-> severity badges + GitHub issue links), and the fail-new CI gate
+> **Per-fixture annotations live in the okapi-bridge repository, at
+> [`parity/annotations/openxml.yaml`](https://github.com/neokapi/okapi-bridge/blob/main/parity/annotations/openxml.yaml)**
+> — that file is the single source of truth that feeds the parity
+> harness (which consults it to skip okapi-incapable fixtures) and the
+> fail-new gate
 > (`TestParityFailNew`, which refuses unannotated divergences).
 > Severity values: `bug` (real defect), `cosmetic` (renders
 > identically per spec), `native-more-correct` (native beats Okapi per
@@ -161,13 +160,13 @@ fixture `1311.docx`), and all faithful-path + parity tests stayed green.
 - The `styleMap` resolution methods (`effectiveProps`, `resolveProps`,
   `effectiveRPrChild*`, `mergeProps`, `subtractProps`, …) — still used by
   `wml.go`/`runprops.go` when a styleMap is supplied, and by unit tests.
-- `cli/parity/roundtrip/normalizers_openxml.go` (the effective-rPr parity
+- okapi-bridge `parity/roundtrip/normalizers_openxml.go` (the effective-rPr parity
   normalizer) — the COMPARATOR, untouched. It proves equivalence with
   Okapi's synth-pStyle form on both sides.
 
 Equivalence-with-Okapi is proved in the **comparator**, not the producer,
 by a new parity-only effective-rPr normalizer
-(`cli/parity/roundtrip/normalizers_openxml.go`, `OpenXMLEffectiveRPr`)
+(okapi-bridge `parity/roundtrip/normalizers_openxml.go`, `OpenXMLEffectiveRPr`)
 that resolves ECMA-376-1 §17.7 style indirection on BOTH sides:
 docDefaults → pStyle chain (`basedOn`) → rStyle chain → direct `rPr`
 (combined by Okapi's `combineDistinct` replace-by-name rule), inlining the
@@ -195,7 +194,7 @@ CANON (no synth-ID counter to cascade).
 `<w:spacing w:val="-2"/>` is preserved verbatim and no `commonRFonts`
 docDefaults overlay injects `<w:rFonts w:cs="Helvetica"/>` (verified:
 source spacing count 1 → output 1; source rFonts cs=Helvetica count 1 →
-output 1). Reclassified bug→cosmetic in parity-annotations.yaml.
+output 1). Reclassified bug→cosmetic in the openxml annotation file.
 
 **The residual 36 are NOT style indirection.** They are Okapi's
 §17.3.2.26 **content-category** clarification (dropping complex-script
@@ -211,7 +210,7 @@ overrides (every approximation tried — preCombined-gated and
 effective-set-unconditional — proved net-regressive against the WSO-off
 baseline). It is the documented "RunFonts content-category port" residual
 class (multi-day work; see the design note). All 36 are annotated in
-parity-annotations.yaml; the fail-new gate is green.
+the openxml annotation file; the fail-new gate is green.
 
 ## Earlier status (2026-05-16, WSO ON — pre-keystone)
 

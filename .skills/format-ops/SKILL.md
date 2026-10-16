@@ -127,7 +127,7 @@ silently applied**.
 |---|---|---|---|
 | `triage-score` | 14d | Multi-axis fleet score → dashboard + history + docs snapshot + `last_certified` | [references/triage-score.md](references/triage-score.md) |
 | `remediate` | 30d | Close top gating-axis gaps, ≤ `max_fixes_per_run`, mutation-checked | [references/remediate.md](references/remediate.md) |
-| `parity-publish` | 30d | Re-run parity suite, publish dashboard JSON | [references/parity-publish.md](references/parity-publish.md) |
+| `parity-publish` | 30d | Read the okapi-bridge parity report, file regressions | [references/parity-publish.md](references/parity-publish.md) |
 | `contract-audit` | watch-only | Watch the CI-owned contract audit; raise findings | [references/contract-audit.md](references/contract-audit.md) |
 | `upstream-watch` | 30d | Okapi tracker/tags + dossier spec feeds → drift notes, bump plan | [references/upstream-watch.md](references/upstream-watch.md) |
 | `xfail-hygiene` | 60d | Remove stale xfails, raise `divergence_kind` coverage | [references/xfail-hygiene.md](references/xfail-hygiene.md) |

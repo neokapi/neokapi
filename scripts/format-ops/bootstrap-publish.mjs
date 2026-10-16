@@ -163,7 +163,7 @@ function gapsFor(floor, axis, dims) {
   const a = floor.axes && floor.axes[axis]
   if (!a || a.base === a.ceiling && axisIsTop(axis, a.base)) {}
   const want = {
-    engine: [['malformed', 'add malformed_test.go'], ['spec', 'add spec.yaml + spec_test.go'], ['parity', 'add cli/parity spec_test'], ['corpus', 'add a corpus/upstream test']],
+    engine: [['malformed', 'add malformed_test.go'], ['spec', 'add spec.yaml + spec_test.go'], ['parity', 'add a parity spec test in okapi-bridge/parity'], ['corpus', 'add a corpus/upstream test']],
     vocabulary: [['vocabmap', 'add vocabulary.yaml with evidenced read cells'], ['vocabtypes', 'emit canonical run types in the reader'], ['writecells', 'evidence write cells (author-from-canonical)'], ['equivalence', 'add the vocab equivalence case']],
     editor: [['preview', 'implement format.PreviewBuilder'], ['identity', 'add an identity-binding round-trip test'], ['embedded', 'ship a committed add-in/connector manifest']],
     knowledge: [['dossier', 'add dossier.yaml with a catalog-registered spec source'], ['sidecar', 'wire the nativedocs sidecar'], ['refs', 'populate spec_refs/native_refs + divergence_kind']],

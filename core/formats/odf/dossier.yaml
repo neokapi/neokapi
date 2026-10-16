@@ -34,6 +34,6 @@ learning_materials:
   - scripts/gen-refs/nativedocs/formats/odf.yaml
 divergences:
   - >-
-    core/formats/odf/parity-annotations.yaml — no outstanding native
+    https://github.com/neokapi/okapi-bridge/blob/main/parity/annotations/odf.yaml — no outstanding native
     divergences: canonical-equal with the okapi reference on all 15
     fixtures; bridge byte-equal via okapi-bridge#11's two-pass pipeline.

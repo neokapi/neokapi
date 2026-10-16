@@ -220,12 +220,12 @@ func BenchmarkProdFuseStack(b *testing.B) {
 }
 
 // BenchmarkRealPart runs both on a real fixture's document.xml when the
-// parity corpus is present (skipped otherwise), and asserts the two stacks
+// okapi-testdata corpus is present (`make fetch-okapi-testdata`; skipped otherwise), and asserts the two stacks
 // agree on real bytes.
 func BenchmarkRealPart(b *testing.B) {
 	path := os.Getenv("OPENXML_BENCH_DOCX")
 	if path == "" {
-		path = "../../../.parity/okapi-testdata/1.48.0/okapi/filters/openxml/src/test/resources/Hangs.docx"
+		path = "../../../okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Hangs.docx"
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {

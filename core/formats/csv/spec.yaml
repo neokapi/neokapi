@@ -34,7 +34,7 @@
 #     The `okapi_param:` field on each ConfigKey records the upstream
 #     name for drift detection. Examples that set an EXPLICIT config
 #     block converge head-to-head: the parity bridge runner
-#     (cli/parity/formats/csv_bridge_config.go) translates the
+#     (okapi-bridge/parity/formats/csv_bridge_config.go) translates the
 #     neokapi-keyed config into a single Okapi ParametersString
 #     (`fprmContent`) blob the upstream filter loads via fromString,
 #     so a tab/semicolon delimiter, hasHeader=false, translatableColumns,

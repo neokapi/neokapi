@@ -34,9 +34,7 @@ Usage:
   pseudobench build-versions      Build kapi from git tags
 
 Flags for 'run':
-  -kapi string                Path to kapi binary
-  -okapi-bridge string        Path to kapi-okapi-bridge launcher (jpackage native binary)
-  -bridge-jar string          Path to bridge JAR (enables daemon mode)
+  -kapi string                Path to kapi binary (REQUIRED)
   -okapi-testdata string      Path to okapi-testdata root (REQUIRED for fixture discovery)
   -full                       Run on every discovered fixture (default samples ~10%%)
   -sample float               Override default sample fraction (0,1] (default 0.10)
@@ -57,8 +55,6 @@ Flags for 'build-versions':
 func cmdRun(args []string) {
 	fs := flag.NewFlagSet("run", flag.ExitOnError)
 	kapiBin := fs.String("kapi", "", "path to kapi binary")
-	okapiBridge := fs.String("okapi-bridge", "", "path to kapi-okapi-bridge launcher")
-	bridgeJar := fs.String("bridge-jar", "", "path to bridge JAR (enables daemon mode)")
 	okapiTestdata := fs.String("okapi-testdata", "", "path to okapi-testdata root")
 	full := fs.Bool("full", false, "run all discovered fixtures (default samples ~10%)")
 	sample := fs.Float64("sample", 0.10, "sample fraction in (0,1]")
@@ -70,8 +66,8 @@ func cmdRun(args []string) {
 	traceDir := fs.String("trace-dir", "", "directory for batch trace JSON files (enables internal tracing)")
 	fs.Parse(args)
 
-	if *kapiBin == "" && *okapiBridge == "" {
-		fmt.Fprintf(os.Stderr, "Error: specify at least -kapi or -okapi-bridge\n")
+	if *kapiBin == "" {
+		fmt.Fprintf(os.Stderr, "Error: -kapi is required\n")
 		os.Exit(1)
 	}
 	if *okapiTestdata == "" {
@@ -101,8 +97,6 @@ func cmdRun(args []string) {
 
 	cfg := &Config{
 		KapiBin:       *kapiBin,
-		OkapiBridge:   *okapiBridge,
-		BridgeJar:     *bridgeJar,
 		Iterations:    *iterations,
 		Warmup:        *warmup,
 		OkapiTestdata: *okapiTestdata,
@@ -118,15 +112,7 @@ func cmdRun(args []string) {
 	fmt.Printf("  Discovered: %d fixtures across %d formats\n", len(all), countFormats(all))
 	fmt.Printf("  Sampled:    %d fixtures (%.0f%%)\n", len(fixtures), fraction*100)
 	fmt.Printf("  Iterations: %d (warmup: %d)\n", cfg.Iterations, cfg.Warmup)
-	if cfg.KapiBin != "" {
-		fmt.Printf("  kapi:         %s\n", cfg.KapiBin)
-	}
-	if cfg.OkapiBridge != "" {
-		fmt.Printf("  okapi-bridge: %s\n", cfg.OkapiBridge)
-	}
-	if cfg.BridgeJar != "" {
-		fmt.Printf("  bridge-jar:   %s\n", cfg.BridgeJar)
-	}
+	fmt.Printf("  kapi:       %s\n", cfg.KapiBin)
 
 	report, err := runBenchmarks(cfg)
 	if err != nil {

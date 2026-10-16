@@ -70,12 +70,6 @@ readonly VENDORED_FILES=(
   # comments use a Linux home directory as the database-URI example.
   core/storage/sqlite3.h
   core/storage/sqlite3-binding.h
-  # Generated from upstream OpenXLIFF fixture files, whose `<file original="…">`
-  # attributes record the fixture author's own checkout.
-  cli/parity/formats/fixtures_xliff_generated.go
-  # Generated parity output: quotes upstream Okapi fixture bytes verbatim,
-  # including `original="…"` attributes holding Linux and Windows home paths.
-  web/static/data/parity-fixtures.json
 )
 
 # scan_files reads NUL-separated paths on stdin and prints "file:line:match"

@@ -384,9 +384,8 @@ readonly IDENT_ALLOWED_FILES=(
   # Base64 office documents, carried inline as playground samples.
   'packages/kapi-playground/src/samples\.ts'
   # Fixtures captured verbatim from another project: okapi-bridge's tool
-  # metadata, and upstream Okapi's XLIFF tests.
+  # metadata.
   'apps/kapi-desktop/frontend/src/stories/fixtures/tools-metadata\.json'
-  'cli/parity/formats/fixtures_xliff_generated\.go'
   # Prototype v1, a record of a design the product did not take. Its step names
   # are that design's, and the Storybook group reads "Prototype v1 (superseded)".
   'apps/kapi-desktop/frontend/src/stories/prototype/.*'

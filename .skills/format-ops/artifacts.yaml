@@ -148,11 +148,12 @@ artifacts:
     freshness_field: generated_at
     owner: parity-publish
     notes: |
-      Local maintainer artifact under the (gitignored) parity sandbox — it is no
-      longer published to the docs site, since /parity was retired with the
-      bridge's product surface (#1073). Absent on a fresh checkout until
-      `make parity-publish` runs, so the watermark reads null and the ritual
-      reports due.
+      The per-filter summary from the okapi-bridge repository's scheduled
+      `parity` workflow, downloaded to this (gitignored) path by the ritual
+      (`gh run download -R neokapi/okapi-bridge -n parity-report -D .parity`).
+      The suite lives in that repository since #1073; nothing here produces
+      the file. Absent on a fresh checkout, so the watermark reads null and
+      the ritual reports due.
   - id: contract-audit-report
     path: web/static/data/contract-audit.json
     freshness_field: generatedAt

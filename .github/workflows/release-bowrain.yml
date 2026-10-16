@@ -63,44 +63,6 @@ jobs:
             echo "prerelease=$pre"
           } >> "$GITHUB_OUTPUT"
 
-  # Verify the parity workflow (#448) succeeded for the tagged commit before any
-  # release artifact is built or published. Mirrors release.yml's gate.
-  parity-gate:
-    name: Parity Gate (#448)
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      actions: read
-    steps:
-      - name: Verify parity workflow status for tagged commit
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-          SHA: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-          echo "Looking up parity workflow status for ${REPO}@${SHA}..."
-          # Consider ALL parity runs for this commit, not just the most recent:
-          # the gate passes if ANY of them succeeded. This is robust to a second
-          # (e.g. manually-dispatched) parity run being in-flight or failed while
-          # an earlier run already passed for the same SHA — picking only
-          # workflow_runs[0] would spuriously block the release.
-          runs=$(gh api \
-            "repos/${REPO}/actions/workflows/parity.yml/runs?head_sha=${SHA}&per_page=50" \
-            --jq '[.workflow_runs[] | .status+":"+(.conclusion//"none")]')
-          echo "Parity runs for ${SHA}: ${runs}"
-          successes=$(echo "$runs" | grep -c '"completed:success"' || true)
-          inflight=$(echo "$runs" | grep -cE '"(queued|in_progress|requested|waiting|pending):' || true)
-          if [ "$successes" -gt 0 ]; then
-            echo "Parity gate passed (a successful parity run exists for ${SHA})."
-          elif [ "$inflight" -gt 0 ]; then
-            echo "::error::Parity is still running for ${SHA} and none has succeeded yet. Wait for it to finish, then re-run this job."
-            exit 1
-          else
-            echo "::error::No successful parity run for ${SHA}. Run parity.yml against this commit (it succeeds on push for core changes; otherwise 'gh workflow run parity.yml --ref main') before releasing."
-            exit 1
-          fi
-
   # Build the kapi-bowrain plugin binary natively per OS/arch with cgo +
   # statically-linked ICU + the fts5 tag, matching the framework the desktop
   # apps use. Mirrors release.yml's build-cli, but builds ONLY kapi-bowrain (the
@@ -109,7 +71,7 @@ jobs:
   # as in the former combined workflow).
   build-bowrain-cli:
     name: Build kapi-bowrain (${{ matrix.target.goos }}/${{ matrix.target.goarch }})
-    needs: [setup, parity-gate]
+    needs: [setup]
     env:
       REF_NAME: ${{ needs.setup.outputs.tag }}
     strategy:
@@ -251,7 +213,7 @@ jobs:
   # plugin only — no deb/rpm, no apt/yum, no cli.json.
   package-bowrain-cli:
     name: Package + publish kapi-bowrain
-    needs: [setup, parity-gate, build-bowrain-cli]
+    needs: [setup, build-bowrain-cli]
     runs-on: ubuntu-latest
     # Coordinated releases route this publish job through a manual-approval
     # environment so the bowrain tap/registry writes land together with kapi's.
@@ -614,7 +576,7 @@ jobs:
 
   build-bowrain:
     name: Build Bowrain (${{ matrix.build.platform }})
-    needs: [setup, parity-gate]
+    needs: [setup]
     env:
       REF_NAME: ${{ needs.setup.outputs.tag }}
     strategy:

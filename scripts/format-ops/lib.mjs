@@ -76,12 +76,6 @@ export const HARVEST_FORMATS = [
   "xcstrings",
 ];
 
-/**
- * Parity spec-test filename aliases: a few format dirs have a parity test
- * whose basename differs from the directory id (historical naming).
- */
-export const PARITY_TEST_ALIASES = { phpcontent: "php", xml: "xmlstream" };
-
 /** The real format dirs under core/formats (sorted), excluding exec/jsx/memorytest. */
 // A format dir counts toward the reporting universe when it either ships a
 // reader.go (an in-core format) OR ships a structure.yaml (the dashboard

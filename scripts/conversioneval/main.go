@@ -144,7 +144,7 @@ func main() {
 func run() error {
 	var (
 		out     = flag.String("out", "", "dataset path (default: "+DefaultOut+" under the repo root)")
-		corpus  = flag.String("corpus", "", "corpus root (default: .parity/okapi-testdata/<version>)")
+		corpus  = flag.String("corpus", "", "corpus root (default: okapi-testdata/<version>)")
 		limit   = flag.Int("limit", 60, "documents per extension (0 = all)")
 		jobs    = flag.Int("jobs", 4, "documents converted in parallel")
 		perFile = flag.Duration("timeout", 60*time.Second, "per-conversion timeout")
@@ -579,13 +579,13 @@ func findKapi(root string) string {
 	return resolved
 }
 
-// findCorpus locates the extracted okapi-testdata tree the parity harness
-// already downloads, rather than adding a second copy of it.
+// findCorpus locates the extracted okapi-testdata tree that
+// scripts/fetch-okapi-testdata.sh downloads, picking the newest version.
 func findCorpus(root string) (string, error) {
-	base := filepath.Join(root, ".parity", "okapi-testdata")
+	base := filepath.Join(root, "okapi-testdata")
 	entries, err := os.ReadDir(base)
 	if err != nil {
-		return "", fmt.Errorf("no corpus at %s: run `make parity-fetch` or pass -corpus", base)
+		return "", fmt.Errorf("no corpus at %s: run `make fetch-okapi-testdata` or pass -corpus", base)
 	}
 	var versions []string
 	for _, e := range entries {

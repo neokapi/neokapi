@@ -36,7 +36,7 @@ curl -s "https://gitlab.com/api/v4/projects/62298414/repository/tags?per_page=5"
 
 Cross-reference: issue numbers are embedded in the Okapi checkout's comments
 and fixture names (`grep -rn "issue_" <okapi-clone>/okapi/filters/<format>`)
-and in this repo's `parity-annotations.yaml`. Spec/implementation feeds come
+and in okapi-bridge's `parity/annotations/<format>.yaml`. Spec/implementation feeds come
 from each `core/formats/<id>/dossier.yaml` `watch` entry (GitHub
 `releases.atom`, W3C/OASIS/Unicode feeds, MS-* revision pages).
 

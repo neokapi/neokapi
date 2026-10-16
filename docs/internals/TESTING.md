@@ -325,9 +325,9 @@ cd bowrain/apps/web && vp run e2e:tests
 ### Source of Test Data
 
 Okapi's test resources are in its Git repository, checked out at
-`$NEOKAPI_OKAPI_DIR` (see [workspace paths](workspace-paths.md)); the parity
-harness additionally downloads the released `okapi-testdata` corpus into the
-parity sandbox (`make parity-sandbox`).
+`$NEOKAPI_OKAPI_DIR` (see [workspace paths](workspace-paths.md)); the released
+`okapi-testdata` corpus is downloaded to `okapi-testdata/<version>/` by
+`make fetch-okapi-testdata`.
 
 Test resources per filter:
 
@@ -855,10 +855,16 @@ every selector a recorded walk drives is still rendered by an app.
 | ------------- | ------------------------------- | -------------------------------------------------- |
 | (none)        | Unit tests only                 | `go test ./...` (per module)                       |
 | `integration` | + the bowrain migration suite against PostgreSQL | `go test ./... -tags=integration` (`make test-integration`) |
-| `parity`      | + the Okapi parity and round-trip harness | `make parity-test`                       |
 
 Some packages need build tags for native dependencies, for example `fts5`
 for SQLite full-text search (used by the kapi e2e suite) and `onnx`/`pdfium`
 for the plugins that link a native runtime. Real AI providers are never
 exercised in CI; the evals that call a model run by hand and commit their
 datasets (see [evals](evals.md)).
+
+The Okapi parity suite (Go ports head-to-head against the Okapi Framework
+through the bridge plugin) lives in the
+[okapi-bridge repository](https://github.com/neokapi/okapi-bridge) under
+`parity/`. It compiles against a released neokapi module, runs weekly there
+against the latest kapi release, and publishes its report as a workflow
+artifact. Nothing in this repository runs or gates on it.

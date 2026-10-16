@@ -20,7 +20,7 @@ import (
 //
 // The same Spec drives:
 //   - native verification (spec_test.go in the format package)
-//   - parity verification (cli/parity/spec, build-tagged "parity")
+//   - parity verification (okapi-bridge/parity/spec, build-tagged "parity")
 //   - drift detection against the bridge schema and Okapi @Test list
 //   - documentation rendering on the docs site
 type Spec struct {
@@ -349,8 +349,8 @@ type Example struct {
 	//
 	// The structured `origin: {kind: okapi-fixture, ...}` form
 	// (format-spec-cases.md §9) is the target shape for the harvested
-	// fixtures the legacy parity table still carries inline in Go
-	// (cli/parity/formats/fixtures_*_generated.go). Folding those bulk
+	// fixtures the parity table in okapi-bridge still carries inline in Go
+	// (parity/formats/fixtures_*_generated.go). Folding those bulk
 	// fixtures into spec.yaml as informational cases is deferred (#852
 	// took the lighter touch); the field is recognised here so the fold
 	// is a data move, not a grammar change.

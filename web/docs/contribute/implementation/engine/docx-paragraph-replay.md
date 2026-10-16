@@ -207,7 +207,7 @@ applied to a part.
 
 ## The parity slice
 
-The openxml chain in `cli/parity/roundtrip/coverage_test.go` compares native
+The openxml chain in okapi-bridge's `parity/roundtrip/coverage_test.go` compares native
 output with upstream Okapi's after canonicalisation. Replay restores what
 Okapi's filter drops, so the canonicaliser applies the same omissions to both
 sides:

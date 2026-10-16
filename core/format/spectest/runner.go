@@ -48,7 +48,7 @@ type NativeRunner struct {
 	// NewWriter builds the writer for a given variant, mirroring
 	// NewReader. Optional: only needed when a case declares an
 	// expected.roundtrip view. The hook follows the same factory pattern
-	// as cli/parity's FormatSpec.NewWriter.
+	// as the parity suite's FormatSpec.NewWriter.
 	NewWriter func(variant string) format.DataFormatWriter
 }
 

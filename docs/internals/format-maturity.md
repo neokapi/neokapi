@@ -40,12 +40,12 @@ machine-validated). Each entry: `tier`, `tier_since`, `last_certified`,
 
 | Tier | Meaning | Entry requirement (gating axes) | CI enforcement |
 |---|---|---|---|
-| **Supported** | Release-gating. A regression in this format blocks any release. | Engine ≥ L3 **and** Corpus ≥ C2 **and** Knowledge ≥ K2 | Parity suite (or, for harvest formats, invariants + corpus + acceptance) wired into `parity.yml` / `format-acceptance.yml`; corpus manifests verified. |
+| **Supported** | Release-gating. A regression in this format blocks any release. | Engine ≥ L3 **and** Corpus ≥ C2 **and** Knowledge ≥ K2 | The native spec suite in `make test` (or, for harvest formats, invariants + corpus + acceptance wired into `format-acceptance.yml`); corpus manifests verified. The Okapi parity suite reports from the okapi-bridge repository on a schedule and gates nothing here. |
 | **Maintained** | Tested and kept green; regressions fixed on cadence, do not necessarily block release. | Engine ≥ L2 | Package tests in `make test`; malformed suite present. |
 | **Available** | Registered and usable; explicitly experimental, no fidelity promise. | Engine ≥ L0 | Registration tests only. |
 
 **Enforcement direction.** CI may enforce *more* than the tier promises, never
-less. Today `parity.yml` blocks on every parity-wired format regardless of
+less. Today `make test` runs every format's native spec suite regardless of
 tier. That is over-delivery and acceptable; the asymmetric failure (a
 Supported format whose named gate does not actually run) is the one the
 validators exist to prevent.
@@ -174,7 +174,7 @@ explicitly:
 | **L0** | Experimental | Reader compiles and emits `LayerStart → Block → LayerEnd` for the happy path; registered in `register.go` + `ids.go` + the `register_test` lists so `make test` passes. May lack a writer or config validation. No round-trip guarantee, no `spec.yaml`, no parity. Use only behind an explicit experimental label. |
 | **L1** | Readable + writable | L0 **plus**: writer applies target-else-source via `RenderRunsWithData`; one declared round-trip strategy; a `reader_test` **and** a `roundtrip_test` (or `skeleton_test`) prove read→write fidelity for core cases; `Config` rejects unknown keys; inline codes preserved as runs. |
 | **L2** | Specified | L1 **plus**: `spec.yaml` + `spec_test.go` driving `spec.NativeRunner` green (keys 1:1 with `ApplyMap`, `okapi_param` recorded, `spec_refs`) **OR**, for a harvest format with no Okapi counterpart, `okapi_skip_test.go` + `invariants_test` + `corpus_test` in its place; `schema.go` present; a `malformed_test` asserts clean errors without panic. |
-| **L3** | Parity-verified | L2 **plus** (Okapi counterpart): `cli/parity/formats/<id>_spec_test.go` passes head-to-head (`bridge_config` where param shapes differ); every divergence is an `expected_fail` with an explicit non-`native-bug` `divergence_kind` grounded in spec + Okapi citations (zero pure `default-diff` xfails); a corpus/upstream test exercises real files; reference docs + `nativedocs` sidecar + `metadata.json` wired with no drift (measured on the Knowledge axis; see above). |
+| **L3** | Parity-verified | L2 **plus** (Okapi counterpart): the okapi-bridge `parity/formats/<id>_spec_test.go` passes head-to-head (`bridge_config` where param shapes differ); every divergence is an `expected_fail` with an explicit non-`native-bug` `divergence_kind` grounded in spec + Okapi citations (zero pure `default-diff` xfails); a corpus/upstream test exercises real files; reference docs + `nativedocs` sidecar + `metadata.json` wired with no drift (measured on the Knowledge axis; see above). |
 | **L4** | Rock-solid | L3 **plus**: byte-faithful round-trip proven across an edge-case matrix (encodings, line endings, unicode, malformed-but-recoverable) **and** over a real-world corpus; `schema_test` asserts schema == config struct; `transform_test` where a transform exists; bench/perf for perf-sensitive formats; zero `native-bug` xfails; any remaining divergence is a tracked, attributed, spec-justified faithful-class item; parity / contract-audit dashboards green and freshly regenerated. |
 
 > **Harvest formats** (no Okapi counterpart: androidxml, applestrings, arb,
@@ -804,8 +804,8 @@ The `refresh-format-maturity` skill automates this per format; the
    noting each axis's `base..ceiling` band and missing-artifact list.
 3. **Score Engine** as before: open the tests and judge whether assertions
    prove fidelity (byte/semantic equality, not "no error"); run
-   `go test ./core/formats/<id>/...` and, if parity applies,
-   `make parity-sandbox` + the tagged parity test.
+   `go test ./core/formats/<id>/...` and, if parity applies, the tagged parity
+   test in the okapi-bridge checkout (`make parity-sandbox` there first).
 4. **Score Vocabulary**: open `vocabulary.yaml`; confirm the audit resolved
    the evidence; spot-check the reader emits the claimed canonical types and
    (for V2) the writer serializes canonical-authored targets.

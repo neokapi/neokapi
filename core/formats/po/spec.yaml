@@ -20,7 +20,7 @@ format: okf_po
 mime_type: application/x-gettext
 
 # Parity-runner config (#852). The filter-level parity runner
-# (cli/parity/formats) sources the tikal corner and its skips from here.
+# (okapi-bridge/parity/formats) sources the tikal corner and its skips from here.
 # The bridge writer auto-fills an empty msgstr with the source text;
 # native preserves the empty target. Tikal (the canonical Okapi CLI)
 # produces the same auto-fill as the bridge — confirming this is an Okapi

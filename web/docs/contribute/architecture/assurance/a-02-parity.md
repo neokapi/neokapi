@@ -2,7 +2,7 @@
 id: a-02-parity
 sidebar_position: 2
 title: "A-02: Parity with the Okapi Framework"
-description: "A build-tagged harness runs every Go port head-to-head against the Okapi Framework reference, through the bridge plugin and, where available, the tikal CLI, on a canonical projection that compares extracted text and code structure rather than byte-level markup."
+description: "The parity suite lives in the okapi-bridge repository, compiles against a released neokapi module, and runs every Go port head-to-head against the Okapi Framework reference on a weekly schedule, on a canonical projection that compares extracted text and code structure rather than byte-level markup. It reports; it gates nothing here."
 keywords: [parity, Okapi Framework, format fidelity, test harness, canonical projection, tikal, conformance, architecture decision, neokapi]
 ---
 
@@ -13,16 +13,19 @@ import { PipelineDiagram } from "@neokapi/docs-shared";
 ## Summary
 
 For every Okapi filter or step a format or tool here intends to match, the
-**parity harness** runs both implementations against the same input and asserts
-they produce equivalent output. The tests live under `cli/parity/`, gated by the
-`parity` build tag. `make parity-test` builds a sandboxed `kapi` binary plus a
-freshly built bridge plugin, spawns the bridge daemon, wires the tikal CLI as a
-third reference corner when one is available, runs every case, and writes a JSON
-report.
+**parity suite** runs both implementations against the same input and asserts
+they produce equivalent output. The suite lives in the
+[okapi-bridge repository](https://github.com/neokapi/okapi-bridge), under
+`parity/`, as its own Go module. It requires a **released**
+`github.com/neokapi/neokapi` module, installs a released `kapi`, builds the
+bridge plugin from that repository's checkout, runs every case, and writes a
+JSON report. A scheduled workflow there runs it weekly and on demand and
+publishes the report as a workflow artifact.
 
 Parity is a **maintainer-facing fidelity check on Go ports**, not a product
-surface and not a plugin contract. Its report is a local artifact inside a
-gitignored sandbox. The distinct, durable, cross-repository guarantee, that a
+surface and not a plugin contract. Nothing in this repository builds, tests or
+gates on the bridge: no workflow here checks out the bridge, and no release
+waits on a parity run. The distinct, durable, cross-repository guarantee, that a
 plugin implements the plugin protocol at all, is
 [protocol conformance](#parity-is-not-conformance), which lives in the
 framework module and needs no bridge checkout.
@@ -43,32 +46,34 @@ When a Go port and a bridge filter both claim to read the same format, kapi
 prefers the Go port: a daemon-backed reader is registered only where no native
 reader exists. That preference is right for users, because native is faster, but
 it means a regression in the Go port is invisible: the bridge would have caught
-it, and the bridge never runs. The harness exists to invert that, running both
-implementations side by side on the same input and failing when they diverge.
+it, and the bridge never runs. The suite exists to invert that, running both
+implementations side by side on the same input and reporting when they diverge.
 
 ## Parity is not conformance {#parity-is-not-conformance}
 
 Two guarantees are easy to conflate, because both involve running the bridge.
-Keeping them apart is what lets the bridge live in its own repository:
+Keeping them apart is what lets the bridge, and the suite, live in another
+repository:
 
 | | Parity | Protocol conformance |
 | --- | --- | --- |
 | Question | Do two implementations of the same filter produce the same output? | Does this plugin implement the plugin protocol? |
-| Subject | This project's own Go readers, writers, and tools | Any plugin, in any language |
-| Needs | a built bridge, an Okapi version pin, a JVM | only the plugin directory |
-| Lives in | `cli/parity/`, build tag `parity` | `core/plugin/conformance/`, framework module, no build tag |
-| Audience | maintainers of this repository | plugin authors, in their own repositories |
-| Runs where | here, on the main branch and on pull requests touching the code involved | wherever the plugin lives, against a released `kapi` |
-| Report | a local artifact under `.parity/` | a text transcript plus a stable JSON artifact |
+| Subject | This project's Go readers, writers, and tools, at a released version | Any plugin, in any language |
+| Needs | a built bridge, an Okapi version pin, a JVM, a released `kapi` | only the plugin directory |
+| Lives in | `okapi-bridge/parity/`, build tag `parity` | `core/plugin/conformance/`, framework module, no build tag |
+| Audience | maintainers of the Go ports | plugin authors, in their own repositories |
+| Runs where | the bridge repository, weekly and on dispatch, against the latest release | wherever the plugin lives, against a released `kapi` |
+| Report | a workflow artifact | a text transcript plus a stable JSON artifact |
 
 Conformance is the cross-repository contract: it is what lets a plugin
 repository answer "do I still work with kapi?" on its own, without a checkout of
 this repository and without this repository running its tests.
 
 Parity is the narrower question, and it points the other way: it is about *this*
-implementation's fidelity, using the bridge as a reference. That is why parity is
-not, and must not become, a gate on the bridge repository, and why the bridge's
-own CI reports conformance, on a schedule, never gating this repository.
+implementation's fidelity, using the bridge as a reference. It consumes released
+modules and binaries, so it measures a change here after that change ships. It
+is a report in both directions: it is not a gate on the bridge repository's
+pull requests, and it is not a gate on anything here.
 
 ## Design
 
@@ -83,41 +88,52 @@ own CI reports conformance, on a schedule, never gating this repository.
       parallelLabel: "run the implementations side by side",
       lanes: [
         { label: "native", sub: "in-process Go reader" },
-        { label: "bridge", sub: "daemon pool → JVM" },
+        { label: "bridge", sub: "daemon → JVM" },
         { label: "tikal", sub: "reference CLI, when built" },
       ],
     },
-    { label: "canonical projection", sub: "fails on divergence", role: "qa" },
+    { label: "canonical projection", sub: "reports divergence", role: "qa" },
   ]}
 />
 
+### One module version
+
+The suite's `go.mod` pins a released `github.com/neokapi/neokapi` and requires
+nothing from the `host` or `cli` modules. The native side of every comparison
+is the reader compiled from that module, and the format specs
+(`core/formats/<id>/spec.yaml`) that declare each format's bridge filter class,
+reference-CLI corner and parity skips are read from the same module's source
+directory. The specs and the readers under test therefore always come from one
+version.
+
+The daemon launcher is the plugin protocol's Mode C handshake, implemented in
+the suite: start the launcher with `daemon`, read the socket from the first
+stdout line, dial it over gRPC. See
+[Plugin protocol v1](/contribute/implementation/engine/plugin-protocol-v1).
+
 ### The sandbox
 
-The harness deliberately ignores user plugin directories, data-home overrides, and
-any system-installed `kapi`. Without that discipline, a developer with an outdated
-bridge would see a green run that does not reflect the code on disk. Instead,
-`make parity-test`:
+The suite deliberately ignores user plugin directories, data-home overrides, and
+any system-installed plugin. Its sandbox holds:
 
-1. builds `kapi` from the current source tree into the sandbox;
-2. builds the bridge plugin from a sibling checkout and unpacks it into the
-   sandbox;
-3. writes a launcher for the reference CLI when a built JAR is present in the
-   Okapi checkout, and reports that the third corner will skip when it is not;
-4. exports the sandbox path and runs `go test -tags "fts5,parity" ./parity/...`.
+1. the `kapi` binary under test, copied from a release (in CI, installed by
+   `setup-kapi`);
+2. the bridge plugin, built from the bridge checkout and unpacked;
+3. the published `okapi-testdata` corpus, for binary fixtures the round-trip
+   pass reads;
+4. a launcher for the reference CLI when a built JAR is present, with the third
+   corner skipping when it is not.
 
-Both build tags are spelled in one comma-separated flag on purpose. Go does not
+Tests resolve the sandbox from the environment, or by walking up from the
+working directory to a built one, and **fail** when there is none. Skip-by-default
+was abandoned deliberately: silent skips made runs report parity green while
+nothing had been compared. An explicit environment variable opts into skipping
+instead.
+
+Every build tag the suite needs is spelled in one `-tags` flag. Go does not
 union repeated `-tags` (the last occurrence wins), so a second `-tags parity`
-would silently drop the SQLite full-text capability and run the adjudicator for
-every round-trip change in a build configuration no other target uses. Nothing
-fails when that happens, because the dropped tag is a runtime capability rather
-than a compile gate.
-
-`cli/parity/env.go` resolves the sandbox from the environment, or auto-discovers a
-locally built one by walking up from the working directory; it never falls back to
-a system-installed binary. Tests go through `RequireSandbox`, which **fails** the
-test when no sandbox is found. Skip-by-default was abandoned deliberately: silent
-skips made local runs report parity green while CI failed. An explicit environment
-variable opts into skipping instead.
+would silently drop the SQLite full-text capability, and nothing would fail,
+because the dropped tag is a runtime capability rather than a compile gate.
 
 The suite also keeps its hands off the machine it runs on. Several Okapi
 analysis steps default to opening the report they just wrote in the desktop's
@@ -126,8 +142,7 @@ the steps still write their reports and a run never opens a window.
 
 ### Comparison
 
-Two part streams are compared on a **canonical projection**
-(`cli/parity/normalize.go`) that includes:
+Two part streams are compared on a **canonical projection** that includes:
 
 - the sequence of part types: block, layer, group, data, media;
 - block IDs and the translatable flag;
@@ -168,7 +183,7 @@ per-filter summary can show them side by side without one masking another:
   format differently from the canonical reference; agreement between the CLI and
   the bridge, where both are populated, says the bridge plumbing is faithful even
   where the native side diverges. This pass skips automatically when the CLI is
-  not reachable, so the harness still passes on a machine with no Okapi build. It
+  not reachable, so the suite still passes on a machine with no Okapi build. It
   also skips under non-default reader parameters rather than running at defaults,
   which would silently compare unlike things.
 
@@ -192,91 +207,80 @@ core, never a divergence from it. A new format option that changes *defaults*
 rather than *semantics* must offer the same off-switch so parity can pin it. See
 [E-02: The format system](../engine/e-02-format-system.md).
 
+### Known divergences
+
+A divergence that is understood and accepted is recorded where it belongs: an
+`expected_fail` with a `divergence_kind` on the example in the format's
+`spec.yaml` here, or a per-fixture annotation in the suite's
+`annotations/<format>.yaml` for the round-trip corpus, carrying severity, the
+tracking issue and the spec citation. The suite reports these as
+`expected_fail` or `parity_warn`, never as regressions, and reports an expected
+failure that now passes so the record can be retired.
+
 ### Reporting
 
 Each pass reports one row: a `Kind` discriminating format, round-trip, reference
 CLI, fixture, feature, or step; an `ID` (the Okapi short id); a `Name`; a
 `Status`; a `Mode` describing what was actually verified (head-to-head,
 bridge-only, byte, or reference CLI); and a short detail on failure or skip.
-`FlushReport`, called from each package's `TestMain`, writes the accumulated rows
-to the sandbox as JSON, and the parity workflow uploads that JSON as an artifact.
+A second tool folds those rows into a per-filter summary: one row per filter or
+step with its current status, mode, and skip detail. The scheduled workflow
+uploads both files as an artifact.
 
-A second tool reads those raw rows and emits a narrower per-row summary: one row
-per filter or step with its current status, mode, and skip detail. `make
-parity-publish` refreshes both files locally.
-
-Both files are maintainer telemetry inside the gitignored sandbox: a per-filter
-status table for whoever is working on a port. The row results are not
-published. What the public [format-maturity dashboard](/format-maturity) reads
-from parity is narrower: whether a format has a parity case at all is one
-signal on its engine axis, and the maturity ledger records the watermark of the
-last parity run (its report timestamp and the main-branch commit it ran on), so
-the dashboard can say how fresh that signal is. No product claim is derived
-from a parity row.
+The row results are not published. What the
+[format-maturity dashboard](/format-maturity) reads from parity is narrower:
+whether a format has a parity case at all is one signal on its engine axis.
+No product claim is derived from a parity row.
 
 ## Consequences
 
-- **Regressions in Go ports surface immediately.** A change to a reader that drops
-  a paragraph break shows up the next time the parity workflow runs on the main
-  branch.
+- **Regressions in Go ports surface after release, on a schedule.** A change to
+  a reader that drops a paragraph break shows up in the first weekly run after
+  the release that carries it. The always-on native spec tests in
+  `core/formats/<id>/` are what catches it before merge.
+- **No bridge bytes here.** Nothing in this repository's CI checks out, builds
+  or installs the bridge, and no release depends on a parity run. The bridge's
+  Okapi version matrix, its JVM and its build time stay in the bridge repository.
 - **Bridge-only filters stay validated.** Where no Go port exists and a textual
-  fixture can be supplied, the test asserts that the bridge produces stable output
+  fixture can be supplied, the suite asserts that the bridge produces stable output
   against a fixed input, so a new Okapi release that breaks a filter becomes
   visible without anyone invoking that filter in production.
 - **Binary-container filters appear as gaps rather than false greens.** Formats
   with no committed binary corpus carry an explicit skip, sourced from the
   format's own spec where it has one and inline where it does not, so they show
   as gap rows in the summary instead of silently asserting nothing.
-- **Cross-repository schema sync is enforced.** A schema change the bridge does
-  not mirror trips parity immediately. That is the intent: the schema is the
-  contract.
-- **A full run costs wall-clock time.** It includes a Maven JAR build and an
-  application-image step, several minutes in total. The sandbox is cached between
-  runs, so iterating on a single test stays fast.
+- **Schema drift between the repositories is visible, not fatal.** A schema
+  change the bridge does not mirror shows up in the next report.
 
 ## Adding a parity case
 
 1. Identify the Okapi filter id (`okf_<name>`) or step id from the bridge
-   manifest in the sandbox.
-2. **For a format:** add or extend a `spec.yaml` under `core/formats/<name>/`,
-   then add a spec test under `cli/parity/formats/` that loads it and runs the
-   spec runner. Wire the native reader for a head-to-head comparison, or leave it
-   unset for a bridge-only stability snapshot. The same `spec.yaml` also drives the
-   always-on native test in `core/formats/<name>/`: one source of truth, and the
-   place where the bridge filter class, the reference-CLI corner, and the parity
-   skips are declared.
-   **For a tool:** add a row to the tool spec table in `cli/parity/tools/`; the
+   manifest.
+2. **For a format:** add or extend the `spec.yaml` under `core/formats/<name>/`
+   here. The same `spec.yaml` drives the always-on native test in that package:
+   one source of truth, and the place where the bridge filter class, the
+   reference-CLI corner, and the parity skips are declared. Then, in the bridge
+   repository, add a spec test under `parity/formats/` that loads it and runs the
+   spec runner, wiring the native reader for a head-to-head comparison or leaving
+   it unset for a bridge-only stability snapshot.
+   **For a tool:** add a row to the tool spec table in `parity/tools/`; the
    single table-driven test picks it up automatically. There are no per-tool test
    files.
 3. `Mode` is derived by the runner (head-to-head when a native reader or tool is
    wired, bridge-only otherwise) and emitted with the report row. It is never
    assigned by hand.
-4. Run `make parity-test` locally and iterate until green.
+4. Run the suite in the bridge repository (`make parity-test`) and iterate until
+   green. The spec test reads the `spec.yaml` from the released module the suite
+   pins, so a spec change here is picked up by the suite once a release carries
+   it, or locally by pointing the suite at a checkout.
 
-The harvested fixtures under `cli/parity/formats/` are extracted from the upstream
-Okapi Java tests by a scanner and are not regenerated by an ordinary test run;
-refresh them with the dedicated make target and review the diff.
-
-## Release gate
-
-The release workflow blocks tagging unless the parity workflow has concluded
-successfully for the tagged commit. The gate job queries the Actions API for every
-parity run against that commit and passes if any of them succeeded, robust to a
-second, manually dispatched run being in flight while an earlier one already
-passed. It fails closed on absent, in-progress, or failed runs, and the
-independent release jobs depend on it, so the whole downstream pipeline inherits
-the gate.
-
-## Where the harness ends up
-
-*Not yet built.* The harness and its specs are intended to move to the bridge
-repository, which owns the Okapi version matrix and builds the JARs, consuming
-released modules for the native side and leaving this repository a scheduled,
-non-blocking conformance smoke against the released bridge.
+The harvested fixtures under `parity/formats/` are extracted from the upstream
+Okapi Java tests by a scanner in the suite and are not regenerated by an
+ordinary test run.
 
 ## See also
 
-- [A-01: Testing and documentation](a-01-testing-and-documentation.md): the pyramid this harness sits above
+- [A-01: Testing and documentation](a-01-testing-and-documentation.md): the pyramid this suite sits above
 - [F-02: The content model](../foundations/f-02-content-model.md): the fields the canonical projection excludes
 - [F-04: The content-model wire schema](../foundations/f-04-wire-schema.md): the schema the two repositories share
 - [E-02: The format system](../engine/e-02-format-system.md): readers, defaults, and surfacing

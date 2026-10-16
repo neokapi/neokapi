@@ -34,7 +34,7 @@ its citation.
 ## 1. Why not the status quo
 
 The current engine (`core/format/spec/spec.go`, `core/format/spectest/`,
-`cli/parity/spec/`) is genuinely good at one thing, reader-contract
+okapi-bridge's `parity/spec/`) is genuinely good at one thing, reader-contract
 verification across 41 formats with parity wiring for 38, and structurally
 incapable of three things:
 
@@ -45,7 +45,7 @@ incapable of three things:
    ("there is no roundtrip / writer-output assertion type. Captured here as a
    known coverage gap"), `docs/internals/format-engineering.md:133`,
    format-maturity.md's former Open question 4 (resolved by this document),
-   and `cli/parity/roundtrip/doc.go:11–14` ("They prove 'we can read' — not
+   and the parity suite's `roundtrip/doc.go:11–14` ("They prove 'we can read' — not
    'we can read, modify, and write back coherently'"). Two specs (doxygen,
    epub) fake round-trip coverage with read-only assertions.
 2. **Assertions see only translatable block source text.** The complete
@@ -392,7 +392,7 @@ https://arxiv.org/html/2510.23350v1):
 (adjudicate) is `spec.RunNativeCase(spec, example, mergedConfig, newReader)
 → spec.CaseResult{BlockEvents, Extracted, Parts, Err}`
 (`core/format/spec/oracle.go`): the native side of the §4.3 shim. The parity
-`ParityRunner` (`cli/parity/spec`, build tag `parity`) consumes the **same**
+`ParityRunner` (okapi-bridge `parity/spec`, build tag `parity`) consumes the **same**
 `Spec`/`Example` and can call `spec.DumpBlockEvents` on the bridge parts, so
 the two `CaseResult` dumps compare structurally: both-agree → candidate-pass,
 disagree → divergence triage, both-reject → promote to `class: invalid`. Step 3

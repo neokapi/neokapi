@@ -1,14 +1,13 @@
 version: "2"
 run:
   timeout: 5m
-  # Analyze the code behind these build constraints too — without them the
-  # FTS5 content memory path, the cgo ICU tokenizer, and the parity harness are silently
-  # excluded from staticcheck/govet/errcheck. The cgo files additionally need
-  # pkg-config icu-uc/icu-i18n on PKG_CONFIG_PATH (the lint CI job installs
-  # libicu-dev, mirroring the test job).
+  # Analyze the code behind this build constraint too — without it the FTS5
+  # content memory path and the cgo ICU tokenizer are silently excluded from
+  # staticcheck/govet/errcheck. The cgo files additionally need pkg-config
+  # icu-uc/icu-i18n on PKG_CONFIG_PATH (the lint CI job installs libicu-dev,
+  # mirroring the test job).
   build-tags:
     - fts5
-    - parity
 linters:
   enable:
     - errorlint

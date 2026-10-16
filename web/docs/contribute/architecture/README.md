@@ -106,4 +106,4 @@ file, never editing a list.
 | AD | Title | Scope |
 | --- | --- | --- |
 | [A-01](assurance/a-01-testing-and-documentation.md) | Testing and documentation | the test pyramid, the eval bands, the docs site and its pseudo-locale, recordings |
-| [A-02](assurance/a-02-parity.md) | Parity with the Okapi Framework | the parity harness, the local report, faithful output |
+| [A-02](assurance/a-02-parity.md) | Parity with the Okapi Framework | the parity suite in the bridge repository, its scheduled report, faithful output |

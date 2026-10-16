@@ -34,7 +34,7 @@
 //     synthesised paragraph style. Native does NOT: it is faithful and
 //     keeps the rPr inline. Equivalence with Okapi's synth-pStyle form
 //     is proved in the parity comparator's effective-rPr normalizer
-//     (cli/parity/roundtrip/normalizers_openxml.go), not in the writer.
+//     (okapi-bridge/parity/roundtrip/normalizers_openxml.go), not in the writer.
 
 package openxml
 

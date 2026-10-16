@@ -30,9 +30,11 @@ var evals = []Eval{
 		Status: StatusPartial,
 		Corpus: "The Okapi Framework's own filter test suite, mapped onto neokapi's readers.",
 		Covers: "Whether a document read by neokapi produces the same content model as the Java implementation it descends from, per format.",
-		Misses: "The report is written to a gitignored sandbox and has no published dashboard. Formats without an " +
-			"upstream counterpart cannot be compared this way. Known failures are listed separately.",
-		Reproduce: "make parity-test",
+		Misses: "The suite lives in the okapi-bridge repository and runs on a weekly schedule against the latest " +
+			"kapi release, so a change here is measured after it ships, not before. The report is a workflow " +
+			"artifact with no published dashboard. Formats without an upstream counterpart cannot be compared " +
+			"this way. Known failures are listed separately.",
+		Reproduce: "/format-ops parity-publish",
 	},
 	{
 		ID:     "format-maturity",

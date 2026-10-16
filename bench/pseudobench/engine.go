@@ -43,7 +43,7 @@ type Engine interface {
 // absolute, so the cwd never carries meaning — pinning it outside the repo
 // keeps a kapi invocation from binding the repo's dogfood kapi.yaml via the
 // upward project walk (belt-and-suspenders with the KAPI_NO_PROJECT=1 that
-// nativeOnlyEnv/bridgeEnv already set).
+// nativeOnlyEnv already set).
 func benchCWD() string {
 	d := filepath.Join(os.TempDir(), "kapi-bench-cwd")
 	_ = os.MkdirAll(d, 0o755)
@@ -163,9 +163,9 @@ func parseBlockCount(stdout []byte) int64 {
 // --- Kapi Native Engine ---
 
 // KapiNativeEngine runs kapi with no plugins loaded (native formats only).
-// It points XDG_DATA_HOME at a scratch dir so the bridge plugin under
-// the user's real ~/.local/share/kapi/plugins does not register, and
-// the native filter wins format dispatch for every supported format.
+// It points XDG_DATA_HOME at a scratch dir so no plugin under the user's
+// real ~/.local/share/kapi/plugins registers, and the native filter wins
+// format dispatch for every supported format.
 type KapiNativeEngine struct {
 	BinaryPath string
 	VersionStr string
@@ -180,8 +180,7 @@ func (e *KapiNativeEngine) Version() string { return e.VersionStr }
 // points at an empty scratch dir and KAPI_PLUGINS_DIR_ONLY pins discovery to
 // exactly that dir, so neither the user's XDG root nor the absolute system
 // roots the host also walks can leak a Homebrew plugin into the "kapi-native"
-// numbers. Without _ONLY, XDG_DATA_HOME alone left the system roots live and
-// the comparison "native vs bridge" was not actually native-only.
+// numbers. Without _ONLY, XDG_DATA_HOME alone leaves the system roots live.
 func nativeOnlyEnv() []string {
 	scratch := filepath.Join(os.TempDir(), "kapi-native-no-plugins")
 	_ = os.MkdirAll(scratch, 0o755)
@@ -197,47 +196,15 @@ func nativeOnlyEnv() []string {
 	}
 }
 
-// bridgePluginsDir derives the plugins directory from the path to the
-// jpackage bridge launcher. okapiBridgePath looks like
-// "<parity>/plugins/okapi-bridge/Contents/MacOS/kapi-okapi-bridge"; we
-// want "<parity>/plugins".
-func bridgePluginsDir(okapiBridgePath string) string {
-	d := filepath.Dir(okapiBridgePath) // .../Contents/MacOS
-	d = filepath.Dir(d)                // .../Contents
-	d = filepath.Dir(d)                // .../okapi-bridge
-	return filepath.Dir(d)             // .../plugins
-}
-
-// bridgeEnv pins kapi's plugin discovery to the parity-built okapi-bridge
-// under <parity>/plugins and isolates the run from the developer's config,
-// caches, and the dogfood project. KAPI_PLUGINS_DIR_ONLY restricts discovery
-// to that one dir, so the user's brew-installed plugin (typically an older
-// release JAR) and the system roots can't sneak into the comparison — the
-// bench measures exactly what was built into the parity sandbox.
-func bridgeEnv(okapiBridgePath string) []string {
-	scratch := filepath.Join(os.TempDir(), "kapi-bridge-no-xdg")
-	_ = os.MkdirAll(scratch, 0o755)
-	return []string{
-		"KAPI_NO_PROJECT=1",
-		"KAPI_TELEMETRY=0",
-		"KAPI_PLUGINS_DIR_ONLY=1",
-		"KAPI_PLUGINS_DIR=" + bridgePluginsDir(okapiBridgePath),
-		"KAPI_CONFIG_DIR=" + filepath.Join(scratch, "config"),
-		"XDG_DATA_HOME=" + scratch,
-		"XDG_CACHE_HOME=" + filepath.Join(scratch, "cache"),
-		"HOME=" + scratch,
-	}
-}
-
 func (e *KapiNativeEngine) ProcessBatch(ctx context.Context, files []TestFile, inputDir, outputDir, traceFile string) (*RunResult, []FileResult, error) {
 	return runKapiBatch(ctx, e.BinaryPath, files, inputDir, outputDir, traceFile, nativeOnlyEnv())
 }
 
-// runKapiBatch is the shared body for the three kapi engines. It runs
+// runKapiBatch runs one kapi batch over the fixtures. It runs
 // `kapi pseudo-translate <files...> --fail-on-unknown -o <template>`,
 // then verifies that every input produced an output file. If kapi exits
-// 0 but didn't actually write the expected output (e.g. the bridge
-// silently dropped the file because filter dispatch failed), the
+// 0 but didn't actually write the expected output (e.g. filter dispatch
+// failed and the file was silently dropped), the
 // fixture is marked as failed so the timing for that engine isn't
 // silently misreported as success. --fail-on-unknown ensures kapi
 // itself fails the run on any format-detection skip.
@@ -390,7 +357,7 @@ func collectOutputs(outputDir string) []string {
 // pseudo-translated output of inputPath. kapi's `{name}_{lang}{ext}`
 // template can collapse to a directory containing the original
 // filename, so we accept any match by basename — exact path matching
-// is too brittle across the kapi/bridge/native engines.
+// is too brittle across engines and versions.
 func hasOutputFor(written []string, inputPath string) bool {
 	base := filepath.Base(inputPath)
 	stem := base
@@ -407,189 +374,6 @@ func hasOutputFor(written []string, inputPath string) bool {
 		}
 	}
 	return false
-}
-
-// --- Kapi Bridge Engine (subprocess per invocation) ---
-
-// KapiBridgeEngine runs kapi with the bridge plugin (subprocess JVM).
-type KapiBridgeEngine struct {
-	BinaryPath  string // path to kapi
-	OkapiBridge string // path to kapi-okapi-bridge launcher (used to derive plugins dir)
-	VersionStr  string
-}
-
-func (e *KapiBridgeEngine) Name() string    { return "kapi-bridge" }
-func (e *KapiBridgeEngine) Version() string { return e.VersionStr }
-
-func (e *KapiBridgeEngine) ProcessBatch(ctx context.Context, files []TestFile, inputDir, outputDir, traceFile string) (*RunResult, []FileResult, error) {
-	return runKapiBatch(ctx, e.BinaryPath, files, inputDir, outputDir, traceFile, bridgeEnv(e.OkapiBridge))
-}
-
-// --- Kapi Bridge Daemon Engine ---
-
-// KapiBridgeDaemonEngine runs kapi attached to a pre-started bridge daemon.
-type KapiBridgeDaemonEngine struct {
-	BinaryPath  string // path to kapi
-	OkapiBridge string // path to kapi-okapi-bridge launcher (used to derive plugins dir)
-	VersionStr  string
-	Daemon      *DaemonProcess
-}
-
-func (e *KapiBridgeDaemonEngine) Name() string    { return "kapi-bridge-daemon" }
-func (e *KapiBridgeDaemonEngine) Version() string { return e.VersionStr }
-
-func (e *KapiBridgeDaemonEngine) ProcessBatch(ctx context.Context, files []TestFile, inputDir, outputDir, traceFile string) (*RunResult, []FileResult, error) {
-	// Tell kapi's plugin host to attach to our pre-started daemon's Unix
-	// socket instead of spawning a fresh JVM via the manifest's `daemon`
-	// command. This is what makes "kapi-bridge-daemon" actually different
-	// from "kapi-bridge": the JVM cold-start cost is paid once at bench
-	// startup, not on every kapi invocation.
-	env := append(bridgeEnv(e.OkapiBridge),
-		fmt.Sprintf("KAPI_DAEMON_SOCKET_OKAPI_BRIDGE=%s", e.Daemon.SocketPath()),
-	)
-	return runKapiBatch(ctx, e.BinaryPath, files, inputDir, outputDir, traceFile, env)
-}
-
-// --- Okapi Pseudo Engine ---
-
-// OkapiPseudoEngine runs Okapi's pseudo-translate pipeline via the
-// `kapi-okapi-bridge pseudo --manifest <tsv>` CLI. Files are grouped
-// by (filter class, fprm) and each group is processed in a single
-// JVM invocation: one cold-start per group, all files in one batch.
-//
-// This replaces the previous tikal-based engine — same upstream Okapi
-// pipeline (RawDocumentToFilterEventsStep → TextModificationStep with
-// SCRIPT_EXT_LATIN → FilterEventsToRawDocumentStep) but routed through
-// our maintained bridge launcher instead of the legacy tikal jar that
-// shipped without batch support per filter.
-type OkapiPseudoEngine struct {
-	BinaryPath string // kapi-okapi-bridge launcher (jpackage native)
-	VersionStr string
-}
-
-func (e *OkapiPseudoEngine) Name() string    { return "okapi" }
-func (e *OkapiPseudoEngine) Version() string { return e.VersionStr }
-
-// pseudoGroupKey shards files into (filter class, fprm) buckets so each
-// JVM invocation can pin a single --filter and one shared --fprm.
-type pseudoGroupKey struct {
-	FilterClass string
-	Fprm        string
-}
-
-func (e *OkapiPseudoEngine) ProcessBatch(ctx context.Context, files []TestFile, inputDir, outputDir, _ string) (*RunResult, []FileResult, error) {
-	fileResults := make([]FileResult, len(files))
-
-	// Group files by (filter class, fprm). Files lacking a FilterClass
-	// (legacy hand-curated lists) are skipped with an explicit error so
-	// the report shows what the engine couldn't run.
-	type indexed struct {
-		i int
-		f TestFile
-	}
-	groups := map[pseudoGroupKey][]indexed{}
-	for i, f := range files {
-		fileResults[i] = FileResult{Name: f.Name, Format: f.Format, Success: true}
-		if f.FilterClass == "" {
-			fileResults[i].Success = false
-			fileResults[i].Error = "no filter class: fixture not in parity corpus"
-			continue
-		}
-		key := pseudoGroupKey{FilterClass: f.FilterClass, Fprm: f.OkapiFprm}
-		groups[key] = append(groups[key], indexed{i: i, f: f})
-	}
-
-	if len(groups) == 0 {
-		return &RunResult{}, fileResults, nil
-	}
-
-	tmpDir, err := os.MkdirTemp("", "pseudobench-okapi-*")
-	if err != nil {
-		return nil, nil, err
-	}
-	defer os.RemoveAll(tmpDir)
-
-	// Aggregate timings: wall = sum of group wall times (sequential),
-	// peak RSS = max across groups. Each group is one JVM cold-start
-	// + one PipelineDriver.processBatch() invocation.
-	agg := &RunResult{}
-	groupNo := 0
-	for key, items := range groups {
-		groupNo++
-
-		// Stage outputs in a per-group sub-tmpdir so a basename clash
-		// between formats (rare but possible) doesn't overwrite.
-		groupOutDir := filepath.Join(outputDir, fmt.Sprintf("%s-%d", strings.ReplaceAll(key.FilterClass, "okf_", ""), groupNo))
-		if err := os.MkdirAll(groupOutDir, 0o755); err != nil {
-			return nil, nil, fmt.Errorf("mkdir group out: %w", err)
-		}
-
-		// Build manifest: <input>\t<output> per line.
-		var manifest strings.Builder
-		for _, it := range items {
-			src := inputPathFor(it.f, inputDir)
-			dst := filepath.Join(groupOutDir, it.f.Name)
-			fmt.Fprintf(&manifest, "%s\t%s\n", src, dst)
-		}
-		manifestPath := filepath.Join(tmpDir, fmt.Sprintf("manifest-%d.tsv", groupNo))
-		if err := os.WriteFile(manifestPath, []byte(manifest.String()), 0o644); err != nil {
-			return nil, nil, fmt.Errorf("write manifest: %w", err)
-		}
-
-		args := []string{
-			"pseudo",
-			"--filter", key.FilterClass,
-			"--manifest", manifestPath,
-			"--src-lang", "en",
-			"--tgt-lang", "qps",
-		}
-		if key.Fprm != "" {
-			args = append(args, "--fprm", key.Fprm)
-		}
-
-		result, runErr := runProcess(ctx, nil, e.BinaryPath, args...)
-		if runErr != nil {
-			for _, it := range items {
-				fileResults[it.i].Success = false
-				fileResults[it.i].Error = scrubPaths(runErr.Error())
-			}
-			continue
-		}
-
-		agg.WallTime += result.WallTime
-		agg.UserCPU += result.UserCPU
-		agg.SystemCPU += result.SystemCPU
-		if result.PeakRSSKB > agg.PeakRSSKB {
-			agg.PeakRSSKB = result.PeakRSSKB
-		}
-	}
-
-	// Per-file pseudo-output verification (same as runKapiBatch).
-	written := collectOutputs(outputDir)
-	for i, f := range files {
-		if !fileResults[i].Success {
-			continue
-		}
-		in := inputPathFor(f, inputDir)
-		outPath := findOutputFor(written, in)
-		if outPath == "" {
-			continue
-		}
-		letters := countLetters(in)
-		vr, err := verifyPseudoOutput(outPath, letters)
-		if err != nil {
-			fileResults[i].VerifyNote = err.Error()
-			continue
-		}
-		fileResults[i].PseudoChars = vr.PseudoChars
-		fileResults[i].Verified = vr.Verified
-		if vr.Reason != "" {
-			fileResults[i].VerifyNote = vr.Reason
-		}
-	}
-
-	agg.OutputBytes = sumDirSize(outputDir)
-	return agg, fileResults, nil
 }
 
 // --- Per-file processing (for timeline trace) ---
@@ -611,44 +395,6 @@ func (e *KapiNativeEngine) ProcessFile(ctx context.Context, file TestFile, input
 	return result, nil
 }
 
-func (e *KapiBridgeEngine) ProcessFile(ctx context.Context, file TestFile, inputDir, outputDir string) (*RunResult, error) {
-	args := []string{"pseudo-translate",
-		inputPathFor(file, inputDir), "--target-lang", "qps", "-q",
-		"-o", filepath.Join(outputDir, "{name}_{lang}{ext}")}
-	return runProcess(ctx, bridgeEnv(e.OkapiBridge), e.BinaryPath, args...)
-}
-
-func (e *KapiBridgeDaemonEngine) ProcessFile(ctx context.Context, file TestFile, inputDir, outputDir string) (*RunResult, error) {
-	args := []string{"pseudo-translate",
-		inputPathFor(file, inputDir), "--target-lang", "qps", "-q",
-		"-o", filepath.Join(outputDir, "{name}_{lang}{ext}")}
-	env := append(bridgeEnv(e.OkapiBridge),
-		fmt.Sprintf("KAPI_DAEMON_SOCKET_OKAPI_BRIDGE=%s", e.Daemon.SocketPath()),
-	)
-	return runProcess(ctx, env, e.BinaryPath, args...)
-}
-
-func (e *OkapiPseudoEngine) ProcessFile(ctx context.Context, file TestFile, inputDir, outputDir string) (*RunResult, error) {
-	if file.FilterClass == "" {
-		return nil, fmt.Errorf("file %s has no filter class", file.Name)
-	}
-	src := inputPathFor(file, inputDir)
-	dst := filepath.Join(outputDir, file.Name)
-	args := []string{
-		"pseudo",
-		"--filter", file.FilterClass,
-		"--input", src,
-		"--output", dst,
-		"--src-lang", "en",
-		"--tgt-lang", "qps",
-	}
-	if file.OkapiFprm != "" {
-		args = append(args, "--fprm", file.OkapiFprm)
-	}
-	return runProcess(ctx, nil, e.BinaryPath, args...)
-}
-
-// sumDirSize totals the sizes of all files in a directory (non-recursive).
 func sumDirSize(dir string) int64 {
 	var total int64
 	entries, err := os.ReadDir(dir)

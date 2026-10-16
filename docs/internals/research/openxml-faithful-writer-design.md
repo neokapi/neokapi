@@ -148,7 +148,7 @@ attr stripping.
 
 ### 4b. Effective-rPr canonical normalizer (the keystone "missing part")
 
-A parity-only normalizer (`cli/parity/roundtrip/normalizers.go`) that, for
+A parity-only normalizer (okapi-bridge `parity/roundtrip/normalizers.go`) that, for
 each `word/*.xml` part, resolves **both** sides to **effective per-run
 formatting** before comparison: parse `styles.xml` + `docDefaults`, resolve
 `pStyle`/`rStyle`/`basedOn` chains and toggle properties, inline the
@@ -231,7 +231,7 @@ WSO is removable.
    fix `parseRunWithFieldState` to extract the `end → text → begin` body
    window; verify cross-paragraph (`partCfs` + `partFieldStraddle`). Closes
    #598a now, no parity-tier risk.
-2. **4b effective-rPr normalizer**: build in `cli/parity/roundtrip`; verify
+2. **4b effective-rPr normalizer**: build in okapi-bridge `parity/roundtrip`; verify
    it brings the WSO-off fixtures to canon (target: openxml → ~all canon).
 3. **4a flip default** `OptimiseWordStyles=false`; retire/adjust unit tests
    that assert WSO-on output; confirm parity via 4b. Closes #597/#598b/847-3.

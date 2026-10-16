@@ -34,6 +34,6 @@ learning_materials:
   - web/docs/reference/formats/tsv.mdx
   - scripts/gen-refs/nativedocs/formats/csv.yaml
 divergences:
-  - core/formats/csv/parity-annotations.yaml
+  - https://github.com/neokapi/okapi-bridge/blob/main/parity/annotations/csv.yaml
   - "neokapi#530 — spec.yaml expected_fail: default-config divergence — native skips header + every cell a Block; Okapi default extracts header and one TextUnit per row (legitimate default difference, explicit configs converge)"
   - "neokapi#533 — spec.yaml expected_fail: bridge edge-case — header-only single-line files emit 1 spurious Block on the bridge even with sendHeaderMode=0; native emits 0"

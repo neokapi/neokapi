@@ -28,5 +28,5 @@ learning_materials:
   - core/formats/srt/spec.yaml
 # Native-only filter: no apples-to-apples okapi-bridge counterpart to
 # parity-test against (upstream uses a regex rule pack), so there is no
-# parity-annotations.yaml and no expected_fail divergence ledger.
+# parity annotation file in okapi-bridge/parity/annotations and no expected_fail divergence ledger.
 divergences: []

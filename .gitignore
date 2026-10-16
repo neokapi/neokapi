@@ -245,7 +245,6 @@ website/videos/public/raw/
 .env.local
 platform/docker/traefik/certs
 .playwright-mcp/
-.parity/
 .contract-audit/
 
 # Generated kapi/bowrain skill copies. The canonical source is host/skills/data/
@@ -345,3 +344,6 @@ packaging/.stage/
 /*.jpeg
 /*.webp
 .vitest/
+
+# The okapi-bridge parity report the format-ops parity-publish ritual downloads.
+.parity/

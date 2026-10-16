@@ -25,7 +25,7 @@ requests into `pending[]` **proposals**; applies approved ones to
   levels + `tier:{…}` fields.
 - Gating requirements (format-maturity.md §1):
   **Supported** = Engine ≥ L3 ∧ Corpus ≥ C2 ∧ Knowledge ≥ K2, gates wired in
-  `parity.yml`/`format-acceptance.yml`; **Maintained** = Engine ≥ L2, package
+  `make test`/`format-acceptance.yml`; **Maintained** = Engine ≥ L2, package
   tests + malformed suite; **Available** = Engine ≥ L0, registration tests.
 - Validators: `node scripts/format-ops/check-support-gates.mjs` and
   `TestSupportYAML` in `core/formats/maturity_test.go`.

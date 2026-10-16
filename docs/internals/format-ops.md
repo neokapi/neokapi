@@ -75,7 +75,7 @@ Four durable channels, each with a distinct job:
 |---|---|---|
 | Git history | commits, one per ritual outcome (artifact + ledger together) | What changed, attributable and diffable (`git diff <runs[].commit>..HEAD -- core/formats`) |
 | Ops ledger | `docs/internals/format-ops-ledger.json` | Watermarks per ritual, `pending[]` approval queue, append-only `runs[]` log |
-| Machine-readable status | `web/static/data/format-maturity{,-history}.json`, `web/static/data/contract-audit.json`, `.parity/parity-report.json` (local, unpublished), `core/formats/support.yaml` | Current scores, trends, promises |
+| Machine-readable status | `web/static/data/format-maturity{,-history}.json`, `web/static/data/contract-audit.json`, the okapi-bridge `parity` workflow artifact (`parity-report.json`), `core/formats/support.yaml` | Current scores, trends, promises |
 | Learnings | `docs/internals/format-ops-learnings.md` | Brief, factual, dated lessons (failure modes, fix patterns, model quirks). Pruned by `process-health`; pruned entries are archived at the bottom, not deleted. |
 
 The artifact map (§7) is single-sourced as machine-readable
@@ -127,7 +127,7 @@ issues, listed in §9) and report `blocked` until those land.
 |---|---|---|---|---|
 | 1 | `triage-score` | 14d | `core/formats` HEAD ≠ watermark sha; scorer/rubric changed | Multi-axis scores published to dashboard + history snapshot; docs snapshot block regenerated **in the same run**; `support.yaml` `last_certified` refreshed (that field only) |
 | 2 | `remediate` | 30d | carryover non-empty; dashboard shows gating-axis gaps vs declared tiers | ≤ `max_fixes_per_run` top-gap fixes (one commit each), verified by `make test` (package tests alone are insufficient for shared surfaces); mutation-check evidence recorded per added test; carryover updated; dashboard + docs block refreshed if scores moved |
-| 3 | `parity-publish` | 30d | parity-affecting paths changed since report `generated_at` | Fresh `make parity-publish` dashboard data |
+| 3 | `parity-publish` | 30d | parity-affecting paths changed since report `generated_at` | The latest okapi-bridge parity report read and its regressions filed |
 | 4 | `contract-audit` | watch-only (`ci_owned`) | CI cron red or stale vs watermark | Finding raised; fix delegated to remediate |
 | 5 | `upstream-watch` | 30d | any watermark family moved: Okapi issues (`updated_at` > watermark), Okapi release tag ≠ pinned `OKAPI_VERSION`, any dossier spec-source or implementation `watch` feed shows a new version | Per-spec/per-implementation drift notes written into dossiers; un-xfail candidates and backport list; an Okapi **version-bump plan** when the tag moved (all pin locations enumerated: Makefile, parity sandbox, fixtures regen, contract-audit, okapi-bridge matrix), whose execution is its own approved follow-up. Annual deep window: Oct–Nov Unicode/CLDR/ICU train; quarterly: MS-* revision pages, OASIS, DTCG, W3C timed-text |
 | 6 | `xfail-hygiene` | 60d | any tracked issue in `expected_fail`/annotations changed state (`gh issue` watermarks) | Stale xfails removed; `divergence_kind` coverage raised toward 100%; annotations reconciled; recorded checker output |
@@ -406,6 +406,6 @@ normal ritual run, so half-completing is safe):
    multi-view spec-case runner (unblocks `case-gen`), corpus-sweep harness
    (unblocks `corpus-sweep` and the C3 sweep criterion), `core/safeio` +
    fuzz scaffolding (unblocks the Security axis), tier-aware parity split
-   (Supported-vs-Maintained failure routing in `parity.yml`), editor-anchor
+   (Supported-vs-Maintained failure routing over the okapi-bridge parity report), editor-anchor
    overlay (unblocks comparable E2 evidence), formatSpecs retirement, harvest
    spec.yaml migration.

@@ -25,5 +25,5 @@ learning_materials:
   - web/docs/reference/kbf/vs-xliff.mdx
   - docs/internals/research/xliff-okapi-compat-quirks.md
 divergences:
-  - core/formats/xliff/parity-annotations.yaml
+  - https://github.com/neokapi/okapi-bridge/blob/main/parity/annotations/xliff.yaml
   - "core/formats/xliff/spec.yaml expected_fail: bridge does not expose ignoreInputSegmentation (no tracked issue number)"
