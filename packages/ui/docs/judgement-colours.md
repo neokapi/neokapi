@@ -47,6 +47,20 @@ one colour on both ladders.
 Statuses are the wire values, hyphen and all (`not-started`, never
 `not_started`), so a caller hands the badge whatever the API returned.
 
+## Warning ink
+
+`--warning` is a fill: an amber light enough to carry dark ink on a Send back
+button or a highlight. As ink on a light ground it reads at about 2.2:1, so
+amber text and icons take `--warning-ink` (`text-warning-ink`), a darker amber
+that reads at 5.4:1 or better on both app palettes. In the dark theme the two
+are close, because amber is legible on a dark ground as it is.
+
+The needs-you count in `StatRow`, a disagreement's `KindIcon`,
+`findingToneTextClass("warning")` and `Badge` with `variant="warning"` all write
+in it. The warning badge is the chip for something waiting on a person, such as
+"1 needs you": the amber border and the amber ink, with no fill. A surface takes
+one of these and never mixes the amber itself.
+
 ## Coordinate axes
 
 `CoordinateChip` gives each axis of a context coordinate a hue and an icon:
@@ -58,6 +72,16 @@ source paragraph belong to one drawing.
 The hue is a shorthand, so the axis name is always spelt out in the chip's
 tooltip and accessible name ("Channel: reference"). Nobody has to learn the
 colours to read the page.
+
+## Actors
+
+`ActorMark` gives each assistant host a tint, an ink and a border, the
+`--actor-*` tokens: `bg-actor-codex text-actor-codex-foreground
+border-actor-codex-border` for Codex, and the same three for Claude Code, Claude
+Desktop, Cursor and VS Code. They come from the prism ramp at the same steps as
+the coordinate axes, so a mark beside a chip reads as one drawing. A person, a
+sync and an actor this build does not know take the axis neutral. As with the
+axes, the hue is a shorthand, and the mark's tooltip spells out the name.
 
 ## Languages
 

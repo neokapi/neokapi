@@ -55,6 +55,7 @@
   --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
+  --color-warning-ink: var(--warning-ink);
   --color-info: var(--info);
   --color-info-foreground: var(--info-foreground);
 
@@ -72,6 +73,26 @@
   --color-axis-language-foreground: var(--axis-language-foreground);
   --color-axis-unknown: var(--axis-unknown);
   --color-axis-unknown-foreground: var(--axis-unknown-foreground);
+
+  /* ── Actors (semantic) ───────────────────────────────────── */
+  /* One tint, ink and border per assistant host, so ActorMark names its
+     colours as `bg-actor-codex` rather than computing a hue. Values live in
+     semantic-colors.css. */
+  --color-actor-claude-code: var(--actor-claude-code);
+  --color-actor-claude-code-foreground: var(--actor-claude-code-foreground);
+  --color-actor-claude-code-border: var(--actor-claude-code-border);
+  --color-actor-claude-desktop: var(--actor-claude-desktop);
+  --color-actor-claude-desktop-foreground: var(--actor-claude-desktop-foreground);
+  --color-actor-claude-desktop-border: var(--actor-claude-desktop-border);
+  --color-actor-codex: var(--actor-codex);
+  --color-actor-codex-foreground: var(--actor-codex-foreground);
+  --color-actor-codex-border: var(--actor-codex-border);
+  --color-actor-cursor: var(--actor-cursor);
+  --color-actor-cursor-foreground: var(--actor-cursor-foreground);
+  --color-actor-cursor-border: var(--actor-cursor-border);
+  --color-actor-vscode: var(--actor-vscode);
+  --color-actor-vscode-foreground: var(--actor-vscode-foreground);
+  --color-actor-vscode-border: var(--actor-vscode-border);
 
   /* ── Prism ramp (brand accent; themes without one inherit the
      chart palette hues via their own :root values) ───────────── */
