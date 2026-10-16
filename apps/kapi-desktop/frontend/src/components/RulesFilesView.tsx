@@ -73,7 +73,7 @@ export function RulesFilesView({ tabID, rulesFiles: given }: RulesFilesViewProps
       ) : files.length === 0 ? (
         <div data-slot="rules-files-none">
           <EmptyState
-            icon={<FileText size={20} />}
+            icon={<FileText size={20} className="mx-auto" />}
             title="No rules files"
             description="The project's context holds no rules yet, so kapi writes no file."
           />
@@ -83,7 +83,7 @@ export function RulesFilesView({ tabID, rulesFiles: given }: RulesFilesViewProps
           {noneWritten && (
             <div data-slot="rules-files-empty" className="mb-3">
               <EmptyState
-                icon={<FileText size={20} />}
+                icon={<FileText size={20} className="mx-auto" />}
                 title="No rules file written yet"
                 description={rulesFilesHelp()}
                 action={writeButton}

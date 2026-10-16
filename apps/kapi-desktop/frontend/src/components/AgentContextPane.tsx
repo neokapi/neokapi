@@ -76,7 +76,7 @@ export function AgentContextPane({ tabID, path }: AgentContextPaneProps) {
 
       {!selected ? (
         <EmptyState
-          icon={<FileSearch size={20} />}
+          icon={<FileSearch size={20} className="mx-auto" />}
           title="No file chosen"
           description="Choose a file above to read what an agent is told about it."
         />

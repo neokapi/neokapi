@@ -398,11 +398,11 @@ function TeamCard({
           <p className="flex items-center gap-1.5 text-sm text-warning">
             <TriangleAlert size={14} aria-hidden className="shrink-0" />
             {status.contacted ? (
-              <>
+              <span>
                 The place could not be reached at <ContactTime iso={status.contacted} />.
-              </>
+              </span>
             ) : (
-              <>The place could not be reached.</>
+              <span>The place could not be reached.</span>
             )}
           </p>
           <p
