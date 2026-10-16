@@ -28,32 +28,36 @@ concept model with relations and governance around it.
     light: "/video/bowrain-web/bowrain-web-governance-light.webm",
     dark: "/video/bowrain-web/bowrain-web-governance-dark.webm",
   }}
-  outdated="wording"
+  outdated="interface"
+  outdatedNote="Concepts and Content memory show a list beside a detail pane."
 />
 
-## Accessing the terms explorer
+## Opening the Concepts page
 
-There are two ways to open the terms explorer:
+Click **Context** in the main sidebar, then **Concepts**. The **Terminology**
+button in a project's source view opens the same page, because the terms are the
+workspace's and every project shares them. A link to one concept, from Activity, the dashboard or
+a review, opens the list with that concept selected.
 
-1. **From a project**: click the **Terms** button in the project view header. This opens the explorer with the project name displayed and source/target locales available for filtering.
-2. **From the sidebar**: click **Context** in the main sidebar, then **Concepts**, to reach the workspace-scoped explorer.
+## The list
 
-## Browsing concepts
+The page is a list of concepts beside a detail pane. Each row shows the term the
+concept is headed by, that term's status, and how many languages the concept has
+terms in. A concept is headed by its term in the language most of your projects
+are written in.
 
-The explorer displays concepts in a paginated table with these columns:
+- **Search**, at the top of the list, matches term text as you type.
+- **Status** narrows the list to concepts with a term in that status.
+- **Market** narrows it to one market. It appears once the workspace defines
+  markets.
+- **Show more**, at the foot of the list, reads the next page.
 
-| Column          | Description                                                  |
-| --------------- | ------------------------------------------------------------ |
-| **Source Term** | The term in the source language                              |
-| **Target Term** | The term in the target language                              |
-| **Domain**      | Subject area classification (for example "legal", "medical", "UI") |
-| **Status**      | Lifecycle status badge                                       |
-| **Updated**     | Date the concept was last modified                           |
+The server answers each search a page at a time, so a workspace with thousands
+of concepts searches as quickly as one with ten. While the list has focus, the
+arrow keys, `j` and `k` move the selection.
 
-Clicking a concept opens its [dashboard](/server/context#concepts), the
-per-concept page that gathers its terms, geography, constraints, direct
-relations, and timeline. The concept count badge in the header shows the total
-number of concepts matching current filters.
+A change-set waiting for review sits above the list, with **Review** to open it.
+Proposed concepts join the list once their change is approved.
 
 ## Term lifecycle statuses
 
@@ -68,35 +72,32 @@ Each term carries a lifecycle status that communicates its approval level:
 | **Proposed**   | Under review, not yet approved                     |
 | **Forbidden**  | Must not be used                                   |
 
-## Searching
+## The detail pane
 
-Type in the search box to filter concepts by source or target term text.
-Results update as you type.
+Select a concept to see it beside the list:
 
-## Filtering
-
-Use the filter controls to narrow the concept list:
-
-- **Source locale filter**: show only concepts with a term in the specified source language
-- **Target locale filter**: show only concepts with a term in the specified target language
-- **Status filter**: show only concepts with a specific lifecycle status
-
-Filters can be combined with text search. Changing a filter resets to page 1.
-
-## Adding concepts
-
-Click **Add Concept** in the header to create a concept, the unit of meaning
-that terms attach to. A new concept starts with a first term and a `proposed`
-status. To round it out with terms in other languages, a domain, relations, and
-per-market constraints, open its [dashboard](/server/context#concepts) and edit
-it there.
+- its definition;
+- **Write instead**: the deprecated and forbidden forms, each with the term to use
+  in its place;
+- **By language**: its terms in each language, the source language first, each
+  with its status and its other forms, and the markets that cover the language;
+- **Where it came from**: its domain, voice profile and coordinates, whether it
+  belongs to one project or the whole workspace, and who added it and changed it
+  last;
+- **Relations** to other concepts; select one to open it;
+- **History**, **Discussion** and **Evidence**: the concept's
+  [story](/server/context#the-concept-story), the comments on it, and the
+  observations recorded for it.
 
 ## Editing concepts
 
-Clicking a concept opens its [dashboard](/server/context#concepts): the per-concept
-page that gathers its terms, geography, constraints, a local
-[relations](/server/context#relations) widget, and a timeline. Terms and their
-metadata are edited on the dashboard rather than inline in the table.
+The acts on the selected concept sit in the pane's toolbar:
+
+- **Approve** sets the term the concept is headed by from proposed to approved.
+  It appears while that term is proposed.
+- **Edit** sets the status of each of the concept's terms.
+- **Relate** adds a [relation](/server/context#relations) to another concept. The
+  cross on a relation removes it.
 
 How an edit applies depends on whether it is governed:
 
@@ -106,7 +107,9 @@ How an edit applies depends on whether it is governed:
   `preferred` status, setting or clearing a concept's do-not-translate flag,
   recording a `replaced_by` relation, or deleting a concept, are bundled into a
   reviewable [change-set](/server/context#experiments-change-sets-and-pilots)
-  whose blast radius is measured before anyone approves it.
+  whose blast radius is measured before anyone approves it. When the server
+  refuses a governed edit, the page offers to open **Changes**, where the edit
+  goes into a change-set.
 
 A concept created with its do-not-translate flag set is governed too. Promoting
 an entity marked do-not-translate, approving a context-scan term marked that
@@ -115,54 +118,24 @@ in a change-set of its own, and the concept appears once that change-set
 merges. Approving a term candidate marked do-not-translate in the review queue
 creates the concept with the flag, because that approval is the review.
 
+## Adding concepts
+
+Concepts arrive from your projects and from review:
+
+- `kapi push` sends a project's terms to the workspace. Ordinary terms apply
+  directly; governed ones arrive as a change-set waiting for review.
+- **Mark as term** in a review session, or approving a term a
+  [context scan](/server/context-scan) proposed, creates the concept.
+
+To load terms from a spreadsheet or a TBX file, import them into a project with
+`kapi terms import`, then push the project.
+
 ## Deleting concepts
 
-Deleting a concept is a governed action. From the concept
-[dashboard](/server/context#concepts), the delete is added to a
+Deleting a concept is a governed action. The delete travels through a
 [change-set](/server/context#experiments-change-sets-and-pilots) and removes the
 concept only once that change-set is approved and merged, so a concept other
 content still references cannot disappear unreviewed.
-
-## Import and export
-
-### Import from CSV
-
-Click **Import CSV** and select a CSV file. The expected format:
-
-```csv
-source_term,target_term,source_locale,target_locale,domain,status
-login,connexion,en,fr,UI,approved
-password,mot de passe,en,fr,UI,preferred
-```
-
-### Import from JSON
-
-Click **Import JSON** and select a JSON file containing an array of concept objects:
-
-```json
-[
-  {
-    "source_term": "login",
-    "target_term": "connexion",
-    "source_locale": "en",
-    "target_locale": "fr",
-    "domain": "UI",
-    "status": "approved"
-  }
-]
-```
-
-### Export to JSON
-
-Click **Export JSON** to download the whole terms store as a JSON file, for
-backup, sharing with other workspaces, or importing into external tools.
-
-## Pagination
-
-When there are more than 50 concepts, pagination controls appear below the table:
-
-- **Previous** / **Next** buttons to navigate pages
-- **Page X of Y** indicator showing current position
 
 ## Terms in the editor
 
