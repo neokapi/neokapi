@@ -186,19 +186,20 @@ function WhatsNewRow({
       )}
       {chips.length > 0 && (
         <div data-slot="whats-new-chips" className="flex shrink-0 items-center gap-1.5">
-          {chips.map((chip) => (
+          {/* The label is translated already, by newsChips. */}
+          {chips.map(({ kind, label, warning }) => (
             <Badge
-              key={chip.kind}
+              key={kind}
               variant="outline"
               data-slot="whats-new-chip"
-              data-kind={chip.kind}
+              data-kind={kind}
               className={cn(
                 "text-[11px] font-normal tabular-nums",
-                chip.warning ? WARNING_CHIP : "text-muted-foreground",
+                warning ? WARNING_CHIP : "text-muted-foreground",
               )}
             >
-              {isDigestKind(chip.kind) && <KindIcon kind={chip.kind} decorative />}
-              {chip.label}
+              {isDigestKind(kind) && <KindIcon kind={kind} decorative />}
+              {label}
             </Badge>
           ))}
         </div>
