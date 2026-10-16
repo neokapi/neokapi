@@ -222,7 +222,7 @@ export function ListDetailGroup({
     <div
       data-slot="list-detail-group"
       className={cn(
-        "sticky top-0 z-10 -mx-2 flex items-baseline justify-between gap-2 bg-background px-4 pt-2.5 pb-1 text-[11px] font-semibold text-muted-foreground",
+        "sticky top-0 -mx-2 flex items-baseline justify-between gap-2 bg-background px-4 pt-2.5 pb-1 text-[11px] font-semibold text-muted-foreground",
         children === undefined && className,
       )}
       {...(children === undefined ? props : {})}

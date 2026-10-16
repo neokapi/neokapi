@@ -306,7 +306,16 @@ function SuggestionDetail({ row }: { row: Row }) {
     <ListDetailPane
       toolbar={
         <ListDetailToolbar
-          title={<RowLine row={row} />}
+          title={
+            <>
+              {row.write}
+              {row.not && (
+                <>
+                  , <s className="font-normal text-muted-foreground">not {row.not}</s>
+                </>
+              )}
+            </>
+          }
           actions={
             established ? (
               <>
