@@ -591,3 +591,56 @@ export type {
 // Filter config editor (legacy — prefer SchemaForm)
 export { FilterConfigEditor, SchemaConfigEditor } from "./components/filter";
 export type { FormatSchema, FormatParamsValue } from "./components/filter/types";
+
+// Page-pattern primitives (docs/page-patterns.md): labelled counts, who did
+// something, what kind of thing a digest row is, and the list-and-detail shape
+export { StatRow } from "./components/ui/stat-row";
+export type { StatItem, StatRowProps, StatTone } from "./components/ui/stat-row";
+export { ActorMark, KNOWN_ACTORS, actorInitials, actorLabel } from "./components/ui/actor-mark";
+export type { ActorMarkProps, ActorMarkSize, KnownActor } from "./components/ui/actor-mark";
+export {
+  KindIcon,
+  DIGEST_KINDS,
+  DIGEST_THEMES,
+  KIND_ICONS,
+  THEME_KINDS,
+  digestKind,
+  kindLabel,
+} from "./components/ui/kind-icon";
+export type {
+  DigestKind,
+  DigestKindSource,
+  DigestThemeId,
+  KindIconMeta,
+  KindIconProps,
+  KindTone,
+} from "./components/ui/kind-icon";
+export {
+  ListDetail,
+  ListDetailEmpty,
+  ListDetailGroup,
+  ListDetailItem,
+  ListDetailList,
+  ListDetailPane,
+  ListDetailToolbar,
+} from "./components/ui/list-detail";
+export type {
+  ListDetailEmptyProps,
+  ListDetailGroupProps,
+  ListDetailItemProps,
+  ListDetailListProps,
+  ListDetailPaneProps,
+  ListDetailProps,
+  ListDetailToolbarProps,
+} from "./components/ui/list-detail";
+export {
+  LIST_NAVIGATION_KEYS,
+  navigationTarget,
+  useListNavigation,
+} from "./hooks/useListNavigation";
+export type {
+  ListMove,
+  ListNavigation,
+  ListNavigationKey,
+  UseListNavigationOptions,
+} from "./hooks/useListNavigation";
