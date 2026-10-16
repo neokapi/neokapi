@@ -121,18 +121,14 @@ describe("ContextHub", () => {
     expect(screen.getByText("share for t3")).toBeInTheDocument();
   });
 
-  it("names the command each section does the work of", async () => {
+  it("names the command What's new and History do the work of", async () => {
+    vi.spyOn(api, "projectContextDigest").mockResolvedValue(CONTEXT_DIGEST);
     render(<ContextHub tabID="t1" projectName="Northsea" />);
     const command = () => document.querySelector("[data-slot='context-section-command']");
-    expect(command()?.textContent).toBe("The same as kapi context review");
+    expect(command()?.textContent).toBe("The same as kapi context review.");
     await userEvent.click(screen.getByRole("button", { name: "History" }));
-    expect(command()?.textContent).toBe("kapi context log");
-    await userEvent.click(screen.getByRole("button", { name: "Assistant" }));
-    expect(command()?.textContent).toBe("kapi init");
-    await userEvent.click(screen.getByRole("button", { name: "Share" }));
-    expect(command()?.textContent).toBe("kapi context sync");
-    await userEvent.click(screen.getByRole("button", { name: "Voice" }));
-    expect(command()?.textContent).toBe("");
+    expect(command()?.textContent).toBe("The same as kapi context log.");
+    vi.restoreAllMocks();
   });
 
   it("goes to the Assistant from the empty digest's link", async () => {

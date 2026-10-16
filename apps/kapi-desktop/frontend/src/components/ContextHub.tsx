@@ -161,12 +161,6 @@ export function ContextHub({
             <SectionLabel id={s.id} />
           </button>
         ))}
-        <span
-          data-slot="context-section-command"
-          className="ml-auto shrink-0 pl-3 text-[11px] text-muted-foreground empty:hidden"
-        >
-          <SectionCommand id={current} />
-        </span>
       </nav>
       <div className="min-h-0 flex-1">
         {current === "explorer" && (
@@ -185,6 +179,7 @@ export function ContextHub({
               <PageHeader
                 className="mb-3"
                 title={t("What's new for {project}", { project: projectName })}
+                subtitle={<ReviewCommand />}
               />
               <ContextDigestPanel
                 tabID={tabID}
@@ -218,7 +213,7 @@ export function ContextHub({
         {current === "history" && (
           <ScrollArea className="h-full">
             <div className="mx-auto max-w-3xl px-6 py-5">
-              <PageHeader className="mb-3" title="History" />
+              <PageHeader className="mb-3" title="History" subtitle={<LogCommand />} />
               <ProjectHistory tabID={tabID} />
             </div>
           </ScrollArea>
@@ -249,24 +244,24 @@ function ProjectHistory({ tabID }: { tabID: string }) {
   return <ContextFeedPanel projectKey={key} />;
 }
 
-/** The command a section does the work of, for the reader who has a terminal. */
-function SectionCommand({ id }: { id: ContextSection }) {
-  const code = (command: string) => (
-    <code className="font-mono" translate="no">
-      {command}
-    </code>
+/*
+ * The command a section does the work of, for the reader who has a terminal.
+ * Share and Assistant name theirs inside their own panels, the same way.
+ */
+function ReviewCommand() {
+  return (
+    <span data-slot="context-section-command">
+      The same as <code translate="no">kapi context review</code>.
+    </span>
   );
-  switch (id) {
-    case "rules":
-      return <>The same as {code("kapi context review")}</>;
-    case "agent":
-      return code("kapi init");
-    case "history":
-      return code("kapi context log");
-    case "share":
-      return code("kapi context sync");
-  }
-  return null;
+}
+
+function LogCommand() {
+  return (
+    <span data-slot="context-section-command">
+      The same as <code translate="no">kapi context log</code>.
+    </span>
+  );
 }
 
 /** A section's name on the rail, written here so it is translated. */
