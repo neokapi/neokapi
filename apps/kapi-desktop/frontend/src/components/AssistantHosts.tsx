@@ -1,5 +1,7 @@
-// The assistants kapi can connect to one project, one row each: connected,
-// with the files that carry the connection, or not, with Connect.
+// The assistants kapi can connect to one project, one row each: a status dot
+// and the name, "Connected" after it when the assistant is, and one button,
+// Connect or a disabled Connected. The files that carry a connection are the
+// caption's tooltip.
 //
 // Connect writes the files `kapi init` writes for that assistant and lists
 // what it wrote. Claude Desktop reads a configuration file of the person's
@@ -18,6 +20,7 @@ import {
   DialogTitle,
   ErrorNotice,
   LoadingSpinner,
+  SimpleTooltip,
   cn,
 } from "@neokapi/ui-primitives";
 import { useShortenHome } from "../hooks/useShortenHome";
@@ -111,9 +114,6 @@ export function AssistantHosts({ tabID, hosts: given, contextOnly }: AssistantHo
           />
         ))}
       </ul>
-      <p className="mt-2 text-[11px] text-muted-foreground">
-        The same as <code translate="no">kapi init</code>.
-      </p>
 
       <ClaudeDesktopConfirm
         host={confirming}
@@ -128,7 +128,7 @@ export function AssistantHosts({ tabID, hosts: given, contextOnly }: AssistantHo
   );
 }
 
-/** One assistant: its name, whether it is connected, and Connect. */
+/** One assistant: its status dot and name, and Connect or a disabled Connected. */
 function HostRow({
   host,
   shorten,
@@ -147,20 +147,7 @@ function HostRow({
   error?: unknown;
 }) {
   const absent = !host.detected && !host.wired;
-  const label = (
-    <span className="font-medium text-foreground" translate="no">
-      {host.label}
-    </span>
-  );
-  const files = (
-    <code className={MONO} translate="no">
-      {(host.files ?? []).map(shorten).join(", ")}
-    </code>
-  );
-  let state: React.ReactNode;
-  if (!host.wired) state = <>not connected</>;
-  else if (host.files?.length) state = <>connected ({files})</>;
-  else state = <>connected</>;
+  const files = (host.files ?? []).map(shorten);
 
   return (
     <li
@@ -170,21 +157,55 @@ function HostRow({
       data-absent={absent || undefined}
       className={cn("py-2.5", absent && "opacity-60")}
     >
-      <div className="flex items-center justify-between gap-3">
-        <p data-slot="assistant-host-state" className="text-sm text-muted-foreground">
-          {label} · {state}
+      <div className="flex min-h-8 items-center justify-between gap-3">
+        <p data-slot="assistant-host-state" className="flex min-w-0 items-center gap-2 text-sm">
+          <span
+            aria-hidden
+            data-slot="assistant-host-dot"
+            className={cn(
+              "size-2 shrink-0 rounded-full",
+              host.wired ? "bg-success" : "border border-muted-foreground/50",
+            )}
+          />
+          <span className="truncate font-medium text-foreground" translate="no">
+            {host.label}
+          </span>
+          {host.wired && (
+            <SimpleTooltip
+              content={
+                files.length > 0 ? (
+                  <span className="font-mono" translate="no">
+                    {files.join(", ")}
+                  </span>
+                ) : undefined
+              }
+            >
+              <span
+                data-slot="assistant-host-connected"
+                className="text-[11px] text-muted-foreground"
+              >
+                Connected
+              </span>
+            </SimpleTooltip>
+          )}
         </p>
-        {canConnect(host) && (
-          <Button
-            size="sm"
-            variant="outline"
-            data-slot="assistant-host-connect"
-            disabled={disabled}
-            onClick={onConnect}
-          >
-            {busy && <LoadingSpinner size="sm" />}
-            Connect
+        {host.wired ? (
+          <Button size="sm" variant="outline" data-slot="assistant-host-connected-button" disabled>
+            Connected
           </Button>
+        ) : (
+          canConnect(host) && (
+            <Button
+              size="sm"
+              variant="outline"
+              data-slot="assistant-host-connect"
+              disabled={disabled}
+              onClick={onConnect}
+            >
+              {busy && <LoadingSpinner size="sm" />}
+              Connect
+            </Button>
+          )
         )}
       </div>
       {wrote && <WroteFiles result={wrote} shorten={shorten} />}
