@@ -1758,7 +1758,7 @@ async function bowrainGovernanceWalk(c: WalkCtx): Promise<void> {
 
   // The same wording, already on record in the workspace content memory. The
   // search at the top of its list asks the server as you type.
-  await beatEls("tm-search", ['[data-testid="tm-search"]', '[data-testid^="tm-entry-"]'], async () => {
+  await beatEls("tm-search", ['[data-slot="memory-search"]', '[data-slot="memory-pair"]'], async () => {
     await tap("subnav-memory");
     await page.waitForSelector('[data-testid="tm-browser"]', { timeout: 20_000 });
     await page.waitForTimeout(900);

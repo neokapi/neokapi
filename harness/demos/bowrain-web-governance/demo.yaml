@@ -48,7 +48,7 @@ narration:
     hold: 14
     crop:
       selector:
-        - '[data-testid="tm-search"]'
+        - '[data-slot="memory-search"]'
         - '[data-slot="memory-pair"]'
     text: >-
       The workspace content memory answers for the sentences the team has

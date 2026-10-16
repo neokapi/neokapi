@@ -24,7 +24,7 @@ import {
   LocaleLabel,
   When,
 } from "@neokapi/ui-primitives";
-import { Check, Pencil, Plus } from "../../components/icons";
+import { Check, Globe, Pencil, Plus } from "../../components/icons";
 import { ErrorNotice } from "../../errors";
 import { useAnalytics } from "../../context/AnalyticsContext";
 import { useWorkspace } from "../../context/WorkspaceContext";
@@ -264,10 +264,14 @@ export function ConceptDetail({
                     {where.length > 0 && (
                       <span
                         data-slot="concept-language-markets"
-                        className="block text-[11px] text-muted-foreground"
-                        translate="no"
+                        title={t("Markets that cover this language")}
+                        className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground"
                       >
-                        {where.join(", ")}
+                        <Globe aria-hidden className="size-3 shrink-0" />
+                        <span className="sr-only">{t("Markets")}</span>
+                        <span className="min-w-0 truncate" translate="no">
+                          {where.join(", ")}
+                        </span>
                       </span>
                     )}
                   </dt>
