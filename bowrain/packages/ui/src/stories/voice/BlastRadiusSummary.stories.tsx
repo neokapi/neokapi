@@ -27,7 +27,7 @@ export const NewViolations: Story = {
       degraded_blocks: 22,
       new_violations: 27,
       resolved_violations: 0,
-      critical_count: 3,
+      failing_count: 3,
       collections: [
         {
           collection_id: "c1",
@@ -51,7 +51,7 @@ export const NoImpact: Story = {
       degraded_blocks: 0,
       new_violations: 0,
       resolved_violations: 0,
-      critical_count: 0,
+      failing_count: 0,
       collections: [],
     },
   },

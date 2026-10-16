@@ -1,7 +1,7 @@
 ---
 title: Voice and corrections
 sidebar_label: Voice and corrections
-description: Review recurring corrections, preview candidate rules and promote them into versioned voice profiles shared across projects.
+description: Review recurring corrections, preview candidate rules and promote them into the terms every project in the workspace shares.
 keywords: [voice profile, corrections, candidate rules, governance, drift, blast radius, bowrain]
 ---
 
@@ -21,7 +21,7 @@ test reports what broke.
 
 Bowrain aggregates repeated corrections into candidate rules. Reviewers can
 inspect their evidence, preview their effect on stored content and promote them
-into a versioned voice profile. The **Voice** section of the
+into the workspace's terms. The **Voice** section of the
 [Context hub](/server/context) provides this workflow.
 
 <ThemedVideo
@@ -47,15 +47,15 @@ review:
    live from the correction stream, so they always reflect current evidence.
 3. **Preview.** Before a candidate is enforced, Bowrain computes its **blast
    radius**: it runs the rule over your stored content and shows how many blocks
-   it would newly flag, how many it resolves, and which become critical, so you
-   see the impact before anything changes.
-4. **Promote.** A reviewer **promotes** the candidate into the profile. It
-   becomes a deterministic check, the profile version is bumped (the prior
-   version is archived for audit and rollback), and the rule is enforced on every
-   future generation, in every locale the profile covers. The promoted rule is
-   **concept-backed**: it references the [concept](/server/context#concepts)
-   its term denotes, so the rule and the term it governs share one identity in the
-   Context hub. Promoting a voice rule is a governed edit, and a concept's
+   it would newly flag, how many it resolves, and how many of the new findings
+   fail a check, so you see the impact before anything changes.
+4. **Promote.** A reviewer **promotes** the candidate. Bowrain writes it into
+   the workspace's terms as a term rule, records who promoted it and when, and
+   the rule is enforced as a deterministic check on every future generation, in
+   every language the terms cover. The promoted rule is **concept-backed**: it
+   references the [concept](/server/context#concepts) its term denotes, so the
+   rule and the term it governs share one identity in the Context hub.
+   Promoting a voice rule is a governed edit, and a concept's
    [story](/server/context#the-concept-story) shows the rules that reference it.
 5. **Monitor.** Bowrain tracks aggregate compliance and raises a **drift**
    alert when it declines.
@@ -74,7 +74,7 @@ review:
       loop: ["drift alert when compliance erodes", "feeds the next correction"],
     },
   ]}
-  caption="Recurring corrections provide evidence for candidate rules. Reviewers preview and promote them into a shared, versioned profile."
+  caption="Recurring corrections provide evidence for candidate rules. Reviewers preview and promote them into the terms the workspace shares."
 />
 
 ## Rules inherit and expire
@@ -114,8 +114,8 @@ You can use the same voice engine through these interfaces:
   enforces it locally and in CI, gated by exit code, with no server round-trip.
 
 The detection and scoring are the open engine's job; Bowrain owns the durable
-governance layer (the decisions, versioning, provenance, autonomy, and drift) and
-the surfaces that drive it.
+governance layer (the decisions, provenance, autonomy, and drift) and the
+surfaces that drive it.
 
 For voice changes too consequential to make in place, such as banning a term
 across the workspace or swapping a preferred term, the

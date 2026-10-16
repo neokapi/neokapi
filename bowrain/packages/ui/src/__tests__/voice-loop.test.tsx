@@ -191,7 +191,7 @@ describe("BlastRadiusSummary", () => {
     degraded_blocks: 14,
     new_violations: 18,
     resolved_violations: 0,
-    critical_count: 2,
+    failing_count: 2,
     collections: [
       {
         collection_id: "c1",
