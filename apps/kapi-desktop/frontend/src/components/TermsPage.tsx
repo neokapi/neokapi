@@ -1,11 +1,13 @@
+// A project's terms, or a named terms store: the concepts as a list beside a
+// detail pane (ConceptsView). With no store open, the page lists the named
+// stores to open one from.
+
 import { useState, useEffect, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { t } from "@neokapi/i18n-react/runtime";
 import { BookOpen, Plus, FolderOpen, X, AlertTriangle } from "lucide-react";
 import {
   Button,
-  Card,
-  CardContent,
   Dialog,
   DialogContent,
   DialogHeader,
@@ -14,17 +16,16 @@ import {
   Input,
   PageHeader,
   EmptyState,
-  ChartContainer,
   SimpleTooltip,
-  type ChartConfig,
+  type ResourceInfo,
 } from "@neokapi/ui-primitives";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { api } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
 import { useError } from "./ErrorBanner";
 import { useActiveFilter } from "../context/ActiveFilterContext";
+import type { ConceptDataSource } from "@neokapi/concept-ui";
 import { ConceptsView } from "./ConceptsView";
-import { ResourceCard, type ResourceInfo } from "@neokapi/ui-primitives";
+import { StoreList } from "./StoreList";
 
 export interface TermsPageProps {
   /** Project tab ID — when set, shows the project-scoped terms. */
@@ -33,21 +34,18 @@ export interface TermsPageProps {
   resources?: ResourceInfo[];
   /** Force loading/skeleton state (for Storybook). */
   forceLoading?: boolean;
+  /**
+   * A store already open, for Storybook: skips the handle lookup and reads the
+   * concepts from this source.
+   */
+  store?: { name: string; source: ConceptDataSource; count?: number; defaultSelected?: string };
 }
-
-interface ActivityPoint {
-  date: string;
-  count: number;
-}
-
-const chartConfig: ChartConfig = {
-  count: { label: "Concepts", color: "var(--chart-2)" },
-};
 
 export function TermsPage({
   tabID,
   resources: propResources,
   forceLoading = false,
+  store,
 }: TermsPageProps = {}) {
   const qc = useQueryClient();
   const [handle, setHandle] = useState<string | null>(null);
@@ -84,27 +82,20 @@ export function TermsPage({
     ? [sourceLang, ...activeFilter.languages].filter(Boolean)
     : undefined;
 
-  // Dashboard stats (count, activity, locales) for whichever terms is open —
-  // project OR named. Both use the same view, so a named terms shows the same
-  // activity chart + filters as a project one.
+  // The count in the header, for whichever store is open: the project's or a
+  // named one. Both open on the same list and detail.
   const statsQuery = useQuery({
     queryKey: qk.termsStats(activeHandle ?? ""),
     queryFn: () => api.getTermsStats(activeHandle!),
     enabled: !!activeHandle,
   });
-  const activityQuery = useQuery({
-    queryKey: qk.termsActivityStats(activeHandle ?? ""),
-    queryFn: () => api.getTermsActivityStats(activeHandle!),
-    enabled: !!activeHandle,
-  });
   const projectStats = activeHandle ? (statsQuery.data ?? null) : null;
-  const activityStats: ActivityPoint[] = activeHandle ? (activityQuery.data ?? []) : [];
 
   // Named-terms list — only when there is no project terms store to show instead.
   const resourcesQuery = useQuery({
     queryKey: qk.namedTerms(),
     queryFn: () => api.listNamedTerms(),
-    enabled: !propResources && !forceLoading && !projectHandle,
+    enabled: !propResources && !forceLoading && !projectHandle && !store,
   });
   const resources: ResourceInfo[] = propResources ?? resourcesQuery.data ?? [];
   const loading = forceLoading || (!propResources && !projectHandle && resourcesQuery.isLoading);
@@ -192,17 +183,20 @@ export function TermsPage({
     }
   }, [handle, refreshResources]);
 
-  // Open terms view — identical dashboard (stats + activity chart + the
-  // visual concept/relation workspace) whether the terms store is project-scoped or
-  // a named/ad-hoc one. Only the header (title, back button) differs.
-  if (activeHandle) {
-    const isProject = !!projectHandle;
+  // An open store, project-scoped or named: the header, then the concepts as a
+  // list beside a detail pane filling the rest of the page.
+  if (activeHandle || store) {
+    const isProject = !!projectHandle || !!store;
+    const count = store?.count ?? projectStats?.count;
     return (
-      <div className="p-6">
+      <div className="flex h-full min-h-0 flex-col">
         <PageHeader
-          title={isProject ? "Project Terms" : tbName}
+          className="mb-0 shrink-0 px-6 pt-5 pb-3"
+          title={store?.name ?? (isProject ? "Project Terms" : tbName)}
           subtitle={
-            projectStats ? `${projectStats.count.toLocaleString()} concepts` : tbPath || undefined
+            count !== undefined
+              ? t("{count, plural, one {# concept} other {# concepts}}", { count })
+              : tbPath || undefined
           }
           backButton={
             isProject ? undefined : (
@@ -219,53 +213,22 @@ export function TermsPage({
             )
           }
         />
-
-        {/* Activity chart */}
-        {activityStats.length > 0 && (
-          <Card className="mb-6">
-            <CardContent className="p-4">
-              <div className="mb-2 text-sm font-medium">Activity</div>
-              <ChartContainer config={chartConfig} className="aspect-auto h-40 w-full">
-                <AreaChart data={activityStats} margin={{ left: 0, right: 0, top: 4, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis
-                    dataKey="date"
-                    tickFormatter={(v: string) => {
-                      const d = new Date(v);
-                      return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-                    }}
-                    className="text-[10px]"
-                  />
-                  <YAxis width={40} className="text-[10px]" />
-                  <Tooltip
-                    labelFormatter={(v: unknown) =>
-                      typeof v === "string" ? new Date(v).toLocaleDateString() : ""
-                    }
-                    formatter={(v) => [`${String(v)} concepts`, "Concepts"]}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="count"
-                    stroke="var(--color-count)"
-                    fill="var(--color-count)"
-                    fillOpacity={0.15}
-                    strokeWidth={2}
-                  />
-                </AreaChart>
-              </ChartContainer>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Visual concept/relation workspace (browse → open → relate / re-status) */}
-        <ConceptsView handle={activeHandle} localeScope={localeScope} sourceLocale={sourceLang} />
+        <div className="min-h-0 flex-1 border-t border-border">
+          <ConceptsView
+            handle={activeHandle ?? `story:${store?.name ?? ""}`}
+            source={store?.source}
+            defaultSelected={store?.defaultSelected}
+            localeScope={localeScope}
+            sourceLocale={sourceLang || (store ? "en-US" : "")}
+          />
+        </div>
       </div>
     );
   }
 
-  // Resource picker view.
+  // No store open: the named stores, one row each, to open one from.
   return (
-    <div className="p-6">
+    <div className="mx-auto max-w-3xl p-6">
       <PageHeader
         title="Terms"
         actions={
@@ -282,33 +245,22 @@ export function TermsPage({
         }
       />
 
-      {/* No project terms store hint */}
       {tabID && !projectHandle && !loading && (
-        <Card className="mb-4 border-dashed">
-          <CardContent className="p-4 text-center text-sm text-muted-foreground">
-            <BookOpen size={16} className="mx-auto mb-1 opacity-50" />
-            No project terms found. Create one below, or open an existing terms store.
-          </CardContent>
-        </Card>
+        <EmptyState
+          className="mb-4"
+          icon={<BookOpen size={20} />}
+          title="This project has no terms store"
+          description="Create one, or open a terms store you already have."
+        />
       )}
 
-      <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-        {loading
-          ? [0, 1, 2].map((i) => (
-              <ResourceCard key={i} loading name="" path="" onClick={() => {}} />
-            ))
-          : resources.map((r) => (
-              <ResourceCard
-                key={r.path}
-                name={r.name}
-                path={r.path}
-                size={r.size}
-                modified={r.modified}
-                icon={<BookOpen size={18} />}
-                onClick={() => void handleOpen(r.path, r.name)}
-              />
-            ))}
-      </div>
+      <StoreList
+        stores={resources}
+        loading={loading}
+        icon={<BookOpen size={16} />}
+        onOpen={(r) => void handleOpen(r.path, r.name)}
+        aria-label={t("Terms stores")}
+      />
 
       {!loading && resources.length === 0 && !tabID && (
         <EmptyState
