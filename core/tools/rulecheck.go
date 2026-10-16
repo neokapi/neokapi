@@ -4,9 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"golang.org/x/text/encoding/ianaindex"
 
@@ -231,9 +233,11 @@ type checkRouteHandler struct {
 	// compiled once at construction, instead of per block.
 	patterns []compiledCheckPattern
 	// Consistency state (used only when the consistency checks are enabled):
-	// normalized source → set of normalized targets seen, and the reverse.
-	sourceToTargets map[string]map[string]bool
-	targetToSources map[string]map[string]bool
+	// source key → the target keys seen for it, and the reverse. Keys are
+	// consistencyKey renderings; each inner value is the readable text the
+	// finding's message lists for that key.
+	sourceToTargets map[string]map[string]string
+	targetToSources map[string]map[string]string
 }
 
 // compiledCheckPattern is a CheckPattern with its regexes precompiled. tgtRe is nil
@@ -456,26 +460,27 @@ func (h *checkRouteHandler) checkCharacterIssues(conf *RuleCheckConfig, sourceTe
 // mapping for every block it sees and flags the current block when the same
 // source has been translated differently (target inconsistency) or different
 // sources share the same translation (source inconsistency).
-func (h *checkRouteHandler) checkConsistencyIssues(conf *RuleCheckConfig, sourceText, targetText string) []check.Finding {
-	normSource := strings.TrimSpace(sourceText)
-	normTarget := strings.TrimSpace(targetText)
-	if !conf.ConsistencyCaseSensitive {
-		normSource = strings.ToLower(normSource)
-		normTarget = strings.ToLower(normTarget)
-	}
+//
+// Both sides are keyed by consistencyKey, which keeps the inline codes in the
+// key. The plain text drops them, so "Hello {name}" and "Hello {count}" would
+// share one source and a placeholder-only block would key as "", and either
+// reports a translation that differs for a reason the text cannot show.
+func (h *checkRouteHandler) checkConsistencyIssues(conf *RuleCheckConfig, sourceRuns, targetRuns []model.Run) []check.Finding {
+	normSource, srcDisplay := consistencyKey(sourceRuns, conf.ConsistencyCaseSensitive)
+	normTarget, tgtDisplay := consistencyKey(targetRuns, conf.ConsistencyCaseSensitive)
 
 	// Record source -> target mapping.
 	if h.sourceToTargets[normSource] == nil {
-		h.sourceToTargets[normSource] = make(map[string]bool)
+		h.sourceToTargets[normSource] = make(map[string]string)
 	}
-	h.sourceToTargets[normSource][normTarget] = true
+	h.sourceToTargets[normSource][normTarget] = tgtDisplay
 
 	// Record target -> source mapping (only if needed).
 	if conf.CheckSourceInconsistency {
 		if h.targetToSources[normTarget] == nil {
-			h.targetToSources[normTarget] = make(map[string]bool)
+			h.targetToSources[normTarget] = make(map[string]string)
 		}
-		h.targetToSources[normTarget][normSource] = true
+		h.targetToSources[normTarget][normSource] = srcDisplay
 	}
 
 	// Target inconsistency: same source, different targets.
@@ -501,14 +506,132 @@ func (h *checkRouteHandler) checkConsistencyIssues(conf *RuleCheckConfig, source
 	return nil
 }
 
-// alternativesExcluding returns all keys in the set except the excluded one.
-func alternativesExcluding(set map[string]bool, exclude string) []string {
-	var result []string
-	for k := range set {
-		if k != exclude {
-			result = append(result, k)
+// consistencyKey renders a Run sequence for the consistency maps and returns
+// the key beside the readable text a finding lists for it.
+//
+// The walk is the hygiene flattening (model.NewHygieneView), the same one the
+// shape rules read, so a code occupies a position and a placeholder-only block
+// is not "". In the key each sentinel is replaced by the code's
+// model.RunCodeSignature, the identity every placeholder check compares, so a
+// block that differs from another only in which code it carries is a different
+// source. A collapsed model.TypeInlineCode span keeps the text between its
+// halves: those bytes are the point of the span. The signature is fenced with
+// the sentinel rune on both sides so it cannot collide with text that happens
+// to spell a signature.
+//
+// With caseSensitive clear, the text is lowercased; the codes are not. A code's
+// identity is exact, and `{Name}` and `{name}` are two placeholders.
+//
+// The readable text draws each code as its original data (`{name}`, `<b>`)
+// and falls back to the structural `{id}` forms when a reader minted none.
+func consistencyKey(runs []model.Run, caseSensitive bool) (key, display string) {
+	view := model.NewHygieneView(runs)
+	text := view.Text()
+	realText := model.RunsText(runs)
+
+	var keyBuf, displayBuf strings.Builder
+	segment := func(s string) {
+		if !caseSensitive {
+			s = strings.ToLower(s)
+		}
+		keyBuf.WriteString(s)
+	}
+
+	start := 0
+	for i := 0; i < len(text); {
+		r, size := utf8.DecodeRuneInString(text[i:])
+		if r != model.ObjectReplacement {
+			i += size
+			continue
+		}
+		code, ok := view.Code(i)
+		if !ok {
+			// A literal U+FFFC in the text, not a sentinel: it is content.
+			i += size
+			continue
+		}
+		segment(text[start:i])
+		displayBuf.WriteString(text[start:i])
+
+		// A collapsed code span stands for its contents too: RealOffset maps
+		// the sentinel's edges onto the RunsText bytes it covers.
+		inner := realText[view.RealOffset(i):view.RealOffset(i+size)]
+
+		sig, _ := model.RunCodeSignature(code)
+		keyBuf.WriteRune(model.ObjectReplacement)
+		keyBuf.WriteString(sig)
+		keyBuf.WriteString(inner)
+		keyBuf.WriteRune(model.ObjectReplacement)
+
+		displayBuf.WriteString(codeDisplay(code))
+		displayBuf.WriteString(inner)
+		if inner != "" || code.PcOpen != nil && code.PcOpen.Type == model.TypeInlineCode {
+			displayBuf.WriteString(closingDisplay(runs, code))
+		}
+
+		i += size
+		start = i
+	}
+	segment(text[start:])
+	displayBuf.WriteString(text[start:])
+
+	return strings.TrimSpace(keyBuf.String()), strings.TrimSpace(displayBuf.String())
+}
+
+// codeDisplay is the readable form of one inline-code run: its original data
+// when the reader kept it, else the structural form model.RunsStructuralText
+// uses.
+func codeDisplay(r model.Run) string {
+	switch {
+	case r.Ph != nil:
+		if r.Ph.Data != "" {
+			return r.Ph.Data
+		}
+		if r.Ph.Equiv != "" {
+			return "{" + r.Ph.Equiv + "}"
+		}
+		return "{" + r.Ph.ID + "/}"
+	case r.PcOpen != nil:
+		if r.PcOpen.Data != "" {
+			return r.PcOpen.Data
+		}
+		return "{" + r.PcOpen.ID + "}"
+	case r.PcClose != nil:
+		if r.PcClose.Data != "" {
+			return r.PcClose.Data
+		}
+		return "{/" + r.PcClose.ID + "}"
+	case r.Sub != nil:
+		return "[" + r.Sub.ID + "]"
+	}
+	return ""
+}
+
+// closingDisplay is the readable form of the closing half paired with the
+// opening half open, found by ID in runs, or "" when open is not an opening
+// half or its pair is absent.
+func closingDisplay(runs []model.Run, open model.Run) string {
+	if open.PcOpen == nil {
+		return ""
+	}
+	for _, r := range runs {
+		if r.PcClose != nil && r.PcClose.ID == open.PcOpen.ID {
+			return codeDisplay(r)
 		}
 	}
+	return ""
+}
+
+// alternativesExcluding returns the readable text of every entry in the set
+// except the excluded key, in sorted order so the message is stable.
+func alternativesExcluding(set map[string]string, exclude string) []string {
+	result := make([]string, 0, len(set))
+	for k, display := range set {
+		if k != exclude {
+			result = append(result, display)
+		}
+	}
+	sort.Strings(result)
 	return result
 }
 
@@ -628,8 +751,8 @@ func NewRuleCheckTool(cfg *RuleCheckConfig) *tool.BaseTool {
 	h := &checkRouteHandler{
 		tool:            t,
 		patterns:        compileCheckPatterns(cfg.Patterns),
-		sourceToTargets: make(map[string]map[string]bool),
-		targetToSources: make(map[string]map[string]bool),
+		sourceToTargets: make(map[string]map[string]string),
+		targetToSources: make(map[string]map[string]string),
 	}
 
 	t.Annotate = func(v tool.BlockView) error {
@@ -666,7 +789,7 @@ func NewRuleCheckTool(cfg *RuleCheckConfig) *tool.BaseTool {
 		findings = append(findings, h.checkLengthIssues(conf, sourceText, targetText)...)
 		findings = append(findings, h.checkPatternAndCodeIssues(conf, v, sourceText, targetText)...)
 		if conf.CheckTargetInconsistency || conf.CheckSourceInconsistency {
-			findings = append(findings, h.checkConsistencyIssues(conf, sourceText, targetText)...)
+			findings = append(findings, h.checkConsistencyIssues(conf, v.SourceRuns(), v.TargetRuns(conf.TargetLocale))...)
 		}
 
 		check.Annotate(v, "qa", findings)
