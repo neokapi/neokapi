@@ -452,6 +452,9 @@ and flow name against the code before publishing.
   documentation.
 - **kapi agent skill** — `host/skills/data/kapi/` (`SKILL.md` + `references/`),
   the shipped guidance for driving kapi itself.
+- **UI guides** — `packages/ui/docs/`: the type scale, the judgement colours
+  and the page patterns and density guide. Read `page-patterns.md` before
+  adding or reshaping a screen on the desktop or the platform.
 
 Terminology maps from Okapi: Filter → DataFormat, Step → Tool, Pipeline → Flow,
 PipelineDriver → Executor, Event → Part, TextUnit → Block, TextFragment → `[]Run`.
