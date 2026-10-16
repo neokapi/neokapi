@@ -747,6 +747,10 @@ const contextExplorerRoute = createRoute({
   validateSearch: explorerSearch,
 });
 
+// Concepts is a list beside a detail pane, and the selected concept is the
+// child segment: /concepts/$cid opens the list with that concept selected. The
+// child renders nothing of its own, so moving the selection keeps the page,
+// its search and its scroll position mounted.
 const contextConceptsRoute = createRoute({
   getParentRoute: () => contextRoute,
   path: "concepts",
@@ -755,13 +759,9 @@ const contextConceptsRoute = createRoute({
 });
 
 const contextConceptStoryRoute = createRoute({
-  getParentRoute: () => contextRoute,
-  path: "concepts/$cid",
-  pendingComponent: ExplorerSkeleton,
-  component: lazyRouteComponent(
-    () => import("./workspace/context-concept-story"),
-    "ConceptStoryRoute",
-  ),
+  getParentRoute: () => contextConceptsRoute,
+  path: "$cid",
+  component: () => null,
 });
 
 // "Changes", not "experiments": a change-set with a reach preview and an
@@ -1092,8 +1092,7 @@ const routeTree = rootRoute.addChildren([
       contextProfilesRoute,
       contextProfileDetailRoute,
       contextExplorerRoute,
-      contextConceptsRoute,
-      contextConceptStoryRoute,
+      contextConceptsRoute.addChildren([contextConceptStoryRoute]),
       contextChangesRoute,
       contextChangeDetailRoute,
       contextActivityRoute,

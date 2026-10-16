@@ -33,7 +33,7 @@ narration:
     crop:
       selector:
         - '[data-testid="concept-header"]'
-        - '[data-slot="concept-geography"]'
+        - '[data-slot="concept-languages"]'
     highlight: { selector: '[data-testid="concept-header"]' }
     text: >-
       This is one concept: the idea itself, what the team calls it in each
@@ -46,7 +46,10 @@ narration:
     beat: tm-search
     caption: The same wording, already on record.
     hold: 14
-    crop: { selector: '[data-testid="tm-browser"]' }
+    crop:
+      selector:
+        - '[data-slot="memory-search"]'
+        - '[data-slot="memory-pair"]'
     text: >-
       The workspace content memory answers for the sentences the team has
       already approved. Search it, and every project in the workspace draws on

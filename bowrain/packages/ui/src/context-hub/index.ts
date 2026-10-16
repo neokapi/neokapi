@@ -9,4 +9,5 @@ export * from "./shell";
 export * from "./concepts";
 export * from "./experiments";
 export * from "./activity";
+export * from "./memory";
 export * from "./dashboard";

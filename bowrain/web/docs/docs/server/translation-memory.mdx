@@ -17,77 +17,58 @@ A run can reuse eligible entries before drafting new text.
     light: "/video/bowrain-web/bowrain-web-governance-light.webm",
     dark: "/video/bowrain-web/bowrain-web-governance-dark.webm",
   }}
-  outdated="wording"
+  outdated="interface"
+  outdatedNote="Concepts and Content memory show a list beside a detail pane."
 />
 
 ## Opening the content memory
 
-There are two ways to open the content memory browser:
+Click **Context** in the main sidebar, then **Content memory**. The **Content
+memory** button in a project's source view opens the same page: the memory is the
+workspace's, and every project draws on it.
 
-1. **From a project**: click the **Content memory** button in the project view
-   header. This opens the browser with the project's source and target locales
-   pre-selected.
-2. **From the sidebar**: click **Content memory** in the main sidebar to browse
-   the workspace-scoped content memory without locale pre-filtering.
+## The list
 
-## Browsing entries
+The page is a list of pairs beside a detail pane. Each row shows an entry's source
+on one line, with the language of its target at the right.
 
-The browser displays entries in a paginated table with these columns:
+The server reads the memory into one target language at a time. When your
+projects translate into more than one, the picker under the search chooses the
+language; it starts on the one most of your projects translate into.
 
-| Column            | Description                      |
-| ----------------- | -------------------------------- |
-| **Source**        | The source language text         |
-| **Target**        | The target language text         |
-| **Source Locale** | Language code of the source text |
-| **Target Locale** | Language code of the target text |
-| **Updated**       | Date the entry was last modified |
-| **Actions**       | Edit and Delete buttons          |
+- **Search** matches the wording as you type.
+- **Show more entries**, at the foot of the list, reads the next page.
 
-The entry count badge in the header shows the total number of entries matching current filters.
+The server answers each search a page at a time, so a memory of thousands of
+entries searches as quickly as a short one. While the list has focus, the arrow
+keys, `j` and `k` move the selection.
 
-## Searching
+## The detail pane
 
-Type in the search box to filter entries by source or target text. Results
-update as you type.
-
-## Filtering by locale
-
-Use the locale filter dropdowns to narrow entries:
-
-- **Source locale filter**: show only entries with a specific source language
-- **Target locale filter**: show only entries with a specific target language
-
-Filters can be combined with text search. Changing a filter resets to page 1.
+Select a pair to see its source and its target in full, and where it came from:
+the project it is held for, or the whole workspace; its stream, when it is not the
+main line; and when it last changed.
 
 ## Adding entries
 
-1. Click **Add Entry** in the header
-2. Fill in the form:
-   - **Source text**: the original language text
-   - **Target text**: the approved wording
-   - **Source locale**: select from available project locales
-   - **Target locale**: select from available project locales
-3. Click **Add** to save, or **Cancel** to discard
+Click **Add entry** in the page header. Choose the source and target languages
+from the workspace's languages, enter the source and the approved wording, and
+click **Add entry**.
 
 ## Editing entries
 
-1. Click **Edit** on an entry row
-2. The target text becomes an inline text input
-3. Modify the text
-4. Click **Save** to confirm, or **Cancel** to discard changes
-
-Only the target text can be edited inline. To change the source text or locales, delete the entry and create a new one.
+Click **Edit** in the detail pane's toolbar. The source and the target open for
+editing. **Save** stores both; **Cancel** or Escape leaves them as they were.
 
 ## Deleting entries
 
-Click **Delete** on an entry row. The entry is removed immediately and the table refreshes.
+Click **Delete** in the detail pane's toolbar, then **Confirm**.
 
-## Pagination
-
-When there are more than 50 entries, pagination controls appear below the table:
-
-- **Previous** / **Next** buttons to navigate pages
-- **Page X of Y** indicator showing current position
+To delete several entries at once, mark them: the box at the start of a row marks
+its entry, `x` marks the selected row's, and **Mark all shown** marks every entry
+in view. While any entry is marked, the detail pane holds **Delete** for all of
+them, and **Clear** to unmark them. When some of a batch cannot be deleted, the
+pane says how many, and why.
 
 ## Content memory in editing and review
 

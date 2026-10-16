@@ -16,10 +16,11 @@ Build a terms store so every draft and every check uses the same vocabulary.
 
 ### Steps
 
-1. Open **Context → Concepts** in the sidebar to reach the terms explorer
-2. Click **Add Concept** to create entries:
+1. In a project, import the terms with `kapi terms import`, then run `kapi push`:
    - Source: "dashboard" / Target: "tableau de bord" / Domain: "UI" / Status: "preferred"
    - Source: "login" / Target: "connexion" / Domain: "UI" / Status: "approved"
+2. Open **Context → Concepts** in the sidebar and select "dashboard" to check its
+   terms and status beside the list
 3. Open your project and open a file in the editor
 4. Select a block that contains one of your terms (for example "dashboard")
 5. The context panel's Terms section shows the matching terms:
@@ -31,7 +32,7 @@ Build a terms store so every draft and every check uses the same vocabulary.
 
 ### What you learned
 
-- Creating concepts with a domain and a lifecycle status
+- Bringing concepts with a domain and a lifecycle status into the workspace
 - Automatic term detection in the editor context panel
 - Using term suggestions for consistent wording
 
@@ -41,19 +42,24 @@ Bulk-load terms from a spreadsheet export.
 
 ### Steps
 
-1. Prepare a CSV file with columns: `source_term`, `target_term`, `source_locale`, `target_locale`, `domain`, `status`
+1. Prepare a CSV file with columns `source_term`, `target_term`, `domain`,
+   `definition` and `status`; the languages are given when you import it
    ```csv
-   source_term,target_term,source_locale,target_locale,domain,status
-   login,connexion,en,fr,UI,approved
-   password,mot de passe,en,fr,security,preferred
-   dashboard,tableau de bord,en,fr,UI,preferred
-   settings,paramètres,en,fr,UI,approved
+   source_term,target_term,domain,definition,status
+   login,connexion,UI,Signing in to an account,approved
+   password,mot de passe,security,The secret a user signs in with,preferred
+   dashboard,tableau de bord,UI,The overview a user lands on,preferred
+   settings,paramètres,UI,Where a user changes preferences,approved
    ```
-2. Open **Context → Concepts** in the sidebar
-3. Click **Import CSV**
-4. Select your CSV file
-5. The concepts appear in the concept list
-6. Verify the imported terms, statuses, and domains
+2. In the project, import the file and push it:
+   ```bash
+   kapi terms import terms.csv -s en -t fr --header
+   kapi push
+   ```
+3. Open **Context → Concepts** in the sidebar
+4. The concepts appear in the list; a governed term arrives as a change-set
+   waiting for review above it
+5. Select a concept to verify its terms, statuses, and domain
 
 ### What you learned
 
@@ -67,8 +73,8 @@ Reuse approved wording to keep drafts consistent and reduce effort.
 
 ### Steps
 
-1. Open **Content memory** in the sidebar
-2. Click **Add Entry** to add some memory entries:
+1. Open **Context → Content memory** in the sidebar
+2. Click **Add entry** to add some memory entries:
    - Source: "Welcome to our website" / Target: "Bienvenue sur notre site" (en → fr)
    - Source: "Contact us" / Target: "Contactez-nous" (en → fr)
 3. Open your project

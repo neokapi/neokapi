@@ -3,10 +3,15 @@ import type { ActivityInfo, ConceptInfo } from "../../types/api";
 import {
   ACTIVITY_CATEGORIES,
   CATEGORY_TYPE_PREFIXES,
+  SESSION_GAP_MS,
+  categoryCounts,
   categoryForType,
   conceptDisplayName,
   dayLabel,
+  decisionsOf,
   groupByDay,
+  groupSessionsByDay,
+  sessionsOf,
   toFeedItem,
   typePrefixesFor,
 } from "./feed";
@@ -164,5 +169,85 @@ describe("groupByDay", () => {
     expect(groups.map((g) => g.label)).toEqual(["Today", "Yesterday"]);
     expect(groups[0].items.map((i) => i.id)).toEqual(["a", "b"]);
     expect(groups[1].items.map((i) => i.id)).toEqual(["c"]);
+  });
+});
+
+describe("sessionsOf", () => {
+  const at = (minutes: number) =>
+    new Date(Date.UTC(2026, 5, 13, 12, 0) - minutes * 60_000).toISOString();
+  const item = (id: string, actor: string, minutesAgo: number, type = "concept.updated") =>
+    toFeedItem(
+      activity({ id, actor_id: actor, actor_name: actor, type, created_at: at(minutesAgo) }),
+    );
+
+  it("keeps one actor's operations close together in one session, newest first", () => {
+    const sessions = sessionsOf([item("a", "sam", 0), item("b", "sam", 10), item("c", "sam", 25)]);
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0].id).toBe("a");
+    expect(sessions[0].items.map((i) => i.id)).toEqual(["a", "b", "c"]);
+    expect(sessions[0].last).toBe(at(0));
+    expect(sessions[0].first).toBe(at(25));
+  });
+
+  it("starts a new session after a pause longer than the gap", () => {
+    const gap = SESSION_GAP_MS / 60_000;
+    const sessions = sessionsOf([item("a", "sam", 0), item("b", "sam", gap + 1)]);
+    expect(sessions.map((s) => s.id)).toEqual(["a", "b"]);
+  });
+
+  it("measures the gap from the session's oldest operation, so a long steady run stays whole", () => {
+    const sessions = sessionsOf([
+      item("a", "sam", 0),
+      item("b", "sam", 20),
+      item("c", "sam", 40),
+      item("d", "sam", 60),
+    ]);
+    expect(sessions).toHaveLength(1);
+  });
+
+  it("splits when another person acts in between", () => {
+    const sessions = sessionsOf([item("a", "sam", 0), item("b", "alex", 2), item("c", "sam", 4)]);
+    expect(sessions.map((s) => s.actor)).toEqual(["sam", "alex", "sam"]);
+  });
+
+  it("names the decisions a session holds and counts it by category", () => {
+    const [session] = sessionsOf([
+      item("a", "alex", 0, "review.decided"),
+      item("b", "alex", 1, "concept.term.status_changed"),
+      item("c", "alex", 2, "review.decided"),
+      item("d", "alex", 3, "comment.added"),
+    ]);
+    expect(decisionsOf(session).map((i) => i.id)).toEqual(["a", "c"]);
+    expect(categoryCounts(session)).toEqual([
+      ["experiment", 2],
+      ["concept", 1],
+      ["comment", 1],
+    ]);
+  });
+
+  it("returns nothing for an empty feed", () => {
+    expect(sessionsOf([])).toEqual([]);
+  });
+});
+
+describe("groupSessionsByDay", () => {
+  it("buckets sessions by the day of their newest operation", () => {
+    const now = new Date(2026, 5, 13, 18, 0).getTime();
+    const sessions = sessionsOf([
+      toFeedItem(
+        activity({ id: "a", actor_id: "sam", created_at: new Date(2026, 5, 13, 9).toISOString() }),
+      ),
+      toFeedItem(
+        activity({ id: "b", actor_id: "alex", created_at: new Date(2026, 5, 13, 8).toISOString() }),
+      ),
+      toFeedItem(
+        activity({ id: "c", actor_id: "sam", created_at: new Date(2026, 5, 12, 9).toISOString() }),
+      ),
+    ]);
+    const groups = groupSessionsByDay(sessions, now);
+    expect(groups.map((g) => [g.label, g.sessions.map((s) => s.id)])).toEqual([
+      ["Today", ["a", "b"]],
+      ["Yesterday", ["c"]],
+    ]);
   });
 });

@@ -89,20 +89,22 @@ definition. A forbidden term is a concept whose term carries the `forbidden`
 status rather than a separate kind of object. Voice vocabulary rules reference
 the same concepts, so terms and voice cannot drift apart.
 
-The **Concepts** section opens on a searchable **list**: filter by term status,
-domain, market, and locale to find the concept you care about. Selecting a
-concept opens its **dashboard**, a single page that gathers everything known
-about it:
+The **Concepts** section is a list of concepts beside a detail pane. Each row
+shows the term a concept is headed by, that term's status, and how many
+languages the concept has terms in. Search the list, or narrow it by term status
+or market, and select a concept to see beside the list:
 
-- its **terms**, per locale, each with its lifecycle status;
-- its **geography**: term status by market;
-- its **constraints**: where each term is banned or preferred, and any validity
-  windows that bound when a designation applies;
-- its **relations**: the concepts one hop away, as a local widget;
-- its **timeline**: how the concept came to be;
-- and, on the platform, the **observations** and **discussion** attached to it.
+- its **terms** in each language, each with its lifecycle status, and the
+  deprecated and forbidden forms with the term to write instead;
+- **where it came from**: its domain, voice profile and coordinates, whether it
+  belongs to one project or the whole workspace, and who added it and changed it
+  last;
+- its **relations**: the concepts one hop away;
+- and its **history**, the **discussion** on it and the **evidence** recorded
+  for it, one tab each.
 
-Follow relations from a concept dashboard to inspect related concepts.
+Select a related concept to open it in the pane. A link to one concept, from
+Activity, the dashboard or a review, opens the list with that concept selected.
 
 ## Relations
 
@@ -124,14 +126,13 @@ for the canonical list.
   caption="Typed relations connect concepts: a retired term is replaced_by the preferred one, which in turn sits under a broader domain concept. Guidance (use_instead) and stance (competitor) relations connect concepts the same way."
 />
 
-A concept's dashboard shows its **direct relations**, this concept plus the
-concepts one hop away, grouped by family. A family with many members collapses to
-an "N related" summary so the widget stays readable, and selecting a related
-concept navigates to its dashboard. Relations are edited **inline** on the
-dashboard: add a relation to another concept, or remove one. An ordinary relation
-applies directly; a succession (`replaced_by`) relation is a governed edit that
-travels through a [change-set](#experiments-change-sets-and-pilots) before it
-lands.
+A concept's detail pane lists its **direct relations**, one line each: the kind
+of relation, the concept at its other end, and an arrow for its direction.
+Selecting the other concept opens it. **Relate**, in the pane's toolbar, adds a
+relation to another concept, and the cross on a line removes one. An ordinary
+relation applies directly; a succession (`replaced_by`) relation is a governed
+edit that travels through a [change-set](#experiments-change-sets-and-pilots)
+before it lands.
 
 Every relation can carry a **validity**: a half-open time interval plus free tags
 evaluated against a query-time scope. The same relation can hold in one market and
@@ -145,20 +146,22 @@ A **market** is a workspace-defined scope, a name plus the locales it covers
 (for example a `dach` market covering `de-DE`, `de-AT`, and `de-CH`). Markets give
 the free validity tags a stable vocabulary: a term or relation scoped with
 `market: dach` is interpreted, filtered, and rendered consistently everywhere. A
-term's status can differ per market, and the concept dashboard's **geography**
-panel shows these differences side by side. For example, a term can be forbidden
-in Germany and permitted elsewhere. The **constraints** panel summarizes where
-and when each term is forbidden or preferred. Plans also limit the number of
-markets; see [Billing and credits](/server/billing-and-credits#markets-and-brands).
+term's status can differ per market: a term can be forbidden in Germany and
+permitted elsewhere. In a concept's detail pane, each language is labelled with
+the markets that cover it, a relation scoped to a window shows the dates it holds
+between, and the Concepts list narrows to one market. Plans also limit the number
+of markets; see [Billing and credits](/server/billing-and-credits#markets-and-brands).
 
 ## The concept story
 
-Every concept's dashboard carries a **story**: a visual, chronological
-**timeline** that merges the concept's revision history (each edit produces an
-immutable snapshot with a human-readable summary, which is where term-status
-transitions and relation changes are recorded), the **observations** recorded
-against it, its **comment** threads, and the **change-sets** that touched it. The
-timeline shows how a concept changed and the evidence behind those changes.
+Every concept carries a **story**, its **History** tab in the detail pane: a
+chronological record that merges the concept's revision history (each edit
+produces an immutable snapshot with a human-readable summary, which is where
+term-status transitions and relation changes are recorded), the **observations**
+recorded against it, its **comment** threads, and the **change-sets** that touched
+it, newest first, each with who acted and when. The story shows how a concept
+changed and the evidence behind those changes, and the **Discussion** and
+**Evidence** tabs beside it hold the comments and the observations in full.
 Compliance scores are not part of the story; those are reported per project and
 locale on the hub's [Dashboard](#the-dashboard-and-the-decision-inbox), not per
 concept.
@@ -286,11 +289,20 @@ last checked. One project's compliance over time, terms by status, each
 language's coverage, the markets and the most recently changed concepts sit
 below the projects.
 
-The **Activity** section is the workspace-scoped event timeline: concepts
-created and updated, statuses changed, relations gained and lost, observations
-and comments added, change-sets submitted, approved, merged, and abandoned,
-pilots started and stopped. It is the workspace-wide counterpart to a single
-concept's story.
+The **Activity** section is the workspace's record of work on its context, as a
+list of sessions beside a detail pane. A session is one person's run of work:
+their operations, close together in time. Each row names who worked, the time
+and the number of operations, under the day it happened. The detail pane lists
+the session's operations, each with an icon for its kind, and its facts: when it
+ran, what it recorded, and the reviews it decided, so who approved, rejected or
+merged a change stays on the record. Selecting an operation about a concept or a
+change-set opens it, and the toggles in the header narrow the record to changes,
+concepts, evidence or comments.
+
+The record covers concepts created and updated, statuses changed, relations
+gained and lost, observations and comments added, change-sets submitted,
+approved, merged, and abandoned, and pilots started and stopped. It is the
+workspace-wide counterpart to a single concept's story.
 
 ## One hub, many surfaces
 

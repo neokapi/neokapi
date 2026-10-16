@@ -60,6 +60,28 @@ describe("route tree", () => {
     expect(childPaths).toContain("activity");
   });
 
+  // Concepts is a list beside a detail pane, and the selected concept is the
+  // child segment. Both addresses match the list route first, so moving the
+  // selection keeps the page mounted with its search and scroll position.
+  it("keeps the Concepts list mounted when a concept is selected", () => {
+    const router = createBowrainRouter({ queryClient: undefined!, api: undefined! });
+
+    const list = router.matchRoutes("/acme/context/concepts", undefined);
+    expect((list[list.length - 1] as AnyRoute).routeId).toBe("/$workspace/context/concepts");
+
+    const one = router.matchRoutes("/acme/context/concepts/c-checkout", undefined);
+    const ids = one.map((m) => (m as AnyRoute).routeId as string);
+    expect(ids).toContain("/$workspace/context/concepts");
+    expect(ids[ids.length - 1]).toBe("/$workspace/context/concepts/$cid");
+    expect((one[one.length - 1] as AnyRoute).params.cid).toBe("c-checkout");
+
+    const href = router.buildLocation({
+      to: "/$workspace/context/concepts/$cid",
+      params: { workspace: "acme", cid: "c-checkout" },
+    }).href;
+    expect(href).toBe("/acme/context/concepts/c-checkout");
+  });
+
   // The per-file editor surfaces address an item by its NAME — the coordinate
   // the server resolves — and names carry slashes. The name is therefore the
   // route's trailing SPLAT, carried as real path segments: a percent-encoded
