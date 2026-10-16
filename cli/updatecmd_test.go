@@ -38,3 +38,11 @@ func TestUpdateProgressWithoutATotalDrawsNothing(t *testing.T) {
 	newProgress(&out, true)(10, 0)
 	assert.Empty(t, out.String())
 }
+
+// On Windows the release index has no entry for the build, which is installed
+// and updated through winget. The notice names that command.
+func TestUpdateWindowsWingetNotice(t *testing.T) {
+	got := windowsWingetNotice("stable")
+	assert.Contains(t, got, "installed and updated through winget")
+	assert.Contains(t, got, "winget upgrade Neokapi.KapiCli")
+}

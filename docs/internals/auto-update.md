@@ -183,11 +183,17 @@ canonical archive is left unstamped and `Detect()` relies on **path heuristics**
 is reserved for genuinely channel-specific builds (deb/rpm via nfpm, a
 winget-only build) added in Phase 3.
 
-**Follow-ups within Phase 1:**
-- Windows `kapi.exe` self-update: the Windows CLI is signed + published out of
-  band (`scripts/publish-windows-signed.sh`), so it is not yet in `cli.json`.
-  Add the signed Windows zip to the index to enable `kapi update` self-replace
-  on direct-download Windows installs.
+**Windows and the index:** the Windows CLI is Authenticode-signed and published
+out of band (`scripts/publish-windows-signed.sh`), and `cli.json` carries no
+Windows entry. The Windows build installs and updates through winget
+(`Neokapi.KapiCli`), so on Windows `kapi update` reports that and prints
+`winget upgrade Neokapi.KapiCli` instead of looking for a release in the index
+(`selfupdate.ErrWindowsViaWinget`; #2628). A Windows entry, if one is ever
+published, takes the verified download path like every other platform. The
+reasons there is none are security decisions recorded in #2628: the index
+verifier accepts a cosign bundle whose certificate identity is the release
+workflow, and the Windows zips carry Authenticode from a certificate signed on
+a Mac outside CI.
 
 ### Phase 2: desktop in-app updates (implemented; needs on-device validation)
 
