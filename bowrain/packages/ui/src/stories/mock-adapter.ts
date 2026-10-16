@@ -1523,7 +1523,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
       degraded_blocks: 0,
       new_violations: 0,
       resolved_violations: 0,
-      critical_count: 0,
+      failing_count: 0,
       collections: [],
     }),
     getVoiceDrift: async () => ({

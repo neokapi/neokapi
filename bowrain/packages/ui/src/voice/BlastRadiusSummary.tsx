@@ -49,9 +49,9 @@ export function BlastRadiusSummary({ radius, className }: BlastRadiusSummaryProp
           tone={radius.resolved_violations > 0 ? "good" : "neutral"}
         />
         <Stat
-          label="critical"
-          value={radius.critical_count}
-          tone={radius.critical_count > 0 ? "bad" : "neutral"}
+          label="failing"
+          value={radius.failing_count}
+          tone={radius.failing_count > 0 ? "bad" : "neutral"}
         />
         <Stat
           label="degraded"

@@ -272,7 +272,7 @@ export interface BlastRadius {
   degraded_blocks: number;
   new_violations: number;
   resolved_violations: number;
-  critical_count: number;
+  failing_count: number;
   collections: CollectionBlastRadius[];
 }
 
