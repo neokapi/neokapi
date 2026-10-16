@@ -139,7 +139,6 @@ func main() {
 	if err := app.ServiceStartup(context.Background(), application.ServiceOptions{}); err != nil {
 		log.Fatalf("wbridge: service startup: %v", err)
 	}
-	defer func() { _ = app.ServiceShutdown() }()
 	appVal := reflect.ValueOf(app)
 
 	// Stream backend events (plugin install, flow:event, …) to connected
@@ -254,7 +253,12 @@ func main() {
 	// /wevents holds a stream open for the life of the page, so a write
 	// deadline would cut it; the header read is what needs a bound (G114).
 	srv := &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
-	log.Fatal(srv.ListenAndServe())
+	err := srv.ListenAndServe()
+	// The recorder stops the bridge with a signal, so this runs only when the
+	// listener itself fails; it still releases the stores the way the desktop
+	// does on quit.
+	_ = app.ServiceShutdown()
+	log.Fatal(err)
 }
 
 func kapiConfigInfo() string {
