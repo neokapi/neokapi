@@ -107,7 +107,7 @@
   },
   "dependencies": {
     "@neokapi/kapi-format": "^3.0.0",
-    "@swc/core": "^1.16.2",
+    "@swc/core": "^1.16.18",
     "unplugin": "^3.4.0"
   },
   "devDependencies": {
