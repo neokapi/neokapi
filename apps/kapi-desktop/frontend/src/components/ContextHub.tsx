@@ -24,7 +24,7 @@ import {
   Share2,
   Sparkles,
 } from "lucide-react";
-import { LoadingSpinner, PageHeader, ScrollArea, cn } from "@neokapi/ui-primitives";
+import { LoadingSpinner, PageHeader, ScrollArea, SimpleTooltip, cn } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import { api } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
@@ -161,6 +161,7 @@ export function ContextHub({
             <SectionLabel id={s.id} />
           </button>
         ))}
+        <SectionCommand section={current} />
       </nav>
       <div className="min-h-0 flex-1">
         {current === "explorer" && (
@@ -174,13 +175,14 @@ export function ContextHub({
           </ScrollArea>
         )}
         {current === "rules" && (
-          <ScrollArea className="h-full">
-            <div className="mx-auto max-w-3xl px-6 py-5">
-              <PageHeader
-                className="mb-3"
-                title={t("What's new for {project}", { project: projectName })}
-                subtitle={<ReviewCommand />}
-              />
+          // The digest is a list beside a detail pane, each scrolling on its
+          // own, so the section holds a fixed height rather than scrolling.
+          <div className="flex h-full min-h-0 flex-col">
+            <PageHeader
+              className="mb-0 shrink-0 px-6 pt-5 pb-3"
+              title={t("What's new for {project}", { project: projectName })}
+            />
+            <div className="min-h-0 flex-1 border-t border-border">
               <ContextDigestPanel
                 tabID={tabID}
                 canDecide={!contextOnly}
@@ -195,7 +197,7 @@ export function ContextHub({
                 onConnectAssistant={offers("agent") ? () => setActive("agent") : undefined}
               />
             </div>
-          </ScrollArea>
+          </div>
         )}
         {current === "voice" && <VoicePage tabID={tabID} />}
         {current === "terms" && <TermsPage tabID={tabID} />}
@@ -213,7 +215,7 @@ export function ContextHub({
         {current === "history" && (
           <ScrollArea className="h-full">
             <div className="mx-auto max-w-3xl px-6 py-5">
-              <PageHeader className="mb-3" title="History" subtitle={<LogCommand />} />
+              <PageHeader className="mb-3" title="History" />
               <ProjectHistory tabID={tabID} />
             </div>
           </ScrollArea>
@@ -244,23 +246,31 @@ function ProjectHistory({ tabID }: { tabID: string }) {
   return <ContextFeedPanel projectKey={key} />;
 }
 
-/*
- * The command a section does the work of, for the reader who has a terminal.
- * Share and Assistant name theirs inside their own panels, the same way.
- */
-function ReviewCommand() {
-  return (
-    <span data-slot="context-section-command">
-      The same as <code translate="no">kapi context review</code>.
-    </span>
-  );
-}
+/** The command each section does the work of, for the reader who has a terminal. */
+const SECTION_COMMANDS: Partial<Record<ContextSection, string>> = {
+  rules: "kapi context review",
+  agent: "kapi init",
+  history: "kapi context log",
+  share: "kapi context sync",
+};
 
-function LogCommand() {
+/**
+ * The current section's command, as a mono chip at the right of the nav: one
+ * place on the page, and never a caption under a section.
+ */
+function SectionCommand({ section }: { section: ContextSection }) {
+  const command = SECTION_COMMANDS[section];
+  if (!command) return null;
   return (
-    <span data-slot="context-section-command">
-      The same as <code translate="no">kapi context log</code>.
-    </span>
+    <SimpleTooltip content={t("The same as {command} in a terminal", { command })}>
+      <code
+        data-slot="context-section-command"
+        translate="no"
+        className="ml-auto shrink-0 rounded-md border border-border px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground"
+      >
+        {command}
+      </code>
+    </SimpleTooltip>
   );
 }
 

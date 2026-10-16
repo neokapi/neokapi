@@ -121,13 +121,37 @@ describe("ContextHub", () => {
     expect(screen.getByText("share for t3")).toBeInTheDocument();
   });
 
-  it("names the command What's new and History do the work of", async () => {
+  it("names the command each section does the work of, once, at the right of the nav", async () => {
     vi.spyOn(api, "projectContextDigest").mockResolvedValue(CONTEXT_DIGEST);
     render(<ContextHub tabID="t1" projectName="Northsea" />);
-    const command = () => document.querySelector("[data-slot='context-section-command']");
-    expect(command()?.textContent).toBe("The same as kapi context review.");
+    const commands = () =>
+      Array.from(document.querySelectorAll("[data-slot='context-section-command']"));
+    const nav = screen.getByRole("navigation", { name: "Context sections" });
+    expect(commands()).toHaveLength(1);
+    expect(nav).toContainElement(commands()[0] as HTMLElement);
+    expect(commands()[0].textContent).toBe("kapi context review");
     await userEvent.click(screen.getByRole("button", { name: "History" }));
-    expect(command()?.textContent).toBe("The same as kapi context log.");
+    expect(commands()[0].textContent).toBe("kapi context log");
+    await userEvent.click(screen.getByRole("button", { name: "Share" }));
+    expect(commands()[0].textContent).toBe("kapi context sync");
+    await userEvent.click(screen.getByRole("button", { name: "Assistant" }));
+    expect(commands()[0].textContent).toBe("kapi init");
+    await userEvent.click(screen.getByRole("button", { name: "Voice" }));
+    expect(commands()).toHaveLength(0);
+    vi.restoreAllMocks();
+  });
+
+  it("carries no caption under the What's new and History titles", async () => {
+    vi.spyOn(api, "projectContextDigest").mockResolvedValue(CONTEXT_DIGEST);
+    render(<ContextHub tabID="t1" projectName="Northsea" />);
+    const title = screen.getByRole("heading", { name: "What's new for Northsea" });
+    expect(title.parentElement?.querySelector("p")).toBeNull();
+    expect(document.body.textContent).not.toContain("The same as");
+    await userEvent.click(screen.getByRole("button", { name: "History" }));
+    expect(
+      screen.getByRole("heading", { name: "History" }).parentElement?.querySelector("p"),
+    ).toBeNull();
+    expect(document.body.textContent).not.toContain("The same as");
     vi.restoreAllMocks();
   });
 
