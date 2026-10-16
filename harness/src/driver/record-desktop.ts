@@ -2409,6 +2409,10 @@ async function bowrainCorrectionLoopWalk(c: WalkCtx): Promise<void> {
     '[data-slot="candidate-facts"]',
   ];
   const suggested = '[data-slot="candidate-item"][data-group="suggested"]';
+  // The screencast runs a few tenths of a second ahead of the clock the beats
+  // are timed by, so a still second after a beat keeps the next act (the
+  // project picker, the Escape that closes the dialog) out of its last frames.
+  const settle = () => page.waitForTimeout(1000);
 
   await page.goto(`${wsBase}/context/voice/review/${profileId}${themeQ}`, { waitUntil: "domcontentloaded" });
   await injectCursor(page); // goto wiped the page-injected cursor; re-add it
@@ -2430,18 +2434,20 @@ async function bowrainCorrectionLoopWalk(c: WalkCtx): Promise<void> {
     await mark(page.locator(`${facts} span.tabular-nums`));
     await mark(page.locator(`${facts} span.inline-flex`));
   });
+  await settle();
 
-  // The blast radius, before anything lands: pick a project, open a candidate's
-  // impact dialog, and hold on it while the numbers are read. The crop spans
-  // the project picker, the button and the dialog, so both acts are on camera.
+  // The blast radius, before anything lands: open a candidate's impact dialog
+  // and hold on it while the numbers are read. The project it is priced over
+  // is chosen first, between the beats: the picker sits at the window's far
+  // edge, and a crop that reached it left the dialog small in a shot of
+  // empty page. The crop spans the button and the dialog.
+  const sel = page.locator("select").first();
+  await humanClick(page, sel);
+  await sel.selectOption({ index: 1 });
+  const preview = page.locator('[data-slot="evaluate-candidate"]').first();
+  await preview.waitFor({ timeout: 10_000 });
+  await page.waitForTimeout(700);
   await beatSpan("evaluate", async (mark) => {
-    const sel = page.locator("select").first();
-    await humanClick(page, sel);
-    await sel.selectOption({ index: 1 });
-    await page.waitForTimeout(700);
-    const preview = page.locator('[data-slot="evaluate-candidate"]').first();
-    await preview.waitFor({ timeout: 10_000 });
-    await mark(sel);
     await mark(preview);
     await cursorTo('[data-slot="evaluate-candidate"]');
     await humanClick(page, preview);
@@ -2450,6 +2456,7 @@ async function bowrainCorrectionLoopWalk(c: WalkCtx): Promise<void> {
     await mark(page.locator('[role="dialog"]'));
     await page.waitForTimeout(2800);
   });
+  await settle();
 
   // Promote it. The rule leaves Suggested once the list is read again, and
   // Established, a closed group, counts it; the beat opens the group and
