@@ -548,6 +548,7 @@ function BowrainCard({ sharing }: { sharing: ProjectSharing }) {
     );
   }
   const venue = venueParts(sharing.venue_url);
+  const link = venueLink(sharing);
   return (
     <>
       <ShareSentence>The recipe connects this project to a Bowrain server.</ShareSentence>
@@ -561,10 +562,10 @@ function BowrainCard({ sharing }: { sharing: ProjectSharing }) {
           </ShareFact>
         )}
       </ShareFacts>
-      {sharing.venue_url && (
+      {link && (
         <Actions>
           <Button size="sm" variant="outline" asChild>
-            <a href={sharing.venue_url} data-slot="share-open-bowrain">
+            <a href={link} target="_blank" rel="noopener noreferrer" data-slot="share-open-bowrain">
               Open the project
               <ExternalLink size={13} aria-hidden />
             </a>
@@ -573,6 +574,29 @@ function BowrainCard({ sharing }: { sharing: ProjectSharing }) {
       )}
     </>
   );
+}
+
+/**
+ * The project's Bowrain URL when it is safe to open: http or https, on the
+ * host the recipe names. The URL comes from the recipe's `bowrain:` block,
+ * which anyone who can commit to the project writes, so any other scheme,
+ * such as `javascript:`, is refused rather than handed to the webview.
+ */
+export function venueLink(
+  sharing: Pick<ProjectSharing, "venue_url" | "venue_host">,
+): string | null {
+  if (!sharing.venue_url) return null;
+  let url: URL;
+  try {
+    url = new URL(sharing.venue_url);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+  // The host may carry a port, as the backend reports it from the URL's host.
+  const host = sharing.venue_host;
+  if (host && url.hostname !== host && url.host !== host) return null;
+  return url.href;
 }
 
 /** The workspace and project a Bowrain URL names: its path, without slashes. */

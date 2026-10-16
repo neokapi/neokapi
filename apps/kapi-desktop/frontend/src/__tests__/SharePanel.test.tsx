@@ -8,6 +8,7 @@ import {
   lastSegments,
   rungStates,
   shareRung,
+  venueLink,
   venueParts,
   venueProject,
   type ShareRung,
@@ -108,6 +109,24 @@ describe("the rung a project stands on", () => {
       project: "help",
     });
     expect(venueParts("https://app.bowrain.cloud/projects/help")).toEqual({ project: "help" });
+  });
+
+  it("opens a Bowrain URL only over http or https, on the host the recipe names", () => {
+    const host = "app.bowrain.cloud";
+    expect(venueLink({ venue_url: "https://app.bowrain.cloud/acme/help", venue_host: host })).toBe(
+      "https://app.bowrain.cloud/acme/help",
+    );
+    expect(
+      venueLink({ venue_url: "http://localhost:8080/acme/help", venue_host: "localhost:8080" }),
+    ).toBe("http://localhost:8080/acme/help");
+    expect(venueLink({ venue_url: "javascript:alert(1)", venue_host: host })).toBeNull();
+    expect(venueLink({ venue_url: "file:///etc/passwd", venue_host: host })).toBeNull();
+    expect(venueLink({ venue_url: "data:text/html,<p>hi</p>", venue_host: host })).toBeNull();
+    expect(
+      venueLink({ venue_url: "https://elsewhere.example/acme/help", venue_host: host }),
+    ).toBeNull();
+    expect(venueLink({ venue_url: "not a url", venue_host: host })).toBeNull();
+    expect(venueLink({ venue_url: undefined, venue_host: host })).toBeNull();
   });
 
   it("shows a path by its last segments", () => {
@@ -217,11 +236,24 @@ describe("the Share page", () => {
     expect(sentence()).toBe("The recipe connects this project to a Bowrain server.");
     expect(slot("share-server")?.textContent).toBe("app.bowrain.cloud");
     expect(slot("share-venue-workspace")?.textContent).toBe("acme");
-    expect(within(card()).getByRole("link", { name: "Open the project" })).toHaveAttribute(
-      "href",
-      "https://app.bowrain.cloud/acme/help",
-    );
+    const open = within(card()).getByRole("link", { name: "Open the project" });
+    expect(open).toHaveAttribute("href", "https://app.bowrain.cloud/acme/help");
+    expect(open).toHaveAttribute("target", "_blank");
+    expect(open).toHaveAttribute("rel", "noopener noreferrer");
     expect(primaries()).toEqual([]);
+  });
+
+  it("connected to Bowrain through a URL with another scheme: offers no link to open", () => {
+    render(
+      <SharePanel
+        tabID="t1"
+        sharing={{ ...BOWRAIN_CONNECTED, venue_url: "javascript:alert(document.domain)" }}
+      />,
+    );
+    expect(card().dataset.rung).toBe("bowrain");
+    expect(slot("share-server")?.textContent).toBe("app.bowrain.cloud");
+    expect(slot("share-open-bowrain")).toBeNull();
+    expect(within(card()).queryByRole("link")).toBeNull();
   });
 
   it("connected to Bowrain with no team place: the team rung stays to do", () => {
