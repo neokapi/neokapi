@@ -6,6 +6,7 @@ import {
   ONE_PROJECT_ROWS,
   SEVERAL_ROWS,
   WORKSPACE_RULES,
+  standing,
   workspaceOf,
 } from "../stories/fixtures/standings";
 import type { WorkspaceHome, WorkspaceProject } from "../types/api";
@@ -55,15 +56,18 @@ function withProjects(...projects: WorkspaceProject[]): WorkspaceHome {
 }
 
 const slot = (name: string) => document.querySelector(`[data-slot='${name}']`);
+const slots = (name: string) => Array.from(document.querySelectorAll(`[data-slot='${name}']`));
 
 describe("AppHome", () => {
-  it("opens on your context, with what it is", () => {
+  it("opens on your context, with what it is and where the workspace is", () => {
     render(<AppHome {...defaultProps} />);
     expect(screen.getByRole("heading", { level: 1, name: "Your context" })).toBeInTheDocument();
     expect(
       screen.getByText("What your projects write by, and what your assistants noticed."),
     ).toBeInTheDocument();
-    expect(screen.getByText(/workspaces\/default/)).toBeInTheDocument();
+    // The location is a value: its last segment, the whole path in the tooltip.
+    expect(slot("workspace-location")?.textContent).toBe("default");
+    expect(screen.queryByText(/workspaces\/default/)).not.toBeInTheDocument();
   });
 
   it("composes the sections in the order a reader meets them", () => {
@@ -87,18 +91,46 @@ describe("AppHome", () => {
         order[i - 1]!.compareDocumentPosition(order[i]!) & Node.DOCUMENT_POSITION_FOLLOWING,
       ).toBeTruthy();
     }
-    const quickTools = screen.getByText("Quick tools");
-    expect(
-      slot("start-here")!.compareDocumentPosition(quickTools) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
   });
 
-  it("reads the standings off the workspace's rows", () => {
+  it("carries no quick tools: the Toolbox is in the sidebar", () => {
+    render(<AppHome {...defaultProps} workspace={workspaceOf(SEVERAL_ROWS)} />);
+    expect(screen.queryByText("Quick tools")).not.toBeInTheDocument();
+    expect(screen.queryByText("Design a Flow")).not.toBeInTheDocument();
+    expect(screen.queryByText("Run a Tool")).not.toBeInTheDocument();
+  });
+
+  it("draws Holds in every project only when the workspace holds a rule", () => {
+    const { rerender } = render(
+      <AppHome {...defaultProps} workspace={workspaceOf(SEVERAL_ROWS)} workspaceRules={[]} />,
+    );
+    expect(slot("workspace-rules")).toBeNull();
+    expect(screen.queryByText("Holds in every project")).not.toBeInTheDocument();
+    expect(screen.queryByText(/apply more widely/)).not.toBeInTheDocument();
+    rerender(
+      <AppHome
+        {...defaultProps}
+        workspace={workspaceOf(SEVERAL_ROWS)}
+        workspaceRules={WORKSPACE_RULES}
+      />,
+    );
+    expect(screen.getByText("Holds in every project")).toBeInTheDocument();
+  });
+
+  it("reads the counts off the workspace's rows", () => {
     render(<AppHome {...defaultProps} workspace={workspaceOf(ONE_PROJECT_ROWS)} />);
-    expect(
-      screen.getByText("kapi knows 23 rules across 1 project. 4 suggestions are advising."),
-    ).toBeInTheDocument();
-    expect(screen.getByText("claude-code is working in Acme Help Center now.")).toBeInTheDocument();
+    const phrases = Array.from(
+      slot("workspace-numbers")!.querySelectorAll("[data-slot='stat'] .sr-only"),
+    ).map((s) => s.textContent);
+    expect(phrases).toEqual(["1 project", "23 rules", "4 suggestions", "0 need you"]);
+  });
+
+  it("shows the assistant working now on its project's row, as a chip", () => {
+    render(<AppHome {...defaultProps} workspace={workspaceOf(ONE_PROJECT_ROWS)} />);
+    const working = slots("workspace-working");
+    expect(working.map((w) => w.textContent)).toEqual(["claude-code is working"]);
+    expect(working[0].closest("[data-slot='whats-new-row']")).not.toBeNull();
+    expect(screen.queryByText(/is working in/)).not.toBeInTheDocument();
   });
 
   it("opens a project on its What's new from the row", async () => {
@@ -114,10 +146,26 @@ describe("AppHome", () => {
     expect(onOpenWhatsNew).toHaveBeenCalledWith("prj_acmehelp");
   });
 
-  it("says nothing is recorded on a first run", () => {
+  it("leaves Start here to carry a first run, without counts or What's new", () => {
     render(<AppHome {...defaultProps} />);
-    expect(screen.getByText("Nothing is recorded yet.")).toBeInTheDocument();
+    expect(slot("workspace-numbers")).toBeNull();
     expect(slot("whats-new")).toBeNull();
+    const start = slot("start-here")!;
+    expect(
+      start.compareDocumentPosition(slot("home-projects")!) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("says in one line that nothing is recorded in a project that holds nothing", () => {
+    render(
+      <AppHome
+        {...defaultProps}
+        workspace={withProjects(
+          project({ context: standing({ project: "prj_kapimart", project_name: "KapiMart" }) }),
+        )}
+      />,
+    );
+    expect(slot("whats-new-empty")?.textContent).toMatch(/^Nothing is recorded yet\./);
   });
 
   it("no longer carries the raw feed", () => {
@@ -131,6 +179,11 @@ describe("AppHome", () => {
     render(<AppHome {...defaultProps} onNavigate={onNavigate} />);
     await userEvent.click(screen.getByRole("button", { name: "History" }));
     expect(onNavigate).toHaveBeenCalledWith("history");
+  });
+
+  it("marks a workspace open for reading only in the header", () => {
+    render(<AppHome {...defaultProps} workspace={workspaceOf(ONE_PROJECT_ROWS, true)} />);
+    expect(slot("workspace-read-only")).toHaveTextContent("Read only");
   });
 
   it("shows Start here until it is dismissed", async () => {
@@ -162,35 +215,14 @@ describe("AppHome", () => {
     expect(onOpenProject).toHaveBeenCalled();
   });
 
-  it("offers no quick-tool run door", () => {
-    render(<AppHome {...defaultProps} />);
-    // Tools are a reference, not a runner, so the home page does not send
-    // anyone to the toolbox expecting to execute something there.
-    expect(screen.queryByText("Run a Tool")).not.toBeInTheDocument();
-  });
-
-  it("labels the ad-hoc tools as secondary one-off quick tools", () => {
-    render(<AppHome {...defaultProps} />);
-    expect(screen.getByText("Quick tools")).toBeInTheDocument();
-    expect(screen.getByText(/don't need a project/i)).toBeInTheDocument();
-  });
-
-  it("navigates to flows from quick tools", async () => {
-    const onNavigate = vi.fn();
-    render(<AppHome {...defaultProps} onNavigate={onNavigate} />);
-    await userEvent.click(screen.getByText("Design a Flow"));
-    expect(onNavigate).toHaveBeenCalledWith("flows");
-  });
-
   // The workspace list replaces the recent-files list: a project is here
   // because kapi has run in it, whichever surface ran.
   describe("the workspace list", () => {
-    it("lists what the workspace holds, and where the workspace is", () => {
-      render(<AppHome {...defaultProps} workspace={withProjects(project())} />);
+    it("lists what the workspace holds, one row a project, without its key", () => {
+      render(<AppHome {...defaultProps} workspace={workspaceOf(SEVERAL_ROWS)} />);
       expect(screen.getByText("Projects")).toBeInTheDocument();
-      expect(screen.getByText("KapiMart")).toBeInTheDocument();
-      expect(screen.getByText("prj_kapimart")).toBeInTheDocument();
-      expect(screen.getByText(/workspaces\/default/)).toBeInTheDocument();
+      expect(screen.getAllByTestId("workspace-project")).toHaveLength(4);
+      expect(screen.queryByText("prj_kapimart")).not.toBeInTheDocument();
     });
 
     it("says so when nothing has registered yet", () => {
@@ -211,7 +243,7 @@ describe("AppHome", () => {
       expect(onOpenCheckout).toHaveBeenCalledWith("/fakehome/src/kapimart/kapi.yaml");
     });
 
-    it("collapses several checkouts into one project and asks which", async () => {
+    it("collapses several checkouts into one project, with the others in its menu", async () => {
       const onOpenCheckout = vi.fn();
       const worktrees = project({
         checkouts: [
@@ -235,15 +267,13 @@ describe("AppHome", () => {
         />,
       );
       expect(screen.getAllByTestId("workspace-project")).toHaveLength(1);
-      // No single "Open": the reader picks which checkout.
-      expect(screen.queryByRole("button", { name: "Open" })).not.toBeInTheDocument();
-      const choices = screen.getAllByTestId("checkout-open");
-      expect(choices).toHaveLength(2);
-      await userEvent.click(choices[1]);
+      await userEvent.click(screen.getByRole("button", { name: "More for KapiMart" }));
+      await userEvent.click(screen.getByTestId("checkout-open"));
       expect(onOpenCheckout).toHaveBeenCalledWith("/fakehome/src/kapimart-fix/kapi.yaml");
     });
 
-    it("shows a checkout that is gone as missing, keeping the project", () => {
+    it("keeps a project whose checkout is gone, and opens it on its context", async () => {
+      const onOpenContext = vi.fn();
       const gone = project({
         checkouts: [
           {
@@ -253,11 +283,13 @@ describe("AppHome", () => {
           },
         ],
       });
-      render(<AppHome {...defaultProps} workspace={withProjects(gone)} />);
+      render(
+        <AppHome {...defaultProps} workspace={withProjects(gone)} onOpenContext={onOpenContext} />,
+      );
       expect(screen.getByText("KapiMart")).toBeInTheDocument();
-      expect(screen.getByTestId("checkout-missing")).toBeInTheDocument();
-      expect(screen.getByText("Missing")).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Open" })).not.toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: /Open context/ }));
+      expect(onOpenContext).toHaveBeenCalledWith("prj_kapimart");
     });
 
     it("opens the context of a project with no checkout here", async () => {
@@ -273,7 +305,7 @@ describe("AppHome", () => {
       expect(onOpenContext).toHaveBeenCalledWith("prj_kapimart");
     });
 
-    it("confirms a removal by naming what goes before it goes", async () => {
+    it("confirms a removal from the row's menu by naming what goes before it goes", async () => {
       const onForgetProject = vi.fn();
       render(
         <AppHome
@@ -282,12 +314,13 @@ describe("AppHome", () => {
           onForgetProject={onForgetProject}
         />,
       );
-      await userEvent.click(screen.getByRole("button", { name: /Remove KapiMart/ }));
+      await userEvent.click(screen.getByRole("button", { name: "More for KapiMart" }));
+      await userEvent.click(screen.getByRole("menuitem", { name: "Remove" }));
       expect(onForgetProject).not.toHaveBeenCalled();
       expect(screen.getByText(/Remove KapiMart from your workspace/)).toBeInTheDocument();
       expect(screen.getByText(/its content memory and every decision/)).toBeInTheDocument();
       expect(screen.getByText(/Your files stay exactly where they are/)).toBeInTheDocument();
-      expect(screen.getAllByText("/fakehome/src/kapimart").length).toBeGreaterThan(1);
+      expect(screen.getByText("/fakehome/src/kapimart")).toBeInTheDocument();
 
       await userEvent.click(screen.getByRole("button", { name: /Remove this project/ }));
       expect(onForgetProject).toHaveBeenCalledWith("prj_kapimart");
@@ -302,7 +335,8 @@ describe("AppHome", () => {
           onForgetProject={onForgetProject}
         />,
       );
-      await userEvent.click(screen.getByRole("button", { name: /Remove KapiMart/ }));
+      await userEvent.click(screen.getByRole("button", { name: "More for KapiMart" }));
+      await userEvent.click(screen.getByRole("menuitem", { name: "Remove" }));
       await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
       expect(onForgetProject).not.toHaveBeenCalled();
     });

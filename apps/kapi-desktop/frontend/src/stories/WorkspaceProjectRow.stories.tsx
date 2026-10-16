@@ -12,12 +12,21 @@ const meta: Meta<typeof WorkspaceProjectRow> = {
     onOpenContext: fn(),
     onRemove: fn(),
   },
+  decorators: [
+    (Story) => (
+      <div className="mx-auto max-w-4xl p-6">
+        <Story />
+      </div>
+    ),
+  ],
 };
 
 export default meta;
 type Story = StoryObj<typeof WorkspaceProjectRow>;
 
-/** One checkout: the row opens it. */
+const dark = { theme: "dark" };
+
+/** One checkout: Open opens it, and its path is the tooltip on the name. */
 export const OneCheckout: Story = {
   args: {
     project: {
@@ -35,7 +44,7 @@ export const OneCheckout: Story = {
   },
 };
 
-/** Several worktrees of one repository: the reader picks which to open. */
+/** Several worktrees of one repository: Open opens the first, the menu holds the other. */
 export const SeveralCheckouts: Story = {
   args: {
     project: {
@@ -58,7 +67,7 @@ export const SeveralCheckouts: Story = {
   },
 };
 
-/** The folder went away. The project and its context stay. */
+/** The folder went away. The project and its context stay, and it opens on its context. */
 export const MissingCheckout: Story = {
   args: {
     project: {
@@ -88,10 +97,11 @@ export const NoCheckoutHere: Story = {
   },
 };
 
-/** The line under the name: the voice, the rules and how far the context reaches. */
+/** The columns: the voice, the rules in force, how far the context reaches, and when. */
 export const WithContext: Story = {
   args: { project: SEVERAL_ROWS[0] },
 };
+export const WithContextDark: Story = { args: WithContext.args, globals: dark };
 
 /** A project shared through git, with two worktrees here. */
 export const SharedThroughGit: Story = {
@@ -102,3 +112,19 @@ export const SharedThroughGit: Story = {
 export const OnBowrain: Story = {
   args: { project: SEVERAL_ROWS[2] },
 };
+
+/** A checkout holding context files its store has never read. */
+export const UnreadContextFiles: Story = {
+  args: {
+    project: {
+      ...SEVERAL_ROWS[3],
+      context_files: {
+        files: ["kapi/terms.yaml"],
+        command: "kapi store import",
+        message:
+          "this project carries context files (kapi/terms.yaml) and its store holds no context yet. They are read by `kapi store import`, and until then nothing in them is in force",
+      },
+    },
+  },
+};
+export const UnreadContextFilesDark: Story = { args: UnreadContextFiles.args, globals: dark };

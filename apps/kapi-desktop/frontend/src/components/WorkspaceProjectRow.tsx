@@ -1,14 +1,44 @@
-import { FolderKanban, FolderOpen, FolderX, Library } from "lucide-react";
+import {
+  Cloud,
+  Copy,
+  Database,
+  Ellipsis,
+  FileWarning,
+  Folder,
+  FolderKanban,
+  FolderOpen,
+  FolderX,
+  GitBranch,
+  Laptop,
+  Library,
+  Terminal,
+  Trash2,
+  type LucideIcon,
+} from "lucide-react";
 import { t } from "@neokapi/i18n-react/runtime";
-import { Badge, Button, SimpleTooltip, When } from "@neokapi/ui-primitives";
+import {
+  Badge,
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  SimpleTooltip,
+  When,
+} from "@neokapi/ui-primitives";
 import { useShortenHome } from "../hooks/useShortenHome";
-import { formatLook } from "./ContextDigest";
-import type { ContextNews, ProjectSharing, WorkspaceProject } from "../types/api";
+import { writeClipboardText } from "../lib/clipboard";
+import type {
+  ContextFilesNotice,
+  ProjectSharing,
+  WorkspaceCheckout,
+  WorkspaceProject,
+} from "../types/api";
 
 interface WorkspaceProjectRowProps {
   project: WorkspaceProject;
-  /** What the project's digest holds that the person has not seen. Absent shows nothing. */
-  news?: ContextNews;
   /** Open the project from one of its checkouts, by recipe path. */
   onOpenCheckout: (recipe: string) => void;
   /** Open a project no checkout here carries, on its context alone. */
@@ -18,61 +48,88 @@ interface WorkspaceProjectRowProps {
 }
 
 /**
- * One project on the workspace home.
+ * The columns every project row shares, so the rows of the list read as one
+ * table: icon, name, voice, rules, reach, last activity, actions. A narrow pane
+ * keeps the name and the actions.
+ */
+const COLUMNS =
+  "grid-cols-[16px_minmax(0,1fr)_auto] @2xl:grid-cols-[16px_minmax(0,1fr)_8rem_4.5rem_6rem_7rem_8.5rem]";
+
+/**
+ * One project on the workspace home, as one row of the projects list.
  *
  * A project is one row however many copies of it are on this machine, because
- * the checkouts share an identity and one context. With a single checkout the
- * row opens it; with several the row lists them and the reader picks. With
- * none, the project still opens, on the context the workspace holds for it.
+ * the checkouts share an identity and one context. Open opens the first
+ * checkout that is still there; the others are in the row's menu. With none,
+ * the project still opens, on the context the workspace holds for it.
  */
 export function WorkspaceProjectRow({
   project,
-  news,
   onOpenCheckout,
   onOpenContext,
   onRemove,
 }: WorkspaceProjectRowProps) {
   const shortenHome = useShortenHome();
-  const live = project.checkouts.filter((c) => !c.missing);
-  const single = live.length === 1 && project.checkouts.length === 1;
+  const primary = project.checkouts.find((c) => !c.missing);
+  const others = project.checkouts.filter((c) => c !== primary);
+  // The checkout the name stands for: the one Open opens, or the first one
+  // seen when none is left.
+  const named = primary ?? project.checkouts[0];
+  const reach = projectReach(project.sharing);
 
   return (
-    <div
-      data-testid="workspace-project"
-      data-project={project.key}
-      className="rounded-lg border border-border/60 p-3"
-    >
-      <div className="flex items-start gap-3">
-        <FolderKanban size={16} className="mt-0.5 shrink-0 text-muted-foreground" />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-baseline gap-2">
-            <span className="truncate text-sm font-medium">{project.name}</span>
-            <NewsBadge news={news} />
-          </div>
-          <ProjectFacts project={project} />
-          <div className="truncate font-mono text-[11px] text-muted-foreground/70">
-            {project.key}
-          </div>
-          {project.context_files && (
-            <p
-              data-testid="workspace-context-files"
-              className="mt-1 text-[11px] text-amber-700 dark:text-amber-500"
+    <div data-testid="workspace-project" data-project={project.key} className="@container">
+      <div className={`grid h-11 items-center gap-x-3 px-2 ${COLUMNS}`}>
+        <FolderKanban aria-hidden size={16} className="text-muted-foreground" />
+
+        <div className="flex min-w-0 items-center gap-2">
+          <SimpleTooltip
+            content={named && <span className="font-mono">{shortenHome(named.path)}</span>}
+          >
+            <span
+              data-slot="workspace-project-name"
+              className="truncate text-sm"
+              translate="no"
+              tabIndex={named ? 0 : undefined}
             >
-              {t("Context files in the checkout, unread. Run")}{" "}
-              <code className="font-mono" translate="no">
-                {project.context_files.command}
-              </code>
-              .
-            </p>
-          )}
+              {project.name}
+            </span>
+          </SimpleTooltip>
+          {project.context_files && <ContextFilesBadge notice={project.context_files} />}
         </div>
-        <div className="flex shrink-0 items-center gap-1">
-          {single && (
-            <Button size="sm" variant="outline" onClick={() => onOpenCheckout(live[0].recipe)}>
+
+        <div
+          data-slot="workspace-project-facts"
+          className="hidden text-[11px] text-muted-foreground @2xl:contents"
+        >
+          <span data-slot="workspace-project-voice" className="truncate" translate="no">
+            {project.voice ?? <span className="text-muted-foreground/60">no voice</span>}
+          </span>
+          <span data-slot="workspace-project-rules" className="tabular-nums">
+            {project.context &&
+              t("{rules, plural, one {# rule} other {# rules}}", { rules: project.context.rules })}
+          </span>
+          <span data-slot="workspace-project-reach" className="flex min-w-0 items-center">
+            {reach && (
+              <SimpleTooltip content={reachDetail(project.sharing, shortenHome)}>
+                <span className="inline-flex max-w-full items-center gap-1" tabIndex={0}>
+                  <reach.icon aria-hidden size={12} className="shrink-0" />
+                  <span className="truncate">{reach.word}</span>
+                </span>
+              </SimpleTooltip>
+            )}
+          </span>
+          <span data-slot="workspace-project-active" className="truncate">
+            {project.last_active && <When iso={project.last_active} relative />}
+          </span>
+        </div>
+
+        <div className="flex items-center justify-end gap-1">
+          {primary ? (
+            <Button size="sm" variant="outline" onClick={() => onOpenCheckout(primary.recipe)}>
               Open
             </Button>
-          )}
-          {project.checkouts.length === 0 && (
+          ) : (
             <SimpleTooltip content="Read its terms, voice and content memory without a copy of the files">
               <Button size="sm" variant="outline" onClick={() => onOpenContext(project.key)}>
                 <Library size={14} />
@@ -80,129 +137,211 @@ export function WorkspaceProjectRow({
               </Button>
             </SimpleTooltip>
           )}
-          <Button
-            size="sm"
-            variant="ghost"
-            className="text-muted-foreground"
-            onClick={() => onRemove(project)}
-            aria-label={t("Remove {name} from your workspace", { name: project.name })}
-          >
-            Remove
-          </Button>
+          <ProjectMenu
+            project={project}
+            others={others}
+            path={named?.path}
+            shortenHome={shortenHome}
+            onOpenCheckout={onOpenCheckout}
+            onRemove={onRemove}
+          />
         </div>
       </div>
-
-      {project.checkouts.length > 0 && (
-        <ul className="mt-2 space-y-1 pl-7">
-          {project.checkouts.map((checkout) => (
-            <li key={checkout.path}>
-              {checkout.missing ? (
-                <div
-                  data-testid="checkout-missing"
-                  className="flex items-center gap-2 text-xs text-muted-foreground/70"
-                >
-                  <FolderX size={13} className="shrink-0" />
-                  <span className="truncate font-mono">{shortenHome(checkout.path)}</span>
-                  <Badge variant="outline" className="shrink-0 text-muted-foreground">
-                    Missing
-                  </Badge>
-                </div>
-              ) : single ? (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <FolderOpen size={13} className="shrink-0" />
-                  <span className="truncate font-mono">{shortenHome(checkout.path)}</span>
-                </div>
-              ) : (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  data-testid="checkout-open"
-                  onClick={() => onOpenCheckout(checkout.recipe)}
-                  className="h-auto w-full justify-start gap-2 px-1 py-1 text-xs font-normal text-muted-foreground hover:bg-accent/30"
-                >
-                  <FolderOpen size={13} className="shrink-0" />
-                  <span className="truncate font-mono">{shortenHome(checkout.path)}</span>
-                </Button>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {project.checkouts.length > 0 && live.length === 0 && (
-        <div className="mt-2 pl-7">
-          <Button size="sm" variant="outline" onClick={() => onOpenContext(project.key)}>
-            <Library size={14} />
-            Open context
-          </Button>
-        </div>
-      )}
     </div>
   );
 }
 
-/** "4 new since Tuesday": suggestions and rules the person has not seen. */
-function NewsBadge({ news }: { news?: ContextNews }) {
-  if (!news || news.new <= 0) return null;
+/** The row's `⋯` menu: the other checkouts, Copy path, and Remove. */
+function ProjectMenu({
+  project,
+  others,
+  path,
+  shortenHome,
+  onOpenCheckout,
+  onRemove,
+}: {
+  project: WorkspaceProject;
+  others: WorkspaceCheckout[];
+  path?: string;
+  shortenHome: (path: string) => string;
+  onOpenCheckout: (recipe: string) => void;
+  onRemove: (project: WorkspaceProject) => void;
+}) {
+  const command = project.context_files?.command;
   return (
-    <Badge variant="secondary" data-slot="context-news">
-      {news.since
-        ? t("{count} new since {when}", { count: news.new, when: formatLook(news.since) })
-        : t("{count} new", { count: news.new })}
-    </Badge>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          size="icon-sm"
+          variant="ghost"
+          data-slot="workspace-project-menu"
+          className="text-muted-foreground"
+          aria-label={t("More for {name}", "the menu on a project's row", { name: project.name })}
+        >
+          <Ellipsis size={14} />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-56">
+        {others.length > 0 && (
+          <>
+            <DropdownMenuLabel className="text-[11px] font-normal text-muted-foreground">
+              {t("Other checkouts")}
+            </DropdownMenuLabel>
+            {others.map((checkout) =>
+              checkout.missing ? (
+                <DropdownMenuItem key={checkout.path} disabled data-testid="checkout-missing">
+                  <FolderX />
+                  <CheckoutPath path={checkout.path} shortenHome={shortenHome} />
+                  <Badge variant="outline" className="text-[11px] font-normal">
+                    {t("Missing")}
+                  </Badge>
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem
+                  key={checkout.path}
+                  data-testid="checkout-open"
+                  onSelect={() => onOpenCheckout(checkout.recipe)}
+                >
+                  <FolderOpen />
+                  <CheckoutPath path={checkout.path} shortenHome={shortenHome} />
+                </DropdownMenuItem>
+              ),
+            )}
+            <DropdownMenuSeparator />
+          </>
+        )}
+        {path && (
+          <DropdownMenuItem onSelect={() => void writeClipboardText(path).catch(() => {})}>
+            <Copy />
+            {t("Copy path")}
+          </DropdownMenuItem>
+        )}
+        {command && (
+          <DropdownMenuItem onSelect={() => void writeClipboardText(command).catch(() => {})}>
+            <Terminal />
+            {t("Copy the command that reads the context files")}
+          </DropdownMenuItem>
+        )}
+        {(path || command) && <DropdownMenuSeparator />}
+        <DropdownMenuItem variant="destructive" onSelect={() => onRemove(project)}>
+          <Trash2 />
+          {t("Remove")}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
-/** "voice Fernwell · 23 rules · on this Mac · 2 h ago": the project in one line. */
-function ProjectFacts({ project }: { project: WorkspaceProject }) {
-  const parts: React.ReactNode[] = [
-    project.voice ? (
-      <span key="voice">{t("voice {voice}", { voice: project.voice })}</span>
-    ) : (
-      <span key="voice" className="text-muted-foreground/60">
-        no voice bound
+/**
+ * A checkout in the menu: the folder's own name, which is what tells two
+ * worktrees apart, over the folder it sits in.
+ */
+function CheckoutPath({
+  path,
+  shortenHome,
+}: {
+  path: string;
+  shortenHome: (path: string) => string;
+}) {
+  return (
+    <span className="flex min-w-0 flex-1 flex-col" translate="no">
+      <span className="truncate font-mono text-xs">{lastSegment(path)}</span>
+      <span className="truncate font-mono text-[11px] text-muted-foreground">
+        {shortenHome(parentOf(path))}
       </span>
-    ),
-  ];
-  if (project.context) {
-    parts.push(
-      <span key="rules">
-        {t("{rules, plural, one {# rule} other {# rules}}", { rules: project.context.rules })}
-      </span>,
-    );
-  }
-  const reach = sharingWord(project.sharing);
-  if (reach) parts.push(<span key="sharing">{reach}</span>);
-  if (project.last_active) {
-    parts.push(<When key="active" iso={project.last_active} relative />);
-  }
-  return (
-    <p
-      data-slot="workspace-project-facts"
-      className="mt-0.5 flex flex-wrap items-baseline gap-x-1 text-[11px] text-muted-foreground"
-    >
-      {parts.map((part, i) => (
-        <span key={i} className="inline-flex items-baseline gap-x-1">
-          {i > 0 && <span aria-hidden>·</span>}
-          {part}
-        </span>
-      ))}
-    </p>
+    </span>
   );
 }
 
-/** How far the project's context reaches, in the one word the row has room for. */
-export function sharingWord(sharing?: ProjectSharing): string {
-  if (!sharing) return "";
-  if (sharing.venue_host) return t("Bowrain {host}", { host: sharing.venue_host });
+/** The last segment of a path, on either separator. */
+export function lastSegment(path: string): string {
+  const parts = path.split(/[\\/]+/).filter(Boolean);
+  return parts[parts.length - 1] ?? path;
+}
+
+/** The path without its last segment. */
+export function parentOf(path: string): string {
+  const trimmed = path.replace(/[\\/]+$/, "");
+  const at = Math.max(trimmed.lastIndexOf("/"), trimmed.lastIndexOf("\\"));
+  return at > 0 ? trimmed.slice(0, at) : trimmed.slice(0, at + 1);
+}
+
+/** Context files in a checkout that the project's store has never read. */
+function ContextFilesBadge({ notice }: { notice: ContextFilesNotice }) {
+  return (
+    <SimpleTooltip
+      content={
+        <span>
+          {t("Context files in the checkout, unread. Run")}{" "}
+          <code className="font-mono" translate="no">
+            {notice.command}
+          </code>
+          .
+        </span>
+      }
+    >
+      <Badge
+        variant="outline"
+        data-testid="workspace-context-files"
+        tabIndex={0}
+        className="border-warning/60 text-[11px] font-normal text-[color-mix(in_oklch,var(--warning)_60%,var(--warning-foreground))] dark:text-warning"
+      >
+        <FileWarning aria-hidden />
+        {t("Unread files")}
+      </Badge>
+    </SimpleTooltip>
+  );
+}
+
+/** How far a project's context reaches, as an icon and the one word a column has room for. */
+export interface ProjectReach {
+  icon: LucideIcon;
+  word: string;
+}
+
+/** The icon and word for where a project's context is kept. Null when unknown. */
+export function projectReach(sharing?: ProjectSharing): ProjectReach | null {
+  if (!sharing) return null;
+  if (sharing.venue_host) return { icon: Cloud, word: "Bowrain" };
   switch (sharing.kind) {
     case "git":
-      return t("shared through git");
+      return { icon: GitBranch, word: "git" };
     case "file":
-      return t("shared through a folder");
+      return { icon: Folder, word: t("folder", "where a project's context is shared") };
     case "s3":
-      return t("shared through S3");
+      return { icon: Database, word: "S3" };
     default:
-      return t("on this Mac");
+      return { icon: Laptop, word: t("this Mac", "where a project's context is kept") };
+  }
+}
+
+/** The word alone, for a reader that has no room for the icon. Empty when unknown. */
+export function sharingWord(sharing?: ProjectSharing): string {
+  return projectReach(sharing)?.word ?? "";
+}
+
+/** The reach spelt out, with where the shared copy is: the reach column's tooltip. */
+export function reachDetail(
+  sharing: ProjectSharing | undefined,
+  shortenHome: (path: string) => string = (p) => p,
+): string {
+  if (!sharing) return "";
+  if (sharing.venue_host) return t("Connected to Bowrain at {host}", { host: sharing.venue_host });
+  const location = sharing.location ? shortenHome(sharing.location) : "";
+  switch (sharing.kind) {
+    case "git":
+      return location
+        ? t("Shared through git, at {location}", { location })
+        : t("Shared through git");
+    case "file":
+      return location
+        ? t("Shared through a folder, at {location}", { location })
+        : t("Shared through a folder");
+    case "s3":
+      return location
+        ? t("Shared through S3, at {location}", { location })
+        : t("Shared through S3");
+    default:
+      return t("On this Mac");
   }
 }

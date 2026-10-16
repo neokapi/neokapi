@@ -42,22 +42,34 @@ const meta: Meta<typeof AppHome> = {
 export default meta;
 type Story = StoryObj<typeof AppHome>;
 
-/** The first run: nothing has registered, nothing is recorded, and Start here carries the screen. */
+const dark = { theme: "dark" };
+
+/**
+ * The first run: nothing has registered, nothing is recorded, and Start here
+ * carries the screen. The counts wait until there is a project to count.
+ */
 export const FirstRun: Story = {
   args: { workspace: workspace([]) },
 };
+export const FirstRunDark: Story = { args: FirstRun.args, globals: dark };
 
-/** One project with four new items while claude-code is working in it. */
+/**
+ * One project with four new items while claude-code is working in it: the row
+ * carries claude-code's mark and a working chip, and Start here comes last.
+ */
 export const OneProjectWorking: Story = {
   args: {
     workspace: workspaceOf(ONE_PROJECT_ROWS),
     hasOpenProject: true,
   },
 };
+export const OneProjectWorkingDark: Story = { args: OneProjectWorking.args, globals: dark };
 
 /**
  * Several projects, newest session first. KapiMart holds a disagreement, so
- * its row reads Decide; Field Guide is quiet and has no row under What's new.
+ * its row carries a "1 needs you" chip and reads Decide, and "needs you" is
+ * the one count in the warning ink. Field Guide is quiet and has no row under
+ * What's new.
  */
 export const SeveralProjects: Story = {
   args: {
@@ -65,6 +77,7 @@ export const SeveralProjects: Story = {
     startHereDismissed: true,
   },
 };
+export const SeveralProjectsDark: Story = { args: SeveralProjects.args, globals: dark };
 
 /** Two rules hold in every project: one kept in a review, one merged. */
 export const WithWorkspaceRules: Story = {
@@ -74,12 +87,43 @@ export const WithWorkspaceRules: Story = {
     startHereDismissed: true,
   },
 };
+export const WithWorkspaceRulesDark: Story = { args: WithWorkspaceRules.args, globals: dark };
 
 /** A workspace directory that refuses writes: readable, and nothing new joins. */
 export const ReadOnlyWorkspace: Story = {
   args: {
     startHereDismissed: true,
     workspace: workspaceOf(ONE_PROJECT_ROWS, true),
+  },
+};
+export const ReadOnlyWorkspaceDark: Story = { args: ReadOnlyWorkspace.args, globals: dark };
+
+/**
+ * Long names: a project name, a voice profile and a workspace directory that
+ * each run past their column truncate in place, with the whole value in the
+ * tooltip.
+ */
+export const LongContent: Story = {
+  args: {
+    startHereDismissed: true,
+    workspace: {
+      location: "/fakehome/Library/Application Support/kapi/workspaces/acme-documentation-team",
+      read_only: false,
+      projects: [
+        {
+          ...SEVERAL_ROWS[0],
+          name: "Acme Help Center and Developer Documentation Portal (2027 edition)",
+          voice: "acme-developer-documentation-voice",
+          context_files: {
+            files: ["kapi/terms.yaml"],
+            command: "kapi store import",
+            message:
+              "this project carries context files (kapi/terms.yaml) and its store holds no context yet. They are read by `kapi store import`, and until then nothing in them is in force",
+          },
+        },
+        ...SEVERAL_ROWS.slice(1),
+      ],
+    },
   },
 };
 

@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
-import { FolderOpen, Plus, Workflow } from "lucide-react";
+import { FolderOpen, Lock, Plus } from "lucide-react";
 import { t } from "@neokapi/i18n-react/runtime";
 import {
+  Badge,
   Button,
   ErrorNotice,
   PageHeader,
@@ -15,7 +16,7 @@ import { RemoveProjectDialog } from "./RemoveProjectDialog";
 import { StartHere } from "./StartHere";
 import { WhatsNew, WorkspaceNumbers } from "./WhatsNew";
 import { WorkspaceConflicts } from "./WorkspaceConflicts";
-import { WorkspaceProjectRow } from "./WorkspaceProjectRow";
+import { WorkspaceProjectRow, lastSegment } from "./WorkspaceProjectRow";
 import { WorkspaceRules } from "./WorkspaceRules";
 import type {
   AIDetectionResult,
@@ -34,7 +35,10 @@ interface AppHomeProps {
   workspaceError?: unknown;
   /** Every project's context in numbers. Absent reads them off the workspace's rows. */
   standings?: ContextProjectStanding[] | null;
-  /** What each project's digest holds that the person has not seen. */
+  /**
+   * What each project's digest holds that the person has not seen. The home
+   * reads the same counts off `standings`, so it does not draw these.
+   */
   news?: ContextNews[] | null;
   /** Pre-loaded workspace rules for Storybook and tests, which reach no backend. */
   workspaceRules?: WorkspaceRule[];
@@ -64,8 +68,10 @@ interface AppHomeProps {
 }
 
 /**
- * The app's first screen: the context this machine account's projects write
- * by, and what the assistants working in them noticed.
+ * The app's first screen, in the overview shape (packages/ui/docs/page-patterns.md):
+ * the context this machine account's projects write by, and what the
+ * assistants working in them noticed. A header, a row of labelled counts, then
+ * two lists of rows, each row leading to a project.
  *
  * Every project kapi has run in is listed, whichever surface ran it. A
  * repository set up from a terminal appears without anyone opening it in the
@@ -75,7 +81,6 @@ export function AppHome({
   workspace,
   workspaceError,
   standings: given,
-  news,
   workspaceRules,
   startHereDismissed,
   onDismissStartHere,
@@ -92,15 +97,13 @@ export function AppHome({
   aiDetection,
   documentConflicts,
 }: AppHomeProps) {
-  const shortenHome = useShortenHome();
   const [removing, setRemoving] = useState<WorkspaceProject | null>(null);
   const projects = workspace?.projects ?? [];
-  const newsByProject = new Map((news ?? []).map((row) => [row.project, row]));
   const derived = useMemo(() => standingsOf(workspace), [workspace]);
   const standings = given ?? derived;
   // On a first visit nothing is registered, so the three steps come first and
-  // the sections that would only say "nothing yet" wait until there is a
-  // project to fill them.
+  // the counts and the sections that would only say "nothing yet" wait until
+  // there is a project to fill them.
   const empty = !workspaceError && !!workspace && projects.length === 0;
   const startHere = !startHereDismissed && (
     <StartHere
@@ -112,10 +115,10 @@ export function AppHome({
   );
 
   return (
-    <div data-slot="app-home" className="mx-auto max-w-3xl space-y-8 p-6">
+    <div data-slot="app-home" className="mx-auto max-w-4xl space-y-8 p-6">
       <div>
         <PageHeader
-          className="mb-3"
+          className="mb-4"
           title="Your context"
           subtitle="What your projects write by, and what your assistants noticed."
           actions={
@@ -129,22 +132,28 @@ export function AppHome({
               >
                 History
               </Button>
-              {workspace?.location && (
+              {workspace?.location && <WorkspaceLocation location={workspace.location} />}
+              {workspace?.read_only && (
                 <SimpleTooltip
-                  content={t("Where Kapi keeps the context of every project you work on")}
+                  content={t(
+                    "This workspace is open for reading only, so nothing new registers here.",
+                  )}
                 >
-                  <span
-                    className="max-w-64 truncate font-mono text-[11px] text-muted-foreground/70"
-                    translate="no"
+                  <Badge
+                    variant="outline"
+                    data-slot="workspace-read-only"
+                    tabIndex={0}
+                    className="text-[11px] font-normal text-muted-foreground"
                   >
-                    {shortenHome(workspace.location)}
-                  </span>
+                    <Lock aria-hidden />
+                    Read only
+                  </Badge>
                 </SimpleTooltip>
               )}
             </>
           }
         />
-        <WorkspaceNumbers standings={standings} />
+        {!empty && <WorkspaceNumbers standings={standings} projects={projects.length} />}
       </div>
 
       {/* A .kpz document whose other version did not land, in a project or in
@@ -155,20 +164,20 @@ export function AppHome({
 
       {empty && startHere}
 
-      <WhatsNew standings={standings} onOpen={onOpenWhatsNew} />
+      {!empty && <WhatsNew standings={standings} onOpen={onOpenWhatsNew} />}
 
       {/* The workspace: every project kapi has run in, from any surface. */}
       <section data-slot="home-projects" aria-labelledby="home-projects-heading">
-        <div className="mb-2 flex items-center justify-between gap-3">
+        <div className="mb-1 flex items-center justify-between gap-3">
           <div id="home-projects-heading">
             <SectionHeading>Projects</SectionHeading>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={onNewProject}>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="sm" onClick={onNewProject}>
               <Plus size={14} />
               New project
             </Button>
-            <Button variant="outline" size="sm" onClick={onOpenProject}>
+            <Button variant="ghost" size="sm" onClick={onOpenProject}>
               <FolderOpen size={14} />
               Open a folder
             </Button>
@@ -178,12 +187,11 @@ export function AppHome({
         {workspaceError ? (
           <ErrorNotice error={workspaceError} title="Your workspace could not be read" />
         ) : projects.length > 0 ? (
-          <div className="space-y-2">
+          <div className="divide-y divide-border/50">
             {projects.map((project) => (
               <WorkspaceProjectRow
                 key={project.key}
                 project={project}
-                news={newsByProject.get(project.key)}
                 onOpenCheckout={onOpenCheckout}
                 onOpenContext={onOpenContext}
                 onRemove={setRemoving}
@@ -202,11 +210,6 @@ export function AppHome({
             </p>
           )
         )}
-        {workspace?.read_only && (
-          <p className="mt-2 text-[11px] text-muted-foreground">
-            This workspace is open for reading only, so nothing new registers here.
-          </p>
-        )}
       </section>
 
       {!empty && <WorkspaceRules rules={workspaceRules} />}
@@ -224,29 +227,35 @@ export function AppHome({
       <div className="empty:hidden">
         <ConnectAICard detection={aiDetection} />
       </div>
-
-      {/* Secondary: ad-hoc quick tools — one-off, no project required. */}
-      <section>
-        <h2 className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
-          Quick tools
-        </h2>
-        <p className="mb-3 text-xs text-muted-foreground/70">
-          One-off actions that don&apos;t need a project. Results aren&apos;t saved to a project.
-        </p>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <Button
-            variant="ghost"
-            onClick={() => onNavigate("flows")}
-            className="h-auto whitespace-normal rounded-lg border border-border/60 p-3 text-left flex-row items-center gap-3 hover:bg-accent/30"
-          >
-            <Workflow size={16} className="shrink-0 text-muted-foreground" />
-            <div>
-              <div className="text-sm font-medium">Design a Flow</div>
-              <div className="text-xs text-muted-foreground font-normal">Build tool pipelines</div>
-            </div>
-          </Button>
-        </div>
-      </section>
     </div>
+  );
+}
+
+/**
+ * Where the workspace is, as a value: the last segment of its directory in a
+ * mono chip, and the whole path in the tooltip.
+ */
+function WorkspaceLocation({ location }: { location: string }) {
+  const shortenHome = useShortenHome();
+  return (
+    <SimpleTooltip
+      content={
+        <span className="block max-w-80">
+          {t("Where Kapi keeps the context of every project you work on")}
+          <span className="mt-0.5 block font-mono break-all" translate="no">
+            {shortenHome(location)}
+          </span>
+        </span>
+      }
+    >
+      <span
+        data-slot="workspace-location"
+        tabIndex={0}
+        translate="no"
+        className="max-w-40 truncate rounded-md border border-border/70 px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground"
+      >
+        {lastSegment(location)}
+      </span>
+    </SimpleTooltip>
   );
 }

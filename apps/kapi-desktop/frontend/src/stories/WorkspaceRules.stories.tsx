@@ -20,6 +20,7 @@ type Story = StoryObj<typeof WorkspaceRules>;
 
 /** Two rules applied to every project: a word from one project's review, a voice rule from a merge. */
 export const WithRules: Story = { args: { rules: WORKSPACE_RULES } };
+export const WithRulesDark: Story = { args: WithRules.args, globals: { theme: "dark" } };
 
-/** No rule holds in every project yet. */
+/** No rule holds in every project yet, so the section is not drawn: this story is blank. */
 export const Empty: Story = { args: { rules: [] } };

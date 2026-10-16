@@ -1442,8 +1442,10 @@ async function contextWalk(c: WalkCtx): Promise<void> {
 
   await freshContextSample(page);
 
+  // The row reads by its chips: what codex noticed, by kind, and the one that
+  // needs a person.
   await beatEls("home", home, async () => {
-    await cursorTo(`${row} [data-slot="whats-new-sentence"]`, 900);
+    await cursorTo(`${row} [data-slot="whats-new-chips"]`, 900);
     await page.waitForTimeout(1500);
   });
   await settle();
@@ -1560,17 +1562,21 @@ async function contextWalk(c: WalkCtx): Promise<void> {
     await cursorTo('[data-slot="workspace-numbers"]', 800);
     await page.waitForTimeout(1500);
     // The row is already there: the rules kept on camera are new since the
-    // person looked. What the note changes is who noticed something.
+    // person looked. What the note changes is who noticed something: the row
+    // takes claude-code's mark, and a chip says it is working there now.
     recordLiveNote();
     await page
-      .locator(`${row} [data-slot="whats-new-sentence"]`)
-      .filter({ hasText: "claude-code noticed" })
+      .locator(
+        `${row}:has([data-slot="whats-new-actor"][data-actor="claude-code"]):has([data-slot="workspace-working"])`,
+      )
       .waitFor({ state: "visible", timeout: 10_000 })
       .catch(() => {
-        throw new Error("kapi-desktop-context: the note recorded as claude-code did not reach the home within 10 s");
+        throw new Error(
+          "kapi-desktop-context: the note recorded as claude-code did not reach the home within 10 s (no claude-code mark and working chip on the row)",
+        );
       });
     await page.waitForTimeout(600);
-    await cursorTo(`${row} [data-slot="whats-new-sentence"]`, 700);
+    await cursorTo(`${row} [data-slot="workspace-working"]`, 700);
     await page.waitForTimeout(1500);
   });
   await settle();

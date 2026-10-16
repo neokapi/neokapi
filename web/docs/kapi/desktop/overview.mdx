@@ -20,51 +20,57 @@ suite holds them to it.
 ## What the app opens to
 
 The app opens on **Your context**, captioned "What your projects write by, and
-what your assistants noticed." The workspace folder sits at the right of the
-title in small type. The page reads top to bottom.
+what your assistants noticed." At the right of the title, a small chip names
+the workspace folder by its last segment; hover it for the full path. A
+workspace you can only read carries a **Read only** badge beside it.
 
-The first line counts what kapi holds: "kapi knows 61 rules across 5 projects.
-7 suggestions are advising." While an assistant is working in one of your
-projects, a second sentence names it: "claude-code is working in Acme Help
-Center now." Before anything is recorded, the line reads "Nothing is recorded
-yet."
+Under the title, four counts: projects, rules in force, suggestions advising,
+and what needs you. The last count is highlighted while a disagreement waits
+for you.
 
-**What's new** appears when a project has something you have not seen. Each
-such project gets one row, newest first:
+**What's new** has a row for each project with something you have not seen or
+not decided, newest first. From left to right, a row shows:
 
-> **Acme Help Center**: 4 new since Tuesday. claude-code noticed 3 names and 1 word.
+- the mark of the assistant that noticed something most recently, such as CC
+  for claude-code, with its name on hover;
+- the project, and how long ago the assistant worked there;
+- a chip for each kind of thing it noticed, such as "3 names" and "1 word",
+  and a highlighted "1 needs you" when two suggestions disagree;
+- **Review**, or **Decide** when something needs you, which opens the project
+  on its own What's new.
 
-**Review** on the row opens the project on its own What's new. When two
-suggestions disagree, the row adds "1 needs you" and the button reads
-**Decide**. The dot beside the name pulses while the assistant's latest session
-is still working. `j` and `k` move between rows, and Enter opens one.
+While an assistant is working in a project, the row adds a chip with a live
+dot, such as "claude-code is working". `j` and `k` move between rows, and Enter
+opens one. When nothing waits, the section says "Nothing new since you last
+looked."
 
 **Projects** lists every project the CLI, the app or an assistant has
-registered, with **New project** and **Open a folder** above the list. Under
-each name, a line such as "voice Fernwell · 23 rules · on this Mac · 2 h ago"
-gives the voice profile, the rules in force, where the context is shared, and
-when kapi last worked there. The sharing word reads "on this Mac", "shared
-through git", "shared through a folder" or "shared through S3", or names the
-managed workspace the project is connected to. With no projects yet, the list
-says "Nothing here yet. Projects appear as soon as kapi runs in them, whether
-you open one here or run `kapi` in a folder."
+registered, one row each, with **New project** and **Open a folder** above the
+list. Each row gives the project's voice profile ("no voice" when none is
+bound), the rules in force, where its context is shared, and when kapi last
+worked there. Where the context is shared reads as an icon and a word: this
+Mac, git, folder, S3, or the managed workspace the project is connected to.
+Hover it for where the shared copy lives, and hover the project's name for the
+folder it opens from. With no projects yet, the list says "Nothing here yet.
+Projects appear as soon as kapi runs in them, whether you open one here or run
+`kapi` in a folder."
 
-Clones and worktrees with the same project id appear together under one entry
-and share one context. A checkout folder that has gone missing stays listed,
-and its context is kept. A project with no checkout on this machine opens in a
-context-only tab, which shows the context and leaves out the actions that need
-files. **Open** opens the project, **Open context** opens a project that has no
-checkout here on its context alone, and **Remove** takes it off the list
-after a confirmation. The dialog names the
-context store it deletes and the checkout folders it leaves in place.
+Clones and worktrees with the same project id share one row and one context.
+**Open** opens the first checkout, and the row's `⋯` menu lists the others. A
+checkout folder that has gone missing stays in that menu, marked Missing, and
+its context is kept. A project with no checkout on this machine shows **Open
+context** instead, which opens a context-only tab: the context, without the
+actions that need files. The menu also holds **Copy path** and **Remove**.
+Remove takes the project off the list after a confirmation, and the dialog
+names the context store it deletes and the checkout folders it leaves in place.
 
-**Holds in every project** lists the rules you applied to the whole workspace,
-one row each, with who kept it and where it was decided: "kept by you · decided
-in Acme Help Center · 12 September". Until you apply one, it says "Nothing yet.
-A rule you apply more widely in a project's review holds here, in every project
-you work on."
+**Holds in every project** appears once you apply a rule to the whole
+workspace. It lists those rules, one row each, with who kept it and where it
+was decided: "kept by you · decided in Acme Help Center · 12 September".
 
-**Start here** is three short steps for a first visit, each with a button:
+**Start here** is three short steps for a first visit, each with a button. On
+an empty workspace it comes first; once a project is listed, it moves to the
+end of the page.
 
 1. "Open a project, or try the sample. The sample arrives with an assistant's
    notes to review." **Try the sample**
@@ -76,8 +82,8 @@ you work on."
    **How it works** opens this page.
 
 Dismiss Start here when you no longer need it; Settings brings it back. The
-**Connect your AI** card follows, for the model kapi itself runs with, and
-**Quick tools** below it run one-off actions that need no project.
+**Connect your AI** card follows, for the model kapi itself runs with. Tools
+and flows that need no project are in the **Toolbox**, in the sidebar.
 
 **History**, a link beside the title, opens everything recorded in the
 workspace as its own view. See [History, and going back](#history-and-going-back).
