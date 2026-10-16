@@ -18,22 +18,23 @@ import (
 // quiet one: a whole document can go opaque for one construct, and the only
 // symptom is a page still in its source language.
 //
-// The fixture is a code span whose closing fence follows a bare carriage
-// return on the line after a line ending (#3105): the rebuild drops the "\r",
-// so the paragraph is one byte shorter than the source spelled. The escaped
-// backtick beside a code span's fence, the task list, the hard break, the
-// single-quoted title, the underscore emphasis, the quoted link whose title
+// The fixture is a paragraph with a bare carriage return before the two spaces
+// that spell a hard break: the reader hands the "\r" to neither the text nor
+// the break, so the paragraph is one byte shorter than the source spelled. The
+// escaped backtick beside a code span's fence, the task list, the hard break,
+// the single-quoted title, the underscore emphasis, the quoted link whose title
 // wrapped, the code span whose fence sat on the next line, the unbalanced
-// strikethrough, the link destination with an unbalanced parenthesis and the
-// setext heading indented after a hard break all sat here and reconstruct now,
-// and the note they carried holds for their replacement: these tests assert the
-// reporting, so the day this shape round-trips they will fail and the fixture
-// should become whatever still diverges.
+// strikethrough, the link destination with an unbalanced parenthesis, the
+// setext heading indented after a hard break and the code span closing after
+// a bare carriage return all sat here and reconstruct now, and the note they
+// carried holds for their replacement: these tests assert the reporting, so
+// the day this shape round-trips they will fail and the fixture should become
+// whatever still diverges.
 //
 // A single-block span is the deliberate choice. Quarantine salvages a span by
 // isolating the blocks that failed, so a fixture with neighbours exercises that
 // path instead, which is what TestQuarantineKeepsTheOtherBlocks is for.
-const divergingSrc = "A tick `code\n\r` in a sentence.\n"
+const divergingSrc = "One line\r  \nnext line.\n"
 
 func readAll(t *testing.T, src string) ([]*model.Block, []format.Diagnostic) {
 	t.Helper()

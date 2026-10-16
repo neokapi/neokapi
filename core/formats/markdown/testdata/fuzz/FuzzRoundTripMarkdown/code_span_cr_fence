@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("A tick `code\n\r` in a sentence.\n")
