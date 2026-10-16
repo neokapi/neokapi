@@ -855,7 +855,8 @@ async function explorerWalk(c: WalkCtx): Promise<void> {
     await page.waitForTimeout(1600);
   });
   // One pair, selected: the source string and its translation in full in the
-  // pane, with inline formatting kept as tags and names held as placeholders.
+  // pane, the other languages the entry holds, the file it came from and the
+  // key that uses it.
   await beatEls("inspect-tm", ['[data-testid^="tm-entry-"]', '[data-slot="memory-pair-detail"]'], async () => {
     const first = page.locator('[data-testid^="tm-entry-"]').first();
     await first.scrollIntoViewIfNeeded().catch(() => {});
