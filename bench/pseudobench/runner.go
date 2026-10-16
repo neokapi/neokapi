@@ -25,26 +25,19 @@ func (e *NoSuccessfulFilesError) Error() string {
 
 // runBenchmarks executes the mixed experiment for all engines.
 func runBenchmarks(cfg *Config) (*Report, error) {
-	engines, daemon, err := buildEngines(cfg)
-	if err != nil {
-		return nil, err
-	}
-	if daemon != nil {
-		defer daemon.Shutdown()
-	}
-
+	engines := buildEngines(cfg)
 	if len(engines) == 0 {
 		return nil, fmt.Errorf("no engines available")
 	}
 
-	return runEngines(engines, cfg, daemon)
+	return runEngines(engines, cfg)
 }
 
 // runEngines runs one experiment per engine and assembles the report. An
 // engine whose experiment produced no successful file fails the whole run:
 // the error names the engine, and no report is returned, so nothing reaches
 // the dataset.
-func runEngines(engines []Engine, cfg *Config, daemon *DaemonProcess) (*Report, error) {
+func runEngines(engines []Engine, cfg *Config) (*Report, error) {
 	report := &Report{
 		Metadata: collectMetadata(),
 	}
@@ -52,7 +45,7 @@ func runEngines(engines []Engine, cfg *Config, daemon *DaemonProcess) (*Report, 
 	for _, engine := range engines {
 		fmt.Printf("\n=== %s ===\n", engine.Name())
 
-		result, err := runExperiment(engine, cfg, daemon)
+		result, err := runExperiment(engine, cfg)
 		if err != nil {
 			fmt.Printf("  ERROR: %v\n", err)
 			var none *NoSuccessfulFilesError
@@ -78,7 +71,7 @@ func runEngines(engines []Engine, cfg *Config, daemon *DaemonProcess) (*Report, 
 }
 
 // runExperiment runs warmup + measurement iterations for one engine.
-func runExperiment(engine Engine, cfg *Config, daemon *DaemonProcess) (*ExperimentResult, error) {
+func runExperiment(engine Engine, cfg *Config) (*ExperimentResult, error) {
 	ctx := context.Background()
 
 	// Warmup
@@ -95,12 +88,6 @@ func runExperiment(engine Engine, cfg *Config, daemon *DaemonProcess) (*Experime
 	// Measurement iterations
 	var wallTimes, peakRSSs []float64
 	var lastFileResults []FileResult
-
-	// Start RSS sampling for daemon engine.
-	isDaemon := engine.Name() == "kapi-bridge-daemon" && daemon != nil
-	if isDaemon {
-		daemon.StartRSSSampling(500 * time.Millisecond)
-	}
 
 	// Prepare trace file path for the final iteration.
 	var traceFile string
@@ -193,19 +180,6 @@ func runExperiment(engine Engine, cfg *Config, daemon *DaemonProcess) (*Experime
 		return nil, &NoSuccessfulFilesError{Engine: engine.Name(), Attempted: exp.FilesAttempted}
 	}
 
-	// Collect daemon RSS stats.
-	if isDaemon {
-		samples := daemon.StopRSSSampling()
-		if len(samples) > 0 {
-			floats := make([]float64, len(samples))
-			for i, s := range samples {
-				floats[i] = float64(s)
-			}
-			stats := computeStats(floats)
-			exp.DaemonRssKB = &stats
-		}
-	}
-
 	// Parse batch trace JSON if trace was captured.
 	if traceFile != "" {
 		data, err := os.ReadFile(traceFile)
@@ -280,55 +254,18 @@ func runFileTrace(ctx context.Context, fp FileProcessor, cfg *Config) []FileTimi
 	return timings
 }
 
-func buildEngines(cfg *Config) ([]Engine, *DaemonProcess, error) {
+// buildEngines returns the engines the configuration names. The bench runs
+// the native kapi engine; the bridge-comparison engines live with the parity
+// suite in the okapi-bridge repository.
+func buildEngines(cfg *Config) []Engine {
 	var engines []Engine
-	var daemon *DaemonProcess
-
-	kapiVersion := ""
-	if cfg.KapiBin != "" {
-		kapiVersion = detectVersion(cfg.KapiBin)
-	}
-
 	if cfg.KapiBin != "" {
 		engines = append(engines, &KapiNativeEngine{
 			BinaryPath: cfg.KapiBin,
-			VersionStr: kapiVersion,
-		})
-		engines = append(engines, &KapiBridgeEngine{
-			BinaryPath:  cfg.KapiBin,
-			OkapiBridge: cfg.OkapiBridge,
-			VersionStr:  kapiVersion,
+			VersionStr: detectVersion(cfg.KapiBin),
 		})
 	}
-
-	// Daemon engine (requires bridge JAR).
-	if cfg.KapiBin != "" && cfg.BridgeJar != "" {
-		fmt.Print("Starting bridge daemon...")
-		d, err := StartDaemon(cfg.BridgeJar)
-		if err != nil {
-			fmt.Printf(" FAILED: %v\n", err)
-		} else {
-			daemon = d
-			fmt.Printf(" OK (PID %d, address %s)\n", d.PID(), d.Address())
-			engines = append(engines, &KapiBridgeDaemonEngine{
-				BinaryPath:  cfg.KapiBin,
-				OkapiBridge: cfg.OkapiBridge,
-				VersionStr:  kapiVersion,
-				Daemon:      d,
-			})
-		}
-	}
-
-	if cfg.OkapiBridge != "" {
-		// Version detection: kapi-okapi-bridge supports `version` subcommand.
-		okapiVersion := detectVersion(cfg.OkapiBridge)
-		engines = append(engines, &OkapiPseudoEngine{
-			BinaryPath: cfg.OkapiBridge,
-			VersionStr: okapiVersion,
-		})
-	}
-
-	return engines, daemon, nil
+	return engines
 }
 
 func collectMetadata() Metadata {
@@ -358,9 +295,6 @@ func printSummary(report *Report) {
 		fmt.Printf("  %-20s %s  %3d/%d files  %.0fms median  %.0fKB peak RSS",
 			exp.Engine, exp.Version, successCount, len(exp.FileResults),
 			exp.WallTimeMs.Median, exp.PeakRssKB.Max)
-		if exp.DaemonRssKB != nil {
-			fmt.Printf("  %.0fKB daemon RSS", exp.DaemonRssKB.Max)
-		}
 		fmt.Println()
 	}
 }

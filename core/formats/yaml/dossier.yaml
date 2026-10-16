@@ -27,6 +27,6 @@ learning_materials:
   - web/docs/reference/formats/yaml.mdx
   - scripts/gen-refs/nativedocs/formats/yaml.yaml
 divergences:
-  - core/formats/yaml/parity-annotations.yaml
+  - https://github.com/neokapi/okapi-bridge/blob/main/parity/annotations/yaml.yaml
   - core/formats/yaml/spec.yaml — expected_fail entries (bridge literal-scalar
     and strip-chomp divergences; "tracked separately", no issue numbers recorded)

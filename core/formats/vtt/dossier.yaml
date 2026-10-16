@@ -21,7 +21,7 @@ learning_materials:
   - scripts/gen-refs/nativedocs/formats/vtt.yaml
   - core/formats/vtt/spec.yaml
 divergences:
-  # No parity-annotations.yaml. The bridge divergences live as
+  # No parity annotation file in okapi-bridge/parity/annotations. The bridge divergences live as
   # expected_fail entries in spec.yaml; none carries a tracker issue
   # number yet ("Tracked separately" placeholders).
   - "core/formats/vtt/spec.yaml expected_fail entries — Okapi VTTFilter mergeCaptions=true default merges cues and joins intra-cue lines with spaces; native emits one Block per cue with line endings preserved (no tracked issue number recorded)"

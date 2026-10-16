@@ -127,9 +127,6 @@ const htmlTemplate = `<!DOCTYPE html>
 
     var ENGINE_COLORS = {
         "kapi-native":        { bg: "rgba(33,150,243,0.7)",  border: "#2196F3" },
-        "kapi-bridge":        { bg: "rgba(255,152,0,0.7)",   border: "#FF9800" },
-        "kapi-bridge-daemon": { bg: "rgba(76,175,80,0.7)",   border: "#4CAF50" },
-        "okapi":              { bg: "rgba(156,39,176,0.7)",  border: "#9C27B0" },
     };
 
     var FORMAT_COLORS = {

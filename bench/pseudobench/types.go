@@ -5,8 +5,6 @@ import "time"
 // Config holds the benchmark configuration.
 type Config struct {
 	KapiBin       string // path to kapi binary
-	OkapiBridge   string // path to kapi-okapi-bridge binary (jpackage launcher)
-	BridgeJar     string // path to bridge JAR for daemon mode
 	Iterations    int    // measurement iterations per engine
 	Warmup        int    // warmup iterations (discarded)
 	OkapiTestdata string // path to okapi-testdata root (DiscoverFixtures input)
@@ -54,7 +52,6 @@ type ExperimentResult struct {
 	Iterations  int          `json:"iterations"`
 	WallTimeMs  Stats        `json:"wallTimeMs"`
 	PeakRssKB   Stats        `json:"peakRssKB"`
-	DaemonRssKB *Stats       `json:"daemonRssKB,omitempty"`
 	FileResults []FileResult `json:"fileResults"`
 	FileTimings []FileTiming `json:"fileTimings,omitempty"`
 	BatchTrace  *BatchTrace  `json:"batchTrace,omitempty"`

@@ -23,7 +23,7 @@ format: okf_properties
 mime_type: text/x-java-properties
 
 # Parity-runner config (#852). The filter-level parity runner
-# (cli/parity/formats) sources the tikal reference corner from here rather
+# (okapi-bridge/parity/formats) sources the tikal reference corner from here rather
 # than a hand-maintained Go table.
 tikal:
   ext: .properties

@@ -84,9 +84,9 @@ Frontend work runs off a single root pnpm workspace (`pnpm-workspace.yaml`) —
 checked with `GOWORK=off` builds per module plus `make audit-modules`.
 
 **`go` does not union repeated `-tags` — the last occurrence wins.** So
-`$(GOTEST) -tags parity` silently drops the `fts5` that `$(GOTAGS)` baked in,
+`$(GOTEST) -tags integration` silently drops the `fts5` that `$(GOTAGS)` baked in,
 and `go build -tags fts5 -tags server` builds without FTS5. Spell every tag in
-one comma-separated flag (`-tags "fts5,parity"`), and reach for `$(GO)` rather
+one comma-separated flag (`-tags "fts5,integration"`), and reach for `$(GO)` rather
 than `$(GOTEST)`/`$(GOBUILD)` when a target needs its own tag set, so no macro
 can re-introduce the shadowing.
 

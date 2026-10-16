@@ -139,17 +139,19 @@ source text; there is no round-trip / writer-output assertion type.**
    `spec_test.go`): `Load` + `NewReader`; skips `bridge_only`; cleanly skips
    unavailable `okapi:` fixtures; `MergeConfig`; reads `src=en trg=fr`;
    `expected_fail` → `t.Logf`.
-2. **Parity runner** (`cli/parity/spec/runner.go`, build tag `parity`): the same
-   examples through native **and** the okapi-bridge daemon;
+2. **Parity runner** (okapi-bridge `parity/spec/runner.go`, build tag
+   `parity`): the same examples through native **and** the okapi-bridge daemon;
    bridge-satisfies / native-satisfies / bridge==native. Optional `BridgeConfig`
-   translates keys to the bridge's parameter shape.
+   translates keys to the bridge's parameter shape. The suite lives in the
+   okapi-bridge repository and reads this repo's `spec.yaml` files from the
+   released neokapi module it pins.
 3. **contract-audit** (`scripts/contract-audit/main.go`): checks `okapi_refs`
    exist in the pinned Surefire output and that config keys (by `okapi_param`)
    exist in the bridge JSON schema. The walker does **not** follow `$ref` into
    `$defs`, so specs must **not** declare inline-code config keys (they would
    read as false drift). `nativeFilterAliases` bridges `xmlstream`→`xml`.
 
-**`bridge_config` translators** (`cli/parity/formats/<fmt>_bridge_config.go`:
+**`bridge_config` translators** (okapi-bridge `parity/formats/<fmt>_bridge_config.go`:
 csv/fixedwidth/ttml/regex/xmlstream): csv/fixedwidth render the whole config to
 one Okapi `ParametersString` under the reserved `fprmContent` (per-key
 `setString` never re-runs `Parameters.load`, #530); regex uses `regexRulesJson`
@@ -181,62 +183,66 @@ spec/parity engine. Kinds observed (approx. counts):
 | `okapi_stubs_test` (json/properties/xliff/xliff2/yaml) | porting markers `// okapi: Class#method` | `okapi_stubs_test.go` |
 | `okapi_skip_test` (8 harvest) | prose why there is no Okapi counterpart | `okapi_skip_test.go` |
 | `okapi_test`/`okapi_parity_test` (mosestext/ttx/markdown) | bespoke parity | (none) |
-| `parity_spec_test` (38) | `cli/parity/formats/<id>_spec_test.go` head-to-head | (none) |
+| `parity_spec_test` (38) | okapi-bridge `parity/formats/<id>_spec_test.go` head-to-head | (none) |
 
-**Two parity layers coexist.** The older `formatSpecs` table
-(`cli/parity/formats/spec.go`, pinned manifest 1.48.0) with `Skip` constants +
-generated fixtures, **and** the newer `spec.yaml` `ParityRunner`. Some table
-`Skip` rows (csv/regex `SKIP_DIVERGENCE_453`) are stale versus now-working specs.
+**Two parity layers coexist** in the okapi-bridge suite. The older
+`formatSpecs` table (`parity/formats/spec.go`, pinned manifest 1.48.0) with
+`Skip` constants + generated fixtures, **and** the newer `spec.yaml`
+`ParityRunner`. Some table `Skip` rows (csv/regex `SKIP_DIVERGENCE_453`) are
+stale versus now-working specs.
 
-**Generated fixtures** (`fixtures_*_generated.go`, tag `parity`, "DO NOT EDIT")
-come from `scripts/okapi-test-scan` (regex, not AST) harvesting `String snippet =
-"..."`. **Regeneration is manual** (no `//go:generate`, no Makefile target):
-`go run ./scripts/okapi-test-scan -src <okapi-java>/.../src/test/java -class
-<Class> -package formats -out cli/parity/formats/fixtures_<x>_generated.go`.
+**Generated fixtures** (`parity/formats/fixtures_*_generated.go`, tag `parity`,
+"DO NOT EDIT") come from `parity/cmd/okapi-test-scan` (regex, not AST)
+harvesting `String snippet = "..."`. Regeneration is manual: `make
+regen-okapi-fixtures OKAPI_REPO=<okapi-java>` in the bridge repository.
 
 **Test helpers** import from `core/internal/testutil`: `RawDocFromString`, `RawDocFromReader`,
 `CollectBlocks`, `CollectParts`, `PartsToChannel`.
 
-## 5. The parity harness
+## 5. The parity suite (okapi-bridge repository)
 
-`cli/parity/`, build tag `parity`. `RunNative` (`native.go`): in-process
-`NewReader`+`ApplyMap`, drain `Read`. `RunBridge` (`bridge.go`): bidirectional
-`Process` gRPC to a pooled singleton okapi-bridge JVM daemon (cap one), spawned
-via `exec.Command` with the daemon arg (**not** `CommandContext`, so the JVM
-survives startup-context cancel), stdout handshake for the Unix socket; one
-`ProcessHeader` then drain until `Complete`. `AcquireBridgeDaemon` discovers
-plugins **only** from the sandbox plugins dir. `CompareEvents` uses a normalized
-canonical projection (drops skeleton ids/uris/counters, codes→placeholders,
-collapses whitespace); `CompareBytes` is byte-exact. Tikal extract-merge is an
-optional third corner and skips when absent. The `roundtrip` sub-package has
-tiers; **native defaults to `TierDivergent` (observation only), so native
-regressions never fail CI unless a per-format `MinTier` is set.**
+The suite lives in the [okapi-bridge repository](https://github.com/neokapi/okapi-bridge)
+under `parity/`, as its own Go module pinned to a released neokapi, build tag
+`parity`. `RunNative` (`native.go`): in-process `NewReader`+`ApplyMap`, drain
+`Read`. `RunBridge` (`bridge.go`): bidirectional `Process` gRPC to a singleton
+okapi-bridge JVM daemon, spawned via `exec.Command` with the daemon arg (**not**
+`CommandContext`, so the JVM survives startup-context cancel), stdout handshake
+for the Unix socket; one `ProcessHeader` then drain until `Complete`. The
+daemon is started **only** from the sandbox plugin dir. `CompareEvents` uses a
+normalized canonical projection (drops skeleton ids/uris/counters,
+codes→placeholders, collapses whitespace); `CompareBytes` is byte-exact. Tikal
+extract-merge is an optional third corner and skips when absent. The
+`roundtrip` sub-package has tiers; **native defaults to `TierDivergent`
+(observation only), so native regressions never fail the suite unless a
+per-format `MinTier` is set.**
 
-**Run parity for one format:**
+**Run parity for one format** (in the bridge checkout):
 
 ```bash
-make parity-sandbox        # builds .parity sandbox: kapi + okapi-bridge plugin
-                           # needs a JRE + the okapi clone at OKAPI_VERSION=1.48.0
-                           # ($NEOKAPI_OKAPI_DIR)
-cd cli && KAPI_PARITY_SANDBOX=<p> KAPI_PARITY_REPORT=<p> \
-  go test -tags parity -count=1 -run TestParityHtmlSpec ./parity/formats/
+make parity-sandbox        # .parity/: a released kapi (PATH or KAPI_BIN) + a fresh plugin tarball
+cd parity && KAPI_PARITY_SANDBOX=$PWD/../.parity \
+  go test -tags "fts5,parity" -count=1 -run TestParityHtmlSpec ./formats/
 ```
 
 `make parity-test` builds the sandbox + exports the env; a missing sandbox
 **hard-fails** via `RequireSandbox` unless `KAPI_PARITY_SKIP=1`.
-`make parity-publish` runs `scripts/testcompare` for the per-filter summary
-under `.parity/` (a local artifact; no parity data is published to the docs
-site). Local runs need `icu4c` on `PKG_CONFIG_PATH` + the `fts5` tag.
+`make parity-publish` runs `cmd/testcompare` for the per-filter summary under
+`.parity/`. The weekly `parity.yml` workflow there uploads both files as an
+artifact; nothing is published to the docs site and nothing here gates on it.
+The spec tests read `core/formats/<id>/spec.yaml` from the pinned neokapi
+module, so a spec change here reaches the suite with the next release (or
+locally via `KAPI_PARITY_NEOKAPI_DIR=<checkout>`).
 
 **Proves:** same input + same semantic config → native and the Okapi Java filter
 extract the same translatable block text (byte-equal serialization when
 `parity_strict`). **Limits:** `CompareEvents` discards whitespace /
 code-serialization / skeleton ids (finer fidelity needs the byte rig, which
-skips without Tikal/Okapi reference); native round-trip never fails CI without a
-`MinTier`; step parity is stability-only (~120 steps, `cli/parity/tools/spec.go`);
-**dashboards are stale caches** (regenerate after any change; a bridge that is
-byte-stable while the tier moved means native regressed; dump via
-`PARITY_DUMP`); `testcompare` ignores `parity_warn`/`expected_fail`.
+skips without Tikal/Okapi reference); native round-trip never fails without a
+`MinTier`; step parity is stability-only (~120 steps, `parity/tools/spec.go`);
+the suite measures a released kapi, so a regression here is reported after it
+ships, not before (the always-on native `spec_test.go` is the pre-merge check);
+a bridge that is byte-stable while the tier moved means native regressed (dump
+via `PARITY_DUMP`); `testcompare` ignores `parity_warn`/`expected_fail`.
 
 ## 6. Okapi mapping
 
@@ -365,9 +371,9 @@ Issue numbers are embedded in source comments and fixture names
    assertions reflecting **native** behavior; prefer `okapi:` fixtures for
    binary; do **not** declare inline-code keys.
 9. **`transform.go`** `init()` registration (if Okapi-mapped).
-10. **Parity:** `cli/parity/formats/<id>_spec_test.go` (`ParityRunner`, same
-    `spec.yaml`) + `<id>_bridge_config.go` if the param shapes differ;
-    `make parity-sandbox` then the tagged test.
+10. **Parity:** in okapi-bridge, `parity/formats/<id>_spec_test.go`
+    (`ParityRunner`, same `spec.yaml`) + `<id>_bridge_config.go` if the param
+    shapes differ; `make parity-sandbox` there, then the tagged test.
 11. **Tests:** round-trip + malformed minimum; corpus/upstream;
     invariants/acceptance for catalogs; annotate `// okapi:` / `// okapi-skip:`;
     a prose `okapi_skip_test` if there is no counterpart.

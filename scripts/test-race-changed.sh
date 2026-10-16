@@ -127,11 +127,10 @@ while IFS= read -r f; do
     [ "$rel" = "$dir" ] && rel="." # file at the module root
   fi
   # Skip a package whose files are all behind a build tag this job does not
-  # set. `ls *.go` above only catches an emptied directory; a package like
-  # cli/parity/roundtrip is entirely //go:build parity, so under GOTAGS alone
-  # it resolves to no files and `go test` reports "build constraints exclude
-  # all Go files" as a setup failure — a red job for a package this lane was
-  # never meant to cover.
+  # set. `ls *.go` above only catches an emptied directory; a package that is
+  # entirely //go:build e2e resolves to no files under GOTAGS alone, and
+  # `go test` reports "build constraints exclude all Go files" as a setup
+  # failure — a red job for a package this lane was never meant to cover.
   if ! (cd "$mod" && go list -tags "$GOTAGS" -e \
     -f '{{if or .GoFiles .TestGoFiles .XTestGoFiles}}buildable{{end}}' \
     "./$rel" 2>/dev/null | grep -q buildable); then

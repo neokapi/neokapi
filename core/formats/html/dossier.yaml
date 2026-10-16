@@ -27,4 +27,4 @@ learning_materials:
   - web/docs/reference/formats/html.mdx
   - scripts/gen-refs/nativedocs/formats/html.yaml
 divergences:
-  - core/formats/html/parity-annotations.yaml
+  - https://github.com/neokapi/okapi-bridge/blob/main/parity/annotations/html.yaml

@@ -33,7 +33,7 @@ learning_materials:
   - scripts/gen-refs/nativedocs/formats/openxml.yaml
   - docs/internals/research/openxml-faithful-writer-design.md
 divergences:
-  - core/formats/openxml/parity-annotations.yaml
+  - https://github.com/neokapi/okapi-bridge/blob/main/parity/annotations/openxml.yaml
   - core/formats/openxml/PARITY_NOTES.md
   - >-
     core/formats/openxml/spec.yaml expected_fail entries (no tracked issue

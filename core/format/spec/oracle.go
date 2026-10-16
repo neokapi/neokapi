@@ -11,7 +11,7 @@ import (
 // (format-spec-cases.md §10 step 4 — "Adjudicate"). It is the native side of
 // the §4.3 shim contract: given a candidate case, drive the native reader and
 // return the observed result as a canonical block-event dump. The parity
-// ParityRunner (cli/parity/spec, build tag "parity") runs the SAME
+// ParityRunner (okapi-bridge/parity/spec, build tag "parity") runs the SAME
 // Spec/Example through the okapi-bridge daemon and calls DumpBlockEvents on
 // the bridge parts, so the two CaseResult dumps compare structurally —
 // both-agree → candidate-pass, disagree → divergence triage, both-reject →

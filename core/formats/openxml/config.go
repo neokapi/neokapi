@@ -136,7 +136,7 @@ func (c *Config) Reset() {
 	// direct and style-based formatting resolve to the same effective
 	// formatting). Equivalence with Okapi's synth-pStyle form is proved
 	// in the parity comparator by an effective-rPr normalizer that
-	// resolves the style indirection on both sides (cli/parity/roundtrip),
+	// resolves the style indirection on both sides (okapi-bridge/parity/roundtrip),
 	// not in the writer. This mirrors the established xliff "faithful
 	// default" pattern. See the OpenXML faithful-writer design note
 	// (docs/internals/research/openxml-faithful-writer-design.md).

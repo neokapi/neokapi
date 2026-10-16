@@ -23,4 +23,4 @@ learning_materials:
   - web/docs/reference/formats/json.mdx
   - scripts/gen-refs/nativedocs/formats/json.yaml
 divergences:
-  - core/formats/json/parity-annotations.yaml
+  - https://github.com/neokapi/okapi-bridge/blob/main/parity/annotations/json.yaml

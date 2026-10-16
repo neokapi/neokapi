@@ -86,9 +86,9 @@ type config struct {
 	tags string
 }
 
-// testTags are the build tags that hold tests: the parity, integration,
+// testTags are the build tags that hold tests: the integration,
 // acceptance and end-to-end suites.
-const testTags = "fts5,parity,integration,acceptance,e2e"
+const testTags = "fts5,integration,acceptance,e2e"
 
 // configs are the build configurations, in order. The first loads every
 // package; each later one loads only the directories that still hold a file

@@ -7,12 +7,12 @@ byte-for-byte against the okapi reference engine.
 
 These are **not** production defaults. neokapi's xliff writer follows
 the XLIFF 1.2 spec and intuitive output choices. The compat layer is
-wired only in `cli/parity/roundtrip/coverage_test.go` (writerOverlay /
+wired only in okapi-bridge's `parity/roundtrip/coverage_test.go` (writerOverlay /
 nativeConfig).
 
 The okapi sources cited here are from the upstream `okapi-framework/okapi`
 repository, snapshot 1.48.0 in our test data tarball
-(`.parity/okapi-testdata/1.48.0/okapi/filters/xliff/src/main/java/net/sf/okapi/filters/xliff/`).
+(`okapi-testdata/<version>/okapi/filters/xliff/src/main/java/net/sf/okapi/filters/xliff/`).
 See the corresponding upstream test fixtures under
 `integration-tests/okapi/src/test/resources/xliff/` and
 `okapi/filters/xliff/src/test/resources/`.

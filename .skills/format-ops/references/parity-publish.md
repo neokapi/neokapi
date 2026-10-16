@@ -1,69 +1,75 @@
-# parity-publish — refresh the parity dashboard data
+# parity-publish — read the okapi-bridge parity report
 
 ## Purpose
 
-Re-run the head-to-head parity suite against okapi-bridge and publish fresh
-dashboard JSON. The parity report is a cache over the code; this ritual owns
-its freshness contract.
+The head-to-head parity suite lives in the okapi-bridge repository
+(`parity/`) and runs there on a weekly schedule against the latest kapi
+release. This ritual reads its latest report, compares it with the previous
+one, and files what moved. It owns the freshness contract of the local copy;
+it does not run the suite.
 
 ## Due when
 
 - 30-day cadence elapsed; or
 - parity-affecting paths changed since the report's `generated_at`
-  (`git log -1 --since=<generated_at> --format=%H -- core/formats cli/parity`
+  (`git log -1 --since=<generated_at> --format=%H -- core/formats`
   non-empty); or
 - `watermarks.report_generated_at` ≠ the report file's `generated_at`
-  (orphan — adopt per the reconcile preamble instead of re-running).
+  (orphan — adopt per the reconcile preamble instead of re-fetching).
 
 ## Inputs
 
-- `make parity-sandbox` — builds the sandbox (kapi + okapi-bridge plugin).
-  Prerequisite; needs Java + the pinned Okapi version.
-- `make parity-publish` — runs the parity suite and writes the per-filter
-  summary to `.parity/parity-report.json`. It is a local maintainer artifact:
-  parity data is no longer published to the documentation site (#1073).
-- Environment: `fts5` build tag wiring and icu4c on `PKG_CONFIG_PATH` are
-  handled by the make targets; do not hand-roll `go test` invocations here.
+- The latest successful run of the `Parity` workflow in
+  `neokapi/okapi-bridge` and its `parity-report` artifact
+  (`test-comparison.json` + `parity-report.json`).
+- `gh` authenticated for the `neokapi` organisation.
+- The previous local copy under `.parity/` (gitignored), if any.
 
 ## Steps (low freedom — exact commands)
 
 ```bash
-make parity-sandbox
-make parity-publish
+mkdir -p .parity
+[ -f .parity/parity-report.json ] && cp .parity/parity-report.json /tmp/parity-prev.json
+run=$(gh run list -R neokapi/okapi-bridge --workflow parity.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId')
+gh run download -R neokapi/okapi-bridge "$run" -n parity-report -D .parity
 ```
 
-1. Run the two targets above. `make parity-publish` regenerates
-   `.parity/parity-report.json` with a fresh `generated_at`.
-2. Diff the new report against the copy from the previous run. The sandbox is
-   gitignored, so keep the prior report aside before re-running (`cp
-   .parity/parity-report.json /tmp/parity-prev.json`) and `diff` against it.
-   Tier movements are findings, not noise: a bridge that stayed byte-stable
-   while a native tier moved means **native regressed** — file it as a
-   followup for `remediate` (or fix immediately if within budget).
-   Remember: native round-trip defaults to `TierDivergent` unless a
-   per-format `MinTier` is set — absence of red is not proof of parity.
-3. Any newly-passing `expected_fail` the runner logs ("assertions pass") is a
+1. Download the latest report as above. A run that is older than the latest
+   kapi release measured the release before it; note the version in the run
+   log (`kapi version` is printed by setup-kapi) in the ledger entry.
+2. Diff `.parity/parity-report.json` against `/tmp/parity-prev.json`. Tier
+   movements are findings, not noise: a bridge that stayed byte-stable while a
+   native tier moved means **native regressed** — file it as a followup for
+   `remediate` (or fix immediately if within budget). Remember: native
+   round-trip defaults to `TierDivergent` unless a per-format `MinTier` is set
+   — absence of red is not proof of parity.
+3. Any newly-passing `expected_fail` the runner logged ("assertions pass") is a
    stale xfail — note it as a followup for `xfail-hygiene`.
+4. A spec change in this repo reaches the suite only once a release carries
+   it. To measure a change before release, run the suite locally in the bridge
+   checkout with `KAPI_PARITY_NEOKAPI_DIR=<this checkout>`.
 
 ## Verification (→ `runs[].evidence`)
 
-- `{check: "make parity-publish", exit, output_sha: sha256(command output)}`.
-- The report parses and `generated_at` is today.
+- `{check: "gh run download parity-report", exit, run_id, output_sha:
+  sha256(parity-report.json)}`.
+- The report parses and `generated_at` is the run's date.
 
 ## Ledger updates
 
 - `last_run` = today.
-- `watermarks.report_generated_at` = the new report's `generated_at`.
+- `watermarks.report_generated_at` = the report's `generated_at`.
 - `watermarks.main_sha` = `git rev-parse HEAD`.
 - `runs[]` entry; commit the ledger (the report itself is gitignored).
 
 ## Outputs
 
-Fresh `.parity/parity-report.json`; followups for regressions and stale
-xfails. Nothing is committed — the report lives in the gitignored sandbox.
+A fresh `.parity/parity-report.json`; followups for regressions and stale
+xfails. Nothing is committed — the report lives under the gitignored
+`.parity/`.
 
 ## Failure → blocked
 
-Sandbox build failure (Java/Okapi missing) or suite crash →
-`outcome: "blocked"` with the failing target's output sha. Never publish a
-report from a partial run; never edit the JSON by hand.
+No successful run in the last two weeks, or an artifact that does not parse →
+`outcome: "blocked"` with the run id and the failing step. Never edit the JSON
+by hand.

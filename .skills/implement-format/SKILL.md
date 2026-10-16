@@ -136,10 +136,11 @@ format surfaces in the CLI, UI, and reference docs.
   (contract-audit can't follow `$ref` into `$defs` → false drift).
 - `spec_test.go` wires `spec.NativeRunner`.
 - `transform.go`: register the Okapi config-kind transform in `init()`.
-- `cli/parity/formats/<id>_spec_test.go`: the `ParityRunner` over the same
-  `spec.yaml`; add `<id>_bridge_config.go` if the bridge's param shape differs.
-- Run it: `make parity-sandbox` then
-  `cd cli && go test -tags parity -run TestParity<Id>Spec ./parity/formats/`.
+- In the okapi-bridge repository, `parity/formats/<id>_spec_test.go`: the
+  `ParityRunner` over the same `spec.yaml`; add `<id>_bridge_config.go` if the
+  bridge's param shape differs.
+- Run it there: `make parity-sandbox` then
+  `cd parity && KAPI_PARITY_NEOKAPI_DIR=<this checkout> go test -tags "fts5,parity" -run TestParity<Id>Spec ./formats/`.
 - A **pure default-only** native-vs-bridge difference is **not** an
   `expected_fail` — converge it with explicit config in `bridge_config`. Every
   real `expected_fail` gets a non-`default-diff` `divergence_kind` citing spec +

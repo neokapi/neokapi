@@ -405,7 +405,7 @@ that every writer follows instead:
 2. **Symmetric compare-time canonicalization.** Cosmetic differences between
    two writers (attribute order, namespace decls, self-closing vs
    open/close, insignificant whitespace) are cancelled by the shared
-   `XMLCanonical` normalizer (`cli/parity/roundtrip/normalizers.go`), applied
+   `XMLCanonical` normalizer (okapi-bridge `parity/roundtrip/normalizers.go`), applied
    to **both** `got` and `ref`. Reaching the `canon` tier rather than `byte` is
    the norm and is sufficient.
 3. **Structural merges as canonicalization, not write-side rewriting.**

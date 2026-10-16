@@ -11,7 +11,7 @@ import (
 
 // TestSpec drives every Feature × Example in spec.yaml through the
 // native XML reader. The same spec.yaml drives the parity bridge
-// runner under cli/parity/formats/xmlstream_spec_test.go so a single
+// runner (okapi-bridge/parity/formats/xmlstream_spec_test.go) so a single
 // authored description covers both implementations.
 func TestSpec(t *testing.T) {
 	s, err := spec.Load("spec.yaml")

@@ -113,7 +113,7 @@ type-asserts the anonymous interface, so a config that lacks the setter is left
 at its own default:
 
 ```go
-// cli/parity/spec/runner.go (runNative)
+// okapi-bridge parity/spec/runner.go (runNative)
 if c := reader.Config(); c != nil {
     if d, ok := c.(interface{ SetExtractNonTranslatableContent(bool) }); ok {
         d.SetExtractNonTranslatableContent(false)
@@ -287,7 +287,7 @@ regardless.
 
 ## Parity safety of the carriers
 
-The canonical parity projection (`cli/parity/normalize.go`, `CanonicalPart` /
+The canonical parity projection (okapi-bridge `parity/normalize.go`, `CanonicalPart` /
 `Canonicalize`) compares only part type, identity, `Translatable`, and rendered
 source/target text. It *omits* `SemanticRole`/structure annotations,
 `Properties`, block annotations (including notes), and the placeholder

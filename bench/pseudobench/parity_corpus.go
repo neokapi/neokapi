@@ -1,18 +1,13 @@
 package main
 
-// CorpusFormat describes how to discover the okapi-testdata fixtures
-// for one format and which Okapi filter class to use when invoking the
-// `kapi-okapi-bridge pseudo` reference engine. Mirrors the per-format
-// scan metadata in cli/parity/roundtrip/coverage_test.go (formatScan)
-// so the bench's input set stays aligned with the parity harness's
-// input set.
+// CorpusFormat describes how to discover the okapi-testdata fixtures for
+// one format. The same table drives the parity suite's round-trip
+// coverage in the okapi-bridge repository (parity/roundtrip), so the
+// bench's input set and the parity input set stay aligned; the Okapi
+// filter class and parameters are kept here for that reason.
 //
-// This file deliberately duplicates the format → {filterClass, sources,
-// extensions, …} mapping rather than importing the parity test (which
-// is under a `parity` build tag and lives in another go module). The
-// per-format data is small, low-churn, and easy to keep in sync;
-// drift would surface immediately as missing fixtures or "no input"
-// errors from a bench run.
+// The per-format data is small and low-churn; drift surfaces immediately
+// as missing fixtures or "no input" errors from a bench run.
 type CorpusFormat struct {
 	FormatID    string
 	FilterClass string
@@ -25,7 +20,7 @@ type CorpusFormat struct {
 	Recurse       bool
 	ExplicitFiles []string
 
-	// OkapiParamConfig is forwarded to `kapi-okapi-bridge pseudo`'s
+	// OkapiParamConfig is the raw .fprm content the okapi-bridge parity suite forwards to `kapi-okapi-bridge pseudo`'s
 	// `--fprm` flag (raw .fprm content). Used by VTT/TTML to disable
 	// caption-merging on round-trip.
 	OkapiParamConfig string

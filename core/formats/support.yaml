@@ -57,7 +57,7 @@ formats:
     last_certified: "2026-09-15"
     grandfathered: true
     gates:
-      - .github/workflows/parity.yml
+      - make test
   designtokens:
     tier: available
     tier_since: "2026-06-12"
@@ -111,14 +111,14 @@ formats:
     last_certified: "2026-09-15"
     grandfathered: true
     gates:
-      - .github/workflows/parity.yml
+      - make test
   html:
     tier: available
     tier_since: "2026-06-12"
     last_certified: "2026-09-15"
     grandfathered: true
     gates:
-      - .github/workflows/parity.yml
+      - make test
   i18next:
     tier: available
     tier_since: "2026-06-12"
@@ -132,14 +132,14 @@ formats:
     last_certified: "2026-09-15"
     grandfathered: true
     gates:
-      - .github/workflows/parity.yml
+      - make test
   markdown:
     tier: available
     tier_since: "2026-06-12"
     last_certified: "2026-09-15"
     grandfathered: true
     gates:
-      - .github/workflows/parity.yml
+      - make test
   mdx:
     tier: available
     tier_since: "2026-06-12"
@@ -153,7 +153,7 @@ formats:
     last_certified: "2026-09-15"
     grandfathered: true
     gates:
-      - .github/workflows/parity.yml
+      - make test
   mo:
     tier: available
     tier_since: "2026-06-12"
@@ -171,14 +171,14 @@ formats:
     last_certified: "2026-09-15"
     grandfathered: true
     gates:
-      - .github/workflows/parity.yml
+      - make test
   openxml:
     tier: maintained
     tier_since: "2026-06-12"
     last_certified: "2026-09-15"
     grandfathered: true
     gates:
-      - .github/workflows/parity.yml
+      - make test
   pdf:
     tier: available
     tier_since: "2026-06-19"
@@ -198,21 +198,21 @@ formats:
     last_certified: "2026-09-15"
     grandfathered: true
     gates:
-      - .github/workflows/parity.yml
+      - make test
   po:
     tier: maintained
     tier_since: "2026-06-12"
     last_certified: "2026-09-15"
     grandfathered: true
     gates:
-      - .github/workflows/parity.yml
+      - make test
   properties:
     tier: maintained
     tier_since: "2026-06-12"
     last_certified: "2026-09-15"
     grandfathered: true
     gates:
-      - .github/workflows/parity.yml
+      - make test
   resx:
     tier: maintained
     tier_since: "2026-06-12"
@@ -244,29 +244,29 @@ formats:
     gates:
       - make test
     notes: >-
-      No cli/parity/formats/srt_spec_test.go yet; package tests are the only
-      gate.
+      No parity spec test in okapi-bridge/parity yet; package tests are the
+      only gate.
   tmx:
     tier: maintained
     tier_since: "2026-06-12"
     last_certified: "2026-09-15"
     grandfathered: true
     gates:
-      - .github/workflows/parity.yml
+      - make test
   ts:
     tier: maintained
     tier_since: "2026-06-12"
     last_certified: "2026-09-15"
     grandfathered: true
     gates:
-      - .github/workflows/parity.yml
+      - make test
   vtt:
     tier: maintained
     tier_since: "2026-06-12"
     last_certified: "2026-09-15"
     grandfathered: true
     gates:
-      - .github/workflows/parity.yml
+      - make test
   xcstrings:
     tier: maintained
     tier_since: "2026-06-12"
@@ -280,28 +280,28 @@ formats:
     last_certified: "2026-09-15"
     grandfathered: true
     gates:
-      - .github/workflows/parity.yml
+      - make test
   xliff2:
     tier: maintained
     tier_since: "2026-06-12"
     last_certified: "2026-09-15"
     grandfathered: true
     gates:
-      - .github/workflows/parity.yml
+      - make test
   xml:
     tier: maintained
     tier_since: "2026-06-12"
     last_certified: "2026-09-15"
     grandfathered: true
     gates:
-      - .github/workflows/parity.yml
+      - make test
     notes: >-
-      Parity wiring lives in cli/parity/formats/xmlstream_spec_test.go (file
-      name does not match the format id).
+      Parity wiring lives in okapi-bridge/parity/formats/xmlstream_spec_test.go
+      (file name does not match the format id).
   yaml:
     tier: maintained
     tier_since: "2026-06-12"
     last_certified: "2026-09-15"
     grandfathered: true
     gates:
-      - .github/workflows/parity.yml
+      - make test

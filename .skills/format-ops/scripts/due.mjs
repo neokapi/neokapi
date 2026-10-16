@@ -281,8 +281,8 @@ for (const id of Object.keys(R)) results[id] = { reasons: [], notes: [] };
   scalarSignal(reasons, notes, 'report_generated_at', parity?.generated_at ?? null, r.watermarks.report_generated_at);
   const since = r.watermarks.report_generated_at || r.last_run;
   if (since) {
-    const changed = git(root, ['log', '-1', '--since', since, '--format=%H', '--', 'core/formats', 'cli/parity']);
-    if (changed) reasons.push(`parity-affecting paths changed since report (${changed.slice(0, 12)} in core/formats|cli/parity)`);
+    const changed = git(root, ['log', '-1', '--since', since, '--format=%H', '--', 'core/formats']);
+    if (changed) reasons.push(`parity-affecting paths changed since report (${changed.slice(0, 12)} in core/formats)`);
   }
 }
 

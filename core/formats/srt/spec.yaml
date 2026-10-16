@@ -10,8 +10,8 @@
 # okf_subrip filter. Upstream Okapi handles SubRip via okf_regex with a
 # format-specific rule pack, so there's no apples-to-apples bridge to
 # parity-test against. The native reader carries the contract; this
-# spec exercises the always-on native runner only. No
-# `cli/parity/formats/srt_spec_test.go` is added.
+# spec exercises the always-on native runner only. No parity spec test
+# is added in okapi-bridge/parity.
 #
 # Authoring notes:
 #   - input_xml carries inline SRT snippets (the field is named for XML

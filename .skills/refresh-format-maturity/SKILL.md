@@ -78,8 +78,8 @@ Knowledge axis). **Read the test bodies**:
   prose `okapi_skip_test`?
 
 Run the targeted tests: `go test ./core/formats/<id>/...` and, if the format has
-a parity counterpart, `make parity-sandbox` then
-`cd cli && go test -tags parity -count=1 -run TestParity<Id>Spec ./parity/formats/`.
+a parity counterpart, in the okapi-bridge checkout `make parity-sandbox` then
+`cd parity && KAPI_PARITY_NEOKAPI_DIR=<this checkout> go test -tags "fts5,parity" -count=1 -run TestParity<Id>Spec ./formats/`.
 
 **Vocabulary (V0–V3)** — open `vocabulary.yaml` and spot-check the evidence the
 audit resolved: do the cited tests prove the reader emits the claimed canonical
@@ -112,7 +112,7 @@ level.
 
 ## Step 3 — Divergence / xfail hygiene
 
-Open `spec.yaml` and `core/formats/<id>/parity-annotations.yaml`. For **every**
+Open `spec.yaml` and okapi-bridge's `parity/annotations/<id>.yaml`. For **every**
 `expected_fail`:
 
 1. `divergence_kind` is set;
@@ -123,7 +123,7 @@ Open `spec.yaml` and `core/formats/<id>/parity-annotations.yaml`. For **every**
 
 Flag any `expected_fail` whose runner now logs that assertions pass (a stale
 xfail to remove) — that log is the only safety net. Treat
-`parity-annotations.yaml` reason text as suspect until re-verified against a live
+annotation reason text as suspect until re-verified against a live
 `PARITY_DUMP` (it has been stale/inverted before).
 
 ## Step 4 — Sweep upstream Okapi for fixes
@@ -206,5 +206,5 @@ ledger's `pending[]` queue.
   registries `core/formats/{constructs,support,integrations}.yaml`,
   `specs/catalog.yaml`
 - Axis checkers: `scripts/format-ops/{check-citations,context-pack,gen-corpus-manifest,check-support-gates}.mjs`
-- `scripts/contract-audit/main.go`, `cli/parity/`,
-  `core/formats/<id>/parity-annotations.yaml`
+- `scripts/contract-audit/main.go`; in okapi-bridge, `parity/` and
+  `parity/annotations/<id>.yaml`

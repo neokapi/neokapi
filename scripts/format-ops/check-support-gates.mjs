@@ -24,7 +24,7 @@
 //   - tier_since is an ISO date; last_certified is null or an ISO date
 //   - every entry's gates name files that exist under .github/workflows/
 //     (or the literal "make test"); Supported entries must have >= 1 gate
-//   - Supported parity formats: cli/parity/formats/<id>_spec_test.go exists
+//   - Supported formats with an Okapi counterpart: core/formats/<id>/spec_test.go exists
 //     (aliases: phpcontent -> php, xml -> xmlstream)
 //   - Supported harvest formats: acceptance + invariants tests exist under
 //     core/formats/<id>/
@@ -83,7 +83,6 @@ import {
   DEFAULT_ROOT,
   EXCLUDED_FORMAT_DIRS,
   HARVEST_FORMATS,
-  PARITY_TEST_ALIASES,
   Problems,
   isISODate,
   isPlainObject,
@@ -95,7 +94,7 @@ const requireFromHere = createRequire(import.meta.url);
 
 // Route mode reads only two narrow fields — each format's `tier` from
 // support.yaml and the top-level `format:` from each spec.yaml — and is the
-// mode wired into a Go/Java CI job (parity.yml) that has no node_modules. So it
+// mode usable from a plain `node` with no node_modules. So it
 // must NOT hard-depend on js-yaml: it prefers js-yaml when resolvable, and
 // otherwise falls back to a minimal line extractor for those two fields.
 // Default (schema-validation) mode is unchanged and still requires js-yaml via
@@ -269,10 +268,9 @@ function runDefault({ file, root }) {
           p.error(`${at}: Supported harvest format has no invariants test (core/formats/${id}/invariants_test.go)`);
         }
       } else {
-        const base = PARITY_TEST_ALIASES[id] ?? id;
-        const parity = path.join(root, "cli", "parity", "formats", `${base}_spec_test.go`);
-        if (!fs.existsSync(parity)) {
-          p.error(`${at}: Supported parity format has no parity spec test (cli/parity/formats/${base}_spec_test.go)`);
+        const dir = path.join(root, "core", "formats", id);
+        if (!hasFileMatching(dir, /^spec_test\.go$/)) {
+          p.error(`${at}: Supported format has no spec test (core/formats/${id}/spec_test.go)`);
         }
       }
     }

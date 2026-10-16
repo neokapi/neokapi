@@ -43,7 +43,7 @@ func benchConfig(t *testing.T) *Config {
 func TestRunEngines_ZeroSuccessfulFilesFailsTheRun(t *testing.T) {
 	engine := &fakeEngine{name: "kapi-native", success: []bool{false, false}}
 
-	report, err := runEngines([]Engine{engine}, benchConfig(t), nil)
+	report, err := runEngines([]Engine{engine}, benchConfig(t))
 	if err == nil {
 		t.Fatal("a run in which no file succeeded returned a report")
 	}
@@ -62,7 +62,7 @@ func TestRunEngines_ZeroSuccessfulFilesFailsTheRun(t *testing.T) {
 func TestRunEngines_PartialSuccessIsAResult(t *testing.T) {
 	engine := &fakeEngine{name: "kapi-native", success: []bool{true, false}}
 
-	report, err := runEngines([]Engine{engine}, benchConfig(t), nil)
+	report, err := runEngines([]Engine{engine}, benchConfig(t))
 	if err != nil {
 		t.Fatalf("a run with one successful file failed: %v", err)
 	}
@@ -82,7 +82,7 @@ func TestRunEngines_AnyEngineWithoutSuccessFailsTheRun(t *testing.T) {
 	good := &fakeEngine{name: "okapi", success: []bool{true, true}}
 	empty := &fakeEngine{name: "kapi-bridge", success: []bool{false, false}}
 
-	report, err := runEngines([]Engine{good, empty}, benchConfig(t), nil)
+	report, err := runEngines([]Engine{good, empty}, benchConfig(t))
 	if err == nil || report != nil {
 		t.Fatalf("got report=%v err=%v, want no report and an error", report != nil, err)
 	}

@@ -19,8 +19,6 @@ use (
 	./scripts/gen-contract-types
 	./scripts/gen-refs
 	./scripts/mkappcast
-	./scripts/okapi-test-scan
 	./scripts/projectionguard
 	./scripts/proseprobe
-	./scripts/testcompare
 )

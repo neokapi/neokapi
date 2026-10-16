@@ -1,8 +1,8 @@
 ---
 sidebar_position: 7
 title: Testing Strategy
-description: "neokapi's test strategy: roundtrip gold-standard tests for formats, table-driven tests, parity tests against Okapi Framework data, mock AI providers for CI, and integration tests for flows."
-keywords: [testing, roundtrip, table-driven tests, parity, Okapi, testify, mock providers, neokapi]
+description: "neokapi's test strategy: roundtrip gold-standard tests for formats, table-driven tests, spec suites driven by each format's spec.yaml, mock AI providers for CI, and integration tests for flows."
+keywords: [testing, roundtrip, table-driven tests, spec.yaml, Okapi, testify, mock providers, neokapi]
 ---
 
 # Test Strategy
@@ -159,7 +159,7 @@ go test -tags fts5 ./core/flow/ -run TestFlowExecutorContextCancellation -v
 Pass `-tags fts5` whenever you bypass `make`. The build succeeds without it, and
 only a query that reaches FTS5 (content memory, terms) fails at runtime with
 `no such function: fts5`. Spell every tag in one comma-separated flag
-(`-tags "fts5,parity"`): `go` keeps only the last `-tags` occurrence.
+(`-tags "fts5,integration"`): `go` keeps only the last `-tags` occurrence.
 
 ## Test Tags
 
@@ -168,8 +168,12 @@ only a query that reaches FTS5 (content memory, terms) fails at runtime with
 | (none)        | Unit tests only                          | `go test -tags fts5 ./...`                 |
 | `integration` | + plugin and format integration          | `go test -tags "fts5,integration" ./...`   |
 | `acceptance`  | + native-format consumer-toolchain tests | `go test -tags "fts5,acceptance" ./...`    |
-| `parity`      | + Okapi parity comparison tests          | `go test -tags "fts5,parity" ./...`        |
 | `e2e`         | + end-to-end tests                       | `go test -tags "fts5,e2e" ./...`           |
+
+The head-to-head comparison of the Go ports against the Okapi Framework is a
+separate suite in the [okapi-bridge repository](https://github.com/neokapi/okapi-bridge)
+(`parity/`). It compiles against a released neokapi module and runs on a
+schedule there; see [A-02](/contribute/architecture/assurance/a-02-parity).
 
 ## CI
 
