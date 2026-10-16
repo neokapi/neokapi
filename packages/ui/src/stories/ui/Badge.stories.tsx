@@ -10,6 +10,7 @@ import { Badge } from "../../components/ui/badge";
 const meta: Meta<typeof Badge> = {
   title: "Foundations/Badge",
   component: Badge,
+  tags: ["autodocs"],
   parameters: { layout: "padded" },
   args: { children: "1 needs you", variant: "warning" },
   argTypes: {
