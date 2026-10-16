@@ -270,10 +270,21 @@ case:
 
 ## The dashboard and the decision inbox
 
-The **Dashboard** rolls the hub up into the questions a steward asks daily:
-aggregate compliance, drift, coverage, and the pending decisions. The decision
-inbox is deliberately plain: a list of proposals, each with a human-readable
-summary, its blast radius, and an approve-or-reject choice.
+The **Dashboard** opens on the workspace's counts: projects, concepts,
+suggested rules, what needs you, active experiments and voice profiles.
+**What's new** sits below them and lists what waits for a decision first. A
+change-set in review or approved shows who proposed it, how long it has waited
+and the blast radius stored when it was submitted. Its button opens the
+change-set, where a reviewer approves or rejects it. A voice profile whose
+team's corrections suggest rules has a row that counts them by kind, and its
+button opens the profile's [review](/server/context-voice#where-it-shows-up).
+The change-sets that moved most recently follow.
+
+Each project then has one row: its voice profile, its latest compliance score
+against that profile's bar, the trend, whether it is drifting, and when it was
+last checked. One project's compliance over time, terms by status, each
+language's coverage, the markets and the most recently changed concepts sit
+below the projects.
 
 The **Activity** section is the workspace-scoped event timeline: concepts
 created and updated, statuses changed, relations gained and lost, observations
