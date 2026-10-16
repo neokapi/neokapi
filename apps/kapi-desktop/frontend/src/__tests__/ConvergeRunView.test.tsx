@@ -1,6 +1,6 @@
 import { render, screen, within } from "./testUtils";
 import userEvent from "@testing-library/user-event";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi } from "vite-plus/test";
 import { ConvergeRunView } from "../components/ConvergeRunView";
 import type { RunEvent } from "../context/JobFeedContext";
 import type { ConvergeEvent } from "../types/api";

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { buildTimeline, dayKey, sortTimeline, synthesizeTimeline } from "../timeline";
 import type { Concept, TimelineEvent } from "../types";
 

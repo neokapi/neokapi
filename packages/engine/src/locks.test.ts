@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { LOCK_EXCLUSIVE, LOCK_NONE, LOCK_RESERVED, LOCK_SHARED, LockTable } from "./locks.ts";
 
 const OK = 0;

@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import { reduceRun, applyEvent, emptyRunModel } from "../convergence-fold";
 import type { ConvergenceEvent } from "../convergence-fold";
 

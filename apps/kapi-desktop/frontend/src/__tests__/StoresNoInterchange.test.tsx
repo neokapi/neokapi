@@ -1,5 +1,5 @@
 import { render, screen, waitFor } from "./testUtils";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi } from "vite-plus/test";
 
 // The store pages read every value through the Wails-bridge API; mock it so the
 // open-store dashboards render without a Wails runtime.

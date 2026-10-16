@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 
 // The runtime refuses a step holding a parallel: list, and the editor creates
 // none. A flow loaded with one still has to be drawn, so the reader sees the

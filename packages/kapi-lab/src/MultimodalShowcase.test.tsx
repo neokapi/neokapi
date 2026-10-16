@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect } from "vite-plus/test";
 import { cleanup, render, screen, fireEvent } from "@testing-library/react";
 import MultimodalShowcase from "./MultimodalShowcase";
 

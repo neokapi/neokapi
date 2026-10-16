@@ -12,7 +12,7 @@
  * at build time (covered by the hash-parity suite).
  */
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 
 import type { PluralRunWrapper } from "@neokapi/kapi-format";
 import { newFile, marshalFile, sourceRuns } from "@neokapi/kapi-format";

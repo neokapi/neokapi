@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "./testUtils";
 import userEvent from "@testing-library/user-event";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
 import { Events } from "@wailsio/runtime";
 import type { FlowTrace } from "@neokapi/flow-editor";
 import type { FlowSpec, RunTraces } from "../types/api";

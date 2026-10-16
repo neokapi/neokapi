@@ -6,7 +6,7 @@
 // actual builder, then asserts the roadmap mounts and surfaces a locale label.
 
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { EvolutionRoadmap } from "./EvolutionRoadmap";
 import { buildEvolutionModel } from "./evolution-model";
 import type { EvolutionInput } from "./evolution-model";

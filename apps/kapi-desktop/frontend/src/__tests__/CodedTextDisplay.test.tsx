@@ -1,5 +1,5 @@
 import { render, screen } from "./testUtils";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import { CodedTextDisplay } from "@neokapi/ui-primitives";
 import type { Run } from "@neokapi/ui-primitives";
 

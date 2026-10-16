@@ -50,8 +50,7 @@
     "@lexical/react": "^0.52.0",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "lexical": "^0.52.0",
-    "vitest": "^5.0.3"
+    "lexical": "^0.52.0"
   },
   "peerDependencies": {
     "@lexical/react": "^0.52.0",

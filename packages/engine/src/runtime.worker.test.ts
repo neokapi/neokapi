@@ -1,7 +1,7 @@
 // The facade over an engine in a Worker, against a stand-in Worker that speaks
 // the protocol (protocol.ts): what a tab does when another tab takes its
 // workspace over, and when it takes the workspace over itself.
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import type { FromWorker, ToWorker, WorkerBoot } from "./protocol.ts";
 import type { StorageInfo } from "./storage.ts";
 

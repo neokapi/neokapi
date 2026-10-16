@@ -10,7 +10,7 @@
  * runtime consumes, and the hash it looks that string up by.
  */
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 
 import type { Block, PlaceholderRun, TextRun } from "@neokapi/kapi-format";
 import { flattenRuns, sourceRuns } from "@neokapi/kapi-format";

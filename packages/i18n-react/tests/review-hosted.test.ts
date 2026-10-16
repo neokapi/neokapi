@@ -5,7 +5,7 @@
  * context. Also covers the toolbar toggle and untranslated highlighting.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import type { ReviewManifest } from "../src/review/manifest.ts";
 

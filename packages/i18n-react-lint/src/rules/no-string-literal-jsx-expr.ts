@@ -1,4 +1,4 @@
-import type { Rule, Node } from "@oxlint/plugins";
+import type { Rule, Node } from "vite-plus/lint/plugins";
 
 /**
  * Flags `<p>{'Hello'}</p>` — a bare string literal inside a JSX

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import userEvent from "@testing-library/user-event";
 import { render, screen } from "./testUtils";
 

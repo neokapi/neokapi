@@ -1,4 +1,4 @@
-import type { Context } from "@oxlint/plugins";
+import type { Context } from "vite-plus/lint/plugins";
 import type { ImportDeclaration, Node, Program } from "estree";
 
 /**

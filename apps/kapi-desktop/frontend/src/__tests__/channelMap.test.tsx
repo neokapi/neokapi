@@ -1,6 +1,6 @@
 import { render, screen, within } from "./testUtils";
 import userEvent from "@testing-library/user-event";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi } from "vite-plus/test";
 import type { ChannelMapRow } from "../types/api";
 import { ChannelMap, ChannelRow } from "../components/channels/ChannelMap";
 

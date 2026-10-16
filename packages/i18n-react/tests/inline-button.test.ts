@@ -14,7 +14,7 @@
  * the key it has always had.
  */
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 
 import type { Block, Document, PcCloseRun, PcOpenRun, Run, TextRun } from "@neokapi/kapi-format";
 import { sourceRuns } from "@neokapi/kapi-format";

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { render, screen } from "@testing-library/react";
 import { treeToRenderDoc } from "@neokapi/ui-primitives/preview";
 import {

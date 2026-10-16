@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, createElement, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import type { Block, Run } from "@neokapi/kapi-format";
 import { sourceEditions } from "@neokapi/kapi-format";

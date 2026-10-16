@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { groupRows, groupSize, keyedRows, rowLocales, splitKeyPath } from "./keyModel";
 import type { ContentNode, ContentTree } from "./types";
 

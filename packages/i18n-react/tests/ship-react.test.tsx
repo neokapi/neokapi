@@ -6,7 +6,7 @@
  * resolves labels from an empty manifest, so no fetch needs to resolve to
  * observe the labelling.
  */
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 

@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "./testUtils";
 import userEvent from "@testing-library/user-event";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi } from "vite-plus/test";
 import { EntityAnnotationDialog } from "@neokapi/ui-primitives";
 import type { AnnotateResult, EntityPatternRequest } from "@neokapi/ui-primitives";
 

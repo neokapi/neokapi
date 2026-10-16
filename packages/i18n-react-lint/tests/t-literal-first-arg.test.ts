@@ -1,4 +1,4 @@
-import { describe, it } from "vitest";
+import { describe, it } from "vite-plus/test";
 import { run } from "./rule-tester.ts";
 import { rule } from "../src/rules/t-literal-first-arg.ts";
 

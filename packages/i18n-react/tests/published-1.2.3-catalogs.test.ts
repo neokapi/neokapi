@@ -9,7 +9,7 @@
  * converge the tree rather than leave two catalogs per source behind (#2599).
  */
 
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vite-plus/test";
 import {
   existsSync,
   mkdirSync,

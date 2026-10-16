@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { Linter } from "eslint";
 import type { ESLint } from "eslint";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { plugin } from "../src/index.ts";
 import { recommendedStrict } from "../src/configs/recommended-strict.ts";
 
@@ -29,7 +29,7 @@ describe("integration: recommended-strict fires on every mistake", () => {
           sourceType: "module",
           parserOptions: { ecmaFeatures: { jsx: true } },
         },
-        // Rules are authored against @oxlint/plugins types; bridge to
+        // Rules are authored against oxlint's plugin types; bridge to
         // ESLint's plugin type at this ESLint-path test boundary.
         plugins: { "neokapi-i18n": plugin as unknown as ESLint.Plugin },
         rules: recommendedStrict.rules,

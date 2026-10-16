@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import { resolveEffectiveOptions } from "../components/schema-form/hooks/resolveOptions";
 import type { PropertySchema } from "../components/schema-form/types";
 

@@ -12,7 +12,7 @@
  * `__tx` call, and `pseudoTransform` reads them off the context.
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach } from "vite-plus/test";
 
 import { extractDocument } from "../src/extract/index.ts";
 import { transform } from "../src/plugin/transform.ts";

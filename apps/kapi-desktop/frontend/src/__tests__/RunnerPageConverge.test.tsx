@@ -1,5 +1,5 @@
 import { render, screen, waitFor } from "./testUtils";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
 
 // Stub the Wails-bridge API so the converge launch path is observable.
 const bringUpToDateMock = vi.fn().mockResolvedValue(null);

@@ -3,7 +3,7 @@
  * This is the data the review overlay's head panel lists.
  */
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import {
   __resetHeadRegistry,

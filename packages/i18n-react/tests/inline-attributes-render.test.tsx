@@ -8,7 +8,7 @@
  * two catalog entries and land on one line of output. `cloneElement` keeps the
  * props the call site built, which is what makes the two independent.
  */
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vite-plus/test";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 

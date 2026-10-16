@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { afterEach } from "vitest";
+import { afterEach } from "vite-plus/test";
 import { cleanup } from "@testing-library/react";
 
 // JSDOM doesn't implement ResizeObserver, which the primitives these views build

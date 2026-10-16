@@ -1,4 +1,4 @@
-import type { Rule, Node } from "@oxlint/plugins";
+import type { Rule, Node } from "vite-plus/lint/plugins";
 import { hasTranslateNoAncestor } from "../shared/translate-no.ts";
 
 /**

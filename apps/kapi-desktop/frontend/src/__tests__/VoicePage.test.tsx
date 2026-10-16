@@ -1,6 +1,6 @@
 import { render, screen, within } from "./testUtils";
 import userEvent from "@testing-library/user-event";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import { VoicePage } from "../components/VoicePage";
 import { valueSetsFixture, voiceFixture } from "./voiceFixture";
 

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import { createElement, act } from "react";
 import { createRoot } from "react-dom/client";
 import { Markdown } from "../components/ui/markdown";

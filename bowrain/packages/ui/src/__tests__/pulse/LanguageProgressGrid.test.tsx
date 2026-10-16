@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import { render, screen } from "@testing-library/react";
 import { LanguageProgressGrid } from "../../components/pulse";
 import { mockLanguages } from "../../stories/pulse/pulse-fixtures";

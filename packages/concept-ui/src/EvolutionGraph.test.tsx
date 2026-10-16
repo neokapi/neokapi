@@ -5,7 +5,7 @@
 // into a cluster — then assert the graph mounts and renders the signal: the
 // rename text, the sibling branch row, and an expandable "N changes" cloud.
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vite-plus/test";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { EvolutionGraph } from "./EvolutionGraph";
 import { buildEvolutionModel } from "./evolution-model";

@@ -2,7 +2,7 @@
 import { type ComponentProps } from "react";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 import { LinearFlowEditor } from "../components/flow-editor";
 import type { FlowSpec, FlowTool } from "../components/flow-editor";
 import type { ComponentSchema } from "../components/schema-form";

@@ -5,7 +5,7 @@
  * defaults change, this fails until the copy is updated.
  */
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 
 import { translatableAttributes } from "../../i18n-react/src/plugin/defaults.ts";
 import { TRANSLATABLE_ATTRS } from "../src/shared/translatable-attrs.ts";

@@ -9,7 +9,7 @@
 
 import { render, screen, waitFor, within } from "./testUtils";
 import userEvent from "@testing-library/user-event";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
 
 const matchContent = vi.fn();
 vi.mock("../hooks/useApi", () => ({

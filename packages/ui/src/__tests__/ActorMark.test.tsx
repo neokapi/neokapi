@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vite-plus/test";
 import { ActorMark, KNOWN_ACTORS, actorInitials, actorLabel } from "../components/ui/actor-mark";
 
 afterEach(cleanup);

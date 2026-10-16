@@ -2,7 +2,7 @@ import { mkdtempSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import type { BlockV1, File } from "@neokapi/kapi-format";
 import { KindI18nReact, SchemaVersionV1, newFile, marshalFile } from "@neokapi/kapi-format";
 

@@ -6,7 +6,7 @@
  * misses its catalog entry and the review store 404s on save.
  */
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 
 import { hashKey as runtimeHash } from "../src/runtime/hash.ts";
 import { hashKey as buildHash } from "../src/plugin/hash.ts";

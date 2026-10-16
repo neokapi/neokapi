@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { treeToRenderDoc, parseCellRef, colLabel, runsText } from "@neokapi/ui-primitives/preview";
 import type { ContentNode, ContentTree, Run } from "@neokapi/ui-primitives/preview";
 

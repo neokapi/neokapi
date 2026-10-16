@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import { getCategoryStyle, getCategoryColor, ALL_CATEGORIES } from "../category";
 
 describe("getCategoryStyle", () => {

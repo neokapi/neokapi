@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import type { Run } from "@neokapi/contract-types";
 import { resolveOverlaySpans, runsPlainText } from "@neokapi/ui-primitives/preview";
 import type { BlockInfo, BlockTermMatch, EntityInfo, CheckIssue } from "../types/api";

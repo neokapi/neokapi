@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 
 import type { Run } from "../src/index.ts";
 import { validatePairedMarkers } from "../src/runs-validate.ts";

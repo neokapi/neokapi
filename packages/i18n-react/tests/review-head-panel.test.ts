@@ -6,7 +6,7 @@
  * meta string that has no body DOM text node to ALT+click.
  */
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { initKapiReview } from "../src/review/index.ts";
 import { __t, setTranslations } from "../src/runtime/index.ts";

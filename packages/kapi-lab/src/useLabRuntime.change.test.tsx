@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, expect, test, vi } from "vitest";
+import { afterEach, expect, test, vi } from "vite-plus/test";
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 
 // The change contract's calls go to the booted engine's facade, in turn with

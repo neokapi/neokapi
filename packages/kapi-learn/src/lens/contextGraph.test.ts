@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { buildContextGraph, parseJson } from "./contextGraph.ts";
 import { layoutGraph } from "./layout.ts";
 import type { LineRunner } from "./types.ts";

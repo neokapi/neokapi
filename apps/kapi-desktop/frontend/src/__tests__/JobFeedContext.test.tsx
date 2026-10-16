@@ -1,5 +1,5 @@
 import { render, screen, act, waitFor } from "./testUtils";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
 import { JobFeedProvider, useJobFeed } from "../context/JobFeedContext";
 import { api } from "../hooks/useApi";
 

@@ -9,7 +9,7 @@
  * every extract-side hash exists in the transform output.
  */
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 
 import { extractDocument } from "../src/extract/index.ts";
 import { transform } from "../src/plugin/transform.ts";

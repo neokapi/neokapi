@@ -1,6 +1,6 @@
 import { render, screen } from "./testUtils";
 import userEvent from "@testing-library/user-event";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi } from "vite-plus/test";
 import { ChecksPanel } from "../components/ChecksPanel";
 import { ErrorProvider } from "../components/ErrorBanner";
 import type { CheckRunResult } from "../types/api";

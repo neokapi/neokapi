@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/unbound-method -- vitest mock assertions reference methods */
 import { render, screen, waitFor, within } from "./testUtils";
 import userEvent from "@testing-library/user-event";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
 import { MemoryBrowser } from "@neokapi/ui-primitives";
 import type { MemoryAdapter, MemoryEntryDTO, VariantDTO } from "@neokapi/ui-primitives";
 

@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import type { ContentNode, ContentTree } from "./types";
 import { treeToRenderDoc, entryKey, lineSideText } from "./renderDoc";
 

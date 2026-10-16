@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import { evaluateCondition } from "../components/schema-form/hooks/useConditionalVisibility";
 import { resolveWidgetName, WIDGET_NAMES } from "../components/schema-form/registry";
 import { resolveRef, hasAdditionalProperties, humanizeKey } from "../components/schema-form/utils";

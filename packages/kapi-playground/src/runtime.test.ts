@@ -1,4 +1,4 @@
-import { beforeEach, expect, it, vi } from "vitest";
+import { beforeEach, expect, it, vi } from "vite-plus/test";
 
 const { boot, install } = vi.hoisted(() => ({ boot: vi.fn(), install: vi.fn() }));
 vi.mock("@neokapi/engine/runtime", () => ({ bootKapiRuntime: boot }));

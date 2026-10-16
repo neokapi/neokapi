@@ -1,5 +1,5 @@
 import { defineConfig } from "vite-plus";
-import type { PluginOption } from "vite";
+import type { PluginOption } from "vite-plus";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import neokapi from "@neokapi/i18n-react/vite";

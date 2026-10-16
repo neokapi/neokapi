@@ -5,7 +5,7 @@
 // source/target prose to a reader. Each needs the same contract: the element
 // whose text-align actually governs the row — not just some inline
 // descendant — carries dir/lang for that text's locale.
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import { createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { act } from "react";

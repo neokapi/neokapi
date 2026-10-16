@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 // The conversion event is the one signal the page exists to produce, and it is
 // the one that has already been lost once — to a refactor that moved the

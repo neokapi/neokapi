@@ -7,7 +7,7 @@
 // These are the DOCUMENT reading's rules, so `render` asks for it explicitly:
 // a catalog file reads as a keyed table by default, whose own direction rules
 // are covered in KeyedTable.test.tsx.
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import { createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { act } from "react";

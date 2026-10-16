@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import type { ContentNode, ContentTree } from "./types";
 import { collectCues, activeCueIndex, formatTimecode, formatDuration } from "./timeline";
 import { flattenGeometry, topUnits, boxPercent, extentOf, boxStyle } from "./geometry";

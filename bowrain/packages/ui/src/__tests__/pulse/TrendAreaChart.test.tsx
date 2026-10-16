@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll } from "vite-plus/test";
 import { render, screen } from "@testing-library/react";
 import { TrendAreaChart } from "../../components/pulse";
 

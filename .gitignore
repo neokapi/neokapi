@@ -344,3 +344,4 @@ packaging/.stage/
 /*.jpg
 /*.jpeg
 /*.webp
+.vitest/

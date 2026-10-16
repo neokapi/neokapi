@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { isBannedStatus, isGovernedRelation, primaryName, relationLabel } from "../concept-meta";
 import type { ConceptSummary } from "../types";
 

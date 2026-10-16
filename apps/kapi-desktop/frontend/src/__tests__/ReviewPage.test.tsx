@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vite-plus/test";
 import { render, screen, waitFor, fireEvent, within } from "./testUtils";
 import userEvent from "@testing-library/user-event";
 

@@ -1,6 +1,6 @@
 // The projection contract: a run sequence is answered for kind by kind, and a
 // kind that has no answer is a compile error rather than a quiet omission.
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach } from "vite-plus/test";
 
 import type { Run } from "./block.ts";
 import {

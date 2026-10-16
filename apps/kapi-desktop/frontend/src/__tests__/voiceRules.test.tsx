@@ -1,5 +1,5 @@
 import { render, screen } from "./testUtils";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import type { Pattern, TermRule, VoiceProfile } from "../types/voice";
 import { AdvisoryChip, PatternRuleRow, RulesBlock, TermRuleRow } from "../components/voice/rules";
 

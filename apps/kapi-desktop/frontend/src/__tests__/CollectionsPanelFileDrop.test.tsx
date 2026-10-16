@@ -1,5 +1,5 @@
 import { render, waitFor } from "./testUtils";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
 import { Events } from "@wailsio/runtime";
 
 const copyFileToProject = vi.fn();

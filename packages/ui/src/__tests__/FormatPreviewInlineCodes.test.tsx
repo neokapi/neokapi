@@ -7,7 +7,7 @@
 // "Your credits reset on ." beside a target that showed the variable — the
 // source read as if it had no placeholder at all. The codes are positioned
 // alongside the text instead and rendered as chips, on whichever side is read.
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import { createElement, act } from "react";
 import { createRoot } from "react-dom/client";
 

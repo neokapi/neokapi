@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { buildRecipe, buildToolInfos } from "./FlowBuilderRunner";
 import { LAB_SCENARIOS } from "./labScenarios";
 import type { FlowSpec } from "@neokapi/flow-editor";

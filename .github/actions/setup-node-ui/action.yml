@@ -36,7 +36,7 @@ runs:
     # setup-vp is pinned to an exact release. Its floating v1 tag stopped at
     # v1.15.0, which runs whatever installer viteplus.dev serves that day.
     # From v1.18.0 the action fetches the installer from the requested
-    # version's release tag (vite-plus v0.1.23, mirrored on jsDelivr) and uses
+    # version's release tag (the catalog's vite-plus, mirrored on jsDelivr) and uses
     # the live script only when every pinned source fails. Dependabot moves
     # the pin.
     #
@@ -55,7 +55,7 @@ runs:
       env:
         VP_LEGACY_INSTALLER_URL: ${{ runner.os == 'Windows' && 'https://raw.githubusercontent.com/voidzero-dev/vite-plus/ae0ec12d06181bad1549b98ef3aac70c970c3556/packages/cli/install-legacy.ps1' || 'https://raw.githubusercontent.com/voidzero-dev/vite-plus/ae0ec12d06181bad1549b98ef3aac70c970c3556/packages/cli/install-legacy.sh' }}
       with:
-        version: "0.1.23"
+        version: "1.3.0"
         node-version: ${{ inputs.node-version }}
         cache: true
         cache-dependency-path: pnpm-lock.yaml
@@ -74,7 +74,7 @@ runs:
       env:
         VP_LEGACY_INSTALLER_URL: ${{ runner.os == 'Windows' && 'https://raw.githubusercontent.com/voidzero-dev/vite-plus/ae0ec12d06181bad1549b98ef3aac70c970c3556/packages/cli/install-legacy.ps1' || 'https://raw.githubusercontent.com/voidzero-dev/vite-plus/ae0ec12d06181bad1549b98ef3aac70c970c3556/packages/cli/install-legacy.sh' }}
       with:
-        version: "0.1.23"
+        version: "1.3.0"
         node-version: ${{ inputs.node-version }}
         cache: true
         cache-dependency-path: pnpm-lock.yaml

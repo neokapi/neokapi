@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import { render, screen } from "./testUtils";
 
 import { WorkspaceRules } from "../components/WorkspaceRules";

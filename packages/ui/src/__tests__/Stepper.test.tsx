@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { Stepper, stepperReach, type StepState, type StepperStep } from "../components/ui/stepper";
 
 afterEach(cleanup);
