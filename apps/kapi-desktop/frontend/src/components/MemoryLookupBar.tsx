@@ -95,7 +95,8 @@ export function MemoryLookupBar({ onLookup, busy, defaultText = "" }: MemoryLook
               className="h-5 px-1.5 text-[11px]"
               onClick={() => mark(type.value)}
             >
-              {type.label}
+              {/* The entity type's label is translated where it is defined. */}
+              <span translate="no">{type.label}</span>
             </Button>
           ))}
         </div>
@@ -108,7 +109,7 @@ export function MemoryLookupBar({ onLookup, busy, defaultText = "" }: MemoryLook
               variant="outline"
               className="h-5 gap-1 pr-0.5 text-[11px]"
             >
-              <span className="text-muted-foreground">
+              <span className="text-muted-foreground" translate="no">
                 {ENTITY_TYPES.find((type) => type.value === entity.type)?.label ?? entity.type}
               </span>
               <span translate="no">{entity.text}</span>
