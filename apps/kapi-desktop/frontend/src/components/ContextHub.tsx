@@ -21,19 +21,21 @@ import {
   Database,
   History,
   MessageSquareQuote,
+  Share2,
   Sparkles,
 } from "lucide-react";
 import { LoadingSpinner, PageHeader, ScrollArea, cn } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import { api } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
-import { AgentContextPane } from "./AgentContextPane";
+import { AssistantPanel } from "./AssistantPanel";
 import { ContextDigestPanel } from "./ContextDigestPanel";
 import { ContextExplorerView } from "./ContextExplorerView";
 import { ContextFeedPanel } from "./ContextFeedPanel";
 import { VoicePage } from "./VoicePage";
 import { TermsPage } from "./TermsPage";
 import { MemoriesPage } from "./MemoriesPage";
+import { SharePanel } from "./SharePanel";
 
 /** The surfaces filed under Context. */
 export type ContextSection =
@@ -43,7 +45,8 @@ export type ContextSection =
   | "voice"
   | "terms"
   | "memory"
-  | "history";
+  | "history"
+  | "share";
 
 /** A point to open the explorer standing at, and what sent it there. */
 export interface ContextPin {
@@ -84,7 +87,9 @@ const SECTIONS: Array<{
 }> = [
   { id: "rules", icon: <Sparkles size={14} /> },
   { id: "explorer", icon: <Compass size={14} />, needsCheckout: true },
-  { id: "agent", icon: <Bot size={14} />, needsCheckout: true },
+  // A context-only tab keeps the Assistant: its connections part says a
+  // checkout is needed, and the parts that read files stay out.
+  { id: "agent", icon: <Bot size={14} /> },
   {
     id: "voice",
     icon: <MessageSquareQuote size={14} />,
@@ -93,6 +98,8 @@ const SECTIONS: Array<{
   { id: "terms", icon: <BookOpen size={14} /> },
   { id: "memory", icon: <Database size={14} />, localeGated: true },
   { id: "history", icon: <History size={14} /> },
+  // A context-only tab keeps Share: the panel offers it the first rung only.
+  { id: "share", icon: <Share2 size={14} /> },
 ];
 
 /**
@@ -165,7 +172,13 @@ export function ContextHub({
         {current === "explorer" && (
           <ContextExplorerView tabID={tabID} projectName={projectName} pin={unitPin ?? pin} />
         )}
-        {current === "agent" && <AgentContextPane tabID={tabID} path={pin?.path} />}
+        {current === "agent" && (
+          <ScrollArea className="h-full">
+            <div className="mx-auto max-w-3xl px-6 py-5">
+              <AssistantPanel tabID={tabID} path={pin?.path} contextOnly={contextOnly} />
+            </div>
+          </ScrollArea>
+        )}
         {current === "rules" && (
           <ScrollArea className="h-full">
             <div className="mx-auto max-w-3xl px-6 py-5">
@@ -210,6 +223,13 @@ export function ContextHub({
             </div>
           </ScrollArea>
         )}
+        {current === "share" && (
+          <ScrollArea className="h-full">
+            <div className="mx-auto max-w-3xl px-6 py-5">
+              <SharePanel tabID={tabID} contextOnly={contextOnly} />
+            </div>
+          </ScrollArea>
+        )}
       </div>
     </div>
   );
@@ -243,6 +263,8 @@ function SectionCommand({ id }: { id: ContextSection }) {
       return code("kapi init");
     case "history":
       return code("kapi context log");
+    case "share":
+      return code("kapi context sync");
   }
   return null;
 }
@@ -264,5 +286,7 @@ function SectionLabel({ id }: { id: ContextSection }) {
       return <>Content Memory</>;
     case "history":
       return <>History</>;
+    case "share":
+      return <>Share</>;
   }
 }

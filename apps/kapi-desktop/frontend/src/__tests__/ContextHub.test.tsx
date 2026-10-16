@@ -44,13 +44,26 @@ vi.mock("../components/ContextDigestPanel", () => ({
     </div>
   ),
 }));
-vi.mock("../components/AgentContextPane", () => ({
-  AgentContextPane: ({ tabID }: { tabID: string }) => <div>brief for {tabID}</div>,
+// The two panels have their own tests; here they stand in, saying what the
+// hub handed them.
+vi.mock("../components/AssistantPanel", () => ({
+  AssistantPanel: ({ tabID, contextOnly }: { tabID: string; contextOnly?: boolean }) => (
+    <div>
+      assistant for {tabID}
+      {contextOnly ? " without a checkout" : ""}
+    </div>
+  ),
+}));
+vi.mock("../components/SharePanel", () => ({
+  SharePanel: ({ tabID, contextOnly }: { tabID: string; contextOnly?: boolean }) => (
+    <div>
+      share for {tabID}
+      {contextOnly ? " without a checkout" : ""}
+    </div>
+  ),
 }));
 vi.mock("../components/ContextFeedPanel", () => ({
-  ContextFeedPanel: ({ projectKey }: { projectKey?: string }) => (
-    <div>feed for {projectKey}</div>
-  ),
+  ContextFeedPanel: ({ projectKey }: { projectKey?: string }) => <div>feed for {projectKey}</div>,
 }));
 
 import { ContextHub, contextSectionOf } from "../components/ContextHub";
@@ -83,7 +96,29 @@ describe("ContextHub", () => {
       "Terms",
       "Content Memory",
       "History",
+      "Share",
     ]);
+  });
+
+  it("keeps what a tab with no checkout can read, and drops what reads files", async () => {
+    render(<ContextHub tabID="t1" projectName="Northsea" contextOnly />);
+    expect(railLabels()).toEqual([
+      "What's new",
+      "Assistant",
+      "Terms",
+      "Content Memory",
+      "History",
+      "Share",
+    ]);
+    await userEvent.click(screen.getByRole("button", { name: "Share" }));
+    expect(screen.getByText("share for t1 without a checkout")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Assistant" }));
+    expect(screen.getByText("assistant for t1 without a checkout")).toBeInTheDocument();
+  });
+
+  it("opens Share on the project's ladder", () => {
+    render(<ContextHub tabID="t3" projectName="Northsea" section="share" />);
+    expect(screen.getByText("share for t3")).toBeInTheDocument();
   });
 
   it("names the command each section does the work of", async () => {
@@ -94,6 +129,8 @@ describe("ContextHub", () => {
     expect(command()?.textContent).toBe("kapi context log");
     await userEvent.click(screen.getByRole("button", { name: "Assistant" }));
     expect(command()?.textContent).toBe("kapi init");
+    await userEvent.click(screen.getByRole("button", { name: "Share" }));
+    expect(command()?.textContent).toBe("kapi context sync");
     await userEvent.click(screen.getByRole("button", { name: "Voice" }));
     expect(command()?.textContent).toBe("");
   });
@@ -101,7 +138,7 @@ describe("ContextHub", () => {
   it("goes to the Assistant from the empty digest's link", async () => {
     render(<ContextHub tabID="t1" projectName="Northsea" />);
     await userEvent.click(screen.getByRole("button", { name: "connect" }));
-    expect(screen.getByText("brief for t1")).toBeInTheDocument();
+    expect(screen.getByText("assistant for t1")).toBeInTheDocument();
   });
 
   it("lists the project's own history", async () => {
@@ -115,6 +152,7 @@ describe("ContextHub", () => {
   it("routes a view to the section it names", () => {
     expect(contextSectionOf("context:agent")).toBe("agent");
     expect(contextSectionOf("context:history")).toBe("history");
+    expect(contextSectionOf("context:share")).toBe("share");
     expect(contextSectionOf("termbases")).toBe("terms");
     expect(contextSectionOf("memories")).toBe("memory");
     expect(contextSectionOf("context")).toBeUndefined();
