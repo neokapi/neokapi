@@ -1727,26 +1727,28 @@ async function openVisualView(page: Page): Promise<void> {
  *  wording, and the moment that wording reaches the editor.
  *
  *  Concepts and the content memory are sections of the Context hub
- *  (nav-context → subnav-concepts / subnav-memory); the third beat leaves the
- *  hub for a real file in Translate, because the point of governing a term is
- *  what happens where someone is typing. Navigation between the three sits
- *  outside the beats: the camera only shows what the narration is about. */
+ *  (nav-context → subnav-concepts / subnav-memory), each a list beside a
+ *  detail pane: the row selected in the list opens in the pane beside it. The
+ *  third beat leaves the hub for a real file in Translate, because the point
+ *  of governing a term is what happens where someone is typing. Navigation
+ *  between the three sits outside the beats: the camera only shows what the
+ *  narration is about. */
 async function bowrainGovernanceWalk(c: WalkCtx): Promise<void> {
   const { page, beatEls, cursorTo } = c;
   const tap = (id: string) => humanClick(page, page.getByTestId(id));
 
-  // Into the Context hub's Concepts section. The narration reads a concept's
-  // own page, so the list is a hard wait: a take that never got there would
-  // film the dashboard under the words.
+  // Into the Context hub's Concepts section. The narration reads one concept,
+  // so the list is a hard wait: a take that never got there would film the
+  // dashboard under the words.
   await tap("nav-context");
   await page.waitForTimeout(700);
   await tap("subnav-concepts");
   await page.waitForSelector('[data-testid="concept-list"]', { timeout: 20_000 });
   await page.waitForTimeout(900);
 
-  // One concept: the idea, and what the team calls it in each language, each
-  // term with the status they agreed.
-  await beatEls("concept", ['[data-testid="concept-view"]'], async () => {
+  // One concept, selected in the list: the idea, and what the team calls it in
+  // each language, each term with the status they agreed, in the pane beside it.
+  await beatEls("concept", ['[data-testid="concept-header"]', '[data-slot="concept-languages"]'], async () => {
     await humanClick(page, page.getByTestId("concept-row").first());
     await page.waitForSelector('[data-testid="concept-view"]', { timeout: 20_000 });
     await page.waitForTimeout(1600);
@@ -1754,13 +1756,14 @@ async function bowrainGovernanceWalk(c: WalkCtx): Promise<void> {
     await page.waitForTimeout(2000);
   });
 
-  // The same wording, already on record in the workspace content memory.
-  await beatEls("tm-search", ['[data-testid="tm-browser"]'], async () => {
+  // The same wording, already on record in the workspace content memory. The
+  // search at the top of its list asks the server as you type.
+  await beatEls("tm-search", ['[data-testid="tm-search"]', '[data-testid^="tm-entry-"]'], async () => {
     await tap("subnav-memory");
     await page.waitForSelector('[data-testid="tm-browser"]', { timeout: 20_000 });
     await page.waitForTimeout(900);
     const search = page.getByTestId("tm-search");
-    if (await search.count()) await humanType(page, search, "mission", { submit: true });
+    if (await search.count()) await humanType(page, search, "mission");
     await page.waitForTimeout(1800);
   });
 
