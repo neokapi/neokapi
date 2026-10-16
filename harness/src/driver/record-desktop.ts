@@ -160,6 +160,11 @@ const ISO_BASE = path.join(os.tmpdir(), "kapi-desktop-demo");
 const ISO_DIR = path.join(ISO_BASE, "kapi");
 const ISO_HOME = path.join(ISO_BASE, "home");
 const ISO_DESKTOP = path.join(ISO_BASE, "desktop");
+// The data root holds the workspace: every project's terms, voice profiles,
+// content memory and recorded decisions. KAPI_DATA_DIR names it outright, so
+// a sample created on camera registers here and never in the developer's own
+// workspace (host/datadir.go).
+const ISO_DATA = path.join(ISO_BASE, "data");
 const ICU_PKGCONFIG = "/opt/homebrew/opt/icu4c/lib/pkgconfig";
 // The wbridge is built from source (no release ldflags), so core/version.Version
 // defaults to "dev". The plugin registry filters by min_kapi_version (okapi-bridge
@@ -320,6 +325,7 @@ function goEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
     KAPI_CONFIG_DIR: ISO_DIR,
     KAPI_HOME_DIR: ISO_HOME,
     KAPI_DESKTOP_CONFIG_DIR: ISO_DESKTOP,
+    KAPI_DATA_DIR: ISO_DATA,
     // Discover plugins ONLY from the isolated config dir — never the developer's
     // or the machine's globally-installed plugins (so the recorded plugin list
     // is just what the demo installs). Named explicitly rather than relying on
