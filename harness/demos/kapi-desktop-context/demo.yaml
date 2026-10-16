@@ -15,6 +15,9 @@ aspects:
   - A note arriving from outside the app
   - How far the context reaches
 
+# keep, change and choose carry no crop: the walk crops each to the row it
+# acts on and the rule that row became (beatSpan in record-desktop.ts).
+#
 # The sample arrives with two assistant sessions (claude-code, then codex),
 # seeded by the desktop backend when the sample is created. The walk creates
 # it off camera, reviews it on camera, and records one more note as
@@ -54,17 +57,15 @@ narration:
     kind: desktop
     beat: keep
     caption: One key keeps a suggestion.
-    crop: { selector: '[data-slot="digest-established"] [data-slot="digest-item"]' }
     text: >-
-      Further down, the suggestions are grouped by theme. claude-code noticed
-      that the product name is one word, KapiMart. Pressing a keeps it, and it
-      moves to Established as a rule, kept by you.
+      claude-code noticed that the product name is written as one word,
+      KapiMart. Pressing a keeps the suggestion, and it moves up to Established
+      as a rule, kept by you.
 
   - id: change
     kind: desktop
     beat: change
     caption: Change the form, then keep it.
-    crop: { selector: '[data-slot="digest-established"] [data-slot="digest-item"]' }
     text: >-
       claude-code also noticed that the store says cart, not basket. The terms
       prefer shopping cart, so c opens the form, you write shopping cart, and
@@ -74,7 +75,6 @@ narration:
     kind: desktop
     beat: choose
     caption: One side chosen, the other set aside.
-    crop: { selector: '[data-slot="digest-established"] [data-slot="digest-item"]' }
     text: >-
       Now the disagreement. The sentence codex quoted says signing in, the
       opposite of its own rule, and claude-code's side is a change a person
@@ -98,8 +98,8 @@ narration:
     crop: { selector: ['[data-slot="workspace-numbers"]', '[data-slot="whats-new"]', '[data-slot="home-projects"]'] }
     text: >-
       Back on the home, a note arrives from a terminal off screen, recorded as
-      claude-code: the docs say sandbox, not test mode. Within a second
-      KapiMart is back under What's new, and the home says claude-code is
+      claude-code: the docs say sandbox, not test mode. Within a second the
+      KapiMart row says claude-code noticed a word, and the home says it is
       working there now.
 
   - id: share

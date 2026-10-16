@@ -646,6 +646,13 @@ interface WalkCtx {
   beat: (id: string, zoom: ZoomRect | null, fn: () => Promise<void>) => Promise<void>;
   /** A beat whose zoom is derived from elements AFTER its actions settle. */
   beatEls: (id: string, selectors: string[], fn: () => Promise<void>) => Promise<void>;
+  /**
+   * A beat whose subject moves while it is on camera: the walk marks each
+   * element as it stands at that moment, and the crop is the union of the
+   * marked boxes. A row acted on and the rule it became sit in different
+   * places, and no element on the page at the end holds both.
+   */
+  beatSpan: (id: string, fn: (mark: (target: Locator) => Promise<void>) => Promise<void>) => Promise<void>;
   /** Move the visible cursor onto an element's centre. */
   cursorTo: (selector: string, duration?: number) => Promise<void>;
   /** A sidebar nav button by its aria-label. */
@@ -731,7 +738,7 @@ function makeCtx(page: Page, t0: number, beats: Beat[], peer: PeerSession | unde
    *   - `zoom` multiplies the fitted scale, so a value above 1 frames less than
    *     the region the beat asked for and cuts its ends off.
    */
-  const reportCrop = (id: string, region: ZoomRect | null) => {
+  const reportCrop = (id: string, region: ZoomRect | null, measured = false) => {
     const spec = specs[id];
     const where = `${demoId}/${id}`;
     if (spec?.cropSelectors && !region) {
@@ -742,7 +749,7 @@ function makeCtx(page: Page, t0: number, beats: Beat[], peer: PeerSession | unde
     const geo = frameGeometry({ web: isWebDemo(demoId), chapter: spec?.caption !== false, aspect: WIDTH / HEIGHT });
     const fit = regionFit(region, geo);
     if (fit < FULL_WINDOW_FIT) {
-      if (!spec?.cropSelectors) return; // the walk's own region, framed as the walk wrote it
+      if (!spec?.cropSelectors && !measured) return; // the walk's own region, framed as the walk wrote it
       const ceiling = geo.areaH / geo.bh / FULL_WINDOW_FIT;
       console.warn(
         `  ! ${where}: crop region w=${region.w.toFixed(2)} h=${region.h.toFixed(2)} fits at ${fit.toFixed(2)}, under ${FULL_WINDOW_FIT}, so the beat records the whole window. ` +
@@ -774,7 +781,23 @@ function makeCtx(page: Page, t0: number, beats: Beat[], peer: PeerSession | unde
     const highlight = spec?.highlightSelector ? await unionZoom([spec.highlightSelector], 0.01) : undefined;
     beats.push({ id, tStart, tEnd: now(), zoom, ...(highlight !== undefined ? { highlight } : {}) });
   };
-  return { page, beat, beatEls, cursorTo, sidebar, peer };
+  // The boxes are window coordinates taken at different moments, so their
+  // union is the band of the window that held each of them when it was marked.
+  const beatSpan = async (id: string, fn: (mark: (target: Locator) => Promise<void>) => Promise<void>) => {
+    const tStart = now();
+    const boxes: (ElementBox | null)[] = [];
+    await fn(async (target) => {
+      boxes.push(await target.first().boundingBox({ timeout: 2000 }).catch(() => null));
+    });
+    await holdUntil(id, tStart);
+    const spec = specs[id];
+    const zoom = spec?.cropSelectors ? await unionZoom(spec.cropSelectors) : unionRect(boxes, 0.04, WIDTH, HEIGHT);
+    if (!spec?.cropSelectors && !zoom) console.warn(`  ! ${demoId}/${id}: the walk marked nothing on camera; the beat records the whole window`);
+    reportCrop(id, zoom, true);
+    const highlight = spec?.highlightSelector ? await unionZoom([spec.highlightSelector], 0.01) : undefined;
+    beats.push({ id, tStart, tEnd: now(), zoom, ...(highlight !== undefined ? { highlight } : {}) });
+  };
+  return { page, beat, beatEls, beatSpan, cursorTo, sidebar, peer };
 }
 
 /** A Context hub section tab by its label. The hub's own nav carries the
@@ -1403,11 +1426,12 @@ function recordLiveNote(): void {
  * assistant gets for a file, watches a note recorded from outside the app
  * arrive on the home, and ends on Share.
  *
- * The keep, change and choose beats each centre the row they act on and then
- * the rule it became, at the top of Established, so one crop holds both.
+ * The keep, change and choose beats act on a row and end on the rule it
+ * became, at the top of Established, so each crop is the union of the two
+ * (beatSpan).
  */
 async function contextWalk(c: WalkCtx): Promise<void> {
-  const { page, beatEls, cursorTo, sidebar } = c;
+  const { page, beatEls, beatSpan, cursorTo, sidebar } = c;
   const row = `[data-slot="whats-new-row"][data-project="${CONTEXT_SAMPLE_KEY}"]`;
   const home = ['[data-slot="workspace-numbers"]', '[data-slot="whats-new"]', '[data-slot="home-projects"]'];
   const suggestion = (text: string) =>
@@ -1436,22 +1460,27 @@ async function contextWalk(c: WalkCtx): Promise<void> {
     await page.waitForTimeout(1200);
   });
 
-  // The product name, kept with one key.
+  // The product name, kept with one key. The crop holds the row where the key
+  // was pressed and the rule where it landed.
   const name = suggestion("Write KapiMart");
   await centre(page, name);
-  await beatEls("keep", [kept], async () => {
+  await beatSpan("keep", async (mark) => {
     await select(name);
+    await mark(name);
     await page.keyboard.press("a");
-    await page.waitForTimeout(1600);
+    await page.waitForTimeout(900);
     await centre(page, page.locator(kept).first());
+    await mark(page.locator(kept).first());
     await page.waitForTimeout(1200);
   });
 
   // A word, kept in the form the terms prefer. The field opens holding the
-  // suggestion's own form, so it is selected and typed over.
+  // suggestion's own form, so it is selected and typed over. The row sits
+  // near the end of the list and cannot be centred, so the crop spans it and
+  // the rule it became.
   const word = suggestion("not basket");
   await centre(page, word);
-  await beatEls("change", [kept], async () => {
+  await beatSpan("change", async (mark) => {
     await select(word);
     await page.keyboard.press("c");
     const form = page.locator('[data-slot="digest-change"] input');
@@ -1460,24 +1489,30 @@ async function contextWalk(c: WalkCtx): Promise<void> {
     await form.selectText();
     await form.pressSequentially("shopping cart", { delay: 95 });
     await page.waitForTimeout(700);
+    await mark(word);
     await humanClick(page, page.locator('[data-slot="keep-changed"]'));
-    await page.waitForTimeout(1600);
+    await page.waitForTimeout(900);
     await centre(page, page.locator(kept).first());
+    await mark(page.locator(kept).first());
     await page.waitForTimeout(1200);
   });
 
   // The disagreement: claude-code's side, which a person's correction backs.
+  // It sits at the top of the page, so the rules kept so far take its place
+  // and the beat ends on all three.
   const side = page
     .locator('[data-slot="digest-conflicts"] [data-slot="digest-item"]')
     .filter({ hasText: "Write sign in" })
     .first();
   await centre(page, side);
-  await beatEls("choose", [kept], async () => {
+  await beatSpan("choose", async (mark) => {
+    await mark(side);
     await page.waitForTimeout(1200);
     await humanClick(page, side.locator('[data-slot="keep-item"]'));
     await page.waitForSelector('[data-slot="digest-conflicts"]', { state: "detached", timeout: 15_000 });
-    await page.waitForTimeout(1200);
+    await page.waitForTimeout(900);
     await centre(page, page.locator(kept).first());
+    for (let i = 0; i < 3; i++) await mark(page.locator(kept).nth(i));
     await page.waitForTimeout(1200);
   });
 
@@ -1504,10 +1539,16 @@ async function contextWalk(c: WalkCtx): Promise<void> {
   await beatEls("live", home, async () => {
     await cursorTo('[data-slot="workspace-numbers"]', 800);
     await page.waitForTimeout(1500);
+    // The row is already there: the rules kept on camera are new since the
+    // person looked. What the note changes is who noticed something.
     recordLiveNote();
-    await page.waitForSelector(row, { timeout: 10_000 }).catch(() => {
-      throw new Error("kapi-desktop-context: the note recorded as claude-code did not reach the home within 10 s");
-    });
+    await page
+      .locator(`${row} [data-slot="whats-new-sentence"]`)
+      .filter({ hasText: "claude-code noticed" })
+      .waitFor({ state: "visible", timeout: 10_000 })
+      .catch(() => {
+        throw new Error("kapi-desktop-context: the note recorded as claude-code did not reach the home within 10 s");
+      });
     await page.waitForTimeout(600);
     await cursorTo(`${row} [data-slot="whats-new-sentence"]`, 700);
     await page.waitForTimeout(1500);
