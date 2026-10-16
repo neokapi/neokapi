@@ -13,96 +13,58 @@ const markdownBlocks: BlockInfo[] = [
   {
     id: "md-1",
     source: "Publishing a release",
-    source_coded: "Publishing a release",
-    source_spans: [],
     targets: { "fr-FR": "Publier une version", "de-DE": "Eine Version veröffentlichen" },
-    targets_coded: { "fr-FR": "Publier une version", "de-DE": "Eine Version veröffentlichen" },
     translatable: true,
-    has_spans: false,
     properties: { type: "h1" },
   },
   {
     id: "md-2",
     source:
       "A release is cut from the main branch once every check has passed. The steps below assume you have already been granted the publish role.",
-    source_coded:
-      "A release is cut from the main branch once every check has passed. The steps below assume you have already been granted the publish role.",
-    source_spans: [],
     targets: {
       "fr-FR":
         "Une version est créée à partir de la branche principale une fois que tous les contrôles sont passés. Les étapes ci-dessous supposent que le rôle de publication vous a déjà été accordé.",
     },
-    targets_coded: {
-      "fr-FR":
-        "Une version est créée à partir de la branche principale une fois que tous les contrôles sont passés. Les étapes ci-dessous supposent que le rôle de publication vous a déjà été accordé.",
-    },
     translatable: true,
-    has_spans: false,
     properties: { type: "paragraph" },
   },
   {
     id: "md-3",
     source: "Before you begin",
-    source_coded: "Before you begin",
-    source_spans: [],
     targets: { "fr-FR": "Avant de commencer" },
-    targets_coded: { "fr-FR": "Avant de commencer" },
     translatable: true,
-    has_spans: false,
     properties: { type: "h2" },
   },
   {
     id: "md-4",
     source: "Confirm the changelog names every user-facing change.",
-    source_coded: "Confirm the changelog names every user-facing change.",
-    source_spans: [],
     targets: { "fr-FR": "Vérifiez que le journal des modifications nomme chaque changement." },
-    targets_coded: {
-      "fr-FR": "Vérifiez que le journal des modifications nomme chaque changement.",
-    },
     translatable: true,
-    has_spans: false,
     properties: { type: "bullet" },
   },
   {
     id: "md-5",
     source: "Confirm the target languages have caught up, or note the ones that have not.",
-    source_coded: "Confirm the target languages have caught up, or note the ones that have not.",
-    source_spans: [],
     targets: {},
-    targets_coded: {},
     translatable: true,
-    has_spans: false,
     properties: { type: "bullet" },
   },
   {
     id: "md-6",
     source: "make release VERSION=1.2.0",
-    source_coded: "make release VERSION=1.2.0",
-    source_spans: [],
     targets: {},
-    targets_coded: {},
     translatable: false,
-    has_spans: false,
     properties: { type: "code", "code.language": "bash" },
   },
   {
     id: "md-7",
     source:
       "The tag is pushed by the release job, not from a laptop. If the job fails after tagging, delete the tag before retrying.",
-    source_coded:
-      "The tag is pushed by the release job, not from a laptop. If the job fails after tagging, delete the tag before retrying.",
-    source_spans: [],
     targets: {
       "fr-FR":
         "Le tag est poussé par le job de publication, pas depuis un poste de travail. Si le job échoue après le tag, supprimez le tag avant de réessayer.",
     },
-    targets_coded: {
-      "fr-FR":
-        "Le tag est poussé par le job de publication, pas depuis un poste de travail. Si le job échoue après le tag, supprimez le tag avant de réessayer.",
-    },
     translatable: true,
-    has_spans: false,
     properties: { type: "paragraph" },
   },
 ];

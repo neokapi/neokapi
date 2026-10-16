@@ -39,7 +39,6 @@ function emailBlocks(): BlockInfo[] {
     id: hash,
     source,
     translatable: true,
-    has_spans: false,
     properties: { hash, file: "src/credits-warning.tsx", component: "CreditsWarningEmail" },
     targets: { nb: { text: nb, status: "draft" } },
   });
@@ -88,7 +87,6 @@ export const NoStory: Story = {
         id: "x",
         source: "Somewhere else",
         translatable: true,
-        has_spans: false,
         properties: { hash: "zz", file: "src/NotAComponentWithStories.tsx" },
         targets: {},
       },

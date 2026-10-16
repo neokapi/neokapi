@@ -1,18 +1,12 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { FormattedSourceDisplay } from "../../components/editor/FormattedSourceDisplay";
 import {
-  simpleBoldCodedText,
-  simpleBoldSpans,
-  linkAndItalicCodedText,
-  linkAndItalicSpans,
-  codeInlineCodedText,
-  codeInlineSpans,
-  lineBreakCodedText,
-  lineBreakSpans,
-  richCodedText,
-  richSpans,
-  mdFormattingCodedText,
-  mdFormattingSpans,
+  simpleBoldRuns,
+  linkAndItalicRuns,
+  codeInlineRuns,
+  lineBreakRuns,
+  richRuns,
+  mdFormattingRuns,
 } from "../fixtures";
 
 const meta: Meta<typeof FormattedSourceDisplay> = {
@@ -33,49 +27,42 @@ type Story = StoryObj<typeof FormattedSourceDisplay>;
 
 export const BoldText: Story = {
   args: {
-    codedText: simpleBoldCodedText,
-    spans: simpleBoldSpans,
+    runs: simpleBoldRuns,
   },
 };
 
 export const LinkAndItalic: Story = {
   args: {
-    codedText: linkAndItalicCodedText,
-    spans: linkAndItalicSpans,
+    runs: linkAndItalicRuns,
   },
 };
 
 export const CodeInline: Story = {
   args: {
-    codedText: codeInlineCodedText,
-    spans: codeInlineSpans,
+    runs: codeInlineRuns,
   },
 };
 
 export const WithLineBreak: Story = {
   args: {
-    codedText: lineBreakCodedText,
-    spans: lineBreakSpans,
+    runs: lineBreakRuns,
   },
 };
 
 export const RichMarkup: Story = {
   args: {
-    codedText: richCodedText,
-    spans: richSpans,
+    runs: richRuns,
   },
 };
 
 export const MarkdownFormatting: Story = {
   args: {
-    codedText: mdFormattingCodedText,
-    spans: mdFormattingSpans,
+    runs: mdFormattingRuns,
   },
 };
 
 export const PlainText: Story = {
   args: {
-    codedText: "Welcome to Neokapi — the AI-native localization engine.",
-    spans: [],
+    runs: [{ text: "Welcome to Neokapi — the AI-native localization engine." }],
   },
 };

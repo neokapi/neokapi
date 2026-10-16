@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { TagChipComponent } from "@neokapi/ui-primitives";
-import { boldOpen, linkOpen, codeOpen, lineBreak, imgTag } from "../fixtures";
+import { boldOpen, linkOpen, codeOpen, lineBreak, imgTag, chip } from "../fixtures";
 
 /**
  * TagChipNode is a Lexical DecoratorNode that renders a TagChipComponent.
@@ -27,7 +27,7 @@ type Story = StoryObj<typeof TagChipComponent>;
 /** A locked tag — TagChipNode sets locked=true when the span is non-deletable. */
 export const LockedBold: Story = {
   args: {
-    spanInfo: boldOpen,
+    spanInfo: chip(boldOpen),
     locked: true,
   },
 };
@@ -35,7 +35,7 @@ export const LockedBold: Story = {
 /** An unlocked tag — deletable spans render without the dashed border. */
 export const UnlockedLink: Story = {
   args: {
-    spanInfo: linkOpen,
+    spanInfo: chip(linkOpen),
     locked: false,
   },
 };
@@ -43,7 +43,7 @@ export const UnlockedLink: Story = {
 /** Placeholder tags (self-closing) are always rendered as locked by TagChipNode. */
 export const LockedLineBreak: Story = {
   args: {
-    spanInfo: lineBreak,
+    spanInfo: chip(lineBreak),
     locked: true,
   },
 };
@@ -52,14 +52,14 @@ export const LockedLineBreak: Story = {
 export const AllVariants: Story = {
   render: () => (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-      <TagChipComponent spanInfo={boldOpen} locked />
-      <TagChipComponent spanInfo={boldOpen} locked={false} />
-      <TagChipComponent spanInfo={linkOpen} locked />
-      <TagChipComponent spanInfo={linkOpen} locked={false} />
-      <TagChipComponent spanInfo={codeOpen} locked />
-      <TagChipComponent spanInfo={codeOpen} locked={false} />
-      <TagChipComponent spanInfo={lineBreak} locked />
-      <TagChipComponent spanInfo={imgTag} locked />
+      <TagChipComponent spanInfo={chip(boldOpen)} locked />
+      <TagChipComponent spanInfo={chip(boldOpen)} locked={false} />
+      <TagChipComponent spanInfo={chip(linkOpen)} locked />
+      <TagChipComponent spanInfo={chip(linkOpen)} locked={false} />
+      <TagChipComponent spanInfo={chip(codeOpen)} locked />
+      <TagChipComponent spanInfo={chip(codeOpen)} locked={false} />
+      <TagChipComponent spanInfo={chip(lineBreak)} locked />
+      <TagChipComponent spanInfo={chip(imgTag)} locked />
     </div>
   ),
 };

@@ -1,7 +1,9 @@
 import { describe, it, expect, vi } from "vite-plus/test";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { SpanInfo, BlockTermMatch, EntityInfo, FileCheckResult } from "../types/api";
+import type { Run } from "@neokapi/kapi-format";
+import type { SpanInfo } from "@neokapi/ui-primitives";
+import type { BlockTermMatch, EntityInfo, FileCheckResult } from "../types/api";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -15,6 +17,11 @@ function span(
 ): SpanInfo {
   return { span_type: spanType, type, id, data };
 }
+
+// Runs with inline codes, for the displays that read a block's content.
+const boldOpen: Run = { pcOpen: { id: "1", type: "fmt:bold", data: "<b>", equiv: "b" } };
+const boldClose: Run = { pcClose: { id: "1", type: "fmt:bold", data: "</b>", equiv: "b" } };
+const lineBreak: Run = { ph: { id: "2", type: "struct:break", data: "<br/>", equiv: "br" } };
 
 function termMatch(overrides: Partial<BlockTermMatch> = {}): BlockTermMatch {
   return {
@@ -142,23 +149,18 @@ describe("FormattedSourceDisplay", () => {
     return render(<FormattedSourceDisplay {...props} />);
   }
 
-  it("renders plain text with no spans", async () => {
-    const { container } = await renderComponent({ codedText: "Hello world", spans: [] });
+  it("renders plain text with no codes", async () => {
+    const { container } = await renderComponent({ runs: [{ text: "Hello world" }] });
     expect(container.textContent).toBe("Hello world");
   });
 
   it("renders text with bold formatting applied", async () => {
-    const spans: SpanInfo[] = [
-      span("opening", "fmt:bold", "<b>"),
-      span("closing", "fmt:bold", "</b>"),
-    ];
-    const coded = "\uE001bold\uE002";
-    const { container } = await renderComponent({ codedText: coded, spans });
+    const { container } = await renderComponent({ runs: [boldOpen, { text: "bold" }, boldClose] });
     expect(container.textContent).toBe("bold");
   });
 
   it("renders empty text", async () => {
-    const { container } = await renderComponent({ codedText: "", spans: [] });
+    const { container } = await renderComponent({ runs: [] });
     expect(container.textContent).toBe("");
   });
 });
@@ -175,18 +177,15 @@ describe("SourceCellDisplay", () => {
     return render(<SourceCellDisplay {...props} />);
   }
 
-  it("renders plain text with no spans", async () => {
-    const { container } = await renderComponent({ codedText: "Hello world", spans: [] });
+  it("renders plain text with no codes", async () => {
+    const { container } = await renderComponent({ runs: [{ text: "Hello world" }] });
     expect(container.textContent).toBe("Hello world");
   });
 
-  it("renders text segments and tag chips for coded text", async () => {
-    const spans: SpanInfo[] = [
-      span("opening", "fmt:bold", "<b>"),
-      span("closing", "fmt:bold", "</b>"),
-    ];
-    const coded = "before \uE001bold\uE002 after";
-    const { container } = await renderComponent({ codedText: coded, spans });
+  it("renders text segments and tag chips for runs with codes", async () => {
+    const { container } = await renderComponent({
+      runs: [{ text: "before " }, boldOpen, { text: "bold" }, boldClose, { text: " after" }],
+    });
     expect(container.textContent).toContain("before");
     expect(container.textContent).toContain("bold");
     expect(container.textContent).toContain("after");
@@ -199,8 +198,7 @@ describe("SourceCellDisplay", () => {
       entity({ text: "hello", type: "entity:person", start: 0, end: 5 }),
     ];
     const { container } = await renderComponent({
-      codedText: "hello world",
-      spans: [],
+      runs: [{ text: "hello world" }],
       entities,
     });
     const entityEl = container.querySelector("[title]");
@@ -480,7 +478,6 @@ describe("ProblemsPanel", () => {
           source: "Click here to continue",
           targets: { "fr-FR": "Cliquez ici pour continuer" },
           translatable: true,
-          has_spans: false,
           properties: {},
         },
       ],
@@ -627,34 +624,29 @@ describe("FormatVocabularyBadge", () => {
     return render(<FormatVocabularyBadge {...props} />);
   }
 
-  it("returns null when spans is empty", async () => {
-    const { container } = await renderComponent({ spans: [] });
+  it("returns null when the runs hold no code", async () => {
+    const { container } = await renderComponent({ runs: [{ text: "plain" }] });
     expect(container.innerHTML).toBe("");
   });
 
-  it("renders tag count for non-empty spans", async () => {
-    const spans: SpanInfo[] = [
-      span("opening", "fmt:bold", "<b>"),
-      span("closing", "fmt:bold", "</b>"),
-      span("placeholder", "struct:break", "<br/>"),
-    ];
-    const { container } = await renderComponent({ spans });
+  it("renders tag count for runs with codes", async () => {
+    const { container } = await renderComponent({
+      runs: [boldOpen, { text: "a" }, boldClose, lineBreak],
+    });
     expect(container.textContent).toContain("3 tags");
   });
 
   it("calls onClick when clicked", async () => {
     const user = userEvent.setup();
     const onClick = vi.fn();
-    const spans: SpanInfo[] = [span("opening", "fmt:bold", "<b>")];
-    await renderComponent({ spans, onClick });
+    await renderComponent({ runs: [boldOpen], onClick });
     const button = screen.getByRole("button");
     await user.click(button);
     expect(onClick).toHaveBeenCalledOnce();
   });
 
-  it("shows singular 'tag' for a single span", async () => {
-    const spans: SpanInfo[] = [span("placeholder", "struct:break", "<br/>")];
-    const { container } = await renderComponent({ spans });
+  it("shows singular 'tag' for a single code", async () => {
+    const { container } = await renderComponent({ runs: [{ text: "a" }, lineBreak] });
     expect(container.textContent).toContain("1 tag");
     expect(container.textContent).not.toContain("1 tags");
   });

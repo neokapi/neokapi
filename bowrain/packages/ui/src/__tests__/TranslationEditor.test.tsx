@@ -32,12 +32,8 @@ function makeBlock(id: string, source: string, frTarget: string): BlockInfo {
   return {
     id,
     source,
-    source_coded: source,
-    source_spans: [],
     targets: { "fr-FR": frTarget },
-    targets_coded: { "fr-FR": frTarget },
     translatable: true,
-    has_spans: false,
     properties: {},
   };
 }
@@ -409,7 +405,7 @@ describe("TranslationEditor — term insert", () => {
         ],
       },
       translatable: true,
-      has_spans: true,
+      has_inline_codes: true,
       properties: {},
     };
     const { adapter } = renderEditor({ view: "visual", blocks: [bold] });
@@ -486,7 +482,7 @@ describe("TranslationEditor — a content-memory match", () => {
       source_runs: [{ text: "Hello " }, name],
       targets: {},
       translatable: true,
-      has_spans: true,
+      has_inline_codes: true,
       properties: {},
     };
     const { adapter } = renderEditor({
@@ -605,7 +601,7 @@ describe("TranslationEditor — a plural translation", () => {
       ],
     },
     translatable: true,
-    has_spans: true,
+    has_inline_codes: true,
     properties: {},
   };
 

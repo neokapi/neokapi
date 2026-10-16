@@ -1,6 +1,5 @@
 import { CHANGE_RESULT_SCHEMA_ID } from "@neokapi/contract-types";
 import type { ComponentSchema } from "@neokapi/ui-primitives";
-import { normalizeServerBlocks, type ServerBlockInfo } from "../components/editor/blockRuns";
 import { ApiError, apiErrorFromResponse } from "../errors/ApiError";
 import type { ApiAdapter } from "./adapter";
 import type { ChangeResult, ContentChangeSet } from "./contentChanges";
@@ -1462,10 +1461,6 @@ export class RestApiAdapter implements ApiAdapter {
     stream?: string,
     opts?: BlockQueryOptions,
   ): Promise<BlockInfo[]> {
-    // Normalise the server's typed `source_runs`/`targets_runs` into the
-    // coded-text + spans shape the render primitives consume, so inline codes
-    // render faithfully (and identically) across the editor and review
-    // surfaces. See components/editor/blockRuns.ts.
     const q = new URLSearchParams({ item: fileName });
     if (opts?.locale) q.set("locale", opts.locale);
     if (opts?.status) q.set("status", opts.status);
@@ -1473,10 +1468,9 @@ export class RestApiAdapter implements ApiAdapter {
     if (opts?.translatable !== undefined) q.set("translatable", String(opts.translatable));
     if (opts?.limit !== undefined) q.set("limit", String(opts.limit));
     if (opts?.offset !== undefined) q.set("offset", String(opts.offset));
-    const raw = await this.fetchJSON<ServerBlockInfo[]>(
+    return this.fetchJSON<BlockInfo[]>(
       `${this.projectEp(workspaceSlug, projectId)}/blocks/${this.ref(stream)}?${q.toString()}`,
     );
-    return normalizeServerBlocks(raw);
   }
 
   async getBlockCounts(
@@ -1504,11 +1498,9 @@ export class RestApiAdapter implements ApiAdapter {
     blockId: string,
     stream?: string,
   ): Promise<BlockInfo> {
-    const raw = await this.fetchJSON<ServerBlockInfo>(
+    return this.fetchJSON<BlockInfo>(
       `${this.projectEp(workspaceSlug, projectId)}/blocks/${this.ref(stream)}/${encodeURIComponent(blockId)}`,
     );
-    // The same run → coded-text normalisation the list route's elements get.
-    return normalizeServerBlocks([raw])[0];
   }
 
   async getItem(
@@ -1563,7 +1555,7 @@ export class RestApiAdapter implements ApiAdapter {
         block_id: string;
         item_name: string;
         locale: string;
-        block?: ServerBlockInfo;
+        block?: BlockInfo;
         collection_id?: string;
         term_compliance?: TermCompliance;
         voice_score?: number;
@@ -1580,7 +1572,6 @@ export class RestApiAdapter implements ApiAdapter {
       entries: raw.entries.map((e) => ({
         ...e,
         collection_id: e.collection_id ?? "",
-        block: e.block ? normalizeServerBlocks([e.block])[0] : undefined,
       })),
     };
   }

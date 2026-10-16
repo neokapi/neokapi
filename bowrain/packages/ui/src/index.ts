@@ -264,8 +264,14 @@ export type {
   ReviewQueueFilter,
   ReviewQueueCounts,
 } from "./components/review/reviewQueue";
-export { normalizeServerBlock, normalizeServerBlocks } from "./components/editor/blockRuns";
-export type { ServerBlockInfo } from "./components/editor/blockRuns";
+export {
+  blockHasInlineCodes,
+  hasInlineCodes,
+  plainText,
+  pluralOf,
+  sourceRuns,
+  targetRuns,
+} from "./components/editor/blockContent";
 export { blockToContentNode, blocksToContentTree } from "./preview/toContentTree";
 export type {
   BlockEvidence,
@@ -498,8 +504,6 @@ export {
 export type { BlockStatus } from "./components/editor/blockStatus";
 
 // Editor utilities — re-exported from shared @neokapi/ui-primitives
-export { parseCodedSegments, segmentsToCodedText, spanLabel } from "@neokapi/ui-primitives";
-export type { CodedSegment } from "@neokapi/ui-primitives";
 export {
   semanticCategory,
   semanticLabel,
@@ -508,7 +512,6 @@ export {
   tagNameFromData,
   buildPairs,
   validateTags,
-  codedTextToHtml,
 } from "@neokapi/ui-primitives";
 export type {
   SemanticCategory,
@@ -633,7 +636,6 @@ export type {
   PlatformModel,
   PlatformMaintenance,
   WebVersionInfo,
-  SpanInfo,
   BlockInfo,
   TargetEntry,
   TargetInfo,

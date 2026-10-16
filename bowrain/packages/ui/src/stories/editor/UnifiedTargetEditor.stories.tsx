@@ -10,18 +10,13 @@ function makeMessagesBlock(targets: Record<string, string>): BlockInfo {
   return {
     id: "blk-messages",
     source: "You have {count} messages",
-    has_spans: true,
-    source_spans: [
-      {
-        span_type: "placeholder",
-        type: "jsx:var",
-        id: "0",
-        data: "{count}",
-        equiv_text: "count",
-      },
+    has_inline_codes: true,
+    source_runs: [
+      { text: "You have " },
+      { ph: { id: "0", type: "jsx:var", data: "{count}", equiv: "count" } },
+      { text: " messages" },
     ],
     targets,
-    targets_coded: {},
     translatable: true,
     properties: {},
   };
@@ -31,32 +26,17 @@ function makeRichBlock(targets: Record<string, string>): BlockInfo {
   return {
     id: "blk-rich",
     source: "Click <strong>here</strong> for {count} pending.",
-    has_spans: true,
-    source_spans: [
-      {
-        span_type: "opening",
-        type: "fmt:bold",
-        id: "0",
-        data: "<strong>",
-        equiv_text: "strong",
-      },
-      {
-        span_type: "closing",
-        type: "fmt:bold",
-        id: "0",
-        data: "</strong>",
-        equiv_text: "strong",
-      },
-      {
-        span_type: "placeholder",
-        type: "jsx:var",
-        id: "1",
-        data: "{count}",
-        equiv_text: "count",
-      },
+    has_inline_codes: true,
+    source_runs: [
+      { text: "Click " },
+      { pcOpen: { id: "0", type: "fmt:bold", data: "<strong>", equiv: "strong" } },
+      { text: "here" },
+      { pcClose: { id: "0", type: "fmt:bold", data: "</strong>", equiv: "strong" } },
+      { text: " for " },
+      { ph: { id: "1", type: "jsx:var", data: "{count}", equiv: "count" } },
+      { text: " pending." },
     ],
     targets,
-    targets_coded: {},
     translatable: true,
     properties: {},
   };
@@ -66,10 +46,7 @@ function makePlainBlock(targets: Record<string, string>): BlockInfo {
   return {
     id: "blk-plain",
     source: "Welcome back!",
-    has_spans: false,
-    source_spans: [],
     targets,
-    targets_coded: {},
     translatable: true,
     properties: {},
   };
@@ -203,7 +180,7 @@ function makePluralMessageBlock(translated: boolean): BlockInfo {
         },
       },
     ],
-    has_spans: true,
+    has_inline_codes: true,
     targets: translated ? { de: { text: " Nachrichten", status: "translated" } } : {},
     targets_runs: translated
       ? {

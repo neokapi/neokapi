@@ -58,6 +58,7 @@ import {
   withTargetStatus,
   type TargetStatusSnapshot,
 } from "./editor/blockStatus";
+import { blockHasInlineCodes } from "./editor/blockContent";
 import {
   savedRuns,
   savedTranslation,
@@ -904,9 +905,9 @@ export function TranslationEditor({
         <span className="text-muted-foreground inline-flex items-center gap-0.5">
           Enter: edit | Esc: cancel | <ArrowUp className="w-3 h-3 inline-block" />
           <ArrowDown className="w-3 h-3 inline-block" />: navigate
-          {editingIndex !== null && blocks[editingIndex]?.has_spans && (
-            <> | Ctrl+1..9: insert tag</>
-          )}
+          {editingIndex !== null &&
+            blocks[editingIndex] &&
+            blockHasInlineCodes(blocks[editingIndex]) && <> | Ctrl+1..9: insert tag</>}
           {editingIndex === null && <> | {"⌘"}E: mark entity</>}
         </span>
       </div>

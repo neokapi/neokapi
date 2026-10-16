@@ -1,33 +1,25 @@
 /**
- * FormatInlineCodes — demonstrates how inline codes are rendered as
- * formatted text (the default translator experience) versus tag chips
- * (the opt-in code view for advanced users).
+ * FormatInlineCodes — demonstrates how inline codes from different source
+ * formats are rendered in the formatted (default) and code (opt-in) views.
  *
- * Shows that HTML spans and Markdown spans produce identical visual
- * output when rendered through FormattedSourceDisplay, because both
- * resolve to the same semantic categories.
+ * Shows that HTML codes and Markdown codes produce identical visual
+ * output when they map to the same semantic categories.
  */
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Run } from "@neokapi/kapi-format";
 import { FormattedSourceDisplay } from "../../components/editor/FormattedSourceDisplay";
 import { SourceCellDisplay } from "../../components/editor/SourceCellDisplay";
 import { FormatVocabularyBadge } from "../../components/editor/FormatVocabularyBadge";
+import { codeSpans } from "../../components/editor/editorText";
 import { InlineCodeLegend } from "@neokapi/ui-primitives";
-import type { SpanInfo } from "../../types/api";
 import {
-  simpleBoldCodedText,
-  simpleBoldSpans,
-  linkAndItalicCodedText,
-  linkAndItalicSpans,
-  codeInlineCodedText,
-  codeInlineSpans,
-  lineBreakCodedText,
-  lineBreakSpans,
-  richCodedText,
-  richSpans,
-  mdFormattingCodedText,
-  mdFormattingSpans,
-  mdRichCodedText,
-  mdRichSpans,
+  simpleBoldRuns,
+  linkAndItalicRuns,
+  codeInlineRuns,
+  lineBreakRuns,
+  richRuns,
+  mdFormattingRuns,
+  mdRichRuns,
   underlineOpen,
   underlineClose,
   strikeOpen,
@@ -35,15 +27,9 @@ import {
   supOpen,
   supClose,
   imgTag,
+  pair,
+  runsOf,
 } from "../fixtures";
-
-// ---------------------------------------------------------------------------
-// Unicode markers
-// ---------------------------------------------------------------------------
-
-const O = "\uE001";
-const C = "\uE002";
-const P = "\uE003";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -71,20 +57,12 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function Comparison({
-  label,
-  codedText,
-  spans,
-}: {
-  label: string;
-  codedText: string;
-  spans: SpanInfo[];
-}) {
+function Comparison({ label, runs }: { label: string; runs: Run[] }) {
   return (
     <div style={{ marginBottom: 16 }}>
       <div style={{ fontSize: 10, color: "#888", fontWeight: 600, marginBottom: 4 }}>{label}</div>
       <div style={{ fontSize: 14, lineHeight: 1.6 }}>
-        <FormattedSourceDisplay codedText={codedText} spans={spans} />
+        <FormattedSourceDisplay runs={runs} />
       </div>
     </div>
   );
@@ -106,7 +84,7 @@ const meta: Meta = {
           "- **Formatted view** (default): text appears with actual formatting — bold is bold, links are underlined, code is monospace — with faint background tints marking span boundaries.",
           "- **Code view** (opt-in): text shows abstract tag chips like `[B>] text [/B]` for advanced users who need to see the raw structure.",
           "",
-          "HTML and Markdown spans produce identical visual output because both resolve to the same semantic categories (bold, italic, link, code, etc.).",
+          "HTML and Markdown codes produce identical visual output because both resolve to the same semantic categories (bold, italic, link, code, etc.).",
         ].join("\n"),
       },
     },
@@ -122,15 +100,11 @@ type Story = StoryObj;
 export const HTMLFormat: Story = {
   render: () => (
     <div style={{ maxWidth: 640, padding: 16 }}>
-      <Section title="HTML Spans — Formatted View">
-        <Comparison label="Bold" codedText={simpleBoldCodedText} spans={simpleBoldSpans} />
-        <Comparison
-          label="Link + Italic"
-          codedText={linkAndItalicCodedText}
-          spans={linkAndItalicSpans}
-        />
-        <Comparison label="Inline Code" codedText={codeInlineCodedText} spans={codeInlineSpans} />
-        <Comparison label="Line Break" codedText={lineBreakCodedText} spans={lineBreakSpans} />
+      <Section title="HTML Codes — Formatted View">
+        <Comparison label="Bold" runs={simpleBoldRuns} />
+        <Comparison label="Link + Italic" runs={linkAndItalicRuns} />
+        <Comparison label="Inline Code" runs={codeInlineRuns} />
+        <Comparison label="Line Break" runs={lineBreakRuns} />
       </Section>
     </div>
   ),
@@ -143,44 +117,29 @@ export const HTMLFormat: Story = {
 export const MarkdownFormat: Story = {
   render: () => (
     <div style={{ maxWidth: 640, padding: 16 }}>
-      <Section title="Markdown Spans — Formatted View">
-        <Comparison
-          label="Bold + Italic (** and *)"
-          codedText={mdFormattingCodedText}
-          spans={mdFormattingSpans}
-        />
-        <Comparison
-          label="Code + Link (` and []())"
-          codedText={mdRichCodedText}
-          spans={mdRichSpans}
-        />
+      <Section title="Markdown Codes — Formatted View">
+        <Comparison label="Bold + Italic (** and *)" runs={mdFormattingRuns} />
+        <Comparison label="Code + Link (` and []())" runs={mdRichRuns} />
       </Section>
     </div>
   ),
 };
 
 /**
- * Side-by-side comparison showing that HTML and Markdown spans produce
+ * Side-by-side comparison showing that HTML and Markdown codes produce
  * identical visual output when rendered through FormattedSourceDisplay.
  */
 export const SemanticEquivalence: Story = {
   render: () => {
     // Same sentence, different underlying markup
-    const sentence = `Click ${O}here${C} to ${O}learn more${C}`;
+    const sentence = (bold: [Run, Run], italic: [Run, Run]) =>
+      runsOf("Click ", bold[0], "here", bold[1], " to ", italic[0], "learn more", italic[1]);
 
-    const htmlSpans: SpanInfo[] = [
-      { span_type: "opening", type: "b", id: "1", data: "<b>" },
-      { span_type: "closing", type: "b", id: "1", data: "</b>" },
-      { span_type: "opening", type: "i", id: "2", data: "<i>" },
-      { span_type: "closing", type: "i", id: "2", data: "</i>" },
-    ];
-
-    const mdSpans: SpanInfo[] = [
-      { span_type: "opening", type: "bold", id: "1", data: "**" },
-      { span_type: "closing", type: "bold", id: "1", data: "**" },
-      { span_type: "opening", type: "italic", id: "2", data: "*" },
-      { span_type: "closing", type: "italic", id: "2", data: "*" },
-    ];
+    const htmlRuns = sentence(
+      pair("1", "b", "<b>", "</b>", "b"),
+      pair("2", "i", "<i>", "</i>", "i"),
+    );
+    const mdRuns = sentence(pair("1", "bold", "**", "**", "b"), pair("2", "italic", "*", "*", "i"));
 
     return (
       <div style={{ maxWidth: 640, padding: 16 }}>
@@ -195,7 +154,7 @@ export const SemanticEquivalence: Story = {
                 HTML ({`<b>, <i>`})
               </div>
               <div style={{ fontSize: 14, lineHeight: 1.6 }}>
-                <FormattedSourceDisplay codedText={sentence} spans={htmlSpans} />
+                <FormattedSourceDisplay runs={htmlRuns} />
               </div>
             </div>
             <div style={{ flex: 1 }}>
@@ -203,7 +162,7 @@ export const SemanticEquivalence: Story = {
                 Markdown (**, *)
               </div>
               <div style={{ fontSize: 14, lineHeight: 1.6 }}>
-                <FormattedSourceDisplay codedText={sentence} spans={mdSpans} />
+                <FormattedSourceDisplay runs={mdRuns} />
               </div>
             </div>
           </div>
@@ -230,7 +189,7 @@ export const CodeView: Story = {
             HTML Bold + Link
           </div>
           <div style={{ fontSize: 14, lineHeight: 1.6 }}>
-            <SourceCellDisplay codedText={richCodedText} spans={richSpans} />
+            <SourceCellDisplay runs={richRuns} />
           </div>
         </div>
         <div>
@@ -238,7 +197,7 @@ export const CodeView: Story = {
             Markdown Code + Link
           </div>
           <div style={{ fontSize: 14, lineHeight: 1.6 }}>
-            <SourceCellDisplay codedText={mdRichCodedText} spans={mdRichSpans} />
+            <SourceCellDisplay runs={mdRichRuns} />
           </div>
         </div>
       </Section>
@@ -251,68 +210,42 @@ export const CodeView: Story = {
  */
 export const AllCategories: Story = {
   render: () => {
-    const categories: Array<{
-      label: string;
-      codedText: string;
-      spans: SpanInfo[];
-    }> = [
-      {
-        label: "Bold",
-        codedText: `This is ${O}bold text${C}`,
-        spans: [
-          { span_type: "opening", type: "bold", id: "1", data: "**" },
-          { span_type: "closing", type: "bold", id: "1", data: "**" },
-        ],
-      },
+    const wrap = (prefix: string, codes: [Run, Run], inner: string, suffix = "") =>
+      runsOf(prefix, codes[0], inner, codes[1], suffix);
+    const categories: Array<{ label: string; runs: Run[] }> = [
+      { label: "Bold", runs: wrap("This is ", pair("1", "bold", "**", "**", "b"), "bold text") },
       {
         label: "Italic",
-        codedText: `This is ${O}italic text${C}`,
-        spans: [
-          { span_type: "opening", type: "italic", id: "2", data: "*" },
-          { span_type: "closing", type: "italic", id: "2", data: "*" },
-        ],
+        runs: wrap("This is ", pair("2", "italic", "*", "*", "i"), "italic text"),
       },
       {
         label: "Underline",
-        codedText: `This is ${O}underlined text${C}`,
-        spans: [underlineOpen, underlineClose],
+        runs: wrap("This is ", [underlineOpen, underlineClose], "underlined text"),
       },
-      {
-        label: "Strikethrough",
-        codedText: `This is ${O}deleted text${C}`,
-        spans: [strikeOpen, strikeClose],
-      },
+      { label: "Strikethrough", runs: wrap("This is ", [strikeOpen, strikeClose], "deleted text") },
       {
         label: "Link",
-        codedText: `Visit ${O}our website${C} for more`,
-        spans: [
-          { span_type: "opening", type: "link", id: "5", data: "[" },
-          { span_type: "closing", type: "link", id: "5", data: "](https://example.com)" },
-        ],
+        runs: wrap(
+          "Visit ",
+          pair("5", "link", "[", "](https://example.com)", "a"),
+          "our website",
+          " for more",
+        ),
       },
       {
         label: "Code",
-        codedText: `Run ${O}kapi init${C} to start`,
-        spans: [
-          { span_type: "opening", type: "code", id: "6", data: "`" },
-          { span_type: "closing", type: "code", id: "6", data: "`" },
-        ],
+        runs: wrap("Run ", pair("6", "code", "`", "`", "code"), "kapi init", " to start"),
       },
-      {
-        label: "Superscript",
-        codedText: `E=mc${O}2${C}`,
-        spans: [supOpen, supClose],
-      },
+      { label: "Superscript", runs: wrap("E=mc", [supOpen, supClose], "2") },
       {
         label: "Line Break (placeholder)",
-        codedText: `First line${P}Second line`,
-        spans: [{ span_type: "placeholder" as const, type: "br", id: "9", data: "<br/>" }],
+        runs: runsOf(
+          "First line",
+          { ph: { id: "9", type: "br", data: "<br/>", equiv: "br" } },
+          "Second line",
+        ),
       },
-      {
-        label: "Image (placeholder)",
-        codedText: `See the logo ${P} below`,
-        spans: [imgTag],
-      },
+      { label: "Image (placeholder)", runs: runsOf("See the logo ", imgTag, " below") },
     ];
 
     return (
@@ -324,7 +257,7 @@ export const AllCategories: Story = {
                 {cat.label}
               </div>
               <div style={{ fontSize: 14, lineHeight: 1.6 }}>
-                <FormattedSourceDisplay codedText={cat.codedText} spans={cat.spans} />
+                <FormattedSourceDisplay runs={cat.runs} />
               </div>
             </div>
           ))}
@@ -340,32 +273,47 @@ export const AllCategories: Story = {
  */
 export const VocabularyDrivenExperience: Story = {
   render: () => {
-    const allSpans: SpanInfo[] = [
-      { span_type: "opening", type: "fmt:bold", id: "1", data: "<b>" },
-      { span_type: "closing", type: "fmt:bold", id: "1", data: "</b>" },
-      {
-        span_type: "opening",
-        type: "link:hyperlink",
-        id: "2",
-        data: '<a href="https://example.com">',
-      },
-      { span_type: "closing", type: "link:hyperlink", id: "2", data: "</a>" },
-      { span_type: "opening", type: "fmt:code", id: "3", data: "<code>" },
-      { span_type: "closing", type: "fmt:code", id: "3", data: "</code>" },
-      {
-        span_type: "placeholder",
-        type: "code:variable",
+    const [boldOpen, boldClose] = pair("1", "fmt:bold", "<b>", "</b>", "b");
+    const [linkOpen, linkClose] = pair(
+      "2",
+      "link:hyperlink",
+      '<a href="https://example.com">',
+      "</a>",
+      "a",
+    );
+    const [codeOpen, codeClose] = pair("3", "fmt:code", "<code>", "</code>", "code");
+    const version: Run = {
+      ph: {
         id: "4",
+        type: "code:variable",
         data: "{version}",
-        display_text: "{version}",
-        deletable: false,
-        cloneable: false,
-        can_reorder: true,
+        equiv: "version",
+        disp: "{version}",
       },
-      { span_type: "placeholder", type: "struct:break", id: "5", data: "<br/>" },
-    ];
+    };
+    const lineBreak: Run = { ph: { id: "5", type: "struct:break", data: "<br/>", equiv: "br" } };
 
-    const codedText = `${O}Download${C} the latest ${O}release${C} (${O}v${C}${P}).${P}Visit the ${O}docs${C} for details.`;
+    const allRuns = runsOf(
+      boldOpen,
+      "Download",
+      boldClose,
+      " the latest ",
+      linkOpen,
+      "release",
+      linkClose,
+      " (",
+      codeOpen,
+      "v",
+      codeClose,
+      version,
+      ").",
+      lineBreak,
+      "Visit the ",
+      linkOpen,
+      "docs",
+      linkClose,
+      " for details.",
+    );
 
     return (
       <div style={{ maxWidth: 640, padding: 16 }}>
@@ -381,7 +329,7 @@ export const VocabularyDrivenExperience: Story = {
             <div style={{ fontSize: 10, color: "#888", fontWeight: 600, marginBottom: 4 }}>
               Vocabulary Badge
             </div>
-            <FormatVocabularyBadge spans={allSpans} />
+            <FormatVocabularyBadge runs={allRuns} />
           </div>
 
           {/* Formatted view */}
@@ -390,7 +338,7 @@ export const VocabularyDrivenExperience: Story = {
               Formatted View
             </div>
             <div style={{ fontSize: 14, lineHeight: 1.6 }}>
-              <FormattedSourceDisplay codedText={codedText} spans={allSpans} />
+              <FormattedSourceDisplay runs={allRuns} />
             </div>
           </div>
 
@@ -400,7 +348,7 @@ export const VocabularyDrivenExperience: Story = {
               Code View
             </div>
             <div style={{ fontSize: 14, lineHeight: 1.6 }}>
-              <SourceCellDisplay codedText={codedText} spans={allSpans} />
+              <SourceCellDisplay runs={allRuns} />
             </div>
           </div>
 
@@ -409,7 +357,7 @@ export const VocabularyDrivenExperience: Story = {
             <div style={{ fontSize: 10, color: "#888", fontWeight: 600, marginBottom: 4 }}>
               Inline Code Legend
             </div>
-            <InlineCodeLegend spans={allSpans} onClose={() => {}} />
+            <InlineCodeLegend spans={codeSpans(allRuns)} onClose={() => {}} />
           </div>
         </Section>
       </div>

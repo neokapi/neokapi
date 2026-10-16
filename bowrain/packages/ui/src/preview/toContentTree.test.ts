@@ -23,7 +23,7 @@ function block(over: Partial<BlockInfo> = {}): BlockInfo {
     targets: { "fr-FR": { text: "Utilisez la console Acme.", status: "translated" } },
     targets_runs: { "fr-FR": [{ text: "Utilisez la console Acme." }] },
     translatable: true,
-    has_spans: true,
+    has_inline_codes: true,
     properties: {},
     ...over,
   };
@@ -400,32 +400,27 @@ describe("blocksToContentTree", () => {
   });
 });
 
-// A payload that carries only the flattened coded form still carries its inline
-// codes. Reading it as plain text drops the private-use markers, so a unit whose
-// source is "Première ligne<marker>Deuxième ligne" arrives as
-// "Première ligneDeuxième ligne": two sentences run together, with nothing
-// missing that anyone can see.
-describe("coded-text payloads", () => {
-  /** The placeholder marker `parseCodedSegments` reads (codedText.ts). */
+// A payload's inline codes are runs. Reading a block as its plain text drops
+// them, so a unit whose source is "Première ligne<br/>Deuxième ligne" would
+// arrive as "Première ligneDeuxième ligne": two sentences run together, with
+// nothing missing that anyone can see.
+describe("payloads with inline codes", () => {
+  /** The private-use marker a plain text may still carry (model.MarkerPlaceholder). */
   const P = "\uE003";
 
-  const lineBreak = {
-    span_type: "placeholder" as const,
-    type: "struct:break",
-    id: "1",
-    data: "<br/>",
-  };
+  const lineBreak = { ph: { id: "1", type: "struct:break", data: "<br/>", equiv: "br" } };
 
   function codedBlock(): BlockInfo {
     return {
       id: "b-lines",
-      source: `First line${P}Second line`,
-      source_coded: `First line${P}Second line`,
-      source_spans: [lineBreak],
-      targets: { "fr-FR": { text: `Première ligne${P}Deuxième ligne`, status: "translated" } },
-      targets_coded: { "fr-FR": `Première ligne${P}Deuxième ligne` },
+      source: "First line\nSecond line",
+      source_runs: [{ text: "First line" }, lineBreak, { text: "Second line" }],
+      targets: { "fr-FR": { text: "Première ligne\nDeuxième ligne", status: "translated" } },
+      targets_runs: {
+        "fr-FR": [{ text: "Première ligne" }, lineBreak, { text: "Deuxième ligne" }],
+      },
       translatable: true,
-      has_spans: true,
+      has_inline_codes: true,
       properties: {},
     };
   }
@@ -455,7 +450,6 @@ describe("coded-text payloads", () => {
       source: `First line${P}Second line`,
       targets: {},
       translatable: true,
-      has_spans: false,
       properties: {},
     });
 

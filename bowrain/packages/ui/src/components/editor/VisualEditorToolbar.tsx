@@ -1,10 +1,19 @@
-import { Button, getDefaultRegistry, tagColors, type TagColorScheme } from "@neokapi/ui-primitives";
+import {
+  Button,
+  getDefaultRegistry,
+  tagColors,
+  type SpanInfo,
+  type TagColorScheme,
+} from "@neokapi/ui-primitives";
 import { useMemo } from "react";
-import type { SpanInfo } from "../../types/api";
+import type { Run } from "@neokapi/kapi-format";
+import { codeSpans } from "./editorText";
 
 interface VisualEditorToolbarProps {
-  sourceSpans: SpanInfo[];
-  onInsertTag: (span: SpanInfo) => void;
+  /** The source, whose paired codes the toolbar offers. */
+  sourceRuns: readonly Run[];
+  /** Called when a code button is pressed; the open editor places the code. */
+  onInsertTag: () => void;
   disabled?: boolean;
 }
 
@@ -17,11 +26,11 @@ interface ToolbarEntry {
 }
 
 /**
- * Compact formatting toolbar showing unique tag types from source spans.
- * Each button inserts the corresponding opening span into the target editor.
+ * Compact formatting toolbar showing the unique paired-code types in the
+ * source. Each button opens the target editor, where the code is inserted.
  */
 export function VisualEditorToolbar({
-  sourceSpans,
+  sourceRuns,
   onInsertTag,
   disabled,
 }: VisualEditorToolbarProps) {
@@ -32,7 +41,7 @@ export function VisualEditorToolbar({
     const result: ToolbarEntry[] = [];
     let shortcutIdx = 1;
 
-    for (const span of sourceSpans) {
+    for (const span of codeSpans(sourceRuns)) {
       if (span.span_type !== "opening") continue;
       if (seen.has(span.type)) continue;
       seen.add(span.type);
@@ -49,7 +58,7 @@ export function VisualEditorToolbar({
     }
 
     return result;
-  }, [sourceSpans, registry]);
+  }, [sourceRuns, registry]);
 
   if (entries.length === 0) return null;
 
@@ -61,7 +70,7 @@ export function VisualEditorToolbar({
           variant="ghost"
           size="sm"
           disabled={disabled}
-          onClick={() => onInsertTag(entry.span)}
+          onClick={onInsertTag}
           title={`${entry.label} (${entry.shortcut})`}
           className="min-w-7"
           style={disabled ? undefined : { color: entry.colors.text }}

@@ -1,29 +1,33 @@
 import { useState, useMemo } from "react";
-import type { SpanInfo, EntityInfo } from "../../types/api";
+import type { Run } from "@neokapi/kapi-format";
+import type { EntityInfo } from "../../types/api";
 import {
   DirectionalText,
-  parseCodedSegments,
   TagChipComponent,
   buildPairs,
+  runsToSegments,
 } from "@neokapi/ui-primitives";
 import { entityMarks, markEntities } from "./entityMarks";
 
 interface SourceCellDisplayProps {
-  codedText: string;
-  spans: SpanInfo[];
+  /** The content to show, as the runs the server serves it in. */
+  runs: readonly Run[];
   entities?: EntityInfo[];
   /** The locale this text is written in — see FormattedSourceDisplay's `locale`. */
   locale?: string;
 }
 
 /**
- * Read-only display of source text with inline tag chips and optional entity underlines.
- * Entity ranges are defined on the plain source text; we track running plaintext offset
- * to apply entity styling to text segments in the coded view.
+ * Read-only display of a run sequence as text with inline tag chips and
+ * optional entity underlines. Entity ranges are defined on the plain text;
+ * the running plain-text offset locates them within the text segments.
  */
-export function SourceCellDisplay({ codedText, spans, entities, locale }: SourceCellDisplayProps) {
-  const segments = useMemo(() => parseCodedSegments(codedText, spans), [codedText, spans]);
-  const pairs = useMemo(() => buildPairs(spans), [spans]);
+export function SourceCellDisplay({ runs, entities, locale }: SourceCellDisplayProps) {
+  const segments = useMemo(() => runsToSegments(runs), [runs]);
+  const pairs = useMemo(
+    () => buildPairs(segments.flatMap((seg) => (seg.type === "tag" ? [seg.spanInfo] : []))),
+    [segments],
+  );
   const [hoveredPairIndex, setHoveredPairIndex] = useState<number | null>(null);
 
   // Entity positions are stated over the plain text — the text segments

@@ -70,10 +70,7 @@ describe("createDesktopAdapter (composite)", () => {
     expect(block.source).toBe("Hello {name}");
     expect(block.source_runs).toHaveLength(2);
     expect(block.targets_runs?.fr).toHaveLength(2);
-    expect(block.has_spans).toBe(true);
-    expect(block.source_spans).toHaveLength(1);
-    expect(block.source_coded).not.toBe("Hello {name}");
-    expect(block.targets_coded?.fr).toBeDefined();
+    expect(block.has_inline_codes).toBe(true);
   });
 
   it("sends a change set through the ApplyChanges binding, which queues it offline", async () => {

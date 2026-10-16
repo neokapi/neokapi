@@ -11,8 +11,9 @@ import {
   codeOpen,
   codeClose,
   lineBreak,
-  richSpans,
+  richRuns,
 } from "../fixtures";
+import { codeSpans, toEditorText } from "../../components/editor/editorText";
 
 const meta: Meta<typeof TagPalette> = {
   title: "Editor/Tags/TagPalette",
@@ -35,38 +36,38 @@ type Story = StoryObj<typeof TagPalette>;
 
 export const BoldPair: Story = {
   args: {
-    sourceSpans: [boldOpen, boldClose],
+    sourceSpans: codeSpans([boldOpen, boldClose]),
   },
 };
 
 export const MultiplePairs: Story = {
   args: {
-    sourceSpans: [boldOpen, boldClose, italicOpen, italicClose, linkOpen, linkClose],
+    sourceSpans: codeSpans([boldOpen, boldClose, italicOpen, italicClose, linkOpen, linkClose]),
   },
 };
 
 export const WithCodeAndBreak: Story = {
   args: {
-    sourceSpans: [codeOpen, codeClose, lineBreak],
+    sourceSpans: codeSpans([codeOpen, codeClose, lineBreak]),
   },
 };
 
 export const AllTags: Story = {
   args: {
-    sourceSpans: richSpans,
+    sourceSpans: codeSpans(richRuns),
   },
 };
 
 /** Some tags already used — shown dimmed */
 export const PartiallyUsed: Story = {
   args: {
-    sourceSpans: [boldOpen, boldClose, italicOpen, italicClose],
-    usedSpans: [boldOpen, boldClose],
+    sourceSpans: codeSpans([boldOpen, boldClose, italicOpen, italicClose]),
+    usedSpans: codeSpans([boldOpen, boldClose]),
   },
 };
 
 export const Empty: Story = {
   args: {
-    sourceSpans: [],
+    sourceSpans: codeSpans([]),
   },
 };

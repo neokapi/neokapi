@@ -1,17 +1,13 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { InlinePreview } from "@neokapi/ui-primitives";
 import {
-  simpleBoldCodedText,
-  simpleBoldSpans,
-  linkAndItalicCodedText,
-  linkAndItalicSpans,
-  codeInlineCodedText,
-  codeInlineSpans,
-  lineBreakCodedText,
-  lineBreakSpans,
-  richCodedText,
-  richSpans,
+  simpleBoldRuns,
+  linkAndItalicRuns,
+  codeInlineRuns,
+  lineBreakRuns,
+  richRuns,
 } from "../fixtures";
+import { codeSpans, toEditorText } from "../../components/editor/editorText";
 
 const meta: Meta<typeof InlinePreview> = {
   title: "Editor/Formatting/InlinePreview",
@@ -31,36 +27,31 @@ type Story = StoryObj<typeof InlinePreview>;
 
 export const BoldText: Story = {
   args: {
-    codedText: simpleBoldCodedText,
-    spans: simpleBoldSpans,
+    ...toEditorText(simpleBoldRuns),
   },
 };
 
 export const LinkAndItalic: Story = {
   args: {
-    codedText: linkAndItalicCodedText,
-    spans: linkAndItalicSpans,
+    ...toEditorText(linkAndItalicRuns),
   },
 };
 
 export const CodeInline: Story = {
   args: {
-    codedText: codeInlineCodedText,
-    spans: codeInlineSpans,
+    ...toEditorText(codeInlineRuns),
   },
 };
 
 export const WithLineBreak: Story = {
   args: {
-    codedText: lineBreakCodedText,
-    spans: lineBreakSpans,
+    ...toEditorText(lineBreakRuns),
   },
 };
 
 export const RichMarkup: Story = {
   args: {
-    codedText: richCodedText,
-    spans: richSpans,
+    ...toEditorText(richRuns),
   },
 };
 

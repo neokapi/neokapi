@@ -7,82 +7,75 @@
  */
 
 const accentMap: Record<string, string> = {
-  a: "\u00e0", // à
-  b: "\u0183", // ƃ
-  c: "\u00e7", // ç
-  d: "\u0111", // đ
-  e: "\u00e9", // é
-  f: "\u0192", // ƒ
-  g: "\u011d", // ĝ
-  h: "\u0125", // ĥ
-  i: "\u00ee", // î
-  j: "\u0135", // ĵ
-  k: "\u0137", // ķ
-  l: "\u013c", // ļ
-  m: "\u1e3f", // ḿ
-  n: "\u00f1", // ñ
-  o: "\u00f6", // ö
-  p: "\u00fe", // þ
-  q: "\u01eb", // ǫ
-  r: "\u0155", // ŕ
-  s: "\u0161", // š
-  t: "\u0163", // ţ
-  u: "\u00fc", // ü
-  v: "\u1e7d", // ṽ
-  w: "\u0175", // ŵ
-  x: "\u1e8b", // ẋ
-  y: "\u00fd", // ý
-  z: "\u017e", // ž
-  A: "\u00c0", // À
-  B: "\u0182", // Ƃ
-  C: "\u00c7", // Ç
-  D: "\u0110", // Đ
-  E: "\u00c9", // É
-  F: "\u0191", // Ƒ
-  G: "\u011c", // Ĝ
-  H: "\u0124", // Ĥ
-  I: "\u00ce", // Î
-  J: "\u0134", // Ĵ
-  K: "\u0136", // Ķ
-  L: "\u013b", // Ļ
-  M: "\u1e3e", // Ḿ
-  N: "\u00d1", // Ñ
-  O: "\u00d6", // Ö
-  P: "\u00de", // Þ
-  Q: "\u01ea", // Ǫ
-  R: "\u0154", // Ŕ
-  S: "\u0160", // Š
-  T: "\u0162", // Ţ
-  U: "\u00dc", // Ü
-  V: "\u1e7c", // Ṽ
-  W: "\u0174", // Ŵ
-  X: "\u1e8a", // Ẋ
-  Y: "\u00dd", // Ý
-  Z: "\u017d", // Ž
+  a: "à", // à
+  b: "ƃ", // ƃ
+  c: "ç", // ç
+  d: "đ", // đ
+  e: "é", // é
+  f: "ƒ", // ƒ
+  g: "ĝ", // ĝ
+  h: "ĥ", // ĥ
+  i: "î", // î
+  j: "ĵ", // ĵ
+  k: "ķ", // ķ
+  l: "ļ", // ļ
+  m: "ḿ", // ḿ
+  n: "ñ", // ñ
+  o: "ö", // ö
+  p: "þ", // þ
+  q: "ǫ", // ǫ
+  r: "ŕ", // ŕ
+  s: "š", // š
+  t: "ţ", // ţ
+  u: "ü", // ü
+  v: "ṽ", // ṽ
+  w: "ŵ", // ŵ
+  x: "ẋ", // ẋ
+  y: "ý", // ý
+  z: "ž", // ž
+  A: "À", // À
+  B: "Ƃ", // Ƃ
+  C: "Ç", // Ç
+  D: "Đ", // Đ
+  E: "É", // É
+  F: "Ƒ", // Ƒ
+  G: "Ĝ", // Ĝ
+  H: "Ĥ", // Ĥ
+  I: "Î", // Î
+  J: "Ĵ", // Ĵ
+  K: "Ķ", // Ķ
+  L: "Ļ", // Ļ
+  M: "Ḿ", // Ḿ
+  N: "Ñ", // Ñ
+  O: "Ö", // Ö
+  P: "Þ", // Þ
+  Q: "Ǫ", // Ǫ
+  R: "Ŕ", // Ŕ
+  S: "Š", // Š
+  T: "Ţ", // Ţ
+  U: "Ü", // Ü
+  V: "Ṽ", // Ṽ
+  W: "Ŵ", // Ŵ
+  X: "Ẋ", // Ẋ
+  Y: "Ý", // Ý
+  Z: "Ž", // Ž
 };
 
-/** Apply pseudo-translation accent mapping to plain text. */
-export function pseudoTranslate(text: string): string {
+/** Accent the letters of one text run; the shade markers wrap the whole block. */
+export function pseudoAccent(text: string): string {
   let result = "";
   for (const ch of text) {
     result += accentMap[ch] ?? ch;
   }
-  return "\u2592 " + result + " \u2592";
+  return result;
 }
 
-/**
- * Apply pseudo-translation to coded text, preserving inline span markers
- * (Unicode private use area characters U+E001–U+E003).
- */
-export function pseudoTranslateCoded(coded: string): string {
-  let result = "";
-  for (const ch of coded) {
-    const code = ch.codePointAt(0) ?? 0;
-    if (code >= 0xe001 && code <= 0xe003) {
-      result += ch;
-    } else {
-      result += accentMap[ch] ?? ch;
-    }
-  }
-  return "\u2592 " + result + " \u2592";
+/** The shade markers a pseudo-translated block is wrapped in. */
+export function pseudoWrap(text: string): string {
+  return "▒ " + text + " ▒";
+}
+
+/** Apply pseudo-translation accent mapping to plain text. */
+export function pseudoTranslate(text: string): string {
+  return pseudoWrap(pseudoAccent(text));
 }

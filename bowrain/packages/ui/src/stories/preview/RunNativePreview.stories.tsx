@@ -76,7 +76,7 @@ const blocks: BlockInfo[] = [
       ],
     },
     translatable: true,
-    has_spans: true,
+    has_inline_codes: true,
     properties: { type: "json:value", path: "$.auth.reset" },
     entities,
   },
@@ -86,7 +86,6 @@ const blocks: BlockInfo[] = [
     source_runs: [{ text: "We will email you a link." }],
     targets: { "fr-FR": { text: "Nous vous enverrons un lien.", status: "established" } },
     translatable: true,
-    has_spans: false,
     properties: { type: "json:value", path: "$.auth.sent" },
   },
 ];

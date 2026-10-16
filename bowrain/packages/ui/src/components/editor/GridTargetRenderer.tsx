@@ -1,22 +1,26 @@
-import { cn, DirectionalText } from "@neokapi/ui-primitives";
+import { DirectionalText, cn, validateTags } from "@neokapi/ui-primitives";
 import { useMemo } from "react";
-import { validateTags, parsePluralFormForChips } from "@neokapi/ui-primitives";
-import type { BlockInfo, SpanInfo } from "../../types/api";
+import type { PluralForm, Run } from "@neokapi/kapi-format";
+import type { BlockInfo } from "../../types/api";
+import { blockHasInlineCodes, pluralForms, pluralOf, sourceRuns, targetRuns } from "./blockContent";
+import { codeSpans } from "./editorText";
 import { getTargetText } from "./blockStatus";
 import { FormattedSourceDisplay } from "./FormattedSourceDisplay";
 import { AlertTriangle } from "../icons";
 
 /**
  * Collapsed-cell renderer for a target. Handles three shapes uniformly
- * (AD #408 / #409):
+ * so the grid and the review surfaces render targets identically:
  *
- *   1. Plural target (`targets[locale]` is ICU plural syntax)
- *      → render the `other` form's chips via FormattedSourceDisplay, with a
+ *   1. Plural target (one plural run, or ICU text spelling one)
+ *      → `other` form (or first present) rendered through
+ *        FormattedSourceDisplay with its codes as chips, plus a
  *        "plural" badge so the row signals there are more forms behind the
  *        click-to-edit.
- *   2. Single target with inline codes (`has_spans` + `targets_coded`)
- *      → chip rendering.
- *   3. Plain target (`targets[locale]`) → text.
+ *   2. Single target on a block with inline codes
+ *      → chip rendering, with a warning when its codes differ from the
+ *        source's.
+ *   3. Plain target → text.
  *
  * Extracted from TranslationEditor so the shared TableView (and any future
  * row-based surface) renders targets identically.
@@ -30,17 +34,13 @@ export function CollapsedTargetCell({
   locale: string;
   testId: string;
 }) {
-  const sourceSpans = block.source_spans ?? [];
-  const rawTarget = getTargetText(block, locale);
-  const codedTarget = block.targets_coded?.[locale] ?? "";
+  const target = useMemo(() => targetRuns(block, locale), [block, locale]);
+  const plural = useMemo(() => pluralOf(target), [target]);
 
-  // Plural takes priority — it lives in `targets[locale]` only.
-  const pluralPreview = useMemo(
-    () => (rawTarget ? parsePluralFormForChips(rawTarget, sourceSpans) : null),
-    [rawTarget, sourceSpans],
-  );
-
-  if (pluralPreview) {
+  if (plural) {
+    const forms = pluralForms(plural);
+    const available = Object.keys(forms) as PluralForm[];
+    const shown: PluralForm = forms.other ? "other" : available[0];
     return (
       <DirectionalText
         locale={locale}
@@ -48,30 +48,27 @@ export function CollapsedTargetCell({
         data-testid={testId}
         data-plural-preview="true"
       >
-        <FormattedSourceDisplay
-          codedText={pluralPreview.codedText}
-          spans={pluralPreview.spans}
-          locale={locale}
-        />
+        <FormattedSourceDisplay runs={forms[shown] ?? []} locale={locale} />
         <span
           className="ml-2 inline-flex items-center rounded bg-muted px-1.5 py-0.5 text-xs uppercase tracking-wide text-muted-foreground"
-          title={`Plural target: showing "${pluralPreview.shownForm}" of ${pluralPreview.availableForms.length} form(s)`}
+          title={`Plural target: showing "${shown}" of ${available.length} form(s)`}
         >
-          plural · {pluralPreview.shownForm}
+          plural · {shown}
         </span>
       </DirectionalText>
     );
   }
 
-  if (block.has_spans && codedTarget) {
+  if (blockHasInlineCodes(block) && target.length > 0) {
     return (
       <DirectionalText locale={locale} className="text-foreground" data-testid={testId}>
-        <FormattedSourceDisplay codedText={codedTarget} spans={sourceSpans} locale={locale} />
-        <RowTagWarning sourceSpans={sourceSpans} targetCodedText={codedTarget} />
+        <FormattedSourceDisplay runs={target} locale={locale} />
+        <RowTagWarning sourceRuns={sourceRuns(block)} targetRuns={target} />
       </DirectionalText>
     );
   }
 
+  const rawTarget = getTargetText(block, locale);
   return (
     <DirectionalText
       locale={locale}
@@ -83,30 +80,17 @@ export function CollapsedTargetCell({
   );
 }
 
-/** Row-level validation indicator for tag mismatches. */
+/** Warning icon when a target's inline codes differ from the source's. */
 export function RowTagWarning({
-  sourceSpans,
-  targetCodedText,
+  sourceRuns,
+  targetRuns,
 }: {
-  sourceSpans: SpanInfo[];
-  targetCodedText: string;
+  sourceRuns: readonly Run[];
+  targetRuns: readonly Run[];
 }) {
-  const targetSpans = useMemo(() => {
-    const spans: SpanInfo[] = [];
-    for (const ch of targetCodedText) {
-      const code = ch.charCodeAt(0);
-      if (code >= 0xe001 && code <= 0xe003) {
-        if (spans.length < sourceSpans.length) {
-          spans.push(sourceSpans[spans.length]);
-        }
-      }
-    }
-    return spans;
-  }, [targetCodedText, sourceSpans]);
-
   const validation = useMemo(
-    () => validateTags(sourceSpans, targetSpans),
-    [sourceSpans, targetSpans],
+    () => validateTags(codeSpans(sourceRuns), codeSpans(targetRuns)),
+    [sourceRuns, targetRuns],
   );
 
   if (validation.valid && validation.warnings.length === 0) return null;

@@ -33,9 +33,8 @@ import type {
   TargetMeta,
 } from "@neokapi/ui-primitives/preview";
 import { rangeAnchorForBytes, textForBytes } from "@neokapi/ui-primitives/preview";
-import { codedToRuns } from "@neokapi/ui-primitives";
 import { getTargetStatus, getTargetText } from "../components/editor/blockStatus";
-import type { BlockInfo, BlockTermMatch, EntityInfo, CheckIssue, SpanInfo } from "../types/api";
+import type { BlockInfo, BlockTermMatch, EntityInfo, CheckIssue } from "../types/api";
 
 /**
  * A run-anchored voice or rule-based finding, as `core/check.Finding`
@@ -98,23 +97,6 @@ export interface ContentTreeOptions extends BlockProjectionOptions {
 }
 
 /**
- * A run sequence from coded text: the flattened `(codedText, spans)` form the
- * cell renderers consume, read back through the same lossless bridge that
- * produced it.
- *
- * Stripping the private-use markers instead is content loss with no error: a
- * unit whose source is "First line<marker>Second line" reads as
- * "First lineSecond line", which is how a review pane came to show
- * "Première ligneDeuxième ligne". A target carries the source's spans, the way
- * every other target renderer reads it (see GridTargetRenderer).
- */
-function codedRuns(coded: string | undefined, spans: SpanInfo[] | undefined): Run[] | null {
-  if (!coded) return null;
-  const runs = codedToRuns(coded, spans ?? []) as Run[];
-  return runs.length > 0 ? runs : null;
-}
-
-/**
  * A private-use marker with no span to resolve it stands for content this
  * payload cannot describe. It becomes a placeholder run carrying no type, so
  * the preview draws a chip where the code was rather than closing the text over
@@ -138,20 +120,16 @@ function markersToRuns(text: string): Run[] {
   return out;
 }
 
-/** The typed source runs, else the coded source, else its plain text. */
+/** The typed source runs, else its plain text. */
 function sourceRuns(block: BlockInfo): Run[] {
   if (block.source_runs && block.source_runs.length > 0) return block.source_runs;
-  const coded = codedRuns(block.source_coded, block.source_spans);
-  if (coded) return coded;
   return markersToRuns(block.source ?? "");
 }
 
-/** The typed target runs for a locale, else its coded form, else its plain text. */
+/** The typed target runs for a locale, else its plain text. */
 function targetRuns(block: BlockInfo, locale: string): Run[] {
   const runs = block.targets_runs?.[locale];
   if (runs && runs.length > 0) return runs;
-  const coded = codedRuns(block.targets_coded?.[locale], block.source_spans);
-  if (coded) return coded;
   return markersToRuns(getTargetText(block, locale));
 }
 

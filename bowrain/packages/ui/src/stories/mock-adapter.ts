@@ -7,8 +7,10 @@
  */
 
 import type { ChangeFinding, ChangeOp } from "@neokapi/contract-types";
+import { otherBranch, projectRuns, type ModelRunSpec, type Run } from "@neokapi/kapi-format";
 import type { ApiAdapter } from "../api/adapter";
 import type { ContentChangeSet } from "../api/contentChanges";
+import { blockHasInlineCodes, sourceRuns } from "../components/editor/blockContent";
 import { getBlockStatus, getTargetText } from "../components/editor/blockStatus";
 import { applyMockChanges, servedBlock, writeTranslation } from "./mockContentChanges";
 import type {
@@ -101,30 +103,28 @@ function queryBlocks(blocks: BlockInfo[], opts?: BlockQueryOptions): BlockInfo[]
 // iframe document with the kat-block postMessage protocol.
 // ---------------------------------------------------------------------------
 
-/** Convert a block's coded text back to display HTML using span data. */
+function escapeHTML(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/**
+ * A block's source as display HTML: its text escaped, each inline code as the
+ * markup it stands for, a plural or select as its `other` branch.
+ */
+const DISPLAY_HTML: ModelRunSpec<string> = {
+  text: (r) => escapeHTML(r.text),
+  ph: (r) => r.ph.data,
+  pcOpen: (r) => r.pcOpen.data,
+  pcClose: (r) => r.pcClose.data,
+  sub: (r) => escapeHTML(`[${r.sub.equiv}]`),
+  plural: (r) =>
+    projectRuns(otherBranch(r.plural.forms as Record<string, Run[]>), DISPLAY_HTML).join(""),
+  select: (r) => projectRuns(otherBranch(r.select.cases), DISPLAY_HTML).join(""),
+  fallback: () => "",
+};
+
 function sourceToDisplayHTML(b: BlockInfo): string {
-  const spans = b.source_spans ?? [];
-  if (!b.has_spans || !b.source_coded || spans.length === 0) {
-    return b.source.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  }
-  let result = "";
-  let spanIdx = 0;
-  for (const ch of b.source_coded) {
-    const code = ch.codePointAt(0) ?? 0;
-    if (code === 0xe001 || code === 0xe002 || code === 0xe003) {
-      const span = spans[spanIdx++];
-      if (span) result += span.data;
-    } else if (ch === "&") {
-      result += "&amp;";
-    } else if (ch === "<") {
-      result += "&lt;";
-    } else if (ch === ">") {
-      result += "&gt;";
-    } else {
-      result += ch;
-    }
-  }
-  return result;
+  return projectRuns(sourceRuns(b), DISPLAY_HTML).join("");
 }
 
 function generatePreviewHTML(blocks: BlockInfo[]): string {
@@ -132,7 +132,7 @@ function generatePreviewHTML(blocks: BlockInfo[]): string {
   const bodyLines = blocks.map((b) => {
     const displayHTML = sourceToDisplayHTML(b);
     const inner = `<kat-block data-block-id="${b.id}">${displayHTML}</kat-block>`;
-    const isShort = b.source.length < 45 && !b.has_spans;
+    const isShort = b.source.length < 45 && !blockHasInlineCodes(b);
     if (isShort) {
       if (isFirstHeading) {
         isFirstHeading = false;
@@ -584,12 +584,12 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     ? blocks.map((b) => ({
         ...b,
         targets: { ...b.targets },
-        targets_coded: { ...b.targets_coded },
+        targets_runs: b.targets_runs ? { ...b.targets_runs } : undefined,
       }))
     : sampleBlocks.map((b) => ({
         ...b,
         targets: { ...b.targets },
-        targets_coded: { ...b.targets_coded },
+        targets_runs: b.targets_runs ? { ...b.targets_runs } : undefined,
       }));
 
   const _automationRules: AutomationRule[] = sampleAutomationRules.map((r) => ({

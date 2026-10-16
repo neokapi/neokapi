@@ -13,31 +13,26 @@ import { render, screen } from "@testing-library/react";
 
 import { FocusedReviewer } from "../components/review/FocusedReviewer";
 import type { ReviewEntry } from "../components/review/reviewQueue";
-import type { BlockInfo, SpanInfo } from "../types/api";
+import type { BlockInfo } from "../types/api";
 
 /** The coded-text marker standing for a placeholder span (model.MarkerPlaceholder). */
 const PH = "\uE003";
 
-const resetDate: SpanInfo = {
-  span_type: "placeholder",
-  type: "code:variable",
-  id: "1",
-  data: "{{.ResetDate}}",
-  equiv_text: "{{.ResetDate}}",
+const resetDate = {
+  ph: { id: "1", type: "code:variable", data: "{{.ResetDate}}", equiv: "{{.ResetDate}}" },
 };
 
 function block(over: Partial<BlockInfo> = {}): BlockInfo {
   return {
     id: "b1",
-    // The plain projection carries no marker; the coded text is where the
-    // placeholder is located.
+    // The plain text carries no marker; the runs are where the placeholder is
+    // located.
     source: "Your credits reset on .",
-    source_coded: `Your credits reset on ${PH}.`,
-    source_spans: [resetDate],
+    source_runs: [{ text: "Your credits reset on " }, resetDate, { text: "." }],
     targets: { nb: { text: "Kredittene tilbakestilles .", status: "translated" } },
-    targets_coded: { nb: `Kredittene tilbakestilles ${PH}.` },
+    targets_runs: { nb: [{ text: "Kredittene tilbakestilles " }, resetDate, { text: "." }] },
     translatable: true,
-    has_spans: true,
+    has_inline_codes: true,
     properties: {},
     ...over,
   };
@@ -110,7 +105,6 @@ describe("FocusedReviewer — source and target cells", () => {
       locale: "ar",
       block: block({
         targets: { ar: { text: "أعد التعيين", status: "translated" } },
-        targets_coded: { ar: "أعد التعيين" },
       }),
     });
 
@@ -124,9 +118,7 @@ describe("FocusedReviewer — source and target cells", () => {
     reviewer({
       block: block({
         source: "Café résumé password",
-        source_coded: "Café résumé password",
-        source_spans: [],
-        has_spans: false,
+        source_runs: [{ text: "Café résumé password" }],
         entities: [
           {
             key: "entity:0",

@@ -14,6 +14,7 @@ import {
 import type { EntityInfo, ComplianceBasis, ReviewContext } from "../../types/api";
 import { ComplianceRateChip } from "../ComplianceRateChip";
 import { entityLabel } from "../editor/entityMarks";
+import { sourceRuns } from "../editor/blockContent";
 import { FormattedSourceDisplay } from "../editor/FormattedSourceDisplay";
 import { CollapsedTargetCell } from "../editor/GridTargetRenderer";
 import { UnifiedTargetEditor, type UnifiedSaveResult } from "../UnifiedTargetEditor";
@@ -313,8 +314,7 @@ export function FocusedReviewer({
                 {...directionAttrs(sourceLocale)}
               >
                 <FormattedSourceDisplay
-                  codedText={block.source_coded ?? block.source ?? ""}
-                  spans={block.source_spans ?? []}
+                  runs={sourceRuns(block)}
                   entities={entities}
                   locale={sourceLocale}
                 />

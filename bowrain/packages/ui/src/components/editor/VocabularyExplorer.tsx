@@ -5,8 +5,8 @@ import {
   getDefaultRegistry,
   type SpanTypeInfo,
   type ColorScheme,
+  type SpanInfo,
 } from "@neokapi/ui-primitives";
-import type { SpanInfo } from "../../types/api";
 import { ChevronDown } from "../icons";
 
 // ---------------------------------------------------------------------------

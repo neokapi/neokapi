@@ -7,120 +7,117 @@
  * because they map to the same vocabulary types.
  */
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Run } from "@neokapi/kapi-format";
+import { TagPalette, InlineCodeLegend, type SpanInfo } from "@neokapi/ui-primitives";
 import { FormattedSourceDisplay } from "../../components/editor/FormattedSourceDisplay";
 import { SourceCellDisplay } from "../../components/editor/SourceCellDisplay";
-import { TagPalette, InlineCodeLegend } from "@neokapi/ui-primitives";
 import { FormatVocabularyBadge } from "../../components/editor/FormatVocabularyBadge";
-import type { SpanInfo } from "../../types/api";
-
-// ---------------------------------------------------------------------------
-// Unicode markers
-// ---------------------------------------------------------------------------
-
-const O = "\uE001";
-const C = "\uE002";
-const P = "\uE003";
+import { codeSpans } from "../../components/editor/editorText";
+import { pair, runsOf } from "../fixtures";
 
 // ---------------------------------------------------------------------------
 // Format-specific data: same content in three formats
 // ---------------------------------------------------------------------------
 
-const sentence = `Click ${O}here${C} to ${O}learn more${C}`;
+/** "Click <b>here</b> to <a>learn more</a>" with one format's codes. */
+function sentence(bold: [Run, Run], link: [Run, Run]): Run[] {
+  return runsOf("Click ", bold[0], "here", bold[1], " to ", link[0], "learn more", link[1]);
+}
 
-const htmlSpans: SpanInfo[] = [
-  { span_type: "opening", type: "fmt:bold", id: "1", data: '<b class="cta">' },
-  { span_type: "closing", type: "fmt:bold", id: "1", data: "</b>" },
-  {
-    span_type: "opening",
-    type: "link:hyperlink",
-    id: "2",
-    data: '<a href="https://docs.example.com">',
-  },
-  { span_type: "closing", type: "link:hyperlink", id: "2", data: "</a>" },
-];
+const htmlRuns = sentence(
+  pair("1", "fmt:bold", '<b class="cta">', "</b>", "b"),
+  pair("2", "link:hyperlink", '<a href="https://docs.example.com">', "</a>", "a"),
+);
 
-const markdownSpans: SpanInfo[] = [
-  { span_type: "opening", type: "fmt:bold", id: "1", data: "**" },
-  { span_type: "closing", type: "fmt:bold", id: "1", data: "**" },
-  { span_type: "opening", type: "link:hyperlink", id: "2", data: "[" },
-  { span_type: "closing", type: "link:hyperlink", id: "2", data: "](https://docs.example.com)" },
-];
+const markdownRuns = sentence(
+  pair("1", "fmt:bold", "**", "**", "b"),
+  pair("2", "link:hyperlink", "[", "](https://docs.example.com)", "a"),
+);
 
-const xliffSpans: SpanInfo[] = [
-  {
-    span_type: "opening",
-    type: "fmt:bold",
-    id: "1",
-    data: '<pc id="1" dataRefStart="d1">',
-    sub_type: "xlf:b",
-  },
-  { span_type: "closing", type: "fmt:bold", id: "1", data: "</pc>", sub_type: "xlf:b" },
-  {
-    span_type: "opening",
-    type: "link:hyperlink",
-    id: "2",
-    data: '<pc id="2" dataRefStart="d2">',
-    sub_type: "xlf:a",
-  },
-  { span_type: "closing", type: "link:hyperlink", id: "2", data: "</pc>", sub_type: "xlf:a" },
-];
+/** An XLIFF `<pc>` pair, which names the original element in its subType. */
+function xliffPair(id: string, type: string, dataRef: string, subType: string): [Run, Run] {
+  return [
+    {
+      pcOpen: {
+        id,
+        type,
+        subType,
+        data: `<pc id="${id}" dataRefStart="${dataRef}">`,
+        equiv: subType,
+      },
+    },
+    { pcClose: { id, type, subType, data: "</pc>", equiv: subType } },
+  ];
+}
+
+const xliffRuns = sentence(
+  xliffPair("1", "fmt:bold", "d1", "xlf:b"),
+  xliffPair("2", "link:hyperlink", "d2", "xlf:a"),
+);
 
 // ---------------------------------------------------------------------------
 // Richer format-specific examples
 // ---------------------------------------------------------------------------
 
-const richSentence = `${O}Important:${C} Use ${O}kapi init${C} to get started.${P}See the ${O}docs${C} for more.`;
+/** "<strong>Important:</strong> Use <code>kapi init</code> to get started.<br/>See the <a>docs</a> for more." */
+function richSentence(bold: [Run, Run], code: [Run, Run], lineBreak: Run, link: [Run, Run]): Run[] {
+  return runsOf(
+    bold[0],
+    "Important:",
+    bold[1],
+    " Use ",
+    code[0],
+    "kapi init",
+    code[1],
+    " to get started.",
+    lineBreak,
+    "See the ",
+    link[0],
+    "docs",
+    link[1],
+    " for more.",
+  );
+}
 
-const htmlRichSpans: SpanInfo[] = [
-  { span_type: "opening", type: "fmt:bold", id: "1", data: "<strong>" },
-  { span_type: "closing", type: "fmt:bold", id: "1", data: "</strong>" },
-  { span_type: "opening", type: "fmt:code", id: "2", data: "<code>" },
-  { span_type: "closing", type: "fmt:code", id: "2", data: "</code>" },
-  { span_type: "placeholder", type: "struct:break", id: "3", data: "<br/>" },
-  { span_type: "opening", type: "link:hyperlink", id: "4", data: '<a href="/docs">' },
-  { span_type: "closing", type: "link:hyperlink", id: "4", data: "</a>" },
-];
+const htmlRichRuns = richSentence(
+  pair("1", "fmt:bold", "<strong>", "</strong>", "strong"),
+  pair("2", "fmt:code", "<code>", "</code>", "code"),
+  { ph: { id: "3", type: "struct:break", data: "<br/>", equiv: "br" } },
+  pair("4", "link:hyperlink", '<a href="/docs">', "</a>", "a"),
+);
 
-const mdRichSpans: SpanInfo[] = [
-  { span_type: "opening", type: "fmt:bold", id: "1", data: "**" },
-  { span_type: "closing", type: "fmt:bold", id: "1", data: "**" },
-  { span_type: "opening", type: "fmt:code", id: "2", data: "`" },
-  { span_type: "closing", type: "fmt:code", id: "2", data: "`" },
-  { span_type: "placeholder", type: "struct:break", id: "3", data: "  \n" },
-  { span_type: "opening", type: "link:hyperlink", id: "4", data: "[" },
-  { span_type: "closing", type: "link:hyperlink", id: "4", data: "](/docs)" },
-];
+const mdRichRuns = richSentence(
+  pair("1", "fmt:bold", "**", "**", "b"),
+  pair("2", "fmt:code", "`", "`", "code"),
+  { ph: { id: "3", type: "struct:break", data: "  \n", equiv: "br" } },
+  pair("4", "link:hyperlink", "[", "](/docs)", "a"),
+);
 
 // ---------------------------------------------------------------------------
 // Code token example (ICU / i18n message format)
 // ---------------------------------------------------------------------------
 
-const i18nSentence = `Hello ${P}, you have ${P} new ${O}messages${C}.`;
-
-const i18nSpans: SpanInfo[] = [
+const [i18nBoldOpen, i18nBoldClose] = pair("3", "fmt:bold", "<b>", "</b>", "b");
+const i18nRuns = runsOf(
+  "Hello ",
   {
-    span_type: "placeholder",
-    type: "code:variable",
-    id: "1",
-    data: "{userName}",
-    display_text: "{userName}",
-    deletable: false,
-    cloneable: false,
-    can_reorder: true,
+    ph: {
+      id: "1",
+      type: "code:variable",
+      data: "{userName}",
+      equiv: "userName",
+      disp: "{userName}",
+    },
   },
-  {
-    span_type: "placeholder",
-    type: "code:placeholder",
-    id: "2",
-    data: "{count}",
-    display_text: "{count}",
-    deletable: false,
-    cloneable: false,
-    can_reorder: true,
-  },
-  { span_type: "opening", type: "fmt:bold", id: "3", data: "<b>" },
-  { span_type: "closing", type: "fmt:bold", id: "3", data: "</b>" },
-];
+  ", you have ",
+  { ph: { id: "2", type: "code:placeholder", data: "{count}", equiv: "count", disp: "{count}" } },
+  " new ",
+  i18nBoldOpen,
+  "messages",
+  i18nBoldClose,
+  ".",
+);
+const i18nSpans = codeSpans(i18nRuns);
 
 // ---------------------------------------------------------------------------
 // Meta
@@ -160,14 +157,12 @@ function FormatCard({
   format,
   description,
   nativeExample,
-  codedText,
-  spans,
+  runs,
 }: {
   format: string;
   description: string;
   nativeExample: string;
-  codedText: string;
-  spans: SpanInfo[];
+  runs: Run[];
 }) {
   return (
     <div style={cardStyle}>
@@ -183,7 +178,7 @@ function FormatCard({
           <div style={{ fontSize: 13, fontWeight: 600 }}>{format}</div>
           <div style={{ fontSize: 10, color: "#888" }}>{description}</div>
         </div>
-        <FormatVocabularyBadge spans={spans} />
+        <FormatVocabularyBadge runs={runs} />
       </div>
       <div
         style={{
@@ -202,13 +197,13 @@ function FormatCard({
       <div style={{ marginBottom: 6 }}>
         <div style={sectionLabel}>Formatted view (what translators see)</div>
         <div style={{ fontSize: 14, lineHeight: 1.6 }}>
-          <FormattedSourceDisplay codedText={codedText} spans={spans} />
+          <FormattedSourceDisplay runs={runs} />
         </div>
       </div>
       <div>
         <div style={sectionLabel}>Tag chip view (advanced)</div>
         <div style={{ fontSize: 14, lineHeight: 1.6 }}>
-          <SourceCellDisplay codedText={codedText} spans={spans} />
+          <SourceCellDisplay runs={runs} />
         </div>
       </div>
     </div>
@@ -236,15 +231,13 @@ export const CrossFormatConsistency: Story = {
           nativeExample={
             'Click <b class="cta">here</b> to <a href="https://docs.example.com">learn more</a>'
           }
-          codedText={sentence}
-          spans={htmlSpans}
+          runs={htmlRuns}
         />
         <FormatCard
           format="Markdown"
           description=".md file"
           nativeExample="Click **here** to [learn more](https://docs.example.com)"
-          codedText={sentence}
-          spans={markdownSpans}
+          runs={markdownRuns}
         />
         <FormatCard
           format="XLIFF 2.0"
@@ -252,8 +245,7 @@ export const CrossFormatConsistency: Story = {
           nativeExample={
             'Click <pc id="1" dataRefStart="d1">here</pc> to <pc id="2" dataRefStart="d2">learn more</pc>'
           }
-          codedText={sentence}
-          spans={xliffSpans}
+          runs={xliffRuns}
         />
       </div>
     </div>
@@ -277,8 +269,7 @@ export const RichContentAcrossFormats: Story = {
             nativeExample={
               '<strong>Important:</strong> Use <code>kapi init</code> to get started.<br/>See the <a href="/docs">docs</a>.'
             }
-            codedText={richSentence}
-            spans={htmlRichSpans}
+            runs={htmlRichRuns}
           />
         </div>
         <div style={{ flex: 1 }}>
@@ -288,8 +279,7 @@ export const RichContentAcrossFormats: Story = {
             nativeExample={
               "**Important:** Use `kapi init` to get started.  \nSee the [docs](/docs)."
             }
-            codedText={richSentence}
-            spans={mdRichSpans}
+            runs={mdRichRuns}
           />
         </div>
       </div>
@@ -311,8 +301,7 @@ export const CodeTokensAndVariables: Story = {
         format="JSON i18n"
         description="ICU message format variables"
         nativeExample={'{ "greeting": "Hello {userName}, you have {count} new <b>messages</b>." }'}
-        codedText={i18nSentence}
-        spans={i18nSpans}
+        runs={i18nRuns}
       />
       <div style={{ marginTop: 16 }}>
         <div style={sectionLabel}>Tag palette (with constraint indicators)</div>
@@ -330,7 +319,7 @@ export const CodeTokensAndVariables: Story = {
 export const TagPaletteWithCategories: Story = {
   render: () => {
     const mixedSpans: SpanInfo[] = [
-      ...htmlRichSpans,
+      ...codeSpans(htmlRichRuns),
       {
         span_type: "placeholder",
         type: "code:variable",

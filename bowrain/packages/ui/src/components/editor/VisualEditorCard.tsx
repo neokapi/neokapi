@@ -8,11 +8,10 @@ import {
   When,
   cn,
 } from "@neokapi/ui-primitives";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import type {
   ProjectInfo,
   BlockInfo,
-  SpanInfo,
   MemoryMatchInfo,
   BlockTermMatch,
   BlockNote,
@@ -33,6 +32,8 @@ import { VisualEditorToolbar } from "./VisualEditorToolbar";
 import { TermCreationPopover } from "./TermCreationPopover";
 import { ContextPanel } from "./ContextPanel";
 import { getBlockStatus, getTargetText } from "./blockStatus";
+import { blockHasInlineCodes, sourceRuns, targetRuns } from "./blockContent";
+import { codeSpans } from "./editorText";
 import { InlineCodeLegend } from "@neokapi/ui-primitives";
 import { FormatVocabularyBadge } from "./FormatVocabularyBadge";
 import {
@@ -134,21 +135,20 @@ export function VisualEditorCard({
 
   const status = getBlockStatus(block, targetLocale);
 
-  const sourceSpans = block.source_spans || [];
-  const sourceCodedText = block.source_coded || block.source;
+  const source = useMemo(() => sourceRuns(block), [block]);
+  // The legend reads the source's codes as chips.
+  const sourceSpans = useMemo(() => codeSpans(source), [source]);
+  const hasCodes = blockHasInlineCodes(block);
   const targetText = getTargetText(block, targetLocale);
-  const targetCodedText = block.targets_coded?.[targetLocale] || targetText;
-  const hasTargetSpans = block.has_spans && !!block.targets_coded?.[targetLocale];
+  const target = useMemo(() => targetRuns(block, targetLocale), [block, targetLocale]);
+  const hasTargetCodes = hasCodes && target.length > 0;
 
   const checkErrors = checkIssues?.filter((i) => i.severity === "error") || [];
   const checkWarnings = checkIssues?.filter((i) => i.severity === "warning") || [];
 
-  const handleInsertTag = useCallback(
-    (_span: SpanInfo) => {
-      if (!isEditing) onStartEditing();
-    },
-    [isEditing, onStartEditing],
-  );
+  const handleInsertTag = useCallback(() => {
+    if (!isEditing) onStartEditing();
+  }, [isEditing, onStartEditing]);
 
   const handleAddNote = useCallback(() => {
     if (!noteText.trim() || !onAddNote) return;
@@ -228,8 +228,8 @@ export function VisualEditorCard({
             </button>
           )}
           {/* Vocabulary badge showing inline tag summary */}
-          {sourceSpans.length > 0 && (
-            <FormatVocabularyBadge spans={sourceSpans} onClick={() => setShowLegend((v) => !v)} />
+          {hasCodes && (
+            <FormatVocabularyBadge runs={source} onClick={() => setShowLegend((v) => !v)} />
           )}
         </div>
         <Tabs
@@ -277,10 +277,10 @@ export function VisualEditorCard({
       )}
 
       {/* ── Toolbar (Translate mode, editing) ───────────── */}
-      {editorMode === "translate" && sourceSpans.length > 0 && (
+      {editorMode === "translate" && hasCodes && (
         <div className="px-4 pb-1">
           <VisualEditorToolbar
-            sourceSpans={sourceSpans}
+            sourceRuns={source}
             onInsertTag={handleInsertTag}
             disabled={!isEditing}
           />
@@ -305,7 +305,7 @@ export function VisualEditorCard({
                 </span>
               )}
             </div>
-            {block.has_spans && (
+            {hasCodes && (
               <button
                 type="button"
                 onClick={() => setCodeView((v) => !v)}
@@ -333,20 +333,15 @@ export function VisualEditorCard({
                 termMatches={termMatches}
                 entities={block.entities}
               />
-            ) : block.has_spans && block.source_coded ? (
+            ) : hasCodes ? (
               codeView ? (
                 <SourceCellDisplay
-                  codedText={sourceCodedText}
-                  spans={sourceSpans}
+                  runs={source}
                   entities={block.entities}
                   locale={project.default_source_language}
                 />
               ) : (
-                <FormattedSourceDisplay
-                  codedText={sourceCodedText}
-                  spans={sourceSpans}
-                  locale={project.default_source_language}
-                />
+                <FormattedSourceDisplay runs={source} locale={project.default_source_language} />
               )
             ) : (
               <span>{block.source}</span>
@@ -423,12 +418,8 @@ export function VisualEditorCard({
             onClick={editorMode === "translate" && !isEditing ? onStartEditing : undefined}
             data-testid="target-display"
           >
-            {hasTargetSpans ? (
-              <FormattedSourceDisplay
-                codedText={targetCodedText}
-                spans={sourceSpans}
-                locale={targetLocale}
-              />
+            {hasTargetCodes ? (
+              <FormattedSourceDisplay runs={target} locale={targetLocale} />
             ) : targetText ? (
               <span>{targetText}</span>
             ) : (

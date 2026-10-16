@@ -1,14 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { InlineCodeEditor as TargetCellEditor } from "@neokapi/ui-primitives";
-import {
-  simpleBoldCodedText,
-  simpleBoldSpans,
-  linkAndItalicCodedText,
-  linkAndItalicSpans,
-  richCodedText,
-  richSpans,
-} from "../fixtures";
+import { simpleBoldRuns, linkAndItalicRuns, richRuns } from "../fixtures";
+import { codeSpans, toEditorText } from "../../components/editor/editorText";
 
 const meta: Meta<typeof TargetCellEditor> = {
   title: "Editor/Core/TargetCellEditor",
@@ -30,7 +24,7 @@ export const Empty: Story = {
   args: {
     initialCodedText: "",
     initialSpans: [],
-    sourceSpans: simpleBoldSpans,
+    sourceSpans: codeSpans(simpleBoldRuns),
     onSave: fn(),
     onCancel: fn(),
   },
@@ -38,9 +32,9 @@ export const Empty: Story = {
 
 export const WithBoldText: Story = {
   args: {
-    initialCodedText: simpleBoldCodedText,
-    initialSpans: simpleBoldSpans,
-    sourceSpans: simpleBoldSpans,
+    initialCodedText: toEditorText(simpleBoldRuns).codedText,
+    initialSpans: toEditorText(simpleBoldRuns).spans,
+    sourceSpans: codeSpans(simpleBoldRuns),
     onSave: fn(),
     onCancel: fn(),
   },
@@ -48,9 +42,9 @@ export const WithBoldText: Story = {
 
 export const WithLinks: Story = {
   args: {
-    initialCodedText: linkAndItalicCodedText,
-    initialSpans: linkAndItalicSpans,
-    sourceSpans: linkAndItalicSpans,
+    initialCodedText: toEditorText(linkAndItalicRuns).codedText,
+    initialSpans: toEditorText(linkAndItalicRuns).spans,
+    sourceSpans: codeSpans(linkAndItalicRuns),
     onSave: fn(),
     onCancel: fn(),
   },
@@ -58,9 +52,9 @@ export const WithLinks: Story = {
 
 export const RichContent: Story = {
   args: {
-    initialCodedText: richCodedText,
-    initialSpans: richSpans,
-    sourceSpans: richSpans,
+    initialCodedText: toEditorText(richRuns).codedText,
+    initialSpans: toEditorText(richRuns).spans,
+    sourceSpans: codeSpans(richRuns),
     onSave: fn(),
     onCancel: fn(),
   },

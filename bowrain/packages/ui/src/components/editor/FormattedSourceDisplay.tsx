@@ -1,19 +1,21 @@
 import { useMemo } from "react";
-import type { EntityInfo, SpanInfo } from "../../types/api";
+import type { Run } from "@neokapi/kapi-format";
+import type { EntityInfo } from "../../types/api";
 import {
   DirectionalText,
   getDefaultRegistry,
-  parseCodedSegments,
+  runsToSegments,
   semanticLabel,
   semanticTooltip,
   tagColors,
+  type SpanInfo,
   type TagColorScheme,
 } from "@neokapi/ui-primitives";
 import { entityMarks, markEntities } from "./entityMarks";
 
 interface FormattedSourceDisplayProps {
-  codedText: string;
-  spans: SpanInfo[];
+  /** The content to show, as the runs the server serves it in. */
+  runs: readonly Run[];
   /**
    * Entity annotations to underline, positioned over the plain text. Optional:
    * a target cell has none, and a source cell shows them only where the surface
@@ -74,22 +76,19 @@ interface StackEntry {
 }
 
 /**
- * Read-only display of source text with actual formatting applied.
+ * Read-only display of a run sequence with actual formatting applied.
  *
  * Instead of abstract tag chips, text is rendered with the visual
- * formatting each span implies (bold appears bold, links underlined, etc.)
- * plus a faint background tint in the category color.
+ * formatting each paired code implies (bold appears bold, links underlined,
+ * etc.) plus a faint background tint in the category color.
  *
  * Placeholders (br, img) appear as small inline pills — matching
- * the TagChipComponent placeholder style.
+ * the TagChipComponent placeholder style. The runs are read through the
+ * primitives' chip projection, which answers for every run kind: a plural or
+ * select reads as its ICU spelling.
  */
-export function FormattedSourceDisplay({
-  codedText,
-  spans,
-  entities,
-  locale,
-}: FormattedSourceDisplayProps) {
-  const segments = useMemo(() => parseCodedSegments(codedText, spans), [codedText, spans]);
+export function FormattedSourceDisplay({ runs, entities, locale }: FormattedSourceDisplayProps) {
+  const segments = useMemo(() => runsToSegments(runs), [runs]);
 
   // Entity positions are stated over the plain text — the text segments
   // concatenated, with the inline codes contributing nothing — so they are
@@ -176,7 +175,7 @@ export function FormattedSourceDisplay({
                 className="text-gray-500/80 text-xs select-none cursor-default"
                 title="Line break"
               >
-                {"\u23CE"}
+                {"⏎"}
               </span>
               <br />
             </span>,

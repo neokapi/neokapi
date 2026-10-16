@@ -6,7 +6,7 @@ import { FormattedSourceDisplay } from "../components/editor/FormattedSourceDisp
 describe("FormattedSourceDisplay — writing direction", () => {
   it("puts dir/lang on its own root element for an RTL locale", () => {
     const { container } = render(
-      <FormattedSourceDisplay codedText="مرحباً بالعالم" spans={[]} locale="ar-EG" />,
+      <FormattedSourceDisplay runs={[{ text: "مرحباً بالعالم" }]} locale="ar-EG" />,
     );
     const root = container.firstElementChild;
     expect(root?.getAttribute("dir")).toBe("rtl");
@@ -15,7 +15,7 @@ describe("FormattedSourceDisplay — writing direction", () => {
   });
 
   it("defaults to ltr with no lang asserted when no locale is given", () => {
-    const { container } = render(<FormattedSourceDisplay codedText="hello" spans={[]} />);
+    const { container } = render(<FormattedSourceDisplay runs={[{ text: "hello" }]} />);
     const root = container.firstElementChild;
     expect(root?.getAttribute("dir")).toBe("ltr");
     expect(root?.getAttribute("lang")).toBeNull();
