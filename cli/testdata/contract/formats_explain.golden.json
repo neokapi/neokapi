@@ -1,0 +1,34 @@
+{
+  "files": [
+    {
+      "path": "src/messages.json",
+      "format": "json",
+      "engine": "native",
+      "rule": "native first",
+      "order": [
+        "native",
+        "okapi-bridge"
+      ],
+      "candidates": [
+        {
+          "format": "json",
+          "engine": "native"
+        },
+        {
+          "format": "okf_json",
+          "engine": "okapi-bridge"
+        }
+      ]
+    },
+    {
+      "path": "src/strings.xml",
+      "format": "androidxml",
+      "engine": "native",
+      "rule": "content item format"
+    },
+    {
+      "path": "notes.nothing",
+      "error": "no format found for extension \".nothing\""
+    }
+  ]
+}

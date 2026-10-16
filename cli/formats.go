@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/format/schema"
@@ -58,10 +59,48 @@ can edit is listed.`,
 	formatsCmd.Flags().BoolVar(&ops, "ops", false, "say what each format, or the one named, takes of a change set")
 
 	formatsCmd.AddCommand(newFormatsListCmd(a))
+	formatsCmd.AddCommand(newFormatsExplainCmd(a))
 	formatsCmd.AddCommand(newFormatsInfoCmd(a))
 	formatsCmd.AddCommand(newFormatsSchemaCmd(a))
 
 	return formatsCmd
+}
+
+// newFormatsExplainCmd is `kapi formats explain <file>...`: which format
+// reads each file, from which engine, and the rule that chose the engine.
+func newFormatsExplainCmd(a *App) *cobra.Command {
+	explainCmd := &cobra.Command{
+		Use:   "explain <file>...",
+		Short: "Say which format reads a file, and why",
+		Long: `Resolve each file the way a run does and report the decision: the format
+that reads it, the engine the format belongs to (native, or a plugin such as
+okapi-bridge), the rule that chose the engine, the engines consulted in order
+and every format claiming the file's extension.
+
+The recipe in scope supplies its declared plugins, its engine preference
+(defaults.engine) and its per-format pins (defaults.formats.<name>.engine);
+a content item that names the file's format is reported as such. Without a
+recipe the installed engines apply, native first. --engine ranks an engine
+above the recipe's preference, as it does on a run, and --format names the
+format outright: a reference such as html@okapi-bridge resolves to that
+engine's format for the same files.`,
+		Example: `  kapi formats explain src/messages.json
+  kapi formats explain --engine okapi-bridge docs/index.html
+  kapi formats explain -f html@okapi-bridge docs/index.html
+  kapi formats explain --json content/*.xml`,
+		Args: cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			out, err := a.ExplainFormats(cmd, args)
+			if err != nil {
+				return err
+			}
+			return output.Print(cmd, out)
+		},
+	}
+	AddProjectFlag(explainCmd)
+	explainCmd.Flags().StringVarP(&a.FormatFlag, "format", "f", "", "name the format outright, as a run's --format does (name[@engine][:preset])")
+	a.AddEngineFlag(explainCmd.Flags())
+	return explainCmd
 }
 
 // newFormatsListCmd is `kapi formats list`, the spelling the other command
@@ -118,8 +157,17 @@ func listFormats(a *App, cmd *cobra.Command, fmtMime, fmtExt string) error {
 		Formats: make([]output.FormatInfo, 0, len(infos)),
 		Total:   len(infos),
 	}
+	// Extensions more than one engine claims are marked on every format
+	// claiming them: for such a file the engine order, not the row, decides.
+	engines := a.FormatReg.ExtensionEngines()
 	for _, info := range infos {
 		name := string(info.Name)
+		var shared []string
+		for _, ext := range info.Extensions {
+			if len(engines[strings.ToLower(ext)]) > 1 {
+				shared = append(shared, ext)
+			}
+		}
 		out.Formats = append(out.Formats, output.FormatInfo{
 			Name:        name,
 			DisplayName: t.T(i18n.Scope("formats."+name+".DisplayName"), info.DisplayName),
@@ -131,8 +179,11 @@ func listFormats(a *App, cmd *cobra.Command, fmtMime, fmtExt string) error {
 			RoundTrip:   info.RoundTrip,
 			Family:      string(info.Family),
 			Source:      info.Source,
+			Engine:      registry.EngineName(info.Source),
 			Extensions:  info.Extensions,
 			MimeTypes:   info.MimeTypes,
+
+			SharedExtensions: shared,
 		})
 	}
 	return output.Print(cmd, out)
@@ -217,6 +268,7 @@ func newFormatsInfoCmd(a *App) *cobra.Command {
 					out.DisplayName = info.DisplayName
 				}
 				out.Source = info.Source
+				out.Engine = registry.EngineName(info.Source)
 				out.HasReader = info.HasReader
 				out.HasWriter = info.HasWriter
 				out.Editable = info.Editable

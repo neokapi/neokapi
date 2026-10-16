@@ -157,6 +157,9 @@ func (a *App) resolveFormatFrom(path string, content io.ReadSeeker) (string, err
 // false result is the fallback case, and the only one the binary guard sees.
 func (a *App) explicitOrDetected(path string, content io.ReadSeeker) (string, bool) {
 	if a.FormatFlag != "" {
+		if name, err := a.FormatRefName(a.FormatFlag); err == nil {
+			return name, true
+		}
 		return preset.ParseFormatRef(a.FormatFlag).RegistryName(), true
 	}
 	// stdin carries no usable path; let Detect skip the extension stage.

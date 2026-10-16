@@ -27,20 +27,27 @@ func builtinPresetRegistry() *preset.PresetRegistry {
 	return builtinPresetReg
 }
 
-// resolveFormatRef parses a format ref (optionally "name:preset") and returns
-// the registry format name plus the merged preset config — nil when the ref
-// names no preset. The preset registry is the cached built-in one.
+// resolveFormatRef parses a format ref ("name[@engine][@version][:preset]")
+// and returns the registry format name plus the merged preset config — nil
+// when the ref names no preset. An engine in the ref, or one the recipe pins
+// for the format, selects that engine's format (formatRefName); the preset
+// is resolved against the format the ref names. The preset registry is the
+// cached built-in one.
 func (a *App) resolveFormatRef(fmtRef string) (string, map[string]any, error) {
 	ref := preset.ParseFormatRef(fmtRef)
+	name, err := a.formatRefName(ref)
+	if err != nil {
+		return "", nil, err
+	}
 	if !ref.IsPreset() {
-		return ref.RegistryName(), nil, nil
+		return name, nil, nil
 	}
 	resolver := preset.NewConfigResolver(builtinPresetRegistry(), a.SchemaReg)
-	cfg, err := resolver.ResolveFormatConfig(ref.Name, ref.Preset, nil, nil)
+	cfg, err := resolver.ResolveFormatConfig(preset.ParseFormatRef(name).Name, ref.Preset, nil, nil)
 	if err != nil {
 		return "", nil, fmt.Errorf("resolve format config: %w", err)
 	}
-	return ref.RegistryName(), cfg, nil
+	return name, cfg, nil
 }
 
 // NewConfiguredReader creates a reader for a format ref (optionally carrying a

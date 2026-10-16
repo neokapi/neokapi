@@ -436,7 +436,15 @@ func (a *App) conversionWriter(toFmt registry.FormatID) (format.DataFormatWriter
 // yields a writable format.
 func (a *App) ResolveTargetFormat(to, outPath string) (registry.FormatID, error) {
 	if to != "" {
-		id := registry.FormatID(preset.ParseFormatRef(to).RegistryName())
+		ref := preset.ParseFormatRef(to)
+		id := registry.FormatID(ref.RegistryName())
+		if ref.HasEngine() {
+			name, err := a.formatRefName(ref)
+			if err != nil {
+				return "", err
+			}
+			id = registry.FormatID(name)
+		}
 		if a.FormatReg.HasWriter(id) {
 			return id, nil
 		}

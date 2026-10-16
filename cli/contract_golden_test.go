@@ -116,6 +116,23 @@ func TestCLIJSONContract(t *testing.T) {
 			},
 		},
 		{
+			// kapi formats explain: one path resolved by the engine order, one
+			// named by a content item, one no format reads.
+			name: "formats_explain",
+			data: output.FormatExplainOutput{Files: []output.FormatExplanation{
+				{
+					Path: "src/messages.json", Format: "json", Engine: "native", Rule: "native first",
+					Order: []string{"native", "okapi-bridge"},
+					Candidates: []output.FormatCandidate{
+						{Format: "json", Engine: "native"},
+						{Format: "okf_json", Engine: "okapi-bridge"},
+					},
+				},
+				{Path: "src/strings.xml", Format: "androidxml", Engine: "native", Rule: "content item format"},
+				{Path: "notes.nothing", Error: `no format found for extension ".nothing"`},
+			}},
+		},
+		{
 			name: "trust_list",
 			data: output.TrustListOutput{
 				Record: "/home/me/.config/kapi/trust.json",
