@@ -413,7 +413,7 @@ checkout on this machine shows its digest without the decisions.
 machine, shared through a backend, and a managed venue. The current rung is
 marked, and the project rows on the home carry the same answer as one word.
 
-The backend resolves it through `host`. `ContextBackend` returns the
+The backend resolves it through `host`. `ResolveContextBackend` returns the
 `ContextBackendInfo` the recipe declares: the kind, its location, and whether
 it came from the recipe or the default. `ContextSyncStatus` returns how far
 apart this machine and the shared copy were at the last sync, without

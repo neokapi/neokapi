@@ -5,6 +5,7 @@ package host
 import (
 	"context"
 	"fmt"
+	"github.com/neokapi/neokapi/core/contextop"
 	"os"
 	"path/filepath"
 	"strings"
@@ -54,6 +55,11 @@ type App struct {
 	// (today: adopting a package-carried recipe on unpack). nil means check
 	// os.Stdin. Tests swap it; nothing else should.
 	isTTY func() bool
+
+	// actingActor is who this App records context operations as, when a
+	// surface has said so through ActAs. nil reads the environment the way a
+	// command line does (commandActor).
+	actingActor *contextop.Actor
 
 	// Processing flags bound by AddProcessingFlags.
 	FormatFlag string

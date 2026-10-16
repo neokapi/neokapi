@@ -1,7 +1,7 @@
 // What is new across the workspace, for the home screen.
 //
-// One row per project that holds something the person has not seen or a
-// disagreement that needs them, newest session first. The row says how much
+// One row per project with suggestions still advising, something the person
+// has not seen, or a disagreement that needs them, newest session first. The row says how much
 // is new, who noticed it and what kind of thing it is, and its button opens
 // the project on its own What's new. j and k (or the arrows) move over the
 // rows and Enter opens the one under the cursor.
@@ -27,10 +27,15 @@ export interface WhatsNewProps {
 /** The digest's theme order, which the sentence about a session follows. */
 const THEMES = ["names", "words", "writing", "memory"] as const;
 
-/** The projects with news, newest session first. */
+/**
+ * The projects with something to decide about, newest session first: what the
+ * person has not seen, a disagreement, or suggestions still advising. A
+ * project opened on its What's new moves the marker at once, so "new" alone
+ * would drop a project whose suggestions still wait.
+ */
 export function projectsWithNews(standings: ContextProjectStanding[]): ContextProjectStanding[] {
   return standings
-    .filter((s) => s.new > 0 || s.conflicts > 0)
+    .filter((s) => s.new > 0 || s.conflicts > 0 || s.suggested > 0)
     .sort((a, b) => (b.latest?.at ?? "").localeCompare(a.latest?.at ?? ""));
 }
 
@@ -135,18 +140,28 @@ function WhatsNewRow({
                   when: formatLook(standing.since),
                 })
               : t("{count} new.", { count: standing.new }))}
-          {standing.new > 0 && standing.latest && themes && (
+          {standing.new === 0 &&
+            standing.suggested > 0 &&
+            t("{count, plural, one {# suggestion is} other {# suggestions are}} advising.", {
+              count: standing.suggested,
+            })}
+          {standing.latest && (themes || standing.latest.recorded > 0) && (
             <>
               {" "}
-              {t("{actor} noticed {themes}.", {
-                actor: actorName(standing.latest.actor),
-                themes,
-              })}
+              {themes
+                ? t("{actor} noticed {themes}.", {
+                    actor: actorName(standing.latest.actor),
+                    themes,
+                  })
+                : t("{actor} recorded {count, plural, one {# note} other {# notes}}.", {
+                    actor: actorName(standing.latest.actor),
+                    count: standing.latest.recorded,
+                  })}
             </>
           )}
           {standing.conflicts > 0 && (
             <>
-              {standing.new > 0 && " "}
+              {(standing.new > 0 || standing.suggested > 0) && " "}
               <span className="text-amber-700 dark:text-amber-500">
                 {t("{count, plural, one {# needs you} other {# need you}}.", {
                   count: standing.conflicts,

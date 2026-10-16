@@ -55,10 +55,6 @@ export function AgentContextPane({ tabID, path }: AgentContextPaneProps) {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="shrink-0 border-b border-border px-6 py-3">
-        <p className="mb-2 text-sm text-muted-foreground">
-          Pick a file to see the context an agent receives for it, exactly as{" "}
-          <code className="font-mono text-xs">kapi context</code> reports it.
-        </p>
         <Select value={selected} onValueChange={setSelected}>
           <SelectTrigger size="sm" className="w-full max-w-xl" aria-label={t("Choose a file")}>
             <SelectValue placeholder={t("Choose a file")} />

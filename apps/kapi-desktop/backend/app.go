@@ -539,10 +539,12 @@ func (a *App) OpenProject(path string) (*TabInfo, error) {
 		return nil, recipeGoneError(path, reason)
 	}
 
-	// Check if already open.
+	// Check if already open. Two spellings of one file (one through a
+	// symlink, as the workspace registry's canonical path and a path typed by
+	// hand can be) are one project and one tab.
 	a.mu.RLock()
 	for _, op := range a.projects {
-		if op.Path == path {
+		if sameRecipePath(op.Path, path) {
 			a.mu.RUnlock()
 			return &TabInfo{ID: op.ID, Name: projectDisplayName(op.Project, op.Path), Path: op.Path}, nil
 		}
@@ -1882,4 +1884,18 @@ func defaultPluginDir() string {
 		return dir
 	}
 	return filepath.Join(kapiConfigDir(), "plugins")
+}
+
+// sameRecipePath reports whether two recipe paths name one file, following
+// symlinks on either side; a path that cannot be resolved compares as written.
+func sameRecipePath(a, b string) bool {
+	if a == b {
+		return true
+	}
+	ra, erra := filepath.EvalSymlinks(a)
+	rb, errb := filepath.EvalSymlinks(b)
+	if erra != nil || errb != nil {
+		return false
+	}
+	return ra == rb
 }

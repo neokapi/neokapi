@@ -619,6 +619,11 @@ func buildDigest(records []contextop.Record, key workspace.ProjectKey, since, no
 			continue
 		}
 		switch {
+		case r.Kind == contextop.KindImport:
+			// A file read in is a record of where terms, a voice or wording
+			// came from, not a rule a person decided: it stays in the log and
+			// out of the digest, where "established" means a rule in force.
+			continue
 		case r.Status == contextop.StatusContested:
 			if conflicted[r.ID] {
 				continue

@@ -259,10 +259,10 @@ function ShortcutLegend() {
       className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground"
     >
       <span>
-        <kbd className="rounded border border-border px-1">a</kbd> confirm
+        <kbd className="rounded border border-border px-1">a</kbd> keep
       </span>
       <span>
-        <kbd className="rounded border border-border px-1">r</kbd> discard
+        <kbd className="rounded border border-border px-1">r</kbd> drop
       </span>
       <span>
         <kbd className="rounded border border-border px-1">e</kbd> edit

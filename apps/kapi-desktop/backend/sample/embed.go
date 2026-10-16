@@ -8,6 +8,7 @@ import (
 	"context"
 	"embed"
 	"fmt"
+	"github.com/neokapi/neokapi/core/contextop"
 	"io/fs"
 	"math/rand"
 	"os"
@@ -114,6 +115,10 @@ func seedStore(targetDir string) error {
 	app := &host.App{}
 	app.InitRegistries()
 	defer app.Shutdown()
+	// Reading the sample's context in is the person's act, whichever shell
+	// launched the app; an agent host's marker in the environment must not
+	// have the policy refuse it.
+	app.ActAs(contextop.Actor{Kind: contextop.ActorPerson})
 
 	db, err := app.ProjectDB(ctx, targetDir)
 	if err != nil {

@@ -187,7 +187,24 @@ func agentSession(getenv func(string) string, agentHost AgentHostMarker) string 
 // operation a test recorded would read as the agent rather than as the person
 // the test is written about. ResolveCommandActor takes its environment as an
 // argument, so the table is tested directly.
+// ActAs fixes who this App records context operations as, in place of the
+// environment. A desktop app is the person's own surface: the person at the
+// keyboard is the one acting, whatever shell launched the app, so an agent
+// host's marker inherited from that shell must not turn their decisions into
+// an assistant's and have the policy refuse them. A person actor with no name
+// is named from version control the way a command line's is.
+func (a *App) ActAs(actor contextop.Actor) {
+	a.actingActor = &actor
+}
+
 func (a *App) commandActor() (ResolvedActor, error) {
+	if a.actingActor != nil {
+		resolved := ResolvedActor{Actor: *a.actingActor}
+		if resolved.Actor.Kind == contextop.ActorPerson && resolved.Actor.Name == "" {
+			resolved.Actor.Name = vcsPersonName()
+		}
+		return resolved, nil
+	}
 	if underTest() && os.Getenv(EnvActor) == "" {
 		return ResolvedActor{Actor: contextop.Actor{Kind: contextop.ActorPerson}}, nil
 	}
