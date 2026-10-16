@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/contextop"
+	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
@@ -245,6 +246,7 @@ func (s *contextOpsSession) assetEntries(r contextop.Record) []changeEntry {
 				Profile:     profile,
 				AllProfiles: r.Scope.AllProfiles,
 				Coordinates: coordinates,
+				Validity:    scopeValidity(r.Scope),
 			}}
 		}
 		forms := storedForms(rule)
@@ -262,6 +264,7 @@ func (s *contextOpsSession) assetEntries(r contextop.Record) []changeEntry {
 				Profile:     profile,
 				AllProfiles: r.Scope.AllProfiles,
 				Coordinates: coordinates,
+				Validity:    scopeValidity(r.Scope),
 			})
 		}
 		return out
@@ -295,6 +298,15 @@ func landingScope(r contextop.Record) (string, map[string]string) {
 		profile = ""
 	}
 	return profile, r.Scope.Coordinates
+}
+
+// scopeValidity is a rule's lifetime window as the terms store holds it, nil
+// for a rule that bounds none.
+func scopeValidity(s contextop.Scope) *graph.Validity {
+	if !s.Windowed() {
+		return nil
+	}
+	return &graph.Validity{ValidFrom: s.ValidFrom, ValidTo: s.ValidTo}
 }
 
 // storedForms lists the forms of a term rule the terms store can hold

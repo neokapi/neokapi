@@ -43,6 +43,9 @@ what is waiting, with the id each decision takes:
   --choose <id>      choose one side where two suggestions disagree
   --widen-to <where> with --keep: apply it more widely: project, workspace,
                      or a part of where it was seen, such as mode
+  --valid-from <when>, --valid-to <when>
+                     with --keep: the rule holds from, and until, a date
+                     (2006-01-02) or an instant
 
 --session narrows the review to what one assistant session suggested, and
 "--session <id> --keep all" keeps everything it suggested that nothing
@@ -55,6 +58,7 @@ never in the project. --peek leaves it where it is.`,
 			"  kapi context review --keep 0n794e2gk7 --keep 0n79gkq853\n" +
 			"  kapi context review --keep 0n794e2gk7 --use \"content memory\"\n" +
 			"  kapi context review --keep 0n794e2gk7 --widen-to workspace\n" +
+			"  kapi context review --keep 0n794e2gk7 --valid-to 2026-09-01\n" +
 			"  kapi context review --drop 0n794e2gk7 --note \"we say it both ways on purpose\"\n" +
 			"  kapi context review --choose 0n794e2gk7\n" +
 			"  kapi context review --session s0ab4e399 --keep all",
@@ -71,6 +75,8 @@ never in the project. --peek leaves it where it is.`,
 			use, _ := cmd.Flags().GetString("use")
 			note, _ := cmd.Flags().GetString("note")
 			session, _ := cmd.Flags().GetString("session")
+			validFrom, _ := cmd.Flags().GetString("valid-from")
+			validTo, _ := cmd.Flags().GetString("valid-to")
 			decide := host.ContextReviewRequest{
 				Project:     projectPath,
 				Keep:        keep,
@@ -80,6 +86,8 @@ never in the project. --peek leaves it where it is.`,
 				WidenTo:     widenTo,
 				Replacement: use,
 				Advisory:    confirmAdvisory(cmd),
+				ValidFrom:   validFrom,
+				ValidTo:     validTo,
 				Note:        note,
 			}
 			if !decide.Empty() {
@@ -89,8 +97,8 @@ never in the project. --peek leaves it where it is.`,
 				}
 				return output.Print(cmd, res)
 			}
-			if widenTo != "" || use != "" || cmd.Flags().Changed("advisory") {
-				return errors.New("--widen-to, --use and --advisory change what --keep names: name it with --keep")
+			if widenTo != "" || use != "" || cmd.Flags().Changed("advisory") || validFrom != "" || validTo != "" {
+				return errors.New("--widen-to, --use, --advisory, --valid-from and --valid-to change what --keep names: name it with --keep")
 			}
 
 			peek, _ := cmd.Flags().GetBool("peek")
@@ -127,6 +135,8 @@ never in the project. --peek leaves it where it is.`,
 	cmd.Flags().String("widen-to", "", "with --keep: apply it more widely: \"project\", \"workspace\", or a part of where it was seen")
 	cmd.Flags().String("use", "", "with one --keep: change what the rule says to write instead")
 	cmd.Flags().Bool("advisory", false, "with --keep: make the rule report without failing a check (--advisory=false makes it fail)")
+	cmd.Flags().String("valid-from", "", "with --keep: the rule holds from this date (2006-01-02) or instant on")
+	cmd.Flags().String("valid-to", "", "with --keep: the rule holds until this date (2006-01-02) or instant, not including it")
 	cmd.Flags().String("session", "", "only what one assistant session suggested")
 	cmd.Flags().String("note", "", "why")
 	cmd.Flags().Bool("peek", false, "leave the \"since you last looked\" marker where it is")

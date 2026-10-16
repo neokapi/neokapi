@@ -355,6 +355,13 @@ A governance window that closed is reported the same way: the by-location answer
 carries the transition (which profile stopped governing, when, and what governs
 in its place) as a note.
 
+A rule's own window is read at the answer's instant too. A term outside its
+window is left out of the terms bound at the point, and a note or a suggestion
+outside its window is left out of the suggestions, so the answer holds what a
+check at that instant holds ([C-11](c-11-context-operations.md#a-rule-holds-for-a-window-of-time)).
+The point is matched through the project's typed axes, so a rule scoped to a
+region is in the answer for a file written for a country inside it.
+
 ### The generated surface is opt-in
 
 MCP serves **tool sets** ([S-03](../surfaces/s-03-agent-surfaces.md)), and the

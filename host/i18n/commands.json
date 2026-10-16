@@ -271,7 +271,23 @@
           }
         },
         "context": {
-          "example": "  kapi context docs/guide.md\n  kapi context docs/guide.md --explain\n  kapi context cmd/main.go --comments\n  kapi context search widget\n  kapi context review\n  kapi context sync",
+          "atlas": {
+            "example": "  kapi context atlas\n  kapi context atlas --json \u003e atlas.json\n  kapi context atlas --all-projects --json",
+            "flags": {
+              "all-projects": {
+                "usage": "read every project in the workspace (content is then left out)"
+              },
+              "no-content": {
+                "usage": "leave out the content cells, which read every file of the project"
+              },
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
+              }
+            },
+            "long": "Read everything this project's context holds in one pass: each rule,\nnote, content-memory pair and term, at the point it holds on the project's\naxes, with the statuses it has held over time, and each event on two clocks,\nwhen something was recorded and when a window opens or closes. Content cells\ncount the project's units by collection, language and state.\n\nThe terminal shows a summary by axis. --json prints the full document, the one\nthe desktop's Explore view draws.",
+            "short": "Lay out everything the project's context holds, for exploring"
+          },
+          "example": "  kapi context docs/guide.md\n  kapi context docs/guide.md --explain\n  kapi context cmd/main.go --comments\n  kapi context search widget\n  kapi context review\n  kapi context atlas\n  kapi context sync",
           "flags": {
             "comments": {
               "usage": "answer for the comments in the file rather than its content"
@@ -302,7 +318,7 @@
             }
           },
           "log": {
-            "example": "  kapi context log --session this\n  kapi context log --status suggested\n  kapi context log --session 0ab4e399 --json\n  kapi context log --actor agent --since 2026-09-01",
+            "example": "  kapi context log --session this\n  kapi context log --status suggested\n  kapi context log --session 0ab4e399 --json\n  kapi context log --actor agent --since 2026-09-01\n  kapi context log 0q7yfmxhj2",
             "flags": {
               "actor": {
                 "usage": "only one actor, by name or by kind"
@@ -326,12 +342,12 @@
                 "usage": "only what was recorded, leaving out the decisions about it"
               }
             },
-            "long": "List what has been noted, imported and decided about this project's\ncontext, newest first.\n\nEach line carries an id, when it happened, who did it, what it was about and\nwhere it stands: suggested and waiting for a person, established and in force,\ncontested by another rule it names, or withdrawn, dropped or reset.\n\n\"--session this\" is an assistant reading back what its own run recorded, which\nis how it ends a task report. Narrow the list with --status to see what is\nwaiting for a decision, or with --session to see what one run did.",
+            "long": "List what has been noted, imported and decided about this project's\ncontext, newest first.\n\nEach line carries an id, when it happened, who did it, what it was about and\nwhere it stands: suggested and waiting for a person, established and in force,\ncontested by another rule it names, or withdrawn, dropped or reset.\n\n\"--session this\" is an assistant reading back what its own run recorded, which\nis how it ends a task report. Narrow the list with --status to see what is\nwaiting for a decision, or with --session to see what one run did. Name one\nid to see that rule or fact and every decision about it, the history Kapi\nDesktop's Explore shows for it.",
             "short": "List what was recorded, or what this session recorded"
           },
-          "long": "Ask what this project keeps to before you write a file: the voice, the\nwords to use and to avoid, and what has been suggested but not yet decided.\n\n  kapi context \u003cpath\u003e          what applies to that file\n  kapi context \u003cpath\u003e --comments\n                               what applies to a comment written in it\n  kapi context --profile \u003cn\u003e   the same answer for a named profile\n  kapi context search \u003cword\u003e   what the project says about one word\n\nThe answer is the text an assistant reads too. --explain adds how it was\nreached; --json gives all of it as data.\n\nRules grow out of ordinary work. An assistant notes what it sees and what you\nchange, and each note arrives as a suggestion: checks report it and none fails\non it until you keep it. Decide about suggestions with review, share the\ncontext with the rest of the team with sync, and go back to an earlier state\nwith reset.",
+          "long": "Ask what this project keeps to before you write a file: the voice, the\nwords to use and to avoid, and what has been suggested but not yet decided.\n\n  kapi context \u003cpath\u003e          what applies to that file\n  kapi context \u003cpath\u003e --comments\n                               what applies to a comment written in it\n  kapi context --profile \u003cn\u003e   the same answer for a named profile\n  kapi context search \u003cword\u003e   what the project says about one word\n\nThe answer is the text an assistant reads too. --explain adds how it was\nreached; --json gives all of it as data.\n\nRules grow out of ordinary work. An assistant notes what it sees and what you\nchange, and each note arrives as a suggestion: checks report it and none fails\non it until you keep it. Decide about suggestions with review, lay out the\nwhole context with atlas, share the context with the rest of the team with\nsync, and go back to an earlier state with reset.",
           "note": {
-            "example": "  kapi context note \"the docs address the reader as you\"\n  kapi context note --term Quickcast --instead-of \"Quick cast\" \\\n    --seen-in README.md --quote \"Quickcast forecasts the next hour.\"\n  kapi context note --from \"sign in\" --to \"log in\" --seen-in web/src/auth.tsx --suggest\n  kapi context note --withdraw 0n794e2gk7 --why \"recorded the wrong way round\"",
+            "example": "  kapi context note \"the docs address the reader as you\"\n  kapi context note --term Quickcast --instead-of \"Quick cast\" \\\n    --seen-in README.md --quote \"Quickcast forecasts the next hour.\"\n  kapi context note --from \"sign in\" --to \"log in\" --seen-in web/src/auth.tsx --suggest\n  kapi context note --term \"Summer sale\" --instead-of \"Spring sale\" --seen-in promo/no.md \\\n    --point market=no --valid-to 2026-09-01\n  kapi context note --withdraw 0n794e2gk7 --why \"recorded the wrong way round\"",
             "flags": {
               "advisory": {
                 "usage": "with --suggest: make that rule report without failing a check once kept"
@@ -341,6 +357,9 @@
               },
               "instead-of": {
                 "usage": "a form the project avoids for --term (repeatable)"
+              },
+              "point": {
+                "usage": "narrow where it holds, as axis=value within where the evidence sits, such as market=no (repeatable)"
               },
               "project": {
                 "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
@@ -360,6 +379,12 @@
               "to": {
                 "usage": "for a change a person made: the wording that replaced it"
               },
+              "valid-from": {
+                "usage": "it holds from this date (2006-01-02) or instant on"
+              },
+              "valid-to": {
+                "usage": "it holds until this date (2006-01-02) or instant, not including it"
+              },
               "why": {
                 "usage": "what the person said about the change, or what was wrong with the note withdrawn"
               },
@@ -367,7 +392,7 @@
                 "usage": "take back a note of your own by its id"
               }
             },
-            "long": "Record one thing this project's files do every time: a product,\nfeature or plan name as they write it, the spelling variety they keep to, a\nword they use where writers often use another, who the text addresses. Record\nit whether or not your own text uses it. Leave alone a word the files write\nmore than one way (record nothing about it, not even a note), an interface\nlabel, and wording taken from your task.\n\nFor a name or word, pass --term with the form the files use and --instead-of\nwith the form they avoid: the split form of a one-word name, the other\nspelling, or the other word. kapi derives the other forms to avoid: the\nspaced, hyphenated and closed spellings of a compound, each part\ncapitalised. \"--term Quickcast --instead-of 'Quick cast'\" avoids Quick cast,\nQuick-cast and QuickCast. Without --term a note is a fact in prose.\n\nWhen a person changes wording, record it with --from (what was there), --to\n(what replaced it) and --seen-in. A change is evidence about how this project\nwrites. A person's change toward a rule somebody already suggested is that\nperson's backing for it, so the rule is established, and fails a check, unless\nsomething recorded argues against it. With --suggest it also records the rule\nthe change implies, so the next use of the old wording is reported. A person's\nchange that reverses a rule in force contests the rule, so their own edit\nnever fails their build.\n\nEvery note is a suggestion. Checks report it, no check fails on it, and a\nperson decides about it with \"kapi context review\". Say where you saw it with\n--seen-in and --quote. Take back a note of your own that was wrong with\n--withdraw \u003cid\u003e, in the session that recorded it.",
+            "long": "Record one thing this project's files do every time: a product,\nfeature or plan name as they write it, the spelling variety they keep to, a\nword they use where writers often use another, who the text addresses. Record\nit whether or not your own text uses it. Leave alone a word the files write\nmore than one way (record nothing about it, not even a note), an interface\nlabel, and wording taken from your task.\n\nFor a name or word, pass --term with the form the files use and --instead-of\nwith the form they avoid: the split form of a one-word name, the other\nspelling, or the other word. kapi derives the other forms to avoid: the\nspaced, hyphenated and closed spellings of a compound, each part\ncapitalised. \"--term Quickcast --instead-of 'Quick cast'\" avoids Quick cast,\nQuick-cast and QuickCast. Without --term a note is a fact in prose.\n\nWhen a person changes wording, record it with --from (what was there), --to\n(what replaced it) and --seen-in. A change is evidence about how this project\nwrites. A person's change toward a rule somebody already suggested is that\nperson's backing for it, so the rule is established, and fails a check, unless\nsomething recorded argues against it. With --suggest it also records the rule\nthe change implies, so the next use of the old wording is reported. A person's\nchange that reverses a rule in force contests the rule, so their own edit\nnever fails their build.\n\nEvery note is a suggestion. Checks report it, no check fails on it, and a\nperson decides about it with \"kapi context review\". Say where you saw it with\n--seen-in and --quote. A note holds where its evidence sits; --point narrows\nthat one axis at a time to a value inside it, such as --point market=no, and\n--valid-from and --valid-to bound how long it holds. Take back a note of your own that was wrong with\n--withdraw \u003cid\u003e, in the session that recorded it.",
             "short": "Record what you noticed, or what a person changed"
           },
           "reset": {
@@ -390,7 +415,7 @@
             "short": "Go back to how the context stood at an earlier point"
           },
           "review": {
-            "example": "  kapi context review\n  kapi context review --session s0ab4e399\n  kapi context review --keep 0n794e2gk7 --keep 0n79gkq853\n  kapi context review --keep 0n794e2gk7 --use \"content memory\"\n  kapi context review --keep 0n794e2gk7 --widen-to workspace\n  kapi context review --drop 0n794e2gk7 --note \"we say it both ways on purpose\"\n  kapi context review --choose 0n794e2gk7\n  kapi context review --session s0ab4e399 --keep all",
+            "example": "  kapi context review\n  kapi context review --session s0ab4e399\n  kapi context review --keep 0n794e2gk7 --keep 0n79gkq853\n  kapi context review --keep 0n794e2gk7 --use \"content memory\"\n  kapi context review --keep 0n794e2gk7 --widen-to workspace\n  kapi context review --keep 0n794e2gk7 --valid-to 2026-09-01\n  kapi context review --drop 0n794e2gk7 --note \"we say it both ways on purpose\"\n  kapi context review --choose 0n794e2gk7\n  kapi context review --session s0ab4e399 --keep all",
             "flags": {
               "advisory": {
                 "usage": "with --keep: make the rule report without failing a check (--advisory=false makes it fail)"
@@ -422,11 +447,17 @@
               "use": {
                 "usage": "with one --keep: change what the rule says to write instead"
               },
+              "valid-from": {
+                "usage": "with --keep: the rule holds from this date (2006-01-02) or instant on"
+              },
+              "valid-to": {
+                "usage": "with --keep: the rule holds until this date (2006-01-02) or instant, not including it"
+              },
               "widen-to": {
                 "usage": "with --keep: apply it more widely: \"project\", \"workspace\", or a part of where it was seen"
               }
             },
-            "long": "Walk through what has been suggested about how this project writes, and\ndecide about each one: keep it as a rule, drop it, choose a side where two\nsuggestions disagree, or apply a rule more widely than where it was seen.\n\nA suggestion nobody answers keeps advising, so nothing here has to be cleared.\nA rule you keep is in force from then on: checks fail on it unless it is\nadvisory. Dropping a rule already in force takes it back out.\n\nIn a terminal, review asks about each suggestion in turn. Elsewhere it lists\nwhat is waiting, with the id each decision takes:\n\n  --keep \u003cid\u003e        keep a suggestion (repeatable); --use changes what it says\n  --drop \u003cid\u003e        drop a suggestion or a rule (repeatable)\n  --choose \u003cid\u003e      choose one side where two suggestions disagree\n  --widen-to \u003cwhere\u003e with --keep: apply it more widely: project, workspace,\n                     or a part of where it was seen, such as mode\n\n--session narrows the review to what one assistant session suggested, and\n\"--session \u003cid\u003e --keep all\" keeps everything it suggested that nothing\ndisagrees with.\n\nReviewing moves your \"since you last looked\" marker, kept on this machine and\nnever in the project. --peek leaves it where it is.",
+            "long": "Walk through what has been suggested about how this project writes, and\ndecide about each one: keep it as a rule, drop it, choose a side where two\nsuggestions disagree, or apply a rule more widely than where it was seen.\n\nA suggestion nobody answers keeps advising, so nothing here has to be cleared.\nA rule you keep is in force from then on: checks fail on it unless it is\nadvisory. Dropping a rule already in force takes it back out.\n\nIn a terminal, review asks about each suggestion in turn. Elsewhere it lists\nwhat is waiting, with the id each decision takes:\n\n  --keep \u003cid\u003e        keep a suggestion (repeatable); --use changes what it says\n  --drop \u003cid\u003e        drop a suggestion or a rule (repeatable)\n  --choose \u003cid\u003e      choose one side where two suggestions disagree\n  --widen-to \u003cwhere\u003e with --keep: apply it more widely: project, workspace,\n                     or a part of where it was seen, such as mode\n  --valid-from \u003cwhen\u003e, --valid-to \u003cwhen\u003e\n                     with --keep: the rule holds from, and until, a date\n                     (2006-01-02) or an instant\n\n--session narrows the review to what one assistant session suggested, and\n\"--session \u003cid\u003e --keep all\" keeps everything it suggested that nothing\ndisagrees with.\n\nReviewing moves your \"since you last looked\" marker, kept on this machine and\nnever in the project. --peek leaves it where it is.",
             "short": "Decide about the suggestions waiting for you"
           },
           "search": {

@@ -2,8 +2,8 @@
 id: c-11-context-operations
 sidebar_position: 11
 title: "C-11: Context operations"
-description: "Architecture decision: every change to a project's context is an appended operation carrying an actor, a subject, the evidence behind it and the governance it was made against. Suggestions advise at neutral severity and can never fail a check; a person keeping one establishes the rule and writes it into the subsystem that already reads it, and a reset sets every later operation aside."
-keywords: [context operations, suggestion, note, review, keep, drop, withdraw, contested, reset, widen, evidence, policy, actor, operation log, workspace, architecture decision, neokapi]
+description: "Architecture decision: every change to a project's context is an appended operation carrying an actor, a subject, the evidence behind it and the governance it was made against. Suggestions advise at neutral severity and can never fail a check; a person keeping one establishes the rule and writes it into the subsystem that already reads it, and a reset sets every later operation aside. A rule holds at a point on typed axes and for a window of time, and the log can be read as of any instant."
+keywords: [context operations, suggestion, note, review, keep, drop, withdraw, contested, reset, widen, evidence, policy, actor, operation log, workspace, lifetime window, as-of fold, context atlas, architecture decision, neokapi]
 ---
 
 import { CycleDiagram } from "@neokapi/docs-shared";
@@ -80,7 +80,7 @@ type Record struct {
     Correction    *Correction          // the wording before and the wording after
     Evidence      []Evidence           // file, unit, quotation: where this was seen
     Basis         Basis                // the governance in force when it was recorded
-    Scope         Scope                // how far it reaches, and at which coordinates
+    Scope         Scope                // how far it reaches, at which coordinates, and for how long
     Target        string               // the operation this one acts on
     Before        string               // the first operation a reset sets aside
     Note          string               // why, in the recorder's words
@@ -253,8 +253,11 @@ form the edit writes, naming the agent's session.
 ### Disagreements are contested until a person chooses
 
 Two rules disagree when they share a form to avoid and name different forms to
-use, or when one avoids the form the other says to use. Rules at points that
-cannot meet, in different projects or at different coordinates, never disagree.
+use, or when one avoids the form the other says to use. Rules that cannot
+both answer somewhere never disagree: rules in different projects, rules at
+coordinates that cannot meet, and rules whose lifetime windows share no
+instant, so a rename that ends the day its replacement begins is two rules in
+sequence rather than a disagreement.
 The fold marks a disagreement `contested` and names the other side in
 `ContestedBy`:
 
@@ -280,7 +283,7 @@ side.
 
 `host.App.DecideContextReview` takes one round of decisions
 (`ContextReviewRequest`: `Keep`, `Drop`, `Choose`, `Session`, `WidenTo`,
-`Replacement`, `Advisory`, `Note`) and records them in a fixed order: the
+`Replacement`, `Advisory`, `ValidFrom`, `ValidTo`, `Note`) and records them in a fixed order: the
 choice, then the drops, then the keeps, so a keep never meets a rival the same
 round drops. `kapi context review` reaches it two ways. In a terminal it walks
 the digest one item at a time and asks; elsewhere it prints the digest, and
@@ -423,6 +426,121 @@ the receiving machine's workspace, and a checkpoint holds the project's widened
 rules. Narrowing it, by dropping the rule or contesting it, travels the same
 way.
 
+### Coverage reads the project's typed axes
+
+A rule answers at a point when its scope covers the point, and the project's
+`axes:` block decides what covering means on each axis
+([C-02](c-02-coordinates-and-governance.md#declared-axes-can-be-typed)).
+`Scope.CoversIn(space, point)` holds when, for every axis the scope names, the
+point's value sits within the scope's (`axis.Space.Contains`): a rule scoped to
+`market: nordics` answers at `market: no` and not at `market: de`, and one
+scoped to `age: 13-17` answers at `14-16` and not at `18-`. An axis the space
+does not type compares by equality, and `Scope.Covers(point)` is
+`CoversIn(nil, point)`. `ResolveRequest.Space` carries the space into
+`Resolve`, and every place the host filters at a point reads the same space:
+the check's suggested and binding rules, the by-location answer's notes, the
+usage counts and merge signals settling reads, and the terms store's concepts
+(`terms.AtPointIn`, through `StoreSelection.Holding`).
+
+The fold reads each project's space too. `Ledger.WithAxes` gives it a
+function from a project to its axis space, and the fold stamps every record
+with its project's space before settling and contest detection compare
+scopes. Two rules of one project meet where their values on every shared axis
+overlap (`axis.Space.Overlaps`): a suggestion at `market: nordics` and one at
+`market: no` meet, and so do `age: 13-17` and `age: 16-20`. A correction
+seen at `market: no` counts for a suggestion scoped to the Nordics
+(`seenWithin` reads `CoversIn`). Rules of two projects, which can meet only
+when one is widened to the workspace, compare by equality.
+
+The host builds every ledger through one helper (`App.contextLedger`), which
+types a project's axes from the recipe of a checkout the workspace registry
+lists for it on this machine, cached by the recipe's modification time.
+Recording an operation from a checkout registers that checkout, so a project
+whose context is recorded here is typed by every later reader, and the digest,
+the log, the check and the atlas fold the log the same way. A project with no
+checkout here compares its coordinates exactly.
+
+### A submission may narrow its point
+
+A note, a correction and a suggested rule take the point their evidence
+resolves to (`basisAt`). A submission may name a point beside the evidence:
+`kapi context note --point axis=value` (repeatable), `point` on MCP
+`context_note`, and `ContextObserveRequest.Point` and
+`ContextCorrectRequest.Point` in the host. The point may only narrow. For each
+axis it names (`narrowScope`):
+
+- the value must be legal for the axis as the recipe types it;
+- where the evidence's point already sets the axis, the new value must sit
+  within that one, so evidence seen in the Nordic pages may narrow a note to
+  `market: no` and never move it to `market: de` or widen it to `europe`;
+- where the evidence's point leaves the axis out, the axis is added;
+- `product` and `channel` come from the file the evidence was seen in and are
+  refused, with that file named as the way to set them.
+
+Widening stays a person's act in review (`--widen-to`), and the refusal of a
+widening point says so, naming the command.
+
+### A rule holds for a window of time
+
+`Scope` carries a lifetime window, `ValidFrom` (inclusive) and `ValidTo`
+(exclusive), the half-open model profiles, terms and graph edges share. Each
+bound is written as a bare date or an RFC3339 instant and parsed the way a
+profile's window is (`project.ParseValidityBound`), so a `valid_to` date
+excludes that whole day. A window is set when a rule is recorded
+(`--valid-from` and `--valid-to` on `kapi context note`, `valid_from` and
+`valid_to` on MCP `context_note`) or when a person keeps it (`kapi context
+review --keep <id> --valid-from/--valid-to`, `ContextKeepRequest`). A keep
+carrying a window replaces the rule's window in the fold, as a keep carrying a
+scope replaces its scope.
+
+`Scope.InForce(at)` reports whether the window holds at an instant, and
+`ResolveRequest.At` is the instant a resolution answers for: a rule outside its
+window does not answer, as a profile outside its window does not govern
+([C-02](c-02-coordinates-and-governance.md#governance-expires)). A check
+resolves at the run's governance instant (`App.GovernanceInstant`), and the
+zero instant is the as-declared view, where every window holds. Keeping a rule
+with a window writes the window onto the term it lands as (`terms.Term`'s
+`Validity`), and `terms.InForceAt` drops a term outside its window at the
+point's instant, so a check, the by-location answer and drafting stop reading
+the rule at the same moment.
+
+A window is about the rule, never about the operation. No agent surface
+accepts a recorded time: the log's clock stamps `At` on every operation, and a
+window only says when the rule it records holds.
+
+### The log can be read as of an instant
+
+`Ledger.RecordsAsOf(ctx, at, f)` folds only the operations the log accepted at
+or before `at` (`Record.At`), in id order, with `workspace.SetAside` computed
+over that prefix, and returns what the filter keeps. A keep recorded after the
+instant has not happened yet, and a reset after it sets nothing aside, so the
+status each subject held at a past instant is the fold's own answer. The
+instant is a ledger argument rather than a `Filter` field because it changes
+which operations are folded, where a filter narrows what a fold returns.
+
+`Ledger.Histories(ctx, f, limit)` reads the log once and folds it as of every
+distinct instant at which an operation of the filtered project was accepted,
+reporting for each subject-bearing operation the status it was born with and
+every change after it, at the instant of the operation that made the change:
+keeps, drops, contests, settling and resets alike. The cost grows with the
+square of the log, so it is bounded: past `limit` instants (`HistoryLimit`,
+500, when none is given) each subject reports its first status and its current
+one, and the call says the history is incomplete.
+
+### The atlas reads the whole context at once
+
+`host.App.ContextAtlas` (`kapi context atlas`, the desktop's Explore view)
+lays out everything a project's context holds for exploring: each rule, note
+and content-memory pair the log records, with its history from
+`Ledger.Histories`; each concept in the terms store; and, when asked, content
+cells counting the project's units by collection, language and state. Every
+record carries the coordinates of its point and the derived axes (family,
+actor, locale, region, and the project when the atlas reads every project),
+and every operation is an event on the recorded clock, beside the window
+boundaries on the effective clock. The document is a contract with the views
+that draw it; [Context atlas](../../implementation/context/context-atlas.md)
+specifies it.
+
 ### One policy function
 
 ```go
@@ -558,6 +676,7 @@ The command line divides by audience:
 | Audience | Commands | What they do |
 | --- | --- | --- |
 | A person | `kapi context <path>`, `search` | read what applies |
+| A person | `kapi context atlas` | lay out everything the context holds, over time and across its axes |
 | A person | `kapi context review` | keep, drop, choose a side, apply more widely |
 | A person | `kapi context reset --before <point>` | go back to an earlier point |
 | A person | `kapi context sync` | pull, settle a merge, push |
@@ -567,7 +686,9 @@ The command line divides by audience:
 `kapi context note` records an `observe` for something noticed (`--term` with
 `--instead-of`, or a fact in prose), a `correct` for a person's change
 (`--from`, `--to`, and `--suggest` for the rule it implies), and a `withdraw`
-for a note of the caller's own (`--withdraw <id>`). `kapi context log
+for a note of the caller's own (`--withdraw <id>`). `--point`, `--valid-from`
+and `--valid-to` narrow where a note holds and bound how long
+([above](#a-submission-may-narrow-its-point)). `kapi context log
 --status` filters by any of the six statuses, and `--session this` reads back
 what the calling session recorded. A log line prints the kind once, marks a
 contested entry `[contested by #0n79tw5k9s]` and ends a suggestion's line with
@@ -587,7 +708,8 @@ machine and kept on another is therefore one history, whichever pulled first.
 
 The agent surface records and reads with two tools: `context_note`, which
 records what the session noticed, a person's change (`from`, `to`, `suggest`),
-or the withdrawal of the session's own note (`withdraw`), and
+or the withdrawal of the session's own note (`withdraw`), with the same
+`point`, `valid_from` and `valid_to` the command line takes, and
 `context_session_summary`, which reports what one session recorded and what
 became of it and ends with the `kapi context review --session <id>` command a
 person reviews it with. Each wraps a host call and adds no rule of its own.

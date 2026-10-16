@@ -86,6 +86,7 @@ defaults:
 | `id`       | string         | The project's stable identity (see [Project identity](#project-identity))                                   |
 | `collections` | Collection[] | The content this project governs (see [Collections](#collections))                                          |
 | `profiles` | map            | Governance bound per product, keyed by profile name (see [Profiles and channels](#profiles-and-channels))    |
+| `axes`     | map            | Types the declared axes, keyed by axis name: geo, range, ordered or a closed category (see [Typed axes](#typed-axes)) |
 | `preset`   | string         | A framework preset name (see [`kapi init`](/reference/commands/init) `--list-presets`) (e.g., `nextjs`, `react-intl`) applied to formats    |
 | `plugins`  | map            | Plugin requirements keyed by name (e.g., `okapi: "^1.47.0"`). The long form takes `version`, `framework_version` and `format_priority` (see [Format engines](#format-engines)) |
 | `requires` | map            | Plugin name → semver constraint that gates loading; the recipe refuses to load without a registered plugin  |
@@ -396,12 +397,66 @@ collections:
 | `mode`  | `tutorial`, `how-to`, `reference`, `explanation`      | The kind of document at the point, in the Diátaxis sense                 |
 
 The map is open: any other axis name is accepted, and the values are
-conventions rather than an enumeration. `product` and `channel` are refused
+conventions rather than an enumeration, unless [`axes:`](#typed-axes) types
+the axis. `product` and `channel` are refused
 under `coordinates:` at load, because both are derived from `channel:` and a
 declared copy could contradict the derived one. A collection's resolved point
 (the defaults, overlaid with what `channel:` derives, overlaid with its own
 `coordinates:`) is what `kapi context` reports and what a connected project
 sends to the server.
+
+#### Typed axes
+
+The top-level `axes:` block says how a declared axis compares its values. A rule
+or a term scoped to one value then holds at every value inside it: a rule kept
+for `market: nordics` holds for content at `market: no`, and one kept for
+`age: 13-17` holds at `age: 14-16`.
+
+```yaml
+axes:
+  market:
+    kind: geo
+    label: Market
+    groups:
+      nordics: [no, se, dk, fi, is]
+  audience:
+    values: [general, new-customers, specialists]
+    labels:
+      new-customers: New customers
+  age:
+    kind: range
+    unit: years
+  lifecycle:
+    kind: ordered
+    values: [preview, current, sunset]
+
+defaults:
+  coordinates:
+    market: nordics
+    audience: general
+```
+
+| Field    | Type     | Description |
+| -------- | -------- | ----------- |
+| `kind`   | string   | `category` (the default), `geo`, `range` or `ordered` |
+| `label`  | string   | The axis's display name |
+| `values` | string[] | The values the axis takes, in display order. A category axis with `values` refuses any other value; an ordered axis needs them |
+| `labels` | map      | Display labels per value |
+| `groups` | map      | A geo axis only: named groups of countries, regions and other groups |
+| `unit`   | string   | A range axis only: what the numbers count, such as `years` |
+
+| Kind       | Values | A value holds at |
+| ---------- | ------ | ---------------- |
+| `category` | any slug, or the declared `values` | the same value |
+| `ordered`  | the declared `values`, in order | the same value |
+| `geo`      | an ISO 3166-1 alpha-2 country code in lower case (`no`, `de`), a UN M49 region (`northern-europe`, `europe`, `latin-america-and-the-caribbean`), `world`, or a declared group | itself and every country and region inside it |
+| `range`    | an interval `13-17`, an open upper bound `65-`, or one number `18` | itself and every interval inside it |
+
+Every value under `defaults.coordinates` and a collection's `coordinates:` is
+checked against its axis at load, so a value a closed axis does not declare, a
+geo value that is not a country, region or group, and an inverted range each
+fail with the spellings that work. An axis `axes:` leaves out stays an open
+category. `product` and `channel` cannot be declared under `axes:`.
 
 #### Profile validity
 

@@ -8,7 +8,9 @@ import (
 	"slices"
 	"sort"
 	"sync"
+	"time"
 
+	"github.com/neokapi/neokapi/core/axis"
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
@@ -31,7 +33,10 @@ type contextUsage struct {
 	// scope covers the point a text sits at.
 	established []contextop.Record
 	counts      map[string]*usageCount
-	match       map[string][2]*regexp.Regexp
+	// space types the project's axes, so a rule scoped to a region is
+	// counted at a country inside it.
+	space axis.Space
+	match map[string][2]*regexp.Regexp
 }
 
 // usageCount is one suggestion's uses in the content a check read.
@@ -41,12 +46,13 @@ type usageCount struct {
 }
 
 // newContextUsage indexes the suggestions and the established rules a check of
-// one project can meet.
-func newContextUsage(records []contextop.Record, project workspace.ProjectKey) *contextUsage {
-	u := &contextUsage{byTerm: map[string]contextop.Record{}, counts: map[string]*usageCount{}, match: map[string][2]*regexp.Regexp{}}
+// one project can meet at the instant at. A rule outside its window holds
+// nowhere then, so content writing its forms is no evidence about it.
+func newContextUsage(records []contextop.Record, project workspace.ProjectKey, space axis.Space, at time.Time) *contextUsage {
+	u := &contextUsage{byTerm: map[string]contextop.Record{}, counts: map[string]*usageCount{}, match: map[string][2]*regexp.Regexp{}, space: space}
 	for _, r := range records {
 		rule, ok := r.Rule()
-		if !ok || rule.Replacement == "" || r.Project != project || !r.Kind.Bears() {
+		if !ok || rule.Replacement == "" || r.Project != project || !r.Kind.Bears() || !r.Scope.InForce(at) {
 			continue
 		}
 		if r.Established && r.Status == contextop.StatusEstablished {
@@ -96,7 +102,7 @@ func (u *contextUsage) countEstablished(coordinates map[string]string, text stri
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	for _, r := range u.established {
-		if !r.Scope.Covers(coordinates) {
+		if !r.Scope.CoversIn(u.space, coordinates) {
 			continue
 		}
 		rule, _ := r.Rule()
@@ -208,7 +214,7 @@ func (a *App) countProjectUsage(ctx context.Context, cmd Command, recipe string,
 	if err != nil || rules == nil {
 		return
 	}
-	usage := newContextUsage(rules.records, rules.key)
+	usage := newContextUsage(rules.records, rules.key, rules.proj.AxisSpace(), a.GovernanceInstant())
 	if usage.empty() {
 		return
 	}
@@ -260,7 +266,7 @@ func (a *App) noteAgentEdits(ctx context.Context, recipe string, actor contextop
 	if err != nil {
 		return
 	}
-	usage := newContextUsage(records, s.key)
+	usage := newContextUsage(records, s.key, s.proj.AxisSpace(), a.GovernanceInstant())
 	if len(usage.byTerm) == 0 {
 		return
 	}
@@ -278,7 +284,7 @@ func (a *App) noteAgentEdits(ctx context.Context, recipe string, actor contextop
 		for _, key := range slices.Sorted(maps.Keys(usage.byTerm)) {
 			r := usage.byTerm[key]
 			rule, _ := r.Rule()
-			if !r.Scope.Covers(point.Coordinates) {
+			if !r.Scope.CoversIn(s.proj.AxisSpace(), point.Coordinates) {
 				continue
 			}
 			use := formMatcher([]string{rule.Replacement}, rule.MatchesCase())

@@ -131,6 +131,32 @@ func (t *CoverageTally) Coverage(s Scope) (gate.Coverage, bool) {
 	return st.cov, true
 }
 
+// Scopes lists every scope the tally holds, ordered by collection and then
+// locale.
+func (t *CoverageTally) Scopes() []Scope {
+	out := make([]Scope, 0, len(t.tallies))
+	for s := range t.tallies {
+		out = append(out, s)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Collection != out[j].Collection {
+			return out[i].Collection < out[j].Collection
+		}
+		return out[i].Locale < out[j].Locale
+	})
+	return out
+}
+
+// Stale is how many of a scope's units AddStale tallied: counted at `draft`
+// in Coverage, with a basis that names source wording the project no longer
+// holds.
+func (t *CoverageTally) Stale(s Scope) int {
+	if st, ok := t.tallies[s]; ok {
+		return st.stale
+	}
+	return 0
+}
+
 // Rollup evaluates every tallied scope against the resolved ship gates and
 // returns the LocaleCoverage rows, sorted by (locale, collection). Percentages
 // are the rounded "at least" values over the target ladder; a scope no gate

@@ -250,7 +250,7 @@ func (a *App) ContextDigest(ctx context.Context, req ContextDigestRequest) (Cont
 	if err != nil {
 		return ContextDigest{}, err
 	}
-	records, err := contextop.NewLedger(ws, contextop.PersonDecides).Records(ctx, contextop.Filter{})
+	records, err := a.contextLedger(ctx, ws).Records(ctx, contextop.Filter{})
 	if err != nil {
 		return ContextDigest{}, err
 	}
@@ -328,7 +328,7 @@ func (a *App) ContextNews(ctx context.Context) ([]ContextNews, error) {
 	if err != nil {
 		return nil, err
 	}
-	records, err := contextop.NewLedger(ws, contextop.PersonDecides).Records(ctx, contextop.Filter{})
+	records, err := a.contextLedger(ctx, ws).Records(ctx, contextop.Filter{})
 	if err != nil {
 		return nil, err
 	}
@@ -410,7 +410,7 @@ func (a *App) ContextStandings(ctx context.Context) ([]ContextProjectStanding, e
 	if err != nil {
 		return nil, err
 	}
-	records, err := contextop.NewLedger(ws, contextop.PersonDecides).Records(ctx, contextop.Filter{})
+	records, err := a.contextLedger(ctx, ws).Records(ctx, contextop.Filter{})
 	if err != nil {
 		return nil, err
 	}
@@ -524,7 +524,7 @@ func (a *App) ContextWorkspaceRules(ctx context.Context) ([]ContextWorkspaceRule
 	if len(widened) == 0 {
 		return out, nil
 	}
-	records, err := contextop.NewLedger(ws, contextop.PersonDecides).Records(ctx, contextop.Filter{})
+	records, err := a.contextLedger(ctx, ws).Records(ctx, contextop.Filter{})
 	if err != nil {
 		return nil, err
 	}

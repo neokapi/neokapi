@@ -162,11 +162,11 @@ type Profile struct {
 // term's. It returns nil when the profile declares no bounds, and an error when
 // a bound is unparseable or the range is inverted.
 func (pr Profile) Validity() (*graph.Validity, error) {
-	from, err := parseValidityBound(pr.ValidFrom)
+	from, err := ParseValidityBound(pr.ValidFrom)
 	if err != nil {
 		return nil, fmt.Errorf("valid_from: %w", err)
 	}
-	to, err := parseValidityBound(pr.ValidTo)
+	to, err := ParseValidityBound(pr.ValidTo)
 	if err != nil {
 		return nil, fmt.Errorf("valid_to: %w", err)
 	}
@@ -179,10 +179,11 @@ func (pr Profile) Validity() (*graph.Validity, error) {
 	return &graph.Validity{ValidFrom: from, ValidTo: to}, nil
 }
 
-// parseValidityBound accepts a bare date or an RFC3339 instant; a bare date is
+// ParseValidityBound reads one bound of a validity window, a profile's or a
+// context rule's: a bare date or an RFC3339 instant; a bare date is
 // read as midnight UTC, so a `valid_to` of a date excludes that whole day, which
 // is the half-open reading a reader expects from "until".
-func parseValidityBound(s string) (*time.Time, error) {
+func ParseValidityBound(s string) (*time.Time, error) {
 	s = strings.TrimSpace(s)
 	if s == "" {
 		return nil, nil
@@ -910,6 +911,9 @@ func (p *KapiProject) ClaimsOnlyComments(relPath string, noReader bool) bool {
 // load rather than at the moment a run has to pick a voice.
 func (p *KapiProject) validateContextSpace() error {
 	if err := p.validateProfiles(); err != nil {
+		return err
+	}
+	if err := p.validateAxes(); err != nil {
 		return err
 	}
 	if ch := p.Defaults.Comments.Channel; ch != "" {

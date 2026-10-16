@@ -244,6 +244,9 @@ func rulesElsewhere(proj *project.KapiProject, places []placePoint, store string
 	if len(all) == 0 || len(places) == 0 {
 		return nil
 	}
+	// A term out of force at the instant holds nowhere, so it is not wording
+	// that stays as it is at another place either.
+	all = terms.InForceAt(all, at)
 	held := map[string]bool{}
 	mentioned := map[string]bool{}
 	for _, c := range here {
@@ -263,7 +266,7 @@ func rulesElsewhere(proj *project.KapiProject, places []placePoint, store string
 		}
 		var in []string
 		for _, p := range places {
-			if p.store == store && len(terms.AtPoint([]terms.Concept{c}, p.profile, p.coordinates)) > 0 {
+			if p.store == store && len(terms.AtPointIn([]terms.Concept{c}, p.profile, p.coordinates, proj.AxisSpace())) > 0 {
 				in = append(in, p.place.Label())
 			}
 		}

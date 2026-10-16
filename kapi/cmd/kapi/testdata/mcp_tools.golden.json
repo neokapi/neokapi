@@ -1513,6 +1513,13 @@
           "description": "the project-relative file you saw it in, or the person changed it in",
           "type": "string"
         },
+        "point": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "narrows where the note holds, axis to value, within the point the file it was seen in sits at, such as market set to no; it may narrow and never widen",
+          "type": "object"
+        },
         "project": {
           "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)",
           "type": "string"
@@ -1535,6 +1542,14 @@
         },
         "to": {
           "description": "for a change a person made: the wording that replaced it",
+          "type": "string"
+        },
+        "valid_from": {
+          "description": "the note holds from this date (2006-01-02) or RFC3339 instant on",
+          "type": "string"
+        },
+        "valid_to": {
+          "description": "the note holds until this date (2006-01-02) or RFC3339 instant, not including it",
           "type": "string"
         },
         "why": {

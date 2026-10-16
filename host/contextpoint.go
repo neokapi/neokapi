@@ -17,6 +17,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/neokapi/neokapi/core/axis"
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
@@ -488,7 +489,7 @@ func (a *App) ContextSourcesAt(cmd Command, req ContextPointRequest) (ContextPoi
 	case zeroPoint(point) && req.Path == "":
 		src.Concepts = all
 	default:
-		src.Concepts = terms.AtPoint(all, sel.Profile, sel.Coordinates)
+		src.Concepts = sel.Holding(all)
 		// What the store holds at the project's other places and not here is
 		// the wording that stays as it is in this file.
 		if req.Path != "" && req.Profile == "" && !point.Comments {
@@ -721,7 +722,7 @@ func ResolveContextAt(_ context.Context, src ContextPointSources, req ContextPoi
 	// come from the resolution a check reads, so an answer can never mention a
 	// suggested rule a check would not report; the operation log supplies who
 	// suggested each one and where they saw it.
-	res.Suggestions = contextSuggestions(src.Rules.Advisory, src.Suggestions, res.Point.Coordinates)
+	res.Suggestions = contextSuggestions(src.Rules.Advisory, src.Suggestions, res.Point.Coordinates, src.Recipe.AxisSpace(), src.At)
 
 	// Freshness leads the notes: it is the only note that says the rest of the
 	// answer may already describe a graph that has moved, and a reader acts on
@@ -827,16 +828,18 @@ func ResolveContextAt(_ context.Context, src ContextPointSources, req ContextPoi
 //
 // A rule widened out of another project has no operation in this project's log,
 // so it is reported with its rule and no provenance rather than dropped.
-func contextSuggestions(advisory []coreprofile.TermRule, records []contextop.Record, coordinates map[string]string) []ContextSuggestion {
+func contextSuggestions(advisory []coreprofile.TermRule, records []contextop.Record, coordinates map[string]string, space axis.Space, at time.Time) []ContextSuggestion {
 	if len(advisory) == 0 && len(records) == 0 {
 		return nil
 	}
-	// Records arrive newest first, so the first one about a term is the latest
-	// statement of it, which is the one the resolution kept.
+	// Records arrive newest first, so the first one about a term that holds
+	// here, now, is the latest statement of it the resolution could have kept.
+	// One scoped to another market or outside its window is passed over, so a
+	// person who keeps the operation named keeps the rule shown.
 	byTerm := make(map[string]contextop.Record, len(records))
 	for _, r := range records {
 		rule, ok := r.Rule()
-		if !ok {
+		if !ok || !r.Scope.CoversIn(space, coordinates) || !r.Scope.InForce(at) {
 			continue
 		}
 		key := suggestionKey(rule.Term)
@@ -885,7 +888,7 @@ func contextSuggestions(advisory []coreprofile.TermRule, records []contextop.Rec
 		if r.Subject.Kind != contextop.SubjectNote || r.Subject.Text == "" {
 			continue
 		}
-		if !r.Scope.Covers(coordinates) {
+		if !r.Scope.CoversIn(space, coordinates) || !r.Scope.InForce(at) {
 			continue
 		}
 		entry := ContextSuggestion{

@@ -8,6 +8,9 @@ import { Create as $Create } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as axis$0 from "../axis/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as flow$0 from "../flow/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -1265,6 +1268,19 @@ export class KapiProject {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Axes types the declared axes of the context space: how each one compares
+             * its values (category, geo, range, ordered), which values a closed axis
+             * takes, the groups a geo axis names, and the labels a surface shows. An
+             * axis not declared here is an open category whose values compare by
+             * equality. Every coordinate the recipe writes is validated against it at
+             * load. See axes.go.
+             * @member
+             * @type {axis$0.Space | undefined}
+             */
+            this["axes"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * Ship gates decide when localized content is shippable, as coverage
              * thresholds over the lifecycle ladder (see core/gate). Three optional,
              * additive forms:
@@ -1370,14 +1386,15 @@ export class KapiProject {
         const $$createField5_0 = $$createType29;
         const $$createField7_0 = $$createType32;
         const $$createField9_0 = $$createType34;
-        const $$createField10_0 = $$createType23;
-        const $$createField11_0 = $$createType36;
-        const $$createField12_0 = $$createType37;
-        const $$createField13_0 = $$createType23;
-        const $$createField14_0 = $$createType36;
-        const $$createField15_0 = $$createType23;
-        const $$createField16_0 = $$createType38;
-        const $$createField17_0 = $$createType40;
+        const $$createField10_0 = $$createType35;
+        const $$createField11_0 = $$createType23;
+        const $$createField12_0 = $$createType39;
+        const $$createField13_0 = $$createType40;
+        const $$createField14_0 = $$createType23;
+        const $$createField15_0 = $$createType39;
+        const $$createField16_0 = $$createType23;
+        const $$createField17_0 = $$createType41;
+        const $$createField18_0 = $$createType43;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("plugins" in $$parsedSource) {
             $$parsedSource["plugins"] = $$createField3_0($$parsedSource["plugins"]);
@@ -1394,29 +1411,32 @@ export class KapiProject {
         if ("profiles" in $$parsedSource) {
             $$parsedSource["profiles"] = $$createField9_0($$parsedSource["profiles"]);
         }
+        if ("axes" in $$parsedSource) {
+            $$parsedSource["axes"] = $$createField10_0($$parsedSource["axes"]);
+        }
         if ("ship_gate" in $$parsedSource) {
-            $$parsedSource["ship_gate"] = $$createField10_0($$parsedSource["ship_gate"]);
+            $$parsedSource["ship_gate"] = $$createField11_0($$parsedSource["ship_gate"]);
         }
         if ("ship_gates" in $$parsedSource) {
-            $$parsedSource["ship_gates"] = $$createField11_0($$parsedSource["ship_gates"]);
+            $$parsedSource["ship_gates"] = $$createField12_0($$parsedSource["ship_gates"]);
         }
         if ("gates" in $$parsedSource) {
-            $$parsedSource["gates"] = $$createField12_0($$parsedSource["gates"]);
+            $$parsedSource["gates"] = $$createField13_0($$parsedSource["gates"]);
         }
         if ("established_gate" in $$parsedSource) {
-            $$parsedSource["established_gate"] = $$createField13_0($$parsedSource["established_gate"]);
+            $$parsedSource["established_gate"] = $$createField14_0($$parsedSource["established_gate"]);
         }
         if ("established_gates" in $$parsedSource) {
-            $$parsedSource["established_gates"] = $$createField14_0($$parsedSource["established_gates"]);
+            $$parsedSource["established_gates"] = $$createField15_0($$parsedSource["established_gates"]);
         }
         if ("source_gate" in $$parsedSource) {
-            $$parsedSource["source_gate"] = $$createField15_0($$parsedSource["source_gate"]);
+            $$parsedSource["source_gate"] = $$createField16_0($$parsedSource["source_gate"]);
         }
         if ("requires" in $$parsedSource) {
-            $$parsedSource["requires"] = $$createField16_0($$parsedSource["requires"]);
+            $$parsedSource["requires"] = $$createField17_0($$parsedSource["requires"]);
         }
         if ("context" in $$parsedSource) {
-            $$parsedSource["context"] = $$createField17_0($$parsedSource["context"]);
+            $$parsedSource["context"] = $$createField18_0($$parsedSource["context"]);
         }
         return new KapiProject(/** @type {Partial<KapiProject>} */($$parsedSource));
     }
@@ -1673,7 +1693,7 @@ export class PluginStatus {
      * @returns {PluginStatus}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType42;
+        const $$createField1_0 = $$createType45;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("issues" in $$parsedSource) {
             $$parsedSource["issues"] = $$createField1_0($$parsedSource["issues"]);
@@ -1776,7 +1796,7 @@ export class Profile {
      * @returns {Profile}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType44;
+        const $$createField0_0 = $$createType47;
         const $$createField1_0 = $$createType18;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("channels" in $$parsedSource) {
@@ -1937,8 +1957,8 @@ export class ShipGateRule {
      * @returns {ShipGateRule}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType46;
-        const $$createField1_0 = $$createType47;
+        const $$createField0_0 = $$createType49;
+        const $$createField1_0 = $$createType50;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("when" in $$parsedSource) {
             $$parsedSource["when"] = $$createField0_0($$parsedSource["when"]);
@@ -2040,21 +2060,29 @@ const $$createType31 = $Create.Nullable($$createType30);
 const $$createType32 = $Create.Map($Create.Any, $$createType31);
 const $$createType33 = Profile.createFrom;
 const $$createType34 = $Create.Map($Create.Any, $$createType33);
-const $$createType35 = ShipGateRule.createFrom;
-const $$createType36 = $Create.Array($$createType35);
-const $$createType37 = $Create.Map($Create.Any, $$createType23);
-var $$createType38 = /** @type {(...args: any[]) => any} */(function $$initCreateType38(...args) {
-    if ($$createType38 === $$initCreateType38) {
-        $$createType38 = $$createType4;
+var $$createType35 = /** @type {(...args: any[]) => any} */(function $$initCreateType35(...args) {
+    if ($$createType35 === $$initCreateType35) {
+        $$createType35 = $$createType37;
     }
-    return $$createType38(...args);
+    return $$createType35(...args);
 });
-const $$createType39 = ContextBackend.createFrom;
-const $$createType40 = $Create.Nullable($$createType39);
-const $$createType41 = PluginIssue.createFrom;
-const $$createType42 = $Create.Array($$createType41);
-const $$createType43 = Channel.createFrom;
-const $$createType44 = $Create.Array($$createType43);
-const $$createType45 = gate$0.Selector.createFrom;
-const $$createType46 = $Create.Nullable($$createType45);
-const $$createType47 = GateRef.createFrom;
+const $$createType36 = axis$0.Spec.createFrom;
+const $$createType37 = $Create.Map($Create.Any, $$createType36);
+const $$createType38 = ShipGateRule.createFrom;
+const $$createType39 = $Create.Array($$createType38);
+const $$createType40 = $Create.Map($Create.Any, $$createType23);
+var $$createType41 = /** @type {(...args: any[]) => any} */(function $$initCreateType41(...args) {
+    if ($$createType41 === $$initCreateType41) {
+        $$createType41 = $$createType4;
+    }
+    return $$createType41(...args);
+});
+const $$createType42 = ContextBackend.createFrom;
+const $$createType43 = $Create.Nullable($$createType42);
+const $$createType44 = PluginIssue.createFrom;
+const $$createType45 = $Create.Array($$createType44);
+const $$createType46 = Channel.createFrom;
+const $$createType47 = $Create.Array($$createType46);
+const $$createType48 = gate$0.Selector.createFrom;
+const $$createType49 = $Create.Nullable($$createType48);
+const $$createType50 = GateRef.createFrom;

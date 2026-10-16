@@ -2,6 +2,7 @@ package host
 
 import (
 	"context"
+	"time"
 
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/contextop"
@@ -66,7 +67,7 @@ func (a *App) newContextRules(cmd Command, recipePath string) (*contextRules, er
 		return nil, err
 	}
 	key := workspace.ProjectKey(identity)
-	records, err := contextop.NewLedger(ws, contextop.PersonDecides).Records(ctx, contextop.Filter{})
+	records, err := a.contextLedger(ctx, ws).Records(ctx, contextop.Filter{})
 	if err != nil {
 		return nil, err
 	}
@@ -104,6 +105,10 @@ func (r *contextRules) at(point project.GovernancePoint) (contextop.Resolution, 
 	if err != nil {
 		return contextop.Resolution{}, err
 	}
+	// A rule's window is read at the point's instant, the run's governance
+	// instant for a check, so the instant is part of what a resolution is
+	// cached under.
+	key += "\x00" + point.At.UTC().Format(time.RFC3339Nano)
 	if held, ok := r.cache[key]; ok {
 		return held, nil
 	}
@@ -111,6 +116,8 @@ func (r *contextRules) at(point project.GovernancePoint) (contextop.Resolution, 
 		Project:     r.key,
 		Coordinates: coordinates,
 		Held:        r.held,
+		Space:       r.proj.AxisSpace(),
+		At:          point.At,
 	})
 	r.cache[key] = resolved
 	return resolved, nil

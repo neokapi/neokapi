@@ -505,7 +505,7 @@ func (a *App) computeCheck(cmd Command, args []string, declared bool) (check.Rep
 		// suggestion. A check of named files sees part of the content, and a
 		// part says nothing about how the project writes.
 		if unread != nil && vocab.rules != nil {
-			opts.usage = newContextUsage(vocab.rules.records, vocab.rules.key)
+			opts.usage = newContextUsage(vocab.rules.records, vocab.rules.key, vocab.rules.proj.AxisSpace(), a.GovernanceInstant())
 		}
 		var checked []string
 		for _, file := range args {
@@ -1568,7 +1568,7 @@ func (t *checkTerms) keepAt(point project.GovernancePoint) ([]profile.TermRuleSe
 	if err != nil || rc == nil {
 		return nil, err
 	}
-	key := rc.Profile + "\x00" + rc.Channel
+	key := termsCacheKey(t.proj, rc, point)
 	if sets, ok := t.keep[key]; ok {
 		return sets, nil
 	}
@@ -1579,10 +1579,10 @@ func (t *checkTerms) keepAt(point project.GovernancePoint) ([]profile.TermRuleSe
 	var sets []profile.TermRuleSet
 	if len(all) > 0 {
 		if t.places == nil {
-			t.places = placePoints(t.proj, t.app.rulePlaces(t.proj, t.root), time.Time{})
+			t.places = placePoints(t.proj, t.app.rulePlaces(t.proj, t.root), point.At)
 		}
-		here := terms.AtPoint(all, sel.Profile, sel.Coordinates)
-		sets = keepRuleSets(rulesElsewhere(t.proj, t.places, sel.Path, all, here, "", time.Time{}))
+		here := sel.Holding(all)
+		sets = keepRuleSets(rulesElsewhere(t.proj, t.places, sel.Path, all, here, "", point.At))
 	}
 	if t.keep == nil {
 		t.keep = map[string][]profile.TermRuleSet{}
@@ -1667,6 +1667,23 @@ func (t *checkTerms) resolve(point project.GovernancePoint) (*project.ResolvedGo
 	return t.app.ResolveGovernanceAtPoint(t.cmd, t.proj, point)
 }
 
+// termsCacheKey is what the terms held at a point are cached under: the
+// profile and channel governing there, and every coordinate the point sits
+// at, since a concept scoped to a declared axis holds at one collection and
+// not at its neighbour under the same profile.
+func termsCacheKey(proj *project.KapiProject, rc *project.ResolvedGovernance, point project.GovernancePoint) string {
+	if proj == nil {
+		return rc.Profile + "\x00" + rc.Channel
+	}
+	coordinates := pointCoordinates(proj, rc, point)
+	parts := make([]string, 0, len(coordinates))
+	for name, value := range coordinates {
+		parts = append(parts, name+"="+value)
+	}
+	slices.Sort(parts)
+	return rc.Profile + "\x00" + rc.Channel + "\x00" + strings.Join(parts, ",")
+}
+
 // forPoint returns the vocabulary governing a point. file names what is being
 // checked, for an error.
 func (t *checkTerms) forPoint(ctx context.Context, point project.GovernancePoint, file string) (terms.Terminology, error) {
@@ -1674,7 +1691,7 @@ func (t *checkTerms) forPoint(ctx context.Context, point project.GovernancePoint
 	if err != nil {
 		return nil, err
 	}
-	key := rc.Profile + "\x00" + rc.Channel
+	key := termsCacheKey(t.proj, rc, point)
 	if tb, ok := t.cache[key]; ok {
 		return tb, nil
 	}

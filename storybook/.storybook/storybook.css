@@ -7,3 +7,4 @@
 @import "../../apps/kapi-desktop/frontend/src/index.css";
 
 @source "../../apps/kapi-desktop/frontend/src";
+@source "../../packages/context-atlas/src";

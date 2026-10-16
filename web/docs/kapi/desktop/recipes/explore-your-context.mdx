@@ -1,0 +1,120 @@
+---
+id: explore-your-context
+title: "Explore your context"
+sidebar_label: "Explore your context"
+description: "Open the KapiMart sample in Kapi Desktop and explore its context on the axes it varies along: follow rules across products, channels, markets and reader ages, move a window through time, see which rules hold only for a while, and compare two moments."
+keywords: [Kapi Desktop, explore, axes, coordinates, market, reader age, lifetime, valid_from, valid_to, timeline, flow, matrix, map, compare, kapi context atlas]
+---
+
+# Explore your context
+
+**Goal:** read a project's context the way you would read a dashboard. You
+follow the KapiMart sample's rules and content across the axes the project
+declares, move a window through time, find the rules that hold only for a
+while, and compare two moments.
+
+You need [Kapi Desktop](/kapi/get-started/installation#install-kapi-desktop)
+and the KapiMart sample. No model runs and nothing you do here changes the
+project. For what each section of the app is, see the
+[overview](/kapi/desktop/overview).
+
+## What the sample declares
+
+The sample's `kapi.yaml` names four axes beside the product and the channel,
+and says what kind each one is:
+
+```yaml
+axes:
+  market:
+    kind: geo
+    label: Market
+    groups:
+      nordics: [no, se, dk, fi, is]
+  audience:
+    label: Audience
+    values: [shoppers, developers, partners]
+  age:
+    kind: range
+    label: Reader age
+    unit: years
+  lifecycle:
+    kind: ordered
+    label: Lifecycle
+    values: [preview, current, sunset]
+```
+
+The kind decides how a rule at one value reaches content at another. A rule for
+the Nordic market holds in Norway, and a rule for readers aged 13 to 17 holds
+in content written for readers aged 14 to 16. The [project
+file reference](/reference/project-file#typed-axes) lists the kinds.
+
+Besides the two assistant sessions you review in [Review what your assistant
+noticed](/kapi/desktop/recipes/review-what-your-assistant-noticed), the sample
+arrives with five notes a teammate recorded and kept. One holds in Japan, one
+for readers aged 13 to 17, and three hold for a while: one is in force now, one
+has ended and one starts next month.
+
+## Steps
+
+1. **Open the sample and its Explore section.** On the home, click **Try the
+   sample**, then open KapiMart and choose **Explore** in the Context hub. The
+   page opens on the last 30 days, with the snapshot at today.
+2. **Read the timeline.** Each bar counts what was recorded that day: terms
+   entering the terms store, notes, and decisions. Drag across the timeline to
+   choose another window, or pick **7d**, **90d** or **All**. The counts under
+   the timeline follow the window: records in scope, units of content, what
+   needs a person, and what changed state.
+3. **Trace a value through the flow.** **Flow** opens with four columns:
+   family, product, channel and state at the snapshot. Hover **Rule** in the
+   first column. The same records light up in every column, so you see which
+   channels the rules were seen in and where each stands. Nothing changes until
+   you click.
+4. **Keep a selection.** Click **Contested**. It becomes a chip under
+   **Scope**, and every view now reads only those records. Shift-click
+   **Suggested** to add it; values of one axis combine with *or*, and values
+   of different axes with *and*. **Clear filters** empties the scope.
+5. **Change the columns.** Use a column's menu to show another axis, such as
+   **Market** or **Reader age**, and **Column** to add one. Arrows move a column
+   left or right.
+6. **Find the rules that hold for a while.** Under **Try a question**, choose
+   **Rules with a lifetime**. The first column becomes **Lifetime**: one note
+   **In force**, one **Expired** and one **Upcoming**. Select one to open it
+   beside the view. The pane shows the scope it holds at, when it was recorded,
+   the window it holds for, its history and the sentence it was seen in.
+7. **Switch the clock.** Set **Clock** to **Effective**. The timeline now
+   places a rule's window at the dates it opened and closed rather than the day
+   it was recorded, so you see when the context changed rather than when
+   somebody wrote it down. A window that opens after today is counted beside
+   the legend as outside the span.
+8. **See where the markets are.** Open **Map**. Japan and Germany sit on the
+   grid of countries with their counts. **Nordics** and **World** are listed
+   beside it, and the five Nordic countries are drawn hatched: the campaign
+   note holds there without being placed in any one of them. Hover
+   **Nordics** to light its countries, or click Norway to keep everything that
+   holds in Norway. Tile area is not land area.
+9. **Read state over time.** Open **Over time**. Each row is one value of an
+   axis and each column a stretch of the window, coloured by the share
+   waiting for a person at the end of that stretch.
+10. **Compare two moments.** Click **Pin A**. Move the window back a month, then
+    choose **Compare with A**. Both sides keep the same order of values and the
+    same scale. The counts say how many records only one side holds, and how
+    many of those both hold changed state.
+11. **Take the investigation with you.** The download button saves the query,
+    the pinned side, the selected record and the counts as JSON, so a teammate
+    or an assistant can read what you were looking at.
+
+## The same on the command line
+
+```bash
+kapi context atlas                          # a summary: axes, records, span
+kapi context atlas --json                   # the data Explore reads
+kapi context log <id>                       # one rule and every decision about it
+kapi context note "Prices include tax." \
+  --seen-in src/en/store-ui.json --quote "Estimated Tax" \
+  --point market=jp --valid-to 2027-01-01   # holds in one market, for a while
+```
+
+A note's `--point` can only narrow where its evidence was seen: a note seen in
+the store's strings can be placed in Japan, and placing it more widely is a
+person's decision in review. `--valid-from` and `--valid-to` take a date or an
+instant, and the window includes its start and excludes its end.

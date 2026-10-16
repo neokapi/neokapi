@@ -288,7 +288,7 @@ func TestResetSampleProject_TabStaysUsable(t *testing.T) {
 }
 
 // TestCreateSampleProject_ArrivesWithAnAssistantSession: the sample opens with
-// the two assistant sessions recorded, the home row reads them (codex the
+// the team's kept notes and the two assistant sessions recorded, the home row reads them (codex the
 // latest, one disagreement, the voice the recipe binds), and opening the
 // sample again records nothing more.
 func TestCreateSampleProject_ArrivesWithAnAssistantSession(t *testing.T) {
@@ -312,7 +312,7 @@ func TestCreateSampleProject_ArrivesWithAnAssistantSession(t *testing.T) {
 	require.NotNil(t, row.Context)
 	assert.Equal(t, 1, row.Context.Conflicts)
 	assert.Equal(t, 5, row.Context.Suggested, "three names, a word and a note")
-	assert.Zero(t, row.Context.Rules, "a file read in is not a rule decided in review")
+	assert.Equal(t, 5, row.Context.Rules, "the team's five kept notes; a file read in is not a rule decided in review")
 	require.NotNil(t, row.Context.Latest)
 	assert.Equal(t, "codex", row.Context.Latest.Actor.Name)
 	assert.Equal(t, 2, row.Context.Latest.Recorded)

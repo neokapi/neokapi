@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neokapi/neokapi/core/axis"
 	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/workspace"
 )
@@ -127,6 +128,20 @@ type ResolveRequest struct {
 	// store and its voice profile. A workspace-wide rule about one of them is
 	// left out, because the more specific rule wins.
 	Held []string
+	// Space types the project's axes (core/axis), so a rule scoped to a region
+	// answers at a country inside it. Nil compares every axis by equality.
+	Space axis.Space
+	// At is the instant the resolution answers for: a rule whose lifetime
+	// window excludes it does not answer, as a profile outside its window does
+	// not govern (C-02). The zero instant is the as-declared view.
+	At time.Time
+}
+
+// answers reports whether a rule at scope answers for this request: its point
+// covers the request's coordinates and its window holds at the request's
+// instant.
+func (req ResolveRequest) answers(scope Scope) bool {
+	return scope.InForce(req.At) && scope.CoversIn(req.Space, req.Coordinates)
 }
 
 // Resolution is what the context operations add to the vocabulary a project's
@@ -187,7 +202,7 @@ func Resolve(records []Record, widened []WidenedRule, req ResolveRequest) Resolu
 	binding := make([]profile.TermRule, 0, len(widened))
 	for _, w := range widened {
 		rule, ok := w.Subject.Rule()
-		if !ok || !w.Scope.Covers(req.Coordinates) {
+		if !ok || !req.answers(w.Scope) {
 			continue
 		}
 		key := termKey(rule.Term)
@@ -206,7 +221,7 @@ func Resolve(records []Record, widened []WidenedRule, req ResolveRequest) Resolu
 		if !r.Established || !r.Kind.Bears() || r.Status != StatusEstablished {
 			continue
 		}
-		if r.Scope.Level == LevelWorkspace || r.Project != req.Project || !r.Scope.Covers(req.Coordinates) {
+		if r.Scope.Level == LevelWorkspace || r.Project != req.Project || !req.answers(r.Scope) {
 			continue
 		}
 		rule, ok := r.Rule()
@@ -235,7 +250,7 @@ func Resolve(records []Record, widened []WidenedRule, req ResolveRequest) Resolu
 		if !r.Status.Advises() || !r.Kind.Bears() {
 			continue
 		}
-		if !answersIn(r, req.Project) || !r.Scope.Covers(req.Coordinates) {
+		if !answersIn(r, req.Project) || !req.answers(r.Scope) {
 			continue
 		}
 		rule, ok := r.Rule()

@@ -28,6 +28,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/axis"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/locale"
@@ -96,6 +97,14 @@ type KapiProject struct {
 	// whole project sits at one point, under defaults.voice and
 	// the project's own terms. See profiles.go.
 	Profiles map[string]Profile `yaml:"profiles,omitempty" json:"profiles,omitempty"`
+
+	// Axes types the declared axes of the context space: how each one compares
+	// its values (category, geo, range, ordered), which values a closed axis
+	// takes, the groups a geo axis names, and the labels a surface shows. An
+	// axis not declared here is an open category whose values compare by
+	// equality. Every coordinate the recipe writes is validated against it at
+	// load. See axes.go.
+	Axes axis.Space `yaml:"axes,omitempty" json:"axes,omitempty"`
 
 	// Ship gates decide when localized content is shippable, as coverage
 	// thresholds over the lifecycle ladder (see core/gate). Three optional,

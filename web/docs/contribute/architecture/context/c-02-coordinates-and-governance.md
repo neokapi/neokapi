@@ -3,7 +3,7 @@ id: c-02-coordinates-and-governance
 sidebar_position: 2
 title: "C-02: Coordinates and governance"
 description: "Architecture decision: content sits at a point in the context space. Two structural axes, the product it belongs to and the channel it ships on, are derived from the recipe; declared axes such as brand and mode are stated once and inherited. One resolver answers what governs that point, at an instant, for every caller."
-keywords: [coordinates, context space, governance, profiles, channels, brand, mode, validity, voice profile, neokapi, architecture decision]
+keywords: [coordinates, context space, governance, profiles, channels, brand, mode, axes, geo, market, range, validity, voice profile, neokapi, architecture decision]
 ---
 
 # C-02: Coordinates and governance
@@ -17,7 +17,10 @@ the product-axis value, and the channels that profile declares *are* the
 channel-axis values it can carry. The remaining axes are **declared**: a project
 names the dimensions its content actually varies along (a brand, a document
 mode, a market) once under `defaults.coordinates`, and a collection that sits
-elsewhere overrides the one axis it differs on.
+elsewhere overrides the one axis it differs on. A declared axis is an open
+category unless the recipe types it under `axes:`: a geo market where a region
+contains its countries, an audience age range where `13-17` contains `14-16`,
+a closed list of values, or an ordered lifecycle.
 
 Governance (a voice profile, a vocabulary) binds to a point. One function,
 `KapiProject.ResolveGovernanceFor`, answers *what governs here, at this instant*,
@@ -135,6 +138,61 @@ carries what kind of document sits at a point in the Diátaxis sense, with
 than an enum. Correct style is a function of mode: hedging is wrong in a tutorial
 and right in an explanation, so one profile applied flatly across all four is
 wrong for at least one of them.
+
+### Declared axes can be typed
+
+An axis the recipe only writes values for is an open category: any value is
+legal, and two values match when they are equal. That reading is enough for a
+brand, and too weak for a market or an audience age, where a rule about the
+Nordic market should answer for content written for Norway. The top-level
+`axes:` block types the axes that need more:
+
+```yaml
+axes:
+  market:
+    kind: geo
+    label: Market
+    groups:
+      nordics: [no, se, dk, fi, is]
+  audience:
+    values: [general, new-customers, specialists]
+  age:
+    kind: range
+    unit: years
+  lifecycle:
+    kind: ordered
+    values: [preview, current, sunset]
+```
+
+`core/axis` holds the four kinds and the one reading of a value every caller
+shares (`axis.Space`, built from the block by `KapiProject.AxisSpace()`):
+
+| Kind | Values | `Contains(outer, inner)` |
+| --- | --- | --- |
+| `category` (the default) | any slug; `values:` closes the axis | equality |
+| `ordered` | the declared `values:`, in order | equality |
+| `geo` | ISO 3166-1 alpha-2 codes in lower case, UN M49 region slugs, `world`, and the groups the axis declares | the inner value lies inside the outer one: a country in its subregion, a subregion in its region, everything in `world`, a group's members and what is inside them in the group |
+| `range` | an interval: `13-17`, an open upper bound `65-`, or one number | interval inclusion: `13-17` holds `14-16` and not `18-` |
+
+The geo data is built in (`core/axis/geo.go`): every ISO 3166-1 country and
+territory with its English name, an approximate centroid for drawing it on a
+map, and the M49 region it sits in, through the intermediate regions where
+M49 names them (`ke` sits in `eastern-africa`, inside `sub-saharan-africa`,
+inside `africa`). `axis.RegionOfLocale` reads a locale's region subtag as a geo
+value: `fr-CA` sits at `ca`, `es-419` at `latin-america-and-the-caribbean`, and
+`fr` has no region.
+
+Containment is what a rule's scope reads (`contextop.Scope.CoversIn`,
+`terms.AtPointIn`): a rule scoped to `market: nordics` answers at a point that
+sits at `market: no`. A point's own coordinates stay single values; containment
+runs from the rule's scope to the point and never the other way.
+`axis.Space.Overlaps` answers whether two values can meet at all (two groups
+that share a country, two intervals that intersect).
+
+The block types what the recipe already writes and adds no axis of its own:
+`product` and `channel` are refused under `axes:` as they are under
+`coordinates:`, and an axis left out of the block stays an open category, so
+every recipe written before the block existed loads unchanged.
 
 ### A profile's name is a binding
 
@@ -294,7 +352,8 @@ resolution.
 
 It is also where a learned rule is scoped. A context operation records the
 merged point its evidence was seen at, and its rule answers only where that
-point is covered ([C-11](c-11-context-operations.md)). A rule proposed from a
+point is covered, each axis read the way `axes:` types it
+([C-11](c-11-context-operations.md)). A rule proposed from a
 file at `brand: northsea, mode: reference` says nothing about a tutorial, and
 widening it is a person naming the axis it should stop being specific about, or
 asking for the whole workspace. A project with no declared axes resolves the
@@ -309,6 +368,16 @@ errors are written to be fixed without reading this page: an unqualified channel
 lists the qualified forms that would work, a channel naming an undeclared profile
 lists the declared profiles, and a channel a profile does not declare lists the
 channels it does.
+
+The `axes:` block is checked in the same pass (`axis.Space.Check`): each axis
+name is a slug, each kind is known, an ordered axis declares its values, a geo
+group names only countries, regions and other groups and never contains
+itself. Then every value written under `defaults.coordinates` and a
+collection's `coordinates:` is checked against its axis (`axis.Space.Validate`):
+a closed axis lists the values it takes, a geo value that is not a country, a
+region or a group names the spellings that are, and a range written upside
+down is shown the right way round. `SetField` runs the same check when a change
+set writes `defaults.coordinates.<axis>`.
 
 ### The point is edited through the one write verb
 
@@ -365,6 +434,8 @@ nothing declares yet.
   learn about it.
 - A project states its brand once and every collection inherits it; a
   collection that sits elsewhere moves on that one axis.
+- A rule kept for a region holds in each of its countries, and one kept for an
+  age range holds for the narrower ranges inside it, without a copy per value.
 - Governance with an end date is expressible, and the day it ends is announced by
   every surface that resolves it rather than discovered by a reader.
 - Because the structural axes are resolved from the recipe rather than declared

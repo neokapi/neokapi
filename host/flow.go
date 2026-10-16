@@ -2129,9 +2129,9 @@ func (a *App) ResolveTermsStore(cmd Command, point project.GovernancePoint) (Sto
 	}
 	coordinates := pointCoordinates(proj, rc, point)
 	if bound != "" {
-		return StoreSelection{Path: bound, Profile: rc.Profile, Coordinates: coordinates}, nil
+		return StoreSelection{Path: bound, Profile: rc.Profile, Coordinates: coordinates, Axes: proj.AxisSpace(), At: point.At}, nil
 	}
-	return StoreSelection{Root: root, Profile: rc.Profile, Coordinates: coordinates}, nil
+	return StoreSelection{Root: root, Profile: rc.Profile, Coordinates: coordinates, Axes: proj.AxisSpace(), At: point.At}, nil
 }
 
 // pointCoordinates are the coordinates of a point: the project's defaults,
@@ -2260,7 +2260,7 @@ func (a *App) projectConcepts(cmd Command, point project.GovernancePoint) ([]sql
 	if err != nil || zeroPoint(point) {
 		return concepts, err
 	}
-	return sqlterms.AtPoint(concepts, sel.Profile, sel.Coordinates), nil
+	return sel.Holding(concepts), nil
 }
 
 // zeroPoint reports the point that names no location, which asks for the

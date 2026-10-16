@@ -25,6 +25,7 @@ type KapiProject struct {
     Flows       map[string]*flow.StepsSpec `yaml:"flows,omitempty"`
     FlowsDir    string                     `yaml:"flows_dir,omitempty"` // one YAML file per flow, relative to the recipe
     Profiles    map[string]Profile         `yaml:"profiles,omitempty"` // profile name → governance (see The context space)
+    Axes        axis.Space                 `yaml:"axes,omitempty"`     // axis name → axis.Spec: how a declared axis compares values
 
     // Convergence gates (see the reference page, "Ship gates").
     ShipGate      gate.Gate            `yaml:"ship_gate,omitempty"`
@@ -227,6 +228,26 @@ the Diátaxis values `tutorial`, `how-to`, `reference`, `explanation` as
 conventions) are the two declared axes the framework spells; any other name is
 valid ([C-02](/contribute/architecture/context/c-02-coordinates-and-governance)).
 
+A declared axis is an open category unless the top-level `axes:` block types
+it. `KapiProject.Axes` is an `axis.Space` (`core/axis`), a map from axis name
+to `axis.Spec`:
+
+```go
+type Spec struct {
+    Kind   axis.Kind           `yaml:"kind,omitempty"`   // category (default) | geo | range | ordered
+    Label  string              `yaml:"label,omitempty"`
+    Values []string            `yaml:"values,omitempty"` // closes a category axis; orders an ordered one
+    Labels map[string]string   `yaml:"labels,omitempty"`
+    Groups map[string][]string `yaml:"groups,omitempty"` // geo: named groups of countries and regions
+    Unit   string              `yaml:"unit,omitempty"`   // range: what the numbers count
+}
+```
+
+`KapiProject.AxisSpace()` returns it (nil-safe), and `Space.Contains(axis,
+outer, inner)` is what every scope match reads, so a rule scoped to
+`market: nordics` holds at `market: no`. `KapiProject.DeclaredAxisNames()`
+lists every declared axis the recipe names, typed or written.
+
 `KapiProject.ResolveGovernance(collection)` resolves a collection name into a
 `ResolvedGovernance` (channel, voice binding, `TermStore`, the profile's name,
 and the recipe key the voice came from), falling back to the project defaults
@@ -423,6 +444,10 @@ the full extension model.
 - `version` is required, must be `"v1"`. A top-level key the recipe does not
   have (`content:`, `coordinates:`) is rejected by name with a hint at the key
   that carries the intent, rather than captured as an unknown extension.
+- `axes` names slugs other than `product` and `channel`, each with a known
+  kind; an ordered axis declares its values; labels name declared values; a geo
+  group names only countries, regions and other groups, shadows none of them
+  and does not contain itself (`axis.Space.Check`).
 - `id` is optional. When set, `ValidateID` requires `prj_` followed by 20 to 64
   characters from `a-z2-7`, which is what `NewID` mints (128 random bits as
   lowercase RFC 4648 base32, 26 characters).
@@ -435,6 +460,11 @@ the full extension model.
   - `source_only: true` is rejected when the collection or any item also
     carries a `target` or `target_languages`.
   - `coordinates` may not name `product` or `channel`.
+  - Each value under `coordinates`, like each under `defaults.coordinates`, is
+    legal for its axis as `axes:` types it (`axis.Space.Validate`): a declared
+    value of a closed axis, a country, region, `world` or group of a geo axis,
+    an interval of a range axis. The error names the key, such as
+    `collections[0]: collection "docs": coordinates.market`.
   - An item's `comments` is `true`, `false`, or a mapping whose keys are
     `directives`, `channel` and `only`. Each directive, there and under `defaults.comments.directives`,
     is a marker that is not empty, starts with no whitespace, holds no line

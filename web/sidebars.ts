@@ -157,6 +157,11 @@ const sidebars: SidebarsConfig = {
         },
         {
           type: "doc",
+          id: "kapi/desktop/recipes/explore-your-context",
+          label: "Explore your context",
+        },
+        {
+          type: "doc",
           id: "kapi/desktop/recipes/connect-an-assistant",
           label: "Connect an assistant",
         },

@@ -1,0 +1,43 @@
+{
+  "name": "@neokapi/context-atlas",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "typecheck": "vp check --no-fmt --no-lint",
+    "check": "vp check",
+    "lint": "vp lint",
+    "fmt": "vp fmt",
+    "test": "vp test",
+    "test:watch": "vp test watch"
+  },
+  "dependencies": {
+    "@neokapi/i18n-react": "*",
+    "@neokapi/ui-primitives": "*",
+    "lucide-react": "^1.50.0"
+  },
+  "devDependencies": {
+    "@storybook/react-vite": "^10.6.1",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "jsdom": "^30.1.0",
+    "storybook": "^10.6.1",
+    "typescript": "^7.0.2",
+    "vite-plus": "catalog:"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}

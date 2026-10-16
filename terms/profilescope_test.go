@@ -2,8 +2,13 @@ package terms
 
 import (
 	"testing"
+	"time"
 
+	"github.com/neokapi/neokapi/core/axis"
+	"github.com/neokapi/neokapi/core/graph"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestAtPoint: a concept holds where its profile governs and where the point
@@ -78,4 +83,56 @@ func TestScopeToPointRoundTrips(t *testing.T) {
 	c.Unscope()
 	assert.Empty(t, c.Profile())
 	assert.Nil(t, c.Coordinates())
+}
+
+// TestAtPointIn: a concept scoped to a typed axis holds at the values inside
+// its own, read through the project's axis space.
+func TestAtPointIn(t *testing.T) {
+	space := axis.Space{
+		"market": {Kind: axis.KindGeo, Groups: map[string][]string{"nordics": {"no", "se", "dk", "fi", "is"}}},
+		"age":    {Kind: axis.KindRange},
+	}
+	nordic := Concept{ID: "nordic"}
+	nordic.ScopeToPoint("", map[string]string{"market": "nordics"})
+	teens := Concept{ID: "teens"}
+	teens.ScopeToPoint("", map[string]string{"age": "13-17"})
+	ids := func(cs []Concept) []string {
+		out := []string{}
+		for _, c := range cs {
+			out = append(out, c.ID)
+		}
+		return out
+	}
+	all := []Concept{nordic, teens}
+	assert.Equal(t, []string{"nordic"}, ids(AtPointIn(all, "", map[string]string{"market": "no"}, space)))
+	assert.Empty(t, ids(AtPointIn(all, "", map[string]string{"market": "de"}, space)))
+	assert.Equal(t, []string{"teens"}, ids(AtPointIn(all, "", map[string]string{"age": "14-16"}, space)))
+	assert.Empty(t, ids(AtPointIn(all, "", map[string]string{"age": "18-"}, space)))
+	assert.Empty(t, ids(AtPoint(all, "", map[string]string{"market": "no"})), "without a space every axis is equality")
+}
+
+// TestInForceAt: a term past its window stops answering, and a concept none of
+// whose terms answer is dropped.
+func TestInForceAt(t *testing.T) {
+	end := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	concepts := []Concept{
+		{ID: "sale", Terms: []Term{
+			{Text: "Spring sale", Status: model.TermForbidden, Validity: &graph.Validity{ValidTo: &end}},
+			{Text: "Summer sale", Status: model.TermPreferred},
+		}},
+		{ID: "gone", Terms: []Term{{Text: "Old", Validity: &graph.Validity{ValidTo: &end}}}},
+		{ID: "always", Terms: []Term{{Text: "kapi"}}},
+	}
+	before := InForceAt(concepts, end.Add(-time.Hour))
+	assert.Len(t, before, 3)
+	assert.Len(t, before[0].Terms, 2)
+
+	after := InForceAt(concepts, end)
+	require.Len(t, after, 2)
+	assert.Equal(t, "sale", after[0].ID)
+	assert.Equal(t, []string{"Summer sale"}, []string{after[0].Terms[0].Text})
+	assert.Equal(t, "always", after[1].ID)
+	assert.Len(t, concepts[0].Terms, 2, "the input is left as it was")
+
+	assert.Len(t, InForceAt(concepts, time.Time{}), 3)
 }

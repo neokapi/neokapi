@@ -21,9 +21,38 @@ defaults:
   # project's own stores, which govern every point.
   voice: kapimart
   coordinates:
-    # A declared axis. The structural axes (product, channel) are derived from a
+    # Declared axes. The structural axes (product, channel) are derived from a
     # collection's channel: and are never written here.
     brand: kapimart
+    market: world
+    audience: shoppers
+    age: 13-
+    lifecycle: current
+
+# What the declared axes mean. Each one is checked when the recipe loads, and
+# its kind decides how a rule scoped to one value reaches another: a rule for
+# the Nordic market holds in Norway, and a rule for readers aged 13 to 17 holds
+# in content written for readers aged 14 to 16. An axis not named here is an
+# open list of values, matched exactly.
+axes:
+  market:
+    kind: geo
+    label: Market
+    groups:
+      nordics: [no, se, dk, fi, is]
+    labels:
+      nordics: Nordics
+  audience:
+    label: Audience
+    values: [shoppers, developers, partners]
+  age:
+    kind: range
+    label: Reader age
+    unit: years
+  lifecycle:
+    kind: ordered
+    label: Lifecycle
+    values: [preview, current, sunset]
 
 profiles:
   kapimart:
@@ -42,6 +71,7 @@ collections:
     channel: kapimart/web
     coordinates:
       mode: how-to
+      audience: developers
     content:
       - path: "en/api-reference.md"
         target: "{lang}"
@@ -73,6 +103,9 @@ collections:
   - name: Contracts
     base: legal
     channel: kapimart/legal
+    coordinates:
+      audience: partners
+      age: 18-
     content:
       - path: "en/*.{docx,xlsx}"
         target: "{lang}"
@@ -81,6 +114,8 @@ collections:
   - name: Templates
     base: marketing
     channel: kapimart/marketing
+    coordinates:
+      lifecycle: preview
     content:
       - path: "en/*.{pptx,docx}"
         target: "{lang}"

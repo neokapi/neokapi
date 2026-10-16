@@ -1,0 +1,10 @@
+/*
+ * Registers @neokapi/context-atlas/src as a Tailwind @source, so classes used
+ * only inside the atlas are generated in the consumer's CSS. Import this from
+ * any CSS file that processes Tailwind utilities and renders the atlas.
+ *
+ * The atlas's own palette (--atlas-cat-*) ships inside the component, so this
+ * file carries no tokens.
+ */
+
+@source "../";
