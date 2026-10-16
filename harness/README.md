@@ -63,6 +63,7 @@ tag runs a live Claude session; **shell** marks a scripted shell demo and
 | 34 | `bowrain-sizzle`                 | **desktop.** A reel of the Bowrain platform: governance, collaboration, and quality |
 | 35 | `e2-communication-is-context`    | **explainer.** One rename becomes a different rule on each surface, and each rule belongs to a place |
 | 36 | `e2-assistant-run`               | The live run behind E2's beat 6: an assistant edits a help article and an API page, and kapi gives each its own rule |
+| 37 | `kapi-desktop-context`           | **desktop.** What two assistants noticed in the sample, kept, changed and settled on What's new, then the brief for a file, a note arriving live, and Share |
 
 An **explainer** (`terminal: explainer`) has no capture: every scene is a
 `kind: diagram` beat drawn in React and SVG under `src/remotion/explainer/`,
@@ -72,8 +73,8 @@ whole video is rendered.
 
 Rows 1 to 18 exercise the task sections of the kapi skill
 (`references/translate.md`, `references/i18n.md`, `references/voice.md`,
-`references/toolbox.md`) plus the MCP tool surface. Rows 19 to 24 record Kapi
-Desktop, and rows 25 to 34 record the Bowrain CLI, desktop app and web app.
+`references/toolbox.md`) plus the MCP tool surface. Rows 19 to 24 and 37 record
+Kapi Desktop, and rows 25 to 34 record the Bowrain CLI, desktop app and web app.
 
 ### Scripted shell demos (no Claude)
 

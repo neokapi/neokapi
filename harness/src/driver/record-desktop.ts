@@ -156,10 +156,24 @@ const KAPI_DESKTOP_DIR = path.join(REPO_ROOT, "apps", "kapi-desktop");
 // Isolated roots so the real app never touches the developer's own data
 // (honored via KAPI_CONFIG_DIR / KAPI_HOME_DIR / KAPI_DESKTOP_CONFIG_DIR — see
 // backend/paths.go). The home dir holds created projects (project walkthrough).
-const ISO_BASE = path.join(os.tmpdir(), "kapi-desktop-demo");
+//
+// The temporary directory is named by its real path. On macOS os.tmpdir() is a
+// symlink under /var, and the backend records a checkout by its resolved
+// /private/var path, so with the link as KAPI_HOME_DIR the app could not
+// shorten a checkout to ~/KapiProjects/… and the take showed the whole path.
+const ISO_BASE = path.join(fs.realpathSync(os.tmpdir()), "kapi-desktop-demo");
 const ISO_DIR = path.join(ISO_BASE, "kapi");
 const ISO_HOME = path.join(ISO_BASE, "home");
 const ISO_DESKTOP = path.join(ISO_BASE, "desktop");
+// The data root holds the workspace: every project's terms, voice profiles,
+// content memory and recorded decisions. KAPI_DATA_DIR names it outright, so
+// a sample created on camera registers here and never in the developer's own
+// workspace (host/datadir.go). It sits where a Mac keeps it, under the
+// isolated home, so the app names it ~/Library/Application Support/kapi.
+// resetHome keeps it between the two passes.
+const ISO_DATA_PARENT = "Library";
+const ISO_DATA = path.join(ISO_HOME, ISO_DATA_PARENT, "Application Support", "kapi");
+const ISO_XDG_DATA = path.join(ISO_BASE, "xdg-data");
 const ICU_PKGCONFIG = "/opt/homebrew/opt/icu4c/lib/pkgconfig";
 // The wbridge is built from source (no release ldflags), so core/version.Version
 // defaults to "dev". The plugin registry filters by min_kapi_version (okapi-bridge
@@ -320,6 +334,10 @@ function goEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
     KAPI_CONFIG_DIR: ISO_DIR,
     KAPI_HOME_DIR: ISO_HOME,
     KAPI_DESKTOP_CONFIG_DIR: ISO_DESKTOP,
+    KAPI_DATA_DIR: ISO_DATA,
+    // KAPI_DATA_DIR wins over XDG_DATA_HOME for the workspace; this keeps the
+    // user plugin root and anything else kapi derives from it isolated too.
+    XDG_DATA_HOME: ISO_XDG_DATA,
     // Discover plugins ONLY from the isolated config dir — never the developer's
     // or the machine's globally-installed plugins (so the recorded plugin list
     // is just what the demo installs). Named explicitly rather than relying on
@@ -614,6 +632,13 @@ interface WalkCtx {
   beat: (id: string, zoom: ZoomRect | null, fn: () => Promise<void>) => Promise<void>;
   /** A beat whose zoom is derived from elements AFTER its actions settle. */
   beatEls: (id: string, selectors: string[], fn: () => Promise<void>) => Promise<void>;
+  /**
+   * A beat whose subject moves while it is on camera: the walk marks each
+   * element as it stands at that moment, and the crop is the union of the
+   * marked boxes. A row acted on and the rule it became sit in different
+   * places, and no element on the page at the end holds both.
+   */
+  beatSpan: (id: string, fn: (mark: (target: Locator) => Promise<void>) => Promise<void>) => Promise<void>;
   /** Move the visible cursor onto an element's centre. */
   cursorTo: (selector: string, duration?: number) => Promise<void>;
   /** A sidebar nav button by its aria-label. */
@@ -699,7 +724,7 @@ function makeCtx(page: Page, t0: number, beats: Beat[], peer: PeerSession | unde
    *   - `zoom` multiplies the fitted scale, so a value above 1 frames less than
    *     the region the beat asked for and cuts its ends off.
    */
-  const reportCrop = (id: string, region: ZoomRect | null) => {
+  const reportCrop = (id: string, region: ZoomRect | null, measured = false) => {
     const spec = specs[id];
     const where = `${demoId}/${id}`;
     if (spec?.cropSelectors && !region) {
@@ -710,7 +735,7 @@ function makeCtx(page: Page, t0: number, beats: Beat[], peer: PeerSession | unde
     const geo = frameGeometry({ web: isWebDemo(demoId), chapter: spec?.caption !== false, aspect: WIDTH / HEIGHT });
     const fit = regionFit(region, geo);
     if (fit < FULL_WINDOW_FIT) {
-      if (!spec?.cropSelectors) return; // the walk's own region, framed as the walk wrote it
+      if (!spec?.cropSelectors && !measured) return; // the walk's own region, framed as the walk wrote it
       const ceiling = geo.areaH / geo.bh / FULL_WINDOW_FIT;
       console.warn(
         `  ! ${where}: crop region w=${region.w.toFixed(2)} h=${region.h.toFixed(2)} fits at ${fit.toFixed(2)}, under ${FULL_WINDOW_FIT}, so the beat records the whole window. ` +
@@ -742,7 +767,23 @@ function makeCtx(page: Page, t0: number, beats: Beat[], peer: PeerSession | unde
     const highlight = spec?.highlightSelector ? await unionZoom([spec.highlightSelector], 0.01) : undefined;
     beats.push({ id, tStart, tEnd: now(), zoom, ...(highlight !== undefined ? { highlight } : {}) });
   };
-  return { page, beat, beatEls, cursorTo, sidebar, peer };
+  // The boxes are window coordinates taken at different moments, so their
+  // union is the band of the window that held each of them when it was marked.
+  const beatSpan = async (id: string, fn: (mark: (target: Locator) => Promise<void>) => Promise<void>) => {
+    const tStart = now();
+    const boxes: (ElementBox | null)[] = [];
+    await fn(async (target) => {
+      boxes.push(await target.first().boundingBox({ timeout: 2000 }).catch(() => null));
+    });
+    await holdUntil(id, tStart);
+    const spec = specs[id];
+    const zoom = spec?.cropSelectors ? await unionZoom(spec.cropSelectors) : unionRect(boxes, 0.04, WIDTH, HEIGHT);
+    if (!spec?.cropSelectors && !zoom) console.warn(`  ! ${demoId}/${id}: the walk marked nothing on camera; the beat records the whole window`);
+    reportCrop(id, zoom, true);
+    const highlight = spec?.highlightSelector ? await unionZoom([spec.highlightSelector], 0.01) : undefined;
+    beats.push({ id, tStart, tEnd: now(), zoom, ...(highlight !== undefined ? { highlight } : {}) });
+  };
+  return { page, beat, beatEls, beatSpan, cursorTo, sidebar, peer };
 }
 
 /** A Context hub section tab by its label. The hub's own nav carries the
@@ -1258,6 +1299,284 @@ async function reviewWalk(c: WalkCtx): Promise<void> {
     await cursorTo('[data-slot="review-batch-approve"]');
     await page.waitForTimeout(2400);
   });
+}
+
+/** Call a method of the recording backend the way the frontend's transport does. */
+async function callBackend(method: string, args: unknown[] = []): Promise<unknown> {
+  const r = await fetch("http://127.0.0.1:5175/wbridge", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ method, args }),
+  });
+  const body = await r.text();
+  if (!r.ok) throw new Error(`${method}: ${r.status} ${body.trim()}`);
+  return body ? JSON.parse(body) : null;
+}
+
+/** The sample's key in the workspace: its recipe's `name:`, as it carries no `id:`. */
+const CONTEXT_SAMPLE_KEY = "KapiMart";
+
+/**
+ * How long the home says an assistant "is working" in a project after its last
+ * operation (host.ContextSessionQuietAfter, two minutes), with a margin. The
+ * sample's seeded sessions carry the time they were recorded, so the home
+ * says codex is working in KapiMart until this has passed.
+ */
+const SESSION_QUIET_MS = 125_000;
+
+/**
+ * The note the `live` beat records. The docs write "sandbox" where an API's
+ * docs often say "test mode", and the quoted sentence is in web/en/faq.md,
+ * because kapi refuses evidence it cannot find in the file.
+ */
+const LIVE_NOTE = [
+  "--term", "sandbox",
+  "--instead-of", "test mode",
+  "--seen-in", "web/en/faq.md",
+  "--quote", "Sandbox accounts are limited to 100 requests per second.",
+];
+
+/** The point a cursor rests on for an element: a little in from its left edge, on its middle line. */
+async function centreOf(locator: Locator): Promise<[number, number]> {
+  const box = await locator.first().boundingBox();
+  if (!box) throw new Error("kapi-desktop-context: an element the cursor should rest on is not on the page");
+  return [box.x + Math.min(box.width / 2, 160), box.y + box.height / 2];
+}
+
+/** Scroll an element to the middle of its scroller, as a reader would. */
+async function centre(page: Page, locator: Locator): Promise<void> {
+  await locator.evaluate((el) => el.scrollIntoView({ behavior: "smooth", block: "center" }));
+  await page.waitForTimeout(900);
+}
+
+/**
+ * Give the pass a sample nobody has looked at, with its two assistant sessions.
+ *
+ * Both passes share one backend and one workspace, and the workspace keeps a
+ * project's context by its key, not by its folder. The light pass's decisions
+ * would otherwise still be in force when the dark pass opens the sample, so
+ * the project is removed from the workspace first and the person's "last
+ * looked" marker with it (host.ContextDigestMarkerPath, in the isolated
+ * config). A first pass has neither, and both steps do nothing.
+ *
+ * The sample is created through the backend rather than with Start here's
+ * button. The button opens the new tab on What's new, and opening What's new
+ * marks everything in it seen, so the home would then read "1 needs you" and
+ * nothing new. CreateSampleProject is the method the button calls; its tab is
+ * closed again, so the frontend opens the project for the first time from the
+ * home, as the beats show.
+ */
+async function freshContextSample(page: Page): Promise<void> {
+  await callBackend("ForgetWorkspaceProject", [CONTEXT_SAMPLE_KEY]).catch(() => {});
+  fs.rmSync(path.join(ISO_DIR, "context-digest.json"), { force: true });
+  const created = Date.now();
+  const tab = (await callBackend("CreateSampleProject", ["kapimart"])) as { id?: string } | null;
+  if (!tab?.id) throw new Error("kapi-desktop-context: CreateSampleProject returned no tab");
+  await callBackend("CloseProject", [tab.id]);
+  // Off camera, until the home no longer says codex is working in KapiMart.
+  const remaining = SESSION_QUIET_MS - (Date.now() - created);
+  if (remaining > 0) await page.waitForTimeout(remaining);
+  // The home read the standings while codex was still working; read them again.
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.waitForSelector(`[data-slot="whats-new-row"][data-project="${CONTEXT_SAMPLE_KEY}"]`, { timeout: 30_000 });
+  await injectCursor(page);
+  await page.waitForTimeout(800);
+  if (await page.locator('[data-slot="workspace-working"]').count()) {
+    throw new Error("kapi-desktop-context: the home still says an assistant is working after the quiet period");
+  }
+}
+
+/**
+ * Record one note as claude-code against the sample, from outside the app,
+ * the way an assistant's shell does: the built kapi, the recorder's isolated
+ * roots, and an agent identity with a session of its own.
+ */
+function recordLiveNote(): void {
+  const kapi = path.join(REPO_ROOT, "bin", "kapi");
+  if (!fs.existsSync(kapi)) throw new Error(`kapi-desktop-context: ${kapi} is missing; run make build first`);
+  const recipe = path.join(ISO_HOME, "KapiProjects", CONTEXT_SAMPLE_KEY, "kapi.yaml");
+  execFileSync(kapi, ["context", "note", ...LIVE_NOTE, "-p", recipe], {
+    env: {
+      ...goEnv(),
+      XDG_CACHE_HOME: path.join(ISO_BASE, "xdg-cache"),
+      KAPI_ACTOR: "agent",
+      KAPI_AGENT_NAME: "claude-code",
+      KAPI_AGENT_SESSION: `kapi-desktop-context-${Date.now()}`,
+    },
+    stdio: "ignore",
+  });
+}
+
+/**
+ * What an assistant noticed, and what the person decides.
+ *
+ * The sample arrives with two assistant sessions (backend/sample/session.go):
+ * claude-code noticed names and a word and recorded a correction a person
+ * made, and codex took the other side of that correction. The walk reads the
+ * news on the home, opens the project's What's new, keeps a name with `a`,
+ * changes a word's form with `c`, settles the disagreement, reads the brief an
+ * assistant gets for a file, watches a note recorded from outside the app
+ * arrive on the home, and ends on Share.
+ *
+ * The keep, change and choose beats act on a row and end on the rule it
+ * became, at the top of Established, so each crop is the union of the two
+ * (beatSpan).
+ */
+async function contextWalk(c: WalkCtx): Promise<void> {
+  const { page, beatEls, beatSpan, cursorTo, sidebar } = c;
+  const row = `[data-slot="whats-new-row"][data-project="${CONTEXT_SAMPLE_KEY}"]`;
+  const home = ['[data-slot="workspace-numbers"]', '[data-slot="whats-new"]', '[data-slot="home-projects"]'];
+  const suggestion = (text: string) =>
+    page.locator('[data-slot="digest-suggested"] [data-slot="digest-item"]').filter({ hasText: text }).first();
+  const kept = '[data-slot="digest-established"] [data-slot="digest-item"]';
+  // A row takes the cursor when it is clicked; its sentence is a plain
+  // paragraph, so the click lands on no button.
+  const select = async (item: Locator) => {
+    await humanClick(page, item.locator("p").first());
+    await page.waitForTimeout(500);
+  };
+  // The screencast runs a few tenths of a second ahead of the clock the beats
+  // are timed by, so a beat's slice ends a moment after the walk has moved on.
+  // A still second after each beat keeps the next scroll out of its last frames.
+  const settle = () => page.waitForTimeout(1000);
+
+  await freshContextSample(page);
+
+  await beatEls("home", home, async () => {
+    await cursorTo(`${row} [data-slot="whats-new-sentence"]`, 900);
+    await page.waitForTimeout(1500);
+  });
+  await settle();
+
+  // The button reads Decide while the project holds a disagreement.
+  await beatEls("whats-new", ['[data-slot="context-section-command"]', '[data-slot="digest-conflicts"]'], async () => {
+    await humanClick(page, page.locator(`${row} [data-slot="whats-new-open"]`));
+    await page.waitForSelector('[data-slot="digest-conflicts"]', { timeout: 60_000 });
+    await page.waitForTimeout(1500);
+    await cursorTo('[data-slot="digest-conflicts"] [data-slot="digest-item"]');
+    await page.waitForTimeout(1200);
+  });
+  await settle();
+
+  // The product name, kept with one key. The crop holds the row where the key
+  // was pressed and the rule where it landed.
+  const name = suggestion("Write KapiMart");
+  await centre(page, name);
+  await beatSpan("keep", async (mark) => {
+    await select(name);
+    await mark(name);
+    await page.keyboard.press("a");
+    await page.waitForTimeout(900);
+    await centre(page, page.locator(kept).first());
+    await mark(page.locator(kept).first());
+    await page.waitForTimeout(1200);
+  });
+  await settle();
+
+  // A word, kept in the form the terms prefer. The field opens holding the
+  // suggestion's own form, so it is selected and typed over. The row sits
+  // near the end of the list and cannot be centred, so the crop spans it and
+  // the rule it became.
+  const word = suggestion("not basket");
+  await centre(page, word);
+  await beatSpan("change", async (mark) => {
+    await select(word);
+    await page.keyboard.press("c");
+    const form = page.locator('[data-slot="digest-change"] input');
+    await form.waitFor({ state: "visible", timeout: 10_000 });
+    await page.waitForTimeout(500);
+    await form.selectText();
+    await form.pressSequentially("shopping cart", { delay: 95 });
+    await page.waitForTimeout(700);
+    await mark(word);
+    await humanClick(page, page.locator('[data-slot="keep-changed"]'));
+    await page.waitForTimeout(900);
+    await centre(page, page.locator(kept).first());
+    await mark(page.locator(kept).first());
+    await page.waitForTimeout(1200);
+  });
+  await settle();
+
+  // The disagreement: claude-code's side, which a person's correction backs.
+  // It sits at the top of the page, so the rules kept so far take its place
+  // and the beat ends on all three.
+  const side = page
+    .locator('[data-slot="digest-conflicts"] [data-slot="digest-item"]')
+    .filter({ hasText: "Write sign in" })
+    .first();
+  await centre(page, side);
+  await beatSpan("choose", async (mark) => {
+    await mark(side);
+    await page.waitForTimeout(1200);
+    await humanClick(page, side.locator('[data-slot="keep-item"]'));
+    await page.waitForSelector('[data-slot="digest-conflicts"]', { state: "detached", timeout: 15_000 });
+    await page.waitForTimeout(900);
+    await centre(page, page.locator(kept).first());
+    for (let i = 0; i < 3; i++) await mark(page.locator(kept).nth(i));
+    await page.waitForTimeout(1200);
+  });
+  await settle();
+
+  // The brief an assistant gets for the store's interface strings, which the
+  // kept word now governs.
+  await humanClick(page, contextSection(page, "Assistant"));
+  await page.waitForSelector('[data-slot="rules-files"]', { timeout: 30_000 });
+  await page.waitForTimeout(1000);
+  // The crop runs from the file picker down to the kept rule's line in the
+  // brief's terms, which carries no handle of its own.
+  const picker = page.locator('[aria-label="Choose a file"]');
+  const keptTerm = page.locator('[data-slot="assistant-brief"] li').filter({ hasText: "say shopping cart instead" });
+  await beatSpan("assistant", async (mark) => {
+    await centre(page, page.locator('[data-slot="assistant-brief"]'));
+    await humanClick(page, picker);
+    await page.waitForTimeout(700);
+    await humanClick(page, page.locator('[role="option"]').filter({ hasText: "src/en/store-ui.json" }).first());
+    await page.getByTestId("agent-context-text").waitFor({ state: "visible", timeout: 30_000 });
+    await keptTerm.first().waitFor({ state: "visible", timeout: 10_000 });
+    await page.waitForTimeout(900);
+    await moveTo(page, ...(await centreOf(keptTerm)));
+    await mark(picker);
+    await mark(keptTerm);
+    await page.waitForTimeout(1500);
+  });
+  await settle();
+
+  // Back on the home, a note arrives from outside the app. The home learns of
+  // it from the backend's workspace watcher, as the shipped app does, and the
+  // take fails rather than narrate a row that never came.
+  await humanClick(page, sidebar("Home"));
+  await page.waitForSelector('[data-slot="home-projects"]', { timeout: 20_000 });
+  await page.waitForTimeout(1000);
+  await beatEls("live", home, async () => {
+    await cursorTo('[data-slot="workspace-numbers"]', 800);
+    await page.waitForTimeout(1500);
+    // The row is already there: the rules kept on camera are new since the
+    // person looked. What the note changes is who noticed something.
+    recordLiveNote();
+    await page
+      .locator(`${row} [data-slot="whats-new-sentence"]`)
+      .filter({ hasText: "claude-code noticed" })
+      .waitFor({ state: "visible", timeout: 10_000 })
+      .catch(() => {
+        throw new Error("kapi-desktop-context: the note recorded as claude-code did not reach the home within 10 s");
+      });
+    await page.waitForTimeout(600);
+    await cursorTo(`${row} [data-slot="whats-new-sentence"]`, 700);
+    await page.waitForTimeout(1500);
+  });
+  await settle();
+
+  // How far the project's context reaches.
+  await humanClick(page, sidebar("Context"));
+  await page.waitForSelector('nav[aria-label="Context sections"]', { timeout: 20_000 });
+  await humanClick(page, contextSection(page, "Share"));
+  await page.waitForSelector('[data-slot="share-ladder"]', { timeout: 30_000 });
+  await page.waitForTimeout(800);
+  await beatEls("share", ['[data-slot="share-panel"]'], async () => {
+    await cursorTo('[data-slot="share-rung"][data-current]', 800);
+    await page.waitForTimeout(2000);
+  });
+  await settle();
 }
 
 // ── Bowrain web walkthroughs ─────────────────────────────────────────────────
@@ -2019,6 +2338,7 @@ const WALKTHROUGHS: Record<string, (c: WalkCtx) => Promise<void>> = {
   "kapi-desktop-config": configWalk,
   "kapi-desktop-flows": flowsWalk,
   "kapi-desktop-review": reviewWalk,
+  "kapi-desktop-context": contextWalk,
   "bowrain-web-governance": bowrainGovernanceWalk,
   "bowrain-web-editor": bowrainEditorWalk,
   "bowrain-web-review": bowrainReviewWalk,
@@ -2420,8 +2740,12 @@ export async function recordDesktop(id: string, opts: RecordOptions = {}): Promi
         console.warn(`  ! could not close the open projects on the wbridge: ${(e as Error)?.message}`);
       }
     }
-    fs.rmSync(ISO_HOME, { recursive: true, force: true });
+    // The workspace lives under the home (ISO_DATA) and the running backend
+    // holds it open, so everything else in the home goes and it stays.
     fs.mkdirSync(ISO_HOME, { recursive: true });
+    for (const entry of fs.readdirSync(ISO_HOME)) {
+      if (entry !== ISO_DATA_PARENT) fs.rmSync(path.join(ISO_HOME, entry), { recursive: true, force: true });
+    }
   };
 
   // Clear any installed plugins before each theme so install walkthroughs start
