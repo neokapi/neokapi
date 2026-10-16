@@ -1,5 +1,5 @@
 import { defineConfig } from "vite-plus";
-import type { PluginOption } from "vite";
+import type { PluginOption } from "vite-plus";
 import neokapi from "@neokapi/i18n-react/vite";
 import neokapiI18nConfig from "./neokapi-i18n.config.json" with { type: "json" };
 

@@ -1,5 +1,5 @@
 import { render, screen, waitFor } from "./testUtils";
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vite-plus/test";
 import { ConvergenceHero } from "../components/ConvergenceHero";
 import { api } from "../hooks/useApi";
 import type { ConvergePlan, ConvergenceReport, RunError } from "../types/api";

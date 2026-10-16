@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import React from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import GateOverlay from "./GateOverlay";
 import type { RunGate } from "./useRunGate";

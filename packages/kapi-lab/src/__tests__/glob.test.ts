@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { globMatches, globToRegExp, isGlob, matchGlob } from "../glob";
 
 describe("glob", () => {

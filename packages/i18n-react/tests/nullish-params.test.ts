@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import { paramText, resolveICU } from "../src/runtime/icu.ts";
 import { __t } from "../src/runtime/index.ts";
 

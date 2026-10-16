@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { useState } from "react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { fireEvent, render, screen } from "@testing-library/react";
 import FileExplorer from "../FileExplorer";
 import { BlockInspector } from "@neokapi/ui-primitives/preview";

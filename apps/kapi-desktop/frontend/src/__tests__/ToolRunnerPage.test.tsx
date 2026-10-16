@@ -1,6 +1,6 @@
 import { render, screen } from "./testUtils";
 import userEvent from "@testing-library/user-event";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import { ErrorProvider } from "../components/ErrorBanner";
 import { ToolRunnerPage } from "../components/ToolRunnerPage";
 import type { ToolInfo, PluginDocs } from "../types/api";

@@ -1,6 +1,6 @@
 import { render, screen } from "./testUtils";
 import userEvent from "@testing-library/user-event";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import { ErrorProvider } from "../components/ErrorBanner";
 import { CredentialsPage } from "../components/CredentialsPage";
 import type { AIModelOption } from "../types/api";

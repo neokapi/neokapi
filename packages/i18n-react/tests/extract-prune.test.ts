@@ -10,7 +10,7 @@
  * where this run would write the document it records is the extractor's own.
  */
 
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vite-plus/test";
 import {
   existsSync,
   mkdirSync,

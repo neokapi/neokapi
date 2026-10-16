@@ -11,7 +11,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it, vi, afterEach } from "vitest";
+import { describe, expect, it, vi, afterEach } from "vite-plus/test";
 import { __t, loadTranslations, setTranslations } from "@neokapi/i18n-react/runtime";
 
 const here = dirname(fileURLToPath(import.meta.url));

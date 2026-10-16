@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { buildMarketView, orderLocaleTerms } from "../markets-view";
 import { deriveMarketsFromTerms } from "../grouping";
 import type { Market, Term } from "../types";

@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import { resolveICU } from "../src/runtime/icu.ts";
 
 describe("ICU resolver", () => {

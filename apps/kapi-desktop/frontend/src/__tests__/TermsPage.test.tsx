@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
 import { fireEvent, render, screen, waitFor } from "./testUtils";
 
 import { SAMPLE_CONCEPTS } from "../stories/fixtures/concepts";

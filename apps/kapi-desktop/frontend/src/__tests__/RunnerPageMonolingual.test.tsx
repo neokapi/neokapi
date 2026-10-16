@@ -1,5 +1,5 @@
 import { render, screen, waitFor } from "./testUtils";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi } from "vite-plus/test";
 
 // The runner reads the tool registry to decide whether the flow it is about to
 // run produces a target variant. Mock the bridge so that answer is deterministic.

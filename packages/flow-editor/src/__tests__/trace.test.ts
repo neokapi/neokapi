@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import { computeNodeStats } from "../traceTypes";
 import type { TraceEvent } from "../traceTypes";
 

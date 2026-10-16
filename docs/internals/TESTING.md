@@ -102,7 +102,7 @@ Unit tests are the primary fast feedback loop for developers. They run in-memory
 
 All shared UI components, contexts, hooks, and utilities live in `bowrain/packages/ui`. Unit tests are colocated in `bowrain/packages/ui/src/__tests__/`.
 
-**Stack:** Vitest 4 + React Testing Library + jsdom
+**Stack:** Vitest 5 (bundled with Vite+, imported from `vite-plus/test`) + React Testing Library + jsdom
 
 **Running:**
 

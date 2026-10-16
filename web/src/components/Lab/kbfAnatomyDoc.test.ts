@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { marshalFile, parseFile } from "@neokapi/kapi-format";
 
 import { ANATOMY_FILE, ANATOMY_LINES, ANATOMY_TEXT, TERMS } from "./kbfAnatomyDoc";

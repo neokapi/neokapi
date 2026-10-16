@@ -3,7 +3,7 @@
 // FormatPreview's block affordances: every block carries its id, a host may
 // decorate it, and — when the host listens — the document itself is how a block
 // is selected, by pointer or by keyboard.
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi } from "vite-plus/test";
 import { createElement, act } from "react";
 import { createRoot } from "react-dom/client";
 

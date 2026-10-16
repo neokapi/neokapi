@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "./testUtils";
 import userEvent from "@testing-library/user-event";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi } from "vite-plus/test";
 import type { ChangeResult, ChangeSet } from "@neokapi/contract-types";
 
 import { KeptConflicts } from "../components/KeptConflicts";

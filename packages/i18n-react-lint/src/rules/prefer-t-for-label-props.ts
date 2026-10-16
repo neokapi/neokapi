@@ -1,4 +1,4 @@
-import type { Rule, Node } from "@oxlint/plugins";
+import type { Rule, Node } from "vite-plus/lint/plugins";
 import { LIKELY_LABEL_KEYS } from "../shared/translatable-attrs.ts";
 
 /**

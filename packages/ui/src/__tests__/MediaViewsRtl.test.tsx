@@ -4,7 +4,7 @@
 // fifth place that render a block's own source/target prose — the same
 // contract as the rest of DocumentViewer applies: the element itself carries
 // dir/lang for that text's locale.
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import { createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { act } from "react";

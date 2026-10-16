@@ -1,7 +1,7 @@
 import { render, screen, waitFor, within } from "./testUtils";
 import userEvent from "@testing-library/user-event";
 import { MemoryChanges } from "../stories/memoryChanges";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi } from "vite-plus/test";
 import { FilePreview } from "../components/FilePreview";
 import type { ContentTree } from "@neokapi/ui-primitives/preview";
 

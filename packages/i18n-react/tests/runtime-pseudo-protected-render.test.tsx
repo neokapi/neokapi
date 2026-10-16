@@ -7,7 +7,7 @@
  * as the command the author wrote. A `<kbd>` behaves the same way, which is
  * what keeps a keyboard hint pressable while the page is in pseudo mode.
  */
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach } from "vite-plus/test";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 

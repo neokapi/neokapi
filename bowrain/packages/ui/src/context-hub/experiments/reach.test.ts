@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import type { ChangeSetImpact, Reach, ReachClass } from "../../types/brand-graph";
 import { hasReach, reachSegments, reachTotal, splitCoversAffected, formatLocales } from "./reach";
 import { byCollection } from "./blastRadius";

@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "./testUtils";
 import userEvent from "@testing-library/user-event";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
 
 // Mock the Wails-bridge API: a null schema keeps the right pane on the
 // "no configurable options" message so the test exercises the format picker

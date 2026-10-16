@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import { reduceConvergeRun } from "./convergeRun";
 import type { RunEvent } from "../context/JobFeedContext";
 import type { ConvergeEvent } from "../types/api";

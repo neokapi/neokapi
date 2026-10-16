@@ -7,7 +7,7 @@
 // not a half-configured one.
 
 import { render, screen } from "./testUtils";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi } from "vite-plus/test";
 
 vi.mock("../hooks/useApi", async () => {
   const actual = await vi.importActual<typeof import("../hooks/useApi")>("../hooks/useApi");

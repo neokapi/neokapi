@@ -5,7 +5,7 @@
  * `neokapi-i18n compile` from a translated KBF writer.
  */
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 
 import type {
   Block,

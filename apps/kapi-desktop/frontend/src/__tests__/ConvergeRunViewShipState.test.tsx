@@ -1,5 +1,5 @@
 import { render, screen } from "./testUtils";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import { ConvergeRunView } from "../components/ConvergeRunView";
 import type { RunEvent } from "../context/JobFeedContext";
 

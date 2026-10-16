@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { parseLine, lexLine } from "./tokenize.ts";
 import { resolvePath, runLine, type ShellHost, type ShellSinks } from "./shell.ts";
 

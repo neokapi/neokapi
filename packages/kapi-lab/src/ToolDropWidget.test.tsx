@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vite-plus/test";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import ToolDropWidget, { commandLine, parseStatsStat } from "./ToolDropWidget";
 import PseudoTranslateWidget from "./PseudoTranslateWidget";

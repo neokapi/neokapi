@@ -1,6 +1,6 @@
 import { render, screen, within } from "./testUtils";
 import userEvent from "@testing-library/user-event";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi } from "vite-plus/test";
 import { GovernanceSettings, type RecipeGovernance } from "../components/GovernanceSettings";
 import type { KapiProject } from "../types/api";
 

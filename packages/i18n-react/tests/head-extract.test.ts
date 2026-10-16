@@ -5,7 +5,7 @@
  * under the key the review store is later asked for.
  */
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { flattenRuns, sourceRuns } from "@neokapi/kapi-format";
 
 import { extractDocument } from "../src/extract/index.ts";

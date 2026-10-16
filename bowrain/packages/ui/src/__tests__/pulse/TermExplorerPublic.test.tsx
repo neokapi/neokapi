@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { TermExplorerPublic } from "../../components/pulse";
 import { mockTerms } from "../../stories/pulse/pulse-fixtures";

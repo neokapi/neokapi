@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import React, { createRef, useImperativeHandle } from "react";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vite-plus/test";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import KapiEmbed, {
   type KapiEmbedHandle,

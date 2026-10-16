@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { folderRemote } from "./folderremote.ts";
 import type { FolderFile, FolderHandle } from "./folderremote.ts";
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi } from "vite-plus/test";
 import { act, fireEvent, render, screen, waitFor, within } from "./testUtils";
 
 import { ConceptsView, CONCEPT_PAGE } from "../components/ConceptsView";

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 
 import { parsePluralFormForChips } from "../components/editor/pluralCellPreview";
 import type { SpanInfo } from "../types/span";

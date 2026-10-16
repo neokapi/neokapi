@@ -1,6 +1,6 @@
 import { render, screen, waitFor, renderHook } from "./testUtils";
 import userEvent from "@testing-library/user-event";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
 import { SchemaForm, type ComponentSchema, type SchemaFormHost } from "@neokapi/ui-primitives";
 
 // Mock the Wails-bridge API so the host hook resolves deterministically without

@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "./testUtils";
 import userEvent from "@testing-library/user-event";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
 
 // The content explorer's file tree: the *pattern* is the node, and the concrete
 // per-locale files — the source among them, labelled — are its children. The

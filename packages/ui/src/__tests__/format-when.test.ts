@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import { formatWhen, relativeTime } from "../lib/when";
 
 // The expectations are ICU's own output rather than a table this repo

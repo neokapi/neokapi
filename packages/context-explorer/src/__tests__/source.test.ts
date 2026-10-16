@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { MINIMAL_CAPABILITIES, deriveCapabilities } from "../source";
 import type { ContextDataSource } from "../source";
 import type { GovernanceAnswer } from "../types";

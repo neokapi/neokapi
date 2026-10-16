@@ -1,5 +1,5 @@
 import { render, screen } from "./testUtils";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi } from "vite-plus/test";
 import { RunnerPage } from "../components/RunnerPage";
 import { JobFeedProvider } from "../context/JobFeedContext";
 

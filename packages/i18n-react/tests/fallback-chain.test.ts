@@ -4,7 +4,7 @@
  * and rejects when the primary fails.
  */
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { __t, loadTranslations, setTranslations } from "../src/runtime/index.ts";
 

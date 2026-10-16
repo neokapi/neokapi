@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { sameSteps, traceFileKey, traceFileLabel } from "./runTraces";
 import type { FlowStep } from "../types/api";
 

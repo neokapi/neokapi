@@ -1,6 +1,6 @@
 import { render, screen } from "./testUtils";
 import userEvent from "@testing-library/user-event";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import { DocsPanel, ParamHelp } from "../components/DocsPanel";
 import type { FilterDoc, StepDoc } from "../types/api";
 

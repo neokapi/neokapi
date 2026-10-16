@@ -2,7 +2,7 @@
 // wasm is booted; the engine globals are stubbed exactly as the Go binary
 // registers them (converted JS objects / JSON strings, see abi.ts).
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import type { ChangeResult, ReadPage } from "@neokapi/contract-types";
 import { createMemFS } from "./memfs.ts";
 import { ChangeRefused, makeRuntime } from "./runtime.ts";

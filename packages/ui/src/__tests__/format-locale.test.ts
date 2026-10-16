@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import { formatLocale, localeLabel, resolveLocaleName } from "../lib/locale-name";
 
 // CLDR names every well-formed tag, so these expectations are ICU's own output

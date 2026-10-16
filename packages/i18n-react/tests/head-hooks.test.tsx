@@ -5,7 +5,7 @@
  * switch. Unmount clears the registry so stale slots don't linger.
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach } from "vite-plus/test";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 

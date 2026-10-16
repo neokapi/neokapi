@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom";
-import { vi } from "vitest";
+import { vi } from "vite-plus/test";
 
 // Polyfill ResizeObserver for @xyflow/react in jsdom.
 if (typeof globalThis.ResizeObserver === "undefined") {

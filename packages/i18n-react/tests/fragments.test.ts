@@ -6,7 +6,7 @@
  */
 
 import { parseSync } from "@swc/core";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 
 import { extractDocument } from "../src/extract/walker.ts";
 import { hashKey } from "../src/plugin/hash.ts";

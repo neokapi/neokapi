@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import { transform } from "../src/plugin/transform.ts";
 import type { PluginOptions } from "../src/types.ts";
 

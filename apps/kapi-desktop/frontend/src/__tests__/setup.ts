@@ -25,7 +25,7 @@ if (typeof Range !== "undefined") {
   Range.prototype.getClientRects ??= () => [] as unknown as DOMRectList;
 }
 
-import { vi } from "vitest";
+import { vi } from "vite-plus/test";
 
 // Mock @wailsio/runtime to prevent network calls during tests.
 // The Wails runtime tries to connect to localhost when imported.

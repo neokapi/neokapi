@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, act, cleanup } from "@testing-library/react";
 import type { ComponentType } from "react";
-import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from "vite-plus/test";
 
 // The gate mounts the real ServerConnect / OfflineLaunch screens and a stubbed
 // shared app, over mocked Wails bindings + composite adapter, so we can assert

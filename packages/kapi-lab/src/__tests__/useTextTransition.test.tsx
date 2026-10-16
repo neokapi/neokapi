@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { useTextTransition } from "@neokapi/ui-primitives/preview";
 
 // useTextTransition drives the source→target swap. We use fake timers to assert

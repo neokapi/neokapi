@@ -4,7 +4,7 @@
 // shared context track, density clustering into "clouds", language focus, span
 // end-caps, and graceful degradation for a bare concept.
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { buildEvolutionModel, clusterMilestones } from "./evolution-model";
 import type { EvolutionMilestone } from "./evolution-types";
 import { SIGNAL_IMPORTANCE } from "./evolution-types";

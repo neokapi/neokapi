@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { StepRow } from "../components/flow-editor";
 import type { FlowTool } from "../components/flow-editor";
 import type { ComponentSchema } from "../components/schema-form";

@@ -8,7 +8,7 @@
 // whose source carries a line break reads as "Première ligneDeuxième ligne",
 // because a break contributes no literal text and a chip beside the words does
 // not end the line.
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import { createElement as h, act } from "react";
 import { createRoot } from "react-dom/client";
 

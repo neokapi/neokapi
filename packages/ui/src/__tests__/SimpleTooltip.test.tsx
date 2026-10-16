@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach } from "vite-plus/test";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { SimpleTooltip, TooltipProvider } from "../components/ui/tooltip";

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi } from "vite-plus/test";
 import userEvent from "@testing-library/user-event";
 import { Clipboard } from "@wailsio/runtime";
 import { render, screen, waitFor } from "./testUtils";

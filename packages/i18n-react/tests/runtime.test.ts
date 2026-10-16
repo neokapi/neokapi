@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach } from "vite-plus/test";
 import { createElement, isValidElement, Fragment } from "react";
 import { __t, __tx, setTranslations, t } from "../src/runtime/index.ts";
 

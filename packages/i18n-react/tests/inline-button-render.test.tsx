@@ -8,7 +8,7 @@
  * keeps the handler, the type and the classes the author wrote: the reader gets
  * a working button with translated copy on both sides of it.
  */
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vite-plus/test";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 

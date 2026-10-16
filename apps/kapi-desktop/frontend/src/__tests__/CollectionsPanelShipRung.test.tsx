@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import { rungFor } from "../components/CollectionsPanel";
 import type { LocaleCoverage } from "../types/api";
 

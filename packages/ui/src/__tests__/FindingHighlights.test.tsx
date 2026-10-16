@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 import FilePreview from "../components/preview/FilePreview";
 import { highlightSpansByBlock } from "../components/preview/highlights";
 import type { PreviewHighlights } from "../components/preview/highlights";

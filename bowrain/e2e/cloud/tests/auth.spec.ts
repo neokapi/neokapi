@@ -17,9 +17,10 @@ test.describe("Authentication", () => {
     // Create a new browser context with a fresh virtual authenticator.
     // We need to re-register the passkey since virtual authenticators don't persist
     // across contexts. Instead, we verify the session is valid by using the API.
-    const me = await new (
-      await import("../helpers/api-client")
-    ).BowrainAPI(process.env.BOWRAIN_URL || "http://localhost:8080", auth.sessionToken).me();
+    const me = await new (await import("../helpers/api-client")).BowrainAPI(
+      process.env.BOWRAIN_URL || "http://localhost:8080",
+      auth.sessionToken,
+    ).me();
     expect(me.email).toBe(auth.email);
     expect(me.name).toBeTruthy();
   });

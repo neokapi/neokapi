@@ -1,6 +1,6 @@
 import { render, screen, within, waitFor } from "./testUtils";
 import userEvent from "@testing-library/user-event";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import type { ContentTree } from "@neokapi/ui-primitives/preview";
 import { ChecksPanel } from "../components/ChecksPanel";
 import { ErrorProvider } from "../components/ErrorBanner";

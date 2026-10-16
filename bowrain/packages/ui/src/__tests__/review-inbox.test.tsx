@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vite-plus/test";
 import { render, screen, fireEvent } from "@testing-library/react";
 
 import { ReviewInbox, type ReviewInboxTask } from "../components/review/ReviewInbox";

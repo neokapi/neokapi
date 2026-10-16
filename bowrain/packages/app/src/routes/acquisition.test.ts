@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach } from "vitest";
+import { describe, expect, it, beforeEach } from "vite-plus/test";
 import { currentAcquisitionSource, stashAcquisitionSource } from "./acquisition";
 
 const COOKIE = "bowrain_acquisition";

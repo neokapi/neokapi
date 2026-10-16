@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi } from "vite-plus/test";
 import { deriveCapabilities } from "@neokapi/context-explorer";
 import type { ApiAdapter } from "../api/adapter";
 import { WORKSPACE_FREE_DIMENSIONS, createRestContextSource } from "./restContextSource";

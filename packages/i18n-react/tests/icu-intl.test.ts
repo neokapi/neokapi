@@ -3,7 +3,7 @@
  * and the ICU-syntax detector.
  */
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 
 import { hasICUSyntax, resolveICU } from "../src/runtime/icu.ts";
 

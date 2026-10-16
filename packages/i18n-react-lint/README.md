@@ -1,8 +1,9 @@
 # @neokapi/i18n-react-lint
 
 Authoring-time lint rules for [neokapi-i18n](../i18n-react/README.md). The same
-rule objects run under **oxlint** (the primary target — rules are authored
-against `@oxlint/plugins` types) and **ESLint** (8.57+, 9, and 10). oxlint's
+rule objects run under **oxlint** (the primary target: rules are authored
+against oxlint's plugin types, imported from `vite-plus/lint/plugins`) and
+**ESLint** (8.57+, 9, and 10). oxlint's
 plugin API is a strict subset of ESLint v9's, so you install one package and
 wire it into whichever linter you already use.
 

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 
 import type { Document, File, Skeleton } from "../src/index.ts";
 import { Kind, marshalFile, SchemaVersion } from "../src/index.ts";

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach } from "vite-plus/test";
 
 import { __t, __tx, setTranslations, t as jsT, setStringTransform } from "../src/runtime/index.ts";
 import { pseudoTransform, setPseudoMode, getPseudoMode } from "../src/runtime/pseudo.ts";

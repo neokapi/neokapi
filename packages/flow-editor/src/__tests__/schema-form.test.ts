@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import type { ComponentSchema, PropertySchema } from "../types";
 
 // Test the SchemaForm's data model logic without React rendering.

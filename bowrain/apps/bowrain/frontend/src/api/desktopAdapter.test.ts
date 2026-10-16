@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
 
 // Replace the Wails bindings namespace that both the composite (proxy transport
 // + onSessionExpired) and the layered WailsApiAdapter import. Only the members

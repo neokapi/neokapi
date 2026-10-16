@@ -5,7 +5,7 @@
 // (placeholder, link, break) renders as a chip. This is what stopped a `<code>`
 // pair from reading as `[CODE]…/code` around plain text, and what keeps a link's
 // open/close chips symmetric.
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import React, { act } from "react";
 import { createRoot } from "react-dom/client";
 

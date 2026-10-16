@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "./testUtils";
 import userEvent from "@testing-library/user-event";
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vite-plus/test";
 import { ConvergenceHero, ConvergePlanDialog } from "../components/ConvergenceHero";
 import { api } from "../hooks/useApi";
 import type { ConvergePlan, ConvergenceReport } from "../types/api";

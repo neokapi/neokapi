@@ -1,4 +1,4 @@
-import type { Rule } from "@oxlint/plugins";
+import type { Rule } from "vite-plus/lint/plugins";
 import { rule as tLiteralFirstArg } from "./rules/t-literal-first-arg.ts";
 import { rule as tNoConcat } from "./rules/t-no-concat.ts";
 import { rule as noConcatInTranslatableAttr } from "./rules/no-concat-in-translatable-attr.ts";

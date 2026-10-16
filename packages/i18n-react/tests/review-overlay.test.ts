@@ -4,7 +4,7 @@
  * element, saving PUTs to the middleware and repaints in place.
  */
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { initKapiReview } from "../src/review/index.ts";
 import { __t, setTranslations } from "../src/runtime/index.ts";

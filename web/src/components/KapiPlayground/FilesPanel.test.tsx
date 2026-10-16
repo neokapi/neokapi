@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import React from "react";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vite-plus/test";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import FilesPanel from "../../../../packages/kapi-playground/src/FilesPanel";
 import type { KapiRuntime } from "../../../../packages/kapi-playground/src/runtime";

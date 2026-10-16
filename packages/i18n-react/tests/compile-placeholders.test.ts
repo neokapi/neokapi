@@ -12,7 +12,7 @@ import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vite-plus/test";
 import type { Block, File, Run } from "@neokapi/kapi-format";
 import { newFile, marshalFile, sourceEditions } from "@neokapi/kapi-format";
 

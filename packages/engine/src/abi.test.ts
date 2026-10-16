@@ -1,7 +1,7 @@
 // Tests for ABI feature detection and the capability probe against a mocked
 // global surface.
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { engineABI, hasEngineFunction, SUPPORTED_ENGINE_ABI } from "./abi.ts";
 import { detectCapabilities } from "./capabilities.ts";
 

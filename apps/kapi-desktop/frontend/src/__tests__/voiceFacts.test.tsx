@@ -1,5 +1,5 @@
 import { render, screen } from "./testUtils";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import { FactGrid } from "../components/voice/facts";
 
 describe("voice fact grid", () => {

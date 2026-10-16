@@ -1,4 +1,4 @@
-import type { Rule } from "@oxlint/plugins";
+import type { Rule } from "vite-plus/lint/plugins";
 import { collectTLocalNames } from "../shared/t-import.ts";
 
 /**

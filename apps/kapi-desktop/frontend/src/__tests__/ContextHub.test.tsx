@@ -1,6 +1,6 @@
 import { render, screen } from "./testUtils";
 import userEvent from "@testing-library/user-event";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi } from "vite-plus/test";
 
 // The explorer mounts the shared package against the Wails backend, which no
 // test runtime provides; the hub's job is routing, so the panes stand in.

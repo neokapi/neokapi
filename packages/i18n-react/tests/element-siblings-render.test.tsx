@@ -12,7 +12,7 @@
  * through substitution and renders as a node wherever the translator put it;
  * a string, a number and a `null` behave as they always have.
  */
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vite-plus/test";
 import { act, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 

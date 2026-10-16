@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vite-plus/test";
 import { render, screen, waitFor, within } from "./testUtils";
 import { cleanup } from "@testing-library/react";
 import { ContextExplorerView } from "../components/ContextExplorerView";

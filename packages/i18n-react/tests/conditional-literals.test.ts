@@ -20,7 +20,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { parseSync } from "@swc/core";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 
 import type { Block, Document, TextRun } from "@neokapi/kapi-format";
 import { sourceRuns } from "@neokapi/kapi-format";

@@ -11,7 +11,7 @@
  * It is text now, so the message reads as the sentence it is.
  */
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 
 import type { Block, Run, TextRun } from "@neokapi/kapi-format";
 import { sourceRuns } from "@neokapi/kapi-format";

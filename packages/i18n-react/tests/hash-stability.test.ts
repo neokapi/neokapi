@@ -9,7 +9,7 @@
  * (ancestor-path keying orphaned translations on every refactor).
  */
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 
 import { extractDocument } from "../src/extract/walker.ts";
 import type { Block } from "@neokapi/kapi-format";

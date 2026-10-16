@@ -1,6 +1,6 @@
 import { render, screen, within } from "./testUtils";
 import userEvent from "@testing-library/user-event";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi } from "vite-plus/test";
 import { ProjectStanding, type ProjectPointsResult } from "../components/ProjectStanding";
 import type { KapiProject, ProjectStatus } from "../types/api";
 
