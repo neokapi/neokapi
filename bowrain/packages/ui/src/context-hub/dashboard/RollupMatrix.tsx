@@ -127,9 +127,9 @@ function ProjectRow({
         <span className="flex min-w-0 items-center">
           {row.drift?.drifted ? (
             <Badge
-              variant="outline"
+              variant="warning"
               data-slot="dashboard-project-drift"
-              className="gap-1 border-warning/60 text-[11px] font-normal text-[color-mix(in_oklch,var(--warning)_60%,var(--warning-foreground))] dark:text-warning"
+              className="gap-1 text-[11px] font-normal"
             >
               <AlertTriangle aria-hidden className="size-3" />
               Drifting

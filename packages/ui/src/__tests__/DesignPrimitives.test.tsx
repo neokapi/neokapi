@@ -3,6 +3,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { buttonVariants } from "../components/ui/button";
+import { badgeVariants } from "../components/ui/badge";
 import { AXES, AXIS_IDS, CoordinateChip, axisMeta } from "../components/ui/coordinate-chip";
 import {
   CONTENT_STATUS_LADDER,
@@ -33,6 +34,17 @@ afterEach(() => {
   container?.remove();
   container = null;
   root = null;
+});
+
+describe("Badge warning variant", () => {
+  // A chip that waits for a person is written in the amber ink, never the amber
+  // fill, which is too light to read on a light ground.
+  it("draws the amber border and the warning ink, with no local colour mix", () => {
+    const classes = badgeVariants({ variant: "warning" });
+    expect(classes).toContain("border-warning/60");
+    expect(classes).toContain("text-warning-ink");
+    expect(classes).not.toContain("color-mix");
+  });
 });
 
 describe("Button semantic variants", () => {

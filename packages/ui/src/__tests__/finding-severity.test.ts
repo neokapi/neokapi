@@ -61,7 +61,7 @@ describe("the classes a tone paints", () => {
 
   it("gives ink alone for a message and the icon beside it", () => {
     expect(findingToneTextClass("destructive")).toBe("text-destructive");
-    expect(findingToneTextClass("warning")).toBe("text-warning");
+    expect(findingToneTextClass("warning")).toBe("text-warning-ink");
     expect(findingToneTextClass("muted")).toBe("text-muted-foreground");
   });
 });

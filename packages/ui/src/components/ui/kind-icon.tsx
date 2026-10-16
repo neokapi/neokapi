@@ -125,13 +125,11 @@ export const THEME_KINDS: Record<DigestThemeId, DigestKind> = {
   memory: "memory",
 };
 
-// `--warning` is a fill colour that holds dark ink, and as ink on a light
-// ground it reads at about 2.3:1. Mixed with its own ink it clears 4.9:1, and
-// on a dark ground the fill colour is legible as it is.
+// `--warning` is a fill colour, too light to read as ink on a light ground;
+// `--warning-ink` is the amber an icon is drawn in.
 const TONE_CLASS: Record<KindTone, string> = {
   muted: "text-muted-foreground",
-  warning:
-    "text-[color-mix(in_oklch,var(--warning)_60%,var(--warning-foreground))] dark:text-warning",
+  warning: "text-warning-ink",
   success: "text-success",
 };
 

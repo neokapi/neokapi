@@ -281,10 +281,10 @@ function ContextFilesBadge({ notice }: { notice: ContextFilesNotice }) {
       }
     >
       <Badge
-        variant="outline"
+        variant="warning"
         data-testid="workspace-context-files"
         tabIndex={0}
-        className="border-warning/60 text-[11px] font-normal text-[color-mix(in_oklch,var(--warning)_60%,var(--warning-foreground))] dark:text-warning"
+        className="text-[11px] font-normal"
       >
         <FileWarning aria-hidden />
         {t("Unread files")}

@@ -174,10 +174,10 @@ function DriftChip({ drift }: { drift: DriftResult }) {
       }
     >
       <Badge
-        variant="outline"
+        variant="warning"
         data-slot="review-drift"
         tabIndex={0}
-        className="border-warning/60 text-[11px] font-normal text-[color-mix(in_oklch,var(--warning)_60%,var(--warning-foreground))] dark:text-warning"
+        className="text-[11px] font-normal"
       >
         Compliance drifting
       </Badge>

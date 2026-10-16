@@ -1,8 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ReactNode } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor, within } from "./testUtils";
 
 import { ContextDigestPanel } from "../components/ContextDigestPanel";
 import { api } from "../hooks/useApi";
+import { qk } from "../lib/queryKeys";
 import { LAST_LOOKED, SAMPLE_DIGEST, SAMPLE_IDS } from "../stories/fixtures/contextDigest";
 
 // The panel reads the digest from the backend and writes each decision back
@@ -38,6 +41,20 @@ describe("the digest panel", () => {
     await openPanel();
     expect(api.projectContextDigest).toHaveBeenCalledWith("t1", "");
     await waitFor(() => expect(api.markProjectContextDigestSeen).toHaveBeenCalledWith("t1"));
+  });
+
+  it("reads the home's standings again once the marker moves", async () => {
+    // The home counts what is new since the marker, off the workspace list.
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const invalidate = vi.spyOn(client, "invalidateQueries");
+    render(<ContextDigestPanel tabID="t1" />, {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+      ),
+    });
+    await waitFor(() =>
+      expect(invalidate).toHaveBeenCalledWith({ queryKey: qk.workspaceProjects() }),
+    );
   });
 
   it("keeps a suggestion through keepContextSuggestion", async () => {

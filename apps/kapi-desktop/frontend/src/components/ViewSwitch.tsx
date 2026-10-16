@@ -1,11 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import type {
-  ContextNews,
-  ContextProjectStanding,
-  KapiProject,
-  FlowSpec,
-  WorkspaceHome,
-} from "../types/api";
+import type { ContextProjectStanding, KapiProject, FlowSpec, WorkspaceHome } from "../types/api";
 import { ProjectErrorBoundary } from "./ProjectErrorBoundary";
 import type { TabState } from "../hooks/useTabManager";
 import type { ProjectHistory } from "../hooks/useProjectHistory";
@@ -72,8 +66,6 @@ interface ViewSwitchProps {
   // Home page props
   workspace: WorkspaceHome | null;
   workspaceError?: unknown;
-  /** What each project's digest holds that the person has not seen. */
-  news?: ContextNews[] | null;
   /** Every project's context in numbers. */
   standings?: ContextProjectStanding[] | null;
   /** The home's Start here steps were dismissed. */
@@ -111,7 +103,6 @@ export function ViewSwitch({
   updateTab,
   workspace,
   workspaceError,
-  news,
   standings,
   startHereDismissed,
   onDismissStartHere,
@@ -216,7 +207,6 @@ export function ViewSwitch({
       <AppHome
         workspace={workspace}
         workspaceError={workspaceError}
-        news={news}
         standings={standings}
         startHereDismissed={startHereDismissed}
         onDismissStartHere={onDismissStartHere}

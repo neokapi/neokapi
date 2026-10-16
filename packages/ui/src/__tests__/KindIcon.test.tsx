@@ -49,7 +49,7 @@ describe("KindIcon", () => {
       }),
     ) as Record<DigestKind, { tone: string; className: string }>;
     expect(tones.conflict.tone).toBe("warning");
-    expect(tones.conflict.className).toContain("var(--warning)");
+    expect(tones.conflict.className).toContain("text-warning-ink");
     expect(tones.established.tone).toBe("success");
     expect(tones.established.className).toContain("text-success");
     for (const kind of kinds.filter((k) => k !== "conflict" && k !== "established")) {

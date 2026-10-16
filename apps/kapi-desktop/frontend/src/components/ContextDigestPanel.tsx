@@ -53,8 +53,10 @@ export function ContextDigestPanel({
   useEffect(() => {
     if (held !== null || !query.data) return;
     setHeld(query.data.since || NEVER);
+    // The home's standings count what is new since the marker, so they are
+    // read again once it moves.
     void api.markProjectContextDigestSeen(tabID).then(() => {
-      void qc.invalidateQueries({ queryKey: qk.contextNews() });
+      void qc.invalidateQueries({ queryKey: qk.workspaceProjects() });
     });
   }, [held, query.data, tabID, qc]);
 
@@ -63,7 +65,7 @@ export function ContextDigestPanel({
   const refresh = useCallback(() => {
     void qc.invalidateQueries({ queryKey: ["context-digest", tabID] });
     void qc.invalidateQueries({ queryKey: ["context-feed"] });
-    void qc.invalidateQueries({ queryKey: qk.contextNews() });
+    void qc.invalidateQueries({ queryKey: qk.workspaceProjects() });
   }, [qc, tabID]);
 
   const project = query.data?.project ?? "";

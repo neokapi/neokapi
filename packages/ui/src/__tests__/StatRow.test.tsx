@@ -56,8 +56,7 @@ describe("StatRow", () => {
       "warning",
     ]);
     const warningValue = items[3].querySelector(".tabular-nums");
-    expect(warningValue?.className).toContain("var(--warning)");
-    expect(warningValue?.className).toContain("dark:text-warning");
+    expect(warningValue?.className).toContain("text-warning-ink");
     expect(items[0].querySelector(".tabular-nums")?.className).toContain("text-foreground");
   });
 

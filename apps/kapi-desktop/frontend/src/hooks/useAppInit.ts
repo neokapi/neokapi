@@ -78,13 +78,6 @@ export function useAppInit() {
     queryKey: qk.workspaceProjects(),
     queryFn: () => api.listWorkspaceProjects(),
   });
-  // What each project's digest holds that the person has not seen, for the
-  // line beside its row. It follows the same event the project list does.
-  const newsQuery = useQuery({
-    queryKey: qk.contextNews(),
-    queryFn: () => api.contextNews(),
-  });
-
   // Start here can be dismissed on the home and brought back from Settings,
   // so its override holds either answer until the settings refetch agrees.
   const [startHereOverride, setStartHereOverride] = useState<boolean | null>(null);
@@ -130,9 +123,9 @@ export function useAppInit() {
 
   // Per Wails v3 docs: common:ApplicationStarted fires after all
   // ServiceStartup hooks complete — data is guaranteed available.
-  useInvalidateOnEvent("common:ApplicationStarted", [qk.workspaceProjects(), qk.contextNews()]);
+  useInvalidateOnEvent("common:ApplicationStarted", [qk.workspaceProjects()]);
   // The backend's workspace watcher, and every registration this app makes.
-  useInvalidateOnEvent("workspace:changed", [qk.workspaceProjects(), qk.contextNews()]);
+  useInvalidateOnEvent("workspace:changed", [qk.workspaceProjects()]);
 
   // Intercept link clicks: an http, https or mailto link opens in the system
   // browser, and any other scheme is refused.
@@ -159,7 +152,6 @@ export function useAppInit() {
   return {
     workspace,
     workspaceError,
-    news: newsQuery.data ?? null,
     standings,
     startHereDismissed,
     refreshWorkspace,

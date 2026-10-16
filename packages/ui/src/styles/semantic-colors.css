@@ -32,6 +32,11 @@
   /* Send back, needs attention. A light amber fill carrying dark ink (7:1). */
   --warning: oklch(0.75 0.16 70);
   --warning-foreground: oklch(0.25 0.02 70);
+  /* The amber as ink on the page: a count or a chip that waits for a person.
+     The fill above reads at about 2.2:1 on a light ground, so the ink is its
+     own value: 5.4:1 or better on both app palettes, 4.6:1 on a 20% amber
+     tint. */
+  --warning-ink: oklch(0.52 0.12 65);
   /* Neutral notice. Neither a judgement nor an action. */
   --info: oklch(0.55 0.15 252);
   --info-foreground: oklch(1 0 0);
@@ -51,6 +56,28 @@
   --axis-language-foreground: oklch(0.42 0.09 195);
   --axis-unknown: oklch(0.945 0 0);
   --axis-unknown-foreground: oklch(0.44 0 0);
+
+  /* ── Actors ────────────────────────────────────────────── */
+  /* One hue per assistant host, so a mark names Claude Code or Codex the same
+     on every screen: a tint, the ink of its two letters (6.3:1 or better on
+     the tint in light, 8:1 in dark) and a border. Same ramp and steps as the
+     axes. A person, a sync and any actor not listed here take the axis
+     neutral. */
+  --actor-claude-code: oklch(0.945 0.035 300);
+  --actor-claude-code-foreground: oklch(0.44 0.13 300);
+  --actor-claude-code-border: oklch(0.89 0.055 300);
+  --actor-claude-desktop: oklch(0.945 0.035 15);
+  --actor-claude-desktop-foreground: oklch(0.44 0.13 15);
+  --actor-claude-desktop-border: oklch(0.89 0.055 15);
+  --actor-codex: oklch(0.945 0.035 250);
+  --actor-codex-foreground: oklch(0.44 0.13 250);
+  --actor-codex-border: oklch(0.89 0.055 250);
+  --actor-cursor: oklch(0.945 0.035 150);
+  --actor-cursor-foreground: oklch(0.44 0.13 150);
+  --actor-cursor-border: oklch(0.89 0.055 150);
+  --actor-vscode: oklch(0.945 0.035 195);
+  --actor-vscode-foreground: oklch(0.44 0.13 195);
+  --actor-vscode-border: oklch(0.89 0.055 195);
 }
 
 .dark {
@@ -61,6 +88,8 @@
   --success-foreground: oklch(0.18 0.03 150);
   --warning: oklch(0.78 0.14 70);
   --warning-foreground: oklch(0.2 0.02 70);
+  /* On a dark ground the amber is legible as it is (9:1 or better). */
+  --warning-ink: oklch(0.8 0.13 72);
   --info: oklch(0.68 0.13 250);
   --info-foreground: oklch(0.18 0.02 250);
 
@@ -75,4 +104,21 @@
   --axis-language-foreground: oklch(0.84 0.08 195);
   --axis-unknown: oklch(0.3 0 0);
   --axis-unknown-foreground: oklch(0.82 0 0);
+
+  /* ── Actors ────────────────────────────────────────────── */
+  --actor-claude-code: oklch(0.3 0.045 300);
+  --actor-claude-code-foreground: oklch(0.84 0.09 300);
+  --actor-claude-code-border: oklch(0.38 0.06 300);
+  --actor-claude-desktop: oklch(0.3 0.045 15);
+  --actor-claude-desktop-foreground: oklch(0.84 0.09 15);
+  --actor-claude-desktop-border: oklch(0.38 0.06 15);
+  --actor-codex: oklch(0.3 0.045 250);
+  --actor-codex-foreground: oklch(0.84 0.09 250);
+  --actor-codex-border: oklch(0.38 0.06 250);
+  --actor-cursor: oklch(0.3 0.045 150);
+  --actor-cursor-foreground: oklch(0.84 0.09 150);
+  --actor-cursor-border: oklch(0.38 0.06 150);
+  --actor-vscode: oklch(0.3 0.045 195);
+  --actor-vscode-foreground: oklch(0.84 0.09 195);
+  --actor-vscode-border: oklch(0.38 0.06 195);
 }

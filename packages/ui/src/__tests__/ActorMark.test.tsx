@@ -37,19 +37,19 @@ describe("ActorMark", () => {
     }
   });
 
-  it("gives every assistant its own two letters and its own hue", () => {
+  it("gives every assistant its own two letters and its own actor tokens", () => {
     const initials = ASSISTANTS.map((a) => actorInitials(a));
     expect(initials).toEqual(["CC", "CD", "CX", "CU", "VS"]);
-    const hues = ASSISTANTS.map((actor) => {
+    for (const actor of ASSISTANTS) {
       const { container, unmount } = render(<ActorMark actor={actor} />);
-      const hue = (
-        container.querySelector("[data-slot=actor-mark]") as HTMLElement
-      ).style.getPropertyValue("--mark-hue");
+      const mark = container.querySelector("[data-slot=actor-mark]") as HTMLElement;
+      // The tint, the ink and the border are the --actor-* tokens.
+      expect(mark.className, actor).toContain(`bg-actor-${actor}`);
+      expect(mark.className, actor).toContain(`text-actor-${actor}-foreground`);
+      expect(mark.className, actor).toContain(`border-actor-${actor}-border`);
+      expect(mark.className, actor).not.toContain("oklch");
       unmount();
-      return hue;
-    });
-    expect(hues.every((h) => h !== "")).toBe(true);
-    expect(new Set(hues).size).toBe(ASSISTANTS.length);
+    }
   });
 
   it("draws a person and a sync on the neutral tint", () => {
@@ -57,7 +57,7 @@ describe("ActorMark", () => {
       const { container, unmount } = render(<ActorMark actor={actor} />);
       const mark = container.querySelector("[data-slot=actor-mark]") as HTMLElement;
       expect(mark.className).toContain("bg-axis-unknown");
-      expect(mark.style.getPropertyValue("--mark-hue")).toBe("");
+      expect(mark.className).not.toContain("bg-actor-");
       unmount();
     }
   });
