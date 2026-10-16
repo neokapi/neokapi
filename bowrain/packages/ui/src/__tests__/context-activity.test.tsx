@@ -3,13 +3,13 @@ import type { ReactNode } from "react";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ApiProvider } from "../../context/ApiContext";
-import { WorkspaceProvider } from "../../context/WorkspaceContext";
-import type { ApiAdapter } from "../../api/adapter";
-import type { ActivityInfo, Membership, Workspace } from "../../types/api";
-import type { ChangeSet } from "../../types/brand-graph";
-import { sampleConcepts } from "../../stories/voiceHubFixtures";
-import { ActivityView } from "./ActivityView";
+import { ApiProvider } from "../context/ApiContext";
+import { WorkspaceProvider } from "../context/WorkspaceContext";
+import type { ApiAdapter } from "../api/adapter";
+import type { ActivityInfo, Membership, Workspace } from "../types/api";
+import type { ChangeSet } from "../types/brand-graph";
+import { sampleConcepts } from "../stories/voiceHubFixtures";
+import { ActivityView } from "../context-hub/activity/ActivityView";
 
 const workspace: Workspace = {
   id: "ws-1",

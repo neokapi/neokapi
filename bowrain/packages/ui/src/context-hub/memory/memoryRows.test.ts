@@ -8,6 +8,8 @@ function project(partial: Partial<ProjectInfo>): ProjectInfo {
     name: "Website",
     default_source_language: "en-US",
     target_languages: [],
+    created_at: "2026-06-01T00:00:00Z",
+    modified_at: "2026-06-01T00:00:00Z",
     ...partial,
   };
 }
