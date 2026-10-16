@@ -1,0 +1,119 @@
+id: kapi-desktop-context
+title: What your assistant noticed, and what you decide.
+subtitle: Context grows while you work; the desktop is where you keep what is right.
+kind: use-case
+publishAs: kapi-desktop-context
+terminal: desktop
+brand: desktop
+needsAi: false
+# One continuous narration read: uniform voice speed and tone across scenes.
+oneshot: true
+aspects:
+  - What's new across projects
+  - Keep, change and choose
+  - The brief an assistant reads
+  - A note arriving from outside the app
+  - How far the context reaches
+
+# The sample arrives with two assistant sessions (claude-code, then codex),
+# seeded by the desktop backend when the sample is created. The walk creates
+# it off camera, reviews it on camera, and records one more note as
+# claude-code from a shell while the home is on screen.
+outro:
+  line: Open What's new and press a on the first thing that is right.
+  pointer: kapi context review
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      An assistant working in a project notices how its files are written. The
+      desktop is where you read what it noticed and decide what holds.
+
+  - id: home
+    kind: desktop
+    beat: home
+    caption: What is new, and who noticed it.
+    crop: { selector: ['[data-slot="workspace-numbers"]', '[data-slot="whats-new"]', '[data-slot="home-projects"]'] }
+    text: >-
+      The home opens on your context, with a row for each project that has
+      news. In KapiMart, codex was the last to work: it noticed a name and a
+      word, and one disagreement needs you.
+
+  - id: whats-new
+    kind: desktop
+    beat: whats-new
+    caption: The disagreement comes first.
+    crop: { selector: ['[data-slot="context-section-command"]', '[data-slot="digest-conflicts"]'] }
+    text: >-
+      Decide opens the project on What's new, with the disagreement first.
+      codex says log in, claude-code says sign in, and each side quotes the
+      sentence it was seen in.
+
+  - id: keep
+    kind: desktop
+    beat: keep
+    caption: One key keeps a suggestion.
+    crop: { selector: '[data-slot="digest-established"] [data-slot="digest-item"]' }
+    text: >-
+      Further down, the suggestions are grouped by theme. claude-code noticed
+      that the product name is one word, KapiMart. Pressing a keeps it, and it
+      moves to Established as a rule, kept by you.
+
+  - id: change
+    kind: desktop
+    beat: change
+    caption: Change the form, then keep it.
+    crop: { selector: '[data-slot="digest-established"] [data-slot="digest-item"]' }
+    text: >-
+      claude-code also noticed that the store says cart, not basket. The terms
+      prefer shopping cart, so c opens the form, you write shopping cart, and
+      the rule is kept in that form.
+
+  - id: choose
+    kind: desktop
+    beat: choose
+    caption: One side chosen, the other set aside.
+    crop: { selector: '[data-slot="digest-established"] [data-slot="digest-item"]' }
+    text: >-
+      Now the disagreement. The sentence codex quoted says signing in, the
+      opposite of its own rule, and claude-code's side is a change a person
+      made in the error messages. You choose sign in, and log in is set aside.
+
+  - id: assistant
+    kind: desktop
+    beat: assistant
+    caption: The brief for one file carries your rule.
+    crop: { selector: '[data-slot="assistant-brief"]' }
+    text: >-
+      Assistant shows what an assistant reads. For the store's interface
+      strings, the brief marks basket as discouraged and says shopping cart
+      instead, the rule you kept a moment ago. It is the answer kapi context
+      prints for that file.
+
+  - id: live
+    kind: desktop
+    beat: live
+    caption: A note from outside the app, arriving live.
+    crop: { selector: ['[data-slot="workspace-numbers"]', '[data-slot="whats-new"]', '[data-slot="home-projects"]'] }
+    text: >-
+      Back on the home, a note arrives from a terminal off screen, recorded as
+      claude-code: the docs say sandbox, not test mode. Within a second
+      KapiMart is back under What's new, and the home says claude-code is
+      working there now.
+
+  - id: share
+    kind: desktop
+    beat: share
+    caption: How far this context reaches.
+    crop: { selector: '[data-slot="share-panel"]' }
+    text: >-
+      Share says how far the project's context reaches. It is on this Mac,
+      where every clone and worktree of the project reads it. Sharing with your
+      team is not set up yet, and Bowrain is not connected.
+
+  - id: outro
+    kind: outro
+    text: >-
+      Every suggestion advises from the moment an assistant records it. The
+      ones you keep become rules that checks enforce.
