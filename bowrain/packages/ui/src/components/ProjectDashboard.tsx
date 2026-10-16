@@ -21,7 +21,6 @@ import { LoopStatusRow, type LoopStatusData } from "./LoopStatusRow";
 import { ProjectFormDialog } from "./ProjectFormDialog";
 import type { ProjectFormData } from "./ProjectFormDialog";
 import { StarterPromptCard } from "./StarterPromptCard";
-import { TEST_IDS } from "../test-ids";
 import {
   FolderOpen,
   ArrowRight,
@@ -376,7 +375,7 @@ function OnboardingView({
   );
 
   return (
-    <div data-testid={TEST_IDS.onboarding.emptyProjects}>
+    <div data-testid="empty-projects">
       <PageHeader
         variant="hero"
         eyebrow={workspaceName}

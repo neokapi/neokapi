@@ -14,7 +14,6 @@ import {
   Loader2,
   Plus,
   StarterPromptCard,
-  TEST_IDS,
   useAnalytics,
   useApi,
   useAuth,
@@ -646,7 +645,7 @@ export function GithubSetupRoute() {
       </div>
 
       {connected && (
-        <div className="mt-5 flex flex-col gap-3" data-testid={TEST_IDS.onboarding.githubConnected}>
+        <div className="mt-5 flex flex-col gap-3" data-testid="github-setup-connected">
           <StarterPromptCard
             workspaceName={activeWorkspace?.name}
             serverUrl={window.location.origin}
@@ -665,7 +664,7 @@ export function GithubSetupRoute() {
                     },
                   })
                 }
-                data-testid={TEST_IDS.onboarding.githubOpenProject}
+                data-testid="github-setup-open-project"
               >
                 Open the project
               </Button>

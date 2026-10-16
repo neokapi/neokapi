@@ -107,7 +107,6 @@ cat > "$SCENE_DIR/01-$SCENE_ID.spec.ts" <<EOF
  */
 
 import { test, expect } from "@playwright/test";
-import { TEST_IDS } from "@neokapi/ui/test-ids";
 
 const BACKEND_URL = process.env.BOWRAIN_BACKEND_URL || "https://dev.bowrain.cloud";
 
@@ -119,7 +118,6 @@ test.describe("walkthrough: $ID", () => {
   test("$SCENE_ID [scene]", async ({ page }) => {
     test.skip(true, "scaffold — needs real backend validation per #425 followup");
     expect(BACKEND_URL).toBeTruthy();
-    expect(TEST_IDS).toBeTruthy();
   });
 });
 EOF

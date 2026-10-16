@@ -1,8 +1,4 @@
 import { test, expect, type Page } from "@playwright/test";
-// Leaf subpath export bypasses the @neokapi/ui barrel (which transitively
-// imports JSON vocabularies that break Node-ESM Playwright collection).
-// See bowrain/packages/ui/package.json `exports."./test-ids"`.
-import { TEST_IDS } from "@neokapi/ui/test-ids";
 import { authenticate, getOrCreateWorkspace, waitForServer } from "./helpers/api-client";
 
 const BASE_URL = process.env.BOWRAIN_URL || "http://localhost:8080";
@@ -118,8 +114,8 @@ test.describe("Context scan onboarding", () => {
   test("scan intake requires at least one source", async ({ page }) => {
     await injectAuthCookie(page, token);
     await page.goto(`/${wsSlug}/context/scan`);
-    await expect(page.getByTestId(TEST_IDS.contextScan.input)).toBeVisible({ timeout: 15000 });
-    await expect(page.getByTestId(TEST_IDS.contextScan.start)).toBeDisabled();
+    await expect(page.getByTestId("context-scan-input")).toBeVisible({ timeout: 15000 });
+    await expect(page.getByTestId("context-scan-start")).toBeDisabled();
   });
 
   test("paste + file + repository → progress → review → live tester → approve", async ({
@@ -135,10 +131,10 @@ test.describe("Context scan onboarding", () => {
 
     // ── 1. Intake: paste text, drop a markdown file, point at a repository ──
     await page.goto(`/${wsSlug}/context/scan`);
-    await expect(page.getByTestId(TEST_IDS.contextScan.input)).toBeVisible({ timeout: 15000 });
+    await expect(page.getByTestId("context-scan-input")).toBeVisible({ timeout: 15000 });
 
-    await page.getByTestId(TEST_IDS.contextScan.input).fill(PASTE_TEXT);
-    await expect(page.getByTestId(TEST_IDS.contextScan.fileDrop)).toBeVisible();
+    await page.getByTestId("context-scan-input").fill(PASTE_TEXT);
+    await expect(page.getByTestId("context-scan-file-drop")).toBeVisible();
     await page
       .locator('input[type="file"]')
       .setInputFiles([
@@ -153,7 +149,7 @@ test.describe("Context scan onboarding", () => {
       (r) =>
         r.url().includes("/context-scans") && r.request().method() === "POST" && r.status() === 202,
     );
-    await page.getByTestId(TEST_IDS.contextScan.start).click();
+    await page.getByTestId("context-scan-start").click();
     await started;
     await expect(page).toHaveURL(/\/context\/scan\/[^/]+$/, { timeout: 15000 });
 
@@ -161,11 +157,9 @@ test.describe("Context scan onboarding", () => {
     // The demo provider is fast, so the progress card can flip to the review
     // between polls — accept either, then wait for the review itself.
     await expect(
-      page
-        .getByTestId(TEST_IDS.contextScan.progress)
-        .or(page.getByTestId(TEST_IDS.contextScan.review)),
+      page.getByTestId("context-scan-progress").or(page.getByTestId("context-scan-review")),
     ).toBeVisible({ timeout: 20000 });
-    const review = page.getByTestId(TEST_IDS.contextScan.review);
+    const review = page.getByTestId("context-scan-review");
     await expect(review).toBeVisible({ timeout: 90000 });
 
     // ── 4. Provenance: all three sources were read (repo runes > 0 proves ──
@@ -179,8 +173,8 @@ test.describe("Context scan onboarding", () => {
     // ── 5. Evidence: every inferred field carries a confidence badge ──
     // The voice keeps tone, style and examples; word rules are terms, which
     // the candidate glossary below carries.
-    await expect(page.getByTestId(TEST_IDS.contextScan.fieldConfidence)).toHaveCount(3);
-    for (const badge of await page.getByTestId(TEST_IDS.contextScan.fieldConfidence).all()) {
+    await expect(page.getByTestId("context-scan-field-confidence")).toHaveCount(3);
+    for (const badge of await page.getByTestId("context-scan-field-confidence").all()) {
       await expect(badge).toContainText(/% confidence/);
     }
 
@@ -188,12 +182,12 @@ test.describe("Context scan onboarding", () => {
     await expect(page.locator("#scan-profile-name")).toHaveValue(profileName);
 
     // ── 6. Candidate glossary: the corpus' recurring term surfaced ──
-    const termRows = page.getByTestId(TEST_IDS.contextScan.termRow);
+    const termRows = page.getByTestId("context-scan-term-row");
     expect(await termRows.count()).toBeGreaterThan(0);
     await expect(termRows.filter({ hasText: "Bowrain" }).first()).toBeVisible();
 
     // ── 7. Live tester: the stateless check-draft scores sample copy ──
-    const tester = page.getByTestId(TEST_IDS.contextScan.liveTester);
+    const tester = page.getByTestId("context-scan-live-tester");
     await expect(tester).toBeVisible();
     const checked = page.waitForResponse(
       (r) => r.url().includes("/context-scans/check-draft") && r.ok(),
@@ -206,7 +200,7 @@ test.describe("Context scan onboarding", () => {
     const created = page.waitForResponse(
       (r) => r.url().includes("/voice-profiles") && r.request().method() === "POST" && r.ok(),
     );
-    await page.getByTestId(TEST_IDS.contextScan.approve).click();
+    await page.getByTestId("context-scan-approve").click();
     await created;
     await expect(page).toHaveURL(/\/context\/voice\/[^/]+$/, { timeout: 30000 });
     // The profile editor loads the created profile (name renders in its form).
@@ -231,19 +225,19 @@ test.describe("Context scan onboarding", () => {
   test("scan whose sources are all unreadable fails with a retry affordance", async ({ page }) => {
     await injectAuthCookie(page, token);
     await page.goto(`/${wsSlug}/context/scan`);
-    await expect(page.getByTestId(TEST_IDS.contextScan.urlInput)).toBeVisible({ timeout: 15000 });
+    await expect(page.getByTestId("context-scan-url-input")).toBeVisible({ timeout: 15000 });
 
     // The loopback address passes the client-side https check but is refused
     // by the worker's SSRF guard, so the only source yields no text and the
     // job fails with a user-facing reason.
-    await page.getByTestId(TEST_IDS.contextScan.urlInput).fill("https://127.0.0.1/");
-    await page.getByTestId(TEST_IDS.contextScan.urlInput).press("Enter");
+    await page.getByTestId("context-scan-url-input").fill("https://127.0.0.1/");
+    await page.getByTestId("context-scan-url-input").press("Enter");
     await expect(page.getByText("https://127.0.0.1/")).toBeVisible();
 
-    await page.getByTestId(TEST_IDS.contextScan.start).click();
+    await page.getByTestId("context-scan-start").click();
     await expect(page).toHaveURL(/\/context\/scan\/[^/]+$/, { timeout: 15000 });
 
-    const progress = page.getByTestId(TEST_IDS.contextScan.progress);
+    const progress = page.getByTestId("context-scan-progress");
     await expect(progress).toBeVisible({ timeout: 20000 });
     await expect(progress.getByText("The scan could not complete")).toBeVisible({
       timeout: 60000,

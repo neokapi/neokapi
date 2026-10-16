@@ -1,7 +1,6 @@
 import { Button, Card, CardContent } from "@neokapi/ui-primitives";
 import { StarterPromptCard } from "../../components/StarterPromptCard";
 import { Sparkles } from "../../components/icons";
-import { TEST_IDS } from "../../test-ids";
 
 export interface ContextOnboardingProps {
   /** Named in the assistant prompt. */
@@ -24,11 +23,11 @@ export function ContextOnboarding({
   onScanVoice,
 }: ContextOnboardingProps) {
   return (
-    <div className="space-y-5" data-testid={TEST_IDS.onboarding.contextLanes}>
+    <div className="space-y-5" data-testid="context-onboarding">
       <StarterPromptCard workspaceName={workspaceName} serverUrl={serverUrl} />
 
       {onScanVoice && (
-        <Card data-testid={TEST_IDS.onboarding.contextScanCard}>
+        <Card data-testid="context-onboarding-scan">
           <CardContent className="flex flex-col gap-4 px-6 py-6 md:flex-row md:items-center md:justify-between">
             <div className="min-w-0">
               <div className="mb-2 flex items-center gap-3">
@@ -45,7 +44,7 @@ export function ContextOnboarding({
             <Button
               className="shrink-0"
               onClick={onScanVoice}
-              data-testid={TEST_IDS.onboarding.contextScanButton}
+              data-testid="context-onboarding-scan-btn"
             >
               <Sparkles className="mr-1.5 size-3.5" /> Scan your brand
             </Button>

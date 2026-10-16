@@ -3,7 +3,6 @@ import { useCallback, useRef, useState } from "react";
 import type { ContextScanRequest, SkippedFile } from "../types/api";
 import { useApi } from "../context/ApiContext";
 import { useWorkspace } from "../context/WorkspaceContext";
-import { TEST_IDS } from "../test-ids";
 import {
   AlertTriangle,
   FileText,
@@ -190,7 +189,7 @@ export function ContextScanInput({ onStarted, initialRequest }: ContextScanInput
           <h2 className="text-sm font-semibold">Paste text</h2>
         </div>
         <Textarea
-          data-testid={TEST_IDS.contextScan.input}
+          data-testid="context-scan-input"
           value={pasteText}
           onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setPasteText(e.target.value)}
           placeholder="Paste anything that sounds like you: web copy, an About page, product descriptions, a style guide…"
@@ -208,7 +207,7 @@ export function ContextScanInput({ onStarted, initialRequest }: ContextScanInput
         </div>
         <div className="flex gap-2">
           <Input
-            data-testid={TEST_IDS.contextScan.urlInput}
+            data-testid="context-scan-url-input"
             value={urlDraft}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
               setUrlDraft(e.target.value);
@@ -265,7 +264,7 @@ export function ContextScanInput({ onStarted, initialRequest }: ContextScanInput
           </span>
         </div>
         <div
-          data-testid={TEST_IDS.contextScan.fileDrop}
+          data-testid="context-scan-file-drop"
           role="button"
           tabIndex={0}
           onClick={() => fileInputRef.current?.click()}
@@ -394,7 +393,7 @@ export function ContextScanInput({ onStarted, initialRequest }: ContextScanInput
               : "Add at least one source to start."}
         </p>
         <Button
-          data-testid={TEST_IDS.contextScan.start}
+          data-testid="context-scan-start"
           onClick={handleStart}
           disabled={!hasSource || phase !== "idle"}
         >

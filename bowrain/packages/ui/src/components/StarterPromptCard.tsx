@@ -2,7 +2,6 @@ import { Button, Card, CardContent, cn } from "@neokapi/ui-primitives";
 import { useCallback, useState } from "react";
 import type { ReactNode } from "react";
 import { ArrowRight, Check, Copy, Sparkles } from "./icons";
-import { TEST_IDS } from "../test-ids";
 
 /** Docs entry point for the assistant-driven starter-pack flow. */
 export const STARTER_PACK_DOCS_URL = "https://bowrain.cloud/docs/quickstart";
@@ -64,14 +63,14 @@ export function StarterPrompt({
           size="sm"
           className="h-6 gap-1 text-xs"
           onClick={handleCopy}
-          data-testid={TEST_IDS.onboarding.copyStarterPrompt}
+          data-testid="copy-starter-prompt"
         >
           {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
           {copied ? "Copied" : "Copy"}
         </Button>
       </div>
       <pre
-        data-testid={TEST_IDS.onboarding.starterPrompt}
+        data-testid="starter-prompt"
         className="whitespace-pre-wrap font-mono text-xs leading-relaxed text-foreground/90"
       >
         {prompt}
@@ -101,7 +100,7 @@ export function StarterPromptCard({
   return (
     <Card
       className={cn("relative overflow-hidden border-primary/20 md:min-h-[300px]", className)}
-      data-testid={TEST_IDS.onboarding.starterPromptCard}
+      data-testid="starter-prompt-card"
     >
       <div
         aria-hidden

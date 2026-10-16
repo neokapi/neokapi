@@ -20,7 +20,6 @@ import {
 import { ContextScanAxes } from "./ContextScanAxes";
 import { ContextScanLiveTester } from "./ContextScanLiveTester";
 import { scanAxes, scanTerms, scanVoice } from "./artefacts";
-import { TEST_IDS } from "../test-ids";
 import { Loader2, Wand2 } from "../components/icons";
 
 export interface ContextScanReviewProps {
@@ -47,7 +46,7 @@ function FieldEvidence({ evidence }: { evidence?: ContextScanFieldEvidence }) {
     <div className="flex items-center gap-2 min-w-0">
       <Badge
         variant="outline"
-        data-testid={TEST_IDS.contextScan.fieldConfidence}
+        data-testid="context-scan-field-confidence"
         className={`shrink-0 text-[11px] tabular-nums ${toneClass}`}
       >
         {pct}% confidence
@@ -84,7 +83,7 @@ export function ContextScanReview(props: ContextScanReviewProps) {
   const voice = scanVoice(props.draft);
   if (!voice) {
     return (
-      <div data-testid={TEST_IDS.contextScan.review} className="space-y-2">
+      <div data-testid="context-scan-review" className="space-y-2">
         <h2 className="text-sm font-semibold">Nothing to review</h2>
         <p className="text-xs text-muted-foreground">
           The scan finished but proposed no voice. That usually means the sources held too little
@@ -191,7 +190,7 @@ function ContextScanReviewEditor({
   ]);
 
   return (
-    <div data-testid={TEST_IDS.contextScan.review} className="flex gap-6">
+    <div data-testid="context-scan-review" className="flex gap-6">
       <div className="flex-1 min-w-0 space-y-4">
         <ContextScanAxes axes={proposedAxes} />
 
@@ -345,7 +344,7 @@ function ContextScanReviewEditor({
               {proposedTerms.map((term, i) => (
                 <li
                   key={`${term.term}-${i}`}
-                  data-testid={TEST_IDS.contextScan.termRow}
+                  data-testid="context-scan-term-row"
                   className="flex items-start gap-3 py-2.5"
                 >
                   <Checkbox
@@ -389,7 +388,7 @@ function ContextScanReviewEditor({
             )}
           </div>
           <Button
-            data-testid={TEST_IDS.contextScan.approve}
+            data-testid="context-scan-approve"
             onClick={handleApprove}
             disabled={!name.trim() || approving}
           >
