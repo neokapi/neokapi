@@ -74,6 +74,7 @@ func (a *App) convergeWorker(locale string, tap *convergeTap) *App {
 		AISetupIOOverride:   a.AISetupIOOverride,
 		AISetupPrompter:     a.AISetupPrompter,
 		isTTY:               a.isTTY,
+		actingActor:         a.actingActor,
 		convergeProgressTap: tap,
 
 		// Pre-seed the parent's runtime (building it on the parent if needed —
@@ -140,6 +141,7 @@ var convergeWorkerFields = map[string]workerFieldPolicy{
 	// parent owns the terminal), so this is inert in a worker — carried rather
 	// than reset so the clone stays a faithful copy, like MCPSurface below.
 	"isTTY":            fieldShared,
+	"actingActor":      fieldShared,
 	"RegistryResolver": fieldShared,
 	"ProjectContext":   fieldShared,
 	// The execution-trust decision belongs to the run, not to the locale: the
