@@ -1,12 +1,17 @@
-// The feed wired to the backend: the workspace's operations on the home
-// screen. A project's own review is its digest (ContextDigestPanel).
+// The feed wired to the backend: History, the workspace's operations or one
+// project's, as a list of sessions beside a detail pane. A project's own
+// review is its digest (ContextDigestPanel).
 //
 // The panel follows the other processes without asking them anything. The
 // backend's workspace watcher reads the operation log's head once a second and
 // emits `workspace:changed` when it moves, and that refetches this. The
 // previous answer stays on screen while the new one is read, so the list is
-// never unmounted, the scroll position is kept, and a half-typed edit survives
-// an agent recording something in the middle of it.
+// never unmounted, both panes keep their scroll position, the selected session
+// stays selected by its id, and a half-typed edit survives an agent recording
+// something in the middle of it.
+//
+// The panel fills its parent, which gives it a height: the list and the detail
+// each scroll on their own.
 
 import { useCallback, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -33,6 +38,8 @@ export interface ContextFeedPanelProps {
   feed?: ContextFeed;
   /** Take the keyboard. A panel that is not on screen does not. */
   keyboard?: boolean;
+  /** The session to open on, by its group id. Absent opens on the newest. */
+  defaultSelected?: string;
 }
 
 /** How many operations one read carries. */
@@ -43,6 +50,7 @@ export function ContextFeedPanel({
   title,
   feed: given,
   keyboard = true,
+  defaultSelected,
 }: ContextFeedPanelProps) {
   const qc = useQueryClient();
   const [widening, setWidening] = useState<{ rule: ContextWidenRule; to: string } | null>(null);
@@ -96,30 +104,33 @@ export function ContextFeedPanel({
   const feed = given ?? feedQuery.data ?? null;
 
   return (
-    <div data-slot="context-feed-panel">
+    <div data-slot="context-feed-panel" className="flex h-full min-h-0 flex-col">
       {title && <PanelHeader title={title} />}
-      <ContextFeedList
-        feed={feed}
-        loading={feedQuery.isLoading}
-        error={feedQuery.error}
-        keyboard={keyboard}
-        showProject={!projectKey}
-        onKeep={async (entry, edit) => {
-          await confirm.mutateAsync({ entry, edit });
-        }}
-        onDrop={async (entry) => {
-          await discard.mutateAsync(entry);
-        }}
-        onResetSession={(group: ContextFeedGroup) =>
-          setResetting({ project: group.project_key ?? "", before: group.session ?? "" })
-        }
-        // Resetting to before a reset brings back everything it set aside,
-        // as `kapi context reset --before <reset id>` does.
-        onResetBefore={(entry: ContextFeedEntry) =>
-          setResetting({ project: entry.project_key, before: entry.id })
-        }
-        onWiden={(entry, to) => setWidening({ rule: widenRuleOfEntry(entry), to })}
-      />
+      <div className="min-h-0 flex-1">
+        <ContextFeedList
+          feed={feed}
+          loading={feedQuery.isLoading}
+          error={feedQuery.error}
+          keyboard={keyboard}
+          defaultSelected={defaultSelected}
+          showProject={!projectKey}
+          onKeep={async (entry, edit) => {
+            await confirm.mutateAsync({ entry, edit });
+          }}
+          onDrop={async (entry) => {
+            await discard.mutateAsync(entry);
+          }}
+          onResetSession={(group: ContextFeedGroup) =>
+            setResetting({ project: group.project_key ?? "", before: group.session ?? "" })
+          }
+          // Resetting to before a reset brings back everything it set aside,
+          // as `kapi context reset --before <reset id>` does.
+          onResetBefore={(entry: ContextFeedEntry) =>
+            setResetting({ project: entry.project_key, before: entry.id })
+          }
+          onWiden={(entry, to) => setWidening({ rule: widenRuleOfEntry(entry), to })}
+        />
+      </div>
 
       <ContextWidenDialog
         rule={widening?.rule ?? null}

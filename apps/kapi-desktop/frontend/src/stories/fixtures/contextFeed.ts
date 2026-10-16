@@ -160,3 +160,76 @@ export const RESET_FEED: ContextFeed = {
   truncated: false,
   read_only: false,
 };
+
+/** A second proposal in claude's session, so the keys have somewhere to go. */
+export const SECOND_CANDIDATE = feedEntry({
+  id: "13",
+  kind: "observe",
+  status: "suggested",
+  decidable: true,
+  at: "2026-09-21T08:55:00Z",
+  subject: {
+    kind: "term",
+    term: "basket",
+    replacement: "cart",
+    describe: 'term "basket", use "cart"',
+  },
+  evidence: [{ path: "store/checkout.json", unit: "cart.add", quote: "Add to basket" }],
+});
+
+/** claude's session with two proposals waiting and a rule already in force. */
+export const AWAITING_FEED: ContextFeed = {
+  ...CONTEXT_FEED,
+  groups: [
+    feedGroup({
+      id: "session:sess-1",
+      session: "sess-1",
+      recorded: 3,
+      kept: 1,
+      entries: [CANDIDATE, SECOND_CANDIDATE, IN_FORCE],
+    }),
+    ...CONTEXT_FEED.groups.slice(1),
+  ],
+};
+
+const MANY_ACTORS = [
+  { kind: "agent", name: "claude-code", host: "studio" },
+  { kind: "agent", name: "codex", host: "laptop" },
+  { kind: "person", name: "asgeir" },
+] as const;
+
+/** Forty sessions, newest first, by two assistants and a person, with older ones cut off. */
+export const MANY_SESSIONS_FEED: ContextFeed = {
+  groups: Array.from({ length: 40 }, (_, i) => {
+    const actor = MANY_ACTORS[i % MANY_ACTORS.length];
+    const at = new Date(Date.UTC(2026, 8, 21, 9) - i * 5 * 3600_000).toISOString();
+    const person = actor.kind === "person";
+    const session = person ? undefined : `sess-m${i}`;
+    const entries = Array.from({ length: 1 + (i % 4) }, (_, j) =>
+      feedEntry({
+        id: `m${i}-${j}`,
+        at,
+        actor: { ...actor, session },
+        status: j === 0 && i < 3 ? "suggested" : "established",
+        decidable: j === 0 && i < 3,
+        droppable: true,
+        subject: {
+          kind: "term",
+          term: `term ${i}.${j}`,
+          replacement: `preferred ${i}.${j}`,
+          describe: `term "term ${i}.${j}", use "preferred ${i}.${j}"`,
+        },
+      }),
+    );
+    return feedGroup({
+      id: person ? `actor:person/asgeir:day-${i}` : `session:${session}`,
+      session,
+      day: person ? at.slice(0, 10) : undefined,
+      actor: { ...actor, session },
+      recorded: entries.length,
+      entries,
+    });
+  }),
+  truncated: true,
+  read_only: false,
+};

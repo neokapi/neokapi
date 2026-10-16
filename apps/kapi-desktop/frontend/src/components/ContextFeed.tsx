@@ -1,50 +1,72 @@
 // What a person and the agents beside them have recorded about a project's
-// context, newest first.
+// context, as a list of sessions beside a detail pane.
 //
 // An agent records in its own process while this app is open. Both read and
 // write the same workspace operation log, so a proposal appears here within a
 // second of being recorded, and a decision made here is what the agent's next
 // read carries. Nothing is sent between the two.
 //
-// Candidates carry their evidence open: the file, the unit and the quotation
-// the rule came from are on the card, because a decision taken without them is
-// a guess. The keys are the review session's: j and k move, a confirms, r
-// discards, e edits.
+// The list has one row per session, newest first: who worked, when, and how
+// many operations the session holds. The detail pane lists the selected
+// session's operations, one row each, with the reset the session offers in its
+// toolbar: Reset to before this session, and Take this reset back on a session
+// that holds a reset. A proposal is an operation that still takes a decision.
+// It keeps Keep, Edit and Drop on its row, and the file, the unit and the
+// quotation it came from sit in a disclosure under the row.
+//
+// The keys are the review session's: j and k (and the arrows) move between
+// sessions, and a keeps, r drops and e edits the selected session's proposal,
+// the first one undecided unless the person clicked another. After a decision
+// the next proposal in the session takes the keys.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Bot,
   Check,
-  ChevronDown,
   ChevronRight,
+  Circle,
   FileText,
-  Inbox,
   History,
+  Inbox,
+  Maximize2,
+  Pencil,
   Terminal,
   Trash2,
   Undo2,
-  User,
-  Wrench,
+  X,
 } from "lucide-react";
 import { t } from "@neokapi/i18n-react/runtime";
 import {
+  ActorMark,
   Badge,
   Button,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
   CoordinateChip,
   EmptyState,
   ErrorNotice,
   Input,
+  KindIcon,
   Label,
+  ListDetail,
+  ListDetailEmpty,
+  ListDetailItem,
+  ListDetailList,
+  ListDetailPane,
+  ListDetailToolbar,
   LoadingSpinner,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SimpleTooltip,
   When,
   cn,
+  digestKind,
+  useListNavigation,
 } from "@neokapi/ui-primitives";
-import type { ContextFeed, ContextFeedEntry, ContextFeedGroup } from "../types/api";
+import type { ContextActor, ContextFeed, ContextFeedEntry, ContextFeedGroup } from "../types/api";
 
 /** The edit a person makes to a rule before accepting it. */
 export interface ContextRuleEdit {
@@ -71,27 +93,47 @@ export interface ContextFeedProps {
   onResetBefore?: (entry: ContextFeedEntry) => void;
   /** Open the widen preview for a rule in force. */
   onWiden: (entry: ContextFeedEntry, to: string) => void;
-  /** Show the project each entry belongs to. The workspace feed does. */
+  /** Show the project each session belongs to. The workspace feed does. */
   showProject?: boolean;
   /** Take the keyboard. The panel that is on screen does. */
   keyboard?: boolean;
+  /** The session to open on, by its group id. Absent opens on the newest. */
+  defaultSelected?: string;
 }
 
 /** The severities a rule can carry. Minor and neutral report; the rest fail. */
 const OUTCOMES = ["fails", "reports"] as const;
 
-/** What each operation kind did, for the line above the subject. */
-const KIND_LABELS: Record<string, string> = {
-  observe: "recorded",
-  correct: "corrected",
-  import: "imported",
-  edit: "edited",
-  keep: "kept",
-  drop: "dropped",
-  withdraw: "withdrawn",
-  reset: "reset",
-  widen: "widened",
-};
+/** The keys that move the selection from anywhere on the page. */
+const MOVE_KEYS = new Set(["j", "k", "ArrowDown", "ArrowUp"]);
+
+const NONE: ReadonlySet<string> = new Set();
+
+/** What an operation kind did, in the active UI language. */
+function kindLabel(kind: string): string {
+  switch (kind) {
+    case "observe":
+      return t("recorded", "context operation kind");
+    case "correct":
+      return t("corrected", "context operation kind");
+    case "import":
+      return t("imported", "context operation kind");
+    case "edit":
+      return t("edited", "context operation kind");
+    case "keep":
+      return t("kept", "context operation kind");
+    case "drop":
+      return t("dropped", "context operation kind");
+    case "withdraw":
+      return t("withdrawn", "context operation kind");
+    case "reset":
+      return t("reset", "context operation kind");
+    case "widen":
+      return t("widened", "context operation kind");
+    default:
+      return kind;
+  }
+}
 
 export function ContextFeedList({
   feed,
@@ -104,453 +146,549 @@ export function ContextFeedList({
   onWiden,
   showProject,
   keyboard = true,
+  defaultSelected,
 }: ContextFeedProps) {
   const groups = useMemo(() => feed?.groups ?? [], [feed]);
-  // Every candidate in view, in the order the keys walk them.
+
+  // The selected session, by id, so a refetch that brings new operations
+  // leaves the same session selected. A session that is gone falls back to
+  // the newest.
+  const [chosen, setChosen] = useState<string | null>(defaultSelected ?? null);
+  const selectedId =
+    chosen && groups.some((g) => g.id === chosen) ? chosen : (groups[0]?.id ?? null);
+  const selected = groups.find((g) => g.id === selectedId) ?? null;
+
+  // Operations decided on this screen, until the feed says so itself: the row
+  // dims, its buttons go, and the keys pass to the next proposal.
+  const [decided, setDecided] = useState<ReadonlySet<string>>(NONE);
+  const markDecided = useCallback((id: string, on: boolean) => {
+    setDecided((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }, []);
+
+  // The proposals in the selected session still open, in the order shown.
   const candidates = useMemo(
-    () => groups.flatMap((group) => group.entries.filter((entry) => entry.decidable)),
-    [groups],
+    () => (selected?.entries ?? []).filter((e) => e.decidable && !decided.has(e.id)),
+    [selected, decided],
   );
-  const [cursor, setCursor] = useState(0);
+  const [picked, setPicked] = useState<string | null>(null);
+  const active = candidates.find((e) => e.id === picked) ?? candidates[0];
+
   // The candidate whose edit form is open, and what has been typed into it.
   // Keyed by id so a refetch while the form is open leaves it standing.
   const [editing, setEditing] = useState<string | null>(null);
   const [edit, setEdit] = useState<ContextRuleEdit>({});
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const editRef = useRef<HTMLInputElement>(null);
 
-  // A candidate decided elsewhere leaves the list; the cursor follows rather
-  // than pointing past the end.
+  // A candidate decided elsewhere closes its form.
   useEffect(() => {
-    setCursor((at) => (at >= candidates.length ? Math.max(0, candidates.length - 1) : at));
-  }, [candidates.length]);
-  useEffect(() => {
-    if (editing && !candidates.some((entry) => entry.id === editing)) {
+    if (!editing) return;
+    const still = groups.some((g) => g.entries.some((e) => e.id === editing && e.decidable));
+    if (!still) {
       setEditing(null);
       setEdit({});
     }
-  }, [candidates, editing]);
+  }, [groups, editing]);
 
-  const active = candidates[cursor];
+  const select = useCallback((id: string) => {
+    setChosen(id);
+    setPicked(null);
+    setEditing(null);
+  }, []);
+  const nav = useListNavigation({
+    ids: groups.map((g) => g.id),
+    selectedId,
+    onSelect: select,
+  });
 
   const openEdit = useCallback((entry: ContextFeedEntry) => {
+    setPicked(entry.id);
     setEditing(entry.id);
     setEdit({ replacement: entry.subject.replacement ?? "", advisory: entry.subject.advisory });
     window.setTimeout(() => editRef.current?.focus(), 0);
   }, []);
 
-  const confirm = useCallback(
+  const closeEdit = useCallback(() => {
+    setEditing(null);
+    setEdit({});
+  }, []);
+
+  const keep = useCallback(
     (entry: ContextFeedEntry) => {
       const edits = editing === entry.id ? edit : undefined;
-      setEditing(null);
-      setEdit({});
-      void onKeep(entry, edits);
+      closeEdit();
+      markDecided(entry.id, true);
+      void Promise.resolve(onKeep(entry, edits)).catch(() => markDecided(entry.id, false));
     },
-    [edit, editing, onKeep],
+    [closeEdit, edit, editing, markDecided, onKeep],
   );
 
+  const drop = useCallback(
+    (entry: ContextFeedEntry) => {
+      if (editing === entry.id) closeEdit();
+      markDecided(entry.id, true);
+      void Promise.resolve(onDrop(entry)).catch(() => markDecided(entry.id, false));
+    },
+    [closeEdit, editing, markDecided, onDrop],
+  );
+
+  // The page's keys, read through a ref so the listener is bound once and
+  // always acts on the session and the proposal selected now.
+  const container = useRef<HTMLDivElement>(null);
+  const onKey = useRef<(e: KeyboardEvent) => void>(() => {});
+  onKey.current = (e) => {
+    if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || e.isComposing) return;
+    const el = e.target instanceof Element ? e.target : null;
+    if (el?.closest('input, textarea, select, [contenteditable="true"]')) {
+      if (e.key === "Escape") {
+        (el as HTMLElement).blur();
+        closeEdit();
+      }
+      return;
+    }
+    if (el?.closest('[role="dialog"], [role="menu"]')) return;
+    // A listbox other than this list (a select's options) keeps its keys.
+    const box = el?.closest('[role="listbox"]');
+    if (
+      box &&
+      !(box.getAttribute("data-slot") === "list-detail-list" && container.current?.contains(box))
+    ) {
+      return;
+    }
+    if (MOVE_KEYS.has(e.key)) {
+      if (nav.handleKey(e)) e.preventDefault();
+      return;
+    }
+    if (e.key === "Escape") {
+      closeEdit();
+      return;
+    }
+    if (!active) return;
+    switch (e.key) {
+      case "a":
+        e.preventDefault();
+        keep(active);
+        break;
+      case "r":
+        e.preventDefault();
+        drop(active);
+        break;
+      case "e":
+        e.preventDefault();
+        openEdit(active);
+        break;
+    }
+  };
   useEffect(() => {
     if (!keyboard) return;
-    const onKey = (e: KeyboardEvent) => {
-      const el = e.target as HTMLElement | null;
-      const tag = el?.tagName ?? "";
-      if (tag === "TEXTAREA" || tag === "INPUT" || tag === "SELECT") {
-        if (e.key === "Escape") {
-          el?.blur();
-          setEditing(null);
-        }
-        return;
-      }
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
-      if (!active) return;
-      switch (e.key) {
-        case "j":
-        case "ArrowDown":
-          e.preventDefault();
-          setCursor((at) => Math.min(at + 1, candidates.length - 1));
-          break;
-        case "k":
-        case "ArrowUp":
-          e.preventDefault();
-          setCursor((at) => Math.max(at - 1, 0));
-          break;
-        case "a":
-          e.preventDefault();
-          confirm(active);
-          break;
-        case "r":
-          e.preventDefault();
-          setEditing(null);
-          void onDrop(active);
-          break;
-        case "e":
-          e.preventDefault();
-          openEdit(active);
-          break;
-        case "Escape":
-          setEditing(null);
-          break;
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [active, candidates.length, confirm, keyboard, onDrop, openEdit]);
+    const listener = (e: KeyboardEvent) => onKey.current(e);
+    window.addEventListener("keydown", listener);
+    return () => window.removeEventListener("keydown", listener);
+  }, [keyboard]);
 
   if (error) {
-    return <ErrorNotice error={error} title="These recorded changes could not be read" />;
+    return (
+      <div className="p-6">
+        <ErrorNotice error={error} title="These recorded changes could not be read" />
+      </div>
+    );
   }
   if (!feed && loading) {
-    return <LoadingSpinner />;
+    return (
+      <div className="p-6">
+        <LoadingSpinner />
+      </div>
+    );
   }
   if (groups.length === 0) {
     return (
-      <EmptyState
-        icon={<Inbox size={20} />}
-        title="Nothing recorded yet"
-        description="What you and the agents working in your projects record about terms, voice and wording appears here."
-      />
+      <div className="p-6">
+        <EmptyState
+          icon={<Inbox size={20} />}
+          title="Nothing recorded yet"
+          description="What you and the agents working in your projects record about terms, voice and wording appears here."
+        />
+      </div>
     );
   }
 
-  return (
-    <div data-slot="context-feed" className="space-y-3">
-      {feed?.read_only && (
-        <p className="text-xs text-muted-foreground">
-          This workspace is open for reading only, so decisions cannot be recorded here.
-        </p>
-      )}
-      {groups.map((group) => (
-        <SessionCard
-          key={group.id}
-          group={group}
-          collapsed={!!collapsed[group.id]}
-          onToggle={() => setCollapsed((open) => ({ ...open, [group.id]: !open[group.id] }))}
-          activeID={active?.id}
-          editing={editing}
-          edit={edit}
-          editRef={editRef}
-          onEditChange={setEdit}
-          onOpenEdit={openEdit}
-          onCancelEdit={() => setEditing(null)}
-          onKeep={confirm}
-          onDrop={onDrop}
-          onResetSession={onResetSession}
-          onResetBefore={feed?.read_only ? undefined : onResetBefore}
-          onWiden={onWiden}
-          showProject={showProject}
-        />
-      ))}
-      {feed?.truncated && (
-        <p className="text-xs text-muted-foreground">
-          Older operations are not shown. Read the whole history with{" "}
-          <code className="font-mono text-xs">kapi context log</code>.
-        </p>
-      )}
-      {candidates.length > 0 && keyboard && <ShortcutLegend />}
-    </div>
-  );
-}
-
-/** The keys, stated where a person can see them, as the review session does. */
-function ShortcutLegend() {
-  return (
-    <div
-      data-slot="context-feed-shortcuts"
-      className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground"
-    >
-      <span>
-        <kbd className="rounded border border-border px-1">a</kbd> keep
-      </span>
-      <span>
-        <kbd className="rounded border border-border px-1">r</kbd> drop
-      </span>
-      <span>
-        <kbd className="rounded border border-border px-1">e</kbd> edit
-      </span>
-      <span>
-        <kbd className="rounded border border-border px-1">j</kbd>
-        <kbd className="ml-1 rounded border border-border px-1">k</kbd> move
-      </span>
-    </div>
-  );
-}
-
-interface SessionCardProps {
-  group: ContextFeedGroup;
-  collapsed: boolean;
-  onToggle: () => void;
-  activeID?: string;
-  editing: string | null;
-  edit: ContextRuleEdit;
-  editRef: React.RefObject<HTMLInputElement | null>;
-  onEditChange: (edit: ContextRuleEdit) => void;
-  onOpenEdit: (entry: ContextFeedEntry) => void;
-  onCancelEdit: () => void;
-  onKeep: (entry: ContextFeedEntry) => void;
-  onDrop: (entry: ContextFeedEntry) => void | Promise<void>;
-  onResetSession: (group: ContextFeedGroup) => void;
-  onResetBefore?: (entry: ContextFeedEntry) => void;
-  onWiden: (entry: ContextFeedEntry, to: string) => void;
-  showProject?: boolean;
-}
-
-/** One session: who worked, what it did, and the operations themselves. */
-function SessionCard({
-  group,
-  collapsed,
-  onToggle,
-  activeID,
-  editing,
-  edit,
-  editRef,
-  onEditChange,
-  onOpenEdit,
-  onCancelEdit,
-  onKeep,
-  onDrop,
-  onResetSession,
-  onResetBefore,
-  onWiden,
-  showProject,
-}: SessionCardProps) {
-  return (
-    <section
-      data-slot="context-feed-session"
-      data-session={group.id}
-      className="rounded-lg border border-border/60"
-    >
-      <header className="flex items-start gap-2 px-3 py-2">
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          onClick={onToggle}
-          aria-label={collapsed ? t("Show these operations") : t("Hide these operations")}
-          aria-expanded={!collapsed}
-          className="mt-0.5 text-muted-foreground"
-        >
-          {collapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
-        </Button>
-        <ActorIcon kind={group.actor.kind} />
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-            <span className="text-sm font-medium">
-              <ActorName actor={group.actor} />
-            </span>
-            {showProject && group.project_name && (
-              <span className="text-xs text-muted-foreground" translate="no">
-                {group.project_name}
-              </span>
-            )}
-            <When iso={group.last} relative className="text-xs text-muted-foreground" />
-            {group.awaiting > 0 && (
-              <Badge variant="secondary" data-slot="session-awaiting">
-                {group.awaiting} suggested
-              </Badge>
-            )}
-          </div>
-          <p data-slot="session-summary" className="mt-0.5 text-xs text-muted-foreground">
-            <SessionSummaryLine group={group} />
-          </p>
-        </div>
-        {group.entries.some((entry) => entry.droppable) && group.session && (
-          <Button
-            variant="ghost"
-            size="sm"
-            data-slot="reset-session"
-            className="shrink-0 text-muted-foreground"
-            onClick={() => onResetSession(group)}
-          >
-            <History size={13} />
-            Reset to before this session
-          </Button>
-        )}
-      </header>
-
-      {!collapsed && (
-        <ul className="space-y-px border-t border-border/60">
-          {group.entries.map((entry) => (
-            <li key={entry.id}>
-              <FeedEntryCard
-                entry={entry}
-                active={entry.id === activeID}
-                editing={editing === entry.id}
-                edit={edit}
-                editRef={editRef}
-                onEditChange={onEditChange}
-                onOpenEdit={() => onOpenEdit(entry)}
-                onCancelEdit={onCancelEdit}
-                onKeep={() => onKeep(entry)}
-                onDrop={() => void onDrop(entry)}
-                onWiden={(to) => onWiden(entry, to)}
-                onResetBefore={onResetBefore ? () => onResetBefore(entry) : undefined}
-                showProject={showProject}
-              />
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  );
-}
-
-/** The one line a finished session reads out. */
-function SessionSummaryLine({ group }: { group: ContextFeedGroup }) {
-  const parts: string[] = [];
-  if (group.recorded > 0) parts.push(`${group.recorded} recorded`);
-  if (group.corrected > 0) parts.push(`${group.corrected} corrected`);
-  if (group.kept > 0) parts.push(`${group.kept} kept`);
-  if (group.dropped > 0) parts.push(`${group.dropped} dropped`);
-  const resets = group.entries.filter((entry) => entry.kind === "reset").length;
-  if (resets > 0)
-    parts.push(t("{count, plural, one {# reset} other {# resets}}", { count: resets }));
-  return (
+  const list = (
     <>
-      {parts.length > 0 ? parts.join(", ") : `${group.entries.length} operations`}
-      {group.quiet ? "" : " · still working"}
+      <ListDetailList selectedId={selectedId} onSelect={select} aria-label={t("Sessions")}>
+        {groups.map((group) => (
+          <SessionRow key={group.id} group={group} showProject={showProject} />
+        ))}
+      </ListDetailList>
+      {feed?.truncated && (
+        <p className="px-4 pt-1 pb-3 text-[11px] text-muted-foreground">
+          Older operations are not shown. Read the whole history with{" "}
+          <code className="font-mono">kapi context log</code>.
+        </p>
+      )}
     </>
   );
+
+  return (
+    <div ref={container} data-slot="context-feed" className="h-full min-h-0">
+      <ListDetail
+        list={list}
+        listWidth={340}
+        detail={
+          selected ? (
+            <SessionDetail
+              group={selected}
+              readOnly={!!feed?.read_only}
+              showProject={showProject}
+              activeID={active?.id}
+              decided={decided}
+              editing={editing}
+              edit={edit}
+              editRef={editRef}
+              onPick={setPicked}
+              onEditChange={setEdit}
+              onOpenEdit={openEdit}
+              onCancelEdit={closeEdit}
+              onKeep={keep}
+              onDrop={drop}
+              onWiden={onWiden}
+              onResetSession={onResetSession}
+              onResetBefore={feed?.read_only ? undefined : onResetBefore}
+            />
+          ) : (
+            <ListDetailEmpty title={t("Choose a session to see what it recorded")} />
+          )
+        }
+      />
+    </div>
+  );
 }
 
-function ActorIcon({ kind }: { kind: string }) {
-  const className = "mt-1 shrink-0 text-muted-foreground";
-  if (kind === "agent") return <Bot size={15} className={className} />;
-  if (kind === "tool") return <Wrench size={15} className={className} />;
-  return <User size={15} className={className} />;
+/** One session in the list: who worked, when, and how many operations it holds. */
+function SessionRow({ group, showProject }: { group: ContextFeedGroup; showProject?: boolean }) {
+  return (
+    <ListDetailItem
+      id={group.id}
+      data-slot="context-feed-session"
+      data-session={group.id}
+      // Rows off screen skip layout and paint, so a long history scrolls as
+      // lightly as a short one. The intrinsic size keeps the scrollbar honest.
+      className="[contain-intrinsic-size:auto_36px] [content-visibility:auto]"
+      leading={<SessionMark actor={group.actor} />}
+      trailing={
+        <>
+          {group.awaiting > 0 && (
+            <span
+              role="img"
+              data-slot="session-awaiting-mark"
+              aria-label={t("{count} suggested", { count: group.awaiting })}
+              className="size-1.5 rounded-full bg-warning"
+            />
+          )}
+          <span className="text-[11px] text-muted-foreground tabular-nums">
+            {group.entries.length}
+          </span>
+        </>
+      }
+    >
+      <span data-slot="session-summary">
+        <ActorName actor={group.actor} />
+      </span>
+      {showProject && group.project_name && (
+        <span className="ml-1.5 text-[11px] text-muted-foreground" translate="no">
+          {group.project_name}
+        </span>
+      )}
+      <When iso={group.last} relative className="ml-1.5 text-[11px] text-muted-foreground" />
+    </ListDetailItem>
+  );
 }
 
-/** Who worked: the class of actor, its name, and the machine when known. */
-function ActorName({ actor }: { actor: ContextFeedGroup["actor"] }) {
+/** The mark for who worked a session: a person, an assistant by its host, or a kapi tool. */
+function SessionMark({ actor, size = "sm" }: { actor: ContextActor; size?: "sm" | "md" }) {
+  if (actor.kind === "person") {
+    return <ActorMark actor="person" name={actor.name} size={size} decorative />;
+  }
+  const who = actor.kind === "tool" ? "kapi" : actor.name || "agent";
+  return <ActorMark actor={who} size={size} decorative />;
+}
+
+/** Who worked: the agent and the machine it ran on, a tool, or a person. */
+function ActorName({ actor }: { actor: ContextActor }) {
   if (actor.kind === "agent") {
     return (
       <>
-        <span translate="no">{actor.name || "An agent"}</span>
+        <span translate="no">{actor.name || t("An agent")}</span>
         {actor.host && (
-          <span className="ml-1 text-xs font-normal text-muted-foreground" translate="no">
-            on {actor.host}
+          <span className="ml-1 text-muted-foreground">
+            on <span translate="no">{actor.host}</span>
           </span>
         )}
       </>
     );
   }
   if (actor.kind === "tool") {
-    return <span translate="no">{actor.name || "A tool"}</span>;
+    return <span translate="no">{actor.name || t("A tool")}</span>;
   }
-  return actor.name ? <span translate="no">{actor.name}</span> : <>You</>;
+  return actor.name ? <span translate="no">{actor.name}</span> : <span>You</span>;
 }
 
-interface FeedEntryCardProps {
-  entry: ContextFeedEntry;
-  active: boolean;
-  editing: boolean;
+/** The one line a session's counts read out. */
+function SessionCounts({ group }: { group: ContextFeedGroup }) {
+  const parts: string[] = [];
+  if (group.recorded > 0) parts.push(t("{count} recorded", { count: group.recorded }));
+  if (group.corrected > 0) parts.push(t("{count} corrected", { count: group.corrected }));
+  if (group.kept > 0) parts.push(t("{count} kept", { count: group.kept }));
+  if (group.dropped > 0) parts.push(t("{count} dropped", { count: group.dropped }));
+  const resets = group.entries.filter((entry) => entry.kind === "reset").length;
+  if (resets > 0)
+    parts.push(t("{count, plural, one {# reset} other {# resets}}", { count: resets }));
+  const counts =
+    parts.length > 0
+      ? parts.join(", ")
+      : t("{count, plural, one {# operation} other {# operations}}", {
+          count: group.entries.length,
+        });
+  return (
+    <span data-slot="session-counts">
+      {counts}
+      {group.quiet ? "" : ` · ${t("still working")}`}
+    </span>
+  );
+}
+
+interface SessionDetailProps {
+  group: ContextFeedGroup;
+  readOnly: boolean;
+  showProject?: boolean;
+  activeID?: string;
+  decided: ReadonlySet<string>;
+  editing: string | null;
   edit: ContextRuleEdit;
   editRef: React.RefObject<HTMLInputElement | null>;
+  onPick: (id: string) => void;
   onEditChange: (edit: ContextRuleEdit) => void;
-  onOpenEdit: () => void;
+  onOpenEdit: (entry: ContextFeedEntry) => void;
   onCancelEdit: () => void;
-  onKeep: () => void;
-  onDrop: () => void;
-  onWiden: (to: string) => void;
-  /** Take a reset back. Present only on a reset the person may undo. */
-  onResetBefore?: () => void;
-  showProject?: boolean;
+  onKeep: (entry: ContextFeedEntry) => void;
+  onDrop: (entry: ContextFeedEntry) => void;
+  onWiden: (entry: ContextFeedEntry, to: string) => void;
+  onResetSession: (group: ContextFeedGroup) => void;
+  onResetBefore?: (entry: ContextFeedEntry) => void;
 }
 
-/** One operation: what it was, what it was about, and what came of it. */
-function FeedEntryCard({
-  entry,
-  active,
+/** The selected session: its title and resets in the toolbar, its operations below. */
+function SessionDetail({
+  group,
+  readOnly,
+  showProject,
+  activeID,
+  decided,
   editing,
   edit,
   editRef,
+  onPick,
   onEditChange,
   onOpenEdit,
   onCancelEdit,
   onKeep,
   onDrop,
   onWiden,
+  onResetSession,
   onResetBefore,
-  showProject,
-}: FeedEntryCardProps) {
-  const coordinates = Object.entries(entry.scope.coordinates ?? {});
+}: SessionDetailProps) {
+  const canReset = !!group.session && group.entries.some((entry) => entry.droppable);
+  // The newest reset in the session is the one taking it back undoes.
+  const reset = onResetBefore ? group.entries.find((entry) => entry.kind === "reset") : undefined;
+  const noCheckout = group.entries.some((entry) => entry.decidable && !entry.recipe);
+
+  return (
+    <ListDetailPane
+      data-slot="context-feed-detail"
+      data-session={group.id}
+      toolbar={
+        <ListDetailToolbar
+          title={
+            <span className="flex min-w-0 items-center gap-2">
+              <SessionMark actor={group.actor} size="md" />
+              <span className="min-w-0 truncate">
+                <ActorName actor={group.actor} />
+              </span>
+              {group.awaiting > 0 && (
+                <Badge variant="secondary" data-slot="session-awaiting">
+                  {t("{count} suggested", { count: group.awaiting })}
+                </Badge>
+              )}
+            </span>
+          }
+          actions={
+            (reset || canReset) && (
+              <>
+                {reset && onResetBefore && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    data-slot="reset-reset"
+                    onClick={() => onResetBefore(reset)}
+                  >
+                    <Undo2 size={13} />
+                    Take this reset back
+                  </Button>
+                )}
+                {canReset && (
+                  <Button
+                    variant="warning"
+                    size="sm"
+                    data-slot="reset-session"
+                    onClick={() => onResetSession(group)}
+                  >
+                    <History size={13} />
+                    Reset to before this session
+                  </Button>
+                )}
+              </>
+            )
+          }
+        />
+      }
+    >
+      <p className="-mt-1.5 text-[11px] text-muted-foreground">
+        <SessionCounts group={group} />
+        {showProject && group.project_name && (
+          <>
+            {" · "}
+            <span translate="no">{group.project_name}</span>
+          </>
+        )}
+        {" · "}
+        <When iso={group.last} relative />
+      </p>
+      {readOnly && (
+        <p className="text-[11px] text-muted-foreground">
+          This workspace is open for reading only, so decisions cannot be recorded here.
+        </p>
+      )}
+      {noCheckout && (
+        <p data-slot="context-no-checkout" className="text-[11px] text-muted-foreground">
+          No copy of this project is on this machine. A decision is recorded in the workspace, where
+          the project's terms and content memory live.
+        </p>
+      )}
+      <ul data-slot="context-feed-entries" className="-mx-2 flex flex-col gap-px">
+        {group.entries.map((entry) => (
+          <li key={entry.id}>
+            <FeedEntryRow
+              entry={entry}
+              groupProject={group.project_key}
+              active={entry.id === activeID}
+              decided={decided.has(entry.id)}
+              editing={editing === entry.id}
+              edit={edit}
+              editRef={editRef}
+              onPick={() => entry.decidable && onPick(entry.id)}
+              onEditChange={onEditChange}
+              onOpenEdit={() => onOpenEdit(entry)}
+              onCancelEdit={onCancelEdit}
+              onKeep={() => onKeep(entry)}
+              onDrop={() => onDrop(entry)}
+              onWiden={(to) => onWiden(entry, to)}
+            />
+          </li>
+        ))}
+      </ul>
+    </ListDetailPane>
+  );
+}
+
+interface FeedEntryRowProps {
+  entry: ContextFeedEntry;
+  /** The project the session belongs to; an operation elsewhere names its own. */
+  groupProject?: string;
+  active: boolean;
+  decided: boolean;
+  editing: boolean;
+  edit: ContextRuleEdit;
+  editRef: React.RefObject<HTMLInputElement | null>;
+  onPick: () => void;
+  onEditChange: (edit: ContextRuleEdit) => void;
+  onOpenEdit: () => void;
+  onCancelEdit: () => void;
+  onKeep: () => void;
+  onDrop: () => void;
+  onWiden: (to: string) => void;
+}
+
+/** One operation: its kind, what it was about, and the decisions open on it. */
+function FeedEntryRow({
+  entry,
+  groupProject,
+  active,
+  decided,
+  editing,
+  edit,
+  editRef,
+  onPick,
+  onEditChange,
+  onOpenEdit,
+  onCancelEdit,
+  onKeep,
+  onDrop,
+  onWiden,
+}: FeedEntryRowProps) {
+  const otherProject = entry.project_key !== groupProject ? entry.project_name : undefined;
   return (
     <div
       data-slot="context-feed-entry"
       data-entry={entry.id}
       data-status={entry.status}
       {...(active ? { "data-active": "" } : {})}
-      className={cn("px-3 py-2.5", active && "bg-accent/40")}
+      {...(decided ? { "data-decided": "" } : {})}
+      className={cn("rounded-md px-2 py-2", active && "bg-accent/40", decided && "opacity-60")}
+      onClick={onPick}
     >
-      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-xs text-muted-foreground">
-        <span>{KIND_LABELS[entry.kind] ?? entry.kind}</span>
-        <StatusBadge status={entry.status} kind={entry.kind} contestedBy={entry.contested_by} />
-        {showProject && entry.project_name && <span translate="no">{entry.project_name}</span>}
-        <When iso={entry.at} relative />
-        <span className="font-mono text-[11px] text-muted-foreground/70" translate="no">
-          #{entry.short}
-        </span>
-      </div>
-
-      <div className="mt-1">
-        <SubjectLine entry={entry} />
-      </div>
-
-      {coordinates.length > 0 && (
-        <div className="mt-1.5 flex flex-wrap items-center gap-1">
-          {entry.scope.level === "workspace" && (
-            <Badge variant="outline" className="text-xs">
-              Every project
-            </Badge>
-          )}
-          {coordinates.map(([axis, value]) => (
-            <CoordinateChip key={axis} axis={axis} value={value} />
-          ))}
-        </div>
-      )}
-
-      {entry.evidence.length > 0 && (
-        <ul data-slot="context-evidence" className="mt-2 space-y-1">
-          {entry.evidence.map((e, i) => (
-            <li key={`${e.path ?? ""}:${e.unit ?? ""}:${i}`} className="text-xs">
-              <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
-                {e.path && (
-                  <span className="flex items-center gap-1">
-                    <FileText size={12} className="shrink-0" />
-                    <span className="font-mono" translate="no">
-                      {e.path}
-                    </span>
-                  </span>
-                )}
-                {e.unit && (
-                  <span className="font-mono text-[11px] text-muted-foreground/70" translate="no">
-                    {e.unit}
-                  </span>
-                )}
-              </div>
-              {e.quote && (
-                <blockquote
-                  data-slot="context-quote"
-                  className="mt-0.5 border-l-2 border-border pl-2 text-muted-foreground"
-                  translate="no"
-                >
-                  {e.quote}
-                </blockquote>
+      <div className="flex flex-wrap items-start gap-x-3 gap-y-1.5">
+        <div className="flex min-w-0 flex-1 items-start gap-2">
+          <span className="mt-0.5 flex w-4 shrink-0 justify-center">
+            <OperationMark entry={entry} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm">
+              <SubjectLine entry={entry} />
+            </div>
+            <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[11px] text-muted-foreground">
+              <span>{kindLabel(entry.kind)}</span>
+              <StatusWord
+                status={entry.status}
+                kind={entry.kind}
+                contestedBy={entry.contested_by}
+              />
+              {otherProject && (
+                <>
+                  <span aria-hidden>·</span>
+                  <span translate="no">{otherProject}</span>
+                </>
               )}
-            </li>
-          ))}
-        </ul>
-      )}
+              <span aria-hidden>·</span>
+              <When iso={entry.at} relative />
+            </div>
+          </div>
+        </div>
+        {!editing && !decided && (
+          <RowActions
+            entry={entry}
+            active={active}
+            onKeep={onKeep}
+            onDrop={onDrop}
+            onOpenEdit={onOpenEdit}
+            onWiden={onWiden}
+          />
+        )}
+      </div>
 
-      {entry.note && (
-        <p className="mt-1.5 text-xs text-muted-foreground" translate="no">
-          {entry.note}
-        </p>
-      )}
-
-      {entry.standing && (
-        <p className="mt-1 text-xs text-muted-foreground tabular-nums" translate="no">
-          {entry.standing}
-        </p>
-      )}
+      <EntryDetails entry={entry} />
 
       {editing && (
         <EditForm
@@ -562,75 +700,218 @@ function FeedEntryCard({
           onKeep={onKeep}
         />
       )}
-
-      {entry.decidable && !editing && (
-        <DecisionActions
-          entry={entry}
-          active={active}
-          onKeep={onKeep}
-          onDrop={onDrop}
-          onOpenEdit={onOpenEdit}
-        />
-      )}
-
-      {entry.kind === "reset" && onResetBefore && (
-        <div className="mt-2">
-          <Button variant="outline" size="sm" data-slot="reset-reset" onClick={onResetBefore}>
-            <Undo2 size={13} />
-            Take this reset back
-          </Button>
-        </div>
-      )}
-
-      {entry.droppable && !entry.decidable && (
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" data-slot="drop-rule" onClick={onDrop}>
-            <Trash2 size={13} />
-            Drop
-          </Button>
-          {entry.widen_to.length > 0 && <WidenPicker options={entry.widen_to} onWiden={onWiden} />}
-        </div>
-      )}
     </div>
   );
 }
 
-/** Confirm, edit and discard, with the keys the review session uses. */
-function DecisionActions({
+/** The decisions open on one operation: a proposal's three, or a rule's two. */
+function RowActions({
   entry,
   active,
   onKeep,
   onDrop,
   onOpenEdit,
+  onWiden,
 }: {
   entry: ContextFeedEntry;
   active: boolean;
   onKeep: () => void;
   onDrop: () => void;
   onOpenEdit: () => void;
+  onWiden: (to: string) => void;
 }) {
+  if (entry.decidable) {
+    return (
+      <div data-slot="context-actions" className="flex shrink-0 items-center gap-1.5">
+        <Button
+          size="sm"
+          variant="success"
+          data-slot="keep-suggestion"
+          aria-keyshortcuts={active ? "a" : undefined}
+          onClick={onKeep}
+        >
+          <Check size={13} />
+          Keep
+          {active && <Shortcut k="a" />}
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          data-slot="edit-suggestion"
+          aria-keyshortcuts={active ? "e" : undefined}
+          onClick={onOpenEdit}
+        >
+          Edit
+          {active && <Shortcut k="e" />}
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          data-slot="drop-suggestion"
+          aria-keyshortcuts={active ? "r" : undefined}
+          onClick={onDrop}
+        >
+          Drop
+          {active && <Shortcut k="r" />}
+        </Button>
+      </div>
+    );
+  }
+  if (entry.droppable) {
+    return (
+      <div className="flex shrink-0 items-center gap-1.5">
+        <Button variant="outline" size="sm" data-slot="drop-rule" onClick={onDrop}>
+          <Trash2 size={13} />
+          Drop
+        </Button>
+        {entry.widen_to.length > 0 && <WidenPicker options={entry.widen_to} onWiden={onWiden} />}
+      </div>
+    );
+  }
+  return null;
+}
+
+/** A key, shown on its button while the button is hovered or focused. */
+function Shortcut({ k }: { k: string }) {
   return (
-    <div data-slot="context-actions" className="mt-2 flex flex-wrap items-center gap-2">
-      {!entry.recipe && (
-        <p data-slot="context-no-checkout" className="basis-full text-xs text-muted-foreground">
-          No copy of this project is on this machine. A decision is recorded in the workspace, where
-          the project's terms and content memory live.
+    <kbd
+      aria-hidden
+      translate="no"
+      className="ml-1 hidden rounded border border-current/30 px-1 font-mono text-[10px] leading-4 group-hover/button:inline-block group-focus-visible/button:inline-block"
+    >
+      {k}
+    </kbd>
+  );
+}
+
+/**
+ * Where an operation was seen, the point it answers at, and the counts behind
+ * it, behind one disclosure under the row. The id the command line takes sits
+ * at its foot.
+ */
+function EntryDetails({ entry }: { entry: ContextFeedEntry }) {
+  const coordinates = Object.entries(entry.scope.coordinates ?? {});
+  const hasDetails =
+    entry.evidence.length > 0 || coordinates.length > 0 || !!entry.note || !!entry.standing;
+  if (!hasDetails) return null;
+  return (
+    <Collapsible className="mt-1 pl-6">
+      <CollapsibleTrigger
+        data-slot="context-details-toggle"
+        className="group/details flex items-center gap-1 rounded text-[11px] text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <ChevronRight
+          size={12}
+          aria-hidden
+          className="transition-transform group-data-[state=open]/details:rotate-90"
+        />
+        {entry.evidence.length > 0 ? (
+          <span>
+            {t("{count, plural, one {Seen in # place} other {Seen in # places}}", {
+              count: entry.evidence.length,
+            })}
+          </span>
+        ) : (
+          <span>Details</span>
+        )}
+      </CollapsibleTrigger>
+      <CollapsibleContent className="mt-1.5 space-y-2">
+        {entry.evidence.length > 0 && (
+          <ul data-slot="context-evidence" className="space-y-1.5">
+            {entry.evidence.map((e, i) => (
+              <li key={`${e.path ?? ""}:${e.unit ?? ""}:${i}`} className="text-xs">
+                <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
+                  {e.path && (
+                    <SimpleTooltip content={e.path}>
+                      <span className="flex min-w-0 items-center gap-1">
+                        <FileText size={12} className="shrink-0" />
+                        <span className="truncate font-mono" translate="no">
+                          {e.path}
+                        </span>
+                      </span>
+                    </SimpleTooltip>
+                  )}
+                  {e.unit && (
+                    <span className="font-mono text-[10px] text-muted-foreground/70" translate="no">
+                      {e.unit}
+                    </span>
+                  )}
+                </div>
+                {e.quote && (
+                  <blockquote
+                    data-slot="context-quote"
+                    className="mt-0.5 border-l-2 border-border pl-2 text-muted-foreground"
+                    translate="no"
+                  >
+                    {e.quote}
+                  </blockquote>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+        {coordinates.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1">
+            {entry.scope.level === "workspace" && (
+              <Badge variant="outline" className="text-[11px]">
+                Every project
+              </Badge>
+            )}
+            {coordinates.map(([axis, value]) => (
+              <CoordinateChip key={axis} axis={axis} value={value} />
+            ))}
+          </div>
+        )}
+        {entry.note && (
+          <p className="text-xs text-muted-foreground" translate="no">
+            {entry.note}
+          </p>
+        )}
+        {entry.standing && (
+          <p className="text-xs text-muted-foreground tabular-nums" translate="no">
+            {entry.standing}
+          </p>
+        )}
+        <p className="font-mono text-[10px] text-muted-foreground/70" translate="no">
+          #{entry.short}
         </p>
-      )}
-      <Button size="sm" data-slot="keep-suggestion" onClick={onKeep}>
-        <Check size={13} />
-        Keep
-        {active && <kbd className="ml-1 rounded border border-border/60 px-1 text-[10px]">a</kbd>}
-      </Button>
-      <Button variant="outline" size="sm" data-slot="edit-suggestion" onClick={onOpenEdit}>
-        Edit
-        {active && <kbd className="ml-1 rounded border border-border/60 px-1 text-[10px]">e</kbd>}
-      </Button>
-      <Button variant="ghost" size="sm" data-slot="drop-suggestion" onClick={onDrop}>
-        Drop
-        {active && <kbd className="ml-1 rounded border border-border/60 px-1 text-[10px]">r</kbd>}
-      </Button>
-    </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
+/** The icon for each operation that carries no subject of its own. */
+const OPERATION_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  reset: Undo2,
+  keep: Check,
+  establish: Check,
+  drop: X,
+  withdraw: X,
+  widen: Maximize2,
+  edit: Pencil,
+};
+
+/**
+ * What an operation is about, as an icon: the digest's kind for one that
+ * carries a subject, and the act itself for one that only acts on another
+ * (a keep, a drop, a reset).
+ */
+function OperationMark({ entry }: { entry: ContextFeedEntry }) {
+  if (entry.subject.kind) return <KindIcon kind={digestKind(entry)} />;
+  const Icon = OPERATION_ICONS[entry.kind] ?? Circle;
+  const label = kindLabel(entry.kind);
+  return (
+    <SimpleTooltip content={label}>
+      <span
+        role="img"
+        aria-label={label}
+        data-slot="operation-mark"
+        className="inline-flex text-muted-foreground"
+      >
+        <Icon aria-hidden className="size-3.5" />
+      </span>
+    </SimpleTooltip>
   );
 }
 
@@ -651,7 +932,11 @@ function EditForm({
   onKeep: () => void;
 }) {
   return (
-    <div data-slot="context-edit" className="mt-2 space-y-2 rounded-md border border-border p-2">
+    <div
+      data-slot="context-edit"
+      className="mt-2 ml-6 space-y-2 rounded-md border border-border p-2"
+      onClick={(e) => e.stopPropagation()}
+    >
       <div className="flex flex-wrap items-end gap-2">
         <div className="min-w-0 flex-1">
           <Label htmlFor={`replacement-${entry.id}`} className="text-xs">
@@ -696,11 +981,11 @@ function EditForm({
         A rule fails a check unless it is marked to report only.
       </p>
       <div className="flex items-center gap-2">
-        <Button size="sm" data-slot="keep-edited" onClick={onKeep}>
+        <Button size="sm" variant="success" data-slot="keep-edited" onClick={onKeep}>
           <Check size={13} />
           Keep with this edit
         </Button>
-        <Button variant="ghost" size="sm" onClick={onCancel}>
+        <Button variant="ghost" size="sm" onClick={onCancel} aria-keyshortcuts="Escape">
           Cancel
         </Button>
       </div>
@@ -710,7 +995,7 @@ function EditForm({
 
 /**
  * Where to widen a rule in force: the workspace, or past one axis. The label
- * names the action where the picker sits; the activity feed says "Widen".
+ * names the action where the picker sits; History says "Widen".
  */
 export function WidenPicker({
   options,
@@ -743,43 +1028,43 @@ export function WidenPicker({
   );
 }
 
-/** The rule or fact an operation is about. */
+/** The rule or fact an operation is about, on one line. */
 function SubjectLine({ entry }: { entry: ContextFeedEntry }) {
   const { subject, correction } = entry;
   if (correction) {
     return (
-      <p className="text-sm">
+      <>
         <span className="font-mono line-through decoration-muted-foreground" translate="no">
           {correction.from}
         </span>{" "}
         <span className="font-mono" translate="no">
           {correction.to}
         </span>
-      </p>
+      </>
     );
   }
   if (subject.kind === "memory") {
     return (
-      <p className="text-sm">
+      <>
         <span translate="no">{subject.source}</span>
         <span className="mx-1 text-muted-foreground">into</span>
         <span translate="no">{subject.target}</span>
         {subject.target_locale && (
-          <Badge variant="outline" className="ml-2 text-xs" translate="no">
+          <Badge variant="outline" className="ml-2 font-mono text-[11px]" translate="no">
             {subject.target_locale}
           </Badge>
         )}
-      </p>
+      </>
     );
   }
   if (subject.kind === "term") {
     return (
-      <p className="flex flex-wrap items-baseline gap-2 text-sm">
+      <>
         <span className="font-mono" translate="no">
           {[subject.term, ...(subject.forms ?? [])].join(", ")}
         </span>
         {subject.replacement && (
-          <span className="text-muted-foreground">
+          <span className="ml-2 text-muted-foreground">
             use{" "}
             <span className="font-mono text-foreground" translate="no">
               {subject.replacement}
@@ -787,45 +1072,41 @@ function SubjectLine({ entry }: { entry: ContextFeedEntry }) {
           </span>
         )}
         {subject.advisory && (
-          <Badge variant="outline" className="text-xs" translate="no">
+          <Badge variant="outline" className="ml-2 text-[11px]" translate="no">
             reports
           </Badge>
         )}
-      </p>
+      </>
     );
   }
   if (subject.kind === "note") {
-    return (
-      <p className="text-sm" translate="no">
-        {subject.text}
-      </p>
-    );
+    return <span translate="no">{subject.text}</span>;
   }
   if (entry.kind === "reset" && entry.before) {
     return (
-      <p className="text-sm text-muted-foreground">
+      <span className="text-muted-foreground">
         back to before{" "}
         <span className="font-mono" translate="no">
           #{entry.before}
         </span>
-      </p>
+      </span>
     );
   }
   if (entry.target) {
     return (
-      <p className="text-sm text-muted-foreground">
+      <span className="text-muted-foreground">
         operation{" "}
         <span className="font-mono" translate="no">
           #{entry.target}
         </span>
-      </p>
+      </span>
     );
   }
   return null;
 }
 
-/** What became of a subject-bearing operation. */
-function StatusBadge({
+/** What became of a subject-bearing operation, as a word in a badge. */
+function StatusWord({
   status,
   kind,
   contestedBy,
@@ -843,31 +1124,30 @@ function StatusBadge({
   ) {
     return null;
   }
+  let word: React.ReactNode;
+  let variant: "secondary" | "outline" = "outline";
   if (status === "contested") {
     const others = (contestedBy ?? []).map((id) => `#${id}`).join(", ");
-    return (
-      <Badge variant="secondary" className="text-xs">
-        {others ? `Contested by ${others}` : "Contested"}
-      </Badge>
-    );
-  }
-  if (status === "suggested") {
-    return (
-      <Badge variant="secondary" className="text-xs">
-        Suggested
-      </Badge>
-    );
-  }
-  if (status === "established") {
-    return (
-      <Badge variant="outline" className="text-xs">
-        In force
-      </Badge>
-    );
+    word = others ? <>Contested by {others}</> : <>Contested</>;
+    variant = "secondary";
+  } else if (status === "suggested") {
+    word = <>Suggested</>;
+    variant = "secondary";
+  } else if (status === "established") {
+    word = <>In force</>;
+  } else if (status === "dropped") {
+    word = <>Dropped</>;
+  } else if (status === "withdrawn") {
+    word = <>Withdrawn</>;
+  } else {
+    word = <>Set aside</>;
   }
   return (
-    <Badge variant="outline" className="text-xs text-muted-foreground">
-      {status === "dropped" ? "Dropped" : status === "withdrawn" ? "Withdrawn" : "Set aside"}
+    <Badge
+      variant={variant}
+      className={cn("h-4 px-1.5 text-[11px]", variant === "outline" && "text-muted-foreground")}
+    >
+      {word}
     </Badge>
   );
 }
