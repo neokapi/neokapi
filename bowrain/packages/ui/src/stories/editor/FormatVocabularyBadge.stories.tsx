@@ -30,21 +30,21 @@ type Story = StoryObj<typeof FormatVocabularyBadge>;
 
 export const Default: Story = {
   args: {
-    spans: [boldOpen, boldClose, italicOpen],
+    runs: [boldOpen, boldClose, italicOpen],
     onClick: fn(),
   },
 };
 
 export const WithMultipleSpans: Story = {
   args: {
-    spans: [boldOpen, boldClose, italicOpen, linkOpen, linkClose, codeOpen, lineBreak, imgTag],
+    runs: [boldOpen, boldClose, italicOpen, linkOpen, linkClose, codeOpen, lineBreak, imgTag],
     onClick: fn(),
   },
 };
 
 export const Empty: Story = {
   args: {
-    spans: [],
+    runs: [],
     onClick: fn(),
   },
 };

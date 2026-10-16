@@ -10,11 +10,8 @@ function block(over: Partial<BlockInfo>): BlockInfo {
   return {
     id: "b1",
     source: "Reset your password",
-    source_coded: "Reset your password",
-    source_spans: [],
     targets: { "fr-FR": { text: "Réinitialisez votre mot de passe", status: "translated" } },
     translatable: true,
-    has_spans: false,
     properties: {},
     entities: [
       { key: "entity:0", text: "password", type: "entity:product", start: 11, end: 19, dnt: false },
@@ -294,19 +291,21 @@ export const InlineCodes: Story = {
     entry: entry({
       block: block({
         source: "Your credits reset on . Upgrade any time.",
-        source_coded: "Your credits reset on \uE001\uE003\uE002. Upgrade any time.",
-        source_spans: [
-          { span_type: "opening", type: "fmt:bold", id: "1", data: "<strong>" },
+        source_runs: [
+          { text: "Your credits reset on " },
+          { pcOpen: { id: "1", type: "fmt:bold", data: "<strong>", equiv: "strong" } },
           {
-            span_type: "placeholder",
-            type: "code:variable",
-            id: "2",
-            data: "{{.ResetDate}}",
-            equiv_text: "{{.ResetDate}}",
+            ph: {
+              id: "2",
+              type: "code:variable",
+              data: "{{.ResetDate}}",
+              equiv: "{{.ResetDate}}",
+            },
           },
-          { span_type: "closing", type: "fmt:bold", id: "1", data: "</strong>" },
+          { pcClose: { id: "1", type: "fmt:bold", data: "</strong>", equiv: "strong" } },
+          { text: ". Upgrade any time." },
         ],
-        has_spans: true,
+        has_inline_codes: true,
         entities: [],
         targets: {
           "fr-FR": {
@@ -314,8 +313,21 @@ export const InlineCodes: Story = {
             status: "translated",
           },
         },
-        targets_coded: {
-          "fr-FR": "Vos crédits sont réinitialisés le \uE001\uE003\uE002. Améliorez à tout moment.",
+        targets_runs: {
+          "fr-FR": [
+            { text: "Vos crédits sont réinitialisés le " },
+            { pcOpen: { id: "1", type: "fmt:bold", data: "<strong>", equiv: "strong" } },
+            {
+              ph: {
+                id: "2",
+                type: "code:variable",
+                data: "{{.ResetDate}}",
+                equiv: "{{.ResetDate}}",
+              },
+            },
+            { pcClose: { id: "1", type: "fmt:bold", data: "</strong>", equiv: "strong" } },
+            { text: ". Améliorez à tout moment." },
+          ],
         },
       }),
       termCompliance: "compliant",

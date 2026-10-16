@@ -1,16 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { SourceCellDisplay } from "../../components/editor/SourceCellDisplay";
 import {
-  simpleBoldCodedText,
-  simpleBoldSpans,
-  linkAndItalicCodedText,
-  linkAndItalicSpans,
-  codeInlineCodedText,
-  codeInlineSpans,
-  lineBreakCodedText,
-  lineBreakSpans,
-  richCodedText,
-  richSpans,
+  simpleBoldRuns,
+  linkAndItalicRuns,
+  codeInlineRuns,
+  lineBreakRuns,
+  richRuns,
 } from "../fixtures";
 
 const meta: Meta<typeof SourceCellDisplay> = {
@@ -31,42 +26,36 @@ type Story = StoryObj<typeof SourceCellDisplay>;
 
 export const BoldText: Story = {
   args: {
-    codedText: simpleBoldCodedText,
-    spans: simpleBoldSpans,
+    runs: simpleBoldRuns,
   },
 };
 
 export const LinkAndItalic: Story = {
   args: {
-    codedText: linkAndItalicCodedText,
-    spans: linkAndItalicSpans,
+    runs: linkAndItalicRuns,
   },
 };
 
 export const CodeInline: Story = {
   args: {
-    codedText: codeInlineCodedText,
-    spans: codeInlineSpans,
+    runs: codeInlineRuns,
   },
 };
 
 export const WithLineBreak: Story = {
   args: {
-    codedText: lineBreakCodedText,
-    spans: lineBreakSpans,
+    runs: lineBreakRuns,
   },
 };
 
 export const RichMarkup: Story = {
   args: {
-    codedText: richCodedText,
-    spans: richSpans,
+    runs: richRuns,
   },
 };
 
 export const PlainText: Story = {
   args: {
-    codedText: "Welcome to Neokapi — the AI-native localization engine.",
-    spans: [],
+    runs: [{ text: "Welcome to Neokapi — the AI-native localization engine." }],
   },
 };

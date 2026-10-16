@@ -634,20 +634,6 @@ export interface WebVersionInfo {
 // Editor & Block types
 // ---------------------------------------------------------------------------
 
-/** Inline span info */
-export interface SpanInfo {
-  span_type: "opening" | "closing" | "placeholder";
-  type: string;
-  sub_type?: string;
-  id: string;
-  data: string;
-  display_text?: string;
-  equiv_text?: string;
-  deletable?: boolean;
-  cloneable?: boolean;
-  can_reorder?: boolean;
-}
-
 /**
  * Per-locale lifecycle status of a committed translation — the framework's
  * `model.Edition.Status` ladder ("" = no committed status yet).
@@ -802,19 +788,14 @@ export type TargetEntry = string | TargetInfo;
 /**
  * Translation block info.
  *
- * The block carries its inline content twice, and the two forms are not
- * interchangeable:
- *
- *   - `source_runs` / `targets_runs` are the RFC 0001 typed run sequences the
- *     server ships — the content model itself. Run-anchored data (overlay
- *     ranges, segment spans, check-finding positions) only means anything
- *     against these, so the run-native surfaces read them: `preview/toContentTree`
- *     projects them for the shared preview kit.
- *   - `source_coded` / `source_spans` / `targets_coded` are the flattened
- *     coded-text form the cell-level render primitives consume, derived from
- *     the runs at the read boundary (`components/editor/blockRuns`).
- *
- * Both are populated on the live path; a fixture may carry only one.
+ * `source_runs` / `targets_runs` are the RFC 0001 typed run sequences the
+ * server ships: the content model itself, inline codes included. Run-anchored
+ * data (overlay ranges, segment spans, check-finding positions) only means
+ * anything against these, and every surface reads them through
+ * `components/editor/blockContent` and a declared RunSpec projection. The
+ * plain `source` and `targets[locale].text` beside them carry no codes; a
+ * block served without runs (an older payload, a fixture) reads its text as
+ * one run.
  */
 export interface BlockInfo {
   id: string;
@@ -835,16 +816,17 @@ export interface BlockInfo {
    */
   name?: string;
   source: string;
-  /** RFC 0001 typed source runs — the server's inline-code representation. */
+  /**
+   * RFC 0001 typed source runs: the content with its inline codes. A surface
+   * reads them through `components/editor/blockContent` and projects them
+   * through a declared RunSpec; a block served without them reads its `source`
+   * text as one run.
+   */
   source_runs?: Run[];
-  source_coded?: string;
-  source_spans?: SpanInfo[];
   targets: Record<string, TargetEntry>;
   /** Per-locale typed target runs, keyed like `targets`. */
   targets_runs?: Record<string, Run[]>;
-  targets_coded?: Record<string, string>;
   translatable: boolean;
-  has_spans: boolean;
   /** Whether the source carries an inline code, as the server read it. */
   has_inline_codes?: boolean;
   properties: Record<string, string>;

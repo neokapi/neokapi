@@ -528,7 +528,6 @@ export async function injectMockBackend(page: Page) {
             source: `Hello from ${name}`,
             targets: {},
             translatable: true,
-            has_spans: false,
             properties: {},
           },
           {
@@ -536,7 +535,6 @@ export async function injectMockBackend(page: Page) {
             source: `Welcome to our application`,
             targets: {},
             translatable: true,
-            has_spans: false,
             properties: {},
           },
           {
@@ -544,7 +542,6 @@ export async function injectMockBackend(page: Page) {
             source: `Click here to continue`,
             targets: {},
             translatable: true,
-            has_spans: false,
             properties: {},
           },
         ];
@@ -587,8 +584,7 @@ export async function injectMockBackend(page: Page) {
       return files[itemName].map((b: any) => ({
         ...b,
         targets: { ...b.targets },
-        targets_coded: b.targets_coded ? { ...b.targets_coded } : undefined,
-        source_spans: b.source_spans ? [...b.source_spans] : undefined,
+        targets_runs: b.targets_runs ? { ...b.targets_runs } : undefined,
       }));
     };
 

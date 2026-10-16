@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vite-plus/test";
 import { getDefaultRegistry, semanticLabel } from "../index";
 import { getDefaultRegistry as primitivesRegistry, type SpanInfo } from "@neokapi/ui-primitives";
+import { codeSpans } from "../components/editor/editorText";
 import { unknownOpen, unknownClose } from "../stories/fixtures";
 
 function span(
@@ -48,7 +49,8 @@ describe("unknown span type chip labels", () => {
   });
 
   it("renders the shared story fixture the way the kapi kit does", () => {
-    expect(semanticLabel(unknownOpen)).toBe("widget>");
-    expect(semanticLabel(unknownClose)).toBe("/widget");
+    const [open, close] = codeSpans([unknownOpen, unknownClose]);
+    expect(semanticLabel(open)).toBe("widget>");
+    expect(semanticLabel(close)).toBe("/widget");
   });
 });

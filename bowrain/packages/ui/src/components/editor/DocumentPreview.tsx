@@ -6,10 +6,12 @@ import { useEditorApi } from "../../hooks/useEditorApi";
 import { useLocales } from "../../hooks/useLocales";
 import { useStream } from "../../context/StreamContext";
 import { useWorkspace } from "../../context/WorkspaceContext";
-import type { BlockInfo, SpanInfo } from "../../types/api";
+import type { BlockInfo } from "../../types/api";
 import type { PreviewContentMode } from "./visual-editor-types";
+import { otherBranch, projectRuns, type ModelRunSpec, type Run } from "@neokapi/kapi-format";
+import { sourceRuns, targetRuns } from "./blockContent";
 import { getTargetText } from "./blockStatus";
-import { pseudoTranslate, pseudoTranslateCoded } from "./pseudoTranslate";
+import { pseudoAccent, pseudoTranslate, pseudoWrap } from "./pseudoTranslate";
 import { blocksToContentTree } from "../../preview/toContentTree";
 import { cn } from "@neokapi/ui-primitives";
 import { Languages } from "../icons";
@@ -27,60 +29,48 @@ function escapeHTML(text: string): string {
 }
 
 /**
- * Expand coded text into display HTML: each inline-code placeholder takes the
- * data of the span at its position, and literal text is escaped. Targets carry
- * the source's spans — the codes are the same ones, reordered.
+ * A run sequence as display HTML: text escaped, each inline code as the
+ * markup it stands for, a subblock reference named, and a plural or select
+ * read as its `other` branch. Every run kind is answered, so a code is never
+ * closed over.
  */
-function codedToHTML(coded: string, spans: SpanInfo[]): string {
-  let result = "";
-  let spanIdx = 0;
-  for (const ch of coded) {
-    const code = ch.codePointAt(0) ?? 0;
-    if (code === 0xe001 || code === 0xe002 || code === 0xe003) {
-      const span = spans[spanIdx++];
-      if (span) result += span.data;
-    } else if (ch === "&") {
-      result += "&amp;";
-    } else if (ch === "<") {
-      result += "&lt;";
-    } else if (ch === ">") {
-      result += "&gt;";
-    } else {
-      result += ch;
-    }
-  }
-  return result;
+const DISPLAY_HTML: ModelRunSpec<string> = {
+  text: (r) => escapeHTML(r.text),
+  ph: (r) => r.ph.data,
+  pcOpen: (r) => r.pcOpen.data,
+  pcClose: (r) => r.pcClose.data,
+  sub: (r) => escapeHTML(`[${r.sub.equiv}]`),
+  plural: (r) => runsToHTML(otherBranch(r.plural.forms as Record<string, Run[]>)),
+  select: (r) => runsToHTML(otherBranch(r.select.cases)),
+  fallback: () => "",
+};
+
+/** The same reading with each text run pseudo-translated; the codes stay as they are. */
+const PSEUDO_HTML: ModelRunSpec<string> = {
+  ...DISPLAY_HTML,
+  text: (r) => escapeHTML(pseudoAccent(r.text)),
+  plural: (r) =>
+    projectRuns(otherBranch(r.plural.forms as Record<string, Run[]>), PSEUDO_HTML).join(""),
+  select: (r) => projectRuns(otherBranch(r.select.cases), PSEUDO_HTML).join(""),
+};
+
+function runsToHTML(runs: readonly Run[]): string {
+  return projectRuns(runs, DISPLAY_HTML).join("");
 }
 
-/** Expand a block's source coded text + spans into pseudo-translated display HTML. */
+/** A block's source as pseudo-translated display HTML. */
 function pseudoBlockToHTML(block: BlockInfo): string {
-  const spans = block.source_spans ?? [];
-  if (!block.has_spans || !block.source_coded || spans.length === 0) {
-    return escapeHTML(pseudoTranslate(block.source));
-  }
-  return codedToHTML(pseudoTranslateCoded(block.source_coded), spans);
+  return pseudoWrap(projectRuns(sourceRuns(block), PSEUDO_HTML).join(""));
 }
 
-/** Expand a block's source coded text + spans into display HTML. */
+/** A block's source as display HTML. */
 function sourceBlockToHTML(block: BlockInfo): string {
-  const spans = block.source_spans ?? [];
-  if (!block.has_spans || !block.source_coded || spans.length === 0) {
-    return escapeHTML(block.source);
-  }
-  return codedToHTML(block.source_coded, spans);
+  return runsToHTML(sourceRuns(block));
 }
 
-/**
- * A locale's target as display HTML, with inline codes expanded through the
- * source's spans. A target without codes is escaped text.
- */
+/** A locale's target as display HTML; a block with no translation there is empty. */
 function targetBlockToHTML(block: BlockInfo, locale: string): string {
-  const spans = block.source_spans ?? [];
-  const coded = block.targets_coded?.[locale] ?? "";
-  if (!block.has_spans || !coded || spans.length === 0) {
-    return escapeHTML(getTargetText(block, locale));
-  }
-  return codedToHTML(coded, spans);
+  return runsToHTML(targetRuns(block, locale));
 }
 
 /**

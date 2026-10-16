@@ -9,6 +9,7 @@ import {
   type UnifiedTargetEditorHandle,
 } from "../UnifiedTargetEditor";
 import { CollapsedTargetCell } from "./GridTargetRenderer";
+import { blockHasInlineCodes, sourceRuns } from "./blockContent";
 import { getBlockStatus, statusDotClass, statusBorderClass } from "./blockStatus";
 
 export interface TableViewProps {
@@ -115,12 +116,8 @@ export function TableView({
               locale={sourceLocale}
               className="flex-1 text-sm leading-relaxed pr-4 break-words"
             >
-              {block.has_spans && block.source_coded && block.source_spans ? (
-                <FormattedSourceDisplay
-                  codedText={block.source_coded}
-                  spans={block.source_spans}
-                  locale={sourceLocale}
-                />
+              {blockHasInlineCodes(block) ? (
+                <FormattedSourceDisplay runs={sourceRuns(block)} locale={sourceLocale} />
               ) : isSelected &&
                 (selectedTermMatches.length > 0 ||
                   (block.entities && block.entities.length > 0)) ? (

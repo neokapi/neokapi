@@ -17,6 +17,7 @@ import {
   unknownOpen,
   unknownClose,
 } from "../fixtures";
+import { codeSpans } from "../../components/editor/editorText";
 
 const meta: Meta<typeof InlineCodeLegend> = {
   title: "Editor/Tags/InlineCodeLegend",
@@ -36,7 +37,7 @@ type Story = StoryObj<typeof InlineCodeLegend>;
 
 export const Default: Story = {
   args: {
-    spans: [boldOpen, boldClose, italicOpen, italicClose, linkOpen, linkClose],
+    spans: codeSpans([boldOpen, boldClose, italicOpen, italicClose, linkOpen, linkClose]),
     onClose: fn(),
   },
 };
@@ -48,14 +49,14 @@ export const Default: Story = {
  */
 export const UnknownType: Story = {
   args: {
-    spans: [unknownOpen, unknownClose],
+    spans: codeSpans([unknownOpen, unknownClose]),
     onClose: fn(),
   },
 };
 
 export const WithManyCategories: Story = {
   args: {
-    spans: [
+    spans: codeSpans([
       boldOpen,
       boldClose,
       italicOpen,
@@ -68,7 +69,7 @@ export const WithManyCategories: Story = {
       codeClose,
       lineBreak,
       imgTag,
-    ],
+    ]),
     onClose: fn(),
   },
 };

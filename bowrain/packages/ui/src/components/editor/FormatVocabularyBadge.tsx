@@ -1,14 +1,15 @@
 import { useMemo } from "react";
-import type { SpanInfo } from "../../types/api";
+import type { Run } from "@neokapi/kapi-format";
 import { cn, getDefaultRegistry } from "@neokapi/ui-primitives";
+import { codeSpans } from "./editorText";
 
 // ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
 
 interface FormatVocabularyBadgeProps {
-  /** Spans present in the current block or file. */
-  spans: SpanInfo[];
+  /** The content whose inline codes the badge summarises. */
+  runs: readonly Run[];
   /** Optional click handler to toggle the inline code legend. */
   onClick?: () => void;
 }
@@ -35,10 +36,11 @@ const categoryOrder = ["formatting", "linking", "media", "structure", "code", "g
  * Compact badge strip showing which vocabulary categories are active in the
  * current editing context. Clicking expands the InlineCodeLegend.
  */
-export function FormatVocabularyBadge({ spans, onClick }: FormatVocabularyBadgeProps) {
+export function FormatVocabularyBadge({ runs, onClick }: FormatVocabularyBadgeProps) {
   const registry = getDefaultRegistry();
 
   const summary = useMemo(() => {
+    const spans = codeSpans(runs);
     if (spans.length === 0) return null;
 
     const catCounts = new Map<string, number>();
@@ -68,7 +70,7 @@ export function FormatVocabularyBadge({ spans, onClick }: FormatVocabularyBadgeP
             : { bg: "transparent", border: "transparent", text: "var(--text-muted)" },
       })),
     };
-  }, [spans, registry]);
+  }, [runs, registry]);
 
   if (!summary) return null;
 

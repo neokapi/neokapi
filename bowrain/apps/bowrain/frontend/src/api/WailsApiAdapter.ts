@@ -1,11 +1,5 @@
 import type { ApiAdapter, ComponentSchema } from "@neokapi/ui";
-import {
-  ALL_PERMISSIONS,
-  governedRefusalError,
-  normalizeServerBlock,
-  normalizeServerBlocks,
-  type ServerBlockInfo,
-} from "@neokapi/ui";
+import { ALL_PERMISSIONS, governedRefusalError } from "@neokapi/ui";
 import type {
   CallerPermissions,
   ConvergenceRun,
@@ -718,8 +712,8 @@ export class WailsApiAdapter implements ApiAdapter {
     opts?: BlockQueryOptions,
   ): Promise<BlockInfo[]> {
     // The backend serves blocks in the shape the server's blocks route
-    // serves, and they are read through the same normalisation the web app
-    // applies to that payload, so the editor reads one shape on both.
+    // serves: the source and each translation as runs beside their text, so
+    // the editor reads one shape on both.
     const raw = (await Backend.QueryItemBlocks(projectId, fileName, {
       locale: opts?.locale ?? "",
       status: opts?.status ?? "",
@@ -727,8 +721,8 @@ export class WailsApiAdapter implements ApiAdapter {
       translatable: opts?.translatable ?? null,
       limit: opts?.limit ?? 0,
       offset: opts?.offset ?? 0,
-    })) as ServerBlockInfo[] | null;
-    return normalizeServerBlocks(raw ?? []);
+    })) as BlockInfo[] | null;
+    return raw ?? [];
   }
 
   async getBlockCounts(
@@ -750,7 +744,7 @@ export class WailsApiAdapter implements ApiAdapter {
   }
 
   async getBlock(_ws: string, projectId: string, blockId: string): Promise<BlockInfo> {
-    return normalizeServerBlock((await Backend.GetBlock(projectId, blockId)) as ServerBlockInfo);
+    return (await Backend.GetBlock(projectId, blockId)) as BlockInfo;
   }
 
   async getItem(_ws: string, projectId: string, itemName: string): Promise<ItemInfo> {
@@ -797,12 +791,7 @@ export class WailsApiAdapter implements ApiAdapter {
       opts?.limit ?? 0,
       opts?.offset ?? 0,
     )) as PendingReviewPage;
-    return {
-      ...page,
-      entries: (page.entries ?? []).map((e) =>
-        e.block ? { ...e, block: normalizeServerBlock(e.block as ServerBlockInfo) } : e,
-      ),
-    };
+    return { ...page, entries: page.entries ?? [] };
   }
   async applyChanges(
     _ws: string,

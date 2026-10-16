@@ -6,24 +6,19 @@
  * translators can and cannot do with inline tags.
  */
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Run } from "@neokapi/kapi-format";
 import {
   TagChipComponent,
   TagPalette,
   TagValidationBar,
   InlineCodeLegend,
+  type SpanInfo,
   type TagValidationResult,
 } from "@neokapi/ui-primitives";
 import { FormattedSourceDisplay } from "../../components/editor/FormattedSourceDisplay";
 import { SourceCellDisplay } from "../../components/editor/SourceCellDisplay";
-import type { SpanInfo } from "../../types/api";
-
-// ---------------------------------------------------------------------------
-// Unicode markers
-// ---------------------------------------------------------------------------
-
-const O = "\uE001";
-const C = "\uE002";
-const P = "\uE003";
+import { codeSpans } from "../../components/editor/editorText";
+import { pair, runsOf } from "../fixtures";
 
 // ---------------------------------------------------------------------------
 // Meta
@@ -57,7 +52,8 @@ export default meta;
 type Story = StoryObj;
 
 // ---------------------------------------------------------------------------
-// Constraint-specific spans
+// Constraint-specific chips. These demonstrate the chip primitives, which read
+// a chip's explicit flags beside the vocabulary's defaults.
 // ---------------------------------------------------------------------------
 
 // Fully flexible tags
@@ -304,42 +300,41 @@ export const ConstraintViolations: Story = {
 /** Full editing scenario showing how constraints protect content. */
 export const RealWorldScenario: Story = {
   render: () => {
-    const sourceText = `Hello ${P}, you have ${P} new ${O}messages${C} in your ${O}inbox${C}.${P}Check them now.`;
-    const sourceSpans: SpanInfo[] = [
-      {
-        span_type: "placeholder",
-        type: "code:variable",
+    // The block's source as the reader produced it: variables, a bold pair, a
+    // link and a line break, each a run.
+    const userName: Run = {
+      ph: {
         id: "1",
+        type: "code:variable",
         data: "{userName}",
-        display_text: "{userName}",
-        deletable: false,
-        cloneable: false,
-        can_reorder: true,
+        equiv: "userName",
+        disp: "{userName}",
       },
-      {
-        span_type: "placeholder",
-        type: "code:placeholder",
-        id: "2",
-        data: "{count}",
-        display_text: "{count}",
-        deletable: false,
-        cloneable: false,
-        can_reorder: true,
-      },
-      { span_type: "opening", type: "fmt:bold", id: "3", data: "<b>" },
-      { span_type: "closing", type: "fmt:bold", id: "3", data: "</b>" },
-      { span_type: "opening", type: "link:hyperlink", id: "4", data: '<a href="/inbox">' },
-      { span_type: "closing", type: "link:hyperlink", id: "4", data: "</a>" },
-      {
-        span_type: "placeholder",
-        type: "struct:break",
-        id: "5",
-        data: "<br/>",
-        deletable: false,
-        cloneable: false,
-        can_reorder: false,
-      },
-    ];
+    };
+    const count: Run = {
+      ph: { id: "2", type: "code:placeholder", data: "{count}", equiv: "count", disp: "{count}" },
+    };
+    const [boldOpen, boldClose] = pair("3", "fmt:bold", "<b>", "</b>", "b");
+    const [linkOpen, linkClose] = pair("4", "link:hyperlink", '<a href="/inbox">', "</a>", "a");
+    const lineBreak: Run = { ph: { id: "5", type: "struct:break", data: "<br/>", equiv: "br" } };
+    const sourceRuns = runsOf(
+      "Hello ",
+      userName,
+      ", you have ",
+      count,
+      " new ",
+      boldOpen,
+      "messages",
+      boldClose,
+      " in your ",
+      linkOpen,
+      "inbox",
+      linkClose,
+      ".",
+      lineBreak,
+      "Check them now.",
+    );
+    const sourceSpans = codeSpans(sourceRuns);
 
     return (
       <div style={{ maxWidth: 700, padding: 16 }}>
@@ -352,14 +347,14 @@ export const RealWorldScenario: Story = {
         <div style={{ marginBottom: 16 }}>
           <div style={sectionLabel}>Formatted view</div>
           <div style={{ fontSize: 14, lineHeight: 1.8 }}>
-            <FormattedSourceDisplay codedText={sourceText} spans={sourceSpans} />
+            <FormattedSourceDisplay runs={sourceRuns} />
           </div>
         </div>
 
         <div style={{ marginBottom: 16 }}>
           <div style={sectionLabel}>Code view</div>
           <div style={{ fontSize: 14, lineHeight: 1.8 }}>
-            <SourceCellDisplay codedText={sourceText} spans={sourceSpans} />
+            <SourceCellDisplay runs={sourceRuns} />
           </div>
         </div>
 

@@ -7,9 +7,9 @@
  */
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { VocabularyExplorer } from "../../components/editor/VocabularyExplorer";
-import { InlineCodeLegend, TagChipComponent } from "@neokapi/ui-primitives";
+import { InlineCodeLegend, TagChipComponent, type SpanInfo } from "@neokapi/ui-primitives";
 import { FormatVocabularyBadge } from "../../components/editor/FormatVocabularyBadge";
-import type { SpanInfo } from "../../types/api";
+import { codeSpans } from "../../components/editor/editorText";
 import {
   boldOpen,
   boldClose,
@@ -27,7 +27,7 @@ import {
   strikeClose,
   supOpen,
   supClose,
-  richSpans,
+  richRuns,
 } from "../fixtures";
 
 // ---------------------------------------------------------------------------
@@ -105,7 +105,7 @@ export const CompactMode: Story = {
 /** Inline code legend showing tags in the current segment. */
 export const InlineCodeLegendPanel: Story = {
   render: () => {
-    const spans: SpanInfo[] = [
+    const spans = codeSpans([
       boldOpen,
       boldClose,
       linkOpen,
@@ -113,7 +113,7 @@ export const InlineCodeLegendPanel: Story = {
       codeOpen,
       codeClose,
       lineBreak,
-    ];
+    ]);
 
     return (
       <div style={{ maxWidth: 400, padding: 16 }}>
@@ -168,8 +168,7 @@ export const CodeTokenLegend: Story = {
         cloneable: false,
         can_reorder: false,
       },
-      boldOpen,
-      boldClose,
+      ...codeSpans([boldOpen, boldClose]),
     ];
 
     return (
@@ -197,18 +196,18 @@ export const VocabularyBadge: Story = {
       <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 16 }}>
         <div>
           <span style={labelStyle}>Simple formatting:</span>
-          <FormatVocabularyBadge spans={[boldOpen, boldClose, italicOpen, italicClose]} />
+          <FormatVocabularyBadge runs={[boldOpen, boldClose, italicOpen, italicClose]} />
         </div>
         <div>
           <span style={labelStyle}>Rich content:</span>
-          <FormatVocabularyBadge spans={richSpans} />
+          <FormatVocabularyBadge runs={richRuns} />
         </div>
         <div>
           <span style={labelStyle}>Code tokens:</span>
           <FormatVocabularyBadge
-            spans={[
-              { span_type: "placeholder", type: "code:variable", id: "1", data: "{name}" },
-              { span_type: "placeholder", type: "code:placeholder", id: "2", data: "{0}" },
+            runs={[
+              { ph: { id: "1", type: "code:variable", data: "{name}", equiv: "name" } },
+              { ph: { id: "2", type: "code:placeholder", data: "{0}", equiv: "0" } },
               boldOpen,
               boldClose,
             ]}
@@ -223,15 +222,15 @@ export const VocabularyBadge: Story = {
 export const AllChipStyles: Story = {
   render: () => {
     const allTypes: Array<{ label: string; spans: SpanInfo[] }> = [
-      { label: "Bold", spans: [boldOpen, boldClose] },
-      { label: "Italic", spans: [italicOpen, italicClose] },
-      { label: "Underline", spans: [underlineOpen, underlineClose] },
-      { label: "Strikethrough", spans: [strikeOpen, strikeClose] },
-      { label: "Superscript", spans: [supOpen, supClose] },
-      { label: "Hyperlink", spans: [linkOpen, linkClose] },
-      { label: "Inline Code", spans: [codeOpen, codeClose] },
-      { label: "Line Break", spans: [lineBreak] },
-      { label: "Image", spans: [imgTag] },
+      { label: "Bold", spans: codeSpans([boldOpen, boldClose]) },
+      { label: "Italic", spans: codeSpans([italicOpen, italicClose]) },
+      { label: "Underline", spans: codeSpans([underlineOpen, underlineClose]) },
+      { label: "Strikethrough", spans: codeSpans([strikeOpen, strikeClose]) },
+      { label: "Superscript", spans: codeSpans([supOpen, supClose]) },
+      { label: "Hyperlink", spans: codeSpans([linkOpen, linkClose]) },
+      { label: "Inline Code", spans: codeSpans([codeOpen, codeClose]) },
+      { label: "Line Break", spans: codeSpans([lineBreak]) },
+      { label: "Image", spans: codeSpans([imgTag]) },
       {
         label: "Variable",
         spans: [{ span_type: "placeholder", type: "code:variable", id: "1", data: "{name}" }],

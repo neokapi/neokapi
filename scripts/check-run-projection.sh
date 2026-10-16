@@ -29,9 +29,9 @@
 #
 # What passes, deliberately:
 #
-#   1. PROJECTION_FILES — the modules that implement the contract, plus the two
-#      structural bridges (coded text ↔ runs) that must map every kind
-#      one-to-one by hand and are covered by round-trip tests.
+#   1. PROJECTION_FILES — the modules that implement the contract, plus the
+#      structural bridges that must map every kind one-to-one by hand and are
+#      covered by round-trip tests.
 #   2. Test files — a test may construct and inspect runs freely.
 #
 # Usage:
@@ -58,11 +58,10 @@ readonly PROJECTION_FILES=(
   packages/kapi-format/src/run-projection.ts
   packages/ui/src/components/preview/types.ts
 
-  # Structural bridges: every kind maps one-to-one to a chip/span and back, and
-  # the round trip is asserted by tests. The mapping is the product here, not a
-  # reading of it.
-  packages/ui/src/components/editor/runsCodedBridge.ts
-  packages/ui/src/components/editor/codedText.ts
+  # Structural bridges: every kind maps one-to-one and back, and the round trip
+  # is asserted by tests. The mapping is the product here, not a reading of it.
+  # (The chip bridge in packages/ui/src/components/editor/codedText.ts is a
+  # declared RunSpec and needs no exception.)
   packages/kapi-format/src/runs-validate.ts
   packages/kapi-format/src/icu-parse.ts
   packages/kapi-format/src/target-plural.ts

@@ -15,7 +15,7 @@ import {
   underlineClose,
   strikeOpen,
   strikeClose,
-  richSpans,
+  richRuns,
 } from "../fixtures";
 
 const meta: Meta<typeof VisualEditorToolbar> = {
@@ -40,28 +40,28 @@ type Story = StoryObj<typeof VisualEditorToolbar>;
 /** Bold only */
 export const BoldOnly: Story = {
   args: {
-    sourceSpans: [boldOpen, boldClose],
+    sourceRuns: [boldOpen, boldClose],
   },
 };
 
 /** Bold + italic */
 export const BoldAndItalic: Story = {
   args: {
-    sourceSpans: [boldOpen, boldClose, italicOpen, italicClose],
+    sourceRuns: [boldOpen, boldClose, italicOpen, italicClose],
   },
 };
 
 /** All tag types from rich spans */
 export const AllTags: Story = {
   args: {
-    sourceSpans: richSpans,
+    sourceRuns: richRuns,
   },
 };
 
 /** Extended set including underline, strikethrough */
 export const ExtendedTags: Story = {
   args: {
-    sourceSpans: [
+    sourceRuns: [
       boldOpen,
       boldClose,
       italicOpen,
@@ -82,7 +82,7 @@ export const ExtendedTags: Story = {
 /** Disabled state (not editing) */
 export const Disabled: Story = {
   args: {
-    sourceSpans: richSpans,
+    sourceRuns: richRuns,
     disabled: true,
   },
 };
@@ -90,6 +90,6 @@ export const Disabled: Story = {
 /** No spans — renders nothing */
 export const Empty: Story = {
   args: {
-    sourceSpans: [],
+    sourceRuns: [],
   },
 };

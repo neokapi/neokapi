@@ -6,9 +6,11 @@
  */
 
 import type { ReviewPoint } from "@neokapi/contract-types";
+import type { Run } from "@neokapi/kapi-format";
+import type { SpanInfo } from "@neokapi/ui-primitives";
+import { codeSpans } from "../components/editor/editorText";
 import type {
   ReviewContext,
-  SpanInfo,
   BlockInfo,
   ProjectInfo,
   MemoryMatchInfo,
@@ -28,219 +30,158 @@ import type {
 } from "../types/api";
 
 // ---------------------------------------------------------------------------
-// Spans (inline markup tags)
+// Inline codes, as the runs a reader produces
 // ---------------------------------------------------------------------------
 
-export const boldOpen: SpanInfo = {
-  span_type: "opening",
-  type: "fmt:bold",
-  id: "1",
-  data: "<b>",
+/** A paired code: its opening and closing halves share an id. */
+export function pair(
+  id: string,
+  type: string,
+  open: string,
+  close: string,
+  equiv: string,
+): [Run, Run] {
+  return [
+    { pcOpen: { id, type, data: open, equiv } },
+    { pcClose: { id, type, data: close, equiv } },
+  ];
+}
+
+/** Runs from text and codes in order: a string is a text run. */
+export function runsOf(...parts: Array<string | Run>): Run[] {
+  return parts.map((part) => (typeof part === "string" ? { text: part } : part));
+}
+
+/** The chip a single code run renders as, for stories of the chip primitives. */
+export function chip(run: Run): SpanInfo {
+  return codeSpans([run])[0];
+}
+
+/** Runs as a block payload carries them: the generated contract shape. */
+type ServedRuns = NonNullable<BlockInfo["source_runs"]>;
+const served = (runs: Run[]): ServedRuns => runs as ServedRuns;
+
+export const [boldOpen, boldClose] = pair("1", "fmt:bold", "<b>", "</b>", "b");
+export const [italicOpen, italicClose] = pair("2", "fmt:italic", "<i>", "</i>", "i");
+export const [linkOpen, linkClose] = pair(
+  "3",
+  "link:hyperlink",
+  '<a href="https://example.com">',
+  "</a>",
+  "a",
+);
+export const [codeOpen, codeClose] = pair("4", "fmt:code", "<code>", "</code>", "code");
+export const lineBreak: Run = {
+  ph: { id: "5", type: "struct:break", data: "<br/>", equiv: "br" },
 };
-export const boldClose: SpanInfo = {
-  span_type: "closing",
-  type: "fmt:bold",
-  id: "1",
-  data: "</b>",
-};
-export const italicOpen: SpanInfo = {
-  span_type: "opening",
-  type: "fmt:italic",
-  id: "2",
-  data: "<i>",
-};
-export const italicClose: SpanInfo = {
-  span_type: "closing",
-  type: "fmt:italic",
-  id: "2",
-  data: "</i>",
-};
-export const linkOpen: SpanInfo = {
-  span_type: "opening",
-  type: "link:hyperlink",
-  id: "3",
-  data: '<a href="https://example.com">',
-};
-export const linkClose: SpanInfo = {
-  span_type: "closing",
-  type: "link:hyperlink",
-  id: "3",
-  data: "</a>",
-};
-export const codeOpen: SpanInfo = {
-  span_type: "opening",
-  type: "fmt:code",
-  id: "4",
-  data: "<code>",
-};
-export const codeClose: SpanInfo = {
-  span_type: "closing",
-  type: "fmt:code",
-  id: "4",
-  data: "</code>",
-};
-export const lineBreak: SpanInfo = {
-  span_type: "placeholder",
-  type: "struct:break",
-  id: "5",
-  data: "<br/>",
-};
-export const imgTag: SpanInfo = {
-  span_type: "placeholder",
-  type: "media:image",
-  id: "6",
-  data: '<img src="logo.png"/>',
+export const imgTag: Run = {
+  ph: { id: "6", type: "media:image", data: '<img src="logo.png"/>', equiv: "img" },
 };
 
 // A type no vocabulary pack defines. The registry derives its chip label from
 // the type name, so this renders "widget>" / "/widget" rather than "?>" / "/?".
 // The same pair exists in the kapi kit's fixtures: both kits import one
 // registry, so the chip must read the same in both Storybooks.
-export const unknownOpen: SpanInfo = {
-  span_type: "opening",
-  type: "custom:widget",
-  id: "9",
-  data: "<widget>",
-};
-export const unknownClose: SpanInfo = {
-  span_type: "closing",
-  type: "custom:widget",
-  id: "9",
-  data: "</widget>",
-};
-export const underlineOpen: SpanInfo = {
-  span_type: "opening",
-  type: "fmt:underline",
-  id: "7",
-  data: "<u>",
-};
-export const underlineClose: SpanInfo = {
-  span_type: "closing",
-  type: "fmt:underline",
-  id: "7",
-  data: "</u>",
-};
-export const strikeOpen: SpanInfo = {
-  span_type: "opening",
-  type: "fmt:strikethrough",
-  id: "8",
-  data: "<s>",
-};
-export const strikeClose: SpanInfo = {
-  span_type: "closing",
-  type: "fmt:strikethrough",
-  id: "8",
-  data: "</s>",
-};
-export const supOpen: SpanInfo = {
-  span_type: "opening",
-  type: "fmt:superscript",
-  id: "9",
-  data: "<sup>",
-};
-export const supClose: SpanInfo = {
-  span_type: "closing",
-  type: "fmt:superscript",
-  id: "9",
-  data: "</sup>",
-};
+export const [unknownOpen, unknownClose] = pair(
+  "9",
+  "custom:widget",
+  "<widget>",
+  "</widget>",
+  "widget",
+);
+export const [underlineOpen, underlineClose] = pair("7", "fmt:underline", "<u>", "</u>", "u");
+export const [strikeOpen, strikeClose] = pair("8", "fmt:strikethrough", "<s>", "</s>", "s");
+export const [supOpen, supClose] = pair("9", "fmt:superscript", "<sup>", "</sup>", "sup");
 
-// Markdown-style spans (semantic types, delimiter data)
-export const mdBoldOpen: SpanInfo = {
-  span_type: "opening",
-  type: "bold",
-  id: "1",
-  data: "**",
-};
-export const mdBoldClose: SpanInfo = {
-  span_type: "closing",
-  type: "bold",
-  id: "1",
-  data: "**",
-};
-export const mdItalicOpen: SpanInfo = {
-  span_type: "opening",
-  type: "italic",
-  id: "2",
-  data: "*",
-};
-export const mdItalicClose: SpanInfo = {
-  span_type: "closing",
-  type: "italic",
-  id: "2",
-  data: "*",
-};
-export const mdCodeOpen: SpanInfo = {
-  span_type: "opening",
-  type: "code",
-  id: "3",
-  data: "`",
-};
-export const mdCodeClose: SpanInfo = {
-  span_type: "closing",
-  type: "code",
-  id: "3",
-  data: "`",
-};
-export const mdLinkOpen: SpanInfo = {
-  span_type: "opening",
-  type: "link",
-  id: "4",
-  data: "[",
-};
-export const mdLinkClose: SpanInfo = {
-  span_type: "closing",
-  type: "link",
-  id: "4",
-  data: "](https://docs.example.com)",
-};
-
-// Unicode markers used in coded text
-const O = "\uE001"; // opening
-const C = "\uE002"; // closing
-const P = "\uE003"; // placeholder
+// Markdown-style codes (semantic types, delimiter data)
+export const [mdBoldOpen, mdBoldClose] = pair("1", "bold", "**", "**", "b");
+export const [mdItalicOpen, mdItalicClose] = pair("2", "italic", "*", "*", "i");
+export const [mdCodeOpen, mdCodeClose] = pair("3", "code", "`", "`", "code");
+export const [mdLinkOpen, mdLinkClose] = pair("4", "link", "[", "](https://docs.example.com)", "a");
 
 // ---------------------------------------------------------------------------
-// Coded text samples
+// Run samples
 // ---------------------------------------------------------------------------
 
 /** "Click <b>here</b> to continue" */
-export const simpleBoldCodedText = `Click ${O}here${C} to continue`;
-export const simpleBoldSpans: SpanInfo[] = [boldOpen, boldClose];
+export const simpleBoldRuns = runsOf("Click ", boldOpen, "here", boldClose, " to continue");
 
 /** "Visit <a>our website</a> for <i>more info</i>" */
-export const linkAndItalicCodedText = `Visit ${O}our website${C} for ${O}more info${C}`;
-export const linkAndItalicSpans: SpanInfo[] = [linkOpen, linkClose, italicOpen, italicClose];
+export const linkAndItalicRuns = runsOf(
+  "Visit ",
+  linkOpen,
+  "our website",
+  linkClose,
+  " for ",
+  italicOpen,
+  "more info",
+  italicClose,
+);
 
 /** "Use <code>kapi init</code> to set up" */
-export const codeInlineCodedText = `Use ${O}kapi init${C} to set up`;
-export const codeInlineSpans: SpanInfo[] = [codeOpen, codeClose];
+export const codeInlineRuns = runsOf("Use ", codeOpen, "kapi init", codeClose, " to set up");
 
 /** "First line<br/>Second line" */
-export const lineBreakCodedText = `First line${P}Second line`;
-export const lineBreakSpans: SpanInfo[] = [lineBreak];
+export const lineBreakRuns = runsOf("First line", lineBreak, "Second line");
 
 /** All tag types in one segment */
-export const richCodedText = `${O}Bold${C} and ${O}italic${C} with ${O}a link${C} plus ${O}code${C} and ${P}`;
-export const richSpans: SpanInfo[] = [
+export const richRuns = runsOf(
   boldOpen,
+  "Bold",
   boldClose,
+  " and ",
   italicOpen,
+  "italic",
   italicClose,
+  " with ",
   linkOpen,
+  "a link",
   linkClose,
+  " plus ",
   codeOpen,
+  "code",
   codeClose,
+  " and ",
   lineBreak,
-];
+);
 
 /** Markdown: "Click **here** to *learn more*" */
-export const mdFormattingCodedText = `Click ${O}here${C} to ${O}learn more${C}`;
-export const mdFormattingSpans: SpanInfo[] = [mdBoldOpen, mdBoldClose, mdItalicOpen, mdItalicClose];
+export const mdFormattingRuns = runsOf(
+  "Click ",
+  mdBoldOpen,
+  "here",
+  mdBoldClose,
+  " to ",
+  mdItalicOpen,
+  "learn more",
+  mdItalicClose,
+);
 
 /** Markdown: "Run `kapi init` and visit [docs](url)" */
-export const mdRichCodedText = `Run ${O}kapi init${C} and visit ${O}docs${C}`;
-export const mdRichSpans: SpanInfo[] = [mdCodeOpen, mdCodeClose, mdLinkOpen, mdLinkClose];
+export const mdRichRuns = runsOf(
+  "Run ",
+  mdCodeOpen,
+  "kapi init",
+  mdCodeClose,
+  " and visit ",
+  mdLinkOpen,
+  "docs",
+  mdLinkClose,
+);
+
+// Codes the navigation and inline-code blocks below carry.
+const [code10Open, code10Close] = pair("10", "fmt:code", "<code>", "</code>", "code");
+const [code11Open, code11Close] = pair("11", "fmt:code", "<code>", "</code>", "code");
+const [code12Open, code12Close] = pair("12", "fmt:code", "<code>", "</code>", "code");
+const [code13Open, code13Close] = pair("13", "fmt:code", "<code>", "</code>", "code");
+const [a1Open, a1Close] = pair("1", "a", '<a href="/features">', "</a>", "a");
+const [b2Open, b2Close] = pair("2", "b", "<b>", "</b>", "b");
+const [b3Open, b3Close] = pair("3", "b", "<b>", "</b>", "b");
+const [code4Open, code4Close] = pair("4", "code", "<code>", "</code>", "code");
+const br5: Run = { ph: { id: "5", type: "br", data: "<br/>", equiv: "br" } };
+const [a6Open, a6Close] = pair("6", "a", '<a href="/docs">', "</a>", "a");
+const [i7Open, i7Close] = pair("7", "i", "<i>", "</i>", "i");
+const [b8Open, b8Close] = pair("8", "b", "<b>", "</b>", "b");
 
 // ---------------------------------------------------------------------------
 // Block samples
@@ -250,88 +191,72 @@ export const sampleBlocks: BlockInfo[] = [
   {
     id: "blk-1",
     source: "Welcome to Neokapi",
-    source_coded: "Welcome to Neokapi",
-    source_spans: [],
     targets: {
       "fr-FR": "Bienvenue sur Neokapi",
       "de-DE": "Willkommen bei Neokapi",
     },
-    targets_coded: {
-      "fr-FR": "Bienvenue sur Neokapi",
-      "de-DE": "Willkommen bei Neokapi",
-    },
     translatable: true,
-    has_spans: false,
     properties: { state: "translated" },
   },
   {
     id: "blk-2",
     source: "Click here to continue",
-    source_coded: simpleBoldCodedText,
-    source_spans: simpleBoldSpans,
-    targets: { "fr-FR": `Cliquez ${O}ici${C} pour continuer`, "de-DE": "" },
-    targets_coded: {
-      "fr-FR": `Cliquez ${O}ici${C} pour continuer`,
-      "de-DE": "",
+    source_runs: served(simpleBoldRuns),
+    targets: { "fr-FR": "Cliquez ici pour continuer", "de-DE": "" },
+    targets_runs: {
+      "fr-FR": served(runsOf("Cliquez ", boldOpen, "ici", boldClose, " pour continuer")),
     },
     translatable: true,
-    has_spans: true,
+    has_inline_codes: true,
     properties: { state: "draft" },
   },
   {
     id: "blk-3",
     source: "Visit our website for more info",
-    source_coded: linkAndItalicCodedText,
-    source_spans: linkAndItalicSpans,
+    source_runs: served(linkAndItalicRuns),
     targets: { "fr-FR": "", "de-DE": "" },
-    targets_coded: { "fr-FR": "", "de-DE": "" },
     translatable: true,
-    has_spans: true,
+    has_inline_codes: true,
     properties: {},
   },
   {
     id: "blk-4",
     source: "Use kapi init to set up",
-    source_coded: codeInlineCodedText,
-    source_spans: codeInlineSpans,
+    source_runs: served(codeInlineRuns),
     targets: {
-      "fr-FR": `Utilisez ${O}kapi init${C} pour configurer`,
-      "de-DE": `Verwenden Sie ${O}kapi init${C} zum Einrichten`,
+      "fr-FR": "Utilisez kapi init pour configurer",
+      "de-DE": "Verwenden Sie kapi init zum Einrichten",
     },
-    targets_coded: {
-      "fr-FR": `Utilisez ${O}kapi init${C} pour configurer`,
-      "de-DE": `Verwenden Sie ${O}kapi init${C} zum Einrichten`,
+    targets_runs: {
+      "fr-FR": served(runsOf("Utilisez ", codeOpen, "kapi init", codeClose, " pour configurer")),
+      "de-DE": served(
+        runsOf("Verwenden Sie ", codeOpen, "kapi init", codeClose, " zum Einrichten"),
+      ),
     },
     translatable: true,
-    has_spans: true,
+    has_inline_codes: true,
     properties: { state: "reviewed" },
   },
   {
     id: "blk-5",
     source: "Terms of Service",
-    source_coded: "Terms of Service",
-    source_spans: [],
     targets: {
       "fr-FR": "Conditions d'utilisation",
       "de-DE": "Nutzungsbedingungen",
     },
-    targets_coded: {
-      "fr-FR": "Conditions d'utilisation",
-      "de-DE": "Nutzungsbedingungen",
-    },
     translatable: true,
-    has_spans: false,
     properties: { state: "translated" },
   },
   {
     id: "blk-6",
     source: "First line\nSecond line",
-    source_coded: lineBreakCodedText,
-    source_spans: lineBreakSpans,
-    targets: { "fr-FR": `Première ligne${P}Deuxième ligne`, "de-DE": "" },
-    targets_coded: { "fr-FR": `Première ligne${P}Deuxième ligne`, "de-DE": "" },
+    source_runs: served(lineBreakRuns),
+    targets: { "fr-FR": "Première ligne\nDeuxième ligne", "de-DE": "" },
+    targets_runs: {
+      "fr-FR": served(runsOf("Première ligne", lineBreak, "Deuxième ligne")),
+    },
     translatable: true,
-    has_spans: true,
+    has_inline_codes: true,
     properties: { state: "draft" },
   },
 ];
@@ -643,206 +568,176 @@ export const navigationBlocks: BlockInfo[] = [
   {
     id: "nav-1",
     source: "Getting Started with Neokapi",
-    source_coded: "Getting Started with Neokapi",
-    source_spans: [],
     targets: {
       "fr-FR": "Premiers pas avec Neokapi",
       "de-DE": "Erste Schritte mit Neokapi",
     },
-    targets_coded: {
-      "fr-FR": "Premiers pas avec Neokapi",
-      "de-DE": "Erste Schritte mit Neokapi",
-    },
     translatable: true,
-    has_spans: false,
     properties: { state: "translated" },
   },
   {
     id: "nav-2",
     source:
       "Neokapi is an AI-native localization framework that makes it easy to translate your applications into multiple languages. It provides format-aware document parsing and channel-based concurrent processing.",
-    source_coded:
-      "Neokapi is an AI-native localization framework that makes it easy to translate your applications into multiple languages. It provides format-aware document parsing and channel-based concurrent processing.",
-    source_spans: [],
     targets: {
       "fr-FR":
         "Neokapi est un framework de localisation natif IA qui facilite la traduction de vos applications dans plusieurs langues. Il fournit une analyse de documents sensible au format et un traitement concurrent bas\u00e9 sur des canaux.",
       "de-DE": "",
     },
-    targets_coded: {
-      "fr-FR":
-        "Neokapi est un framework de localisation natif IA qui facilite la traduction de vos applications dans plusieurs langues. Il fournit une analyse de documents sensible au format et un traitement concurrent bas\u00e9 sur des canaux.",
-      "de-DE": "",
-    },
     translatable: true,
-    has_spans: false,
     properties: { state: "translated" },
   },
   {
     id: "nav-3",
     source: "Installation",
-    source_coded: "Installation",
-    source_spans: [],
     targets: { "fr-FR": "Installation", "de-DE": "Installation" },
-    targets_coded: { "fr-FR": "Installation", "de-DE": "Installation" },
     translatable: true,
-    has_spans: false,
     properties: { state: "translated" },
   },
   {
     id: "nav-4",
     source:
       "Install the CLI tool using Go. Make sure you have Go 1.22 or later installed on your system before proceeding with the setup.",
-    source_coded:
-      "Install the CLI tool using Go. Make sure you have Go 1.22 or later installed on your system before proceeding with the setup.",
-    source_spans: [],
     targets: {
       "fr-FR":
         "Installez l'outil CLI en utilisant Go. Assurez-vous d'avoir Go 1.22 ou une version ult\u00e9rieure install\u00e9e sur votre syst\u00e8me.",
       "de-DE": "",
     },
-    targets_coded: {
-      "fr-FR":
-        "Installez l'outil CLI en utilisant Go. Assurez-vous d'avoir Go 1.22 ou une version ult\u00e9rieure install\u00e9e sur votre syst\u00e8me.",
-      "de-DE": "",
-    },
     translatable: true,
-    has_spans: false,
     properties: { state: "translated" },
   },
   {
     id: "nav-5",
     source:
       "Run the following command to verify your installation is working correctly and check the installed version.",
-    source_coded:
-      "Run the following command to verify your installation is working correctly and check the installed version.",
-    source_spans: [],
     targets: { "fr-FR": "", "de-DE": "" },
-    targets_coded: { "fr-FR": "", "de-DE": "" },
     translatable: true,
-    has_spans: false,
     properties: {},
   },
   {
     id: "nav-6",
     source: "Quick Start",
-    source_coded: "Quick Start",
-    source_spans: [],
     targets: { "fr-FR": "D\u00e9marrage rapide", "de-DE": "Schnellstart" },
-    targets_coded: {
-      "fr-FR": "D\u00e9marrage rapide",
-      "de-DE": "Schnellstart",
-    },
     translatable: true,
-    has_spans: false,
     properties: { state: "translated" },
   },
   {
     id: "nav-7",
     source:
       "Initialize a new project by running kapi init in your project directory. This creates a .kapi folder with default configuration files.",
-    source_coded: `Initialize a new project by running ${O}kapi init${C} in your project directory. This creates a ${O}.kapi${C} folder with default configuration files.`,
-    source_spans: [
-      { span_type: "opening", type: "fmt:code", id: "10", data: "<code>" },
-      { span_type: "closing", type: "fmt:code", id: "10", data: "</code>" },
-      { span_type: "opening", type: "fmt:code", id: "11", data: "<code>" },
-      { span_type: "closing", type: "fmt:code", id: "11", data: "</code>" },
-    ],
+    source_runs: served(
+      runsOf(
+        "Initialize a new project by running ",
+        code10Open,
+        "kapi init",
+        code10Close,
+        " in your project directory. This creates a ",
+        code11Open,
+        ".kapi",
+        code11Close,
+        " folder with default configuration files.",
+      ),
+    ),
     targets: {
-      "fr-FR": `Initialisez un nouveau projet en ex\u00e9cutant ${O}kapi init${C} dans votre r\u00e9pertoire de projet. Cela cr\u00e9e un dossier ${O}.kapi${C} avec la configuration par d\u00e9faut.`,
+      "fr-FR":
+        "Initialisez un nouveau projet en ex\u00e9cutant kapi init dans votre r\u00e9pertoire de projet. Cela cr\u00e9e un dossier .kapi avec la configuration par d\u00e9faut.",
       "de-DE": "",
     },
-    targets_coded: {
-      "fr-FR": `Initialisez un nouveau projet en ex\u00e9cutant ${O}kapi init${C} dans votre r\u00e9pertoire de projet. Cela cr\u00e9e un dossier ${O}.kapi${C} avec la configuration par d\u00e9faut.`,
-      "de-DE": "",
+    targets_runs: {
+      "fr-FR": served(
+        runsOf(
+          "Initialisez un nouveau projet en ex\u00e9cutant ",
+          code10Open,
+          "kapi init",
+          code10Close,
+          " dans votre r\u00e9pertoire de projet. Cela cr\u00e9e un dossier ",
+          code11Open,
+          ".kapi",
+          code11Close,
+          " avec la configuration par d\u00e9faut.",
+        ),
+      ),
     },
     translatable: true,
-    has_spans: true,
+    has_inline_codes: true,
     properties: { state: "draft" },
   },
   {
     id: "nav-8",
     source:
       "Add your source files to the project by placing them in the directory structure defined in your configuration. Supported formats include JSON, XLIFF, PO, and many more.",
-    source_coded:
-      "Add your source files to the project by placing them in the directory structure defined in your configuration. Supported formats include JSON, XLIFF, PO, and many more.",
-    source_spans: [],
     targets: { "fr-FR": "", "de-DE": "" },
-    targets_coded: { "fr-FR": "", "de-DE": "" },
     translatable: true,
-    has_spans: false,
     properties: {},
   },
   {
     id: "nav-9",
     source: "Configuration",
-    source_coded: "Configuration",
-    source_spans: [],
     targets: { "fr-FR": "Configuration", "de-DE": "Konfiguration" },
-    targets_coded: { "fr-FR": "Configuration", "de-DE": "Konfiguration" },
     translatable: true,
-    has_spans: false,
     properties: { state: "translated" },
   },
   {
     id: "nav-10",
     source:
       "The configuration file supports multiple target locales, custom flows, and provider settings. Edit config.yaml in the .kapi directory to customize your translation workflow.",
-    source_coded: `The configuration file supports multiple target locales, custom flows, and provider settings. Edit ${O}config.yaml${C} in the ${O}.kapi${C} directory to customize your translation workflow.`,
-    source_spans: [
-      { span_type: "opening", type: "fmt:code", id: "12", data: "<code>" },
-      { span_type: "closing", type: "fmt:code", id: "12", data: "</code>" },
-      { span_type: "opening", type: "fmt:code", id: "13", data: "<code>" },
-      { span_type: "closing", type: "fmt:code", id: "13", data: "</code>" },
-    ],
+    source_runs: served(
+      runsOf(
+        "The configuration file supports multiple target locales, custom flows, and provider settings. Edit ",
+        code12Open,
+        "config.yaml",
+        code12Close,
+        " in the ",
+        code13Open,
+        ".kapi",
+        code13Close,
+        " directory to customize your translation workflow.",
+      ),
+    ),
     targets: {
-      "fr-FR": `Le fichier de configuration prend en charge plusieurs locales cibles. Modifiez ${O}config.yaml${C} dans le r\u00e9pertoire ${O}.kapi${C} pour personnaliser votre workflow.`,
+      "fr-FR":
+        "Le fichier de configuration prend en charge plusieurs locales cibles. Modifiez config.yaml dans le r\u00e9pertoire .kapi pour personnaliser votre workflow.",
       "de-DE": "",
     },
-    targets_coded: {
-      "fr-FR": `Le fichier de configuration prend en charge plusieurs locales cibles. Modifiez ${O}config.yaml${C} dans le r\u00e9pertoire ${O}.kapi${C} pour personnaliser votre workflow.`,
-      "de-DE": "",
+    targets_runs: {
+      "fr-FR": served(
+        runsOf(
+          "Le fichier de configuration prend en charge plusieurs locales cibles. Modifiez ",
+          code12Open,
+          "config.yaml",
+          code12Close,
+          " dans le r\u00e9pertoire ",
+          code13Open,
+          ".kapi",
+          code13Close,
+          " pour personnaliser votre workflow.",
+        ),
+      ),
     },
     translatable: true,
-    has_spans: true,
+    has_inline_codes: true,
     properties: { state: "draft" },
   },
   {
     id: "nav-11",
     source: "Translation Workflow",
-    source_coded: "Translation Workflow",
-    source_spans: [],
     targets: {
       "fr-FR": "Flux de traduction",
       "de-DE": "\u00dcbersetzungs-Workflow",
     },
-    targets_coded: {
-      "fr-FR": "Flux de traduction",
-      "de-DE": "\u00dcbersetzungs-Workflow",
-    },
     translatable: true,
-    has_spans: false,
     properties: { state: "reviewed" },
   },
   {
     id: "nav-12",
     source:
       "Use the translate command to process your files through the configured flow. Review and approve translations in the visual editor before exporting the final output.",
-    source_coded:
-      "Use the translate command to process your files through the configured flow. Review and approve translations in the visual editor before exporting the final output.",
-    source_spans: [],
     targets: {
       "fr-FR":
         "Utilisez la commande translate pour traiter vos fichiers via le flux configur\u00e9. V\u00e9rifiez et approuvez les traductions dans l'\u00e9diteur visuel avant d'exporter la sortie finale.",
       "de-DE": "",
     },
-    targets_coded: {
-      "fr-FR":
-        "Utilisez la commande translate pour traiter vos fichiers via le flux configur\u00e9. V\u00e9rifiez et approuvez les traductions dans l'\u00e9diteur visuel avant d'exporter la sortie finale.",
-      "de-DE": "",
-    },
     translatable: true,
-    has_spans: false,
     properties: { state: "translated" },
   },
 ];
@@ -861,65 +756,109 @@ export const inlineCodeBlocks: BlockInfo[] = [
   {
     id: "ic-1",
     source: "Click here to learn more about our features.",
-    source_coded: `Click ${O}here${C} to learn more about our ${O}features${C}.`,
-    source_spans: [
-      {
-        span_type: "opening",
-        type: "a",
-        id: "1",
-        data: '<a href="/features">',
-      },
-      { span_type: "closing", type: "a", id: "1", data: "</a>" },
-      { span_type: "opening", type: "b", id: "2", data: "<b>" },
-      { span_type: "closing", type: "b", id: "2", data: "</b>" },
-    ],
+    source_runs: served(
+      runsOf(
+        "Click ",
+        a1Open,
+        "here",
+        a1Close,
+        " to learn more about our ",
+        b2Open,
+        "features",
+        b2Close,
+        ".",
+      ),
+    ),
     targets: {
-      "fr-FR": `Cliquez ${O}ici${C} pour en savoir plus sur nos ${O}fonctionnalit\u00e9s${C}.`,
+      "fr-FR": "Cliquez ici pour en savoir plus sur nos fonctionnalit\u00e9s.",
     },
-    targets_coded: {
-      "fr-FR": `Cliquez ${O}ici${C} pour en savoir plus sur nos ${O}fonctionnalit\u00e9s${C}.`,
+    targets_runs: {
+      "fr-FR": served(
+        runsOf(
+          "Cliquez ",
+          a1Open,
+          "ici",
+          a1Close,
+          " pour en savoir plus sur nos ",
+          b2Open,
+          "fonctionnalit\u00e9s",
+          b2Close,
+          ".",
+        ),
+      ),
     },
     translatable: true,
-    has_spans: true,
+    has_inline_codes: true,
     properties: { state: "translated" },
   },
   {
     id: "ic-2",
     source: "Important: Run kapi init to get started.\nSee the docs for more.",
-    source_coded: `${O}Important:${C} Run ${O}kapi init${C} to get started.${P}See the ${O}docs${C} for more.`,
-    source_spans: [
-      { span_type: "opening", type: "b", id: "3", data: "<b>" },
-      { span_type: "closing", type: "b", id: "3", data: "</b>" },
-      { span_type: "opening", type: "code", id: "4", data: "<code>" },
-      { span_type: "closing", type: "code", id: "4", data: "</code>" },
-      { span_type: "placeholder", type: "br", id: "5", data: "<br/>" },
-      { span_type: "opening", type: "a", id: "6", data: '<a href="/docs">' },
-      { span_type: "closing", type: "a", id: "6", data: "</a>" },
-    ],
+    source_runs: served(
+      runsOf(
+        b3Open,
+        "Important:",
+        b3Close,
+        " Run ",
+        code4Open,
+        "kapi init",
+        code4Close,
+        " to get started.",
+        br5,
+        "See the ",
+        a6Open,
+        "docs",
+        a6Close,
+        " for more.",
+      ),
+    ),
     targets: {
-      "fr-FR": `${O}Important\u00a0:${C} Ex\u00e9cutez ${O}kapi init${C} pour commencer.${P}Consultez la ${O}documentation${C} pour plus de d\u00e9tails.`,
+      "fr-FR":
+        "Important\u00a0: Ex\u00e9cutez kapi init pour commencer.\nConsultez la documentation pour plus de d\u00e9tails.",
     },
-    targets_coded: {
-      "fr-FR": `${O}Important\u00a0:${C} Ex\u00e9cutez ${O}kapi init${C} pour commencer.${P}Consultez la ${O}documentation${C} pour plus de d\u00e9tails.`,
+    targets_runs: {
+      "fr-FR": served(
+        runsOf(
+          b3Open,
+          "Important\u00a0:",
+          b3Close,
+          " Ex\u00e9cutez ",
+          code4Open,
+          "kapi init",
+          code4Close,
+          " pour commencer.",
+          br5,
+          "Consultez la ",
+          a6Open,
+          "documentation",
+          a6Close,
+          " pour plus de d\u00e9tails.",
+        ),
+      ),
     },
     translatable: true,
-    has_spans: true,
+    has_inline_codes: true,
     properties: { state: "draft" },
   },
   {
     id: "ic-3",
     source: "Upload your file (max 10 MB) and click Submit.",
-    source_coded: `Upload your file (max ${O}10 MB${C}) and click ${O}Submit${C}.`,
-    source_spans: [
-      { span_type: "opening", type: "i", id: "7", data: "<i>" },
-      { span_type: "closing", type: "i", id: "7", data: "</i>" },
-      { span_type: "opening", type: "b", id: "8", data: "<b>" },
-      { span_type: "closing", type: "b", id: "8", data: "</b>" },
-    ],
+    source_runs: served(
+      runsOf(
+        "Upload your file (max ",
+        i7Open,
+        "10 MB",
+        i7Close,
+        ") and click ",
+        b8Open,
+        "Submit",
+        b8Close,
+        ".",
+      ),
+    ),
     targets: { "fr-FR": "" },
-    targets_coded: { "fr-FR": "" },
     translatable: true,
-    has_spans: true,
+    has_inline_codes: true,
     properties: {},
   },
 ];
