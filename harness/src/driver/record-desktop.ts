@@ -23,6 +23,7 @@ import { injectCursor, moveTo, humanClick, humanType, idle, setClickSink } from 
 import { loadEnv } from "../lib/env.ts";
 import { FULL_WINDOW_FIT, frameGeometry, isWebDemo, MAX_CROP_SCALE, regionFit, unionRect } from "../lib/crop.ts";
 import type { ElementBox } from "../lib/crop.ts";
+import { cueAt, narrationCues, type Cue } from "../lib/cues.ts";
 
 // Load harness/.env (the seed writes BOWRAIN_SESSION_TOKEN etc. there) BEFORE
 // the module-level BOWRAIN_* consts below read process.env. loadEnv() is
@@ -641,6 +642,13 @@ interface WalkCtx {
   beatSpan: (id: string, fn: (mark: (target: Locator) => Promise<void>) => Promise<void>) => Promise<void>;
   /** Move the visible cursor onto an element's centre. */
   cursorTo: (selector: string, duration?: number) => Promise<void>;
+  /**
+   * Wait, inside a beat, until its narration speaks `word` (the first word of
+   * the beat's captions that matches it, case and punctuation aside), so an
+   * act lands as the narration names it. Without captions, or without the
+   * word, it waits until `fallbackSec` from the beat's start.
+   */
+  cue: (word: string, fallbackSec: number) => Promise<void>;
   /** A sidebar nav button by its aria-label. */
   sidebar: (label: string) => Locator;
   /**
@@ -678,8 +686,14 @@ function translatePath(itemName: string): string {
   return itemName.split("/").map(encodeURIComponent).join("/");
 }
 
-function makeCtx(page: Page, t0: number, beats: Beat[], peer: PeerSession | undefined, specs: Record<string, BeatSpec>, holds: Record<string, number>, demoId: string): WalkCtx {
+function makeCtx(page: Page, t0: number, beats: Beat[], peer: PeerSession | undefined, specs: Record<string, BeatSpec>, holds: Record<string, number>, demoId: string, cues: Record<string, Cue[]>): WalkCtx {
   const now = () => (Date.now() - t0) / 1000;
+  // The beat on camera now, for cue().
+  let current = { id: "", tStart: 0 };
+  const cue = async (word: string, fallbackSec: number) => {
+    const remaining = (cueAt(cues[current.id], word) ?? fallbackSec) - (now() - current.tStart);
+    if (remaining > 0) await page.waitForTimeout(Math.round(remaining * 1000));
+  };
   const sidebar = (label: string) => page.locator(`button[aria-label="${label}"]`);
   // Keep the beat on camera for its hold: the manifest's `hold`, else the
   // measured length of the narration over it when a narration.json exists.
@@ -692,6 +706,7 @@ function makeCtx(page: Page, t0: number, beats: Beat[], peer: PeerSession | unde
   };
   const beat = async (id: string, zoom: ZoomRect | null, fn: () => Promise<void>) => {
     const tStart = now();
+    current = { id, tStart };
     await fn();
     await holdUntil(id, tStart);
     const spec = specs[id];
@@ -759,6 +774,7 @@ function makeCtx(page: Page, t0: number, beats: Beat[], peer: PeerSession | unde
   };
   const beatEls = async (id: string, selectors: string[], fn: () => Promise<void>) => {
     const tStart = now();
+    current = { id, tStart };
     await fn();
     await holdUntil(id, tStart);
     const spec = specs[id];
@@ -771,6 +787,7 @@ function makeCtx(page: Page, t0: number, beats: Beat[], peer: PeerSession | unde
   // union is the band of the window that held each of them when it was marked.
   const beatSpan = async (id: string, fn: (mark: (target: Locator) => Promise<void>) => Promise<void>) => {
     const tStart = now();
+    current = { id, tStart };
     const boxes: (ElementBox | null)[] = [];
     await fn(async (target) => {
       boxes.push(await target.first().boundingBox({ timeout: 2000 }).catch(() => null));
@@ -783,7 +800,7 @@ function makeCtx(page: Page, t0: number, beats: Beat[], peer: PeerSession | unde
     const highlight = spec?.highlightSelector ? await unionZoom([spec.highlightSelector], 0.01) : undefined;
     beats.push({ id, tStart, tEnd: now(), zoom, ...(highlight !== undefined ? { highlight } : {}) });
   };
-  return { page, beat, beatEls, beatSpan, cursorTo, sidebar, peer };
+  return { page, beat, beatEls, beatSpan, cursorTo, cue, sidebar, peer };
 }
 
 /** A Context hub section tab by its label. The hub's own nav carries the
@@ -1447,7 +1464,7 @@ function recordLiveNote(): void {
  * Established, so each crop is the union of the two (beatSpan).
  */
 async function contextWalk(c: WalkCtx): Promise<void> {
-  const { page, beatEls, beatSpan, cursorTo, sidebar } = c;
+  const { page, beatEls, beatSpan, cursorTo, cue, sidebar } = c;
   const row = `[data-slot="whats-new-row"][data-project="${CONTEXT_SAMPLE_KEY}"]`;
   const home = ['[data-slot="workspace-numbers"]', '[data-slot="whats-new"]', '[data-slot="home-projects"]'];
   const suggestion = (text: string) =>
@@ -1467,12 +1484,22 @@ async function contextWalk(c: WalkCtx): Promise<void> {
   // are timed by, so a beat's slice ends a moment after the walk has moved on.
   // A still second after each beat keeps the next scroll out of its last frames.
   const settle = () => page.waitForTimeout(1000);
+  // The disagreement's two sides in the detail pane, codex's and claude-code's.
+  const codexSide = page.locator('[data-slot="digest-side"]').filter({ hasText: "Write log in" }).first();
+  const side = page.locator('[data-slot="digest-side"]').filter({ hasText: "Write sign in" }).first();
+  // Each beat acts when its narration names the act (cue), so the screen and
+  // the words over it agree.
 
   await freshContextSample(page);
 
-  // The row reads by its chips: what codex noticed, by kind, and the one that
-  // needs a person.
+  // The row reads by its mark and its chips: codex was the last to work there,
+  // and what it noticed, by kind, with the one that needs a person.
   await beatEls("home", home, async () => {
+    await cue("row", 3.2);
+    await restOn(page.locator(row));
+    await cue("codex", 7.2);
+    await cursorTo(`${row} [data-slot="whats-new-actor"]`, 700);
+    await cue("noticed", 9.7);
     await cursorTo(`${row} [data-slot="whats-new-chips"]`, 900);
     await page.waitForTimeout(1500);
   });
@@ -1485,6 +1512,10 @@ async function contextWalk(c: WalkCtx): Promise<void> {
     await page.waitForSelector('[data-slot="digest-conflicts"]', { timeout: 60_000 });
     await page.waitForTimeout(1500);
     await cursorTo('[data-slot="digest-conflicts"] [data-slot="digest-item"]');
+    await cue("codex", 5.4);
+    await restOn(codexSide);
+    await cue("claude-code", 7.4);
+    await restOn(side);
     await page.waitForTimeout(1200);
   });
   await settle();
@@ -1496,6 +1527,7 @@ async function contextWalk(c: WalkCtx): Promise<void> {
   await beatSpan("keep", async (mark) => {
     await select(name);
     await mark(name);
+    await cue("keeps", 6.5);
     await page.keyboard.press("a");
     await page.waitForTimeout(900);
     await centre(page, page.locator(kept).first());
@@ -1512,6 +1544,7 @@ async function contextWalk(c: WalkCtx): Promise<void> {
   await centre(page, word);
   await beatSpan("change", async (mark) => {
     await select(word);
+    await cue("c", 7.2);
     await page.keyboard.press("c");
     const form = page.locator('[data-slot="digest-change"] input');
     await form.waitFor({ state: "visible", timeout: 10_000 });
@@ -1535,14 +1568,17 @@ async function contextWalk(c: WalkCtx): Promise<void> {
   // claude-code's, the change a person made, by its text rather than its
   // place. The row leaves the list, and the beat ends on the three rules kept.
   const disagreement = page.locator('[data-slot="digest-conflicts"] [data-slot="digest-item"]').first();
-  const side = page.locator('[data-slot="digest-side"]').filter({ hasText: "Write sign in" }).first();
   await centre(page, disagreement);
   await beatSpan("choose", async (mark) => {
     await select(disagreement);
     await side.waitFor({ state: "visible", timeout: 10_000 });
     await mark(disagreement);
     await mark(page.locator('[data-slot="digest-conflict-sides"]'));
-    await page.waitForTimeout(1200);
+    await cue("codex", 2.8);
+    await restOn(codexSide);
+    await cue("claude-code's", 6.5);
+    await restOn(side);
+    await cue("choose", 11.1);
     await humanClick(page, side.locator('[data-slot="keep-item"]'));
     await page.waitForSelector('[data-slot="digest-conflicts"]', { state: "detached", timeout: 15_000 });
     await page.waitForTimeout(900);
@@ -1593,10 +1629,12 @@ async function contextWalk(c: WalkCtx): Promise<void> {
   // last and is what the note changes.
   await beatEls("live", home, async () => {
     await cursorTo(`${row} [data-slot="whats-new-actor"]`, 800);
-    await page.waitForTimeout(1500);
     // The row is already there: the rules kept on camera are new since the
     // person looked. What the note changes is who noticed something: the row
-    // takes claude-code's mark, and a chip says it is working there now.
+    // takes claude-code's mark, and a chip says it is working there now. The
+    // note is recorded once the narration has said what it holds, so the row
+    // changes as the narration says it does.
+    await cue("test", 7.2);
     recordLiveNote();
     await page
       .locator(
@@ -1608,9 +1646,11 @@ async function contextWalk(c: WalkCtx): Promise<void> {
           "kapi-desktop-context: the note recorded as claude-code did not reach the home within 10 s (no claude-code mark and working chip on the row)",
         );
       });
-    await page.waitForTimeout(600);
+    await cue("chip", 11.9);
+    await cursorTo(`${row} [data-slot="whats-new-chip"]`, 600);
+    await cue("working", 14.6);
     await cursorTo(`${row} [data-slot="workspace-working"]`, 700);
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(800);
   });
   await settle();
 
@@ -2443,21 +2483,23 @@ async function runWalkthrough(
   peer: PeerSession | undefined,
   specs: Record<string, BeatSpec>,
   holds: Record<string, number>,
+  cues: Record<string, Cue[]>,
 ): Promise<Beat[]> {
   const walk = WALKTHROUGHS[demoId];
   if (!walk) throw new Error(`no walkthrough registered for "${demoId}"`);
   const beats: Beat[] = [];
-  await walk(makeCtx(page, t0, beats, peer, specs, holds, demoId));
+  await walk(makeCtx(page, t0, beats, peer, specs, holds, demoId, cues));
   return beats;
 }
 
-/** What one theme's take needs beyond the page: the manifest's beat specs and the narration's holds. */
+/** What one theme's take needs beyond the page: the manifest's beat specs, the narration's holds and its word cues. */
 interface TakeOptions {
   web?: { slug: string };
   ready?: string;
   uiLocale?: string;
   specs: Record<string, BeatSpec>;
   holds: Record<string, number>;
+  cues: Record<string, Cue[]>;
 }
 
 async function recordTheme(
@@ -2468,7 +2510,7 @@ async function recordTheme(
   demoId: string,
   take: TakeOptions,
 ): Promise<{ webm: string; beats: Beat[]; clicks: number[] }> {
-  const { web, ready, uiLocale, specs, holds } = take;
+  const { web, ready, uiLocale, specs, holds, cues } = take;
   const videoDir = ensureDir(path.join(outDir, `_rec-${theme}`));
   const context = await browser.newContext({
     viewport: { width: WIDTH, height: HEIGHT },
@@ -2588,7 +2630,7 @@ async function recordTheme(
   setClickSink((atMs) => clicks.push(Number(((atMs - t0) / 1000).toFixed(3))));
   let beats: Beat[];
   try {
-    beats = await runWalkthrough(page, t0, demoId, peer, specs, holds);
+    beats = await runWalkthrough(page, t0, demoId, peer, specs, holds, cues);
   } finally {
     setClickSink(null);
     if (peerTeardown) await peerTeardown();
@@ -2706,6 +2748,7 @@ export async function recordDesktop(id: string, opts: RecordOptions = {}): Promi
   }
   const specs = opts.beats ?? {};
   const holds = narrationHolds(outDir, uiLocale);
+  const cues = narrationCues(outDir, uiLocale);
   const heldIds = Object.keys(specs).filter((id) => specs[id]?.hold !== undefined);
   if (heldIds.length || Object.keys(holds).length) {
     console.log(`  · beat holds: ${heldIds.length} from demo.yaml, ${Object.keys(holds).filter((id) => !heldIds.includes(id)).length} from the narration`);
@@ -2719,9 +2762,9 @@ export async function recordDesktop(id: string, opts: RecordOptions = {}): Promi
     const browser = await chromium.launch();
     try {
       console.log(`  · recording bowrain web (light) @ ${BOWRAIN_BASE}/${slug}`);
-      const light = await recordTheme(browser, BOWRAIN_BASE, "light", outDir, id, { web: { slug }, specs, holds });
+      const light = await recordTheme(browser, BOWRAIN_BASE, "light", outDir, id, { web: { slug }, specs, holds, cues });
       console.log("  · recording bowrain web (dark)");
-      const dark = await recordTheme(browser, BOWRAIN_BASE, "dark", outDir, id, { web: { slug }, specs, holds });
+      const dark = await recordTheme(browser, BOWRAIN_BASE, "dark", outDir, id, { web: { slug }, specs, holds, cues });
       const screencast: Screencast = {
         width: WIDTH,
         height: HEIGHT,
@@ -2750,9 +2793,9 @@ export async function recordDesktop(id: string, opts: RecordOptions = {}): Promi
       '[data-testid^="project-card"], [data-testid="empty-projects"], [data-testid="new-project-btn"], [data-testid="nav-translate"]';
     try {
       console.log(`  · recording bowrain desktop (light) @ ${stack.url}`);
-      const light = await recordTheme(browser, stack.url, "light", outDir, id, { ready, specs, holds });
+      const light = await recordTheme(browser, stack.url, "light", outDir, id, { ready, specs, holds, cues });
       console.log("  · recording bowrain desktop (dark)");
-      const dark = await recordTheme(browser, stack.url, "dark", outDir, id, { ready, specs, holds });
+      const dark = await recordTheme(browser, stack.url, "dark", outDir, id, { ready, specs, holds, cues });
       const screencast: Screencast = {
         width: WIDTH,
         height: HEIGHT,
@@ -2861,11 +2904,11 @@ export async function recordDesktop(id: string, opts: RecordOptions = {}): Promi
     console.log(`  · recording light theme${uiLocale ? ` (ui ${uiLocale})` : ""}`);
     await resetHome();
     await resetPlugins();
-    const light = await recordTheme(browser, url, "light", outDir, id, { uiLocale, specs, holds });
+    const light = await recordTheme(browser, url, "light", outDir, id, { uiLocale, specs, holds, cues });
     console.log(`  · recording dark theme${uiLocale ? ` (ui ${uiLocale})` : ""}`);
     await resetHome();
     await resetPlugins();
-    const dark = await recordTheme(browser, url, "dark", outDir, id, { uiLocale, specs, holds });
+    const dark = await recordTheme(browser, url, "dark", outDir, id, { uiLocale, specs, holds, cues });
 
     const screencast: Screencast = {
       width: WIDTH,
