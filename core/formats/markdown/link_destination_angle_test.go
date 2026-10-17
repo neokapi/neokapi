@@ -27,6 +27,8 @@ func TestLinkDestinationThatNeedsAngleBrackets(t *testing.T) {
 		{"space in the destination", "[a](<b c>) here"},
 		{"space in an image destination", "![i](<s p>) here"},
 		{"tab in the destination", "[a](<b\tc>) here"},
+		{"carriage return in the destination", "[a](<b\rc>) here"},
+		{"carriage return in a titled destination", "[](<0\r0>'0')"},
 		{"destination opening with an angle bracket", "[a](<\\<b>) here"},
 		{"escaped angle bracket inside the destination", "[a](<b\\>c>) here"},
 		{"titled link with a space in the destination", "[a](<b c> 't') here"},
@@ -54,19 +56,20 @@ func TestLinkDestinationThatNeedsAngleBrackets(t *testing.T) {
 	}
 }
 
-// TestLinkDestinationAngleSpelling pins the spelling: angle brackets exactly
-// where the destination cannot stand bare. An escaped bracket stands bare.
+// TestLinkDestinationAngleSpelling pins the spelling: the closer the source
+// spelled, where it still reads as the same destination, and otherwise angle
+// brackets exactly where the destination cannot stand bare.
 func TestLinkDestinationAngleSpelling(t *testing.T) {
 	t.Parallel()
 	tests := []struct{ in, want string }{
-		{"0[](( )", "0[](<(>)\n"},
+		{"0[](( )", "0[](( )\n"},
 		{"[a](<b c>)", "[a](<b c>)\n"},
-		{"[a](<b\\>c>)", "[a](b\\>c)\n"},
-		{"[a](<\\<b>)", "[a](\\<b)\n"},
-		{"[a](<b c> 't')", "[a](<b c> \"t\")\n"},
-		{"[a](<b>)", "[a](b)\n"},
+		{"[a](<b\\>c>)", "[a](<b\\>c>)\n"},
+		{"[a](<\\<b>)", "[a](<\\<b>)\n"},
+		{"[a](<b c> 't')", "[a](<b c> 't')\n"},
+		{"[a](<b>)", "[a](<b>)\n"},
 		{"[a](b(c)d)", "[a](b(c)d)\n"},
-		{"[a](<>)", "[a]()\n"},
+		{"[a](<>)", "[a](<>)\n"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.in, func(t *testing.T) {

@@ -2,8 +2,10 @@ package markdown
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"math/bits"
 	"regexp"
 	"slices"
 	"strconv"
@@ -14,6 +16,8 @@ import (
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/projection"
+	"github.com/yuin/goldmark/ast"
+	east "github.com/yuin/goldmark/extension/ast"
 )
 
 // Writer implements DataFormatWriter for Markdown files.
@@ -188,7 +192,7 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 			if blocksByID == nil && isStreamableTable(part) {
 				// Render what came before, then stream the table rather than
 				// collecting it. Nothing after it needs these events.
-				if err := w.writeFromEvents(events, tw); err != nil {
+				if err := w.writeFromEvents(ctx, events, tw); err != nil {
 					return err
 				}
 				events = nil
@@ -236,7 +240,7 @@ done:
 
 	// Mode 2: Build from the ordered event stream (cross-format export). Table
 	// groups render as GFM tables; everything else renders block-by-block.
-	if err := w.writeFromEvents(events, tw); err != nil {
+	if err := w.writeFromEvents(ctx, events, tw); err != nil {
 		return err
 	}
 	// A text file ends with a newline. Without one the last block runs into
@@ -329,7 +333,7 @@ func refTitleSpelling(title string) string {
 	case !strings.ContainsAny(title, "()"):
 		return "(" + title + ")"
 	}
-	return `"` + escapeLinkTitle(title) + `"`
+	return `"` + escapeLinkTitle(title, `"`) + `"`
 }
 
 // mdInlineTag maps a canonical inline run Type to its Markdown delimiters
@@ -362,19 +366,45 @@ var mdInlineTag = map[string][2]string{
 // run attributes: `](dest)` or `](dest "title")`. destKey is model.AttrHref for
 // links, model.AttrSrc for images. A nil/empty attrs map yields `]()`.
 func mdLinkClose(attrs map[string]string, destKey string) string {
-	return mdLinkCloseTitled(attrs, destKey, attrs[model.AttrTitle])
+	return mdLinkCloseTitled(attrs, destKey, attrs[model.AttrTitle], 0)
 }
 
 // mdLinkCloseTitled builds the same closing syntax with an explicit title,
 // which is how a translated one reaches the output: the markdown reader offers
 // a title as a text run of its own, so the run stream carries the edited title
-// and the attribute still carries the source's.
-func mdLinkCloseTitled(attrs map[string]string, destKey, title string) string {
+// and the attribute still carries the source's. quote is the delimiter the
+// source spelled the title with, or 0 for none; an empty title is spelled when
+// the source spelled one, because the title's quotes take part in how the
+// brackets around the link pair: a link whose text holds "[][](0 '" and whose
+// closer is "](0" plus a space, two single quotes and ")" is one link, and
+// without the empty title the inner brackets form a link of their own.
+func mdLinkCloseTitled(attrs map[string]string, destKey, title string, quote byte) string {
 	dest := rebuiltDestination(attrs[destKey])
-	if title == "" {
+	if title == "" && quote == 0 {
 		return "](" + dest + ")"
 	}
-	return "](" + dest + ` "` + escapeLinkTitle(title) + `")`
+	if dest == "" {
+		// A title with no destination before it is read as the destination,
+		// so an empty one is spelled with its brackets.
+		dest = "<>"
+	}
+	open, closer := titleQuotes(quote)
+	return "](" + dest + " " + open + escapeLinkTitle(title, closer) + closer + ")"
+}
+
+// titleQuotes returns the delimiters a title is spelled with: the source's
+// single or double quote or parentheses, double quotes otherwise. Keeping the
+// source's delimiter keeps the quotes around the link pairing as they did:
+// "[[](0 '](0 '0')')" re-spelled with double quotes read back as a different
+// link.
+func titleQuotes(quote byte) (string, string) {
+	switch quote {
+	case '\'':
+		return "'", "'"
+	case '(':
+		return "(", ")"
+	}
+	return `"`, `"`
 }
 
 // rebuiltDestination spells a resolved destination so that the reader reads
@@ -402,15 +432,15 @@ func rebuiltDestination(dest string) string {
 // back as the same text (CommonMark 6.6 allows an escape anywhere in a title).
 // Leaving an escape alone keeps the output idempotent: a title read back from
 // this writer carries the backslash and must not gain a second one.
-func escapeLinkTitle(title string) string {
-	if !strings.Contains(title, `"`) {
+func escapeLinkTitle(title, closer string) string {
+	if !strings.Contains(title, closer) {
 		return title
 	}
 	var sb strings.Builder
 	escaped := false
 	for i := range len(title) {
 		c := title[i]
-		if c == '"' && !escaped {
+		if c == closer[0] && !escaped {
 			sb.WriteByte('\\')
 		}
 		sb.WriteByte(c)
@@ -442,7 +472,32 @@ func escapeLinkTitle(title string) string {
 // Callers rendering content inside a fence (RoleCode) want the untrimmed form —
 // there, boundary whitespace is both representable and meaningful.
 func renderInlineMarkdown(runs []model.Run) string {
-	return strings.TrimSpace(renderInline(runs, true))
+	return trimBlockSpace(renderInline(runs, true))
+}
+
+// trimBlockSpace trims the whitespace the parser strips from a paragraph's
+// edges: spaces, tabs and line endings. A form feed or a vertical tab is
+// content to the parser, so one at a block's edge stays in the text: the
+// quote whose first line is a vertical tab, followed by a line holding a
+// backslash, lost the line and with it the hard break's place.
+func trimBlockSpace(s string) string {
+	return strings.Trim(s, " \t\r\n")
+}
+
+// renderInlineMarkdownBlock is renderInlineMarkdown for a block that sits
+// quoteLevels blockquotes deep, whose continuation lines carry that many
+// markers; whose text is raw markup when rawText is set, where a ">" that
+// opens a continuation line is content rather than the marker of a quote;
+// whose first line writeBlockMarkdown escapes a leading block marker on when
+// leadingMarker is set, which it does for every block but a heading or code;
+// which is written as one ATX line when heading is set; and whose hard-break
+// continuation lines shared the indentation linePrefix, which the reader took
+// out of the text and the output puts back.
+func renderInlineMarkdownBlock(runs []model.Run, quoteLevels int, rawText, leadingMarker, heading, listItem bool, linePrefix string) string {
+	sink := &mdInlineSink{escapeAngle: true, quoteLevels: quoteLevels, rawText: rawText, leadingMarker: leadingMarker, heading: heading, listItem: listItem, linePrefix: linePrefix, droppedAt: -1}
+	projection.WalkInline(runs, sink)
+	sink.flush()
+	return trimBlockSpace(sink.output())
 }
 
 // renderInlineLiteral renders a run stream as literal text with no Markdown
@@ -458,7 +513,7 @@ func renderInlineLiteral(runs []model.Run) string {
 }
 
 func renderInline(runs []model.Run, escapeAngle bool) string {
-	sink := &mdInlineSink{escapeAngle: escapeAngle}
+	sink := &mdInlineSink{escapeAngle: escapeAngle, droppedAt: -1}
 	projection.WalkInline(runs, sink)
 	sink.flush()
 	return sink.output()
@@ -486,16 +541,85 @@ type mdInlineSink struct {
 	// itself on the next run: a backslash, when the text after it begins the
 	// following line.
 	heldBreak bool
-	// litDelims holds the offset of every unescaped '*' and '_' the sink wrote
-	// from a TEXT run, which output() may have to escape. Delimiters the sink
-	// writes as markup are not recorded: those are meant to pair.
+	// openingBreak is set by a hard break that opened the block and spelled
+	// nothing, so the text after it drops the line break and continuation
+	// prefix that would otherwise begin the block's first line.
+	openingBreak bool
+	// quoteLevels is how many blockquotes deep the block sits, which bounds
+	// the markers a continuation line's prefix carries.
+	quoteLevels int
+	// litDelims holds the offset of every unescaped '*', '_' and '~' the sink
+	// wrote from a TEXT run, which output() may have to escape. Delimiters the
+	// sink writes as markup are not recorded: those are meant to pair.
 	litDelims []int
 	// lastClosed is the emphasis or strong pair whose closer the sink wrote
 	// last, so the next closer can tell whether it would touch it.
 	lastClosed mdClosedEmphasis
-	// heldClose is an emphasis closer that would touch lastClosed's, held back
-	// until the byte after it is known (see spellHeldClose).
+	// heldClose is an emphasis closer held back until the byte after it is
+	// known (see spellHeldClose).
 	heldClose *mdHeldClose
+	// pairs holds every emphasis and strong pair the sink wrote, which output()
+	// checks against the reader's parser.
+	pairs []mdClosedEmphasis
+	// markupEnd is the offset just past the last code span fence or
+	// strikethrough delimiter the sink wrote, and markupChar its character, so
+	// a literal of that character written right after it can be kept apart.
+	markupEnd  int
+	markupChar byte
+	// litTickRuns holds the lengths of the unescaped backtick runs the sink
+	// wrote from TEXT runs, which a code span's fence has to differ from.
+	litTickRuns map[int]bool
+	// bareAngles holds the offset of every unescaped '<' the sink wrote from a
+	// TEXT run, which output() escapes where the parser reads a tag or an
+	// autolink from it; bareTicks the same for every '`', escaped where the
+	// parser reads a code span from it; bareBrackets the same for every '['
+	// outside link text, escaped where the text after it completes a link;
+	// bareAmps the same for every '&', escaped where the text after it
+	// completes a character reference.
+	bareAngles   []int
+	bareTicks    []int
+	bareBrackets []int
+	bareAmps     []int
+	// shortcutRefs holds the offsets of the brackets of every shortcut
+	// reference link the sink wrote, which output() spells as a collapsed
+	// reference where the line it opens reads as a link reference definition.
+	shortcutRefs []mdClosedEmphasis
+	// lastCodeSpan is the code span the sink closed last, for a code span
+	// opened right after it to merge into: two fences touching read as one
+	// run.
+	lastCodeSpan mdCodeSpan
+	// droppedAt is the output length right after the last inline construct
+	// the sink wrote nothing for (inline HTML), or -1. A ">" that opens a text
+	// run there at the start of a line is content: the reader bakes a quote's
+	// continuation markers into the run that holds the line ending, so a
+	// marker never begins a run of its own.
+	droppedAt int
+	// rawText is set for a block whose text is markup the reader captured
+	// verbatim, which writeBlockMarkdown never recovers as a quote from the
+	// markers its continuation lines carry.
+	rawText bool
+	// leadingMarker is set for a block whose first line writeBlockMarkdown
+	// escapes a leading block marker on.
+	leadingMarker bool
+	// heading is set for a block writeBlockMarkdown writes as one ATX line,
+	// its line breaks folded to spaces.
+	heading bool
+	// listItem is set for a block writeBlockMarkdown writes as a list item,
+	// whose continuation lines it escapes any block marker on.
+	listItem bool
+	// markupMarker is set when a block marker writeBlockMarkdown will escape
+	// sits on a delimiter the sink wrote, so the pair has to be re-spelled.
+	markupMarker bool
+	// linePrefix is the prefix the block's hard-break continuation lines
+	// shared, indentation or quote markers, which the reader took out of the
+	// text; output() puts it back after every line ending.
+	linePrefix string
+	// breakSpelled is set by a hard break the sink spelled with a backslash,
+	// so the newline after it does not take that backslash for a literal one.
+	breakSpelled bool
+	// breakSpaces is set by a hard break the sink spelled with two spaces,
+	// so the newline after it does not trim them as text's own spaces.
+	breakSpaces bool
 }
 
 // mdOpenTag is one entry of the open-paired-code stack.
@@ -516,11 +640,22 @@ type mdClosedEmphasis struct {
 	n               int
 }
 
-// mdHeldClose is an emphasis closer held back because it would touch the
-// closer of the pair written just before it.
+// mdCodeSpan is where a closed code span sits in the output: its opener's
+// offset, the end of its closing fence, and the fence and padding its content
+// was spelled with.
+type mdCodeSpan struct {
+	openAt, end int
+	fence, pad  int
+}
+
+// mdHeldClose is an emphasis closer held back until the byte after it is
+// known. inner is the pair whose closer it would touch, or a zero pair when
+// it touches none; enclosed reports whether a pair of the same character is
+// still open around it.
 type mdHeldClose struct {
-	tag   mdOpenTag
-	inner mdClosedEmphasis
+	tag      mdOpenTag
+	inner    mdClosedEmphasis
+	enclosed bool
 }
 
 // mdPendingClose is a link's or image's closing markup, held until the sink
@@ -528,6 +663,16 @@ type mdHeldClose struct {
 type mdPendingClose struct {
 	attrs   map[string]string
 	destKey string
+	// quote is the delimiter the title pair that follows was spelled with in
+	// the source, or 0 when none has arrived.
+	quote byte
+	// data is the closer's spelling in the source, or "" when the run
+	// carried none.
+	data string
+	// titleOpen is the source spelling of the bytes from the "(" after the
+	// link's text to the title's opening delimiter, when a title pair
+	// follows, or "".
+	titleOpen string
 }
 
 // isLinkTitlePair reports whether a paired code holds a link's or image's
@@ -548,20 +693,158 @@ func (s *mdInlineSink) Text(t string) {
 		s.spellHeldClose(firstRune(t))
 	}
 	s.flushPending()
+	if s.openingBreak {
+		s.openingBreak = false
+		// With the continuation prefix recorded rather than in the text, the
+		// markers are already out of the text and a ">" after the line
+		// ending is content.
+		levels := s.quoteLevels
+		if s.linePrefix != "" {
+			levels = 0
+		}
+		t = dropOpeningBreakPrefix(t, levels)
+	}
 	s.spellHeldBreak(t)
 	if s.escapeAngle {
+		if t != "" && t[0] == '>' && s.droppedAt > 0 && s.droppedAt == s.sb.Len() && s.atLineStart() && !s.inCodeSpan() {
+			// A ">" opening a text run at the start of a line, right after a
+			// construct the sink dropped, is content: the dropped tag was
+			// what kept it from being a marker. ">" and a vertical tab over
+			// "<A>>" is a quote whose lazy line holds a ">", and written bare
+			// the ">" was a marker-only line the block path folded away. At
+			// the block's start the leading-marker escape answers instead,
+			// and a table cell's ">" opens nothing.
+			s.sb.WriteByte('\\')
+		}
 		s.writeEscapingAngle(t)
 		return
 	}
 	s.sb.WriteString(t)
 }
 
+// endsInUnescapedBackslash reports whether out ends in a backslash that is
+// itself unescaped, an odd run of them, with any bare carriage returns after
+// it: a backslash before "\r\n" spells a hard break as one before "\n" does.
+func endsInUnescapedBackslash(out string) bool {
+	i := len(out) - 1
+	for i >= 0 && out[i] == '\r' {
+		i--
+	}
+	n := 0
+	for ; i >= 0 && out[i] == '\\'; i-- {
+		n++
+	}
+	return n%2 == 1
+}
+
+// inLinkText reports whether a link or image is open, so the text being
+// written is its text. A link does not nest, and a bracket escaped there
+// changes which "]" the parser pairs the link's own "[" with: the opener is
+// dropped after the first "](" that forms no link.
+func (s *mdInlineSink) inLinkText() bool {
+	for _, t := range s.open {
+		if t.destKey != "" || t.ref {
+			return true
+		}
+	}
+	return false
+}
+
+// lineIsBreakRuns reports whether the output's current line, after the quote
+// markers it carries and up to three spaces of indent, is a thematic break
+// made of delimiter runs: the closers of pairs, the openers of pairs still
+// open, or literal delimiters, which a bare line ending would turn into one.
+// A backslash break after such a line is kept whatever wrote the runs: the
+// openers of "****" over a backslash break were degraded to text on one pass,
+// which kept the backslash, and the pass after, reading the run as text,
+// dropped it and escaped the run instead.
+func (s *mdInlineSink) lineIsBreakRuns() bool {
+	out := s.sb.String()
+	start := strings.LastIndexByte(out, '\n') + 1
+	line := out[start:]
+	content := start + len(blockquoteMarkerPrefixUpTo(line, s.quoteLevels))
+	rest := out[content:]
+	// CommonMark 4.1 lets a thematic break sit behind up to three spaces: the
+	// openers of " ***" over a backslash break and "0**" closed nothing once
+	// the backslash went, and the line was a thematic break.
+	indent := len(rest) - len(strings.TrimLeft(rest, " "))
+	if indent > 3 {
+		return false
+	}
+	rest = rest[indent:]
+	if s.heldClose != nil {
+		// A closer held until the byte after it is known is on the line too.
+		rest += s.heldClose.tag.close
+	}
+	return rest != "" && isThematicBreak(rest)
+}
+
+// checkLevels is the quote depth the parser checks on out run at: the depth
+// the sink was told, or, for a block told none whose continuation lines every
+// one carry a quote marker, the depth of that marker, since writeBlockMarkdown
+// recovers such a block as a quote and marks its first line. Checked at no
+// depth, the marked lines open a quote that interrupts the first line's
+// paragraph, and the parser could give no verdict, so the pairs went
+// unverified and the pass after, reading the block as the quote it had
+// become, spelled them differently.
+func (s *mdInlineSink) checkLevels(out string) int {
+	if s.quoteLevels > 0 || s.rawText {
+		return s.quoteLevels
+	}
+	if m := continuationBlockquoteMarker(out); m != "" {
+		return strings.Count(m, ">")
+	}
+	return 0
+}
+
+// checkFrame is the block the parser checks on out read it inside: the depth
+// checkLevels gives and whether the block is a list item.
+func (s *mdInlineSink) checkFrame(out string) blockFrame {
+	return blockFrame{quoteLevels: s.checkLevels(out), listItem: s.listItem}
+}
+
+// inBareBracket reports whether the output's last bracket written as text is
+// still open: no unescaped "]" follows it.
+func (s *mdInlineSink) inBareBracket() bool {
+	if len(s.bareBrackets) == 0 {
+		return false
+	}
+	out := s.sb.String()
+	for i := s.bareBrackets[len(s.bareBrackets)-1] + 1; i < len(out); i++ {
+		switch out[i] {
+		case '\\':
+			i++
+		case ']':
+			return false
+		}
+	}
+	return true
+}
+
+// inCodeSpan reports whether the innermost open pair is a code span, whose
+// content is literal: a backslash inside it is a character, not an escape
+// (CommonMark 6.1), so nothing in it is escaped or recorded as a delimiter.
+func (s *mdInlineSink) inCodeSpan() bool {
+	return len(s.open) > 0 && s.open[len(s.open)-1].close == "`"
+}
+
 // spellHeldBreak spends a hard break held from the previous run on the text
 // that follows it: a backslash when that text begins the next line, so the
 // break's own line is not left empty, and nothing otherwise, because a lone
 // backslash mid-line escapes the character after it.
+//
+// A backslash the text itself ends in is a different matter when a line
+// ending follows: a backslash at the end of a line spells a hard break
+// (CommonMark 6.7), so a literal one that a break's bare newline would follow
+// is escaped to stay a character. The backslash the sink writes to spell a
+// break before break spaces is markup and is left alone.
 func (s *mdInlineSink) spellHeldBreak(next string) {
+	spelled := s.breakSpelled
+	s.breakSpelled = false
 	if !s.heldBreak {
+		if strings.HasPrefix(next, "\n") && !spelled && !s.inCodeSpan() && endsInUnescapedBackslash(s.sb.String()) {
+			s.sb.WriteByte('\\')
+		}
 		return
 	}
 	s.heldBreak = false
@@ -571,14 +854,77 @@ func (s *mdInlineSink) spellHeldBreak(next string) {
 }
 
 // flushPending spells a held-back link or image closer with the title its
-// attributes carry, which is the answer whenever no title pair follows.
+// attributes carry, which is the answer whenever no title pair follows. A
+// closer the source spelled is kept where it still reads as the same
+// destination: the whitespace inside it takes part in how the brackets around
+// the link pair, and "[[][](]( 0))" re-spelled as "[[][](](0))" read back as a
+// different link.
 func (s *mdInlineSink) flushPending() {
 	p := s.pending
 	if p == nil {
 		return
 	}
 	s.pending = nil
-	s.sb.WriteString(mdLinkClose(p.attrs, p.destKey))
+	if p.attrs[model.AttrTitle] == "" {
+		if closer, ok := sourceLinkCloser(p.data, p.attrs[p.destKey]); ok {
+			s.sb.WriteString(closer)
+			return
+		}
+	}
+	s.sb.WriteString(mdLinkCloseTitled(p.attrs, p.destKey, p.attrs[model.AttrTitle], p.quote))
+}
+
+// sourceLinkCloser returns the closer a link's source spelled, with a line
+// ending inside it collapsed to a space the way referenceCloser does, when
+// that spelling reads back as a link to dest with no title.
+func sourceLinkCloser(data, dest string) (string, bool) {
+	if !strings.HasPrefix(data, "](") || !strings.HasSuffix(data, ")") {
+		return "", false
+	}
+	closer := referenceCloser(data)
+	if !linkCloserReadsBack(closer, dest, "") {
+		return "", false
+	}
+	return closer, true
+}
+
+// linkCloserReadsBack reports whether closer, written after a link's text,
+// reads back as one link to dest with the title given, raw as the source
+// spells it between its delimiters.
+func linkCloserReadsBack(closer, dest, title string) bool {
+	// The link is parsed as a line of a document, with the line ending the
+	// parser's destination scan expects after it.
+	doc := parseMarkdown([]byte("[x" + closer + "\n"))
+	para, ok := doc.FirstChild().(*ast.Paragraph)
+	if !ok || doc.ChildCount() != 1 || para.ChildCount() != 1 {
+		return false
+	}
+	link, ok := para.FirstChild().(*ast.Link)
+	return ok && string(link.Destination) == dest && string(link.Title) == title
+}
+
+// emptyTitleQuote returns the delimiter an empty title was spelled with in a
+// link closer's source data, or 0 when the closer carries no empty title: the
+// data is "](", the destination as the reader recorded it, bare or between
+// angle brackets, then the empty pair and ")".
+func emptyTitleQuote(data, dest string) byte {
+	if !strings.HasPrefix(data, "](") || !strings.HasSuffix(data, ")") {
+		return 0
+	}
+	inner := data[2 : len(data)-1]
+	rest, angled := strings.CutPrefix(inner, "<"+dest+">")
+	if !angled {
+		rest = strings.TrimPrefix(inner, dest)
+	}
+	switch strings.TrimLeft(rest, " \t\r\n") {
+	case "''":
+		return '\''
+	case `""`:
+		return '"'
+	case "()":
+		return '('
+	}
+	return 0
 }
 
 // spellPendingTitle spells a held-back closer with the title collected from the
@@ -590,47 +936,168 @@ func (s *mdInlineSink) spellPendingTitle() bool {
 	}
 	p, title := s.pending, s.title.String()
 	s.pending, s.title = nil, nil
-	s.sb.WriteString(mdLinkCloseTitled(p.attrs, p.destKey, title))
+	// The destination as the source spelled it, with the title the stream
+	// carries between the source's delimiters, is kept where it reads back
+	// as the link: the whitespace before the destination takes part in how
+	// the brackets around the link pair, as it does for a closer with no
+	// title.
+	if p.titleOpen != "" {
+		_, closeDelim := titleQuotes(p.quote)
+		closer := "]" + referenceCloser(p.titleOpen) + escapeLinkTitle(title, closeDelim) + closeDelim + ")"
+		if linkCloserReadsBack(closer, p.attrs[p.destKey], title) {
+			s.sb.WriteString(closer)
+			return true
+		}
+	}
+	s.sb.WriteString(mdLinkCloseTitled(p.attrs, p.destKey, title, p.quote))
 	return true
 }
 
-// writeEscapingAngle writes t, backslash-escaping any '<' that is not already
-// escaped, and any '[' that opens an EMPTY link text. The rebuild path drops
-// inline-HTML constructs, and the residue can abut surrounding text into a NEW
-// tag: "<<A>A>" drops the <A> and the leftover "<" and "A>" reform "<A>", which
-// re-reads as inline HTML and is dropped entirely, losing the whole block
-// (#1652). Keeping literal '<' escaped stops text from re-parsing as a tag or
-// autolink; the reader preserves the backslash, so already-escaped input is
-// left alone and the output is idempotent. Only Text() (literal run content) is
-// escaped — the HTML the sink emits for formatting fallbacks (<mark>, <sup>, …)
-// comes through Open/Close, untouched.
+// writeEscapingAngle writes t, recording every '<' that is not already
+// escaped for output() to escape where the parser reads a tag or an autolink
+// from it, and backslash-escaping any '[' that opens an EMPTY link text. The
+// rebuild path drops inline-HTML constructs, and the residue can abut
+// surrounding text into a NEW tag: "<<A>A>" drops the <A> and the leftover
+// "<" and "A>" reform "<A>", which re-reads as inline HTML and is dropped
+// entirely, losing the whole block (#1652). Escaping the '<' the parser pairs
+// stops text from re-parsing as a tag or autolink; the reader preserves the
+// backslash, so already-escaped input is left alone and the output is
+// idempotent. A '<' the parser leaves as text stays bare: escaped, "\<" is a
+// link destination where a bare "<" is not, and "[[](<A 't')" became a link.
+// Only Text() (literal run content) is handled — the HTML the sink emits for
+// formatting fallbacks (<mark>, <sup>, …) comes through Open/Close, untouched.
 //
 // The angle escape is what makes the bracket escape necessary. "\<" IS a link
 // destination where a bare "<" is not, so escaping the angle in "[](<)" spelled
 // a link with no text at all, and a link with no text carries nothing to
-// translate: the block was gone (#2526). A literal "[]" in a text run never
-// needs to open one.
+// translate: the block was gone (#2526). The same escape turned "[0](< 't')"
+// into a link with a title, which the pass after re-spelled. A bracket span
+// that a "(" and a "<" follow is escaped too, so the text stays text.
 func (s *mdInlineSink) writeEscapingAngle(t string) {
+	if s.inCodeSpan() {
+		s.sb.WriteString(t)
+		return
+	}
+	if s.markupEnd > 0 && s.markupEnd == s.sb.Len() && t[0] == s.markupChar {
+		// A literal backtick or tilde right after a fence or delimiter of the
+		// same character would merge with it, so it is escaped and stands as
+		// text.
+		s.sb.WriteByte('\\')
+	}
 	escaped := false
+	ticks := 0
 	for i := range len(t) {
 		c := t[i]
+		if c == '`' && !escaped {
+			ticks++
+			s.bareTicks = append(s.bareTicks, s.sb.Len())
+		} else if ticks > 0 {
+			s.recordTickRun(ticks)
+			ticks = 0
+		}
 		switch {
 		case c == '<' && !escaped:
+			s.bareAngles = append(s.bareAngles, s.sb.Len())
+		case c == '[' && !escaped && !s.inLinkText():
+			s.bareBrackets = append(s.bareBrackets, s.sb.Len())
+		case c == '&' && !escaped:
+			s.bareAmps = append(s.bareAmps, s.sb.Len())
+		case c == '\\' && !escaped && lineEndingFollows(t, i+1):
+			// A backslash before a line ending spells a hard break (CommonMark
+			// 6.7); a literal one inside the text takes a second so it stays a
+			// character.
 			s.sb.WriteByte('\\')
-		case c == '[' && !escaped && opensEmptyLinkText(t[i:]):
-			s.sb.WriteByte('\\')
-		case (c == '*' || c == '_') && !escaped:
+		case c == '\n':
+			s.trimBreakSpaces()
+		case (c == '*' || c == '_' || c == '~') && !escaped && !s.inLinkText():
+			// A delimiter inside a link's text pairs with nothing outside
+			// it, since the brackets are resolved first (CommonMark 6.3),
+			// and a reference's text is its label, matched as spelled:
+			// "[*]:0" over "*[*]" had the label's asterisk escaped and
+			// matched nothing.
 			s.litDelims = append(s.litDelims, s.sb.Len())
 		}
 		s.sb.WriteByte(c)
 		escaped = c == '\\' && !escaped
 	}
+	if ticks > 0 {
+		s.recordTickRun(ticks)
+	}
 }
 
-// opensEmptyLinkText reports whether s begins with the "[]" of a link or image
-// whose text is empty, followed by the destination or label that completes it.
-func opensEmptyLinkText(s string) bool {
-	return strings.HasPrefix(s, "[](") || strings.HasPrefix(s, "[][")
+// trimBreakSpaces leaves one space of the run of two or more spaces or tabs
+// the output ends with, before a line ending the text carries: two or more
+// before a line ending are a hard break (CommonMark 6.7), which the pass after
+// would read in place of the spaces. The run can only come from text, as the
+// text on either side of a dropped construct: "0 <A> " and a line ending left
+// "0  " once the inline HTML was dropped. Carriage returns before the line
+// ending stay where they are.
+func (s *mdInlineSink) trimBreakSpaces() {
+	if s.breakSpaces {
+		s.breakSpaces = false
+		return
+	}
+	if s.inCodeSpan() {
+		return
+	}
+	out := s.sb.String()
+	end := len(out)
+	for end > 0 && out[end-1] == '\r' {
+		end--
+	}
+	j := end
+	for j > 0 && (out[j-1] == ' ' || out[j-1] == '\t') {
+		j--
+	}
+	if end-j < 2 {
+		return
+	}
+	s.sb.Reset()
+	s.sb.WriteString(out[:j])
+	s.sb.WriteByte(' ')
+	s.sb.WriteString(out[end:])
+}
+
+// lineEndingFollows reports whether t[i:] begins with a line ending: a newline,
+// with any bare carriage returns before it.
+func lineEndingFollows(t string, i int) bool {
+	for i < len(t) && t[i] == '\r' {
+		i++
+	}
+	return i < len(t) && t[i] == '\n'
+}
+
+// recordTickRun notes the length of a literal backtick run the sink wrote.
+func (s *mdInlineSink) recordTickRun(n int) {
+	if s.litTickRuns == nil {
+		s.litTickRuns = map[int]bool{}
+	}
+	s.litTickRuns[n] = true
+}
+
+// opensLinkTextToEscape reports whether s begins with a bracket that has to be
+// escaped for the text to stay text where the parser's own reading of the
+// output cannot say so: a bracket span followed by "(" and a "<", which the
+// angle escape would complete into a link, and angle is the offset in s of
+// that "<". The caller asks whether the angle is one the escape takes; one
+// left bare completes nothing. Any other bracket is text unless the parser
+// forms a link from it, which formedMarkup reports. Escaped on its shape
+// alone, the "[](" of "[[](]]", the "[][" of "[[][]]]" and the "[](<" of
+// "[[](<]]", each before a reference "[R]", had their inner bracket escaped,
+// and the span from the outer bracket was the text of a full reference link
+// "[...][R]".
+func opensLinkTextToEscape(s string) (angle int, ok bool) {
+	// The span is cut as a label is, so an escaped bracket inside it is a
+	// character and not its end.
+	_, rest, ok := cutLinkLabel(s)
+	if !ok || !strings.HasPrefix(rest, "(") {
+		return 0, false
+	}
+	after := strings.TrimLeft(rest[1:], " \t")
+	if !strings.HasPrefix(after, "<") {
+		return 0, false
+	}
+	return len(s) - len(after), true
 }
 
 func (s *mdInlineSink) Open(r *model.PcOpenRun) {
@@ -646,6 +1113,12 @@ func (s *mdInlineSink) Open(r *model.PcOpenRun) {
 		s.open = append(s.open, mdOpenTag{title: true})
 		if s.pending != nil {
 			s.title = &strings.Builder{}
+			// The pair's opening data ends in the delimiter the source spelled
+			// the title with.
+			if d := r.Data; d != "" {
+				s.pending.quote = d[len(d)-1]
+				s.pending.titleOpen = d
+			}
 		}
 		return
 	}
@@ -654,8 +1127,9 @@ func (s *mdInlineSink) Open(r *model.PcOpenRun) {
 	case "link:hyperlink":
 		// [text](href "title") — the link text is the paired content.
 		s.spellHeldClose('[')
+		at := s.sb.Len()
 		s.sb.WriteString("[")
-		s.open = append(s.open, mdOpenTag{attrs: r.Attrs, destKey: model.AttrHref, ref: isReferenceLink(r)})
+		s.open = append(s.open, mdOpenTag{attrs: r.Attrs, destKey: model.AttrHref, ref: isReferenceLink(r), at: at})
 	case "media:image", "link:image":
 		// ![alt](src "title"). The alt text is the paired content, except
 		// where a reader does not offer it for translation and records it on
@@ -667,11 +1141,21 @@ func (s *mdInlineSink) Open(r *model.PcOpenRun) {
 		if m, ok := mdInlineTag[r.Type]; ok {
 			s.spellHeldClose(firstRune(m[0]))
 			open, close := s.emphasisSpelling(m[0], m[1])
+			if open == "`" && s.mergeIntoLastCodeSpan() {
+				return
+			}
+			if open != "" && (open[0] == '~' || open[0] == '`') {
+				s.escapeTouchingRun(open[0])
+			}
 			at := s.sb.Len()
 			s.sb.WriteString(open)
+			if open != "" && (open[0] == '~' || open[0] == '`') {
+				s.markupEnd, s.markupChar = s.sb.Len(), open[0]
+			}
 			s.open = append(s.open, mdOpenTag{close: close, at: at})
 		} else {
 			s.open = append(s.open, mdOpenTag{})
+			s.droppedAt = s.sb.Len()
 		}
 	}
 }
@@ -682,11 +1166,20 @@ func (s *mdInlineSink) Open(r *model.PcOpenRun) {
 // as the two the block carries, so the block's content changed on the next pass
 // (#2499). Underscores read as a pair there because the character before them
 // is punctuation, which is what CommonMark 6.2 asks of an intraword "_".
+//
+// An opener that follows another opener keeps its character: one run of
+// asterisks opening nested pairs reads back as those pairs, and an underscore
+// after it would make the run punctuation-followed, which an alphanumeric
+// before the run then keeps from opening at all.
 func (s *mdInlineSink) emphasisSpelling(open, close string) (string, string) {
 	if open != "*" && open != "**" {
 		return open, close
 	}
-	if b := s.sb.String(); b == "" || b[len(b)-1] != '*' {
+	b := s.sb.String()
+	if b == "" || b[len(b)-1] != '*' {
+		return open, close
+	}
+	if s.lastClosed.char != '*' || s.lastClosed.n == 0 || s.lastClosed.closeAt+s.lastClosed.n != len(b) {
 		return open, close
 	}
 	return strings.ReplaceAll(open, "*", "_"), strings.ReplaceAll(close, "*", "_")
@@ -712,37 +1205,81 @@ func (s *mdInlineSink) Close(r *model.PcCloseRun) {
 		// inline here left the definition's title block to become a
 		// paragraph (#2635).
 		s.spellHeldClose(']')
-		s.sb.WriteString(referenceCloser(r.Data))
+		closer := referenceCloser(r.Data)
+		if closer == "]" && tag.destKey == model.AttrHref {
+			s.shortcutRefs = append(s.shortcutRefs, mdClosedEmphasis{char: ']', openAt: tag.at, closeAt: s.sb.Len()})
+		}
+		s.sb.WriteString(closer)
 		return
 	}
 	if tag.destKey != "" {
 		s.spellHeldClose(']')
 		s.pending = &mdPendingClose{attrs: tag.attrs, destKey: tag.destKey}
+		if r != nil {
+			s.pending.data = r.Data
+			s.pending.quote = emptyTitleQuote(r.Data, tag.attrs[tag.destKey])
+		}
 		return
 	}
 	if tag.close == "" {
+		s.droppedAt = s.sb.Len()
 		return
 	}
 	if tag.close == "`" {
 		s.closeCodeSpan(tag.at)
 		return
 	}
+	if tag.close[0] == '~' {
+		// An emphasis closer held inside the strikethrough is spelled before
+		// the strikethrough closes around it.
+		s.spellHeldClose('~')
+		s.escapeTouchingRun('~')
+		s.pairs = append(s.pairs, mdClosedEmphasis{char: '~', openAt: tag.at, closeAt: s.sb.Len(), n: len(tag.close)})
+		s.sb.WriteString(tag.close)
+		s.markupEnd, s.markupChar = s.sb.Len(), '~'
+		return
+	}
 	s.spellHeldClose(firstRune(tag.close))
 	if isEmphasisDelimiter(tag.close) {
-		// Two closers of the same character written back-to-back form one
-		// run, and CommonMark 6.2's rule of three can keep that run from
-		// pairing with the inner opener: "_!*!0*_" rebuilt as "*!*!0**" came
-		// back as different pairs around different text (#3106). The closer is
-		// held until the byte after it is known, and spellHeldClose re-spells
-		// one of the two pairs.
+		// An emphasis closer is held until the byte after it is known, which
+		// is what CommonMark 6.2's flanking rules ask of a closer, and
+		// spellHeldClose then decides the pair's spelling. Two closers of the
+		// same character written back-to-back form one run, and the rule of
+		// three can keep that run from pairing with the inner opener:
+		// "_!*!0*_" rebuilt as "*!*!0**" came back as different pairs around
+		// different text (#3106). Pairs opened by one run and closed by one
+		// run are the exception: the run reads back as those pairs.
 		closed := mdClosedEmphasis{char: tag.close[0], openAt: tag.at, closeAt: s.sb.Len(), n: len(tag.close)}
+		h := &mdHeldClose{tag: tag, enclosed: s.enclosedBy(closed.char)}
 		if s.lastClosed.n > 0 && s.lastClosed.char == closed.char && s.lastClosed.closeAt+s.lastClosed.n == closed.closeAt {
-			s.heldClose = &mdHeldClose{tag: tag, inner: s.lastClosed}
-			return
+			if s.lastClosed.openAt == closed.openAt+closed.n {
+				s.closedPair(closed)
+				s.sb.WriteString(tag.close)
+				return
+			}
+			h.inner = s.lastClosed
 		}
-		s.lastClosed = closed
+		s.heldClose = h
+		return
 	}
 	s.sb.WriteString(tag.close)
+}
+
+// closedPair records a pair whose closer is written next.
+func (s *mdInlineSink) closedPair(e mdClosedEmphasis) {
+	s.lastClosed = e
+	s.pairs = append(s.pairs, e)
+}
+
+// enclosedBy reports whether an emphasis or strong pair of character c is
+// still open on the stack.
+func (s *mdInlineSink) enclosedBy(c byte) bool {
+	for _, t := range s.open {
+		if isEmphasisDelimiter(t.close) && t.close[0] == c {
+			return true
+		}
+	}
+	return false
 }
 
 // closeCodeSpan closes the code span whose one-backtick opener sits at openAt,
@@ -757,22 +1294,27 @@ func (s *mdInlineSink) Close(r *model.PcCloseRun) {
 func (s *mdInlineSink) closeCodeSpan(openAt int) {
 	out := s.sb.String()
 	content := out[openAt+1:]
-	fence := codeSpanFence(content)
+	before := out[:openAt]
+	fence := codeSpanFence(content, s.litTickRuns)
 	pad := ""
 	if codeSpanNeedsPadding(content) {
 		pad = " "
 	}
 	if fence == "`" && pad == "" {
 		s.sb.WriteByte('`')
+		s.markupEnd, s.markupChar = s.sb.Len(), '`'
+		s.lastCodeSpan = mdCodeSpan{openAt: openAt, end: s.sb.Len(), fence: 1}
 		return
 	}
 	s.sb.Reset()
-	s.sb.WriteString(out[:openAt])
+	s.sb.WriteString(before)
 	s.sb.WriteString(fence)
 	s.sb.WriteString(pad)
 	s.sb.WriteString(content)
 	s.sb.WriteString(pad)
 	s.sb.WriteString(fence)
+	s.markupEnd, s.markupChar = s.sb.Len(), '`'
+	s.lastCodeSpan = mdCodeSpan{openAt: openAt, end: s.sb.Len(), fence: len(fence), pad: len(pad)}
 	// A literal delimiter recorded inside the content moved with it.
 	shift := len(fence) + len(pad) - 1
 	for i, off := range s.litDelims {
@@ -780,21 +1322,184 @@ func (s *mdInlineSink) closeCodeSpan(openAt int) {
 			s.litDelims[i] = off + shift
 		}
 	}
+	for i, off := range s.bareAngles {
+		if off > openAt {
+			s.bareAngles[i] = off + shift
+		}
+	}
+	for i, off := range s.bareTicks {
+		if off > openAt {
+			s.bareTicks[i] = off + shift
+		}
+	}
+	for i, off := range s.bareBrackets {
+		if off > openAt {
+			s.bareBrackets[i] = off + shift
+		}
+	}
+	for i, off := range s.bareAmps {
+		if off > openAt {
+			s.bareAmps[i] = off + shift
+		}
+	}
+}
+
+// mergeIntoLastCodeSpan reopens the code span the output ends with, so the
+// span being opened continues it, and reports whether it did. Two code spans
+// with nothing between them have no spelling: the closing fence of one and
+// the opening fence of the next touch and read as one run. The spans are
+// adjacent only because what stood between them was dropped, inline HTML most
+// often, and one span over both contents carries the same text. "“<A>`0“"
+// followed by inline HTML and "`0`" was written with its fences touching, and
+// the pass after read the run of three as an opener.
+func (s *mdInlineSink) mergeIntoLastCodeSpan() bool {
+	last := s.lastCodeSpan
+	if last.end == 0 || last.end != s.sb.Len() {
+		return false
+	}
+	out := s.sb.String()
+	content := out[last.openAt+last.fence+last.pad : last.end-last.fence-last.pad]
+	s.sb.Reset()
+	s.sb.WriteString(out[:last.openAt])
+	s.sb.WriteByte('`')
+	s.sb.WriteString(content)
+	// The offsets recorded inside the content move back with it.
+	shift := last.fence + last.pad - 1
+	for i, off := range s.litDelims {
+		if off > last.openAt {
+			s.litDelims[i] = off - shift
+		}
+	}
+	for i, off := range s.bareAngles {
+		if off > last.openAt {
+			s.bareAngles[i] = off - shift
+		}
+	}
+	for i, off := range s.bareTicks {
+		if off > last.openAt {
+			s.bareTicks[i] = off - shift
+		}
+	}
+	for i, off := range s.bareBrackets {
+		if off > last.openAt {
+			s.bareBrackets[i] = off - shift
+		}
+	}
+	for i, off := range s.bareAmps {
+		if off > last.openAt {
+			s.bareAmps[i] = off - shift
+		}
+	}
+	s.markupEnd, s.lastCodeSpan = 0, mdCodeSpan{}
+	s.open = append(s.open, mdOpenTag{close: "`", at: last.openAt})
+	return true
+}
+
+// escapeTouchingRun escapes every character of an unescaped run of c that
+// ends the output, so the code span fence or strikethrough delimiter of c
+// written next stands apart from it: a literal backtick before a fence pairs
+// with the fence, and a literal tilde beside a "~~" makes a run of three,
+// which pairs with nothing. A backslash escapes one character, so each one of
+// the run takes its own, or the rest of the run merges with the fence: a
+// literal run of two before a one-backtick fence, escaped as one, read as a
+// run of three.
+func (s *mdInlineSink) escapeTouchingRun(c byte) {
+	out := s.sb.String()
+	if s.markupEnd == len(out) && s.markupChar == c {
+		// The run is markup the sink wrote itself.
+		return
+	}
+	j := len(out)
+	for j > 0 && out[j-1] == c {
+		j--
+	}
+	if j == len(out) || backslashEscaped(out, j) {
+		return
+	}
+	s.sb.Reset()
+	s.sb.WriteString(out[:j])
+	for i := j; i < len(out); i++ {
+		s.sb.WriteByte('\\')
+		s.sb.WriteByte(out[i])
+	}
+	// An offset inside the run moves by the backslashes inserted before it,
+	// one after it moves by the whole run's.
+	shift := func(off int) int {
+		switch {
+		case off < j:
+			return off
+		case off >= len(out):
+			return off + len(out) - j
+		}
+		return off + off - j + 1
+	}
+	// The run is no longer a literal that output() may escape.
+	kept := s.litDelims[:0]
+	for _, off := range s.litDelims {
+		if off >= j {
+			continue
+		}
+		kept = append(kept, off)
+	}
+	s.litDelims = kept
+	for i, off := range s.bareAngles {
+		s.bareAngles[i] = shift(off)
+	}
+	keptTicks := s.bareTicks[:0]
+	for _, off := range s.bareTicks {
+		if off >= j {
+			continue
+		}
+		keptTicks = append(keptTicks, off)
+	}
+	s.bareTicks = keptTicks
+	for i, off := range s.bareBrackets {
+		s.bareBrackets[i] = shift(off)
+	}
+	for i, off := range s.bareAmps {
+		s.bareAmps[i] = shift(off)
+	}
+	for i := range s.open {
+		s.open[i].at = shift(s.open[i].at)
+	}
+	for i := range s.pairs {
+		s.pairs[i].openAt = shift(s.pairs[i].openAt)
+		s.pairs[i].closeAt = shift(s.pairs[i].closeAt)
+	}
 }
 
 // codeSpanFence returns the backtick run that fences a code span around
-// content: one more than the longest run of backticks inside it.
-func codeSpanFence(content string) string {
-	longest, n := 0, 0
+// content: the shortest run of backticks that no run inside the content
+// matches, and that no literal run the block's text holds matches either,
+// since CommonMark 6.1 closes a span on a run exactly as long as its opener
+// and a literal run before the span would otherwise pair with the opener. The
+// fences of other spans are markup already paired and do not count. The
+// shortest fence keeps a span that opens a block from spelling a fenced code
+// block's opener, which three backticks before a line ending do.
+func codeSpanFence(content string, literal map[int]bool) string {
+	runs := map[int]bool{}
+	for n := range literal {
+		runs[n] = true
+	}
+	n := 0
 	for i := range len(content) {
 		if content[i] == '`' {
 			n++
-			longest = max(longest, n)
 			continue
+		}
+		if n > 0 {
+			runs[n] = true
 		}
 		n = 0
 	}
-	return strings.Repeat("`", longest+1)
+	if n > 0 {
+		runs[n] = true
+	}
+	fence := 1
+	for runs[fence] {
+		fence++
+	}
+	return strings.Repeat("`", fence)
 }
 
 // codeSpanNeedsPadding reports whether a code span's content has to be set
@@ -809,7 +1514,12 @@ func codeSpanNeedsPadding(content string) bool {
 	if content[0] == '`' || content[len(content)-1] == '`' {
 		return true
 	}
-	return content[0] == ' ' && content[len(content)-1] == ' ' && strings.TrimSpace(content) != ""
+	// The parser's "space" here is the space character, the tab, and the
+	// line endings it turns into spaces first (CommonMark 6.1): a content of
+	// spaces around a vertical tab is not all spaces to it, so one space is
+	// stripped from each end on re-read unless a pad stands in for it, while
+	// one of spaces around a tab or a bare carriage return is.
+	return content[0] == ' ' && content[len(content)-1] == ' ' && strings.Trim(content, " \t\r\n") != ""
 }
 
 // isEmphasisDelimiter reports whether close is the closer of an emphasis or
@@ -838,22 +1548,65 @@ func (s *mdInlineSink) spellHeldClose(next rune) {
 	outer := mdClosedEmphasis{char: h.tag.close[0], openAt: h.tag.at, closeAt: len(out), n: len(h.tag.close)}
 	inner := h.inner
 	closer := h.tag.close
+	if inner.n == 0 {
+		if alt, ok := nestedRespelling(out, outer, next, h.enclosed); ok {
+			out = respellDelimiters(out, outer, alt)
+			outer.char = alt
+			closer = strings.Repeat(string(alt), outer.n)
+			s.sb.Reset()
+			s.sb.WriteString(out)
+		}
+		s.closedPair(outer)
+		s.sb.WriteString(closer)
+		return
+	}
 	switch {
 	case pairRespells(out, inner, outer, next, true):
 		out = respellDelimiters(out, inner, '_')
+		if n := len(s.pairs); n > 0 && s.pairs[n-1] == inner {
+			s.pairs[n-1].char = '_'
+		}
 	case pairRespells(out, inner, outer, next, false):
 		out = respellDelimiters(out, outer, '_')
 		outer.char = '_'
 		closer = strings.Repeat("_", outer.n)
 	default:
-		s.lastClosed = outer
+		s.closedPair(outer)
 		s.sb.WriteString(closer)
 		return
 	}
 	s.sb.Reset()
 	s.sb.WriteString(out)
-	s.lastClosed = outer
+	s.closedPair(outer)
 	s.sb.WriteString(closer)
+}
+
+// nestedRespelling picks the other delimiter character for a pair nested in
+// an open pair of the same character when its opener could close as well as
+// open. CommonMark 6.2 processes closers left to right, so such an opener
+// closes the enclosing pair first: "*!_!0_!*" spelled with asterisks
+// throughout read back as an emphasis around the first "!" and literal text
+// (#3229). The other character is used where it opens and closes in the same
+// places; ok is false when no change is needed or the other character would
+// not pair.
+func nestedRespelling(out string, e mdClosedEmphasis, next rune, enclosed bool) (byte, bool) {
+	if !enclosed {
+		return 0, false
+	}
+	before, after := runeBefore(out, e.openAt), runeAfter(out, e.openAt+e.n)
+	if _, closes := delimiterFlanking(e.char, before, after); !closes {
+		return 0, false
+	}
+	alt := byte('_')
+	if e.char == '_' {
+		alt = '*'
+	}
+	altOpen, _ := delimiterFlanking(alt, before, after)
+	_, altClose := delimiterFlanking(alt, runeBefore(out, e.closeAt), next)
+	if !altOpen || !altClose {
+		return 0, false
+	}
+	return alt, true
 }
 
 // pairRespells reports whether re-spelling one of two touching pairs with
@@ -918,6 +1671,15 @@ func (s *mdInlineSink) Placeholder(r *model.PlaceholderRun) {
 		s.spellHeldClose(firstRune(r.Equiv))
 	}
 	s.flushPending()
+	if r.SubType == subTypeEntity && r.Data != "" {
+		// A character reference is spelled as the source spelled it. Its
+		// equivalent is the decoded character, and a block that is one
+		// reference renders no text of its own, so writing the character
+		// turned it into a text block on re-read.
+		s.spellHeldBreak(r.Data)
+		s.sb.WriteString(r.Data)
+		return
+	}
 	s.spellHeldBreak(r.Equiv)
 	switch r.Type {
 	case "media:image", "link:image":
@@ -939,15 +1701,44 @@ func (s *mdInlineSink) Placeholder(r *model.PlaceholderRun) {
 		// pass after dropped it as a break opening the block, and the line
 		// below it moved onto the first line, where a bare "* " is a bullet
 		// (#3199).
-		opens := strings.TrimSpace(s.sb.String()) == ""
+		opens := trimBlockSpace(s.sb.String()) == ""
+		s.openingBreak = opens
 		s.heldBreak = !opens && s.atLineStart()
-		if !opens && !s.heldBreak && endsInBreakSpaces(s.sb.String()) {
+		if !opens && !s.heldBreak && (endsInBreakSpaces(s.sb.String()) || s.inLinkText() || s.inBareBracket() || s.lineIsBreakRuns()) {
 			// Two or more spaces before a line ending ARE a hard break, so
 			// emitting the break as a bare newline would hand the spaces to the
 			// break's spelling and they would stop being content: "a  \\\nb"
 			// came back as "a\\nb" on the pass after. A backslash spells the
-			// break instead and leaves them where they are (#2529).
-			s.sb.WriteByte('\\')
+			// break instead and leaves them where they are (#2529). Inside a
+			// link's text the backslash is kept too: the text of a shortcut or
+			// collapsed reference is its label, and a label spelled with the
+			// break's backslash matches its definition only with it. The same
+			// goes for text inside a bare bracket, which the pass after may
+			// read as a label: "[", two backslash breaks and "]" matched no
+			// definition, and with the first backslash dropped it matched one
+			// whose label was a lone backslash. A line of delimiter runs keeps
+			// it too: the closers of ">***0" over ">***" and a backslash
+			// break are a thematic break once the backslash goes, and escaped
+			// they close nothing. After a backslash the
+			// break takes its two-space spelling: the parser reads a
+			// backslash after an escaped one as text, line ending or not.
+			switch {
+			case strings.HasSuffix(s.sb.String(), "\\"):
+				s.sb.WriteString("  ")
+				s.breakSpaces = true
+			case len(strings.Trim(r.Data, "\r")) >= 2 && strings.Trim(r.Data, " \t\r") == "" && (s.inLinkText() || s.inBareBracket()):
+				// A label matches its definition by its spelling, so a
+				// break of spaces inside one keeps its spaces: spelled with
+				// a backslash, "[R  " over "]" matched no definition. A
+				// tab or a bare carriage return among them is whitespace the
+				// label's normalization drops, and a backslash in its place
+				// was not.
+				s.sb.WriteString(r.Data)
+				s.breakSpaces = true
+			default:
+				s.sb.WriteByte('\\')
+			}
+			s.breakSpelled = true
 		}
 		s.sb.WriteString(r.Equiv)
 	default:
@@ -958,10 +1749,16 @@ func (s *mdInlineSink) Placeholder(r *model.PlaceholderRun) {
 }
 
 // endsInBreakSpaces reports whether out ends in the run of two or more spaces
-// or tabs that CommonMark 6.7 reads as a hard break before a line ending.
+// or tabs that CommonMark 6.7 reads as a hard break before a line ending. A
+// bare carriage return after them joins the line ending the newline spells,
+// so the spaces before it are break spaces too.
 func endsInBreakSpaces(out string) bool {
+	i := len(out) - 1
+	for i >= 0 && out[i] == '\r' {
+		i--
+	}
 	n := 0
-	for i := len(out) - 1; i >= 0 && (out[i] == ' ' || out[i] == '\t'); i-- {
+	for ; i >= 0 && (out[i] == ' ' || out[i] == '\t'); i-- {
 		n++
 	}
 	return n >= 2
@@ -970,18 +1767,27 @@ func endsInBreakSpaces(out string) bool {
 // atLineStart reports whether the output's current line carries no content
 // yet: everything since the last newline is the continuation prefix a
 // blockquote or a list item bakes into the runs (#1661), or nothing at all.
+// The block's first line carries no such prefix, so a ">" there is content.
 func (s *mdInlineSink) atLineStart() bool {
-	out := s.sb.String()
+	return lineStartBefore(s.sb.String())
+}
+
+// lineStartBefore reports whether out ends on a line that carries no content
+// yet, as atLineStart does for the sink's output.
+func lineStartBefore(out string) bool {
+	marker := false
 	for i := len(out) - 1; i >= 0; i-- {
 		switch out[i] {
 		case '\n':
 			return true
-		case ' ', '\t', '>':
+		case ' ', '\t', '\r':
+		case '>':
+			marker = true
 		default:
 			return false
 		}
 	}
-	return true
+	return !marker
 }
 
 // output returns the rendered Markdown with every literal emphasis delimiter
@@ -1013,40 +1819,977 @@ func (s *mdInlineSink) atLineStart() bool {
 // question is asked of the output as it will stand, with an escaped delimiter
 // no part of any run, which is how the reader sees it: asked of the merged
 // runs, it gave the pass after a different answer.
+//
+// The emphasis and strong pairs the sink wrote are then read back through
+// the reader's own parser: CommonMark 6.2 pairs delimiters by flanking, by
+// the rule of three and in closer order, which the escapes above change too.
+// A literal shortens the run it sat in once escaped, and "***0*0*0", a
+// literal asterisk before two nested pairs, read back with no pair at all
+// once the literal was escaped. So the escaped output is kept where it reads
+// back as written, the unescaped output is kept where that one does, and
+// otherwise a pair that reads back as another is re-spelled with the other
+// character (respellMisreadEmphasis). Pairs with no spelling that reads back,
+// which the rebuild's dropped constructs can leave behind, are written as the
+// re-read would have them: literal delimiters, escaped where they could pair
+// (degradeEmphasis), so the first pass already writes what the second would.
 func (s *mdInlineSink) output() string {
-	out := s.sb.String()
-	if len(s.litDelims) == 0 {
+	s.reinjectLinePrefix()
+	s.foldHeadingLines()
+	s.foldOutputBlankLines()
+	s.escapeOutputLineMarkers()
+	s.collapseDefinitionLookalikes()
+	s.escapeOutputLeadingMarker()
+	s.escapeFormedMarkup()
+	// An angle escaped above can complete a definition's destination where
+	// the bare one did not: "[0]:<A>0" is text, and "[0]:\<A>0" a definition
+	// whose bracket the block path would escape, reference and all.
+	s.collapseDefinitionLookalikes()
+	raw := s.sb.String()
+	frame := s.checkFrame(raw)
+	out, pairs := raw, s.pairs
+	var lit []int
+	if len(s.litDelims) > 0 {
+		out, lit, pairs = escapeDelimiters(out, s.litDelims, mergedDelimiterBytes(out, s.litDelims), pairs)
+		out, lit, pairs = escapeDelimiters(out, lit, pairingDelimiterBytes(out), pairs)
+	}
+	// Literal tildes with no strikethrough beside them can still pair with each
+	// other on re-read, so they are checked against the parser as the pairs
+	// are.
+	if len(pairs) == 0 && len(literalTildes(out, lit)) == 0 {
 		return out
 	}
-	out, lit := escapeDelimiters(out, s.litDelims, mergedDelimiterBytes(out, s.litDelims))
-	out, _ = escapeDelimiters(out, lit, pairingDelimiterBytes(out))
+	if ok, known, parsed := emphasisReadsBackParsed(out, pairs, frame); !s.markupMarker && (ok || (!known && !parsed)) {
+		// A verdict the parser could not give because the output is no
+		// single paragraph leaves the output as written. One it could not
+		// give because a pair it formed cannot be located is a pairing the
+		// sink does not understand, and the pairs are degraded to text below.
+		return out
+	}
+	if out != raw && !s.markupMarker {
+		if ok, known := emphasisReadsBack(raw, s.pairs, frame); ok && known {
+			return raw
+		}
+	}
+	// A literal tilde pairs with strikethrough markup whatever its run's
+	// length, so the literals are escaped before the pairs are re-spelled.
+	if tildes := literalTildes(out, lit); len(tildes) > 0 {
+		escaped, _, escapedPairs := escapeDelimiters(out, tildes, allOffsets(tildes), pairs)
+		if ok, known := emphasisReadsBack(escaped, escapedPairs, frame); ok && known {
+			return escaped
+		}
+	}
+	if fixed, ok := respellMisreadEmphasis(out, lit, pairs, frame, s.delimiterConflicts); ok {
+		return fixed
+	}
+	return escapeFormedEmphasis(degradeEmphasis(out, pairs), frame)
+}
+
+// escapeFormedEmphasis escapes the delimiters of every emphasis and
+// strikethrough the parser still reads from out, which holds no markup any
+// more: the pairs were degraded to text, and a literal tilde the degrade left
+// bare pairs with a degraded run of any length. "*~!~~0~*~~!~" was degraded
+// to text whose first tilde and last two still read as a strikethrough, and
+// the pass after escaped them. An escape can let a later run pair instead, so
+// the pass repeats until nothing forms.
+func escapeFormedEmphasis(out string, frame blockFrame) string {
+	for range 8 {
+		para, src, shift, ok := parseInlineBlock(out, frame)
+		if !ok {
+			return out
+		}
+		var offsets []int
+		_ = ast.Walk(para, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+			if !entering {
+				return ast.WalkContinue, nil
+			}
+			var openLen, closeLen int
+			switch {
+			case n.Kind() == ast.KindEmphasis:
+				openLen = n.(*ast.Emphasis).Level
+				closeLen = openLen
+			case n.Kind() == east.KindStrikethrough:
+				open, close := strikethroughFences(n, src)
+				openLen, closeLen = len(open), len(close)
+			default:
+				return ast.WalkContinue, nil
+			}
+			start, okStart := inlineContentStart(n, src)
+			if !okStart {
+				start, okStart = inlineNodeStart(n, src)
+			}
+			end, okEnd := inlineNodeEnd(n, src)
+			if !okStart || !okEnd {
+				return ast.WalkContinue, nil
+			}
+			for i := range openLen {
+				offsets = append(offsets, start-shift+i)
+			}
+			for i := range closeLen {
+				offsets = append(offsets, end-closeLen-shift+i)
+			}
+			return ast.WalkContinue, nil
+		})
+		if len(offsets) == 0 {
+			return out
+		}
+		slices.Sort(offsets)
+		out, _, _ = escapeDelimiters(out, offsets, allOffsets(offsets), nil)
+	}
+	return out
+}
+
+// foldHeadingLines folds a heading's line breaks to spaces as
+// singleLineHeading will, so the checks that follow see the line the heading
+// will be: "<p", a tab and a line ending, then "0", is a paragraph as it
+// stands and an HTML block once folded to "<p 0", and the angle went
+// unescaped on the pass that saw the paragraph. The offsets the sink keeps
+// move with the folded bytes.
+func (s *mdInlineSink) foldHeadingLines() {
+	out := s.sb.String()
+	if !s.heading || !strings.Contains(out, "\n") {
+		return
+	}
+	spans := headingLineBreakSpans(out)
+	s.sb.Reset()
+	s.sb.WriteString(foldSpans(out, spans))
+	s.remapOffsets(func(off int) int {
+		removed := 0
+		for _, sp := range spans {
+			switch {
+			case off >= sp[1]:
+				removed += sp[1] - sp[0] - 1
+			case off > sp[0]:
+				return sp[0] - removed
+			}
+		}
+		return off - removed
+	})
+}
+
+// reinjectLinePrefix puts the prefix the block's hard-break continuation lines
+// shared, indentation or quote markers, back after every line ending, so the
+// lines keep their shape and the checks that follow see them as the block
+// will have them: "0  ", a break and "    #" is one paragraph whose "#" sits
+// four columns in, where it opens nothing. Written at the line's start it was
+// escaped there, which a pass that kept the indentation in its text did not
+// do. The offsets the sink keeps move with the inserted bytes.
+func (s *mdInlineSink) reinjectLinePrefix() {
+	out := s.sb.String()
+	if s.linePrefix == "" || !strings.Contains(out, "\n") {
+		return
+	}
+	var newlines []int
+	for i := range len(out) {
+		if out[i] == '\n' {
+			newlines = append(newlines, i)
+		}
+	}
+	s.sb.Reset()
+	s.sb.WriteString(strings.ReplaceAll(out, "\n", "\n"+s.linePrefix))
+	width := len(s.linePrefix)
+	s.remapOffsets(func(off int) int { return off + width*countAtMost(newlines, off-1) })
+}
+
+// foldOutputBlankLines drops the blank lines from the output before it is
+// checked against the parser, as writeBlockMarkdown drops them from the block,
+// so the checks see the lines the block will have. "<?0>~00~~" followed by a
+// blank line and "0" is one HTML block whose text holds the blank line;
+// checked with it in place the text was two paragraphs, no check applied, and
+// the literal tildes went unescaped to pair on the pass after. In a quote
+// body a continuation line holding nothing but its marker goes the same way
+// (foldQuoteMarkerLines): checked with such a line in place the quote held
+// two paragraphs and the pairs went unverified. A line prefix that is not a
+// quote's says a marker on its line is content, which the block path escapes
+// instead. The offsets the sink keeps move with the removed bytes.
+func (s *mdInlineSink) foldOutputBlankLines() {
+	out := s.sb.String()
+	if !strings.Contains(out, "\n") {
+		return
+	}
+	levels := 0
+	if s.linePrefix == "" || isQuoteLinePrefix(s.linePrefix) {
+		levels = s.checkLevels(out)
+	}
+	lines := strings.Split(out, "\n")
+	type span struct{ start, end int }
+	var removed []span
+	kept := lines[:0]
+	pos := 0
+	for i, line := range lines {
+		next := pos + len(line) + 1
+		blank := isBlankLine(line)
+		if !blank && levels > 0 && i > 0 {
+			prefix := blockquoteMarkerPrefixUpTo(line, levels)
+			blank = prefix != "" && isBlankLine(line[len(prefix):])
+		}
+		if blank {
+			if i < len(lines)-1 {
+				removed = append(removed, span{pos, next})
+			} else {
+				removed = append(removed, span{max(pos-1, 0), pos + len(line)})
+			}
+		} else {
+			kept = append(kept, line)
+		}
+		pos = next
+	}
+	if len(removed) == 0 {
+		return
+	}
+	folded := strings.Join(kept, "\n")
+	remap := func(off int) int {
+		n := 0
+		for _, r := range removed {
+			if off >= r.end {
+				n += r.end - r.start
+			} else if off > r.start {
+				return r.start - n
+			}
+		}
+		return off - n
+	}
+	s.sb.Reset()
+	s.sb.WriteString(folded)
+	s.remapOffsets(remap)
+}
+
+// remapOffsets moves every offset the sink keeps through remap, after the
+// output's bytes have moved.
+func (s *mdInlineSink) remapOffsets(remap func(int) int) {
+	for i, off := range s.litDelims {
+		s.litDelims[i] = remap(off)
+	}
+	for i, off := range s.bareAngles {
+		s.bareAngles[i] = remap(off)
+	}
+	for i, off := range s.bareTicks {
+		s.bareTicks[i] = remap(off)
+	}
+	for i, off := range s.bareBrackets {
+		s.bareBrackets[i] = remap(off)
+	}
+	for i, off := range s.bareAmps {
+		s.bareAmps[i] = remap(off)
+	}
+	for i := range s.pairs {
+		s.pairs[i].openAt = remap(s.pairs[i].openAt)
+		s.pairs[i].closeAt = remap(s.pairs[i].closeAt)
+	}
+	for i := range s.shortcutRefs {
+		s.shortcutRefs[i].openAt = remap(s.shortcutRefs[i].openAt)
+		s.shortcutRefs[i].closeAt = remap(s.shortcutRefs[i].closeAt)
+	}
+	if s.markupEnd > 0 {
+		s.markupEnd = remap(s.markupEnd)
+	}
+}
+
+// isMarkupDelimiter reports whether the byte at off is one of the emphasis
+// or strikethrough delimiters the sink wrote, closed or still open.
+func (s *mdInlineSink) isMarkupDelimiter(off int) bool {
+	for _, p := range s.pairs {
+		if (off >= p.openAt && off < p.openAt+p.n) || (off >= p.closeAt && off < p.closeAt+p.n) {
+			return true
+		}
+	}
+	for _, tag := range s.open {
+		if tag.close != "" && off >= tag.at && off < tag.at+len(tag.close) {
+			return true
+		}
+	}
+	return false
+}
+
+// escapeOutputLeadingMarker escapes a block marker that opens the output's
+// first line, after the whitespace the block path trims, the way
+// writeBlockMarkdown will, before the literal delimiters are weighed: the
+// escape changes what the run after it can do. "<A>***" over "*0*" is text
+// "***", a line ending and an emphasis; the asterisk run could pair with
+// nothing as written and stood, the block path escaped the first asterisk as
+// a thematic break, and the two left behind closed on the pass after.
+func (s *mdInlineSink) escapeOutputLeadingMarker() {
+	if !s.leadingMarker {
+		return
+	}
+	out := s.sb.String()
+	lead := len(out) - len(strings.TrimLeft(out, " \t\r\n"))
+	escaped := escapeLeadingBlockMarker(out[lead:])
+	if escaped == out[lead:] {
+		return
+	}
+	at := lead
+	for at-lead < len(escaped) && out[at] == escaped[at-lead] {
+		at++
+	}
+	s.sb.Reset()
+	s.sb.WriteString(out[:at])
+	s.sb.WriteByte('\\')
+	s.sb.WriteString(out[at:])
+	s.remapOffsets(func(off int) int {
+		if off >= at {
+			return off + 1
+		}
+		return off
+	})
+}
+
+// escapeOutputLineMarkers escapes a block marker that opens a continuation
+// line of the output the way writeBlockMarkdown will, before the output is
+// checked against the parser, so the checks see a paragraph where the block
+// will be one. "<?0>~0~~" and a line holding "#" is one HTML block; checked as
+// written, the "#" line was a heading, the text was no single paragraph, no
+// check applied, and the literal tildes went unescaped to pair on the pass
+// after. A marker that is a delimiter the sink wrote is left to the emphasis
+// checks, which then re-spell the pair: the closer of "*" at the start of
+// "* 00*" escaped here read as text, and the pass after had no pair to find.
+func (s *mdInlineSink) escapeOutputLineMarkers() {
+	out := s.sb.String()
+	var inserted []int
+	for _, pt := range s.lineMarkerPoints(out) {
+		if s.isMarkupDelimiter(pt) {
+			s.markupMarker = true
+			continue
+		}
+		inserted = append(inserted, pt)
+	}
+	if len(inserted) == 0 {
+		return
+	}
+	var buf strings.Builder
+	prev := 0
+	for _, off := range inserted {
+		buf.WriteString(out[prev:off])
+		buf.WriteByte('\\')
+		prev = off
+	}
+	buf.WriteString(out[prev:])
+	s.sb.Reset()
+	s.sb.WriteString(buf.String())
+	s.remapOffsets(func(off int) int { return off + countAtMost(inserted, off) })
+}
+
+// lineMarkerPoints returns, in ascending order, the offsets in out at which
+// writeBlockMarkdown will escape a block marker or an underline that opens a
+// continuation line. Inside a blockquote the lines that carry every marker
+// are the block's own and get the interrupting-marker rule, and a line with
+// fewer markers than the quote has levels is lazy for the levels it lacks and
+// is escaped on any marker, as escapeLazyQuoteLines does. A block with no
+// marker property may still be a quote, which writeBlockMarkdown recovers
+// from the markers every one of its continuation lines carries; the quote
+// markers of such a block are left alone, and a ">" that opens a
+// continuation line of any other block is content. A list item's
+// continuation lines are escaped on any marker after the item's content
+// column, as escapeItemMarkerLines does: "x" over a bare "*" was written
+// unescaped, and the convergence re-read saw an item and an empty one and
+// took the item's text without its second line.
+func (s *mdInlineSink) lineMarkerPoints(out string) []int {
+	if !strings.Contains(out, "\n") {
+		return nil
+	}
+	lines := strings.Split(out, "\n")
+	recovered := s.quoteLevels == 0 && !s.rawText && continuationBlockquoteMarker(out) != ""
+	var points []int
+	pos := len(lines[0]) + 1
+	for _, line := range lines[1:] {
+		var escaped string
+		if s.quoteLevels > 0 {
+			prefix := blockquoteMarkerPrefixUpTo(line, s.quoteLevels)
+			if strings.Count(prefix, ">") < s.quoteLevels {
+				escaped = line[:len(prefix)] + escapeContinuationLineMarkerAt(line[len(prefix):], columnWidth(prefix))
+			} else {
+				escaped = line[:len(prefix)] + escapeInterruptingBlockMarkerAt(line[len(prefix):], columnWidth(prefix))
+			}
+		} else if s.listItem {
+			escaped = escapeItemMarkerLine(line, len("- "))
+		} else {
+			escaped = escapeInterruptingBlockMarker(line)
+		}
+		if escaped != line {
+			at := 0
+			for at < len(line) && line[at] == escaped[at] {
+				at++
+			}
+			if at < len(line) && (line[at] != '>' || !recovered) {
+				points = append(points, pos+at)
+			}
+		} else if rest := line[len(blockquoteMarkerPrefixUpTo(line, s.quoteLevels)):]; isSetextBar(rest) || isTableDelimiterRow(rest) {
+			if j := firstBarChar(rest); j >= 0 {
+				points = append(points, pos+len(line)-len(rest)+j)
+			}
+		}
+		pos += len(line) + 1
+	}
+	return points
+}
+
+// delimiterConflicts reports whether a block marker writeBlockMarkdown will
+// escape in out sits on a delimiter of one of pairs.
+func (s *mdInlineSink) delimiterConflicts(out string, pairs []mdClosedEmphasis) bool {
+	for _, pt := range s.lineMarkerPoints(out) {
+		for _, p := range pairs {
+			if (pt >= p.openAt && pt < p.openAt+p.n) || (pt >= p.closeAt && pt < p.closeAt+p.n) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// entityAtStartRE is htmlEntityRE anchored to the start of the text.
+var entityAtStartRE = regexp.MustCompile(`^&(?:[A-Za-z][A-Za-z0-9]*|#[0-9]+|#[xX][0-9A-Fa-f]+);`)
+
+// collapseDefinitionLookalikes spells a shortcut reference link that opens a
+// line as a collapsed one, "[label][]", where the line as written reads as a
+// link reference definition. A reference to a definition is what makes the
+// definition's label a block of its own, and escaping the bracket instead
+// would lose that block. A definition whose destination line is "[R]:0",
+// followed by a line of two single quotes and a digit, is that definition and
+// a paragraph that opens with a reference to it, and written as "[R]:0" the
+// paragraph was a second definition.
+func (s *mdInlineSink) collapseDefinitionLookalikes() {
+	for _, ref := range slices.Backward(s.shortcutRefs) {
+		out := s.sb.String()
+		// A definition opens a block, never a continuation line, which a
+		// definition cannot interrupt a paragraph from.
+		if ref.openAt >= len(out) || strings.Contains(out[:ref.openAt], "\n") || !lineStartBefore(out[:ref.openAt]) || !readsAsLinkReferenceDefinition(out[ref.openAt:]) {
+			continue
+		}
+		at := ref.closeAt + 1
+		s.sb.Reset()
+		s.sb.WriteString(out[:at])
+		s.sb.WriteString("[]")
+		s.sb.WriteString(out[at:])
+		shift := func(off int) int {
+			if off >= at {
+				return off + 2
+			}
+			return off
+		}
+		for i, off := range s.litDelims {
+			s.litDelims[i] = shift(off)
+		}
+		for i, off := range s.bareAngles {
+			s.bareAngles[i] = shift(off)
+		}
+		for i, off := range s.bareTicks {
+			s.bareTicks[i] = shift(off)
+		}
+		for i, off := range s.bareBrackets {
+			s.bareBrackets[i] = shift(off)
+		}
+		for i, off := range s.bareAmps {
+			s.bareAmps[i] = shift(off)
+		}
+		for i := range s.pairs {
+			s.pairs[i].openAt = shift(s.pairs[i].openAt)
+			s.pairs[i].closeAt = shift(s.pairs[i].closeAt)
+		}
+		if s.markupEnd >= at {
+			s.markupEnd += 2
+		}
+	}
+}
+
+// escapeFormedMarkup escapes every recorded literal '<' from which the parser
+// reads a tag or an autolink in the output as it stands, and every recorded
+// literal '`' in the opening run of a code span it reads, and every one of
+// them when the output is not a single paragraph, which is where a '<' can
+// open an HTML block. A recorded literal '[' is escaped where the text after
+// it, across the runs that were dropped between, completes a link. An escape
+// can let a later run pair instead, so the pass repeats until nothing forms.
+// The offsets the sink keeps move with the inserted backslashes.
+func (s *mdInlineSink) escapeFormedMarkup() {
+	for range 8 {
+		if len(s.bareAngles) == 0 && len(s.bareTicks) == 0 && len(s.bareBrackets) == 0 && len(s.bareAmps) == 0 {
+			return
+		}
+		out := s.sb.String()
+		formed := formedMarkup(out, s.checkFrame(out), s.bareAngles, s.bareTicks, s.bareBrackets)
+		for _, off := range s.bareBrackets {
+			if off >= len(out) || slices.Contains(formed, off) {
+				continue
+			}
+			if angle, ok := opensLinkTextToEscape(out[off:]); ok && slices.Contains(formed, off+angle) {
+				formed = append(formed, off)
+			}
+		}
+		for i, off := range formed {
+			formed[i] = bracketEscapePoint(out, off)
+		}
+		for _, off := range s.bareAmps {
+			// The reader reads a character reference by its shape, whatever
+			// the name: "&A" and ";" from two runs made "&A;", a block of one
+			// reference, which is no block at all.
+			if off < len(out) && entityAtStartRE.MatchString(out[off:]) {
+				formed = append(formed, off)
+			}
+		}
+		slices.Sort(formed)
+		if len(formed) == 0 {
+			return
+		}
+		var buf strings.Builder
+		prev := 0
+		for _, off := range formed {
+			buf.WriteString(out[prev:off])
+			buf.WriteByte('\\')
+			prev = off
+		}
+		buf.WriteString(out[prev:])
+		s.sb.Reset()
+		s.sb.WriteString(buf.String())
+		escaped := allOffsets(formed)
+		shift := func(off int) int { return off + countAtMost(formed, off) }
+		for i, off := range s.litDelims {
+			s.litDelims[i] = shift(off)
+		}
+		for i := range s.pairs {
+			s.pairs[i].openAt = shift(s.pairs[i].openAt)
+			s.pairs[i].closeAt = shift(s.pairs[i].closeAt)
+		}
+		s.bareAngles = shiftUnescaped(s.bareAngles, escaped, shift)
+		s.bareTicks = shiftUnescaped(s.bareTicks, escaped, shift)
+		s.bareBrackets = shiftUnescaped(s.bareBrackets, escaped, shift)
+		s.bareAmps = shiftUnescaped(s.bareAmps, escaped, shift)
+	}
+}
+
+// bracketEscapePoint returns where the escape goes for the bracket at off:
+// before the bracket, or before the "]" that closes it when an unescaped "["
+// stands before it with no bracket between, where an escaped bracket would
+// make the span from that "[" a link label; a label may span a line ending,
+// so the search runs back across one. "[R][[](" is a shortcut reference
+// followed by text, and with the inner bracket escaped, "[R][\[](", the
+// "[\[]" after the reference was a label, which a shortcut reference may not
+// be followed by. Any other offset is returned as it is.
+func bracketEscapePoint(out string, off int) int {
+	if off <= 0 || off >= len(out) || out[off] != '[' {
+		return off
+	}
+	opened := false
+	for k := off - 1; k >= 0; k-- {
+		c := out[k]
+		if (c == '[' || c == ']') && !backslashEscaped(out, k) {
+			opened = c == '['
+			break
+		}
+	}
+	if !opened {
+		return off
+	}
+	label, _, ok := cutLinkLabel(out[off:])
+	if !ok {
+		return off
+	}
+	return off + 1 + len(label)
+}
+
+// blockFrame is the block the parser checks read the output inside: how many
+// blockquotes deep it sits, and whether it is a list item's text. The checks
+// prefix the output with the markers the block path will write, so a line
+// reads where it will stand: a tab and "<!A" are four columns in at a line's
+// start, text, and two columns into an item written after "- ", where they
+// open an HTML block.
+type blockFrame struct {
+	quoteLevels int
+	listItem    bool
+}
+
+// parseInlineBlock parses out as the block it will be written in: trimmed of
+// the whitespace around it, as the block path trims it, and inside the
+// blockquotes and the list item of frame, whose markers the text carries
+// after each line ending and the block's prefix supplies for the first line.
+// It returns the paragraph the text forms, the bytes it was parsed from and
+// the shift to add to an offset in out to find it in those bytes, or ok false
+// when the text forms anything else: a form feed before "<!A0" kept it a
+// paragraph here and the trim left it an HTML block.
+func parseInlineBlock(out string, frame blockFrame) (para ast.Node, src []byte, shift int, ok bool) {
+	prefix := strings.Repeat("> ", frame.quoteLevels)
+	if frame.listItem {
+		prefix += "- "
+	}
+	lead := len(out) - len(strings.TrimLeft(out, " \t\r\n"))
+	src = []byte(prefix + trimBlockSpace(out))
+	shift = len(prefix) - lead
+	node := parseMarkdown(src)
+	for range frame.quoteLevels {
+		if node.ChildCount() != 1 {
+			return nil, nil, 0, false
+		}
+		q, isQuote := node.FirstChild().(*ast.Blockquote)
+		if !isQuote {
+			return nil, nil, 0, false
+		}
+		node = q
+	}
+	if frame.listItem {
+		if node.ChildCount() != 1 {
+			return nil, nil, 0, false
+		}
+		list, isList := node.FirstChild().(*ast.List)
+		if !isList || list.ChildCount() != 1 {
+			return nil, nil, 0, false
+		}
+		node = list.FirstChild()
+	}
+	if node.ChildCount() != 1 {
+		return nil, nil, 0, false
+	}
+	// A tight list item's text is a text block to the parser, a paragraph
+	// in all but name.
+	switch p := node.FirstChild().(type) {
+	case *ast.Paragraph:
+		return p, src, shift, true
+	case *ast.TextBlock:
+		return p, src, shift, true
+	}
+	return nil, nil, 0, false
+}
+
+// shiftUnescaped drops the offsets just escaped and moves the rest.
+func shiftUnescaped(offsets []int, escaped map[int]bool, shift func(int) int) []int {
+	var kept []int
+	for _, off := range offsets {
+		if escaped[off] {
+			continue
+		}
+		kept = append(kept, shift(off))
+	}
+	return kept
+}
+
+// formedMarkup returns, in ascending order, the offsets in angles at which the
+// parser reads a tag or an autolink from out, the offsets in ticks that open a
+// code span it reads and the offsets in brackets that open a link or an image
+// it reads, or all of the angles and ticks when out is not a single paragraph.
+func formedMarkup(out string, frame blockFrame, angles, ticks, brackets []int) []int {
+	para, src, shift, ok := parseInlineBlock(out, frame)
+	if !ok {
+		all := slices.Concat(angles, ticks)
+		slices.Sort(all)
+		return all
+	}
+	starts := map[int]bool{}
+	_ = ast.Walk(para, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering {
+			return ast.WalkContinue, nil
+		}
+		switch v := n.(type) {
+		case *ast.Link:
+			// The link's bracket is where the node starts; the reader handed
+			// the bracket over as text, so what closed it into a link arrived
+			// in a later run or with a hard break spelled as a soft one.
+			if at, ok := inlineNodeStart(v, src); ok {
+				starts[at-shift] = true
+			}
+		case *ast.Image:
+			if at, ok := inlineNodeStart(v, src); ok {
+				starts[at-shift+1] = true
+			}
+		case *ast.RawHTML:
+			if v.Segments != nil && v.Segments.Len() > 0 {
+				starts[v.Segments.At(0).Start-shift] = true
+			}
+		case *ast.AutoLink:
+			if at, ok := inlineNodeStart(v, src); ok {
+				starts[at-shift] = true
+			}
+		case *ast.CodeSpan:
+			if at, ok := inlineContentStart(v, src); ok {
+				open, _ := codeSpanFences(v, src)
+				for i := range len(open) {
+					starts[at-shift+i] = true
+				}
+			}
+		}
+		return ast.WalkContinue, nil
+	})
+	var formed []int
+	for _, off := range slices.Concat(angles, ticks, brackets) {
+		if starts[off] {
+			formed = append(formed, off)
+		}
+	}
+	slices.Sort(formed)
+	return formed
+}
+
+// literalTildes returns the offsets in lit that hold a tilde in out.
+func literalTildes(out string, lit []int) []int {
+	var tildes []int
+	for _, off := range lit {
+		if off < len(out) && out[off] == '~' {
+			tildes = append(tildes, off)
+		}
+	}
+	return tildes
+}
+
+// allOffsets marks every offset given.
+func allOffsets(offsets []int) map[int]bool {
+	m := make(map[int]bool, len(offsets))
+	for _, off := range offsets {
+		m[off] = true
+	}
+	return m
+}
+
+// degradeEmphasis writes the delimiters of pairs as the literal text they
+// will be on re-read: escaped where their runs could pair, left alone where
+// they cannot, which is how output treats a delimiter the reader handed over
+// as text.
+func degradeEmphasis(out string, pairs []mdClosedEmphasis) string {
+	var lit []int
+	for _, p := range pairs {
+		for i := p.openAt; i < p.openAt+p.n; i++ {
+			lit = append(lit, i)
+		}
+		for i := p.closeAt; i < p.closeAt+p.n; i++ {
+			lit = append(lit, i)
+		}
+	}
+	slices.Sort(lit)
+	which := pairingDelimiterBytes(out)
+	for _, p := range pairs {
+		if p.char != '~' {
+			continue
+		}
+		if which == nil {
+			which = map[int]bool{}
+		}
+		for i := p.openAt; i < p.openAt+p.n; i++ {
+			which[i] = true
+		}
+		for i := p.closeAt; i < p.closeAt+p.n; i++ {
+			which[i] = true
+		}
+	}
+	out, _, _ = escapeDelimiters(out, lit, which, nil)
 	return out
 }
 
 // escapeDelimiters writes a backslash before each byte of out whose offset is
 // in lit and in which, and returns the result with the offsets of the other
-// literal delimiters moved to where they now sit.
-func escapeDelimiters(out string, lit []int, which map[int]bool) (string, []int) {
+// literal delimiters and of the emphasis pairs moved to where they now sit.
+func escapeDelimiters(out string, lit []int, which map[int]bool, pairs []mdClosedEmphasis) (string, []int, []mdClosedEmphasis) {
 	if len(which) == 0 {
-		return out, lit
+		return out, lit, pairs
 	}
 	var buf strings.Builder
-	var rest []int
+	var rest, inserted []int
 	prev, n := 0, 0
 	for _, off := range lit {
-		if !which[off] {
+		if !which[off] || backslashEscaped(out, off) {
 			rest = append(rest, off+n)
 			continue
 		}
 		buf.WriteString(out[prev:off])
 		buf.WriteByte('\\')
+		inserted = append(inserted, off)
 		prev, n = off, n+1
 	}
 	if n == 0 {
-		return out, lit
+		return out, lit, pairs
 	}
 	buf.WriteString(out[prev:])
-	return buf.String(), rest
+	shifted := make([]mdClosedEmphasis, len(pairs))
+	for i, p := range pairs {
+		p.openAt += countAtMost(inserted, p.openAt)
+		p.closeAt += countAtMost(inserted, p.closeAt)
+		shifted[i] = p
+	}
+	return buf.String(), rest, shifted
+}
+
+// countAtMost returns how many of the ascending offsets are at most off: the
+// number of backslashes inserted before the byte that sat at off.
+func countAtMost(offsets []int, off int) int {
+	n := 0
+	for _, o := range offsets {
+		if o > off {
+			break
+		}
+		n++
+	}
+	return n
+}
+
+// respellMisreadEmphasis returns out with its emphasis pairs spelled so that
+// the reader's parser pairs them as written: the pairs' characters are
+// flipped, fewest first, until a spelling reads back. The re-spelled runs may
+// let a literal delimiter (one of the offsets in lit) pair where it could not
+// before, which the pass after would escape, so each spelling that reads back
+// is weighed with its literals escaped too, and the first that reads back
+// both ways is taken; failing that, the first that reads back as written. A
+// spelling conflicts reports, one with a block marker on a delimiter, is not
+// taken. ok is false when none does.
+func respellMisreadEmphasis(out string, lit []int, pairs []mdClosedEmphasis, frame blockFrame, conflicts func(string, []mdClosedEmphasis) bool) (string, bool) {
+	k := min(len(pairs), 6)
+	masks := make([]int, 0, 1<<k)
+	for m := 1; m < 1<<k; m++ {
+		masks = append(masks, m)
+	}
+	slices.SortStableFunc(masks, func(a, b int) int { return bits.OnesCount(uint(a)) - bits.OnesCount(uint(b)) })
+	first := ""
+	for _, m := range masks {
+		cand, candPairs := flipEmphasisPairs(out, pairs, m)
+		if conflicts(cand, candPairs) {
+			// A block marker the block path will escape sits on one of the
+			// re-spelled delimiters.
+			continue
+		}
+		escaped, _, escapedPairs := escapeDelimiters(cand, lit, pairingDelimiterBytes(cand), candPairs)
+		if escaped != cand {
+			// The pass after would escape these literals, so the spelling
+			// is judged with them escaped.
+			if ok, known := emphasisReadsBack(escaped, escapedPairs, frame); ok && known {
+				return escaped, true
+			}
+		}
+		if ok, known := emphasisReadsBack(cand, candPairs, frame); ok && known {
+			if escaped == cand {
+				return cand, true
+			}
+			if first == "" {
+				first = cand
+			}
+		}
+	}
+	if first != "" {
+		return first, true
+	}
+	return out, false
+}
+
+// flipEmphasisPairs rewrites the pairs mask selects with the other delimiter
+// character.
+func flipEmphasisPairs(out string, pairs []mdClosedEmphasis, mask int) (string, []mdClosedEmphasis) {
+	b := []byte(out)
+	res := slices.Clone(pairs)
+	for i := range res {
+		if mask&(1<<i) == 0 || res[i].char == '~' {
+			continue
+		}
+		alt := byte('_')
+		if res[i].char == '_' {
+			alt = '*'
+		}
+		for j := res[i].openAt; j < res[i].openAt+res[i].n && j < len(b); j++ {
+			b[j] = alt
+		}
+		for j := res[i].closeAt; j < res[i].closeAt+res[i].n && j < len(b); j++ {
+			b[j] = alt
+		}
+		res[i].char = alt
+	}
+	return string(b), res
+}
+
+var (
+	errEmphasisUnlocated = errors.New("emphasis node cannot be located")
+	errEmphasisMismatch  = errors.New("emphasis pairs differ")
+)
+
+// emphasisReadsBack reports whether out, read by the reader's parser, holds
+// exactly the emphasis pairs given, each with its delimiters at the offsets
+// recorded. known is false when the comparison cannot be made: the output is
+// not a single paragraph, or a node's position cannot be resolved.
+//
+// An output that opens with a block marker is read the way the block path
+// will write it, with the marker escaped: "* *0*0*" is a list item as it
+// stands, and the escape the block path adds leaves the pair's own opener as
+// text.
+func emphasisReadsBack(out string, pairs []mdClosedEmphasis, frame blockFrame) (ok, known bool) {
+	ok, known, _ = emphasisReadsBackParsed(out, pairs, frame)
+	return ok, known
+}
+
+// emphasisReadsBackParsed is emphasisReadsBack, reporting as well whether the
+// output parsed as the single paragraph the comparison needs: known is false
+// without that, and false with it when a pair the parser formed cannot be
+// located in the output.
+func emphasisReadsBackParsed(out string, pairs []mdClosedEmphasis, frame blockFrame) (ok, known, parsed bool) {
+	ok, known, parsed = emphasisReadsBackAsWritten(out, pairs, frame)
+	if known {
+		return ok, true, parsed
+	}
+	// The block path trims the output before it escapes a leading marker, so
+	// a marker after leading whitespace is a marker here too.
+	lead := len(out) - len(strings.TrimLeft(out, " \t\r\n"))
+	escaped := out[:lead] + escapeLeadingBlockMarker(out[lead:])
+	if escaped == out {
+		return false, false, parsed
+	}
+	at := 0
+	for at < len(out) && out[at] == escaped[at] {
+		at++
+	}
+	shifted := slices.Clone(pairs)
+	for i := range shifted {
+		if shifted[i].openAt >= at {
+			shifted[i].openAt++
+		}
+		if shifted[i].closeAt >= at {
+			shifted[i].closeAt++
+		}
+	}
+	ok, known, parsedEscaped := emphasisReadsBackAsWritten(escaped, shifted, frame)
+	return ok, known, parsed || parsedEscaped
+}
+
+// emphasisReadsBackAsWritten is emphasisReadsBack on out as it stands, read
+// inside the block of frame; parsed reports whether out parsed as a single
+// paragraph.
+func emphasisReadsBackAsWritten(out string, pairs []mdClosedEmphasis, frame blockFrame) (ok, known, parsed bool) {
+	para, src, shift, ok := parseInlineBlock(out, frame)
+	if !ok {
+		return false, false, false
+	}
+	want := make(map[mdClosedEmphasis]int, len(pairs))
+	for _, p := range pairs {
+		want[p]++
+	}
+	got := 0
+	err := ast.Walk(para, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering {
+			return ast.WalkContinue, nil
+		}
+		var openLen, closeLen int
+		switch {
+		case n.Kind() == ast.KindEmphasis:
+			openLen = n.(*ast.Emphasis).Level
+			closeLen = openLen
+		case n.Kind() == east.KindStrikethrough:
+			open, close := strikethroughFences(n, src)
+			openLen, closeLen = len(open), len(close)
+		default:
+			return ast.WalkContinue, nil
+		}
+		openAt, okStart := inlineContentStart(n, src)
+		if !okStart {
+			// A pair whose first child records no position of its own, an
+			// empty link say, is located from its neighbours instead.
+			openAt, okStart = inlineNodeStart(n, src)
+		}
+		end, okEnd := inlineNodeEnd(n, src)
+		if !okStart || !okEnd || openAt < 0 || openAt >= len(src) {
+			return ast.WalkStop, errEmphasisUnlocated
+		}
+		p := mdClosedEmphasis{char: src[openAt], openAt: openAt - shift, closeAt: end - closeLen - shift, n: openLen}
+		if want[p] == 0 {
+			return ast.WalkStop, errEmphasisMismatch
+		}
+		want[p]--
+		got++
+		return ast.WalkContinue, nil
+	})
+	switch {
+	case errors.Is(err, errEmphasisUnlocated):
+		return false, false, true
+	case err != nil:
+		return false, true, true
+	}
+	return got == len(pairs), true, true
 }
 
 // delimRun is one maximal run of the same emphasis delimiter character in the
@@ -1166,18 +2909,31 @@ func delimiterFlanking(c byte, before, after rune) (canOpen, canClose bool) {
 
 // runeBefore and runeAfter give the rune on each side of a delimiter run. The
 // start and the end of the text stand in as whitespace, the way CommonMark 6.2
-// asks.
+// asks. Both decode the way the parser does: from the nearest byte at or
+// before the position that starts a UTF-8 sequence, so a stray continuation
+// byte is read with the character before it. Before "*" in a digit, the byte
+// 0xAA and "*", the parser sees the digit, and the run closes; decoded on its
+// own the byte is the replacement character, a symbol, and the run closed
+// nothing.
 func runeBefore(s string, i int) rune {
 	if i <= 0 {
 		return ' '
 	}
-	r, _ := utf8.DecodeLastRuneInString(s[:i])
-	return r
+	return runeAtOrBefore(s, i-1)
 }
 
 func runeAfter(s string, i int) rune {
 	if i >= len(s) {
 		return ' '
+	}
+	return runeAtOrBefore(s, i)
+}
+
+// runeAtOrBefore decodes the rune whose UTF-8 sequence starts at the nearest
+// start byte at or before i.
+func runeAtOrBefore(s string, i int) rune {
+	for i > 0 && !utf8.RuneStart(s[i]) {
+		i--
 	}
 	r, _ := utf8.DecodeRuneInString(s[i:])
 	return r
@@ -1200,6 +2956,9 @@ func (s *mdInlineSink) flush() {
 		case tag.destKey != "":
 			s.sb.WriteString(mdLinkClose(tag.attrs, tag.destKey))
 		default:
+			if isEmphasisDelimiter(tag.close) {
+				s.closedPair(mdClosedEmphasis{char: tag.close[0], openAt: tag.at, closeAt: s.sb.Len(), n: len(tag.close)})
+			}
 			s.sb.WriteString(tag.close)
 		}
 	}
@@ -1211,7 +2970,7 @@ func (s *mdInlineSink) flush() {
 // children render as a GFM table; every other block renders individually.
 // Non-table group brackets are transparent — their child blocks render in
 // place exactly as the block-only path did.
-func (w *Writer) writeFromEvents(events []*model.Part, out io.Writer) error {
+func (w *Writer) writeFromEvents(ctx context.Context, events []*model.Part, out io.Writer) error {
 	var pendingCells []*model.Block
 	flushCells := func() error {
 		if len(pendingCells) == 0 {
@@ -1319,7 +3078,7 @@ func (w *Writer) writeFromEvents(events []*model.Part, out io.Writer) error {
 			if err := flushCells(); err != nil {
 				return err
 			}
-			if err := w.writeBlockMarkdown(block, out); err != nil {
+			if err := w.writeBlockMarkdown(ctx, block, out); err != nil {
 				return err
 			}
 		}
@@ -1328,6 +3087,36 @@ func (w *Writer) writeFromEvents(events []*model.Part, out io.Writer) error {
 		return err
 	}
 	return flushCells()
+}
+
+// rendersOnlyDelimiters reports whether runs render as emphasis delimiters
+// around nothing: every text run is whitespace, every placeholder has no
+// equivalent text, and every code is an emphasis the writer spells as
+// delimiters or inline HTML it drops. A link or an image keeps its block,
+// since its brackets read back as the link they are.
+func rendersOnlyDelimiters(runs []model.Run) bool {
+	codes := 0
+	for _, r := range runs {
+		switch r.Kind() {
+		case model.RunKindText:
+			if strings.TrimSpace(r.Text.Text) != "" {
+				return false
+			}
+		case model.RunKindPh:
+			if r.Ph.Equiv != "" {
+				return false
+			}
+		case model.RunKindPcOpen:
+			if _, emphasis := mdInlineTag[r.PcOpen.Type]; !emphasis && r.PcOpen.Type != "fmt:html" {
+				return false
+			}
+			codes++
+		case model.RunKindPcClose:
+		default:
+			return false
+		}
+	}
+	return codes > 0
 }
 
 // isCellBlock reports whether a block carries a table-cell role.
@@ -1387,7 +3176,7 @@ func (w *Writer) assembleFlatCells(cells []*model.Block) (caption string, rows [
 // output by a blank line. Inline formatting renders from each run's vocabulary
 // type, not its source-format Data, so the same Markdown results whatever the
 // source format.
-func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
+func (w *Writer) writeBlockMarkdown(ctx context.Context, block *model.Block, out io.Writer) error {
 
 	if rendersNothing(block) {
 		return nil
@@ -1412,6 +3201,17 @@ func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
 	if role0 == "" {
 		role0 = block.Type
 	}
+	switch role0 {
+	case "", model.RoleParagraph, model.RoleHeading, model.RoleTitle, model.RoleListItem:
+		if rendersOnlyDelimiters(w.blockRuns(block)) {
+			// A block whose runs hold no text and whose codes are emphasis
+			// around inline HTML renders as bare delimiters once the HTML is
+			// dropped: "*<A>*" before a heading was written as "**", a
+			// paragraph of two asterisks the pass after read as text, and
+			// "# *<A>*" as "# **", a heading with text.
+			return nil
+		}
+	}
 	if err := w.separateBlock(role0 == model.RoleListItem, out); err != nil {
 		return err
 	}
@@ -1429,7 +3229,16 @@ func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
 	// the content there. Every other role lands in an inline position, where
 	// Markdown strips boundary whitespace on re-read, so the writer trims it
 	// rather than emitting text that will not survive (#1603).
-	text := renderInlineMarkdown(w.blockRuns(block))
+	text, quoteLevels := w.inlineBlockText(block)
+	text = w.convergeInlineText(ctx, block, text, quoteLevels)
+	if block.Type == "docusaurus-admonition-title" || block.Type == "admonition-title" {
+		// An admonition's title is text to the reader, and the rebuild
+		// writes it as a paragraph, where a bracket span can be a reference
+		// to one of the document's definitions: "::: [0]" over a definition
+		// of "0" came back as a paragraph holding a reference, and the
+		// label's block with it.
+		text = escapeBareBrackets(text)
+	}
 	if role == model.RoleCode {
 		text = renderInlineLiteral(w.blockRuns(block))
 	}
@@ -1467,8 +3276,17 @@ func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
 		// one, so one of them goes or every pass adds a blank line before the
 		// closing fence.
 		text = strings.TrimSuffix(text, "\n")
-		fence := codeFence(text)
-		prefix, suffix = fence+block.CodeLanguage()+"\n", "\n"+fence
+		info := block.CodeLanguage()
+		fence := codeFence(text, info)
+		// An info string that begins with the fence's own character would
+		// lengthen the fence: "~~~" and "~x" written together open a fence of
+		// four that the closing fence of three does not close. A space
+		// between them is not part of the info string (CommonMark 4.5).
+		sep := ""
+		if info != "" && info[0] == fence[0] {
+			sep = " "
+		}
+		prefix, suffix = fence+sep+info+"\n", "\n"+fence
 	case model.RoleCaption:
 		prefix, suffix = "*", "*"
 	}
@@ -1506,13 +3324,23 @@ func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
 	case prefix == "" && suffix == "":
 		text = foldBlankLines(text)
 		if bqPrefix, body, isQuote := w.blockquoteRebuild(block, text); isQuote {
-			prefix, text = bqPrefix, escapeLazyQuoteLines(escapeLeadingBlockMarker(body))
+			levels := strings.Count(bqPrefix, ">")
+			prefix, text = bqPrefix, escapeLazyQuoteLines(escapeLeadingBlockMarker(foldQuoteMarkerLines(body, levels)), levels)
 		} else {
-			text = escapeBlockMarkerLines(text)
+			text = escapeBlockMarkerLines(body)
 			text = escapeInteriorBlockBars(text)
 		}
 	case role == model.RoleListItem:
-		text = escapeBlockMarkerLines(foldBlankLines(text))
+		// An item's continuation lines are in block-content position like a
+		// paragraph's, so a line that forms a setext underline or a GFM
+		// delimiter row promotes the line above it the same way.
+		text = escapeInteriorBlockBars(escapeItemMarkerLines(foldBlankLines(text), len(prefix)))
+		if first, _, _ := strings.Cut(text, "\n"); isThematicBreak(prefix + first) {
+			// "- --" is three dashes with spaces between, a thematic break
+			// (CommonMark 4.1), so an item whose text is a dash run escapes
+			// the first of them.
+			text = "\\" + text
+		}
 	}
 
 	if _, err := fmt.Fprint(out, w.quoteBody(prefix+text+suffix)); err != nil {
@@ -1600,12 +3428,47 @@ func (w *Writer) flushDefinition(out io.Writer) error {
 	if err := w.separateBlock(false, out); err != nil {
 		return err
 	}
-	text := "[" + def.label + "]: " + def.destination
+	dest := definitionDestination(def.destination, def.title != "")
+	text := "[" + def.label + "]: " + dest
 	if def.title != "" {
-		text += " " + refTitleSpelling(def.title)
+		// The parser takes a backslash at the end of a bare destination
+		// together with the space after it, so a title after such a
+		// destination needs a second space to be read at all.
+		sep := " "
+		if endsInUnescapedBackslash(dest) {
+			sep = "  "
+		}
+		text += sep + refTitleSpelling(def.title)
 	}
 	_, err := fmt.Fprint(out, w.quoteBody(text))
 	return err
+}
+
+// definitionDestination spells a rebuilt definition's destination: as the
+// reader recorded it, or between angle brackets when a title follows and the
+// destination holds a control character, which a bare destination cannot
+// carry past a title on the same line: "[R]:\n[R]\x06\n'0'0" was rebuilt as
+// "[R]: [R]\x06 \"0\"" and read back without its title. A destination holding
+// an angle bracket cannot go between them and stays as recorded, and so does
+// one ending in an unescaped backslash, which would escape the closing
+// bracket: a backslash, a control byte and a backslash before two spaces and
+// a title was spelled between brackets that never closed, and the definition
+// was a paragraph. Bare, flushDefinition separates it from the title by two
+// spaces.
+func definitionDestination(dest string, titled bool) string {
+	if dest == "" {
+		// An empty destination is spelled by its brackets alone.
+		return "<>"
+	}
+	if !titled || strings.ContainsAny(dest, "<>") || endsInUnescapedBackslash(dest) {
+		return dest
+	}
+	for i := range len(dest) {
+		if dest[i] < ' ' {
+			return "<" + dest + ">"
+		}
+	}
+	return dest
 }
 
 // mdCell is one table cell: its rendered text and the column it occupies
@@ -1776,6 +3639,19 @@ func escapeTableCell(s string) string {
 	return s
 }
 
+// escapeBareBrackets writes a backslash before every unescaped "[" in text,
+// so no span of it reads as a link or a reference.
+func escapeBareBrackets(text string) string {
+	var b strings.Builder
+	for i := range len(text) {
+		if text[i] == '[' && !backslashEscaped(text, i) {
+			b.WriteByte('\\')
+		}
+		b.WriteByte(text[i])
+	}
+	return b.String()
+}
+
 // escapeLeadingBlockMarker backslash-escapes the marker that begins text when
 // text, emitted verbatim at the start of a line, would OPEN a block-level
 // construct — so a paragraph the rebuild path produced does not re-read as a
@@ -1810,9 +3686,10 @@ func escapeLeadingBlockMarker(text string) string {
 // the marker sits at the end of the line rather than at its start.
 //
 // A hash not preceded by whitespace is content already ("# C#"), and an
-// escaped run matches nothing, so the escape is idempotent.
+// escaped run matches nothing, so the escape is idempotent. A bare carriage
+// return is whitespace inside the line to the parser, like a space or a tab.
 func escapeHeadingClosingSequence(text string) string {
-	end := len(strings.TrimRight(text, " \t"))
+	end := len(strings.TrimRight(text, " \t\r"))
 	i := end
 	for i > 0 && text[i-1] == '#' {
 		i--
@@ -1820,7 +3697,7 @@ func escapeHeadingClosingSequence(text string) string {
 	if i == end {
 		return text
 	}
-	if i > 0 && text[i-1] != ' ' && text[i-1] != '\t' {
+	if i > 0 && text[i-1] != ' ' && text[i-1] != '\t' && text[i-1] != '\r' {
 		return text
 	}
 	return text[:i] + "\\" + text[i:]
@@ -1842,15 +3719,101 @@ func escapeBlockMarkerLines(text string) string {
 	if !strings.Contains(text, "\n") {
 		return escapeLeadingBlockMarker(text)
 	}
-	lines := strings.Split(text, "\n")
-	for i, line := range lines {
-		if i == 0 {
-			lines[i] = escapeLeadingBlockMarker(line)
-			continue
-		}
-		lines[i] = escapeInterruptingBlockMarker(line)
+	// The first line's marker is judged on the whole text: a link reference
+	// definition's label may span lines.
+	lines := strings.Split(escapeLeadingBlockMarker(text), "\n")
+	for i := 1; i < len(lines); i++ {
+		lines[i] = escapeInterruptingBlockMarker(lines[i])
 	}
 	return strings.Join(lines, "\n")
+}
+
+// escapeContinuationLineMarkers applies escapeLeadingBlockMarker to every line
+// of text after the first.
+func escapeContinuationLineMarkers(text string) string {
+	if !strings.Contains(text, "\n") {
+		return text
+	}
+	lines := strings.Split(text, "\n")
+	for i := 1; i < len(lines); i++ {
+		lines[i] = escapeLeadingBlockMarker(lines[i])
+	}
+	return strings.Join(lines, "\n")
+}
+
+// escapeItemMarkerLines applies escapeLeadingBlockMarker to every line of a
+// rebuilt list item whose content starts at column. The item's continuation
+// lines are written after its first, at the column of the text they carry,
+// and the parser ends the item's paragraph at any block marker there, a bullet
+// with nothing after it included: "- 0\n*\n0" read back as an item, an empty
+// list and a paragraph, where the item's text had been "0\n*\n0". A line
+// indented past the item's column is inside the item, where a marker sits
+// after up to three more spaces: "*    0\n    # 0" is one item whose lazy
+// line carries four spaces, and rebuilt after "- " the same line is a heading.
+func escapeItemMarkerLines(text string, column int) string {
+	if !strings.Contains(text, "\n") {
+		return escapeLeadingBlockMarker(text)
+	}
+	lines := strings.Split(escapeLeadingBlockMarker(text), "\n")
+	for i := 1; i < len(lines); i++ {
+		lines[i] = escapeItemMarkerLine(lines[i], column)
+	}
+	return strings.Join(lines, "\n")
+}
+
+// escapeItemMarkerLine escapes a block marker after the indentation of a
+// rebuilt item's continuation line, where the indentation is at most three
+// columns past the item's content column. A tab advances to the next tab
+// stop of four (CommonMark 2.2): a line of a tab and ">0" sits four columns
+// in, inside an item whose content starts at column two, where the ">" opens
+// a quote. A setext underline or a table delimiter row there is escaped the
+// same way: a tab and "=" after a quoted item's lazy lines was text in the
+// quote, and rebuilt inside the item alone it underlined the lines above.
+func escapeItemMarkerLine(line string, column int) string {
+	indent, col := 0, 0
+	for indent < len(line) && (line[indent] == ' ' || line[indent] == '\t') {
+		if line[indent] == '\t' {
+			col += 4 - col%4
+		} else {
+			col++
+		}
+		indent++
+	}
+	if col > column+3 {
+		return line
+	}
+	rest := line[indent:]
+	if i, ok := blockMarkerPos(rest); ok && rest[i] != '[' {
+		return line[:indent+i] + "\\" + rest[i:]
+	}
+	if isSetextBar(rest) || isTableDelimiterRow(rest) {
+		if j := firstBarChar(rest); j >= 0 {
+			return line[:indent+j] + "\\" + rest[j:]
+		}
+	}
+	return line
+}
+
+// escapeContinuationLineMarkerAt escapes any block marker that opens a lazy
+// continuation line whose first byte sits at column, where the parser
+// measures the indentation before a marker from (blockIndentAt): a nested
+// quote's line with one marker of two is lazy for the inner quote, and a
+// space and a tab after its ">" put a "#" two columns in, a heading. A link
+// reference definition is the exception: a definition cannot interrupt a
+// paragraph (CommonMark 4.7), so a line that reads as one is the paragraph's
+// text, and its bracket may open a reference link whose definition's label is
+// a block of its own. "[0]:0" over a quote whose lazy line is "[0]:0" has
+// that line as a reference and text, and escaped as a definition lookalike
+// the reference was gone, and the label block with it.
+func escapeContinuationLineMarkerAt(line string, column int) string {
+	off, ok := blockIndentAt(line, column)
+	if !ok {
+		return line
+	}
+	if i, found := blockMarkerPos(line[off:]); found && line[off+i] != '[' {
+		return line[:off+i] + "\\" + line[off+i:]
+	}
+	return line
 }
 
 // codeFence returns the backtick run that opens and closes a rebuilt fenced
@@ -1860,19 +3823,25 @@ func escapeBlockMarkerLines(text string) string {
 // CommonMark 4.5 closes a fence on a run at least as long as the opener, so a
 // three-backtick opener around content holding a three-backtick line ended the
 // block after its first line: the rest became a paragraph and a stray opener
-// was left at the end (#2487). The fence is always backticks, so a tilde run in
-// the content closes nothing and does not count.
-func codeFence(text string) string {
+// was left at the end (#2487). The fence is backticks, so a tilde run in the
+// content closes nothing and does not count, except when the info string holds
+// a backtick, which a backtick fence's info string may not: the fence is
+// tildes then, and the tilde runs in the content are the ones that count.
+func codeFence(text, info string) string {
+	char := byte('`')
+	if strings.Contains(info, "`") {
+		char = '~'
+	}
 	longest := 0
 	for line := range strings.SplitSeq(text, "\n") {
 		line = strings.TrimLeft(line, " ")
 		n := 0
-		for n < len(line) && line[n] == '`' {
+		for n < len(line) && line[n] == char {
 			n++
 		}
 		longest = max(longest, n)
 	}
-	return strings.Repeat("`", max(3, longest+1))
+	return strings.Repeat(string(char), max(3, longest+1))
 }
 
 // foldBlankLines drops the blank lines inside a block the rebuild path emits as
@@ -1891,13 +3860,42 @@ func foldBlankLines(text string) string {
 	lines := strings.Split(text, "\n")
 	kept := lines[:0]
 	for _, line := range lines {
-		if strings.TrimSpace(line) == "" {
+		if isBlankLine(line) {
 			continue
 		}
 		kept = append(kept, line)
 	}
 	if len(kept) == 0 {
 		return ""
+	}
+	return strings.Join(kept, "\n")
+}
+
+// isBlankLine reports whether the parser reads line as a blank line: one of
+// spaces and tabs only (CommonMark 2.1), with the carriage return of a CRLF
+// line ending. A form feed or a vertical tab is content, so a line holding
+// one keeps the paragraph going: "<A\n\f\nA>" is one paragraph, and folded
+// to "<A\nA>" it was an inline tag and no block at all.
+func isBlankLine(line string) bool {
+	return strings.Trim(line, " \t\r") == ""
+}
+
+// foldQuoteMarkerLines drops a rebuilt blockquote body's continuation lines
+// that hold nothing but their marker, the way foldBlankLines drops a
+// paragraph's blank lines: a line a dropped construct leaves empty ends the
+// quote's paragraph on re-read, and ">00\n><A>\n0" came back as two blocks.
+func foldQuoteMarkerLines(body string, levels int) string {
+	if !strings.Contains(body, "\n") {
+		return body
+	}
+	lines := strings.Split(body, "\n")
+	kept := lines[:1]
+	for _, line := range lines[1:] {
+		prefix := blockquoteMarkerPrefixUpTo(line, levels)
+		if isBlankLine(line[len(prefix):]) {
+			continue
+		}
+		kept = append(kept, line)
 	}
 	return strings.Join(kept, "\n")
 }
@@ -1914,7 +3912,16 @@ func foldBlankLines(text string) string {
 // a heading, so one block became two (#2485). A lazy line that forms a GFM
 // delimiter row or a setext underline promotes the line above it the same way,
 // which is what escapeInteriorBlockBars does for a plain paragraph.
-func escapeLazyQuoteLines(body string) string {
+//
+// On a lazy line the parser ends the quote's paragraph at any block marker,
+// a list marker with nothing after it included, where CommonMark 5.2 would
+// let a paragraph run on. So every marker on a lazy line is escaped, where a
+// plain paragraph's continuation line escapes the interrupting ones alone.
+//
+// levels is the quote's depth, which bounds the markers a continuation line
+// carries as its prefix: a ">" beyond them is content, the way the rebuild
+// path leaves one when it drops the inline HTML that stood between two.
+func escapeLazyQuoteLines(body string, levels int) string {
 	if !strings.Contains(body, "\n") {
 		return body
 	}
@@ -1922,8 +3929,16 @@ func escapeLazyQuoteLines(body string) string {
 	for i := 1; i < len(lines); i++ {
 		// A marked line keeps its ">" and the escape applies to what follows
 		// it, which is the same block-content position the marker opens.
-		prefix := blockquoteMarkerPrefix(lines[i])
-		rest := escapeInterruptingBlockMarker(lines[i][len(prefix):])
+		// A line with fewer markers than the quote has levels is lazy for
+		// the levels it lacks, and the parser ends the paragraph at any
+		// marker there as it does on a line with none.
+		prefix := blockquoteMarkerPrefixUpTo(lines[i], levels)
+		rest := lines[i][len(prefix):]
+		if strings.Count(prefix, ">") < levels {
+			rest = escapeContinuationLineMarkerAt(rest, columnWidth(prefix))
+		} else {
+			rest = escapeInterruptingBlockMarkerAt(rest, columnWidth(prefix))
+		}
 		if isSetextBar(rest) || isTableDelimiterRow(rest) {
 			if j := firstBarChar(rest); j >= 0 {
 				rest = rest[:j] + "\\" + rest[j:]
@@ -1945,11 +3960,59 @@ func escapeLazyQuoteLines(body string) string {
 // list marker spells "0\)", which IS one, so the paragraph became a link
 // reference definition and the block was gone.
 func escapeInterruptingBlockMarker(line string) string {
-	i, ok := leadingBlockMarkerPos(line)
-	if !ok || !interruptsAParagraph(line) {
+	return escapeInterruptingBlockMarkerAt(line, 0)
+}
+
+// escapeInterruptingBlockMarkerAt is escapeInterruptingBlockMarker for a line
+// whose first byte sits at column, where the parser measures the indentation
+// before a marker from: inside a blockquote the content starts after the
+// marker, so a space and a tab before "#" are two columns in after "> " and
+// open a heading, where at a line's start they are four and the "#" is text.
+func escapeInterruptingBlockMarkerAt(line string, column int) string {
+	off, ok := blockIndentAt(line, column)
+	if !ok {
 		return line
 	}
-	return line[:i] + "\\" + line[i:]
+	i, found := blockMarkerPos(line[off:])
+	if !found || !interruptsAParagraph(line[off:]) {
+		return line
+	}
+	return line[:off+i] + "\\" + line[off+i:]
+}
+
+// blockIndentAt returns the length of the indentation that can precede a
+// block marker on a line whose first byte sits at column, measured as the
+// parser measures it: spaces and tabs, a tab reaching the next stop of four
+// (CommonMark 2.2), and at most three columns of it (CommonMark 4.2). ok is
+// false where the line is indented code.
+func blockIndentAt(text string, column int) (int, bool) {
+	n, col := 0, column
+	for n < len(text) && (text[n] == ' ' || text[n] == '\t') {
+		if text[n] == '\t' {
+			col += 4 - col%4
+		} else {
+			col++
+		}
+		if col-column > 3 {
+			return 0, false
+		}
+		n++
+	}
+	return n, true
+}
+
+// columnWidth returns the column a line's content starts at after prefix: its
+// bytes, with a tab reaching the next stop of four.
+func columnWidth(prefix string) int {
+	col := 0
+	for i := range len(prefix) {
+		if prefix[i] == '\t' {
+			col += 4 - col%4
+		} else {
+			col++
+		}
+	}
+	return col
 }
 
 // interruptsAParagraph reports whether the block marker leadingBlockMarkerPos
@@ -1981,12 +4044,14 @@ func interruptsAParagraph(line string) bool {
 
 // listContentFollows reports whether a list marker ending just before i is
 // followed by a space or tab and then content, which CommonMark 5.2 requires
-// before the item can interrupt a paragraph.
+// before the item can interrupt a paragraph. Content is anything but the
+// parser's whitespace: a form feed or a vertical tab after the marker is an
+// item's content, and the line interrupts.
 func listContentFollows(line string, i int) bool {
 	if i >= len(line) || (line[i] != ' ' && line[i] != '\t') {
 		return false
 	}
-	return strings.TrimSpace(line[i:]) != ""
+	return strings.Trim(line[i:], " \t\r\n") != ""
 }
 
 // leadingBlockMarkerPos reports the byte index of the marker character to
@@ -2040,6 +4105,18 @@ func blockMarkerPos(text string) (int, bool) {
 	case '>':
 		// Blockquote marker.
 		return 0, true
+	case ':':
+		// A Docusaurus admonition opens on ":::" and closes on it too; a
+		// title that is ":::" was written as a paragraph and read back as the
+		// closer, and the block was gone.
+		if strings.HasPrefix(text, ":::") && (len(text) == 3 || text[3] != ':') {
+			return 0, true
+		}
+	case '!', '?':
+		// A MkDocs admonition opens on "!!! type" or "??? type".
+		if (strings.HasPrefix(text, "!!!") || strings.HasPrefix(text, "???")) && atLineBoundary(strings.TrimPrefix(text[3:], "+"), 0) {
+			return 0, true
+		}
 	case '-', '+', '*', '_':
 		// A run of three or more matching -, _ or * (spaces allowed) is a
 		// thematic break; '-', '+' or '*' then a space/tab or end of line is a
@@ -2105,7 +4182,9 @@ func blockMarkerPos(text string) (int, bool) {
 // the block was gone (#2526).
 func readsAsLinkReferenceDefinition(text string) bool {
 	label, rest, ok := cutLinkLabel(text)
-	if !ok || strings.TrimSpace(label) == "" || !strings.HasPrefix(rest, ":") {
+	// A label needs a character that is not whitespace, by the parser's own
+	// set: a vertical tab or a form feed is one.
+	if !ok || strings.Trim(label, " \t\n\r") == "" || !strings.HasPrefix(rest, ":") {
 		return false
 	}
 	return definitionTailIsADestination(rest[1:])
@@ -2113,7 +4192,7 @@ func readsAsLinkReferenceDefinition(text string) bool {
 
 // cutLinkLabel splits a leading "[label]" off text, reporting the label's
 // content and what follows the "]". A backslash escapes the bracket after it,
-// and a label runs to the end of the first line at most.
+// a label may span lines (CommonMark 4.7), and a blank line ends it.
 func cutLinkLabel(text string) (label, rest string, ok bool) {
 	if text == "" || text[0] != '[' {
 		return "", "", false
@@ -2123,6 +4202,13 @@ func cutLinkLabel(text string) (label, rest string, ok bool) {
 		case '\\':
 			i++
 		case '\n':
+			// A blank line ends the label.
+			if rest := strings.TrimLeft(text[i+1:], " \t\r"); rest == "" || rest[0] == '\n' {
+				return "", "", false
+			}
+		case '[':
+			// A label holds no unescaped bracket (CommonMark 6.3), so
+			// "[[]:x" opens no definition; it is the text of a link or text.
 			return "", "", false
 		case ']':
 			return text[1:i], text[i+1:], true
@@ -2145,10 +4231,6 @@ func isASCIIPunct(c byte) bool {
 	return (c >= '!' && c <= '/') || (c >= ':' && c <= '@') || (c >= '[' && c <= '`') || (c >= '{' && c <= '~')
 }
 
-// definitionTailIsADestination reports whether what follows a definition's
-// colon is a destination with nothing but an optional title after it. Anything
-// else on the line — the ")" of "[R]:\n0)", which closes more parentheses than
-// the destination opened — leaves the line a paragraph.
 func definitionTailIsADestination(s string) bool {
 	i, ok := skipDefinitionSpace(s, 0)
 	if !ok {
@@ -2161,14 +4243,33 @@ func definitionTailIsADestination(s string) bool {
 	for i < len(s) && (s[i] == ' ' || s[i] == '\t' || s[i] == '\r') {
 		i++
 	}
-	if i >= len(s) {
+	if i >= len(s) || s[i] == '\n' {
 		return true
 	}
+	var closer byte
 	switch s[i] {
-	case '\n', '"', '\'', '(':
-		return true
+	case '"':
+		closer = '"'
+	case '\'':
+		closer = '\''
+	case '(':
+		closer = ')'
+	default:
+		return false
 	}
-	return false
+	j := i + 1
+	for j < len(s) && s[j] != closer {
+		if s[j] == '\\' {
+			j++
+		}
+		j++
+	}
+	if j >= len(s) {
+		return false
+	}
+	for j++; j < len(s) && (s[j] == ' ' || s[j] == '\t' || s[j] == '\r'); j++ {
+	}
+	return j >= len(s) || s[j] == '\n'
 }
 
 // skipDefinitionSpace steps over the whitespace CommonMark allows before a
@@ -2196,7 +4297,9 @@ func skipDefinitionSpace(s string, i int) (int, bool) {
 // skipDefinitionDestination steps over a link destination starting at i,
 // reporting the offset just past it. It follows goldmark's
 // parseLinkDestination: angle brackets closed on the same line, or a run of
-// non-space bytes that ends at a ")" closing more parentheses than it opened.
+// non-whitespace bytes that ends at a ")" closing more parentheses than it
+// opened. A control character other than a space, a tab or a line ending
+// stays in the destination, as it does for the parser.
 func skipDefinitionDestination(s string, i int) (int, bool) {
 	if i >= len(s) {
 		return i, false
@@ -2205,7 +4308,9 @@ func skipDefinitionDestination(s string, i int) (int, bool) {
 		for j := i + 1; j < len(s); j++ {
 			switch s[j] {
 			case '\\':
-				j++
+				if j+1 < len(s) && isASCIIPunct(s[j+1]) {
+					j++
+				}
 			case '\n':
 				return i, false
 			case '>':
@@ -2217,11 +4322,14 @@ func skipDefinitionDestination(s string, i int) (int, bool) {
 	depth, j := 0, i
 	for j < len(s) {
 		c := s[j]
-		if c == '\\' && j+1 < len(s) {
+		if c == '\\' && j+1 < len(s) && isASCIIPunct(s[j+1]) {
+			// A backslash escapes ASCII punctuation only (CommonMark 2.4);
+			// before anything else it is a character of the destination, and
+			// a space after it ends the destination as any space does.
 			j += 2
 			continue
 		}
-		if c <= ' ' {
+		if c == ' ' || c == '\t' || c == '\n' || c == '\r' {
 			break
 		}
 		if c == '(' {
@@ -2323,10 +4431,16 @@ func firstBarChar(line string) int {
 
 // isSetextBar reports whether line is a CommonMark setext underline — up to 3
 // leading spaces, then a run of only '=' or only '-', then optional trailing
-// spaces. Mirrors goldmark's matchesSetextHeadingBar.
+// spaces. Mirrors goldmark's matchesSetextHeadingBar. The parser counts the
+// indent up to a bare carriage return and then reads on past it, so only the
+// spaces before one count and the return itself is left out.
 func isSetextBar(line string) bool {
+	if indentBeforeCarriageReturn(line) > 3 {
+		return false
+	}
+	line = strings.ReplaceAll(line, "\r", "")
 	s := strings.TrimRight(strings.TrimLeft(line, " "), " \t")
-	if len(line)-len(strings.TrimLeft(line, " ")) > 3 || s == "" {
+	if s == "" {
 		return false
 	}
 	return s == strings.Repeat("=", len(s)) || s == strings.Repeat("-", len(s))
@@ -2337,11 +4451,14 @@ func isSetextBar(line string) bool {
 // least one '-'. Mirrors goldmark's isTableDelim (extension/table.go): every
 // byte is a space, '-', '|' or ':', and the line is not made of '-' alone. A
 // real delimiter also needs a hyphen (a cell is ":?-+:?"), so require one to
-// avoid escaping pipe-only lines that never form a table.
+// avoid escaping pipe-only lines that never form a table. A bare carriage
+// return is whitespace inside the line to the parser, which counts the indent
+// up to it and reads on past it: "\r-" is a row, and so is "\r    -".
 func isTableDelimiterRow(line string) bool {
-	if len(line)-len(strings.TrimLeft(line, " ")) > 3 {
+	if indentBeforeCarriageReturn(line) > 3 {
 		return false
 	}
+	line = strings.ReplaceAll(line, "\r", "")
 	hasDash := false
 	allDash := true
 	for i := range len(line) {
@@ -2357,10 +4474,67 @@ func isTableDelimiterRow(line string) bool {
 	return hasDash && !allDash
 }
 
-// headingLineBreakRE matches one line break inside heading text, with the
-// whitespace around it and the blockquote marker a soft break bakes into the
-// continuation line.
-var headingLineBreakRE = regexp.MustCompile(`[ \t]*\r?\n[ \t>]*`)
+// indentBeforeCarriageReturn returns the count of spaces that open line, up to
+// the first byte that is not a space; a bare carriage return ends the count the
+// way any other byte does.
+func indentBeforeCarriageReturn(line string) int {
+	n := 0
+	for n < len(line) && line[n] == ' ' {
+		n++
+	}
+	return n
+}
+
+// headingLineBreakSpans returns, in ascending order, the spans of heading
+// text that each line break takes with it: the whitespace before the line
+// ending, the blockquote markers a soft break bakes into the continuation
+// line, and the whitespace after them. The markers are the ones the parser
+// reads (blockquoteMarkerPrefix): a ">" four or more columns in is content,
+// so a tab-indented ">" on a setext heading's second line stays in the
+// heading, where a fold that took every ">" after the break left "a" and a
+// tab and ">" as "a".
+func headingLineBreakSpans(text string) [][2]int {
+	var spans [][2]int
+	for i := 0; i < len(text); i++ {
+		if text[i] != '\n' {
+			continue
+		}
+		start := i
+		for start > 0 && (text[start-1] == ' ' || text[start-1] == '\t' || text[start-1] == '\r') {
+			start--
+		}
+		end := i + 1
+		end += len(blockquoteMarkerPrefix(text[end:]))
+		for end < len(text) && (text[end] == ' ' || text[end] == '\t') {
+			end++
+		}
+		// A line of whitespace between two breaks joins them into one
+		// span, so the heading gets one space, not one per line.
+		if n := len(spans); n > 0 && start <= spans[n-1][1] {
+			spans[n-1][1] = end
+		} else {
+			spans = append(spans, [2]int{start, end})
+		}
+		i = end - 1
+	}
+	return spans
+}
+
+// foldSpans replaces each span of text with one space.
+func foldSpans(text string, spans [][2]int) string {
+	if len(spans) == 0 {
+		return text
+	}
+	var b strings.Builder
+	prev := 0
+	for _, sp := range spans {
+		b.WriteString(text[prev:sp[0]])
+		b.WriteByte(' ')
+		prev = sp[1]
+	}
+	b.WriteString(text[prev:])
+	return b.String()
+}
 
 // singleLineHeading folds heading text onto one line. The rebuild path writes
 // every heading as ATX, and an ATX heading ends at its newline, so a heading
@@ -2372,7 +4546,7 @@ func singleLineHeading(text string) string {
 	if !strings.Contains(text, "\n") {
 		return text
 	}
-	return headingLineBreakRE.ReplaceAllString(text, " ")
+	return foldSpans(text, headingLineBreakSpans(text))
 }
 
 // blockquoteRebuild reconstructs a multi-line blockquote body in the rebuild
@@ -2390,14 +4564,33 @@ func singleLineHeading(text string) string {
 // BlockPropLinePrefix but must be re-established by their own role prefix, not
 // here), leaving those untouched.
 func (w *Writer) blockquoteRebuild(block *model.Block, text string) (prefix, body string, ok bool) {
-	if lp, has := block.Properties[BlockPropLinePrefix]; has && strings.HasPrefix(lp, ">") {
-		// Hard-break body: the marker was stripped from the text. Reinsert it
-		// after every "\n" exactly as RenderBlockContent (the byte-exact
-		// skeleton reference) does, then mark the first line.
-		if strings.Contains(text, "\n") {
-			text = strings.ReplaceAll(text, "\n", "\n"+lp)
+	if lp, has := block.Properties[BlockPropLinePrefix]; has && lp != "" {
+		if !isQuoteLinePrefix(lp) {
+			// The continuation prefix is known and is not a quote marker, so
+			// a ">" the text carries after it is content. The block's first
+			// line may still open a quote its continuation lines run on
+			// lazily, and a line of that content opening with a marker is
+			// escaped here, where it is known to be content, before the body
+			// is folded by its markers.
+			if m, has := block.Properties[BlockPropQuoteMarker]; has && m != "" && w.quoteDepth() == 0 {
+				return quoteMarkerPrefix(m), escapeContinuationLineMarkers(text), true
+			}
+			return "", text, false
 		}
-		return lp, text, true
+		// Hard-break body: the marker was stripped from the text, and the
+		// sink has put it back after every "\n" exactly as RenderBlockContent
+		// (the byte-exact skeleton reference) does. The first line takes the
+		// marker its own line carried, and at most one space: the
+		// continuation prefix may carry the indentation of the lines below,
+		// and ">a" over ">     0" has the prefix ">     ", which put the first
+		// line's text four columns in, where it was indented code inside the
+		// quote. A carriage return after the marker is whitespace the line
+		// does not need.
+		first := lp
+		if m, has := block.Properties[BlockPropQuoteMarker]; has && m != "" {
+			first = m
+		}
+		return quoteMarkerPrefix(first), text, true
 	}
 	// The reader records the marker the block's own first line carried, which
 	// is the only source for a quote with no continuation line at all: ">> a"
@@ -2405,7 +4598,7 @@ func (w *Writer) blockquoteRebuild(block *model.Block, text string) (prefix, bod
 	// gone (#2464). A block already inside a <blockquote> bracket is marked by
 	// that bracket below, so its own marker would double it.
 	if m, has := block.Properties[BlockPropQuoteMarker]; has && m != "" && w.quoteDepth() == 0 {
-		return m, text, true
+		return quoteMarkerPrefix(m), text, true
 	}
 	// Soft-break body: the continuation lines carry their ">" marker, except a
 	// lazy continuation line (CommonMark 5.1), which has none; only the first
@@ -2428,6 +4621,159 @@ func (w *Writer) blockquoteRebuild(block *model.Block, text string) (prefix, bod
 	return "", text, false
 }
 
+// quoteMarkerPrefix is the marker a rebuilt quote's first line takes: the
+// markers the block's own line carried, with the spaces after them where they
+// are at most the one the marker takes and the three of indent CommonMark 5.1
+// allows, and one space otherwise. The recorded marker may carry the
+// indentation of a container the rebuild does not restore, and a bare
+// carriage return after it is whitespace the line does not need: ">\t\t0"
+// inside a quoted list item is the item's paragraph, and written with its
+// marker as recorded it was indented code inside the quote.
+func quoteMarkerPrefix(m string) string {
+	m = strings.TrimRight(m, "\r")
+	trimmed := strings.TrimRight(m, " \t")
+	if trail := m[len(trimmed):]; trail == "" || (trail == strings.Repeat(" ", len(trail)) && len(trail) <= 4) {
+		return m
+	}
+	return trimmed + " "
+}
+
+// inlineBlockText renders a block's runs as inline Markdown with the sink told
+// what the block is: its quote depth, whether its text is raw markup, whether
+// its first line gets the leading-marker escape, whether it is written as one
+// ATX line, and the continuation prefix a hard-break body had recorded rather
+// than in its text. It returns the text and the quote depth it was checked at.
+func (w *Writer) inlineBlockText(block *model.Block) (string, int) {
+	leadingMarker, heading := true, false
+	switch block.SemanticRole() {
+	case model.RoleTitle, model.RoleHeading:
+		leadingMarker, heading = false, true
+	case model.RoleCode, model.RoleCaption:
+		leadingMarker = false
+	}
+	// A hard-break body has its continuation prefix recorded rather than in
+	// its text; the sink puts it back before it checks its output. A prefix
+	// of quote markers also sets the depth the output is checked at.
+	linePrefix := block.Properties[BlockPropLinePrefix]
+	quoteLevels := blockQuoteLevels(block)
+	if isQuoteLinePrefix(linePrefix) {
+		quoteLevels = strings.Count(linePrefix, ">")
+	}
+	text := renderInlineMarkdownBlock(w.blockRuns(block), quoteLevels, rawTextBlock(block), leadingMarker, heading, block.SemanticRole() == model.RoleListItem, linePrefix)
+	// A block with no marker whose continuation lines every one carry a quote
+	// marker is written as a quote (blockquoteRebuild), and its text is
+	// checked at that depth.
+	if quoteLevels == 0 && !rawTextBlock(block) {
+		if m := continuationBlockquoteMarker(text); m != "" {
+			quoteLevels = strings.Count(m, ">")
+		}
+	}
+	return text, quoteLevels
+}
+
+// convergeInlineText returns a paragraph's or list item's rendered text as
+// the spelling its own re-read settles on: the text is read back with the
+// reader, inside the quote it will be written in, rendered again from the
+// block that read gives, and the pass is repeated, up to twice, until a pass
+// renders what it read. The sink spells markup from the parser's rules and
+// checks the spelling against the parser, but a re-read hands the next pass
+// a different run structure for the same text where a construct was dropped
+// or a delimiter re-spelled, and that pass can spell it differently again:
+// ">____!" and a backslash break over ">_!__" was written with its literal
+// underscore bare, and the pass after, holding the inner pair as "_", escaped
+// it. Text with no markup character is left as it is, as is one whose re-read
+// is not one block of the same role, and one holding a reference link, which
+// resolves against definitions a re-read of the block alone does not have.
+func (w *Writer) convergeInlineText(ctx context.Context, block *model.Block, text string, quoteLevels int) string {
+	role := block.SemanticRole()
+	if role != "" && role != model.RoleParagraph && role != model.RoleListItem {
+		return text
+	}
+	if !strings.ContainsAny(text, "*_~`<[&\\") {
+		return text
+	}
+	for _, r := range w.blockRuns(block) {
+		// A reference link resolves against the document's definitions,
+		// which a re-read of the block alone does not have.
+		if r.PcOpen != nil && isReferenceLink(r.PcOpen) {
+			return text
+		}
+	}
+	prefix := strings.Repeat("> ", quoteLevels)
+	if role == model.RoleListItem {
+		if quoteLevels > 0 {
+			return text
+		}
+		prefix = "- "
+	}
+	for range 2 {
+		rb := readSingleBlock(ctx, prefix+text+"\n")
+		if rb == nil || rb.SemanticRole() != role {
+			return text
+		}
+		next, _ := w.inlineBlockText(rb)
+		if next == text {
+			return text
+		}
+		text = next
+	}
+	return text
+}
+
+// readSingleBlock reads src with the markdown reader and returns the one
+// block it holds, or nil when the read fails or yields any other number.
+func readSingleBlock(ctx context.Context, src string) *model.Block {
+	r := NewReader()
+	doc := &model.RawDocument{
+		URI:          "rebuild://pass",
+		SourceLocale: model.LocaleEnglish,
+		Encoding:     "UTF-8",
+		Reader:       io.NopCloser(strings.NewReader(src)),
+	}
+	if err := r.Open(ctx, doc); err != nil {
+		return nil
+	}
+	defer r.Close()
+	var found *model.Block
+	for res := range r.Read(ctx) {
+		if res.Error != nil {
+			return nil
+		}
+		if res.Part == nil || res.Part.Type != model.PartBlock {
+			continue
+		}
+		b, ok := res.Part.Resource.(*model.Block)
+		if !ok {
+			continue
+		}
+		if found != nil {
+			return nil
+		}
+		found = b
+	}
+	return found
+}
+
+// isQuoteLinePrefix reports whether a continuation prefix the reader recorded
+// is a blockquote's: a ">" after at most three spaces of indent (CommonMark
+// 5.1). " >" over a hard break is the marker of the quote, and judged on its
+// first byte alone it was indentation with a ">" of content after it.
+func isQuoteLinePrefix(lp string) bool {
+	indent := len(lp) - len(strings.TrimLeft(lp, " "))
+	return indent <= 3 && strings.HasPrefix(lp[indent:], ">")
+}
+
+// blockQuoteLevels returns how many quote markers a block's text carries after
+// each line ending: those of the marker its first line carried, except when
+// the block relies on the writer to restore its continuation prefix, where the
+// line endings in the text are bare and a ">" after one is content.
+func blockQuoteLevels(block *model.Block) int {
+	if _, has := block.Properties[BlockPropLinePrefix]; has {
+		return 0
+	}
+	return strings.Count(block.Properties[BlockPropQuoteMarker], ">")
+}
+
 // rawTextBlock reports whether a block's text is markup the reader captured
 // verbatim, where a leading marker is content rather than structure.
 func rawTextBlock(block *model.Block) bool {
@@ -2435,17 +4781,22 @@ func rawTextBlock(block *model.Block) bool {
 }
 
 // continuationBlockquoteMarker returns the blockquote marker a text's
-// continuation lines carry, or "" when text is single-line or any of them
-// carries none.
+// continuation lines carry, or "" when text is single-line, any of them
+// carries none, or none carries content after its marker.
 //
 // Every line must be marked. A paragraph whose text merely holds a ">" line —
 // which is what the rebuild path leaves when it drops an inline construct that
 // occupied one — was re-marked as a quote, and the ">" it gained on its own
 // first line split it in two on the pass after (#2503's neighbour). A markdown
 // quote body carries the marker property instead, so this answers only for a
-// block that arrives from another format.
+// block that arrives from another format. A line of a soft-break quote body
+// carries content after its marker, so lines that are markers alone are
+// content: a vertical tab over a dropped tag and ">" was re-marked as a
+// quote, the marker-only line folded away, and the quote of a vertical tab
+// was no block.
 func continuationBlockquoteMarker(text string) string {
 	marker := ""
+	content := false
 	for nl := strings.IndexByte(text, '\n'); nl >= 0; {
 		line := text[nl+1:]
 		if next := strings.IndexByte(line, '\n'); next >= 0 {
@@ -2458,11 +4809,17 @@ func continuationBlockquoteMarker(text string) string {
 		if marker == "" {
 			marker = m
 		}
+		if strings.Trim(line[len(m):], " \t\r") != "" {
+			content = true
+		}
 		next := strings.IndexByte(text[nl+1:], '\n')
 		if next < 0 {
 			break
 		}
 		nl += 1 + next
+	}
+	if !content {
+		return ""
 	}
 	return marker
 }
@@ -2476,23 +4833,60 @@ func continuationBlockquoteMarker(text string) string {
 // arrived with ">> " on its continuation line and was rebuilt as ">a\n>> b",
 // a one-level quote holding a lazy line (#2464). An indented marker counts
 // too: " >0" continues a quote, and a recovery testing only column 0 missed
-// it.
+// it. Four or more columns of indent, with a tab reaching the next stop of
+// four, put the ">" in indented-code position, where it is content: a
+// paragraph's tab-indented continuation line keeps its ">" (CommonMark 4.8).
 func blockquoteMarkerPrefix(line string) string {
-	i := 0
-	for {
-		j := i
+	return blockquoteMarkerPrefixUpTo(line, -1)
+}
+
+// blockquoteMarkerPrefixUpTo is blockquoteMarkerPrefix bounded to levels
+// markers; a negative levels takes every marker the line opens with.
+func blockquoteMarkerPrefixUpTo(line string, levels int) string {
+	i, col, indent := 0, 0, 0
+	for n := 0; levels < 0 || n < levels; n++ {
+		j, c, ind := i, col, indent
 		for j < len(line) && (line[j] == ' ' || line[j] == '\t') {
+			next := c + 1
+			if line[j] == '\t' {
+				next = c + 4 - c%4
+			}
+			ind += next - c
+			c = next
 			j++
 		}
-		if j >= len(line) || line[j] != '>' {
+		if ind > 3 || j >= len(line) || line[j] != '>' {
 			return line[:i]
 		}
 		j++
+		c++
+		indent = 0
 		if j < len(line) && line[j] == ' ' {
 			j++
+			c++
+		} else if j < len(line) && line[j] == '\t' {
+			// The marker takes one column of the tab; the rest is indent.
+			next := c + 4 - c%4
+			indent = next - c - 1
+			c = next
+			j++
 		}
-		i = j
+		i, col = j, c
 	}
+	return line[:i]
+}
+
+// dropOpeningBreakPrefix removes from the text after a hard break that opened
+// the block the line ending and the blockquote markers, up to levels of them,
+// that introduced the next line. The break spelled nothing, so that line is the
+// block's first and its markers are supplied by the block's own prefix; a ">"
+// beyond the block's depth is content.
+func dropOpeningBreakPrefix(t string, levels int) string {
+	if !strings.HasPrefix(t, "\n") {
+		return t
+	}
+	rest := t[1:]
+	return rest[len(blockquoteMarkerPrefixUpTo(rest, levels)):]
 }
 
 // headingLevel returns a block's heading level, preferring the normalized
@@ -2674,20 +5068,65 @@ func finishBlockContent(block *model.Block, rendered string) string {
 
 // escapeCellPipes backslash-escapes every `|` in table-cell text whose
 // preceding byte is not already a backslash, which is the rule the GFM row
-// splitter applies when it decides whether a pipe belongs to the cell.
+// splitter applies when it decides whether a pipe belongs to the cell. Inside
+// a code span every pipe takes a backslash whatever precedes it: the splitter
+// takes the backslash of each `\|` there out of the content, where a backslash
+// is a character, so content that is two backslashes and a pipe is spelled
+// with three, and written with two it came back with one.
 func escapeCellPipes(text string) string {
 	if !strings.Contains(text, "|") {
 		return text
 	}
 	var sb strings.Builder
 	sb.Grow(len(text) + 4)
-	for i := range len(text) {
-		if text[i] == '|' && (i == 0 || text[i-1] != '\\') {
+	fence := 0
+	for i := 0; i < len(text); i++ {
+		c := text[i]
+		// Inside a span a backslash is a character, so a backtick after one
+		// closes the span as any other does.
+		if c == '`' && (fence > 0 || !backslashEscaped(text, i)) {
+			n := 1
+			for i+n < len(text) && text[i+n] == '`' {
+				n++
+			}
+			switch {
+			case fence == 0 && backtickRunFollows(text[i+n:], n):
+				// A run with no run of its length after it opens no span
+				// and is text (CommonMark 6.1).
+				fence = n
+			case fence == n:
+				fence = 0
+			}
+			sb.WriteString(text[i : i+n])
+			i += n - 1
+			continue
+		}
+		if c == '|' && (fence > 0 || i == 0 || text[i-1] != '\\') {
 			sb.WriteByte('\\')
 		}
-		sb.WriteByte(text[i])
+		sb.WriteByte(c)
 	}
 	return sb.String()
+}
+
+// backtickRunFollows reports whether text, the content after a span's
+// opening run, holds a run of exactly n backticks; a backslash before one is
+// a character there.
+func backtickRunFollows(text string, n int) bool {
+	for i := 0; i < len(text); i++ {
+		if text[i] != '`' {
+			continue
+		}
+		j := i
+		for j < len(text) && text[j] == '`' {
+			j++
+		}
+		if j-i == n {
+			return true
+		}
+		i = j - 1
+	}
+	return false
 }
 
 // frontMatterScalar renders a front matter value, restoring the source's
@@ -2748,5 +5187,12 @@ func (w *Writer) blockRuns(block *model.Block) []model.Run {
 // reader stamped one (a spreadsheet value cell shows its number through its
 // format), else the locale-chosen runs.
 func (w *Writer) cellRuns(block *model.Block) []model.Run {
-	return projection.DisplayRuns(block, w.blockRuns(block))
+	if display, ok := block.Properties[model.PropCellDisplay]; ok {
+		return []model.Run{{Text: &model.TextRun{Text: display}}}
+	}
+	// A character reference stays a placeholder: the sink spells one the
+	// markdown reader read as the source spelled it, and one from another
+	// format as its characters, where a cell of one reference written as its
+	// characters came back as a text block the source did not have.
+	return w.blockRuns(block)
 }

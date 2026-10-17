@@ -138,11 +138,16 @@ func (w *Writer) WriteAttr(seq []model.Run, at int, name, value string) ([]model
 // without its angle brackets (goldmark's ast.Link.Destination), so a value is
 // written as itself: bare where a bare destination ends where the value does,
 // and in angle brackets when angle asks for them or the value holds a space,
-// a control character or a parenthesis that does not balance. A value that
-// reads back as given in neither form, such as one holding a line break or an
-// angle bracket a bare destination cannot carry, has no spelling.
+// a control character or a parenthesis that does not balance. A value ending
+// in a backslash reads back in neither: bare, "\)" escapes the parenthesis,
+// and between angle brackets "\>" escapes the bracket. It is spelled bare
+// with a space before the parenthesis, which CommonMark 6.6 allows and which
+// ends the destination where the value does. A value that reads back as given
+// in no form, such as one holding a line break, has no spelling. A bare
+// carriage return is not a line break to the parser: it ends a bare
+// destination and is kept between angle brackets.
 func spellLinkDestination(value string, angle bool) (string, error) {
-	if strings.ContainsAny(value, "\n\r") {
+	if strings.Contains(value, "\n") {
 		return "", errors.New("a link destination cannot hold a line break")
 	}
 	var forms []string
@@ -150,6 +155,9 @@ func spellLinkDestination(value string, angle bool) (string, error) {
 		forms = append(forms, value)
 	}
 	forms = append(forms, "<"+value+">")
+	if !angle && value != "" {
+		forms = append(forms, value+" ")
+	}
 	for _, spelled := range forms {
 		if dest, ok := parsedDestination(spelled); ok && dest == value {
 			return spelled, nil
@@ -161,7 +169,9 @@ func spellLinkDestination(value string, angle bool) (string, error) {
 // parsedDestination is the destination the reader's parser, with the
 // reader's extensions, reads from `[x](dest)`.
 func parsedDestination(dest string) (string, bool) {
-	src := []byte("[x](" + dest + ")")
+	// The link is parsed as a line of a document, with the line ending the
+	// parser's destination scan expects after it.
+	src := []byte("[x](" + dest + ")\n")
 	doc := parseMarkdown(src)
 	var got string
 	found := false
