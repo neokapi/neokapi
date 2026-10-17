@@ -367,11 +367,31 @@ func mdLinkClose(attrs map[string]string, destKey string) string {
 // a title as a text run of its own, so the run stream carries the edited title
 // and the attribute still carries the source's.
 func mdLinkCloseTitled(attrs map[string]string, destKey, title string) string {
-	dest := attrs[destKey]
+	dest := rebuiltDestination(attrs[destKey])
 	if title == "" {
 		return "](" + dest + ")"
 	}
 	return "](" + dest + ` "` + escapeLinkTitle(title) + `")`
+}
+
+// rebuiltDestination spells a resolved destination so that the reader reads
+// it back as itself: bare where a bare destination ends where the value does,
+// and between angle brackets otherwise (spellLinkDestination, which the edit
+// path uses for the same question). goldmark resolves "[](( )" to the
+// destination "(", which written bare is "[](()", a link to "((" on one pass
+// and no link at all on the next (#3198); a destination the source spelled as
+// "<b c>" came back as text. An empty destination stays "()", and a value
+// with no spelling that reads back, such as one holding a line break, is
+// written bare.
+func rebuiltDestination(dest string) string {
+	if dest == "" {
+		return dest
+	}
+	spelled, err := spellLinkDestination(dest, false)
+	if err != nil {
+		return dest
+	}
+	return spelled
 }
 
 // escapeLinkTitle backslash-escapes any double quote in a title that is not
