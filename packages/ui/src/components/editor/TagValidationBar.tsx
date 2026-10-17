@@ -28,7 +28,7 @@ export function TagValidationBar({ validation }: TagValidationBarProps) {
       {validation.warnings.map((warn, i) => (
         <div
           key={`w-${i}`}
-          className="text-[11px] px-2 py-0.5 rounded-sm flex items-center gap-1 bg-warning/10 text-warning dark:text-warning border border-warning/25"
+          className="text-[11px] px-2 py-0.5 rounded-sm flex items-center gap-1 bg-warning/10 text-warning-ink border border-warning/25"
         >
           <Info className="w-3 h-3 shrink-0" />
           {warn.message}

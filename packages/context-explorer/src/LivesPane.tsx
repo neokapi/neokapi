@@ -28,8 +28,8 @@ export interface LivesPaneProps {
 const SHIP_TONE: Record<string, string> = {
   established: "border-emerald-500/40 text-emerald-700 dark:text-emerald-500",
   translated: "border-sky-500/40 text-sky-700 dark:text-sky-400",
-  withheld: "border-amber-500/40 text-amber-700 dark:text-amber-500",
-  pending: "border-amber-500/40 text-amber-700 dark:text-amber-500",
+  withheld: "border-warning/40 text-warning-ink",
+  pending: "border-warning/40 text-warning-ink",
 };
 
 function ShipBadge({ state }: { state?: string }) {
@@ -58,7 +58,7 @@ function CoverageRow({ row }: { row: LocaleCoverage }) {
       <span className="w-10 text-right text-xs tabular-nums text-muted-foreground">{pct}%</span>
       <ShipBadge state={row.ship_state} />
       {row.stale ? (
-        <span className="flex items-center gap-1 text-xs text-amber-700 dark:text-amber-500">
+        <span className="flex items-center gap-1 text-xs text-warning-ink">
           <TriangleAlert className="size-3.5" />
           {t("{count} stale", { count: row.stale })}
         </span>
@@ -183,7 +183,7 @@ export function LivesPane({ limit, onOpenCollection, onOpenItem, className }: Li
                       {item.locale && <LocalePill locale={item.locale} />}
                       <span className="min-w-0 flex-1 truncate">{item.text ?? item.id}</span>
                       {item.stale && (
-                        <TriangleAlert className="mt-0.5 size-3.5 shrink-0 text-amber-600 dark:text-amber-500" />
+                        <TriangleAlert className="mt-0.5 size-3.5 shrink-0 text-warning-ink" />
                       )}
                       <ShipBadge state={item.ship_state} />
                     </button>

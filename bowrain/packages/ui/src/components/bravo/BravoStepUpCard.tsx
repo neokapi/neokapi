@@ -26,7 +26,7 @@ export function BravoStepUpCard({
   return (
     <div className="rounded-lg border border-warning/30 bg-warning/5 p-3 my-2">
       <div className="flex items-start gap-2">
-        <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
+        <AlertTriangle className="h-4 w-4 text-warning-ink mt-0.5 shrink-0" />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium">Mode restriction</p>
           <p className="text-sm text-muted-foreground mt-0.5">

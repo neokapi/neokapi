@@ -44,7 +44,7 @@ export function StalePrompt({
 }: StalePromptProps) {
   return (
     <Alert className="border-warning/40" data-slot="stale-prompt">
-      <TriangleAlert className="text-warning" aria-hidden />
+      <TriangleAlert className="text-warning-ink" aria-hidden />
       <AlertTitle>{t("Changed since you opened it")}</AlertTitle>
       <AlertDescription>
         <p>{t("Nothing was saved. This is the text as it stands now:")}</p>

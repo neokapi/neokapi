@@ -104,7 +104,7 @@ export function RowTagWarning({
       data-testid="tag-warning"
       className={cn(
         "ml-1 cursor-help inline-flex",
-        validation.errors.length > 0 ? "text-destructive" : "text-warning",
+        validation.errors.length > 0 ? "text-destructive" : "text-warning-ink",
       )}
     >
       <AlertTriangle className="w-3.5 h-3.5" />

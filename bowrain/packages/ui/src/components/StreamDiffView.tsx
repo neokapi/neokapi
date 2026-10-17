@@ -19,7 +19,7 @@ const changeConfig: Record<
   },
   modified: {
     label: "Modified",
-    color: "text-warning dark:text-warning",
+    color: "text-warning-ink",
     bgColor: "bg-warning/10",
     icon: ArrowRight,
   },

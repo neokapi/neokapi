@@ -38,7 +38,7 @@ export function DriftAlert({ drift, showStable = false, className }: DriftAlertP
         className,
       )}
     >
-      <p className="font-medium text-warning">Voice compliance is drifting</p>
+      <p className="font-medium text-warning-ink">Voice compliance is drifting</p>
       <p className="text-muted-foreground">
         Recent average{" "}
         <span className="font-medium text-foreground">{drift.recent_avg.toFixed(1)}</span> vs.

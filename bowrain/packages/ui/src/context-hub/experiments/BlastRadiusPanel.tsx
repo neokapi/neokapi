@@ -144,7 +144,7 @@ export function BlastRadiusPanel({
 function PartialNotice({ reason }: { reason?: string }) {
   return (
     <div className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/5 px-3 py-2 text-sm">
-      <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" />
+      <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning-ink" />
       <p className="text-muted-foreground">
         <span className="font-medium text-foreground">Partial measurement.</span> The scan did not
         cover the whole workspace, so anything it did not reach counts as nothing here, including

@@ -76,7 +76,7 @@ export function ActiveModelBadge({
         data-configured={res.configured}
         className={cn(
           "gap-1 font-normal",
-          !res.configured && "border-amber-500/50 text-amber-600 dark:text-amber-400",
+          !res.configured && "border-warning/50 text-warning-ink",
           className,
         )}
       >

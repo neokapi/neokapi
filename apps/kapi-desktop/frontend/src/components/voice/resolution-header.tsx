@@ -33,7 +33,7 @@ export function ValidityChip({ validity }: { validity: VoiceValidity }) {
         validity.state === "expired"
           ? "border-destructive/40 text-destructive"
           : validity.state === "upcoming"
-            ? "border-amber-500/40 text-amber-700 dark:text-amber-500"
+            ? "border-warning/40 text-warning-ink"
             : "border-emerald-500/40 text-emerald-700 dark:text-emerald-500",
       )}
       data-testid="voice-validity"

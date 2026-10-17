@@ -36,7 +36,7 @@ function policyColor(policy: ToolPolicy): string {
     case "deny":
       return "text-destructive";
     case "approve":
-      return "text-warning dark:text-warning";
+      return "text-warning-ink";
   }
 }
 

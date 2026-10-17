@@ -60,7 +60,7 @@ export function AIModelList({ models, selected, showProvider = true, onSelect }:
                     </Badge>
                   )}
                   {m.needs_key && (
-                    <Badge variant="outline" className="gap-1 text-amber-600">
+                    <Badge variant="outline" className="gap-1 text-warning-ink">
                       <KeyRound size={10} />
                       {t("needs key")}
                     </Badge>

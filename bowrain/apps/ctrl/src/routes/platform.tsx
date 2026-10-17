@@ -294,7 +294,7 @@ function AICard({
                         {m.tier}
                       </Badge>
                       {m.requires_marketplace && (
-                        <Badge variant="outline" className="text-amber-600">
+                        <Badge variant="outline" className="text-warning-ink">
                           Marketplace
                         </Badge>
                       )}

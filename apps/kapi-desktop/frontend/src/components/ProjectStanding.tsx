@@ -166,7 +166,7 @@ export function ProjectStanding({
                     <Fact muted>·</Fact>
                     <Badge
                       variant="outline"
-                      className="border-amber-500/40 font-normal text-amber-700 dark:text-amber-500"
+                      className="border-warning/40 font-normal text-warning-ink"
                     >
                       {t("re-extract to refresh the counts")}
                     </Badge>
@@ -217,7 +217,7 @@ export function ProjectStanding({
             <p
               data-slot="standing-context-files"
               data-testid="standing-context-files"
-              className="mt-2 rounded-md border border-amber-500/40 px-3 py-2 text-xs text-amber-700 dark:text-amber-500"
+              className="mt-2 rounded-md border border-warning/40 px-3 py-2 text-xs text-warning-ink"
             >
               {t("This checkout carries context files nobody has read in:")}{" "}
               <span className="font-mono" translate="no">

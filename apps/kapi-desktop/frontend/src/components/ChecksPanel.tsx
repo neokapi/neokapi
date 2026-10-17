@@ -161,10 +161,10 @@ function FindingInContext({ finding }: { finding: DesktopFinding }) {
  */
 function ConfigurationWarnings({ warnings }: { warnings: CheckWarning[] }) {
   return (
-    <Card className="mb-4 border-amber-500/40" data-testid="check-warnings">
+    <Card className="mb-4 border-warning/40" data-testid="check-warnings">
       <CardContent className="p-4">
         <div className="mb-1 flex items-center gap-2 text-sm font-semibold">
-          <TriangleAlert size={14} className="text-amber-500" />
+          <TriangleAlert size={14} className="text-warning-ink" />
           {t("Configuration warnings")}
         </div>
         <p className="mb-3 text-xs text-muted-foreground">
@@ -389,7 +389,7 @@ export function ChecksPanel({
               {verdict === "did_not_run" && (
                 <ShieldQuestion
                   size={20}
-                  className={brokenChecker ? "text-destructive" : "text-amber-500"}
+                  className={brokenChecker ? "text-destructive" : "text-warning-ink"}
                 />
               )}
               <div>
@@ -414,7 +414,7 @@ export function ChecksPanel({
                     result.score >= 90
                       ? "text-emerald-500"
                       : result.score >= 70
-                        ? "text-amber-500"
+                        ? "text-warning-ink"
                         : "text-destructive"
                   }`}
                 >

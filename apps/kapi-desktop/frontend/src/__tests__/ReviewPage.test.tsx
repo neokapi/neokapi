@@ -1296,6 +1296,6 @@ describe("ReviewPage tone", () => {
     // A failing finding takes the destructive tone rather than the amber a
     // reported one reads in; the tones are the shared findingOutcomeTone.
     expect(finding.querySelector(".text-destructive")).not.toBeNull();
-    expect(finding.querySelector(".text-warning")).toBeNull();
+    expect(finding.querySelector(".text-warning-ink")).toBeNull();
   });
 });

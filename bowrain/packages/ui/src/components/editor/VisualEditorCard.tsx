@@ -220,7 +220,7 @@ export function VisualEditorCard({
             <button
               type="button"
               onClick={() => setChecksExpanded((v) => !v)}
-              className="inline-flex items-center gap-0.5 text-[10px] font-bold text-warning dark:text-warning cursor-pointer bg-warning/10 px-1.5 py-0 h-4 rounded"
+              className="inline-flex items-center gap-0.5 text-[10px] font-bold text-warning-ink cursor-pointer bg-warning/10 px-1.5 py-0 h-4 rounded"
               data-testid="check-warning-badge"
             >
               <Info className="w-2.5 h-2.5" />
@@ -259,14 +259,10 @@ export function VisualEditorCard({
                 {issue.severity === "error" ? (
                   <AlertTriangle className="w-3 h-3 text-destructive shrink-0 mt-0.5" />
                 ) : (
-                  <Info className="w-3 h-3 text-warning shrink-0 mt-0.5" />
+                  <Info className="w-3 h-3 text-warning-ink shrink-0 mt-0.5" />
                 )}
                 <span
-                  className={
-                    issue.severity === "error"
-                      ? "text-destructive"
-                      : "text-warning dark:text-warning"
-                  }
+                  className={issue.severity === "error" ? "text-destructive" : "text-warning-ink"}
                 >
                   <span className="font-medium">{issue.type}:</span> {issue.message}
                 </span>

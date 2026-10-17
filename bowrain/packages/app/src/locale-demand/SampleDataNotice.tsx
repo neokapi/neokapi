@@ -20,12 +20,9 @@ export function SampleDataNotice({ action, degradedReason, className }: SampleDa
   return (
     <Alert
       data-testid="sample-data-notice"
-      className={cn(
-        "mb-4 border-amber-500/40 bg-amber-500/5 px-3 py-2.5 dark:border-amber-400/30",
-        className,
-      )}
+      className={cn("mb-4 border-warning/40 bg-warning/5 px-3 py-2.5", className)}
     >
-      <FlaskConical className="text-amber-600 dark:text-amber-400" />
+      <FlaskConical className="text-warning-ink" />
       <AlertTitle>Sample data: connect PostHog to see your own</AlertTitle>
       <AlertDescription>
         {degradedReason
@@ -44,7 +41,7 @@ export function SampleDataMark({ className }: { className?: string }) {
       variant="outline"
       data-testid="sample-data-mark"
       className={cn(
-        "pointer-events-none border-amber-500/50 bg-background/90 font-normal text-amber-700 dark:text-amber-400",
+        "pointer-events-none border-warning/50 bg-background/90 font-normal text-warning-ink",
         className,
       )}
     >

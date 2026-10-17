@@ -15,7 +15,7 @@ import type { ConvergenceRun, ConvergenceRunState } from "../types/api";
 const runStateColor: Record<ConvergenceRunState, string> = {
   running: "bg-info/10 text-info dark:bg-info/20 dark:text-info",
   converged: "bg-success/10 text-success dark:bg-success/20 dark:text-success",
-  parked: "bg-warning/10 text-warning dark:bg-warning/20 dark:text-warning",
+  parked: "bg-warning/10 text-warning-ink dark:bg-warning/20",
   canceled: "bg-muted text-muted-foreground",
   failed: "bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive",
 };

@@ -69,7 +69,7 @@ function constraintBadges(
   if (!info.constraints.cloneable) {
     badges.push({
       label: "No duplicates",
-      color: "text-warning bg-warning/10 border-warning/25",
+      color: "text-warning-ink bg-warning/10 border-warning/25",
       description: "Cannot be duplicated in the translation",
     });
   }

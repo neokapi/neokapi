@@ -11,12 +11,12 @@ const planColors: Record<BillingPlan, string> = {
   free: "bg-muted text-muted-foreground",
   pro: "bg-info/10 text-info dark:bg-info/20 dark:text-info",
   team: "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300",
-  enterprise: "bg-warning/10 text-warning dark:bg-warning/20 dark:text-warning",
+  enterprise: "bg-warning/10 text-warning-ink dark:bg-warning/20",
 };
 
 const statusColors: Record<BillingStatus, string> = {
   active: "bg-success/10 text-success dark:bg-success/20 dark:text-success",
-  trialing: "bg-warning/10 text-warning dark:bg-warning/20 dark:text-warning",
+  trialing: "bg-warning/10 text-warning-ink dark:bg-warning/20",
   past_due: "bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive",
   canceled: "bg-muted text-muted-foreground",
 };

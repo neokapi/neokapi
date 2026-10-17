@@ -33,6 +33,7 @@
   --color-destructive: var(--destructive);
   --color-success: var(--success);
   --color-warning: var(--warning);
+  --color-warning-ink: var(--warning-ink);
   --color-info: var(--info);
   --color-border: var(--border);
   --color-ring: var(--ring);

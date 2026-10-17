@@ -290,7 +290,7 @@ function PaletteItem({
               </span>
             )}
             {tool.side_effects && tool.side_effects.length > 0 && (
-              <span className="rounded-sm bg-amber-500/10 px-1 py-px text-[9px] font-medium text-amber-600 dark:text-amber-400">
+              <span className="rounded-sm bg-warning/10 px-1 py-px text-[9px] font-medium text-warning-ink">
                 {tool.side_effects.map((s) => s.replace(/-/g, " ")).join(", ")}
               </span>
             )}
@@ -305,7 +305,7 @@ function PaletteItem({
           {/* What's missing at this slot — names the unmet inputs, never blocks. */}
           {needsInput && fit && fit.unmet.length > 0 && (
             <div className="mt-0.5 flex flex-wrap items-center gap-0.5">
-              <span className="text-[9px] font-medium text-amber-600 dark:text-amber-400">
+              <span className="text-[9px] font-medium text-warning-ink">
                 {t("needs", "label before the inputs a tool is missing at this slot")}
               </span>
               {fit.unmet.map((p, i) => (

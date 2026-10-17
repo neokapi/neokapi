@@ -318,7 +318,7 @@ export function SettingsBillingRoute() {
           the subscription (AD-018). The customer needs to know that is happening —
           this banner is the only warning before the plan drops to Free. */}
       {subscription.status === "past_due" && (
-        <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning">
+        <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning-ink">
           Your last payment failed. Stripe will retry it; if every retry fails, the subscription is
           canceled and the workspace drops to the Free plan.{" "}
           {isOwner && overview.stripeCustomerId

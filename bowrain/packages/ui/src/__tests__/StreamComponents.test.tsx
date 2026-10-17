@@ -100,7 +100,7 @@ describe("StreamBadge", () => {
     );
     const outerSpan = container.firstElementChild as HTMLElement;
     // Should contain a lock icon (amber color).
-    const lockIcon = outerSpan.querySelector(".text-warning");
+    const lockIcon = outerSpan.querySelector(".text-warning-ink");
     expect(lockIcon).toBeTruthy();
   });
 

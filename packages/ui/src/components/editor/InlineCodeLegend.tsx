@@ -149,7 +149,7 @@ function LegendEntry({ span, label, constraints }: LegendEntryProps) {
         )}
         {!constraints.cloneable && (
           <span title="Cannot be duplicated">
-            <Copy className={cn("w-2.5 h-2.5 text-warning")} />
+            <Copy className={cn("w-2.5 h-2.5 text-warning-ink")} />
           </span>
         )}
         {!constraints.reorderable && (

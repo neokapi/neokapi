@@ -274,9 +274,9 @@ export function ProjectSettingsPage({
 
           {/* Plugin issues warning */}
           {pluginIssues && pluginIssues.length > 0 ? (
-            <div className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+            <div className="mb-3 rounded-lg border border-warning/30 bg-warning/5 p-3">
               <div className="flex items-start gap-2">
-                <AlertTriangle size={14} className="mt-0.5 shrink-0 text-amber-500" />
+                <AlertTriangle size={14} className="mt-0.5 shrink-0 text-warning-ink" />
                 <div className="flex-1">
                   <p className="text-xs font-medium">Plugin requirements not met</p>
                   <p className="mt-0.5 text-[11px] text-muted-foreground">
@@ -290,9 +290,9 @@ export function ProjectSettingsPage({
                           {issue.plugin}
                         </Badge>
                         {issue.type === "missing" ? (
-                          <span className="text-amber-600 dark:text-amber-400">not installed</span>
+                          <span className="text-warning-ink">not installed</span>
                         ) : (
-                          <span className="text-amber-600 dark:text-amber-400">
+                          <span className="text-warning-ink">
                             requires {issue.required}, have {issue.installed_version}
                           </span>
                         )}
@@ -304,8 +304,8 @@ export function ProjectSettingsPage({
             </div>
           ) : (
             missingPlugins.length > 0 && (
-              <div className="mb-3 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
-                <AlertTriangle size={14} className="mt-0.5 shrink-0 text-amber-500" />
+              <div className="mb-3 flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 p-3">
+                <AlertTriangle size={14} className="mt-0.5 shrink-0 text-warning-ink" />
                 <div className="flex-1">
                   <p className="text-xs font-medium">
                     {missingPlugins.length === 1 ? t("Missing plugin") : t("Missing plugins")}:{" "}

@@ -68,7 +68,7 @@ export function ConnectionIndicator({
 
       {isOffline && (
         <span
-          className="flex items-center gap-1 text-xs text-warning"
+          className="flex items-center gap-1 text-xs text-warning-ink"
           data-testid="connection-offline"
         >
           <WifiOff className="size-3" />

@@ -16,7 +16,7 @@ function statusStyle(status: string): { dot: string; text: string } {
     case "ready":
       return { dot: "bg-emerald-500", text: "text-emerald-600 dark:text-emerald-400" };
     case "degraded":
-      return { dot: "bg-amber-500", text: "text-amber-600 dark:text-amber-400" };
+      return { dot: "bg-warning", text: "text-warning-ink" };
     case "down":
     case "unhealthy":
       return { dot: "bg-red-500", text: "text-red-600 dark:text-red-400" };
