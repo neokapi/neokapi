@@ -157,6 +157,32 @@ func TestKeepingWithAnEditIsWhatTheAgentReadsNext(t *testing.T) {
 	assert.Contains(t, confirmed.WidenTo, "brand")
 }
 
+// TestAKeptNoteWidensWithinItsProject: a note in prose holds within its
+// project at the widest, so the feed offers its axes and never the workspace,
+// which the host refuses for a note.
+func TestAKeptNoteWidensWithinItsProject(t *testing.T) {
+	app := newWorkspaceApp(t)
+	recipe, key := openFeedProject(t, app, "KapiMart")
+	engine := agentProcess(t, app)
+
+	noted, err := engine.RecordContextObservation(context.Background(), host.ContextObserveRequest{
+		Actor:    contextop.Actor{Kind: contextop.ActorAgent, Name: "claude@studio", Session: "sess-note"},
+		Project:  recipe,
+		Text:     "The store copy addresses the shopper as you.",
+		Evidence: []contextop.Evidence{{Path: "docs/pricing.md"}},
+	})
+	require.NoError(t, err)
+	_, err = app.KeepContextSuggestion(ContextDecisionRequest{Project: key, ID: noted.ID})
+	require.NoError(t, err)
+
+	feed, err := app.ContextFeed(key, 0)
+	require.NoError(t, err)
+	kept := findFeedEntry(t, feed, noted.ID)
+	assert.Equal(t, "established", kept.Status)
+	assert.NotContains(t, kept.WidenTo, host.WidenToWorkspace)
+	assert.Contains(t, kept.WidenTo, "brand")
+}
+
 // TestDroppingStopsASuggestionAnswering: a dropped suggestion leaves the feed's
 // awaiting count and stays on the record as dropped.
 func TestDroppingStopsASuggestionAnswering(t *testing.T) {

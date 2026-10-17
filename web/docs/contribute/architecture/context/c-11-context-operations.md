@@ -309,6 +309,15 @@ it with no second code path. A term rule with several forms to avoid lands each
 form, and a form that differs from the form to use only in case stays out of
 the store, which folds case.
 
+A note in prose states no rule, so keeping one writes no store. The keep in the
+log is where it lives: every by-location answer whose point the note's scope
+and window cover lists it under **Established notes**
+([C-06](c-06-retrieval.md)), and the keep reports the operation log as where it
+was written. A note holds within its project at the widest, because the
+workspace's rule store holds term rules. `ContextWidenOptions` offers a note
+only its axes, and widening one to the workspace is refused before anything is
+recorded.
+
 Dropping an established rule reverses it against the same stores: the term is
 deleted from the terms store, or the pair from the content memory. Other terms in the concept are preserved because deletion targets the term.
 

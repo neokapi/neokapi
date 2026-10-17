@@ -812,7 +812,7 @@ func contextFeedEntry(r contextop.Record, projectName, recipe string) ContextFee
 	out.Droppable = out.Decidable
 	if r.Established && r.Kind.Bears() {
 		out.Droppable = true
-		out.WidenTo = host.ContextWidenOptions(r.Scope)
+		out.WidenTo = host.ContextWidenOptions(r.Subject.Kind, r.Scope)
 	}
 	return out
 }
