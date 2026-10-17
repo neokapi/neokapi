@@ -61,7 +61,7 @@ export function ReachPanel({ impact, className }: ReachPanelProps) {
                   {reach.annotate.approved > 0 && (
                     <>
                       {" · "}
-                      <span className="text-warning">
+                      <span className="text-warning-ink">
                         {reach.annotate.approved} already approved
                       </span>
                     </>
@@ -106,7 +106,7 @@ export function ReachPanel({ impact, className }: ReachPanelProps) {
 
         {reach.transform_projects.length > 0 && (
           <div className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/5 px-3 py-2 text-xs">
-            <Users className="mt-0.5 size-3.5 shrink-0 text-warning" />
+            <Users className="mt-0.5 size-3.5 shrink-0 text-warning-ink" />
             <p className="text-muted-foreground">
               <span className="font-medium text-foreground">Not yours to finish.</span> A source
               rewrite is decided by whoever may edit source in{" "}
@@ -198,7 +198,7 @@ function ReachRow({
       <div
         className={cn(
           "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md [&_svg]:size-3.5",
-          tone === "annotate" ? "bg-primary/10 text-primary" : "bg-warning/15 text-warning",
+          tone === "annotate" ? "bg-primary/10 text-primary" : "bg-warning/15 text-warning-ink",
         )}
       >
         {icon}

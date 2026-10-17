@@ -27,7 +27,7 @@ export interface TaskBoardProps {
 const priorityColors: Record<TaskPriority, string> = {
   low: "bg-muted text-muted-foreground",
   normal: "bg-info/10 text-info dark:bg-info/20 dark:text-info",
-  high: "bg-warning/10 text-warning dark:bg-warning/20 dark:text-warning",
+  high: "bg-warning/10 text-warning-ink dark:bg-warning/20",
   urgent: "bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive",
 };
 

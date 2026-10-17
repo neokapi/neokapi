@@ -202,7 +202,7 @@ export function statusRuleClass(status: BlockStatus): string {
 export function memoryScoreClass(score: number): string {
   if (score >= 1) return "text-success bg-success/15 dark:text-success";
   if (score >= 0.85) return "text-info bg-info/15 dark:text-info";
-  if (score >= 0.7) return "text-warning bg-warning/15 dark:text-warning";
+  if (score >= 0.7) return "text-warning-ink bg-warning/15";
   return "text-muted-foreground bg-muted";
 }
 
@@ -215,7 +215,7 @@ export function termStatusClass(status: string): string {
   const colors: Record<string, string> = {
     preferred: "text-success bg-success/[0.08]",
     approved: "text-info bg-info/[0.08]",
-    admitted: "text-warning bg-warning/[0.08]",
+    admitted: "text-warning-ink bg-warning/[0.08]",
     proposed: "text-muted-foreground bg-muted",
     deprecated: "text-muted-foreground bg-muted line-through",
     forbidden: "text-destructive bg-destructive/[0.08]",

@@ -21,7 +21,7 @@ function statusColor(status: string): string {
     case "in_progress":
       return "text-info dark:text-info";
     case "requires-action":
-      return "text-warning dark:text-warning";
+      return "text-warning-ink";
     default:
       return "text-muted-foreground";
   }
@@ -119,7 +119,7 @@ export function BravoToolCallRenderer({
       {needsApproval && addResult && (
         <div className="border-t px-3 py-2">
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-warning dark:text-warning text-xs font-medium">
+            <span className="text-warning-ink text-xs font-medium">
               @bravo wants to run this tool
             </span>
           </div>

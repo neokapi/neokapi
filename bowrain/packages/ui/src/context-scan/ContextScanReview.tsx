@@ -40,7 +40,7 @@ function FieldEvidence({ evidence }: { evidence?: ContextScanFieldEvidence }) {
     pct >= 75
       ? "border-emerald-500/40 text-emerald-600 dark:text-emerald-400"
       : pct >= 45
-        ? "border-amber-500/40 text-amber-600 dark:text-amber-400"
+        ? "border-warning/40 text-warning-ink"
         : "border-border text-muted-foreground";
   return (
     <div className="flex items-center gap-2 min-w-0">

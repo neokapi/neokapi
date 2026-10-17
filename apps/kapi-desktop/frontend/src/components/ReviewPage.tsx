@@ -1223,7 +1223,7 @@ export function ReviewPage({
                         ) : it.hasFindings ? (
                           <Circle
                             size={8}
-                            className="mt-1 shrink-0 fill-warning text-warning"
+                            className="mt-1 shrink-0 fill-current text-warning-ink"
                             aria-label={t("Has findings")}
                           />
                         ) : (
@@ -1238,7 +1238,7 @@ export function ReviewPage({
                             {it.held && (
                               <PauseCircle
                                 size={11}
-                                className="shrink-0 text-warning"
+                                className="shrink-0 text-warning-ink"
                                 aria-label={t("holding every language")}
                               />
                             )}

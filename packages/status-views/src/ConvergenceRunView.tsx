@@ -50,7 +50,7 @@ export interface ConvergenceRunViewProps {
 /** "shippable | parked | pending" → badge tint. */
 const localeStateColor: Record<string, string> = {
   shippable: "bg-green-500/10 text-green-600 dark:text-green-500",
-  parked: "bg-amber-500/10 text-amber-600 dark:text-amber-500",
+  parked: "bg-warning/10 text-warning-ink",
   pending: "bg-muted text-muted-foreground",
 };
 
@@ -189,7 +189,7 @@ function RunStatusBadge({
           "shrink-0 text-[11px]",
           converged
             ? "bg-green-500/10 text-green-600 dark:text-green-500"
-            : "bg-amber-500/10 text-amber-600 dark:text-amber-500",
+            : "bg-warning/10 text-warning-ink",
         )}
       >
         {finalStateLabel(model.finalState)}
@@ -269,7 +269,7 @@ function ConvergeOutcomeBlock({
         </p>
       ) : (
         <div className="space-y-1.5">
-          <p className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-500">
+          <p className="flex items-center gap-1.5 text-xs text-warning-ink">
             <PauseCircle size={13} />
             {t("{count} scope(s) parked. They need a human to advance.", {
               count: parked.length,
@@ -308,10 +308,10 @@ function ConvergeOutcomeBlock({
       )}
       {(result.blockedOnSource ?? 0) > 0 && (
         <div
-          className="mt-2 rounded-md border border-amber-500/40 bg-amber-500/5 px-2 py-1.5"
+          className="mt-2 rounded-md border border-warning/40 bg-warning/5 px-2 py-1.5"
           data-slot="convergence-source-hold"
         >
-          <p className="text-[11px] text-amber-700 dark:text-amber-500">
+          <p className="text-[11px] text-warning-ink">
             {t("{count} segments need source review before translating.", {
               count: result.blockedOnSource ?? 0,
             })}
@@ -380,11 +380,7 @@ function ConvergePassBlock({ pass, live, running }: ConvergePassBlockProps) {
           </span>
           <span className="text-muted-foreground">·</span>
           <span
-            className={
-              (pass.failingChecks ?? 0) > 0
-                ? "text-amber-600 dark:text-amber-500"
-                : "text-muted-foreground"
-            }
+            className={(pass.failingChecks ?? 0) > 0 ? "text-warning-ink" : "text-muted-foreground"}
           >
             {t("checks failing {count}", { count: pass.failingChecks ?? 0 })}
           </span>

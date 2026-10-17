@@ -780,7 +780,7 @@ function FormatDetail({
                   className="w-full min-h-[300px] rounded-lg border border-border bg-card p-4 font-mono text-xs text-foreground outline-none focus:ring-1 focus:ring-ring resize-y"
                   spellCheck={false}
                 />
-                {yamlError && <p className="mt-1 text-[10px] text-amber-500">{yamlError}</p>}
+                {yamlError && <p className="mt-1 text-[10px] text-warning-ink">{yamlError}</p>}
               </div>
             </TabsContent>
           )}

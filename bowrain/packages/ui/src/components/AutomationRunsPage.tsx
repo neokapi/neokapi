@@ -21,7 +21,7 @@ const runStatusColor: Record<RunStatus, string> = {
   running: "bg-info/10 text-info dark:bg-info/20 dark:text-info",
   completed: "bg-success/10 text-success dark:bg-success/20 dark:text-success",
   failed: "bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive",
-  partial: "bg-warning/10 text-warning dark:bg-warning/20 dark:text-warning",
+  partial: "bg-warning/10 text-warning-ink dark:bg-warning/20",
   cancelled: "bg-muted text-muted-foreground",
 };
 
@@ -338,7 +338,7 @@ export function AutomationRunsPage({ projectId, live = false }: AutomationRunsPa
                         className={cn(
                           "shrink-0 w-[40px]",
                           log.level === "error" && "text-destructive",
-                          log.level === "warn" && "text-warning",
+                          log.level === "warn" && "text-warning-ink",
                           log.level === "info" && "text-muted-foreground",
                         )}
                       >

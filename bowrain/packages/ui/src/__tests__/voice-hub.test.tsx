@@ -150,7 +150,7 @@ describe("RollupMatrix judges each project against its own profile bar", () => {
     await waitFor(() => expect(screen.getAllByTestId("rollup-score")).toHaveLength(2));
     const [strict, dflt] = screen.getAllByTestId("rollup-score");
     expect(strict.dataset.belowBar).toBe("true");
-    expect(strict.className).toContain("text-warning");
+    expect(strict.className).toContain("text-warning-ink");
     expect(dflt.dataset.belowBar).toBe("false");
     expect(dflt.className).toContain("text-success");
   });

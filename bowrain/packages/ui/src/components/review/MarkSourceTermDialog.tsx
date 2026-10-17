@@ -202,7 +202,7 @@ export function MarkSourceTermDialog({
           <div
             className={
               opt.governed
-                ? "flex items-start gap-2 rounded-md border border-warning/30 bg-warning/5 p-2 text-xs text-warning"
+                ? "flex items-start gap-2 rounded-md border border-warning/30 bg-warning/5 p-2 text-xs text-warning-ink"
                 : "flex items-start gap-2 rounded-md border border-border bg-muted/30 p-2 text-xs text-muted-foreground"
             }
             data-testid="mark-term-impact"

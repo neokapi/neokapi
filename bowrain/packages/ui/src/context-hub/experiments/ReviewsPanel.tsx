@@ -81,7 +81,7 @@ export function ReviewsPanel({ changeset }: ReviewsPanelProps) {
                     {r.basis === "solo_owner" && (
                       <Badge
                         variant="outline"
-                        className="gap-1 border-warning/40 text-[10px] text-warning"
+                        className="gap-1 border-warning/40 text-[10px] text-warning-ink"
                         title="Admitted on the sole-owner basis: recorded by the author because the workspace had no other reviewer"
                       >
                         <Shield className="size-3" />
@@ -107,7 +107,7 @@ export function ReviewsPanel({ changeset }: ReviewsPanelProps) {
             )}
             {soloReview && (
               <p className="flex items-start gap-1.5 rounded-md bg-warning/10 px-2.5 py-2 text-xs text-muted-foreground">
-                <Shield className="mt-0.5 size-3.5 shrink-0 text-warning" />
+                <Shield className="mt-0.5 size-3.5 shrink-0 text-warning-ink" />
                 You authored this experiment and are the workspace&rsquo;s only reviewer, so you may
                 decide it yourself. The verdict will be recorded as reviewed by its author. Invite a
                 second reviewer and this stops being possible.

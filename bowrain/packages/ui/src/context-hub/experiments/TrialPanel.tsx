@@ -56,7 +56,7 @@ export function TrialPanel({
         <Header report={data} projectName={projectName ?? projectId} />
         {data.partial && (
           <p className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/5 px-3 py-2 text-xs text-muted-foreground">
-            <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-warning" />
+            <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-warning-ink" />
             <span>
               <span className="font-medium text-foreground">Partial.</span> The scan stopped before
               it had covered the stream, so anything it did not reach is absent rather than clean.

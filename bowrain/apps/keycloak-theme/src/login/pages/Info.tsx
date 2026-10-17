@@ -32,7 +32,7 @@ export default function Info(props: {
               message.type === "error"
                 ? "bg-destructive/15 text-destructive"
                 : message.type === "warning"
-                  ? "bg-amber-500/15 text-amber-400"
+                  ? "bg-warning/15 text-warning-ink"
                   : message.type === "success"
                     ? "bg-success/15 text-success"
                     : "bg-muted text-muted-foreground"

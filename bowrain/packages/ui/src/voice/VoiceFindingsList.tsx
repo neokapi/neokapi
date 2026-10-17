@@ -20,7 +20,7 @@ function outcomeClass(finding: VoiceFinding): string {
   if (finding.suggested) return "bg-muted text-muted-foreground";
   return finding.fails
     ? "bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive"
-    : "bg-warning/10 text-warning dark:bg-warning/20 dark:text-warning";
+    : "bg-warning/10 text-warning-ink dark:bg-warning/20";
 }
 
 /** A finding's badge word, written as JSX text so the extractor collects each one. */

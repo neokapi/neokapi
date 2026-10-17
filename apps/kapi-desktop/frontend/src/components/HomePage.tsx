@@ -169,9 +169,9 @@ export function HomePage({
 
       {/* Plugin issues banner */}
       {pluginsResolved === false && pluginIssues && pluginIssues.length > 0 && (
-        <div className="mb-6 rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
+        <div className="mb-6 rounded-lg border border-warning/30 bg-warning/5 p-4">
           <div className="flex items-start gap-3">
-            <AlertTriangle size={16} className="mt-0.5 shrink-0 text-amber-500" />
+            <AlertTriangle size={16} className="mt-0.5 shrink-0 text-warning-ink" />
             <div className="flex-1">
               <p className="text-sm font-medium">Plugin requirements not met</p>
               <p className="mt-1 text-xs text-muted-foreground">

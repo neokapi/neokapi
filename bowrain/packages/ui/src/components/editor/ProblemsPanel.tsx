@@ -173,7 +173,7 @@ export function ProblemsPanel({
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <AlertTriangle className="w-3 h-3 text-destructive" />
               <span>{errorCount}</span>
-              <Info className="w-3 h-3 text-warning ml-1" />
+              <Info className="w-3 h-3 text-warning-ink ml-1" />
               <span>{warningCount}</span>
             </div>
           )}
@@ -260,7 +260,7 @@ export function ProblemsPanel({
                           Error
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 text-xs text-warning dark:text-warning">
+                        <span className="inline-flex items-center gap-1 text-xs text-warning-ink">
                           <Info className="w-3 h-3" />
                           Warning
                         </span>

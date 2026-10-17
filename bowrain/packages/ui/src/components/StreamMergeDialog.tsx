@@ -96,7 +96,7 @@ export function StreamMergeDialog({
                 icon={ArrowRight}
                 label="Blocks modified"
                 count={result.modified_blocks}
-                color="text-warning dark:text-warning"
+                color="text-warning-ink"
               />
               <StatRow
                 icon={Trash2}

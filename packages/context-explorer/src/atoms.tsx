@@ -70,14 +70,14 @@ export function NoteStrip({ notes, className }: { notes: string[]; className?: s
   return (
     <ul
       className={cn(
-        "mb-3 space-y-1 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2",
+        "mb-3 space-y-1 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2",
         className,
       )}
       data-testid="context-notes"
     >
       {notes.map((note) => (
         <li key={note} className="flex items-start gap-2 text-xs text-foreground">
-          <TriangleAlert className="mt-0.5 size-3.5 shrink-0 text-amber-600 dark:text-amber-500" />
+          <TriangleAlert className="mt-0.5 size-3.5 shrink-0 text-warning-ink" />
           <span>{note}</span>
         </li>
       ))}
@@ -102,7 +102,7 @@ export function ValidityChip({
     state === "expired"
       ? "border-destructive/40 text-destructive"
       : state === "upcoming"
-        ? "border-amber-500/40 text-amber-700 dark:text-amber-500"
+        ? "border-warning/40 text-warning-ink"
         : "border-emerald-500/40 text-emerald-700 dark:text-emerald-500";
   const window = [from, to].filter(Boolean).join(" → ");
   return (

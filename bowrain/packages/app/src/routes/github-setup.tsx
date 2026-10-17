@@ -1171,7 +1171,7 @@ function RepoRow({
                 </ul>
               ) : (
                 <p
-                  className="mt-2 text-xs font-medium text-amber-600 dark:text-amber-500"
+                  className="mt-2 text-xs font-medium text-warning-ink"
                   data-testid={`detect-zero-match-${repo.full_name}`}
                 >
                   No translatable files match these patterns. Adjust them before connecting, or the

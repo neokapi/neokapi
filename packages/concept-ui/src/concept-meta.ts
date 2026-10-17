@@ -11,7 +11,7 @@ import type { ConceptSummary, Term, RelationType, TermStatus } from "./types";
 export const TERM_STATUS_CLASS: Record<TermStatus, string> = {
   preferred: "border-transparent bg-success/15 text-success",
   approved: "border-transparent bg-primary/15 text-primary",
-  admitted: "border-transparent bg-warning/15 text-warning",
+  admitted: "border-transparent bg-warning/15 text-warning-ink",
   proposed: "border-border bg-muted text-muted-foreground",
   deprecated: "border-border bg-muted text-muted-foreground line-through",
   forbidden: "border-transparent bg-destructive/15 text-destructive",

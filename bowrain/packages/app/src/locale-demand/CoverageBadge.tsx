@@ -18,7 +18,7 @@ export function describeCoverage(coverage: Coverage): CoverageDescriptor {
     case "partial":
       return {
         label: `Partial ${coverage.percent}%`,
-        className: "border-transparent bg-warning/15 text-warning",
+        className: "border-transparent bg-warning/15 text-warning-ink",
       };
     case "not-covered":
       return {

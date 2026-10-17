@@ -385,7 +385,7 @@ describe("a profile with min_score 90 renders an 85 below the bar everywhere", (
   it("in the score gauge", () => {
     const { rerender } = render(<VoiceScoreGauge score={85} bar={bar} />);
     expect(screen.getByTestId("voice-score").dataset.belowBar).toBe("true");
-    expect(screen.getByTestId("voice-score").className).toContain("text-warning");
+    expect(screen.getByTestId("voice-score").className).toContain("text-warning-ink");
     // The same 85 clears the default bar.
     rerender(<VoiceScoreGauge score={85} />);
     expect(screen.getByTestId("voice-score").dataset.belowBar).toBe("false");

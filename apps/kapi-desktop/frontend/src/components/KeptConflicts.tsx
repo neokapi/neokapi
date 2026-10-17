@@ -367,7 +367,7 @@ export function KeptConflicts({
                     )}
                     {errors[key] && (
                       <Alert className="border-warning/40" data-slot="kept-conflict-error">
-                        <TriangleAlert className="text-warning" aria-hidden />
+                        <TriangleAlert className="text-warning-ink" aria-hidden />
                         <AlertDescription>{errors[key]}</AlertDescription>
                       </Alert>
                     )}
@@ -387,7 +387,7 @@ export function KeptConflicts({
               )}
               {c.kind === "document" && errors[writeKey(c)] && (
                 <Alert className="border-warning/40" data-slot="kept-conflict-error">
-                  <TriangleAlert className="text-warning" aria-hidden />
+                  <TriangleAlert className="text-warning-ink" aria-hidden />
                   <AlertDescription>{errors[writeKey(c)]}</AlertDescription>
                 </Alert>
               )}
@@ -450,7 +450,7 @@ function DocumentWrite({
       </div>
       {error && (
         <Alert className="border-warning/40" data-slot="kept-conflict-error">
-          <TriangleAlert className="text-warning" aria-hidden />
+          <TriangleAlert className="text-warning-ink" aria-hidden />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}

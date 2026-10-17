@@ -10,7 +10,7 @@ import type { TermStatus, RelationType, ChangeSetStatus } from "../../types/bran
 const TERM_STATUS_CLASS: Record<TermStatus, string> = {
   preferred: "border-transparent bg-success/15 text-success [a&]:hover:bg-success/25",
   approved: "border-transparent bg-primary/15 text-primary [a&]:hover:bg-primary/25",
-  admitted: "border-transparent bg-warning/15 text-warning [a&]:hover:bg-warning/25",
+  admitted: "border-transparent bg-warning/15 text-warning-ink [a&]:hover:bg-warning/25",
   proposed: "border-border bg-muted text-muted-foreground",
   deprecated: "border-border bg-muted text-muted-foreground line-through",
   forbidden: "border-transparent bg-destructive/15 text-destructive [a&]:hover:bg-destructive/25",
@@ -28,7 +28,7 @@ export function TermStatusBadge({ status, className }: { status: TermStatus; cla
 
 const CHANGESET_STATUS_CLASS: Record<ChangeSetStatus, string> = {
   draft: "border-border bg-muted text-muted-foreground",
-  in_review: "border-transparent bg-warning/15 text-warning",
+  in_review: "border-transparent bg-warning/15 text-warning-ink",
   approved: "border-transparent bg-primary/15 text-primary",
   merged: "border-transparent bg-success/15 text-success",
   abandoned: "border-border bg-muted text-muted-foreground/70 line-through",

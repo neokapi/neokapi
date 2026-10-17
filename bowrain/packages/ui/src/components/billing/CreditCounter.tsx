@@ -26,7 +26,7 @@ export function CreditCounter({
     pct > 80
       ? "text-destructive dark:text-destructive"
       : pct > 60
-        ? "text-warning dark:text-warning"
+        ? "text-warning-ink"
         : "text-success dark:text-success";
 
   if (compact) {

@@ -107,7 +107,7 @@ export function ConvergenceRunNowDialog({
                 <div className="text-sm">
                   <p>
                     <span className="font-medium">{ready}</span> of {total} blocks ready;{" "}
-                    <span className="font-medium text-warning">{held} held</span>. Settle these
+                    <span className="font-medium text-warning-ink">{held} held</span>. Settle these
                     first.
                   </p>
                   {onSettleSource && (
@@ -141,7 +141,7 @@ export function ConvergenceRunNowDialog({
                   <p
                     className={cn(
                       "text-sm",
-                      exceedsBalance ? "text-warning" : "text-muted-foreground",
+                      exceedsBalance ? "text-warning-ink" : "text-muted-foreground",
                     )}
                   >
                     {creditLine(estimate)}

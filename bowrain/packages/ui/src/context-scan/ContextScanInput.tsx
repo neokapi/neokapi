@@ -322,9 +322,9 @@ export function ContextScanInput({ onStarted, initialRequest }: ContextScanInput
           </ul>
         )}
         {skipped.length > 0 && (
-          <div className="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 space-y-1">
+          <div className="rounded-md border border-warning/30 bg-warning/5 px-3 py-2 space-y-1">
             <p className="text-xs font-medium flex items-center gap-1.5">
-              <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+              <AlertTriangle className="w-3.5 h-3.5 text-warning-ink" />
               Some files were skipped
             </p>
             <ul className="text-xs text-muted-foreground space-y-0.5">

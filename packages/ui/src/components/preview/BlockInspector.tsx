@@ -89,7 +89,7 @@ export default function BlockInspector({
         )}
         <span className="ml-auto flex items-center gap-1.5">
           {changed && (
-            <Badge variant="outline" className="gap-1 border-warning/50 text-warning">
+            <Badge variant="outline" className="gap-1 border-warning/50 text-warning-ink">
               <Sparkles className="size-3" /> updated
             </Badge>
           )}

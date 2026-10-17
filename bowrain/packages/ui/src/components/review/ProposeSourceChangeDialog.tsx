@@ -174,7 +174,7 @@ export function ProposeSourceChangeDialog({
 
           {/* Blast-radius legibility: a source change is wider than a term mark. */}
           <div
-            className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/5 p-2 text-xs text-warning"
+            className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/5 p-2 text-xs text-warning-ink"
             data-testid="propose-source-impact"
           >
             <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />

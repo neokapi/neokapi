@@ -102,7 +102,7 @@ export function SourceUnitPane({
           {item.held && (
             <Badge
               variant="outline"
-              className="border-warning/40 text-[11px] text-warning"
+              className="border-warning/40 text-[11px] text-warning-ink"
               data-slot="source-unit-held"
             >
               {t("holding every language")}

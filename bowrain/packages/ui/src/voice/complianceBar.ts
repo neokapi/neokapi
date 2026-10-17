@@ -57,7 +57,7 @@ export function scoreBand(score: number, bar: number = DEFAULT_MIN_SCORE): Score
 
 const TEXT_CLASS: Record<ScoreBand, string> = {
   pass: "text-success",
-  warn: "text-warning",
+  warn: "text-warning-ink",
   fail: "text-destructive",
 };
 

@@ -57,9 +57,9 @@ export class ProjectErrorBoundary extends Component<
 
     return (
       <div className="flex h-full items-center justify-center p-8">
-        <div className="max-w-md rounded-lg border border-amber-500/30 bg-amber-500/5 p-6">
+        <div className="max-w-md rounded-lg border border-warning/30 bg-warning/5 p-6">
           <div className="flex items-start gap-3">
-            <AlertTriangle size={18} className="mt-0.5 shrink-0 text-amber-500" />
+            <AlertTriangle size={18} className="mt-0.5 shrink-0 text-warning-ink" />
             <div className="flex-1">
               {missing.length > 0 ? (
                 <>

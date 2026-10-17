@@ -245,7 +245,7 @@ function analyze(text: string, profileId: string): Analysis {
 }
 
 const DIMENSION_COLORS: Record<Dimension, string> = {
-  Tone: "text-warning bg-warning/10",
+  Tone: "text-warning-ink bg-warning/10",
   Style: "text-prism-5 bg-prism-5/10",
   Vocabulary: "text-primary bg-primary/10",
   Clarity: "text-prism-2 bg-prism-2/10",
@@ -282,7 +282,7 @@ export function VoiceCheck() {
     !hasText || analysis.overall >= 80
       ? "text-foreground"
       : analysis.overall >= 50
-        ? "text-warning"
+        ? "text-warning-ink"
         : "text-destructive";
   const barColor =
     analysis.overall >= 80
@@ -411,7 +411,9 @@ export function VoiceCheck() {
                   <span
                     translate="no"
                     className={
-                      penalty > 0 ? "font-mono text-warning" : "font-mono text-muted-foreground/50"
+                      penalty > 0
+                        ? "font-mono text-warning-ink"
+                        : "font-mono text-muted-foreground/50"
                     }
                   >
                     {penalty > 0 ? `${issues} · −${penalty}` : "·"}

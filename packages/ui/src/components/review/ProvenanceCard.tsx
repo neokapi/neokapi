@@ -87,7 +87,7 @@ export function ProvenanceCard({
       {stale && (
         <Badge
           variant="outline"
-          className="h-auto whitespace-normal border-warning/40 text-left text-[11px] text-warning"
+          className="h-auto whitespace-normal border-warning/40 text-left text-[11px] text-warning-ink"
           data-slot="review-provenance-stale"
         >
           <AlertTriangle size={10} />
@@ -141,7 +141,7 @@ export function ProvenanceCard({
         )}
 
         {stale && (
-          <div className="flex items-center gap-1.5 text-warning">
+          <div className="flex items-center gap-1.5 text-warning-ink">
             <AlertTriangle size={11} aria-hidden />
             {t("The source has changed since that decision.")}
           </div>

@@ -247,7 +247,7 @@ export function PlacePane({ scope, wider, chips, rows, onDrill, onHighlight }: P
                         <SimpleTooltip content={outside}>
                           <TriangleAlert
                             aria-hidden
-                            className="size-3.5 shrink-0 text-[color-mix(in_oklab,var(--warning)_60%,var(--warning-foreground))]"
+                            className="size-3.5 shrink-0 text-warning-ink"
                             data-testid={`atlas-map-flag-${r.id}`}
                           />
                         </SimpleTooltip>
