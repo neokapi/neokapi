@@ -144,7 +144,7 @@ const BowrainFeatures: ProductItem[] = [
     description: translate({
       id: "home.feature.graph.body",
       message:
-        "Share versioned voice profiles, terms and content memory across projects. Review recurring corrections and promote approved rules into shared guidance.",
+        "Share voice profiles, terms and content memory across projects. Review recurring corrections and promote approved rules into shared guidance.",
     }),
     link: "/getting-started/the-context-graph",
     linkText: translate({ id: "home.feature.graph.link", message: "The context graph" }),

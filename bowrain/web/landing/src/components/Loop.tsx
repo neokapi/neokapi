@@ -24,7 +24,7 @@ const STEPS = [
     icon: GitCompareArrows,
     title: t("Decide"),
     body: t(
-      "Inspect recurring corrections and preview the content a candidate rule would flag. A reviewer explicitly promotes the rule into a versioned voice profile.",
+      "Inspect recurring corrections and preview the content a candidate rule would flag. A reviewer explicitly promotes the rule into a voice profile.",
     ),
   },
   {
@@ -53,7 +53,7 @@ export function Loop() {
           </h2>
           <p className="mt-3 text-muted-foreground">
             {t(
-              "A recurring correction can become a candidate rule. Review its evidence and affected content, then explicitly promote the decision into a versioned profile for the projects that use it.",
+              "A recurring correction can become a candidate rule. Review its evidence and affected content, then explicitly promote the decision into a profile for the projects that use it.",
             )}
           </p>
         </div>
