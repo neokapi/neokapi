@@ -193,7 +193,9 @@ func TestInspectPrintsReadRecords(t *testing.T) {
 
 // `kapi inspect --render` renders a block in another format. A character
 // reference the HTML reader keeps as an inline code is a character there, and
-// each format spells it its own way.
+// each format spells it its own way. In markdown the "<" stays bare: the
+// parser reads a tag or an autolink from a "<" only where one forms, and
+// "<3" before the end of the text forms neither.
 func TestInspectProjectsCharacterReferences(t *testing.T) {
 	noProject(t)
 	app := newToolboxApp(t)
@@ -205,7 +207,7 @@ func TestInspectProjectsCharacterReferences(t *testing.T) {
 
 	assert.Equal(t, "Fish & chips <3", rec.Text)
 	assert.Equal(t, map[string]string{
-		"markdown": `Fish & chips \<3`,
+		"markdown": "Fish & chips <3",
 		"html":     "<p>Fish &amp; chips &lt;3</p>",
 		"asciidoc": "Fish & chips <3",
 	}, rec.Projected)

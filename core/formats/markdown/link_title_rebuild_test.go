@@ -22,19 +22,25 @@ func TestLinkTitleRebuildsInsideTheLink(t *testing.T) {
 		in   string
 		want string
 	}{
-		{"single quotes", "[a](b 't')\n", "[a](b \"t\")\n"},
+		{"single quotes", "[a](b 't')\n", "[a](b 't')\n"},
 		{"double quotes", "[a](b \"t\")\n", "[a](b \"t\")\n"},
-		{"parentheses", "[a](b (t))\n", "[a](b \"t\")\n"},
-		{"image", "![a](b 't')\n", "![a](b \"t\")\n"},
-		{"image with parentheses", "![a](b (t))\n", "![a](b \"t\")\n"},
+		{"parentheses", "[a](b (t))\n", "[a](b (t))\n"},
+		{"image", "![a](b 't')\n", "![a](b 't')\n"},
+		{"image with parentheses", "![a](b (t))\n", "![a](b (t))\n"},
 		{"no title", "[a](b)\n", "[a](b)\n"},
-		{"empty link text", "[](b 't')\n", "[](b \"t\")\n"},
-		{"in a sentence", "x [a](b 't') y\n", "x [a](b \"t\") y\n"},
-		{"two titled links", "[a](b 't') [c](d 'u')\n", "[a](b \"t\") [c](d \"u\")\n"},
-		{"image inside a link, both titled", "[![i](s 'st')](b 'lt')\n", "[![i](s \"st\")](b \"lt\")\n"},
-		{"quote inside the title", "[a](b 'say \"hi\"')\n", "[a](b \"say \\\"hi\\\"\")\n"},
+		{"empty link text", "[](b 't')\n", "[](b 't')\n"},
+		{"in a sentence", "x [a](b 't') y\n", "x [a](b 't') y\n"},
+		{"two titled links", "[a](b 't') [c](d 'u')\n", "[a](b 't') [c](d 'u')\n"},
+		{"image inside a link, both titled", "[![i](s 'st')](b 'lt')\n", "[![i](s 'st')](b 'lt')\n"},
+		{"quote inside the title", "[a](b 'say \"hi\"')\n", "[a](b 'say \"hi\"')\n"},
 		{"escaped quote inside the title", "[a](b \"say \\\"hi\\\"\")\n", "[a](b \"say \\\"hi\\\"\")\n"},
-		{"emphasis in the link text", "[*a*](b 't')\n", "[*a*](b \"t\")\n"},
+		{"emphasis in the link text", "[*a*](b 't')\n", "[*a*](b 't')\n"},
+		// An empty title is kept: its quotes take part in how the brackets
+		// around the link pair.
+		{"empty title", "[a](b '')\n", "[a](b '')\n"},
+		{"empty double-quoted title", "[a](b \"\")\n", "[a](b \"\")\n"},
+		{"empty title after an angled destination", "[a](<b>'')\n", "[a](<b>'')\n"},
+		{"destination ending in quotes", "[a](b'')\n", "[a](b'')\n"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -58,6 +64,7 @@ func TestLinkTitleRebuildIsAFixedPoint(t *testing.T) {
 		"x [a](b 't') y [c](d \"u\") z",
 		"[![i](s 'st')](b 'lt')",
 		"[a](b 'say \"hi\"')",
+		"[[][](0 '](0 '')')",
 	}
 	for i, in := range inputs {
 		t.Run(fmt.Sprintf("%d %q", i, in), func(t *testing.T) {
