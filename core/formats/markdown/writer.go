@@ -272,6 +272,9 @@ func (w *Writer) renderRef(block *model.Block) ([]byte, error) {
 const (
 	subTypeLinkTitle  = "md:link-title"
 	subTypeImageTitle = "md:image-title"
+	// subTypeEntity marks a character reference the reader kept as a
+	// placeholder carrying its source spelling.
+	subTypeEntity = "md:entity"
 )
 
 // The sub-types the markdown reader gives a reference-style link's and image's
@@ -2126,6 +2129,20 @@ func cutLinkLabel(text string) (label, rest string, ok bool) {
 		}
 	}
 	return "", "", false
+}
+
+// definitionTailIsADestination reports whether what follows a definition's
+// colon is a destination with nothing but an optional title after it. Anything
+// else on the line — the ")" of "[R]:\n0)", which closes more parentheses than
+// the destination opened — leaves the line a paragraph. So does a title that
+// is not closed, or that is followed by anything but whitespace (CommonMark
+// 4.7): "[R]:0 \"" is a paragraph, and one whose "[R]" is a reference link
+// when a definition of R exists, so escaping its bracket cost the label its
+// use and the definition its block.
+// isASCIIPunct reports whether c is an ASCII punctuation character, the set a
+// backslash escapes (CommonMark 2.4).
+func isASCIIPunct(c byte) bool {
+	return (c >= '!' && c <= '/') || (c >= ':' && c <= '@') || (c >= '[' && c <= '`') || (c >= '{' && c <= '~')
 }
 
 // definitionTailIsADestination reports whether what follows a definition's

@@ -278,19 +278,19 @@ func TestTableRowsRideGroups(t *testing.T) {
 // --- Treatment A: markdown-opaque fallback blocks (#928) ---
 
 // TestMarkdownOpaqueFallbackSurfacesBlocks verifies that when a Markdown span
-// fails byte-exact reconstruction (here an indented ">" continuation line
-// after a hard break, whose marker the reader doubles)
-// the span is kept verbatim opaque
+// fails byte-exact reconstruction (here an admonition opener followed by a
+// line indented by one space, which the reader reads as the body without its
+// space) the span is kept verbatim opaque
 // AND, when the flag is on, the prose the markdown sub-reader already parsed
 // is surfaced as non-translatable
 // content blocks (no skeleton ref → no round-trip impact). With the flag off,
 // only the opaque Data is emitted (identical pre-#928 part stream). Both
 // directions round-trip byte-for-byte.
 func TestMarkdownOpaqueFallbackSurfacesBlocks(t *testing.T) {
-	// A paragraph with an indented ">" continuation line after a hard break:
-	// the reader doubles the marker, so the markdown reader does not
-	// reconstruct the span byte-for-byte and the opaque fallback takes over.
-	// The same shape is divergingSrc in opaque_diagnostic_test.go.
+	// An admonition opener followed by a line indented by one space: the
+	// reader drops the space, so the markdown reader does not reconstruct the
+	// span byte-for-byte and the opaque fallback takes over. The same shape is
+	// divergingSrc in opaque_diagnostic_test.go.
 	src := []byte(divergingSrc)
 
 	// Flag ON: opaque Data + a non-translatable block carrying the prose.

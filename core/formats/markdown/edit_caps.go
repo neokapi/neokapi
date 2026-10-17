@@ -422,9 +422,27 @@ func readsBack(site format.CodeSite, open, closing string, isCode func(ast.Node)
 	return nil
 }
 
-// parseMarkdown parses src with the reader's parser and extensions.
+// parseMarkdown parses src with the reader's parser and extensions. A source
+// the parser fails on parses as an empty document.
 func parseMarkdown(src []byte) ast.Node {
-	return goldmark.New(goldmark.WithExtensions(extension.GFM)).Parser().Parse(text.NewReader(src))
+	doc, err := parseMarkdownChecked(src)
+	if err != nil {
+		return ast.NewDocument()
+	}
+	return doc
+}
+
+// parseMarkdownChecked parses src with the reader's parser and extensions and
+// reports a failure of the parser itself as an error: goldmark 1.8 indexes
+// before a line on a blockquote marker followed by a tab and a fence
+// character, as in "> " and a tab and a backtick.
+func parseMarkdownChecked(src []byte) (doc ast.Node, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			doc, err = nil, fmt.Errorf("the markdown parser failed: %v", r)
+		}
+	}()
+	return goldmark.New(goldmark.WithExtensions(extension.GFM)).Parser().Parse(text.NewReader(src)), nil
 }
 
 // mdNodeCounts counts the nodes of a parsed document by kind, emphasis by its

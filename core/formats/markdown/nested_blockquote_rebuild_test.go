@@ -52,8 +52,9 @@ func TestNestedBlockquoteRebuildKeepsItsMarkers(t *testing.T) {
 }
 
 // TestQuoteMarkerPropertyRecordsTheFirstLine pins what the reader stores: the
-// whole marker sequence the block's first line carried, and nothing for a block
-// that opens no quote.
+// whole marker sequence the block's first line carried, without the indent
+// before it at the top level, where the indent means nothing, and nothing for
+// a block that opens no quote.
 func TestQuoteMarkerPropertyRecordsTheFirstLine(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -64,7 +65,7 @@ func TestQuoteMarkerPropertyRecordsTheFirstLine(t *testing.T) {
 		{">> a\n", ">> "},
 		{"> > a\n", "> > "},
 		{">a\n", ">"},
-		{"  > a\n", "  > "},
+		{"  > a\n", "> "},
 		{"a\n", ""},
 		{"- a\n", ""},
 		{"- > a\n", ""},

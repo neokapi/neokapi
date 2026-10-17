@@ -130,7 +130,7 @@ func textNodeEnd(t *ast.Text, source []byte) int {
 		return stop + len(softBreakContinuationBounded(source, stop, nextTextStart(t)))
 	case t.HardLineBreak():
 		if _, nl, ok := hardBreakSpelling(source, stop); ok {
-			return nl + len(softBreakContinuation(source, nl))
+			return nl + len(softBreakContinuationBounded(source, nl, nextTextStart(t)))
 		}
 	}
 	return stop
@@ -208,7 +208,7 @@ func taskCheckBoxEnd(n *east.TaskCheckBox, source []byte) (int, bool) {
 		return 0, false
 	}
 	i += 3
-	for i < len(source) && (source[i] == ' ' || source[i] == '\t') {
+	for i < len(source) && (source[i] == ' ' || source[i] == '\t' || source[i] == '\f') {
 		i++
 	}
 	return i, true
@@ -275,12 +275,15 @@ func scanInlineLinkCloser(source []byte, pos int) (inlineLinkCloser, bool) {
 	i := skipLinkWhitespace(source, pos+2)
 	destStart := i
 	if i < len(source) && source[i] == '<' {
+		// The parser takes every byte up to the ">" that closes the brackets,
+		// an opening "<" included, and a backslash escapes punctuation only:
+		// "[a](<(<> 't')" is a link to "(<".
 		i++
 		for i < len(source) && source[i] != '>' {
-			if source[i] == '\n' || source[i] == '<' {
+			if source[i] == '\n' {
 				return c, false
 			}
-			if source[i] == '\\' {
+			if source[i] == '\\' && i+1 < len(source) && isASCIIPunct(source[i+1]) {
 				i++
 			}
 			i++
@@ -293,11 +296,13 @@ func scanInlineLinkCloser(source []byte, pos int) (inlineLinkCloser, bool) {
 		depth := 0
 		for i < len(source) {
 			ch := source[i]
-			if ch == '\\' && i+1 < len(source) {
+			if ch == '\\' && i+1 < len(source) && isASCIIPunct(source[i+1]) {
 				i += 2
 				continue
 			}
-			if ch <= ' ' {
+			if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' {
+				// The parser ends a bare destination at its own whitespace
+				// set; any other control character is part of it.
 				break
 			}
 			if ch == '(' {
@@ -314,7 +319,10 @@ func scanInlineLinkCloser(source []byte, pos int) (inlineLinkCloser, bool) {
 	c.dest = string(source[destStart:i])
 	destEnd := i
 	i = skipLinkWhitespace(source, i)
-	if i > destEnd && i < len(source) {
+	// goldmark takes a title right after a bracketed destination, with no
+	// whitespace between the ">" and the quote.
+	angled := destStart < len(source) && source[destStart] == '<'
+	if (i > destEnd || angled) && i < len(source) {
 		var closer byte
 		switch source[i] {
 		case '"':
@@ -370,15 +378,29 @@ func skipLinkWhitespace(source []byte, i int) int {
 // each enclosing blockquote with the single space CommonMark 5.1 allows after
 // it. It stops at the next line ending, so only one of them is ever crossed.
 func skipContinuationPrefix(source []byte, i int) int {
+	// A ">" after more than three columns of indent is content, not a
+	// marker (CommonMark 5.1), and the indent before it is content too:
+	// "[0]:" over four spaces and "><" is a definition whose destination is
+	// "><", and a skip that took the ">" for a marker left its "<" first,
+	// where the destination read as one between angle brackets.
+	start, col := i, 0
 	for i < len(source) {
 		switch source[i] {
-		case ' ', '\t':
+		case ' ':
+			col++
+			i++
+		case '\t':
+			col += 4 - col%4
 			i++
 		case '>':
+			if col > 3 {
+				return start
+			}
 			i++
 			if i < len(source) && source[i] == ' ' {
 				i++
 			}
+			start, col = i, 0
 		default:
 			return i
 		}

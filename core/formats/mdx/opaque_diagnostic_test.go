@@ -18,25 +18,25 @@ import (
 // quiet one: a whole document can go opaque for one construct, and the only
 // symptom is a page still in its source language.
 //
-// The fixture is a paragraph whose first line ends in a hard break, whose
-// second line is indented by a tab and begins with a ">" that CommonMark 4.8
-// keeps as content, and whose third line follows it: the reader doubles that
-// marker in the block's text, so the paragraph is one byte longer than the
-// source spelled (#3214). The escaped backtick beside a code span's fence, the
-// task list, the hard break, the single-quoted title, the underscore emphasis,
-// the quoted link whose title wrapped, the code span whose fence sat on the
-// next line, the unbalanced strikethrough, the link destination with an
-// unbalanced parenthesis, the setext heading indented after a hard break, the
-// code span closing after a bare carriage return and the bare carriage return
-// before a hard break's spaces all sat here and reconstruct now, and the note
-// they carried holds for their replacement: these tests assert the reporting,
-// so the day this shape round-trips they will fail and the fixture should
-// become whatever still diverges.
+// The fixture is a MkDocs admonition opener whose next line is indented by one
+// space. The admonition's body needs four, so that line is paragraph text, and
+// the reader takes it as the body and drops the space: the block is one byte
+// shorter than the source spelled. The escaped backtick beside a code span's
+// fence, the task list, the hard break, the single-quoted title, the
+// underscore emphasis, the quoted link whose title wrapped, the code span
+// whose fence sat on the next line, the unbalanced strikethrough, the link
+// destination with an unbalanced parenthesis, the setext heading indented
+// after a hard break, the code span closing after a bare carriage return, the
+// bare carriage return before a hard break and the indented ">" continuation
+// line after a hard break all sat here and reconstruct now, and the note they
+// carried holds for their replacement: these tests assert the reporting, so
+// the day this shape round-trips they will fail and the fixture should become
+// whatever still diverges.
 //
 // A single-block span is the deliberate choice. Quarantine salvages a span by
 // isolating the blocks that failed, so a fixture with neighbours exercises that
 // path instead, which is what TestQuarantineKeepsTheOtherBlocks is for.
-const divergingSrc = "One line  \n\t>quoted\nnext line.\n"
+const divergingSrc = "!!! note \"\"\n body\nnext line.\n"
 
 func readAll(t *testing.T, src string) ([]*model.Block, []format.Diagnostic) {
 	t.Helper()
@@ -172,6 +172,13 @@ func TestKnownRoundTripDivergences(t *testing.T) {
 		{name: "CRLF soft break", src: "One line\r\nnext line.\r\n"},
 		{name: "CRLF soft break in a blockquote", src: "> One line\r\n> next line.\r\n"},
 		{name: "CRLF soft break in a list item", src: "- One line\r\n  next line.\r\n"},
+		// A bare carriage return before a hard break's spaces rides the break's
+		// placeholder, and an indented ">" continuation line after a hard
+		// break keeps one marker: the continuation prefix stops where the
+		// next text begins.
+		{name: "bare carriage return before a hard break", src: "One line\r  \nnext line.\n"},
+		{name: "indented quote marker after a hard break", src: "One line  \n\t>quoted\nnext line.\n"},
+		{name: "indented quote marker after a backslash break", src: "One line\\\n\t>quoted\nnext line.\n"},
 		// An autolink with nothing before it used to lose its angle brackets.
 		// MDX reads a line-initial `<` as JSX, so the first-in-block shape is
 		// covered by a list item rather than a paragraph.
