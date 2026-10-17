@@ -1577,7 +1577,7 @@ func (r *Reader) emitDocusaurusAdmonition(ctx context.Context, ch chan<- model.P
 	if !bytes.HasPrefix(lineNoLF, []byte(":::")) {
 		return false
 	}
-	m := docusaurusAdmonRE.FindSubmatch(lineNoLF)
+	m := docusaurusAdmonRE.FindSubmatchIndex(lineNoLF)
 	if m == nil {
 		return false
 	}
@@ -1586,24 +1586,31 @@ func (r *Reader) emitDocusaurusAdmonition(ctx context.Context, ch chan<- model.P
 	absEnd := first.Stop + baseOffset
 	r.skelEmitGap(absStart)
 
-	keyword := string(m[1]) // may be ""
-	tail := strings.TrimSpace(string(m[2]))
+	// Group 2 is the title. It is greedy, so it runs to the end of the line
+	// and takes the trailing whitespace with it; that whitespace is skeleton.
+	titleStart, titleEnd := m[4], m[5]
+	if titleStart >= 0 {
+		titleEnd = titleStart + len(bytes.TrimRight(lineNoLF[titleStart:titleEnd], " \t\r"))
+	}
 
-	if tail == "" {
+	if titleStart < 0 || titleEnd == titleStart {
 		// `:::` or `:::keyword` with no inline title — entire line is
 		// skeleton, no translatable atom.
 		r.skelText(string(lineNoLF))
 	} else {
-		// `:::keyword Title` — keyword + space is skeleton, title is
-		// the translatable atom.
-		r.skelText(":::" + keyword + " ")
+		// `:::keyword Title` — the marker, the keyword and the whitespace
+		// between them and the title are skeleton as the source spells them
+		// (a tab, two spaces); the title is the translatable atom; the
+		// whitespace after it is skeleton again.
+		r.skelText(string(lineNoLF[:titleStart]))
 		r.blockCounter++
 		blockID := fmt.Sprintf("tu%d", r.blockCounter)
-		block := model.NewBlock(blockID, tail)
+		block := model.NewBlock(blockID, string(lineNoLF[titleStart:titleEnd]))
 		block.Name = r.naming.Name(kindDocuAdmon)
 		block.Type = "docusaurus-admonition-title"
 		r.skelRef(blockID)
 		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+		r.skelText(string(lineNoLF[titleEnd:]))
 	}
 
 	// Trailing LF of the line, if any.
