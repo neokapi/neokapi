@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -1945,7 +1946,7 @@ func (r *Reader) emitFencedCodeBlock(ctx context.Context, ch chan<- model.PartRe
 	// whole fence body, so mirroring that skip lost the spacing of every code
 	// sample with a blank line in it (#2509). MarkdownCanonical folds okapi's
 	// skip instead, so parity still holds.
-	content := r.extractRawLines(n, source)
+	content := fenceContent(n, source)
 	lang := ""
 	if l := n.Language(source); l != nil {
 		lang = string(l)
@@ -1975,18 +1976,14 @@ func (r *Reader) emitFencedCodeBlock(ctx context.Context, ch chan<- model.PartRe
 		fenceStart = openFenceStart
 	}
 
-	// Find the closing fence after the content
-	fenceEnd := lineEnd
-	if fenceEnd < len(r.source) && r.source[fenceEnd] == '\n' {
-		fenceEnd++
-	}
-	// The closing ``` line
-	closeFenceEnd := fenceEnd
-	for closeFenceEnd < len(r.source) && r.source[closeFenceEnd] != '\n' {
-		closeFenceEnd++
-	}
-	if closeFenceEnd < len(r.source) && r.source[closeFenceEnd] == '\n' {
-		closeFenceEnd++
+	// The line after the content is the closing fence when it spells one
+	// inside the same containers as the opener. A fence that is never closed
+	// runs to the end of its container, and the line after it belongs to
+	// whatever follows: taken for the closer, a paragraph's first line was
+	// written twice, once as skeleton and once as its block (#3203).
+	closeFenceEnd := lineEnd
+	if end, ok := fenceCloserEnd(n, r.source, lineEnd, r.source[fenceStart:lineStart]); ok {
+		closeFenceEnd = end
 	}
 
 	if r.cfg.TranslateCodeBlocks {
@@ -2053,6 +2050,129 @@ func (r *Reader) emitFencedCodeBlock(ctx context.Context, ch chan<- model.PartRe
 
 		r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
 	}
+}
+
+// fenceContent returns a fence's content as the source spells it: the bytes
+// from the first content line's start to the last one's end. goldmark's line
+// segments leave out the prefix a container strips from each line, a list
+// item's indent or a blockquote's marker, and the skeleton refers to this
+// content for the whole fence body, so content assembled from the segments
+// alone lost the indent of every line after the first (#3203). The first
+// line's prefix rides the skeleton with the opening fence. A segment that
+// ends the input carries no newline the file does not have (#2498).
+func fenceContent(n ast.Node, source []byte) string {
+	lines := n.Lines()
+	first, last := lines.At(0), lines.At(lines.Len()-1)
+	return string(source[first.Start:last.Stop])
+}
+
+// fenceCloserEnd reports whether the line at from closes the fence n opened,
+// and where that line ends. opener is the opening fence line, container
+// prefix included, which spells the fence's character and length.
+//
+// The closer must sit inside the containers the fence sits in: a blockquote's
+// line carries its `>` marker, a list item's line is indented to the item's
+// content. Then it is up to three spaces of indent, a run of the fence's
+// character at least as long as the opener's (CommonMark 4.5) and nothing but
+// whitespace. A line that fails any of this belongs to the construct after
+// an unterminated fence, and the fence closes with its content.
+func fenceCloserEnd(n ast.Node, source []byte, from int, opener []byte) (int, bool) {
+	fenceStart := bytes.IndexAny(opener, "`~")
+	if fenceStart < 0 {
+		return 0, false
+	}
+	fenceChar := opener[fenceStart]
+	fenceLen := 0
+	for fenceStart+fenceLen < len(opener) && opener[fenceStart+fenceLen] == fenceChar {
+		fenceLen++
+	}
+
+	i, col, ok := skipFenceContainerPrefixes(n, source, from)
+	if !ok {
+		return 0, false
+	}
+	// Up to three spaces of indent before the fence, counted from where the
+	// innermost container's content begins.
+	indent := 0
+	for i < len(source) && (source[i] == ' ' || source[i] == '\t') {
+		indent += tabStop(source[i], col+indent)
+		i++
+	}
+	if indent >= 4 {
+		return 0, false
+	}
+	run := 0
+	for i+run < len(source) && source[i+run] == fenceChar {
+		run++
+	}
+	if run < fenceLen {
+		return 0, false
+	}
+	i += run
+	for i < len(source) && source[i] != '\n' {
+		if source[i] != ' ' && source[i] != '\t' && source[i] != '\r' {
+			return 0, false
+		}
+		i++
+	}
+	if i < len(source) {
+		i++
+	}
+	return i, true
+}
+
+// skipFenceContainerPrefixes consumes, at the start of the line at from, the
+// prefix each container around n asks of its continuation lines, outermost
+// first: for a blockquote up to three spaces, the `>` and the space after it;
+// for a list item whitespace up to the item's content column, tabs stopping
+// every four columns the way goldmark's IndentWidth counts them. It returns
+// the offset after the prefixes and the column reached, or ok false when the
+// line does not carry them.
+func skipFenceContainerPrefixes(n ast.Node, source []byte, from int) (pos, col int, ok bool) {
+	var containers []ast.Node
+	for p := n.Parent(); p != nil && p.Kind() != ast.KindDocument; p = p.Parent() {
+		containers = append(containers, p)
+	}
+	i := from
+	for _, container := range slices.Backward(containers) {
+		switch c := container.(type) {
+		case *ast.Blockquote:
+			indent := 0
+			for i < len(source) && source[i] == ' ' && indent < 3 {
+				indent++
+				col++
+				i++
+			}
+			if i >= len(source) || source[i] != '>' {
+				return 0, 0, false
+			}
+			i++
+			col++
+			if i < len(source) && source[i] == ' ' {
+				i++
+				col++
+			}
+		case *ast.ListItem:
+			target := col + c.Offset
+			for col < target {
+				if i >= len(source) || (source[i] != ' ' && source[i] != '\t') {
+					return 0, 0, false
+				}
+				col += tabStop(source[i], col)
+				i++
+			}
+		}
+	}
+	return i, col, true
+}
+
+// tabStop returns the columns a space or a tab at column col advances: one
+// for a space, and for a tab the distance to the next multiple of four.
+func tabStop(c byte, col int) int {
+	if c == '\t' {
+		return 4 - col%4
+	}
+	return 1
 }
 
 func (r *Reader) emitIndentedCodeBlock(ctx context.Context, ch chan<- model.PartResult, n *ast.CodeBlock, source []byte, baseOffset int) {
