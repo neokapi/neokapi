@@ -74,7 +74,7 @@ func NewSQLiteStoreFromDB(db *storage.DB) (*SQLiteStore, error) {
 
 // tbMigrations is the framework SQLite terms schema. Each migration renders
 // from the shared descriptors in terms/schema (byte-identical to the
-// historical hand-written DDL — golden-tested), so the SQLite and Postgres
+// historical hand-written DDL, and golden-tested), so the SQLite and Postgres
 // backends cannot drift. The portable FTS path is the tb_terms_trigram
 // contentless index (populated by the tb_terms_trigram_a{i,d,u} triggers,
 // queried via MATCH from the Search/Lookup paths): its trigram tokenizer is
@@ -166,8 +166,8 @@ func validityFromColumns(validFrom, validTo sql.NullString, tags string) *graph.
 }
 
 // parseStoredTime parses an RFC3339 timestamp read back from one of our own
-// rows. An empty string (a NULL or never-set column) is not an error — it
-// yields the zero time; a non-empty but unparseable value is stored corruption
+// rows. An empty string (a NULL or never-set column) yields the zero time
+// and no error; a non-empty but unparseable value is stored corruption
 // and is returned so the caller can surface it rather than silently substitute
 // the zero time.
 func parseStoredTime(s string) (time.Time, error) {
@@ -738,15 +738,24 @@ func (tb *SQLiteStore) searchLikeForStream(ctx context.Context, query string, so
 
 // Count returns the total number of concepts.
 func (tb *SQLiteStore) Count(ctx context.Context) (int, error) {
+	return CountConcepts(ctx, tb.db)
+}
+
+// CountConcepts returns the number Count reports for a database holding the
+// terms schema, without binding a store to it. Binding runs the schema's
+// migrations, so a caller that only reads the number, over a database it did
+// not create, counts here instead. Ask IsStore first when db may not carry
+// the schema.
+func CountConcepts(ctx context.Context, db *storage.DB) (int, error) {
 	var count int
-	if err := tb.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM tb_concepts").Scan(&count); err != nil {
+	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM tb_concepts").Scan(&count); err != nil {
 		return 0, fmt.Errorf("count concepts: %w", err)
 	}
 	return count, nil
 }
 
-// Concepts returns all concepts. Callers that write the result out — TBX
-// export, JSON/CSV import diffing, concept sync — depend on it being all of
+// Concepts returns all concepts. Callers that write the result out (TBX
+// export, JSON/CSV import diffing, concept sync) depend on it being all of
 // them or an error, never a silently short list.
 //
 // "All" excludes the shadow namespace: a stream-scoped shadow is not a concept

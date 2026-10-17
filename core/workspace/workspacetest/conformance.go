@@ -42,6 +42,7 @@ func RunConformance(t *testing.T, newBackend Factory) {
 		{"a project store is one handle per key", projectStoreIsOneHandlePerKey},
 		{"projects do not share a store", projectsDoNotShareAStore},
 		{"a project store needs a key", projectStoreNeedsAKey},
+		{"a project store is looked for without being made", projectStoreIsLookedForWithoutBeingMade},
 		{"a project store keeps what is written to it", projectStoreKeepsWrites},
 		{"operations are numbered in the order they arrive", operationsAreNumbered},
 		{"operations read back from a position", operationsReadBackFromAPosition},
@@ -374,6 +375,29 @@ func projectsDoNotShareAStore(t *testing.T, b workspace.Backend) {
 
 func projectStoreNeedsAKey(t *testing.T, b workspace.Backend) {
 	_, err := b.Project(t.Context(), "")
+	assert.ErrorIs(t, err, workspace.ErrNoProjectKey)
+}
+
+func projectStoreIsLookedForWithoutBeingMade(t *testing.T, b workspace.Backend) {
+	ctx := t.Context()
+	for range 2 {
+		held, err := b.HasProject(ctx, "prj_looked_for")
+		require.NoError(t, err)
+		assert.False(t, held, "a store nothing opened is not held, however often it is looked for")
+	}
+
+	_, err := b.Project(ctx, "prj_looked_for")
+	require.NoError(t, err)
+	held, err := b.HasProject(ctx, "prj_looked_for")
+	require.NoError(t, err)
+	assert.True(t, held, "an opened store is held")
+
+	require.NoError(t, b.Forget(ctx, "prj_looked_for"))
+	held, err = b.HasProject(ctx, "prj_looked_for")
+	require.NoError(t, err)
+	assert.False(t, held, "a forgotten store is not held")
+
+	_, err = b.HasProject(ctx, "")
 	assert.ErrorIs(t, err, workspace.ErrNoProjectKey)
 }
 

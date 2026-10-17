@@ -38,6 +38,7 @@ import (
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/workspace"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // Digest themes, in the order a digest lists them.
@@ -387,6 +388,10 @@ type ContextProjectStanding struct {
 	Rules     int `json:"rules"`
 	Suggested int `json:"suggested"`
 	Conflicts int `json:"conflicts"`
+	// Terms counts the concepts in the project's terms store: the ones a
+	// person or a file put there, and the ones a kept rule recorded. A project
+	// whose store is missing or cannot be read counts none.
+	Terms int `json:"terms"`
 	// New counts the digest's items recorded since the person last looked.
 	New int `json:"new"`
 	// Since is the person's marker for the project, zero when they never
@@ -400,7 +405,9 @@ type ContextProjectStanding struct {
 // ContextStandings reports every project registered in the workspace with its
 // context in numbers and its latest session. It folds the log once, and
 // includes a project with nothing recorded, so a list can show every project
-// beside its numbers.
+// beside its numbers. Each project's terms are counted in its own context
+// store, which no other registered project shares, so a list that sums them
+// counts each concept once.
 func (a *App) ContextStandings(ctx context.Context) ([]ContextProjectStanding, error) {
 	ws, err := a.Workspace(ctx)
 	if err != nil {
@@ -426,9 +433,35 @@ func (a *App) ContextStandings(ctx context.Context) ([]ContextProjectStanding, e
 		since := markers.Projects[string(reg.Key)]
 		s := contextStanding(records, reg.Key, since, now)
 		s.ProjectName = workspaceRegistrationName(reg)
+		s.Terms = contextTermCount(ctx, ws, reg.Key)
 		out = append(out, s)
 	}
 	return out, nil
+}
+
+// contextTermCount counts the concepts in one project's terms store, the number
+// the Terms section of the project's context reports. It opens a store only
+// when the workspace already holds one, and reads it without binding the terms
+// schema, so reading the standings writes nothing. A store that is missing,
+// carries no terms schema, or cannot be read counts zero: one unreadable
+// project must not take the numbers of every other one with it.
+func contextTermCount(ctx context.Context, ws *workspace.Workspace, key workspace.ProjectKey) int {
+	held, err := ws.HasContext(ctx, key)
+	if err != nil || !held {
+		return 0
+	}
+	db, err := ws.Context(ctx, key)
+	if err != nil {
+		return 0
+	}
+	if isStore, err := terms.IsStore(ctx, db); err != nil || !isStore {
+		return 0
+	}
+	n, err := terms.CountConcepts(ctx, db)
+	if err != nil {
+		return 0
+	}
+	return n
 }
 
 // contextStanding folds one project's standing from the log, newest first as

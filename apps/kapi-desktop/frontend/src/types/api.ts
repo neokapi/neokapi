@@ -773,6 +773,8 @@ export interface ContextProjectStanding {
   suggested: number;
   /** Disagreements that need a person. */
   conflicts: number;
+  /** Concepts in the project's terms store. */
+  terms: number;
   /** Items recorded since the person last looked. */
   new: number;
   /** The person's marker, absent when they never looked. */

@@ -189,6 +189,12 @@ type Backend interface {
 	// Project opens one project's context store, creating it on first use.
 	Project(ctx context.Context, key ProjectKey) (*storage.DB, error)
 
+	// HasProject reports whether the backend holds a context store for a
+	// project, and opens and creates nothing to answer. A surface that only
+	// reads asks it before Project, so looking at a project never brings a
+	// store into being.
+	HasProject(ctx context.Context, key ProjectKey) (bool, error)
+
 	// Forget releases one project's context store and discards it. A key the
 	// workspace holds no store for is not an error, so a caller cleaning up
 	// after a partial write need not look first.

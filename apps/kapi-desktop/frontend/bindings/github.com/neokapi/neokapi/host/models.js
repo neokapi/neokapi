@@ -2215,6 +2215,16 @@ export class ContextProjectStanding {
              */
             this["conflicts"] = 0;
         }
+        if (!("terms" in $$source)) {
+            /**
+             * Terms counts the concepts in the project's terms store: the ones a
+             * person or a file put there, and the ones a kept rule recorded. A project
+             * whose store is missing or cannot be read counts none.
+             * @member
+             * @type {number}
+             */
+            this["terms"] = 0;
+        }
         if (!("new" in $$source)) {
             /**
              * New counts the digest's items recorded since the person last looked.
@@ -2251,10 +2261,10 @@ export class ContextProjectStanding {
      * @returns {ContextProjectStanding}
      */
     static createFrom($$source = {}) {
-        const $$createField7_0 = $$createType65;
+        const $$createField8_0 = $$createType65;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("latest" in $$parsedSource) {
-            $$parsedSource["latest"] = $$createField7_0($$parsedSource["latest"]);
+            $$parsedSource["latest"] = $$createField8_0($$parsedSource["latest"]);
         }
         return new ContextProjectStanding(/** @type {Partial<ContextProjectStanding>} */($$parsedSource));
     }
