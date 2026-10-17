@@ -999,19 +999,40 @@ func (s *mdInlineSink) atLineStart() bool {
 // because escaping it would spell a backslash into text that reads back the
 // same without one. An escaped delimiter is never recorded, so the output is
 // idempotent.
+//
+// A literal delimiter written directly beside markup of the same character
+// is escaped whatever the merged run could do. "_* `00*0_" is one emphasis
+// whose text begins with a literal "*"; spelled with asterisks, the opener and
+// the literal formed a run of two followed by a space, which can neither open
+// nor close, so the emphasis never opened on re-read and nothing was escaped
+// because the merged run could not pair (#3191). Escaped, the literal leaves
+// the markup a run of its own. Those escapes go in first, and the pairing
+// question is asked of the output as it will stand, with an escaped delimiter
+// no part of any run, which is how the reader sees it: asked of the merged
+// runs, it gave the pass after a different answer.
 func (s *mdInlineSink) output() string {
 	out := s.sb.String()
 	if len(s.litDelims) == 0 {
 		return out
 	}
-	escapable := pairingDelimiterBytes(out)
-	if len(escapable) == 0 {
-		return out
+	out, lit := escapeDelimiters(out, s.litDelims, mergedDelimiterBytes(out, s.litDelims))
+	out, _ = escapeDelimiters(out, lit, pairingDelimiterBytes(out))
+	return out
+}
+
+// escapeDelimiters writes a backslash before each byte of out whose offset is
+// in lit and in which, and returns the result with the offsets of the other
+// literal delimiters moved to where they now sit.
+func escapeDelimiters(out string, lit []int, which map[int]bool) (string, []int) {
+	if len(which) == 0 {
+		return out, lit
 	}
 	var buf strings.Builder
+	var rest []int
 	prev, n := 0, 0
-	for _, off := range s.litDelims {
-		if !escapable[off] {
+	for _, off := range lit {
+		if !which[off] {
+			rest = append(rest, off+n)
 			continue
 		}
 		buf.WriteString(out[prev:off])
@@ -1019,10 +1040,10 @@ func (s *mdInlineSink) output() string {
 		prev, n = off, n+1
 	}
 	if n == 0 {
-		return out
+		return out, lit
 	}
 	buf.WriteString(out[prev:])
-	return buf.String()
+	return buf.String(), rest
 }
 
 // delimRun is one maximal run of the same emphasis delimiter character in the
@@ -1070,21 +1091,53 @@ func pairingDelimiterBytes(out string) map[int]bool {
 	return marked
 }
 
+// mergedDelimiterBytes reports the literal delimiter bytes (those at the
+// offsets in lit) that sit in a run holding markup delimiters too: a run the
+// reader would see as one where the sink meant two things.
+func mergedDelimiterBytes(out string, lit []int) map[int]bool {
+	literal := make(map[int]bool, len(lit))
+	for _, off := range lit {
+		literal[off] = true
+	}
+	var merged map[int]bool
+	for _, r := range scanDelimiterRuns(out) {
+		n := 0
+		for i := r.start; i < r.end; i++ {
+			if literal[i] {
+				n++
+			}
+		}
+		if n == 0 || n == r.end-r.start {
+			continue
+		}
+		if merged == nil {
+			merged = map[int]bool{}
+		}
+		for i := r.start; i < r.end; i++ {
+			if literal[i] {
+				merged[i] = true
+			}
+		}
+	}
+	return merged
+}
+
 // scanDelimiterRuns finds the maximal runs of '*' and '_' in out and applies
 // CommonMark 6.2: a run is left-flanking when it is not followed by whitespace
 // and either is not followed by punctuation or is preceded by whitespace or
 // punctuation, right-flanking is the mirror of that, and '_' additionally may
-// open or close only where it is not intraword.
+// open or close only where it is not intraword. A backslash-escaped delimiter
+// is text (CommonMark 2.4): it belongs to no run and ends the one before it.
 func scanDelimiterRuns(out string) []delimRun {
 	var runs []delimRun
 	for i := 0; i < len(out); {
 		c := out[i]
-		if c != '*' && c != '_' {
+		if (c != '*' && c != '_') || backslashEscaped(out, i) {
 			i++
 			continue
 		}
 		j := i
-		for j < len(out) && out[j] == c {
+		for j < len(out) && out[j] == c && !backslashEscaped(out, j) {
 			j++
 		}
 		r := delimRun{char: c, start: i, end: j}
