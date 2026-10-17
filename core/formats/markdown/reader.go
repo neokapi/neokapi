@@ -2350,23 +2350,24 @@ func (r *Reader) processHTMLBlockSubfilter(ctx context.Context, ch chan<- model.
 	}
 }
 
-// emitHTMLSubfilterTextBlock emits one translatable Block whose source
-// text is the raw token bytes with HTML entity references decoded
-// (e.g. `&#39;` → `'`, `&amp;` → `&`). Mirrors okapi's HTML subfilter
-// path (AbstractMarkupFilter.handleNumericEntity / handleCharacterEntity)
-// which decodes entities before adding them to the text unit, except
-// when `preserve_character_entities` is set on the subfilter config —
-// the markdown HTML subfilter config (okf_html@for_markdown.fprm) leaves
-// it unset, so decoding is the default. The decoded text passes through
-// the markdown writer (MarkdownEncoder, no re-escape) unchanged, so the
-// entity reference is dropped on round-trip just like Java does.
-// The skeleton stream gets a single Ref so the writer substitutes the
-// translation in place.
+// emitHTMLSubfilterTextBlock emits one translatable Block for a text token
+// of an HTML block. Each character reference in it (`&#39;`, `&amp;`) is a
+// placeholder carrying the source spelling, with the decoded character as
+// its equivalent, the way addTextWithEntities spells one in a paragraph: a
+// translator sees one "&", and the skeleton path writes the reference back
+// as the source spelled it. Okapi's HTML subfilter decodes the reference
+// into the text unit instead (AbstractMarkupFilter.handleCharacterEntity,
+// with `preserve_character_entities` unset in okf_html@for_markdown.fprm),
+// and mirroring that wrote the decoded character in place of the reference
+// on an untranslated round trip (#3201). The skeleton stream gets a single
+// Ref so the writer substitutes the translation in place.
 func (r *Reader) emitHTMLSubfilterTextBlock(ctx context.Context, ch chan<- model.PartResult, text []byte) {
 	r.blockCounter++
 	blockID := fmt.Sprintf("tu%d", r.blockCounter)
-	decoded := xhtml.UnescapeString(string(text))
-	block := model.NewBlock(blockID, decoded)
+	b := newRunBuilder()
+	idCounter := 0
+	addTextWithEntities(b, string(text), &idCounter)
+	block := model.NewRunsBlock(blockID, b.Runs())
 	block.Name = r.naming.Name(kindHTMLText)
 	block.Type = "html-text"
 
