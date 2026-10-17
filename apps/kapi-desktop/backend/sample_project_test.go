@@ -2,8 +2,10 @@ package backend
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/contextop"
@@ -401,4 +403,65 @@ func TestCreateSampleProject_ArrivesWithAnAssistantSession(t *testing.T) {
 	after, err := app.hostEngine().ContextOperations(t.Context(), host.ContextLogRequest{Project: tab.Path})
 	require.NoError(t, err)
 	assert.Len(t, after.Operations, len(before.Operations), "the sessions are recorded once")
+}
+
+// A sample an older app scaffolded may carry a recipe this version refuses (a
+// key the schema no longer takes). Opening it from the workspace home or the
+// recent list refreshes it to the current sample and keeps the old copy; a
+// sample at the current revision, and a project that is not a sample, report
+// the error and are left as they are.
+func TestOpenProject_RefreshesAStaleSampleThatNoLongerLoads(t *testing.T) {
+	t.Setenv(host.EnvDataDir, t.TempDir())
+	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
+	breakRecipe := func(t *testing.T, kapiPath string) {
+		t.Helper()
+		raw, err := os.ReadFile(kapiPath)
+		require.NoError(t, err)
+		broken := strings.Replace(string(raw), "    kind: geo\n", "    kind: geo\n    groups:\n      nordics: [no, se, dk, fi, is]\n", 1)
+		require.NotEqual(t, string(raw), broken)
+		require.NoError(t, os.WriteFile(kapiPath, []byte(broken), 0o644))
+		_, err = project.Load(kapiPath)
+		require.ErrorContains(t, err, `an axis takes no key "groups"`)
+	}
+
+	t.Run("an older sample is refreshed and backed up", func(t *testing.T) {
+		dir := filepath.Join(t.TempDir(), "KapiMart")
+		require.NoError(t, sample.Scaffold("kapimart", dir))
+		kapiPath := filepath.Join(dir, "kapi.yaml")
+		breakRecipe(t, kapiPath)
+		old := sample.CurrentRevision("kapimart") - 1
+		require.NoError(t, sample.SetManifestRevision(dir, old))
+
+		app := NewApp()
+		tab, err := app.OpenProject(kapiPath)
+		require.NoError(t, err)
+		t.Cleanup(func() { app.CloseProject(tab.ID) })
+
+		_, err = project.Load(kapiPath)
+		require.NoError(t, err, "the refreshed recipe loads")
+		assert.False(t, app.GetSampleInfo(tab.ID).UpgradeAvailable)
+		backup, err := os.ReadFile(filepath.Join(fmt.Sprintf("%s (backup r%d)", dir, old), "kapi.yaml"))
+		require.NoError(t, err, "the old copy is kept")
+		assert.Contains(t, string(backup), "groups:")
+	})
+
+	t.Run("a current sample keeps its error", func(t *testing.T) {
+		dir := filepath.Join(t.TempDir(), "KapiMart")
+		require.NoError(t, sample.Scaffold("kapimart", dir))
+		kapiPath := filepath.Join(dir, "kapi.yaml")
+		breakRecipe(t, kapiPath)
+
+		_, err := NewApp().OpenProject(kapiPath)
+		require.ErrorContains(t, err, `an axis takes no key "groups"`)
+		raw, _ := os.ReadFile(kapiPath)
+		assert.Contains(t, string(raw), "groups:", "a recipe a person edited is left as it is")
+	})
+
+	t.Run("a project that is not a sample keeps its error", func(t *testing.T) {
+		kapiPath := filepath.Join(t.TempDir(), "kapi.yaml")
+		require.NoError(t, os.WriteFile(kapiPath, []byte("version: v1\nname: x\naxes:\n  market:\n    kind: geo\n    groups: {nordics: [no]}\n"), 0o644))
+
+		_, err := NewApp().OpenProject(kapiPath)
+		require.ErrorContains(t, err, `an axis takes no key "groups"`)
+	})
 }
