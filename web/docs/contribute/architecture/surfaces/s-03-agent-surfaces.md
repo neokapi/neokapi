@@ -204,7 +204,9 @@ the rules that hold everywhere, with one line per folder that has rules of its
 own, and a pair in each such folder stating only what holds there. A folder's
 section names the wording that stays as it is, plainly: a rename held for
 `help/` gives `api/AGENTS.md` the line `"Workspace" is correct here; do not
-rename it to "Space"`. Every section ends with the one line that names
+rename it to "Space"`, and a note a person kept for one campaign's pages is
+written into that campaign folder's file. Every section ends with the one line
+that names
 `kapi check`, which stays the gate. What goes into each section, the budget,
 and when the files are refreshed are in
 [C-06](../context/c-06-retrieval.md#rules-files).

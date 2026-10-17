@@ -73,7 +73,8 @@ tool call: a section of `AGENTS.md` and `CLAUDE.md` at the root for the rules
 that hold everywhere, and in each folder whose rules differ from the root's. A
 folder's file says what holds there, including the wording that stays as it
 is: a rename held for `help/` leaves `api/AGENTS.md` saying the old name is
-correct in `api/`. Each section ends with the `kapi check` line. The section
+correct in `api/`, and a note a person kept is written into the file of the
+folder it holds in. Each section ends with the `kapi check` line. The section
 sits between `<!-- kapi:rules -->` markers and the rest of each file is never
 touched; a file kapi created is removed once its folder has no rules of its
 own, and a `CLAUDE.md` that imports `@AGENTS.md` gets no section of its own.

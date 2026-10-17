@@ -524,19 +524,21 @@ func (a *App) ContextSourcesAt(cmd Command, req ContextPointRequest) (ContextPoi
 	if rules, rerr := a.ContextRulesAt(ctx, projectPath, point); rerr == nil {
 		src.Rules = rules
 	}
-	if req.rulesOnly {
-		return src, noop
-	}
 	// The operations behind those suggestions, for the provenance a reader
-	// judges one by. A workspace that cannot be read leaves the answer without
-	// them rather than failing it, the same as every other store here.
+	// judges one by, and the notes a person established, which no store holds.
+	// A rules-only answer reads the established notes alone: a note in force
+	// is part of what holds here, and a suggestion is not. A workspace that
+	// cannot be read leaves the answer without them rather than failing it,
+	// the same as every other store here.
 	if log, lerr := a.ContextOperations(ctx, ContextLogRequest{
 		Project: projectPath, Subjects: true,
 	}); lerr == nil {
-		src.Suggestions = make([]contextop.Record, 0, len(log.Operations))
+		if !req.rulesOnly {
+			src.Suggestions = make([]contextop.Record, 0, len(log.Operations))
+		}
 		for _, op := range log.Operations {
 			switch {
-			case op.Status.Advises():
+			case op.Status.Advises() && !req.rulesOnly:
 				src.Suggestions = append(src.Suggestions, op.Record)
 			// An established note is something somebody noticed and a
 			// person kept. An import or an edit also carries a note subject,
@@ -546,6 +548,9 @@ func (a *App) ContextSourcesAt(cmd Command, req ContextPointRequest) (ContextPoi
 				src.EstablishedNotes = append(src.EstablishedNotes, op.Record)
 			}
 		}
+	}
+	if req.rulesOnly {
+		return src, noop
 	}
 
 	src.Freshness = a.governanceNotes(cmd)
