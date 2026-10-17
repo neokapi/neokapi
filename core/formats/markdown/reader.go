@@ -4000,7 +4000,23 @@ func strikethroughFences(node ast.Node, source []byte) (string, string) {
 		return "~~", "~~"
 	}
 	contentStart, ok := inlineContentStart(first, source)
-	if !ok || contentStart <= 0 || contentStart > len(source) {
+	if !ok {
+		// An autolink records no segment, so a pair whose first child is one
+		// cannot be located from its content. The pair's own start can be,
+		// from the sibling before it or its parent, and the tilde run there
+		// is the opener. Resolved from the default spelling instead, the
+		// autolink's start landed one byte in and "~<https://x>~" came back
+		// as "~~https://x~~" (#3202).
+		start, ok := inlineNodeStart(node, source)
+		if !ok {
+			return "~~", "~~"
+		}
+		if open := tildeRunAt(source, start); open != "" {
+			return open, open
+		}
+		return "~~", "~~"
+	}
+	if contentStart <= 0 || contentStart > len(source) {
 		return "~~", "~~"
 	}
 	// The tilde run before the content is the opener, bounded by what the
@@ -4046,6 +4062,16 @@ func prevSiblingEnd(prev ast.Node, source []byte) (int, bool) {
 		return v.Segments.At(v.Segments.Len() - 1).Stop, true
 	}
 	return 0, false
+}
+
+// tildeRunAt returns the run of one or two tildes at source[i], which is every
+// run GFM accepts as a strikethrough delimiter, or "" when no tilde is there.
+func tildeRunAt(source []byte, i int) string {
+	n := 0
+	for n < 2 && i+n < len(source) && source[i+n] == '~' {
+		n++
+	}
+	return string(source[i : i+n])
 }
 
 // tildeOrPair returns "~" when source[i] is a tilde and "~~" otherwise.
