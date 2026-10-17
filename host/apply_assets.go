@@ -225,11 +225,14 @@ func (a *App) resolveProjectRoot(cmd Command) (recipePath, root string, err erro
 // term → the project's terms store
 // ---------------------------------------------------------------------------
 
-// landedTerms and landedMemory name where a change went, for the one line a
-// surface prints beside the result.
+// landedTerms, landedMemory and landedNote name where a change went, for the
+// one line a surface prints beside the result. A note in prose states no rule,
+// so keeping one writes no store: the operation log holds it, and every
+// by-location answer where the note holds reads it from there.
 const (
 	landedTerms  = "the project's terms store"
 	landedMemory = "the project's content memory"
+	landedNote   = "the project's operation log, which every context answer where the note holds reads"
 )
 
 // applyTermEntryTo upserts a term into the terms store the projector writes.

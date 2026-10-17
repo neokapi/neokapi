@@ -125,6 +125,12 @@ type ContextAnswer struct {
 	// project's own unfinished thinking, and an agent building on another
 	// session's work reads them rather than rediscovering the same facts.
 	Suggestions []ContextSuggestion `json:"suggestions,omitempty"`
+	// EstablishedNotes are the notes in prose a person kept, or recorded as
+	// established, that hold at this point, such as who the text addresses. A
+	// note states no rule, so no store holds it and no check reads it. The
+	// operation log holds it, and the answer reads it from there at the
+	// note's scope and lifetime window.
+	EstablishedNotes []ContextSuggestion `json:"established_notes,omitempty"`
 	// Profiles are the governance profiles whose validity is bounded, read
 	// against the answer's instant — which voice is in force, and until when.
 	// The same shape the by-content answer reports, because it is the same fact.
@@ -191,19 +197,22 @@ type ContextPoint struct {
 
 // ContextSuggestion is one operation nobody has established, or one a
 // disagreement contests, as an answer reports it: the rule or the fact it
-// states, who recorded it, and where they saw it.
+// states, who recorded it, and where they saw it. An established note
+// (ContextAnswer.EstablishedNotes) is reported in the same shape.
 //
-// Status is `suggested` or `contested`, in the vocabulary the operation log
-// uses (contextop.StatusSuggested, contextop.StatusContested). It is carried on
-// every entry so a caller reading the JSON has the standing of the entry in the
-// entry, rather than in the name of the list it arrived in.
+// Status is `suggested`, `contested` or, for an established note,
+// `established`, in the vocabulary the operation log uses
+// (contextop.StatusSuggested, contextop.StatusContested,
+// contextop.StatusEstablished). It is carried on every entry so a caller
+// reading the JSON has the standing of the entry in the entry, rather than in
+// the name of the list it arrived in.
 type ContextSuggestion struct {
 	// Operation is the id, which is what `kapi context review --keep` takes.
 	Operation string `json:"operation,omitempty"`
 	// Kind is what the suggestion is about: `term` or `note`.
 	Kind string `json:"kind"`
-	// Status is what it counts as: `suggested`, or `contested` when another
-	// rule disagrees with it.
+	// Status is what it counts as: `suggested`, `contested` when another
+	// rule disagrees with it, or `established` for a note in force.
 	Status string `json:"status"`
 	// ContestedBy names the operations on the other side of a disagreement.
 	ContestedBy []string `json:"contested_by,omitempty"`
@@ -296,6 +305,11 @@ type ContextPointSources struct {
 	// carry the provenance a reader needs to judge one: who suggested it, in
 	// which session, and where they saw it.
 	Suggestions []contextop.Record
+	// EstablishedNotes are this project's established notes in prose, newest
+	// first. The
+	// answer scopes them against the point, the way it scopes a suggested
+	// note.
+	EstablishedNotes []contextop.Record
 	// Concepts are the terms bound at the point, read through the same
 	// resolution `kapi check` enforces with — so the terms reported here are the
 	// terms a check at this location holds content to.
@@ -521,8 +535,11 @@ func (a *App) ContextSourcesAt(cmd Command, req ContextPointRequest) (ContextPoi
 	}); lerr == nil {
 		src.Suggestions = make([]contextop.Record, 0, len(log.Operations))
 		for _, op := range log.Operations {
-			if op.Status.Advises() {
+			switch {
+			case op.Status.Advises():
 				src.Suggestions = append(src.Suggestions, op.Record)
+			case op.Status == contextop.StatusEstablished && op.Subject.Kind == contextop.SubjectNote:
+				src.EstablishedNotes = append(src.EstablishedNotes, op.Record)
 			}
 		}
 	}
@@ -696,11 +713,19 @@ func ResolveContextAt(_ context.Context, src ContextPointSources, req ContextPoi
 	}
 	total := len(all)
 
+	// The notes a person established that hold here are context the answer
+	// stands on, counted with the rules established here.
+	var coordinates map[string]string
+	if src.Governance != nil && src.Recipe != nil {
+		coordinates = src.Recipe.CoordinatesAt(src.Point, src.Governance)
+	}
+	notes := notesAt(src.EstablishedNotes, coordinates, src.Recipe.AxisSpace(), src.At)
+
 	res := &ContextAnswer{
 		EditionOf: src.EditionOf,
 		Scope:     scope,
 		Coverage: coverageOf(
-			countKinds(src.Voice != nil, len(hits) > 0, len(src.Rules.Binding) > 0),
+			countKinds(src.Voice != nil, len(hits) > 0, len(src.Rules.Binding) > 0 || len(notes) > 0),
 			len(src.Rules.Advisory) > 0),
 		Provenance: src.Provenance,
 		Point:      ContextPoint{Path: src.Path, Collection: src.Collection},
@@ -710,9 +735,7 @@ func ResolveContextAt(_ context.Context, src ContextPointSources, req ContextPoi
 		res.Point.Profile = src.Governance.Profile
 		res.Point.Channel = src.Governance.Channel
 		res.Point.Ref = src.Governance.Ref().String()
-		if src.Recipe != nil {
-			res.Point.Coordinates = src.Recipe.CoordinatesAt(src.Point, src.Governance)
-		}
+		res.Point.Coordinates = coordinates
 		// Default is a resolution outcome, so it is only meaningful when a
 		// recipe was resolved at all.
 		res.Point.Default = res.Point.Ref == ""
@@ -726,6 +749,7 @@ func ResolveContextAt(_ context.Context, src ContextPointSources, req ContextPoi
 	// suggested rule a check would not report; the operation log supplies who
 	// suggested each one and where they saw it.
 	res.Suggestions = contextSuggestions(src.Rules.Advisory, src.Suggestions, res.Point.Coordinates, src.Recipe.AxisSpace(), src.At)
+	res.EstablishedNotes = notes
 
 	// Freshness leads the notes: it is the only note that says the rest of the
 	// answer may already describe a graph that has moved, and a reader acts on
@@ -887,6 +911,19 @@ func contextSuggestions(advisory []coreprofile.TermRule, records []contextop.Rec
 		out = append(out, entry)
 	}
 
+	out = append(out, notesAt(records, coordinates, space, at)...)
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+// notesAt renders the notes in prose among records that hold at a point: the
+// ones whose scope covers its coordinates and whose window covers the instant.
+// No resolution carries a note, because a note states no rule, so each is
+// scoped here against the point's own coordinates.
+func notesAt(records []contextop.Record, coordinates map[string]string, space axis.Space, at time.Time) []ContextSuggestion {
+	var out []ContextSuggestion
 	for _, r := range records {
 		if r.Subject.Kind != contextop.SubjectNote || r.Subject.Text == "" {
 			continue
@@ -911,9 +948,6 @@ func contextSuggestions(advisory []coreprofile.TermRule, records []contextop.Rec
 			entry.At = r.At.UTC().Format(time.RFC3339)
 		}
 		out = append(out, entry)
-	}
-	if len(out) == 0 {
-		return nil
 	}
 	return out
 }
@@ -1041,6 +1075,13 @@ func (r *ContextAnswer) FormatText(w io.Writer) error {
 		}
 	}
 
+	if len(r.EstablishedNotes) > 0 {
+		fmt.Fprintln(w, "\nEstablished notes:")
+		for _, n := range r.EstablishedNotes {
+			fmt.Fprintln(w, suggestionLine(n))
+		}
+	}
+
 	if suggested := r.suggestedLines(); len(suggested) > 0 {
 		fmt.Fprintln(w, "\nSuggested, not yet established:")
 		for _, line := range suggested {
@@ -1053,7 +1094,7 @@ func (r *ContextAnswer) FormatText(w io.Writer) error {
 	recordable := r.Scope != ScopeProfile
 	subject := r.subject()
 	switch {
-	case r.VoiceBrief == "" && len(r.Rules) == 0 && len(r.Suggestions) == 0 && len(r.Elsewhere) == 0:
+	case r.VoiceBrief == "" && len(r.Rules) == 0 && len(r.EstablishedNotes) == 0 && len(r.Suggestions) == 0 && len(r.Elsewhere) == 0:
 		fmt.Fprintf(w, "\nNothing is recorded for %s yet. Write as the surrounding files do.\n", subject)
 		if recordable {
 			fmt.Fprintln(w, "\n"+recordingAdvice)
