@@ -2887,6 +2887,12 @@ func (r *Reader) addHardBreakRuns(b *runBuilder, n *ast.Text, source []byte, idC
 // the spelling, and the skeleton wrote that space twice: once as the
 // indentation it replays for the line, once inside the placeholder the break
 // rides. " \\\n0" came back as "  \\\n0" (#2529).
+//
+// The whitespace form takes every space, tab and bare carriage return the
+// parser trimmed off the text node. goldmark ends a line on "\n" alone, so a
+// "\r" before the two spaces is whitespace inside the line: it left the text
+// with the spaces, and a walk that stopped at it left it in neither the text
+// nor the placeholder. "One line\r  \n" came back one byte short (#3196).
 func hardBreakSpelling(source []byte, pos int) (spelling string, nl int, ok bool) {
 	if pos < 0 || pos > len(source) {
 		return "", 0, false
@@ -2903,7 +2909,7 @@ func hardBreakSpelling(source []byte, pos int) (spelling string, nl int, ok bool
 	if start > 0 && source[start-1] == '\\' {
 		return string(source[start-1 : nl]), nl, true
 	}
-	for start > 0 && (source[start-1] == ' ' || source[start-1] == '\t') {
+	for start > 0 && (source[start-1] == ' ' || source[start-1] == '\t' || source[start-1] == '\r') {
 		start--
 	}
 	return string(source[start:nl]), nl, true
@@ -2945,8 +2951,9 @@ func (r *Reader) collectInlineText(buf *strings.Builder, node ast.Node, source [
 				// used — goldmark leaves "0  \n" for five spaces but "0\n" for
 				// two, which otherwise makes the round-trip converge only after
 				// a second pass (#1652). The spaces may sit on this node or on
-				// the following empty hard-break node.
-				val = bytes.TrimRight(val, " \t")
+				// the following empty hard-break node. A bare carriage return
+				// before them is the break's too (#3196).
+				val = bytes.TrimRight(val, " \t\r")
 			}
 			buf.Write(val)
 			if n.SoftLineBreak() {
@@ -3163,7 +3170,7 @@ func (r *Reader) buildCodedRuns(b *runBuilder, node ast.Node, source []byte, idC
 				// See collectInlineText: trim the trailing spaces that spell a
 				// hard break so the captured runs are stable across a round-trip
 				// regardless of how many spaces the source used (#1652).
-				seg = bytes.TrimRight(seg, " \t")
+				seg = bytes.TrimRight(seg, " \t\r")
 			}
 			if dntDepth > 0 {
 				b.AddDNTText(string(seg))
