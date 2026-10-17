@@ -839,9 +839,15 @@ func (s *mdInlineSink) Placeholder(r *model.PlaceholderRun) {
 		// content, and reads back as the same hard break. It is held until the
 		// next run confirms a line follows, and a break that opens the block
 		// spells nothing: the leading whitespace is trimmed, so there is no
-		// blank line to prevent.
-		s.heldBreak = s.sb.Len() > 0 && s.atLineStart()
-		if !s.heldBreak && endsInBreakSpaces(s.sb.String()) {
+		// blank line to prevent. The same goes for a break while the output
+		// holds nothing but the newlines and indents of such breaks: a
+		// backslash there survived the trim as the block's first line, the
+		// pass after dropped it as a break opening the block, and the line
+		// below it moved onto the first line, where a bare "* " is a bullet
+		// (#3199).
+		opens := strings.TrimSpace(s.sb.String()) == ""
+		s.heldBreak = !opens && s.atLineStart()
+		if !opens && !s.heldBreak && endsInBreakSpaces(s.sb.String()) {
 			// Two or more spaces before a line ending ARE a hard break, so
 			// emitting the break as a bare newline would hand the spaces to the
 			// break's spelling and they would stop being content: "a  \\\nb"
