@@ -261,12 +261,13 @@ const WidenToWorkspace = "workspace"
 // force under every profile of its project.
 const WidenToProject = "project"
 
-// ContextWidenOptions are the widenings open to a rule at scope: the whole
-// workspace, and each axis its point is specific about. A rule already
-// answering workspace-wide has nowhere further to go.
-func ContextWidenOptions(scope contextop.Scope) []string {
+// ContextWidenOptions are the widenings open to an established subject at
+// scope: the whole workspace, and each axis its point is specific about. A
+// rule already answering workspace-wide has nowhere further to go, and a note
+// holds within its project at the widest, so neither is offered the workspace.
+func ContextWidenOptions(subject contextop.SubjectKind, scope contextop.Scope) []string {
 	out := []string{}
-	if scope.Level != contextop.LevelWorkspace {
+	if scope.Level != contextop.LevelWorkspace && subject != contextop.SubjectNote {
 		out = append(out, WidenToWorkspace)
 	}
 	axes := make([]string, 0, len(scope.Coordinates))
@@ -991,6 +992,11 @@ func widenScope(target contextop.Record, to string) (contextop.Scope, error) {
 	case WidenToWorkspace:
 		if scope.Level == contextop.LevelWorkspace {
 			return contextop.Scope{}, errors.New("this rule already holds across the workspace")
+		}
+		// The workspace's rule store holds term rules, and a note in prose
+		// states none, so a note holds within its project at the widest.
+		if target.Subject.Kind == contextop.SubjectNote {
+			return contextop.Scope{}, fmt.Errorf("a note holds within its project: widen it with --widen-to %s or past one of its axes instead", WidenToProject)
 		}
 		scope.Level = contextop.LevelWorkspace
 		scope.AllProfiles = false

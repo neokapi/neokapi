@@ -561,10 +561,14 @@ func TestContextOperationsNeedAProject(t *testing.T) {
 }
 
 func TestContextWidenOptions(t *testing.T) {
-	assert.Equal(t, []string{WidenToWorkspace, "channel", "product"}, ContextWidenOptions(contextop.Scope{
+	scoped := contextop.Scope{
 		Level:       contextop.LevelProject,
 		Coordinates: map[string]string{"product": "store", "channel": "web"},
-	}))
-	assert.Empty(t, ContextWidenOptions(contextop.Scope{Level: contextop.LevelWorkspace}),
+	}
+	assert.Equal(t, []string{WidenToWorkspace, "channel", "product"}, ContextWidenOptions(contextop.SubjectTerm, scoped))
+	assert.Empty(t, ContextWidenOptions(contextop.SubjectTerm, contextop.Scope{Level: contextop.LevelWorkspace}),
 		"a rule answering workspace-wide has nowhere further to go")
+	assert.Equal(t, []string{"channel", "product"}, ContextWidenOptions(contextop.SubjectNote, scoped),
+		"a note holds within its project, so only its axes widen")
+	assert.Empty(t, ContextWidenOptions(contextop.SubjectNote, contextop.Scope{Level: contextop.LevelProject}))
 }

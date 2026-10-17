@@ -69,9 +69,13 @@ func (s *contextOpsSession) landAt(ctx context.Context, r contextop.Record, resc
 		}
 	}
 	if landed == "" {
-		landed = landedTerms
-		if r.Subject.Kind == contextop.SubjectMemory {
+		switch r.Subject.Kind {
+		case contextop.SubjectMemory:
 			landed = landedMemory
+		case contextop.SubjectNote:
+			landed = landedNote
+		default:
+			landed = landedTerms
 		}
 	}
 	return landed, nil

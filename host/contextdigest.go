@@ -776,7 +776,7 @@ func digestItem(r contextop.Record, collectionFor func(string) string) DigestIte
 	case r.Established:
 		it.Droppable = true
 		if r.Status == contextop.StatusEstablished {
-			it.WidenTo = ContextWidenOptions(r.Scope)
+			it.WidenTo = ContextWidenOptions(r.Subject.Kind, r.Scope)
 			it.Widenable = len(it.WidenTo) > 0
 		}
 	case r.Subject.Kind == contextop.SubjectNote:

@@ -1130,6 +1130,18 @@ export class ContextAnswer {
         }
         if (/** @type {any} */(false)) {
             /**
+             * EstablishedNotes are the notes in prose a person kept, or recorded as
+             * established, that hold at this point, such as who the text addresses. A
+             * note states no rule, so no store holds it and no check reads it. The
+             * operation log holds it, and the answer reads it from there at the
+             * note's scope and lifetime window.
+             * @member
+             * @type {ContextSuggestion[] | undefined}
+             */
+            this["established_notes"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * Profiles are the governance profiles whose validity is bounded, read
              * against the answer's instant — which voice is in force, and until when.
              * The same shape the by-content answer reports, because it is the same fact.
@@ -1225,12 +1237,13 @@ export class ContextAnswer {
         const $$createField6_0 = $$createType24;
         const $$createField7_0 = $$createType26;
         const $$createField9_0 = $$createType28;
-        const $$createField10_0 = $$createType30;
-        const $$createField11_0 = $$createType32;
-        const $$createField13_0 = $$createType34;
-        const $$createField15_0 = $$createType0;
+        const $$createField10_0 = $$createType28;
+        const $$createField11_0 = $$createType30;
+        const $$createField12_0 = $$createType32;
+        const $$createField14_0 = $$createType34;
         const $$createField16_0 = $$createType0;
-        const $$createField17_0 = $$createType36;
+        const $$createField17_0 = $$createType0;
+        const $$createField18_0 = $$createType36;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("constraints" in $$parsedSource) {
             $$parsedSource["constraints"] = $$createField0_0($$parsedSource["constraints"]);
@@ -1253,23 +1266,26 @@ export class ContextAnswer {
         if ("suggestions" in $$parsedSource) {
             $$parsedSource["suggestions"] = $$createField9_0($$parsedSource["suggestions"]);
         }
+        if ("established_notes" in $$parsedSource) {
+            $$parsedSource["established_notes"] = $$createField10_0($$parsedSource["established_notes"]);
+        }
         if ("profiles" in $$parsedSource) {
-            $$parsedSource["profiles"] = $$createField10_0($$parsedSource["profiles"]);
+            $$parsedSource["profiles"] = $$createField11_0($$parsedSource["profiles"]);
         }
         if ("rules" in $$parsedSource) {
-            $$parsedSource["rules"] = $$createField11_0($$parsedSource["rules"]);
+            $$parsedSource["rules"] = $$createField12_0($$parsedSource["rules"]);
         }
         if ("elsewhere" in $$parsedSource) {
-            $$parsedSource["elsewhere"] = $$createField13_0($$parsedSource["elsewhere"]);
+            $$parsedSource["elsewhere"] = $$createField14_0($$parsedSource["elsewhere"]);
         }
         if ("attention" in $$parsedSource) {
-            $$parsedSource["attention"] = $$createField15_0($$parsedSource["attention"]);
+            $$parsedSource["attention"] = $$createField16_0($$parsedSource["attention"]);
         }
         if ("notes" in $$parsedSource) {
-            $$parsedSource["notes"] = $$createField16_0($$parsedSource["notes"]);
+            $$parsedSource["notes"] = $$createField17_0($$parsedSource["notes"]);
         }
         if ("notice" in $$parsedSource) {
-            $$parsedSource["notice"] = $$createField17_0($$parsedSource["notice"]);
+            $$parsedSource["notice"] = $$createField18_0($$parsedSource["notice"]);
         }
         return new ContextAnswer(/** @type {Partial<ContextAnswer>} */($$parsedSource));
     }
@@ -2903,12 +2919,15 @@ export class ContextSettleResult {
 /**
  * ContextSuggestion is one operation nobody has established, or one a
  * disagreement contests, as an answer reports it: the rule or the fact it
- * states, who recorded it, and where they saw it.
+ * states, who recorded it, and where they saw it. An established note
+ * (ContextAnswer.EstablishedNotes) is reported in the same shape.
  * 
- * Status is `suggested` or `contested`, in the vocabulary the operation log
- * uses (contextop.StatusSuggested, contextop.StatusContested). It is carried on
- * every entry so a caller reading the JSON has the standing of the entry in the
- * entry, rather than in the name of the list it arrived in.
+ * Status is `suggested`, `contested` or, for an established note,
+ * `established`, in the vocabulary the operation log uses
+ * (contextop.StatusSuggested, contextop.StatusContested,
+ * contextop.StatusEstablished). It is carried on every entry so a caller
+ * reading the JSON has the standing of the entry in the entry, rather than in
+ * the name of the list it arrived in.
  */
 export class ContextSuggestion {
     /**
@@ -2934,8 +2953,8 @@ export class ContextSuggestion {
         }
         if (!("status" in $$source)) {
             /**
-             * Status is what it counts as: `suggested`, or `contested` when another
-             * rule disagrees with it.
+             * Status is what it counts as: `suggested`, `contested` when another
+             * rule disagrees with it, or `established` for a note in force.
              * @member
              * @type {string}
              */
