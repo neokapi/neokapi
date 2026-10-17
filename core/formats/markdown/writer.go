@@ -700,6 +700,10 @@ func (s *mdInlineSink) Close(r *model.PcCloseRun) {
 	if tag.close == "" {
 		return
 	}
+	if tag.close == "`" {
+		s.closeCodeSpan(tag.at)
+		return
+	}
 	s.spellHeldClose(firstRune(tag.close))
 	if isEmphasisDelimiter(tag.close) {
 		// Two closers of the same character written back-to-back form one
@@ -716,6 +720,73 @@ func (s *mdInlineSink) Close(r *model.PcCloseRun) {
 		s.lastClosed = closed
 	}
 	s.sb.WriteString(tag.close)
+}
+
+// closeCodeSpan closes the code span whose one-backtick opener sits at openAt,
+// re-spelling both fences to fit the content between them. CommonMark 6.1
+// closes a span on a backtick run exactly as long as the opener, so a fence
+// of one backtick around content holding a run of three merged with it and
+// the span re-read at different positions on every pass (#3193). The fence is
+// one backtick longer than the longest run inside, the way codeFence sizes a
+// code block's (#2487), and a padding space keeps it apart from a backtick
+// the content begins or ends with. The same space pads content that begins
+// and ends with a space, which the re-read would otherwise strip one of.
+func (s *mdInlineSink) closeCodeSpan(openAt int) {
+	out := s.sb.String()
+	content := out[openAt+1:]
+	fence := codeSpanFence(content)
+	pad := ""
+	if codeSpanNeedsPadding(content) {
+		pad = " "
+	}
+	if fence == "`" && pad == "" {
+		s.sb.WriteByte('`')
+		return
+	}
+	s.sb.Reset()
+	s.sb.WriteString(out[:openAt])
+	s.sb.WriteString(fence)
+	s.sb.WriteString(pad)
+	s.sb.WriteString(content)
+	s.sb.WriteString(pad)
+	s.sb.WriteString(fence)
+	// A literal delimiter recorded inside the content moved with it.
+	shift := len(fence) + len(pad) - 1
+	for i, off := range s.litDelims {
+		if off > openAt {
+			s.litDelims[i] = off + shift
+		}
+	}
+}
+
+// codeSpanFence returns the backtick run that fences a code span around
+// content: one more than the longest run of backticks inside it.
+func codeSpanFence(content string) string {
+	longest, n := 0, 0
+	for i := range len(content) {
+		if content[i] == '`' {
+			n++
+			longest = max(longest, n)
+			continue
+		}
+		n = 0
+	}
+	return strings.Repeat("`", longest+1)
+}
+
+// codeSpanNeedsPadding reports whether a code span's content has to be set
+// apart from its fences by a space: when it begins or ends with a backtick,
+// which would otherwise join the fence, or when it begins and ends with a
+// space and is not all spaces, where CommonMark 6.1 strips one of each on
+// re-read.
+func codeSpanNeedsPadding(content string) bool {
+	if content == "" {
+		return false
+	}
+	if content[0] == '`' || content[len(content)-1] == '`' {
+		return true
+	}
+	return content[0] == ' ' && content[len(content)-1] == ' ' && strings.TrimSpace(content) != ""
 }
 
 // isEmphasisDelimiter reports whether close is the closer of an emphasis or
