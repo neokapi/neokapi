@@ -43,11 +43,11 @@ NODE_DEPS := node_modules/.modules.yaml
 .PHONY: deps check test typecheck list studio videos render publish capture seed record narrate package
 
 deps: ## Install node deps + Playwright chromium
-	corepack pnpm install
+	vp install
 	$(VPX) playwright install chromium
 
 $(NODE_DEPS): package.json pnpm-lock.yaml
-	corepack pnpm install --frozen-lockfile
+	vp install --frozen-lockfile
 	@touch $@
 
 check: typecheck test ## Typecheck + run the unit tests
