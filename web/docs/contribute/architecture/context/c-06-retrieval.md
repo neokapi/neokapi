@@ -142,6 +142,10 @@ The Markdown response provides a writing brief:
   wording in a file where the old one is correct is a `terms.vocabulary`
   finding there, which fails unless the concept is advisory
   (`checkTerms.keepAt`);
+- **Established notes**: the notes in prose a person kept that hold at the
+  point, scoped and windowed the way a suggested note is. A note states no
+  rule, so no store holds it; the answer reads it from the operation log
+  ([C-11](c-11-context-operations.md#keeping-writes-through-the-existing-appliers));
 - the suggestions under **Suggested, not yet established**, less any the list
   already states;
 - a closing line naming `context_note` (and `kapi context note`), for recording what the reader notices
