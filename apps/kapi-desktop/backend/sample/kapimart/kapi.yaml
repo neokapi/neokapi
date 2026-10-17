@@ -29,6 +29,30 @@ defaults:
     age: 13-
     lifecycle: current
 
+# The places this project names beside the built-in ones (the world, its
+# regions, every country and every ISO 3166-2 subdivision). Each sits within
+# places or is made of places, and that is how a rule for Norway reaches the
+# Oslo campaign: Oslo sits within the county of Oslo, which sits within Norway.
+# `kapi context places <query>` looks a place id up.
+places:
+  nordics:
+    name: Nordics
+    of: [no, se, dk, fi, is]
+  oslo:
+    name: Oslo
+    type: locality
+    within: no-03
+    centroid: [59.91, 10.75]
+    refs: [wikidata:Q585, geonames:3143244]
+  grunerlokka:
+    name: Grünerløkka
+    type: neighbourhood
+    within: oslo
+  greater-oslo:
+    name: Greater Oslo
+    type: metro
+    of: [no-03, no-32]
+
 # What the declared axes mean. Each one is checked when the recipe loads, and
 # its kind decides how a rule scoped to one value reaches another: a rule for
 # the Nordic market holds in Norway, and a rule for readers aged 13 to 17 holds
@@ -38,10 +62,6 @@ axes:
   market:
     kind: geo
     label: Market
-    groups:
-      nordics: [no, se, dk, fi, is]
-    labels:
-      nordics: Nordics
   audience:
     label: Audience
     values: [shoppers, developers, partners]
@@ -118,6 +138,22 @@ collections:
       lifecycle: preview
     content:
       - path: "en/*.{pptx,docx}"
+        target: "{lang}"
+
+  # A campaign for readers aged 13 to 17 in Oslo. The pick-up page is about one
+  # neighbourhood, so its item sits at Grünerløkka, inside the campaign's Oslo.
+  - name: Oslo youth campaign
+    base: campaigns/oslo
+    channel: kapimart/marketing
+    coordinates:
+      market: oslo
+      age: 13-17
+    content:
+      - path: "en/grunerlokka.md"
+        target: "{lang}"
+        coordinates:
+          market: grunerlokka
+      - path: "en/*.md"
         target: "{lang}"
 
 flows:

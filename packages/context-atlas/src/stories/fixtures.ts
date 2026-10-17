@@ -4,15 +4,18 @@
 // here is made up; the shape is exactly the `kapi context atlas --json`
 // contract.
 
+import { placeIndex } from "../model/places";
 import type {
   AtlasActor,
   AtlasAxis,
   AtlasData,
   AtlasEvent,
+  AtlasPlace,
   AtlasRecord,
   AtlasState,
   AtlasValue,
 } from "../types";
+import { BUILTIN_PLACES } from "./gazetteer";
 
 // ── Deterministic randomness ─────────────────────────────────────────────
 
@@ -69,28 +72,148 @@ const CHANNELS: AtlasValue[] = [
   { id: "push", label: "Push" },
 ];
 
-const COUNTRIES: AtlasValue[] = [
-  { id: "no", label: "Norway", parent: "northern-europe", centroid: [62, 10] },
-  { id: "se", label: "Sweden", parent: "northern-europe", centroid: [62, 15] },
-  { id: "dk", label: "Denmark", parent: "northern-europe", centroid: [56, 10] },
-  { id: "fi", label: "Finland", parent: "northern-europe", centroid: [64, 26] },
-  { id: "is", label: "Iceland", parent: "northern-europe", centroid: [65, -18] },
-  { id: "gb", label: "United Kingdom", parent: "northern-europe", centroid: [54, -2] },
-  { id: "ie", label: "Ireland", parent: "northern-europe", centroid: [53, -8] },
-  { id: "nl", label: "Netherlands", parent: "western-europe", centroid: [52.2, 5.5] },
-  { id: "de", label: "Germany", parent: "western-europe", centroid: [51, 10] },
-  { id: "fr", label: "France", parent: "western-europe", centroid: [46, 2] },
-  { id: "es", label: "Spain", parent: "southern-europe", centroid: [40, -4] },
-  { id: "it", label: "Italy", parent: "southern-europe", centroid: [42.8, 12.8] },
-  { id: "pl", label: "Poland", parent: "eastern-europe", centroid: [52, 19] },
-  { id: "us", label: "United States", parent: "northern-america", centroid: [39.8, -98.6] },
-  { id: "ca", label: "Canada", parent: "northern-america", centroid: [56, -106] },
-  { id: "jp", label: "Japan", parent: "eastern-asia", centroid: [36, 138] },
-  { id: "au", label: "Australia", parent: "australia-and-new-zealand", centroid: [-25, 134] },
+/** The countries the company sells in. */
+const COUNTRIES = [
+  "no",
+  "se",
+  "dk",
+  "fi",
+  "is",
+  "gb",
+  "ie",
+  "nl",
+  "de",
+  "fr",
+  "es",
+  "it",
+  "pl",
+  "us",
+  "ca",
+  "jp",
+  "au",
 ];
 
-/** The market axis also names a declared group: a rule can apply to all of it. */
-const MARKET_GROUP: AtlasValue = { id: "nordics", label: "Nordics", parent: "northern-europe" };
+/**
+ * The places the recipe declares: Oslo and two of its districts, Bergen with
+ * a shape of its own, and two places made of others. The Bergen ring runs
+ * counter-clockwise, as RFC 7946 writes it.
+ */
+const DECLARED: AtlasPlace[] = [
+  {
+    id: "oslo",
+    name: "Oslo",
+    type: "locality",
+    within: ["no-03"],
+    centroid: [59.91, 10.75],
+    refs: ["wikidata:Q585", "geonames:3143244"],
+    declared: true,
+  },
+  {
+    id: "grunerlokka",
+    name: "Grünerløkka",
+    type: "neighbourhood",
+    within: ["oslo"],
+    centroid: [59.925, 10.759],
+    declared: true,
+  },
+  {
+    id: "frogner",
+    name: "Frogner",
+    type: "district",
+    within: ["oslo"],
+    declared: true,
+  },
+  {
+    id: "bergen",
+    name: "Bergen",
+    names: { nb: "Bergen", nn: "Bergen" },
+    type: "locality",
+    within: ["no-46"],
+    centroid: [60.39, 5.32],
+    refs: ["wikidata:Q26793"],
+    shape: "places/bergen.geojson",
+    geometry: {
+      type: "Polygon",
+      coordinates: [
+        [
+          [5.16, 60.27],
+          [5.5, 60.27],
+          [5.5, 60.5],
+          [5.16, 60.5],
+          [5.16, 60.27],
+        ],
+      ],
+    },
+    declared: true,
+  },
+  {
+    id: "greater-oslo",
+    name: "Greater Oslo",
+    type: "metro",
+    of: ["no-03", "no-32"],
+    declared: true,
+  },
+  {
+    id: "nordics",
+    name: "Nordics",
+    type: "territory",
+    of: ["no", "se", "dk", "fi", "is"],
+    declared: true,
+  },
+];
+
+/** A declared place whose centroid lies in Bergen while it says it sits in Oslo. */
+const MISPLACED: AtlasPlace = {
+  id: "holmenkollen",
+  name: "Holmenkollen",
+  type: "district",
+  within: ["no-03"],
+  centroid: [60.39, 5.32],
+  declared: true,
+};
+
+/** Where a market rule can sit, beside the countries. */
+const MARKET_PLACES: [string, number][] = [
+  ["nordics", 8],
+  ["oslo", 3],
+  ["grunerlokka", 2],
+  ["bergen", 2],
+  ["greater-oslo", 2],
+  ["europe", 2],
+  ["world", 2],
+];
+
+/**
+ * The places an atlas carries, as the host picks them: every place a record
+ * names, what contains it up to the world, the members of each place made of
+ * others, every declared place, the direct children of each country and
+ * subdivision, and the countries of each region. The fixture's gazetteer
+ * holds subdivisions for Norway only.
+ */
+function atlasPlaces(declared: AtlasPlace[], used: Iterable<string>): AtlasPlace[] {
+  const all = placeIndex([...BUILTIN_PLACES, ...declared]);
+  const keep = new Set<string>();
+  const visit = (id: string) => {
+    const p = all.get(id);
+    if (!p || keep.has(id)) return;
+    keep.add(id);
+    for (const w of p.within ?? []) visit(w);
+    for (const m of p.of ?? []) visit(m);
+    for (const up of all.path(id)) visit(up);
+  };
+  for (const id of used) visit(id);
+  for (const p of declared) visit(p.id);
+  for (const id of [...keep]) {
+    const type = all.get(id)?.type;
+    if (type === "country" || type === "subdivision") {
+      for (const c of all.children(id)) visit(c);
+    }
+    if (type === "region") {
+      for (const p of all.places) if (p.type === "country" && all.contains(id, p.id)) visit(p.id);
+    }
+  }
+  return all.places.filter((p) => keep.has(p.id));
+}
 
 const LOCALES = [
   "en-GB",
@@ -212,6 +335,8 @@ export interface FixtureOptions {
   scale?: number;
   /** Make labels and paths long, for layout stories. */
   longLabels?: boolean;
+  /** Declare a place whose centroid falls outside the place it sits within. */
+  misplaced?: boolean;
 }
 
 interface Built {
@@ -342,8 +467,8 @@ function governed(rand: Rand, opts: Required<FixtureOptions>): Built {
         ? pickOf(rand, ["gb", "ie"])
         : weighted<string>(rand, [
             ["", 30],
-            ["nordics", 8],
-            ...COUNTRIES.map((c): [string, number] => [c.id, 4]),
+            ...MARKET_PLACES,
+            ...COUNTRIES.map((c): [string, number] => [c, 4]),
           ]);
     const coordinates: Record<string, string> = {
       family: "rule",
@@ -562,9 +687,9 @@ function axes(records: AtlasRecord[]): AtlasAxis[] {
     const u = used(axis);
     return values.filter((v) => u.has(v.id));
   };
-  const regions = [...used("region")]
-    .map((id) => COUNTRIES.find((c) => c.id === id))
-    .filter((v): v is AtlasValue => !!v);
+  const places = placeIndex([...BUILTIN_PLACES, ...DECLARED]);
+  const geo = (axis: string): AtlasValue[] =>
+    [...used(axis)].sort().map((id) => ({ id, label: places.get(id)?.name ?? id }));
   return [
     {
       id: "family",
@@ -588,7 +713,7 @@ function axes(records: AtlasRecord[]): AtlasAxis[] {
       label: "Market",
       kind: "geo",
       source: "declared",
-      values: only([...COUNTRIES, MARKET_GROUP], "market"),
+      values: geo("market"),
     },
     {
       id: "audience",
@@ -611,7 +736,7 @@ function axes(records: AtlasRecord[]): AtlasAxis[] {
       source: "derived",
       values: LOCALES.filter((l) => used("locale").has(l)).map((id) => ({ id })),
     },
-    { id: "region", kind: "geo", source: "derived", values: regions },
+    { id: "region", kind: "geo", source: "derived", values: geo("region") },
     {
       id: "actor",
       kind: "category",
@@ -634,12 +759,17 @@ export function makeAtlasFixture(options: FixtureOptions = {}): AtlasData {
     seed: options.seed ?? 20261016,
     scale: options.scale ?? 1,
     longLabels: options.longLabels ?? false,
+    misplaced: options.misplaced ?? false,
   };
   const rand = mulberry32(opts.seed);
   const g = governed(rand, opts);
   const c = content(rand, opts);
   const records = [...g.records, ...c.records];
   const events = [...g.events, ...c.events].sort((a, b) => a.at.localeCompare(b.at));
+  const declared = opts.misplaced ? [...DECLARED, MISPLACED] : DECLARED;
+  const used = new Set(
+    records.flatMap((r) => [r.coordinates.market, r.coordinates.region]).filter(Boolean),
+  );
   return {
     format: "kapi-context-atlas",
     version: 1,
@@ -647,6 +777,7 @@ export function makeAtlasFixture(options: FixtureOptions = {}): AtlasData {
     generated_at: at(DAYS - 1, 18),
     span: { from: at(0, 0), to: at(DAYS - 1, 18) },
     axes: axes(records),
+    places: atlasPlaces(declared, used),
     records,
     events,
     notes: [],
@@ -662,6 +793,7 @@ export function makeEmptyAtlas(): AtlasData {
     generated_at: at(DAYS - 1, 18),
     span: { from: at(DAYS - 1, 18), to: at(DAYS - 1, 18) },
     axes: [],
+    places: [],
     records: [],
     events: [],
     notes: ["No context operations are recorded for this project yet."],
@@ -700,6 +832,7 @@ export function makeOneRecordAtlas(): AtlasData {
       { id: "channel", kind: "category", source: "structural", values: [{ id: "app" }] },
       { id: "actor", kind: "category", source: "derived", values: [{ id: "agent" }] },
     ],
+    places: [],
     records: [rec],
     events: eventsFor(rec, mulberry32(1)),
     notes: [],

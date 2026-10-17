@@ -39,11 +39,17 @@ id: `+projectIDFor(name)+`
 name: `+name+`
 defaults:
   source_language: en
+places:
+  nordics:
+    name: Nordics
+    of: [no, se, dk, fi, is]
+  oslo:
+    name: Oslo
+    type: locality
+    within: no-03
 axes:
   market:
     kind: geo
-    groups:
-      nordics: [no, se, dk, fi, is]
   age:
     kind: range
     unit: years
@@ -53,6 +59,7 @@ collections:
 `+collection("nordic", "market", "nordics")+
 		collection("norway", "market", "no")+
 		collection("germany", "market", "de")+
+		collection("oslo", "market", "oslo")+
 		collection("teens", "age", "13-17")+
 		collection("young", "age", "14-16")+
 		collection("adults", "age", "18-")+`  - name: plain
@@ -60,7 +67,7 @@ collections:
     content:
       - path: "plain/*.md"
 `)
-	for _, dir := range []string{"nordic", "norway", "germany", "teens", "young", "adults", "plain"} {
+	for _, dir := range []string{"nordic", "norway", "germany", "oslo", "teens", "young", "adults", "plain"} {
 		write(dir+"/a.md", "We utilise the widget.\n")
 	}
 	return root
@@ -219,6 +226,8 @@ func TestSubmittedPoint_Narrows(t *testing.T) {
 
 	narrowed := observeUtilise(t, app, root, "nordic/a.md", ContextObserveRequest{Point: map[string]string{"market": "no"}})
 	assert.Equal(t, map[string]string{"market": "no"}, narrowed.Scope.Coordinates)
+	city := observeUtilise(t, app, root, "nordic/a.md", ContextObserveRequest{Point: map[string]string{"market": "oslo"}})
+	assert.Equal(t, map[string]string{"market": "oslo"}, city.Scope.Coordinates, "a declared city narrows the Nordics")
 
 	added := observeUtilise(t, app, root, "plain/a.md", ContextObserveRequest{Point: map[string]string{"audience": "specialists", "age": "18-"}})
 	assert.Equal(t, map[string]string{"audience": "specialists", "age": "18-"}, added.Scope.Coordinates)
@@ -232,7 +241,7 @@ func TestSubmittedPoint_Narrows(t *testing.T) {
 		{"widening is refused", "norway/a.md", map[string]string{"market": "nordics"}, "a note may narrow where it holds, never widen it"},
 		{"another country is refused", "nordic/a.md", map[string]string{"market": "de"}, "--widen-to market"},
 		{"a value off a closed axis", "plain/a.md", map[string]string{"audience": "children"}, `"children" is not one of its values`},
-		{"an unknown geo value", "plain/a.md", map[string]string{"market": "atlantis"}, "is not a country code"},
+		{"an unknown geo value", "plain/a.md", map[string]string{"market": "atlantis"}, "is not a place. A place is world"},
 		{"a structural axis", "plain/a.md", map[string]string{"channel": "docs"}, "comes from the file the evidence was seen in"},
 		{"an empty value", "plain/a.md", map[string]string{"market": ""}, "a point names an axis and a value"},
 		{"an axis the recipe never names", "plain/a.md", map[string]string{"markt": "no"}, "the recipe declares no axis called markt"},

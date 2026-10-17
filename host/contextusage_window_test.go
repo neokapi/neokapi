@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/neokapi/neokapi/core/axis"
 	"github.com/neokapi/neokapi/core/contextop"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/workspace"
@@ -33,7 +34,7 @@ func TestContextUsage_CountsOnlyRulesInForce(t *testing.T) {
 		rec("open", "utilise", false, nil),
 		rec("ended", "leverage", false, &ended),
 		rec("ended-rule", "employ", true, &ended),
-	}, project, nil, at)
+	}, project, axis.Space{}, at)
 
 	assert.Contains(t, u.byTerm, suggestionKey("utilise"))
 	assert.NotContains(t, u.byTerm, suggestionKey("leverage"))

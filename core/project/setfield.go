@@ -171,7 +171,7 @@ func setDefaultCoordinate(proj *KapiProject, path, axis string, raw json.RawMess
 	}
 
 	if v != "" {
-		if err := proj.Axes.Validate(axis, v); err != nil {
+		if err := proj.AxisSpace().Validate(axis, v); err != nil {
 			return false, fmt.Errorf("recipe: %w", err)
 		}
 	}

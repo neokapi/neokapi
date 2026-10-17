@@ -3,6 +3,7 @@
 // derives), and the span in whole days.
 
 import type { AtlasAxis, AtlasData, AtlasRecord, AtlasValue } from "../types";
+import { type PlaceIndex, placeIndex } from "./places";
 import { ABSENT, STATE_ORDER, UNKNOWN } from "./state";
 import { DAY_MS, dayOf, instantMs, isUnknownInstant } from "./time";
 
@@ -80,6 +81,8 @@ export interface Atlas {
   events: PreparedEvent[];
   axes: AxisInfo[];
   axisById: Map<string, AxisInfo>;
+  /** The place graph every geo axis reads. */
+  places: PlaceIndex;
   /** First and last day the data covers. */
   firstDay: string;
   lastDay: string;
@@ -271,17 +274,23 @@ export function prepareAtlas(data: AtlasData, opts: { measure?: Measure } = {}):
     events,
     axes,
     axisById: new Map(axes.map((a) => [a.id, a])),
+    places: placeIndex(data.places),
     firstDay: dayOf(lo),
     lastDay: dayOf(hi),
   };
 }
 
-/** The data axis that carries geography with at least one placed value, if any. */
-export function geoAxis(atlas: Atlas): AxisInfo | undefined {
-  return atlas.axes.find(
+/** The data axes that carry geography: geo axes with at least one value the place graph knows. */
+export function geoAxes(atlas: Atlas): AxisInfo[] {
+  return atlas.axes.filter(
     (a) =>
       a.kind === "geo" &&
       a.origin !== "view" &&
-      a.values.some((v) => v.centroid || (v.members?.length ?? 0) > 0),
+      a.values.some((v) => v.id !== NOT_SET && atlas.places.has(v.id)),
   );
+}
+
+/** The first axis `geoAxes` names, if any. */
+export function geoAxis(atlas: Atlas): AxisInfo | undefined {
+  return geoAxes(atlas)[0];
 }

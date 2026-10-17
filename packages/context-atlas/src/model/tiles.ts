@@ -3,6 +3,8 @@
 // country and a large one take one tile each, so a count is never inflated by
 // land mass.
 
+import type { PlaceIndex } from "./places";
+
 export interface TileInput {
   id: string;
   /** `[lat, lon]`. */
@@ -123,49 +125,16 @@ export function layoutTiles(inputs: readonly TileInput[], spread = 2.5): TileGri
   };
 }
 
-/** The places a geo axis puts on the map, and the groups each one sits in. */
-export interface MapPlaces {
-  /** Every country the map draws: the axis's own countries, then the members of its groups and regions. */
-  places: TileInput[];
-  /** Display names of the places that came only from a group's members. */
-  names: Map<string, string>;
-  /** For each place, the groups and regions of the axis that hold it. */
-  within: Map<string, string[]>;
-}
-
-interface GeoValue {
-  id: string;
-  label?: string;
-  centroid?: [number, number];
-  members?: { id: string; label?: string; centroid: [number, number] }[];
-}
-
 /**
- * The places to draw for a geo axis. A country value is a tile of its own; a
- * group or region adds a tile for each country it holds, so a rule scoped to
- * the Nordics is drawn over Norway, Sweden and the rest, where it holds,
- * rather than only listed beside the map. A country that is both a value and
- * a member is drawn once.
+ * The tiles the grid draws: every country the place graph holds that carries
+ * a centroid. A record at a place inside a country counts on its country's
+ * tile; one at a wider place (a region, the Nordics) holds over the tiles of
+ * the countries it covers.
  */
-export function mapPlaces(values: readonly GeoValue[]): MapPlaces {
-  const places: TileInput[] = [];
-  const names = new Map<string, string>();
-  const within = new Map<string, string[]>();
-  const seen = new Set<string>();
-  const add = (id: string, centroid: [number, number]) => {
-    if (seen.has(id)) return;
-    seen.add(id);
-    places.push({ id, centroid });
-  };
-  for (const v of values) if (v.centroid) add(v.id, v.centroid);
-  for (const v of values) {
-    for (const m of v.members ?? []) {
-      add(m.id, m.centroid);
-      if (m.label && !names.has(m.id)) names.set(m.id, m.label);
-      const groups = within.get(m.id) ?? [];
-      if (!groups.includes(v.id)) groups.push(v.id);
-      within.set(m.id, groups);
-    }
+export function gridPlaces(index: PlaceIndex): TileInput[] {
+  const out: TileInput[] = [];
+  for (const p of index.places) {
+    if (p.type === "country" && p.centroid) out.push({ id: p.id, centroid: p.centroid });
   }
-  return { places, names, within };
+  return out;
 }

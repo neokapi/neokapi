@@ -414,7 +414,7 @@ func rulesPointKey(proj *project.KapiProject, sample string, at time.Time) strin
 	if err != nil || rc == nil {
 		return "path:" + sample
 	}
-	coordinates := pointCoordinates(proj, rc, point)
+	coordinates := proj.CoordinatesAt(point, rc)
 	axes := make([]string, 0, len(coordinates))
 	for axis, value := range coordinates {
 		axes = append(axes, axis+"="+value)

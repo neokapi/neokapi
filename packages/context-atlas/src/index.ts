@@ -49,11 +49,13 @@ export type {
   AtlasData,
   AtlasEvent,
   AtlasEvidence,
+  AtlasGeometry,
+  AtlasPlace,
+  AtlasPlaceType,
   AtlasRecord,
   AtlasSpan,
   AtlasState,
   AtlasValue,
-  AtlasPlace,
 } from "./types";
 
 // ── The model ──

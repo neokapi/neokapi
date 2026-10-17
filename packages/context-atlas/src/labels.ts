@@ -150,6 +150,7 @@ export function valueLabel(atlas: Atlas | undefined, axis: string, value: string
   const derived = derivedValueLabel(axis, value);
   if (derived) return derived;
   const info = atlas?.axisById.get(axis);
+  if (info?.kind === "geo" && atlas?.places.has(value)) return placeName(atlas, value);
   const listed = info?.values.find((v) => v.id === value)?.label;
   if (listed) return listed;
   if (axis === "family") return familyLabel(value) ?? value;
@@ -161,6 +162,25 @@ export function valueLabel(atlas: Atlas | undefined, axis: string, value: string
   if (axis === "locale") return formatLocale(value).text;
   if (info?.kind === "range") return rangeLabel(value) ?? value;
   return value;
+}
+
+/**
+ * The name of a place: a declared place's name in the reader's language when
+ * the recipe gives one, else its English name, else its id.
+ */
+export function placeName(atlas: Atlas | undefined, id: string): string {
+  const place = atlas?.places.get(id);
+  if (!place) return id;
+  const names = place.names;
+  if (names) {
+    const tag = uiLocaleTag();
+    const exact = names[tag];
+    if (exact) return exact;
+    const lang = tag.split("-")[0];
+    const byLang = names[lang];
+    if (byLang) return byLang;
+  }
+  return place.name || id;
 }
 
 /** A value's label with its axis, for chips and accessible names. */

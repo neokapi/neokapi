@@ -23,8 +23,7 @@ export const Kind = {
     KindCategory: "category",
 
     /**
-     * KindGeo holds countries, regions and declared groups, where a region or
-     * a group contains what is inside it.
+     * KindGeo holds place ids, where a place contains the places within it.
      */
     KindGeo: "geo",
 
@@ -39,12 +38,6 @@ export const Kind = {
      */
     KindOrdered: "ordered",
 };
-
-/**
- * Space is the typed axes of a project, by axis name. An axis the map does not
- * hold is an open category.
- * @typedef {{ [_ in string]?: Spec }} Space
- */
 
 /**
  * Spec declares one axis in a recipe's `axes:` block.
@@ -82,21 +75,12 @@ export class Spec {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Labels are display labels per value.
+             * Labels are display labels per value of a category or ordered axis. A
+             * place's name is declared on the place.
              * @member
              * @type {{ [_ in string]?: string } | undefined}
              */
             this["labels"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * Groups names sets of countries and regions on a geo axis, such as
-             * nordics: [no, se, dk, fi, is]. A group contains its members and
-             * everything inside them.
-             * @member
-             * @type {{ [_ in string]?: string[] } | undefined}
-             */
-            this["groups"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -118,16 +102,12 @@ export class Spec {
     static createFrom($$source = {}) {
         const $$createField2_0 = $$createType0;
         const $$createField3_0 = $$createType1;
-        const $$createField4_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("values" in $$parsedSource) {
             $$parsedSource["values"] = $$createField2_0($$parsedSource["values"]);
         }
         if ("labels" in $$parsedSource) {
             $$parsedSource["labels"] = $$createField3_0($$parsedSource["labels"]);
-        }
-        if ("groups" in $$parsedSource) {
-            $$parsedSource["groups"] = $$createField4_0($$parsedSource["groups"]);
         }
         return new Spec(/** @type {Partial<Spec>} */($$parsedSource));
     }
@@ -136,4 +116,3 @@ export class Spec {
 // Private type creation functions
 const $$createType0 = $Create.Array($Create.Any);
 const $$createType1 = $Create.Map($Create.Any, $Create.Any);
-const $$createType2 = $Create.Map($Create.Any, $$createType0);

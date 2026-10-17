@@ -3,21 +3,22 @@
 // Content sits at a point: a value on each axis a project names, such as the
 // brand it belongs to, the market it ships in or the audience it addresses
 // (C-02). An axis is an open category unless the recipe types it: values are
-// then compared by equality, which is how every axis compared before this
-// package existed. A typed axis says more about its values:
+// then compared by equality. A typed axis says more about its values:
 //
 //   - a category axis with declared values refuses any other value;
-//   - a geo axis holds ISO 3166-1 country codes, UN M49 region slugs, World,
-//     and groups the recipe names, and a region contains the countries in it;
+//   - a geo axis holds place ids from the project's gazetteer (core/place):
+//     world, UN M49 regions, ISO 3166-1 countries, ISO 3166-2 subdivisions
+//     and the places the recipe declares under `places:`, and a place
+//     contains the places that sit within it;
 //   - a range axis holds numeric intervals such as an audience age of 13-17,
 //     and an interval contains the intervals inside it;
 //   - an ordered axis holds declared values in order, such as a lifecycle,
 //     compared by equality.
 //
 // Containment is what lets a rule scoped to the Nordic market answer for
-// content written for Norway. The package depends on nothing else in neokapi,
-// so the recipe, the operation log, the terms store and the host share one
-// reading of a value.
+// content written for Oslo. The package depends on nothing in neokapi but
+// core/place, so the recipe, the operation log, the terms store and the host
+// share one reading of a value.
 package axis
 
 import (
@@ -26,6 +27,9 @@ import (
 	"slices"
 	"sort"
 	"strings"
+
+	"github.com/neokapi/neokapi/core/place"
+	"gopkg.in/yaml.v3"
 )
 
 // Kind is how an axis compares its values.
@@ -34,8 +38,7 @@ type Kind string
 const (
 	// KindCategory compares values by equality. It is the default.
 	KindCategory Kind = "category"
-	// KindGeo holds countries, regions and declared groups, where a region or
-	// a group contains what is inside it.
+	// KindGeo holds place ids, where a place contains the places within it.
 	KindGeo Kind = "geo"
 	// KindRange holds numeric intervals: "13-17", an open upper bound "65-",
 	// or a single number.
@@ -56,14 +59,30 @@ type Spec struct {
 	// Values closes the axis to these values, in display order. A category
 	// axis without them stays open; an ordered axis needs them.
 	Values []string `yaml:"values,omitempty" json:"values,omitempty"`
-	// Labels are display labels per value.
+	// Labels are display labels per value of a category or ordered axis. A
+	// place's name is declared on the place.
 	Labels map[string]string `yaml:"labels,omitempty" json:"labels,omitempty"`
-	// Groups names sets of countries and regions on a geo axis, such as
-	// nordics: [no, se, dk, fi, is]. A group contains its members and
-	// everything inside them.
-	Groups map[string][]string `yaml:"groups,omitempty" json:"groups,omitempty"`
 	// Unit names what a range axis counts, such as "years".
 	Unit string `yaml:"unit,omitempty" json:"unit,omitempty"`
+}
+
+// specKeys are the keys an axis takes in a recipe.
+var specKeys = []string{"kind", "label", "values", "labels", "unit"}
+
+// UnmarshalYAML reads an axis spec and refuses a key the spec does not take,
+// so a misspelt key fails the recipe rather than leaving the axis untyped.
+func (s *Spec) UnmarshalYAML(n *yaml.Node) error {
+	if n.Kind == yaml.MappingNode {
+		for i := 0; i+1 < len(n.Content); i += 2 {
+			key := n.Content[i].Value
+			if slices.Contains(specKeys, key) {
+				continue
+			}
+			return fmt.Errorf("line %d: an axis takes no key %q (it takes %s)", n.Content[i].Line, key, strings.Join(specKeys, ", "))
+		}
+	}
+	type plain Spec
+	return n.Decode((*plain)(s))
 }
 
 // EffectiveKind is the spec's kind, with empty read as a category.
@@ -80,26 +99,53 @@ func (s Spec) Closed() bool {
 	return (k == KindCategory || k == KindOrdered) && len(s.Values) > 0
 }
 
-// Space is the typed axes of a project, by axis name. An axis the map does not
-// hold is an open category.
-type Space map[string]Spec
+// Space is the typed axes of a project and the gazetteer its geo axes read.
+// An axis the space does not declare is an open category. The zero Space
+// holds no typed axis and the built-in places.
+type Space struct {
+	axes   map[string]Spec
+	places *place.Gazetteer
+}
+
+// NewSpace is the space of the typed axes, by axis name, over a gazetteer. A
+// nil gazetteer is place.Builtin().
+func NewSpace(axes map[string]Spec, places *place.Gazetteer) Space {
+	return Space{axes: axes, places: places}
+}
 
 // Spec returns the axis's spec, the zero spec (an open category) when the
 // space does not declare it.
-func (s Space) Spec(axis string) Spec { return s[axis] }
+func (s Space) Spec(axis string) Spec { return s.axes[axis] }
 
-// slugPattern is the shape of an axis name, a declared value and a group name.
+// Typed reports whether the space declares the axis.
+func (s Space) Typed(axis string) bool {
+	_, ok := s.axes[axis]
+	return ok
+}
+
+// Names lists the typed axes, sorted.
+func (s Space) Names() []string { return sortedKeys(s.axes) }
+
+// Places is the gazetteer the space's geo axes read, never nil.
+func (s Space) Places() *place.Gazetteer {
+	if s.places == nil {
+		return place.Builtin()
+	}
+	return s.places
+}
+
+// slugPattern is the shape of an axis name and a declared value.
 var slugPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
 
 const slugRule = "lowercase letters, digits and hyphens, starting with a letter or digit"
 
 // Check validates the space itself: every axis name is a slug, every kind is
 // known, every declared value is a slug declared once, an ordered axis
-// declares its values, labels name declared values, and a geo group names
-// only countries, regions and other groups. Errors name the recipe key at
-// fault under prefix ("axes").
+// declares its values, labels name declared values, and a geo axis takes
+// neither values nor labels. Errors name the recipe key at fault under
+// prefix ("axes").
 func (s Space) Check(prefix string) error {
-	for _, name := range sortedKeys(s) {
+	for _, name := range sortedKeys(s.axes) {
 		if err := s.checkAxis(prefix, name); err != nil {
 			return err
 		}
@@ -108,7 +154,7 @@ func (s Space) Check(prefix string) error {
 }
 
 func (s Space) checkAxis(prefix, name string) error {
-	spec := s[name]
+	spec := s.axes[name]
 	where := prefix + "." + name
 	if !slugPattern.MatchString(name) {
 		return fmt.Errorf("%s: axis name %q is not a slug (%s)", prefix, name, slugRule)
@@ -132,57 +178,38 @@ func (s Space) checkAxis(prefix, name string) error {
 	if kind == KindOrdered && len(spec.Values) == 0 {
 		return fmt.Errorf("%s: an ordered axis declares its values in order under `values:`", where)
 	}
-	if len(spec.Groups) > 0 && kind != KindGeo {
-		return fmt.Errorf("%s.groups: only a geo axis takes groups (this axis is %s)", where, kind)
-	}
 	if spec.Unit != "" && kind != KindRange {
 		return fmt.Errorf("%s.unit: only a range axis takes a unit (this axis is %s)", where, kind)
+	}
+	if len(spec.Labels) > 0 && kind == KindGeo {
+		return fmt.Errorf("%s.labels: a geo axis takes no labels; name a place under `places:` (its `name:` and `names:`)", where)
 	}
 	for _, v := range sortedKeys(spec.Labels) {
 		if err := s.Validate(name, v); err != nil {
 			return fmt.Errorf("%s.labels: %w", where, err)
 		}
 	}
-	for _, group := range sortedKeys(spec.Groups) {
-		if !slugPattern.MatchString(group) {
-			return fmt.Errorf("%s.groups: group name %q is not a slug (%s)", where, group, slugRule)
-		}
-		if knownGeo(group) {
-			return fmt.Errorf("%s.groups: %q is already a country or region; name the group something else", where, group)
-		}
-		if len(spec.Groups[group]) == 0 {
-			return fmt.Errorf("%s.groups.%s: a group names at least one country or region", where, group)
-		}
-		for _, member := range spec.Groups[group] {
-			if !knownGeo(member) && !hasGroup(spec, member) {
-				return fmt.Errorf("%s.groups.%s: %q is not a country code, a region or a group. %s", where, group, member, geoHint(member))
-			}
-		}
-	}
-	if cycle := groupCycle(spec); cycle != "" {
-		return fmt.Errorf("%s.groups: group %q contains itself", where, cycle)
-	}
 	return nil
 }
 
 // Validate reports whether value is legal on an axis: declared on a closed
-// axis, a country, a region, World or a declared group on a geo axis, an
-// interval on a range axis. Any value is legal on an open category, which is
-// what every undeclared axis is.
+// axis, a place in the gazetteer on a geo axis, an interval on a range axis.
+// Any value is legal on an open category, which is what every undeclared axis
+// is.
 func (s Space) Validate(axis, value string) error {
 	if value == "" {
 		return fmt.Errorf("axis %s: empty value", axis)
 	}
-	spec, typed := s[axis]
+	spec, typed := s.axes[axis]
 	if !typed {
 		return nil
 	}
 	switch spec.EffectiveKind() {
 	case KindGeo:
-		if knownGeo(value) || hasGroup(spec, value) {
+		if s.Places().Has(value) {
 			return nil
 		}
-		return fmt.Errorf("axis %s: %q is not a country code, a region or a group of this axis. %s", axis, value, geoHint(value))
+		return fmt.Errorf("axis %s: %q is not a place. %s", axis, value, place.Hint(s.Places(), value))
 	case KindRange:
 		if _, err := ParseRange(value); err != nil {
 			return fmt.Errorf("axis %s: %w", axis, err)
@@ -196,20 +223,20 @@ func (s Space) Validate(axis, value string) error {
 }
 
 // Contains reports whether inner sits within outer on an axis: equal values
-// on a category or ordered axis, a country inside a region or group on a geo
-// axis, an interval inside another on a range axis. A value always contains
-// itself, so an undeclared axis compares by equality.
+// on a category or ordered axis, a place within another on a geo axis
+// (place.Gazetteer.Contains), an interval inside another on a range axis. A
+// value always contains itself, so an undeclared axis compares by equality.
 func (s Space) Contains(axis, outer, inner string) bool {
 	if outer == inner {
 		return outer != ""
 	}
-	spec, typed := s[axis]
+	spec, typed := s.axes[axis]
 	if !typed {
 		return false
 	}
 	switch spec.EffectiveKind() {
 	case KindGeo:
-		return geoContains(spec, outer, inner)
+		return s.Places().Contains(outer, inner)
 	case KindRange:
 		o, oerr := ParseRange(outer)
 		i, ierr := ParseRange(inner)
@@ -219,22 +246,19 @@ func (s Space) Contains(axis, outer, inner string) bool {
 }
 
 // Overlaps reports whether two values can meet on an axis: one contains the
-// other, two geo values share a country, or two intervals intersect.
+// other, two places share ground (place.Gazetteer.Overlaps), or two intervals
+// intersect.
 func (s Space) Overlaps(axis, a, b string) bool {
 	if s.Contains(axis, a, b) || s.Contains(axis, b, a) {
 		return true
 	}
-	spec, typed := s[axis]
+	spec, typed := s.axes[axis]
 	if !typed {
 		return false
 	}
 	switch spec.EffectiveKind() {
 	case KindGeo:
-		for _, p := range places {
-			if geoContains(spec, a, p.Code) && geoContains(spec, b, p.Code) {
-				return true
-			}
-		}
+		return s.Places().Overlaps(a, b)
 	case KindRange:
 		ra, aerr := ParseRange(a)
 		rb, berr := ParseRange(b)
@@ -243,105 +267,15 @@ func (s Space) Overlaps(axis, a, b string) bool {
 	return false
 }
 
-// Label is a value's display label: the recipe's label for it, the English
-// name of a built-in geo value, or empty for the caller to render the value.
+// Label is a value's display label: the recipe's label for it on a category
+// or ordered axis, the place's name on a geo axis, or empty for the caller to
+// render the value.
 func (s Space) Label(axis, value string) string {
-	spec := s[axis]
-	if l := spec.Labels[value]; l != "" {
-		return l
-	}
+	spec := s.axes[axis]
 	if spec.EffectiveKind() == KindGeo {
-		return GeoLabel(value)
+		return s.Places().Name(value)
 	}
-	return ""
-}
-
-// geoContains reports whether inner sits within outer on a geo axis: World
-// holds everything, a region holds what its subregions and countries hold, and
-// a group holds its members and what is inside them.
-func geoContains(spec Spec, outer, inner string) bool {
-	return geoWithin(spec, outer, inner, 0)
-}
-
-// maxGroupDepth bounds how deep groups nest, so a space nobody checked, whose
-// groups name each other in a loop, ends rather than recursing forever.
-const maxGroupDepth = 16
-
-func geoWithin(spec Spec, outer, inner string, depth int) bool {
-	if outer == inner {
-		return true
-	}
-	if depth > maxGroupDepth {
-		return false
-	}
-	if hasGroup(spec, inner) {
-		// A group sits within a value when every member does.
-		members := spec.Groups[inner]
-		for _, m := range members {
-			if !geoWithin(spec, outer, m, depth+1) {
-				return false
-			}
-		}
-		return len(members) > 0
-	}
-	if outer == World {
-		return knownGeo(inner)
-	}
-	if hasGroup(spec, outer) {
-		for _, m := range spec.Groups[outer] {
-			if geoWithin(spec, m, inner, depth+1) {
-				return true
-			}
-		}
-		return false
-	}
-	for v := GeoParent(inner); v != ""; v = GeoParent(v) {
-		if v == outer {
-			return true
-		}
-	}
-	return false
-}
-
-func hasGroup(spec Spec, name string) bool {
-	_, ok := spec.Groups[name]
-	return ok
-}
-
-// groupCycle names a group that contains itself through other groups, empty
-// when none does.
-func groupCycle(spec Spec) string {
-	for _, name := range sortedKeys(spec.Groups) {
-		if reaches(spec, name, name, map[string]bool{}) {
-			return name
-		}
-	}
-	return ""
-}
-
-func reaches(spec Spec, from, target string, seen map[string]bool) bool {
-	if seen[from] {
-		return false
-	}
-	seen[from] = true
-	for _, m := range spec.Groups[from] {
-		if m == target {
-			return true
-		}
-		if hasGroup(spec, m) && reaches(spec, m, target, seen) {
-			return true
-		}
-	}
-	return false
-}
-
-// geoHint teaches the spelling a geo value takes.
-func geoHint(value string) string {
-	lower := strings.ToLower(value)
-	if lower != value && knownGeo(lower) {
-		return "Write it in lower case: " + lower
-	}
-	return "Use an ISO 3166-1 alpha-2 code in lower case (no, de), a UN M49 region (northern-europe, europe), world, or a group the axis declares under `groups:`"
+	return spec.Labels[value]
 }
 
 func kindList() string {
@@ -354,7 +288,7 @@ func kindList() string {
 
 func kindValues(k Kind) string {
 	if k == KindGeo {
-		return "country codes, regions and the groups declared under `groups:`"
+		return "the places of the gazetteer, built in or declared under `places:`"
 	}
 	return "intervals such as 13-17 or 65-"
 }

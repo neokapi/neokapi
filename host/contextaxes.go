@@ -66,12 +66,13 @@ func (a *App) projectAxes(ctx context.Context, ws *workspace.Workspace, known wo
 				return space
 			}
 		}
-		return nil
+		return axis.Space{}
 	}
 }
 
-// recipeAxesCache holds each recipe's axis space by path, valid while the
-// recipe's modification time and size are unchanged.
+// recipeAxesCache holds each recipe's axis space, with the gazetteer of its
+// declared places, by path, valid while the recipe's modification time and
+// size are unchanged.
 var recipeAxesCache sync.Map // path -> recipeAxesEntry
 
 type recipeAxesEntry struct {
@@ -85,7 +86,7 @@ type recipeAxesEntry struct {
 func recipeAxes(path string) (axis.Space, bool) {
 	info, err := os.Stat(path)
 	if err != nil || info.IsDir() {
-		return nil, false
+		return axis.Space{}, false
 	}
 	if v, hit := recipeAxesCache.Load(path); hit {
 		e := v.(recipeAxesEntry)

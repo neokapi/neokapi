@@ -33,6 +33,33 @@ Over MCP the same two are `context://<project-relative-path>`, a resource you
 `context://profile/<name>` is the by-name form, and `?format=json` gives the
 structured shape instead of markdown.
 
+## Markets are places
+
+A project that types an axis `kind: geo` under `axes:` (often `market`) takes
+**place ids** as its values: `world`, a UN M49 region (`northern-europe`), an
+ISO 3166-1 country in lower case (`no`), an ISO 3166-2 subdivision (`no-03`),
+or a place the recipe declares under `places:` (`oslo`, `nordics`). Look the id
+up before you write it:
+
+```bash
+kapi context places oslo            # matches by id or name, with each path
+kapi context places --within no     # the places directly inside Norway
+kapi context places                 # the places the recipe declares
+```
+
+A rule at a place holds at every place inside it: a rule for `no` answers at
+`oslo` when the recipe declares Oslo within `no-03`. A note holds where its
+evidence sits, and `--point` narrows it to a place inside that one:
+
+```bash
+kapi context note --term County --instead-of "State / Province" \
+  --seen-in src/en/checkout-flow.json --point market=no
+```
+
+A `--point` that names a wider place, or one outside where the evidence sits,
+is refused with the command a person runs to widen it. Leave widening to the
+person.
+
 ## Every call names its project
 
 Every project-scoped MCP tool takes an optional `project`, and the resource

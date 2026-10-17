@@ -83,7 +83,7 @@ func AtProfile(concepts []Concept, profile string) []Concept {
 // point does not sit at. Every axis a concept names must have the same value
 // at the point; an axis it leaves out is one it holds across.
 func AtPoint(concepts []Concept, profile string, coordinates map[string]string) []Concept {
-	return AtPointIn(concepts, profile, coordinates, nil)
+	return AtPointIn(concepts, profile, coordinates, axis.Space{})
 }
 
 // AtPointIn is AtPoint reading each axis the way a project's axis space types

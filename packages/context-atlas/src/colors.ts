@@ -24,6 +24,9 @@ export const ATLAS_STYLE = `
   --atlas-cat-8: oklch(0.64 0.14 110);
   --atlas-neutral: color-mix(in oklab, var(--muted-foreground) 70%, var(--background));
   --atlas-ribbon: color-mix(in oklab, var(--muted-foreground) 22%, var(--background));
+  --atlas-land: color-mix(in oklab, var(--muted-foreground) 13%, var(--background));
+  --atlas-border: color-mix(in oklab, var(--muted-foreground) 45%, var(--background));
+  --atlas-seq: var(--primary);
 }
 .dark .context-atlas {
   --atlas-cat-1: oklch(0.64 0.12 195);
@@ -36,6 +39,9 @@ export const ATLAS_STYLE = `
   --atlas-cat-8: oklch(0.66 0.13 110);
   --atlas-neutral: color-mix(in oklab, var(--muted-foreground) 60%, var(--background));
   --atlas-ribbon: color-mix(in oklab, var(--muted-foreground) 26%, var(--background));
+  --atlas-land: color-mix(in oklab, var(--muted-foreground) 20%, var(--background));
+  --atlas-border: color-mix(in oklab, var(--muted-foreground) 50%, var(--background));
+  --atlas-seq: var(--primary);
 }
 @media (prefers-reduced-motion: reduce) {
   .context-atlas * { transition: none !important; animation: none !important; }
@@ -60,6 +66,25 @@ const STATE_FILL: Record<StateTone, string> = {
   unknown: "color-mix(in oklab, var(--muted-foreground) 30%, var(--background))",
   absent: "transparent",
 };
+
+/** Land on the map where nothing sits. */
+export const LAND = "var(--atlas-land)";
+
+/** The line between two shapes on the map. */
+export const BORDER = "var(--atlas-border)";
+
+/**
+ * Sequential, for a map: land at 0, the primary hue at 1. A share above 0
+ * starts visibly off the land so the smallest count still reads.
+ */
+export function sequentialFill(share: number | null): string {
+  if (share === null || !(share > 0)) return LAND;
+  const pct = Math.round(18 + Math.min(1, share) * 72);
+  return `color-mix(in oklab, var(--atlas-seq) ${pct}%, var(--atlas-land))`;
+}
+
+/** The stripe of the hatch drawn where a record at a wider place holds. */
+export const HATCH_STRIPE = "color-mix(in oklab, var(--atlas-seq) 60%, var(--atlas-land))";
 
 /** The fill for a state. */
 export function stateFill(state: string): string {

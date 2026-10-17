@@ -121,8 +121,13 @@ func SeedSessions(ctx context.Context, app *host.App, name, recipe string) (bool
 // TeamMember is the person whose standing notes the sample arrives with.
 const TeamMember = "maria.lund@kapimart.example"
 
+// OsloCampaignPage is the Oslo youth campaign's main page, which the team's
+// note about that campaign quotes.
+const OsloCampaignPage = "campaigns/oslo/en/summer-pass.md"
+
 // seedTeamNotes records what a person on the team wrote down and kept: notes
-// that hold in one market, for one reader age, or for a while only. They are
+// that hold in one market, for one reader age, for one campaign's city and
+// age, or for a while only. They are
 // established from the start, so What's new still opens on the assistants'
 // suggestions, and Explore has a market, an age range and lifetimes to draw.
 // The windows are set from today, so whenever the sample is opened one is in
@@ -158,6 +163,14 @@ func seedTeamNotes(ctx context.Context, app *host.App, recipe string) error {
 			Point: map[string]string{"market": "de"}, ValidFrom: day(20),
 			Text:     "Overnight shipping to Germany starts next month and is called Express Plus there.",
 			Evidence: seen("Overnight Shipping (next business day)"),
+		},
+		{
+			Point: map[string]string{"market": "oslo", "age": "13-17"},
+			Text:  "The Oslo youth campaign speaks to the reader and leaves the account to a parent or guardian, who adds the pass.",
+			Evidence: []contextop.Evidence{{
+				Path:  OsloCampaignPage,
+				Quote: "Ask a parent or guardian to add the pass to the family account.",
+			}},
 		},
 	}
 	for _, req := range notes {

@@ -1352,11 +1352,9 @@ func (s *contextOpsSession) basisAt(evidence []contextop.Evidence) (contextop.Ba
 		return contextop.Basis{}, contextop.Scope{Level: contextop.LevelProject}
 	}
 	point := project.GovernancePoint{At: s.app.GovernanceInstant()}
-	var collection string
 	for _, e := range evidence {
 		if e.Path != "" {
 			point.Path = e.Path
-			collection = s.proj.CollectionForPath(e.Path)
 			break
 		}
 	}
@@ -1364,8 +1362,7 @@ func (s *contextOpsSession) basisAt(evidence []contextop.Evidence) (contextop.Ba
 	if err != nil || rc == nil {
 		return contextop.Basis{}, contextop.Scope{Level: contextop.LevelProject}
 	}
-	coordinates := project.MergeCoordinates(
-		s.proj.Defaults.Coordinates, rc.Ref().Coordinates(), collectionCoordinates(s.proj, collection))
+	coordinates := s.proj.CoordinatesAt(point, rc)
 	return contextop.Basis{Profile: rc.Profile, Channel: rc.Channel},
 		contextop.Scope{Level: contextop.LevelProject, Coordinates: coordinates}
 }

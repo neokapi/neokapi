@@ -22,6 +22,8 @@ export { AxisLadderDiagram } from "./AxisLadderDiagram";
 export type { AxisLadderDiagramProps, AxisRung } from "./AxisLadderDiagram";
 export { AxisFamiliesDiagram } from "./AxisFamiliesDiagram";
 export type { AxisFamiliesDiagramProps, AxisFamily } from "./AxisFamiliesDiagram";
+export { PlaceGraphDiagram } from "./PlaceGraphDiagram";
+export type { PlaceGraphDiagramProps, PlaceGraphNode, PlaceGraphMadeOf } from "./PlaceGraphDiagram";
 export { CycleDiagram } from "./CycleDiagram";
 export type { CycleDiagramProps, CycleStep } from "./CycleDiagram";
 export { TypeDiagram } from "./TypeDiagram";

@@ -1675,7 +1675,7 @@ func termsCacheKey(proj *project.KapiProject, rc *project.ResolvedGovernance, po
 	if proj == nil {
 		return rc.Profile + "\x00" + rc.Channel
 	}
-	coordinates := pointCoordinates(proj, rc, point)
+	coordinates := proj.CoordinatesAt(point, rc)
 	parts := make([]string, 0, len(coordinates))
 	for name, value := range coordinates {
 		parts = append(parts, name+"="+value)

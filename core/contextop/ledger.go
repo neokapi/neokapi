@@ -455,7 +455,7 @@ func foldDecoded(decoded []decodedOp, axes func(workspace.ProjectKey) axis.Space
 	spaces := map[workspace.ProjectKey]axis.Space{}
 	spaceOf := func(key workspace.ProjectKey) axis.Space {
 		if axes == nil {
-			return nil
+			return axis.Space{}
 		}
 		s, ok := spaces[key]
 		if !ok {

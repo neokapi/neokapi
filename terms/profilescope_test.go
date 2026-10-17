@@ -7,6 +7,7 @@ import (
 	"github.com/neokapi/neokapi/core/axis"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/place"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -88,10 +89,15 @@ func TestScopeToPointRoundTrips(t *testing.T) {
 // TestAtPointIn: a concept scoped to a typed axis holds at the values inside
 // its own, read through the project's axis space.
 func TestAtPointIn(t *testing.T) {
-	space := axis.Space{
-		"market": {Kind: axis.KindGeo, Groups: map[string][]string{"nordics": {"no", "se", "dk", "fi", "is"}}},
+	places, err := place.New(map[string]place.Place{
+		"nordics": {Name: "Nordics", Of: []string{"no", "se", "dk", "fi", "is"}},
+		"oslo":    {Name: "Oslo", Type: place.TypeLocality, Within: []string{"no-03"}},
+	})
+	require.NoError(t, err)
+	space := axis.NewSpace(map[string]axis.Spec{
+		"market": {Kind: axis.KindGeo},
 		"age":    {Kind: axis.KindRange},
-	}
+	}, places)
 	nordic := Concept{ID: "nordic"}
 	nordic.ScopeToPoint("", map[string]string{"market": "nordics"})
 	teens := Concept{ID: "teens"}
@@ -105,6 +111,7 @@ func TestAtPointIn(t *testing.T) {
 	}
 	all := []Concept{nordic, teens}
 	assert.Equal(t, []string{"nordic"}, ids(AtPointIn(all, "", map[string]string{"market": "no"}, space)))
+	assert.Equal(t, []string{"nordic"}, ids(AtPointIn(all, "", map[string]string{"market": "oslo"}, space)), "a declared city sits within the Nordics")
 	assert.Empty(t, ids(AtPointIn(all, "", map[string]string{"market": "de"}, space)))
 	assert.Equal(t, []string{"teens"}, ids(AtPointIn(all, "", map[string]string{"age": "14-16"}, space)))
 	assert.Empty(t, ids(AtPointIn(all, "", map[string]string{"age": "18-"}, space)))

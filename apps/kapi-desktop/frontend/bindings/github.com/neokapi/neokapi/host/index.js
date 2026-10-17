@@ -12,6 +12,7 @@ export {
     AgentWiringResult,
     AtlasAxis,
     AtlasEvent,
+    AtlasGeometry,
     AtlasPlace,
     AtlasRecord,
     AtlasSpan,

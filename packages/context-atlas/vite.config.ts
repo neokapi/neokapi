@@ -17,6 +17,7 @@ export default defineConfig({
   },
   fmt: {
     singleQuote: false,
-    ignorePatterns: ["dist/**", "storybook-static/**"],
+    // The map's shapes are written minified by scripts/build-geometry.mjs.
+    ignorePatterns: ["dist/**", "storybook-static/**", "src/geo/**/*.json"],
   },
 });

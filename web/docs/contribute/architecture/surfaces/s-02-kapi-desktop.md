@@ -344,6 +344,26 @@ an overview with a supporting pane for the selected record
 (`packages/ui/docs/page-patterns.md`).
 An evidence path opens Ask at that file.
 
+The map draws a geo axis over the places the atlas carries
+([C-12](../context/c-12-places.md)). It opens on **Shapes**: real outlines,
+starting at the deepest country or region that holds every record and
+drilling from the world to a country, to its subdivisions and to the
+project's own places, with a breadcrumb built from the place's path. A place
+is filled by the records sitting within it and hatched where a record at a
+wider place, or at a place made of places that covers it, holds there. Records
+at `world` are one *Held everywhere* count rather than a hatch over the globe.
+A declared place draws its own geometry, else a circle at its centroid, else
+it is listed beside the map, and a declared place whose centroid falls outside
+the outline of the place it sits within is flagged. Places made of places are
+chips beside the map, and hovering one outlines its members. The side list
+gives each place's records *Here* and the records *Held* through a wider
+place, and every place is a button with an accessible name and count.
+Selecting a place keeps the records at every place that shares ground with it,
+by the same overlap rule the engine uses. **Grid** draws one equal tile per
+country instead, for comparing counts with land area left out. The outlines
+are Natural Earth data that ship in `@neokapi/context-atlas` and load per
+country as the map drills in.
+
 ### The feed of recorded context operations
 
 The app is meant to sit open beside an agent that is working. The agent runs in
@@ -602,14 +622,17 @@ of the correction and notes one more name, so the digest opens with a conflict
 under Needs you, and a first-time user practises keeping, changing, dropping,
 choosing and resetting on the real surfaces with no model call.
 
-Before the sessions, a teammate records five notes and keeps them, so they
+Before the sessions, a teammate records six notes and keeps them, so they
 arrive established and the digest still opens on the assistants' suggestions.
-They give Explore something on each declared axis: the sample's recipe types
-`market` as a geo axis with a `nordics` group, `age` as a range and
-`lifecycle` as an ordered axis ([C-02](../context/c-02-coordinates-and-governance.md)),
-and the notes hold in Japan, for readers aged 13 to 17, and for windows set
-relative to the day the sample is created, so one is in force, one has ended
-and one has yet to open whenever the sample is opened.
+They give Explore something on each declared axis: the sample's recipe
+declares places (the Nordics, Oslo, Grünerløkka and Greater Oslo) and types
+`market` as a geo axis over them, `age` as a range and `lifecycle` as an
+ordered axis ([C-02](../context/c-02-coordinates-and-governance.md)). An Oslo
+youth campaign sits at `market: oslo, age: 13-17`, with its pick-up page at
+Grünerløkka. The notes hold in Japan, in Germany, in the Nordics, for readers
+aged 13 to 17, in that campaign's city and age, and for windows set relative to
+the day the sample is created, so one is in force, one has ended and one has
+yet to open whenever the sample is opened.
 
 Seeding is idempotent: it runs only when the project's log holds no agent
 session, read from the ledger, so reopening or resetting the sample records

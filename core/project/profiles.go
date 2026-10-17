@@ -267,14 +267,14 @@ func (r ChannelRef) Coordinates() map[string]string {
 	return out
 }
 
-// MergeCoordinates is a collection's point: the project defaults, overlaid with
-// what its `channel:` derives, overlaid with whatever it declares itself.
+// MergeCoordinates overlays coordinate layers: the project defaults, then what
+// a `channel:` derives, then what a collection or item declares itself. A
+// point's coordinates are built with it (CoordinatesAt).
 //
-// Most specific wins, per axis. The order is the whole rule — a project states
-// its brand once under `defaults:` and every collection inherits it, while a
-// collection that genuinely sits elsewhere says so and only that axis moves.
-// Repeating an axis on every entry is how a declared axis becomes boilerplate
-// and then drifts.
+// Most specific wins, per axis. A project states its brand once under
+// `defaults:` and every collection inherits it, while a collection that sits
+// elsewhere says so and only that axis moves. Repeating an axis on every entry
+// is how a declared axis becomes boilerplate and then drifts.
 //
 // A nil result means the default point, which is a real place: the graph writes
 // a coordinate node for it, and content governed by nothing but the project's
@@ -594,46 +594,60 @@ func (p *KapiProject) governanceLadder(pt GovernancePoint) ([]ChannelRef, error)
 }
 
 // declaredChannelsFor returns the `channel:` references a point declares, finest
-// first, together with the recipe subject to name in an error. A path is matched
-// against every item by the claims rule (fileClaims): a point for the file's own
-// content resolves at the item that claims its values (ContentItemForPath), and
-// a point for its comments at the item that claims them (CommentItemForPath), or
-// at the values' item when no item declares the comments. A collection is
-// looked up by name, and answers when no item claimed the path.
+// first, together with the recipe subject to name in an error. The item and
+// collection come from pointAt; a point for a file's comments starts from the
+// item's `comments.channel`, then `defaults.comments.channel`.
 func (p *KapiProject) declaredChannelsFor(pt GovernancePoint) ([]string, string, error) {
 	var declared []string
 	subject := ""
 	if pt.Comments {
 		declared, subject = []string{p.Defaults.Comments.Channel}, "defaults.comments"
 	}
-	if pt.Path != "" {
-		claims := p.claimsForPath(pt.Path, fixedNoReader(pt.NoReader))
-		item, i, ok := claims.values.at()
-		if pt.Comments && claims.comments.ok {
-			item, i, ok = claims.comments.at()
-		}
-		if ok {
-			coll := &p.Collections[i]
-			if pt.Comments {
-				declared = append([]string{item.Comments.Channel}, declared...)
-			}
-			return append(declared, item.Channel, coll.Channel), collectionSubject(i, coll.Name), nil
-		}
-		// A path nothing claims falls back to the collection the caller named,
-		// if any: an input outside the declared globs still belongs to the run
-		// that was scoped to that collection.
-	}
-	if pt.Collection == "" {
+	item, i := p.pointAt(pt)
+	if i < 0 {
 		return declared, subject, nil
 	}
-	for i := range p.Collections {
-		coll := &p.Collections[i]
-		if coll.Name != pt.Collection {
-			continue
-		}
+	coll := &p.Collections[i]
+	if item == nil {
 		return append(declared, coll.Channel), collectionSubject(i, coll.Name), nil
 	}
-	return declared, subject, nil
+	if pt.Comments {
+		declared = append([]string{item.Comments.Channel}, declared...)
+	}
+	return append(declared, item.Channel, coll.Channel), collectionSubject(i, coll.Name), nil
+}
+
+// pointAt returns the content item and the collection a point sits in. A path
+// is matched against every item by the claims rule (fileClaims): a point for
+// the file's own content sits at the item that claims its values
+// (ContentItemForPath), and a point for its comments at the item that claims
+// them (CommentItemForPath), or at the values' item when no item declares the
+// comments. A path no item claims, or a point with no path, sits in the
+// collection pt.Collection names, with no item. A point that names a profile
+// has no location: collIdx is -1, as it is when nothing matches.
+func (p *KapiProject) pointAt(pt GovernancePoint) (item *ContentItem, collIdx int) {
+	if pt.Profile != "" {
+		return nil, -1
+	}
+	if pt.Path != "" {
+		claims := p.claimsForPath(pt.Path, fixedNoReader(pt.NoReader))
+		it, i, ok := claims.values.at()
+		if pt.Comments && claims.comments.ok {
+			it, i, ok = claims.comments.at()
+		}
+		if ok {
+			return &it, i
+		}
+	}
+	if pt.Collection == "" {
+		return nil, -1
+	}
+	for i := range p.Collections {
+		if p.Collections[i].Name == pt.Collection {
+			return nil, i
+		}
+	}
+	return nil, -1
 }
 
 // newGovernanceFallback describes why a binding did not govern at an instant:

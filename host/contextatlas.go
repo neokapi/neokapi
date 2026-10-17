@@ -3,11 +3,14 @@ package host
 import (
 	"cmp"
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"maps"
 	"math"
 	"os"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -17,6 +20,7 @@ import (
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/place"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/workspace"
 	"github.com/neokapi/neokapi/terms"
@@ -98,6 +102,7 @@ type ContextAtlas struct {
 	GeneratedAt time.Time     `json:"generated_at"`
 	Span        AtlasSpan     `json:"span"`
 	Axes        []AtlasAxis   `json:"axes"`
+	Places      []AtlasPlace  `json:"places"`
 	Records     []AtlasRecord `json:"records"`
 	Events      []AtlasEvent  `json:"events"`
 	Notes       []string      `json:"notes"`
@@ -118,16 +123,37 @@ type AtlasAxis struct {
 	Values []AtlasValue `json:"values"`
 }
 
-// AtlasValue is one value of an axis.
+// AtlasValue is one value of an axis. A geo value's place is described in the
+// atlas's places, by the same id.
 type AtlasValue struct {
-	ID       string      `json:"id"`
-	Label    string      `json:"label,omitempty"`
-	Parent   string      `json:"parent,omitempty"`
-	Centroid *[2]float64 `json:"centroid,omitempty"`
-	// Members are the countries a geo group or region holds, so a map can
-	// draw where a rule scoped to it holds. Empty for a country, for World,
-	// and for a region past atlasMaxMembers countries.
-	Members []AtlasPlace `json:"members,omitempty"`
+	ID    string `json:"id"`
+	Label string `json:"label,omitempty"`
+}
+
+// AtlasPlace is one place of the project's gazetteer (core/place): where it
+// sits, what it is made of, and how to draw it. Containment is the
+// declaration alone; a shape is for drawing.
+type AtlasPlace struct {
+	ID       string            `json:"id"`
+	Name     string            `json:"name"`
+	Names    map[string]string `json:"names,omitempty"`
+	Type     string            `json:"type"`
+	Within   []string          `json:"within,omitempty"`
+	Of       []string          `json:"of,omitempty"`
+	Centroid *[2]float64       `json:"centroid,omitempty"`
+	Refs     []string          `json:"refs,omitempty"`
+	Shape    string            `json:"shape,omitempty"`
+	// Geometry is the Polygon or MultiPolygon geometry of a declared place's
+	// shape file.
+	Geometry *AtlasGeometry `json:"geometry,omitempty"`
+	Declared bool           `json:"declared,omitempty"`
+}
+
+// AtlasGeometry is a GeoJSON Polygon or MultiPolygon geometry: its type and
+// its coordinates as the file writes them, [lon, lat] positions in rings.
+type AtlasGeometry struct {
+	Type        string `json:"type"`
+	Coordinates any    `json:"coordinates"`
 }
 
 // AtlasRecord is one thing the context holds: a rule, a note, a content-memory
@@ -185,6 +211,7 @@ func (a *App) ContextAtlas(ctx context.Context, req ContextAtlasRequest) (Contex
 			Version:     ContextAtlasVersion,
 			GeneratedAt: time.Now().UTC(),
 			Axes:        []AtlasAxis{},
+			Places:      []AtlasPlace{},
 			Records:     []AtlasRecord{},
 			Events:      []AtlasEvent{},
 			Notes:       []string{},
@@ -241,6 +268,7 @@ func (a *App) ContextAtlas(ctx context.Context, req ContextAtlasRequest) (Contex
 		return cmp.Or(x.At.Compare(y.At), strings.Compare(x.ID, y.ID))
 	})
 	b.axes(ctx)
+	b.places()
 	b.span()
 	b.note("Unit decisions are not read into the atlas; `kapi status` reports them.")
 	return b.out, nil
@@ -698,7 +726,7 @@ func (b *atlasBuilder) axes(ctx context.Context) {
 			ax.Values = plainValues(slices.Sorted(maps.Keys(used)), b.projectLabels(ctx, used))
 		case AtlasAxisRegion:
 			ax.Kind = string(axis.KindGeo)
-			ax.Values = geoValues(used, axis.Spec{Kind: axis.KindGeo})
+			ax.Values = geoValues(used, b.space.Places())
 		default:
 			ax.Values = plainValues(slices.Sorted(maps.Keys(used)), nil)
 		}
@@ -718,10 +746,10 @@ func (b *atlasBuilder) declaredAxis(name string) AtlasAxis {
 		if all == nil {
 			all = map[string]bool{}
 		}
-		for group := range spec.Groups {
-			all[group] = true
+		for _, p := range b.space.Places().Declared() {
+			all[p.ID] = true
 		}
-		ax.Values = geoValues(all, spec)
+		ax.Values = geoValues(all, b.space.Places())
 	case axis.KindRange:
 		values := slices.Collect(maps.Keys(used))
 		slices.SortFunc(values, func(x, y string) int {
@@ -802,71 +830,191 @@ func (b *atlasBuilder) span() {
 	b.out.Span = AtlasSpan{From: from, To: to}
 }
 
-// geoValues lays out geo values with the containing region of each built-in
-// one and a centroid for each country, groups first, then regions, then
-// countries by name.
-func geoValues(used map[string]bool, spec axis.Spec) []AtlasValue {
-	rank := func(v string) int {
-		switch {
-		case spec.Groups[v] != nil:
-			return 0
-		case v == axis.World:
+// geoValues lays out geo values by id and name: places made of places first,
+// then wider kinds of place before narrower ones (place.Type.Rank), then by
+// name.
+func geoValues(used map[string]bool, g *place.Gazetteer) []AtlasValue {
+	type value struct {
+		id, label string
+		madeOf    bool
+		rank      int
+	}
+	values := make([]value, 0, len(used))
+	for id := range used {
+		v := value{id: id, rank: place.Type("").Rank()}
+		if p, ok := g.Place(id); ok {
+			v.label, v.madeOf, v.rank = p.Name, p.MadeOf(), p.Type.Rank()
+		}
+		values = append(values, v)
+	}
+	slices.SortFunc(values, func(x, y value) int {
+		if x.madeOf != y.madeOf {
+			if x.madeOf {
+				return -1
+			}
 			return 1
 		}
-		if _, ok := axis.RegionOf(v); ok {
-			return 2
-		}
-		return 3
-	}
-	values := slices.Collect(maps.Keys(used))
-	space := axis.Space{"v": spec}
-	slices.SortFunc(values, func(x, y string) int {
-		return cmp.Or(cmp.Compare(rank(x), rank(y)), strings.Compare(cmp.Or(space.Label("v", x), x), cmp.Or(space.Label("v", y), y)))
+		return cmp.Or(cmp.Compare(x.rank, y.rank), strings.Compare(cmp.Or(x.label, x.id), cmp.Or(y.label, y.id)), strings.Compare(x.id, y.id))
 	})
 	out := make([]AtlasValue, 0, len(values))
 	for _, v := range values {
-		val := AtlasValue{ID: v, Label: space.Label("v", v), Parent: axis.GeoParent(v)}
-		if p, ok := axis.PlaceOf(v); ok && p.Code == v {
-			val.Centroid = &[2]float64{round2(p.Lat), round2(p.Lon)}
-		}
-		val.Members = geoMembers(space, v)
-		out = append(out, val)
+		out = append(out, AtlasValue{ID: v.id, Label: v.label})
 	}
 	return out
 }
 
-// AtlasPlace is one country inside a geo group or region.
-type AtlasPlace struct {
-	ID       string     `json:"id"`
-	Label    string     `json:"label,omitempty"`
-	Centroid [2]float64 `json:"centroid"`
-}
+// atlasMaxShape bounds the shape file the atlas reads for one declared place.
+const atlasMaxShape = 1 << 20
 
-// atlasMaxMembers bounds the countries listed for one group or region, so a
-// continent-sized value does not carry the world.
-const atlasMaxMembers = 80
-
-// geoMembers lists the countries a group or region holds, in the order the
-// geo table keeps them, or nothing for a country, World, or a value larger
-// than atlasMaxMembers.
-func geoMembers(space axis.Space, v string) []AtlasPlace {
-	if v == axis.World {
-		return nil
+// places lists the gazetteer the map draws from, sorted by id. It holds every
+// place a record's geo coordinate names, every place that contains one of
+// those, the members of each place made of places, and every declared place.
+// To that it adds the direct children of each country and subdivision in the
+// set, and the countries of each region in it.
+func (b *atlasBuilder) places() {
+	g := b.space.Places()
+	set := map[string]bool{}
+	var visit func(id string)
+	visit = func(id string) {
+		if set[id] || !g.Has(id) {
+			return
+		}
+		set[id] = true
+		for _, a := range g.Ancestors(id) {
+			visit(a)
+		}
+		if p, _ := g.Place(id); p.MadeOf() {
+			for _, m := range p.Of {
+				visit(m)
+			}
+		}
 	}
-	if p, ok := axis.PlaceOf(v); ok && p.Code == v {
-		return nil
-	}
-	var out []AtlasPlace
-	for _, p := range axis.Places() {
-		if p.Code == v || !space.Contains("v", v, p.Code) {
+	for name, values := range b.used {
+		if name != AtlasAxisRegion && b.space.Spec(name).EffectiveKind() != axis.KindGeo {
 			continue
 		}
-		if len(out) == atlasMaxMembers {
-			return nil
+		for id := range values {
+			visit(id)
 		}
-		out = append(out, AtlasPlace{ID: p.Code, Label: p.Name, Centroid: [2]float64{round2(p.Lat), round2(p.Lon)}})
+	}
+	for _, p := range g.Declared() {
+		visit(p.ID)
+	}
+	closure := slices.Sorted(maps.Keys(set))
+	for _, id := range closure {
+		p, _ := g.Place(id)
+		switch p.Type {
+		case place.TypeCountry, place.TypeSubdivision:
+			for _, c := range g.Children(id) {
+				set[c] = true
+			}
+		case place.TypeRegion:
+			for _, c := range regionCountries(g, id) {
+				set[c] = true
+			}
+		}
+	}
+	out := make([]AtlasPlace, 0, len(set))
+	for _, id := range slices.Sorted(maps.Keys(set)) {
+		p, _ := g.Place(id)
+		ap := AtlasPlace{
+			ID: p.ID, Name: p.Name, Names: p.Names, Type: string(p.Type), Within: p.Within, Of: p.Of,
+			Refs: p.Refs, Shape: p.Shape, Declared: p.Declared,
+		}
+		if p.Centroid != nil {
+			ap.Centroid = &[2]float64{round2(p.Centroid.Lat), round2(p.Centroid.Lon)}
+		}
+		if p.Shape != "" {
+			ap.Geometry = b.shapeGeometry(p.ID, p.Shape)
+		}
+		out = append(out, ap)
+	}
+	b.out.Places = out
+}
+
+// regionCountries are the countries a region holds, through its subregions.
+func regionCountries(g *place.Gazetteer, id string) []string {
+	var out []string
+	for _, c := range g.Children(id) {
+		p, _ := g.Place(c)
+		switch p.Type {
+		case place.TypeCountry:
+			out = append(out, c)
+		case place.TypeRegion:
+			out = append(out, regionCountries(g, c)...)
+		}
 	}
 	return out
+}
+
+// shapeGeometry reads a declared place's shape file and reduces it to its
+// Polygon or MultiPolygon geometry. A file the atlas cannot read, one larger
+// than atlasMaxShape, and one that holds no single polygon geometry are
+// skipped with a note naming the recipe key, and the place is drawn by its
+// centroid or listed beside the map.
+func (b *atlasBuilder) shapeGeometry(id, shape string) *AtlasGeometry {
+	key := "places." + id + ".shape"
+	if b.session == nil || !b.session.checkedOut() {
+		b.note(fmt.Sprintf("%s: %s was not read: this project has no checkout on this machine.", key, shape))
+		return nil
+	}
+	path := filepath.Join(b.session.root, filepath.FromSlash(shape))
+	info, err := os.Stat(path)
+	switch {
+	case err != nil:
+		b.note(fmt.Sprintf("%s: %s could not be read, so the place has no outline.", key, shape))
+		return nil
+	case info.Size() > atlasMaxShape:
+		b.note(fmt.Sprintf("%s: %s is larger than 1 MiB, so the place has no outline.", key, shape))
+		return nil
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		b.note(fmt.Sprintf("%s: %s could not be read, so the place has no outline.", key, shape))
+		return nil
+	}
+	geometry, err := polygonGeometry(data)
+	if err != nil {
+		b.note(fmt.Sprintf("%s: %s %s, so the place has no outline.", key, shape, err))
+		return nil
+	}
+	return geometry
+}
+
+// polygonGeometry reduces GeoJSON to one Polygon or MultiPolygon geometry: a
+// bare geometry, a Feature holding one, or a FeatureCollection of a single
+// such Feature.
+func polygonGeometry(data []byte) (*AtlasGeometry, error) {
+	var doc struct {
+		Type        string            `json:"type"`
+		Coordinates json.RawMessage   `json:"coordinates"`
+		Geometry    json.RawMessage   `json:"geometry"`
+		Features    []json.RawMessage `json:"features"`
+	}
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return nil, errors.New("is not GeoJSON")
+	}
+	switch doc.Type {
+	case "Polygon", "MultiPolygon":
+		var rings []any
+		if len(doc.Coordinates) == 0 || json.Unmarshal(doc.Coordinates, &rings) != nil {
+			return nil, fmt.Errorf("holds a %s with no coordinates", doc.Type)
+		}
+		return &AtlasGeometry{Type: doc.Type, Coordinates: rings}, nil
+	case "Feature":
+		if len(doc.Geometry) == 0 || string(doc.Geometry) == "null" {
+			return nil, errors.New("holds a feature with no geometry")
+		}
+		return polygonGeometry(doc.Geometry)
+	case "FeatureCollection":
+		if len(doc.Features) != 1 {
+			return nil, fmt.Errorf("holds %d features; a place's shape is one polygon feature", len(doc.Features))
+		}
+		return polygonGeometry(doc.Features[0])
+	case "":
+		return nil, errors.New("is not GeoJSON")
+	}
+	return nil, fmt.Errorf("holds a %s, not a polygon", doc.Type)
 }
 
 func round2(f float64) float64 { return math.Round(f*100) / 100 }
@@ -897,14 +1045,15 @@ func inOrder(used map[string]bool, order []string) []string {
 	return out
 }
 
-// setLocale puts a locale on a record's coordinates, with the region its
-// region subtag names.
+// setLocale puts a locale on a record's coordinates, with the place it names
+// (place.OfLocale): the subdivision of its -u-sd- key, else its region
+// subtag's country or region.
 func setLocale(coordinates map[string]string, locale string) {
 	if locale == "" {
 		return
 	}
 	coordinates[AtlasAxisLocale] = locale
-	if region := axis.RegionOfLocale(locale); region != "" {
+	if region := place.OfLocale(locale); region != "" {
 		coordinates[AtlasAxisRegion] = region
 	}
 }

@@ -6,11 +6,3 @@ export {
     Kind,
     Spec
 } from "./models.js";
-
-import * as $models from "./models.js";
-
-/**
- * Space is the typed axes of a project, by axis name. An axis the map does not
- * hold is an open category.
- * @typedef {$models.Space} Space
- */

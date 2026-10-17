@@ -3,7 +3,7 @@ id: c-02-coordinates-and-governance
 sidebar_position: 2
 title: "C-02: Coordinates and governance"
 description: "Architecture decision: content sits at a point in the context space. Two structural axes, the product it belongs to and the channel it ships on, are derived from the recipe; declared axes such as brand and mode are stated once and inherited. One resolver answers what governs that point, at an instant, for every caller."
-keywords: [coordinates, context space, governance, profiles, channels, brand, mode, axes, geo, market, range, validity, voice profile, neokapi, architecture decision]
+keywords: [coordinates, context space, governance, profiles, channels, brand, mode, axes, geo, market, places, range, validity, voice profile, neokapi, architecture decision]
 ---
 
 # C-02: Coordinates and governance
@@ -18,9 +18,9 @@ channel-axis values it can carry. The remaining axes are **declared**: a project
 names the dimensions its content actually varies along (a brand, a document
 mode, a market) once under `defaults.coordinates`, and a collection that sits
 elsewhere overrides the one axis it differs on. A declared axis is an open
-category unless the recipe types it under `axes:`: a geo market where a region
-contains its countries, an audience age range where `13-17` contains `14-16`,
-a closed list of values, or an ordered lifecycle.
+category unless the recipe types it under `axes:`: a geo market whose values
+are places, where a country contains its cities, an audience age range where
+`13-17` contains `14-16`, a closed list of values, or an ordered lifecycle.
 
 Governance (a voice profile, a vocabulary) binds to a point. One function,
 `KapiProject.ResolveGovernanceFor`, answers *what governs here, at this instant*,
@@ -114,13 +114,26 @@ collections:
     channel: northsea/docs
     coordinates:
       mode: tutorial       # moves on one axis; inherits the brand
+    content:
+      - path: "tutorials/first-steps/**/*.md"
+        coordinates:
+          audience: new-customers   # one item refines the collection's point
+      - path: "tutorials/**/*.md"
 ```
 
-A collection's point is `project.MergeCoordinates(defaults, derived, declared)`:
-the project's `defaults.coordinates`, overlaid with what its `channel:` derives,
-overlaid with its own `coordinates:`. Most specific wins, per axis. An empty
-value never erases what a broader layer said: blanking a value is an incomplete
-edit, and reading it as an erasure would let a typo move content off its point.
+`KapiProject.CoordinatesAt(pt, rc)` is the coordinates of a point in the
+content, and every caller that answers for a file or a collection asks it: a
+run, a check, a push, the by-location answer, the review context and the
+recording of a context operation. It overlays four
+layers with `project.MergeCoordinates`: the project's `defaults.coordinates`,
+what the governance resolved at the point derives (`rc`, from
+`ResolveGovernanceFor` at the same point), the coordinates of the collection
+the point sits in, and those of the content item that claims its path. The item
+and the collection are the ones governance resolves through, so an item's
+`coordinates:` refines its collection's point as its `channel:` refines the
+collection's channel. Most specific wins, per axis. An empty value never erases
+what a broader layer said: blanking a value is an incomplete edit, and reading
+it as an erasure would let a typo move content off its point.
 
 The structural axes are never written under `coordinates:`. They are derived
 from `channel:`, and a declared value that could shadow them would let a recipe
@@ -148,12 +161,19 @@ Nordic market should answer for content written for Norway. The top-level
 `axes:` block types the axes that need more:
 
 ```yaml
+places:
+  nordics:
+    name: Nordics
+    of: [no, se, dk, fi, is]
+  oslo:
+    name: Oslo
+    type: locality
+    within: no-03
+
 axes:
   market:
     kind: geo
     label: Market
-    groups:
-      nordics: [no, se, dk, fi, is]
   audience:
     values: [general, new-customers, specialists]
   age:
@@ -171,23 +191,26 @@ shares (`axis.Space`, built from the block by `KapiProject.AxisSpace()`):
 | --- | --- | --- |
 | `category` (the default) | any slug; `values:` closes the axis | equality |
 | `ordered` | the declared `values:`, in order | equality |
-| `geo` | ISO 3166-1 alpha-2 codes in lower case, UN M49 region slugs, `world`, and the groups the axis declares | the inner value lies inside the outer one: a country in its subregion, a subregion in its region, everything in `world`, a group's members and what is inside them in the group |
+| `geo` | place ids from the project's gazetteer: `world`, UN M49 region slugs, ISO 3166-1 countries and ISO 3166-2 subdivisions in lower case, and the places the recipe declares under `places:` | the inner place sits within the outer one, as the gazetteer declares: a city in its county, a county in its country, a country in a territory made of it, everything in `world` |
 | `range` | an interval: `13-17`, an open upper bound `65-`, or one number | interval inclusion: `13-17` holds `14-16` and not `18-` |
 
-The geo data is built in (`core/axis/geo.go`): every ISO 3166-1 country and
-territory with its English name, an approximate centroid for drawing it on a
-map, and the M49 region it sits in, through the intermediate regions where
-M49 names them (`ke` sits in `eastern-africa`, inside `sub-saharan-africa`,
-inside `africa`). `axis.RegionOfLocale` reads a locale's region subtag as a geo
-value: `fr-CA` sits at `ca`, `es-419` at `latin-america-and-the-caribbean`, and
-`fr` has no region.
+A geo axis reads the project's gazetteer (`core/place`,
+[C-12](c-12-places.md)): the built-in world, M49 regions, countries and
+subdivisions, and the places the recipe declares under `places:`, each sitting
+within places or made of places. `axis.Space` carries the gazetteer beside the
+typed axes, and its zero value reads the built-in places. A geo axis takes no
+`values:` and no `labels:`; a place's name is declared on the place.
+`kapi context places` looks an id up. A locale tag names a place too:
+`place.OfLocale` reads the subdivision of a `-u-sd-` extension
+(`nb-NO-u-sd-no03` sits at `no-03`), else the region subtag (`fr-CA` at `ca`,
+`es-419` at `latin-america-and-the-caribbean`), and `fr` names none.
 
 Containment is what a rule's scope reads (`contextop.Scope.CoversIn`,
 `terms.AtPointIn`): a rule scoped to `market: nordics` answers at a point that
 sits at `market: no`. A point's own coordinates stay single values; containment
 runs from the rule's scope to the point and never the other way.
-`axis.Space.Overlaps` answers whether two values can meet at all (two groups
-that share a country, two intervals that intersect).
+`axis.Space.Overlaps` answers whether two values can meet at all (two places
+that share ground, two intervals that intersect).
 
 The block types what the recipe already writes and adds no axis of its own:
 `product` and `channel` are refused under `axes:` as they are under
@@ -369,15 +392,20 @@ lists the qualified forms that would work, a channel naming an undeclared profil
 lists the declared profiles, and a channel a profile does not declare lists the
 channels it does.
 
-The `axes:` block is checked in the same pass (`axis.Space.Check`): each axis
-name is a slug, each kind is known, an ordered axis declares its values, a geo
-group names only countries, regions and other groups and never contains
-itself. Then every value written under `defaults.coordinates` and a
-collection's `coordinates:` is checked against its axis (`axis.Space.Validate`):
-a closed axis lists the values it takes, a geo value that is not a country, a
-region or a group names the spellings that are, and a range written upside
-down is shown the right way round. `SetField` runs the same check when a change
-set writes `defaults.coordinates.<axis>`.
+The `places:` and `axes:` blocks are checked in the same pass. The declared
+places build the project's gazetteer (`place.New`), which refuses an id a
+built-in place holds, a place that names both or neither of `within:` and
+`of:`, an id it names that is no place, and a place that reaches itself
+([C-12](c-12-places.md#declared-places)). The axes are checked by
+`axis.Space.Check`: each axis name is a slug, each kind is known, an ordered
+axis declares its values, and a geo axis takes neither values nor labels. Then
+every value written under `defaults.coordinates`, a collection's
+`coordinates:` and a content item's is checked against its axis
+(`axis.Space.Validate`): a closed axis lists the values it takes, a geo value
+that names no place is shown the lower-case or hyphenated spelling that does,
+or the closest matches and the `kapi context places` command, and a range
+written upside down is shown the right way round. `SetField` runs the same
+check when a change set writes `defaults.coordinates.<axis>`.
 
 ### The point is edited through the one write verb
 
@@ -434,8 +462,9 @@ nothing declares yet.
   learn about it.
 - A project states its brand once and every collection inherits it; a
   collection that sits elsewhere moves on that one axis.
-- A rule kept for a region holds in each of its countries, and one kept for an
-  age range holds for the narrower ranges inside it, without a copy per value.
+- A rule kept for a place holds in every place inside it, from a territory
+  down to a neighbourhood, and one kept for an age range holds for the narrower
+  ranges inside it, without a copy per value.
 - Governance with an end date is expressible, and the day it ends is announced by
   every surface that resolves it rather than discovered by a reader.
 - Because the structural axes are resolved from the recipe rather than declared
@@ -451,5 +480,7 @@ nothing declares yet.
   this resolution rendered.
 - [C-07: Voice profiles](c-07-voice-profiles.md): what a profile binds, and how
   a channel refines it.
+- [C-12: Places](c-12-places.md): the gazetteer a geo axis reads, and how
+  places contain one another.
 - [kapi.yaml project file](../../implementation/context/kapi-project-file.md): the
   schema reference.

@@ -3,7 +3,7 @@ id: explore-your-context
 title: "Explore your context"
 sidebar_label: "Explore your context"
 description: "Open the KapiMart sample in Kapi Desktop and explore its context on the axes it varies along: follow rules across products, channels, markets and reader ages, move a window through time, see which rules hold only for a while, and compare two moments."
-keywords: [Kapi Desktop, explore, axes, coordinates, market, reader age, lifetime, valid_from, valid_to, timeline, flow, matrix, map, compare, kapi context atlas]
+keywords: [Kapi Desktop, explore, axes, coordinates, market, places, reader age, lifetime, valid_from, valid_to, timeline, flow, matrix, map, compare, kapi context atlas]
 ---
 
 # Explore your context
@@ -21,15 +21,33 @@ project. For what each section of the app is, see the
 ## What the sample declares
 
 The sample's `kapi.yaml` names four axes beside the product and the channel,
-and says what kind each one is:
+and says what kind each one is. The market is a geo axis: its values are
+places, and the recipe declares a few of its own beside the countries and
+counties kapi knows:
 
 ```yaml
+places:
+  nordics:
+    name: Nordics
+    of: [no, se, dk, fi, is]
+  oslo:
+    name: Oslo
+    type: locality
+    within: no-03
+    centroid: [59.91, 10.75]
+  grunerlokka:
+    name: Grünerløkka
+    type: neighbourhood
+    within: oslo
+  greater-oslo:
+    name: Greater Oslo
+    type: metro
+    of: [no-03, no-32]
+
 axes:
   market:
     kind: geo
     label: Market
-    groups:
-      nordics: [no, se, dk, fi, is]
   audience:
     label: Audience
     values: [shoppers, developers, partners]
@@ -44,15 +62,18 @@ axes:
 ```
 
 The kind decides how a rule at one value reaches content at another. A rule for
-the Nordic market holds in Norway, and a rule for readers aged 13 to 17 holds
-in content written for readers aged 14 to 16. The [project
-file reference](/reference/project-file#typed-axes) lists the kinds.
+the Nordic market holds in Norway and in Oslo, and a rule for readers aged 13
+to 17 holds in content written for readers aged 14 to 16. The [project
+file reference](/reference/project-file#typed-axes) lists the kinds, and
+[Place content in markets and areas](/kapi/places) covers places.
 
-Besides the two assistant sessions you review in [Review what your assistant
+An Oslo youth campaign sits at `market: oslo` and `age: 13-17`, with its
+pick-up page at Grünerløkka. Besides the two assistant sessions you review in
+[Review what your assistant
 noticed](/kapi/desktop/recipes/review-what-your-assistant-noticed), the sample
-arrives with five notes a teammate recorded and kept. One holds in Japan, one
-for readers aged 13 to 17, and three hold for a while: one is in force now, one
-has ended and one starts next month.
+arrives with six notes a teammate recorded and kept. One holds in Japan, one
+for readers aged 13 to 17, one for the Oslo campaign's readers, and three hold
+for a while: one is in force now, one has ended and one starts next month.
 
 ## Steps
 
@@ -86,12 +107,19 @@ has ended and one starts next month.
    it was recorded, so you see when the context changed rather than when
    somebody wrote it down. A window that opens after today is counted beside
    the legend as outside the span.
-8. **See where the markets are.** Open **Map**. Japan and Germany sit on the
-   grid of countries with their counts. **Nordics** and **World** are listed
-   beside it, and the five Nordic countries are drawn hatched: the campaign
-   note holds there without being placed in any one of them. Hover
-   **Nordics** to light its countries, or click Norway to keep everything that
-   holds in Norway. Tile area is not land area.
+8. **See where the markets are.** Open **Map**. It draws the world by
+   country: Japan and Germany are filled by the notes placed there, and the
+   five Nordic countries are hatched, because the winter campaign note holds
+   in the Nordics without sitting in any one of them. The list beside the map
+   counts each place's records **Here** and those **Held** through a wider
+   place, and gives the records at **World** as one **Held everywhere**
+   count. Hover **Nordics** to outline its countries. Click **Norway** to
+   drill into its counties, and hover **Greater Oslo** to outline the two
+   counties it is made of. Click the county of **Oslo** to reach the places
+   the recipe declares: the city is a circle at its centroid. The path above
+   the map takes you back up. To keep only what holds in one place, select it in the list.
+   **Grid** draws one equal tile per country instead, so tile area is not
+   land area.
 9. **Read state over time.** Open **Over time**. Each row is one value of an
    axis and each column a stretch of the window, coloured by the share
    waiting for a person at the end of that stretch.

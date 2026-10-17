@@ -1,42 +1,24 @@
-package axis
+package place
 
-import "strings"
+// region is one UN M49 region, subregion or intermediate region: its slug,
+// English name, three-digit M49 code (which a locale may carry as its region
+// subtag, as es-419 does) and the region containing it, world for a
+// continent.
+type region struct{ slug, name, code, parent string }
 
-// World is the geo value that contains every country and region.
-const World = "world"
-
-// Place is one country or territory of ISO 3166-1, as a geo axis holds it.
-type Place struct {
-	// Code is the ISO 3166-1 alpha-2 code in lower case: "no", "fr".
-	Code string
-	// Name is the English short name.
-	Name string
-	// Lat and Lon are an approximate centroid, in degrees, for drawing the
-	// place on a map. They are not boundaries.
-	Lat, Lon float64
-	// Region is the UN M49 region the place sits in, as a slug: the
-	// intermediate region where M49 names one ("caribbean"), else the
-	// subregion ("northern-europe"). Antarctica sits directly in World.
-	Region string
-}
-
-// Region is one UN M49 region, subregion or intermediate region.
-type Region struct {
-	// Slug is the region's name in lower case with hyphens:
-	// "latin-america-and-the-caribbean".
-	Slug string
-	// Name is the English name.
-	Name string
-	// Code is the three-digit M49 code, which a locale may carry as its region
-	// subtag (es-419).
-	Code string
-	// Parent is the region containing this one, World for a continent.
-	Parent string
+// country is one ISO 3166-1 country or territory: its alpha-2 code in lower
+// case, English short name, an approximate centroid in degrees, and the M49
+// region it sits in (the intermediate region where M49 names one, else the
+// subregion; Antarctica sits directly within world).
+type country struct {
+	code, name string
+	lat, lon   float64
+	region     string
 }
 
 // regions are the UN M49 regions, subregions and intermediate regions, in the
 // order M49 lists them.
-var regions = []Region{
+var regions = []region{
 	{"africa", "Africa", "002", World},
 	{"northern-africa", "Northern Africa", "015", "africa"},
 	{"sub-saharan-africa", "Sub-Saharan Africa", "202", "africa"},
@@ -68,9 +50,8 @@ var regions = []Region{
 	{"polynesia", "Polynesia", "061", "oceania"},
 }
 
-// places are the countries and territories of ISO 3166-1, with an
-// approximate centroid and the M49 region each sits in.
-var places = []Place{
+// countries are the countries and territories of ISO 3166-1, in code order.
+var countries = []country{
 	{"ad", "Andorra", 42.55, 1.60, "southern-europe"},
 	{"ae", "United Arab Emirates", 23.42, 53.85, "western-asia"},
 	{"af", "Afghanistan", 33.94, 67.71, "southern-asia"},
@@ -320,120 +301,4 @@ var places = []Place{
 	{"za", "South Africa", -30.56, 22.94, "southern-africa"},
 	{"zm", "Zambia", -13.13, 27.85, "eastern-africa"},
 	{"zw", "Zimbabwe", -19.02, 29.15, "eastern-africa"},
-}
-
-var (
-	placeIndex  = map[string]Place{}
-	regionIndex = map[string]Region{}
-	regionCodes = map[string]string{}
-)
-
-func init() {
-	for _, p := range places {
-		placeIndex[p.Code] = p
-	}
-	for _, r := range regions {
-		regionIndex[r.Slug] = r
-		regionCodes[r.Code] = r.Slug
-	}
-}
-
-// Places lists every country and territory the geo table holds, in code order.
-func Places() []Place { return append([]Place(nil), places...) }
-
-// Regions lists every M49 region, subregion and intermediate region, in the
-// order M49 lists them.
-func Regions() []Region { return append([]Region(nil), regions...) }
-
-// PlaceOf returns the country or territory with an ISO 3166-1 alpha-2 code,
-// in either case.
-func PlaceOf(code string) (Place, bool) {
-	p, ok := placeIndex[strings.ToLower(code)]
-	return p, ok
-}
-
-// RegionOf returns the M49 region with a slug.
-func RegionOf(slug string) (Region, bool) {
-	r, ok := regionIndex[slug]
-	return r, ok
-}
-
-// GeoParent is the value directly containing a built-in geo value: a
-// country's region, a region's parent, empty for World and for a value the
-// table does not hold.
-func GeoParent(value string) string {
-	if p, ok := placeIndex[value]; ok {
-		return p.Region
-	}
-	if r, ok := regionIndex[value]; ok {
-		return r.Parent
-	}
-	return ""
-}
-
-// GeoLabel is the English name of a built-in geo value, empty for a value the
-// table does not hold.
-func GeoLabel(value string) string {
-	if p, ok := placeIndex[value]; ok {
-		return p.Name
-	}
-	if r, ok := regionIndex[value]; ok {
-		return r.Name
-	}
-	if value == World {
-		return "World"
-	}
-	return ""
-}
-
-// knownGeo reports whether value is a country code, a region slug or World.
-func knownGeo(value string) bool {
-	if value == World {
-		return true
-	}
-	if _, ok := placeIndex[value]; ok {
-		return true
-	}
-	_, ok := regionIndex[value]
-	return ok
-}
-
-// RegionOfLocale is the geo value a locale's region subtag names: the
-// country code in lower case for fr-CA, the M49 region for es-419. A locale
-// with no region subtag, or one the table does not hold, has none.
-func RegionOfLocale(locale string) string {
-	parts := strings.FieldsFunc(locale, func(r rune) bool { return r == '-' || r == '_' })
-	for i, part := range parts {
-		if i == 0 {
-			continue
-		}
-		switch {
-		case len(part) == 2 && isAlpha(part):
-			if p, ok := placeIndex[strings.ToLower(part)]; ok {
-				return p.Code
-			}
-			return ""
-		case len(part) == 3 && isDigits(part):
-			return regionCodes[part]
-		}
-	}
-	return ""
-}
-
-func isAlpha(s string) bool {
-	for _, r := range s {
-		if (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') {
-			return false
-		}
-	}
-	return true
-}
-
-func isDigits(s string) bool {
-	for _, r := range s {
-		if r < '0' || r > '9' {
-			return false
-		}
-	}
-	return true
 }

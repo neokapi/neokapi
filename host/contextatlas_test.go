@@ -194,8 +194,11 @@ func TestContextAtlas_ContentCells(t *testing.T) {
 	region, ok := atlasAxis(atlas, AtlasAxisRegion)
 	require.True(t, ok)
 	assert.Equal(t, "geo", region.Kind)
-	require.NotNil(t, region.Values[0].Centroid)
-	assert.Equal(t, "northern-europe", region.Values[0].Parent)
+	assert.Equal(t, []AtlasValue{{ID: "no", Label: "Norway"}}, region.Values, "a geo value is its id and its name; fr names no region")
+	no := atlasPlace(t, atlas, "no")
+	assert.Equal(t, []string{"northern-europe"}, no.Within)
+	require.NotNil(t, no.Centroid)
+	assert.Contains(t, atlasPlaceIDs(atlas), "no-03", "a country in the atlas brings its subdivisions, so a map can drill down")
 
 	without, err := app.ContextAtlas(t.Context(), ContextAtlasRequest{Project: recipe})
 	require.NoError(t, err)

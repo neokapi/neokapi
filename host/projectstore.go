@@ -740,7 +740,8 @@ type StoreSelection struct {
 	// (terms.AtPoint).
 	Coordinates map[string]string
 	// Axes types the project's axes, so a concept scoped to a region holds at
-	// a country inside it (terms.AtPointIn). Nil compares by equality.
+	// a country inside it (terms.AtPointIn). The zero Space compares by
+	// equality.
 	Axes axis.Space
 	// At is the instant the point was resolved at. A term whose window
 	// excludes it does not hold there (terms.InForceAt). The zero instant is

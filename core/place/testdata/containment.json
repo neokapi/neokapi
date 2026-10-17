@@ -1,0 +1,450 @@
+{
+  "description": "Containment and overlap over a small gazetteer. core/place and @neokapi/context-atlas both run every case, so the engine and the map read a place the same way. A built-in entry must match the built-in gazetteer's id, type and within.",
+  "places": [
+    {
+      "id": "world",
+      "name": "World",
+      "type": "world"
+    },
+    {
+      "id": "europe",
+      "name": "Europe",
+      "type": "region",
+      "within": [
+        "world"
+      ]
+    },
+    {
+      "id": "northern-europe",
+      "name": "Northern Europe",
+      "type": "region",
+      "within": [
+        "europe"
+      ]
+    },
+    {
+      "id": "western-europe",
+      "name": "Western Europe",
+      "type": "region",
+      "within": [
+        "europe"
+      ]
+    },
+    {
+      "id": "no",
+      "name": "Norway",
+      "type": "country",
+      "within": [
+        "northern-europe"
+      ]
+    },
+    {
+      "id": "se",
+      "name": "Sweden",
+      "type": "country",
+      "within": [
+        "northern-europe"
+      ]
+    },
+    {
+      "id": "dk",
+      "name": "Denmark",
+      "type": "country",
+      "within": [
+        "northern-europe"
+      ]
+    },
+    {
+      "id": "fi",
+      "name": "Finland",
+      "type": "country",
+      "within": [
+        "northern-europe"
+      ]
+    },
+    {
+      "id": "is",
+      "name": "Iceland",
+      "type": "country",
+      "within": [
+        "northern-europe"
+      ]
+    },
+    {
+      "id": "de",
+      "name": "Germany",
+      "type": "country",
+      "within": [
+        "western-europe"
+      ]
+    },
+    {
+      "id": "no-03",
+      "name": "Oslo",
+      "type": "subdivision",
+      "within": [
+        "no"
+      ]
+    },
+    {
+      "id": "no-32",
+      "name": "Akershus",
+      "type": "subdivision",
+      "within": [
+        "no"
+      ]
+    },
+    {
+      "id": "no-46",
+      "name": "Vestland",
+      "type": "subdivision",
+      "within": [
+        "no"
+      ]
+    },
+    {
+      "id": "oslo",
+      "name": "Oslo",
+      "type": "locality",
+      "declared": true,
+      "within": [
+        "no-03"
+      ],
+      "centroid": [
+        59.91,
+        10.75
+      ]
+    },
+    {
+      "id": "grunerlokka",
+      "name": "Grünerløkka",
+      "type": "neighbourhood",
+      "declared": true,
+      "within": [
+        "oslo"
+      ]
+    },
+    {
+      "id": "uni-district",
+      "name": "University district",
+      "type": "district",
+      "declared": true,
+      "within": [
+        "no-03"
+      ]
+    },
+    {
+      "id": "campus",
+      "name": "Blindern campus",
+      "type": "area",
+      "declared": true,
+      "within": [
+        "oslo",
+        "uni-district"
+      ]
+    },
+    {
+      "id": "bergen",
+      "name": "Bergen",
+      "type": "locality",
+      "declared": true,
+      "within": [
+        "no-46"
+      ]
+    },
+    {
+      "id": "greater-oslo",
+      "name": "Greater Oslo",
+      "type": "metro",
+      "declared": true,
+      "of": [
+        "no-03",
+        "no-32"
+      ]
+    },
+    {
+      "id": "nordics",
+      "name": "Nordics",
+      "type": "territory",
+      "declared": true,
+      "of": [
+        "no",
+        "se",
+        "dk",
+        "fi",
+        "is"
+      ]
+    },
+    {
+      "id": "scandinavia",
+      "name": "Scandinavia",
+      "type": "territory",
+      "declared": true,
+      "of": [
+        "no",
+        "se",
+        "dk"
+      ]
+    },
+    {
+      "id": "fornebu",
+      "name": "Fornebu",
+      "type": "area",
+      "declared": true,
+      "within": [
+        "greater-oslo"
+      ]
+    }
+  ],
+  "contains": [
+    {
+      "outer": "world",
+      "inner": "oslo",
+      "want": true
+    },
+    {
+      "outer": "europe",
+      "inner": "oslo",
+      "want": true
+    },
+    {
+      "outer": "no",
+      "inner": "oslo",
+      "want": true
+    },
+    {
+      "outer": "no-03",
+      "inner": "grunerlokka",
+      "want": true
+    },
+    {
+      "outer": "oslo",
+      "inner": "no",
+      "want": false
+    },
+    {
+      "outer": "nordics",
+      "inner": "bergen",
+      "want": true
+    },
+    {
+      "outer": "nordics",
+      "inner": "de",
+      "want": false
+    },
+    {
+      "outer": "northern-europe",
+      "inner": "nordics",
+      "want": true
+    },
+    {
+      "outer": "nordics",
+      "inner": "scandinavia",
+      "want": true
+    },
+    {
+      "outer": "scandinavia",
+      "inner": "nordics",
+      "want": false
+    },
+    {
+      "outer": "greater-oslo",
+      "inner": "grunerlokka",
+      "want": true
+    },
+    {
+      "outer": "greater-oslo",
+      "inner": "no-46",
+      "want": false
+    },
+    {
+      "outer": "no",
+      "inner": "greater-oslo",
+      "want": true
+    },
+    {
+      "outer": "oslo",
+      "inner": "greater-oslo",
+      "want": false
+    },
+    {
+      "outer": "uni-district",
+      "inner": "campus",
+      "want": true
+    },
+    {
+      "outer": "oslo",
+      "inner": "campus",
+      "want": true
+    },
+    {
+      "outer": "grunerlokka",
+      "inner": "campus",
+      "want": false
+    },
+    {
+      "outer": "western-europe",
+      "inner": "nordics",
+      "want": false
+    },
+    {
+      "outer": "no",
+      "inner": "atlantis",
+      "want": false
+    },
+    {
+      "outer": "world",
+      "inner": "atlantis",
+      "want": false
+    },
+    {
+      "outer": "atlantis",
+      "inner": "atlantis",
+      "want": true
+    },
+    {
+      "outer": "greater-oslo",
+      "inner": "fornebu",
+      "want": true
+    },
+    {
+      "outer": "no",
+      "inner": "fornebu",
+      "want": true
+    },
+    {
+      "outer": "no-03",
+      "inner": "fornebu",
+      "want": false
+    }
+  ],
+  "overlaps": [
+    {
+      "a": "oslo",
+      "b": "greater-oslo",
+      "want": true
+    },
+    {
+      "a": "oslo",
+      "b": "bergen",
+      "want": false
+    },
+    {
+      "a": "nordics",
+      "b": "scandinavia",
+      "want": true
+    },
+    {
+      "a": "greater-oslo",
+      "b": "no-46",
+      "want": false
+    },
+    {
+      "a": "greater-oslo",
+      "b": "nordics",
+      "want": true
+    },
+    {
+      "a": "oslo",
+      "b": "uni-district",
+      "want": true
+    },
+    {
+      "a": "grunerlokka",
+      "b": "uni-district",
+      "want": false
+    },
+    {
+      "a": "de",
+      "b": "nordics",
+      "want": false
+    },
+    {
+      "a": "europe",
+      "b": "nordics",
+      "want": true
+    },
+    {
+      "a": "world",
+      "b": "atlantis",
+      "want": false
+    },
+    {
+      "a": "atlantis",
+      "b": "atlantis",
+      "want": true
+    },
+    {
+      "a": "bergen",
+      "b": "scandinavia",
+      "want": true
+    },
+    {
+      "a": "fornebu",
+      "b": "oslo",
+      "want": false
+    }
+  ],
+  "paths": [
+    {
+      "id": "grunerlokka",
+      "want": [
+        "world",
+        "europe",
+        "northern-europe",
+        "no",
+        "no-03",
+        "oslo",
+        "grunerlokka"
+      ]
+    },
+    {
+      "id": "campus",
+      "want": [
+        "world",
+        "europe",
+        "northern-europe",
+        "no",
+        "no-03",
+        "oslo",
+        "campus"
+      ]
+    },
+    {
+      "id": "nordics",
+      "want": [
+        "world",
+        "europe",
+        "northern-europe",
+        "nordics"
+      ]
+    },
+    {
+      "id": "greater-oslo",
+      "want": [
+        "world",
+        "europe",
+        "northern-europe",
+        "no",
+        "greater-oslo"
+      ]
+    },
+    {
+      "id": "world",
+      "want": [
+        "world"
+      ]
+    },
+    {
+      "id": "fornebu",
+      "want": [
+        "world",
+        "europe",
+        "northern-europe",
+        "no",
+        "greater-oslo",
+        "fornebu"
+      ]
+    }
+  ]
+}

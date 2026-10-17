@@ -14,3 +14,4 @@ export * from "./compare";
 export * from "./histogram";
 export * from "./investigation";
 export * from "./tiles";
+export * from "./places";

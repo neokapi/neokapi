@@ -10,6 +10,7 @@ import { RedactionDiagram } from "./RedactionDiagram";
 import { AxisLadderDiagram } from "./AxisLadderDiagram";
 import { AxisFamiliesDiagram } from "./AxisFamiliesDiagram";
 import { CycleDiagram } from "./CycleDiagram";
+import { PlaceGraphDiagram } from "./PlaceGraphDiagram";
 import { TypeDiagram } from "./TypeDiagram";
 import { GatedLoopDiagram } from "./GatedLoopDiagram";
 import { withDiagramTheme } from "./storyEnv";
@@ -255,6 +256,34 @@ export const ConvergenceSourceLadder: Story = {
         },
       ]}
       caption="Source authoring readiness — the source-side counterpart."
+    />
+  ),
+};
+
+export const PlaceGraph: Story = {
+  name: "PlaceGraphDiagram (containment)",
+  render: () => (
+    <PlaceGraphDiagram
+      chain={[
+        { id: "world", name: "World", type: "world" },
+        { id: "europe", name: "Europe", type: "region" },
+        { id: "western-europe", name: "Western Europe", type: "region" },
+        { id: "fr", name: "France", type: "country" },
+        { id: "fr-ara", name: "Auvergne-Rhône-Alpes", type: "subdivision" },
+        { id: "fr-69m", name: "Métropole de Lyon", type: "subdivision" },
+        { id: "lyon", name: "Lyon", type: "locality", declared: true },
+      ]}
+      siblings={{ "fr-69m": [{ id: "fr-69", name: "Rhône", type: "subdivision" }] }}
+      madeOf={[
+        {
+          id: "greater-lyon",
+          name: "Greater Lyon",
+          type: "metro",
+          of: ["fr-69m", "fr-69"],
+          declared: true,
+        },
+      ]}
+      caption="A place sits within one or more places, or is made of places."
     />
   ),
 };

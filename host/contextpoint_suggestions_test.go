@@ -9,6 +9,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/axis"
 	"github.com/neokapi/neokapi/core/contextop"
+	"github.com/neokapi/neokapi/core/place"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 )
 
@@ -17,7 +18,9 @@ import (
 // the same word for another market, or one whose window has not opened, is
 // passed over.
 func TestContextSuggestions_NameTheOperationThatHoldsHere(t *testing.T) {
-	space := axis.Space{"market": {Kind: axis.KindGeo, Groups: map[string][]string{"nordics": {"no", "se"}}}}
+	places, err := place.New(map[string]place.Place{"nordics": {Name: "Nordics", Of: []string{"no", "se"}}})
+	require.NoError(t, err)
+	space := axis.NewSpace(map[string]axis.Spec{"market": {Kind: axis.KindGeo}}, places)
 	rule := coreprofile.TermRule{Term: "utilise", Replacement: "use"}
 	at := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
 	later := at.AddDate(0, 1, 0)

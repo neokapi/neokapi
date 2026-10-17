@@ -434,8 +434,10 @@ A rule answers at a point when its scope covers the point, and the project's
 `Scope.CoversIn(space, point)` holds when, for every axis the scope names, the
 point's value sits within the scope's (`axis.Space.Contains`): a rule scoped to
 `market: nordics` answers at `market: no` and not at `market: de`, and one
-scoped to `age: 13-17` answers at `14-16` and not at `18-`. An axis the space
-does not type compares by equality, and `Scope.Covers(point)` is
+scoped to `age: 13-17` answers at `14-16` and not at `18-`. On a geo axis the
+project's gazetteer answers ([C-12](c-12-places.md)), so a rule at
+`market: no` answers at `market: oslo` when the recipe declares Oslo within the
+county `no-03`. An axis the space does not type compares by equality, and `Scope.Covers(point)` is
 `CoversIn(nil, point)`. `ResolveRequest.Space` carries the space into
 `Resolve`, and every place the host filters at a point reads the same space:
 the check's suggested and binding rules, the by-location answer's notes, the
@@ -447,7 +449,8 @@ function from a project to its axis space, and the fold stamps every record
 with its project's space before settling and contest detection compare
 scopes. Two rules of one project meet where their values on every shared axis
 overlap (`axis.Space.Overlaps`): a suggestion at `market: nordics` and one at
-`market: no` meet, and so do `age: 13-17` and `age: 16-20`. A correction
+`market: no` meet, so do one at `market: greater-oslo` and one at
+`market: oslo`, and so do `age: 13-17` and `age: 16-20`. A correction
 seen at `market: no` counts for a suggestion scoped to the Nordics
 (`seenWithin` reads `CoversIn`). Rules of two projects, which can meet only
 when one is widened to the workspace, compare by equality.
@@ -537,7 +540,9 @@ cells counting the project's units by collection, language and state. Every
 record carries the coordinates of its point and the derived axes (family,
 actor, locale, region, and the project when the atlas reads every project),
 and every operation is an event on the recorded clock, beside the window
-boundaries on the effective clock. The document is a contract with the views
+boundaries on the effective clock. The atlas also carries the places its geo
+values name, with what contains them, so a map draws and filters them by the
+gazetteer's own rules. The document is a contract with the views
 that draw it; [Context atlas](../../implementation/context/context-atlas.md)
 specifies it.
 

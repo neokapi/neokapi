@@ -121,7 +121,7 @@ type ResolveRequest struct {
 	// Project is the project being checked. An operation recorded in another
 	// project answers here only if it was widened to the workspace.
 	Project workspace.ProjectKey
-	// Coordinates are the axes of the point (project.MergeCoordinates). A rule
+	// Coordinates are the axes of the point (project.CoordinatesAt). A rule
 	// scoped to coordinates answers only where they match.
 	Coordinates map[string]string
 	// Held are the terms the project's own stores already answer for: its terms
@@ -129,7 +129,8 @@ type ResolveRequest struct {
 	// left out, because the more specific rule wins.
 	Held []string
 	// Space types the project's axes (core/axis), so a rule scoped to a region
-	// answers at a country inside it. Nil compares every axis by equality.
+	// answers at a country inside it. The zero Space compares every axis by
+	// equality.
 	Space axis.Space
 	// At is the instant the resolution answers for: a rule whose lifetime
 	// window excludes it does not answer, as a profile outside its window does

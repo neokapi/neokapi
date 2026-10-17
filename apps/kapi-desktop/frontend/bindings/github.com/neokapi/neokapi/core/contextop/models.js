@@ -440,7 +440,7 @@ export class Scope {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Coordinates are the axes of the point (project.MergeCoordinates), omitted
+             * Coordinates are the axes of the point (project.CoordinatesAt), omitted
              * where the rule answers regardless of them.
              * @member
              * @type {{ [_ in string]?: string } | undefined}

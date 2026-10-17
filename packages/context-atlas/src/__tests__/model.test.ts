@@ -24,8 +24,8 @@ import {
   goBack,
   goForward,
   layoutFlow,
+  gridPlaces,
   layoutTiles,
-  mapPlaces,
   moveFlowAxis,
   parseQueryHash,
   prepareAtlas,
@@ -79,6 +79,7 @@ function data(records: AtlasRecord[], extra: Partial<AtlasData> = {}): AtlasData
         values: [{ id: "app" }, { id: "web" }],
       },
     ],
+    places: [],
     records,
     events: [],
     notes: [],
@@ -555,12 +556,12 @@ describe("flow layout", () => {
       universe: fg,
       foreground: fg,
       ctx,
-      height: 400,
+      height: 560,
       columnWidth: 220,
       minNodeHeight: 14,
       gap: 6,
     });
-    expect(layout.height).toBeLessThanOrEqual(400.001);
+    expect(layout.height).toBeLessThanOrEqual(560.001);
     for (const col of layout.columns)
       for (const n of col.nodes) expect(n.height).toBeGreaterThanOrEqual(14);
     for (const r of layout.ribbons) expect(r.thickness).toBeCloseTo(r.all.weight * layout.scale, 6);
@@ -802,11 +803,10 @@ describe("investigation export", () => {
 });
 
 describe("tiles", () => {
-  it("gives every place one tile and never two on one cell", () => {
-    const market = atlas.axisById.get("market")!;
-    const inputs = market.values
-      .filter((v) => v.centroid)
-      .map((v) => ({ id: v.id, centroid: v.centroid! }));
+  it("gives every country one tile and never two on one cell", () => {
+    const inputs = gridPlaces(atlas.places);
+    expect(inputs.map((p) => p.id)).toEqual(expect.arrayContaining(["no", "jp", "pt"]));
+    expect(inputs.every((p) => atlas.places.get(p.id)?.type === "country")).toBe(true);
     const grid = layoutTiles(inputs);
     expect(grid.tiles).toHaveLength(inputs.length);
     expect(new Set(grid.tiles.map((t) => `${t.col},${t.row}`)).size).toBe(inputs.length);
@@ -820,30 +820,6 @@ describe("tiles", () => {
     // Rough geography survives: Norway sits north of Spain, Japan east of France.
     expect(pos.get("no")!.row).toBeLessThan(pos.get("es")!.row);
     expect(pos.get("jp")!.col).toBeGreaterThan(pos.get("fr")!.col);
-  });
-
-  it("draws a group's countries once each, and knows which groups hold them", () => {
-    const placed = mapPlaces([
-      { id: "de", centroid: [51, 10] },
-      {
-        id: "nordics",
-        members: [
-          { id: "no", label: "Norway", centroid: [62, 10] },
-          { id: "se", label: "Sweden", centroid: [62, 15] },
-        ],
-      },
-      {
-        id: "northern-europe",
-        members: [
-          { id: "no", label: "Norway", centroid: [62, 10] },
-          { id: "gb", label: "United Kingdom", centroid: [54, -2] },
-        ],
-      },
-    ]);
-    expect(placed.places.map((p) => p.id)).toEqual(["de", "no", "se", "gb"]);
-    expect(placed.within.get("no")).toEqual(["nordics", "northern-europe"]);
-    expect(placed.within.get("de")).toBeUndefined();
-    expect(placed.names.get("gb")).toBe("United Kingdom");
   });
 
   it("handles nothing and one place", () => {

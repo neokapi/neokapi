@@ -25,7 +25,8 @@ type KapiProject struct {
     Flows       map[string]*flow.StepsSpec `yaml:"flows,omitempty"`
     FlowsDir    string                     `yaml:"flows_dir,omitempty"` // one YAML file per flow, relative to the recipe
     Profiles    map[string]Profile         `yaml:"profiles,omitempty"` // profile name → governance (see The context space)
-    Axes        axis.Space                 `yaml:"axes,omitempty"`     // axis name → axis.Spec: how a declared axis compares values
+    Places      map[string]place.Place     `yaml:"places,omitempty"`   // place id → a place the project declares (core/place)
+    Axes        map[string]axis.Spec       `yaml:"axes,omitempty"`     // axis name → how a declared axis compares values
 
     // Convergence gates (see the reference page, "Ship gates").
     ShipGate      gate.Gate            `yaml:"ship_gate,omitempty"`
@@ -85,8 +86,10 @@ type Collection struct {
 }
 // ContentItem additionally carries its own `base` (yaml:"base,omitempty"), the
 // directory its matched paths are made relative to for target-token expansion,
-// its own `channel`, a per-item `redaction`, and `comments` (ContentComments:
-// `true`, or a mapping carrying `directives`, `channel` and `only`).
+// its own `channel`, its own `coordinates` (declared axes refining the
+// collection's point for the files it matches), a per-item `redaction`, and
+// `comments` (ContentComments: `true`, or a mapping carrying `directives`,
+// `channel` and `only`).
 
 // Profile binds governance to one product and declares its channels.
 type Profile struct {
@@ -218,10 +221,14 @@ not act as constraint predicates. See [C-07](/contribute/architecture/context/c-
 for resolution, validation and store-update semantics.
 
 The remaining axes are **declared**. `defaults.coordinates` names the axes the
-project's content sits at unless a collection says otherwise, and a collection's
-own `coordinates:` overlays it per axis. `project.MergeCoordinates(defaults,
-derived, declared)` is the rule: most specific wins, per axis, and an empty
-value never erases a broader layer. `product` and `channel` are refused under
+project's content sits at unless a collection says otherwise, a collection's
+own `coordinates:` overlays it per axis, and a content item's `coordinates:`
+overlays the collection's for the files the item matches.
+`KapiProject.CoordinatesAt(pt, rc)` answers a point's coordinates for every
+caller: the defaults, what the governance resolved at the point derives, the
+collection's, then the claiming item's, each layer laid over the last with
+`project.MergeCoordinates`. Most specific wins, per axis, and an empty value
+never erases a broader layer. `product` and `channel` are refused under
 `coordinates:` by `project.DeclarableAxis`, because they are derived from
 `channel:`. `project.BrandAxis` (`brand`) and `project.ModeAxis` (`mode`, with
 the Diátaxis values `tutorial`, `how-to`, `reference`, `explanation` as
@@ -229,24 +236,50 @@ conventions) are the two declared axes the framework spells; any other name is
 valid ([C-02](/contribute/architecture/context/c-02-coordinates-and-governance)).
 
 A declared axis is an open category unless the top-level `axes:` block types
-it. `KapiProject.Axes` is an `axis.Space` (`core/axis`), a map from axis name
-to `axis.Spec`:
+it. `KapiProject.Axes` maps an axis name to an `axis.Spec` (`core/axis`):
 
 ```go
 type Spec struct {
-    Kind   axis.Kind           `yaml:"kind,omitempty"`   // category (default) | geo | range | ordered
-    Label  string              `yaml:"label,omitempty"`
-    Values []string            `yaml:"values,omitempty"` // closes a category axis; orders an ordered one
-    Labels map[string]string   `yaml:"labels,omitempty"`
-    Groups map[string][]string `yaml:"groups,omitempty"` // geo: named groups of countries and regions
-    Unit   string              `yaml:"unit,omitempty"`   // range: what the numbers count
+    Kind   axis.Kind         `yaml:"kind,omitempty"`   // category (default) | geo | range | ordered
+    Label  string            `yaml:"label,omitempty"`
+    Values []string          `yaml:"values,omitempty"` // closes a category axis; orders an ordered one; refused on geo and range
+    Labels map[string]string `yaml:"labels,omitempty"` // display labels per value; refused on geo
+    Unit   string            `yaml:"unit,omitempty"`   // range: what the numbers count
 }
 ```
 
-`KapiProject.AxisSpace()` returns it (nil-safe), and `Space.Contains(axis,
+A key the spec does not take fails the load by name, so a misspelt key never
+leaves an axis untyped.
+
+A geo axis holds place ids. `KapiProject.Places` declares the project's own
+places beside the built-in ones (`core/place`,
+[C-12](/contribute/architecture/context/c-12-places)):
+
+```go
+type Place struct {
+    Name     string            `yaml:"name,omitempty"`     // display name; defaults to the id
+    Names    map[string]string `yaml:"names,omitempty"`    // display names per BCP 47 locale
+    Type     place.Type        `yaml:"type,omitempty"`     // subdivision | territory | metro | locality | district | neighbourhood | postal-area | area
+    Within   []string          `yaml:"within,omitempty"`   // one id or a list
+    Of       []string          `yaml:"of,omitempty"`       // one id or a list
+    Refs     []string          `yaml:"refs,omitempty"`     // wikidata:Q585, geonames:3143244, nuts:NO081, osm:relation/406091, wof:101752073
+    Centroid *place.LatLon     `yaml:"centroid,omitempty"` // [lat, lon]
+    Shape    string            `yaml:"shape,omitempty"`    // project-relative GeoJSON file, for drawing
+}
+```
+
+The map key is the place's id. A key the place does not take fails the load.
+An empty `type` is `territory` for a place with `of:` and `area` for one with
+`within:`.
+
+`KapiProject.Gazetteer()` returns the built-in places plus the declared ones,
+built when the recipe is validated. `KapiProject.AxisSpace()` returns
+`axis.NewSpace(p.Axes, p.Gazetteer())` (nil-safe), and `Space.Contains(axis,
 outer, inner)` is what every scope match reads, so a rule scoped to
-`market: nordics` holds at `market: no`. `KapiProject.DeclaredAxisNames()`
-lists every declared axis the recipe names, typed or written.
+`market: nordics` holds at `market: no`, and one scoped to `market: no` holds
+at a city the recipe declares within `no-03`. `KapiProject.DeclaredAxisNames()`
+lists every declared axis the recipe names, typed or written, an item's
+included.
 
 `KapiProject.ResolveGovernance(collection)` resolves a collection name into a
 `ResolvedGovernance` (channel, voice binding, `TermStore`, the profile's name,
@@ -444,10 +477,18 @@ the full extension model.
 - `version` is required, must be `"v1"`. A top-level key the recipe does not
   have (`content:`, `coordinates:`) is rejected by name with a hint at the key
   that carries the intent, rather than captured as an unknown extension.
+- `places` builds the project's gazetteer (`place.New`). Each id is a slug no
+  built-in place holds. Each place names `within:` or `of:`, exactly one, and
+  every id it names is a place; no place reaches itself through them. `type`
+  is a declarable type, `names` are keyed by locale, `refs` are `scheme:value`
+  with a known scheme and a value of that scheme's shape, `centroid` lies on
+  the globe, and `shape` is a project-relative `.geojson` or `.json` path that
+  stays inside the project and names a file beside the recipe. Errors name the
+  key: `places.oslo.within: "no-3" is not a place. Did you mean no-31
+  (Østfold, Norway), ...`.
 - `axes` names slugs other than `product` and `channel`, each with a known
   kind; an ordered axis declares its values; labels name declared values; a geo
-  group names only countries, regions and other groups, shadows none of them
-  and does not contain itself (`axis.Space.Check`).
+  axis takes neither values nor labels (`axis.Space.Check`).
 - `id` is optional. When set, `ValidateID` requires `prj_` followed by 20 to 64
   characters from `a-z2-7`, which is what `NewID` mints (128 random bits as
   lowercase RFC 4648 base32, 26 characters).
@@ -460,11 +501,13 @@ the full extension model.
   - `source_only: true` is rejected when the collection or any item also
     carries a `target` or `target_languages`.
   - `coordinates` may not name `product` or `channel`.
-  - Each value under `coordinates`, like each under `defaults.coordinates`, is
-    legal for its axis as `axes:` types it (`axis.Space.Validate`): a declared
-    value of a closed axis, a country, region, `world` or group of a geo axis,
-    an interval of a range axis. The error names the key, such as
-    `collections[0]: collection "docs": coordinates.market`.
+  - Each value under `coordinates`, like each under `defaults.coordinates` and
+    an item's `coordinates`, is legal for its axis as `axes:` types it
+    (`axis.Space.Validate`): a declared value of a closed axis, a place in the
+    project's gazetteer on a geo axis, an interval of a range axis. The error
+    names the key, such as `collections[4]: collection "Oslo youth campaign":
+    content[0]: coordinates.market`. An item's `coordinates` may not name
+    `product` or `channel` either.
   - An item's `comments` is `true`, `false`, or a mapping whose keys are
     `directives`, `channel` and `only`. Each directive, there and under `defaults.comments.directives`,
     is a marker that is not empty, starts with no whitespace, holds no line
@@ -632,8 +675,19 @@ defaults:
     source: true
   coordinates:
     brand: acme
+    market: world
   voice:
     profile: acme-docs
+
+places:
+  dach:
+    name: DACH
+    of: [de, at, ch]
+
+axes:
+  market:
+    kind: geo
+    label: Market
 
 profiles:
   acme:
@@ -657,6 +711,10 @@ collections:
     target_languages: [fr, de]
     base: marketing
     content:
+      - path: "en/docs/dach/**/*.md"
+        target: "{lang}/docs/dach"
+        coordinates:
+          market: dach              # an item refines the collection's point
       - path: "en/docs/**/*.md"
         target: "{lang}/docs"
       - path: "en/site/**/*.html"

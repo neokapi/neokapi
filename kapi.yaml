@@ -523,7 +523,7 @@ collections:
       - path: "{apps/kapi-desktop/frontend,bowrain/apps/*,bowrain/apps/bowrain/frontend,bowrain/packages/*,bowrain/web/docs,bowrain/web/landing,packages/*,web}/*.{ts,tsx,js,mjs,cjs,css}"
         comments:
           only: true
-      - path: "{apps/kapi-desktop/frontend/scripts,bowrain/apps/bowrain/frontend/scripts,bowrain/emails/scripts,bowrain/web/docs/src,bowrain/web/landing/e2e,packages/*/cli,.skills,examples,.claude/workflows}/**/*.{ts,tsx,js,mjs,cjs,css}"
+      - path: "{apps/kapi-desktop/frontend/scripts,bowrain/apps/bowrain/frontend/scripts,bowrain/emails/scripts,bowrain/web/docs/src,bowrain/web/landing/e2e,packages/*/cli,packages/*/scripts,.skills,examples,.claude/workflows}/**/*.{ts,tsx,js,mjs,cjs,css}"
         comments:
           only: true
       - path: "web/{plugins,scripts}/**/*.{ts,tsx,js,mjs,cjs,css}"
@@ -568,6 +568,9 @@ collections:
         comments:
           only: true
       - path: "packages/ui/docs/**/*.{md,mdx}"
+        comments:
+          only: true
+      - path: "packages/*/src/**/*.md"
         comments:
           only: true
       - path: "{.claude,bowrain/apps/*,bowrain/web/landing/public}/*.{md,html}"

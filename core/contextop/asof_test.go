@@ -7,16 +7,30 @@ import (
 
 	"github.com/neokapi/neokapi/core/axis"
 	"github.com/neokapi/neokapi/core/contextop"
+	"github.com/neokapi/neokapi/core/place"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func day(n int) time.Time { return time.Date(2026, 3, n, 9, 0, 0, 0, time.UTC) }
 
-var atlasSpace = axis.Space{
-	"market": {Kind: axis.KindGeo, Groups: map[string][]string{"nordics": {"no", "se", "dk", "fi", "is"}}},
+// atlasPlaces declares the Nordics as a territory and Oslo as a city within
+// its county.
+var atlasPlaces = func() *place.Gazetteer {
+	g, err := place.New(map[string]place.Place{
+		"nordics": {Name: "Nordics", Of: []string{"no", "se", "dk", "fi", "is"}},
+		"oslo":    {Name: "Oslo", Type: place.TypeLocality, Within: []string{"no-03"}},
+	})
+	if err != nil {
+		panic(err)
+	}
+	return g
+}()
+
+var atlasSpace = axis.NewSpace(map[string]axis.Spec{
+	"market": {Kind: axis.KindGeo},
 	"age":    {Kind: axis.KindRange, Unit: "years"},
-}
+}, atlasPlaces)
 
 func TestScope_CoversIn(t *testing.T) {
 	tests := []struct {
@@ -25,11 +39,16 @@ func TestScope_CoversIn(t *testing.T) {
 		point map[string]string
 		want  bool
 	}{
-		{"geo group answers at a member", map[string]string{"market": "nordics"}, map[string]string{"market": "no"}, true},
+		{"geo made-of place answers at a member", map[string]string{"market": "nordics"}, map[string]string{"market": "no"}, true},
 		{"geo country answers at itself", map[string]string{"market": "no"}, map[string]string{"market": "no"}, true},
-		{"geo group is silent outside it", map[string]string{"market": "nordics"}, map[string]string{"market": "de"}, false},
+		{"geo made-of place is silent outside it", map[string]string{"market": "nordics"}, map[string]string{"market": "de"}, false},
 		{"geo country is silent at another", map[string]string{"market": "no"}, map[string]string{"market": "de"}, false},
 		{"geo country is silent at its region", map[string]string{"market": "no"}, map[string]string{"market": "nordics"}, false},
+		{"geo country answers at a declared city within it", map[string]string{"market": "no"}, map[string]string{"market": "oslo"}, true},
+		{"geo made-of place answers at a declared city", map[string]string{"market": "nordics"}, map[string]string{"market": "oslo"}, true},
+		{"geo subdivision answers at a declared city within it", map[string]string{"market": "no-03"}, map[string]string{"market": "oslo"}, true},
+		{"geo declared city is silent at its country", map[string]string{"market": "oslo"}, map[string]string{"market": "no"}, false},
+		{"geo subdivision is silent at a sibling", map[string]string{"market": "no-46"}, map[string]string{"market": "oslo"}, false},
 		{"range answers inside", map[string]string{"age": "13-17"}, map[string]string{"age": "14-16"}, true},
 		{"range is silent outside", map[string]string{"age": "13-17"}, map[string]string{"age": "18-"}, false},
 		{"untyped axis is equality", map[string]string{"brand": "a"}, map[string]string{"brand": "a"}, true},

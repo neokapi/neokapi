@@ -48,6 +48,7 @@ const sidebars: SidebarsConfig = {
         { type: "doc", id: "kapi/projects", label: "Projects" },
         { type: "doc", id: "kapi/project-store", label: "The project store" },
         { type: "doc", id: "kapi/context", label: "Context" },
+        { type: "doc", id: "kapi/places", label: "Places and markets" },
         { type: "doc", id: "kapi/context-decisions", label: "Growing context" },
         { type: "doc", id: "kapi/context-portability", label: "Sharing context" },
         { type: "doc", id: "kapi/convergence", label: "The kapi loop" },

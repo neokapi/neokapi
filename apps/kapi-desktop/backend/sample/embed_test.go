@@ -35,12 +35,26 @@ func TestScaffoldKapiMart(t *testing.T) {
 	assert.Equal(t, model.LocaleID("en"), proj.Defaults.SourceLanguage)
 	assert.Equal(t, []model.LocaleID{"de", "fr", "ja", "nb", "ar"}, proj.Defaults.TargetLanguages)
 
-	// 4 named content collections.
-	require.Len(t, proj.Collections, 4)
+	// 5 named content collections.
+	require.Len(t, proj.Collections, 5)
 	assert.Equal(t, "Website", proj.Collections[0].Name)
 	assert.Equal(t, "Online Store", proj.Collections[1].Name)
 	assert.Equal(t, "Contracts", proj.Collections[2].Name)
 	assert.Equal(t, "Templates", proj.Collections[3].Name)
+	assert.Equal(t, "Oslo youth campaign", proj.Collections[4].Name)
+	assert.Equal(t, map[string]string{"market": "oslo", "age": "13-17"}, proj.Collections[4].Coordinates)
+
+	// The places the recipe declares beside the built-in ones.
+	require.Len(t, proj.Places, 4)
+	oslo, ok := proj.Gazetteer().Place("oslo")
+	require.True(t, ok)
+	assert.Equal(t, []string{"no-03"}, oslo.Within)
+	assert.Equal(t, []string{"wikidata:Q585", "geonames:3143244"}, oslo.Refs)
+	require.NotNil(t, oslo.Centroid)
+	nordics, _ := proj.Gazetteer().Place("nordics")
+	assert.Equal(t, []string{"no", "se", "dk", "fi", "is"}, nordics.Of)
+	assert.True(t, proj.Gazetteer().Contains("greater-oslo", "grunerlokka"), "Grünerløkka sits in Oslo, which Greater Oslo is made of")
+	assert.True(t, proj.Gazetteer().Contains("no", "greater-oslo"))
 
 	// 3 flows.
 	assert.NotEmpty(t, proj.Flows)
@@ -50,6 +64,7 @@ func TestScaffoldKapiMart(t *testing.T) {
 	assertDirCount(t, filepath.Join(dir, "src", "en"), 5)
 	assertDirCount(t, filepath.Join(dir, "legal", "en"), 2)
 	assertDirCount(t, filepath.Join(dir, "marketing", "en"), 2)
+	assertDirCount(t, filepath.Join(dir, "campaigns", "oslo", "en"), 2)
 
 	// No separate output/ tree — localized files land beside source in locale dirs.
 	_, err = os.Stat(filepath.Join(dir, "output"))

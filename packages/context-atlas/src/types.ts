@@ -36,24 +36,59 @@ export type AtlasAxisKind = "category" | "geo" | "range" | "ordered";
 /** Where an axis comes from. */
 export type AtlasAxisSource = "structural" | "declared" | "derived";
 
-/** One value of an axis, in display order. */
+/** One value of an axis, in display order. On a geo axis the id is a place id. */
 export interface AtlasValue {
   id: string;
   label?: string;
-  /** Geo: the containing subregion or region. */
-  parent?: string;
-  /** Geo country: `[lat, lon]`. */
-  centroid?: [number, number];
-  /** Geo group or region: the countries it holds, for drawing where a rule scoped to it holds. */
-  members?: AtlasPlace[];
 }
 
-/** One country inside a geo group or region. */
+/** What kind of place a place is. */
+export type AtlasPlaceType =
+  | "world"
+  | "region"
+  | "country"
+  | "subdivision"
+  | "territory"
+  | "metro"
+  | "locality"
+  | "district"
+  | "neighbourhood"
+  | "postal-area"
+  | "area";
+
+/** A GeoJSON polygon or multipolygon, `[lon, lat]` positions. */
+export type AtlasGeometry =
+  | { type: "Polygon"; coordinates: number[][][] }
+  | { type: "MultiPolygon"; coordinates: number[][][][] };
+
+/**
+ * One place of the project's gazetteer: a built-in place (the world, a UN M49
+ * region, an ISO 3166 country or subdivision) or one the recipe declares.
+ * Mirrors host.AtlasPlace.
+ */
 export interface AtlasPlace {
+  /** `world`, `northern-europe`, `no`, `no-03`, `oslo`. */
   id: string;
-  label?: string;
+  /** English display name. */
+  name: string;
+  /** Unknown types arrive as strings. */
+  type: AtlasPlaceType | (string & {});
+  /** The places it sits within. */
+  within?: string[];
+  /** The places it is made of. */
+  of?: string[];
   /** `[lat, lon]`. */
-  centroid: [number, number];
+  centroid?: [number, number];
+  /** `wikidata:Q585`, `geonames:3143244`, `nuts:NO081`, `osm:relation/406091`, `wof:101752073`. */
+  refs?: string[];
+  /** Display names by BCP 47 locale, for a declared place. */
+  names?: Record<string, string>;
+  /** A declared place's shape file, project-relative. */
+  shape?: string;
+  /** That file's polygon, when it could be read. */
+  geometry?: AtlasGeometry;
+  /** Whether the recipe declares the place. */
+  declared?: boolean;
 }
 
 /** One axis of the context space. */
@@ -129,6 +164,12 @@ export interface AtlasData {
   generated_at: string;
   span: AtlasSpan;
   axes: AtlasAxis[];
+  /**
+   * Every place a geo coordinate names, with what contains it up to the
+   * world, the members of each place made of others, every declared place,
+   * and the direct children of each country and subdivision. Sorted by id.
+   */
+  places: AtlasPlace[];
   records: AtlasRecord[];
   events: AtlasEvent[];
   /** Reach, truncation, what was not read. */

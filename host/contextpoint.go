@@ -252,6 +252,10 @@ type ContextPointSources struct {
 	// Governance is the point's resolved governance, as resolved by
 	// ResolveContextGovernance. nil when there was no recipe to resolve against.
 	Governance *project.ResolvedGovernance
+	// Point is the location the governance was resolved for, the one the
+	// answer's coordinates are read at (CoordinatesAt). A by-name request
+	// leaves it without a path.
+	Point project.GovernancePoint
 	// Path is the request's location made project-relative and slash-separated;
 	// a location outside the project keeps the form the caller wrote, so the
 	// refusal can still name what was asked. Empty for the by-name form.
@@ -456,6 +460,7 @@ func (a *App) ContextSourcesAt(cmd Command, req ContextPointRequest) (ContextPoi
 		return src, noop
 	}
 	src.Governance = rc
+	src.Point = point
 
 	// The voice at the point, composed with the overrides that apply there —
 	// the same resolution `kapi voice show` and a translating run take.
@@ -706,9 +711,7 @@ func ResolveContextAt(_ context.Context, src ContextPointSources, req ContextPoi
 		res.Point.Channel = src.Governance.Channel
 		res.Point.Ref = src.Governance.Ref().String()
 		if src.Recipe != nil {
-			res.Point.Coordinates = project.MergeCoordinates(
-				src.Recipe.Defaults.Coordinates, src.Governance.Ref().Coordinates(),
-				collectionCoordinates(src.Recipe, src.Collection))
+			res.Point.Coordinates = src.Recipe.CoordinatesAt(src.Point, src.Governance)
 		}
 		// Default is a resolution outcome, so it is only meaningful when a
 		// recipe was resolved at all.

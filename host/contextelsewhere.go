@@ -230,7 +230,7 @@ func placePoints(proj *project.KapiProject, places []rulePlace, at time.Time) []
 		if err != nil {
 			continue
 		}
-		out = append(out, placePoint{place: p, profile: rc.Profile, coordinates: pointCoordinates(proj, rc, point), store: store})
+		out = append(out, placePoint{place: p, profile: rc.Profile, coordinates: proj.CoordinatesAt(point, rc), store: store})
 	}
 	return out
 }

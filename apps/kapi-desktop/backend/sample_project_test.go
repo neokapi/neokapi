@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/kapi-desktop/backend/sample"
@@ -287,6 +288,80 @@ func TestResetSampleProject_TabStaysUsable(t *testing.T) {
 	require.NoError(t, err, "convergence must be derivable immediately after a reset")
 }
 
+// TestCreateSampleProject_TheOsloCampaignSitsInOslo: the campaign's pages sit
+// at Oslo, the pick-up page at Grünerløkka inside it, and a rule kept for
+// Norway reaches both, because Oslo sits within the county of Oslo, which
+// sits within Norway.
+func TestCreateSampleProject_TheOsloCampaignSitsInOslo(t *testing.T) {
+	t.Setenv("KAPI_HOME_DIR", t.TempDir())
+	t.Setenv(host.EnvDataDir, t.TempDir())
+	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
+	app := NewApp()
+	t.Cleanup(app.shutdownEngine)
+
+	tab, err := app.CreateSampleProject("kapimart")
+	require.NoError(t, err)
+	t.Cleanup(func() { app.CloseProject(tab.ID) })
+
+	proj, err := project.Load(tab.Path)
+	require.NoError(t, err)
+	at := func(rel string) map[string]string {
+		t.Helper()
+		pt := project.GovernancePoint{Path: rel}
+		rc, err := proj.ResolveGovernanceFor(pt)
+		require.NoError(t, err)
+		return proj.CoordinatesAt(pt, rc)
+	}
+	page := at(sample.OsloCampaignPage)
+	assert.Equal(t, "oslo", page["market"])
+	assert.Equal(t, "13-17", page["age"])
+	assert.Equal(t, "marketing", page[project.ChannelAxis])
+	pickup := at("campaigns/oslo/en/grunerlokka.md")
+	assert.Equal(t, "grunerlokka", pickup["market"], "the pick-up page's item refines the campaign's point")
+	assert.Equal(t, "13-17", pickup["age"])
+
+	g := proj.Gazetteer()
+	assert.Equal(t, []string{"world", "europe", "northern-europe", "no", "no-03", "oslo", "grunerlokka"}, g.Path("grunerlokka"))
+	assert.True(t, proj.AxisSpace().Contains("market", "nordics", "oslo"))
+
+	// A rule scoped to Norway, as a person keeps one for the whole market,
+	// holds at both pages and not at a page written for the world.
+	space := proj.AxisSpace()
+	norway := contextop.Scope{Coordinates: map[string]string{"market": "no"}}
+	assert.True(t, norway.CoversIn(space, page), "a rule for Norway holds at Oslo")
+	assert.True(t, norway.CoversIn(space, pickup), "and at Grünerløkka")
+	assert.False(t, norway.CoversIn(space, at("web/en/faq.md")), "and not at the default market, the world")
+	assert.True(t, contextop.Scope{Coordinates: map[string]string{"market": "nordics", "age": "13-"}}.CoversIn(space, pickup),
+		"a rule for the Nordics and readers from 13 holds there too")
+
+	// A suggestion seen on the campaign's page reaches the pick-up page, which
+	// sits inside the campaign's Oslo, and stays out of the website.
+	engine := app.hostEngine()
+	_, err = engine.RecordContextObservation(t.Context(), host.ContextObserveRequest{
+		Actor: contextop.Actor{Kind: contextop.ActorAgent, Name: "claude-code", Session: "oslo-test"}, Project: tab.Path,
+		Text:     "The Oslo campaign names the pick-up point by its street.",
+		Evidence: []contextop.Evidence{{Path: sample.OsloCampaignPage, Quote: "collect your order from any KapiMart pick-up point"}},
+	})
+	require.NoError(t, err)
+	view, err := app.AgentContextAt(tab.ID, "campaigns/oslo/en/grunerlokka.md", 0)
+	require.NoError(t, err)
+	assert.Equal(t, "grunerlokka", view.Answer.Point.Coordinates["market"])
+	assert.Contains(t, view.Text, "The Oslo campaign names the pick-up point by its street.")
+	faq, err := app.AgentContextAt(tab.ID, "web/en/faq.md", 0)
+	require.NoError(t, err)
+	assert.NotContains(t, faq.Text, "The Oslo campaign names the pick-up point")
+
+	atlas, err := app.ProjectContextAtlas(tab.ID)
+	require.NoError(t, err)
+	var ids []string
+	for _, p := range atlas.Places {
+		ids = append(ids, p.ID)
+	}
+	assert.Contains(t, ids, "oslo")
+	assert.Contains(t, ids, "grunerlokka")
+	assert.Contains(t, ids, "nordics")
+}
+
 // TestCreateSampleProject_ArrivesWithAnAssistantSession: the sample opens with
 // the team's kept notes and the two assistant sessions recorded, the home row reads them (codex the
 // latest, one disagreement, the voice the recipe binds), and opening the
@@ -312,7 +387,7 @@ func TestCreateSampleProject_ArrivesWithAnAssistantSession(t *testing.T) {
 	require.NotNil(t, row.Context)
 	assert.Equal(t, 1, row.Context.Conflicts)
 	assert.Equal(t, 5, row.Context.Suggested, "three names, a word and a note")
-	assert.Equal(t, 5, row.Context.Rules, "the team's five kept notes; a file read in is not a rule decided in review")
+	assert.Equal(t, 6, row.Context.Rules, "the team's six kept notes; a file read in is not a rule decided in review")
 	require.NotNil(t, row.Context.Latest)
 	assert.Equal(t, "codex", row.Context.Latest.Actor.Name)
 	assert.Equal(t, 2, row.Context.Latest.Recorded)

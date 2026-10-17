@@ -155,8 +155,9 @@ export interface Pick {
 
 /**
  * The identity set a hover previews: the records among `indices` that meet
- * every pick. A preview never changes the query; the view repaints every
- * column with this set.
+ * the picks the way a filter does, one of the picked values on each picked
+ * axis. A preview never changes the query; the view repaints every column
+ * with this set.
  */
 export function previewSet(
   atlas: Atlas,
@@ -164,10 +165,23 @@ export function previewSet(
   picks: readonly Pick[],
   ctx: EvalContext,
 ): Set<number> {
+  const byAxis = new Map<string, Set<string>>();
+  for (const pk of picks) {
+    const values = byAxis.get(pk.axis) ?? new Set<string>();
+    values.add(pk.value);
+    byAxis.set(pk.axis, values);
+  }
   const out = new Set<number>();
   for (const i of indices) {
     const p = atlas.records[i];
-    if (picks.every((pk) => valueOf(p, pk.axis, ctx) === pk.value)) out.add(i);
+    let ok = true;
+    for (const [axis, values] of byAxis) {
+      if (!values.has(valueOf(p, axis, ctx))) {
+        ok = false;
+        break;
+      }
+    }
+    if (ok) out.add(i);
   }
   return out;
 }

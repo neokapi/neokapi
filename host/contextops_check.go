@@ -143,10 +143,9 @@ func (r *contextRules) pointAt(point project.GovernancePoint) (string, map[strin
 	return rc.Profile + "\x00" + rc.Channel + "\x00" + collection, coordinates, nil
 }
 
-// governedPoint resolves what governs at a point and the coordinates the
-// point sits at, which is what a rule's scope is matched against: the
-// project's own axes, the ones the governing profile and channel derive, and
-// the ones the collection declares.
+// governedPoint resolves what governs at a point, the collection holding it,
+// and the coordinates the point sits at (CoordinatesAt), which is what a
+// rule's scope is matched against.
 func governedPoint(proj *project.KapiProject, point project.GovernancePoint) (*project.ResolvedGovernance, string, map[string]string, error) {
 	rc, err := proj.ResolveGovernanceFor(point)
 	if err != nil {
@@ -156,9 +155,7 @@ func governedPoint(proj *project.KapiProject, point project.GovernancePoint) (*p
 	if point.Path != "" {
 		collection = proj.CollectionForPath(point.Path)
 	}
-	coordinates := project.MergeCoordinates(
-		proj.Defaults.Coordinates, rc.Ref().Coordinates(), collectionCoordinates(proj, collection))
-	return rc, collection, coordinates, nil
+	return rc, collection, proj.CoordinatesAt(point, rc), nil
 }
 
 // projectDeclaredTerms is every term the project's own terms store declares. A

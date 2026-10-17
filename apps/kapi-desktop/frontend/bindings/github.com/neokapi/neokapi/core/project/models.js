@@ -18,6 +18,9 @@ import * as gate$0 from "../gate/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as model$0 from "../model/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as place$0 from "../place/models.js";
 
 /**
  * AnnotationDefaults narrows which annotation types a writer draws into the
@@ -484,6 +487,17 @@ export class ContentItem {
              */
             this["comments"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Coordinates refines the collection's point for the files this item
+             * matches, per declared axis, as Channel refines its channel: an item in
+             * a campaign at the Oslo market can sit at one district of it. It is
+             * validated like a collection's coordinates (CoordinatesAt).
+             * @member
+             * @type {{ [_ in string]?: string } | undefined}
+             */
+            this["coordinates"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -498,6 +512,7 @@ export class ContentItem {
         const $$createField5_0 = $$createType1;
         const $$createField7_0 = $$createType8;
         const $$createField8_0 = $$createType9;
+        const $$createField9_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("format" in $$parsedSource) {
             $$parsedSource["format"] = $$createField1_0($$parsedSource["format"]);
@@ -510,6 +525,9 @@ export class ContentItem {
         }
         if ("comments" in $$parsedSource) {
             $$parsedSource["comments"] = $$createField8_0($$parsedSource["comments"]);
+        }
+        if ("coordinates" in $$parsedSource) {
+            $$parsedSource["coordinates"] = $$createField9_0($$parsedSource["coordinates"]);
         }
         return new ContentItem(/** @type {Partial<ContentItem>} */($$parsedSource));
     }
@@ -1268,14 +1286,26 @@ export class KapiProject {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Places declares the project's own places, by id, beside the built-in
+             * gazetteer of world, regions, countries and ISO 3166-2 subdivisions
+             * (core/place): a city, a district, a sales territory. Each one sits
+             * within places or is made of places, which is how a rule scoped to a
+             * country reaches content at a declared city. A geo axis takes their ids
+             * as values. See axes.go.
+             * @member
+             * @type {{ [_ in string]?: place$0.Place } | undefined}
+             */
+            this["places"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * Axes types the declared axes of the context space: how each one compares
              * its values (category, geo, range, ordered), which values a closed axis
-             * takes, the groups a geo axis names, and the labels a surface shows. An
-             * axis not declared here is an open category whose values compare by
-             * equality. Every coordinate the recipe writes is validated against it at
-             * load. See axes.go.
+             * takes, and the labels a surface shows. An axis not declared here is an
+             * open category whose values compare by equality. Every coordinate the
+             * recipe writes is validated against it at load. See axes.go.
              * @member
-             * @type {axis$0.Space | undefined}
+             * @type {{ [_ in string]?: axis$0.Spec } | undefined}
              */
             this["axes"] = undefined;
         }
@@ -1386,15 +1416,16 @@ export class KapiProject {
         const $$createField5_0 = $$createType29;
         const $$createField7_0 = $$createType32;
         const $$createField9_0 = $$createType34;
-        const $$createField10_0 = $$createType35;
-        const $$createField11_0 = $$createType23;
-        const $$createField12_0 = $$createType39;
+        const $$createField10_0 = $$createType36;
+        const $$createField11_0 = $$createType38;
+        const $$createField12_0 = $$createType23;
         const $$createField13_0 = $$createType40;
-        const $$createField14_0 = $$createType23;
-        const $$createField15_0 = $$createType39;
-        const $$createField16_0 = $$createType23;
-        const $$createField17_0 = $$createType41;
-        const $$createField18_0 = $$createType43;
+        const $$createField14_0 = $$createType41;
+        const $$createField15_0 = $$createType23;
+        const $$createField16_0 = $$createType40;
+        const $$createField17_0 = $$createType23;
+        const $$createField18_0 = $$createType42;
+        const $$createField19_0 = $$createType44;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("plugins" in $$parsedSource) {
             $$parsedSource["plugins"] = $$createField3_0($$parsedSource["plugins"]);
@@ -1411,32 +1442,35 @@ export class KapiProject {
         if ("profiles" in $$parsedSource) {
             $$parsedSource["profiles"] = $$createField9_0($$parsedSource["profiles"]);
         }
+        if ("places" in $$parsedSource) {
+            $$parsedSource["places"] = $$createField10_0($$parsedSource["places"]);
+        }
         if ("axes" in $$parsedSource) {
-            $$parsedSource["axes"] = $$createField10_0($$parsedSource["axes"]);
+            $$parsedSource["axes"] = $$createField11_0($$parsedSource["axes"]);
         }
         if ("ship_gate" in $$parsedSource) {
-            $$parsedSource["ship_gate"] = $$createField11_0($$parsedSource["ship_gate"]);
+            $$parsedSource["ship_gate"] = $$createField12_0($$parsedSource["ship_gate"]);
         }
         if ("ship_gates" in $$parsedSource) {
-            $$parsedSource["ship_gates"] = $$createField12_0($$parsedSource["ship_gates"]);
+            $$parsedSource["ship_gates"] = $$createField13_0($$parsedSource["ship_gates"]);
         }
         if ("gates" in $$parsedSource) {
-            $$parsedSource["gates"] = $$createField13_0($$parsedSource["gates"]);
+            $$parsedSource["gates"] = $$createField14_0($$parsedSource["gates"]);
         }
         if ("established_gate" in $$parsedSource) {
-            $$parsedSource["established_gate"] = $$createField14_0($$parsedSource["established_gate"]);
+            $$parsedSource["established_gate"] = $$createField15_0($$parsedSource["established_gate"]);
         }
         if ("established_gates" in $$parsedSource) {
-            $$parsedSource["established_gates"] = $$createField15_0($$parsedSource["established_gates"]);
+            $$parsedSource["established_gates"] = $$createField16_0($$parsedSource["established_gates"]);
         }
         if ("source_gate" in $$parsedSource) {
-            $$parsedSource["source_gate"] = $$createField16_0($$parsedSource["source_gate"]);
+            $$parsedSource["source_gate"] = $$createField17_0($$parsedSource["source_gate"]);
         }
         if ("requires" in $$parsedSource) {
-            $$parsedSource["requires"] = $$createField17_0($$parsedSource["requires"]);
+            $$parsedSource["requires"] = $$createField18_0($$parsedSource["requires"]);
         }
         if ("context" in $$parsedSource) {
-            $$parsedSource["context"] = $$createField18_0($$parsedSource["context"]);
+            $$parsedSource["context"] = $$createField19_0($$parsedSource["context"]);
         }
         return new KapiProject(/** @type {Partial<KapiProject>} */($$parsedSource));
     }
@@ -1693,7 +1727,7 @@ export class PluginStatus {
      * @returns {PluginStatus}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType45;
+        const $$createField1_0 = $$createType46;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("issues" in $$parsedSource) {
             $$parsedSource["issues"] = $$createField1_0($$parsedSource["issues"]);
@@ -1796,7 +1830,7 @@ export class Profile {
      * @returns {Profile}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType47;
+        const $$createField0_0 = $$createType48;
         const $$createField1_0 = $$createType18;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("channels" in $$parsedSource) {
@@ -1957,8 +1991,8 @@ export class ShipGateRule {
      * @returns {ShipGateRule}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType49;
-        const $$createField1_0 = $$createType50;
+        const $$createField0_0 = $$createType50;
+        const $$createField1_0 = $$createType51;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("when" in $$parsedSource) {
             $$parsedSource["when"] = $$createField0_0($$parsedSource["when"]);
@@ -2060,29 +2094,25 @@ const $$createType31 = $Create.Nullable($$createType30);
 const $$createType32 = $Create.Map($Create.Any, $$createType31);
 const $$createType33 = Profile.createFrom;
 const $$createType34 = $Create.Map($Create.Any, $$createType33);
-var $$createType35 = /** @type {(...args: any[]) => any} */(function $$initCreateType35(...args) {
-    if ($$createType35 === $$initCreateType35) {
-        $$createType35 = $$createType37;
+const $$createType35 = place$0.Place.createFrom;
+const $$createType36 = $Create.Map($Create.Any, $$createType35);
+const $$createType37 = axis$0.Spec.createFrom;
+const $$createType38 = $Create.Map($Create.Any, $$createType37);
+const $$createType39 = ShipGateRule.createFrom;
+const $$createType40 = $Create.Array($$createType39);
+const $$createType41 = $Create.Map($Create.Any, $$createType23);
+var $$createType42 = /** @type {(...args: any[]) => any} */(function $$initCreateType42(...args) {
+    if ($$createType42 === $$initCreateType42) {
+        $$createType42 = $$createType4;
     }
-    return $$createType35(...args);
+    return $$createType42(...args);
 });
-const $$createType36 = axis$0.Spec.createFrom;
-const $$createType37 = $Create.Map($Create.Any, $$createType36);
-const $$createType38 = ShipGateRule.createFrom;
-const $$createType39 = $Create.Array($$createType38);
-const $$createType40 = $Create.Map($Create.Any, $$createType23);
-var $$createType41 = /** @type {(...args: any[]) => any} */(function $$initCreateType41(...args) {
-    if ($$createType41 === $$initCreateType41) {
-        $$createType41 = $$createType4;
-    }
-    return $$createType41(...args);
-});
-const $$createType42 = ContextBackend.createFrom;
-const $$createType43 = $Create.Nullable($$createType42);
-const $$createType44 = PluginIssue.createFrom;
-const $$createType45 = $Create.Array($$createType44);
-const $$createType46 = Channel.createFrom;
-const $$createType47 = $Create.Array($$createType46);
-const $$createType48 = gate$0.Selector.createFrom;
-const $$createType49 = $Create.Nullable($$createType48);
-const $$createType50 = GateRef.createFrom;
+const $$createType43 = ContextBackend.createFrom;
+const $$createType44 = $Create.Nullable($$createType43);
+const $$createType45 = PluginIssue.createFrom;
+const $$createType46 = $Create.Array($$createType45);
+const $$createType47 = Channel.createFrom;
+const $$createType48 = $Create.Array($$createType47);
+const $$createType49 = gate$0.Selector.createFrom;
+const $$createType50 = $Create.Nullable($$createType49);
+const $$createType51 = GateRef.createFrom;

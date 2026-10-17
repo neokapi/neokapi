@@ -90,7 +90,7 @@ export const OverTime: Story = {
   },
 };
 
-/** Markets as tiles. */
+/** Markets on the map, from the world down to the project's own places. */
 export const Map: Story = { args: { initialQuery: { ...base, view: "map" } } };
 
 /** The records behind the counts. */

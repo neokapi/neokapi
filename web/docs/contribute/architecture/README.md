@@ -77,6 +77,7 @@ file, never editing a list.
 | [C-09](context/c-09-content-memory.md) | Content memory | tiered matching, entity generalization, version chains and governed reuse, the two-stage rebuild |
 | [C-10](context/c-10-redaction.md) | Redaction and clearance | the placeholder model, the local vault, the three policy readers |
 | [C-11](context/c-11-context-operations.md) | Context operations | the append-only operation log, candidates that advise, the policy for who decides |
+| [C-12](context/c-12-places.md) | Places | the gazetteer a geo axis reads, declared places, containment and overlap, the map's outlines |
 
 ## S: Surfaces
 

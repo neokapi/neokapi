@@ -358,7 +358,7 @@ const (
 // drops the project too.
 type Scope struct {
 	Level Level `json:"level,omitempty"`
-	// Coordinates are the axes of the point (project.MergeCoordinates), omitted
+	// Coordinates are the axes of the point (project.CoordinatesAt), omitted
 	// where the rule answers regardless of them.
 	Coordinates map[string]string `json:"coordinates,omitempty"`
 	// AllProfiles says a project-level rule holds under every profile of the
@@ -375,7 +375,7 @@ type Scope struct {
 // Covers reports whether a subject at this scope answers at the point given,
 // comparing every axis by equality. A coordinate the scope names must match;
 // an axis the scope leaves out is one the rule does not care about.
-func (s Scope) Covers(point map[string]string) bool { return s.CoversIn(nil, point) }
+func (s Scope) Covers(point map[string]string) bool { return s.CoversIn(axis.Space{}, point) }
 
 // CoversIn reports whether a subject at this scope answers at the point given,
 // reading each axis the way the project's axis space types it: the point's
@@ -516,7 +516,7 @@ type Record struct {
 	pending []string
 	// space types the axes of the record's project, as the reading ledger
 	// knows them (Ledger.WithAxes), so the fold compares a region with a
-	// country inside it. Nil compares values exactly.
+	// country inside it. The zero Space compares values exactly.
 	space axis.Space
 }
 

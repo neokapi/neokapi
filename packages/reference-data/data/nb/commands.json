@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-16T22:43:56Z",
+  "generatedAt": "2026-10-17T11:19:38Z",
   "commands": [
     {
       "id": "add",
@@ -628,6 +628,7 @@
         "kapi context search widget",
         "kapi context review",
         "kapi context atlas",
+        "kapi context places oslo",
         "kapi context sync"
       ],
       "offlineCapable": true,
@@ -830,6 +831,39 @@
         "kapi context note --term \"Summer sale\" --instead-of \"Spring sale\" --seen-in promo/no.md \\",
         "--point market=no --valid-to 2026-09-01",
         "kapi context note --withdraw 0n794e2gk7 --why \"recorded the wrong way round\""
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "context.places",
+      "path": [
+        "context",
+        "places"
+      ],
+      "use": "places [query]",
+      "short": "Look up the places a geo axis takes",
+      "long": "Look up places in this project's gazetteer: the world, the UN M49\nregions, the ISO 3166-1 countries and ISO 3166-2 subdivisions, and the places\nthe recipe declares under places:. A geo axis takes a place's id as its value.\n\nWith a query, list the places whose id or name matches it, ignoring case and\naccents. With --within, list the places directly below a place. With neither,\nlist the places the recipe declares. Each line gives the id, the name, the\ntype and the path from the world down.",
+      "groupID": "context-person",
+      "flags": [
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        },
+        {
+          "name": "within",
+          "usage": "list the places directly below this place, or keep the matches inside it",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi context places oslo",
+        "kapi context places --within no",
+        "kapi context places",
+        "kapi context places akershus --json"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
