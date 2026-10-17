@@ -76,14 +76,15 @@ func TestHardBreakOpeningABlockSpellsNothing(t *testing.T) {
 
 // TestHardBreakWithContentOnItsLineIsUnchanged is the control. A hard break
 // after text on the same line stays the accepted lossiness it has always been:
-// the rebuild path writes a soft break, and nothing gains a backslash.
+// the rebuild path writes a soft break, and nothing gains a backslash. The
+// continuation line keeps the indentation the reader recorded for it.
 func TestHardBreakWithContentOnItsLineIsUnchanged(t *testing.T) {
 	t.Parallel()
 	tests := []struct{ in, want string }{
 		{"a\\\nb\n", "a\nb\n"},
 		{"a  \nb\n", "a\nb\n"},
 		{"> a  \n> b\n", "> a\n> b\n"},
-		{"- a  \n  b\n", "- a\nb\n"},
+		{"- a  \n  b\n", "- a\n  b\n"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.in, func(t *testing.T) {

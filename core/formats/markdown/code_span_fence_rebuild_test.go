@@ -60,10 +60,10 @@ func TestCodeSpanFenceFitsItsContentOnRebuild(t *testing.T) {
 func TestCodeSpanFenceRebuildSpelling(t *testing.T) {
 	t.Parallel()
 	tests := []struct{ in, want string }{
-		{"` 00000``` `000000````", "```` 00000``` ````000000````\n"},
+		{"` 00000``` `000000````", "` 00000``` `000000````\n"},
 		{"`` a`b ``", "``a`b``\n"},
 		{"`` `a ``", "`` `a ``\n"},
-		{"``` `` ```", "``` `` ```\n"},
+		{"``` `` ```", "` `` `\n"},
 		{"`  a  `", "`  a  `\n"},
 		{"`a`", "`a`\n"},
 	}
