@@ -3,6 +3,10 @@ package terms
 import (
 	"sort"
 	"strings"
+	"time"
+
+	"github.com/neokapi/neokapi/core/axis"
+	"github.com/neokapi/neokapi/core/graph"
 )
 
 // PropProfile is the concept property naming the profile a concept is scoped
@@ -79,19 +83,59 @@ func AtProfile(concepts []Concept, profile string) []Concept {
 // point does not sit at. Every axis a concept names must have the same value
 // at the point; an axis it leaves out is one it holds across.
 func AtPoint(concepts []Concept, profile string, coordinates map[string]string) []Concept {
+	return AtPointIn(concepts, profile, coordinates, axis.Space{})
+}
+
+// AtPointIn is AtPoint reading each axis the way a project's axis space types
+// it: the point's value must sit within the concept's (axis.Space.Contains),
+// so a concept scoped to a market of nordics holds at no. An axis the space
+// does not type compares by equality.
+func AtPointIn(concepts []Concept, profile string, coordinates map[string]string, space axis.Space) []Concept {
 	out := make([]Concept, 0, len(concepts))
 	for _, c := range AtProfile(concepts, profile) {
-		if coversPoint(c.Coordinates(), coordinates) {
+		if coversPoint(space, c.Coordinates(), coordinates) {
 			out = append(out, c)
 		}
 	}
 	return out
 }
 
+// InForceAt keeps, of each concept, the terms whose validity window holds at
+// an instant, and drops a concept none of whose terms do. A term past its
+// valid_to stops answering, as a profile outside its window stops governing.
+// The zero instant keeps everything.
+func InForceAt(concepts []Concept, at time.Time) []Concept {
+	if at.IsZero() {
+		return concepts
+	}
+	scope := graph.ScopeAt(at)
+	out := make([]Concept, 0, len(concepts))
+	for _, c := range concepts {
+		held := c.Terms[:0:0]
+		for _, t := range c.Terms {
+			if t.Validity.Matches(scope) {
+				held = append(held, t)
+			}
+		}
+		if len(held) == 0 && len(c.Terms) > 0 {
+			continue
+		}
+		if len(held) != len(c.Terms) {
+			c.Terms = held
+		}
+		out = append(out, c)
+	}
+	return out
+}
+
 // coversPoint reports whether a scope's coordinates all hold at a point.
-func coversPoint(scope, point map[string]string) bool {
-	for axis, want := range scope {
-		if point[axis] != want {
+func coversPoint(space axis.Space, scope, point map[string]string) bool {
+	for name, want := range scope {
+		got := point[name]
+		if got == want {
+			continue
+		}
+		if got == "" || !space.Contains(name, want, got) {
 			return false
 		}
 	}

@@ -57,6 +57,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neokapi/neokapi/core/axis"
 	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/workspace"
 )
@@ -357,26 +358,61 @@ const (
 // drops the project too.
 type Scope struct {
 	Level Level `json:"level,omitempty"`
-	// Coordinates are the axes of the point (project.MergeCoordinates), omitted
+	// Coordinates are the axes of the point (project.CoordinatesAt), omitted
 	// where the rule answers regardless of them.
 	Coordinates map[string]string `json:"coordinates,omitempty"`
 	// AllProfiles says a project-level rule holds under every profile of the
 	// project, rather than under the profile its evidence was seen under
 	// (Basis.Profile). A person sets it by widening the rule to the project.
 	AllProfiles bool `json:"all_profiles,omitempty"`
+	// ValidFrom and ValidTo bound the subject's lifetime: it answers from
+	// ValidFrom (inclusive) until ValidTo (exclusive), the half-open window
+	// profiles, terms and graph edges carry (graph.Validity). Nil is unbounded.
+	ValidFrom *time.Time `json:"valid_from,omitempty"`
+	ValidTo   *time.Time `json:"valid_to,omitempty"`
 }
 
-// Covers reports whether a subject at this scope answers at the point given.
-// A coordinate the scope names must match; an axis the scope leaves out is one
-// the rule does not care about.
-func (s Scope) Covers(point map[string]string) bool {
-	for axis, want := range s.Coordinates {
-		if point[axis] != want {
+// Covers reports whether a subject at this scope answers at the point given,
+// comparing every axis by equality. A coordinate the scope names must match;
+// an axis the scope leaves out is one the rule does not care about.
+func (s Scope) Covers(point map[string]string) bool { return s.CoversIn(axis.Space{}, point) }
+
+// CoversIn reports whether a subject at this scope answers at the point given,
+// reading each axis the way the project's axis space types it: the point's
+// value must sit within the scope's (axis.Space.Contains), so a rule scoped to
+// a market of nordics answers at no, and one scoped to an age of 13-17 answers
+// at 14-16. An axis the space does not type compares by equality, which is
+// what Covers does for every axis.
+func (s Scope) CoversIn(space axis.Space, point map[string]string) bool {
+	for name, want := range s.Coordinates {
+		got := point[name]
+		if got == want {
+			continue
+		}
+		if got == "" || !space.Contains(name, want, got) {
 			return false
 		}
 	}
 	return true
 }
+
+// InForce reports whether the scope's lifetime window holds at an instant. The
+// zero instant is the as-declared view, where every window holds.
+func (s Scope) InForce(at time.Time) bool {
+	if at.IsZero() {
+		return true
+	}
+	if s.ValidFrom != nil && at.Before(*s.ValidFrom) {
+		return false
+	}
+	if s.ValidTo != nil && !at.Before(*s.ValidTo) {
+		return false
+	}
+	return true
+}
+
+// Windowed reports whether the scope bounds its lifetime at all.
+func (s Scope) Windowed() bool { return s.ValidFrom != nil || s.ValidTo != nil }
 
 // Describe renders a scope for a log line.
 func (s Scope) Describe() string {
@@ -387,15 +423,32 @@ func (s Scope) Describe() string {
 	if s.AllProfiles && level == LevelProject {
 		level += " (every profile)"
 	}
-	if len(s.Coordinates) == 0 {
-		return string(level)
+	out := string(level)
+	if len(s.Coordinates) > 0 {
+		axes := make([]string, 0, len(s.Coordinates))
+		for name, value := range s.Coordinates {
+			axes = append(axes, name+"="+value)
+		}
+		sortStrings(axes)
+		out += " " + strings.Join(axes, ",")
 	}
-	axes := make([]string, 0, len(s.Coordinates))
-	for axis, value := range s.Coordinates {
-		axes = append(axes, axis+"="+value)
+	if s.ValidFrom != nil {
+		out += " from " + describeInstant(*s.ValidFrom)
 	}
-	sortStrings(axes)
-	return string(level) + " " + strings.Join(axes, ",")
+	if s.ValidTo != nil {
+		out += " until " + describeInstant(*s.ValidTo)
+	}
+	return out
+}
+
+// describeInstant renders a window bound as a person wrote it: a bare date for
+// midnight UTC, an RFC3339 instant otherwise.
+func describeInstant(t time.Time) string {
+	t = t.UTC()
+	if t.Hour() == 0 && t.Minute() == 0 && t.Second() == 0 && t.Nanosecond() == 0 {
+		return t.Format(time.DateOnly)
+	}
+	return t.Format(time.RFC3339)
 }
 
 // Record is one operation as the log holds it.
@@ -461,6 +514,10 @@ type Record struct {
 	// when the log supports establishing it and no establish operation has
 	// recorded that yet. Ledger.Settle records it.
 	pending []string
+	// space types the axes of the record's project, as the reading ledger
+	// knows them (Ledger.WithAxes), so the fold compares a region with a
+	// country inside it. The zero Space compares values exactly.
+	space axis.Space
 }
 
 // Rule is the term rule this operation states, with the scope it answers at,

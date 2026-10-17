@@ -2,6 +2,7 @@ package host
 
 import (
 	"context"
+	"time"
 
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/contextop"
@@ -66,7 +67,7 @@ func (a *App) newContextRules(cmd Command, recipePath string) (*contextRules, er
 		return nil, err
 	}
 	key := workspace.ProjectKey(identity)
-	records, err := contextop.NewLedger(ws, contextop.PersonDecides).Records(ctx, contextop.Filter{})
+	records, err := a.contextLedger(ctx, ws).Records(ctx, contextop.Filter{})
 	if err != nil {
 		return nil, err
 	}
@@ -104,6 +105,10 @@ func (r *contextRules) at(point project.GovernancePoint) (contextop.Resolution, 
 	if err != nil {
 		return contextop.Resolution{}, err
 	}
+	// A rule's window is read at the point's instant, the run's governance
+	// instant for a check, so the instant is part of what a resolution is
+	// cached under.
+	key += "\x00" + point.At.UTC().Format(time.RFC3339Nano)
 	if held, ok := r.cache[key]; ok {
 		return held, nil
 	}
@@ -111,6 +116,8 @@ func (r *contextRules) at(point project.GovernancePoint) (contextop.Resolution, 
 		Project:     r.key,
 		Coordinates: coordinates,
 		Held:        r.held,
+		Space:       r.proj.AxisSpace(),
+		At:          point.At,
 	})
 	r.cache[key] = resolved
 	return resolved, nil
@@ -136,10 +143,9 @@ func (r *contextRules) pointAt(point project.GovernancePoint) (string, map[strin
 	return rc.Profile + "\x00" + rc.Channel + "\x00" + collection, coordinates, nil
 }
 
-// governedPoint resolves what governs at a point and the coordinates the
-// point sits at, which is what a rule's scope is matched against: the
-// project's own axes, the ones the governing profile and channel derive, and
-// the ones the collection declares.
+// governedPoint resolves what governs at a point, the collection holding it,
+// and the coordinates the point sits at (CoordinatesAt), which is what a
+// rule's scope is matched against.
 func governedPoint(proj *project.KapiProject, point project.GovernancePoint) (*project.ResolvedGovernance, string, map[string]string, error) {
 	rc, err := proj.ResolveGovernanceFor(point)
 	if err != nil {
@@ -149,9 +155,7 @@ func governedPoint(proj *project.KapiProject, point project.GovernancePoint) (*p
 	if point.Path != "" {
 		collection = proj.CollectionForPath(point.Path)
 	}
-	coordinates := project.MergeCoordinates(
-		proj.Defaults.Coordinates, rc.Ref().Coordinates(), collectionCoordinates(proj, collection))
-	return rc, collection, coordinates, nil
+	return rc, collection, proj.CoordinatesAt(point, rc), nil
 }
 
 // projectDeclaredTerms is every term the project's own terms store declares. A

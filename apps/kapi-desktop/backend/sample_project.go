@@ -184,6 +184,32 @@ func (a *App) AcknowledgeSampleRevision(tabID string) error {
 	return sample.SetManifestRevision(dir, sample.CurrentRevision(m.Sample))
 }
 
+// refreshStaleSample replaces a sample that an older version of the app
+// scaffolded and whose recipe this version no longer loads: it moves the
+// directory aside as a backup and scaffolds the current sample in its place.
+// It touches nothing and reports false for a directory that is not a sample,
+// or a sample already at the current revision, so a recipe a person edited
+// into an error is reported rather than replaced.
+func (a *App) refreshStaleSample(dir string) (name, backup string, refreshed bool, err error) {
+	m, ok := sample.ReadManifest(dir)
+	if !ok || sample.CurrentRevision(m.Sample) <= m.Revision {
+		return "", "", false, nil
+	}
+	if err := a.hostEngine().CloseProjectDB(dir); err != nil {
+		return "", "", false, fmt.Errorf("release the sample's store: %w", err)
+	}
+	backup = backupSampleDir(dir, m.Revision)
+	if err := os.Rename(dir, backup); err != nil {
+		return "", "", false, fmt.Errorf("back up sample: %w", err)
+	}
+	if err := sample.Scaffold(m.Sample, dir); err != nil {
+		return "", "", false, fmt.Errorf("re-scaffold sample: %w", err)
+	}
+	a.logger.Printf("sample %q r%d no longer loads; refreshed to r%d, backed up to %s",
+		m.Sample, m.Revision, sample.CurrentRevision(m.Sample), backup)
+	return m.Sample, backup, true, nil
+}
+
 // resetProjectStore deletes a project's local store, first releasing the handle
 // this process holds for it — a file removed under an open pool is still open,
 // and the next writer would carry on into an unlinked inode.

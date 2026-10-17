@@ -2,10 +2,13 @@ package backend
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/kapi-desktop/backend/sample"
@@ -287,8 +290,82 @@ func TestResetSampleProject_TabStaysUsable(t *testing.T) {
 	require.NoError(t, err, "convergence must be derivable immediately after a reset")
 }
 
+// TestCreateSampleProject_TheOsloCampaignSitsInOslo: the campaign's pages sit
+// at Oslo, the pick-up page at Grünerløkka inside it, and a rule kept for
+// Norway reaches both, because Oslo sits within the county of Oslo, which
+// sits within Norway.
+func TestCreateSampleProject_TheOsloCampaignSitsInOslo(t *testing.T) {
+	t.Setenv("KAPI_HOME_DIR", t.TempDir())
+	t.Setenv(host.EnvDataDir, t.TempDir())
+	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
+	app := NewApp()
+	t.Cleanup(app.shutdownEngine)
+
+	tab, err := app.CreateSampleProject("kapimart")
+	require.NoError(t, err)
+	t.Cleanup(func() { app.CloseProject(tab.ID) })
+
+	proj, err := project.Load(tab.Path)
+	require.NoError(t, err)
+	at := func(rel string) map[string]string {
+		t.Helper()
+		pt := project.GovernancePoint{Path: rel}
+		rc, err := proj.ResolveGovernanceFor(pt)
+		require.NoError(t, err)
+		return proj.CoordinatesAt(pt, rc)
+	}
+	page := at(sample.OsloCampaignPage)
+	assert.Equal(t, "oslo", page["market"])
+	assert.Equal(t, "13-17", page["age"])
+	assert.Equal(t, "marketing", page[project.ChannelAxis])
+	pickup := at("campaigns/oslo/en/grunerlokka.md")
+	assert.Equal(t, "grunerlokka", pickup["market"], "the pick-up page's item refines the campaign's point")
+	assert.Equal(t, "13-17", pickup["age"])
+
+	g := proj.Gazetteer()
+	assert.Equal(t, []string{"world", "europe", "northern-europe", "no", "no-03", "oslo", "grunerlokka"}, g.Path("grunerlokka"))
+	assert.True(t, proj.AxisSpace().Contains("market", "nordics", "oslo"))
+
+	// A rule scoped to Norway, as a person keeps one for the whole market,
+	// holds at both pages and not at a page written for the world.
+	space := proj.AxisSpace()
+	norway := contextop.Scope{Coordinates: map[string]string{"market": "no"}}
+	assert.True(t, norway.CoversIn(space, page), "a rule for Norway holds at Oslo")
+	assert.True(t, norway.CoversIn(space, pickup), "and at Grünerløkka")
+	assert.False(t, norway.CoversIn(space, at("web/en/faq.md")), "and not at the default market, the world")
+	assert.True(t, contextop.Scope{Coordinates: map[string]string{"market": "nordics", "age": "13-"}}.CoversIn(space, pickup),
+		"a rule for the Nordics and readers from 13 holds there too")
+
+	// A suggestion seen on the campaign's page reaches the pick-up page, which
+	// sits inside the campaign's Oslo, and stays out of the website.
+	engine := app.hostEngine()
+	_, err = engine.RecordContextObservation(t.Context(), host.ContextObserveRequest{
+		Actor: contextop.Actor{Kind: contextop.ActorAgent, Name: "claude-code", Session: "oslo-test"}, Project: tab.Path,
+		Text:     "The Oslo campaign names the pick-up point by its street.",
+		Evidence: []contextop.Evidence{{Path: sample.OsloCampaignPage, Quote: "collect your order from any KapiMart pick-up point"}},
+	})
+	require.NoError(t, err)
+	view, err := app.AgentContextAt(tab.ID, "campaigns/oslo/en/grunerlokka.md", 0)
+	require.NoError(t, err)
+	assert.Equal(t, "grunerlokka", view.Answer.Point.Coordinates["market"])
+	assert.Contains(t, view.Text, "The Oslo campaign names the pick-up point by its street.")
+	faq, err := app.AgentContextAt(tab.ID, "web/en/faq.md", 0)
+	require.NoError(t, err)
+	assert.NotContains(t, faq.Text, "The Oslo campaign names the pick-up point")
+
+	atlas, err := app.ProjectContextAtlas(tab.ID)
+	require.NoError(t, err)
+	var ids []string
+	for _, p := range atlas.Places {
+		ids = append(ids, p.ID)
+	}
+	assert.Contains(t, ids, "oslo")
+	assert.Contains(t, ids, "grunerlokka")
+	assert.Contains(t, ids, "nordics")
+}
+
 // TestCreateSampleProject_ArrivesWithAnAssistantSession: the sample opens with
-// the two assistant sessions recorded, the home row reads them (codex the
+// the team's kept notes and the two assistant sessions recorded, the home row reads them (codex the
 // latest, one disagreement, the voice the recipe binds), and opening the
 // sample again records nothing more.
 func TestCreateSampleProject_ArrivesWithAnAssistantSession(t *testing.T) {
@@ -312,7 +389,7 @@ func TestCreateSampleProject_ArrivesWithAnAssistantSession(t *testing.T) {
 	require.NotNil(t, row.Context)
 	assert.Equal(t, 1, row.Context.Conflicts)
 	assert.Equal(t, 5, row.Context.Suggested, "three names, a word and a note")
-	assert.Zero(t, row.Context.Rules, "a file read in is not a rule decided in review")
+	assert.Equal(t, 6, row.Context.Rules, "the team's six kept notes; a file read in is not a rule decided in review")
 	require.NotNil(t, row.Context.Latest)
 	assert.Equal(t, "codex", row.Context.Latest.Actor.Name)
 	assert.Equal(t, 2, row.Context.Latest.Recorded)
@@ -326,4 +403,65 @@ func TestCreateSampleProject_ArrivesWithAnAssistantSession(t *testing.T) {
 	after, err := app.hostEngine().ContextOperations(t.Context(), host.ContextLogRequest{Project: tab.Path})
 	require.NoError(t, err)
 	assert.Len(t, after.Operations, len(before.Operations), "the sessions are recorded once")
+}
+
+// A sample an older app scaffolded may carry a recipe this version refuses (a
+// key the schema no longer takes). Opening it from the workspace home or the
+// recent list refreshes it to the current sample and keeps the old copy; a
+// sample at the current revision, and a project that is not a sample, report
+// the error and are left as they are.
+func TestOpenProject_RefreshesAStaleSampleThatNoLongerLoads(t *testing.T) {
+	t.Setenv(host.EnvDataDir, t.TempDir())
+	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
+	breakRecipe := func(t *testing.T, kapiPath string) {
+		t.Helper()
+		raw, err := os.ReadFile(kapiPath)
+		require.NoError(t, err)
+		broken := strings.Replace(string(raw), "    kind: geo\n", "    kind: geo\n    groups:\n      nordics: [no, se, dk, fi, is]\n", 1)
+		require.NotEqual(t, string(raw), broken)
+		require.NoError(t, os.WriteFile(kapiPath, []byte(broken), 0o644))
+		_, err = project.Load(kapiPath)
+		require.ErrorContains(t, err, `an axis takes no key "groups"`)
+	}
+
+	t.Run("an older sample is refreshed and backed up", func(t *testing.T) {
+		dir := filepath.Join(t.TempDir(), "KapiMart")
+		require.NoError(t, sample.Scaffold("kapimart", dir))
+		kapiPath := filepath.Join(dir, "kapi.yaml")
+		breakRecipe(t, kapiPath)
+		old := sample.CurrentRevision("kapimart") - 1
+		require.NoError(t, sample.SetManifestRevision(dir, old))
+
+		app := NewApp()
+		tab, err := app.OpenProject(kapiPath)
+		require.NoError(t, err)
+		t.Cleanup(func() { app.CloseProject(tab.ID) })
+
+		_, err = project.Load(kapiPath)
+		require.NoError(t, err, "the refreshed recipe loads")
+		assert.False(t, app.GetSampleInfo(tab.ID).UpgradeAvailable)
+		backup, err := os.ReadFile(filepath.Join(fmt.Sprintf("%s (backup r%d)", dir, old), "kapi.yaml"))
+		require.NoError(t, err, "the old copy is kept")
+		assert.Contains(t, string(backup), "groups:")
+	})
+
+	t.Run("a current sample keeps its error", func(t *testing.T) {
+		dir := filepath.Join(t.TempDir(), "KapiMart")
+		require.NoError(t, sample.Scaffold("kapimart", dir))
+		kapiPath := filepath.Join(dir, "kapi.yaml")
+		breakRecipe(t, kapiPath)
+
+		_, err := NewApp().OpenProject(kapiPath)
+		require.ErrorContains(t, err, `an axis takes no key "groups"`)
+		raw, _ := os.ReadFile(kapiPath)
+		assert.Contains(t, string(raw), "groups:", "a recipe a person edited is left as it is")
+	})
+
+	t.Run("a project that is not a sample keeps its error", func(t *testing.T) {
+		kapiPath := filepath.Join(t.TempDir(), "kapi.yaml")
+		require.NoError(t, os.WriteFile(kapiPath, []byte("version: v1\nname: x\naxes:\n  market:\n    kind: geo\n    groups: {nordics: [no]}\n"), 0o644))
+
+		_, err := NewApp().OpenProject(kapiPath)
+		require.ErrorContains(t, err, `an axis takes no key "groups"`)
+	})
 }

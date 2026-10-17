@@ -1,0 +1,256 @@
+---
+sidebar_position: 4
+title: Place content in markets and areas
+description: "Declare the cities, territories and areas your content is written for, put a collection at a market and a reader age, and a rule kept for a country reaches the content at every place inside it. Look a place up with kapi context places and see it on the Explore map."
+keywords: [kapi, places, market, geo axis, coordinates, city, territory, ISO 3166-2, subdivision, kapi context places, within, made of, map, explore]
+---
+
+import { PlaceGraphDiagram } from "@neokapi/docs-shared";
+
+# Place content in markets and areas
+
+A campaign written for teenagers in Oslo and a price list for the Nordic
+countries are each written for a place. kapi records that place as a point on a **geo axis**, and a rule
+kept for a wider place holds for the content at every place inside it. A rule
+kept for Norway reaches the Oslo campaign without a copy for Oslo.
+
+This guide walks through the KapiMart sample, which Kapi Desktop opens with
+**Try the sample**. Run the commands in its folder.
+
+## Look a place up
+
+A geo axis takes **place ids**. kapi knows the world, the UN regions, every
+country and every country's subdivisions (counties, states, provinces).
+Countries and subdivisions go by their ISO codes in lower case. Look one up by
+name or id:
+
+```bash
+kapi context places oslo
+```
+
+```
+oslo          Oslo          locality     world › europe › northern-europe › no › no-03 › oslo
+no-03         Oslo          subdivision  world › europe › northern-europe › no › no-03
+greater-oslo  Greater Oslo  metro        world › europe › northern-europe › no › greater-oslo
+```
+
+Each line gives the id, the name, the type and the path from the world down.
+`no` is Norway and `no-03` is the county of Oslo. The other two places come
+from the sample's recipe. `--within <id>` lists the places directly below one
+place, and `--json` prints the answer as data.
+
+## Declare your own places
+
+A city, a neighbourhood or a sales territory is a place you declare under
+`places:` in `kapi.yaml`. Each place either **sits within** places or **is
+made of** places:
+
+```yaml title="kapi.yaml"
+places:
+  nordics:
+    name: Nordics
+    of: [no, se, dk, fi, is]
+  oslo:
+    name: Oslo
+    type: locality
+    within: no-03
+    centroid: [59.91, 10.75]
+    refs: [wikidata:Q585, geonames:3143244]
+  grunerlokka:
+    name: Grünerløkka
+    type: neighbourhood
+    within: oslo
+  greater-oslo:
+    name: Greater Oslo
+    type: metro
+    of: [no-03, no-32]
+```
+
+<PlaceGraphDiagram
+  chain={[
+    { id: "world", name: "World", type: "world" },
+    { id: "europe", name: "Europe", type: "region" },
+    { id: "northern-europe", name: "Northern Europe", type: "region" },
+    { id: "no", name: "Norway", type: "country" },
+    { id: "no-03", name: "Oslo", type: "subdivision" },
+    { id: "oslo", name: "Oslo", type: "locality", declared: true },
+    { id: "grunerlokka", name: "Grünerløkka", type: "neighbourhood", declared: true },
+  ]}
+  siblings={{
+    no: [
+      { id: "se", name: "Sweden", type: "country" },
+      { id: "dk", name: "Denmark", type: "country" },
+      { id: "fi", name: "Finland", type: "country" },
+      { id: "is", name: "Iceland", type: "country" },
+    ],
+    "no-03": [{ id: "no-32", name: "Akershus", type: "subdivision" }],
+  }}
+  madeOf={[
+    { id: "nordics", name: "Nordics", type: "territory", of: ["no", "se", "dk", "fi", "is"], declared: true },
+    { id: "greater-oslo", name: "Greater Oslo", type: "metro", of: ["no-03", "no-32"], declared: true },
+  ]}
+/>
+
+Oslo sits within the county `no-03`, so everything kapi knows about Norway
+holds there too. The Nordics are made of five countries, so a rule for the
+Nordics holds in each of them. Greater Oslo is made of two counties, and
+anything at Oslo or Grünerløkka sits inside it.
+
+What contains what comes from these lines alone. A `centroid` and a `shape`
+file only tell the map where to draw a place.
+
+`type` names the kind of place (`locality`, `district`, `neighbourhood`,
+`metro`, `territory` and others); a place made of places is a `territory` when
+you leave it out. `refs` record the place's ids in Wikidata, GeoNames and
+similar gazetteers. The [project file reference](/reference/project-file#places)
+lists every key.
+
+## Make the market a geo axis
+
+Name the axis under `axes:` and give it `kind: geo`. The axis then takes place
+ids, and kapi checks every value against them when it loads the recipe:
+
+```yaml title="kapi.yaml"
+axes:
+  market:
+    kind: geo
+    label: Market
+  age:
+    kind: range
+    label: Reader age
+    unit: years
+```
+
+## Put content at a place
+
+A collection sits at a market the way it sits at a brand. The sample's Oslo
+youth campaign is written for readers aged 13 to 17 in Oslo, and its pick-up
+page is about one neighbourhood, so that item sits at Grünerløkka:
+
+```yaml title="kapi.yaml"
+collections:
+  - name: Oslo youth campaign
+    base: campaigns/oslo
+    channel: kapimart/marketing
+    coordinates:
+      market: oslo
+      age: 13-17
+    content:
+      - path: "en/grunerlokka.md"
+        target: "{lang}"
+        coordinates:
+          market: grunerlokka
+      - path: "en/*.md"
+        target: "{lang}"
+```
+
+A value that names no place stops the load and says what would work:
+
+```
+Error: invalid project file: collections[4]: collection "Oslo youth campaign": coordinates.market: axis market: "Oslo" is not a place. Write it in lower case: oslo
+```
+
+With no arguments, `kapi context places` lists the places your recipe
+declares:
+
+```bash
+kapi context places
+```
+
+```
+greater-oslo  Greater Oslo  metro          world › europe › northern-europe › no › greater-oslo
+grunerlokka   Grünerløkka   neighbourhood  world › europe › northern-europe › no › no-03 › oslo › grunerlokka
+nordics       Nordics       territory      world › europe › northern-europe › nordics
+oslo          Oslo          locality       world › europe › northern-europe › no › no-03 › oslo
+```
+
+## Keep a rule for Norway
+
+In Norway the address form asks for the county, where other markets ask for a
+state or province. Note it from the store's strings and place it in Norway:
+
+```bash
+kapi context note --term County --instead-of "State / Province" \
+  --seen-in src/en/checkout-flow.json --point market=no
+```
+
+```
+#0q9cg2vjqx  2026-10-17T11:32:41Z  person  observe  term "County", not "State / Province"  [suggested]
+```
+
+A note holds where its evidence was seen: here, the store's strings, at the
+`kapimart/store` channel. `--point market=no` narrows it from the store's
+`market: world` to Norway. The Oslo campaign ships on the marketing channel,
+so the note reaches none of its pages yet. Keep it, and apply it past the channel it
+was seen on:
+
+```bash
+kapi context review --keep 0q9cg2vjqx --widen-to channel
+```
+
+```
+#0q9cg9507h  2026-10-17T11:32:48Z  person  keep  of #0q9cg2vjqx
+  written to the project's terms store
+```
+
+Your id differs; `kapi context review` lists the waiting suggestions with
+theirs.
+
+## See it reach the Oslo content
+
+Ask what applies to the campaign's page:
+
+```bash
+kapi context campaigns/oslo/en/summer-pass.md
+```
+
+```
+Say this, not that:
+...
+- County, not "State / Province" [en]
+...
+```
+
+The rule was kept for Norway, the page sits at Oslo, and Oslo sits within
+Norway, so the rule holds there. It holds at the Grünerløkka page as well. The
+store's strings sit at `market: world`, wider than Norway, so the rule stays
+out of them, and kapi says so:
+
+```bash
+kapi context src/en/checkout-flow.json
+```
+
+```
+Keep as it is in this file:
+- "State / Province" is correct here; do not rename it to "County". That rename holds only in campaigns/oslo/en/.
+```
+
+## See it on the map
+
+Open the sample in Kapi Desktop, choose **Explore** in the Context hub, and
+open **Map**. The map opens at the narrowest place, a country at most, that
+holds every record, and drills down from there:
+
+1. Click **Norway** to see its counties. The county of Oslo is filled by the
+   records that sit there; the others are hatched where a rule kept for
+   Norway or the Nordics holds.
+2. Click **Oslo** to see the places the recipe declares inside it. Oslo is
+   drawn as a circle at its centroid. A declared place with a `shape:` file is
+   drawn by its outline, and one with neither is listed beside the map.
+3. Hover **Greater Oslo** beside the map to outline the two counties it is
+   made of. Click a place to keep only the records that hold there.
+
+**Grid** draws one equal tile per country instead, so a large country weighs
+the same as a small one. [Explore your
+context](/kapi/desktop/recipes/explore-your-context) walks through the rest of
+the view.
+
+## Next steps
+
+- [Project file reference](/reference/project-file#places): every key of
+  `places:`, and the messages a recipe load gives.
+- [`kapi context places`](/reference/commands/context-places): the command and
+  its flags.
+- [Growing context](/kapi/context-decisions): notes, review, and widening a
+  rule.
+- [Context](/kapi/context#further-axes): the axes a project declares.

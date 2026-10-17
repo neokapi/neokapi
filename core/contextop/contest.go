@@ -4,6 +4,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/axis"
 	"github.com/neokapi/neokapi/core/profile"
 )
 
@@ -137,17 +138,37 @@ func markContested(r *Record, by string) {
 	}
 }
 
-// meet reports whether two records answer at a common point: the same project,
-// or either widened to the workspace, and no coordinate they both name set to
-// different values.
+// meet reports whether two records answer at a common point and a common
+// instant: the same project, or either widened to the workspace; no coordinate
+// they both name set to values that cannot meet (within one project, a region
+// meets a country inside it and two age ranges meet where they overlap); and
+// lifetime windows that share an instant. A rule that ends the day another
+// begins never disagrees with it.
 func meet(a, b Record) bool {
 	if a.Project != b.Project && a.Scope.Level != LevelWorkspace && b.Scope.Level != LevelWorkspace {
 		return false
 	}
-	for axis, value := range a.Scope.Coordinates {
-		if other, ok := b.Scope.Coordinates[axis]; ok && other != value {
+	var space axis.Space
+	if a.Project == b.Project {
+		space = a.space
+	}
+	for name, value := range a.Scope.Coordinates {
+		if other, ok := b.Scope.Coordinates[name]; ok && other != value && !space.Overlaps(name, value, other) {
 			return false
 		}
+	}
+	return windowsMeet(a.Scope, b.Scope)
+}
+
+// windowsMeet reports whether two lifetime windows share an instant. Each
+// window holds from ValidFrom, inclusive, up to ValidTo, exclusive, and an
+// absent bound is open.
+func windowsMeet(a, b Scope) bool {
+	if a.ValidFrom != nil && b.ValidTo != nil && !a.ValidFrom.Before(*b.ValidTo) {
+		return false
+	}
+	if b.ValidFrom != nil && a.ValidTo != nil && !b.ValidFrom.Before(*a.ValidTo) {
+		return false
 	}
 	return true
 }

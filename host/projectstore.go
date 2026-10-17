@@ -10,15 +10,18 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/neokapi/neokapi/core/axis"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/core/workspace"
 	"github.com/neokapi/neokapi/host/storage/graph"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // projectStores memoizes the open project stores an App is using: at most one
@@ -736,6 +739,21 @@ type StoreSelection struct {
 	// for. A concept scoped to other coordinates does not hold there
 	// (terms.AtPoint).
 	Coordinates map[string]string
+	// Axes types the project's axes, so a concept scoped to a region holds at
+	// a country inside it (terms.AtPointIn). The zero Space compares by
+	// equality.
+	Axes axis.Space
+	// At is the instant the point was resolved at. A term whose window
+	// excludes it does not hold there (terms.InForceAt). The zero instant is
+	// the as-declared view.
+	At time.Time
+}
+
+// Holding keeps the concepts that hold at the selection's point: scoped to its
+// profile and coordinates, read through the project's axis space, with only
+// the terms in force at its instant.
+func (s StoreSelection) Holding(concepts []terms.Concept) []terms.Concept {
+	return terms.InForceAt(terms.AtPointIn(concepts, s.Profile, s.Coordinates, s.Axes), s.At)
 }
 
 // InProject reports whether the project's own store governs this selection.

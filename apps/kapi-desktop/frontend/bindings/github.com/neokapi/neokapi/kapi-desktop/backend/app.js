@@ -2141,6 +2141,19 @@ export function PreviewFlow(tabID, flowName, sampleText, sourceLang, targetLang)
 }
 
 /**
+ * ProjectContextAtlas reads the atlas of the project a tab holds. A tab with a
+ * checkout includes its content cells; a project known only to the workspace
+ * is read from its log and stores alone.
+ * @param {string} tabID
+ * @returns {$CancellablePromise<host$0.ContextAtlas | null>}
+ */
+export function ProjectContextAtlas(tabID) {
+    return $Call.ByID(4196276707, tabID).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType146($result);
+    }));
+}
+
+/**
  * ProjectContextDigest reads the digest of the project a tab holds. since is
  * an RFC3339 instant to read from in place of the marker, empty for the
  * marker.
@@ -2150,7 +2163,7 @@ export function PreviewFlow(tabID, flowName, sampleText, sourceLang, targetLang)
  */
 export function ProjectContextDigest(tabID, since) {
     return $Call.ByID(396660556, tabID, since).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType146($result);
+        return $$createType148($result);
     }));
 }
 
@@ -2167,7 +2180,7 @@ export function ProjectContextDigest(tabID, since) {
  */
 export function ProjectPoints(tabID) {
     return $Call.ByID(644571054, tabID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType148($result);
+        return $$createType150($result);
     }));
 }
 
@@ -2179,7 +2192,7 @@ export function ProjectPoints(tabID) {
  */
 export function ProjectSharing(tabID) {
     return $Call.ByID(4080131595, tabID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType150($result);
+        return $$createType152($result);
     }));
 }
 
@@ -2196,7 +2209,7 @@ export function ProjectSharing(tabID) {
  */
 export function ProjectVoice(tabID) {
     return $Call.ByID(2892495329, tabID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType152($result);
+        return $$createType154($result);
     }));
 }
 
@@ -2224,7 +2237,7 @@ export function Read(tabID, request) {
  */
 export function RebaseKeptDocument(tabID, doc, edit) {
     return $Call.ByID(2536287501, tabID, doc, edit).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType153($result);
+        return $$createType155($result);
     }));
 }
 
@@ -2237,7 +2250,7 @@ export function RebaseKeptDocument(tabID, doc, edit) {
  */
 export function RebaseWorkspaceDocument(doc, edit) {
     return $Call.ByID(80284288, doc, edit).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType153($result);
+        return $$createType155($result);
     }));
 }
 
@@ -2254,7 +2267,7 @@ export function RebaseWorkspaceDocument(doc, edit) {
  */
 export function RecipeGovernance(tabID) {
     return $Call.ByID(451940518, tabID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType155($result);
+        return $$createType157($result);
     }));
 }
 
@@ -2441,7 +2454,7 @@ export function RestoreStartHere() {
  */
 export function ReviewAIAction(tabID, locale, file, key, action, instruction) {
     return $Call.ByID(4108387416, tabID, locale, file, key, action, instruction).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType157($result);
+        return $$createType159($result);
     }));
 }
 
@@ -2460,7 +2473,7 @@ export function ReviewAIAction(tabID, locale, file, key, action, instruction) {
  */
 export function ReviewQueue(tabID, filter) {
     return $Call.ByID(2084182051, tabID, filter).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType158($result);
+        return $$createType160($result);
     }));
 }
 
@@ -2473,7 +2486,7 @@ export function ReviewQueue(tabID, filter) {
  */
 export function RulesFiles(tabID) {
     return $Call.ByID(3028667270, tabID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType160($result);
+        return $$createType162($result);
     }));
 }
 
@@ -2490,7 +2503,7 @@ export function RulesFiles(tabID) {
  */
 export function RunAIPreReview(tabID, locale, scope) {
     return $Call.ByID(860937492, tabID, locale, scope).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType162($result);
+        return $$createType164($result);
     }));
 }
 
@@ -2514,7 +2527,7 @@ export function RunAIPreReview(tabID, locale, scope) {
  */
 export function RunChecks(tabID, filter) {
     return $Call.ByID(139733492, tabID, filter).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType164($result);
+        return $$createType166($result);
     }));
 }
 
@@ -2535,7 +2548,7 @@ export function RunChecks(tabID, filter) {
  */
 export function RunExtract(tabID) {
     return $Call.ByID(4222482902, tabID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType166($result);
+        return $$createType168($result);
     }));
 }
 
@@ -2565,7 +2578,7 @@ export function RunFlow(tabID, flowName, inputPaths, targetLangs) {
  */
 export function RunFormatReader(formatName, filePath, config) {
     return $Call.ByID(2298675461, formatName, filePath, config).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType168($result);
+        return $$createType170($result);
     }));
 }
 
@@ -2577,7 +2590,7 @@ export function RunFormatReader(formatName, filePath, config) {
  */
 export function RunFormatReaderDialog(formatName, config) {
     return $Call.ByID(3765990169, formatName, config).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType168($result);
+        return $$createType170($result);
     }));
 }
 
@@ -2656,7 +2669,7 @@ export function SaveProjectDialog(tabID) {
  */
 export function SaveProjectFilter(tabID, f) {
     return $Call.ByID(4214482200, tabID, f).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType170($result);
+        return $$createType172($result);
     }));
 }
 
@@ -2682,7 +2695,7 @@ export function SaveProjectFlow(tabID, name, spec) {
  */
 export function SaveProvider(req) {
     return $Call.ByID(990642140, req).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType171($result);
+        return $$createType173($result);
     }));
 }
 
@@ -2736,7 +2749,7 @@ export function SaveUserFlow(req) {
  */
 export function SaveVoiceProfile(tabID, profileName, profile) {
     return $Call.ByID(3732332618, tabID, profileName, profile).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType173($result);
+        return $$createType175($result);
     }));
 }
 
@@ -2754,7 +2767,7 @@ export function SaveVoiceProfile(tabID, profileName, profile) {
  */
 export function SearchMemoryEntries(handle, query, anyLocale, requireLocale, offset, limit) {
     return $Call.ByID(3872715149, handle, query, anyLocale, requireLocale, offset, limit).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType175($result);
+        return $$createType177($result);
     }));
 }
 
@@ -2771,7 +2784,7 @@ export function SearchMemoryEntries(handle, query, anyLocale, requireLocale, off
  */
 export function SearchMemoryEntriesFiltered(handle, query, anyLocale, requireLocale, filter, offset, limit) {
     return $Call.ByID(28274782, handle, query, anyLocale, requireLocale, filter, offset, limit).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType175($result);
+        return $$createType177($result);
     }));
 }
 
@@ -2801,7 +2814,7 @@ export function SearchPlugins(query) {
  */
 export function SearchTerms(handle, query, srcLocale, tgtLocale, offset, limit) {
     return $Call.ByID(556247463, handle, query, srcLocale, tgtLocale, offset, limit).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType177($result);
+        return $$createType179($result);
     }));
 }
 
@@ -2898,7 +2911,7 @@ export function SetLocale(locale) {
  */
 export function SetProjectSharing(tabID, spec) {
     return $Call.ByID(237044235, tabID, spec).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType150($result);
+        return $$createType152($result);
     }));
 }
 
@@ -2970,7 +2983,7 @@ export function SetUILanguage(lang) {
  */
 export function SyncProjectContext(tabID) {
     return $Call.ByID(4171570643, tabID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType179($result);
+        return $$createType181($result);
     }));
 }
 
@@ -3058,7 +3071,7 @@ export function ValidateContentPath(path) {
  */
 export function ValidateProjectFlows(tabID) {
     return $Call.ByID(3090313048, tabID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType181($result);
+        return $$createType183($result);
     }));
 }
 
@@ -3074,7 +3087,7 @@ export function ValidateProjectFlows(tabID) {
  */
 export function ValidateVoiceProfile(profile) {
     return $Call.ByID(3282285205, profile).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType183($result);
+        return $$createType185($result);
     }));
 }
 
@@ -3085,7 +3098,7 @@ export function ValidateVoiceProfile(profile) {
  */
 export function VoiceFieldValues() {
     return $Call.ByID(3817869228).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType185($result);
+        return $$createType187($result);
     }));
 }
 
@@ -3096,7 +3109,7 @@ export function VoiceFieldValues() {
  */
 export function VoiceStarterPack(name) {
     return $Call.ByID(3653487720, name).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType187($result);
+        return $$createType189($result);
     }));
 }
 
@@ -3129,7 +3142,7 @@ export function WidenContextRule(req) {
  */
 export function WorkspaceRemovalFor(key) {
     return $Call.ByID(936404802, key).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType189($result);
+        return $$createType191($result);
     }));
 }
 
@@ -3140,7 +3153,7 @@ export function WorkspaceRemovalFor(key) {
  */
 export function WorkspaceRules() {
     return $Call.ByID(1084501936).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType191($result);
+        return $$createType193($result);
     }));
 }
 
@@ -3152,7 +3165,7 @@ export function WorkspaceRules() {
  */
 export function WriteRulesFiles(tabID) {
     return $Call.ByID(2534931649, tabID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType193($result);
+        return $$createType195($result);
     }));
 }
 
@@ -3322,52 +3335,54 @@ const $$createType141 = $models.FileMatch.createFrom;
 const $$createType142 = $Create.Array($$createType141);
 const $$createType143 = $models.PreviewResult.createFrom;
 const $$createType144 = $Create.Nullable($$createType143);
-const $$createType145 = host$0.ContextDigest.createFrom;
+const $$createType145 = host$0.ContextAtlas.createFrom;
 const $$createType146 = $Create.Nullable($$createType145);
-const $$createType147 = $models.ProjectPointsResult.createFrom;
+const $$createType147 = host$0.ContextDigest.createFrom;
 const $$createType148 = $Create.Nullable($$createType147);
-const $$createType149 = $models.ProjectSharing.createFrom;
+const $$createType149 = $models.ProjectPointsResult.createFrom;
 const $$createType150 = $Create.Nullable($$createType149);
-const $$createType151 = $models.ProjectVoiceResult.createFrom;
+const $$createType151 = $models.ProjectSharing.createFrom;
 const $$createType152 = $Create.Nullable($$createType151);
-const $$createType153 = $models.DocumentRebase.createFrom;
-const $$createType154 = $models.RecipeGovernanceDTO.createFrom;
-const $$createType155 = $Create.Nullable($$createType154);
-const $$createType156 = $models.ReviewAIActionResult.createFrom;
+const $$createType153 = $models.ProjectVoiceResult.createFrom;
+const $$createType154 = $Create.Nullable($$createType153);
+const $$createType155 = $models.DocumentRebase.createFrom;
+const $$createType156 = $models.RecipeGovernanceDTO.createFrom;
 const $$createType157 = $Create.Nullable($$createType156);
-const $$createType158 = convergence$0.ReviewQueue.createFrom;
-const $$createType159 = $models.RulesFileView.createFrom;
-const $$createType160 = $Create.Array($$createType159);
-const $$createType161 = $models.PreReviewResult.createFrom;
-const $$createType162 = $Create.Nullable($$createType161);
-const $$createType163 = $models.CheckRunResult.createFrom;
+const $$createType158 = $models.ReviewAIActionResult.createFrom;
+const $$createType159 = $Create.Nullable($$createType158);
+const $$createType160 = convergence$0.ReviewQueue.createFrom;
+const $$createType161 = $models.RulesFileView.createFrom;
+const $$createType162 = $Create.Array($$createType161);
+const $$createType163 = $models.PreReviewResult.createFrom;
 const $$createType164 = $Create.Nullable($$createType163);
-const $$createType165 = $models.ExtractResult.createFrom;
+const $$createType165 = $models.CheckRunResult.createFrom;
 const $$createType166 = $Create.Nullable($$createType165);
-const $$createType167 = $models.FormatPartInfo.createFrom;
-const $$createType168 = $Create.Array($$createType167);
-const $$createType169 = $models.ProjectFilter.createFrom;
-const $$createType170 = $Create.Nullable($$createType169);
-const $$createType171 = $Create.Nullable($$createType130);
-const $$createType172 = $models.VoiceSaveResult.createFrom;
-const $$createType173 = $Create.Nullable($$createType172);
-const $$createType174 = $models.MemorySearchResult.createFrom;
+const $$createType167 = $models.ExtractResult.createFrom;
+const $$createType168 = $Create.Nullable($$createType167);
+const $$createType169 = $models.FormatPartInfo.createFrom;
+const $$createType170 = $Create.Array($$createType169);
+const $$createType171 = $models.ProjectFilter.createFrom;
+const $$createType172 = $Create.Nullable($$createType171);
+const $$createType173 = $Create.Nullable($$createType130);
+const $$createType174 = $models.VoiceSaveResult.createFrom;
 const $$createType175 = $Create.Nullable($$createType174);
-const $$createType176 = $models.TermSearchResult.createFrom;
+const $$createType176 = $models.MemorySearchResult.createFrom;
 const $$createType177 = $Create.Nullable($$createType176);
-const $$createType178 = host$0.ContextSyncResult.createFrom;
+const $$createType178 = $models.TermSearchResult.createFrom;
 const $$createType179 = $Create.Nullable($$createType178);
-const $$createType180 = project$0.FlowValidationIssue.createFrom;
-const $$createType181 = $Create.Array($$createType180);
-const $$createType182 = profile$0.ProfileProblem.createFrom;
+const $$createType180 = host$0.ContextSyncResult.createFrom;
+const $$createType181 = $Create.Nullable($$createType180);
+const $$createType182 = project$0.FlowValidationIssue.createFrom;
 const $$createType183 = $Create.Array($$createType182);
-const $$createType184 = profile$0.FieldValueSet.createFrom;
-const $$createType185 = $Create.Map($Create.Any, $$createType184);
-const $$createType186 = profile$0.VoiceProfile.createFrom;
-const $$createType187 = $Create.Nullable($$createType186);
-const $$createType188 = $models.WorkspaceRemoval.createFrom;
+const $$createType184 = profile$0.ProfileProblem.createFrom;
+const $$createType185 = $Create.Array($$createType184);
+const $$createType186 = profile$0.FieldValueSet.createFrom;
+const $$createType187 = $Create.Map($Create.Any, $$createType186);
+const $$createType188 = profile$0.VoiceProfile.createFrom;
 const $$createType189 = $Create.Nullable($$createType188);
-const $$createType190 = $models.WorkspaceRule.createFrom;
-const $$createType191 = $Create.Array($$createType190);
-const $$createType192 = host$0.RulesFilesResult.createFrom;
-const $$createType193 = $Create.Nullable($$createType192);
+const $$createType190 = $models.WorkspaceRemoval.createFrom;
+const $$createType191 = $Create.Nullable($$createType190);
+const $$createType192 = $models.WorkspaceRule.createFrom;
+const $$createType193 = $Create.Array($$createType192);
+const $$createType194 = host$0.RulesFilesResult.createFrom;
+const $$createType195 = $Create.Nullable($$createType194);

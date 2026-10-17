@@ -449,7 +449,10 @@ func seenWithin(r, c Record) bool {
 	if r.Scope.Level != LevelWorkspace && r.Project != c.Project {
 		return false
 	}
-	return r.Scope.Covers(c.Scope.Coordinates)
+	if r.Project != c.Project {
+		return r.Scope.Covers(c.Scope.Coordinates)
+	}
+	return r.Scope.CoversIn(r.space, c.Scope.Coordinates)
 }
 
 // placed reports whether settling may establish a suggestion where it was

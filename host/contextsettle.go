@@ -147,13 +147,15 @@ func (s *contextOpsSession) recordMerge(ctx context.Context, req ContextSettleRe
 	// Oldest first, so the signals read in the order the suggestions were made.
 	for _, r := range slices.Backward(candidates) {
 		rule, ok := r.Rule()
-		if !ok || rule.Replacement == "" || r.Established || !r.Status.Advises() {
+		// A merge outside a suggestion's window says nothing about it: the
+		// suggestion held nowhere while the change was made.
+		if !ok || rule.Replacement == "" || r.Established || !r.Status.Advises() || !r.Scope.InForce(s.app.GovernanceInstant()) {
 			continue
 		}
 		preferred, rejected := 0, 0
 		use, avoid := formMatcher([]string{rule.Replacement}, rule.MatchesCase()), formMatcher(append([]string{rule.Term}, rule.Forms...), rule.MatchesCase())
 		for _, f := range files {
-			if _, scope := s.basisAt([]contextop.Evidence{{Path: f.path}}); !r.Scope.Covers(scope.Coordinates) {
+			if _, scope := s.basisAt([]contextop.Evidence{{Path: f.path}}); !r.Scope.CoversIn(s.proj.AxisSpace(), scope.Coordinates) {
 				continue
 			}
 			preferred += countLines(f.added, use)

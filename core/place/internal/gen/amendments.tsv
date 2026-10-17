@@ -1,0 +1,14 @@
+# Changes to ISO 3166-2 that the pinned CLDR release does not record yet.
+# Columns, tab separated: op (add or retire), id, parent, English name, source.
+# A retire line writes - for parent and name. The generator refuses a line the
+# release already holds, so a bump of the release removes it here.
+add	no-31	no	Østfold	Norway county reform in force 2024-01-01; codes and names from Statistics Norway classification KLASS 104 (Standard for fylkesinndeling) at 2024-01-01
+add	no-32	no	Akershus	Norway county reform in force 2024-01-01; codes and names from Statistics Norway classification KLASS 104 (Standard for fylkesinndeling) at 2024-01-01
+add	no-33	no	Buskerud	Norway county reform in force 2024-01-01; codes and names from Statistics Norway classification KLASS 104 (Standard for fylkesinndeling) at 2024-01-01
+add	no-39	no	Vestfold	Norway county reform in force 2024-01-01; codes and names from Statistics Norway classification KLASS 104 (Standard for fylkesinndeling) at 2024-01-01
+add	no-40	no	Telemark	Norway county reform in force 2024-01-01; codes and names from Statistics Norway classification KLASS 104 (Standard for fylkesinndeling) at 2024-01-01
+add	no-55	no	Troms	Norway county reform in force 2024-01-01; codes and names from Statistics Norway classification KLASS 104 (Standard for fylkesinndeling) at 2024-01-01
+add	no-56	no	Finnmark	Norway county reform in force 2024-01-01; codes and names from Statistics Norway classification KLASS 104 (Standard for fylkesinndeling) at 2024-01-01
+retire	no-30	-	-	Norway county reform in force 2024-01-01; codes and names from Statistics Norway classification KLASS 104 (Standard for fylkesinndeling) at 2024-01-01
+retire	no-38	-	-	Norway county reform in force 2024-01-01; codes and names from Statistics Norway classification KLASS 104 (Standard for fylkesinndeling) at 2024-01-01
+retire	no-54	-	-	Norway county reform in force 2024-01-01; codes and names from Statistics Norway classification KLASS 104 (Standard for fylkesinndeling) at 2024-01-01

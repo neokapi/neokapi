@@ -1,7 +1,7 @@
 // Package sample provides the embedded sample project for the kapi-desktop
 // app: KapiMart, a governed multi-collection project in the natural per-area
-// layout (web/src/legal/marketing with locale dirs beside source), shipping the
-// context its recipe binds as files under context/.
+// layout (web/src/legal/marketing/campaigns with locale dirs beside source),
+// shipping the context its recipe binds as files under context/.
 package sample
 
 import (
@@ -54,7 +54,7 @@ func Scaffold(name, targetDir string) error {
 	// Copy source files: natural per-area layout (source under <area>/en/,
 	// localized files beside it under sibling locale dirs — no separate
 	// output/ tree).
-	for _, area := range []string{"web", "src", "legal", "marketing"} {
+	for _, area := range []string{"web", "src", "legal", "marketing", "campaigns"} {
 		if err := copyEmbeddedDir("kapimart/"+area, filepath.Join(targetDir, area)); err != nil {
 			return fmt.Errorf("copy %s files: %w", area, err)
 		}

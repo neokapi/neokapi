@@ -28,10 +28,12 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/axis"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/place"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/yamledit"
 
@@ -96,6 +98,25 @@ type KapiProject struct {
 	// whole project sits at one point, under defaults.voice and
 	// the project's own terms. See profiles.go.
 	Profiles map[string]Profile `yaml:"profiles,omitempty" json:"profiles,omitempty"`
+
+	// Places declares the project's own places, by id, beside the built-in
+	// gazetteer of world, regions, countries and ISO 3166-2 subdivisions
+	// (core/place): a city, a district, a sales territory. Each one sits
+	// within places or is made of places, which is how a rule scoped to a
+	// country reaches content at a declared city. A geo axis takes their ids
+	// as values. See axes.go.
+	Places map[string]place.Place `yaml:"places,omitempty" json:"places,omitempty"`
+
+	// Axes types the declared axes of the context space: how each one compares
+	// its values (category, geo, range, ordered), which values a closed axis
+	// takes, and the labels a surface shows. An axis not declared here is an
+	// open category whose values compare by equality. Every coordinate the
+	// recipe writes is validated against it at load. See axes.go.
+	Axes map[string]axis.Spec `yaml:"axes,omitempty" json:"axes,omitempty"`
+
+	// gazetteer is the built-in places plus Places, built when the recipe is
+	// validated (Gazetteer).
+	gazetteer *place.Gazetteer
 
 	// Ship gates decide when localized content is shippable, as coverage
 	// thresholds over the lifecycle ladder (see core/gate). Three optional,
@@ -855,6 +876,12 @@ type ContentItem struct {
 	// Comments declares the comments in this item's files as content.
 	Comments ContentComments `yaml:"comments,omitempty" json:"comments,omitzero"`
 
+	// Coordinates refines the collection's point for the files this item
+	// matches, per declared axis, as Channel refines its channel: an item in
+	// a campaign at the Oslo market can sit at one district of it. It is
+	// validated like a collection's coordinates (CoordinatesAt).
+	Coordinates map[string]string `yaml:"coordinates,omitempty" json:"coordinates,omitempty"`
+
 	// Extras captures unknown keys at the per-item level. Platform layers
 	// decode their per-item fields from here.
 	Extras map[string]yaml.Node `yaml:",inline" json:"-"`
@@ -1000,6 +1027,9 @@ func LoadWithOptions(path string, opts LoadOptions) (*KapiProject, error) {
 	}
 
 	if err := proj.validate(opts); err != nil {
+		return nil, fmt.Errorf("invalid project file: %w", err)
+	}
+	if err := proj.checkPlaceShapes(filepath.Dir(path)); err != nil {
 		return nil, fmt.Errorf("invalid project file: %w", err)
 	}
 	// A key that is nearly a field is preserved like any other unknown one, so

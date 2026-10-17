@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-16T21:39:04Z",
+  "generatedAt": "2026-10-16T22:43:56Z",
   "tools": [
     {
       "name": "apply_edits",
@@ -298,6 +298,12 @@
           "description": "the project-relative file you saw it in, or the person changed it in"
         },
         {
+          "name": "point",
+          "type": "object",
+          "required": false,
+          "description": "narrows where the note holds, axis to value, within the point the file it was seen in sits at, such as market set to no; it may narrow and never widen"
+        },
+        {
           "name": "project",
           "type": "string",
           "required": false,
@@ -332,6 +338,18 @@
           "type": "string",
           "required": false,
           "description": "for a change a person made: the wording that replaced it"
+        },
+        {
+          "name": "valid_from",
+          "type": "string",
+          "required": false,
+          "description": "the note holds from this date (2006-01-02) or RFC3339 instant on"
+        },
+        {
+          "name": "valid_to",
+          "type": "string",
+          "required": false,
+          "description": "the note holds until this date (2006-01-02) or RFC3339 instant, not including it"
         },
         {
           "name": "why",

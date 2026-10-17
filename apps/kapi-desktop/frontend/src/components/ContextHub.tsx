@@ -2,7 +2,8 @@
 //
 // One rail, in the order a person meets it: What's new holds the rules and
 // suggestions kapi keeps for the project and is where a person reviews them;
-// Ask answers a question at a point; Assistant shows what an assistant reads;
+// Explore lays all of it out on its axes and over time; Ask answers a question
+// at a point; Assistant shows what an assistant reads;
 // Voice reads the profile governing each point whole; the two stores hold
 // what that governance is made of; History lists every operation, with the
 // resets; Share says how far the context reaches. Filing the stores here says
@@ -23,12 +24,14 @@ import {
   MessageSquareQuote,
   Share2,
   Sparkles,
+  Telescope,
 } from "lucide-react";
 import { LoadingSpinner, PageHeader, ScrollArea, SimpleTooltip, cn } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import { api } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
 import { AssistantPanel } from "./AssistantPanel";
+import { ContextAtlasView } from "./ContextAtlasView";
 import { ContextDigestPanel } from "./ContextDigestPanel";
 import { ContextExplorerView } from "./ContextExplorerView";
 import { ContextFeedPanel } from "./ContextFeedPanel";
@@ -40,6 +43,7 @@ import { SharePanel } from "./SharePanel";
 /** The surfaces filed under Context. */
 export type ContextSection =
   | "rules"
+  | "atlas"
   | "explorer"
   | "agent"
   | "voice"
@@ -86,6 +90,7 @@ const SECTIONS: Array<{
   needsCheckout?: boolean;
 }> = [
   { id: "rules", icon: <Sparkles size={14} /> },
+  { id: "atlas", icon: <Telescope size={14} /> },
   { id: "explorer", icon: <Compass size={14} />, needsCheckout: true },
   // A context-only tab keeps the Assistant: its connections part says a
   // checkout is needed, and the parts that read files stay out.
@@ -166,6 +171,19 @@ export function ContextHub({
       <div className="min-h-0 flex-1">
         {current === "explorer" && (
           <ContextExplorerView tabID={tabID} projectName={projectName} pin={unitPin ?? pin} />
+        )}
+        {current === "atlas" && (
+          <ContextAtlasView
+            tabID={tabID}
+            onOpenEvidence={
+              offers("explorer")
+                ? (path) => {
+                    setUnitPin({ path });
+                    setActive("explorer");
+                  }
+                : undefined
+            }
+          />
         )}
         {current === "agent" && (
           <ScrollArea className="h-full">
@@ -255,6 +273,7 @@ function ProjectHistory({ tabID }: { tabID: string }) {
  */
 const SECTION_COMMANDS: Partial<Record<ContextSection, string>> = {
   rules: "kapi context review",
+  atlas: "kapi context atlas",
   explorer: "kapi context <path>",
   agent: "kapi init",
   voice: "kapi voice show",
@@ -287,6 +306,8 @@ function SectionLabel({ id }: { id: ContextSection }) {
   switch (id) {
     case "rules":
       return <>What&apos;s new</>;
+    case "atlas":
+      return <>Explore</>;
     case "explorer":
       return <>Ask</>;
     case "agent":

@@ -125,6 +125,8 @@
     "apps/kapi-desktop/frontend/src/components/ReviewPage.tsx | dyn-label-splice | c.label": 1,
     "apps/kapi-desktop/frontend/src/components/TermsPage.tsx | ternary-attr-complex | title": 1,
     "apps/kapi-desktop/frontend/src/components/VoicePage.tsx | dyn-label-splice | point.label": 1,
+    "packages/context-atlas/src/components/RecordInspector.tsx | dyn-label-splice | r.label": 1,
+    "packages/context-atlas/src/components/RecordsTable.tsx | dyn-label-splice | record.label": 1,
     "packages/context-explorer/src/GovernsPane.tsx | dyn-label-splice | rule.label": 1,
     "packages/flow-editor/src/EndpointInspectorPanel.tsx | dyn-label-splice | meta.subtitle": 1,
     "packages/flow-editor/src/EndpointInspectorPanel.tsx | dyn-label-splice | meta.title": 1,

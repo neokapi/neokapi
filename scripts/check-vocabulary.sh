@@ -383,6 +383,12 @@ readonly IDENT_ALLOWED_FILES=(
   'core/formats/mdx/corpus\.yaml'
   # Base64 office documents, carried inline as playground samples.
   'packages/kapi-playground/src/samples\.ts'
+  # Natural Earth shapes keyed by ISO 3166 code, written by build-geometry:
+  # `qa` is Qatar, and `gl-qa`, `iq-qa`, `uz-qa` are ISO 3166-2 subdivisions.
+  'packages/context-atlas/src/geo/.*\.json'
+  # The built-in subdivisions, generated from Unicode CLDR: `qa-da` and the
+  # rest are Qatar's ISO 3166-2 codes, and `uz-qa` is Qashqadaryo.
+  'core/place/subdivisions\.tsv'
   # Fixtures captured verbatim from another project: okapi-bridge's tool
   # metadata.
   'apps/kapi-desktop/frontend/src/stories/fixtures/tools-metadata\.json'

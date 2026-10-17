@@ -115,6 +115,7 @@ export default defineConfig({
       "**/demos/**/out/**", // generated demo outputs
       "**/demos/**/fixtures/**", // authored, byte-sensitive demo inputs (reformatting alters the demo)
       "**/pages/**/_*.json", // colocated generated page data (_eval.json, _benchmark.json)
+      "packages/context-atlas/src/geo/**/*.json", // map shapes written minified by build-geometry
       // Package-manager-owned manifests — pnpm rewrites these on install, so the
       // formatter must not fight it (the array/quote style differs and churns).
       "**/package.json",
