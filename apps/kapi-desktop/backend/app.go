@@ -561,7 +561,7 @@ func (a *App) OpenProject(path string) (*TabInfo, error) {
 		// one this version ships, its old copy kept beside it.
 		name, _, refreshed, rerr := a.refreshStaleSample(filepath.Dir(path))
 		if rerr != nil {
-			return nil, fmt.Errorf("%w (refreshing the sample failed: %v)", err, rerr)
+			return nil, fmt.Errorf("%w (refreshing the sample failed: %w)", err, rerr)
 		}
 		if !refreshed {
 			return nil, err
