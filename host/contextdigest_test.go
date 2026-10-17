@@ -11,8 +11,11 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/contextop"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/core/workspace"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // TestContextDigest_SectionsFromTheLog drives the digest through the host API:
@@ -282,6 +285,7 @@ func TestContextStandings_EveryProjectWithItsLatestSession(t *testing.T) {
 	assert.Equal(t, 1, b.Suggested)
 	assert.Equal(t, 0, b.Conflicts)
 	assert.Equal(t, 2, b.New, "nobody has looked, so the rule and the suggestion are new")
+	assert.Equal(t, 1, b.Terms, "the kept rule is a concept in the terms store; the suggestion is not")
 	require.NotNil(t, b.Latest)
 	assert.Equal(t, "s2", b.Latest.Actor.Session, "the person's keep leaves the agent's session as the latest")
 	assert.True(t, b.Latest.Working, "the session recorded a moment ago")
@@ -290,8 +294,79 @@ func TestContextStandings_EveryProjectWithItsLatestSession(t *testing.T) {
 
 	q := byName["ctxops-standing-quiet"]
 	assert.Zero(t, q.Rules)
+	assert.Zero(t, q.Terms)
 	assert.Zero(t, q.New)
 	assert.Nil(t, q.Latest)
+}
+
+// TestContextStandings_CountTheTermsStore: a project's terms figure is the count
+// its terms store reports, the number the Terms section of its context lists.
+// A store with no concepts counts none, and so do a project whose store the
+// workspace does not hold, which reading the standings leaves uncreated, and a
+// store that cannot be read, which fails nothing. Two projects count their own
+// stores, so their sum counts every concept once.
+func TestContextStandings_CountTheTermsStore(t *testing.T) {
+	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
+	app, workspaceRoot := contextOpsApp(t)
+	stocked := contextOpsProject(t, "ctxops-terms-stocked")
+	other := contextOpsProject(t, "ctxops-terms-other")
+	empty := contextOpsProject(t, "ctxops-terms-empty")
+	ctx := t.Context()
+
+	addConcepts := func(root string, ids ...string) *projector.Terms {
+		t.Helper()
+		p, err := app.Projector(ctx, root)
+		require.NoError(t, err)
+		for _, id := range ids {
+			require.NoError(t, p.Terms().AddConcept(ctx, terms.Concept{
+				ID:    id,
+				Terms: []terms.Term{{Text: id, Locale: "en", Status: model.TermPreferred}},
+			}))
+		}
+		return p.Terms()
+	}
+	stockedTerms := addConcepts(stocked, "cart", "checkout", "wishlist")
+	otherTerms := addConcepts(other, "basket")
+	_, err := app.ProjectDB(ctx, empty)
+	require.NoError(t, err)
+
+	ws, err := app.Workspace(ctx)
+	require.NoError(t, err)
+	missing := workspace.ProjectKey(projectIDFor("ctxops-terms-missing"))
+	_, err = ws.Register(ctx, missing, "ctxops-terms-missing", "")
+	require.NoError(t, err)
+	broken := workspace.ProjectKey(projectIDFor("ctxops-terms-broken"))
+	_, err = ws.Register(ctx, broken, "ctxops-terms-broken", "")
+	require.NoError(t, err)
+	brokenStore := filepath.Join(workspaceRoot, workspace.ProjectsDirName, workspace.FileNameFor(broken)+".db")
+	require.NoError(t, os.WriteFile(brokenStore, []byte("not a database"), 0o600))
+
+	standings, err := app.ContextStandings(ctx)
+	require.NoError(t, err, "a store that cannot be read fails nothing")
+	byName := map[string]ContextProjectStanding{}
+	for _, s := range standings {
+		byName[s.ProjectName] = s
+	}
+
+	listed, err := stockedTerms.Count(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 3, listed)
+	assert.Equal(t, listed, byName["ctxops-terms-stocked"].Terms, "the figure is what the terms store lists")
+	otherListed, err := otherTerms.Count(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, otherListed, byName["ctxops-terms-other"].Terms)
+	total := 0
+	for _, s := range standings {
+		total += s.Terms
+	}
+	assert.Equal(t, listed+otherListed, total, "each project counts its own store")
+
+	assert.Zero(t, byName["ctxops-terms-empty"].Terms, "a store with no concepts counts none")
+	assert.Zero(t, byName["ctxops-terms-missing"].Terms, "a project with no store counts none")
+	assert.Zero(t, byName["ctxops-terms-broken"].Terms, "a store that cannot be read counts none")
+	held, err := ws.HasContext(ctx, missing)
+	require.NoError(t, err)
+	assert.False(t, held, "reading the standings creates no store")
 }
 
 // TestLatestActivity covers what the host API stamps with the wall clock: a

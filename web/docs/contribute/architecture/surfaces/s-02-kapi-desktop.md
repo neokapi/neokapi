@@ -172,11 +172,19 @@ tooltip.
 `host.App.ContextStandings` answers the counts, What's new and each project
 row's rules column from one fold of the log over every registered project. A
 `ContextProjectStanding` carries the project's rules in force, the suggestions
-advising, the conflicts, what is new since the person's marker (below), and the
-latest session's activity as a `ContextActivity`: its actor, what it recorded
-and corrected, what is new by digest theme, and `Working`, which holds while an
-agent session has added an operation within the last two minutes, the feed's
-quiet rule. The counts are drawn by `StatRow`: projects, rules, suggestions,
+advising, the conflicts, the concepts in its terms store, what is new since the
+person's marker (below), and the latest session's activity as a
+`ContextActivity`: its actor, what it recorded and corrected, what is new by
+digest theme, and `Working`, which holds while an agent session has added an
+operation within the last two minutes, the feed's quiet rule. Rules count what
+review decided, and terms count every concept in the store, imported ones
+included, so a project whose terms came from a file shows them beside zero
+rules. The terms figure is one `COUNT(*)` over the project's own
+context store in the workspace, which the host opens only when the workspace
+already holds it (`workspace.Workspace.HasContext`) and reads without binding
+the terms schema. A store that is missing or unreadable counts zero, and no
+two registered projects share a store, so the home's sum counts each concept
+once. The counts are drawn by `StatRow`: projects, rules, terms, suggestions,
 and the conflicts as "needs you", in the warning ink while there are any. No
 sentence on the page is generated from a number. What's new lists the projects
 with something new, a suggestion advising, a conflict or a working session,

@@ -20,7 +20,7 @@ export const LOCATION = "/fakehome/.local/share/kapi/workspaces/default";
 export function standing(
   over: Partial<ContextProjectStanding> & { project: string },
 ): ContextProjectStanding {
-  return { rules: 0, suggested: 0, conflicts: 0, new: 0, ...over };
+  return { rules: 0, suggested: 0, conflicts: 0, terms: 0, new: 0, ...over };
 }
 
 /** A claude-code session is working in Acme Help Center right now. */
@@ -29,6 +29,7 @@ export const ACME: ContextProjectStanding = standing({
   project_name: "Acme Help Center",
   rules: 23,
   suggested: 4,
+  terms: 142,
   new: 4,
   since: ago(30),
   latest: {
@@ -48,6 +49,7 @@ export const KAPIMART: ContextProjectStanding = standing({
   rules: 31,
   suggested: 3,
   conflicts: 1,
+  terms: 100,
   new: 2,
   since: ago(80),
   latest: {
@@ -65,6 +67,7 @@ export const FIELD_GUIDE: ContextProjectStanding = standing({
   project: "prj_fieldguide",
   project_name: "Field Guide",
   rules: 7,
+  terms: 18,
   since: ago(20),
   latest: {
     actor: { kind: "person", session: "day-1" },

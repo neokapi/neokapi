@@ -12,6 +12,7 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/kapi-desktop/backend/sample"
+	"github.com/neokapi/neokapi/terms/ktb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -23,7 +24,7 @@ func TestOpenProjectAutoOpensMemory(t *testing.T) {
 	// Scaffold a sample project into a temp directory.
 	require.NoError(t, sample.Scaffold("kapimart", dir))
 
-	// Open the project — the seeded content memory and terms of its own store
+	// Open the project: the seeded content memory and terms of its own store
 	// should be adopted as tab handles.
 	tab, err := app.OpenProject(filepath.Join(dir, "kapi.yaml"))
 	require.NoError(t, err)
@@ -256,8 +257,8 @@ func TestSampleUpgradeFlow(t *testing.T) {
 	assert.False(t, app.GetSampleInfo(newTab.ID).UpgradeAvailable)
 }
 
-// Reset reloads the OPEN tab in place — same tab ID, fresh recipe, reopened
-// project-scoped handles — so surfaces polling the tab (the home hero's
+// Reset reloads the OPEN tab in place (same tab ID, fresh recipe, reopened
+// project-scoped handles), so surfaces polling the tab (the home hero's
 // convergence plan/report) keep working immediately after the reset instead of
 // ENOENT-ing against the backed-up directory path.
 func TestResetSampleProject_TabStaysUsable(t *testing.T) {
@@ -390,6 +391,14 @@ func TestCreateSampleProject_ArrivesWithAnAssistantSession(t *testing.T) {
 	assert.Equal(t, 1, row.Context.Conflicts)
 	assert.Equal(t, 5, row.Context.Suggested, "three names, a word and a note")
 	assert.Equal(t, 6, row.Context.Rules, "the team's six kept notes; a file read in is not a rule decided in review")
+	raw, err := os.ReadFile(filepath.Join(filepath.Dir(tab.Path), sample.ContextTermsRel))
+	require.NoError(t, err)
+	file, err := ktb.Unmarshal(raw)
+	require.NoError(t, err)
+	listed := app.GetTermsStats(app.GetProjectTermsHandle(tab.ID))
+	require.NotNil(t, listed, "the Terms section opens on the sample's terms store")
+	assert.Equal(t, listed.Count, row.Context.Terms, "the home counts what the Terms section lists")
+	assert.Equal(t, len(file.Concepts), row.Context.Terms, "the concepts the sample's terms file carries")
 	require.NotNil(t, row.Context.Latest)
 	assert.Equal(t, "codex", row.Context.Latest.Actor.Name)
 	assert.Equal(t, 2, row.Context.Latest.Recorded)

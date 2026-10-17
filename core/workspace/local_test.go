@@ -44,6 +44,30 @@ func TestLocalBackendLayout(t *testing.T) {
 	assert.Equal(t, filepath.Join(root, workspace.ProjectsDirName, "prj_abc.db"), b.ProjectPath("prj_abc"))
 }
 
+// TestLocalBackendLooksForAStoreOnDisk: looking for a project's store creates
+// neither the projects directory nor the file, and finds a store another
+// backend on the same directory created.
+func TestLocalBackendLooksForAStoreOnDisk(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "workspaces", "default")
+	ctx := t.Context()
+
+	looker := workspace.Local(root)
+	t.Cleanup(func() { _ = looker.Close() })
+	held, err := looker.HasProject(ctx, "prj_elsewhere")
+	require.NoError(t, err)
+	assert.False(t, held)
+	assert.NoDirExists(t, root, "looking for a store leaves the disk as it was")
+
+	maker := workspace.Local(root)
+	_, err = maker.Project(ctx, "prj_elsewhere")
+	require.NoError(t, err)
+	require.NoError(t, maker.Close())
+
+	held, err = looker.HasProject(ctx, "prj_elsewhere")
+	require.NoError(t, err)
+	assert.True(t, held, "a store another process created is found")
+}
+
 func TestTwoCheckoutsShareOneContextStore(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "workspaces", "default")
 	ctx := t.Context()

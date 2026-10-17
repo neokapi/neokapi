@@ -121,6 +121,12 @@ func (w *Workspace) Context(ctx context.Context, key ProjectKey) (*storage.DB, e
 	return w.backend.Project(ctx, key)
 }
 
+// HasContext reports whether the workspace holds a context store for a project,
+// without opening or creating one.
+func (w *Workspace) HasContext(ctx context.Context, key ProjectKey) (bool, error) {
+	return w.backend.HasProject(ctx, key)
+}
+
 // Ops returns the operations this log received after a local position, in the
 // order it received them.
 func (w *Workspace) Ops(ctx context.Context, after int64, limit int) ([]Op, error) {

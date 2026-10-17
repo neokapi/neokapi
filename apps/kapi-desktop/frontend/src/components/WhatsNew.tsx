@@ -312,9 +312,9 @@ export function markActor(actor: ContextActivity["actor"]): { actor: string; nam
 }
 
 /**
- * The workspace as labelled counts: projects, rules in force, suggestions
- * advising, and the disagreements that need a person, in the warning ink while
- * there are any.
+ * The workspace as labelled counts: projects, rules in force, the concepts in
+ * the projects' terms stores, suggestions advising, and the disagreements that
+ * need a person, in the warning ink while there are any.
  */
 export function WorkspaceNumbers({
   standings,
@@ -326,6 +326,7 @@ export function WorkspaceNumbers({
 }) {
   if (!standings) return null;
   const rules = standings.reduce((n, s) => n + s.rules, 0);
+  const terms = standings.reduce((n, s) => n + s.terms, 0);
   const suggested = standings.reduce((n, s) => n + s.suggested, 0);
   const conflicts = standings.reduce((n, s) => n + s.conflicts, 0);
   const count = projects ?? standings.length;
@@ -342,6 +343,13 @@ export function WorkspaceNumbers({
       value: rules,
       label: t("{count, plural, one {rule} other {rules}}", "a count on the home", {
         count: rules,
+      }),
+    },
+    {
+      id: "terms",
+      value: terms,
+      label: t("{count, plural, one {term} other {terms}}", "a count on the home", {
+        count: terms,
       }),
     },
     {

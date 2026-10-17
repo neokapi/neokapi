@@ -44,7 +44,7 @@ describe("a project on the workspace home", () => {
   it("is one row with the name, the voice, the rules, the reach and the last activity", () => {
     renderRow({
       voice: "Fernwell",
-      context: { project: "prj_fernwell", rules: 23, suggested: 0, conflicts: 0, new: 0 },
+      context: { project: "prj_fernwell", rules: 23, suggested: 0, conflicts: 0, terms: 0, new: 0 },
       sharing: { kind: "local", from: "default", workspace: LOCATION },
     });
     expect(cell("name")).toBe("Fernwell");
@@ -66,14 +66,14 @@ describe("a project on the workspace home", () => {
 
   it("uses the singular for one rule", () => {
     renderRow({
-      context: { project: "prj_fernwell", rules: 1, suggested: 0, conflicts: 0, new: 0 },
+      context: { project: "prj_fernwell", rules: 1, suggested: 0, conflicts: 0, terms: 0, new: 0 },
     });
     expect(cell("rules")).toBe("1 rule");
   });
 
   it("keeps the project key, the paths and the count of what is new off the row", () => {
     renderRow({
-      context: { project: "prj_fernwell", rules: 2, suggested: 0, conflicts: 0, new: 7 },
+      context: { project: "prj_fernwell", rules: 2, suggested: 0, conflicts: 0, terms: 0, new: 7 },
     });
     expect(screen.queryByText("prj_fernwell")).not.toBeInTheDocument();
     expect(screen.queryByText("/fakehome/src/fernwell")).not.toBeInTheDocument();

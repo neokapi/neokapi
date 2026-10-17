@@ -30,20 +30,32 @@ function chipsOf(row: Element) {
 }
 
 describe("the workspace numbers", () => {
-  it("draws the projects, the rules, the suggestions and what needs you as labelled counts", () => {
+  it("draws the projects, the rules, the terms, the suggestions and what needs you as labelled counts", () => {
     render(<WorkspaceNumbers standings={SEVERAL} />);
     expect(all("workspace-numbers")).toHaveLength(1);
     expect(stats()).toEqual([
       { phrase: "4 projects", tone: "default" },
       { phrase: "61 rules", tone: "default" },
+      { phrase: "260 terms", tone: "default" },
       { phrase: "11 suggestions", tone: "default" },
       { phrase: "1 needs you", tone: "warning" },
     ]);
   });
 
+  it("counts a project's terms apart from its rules", () => {
+    render(<WorkspaceNumbers standings={[{ ...NOTHING[0], terms: 100 }]} />);
+    expect(stats().map((s) => s.phrase)).toEqual([
+      "1 project",
+      "0 rules",
+      "100 terms",
+      "0 suggestions",
+      "0 need you",
+    ]);
+  });
+
   it("draws needs you in the muted ink when nothing needs a person", () => {
     render(<WorkspaceNumbers standings={ONE_WORKING} />);
-    expect(stats()[3]).toEqual({ phrase: "0 need you", tone: "muted" });
+    expect(stats()[4]).toEqual({ phrase: "0 need you", tone: "muted" });
   });
 
   it("counts the workspace's projects when it is told how many there are", () => {
@@ -52,10 +64,11 @@ describe("the workspace numbers", () => {
   });
 
   it("uses the singular for one of each", () => {
-    render(<WorkspaceNumbers standings={[{ ...FIELD_GUIDE, rules: 1, suggested: 1 }]} />);
+    render(<WorkspaceNumbers standings={[{ ...FIELD_GUIDE, rules: 1, suggested: 1, terms: 1 }]} />);
     expect(stats().map((s) => s.phrase)).toEqual([
       "1 project",
       "1 rule",
+      "1 term",
       "1 suggestion",
       "0 need you",
     ]);

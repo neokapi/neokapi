@@ -122,7 +122,7 @@ describe("AppHome", () => {
     const phrases = Array.from(
       slot("workspace-numbers")!.querySelectorAll("[data-slot='stat'] .sr-only"),
     ).map((s) => s.textContent);
-    expect(phrases).toEqual(["1 project", "23 rules", "4 suggestions", "0 need you"]);
+    expect(phrases).toEqual(["1 project", "23 rules", "142 terms", "4 suggestions", "0 need you"]);
   });
 
   it("shows the assistant working now on its project's row, as a chip", () => {

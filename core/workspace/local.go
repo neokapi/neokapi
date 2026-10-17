@@ -175,6 +175,27 @@ func (b *LocalBackend) Project(ctx context.Context, key ProjectKey) (*storage.DB
 	return db, nil
 }
 
+// HasProject reports whether one project's context store is open or on disk.
+// It creates neither the directory nor the file.
+func (b *LocalBackend) HasProject(_ context.Context, key ProjectKey) (bool, error) {
+	if key == "" {
+		return false, ErrNoProjectKey
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.closed {
+		return false, errors.New("workspace: backend is closed")
+	}
+	if _, ok := b.projects[key]; ok {
+		return true, nil
+	}
+	held, err := storage.Exists(b.ProjectPath(key))
+	if err != nil {
+		return false, fmt.Errorf("workspace: look for the context store of %s: %w", key, err)
+	}
+	return held, nil
+}
+
 // Forget closes one project's context store and removes its file, together
 // with the write-ahead log and shared-memory sidecars beside it. Removing the
 // file while a pool is still on it would leave that pool writing into an
