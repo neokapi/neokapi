@@ -3,6 +3,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/neokapi/neokapi/core/contextop"
@@ -56,12 +57,16 @@ never fails their build.
 
 Every note is a suggestion. Checks report it, no check fails on it, and a
 person decides about it with "kapi context review". Say where you saw it with
---seen-in and --quote. Take back a note of your own that was wrong with
+--seen-in and --quote. A note holds where its evidence sits; --point narrows
+that one axis at a time to a value inside it, such as --point market=no, and
+--valid-from and --valid-to bound how long it holds. Take back a note of your own that was wrong with
 --withdraw <id>, in the session that recorded it.`,
 		Example: "  kapi context note \"the docs address the reader as you\"\n" +
 			"  kapi context note --term Quickcast --instead-of \"Quick cast\" \\\n" +
 			"    --seen-in README.md --quote \"Quickcast forecasts the next hour.\"\n" +
 			"  kapi context note --from \"sign in\" --to \"log in\" --seen-in web/src/auth.tsx --suggest\n" +
+			"  kapi context note --term \"Summer sale\" --instead-of \"Spring sale\" --seen-in promo/no.md \\\n" +
+			"    --point market=no --valid-to 2026-09-01\n" +
 			"  kapi context note --withdraw 0n794e2gk7 --why \"recorded the wrong way round\"",
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -83,10 +88,17 @@ person decides about it with "kapi context review". Say where you saw it with
 			quote, _ := cmd.Flags().GetString("quote")
 			suggest, _ := cmd.Flags().GetBool("suggest")
 			advisory, _ := cmd.Flags().GetBool("advisory")
+			points, _ := cmd.Flags().GetStringArray("point")
+			validFrom, _ := cmd.Flags().GetString("valid-from")
+			validTo, _ := cmd.Flags().GetString("valid-to")
+			point, err := pointFrom(points)
+			if err != nil {
+				return err
+			}
 
 			switch {
 			case withdraw != "":
-				if text != "" || term != "" || from != "" || to != "" {
+				if text != "" || term != "" || from != "" || to != "" || len(point) > 0 || validFrom != "" || validTo != "" {
 					return errors.New("--withdraw takes back an earlier note: record nothing else with it")
 				}
 				res, err := a.WithdrawContextOperation(cmd.Context(), host.ContextWithdrawRequest{
@@ -104,13 +116,16 @@ person decides about it with "kapi context review". Say where you saw it with
 					return errors.New("record a change with --from and --to alone; note what you noticed separately")
 				}
 				res, err := a.RecordContextCorrection(cmd.Context(), host.ContextCorrectRequest{
-					Project:  projectPath,
-					From:     from,
-					To:       to,
-					Evidence: evidenceFrom(seenIn, quote),
-					Suggest:  suggest,
-					Advisory: advisory,
-					Note:     why,
+					Project:   projectPath,
+					From:      from,
+					To:        to,
+					Evidence:  evidenceFrom(seenIn, quote),
+					Suggest:   suggest,
+					Advisory:  advisory,
+					Note:      why,
+					Point:     point,
+					ValidFrom: validFrom,
+					ValidTo:   validTo,
 				})
 				if err != nil {
 					return err
@@ -129,6 +144,9 @@ person decides about it with "kapi context review". Say where you saw it with
 				Term:      term,
 				InsteadOf: insteadOf,
 				Evidence:  evidenceFrom(seenIn, quote),
+				Point:     point,
+				ValidFrom: validFrom,
+				ValidTo:   validTo,
 			})
 			if err != nil {
 				return err
@@ -144,6 +162,9 @@ person decides about it with "kapi context review". Say where you saw it with
 	cmd.Flags().Bool("advisory", false, "with --suggest: make that rule report without failing a check once kept")
 	cmd.Flags().StringSlice("seen-in", nil, "a file you saw it in, or the change was made in (repeatable)")
 	cmd.Flags().String("quote", "", "the wording you saw")
+	cmd.Flags().StringArray("point", nil, "narrow where it holds, as axis=value within where the evidence sits, such as market=no (repeatable)")
+	cmd.Flags().String("valid-from", "", "it holds from this date (2006-01-02) or instant on")
+	cmd.Flags().String("valid-to", "", "it holds until this date (2006-01-02) or instant, not including it")
 	cmd.Flags().String("withdraw", "", "take back a note of your own by its id")
 	cmd.Flags().String("why", "", "what the person said about the change, or what was wrong with the note withdrawn")
 	AddProjectFlag(cmd)
@@ -152,7 +173,7 @@ person decides about it with "kapi context review". Say where you saw it with
 
 func newContextLogCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "log",
+		Use:   "log [id]",
 		Short: "List what was recorded, or what this session recorded",
 		Long: `List what has been noted, imported and decided about this project's
 context, newest first.
@@ -163,12 +184,15 @@ contested by another rule it names, or withdrawn, dropped or reset.
 
 "--session this" is an assistant reading back what its own run recorded, which
 is how it ends a task report. Narrow the list with --status to see what is
-waiting for a decision, or with --session to see what one run did.`,
+waiting for a decision, or with --session to see what one run did. Name one
+id to see that rule or fact and every decision about it, the history Kapi
+Desktop's Explore shows for it.`,
 		Example: "  kapi context log --session this\n" +
 			"  kapi context log --status suggested\n" +
 			"  kapi context log --session 0ab4e399 --json\n" +
-			"  kapi context log --actor agent --since 2026-09-01",
-		Args: cobra.NoArgs,
+			"  kapi context log --actor agent --since 2026-09-01\n" +
+			"  kapi context log 0q7yfmxhj2",
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			projectPath, err := RequireProjectPath(cmd)
 			if err != nil {
@@ -188,6 +212,9 @@ waiting for a decision, or with --session to see what one run did.`,
 				Actor:    actor,
 				Subjects: subjects,
 				Limit:    limit,
+			}
+			if len(args) == 1 {
+				req.ID = args[0]
 			}
 			if status != "" && !req.Status.Valid() {
 				return fmt.Errorf("--status takes one of %v, not %q", contextop.Statuses, status)
@@ -284,6 +311,26 @@ func evidenceFrom(paths []string, quote string) []contextop.Evidence {
 		out = append(out, e)
 	}
 	return out
+}
+
+// pointFrom reads the repeatable --point axis=value flags into a point.
+func pointFrom(values []string) (map[string]string, error) {
+	if len(values) == 0 {
+		return nil, nil
+	}
+	out := make(map[string]string, len(values))
+	for _, v := range values {
+		name, value, ok := strings.Cut(v, "=")
+		name, value = strings.TrimSpace(name), strings.TrimSpace(value)
+		if !ok || name == "" || value == "" {
+			return nil, fmt.Errorf("--point takes axis=value, such as --point market=no, not %q", v)
+		}
+		if held, twice := out[name]; twice && held != value {
+			return nil, fmt.Errorf("--point names %s twice (%s and %s): a note holds at one value per axis", name, held, value)
+		}
+		out[name] = value
+	}
+	return out, nil
 }
 
 // parseSince reads a --since value as a bare date or a full instant. A bare

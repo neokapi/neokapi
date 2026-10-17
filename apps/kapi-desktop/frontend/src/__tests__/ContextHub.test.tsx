@@ -12,6 +12,22 @@ vi.mock("../components/ContextExplorerView", () => ({
     </div>
   ),
 }));
+vi.mock("../components/ContextAtlasView", () => ({
+  ContextAtlasView: ({
+    tabID,
+    onOpenEvidence,
+  }: {
+    tabID: string;
+    onOpenEvidence?: (p: string) => void;
+  }) => (
+    <div>
+      atlas for {tabID}
+      {onOpenEvidence && (
+        <button onClick={() => onOpenEvidence("src/en/store-ui.json")}>open evidence</button>
+      )}
+    </div>
+  ),
+}));
 vi.mock("../components/VoicePage", () => ({
   VoicePage: ({ tabID }: { tabID: string }) => <div>voice for {tabID}</div>,
 }));
@@ -90,6 +106,7 @@ describe("ContextHub", () => {
     render(<ContextHub tabID="t1" projectName="Northsea" hasTargetLanguages />);
     expect(railLabels()).toEqual([
       "What's new",
+      "Explore",
       "Ask",
       "Assistant",
       "Voice",
@@ -104,6 +121,7 @@ describe("ContextHub", () => {
     render(<ContextHub tabID="t1" projectName="Northsea" contextOnly />);
     expect(railLabels()).toEqual([
       "What's new",
+      "Explore",
       "Assistant",
       "Terms",
       "Content Memory",
@@ -114,6 +132,13 @@ describe("ContextHub", () => {
     expect(screen.getByText("share for t1 without a checkout")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Assistant" }));
     expect(screen.getByText("assistant for t1 without a checkout")).toBeInTheDocument();
+  });
+
+  it("opens Explore, and its evidence in Ask", async () => {
+    render(<ContextHub tabID="t1" projectName="Northsea" section="atlas" />);
+    expect(screen.getByText("atlas for t1")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "open evidence" }));
+    expect(screen.getByTestId("explorer-pinned-path")).toHaveTextContent("src/en/store-ui.json");
   });
 
   it("opens Share on the project's ladder", () => {

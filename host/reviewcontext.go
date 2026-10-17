@@ -226,13 +226,12 @@ func (r *ReviewPointResolver) resolve(ctx context.Context, collection, rel, loca
 		}
 	}
 
-	// The coordinates the recipe declares: the project's defaults, overlaid
-	// with what the resolved ref derives, overlaid with the collection's own.
+	// The coordinates of the point the unit sits at, under the governance the
+	// answer resolved there.
 	proj := r.recipe()
 	if proj != nil {
-		ref := project.ChannelRef{Profile: e.point.Profile, Channel: e.point.Channel}
-		e.point.Coordinates = project.MergeCoordinates(
-			proj.Defaults.Coordinates, ref.Coordinates(), collectionCoordinates(proj, e.point.Collection))
+		governing := &project.ResolvedGovernance{Profile: e.point.Profile, Channel: e.point.Channel}
+		e.point.Coordinates = proj.CoordinatesAt(point, governing)
 	}
 
 	// The rules the terms gate holds the target to: the terms bound here and the
@@ -261,20 +260,6 @@ func (r *ReviewPointResolver) recipe() *project.KapiProject {
 		return nil
 	}
 	return proj
-}
-
-// collectionCoordinates reads a collection's own declared axes, nil when the
-// recipe declares no such collection.
-func collectionCoordinates(proj *project.KapiProject, name string) map[string]string {
-	if proj == nil || name == "" {
-		return nil
-	}
-	for i := range proj.Collections {
-		if proj.Collections[i].Name == name {
-			return proj.Collections[i].Coordinates
-		}
-	}
-	return nil
 }
 
 // reviewPointPath renders a source path the way the recipe's globs are matched

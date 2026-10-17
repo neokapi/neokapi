@@ -39,6 +39,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -90,6 +91,13 @@ type ContextObserveRequest struct {
 	InsteadOf []string
 	// Evidence is where it was seen.
 	Evidence []contextop.Evidence
+	// Point narrows where the observation holds, axis by axis, within the
+	// point its evidence resolves to (narrowScope).
+	Point map[string]string
+	// ValidFrom and ValidTo bound how long it holds: a bare date or an
+	// RFC3339 instant each, valid_from inclusive and valid_to exclusive.
+	ValidFrom string
+	ValidTo   string
 }
 
 // ContextCorrectRequest records that someone changed wording at a location. A
@@ -115,6 +123,12 @@ type ContextCorrectRequest struct {
 	Advisory bool
 	// Note is whatever the actor wants to say about it.
 	Note string
+	// Point narrows where the suggested rule holds, within the point its
+	// evidence resolves to (narrowScope).
+	Point map[string]string
+	// ValidFrom and ValidTo bound how long the suggested rule holds.
+	ValidFrom string
+	ValidTo   string
 }
 
 // ContextLogRequest narrows a reading of a project's context history.
@@ -140,6 +154,10 @@ type ContextLogRequest struct {
 	Subjects bool
 	// Limit keeps the most recent N. Zero keeps them all.
 	Limit int
+	// ID narrows to one rule or fact and every operation that acted on it: its
+	// history, as Explore's detail pane shows it. An id, or an unambiguous
+	// start of one, naming a decision reaches the rule it was about.
+	ID string
 }
 
 // ContextKeepRequest establishes suggestions: the ones IDs names, or everything
@@ -169,6 +187,12 @@ type ContextKeepRequest struct {
 	// every project, and an axis name drops that axis from the rule's point so
 	// it answers more widely.
 	WidenTo string
+	// ValidFrom and ValidTo set the rule's lifetime as it is kept: a bare
+	// date or an RFC3339 instant each. The window is written onto the term the
+	// rule lands as, so checks, retrieval and drafting stop reading it at the
+	// same instant.
+	ValidFrom string
+	ValidTo   string
 	// Note is whatever the person wants to say about the decision.
 	Note string
 }
@@ -335,6 +359,9 @@ func (a *App) RecordContextObservation(ctx context.Context, req ContextObserveRe
 		return ContextOperation{}, err
 	}
 	defer s.refreshRulesFiles(ctx)
+	if err := webEvidence(req.Evidence); err != nil {
+		return ContextOperation{}, err
+	}
 	subject, err := observedSubject(req)
 	if err != nil {
 		return ContextOperation{}, err
@@ -351,21 +378,41 @@ func (a *App) RecordContextObservation(ctx context.Context, req ContextObserveRe
 	if err != nil {
 		return ContextOperation{}, err
 	}
-	before, err := s.ledger.Records(ctx, contextop.Filter{Project: s.key, Subjects: true})
-	if err != nil {
-		return ContextOperation{}, err
-	}
-	record, err := s.ledger.Append(ctx, s.stamp(contextop.Record{
+	stamped := s.stamp(contextop.Record{
 		Actor:    actor,
 		Kind:     contextop.KindObserve,
 		Subject:  subject,
 		Evidence: req.Evidence,
 		Note:     note,
-	}, req.Evidence))
+	}, req.Evidence)
+	if stamped.Scope, err = s.submittedScope(stamped.Scope, req.Point, req.ValidFrom, req.ValidTo); err != nil {
+		return ContextOperation{}, err
+	}
+	before, err := s.ledger.Records(ctx, contextop.Filter{Project: s.key, Subjects: true})
+	if err != nil {
+		return ContextOperation{}, err
+	}
+	record, err := s.ledger.Append(ctx, stamped)
 	if err != nil {
 		return ContextOperation{}, teachRefusal(err)
 	}
 	return s.settled(ctx, record, before)
+}
+
+// webEvidence refuses evidence naming a URL that is not an http or https page.
+// Every surface that shows evidence offers its URL as a link, and an agent
+// records evidence, so a javascript: or data: URL must stop at the log.
+func webEvidence(evidence []contextop.Evidence) error {
+	for _, e := range evidence {
+		if e.URL == "" {
+			continue
+		}
+		u, err := url.Parse(e.URL)
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+			return fmt.Errorf("evidence URL %q is not a web page: name an http or https address, or give the path of a file in the project", e.URL)
+		}
+	}
+	return nil
 }
 
 // observedSubject reads what an observation states: a term rule when it names a
@@ -612,6 +659,9 @@ func (a *App) RecordContextCorrection(ctx context.Context, req ContextCorrectReq
 	if req.From == "" || req.To == "" {
 		return ContextOperation{}, errors.New("a correction needs the wording that was there and the wording that replaced it")
 	}
+	if err := webEvidence(req.Evidence); err != nil {
+		return ContextOperation{}, err
+	}
 	actor, note, err := s.actorFor(ctx, req.Actor, req.Note)
 	if err != nil {
 		return ContextOperation{}, err
@@ -635,11 +685,15 @@ func (a *App) RecordContextCorrection(ctx context.Context, req ContextCorrectReq
 		}
 		record.Subject = contextop.Subject{Kind: contextop.SubjectTerm, Term: rule}
 	}
+	stamped := s.stamp(record, req.Evidence)
+	if stamped.Scope, err = s.submittedScope(stamped.Scope, req.Point, req.ValidFrom, req.ValidTo); err != nil {
+		return ContextOperation{}, err
+	}
 	before, err := s.ledger.Records(ctx, contextop.Filter{Project: s.key, Subjects: true})
 	if err != nil {
 		return ContextOperation{}, err
 	}
-	written, err := s.ledger.Append(ctx, s.stamp(record, req.Evidence))
+	written, err := s.ledger.Append(ctx, stamped)
 	if err != nil {
 		return ContextOperation{}, teachRefusal(err)
 	}
@@ -658,7 +712,7 @@ func (a *App) ContextOperations(ctx context.Context, req ContextLogRequest) (Con
 		if err != nil {
 			return ContextOperationList{}, err
 		}
-		ledger = contextop.NewLedger(ws, contextop.PersonDecides)
+		ledger = a.contextLedger(ctx, ws)
 	} else {
 		s, err := a.contextOps(ctx, req.Project)
 		if err != nil {
@@ -670,7 +724,7 @@ func (a *App) ContextOperations(ctx context.Context, req ContextLogRequest) (Con
 	if err != nil {
 		return ContextOperationList{}, err
 	}
-	records, err := ledger.Records(ctx, contextop.Filter{
+	filter := contextop.Filter{
 		Project:  key,
 		Session:  session,
 		Status:   req.Status,
@@ -678,9 +732,33 @@ func (a *App) ContextOperations(ctx context.Context, req ContextLogRequest) (Con
 		Since:    req.Since,
 		Subjects: req.Subjects,
 		Limit:    req.Limit,
-	})
+	}
+	if req.ID != "" {
+		// The limit applies to the rule's own history, not to the log it is
+		// read from.
+		filter.Limit = 0
+	}
+	records, err := ledger.Records(ctx, filter)
 	if err != nil {
 		return ContextOperationList{}, err
+	}
+	if req.ID != "" {
+		subject, serr := ledger.Subject(ctx, req.ID)
+		if serr != nil {
+			return ContextOperationList{}, serr
+		}
+		// The rule, every operation that names it, and a reset that starts
+		// at it.
+		kept := records[:0]
+		for _, r := range records {
+			if r.ID == subject.ID || r.Target == subject.ID || r.Before == subject.ID {
+				kept = append(kept, r)
+			}
+		}
+		records = kept
+		if req.Limit > 0 && len(records) > req.Limit {
+			records = records[:req.Limit]
+		}
 	}
 	out := ContextOperationList{Project: string(key), Operations: make([]ContextOperation, 0, len(records))}
 	for _, r := range records {
@@ -733,6 +811,9 @@ func (a *App) KeepContextOperations(ctx context.Context, req ContextKeepRequest)
 	}
 	if req.Replacement != "" && len(req.IDs) != 1 {
 		return ContextKeepResult{}, errors.New("changing the rule as it is kept edits one rule: name one operation")
+	}
+	if _, _, err := ruleWindow(req.ValidFrom, req.ValidTo); err != nil {
+		return ContextKeepResult{}, err
 	}
 
 	var out ContextKeepResult
@@ -842,6 +923,13 @@ func (s *contextOpsSession) keep(ctx context.Context, actor contextop.Actor, not
 			return ContextOperation{}, werr
 		}
 		keep.Scope, target.Scope = widened, widened
+	}
+	if req.ValidFrom != "" || req.ValidTo != "" {
+		windowed, werr := withWindow(keep.Scope, req.ValidFrom, req.ValidTo)
+		if werr != nil {
+			return ContextOperation{}, werr
+		}
+		keep.Scope, target.Scope = windowed, windowed
 	}
 
 	// The decision is recorded before it is carried out. A write that fails
@@ -1175,7 +1263,7 @@ func (a *App) contextOpsFor(ctx context.Context, key workspace.ProjectKey) (*con
 	}
 	return &contextOpsSession{
 		app:    a,
-		ledger: contextop.NewLedger(ws, contextop.PersonDecides),
+		ledger: a.contextLedger(ctx, ws),
 		ws:     ws,
 		key:    key,
 	}, nil
@@ -1221,11 +1309,18 @@ func (a *App) contextOpsAt(ctx context.Context, recipePath string) (*contextOpsS
 	if err != nil {
 		return nil, fmt.Errorf("load project for context operations: %w", err)
 	}
+	key := workspace.ProjectKey(identity)
+	// The checkout an operation is recorded from is one this machine knows the
+	// project at, so every later reader of the log can type the project's axes
+	// from its recipe. A workspace opened for reading records nothing.
+	if !ws.Describe().ReadOnly {
+		_, _ = ws.Register(ctx, key, proj.Name, NormalizeCheckoutPath(filepath.Dir(resolved)))
+	}
 	return &contextOpsSession{
 		app:    a,
-		ledger: contextop.NewLedger(ws, contextop.PersonDecides),
+		ledger: a.contextLedgerAt(ctx, ws, key, proj),
 		ws:     ws,
-		key:    workspace.ProjectKey(identity),
+		key:    key,
 		proj:   proj,
 		recipe: resolved,
 		root:   filepath.Dir(resolved),
@@ -1257,11 +1352,9 @@ func (s *contextOpsSession) basisAt(evidence []contextop.Evidence) (contextop.Ba
 		return contextop.Basis{}, contextop.Scope{Level: contextop.LevelProject}
 	}
 	point := project.GovernancePoint{At: s.app.GovernanceInstant()}
-	var collection string
 	for _, e := range evidence {
 		if e.Path != "" {
 			point.Path = e.Path
-			collection = s.proj.CollectionForPath(e.Path)
 			break
 		}
 	}
@@ -1269,8 +1362,7 @@ func (s *contextOpsSession) basisAt(evidence []contextop.Evidence) (contextop.Ba
 	if err != nil || rc == nil {
 		return contextop.Basis{}, contextop.Scope{Level: contextop.LevelProject}
 	}
-	coordinates := project.MergeCoordinates(
-		s.proj.Defaults.Coordinates, rc.Ref().Coordinates(), collectionCoordinates(s.proj, collection))
+	coordinates := s.proj.CoordinatesAt(point, rc)
 	return contextop.Basis{Profile: rc.Profile, Channel: rc.Channel},
 		contextop.Scope{Level: contextop.LevelProject, Coordinates: coordinates}
 }

@@ -101,23 +101,20 @@ func (c *BowrainSourceConnector) recipeDivergesFrom(ctx context.Context, e *pb.S
 	if declared == nil {
 		return nil
 	}
-	ref, err := c.project.Recipe.ResolveChannel(declared.Channel)
+	recipe := c.project.Recipe
+	governance, err := recipe.ResolveGovernance(e.Name)
 	if err != nil {
 		return nil
 	}
 	var parts []string
-	// The same merge the push carries, or every collection with a declared axis
-	// would read as diverged forever: the entry on the server holds the merged
-	// point and this compared it against the structural axes alone.
-	point := coreproj.MergeCoordinates(
-		c.project.Recipe.Defaults.Coordinates,
-		ref.Coordinates(),
-		declared.Coordinates,
-	)
+	// The same point the push carries (CoordinatesAt), or every collection
+	// with a declared axis would read as diverged forever: the entry on the
+	// server holds the merged point.
+	point := recipe.CoordinatesAt(coreproj.GovernancePoint{Collection: e.Name}, governance)
 	if !maps.Equal(normalizeCoordinates(point), normalizeCoordinates(e.Coordinates)) {
 		parts = append(parts, "point")
 	}
-	if ref.Channel != e.Channel {
+	if governance.Channel != e.Channel {
 		parts = append(parts, "channel")
 	}
 	if c.voiceDivergesFrom(ctx, e.Name, e.VoiceProfile) {

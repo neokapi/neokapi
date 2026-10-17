@@ -188,19 +188,22 @@ func sessionClientName(req mcp.Request) string {
 // contextNoteInput is one note: something an agent noticed while reading a
 // project, wording a person changed, or the withdrawal of a note of its own.
 type contextNoteInput struct {
-	Text      string   `json:"text,omitempty" jsonschema:"the fact, in one sentence, in your own words"`
-	Term      string   `json:"term,omitempty" jsonschema:"the form this project uses for a name or word, e.g. Quickcast"`
-	InsteadOf []string `json:"instead_of,omitempty" jsonschema:"forms the project avoids for term, e.g. Quick cast; spacing, hyphen and case variants are added for you"`
-	From      string   `json:"from,omitempty" jsonschema:"for a change a person made: the wording that was there"`
-	To        string   `json:"to,omitempty" jsonschema:"for a change a person made: the wording that replaced it"`
-	Suggest   bool     `json:"suggest,omitempty" jsonschema:"with from and to: also record the rule the change implies, so the next use of the old wording is reported"`
-	Advisory  bool     `json:"advisory,omitempty" jsonschema:"with suggest: the rule should only report once a person keeps it; unset, a kept rule fails a check"`
-	Path      string   `json:"path,omitempty" jsonschema:"the project-relative file you saw it in, or the person changed it in"`
-	Block     string   `json:"block,omitempty" jsonschema:"the ref.block that read_blocks or kapi inspect reports"`
-	Quote     string   `json:"quote,omitempty" jsonschema:"the wording you saw, quoted from the file"`
-	Withdraw  string   `json:"withdraw,omitempty" jsonschema:"the id of a note this session recorded wrongly, to take it back"`
-	Why       string   `json:"why,omitempty" jsonschema:"what the person said about the change, or what was wrong with the note withdrawn"`
-	Project   string   `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
+	Text      string            `json:"text,omitempty" jsonschema:"the fact, in one sentence, in your own words"`
+	Term      string            `json:"term,omitempty" jsonschema:"the form this project uses for a name or word, e.g. Quickcast"`
+	InsteadOf []string          `json:"instead_of,omitempty" jsonschema:"forms the project avoids for term, e.g. Quick cast; spacing, hyphen and case variants are added for you"`
+	From      string            `json:"from,omitempty" jsonschema:"for a change a person made: the wording that was there"`
+	To        string            `json:"to,omitempty" jsonschema:"for a change a person made: the wording that replaced it"`
+	Suggest   bool              `json:"suggest,omitempty" jsonschema:"with from and to: also record the rule the change implies, so the next use of the old wording is reported"`
+	Advisory  bool              `json:"advisory,omitempty" jsonschema:"with suggest: the rule should only report once a person keeps it; unset, a kept rule fails a check"`
+	Path      string            `json:"path,omitempty" jsonschema:"the project-relative file you saw it in, or the person changed it in"`
+	Block     string            `json:"block,omitempty" jsonschema:"the ref.block that read_blocks or kapi inspect reports"`
+	Quote     string            `json:"quote,omitempty" jsonschema:"the wording you saw, quoted from the file"`
+	Withdraw  string            `json:"withdraw,omitempty" jsonschema:"the id of a note this session recorded wrongly, to take it back"`
+	Why       string            `json:"why,omitempty" jsonschema:"what the person said about the change, or what was wrong with the note withdrawn"`
+	Point     map[string]string `json:"point,omitempty" jsonschema:"narrows where the note holds, axis to value, within the point the file it was seen in sits at, such as market set to no; it may narrow and never widen"`
+	ValidFrom string            `json:"valid_from,omitempty" jsonschema:"the note holds from this date (2006-01-02) or RFC3339 instant on"`
+	ValidTo   string            `json:"valid_to,omitempty" jsonschema:"the note holds until this date (2006-01-02) or RFC3339 instant, not including it"`
+	Project   string            `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
 }
 
 // contextSessionInput asks what one session did.
@@ -301,6 +304,8 @@ func (a *App) handleContextNote(ctx context.Context, req *mcp.CallToolRequest, i
 	}
 	var out contextRecordOutput
 	switch {
+	case strings.TrimSpace(in.Withdraw) != "" && (len(in.Point) > 0 || in.ValidFrom != "" || in.ValidTo != ""):
+		err = errors.New("context_note: `withdraw` takes back an earlier note; `point`, `valid_from` and `valid_to` go with a new one")
 	case strings.TrimSpace(in.Withdraw) != "":
 		out, err = a.noteWithdraw(ctx, req, recipe, in)
 	case strings.TrimSpace(in.From) != "" || strings.TrimSpace(in.To) != "":
@@ -338,6 +343,9 @@ func (a *App) noteObservation(ctx context.Context, req *mcp.CallToolRequest, rec
 		Term:      in.Term,
 		InsteadOf: in.InsteadOf,
 		Evidence:  evidence,
+		Point:     in.Point,
+		ValidFrom: in.ValidFrom,
+		ValidTo:   in.ValidTo,
 	})
 	if err != nil {
 		return contextRecordOutput{}, err
@@ -357,14 +365,17 @@ func (a *App) noteCorrection(ctx context.Context, req *mcp.CallToolRequest, reci
 		return contextRecordOutput{}, err
 	}
 	op, err := a.RecordContextCorrection(ctx, ContextCorrectRequest{
-		Actor:    mcpAgentActor(req),
-		Project:  recipe,
-		From:     in.From,
-		To:       in.To,
-		Evidence: evidence,
-		Suggest:  in.Suggest,
-		Advisory: in.Advisory,
-		Note:     in.Why,
+		Actor:     mcpAgentActor(req),
+		Project:   recipe,
+		From:      in.From,
+		To:        in.To,
+		Evidence:  evidence,
+		Suggest:   in.Suggest,
+		Advisory:  in.Advisory,
+		Note:      in.Why,
+		Point:     in.Point,
+		ValidFrom: in.ValidFrom,
+		ValidTo:   in.ValidTo,
 	})
 	if err != nil {
 		return contextRecordOutput{}, err

@@ -15,7 +15,7 @@ import (
 // binary version: a plain upgrade should not prompt when the sample itself did
 // not change.
 var Revision = map[string]int{
-	"kapimart": 7, // r7: the store glob covers the catalogue again; the first matching item claims it
+	"kapimart": 8, // r8: declared places and the Oslo youth campaign
 }
 
 // CurrentRevision returns the embedded content revision for a sample (0 if the

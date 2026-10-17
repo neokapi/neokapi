@@ -557,7 +557,19 @@ func (a *App) OpenProject(path string) (*TabInfo, error) {
 
 	proj, err := project.Load(path)
 	if err != nil {
-		return nil, err
+		// A sample an older version of the app scaffolded is refreshed to the
+		// one this version ships, its old copy kept beside it.
+		name, _, refreshed, rerr := a.refreshStaleSample(filepath.Dir(path))
+		if rerr != nil {
+			return nil, fmt.Errorf("%w (refreshing the sample failed: %w)", err, rerr)
+		}
+		if !refreshed {
+			return nil, err
+		}
+		a.seedSampleSessions(name, path)
+		if proj, err = project.Load(path); err != nil {
+			return nil, err
+		}
 	}
 	tabID := id.New()
 	op := &openProject{

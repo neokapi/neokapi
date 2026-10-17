@@ -108,7 +108,8 @@ func resolveAt(t *testing.T, proj *project.KapiProject, req host.ContextPointReq
 	}
 	src.Recipe = proj
 	src.Path = req.Path
-	rc, err := host.ResolveContextGovernance(proj, req, project.GovernancePoint{Path: req.Path, At: src.At})
+	src.Point = project.GovernancePoint{Path: req.Path, At: src.At}
+	rc, err := host.ResolveContextGovernance(proj, req, src.Point)
 	require.NoError(t, err)
 	src.Governance = rc
 	if proj != nil && req.Path != "" {

@@ -440,7 +440,7 @@ export class Scope {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Coordinates are the axes of the point (project.MergeCoordinates), omitted
+             * Coordinates are the axes of the point (project.CoordinatesAt), omitted
              * where the rule answers regardless of them.
              * @member
              * @type {{ [_ in string]?: string } | undefined}
@@ -456,6 +456,23 @@ export class Scope {
              * @type {boolean | undefined}
              */
             this["all_profiles"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * ValidFrom and ValidTo bound the subject's lifetime: it answers from
+             * ValidFrom (inclusive) until ValidTo (exclusive), the half-open window
+             * profiles, terms and graph edges carry (graph.Validity). Nil is unbounded.
+             * @member
+             * @type {string | null | undefined}
+             */
+            this["valid_from"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | null | undefined}
+             */
+            this["valid_to"] = undefined;
         }
 
         Object.assign(this, $$source);

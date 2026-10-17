@@ -3,6 +3,7 @@ package sample
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/host"
@@ -45,6 +46,11 @@ func SeedSessions(ctx context.Context, app *host.App, name, recipe string) (bool
 		if op.Actor.Kind == contextop.ActorAgent {
 			return false, nil
 		}
+	}
+
+	// The team's notes came first; the assistants worked here after them.
+	if err := seedTeamNotes(ctx, app, recipe); err != nil {
+		return false, err
 	}
 
 	claude := contextop.Actor{Kind: contextop.ActorAgent, Name: "claude-code", Session: ClaudeCodeSession}
@@ -110,4 +116,74 @@ func SeedSessions(ctx context.Context, app *host.App, name, recipe string) (bool
 		}
 	}
 	return true, nil
+}
+
+// TeamMember is the person whose standing notes the sample arrives with.
+const TeamMember = "maria.lund@kapimart.example"
+
+// OsloCampaignPage is the Oslo youth campaign's main page, which the team's
+// note about that campaign quotes.
+const OsloCampaignPage = "campaigns/oslo/en/summer-pass.md"
+
+// seedTeamNotes records what a person on the team wrote down and kept: notes
+// that hold in one market, for one reader age, for one campaign's city and
+// age, or for a while only. They are
+// established from the start, so What's new still opens on the assistants'
+// suggestions, and Explore has a market, an age range and lifetimes to draw.
+// The windows are set from today, so whenever the sample is opened one is in
+// force, one has ended and one has yet to begin.
+func seedTeamNotes(ctx context.Context, app *host.App, recipe string) error {
+	team := contextop.Actor{Kind: contextop.ActorPerson, Name: TeamMember}
+	day := func(offset int) string { return time.Now().UTC().AddDate(0, 0, offset).Format(time.DateOnly) }
+	seen := func(quote string) []contextop.Evidence {
+		return []contextop.Evidence{{Path: "src/en/store-ui.json", Quote: quote}}
+	}
+	notes := []host.ContextObserveRequest{
+		{
+			Point:    map[string]string{"market": "jp"},
+			Text:     "Prices in Japan include consumption tax, so the tax line reads as included.",
+			Evidence: seen("Estimated Tax"),
+		},
+		{
+			Point:    map[string]string{"age": "13-17"},
+			Text:     "For readers aged 13 to 17 the shipping notice states the threshold without an exclamation mark.",
+			Evidence: seen("Free shipping on orders over {amount}!"),
+		},
+		{
+			Point: map[string]string{"market": "nordics"}, ValidFrom: day(-10), ValidTo: day(30),
+			Text:     "During the winter campaign the Nordic store names the campaign in the shipping notice.",
+			Evidence: seen("Free shipping on orders over {amount}!"),
+		},
+		{
+			ValidFrom: day(-40), ValidTo: day(-5),
+			Text:     "The autumn sale labelled reduced prices Sale Price; that label ended with the sale.",
+			Evidence: seen("Sale Price"),
+		},
+		{
+			Point: map[string]string{"market": "de"}, ValidFrom: day(20),
+			Text:     "Overnight shipping to Germany starts next month and is called Express Plus there.",
+			Evidence: seen("Overnight Shipping (next business day)"),
+		},
+		{
+			Point: map[string]string{"market": "oslo", "age": "13-17"},
+			Text:  "The Oslo youth campaign speaks to the reader and leaves the account to a parent or guardian, who adds the pass.",
+			Evidence: []contextop.Evidence{{
+				Path:  OsloCampaignPage,
+				Quote: "Ask a parent or guardian to add the pass to the family account.",
+			}},
+		},
+	}
+	for _, req := range notes {
+		req.Actor, req.Project = team, recipe
+		noted, err := app.RecordContextObservation(ctx, req)
+		if err != nil {
+			return fmt.Errorf("record the sample's team notes: %w", err)
+		}
+		if _, err := app.KeepContextOperation(ctx, host.ContextKeepRequest{
+			Actor: team, Project: recipe, ID: noted.ID,
+		}); err != nil {
+			return fmt.Errorf("keep the sample's team notes: %w", err)
+		}
+	}
+	return nil
 }

@@ -2127,22 +2127,11 @@ func (a *App) ResolveTermsStore(cmd Command, point project.GovernancePoint) (Sto
 	if err != nil {
 		return StoreSelection{}, err
 	}
-	coordinates := pointCoordinates(proj, rc, point)
+	coordinates := proj.CoordinatesAt(point, rc)
 	if bound != "" {
-		return StoreSelection{Path: bound, Profile: rc.Profile, Coordinates: coordinates}, nil
+		return StoreSelection{Path: bound, Profile: rc.Profile, Coordinates: coordinates, Axes: proj.AxisSpace(), At: point.At}, nil
 	}
-	return StoreSelection{Root: root, Profile: rc.Profile, Coordinates: coordinates}, nil
-}
-
-// pointCoordinates are the coordinates of a point: the project's defaults,
-// what the profile and channel governing there derive, and what the collection
-// holding the point declares.
-func pointCoordinates(proj *project.KapiProject, rc *project.ResolvedGovernance, point project.GovernancePoint) map[string]string {
-	collection := point.Collection
-	if point.Path != "" {
-		collection = proj.CollectionForPath(point.Path)
-	}
-	return project.MergeCoordinates(proj.Defaults.Coordinates, rc.Ref().Coordinates(), collectionCoordinates(proj, collection))
+	return StoreSelection{Root: root, Profile: rc.Profile, Coordinates: coordinates, Axes: proj.AxisSpace(), At: point.At}, nil
 }
 
 // requireNamedTermsStore refuses a terms store the caller named with
@@ -2260,7 +2249,7 @@ func (a *App) projectConcepts(cmd Command, point project.GovernancePoint) ([]sql
 	if err != nil || zeroPoint(point) {
 		return concepts, err
 	}
-	return sqlterms.AtPoint(concepts, sel.Profile, sel.Coordinates), nil
+	return sel.Holding(concepts), nil
 }
 
 // zeroPoint reports the point that names no location, which asks for the

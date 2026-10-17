@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/contextop"
+	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
@@ -281,6 +282,15 @@ func (a *App) applyTermEntryTo(ctx context.Context, w *projector.Projector, e ch
 		concepts[target].ScopeToPoint(e.Profile, e.Coordinates)
 		changed = true
 	}
+	// A rule kept with a lifetime writes it onto the term, so a check, the
+	// retrieval answer and drafting all stop reading it at the same instant.
+	if e.Validity != nil {
+		if i := termIndex(&concepts[target], e.Term, model.LocaleID(locale)); i >= 0 && !sameValidity(concepts[target].Terms[i].Validity, e.Validity) {
+			v := *e.Validity
+			concepts[target].Terms[i].Validity = &v
+			changed = true
+		}
+	}
 	if !changed {
 		res.Status = "skipped"
 		res.Detail = "already present"
@@ -298,6 +308,20 @@ func (a *App) applyTermEntryTo(ctx context.Context, w *projector.Projector, e ch
 	res.Status = "applied"
 	res.Detail = landedTerms
 	return res
+}
+
+// sameValidity reports whether two term windows bound the same instants.
+func sameValidity(a, b *graph.Validity) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	same := func(x, y *time.Time) bool {
+		if x == nil || y == nil {
+			return x == y
+		}
+		return x.Equal(*y)
+	}
+	return same(a.ValidFrom, b.ValidFrom) && same(a.ValidTo, b.ValidTo) && maps.Equal(a.Tags, b.Tags)
 }
 
 // sameScope reports whether a concept is scoped to exactly this profile and

@@ -46,7 +46,11 @@ type ContextReviewRequest struct {
 	// Advisory, when set, replaces whether a kept rule only reports (true) or
 	// fails a check (false).
 	Advisory *bool
-	Note     string
+	// ValidFrom and ValidTo set the lifetime of what Keep names: a bare date
+	// or an RFC3339 instant each, valid_from inclusive and valid_to exclusive.
+	ValidFrom string
+	ValidTo   string
+	Note      string
 }
 
 // Empty reports a request that decides nothing.
@@ -107,6 +111,9 @@ func (a *App) DecideContextReview(ctx context.Context, req ContextReviewRequest)
 	if req.WidenTo != "" && len(req.Keep) == 0 {
 		return out, errors.New("--widen-to applies what --keep names more widely: name it with --keep")
 	}
+	if (req.ValidFrom != "" || req.ValidTo != "") && len(req.Keep) == 0 {
+		return out, errors.New("--valid-from and --valid-to set the lifetime of what --keep names: name it with --keep")
+	}
 	if req.Replacement != "" && len(req.Keep) != 1 {
 		return out, errors.New("--use changes one rule as it is kept: name one --keep")
 	}
@@ -135,7 +142,7 @@ func (a *App) DecideContextReview(ctx context.Context, req ContextReviewRequest)
 		}
 		kept, err := a.KeepContextOperations(ctx, ContextKeepRequest{
 			Actor: req.Actor, Project: req.Project, Session: req.Session,
-			Advisory: req.Advisory, WidenTo: req.WidenTo, Note: req.Note,
+			Advisory: req.Advisory, WidenTo: req.WidenTo, ValidFrom: req.ValidFrom, ValidTo: req.ValidTo, Note: req.Note,
 		})
 		out.Kept, out.Skipped = append(out.Kept, kept.Kept...), kept.Skipped
 		return out, err
@@ -153,11 +160,25 @@ func (a *App) DecideContextReview(ctx context.Context, req ContextReviewRequest)
 				return out, werr
 			}
 			out.Widened = append(out.Widened, widened)
+			if req.ValidFrom == "" && req.ValidTo == "" {
+				continue
+			}
+			// A lifetime set on a rule already in force is a keep of it with
+			// that window, recorded after the widening it applies to.
+			kept, kerr := a.KeepContextOperations(ctx, ContextKeepRequest{
+				Actor: req.Actor, Project: req.Project, IDs: []string{id},
+				ValidFrom: req.ValidFrom, ValidTo: req.ValidTo, Note: req.Note,
+			})
+			if kerr != nil {
+				return out, kerr
+			}
+			out.Kept = append(out.Kept, kept.Kept...)
 			continue
 		}
 		kept, err := a.KeepContextOperations(ctx, ContextKeepRequest{
 			Actor: req.Actor, Project: req.Project, IDs: []string{id},
-			Replacement: req.Replacement, Advisory: req.Advisory, WidenTo: req.WidenTo, Note: req.Note,
+			Replacement: req.Replacement, Advisory: req.Advisory, WidenTo: req.WidenTo,
+			ValidFrom: req.ValidFrom, ValidTo: req.ValidTo, Note: req.Note,
 		})
 		if err != nil {
 			return out, err

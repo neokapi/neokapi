@@ -137,6 +137,38 @@ there: the voice profile, the terms and the rules. Search for a word and it
 returns the terms that cover it, the approved wording that uses it, and where
 each is used.
 
+## Explore
+
+**Explore** lays out everything the project's context holds on the axes it
+varies along, and over time: the rules and notes recorded in the log, the
+terms in the terms store, and the project's content counted by collection,
+language and state. One query drives every view, so a selection made in one
+view narrows the others.
+
+- **The timeline** at the top counts what was recorded each day. Drag across
+  it to choose a window, or pick **7d**, **30d**, **90d** or **All**. The
+  snapshot follows the end of the window, and **Clock** switches between when
+  something was recorded and when it takes effect.
+- **Flow** draws one column per axis, such as product, channel, market or
+  state, with a band for each pair of values that occur together. Hover a value
+  to trace the same records through every column; click it to keep it in the
+  scope. **State at start** and **State at snapshot** show how records moved
+  between the two dates.
+- **Matrix** crosses two axes, **Over time** shows a row per value across the
+  window, **Map** draws markets and the places languages name on outlines
+  you drill into from the world to a city, or on a grid of countries, and
+  **Records** lists what is in scope.
+- Selecting a record opens it beside the view: its scope, when it was
+  recorded and when it holds, its history, and the sentence it was seen in.
+- **Pin A** keeps the current query; change the window or the scope and
+  choose **Compare with A** to see the two side by side.
+
+**Try a question** starts from four common ones: what changed in the window,
+where rules apply, what needs a person, and which rules hold only for a while.
+`kapi context atlas --json` prints the data the section reads.
+[Explore your context](/kapi/desktop/recipes/explore-your-context) walks
+through it on the sample.
+
 ## What your assistant reads
 
 The **Assistant** section shows what an assistant working in the project is

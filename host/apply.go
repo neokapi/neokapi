@@ -6,6 +6,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/graph"
 )
 
 // changeKind discriminates a changeEntry: an asset change (a term, a content
@@ -68,6 +69,10 @@ type changeEntry struct {
 	// rule a person widened: its concept was scoped to the narrower point the
 	// rule held at, and now holds where the rule does.
 	Rescope bool
+	// Validity bounds the term's lifetime, for a rule kept with a window:
+	// the term answers from ValidFrom until ValidTo, as checks, retrieval and
+	// drafting read it. Only a kept or settled rule sets it.
+	Validity *graph.Validity
 	// Advisory, for a discouraged term, makes a use of it report without
 	// failing a check.
 	Advisory bool

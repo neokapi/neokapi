@@ -67,6 +67,7 @@ import type {
   RulesFilesResult,
 } from "../types/api";
 import type { FlowTrace } from "@neokapi/flow-editor";
+import type { AtlasData } from "@neokapi/context-atlas";
 
 type Backend = Record<string, (...args: unknown[]) => Promise<unknown>>;
 
@@ -511,6 +512,8 @@ export const api = {
   /** The rules and suggestions of the tab's project; `since` empty reads the marker. */
   projectContextDigest: (tabID: string, since: string) =>
     call<ContextDigest>("ProjectContextDigest", tabID, since),
+  /** The atlas of the tab's project: rules, terms and content on their axes, over time. */
+  projectContextAtlas: (tabID: string) => call<AtlasData>("ProjectContextAtlas", tabID),
   /** Record that the person looked now; returns the marker it replaced. */
   markProjectContextDigestSeen: (tabID: string) =>
     call<string>("MarkProjectContextDigestSeen", tabID),

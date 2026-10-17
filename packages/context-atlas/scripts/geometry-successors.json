@@ -1,0 +1,798 @@
+{
+  "description": "Current ISO 3166-2 subdivisions that Natural Earth v5.1.2 carries under another code, or only as the subdivisions they are made of. build-geometry.mjs composes each shape from the Natural Earth features named in `from` (iso_3166_2 codes as Natural Earth writes them), or from every feature of the country whose property matches `where`. Each row names the change or the parent relation it rests on.",
+  "successors": [
+    {
+      "id": "no-31",
+      "name": "Østfold",
+      "from": ["NO-01"],
+      "source": "Norway county reform in force 2024-01-01; codes and names from Statistics Norway classification KLASS 104 (Standard for fylkesinndeling) at 2024-01-01. Natural Earth draws the pre-2020 county NO-01."
+    },
+    {
+      "id": "no-32",
+      "name": "Akershus",
+      "from": ["NO-02"],
+      "source": "Norway county reform in force 2024-01-01; codes and names from Statistics Norway classification KLASS 104 (Standard for fylkesinndeling) at 2024-01-01. Natural Earth draws the pre-2020 county NO-02."
+    },
+    {
+      "id": "no-33",
+      "name": "Buskerud",
+      "from": ["NO-06"],
+      "source": "Norway county reform in force 2024-01-01; codes and names from Statistics Norway classification KLASS 104 (Standard for fylkesinndeling) at 2024-01-01. Natural Earth draws the pre-2020 county NO-06."
+    },
+    {
+      "id": "no-34",
+      "name": "Innlandet",
+      "from": ["NO-04", "NO-05"],
+      "source": "ISO 3166-2:NO, Online Browsing Platform 2020-11-24: NO-04 Hedmark and NO-05 Oppland deleted, NO-34 Innlandet added."
+    },
+    {
+      "id": "no-39",
+      "name": "Vestfold",
+      "from": ["NO-07"],
+      "source": "Norway county reform in force 2024-01-01; codes and names from Statistics Norway classification KLASS 104 (Standard for fylkesinndeling) at 2024-01-01. Natural Earth draws the pre-2020 county NO-07."
+    },
+    {
+      "id": "no-40",
+      "name": "Telemark",
+      "from": ["NO-08"],
+      "source": "Norway county reform in force 2024-01-01; codes and names from Statistics Norway classification KLASS 104 (Standard for fylkesinndeling) at 2024-01-01. Natural Earth draws the pre-2020 county NO-08."
+    },
+    {
+      "id": "no-42",
+      "name": "Agder",
+      "from": ["NO-09", "NO-10"],
+      "source": "ISO 3166-2:NO, Online Browsing Platform 2020-11-24: NO-09 Aust-Agder and NO-10 Vest-Agder deleted, NO-42 Agder added."
+    },
+    {
+      "id": "no-46",
+      "name": "Vestland",
+      "from": ["NO-12", "NO-14"],
+      "source": "ISO 3166-2:NO, Online Browsing Platform 2020-11-24: NO-12 Hordaland and NO-14 Sogn og Fjordane deleted, NO-46 Vestland added."
+    },
+    {
+      "id": "no-50",
+      "name": "Trøndelag",
+      "from": ["NO-16", "NO-17"],
+      "source": "ISO 3166-2:NO, Online Browsing Platform 2018-11-26: NO-16 Sør-Trøndelag and NO-17 Nord-Trøndelag deleted, NO-23 Trøndelag added; 2019-04-09: NO-23 changed to NO-50."
+    },
+    {
+      "id": "no-55",
+      "name": "Troms",
+      "from": ["NO-19"],
+      "source": "Norway county reform in force 2024-01-01; codes and names from Statistics Norway classification KLASS 104 (Standard for fylkesinndeling) at 2024-01-01. Natural Earth draws the pre-2020 county NO-19."
+    },
+    {
+      "id": "no-56",
+      "name": "Finnmark",
+      "from": ["NO-20"],
+      "source": "Norway county reform in force 2024-01-01; codes and names from Statistics Norway classification KLASS 104 (Standard for fylkesinndeling) at 2024-01-01. Natural Earth draws the pre-2020 county NO-20."
+    },
+
+    {
+      "id": "fr-971",
+      "name": "Guadeloupe",
+      "from": ["FR-GP"],
+      "source": "ISO 3166-2:FR, Online Browsing Platform 2020-11-24: FR-GUA changed to FR-971; 2021-11-25: FR-GP deleted."
+    },
+    {
+      "id": "fr-972",
+      "name": "Martinique",
+      "from": ["FR-MQ"],
+      "source": "ISO 3166-2:FR, Online Browsing Platform 2020-11-24: FR-972 Martinique added; 2021-11-25: FR-MQ deleted."
+    },
+    {
+      "id": "fr-973",
+      "name": "Guyane",
+      "from": ["FR-GF"],
+      "source": "ISO 3166-2:FR, Online Browsing Platform 2020-11-24: FR-973 Guyane added; 2021-11-25: FR-GF deleted."
+    },
+    {
+      "id": "fr-974",
+      "name": "La Réunion",
+      "from": ["FR-RE"],
+      "source": "ISO 3166-2:FR, Online Browsing Platform 2020-11-24: FR-LRE changed to FR-974; 2021-11-25: FR-RE deleted."
+    },
+    {
+      "id": "fr-976",
+      "name": "Mayotte",
+      "from": ["FR-YT"],
+      "source": "ISO 3166-2:FR, Online Browsing Platform 2020-11-24: FR-MAY changed to FR-976; 2021-11-25: FR-YT deleted."
+    },
+    {
+      "id": "fr-20r",
+      "name": "Corse",
+      "from": ["FR-2A", "FR-2B"],
+      "source": "ISO 3166-2:FR, Online Browsing Platform 2020-11-24: FR-COR changed to FR-20R, the parent of FR-2A Corse-du-Sud and FR-2B Haute-Corse."
+    },
+    {
+      "id": "fr-6ae",
+      "name": "Alsace",
+      "from": ["FR-67", "FR-68"],
+      "source": "ISO 3166-2:FR, Online Browsing Platform 2021-11-25: FR-6AE Alsace added as the parent of FR-67 Bas-Rhin and FR-68 Haut-Rhin."
+    },
+    {
+      "id": "fr-75c",
+      "name": "Paris",
+      "from": ["FR-75"],
+      "source": "ISO 3166-2:FR, Online Browsing Platform 2021-11-25: FR-75 changed to FR-75C."
+    },
+
+    {
+      "id": "pl-02",
+      "name": "Dolnośląskie",
+      "from": ["PL-DS"],
+      "source": "ISO 3166-2:PL, Online Browsing Platform 2018-11-26: PL-DS changed to PL-02."
+    },
+    {
+      "id": "pl-04",
+      "name": "Kujawsko-Pomorskie",
+      "from": ["PL-KP"],
+      "source": "ISO 3166-2:PL, Online Browsing Platform 2018-11-26: PL-KP changed to PL-04."
+    },
+    {
+      "id": "pl-06",
+      "name": "Lubelskie",
+      "from": ["PL-LU"],
+      "source": "ISO 3166-2:PL, Online Browsing Platform 2018-11-26: PL-LU changed to PL-06."
+    },
+    {
+      "id": "pl-08",
+      "name": "Lubuskie",
+      "from": ["PL-LB"],
+      "source": "ISO 3166-2:PL, Online Browsing Platform 2018-11-26: PL-LB changed to PL-08."
+    },
+    {
+      "id": "pl-10",
+      "name": "Łódzkie",
+      "from": ["PL-LD"],
+      "source": "ISO 3166-2:PL, Online Browsing Platform 2018-11-26: PL-LD changed to PL-10."
+    },
+    {
+      "id": "pl-12",
+      "name": "Małopolskie",
+      "from": ["PL-MA"],
+      "source": "ISO 3166-2:PL, Online Browsing Platform 2018-11-26: PL-MA changed to PL-12."
+    },
+    {
+      "id": "pl-14",
+      "name": "Mazowieckie",
+      "from": ["PL-MZ"],
+      "source": "ISO 3166-2:PL, Online Browsing Platform 2018-11-26: PL-MZ changed to PL-14."
+    },
+    {
+      "id": "pl-16",
+      "name": "Opolskie",
+      "from": ["PL-OP"],
+      "source": "ISO 3166-2:PL, Online Browsing Platform 2018-11-26: PL-OP changed to PL-16."
+    },
+    {
+      "id": "pl-18",
+      "name": "Podkarpackie",
+      "from": ["PL-PK"],
+      "source": "ISO 3166-2:PL, Online Browsing Platform 2018-11-26: PL-PK changed to PL-18."
+    },
+    {
+      "id": "pl-20",
+      "name": "Podlaskie",
+      "from": ["PL-PD"],
+      "source": "ISO 3166-2:PL, Online Browsing Platform 2018-11-26: PL-PD changed to PL-20."
+    },
+    {
+      "id": "pl-22",
+      "name": "Pomorskie",
+      "from": ["PL-PM"],
+      "source": "ISO 3166-2:PL, Online Browsing Platform 2018-11-26: PL-PM changed to PL-22."
+    },
+    {
+      "id": "pl-24",
+      "name": "Śląskie",
+      "from": ["PL-SL"],
+      "source": "ISO 3166-2:PL, Online Browsing Platform 2018-11-26: PL-SL changed to PL-24."
+    },
+    {
+      "id": "pl-26",
+      "name": "Świętokrzyskie",
+      "from": ["PL-SK"],
+      "source": "ISO 3166-2:PL, Online Browsing Platform 2018-11-26: PL-SK changed to PL-26."
+    },
+    {
+      "id": "pl-28",
+      "name": "Warmińsko-Mazurskie",
+      "from": ["PL-WN"],
+      "source": "ISO 3166-2:PL, Online Browsing Platform 2018-11-26: PL-WN changed to PL-28."
+    },
+    {
+      "id": "pl-30",
+      "name": "Wielkopolskie",
+      "from": ["PL-WP"],
+      "source": "ISO 3166-2:PL, Online Browsing Platform 2018-11-26: PL-WP changed to PL-30."
+    },
+    {
+      "id": "pl-32",
+      "name": "Zachodniopomorskie",
+      "from": ["PL-ZP"],
+      "source": "ISO 3166-2:PL, Online Browsing Platform 2018-11-26: PL-ZP changed to PL-32."
+    },
+
+    {
+      "id": "cz-10",
+      "name": "Praha, Hlavní město",
+      "from": ["CZ-PR"],
+      "source": "ISO 3166-2:CZ, Online Browsing Platform 2016-11-15: CZ-PR changed to CZ-10."
+    },
+    {
+      "id": "cz-20",
+      "name": "Středočeský kraj",
+      "from": ["CZ-ST"],
+      "source": "ISO 3166-2:CZ, Online Browsing Platform 2016-11-15: CZ-ST changed to CZ-20."
+    },
+    {
+      "id": "cz-31",
+      "name": "Jihočeský kraj",
+      "from": ["CZ-JC"],
+      "source": "ISO 3166-2:CZ, Online Browsing Platform 2016-11-15: CZ-JC changed to CZ-31."
+    },
+    {
+      "id": "cz-32",
+      "name": "Plzeňský kraj",
+      "from": ["CZ-PL"],
+      "source": "ISO 3166-2:CZ, Online Browsing Platform 2016-11-15: CZ-PL changed to CZ-32."
+    },
+    {
+      "id": "cz-41",
+      "name": "Karlovarský kraj",
+      "from": ["CZ-KA"],
+      "source": "ISO 3166-2:CZ, Online Browsing Platform 2016-11-15: CZ-KA changed to CZ-41."
+    },
+    {
+      "id": "cz-42",
+      "name": "Ústecký kraj",
+      "from": ["CZ-US"],
+      "source": "ISO 3166-2:CZ, Online Browsing Platform 2016-11-15: CZ-US changed to CZ-42."
+    },
+    {
+      "id": "cz-51",
+      "name": "Liberecký kraj",
+      "from": ["CZ-LI"],
+      "source": "ISO 3166-2:CZ, Online Browsing Platform 2016-11-15: CZ-LI changed to CZ-51."
+    },
+    {
+      "id": "cz-52",
+      "name": "Královéhradecký kraj",
+      "from": ["CZ-KR"],
+      "source": "ISO 3166-2:CZ, Online Browsing Platform 2016-11-15: CZ-KR changed to CZ-52."
+    },
+    {
+      "id": "cz-53",
+      "name": "Pardubický kraj",
+      "from": ["CZ-PA"],
+      "source": "ISO 3166-2:CZ, Online Browsing Platform 2016-11-15: CZ-PA changed to CZ-53."
+    },
+    {
+      "id": "cz-63",
+      "name": "Kraj Vysočina",
+      "from": ["CZ-VY"],
+      "source": "ISO 3166-2:CZ, Online Browsing Platform 2016-11-15: CZ-VY changed to CZ-63."
+    },
+    {
+      "id": "cz-64",
+      "name": "Jihomoravský kraj",
+      "from": ["CZ-JM"],
+      "source": "ISO 3166-2:CZ, Online Browsing Platform 2016-11-15: CZ-JM changed to CZ-64."
+    },
+    {
+      "id": "cz-71",
+      "name": "Olomoucký kraj",
+      "from": ["CZ-OL"],
+      "source": "ISO 3166-2:CZ, Online Browsing Platform 2016-11-15: CZ-OL changed to CZ-71."
+    },
+    {
+      "id": "cz-72",
+      "name": "Zlínský kraj",
+      "from": ["CZ-ZL"],
+      "source": "ISO 3166-2:CZ, Online Browsing Platform 2016-11-15: CZ-ZL changed to CZ-72."
+    },
+    {
+      "id": "cz-80",
+      "name": "Moravskoslezský kraj",
+      "from": ["CZ-MO"],
+      "source": "ISO 3166-2:CZ, Online Browsing Platform 2016-11-15: CZ-MO changed to CZ-80."
+    },
+
+    {
+      "id": "gt-01",
+      "name": "Guatemala",
+      "from": ["GT-GU"],
+      "source": "ISO 3166-2:GT, Online Browsing Platform 2021-11-25: GT-GU changed to GT-01."
+    },
+    {
+      "id": "gt-02",
+      "name": "El Progreso",
+      "from": ["GT-PR"],
+      "source": "ISO 3166-2:GT, Online Browsing Platform 2021-11-25: GT-PR changed to GT-02."
+    },
+    {
+      "id": "gt-03",
+      "name": "Sacatepéquez",
+      "from": ["GT-SA"],
+      "source": "ISO 3166-2:GT, Online Browsing Platform 2021-11-25: GT-SA changed to GT-03."
+    },
+    {
+      "id": "gt-04",
+      "name": "Chimaltenango",
+      "from": ["GT-CM"],
+      "source": "ISO 3166-2:GT, Online Browsing Platform 2021-11-25: GT-CM changed to GT-04."
+    },
+    {
+      "id": "gt-05",
+      "name": "Escuintla",
+      "from": ["GT-ES"],
+      "source": "ISO 3166-2:GT, Online Browsing Platform 2021-11-25: GT-ES changed to GT-05."
+    },
+    {
+      "id": "gt-06",
+      "name": "Santa Rosa",
+      "from": ["GT-SR"],
+      "source": "ISO 3166-2:GT, Online Browsing Platform 2021-11-25: GT-SR changed to GT-06."
+    },
+    {
+      "id": "gt-07",
+      "name": "Sololá",
+      "from": ["GT-SO"],
+      "source": "ISO 3166-2:GT, Online Browsing Platform 2021-11-25: GT-SO changed to GT-07."
+    },
+    {
+      "id": "gt-08",
+      "name": "Totonicapán",
+      "from": ["GT-TO"],
+      "source": "ISO 3166-2:GT, Online Browsing Platform 2021-11-25: GT-TO changed to GT-08."
+    },
+    {
+      "id": "gt-09",
+      "name": "Quetzaltenango",
+      "from": ["GT-QZ"],
+      "source": "ISO 3166-2:GT, Online Browsing Platform 2021-11-25: GT-QZ changed to GT-09."
+    },
+    {
+      "id": "gt-10",
+      "name": "Suchitepéquez",
+      "from": ["GT-SU"],
+      "source": "ISO 3166-2:GT, Online Browsing Platform 2021-11-25: GT-SU changed to GT-10."
+    },
+    {
+      "id": "gt-11",
+      "name": "Retalhuleu",
+      "from": ["GT-RE"],
+      "source": "ISO 3166-2:GT, Online Browsing Platform 2021-11-25: GT-RE changed to GT-11."
+    },
+    {
+      "id": "gt-12",
+      "name": "San Marcos",
+      "from": ["GT-SM"],
+      "source": "ISO 3166-2:GT, Online Browsing Platform 2021-11-25: GT-SM changed to GT-12."
+    },
+    {
+      "id": "gt-13",
+      "name": "Huehuetenango",
+      "from": ["GT-HU"],
+      "source": "ISO 3166-2:GT, Online Browsing Platform 2021-11-25: GT-HU changed to GT-13."
+    },
+    {
+      "id": "gt-14",
+      "name": "Quiché",
+      "from": ["GT-QC"],
+      "source": "ISO 3166-2:GT, Online Browsing Platform 2021-11-25: GT-QC changed to GT-14."
+    },
+    {
+      "id": "gt-15",
+      "name": "Baja Verapaz",
+      "from": ["GT-BV"],
+      "source": "ISO 3166-2:GT, Online Browsing Platform 2021-11-25: GT-BV changed to GT-15."
+    },
+    {
+      "id": "gt-16",
+      "name": "Alta Verapaz",
+      "from": ["GT-AV"],
+      "source": "ISO 3166-2:GT, Online Browsing Platform 2021-11-25: GT-AV changed to GT-16."
+    },
+    {
+      "id": "gt-17",
+      "name": "Petén",
+      "from": ["GT-PE"],
+      "source": "ISO 3166-2:GT, Online Browsing Platform 2021-11-25: GT-PE changed to GT-17."
+    },
+    {
+      "id": "gt-18",
+      "name": "Izabal",
+      "from": ["GT-IZ"],
+      "source": "ISO 3166-2:GT, Online Browsing Platform 2021-11-25: GT-IZ changed to GT-18."
+    },
+    {
+      "id": "gt-19",
+      "name": "Zacapa",
+      "from": ["GT-ZA"],
+      "source": "ISO 3166-2:GT, Online Browsing Platform 2021-11-25: GT-ZA changed to GT-19."
+    },
+    {
+      "id": "gt-20",
+      "name": "Chiquimula",
+      "from": ["GT-CQ"],
+      "source": "ISO 3166-2:GT, Online Browsing Platform 2021-11-25: GT-CQ changed to GT-20."
+    },
+    {
+      "id": "gt-21",
+      "name": "Jalapa",
+      "from": ["GT-JA"],
+      "source": "ISO 3166-2:GT, Online Browsing Platform 2021-11-25: GT-JA changed to GT-21."
+    },
+    {
+      "id": "gt-22",
+      "name": "Jutiapa",
+      "from": ["GT-JU"],
+      "source": "ISO 3166-2:GT, Online Browsing Platform 2021-11-25: GT-JU changed to GT-22."
+    },
+
+    {
+      "id": "kz-11",
+      "name": "Akmola",
+      "from": ["KZ-AKM"],
+      "source": "ISO 3166-2:KZ change of 2022-11-29: KZ-AKM changed to KZ-11."
+    },
+    {
+      "id": "kz-15",
+      "name": "Aktobe",
+      "from": ["KZ-AKT"],
+      "source": "ISO 3166-2:KZ change of 2022-11-29: KZ-AKT changed to KZ-15."
+    },
+    {
+      "id": "kz-23",
+      "name": "Atyrau",
+      "from": ["KZ-ATY"],
+      "source": "ISO 3166-2:KZ change of 2022-11-29: KZ-ATY changed to KZ-23."
+    },
+    {
+      "id": "kz-27",
+      "name": "West Kazakhstan",
+      "from": ["KZ-ZAP"],
+      "source": "ISO 3166-2:KZ change of 2022-11-29: KZ-ZAP changed to KZ-27."
+    },
+    {
+      "id": "kz-31",
+      "name": "Jambyl",
+      "from": ["KZ-ZHA"],
+      "source": "ISO 3166-2:KZ change of 2022-11-29: KZ-ZHA changed to KZ-31."
+    },
+    {
+      "id": "kz-39",
+      "name": "Kostanay",
+      "from": ["KZ-KUS"],
+      "source": "ISO 3166-2:KZ change of 2022-11-29: KZ-KUS changed to KZ-39."
+    },
+    {
+      "id": "kz-43",
+      "name": "Kyzylorda",
+      "from": ["KZ-KZY"],
+      "source": "ISO 3166-2:KZ change of 2022-11-29: KZ-KZY changed to KZ-43."
+    },
+    {
+      "id": "kz-47",
+      "name": "Mangystau",
+      "from": ["KZ-MAN"],
+      "source": "ISO 3166-2:KZ change of 2022-11-29: KZ-MAN changed to KZ-47."
+    },
+    {
+      "id": "kz-55",
+      "name": "Pavlodar",
+      "from": ["KZ-PAV"],
+      "source": "ISO 3166-2:KZ change of 2022-11-29: KZ-PAV changed to KZ-55."
+    },
+    {
+      "id": "kz-59",
+      "name": "North Kazakhstan",
+      "from": ["KZ-SEV"],
+      "source": "ISO 3166-2:KZ change of 2022-11-29: KZ-SEV changed to KZ-59."
+    },
+    {
+      "id": "kz-71",
+      "name": "Astana",
+      "from": ["KZ-AST"],
+      "source": "ISO 3166-2:KZ change of 2022-11-29: KZ-AST changed to KZ-71."
+    },
+
+    {
+      "id": "in-cg",
+      "name": "Chhattisgarh",
+      "from": ["IN-CT"],
+      "source": "ISO 3166-2:IN, 2023-11-23: IN-CT changed to IN-CG."
+    },
+    {
+      "id": "in-od",
+      "name": "Odisha",
+      "from": ["IN-OR"],
+      "source": "ISO 3166-2:IN, 2023-11-23: IN-OR changed to IN-OD."
+    },
+    {
+      "id": "in-ts",
+      "name": "Telangana",
+      "from": ["IN-TG"],
+      "source": "ISO 3166-2:IN, 2023-11-23: IN-TG changed to IN-TS."
+    },
+    {
+      "id": "in-uk",
+      "name": "Uttarakhand",
+      "from": ["IN-UT"],
+      "source": "ISO 3166-2:IN, 2023-11-23: IN-UT changed to IN-UK."
+    },
+
+    {
+      "id": "za-gp",
+      "name": "Gauteng",
+      "from": ["ZA-GT"],
+      "source": "ISO 3166-2:ZA, Online Browsing Platform 2020-03-02: ZA-GT changed to ZA-GP."
+    },
+    {
+      "id": "za-kzn",
+      "name": "KwaZulu-Natal",
+      "from": ["ZA-NL"],
+      "source": "ISO 3166-2:ZA, Online Browsing Platform 2020-03-02: ZA-NL changed to ZA-KZN."
+    },
+
+    {
+      "id": "tw-nwt",
+      "name": "New Taipei",
+      "from": ["TW-TPQ"],
+      "source": "ISO 3166-2:TW, Online Browsing Platform 2015-11-27: TW-TPQ deleted, TW-NWT New Taipei added. Natural Earth names its TW-TPQ feature New Taipei City."
+    },
+    {
+      "id": "hu-er",
+      "name": "Érd",
+      "from": ["HU-ED"],
+      "source": "ISO 3166-2:HU, Newsletter II-2 (2010-06-30): HU-ER Érd added. Natural Earth keys Érd as HU-ED."
+    },
+    {
+      "id": "gr-i",
+      "name": "Attikí",
+      "from": ["GR-A1"],
+      "source": "ISO 3166-2:GR, Newsletter II-1 (2010-02-03): GR-IX changed to GR-I Attikí; Online Browsing Platform 2016-11-15: the departments deleted, among them GR-A1 Attikí, the area Natural Earth draws."
+    },
+    {
+      "id": "mx-cmx",
+      "name": "Ciudad de México",
+      "from": ["MX-DIF"],
+      "source": "ISO 3166-2:MX lists MX-CMX Ciudad de México, the former Distrito Federal, which Natural Earth keys as MX-DIF."
+    },
+
+    {
+      "id": "es-an",
+      "name": "Andalucía",
+      "from": ["ES-AL", "ES-CA", "ES-CO", "ES-GR", "ES-H", "ES-J", "ES-MA", "ES-SE"],
+      "source": "ISO 3166-2:ES: the autonomous community is the parent of these provinces."
+    },
+    {
+      "id": "es-ar",
+      "name": "Aragón",
+      "from": ["ES-HU", "ES-TE", "ES-Z"],
+      "source": "ISO 3166-2:ES: the autonomous community is the parent of these provinces."
+    },
+    {
+      "id": "es-as",
+      "name": "Asturias, Principado de",
+      "from": ["ES-O"],
+      "source": "ISO 3166-2:ES: the autonomous community is the parent of this province."
+    },
+    {
+      "id": "es-cn",
+      "name": "Canarias",
+      "from": ["ES-GC", "ES-TF"],
+      "source": "ISO 3166-2:ES: the autonomous community is the parent of these provinces."
+    },
+    {
+      "id": "es-cb",
+      "name": "Cantabria",
+      "from": ["ES-S"],
+      "source": "ISO 3166-2:ES: the autonomous community is the parent of this province."
+    },
+    {
+      "id": "es-cl",
+      "name": "Castilla y León",
+      "from": ["ES-AV", "ES-BU", "ES-LE", "ES-P", "ES-SA", "ES-SG", "ES-SO", "ES-VA", "ES-ZA"],
+      "source": "ISO 3166-2:ES: the autonomous community is the parent of these provinces."
+    },
+    {
+      "id": "es-cm",
+      "name": "Castilla-La Mancha",
+      "from": ["ES-AB", "ES-CR", "ES-CU", "ES-GU", "ES-TO"],
+      "source": "ISO 3166-2:ES: the autonomous community is the parent of these provinces."
+    },
+    {
+      "id": "es-ct",
+      "name": "Catalunya",
+      "from": ["ES-B", "ES-GI", "ES-L", "ES-T"],
+      "source": "ISO 3166-2:ES: the autonomous community is the parent of these provinces."
+    },
+    {
+      "id": "es-ex",
+      "name": "Extremadura",
+      "from": ["ES-BA", "ES-CC"],
+      "source": "ISO 3166-2:ES: the autonomous community is the parent of these provinces."
+    },
+    {
+      "id": "es-ga",
+      "name": "Galicia",
+      "from": ["ES-C", "ES-LU", "ES-OR", "ES-PO"],
+      "source": "ISO 3166-2:ES: the autonomous community is the parent of these provinces."
+    },
+    {
+      "id": "es-ib",
+      "name": "Illes Balears",
+      "from": ["ES-PM"],
+      "source": "ISO 3166-2:ES: the autonomous community is the parent of this province."
+    },
+    {
+      "id": "es-ri",
+      "name": "La Rioja",
+      "from": ["ES-LO"],
+      "source": "ISO 3166-2:ES: the autonomous community is the parent of this province."
+    },
+    {
+      "id": "es-md",
+      "name": "Madrid, Comunidad de",
+      "from": ["ES-M"],
+      "source": "ISO 3166-2:ES: the autonomous community is the parent of this province."
+    },
+    {
+      "id": "es-mc",
+      "name": "Murcia, Región de",
+      "from": ["ES-MU"],
+      "source": "ISO 3166-2:ES: the autonomous community is the parent of this province."
+    },
+    {
+      "id": "es-nc",
+      "name": "Navarra, Comunidad Foral de",
+      "from": ["ES-NA"],
+      "source": "ISO 3166-2:ES: the autonomous community is the parent of this province."
+    },
+    {
+      "id": "es-pv",
+      "name": "País Vasco",
+      "from": ["ES-BI", "ES-SS", "ES-VI"],
+      "source": "ISO 3166-2:ES: the autonomous community is the parent of these provinces."
+    },
+    {
+      "id": "es-vc",
+      "name": "Valenciana, Comunidad",
+      "from": ["ES-A", "ES-CS", "ES-V"],
+      "source": "ISO 3166-2:ES: the autonomous community is the parent of these provinces."
+    },
+
+    {
+      "id": "be-vlg",
+      "name": "Vlaams Gewest",
+      "from": ["BE-VAN", "BE-VBR", "BE-VLI", "BE-VOV", "BE-VWV"],
+      "source": "ISO 3166-2:BE: the region is the parent of these provinces."
+    },
+    {
+      "id": "be-wal",
+      "name": "Wallonne, Région",
+      "from": ["BE-WBR", "BE-WHT", "BE-WLG", "BE-WLX", "BE-WNA"],
+      "source": "ISO 3166-2:BE: the region is the parent of these provinces."
+    },
+
+    {
+      "id": "ie-c",
+      "name": "Connacht",
+      "from": ["IE-G", "IE-LM", "IE-MO", "IE-RN", "IE-SO"],
+      "source": "ISO 3166-2:IE: the province is the parent of these counties."
+    },
+    {
+      "id": "ie-l",
+      "name": "Leinster",
+      "from": [
+        "IE-CW",
+        "IE-D",
+        "IE-KE",
+        "IE-KK",
+        "IE-LS",
+        "IE-LD",
+        "IE-LH",
+        "IE-MH",
+        "IE-OY",
+        "IE-WH",
+        "IE-WX",
+        "IE-WW"
+      ],
+      "source": "ISO 3166-2:IE: the province is the parent of these counties."
+    },
+    {
+      "id": "ie-m",
+      "name": "Munster",
+      "from": ["IE-CE", "IE-CO", "IE-KY", "IE-LK", "IE-TA", "IE-WD"],
+      "source": "ISO 3166-2:IE: the province is the parent of these counties."
+    },
+    {
+      "id": "ie-u",
+      "name": "Ulster",
+      "from": ["IE-CN", "IE-DL", "IE-MN"],
+      "source": "ISO 3166-2:IE: the province is the parent of these counties."
+    },
+
+    {
+      "id": "id-jw",
+      "name": "Jawa",
+      "from": ["ID-BT", "ID-JB", "ID-JI", "ID-JK", "ID-JT", "ID-YO"],
+      "source": "ISO 3166-2:ID: the geographical unit is the parent of these provinces."
+    },
+    {
+      "id": "id-ka",
+      "name": "Kalimantan",
+      "from": ["ID-KB", "ID-KI", "ID-KS", "ID-KT"],
+      "source": "ISO 3166-2:ID: the geographical unit is the parent of these provinces and of ID-KU Kalimantan Utara, which Natural Earth draws within ID-KI."
+    },
+    {
+      "id": "id-ml",
+      "name": "Maluku",
+      "from": ["ID-MA", "ID-MU"],
+      "source": "ISO 3166-2:ID: the geographical unit is the parent of these provinces."
+    },
+    {
+      "id": "id-nu",
+      "name": "Nusa Tenggara",
+      "from": ["ID-BA", "ID-NB", "ID-NT"],
+      "source": "ISO 3166-2:ID: the geographical unit is the parent of these provinces."
+    },
+    {
+      "id": "id-pp",
+      "name": "Papua",
+      "from": ["ID-PA", "ID-PB"],
+      "source": "ISO 3166-2:ID: the geographical unit is the parent of ID-PA, ID-PB and the provinces formed from them in 2022 and 2023, which Natural Earth draws within those two."
+    },
+    {
+      "id": "id-sl",
+      "name": "Sulawesi",
+      "from": ["ID-GO", "ID-SA", "ID-SG", "ID-SN", "ID-SR", "ID-ST"],
+      "source": "ISO 3166-2:ID: the geographical unit is the parent of these provinces."
+    },
+    {
+      "id": "id-sm",
+      "name": "Sumatera",
+      "from": [
+        "ID-AC",
+        "ID-BB",
+        "ID-BE",
+        "ID-JA",
+        "ID-KR",
+        "ID-LA",
+        "ID-RI",
+        "ID-SB",
+        "ID-SS",
+        "ID-SU"
+      ],
+      "source": "ISO 3166-2:ID: the geographical unit is the parent of these provinces."
+    },
+
+    {
+      "id": "gb-eng",
+      "name": "England",
+      "where": { "geonunit": "England" },
+      "source": "ISO 3166-2:GB country England: every Natural Earth unit whose geonunit is England."
+    },
+    {
+      "id": "gb-sct",
+      "name": "Scotland",
+      "where": { "geonunit": "Scotland" },
+      "source": "ISO 3166-2:GB country Scotland: every Natural Earth unit whose geonunit is Scotland."
+    },
+    {
+      "id": "gb-wls",
+      "name": "Wales",
+      "where": { "geonunit": "Wales" },
+      "source": "ISO 3166-2:GB country Wales: every Natural Earth unit whose geonunit is Wales."
+    },
+    {
+      "id": "gb-nir",
+      "name": "Northern Ireland",
+      "where": { "geonunit": "Northern Ireland" },
+      "source": "ISO 3166-2:GB province Northern Ireland: every Natural Earth unit whose geonunit is Northern Ireland."
+    }
+  ]
+}

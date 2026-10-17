@@ -26,6 +26,7 @@ export {
   AxisLadderDiagram,
   AxisFamiliesDiagram,
   CycleDiagram,
+  PlaceGraphDiagram,
   TypeDiagram,
   GatedLoopDiagram,
 } from "./diagram";
@@ -53,6 +54,9 @@ export type {
   AxisFamily,
   CycleDiagramProps,
   CycleStep,
+  PlaceGraphDiagramProps,
+  PlaceGraphNode,
+  PlaceGraphMadeOf,
   TypeDiagramProps,
   TypeBox,
   TypeField,

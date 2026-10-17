@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neokapi/neokapi/core/axis"
 	"github.com/neokapi/neokapi/core/workspace"
 )
 
@@ -33,6 +34,19 @@ type Log interface {
 type Ledger struct {
 	log    Log
 	policy Policy
+	// axes types each project's coordinate axes for the fold, nil when the
+	// reader knows none.
+	axes func(workspace.ProjectKey) axis.Space
+}
+
+// WithAxes tells the fold how each project types its coordinate axes, so two
+// rules at a region and at a country inside it are read as meeting, and a
+// correction seen in Norway counts for a suggestion scoped to the Nordics.
+// Without it, coordinates are compared exactly. Every reader of one workspace
+// should pass the same function, or two readers fold the log differently.
+func (l *Ledger) WithAxes(axes func(workspace.ProjectKey) axis.Space) *Ledger {
+	l.axes = axes
+	return l
 }
 
 // NewLedger binds a log to a policy. A nil policy means [PersonDecides], which
@@ -144,6 +158,12 @@ func (l *Ledger) Records(ctx context.Context, f Filter) ([]Record, error) {
 	if err != nil {
 		return nil, err
 	}
+	return filterNewestFirst(all, f), nil
+}
+
+// filterNewestFirst keeps the folded records a filter matches, newest first,
+// and applies its limit.
+func filterNewestFirst(all []Record, f Filter) []Record {
 	kept := make([]Record, 0, len(all))
 	for _, r := range all {
 		if f.matches(r) {
@@ -157,7 +177,7 @@ func (l *Ledger) Records(ctx context.Context, f Filter) ([]Record, error) {
 	if f.Limit > 0 && len(kept) > f.Limit {
 		kept = kept[:f.Limit]
 	}
-	return kept, nil
+	return kept
 }
 
 // matches reports whether a folded record survives the filter.
@@ -248,27 +268,217 @@ func (l *Ledger) Subject(ctx context.Context, id string) (Record, error) {
 // fold reads the whole log and reports each operation with the status the
 // operations that named it left it at.
 func (l *Ledger) fold(ctx context.Context) ([]Record, error) {
+	ops, err := l.read(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return foldOps(ops, l.axes)
+}
+
+// read selects the context operations of the log, less those a project's
+// removal from the workspace left behind, in the order the log received them.
+func (l *Ledger) read(ctx context.Context) ([]workspace.Op, error) {
 	ops, err := l.log.Select(ctx, workspace.OpQuery{KindPrefix: OpKindPrefix})
 	if err != nil {
 		return nil, err
 	}
-	ops, err = l.sinceRemoval(ctx, ops)
+	return l.sinceRemoval(ctx, ops)
+}
+
+// RecordsAsOf folds only the operations the log accepted at or before an
+// instant (Record.At), and returns what the filter keeps, newest first. It is
+// how the status a subject held at a past instant is known: a keep recorded
+// after it has not happened yet, and a reset after it sets nothing aside. The
+// fold itself is the one Records runs, over that prefix of the log.
+func (l *Ledger) RecordsAsOf(ctx context.Context, at time.Time, f Filter) ([]Record, error) {
+	ops, err := l.read(ctx)
 	if err != nil {
 		return nil, err
+	}
+	all, err := foldOps(acceptedBy(ops, at), l.axes)
+	if err != nil {
+		return nil, err
+	}
+	return filterNewestFirst(all, f), nil
+}
+
+// acceptedBy keeps the operations accepted at or before an instant.
+func acceptedBy(ops []workspace.Op, at time.Time) []workspace.Op {
+	out := make([]workspace.Op, 0, len(ops))
+	for _, op := range ops {
+		if !op.At.After(at) {
+			out = append(out, op)
+		}
+	}
+	return out
+}
+
+// StatusAt is the status a subject-bearing operation held from an instant on.
+type StatusAt struct {
+	At     time.Time `json:"at"`
+	Status Status    `json:"status"`
+}
+
+// HistoryLimit is how many instants Histories folds the log at before it
+// reports each subject's first and current status alone.
+const HistoryLimit = 500
+
+// Histories reports, for each subject-bearing operation the filter keeps, the
+// status it held after each operation that moved it, oldest first: the status
+// it was born with at its own instant, then every change at the instant of the
+// operation that made it. The log is read once and folded as of each distinct
+// instant an operation of the filtered project was accepted at (RecordsAsOf),
+// so drops, keeps, contests, settling and resets all show at the moment they
+// happened.
+//
+// The cost grows with the square of the log, so it is bounded: past limit
+// instants (HistoryLimit when limit is zero or less) each subject reports its
+// first status at its birth and its current status at the latest operation,
+// and complete reports false.
+func (l *Ledger) Histories(ctx context.Context, f Filter, limit int) (histories map[string][]StatusAt, complete bool, err error) {
+	if limit <= 0 {
+		limit = HistoryLimit
+	}
+	ops, err := l.read(ctx)
+	if err != nil {
+		return nil, false, err
+	}
+	decoded, err := decodeOps(ops)
+	if err != nil {
+		return nil, false, err
+	}
+	current := foldDecoded(decoded, l.axes)
+	keep := map[string]bool{}
+	for _, r := range current {
+		if r.Kind.Bears() && f.matches(r) {
+			keep[r.ID] = true
+		}
+	}
+	instants := make([]time.Time, 0, len(ops))
+	seen := map[time.Time]bool{}
+	for _, op := range ops {
+		if f.Project != "" && op.Project != f.Project {
+			continue
+		}
+		at := op.At.UTC()
+		if !seen[at] {
+			seen[at] = true
+			instants = append(instants, at)
+		}
+	}
+	slices.SortFunc(instants, func(a, b time.Time) int { return a.Compare(b) })
+
+	histories = make(map[string][]StatusAt, len(keep))
+	if len(instants) > limit {
+		latest := instants[len(instants)-1]
+		for _, r := range current {
+			if !keep[r.ID] {
+				continue
+			}
+			h := []StatusAt{{At: r.At, Status: statusAtBirth(r.Kind)}}
+			if r.Status != h[0].Status {
+				h = append(h, StatusAt{At: latest, Status: r.Status})
+			}
+			histories[r.ID] = h
+		}
+		return histories, false, nil
+	}
+	for _, at := range instants {
+		for _, r := range foldDecoded(acceptedByDecoded(decoded, at), l.axes) {
+			if !keep[r.ID] {
+				continue
+			}
+			h := histories[r.ID]
+			if len(h) > 0 && h[len(h)-1].Status == r.Status {
+				continue
+			}
+			histories[r.ID] = append(h, StatusAt{At: at, Status: r.Status})
+		}
+	}
+	return histories, true, nil
+}
+
+// decodedOp is one operation of the log with its record decoded, so a reader
+// that folds the log many times (Histories) decodes each payload once.
+type decodedOp struct {
+	op  workspace.Op
+	rec Record
+	ok  bool
+}
+
+// decodeOps decodes every operation of a run of the log.
+func decodeOps(ops []workspace.Op) ([]decodedOp, error) {
+	out := make([]decodedOp, len(ops))
+	for i, op := range ops {
+		r, ok, err := decode(op)
+		if err != nil {
+			return nil, err
+		}
+		out[i] = decodedOp{op: op, rec: r, ok: ok}
+	}
+	return out, nil
+}
+
+// cloneRecord copies the parts of a decoded record the fold appends to, so two
+// folds over one decoded run never share them. The fold replaces the scope,
+// the subject and the standing whole rather than editing them.
+func cloneRecord(r Record) Record {
+	r.ContestedBy = slices.Clone(r.ContestedBy)
+	r.Because = slices.Clone(r.Because)
+	return r
+}
+
+// acceptedByDecoded keeps the decoded operations accepted at or before at.
+func acceptedByDecoded(ops []decodedOp, at time.Time) []decodedOp {
+	out := make([]decodedOp, 0, len(ops))
+	for _, d := range ops {
+		if !d.op.At.After(at) {
+			out = append(out, d)
+		}
+	}
+	return out
+}
+
+// foldOps folds a run of the log's operations into records, each with the
+// status the operations that named it left it at.
+func foldOps(ops []workspace.Op, axes func(workspace.ProjectKey) axis.Space) ([]Record, error) {
+	decoded, err := decodeOps(ops)
+	if err != nil {
+		return nil, err
+	}
+	return foldDecoded(decoded, axes), nil
+}
+
+// foldDecoded is foldOps over operations already decoded. Each fold works on
+// its own copy of every record, so folding one decoded run many times is safe.
+func foldDecoded(decoded []decodedOp, axes func(workspace.ProjectKey) axis.Space) []Record {
+	spaces := map[workspace.ProjectKey]axis.Space{}
+	spaceOf := func(key workspace.ProjectKey) axis.Space {
+		if axes == nil {
+			return axis.Space{}
+		}
+		s, ok := spaces[key]
+		if !ok {
+			s = axes(key)
+			spaces[key] = s
+		}
+		return s
+	}
+	ops := make([]workspace.Op, len(decoded))
+	for i, d := range decoded {
+		ops[i] = d.op
 	}
 	// What a reset set aside stays in the log and takes no part in the fold:
 	// it is reported at StatusReset, beside the operations still in force.
 	aside := workspace.SetAside(ops)
 	records := make([]Record, 0, len(ops))
 	var setAside []Record
-	for _, op := range ops {
-		r, ok, derr := decode(op)
-		if derr != nil {
-			return nil, derr
-		}
+	for _, d := range decoded {
+		op, r, ok := d.op, cloneRecord(d.rec), d.ok
 		if !ok {
 			continue
 		}
+		r.space = spaceOf(r.Project)
 		if aside[op.ID] {
 			r.Status = StatusReset
 			setAside = append(setAside, r)
@@ -324,7 +534,7 @@ func (l *Ledger) fold(ctx context.Context) ([]Record, error) {
 			if act.Subject.Kind != SubjectNone {
 				records[i].Subject = act.Subject
 			}
-			if act.Scope.Level != "" || len(act.Scope.Coordinates) > 0 || act.Scope.AllProfiles {
+			if act.Scope.Level != "" || len(act.Scope.Coordinates) > 0 || act.Scope.AllProfiles || act.Scope.Windowed() {
 				records[i].Scope = act.Scope
 			}
 		case KindDrop:
@@ -350,11 +560,11 @@ func (l *Ledger) fold(ctx context.Context) ([]Record, error) {
 	settle(records, facts)
 	contest(records, establishedAt)
 	if len(setAside) == 0 {
-		return records, nil
+		return records
 	}
 	records = append(records, setAside...)
 	sort.SliceStable(records, func(i, j int) bool { return records[i].ID < records[j].ID })
-	return records, nil
+	return records
 }
 
 // SessionSummary is what one agent session did: how many operations of each

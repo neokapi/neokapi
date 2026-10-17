@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	coreproj "github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/host"
 	apiclient "github.com/neokapi/neokapi/host/venue/client"
@@ -98,19 +97,14 @@ func BuildPushContext(ctx context.Context, app *host.App, proj *bproject.Project
 		}
 		app.NoteGovernance(nil, governance)
 
-		// The point this collection sits at: the project's declared defaults,
-		// overlaid with the structural axes the resolved governance names, then
-		// with whatever the collection declares for itself. Most specific wins,
-		// per axis — so a project states its brand once and a collection that
-		// genuinely sits elsewhere moves on that axis alone.
+		// The point this collection sits at (CoordinatesAt): the project's
+		// declared defaults, overlaid with the structural axes the resolved
+		// governance names, then with whatever the collection declares for
+		// itself. A collection carries one point, so no item refines it here.
 		entry := &pb.SyncContextEntry{
-			Name: coll.Name,
-			Coordinates: coreproj.MergeCoordinates(
-				kapiProject.Defaults.Coordinates,
-				governance.Ref().Coordinates(),
-				coll.Coordinates,
-			),
-			Owner: venue.ContextOwnerRecipe,
+			Name:        coll.Name,
+			Coordinates: kapiProject.CoordinatesAt(point, governance),
+			Owner:       venue.ContextOwnerRecipe,
 		}
 		if governance != nil {
 			entry.Channel = governance.Channel

@@ -3,6 +3,7 @@ import { PipelineDiagram } from "./PipelineDiagram";
 import { StreamDiagram } from "./StreamDiagram";
 import { PhaseFlow } from "./PhaseFlow";
 import { RedactionDiagram } from "./RedactionDiagram";
+import { PlaceGraphDiagram } from "./PlaceGraphDiagram";
 import { withDiagramTheme } from "./storyEnv";
 
 /*
@@ -113,6 +114,49 @@ export const ModuleDependencies: Story = {
         {
           lanes: [{ label: "kapi" }, { label: "kapi-desktop" }],
           parallelLabel: "depend on framework + cli",
+        },
+      ]}
+    />
+  ),
+};
+
+// contribute/architecture/context/c-12-places.md and kapi/places.mdx
+export const Places: Story = {
+  name: "Place graph — c-12-places, kapi/places",
+  render: () => (
+    <PlaceGraphDiagram
+      chain={[
+        { id: "world", name: "World", type: "world" },
+        { id: "europe", name: "Europe", type: "region" },
+        { id: "northern-europe", name: "Northern Europe", type: "region" },
+        { id: "no", name: "Norway", type: "country" },
+        { id: "no-03", name: "Oslo", type: "subdivision" },
+        { id: "oslo", name: "Oslo", type: "locality", declared: true },
+        { id: "grunerlokka", name: "Grünerløkka", type: "neighbourhood", declared: true },
+      ]}
+      siblings={{
+        no: [
+          { id: "se", name: "Sweden", type: "country" },
+          { id: "dk", name: "Denmark", type: "country" },
+          { id: "fi", name: "Finland", type: "country" },
+          { id: "is", name: "Iceland", type: "country" },
+        ],
+        "no-03": [{ id: "no-32", name: "Akershus", type: "subdivision" }],
+      }}
+      madeOf={[
+        {
+          id: "nordics",
+          name: "Nordics",
+          type: "territory",
+          of: ["no", "se", "dk", "fi", "is"],
+          declared: true,
+        },
+        {
+          id: "greater-oslo",
+          name: "Greater Oslo",
+          type: "metro",
+          of: ["no-03", "no-32"],
+          declared: true,
         },
       ]}
     />
