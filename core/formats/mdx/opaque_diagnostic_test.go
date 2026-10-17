@@ -18,23 +18,25 @@ import (
 // quiet one: a whole document can go opaque for one construct, and the only
 // symptom is a page still in its source language.
 //
-// The fixture is a paragraph with a bare carriage return before the two spaces
-// that spell a hard break: the reader hands the "\r" to neither the text nor
-// the break, so the paragraph is one byte shorter than the source spelled. The
-// escaped backtick beside a code span's fence, the task list, the hard break,
-// the single-quoted title, the underscore emphasis, the quoted link whose title
-// wrapped, the code span whose fence sat on the next line, the unbalanced
-// strikethrough, the link destination with an unbalanced parenthesis, the
-// setext heading indented after a hard break and the code span closing after
-// a bare carriage return all sat here and reconstruct now, and the note they
-// carried holds for their replacement: these tests assert the reporting, so
-// the day this shape round-trips they will fail and the fixture should become
-// whatever still diverges.
+// The fixture is a paragraph whose first line ends in a hard break, whose
+// second line is indented by a tab and begins with a ">" that CommonMark 4.8
+// keeps as content, and whose third line follows it: the reader doubles that
+// marker in the block's text, so the paragraph is one byte longer than the
+// source spelled (#3214). The escaped backtick beside a code span's fence, the
+// task list, the hard break, the single-quoted title, the underscore emphasis,
+// the quoted link whose title wrapped, the code span whose fence sat on the
+// next line, the unbalanced strikethrough, the link destination with an
+// unbalanced parenthesis, the setext heading indented after a hard break, the
+// code span closing after a bare carriage return and the bare carriage return
+// before a hard break's spaces all sat here and reconstruct now, and the note
+// they carried holds for their replacement: these tests assert the reporting,
+// so the day this shape round-trips they will fail and the fixture should
+// become whatever still diverges.
 //
 // A single-block span is the deliberate choice. Quarantine salvages a span by
 // isolating the blocks that failed, so a fixture with neighbours exercises that
 // path instead, which is what TestQuarantineKeepsTheOtherBlocks is for.
-const divergingSrc = "One line\r  \nnext line.\n"
+const divergingSrc = "One line  \n\t>quoted\nnext line.\n"
 
 func readAll(t *testing.T, src string) ([]*model.Block, []format.Diagnostic) {
 	t.Helper()
