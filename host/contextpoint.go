@@ -538,7 +538,11 @@ func (a *App) ContextSourcesAt(cmd Command, req ContextPointRequest) (ContextPoi
 			switch {
 			case op.Status.Advises():
 				src.Suggestions = append(src.Suggestions, op.Record)
-			case op.Status == contextop.StatusEstablished && op.Subject.Kind == contextop.SubjectNote:
+			// An established note is something somebody noticed and a
+			// person kept. An import or an edit also carries a note subject,
+			// naming the file or store it wrote, and is bookkeeping rather
+			// than guidance.
+			case op.Status == contextop.StatusEstablished && op.Kind == contextop.KindObserve && op.Subject.Kind == contextop.SubjectNote:
 				src.EstablishedNotes = append(src.EstablishedNotes, op.Record)
 			}
 		}

@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/contextop"
+	"github.com/neokapi/neokapi/core/workspace"
 )
 
 // answerAt resolves the by-location answer for one file of a project, the
@@ -47,6 +48,22 @@ func TestKeptNoteAnswersWhereItHolds(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, landedNote, kept.Landed, "a kept note is written to no store")
 	assert.NotContains(t, kept.Landed, "terms store")
+
+	// An import records the file it read as a note subject, established from
+	// the start. It is bookkeeping, and no answer states it as a note.
+	read, err := app.ContextOperations(ctx, ContextLogRequest{Project: recipeOf(root)})
+	require.NoError(t, err)
+	ws, err := app.Workspace(ctx)
+	require.NoError(t, err)
+	_, err = contextop.NewLedger(ws, contextop.PersonDecides).Append(ctx, contextop.Record{
+		Actor:    person,
+		Kind:     contextop.KindImport,
+		Project:  workspace.ProjectKey(read.Project),
+		Subject:  contextop.Subject{Kind: contextop.SubjectNote, Text: "terms bundle context/terms.json, 3 concepts"},
+		Evidence: []contextop.Evidence{{Path: "context/terms.json"}},
+		Scope:    contextop.Scope{Level: contextop.LevelProject},
+	})
+	require.NoError(t, err)
 
 	at := answerAt(t, app, root, "teens/a.md")
 	assert.Empty(t, at.Suggestions, "a kept note is no longer a suggestion")
