@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("One line  \n\t>quoted\nnext line.\n")

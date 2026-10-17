@@ -15,9 +15,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/safeio"
 	"github.com/neokapi/neokapi/core/translatability"
-	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
-	"github.com/yuin/goldmark/extension"
 	east "github.com/yuin/goldmark/extension/ast"
 	"github.com/yuin/goldmark/text"
 	xhtml "golang.org/x/net/html"
@@ -72,7 +70,7 @@ func addTextWithEntities(b *runBuilder, text string, idCounter *int) {
 		// xhtml.UnescapeString covers all HTML5 named entities plus
 		// decimal/hex numeric character references. If the lookup fails
 		// (unknown name) it returns the input unchanged.
-		b.AddPh(strconv.Itoa(*idCounter), "code:html", "md:entity", raw,
+		b.AddPh(strconv.Itoa(*idCounter), "code:html", subTypeEntity, raw,
 			"", xhtml.UnescapeString(raw), false, false, false)
 		cursor = loc[1]
 	}
@@ -99,6 +97,10 @@ const BlockPropLinePrefix = "md:line-prefix"
 // Separate from BlockPropLinePrefix because the two answer different lines: a
 // soft-break body already carries its continuation markers in the run text, and
 // re-using the continuation property would emit them twice.
+//
+// The indent before the first marker is kept inside a list item, where it is
+// the item's content column, and dropped at the top level, where CommonMark
+// 5.1 allows up to three spaces of it and it means nothing.
 const BlockPropQuoteMarker = "md:quote-marker"
 
 // BlockPropFrontMatterQuote is the per-block property recording the quote
@@ -153,6 +155,14 @@ type Reader struct {
 	// behaviour for unused (dead) reference definitions is to treat the
 	// title as untranslatable skeleton bytes.
 	usedRefs map[string]bool
+
+	// fragmentDefs is the lowercased set of labels whose definition the
+	// parser registered from lines it emits again as a paragraph, so that
+	// the definition's own node covers a fragment of them: "[" over a line
+	// of its own, with the rest of the label, the destination and the title
+	// below it. Such a definition replays as its bytes and a reference to it
+	// is text, since the lines it is read from are the paragraph's.
+	fragmentDefs map[string]bool
 }
 
 // Ensure Reader implements SkeletonStoreEmitter.
@@ -264,11 +274,11 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) er
 	bodyOffset := r.handleFrontMatter(ctx, ch, content)
 
 	// Parse the markdown body with GFM extensions (tables, strikethrough).
-	md := goldmark.New(
-		goldmark.WithExtensions(extension.GFM),
-	)
 	body := content[bodyOffset:]
-	doc := md.Parser().Parse(text.NewReader(body))
+	doc, err := parseMarkdownChecked(body)
+	if err != nil {
+		return err
+	}
 
 	r.scanReferenceVisibility(doc)
 	r.walkNode(ctx, ch, doc, body, bodyOffset)
@@ -566,25 +576,52 @@ func (r *Reader) walkNode(ctx context.Context, ch chan<- model.PartResult, node 
 func (r *Reader) scanReferenceVisibility(doc ast.Node) {
 	r.visibleRefs = map[string]bool{}
 	r.usedRefs = map[string]bool{}
+	r.fragmentDefs = map[string]bool{}
+	// A paragraph the parser forms over lines an earlier sibling already
+	// consumed (a definition's failed title line, emitted again) is skipped
+	// by emitParagraph, so the references it holds make nothing visible.
+	maxEnd := map[ast.Node]int{}
 	_ = ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
 		if !entering {
 			return ast.WalkContinue, nil
 		}
+		if n.Type() == ast.TypeBlock && n.Parent() != nil {
+			if lines := n.Lines(); lines != nil && lines.Len() > 0 {
+				start, stop := lines.At(0).Start, lines.At(lines.Len()-1).Stop
+				if _, isPara := n.(*ast.Paragraph); isPara && start < maxEnd[n.Parent()] {
+					return ast.WalkSkipChildren, nil
+				}
+				maxEnd[n.Parent()] = max(maxEnd[n.Parent()], stop)
+			}
+		}
+		if p, isPara := n.(*ast.Paragraph); isPara && admonitionOpener(p, r.source) {
+			// An admonition's title and body are text to the reader, so a
+			// reference the parser formed in them resolves to nothing it
+			// offers: "::: [0]:0" over a definition of "0" made the label
+			// visible through the title alone, and the rebuild, writing the
+			// title as text, lost the label's block.
+			return ast.WalkSkipChildren, nil
+		}
+		// A reference and its definition match by the normalized label
+		// (CommonMark 6.6): case folded, with the whitespace runs inside it,
+		// line endings included, as one space. "[0][" over "0]" refers to
+		// the definition of "[ 0]", and keyed by the spelling the title
+		// block of a definition the rebuild spelled on one line was gone.
 		switch node := n.(type) {
 		case *ast.Link:
 			if ref := node.Reference; ref != nil {
 				label := string(ref.Value)
-				r.usedRefs[strings.ToLower(label)] = true
+				r.usedRefs[normalizeRefLabel(label)] = true
 				if ref.Type == ast.ReferenceLinkShortcut || ref.Type == ast.ReferenceLinkCollapsed {
-					r.visibleRefs[label] = true
+					r.visibleRefs[normalizeRefLabel(label)] = true
 				}
 			}
 		case *ast.Image:
 			if ref := node.Reference; ref != nil {
 				label := string(ref.Value)
-				r.usedRefs[strings.ToLower(label)] = true
+				r.usedRefs[normalizeRefLabel(label)] = true
 				if ref.Type == ast.ReferenceLinkShortcut || ref.Type == ast.ReferenceLinkCollapsed {
-					r.visibleRefs[label] = true
+					r.visibleRefs[normalizeRefLabel(label)] = true
 				}
 			}
 		}
@@ -639,10 +676,28 @@ func (r *Reader) emitLinkReferenceDefinition(ctx context.Context, ch chan<- mode
 	r.skelAdvance(defEnd)
 
 	label := string(n.Label)
-	labelVisible := r.visibleRefs[label]
-	titleUsed := len(n.Title) > 0 && r.usedRefs[strings.ToLower(label)]
+	labelVisible := r.visibleRefs[normalizeRefLabel(label)]
 
 	def := r.source[defStart:defEnd]
+	// A whole definition of a label settles the references to it, whatever
+	// fragment of the same label came before: "[" over "0]:0" and a later
+	// "[0]:0" is a fragment and a definition, and "![0]" refers to the
+	// definition.
+	delete(r.fragmentDefs, normalizeRefLabel(label))
+	if refDefColon(def) < 0 {
+		// The node's own lines do not reach the end of the label: the parser
+		// took the label's rest, the destination and the title from lines it
+		// emits again as a paragraph. The bytes here are a fragment and
+		// replay as they are, and the references the parser resolved to this
+		// definition are text in the paragraph that holds them.
+		r.fragmentDefs[normalizeRefLabel(label)] = true
+		r.skelText(string(def))
+		if defEnd < len(r.source) && r.source[defEnd] == '\n' {
+			r.skelText("\n")
+			r.skelAdvance(defEnd + 1)
+		}
+		return
+	}
 	// Reconstruct the URL slice. Reference definitions written with
 	// `<url>` angle brackets must preserve that wrapping; goldmark's
 	// Destination field is the unwrapped URL, so we sniff the source
@@ -654,6 +709,23 @@ func (r *Reader) emitLinkReferenceDefinition(ctx context.Context, ch chan<- mode
 	// parser's label, destination and title, a definition spread over three
 	// lines came back on one (#2462).
 	spans, located := scanRefDefinition(def)
+	// CommonMark 4.7 ends a definition at its destination when the line after
+	// it is not a title alone, and the parser emits that line as a paragraph
+	// while still recording its quoted part as the title. The title is the
+	// one the definition's own bytes spell. When those bytes hold no
+	// destination either, the parser took it from a line it emits as a
+	// paragraph too, and the definition is written as it stands: its label,
+	// placed by the scan, and the rest of its bytes.
+	title := string(n.Title)
+	labelOnly := !located && spans.labelEnd > 0 && spans.labelEnd < len(def)
+	if (located && spans.titleStart < 0) || labelOnly {
+		title = ""
+	}
+	if labelOnly {
+		spans.titleStart, spans.titleEnd = -1, -1
+		located = true
+	}
+	titleUsed := title != "" && r.usedRefs[normalizeRefLabel(label)]
 
 	// The definition rides the stream as Data whether or not any of it is
 	// translatable: the non-skeleton write path spells a reference link as a
@@ -667,7 +739,7 @@ func (r *Reader) emitLinkReferenceDefinition(ctx context.Context, ch chan<- mode
 		Properties: map[string]string{
 			"label":       label,
 			"destination": urlLiteral,
-			"title":       string(n.Title),
+			"title":       title,
 		},
 	}
 
@@ -856,7 +928,7 @@ func scanRefDefinition(def []byte) (refDefSpans, bool) {
 // the line is malformed (no colon found) so callers always get at
 // least the canonical single-space separator.
 func refDefSeparator(defLine []byte) string {
-	colon := bytes.IndexByte(defLine, ':')
+	colon := refDefColon(defLine)
 	if colon < 0 {
 		return " "
 	}
@@ -877,19 +949,33 @@ func refDefSeparator(defLine []byte) string {
 // `:` separator for a leading `<` to decide.
 func referenceDefinitionURLLiteral(dest []byte, defLine []byte) string {
 	d := string(dest)
-	colon := bytes.IndexByte(defLine, ':')
+	colon := refDefColon(defLine)
 	if colon < 0 {
 		return d
 	}
-	// Skip past `:` and any subsequent spaces.
-	i := colon + 1
-	for i < len(defLine) && (defLine[i] == ' ' || defLine[i] == '\t') {
-		i++
-	}
+	// Skip past `:` and the whitespace before the destination, which may
+	// hold one line ending and the next line's container prefix (CommonMark
+	// 4.7): "[0]:" over an empty "<>" on the line below is a definition with
+	// an empty destination, which only its brackets can spell.
+	i := skipLinkWhitespace(defLine, colon+1)
 	if i < len(defLine) && defLine[i] == '<' {
 		return "<" + d + ">"
 	}
 	return d
+}
+
+// refDefColon returns the offset of the colon that follows a definition's
+// label, or -1. The label itself may hold a colon ("[:<]: dest"), so the first
+// colon of the line is not it.
+func refDefColon(defLine []byte) int {
+	if len(defLine) == 0 || defLine[0] != '[' {
+		return bytes.IndexByte(defLine, ':')
+	}
+	close := indexUnescaped(defLine, 1, ']')
+	if close < 0 || close+1 >= len(defLine) || defLine[close+1] != ':' {
+		return -1
+	}
+	return close + 1
 }
 
 // titleDelimiters returns the opening and closing characters used to
@@ -1017,6 +1103,16 @@ func softBreakContinuation(source []byte, pos int) string {
 	return string(source[pos:end])
 }
 
+// insideListItem reports whether n has a list item among its ancestors.
+func insideListItem(n ast.Node) bool {
+	for p := n.Parent(); p != nil; p = p.Parent() {
+		if _, ok := p.(*ast.ListItem); ok {
+			return true
+		}
+	}
+	return false
+}
+
 // quoteMarkerBefore returns the blockquote marker that opens the source line
 // holding pos: the run of ">" characters, each with the optional single space
 // and up to three spaces of indent CommonMark 5.1 allows, that the parser
@@ -1032,10 +1128,15 @@ func quoteMarkerBefore(source []byte, pos int) string {
 		start--
 	}
 	line := string(source[start:pos])
-	if marker := blockquoteMarkerPrefix(line); marker == line {
-		return marker
+	marker := blockquoteMarkerPrefix(line)
+	if marker == "" || strings.TrimLeft(line[len(marker):], " \t\r") != "" {
+		return ""
 	}
-	return ""
+	// Up to three spaces of the content's own indent may follow the markers,
+	// as may a bare carriage return, which the parser treats as whitespace;
+	// they belong to the first line's prefix too, or a rebuild that supplied
+	// the markers alone re-read the quote one level shallow.
+	return line
 }
 
 // fullNodeAbsRange returns the absolute byte range of a node including
@@ -1167,9 +1268,13 @@ func (r *Reader) emitHeading(ctx context.Context, ch chan<- model.PartResult, n 
 	block.Properties["level"] = strconv.Itoa(n.Level)
 	block.SetSemanticRole(model.RoleHeading, n.Level)
 	r.addInlineRuns(block, n, source)
-	if markupOnly(block.SourceRuns()) {
-		// A heading that is one autolink has nothing to translate: its line
-		// replays from source, and the section it opens stays on the trail.
+	if markupOnly(block.SourceRuns()) || whitespaceParagraph(n, source) {
+		// A heading that is one autolink has nothing to translate, and
+		// neither has one whose text is whitespace, as a paragraph's rule
+		// goes: its lines replay from source, and the section it opens stays
+		// on the trail. A setext heading over lines of form feeds inside a
+		// blockquote carried the quote markers as its text, and the ATX line
+		// the rebuild folds it onto read back as no block.
 		r.blockCounter--
 		return
 	}
@@ -1557,6 +1662,22 @@ func (r *Reader) extractAdmonitionBodyText(n ast.Node, source []byte, outerInden
 	return text, hasExcess
 }
 
+// admonitionOpener reports whether the paragraph is one the reader emits as
+// an admonition rather than as inline content: a one-line Docusaurus opener
+// (emitDocusaurusAdmonition) or a MkDocs opener with its body (emitParagraph).
+func admonitionOpener(n *ast.Paragraph, source []byte) bool {
+	lines := n.Lines()
+	if lines.Len() == 0 {
+		return false
+	}
+	first := lines.At(0)
+	lineNoLF := bytes.TrimRight(source[first.Start:first.Stop], "\n")
+	if lines.Len() == 1 && bytes.HasPrefix(lineNoLF, []byte(":::")) && docusaurusAdmonRE.Match(lineNoLF) {
+		return true
+	}
+	return admonitionHeaderRE.Match(lineNoLF)
+}
+
 // emitDocusaurusAdmonition handles a single-line `:::keyword [title]`
 // (or bare `:::` closer) that goldmark parsed as a one-line paragraph.
 // Returns true when the paragraph was recognised and emitted as a
@@ -1637,6 +1758,14 @@ func (r *Reader) emitParagraph(ctx context.Context, ch chan<- model.PartResult, 
 	if r.emitDocusaurusAdmonition(ctx, ch, n, source, baseOffset) {
 		return
 	}
+	// A paragraph the parser forms over lines an earlier block already
+	// consumed, as it does when a link reference definition's title line
+	// fails and the lines after its label are emitted again, has those bytes
+	// in the skeleton already: it emits no block and its lines ride the gap,
+	// as a heading over such lines does.
+	if start, _ := nodeAbsRange(n, source, baseOffset); start < r.skelCursor {
+		return
+	}
 
 	r.blockCounter++
 	blockID := fmt.Sprintf("tu%d", r.blockCounter)
@@ -1644,10 +1773,11 @@ func (r *Reader) emitParagraph(ctx context.Context, ch chan<- model.PartResult, 
 	block := model.NewBlock(blockID, textContent)
 	block.Name = r.naming.Name(kindParagraph)
 	r.addInlineRuns(block, n, source)
-	if markupOnly(block.SourceRuns()) {
+	if markupOnly(block.SourceRuns()) || whitespaceParagraph(n, source) {
 		// A paragraph that is one autolink or one entity has nothing to
 		// translate: its bytes replay from source with the gap before the
-		// next block, and its ordinal stays consumed (#2429).
+		// next block, and its ordinal stays consumed (#2429). The same goes
+		// for one whose text is whitespace and line breaks alone.
 		r.blockCounter--
 		return
 	}
@@ -1671,6 +1801,19 @@ func (r *Reader) emitParagraph(ctx context.Context, ch chan<- model.PartResult, 
 	lineStart, lineEnd := nodeAbsRange(n, source, baseOffset)
 
 	if marker := quoteMarkerBefore(r.source, lineStart); marker != "" {
+		if !insideListItem(n) && !strings.Contains(marker, "\t") {
+			// The indent before a quote's first marker places the quote
+			// inside a list item's content, and nowhere else: at the top
+			// level CommonMark 5.1 allows it and it means nothing. Recorded,
+			// it put the quote of "* 0", an empty heading and "  >0" over
+			// ">0" inside the item once the heading between them, which
+			// emits no block, was gone from the rebuild. A tab later in the
+			// marker reaches a column the indent sets, so such a marker
+			// keeps it: "   >   " and a tab before ">0" is a paragraph, and
+			// without the three spaces the tab reached the next stop and
+			// ">0" was indented code.
+			marker = strings.TrimLeft(marker, " ")
+		}
 		block.Properties[BlockPropQuoteMarker] = marker
 	}
 
@@ -1679,6 +1822,30 @@ func (r *Reader) emitParagraph(ctx context.Context, ch chan<- model.PartResult, 
 	r.skelAdvance(lineEnd)
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+}
+
+// whitespaceParagraph reports whether a paragraph's inline content is text
+// nodes alone whose bytes are whitespace: a form feed under two hard breaks
+// in a blockquote, say. The continuation markers baked into such a block's
+// text would be its only content, and no rebuild reads them back as a block.
+func whitespaceParagraph(n ast.Node, source []byte) bool {
+	for child := n.FirstChild(); child != nil; child = child.NextSibling() {
+		if _, html := child.(*ast.RawHTML); html {
+			// Inline HTML is markup with no text of its own, which the
+			// rebuild drops: a quote of a vertical tab over a marked line
+			// holding a tag had the marker as its only content once the tag
+			// was gone.
+			continue
+		}
+		t, ok := child.(*ast.Text)
+		if !ok {
+			return false
+		}
+		if strings.TrimSpace(string(t.Segment.Value(source))) != "" {
+			return false
+		}
+	}
+	return true
 }
 
 func (r *Reader) emitListItem(ctx context.Context, ch chan<- model.PartResult, n *ast.ListItem, source []byte, baseOffset int) {
@@ -2855,6 +3022,9 @@ func nextIsHardBreak(n ast.Node) bool {
 // one and the writer restores the continuation prefix after each newline),
 // and takes the continuation prefix with it otherwise, so a blockquote or
 // list item that mixes hard and soft breaks keeps its marker on every line.
+// The prefix stops where the next text node begins, as a soft break's does:
+// on a continuation line the parser kept whole, the ">" after the indent is
+// the text's own.
 func (r *Reader) addHardBreakRuns(b *runBuilder, n *ast.Text, source []byte, idCounter *int) {
 	spelling, nl, ok := hardBreakSpelling(source, n.Segment.Stop)
 	if !ok {
@@ -2869,7 +3039,7 @@ func (r *Reader) addHardBreakRuns(b *runBuilder, n *ast.Text, source []byte, idC
 			info.Constraints.Reorderable)
 	}
 	if b.inlineBreakPrefix {
-		b.AddText(softBreakContinuation(source, nl))
+		b.AddText(softBreakContinuationBounded(source, nl, nextTextStart(n)))
 		return
 	}
 	b.AddText("\n")
@@ -2985,6 +3155,14 @@ func (r *Reader) collectInlineText(buf *strings.Builder, node ast.Node, source [
 			}
 		case *east.TaskCheckBox:
 			buf.WriteString(taskCheckBoxRaw(n, source))
+		case *ast.Link:
+			if n.Reference != nil {
+				if text, ok := r.fragmentReferenceText(n, n.Reference, 1, source); ok {
+					buf.WriteString(text)
+					continue
+				}
+			}
+			r.collectInlineText(buf, child, source)
 		default:
 			r.collectInlineText(buf, child, source)
 		}
@@ -3017,8 +3195,13 @@ func taskCheckBoxRaw(n *east.TaskCheckBox, source []byte) string {
 	case next == nil:
 		// Nothing follows the checkbox, so its spelling ends with it. The
 		// whitespace after it belongs to the line, and to the hard break when
-		// there are two spaces of it ("- [ ]" came back as "- [ ] ").
+		// there are two spaces of it ("- [ ]" came back as "- [ ] "). A form
+		// feed is the exception: the parser keeps it inside the line and
+		// gives it to no text node.
 		end = start + 3
+		for end < len(source) && source[end] == '\f' {
+			end++
+		}
 	default:
 		if t, ok := next.(*ast.Text); ok {
 			end = t.Segment.Start
@@ -3040,9 +3223,11 @@ func taskCheckBoxRaw(n *east.TaskCheckBox, source []byte) string {
 	return raw
 }
 
-// isTaskCheckBoxSpelling reports whether raw is a checkbox and its trailing
-// space, and nothing else — the guard that keeps a surprising parse from
-// splicing arbitrary source into a block.
+// isTaskCheckBoxSpelling reports whether raw is a checkbox followed by nothing
+// but the whitespace of its line and, when the text after it begins on the
+// next line, that line ending and the continuation prefix the parser stripped.
+// It is the guard that keeps a surprising parse from splicing arbitrary source
+// into a block.
 func isTaskCheckBoxSpelling(raw string) bool {
 	if len(raw) < 3 || raw[0] != '[' || raw[2] != ']' {
 		return false
@@ -3052,7 +3237,11 @@ func isTaskCheckBoxSpelling(raw string) bool {
 	default:
 		return false
 	}
-	return strings.TrimLeft(raw[3:], " \t") == ""
+	rest := strings.TrimLeft(raw[3:], " \t\f")
+	if rest == "" {
+		return true
+	}
+	return rest[0] == '\n' && isLinePrefixGap([]byte(rest))
 }
 
 func (r *Reader) extractListItemText(item *ast.ListItem, source []byte) string {
@@ -3371,10 +3560,7 @@ func (r *Reader) appendNodeRawBytes(dst *strings.Builder, n ast.Node, source []b
 	case *ast.String:
 		dst.Write(v.Value)
 	case *ast.RawHTML:
-		for i := range v.Segments.Len() {
-			seg := v.Segments.At(i)
-			dst.Write(seg.Value(source))
-		}
+		dst.WriteString(rawHTMLSpan(v, source))
 	default:
 		if n.Type() == ast.TypeInline {
 			r.appendInlineRawBytes(dst, n, source)
@@ -3704,6 +3890,11 @@ func (r *Reader) buildLinkRuns(b *runBuilder, n *ast.Link, source []byte, idCoun
 	// MarkdownParser.visitRefLink which emits the LINK_REF tokens
 	// verbatim from the source markers.
 	if n.Reference != nil {
+		if text, ok := r.fragmentReferenceText(n, n.Reference, 1, source); ok {
+			*idCounter--
+			b.AddText(text)
+			return
+		}
 		closing := referenceCloseSpelling(n, n.Reference, 1, source)
 		b.AddPcOpen(id, "link:hyperlink", "md:link-ref", "[", info.Display.Open, info.Equiv,
 			info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
@@ -3839,6 +4030,11 @@ func (r *Reader) buildImageRuns(b *runBuilder, n *ast.Image, source []byte, idCo
 	}
 
 	if n.Reference != nil {
+		if text, ok := r.fragmentReferenceText(n, n.Reference, 2, source); ok {
+			*idCounter--
+			b.AddText(text)
+			return
+		}
 		closing := referenceCloseSpelling(n, n.Reference, 2, source)
 		b.AddPcOpen(id, "media:image", "md:image-ref", "!["+alt, info.Display.Open, info.Equiv,
 			info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
@@ -3880,6 +4076,32 @@ func (r *Reader) untranslatedAltText(n *ast.Image, source []byte) string {
 	var buf strings.Builder
 	r.collectInlineText(&buf, n, source)
 	return buf.String()
+}
+
+// normalizeRefLabel folds a link label the way labels are matched (CommonMark
+// 4.7): case-folded, with its whitespace runs collapsed to one space and the
+// ends trimmed.
+func normalizeRefLabel(label string) string {
+	return strings.ToLower(strings.Join(strings.Fields(label), " "))
+}
+
+// fragmentReferenceText returns a reference-style link or image as the text
+// it is when its definition is a fragment (fragmentDefs): the node's source
+// bytes, from the opening bracket to the end of its label. ok is false for a
+// reference to a whole definition, or for a node the resolver cannot place.
+func (r *Reader) fragmentReferenceText(n ast.Node, ref *ast.ReferenceLink, openerLen int, source []byte) (string, bool) {
+	if !r.fragmentDefs[normalizeRefLabel(string(ref.Value))] {
+		return "", false
+	}
+	start, ok := inlineNodeStart(n, source)
+	if !ok {
+		return "", false
+	}
+	end, ok := linkNodeEnd(n, ref, openerLen, source)
+	if !ok || end <= start || end > len(source) {
+		return "", false
+	}
+	return string(source[start:end]), true
 }
 
 // referenceCloseSpelling returns the bytes that close a reference-style link or
@@ -3987,12 +4209,7 @@ func (r *Reader) buildAutoLinkRuns(b *runBuilder, n *ast.AutoLink, source []byte
 }
 
 func (r *Reader) buildRawHTMLRuns(b *runBuilder, n *ast.RawHTML, source []byte, idCounter *int) {
-	var htmlContent strings.Builder
-	for i := range n.Segments.Len() {
-		seg := n.Segments.At(i)
-		htmlContent.Write(seg.Value(source))
-	}
-	tag := htmlContent.String()
+	tag := rawHTMLSpan(n, source)
 
 	// Mirrors okapi HTML-subfilter ATTRIBUTE_TRANS handling for inline
 	// RawHTML tags inside Markdown paragraphs: when a tag carries a
@@ -4021,6 +4238,23 @@ func (r *Reader) buildRawHTMLRuns(b *runBuilder, n *ast.RawHTML, source []byte, 
 	id := strconv.Itoa(*idCounter)
 	b.AddPcOpen(id, "fmt:html", "md:html-inline", tag, "", "", false, false, false)
 	b.AddPcClose(id, "fmt:html", "md:html-inline", "", "")
+}
+
+// rawHTMLSpan returns the source bytes an inline HTML node covers, from its
+// first segment's start to its last segment's end. A tag may wrap onto the
+// next line (CommonMark 6.6), and the parser records that line without the
+// whitespace it strips from a continuation line, so joining the segments
+// lost the tab or carriage return the line began with.
+func rawHTMLSpan(n *ast.RawHTML, source []byte) string {
+	if n.Segments == nil || n.Segments.Len() == 0 {
+		return ""
+	}
+	start := n.Segments.At(0).Start
+	stop := n.Segments.At(n.Segments.Len() - 1).Stop
+	if start < 0 || stop > len(source) || start > stop {
+		return ""
+	}
+	return string(source[start:stop])
 }
 
 // emitInlineHTMLWithAttrs detects translatable attributes on an inline
@@ -4178,8 +4412,37 @@ func strikethroughFences(node ast.Node, source []byte) (string, string) {
 	// length, so the closer is spelled like the opener. Reading it from the
 	// bytes after the content instead means asking the last child where it
 	// ends, and a link there asks its parent — this node — where it begins,
-	// which recurses until the stack runs out.
+	// which recurses until the stack runs out. A closer that follows a plain
+	// text child can be read, and it bounds the opener: two nested pairs
+	// opened by one run of two tildes each own one of them.
+	if n := strikethroughCloserLen(node, source); n > 0 && n < len(open) {
+		open = open[len(open)-n:]
+	}
 	return open, open
+}
+
+// strikethroughCloserLen returns the length of the tilde run that closes node,
+// read from the bytes between its last child's text and the start of the
+// sibling after it, or 0 when either end cannot be placed.
+func strikethroughCloserLen(node ast.Node, source []byte) int {
+	last, ok := node.LastChild().(*ast.Text)
+	if !ok {
+		return 0
+	}
+	end := last.Segment.Stop
+	limit := len(source)
+	if next := node.NextSibling(); next != nil {
+		start, ok := inlineContentStart(next, source)
+		if !ok {
+			return 0
+		}
+		limit = min(start, limit)
+	}
+	n := 0
+	for n < 2 && end+n < limit && source[end+n] == '~' {
+		n++
+	}
+	return n
 }
 
 // prevSiblingEnd bounds a node's opener by what the sibling before it spells.
