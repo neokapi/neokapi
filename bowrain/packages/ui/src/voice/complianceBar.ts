@@ -63,13 +63,13 @@ const TEXT_CLASS: Record<ScoreBand, string> = {
 
 const STROKE_CLASS: Record<ScoreBand, string> = {
   pass: "stroke-success",
-  warn: "stroke-warning",
+  warn: "stroke-warning-ink",
   fail: "stroke-destructive",
 };
 
 const FILL_CLASS: Record<ScoreBand, string> = {
   pass: "bg-success",
-  warn: "bg-warning",
+  warn: "bg-warning-ink",
   fail: "bg-destructive",
 };
 

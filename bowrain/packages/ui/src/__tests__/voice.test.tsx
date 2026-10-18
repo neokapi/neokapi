@@ -8,7 +8,15 @@ import { VoiceFindingsList } from "../voice/VoiceFindingsList";
 import { VoiceProfileCard } from "../voice/VoiceProfileCard";
 import { VoiceProfileList } from "../voice/VoiceProfileList";
 import { VoiceDashboard } from "../voice/VoiceDashboard";
-import { DEFAULT_MIN_SCORE, barForProfile, complianceBar, scoreBand } from "../voice/complianceBar";
+import {
+  DEFAULT_MIN_SCORE,
+  barForProfile,
+  complianceBar,
+  scoreBand,
+  scoreFillClass,
+  scoreStrokeClass,
+  scoreTextClass,
+} from "../voice/complianceBar";
 import { BreadcrumbProvider } from "../context/BreadcrumbContext";
 import type { DimensionScore, VoiceExample, VoiceFinding, VoiceProfile } from "../voice/types";
 
@@ -376,6 +384,15 @@ describe("complianceBar", () => {
     expect(scoreBand(85, 80)).toBe("pass");
     expect(scoreBand(85, 90)).toBe("warn");
     expect(scoreBand(20, 90)).toBe("fail");
+  });
+
+  // The light amber is a fill that carries dark ink. As a gauge arc or a bar on
+  // the page it falls below the 3:1 a graphic needs, so the warning band draws
+  // in the amber ink, as its score text does.
+  it("draws the warning band's text, arc and bar in the amber ink", () => {
+    expect(scoreTextClass(60)).toBe("text-warning-ink");
+    expect(scoreStrokeClass(60)).toBe("stroke-warning-ink");
+    expect(scoreFillClass(60)).toBe("bg-warning-ink");
   });
 });
 

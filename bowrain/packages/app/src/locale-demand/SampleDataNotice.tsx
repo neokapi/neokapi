@@ -20,9 +20,10 @@ export function SampleDataNotice({ action, degradedReason, className }: SampleDa
   return (
     <Alert
       data-testid="sample-data-notice"
-      className={cn("mb-4 border-warning/40 bg-warning/5 px-3 py-2.5", className)}
+      variant="warning"
+      className={cn("mb-4 bg-warning/5 px-3 py-2.5", className)}
     >
-      <FlaskConical className="text-warning-ink" />
+      <FlaskConical aria-hidden />
       <AlertTitle>Sample data: connect PostHog to see your own</AlertTitle>
       <AlertDescription>
         {degradedReason
