@@ -27,8 +27,8 @@ import (
 // there: the project root for the rules that hold everywhere, and one folder
 // per collection whose rules differ from the root's. Each file states only what
 // holds in its folder: the voice in force, what to write and what not, the
-// wording a rule held elsewhere leaves as it is here, and one line pointing to
-// `kapi check`. The context stays the source; the files are a projection of
+// wording a rule held elsewhere leaves as it is here, the notes a person kept
+// that hold there, and one line pointing to `kapi check`. The context stays the source; the files are a projection of
 // it, refreshed when it changes, and `kapi check` stays the gate.
 //
 // kapi owns one delimited section of each file (core/agentrules) and leaves
@@ -39,11 +39,13 @@ import (
 
 const (
 	// rulesFileRules caps the rules one section lists, rulesFileKeep the
-	// wordings it says to keep, and rulesFileFolders the folders the root
-	// file names. What does not fit is counted, with the command that lists
-	// it all.
+	// wordings it says to keep, rulesFileNotes the notes a person kept (and,
+	// separately, the project's notes it says do not hold), and
+	// rulesFileFolders the folders the root file names. What does not fit is
+	// counted, with the command that lists it all.
 	rulesFileRules   = 20
 	rulesFileKeep    = 10
+	rulesFileNotes   = 10
 	rulesFileFolders = 15
 	// rulesFileVoiceLines caps the lines of the voice brief.
 	rulesFileVoiceLines = 16
@@ -131,10 +133,22 @@ type rulesSection struct {
 	Rules []ContextRule
 	// Keep are the wordings a rule held elsewhere leaves as they are.
 	Keep []ContextElsewhere
+	// Notes are the notes a person kept that hold here, newest first.
+	Notes []rulesNote
+	// Unheld are the root's notes that do not hold here, newest first.
+	Unheld []rulesNote
 }
 
 func (s rulesSection) empty() bool {
-	return s.Voice == "" && !s.NoVoice && len(s.Rules) == 0 && len(s.Keep) == 0
+	return s.Voice == "" && !s.NoVoice && len(s.Rules) == 0 && len(s.Keep) == 0 &&
+		len(s.Notes) == 0 && len(s.Unheld) == 0
+}
+
+// rulesNote is a note in prose a person kept, as the rules files state it:
+// the operation that recorded it and its text on one line.
+type rulesNote struct {
+	ID   string
+	Text string
 }
 
 // rulesFolder is what one folder's files say.
@@ -156,6 +170,7 @@ type rulesPointAnswer struct {
 	voice     string
 	rules     []ContextRule
 	elsewhere []ContextElsewhere
+	notes     []rulesNote
 }
 
 // rulesFilesMu serializes writes to a project's rules files, so two decisions
@@ -317,7 +332,7 @@ func (a *App) planRulesFiles(cmd Command, root string, proj *project.KapiProject
 	if err != nil {
 		return plan, err
 	}
-	plan.root = rulesSection{Voice: base.voice, Rules: base.rules}
+	plan.root = rulesSection{Voice: base.voice, Rules: base.rules, Notes: base.notes}
 
 	// The answer at each point a folder holds files at. A folder's sections
 	// are decided together, since what one point keeps as it is depends on
@@ -432,11 +447,12 @@ func (a *App) rulesAnswerAt(cmd Command, abs string, sources map[string]bool) (r
 	if err != nil {
 		return rulesPointAnswer{}, err
 	}
-	// Only rules in force reach the files: the answer's rules are the terms
-	// store, the rules a person established or widened, and the voice, never
-	// the suggestions nobody has decided about (rulesOnly leaves those out).
-	// An agent's note stays a suggestion, answered by `kapi context <path>`
-	// and review, until a person's signal establishes it.
+	// Only what is in force reaches the files: the answer's rules are the
+	// terms store, the rules a person established or widened, and the voice,
+	// and its notes are the ones a person kept. The suggestions nobody has
+	// decided about stay out (rulesOnly leaves them out of the answer), so an
+	// agent's note stays a suggestion, answered by `kapi context <path>` and
+	// review, until a person keeps it.
 	out := rulesPointAnswer{voice: strings.TrimSpace(res.VoiceBrief)}
 	if res.Voice != nil {
 		out.voiceName = res.Voice.Name
@@ -451,7 +467,30 @@ func (a *App) rulesAnswerAt(cmd Command, abs string, sources map[string]bool) (r
 			out.elsewhere = append(out.elsewhere, e)
 		}
 	}
+	for _, n := range res.EstablishedNotes {
+		out.notes = append(out.notes, rulesNote{ID: n.Operation, Text: n.Text})
+	}
 	return neutraliseAnswer(out), nil
+}
+
+// orderNotes states each note once, newest first: by operation id, which is
+// time-ordered and the same on every machine that holds the log, so the order
+// is a function of the log alone and a capped list keeps the notes recorded
+// most recently. Two notes with the same text are one line, under the newer
+// id. A note with no text states nothing and is left out.
+func orderNotes(in []rulesNote) []rulesNote {
+	sorted := slices.Clone(in)
+	slices.SortStableFunc(sorted, func(a, b rulesNote) int { return strings.Compare(b.ID, a.ID) })
+	var out []rulesNote
+	seen := map[string]bool{}
+	for _, n := range sorted {
+		if n.Text == "" || seen[n.Text] {
+			continue
+		}
+		seen[n.Text] = true
+		out = append(out, n)
+	}
+	return out
 }
 
 // The rules files are read by an agent writing the project's source. A
@@ -517,6 +556,11 @@ func neutraliseAnswer(in rulesPointAnswer) rulesPointAnswer {
 		r.Note = neutraliseLine(r.Note)
 		out.rules = append(out.rules, r)
 	}
+	for _, n := range in.notes {
+		n.Text = strings.TrimSpace(neutraliseLine(n.Text))
+		out.notes = append(out.notes, n)
+	}
+	out.notes = orderNotes(out.notes)
 	return out
 }
 
@@ -622,7 +666,9 @@ func orderRules(rules []ContextRule) []ContextRule {
 // deltaSection is what a place's files hold beyond the root's: the rules the
 // root does not state, the root's rules that do not hold here as wording to
 // keep, the rules held elsewhere that leave a wording as it is here, and the
-// voice when it is not the root's.
+// voice when it is not the root's. Notes are compared by their text: the notes
+// that hold here and the root does not state, and the root's notes that do not
+// hold here.
 //
 // folder holds the wordingKey of every rule in force at any point of the
 // place's folder. A rule the folder holds for some of its files is written
@@ -665,6 +711,21 @@ func deltaSection(base, here rulesPointAnswer, folder map[string]bool) rulesSect
 		}
 	}
 	s.Keep = mergeKeep(s.Keep)
+	baseNotes, hereNotes := map[string]bool{}, map[string]bool{}
+	for _, n := range base.notes {
+		baseNotes[n.Text] = true
+	}
+	for _, n := range here.notes {
+		hereNotes[n.Text] = true
+		if !baseNotes[n.Text] {
+			s.Notes = append(s.Notes, n)
+		}
+	}
+	for _, n := range base.notes {
+		if !hereNotes[n.Text] {
+			s.Unheld = append(s.Unheld, n)
+		}
+	}
 	switch {
 	case here.voice != "" && here.voice != base.voice:
 		s.Voice = here.voice
@@ -830,6 +891,26 @@ func renderSectionBody(s rulesSection, sample string) string {
 			b.WriteString(elsewhereLine(e) + "\n")
 		}
 	}
+	if len(s.Notes) > 0 {
+		b.WriteString("\nNotes a person kept:\n")
+		for i, n := range s.Notes {
+			if i == rulesFileNotes {
+				fmt.Fprintf(&b, "- %d more notes hold here: `kapi context %s` lists them all.\n", len(s.Notes)-i, sample)
+				break
+			}
+			b.WriteString("- " + n.Text + "\n")
+		}
+	}
+	if len(s.Unheld) > 0 {
+		b.WriteString("\nThe project's notes that do not hold for these files:\n")
+		for i, n := range s.Unheld {
+			if i == rulesFileNotes {
+				fmt.Fprintf(&b, "- %d more of the project's notes do not hold here: `kapi context %s` lists the notes that do.\n", len(s.Unheld)-i, sample)
+				break
+			}
+			b.WriteString("- " + n.Text + "\n")
+		}
+	}
 	return b.String()
 }
 
@@ -871,6 +952,16 @@ func folderSummary(f rulesFolder) string {
 				pronoun = "them"
 			}
 			parts = append(parts, fmt.Sprintf("keep %s (do not rename %s to %q)", quotedAll(e.Keep), pronoun, e.Instead))
+		}
+		switch len(s.Notes) {
+		case 0:
+		case 1:
+			parts = append(parts, "a note a person kept")
+		default:
+			parts = append(parts, fmt.Sprintf("%d notes a person kept", len(s.Notes)))
+		}
+		if len(s.Unheld) > 0 {
+			parts = append(parts, "not every note the project's rules state")
 		}
 	}
 	parts = dedupeStrings(parts)

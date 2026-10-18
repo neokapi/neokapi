@@ -312,8 +312,10 @@ the store, which folds case.
 A note in prose states no rule, so keeping one writes no store. The keep in the
 log is where it lives: every by-location answer whose point the note's scope
 and window cover lists it under **Established notes**
-([C-06](c-06-retrieval.md)), and the keep reports the operation log as where it
-was written. A note holds within its project at the widest, because the
+([C-06](c-06-retrieval.md)), the rules file of each folder at such a point
+lists it under **Notes a person kept**
+([C-06](c-06-retrieval.md#rules-files)), and the keep reports the operation
+log as where it was written. A note holds within its project at the widest, because the
 workspace's rule store holds term rules. `ContextWidenOptions` offers a note
 only its axes, and widening one to the workspace is refused before anything is
 recorded.
@@ -329,9 +331,10 @@ carrying the rows the decision wrote, whose origin names the operation it
 carries out. The context operations fold into statuses; the store operations
 replay into the stores.
 
-A call that lands a rule in a store or takes one out also refreshes the
-project's rules files when it ends, so the `AGENTS.md` and `CLAUDE.md` an agent
-loads state the rules now in force ([C-06](c-06-retrieval.md#rules-files)).
+A call that lands a rule in a store or takes one out, or keeps or drops a
+note, also refreshes the project's rules files when it ends, so the
+`AGENTS.md` and `CLAUDE.md` an agent loads state the rules and notes now in
+force ([C-06](c-06-retrieval.md#rules-files)).
 
 `kapi apply` records one `edit` operation for each term or content-memory
 operation it applies, established from the start and attributed to the person
