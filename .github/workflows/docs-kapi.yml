@@ -259,7 +259,9 @@ jobs:
         working-directory: packages/kapi-playground
         run: |
           vp check --no-fmt
-          vp test -- --run
+          # The production build checks out docs/stable, whose playground
+          # package predates its tests.
+          vp test -- --run --passWithNoTests
 
       # The docs site's own unit tests: the helpers the reference-page generator
       # shares with the runtime grids, whose output is committed MDX. A page is
