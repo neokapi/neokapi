@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, afterEach } from "vite-plus/test";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { Alert } from "../components/ui/alert";
 import { buttonVariants } from "../components/ui/button";
 import { badgeVariants } from "../components/ui/badge";
 import { AXES, AXIS_IDS, CoordinateChip, axisMeta } from "../components/ui/coordinate-chip";
@@ -44,6 +45,33 @@ describe("Badge warning variant", () => {
     expect(classes).toContain("border-warning/60");
     expect(classes).toContain("text-warning-ink");
     expect(classes).not.toContain("color-mix");
+  });
+});
+
+describe("Alert warning variant", () => {
+  // Something waiting for a person: the icon is drawn in the amber ink, and the
+  // text keeps the card's own ink.
+  it("draws its icon in the warning ink inside the amber border", () => {
+    render(
+      <Alert variant="warning">
+        <svg />
+      </Alert>,
+    );
+    const classes = container!.querySelector("[data-slot=alert]")!.className;
+    expect(classes).toContain("*:[svg]:text-warning-ink");
+    expect(classes).not.toContain("*:[svg]:text-current");
+    expect(classes).toContain("border-warning/40");
+  });
+
+  it("draws icons in the text colour by default", () => {
+    render(
+      <Alert>
+        <svg />
+      </Alert>,
+    );
+    expect(container!.querySelector("[data-slot=alert]")!.className).toContain(
+      "*:[svg]:text-current",
+    );
   });
 });
 

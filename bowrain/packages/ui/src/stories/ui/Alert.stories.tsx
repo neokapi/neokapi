@@ -1,3 +1,4 @@
+import { TriangleAlert } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@neokapi/ui-primitives";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
@@ -33,6 +34,16 @@ export const Destructive: Story = {
       <AlertDescription>
         Failed to export file. The target locale has untranslated blocks.
       </AlertDescription>
+    </Alert>
+  ),
+};
+
+export const Warning: Story = {
+  render: () => (
+    <Alert variant="warning">
+      <TriangleAlert aria-hidden />
+      <AlertTitle>Changed since you opened it</AlertTitle>
+      <AlertDescription>Nothing was saved. Reapply your edit to the current text.</AlertDescription>
     </Alert>
   ),
 };
