@@ -1,7 +1,7 @@
 ---
 sidebar_position: 4
 title: Place content in markets and areas
-description: "Declare the cities, territories and areas your content is written for, put a collection at a market and a reader age, and a rule kept for a country reaches the content at every place inside it. Look a place up with kapi context places and see it on the Explore map."
+description: "Declare the cities, territories and areas your content is written for, put a collection at a market and a reader age, and a rule kept for a country applies to the content at every place inside it. Look a place up with kapi context places and see it on the Explore map."
 keywords: [kapi, places, market, geo axis, coordinates, city, territory, ISO 3166-2, subdivision, kapi context places, within, made of, map, explore]
 ---
 
@@ -9,20 +9,20 @@ import { PlaceGraphDiagram } from "@neokapi/docs-shared";
 
 # Place content in markets and areas
 
-A campaign written for teenagers in Oslo and a price list for the Nordic
-countries are each written for a place. kapi records that place as a point on a **geo axis**, and a rule
-kept for a wider place holds for the content at every place inside it. A rule
-kept for Norway reaches the Oslo campaign without a copy for Oslo.
+A campaign for teenagers in Oslo and a price list for the Nordic countries
+are each written for a place. kapi records the place as a point on a **geo
+axis**. A rule kept for a place holds at every place inside it, so a rule kept
+for Norway applies to the Oslo campaign.
 
-This guide walks through the KapiMart sample, which Kapi Desktop opens with
-**Try the sample**. Run the commands in its folder.
+This guide uses the KapiMart sample. Kapi Desktop opens it with **Try the
+sample**. Run the commands in the sample's folder.
 
 ## Look a place up
 
-A geo axis takes **place ids**. kapi knows the world, the UN regions, every
-country and every country's subdivisions (counties, states, provinces).
-Countries and subdivisions go by their ISO codes in lower case. Look one up by
-name or id:
+A geo axis takes **place ids**. The built-in places are the world, the UN
+regions, every country and every country's subdivisions (counties, states,
+provinces). The id of a country or a subdivision is its ISO code in lower
+case. Look a place up by name or id:
 
 ```bash
 kapi context places oslo
@@ -34,10 +34,10 @@ no-03         Oslo          subdivision  world › europe › northern-europe �
 greater-oslo  Greater Oslo  metro        world › europe › northern-europe › no › greater-oslo
 ```
 
-Each line gives the id, the name, the type and the path from the world down.
-`no` is Norway and `no-03` is the county of Oslo. The other two places come
-from the sample's recipe. `--within <id>` lists the places directly below one
-place, and `--json` prints the answer as data.
+Each line shows the id, the name, the type and the path from the world down.
+`no` is Norway and `no-03` is the county of Oslo. The other two places are
+declared in the sample's recipe. `--within <id>` lists the places directly
+below one place. `--json` prints the result as JSON.
 
 ## Declare your own places
 
@@ -91,24 +91,24 @@ places:
   ]}
 />
 
-Oslo sits within the county `no-03`, so everything kapi knows about Norway
-holds there too. The Nordics are made of five countries, so a rule for the
-Nordics holds in each of them. Greater Oslo is made of two counties, and
-anything at Oslo or Grünerløkka sits inside it.
+Oslo sits within the county `no-03`, so a rule that holds in Norway also
+holds in Oslo. The Nordics are made of five countries, so a rule for the
+Nordics holds in each of them. Greater Oslo is made of two counties, so content
+at Oslo or Grünerløkka sits inside it.
 
-What contains what comes from these lines alone. A `centroid` and a `shape`
-file only tell the map where to draw a place.
+Containment comes from the `within` and `of` declarations alone. The map uses
+a `centroid` or a `shape` file only to draw a place.
 
 `type` names the kind of place (`locality`, `district`, `neighbourhood`,
-`metro`, `territory` and others); a place made of places is a `territory` when
-you leave it out. `refs` record the place's ids in Wikidata, GeoNames and
+`metro`, `territory` and others). A place declared with `of` and no `type` is
+a `territory`. `refs` records the place's ids in Wikidata, GeoNames and
 similar gazetteers. The [project file reference](/reference/project-file#places)
 lists every key.
 
 ## Make the market a geo axis
 
-Name the axis under `axes:` and give it `kind: geo`. The axis then takes place
-ids, and kapi checks every value against them when it loads the recipe:
+Name the axis under `axes:` and give it `kind: geo`. Its values are then
+place ids, and kapi checks each value when it loads the recipe:
 
 ```yaml title="kapi.yaml"
 axes:
@@ -124,8 +124,8 @@ axes:
 ## Put content at a place
 
 A collection sits at a market the way it sits at a brand. The sample's Oslo
-youth campaign is written for readers aged 13 to 17 in Oslo, and its pick-up
-page is about one neighbourhood, so that item sits at Grünerløkka:
+youth campaign is for readers aged 13 to 17 in Oslo. Its pick-up page is
+about one neighbourhood, so that item sits at Grünerløkka:
 
 ```yaml title="kapi.yaml"
 collections:
@@ -144,7 +144,8 @@ collections:
         target: "{lang}"
 ```
 
-A value that names no place stops the load and says what would work:
+If a value is not a place id, the recipe fails to load and the error
+suggests the correct id:
 
 ```
 Error: invalid project file: collections[4]: collection "Oslo youth campaign": coordinates.market: axis market: "Oslo" is not a place. Write it in lower case: oslo
@@ -166,8 +167,9 @@ oslo          Oslo          locality       world › europe › northern-europe 
 
 ## Keep a rule for Norway
 
-In Norway the address form asks for the county, where other markets ask for a
-state or province. Note it from the store's strings and place it in Norway:
+In Norway the address form asks for the county. In other markets it asks for
+a state or province. Record a note from the store's strings and place it in
+Norway:
 
 ```bash
 kapi context note --term County --instead-of "State / Province" \
@@ -178,11 +180,11 @@ kapi context note --term County --instead-of "State / Province" \
 #0q9cg2vjqx  2026-10-17T11:32:41Z  person  observe  term "County", not "State / Province"  [suggested]
 ```
 
-A note holds where its evidence was seen: here, the store's strings, at the
-`kapimart/store` channel. `--point market=no` narrows it from the store's
-`market: world` to Norway. The Oslo campaign ships on the marketing channel,
-so the note reaches none of its pages yet. Keep it, and apply it past the channel it
-was seen on:
+A note holds where its evidence was seen. Here that is the store's strings,
+on the `kapimart/store` channel. `--point market=no` narrows the note from the
+store's `market: world` to Norway. The Oslo campaign is on the
+`kapimart/marketing` channel, so the note does not yet apply to its pages.
+Keep the note and widen it beyond the channel where it was seen:
 
 ```bash
 kapi context review --keep 0q9cg2vjqx --widen-to channel
@@ -193,12 +195,12 @@ kapi context review --keep 0q9cg2vjqx --widen-to channel
   written to the project's terms store
 ```
 
-Your id differs; `kapi context review` lists the waiting suggestions with
-theirs.
+Your ids will differ. `kapi context review` lists the open suggestions and
+their ids.
 
-## See it reach the Oslo content
+## Check the rule at the Oslo content
 
-Ask what applies to the campaign's page:
+Print what applies to the campaign's page:
 
 ```bash
 kapi context campaigns/oslo/en/summer-pass.md
@@ -211,10 +213,10 @@ Say this, not that:
 ...
 ```
 
-The rule was kept for Norway, the page sits at Oslo, and Oslo sits within
-Norway, so the rule holds there. It holds at the Grünerløkka page as well. The
-store's strings sit at `market: world`, wider than Norway, so the rule stays
-out of them, and kapi says so:
+The rule was kept for Norway and the page sits at Oslo, which sits within
+Norway, so the rule holds there. It also holds at the Grünerløkka page. The
+store's strings sit at `market: world`, which is wider than Norway, so the rule
+does not apply to them. `kapi context` prints the exclusion:
 
 ```bash
 kapi context src/en/checkout-flow.json
@@ -228,27 +230,27 @@ Keep as it is in this file:
 ## See it on the map
 
 Open the sample in Kapi Desktop, choose **Explore** in the Context hub, and
-open **Map**. The map opens at the narrowest place, a country at most, that
-holds every record, and drills down from there:
+open **Map**. The map opens on the narrowest region or country that contains
+every record placed below the world. Click a place to drill down:
 
-1. Click **Norway** to see its counties. The county of Oslo is filled by the
-   records that sit there; the others are hatched where a rule kept for
+1. Click **Norway** to show its counties. The county of Oslo is filled because
+   records sit there. The other counties are hatched where a rule kept for
    Norway or the Nordics holds.
-2. Click **Oslo** to see the places the recipe declares inside it. Oslo is
+2. Click **Oslo** to show the places the recipe declares inside it. Oslo is
    drawn as a circle at its centroid. A declared place with a `shape:` file is
-   drawn by its outline, and one with neither is listed beside the map.
+   drawn as its outline. A place with neither is listed beside the map.
 3. Hover **Greater Oslo** beside the map to outline the two counties it is
    made of. Click a place to keep only the records that hold there.
 
-**Grid** draws one equal tile per country instead, so a large country weighs
-the same as a small one. [Explore your
-context](/kapi/desktop/recipes/explore-your-context) walks through the rest of
-the view.
+**Grid** draws one tile of equal size per country, so a large country takes
+the same area as a small one. [Explore your
+context](/kapi/desktop/recipes/explore-your-context) covers the rest of the
+view.
 
 ## Next steps
 
 - [Project file reference](/reference/project-file#places): every key of
-  `places:`, and the messages a recipe load gives.
+  `places:`, and the errors a recipe load reports.
 - [`kapi context places`](/reference/commands/context-places): the command and
   its flags.
 - [Growing context](/kapi/context-decisions): notes, review, and widening a
