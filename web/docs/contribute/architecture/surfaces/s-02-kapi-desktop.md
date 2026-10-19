@@ -365,7 +365,10 @@ it is listed beside the map, and a declared place whose centroid falls outside
 the outline of the place it sits within is flagged. Places made of places are
 chips beside the map, and hovering one outlines its members. The side list
 gives each place's records *Here* and the records *Held* through a wider
-place, and every place is a button with an accessible name and count.
+place, and every place is a button with an accessible name and count. A view
+of up to 30 places lists every one, so a county can be picked by name; a
+larger view (the world's countries) lists the places with records within
+them, without a shape, or flagged, and leaves the rest to the hatch.
 Selecting a place keeps the records at every place that shares ground with it,
 by the same overlap rule the engine uses. **Grid** draws one equal tile per
 country instead, for comparing counts with land area left out. The outlines
@@ -645,6 +648,15 @@ yet to open whenever the sample is opened.
 Seeding is idempotent: it runs only when the project's log holds no agent
 session, read from the ledger, so reopening or resetting the sample records
 nothing twice.
+
+A scaffolded sample records the revision it was written at in
+`.kapi/sample.json`, and `sample.Revision` is the revision this build ships.
+An older copy that still loads offers the upgrade on its home. An older copy
+whose recipe this build refuses is refreshed when it is opened, from Try the
+sample or from the workspace home: the old directory is kept beside it as
+`<name> (backup rN)` and the current sample is scaffolded in its place. A
+sample at the current revision, and any project that is not a sample, report
+the load error and are left as they are.
 
 ### Three faces, one record
 
