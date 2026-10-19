@@ -11,7 +11,7 @@ keywords: [neokapi, architecture decision, math, equations, OMML, MathML, LaTeX,
 ## Summary
 
 An equation in a document is content. A display equation is context an
-ingestion pipeline wants to read, and it can itself contain natural-language
+ingestion pipeline reads, and it can itself contain natural-language
 prose (a "where", an "otherwise", a spelled-out unit) that has to be translated.
 neokapi treats math as first-class content without ever corrupting the
 authoritative source markup.
