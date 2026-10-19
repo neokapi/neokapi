@@ -2,7 +2,7 @@
 id: c-12-places
 sidebar_position: 12
 title: "C-12: Places"
-description: "Architecture decision: a geo axis takes place ids from the project's gazetteer, the built-in world, UN M49 regions, ISO 3166-1 countries and ISO 3166-2 subdivisions plus the places a recipe declares. Each place sits within places or is made of places, and containment and overlap are read from those declarations alone, the same way in Go and in TypeScript. A shape draws a place on the map."
+description: "Architecture decision: a geo axis holds place ids from the project's gazetteer: the built-in world, UN M49 regions, ISO 3166-1 countries and ISO 3166-2 subdivisions, and the places a recipe declares. Each place sits within places or is made of places. Containment and overlap are computed from those declarations only, by the same rules in Go and in TypeScript. A place's shape is used only to draw it on the map."
 keywords: [places, gazetteer, geo axis, market, containment, overlap, ISO 3166-2, UN M49, CLDR, Natural Earth, made of, within, kapi context places, architecture decision, neokapi]
 ---
 
@@ -18,33 +18,33 @@ built-in places, which are the world, the UN M49 regions, every ISO 3166-1
 country and every ISO 3166-2 subdivision, plus the places the recipe declares
 under `places:`: a city, a neighbourhood, a metropolitan area, a sales
 territory. Each place **sits within** one or more places or **is made of**
-places, and those two declarations are the whole of containment. A rule scoped
-to Norway answers for content at Oslo because the recipe declares Oslo within
-the county `no-03`, and the built-in data puts `no-03` within Norway.
+places. Containment is computed from these two declarations only. A rule
+scoped to Norway applies to content at Oslo because the recipe declares Oslo
+within the county `no-03`, and the built-in data puts `no-03` within Norway.
 
-`core/place` holds the gazetteer and the one reading of it. The recipe, the
-axis space, the operation log, the terms store, the host and the atlas all ask
-it, and the map in `@neokapi/context-atlas` reads the same graph from the atlas
-document. A conformance fixture both sides run holds the two implementations to
-one set of answers. A place's shape is for drawing: the map draws built-in
-places from Natural Earth outlines and a declared place from the GeoJSON file
-it names.
+`core/place` holds the gazetteer and the containment rules over it. The recipe
+loader, the axis space, the operation log, the terms store, the host and the
+atlas all call it. The map in `@neokapi/context-atlas` applies the same rules
+to the place graph in the atlas document, and a conformance fixture that the Go
+and TypeScript tests both run keeps the two implementations in agreement. A
+place's shape is used only for drawing. The map draws built-in places from
+Natural Earth outlines, and a declared place from the GeoJSON file it names.
 
 ## Context
 
-The markets a project writes for rarely line up with one administrative level.
-A campaign runs in one city and one of its neighbourhoods, a team owns a
-territory of five countries, a delivery promise covers a metropolitan area that
-spans two counties. A rule recorded for one of those has to reach the content
-written for the places inside it, and two rules have to be recognised as
-meeting when their places share ground.
+The markets a project writes for often span several administrative levels. A
+campaign can run in one city and one of its neighbourhoods. A sales territory
+can cover five countries, and a delivery area can cover a metropolitan area
+across two counties. A rule recorded for one of these places has to apply to
+content written for the places inside it. Two rules whose places overlap have
+to be detected as overlapping.
 
 Containment could be computed from geometry, by testing whether one outline
-lies inside another. The answer would then depend on the boundary data, its
-version and its simplification, on a geometry library, and on the files being
-present. Containment declared as data gives every machine the same answer
-offline, costs a map lookup, and puts every change to it in the recipe's diff,
-where a person reviews it beside the content it moves.
+lies inside another. The result would then depend on the boundary data, its
+version and simplification, a geometry library, and the presence of the files.
+Declared containment gives the same result on every machine, offline, for the
+cost of a map lookup. Every change to it appears in the recipe's diff, where a
+reviewer sees it beside the content it affects.
 
 ## Decision
 
@@ -91,9 +91,9 @@ type Place struct {
 }
 ```
 
-A place names `within:` or `of:`, exactly one of the two. `Type` names what
-kind of place it is, by name rather than by a numbered level, because the
-levels differ from country to country:
+A place sets exactly one of `within:` and `of:`. `Type` is a named kind of
+place rather than a numbered level, because administrative levels differ
+between countries:
 
 | Type | Holds |
 | --- | --- |
@@ -109,12 +109,11 @@ levels differ from country to country:
 | `postal-area` | the area of a postal code |
 | `area` | any other area; the default for a declared place with `within:` |
 
-`Type.Rank` orders the types from the widest kind to the narrowest in that
-table's order, and sorting by it puts a country before its subdivisions
-wherever places are listed.
+`Type.Rank` orders the types as the table lists them, widest first. Place
+lists sort by it, so a country comes before its subdivisions.
 
-A name is for display. Matching reads ids alone, so renaming a place moves no
-content and no rule.
+Names are for display. Matching compares ids only, so renaming a place changes
+no content and no rule.
 
 ### The built-in gazetteer
 
@@ -141,15 +140,15 @@ regular, `common/supplemental/subdivisions.xml` for containment, and
 release does not record yet are listed in `core/place/internal/gen/amendments.tsv`,
 one line per added or retired id, each naming its source. The generator
 (`go generate ./core/place`) downloads the three files, applies the amendments,
-and writes `core/place/subdivisions.tsv`, which is committed and embedded. It
-refuses an amendment the release already holds, so bumping the release removes
-that line rather than applying it twice. The CLDR data carries the Unicode
-License v3, shipped beside it as `core/place/UNICODE-LICENSE.txt`; the file is
-not named `LICENSE`, because a file of that name draws the repository's licence
-boundary.
+and writes `core/place/subdivisions.tsv`, which is committed and embedded.
+The generator fails on an amendment that the pinned release already contains,
+so a release bump also removes that amendment line. The CLDR data is under the
+Unicode License v3, which ships beside it as `core/place/UNICODE-LICENSE.txt`.
+The file has that name because a file named `LICENSE` marks a licence boundary
+in this repository.
 
-Every built-in place sits within exactly one place, except the world, so the
-built-in places form a tree. A test holds the data to that: the file parses,
+Every built-in place except the world sits within exactly one place, so the
+built-in places form a tree. A test checks the data: the file parses,
 ids are unique, every parent resolves, and no subdivision id collides with a
 region slug or a country code.
 
@@ -183,25 +182,32 @@ axes:
     label: Market
 ```
 
-`place.New(declared)` builds the project's gazetteer over the built-in one and
-validates every declared place, naming the recipe key at fault
-(`places.<id>...`). The id is a slug no built-in place holds. The place sits
-within places or is made of places, never both, and every id it names is a
-place. No place reaches itself through `within:` and `of:`. The type is one a
-recipe may declare, `names` are keyed by locale, `refs` use a known scheme
-(`wikidata`, `geonames`, `nuts`, `osm`, `wof`) with a value of that scheme's
-shape, the centroid lies on the globe, and `shape` is a project-relative
-`.geojson` or `.json` path inside the project. The recipe load then checks that
-the shape file exists beside the recipe. The [project file
-reference](/reference/project-file#places) lists the messages.
+`place.New(declared)` builds the project's gazetteer on top of the built-in
+one and validates every declared place. Each error names the recipe key
+(`places.<id>...`). The rules are:
+
+- the id is a slug that no built-in place uses;
+- the place sets `within:` or `of:`, and not both;
+- every id it lists is a place;
+- no chain of `within:` and `of:` leads from a place back to itself;
+- the type is one a recipe may declare;
+- `names` are keyed by locale;
+- `refs` use a known scheme (`wikidata`, `geonames`, `nuts`, `osm`, `wof`),
+  with a value in that scheme's format;
+- the centroid is a valid latitude and longitude;
+- `shape` is a `.geojson` or `.json` path relative to the project and inside
+  it.
+
+The recipe load then checks that the shape file exists. The [project file
+reference](/reference/project-file#places) lists the error messages.
 
 `KapiProject.Gazetteer()` returns the gazetteer built at load, and
 `KapiProject.AxisSpace()` is `axis.NewSpace(p.Axes, p.Gazetteer())`, so every
-caller that reads a coordinate reads the project's places.
+caller that interprets a coordinate uses the project's places.
 
 ### Containment and overlap
 
-`Gazetteer.Contains(outer, inner)` reads the declarations:
+`Gazetteer.Contains(outer, inner)` applies these rules to the declarations:
 
 - every non-empty id contains itself, known or not;
 - the world contains every known place;
@@ -212,75 +218,77 @@ caller that reads a coordinate reads the project's places.
 - otherwise `inner` sits within `outer` when one of the places it sits within
   does.
 
-An id the gazetteer does not hold contains and sits within nothing but itself.
-That keeps a rule recorded at a place another checkout declares answering for
-content at that same place, while it answers nowhere else.
+An id that is not in the gazetteer contains only itself and sits within only
+itself. A rule recorded at a place that another checkout declares therefore
+still applies to content at that same id, and to no other place.
 
-`Gazetteer.Overlaps(a, b)` holds when one place contains the other, when a
+`Gazetteer.Overlaps(a, b)` is true when one place contains the other, when a
 member of a place made of places overlaps the other place, or when a declared
 place sits within both. The built-in places form a tree, so two built-in
-places share ground only when one contains the other; a declared place with
-several `within:` parents is what joins two branches. Two suggestions at
-`greater-oslo` and at `oslo` meet, and a suggestion at `nordics` and one at
-`no-03` meet; a suggestion at `oslo` and one at `bergen` do not.
+places overlap only when one contains the other. Only a declared place with
+several `within:` parents connects two branches. Suggestions at `greater-oslo`
+and at `oslo` overlap, and so do suggestions at `nordics` and at `no-03`.
+Suggestions at `oslo` and at `bergen` do not.
 
-`axis.Space.Contains` and `axis.Space.Overlaps` answer a geo axis with these
-two functions, so a rule's scope covers a point
+For a geo axis, `axis.Space.Contains` and `axis.Space.Overlaps` call these two
+functions. Scope coverage of a point
 ([C-11](c-11-context-operations.md#coverage-reads-the-projects-typed-axes)),
-a concept in the terms store answers at a point (`terms.AtPointIn`), and two
-records meet in the operation log's fold through the same reading.
+the terms-store match of a concept at a point (`terms.AtPointIn`) and the
+overlap test between records in the operation log's fold all go through them.
 
 ### Paths, ancestors and children
 
-Surfaces that show a place in context need one chain from the world down to it.
-`Gazetteer.Path(id)` follows a place's first `within:` parent. A place made of
-places follows the nearest place on its first member's path that contains
-every member: `nordics` follows `northern-europe`, `greater-oslo` follows `no`.
-So `Path("grunerlokka")` is
+A surface that shows a place in context needs a single chain from the world
+down to it. `Gazetteer.Path(id)` follows each place's first `within:` parent.
+For a place made of places, the parent is the nearest place on its first
+member's path that contains every member: `northern-europe` for `nordics`, and
+`no` for `greater-oslo`. `Path("grunerlokka")` is
 `[world europe northern-europe no no-03 oslo grunerlokka]` and `Path("nordics")`
 is `[world europe northern-europe nordics]`.
 
-`Ancestors(id)` lists every place that contains `id`, nearest first, including
-each place made of places that holds it. `Children(id)` lists the places whose
-path runs through `id` next, and the members of a place made of places, sorted
-by name. The atlas uses them to collect the places a map can drill into.
+`Ancestors(id)` lists every place that contains `id`, nearest first,
+including each place made of places that contains it. `Children(id)` lists the
+places whose path parent is `id`, plus the members when `id` is a place made of
+places, sorted by name. The atlas uses these to collect the places a map can
+drill into.
 
 ### Looking a place up
 
 `Gazetteer.Search(query, limit)` matches places whose id starts with the query,
-then places whose name starts with it, then places whose name holds it. It
+then places whose name starts with it, then places whose name contains it. It
 ignores case and accents, so `grunerlokka` finds Grünerløkka, and a declared
 place's names in other locales count as names. Within each tier the exact id
 comes first, then wider kinds of place, then ids in order.
 
-`kapi context places [query] [--within <id>]` is the command a person or an
-agent uses to choose an id (`host.App.ContextPlaces`). With a query it lists the
-matches, inside `--within` when given; with only `--within` it lists the places
-directly below that place; with neither it lists the declared places. Each line
-gives the id, the name, the type and the path. A value that names no place
-fails the recipe load with a hint from `place.Hint`: the lower-case or
-hyphenated spelling when that is a place, otherwise up to three matches and the
-`kapi context places` command that finds more.
+A person or an agent looks up an id with `kapi context places [query]
+[--within <id>]` (`host.App.ContextPlaces`). With a query, the command lists
+the matches, limited to places inside `--within` when it is given. With only
+`--within`, it lists the places directly below that place. With neither, it
+lists the declared places. Each line gives the id, the name, the type and the
+path. If a coordinate value is not a place id, the recipe fails to load and the
+error carries a hint from `place.Hint`. The hint is the lower-case or
+hyphenated spelling when that is a place id, otherwise up to three matches and
+the `kapi context places` command for finding more.
 
 ### A locale can name a place
 
-`place.OfLocale(tag)` is the place a locale tag names: the subdivision a
-`-u-sd-` extension names (`nb-NO-u-sd-no03` is `no-03`), else the country or
-M49 region of the region subtag (`fr-CA` is `ca`, `es-419` is
-`latin-america-and-the-caribbean`). A tag with neither names no place. The
-atlas reads it for the derived `region` axis of every record that carries a
-locale, and a recipe's `target_languages` may carry the `-u-sd-` extension.
+`place.OfLocale(tag)` returns the place a locale tag identifies. That is the
+subdivision in a `-u-sd-` extension (`nb-NO-u-sd-no03` is `no-03`), else the
+country or M49 region of the region subtag (`fr-CA` is `ca`, `es-419` is
+`latin-america-and-the-caribbean`). A tag with neither returns no place. The
+atlas uses it to derive the `region` axis of every record that has a locale. A
+recipe's `target_languages` may use the `-u-sd-` extension.
 
-### One reading in Go and TypeScript
+### The same rules in Go and TypeScript
 
-The map filters and counts in the browser, so `@neokapi/context-atlas` holds
-the same rules over the atlas's `places` (`placeIndex` in `model/places.ts`:
-`contains`, `overlaps`, `path`, `children`). `core/place/testdata/containment.json`
-is a small gazetteer with the cases for containment, overlap and paths. The Go
-test and the TypeScript test both run every case, and the Go test also checks
-that each built-in place in the fixture matches the built-in gazetteer's id,
-type and parent. A rule change lands in both implementations and the fixture
-together.
+The map filters and counts in the browser, so `@neokapi/context-atlas`
+implements the same rules over the atlas's `places` (`placeIndex` in
+`model/places.ts`: `contains`, `overlaps`, `path`, `children`).
+`core/place/testdata/containment.json` is a small gazetteer with the cases for
+containment, overlap and paths. The Go test and the TypeScript test both run
+every case, and the Go test also checks that each built-in place in the fixture
+matches the built-in gazetteer's id, type and parent. A change to the rules
+updates both implementations and the fixture in the same commit.
 
 ### Drawing a place
 
@@ -289,8 +297,9 @@ The atlas document carries the places a map needs
 place a record names, everything that contains them, the members of each place
 made of places, the declared places, and the children of each country and
 subdivision in that set. A declared place with a `shape:` carries its outline
-as GeoJSON geometry; a shape file that cannot be read, holds no single polygon,
-or exceeds 1 MiB is left out with a note naming the recipe key.
+as GeoJSON geometry. If the shape file cannot be read, is not a single Polygon
+or MultiPolygon, or is larger than 1 MiB, the outline is omitted and the atlas
+adds a note naming the recipe key.
 
 The built-in outlines ship in `@neokapi/context-atlas` (`src/geo/`): Natural
 Earth (public domain) at a pinned release, the admin-0 countries in one file
@@ -300,29 +309,30 @@ files, checks their SHA-256 digests and writes the TopoJSON
 (`vp run @neokapi/context-atlas#build-geometry`). Where Natural Earth carries a
 subdivision under an older code, or only as the parts of a current one,
 `scripts/geometry-successors.json` composes the current id from those parts and
-names the change it rests on. The package's `src/geo/README.md` lists the
+cites the source of each row: the boundary or code change, or the parent
+relation. The package's `src/geo/README.md` lists the
 sources, the licence and the ids that have no outline.
 
 The map draws a declared place from its geometry, else as a circle at its
 centroid, else lists it beside the map. It flags a declared place whose
-centroid falls outside the outline of the place it sits within, which is the
-usual sign of a wrong `within:`. None of this changes what contains what.
+centroid falls outside the outline of the place it sits within, which usually
+means the `within:` is wrong. Drawing has no effect on containment.
 
 ## Consequences
 
 - A project names its own markets at any grain, from a neighbourhood to a
   sales territory, and a rule kept for a wider place holds in every place
   inside it without a copy per place.
-- Containment is a property of the recipe and the pinned data, so every
-  machine, every surface and every reader of the operation log agrees on it,
-  with or without outline files.
-- A wrong `within:` moves rules; it shows in the recipe's diff, and the map
-  flags a centroid outside its parent.
+- Containment depends only on the recipe and the pinned data, so it gives the
+  same result on every machine and in every surface, with or without outline
+  files.
+- A wrong `within:` changes where rules apply. The change appears in the
+  recipe's diff, and the map flags a centroid outside its parent.
 - Updating the built-in subdivisions is a reviewed change to the generator's
-  pinned release and the amendments file, and the generated table shows it id
-  by id.
-- The map's outlines lag ISO 3166-2 where Natural Earth does, and a place
-  without one is listed rather than drawn. Containment is unaffected.
+  pinned release and the amendments file. The diff of the generated table lists
+  each changed id.
+- The map's outlines lag ISO 3166-2 wherever Natural Earth does. The map lists
+  a place without an outline instead of drawing it. Containment is unaffected.
 
 ## See also
 
@@ -333,5 +343,5 @@ usual sign of a wrong `within:`. None of this changes what contains what.
 - [Context atlas](../../implementation/context/context-atlas.md): the `places`
   the atlas carries for the map.
 - [Project file reference](/reference/project-file#places): every key of
-  `places:` and the messages a recipe load gives.
+  `places:` and the recipe-load error messages.
 - [Place content in markets and areas](/kapi/places): the user guide.

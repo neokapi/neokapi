@@ -143,10 +143,10 @@ The Markdown response provides a writing brief:
   finding there, which fails unless the concept is advisory
   (`checkTerms.keepAt`);
 - **Established notes**: the notes in prose a person kept that hold at the
-  point, scoped and windowed the way a suggested note is. A note states no
-  rule, so no store holds it; the answer reads it from the operation log
-  ([C-11](c-11-context-operations.md#keeping-writes-through-the-existing-appliers)),
-  and the rules files carry it ([below](#rules-files));
+  point, with the same scope and window matching as a suggested note. A note
+  states no rule, so no store holds it. The answer takes it from the operation
+  log ([C-11](c-11-context-operations.md#keeping-writes-through-the-existing-appliers)),
+  and the rules files list it ([below](#rules-files));
 - the suggestions under **Suggested, not yet established**, less any the list
   already states;
 - a closing line naming `context_note` (and `kapi context note`), for recording what the reader notices
@@ -175,8 +175,8 @@ writes:
   differs from the root's: the rules the root does not state, its voice when it
   is not the root's, the **Keep as it is** lines (a root rule that does not hold
   there, and every rule held elsewhere), the notes a person kept that hold
-  there and the root does not state, the root's notes that do not hold there,
-  and the `kapi check` line. A folder
+  there and are absent from the root's file, the root's notes that do not hold
+  there, and the `kapi check` line. A folder
   holding files at several points gets a heading per pattern, and a rule that
   holds at any of those points is written under its pattern and never also
   kept as it is under another: the folder's file says one thing about a
@@ -193,31 +193,33 @@ pattern's examples are whole words; a pattern over the endings of one word
 (`glossar(y|ies)`) shows none. Stored em dashes are written as a colon or a
 comma.
 
-A note in prose comes from the answer's **Established notes**: the notes a
-person kept whose scope and window cover the point, read for the same point as
-the rules beside them. A note seen in one campaign's pages is written into that
-campaign folder's file, and a note seen at the project's default point into the
-root's. Each note is one line, its text as recorded, under **Notes a person
-kept**. A folder's file also lists, under **The project's notes that do not
-hold for these files**, any root note whose scope leaves the folder out, the
-way **Keep as it is** answers a root rule. Two notes with the same text are one
-line.
+The notes in prose come from the answer's **Established notes**: the notes a
+person kept whose scope and window cover the point, resolved for the same point
+as the rules beside them. A note whose evidence is in one campaign's pages is
+written into that campaign folder's file. A note scoped to the project's
+default point is written into the root's file. Each note is one line under **Notes a
+person kept**, with its text as recorded. A folder's file also lists any root
+note whose scope excludes the folder, under **The project's notes that do not
+hold for these files**, in the same way that **Keep as it is** lists a root
+rule. Notes with identical text are written as one line.
 
 An instruction file is a privileged surface: every agent in the tree loads it
 and acts on it. Only what is in force is written there: the terms store, the
 rules a person established or widened, the notes a person kept, and the voice.
-A note an agent recorded stays a suggestion, answered by `kapi context <path>`
-and review, until a person keeps it. Stored text (a term, a note, the voice brief)
+A note an agent recorded stays a suggestion, listed by `kapi context <path>`
+and in review, until a person keeps it. Stored text (a term, a note, the voice brief)
 is written as plain lines: comment delimiters, code fences and a leading
 heading marker are removed and each line is capped, so a stored value cannot
 close kapi's section or read as an instruction of its own.
 
 Each list is capped (the rules that rule a wording out first) with the command
 that lists the rest, so a file stays short enough to load on every session.
-Notes are listed newest first, by operation id, which is time-ordered and the
-same on every machine holding the log. Past the cap the older ones are cut
-and counted on a line naming `kapi context <path>`, which lists them all. The output is a pure function of the context and the recipe, ordered by
-folder, rule and note, so a refresh that changes nothing changes no byte.
+Notes are listed newest first, by operation id. Operation ids are time-ordered
+and identical on every machine that holds the log. Past the cap, the older
+notes are omitted and counted on a line naming `kapi context <path>`, which
+lists them all. The output is a pure function of the context and the recipe,
+ordered by folder, rule and note, so a refresh with no change to either writes
+identical bytes.
 
 kapi owns one delimited section (`<!-- kapi:rules -->` to
 `<!-- /kapi:rules -->`, `core/agentrules`) and nothing else in the file. The
@@ -230,9 +232,9 @@ read them.
 
 The files are written by `kapi init` and by `kapi context sync --files-only`.
 A project whose root section exists has them refreshed whenever the rules in
-force change: a context call that writes a rule into a store or takes one out,
-or keeps or drops a note (a keep, a drop, a choice, a widening, a reset,
-settling), refreshes when it ends, a review round refreshes once at its end, and `kapi context sync`,
+force change. A context call that writes a rule into a store, removes one, or
+keeps or drops a note (a keep, a drop, a choice, a widening, a reset,
+settling) refreshes them when it ends. A review round refreshes once at its end, and `kapi context sync`,
 `kapi store import` and `kapi up` refresh after they run. Kapi Desktop's
 decisions go through the same host calls, and a voice saved there writes the
 files. A project without a root section was set up without them, and no
@@ -374,12 +376,13 @@ A governance window that closed is reported the same way: the by-location answer
 carries the transition (which profile stopped governing, when, and what governs
 in its place) as a note.
 
-A rule's own window is read at the answer's instant too. A term outside its
-window is left out of the terms bound at the point, and a note or a suggestion
-outside its window is left out of the suggestions, so the answer holds what a
-check at that instant holds ([C-11](c-11-context-operations.md#a-rule-holds-for-a-window-of-time)).
-The point is matched through the project's typed axes, so a rule scoped to a
-region is in the answer for a file written for a country inside it.
+A rule's own window is also evaluated at the answer's instant. A term outside
+its window is omitted from the terms bound at the point. A note or a suggestion
+outside its window is omitted from the suggestions. The answer therefore
+contains the same rules as a check at that instant
+([C-11](c-11-context-operations.md#a-rule-holds-for-a-window-of-time)). The
+point is matched through the project's typed axes, so a rule scoped to a region
+appears in the answer for a file written for a country inside it.
 
 ### The generated surface is opt-in
 
