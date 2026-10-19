@@ -253,7 +253,7 @@ form the edit writes, naming the agent's session.
 ### Disagreements are contested until a person chooses
 
 Two rules disagree when they share a form to avoid and name different forms to
-use, or when one avoids the form the other says to use. Two rules disagree
+use, or when one avoids the form the other prescribes. Two rules disagree
 only if both can apply at the same point and instant. Rules in different
 projects, rules at coordinates that cannot overlap, and rules whose lifetime
 windows share no instant never disagree. A rename that ends on the day its
