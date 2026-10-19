@@ -401,14 +401,14 @@ func wordRuleSets(ctx context.Context, tb terms.Terminology, profile *coreprofil
 
 // voiceOverlay builds an OverlayCheck over the source runs from the word rules
 // governing the file (coreprofile.MatchTermRules) and its voice profile's
-// prohibited style patterns (coreprofile.MatchPatterns). Findings ride on the
+// prohibited style patterns (coreprofile.MatchPatternsInRuns). Findings ride on the
 // "qa" overlay type (the model's overlay enum has no dedicated type for them)
 // tagged with category="voice-vocabulary" or category="voice-pattern" plus the
 // matched term or rule, whether it fails, kind and any preferred replacement.
 // Returns nil when nothing matches.
 func voiceOverlay(words []coreprofile.TermRuleSet, profile *coreprofile.VoiceProfile, runs []model.Run, source string) *model.Overlay {
 	hits := coreprofile.MatchTermRules(words, source)
-	patterns := coreprofile.MatchPatterns(profile, source)
+	patterns := coreprofile.MatchPatternsInRuns(profile, runs)
 	if len(hits) == 0 && len(patterns) == 0 {
 		return nil
 	}

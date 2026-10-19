@@ -225,7 +225,7 @@ func constraintFindings(p *VoiceProfile, text string, runs []model.Run) []VoiceF
 		rules := &VoiceProfile{Style: StyleRules{ProhibitedPatterns: []Pattern{{
 			Regex: c.Regex, Description: c.Statement,
 		}}}}
-		for _, finding := range PatternHitsToFindings(MatchPatterns(rules, text), text, runs) {
+		for _, finding := range patternHitFindings(rules, text, runs) {
 			finding.Metadata["constraint_id"] = c.ID
 			finding.Metadata["constraint_version"] = strconv.Itoa(c.Version)
 			finding.Metadata["constraint_source"] = c.Source
