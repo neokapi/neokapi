@@ -276,6 +276,8 @@ export function HomePage({
           convergence={convergence}
           plan={plan}
           onOpenSettings={onNavigate}
+          onOpenReview={onOpenReview ? () => onOpenReview() : undefined}
+          onOpenChecks={() => onNavigate("checks")}
         />
       )}
 

@@ -82,6 +82,10 @@ type App struct {
 	// Flow runner
 	runState *runner
 
+	// storeSyncMu serialises SyncProjectStore, so two callers never extract
+	// the same project at once.
+	storeSyncMu sync.Mutex
+
 	// aiActivity is the session's rolling record of what this app sent to a
 	// model and what came back. Registered as a provider recorder in NewApp, so
 	// every AI surface feeds it: review actions, AI pre-review, convergence

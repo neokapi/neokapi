@@ -271,8 +271,8 @@ through it.
 ## The project
 
 The **Project** section is the project's files and where they stand. It
-shows two axes: **Content** (what has been read in, what has changed on disk
-since, and what is missing) and **Governance** (the voice profile in force,
+shows two axes: **Content** (the texts the files hold, and what is missing)
+and **Governance** (the voice profile in force,
 the terms that apply, and when the project last converged). **Where content
 sits** gives one row for each part of the project the recipe declares, with
 its collections and the voice that applies there.
@@ -281,6 +281,13 @@ its collections and the voice that applies there.
 ships or parks, the desktop form of `kapi up`. **Plan…** beside it shows the
 pending work, what content memory can supply, and a token estimate before
 anything runs.
+
+Three counts above the button separate the run's work from a person's.
+**Texts to translate** are what the run drafts. **Waiting for review** opens
+Review. **Languages held back** lists each collection language that does not
+ship yet and what holds it back: a ship gate not yet met, a failing check, or a
+source that changed after approval. The app reads the project's files when the
+project opens and again when they change, so no step reads them in by hand.
 
 ### Collections and formats
 

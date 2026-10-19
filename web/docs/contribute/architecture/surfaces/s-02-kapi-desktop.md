@@ -557,6 +557,27 @@ derived from a collection's channel, so the setter calls
 the editor cannot offer an axis `kapi apply` would reject, or word the refusal
 differently ([C-02](../context/c-02-coordinates-and-governance.md)).
 
+### The block cache follows the files
+
+The block cache in `.kapi/work/` is how the app reads a project, and building
+it is local work that calls no provider. The app therefore keeps it current
+without a person's step. `SyncProjectStore` compares the resolved source files
+with their extract-time stamps (`DetectStoreDrift`) and runs the shared
+`ExtractToProjectStore` path only when the cache is missing, was written by
+another kapi version, or no longer matches the files. The frontend calls it
+when a project tab becomes active and after the file watcher reports a change.
+It returns without extracting while a run holds the project, because
+`kapi up` extracts before each pass.
+
+The project home reports the cache only by its effect: while it catches up,
+the hero reads "Reading the project's files…", and a failed read is shown as
+an error with its cause. Below the hero's verb, three counts separate the
+run's work from a person's: texts to translate, translations waiting for
+review (which open Review), and collection languages held back, each listed
+with what withholds it (`convergence.LocaleCoverage`: a ship-gate shortfall,
+stale or rejected wording, a failing check, an unchecked term). A manual read
+of every file stays under the collections' Advanced actions.
+
 ### Runs go through the up venue
 
 "Bring up to date" calls `host.App.RunUpDispatch`, which resolves where the run

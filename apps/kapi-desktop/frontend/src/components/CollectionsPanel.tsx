@@ -43,6 +43,7 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   ListCapRow,
+  ErrorNotice,
   SimpleTooltip,
 } from "@neokapi/ui-primitives";
 import type {
@@ -73,6 +74,7 @@ import { ArchiveEntries, isArchivePath } from "./ArchiveEntries";
 import { useError } from "./ErrorBanner";
 import { useShortenHome } from "../hooks/useShortenHome";
 import { useWailsEvent } from "../hooks/useWailsEvent";
+import { useStoreSyncState } from "../hooks/useProjectStoreSync";
 import { useLocales } from "../hooks/useLocales";
 import { useActiveFilter } from "../context/ActiveFilterContext";
 import { useJobFeed } from "../context/JobFeedContext";
@@ -941,6 +943,9 @@ export function CollectionsPanel({
     return { lang, pct: total > 0 ? Math.round((translated / total) * 100) : 0 };
   });
   const hasData = !!status?.hasData;
+  // The cache follows the files on its own; a failed sync is the one state in
+  // which a person is offered a way to read them again.
+  const sync = useStoreSyncState(tabID);
 
   // --- Item editing helpers ---
   const renderItemEditor = (
@@ -1925,25 +1930,21 @@ export function CollectionsPanel({
                 </DropdownMenuContent>
               </DropdownMenu>
             ))}
-          <SimpleTooltip
-            content={t(
-              "Manual override. Bring up to date re-extracts changed sources automatically.",
-            )}
-          >
+          <SimpleTooltip content={t("Read every file again. Kapi reads changed files on its own.")}>
             <span className="inline-flex">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => void handleExtract()}
                 disabled={extracting || scanning}
-                aria-label={hasData ? "Re-extract content" : "Run extract"}
+                aria-label={t("Read every file again")}
               >
                 {extracting ? (
                   <Loader2 size={12} className="animate-spin" />
                 ) : (
                   <RefreshCw size={12} />
                 )}
-                {hasData ? t("Re-extract") : t("Extract")}
+                {t("Read files again")}
               </Button>
             </span>
           </SimpleTooltip>
@@ -2050,24 +2051,31 @@ export function CollectionsPanel({
           </Card>
         ) : (
           <Card className="mb-3 flex items-center gap-3 p-4">
-            <PackageOpen size={18} className="shrink-0 text-muted-foreground/50" />
-            <div className="flex-1 text-xs text-muted-foreground">
-              {t("Nothing extracted yet. Run extract to read your content and analyze coverage.")}
-            </div>
-            <Button
-              size="sm"
-              onClick={() => void handleExtract()}
-              disabled={extracting || scanning}
-            >
-              {extracting ? (
-                <>
-                  <Loader2 size={12} className="animate-spin" />
-                  {t("Extracting...")}
-                </>
-              ) : (
-                t("Run extract")
-              )}
-            </Button>
+            {sync.error != null && !extracting ? (
+              <>
+                <PackageOpen size={18} className="shrink-0 text-muted-foreground/50" />
+                <div className="min-w-0 flex-1">
+                  <ErrorNotice
+                    error={sync.error}
+                    title={t("Could not read the project's files")}
+                    variant="inline"
+                  />
+                </div>
+                <Button size="sm" onClick={() => void handleExtract()} disabled={scanning}>
+                  {t("Try again")}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Loader2 size={18} className="shrink-0 animate-spin text-muted-foreground/50" />
+                <div
+                  className="flex-1 text-xs text-muted-foreground"
+                  data-slot="collections-reading"
+                >
+                  {t("Reading your files…")}
+                </div>
+              </>
+            )}
           </Card>
         ))}
 

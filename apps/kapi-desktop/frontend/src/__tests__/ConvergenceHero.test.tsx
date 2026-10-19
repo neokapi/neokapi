@@ -1,8 +1,9 @@
-import { render, screen, waitFor } from "./testUtils";
+import { render, screen, waitFor, within } from "./testUtils";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, afterEach } from "vite-plus/test";
 import { ConvergenceHero, ConvergePlanDialog } from "../components/ConvergenceHero";
 import { api } from "../hooks/useApi";
+import { useProjectStoreSync } from "../hooks/useProjectStoreSync";
 import type { ConvergePlan, ConvergenceReport } from "../types/api";
 
 const driftedPlan: ConvergePlan = {
@@ -30,7 +31,7 @@ const driftedPlan: ConvergePlan = {
     totals: { missingTarget: 21, memoryExact: 4, drafts: 5, aiRemaining: 12, tokenEstimate: 960 },
     note: "content-memory leverage counts exact-hash hits only; token estimate is source chars / 4 for the remaining blocks (no tokenizer, no provider calls).",
   },
-  changedFiles: 3,
+  changedFiles: 0,
   removedFiles: 0,
   storeMissing: false,
   versionStale: false,
@@ -45,6 +46,8 @@ const driftedReport: ConvergenceReport = {
       pct: { translated: 70 },
       gated: true,
       shippable: false,
+      pending: [{ state: "translated", actual: 70, required: 100 }],
+      failingChecks: 2,
     },
   ],
   review: [
@@ -85,23 +88,91 @@ describe("ConvergenceHero", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders the drift summary and an enabled Bring up to date", () => {
-    const onBringUpToDate = vi.fn();
+  it("counts the work by who does it, and leads each count to its place", async () => {
+    const onOpenReview = vi.fn();
     render(
       <ConvergenceHero
         tabID="t1"
-        onBringUpToDate={onBringUpToDate}
+        onBringUpToDate={vi.fn()}
+        onOpenReview={onOpenReview}
         convergence={driftedReport}
         plan={driftedPlan}
+        lastRunError={null}
       />,
     );
-    // "N source files changed · M units missing targets · K parked for review"
-    expect(screen.getByText(/3 source file\(s\) changed/)).toBeInTheDocument();
-    expect(screen.getByText(/21 block\(s\) missing targets/)).toBeInTheDocument();
-    expect(screen.getByText(/2 parked for review/)).toBeInTheDocument();
+    expect(screen.getByText("Translations are missing")).toBeInTheDocument();
+    const counts = document.querySelector('[data-slot="hero-counts"]') as HTMLElement;
+    expect(counts).toHaveTextContent("21texts to translate");
+    expect(counts).toHaveTextContent("2waiting for review");
+    expect(counts).toHaveTextContent("1language held back");
+
+    await userEvent.click(within(counts).getByRole("button", { name: /waiting for review/ }));
+    expect(onOpenReview).toHaveBeenCalledTimes(1);
 
     const btn = screen.getByRole("button", { name: "Bring the project up to date" });
     expect(btn).toBeEnabled();
+  });
+
+  it("lists what holds each language back, and leads to Checks", async () => {
+    const onOpenChecks = vi.fn();
+    render(
+      <ConvergenceHero
+        tabID="t1"
+        onBringUpToDate={vi.fn()}
+        onOpenReview={vi.fn()}
+        onOpenChecks={onOpenChecks}
+        convergence={driftedReport}
+        plan={driftedPlan}
+        lastRunError={null}
+      />,
+    );
+    const counts = document.querySelector('[data-slot="hero-counts"]') as HTMLElement;
+    await userEvent.click(within(counts).getByRole("button", { name: /language held back/ }));
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toHaveTextContent("70% translated; the ship gate needs 100%");
+    expect(dialog).toHaveTextContent("2 failing a check");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Open Checks" }));
+    expect(onOpenChecks).toHaveBeenCalledTimes(1);
+  });
+
+  it("reads the files itself instead of asking for an extract", () => {
+    render(
+      <ConvergenceHero
+        tabID="t1"
+        onBringUpToDate={vi.fn()}
+        convergence={driftedReport}
+        plan={{ ...driftedPlan, storeMissing: true, changedFiles: 3 }}
+        lastRunError={null}
+      />,
+    );
+    const hero = document.querySelector('[data-slot="convergence-hero"]') as HTMLElement;
+    expect(screen.getByText("Reading the project's files…")).toBeInTheDocument();
+    expect(hero.textContent).not.toMatch(/extract/i);
+    expect(document.querySelector('[data-slot="hero-counts"]')).toBeNull();
+  });
+
+  it("names a failed read of the files", async () => {
+    vi.spyOn(api, "syncProjectStore").mockRejectedValue(
+      new Error("read the project's files: open web/en/a.md: permission denied"),
+    );
+    function Synced() {
+      useProjectStoreSync("t1");
+      return (
+        <ConvergenceHero
+          tabID="t1"
+          onBringUpToDate={vi.fn()}
+          convergence={driftedReport}
+          plan={{ ...driftedPlan, storeMissing: true }}
+          lastRunError={null}
+        />
+      );
+    }
+    render(<Synced />);
+    await waitFor(() =>
+      expect(document.querySelector('[data-slot="hero-sync-error"]')).not.toBeNull(),
+    );
+    expect(screen.getByText("Could not read the project's files")).toBeInTheDocument();
+    expect(screen.queryByText("Reading the project's files…")).not.toBeInTheDocument();
   });
 
   it("launches the run from the primary button, then navigates to the runner", async () => {
@@ -210,7 +281,7 @@ describe("ConvergePlanDialog", () => {
       <ConvergePlanDialog open onOpenChange={vi.fn()} plan={convergedPlan} onConfirm={vi.fn()} />,
     );
     expect(
-      screen.getByText("Nothing to do: every block has a committed target."),
+      screen.getByText("Nothing to translate: every text has a translation."),
     ).toBeInTheDocument();
   });
 

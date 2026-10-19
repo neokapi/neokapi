@@ -86,6 +86,7 @@ describe("ConvergenceHero ship states", () => {
       />,
     );
     expect(screen.queryByText("Up to date")).not.toBeInTheDocument();
-    expect(screen.getByText(/1 scope\(s\) withheld/)).toBeInTheDocument();
+    expect(screen.getByText("Waiting for a person")).toBeInTheDocument();
+    expect(screen.getByText("language held back")).toBeInTheDocument();
   });
 });

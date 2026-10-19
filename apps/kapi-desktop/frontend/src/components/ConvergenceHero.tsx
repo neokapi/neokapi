@@ -1,6 +1,14 @@
 import { useCallback, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { CheckCircle2, ClipboardList, Cloud, FolderX, Loader2, PlayCircle } from "lucide-react";
+import {
+  CheckCircle2,
+  ClipboardList,
+  Cloud,
+  FolderX,
+  Loader2,
+  PlayCircle,
+  UserRound,
+} from "lucide-react";
 import {
   Badge,
   Button,
@@ -15,6 +23,8 @@ import {
   LocalePill,
   RunErrorNotice,
   type RunErrorActionView,
+  StatRow,
+  type StatItem,
   Table,
   TableBody,
   TableCell,
@@ -31,6 +41,7 @@ import { t } from "@neokapi/i18n-react/runtime";
 import type {
   ConvergePlan,
   ConvergenceReport,
+  LocaleCoverage,
   ProjectServer,
   RunError,
   UpPlanScope,
@@ -38,6 +49,7 @@ import type {
 import { api } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
 import { useInvalidateOnEvent } from "../hooks/useInvalidateOnEvent";
+import { useStoreSyncState } from "../hooks/useProjectStoreSync";
 import { useJobFeed } from "../context/JobFeedContext";
 import { ActiveModelBadge } from "./ActiveModelBadge";
 import { AIModelPromptDialog } from "./AIModelPromptDialog";
@@ -63,16 +75,24 @@ export interface ConvergenceHeroProps {
   lastRunError?: RunError | null;
   /** Open an in-app settings view named by a remediation action's target. */
   onOpenSettings?: (target: string) => void;
+  /** Open Review, where the translations waiting for a person are. */
+  onOpenReview?: () => void;
+  /** Open Checks, where a failing check is explained. */
+  onOpenChecks?: () => void;
 }
 
 /**
  * The convergence hero strip at the top of the project home (issue #1078 C4):
- * a drift summary derived from the pre-flight plan + convergence report
- * ("N source files changed · M units missing targets · K parked for review"),
- * a primary "Bring up to date" that runs the shared `kapi up` engine, and a
- * "Plan…" pre-flight dialog. When everything is converged and the gates are
- * green it renders the calm state with the button disabled. Both derivations
- * are cheap, read-only calls made on load and after a run/extract.
+ * the project's standing as three labelled counts, split by who acts on them,
+ * a "Bring up to date" that runs the shared `kapi up` engine, and a "Plan…"
+ * pre-flight dialog. Translations to draft are the run's work; translations
+ * waiting for review and languages held back from shipping are a person's, and
+ * each count leads to where that person deals with it. The block cache is the
+ * app's own business: while it catches up with the files the hero says the
+ * files are being read, and never asks anyone to extract. When everything is
+ * converged and the gates are green it renders the calm state with the button
+ * disabled. Both derivations are cheap, read-only calls made on load and after
+ * a run or a sync.
  */
 export function ConvergenceHero({
   tabID,
@@ -82,9 +102,13 @@ export function ConvergenceHero({
   server: propServer,
   lastRunError: propLastRunError,
   onOpenSettings,
+  onOpenReview,
+  onOpenChecks,
 }: ConvergenceHeroProps) {
   const { hasActive, startJob, failActiveJob } = useJobFeed();
+  const sync = useStoreSyncState(tabID);
   const [planOpen, setPlanOpen] = useState(false);
+  const [heldOpen, setHeldOpen] = useState(false);
   // A synchronous launch failure renders inline on the hero — the user stays
   // home instead of landing in a runner view with nothing running behind it.
   const [launchError, setLaunchError] = useState<unknown>(null);
@@ -179,17 +203,21 @@ export function ConvergenceHero({
   }, [tabID, startJob, failActiveJob, onBringUpToDate]);
 
   // ── Derived standing ──────────────────────────────────────────────────────
+  // Source files that changed since the cache was built. The cache follows
+  // them on its own (useProjectStoreSync), so this is a state the hero waits
+  // out, never work it asks a person to start.
   const changed = (plan?.changedFiles ?? 0) + (plan?.removedFiles ?? 0);
+  const cachePending = !!plan?.storeMissing || !!plan?.versionStale || changed > 0;
   const totalsPlanned = plan?.plan?.totals;
-  const missing = totalsPlanned?.missingTarget ?? 0;
   // Every unit the plan prices, not only the ones with no target file. A pass is
   // driven by the content memory, so a produced unit the corpus cannot fill is
-  // work the run will do — and a hero that read only `missing` claimed a project
-  // was up to date while the plan beside it quoted provider calls.
-  const planned = missing + (totalsPlanned?.stale ?? 0) + (totalsPlanned?.unanswered ?? 0);
+  // work the run will do — and a hero that read only the missing ones claimed a
+  // project was up to date while the plan beside it quoted provider calls.
+  const planned =
+    (totalsPlanned?.missingTarget ?? 0) +
+    (totalsPlanned?.stale ?? 0) +
+    (totalsPlanned?.unanswered ?? 0);
   const parked = convergence?.review?.length ?? 0;
-  const storeMissing = !!plan?.storeMissing;
-  const versionStale = !!plan?.versionStale;
   const locales = convergence?.locales ?? [];
   const gated = locales.filter((l) => l.gated);
   // Three states, not two: gates green, gates unmet, and *no gates at all*.
@@ -198,11 +226,10 @@ export function ConvergenceHero({
   // without a single gate having been evaluated. `hasGates` keeps the claim
   // honest: no gates means no claim, not a green one.
   const hasGates = gated.length > 0;
-  const gatesUnmet = hasGates && !gated.every((l) => l.shippable);
-  // A scope no gate matches can still be withheld by stale wording, a rejected
-  // translation or a failing check. One that nothing withholds is not gated, and
-  // is named beside the gated verdict rather than folded into it.
-  const withheldUngated = locales.filter((l) => !l.gated && !l.shippable).length;
+  // A scope that does not ship is held back, gate or no gate: below its ship
+  // gate, or withheld by stale wording, a rejected translation, a failing check
+  // or an unchecked term (convergence.LocaleCoverage).
+  const heldBack = locales.filter((l) => !l.shippable);
   const notGatedLanguages = [
     ...new Set(
       locales
@@ -214,23 +241,71 @@ export function ConvergenceHero({
   // file-derived tally says, so it is drift in its own right — the state cannot
   // be trusted as converged until a run completes.
   const runFailed = lastRunError != null && lastRunError.kind !== "canceled";
-  const drifted = changed > 0 || planned > 0 || storeMissing || versionStale || runFailed;
-  const upToDate = loaded && !drifted && !gatesUnmet && withheldUngated === 0;
+  const upToDate = loaded && !cachePending && planned === 0 && !runFailed && heldBack.length === 0;
+  // Reading the files: the cache is behind them and a sync is on its way or
+  // under way. A sync that failed is reported below instead.
+  const reading = loaded && cachePending && sync.error == null;
+  // Whether a run has work: texts to draft, a failed run to repeat, or a
+  // held-back scope the run itself can clear (a redraft, a term check, a gate
+  // short of drafted coverage). Otherwise the remaining work is a person's and
+  // the run is not the primary action.
+  const runHasWork =
+    planned > 0 ||
+    runFailed ||
+    cachePending ||
+    heldBack.some(
+      (l) =>
+        (l.staleAwaitingDraft ?? 0) > 0 ||
+        (l.rejectedAwaitingDraft ?? 0) > 0 ||
+        (l.termsNotChecked ?? 0) > 0 ||
+        (l.pending ?? []).length > 0,
+    );
 
-  // The drift summary: only the non-zero pieces, joined with " · ".
-  const pieces: string[] = [];
-  if (runFailed) pieces.push(t("last run failed"));
-  if (storeMissing) pieces.push(t("content not extracted yet"));
-  else if (versionStale) pieces.push(t("store written by another kapi version"));
-  if (changed > 0) pieces.push(t("{count} source file(s) changed", { count: changed }));
-  if (missing > 0) pieces.push(t("{count} block(s) missing targets", { count: missing }));
-  if (parked > 0) pieces.push(t("{count} parked for review", { count: parked }));
-  if (withheldUngated > 0) {
-    pieces.push(t("{count} scope(s) withheld", { count: withheldUngated }));
-  }
-  if (pieces.length === 0 && gatesUnmet) {
-    pieces.push(t("ship gates not met yet"));
-  }
+  const counts: StatItem[] = [
+    {
+      id: "to-translate",
+      value: planned,
+      label: t(
+        "{count, plural, one {text to translate} other {texts to translate}}",
+        "a count on the project home: texts the run drafts",
+        { count: planned },
+      ),
+      tone: planned > 0 ? "default" : "muted",
+      hint: t("Bring up to date drafts these from the content memory and the AI model."),
+    },
+    {
+      id: "waiting-for-review",
+      value: parked,
+      label: t(
+        "waiting for review",
+        "a count on the project home: translations waiting for a person",
+      ),
+      tone: parked > 0 ? "warning" : "muted",
+      onClick: parked > 0 ? onOpenReview : undefined,
+      hint: t("Translations a person approves before they ship."),
+    },
+    {
+      id: "held-back",
+      value: heldBack.length,
+      label: t(
+        "{count, plural, one {language held back} other {languages held back}}",
+        "a count on the project home: collection languages that do not ship yet",
+        { count: heldBack.length },
+      ),
+      tone: heldBack.length > 0 ? "warning" : "muted",
+      onClick: heldBack.length > 0 ? () => setHeldOpen(true) : undefined,
+      hint: t("A language of a collection that does not ship yet. Select it to see why."),
+    },
+  ];
+
+  let headline: string;
+  if (derivationError != null) headline = t("Could not determine project state");
+  else if (!loaded) headline = t("Reading the project…");
+  else if (reading) headline = t("Reading the project's files…");
+  else if (runFailed) headline = t("The last run failed");
+  else if (planned > 0) headline = t("Translations are missing");
+  else if (parked > 0 || heldBack.length > 0) headline = t("Waiting for a person");
+  else headline = t("Not up to date");
 
   // launch: model pre-flight first (the built-in default flow's translate step
   // is provider-backed), then the actual run.
@@ -275,8 +350,12 @@ export function ConvergenceHero({
         <div className="flex min-w-0 flex-1 items-center gap-2.5">
           {upToDate ? (
             <CheckCircle2 size={18} className="shrink-0 text-green-500" />
-          ) : (
+          ) : reading || !loaded ? (
+            <Loader2 size={18} className="shrink-0 animate-spin text-muted-foreground" />
+          ) : runHasWork ? (
             <PlayCircle size={18} className="shrink-0 text-primary" />
+          ) : (
+            <UserRound size={18} className="shrink-0 text-warning-ink" />
           )}
           <div className="min-w-0">
             {upToDate ? (
@@ -286,34 +365,28 @@ export function ConvergenceHero({
               </p>
             ) : (
               <p className="text-sm font-medium" data-slot="hero-drift-summary">
-                {derivationError != null
-                  ? t("Could not determine project state")
-                  : loaded
-                    ? pieces.join(" · ") || t("Pending work")
-                    : t("Deriving project state…")}
+                {headline}
               </p>
             )}
-            <p className="text-xs text-muted-foreground">
-              {upToDate
-                ? hasGates
-                  ? t("Every block has a committed target and every gated scope ships.")
-                  : t("Every block has a committed target. This recipe declares no ship gates.")
-                : t(
-                    "Bring up to date extracts changed sources, runs the default flow to the ship gates, and parks what needs a human.",
-                  )}
-              {upToDate && hasGates && notGatedLanguages.length > 0 && (
-                <span data-slot="hero-not-gated">
-                  {" "}
-                  {t("Not gated: {languages}.", { languages: notGatedLanguages.join(", ") })}
-                </span>
-              )}
-              {!upToDate && plan?.plan?.subscription && (
-                <span data-slot="hero-subscription">
-                  {" "}
-                  {t("AI runs on your Claude subscription.")}
-                </span>
-              )}
-            </p>
+            {(upToDate || plan?.plan?.subscription) && (
+              <p className="text-xs text-muted-foreground">
+                {upToDate &&
+                  (hasGates
+                    ? t("Every text has a translation and every gated language ships.")
+                    : t("Every text has a translation. This recipe declares no ship gates."))}
+                {upToDate && hasGates && notGatedLanguages.length > 0 && (
+                  <span data-slot="hero-not-gated">
+                    {" "}
+                    {t("Not gated: {languages}.", { languages: notGatedLanguages.join(", ") })}
+                  </span>
+                )}
+                {!upToDate && plan?.plan?.subscription && (
+                  <span data-slot="hero-subscription">
+                    {t("AI runs on your Claude subscription.")}
+                  </span>
+                )}
+              </p>
+            )}
             {/* Which model this run will use — visible where the run is
                 launched, not only in Settings. */}
             <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
@@ -336,8 +409,9 @@ export function ConvergenceHero({
           </Button>
           <Button
             size="sm"
+            variant={runHasWork ? "default" : "outline"}
             onClick={launch}
-            disabled={upToDate || hasActive || !onBringUpToDate}
+            disabled={upToDate || hasActive || sync.syncing || !onBringUpToDate}
             data-slot="hero-bring-up-to-date"
             aria-label={t("Bring the project up to date")}
           >
@@ -346,6 +420,23 @@ export function ConvergenceHero({
           </Button>
         </div>
       </div>
+
+      {loaded && !upToDate && !reading && derivationError == null && (
+        <StatRow className="mt-4" data-slot="hero-counts" items={counts} />
+      )}
+
+      {/* The cache could not be rebuilt from the files. The counts above come
+          from the files themselves, so they stand; what failed is named. */}
+      {sync.error != null && cachePending && (
+        <div data-slot="hero-sync-error" className="mt-3">
+          <ErrorNotice
+            error={sync.error}
+            title={t("Could not read the project's files")}
+            variant="panel"
+            detailsLabel={t("Details")}
+          />
+        </div>
+      )}
 
       {/* Declared files the report could not measure, such as a collection in a
           format no installed plugin supplies. A run converges the rest, so the
@@ -405,6 +496,14 @@ export function ConvergenceHero({
         server={server}
         onConfirm={onBringUpToDate ? launch : undefined}
         confirmDisabled={hasActive || upToDate}
+      />
+
+      <HeldBackDialog
+        open={heldOpen}
+        onOpenChange={setHeldOpen}
+        scopes={heldBack}
+        onOpenReview={onOpenReview}
+        onOpenChecks={onOpenChecks}
       />
 
       <AIModelPromptDialog
@@ -489,7 +588,6 @@ export function ConvergePlanDialog({
 }: ConvergePlanDialogProps) {
   const scopes = plan?.plan?.scopes ?? [];
   const totals = plan?.plan?.totals;
-  const changed = (plan?.changedFiles ?? 0) + (plan?.removedFiles ?? 0);
   const subscription = !!plan?.plan?.subscription;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -518,25 +616,9 @@ export function ConvergePlanDialog({
           </p>
         )}
 
-        {plan?.storeMissing && (
-          <p className="text-xs text-muted-foreground">
-            {t("The project has not been extracted yet. The run extracts it first.")}
-          </p>
-        )}
-        {changed > 0 && (
-          <p className="text-xs text-muted-foreground">
-            {t(
-              "{count} source file(s) changed since the last extract. The run re-extracts them first.",
-              {
-                count: changed,
-              },
-            )}
-          </p>
-        )}
-
         {scopes.length === 0 ? (
           <p className="py-2 text-sm text-muted-foreground" data-slot="plan-empty">
-            {t("Nothing to do: every block has a committed target.")}
+            {t("Nothing to translate: every text has a translation.")}
           </p>
         ) : (
           <Table className="text-xs" data-slot="plan-table">
@@ -635,6 +717,145 @@ export function ConvergePlanDialog({
             >
               <PlayCircle size={13} />
               {t("Bring up to date")}
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Why one held-back scope does not ship, as short reasons with counts. */
+function heldBackReasons(l: LocaleCoverage): string[] {
+  const out: string[] = [];
+  for (const g of l.pending ?? []) {
+    out.push(
+      t("{actual}% {state}; the ship gate needs {required}%", {
+        state: g.state,
+        actual: g.actual,
+        required: g.required,
+      }),
+    );
+  }
+  const n = (v: number | undefined) => v ?? 0;
+  if (n(l.staleAwaitingReview) > 0) {
+    out.push(
+      t("{count} redrafted after a source change, waiting for review", {
+        count: n(l.staleAwaitingReview),
+      }),
+    );
+  }
+  if (n(l.staleAwaitingDraft) > 0) {
+    out.push(
+      t("{count} with a source that changed after approval", { count: n(l.staleAwaitingDraft) }),
+    );
+  }
+  if (n(l.rejectedAwaitingDraft) > 0) {
+    out.push(t("{count} turned down by a reviewer", { count: n(l.rejectedAwaitingDraft) }));
+  }
+  if (n(l.failingChecks) > 0) {
+    out.push(t("{count} failing a check", { count: n(l.failingChecks) }));
+  }
+  if (n(l.termsNotChecked) > 0) {
+    out.push(t("{count} not checked against the terms", { count: n(l.termsNotChecked) }));
+  }
+  return out;
+}
+
+export interface HeldBackDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** The scopes that do not ship. */
+  scopes: readonly LocaleCoverage[];
+  onOpenReview?: () => void;
+  onOpenChecks?: () => void;
+}
+
+/**
+ * The languages held back from shipping, one row per collection and language,
+ * with what holds each one back. Review and Checks are where a person clears
+ * what the run cannot.
+ */
+export function HeldBackDialog({
+  open,
+  onOpenChange,
+  scopes,
+  onOpenReview,
+  onOpenChecks,
+}: HeldBackDialogProps) {
+  const failing = scopes.some((l) => (l.failingChecks ?? 0) > 0);
+  const toGo = (go?: () => void) =>
+    go
+      ? () => {
+          onOpenChange(false);
+          go();
+        }
+      : undefined;
+  const review = toGo(onOpenReview);
+  const checks = toGo(onOpenChecks);
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg" data-slot="held-back-dialog">
+        <DialogHeader>
+          <DialogTitle>{t("Held back from shipping")}</DialogTitle>
+          <DialogDescription>
+            {t("Bring up to date redrafts and checks what it can. The rest waits for a person.")}
+          </DialogDescription>
+        </DialogHeader>
+        <Table className="text-xs">
+          <TableHeader>
+            <TableRow className="text-muted-foreground hover:bg-transparent">
+              <TableHead className="h-auto py-1.5 pr-2 text-muted-foreground">
+                {t("Language")}
+              </TableHead>
+              <TableHead className="h-auto py-1.5 pl-2 text-muted-foreground">
+                {t("Held back by")}
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {scopes.map((l, i) => {
+              const reasons = heldBackReasons(l);
+              return (
+                <TableRow
+                  key={`${l.collection ?? ""}-${l.locale}-${i}`}
+                  className="border-border/50 align-top hover:bg-transparent"
+                >
+                  <TableCell className="py-1.5 pr-2">
+                    {scopeName({
+                      locale: l.locale,
+                      collection: l.collection,
+                      missingTarget: 0,
+                      memoryExact: 0,
+                      aiRemaining: 0,
+                      tokenEstimate: 0,
+                    })}
+                  </TableCell>
+                  <TableCell className="py-1.5 pl-2 whitespace-normal">
+                    {reasons.length > 0 ? (
+                      <ul className="space-y-0.5">
+                        {reasons.map((r) => (
+                          <li key={r}>{r}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <span className="text-muted-foreground">{t("Not yet translated")}</span>
+                    )}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+        <DialogFooter>
+          {failing && checks && (
+            <Button variant="outline" size="sm" onClick={checks}>
+              {t("Open Checks")}
+            </Button>
+          )}
+          {review && (
+            <Button size="sm" onClick={review}>
+              {t("Open Review")}
             </Button>
           )}
         </DialogFooter>

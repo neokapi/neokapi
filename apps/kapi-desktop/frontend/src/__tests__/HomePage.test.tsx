@@ -55,7 +55,7 @@ describe("HomePage merged collection surface", () => {
     expect(screen.getAllByText("50%").length).toBeGreaterThan(0);
   });
 
-  it("prompts to run extract when nothing has been extracted yet", () => {
+  it("reads the files itself when nothing has been read yet", () => {
     const status: ProjectStatus = {
       projectPath: "/p/demo/kapi.yaml",
       projectName: "Demo",
@@ -71,11 +71,11 @@ describe("HomePage merged collection surface", () => {
         status={status}
       />,
     );
-    expect(screen.getByText(/Nothing extracted yet/)).toBeInTheDocument();
-    expect(screen.getByText("Run extract")).toBeInTheDocument();
+    expect(screen.getByText("Reading your files…")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /extract/i })).not.toBeInTheDocument();
   });
 
-  it("keeps the Re-extract affordance behind the Advanced disclosure", async () => {
+  it("keeps reading the files again behind the Advanced disclosure", async () => {
     const status: ProjectStatus = {
       projectPath: "/p/demo/kapi.yaml",
       projectName: "Demo",
@@ -98,11 +98,11 @@ describe("HomePage merged collection surface", () => {
         status={status}
       />,
     );
-    // Auto-extract made the header button obsolete — the manual override lives
+    // The app reads changed files on its own, so the manual override lives
     // only inside the Advanced disclosure.
-    expect(screen.queryByRole("button", { name: "Re-extract content" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Read every file again" })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Advanced actions" }));
-    expect(screen.getByRole("button", { name: "Re-extract content" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Read every file again" })).toBeInTheDocument();
   });
 
   it("no stale-store banner — Bring up to date auto-heals version drift", () => {

@@ -1419,6 +1419,17 @@ export interface LocaleCoverage {
    *  withholds). Only this field tells a met gate from no gate. */
   shipState?: ShipState;
   pending?: GateShortfall[];
+  /** Translations whose source changed since they were approved, not yet
+   *  redrafted (a run redrafts them). */
+  staleAwaitingDraft?: number;
+  /** Translations redrafted after a source change, waiting for review. */
+  staleAwaitingReview?: number;
+  /** Translations a reviewer turned down, not yet redrafted. */
+  rejectedAwaitingDraft?: number;
+  /** Translations failing one of the project's bound checks. */
+  failingChecks?: number;
+  /** Translations the terms govern that no terminology check has read. */
+  termsNotChecked?: number;
 }
 
 /** Project-wide source readiness (written|established). */
@@ -1819,6 +1830,15 @@ export interface ExtractResult {
   blocks: number;
   skipped?: ExtractSkip[];
   log: string;
+}
+
+/** Outcome of keeping the block cache current (SyncProjectStore). */
+export interface StoreSyncResult {
+  /** The cache had drifted from the files and was rebuilt. */
+  extracted: boolean;
+  files: number;
+  blocks: number;
+  skipped?: ExtractSkip[];
 }
 
 /** Outcome of adopting a user/ad-hoc flow into a project recipe. */

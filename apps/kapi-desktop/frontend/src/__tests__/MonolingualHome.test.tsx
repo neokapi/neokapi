@@ -95,7 +95,7 @@ describe("the monolingual home", () => {
   it("shows the two-axis standing", () => {
     renderHome();
     const standing = screen.getByTestId("project-standing");
-    expect(standing).toHaveTextContent("84 block(s) extracted");
+    expect(standing).toHaveTextContent("84 texts");
     expect(screen.getByTestId("standing-voice")).toHaveTextContent("voice Handbook");
   });
 

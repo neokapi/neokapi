@@ -87,7 +87,7 @@ export function TranslationStatusPanel({ tabID, status: propStatus }: Translatio
     <div className="space-y-3" data-slot="translation-status-panel">
       <div className="flex items-center justify-between">
         <div className="text-xs text-muted-foreground">
-          {extractLog && !extracting && "Last extract output available below."}
+          {extractLog && !extracting && t("The last read is listed below.")}
         </div>
         {hasCollections && (
           <Button
@@ -96,14 +96,20 @@ export function TranslationStatusPanel({ tabID, status: propStatus }: Translatio
             onClick={() => void runExtract()}
             disabled={extracting}
             data-slot="translation-status-reextract"
-            aria-label="Re-extract translatable content"
+            aria-label={t("Read every file again")}
           >
             {extracting ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
-            {extracting ? t("Extracting…") : t("Re-extract")}
+            {extracting ? t("Reading files…") : t("Read files again")}
           </Button>
         )}
       </div>
-      {error ? <ErrorNotice error={error} title={t("Extraction failed")} variant="inline" /> : null}
+      {error ? (
+        <ErrorNotice
+          error={error}
+          title={t("Could not read the project's files")}
+          variant="inline"
+        />
+      ) : null}
       {status.collections.length === 0 && (
         <div className="p-4 text-sm text-muted-foreground">
           No content collections defined in this project.

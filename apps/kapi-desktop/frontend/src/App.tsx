@@ -6,6 +6,7 @@ import { useProjectHistory } from "./hooks/useProjectHistory";
 import { GLOBAL_OVERLAYS, useTabManager } from "./hooks/useTabManager";
 import { useAppInit } from "./hooks/useAppInit";
 import { useMenuEvents } from "./hooks/useMenuEvents";
+import { useProjectStoreSync } from "./hooks/useProjectStoreSync";
 import { ErrorProvider } from "./components/ErrorBanner";
 import { JobFeedProvider, useJobFeed } from "./context/JobFeedContext";
 import { ActiveFilterProvider } from "./context/ActiveFilterContext";
@@ -227,6 +228,10 @@ function AppInner() {
   const filterTabID = tm.mode === "projects" ? tm.activeTabID : null;
   const filterEnabled =
     tm.mode === "projects" && !!tm.activeTab && !tm.activeTab.isEmpty && !!tm.activeTab.info.path;
+  // The active project's block cache follows its files; nobody runs an extract.
+  useProjectStoreSync(
+    filterEnabled && !tm.activeTab?.info.context_only ? (tm.activeTabID ?? undefined) : undefined,
+  );
   return (
     <ActiveFilterProvider tabID={filterTabID} enabled={filterEnabled}>
       <div className="flex h-screen flex-col bg-background text-foreground">

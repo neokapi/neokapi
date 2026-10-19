@@ -9234,6 +9234,67 @@ export class SetTermStatusRequest {
 }
 
 /**
+ * StoreSyncResult reports one SyncProjectStore call.
+ */
+export class StoreSyncResult {
+    /**
+     * Creates a new StoreSyncResult instance.
+     * @param {Partial<StoreSyncResult>} [$$source = {}] - The source object to create the StoreSyncResult.
+     */
+    constructor($$source = {}) {
+        if (!("extracted" in $$source)) {
+            /**
+             * Extracted is true when the block cache had drifted from the working tree
+             * and was rebuilt. False means it was current, or that a run holds the
+             * project and extracts on its own.
+             * @member
+             * @type {boolean}
+             */
+            this["extracted"] = false;
+        }
+        if (!("files" in $$source)) {
+            /**
+             * Files and Blocks count what the rebuild read.
+             * @member
+             * @type {number}
+             */
+            this["files"] = 0;
+        }
+        if (!("blocks" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["blocks"] = 0;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Skipped lists files the rebuild could not read, with the reason.
+             * @member
+             * @type {ExtractSkip[] | undefined}
+             */
+            this["skipped"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new StoreSyncResult instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {StoreSyncResult}
+     */
+    static createFrom($$source = {}) {
+        const $$createField3_0 = $$createType80;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("skipped" in $$parsedSource) {
+            $$parsedSource["skipped"] = $$createField3_0($$parsedSource["skipped"]);
+        }
+        return new StoreSyncResult(/** @type {Partial<StoreSyncResult>} */($$parsedSource));
+    }
+}
+
+/**
  * TabInfo is returned to the frontend to describe an open tab.
  */
 export class TabInfo {

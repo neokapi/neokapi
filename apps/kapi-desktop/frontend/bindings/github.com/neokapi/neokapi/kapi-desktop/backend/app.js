@@ -2988,6 +2988,26 @@ export function SyncProjectContext(tabID) {
 }
 
 /**
+ * SyncProjectStore keeps the project's block cache current with its source
+ * files. The frontend calls it when a project tab opens and after the file
+ * watcher reports a change. It extracts only when the cache is missing, was
+ * written by another kapi version, or no longer matches the files, so a call
+ * on a current project costs a stat of each source file.
+ * 
+ * Extraction is local and calls no provider, so the app does it without
+ * asking: the cache is how the app reads the project, and a person has nothing
+ * to decide about it. While a convergence run holds the project the call
+ * returns without extracting, because the run extracts before each pass.
+ * @param {string} tabID
+ * @returns {$CancellablePromise<$models.StoreSyncResult | null>}
+ */
+export function SyncProjectStore(tabID) {
+    return $Call.ByID(2847086273, tabID).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType183($result);
+    }));
+}
+
+/**
  * T returns the active Translator. Safe to call before SetLocale —
  * returns a NoopTranslator that passes source text through unchanged.
  * Not exposed to Wails (lowercase methods are private); backend code
@@ -3071,7 +3091,7 @@ export function ValidateContentPath(path) {
  */
 export function ValidateProjectFlows(tabID) {
     return $Call.ByID(3090313048, tabID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType183($result);
+        return $$createType185($result);
     }));
 }
 
@@ -3087,7 +3107,7 @@ export function ValidateProjectFlows(tabID) {
  */
 export function ValidateVoiceProfile(profile) {
     return $Call.ByID(3282285205, profile).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType185($result);
+        return $$createType187($result);
     }));
 }
 
@@ -3098,7 +3118,7 @@ export function ValidateVoiceProfile(profile) {
  */
 export function VoiceFieldValues() {
     return $Call.ByID(3817869228).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType187($result);
+        return $$createType189($result);
     }));
 }
 
@@ -3109,7 +3129,7 @@ export function VoiceFieldValues() {
  */
 export function VoiceStarterPack(name) {
     return $Call.ByID(3653487720, name).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType189($result);
+        return $$createType191($result);
     }));
 }
 
@@ -3142,7 +3162,7 @@ export function WidenContextRule(req) {
  */
 export function WorkspaceRemovalFor(key) {
     return $Call.ByID(936404802, key).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType191($result);
+        return $$createType193($result);
     }));
 }
 
@@ -3153,7 +3173,7 @@ export function WorkspaceRemovalFor(key) {
  */
 export function WorkspaceRules() {
     return $Call.ByID(1084501936).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType193($result);
+        return $$createType195($result);
     }));
 }
 
@@ -3165,7 +3185,7 @@ export function WorkspaceRules() {
  */
 export function WriteRulesFiles(tabID) {
     return $Call.ByID(2534931649, tabID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType195($result);
+        return $$createType197($result);
     }));
 }
 
@@ -3372,17 +3392,19 @@ const $$createType178 = $models.TermSearchResult.createFrom;
 const $$createType179 = $Create.Nullable($$createType178);
 const $$createType180 = host$0.ContextSyncResult.createFrom;
 const $$createType181 = $Create.Nullable($$createType180);
-const $$createType182 = project$0.FlowValidationIssue.createFrom;
-const $$createType183 = $Create.Array($$createType182);
-const $$createType184 = profile$0.ProfileProblem.createFrom;
+const $$createType182 = $models.StoreSyncResult.createFrom;
+const $$createType183 = $Create.Nullable($$createType182);
+const $$createType184 = project$0.FlowValidationIssue.createFrom;
 const $$createType185 = $Create.Array($$createType184);
-const $$createType186 = profile$0.FieldValueSet.createFrom;
-const $$createType187 = $Create.Map($Create.Any, $$createType186);
-const $$createType188 = profile$0.VoiceProfile.createFrom;
-const $$createType189 = $Create.Nullable($$createType188);
-const $$createType190 = $models.WorkspaceRemoval.createFrom;
+const $$createType186 = profile$0.ProfileProblem.createFrom;
+const $$createType187 = $Create.Array($$createType186);
+const $$createType188 = profile$0.FieldValueSet.createFrom;
+const $$createType189 = $Create.Map($Create.Any, $$createType188);
+const $$createType190 = profile$0.VoiceProfile.createFrom;
 const $$createType191 = $Create.Nullable($$createType190);
-const $$createType192 = $models.WorkspaceRule.createFrom;
-const $$createType193 = $Create.Array($$createType192);
-const $$createType194 = host$0.RulesFilesResult.createFrom;
-const $$createType195 = $Create.Nullable($$createType194);
+const $$createType192 = $models.WorkspaceRemoval.createFrom;
+const $$createType193 = $Create.Nullable($$createType192);
+const $$createType194 = $models.WorkspaceRule.createFrom;
+const $$createType195 = $Create.Array($$createType194);
+const $$createType196 = host$0.RulesFilesResult.createFrom;
+const $$createType197 = $Create.Nullable($$createType196);

@@ -77,7 +77,7 @@ describe("ProjectStanding", () => {
     );
     const standing = screen.getByTestId("project-standing");
     expect(standing).toHaveTextContent("stream main");
-    expect(standing).toHaveTextContent("42 block(s) extracted");
+    expect(standing).toHaveTextContent("42 texts");
     expect(standing).toHaveTextContent("2 collection(s)");
     expect(screen.getByTestId("standing-voice")).toHaveTextContent("voice Northsea");
     expect(standing).toHaveTextContent("northsea-terms");
@@ -100,7 +100,7 @@ describe("ProjectStanding", () => {
     expect(standing).toHaveTextContent("stream release-2");
   });
 
-  it("says nothing is extracted rather than showing a zero", () => {
+  it("says the files are being read rather than showing a zero", () => {
     render(
       <ProjectStanding
         tabID="t1"
@@ -111,7 +111,7 @@ describe("ProjectStanding", () => {
         server={{ connected: false }}
       />,
     );
-    expect(screen.getByTestId("project-standing")).toHaveTextContent("nothing extracted yet");
+    expect(screen.getByTestId("project-standing")).toHaveTextContent("reading the files");
   });
 
   it("lists every declared point with its collections and voice", () => {

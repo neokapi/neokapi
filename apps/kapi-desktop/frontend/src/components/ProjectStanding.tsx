@@ -158,24 +158,19 @@ export function ProjectStanding({
           <Axis label={t("content")} icon={<FileText size={12} />}>
             {status?.hasData ? (
               <>
-                <Fact>{t("{count} block(s) extracted", { count: blocks })}</Fact>
+                <Fact>
+                  {t(
+                    "{count, plural, one {# text} other {# texts}}",
+                    "the project's translatable texts",
+                    { count: blocks },
+                  )}
+                </Fact>
                 <Fact muted>·</Fact>
                 <Fact muted>{t("{count} collection(s)", { count: collections })}</Fact>
-                {status.stale && (
-                  <>
-                    <Fact muted>·</Fact>
-                    <Badge
-                      variant="outline"
-                      className="border-warning/40 font-normal text-warning-ink"
-                    >
-                      {t("re-extract to refresh the counts")}
-                    </Badge>
-                  </>
-                )}
               </>
             ) : (
               <Fact muted>
-                {t("{count} collection(s), nothing extracted yet", { count: collections })}
+                {t("{count} collection(s) · reading the files", { count: collections })}
               </Fact>
             )}
           </Axis>
