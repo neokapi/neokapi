@@ -332,45 +332,52 @@ project to file them under.
 
 ### Exploring the context
 
-Explore reads the project once per visit through `ProjectContextAtlas`, which
+Explore loads the project once per visit through `ProjectContextAtlas`, which
 returns the `kapi context atlas --json` document
 ([the atlas contract](../../implementation/context/context-atlas.md)): the
-axes, every record with its full status history, and the dated events. A tab
-with a checkout includes the content cells; a context-only tab reads the log
-and the stores alone. Every view after the read is drawn in the frontend from
-that one document, so moving the window, the columns or the snapshot calls
-nothing.
+axes, every record with its full status history, and the dated events. For a
+tab with a checkout, the document includes the content cells. For a
+context-only tab, it is built from the log and the stores only. The frontend
+draws every view from that one document, so moving the window, the columns or
+the snapshot makes no backend call.
 
-`@neokapi/context-atlas` holds the views and a React-free model beside them.
-The model owns the query (OR within an axis, AND across axes, a window, a
-snapshot that follows the window's end, the recorded or the effective clock),
-the state of each record at an instant, the derived axes (state at the
-window's start and at the snapshot, lifetime, age), the adjacent-pair layout
-of the flow and the A/B comparison, so a test, a host or an agent resolves an
-exported investigation against the same data without rendering it. The page is
-an overview with a supporting pane for the selected record
-(`packages/ui/docs/page-patterns.md`).
-An evidence path opens Ask at that file.
+`@neokapi/context-atlas` contains the views and a React-free model beside them.
+The model implements:
 
-The map draws a geo axis over the places the atlas carries
-([C-12](../context/c-12-places.md)). It opens on **Shapes**: real outlines,
-starting at the deepest country or region that holds every record and
-drilling from the world to a country, to its subdivisions and to the
-project's own places, with a breadcrumb built from the place's path. A place
-is filled by the records sitting within it and hatched where a record at a
+- the query: OR within an axis, AND across axes, a window, a snapshot that
+  follows the window's end, and the recorded or the effective clock;
+- the state of each record at an instant;
+- the derived axes: state at the window's start and at the snapshot, lifetime,
+  and age;
+- the adjacent-pair layout of the flow and the A/B comparison.
+
+A test, a host or an agent can therefore evaluate an exported investigation
+against the same data without rendering it. The page is an overview with a
+supporting pane for the selected record (`packages/ui/docs/page-patterns.md`).
+Selecting an evidence path opens Ask at that file.
+
+The map draws a geo axis over the places in the atlas
+([C-12](../context/c-12-places.md)). Its default mode is **Shapes**, which
+draws real outlines. It starts at the deepest country or region that contains
+every record, and drills from the world to a country, to its subdivisions and
+to the project's own places, with a breadcrumb built from the place's path. A
+place is filled when records sit within it. It is hatched when a record at a
 wider place, or at a place made of places that covers it, holds there. Records
-at `world` are one *Held everywhere* count rather than a hatch over the globe.
-A declared place draws its own geometry, else a circle at its centroid, else
-it is listed beside the map, and a declared place whose centroid falls outside
-the outline of the place it sits within is flagged. Places made of places are
-chips beside the map, and hovering one outlines its members. The side list
-gives each place's records *Here* and the records *Held* through a wider
-place, and every place is a button with an accessible name and count.
-Selecting a place keeps the records at every place that shares ground with it,
-by the same overlap rule the engine uses. **Grid** draws one equal tile per
-country instead, for comparing counts with land area left out. The outlines
-are Natural Earth data that ship in `@neokapi/context-atlas` and load per
-country as the map drills in.
+at `world` are shown as one *Held everywhere* count instead of a hatch over
+the globe. A declared place is drawn from its own geometry, else as a circle at
+its centroid, else listed beside the map. The map flags a declared place whose
+centroid falls outside the outline of the place it sits within. Places made of
+places are chips beside the map, and hovering over one outlines its members.
+The side list shows, for each place, the records *Here* and the records *Held*
+through a wider place. Every place in the list is a button with an accessible
+name and count. When the view has up to 30 places, the list shows all of them,
+so a county can be picked by name. In a larger view, such as the world's
+countries, the list shows only the places that have records within them, that
+the map cannot draw, or that are flagged. Selecting a place filters to the
+records at every place that overlaps it, by the same overlap rule as the
+engine. **Grid** draws one equal tile per country instead, for comparing
+counts independently of land area. The outlines are Natural Earth data that
+ship in `@neokapi/context-atlas`, loaded per country as the map drills in.
 
 ### The feed of recorded context operations
 
@@ -630,21 +637,31 @@ of the correction and notes one more name, so the digest opens with a conflict
 under Needs you, and a first-time user practises keeping, changing, dropping,
 choosing and resetting on the real surfaces with no model call.
 
-Before the sessions, a teammate records six notes and keeps them, so they
-arrive established and the digest still opens on the assistants' suggestions.
-They give Explore something on each declared axis: the sample's recipe
-declares places (the Nordics, Oslo, Grünerløkka and Greater Oslo) and types
-`market` as a geo axis over them, `age` as a range and `lifecycle` as an
-ordered axis ([C-02](../context/c-02-coordinates-and-governance.md)). An Oslo
-youth campaign sits at `market: oslo, age: 13-17`, with its pick-up page at
-Grünerløkka. The notes hold in Japan, in Germany, in the Nordics, for readers
-aged 13 to 17, in that campaign's city and age, and for windows set relative to
-the day the sample is created, so one is in force, one has ended and one has
-yet to open whenever the sample is opened.
+Before the agent sessions, the seed records six notes as a teammate and keeps
+them. The notes are established from the start, and the digest still opens on
+the assistants' suggestions. The notes give Explore data on each declared axis.
+The sample's recipe declares places (the Nordics, Oslo, Grünerløkka and
+Greater Oslo) and types `market` as a geo axis over them, `age` as a range and
+`lifecycle` as an ordered axis
+([C-02](../context/c-02-coordinates-and-governance.md)). An Oslo youth campaign
+sits at `market: oslo, age: 13-17`, with its pick-up page at Grünerløkka. Five
+of the notes have a point: Japan, Germany, the Nordics, ages 13 to 17, and the
+campaign's city and age together. Three have windows set relative to the day
+the sample is created. Whenever the sample is opened, one of those windows is
+in force, one has ended and one has not yet started.
 
 Seeding is idempotent: it runs only when the project's log holds no agent
 session, read from the ledger, so reopening or resetting the sample records
 nothing twice.
+
+A scaffolded sample records the revision it was written at in
+`.kapi/sample.json`, and `sample.Revision` is the revision this build ships.
+The home of an older copy that still loads offers the upgrade. An older copy
+whose recipe this build rejects is refreshed when it is opened, from Try the
+sample or from the workspace home. The old directory is kept beside it as
+`<name> (backup rN)`, and the current sample is scaffolded in its place. For a
+sample at the current revision, and for any project that is not a sample, the
+app reports the load error and leaves the directory unchanged.
 
 ### Three faces, one record
 

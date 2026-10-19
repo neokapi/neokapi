@@ -12,15 +12,15 @@ import (
 func newContextAtlasCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "atlas",
-		Short: "Lay out everything the project's context holds, for exploring",
-		Long: `Read everything this project's context holds in one pass: each rule,
-note, content-memory pair and term, at the point it holds on the project's
-axes, with the statuses it has held over time, and each event on two clocks,
-when something was recorded and when a window opens or closes. Content cells
-count the project's units by collection, language and state.
+		Short: "Print the project's context records by axis and over time",
+		Long: `Read all of this project's context in one pass. The result holds each
+rule, note, content-memory pair and term at its point on the project's axes,
+with the statuses it has held over time. It also holds each event, with the
+time it was recorded and, for a window, the time the window opens or closes.
+Content cells count the project's units by collection, language and state.
 
-The terminal shows a summary by axis. --json prints the full document, the one
-the desktop's Explore view draws.`,
+The terminal output is a summary by axis. --json prints the full document,
+which the desktop's Explore view draws.`,
 		Example: "  kapi context atlas\n" +
 			"  kapi context atlas --json > atlas.json\n" +
 			"  kapi context atlas --all-projects --json",
@@ -43,8 +43,8 @@ the desktop's Explore view draws.`,
 			return output.Print(cmd, res)
 		},
 	}
-	cmd.Flags().Bool("all-projects", false, "read every project in the workspace (content is then left out)")
-	cmd.Flags().Bool("no-content", false, "leave out the content cells, which read every file of the project")
+	cmd.Flags().Bool("all-projects", false, "read every project in the workspace; implies --no-content")
+	cmd.Flags().Bool("no-content", false, "omit the content cells; measuring them reads every file of the project")
 	AddProjectFlag(cmd)
 	return cmd
 }

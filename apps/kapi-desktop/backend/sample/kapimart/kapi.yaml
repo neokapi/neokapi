@@ -29,11 +29,11 @@ defaults:
     age: 13-
     lifecycle: current
 
-# The places this project names beside the built-in ones (the world, its
-# regions, every country and every ISO 3166-2 subdivision). Each sits within
-# places or is made of places, and that is how a rule for Norway reaches the
-# Oslo campaign: Oslo sits within the county of Oslo, which sits within Norway.
-# `kapi context places <query>` looks a place id up.
+# The places this project declares beside the built-in ones (the world, its
+# regions, every country and every ISO 3166-2 subdivision). Each place sits
+# within places or is made of places. A rule for Norway applies to the Oslo
+# campaign because Oslo sits within the county of Oslo, which sits within
+# Norway. `kapi context places <query>` looks a place id up.
 places:
   nordics:
     name: Nordics
@@ -53,11 +53,11 @@ places:
     type: metro
     of: [no-03, no-32]
 
-# What the declared axes mean. Each one is checked when the recipe loads, and
-# its kind decides how a rule scoped to one value reaches another: a rule for
-# the Nordic market holds in Norway, and a rule for readers aged 13 to 17 holds
-# in content written for readers aged 14 to 16. An axis not named here is an
-# open list of values, matched exactly.
+# The kinds and values of the declared axes. kapi checks each axis when it
+# loads the recipe. The kind determines whether a rule scoped to one value
+# applies at another: a rule for the Nordic market holds in Norway, and a rule
+# for readers aged 13 to 17 holds in content written for readers aged 14 to 16.
+# An axis that is not listed here takes any value, matched exactly.
 axes:
   market:
     kind: geo

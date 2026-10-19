@@ -1,23 +1,23 @@
 ---
 sidebar_position: 5
 title: Context atlas
-description: Implementation note for C-11. The kapi-context-atlas JSON document that `kapi context atlas --json` prints and the desktop's Explore view draws, field by field, with how the host builds each part and what it leaves out.
+description: Implementation note for C-11. The kapi-context-atlas JSON document that `kapi context atlas --json` prints and the desktop's Explore view draws, field by field, with how the host builds each part and which data it omits.
 keywords: [context atlas, kapi context atlas, axes, places, gazetteer, geometry, map, history, events, content cells, JSON contract, implementation note]
 ---
 
 # Context atlas
 
-The context atlas is one read of everything a project's context holds, laid
-out for exploring: each record at its point on the project's axes, with the
-statuses it held over time, and each event on two clocks.
-`host.App.ContextAtlas` builds it, `kapi context atlas --json` prints it, and
-the desktop's Explore view draws it. The field names below are the contract
-between them. See [C-11](/contribute/architecture/context/c-11-context-operations#the-atlas-reads-the-whole-context-at-once)
-for where the atlas sits among the context operations, and
+The context atlas is a single document that holds all of a project's context
+records. Each record sits at its point on the project's axes and carries the
+statuses it has held over time. Each event carries a recorded time and, where
+it differs, an effective time. `host.App.ContextAtlas` builds the document,
+`kapi context atlas --json` prints it, and the desktop's Explore view draws
+it. The field names below are the contract between these three. See
+[C-11](/contribute/architecture/context/c-11-context-operations#the-atlas-reads-the-whole-context-at-once)
+for how the atlas relates to the other context operations,
 [C-02](/contribute/architecture/context/c-02-coordinates-and-governance#declared-axes-can-be-typed)
-for the typed axes it lays records out on, and
-[C-12](/contribute/architecture/context/c-12-places) for the places a geo axis
-holds.
+for typed axes, and [C-12](/contribute/architecture/context/c-12-places) for
+the places a geo axis holds.
 
 ## Request
 
@@ -30,9 +30,9 @@ type ContextAtlasRequest struct {
 }
 ```
 
-`kapi context atlas` asks for content unless `--no-content` or
-`--all-projects` is given. A cap that leaves something out says so in
-`notes`.
+`kapi context atlas` sets `Content` unless `--no-content` or
+`--all-projects` is given. When `Limit` truncates the records or the events,
+the host adds an entry to `notes` with the counts.
 
 ## Document
 
@@ -47,7 +47,7 @@ type ContextAtlas struct {
     Places      []AtlasPlace  `json:"places"`       // the gazetteer the map draws from
     Records     []AtlasRecord `json:"records"`
     Events      []AtlasEvent  `json:"events"`
-    Notes       []string      `json:"notes"`        // reach, truncation, what was not read
+    Notes       []string      `json:"notes"`        // scope of the read, truncation, data not read
 }
 
 type AtlasSpan struct {
@@ -56,15 +56,15 @@ type AtlasSpan struct {
 }
 ```
 
-`axes`, `places`, `records`, `events` and `notes` are always arrays, never
-`null`.
+`axes`, `places`, `records`, `events` and `notes` are always JSON arrays. An
+empty one is written as `[]`.
 
 ### Axes
 
 ```go
 type AtlasAxis struct {
     ID     string       `json:"id"`
-    Label  string       `json:"label,omitempty"` // the recipe's label; empty leaves it to the view
+    Label  string       `json:"label,omitempty"` // the recipe's label; empty when the recipe sets none
     Kind   string       `json:"kind"`            // category | geo | range | ordered
     Source string       `json:"source"`          // structural | declared | derived
     Values []AtlasValue `json:"values"`          // display order
@@ -76,8 +76,8 @@ type AtlasValue struct {
 }
 ```
 
-A geo value is an id and a label. Where the place sits, what it is made of and
-how to draw it are in [`places`](#places), under the same id.
+A geo value carries only an id and a label. The place's containment, members
+and outline are in [`places`](#places), under the same id.
 
 | Source | Axes | Values |
 | --- | --- | --- |
@@ -85,10 +85,10 @@ how to draw it are in [`places`](#places), under the same id.
 | `declared` | every axis `axes:` types or a coordinate names, and any other axis a record carries | a closed or ordered axis lists its declared values in order, then any other used; a geo axis lists the places the records use and every declared place, places made of places first, then by type from the widest kind to the narrowest (`place.Type.Rank`), then by name; a range axis lists used intervals by lower bound |
 | `derived` | `family`, `actor`, `project` (with `all_projects`), `locale`, `region` | the values the records use; `region` is a geo axis holding the place each locale names (`place.OfLocale`): the subdivision of a `-u-sd-` extension, else the country or M49 region of its region subtag |
 
-The view computes four more axes from the records and never receives them:
-the status at the window's start, the status at the snapshot, the lifetime
-(upcoming, in force, expired or open at the snapshot) and the age since the
-record was recorded.
+The view computes four further axes from the records, and the document does
+not carry them. They are the status at the start of the time window, the
+status at the snapshot, the lifetime (upcoming, in force, expired or open at
+the snapshot) and the time since the record was recorded.
 
 ### Places
 
@@ -126,24 +126,26 @@ host collects:
    below it (`Gazetteer.Children`), and for each region, the countries it
    holds through its subregions.
 
-The last step is what lets a map drill down by name: a map opened at Norway
-lists every Norwegian county, with records or without.
+The last step lets a map drill down by name. A map opened at Norway lists
+every Norwegian county, including counties with no records.
 
-`within` and `of` carry the declarations unchanged, so a view that applies the
+`within` and `of` carry the declarations unchanged. A view that applies the
 containment rules of
 [C-12](/contribute/architecture/context/c-12-places#containment-and-overlap)
-to them reaches the engine's answers. `@neokapi/context-atlas` does that in
-`model/places.ts`, held to the engine by the shared fixture
-`core/place/testdata/containment.json`.
+to them gets the same results as the engine. `@neokapi/context-atlas`
+implements those rules in `model/places.ts`. The shared fixture
+`core/place/testdata/containment.json` tests the Go and the TypeScript
+implementations against the same cases.
 
-A declared place with `shape:` carries `geometry`: the host reads the file
+A declared place with `shape:` carries `geometry`. The host reads the file
 from the checkout and reduces it to one Polygon or MultiPolygon geometry. It
 accepts a bare geometry, a Feature holding one, or a FeatureCollection of a
-single such Feature. A file the host cannot read, one larger than 1 MiB
-(`atlasMaxShape`), and one holding anything else are left out, and a note names
-the recipe key, such as `places.bergen.shape: places/bergen.geojson is larger
-than 1 MiB, so the place has no outline.` A project read with no checkout on
-this machine carries no geometry, and a note says the shape was not read.
+single such Feature. The host omits the geometry when the file cannot be read,
+is larger than 1 MiB (`atlasMaxShape`), or holds any other GeoJSON. It then
+adds a note that names the recipe key, such as `places.bergen.shape:
+places/bergen.geojson is larger than 1 MiB, so the place has no outline.` When
+the project has no checkout on this machine, no place carries geometry, and
+the host adds a note for each shape file it did not read.
 
 ### Records
 
@@ -173,7 +175,7 @@ type AtlasState struct {
 ```
 
 The state of a record at an instant is the last `history` entry at or before
-it; before the first entry the record is absent.
+that instant. Before the first entry, the record does not exist.
 
 | Family | Source | `id` | States |
 | --- | --- | --- | --- |
@@ -185,32 +187,35 @@ it; before the first entry the record is absent.
 
 How each part is built:
 
-- **Operations.** Every operation that carries a subject is a record, oldest
-  first. Its family follows the subject (`rule` for a term rule, `memory` for
-  a content-memory pair, `note` for prose), except an `import`, whose family
-  is `import`: the file's rows arrive as term records, and the import is their
-  provenance. Its history comes from `Ledger.Histories`: the status it was born
-  with at its own instant, then each change at the instant of the operation
-  that made it. Past `contextop.HistoryLimit` instants a history holds only the
-  first status and the current one, and a note says so. A correction recorded
-  without a rule carries no subject; it is an event and not a record.
-- **Terms.** One record per concept, at the coordinates the concept is scoped
-  to, with `product` set from its profile when its coordinates leave it out.
-  The label is the head term and the forms it discourages, and the window is
-  the first discouraged term's. A rule a person kept is a `rule` record (what
-  the log decided) and also a `term` record (what the store holds), and the
-  two are distinct identities.
+- **Operations.** Every operation that carries a subject becomes a record,
+  oldest first. The subject sets the family: `rule` for a term rule, `memory`
+  for a content-memory pair, `note` for prose. An `import` operation has the
+  family `import`. The rows of the imported file become term and
+  content-memory records, and the import record is their provenance. The
+  history comes from `Ledger.Histories`. It starts with the initial status at
+  the operation's own instant and adds each change at the instant of the
+  operation that made it. When the log holds more than
+  `contextop.HistoryLimit` instants, each history holds only the first status
+  and the current one, and the host adds a note. A correction recorded without
+  a rule carries no subject, so it appears only as an event.
+- **Terms.** Each concept becomes one record at the coordinates the concept is
+  scoped to. When those coordinates omit `product`, the host sets it from the
+  concept's profile. The label is the head term followed by the forms it
+  discourages. The window is that of the first discouraged form that has one,
+  or else that of the first term that has one. A rule a person kept produces
+  two records with distinct ids: a `rule` record for the log entry and a
+  `term` record for the concept in the terms store.
 - **Content cells.** The host measures the project with the same tally as
-  `kapi status` (`ProjectCoverageTally`), one file at a time, and adds one
+  `kapi status` (`ProjectCoverageTally`), one file at a time. It adds one
   record per collection, locale and state, weighted by its unit count. A stale
-  unit is counted under `stale` and not under `draft`. The tally knows where
-  units stand now and not when they got there, so each cell has one history
-  entry at `generated_at`, and a note says earlier states are not known.
+  unit is counted under `stale` and excluded from `draft`. The tally holds only
+  the current state of each unit. Each cell therefore has one history entry,
+  at `generated_at`, and a note states that earlier states are unknown.
 
-Every record's `coordinates` carries the point it holds at and the derived
-axes: `family`, `actor` (a person, an agent or a tool) for an operation,
-`project` when the atlas reads every project, and `locale` with `region` for a
-content-memory pair, a term and a content cell.
+Every record's `coordinates` holds the record's point and the derived axes.
+`family` is always set. An operation also carries `actor` (a person, an agent
+or a tool). `project` is set when the atlas covers every project. A
+content-memory pair, a term and a content cell carry `locale` and `region`.
 
 ### Events
 
@@ -226,14 +231,16 @@ type AtlasEvent struct {
 }
 ```
 
-Every context operation is an event at the instant the log accepted it, with
-the record of the subject it acts on. A record with a window adds
-`window-opens` and `window-closes` events, recorded at the instant the window
-was set (the operation that recorded it, or the keep that gave it one) and
-effective at the bound. A profile the recipe bounds in time adds the same two
-kinds at its bounds, with no record and no recorded instant of its own. A
-concept the terms store dates adds a `term-added` event at that date. Unit
-decisions are not read, and a note says so.
+Each context operation produces an event at the instant the log accepted it.
+`record` names the record of the operation's subject when that record is in
+the atlas. A record with a window produces `window-opens` and `window-closes`
+events. Their `at` is the instant the window was set, by the operation that
+recorded the record or by the keep that added the window. Their `effective`
+is the bound. A profile with a validity window in the recipe produces the same
+two kinds at its bounds. These events have no `record`, and their `at` is the
+bound. A concept with a creation date in the terms store produces a
+`term-added` event at that date. The host does not read unit decisions and
+adds a note stating that.
 
 ## Example
 
@@ -313,10 +320,11 @@ places and the axes the example does not need are left out.
 }
 ```
 
-The note sits at `grunerlokka`, the item's own point, inside the campaign's
-`oslo`. Its places run up to the world, and the full document also lists every
-Norwegian county and every country of Europe, so the map can drill from the
-world to the neighbourhood.
+The note sits at `grunerlokka`, the content item's point, which lies inside
+the campaign's `oslo`. `places` holds the chain from that place up to the
+world. The full document also lists every Norwegian county and every country
+in Europe, which the map needs to drill from the world down to the
+neighbourhood.
 
 ## Drawing the places
 
@@ -329,11 +337,11 @@ ship in the package under `src/geo/`:
 | `admin1/<cc>.json` | one country's subdivisions, object `subdivisions`, and its outline, object `outline` | ISO 3166-2 in lower case (`no-03`) |
 
 Both are TopoJSON, simplified and quantised. The world file loads with the
-map; a country's file loads as a chunk of its own when the map drills into
+map. A country's file is a separate chunk, loaded when the map drills into
 that country. The data is Natural Earth (public domain) at a pinned release:
 the admin-0 countries and the admin-1 states and provinces. Where Natural
 Earth files subdivisions under an ISO 3166-2 region, the region's shape is the
-union of its parts and takes the region's id (`fr-ara`).
+union of its parts and is keyed by the region's id (`fr-ara`).
 
 `scripts/build-geometry.mjs` regenerates the directory:
 
@@ -344,22 +352,24 @@ vp run @neokapi/context-atlas#build-geometry
 It downloads the two Natural Earth files at the pinned release, checks their
 SHA-256 digests, keys every feature by place id, simplifies each shape relative
 to its size, and writes the TopoJSON. `--cache <dir>` reads files already
-downloaded. Where Natural Earth carries a subdivision under a code ISO 3166-2
-has since replaced, or only as the parts of a current one,
-`scripts/geometry-successors.json` lists the current id, the features it is
-composed from and the change it rests on, and the script unions the parts. A
-row naming a code Natural Earth lacks, or an id it already carries, stops the
-build. `src/geo/README.md` names the release, the licence and the ids that have
-no outline.
+downloaded to `<dir>`. Natural Earth carries some subdivisions under a code
+that ISO 3166-2 has since replaced, or only as the parts of a current
+subdivision. For each of these, `scripts/geometry-successors.json` lists the
+current id, the features that compose it, and the ISO change or parent
+relation behind the mapping. The script unions the parts. The build fails on a
+row that names a code missing from Natural Earth, or an id that Natural Earth
+already carries. `src/geo/README.md` lists the release, the licence and the
+ids that have no outline.
 
 A place with no outline in either file is drawn at its centroid when it has
-one, and is otherwise listed beside the map. The outlines are for drawing:
-what contains what comes from `within` and `of` alone.
+one, and is otherwise listed beside the map. The outlines are used only for
+drawing. Containment comes from the `within` and `of` declarations.
 
 ## Cost
 
-The atlas reads the operation log once for the records and once more for the
-histories, which fold the log at each distinct instant up to
-`contextop.HistoryLimit`. The terms store is read whole, as `kapi context
-search` reads it. Content cells read every file of the project once per
-target language, as `kapi status` does, and keep counts, never blocks.
+The host reads the operation log once for the records and once more for the
+histories. The history pass folds the log at each distinct instant, up to
+`contextop.HistoryLimit` instants. The host reads the whole terms store, as
+`kapi context search` does. For content cells it reads every file of the
+project once per target language, as `kapi status` does. It keeps the counts
+and discards the blocks.
