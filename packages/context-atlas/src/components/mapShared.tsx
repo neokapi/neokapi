@@ -7,7 +7,7 @@ import { attentionTint, sequentialFill } from "../colors";
 import { formatCount, formatShare, placeName } from "../labels";
 import type { Atlas, AxisInfo } from "../model/atlas";
 import type { Pick } from "../model/filter";
-import { type PlaceCount, type PlaceTally, overlapping } from "../model/places";
+import { type PlaceCount, type PlaceTally, WORLD, overlapping } from "../model/places";
 import { type AtlasQuery, withRetained } from "../model/query";
 
 export type MapMeasure = "count" | "attention";
@@ -24,6 +24,21 @@ export interface MapScope {
   previewCounts: ReadonlyMap<string, number> | null;
   onPreview: (picks: Pick[] | null) => void;
   onQuery: (next: AtlasQuery) => void;
+}
+
+/**
+ * The places the project names on the axis: every place the recipe declares
+ * and every place its content sits at. The map opens on what they share, so a
+ * note kept for a distant market does not widen the first view.
+ */
+export function projectPlaces(scope: MapScope): string[] {
+  const out = new Set<string>();
+  for (const p of scope.atlas.places.places) if (p.declared) out.add(p.id);
+  for (const { record } of scope.atlas.records) {
+    const at = record.family === "content" ? record.coordinates[scope.axis.id] : undefined;
+    if (at) out.add(at);
+  }
+  return [...out].filter((id) => id !== WORLD);
 }
 
 /** The places records sit at on the axis, in the surrounding cohort. */

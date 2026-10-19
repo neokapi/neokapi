@@ -22,11 +22,13 @@ function Harness({
   atlasData = data,
   initialFocus,
   initialMode,
+  filters,
   onQuery,
 }: {
   atlasData?: AtlasData;
   initialFocus?: string;
   initialMode?: MapMode;
+  filters?: AtlasQuery["filters"];
   onQuery?: (q: AtlasQuery) => void;
 }) {
   const atlas = useMemo(() => prepareAtlas(atlasData, { measure: "records" }), [atlasData]);
@@ -34,6 +36,7 @@ function Harness({
     ...defaultQuery(atlas),
     from: atlas.firstDay,
     view: "map",
+    ...(filters && { filters }),
   }));
   const [picks, setPicks] = useState<Pick[] | null>(null);
   const ctx = useMemo(() => evalContext(atlas, query), [atlas, query]);
@@ -214,8 +217,35 @@ describe("MapView: shapes", () => {
     );
   });
 
-  it("opens at the deepest country or region holding every record", async () => {
+  it("opens on the places the project declares, past records kept further away", async () => {
+    const nordic = makeAtlasFixture();
+    nordic.records = nordic.records.filter((r) => r.family !== "content");
+    expect(nordic.records.some((r) => r.coordinates.market === "europe")).toBe(true);
+    render(<Harness atlasData={nordic} />);
+    await screen.findByTestId("atlas-map-place-se");
+    expect(within(crumbs()).getByText("Nordics")).toHaveAttribute("aria-current", "page");
+    expect(screen.queryByTestId("atlas-map-place-de")).toBeNull();
+  });
+
+  it("widens the opening view to the places content sits at", async () => {
+    const european = makeAtlasFixture();
+    european.records = european.records.filter(
+      (r) => r.family !== "content" || ["no", "de"].includes(r.coordinates.market ?? ""),
+    );
+    render(<Harness atlasData={european} />);
+    await screen.findByTestId("atlas-map-place-de");
+    expect(within(crumbs()).getByText("Europe")).toHaveAttribute("aria-current", "page");
+  });
+
+  it("opens on the selected records when the axis is filtered", async () => {
+    render(<Harness filters={{ market: ["oslo", "bergen", "no"] }} />);
+    await screen.findByTestId("atlas-map-place-no-03");
+    expect(within(crumbs()).getByText("Norway")).toHaveAttribute("aria-current", "page");
+  });
+
+  it("without places of its own, opens at the deepest country or region holding every record", async () => {
     const oslo = makeAtlasFixture();
+    oslo.places = oslo.places.map((p) => ({ ...p, declared: false }));
     oslo.records = oslo.records.filter((r) =>
       ["oslo", "bergen", "no-03"].includes(r.coordinates.market ?? ""),
     );

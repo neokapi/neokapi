@@ -129,9 +129,13 @@ describe("place graph", () => {
     expect(overlapping(shared, "de", values)).toEqual(["world", "de"]);
   });
 
-  it("opens the map at the deepest country or region that holds every record", () => {
+  it("opens the map at the narrowest region, country or territory that holds every place", () => {
     expect(commonPlace(shared, ["oslo", "bergen"])).toBe("no");
-    expect(commonPlace(shared, ["oslo", "nordics"])).toBe("northern-europe");
+    expect(commonPlace(shared, ["oslo", "nordics"])).toBe("nordics");
+    expect(commonPlace(shared, ["oslo", "se"])).toBe("scandinavia");
+    expect(commonPlace(shared, ["oslo", "fi"])).toBe("nordics");
+    // Greater Oslo is made of counties, so the map opens no deeper than Norway.
+    expect(commonPlace(shared, ["oslo", "no-32"])).toBe("no");
     expect(commonPlace(shared, ["oslo", "de"])).toBe("europe");
     expect(commonPlace(shared, ["world", "atlantis"])).toBe(WORLD);
     expect(commonPlace(shared, [])).toBe(WORLD);
