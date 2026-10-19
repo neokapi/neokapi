@@ -18,8 +18,8 @@ the recipe declares under places:. A geo axis takes a place's id as its value.
 
 With a query, list the places whose id or name matches it, ignoring case and
 accents. With --within, list the places directly below a place. With neither,
-list the places the recipe declares. Each line gives the id, the name, the
-type and the path from the world down.`,
+list the places the recipe declares. Each line shows the id, the name, the
+type and the path from the world down to the place.`,
 		Example: "  kapi context places oslo\n" +
 			"  kapi context places --within no\n" +
 			"  kapi context places\n" +
@@ -43,7 +43,7 @@ type and the path from the world down.`,
 			return output.Print(cmd, res)
 		},
 	}
-	cmd.Flags().String("within", "", "list the places directly below this place, or keep the matches inside it")
+	cmd.Flags().String("within", "", "list the places directly below this place; with a query, list only the matches inside it")
 	AddProjectFlag(cmd)
 	return cmd
 }

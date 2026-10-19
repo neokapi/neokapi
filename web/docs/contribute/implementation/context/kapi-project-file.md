@@ -220,15 +220,15 @@ by the author. Custom recipe coordinates are shown in context answers but do
 not act as constraint predicates. See [C-07](/contribute/architecture/context/c-07-voice-profiles)
 for resolution, validation and store-update semantics.
 
-The remaining axes are **declared**. `defaults.coordinates` names the axes the
-project's content sits at unless a collection says otherwise, a collection's
-own `coordinates:` overlays it per axis, and a content item's `coordinates:`
-overlays the collection's for the files the item matches.
-`KapiProject.CoordinatesAt(pt, rc)` answers a point's coordinates for every
-caller: the defaults, what the governance resolved at the point derives, the
-collection's, then the claiming item's, each layer laid over the last with
-`project.MergeCoordinates`. Most specific wins, per axis, and an empty value
-never erases a broader layer. `product` and `channel` are refused under
+The remaining axes are **declared**. `defaults.coordinates` sets the project's
+values on these axes. A collection's own `coordinates:` overlays the defaults
+per axis, and a content item's `coordinates:` overlays the collection's for
+the files the item matches. Every caller computes a point's coordinates with
+`KapiProject.CoordinatesAt(pt, rc)`. It merges four layers in order with
+`project.MergeCoordinates`: the defaults, the axes derived from the
+governance resolved at the point, the collection's coordinates, and the
+coordinates of the item that claims the file. Per axis, the most specific
+layer wins, and an empty value leaves the broader layer's value in place. `product` and `channel` are refused under
 `coordinates:` by `project.DeclarableAxis`, because they are derived from
 `channel:`. `project.BrandAxis` (`brand`) and `project.ModeAxis` (`mode`, with
 the Diátaxis values `tutorial`, `how-to`, `reference`, `explanation` as
@@ -248,8 +248,8 @@ type Spec struct {
 }
 ```
 
-A key the spec does not take fails the load by name, so a misspelt key never
-leaves an axis untyped.
+An unknown key under an axis fails the load, and the error names the key. A
+misspelt key therefore cannot leave an axis untyped.
 
 A geo axis holds place ids. `KapiProject.Places` declares the project's own
 places beside the built-in ones (`core/place`,
@@ -268,18 +268,19 @@ type Place struct {
 }
 ```
 
-The map key is the place's id. A key the place does not take fails the load.
+The map key is the place's id. An unknown key under a place fails the load.
 An empty `type` is `territory` for a place with `of:` and `area` for one with
 `within:`.
 
-`KapiProject.Gazetteer()` returns the built-in places plus the declared ones,
-built when the recipe is validated. `KapiProject.AxisSpace()` returns
-`axis.NewSpace(p.Axes, p.Gazetteer())` (nil-safe), and `Space.Contains(axis,
-outer, inner)` is what every scope match reads, so a rule scoped to
-`market: nordics` holds at `market: no`, and one scoped to `market: no` holds
-at a city the recipe declares within `no-03`. `KapiProject.DeclaredAxisNames()`
-lists every declared axis the recipe names, typed or written, an item's
-included.
+`KapiProject.Gazetteer()` returns the built-in places plus the declared ones.
+The gazetteer is built when the recipe is validated. `KapiProject.AxisSpace()`
+returns `axis.NewSpace(p.Axes, p.Gazetteer())` and is nil-safe. Every scope
+match calls `Space.Contains(axis, outer, inner)`. A rule scoped to
+`market: nordics` therefore holds at `market: no`, and one scoped to
+`market: no` holds at a city the recipe declares within `no-03`.
+`KapiProject.DeclaredAxisNames()` lists every declared axis the recipe names,
+whether `axes:` types it or a coordinate uses it, including an item's
+coordinates.
 
 `KapiProject.ResolveGovernance(collection)` resolves a collection name into a
 `ResolvedGovernance` (channel, voice binding, `TermStore`, the profile's name,
@@ -477,18 +478,20 @@ the full extension model.
 - `version` is required, must be `"v1"`. A top-level key the recipe does not
   have (`content:`, `coordinates:`) is rejected by name with a hint at the key
   that carries the intent, rather than captured as an unknown extension.
-- `places` builds the project's gazetteer (`place.New`). Each id is a slug no
-  built-in place holds. Each place names `within:` or `of:`, exactly one, and
-  every id it names is a place; no place reaches itself through them. `type`
-  is a declarable type, `names` are keyed by locale, `refs` are `scheme:value`
-  with a known scheme and a value of that scheme's shape, `centroid` lies on
-  the globe, and `shape` is a project-relative `.geojson` or `.json` path that
-  stays inside the project and names a file beside the recipe. Errors name the
-  key: `places.oslo.within: "no-3" is not a place. Did you mean no-31
+- `places` builds the project's gazetteer (`place.New`). Each id is a slug
+  that no built-in place uses. Each place sets exactly one of `within:` and
+  `of:`, and every id listed there is a place. The `within:` and `of:` links
+  contain no cycle. `type` is a declarable type, and `names` are keyed by
+  locale. Each entry in `refs` is `scheme:value`, with a known scheme and a
+  value in that scheme's format. `centroid` is a valid latitude and longitude.
+  `shape` is a `.geojson` or `.json` path relative to the recipe, stays inside
+  the project, and names an existing file. Each error names the key:
+  `places.oslo.within: "no-3" is not a place. Did you mean no-31
   (Østfold, Norway), ...`.
-- `axes` names slugs other than `product` and `channel`, each with a known
-  kind; an ordered axis declares its values; labels name declared values; a geo
-  axis takes neither values nor labels (`axis.Space.Check`).
+- `axes` keys are slugs other than `product` and `channel`, each with a known
+  kind. An ordered axis declares its values, and `labels` keys are declared
+  values. A geo axis takes neither `values` nor `labels`
+  (`axis.Space.Check`).
 - `id` is optional. When set, `ValidateID` requires `prj_` followed by 20 to 64
   characters from `a-z2-7`, which is what `NewID` mints (128 random bits as
   lowercase RFC 4648 base32, 26 characters).
@@ -501,11 +504,11 @@ the full extension model.
   - `source_only: true` is rejected when the collection or any item also
     carries a `target` or `target_languages`.
   - `coordinates` may not name `product` or `channel`.
-  - Each value under `coordinates`, like each under `defaults.coordinates` and
-    an item's `coordinates`, is legal for its axis as `axes:` types it
-    (`axis.Space.Validate`): a declared value of a closed axis, a place in the
-    project's gazetteer on a geo axis, an interval of a range axis. The error
-    names the key, such as `collections[4]: collection "Oslo youth campaign":
+  - Each value under `coordinates`, `defaults.coordinates` and an item's
+    `coordinates` must be valid for its axis as `axes:` types it
+    (`axis.Space.Validate`). On a closed axis it is a declared value, on a geo
+    axis a place in the project's gazetteer, and on a range axis an interval.
+    The error names the key, such as `collections[4]: collection "Oslo youth campaign":
     content[0]: coordinates.market`. An item's `coordinates` may not name
     `product` or `channel` either.
   - An item's `comments` is `true`, `false`, or a mapping whose keys are

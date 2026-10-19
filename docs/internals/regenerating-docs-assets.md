@@ -88,13 +88,13 @@ vpx tsx src/cli/run.ts 10-cli-points-and-voice --force --theme=both
 vpx tsx src/cli/run.ts 11-cli-terms-and-queue  --force --theme=both
 cd ..
 
-# publish to the CDN (videos + images), then make it live. The sync reads the
-# bucket from CDN_BUCKET and writes with the AWS profile you are signed in to
-# (`aws sso login --profile bowrain-prod`); it uploads every file under
-# web/static/video, so the folder should hold only the renders you mean to ship.
+# publish to the CDN (videos + images), then make it live. The sync takes the
+# bucket name from CDN_BUCKET and uses the AWS profile you are signed in to
+# (`aws sso login --profile bowrain-prod`). It uploads every file under
+# web/static/video. Remove any render you do not intend to ship before you run it.
 export AWS_PROFILE=bowrain-prod CDN_BUCKET="$(gh variable get CDN_BUCKET)"
 make publish-cdn-videos publish-cdn-images
-# CloudFront caches a video for a day; invalidate the paths you replaced
+# CloudFront caches a video for a day. Invalidate the paths you replaced
 # (EN0FVQVKTDYOZ is the distribution serving cdn.bowrain.cloud)
 aws cloudfront create-invalidation --distribution-id EN0FVQVKTDYOZ \
   --paths "/kapi/video/kapi/<publishAs>-*"

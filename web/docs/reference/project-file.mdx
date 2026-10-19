@@ -86,8 +86,8 @@ defaults:
 | `id`       | string         | The project's stable identity (see [Project identity](#project-identity))                                   |
 | `collections` | Collection[] | The content this project governs (see [Collections](#collections))                                          |
 | `profiles` | map            | Governance bound per product, keyed by profile name (see [Profiles and channels](#profiles-and-channels))    |
-| `places`   | map            | The project's own places, keyed by place id: a city, a district, a sales territory, beside the built-in places a geo axis takes (see [Places](#places)) |
-| `axes`     | map            | Types the declared axes, keyed by axis name: geo, range, ordered or a closed category (see [Typed axes](#typed-axes)) |
+| `places`   | map            | The project's own places, such as a city, a district or a sales territory, keyed by place id. A geo axis takes these in addition to the built-in places (see [Places](#places)) |
+| `axes`     | map            | The kind of each declared axis, keyed by axis name: geo, range, ordered or a closed category (see [Typed axes](#typed-axes)) |
 | `preset`   | string         | A framework preset name (see [`kapi init`](/reference/commands/init) `--list-presets`) (e.g., `nextjs`, `react-intl`) applied to formats    |
 | `plugins`  | map            | Plugin requirements keyed by name (e.g., `okapi: "^1.47.0"`). The long form takes `version`, `framework_version` and `format_priority` (see [Format engines](#format-engines)) |
 | `requires` | map            | Plugin name → semver constraint that gates loading; the recipe refuses to load without a registered plugin  |
@@ -177,7 +177,7 @@ intent, and loading fails if the collection contradicts it. See
 | `source_language`  | string        | Overrides the collection's and the project's source language                              |
 | `target_languages` | string[]      | Overrides the collection's and the project's target languages                             |
 | `channel`          | string        | Overrides the collection's `channel:` for the files this item matches (see [Profiles and channels](#profiles-and-channels)) |
-| `coordinates`      | map           | Declared axes the files this item matches sit at, overlaid per axis on the collection's `coordinates:`, such as one neighbourhood inside a campaign's city (see [Declared axes](#declared-axes)) |
+| `coordinates`      | map           | The declared axes of the files this item matches, overlaid per axis on the collection's `coordinates:`. For example, one neighbourhood inside a campaign's city (see [Declared axes](#declared-axes)) |
 | `redaction`        | RedactionSpec | Overrides `defaults.redaction` for this item                                              |
 | `comments`         | bool or map   | Declares the comments in the matched files as content to check: Go source, read for its comments alone, and YAML, XML-based, HTML, Markdown, MDX, PO and properties formats, whose comments are checked beside the values their readers extract. The map form declares them too, and its `directives` list names markers your own tools read at the start of a comment line, which are set aside beside those under `defaults.comments.directives`. Its `channel` places the comments at a point of their own, a qualified `profile/channel`: each comment is checked under that point's voice and terms, and the rest of the file stays at the item's point. Its `only: true` declares the files for their comments alone: kapi checks the comments and reads none of the values, so `kapi up`, flow runs, `kapi merge`, `kapi extract`, `kapi stats`, `kapi status` coverage and the `--ship` gates leave the values alone, and the item cannot also set `target`, `target_languages`, `redaction`, `format.config` or `format.preset`. Go source is read for its comments alone with or without `only`. A format that supplies no comments makes the check report that it did not run (see [Comments in source code](/kapi/recipes/verify-content#comments-in-source-code)) |
 
@@ -377,7 +377,7 @@ rules are terms, which apply on every channel.
 Beyond product and channel, a project names the further axes its content varies
 along under `defaults.coordinates`. Every collection inherits them; a collection
 that sits elsewhere on one axis sets that axis in its own `coordinates:` and
-keeps the rest. A content item can set `coordinates:` too, for the files it
+keeps the rest. A content item can also set `coordinates:` for the files it
 matches. Per axis, the most specific value wins.
 
 ```yaml
@@ -402,20 +402,19 @@ collections:
 | `brand` | a slug                                                | The brand a point sits under, coarser than product                      |
 | `mode`  | `tutorial`, `how-to`, `reference`, `explanation`      | The kind of document at the point, in the Diátaxis sense                 |
 
-The map is open: any other axis name is accepted, and the values are
-conventions rather than an enumeration, unless [`axes:`](#typed-axes) types
-the axis. `product` and `channel` are refused
-under `coordinates:` at load, because both are derived from `channel:` and a
-declared copy could contradict the derived one. A file's resolved point (the
-defaults, overlaid with what `channel:` derives, overlaid with its
-collection's `coordinates:` and then with its item's) is what `kapi context`
-reports and what a connected project sends to the server.
+The map is open. Any other axis name is accepted, and its values are free
+slugs unless [`axes:`](#typed-axes) types the axis. `product` and `channel`
+are refused under `coordinates:` at load. Both are derived from `channel:`,
+and a declared copy could contradict the derived value. A file's resolved
+point merges four layers in order: the defaults, the axes `channel:` derives,
+the collection's `coordinates:`, and the item's `coordinates:`. `kapi context`
+reports this point, and a connected project sends it to the server.
 
 #### Typed axes
 
-The top-level `axes:` block says how a declared axis compares its values. A rule
-or a term scoped to one value then holds at every value inside it: a rule kept
-for `market: nordics` holds for content at `market: no`, and one kept for
+The top-level `axes:` block sets how a declared axis compares its values. A
+rule or a term scoped to one value then holds at every value inside it. A rule
+kept for `market: nordics` holds for content at `market: no`, and one kept for
 `age: 13-17` holds at `age: 14-16`.
 
 ```yaml
@@ -449,11 +448,11 @@ defaults:
 | -------- | -------- | ----------- |
 | `kind`   | string   | `category` (the default), `geo`, `range` or `ordered` |
 | `label`  | string   | The axis's display name |
-| `values` | string[] | The values the axis takes, in display order. A category axis with `values` refuses any other value; an ordered axis needs them. A geo or range axis takes none |
-| `labels` | map      | Display labels per value. A geo axis takes none: a place's name is declared on the place |
+| `values` | string[] | The values the axis takes, in display order. A category axis with `values` rejects any other value. An ordered axis requires `values`. A geo or range axis takes none |
+| `labels` | map      | Display labels per value. A geo axis takes none, because each place declares its own name |
 | `unit`   | string   | A range axis only: what the numbers count, such as `years` |
 
-An axis takes no other key; a misspelt one fails the load.
+An axis takes no other key. A misspelt key fails the load.
 
 | Kind       | Values | A value holds at |
 | ---------- | ------ | ---------------- |
@@ -463,17 +462,18 @@ An axis takes no other key; a misspelt one fails the load.
 | `range`    | an interval `13-17`, an open upper bound `65-`, or one number `18` | itself and every interval inside it |
 
 Every value under `defaults.coordinates`, a collection's `coordinates:` and a
-content item's `coordinates:` is checked against its axis at load, so a value
-a closed axis does not declare, a geo value that names no place, and an
-inverted range each fail with the spellings that work. An axis `axes:` leaves
-out stays an open category. `product` and `channel` cannot be declared under
-`axes:`.
+content item's `coordinates:` is checked against its axis at load. The load
+fails on a value that a closed axis does not declare, a geo value that is not
+a place id, or an inverted range. The error lists the valid spellings. An
+axis that `axes:` does not list is an open category. `product` and `channel`
+cannot be declared under `axes:`.
 
 #### Places
 
 A geo axis takes place ids. The built-in places are the world, the UN M49
 regions, every ISO 3166-1 country and every ISO 3166-2 subdivision.
-[`kapi context places`](/reference/commands/context-places) looks one up:
+To look up a place id, run
+[`kapi context places`](/reference/commands/context-places):
 
 ```bash
 kapi context places oslo
@@ -487,9 +487,9 @@ greater-oslo  Greater Oslo  metro        world › europe › northern-europe �
 
 The top-level `places:` block adds the project's own places, keyed by id. Each
 place sits within one or more places (`within:`) or is made of places
-(`of:`), and those declarations decide what contains what. A rule kept for
-Norway reaches content at `market: oslo` because Oslo is declared within the
-county `no-03`, which sits within Norway.
+(`of:`). Containment is computed from these declarations only. A rule kept for
+Norway applies to content at `market: oslo`, because Oslo is declared within
+the county `no-03`, which sits within Norway.
 
 ```yaml
 places:
@@ -516,38 +516,41 @@ places:
 | `name`     | string              | The display name. Defaults to the id |
 | `names`    | map                 | Display names keyed by locale (`nb`, `en-GB`); a lookup by name matches these too |
 | `type`     | string              | `subdivision`, `territory`, `metro`, `locality`, `district`, `neighbourhood`, `postal-area` or `area`. Defaults to `territory` for a place with `of:` and `area` for a place with `within:` |
-| `within`   | string or string[]  | The places this one sits inside. A place in several places names each |
+| `within`   | string or string[]  | The places this one sits inside. A place inside several places lists each of them |
 | `of`       | string or string[]  | The places this one is made of, such as the countries of a sales territory |
 | `refs`     | string[]            | The place's ids in other gazetteers, as `scheme:value`: `wikidata:Q585`, `geonames:3143244`, `nuts:NO081`, `osm:relation/406091`, `wof:101752073` |
 | `centroid` | [lat, lon]          | An approximate centre, where the Explore map in Kapi Desktop draws the place when it has no shape |
-| `shape`    | string              | A GeoJSON file holding the place's outline, relative to the recipe, ending `.geojson` or `.json`. The Explore map in Kapi Desktop draws it. It has no effect on what contains what |
+| `shape`    | string              | A GeoJSON file holding the place's outline, relative to the recipe, ending `.geojson` or `.json`. The Explore map in Kapi Desktop draws it. Containment ignores it |
 
-A place names `within:` or `of:`, exactly one of the two. A place made of
-places sits within every place that holds all of its members, and holds
-whatever sits within one of them. Two places share ground when one contains the
-other, or when a declared place sits within both, so a suggestion at
-`greater-oslo` and one at `oslo` meet, and review shows them as a conflict
-when they disagree.
+A place sets exactly one of `within:` and `of:`. A place made of places sits
+within every place that contains all of its members. It contains every place
+that sits within one of its members. Two places overlap when one contains the
+other, when a member of one overlaps the other, or when a declared place sits
+within both. A suggestion at `greater-oslo` and one at `oslo` therefore
+overlap, and review shows them as a conflict when they disagree.
 
-The recipe fails to load when a place is wrong, and the error names the key:
+The recipe fails to load when a place is invalid, and the error names the
+key:
 
 | Recipe | Error |
 | ------ | ----- |
-| an id a built-in place holds | `places.no-03: no-03 is a built-in place (Oslo, Norway); a declared place takes an id of its own` |
+| an id that a built-in place uses | `places.no-03: no-03 is a built-in place (Oslo, Norway); a declared place takes an id of its own` |
 | both `within:` and `of:` | `places.oslo: a place sits within places or is made of places, never both` |
 | neither | `` places.grunerlokka: a place names the places it sits within (`within:`) or is made of (`of:`) `` |
-| an id that names no place | `` places.oslo.within: "no-3" is not a place. Did you mean no-31 (Østfold, Norway), no-32 (Akershus, Norway), no-33 (Buskerud, Norway)? Look a place up with `kapi context places no-3` `` |
-| a place that reaches itself | `places.grunerlokka: the place sits within itself through grunerlokka › grunerlokka-north › grunerlokka` |
+| an id that is not a place | `` places.oslo.within: "no-3" is not a place. Did you mean no-31 (Østfold, Norway), no-32 (Akershus, Norway), no-33 (Buskerud, Norway)? Look a place up with `kapi context places no-3` `` |
+| a cycle through `within:` | `places.grunerlokka: the place sits within itself through grunerlokka › grunerlokka-north › grunerlokka` |
 | an unknown type | `places.oslo.type: "city" is not a type a declared place takes. Use one of subdivision, territory, metro, locality, district, neighbourhood, postal-area, area` |
 | a malformed reference | `places.oslo.refs: "wikidata:585" does not follow the wikidata scheme (write it as wikidata:Q585)` |
 | a centroid off the globe | `places.oslo.centroid: [159.91, 10.75] is not on the globe: latitude runs from -90 to 90 and longitude from -180 to 180` |
 | a shape outside the project | `places.oslo.shape: "../oslo.geojson": the path leaves the project` |
 | a shape file that is missing | `places.oslo.shape: places/oslo.geojson: no such file beside the recipe` |
-| a key a place does not take | `line 44: a place takes no key "parent" (it takes [name names type within of refs centroid shape])` |
+| an unknown key under a place | `line 44: a place takes no key "parent" (it takes [name names type within of refs centroid shape])` |
 
-A geo value that names no place gets the spelling that would: `"Oslo" is not
-a place. Write it in lower case: oslo`, `"no03" is not a place. Write it with a
-hyphen: no-03`, or the closest matches and the `kapi context places` command.
+If a geo value is not a place id, the recipe fails to load and the error
+suggests the correct id: `"Oslo" is not a place. Write it in lower case:
+oslo`, `"no03" is not a place. Write it with a hyphen: no-03`. Otherwise the
+error lists the closest matches by name, or the kinds of place id when nothing
+matches, followed by the `kapi context places` command for the value.
 
 #### Profile validity
 
@@ -578,7 +581,7 @@ bounded profile against the current time and labels it `active`, `upcoming` or
 | Field              | Type                | Description                                                                                                              |
 | ------------------ | ------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | `source_language`  | string              | BCP-47 source locale (e.g., `en`)                                                                                        |
-| `target_languages` | string[]            | BCP-47 target locales. A tag may carry a `-u-sd-` subdivision, such as `nb-NO-u-sd-no03`, which names the place it is written for |
+| `target_languages` | string[]            | BCP-47 target locales. A tag may carry a `-u-sd-` subdivision, such as `nb-NO-u-sd-no03`, to name the place the content is written for |
 | `locale_format`    | string              | Locale style for the `{lang}` placeholder: `bcp-47` (default) or `posix`                                                 |
 | `concurrency`      | int                 | Number of files to process in parallel                                                                                   |
 | `parallel_blocks`  | int                 | Number of blocks to process in parallel within a file                                                                    |

@@ -642,19 +642,19 @@
         "atlas"
       ],
       "use": "atlas",
-      "short": "Lay out everything the project's context holds, for exploring",
-      "long": "Read everything this project's context holds in one pass: each rule,\nnote, content-memory pair and term, at the point it holds on the project's\naxes, with the statuses it has held over time, and each event on two clocks,\nwhen something was recorded and when a window opens or closes. Content cells\ncount the project's units by collection, language and state.\n\nThe terminal shows a summary by axis. --json prints the full document, the one\nthe desktop's Explore view draws.",
+      "short": "Print the project's context records by axis and over time",
+      "long": "Read all of this project's context in one pass. The result holds each\nrule, note, content-memory pair and term at its point on the project's axes,\nwith the statuses it has held over time. It also holds each event, with the\ntime it was recorded and, for a window, the time the window opens or closes.\nContent cells count the project's units by collection, language and state.\n\nThe terminal output is a summary by axis. --json prints the full document,\nwhich the desktop's Explore view draws.",
       "groupID": "context-person",
       "flags": [
         {
           "name": "all-projects",
-          "usage": "read every project in the workspace (content is then left out)",
+          "usage": "read every project in the workspace; implies --no-content",
           "default": "false",
           "type": "bool"
         },
         {
           "name": "no-content",
-          "usage": "leave out the content cells, which read every file of the project",
+          "usage": "omit the content cells; measuring them reads every file of the project",
           "default": "false",
           "type": "bool"
         },
@@ -844,7 +844,7 @@
       ],
       "use": "places [query]",
       "short": "Look up the places a geo axis takes",
-      "long": "Look up places in this project's gazetteer: the world, the UN M49\nregions, the ISO 3166-1 countries and ISO 3166-2 subdivisions, and the places\nthe recipe declares under places:. A geo axis takes a place's id as its value.\n\nWith a query, list the places whose id or name matches it, ignoring case and\naccents. With --within, list the places directly below a place. With neither,\nlist the places the recipe declares. Each line gives the id, the name, the\ntype and the path from the world down.",
+      "long": "Look up places in this project's gazetteer: the world, the UN M49\nregions, the ISO 3166-1 countries and ISO 3166-2 subdivisions, and the places\nthe recipe declares under places:. A geo axis takes a place's id as its value.\n\nWith a query, list the places whose id or name matches it, ignoring case and\naccents. With --within, list the places directly below a place. With neither,\nlist the places the recipe declares. Each line shows the id, the name, the\ntype and the path from the world down to the place.",
       "groupID": "context-person",
       "flags": [
         {
@@ -855,7 +855,7 @@
         },
         {
           "name": "within",
-          "usage": "list the places directly below this place, or keep the matches inside it",
+          "usage": "list the places directly below this place; with a query, list only the matches inside it",
           "type": "string"
         }
       ],
