@@ -345,10 +345,14 @@ func (a *App) computeCheck(cmd Command, args []string, declared bool) (check.Rep
 	if diff != nil && targetFile != "" {
 		return check.Report{}, errors.New("--target checks a source against its translation and cannot be scoped to a diff")
 	}
-	// unread collects the declared content a check over the whole project cannot
-	// open. A check over named files keeps it nil, so a file there with no
-	// reader fails the check.
+	// unread collects the content the check found and cannot open: the declared
+	// content of a check over the whole project, or the files a directory or a
+	// glob expanded to. A file named exactly is never collected, so a named
+	// file with no reader fails the check. found holds the files an expansion
+	// selected rather than a name.
 	var unread *UnreadSet
+	var found map[string]bool
+	wholeProject := false
 	if diff != nil {
 		// A diff names the files; named files narrow it.
 	} else if len(args) == 0 {
@@ -369,6 +373,7 @@ func (a *App) computeCheck(cmd Command, args []string, declared bool) (check.Rep
 		}
 		args = files
 		unread = a.newUnreadSet()
+		wholeProject = unread != nil
 	} else if targetFile == "" {
 		// Named inputs expand like every other content verb: globs resolve
 		// in-process (so `kapi check 'web/**/*.md'` works in any shell) and a
@@ -380,6 +385,12 @@ func (a *App) computeCheck(cmd Command, args []string, declared bool) (check.Rep
 			OnSkip: func(path string, serr error) {
 				fmt.Fprintf(cmd.ErrOrStderr(), "kapi check: %s: %v\n", path, serr)
 			},
+			OnFound: func(path string) {
+				if found == nil {
+					found = map[string]bool{}
+				}
+				found[path] = true
+			},
 		})
 		if eerr != nil {
 			return check.Report{}, eerr
@@ -388,6 +399,9 @@ func (a *App) computeCheck(cmd Command, args []string, declared bool) (check.Rep
 			return check.Report{}, fmt.Errorf("no files matched %s", strings.Join(args, ", "))
 		}
 		args = expanded
+		if len(found) > 0 {
+			unread = a.newUnreadSet()
+		}
 	}
 
 	// The project's own source language, unless the caller named one. A term
@@ -499,12 +513,12 @@ func (a *App) computeCheck(cmd Command, args []string, declared bool) (check.Rep
 		// operational error.
 		prog := a.NewProgress(cmd, "checking", len(args))
 		defer prog.Done()
-		opts.named = unread == nil && !declared
+		opts.named = !wholeProject && !declared
 		// A check of the whole project counts how its content writes each
 		// suggestion's forms, which is evidence for and against the
 		// suggestion. A check of named files sees part of the content, and a
 		// part says nothing about how the project writes.
-		if unread != nil && vocab.rules != nil {
+		if wholeProject && vocab.rules != nil {
 			opts.usage = newContextUsage(vocab.rules.records, vocab.rules.key, vocab.rules.proj.AxisSpace(), a.GovernanceInstant())
 		}
 		var checked []string
@@ -525,7 +539,18 @@ func (a *App) computeCheck(cmd Command, args []string, declared bool) (check.Rep
 			blocks, fileDiags, ferr := a.checkFileBlocks(ctx, file, validateMode, opts)
 			prog.Advance()
 			if ferr != nil {
-				if name, _ := opts.formats.forFile(a, file); unread.Skip(ferr, file, name) {
+				// A file the check found, rather than one named exactly, is
+				// reported and the run goes on: a file with no reader is
+				// listed as not read, and one that does not parse is a
+				// failing finding.
+				if !wholeProject && !found[file] {
+					return check.Report{}, ferr
+				}
+				if name, _ := opts.formats.forFile(a, file); unread.skipFound(ferr, file, name) {
+					continue
+				}
+				if d, ok := readFailure(ferr, file); ok {
+					diags = append(diags, d)
 					continue
 				}
 				return check.Report{}, ferr
@@ -636,7 +661,7 @@ func (a *App) checkFileBlocks(ctx context.Context, file string, validateMode for
 	if validateMode != format.ValidationOff {
 		bl, fdiags, rerr := a.readBlocksValidated(ctx, file, fmtName, fmtCfg, opts.source(a), validateMode)
 		if rerr != nil {
-			return nil, nil, rerr
+			return nil, nil, asReadFailure(rerr)
 		}
 		blocks = bl
 		for _, fd := range fdiags {
@@ -649,7 +674,7 @@ func (a *App) checkFileBlocks(ctx context.Context, file string, validateMode for
 			// extract from imperfect inputs, so a hard error means the file
 			// could not be parsed at all. Pass --validate report to fold the
 			// structure problem into the Report instead.
-			return nil, nil, rerr
+			return nil, nil, asReadFailure(rerr)
 		}
 		blocks = bl
 	}
@@ -671,7 +696,7 @@ func (a *App) checkFileBlocks(ctx context.Context, file string, validateMode for
 	// blocks the reader extracted. The reader's own blocks are what they were.
 	layer, lerr := a.readDeclaredComments(ctx, file, fmtName, opts)
 	if lerr != nil {
-		return nil, nil, lerr
+		return nil, nil, asReadFailure(lerr)
 	}
 	if layer != nil {
 		layerDiags, err := recordProviderAnalyzers(ctx, layer.analyzers, layer.blocks, file, opts.execution)

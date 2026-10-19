@@ -248,6 +248,18 @@ func TestDiffCheck_Outcomes(t *testing.T) {
 		assert.Equal(t, check.VerdictPassed, report.Verdict, report.DidNotRun)
 	})
 
+	t.Run("a file that does not parse is a failing finding", func(t *testing.T) {
+		report, err := run(t, map[string]string{"broken.yaml": "title: [unclosed\n  - nested: {\n", "ok.md": "Fine text.\n"},
+			"--- a/broken.yaml\n+++ b/broken.yaml\n@@ -1 +1 @@\n-title: x\n+title: [unclosed\n--- a/ok.md\n+++ b/ok.md\n@@ -1 +1 @@\n-Fine.\n+Fine text.\n")
+		require.NoError(t, err)
+		broken := scopeEntry(t, report, "broken.yaml")
+		assert.Equal(t, check.ScopeDidNotRun, broken.Status)
+		assert.Equal(t, check.ScopeChecked, scopeEntry(t, report, "ok.md").Status, "the other file is checked")
+		require.Len(t, report.Findings, 1)
+		assert.Equal(t, check.RuleUnreadable, report.Findings[0].Rule)
+		assert.Equal(t, check.VerdictFailed, report.Verdict)
+	})
+
 	t.Run("a CRLF file", func(t *testing.T) {
 		report, err := run(t, map[string]string{"app.json": "{\r\n  \"a\": \"Alpha\",\r\n  \"b\": \"Bravo, new\"\r\n}\r\n"},
 			"--- a/app.json\r\n+++ b/app.json\r\n@@ -1,4 +1,4 @@\r\n {\r\n   \"a\": \"Alpha\",\r\n-  \"b\": \"Bravo\"\r\n+  \"b\": \"Bravo, new\"\r\n }\r\n")

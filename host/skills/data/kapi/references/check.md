@@ -130,7 +130,12 @@ configuration changes.
 - `format.no_reader`: a declared file, in `source`, that the check did not read
   because the plugin supplying its format is not installed. Nothing in that file
   was checked. Install the plugin the message names before relying on the result
-  for it.
+  for it. A check of a directory or a glob lists each file it found and cannot
+  read the same way.
+
+A file the check found and could not parse is a failing `structure.unreadable`
+finding whose message names the file and the parse error. Fix the file, or
+report it; the rest of the report still holds.
 
 Fix the named configuration when it is in scope, or report it.
 

@@ -1,9 +1,11 @@
 package host
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"maps"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -56,6 +58,9 @@ type missingReader struct {
 func missingReaderOf(err error, format string, installed []*pluginhost.Plugin) missingReader {
 	if comments, ok := errors.AsType[*noCommentReaderError](err); ok {
 		return missingReader{what: comments.hint.DisplayName + " comments", plugin: comments.hint.Plugin}
+	}
+	if undetected, ok := errors.AsType[*undetectedFormatError](err); ok {
+		return missingReader{what: undetected.kind()}
 	}
 	plugin, _ := pluginhost.FormatProvider(installed, format)
 	return missingReader{what: fmt.Sprintf("format %q", format), plugin: plugin}
@@ -180,6 +185,76 @@ func (u *UnreadSet) Skip(err error, file, format string) bool {
 		u.files = append(u.files, file)
 	}
 	return true
+}
+
+// skipFound is Skip for a file a directory or a glob expanded to rather than
+// one the user named. Such a file is also skipped when no installed format
+// claims its extension, since the expansion selected it by place, not by
+// format.
+func (u *UnreadSet) skipFound(err error, file, format string) bool {
+	if u == nil {
+		return false
+	}
+	if undetected, ok := errors.AsType[*undetectedFormatError](err); ok && format == "" {
+		format = undetected.kind()
+		err = errors.Join(err, registry.ErrUnknownFormat)
+	}
+	return u.Skip(err, file, format)
+}
+
+// undetectedFormatError reports a file whose format no installed format
+// claims by its extension. The file was never opened.
+type undetectedFormatError struct {
+	path string
+	err  error
+}
+
+func (e *undetectedFormatError) Error() string {
+	return fmt.Sprintf("detect format for %q: %v", filepath.Base(e.path), e.err)
+}
+
+func (e *undetectedFormatError) Unwrap() error { return e.err }
+
+// kind names the files the error is about by their extension, such as
+// `".mod" files`.
+func (e *undetectedFormatError) kind() string {
+	if ext := filepath.Ext(e.path); ext != "" {
+		return fmt.Sprintf("%q files", ext)
+	}
+	return "files with no extension"
+}
+
+// fileReadError reports a file that was opened and could not be read into
+// blocks, such as a YAML file with a syntax error.
+type fileReadError struct{ err error }
+
+func (e *fileReadError) Error() string { return e.err.Error() }
+
+func (e *fileReadError) Unwrap() error { return e.err }
+
+// asReadFailure marks err, from reading one file's content, as a failure to
+// parse that file. A missing reader, an undetected format and a cancelled
+// context keep their own meaning and are returned as they are.
+func asReadFailure(err error) error {
+	if err == nil ||
+		errors.Is(err, registry.ErrUnknownFormat) ||
+		errors.Is(err, context.Canceled) ||
+		errors.Is(err, context.DeadlineExceeded) {
+		return err
+	}
+	if _, ok := errors.AsType[*undetectedFormatError](err); ok {
+		return err
+	}
+	return &fileReadError{err: err}
+}
+
+// readFailure returns the diagnostic for a file err reports could not be read,
+// and whether err is such a failure.
+func readFailure(err error, file string) (check.Diagnostic, bool) {
+	if _, ok := errors.AsType[*fileReadError](err); !ok {
+		return check.Diagnostic{}, false
+	}
+	return check.DiagnosticUnreadable(DisplayName(file), err), true
 }
 
 // skipUnit is Skip for a verify unit. It names the unit's source file relative

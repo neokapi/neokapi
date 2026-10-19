@@ -48,10 +48,11 @@ func TestSourcecodeFormatFindsTheGrammarFromTheFileName(t *testing.T) {
 	})
 
 	t.Run("an extension no grammar reads fails naming the file and the languages", func(t *testing.T) {
-		_, err := sourcecodeFormatCheck(t, "Casks/kapi.cask", "{ nodePathPatterns: [desc, caveats] }")
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "Casks/kapi.cask")
-		assert.Contains(t, err.Error(), "ruby")
+		report, err := sourcecodeFormatCheck(t, "Casks/kapi.cask", "{ nodePathPatterns: [desc, caveats] }")
+		require.NoError(t, err)
+		msg := unreadableMessage(t, report)
+		assert.Contains(t, msg, "Casks/kapi.cask")
+		assert.Contains(t, msg, "ruby")
 	})
 
 	t.Run("a declared language reads a file whose extension names none", func(t *testing.T) {
@@ -61,10 +62,22 @@ func TestSourcecodeFormatFindsTheGrammarFromTheFileName(t *testing.T) {
 	})
 
 	t.Run("a declared language wins over the extension", func(t *testing.T) {
-		_, err := sourcecodeFormatCheck(t, "Casks/kapi.rb", "{ language: python, nodePathPatterns: [desc, caveats] }")
-		require.Error(t, err, "the declaration is read, though the extension names a grammar")
-		assert.Contains(t, err.Error(), `"python"`)
-		assert.Contains(t, err.Error(), "Casks/kapi.rb")
-		assert.Contains(t, err.Error(), "ruby")
+		report, err := sourcecodeFormatCheck(t, "Casks/kapi.rb", "{ language: python, nodePathPatterns: [desc, caveats] }")
+		require.NoError(t, err)
+		msg := unreadableMessage(t, report)
+		assert.Contains(t, msg, `"python"`, "the declaration is read, though the extension names a grammar")
+		assert.Contains(t, msg, "Casks/kapi.rb")
+		assert.Contains(t, msg, "ruby")
 	})
+}
+
+// unreadableMessage returns the message of the one failing finding a project
+// check reports on a file it could not read.
+func unreadableMessage(t *testing.T, report check.Report) string {
+	t.Helper()
+	assert.Equal(t, check.VerdictFailed, report.Verdict)
+	require.Len(t, report.Findings, 1)
+	require.Equal(t, check.RuleUnreadable, report.Findings[0].Rule)
+	require.True(t, report.Findings[0].Fails)
+	return report.Findings[0].Message
 }

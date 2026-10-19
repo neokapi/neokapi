@@ -248,12 +248,18 @@ func TestCheckOfANamedFileWithNoReaderStillFails(t *testing.T) {
 // Only a missing reader is skipped. A file in a format kapi reads that fails to
 // parse was opened and is broken, and it still fails the project check.
 func TestProjectCheckStillFailsOnABrokenFileInAKnownFormat(t *testing.T) {
+	// A check of the project reports the broken file as a failing finding and
+	// goes on to check the project's other content.
 	t.Run("bare", func(t *testing.T) {
 		root := unreadProject(t, `{"title": "Harbor`)
-		_, _, code, err := bareRun(t, root, nil)
+		report, _, code, err := bareRun(t, root, nil)
 		require.Error(t, err)
 		require.NotErrorIs(t, err, registry.ErrUnknownFormat)
-		assert.NotContains(t, []int{0, ExitGate, ExitNotRun}, code)
+		assert.Equal(t, ExitGate, code)
+		assert.Equal(t, check.VerdictFailed, report.Verdict)
+		require.Len(t, report.Findings, 1)
+		assert.Equal(t, check.RuleUnreadable, report.Findings[0].Rule)
+		assert.Contains(t, report.Findings[0].Message, "content.json")
 	})
 	t.Run("ship", func(t *testing.T) {
 		root := unreadProject(t, `{"title": "Harbor`)

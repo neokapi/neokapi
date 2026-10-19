@@ -142,7 +142,7 @@ func (a *App) checkCommentsOnlyFile(ctx context.Context, file, fmtName string, v
 func (a *App) checkCommentLayer(ctx context.Context, file string, validateMode format.ValidationMode, opts checkRunOptions, unvalidated string, locate func(src []byte) (*commentLayer, error)) ([]*model.Block, []check.Diagnostic, error) {
 	layer, err := a.readCommentLayer(ctx, file, opts.execution, locate)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, asReadFailure(err)
 	}
 	layerDiags, err := recordProviderAnalyzers(ctx, layer.analyzers, layer.blocks, file, opts.execution)
 	if err != nil {

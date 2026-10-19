@@ -227,6 +227,23 @@ func DiagnosticFrom(f Finding, checkFamily string, loc Location) Diagnostic {
 	return d
 }
 
+// RuleUnreadable is the rule of a finding on a file a check met and could not
+// read, such as a YAML file with a syntax error. The finding fails the check,
+// and the check goes on to read the other files in its scope.
+const RuleUnreadable = "structure.unreadable"
+
+// DiagnosticUnreadable is the failing RuleUnreadable finding on file, with the
+// error that ended the read as its message.
+func DiagnosticUnreadable(file string, err error) Diagnostic {
+	return Diagnostic{
+		Rule:     RuleUnreadable,
+		Check:    "structure",
+		Fails:    true,
+		Message:  err.Error(),
+		Location: Location{File: file},
+	}
+}
+
 // DiagnosticFromReader maps a format reader's validation Diagnostic (RVM) into a
 // check Diagnostic, so `kapi check --validate` folds reader-surfaced structure
 // and encoding problems into the same kapi.check/v2 Report as content findings.

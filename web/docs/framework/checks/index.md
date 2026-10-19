@@ -169,8 +169,9 @@ profile governs:
   installed reader handles, usually one a plugin supplies. `source` is the file,
   and the message names the plugin to install. A check over the project's
   content leaves the file out, checks the rest and prints the same warning on
-  stderr. A file named on the command line in such a format fails the check
-  instead.
+  stderr. A check of a directory or a glob does the same for each file it
+  finds, including a file no format claims, such as `go.mod`. A file named on
+  the command line in such a format fails the check instead.
 
 Warnings never change the summary, the score, the verdict or the exit code. Fix the configuration they name. `kapi check` prints them after the
 verdict, `kapi check --ship` carries the same array, and the MCP check tools
@@ -435,6 +436,12 @@ consistency, optional LLM review) is documented under
 > Report. They report, and a critical one fails; `--validate strict` also makes
 > a major one fail. Coverage tracks each reader's own strictness. Validate source and target files
 > separately; reader validation cannot be combined with `--target`.
+>
+> A file the reader cannot parse at all is a `structure.unreadable` finding
+> when the check found the file through the project, a directory, a glob or a
+> diff. The finding fails the check and names the file and the parse error, and
+> the check goes on to the other files. A file named on the command line that
+> cannot be parsed ends the check with the error.
 
 ## Composing and gating
 

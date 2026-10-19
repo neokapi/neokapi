@@ -378,6 +378,12 @@ func (a *App) checkDiffFile(ctx context.Context, run diffCheckRun, f diffscope.F
 		entry.Reason = noReaderReason(err, format, a.discoveredPlugins()...)
 		return nil, 0, nil
 	}
+	// A changed file that does not parse is a failing finding, and the check
+	// reads the other files the diff names.
+	if d, ok := readFailure(asReadFailure(err), entry.Path); ok {
+		entry.Status, entry.Reason = check.ScopeDidNotRun, err.Error()
+		return []check.Diagnostic{d}, 0, nil
+	}
 	if err != nil {
 		return nil, 0, err
 	}

@@ -781,23 +781,38 @@ func resolveFiles(patterns []string) ([]string, error) {
 }
 
 // walkDirFiles recursively collects regular files under root, skipping
-// hidden directories and junk files. Order is lexicographic for
+// hidden directories, junk files, and the files and directories that a
+// .gitignore or .kapiignore ignores (walkIgnores). Order is lexicographic for
 // determinism.
 func walkDirFiles(root string) ([]string, error) {
 	var files []string
+	rules := newWalkIgnores(root)
+	absRoot, aerr := filepath.Abs(root)
+	if aerr != nil {
+		return nil, fmt.Errorf("walk %q: %w", root, aerr)
+	}
 	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		name := d.Name()
-		if d.IsDir() {
-			// Skip hidden directories (e.g. .git) but never the root itself.
-			if path != root && strings.HasPrefix(name, ".") {
-				return filepath.SkipDir
-			}
+		if path == root {
 			return nil
 		}
-		if isJunkFile(name) {
+		name := d.Name()
+		rel, rerr := filepath.Rel(root, path)
+		if rerr != nil {
+			return rerr
+		}
+		abs := filepath.Join(absRoot, rel)
+		if d.IsDir() {
+			// Skip hidden directories (e.g. .git) but never the root itself.
+			if strings.HasPrefix(name, ".") || rules.ignored(abs, true) {
+				return filepath.SkipDir
+			}
+			rules.load(abs)
+			return nil
+		}
+		if isJunkFile(name) || rules.ignored(abs, false) {
 			return nil
 		}
 		files = append(files, path)
