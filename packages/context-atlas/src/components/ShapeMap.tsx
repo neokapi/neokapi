@@ -19,6 +19,7 @@ import {
   picksFor,
   placeFill,
   placeLabel,
+  projectPlaces,
   recordPlaces,
 } from "./mapShared";
 
@@ -66,7 +67,11 @@ function asFeature(geometry: Shape): Feature<Shape> {
 
 export interface ShapeMapProps {
   scope: MapScope;
-  /** The place the map opens at; by default the deepest country or region holding every record. */
+  /**
+   * The place the map opens at. By default it is the narrowest place holding
+   * the places the project names; with the axis filtered, or when the project
+   * names none, the narrowest place holding the selected records.
+   */
   initialFocus?: string;
 }
 
@@ -84,6 +89,10 @@ export function ShapeMap({ scope, initialFocus }: ShapeMapProps) {
   const index = atlas.places;
   const [focus, setFocus] = useState(() => {
     if (initialFocus && index.has(initialFocus)) return initialFocus;
+    const own = projectPlaces(scope);
+    if (own.length > 0 && !scope.query.filters[scope.axis.id]?.length) {
+      return commonPlace(index, own);
+    }
     const weighed = [...scope.byPlace.entries()].filter(([, x]) => x.weight > 0).map(([id]) => id);
     return commonPlace(index, weighed.length > 0 ? weighed : recordPlaces(scope));
   });

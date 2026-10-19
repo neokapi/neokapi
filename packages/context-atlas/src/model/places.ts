@@ -231,20 +231,37 @@ export function overlapping(index: PlaceIndex, id: string, values: readonly stri
 }
 
 /**
- * The deepest place, no deeper than a country, that contains every place in
- * `at`; the world when they share nothing narrower. The map opens there.
+ * The narrowest place, no deeper than a country, that contains every place in
+ * `at`: a region, a country, or a place made of countries and regions (the
+ * Nordics) inside the deepest such region or country. The world when they
+ * share nothing narrower. The map opens there.
  */
 export function commonPlace(index: PlaceIndex, at: readonly string[]): string {
   const known = at.filter((p) => p !== WORLD && index.has(p));
   if (known.length === 0) return WORLD;
+  const holdsAll = (p: string) => known.every((x) => index.contains(p, x));
+  let best = WORLD;
   const first = index.path(known[0]);
   for (let k = first.length - 1; k >= 0; k--) {
-    const p = first[k];
-    const type = index.get(p)?.type;
+    const type = index.get(first[k])?.type;
     if (type !== "world" && type !== "region" && type !== "country") continue;
-    if (known.every((x) => index.contains(p, x))) return p;
+    if (holdsAll(first[k])) {
+      best = first[k];
+      break;
+    }
   }
-  return WORLD;
+  const ofCountries = (p: string) =>
+    index.madeOf(p) &&
+    (index.get(p)?.of ?? []).every((m) => {
+      const type = index.get(m)?.type;
+      return type === "country" || type === "region";
+    });
+  for (const p of index.places) {
+    if (p.id !== best && ofCountries(p.id) && index.contains(best, p.id) && holdsAll(p.id)) {
+      best = p.id;
+    }
+  }
+  return best;
 }
 
 /** What the shaped map draws with one place in focus. */

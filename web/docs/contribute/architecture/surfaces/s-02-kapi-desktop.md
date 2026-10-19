@@ -358,8 +358,12 @@ Selecting an evidence path opens Ask at that file.
 
 The map draws a geo axis over the places in the atlas
 ([C-12](../context/c-12-places.md)). Its default mode is **Shapes**, which
-draws real outlines. It starts at the deepest country or region that contains
-every record, and drills from the world to a country, to its subdivisions and
+draws real outlines. It starts at the narrowest region, country or place made
+of countries that contains every declared place and every place content sits
+at, so a note kept for a distant market does not widen the first view. With
+the geo axis filtered, or in a project that names no place below the world,
+it starts at the narrowest such place that contains the selected records. It
+drills from the world to a country, to its subdivisions and
 to the project's own places, with a breadcrumb built from the place's path. A
 place is filled when records sit within it. It is hatched when a record at a
 wider place, or at a place made of places that covers it, holds there. Records
