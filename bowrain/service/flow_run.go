@@ -36,7 +36,7 @@ type FlowRun struct {
 	Items []string
 	// TargetLocales are the locales to run for, one pass each over the same
 	// blocks. Empty runs a single pass with no target locale, which is what a
-	// source-only tool wants and what a bilingual tool rejects at build time.
+	// source-only tool expects and what a bilingual tool rejects at build time.
 	TargetLocales []string
 	// RunID is the platform run this flow belongs to (an automation run id).
 	// It names the run in the AI usage the flow's model-backed steps spend,
@@ -368,7 +368,7 @@ func stepHoldsItsOwnKey(cfg map[string]any) bool {
 
 // toolNeedsCredentials reports whether a tool built with this config calls a
 // model. The contract is resolved against the config, because a group member
-// decides it: `qa` in rules mode and entity-extract on the local model both
+// determines it: `qa` in rules mode and entity-extract on the local model both
 // drop the credential requirement their group declares.
 func toolNeedsCredentials(reg *registry.ToolRegistry, name registry.ToolID, cfg map[string]any) bool {
 	info := reg.ResolveToolInfo(name, cfg)

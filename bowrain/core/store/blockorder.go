@@ -29,7 +29,7 @@ type BlockOrdering struct {
 // The id keyset cursor comes first: it is what a walk rides on, and a walk that
 // inherited a listing's order would skip rows. A positional cursor comes next
 // and brings document order with it. With no cursor at all, the Order field
-// decides, and its zero value is the id order every query has always had.
+// determines it, and its zero value is the id order every query has always had.
 func OrderingOf(q BlockQuery) BlockOrdering {
 	if q.AfterID != "" || q.BeforeID != "" {
 		return BlockOrdering{Backward: q.BeforeID != ""}
