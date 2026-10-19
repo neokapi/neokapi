@@ -95,10 +95,10 @@ services:
     image: ghcr.io/neokapi/bowrain-server:latest
     environment:
       BOWRAIN_DATABASE_URL: postgres://bowrain:${POSTGRES_PASSWORD:-bowrain}@postgres:5432/bowrain?sslmode=disable
-      BOWRAIN_JWT_SECRET: ${BOWRAIN_JWT_SECRET:?REQUIRED: set a strong JWT signing secret}
-      BOWRAIN_OIDC_ISSUER_URL: ${BOWRAIN_OIDC_ISSUER_URL:?REQUIRED: OIDC issuer URL}
+      BOWRAIN_JWT_SECRET: "${BOWRAIN_JWT_SECRET:?REQUIRED: set a strong JWT signing secret}"
+      BOWRAIN_OIDC_ISSUER_URL: "${BOWRAIN_OIDC_ISSUER_URL:?REQUIRED: OIDC issuer URL}"
       BOWRAIN_OIDC_CLIENT_ID: ${BOWRAIN_OIDC_CLIENT_ID:-bowrain}
-      BOWRAIN_OIDC_CLIENT_SECRET: ${BOWRAIN_OIDC_CLIENT_SECRET:?REQUIRED: OIDC client secret}
+      BOWRAIN_OIDC_CLIENT_SECRET: "${BOWRAIN_OIDC_CLIENT_SECRET:?REQUIRED: OIDC client secret}"
       # Jobs on SQS (ElasticMQ), events on Redis Streams.
       BOWRAIN_QUEUE_BACKEND: sqs
       SQS_ENDPOINT: http://elasticmq:9324
