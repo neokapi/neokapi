@@ -6,7 +6,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -48,34 +47,50 @@ func compilePattern(src string) *regexp.Regexp {
 }
 
 // MatchPatterns returns every prohibited-pattern hit in text under the profile's
-// style rules. Each rule's regex is matched as authored — no implicit case
-// folding and no implicit word boundaries, because the rule IS the regex; an
-// author who wants either writes `(?i)` or `\b`. Matches are leftmost and
-// non-overlapping within a rule and independent across rules, so two rules that
-// describe the same span each raise their own hit. A hit fails unless the rule
-// is marked advisory. A nil
-// profile, an empty regex, a regex that does not compile, and a zero-width match
-// all yield nothing.
+// style rules. Each rule's regex is matched as authored, with no implicit case
+// folding and no implicit word boundaries: an author who wants either writes
+// `(?i)` or `\b`. Matches are leftmost and non-overlapping within a rule and
+// independent across rules, so two rules that describe the same span each raise
+// their own hit. A hit fails unless the rule is marked advisory. A nil profile,
+// an empty regex, a regex that does not compile, and a zero-width match all
+// yield nothing.
 //
-// This is the single source of prohibited-pattern matching. Without it a rule
-// declared in a profile existed only as prompt prose for the LLM (RenderVoiceGuide),
-// so a pack could declare a rule and have it decide nothing.
+// A rule scoped to prose or code reads the code spans of text (check.CodeSpans).
+// Text from a block's runs goes through [MatchPatternsInRuns], which projects
+// the runs onto the same kind of text first.
 func MatchPatterns(p *VoiceProfile, text string) []PatternHit {
+	return matchPatternText(p, PlainPatternText(text))
+}
+
+// MatchPatternsInRuns returns every prohibited-pattern hit in a block's runs,
+// matched as [MatchPatterns] matches a string, against the projection
+// [RunsPatternText] makes of them. Hit offsets are byte offsets into
+// [model.RunsText] of the runs, the space model.RangeAnchorForBytes reads.
+func MatchPatternsInRuns(p *VoiceProfile, runs []model.Run) []PatternHit {
+	t := RunsPatternText(runs)
+	hits := matchPatternText(p, t)
+	for i := range hits {
+		hits[i].Start = t.RealOffset(hits[i].Start)
+		hits[i].End = t.RealOffset(hits[i].End)
+	}
+	return hits
+}
+
+// matchPatternText matches the profile's prohibited patterns against one
+// projection. Offsets in the hits index into t.Text().
+func matchPatternText(p *VoiceProfile, t PatternText) []PatternHit {
+	text := t.Text()
 	if p == nil || text == "" {
 		return nil
 	}
 	// Where code sits, computed once: a scoped rule needs it and an unscoped
 	// one does not pay for it.
 	var spans []span
-	scoped := false
 	for _, pat := range p.Style.ProhibitedPatterns {
 		if pat.Scope != "" {
-			scoped = true
+			spans = t.codeSpans()
 			break
 		}
-	}
-	if scoped {
-		spans = codeSpans(text)
 	}
 
 	var hits []PatternHit
@@ -132,7 +147,7 @@ func MatchPatterns(p *VoiceProfile, text string) []PatternHit {
 // PatternHitsToFindings maps prohibited-pattern hits onto voice findings: the
 // presentation message, the offending snippet, and the run-anchored position.
 // text is the searched string the hits index into; runs are the source runs
-// those offsets are anchored to — pass nil when matching against plain, run-less
+// those offsets are anchored to. Pass nil when matching against plain, run-less
 // text (the position is then left zero).
 func PatternHitsToFindings(hits []PatternHit, text string, runs []model.Run) []VoiceFinding {
 	if len(hits) == 0 {
@@ -153,8 +168,8 @@ func PatternHitsToFindings(hits []PatternHit, text string, runs []model.Run) []V
 		} else {
 			f.Message = fmt.Sprintf("Prohibited pattern %q matched", hit.Regex)
 		}
-		// The regex is the rule's identity — a host grouping findings by rule, or
-		// an author tracing a finding back to the line in the profile that raised
+		// The regex identifies the rule: a host grouping findings by rule, or an
+		// author tracing a finding back to the line in the profile that raised
 		// it, has nothing else to key on.
 		f.Metadata = map[string]string{"pattern": hit.Regex}
 		findings = append(findings, f)
@@ -180,9 +195,21 @@ func Findings(p *VoiceProfile, text string, runs []model.Run) []VoiceFinding {
 
 // PatternFindings applies presentation patterns and shared constraints without
 // word-rule matching, for tools that locate terms in a separate shared pass.
+//
+// With runs, the patterns read the block's projection ([MatchPatternsInRuns])
+// and text is taken to be model.RunsText(runs); without runs they read text.
 func PatternFindings(p *VoiceProfile, text string, runs []model.Run) []VoiceFinding {
-	findings := PatternHitsToFindings(MatchPatterns(p, text), text, runs)
+	findings := patternHitFindings(p, text, runs)
 	return append(findings, constraintFindings(p, text, runs)...)
+}
+
+// patternHitFindings matches the profile's prohibited patterns against runs when
+// there are any, and against text otherwise, and maps the hits onto findings.
+func patternHitFindings(p *VoiceProfile, text string, runs []model.Run) []VoiceFinding {
+	if len(runs) == 0 {
+		return PatternHitsToFindings(MatchPatterns(p, text), text, nil)
+	}
+	return PatternHitsToFindings(MatchPatternsInRuns(p, runs), model.RunsText(runs), runs)
 }
 
 // DocumentFindings is the profile's deterministic gate at DOCUMENT scope: the
@@ -192,7 +219,7 @@ func PatternFindings(p *VoiceProfile, text string, runs []model.Run) []VoiceFind
 // page does not carry the call to action, the trademark line or the safety
 // notice; the page does. Matched per block the way [Findings] matches the
 // prohibited half, a required pattern would flag essentially every block of
-// every document — so it is evaluated once, over the concatenation of a
+// every document, so it is evaluated once, over the concatenation of a
 // document's content, and the rules that found nothing are reported against the
 // document rather than against any block in it. That is why a streaming tool,
 // which sees one block at a time, cannot evaluate them and does not pretend to.
@@ -204,8 +231,8 @@ func DocumentFindings(p *VoiceProfile, text string) []VoiceFinding {
 }
 
 // UnmetRequiredPatterns returns the profile's required patterns that text does
-// not satisfy, in their declared order. Each rule's regex is matched as authored
-// — no implicit case folding and no implicit word boundaries — exactly as
+// not satisfy, in their declared order. Each rule's regex is matched as
+// authored, with no implicit case folding and no implicit word boundaries, as
 // [MatchPatterns] matches the prohibited half, so one profile's two pattern
 // lists read the same way. An empty regex declares nothing and is skipped; a
 // regex that does not compile is skipped for the same reason it is on the
@@ -245,8 +272,8 @@ func RequiredPatternFindings(unmet []Pattern) []VoiceFinding {
 		f := VoiceFinding{
 			Category: string(DimensionStyle),
 			Fails:    !pat.Advisory,
-			// The regex is the rule's identity — the only thing an author has to
-			// trace a finding back to the line in the profile that raised it.
+			// The regex identifies the rule. It is the only thing an author has
+			// to trace a finding back to the line in the profile that raised it.
 			Metadata: map[string]string{"pattern": pat.Regex},
 		}
 		if desc := strings.TrimSpace(pat.Description); desc != "" {
@@ -259,7 +286,7 @@ func RequiredPatternFindings(unmet []Pattern) []VoiceFinding {
 	return findings
 }
 
-// PatternRuleCount is how many style pattern rules a profile applies — the
+// PatternRuleCount is how many style pattern rules a profile applies: the
 // number a surface reports as the profile's pattern-rule total. Both lists count
 // because both are enforced: the prohibited patterns by [Findings] at block
 // scope, the required ones by [DocumentFindings] at document scope. Reporting a
@@ -292,16 +319,6 @@ func BlockRuleCount(p *VoiceProfile) int {
 
 // span is a half-open byte range of the text.
 type span struct{ start, end int }
-
-// codeSpans finds fenced blocks and inline code spans (check.CodeSpans).
-func codeSpans(text string) []span {
-	found := check.CodeSpans(text)
-	out := make([]span, 0, len(found))
-	for _, sp := range found {
-		out = append(out, span{sp[0], sp[1]})
-	}
-	return out
-}
 
 // headingLine reports whether the line containing pos is a Markdown heading.
 func headingLine(text string, pos int) bool {
