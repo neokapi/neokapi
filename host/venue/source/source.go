@@ -622,7 +622,7 @@ func (c *BowrainSourceConnector) PushContextChanged() bool {
 // the ones the venue last confirmed holding, as recorded in the sync cache. It
 // is the local half of the settings comparison: settings the venue confirmed
 // cost no round trip, and a recipe that changed one reaches the venue even when
-// no content moved. The venue's own answer at init decides what is sent.
+// no content moved. The venue's own answer at init determines what is sent.
 func (c *BowrainSourceConnector) pushSettingsPending() bool {
 	if c.pushContext == nil || len(c.pushContext.Settings) == 0 {
 		return false
@@ -1887,7 +1887,7 @@ func (c *BowrainSourceConnector) readBlocks(ctx context.Context, filePath, forma
 // The media it returns outlive this call — a push scans every changed file
 // before uploading any asset — so a deferred slice is materialized here rather
 // than left pointing into a document that is about to close. That is the one
-// consumer that genuinely wants the bytes; everything else on the read path
+// consumer that needs the bytes; everything else on the read path
 // keeps them in the container.
 func (c *BowrainSourceConnector) readBlocksAndMedia(ctx context.Context, filePath, formatName string) ([]*model.Block, []*model.Media, error) {
 	reader, err := c.formatReg.NewReader(registry.FormatID(formatName))
@@ -1896,8 +1896,8 @@ func (c *BowrainSourceConnector) readBlocksAndMedia(ctx context.Context, filePat
 	}
 	defer reader.Close()
 
-	// What the recipe says this file is, before anything the push wants: the
-	// extraction rules decide which of its leaves are content at all.
+	// What the recipe says this file is, before anything the push asks for: the
+	// extraction rules determine which of its leaves are content at all.
 	if err := c.configureReaderFor(reader, formatName, filePath); err != nil {
 		return nil, nil, fmt.Errorf("apply the recipe's format config for %s: %w", formatName, err)
 	}

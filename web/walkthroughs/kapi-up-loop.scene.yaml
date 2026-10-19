@@ -4,7 +4,7 @@
 #
 # The kapi-loop trust moment, end to end: preview the work (`up --plan`),
 # produce (`up` fills every target from the content memory, then parks — the ship gate
-# wants review, and review needs a person), read the worklist
+# requires review, and review needs a person), read the worklist
 # (`status --review`), watch the gate block (`check --ship`, exit 3), record
 # the decision (`apply`), and watch the same gate clear (exit 0).
 #

@@ -32,7 +32,7 @@ import (
 //     rendering for the target locale and the target OMITS it, or the concept is
 //     marked do-not-translate and the target does not keep the term verbatim.
 //     Both are decided by coretools.TermCheckViolations, the function the
-//     term-check tool itself decides with, so a translation the CLI gate passes
+//     term-check tool itself uses, so a translation the CLI gate passes
 //     is compliant here and one it fails is a violation.
 //
 // The checks are deterministic and offline — no DB or LLM call is made per block.
@@ -43,7 +43,7 @@ import (
 // blockTermCompliance is the terminology verdict for a block's committed target
 // for tgtLoc. The target is a violation when it USES a forbidden or competitor
 // term (presence) or OMITS every rendering its source concept accepts
-// (absence, decided as term-check decides it), and compliant when it was
+// (absence, determined as term-check determines it), and compliant when it was
 // checked and does neither. It is the single per-block predicate the dashboard ship-state pass,
 // the compliant-rate derivation, the review queue, the bulk approve-passing
 // endpoint, and the RV-E concept re-check oracle all call.
@@ -118,8 +118,8 @@ func targetHasForbiddenTerm(ctx context.Context, tb terms.Terminology, targetTex
 
 // targetMissingMandatedTerm reports whether the target VIOLATES terminology by
 // ABSENCE: the source uses a concept's term, and the target holds none of the
-// renderings that concept accepts for tgtLoc. It decides exactly what the
-// term-check tool decides, by deriving the rules with terms.RulesFromConcepts
+// renderings that concept accepts for tgtLoc. It determines exactly what the
+// term-check tool determines, by deriving the rules with terms.RulesFromConcepts
 // and asking coretools.TermCheckViolations, so a translation the CLI gate
 // passes is compliant here and one it fails is a violation. That includes an
 // admitted or approved term, a declared form of any rendering, an English
@@ -216,7 +216,7 @@ func newTermGate(srcLoc model.LocaleID, tb terms.Terminology, termsFP string, re
 
 // shipGateAlgorithm names the revision of the per-block ship-gate predicate.
 // It rides in every gate fingerprint, so changing what blockFailsChecks or
-// blockTermCompliance decide retires every stored verdict rather than leaving
+// blockTermCompliance determine retires every stored verdict rather than leaving
 // counters that were computed by code no longer running. Bump it whenever the
 // predicate's answer can change for unchanged content.
 const shipGateAlgorithm = "4"
@@ -428,8 +428,8 @@ func readTermSnapshot(ctx context.Context, tb terms.Store) (terms.Terminology, s
 		}
 		// Every field the predicate reads takes part, because the digest's job
 		// is to retire a stored verdict exactly when the governance behind it
-		// moved. DoNotTranslate decides whether a target must keep the term at
-		// all, and a term's declared forms decide which targets satisfy a rule,
+		// moved. DoNotTranslate determines whether a target must keep the term at
+		// all, and a term's declared forms determine which targets satisfy a rule,
 		// so a snapshot differing only in those governs differently.
 		fmt.Fprintf(h, "%s|%s|%t|", c.ID, c.Domain, c.DoNotTranslate)
 		for _, t := range c.Terms {

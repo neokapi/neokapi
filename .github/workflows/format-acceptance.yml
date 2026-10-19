@@ -65,7 +65,7 @@ jobs:
 
       - name: Install ajv-cli
         # A real `ajv` on PATH (the global bin is reliably executable) — the
-        # schema checks prefer it over `pnpm dlx`, whose cached bin can be
+        # schema checks use it in place of `pnpm dlx`, whose cached bin can be
         # non-executable on the runner ("Permission denied"). Best-effort: if it
         # fails the checks fall back to `pnpm dlx` and self-skip when unavailable.
         run: |
