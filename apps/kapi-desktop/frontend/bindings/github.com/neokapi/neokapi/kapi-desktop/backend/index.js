@@ -140,6 +140,7 @@ export {
     SaveUserFlowRequest,
     SessionState,
     SetTermStatusRequest,
+    StoreSyncResult,
     TabInfo,
     TermDTO,
     TermSearchResult,

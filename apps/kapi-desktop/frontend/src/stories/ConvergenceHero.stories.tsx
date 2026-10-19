@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { ConvergenceHero, ConvergePlanDialog } from "../components/ConvergenceHero";
+import { ConvergenceHero, ConvergePlanDialog, HeldBackDialog } from "../components/ConvergenceHero";
 import type { ConvergePlan, ConvergenceReport } from "../types/api";
 
 const meta: Meta<typeof ConvergenceHero> = {
@@ -53,8 +53,8 @@ const DRIFTED_PLAN: ConvergePlan = {
     },
     note: PLAN_NOTE,
   },
-  changedFiles: 5,
-  removedFiles: 1,
+  changedFiles: 0,
+  removedFiles: 0,
   storeMissing: false,
   versionStale: false,
 };
@@ -69,6 +69,8 @@ const DRIFTED_REPORT: ConvergenceReport = {
       pct: { translated: 72 },
       gated: true,
       shippable: false,
+      pending: [{ state: "translated", actual: 72, required: 100 }],
+      staleAwaitingReview: 3,
     },
     {
       locale: "de-DE",
@@ -77,6 +79,9 @@ const DRIFTED_REPORT: ConvergenceReport = {
       pct: { translated: 71 },
       gated: true,
       shippable: false,
+      pending: [{ state: "translated", actual: 71, required: 100 }],
+      failingChecks: 2,
+      termsNotChecked: 5,
     },
   ],
   review: [
@@ -122,7 +127,8 @@ const CONVERGED_REPORT: ConvergenceReport = {
   review: [],
 };
 
-/** Source drift + pending work: the hero leads with the summary and an armed
+/** Texts to translate, translations waiting for review and languages held
+ *  back: three counts, each leading to where it is dealt with, and an armed
  *  "Bring up to date". */
 export const Drifted: Story = {
   args: {
@@ -130,7 +136,52 @@ export const Drifted: Story = {
     convergence: DRIFTED_REPORT,
     plan: DRIFTED_PLAN,
     onBringUpToDate: () => {},
+    onOpenReview: () => {},
+    onOpenChecks: () => {},
   },
+};
+
+/** The cache is behind the files (a first open, or files changed outside the
+ *  app). The app reads them on its own; the hero says so and asks nothing. */
+export const ReadingFiles: Story = {
+  args: {
+    tabID: "storybook",
+    convergence: DRIFTED_REPORT,
+    plan: { ...DRIFTED_PLAN, storeMissing: true },
+    onBringUpToDate: () => {},
+  },
+};
+
+/** Nothing left to translate: what remains is a person's, so Bring up to date
+ *  steps back to an outline button. */
+export const WaitingForAPerson: Story = {
+  args: {
+    tabID: "storybook",
+    convergence: {
+      ...DRIFTED_REPORT,
+      locales: DRIFTED_REPORT.locales.map((l) => ({
+        ...l,
+        pending: undefined,
+        termsNotChecked: 0,
+      })),
+    },
+    plan: CONVERGED_PLAN,
+    onBringUpToDate: () => {},
+    onOpenReview: () => {},
+  },
+};
+
+/** The held-back list: each collection language and what holds it back. */
+export const HeldBack: StoryObj<typeof HeldBackDialog> = {
+  render: () => (
+    <HeldBackDialog
+      open
+      onOpenChange={() => {}}
+      scopes={DRIFTED_REPORT.locales}
+      onOpenReview={() => {}}
+      onOpenChecks={() => {}}
+    />
+  ),
 };
 
 /** Everything converged and gates green: the calm state, button disabled. */

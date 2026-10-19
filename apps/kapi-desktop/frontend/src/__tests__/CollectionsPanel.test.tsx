@@ -87,7 +87,7 @@ describe("CollectionsPanel per-collection Run (Advanced disclosure)", () => {
     );
     await waitFor(() => expect(screen.getByText("12 blocks")).toBeInTheDocument());
     // Collapsed by default: no header run picker, no per-collection Run, no
-    // batch checkboxes, no Re-extract button.
+    // batch checkboxes, no button that reads the files again.
     expect(
       screen.queryByRole("button", { name: "Run translate on all collections" }),
     ).not.toBeInTheDocument();
@@ -95,14 +95,14 @@ describe("CollectionsPanel per-collection Run (Advanced disclosure)", () => {
       screen.queryByRole("button", { name: "Run translate on Website" }),
     ).not.toBeInTheDocument();
     expect(screen.queryByRole("checkbox", { name: "Select Website" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Re-extract content" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Read every file again" })).not.toBeInTheDocument();
 
     // Opening the disclosure surfaces all of them (components kept, demoted).
     await openAdvanced();
     expect(
       await screen.findByRole("button", { name: "Run translate on all collections" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Re-extract content" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Read every file again" })).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: "Select Website" })).toBeInTheDocument();
   });
 

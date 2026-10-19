@@ -167,6 +167,7 @@
   "2822798572": "GetProjectMemoryHandle",
   "2829441104": "RecoverResource",
   "2844811376": "AgentHosts",
+  "2847086273": "SyncProjectStore",
   "2875711285": "OpenProject",
   "2892495329": "ProjectVoice",
   "2908430146": "ListProviderTypes",
