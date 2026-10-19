@@ -521,7 +521,7 @@ The render-side mirror of the above: `{obj.label}` / `{item.title}` rendered as 
 <h1>{meta.label}</h1>
 ```
 
-Fix by wrapping the _source_ data with `t()` (same as "Strings in JS data structures" above). The lint rule [`prefer-t-for-label-expr`](./linting#prefer-t-for-label-expr) flags the render site to prompt the refactor.
+Fix by wrapping the _source_ data with `t()` (same as "Strings in JS data structures" above). The [`prefer-t-for-label-expr`](./linting#prefer-t-for-label-expr) lint rule flags the render site to prompt the refactor.
 
 ### Template literal in a ternary branch
 

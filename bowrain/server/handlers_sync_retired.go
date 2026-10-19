@@ -21,7 +21,7 @@ const InstallMinPushClient = "kapi plugins install --channel beta bowrain@" + Mi
 // HandleSyncPushDiffRetired answers the push endpoint this server retired.
 //
 // The push used to send its local hashes to /push/diff and let the server
-// decide what was missing. It now fetches the tree, computes that answer
+// determine what was missing. It now fetches the tree, computes that answer
 // locally, and calls /push/init and /push/commit, so nothing serves the old
 // endpoint any more.
 //

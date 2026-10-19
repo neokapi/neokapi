@@ -13,8 +13,8 @@ import (
 	"github.com/neokapi/neokapi/host"
 )
 
-// What the record absorber pairs a committed target with decides what the loop
-// believes the project already says, because the plan and the pass read the
+// What the record absorber pairs a committed target with determines what the loop
+// takes the project to say already, because the plan and the pass read the
 // project content memory and not the target files. Two ways of getting that
 // wrong are held shut here, both whole-verb through `kapi up`:
 //

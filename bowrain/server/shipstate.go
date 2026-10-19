@@ -18,7 +18,7 @@ import (
 // stale/basis-unknown decision counts, the derived per-locale ship state
 // (store.DeriveShipState), and the compliance rate, on both the project-wide
 // locale stats and each collection rollup. It is the ONE place the server
-// decides what a locale can ship as: the dashboard, the public ship manifest
+// determines what a locale can ship as: the dashboard, the public ship manifest
 // and the workspace loop rollup all read the ShipState it stamps.
 //
 // The per-block judgement is stored, not repeated. A dashboard load asks the
@@ -91,7 +91,7 @@ func applyShipStates(ctx context.Context, cs store.ContentStore, voiceStore core
 
 	// termsGoverned and voiceGoverned are per locale: governance binds at the
 	// locale, so one answer applies to the project-wide locale and to every
-	// collection's. They decide which clean blocks can be compliant, which are
+	// collection's. They determine which clean blocks can be compliant, which are
 	// not governed, and what the compliance basis names.
 	termsGoverned := map[string]bool{}
 	voiceGoverned := map[string]bool{}

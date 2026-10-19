@@ -43,7 +43,7 @@ Two independent stacks must agree on output:
   convenient second opinion on what an Okapi filter produces.
 
 When a Go port and a bridge filter both claim to read the same format, kapi
-prefers the Go port: a daemon-backed reader is registered only where no native
+uses the Go port: a daemon-backed reader is registered only where no native
 reader exists. That preference is right for users, because native is faster, but
 it means a regression in the Go port is invisible: the bridge would have caught
 it, and the bridge never runs. The suite exists to invert that, running both

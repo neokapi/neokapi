@@ -1074,7 +1074,7 @@ func (a *App) DropContextOperation(ctx context.Context, req ContextDropRequest) 
 }
 
 // WithdrawContextOperation takes back a suggestion its author recorded. The
-// policy decides who may: the author, in the session that recorded it.
+// policy determines who may: the author, in the session that recorded it.
 func (a *App) WithdrawContextOperation(ctx context.Context, req ContextWithdrawRequest) (ContextOperation, error) {
 	s, err := a.contextOps(ctx, req.Project)
 	if err != nil {
