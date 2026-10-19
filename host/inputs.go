@@ -27,7 +27,8 @@ import (
 //     just the resolved form of the same input.
 //
 //  2. Directories are content, not errors. A directory argument expands to the
-//     regular files beneath it, skipping hidden directories and editor junk.
+//     regular files beneath it, skipping hidden directories, editor junk, and
+//     what a .gitignore or .kapiignore ignores.
 //
 //  3. No input never means "block on the terminal". With nothing to read, a
 //     command falls back to the project's tracked content set when a recipe is
@@ -71,6 +72,10 @@ type InputOptions struct {
 	// OnSkip receives arguments that could not be used (missing path, a
 	// directory under POSIX rules). Skipping is reported, never fatal.
 	OnSkip func(path string, err error)
+	// OnFound, when set, receives each resolved file that a directory or a
+	// glob expanded to and that no argument names exactly. A command can hold
+	// a file it found to a different standard than one the user named.
+	OnFound func(path string)
 }
 
 // ErrNoInput is returned when a command has nothing to read and cannot fall
@@ -191,6 +196,10 @@ func expandArgs(args []string, opts InputOptions) ([]string, error) {
 		seen[p] = struct{}{}
 		files = append(files, p)
 	}
+	// named holds the files an argument names exactly, and expanded the ones a
+	// directory or a glob selected.
+	named := map[string]bool{}
+	expanded := map[string]bool{}
 
 	for _, arg := range args {
 		if arg == StdinName {
@@ -213,7 +222,19 @@ func expandArgs(args []string, opts InputOptions) ([]string, error) {
 			continue
 		}
 		for _, m := range matches {
+			if m == arg {
+				named[m] = true
+			} else {
+				expanded[m] = true
+			}
 			add(m)
+		}
+	}
+	if opts.OnFound != nil {
+		for _, f := range files {
+			if expanded[f] && !named[f] {
+				opts.OnFound(f)
+			}
 		}
 	}
 	return files, nil
@@ -264,6 +285,15 @@ func expandGlobArg(pattern string, opts InputOptions) ([]string, error) {
 	if !wantsHidden(rel) {
 		rels = slices.DeleteFunc(rels, hasHiddenSegment)
 	}
+	// Nor does it reach what a .gitignore or .kapiignore ignores below the
+	// pattern's root, as a directory walk does not: `kapi check 'packages/**'`
+	// leaves node_modules out. A directory named before the first wildcard is
+	// read whatever the rules say.
+	rules := newWalkIgnores(root)
+	rels = slices.DeleteFunc(rels, func(r string) bool {
+		info, err := os.Stat(filepath.Join(root, filepath.FromSlash(r)))
+		return rules.ignoredBelow(root, r, err == nil && info.IsDir())
+	})
 	if len(rels) == 0 {
 		skip(opts, pattern, errors.New("no matches"))
 		return nil, nil

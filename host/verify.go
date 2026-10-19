@@ -2013,7 +2013,7 @@ func (a *App) recordAndCollectBlocks(ctx context.Context, path, fmtName string, 
 			if missing := a.missingCommentReader(path); missing != nil {
 				return nil, missing
 			}
-			return nil, fmt.Errorf("detect format for %q: %w", filepath.Base(path), err)
+			return nil, &undetectedFormatError{path: path, err: err}
 		}
 		fmtName = string(detected)
 	}
@@ -2103,7 +2103,7 @@ func (a *App) readBlocksValidated(ctx context.Context, path, fmtName string, cfg
 			if missing := a.missingCommentReader(path); missing != nil {
 				return nil, nil, missing
 			}
-			return nil, nil, fmt.Errorf("detect format for %q: %w", filepath.Base(path), err)
+			return nil, nil, &undetectedFormatError{path: path, err: err}
 		}
 		fmtName = string(detected)
 	}
