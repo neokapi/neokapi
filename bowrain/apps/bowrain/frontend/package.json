@@ -24,7 +24,7 @@
     "@neokapi/i18n-react": "*",
     "@neokapi/ui": "*",
     "@tailwindcss/vite": "^4.3.3",
-    "@tanstack/react-query": "^5.104.2",
+    "@tanstack/react-query": "^5.104.3",
     "@tanstack/react-router": "^1.170.44",
     "@wailsio/runtime": "^3.0.0-beta.29",
     "@xyflow/react": "^12.11.6",
