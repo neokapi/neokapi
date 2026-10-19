@@ -307,7 +307,14 @@ jobs:
       # sqlite3.wasm from beside kapi-cli.wasm. The pinned package is in the
       # `vp install` above; the CDN publish below carries it with the engine.
       - name: Stage SQLite wasm (browser stores)
-        run: make web-sqlite-wasm
+        # A docs branch cut before the browser stores (docs/stable) has no
+        # such target and no page that loads them.
+        run: |
+          if grep -qE '^web-sqlite-wasm:' Makefile; then
+            make web-sqlite-wasm
+          else
+            echo "::notice::this tree has no web-sqlite-wasm target; no browser stores to stage"
+          fi
 
       # On push to main: publish the freshly built wasm (kapi-cli + pdfium +
       # wasm_exec.js, versioned by commit sha) to the S3 CDN origin via the OIDC
