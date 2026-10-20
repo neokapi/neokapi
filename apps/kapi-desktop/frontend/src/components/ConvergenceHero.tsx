@@ -372,8 +372,8 @@ export function ConvergenceHero({
               <p className="text-xs text-muted-foreground">
                 {upToDate &&
                   (hasGates
-                    ? t("Every block has a translation and every gated language ships.")
-                    : t("Every block has a translation. This recipe declares no ship gates."))}
+                    ? t("Every block is translated and every gated language ships.")
+                    : t("Every block is translated. This recipe declares no ship gates."))}
                 {upToDate && hasGates && notGatedLanguages.length > 0 && (
                   <span data-slot="hero-not-gated">
                     {" "}
@@ -618,7 +618,7 @@ export function ConvergePlanDialog({
 
         {scopes.length === 0 ? (
           <p className="py-2 text-sm text-muted-foreground" data-slot="plan-empty">
-            {t("Nothing to translate: every block has a translation.")}
+            {t("Every block is translated.")}
           </p>
         ) : (
           <Table className="text-xs" data-slot="plan-table">

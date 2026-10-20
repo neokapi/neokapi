@@ -280,9 +280,7 @@ describe("ConvergePlanDialog", () => {
     render(
       <ConvergePlanDialog open onOpenChange={vi.fn()} plan={convergedPlan} onConfirm={vi.fn()} />,
     );
-    expect(
-      screen.getByText("Nothing to translate: every block has a translation."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Every block is translated.")).toBeInTheDocument();
   });
 
   it("cancel closes without launching", async () => {
