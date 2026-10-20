@@ -572,7 +572,7 @@ It returns without extracting while a run holds the project, because
 The project home reports the cache only by its effect: while it catches up,
 the hero reads "Reading the project's files…", and a failed read is shown as
 an error with its cause. Below the hero's verb, three counts separate the
-run's work from a person's: texts to translate, translations waiting for
+run's work from a person's: blocks to translate, translations waiting for
 review (which open Review), and collection languages held back, each listed
 with what withholds it (`convergence.LocaleCoverage`: a ship-gate shortfall,
 stale or rejected wording, a failing check, an unchecked term). A manual read
