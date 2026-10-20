@@ -130,7 +130,7 @@ export function applyEvent(model: ConvergenceRunModel, ev: ConvergenceEvent): Co
       });
       if (ev.extractedFiles || ev.extractedBlocks) {
         model.logs?.push(
-          `Extracted ${ev.extractedBlocks ?? 0} blocks from ${ev.extractedFiles ?? 0} files`,
+          `Read ${ev.extractedBlocks ?? 0} texts from ${ev.extractedFiles ?? 0} files`,
         );
       }
       break;

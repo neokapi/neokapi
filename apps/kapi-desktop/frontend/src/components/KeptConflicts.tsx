@@ -243,7 +243,7 @@ export function KeptConflicts({
                     )
                   : c.kind === "document"
                     ? t(
-                        "The rebase of another version of {doc} left these blocks, which the document changed too.",
+                        "The rebase of another version of {doc} left these texts, which the document changed too.",
                         { doc: c.doc },
                       )
                     : t(
@@ -382,7 +382,7 @@ export function KeptConflicts({
                   onClick={() => settle(c, "discard")}
                   data-slot="kept-conflict-discard-rest"
                 >
-                  {t("Keep the document's wording in every block left")}
+                  {t("Keep the document's wording in every text left")}
                 </Button>
               )}
               {c.kind === "document" && errors[writeKey(c)] && (
@@ -430,7 +430,7 @@ function DocumentWrite({
       </p>
       <p className="text-xs text-muted-foreground">
         {t(
-          "Rebase it to carry its changes over onto the document as it stands. A block both versions changed is then listed for you to decide. Discard it to keep the document as it stands.",
+          "Rebase it to carry its changes over onto the document as it stands. A text both versions changed is then listed for you to decide. Discard it to keep the document as it stands.",
         )}
       </p>
       <div className="flex gap-2">

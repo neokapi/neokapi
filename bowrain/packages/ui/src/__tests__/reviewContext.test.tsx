@@ -277,7 +277,7 @@ describe("the queue's neighbourhood", () => {
   it("says the unit is alone rather than drawing empty boxes for its neighbours", () => {
     reviewer({}, emptyContext());
     expect(screen.getByTestId("reviewer-neighbourhood-summary").textContent).toContain(
-      "This block stands alone in its document.",
+      "This text stands alone in its document.",
     );
     const rows = screen
       .getByTestId("reviewer-neighbourhood")
@@ -297,7 +297,7 @@ describe("the queue's empty states", () => {
       "No terms matched this block.",
     );
     expect(screen.getByTestId("reviewer-memory").textContent).toContain(
-      "No content-memory match for this block.",
+      "No content-memory match for this text.",
     );
     expect(screen.getByTestId("reviewer-provenance").textContent).toContain(
       "No decision recorded, and no provenance stamped.",
@@ -397,7 +397,7 @@ describe("the document's inspector", () => {
     inspector(emptyContext());
 
     expect(screen.getByTestId("inspector-memory").textContent).toContain(
-      "No content-memory match for this block.",
+      "No content-memory match for this text.",
     );
     expect(screen.getByTestId("inspector-provenance").textContent).toContain(
       "No decision recorded, and no provenance stamped.",

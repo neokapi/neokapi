@@ -171,7 +171,7 @@ describe("KeptConflicts", () => {
     const discard = vi.fn(async () => {});
     render(<KeptConflicts tabID="t1" conflicts={[rebasedDocumentConflict]} discard={discard} />);
     await userEvent.click(
-      screen.getByRole("button", { name: "Keep the document's wording in every block left" }),
+      screen.getByRole("button", { name: "Keep the document's wording in every text left" }),
     );
     await waitFor(() => expect(screen.queryByTestId("kept-conflicts")).not.toBeInTheDocument());
     expect(discard).toHaveBeenCalledWith("work.kpz!messages.json", "0pcn2v7k9wq1d4e8h3s5t6u0");

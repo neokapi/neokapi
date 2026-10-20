@@ -405,7 +405,7 @@ export function ReviewPage({
         setUnit(d ?? null);
       })
       .catch((err) => {
-        if (!cancelled) showError("Failed to load the block under review", err);
+        if (!cancelled) showError("Failed to load the text under review", err);
       })
       .finally(() => {
         if (!cancelled) setUnitLoading(false);
@@ -599,7 +599,7 @@ export function ReviewPage({
     setAskText({
       kind: "reject",
       title: t("Send back to draft"),
-      label: t("Why? The note travels with the block."),
+      label: t("Why? The note travels with the text."),
       placeholder: t("e.g. the tone is too formal for this surface"),
       confirm: t("Send back"),
       allowEmpty: true,
@@ -798,8 +798,8 @@ export function ReviewPage({
             t("Batch approval stopped at {key}", { key: item.key }),
             new Error(
               trips
-                ? t("The block now trips a check. Review it before approving it.")
-                : t("The block changed since the queue listed it. Review the text as it stands."),
+                ? t("The text now fails a check. Review it before approving it.")
+                : t("The text changed since the queue listed it. Review it as it stands."),
             ),
           );
           break;
@@ -1001,20 +1001,23 @@ export function ReviewPage({
                   {language ? localeLabel(language) : t("all languages")}
                   {collectionFilter ? ` · ${collectionFilter}` : ""}
                 </span>{" "}
-                · {t("{count} pending blocks", { count: preReviewPending.length })}
+                ·{" "}
+                {t("{count, plural, one {# text waiting} other {# texts waiting}}", {
+                  count: preReviewPending.length,
+                })}
               </div>
             </div>
             <p className="text-xs text-muted-foreground" data-slot="review-prereview-policy">
-              {t(
-                "The model stores a score and findings on each block; every decision stays yours.",
-              )}
+              {t("The model stores a score and findings on each text; every decision stays yours.")}
             </p>
             {preReviewResult && (
               <div
                 className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs"
                 data-slot="review-prereview-result"
               >
-                {t("{count} blocks scored", { count: preReviewResult.reviewed })}
+                {t("{count, plural, one {# text scored} other {# texts scored}}", {
+                  count: preReviewResult.reviewed,
+                })}
                 {preReviewResult.skipped ? (
                   <span className="text-muted-foreground">
                     {" "}
@@ -1108,7 +1111,7 @@ export function ReviewPage({
           <CheckCheck size={13} className="shrink-0 text-muted-foreground" />
           <span className="text-muted-foreground">
             {t(
-              "{count, plural, one {# clean block (no findings) in this view} other {# clean blocks (no findings) in this view}}",
+              "{count, plural, one {# clean text (no findings) in this view} other {# clean texts (no findings) in this view}}",
               {
                 count: cleanVisible.length,
               },
@@ -1129,7 +1132,7 @@ export function ReviewPage({
             ) : (
               <>
                 <Check size={12} />
-                {t("{count, plural, one {Approve # clean block} other {Approve # clean blocks}}", {
+                {t("{count, plural, one {Approve # clean text} other {Approve # clean texts}}", {
                   count: cleanVisible.length,
                 })}
               </>
@@ -1163,7 +1166,7 @@ export function ReviewPage({
               {(queue ?? []).length === 0
                 ? queueWarnings.length > 0
                   ? t("Nothing to review in the content this project could read.")
-                  : t("Review queue empty. Every translated block is approved.")
+                  : t("Review queue empty. Every translated text is approved.")
                 : t("Nothing matches this filter.")}
             </p>
           </CardContent>
@@ -1567,12 +1570,12 @@ export function ReviewPage({
                       loading={unitLoading}
                     />
 
-                    {/* What was approved for this block before, and the wording the
+                    {/* What was approved for this text before, and the wording the
                     content memory already holds for it. */}
                     <HistoryCard
                       history={model?.history}
                       emptyText={t(
-                        "Nothing has been approved for this block yet, and the content memory holds no close match.",
+                        "Nothing has been approved for this text yet, and the content memory holds no close match.",
                       )}
                       sourceLocale={unit?.source_locale ?? selected?.sourceLocale}
                       locale={unit?.locale ?? selected?.locale}

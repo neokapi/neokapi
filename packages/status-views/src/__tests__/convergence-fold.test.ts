@@ -158,7 +158,7 @@ describe("reduceRun", () => {
       { type: "log", message: "connector transport: pushed 2 files" },
       { type: "done", state: "converged" },
     ]);
-    expect(m.logs).toContain("Extracted 40 blocks from 2 files");
+    expect(m.logs).toContain("Read 40 texts from 2 files");
     expect(m.logs).toContain("connector transport: pushed 2 files");
   });
 

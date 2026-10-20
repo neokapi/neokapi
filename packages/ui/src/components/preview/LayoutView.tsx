@@ -57,7 +57,7 @@ function PageCanvas({
   return (
     <figure className="m-0 flex flex-col gap-1">
       <figcaption className="text-xs text-muted-foreground">
-        Page {page.page} · {page.blocks.length} block{page.blocks.length === 1 ? "" : "s"}
+        Page {page.page} · {page.blocks.length} text{page.blocks.length === 1 ? "" : "s"}
       </figcaption>
       <div
         className="relative w-full max-w-sm overflow-hidden rounded-md border bg-muted/20 shadow-sm"
@@ -156,7 +156,7 @@ export default function LayoutView({
       </div>
       {unplaced.length > 0 && (
         <p className="text-xs text-muted-foreground">
-          {unplaced.length} block{unplaced.length === 1 ? "" : "s"} without geometry (not shown on a
+          {unplaced.length} text{unplaced.length === 1 ? "" : "s"} without geometry (not shown on a
           page).
         </p>
       )}

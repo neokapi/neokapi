@@ -193,7 +193,7 @@ export default function DocumentViewer({
   // Per-structure counts for the Stats tab.
   const stats = useMemo(() => {
     const rows: { label: string; value: number }[] = [];
-    rows.push({ label: t("Blocks"), value: blocks.length });
+    rows.push({ label: t("Texts"), value: blocks.length });
     rows.push({
       label: t("Words"),
       value: blocks.reduce((sum, b) => {
@@ -285,7 +285,7 @@ export default function DocumentViewer({
           {hasGeometry && <TabsTrigger value="layout">Layout</TabsTrigger>}
           {hasMedia && <TabsTrigger value="media">Media</TabsTrigger>}
           <TabsTrigger value="blocks">
-            Blocks{" "}
+            Texts{" "}
             {blocks.length > 0 && (
               <Badge variant="ghost" className="ml-1">
                 {blocks.length}
@@ -363,10 +363,10 @@ export default function DocumentViewer({
           </TabsContent>
         )}
 
-        {/* Blocks */}
+        {/* Texts */}
         <TabsContent value="blocks" className="pt-2">
           {blocks.length === 0 ? (
-            <p className="py-3 text-sm text-muted-foreground">No translatable blocks.</p>
+            <p className="py-3 text-sm text-muted-foreground">No texts.</p>
           ) : (
             <div className="flex flex-col gap-1.5">
               {blocks.map((b) => (

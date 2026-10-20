@@ -283,7 +283,7 @@ describe("HistoryCard", () => {
   it("states its own empty case, and that unread context is not an empty memory", () => {
     const { unmount } = render(<HistoryCard history={{}} />);
     expect(slot("review-history-empty")?.textContent).toBe(
-      "No content-memory match for this block.",
+      "No content-memory match for this text.",
     );
     unmount();
     render(<HistoryCard history={{ unread: true }} />);
@@ -370,7 +370,7 @@ describe("JudgementCard", () => {
   it("says nothing was found, and carries the AI pre-review inside the card", () => {
     render(<JudgementCard findings={[]} aiScore={84} aiModel="claude" testId="checks" />);
     expect(screen.getByTestId("findings-none").textContent).toContain(
-      "No findings for this block.",
+      "No findings for this text.",
     );
     expect(screen.getByTestId("checks-summary").textContent).toContain("AI 84");
     expect(slot("review-findings")?.contains(slot("review-ai-prereview"))).toBe(true);

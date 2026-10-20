@@ -79,7 +79,7 @@ export function HistoryCard({
       summary={summary}
       dataSlot="review-history"
       testId={testId}
-      toggleLabel={t("What was approved for this block before")}
+      toggleLabel={t("What was approved for this text before")}
       defaultOpen={defaultOpen}
       className={className}
     >
@@ -133,7 +133,7 @@ export function HistoryCard({
                 className="tabular-nums"
                 data-slot="review-memory-score"
                 data-testid="memory-match-score"
-                title={t("{score}% match against the source of this block", {
+                title={t("{score}% match against the source of this text", {
                   score: match.score,
                 })}
               >
@@ -194,7 +194,7 @@ export function HistoryCard({
               ? t(
                   "This project's context files have not been read into its store yet, so nothing can be matched. `kapi store import` reads them.",
                 )
-              : (emptyText ?? t("No content-memory match for this block."))}
+              : (emptyText ?? t("No content-memory match for this text."))}
           </p>
         )}
       </div>

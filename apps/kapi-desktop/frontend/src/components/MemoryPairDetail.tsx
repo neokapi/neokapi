@@ -467,7 +467,7 @@ function WhereUsed({ entry, adapter }: { entry: MemoryEntryDTO; adapter: MemoryA
           <SimpleTooltip
             key={axis}
             content={
-              stored ? t("This answer was approved at this point") : t("Where this block sits")
+              stored ? t("This answer was approved at this point") : t("Where this text sits")
             }
           >
             <span>

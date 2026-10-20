@@ -137,7 +137,9 @@ function CollectionCard({ collection }: { collection: CollectionStatus }) {
         <header className="flex items-baseline justify-between gap-2">
           <h3 className="text-sm font-medium">{collection.name}</h3>
           {typeof collection.blockCount === "number" && (
-            <span className="text-xs text-muted-foreground">{collection.blockCount} blocks</span>
+            <span className="text-xs text-muted-foreground">
+              {t("{count, plural, one {# text} other {# texts}}", { count: collection.blockCount })}
+            </span>
           )}
         </header>
         <LocaleCoverage collection={collection} />

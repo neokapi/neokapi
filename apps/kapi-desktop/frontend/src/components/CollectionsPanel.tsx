@@ -2009,12 +2009,12 @@ export function CollectionsPanel({
                   </div>
                 ) : (
                   <div className="flex h-28 w-28 shrink-0 items-center justify-center rounded-full border border-dashed text-[10px] text-muted-foreground">
-                    {t("No blocks")}
+                    {t("No texts")}
                   </div>
                 )}
                 <ul className="space-y-1 text-xs">
                   <li className="font-medium text-foreground">
-                    {t("{count} blocks", { count: totalBlocks })}
+                    {t("{count, plural, one {# text} other {# texts}}", { count: totalBlocks })}
                   </li>
                   {cake.map((d, idx) => (
                     <li key={d.name} className="flex items-center gap-1.5">
@@ -2135,7 +2135,7 @@ export function CollectionsPanel({
                 {selectable && <span />}
                 <span>{t("Collection")}</span>
                 <span className="text-right">{t("Files")}</span>
-                <span className="text-right">{t("Blocks")}</span>
+                <span className="text-right">{t("Texts")}</span>
                 {showCoverageCols ? (
                   columnLangs.map((l) => (
                     // A matrix column is the one place a bare code is right: there

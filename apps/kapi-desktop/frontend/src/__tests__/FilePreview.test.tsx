@@ -49,7 +49,7 @@ describe("FilePreview", () => {
     // Header shows the filename and the DocumentViewer tabs render.
     expect(screen.getAllByText("locales/en.json").length).toBeGreaterThan(0);
     expect(screen.getByRole("tab", { name: /preview/i })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: /blocks/i })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /texts/i })).toBeInTheDocument();
     // The source text is rendered.
     expect(screen.getByText(/Please/)).toBeInTheDocument();
   });
@@ -124,7 +124,7 @@ describe("FilePreview at a block named by id", () => {
     );
     const row = document.querySelector('[data-slot="file-preview-focus"]') as HTMLElement;
     expect(row).toHaveTextContent("missing");
-    expect(screen.getByText("This block is not in the rendered document.")).toBeInTheDocument();
+    expect(screen.getByText("This text is not in the rendered document.")).toBeInTheDocument();
   });
 });
 

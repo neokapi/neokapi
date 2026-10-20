@@ -424,7 +424,7 @@ function ConvergeLocaleRowView({ row }: { row: ConvergenceLocaleRow }) {
       <Progress
         value={pct}
         className="h-1.5 flex-1"
-        aria-label={t("{locale}: {done} of {units} blocks", {
+        aria-label={t("{locale}: {done} of {units} texts", {
           locale: row.locale,
           done: row.done,
           units: row.units,

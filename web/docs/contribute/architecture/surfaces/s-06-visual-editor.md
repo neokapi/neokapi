@@ -113,7 +113,7 @@ highlighting.
 
 **`DocumentViewer`** composes the full surface: a header carrying the filename, a
 file-type badge, the byte size, and a download button; a source-to-target toggle
-shown only when target locales exist; and a tab strip. **Preview**, **Blocks**,
+shown only when target locales exist; and a tab strip. **Preview**, **Texts**,
 and **Stats** are always present. **Structure** appears when the tree carries
 structural roles, **Layout** when it carries page geometry
 ([E-08](../engine/e-08-document-structure-tiers.md)), **Media** when it carries a

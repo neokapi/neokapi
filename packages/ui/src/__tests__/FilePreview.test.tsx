@@ -106,7 +106,7 @@ describe("FilePreview — the shell", () => {
   it("renders the document through the viewer when given a tree", () => {
     render(<FilePreview {...base} open tree={tree} />);
     expect(screen.getByRole("tab", { name: /preview/i })).toBeTruthy();
-    expect(screen.getByRole("tab", { name: /blocks/i })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: /texts/i })).toBeTruthy();
     expect(screen.getByText(/Please utilize/)).toBeTruthy();
   });
 
@@ -237,7 +237,7 @@ describe("FilePreview — opening at one unit", () => {
 
   it("marks a unit with a state but no focus, and says so when the key is unknown", () => {
     render(<FilePreview {...base} open tree={tree} focusKey="missing" unitStates={unitStates} />);
-    expect(screen.getByText("This block is not in the rendered document.")).toBeTruthy();
+    expect(screen.getByText("This text is not in the rendered document.")).toBeTruthy();
     expect(screen.getByText("awaiting review")).toBeTruthy();
     expect(document.querySelector('[data-review-state="needs work"]')).toBeTruthy();
     expect(document.querySelector('[data-review-focus="true"]')).toBeNull();

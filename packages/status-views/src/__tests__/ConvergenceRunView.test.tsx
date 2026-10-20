@@ -105,7 +105,7 @@ describe("ConvergenceRunView — header + logs + done footer (bowrain)", () => {
       done: true,
       finalState: "parked",
       materializedFiles: 3,
-      logs: ["Extracted 128 blocks from 4 files"],
+      logs: ["Read 128 texts from 4 files"],
       passes: [
         {
           pass: 1,

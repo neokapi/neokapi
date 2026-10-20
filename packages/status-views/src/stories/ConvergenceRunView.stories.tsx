@@ -93,7 +93,7 @@ export const WithHeaderAndLogs: Story = {
       done: true,
       finalState: "parked",
       materializedFiles: 3,
-      logs: ["Extracted 128 blocks from 4 files", "Transport: streamed 2 passes"],
+      logs: ["Read 128 texts from 4 files", "Transport: streamed 2 passes"],
       passes: settledModel.passes.map((p) => ({
         ...p,
         rows: p.rows.map((r) => ({

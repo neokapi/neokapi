@@ -203,6 +203,6 @@ describe("LayoutView", () => {
       block("b2", "unplaced"),
     ]);
     const c = renderToContainer(createElement(LayoutView, { tree: t }));
-    expect(c.textContent).toContain("1 block without geometry");
+    expect(c.textContent).toContain("1 text without geometry");
   });
 });

@@ -85,7 +85,7 @@ describe("CollectionsPanel per-collection Run (Advanced disclosure)", () => {
         />
       </ErrorProvider>,
     );
-    await waitFor(() => expect(screen.getByText("12 blocks")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("12 texts")).toBeInTheDocument());
     // Collapsed by default: no header run picker, no per-collection Run, no
     // batch checkboxes, no button that reads the files again.
     expect(
@@ -170,7 +170,7 @@ describe("CollectionsPanel per-collection Run (Advanced disclosure)", () => {
     );
     await openAdvanced();
     // The card renders (block badge), but its per-collection Run is absent.
-    await waitFor(() => expect(screen.getByText("12 blocks")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("12 texts")).toBeInTheDocument());
     expect(
       screen.queryByRole("button", { name: "Run translate on Website" }),
     ).not.toBeInTheDocument();
@@ -222,7 +222,7 @@ describe("CollectionsPanel per-collection Run (Advanced disclosure)", () => {
         />
       </ErrorProvider>,
     );
-    await waitFor(() => expect(screen.getByText("12 blocks")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("12 texts")).toBeInTheDocument());
     expect(screen.queryByText(/produced by an earlier version of kapi/)).not.toBeInTheDocument();
   });
 });
