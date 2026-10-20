@@ -159,11 +159,9 @@ export function ProjectStanding({
             {status?.hasData ? (
               <>
                 <Fact>
-                  {t(
-                    "{count, plural, one {# text} other {# texts}}",
-                    "the project's translatable texts",
-                    { count: blocks },
-                  )}
+                  {t("{count, plural, one {# block} other {# blocks}}", "the project's blocks", {
+                    count: blocks,
+                  })}
                 </Fact>
                 <Fact muted>·</Fact>
                 <Fact muted>{t("{count} collection(s)", { count: collections })}</Fact>

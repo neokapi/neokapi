@@ -102,7 +102,7 @@ describe("ConvergenceHero", () => {
     );
     expect(screen.getByText("Translations are missing")).toBeInTheDocument();
     const counts = document.querySelector('[data-slot="hero-counts"]') as HTMLElement;
-    expect(counts).toHaveTextContent("21texts to translate");
+    expect(counts).toHaveTextContent("21blocks to translate");
     expect(counts).toHaveTextContent("2waiting for review");
     expect(counts).toHaveTextContent("1language held back");
 
@@ -281,7 +281,7 @@ describe("ConvergePlanDialog", () => {
       <ConvergePlanDialog open onOpenChange={vi.fn()} plan={convergedPlan} onConfirm={vi.fn()} />,
     );
     expect(
-      screen.getByText("Nothing to translate: every text has a translation."),
+      screen.getByText("Nothing to translate: every block has a translation."),
     ).toBeInTheDocument();
   });
 

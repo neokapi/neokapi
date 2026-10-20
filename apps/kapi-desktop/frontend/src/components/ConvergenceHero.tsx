@@ -245,7 +245,7 @@ export function ConvergenceHero({
   // Reading the files: the cache is behind them and a sync is on its way or
   // under way. A sync that failed is reported below instead.
   const reading = loaded && cachePending && sync.error == null;
-  // Whether a run has work: texts to draft, a failed run to repeat, or a
+  // Whether a run has work: blocks to draft, a failed run to repeat, or a
   // held-back scope the run itself can clear (a redraft, a term check, a gate
   // short of drafted coverage). Otherwise the remaining work is a person's and
   // the run is not the primary action.
@@ -266,8 +266,8 @@ export function ConvergenceHero({
       id: "to-translate",
       value: planned,
       label: t(
-        "{count, plural, one {text to translate} other {texts to translate}}",
-        "a count on the project home: texts the run drafts",
+        "{count, plural, one {block to translate} other {blocks to translate}}",
+        "a count on the project home: blocks the run drafts",
         { count: planned },
       ),
       tone: planned > 0 ? "default" : "muted",
@@ -372,8 +372,8 @@ export function ConvergenceHero({
               <p className="text-xs text-muted-foreground">
                 {upToDate &&
                   (hasGates
-                    ? t("Every text has a translation and every gated language ships.")
-                    : t("Every text has a translation. This recipe declares no ship gates."))}
+                    ? t("Every block has a translation and every gated language ships.")
+                    : t("Every block has a translation. This recipe declares no ship gates."))}
                 {upToDate && hasGates && notGatedLanguages.length > 0 && (
                   <span data-slot="hero-not-gated">
                     {" "}
@@ -618,7 +618,7 @@ export function ConvergePlanDialog({
 
         {scopes.length === 0 ? (
           <p className="py-2 text-sm text-muted-foreground" data-slot="plan-empty">
-            {t("Nothing to translate: every text has a translation.")}
+            {t("Nothing to translate: every block has a translation.")}
           </p>
         ) : (
           <Table className="text-xs" data-slot="plan-table">

@@ -47,8 +47,8 @@ describe("HomePage merged collection surface", () => {
     );
     // The collection appears in the cake legend and its own row.
     expect(screen.getAllByText("ui-strings").length).toBeGreaterThan(0);
-    // The cake legend shows the total block count.
-    expect(screen.getByText("100 blocks")).toBeInTheDocument();
+    // The project line and the cake legend both show the total block count.
+    expect(screen.getAllByText("100 blocks")).toHaveLength(2);
     // Per-language coverage (fr 100%, de 50%) shows in the strip + the aligned
     // per-language columns (2 languages ⇒ Option A bar columns).
     expect(screen.getAllByText("100%").length).toBeGreaterThan(0);
