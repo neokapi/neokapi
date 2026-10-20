@@ -138,12 +138,15 @@ function Row({
   locale,
   sourceLocale,
   columns,
+  nested,
   ctx,
 }: {
   row: KeyedRow;
   locale?: string;
   sourceLocale?: string;
   columns: number;
+  /** Under a group heading: the key is inset so it reads as a child of the heading. */
+  nested: boolean;
   ctx: Pick<KeyedTableProps, "onSelectBlock" | "selectedBlockId" | "blockAttrs" | "highlights">;
 }): React.ReactElement {
   const highlights = ctx.highlights?.[row.id];
@@ -162,7 +165,7 @@ function Row({
     <tr {...rest} className={className} data-key-path={row.key}>
       <th
         scope="row"
-        className="w-[1%] max-w-[18rem] truncate border-b border-border py-1.5 pr-4 pl-2 text-left align-top font-mono text-[11px] font-normal text-muted-foreground"
+        className={`w-[1%] max-w-[18rem] truncate border-b border-border py-1.5 pr-4 ${nested ? "pl-5" : "pl-2"} text-left align-top font-mono text-[11px] font-normal text-muted-foreground`}
         title={row.key}
       >
         <bdi dir="ltr">{row.leaf}</bdi>
@@ -194,14 +197,12 @@ function Row({
 /** A group's heading row and everything under it, deepest groups last. */
 function Group({
   group,
-  depth,
   columns,
   locale,
   sourceLocale,
   ctx,
 }: {
   group: KeyGroup;
-  depth: number;
   columns: number;
   locale?: string;
   sourceLocale?: string;
@@ -215,8 +216,7 @@ function Group({
           <th
             scope="colgroup"
             colSpan={columns}
-            className="border-b border-border bg-muted/40 py-1 pr-2 text-left align-middle font-mono text-[11px] font-medium text-foreground"
-            style={{ paddingInlineStart: `${0.5 + depth * 0.85}rem` }}
+            className="border-b border-border bg-muted/40 py-1 pr-2 pl-2 text-left align-middle font-mono text-[11px] font-medium text-foreground"
           >
             <bdi dir="ltr">{group.path.join(" › ")}</bdi>
           </th>
@@ -229,6 +229,7 @@ function Group({
           locale={locale}
           sourceLocale={sourceLocale}
           columns={columns}
+          nested={heading}
           ctx={ctx}
         />
       ))}
@@ -236,7 +237,6 @@ function Group({
         <Group
           key={child.path.join(".")}
           group={child}
-          depth={depth + 1}
           columns={columns}
           locale={locale}
           sourceLocale={sourceLocale}
@@ -302,7 +302,6 @@ export default function KeyedTable({
         <tbody>
           <Group
             group={root}
-            depth={0}
             columns={columns}
             {...(locale ? { locale } : {})}
             {...(sourceLocale ? { sourceLocale } : {})}
