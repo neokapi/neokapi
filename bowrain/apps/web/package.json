@@ -23,8 +23,8 @@
     "@sentry/react": "^11.1.0",
     "@tailwindcss/vite": "^4.3.3",
     "posthog-js": "^1.438.9",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
