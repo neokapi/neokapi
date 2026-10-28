@@ -4,7 +4,7 @@ go 1.27.1
 
 require (
 	github.com/charmbracelet/huh v1.0.0
-	github.com/leonelquinteros/gotext v1.7.2
+	github.com/leonelquinteros/gotext v1.8.0
 	github.com/mattn/go-isatty v0.0.24
 	github.com/modelcontextprotocol/go-sdk v1.8.0
 	github.com/neokapi/neokapi v0.0.0
