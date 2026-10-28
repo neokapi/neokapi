@@ -18,10 +18,10 @@
     "@neokapi/docs-shared": "*",
     "@neokapi/ui": "*",
     "@tailwindcss/vite": "^4.3.3",
-    "keycloakify": "^11.16.0",
-    "lucide-react": "^1.56.0",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0",
+    "keycloakify": "^11.16.4",
+    "lucide-react": "^1.61.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "tailwindcss": "^4.3.3"
   },
   "devDependencies": {

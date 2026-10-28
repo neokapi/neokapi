@@ -55,7 +55,7 @@ runs:
       env:
         VP_LEGACY_INSTALLER_URL: ${{ runner.os == 'Windows' && 'https://raw.githubusercontent.com/voidzero-dev/vite-plus/ae0ec12d06181bad1549b98ef3aac70c970c3556/packages/cli/install-legacy.ps1' || 'https://raw.githubusercontent.com/voidzero-dev/vite-plus/ae0ec12d06181bad1549b98ef3aac70c970c3556/packages/cli/install-legacy.sh' }}
       with:
-        version: "1.3.0"
+        version: "1.4.0"
         node-version: ${{ inputs.node-version }}
         cache: true
         cache-dependency-path: pnpm-lock.yaml
@@ -74,7 +74,7 @@ runs:
       env:
         VP_LEGACY_INSTALLER_URL: ${{ runner.os == 'Windows' && 'https://raw.githubusercontent.com/voidzero-dev/vite-plus/ae0ec12d06181bad1549b98ef3aac70c970c3556/packages/cli/install-legacy.ps1' || 'https://raw.githubusercontent.com/voidzero-dev/vite-plus/ae0ec12d06181bad1549b98ef3aac70c970c3556/packages/cli/install-legacy.sh' }}
       with:
-        version: "1.3.0"
+        version: "1.4.0"
         node-version: ${{ inputs.node-version }}
         cache: true
         cache-dependency-path: pnpm-lock.yaml

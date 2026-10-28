@@ -4,8 +4,8 @@
     "postinstall": "node -e \"const f='scripts/postinstall-build-i18n-react.mjs';if(require('fs').existsSync(f))require('child_process').execFileSync(process.execPath,[f],{stdio:'inherit'})\""
   },
   "devDependencies": {
-    "jsdom": "^30.1.0",
-    "storybook": "^10.6.1",
+    "jsdom": "^30.1.3",
+    "storybook": "^10.6.3",
     "vite": "catalog:",
     "vite-plus": "catalog:"
   },
