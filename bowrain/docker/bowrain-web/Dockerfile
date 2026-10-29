@@ -12,7 +12,9 @@ ENV CI=true
 
 # Install vite-plus (vp) which the package build scripts call into, and enable
 # corepack so the pinned pnpm version is available.
-RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
+# libatomic1: the Node runtime the vite-plus installer downloads links it, and
+# node:24-slim does not ship it.
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates libatomic1 \
     && curl -fsSL https://viteplus.dev/install.sh | bash \
     # Copy through the installer's own symlink rather than a path inside it.
     # ~/.local/share/vite-plus/bin/vp points at current/bin/vp, and current/
