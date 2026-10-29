@@ -41,8 +41,8 @@ entry.
 :::warning WinGet is behind the current release
 
 WinGet still publishes kapi 1.0.2, so this command installs a build far older
-than the current release. Signed Windows builds for 1.2.0 are in the direct
-downloads below. Check `kapi version` after installing.
+than the current release. Signed Windows builds of the current release are in
+the direct downloads below. Check `kapi version` after installing.
 
 Homebrew tracks the current build on macOS and Linux.
 
