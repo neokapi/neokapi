@@ -22,8 +22,8 @@ func fakeDesktop(goos string, installed ...string) host.DesktopEnv {
 		have[p] = true
 	}
 	env := map[string]string{
-		"HOME":         "/home/ana",
-		"LOCALAPPDATA": `C:\Users\ana\AppData\Local`,
+		"HOME":         "/fake-home",
+		"LOCALAPPDATA": `D:\AppData\Local`,
 		"ProgramFiles": `C:\Program Files`,
 	}
 	return host.DesktopEnv{
@@ -68,16 +68,16 @@ func TestOpenCmd_DryRunPrintsTheCommandForEachSystem(t *testing.T) {
 	}{
 		{name: "macOS, a project", env: fakeDesktop("darwin", "/Applications/Kapi.app"), path: project,
 			want: "open -a /Applications/Kapi.app " + recipe + "\n", wantStart: []string{"open", "-a", "/Applications/Kapi.app", recipe}},
-		{name: "macOS, an app in the home folder", env: fakeDesktop("darwin", "/home/ana/Applications/Kapi.app"), path: folder,
-			want: "open -a /home/ana/Applications/Kapi.app " + folder + "\n"},
+		{name: "macOS, an app in the home folder", env: fakeDesktop("darwin", "/fake-home/Applications/Kapi.app"), path: folder,
+			want: "open -a /fake-home/Applications/Kapi.app " + folder + "\n"},
 		{name: "macOS, the recipe itself", env: fakeDesktop("darwin", "/Applications/Kapi.app"), path: recipe,
 			want: "open -a /Applications/Kapi.app " + recipe + "\n"},
-		{name: "Linux", env: fakeDesktop("linux", "/home/ana/.local/bin/Kapi"), path: folder,
-			want: "/home/ana/.local/bin/Kapi " + folder + "\n", wantStart: []string{"/home/ana/.local/bin/Kapi", folder}},
+		{name: "Linux", env: fakeDesktop("linux", "/fake-home/.local/bin/Kapi"), path: folder,
+			want: "/fake-home/.local/bin/Kapi " + folder + "\n", wantStart: []string{"/fake-home/.local/bin/Kapi", folder}},
 		{name: "Linux, /opt", env: fakeDesktop("linux", "/opt/Kapi/Kapi"), path: folder,
 			want: "/opt/Kapi/Kapi " + folder + "\n"},
-		{name: "Windows, a per-user install", env: fakeDesktop("windows", `C:\Users\ana\AppData\Local\Programs\Kapi\Kapi.exe`), path: folder,
-			want: `C:\Users\ana\AppData\Local\Programs\Kapi\Kapi.exe ` + folder + "\n"},
+		{name: "Windows, a per-user install", env: fakeDesktop("windows", `D:\AppData\Local\Programs\Kapi\Kapi.exe`), path: folder,
+			want: `D:\AppData\Local\Programs\Kapi\Kapi.exe ` + folder + "\n"},
 		{name: "Windows, a machine install", env: fakeDesktop("windows", `C:\Program Files\Kapi\Kapi.exe`), path: folder,
 			want: `'C:\Program Files\Kapi\Kapi.exe' ` + folder + "\n", wantStart: []string{`C:\Program Files\Kapi\Kapi.exe`, folder}},
 	} {
