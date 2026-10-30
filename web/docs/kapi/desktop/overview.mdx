@@ -2,7 +2,7 @@
 sidebar_position: 1
 title: Kapi Desktop overview
 description: "Kapi Desktop is where you read what your projects write by and decide about what your assistants noticed. It also shows where each project's context lives and who else reads it."
-keywords: [Kapi, desktop app, context, what's new, suggestion, keep, assistant, history, reset, share, sync, voice profile, terms, content memory, checks]
+keywords: [Kapi, desktop app, context, map, decide, what's new, suggestion, keep, assistant, history, reset, share, sync, voice profile, terms, content memory, checks]
 ---
 
 # Kapi Desktop
@@ -37,8 +37,8 @@ not decided, newest first. From left to right, a row shows:
 - the project, and how long ago the assistant worked there;
 - a chip for each kind of thing it noticed, such as "3 names" and "1 word",
   and a highlighted "1 needs you" when two suggestions disagree;
-- **Review**, or **Decide** when something needs you, which opens the project
-  on its own What's new.
+- **Review**, or **Decide** when something needs you, which opens the
+  project on Decide.
 
 While an assistant is working in a project, the row adds a chip with a live
 dot, such as "claude-code is working". `j` and `k` move between rows, and Enter
@@ -89,13 +89,48 @@ and flows that need no project are in the **Toolbox**, in the sidebar.
 **History**, a link beside the title, opens everything recorded in the
 workspace as its own view. See [History, and going back](#history-and-going-back).
 
-A project opens as a tab, on its **Context** hub, and the tabs you had last
+A project opens as a tab, on its [Map](#the-map), and the tabs you had last
 time come back where you left them.
 
-## What's new, and the three verbs
+## The Map
 
-A project's Context hub opens on **What's new for Acme Help Center** (the name
-is the project's own), followed by the line "Since you last looked". What
+A project opens on its **Map**. Under the project's name, one line says when
+kapi last read the files, such as "Read 2 minutes ago". When kapi read fewer
+files than the project has, the line names how many it read. Then come four
+counts, each a link to what it counts:
+
+- **files**, the content files the recipe's collections declare;
+- **blocks**, the blocks kapi read from those files, which open Ask;
+- **rules**, the rules in force: the terms, the voice profile's rules and the
+  notes you kept, which open Explore;
+- **findings**, what the last check over every file reported, which open the
+  findings file by file. It is the one highlighted count, and only while it is
+  above zero.
+
+**What your files do** lists what your assistants suggested and nobody has
+decided yet, one row each: a mark for its kind, the suggestion, the sentence it
+was seen in, and how many blocks and files the evidence names. **Decide** on a
+row opens Decide on that suggestion. The **Decide** button at the top carries
+the count of everything waiting and opens Decide on the first item. When
+disagreements wait as well, **kapi suggests** beside the counts gives the
+suggestions alone. With nothing to decide, the list says "No suggestions yet.
+Connect an assistant."
+
+**Files** has one row for each content file: its format, its name, its blocks
+and its findings, the files with the most findings first. **Open** previews the
+file. A project with no content files says "No content files yet" and offers
+**Add files**.
+
+**Run on everything** runs the checks over every file, in the project's target
+languages, and refreshes the counts. The Map runs them once on its own the first
+time a project opens in a session, and kapi reads the files again whenever they
+change.
+
+## Decide, and the three verbs
+
+**Decide** is the first section of the project's **Context** hub, and the
+Map's Decide buttons open it. It opens with the line "Since you last looked".
+What
 needs you comes first: two suggestions that disagree about one word. The
 suggestions follow, grouped by theme, such as names and spellings, words to
 avoid, and how the project writes. Each shows its evidence: the file, the
@@ -122,14 +157,14 @@ Two more settle the cases the verbs do not:
 The keys: `j` and `k` move, `a` keeps, `c` changes, `d` drops, and `o` opens
 Ask at the file the evidence came from.
 
-What's new reads as news. The next time you open it, what is new since then
+Decide reads as news. The next time you open it, what is new since then
 sits on top and what you saw before sits below it. A suggestion you leave alone
 keeps advising, so there is nothing to clear. With nothing recorded yet, the
 section ends with a link to the Assistant section: "Connect an assistant to
 start."
 
-Deciding needs a readable checkout of the project on this machine. The caption
-under the section reads "The same as `kapi context review`".
+Deciding needs a readable checkout of the project on this machine. The chip
+at the right of the section bar reads `kapi context review`.
 
 ## Ask
 
@@ -252,14 +287,14 @@ the same on the command line.
 **Try the sample** on Start here opens KapiMart, a sample store whose website,
 app, legal and marketing copy come with a voice profile, terms, a content
 memory and five target languages. It arrives with two
-assistant sessions already recorded against its files, so What's new has
-something to review on first open.
+assistant sessions already recorded against its files, so its Map lists
+something to decide on first open.
 
 In the first session, claude-code noticed how the store spells its own name, a
 word the copy uses in place of another, a spelling it keeps to, and how the
 store copy addresses the shopper. It also recorded a correction a person made
 to its draft. In the later session, codex took the other side of that
-correction, so What's new opens with one disagreement under what needs you.
+correction, so Decide opens with one disagreement under what needs you.
 
 Every piece of evidence quotes a sentence in the sample's files, so `o` opens
 the file at it. You can keep, change, drop and choose, see the kept rule in the
@@ -303,8 +338,10 @@ kapi reads.
 
 ### Checks
 
-Checks are the tests for prose. A finding names the rule that fired and where
-it applies, and clicking it opens Context there, with the rule in view. From
+Checks are the tests for prose. **Run on everything** on the Map runs them, and
+the Map's findings count opens what they found. A finding names the rule that
+fired and where it applies, and clicking it opens Context there, with the rule
+in view. From
 there you change the wording or change the rule.
 
 ### Flows

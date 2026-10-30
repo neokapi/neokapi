@@ -57,12 +57,14 @@ and use the demo engine.
    **Project Settings**; the **Context** hub then shows what applies to any file.
 4. **Bring it up to date.** **Bring up to date** runs the project's default flow
    until every gated scope is shippable or waits for review by a person, the desktop form
-   of `kapi up`. For a source-only project that means the checks. Anything a
+   of `kapi up`. For a source-only project that means the checks, and the
+   findings count on the project's **Map** shows what they found. Anything a
    machine cannot decide lands in the **Review** queue; see
    [Review & approve](/kapi/recipes/review-and-approve).
-5. **Come back to What's new.** What an assistant noticed while it worked
-   appears under **What's new**, on the home and in the project's **Context**
-   hub. Keep what is right and change or drop the rest; [review what your
+5. **Come back to Decide.** What an assistant noticed while it worked
+   appears under **What's new** on the home and under **What your files do**
+   on the project's **Map**. **Decide** opens the list of suggestions. Keep
+   what is right and change or drop the rest; [review what your
    assistant noticed](/kapi/desktop/recipes/review-what-your-assistant-noticed)
    walks through it on the sample.
 
@@ -228,9 +230,9 @@ kapi context review --keep 0n791c0w3d
   written to the project's terms store
 ```
 
-In Kapi Desktop the same list is **What's new**, in a project's **Context**
-hub, with **Keep**, **Change** and **Drop** on each suggestion and the evidence
-beside it.
+In Kapi Desktop the same list is **Decide**, in a project's **Context** hub
+and reached from the project's **Map**, with **Keep**, **Change** and **Drop**
+on each suggestion and the evidence beside it.
 
 ## 4. What keeping does
 

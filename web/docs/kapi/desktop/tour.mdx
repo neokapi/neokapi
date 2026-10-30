@@ -3,7 +3,7 @@ sidebar_position: 2
 title: A guided tour
 sidebar_label: A guided tour
 description: "A walk through Kapi Desktop's surfaces: what your assistants noticed and what you decide, what an assistant reads, where the context is shared, and then the project's files, checks, flows and the multilingual half."
-keywords: [Kapi, desktop app, tour, context, what's new, assistant, share, voice profile, terms, content memory, collections, checks, review]
+keywords: [Kapi, desktop app, tour, context, map, decide, what's new, assistant, share, voice profile, terms, content memory, collections, checks, review]
 ---
 
 import { ThemedVideo } from "@neokapi/docs-shared";
@@ -15,15 +15,23 @@ what your assistants noticed. This tour walks each surface in the order the
 app presents them, the context first and the files after. For what the app is
 and how to install it, see the [overview](/kapi/desktop/overview).
 
-## What's new
+## The Map and Decide
 
 The app opens on **Your context**: counts for the projects, the rules in force,
 the terms, the suggestions advising and what needs you, then **What's new**,
 with a row for each project where an assistant noticed something since you last
 looked. A row carries the assistant's mark and a chip for each kind of thing it
-noticed. **Review** on a row opens the project on its own What's new.
+noticed. **Review** on a row opens the project on **Decide**.
 
-There, a list holds one line per item, and the pane beside it shows the item
+A project otherwise opens on its **Map**: when kapi last read the files, four
+counts (files, blocks, rules and findings), **What your files do** with one row
+for each suggestion waiting for you, and **Files** with one row for each
+content file, the files with the most findings first. **Run on everything**
+checks every file and refreshes the counts, and the findings count opens what
+the checks found. **Decide** on a suggestion's row, or at the top of the Map,
+opens Decide.
+
+In Decide, a list holds one line per item, and the pane beside it shows the item
 you select: the sentence it was seen in, the file, and the assistant that
 noticed it. **Needs you** comes first, with two suggestions that disagree
 about one word. **Suggested**, **Established** and, when content moves away
@@ -186,7 +194,8 @@ leaving every other byte as it was.
 
 ## Checks
 
-Checks are tests for prose, and the panel reads like a test report. A finding
+Checks are tests for prose. **Run on everything** on the Map runs them, and the
+Map's findings count opens the findings, which read like a test report. A finding
 names the rule that fired and where it applies, and clicking it opens Context
 there with the rule in view.
 
