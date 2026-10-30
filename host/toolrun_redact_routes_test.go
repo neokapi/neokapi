@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -62,11 +63,7 @@ func requireNoCallHolds(t *testing.T, calls []string) {
 
 func demoTool(a *App, name string, config map[string]any, target string) func() (tool.Tool, error) {
 	return func() (tool.Tool, error) {
-		cfg := make(map[string]any, len(config))
-		for k, v := range config {
-			cfg[k] = v
-		}
-		return a.ToolReg.NewToolWithConfig(registry.ToolID(name), cfg, target)
+		return a.ToolReg.NewToolWithConfig(registry.ToolID(name), maps.Clone(config), target)
 	}
 }
 
