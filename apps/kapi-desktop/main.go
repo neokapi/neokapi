@@ -6,7 +6,6 @@ import (
 	"os"
 	"runtime"
 	"strings"
-	"sync/atomic"
 
 	// Blank-import the venue schema package so a recipe carrying its extension
 	// keys validates in the desktop app: the project-level `bowrain`, `hooks`,
@@ -32,27 +31,27 @@ var appIcon []byte
 func main() {
 	appService := backend.NewApp()
 
-	// openFromOutside opens a project path handed to the app from outside
-	// it; it is set once the window exists, and a second launch can reach it
-	// from another goroutine before then.
-	var openFromOutside atomic.Pointer[func(path string)]
+	// outside opens a project path handed to the app from outside it. A
+	// second launch can forward one before the window exists; it waits there
+	// until the window can show it.
+	outside := &backend.OutsideOpener{}
 
 	// On Linux and Windows a folder reaches the app as its first argument,
 	// which Wails dispatches only for a registered file extension. The
 	// argument is read here, and a second launch forwards its own to the
 	// window already open. macOS hands the path over as an opened file and
-	// keeps one instance itself.
+	// keeps one instance itself; a Linux session with no D-Bus session bus
+	// starts without the lock.
 	var singleInstance *application.SingleInstanceOptions
-	if runtime.GOOS != "darwin" {
+	if backend.SingleInstanceAvailable(runtime.GOOS, os.Getenv) {
 		singleInstance = &application.SingleInstanceOptions{
 			UniqueID: backend.SingleInstanceID(),
 			OnSecondInstanceLaunch: func(data application.SecondInstanceData) {
-				open := openFromOutside.Load()
-				if len(data.Args) < 2 || open == nil {
+				if len(data.Args) < 2 {
 					return
 				}
 				if path := backend.LaunchPath(data.Args[1:], data.WorkingDir); path != "" {
-					(*open)(path)
+					outside.Open(path)
 				}
 			},
 		}
@@ -140,7 +139,7 @@ func main() {
 			app.Event.Emit("open-project-tab", tab)
 		}()
 	}
-	openFromOutside.Store(&openOutside)
+	outside.SetOpen(openOutside)
 
 	// Handle project paths delivered by the OS: `open -a Kapi <folder>`, which
 	// `kapi open` runs, or a recipe dropped on the dock icon. Recipes are

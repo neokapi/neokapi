@@ -2,6 +2,7 @@ package backend
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -47,8 +48,82 @@ func TestLaunchPath(t *testing.T) {
 // short digest of the executable's path.
 func TestSingleInstanceID(t *testing.T) {
 	id := SingleInstanceID()
-	assert.True(t, strings.HasPrefix(id, bundleID+"."), id)
+	assert.True(t, strings.HasPrefix(id, bundleID+".x"), id)
 	assert.Equal(t, id, SingleInstanceID(), "one executable, one id")
+
+	// On Linux the id is a D-Bus name, and Wails refuses one whose element
+	// is empty, starts with a digit or holds anything but letters, digits,
+	// underscores and hyphens. Every path below, among them the ones whose
+	// digest starts with a digit, gives a name it accepts, and no two share
+	// one.
+	seen := map[string]string{}
+	digitFirst := 0
+	defer func() {
+		assert.Positive(t, digitFirst, "some path's digest starts with a digit, the case the leading letter is for")
+	}()
+	for _, exe := range []string{
+		"/opt/Kapi/Kapi", "/usr/local/bin/Kapi", "/usr/bin/Kapi",
+		"/srv/kapi/bin/Kapi", `C:\Program Files\Kapi\Kapi.exe`,
+		"/Applications/Kapi.app/Contents/MacOS/Kapi", "bin/KapiDesktop",
+	} {
+		id := singleInstanceIDFor(exe)
+		if digest := strings.TrimPrefix(id, bundleID+".x"); digest[0] >= '0' && digest[0] <= '9' {
+			digitFirst++
+		}
+		require.NoError(t, dbusNameError(id), "%s gives %s", exe, id)
+		assert.NotContains(t, seen, id, "%s and %s share an id", exe, seen[id])
+		seen[id] = exe
+	}
+}
+
+// dbusNameError applies the element rules Wails v3 checks a Linux
+// single-instance id against before it claims the name on the session bus.
+func dbusNameError(id string) error {
+	for _, element := range strings.Split(id, ".") {
+		if element == "" {
+			return fmt.Errorf("empty element")
+		}
+		if element[0] >= '0' && element[0] <= '9' {
+			return fmt.Errorf("element %q starts with a digit", element)
+		}
+		for _, r := range element {
+			if r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '_' || r == '-' {
+				continue
+			}
+			return fmt.Errorf("element %q holds %q", element, r)
+		}
+	}
+	return nil
+}
+
+// TestSingleInstanceAvailable: macOS keeps one instance itself, Linux takes
+// the lock only with a session bus, Windows always takes it.
+func TestSingleInstanceAvailable(t *testing.T) {
+	bus := func(k string) string {
+		if k == "DBUS_SESSION_BUS_ADDRESS" {
+			return "unix:path=/run/user/1000/bus"
+		}
+		return ""
+	}
+	none := func(string) string { return "" }
+	assert.False(t, SingleInstanceAvailable("darwin", bus))
+	assert.True(t, SingleInstanceAvailable("linux", bus))
+	assert.False(t, SingleInstanceAvailable("linux", none), "a Linux session with no bus starts without the lock")
+	assert.True(t, SingleInstanceAvailable("windows", none))
+}
+
+// TestOutsideOpener: a path that arrives before the window can open it
+// waits, and opens, in order, once it can; later paths open at once.
+func TestOutsideOpener(t *testing.T) {
+	var o OutsideOpener
+	var opened []string
+	o.Open("/early/one")
+	o.Open("/early/two")
+	assert.Empty(t, opened)
+	o.SetOpen(func(path string) { opened = append(opened, path) })
+	assert.Equal(t, []string{"/early/one", "/early/two"}, opened)
+	o.Open("/later")
+	assert.Equal(t, []string{"/early/one", "/early/two", "/later"}, opened)
 }
 
 // TestShareWritesWhatTheShareSectionWrites: `kapi share --via folder` and the

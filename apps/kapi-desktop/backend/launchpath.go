@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/neokapi/neokapi/core/project"
 )
@@ -60,9 +61,63 @@ func SingleInstanceID() string {
 	if err != nil {
 		return bundleID
 	}
+	return singleInstanceIDFor(exe)
+}
+
+// singleInstanceIDFor is the id for the executable at exe. On Linux the id is
+// a D-Bus name, whose elements may not start with a digit, so the digest's
+// element starts with a letter.
+func singleInstanceIDFor(exe string) string {
 	sum := sha256.Sum256([]byte(exe))
-	return bundleID + "." + hex.EncodeToString(sum[:6])
+	return bundleID + ".x" + hex.EncodeToString(sum[:6])
+}
+
+// SingleInstanceAvailable reports whether this session can hold the
+// single-instance lock. On Linux the lock is a name on the D-Bus session bus,
+// and a session with no bus (a bare X session, a container) starts without it.
+func SingleInstanceAvailable(goos string, getenv func(string) string) bool {
+	switch goos {
+	case "darwin":
+		return false
+	case "linux":
+		return getenv("DBUS_SESSION_BUS_ADDRESS") != ""
+	}
+	return true
 }
 
 // bundleID is the app's bundle identifier (build/config.yml).
 const bundleID = "io.github.neokapi.kapi-desktop"
+
+// OutsideOpener hands project paths from outside the app to the function that
+// opens them. A second launch can forward its path before the window exists;
+// that path waits here and opens once the window can show it.
+type OutsideOpener struct {
+	mu      sync.Mutex
+	open    func(path string)
+	pending []string
+}
+
+// Open opens path, or keeps it until SetOpen names how.
+func (o *OutsideOpener) Open(path string) {
+	o.mu.Lock()
+	open := o.open
+	if open == nil {
+		o.pending = append(o.pending, path)
+	}
+	o.mu.Unlock()
+	if open != nil {
+		open(path)
+	}
+}
+
+// SetOpen names how a path opens, and opens the paths that arrived before.
+func (o *OutsideOpener) SetOpen(open func(path string)) {
+	o.mu.Lock()
+	o.open = open
+	pending := o.pending
+	o.pending = nil
+	o.mu.Unlock()
+	for _, path := range pending {
+		open(path)
+	}
+}
