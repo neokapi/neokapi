@@ -44,7 +44,9 @@ the person made.
   nothing about it, not even a note describing the forms. Leave alone
   interface labels, wording taken from your task, anything seen once, and a
   name you introduced yourself; `--seen-in` names a file that was there before
-  you started.
+  you started. `kapi context suggest` puts those words in front of the person:
+  it files each one, with its counts, as a suggestion noticed by kapi, without
+  an AI model.
 
   Everything recorded is a **suggestion**: every check reports it, and no check
   can fail on it until a person's signal backs it. A note holds only where
