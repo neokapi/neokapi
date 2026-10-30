@@ -100,10 +100,7 @@ func TestEditOfOneBlockLeavesEveryOtherByte(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			require.Equal(t, 1, strings.Count(tc.doc, tc.from), "the bytes to change are one span of the document")
-			got := applyOneEdit(t, tc.file, tc.doc, tc.pick, change.TextEdit{
-				Selection: change.Selection{Find: &tc.find, Occurrence: tc.occurrence},
-				Text:      tc.with,
-			})
+			got := applyOneEdit(t, tc.file, tc.doc, tc.pick, change.TextEdit{Find: &tc.find, Occurrence: tc.occurrence, Text: tc.with})
 			want := strings.Replace(tc.doc, tc.from, tc.to, 1)
 			if tc.expectFail != "" {
 				assert.NotEqual(t, want, got, "listed as failing (%s), and passes: remove the entry", tc.expectFail)

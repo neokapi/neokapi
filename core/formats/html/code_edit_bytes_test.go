@@ -84,7 +84,7 @@ func replaceWord(find, with string) func(b *model.Block) change.Op {
 	return func(b *model.Block) change.Op {
 		f := find
 		return change.Op{Kind: change.KindReplaceText, At: change.Ref{Doc: "d", Block: b.ID}, IfMatch: model.EditionRevision(b, model.EditionKey{}),
-			Body: &change.ReplaceText{Edits: []change.TextEdit{{Selection: change.Selection{Find: &f}, Text: with}}}}
+			Body: &change.ReplaceText{Edits: []change.TextEdit{{Find: &f, Text: with}}}}
 	}
 }
 
