@@ -15,10 +15,9 @@ import (
 // refused as ambiguous with the rest of the change set.
 const MetaSpelled = "spelled"
 
-// Fix is the change operation that applies a finding's replacement to the
-// edition it was raised on. It is a replace_text of the finding's words with
-// Metadata["replacement"], guarded by rev, the revision the check read. at
-// names the edition, and runs are its runs as the check read them.
+// Fix is the replace_text that applies a finding's replacement
+// (Metadata["replacement"]) to the edition at names, guarded by rev, the
+// revision the check read. runs are the edition's runs as the check read them.
 //
 // The finding's run range names the words when at is the block's own edition.
 // Otherwise the quoted text does, which the change service refuses as

@@ -241,9 +241,9 @@ func TestCheck_ATermAReferenceSpellsAnEdgeOfGetsNoFix(t *testing.T) {
 }
 
 // When the word a reference spells an edge of is also written plainly in the
-// block, the plain use gets its fix by position and the spelled one none, so
-// no fix looks the word up by its text and is refused as ambiguous with the
-// rest of the change set.
+// block, the plain use gets its fix by position and the spelled one none. No
+// fix looks the word up by its text, which the change service would refuse
+// as ambiguous with the rest of the change set.
 func TestCheck_ASpelledTermBesideItsPlainUse(t *testing.T) {
 	const src = "<html><head><title>Guide</title></head>\n<body>\n<p>Meet at the caf&eacute;, not the café.</p>\n</body></html>\n"
 	assertSpelledEdgeFixes(t, src, map[string]int{"café": 1}, map[string]int{"café": 1},

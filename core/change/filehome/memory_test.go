@@ -65,11 +65,10 @@ func TestFileHome_ALargeEditThatAddsASlashAndAnAccentStaysInBoundedMemory(t *tes
 }
 
 // assertLargeEditBounded sets the content of the message at key in a
-// 100,000-message catalog to text through the service, asserts the heap the
-// edit takes stays under ceiling, the most heap it may take above what was
-// live before it (a buffered round trip of this catalog takes several times
-// the file), and that the file holds want and
-// every other message.
+// 100,000-message catalog to text through the service. The heap the edit takes
+// above what was live before it must stay under ceiling; a buffered round trip
+// of this catalog takes several times the file. The file must then hold want
+// and every other message.
 func assertLargeEditBounded(t *testing.T, key, text, want string, ceiling uint64) {
 	t.Helper()
 	if testing.Short() {
