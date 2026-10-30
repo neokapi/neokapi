@@ -93,7 +93,9 @@ func (p *DemoProvider) Chat(ctx context.Context, messages []Message) (*ChatRespo
 // numbered prompt and translating each segment. The voice inference
 // schema (emitted by voice-infer) is honoured by deterministic surface
 // heuristics over the corpus embedded in the prompt — a generative onboarding
-// draft, clearly marked as illustrative. All other schemas get a neutral,
+// draft, clearly marked as illustrative. The terminology schema (emitted by
+// term-extract) lists the capitalised names in the text, each marked as
+// illustrative in its definition. All other schemas get a neutral,
 // schema-valid response (empty arrays / zero values) so that the `qa` and
 // voice-check tools run without fabricating findings.
 func (p *DemoProvider) ChatStructured(ctx context.Context, messages []Message, schema JSONSchema) (*ChatResponse, error) {
@@ -106,6 +108,8 @@ func (p *DemoProvider) ChatStructured(ctx context.Context, messages []Message, s
 		content = demoBatchTranslations(userTurn, demoTargetLocale(ctx), demoTerms(ctx))
 	case "brand_voice_inference":
 		content = demoVoiceInference(userTurn)
+	case "terminology_extraction":
+		content = demoTermExtraction(userTurn)
 	default:
 		content = neutralSchemaJSON(schema)
 	}
@@ -647,6 +651,76 @@ func demoVoiceInference(userTurn string) string {
 		return "{}"
 	}
 	return string(b)
+}
+
+// demoTermTextMarker opens the text a term-extract prompt asks about, after the
+// instruction.
+const demoTermTextMarker = "\n\nText: "
+
+// demoNameRe matches a run of capitalised words: "Harbor Help", "Kapi".
+var demoNameRe = regexp.MustCompile(`\b[A-Z][\p{L}0-9]+(?:[ ][A-Z][\p{L}0-9]+)*\b`)
+
+// demoTermExtraction lists the names in the text of a term-extract prompt, in
+// the terminology_extraction schema: every run of two or more capitalised
+// words, and every single capitalised word that does not open a sentence or a
+// line, in the order the text first writes them. Each definition carries the
+// demo marker.
+func demoTermExtraction(userTurn string) string {
+	text := userTurn
+	if _, after, ok := strings.Cut(userTurn, demoTermTextMarker); ok {
+		text = after
+	}
+	type entry struct {
+		Term       string `json:"term"`
+		Definition string `json:"definition"`
+		Domain     string `json:"domain"`
+	}
+	out := struct {
+		Terms []entry `json:"terms"`
+	}{Terms: []entry{}}
+	seen := map[string]bool{}
+	for _, loc := range demoNameRe.FindAllStringIndex(text, -1) {
+		start := loc[0]
+		name := text[start:loc[1]]
+		// A run that opens with an ordinary word ("The Kapi") names what
+		// follows it.
+		for {
+			first, rest, ok := strings.Cut(name, " ")
+			if !ok || !demoCapStopwords[first] {
+				break
+			}
+			start += len(first) + 1
+			name = rest
+		}
+		if !strings.Contains(name, " ") && (demoCapStopwords[name] || demoOpensSentence(text[:start])) {
+			continue
+		}
+		if seen[name] {
+			continue
+		}
+		seen[name] = true
+		out.Terms = append(out.Terms, entry{Term: name, Definition: "⟦demo⟧ a capitalised name in the text"})
+	}
+	b, err := json.Marshal(out)
+	if err != nil {
+		return `{"terms":[]}`
+	}
+	return string(b)
+}
+
+// demoOpensSentence reports whether a word after this text opens a sentence or
+// a line: nothing but white space or markup since the last full stop, question
+// mark, exclamation mark or line break.
+func demoOpensSentence(before string) bool {
+	trimmed := strings.TrimRight(before, " \t#*->")
+	if trimmed == "" {
+		return true
+	}
+	switch trimmed[len(trimmed)-1] {
+	case '.', '!', '?', '\n', ':':
+		return true
+	}
+	return false
 }
 
 // demoChatReply translates the trailing text of a translation-style prompt, or
