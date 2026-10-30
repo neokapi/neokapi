@@ -211,8 +211,8 @@ func TestTermsExportJSON(t *testing.T) {
 // TestTermCheckWithTerms exercises terminology checks on a pseudo-translated
 // file. Steps: pseudo-translate → term-check with terms.
 // The pseudo-translated output does not use the approved French terms, so
-// term-check reports the violations. `kapi exec` reports and exits 0; the gate
-// that exits non-zero is `kapi check`.
+// term-check reports the violations. `kapi exec` reports findings and exits 0;
+// the gate that exits non-zero on a finding is `kapi check`.
 func TestTermCheckWithTerms(t *testing.T) {
 	tb := importedTerms(t)
 	tmp := t.TempDir()
@@ -237,11 +237,15 @@ func TestTermCheckWithTerms(t *testing.T) {
 		"--termstore", tb)
 	assert.Contains(t, out, "term-check.terminology", "the pseudo text keeps none of the approved terms")
 
-	// The translation alone holds no source to compare: the run says so.
-	alone := kapi(t, "exec", "term-check", pseudoOut,
+	// The translation alone holds no source to compare: the run says so, and
+	// exits 4, as a `kapi check` that checked no content does.
+	alone, err := kapiAllowFail(t, "exec", "term-check", pseudoOut,
 		"--source-lang", "en",
 		"--target-lang", "fr",
 		"--termstore", tb)
+	var exit *exec.ExitError
+	require.ErrorAs(t, err, &exit, alone)
+	assert.Equal(t, 4, exit.ExitCode(), alone)
 	assert.Contains(t, alone, "Did not run")
 	assert.Contains(t, alone, "--target")
 }
