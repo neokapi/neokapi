@@ -15,7 +15,9 @@ export interface ToneProfile {
 export interface Pattern {
   regex: string;
   description: string;
-  /** A match reports without failing a check. A pattern rule fails unless marked advisory. */
+  /** A match fails a check. Unset, a match reports. */
+  fails?: boolean;
+  /** A match reports whatever `fails` says. */
   advisory?: boolean;
 }
 

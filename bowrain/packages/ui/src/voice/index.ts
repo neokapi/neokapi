@@ -14,6 +14,8 @@ export { ToneSpectrumSelector } from "./ToneSpectrumSelector";
 export { PersonalityTagPicker } from "./PersonalityTagPicker";
 export { VoicePreview } from "./VoicePreview";
 export { PatternListEditor } from "./PatternListEditor";
+export { patternOutcome, withPatternOutcome } from "./patternOutcome";
+export type { PatternOutcome } from "./patternOutcome";
 export { ExamplesEditor } from "./ExamplesEditor";
 export { PersonasEditor } from "./PersonasEditor";
 export { CandidateReview } from "./CandidateReview";

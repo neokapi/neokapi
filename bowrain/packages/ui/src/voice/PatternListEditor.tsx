@@ -10,6 +10,7 @@ import {
 } from "@neokapi/ui-primitives";
 import { useCallback } from "react";
 import type { Pattern } from "./types";
+import { patternOutcome, withPatternOutcome } from "./patternOutcome";
 import { Plus, Trash2 } from "../components/icons";
 
 interface PatternListEditorProps {
@@ -68,8 +69,10 @@ export function PatternListEditor({ label, patterns, onChange }: PatternListEdit
             }
           />
           <Select
-            value={pat.advisory ? "reports" : "fails"}
-            onValueChange={(v: string) => updatePattern(i, "advisory", v === "reports")}
+            value={patternOutcome(pat)}
+            onValueChange={(v: string) =>
+              onChange(patterns.map((p, j) => (j === i ? withPatternOutcome(p, v) : p)))
+            }
           >
             <SelectTrigger className="w-28" aria-label="When it matches">
               <SelectValue />

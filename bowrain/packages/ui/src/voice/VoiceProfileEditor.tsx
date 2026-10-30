@@ -20,6 +20,7 @@ import type { VoiceProfile, ToneProfile, StyleRules, Pattern, VoiceExample } fro
 import { Plus, Trash2, ArrowLeft, X } from "../components/icons";
 import { DEFAULT_MIN_SCORE } from "./complianceBar";
 import { MIN_SCORE_HELP, minScoreFieldValue, parseMinScore } from "./minScore";
+import { patternOutcome, withPatternOutcome } from "./patternOutcome";
 
 interface VoiceProfileEditorProps {
   profile?: VoiceProfile;
@@ -93,6 +94,17 @@ export function VoiceProfileEditor({ profile, onSave, onCancel }: VoiceProfileEd
       setStyle((prev) => {
         const list = [...(prev[category] ?? [])];
         list[index] = { ...list[index], [field]: value };
+        return { ...prev, [category]: list };
+      });
+    },
+    [],
+  );
+
+  const setPatternOutcome = useCallback(
+    (category: "prohibited_patterns" | "required_patterns", index: number, outcome: string) => {
+      setStyle((prev) => {
+        const list = [...(prev[category] ?? [])];
+        list[index] = withPatternOutcome(list[index], outcome);
         return { ...prev, [category]: list };
       });
     },
@@ -383,10 +395,8 @@ export function VoiceProfileEditor({ profile, onSave, onCancel }: VoiceProfileEd
                     }
                   />
                   <Select
-                    value={pat.advisory ? "reports" : "fails"}
-                    onValueChange={(v: string) =>
-                      updatePattern("prohibited_patterns", i, "advisory", v === "reports")
-                    }
+                    value={patternOutcome(pat)}
+                    onValueChange={(v: string) => setPatternOutcome("prohibited_patterns", i, v)}
                   >
                     <SelectTrigger className="w-28">
                       <SelectValue />
@@ -433,10 +443,8 @@ export function VoiceProfileEditor({ profile, onSave, onCancel }: VoiceProfileEd
                     }
                   />
                   <Select
-                    value={pat.advisory ? "reports" : "fails"}
-                    onValueChange={(v: string) =>
-                      updatePattern("required_patterns", i, "advisory", v === "reports")
-                    }
+                    value={patternOutcome(pat)}
+                    onValueChange={(v: string) => setPatternOutcome("required_patterns", i, v)}
                   >
                     <SelectTrigger className="w-28">
                       <SelectValue />
