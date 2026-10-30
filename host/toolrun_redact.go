@@ -18,16 +18,10 @@ import (
 
 // A run of one registry tool (`kapi exec <tool>`, and the MCP tools that run
 // one registry tool over a text) applies the redaction policy its project
-// declares, as a flow does. When the tool calls a provider, redact runs ahead
-// of it and unredact after it: the provider reads the placeholders, and the
-// output carries the originals again. The originals ride on the blocks between
-// the two steps, as they do in the secure-translate flow, so the run writes
-// none of them to disk.
-//
-// The tools a run applies are held to the rule every flow is held to
-// (FlowDefinition.CheckRedactionCoverage, then CheckPlacement), built from the
-// tools the run applies, so a run that left the redact step out fails the same
-// check a flow without one fails.
+// declares. When the tool calls a provider, redact runs ahead of it and
+// unredact after it, so the provider reads placeholders and the output carries
+// the originals. Between the two steps the originals ride on the blocks, as in
+// the secure-translate flow, and the run writes none of them to disk.
 
 // toolRedaction is the redaction policy one run of a tool applies.
 type toolRedaction struct {
@@ -118,9 +112,11 @@ func (a *App) chainFor(pol toolRunPolicy, toolName string, config map[string]any
 	return c, nil
 }
 
-// checkChainCoverage holds a run's chain to the rule a flow is held to: under
-// a declared policy, a tool that sends source to a remote provider runs only
-// after a redact step.
+// checkChainCoverage holds a run's chain to the rule a flow is held to
+// (FlowDefinition.CheckRedactionCoverage, then CheckPlacement): under a
+// declared policy, a tool that sends source to a remote provider runs only
+// after a redact step. The definition it checks is built from the tools the
+// run applies, so a run that left the redact step out fails here.
 func (a *App) checkChainCoverage(toolName string, config map[string]any, c toolChain, declared bool) error {
 	if !declared {
 		return nil
