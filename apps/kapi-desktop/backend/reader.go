@@ -300,7 +300,7 @@ func (a *App) readerRead(tabID, relPath string) (*readerRead, error) {
 	if rel == "." || rel == "" || strings.HasPrefix(rel, "../") || path.IsAbs(rel) {
 		return nil, fmt.Errorf("%q is not a file in the project", relPath)
 	}
-	rf, err := a.readerSource(op, rel)
+	rf, err := a.readerSource(tabID, op, rel)
 	if err != nil {
 		return nil, err
 	}
@@ -348,9 +348,10 @@ func (a *App) readerRead(tabID, relPath string) (*readerRead, error) {
 }
 
 // readerSource finds the content file rel names among the files the recipe
-// declares. A translation the project keeps is refused by name, since a fix
-// written to it would land in a file the next run regenerates.
-func (a *App) readerSource(op *openProject, rel string) (project.ResolvedFile, error) {
+// declares. A translation the recipe keeps is refused by name: the Reader
+// reads and fixes the source, and the context answer for the file names the
+// source it is an edition of, as `kapi context <path>` does.
+func (a *App) readerSource(tabID string, op *openProject, rel string) (project.ResolvedFile, error) {
 	pctx := project.NewProjectContext(op.Project, op.Path)
 	resolved, err := pctx.ResolveContent(a.formatReg)
 	if err != nil {
@@ -361,25 +362,11 @@ func (a *App) readerSource(op *openProject, rel string) (project.ResolvedFile, e
 			return rf, nil
 		}
 	}
-	root := filepath.Dir(op.Path)
-	abs := filepath.Join(root, filepath.FromSlash(rel))
-	for _, rf := range resolved {
-		for _, lang := range readerTargetLanguages(op.Project, rf) {
-			if target := a.resolveTargetPath(rf, op, lang); target != "" && filepath.Clean(target) == abs {
-				return project.ResolvedFile{}, fmt.Errorf("%s is the %s translation of %s: the Reader reads and fixes the source", rel, lang, filepath.ToSlash(rf.Relative))
-			}
-		}
+	if ans, aerr := a.ContextAt(tabID, rel, 1); aerr == nil && ans.EditionOf != nil {
+		return project.ResolvedFile{}, fmt.Errorf("%s is the %s translation of %s: the Reader reads and fixes the source",
+			rel, ans.EditionOf.Edition, ans.EditionOf.Source)
 	}
 	return project.ResolvedFile{}, fmt.Errorf("%s is not one of the project's content files", rel)
-}
-
-// readerTargetLanguages are the languages a resolved file is translated into:
-// its item's own, or else the project's.
-func readerTargetLanguages(proj *project.KapiProject, rf project.ResolvedFile) []string {
-	if rf.Item != nil && len(rf.Item.TargetLanguages) > 0 {
-		return localeStrings(rf.Item.TargetLanguages)
-	}
-	return localeStrings(proj.Defaults.TargetLanguages)
 }
 
 // place sets each finding on the block it names, in the order the run
