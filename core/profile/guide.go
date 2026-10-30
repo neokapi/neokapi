@@ -121,13 +121,13 @@ func styleLines(p *VoiceProfile) []string {
 	if len(p.Style.ProhibitedPatterns) > 0 {
 		lines = append(lines, "- Prohibited patterns:")
 		for _, pat := range p.Style.ProhibitedPatterns {
-			lines = append(lines, "  - "+patternHint(pat)+advisoryHint(pat.Advisory))
+			lines = append(lines, "  - "+patternHint(pat)+outcomeHint(pat))
 		}
 	}
 	if len(p.Style.RequiredPatterns) > 0 {
 		lines = append(lines, "- Required in the document:")
 		for _, pat := range p.Style.RequiredPatterns {
-			lines = append(lines, "  - "+patternHint(pat)+advisoryHint(pat.Advisory))
+			lines = append(lines, "  - "+patternHint(pat)+outcomeHint(pat))
 		}
 	}
 	lines = append(lines, commentLimitLines(p)...)
@@ -592,10 +592,11 @@ func termBans(p *VoiceProfile) []string {
 	return bans
 }
 
-// advisoryHint marks a rule that reports without failing a check.
-func advisoryHint(advisory bool) string {
-	if advisory {
-		return " (advisory)"
+// outcomeHint says what a match of a pattern rule does in a check: it fails
+// a check when the rule is marked failing, and otherwise it reports.
+func outcomeHint(pat Pattern) string {
+	if pat.Failing() {
+		return "; fails a check"
 	}
-	return ""
+	return "; reports"
 }

@@ -52,9 +52,9 @@ func compilePattern(src string) *regexp.Regexp {
 // folding and no implicit word boundaries: an author who wants either writes
 // `(?i)` or `\b`. Matches are leftmost and non-overlapping within a rule and
 // independent across rules, so two rules that describe the same span each raise
-// their own hit. A hit fails unless the rule is marked advisory. A nil profile,
-// an empty regex, a regex that does not compile, and a zero-width match all
-// yield nothing.
+// their own hit. A hit fails only when its rule is marked failing
+// (Pattern.Failing), and otherwise reports. A nil profile, an empty regex, a
+// regex that does not compile, and a zero-width match all yield nothing.
 //
 // A rule scoped to prose or code reads the code spans of text (check.CodeSpans).
 // Text from a block's runs goes through [MatchPatternsInRuns], which projects
@@ -132,7 +132,7 @@ func matchPatternText(p *VoiceProfile, t PatternText) []PatternHit {
 			}
 			found = append(found, PatternHit{
 				Category:    DimensionStyle,
-				Fails:       !pat.Advisory,
+				Fails:       pat.Failing(),
 				Regex:       pat.Regex,
 				Description: pat.Description,
 				Start:       m[0],
@@ -269,7 +269,8 @@ func UnmetRequiredPatterns(p *VoiceProfile, text string) []Pattern {
 // RequiredPatternFindings maps unsatisfied required patterns onto voice
 // findings. A required pattern's violation is an absence, so a finding carries
 // no snippet and no position: there is no text to point at, which is the whole
-// complaint. A finding fails unless the rule is marked advisory.
+// complaint. A finding fails only when its rule is marked failing
+// (Pattern.Failing).
 func RequiredPatternFindings(unmet []Pattern) []VoiceFinding {
 	if len(unmet) == 0 {
 		return nil
@@ -278,7 +279,7 @@ func RequiredPatternFindings(unmet []Pattern) []VoiceFinding {
 	for _, pat := range unmet {
 		f := VoiceFinding{
 			Category: string(DimensionStyle),
-			Fails:    !pat.Advisory,
+			Fails:    pat.Failing(),
 			// The regex identifies the rule. It is the only thing an author has
 			// to trace a finding back to the line in the profile that raised it.
 			Metadata: map[string]string{"pattern": pat.Regex},

@@ -312,11 +312,10 @@ func mapInferResult(res inferLLMResult, opts InferOptions) (*profile.VoiceProfil
 			continue
 		}
 		draft.Style.ProhibitedPatterns = append(draft.Style.ProhibitedPatterns, profile.Pattern{
+			// Every drafted pattern reports, whatever severity the model rates
+			// it: a person marks a pattern `fails: true` to make it fail.
 			Regex:       p.Regex,
 			Description: p.Description,
-			// A pattern the model rates minor is drafted as advisory, so it
-			// reports until a person makes it fail.
-			Advisory: p.Severity == "minor",
 		})
 	}
 	for _, ex := range res.Examples {

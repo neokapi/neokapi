@@ -111,9 +111,20 @@ func walkKeys(node *yaml.Node, t reflect.Type, path string, found *[]ProfileProb
 			switch {
 			case ok:
 				walkKeys(value, field, joinKey(path, key.Value), found)
+			case !open && key.Value == "severity" && fieldsHas(fields, "fails") && fieldsHas(fields, "advisory"):
+				// A pattern rule reports unless it is marked failing, so a
+				// severity reads as a setting and decides nothing. Name the key
+				// that does.
+				*found = append(*found, ProfileProblem{
+					Code:  CodeUnknownKey,
+					Field: joinKey(path, key.Value),
+					Message: fmt.Sprintf("key \"severity\" (line %d) is ignored: a pattern rule reports unless it says "+
+						"`fails: true`, which makes it fail a check", key.Line),
+					Warning: true,
+				})
 			case !open && key.Value == "severity" && fieldsHas(fields, "advisory"):
-				// A rule fails unless it is advisory, so a severity reads as a
-				// setting and decides nothing. Name the key that does.
+				// A term rule fails unless it is advisory, so a severity reads
+				// as a setting and decides nothing. Name the key that does.
 				*found = append(*found, ProfileProblem{
 					Code:  CodeUnknownKey,
 					Field: joinKey(path, key.Value),
