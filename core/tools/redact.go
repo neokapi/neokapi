@@ -289,44 +289,53 @@ func (t *RedactTool) transform(v tool.BlockView) (tool.EditPlan, error) {
 		return tool.EditPlan{}, nil
 	}
 	var plan tool.EditPlan
-	newRuns, records, edits, err := t.redactRuns(v, v.SourceRuns(), v.SourceText(), v.SourceLocale(), true, t.opts)
+	newRuns, records, edits, err := t.redactRuns(v, v.SourceRuns(), v.SourceLocale(), true, t.opts)
 	if err != nil {
 		return tool.EditPlan{}, err
 	}
 	if len(records) > 0 {
 		plan.NewRuns, plan.Edits = newRuns, edits
-		plan.Secrets = appendSecrets(plan.Secrets, records)
+		plan.Secrets = appendSecrets(plan.Secrets, records, "")
 	}
 	if t.cfg.WholeBlock {
 		for _, locale := range v.TargetLocales() {
 			// A token of its own per locale, so a target's originals never
 			// share a key with the source's on the block.
 			opts := t.opts
-			if opts.TokenPrefix == "" {
-				opts.TokenPrefix = redaction.DefaultTokenPrefix
-			}
-			opts.TokenPrefix += string(locale) + "-"
-			runs := v.TargetRuns(locale)
-			tr, recs, _, err := t.redactRuns(v, runs, model.RunsText(runs), locale, false, opts)
+			opts.TokenPrefix = tokenPrefix(opts) + string(locale) + "-"
+			tr, recs, _, err := t.redactRuns(v, v.TargetRuns(locale), locale, false, opts)
 			if err != nil {
 				return tool.EditPlan{}, err
 			}
 			if len(recs) > 0 {
 				plan.SetTarget(locale, tr)
-				plan.Secrets = appendSecrets(plan.Secrets, recs)
+				plan.Secrets = appendSecrets(plan.Secrets, recs, locale)
 			}
 		}
 	}
 	return plan, nil
 }
 
-// redactRuns detects the sensitive spans in one side of a block and returns
-// the redacted runs with what they withheld. Entity overlays anchor to the
-// source, so they drive the source side only.
-func (t *RedactTool) redactRuns(v tool.BlockView, runs []model.Run, text string, locale model.LocaleID, source bool, opts redaction.RedactOptions) ([]model.Run, []redaction.Redacted, []model.RunEdit, error) {
+func tokenPrefix(opts redaction.RedactOptions) string {
+	if opts.TokenPrefix == "" {
+		return redaction.DefaultTokenPrefix
+	}
+	return opts.TokenPrefix
+}
+
+// redactRuns detects the sensitive spans in one run sequence and returns the
+// redacted runs with what they withheld, and the edits that map the old text
+// to the new. Detection reads the sequence's own text runs, the coordinates
+// redaction.Redact carves in, and each plural form and select case is
+// redacted the same way under a token prefix of its own. A sequence holding a
+// plural or a select reports one edit over its whole text, since the text of
+// a form has no position in the sequence's own. Entity overlays anchor to the
+// source's own text, so they drive the top of the source only.
+func (t *RedactTool) redactRuns(v tool.BlockView, runs []model.Run, locale model.LocaleID, source bool, opts redaction.RedactOptions) ([]model.Run, []redaction.Redacted, []model.RunEdit, error) {
 	if len(runs) == 0 {
 		return nil, nil, nil, nil
 	}
+	text := redaction.TextOf(runs)
 	var matches []redaction.Match
 	if t.rules != nil {
 		ms, err := t.rules.Detect(v.Context(), text, locale)
@@ -339,16 +348,65 @@ func (t *RedactTool) redactRuns(v tool.BlockView, runs []model.Run, text string,
 		matches = append(matches, t.entityMatches(v, text)...)
 	}
 	matches = redaction.NormalizeMatches(matches)
-	if len(matches) == 0 {
+	out, records, edits := runs, []redaction.Redacted(nil), []model.RunEdit(nil)
+	if len(matches) > 0 {
+		out, records, edits = redaction.Redact(runs, matches, opts)
+	}
+	if !model.HasStructuredRuns(out) {
+		if len(records) == 0 {
+			return nil, nil, nil, nil
+		}
+		return out, records, edits, nil
+	}
+	tree := slices.Clone(out)
+	for i, r := range tree {
+		prefix := fmt.Sprintf("%s%d.", tokenPrefix(opts), i)
+		switch {
+		case r.Plural != nil:
+			forms := make(map[model.PluralForm][]model.Run, len(r.Plural.Forms))
+			for form, fr := range r.Plural.Forms {
+				fopts := opts
+				fopts.TokenPrefix = prefix + string(form) + "-"
+				nr, recs, _, err := t.redactRuns(v, fr, locale, false, fopts)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				if len(recs) == 0 {
+					nr = fr
+				}
+				forms[form] = nr
+				records = append(records, recs...)
+			}
+			tree[i] = model.Run{Plural: &model.PluralRun{Pivot: r.Plural.Pivot, Forms: forms}}
+		case r.Select != nil:
+			cases := make(map[string][]model.Run, len(r.Select.Cases))
+			for key, cr := range r.Select.Cases {
+				copts := opts
+				copts.TokenPrefix = prefix + key + "-"
+				nr, recs, _, err := t.redactRuns(v, cr, locale, false, copts)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				if len(recs) == 0 {
+					nr = cr
+				}
+				cases[key] = nr
+				records = append(records, recs...)
+			}
+			tree[i] = model.Run{Select: &model.SelectRun{Pivot: r.Select.Pivot, Cases: cases}}
+		}
+	}
+	if len(records) == 0 {
 		return nil, nil, nil, nil
 	}
-	newRuns, records, edits := redaction.Redact(runs, matches, opts)
-	return newRuns, records, edits, nil
+	return tree, records, tool.FullSpanEdit(runs, tree), nil
 }
 
-func appendSecrets(secrets []tool.Secret, records []redaction.Redacted) []tool.Secret {
+// appendSecrets adds the originals redaction withheld from one edition:
+// locale names the target, empty for the source.
+func appendSecrets(secrets []tool.Secret, records []redaction.Redacted, locale model.LocaleID) []tool.Secret {
 	for _, r := range records {
-		secrets = append(secrets, tool.Secret{Token: r.Token, Category: r.Category, Disp: r.Disp, Original: r.Original})
+		secrets = append(secrets, tool.Secret{Token: r.Token, Category: r.Category, Disp: r.Disp, Original: r.Original, Locale: locale})
 	}
 	return secrets
 }
@@ -356,16 +414,22 @@ func appendSecrets(secrets []tool.Secret, records []redaction.Redacted) []tool.S
 // vaultSecrets is the applier's secret sink: it persists the recovery records
 // to the sidecar vault in external mode, or to an in-process SecretAnnotation
 // on the block otherwise. The annotation is the on-block recovery record a
-// later unredact reads to restore originals. The applier calls it before the
-// rewrite lands, so a vault failure aborts the transform fail-closed.
+// later unredact reads to restore originals, with each edition as redact read
+// it, so unredact can put an edition nothing changed back as it was. The
+// applier calls it before the rewrite lands, so a vault failure aborts the
+// transform fail-closed.
 func (t *RedactTool) vaultSecrets(v tool.BlockView, secrets []tool.Secret) error {
 	toValue := func(s tool.Secret) redaction.RedactedValue {
+		locale := s.Locale
+		if locale.IsEmpty() {
+			locale = v.SourceLocale()
+		}
 		return redaction.RedactedValue{
 			Token:    s.Token,
 			Category: s.Category,
 			Disp:     s.Disp,
 			Original: s.Original,
-			Locale:   v.SourceLocale(),
+			Locale:   locale,
 			BlockID:  v.ID(),
 		}
 	}
@@ -380,6 +444,20 @@ func (t *RedactTool) vaultSecrets(v tool.BlockView, secrets []tool.Secret) error
 	ann := &redaction.SecretAnnotation{Values: make(map[string]redaction.RedactedValue, len(secrets))}
 	for _, s := range secrets {
 		ann.Values[s.Token] = toValue(s)
+		if s.Locale.IsEmpty() {
+			ann.Source = slices.Clone(v.SourceRuns())
+			continue
+		}
+		if ann.Targets == nil {
+			ann.Targets = map[model.LocaleID]model.Edition{}
+		}
+		if _, seen := ann.Targets[s.Locale]; !seen {
+			if ed := v.Target(s.Locale); ed != nil {
+				read := *ed
+				read.Runs = slices.Clone(ed.Runs)
+				ann.Targets[s.Locale] = read
+			}
+		}
 	}
 	v.Annotate(redaction.SecretAnnotationKey, ann)
 	return nil
