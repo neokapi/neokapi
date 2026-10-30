@@ -53,6 +53,11 @@ type Occurrence struct {
 	// how the rule spells it: matching is case-insensitive, so a rule for
 	// "kapi" hits "Kapi" and the occurrence carries what the content said.
 	Text string
+	// Spelled is set when a character reference spells the first or last
+	// character of the occurrence (profile.SearchText). Text is then the words
+	// as the page shows them, the occurrence has no Anchor, and Start and End
+	// cover only the words' own text, so no fix is built over the reference.
+	Spelled bool
 	// Term is the declared term that matched.
 	Term string
 	// Replacement is what to say instead, empty when the declaration names
@@ -150,16 +155,21 @@ func Locate(ctx context.Context, req LocateRequest) ([]Occurrence, error) {
 
 // ruleOccurrences matches the caller's declared rules through the one matcher.
 func ruleOccurrences(req LocateRequest) []Occurrence {
-	hits := profile.MatchTermRules(req.RuleSets, req.Text)
+	hits := profile.MatchTermRulesInRuns(req.RuleSets, req.Text, req.Runs)
 	if len(hits) == 0 {
 		return nil
 	}
 	dnt := doNotTranslateTerms(req.RuleSets)
 	out := make([]Occurrence, 0, len(hits))
 	for _, h := range hits {
+		anchor, text := anchorFor(req.Runs, h.Start, h.End), req.Text[h.Start:h.End]
+		if h.Spelled != "" {
+			anchor, text = model.Anchor{}, h.Spelled
+		}
 		out = append(out, Occurrence{
-			Anchor:         anchorFor(req.Runs, h.Start, h.End),
-			Text:           req.Text[h.Start:h.End],
+			Anchor:         anchor,
+			Text:           text,
+			Spelled:        h.Spelled != "",
 			Term:           h.Term,
 			Replacement:    h.Replacement,
 			Note:           h.Note,
@@ -208,8 +218,11 @@ func storeOccurrences(ctx context.Context, req LocateRequest) ([]Occurrence, err
 	// about the text with only its placeholders overwritten
 	// (check.PlaceholderText): a placeholder's name is not an occurrence, and a
 	// term inside inline code or a quoted command is. Positions are unchanged by
-	// the projection and still index req.Text.
-	text := check.PlaceholderText(req.Text)
+	// the projection. The text searched is profile.SearchText, where a
+	// character reference stands for its character, and each position found
+	// in it is mapped back to req.Text.
+	search := profile.NewSearchText(req.Text, req.Runs)
+	text := check.PlaceholderText(search.Text)
 	for _, loc := range LookupLocales(req.Locale) {
 		found, err := req.Store.LookupAll(ctx, text, LookupOptions{
 			SourceLocale: loc,
@@ -221,6 +234,15 @@ func storeOccurrences(ctx context.Context, req LocateRequest) ([]Occurrence, err
 			return nil, err
 		}
 		for _, m := range found {
+			spelled := search.SpelledAtEdge(m.Position.Start, m.Position.End)
+			surface := search.Text[m.Position.Start:m.Position.End]
+			m.Position.Start, m.Position.End = search.ToText(m.Position.Start), search.ToText(m.Position.End)
+			anchor := anchorFor(req.Runs, m.Position.Start, m.Position.End)
+			if spelled {
+				anchor = model.Anchor{}
+			} else {
+				surface = req.Text[m.Position.Start:m.Position.End]
+			}
 			key := hit{text: strings.ToLower(m.Term.Text), pos: m.Position.Start}
 			if seen[key] {
 				continue
@@ -232,8 +254,9 @@ func storeOccurrences(ctx context.Context, req LocateRequest) ([]Occurrence, err
 			}
 			concept := m.Concept
 			out = append(out, Occurrence{
-				Anchor:         anchorFor(req.Runs, m.Position.Start, m.Position.End),
-				Text:           req.Text[m.Position.Start:m.Position.End],
+				Anchor:         anchor,
+				Text:           surface,
+				Spelled:        spelled,
 				Term:           m.Term.Text,
 				Replacement:    replacement,
 				Note:           UsageNote(m.Term.Note),
@@ -338,5 +361,15 @@ func (o Occurrence) Hit() profile.VocabHit {
 		Start:       o.Start,
 		End:         o.End,
 		Suggested:   o.Suggested,
+		Spelled:     spelledText(o),
 	}
+}
+
+// spelledText is the occurrence's words as the page shows them when a
+// character reference spells an edge of them, and empty otherwise.
+func spelledText(o Occurrence) string {
+	if o.Spelled {
+		return o.Text
+	}
+	return ""
 }

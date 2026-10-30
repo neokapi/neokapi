@@ -70,6 +70,11 @@ func TestFix(t *testing.T) {
 			want: `{"op":"replace_text","at":{"doc":"docs/guide.md","block":"guide/p"},"if_match":"r:0123456789abcdef","edits":[{"find":"utilize","text":"use"}]}`,
 		},
 		{
+			name: "words a character reference spells an edge of get no fix, though the text holds them",
+			f:    Finding{OriginalText: "utilize", Metadata: map[string]string{"replacement": "use", MetaSpelled: "true"}},
+			runs: plain, at: own, rev: rev,
+		},
+		{
 			name: "a range anchored to the source runs never names words in a translation",
 			f:    Finding{OriginalText: "utiliser", Position: span, Metadata: replacing},
 			runs: []model.Run{model.TextR("Nous utiliser le widget.")}, at: fr, rev: rev,

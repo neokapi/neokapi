@@ -347,8 +347,8 @@ A unit whose translation changed in the project since the extraction is refused
   than the translation's file, and is skipped otherwise.
 
 Each pass drops the units refused for good and sends the rest again as one
-change set, so what lands lands atomically. There is no interactive prompt, so
-merge stays scriptable in CI. Any other refusal is reported per unit on stderr
+change set, so the units that land are written atomically. There is no
+interactive prompt, so merge stays scriptable in CI. Any other refusal is reported per unit on stderr
 and counted as `refused`: a returned target that drops an inline code its
 source protects, or one that introduces a failing finding of a rule that
 governs it (`gate_failed`, [E-09](../engine/e-09-the-change-contract.md)). A

@@ -51,7 +51,9 @@ type Config struct {
 
 	// EscapeForwardSlashes escapes / as \/ in the values the writer encodes.
 	// Defaults to true. On the skeleton path a value the write left as read
-	// is replayed with its own bytes, so only changed values are encoded.
+	// is replayed with its own bytes, and an edited source value is a patch of
+	// them whose added slashes follow the document's (valuePlan), so the
+	// option spells translations and the slashes of a document that has none.
 	EscapeForwardSlashes bool
 
 	// Subfilters maps JSON key path patterns to format names for embedded content.

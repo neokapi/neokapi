@@ -78,3 +78,67 @@ func TestCodeEditKeepsTheBlocksBytes(t *testing.T) {
 		})
 	}
 }
+
+// replaceWord is a replace_text of one word of a block.
+func replaceWord(find, with string) func(b *model.Block) change.Op {
+	return func(b *model.Block) change.Op {
+		f := find
+		return change.Op{Kind: change.KindReplaceText, At: change.Ref{Doc: "d", Block: b.ID}, IfMatch: model.EditionRevision(b, model.EditionKey{}),
+			Body: &change.ReplaceText{Edits: []change.TextEdit{{Find: &f, Text: with}}}}
+	}
+}
+
+// A change to a block's text changes the words it replaces and nothing else.
+// No meta is added to a head that declares no charset. The whitespace of every
+// block keeps its bytes, and the entities, quotes and tags around the edit
+// stay as the document spells them.
+func TestTextEditKeepsTheDocumentsBytes(t *testing.T) {
+	cases := []struct {
+		name, doc, pick string
+		op              func(b *model.Block) change.Op
+		from, to        string
+	}{
+		{
+			name: "a word beside a paragraph with runs of spaces",
+			doc:  "<!DOCTYPE html>\n<html>\n<head><title>Guide</title></head>\n<body>\n<p>We <b>utilize</b> the <a href=\"x\">widget</a>.</p>\n<p>Keep   this    spacing.</p>\n</body>\n</html>\n",
+			pick: "We", op: replaceWord("utilize", "use"),
+			from: "<b>utilize</b>", to: "<b>use</b>",
+		},
+		{
+			name: "a word inside a paragraph with entities and runs of spaces",
+			doc:  "<!DOCTYPE html>\n<html><head><title>utilize</title></head>\n<body>\n<p>We <b>utilize</b> the <a href=\"x\">widget</a>&nbsp;and   utilize&amp;more &eacute;.</p>\n<p>Send an e-<i>mail</i>.</p>\n</body></html>\n",
+			pick: "widget", op: replaceWord("and   utilize", "and   use"),
+			from: "and   utilize&amp;", to: "and   use&amp;",
+		},
+		{
+			name: "a title",
+			doc:  "<!DOCTYPE html>\n<html><head><title>We  utilize \"it\"</title></head>\n<body><p>Keep   this.</p></body></html>\n",
+			pick: "it", op: replaceWord("utilize", "use"),
+			from: "We  utilize", to: "We  use",
+		},
+		{
+			name: "a kept bare < before a removed space",
+			doc:  "<html><body><p>So a < b holds.</p><p>Keep   this.</p></body></html>",
+			pick: "So", op: replaceWord("a < b", "a <b"),
+			from: "a < b", to: "a &lt;b",
+		},
+		{
+			name: "a kept bare & before added letters",
+			doc:  "<html><body><p>Our R & D team.</p><p>Keep   this.</p></body></html>",
+			pick: "Our", op: replaceWord("R & D", "R &copy D"),
+			from: "R & D", to: "R &amp;copy D",
+		},
+		{
+			name: "added text that needs escaping",
+			doc:  "<html><body><p>Say   \"hi\" &amp; utilize it.</p><p>Keep   this.</p></body></html>",
+			pick: "Say", op: replaceWord("utilize", "use <b> & co"),
+			from: "utilize it", to: "use &lt;b> &amp; co it",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, 1, strings.Count(tc.doc, tc.from))
+			assert.Equal(t, strings.Replace(tc.doc, tc.from, tc.to, 1), applyAndWrite(t, tc.doc, tc.pick, tc.op))
+		})
+	}
+}

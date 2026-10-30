@@ -17,12 +17,25 @@ import (
 
 // TestSkeletonInsertedCharsetMeta covers the Content-Type meta the reader adds
 // to a head that declares no charset. The source does not hold those bytes, so
-// the skeleton marks them inserted: skeleton alignment skips them, and every
-// path that replays an HTML skeleton still writes them, so the output keeps the
-// meta that mirrors Okapi's HtmlFilter.
+// the skeleton marks them inserted: skeleton alignment skips them. The HTML
+// writer writes them into a translation, so a translated document keeps the
+// meta that mirrors Okapi's HtmlFilter, and leaves them out of a write in the
+// document's own language, which edits the file in place. The shared skeleton
+// walker writes them on every write.
 func TestSkeletonInsertedCharsetMeta(t *testing.T) {
 	const input = "<html>\n<head><title>Hi</title></head>\n<body><p>Hello</p></body>\n</html>\n"
 	want := "<html>\n<head>" + injectedContentTypeMeta + "<title>Hi</title></head>\n<body><p>Hello</p></body>\n</html>\n"
+	translated := func(t *testing.T, store *format.SkeletonStore, parts []*model.Part) string {
+		t.Helper()
+		writer := htmlfmt.NewWriter()
+		writer.SetSkeletonStore(store)
+		writer.SetLocale(model.LocaleFrench)
+		var buf bytes.Buffer
+		require.NoError(t, writer.SetOutputWriter(&buf))
+		require.NoError(t, writer.Write(t.Context(), testutil.PartsToChannel(parts)))
+		require.NoError(t, writer.Close())
+		return buf.String()
+	}
 
 	read := func(t *testing.T, store *format.SkeletonStore, src string) []*model.Part {
 		t.Helper()
@@ -88,14 +101,13 @@ func TestSkeletonInsertedCharsetMeta(t *testing.T) {
 		}
 	})
 
-	// Each replay path writes the same bytes the reader and writer produced
-	// before the meta was marked inserted.
+	// Each replay path writes the meta into a translation.
 	t.Run("the writer with a file-backed store", func(t *testing.T) {
 		store, err := format.NewSkeletonStore()
 		require.NoError(t, err)
 		defer store.Close()
 		parts := read(t, store, input)
-		assert.Equal(t, want, write(t, store, parts))
+		assert.Equal(t, want, translated(t, store, parts))
 	})
 
 	t.Run("the writer with a streaming store", func(t *testing.T) {
@@ -103,7 +115,7 @@ func TestSkeletonInsertedCharsetMeta(t *testing.T) {
 		defer store.Close()
 		parts := read(t, store, input)
 		store.CloseWrite()
-		assert.Equal(t, want, write(t, store, parts))
+		assert.Equal(t, want, translated(t, store, parts))
 	})
 
 	t.Run("the writer replaying persisted skeleton bytes", func(t *testing.T) {
@@ -113,7 +125,15 @@ func TestSkeletonInsertedCharsetMeta(t *testing.T) {
 		require.NoError(t, err)
 		replay := format.NewSkeletonStoreFromBytes(data)
 		defer replay.Close()
-		assert.Equal(t, want, write(t, replay, parts))
+		assert.Equal(t, want, translated(t, replay, parts))
+	})
+
+	t.Run("a write in the source language adds nothing", func(t *testing.T) {
+		store, err := format.NewSkeletonStore()
+		require.NoError(t, err)
+		defer store.Close()
+		parts := read(t, store, input)
+		assert.Equal(t, input, write(t, store, parts))
 	})
 
 	t.Run("the shared skeleton walker", func(t *testing.T) {

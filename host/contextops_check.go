@@ -185,7 +185,7 @@ func (a *App) projectDeclaredTerms(cmd Command) ([]string, error) {
 // stance core/check takes with a Warning: reported beside the findings, read by
 // no gate.
 func advisoryDiagnostics(sets []profile.TermRuleSet, text string, runs []model.Run, loc check.Location) []check.Diagnostic {
-	hits := profile.MatchTermRules(sets, text)
+	hits := profile.MatchTermRulesInRuns(sets, text, runs)
 	if len(hits) == 0 {
 		return nil
 	}

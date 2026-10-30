@@ -76,3 +76,63 @@ func TestLocate_ReplacementNoteReadsOnce(t *testing.T) {
 
 	assert.Equal(t, "say what the reader does", terms.UsageNote("say what the reader does"))
 }
+
+// A term written against a character reference is an occurrence for the rules
+// and for the store alike, and each indexes the block's text, where the
+// reference has no width, and anchors in the text run that holds the word.
+func TestLocate_CharacterReferencesEndAWord(t *testing.T) {
+	ctx := context.Background()
+	store := terms.NewInMemoryStore()
+	require.NoError(t, store.AddConcept(ctx, terms.Concept{
+		ID:    "vessel",
+		Terms: []terms.Term{{Text: "vessel", Locale: model.LocaleEnglish, Status: model.TermPreferred}},
+	}))
+	rules := []profile.TermRuleSet{{Rules: []profile.TermRule{{Term: "vessel", Replacement: "ship"}}}}
+	ref := func(id, data string) model.Run {
+		return model.PhR(model.PlaceholderRun{ID: id, Type: "code:entity", Data: data})
+	}
+	cases := []struct {
+		name string
+		runs []model.Run
+		at   int
+	}{
+		{"before", []model.Run{model.TextR("the vessel"), ref("1", "&amp;"), model.TextR("crew")}, 4},
+		{"after", []model.Run{model.TextR("the"), ref("1", "&nbsp;"), model.TextR("vessel sails")}, 3},
+		{"between", []model.Run{model.TextR("a"), ref("1", "&mdash;"), model.TextR("vessel"), ref("2", "&#160;"), model.TextR("b")}, 1},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			text := model.RunsText(tc.runs)
+			got, err := terms.Locate(ctx, terms.LocateRequest{Text: text, Runs: tc.runs, RuleSets: rules, Store: store, Locale: model.LocaleEnglish})
+			require.NoError(t, err)
+			require.Len(t, got, 2, "one occurrence from the rule, one from the store")
+			for _, o := range got {
+				assert.Equal(t, "vessel", o.Text, "%s occurrence", o.Source)
+				assert.Equal(t, tc.at, o.Start, "%s occurrence", o.Source)
+				assert.Equal(t, model.RangeAnchorForBytes(tc.runs, tc.at, tc.at+len("vessel")), o.Anchor, "%s occurrence", o.Source)
+			}
+		})
+	}
+}
+
+// An occurrence whose last letter a character reference spells is quoted as
+// the page shows it and carries no anchor, from the rules and from the store.
+func TestLocate_AReferenceAtAnEdgeIsSpelledWithNoAnchor(t *testing.T) {
+	ctx := context.Background()
+	store := terms.NewInMemoryStore()
+	require.NoError(t, store.AddConcept(ctx, terms.Concept{
+		ID:    "cafe",
+		Terms: []terms.Term{{Text: "café", Locale: model.LocaleEnglish, Status: model.TermPreferred}},
+	}))
+	rules := []profile.TermRuleSet{{Rules: []profile.TermRule{{Term: "café", Replacement: "coffee shop"}}}}
+	runs := []model.Run{model.TextR("the caf"), model.PhR(model.PlaceholderRun{ID: "1", Type: "code:entity", Data: "&eacute;"}), model.TextR(" menu")}
+	got, err := terms.Locate(ctx, terms.LocateRequest{Text: model.RunsText(runs), Runs: runs, RuleSets: rules, Store: store, Locale: model.LocaleEnglish})
+	require.NoError(t, err)
+	require.Len(t, got, 2, "one occurrence from the rule, one from the store")
+	for _, o := range got {
+		assert.True(t, o.Spelled, "%s occurrence", o.Source)
+		assert.Equal(t, "café", o.Text, "%s occurrence", o.Source)
+		assert.Equal(t, model.Anchor{}, o.Anchor, "%s occurrence", o.Source)
+		assert.Equal(t, "café", o.Hit().Spelled, "%s occurrence", o.Source)
+	}
+}

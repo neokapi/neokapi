@@ -299,13 +299,15 @@ func TestFixFiles_ANamedTranslationIsNotWritten(t *testing.T) {
 }
 
 // A file the change service cannot write without changing bytes beside the
-// fixed words is not written. The JSON writer writes the escape \u00e9 as
-// the character it names, so kapi fix lists the fix as not fixed and leaves
+// fixed words is not written. The JSON writer patches an edited value only
+// when it can split the value into its characters; an escape JSON does not
+// define (\x41) is read as its two characters, so the value is encoded whole
+// and its backslash respelled. kapi fix lists the fix as not fixed and leaves
 // the file as it is.
 func TestFixFiles_AFileWrittenWithOtherChangesIsNotWritten(t *testing.T) {
 	f := newFixFixture(t)
 	escaped := filepath.Join(f.root, "other", "cafe.json")
-	const content = "{\n  \"title\": \"Please utilize the caf\\u00e9\"\n}\n"
+	const content = "{\n  \"title\": \"Please utilize the \\x41PI\"\n}\n"
 	require.NoError(t, os.MkdirAll(filepath.Dir(escaped), 0o755))
 	require.NoError(t, os.WriteFile(escaped, []byte(content), 0o644))
 

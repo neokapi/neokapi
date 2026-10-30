@@ -166,3 +166,132 @@ func TestCheck_WordsThatSpanFormattingGetNoFix(t *testing.T) {
 	d := fixFor(t, f, guide)
 	assert.Nil(t, d.Fix, "the bold inside the words would go with them")
 }
+
+// The check reads an HTML page the way the change service does, so its fix
+// names the revision and run positions an apply resolves. A paragraph with a
+// run of spaces and character references is where the two readings parted: the
+// fix was refused as stale although nothing had changed the block.
+func TestCheck_AnHTMLFixLandsWhereTheCheckReadIt(t *testing.T) {
+	f := newCommitFixture(t)
+	page := filepath.Join(f.root, "docs", "page.html")
+	const src = "<!DOCTYPE html>\n<html><head><title>Guide</title></head>\n<body>\n<p>We utilize   the <a href=\"x\">widget</a>&nbsp;and &eacute;.</p>\n<p>Keep   this    spacing.</p>\n</body></html>\n"
+	require.NoError(t, os.WriteFile(page, []byte(src), 0o644))
+
+	d := fixFor(t, f, page)
+	require.NotNil(t, d.Fix)
+
+	svc, err := f.app.ChangeService(t.Context(), ChangeServiceOptions{Project: f.recipe, Origin: "test"})
+	require.NoError(t, err)
+	read, err := svc.Read(t.Context(), change.ReadRequest{Doc: d.Fix.At.Doc})
+	require.NoError(t, err)
+	var rev string
+	for _, b := range read.Blocks {
+		if b.Ref.Block == d.Fix.At.Block {
+			rev = b.Rev
+		}
+	}
+	assert.Equal(t, rev, d.Fix.IfMatch, "the check and the change service compute one revision for the block")
+
+	res, err := svc.Apply(t.Context(), change.Set{Ops: []change.Op{*d.Fix}}, change.Actor{Kind: change.ActorPerson})
+	require.NoError(t, err)
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+	got, err := os.ReadFile(page)
+	require.NoError(t, err)
+	assert.Equal(t, strings.Replace(src, "We utilize   the", "We use   the", 1), string(got))
+}
+
+// A term written against a character reference is a whole word, as the page
+// shows it: the check finds it, and its fix replaces the word and keeps the
+// reference as the document spells it.
+func TestCheck_ATermBesideACharacterReferenceIsFoundAndFixed(t *testing.T) {
+	f := newCommitFixture(t)
+	page := filepath.Join(f.root, "docs", "page.html")
+	const src = "<html><head><title>Guide</title></head>\n<body>\n<p>We <b>use</b> the widget&nbsp;and   utilize&amp;more &eacute;.</p>\n<p>Say&nbsp;utilize now.</p>\n</body></html>\n"
+	require.NoError(t, os.WriteFile(page, []byte(src), 0o644))
+
+	report, err := f.app.ComputeCheck(f.command(t), []string{page})
+	require.NoError(t, err)
+	var ops []change.Op
+	for _, d := range report.Findings {
+		if d.Rule == "terms.vocabulary" && d.Location.Snippet == "utilize" {
+			require.NotNil(t, d.Fix, "the word beside the reference carries its fix: %+v", d)
+			ops = append(ops, *d.Fix)
+		}
+	}
+	require.Len(t, ops, 2, "both uses are found: %+v", report.Findings)
+
+	svc, err := f.app.ChangeService(t.Context(), ChangeServiceOptions{Project: f.recipe, Origin: "test"})
+	require.NoError(t, err)
+	res, err := svc.Apply(t.Context(), change.Set{Ops: ops}, change.Actor{Kind: change.ActorPerson})
+	require.NoError(t, err)
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+	got, err := os.ReadFile(page)
+	require.NoError(t, err)
+	want := strings.Replace(strings.Replace(src, "and   utilize&amp;", "and   use&amp;", 1), "Say&nbsp;utilize", "Say&nbsp;use", 1)
+	assert.Equal(t, want, string(got))
+}
+
+// A term whose first or last letter a character reference spells is reported
+// as the page shows it, with no fix: no span of the block's text holds the
+// whole word, and a replacement of the letters beside the reference would
+// leave the reference behind ("coffee shop&eacute;").
+func TestCheck_ATermAReferenceSpellsAnEdgeOfGetsNoFix(t *testing.T) {
+	const src = "<html><head><title>Guide</title></head>\n<body>\n<p>Meet at the caf&eacute; by the &Eacute;cole.</p>\n</body></html>\n"
+	assertSpelledEdgeFixes(t, src, nil, map[string]int{"café": 1, "École": 1}, src)
+}
+
+// When the word a reference spells an edge of is also written plainly in the
+// block, the plain use gets its fix by position and the spelled one none. No
+// fix looks the word up by its text, which the change service would refuse
+// as ambiguous with the rest of the change set.
+func TestCheck_ASpelledTermBesideItsPlainUse(t *testing.T) {
+	const src = "<html><head><title>Guide</title></head>\n<body>\n<p>Meet at the caf&eacute;, not the café.</p>\n</body></html>\n"
+	assertSpelledEdgeFixes(t, src, map[string]int{"café": 1}, map[string]int{"café": 1},
+		strings.Replace(src, "not the café", "not the coffee shop", 1))
+}
+
+// assertSpelledEdgeFixes checks page src under rules for "café" and "école",
+// counts the term findings with a fix and without one by snippet, applies the
+// fixes through the change service, and compares the file with want.
+func assertSpelledEdgeFixes(t *testing.T, src string, fixed, unfixed map[string]int, want string) {
+	t.Helper()
+	f := newCommitFixture(t)
+	voice := commitVoice + "  - term: café\n    replacement: coffee shop\n  - term: école\n    replacement: school\n"
+	require.NoError(t, os.WriteFile(layoutVoicePath(t, f.root), []byte(voice), 0o644))
+	readProjectContext(t, f.root)
+	page := filepath.Join(f.root, "docs", "page.html")
+	require.NoError(t, os.WriteFile(page, []byte(src), 0o644))
+
+	report, err := f.app.ComputeCheck(f.command(t), []string{page})
+	require.NoError(t, err)
+	gotFixed, gotUnfixed := map[string]int{}, map[string]int{}
+	var ops []change.Op
+	for _, d := range report.Findings {
+		if d.Rule != "terms.vocabulary" {
+			continue
+		}
+		if d.Fix == nil {
+			gotUnfixed[d.Location.Snippet]++
+			continue
+		}
+		assert.Nil(t, d.Fix.Body.(*change.ReplaceText).Edits[0].Find, "a fix names its words by position")
+		gotFixed[d.Location.Snippet]++
+		ops = append(ops, *d.Fix)
+	}
+	if fixed == nil {
+		fixed = map[string]int{}
+	}
+	assert.Equal(t, fixed, gotFixed, "%+v", report.Findings)
+	assert.Equal(t, unfixed, gotUnfixed, "%+v", report.Findings)
+
+	if len(ops) > 0 {
+		svc, err := f.app.ChangeService(t.Context(), ChangeServiceOptions{Project: f.recipe, Origin: "test"})
+		require.NoError(t, err)
+		res, err := svc.Apply(t.Context(), change.Set{Ops: ops}, change.Actor{Kind: change.ActorPerson})
+		require.NoError(t, err)
+		require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+	}
+	got, err := os.ReadFile(page)
+	require.NoError(t, err)
+	assert.Equal(t, want, string(got))
+}

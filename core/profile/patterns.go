@@ -189,7 +189,7 @@ func PatternHitsToFindings(hits []PatternHit, text string, runs []model.Run) []V
 // The required patterns are not here, and the omission is the rule's semantics
 // rather than a gap: see [DocumentFindings].
 func Findings(p *VoiceProfile, text string, runs []model.Run) []VoiceFinding {
-	findings := HitsToFindings(MatchCarriedTerms(p, text), text, runs)
+	findings := HitsToFindings(MatchTermRulesInRuns(CarriedRuleSets(p), text, runs), text, runs)
 	return append(findings, PatternFindings(p, text, runs)...)
 }
 

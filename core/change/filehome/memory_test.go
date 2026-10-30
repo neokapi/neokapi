@@ -51,6 +51,26 @@ func writeCatalog(t *testing.T, path string, n int) int64 {
 // reader, the editor and the writer stream, and the service keeps no block it
 // did not change.
 func TestFileHome_ALargeEditStaysInBoundedMemory(t *testing.T) {
+	assertLargeEditBounded(t, "message.050000", "This message was edited", `"message.050000": "This message was edited",`, 24<<20)
+}
+
+// An edit that adds a slash and a non-ASCII character waits on how the whole
+// document spells them, and the writer holds the output after it while it
+// waits. The hold is bounded, so the edit of a large catalog still streams.
+func TestFileHome_ALargeEditThatAddsASlashAndAnAccentStaysInBoundedMemory(t *testing.T) {
+	// The catalog spells no slash, so the writer's default escapes the added
+	// one, and no non-ASCII character, so the added é is UTF-8. The message is
+	// early, so nearly the whole catalog follows the waiting value.
+	assertLargeEditBounded(t, "message.000100", "This message was édited and/or kept", `"message.000100": "This message was édited and\/or kept",`, 12<<20)
+}
+
+// assertLargeEditBounded sets the content of the message at key in a
+// 100,000-message catalog to text through the service. The heap the edit takes
+// above what was live before it must stay under ceiling; a buffered round trip
+// of this catalog takes several times the file. The file must then hold want
+// and every other message.
+func assertLargeEditBounded(t *testing.T, key, text, want string, ceiling uint64) {
+	t.Helper()
 	if testing.Short() {
 		t.Skip("memory test skipped in -short")
 	}
@@ -58,9 +78,6 @@ func TestFileHome_ALargeEditStaysInBoundedMemory(t *testing.T) {
 	require.True(t, format.IsStreamingWriter(json.NewWriter()), "the JSON writer streams")
 
 	const n = 100_000
-	// ceiling is the most heap the edit may take above what was live before
-	// it. A buffered round trip of this catalog takes several times the file.
-	const ceiling = 24 << 20
 
 	dir := t.TempDir()
 	size := writeCatalog(t, filepath.Join(dir, "catalog.json"), n)
@@ -69,11 +86,10 @@ func TestFileHome_ALargeEditStaysInBoundedMemory(t *testing.T) {
 		change.OneHome(filehome.New(filehome.DirLayout{Root: dir, Formats: reg, SourceLocale: "en"}, filehome.Options{LockDir: t.TempDir()})))
 
 	ctx := context.Background()
-	page, err := svc.Read(ctx, change.ReadRequest{Doc: "catalog.json", Blocks: []string{"message.050000"}})
+	page, err := svc.Read(ctx, change.ReadRequest{Doc: "catalog.json", Blocks: []string{key}})
 	require.NoError(t, err)
 	require.Len(t, page.Blocks, 1, "the read finds the block by key")
 	b := page.Blocks[0]
-	text := "This message was edited"
 
 	defer debug.SetGCPercent(debug.SetGCPercent(20))
 	runtime.GC()
@@ -110,10 +126,10 @@ func TestFileHome_ALargeEditStaysInBoundedMemory(t *testing.T) {
 		delta = p - base.HeapAlloc
 	}
 	t.Logf("catalog %d KiB, %d messages; peak heap above the baseline %d KiB", size/1024, n, delta/1024)
-	assert.Less(t, delta, uint64(ceiling), "the edit took %d KiB of heap; the ceiling is %d KiB", delta/1024, ceiling/1024)
+	assert.Less(t, delta, ceiling, "the edit took %d KiB of heap; the ceiling is %d KiB", delta/1024, ceiling/1024)
 
 	got, err := os.ReadFile(filepath.Join(dir, "catalog.json"))
 	require.NoError(t, err)
-	assert.Contains(t, string(got), `"message.050000": "This message was edited",`)
+	assert.Contains(t, string(got), want)
 	assert.Equal(t, n+2, strings.Count(string(got), "\n"), "every other message is kept")
 }

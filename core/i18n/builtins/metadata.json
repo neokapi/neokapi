@@ -1690,7 +1690,7 @@
         },
         "escapeForwardSlashes": {
           "title": "Escape forward slashes",
-          "description": "Escape forward slashes (\\/) in the values a write changes."
+          "description": "Escape forward slashes (\\/) in translated values, and in edited values of a document that spells no slash."
         },
         "exceptions": {
           "title": "Key exception pattern",
