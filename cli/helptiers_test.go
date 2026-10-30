@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/host/skills"
 )
 
 // newTieredRoot builds a root wired the way kapi/cmd/kapi wires its own: the
@@ -258,6 +259,7 @@ func TestOneLanguageProject_NamesNoLanguageWork(t *testing.T) {
 		args []string
 	}{
 		{name: "kapi --help", args: []string{"--help"}},
+		{name: "kapi help", args: []string{"help"}},
 		{name: "kapi", args: nil},
 		{name: "kapi status", args: []string{"status"}},
 	} {
@@ -392,6 +394,57 @@ func TestHelpLanguages_ListsTheLanguagesGroup(t *testing.T) {
 	assert.ElementsMatch(t, want, rows, "every command in the Languages group, and only those")
 	for _, name := range advanced {
 		assert.NotContains(t, out, "\n  "+name+" ", "the engine tier's %s is not listed", name)
+	}
+}
+
+// TestHelpTopics_FollowTheTiers: the topic list under `kapi help` follows the
+// command groups. Outside a project it lists the person tier's topics and
+// says where the rest are; `kapi help languages` lists the language topics;
+// `kapi help --all` and a project with a target language list every topic.
+// Nothing is lost between the two lists.
+func TestHelpTopics_FollowTheTiers(t *testing.T) {
+	isolateHelp(t)
+
+	var all, language, person []string
+	for _, topic := range skills.Topics() {
+		all = append(all, topic.Name)
+		if topicTier(topic.Name) == tierLanguages {
+			language = append(language, topic.Name)
+		} else {
+			person = append(person, topic.Name)
+		}
+	}
+	require.Contains(t, language, "translate")
+	require.Contains(t, language, "i18n")
+	require.Contains(t, person, "check")
+	for _, name := range language {
+		assert.True(t, name == "translate" || name == "i18n" || strings.HasPrefix(name, "i18n-"), name)
+	}
+
+	for _, tt := range []struct {
+		name      string
+		noProject string
+		target    bool
+		args      []string
+		want      []string
+		hint      bool
+	}{
+		{name: "kapi help outside a project", noProject: "1", args: []string{"help"}, want: person, hint: true},
+		{name: "kapi help in a one-language project", noProject: "", target: false, args: []string{"help"}, want: person, hint: true},
+		{name: "kapi help with a target language", noProject: "", target: true, args: []string{"help"}, want: all},
+		{name: "kapi help --all", noProject: "1", args: []string{"help", "--all"}, want: all},
+		{name: "kapi help languages", noProject: "1", args: []string{"help", "languages"}, want: language},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("KAPI_NO_PROJECT", tt.noProject)
+			t.Setenv("KAPI_PROJECT", writeTierRecipe(t, tt.target))
+			out := runRoot(t, tt.args...)
+			rows := commandRows(helpSection(out, "Topics:"))
+			assert.ElementsMatch(t, tt.want, rows)
+			assert.Contains(t, out, `Use "kapi help <topic>" to read a topic.`)
+			assert.Equal(t, tt.hint, strings.Contains(out, `Use "kapi help languages" to list the topics for other languages.`),
+				"the hint appears exactly when the language topics are left out:\n%s", out)
+		})
 	}
 }
 
