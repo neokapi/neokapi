@@ -32,7 +32,8 @@ In the CLI, `redact` and `unredact` are pipeline steps: the built-in
 `secure-translate` flow runs redact → translate → unredact
 (`kapi run secure-translate`), a project flow can place the same steps around
 its own pipeline, and `kapi extract --redact` protects a translator hand-off.
-See [Understanding the CLI layers](/kapi/direct-execution-layer) for the
+In a project that declares `defaults.redaction`, `kapi exec <tool>` puts the
+same two steps around a tool that calls a model. See [Understanding the CLI layers](/kapi/direct-execution-layer) for the
 flow and single-tool surfaces.
 
 ## How it stays local
@@ -174,7 +175,7 @@ collections:
 
 | Workflow | Vault |
 | --- | --- |
-| In-process (`secure-translate`, custom flows) | In memory on the block; removed after restore, and never written to output |
+| In-process (`secure-translate`, custom flows, `kapi exec`) | In memory on the block; removed after restore, and never written to output |
 | External (`extract --redact` → `merge`) | `.kapi/vault/batches/<batch-id>.json`, in a directory kept out of version control and written private (`0700`, files `0600`) |
 
 The vault sits in `.kapi/vault/`, beside `.kapi/work/` and deliberately *not*

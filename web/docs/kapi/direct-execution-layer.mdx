@@ -78,6 +78,10 @@ Reach for `exec` when you want exactly one tool's behavior: isolating a step
 while debugging a flow, or a one-off check on a file. See the
 [`exec` reference](/reference/commands/exec).
 
+In a project that declares a [redaction policy](/framework/redaction#recipe-configuration),
+`exec` puts `redact` before a tool that calls a model and `unredact` after it,
+so the model reads placeholders and the output carries the original values.
+
 ## `run`: compose tools into a flow
 
 `kapi run <flow>` runs a named [flow](/framework/flows) (an ordered
