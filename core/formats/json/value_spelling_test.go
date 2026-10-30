@@ -6,6 +6,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const spelledValues = `{
@@ -126,4 +127,16 @@ func TestEditedValueKeepsTheSpellingOfWhatItKept(t *testing.T) {
 			assert.Equal(t, tc.want, streamingWriterRoundtrip(t, tc.doc, c), "streaming")
 		})
 	}
+}
+
+// A one-word edit of a long value keeps every escape of the value, however
+// long it is.
+func TestEditOfALongValueKeepsItsEscapes(t *testing.T) {
+	long := strings.Repeat("caf\\u00e9 \\/ \\\"q\\\" ", 6000)
+	doc := "{\"a\": \"" + long + "We utilize it. " + long + "\"}"
+	want := "{\"a\": \"" + long + "We use it. " + long + "\"}"
+	require.Greater(t, len(doc), 96*1024)
+	c := writerCase{mutate: replaceIn("utilize", "use")}
+	assert.Equal(t, want, bufferedWriterRoundtrip(t, doc, c), "buffered")
+	assert.Equal(t, want, streamingWriterRoundtrip(t, doc, c), "streaming")
 }

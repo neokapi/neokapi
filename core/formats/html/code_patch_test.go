@@ -1,6 +1,7 @@
 package html
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -101,4 +102,17 @@ func TestPatchEditEscapesAKeptMarkupCharacterBesideTheEdit(t *testing.T) {
 			assert.Equal(t, tc.want, got)
 		})
 	}
+}
+
+// A one-word edit of a long block keeps every run of whitespace the reader
+// collapsed, however long the block is.
+func TestPatchEditKeepsWhitespaceInALongBlock(t *testing.T) {
+	long := strings.Repeat("word   and\n   more ", 5000)
+	readLong := strings.Repeat("word and more ", 5000)
+	original := long + "We utilize it " + long
+	read := []model.Run{model.TextR(strings.TrimSpace(readLong + "We utilize it " + readLong))}
+	edited := []model.Run{model.TextR(strings.TrimSpace(readLong + "We use it " + readLong))}
+	got, ok := patchEdit(original, read, edited)
+	assert.True(t, ok)
+	assert.Equal(t, long+"We use it "+long, got)
 }
