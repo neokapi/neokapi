@@ -143,11 +143,13 @@ func patchEdit(original string, read, edited []model.Run) (string, bool) {
 		switch {
 		case e.code && e.data != it.data:
 			b.WriteString(e.data)
-		case !e.code && (e.text == '<' || e.text == '&') && !nextKept(match, i, len(to)):
-			// A bare `<` or `&` the document holds as text reads as text
-			// because of the byte after it. The edit changed that byte, so
-			// the kept character is escaped and cannot open a tag or a
-			// reference with what follows.
+		case !e.code && e.text == '<' && !nextKept(match, i, len(to)),
+			!e.code && e.text == '&' && !referenceTailKept(from, match, i, len(to)):
+			// A bare `<` the document holds as text reads as text because of
+			// the byte after it, and a bare `&` because of the name after it
+			// (`&am` is no reference, `&amp;` is). The edit changed what
+			// follows, so the kept character is escaped and cannot open a tag
+			// or a reference with it.
 			_, _ = htmlTextEscaper.WriteString(&b, string(e.text))
 		default:
 			b.WriteString(original[it.start:it.end])
@@ -168,6 +170,28 @@ func nextKept(match []int, i, edited int) bool {
 		return match[i+1] >= 0 && match[i+1] == match[i]+1
 	}
 	return match[i]+1 == edited
+}
+
+// referenceTailKept reports whether what follows the `&` at element i as read
+// is unchanged by the edit: each letter, digit or `#` after it, and the element
+// that ends them, is kept in place, or the block ends after them on both
+// sides.
+func referenceTailKept(from []patchItem, match []int, i, edited int) bool {
+	for k := i + 1; ; k++ {
+		if !nextKept(match, k-1, edited) {
+			return false
+		}
+		if k >= len(from) || !referenceNameByte(from[k]) {
+			return true
+		}
+	}
+}
+
+// referenceNameByte reports whether it is a byte of a character reference's
+// name: a letter, a digit, or the `#` of a numeric reference.
+func referenceNameByte(it patchItem) bool {
+	c := it.text
+	return !it.code && (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '#')
 }
 
 // runSpan is where a run of read sits in the block's original bytes. For a

@@ -94,6 +94,10 @@ func TestPatchEditEscapesAKeptMarkupCharacterBesideTheEdit(t *testing.T) {
 		{"an & at the end before added text", "R &", "R &", "R &amp", "R &amp;amp"},
 		{"a < whose next byte is kept", "a < b c", "a < b c", "a < b d", "a < b d"},
 		{"an & whose next byte is kept", "R & D now", "R & D now", "R & D later", "R & D later"},
+		{"an & before kept letters and an added ;", "R &am now", "R &am now", "R &amp; now", "R &amp;amp; now"},
+		{"an & before letters one of which changed", "R &amx now", "R &amx now", "R &amp now", "R &amp;amp now"},
+		{"an & whose letters are kept", "Say &am now", "Say &am now", "Say &am later", "Say &am later"},
+		{"an & whose letters end the block", "Say &am", "Say &am", "So say &am", "So say &am"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
