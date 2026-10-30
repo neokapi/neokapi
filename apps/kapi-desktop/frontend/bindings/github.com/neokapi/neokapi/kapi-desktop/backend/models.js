@@ -1301,6 +1301,51 @@ export class AssistantSession {
              */
             this["awaiting"] = 0;
         }
+        if (!("files" in $$source)) {
+            /**
+             * Files, Checked, Failing and Caught are what the session's check runs
+             * found, and Clean and Failed the verdicts they reached, as the feed
+             * group carries them.
+             * @member
+             * @type {number}
+             */
+            this["files"] = 0;
+        }
+        if (!("checked" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["checked"] = 0;
+        }
+        if (!("failing" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["failing"] = 0;
+        }
+        if (!("caught" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["caught"] = 0;
+        }
+        if (!("clean" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["clean"] = false;
+        }
+        if (!("failed" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["failed"] = false;
+        }
 
         Object.assign(this, $$source);
     }
@@ -2884,6 +2929,24 @@ export class ContextFeedGroup {
              */
             this["files"] = 0;
         }
+        if (!("clean" in $$source)) {
+            /**
+             * Clean reports a session at least one of whose check runs reached a
+             * verdict, every one of them clean. Failed reports a session one of whose
+             * runs reached a verdict with something failing. A session whose runs
+             * reached no verdict reports neither.
+             * @member
+             * @type {boolean}
+             */
+            this["clean"] = false;
+        }
+        if (!("failed" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["failed"] = false;
+        }
         if (!("quiet" in $$source)) {
             /**
              * Quiet reports a group nothing has been added to for a while, which is
@@ -2911,13 +2974,13 @@ export class ContextFeedGroup {
      */
     static createFrom($$source = {}) {
         const $$createField2_0 = $$createType20;
-        const $$createField19_0 = $$createType45;
+        const $$createField21_0 = $$createType45;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("actor" in $$parsedSource) {
             $$parsedSource["actor"] = $$createField2_0($$parsedSource["actor"]);
         }
         if ("entries" in $$parsedSource) {
-            $$parsedSource["entries"] = $$createField19_0($$parsedSource["entries"]);
+            $$parsedSource["entries"] = $$createField21_0($$parsedSource["entries"]);
         }
         return new ContextFeedGroup(/** @type {Partial<ContextFeedGroup>} */($$parsedSource));
     }
