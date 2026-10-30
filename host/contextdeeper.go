@@ -26,21 +26,17 @@ import (
 )
 
 // The deeper look (`kapi context suggest --ai`, and "Deeper look with AI" on
-// Kapi Desktop's Map) reads the source blocks the suggestions pass reads and
-// asks the connected model about them, through the tools `kapi exec` runs:
-// term-extract names the terms the files use, and voice-infer reads the voice
-// they are written in.
+// Kapi Desktop's Map) asks the connected model about the source blocks the
+// suggestions pass reads. term-extract names the terms the files use, and
+// voice-infer reads the voice they are written in.
 //
-// What the model proposes is checked against the files and filed the way the
-// suggestions pass files what it counts: as suggestions by kapi, named with
-// the model, that fail no check until a person keeps them. A term the files
-// never write, or write in more than one way, is left out. Nothing is written
-// to the recipe or to a rules file.
-//
-// A later run matches each proposal to its record by what it is about, the
-// way the pass does, and also to what the pass filed: a proposal the pass, a
-// person or another model already recorded is known, and a dropped one stays
-// dropped.
+// Each proposal is checked against the files and filed as the pass files a
+// finding: a suggestion by kapi, named with the model, that fails no check
+// until a person keeps it. Nothing is written to the recipe or a rules file.
+
+// A later run matches each proposal to its record by what it is about. A
+// proposal the pass, a person or another model recorded is known, and a
+// dropped one stays dropped.
 
 // The kinds of finding the deeper look reports.
 const (

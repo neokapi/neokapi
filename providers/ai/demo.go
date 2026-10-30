@@ -92,8 +92,8 @@ func (p *DemoProvider) Chat(ctx context.Context, messages []Message) (*ChatRespo
 // translation schema (emitted by translate) is honoured by parsing the
 // numbered prompt and translating each segment. The voice inference
 // schema (emitted by voice-infer) is honoured by deterministic surface
-// heuristics over the corpus embedded in the prompt — a generative onboarding
-// draft, clearly marked as illustrative. The terminology schema (emitted by
+// heuristics over the corpus embedded in the prompt, as a generative
+// onboarding draft clearly marked as illustrative. The terminology schema (emitted by
 // term-extract) lists the capitalised names in the text, each marked as
 // illustrative in its definition. All other schemas get a neutral,
 // schema-valid response (empty arrays / zero values) so that the `qa` and
