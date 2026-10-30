@@ -14,6 +14,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/editorclient"
 	"github.com/neokapi/neokapi/core/editor"
 	"github.com/neokapi/neokapi/core/model"
+	coreproj "github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 )
 
@@ -271,6 +272,9 @@ func (a *App) addItemsLocal(ctx context.Context, projectID string, filePaths []s
 		if err != nil {
 			continue
 		}
+		// kapi push and the check read with the skeleton a write would wire,
+		// so an imported file holds the blocks a pushed one does.
+		coreproj.WireReadSkeleton(a.formatReg, fmtName, reader)
 
 		doc := &model.RawDocument{
 			URI:          filePath,

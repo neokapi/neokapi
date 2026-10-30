@@ -17,7 +17,7 @@ In the installed kapi, declaring a target language in the recipe also adds the l
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
 
-1. **Add the locales.** In **Project Settings**, add the target languages you translate into (for example `fr`, `de`).
+1. **Add the locales.** In **Project Settings**, add the target languages you translate into (for example `fr`, `de`). On a project in one language, **Languages +** in the sidebar opens the same choice, and once you save the first target it becomes **Languages**, with **Review** beside it.
 2. **Bring up to date.** Back on the project view, the coverage panel now shows one row per locale against the ship gate. **Plan…** previews the pending work first: content-memory leverage, remaining AI work, a token estimate, nothing written. Then click **Bring up to date**; kapi runs the default flow over every locale that is short of its gate, looping until each scope ships or a gate holds it back for a person.
 3. **Review.** Click a ship-gate cell to open the **Review** queue for that locale: inspect each translation, edit if needed, approve or reject. Approvals raise the approved coverage that an `{ established: … }` gate measures; the recipe spells the approved rung `established`.
 

@@ -1,10 +1,10 @@
 // The monolingual test (DECISIONS R13.2), as a test rather than an eyeball.
 //
 // A project with zero target languages must read as COMPLETE: the two-axis
-// standing, the point map and the convergence hero all present, the surfaces
-// its languages do not call for simply absent, and nothing on the page
-// apologising for what it lacks. A source-only project is the ordinary case,
-// not a half-configured one.
+// standing and the point map present, the language work (coverage, Bring up
+// to date, Plan…, Review) absent behind the rail's Languages + door, and
+// nothing on the page apologising for what it lacks. A source-only project is
+// the ordinary case, not a half-configured one.
 
 import { render, screen } from "./testUtils";
 import { describe, it, expect, vi } from "vite-plus/test";
@@ -69,17 +69,26 @@ const points: ProjectPointsResult = {
   ],
 };
 
-function renderHome() {
+/** A status whose files carry French coverage, as a recipe that lists French
+ *  on a collection without a target template would produce. */
+const statusWithFrench: ProjectStatus = {
+  ...status,
+  collections: [
+    { name: "Handbook", blockCount: 84, coverage: { "fr-FR": 42 }, targetLanguages: ["fr-FR"] },
+  ],
+};
+
+function renderHome(project: KapiProject = monolingual, projectStatus: ProjectStatus = status) {
   return render(
     <ErrorProvider>
       <JobFeedProvider>
         <ActiveFilterProvider tabID="t1" enabled>
           <HomePage
-            project={monolingual}
+            project={project}
             displayName="Handbook"
             tabID="t1"
             onNavigate={vi.fn()}
-            status={status}
+            status={projectStatus}
             points={points}
             server={{ connected: false, stream: "main" }}
             basePath="/p/handbook"
@@ -107,19 +116,71 @@ describe("the monolingual home", () => {
     expect(rows[0]).toHaveTextContent("Handbook");
   });
 
-  it("shows the convergence hero", () => {
+  it("keeps Bring up to date and Plan… out of sight until a target language exists", () => {
     renderHome();
+    expect(screen.queryByText("Bring up to date")).not.toBeInTheDocument();
+    expect(screen.queryByText("Plan…")).not.toBeInTheDocument();
+    expect(document.querySelector('[data-slot="convergence-hero"]')).toBeNull();
+  });
+
+  it("shows Bring up to date, Plan… and the targets once the recipe declares one", () => {
+    renderHome({
+      ...monolingual,
+      defaults: { source_language: "en-US", target_languages: ["fr-FR"] },
+    });
     expect(screen.getByText("Bring up to date")).toBeInTheDocument();
+    expect(screen.getByText("Plan…")).toBeInTheDocument();
+    expect(screen.getByTestId("project-standing")).toHaveTextContent("languages");
+  });
+
+  it("draws coverage only once the recipe declares a target language", () => {
+    // French on a collection with no target template declares nothing.
+    const { unmount } = renderHome(
+      {
+        ...monolingual,
+        collections: [{ ...monolingual.collections![0], target_languages: ["fr-FR"] }],
+      },
+      statusWithFrench,
+    );
+    expect(screen.queryByText("Coverage across collections")).not.toBeInTheDocument();
+    unmount();
+
+    renderHome(
+      { ...monolingual, defaults: { source_language: "en-US", target_languages: ["fr-FR"] } },
+      statusWithFrench,
+    );
+    expect(screen.getByText("Coverage across collections")).toBeInTheDocument();
+  });
+
+  it("names the languages a collection declares, in the header and the standing", () => {
+    renderHome({
+      ...monolingual,
+      collections: [
+        {
+          name: "Handbook",
+          target_languages: ["de-DE"],
+          content: [{ path: "docs/**/*.md", target: "out/{lang}/**/*.md" }],
+        },
+      ],
+    });
+    const header = screen.getByRole("heading", { name: "Handbook" }).parentElement!;
+    expect(header).toHaveTextContent("de-DE");
+    expect(header).not.toHaveTextContent("No targets");
+    expect(screen.getByTestId("project-standing")).toHaveTextContent("languagesde-DE");
   });
 
   it("keeps the language surfaces quiet rather than empty", () => {
     renderHome();
     const standing = screen.getByTestId("project-standing");
     expect(standing).not.toHaveTextContent("languages");
+    // The header names the source language and no target.
+    expect(screen.queryByText("No targets")).not.toBeInTheDocument();
+    expect(screen.queryByText("Coverage across collections")).not.toBeInTheDocument();
 
-    render(<IconSidebar mode="projects" active="home" onChange={vi.fn()} />);
+    render(<IconSidebar active="home" onChange={vi.fn()} />);
     expect(screen.queryByRole("button", { name: "Review" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Content Memory" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Languages +" })).toBeInTheDocument();
     // The Map, Context and the rest are fully present.
     expect(screen.getByRole("button", { name: "Map" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Context" })).toBeInTheDocument();

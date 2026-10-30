@@ -93,6 +93,15 @@ project's [Sessions](#history-and-going-back).
 A project opens as a tab, on its [Map](#the-map), and the tabs you had last
 time come back where you left them.
 
+The sidebar lists the project's places: **Map**, **Context**, **Project**,
+**Toolbox** and **Project Settings**. A project in one language also shows
+**Languages +**, which opens the source language and the languages to
+translate into. Once the saved recipe declares a target language, the entry
+reads **Languages** and opens the Project page at **Bring up to date**.
+**Review** joins the sidebar, **Content Memory** joins Context, and the Project
+page shows coverage for each language. See [And in every
+language](#and-in-every-language).
+
 ## The Map
 
 A project opens on its **Map**. Under the project's name, one line says when
@@ -345,8 +354,9 @@ the terms that apply, and when the project last converged). **Where content
 sits** gives one row for each part of the project the recipe declares, with
 its collections and the voice that applies there.
 
-**Bring up to date** runs the project's default flow until every gated scope
-ships or waits for review, the desktop form of `kapi up`. **Plan…** beside it shows the
+On a project with a target language, **Bring up to date** runs the project's
+default flow until every gated scope ships or waits for review, the desktop
+form of `kapi up`. **Plan…** beside it shows the
 pending work, what content memory can supply, and a token estimate before
 anything runs.
 
@@ -386,11 +396,14 @@ with live progress for each file.
 ### And in every language
 
 A project that declares target languages gets the multilingual half.
-Per-language coverage appears on the collections it applies to, the **Review**
-queue takes whatever the loop could not carry to the ship gate, and inspection
-puts source and target side by side with their findings, to approve or reject.
+Per-language coverage appears on the collections it applies to, **Bring up to
+date** and **Plan…** appear on the Project page, the **Review** queue takes
+whatever the loop could not carry to the ship gate, and inspection puts source
+and target side by side with their findings, to approve or reject.
 
-A project that declares none is complete as it is.
+A project that declares none is complete as it is. Its sidebar shows
+**Languages +** in place of **Languages** and **Review**, and adding the first
+target language there brings the rest.
 
 ## Install
 

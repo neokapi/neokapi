@@ -49,11 +49,46 @@ describe("IconSidebar", () => {
       "Map",
       "Context",
       "Project",
+      "Languages",
       "Review",
       "Toolbox",
       "Project Settings",
       "App Settings",
     ]);
+  });
+
+  it("offers Languages + as the one door to language work while the recipe declares no target", () => {
+    render(<IconSidebar active="home" onChange={vi.fn()} hasTargetLanguages={false} />);
+    const labels = screen.getAllByRole("button").map((b) => b.getAttribute("aria-label"));
+    expect(labels).toEqual([
+      "Home",
+      "Map",
+      "Context",
+      "Project",
+      "Languages +",
+      "Toolbox",
+      "Project Settings",
+      "App Settings",
+    ]);
+  });
+
+  it("opens the languages view from either form of the entry", async () => {
+    const onChange = vi.fn();
+    const { rerender } = render(
+      <IconSidebar active="home" onChange={onChange} hasTargetLanguages={false} />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Languages +" }));
+    expect(onChange).toHaveBeenLastCalledWith("languages");
+
+    rerender(<IconSidebar active="home" onChange={onChange} hasTargetLanguages={true} />);
+    expect(screen.queryByRole("button", { name: "Languages +" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Languages" }));
+    expect(onChange).toHaveBeenLastCalledWith("languages");
+  });
+
+  it("keeps Languages + lit on a Review view while Review has nothing to hold", () => {
+    render(<IconSidebar active="review" onChange={vi.fn()} hasTargetLanguages={false} />);
+    expect(screen.getByRole("button", { name: "Languages +" }).className).toContain("bg-primary");
   });
 
   it("keeps the Map lit while its findings are open", () => {

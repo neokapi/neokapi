@@ -21,8 +21,8 @@ const meta: Meta<typeof IconSidebar> = {
 export default meta;
 type Story = StoryObj<typeof IconSidebar>;
 
-// A single-language project: the content surfaces show; Content Memory
-// stays absent until the project has target languages.
+// A single-language project: the content surfaces show, Review is absent,
+// and Languages + is the one door to language work.
 export const ProjectMode: Story = {
   args: {
     active: "project-home",
@@ -30,11 +30,19 @@ export const ProjectMode: Story = {
   },
 };
 
-// Once the project has target languages, Content Memory appears — present,
-// not announced.
+// The Languages + door open, before the recipe declares a target language.
+export const LanguagesDoor: Story = {
+  args: {
+    active: "languages",
+    hasTargetLanguages: false,
+  },
+};
+
+// Once the recipe declares a target language the entry reads Languages and
+// Review returns beside it.
 export const ProjectMultilingual: Story = {
   args: {
-    active: "memories",
+    active: "languages",
     hasTargetLanguages: true,
   },
 };
