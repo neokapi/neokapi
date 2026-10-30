@@ -253,7 +253,7 @@ func TestToolRun_ChainCoverage(t *testing.T) {
 // qa calls a provider in AI mode only, and the registry fills in the
 // configured default provider only for a contract that needs credentials, so
 // a configured provider leaves rules mode as it is.
-func TestToolRun_QACallsAProviderInAIModeOnly(t *testing.T) {
+func TestToolRun_QaToolCallsAProviderInAIModeOnly(t *testing.T) {
 	isolateKapiEnv(t)
 	onlyDemoProvider(t)
 	t.Setenv("KAPI_AI_PROVIDER", "demo")
