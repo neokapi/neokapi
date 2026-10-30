@@ -131,9 +131,10 @@ func (s *ConnectorService) ListContent(ctx context.Context, workspaceID, connect
 // Fetch retrieves content from a connector and stores it in the project —
 // per item, with the item bookkeeping every other ingest venue writes.
 //
-// Each fetched ContentItem upserts an item row and stores its blocks scoped to
-// that item (StoreBlocksForItem), matching the editor-upload, sync-push, and
-// desktop ingest paths. The item rows are load-bearing, not cosmetic: the
+// Each fetched ContentItem upserts an item row and makes its blocks the item's
+// whole block set (store.ReplaceItemBlocks), matching the editor-upload,
+// sync-push, and desktop ingest paths: a block the fetched file no longer has
+// is removed. The item rows are load-bearing, not cosmetic: the
 // dashboard stats (GetBlockStats), the convergence derive/produce steps (jobs
 // are enqueued per item), and forge delivery (per-item materialization) all
 // resolve a project's content through its items — blocks stored item-less were
@@ -143,7 +144,8 @@ func (s *ConnectorService) ListContent(ctx context.Context, workspaceID, connect
 // store maps each item's source IDs to project-unique internal IDs.
 //
 // Each item stores in its own transaction; re-fetching is idempotent (items
-// upsert by name, blocks by their per-item source IDs), so a partial failure
+// upsert by name, blocks by their per-item source IDs, and the blocks a file
+// no longer has are removed), so a partial failure
 // heals on the next ingest.
 func (s *ConnectorService) Fetch(ctx context.Context, workspaceID, connectorID, projectID string, opts connector.FetchOptions) ([]*connector.ContentItem, error) {
 	if projectID == "" {
@@ -161,8 +163,16 @@ func (s *ConnectorService) Fetch(ctx context.Context, workspaceID, connectorID, 
 
 	for _, item := range items {
 		name := connectorItemName(item)
-		if name == "" || len(item.Blocks) == 0 {
-			continue // nothing addressable or nothing translatable to store
+		if name == "" {
+			continue // nothing addressable
+		}
+		if len(item.Blocks) == 0 {
+			// A file that reads to no blocks adds no item, and an item stored
+			// from an earlier fetch loses the blocks it had.
+			if _, err := store.ReplaceItemBlocks(ctx, s.store, projectID, "main", name, nil); err != nil {
+				return nil, fmt.Errorf("store fetched blocks: %w", err)
+			}
+			continue
 		}
 		if err := s.store.StoreItem(ctx, projectID, "main", &store.Item{
 			Name:       name,
@@ -172,8 +182,8 @@ func (s *ConnectorService) Fetch(ctx context.Context, workspaceID, connectorID, 
 		}); err != nil {
 			return nil, fmt.Errorf("store fetched item %q: %w", name, err)
 		}
-		if err := s.store.StoreBlocksForItem(ctx, projectID, "main", name, item.Blocks); err != nil {
-			return nil, fmt.Errorf("store fetched blocks for %q: %w", name, err)
+		if _, err := store.ReplaceItemBlocks(ctx, s.store, projectID, "main", name, item.Blocks); err != nil {
+			return nil, fmt.Errorf("store fetched blocks: %w", err)
 		}
 	}
 
