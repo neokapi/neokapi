@@ -897,6 +897,22 @@ export interface ProjectSharing {
   workspace: string;
 }
 
+/** The rungs of the sharing ladder, as `kapi share --status` names them. */
+export type ShareRungID = "machine" | "team" | "bowrain";
+
+/** The Share page: how far a project's rules reach, and through what. */
+export interface ShareView {
+  /** The farthest rung the project reaches. */
+  rung: ShareRungID;
+  sharing: ProjectSharing;
+  /** The rules in force at the project's own point; absent when not counted. */
+  rules?: number;
+  /** Whether the kapi-bowrain plugin is installed. */
+  bowrain_plugin: boolean;
+  /** False for a folder opened without a kapi.yaml. */
+  recipe_written: boolean;
+}
+
 /** The `context:` block of a recipe: where the project's context is shared. */
 export interface ContextBackend {
   /** "local" (or absent), "file", "git" or "s3". */

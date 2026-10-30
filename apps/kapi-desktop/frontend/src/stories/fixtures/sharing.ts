@@ -3,7 +3,13 @@
 // waiting), a place that could not be reached, and connected to Bowrain with
 // and without a team place.
 
-import type { ContextSyncResult, ProjectSharing, SyncStatus } from "../../types/api";
+import type {
+  ContextSyncResult,
+  ProjectSharing,
+  ShareRungID,
+  ShareView,
+  SyncStatus,
+} from "../../types/api";
 
 /** The workspace directory, under a home that resolves on no machine. */
 export const WORKSPACE_DIR = "/fakehome/.local/share/kapi/workspaces/default";
@@ -101,6 +107,36 @@ export const BOWRAIN_WITHOUT_TEAM: ProjectSharing = {
   venue_host: "app.bowrain.cloud",
   venue_url: "https://app.bowrain.cloud/acme/help",
 };
+
+/** The Share page over one of the places above, with twelve rules in force. */
+function view(sharing: ProjectSharing, over: Partial<ShareView> = {}): ShareView {
+  const rung: ShareRungID = sharing.venue_host
+    ? "bowrain"
+    : sharing.kind !== "local"
+      ? "team"
+      : "machine";
+  return { rung, sharing, rules: 12, bowrain_plugin: false, recipe_written: true, ...over };
+}
+
+/** On this Mac, with the kapi-bowrain plugin not installed. */
+export const LOCAL_VIEW = view(LOCAL_SHARING);
+/** On this Mac, in a folder opened without a kapi.yaml. */
+export const UNSAVED_VIEW = view(LOCAL_SHARING, { recipe_written: false, rules: 0 });
+/** On this Mac, with the kapi-bowrain plugin installed. */
+export const LOCAL_VIEW_WITH_PLUGIN = view(LOCAL_SHARING, { bowrain_plugin: true });
+export const GIT_VIEW = view(GIT_IN_SYNC);
+export const GIT_PUSHES_WAITING_VIEW = view(GIT_PUSHES_WAITING);
+export const GIT_NEVER_SYNCED_VIEW = view(GIT_NEVER_SYNCED);
+export const FOLDER_VIEW = view(FOLDER_IN_SYNC);
+export const FOLDER_UNREACHABLE_VIEW = view(FOLDER_UNREACHABLE);
+export const S3_VIEW = view(S3_IN_SYNC);
+export const BOWRAIN_VIEW = view(BOWRAIN_CONNECTED, { bowrain_plugin: true });
+export const BOWRAIN_WITHOUT_TEAM_VIEW = view(BOWRAIN_WITHOUT_TEAM, { bowrain_plugin: true });
+/** A project whose path names a long folder, as a network share often does. */
+export const FOLDER_LONG_PATH_VIEW = view({
+  ...FOLDER_IN_SYNC,
+  location: "/Volumes/team-shares/Engineering/Documentation/kapi/projects/fernwell/context",
+});
 
 /** A sync that pulled three operations, pushed two and wrote the rules files. */
 export const SYNC_RESULT: ContextSyncResult = {

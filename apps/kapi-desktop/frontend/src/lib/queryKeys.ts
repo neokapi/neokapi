@@ -88,8 +88,8 @@ export const qk = {
   agentHosts: (tabID: string) => ["agent-hosts", tabID] as const,
   /** The rules files kapi writes for a tab's project, with their sections. */
   rulesFiles: (tabID: string) => ["rules-files", tabID] as const,
-  /** Where a tab's project's context is shared, and how far apart it stands. */
-  projectSharing: (tabID: string) => ["project-sharing", tabID] as const,
+  /** The Share page of a tab: the rung, the place and how far apart it stands. */
+  shareView: (tabID: string) => ["share-view", tabID] as const,
   /** Recorded context operations: the workspace's, or one project's. */
   contextFeed: (projectKey: string) => ["context-feed", projectKey] as const,
   /** The digest of the project a tab holds, read from one instant. */

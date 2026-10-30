@@ -269,7 +269,7 @@ export function ContextHub({
         {current === "share" && (
           <ScrollArea className="h-full">
             <div className="mx-auto max-w-3xl px-6 py-5">
-              <SharePanel tabID={tabID} contextOnly={contextOnly} />
+              <SharePanel tabID={tabID} projectName={projectName} contextOnly={contextOnly} />
             </div>
           </ScrollArea>
         )}
@@ -314,7 +314,7 @@ const SECTION_COMMANDS: Partial<Record<ContextSection, string>> = {
   agent: "kapi init",
   voice: "kapi voice show",
   history: "kapi context log",
-  share: "kapi context sync",
+  share: "kapi share",
 };
 
 /**

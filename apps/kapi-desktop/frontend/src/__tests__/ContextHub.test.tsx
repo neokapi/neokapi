@@ -71,9 +71,18 @@ vi.mock("../components/AssistantPanel", () => ({
   ),
 }));
 vi.mock("../components/SharePanel", () => ({
-  SharePanel: ({ tabID, contextOnly }: { tabID: string; contextOnly?: boolean }) => (
+  SharePanel: ({
+    tabID,
+    projectName,
+    contextOnly,
+  }: {
+    tabID: string;
+    projectName?: string;
+    contextOnly?: boolean;
+  }) => (
     <div>
       share for {tabID}
+      {projectName ? ` of ${projectName}` : ""}
       {contextOnly ? " without a checkout" : ""}
     </div>
   ),
@@ -157,7 +166,7 @@ describe("ContextHub", () => {
       "Share",
     ]);
     await userEvent.click(screen.getByRole("button", { name: "Share" }));
-    expect(screen.getByText("share for t1 without a checkout")).toBeInTheDocument();
+    expect(screen.getByText("share for t1 of Northsea without a checkout")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Assistant" }));
     expect(screen.getByText("assistant for t1 without a checkout")).toBeInTheDocument();
   });
@@ -171,7 +180,7 @@ describe("ContextHub", () => {
 
   it("opens Share on the project's ladder", () => {
     render(<ContextHub tabID="t3" projectName="Northsea" section="share" />);
-    expect(screen.getByText("share for t3")).toBeInTheDocument();
+    expect(screen.getByText("share for t3 of Northsea")).toBeInTheDocument();
   });
 
   it("names the command each section does the work of, once, at the right of the nav", async () => {
@@ -186,7 +195,7 @@ describe("ContextHub", () => {
     await userEvent.click(screen.getByRole("button", { name: "History" }));
     expect(commands()[0].textContent).toBe("kapi context log");
     await userEvent.click(screen.getByRole("button", { name: "Share" }));
-    expect(commands()[0].textContent).toBe("kapi context sync");
+    expect(commands()[0].textContent).toBe("kapi share");
     await userEvent.click(screen.getByRole("button", { name: "Assistant" }));
     expect(commands()[0].textContent).toBe("kapi init");
     await userEvent.click(screen.getByRole("button", { name: "Ask" }));
