@@ -420,7 +420,11 @@ function FindingRow({
     >
       <KindMark kind={finding.kind} />
       <span className={`min-w-0 flex-1 text-sm ${findingToneTextClass(tone)}`}>
-        {finding.label}
+        {/* The label is the check's own wording, read from the backend: the
+            rule's terms or the check's message, never a string to translate. */}
+        <span translate="no" data-slot="reader-finding-label">
+          {finding.label}
+        </span>
         {finding.locale && (
           <span translate="no" className="ml-1.5 font-mono text-[11px] text-muted-foreground">
             {finding.locale}
