@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -117,7 +118,7 @@ func TestLookMap(t *testing.T) {
 			want: []string{
 				"kapi suggests 1",
 				"What your files do\n  Word  sign in, not login",
-				"Decide with `kapi context review`. See a file with `kapi look <path>`.",
+				"Decide with `kapi rules`. See a file with `kapi look <path>`.",
 			},
 		},
 		{
@@ -184,7 +185,37 @@ func TestLookMap_JSON(t *testing.T) {
 	assert.Equal(t, "sign in, not login", m.Suggestions[0].Text)
 	require.Len(t, m.Files, 1)
 	assert.Equal(t, host.LookFileSummary{Path: "docs/guide.md", Blocks: 2, Findings: 2}, m.Files[0])
-	assert.Equal(t, "kapi context review", m.Next)
+	assert.Equal(t, "kapi rules", m.Next)
+}
+
+// TestLookMap_FirstLookFilesWhatKapiSees: the first look at a project whose
+// files write one word two ways counts the suggestion the suggestions pass
+// files, in the text and in --json alike, and prints nothing else about it.
+func TestLookMap_FirstLookFilesWhatKapiSees(t *testing.T) {
+	for _, first := range []string{"text", "json"} {
+		t.Run(first, func(t *testing.T) {
+			writeLookProject(t, "", map[string]string{"docs/guide.md": "# Guide\n\nSend an email.\n\nReply by email.\n\nOr send an e-mail.\n"})
+
+			var m host.LookProject
+			var out string
+			if first == "json" {
+				require.NoError(t, json.Unmarshal([]byte(runRoot(t, "look", "--json")), &m))
+				out = runRoot(t, "look")
+			} else {
+				out = runRoot(t, "look")
+				require.NoError(t, json.Unmarshal([]byte(runRoot(t, "look", "--json")), &m))
+			}
+			assert.Contains(t, out, "1 file · 4 blocks · 0 rules · 1 finding · kapi suggests 1\n")
+			assert.Contains(t, out, "\nWhat your files do\n  Name  email, not e-mail, e mail  2 of 3 uses\n\nFiles\n")
+			assert.True(t, strings.HasPrefix(out, m.Project+" · read 1 file just now\n\n"), out)
+
+			assert.Equal(t, 1, m.Suggests)
+			require.Len(t, m.Suggestions, 1)
+			assert.Equal(t, "email, not e-mail, e mail", m.Suggestions[0].Text)
+			assert.Equal(t, 1, m.Findings)
+			assert.Equal(t, "kapi rules", m.Next)
+		})
+	}
 }
 
 // TestLookReader_CaretsUnderTheFinding: a finding with a range is drawn with
@@ -265,17 +296,44 @@ func TestLookReader_JSON(t *testing.T) {
 	assert.Equal(t, "suggested", r.Rules[0].Status)
 }
 
-// TestRootHelp_ListsLookFirst: look is the first command of the Work group on
-// the root help, and the rest of the group keeps its order.
-func TestRootHelp_ListsLookFirst(t *testing.T) {
+// TestRootHelp_WorkOrder: the Work group on the root help opens with look,
+// then whichever of check, fix, rules, connect, share and open are
+// registered, in that order, and the rest of the group follows alphabetically.
+// Every other group keeps cobra's order.
+func TestRootHelp_WorkOrder(t *testing.T) {
 	isolateHelp(t)
 	t.Setenv("KAPI_NO_PROJECT", "1")
 
-	rows := commandRows(helpSection(runRoot(t, "--help"), "Work:"))
+	help := runRoot(t, "help", "--all")
+	rows := commandRows(helpSection(help, "Work:"))
 	require.NotEmpty(t, rows)
 	assert.Equal(t, "look", rows[0])
-	rest := append([]string(nil), rows[1:]...)
+	assert.Contains(t, rows, "check")
+
+	lead := []string{"look", "check", "fix", "rules", "connect", "share", "open"}
+	var leads, rest []string
+	for _, name := range rows {
+		if slices.Contains(lead, name) {
+			require.Empty(t, rest, "%s follows a command outside the lead list: %v", name, rows)
+			leads = append(leads, name)
+		} else {
+			rest = append(rest, name)
+		}
+	}
+	var want []string
+	for _, name := range lead {
+		if slices.Contains(leads, name) {
+			want = append(want, name)
+		}
+	}
+	assert.Equal(t, want, leads, "the lead commands keep the list's order")
 	assert.IsIncreasing(t, rest, "the rest of the group stays in cobra's order")
+
+	for _, heading := range []string{"Assets:", "Languages:", "Advanced:"} {
+		other := commandRows(helpSection(help, heading))
+		require.NotEmpty(t, other, heading)
+		assert.IsIncreasing(t, other, "%s keeps cobra's order", heading)
+	}
 }
 
 // TestBareKapi_PrintsTheMap: bare `kapi` in a project is the Map, its own last

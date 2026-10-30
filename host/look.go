@@ -19,6 +19,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/workspace"
 	"github.com/neokapi/neokapi/host/output"
 )
 
@@ -50,7 +51,7 @@ type LookProject struct {
 	Findings int `json:"findings"`
 	// Failing is how many of Findings fail the check.
 	Failing int `json:"failing"`
-	// Suggests counts what waits for a person in `kapi context review`:
+	// Suggests counts what waits for a person in `kapi rules`:
 	// suggestions, and disagreements between them.
 	Suggests int `json:"suggests"`
 	// Suggestions are those, one line each.
@@ -76,7 +77,7 @@ type LookFileSummary struct {
 
 // LookSuggestion is one suggestion waiting for a person.
 type LookSuggestion struct {
-	// ID is what `kapi context review --keep` takes.
+	// ID is what `kapi rules --keep` takes.
 	ID string `json:"id"`
 	// Kind is the mark the line carries: Name, Word, Note, Memory, or
 	// Disagreement.
@@ -115,6 +116,7 @@ func (a *App) LookProject(cmd Command) (*LookProject, error) {
 		return nil, fmt.Errorf("load project: %w", err)
 	}
 	root := filepath.Dir(recipe)
+	a.lookFirstPass(ctx, recipe)
 	pcmd := lookCommand(ctx, recipe)
 	a.applyProjectSourceLang(pcmd)
 
@@ -189,11 +191,48 @@ func (a *App) LookProject(cmd Command) (*LookProject, error) {
 	case out.Source != nil:
 		out.Next = "kapi add <pattern>"
 	case out.Suggests > 0:
-		out.Next = "kapi context review"
+		out.Next = "kapi rules"
 	default:
 		out.Next = "kapi check"
 	}
 	return out, nil
+}
+
+// lookFirstPass runs the suggestions pass (`kapi context suggest`) the first
+// time a project is looked at, so the Map of a new project counts what the
+// files already do. It runs over a checkout with no suggestPassStampPath
+// stamp, in a project whose context log holds no rule and no suggestion that
+// answers. A project whose log holds one is stamped instead, so a later look
+// reads the stamp alone. A pass that cannot run leaves the Map to count what
+// the log holds, and the Map prints nothing about it either way.
+func (a *App) lookFirstPass(ctx context.Context, recipe string) {
+	ws, err := a.Workspace(ctx)
+	if err != nil || ws == nil || ws.Describe().ReadOnly {
+		return
+	}
+	identity, _ := recipeIdentity(recipe)
+	if identity == "" {
+		return
+	}
+	key, root := workspace.ProjectKey(identity), filepath.Dir(recipe)
+	if settled, err := suggestPassSettled(ctx, ws, key, root); err != nil || settled {
+		return
+	}
+	s, err := a.contextOps(ctx, recipe)
+	if err != nil || !s.checkedOut() {
+		return
+	}
+	records, err := s.ledger.Records(ctx, contextop.Filter{Project: s.key, Subjects: true})
+	if err != nil {
+		return
+	}
+	for _, r := range records {
+		if r.Status.Answers() {
+			_ = stampSuggestPass(ctx, ws, s.key, s.root)
+			return
+		}
+	}
+	_, _ = s.suggestFromFiles(ctx, false)
 }
 
 // lookCommand is the command the Map and the Reader run the check and the
@@ -403,7 +442,7 @@ func (m *LookProject) FormatText(w io.Writer) error {
 			fmt.Fprintln(w, strings.TrimRight(line, " "))
 		}
 		if rest := len(m.Suggestions) - len(shown); rest > 0 {
-			fmt.Fprintf(w, "  %s\n", s.Muted.Render(fmt.Sprintf("%d more in kapi context review", rest)))
+			fmt.Fprintf(w, "  %s\n", s.Muted.Render(fmt.Sprintf("%d more in kapi rules", rest)))
 		}
 	}
 
@@ -440,8 +479,8 @@ func (m *LookProject) FormatText(w io.Writer) error {
 // project with no content prints its source line in place of it, because that
 // line names the step.
 func (m *LookProject) NextLine() string {
-	if m.Next == "kapi context review" {
-		return "Decide with `kapi context review`. See a file with `kapi look <path>`."
+	if m.Next == "kapi rules" {
+		return "Decide with `kapi rules`. See a file with `kapi look <path>`."
 	}
 	return "Check with `kapi check`. See a file with `kapi look <path>`."
 }
@@ -1069,26 +1108,6 @@ func projectRel(root, path string) string {
 		return rel
 	}
 	return filepath.ToSlash(path)
-}
-
-// rootSpelled spells an absolute path inside root the way root spells it, and
-// reports whether it is inside. The two can name one directory differently
-// when one passed through a symbolic link (macOS reaches /var through
-// /private/var), so a path that is not under root as written is compared
-// again with the links resolved.
-func rootSpelled(root, abs string) (string, bool) {
-	if rel, inside := underRoot(root, abs); inside {
-		return filepath.Join(root, filepath.FromSlash(rel)), true
-	}
-	realRoot, rerr := filepath.EvalSymlinks(root)
-	realPath, perr := filepath.EvalSymlinks(abs)
-	if rerr != nil || perr != nil {
-		return abs, false
-	}
-	if rel, inside := underRoot(realRoot, realPath); inside {
-		return filepath.Join(root, filepath.FromSlash(rel)), true
-	}
-	return abs, false
 }
 
 // cwdAbs makes a path the check reported relative to the working directory

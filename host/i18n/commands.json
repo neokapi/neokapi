@@ -3018,7 +3018,7 @@
               "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
             }
           },
-          "long": "See where the project stands, or read one file with what applies to it.\n\nWith no path, look prints the project: the files kapi reads, the blocks in\nthem, the rules in force, the findings kapi check reports, and the\nsuggestions waiting for you in kapi context review. Inside a project, kapi\nwith no command prints the same.\n\nWith a path, look prints the file's blocks in order, each one named the way\nkapi check and kapi inspect name it. A finding is marked with carets under the\nwords it is about, and the rules that hold in the file follow the blocks. A\nfile the project does not read as content is shown too, without rules.\n\n--json gives the same as data.",
+          "long": "See where the project stands, or read one file with what applies to it.\n\nWith no path, look prints the project: the files kapi reads, the blocks in\nthem, the rules in force, the findings kapi check reports, and the\nsuggestions waiting for you in kapi rules. The first look at a project with\nno rules files what kapi sees in the files as suggestions. Inside a project,\nkapi with no command prints the same.\n\nWith a path, look prints the file's blocks in order, each one named the way\nkapi check and kapi inspect name it. A finding is marked with carets under the\nwords it is about, and the rules that hold in the file follow the blocks. A\nfile the project does not read as content is shown too, without rules.\n\n--json gives the same as data.",
           "short": "See the project, or one file with its rules and findings in place"
         },
         "ls": {

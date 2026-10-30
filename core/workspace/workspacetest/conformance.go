@@ -912,6 +912,18 @@ func importStampsAreKeptPerCheckout(t *testing.T, b workspace.Backend) {
 	assert.Equal(t, "dd", held[0].Digest)
 	assert.Equal(t, later, held[0].At)
 
+	// A pass that ran over the checkout is stamped beside its files, under a
+	// path no file has, and leaves their stamps as they were.
+	require.NoError(t, w.NoteContextImports(ctx,
+		workspace.ContextImportStamp{Project: "prj_docs", Checkout: "/w/main", Path: "/kapi context suggest", At: later}))
+	held, err = w.ContextImports(ctx, "prj_docs", "/w/main")
+	require.NoError(t, err)
+	require.Len(t, held, 3)
+	assert.Equal(t, []string{".kapi/terms.json", ".kapi/voice.yaml", "/kapi context suggest"},
+		[]string{held[0].Path, held[1].Path, held[2].Path})
+	assert.Empty(t, held[2].Digest)
+	assert.Equal(t, "dd", held[0].Digest)
+
 	require.NoError(t, w.NoteContextImports(ctx), "noting nothing is not an error")
 	require.ErrorIs(t, w.NoteContextImports(ctx,
 		workspace.ContextImportStamp{Path: ".kapi/terms.json"}), workspace.ErrNoImportStamp)

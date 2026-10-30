@@ -53,26 +53,33 @@ var rootDefaultFlags = map[string]bool{
 	"color":   true,
 }
 
-// leadCommands are listed first in their group on the root help, in this
-// order. The rest of each group follows in cobra's alphabetical order.
-var leadCommands = []string{"look"}
+// workGroupID is the root group a person's commands sit in.
+const workGroupID = "work"
 
-// ordered returns the root's commands with leadCommands first. A subcommand's
+// workLeads are listed first in the Work group on the root help, in this
+// order. A name no command registers is passed over. The rest of the group,
+// and every other group, follows in cobra's alphabetical order.
+var workLeads = []string{"look", "check", "fix", "rules", "connect", "share", "open"}
+
+// ordered returns the root's commands with workLeads first. A subcommand's
 // help lists its commands as cobra sorts them.
 func (s usageScope) ordered(cmds []*cobra.Command) []*cobra.Command {
 	if !s.tiered {
 		return cmds
 	}
+	lead := func(c *cobra.Command) bool {
+		return c.GroupID == workGroupID && slices.Contains(workLeads, c.Name())
+	}
 	out := make([]*cobra.Command, 0, len(cmds))
-	for _, name := range leadCommands {
+	for _, name := range workLeads {
 		for _, c := range cmds {
-			if c.Name() == name {
+			if c.Name() == name && lead(c) {
 				out = append(out, c)
 			}
 		}
 	}
 	for _, c := range cmds {
-		if !slices.Contains(leadCommands, c.Name()) {
+		if !lead(c) {
 			out = append(out, c)
 		}
 	}
