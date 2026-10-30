@@ -66,7 +66,9 @@ and prints the content no collection reads yet, with the lines to add.
 The recipe is the configuration, and it is committed. The project's **context**
 (its terms, its voice profiles, its content memory and its decisions) lives in
 the user's workspace, one store per project, shared by every checkout. Never
-tell the user to commit their context.
+tell the user to commit their context. To share it with their team, the user
+runs `kapi share --via git` (or `--via folder <path>`), which writes the
+`context:` block and syncs; you sync with `kapi context sync`.
 
 `kapi init` also writes the project's rules where agents load them without a
 tool call: a section of `AGENTS.md` and `CLAUDE.md` at the root for the rules

@@ -114,3 +114,43 @@ describe("restoring the remembered session", () => {
     expect(result.current.tabs).toHaveLength(0);
   });
 });
+
+describe("a folder handed to the app as it starts", () => {
+  const OUTSIDE = { id: "tab-2", name: "site", path: "/fakehome/src/site/kapi.yaml" };
+  beforeEach(() => stubBackend());
+  afterEach(() => vi.restoreAllMocks());
+
+  it("is shown in front of the remembered session", async () => {
+    vi.spyOn(api, "getSessionState").mockResolvedValue({
+      lastOpenProjects: [TAB.path],
+      activeProject: TAB.path,
+    });
+    vi.spyOn(api, "listTabs").mockResolvedValue([TAB, OUTSIDE]);
+    const { result } = renderHook(() => useTabManager(), { wrapper });
+    await waitFor(() => expect(result.current.restoring).toBe(false));
+    expect(result.current.tabs.map((t) => t.info.id)).toEqual([TAB.id, OUTSIDE.id]);
+    expect(result.current.activeTab?.info.id).toBe(OUTSIDE.id);
+    expect(result.current.effectiveView).toBe("map");
+  });
+
+  it("is shown in place of the home when nothing was remembered", async () => {
+    vi.spyOn(api, "listTabs").mockResolvedValue([OUTSIDE]);
+    const { result } = renderHook(() => useTabManager(), { wrapper });
+    await waitFor(() => expect(result.current.restoring).toBe(false));
+    expect(result.current.tabs.map((t) => t.info.id)).toEqual([OUTSIDE.id]);
+    expect(result.current.activeTab?.info.id).toBe(OUTSIDE.id);
+    expect(result.current.effectiveView).toBe("map");
+  });
+
+  it("leaves the remembered session as it was when nothing came from outside", async () => {
+    vi.spyOn(api, "getSessionState").mockResolvedValue({
+      lastOpenProjects: [TAB.path],
+      activeProject: TAB.path,
+    });
+    vi.spyOn(api, "listTabs").mockResolvedValue([TAB]);
+    const { result } = renderHook(() => useTabManager(), { wrapper });
+    await waitFor(() => expect(result.current.restoring).toBe(false));
+    expect(result.current.tabs).toHaveLength(1);
+    expect(result.current.activeTab?.info.id).toBe(TAB.id);
+  });
+});

@@ -75,6 +75,16 @@ var browserGaps = map[string]browserGap{
 		group:  "work",
 		reason: "the assistants it connects run on your own machine and read their configuration from your own project folder",
 	},
+	"share": {
+		short:  "Share the rules with your team",
+		group:  "work",
+		reason: "sharing reaches a git remote, a folder or a bucket outside the page, which the browser has no access to",
+	},
+	"open": {
+		short:  "Open this folder in Kapi Desktop",
+		group:  "work",
+		reason: "Kapi Desktop is an application on your own machine, which the browser cannot start",
+	},
 	"mcp": {
 		short:  "Start an MCP server (stdio) for assistants writing in this project",
 		group:  "advanced",
@@ -187,6 +197,8 @@ func BrowserCommandSet(a *App) []*cobra.Command {
 		NewHookCmd(a),
 		NewInitCmd(a),
 		newBrowserGapCmd("connect"),
+		newBrowserGapCmd("share"),
+		newBrowserGapCmd("open"),
 		NewAddCmd(a),
 		NewRmCmd(a),
 		NewLsCmd(a),

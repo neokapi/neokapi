@@ -67,6 +67,8 @@ func KapiCommandSet(a *App) []*cobra.Command {
 		NewHookCmd(a),
 		NewInitCmd(a),
 		NewConnectCmd(a),
+		NewShareCmd(a),
+		NewOpenCmd(a),
 		NewAddCmd(a),
 		NewRmCmd(a),
 		NewLsCmd(a),

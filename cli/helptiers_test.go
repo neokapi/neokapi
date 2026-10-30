@@ -273,6 +273,9 @@ func TestOneLanguageProject_NamesNoLanguageWork(t *testing.T) {
 		{name: "kapi rules list", args: []string{"rules", "list"}},
 		{name: "kapi connect --help", args: []string{"connect", "--help"}},
 		{name: "kapi connect --dry-run", args: []string{"connect", "--dry-run"}},
+		{name: "kapi share --help", args: []string{"share", "--help"}},
+		{name: "kapi share", args: []string{"share"}},
+		{name: "kapi open --help", args: []string{"open", "--help"}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			out := runRoot(t, tt.args...)

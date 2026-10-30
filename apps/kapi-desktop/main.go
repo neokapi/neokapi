@@ -4,6 +4,7 @@ import (
 	"embed"
 	"log/slog"
 	"os"
+	"runtime"
 	"strings"
 
 	// Blank-import the venue schema package so a recipe carrying its extension
@@ -30,6 +31,32 @@ var appIcon []byte
 func main() {
 	appService := backend.NewApp()
 
+	// outside opens a project path handed to the app from outside it. A
+	// second launch can forward one before the window exists; it waits there
+	// until the window can show it.
+	outside := &backend.OutsideOpener{}
+
+	// On Linux and Windows a folder reaches the app as its first argument,
+	// which Wails dispatches only for a registered file extension. The
+	// argument is read here, and a second launch forwards its own to the
+	// window already open. macOS hands the path over as an opened file and
+	// keeps one instance itself; a Linux session with no D-Bus session bus
+	// starts without the lock.
+	var singleInstance *application.SingleInstanceOptions
+	if backend.SingleInstanceAvailable(runtime.GOOS, os.Getenv) {
+		singleInstance = &application.SingleInstanceOptions{
+			UniqueID: backend.SingleInstanceID(),
+			OnSecondInstanceLaunch: func(data application.SecondInstanceData) {
+				if len(data.Args) < 2 {
+					return
+				}
+				if path := backend.LaunchPath(data.Args[1:], data.WorkingDir); path != "" {
+					outside.Open(path)
+				}
+			},
+		}
+	}
+
 	app := application.New(application.Options{
 		Name: "Kapi",
 		Icon: appIcon,
@@ -42,6 +69,7 @@ func main() {
 		Mac: application.MacOptions{
 			ApplicationShouldTerminateAfterLastWindowClosed: true,
 		},
+		SingleInstance: singleInstance,
 	})
 
 	appService.SetApplication(app)
@@ -94,38 +122,49 @@ func main() {
 		app.Event.Emit("files-dropped", files)
 	})
 
-	// Handle project paths delivered by the OS (e.g. a kapi.yaml recipe dropped
-	// on the dock icon, or a second instance). Recipes are normally opened by
-	// their folder via the Open dialog — there is no branded .kapi file type.
-	app.Event.OnApplicationEvent(events.Common.ApplicationOpenedWithFile, func(event *application.ApplicationEvent) {
-		files := event.Context().OpenedFiles()
-		if len(files) == 0 {
-			return
-		}
-		// Bring window to front and open each file as a new tab.
+	// A project path from outside the app opens as a tab and brings the
+	// window to the front; OpenProject opens a folder or a recipe. The
+	// frontend also lists the open tabs once it has restored the session, so
+	// a path handed over before it listens still shows.
+	openOutside := func(path string) {
 		application.InvokeSync(func() {
 			win.Focus()
 		})
-		for _, filePath := range files {
-			go func(path string) {
-				tab, err := appService.OpenProject(path)
-				if err != nil {
-					slog.Info("open file", "error", err)
-					return
-				}
-				app.Event.Emit("open-project-tab", tab)
-			}(filePath)
+		go func() {
+			tab, err := appService.OpenProject(path)
+			if err != nil {
+				slog.Info("open file", "error", err)
+				return
+			}
+			app.Event.Emit("open-project-tab", tab)
+		}()
+	}
+	outside.SetOpen(openOutside)
+
+	// Handle project paths delivered by the OS: `open -a Kapi <folder>`, which
+	// `kapi open` runs, or a recipe dropped on the dock icon. Recipes are
+	// normally opened by their folder via the Open dialog; there is no branded
+	// .kapi file type.
+	app.Event.OnApplicationEvent(events.Common.ApplicationOpenedWithFile, func(event *application.ApplicationEvent) {
+		for _, filePath := range event.Context().OpenedFiles() {
+			openOutside(filePath)
 		}
 	})
 
 	// Load plugins in the background after all services have started, and
 	// rebuild the menu once the app is fully up so Recent Projects reflects the
-	// persisted list even on the very first frame.
+	// persisted list even on the very first frame. A project path given as the
+	// first argument opens once the app is up.
 	app.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(event *application.ApplicationEvent) {
 		application.InvokeSync(func() {
 			app.Menu.SetApplicationMenu(buildAppMenu(app, appService))
 		})
 		go appService.LoadPlugins()
+		if wd, err := os.Getwd(); err == nil {
+			if path := backend.LaunchPath(os.Args[1:], wd); path != "" {
+				openOutside(path)
+			}
+		}
 	})
 
 	if err := app.Run(); err != nil {
@@ -143,9 +182,9 @@ func buildAppMenu(app *application.App, appService *backend.App) *application.Me
 	// Standard role items (About, Quit, Services…) are localized by macOS.
 	tr := appService.T()
 
-	// App menu (macOS standard) — built manually (mirrors Wails' NewAppMenu) so
-	// "Check for Updates…" sits directly below "About Kapi", the conventional
-	// macOS placement, rather than in the File menu.
+	// App menu (macOS standard), built by hand (it mirrors Wails' NewAppMenu)
+	// so "Check for Updates…" sits directly below "About Kapi", the
+	// conventional macOS placement, rather than in the File menu.
 	appMenu := menu.AddSubmenu("Kapi")
 	appMenu.AddRole(application.About)
 	appMenu.AddSeparator()
