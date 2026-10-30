@@ -27,6 +27,7 @@ import { call } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
 import type { KapiProject, KeptConflict, ProjectStatus, ProjectServer } from "../types/api";
 import { KeptConflicts } from "./KeptConflicts";
+import { declaresTargetLanguages, resolvedTargetLanguages } from "../lib/languages";
 
 /** One point the recipe declares, and what governs there. */
 export interface ProjectPoint {
@@ -62,6 +63,9 @@ export interface ProjectStandingProps {
   conflicts?: KeptConflict[];
   /** Open Context standing at a point. */
   onOpenPoint?: (pin: { coordinate?: string; collection?: string }) => void;
+  /** Whether the saved recipe declares a target language; the languages row
+   *  appears only when it does. Defaults to `declaresTargetLanguages(project)`. */
+  hasTargetLanguages?: boolean;
 }
 
 /** One labelled axis of the standing. */
@@ -105,7 +109,9 @@ export function ProjectStanding({
   server: propServer,
   conflicts,
   onOpenPoint,
+  hasTargetLanguages,
 }: ProjectStandingProps) {
+  const languages = hasTargetLanguages ?? declaresTargetLanguages(project);
   const statusQuery = useQuery({
     queryKey: qk.projectStatus(tabID),
     queryFn: () => call<ProjectStatus>("GetProjectStatus", tabID),
@@ -126,7 +132,7 @@ export function ProjectStanding({
   const points = propPoints ?? pointsQuery.data ?? undefined;
   const server = propServer ?? serverQuery.data ?? undefined;
 
-  const targets = project.defaults?.target_languages ?? [];
+  const targets = resolvedTargetLanguages(project);
   const blocks = (status?.collections ?? []).reduce((n, c) => n + (c.blockCount ?? 0), 0);
   const collections = status?.collections?.length ?? project.collections?.length ?? 0;
 
@@ -200,7 +206,7 @@ export function ProjectStanding({
             </Fact>
           </Axis>
 
-          {targets.length > 0 && (
+          {languages && targets.length > 0 && (
             <Axis label={t("languages")} icon={<Cloud size={12} />}>
               <Fact muted>{targets.join(", ")}</Fact>
             </Axis>
