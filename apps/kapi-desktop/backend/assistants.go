@@ -3,7 +3,6 @@ package backend
 import (
 	"context"
 	"errors"
-	"strings"
 
 	"github.com/neokapi/neokapi/host"
 )
@@ -12,12 +11,17 @@ import (
 // sessions they and the person recorded in it.
 //
 // The connection state comes from a dry run of host.ConnectHosts, the service
-// `kapi connect` runs, over every assistant it knows. An assistant whose files
-// that run would leave as they are is connected; its Connect runs the same
-// service for that one assistant. Claude Desktop is configured in a file of
+// `kapi connect` runs, over every assistant's own files (HostsOnly), and from
+// whether the rules files hold kapi's section. An assistant whose files that
+// run would leave as they are, in a project whose rules files are written, is
+// connected; its Connect runs the same service for that one assistant. Claude Desktop is configured in a file of
 // the person's own, which the host layer never writes, so its row reads and
 // connects through agentwiring.go. The sessions are the project's feed
 // (contextfeed.go), counted per session.
+
+// assistantRulesMissing is the reason a row gives when the assistant's own
+// files are in place and the project's rules files hold no kapi section.
+const assistantRulesMissing = "rules files missing"
 
 // assistantSessionsShown is how many sessions the page lists. The rest are in
 // the Sessions view.
@@ -39,9 +43,13 @@ type AssistantHostView struct {
 	// and Label what to call it on screen.
 	Host  string `json:"host"`
 	Label string `json:"label"`
-	// Connected reports that the assistant's files are in place: connecting
-	// it again would write none of them.
+	// Connected reports that the assistant's files are in place, connecting
+	// it again would write none of them, and the project's rules files hold
+	// kapi's section.
 	Connected bool `json:"connected"`
+	// Reason says why an assistant whose own files are in place is not
+	// connected: "rules files missing".
+	Reason string `json:"reason,omitempty"`
 	// Check reports that kapi check runs when the assistant finishes, through
 	// the Stop hook of the kapi Claude Code plugin.
 	Check bool `json:"check"`
@@ -82,8 +90,12 @@ type AssistantSession struct {
 // AssistantsView is the Assistants page of one tab.
 type AssistantsView struct {
 	// Rules is how many rules are in force at the project's own point, the
-	// count the Map shows.
-	Rules int `json:"rules"`
+	// count the Map shows. Nil when it could not be read.
+	Rules *int `json:"rules,omitempty"`
+	// HostsError and SessionsError say why the assistants or the sessions
+	// could not be read; the other part of the page is read all the same.
+	HostsError    string `json:"hosts_error,omitempty"`
+	SessionsError string `json:"sessions_error,omitempty"`
 	// NeedsCheckout reports a tab with no checkout of the project here, which
 	// has no files to connect an assistant through.
 	NeedsCheckout bool `json:"needs_checkout"`
@@ -113,19 +125,20 @@ func (a *App) AssistantsView(tabID string) (*AssistantsView, error) {
 		Sessions:   []AssistantSession{},
 		ProjectKey: string(op.workspaceKey),
 	}
+	// The assistants and the sessions are read apart, so a failure in one
+	// leaves the other on the page with the failure beside it.
 	if root == "" {
 		out.NeedsCheckout = true
 	} else {
 		hosts, herr := a.assistantHosts(ctx, recipe, root)
 		if herr != nil {
-			return nil, herr
+			out.HostsError = herr.Error()
+		} else {
+			out.Hosts = hosts
+			if rules, rerr := a.mapRuleCount(ctx, op); rerr == nil {
+				out.Rules = &rules
+			}
 		}
-		out.Hosts = hosts
-		rules, rerr := a.mapRuleCount(ctx, op)
-		if rerr != nil {
-			return nil, rerr
-		}
-		out.Rules = rules
 	}
 
 	// A folder opened without a recipe is not in the workspace yet, so its
@@ -133,7 +146,8 @@ func (a *App) AssistantsView(tabID string) (*AssistantsView, error) {
 	if op.workspaceKey != "" && !op.unsaved.Load() {
 		feed, ferr := a.contextFeed(ctx, op.workspaceKey, contextFeedDefaultLimit)
 		if ferr != nil {
-			return nil, ferr
+			out.SessionsError = ferr.Error()
+			return out, nil
 		}
 		groups := feed.Groups
 		if len(groups) > assistantSessionsShown {
@@ -158,16 +172,19 @@ func (a *App) AssistantsView(tabID string) (*AssistantsView, error) {
 }
 
 // assistantHosts reads each assistant's connection from a dry run of kapi
-// connect over all of them, which writes nothing.
+// connect over its own files, which plans no rules files, resolves no context
+// and writes nothing, and from whether the project's rules files hold kapi's
+// section.
 func (a *App) assistantHosts(ctx context.Context, recipe, root string) ([]AssistantHostView, error) {
 	res, err := a.hostEngine().ConnectHosts(ctx, connectCommand(ctx, recipe), host.ConnectOptions{
-		Dir:    root,
-		Hosts:  connectAllHosts,
-		DryRun: true,
+		Dir:       root,
+		Hosts:     connectAllHosts,
+		HostsOnly: true,
 	})
 	if err != nil {
 		return nil, err
 	}
+	rules := host.HasRulesFiles(root)
 	out := make([]AssistantHostView, 0, len(res.Hosts)+1)
 	for _, h := range res.Hosts {
 		row := AssistantHostView{Host: string(h.Host), Label: h.Label, Connected: true, Available: true}
@@ -176,13 +193,16 @@ func (a *App) assistantHosts(ctx context.Context, recipe, root string) ([]Assist
 			case f.Kind == host.ConnectHook && f.Action == host.ConnectKept:
 				row.Check = true
 			case f.Kind == host.ConnectHook && f.Action == host.ConnectPending:
-				row.Pending = pluginCommands(f.Detail)
+				row.Pending = host.ClaudePluginCommands()
 			case f.Action != host.ConnectKept:
 				row.Connected = false
 			}
 			if f.Path != "" && f.Kind != host.ConnectHook {
 				row.Files = append(row.Files, f.Path)
 			}
+		}
+		if row.Connected && !rules {
+			row.Connected, row.Reason = false, assistantRulesMissing
 		}
 		out = append(out, row)
 	}
@@ -197,19 +217,6 @@ func (a *App) assistantHosts(ctx context.Context, recipe, root string) ([]Assist
 		})
 	}
 	return out, nil
-}
-
-// pluginCommands reads the commands out of the step kapi connect prints for
-// the Claude Code plugin: "in Claude Code, /plugin …, then /plugin …".
-func pluginCommands(step string) []string {
-	var out []string
-	for part := range strings.SplitSeq(step, ", ") {
-		part = strings.TrimPrefix(part, "then ")
-		if strings.HasPrefix(part, "/") {
-			out = append(out, part)
-		}
-	}
-	return out
 }
 
 // ConnectAssistant connects one assistant to a tab's project as `kapi connect
