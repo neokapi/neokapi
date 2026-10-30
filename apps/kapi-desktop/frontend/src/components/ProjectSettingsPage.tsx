@@ -91,6 +91,58 @@ function formatPin(pin: VersionPin, base: string): string | undefined {
   return base;
 }
 
+export interface LanguagesSectionProps {
+  project: KapiProject;
+  onUpdate: (project: KapiProject) => void;
+  /** Leave out the section heading, on a page whose title already names it. */
+  untitled?: boolean;
+}
+
+/**
+ * The project's source language and the languages it translates into. Project
+ * Settings shows it among the other settings, and the Languages page shows it
+ * alone.
+ */
+export function LanguagesSection({ project, onUpdate, untitled }: LanguagesSectionProps) {
+  const defaults = project.defaults ?? {};
+  const { locales } = useLocales();
+  const updateDefaults = (patch: Partial<typeof defaults>) => {
+    onUpdate({ ...project, defaults: { ...defaults, ...patch } });
+  };
+  return (
+    <section data-slot="languages-section">
+      {!untitled && (
+        <SectionHeading className="mb-3" icon={<Globe size={14} />}>
+          Languages
+        </SectionHeading>
+      )}
+      <Card>
+        <CardContent className="space-y-4 p-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label className="mb-1 block text-xs text-muted-foreground">Source Language</Label>
+              <LocaleSelect
+                value={defaults.source_language ?? ""}
+                onChange={(v) => updateDefaults({ source_language: v })}
+                locales={locales}
+                placeholder="Select source language..."
+              />
+            </div>
+            <div>
+              <Label className="mb-1 block text-xs text-muted-foreground">Translations</Label>
+              <MultiLocaleSelect
+                value={defaults.target_languages ?? []}
+                onChange={(v) => updateDefaults({ target_languages: v })}
+                locales={locales}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </section>
+  );
+}
+
 export function ProjectSettingsPage({
   tabID,
   project,
@@ -114,8 +166,6 @@ export function ProjectSettingsPage({
   useEffect(() => {
     if (pluginsQuery.error) showError("Failed to load plugins", pluginsQuery.error);
   }, [pluginsQuery.error, showError]);
-
-  const { locales } = useLocales();
 
   // Deduplicate installed plugins by name (keep highest version).
   const installedByName = new Map<string, PluginInfo>();
@@ -164,37 +214,7 @@ export function ProjectSettingsPage({
       <PageHeader title="Project Settings" />
 
       <div className="max-w-2xl space-y-6">
-        {/* Languages */}
-        <section>
-          <SectionHeading className="mb-3" icon={<Globe size={14} />}>
-            Languages
-          </SectionHeading>
-          <Card>
-            <CardContent className="space-y-4 p-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="mb-1 block text-xs text-muted-foreground">
-                    Source Language
-                  </Label>
-                  <LocaleSelect
-                    value={defaults.source_language ?? ""}
-                    onChange={(v) => updateDefaults({ source_language: v })}
-                    locales={locales}
-                    placeholder="Select source language..."
-                  />
-                </div>
-                <div>
-                  <Label className="mb-1 block text-xs text-muted-foreground">Translations</Label>
-                  <MultiLocaleSelect
-                    value={defaults.target_languages ?? []}
-                    onChange={(v) => updateDefaults({ target_languages: v })}
-                    locales={locales}
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </section>
+        <LanguagesSection project={project} onUpdate={onUpdate} />
 
         {/* Files — how content is read from and written to disk */}
         <section>

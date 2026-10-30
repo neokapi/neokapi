@@ -3,6 +3,8 @@ import {
   Compass,
   FolderKanban,
   ClipboardCheck,
+  Languages,
+  Plus,
   Wrench,
   Map as MapIcon,
   Settings,
@@ -19,10 +21,13 @@ type SidebarItem =
       icon: React.ReactNode;
       label: string;
       alwaysEnabled?: boolean;
-      /** When true, this item appears only once the project has target
-       *  languages (e.g. Content Memory). Hidden, not disabled, when it
-       *  doesn't — a project simply shows the surfaces its languages call for. */
+      /** When true, this item appears only once the project declares a target
+       *  language (Review). Hidden, not disabled, when it does not: a project
+       *  shows the surfaces its languages call for. */
       localeGated?: boolean;
+      /** The Languages door: "Languages +" until the project declares a
+       *  target language, "Languages" from then on. */
+      languages?: boolean;
       /** Extra routes that keep this item highlighted — e.g. the Toolbox stays
        *  active on its "flows" sub-tab. */
       activeViews?: string[];
@@ -33,8 +38,9 @@ interface IconSidebarProps {
   active: string;
   onChange: (view: string) => void;
   projectDisabled?: boolean;
-  /** Whether the open project has target languages. Locale-gated items appear
-   *  only when it does — the source-first, "languages stay quiet" model. */
+  /** Whether the open project's recipe declares a target language
+   *  (`declaresTargetLanguages`). Review appears only when it does, and the
+   *  Languages entry reads "Languages +" until then. */
   hasTargetLanguages?: boolean;
 }
 
@@ -76,6 +82,13 @@ const projectItems: SidebarItem[] = [
   },
   {
     type: "item",
+    view: "languages",
+    icon: <Languages size={20} strokeWidth={SW} />,
+    label: "Languages",
+    languages: true,
+  },
+  {
+    type: "item",
     view: "review",
     icon: <ClipboardCheck size={20} strokeWidth={SW} />,
     label: "Review",
@@ -111,17 +124,21 @@ export function IconSidebar({
           if (item.type === "separator") {
             return <div key={`sep-${i}`} className="my-1 h-px w-6 bg-border" />;
           }
-          // Locale-gated items (Content Memory) appear only once the
-          // project has target languages — present, never an announced unlock.
+          // Review appears only once the project declares a target language.
           if (item.localeGated && !hasTargetLanguages) {
             return null;
           }
+          // Without a target language the Languages door carries a plus, and
+          // a persisted Review view, which opens the door too, keeps it lit.
+          const door = item.languages && !hasTargetLanguages;
+          const label = door ? "Languages +" : item.label;
+          const activeViews = door ? [...(item.activeViews ?? []), "review"] : item.activeViews;
           const disabled = projectDisabled && !item.alwaysEnabled;
           const isActive =
             active === item.view ||
             active.startsWith(`${item.view}:`) ||
-            (item.activeViews?.some((v) => active === v || active.startsWith(`${v}:`)) ?? false);
-          const title = disabled ? `${item.label} (open a project first)` : item.label;
+            (activeViews?.some((v) => active === v || active.startsWith(`${v}:`)) ?? false);
+          const title = disabled ? `${label} (open a project first)` : label;
           return (
             <SimpleTooltip key={item.view} content={title} side="right">
               <span className="inline-flex">
@@ -135,9 +152,21 @@ export function IconSidebar({
                         ? "text-muted-foreground/30 cursor-not-allowed"
                         : "text-muted-foreground hover:bg-accent hover:text-foreground"
                   }`}
-                  aria-label={item.label}
+                  aria-label={label}
                 >
-                  {item.icon}
+                  {door ? (
+                    <span className="relative inline-flex" data-slot="languages-door">
+                      {item.icon}
+                      <Plus
+                        size={10}
+                        strokeWidth={2.5}
+                        aria-hidden
+                        className="absolute -right-1.5 -bottom-1"
+                      />
+                    </span>
+                  ) : (
+                    item.icon
+                  )}
                 </button>
               </span>
             </SimpleTooltip>
