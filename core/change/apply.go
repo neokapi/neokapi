@@ -1202,49 +1202,57 @@ func sameRuns(a, b []model.Run) bool {
 // sameContent reports whether two run sequences say the same as a file holds
 // it: the same text and the same codes with the same types and attributes,
 // whatever each code's native form, its labels and the do-not-translate marks
-// on text, which a writer takes from the file or does not write.
+// on text, which a writer takes from the file or does not write, and however
+// the text between two codes is split into runs, which no file records.
 func sameContent(a, b []model.Run) bool {
 	return bytes.Equal(model.CanonicalRunsJSON(contentOnly(a)), model.CanonicalRunsJSON(contentOnly(b)))
 }
 
 // contentOnly is runs with every code's native form and labels and every
-// text's do-not-translate mark left out, branches included.
+// text's do-not-translate mark left out, and adjacent text runs joined into
+// one, branches included. unredact, for one, puts each withheld value back as
+// a text run of its own beside the text around it, where a reader of the file
+// produces one run.
 func contentOnly(runs []model.Run) []model.Run {
-	out := make([]model.Run, len(runs))
-	for i, r := range runs {
+	out := make([]model.Run, 0, len(runs))
+	for _, r := range runs {
 		switch {
 		case r.Text != nil:
+			if n := len(out); n > 0 && out[n-1].Text != nil {
+				out[n-1].Text.Text += r.Text.Text
+				continue
+			}
 			t := *r.Text
 			t.NoTranslate = false
-			out[i] = model.Run{Text: &t}
+			out = append(out, model.Run{Text: &t})
 		case r.Ph != nil:
 			p := *r.Ph
 			p.Data, p.Disp, p.Equiv = "", "", ""
-			out[i] = model.Run{Ph: &p}
+			out = append(out, model.Run{Ph: &p})
 		case r.PcOpen != nil:
 			p := *r.PcOpen
 			p.Data, p.Disp, p.Equiv = "", "", ""
-			out[i] = model.Run{PcOpen: &p}
+			out = append(out, model.Run{PcOpen: &p})
 		case r.PcClose != nil:
 			p := *r.PcClose
 			p.Data, p.Equiv = "", ""
-			out[i] = model.Run{PcClose: &p}
+			out = append(out, model.Run{PcClose: &p})
 		case r.Plural != nil:
 			p := *r.Plural
 			p.Forms = make(map[model.PluralForm][]model.Run, len(r.Plural.Forms))
 			for k, f := range r.Plural.Forms {
 				p.Forms[k] = contentOnly(f)
 			}
-			out[i] = model.Run{Plural: &p}
+			out = append(out, model.Run{Plural: &p})
 		case r.Select != nil:
 			s := *r.Select
 			s.Cases = make(map[string][]model.Run, len(r.Select.Cases))
 			for k, c := range r.Select.Cases {
 				s.Cases[k] = contentOnly(c)
 			}
-			out[i] = model.Run{Select: &s}
+			out = append(out, model.Run{Select: &s})
 		default:
-			out[i] = r
+			out = append(out, r)
 		}
 	}
 	return out
