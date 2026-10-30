@@ -11,14 +11,15 @@ import { Badge, SimpleTooltip } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 
 import type { Pattern, StyleRules, TermRule, VoiceProfile } from "../../types/voice";
+import { patternOutcome } from "../../types/voice";
 
 /**
- * An advisory rule as a neutral chip.
+ * An advisory term rule as a neutral chip.
  *
  * Colour is reserved for a judgement a person makes or a finding a check
  * raised (see `packages/ui/docs/judgement-colours.md`); a rule stating what a
- * violation would cost is neither, so the chip stays neutral. A rule fails a
- * check unless it is advisory, so only an advisory rule draws a chip.
+ * violation would cost is neither, so the chip stays neutral. A term rule
+ * fails a check unless it is advisory, so only an advisory rule draws a chip.
  */
 export function AdvisoryChip({ advisory }: { advisory?: boolean }) {
   if (!advisory) return null;
@@ -33,6 +34,25 @@ export function AdvisoryChip({ advisory }: { advisory?: boolean }) {
         data-testid="voice-advisory"
       >
         {t("reports only")}
+      </Badge>
+    </SimpleTooltip>
+  );
+}
+
+/**
+ * A pattern that fails a check, as a neutral chip. A pattern reports unless a
+ * person marks it failing, so only a failing pattern draws a chip.
+ */
+export function FailsChip({ fails }: { fails?: boolean }) {
+  if (!fails) return null;
+  return (
+    <SimpleTooltip content={t("A violation fails the check")}>
+      <Badge
+        variant="outline"
+        className="font-normal text-muted-foreground"
+        data-testid="voice-fails"
+      >
+        {t("fails the check")}
       </Badge>
     </SimpleTooltip>
   );
@@ -76,7 +96,7 @@ export function PatternRuleRow({ pattern }: { pattern: Pattern }) {
         </Badge>
       )}
       {allowance && <span className="text-[11px] text-muted-foreground">{allowance}</span>}
-      <AdvisoryChip advisory={pattern.advisory} />
+      <FailsChip fails={patternOutcome(pattern) === "fails"} />
     </li>
   );
 }

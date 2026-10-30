@@ -5,7 +5,7 @@
 // locale override's vocabulary is edited exactly as the profile's own is, and
 // an override is not a second, thinner surface for the same decision.
 
-import { RULE_OUTCOMES, ruleOutcome } from "../../types/voice";
+import { RULE_OUTCOMES, patternOutcome, ruleOutcome, withPatternOutcome } from "../../types/voice";
 import { memo } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Button, Input, Textarea, TagInput, Switch, Label, cn } from "@neokapi/ui-primitives";
@@ -228,8 +228,8 @@ function PatternListEditorInner({
             <ValueField
               id={`pattern-outcome-${pattern.regex}`}
               label={t("Outcome")}
-              value={ruleOutcome(pattern.advisory)}
-              onChange={(v) => update({ ...pattern, advisory: v === "reports" })}
+              value={patternOutcome(pattern)}
+              onChange={(v) => update(withPatternOutcome(pattern, v))}
               set={RULE_OUTCOMES}
             />
             <ValueField

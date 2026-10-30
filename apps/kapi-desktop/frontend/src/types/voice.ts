@@ -24,7 +24,9 @@ export interface PatternRate {
 export interface Pattern {
   regex: string;
   description: string;
-  /** A match reports without failing a check. */
+  /** A match fails a check. Unset, a match reports. */
+  fails?: boolean;
+  /** A match reports whatever `fails` says. */
   advisory?: boolean;
   rate?: PatternRate;
   /** Where it applies: prose, code or heading. Empty means everywhere. */
@@ -254,7 +256,25 @@ export interface ProjectVoiceResult {
 /** The two outcomes a rule can have, as the editor offers them. */
 export const RULE_OUTCOMES: FieldValueSet = { values: ["fails", "reports"], open: false };
 
-/** A rule's outcome as the editor names it: a rule fails unless it is advisory. */
+/** A term rule's outcome as the editor names it: it fails unless it is advisory. */
 export function ruleOutcome(advisory?: boolean): "fails" | "reports" {
   return advisory ? "reports" : "fails";
+}
+
+/**
+ * A pattern's outcome as the editor names it: it fails only when it is marked
+ * `fails` and not `advisory`.
+ */
+export function patternOutcome(pattern: Pick<Pattern, "fails" | "advisory">): "fails" | "reports" {
+  return pattern.fails && !pattern.advisory ? "fails" : "reports";
+}
+
+/**
+ * The pattern with the outcome a person chose: `fails: true` for "fails", and
+ * neither key for "reports", the default. `advisory` is cleared either way, so
+ * the choice is the whole answer.
+ */
+export function withPatternOutcome(pattern: Pattern, outcome: string): Pattern {
+  const { fails: _fails, advisory: _advisory, ...rest } = pattern;
+  return outcome === "fails" ? { ...rest, fails: true } : rest;
 }

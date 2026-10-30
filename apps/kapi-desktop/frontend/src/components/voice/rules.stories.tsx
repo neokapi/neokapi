@@ -31,8 +31,13 @@ const storeResolvedTerm: TermRule = {
 const pattern: Pattern = {
   regex: "\\b(?:synergy|leverage)\\b",
   description: "Corporate filler.",
-  advisory: true,
   rate: { max: 2, per_words: 1000 },
+};
+
+const failingPattern: Pattern = {
+  regex: "\u2014",
+  description: "An em dash; use a comma or a full stop.",
+  fails: true,
 };
 
 function Rows({ children }: { children: React.ReactNode }) {
@@ -67,10 +72,19 @@ export const PatternRule: Story = {
   ),
 };
 
+export const FailingPatternRule: Story = {
+  name: "Rule row / Pattern marked fails: true",
+  render: () => (
+    <Rows>
+      <PatternRuleRow pattern={failingPattern} />
+    </Rows>
+  ),
+};
+
 const populated: VoiceProfile = {
   name: "Northsea",
   style: {
-    prohibited_patterns: [pattern],
+    prohibited_patterns: [pattern, failingPattern],
     required_patterns: [
       { regex: "\\bplease\\b", description: "Ask, do not instruct.", advisory: true },
     ],
