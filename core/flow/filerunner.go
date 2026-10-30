@@ -449,9 +449,10 @@ func (r *FileRunner) cachedSource(ctx context.Context, reader format.DataFormatR
 }
 
 // recordDocument drives the reader once, streaming each part into the recorder
-// without buffering the document. It wires the skeleton emitter ONLY when the run
-// reconstructs output (captureSkeleton) — so a process-only/read parse does no
-// skeleton work and writes no skeleton file. The reader is consumed and closed.
+// without buffering the document. It wires the recorder's skeleton store ONLY
+// when the run reconstructs output (captureSkeleton), so a process-only parse,
+// whose reader RunFileToStore wired with a store that keeps nothing, writes no
+// skeleton file. The reader is consumed and closed.
 func (r *FileRunner) recordDocument(ctx context.Context, reader format.DataFormatReader, inputPath, targetLang string, rec DocumentRecorder, captureSkeleton bool) (err error) {
 	ctx, span := observe.Start(ctx, spanOpFormatRead, reader.Name())
 	defer func() { span.End(err) }()
@@ -612,9 +613,10 @@ func (r *FileRunner) cachedFileWrite(ctx context.Context, flowName string, tools
 
 // partCacheKey is the document-cache key for a parse: the per-file detected
 // format, a kind namespace, and the caller's config fingerprint. The kind keeps a
-// lean, skeleton-less process-only/read entry ("run") separate from a full
+// lean, skeleton-less process-only entry ("read") separate from a full
 // file-writing entry ("write", parts + skeleton), so the demand-driven recording
-// never serves a skeleton-less entry to a writer. (A process-only run then a
+// never serves a skeleton-less entry to a writer. A "read" entry holds the parts
+// a reader gives with a read skeleton wired (wireReadSkeleton). (A process-only run then a
 // file-writing run of the same source re-parse once to capture the skeleton — the
 // trade for not recording a skeleton on every default run.) Returns "" when no
 // cache is configured (the key is then unused).
@@ -622,7 +624,7 @@ func (r *FileRunner) partCacheKey(formatName string, reconstructs bool) string {
 	if r.cfg.PartCache == nil {
 		return ""
 	}
-	kind := "run"
+	kind := "read"
 	if reconstructs {
 		kind = "write"
 	}
@@ -709,6 +711,21 @@ func (r *FileRunner) overlayScope(ctx context.Context, inputPath string) context
 // commitsTargets reports whether the run should append the implicit
 // commit-targets step: the store outlives the run, so the `targets/<locale>`
 // overlays are state a later merge reads rather than throwaway per-run caching.
+// wireReadSkeleton gives reader the skeleton store a write of the document
+// would give it, one that keeps nothing (format.NewWiredReadSkeleton). It does
+// nothing when the format has no skeleton path.
+func (r *FileRunner) wireReadSkeleton(reader format.DataFormatReader) {
+	id := registry.FormatID(reader.Name())
+	if _, ok := reader.(format.SkeletonStoreEmitter); !ok || !r.cfg.FormatReg.HasWriter(id) {
+		return
+	}
+	writer, err := r.cfg.FormatReg.NewWriter(id)
+	if err != nil {
+		return
+	}
+	format.NewWiredReadSkeleton(reader, writer)
+}
+
 func (r *FileRunner) commitsTargets(targetLang string) bool {
 	return targetLang != "" && r.cfg.Store != nil && r.cfg.Store.Capabilities().Persistent
 }
@@ -748,10 +765,17 @@ func (r *FileRunner) RunFileToStore(ctx context.Context, flowName string, tools 
 	}
 	ctx = r.overlayScope(ctx, inputPath)
 
+	// A merge reads this document with its skeleton wired and finds the overlays
+	// by the block ids that read gives. Some readers number blocks differently
+	// with a skeleton wired (the HTML reader around comments and tables written
+	// without a tbody, the MDX reader inside a JSX element), so this read gets a
+	// store that keeps nothing and the overlays carry the ids a merge reads.
+	r.wireReadSkeleton(reader)
+
 	// Project mode: stream the source through the document cache (parse → record
 	// once on a miss, replay one part at a time thereafter). No whole document is
-	// buffered, and the skeleton is never opened (a process-only run writes no
-	// file). Falls back to the live read when no cache is configured.
+	// buffered, and no skeleton is kept (a process-only run writes no file).
+	// Falls back to the live read when no cache is configured.
 	if doc, err := r.cachedSource(ctx, reader, inputPath, targetLang, false); err == nil { // process-only → record lean (no skeleton)
 		defer doc.Close()
 		return r.runProcessOnly(ctx, flowName, tools, targetLang, r.tracedReplay(doc.Feed))
