@@ -209,6 +209,9 @@ func (s *contextOpsSession) resetPlan(ctx context.Context, before string) (Conte
 	out := ContextResetResult{Before: before, Point: point, SetAside: []ContextOperation{}}
 	for _, r := range held {
 		switch {
+		case r.Kind == contextop.KindCheck:
+			// A check run records what a check found and decides nothing, so
+			// a reset counts it neither as a rule nor as a decision.
 		case aside[r.ID] && r.Status != contextop.StatusReset:
 			if r.Kind.Bears() {
 				out.SetAside = append(out.SetAside, ContextOperation{Record: r})
