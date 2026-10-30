@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -37,7 +38,7 @@ func fakeDesktop(goos string, installed ...string) host.DesktopEnv {
 func runOpen(t *testing.T, env host.DesktopEnv, args ...string) (string, [][]string, error) {
 	t.Helper()
 	var ran [][]string
-	cmd := newOpenCmd(nil, desktopLauncher{env: env, run: func(argv []string) error {
+	cmd := newOpenCmd(nil, desktopLauncher{env: env, run: func(_ context.Context, argv []string) error {
 		ran = append(ran, argv)
 		return nil
 	}})

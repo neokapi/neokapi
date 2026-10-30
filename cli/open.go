@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -20,15 +21,22 @@ import (
 // operating system without launching anything.
 type desktopLauncher struct {
 	env host.DesktopEnv
-	run func(argv []string) error
+	run func(ctx context.Context, argv []string) error
 }
 
-// startDetached runs argv and returns once it has started: `open -a` exits
-// as soon as macOS has handed the path over, and the app itself keeps running
-// after kapi exits.
-func startDetached(argv []string) error {
-	c := exec.Command(argv[0], argv[1:]...)
-	c.Stdin, c.Stdout, c.Stderr = nil, nil, nil
+// startDesktop runs argv. `open -a` exits as soon as macOS has handed the
+// path to the app, so it is waited for and its error reported. The app's own
+// binary keeps running after kapi exits, so it is started and let go, on a
+// context kapi's exit does not cancel.
+func startDesktop(ctx context.Context, argv []string) error {
+	if argv[0] == "open" {
+		out, err := exec.CommandContext(ctx, argv[0], argv[1:]...).CombinedOutput()
+		if err != nil && len(out) > 0 {
+			return fmt.Errorf("%w: %s", err, strings.TrimSpace(string(out)))
+		}
+		return err
+	}
+	c := exec.CommandContext(context.WithoutCancel(ctx), argv[0], argv[1:]...)
 	if err := c.Start(); err != nil {
 		return err
 	}
@@ -37,7 +45,7 @@ func startDetached(argv []string) error {
 
 // NewOpenCmd creates `kapi open`: Kapi Desktop on this folder.
 func NewOpenCmd(a *App) *cobra.Command {
-	return newOpenCmd(a, desktopLauncher{run: startDetached})
+	return newOpenCmd(a, desktopLauncher{run: startDesktop})
 }
 
 func newOpenCmd(_ *App, launch desktopLauncher) *cobra.Command {
@@ -80,7 +88,7 @@ status 1. --dry-run prints the command it would run.`,
 				_, err := fmt.Fprintln(cmd.OutOrStdout(), shellLine(argv))
 				return err
 			}
-			if err := launch.run(argv); err != nil {
+			if err := launch.run(CmdContext(cmd), argv); err != nil {
 				return fmt.Errorf("open Kapi Desktop: %w", err)
 			}
 			folder := target
