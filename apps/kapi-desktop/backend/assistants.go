@@ -10,14 +10,11 @@ import (
 // The Assistants page: which assistants a project is connected to, and the
 // sessions they and the person recorded in it.
 //
-// The connection state comes from a dry run of host.ConnectHosts, the service
-// `kapi connect` runs, over every assistant's own files (HostsOnly), and from
-// whether the rules files hold kapi's section. An assistant whose files that
-// run would leave as they are, in a project whose rules files are written, is
-// connected; its Connect runs the same service for that one assistant. Claude Desktop is configured in a file of
-// the person's own, which the host layer never writes, so its row reads and
-// connects through agentwiring.go. The sessions are the project's feed
-// (contextfeed.go), counted per session.
+// An assistant is connected when a HostsOnly dry run of host.ConnectHosts, the
+// service `kapi connect` runs, would leave its files as they are and the rules
+// files hold kapi's section. Connect runs that service for one assistant.
+// Claude Desktop's file is the person's own, so its row goes through
+// agentwiring.go. The sessions are the project's feed (contextfeed.go).
 
 // assistantRulesMissing is the reason a row gives when the assistant's own
 // files are in place and the project's rules files hold no kapi section.
