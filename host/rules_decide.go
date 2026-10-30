@@ -51,8 +51,8 @@ type RulesDecideView struct {
 	// Counts are the rules listing's counts, for the line a project with
 	// nothing to decide prints.
 	Counts RulesCounts `json:"counts"`
-	// Hint is the command that records a suggestion, for a project with none
-	// waiting.
+	// Hint is the command that files suggestions from what kapi sees in the
+	// files, for a project with none waiting.
 	Hint string `json:"hint,omitempty"`
 
 	st     *rulesState
@@ -170,7 +170,7 @@ func (a *App) DecideRules(ctx context.Context, req RulesRequest) (*RulesDecideVi
 			return nil, lerr
 		}
 		v.Counts = listing.Counts
-		v.Hint = "kapi context note"
+		v.Hint = "kapi context suggest"
 	}
 	return v, nil
 }
@@ -457,7 +457,7 @@ func (d RuleDecision) DropRequest() ContextReviewRequest {
 // `kapi rules` prints, with the id each decision takes.
 func (v *RulesDecideView) FormatText(w io.Writer) error {
 	if len(v.Decisions) == 0 {
-		_, err := fmt.Fprintf(w, "No suggestions to decide. %s.\nRecord one with: %s\n", v.Counts.Line(), v.Hint)
+		_, err := fmt.Fprintf(w, "No suggestions to decide. %s.\nFind some in the files with: %s\n", v.Counts.Line(), v.Hint)
 		return err
 	}
 	for i, d := range v.Decisions {

@@ -190,10 +190,10 @@ func TestDecideRulesRecordsKeepNotARuleAndLater(t *testing.T) {
 	after, err := app.DecideRules(t.Context(), RulesRequest{Project: recipeOf(root)})
 	require.NoError(t, err)
 	assert.Empty(t, after.Decisions)
-	assert.Equal(t, "kapi context note", after.Hint)
+	assert.Equal(t, "kapi context suggest", after.Hint)
 	var text bytes.Buffer
 	require.NoError(t, after.FormatText(&text))
-	assert.Equal(t, "No suggestions to decide. 1 rule · 0 suggested · 1 narrowed.\nRecord one with: kapi context note\n", text.String())
+	assert.Equal(t, "No suggestions to decide. 1 rule · 0 suggested · 1 narrowed.\nFind some in the files with: kapi context suggest\n", text.String())
 }
 
 func TestListRulesGroupsAndCounts(t *testing.T) {

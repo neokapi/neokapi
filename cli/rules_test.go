@@ -214,7 +214,7 @@ func TestRulesDecidesByFlag(t *testing.T) {
 	// took "redactor" out of the terms store and left the concept's preferred
 	// term standing, as a retraction does (host.retractTerm).
 	empty := mustRules(t, a, "rules", "-p", recipe)
-	assert.Equal(t, "No suggestions to decide. 2 rules · 0 suggested · 0 narrowed.\nRecord one with: kapi context note\n", empty)
+	assert.Equal(t, "No suggestions to decide. 2 rules · 0 suggested · 0 narrowed.\nFind some in the files with: kapi context suggest\n", empty)
 }
 
 func TestRulesListFindAndNarrow(t *testing.T) {
