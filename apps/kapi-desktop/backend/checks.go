@@ -425,6 +425,10 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 	score := check.CalculateScore(scored).Overall
 	result := checkRunVerdict(allFindings, commentDiags, blocksChecked, analyzers, score, files, unread)
 	result.Warnings = check.MergeWarnings(warnings, result.Warnings)
+	// A run over every file is the one the Map counts findings from.
+	if !filter.FilesNarrowed() {
+		op.recordCheck(result, time.Now())
+	}
 	return result, nil
 }
 
