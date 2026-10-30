@@ -978,8 +978,9 @@ async function projectsWalk(c: WalkCtx): Promise<void> {
   await page.waitForTimeout(500);
   await landOnHome(page);
   await humanClick(page, page.getByTestId("sample-kapimart"));
-  // A new project tab opens on its Context hub; the plan is on the project home.
+  // A new project tab opens on its Map; the plan is on the project home.
   await page.waitForSelector('button[aria-label="Project"]:not([disabled])', { timeout: 60_000 });
+  await page.waitForSelector('[data-slot="map"]', { timeout: 60_000 });
   await humanClick(page, sidebar("Project"));
   await page.waitForSelector('[data-slot="hero-plan"]', { timeout: 60_000 });
   await page.waitForTimeout(1200);
@@ -1080,8 +1081,9 @@ async function openSample(page: Page, testid: string, readyLabel: string): Promi
   // Wait until the project has opened and its plugins resolve (the gated sidebar
   // item becomes enabled), so subsequent clicks land on a ready project.
   await page.waitForSelector(ready, { timeout: 60_000 });
-  // A new project tab opens on its Context hub; land on the project home, as
-  // the branch above does, so every caller starts from the same place.
+  // A new project tab opens on its Map; land on the project home, as the
+  // branch above does, so every caller starts from the same place.
+  await page.waitForSelector('[data-slot="map"]', { timeout: 60_000 });
   await humanClick(page, page.locator('button[aria-label="Project"]'));
   await page.waitForTimeout(1200);
 }
@@ -1401,11 +1403,11 @@ async function centre(page: Page, locator: Locator): Promise<void> {
  * config). A first pass has neither, and both steps do nothing.
  *
  * The sample is created through the backend rather than with Start here's
- * button. The button opens the new tab on What's new, and opening What's new
- * marks everything in it seen, so the home would then read "1 needs you" and
- * nothing new. CreateSampleProject is the method the button calls; its tab is
- * closed again, so the frontend opens the project for the first time from the
- * home, as the beats show.
+ * button. The button opens the new tab on the project's Map, and the walk
+ * opens the project for the first time from the home's row, which leads to
+ * Decide; opening Decide marks everything in it seen. CreateSampleProject is
+ * the method the button calls; its tab is closed again, so the frontend opens
+ * the project from the home, as the beats show.
  */
 async function freshContextSample(page: Page): Promise<void> {
   await callBackend("ForgetWorkspaceProject", [CONTEXT_SAMPLE_KEY]).catch(() => {});
@@ -1454,12 +1456,12 @@ function recordLiveNote(): void {
  * The sample arrives with two assistant sessions (backend/sample/session.go):
  * claude-code noticed names and a word and recorded a correction a person
  * made, and codex took the other side of that correction. The walk reads the
- * news on the home, opens the project's What's new, keeps a name with `a`,
+ * news on the home, opens the project's Decide section, keeps a name with `a`,
  * changes a word's form with `c`, settles the disagreement, reads the brief an
  * assistant gets for a file, watches a note recorded from outside the app
  * arrive on the home, and ends on Share.
  *
- * What's new is a list beside a detail pane. The keep, change and choose
+ * Decide is a list beside a detail pane. The keep, change and choose
  * beats select a row, act on it, and end on the rule it became, at the top of
  * Established, so each crop is the union of the two (beatSpan).
  */
