@@ -621,9 +621,8 @@ func editorAddFilesToCollection(ctx context.Context, cs store.ContentStore, form
 // item's block set with the blocks the file now reads to
 // (store.ReplaceItemBlocks), collects per-file skip reasons, and returns the
 // project info with Skipped set. Uploading an unchanged file again leaves the
-// item's blocks as they were.
-// Storage errors stay hard errors — they are infrastructure failures, not
-// per-file input problems.
+// item's blocks as they were. A storage error fails the whole upload, because
+// it reports the store's state rather than a problem with one file.
 func editorAddFilesInternal(ctx context.Context, cs store.ContentStore, formatReg *registry.FormatRegistry, projectID, stream, collectionID string, files map[string][]byte) (*ProjectInfoResponse, error) {
 	proj, err := cs.GetProject(ctx, projectID)
 	if err != nil {

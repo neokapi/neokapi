@@ -118,7 +118,7 @@ func TestEditorUpload_AChangedFileKeepsTranslationsAndDropsWhatIsGone(t *testing
 
 	assert.NotContains(t, second, "promo", "the block the file no longer has is removed")
 	_, err = srv.ContentStore.GetBlock(ctx, pid, "main", promo.Block.ID)
-	assert.Error(t, err, "the removed block's row is gone")
+	require.Error(t, err, "the removed block's row is gone")
 
 	assert.Contains(t, second, "signup", "the new block is added")
 }
@@ -145,7 +145,7 @@ func TestEditorUpload_ARenamedBlockReplacesTheOldRow(t *testing.T) {
 	assert.Equal(t, first["title"].Block.ID, second["title"].Block.ID)
 
 	_, err := srv.ContentStore.GetBlock(ctx, pid, "main", oldBody.Block.ID)
-	assert.Error(t, err, "the old key's row is gone")
+	require.Error(t, err, "the old key's row is gone")
 }
 
 // A file that reads to no blocks leaves its item with none.

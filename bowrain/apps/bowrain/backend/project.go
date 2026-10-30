@@ -237,7 +237,8 @@ func collectUploadFiles(filePaths []string) (map[string][]byte, error) {
 	return files, nil
 }
 
-// addItemsLocal parses files into the local cache store — the offline path.
+// addItemsLocal parses files into the local cache store, which is the offline
+// path. Each file's blocks become its item's whole block set.
 func (a *App) addItemsLocal(ctx context.Context, projectID string, filePaths []string) (*ProjectInfo, error) {
 	proj, err := a.store.GetProject(ctx, projectID)
 	if err != nil {

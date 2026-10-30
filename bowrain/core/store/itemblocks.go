@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -16,24 +17,22 @@ type ItemBlockReplacer interface {
 	PruneItemBlocks(ctx context.Context, projectID, stream, itemName string, keep []string) (int, error)
 }
 
-// ReplaceItemBlocks makes blocks the whole block set of one item: the set a
-// fresh read of the item's file produced. It reports how many stored blocks it
-// removed.
+// ReplaceItemBlocks makes blocks, a fresh read of one item's file, the item's
+// whole block set, and reports how many stored blocks it removed.
 //
-// A block whose key the item already holds updates that row in place, so the
-// row keeps its id, its translations, its overlays and the decisions recorded
+// A block whose key the item already holds updates that row in place: the row
+// keeps its id, its translations, its annotations and the decisions recorded
 // on it. A block with a new key adds a row. A stored block whose key the read
 // no longer produces is removed with everything scoped to it. The keys are the
-// ones a push declares for the same purpose (venue.ItemBlockKeys), so an
-// upload and a push of the same read agree on which blocks are gone.
+// ones a push declares (venue.ItemBlockKeys), so an upload and a push of the
+// same read remove the same blocks.
 //
-// An empty blocks slice removes every block of the item: the file read to
-// nothing. The store happens before the prune, so a failure between the two
-// leaves surplus rows for the next read to remove and never loses one that
-// the read still has.
+// An empty blocks slice removes every block of the item. The store runs before
+// the prune, so a failure between the two leaves surplus rows for the next
+// read to remove and never removes a block the read still has.
 func ReplaceItemBlocks(ctx context.Context, bs ItemBlockReplacer, projectID, stream, itemName string, blocks []*model.Block) (int, error) {
 	if itemName == "" {
-		return 0, fmt.Errorf("replace item blocks: no item name")
+		return 0, errors.New("replace item blocks: no item name")
 	}
 	// The keys are taken before the store: storing an item's blocks rewrites
 	// each block's ID to the row's internal id, and a block that carries no key
