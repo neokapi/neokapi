@@ -2281,8 +2281,8 @@ export function Read(tabID, request) {
  * ReaderFile reads one content file of the project a tab holds for the
  * Reader: its blocks, the findings a checks run over that file reports on
  * each, and the rules the context answer for it holds. relPath is
- * project-relative. A file the project keeps a translation in is refused:
- * the Reader reads the source.
+ * project-relative, or absolute inside the project. A file the project keeps
+ * a translation in is refused: the Reader reads the source.
  * @param {string} tabID
  * @param {string} relPath
  * @returns {$CancellablePromise<$models.ReaderFileDTO | null>}
