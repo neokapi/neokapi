@@ -317,7 +317,7 @@ func TestDeeperLook_RedactsBeforeTheModelReads(t *testing.T) {
 	require.Len(t, terms, 1, "the model never read the redacted name: %+v", terms)
 	assert.Equal(t, "Write Harbor Help, not Harbor-Help or HarborHelp.", terms[0].Sentence)
 	_, err = os.Stat(project.LayoutAt(root).RedactionVaultPath())
-	assert.ErrorIs(t, err, fs.ErrNotExist, "a dry run keeps no originals in the project's vault")
+	require.ErrorIs(t, err, fs.ErrNotExist, "a dry run keeps no originals in the project's vault")
 
 	_, err = app.DeeperLook(context.Background(), DeeperLookRequest{Project: recipeOf(root)})
 	require.NoError(t, err)

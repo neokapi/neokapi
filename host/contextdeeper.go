@@ -295,7 +295,7 @@ func (a *App) ResolveDeeperLookModel(proj *project.KapiProject) (provider, model
 			if !res.Configured {
 				return "", "", errNoAIProvider()
 			}
-			return "", "", fmt.Errorf("%w for %s: %v", ErrNoAIProvider, res.Provider, rerr)
+			return "", "", fmt.Errorf("%w for %s: %w", ErrNoAIProvider, res.Provider, rerr)
 		}
 	}
 	provider, modelName = res.Provider, res.Model

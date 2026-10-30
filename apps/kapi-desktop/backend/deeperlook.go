@@ -1,14 +1,12 @@
 package backend
 
-// "Deeper look with AI" on the Map: the deeper look `kapi context suggest --ai`
-// runs, asked from the desktop. It reads the project's source blocks with the
-// connected model and files what the model proposes as suggestions by kapi,
-// named with the model, that wait for a person under "What your files do".
+// "Deeper look with AI" on the Map runs the deeper look `kapi context suggest
+// --ai` runs. What the model proposes waits for a person under "What your
+// files do", as suggestions by kapi named with the model.
 //
-// The run writes the project's context log, which a folder opened without a
-// recipe has no home for. Asking for it is an act on the project, as running
-// a flow is, so once a model is known to answer, the folder's kapi.yaml is
-// written first (ensureRecipe), the way a flow run writes it.
+// The run writes the context log, which a folder without a recipe has no home
+// for. Asking for it acts on the project, as running a flow does, so once a
+// model is known to answer, ensureRecipe writes the folder's kapi.yaml first.
 
 import (
 	"context"
