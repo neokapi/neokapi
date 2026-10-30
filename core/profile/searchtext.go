@@ -14,8 +14,8 @@ import (
 //
 // TermSearchText is the text a term is looked for in: each character reference
 // stands for the character it spells, and every other code keeps its zero
-// width. A hit is mapped back to offsets of the block's text, so its snippet,
-// run anchor and fix span come from the block's own text and runs.
+// width. A hit is mapped back to offsets of the block's text, so its anchor
+// and fix span come from the block's own runs.
 
 // entityCodeType is the vocabulary type of an inline code that is a character
 // reference.
