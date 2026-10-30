@@ -2,8 +2,8 @@
 id: review-what-your-assistant-noticed
 title: "Review what your assistant noticed"
 sidebar_label: "Review what your assistant noticed"
-description: "Open the KapiMart sample in Kapi Desktop and review the notes two assistant sessions left on it: choose a side, keep, change and drop, see the kept rule in what the assistant reads, and reset to before a session."
-keywords: [Kapi Desktop, what's new, decide, map, suggestion, keep, change, drop, choose this side, assistant, history, reset, sample]
+description: "Open the KapiMart sample in Kapi Desktop and answer one question per suggestion two assistant sessions left on it: keep, not a rule or later, see the kept rule in what the assistant reads, and reset to before a session."
+keywords: [Kapi Desktop, what's new, decide, map, suggestion, keep, not a rule, later, disagreement, assistant, history, reset, sample]
 ---
 
 # Review what your assistant noticed
@@ -29,43 +29,51 @@ else. For what each surface is, see the [overview](/kapi/desktop/overview).
    and carries a chip for each kind of thing it noticed, such as "1 name" and
    "1 word". Because the two assistants disagree about one wording, the row
    adds a highlighted "1 needs you" chip and its button reads **Decide**.
-3. **Open Decide.** Click **Decide**. The project opens on **Decide**: a list
-   with one line per item, each with the assistant that noticed it, and a pane
-   beside it for the item you select, with the sentence it was seen in and the
-   file. The project's **Map**, first in the sidebar, lists the same items
-   under **What your files do**, each with its own **Decide**.
-4. **Settle the disagreement first.** **Needs you** comes first, and the list
-   opens with the disagreement selected. The pane shows its two sides next to
-   each other. claude-code recorded a correction a person made to its draft,
-   *log in* changed to *sign in*, seen in a sentence that says *sign in*.
-   codex, later, recorded the opposite rule, and the sentence it quotes says
-   *signing in* too. Read both, then click **Choose this side** on the one the
-   evidence backs. That side is kept and the other dropped.
-5. **Keep a name.** Under **Suggested**, select the suggestion that the store
-   writes *KapiMart*, not *Kapi Mart*, with a click or with `j` and `k`, and
-   press `a`. It moves to **Established**, marked "kept by you", and the
-   selection moves on to the next suggestion.
-6. **Change a word as you keep it.** Select the suggestion that the copy says
-   *cart*, not *basket*, and press `c`. A field takes the place of the
-   buttons, holding *cart*. Type the form you want the rule to ask for, such
-   as *shopping cart*, and choose **Keep with this form**.
-7. **Drop one.** Select a suggestion you would not make a rule, for example
-   the observation about how the store copy addresses the shopper, and press
-   `d`. It stops advising at once.
-8. **Ask about the file the evidence came from.** Select any remaining
-   suggestion and press `o`, or click the file under its quotation. **Ask**
-   opens standing at that file, with the voice and the rules that apply there.
-9. **See what the assistant reads.** Open **Assistant**. Under **The brief for
-   a file**, pick one of the store's pages. The kept name and the word you
-   changed are in the list of words to use, the same text `kapi context
-   <path>` prints. Below it, **Rules files** shows the section kapi writes into
-   `AGENTS.md` and `CLAUDE.md`, which the next session reads as it starts.
-10. **Go back to before a session.** Open **History** and select the codex
+3. **Open Decide.** Click **Decide**. The project opens on **KapiMart ·
+   Decide**, with the number of suggestions to decide and the number of rules
+   kept. The list holds one row per suggestion: its kind, the wording it is
+   about, and how many forms or words it covers. The pane beside it asks one
+   question about the row you select. The project's **Map**, first in the
+   sidebar, lists the same suggestions under **What your files do**, and the
+   **Decide** on each row opens this list with that row selected.
+4. **Settle the disagreement first.** The list opens on it. The question is
+   "Which one holds?", and the two sides are its options. claude-code recorded
+   a correction a person made to its draft, *log in* changed to *sign in*.
+   codex, later, recorded the opposite rule. Each side shows who suggested it,
+   how many blocks and files write it, and what keeping it does. Below the
+   actions, **Seen in** quotes the sentence and names the file. Pick the side
+   the evidence backs with a click or its number, then click **Keep** or press
+   `k`. That side is kept, the other is set aside, and the next question is
+   selected.
+5. **Keep a name in the form your files use.** Select *KapiMart*. The question
+   is "Which one do your files use?", and the options are its forms, the most
+   used first, each with its blocks and files. The line above the actions says
+   what keeping the picked form does: how many blocks then report a finding,
+   and where the rule applies. Press `k`. To keep a form that is not listed,
+   choose **Other…**, type the form, and press Enter.
+6. **Keep a word.** Select *basket*. The question is "Keep this as a rule?",
+   and the line above the actions says what a check reports once you keep it.
+   Press `k`.
+7. **Mark one as not a rule.** Select the note about how the store copy
+   addresses the shopper and press `n`, or click **Not a rule**. It stops
+   advising at once.
+8. **Leave one for later.** Select *PayPal* and press `l`, or click **Later**.
+   kapi records nothing: the suggestion keeps advising, and Decide asks about
+   it again the next time you open it.
+9. **Ask about the file the evidence came from.** Select any remaining
+   suggestion and click the file under **Seen in**. **Ask** opens standing at
+   that file, with the voice and the rules that apply there.
+10. **See what the assistant reads.** Open **Assistant**. Under **The brief
+    for a file**, pick one of the store's pages. The kept name and the kept
+    word are in the list of words to use, the same text `kapi context <path>`
+    prints. Below it, **Rules files** shows the section kapi writes into
+    `AGENTS.md` and `CLAUDE.md`, which the next session reads as it starts.
+11. **Go back to before a session.** Open **History** and select the codex
     session in the list. Click **Reset to before this session** above its
     operations. What codex recorded is set aside, and so is everything decided
     after it started, which includes your decisions in steps 4 to 7. Decide
-    shows claude-code's suggestions as they first arrived.
-11. **Take the reset back.** What the reset set aside stays in History, marked
+    asks about claude-code's suggestions as they first arrived.
+12. **Take the reset back.** What the reset set aside stays in History, marked
     as set aside, and the reset is recorded as yours, in the newest row of the
     list. Select that row and click **Take this reset back** to bring
     everything back.
@@ -77,11 +85,12 @@ rule.
 ## The same on the command line
 
 ```bash
-kapi context review                         # what is waiting, one at a time
-kapi context review --keep <id>             # keep a suggestion
-kapi context review --keep <id> --use "shopping cart"   # keep it with another form
-kapi context review --drop <id>             # drop one
-kapi context review --choose <id>           # choose this side of a disagreement
+kapi rules                                  # one question per suggestion: k, n, l
+kapi rules --keep <id>                      # keep a suggestion
+kapi rules --keep <id> --use "Kapi Mart"    # keep a name in another form
+kapi rules --drop <id>                      # not a rule
+kapi rules --later <id>                     # leave it waiting
+kapi rules --choose <id>                    # keep one side of a disagreement
 kapi context reset --before <session>       # go back to before a session
 ```
 
