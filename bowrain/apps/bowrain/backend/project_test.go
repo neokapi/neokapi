@@ -234,3 +234,33 @@ func TestCountChars(t *testing.T) {
 	assert.Equal(t, 0, countChars(""))
 	assert.Equal(t, 3, countChars("日本語"))
 }
+
+// Adding a file the project already holds replaces the item's blocks with the
+// ones the file reads to now: an unchanged file keeps its blocks, and a block
+// the file no longer has is removed.
+func TestAddFiles_AgainReplacesTheItemsBlocks(t *testing.T) {
+	app := newTestApp(t)
+
+	info, err := app.CreateProject("Test", "en", []string{"fr"})
+	require.NoError(t, err)
+	pid := info.ID
+
+	path := filepath.Join(t.TempDir(), "en.json")
+	require.NoError(t, os.WriteFile(path, []byte(`{"title":"Welcome","body":"Read on","promo":"Save today"}`), 0o644))
+
+	info, err = app.AddItems(pid, []string{path})
+	require.NoError(t, err)
+	require.Len(t, info.Items, 1)
+	assert.Equal(t, 3, info.Items[0].BlockCount)
+
+	info, err = app.AddItems(pid, []string{path})
+	require.NoError(t, err)
+	require.Len(t, info.Items, 1)
+	assert.Equal(t, 3, info.Items[0].BlockCount, "an unchanged file adds no block")
+
+	require.NoError(t, os.WriteFile(path, []byte(`{"title":"Welcome","body":"Read on"}`), 0o644))
+	info, err = app.AddItems(pid, []string{path})
+	require.NoError(t, err)
+	require.Len(t, info.Items, 1)
+	assert.Equal(t, 2, info.Items[0].BlockCount, "the block the file no longer has is removed")
+}

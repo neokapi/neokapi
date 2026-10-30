@@ -130,3 +130,68 @@ func TestConnectorServiceFetch_CreatesItemBookkeeping(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, items, 2)
 }
+
+// A fetch makes each fetched file's blocks the item's whole block set. A block
+// the file no longer has is removed, the blocks it still has keep their rows,
+// and a file that reads to no blocks leaves its item with none.
+func TestConnectorServiceFetch_RemovesTheBlocksAFileNoLongerHas(t *testing.T) {
+	cs, err := sqlitestore.NewSQLiteStore(filepath.Join(t.TempDir(), "content.db"))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = cs.Close() })
+	ctx := t.Context()
+
+	p := &store.Project{
+		Name:                  "refetch",
+		DefaultSourceLanguage: model.LocaleEnglish,
+		TargetLanguages:       []model.LocaleID{model.LocaleFrench},
+	}
+	require.NoError(t, cs.CreateProject(ctx, p))
+
+	round := 0
+	reg := connector.NewRegistry()
+	reg.Register("test", venueconn.CategoryFile, func(config map[string]string) (connector.IntegrationConnector, error) {
+		return &freshItemsConnector{
+			id: "test-1",
+			make: func() []*connector.ContentItem {
+				app := []*model.Block{model.NewBlock("greeting", "Hello from the app")}
+				home := []*model.Block{}
+				if round == 0 {
+					app = append(app, model.NewBlock("farewell", "Goodbye from the app"))
+					home = append(home, model.NewBlock("greeting", "Welcome home"))
+				}
+				return []*connector.ContentItem{
+					{ID: "locales/en/app.json", Path: "locales/en/app.json", Format: "json", Blocks: app},
+					{ID: "locales/en/home.json", Path: "locales/en/home.json", Format: "json", Blocks: home},
+				}
+			},
+		}, nil
+	})
+
+	svc := NewConnectorService(cs, reg)
+	_, err = svc.AddConnector("ws-a", "test", nil)
+	require.NoError(t, err)
+
+	blocksOf := func(item string) []string {
+		got, err := cs.GetBlocks(ctx, store.BlockQuery{ProjectID: p.ID, Stream: "main", ItemName: item})
+		require.NoError(t, err)
+		rows := make([]string, 0, len(got))
+		for _, sb := range got {
+			rows = append(rows, sb.SourceID+"="+sb.Block.ID)
+		}
+		return rows
+	}
+
+	_, err = svc.Fetch(ctx, "ws-a", "test-1", p.ID, connector.FetchOptions{})
+	require.NoError(t, err)
+	first := blocksOf("locales/en/app.json")
+	require.Len(t, first, 2)
+	require.Len(t, blocksOf("locales/en/home.json"), 1)
+
+	round = 1
+	_, err = svc.Fetch(ctx, "ws-a", "test-1", p.ID, connector.FetchOptions{})
+	require.NoError(t, err)
+	second := blocksOf("locales/en/app.json")
+	require.Len(t, second, 1, "the farewell block is gone")
+	assert.Contains(t, first, second[0], "the greeting keeps its row")
+	assert.Empty(t, blocksOf("locales/en/home.json"), "a file that reads to nothing keeps no block")
+}

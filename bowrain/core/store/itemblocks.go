@@ -35,12 +35,15 @@ func ReplaceItemBlocks(ctx context.Context, bs ItemBlockReplacer, projectID, str
 	if itemName == "" {
 		return 0, fmt.Errorf("replace item blocks: no item name")
 	}
+	// The keys are taken before the store: storing an item's blocks rewrites
+	// each block's ID to the row's internal id, and a block that carries no key
+	// or name is keyed by the ID the reader gave it.
+	keep := venue.ItemBlockKeys(map[string][]*model.Block{itemName: blocks})[itemName]
 	if len(blocks) > 0 {
 		if err := bs.StoreBlocksForItem(ctx, projectID, stream, itemName, blocks); err != nil {
 			return 0, fmt.Errorf("store blocks for %q: %w", itemName, err)
 		}
 	}
-	keep := venue.ItemBlockKeys(map[string][]*model.Block{itemName: blocks})[itemName]
 	n, err := bs.PruneItemBlocks(ctx, projectID, stream, itemName, keep)
 	if err != nil {
 		return 0, fmt.Errorf("remove the blocks %q no longer has: %w", itemName, err)
