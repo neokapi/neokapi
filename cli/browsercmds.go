@@ -70,6 +70,11 @@ var browserGaps = map[string]browserGap{
 		short:  "Update kapi to the latest release",
 		reason: "the browser build is served as a WebAssembly module and cannot replace itself",
 	},
+	"connect": {
+		short:  connectShort,
+		group:  "work",
+		reason: "the assistants it connects run on your own machine and read their configuration from your own project folder",
+	},
 	"mcp": {
 		short:  "Start an MCP server (stdio) for assistants writing in this project",
 		group:  "advanced",
@@ -181,6 +186,7 @@ func BrowserCommandSet(a *App) []*cobra.Command {
 		NewRulesCmd(a),
 		NewHookCmd(a),
 		NewInitCmd(a),
+		newBrowserGapCmd("connect"),
 		NewAddCmd(a),
 		NewRmCmd(a),
 		NewLsCmd(a),
