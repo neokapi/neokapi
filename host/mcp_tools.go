@@ -361,7 +361,7 @@ func (a *App) frameworkMCPHandler(name registry.ToolID, defaultTargetLang string
 		// The call's project settles the redaction policy, as it does for
 		// `kapi exec`: a tool that calls a provider runs between redact and
 		// unredact.
-		policy, err := a.mcpToolRunPolicy(named, string(name), config)
+		runPolicy, err := a.mcpToolRunPolicy(named, string(name), config)
 		if err != nil {
 			return nil, err
 		}
@@ -369,7 +369,7 @@ func (a *App) frameworkMCPHandler(name registry.ToolID, defaultTargetLang string
 		if err != nil {
 			return nil, err
 		}
-		chain, err := a.chainFor(policy, string(name), config, tl)
+		chain, err := a.chainFor(runPolicy, string(name), config, tl)
 		if err != nil {
 			return nil, err
 		}

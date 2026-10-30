@@ -225,7 +225,7 @@ func TestToolRun_ChainCoverage(t *testing.T) {
 	translate := &tool.BaseTool{ToolName: "translate"}
 
 	alone := toolChain{main: translate}
-	require.ErrorContains(t, a.checkChainCoverage("translate", remote, alone, true), "has no redact step",
+	require.ErrorContains(t, a.checkChainCoverage("translate", remote, alone, true), "no redact step ahead of it",
 		"a remote provider with no redact step under a policy fails as a flow does")
 	require.NoError(t, a.checkChainCoverage("translate", remote, alone, false), "no policy, nothing to hold it to")
 	require.Error(t, a.checkChainCoverage("translate", map[string]any{}, alone, true),

@@ -50,6 +50,12 @@ func (a *App) toolRunPolicyFor(recipe string, proj *project.KapiProject, toolNam
 	if !a.toolCallsProvider(toolName, config) {
 		return pol, nil
 	}
+	if hasDetector(spec.Detectors, "entities") {
+		// Entity detection reads the entity annotations an extraction step
+		// leaves on a block, and a run of one tool has none, so the names the
+		// policy withholds would reach the provider.
+		return toolRunPolicy{}, fmt.Errorf("the project's redaction policy detects entities, which needs an entity-extract step that a run of one tool does not have, so %s would send the values the policy withholds. Run it in a flow with entity-extract and redact ahead of it, or set defaults.redaction.detectors to [rules]", toolName)
+	}
 	if err := checkRedactionRules(spec); err != nil {
 		return toolRunPolicy{}, err
 	}
@@ -99,7 +105,11 @@ func (c toolChain) tools(main tool.Tool) []tool.Tool {
 func (a *App) chainFor(pol toolRunPolicy, toolName string, config map[string]any, t tool.Tool) (toolChain, error) {
 	c := toolChain{main: t}
 	if r := pol.redaction; r != nil {
-		rt, err := tools.NewRedactTool(redactToolConfig(r.spec, r.root, "", r.locale))
+		// The tool reads the whole block, so the redaction covers it: blocks
+		// marked not translatable, and every translation beside the source.
+		rcfg := redactToolConfig(r.spec, r.root, "", r.locale)
+		rcfg.WholeBlock = true
+		rt, err := tools.NewRedactTool(rcfg)
 		if err != nil {
 			return toolChain{}, fmt.Errorf("redaction: %w", err)
 		}
@@ -136,10 +146,16 @@ func (a *App) checkChainCoverage(toolName string, config map[string]any, c toolC
 			def.Edges = append(def.Edges, flow.FlowEdge{ID: "e" + n.ID, Source: strconv.Itoa(i - 1), Target: n.ID})
 		}
 	}
+	// A run builds its own chain, so a failure here is kapi's fault and not
+	// the project's: the error says so rather than asking for a step the
+	// person running one tool has no way to add.
 	if err := def.CheckRedactionCoverage(a.ToolReg, true); err != nil {
-		return err
+		return fmt.Errorf("kapi refused to run %s: the project declares defaults.redaction, and %s would send source to a remote provider with no redact step ahead of it. This is a fault in kapi; report it with the command you ran", toolName, toolName)
 	}
-	return def.CheckPlacement(a.ToolReg)
+	if err := def.CheckPlacement(a.ToolReg); err != nil {
+		return fmt.Errorf("kapi refused to run %s: the redaction steps around it are out of order (%w). This is a fault in kapi; report it with the command you ran", toolName, err)
+	}
+	return nil
 }
 
 // runChain runs each tool of a chain over parts in turn and returns what the

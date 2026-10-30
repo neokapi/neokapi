@@ -62,30 +62,45 @@ func NewVoiceInferCollectorFor(toolName string, newTool func() (tool.Tool, error
 // least as many runes as the tool will use.
 const maxInferCorpusBytes = 4 * aitools.DefaultMaxCorpusChars
 
-// Collect appends one document's source text.
+// Collect appends one document's source text. A run that taps the tool calls
+// it with no parts, for the document's context, and hands it the parts
+// through Observe instead.
 func (c *voiceInferCollector) Collect(_ context.Context, _ *flow.Item, parts []*model.Part) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	for _, p := range parts {
-		if p == nil || p.Type != model.PartBlock || c.corpus.Len() >= maxInferCorpusBytes {
-			continue
-		}
-		b, ok := p.Resource.(*model.Block)
-		if !ok || b == nil {
-			continue
-		}
-		text := strings.TrimSpace(b.SourceText())
-		if text == "" {
-			continue
-		}
-		c.blocks++
-		if c.corpus.Len() > 0 {
-			c.corpus.WriteString("\n")
-		}
-		c.corpus.WriteString(text)
+		c.Observe(p)
 	}
 	return nil
 }
+
+// Observe appends one block's source text as the tool emits it. The tool
+// sits between redact and unredact when the project declares a redaction
+// policy, so the text kept here is the text the model read, and the draft
+// made from it in Result sends nothing the policy withholds.
+func (c *voiceInferCollector) Observe(p *model.Part) {
+	if p == nil || p.Type != model.PartBlock {
+		return
+	}
+	b, ok := p.Resource.(*model.Block)
+	if !ok || b == nil {
+		return
+	}
+	text := strings.TrimSpace(b.SourceText())
+	if text == "" {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.corpus.Len() >= maxInferCorpusBytes {
+		return
+	}
+	c.blocks++
+	if c.corpus.Len() > 0 {
+		c.corpus.WriteString("\n")
+	}
+	c.corpus.WriteString(text)
+}
+
+var _ flow.StreamingCollector = (*voiceInferCollector)(nil)
 
 // Result drafts the profile and renders it as the YAML a reader can save,
 // validate and import.

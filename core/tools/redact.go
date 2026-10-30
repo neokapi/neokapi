@@ -47,6 +47,12 @@ type RedactConfig struct {
 
 	// SourceLocale is recorded with each stored value; informational.
 	SourceLocale model.LocaleID `json:"sourceLocale,omitempty" schema:"-"`
+
+	// WholeBlock redacts every block, translatable or not, and each target
+	// locale's runs beside the source. A run whose next tool reads the whole
+	// block (term extraction, voice inference, a check that reads the
+	// translation) needs it; unredact restores both sides.
+	WholeBlock bool `json:"wholeBlock,omitempty" schema:"-"`
 }
 
 // ToolName returns the tool name this config applies to.
@@ -61,6 +67,7 @@ func (c *RedactConfig) Reset() {
 	c.Rules = nil
 	c.VaultPath = ""
 	c.SourceLocale = ""
+	c.WholeBlock = false
 }
 
 // Validate checks configuration validity.
@@ -278,40 +285,72 @@ func (t *RedactTool) Flush() error {
 // the rewrite, while spans overlapping a redaction, including the consumed
 // entity spans, are dropped), and the originals to vault.
 func (t *RedactTool) transform(v tool.BlockView) (tool.EditPlan, error) {
-	if !v.Translatable() {
+	if !v.Translatable() && !t.cfg.WholeBlock {
 		return tool.EditPlan{}, nil
 	}
-	runs := v.SourceRuns()
-	if len(runs) == 0 {
-		return tool.EditPlan{}, nil
+	var plan tool.EditPlan
+	newRuns, records, edits, err := t.redactRuns(v, v.SourceRuns(), v.SourceText(), v.SourceLocale(), true, t.opts)
+	if err != nil {
+		return tool.EditPlan{}, err
 	}
-	text := v.SourceText()
+	if len(records) > 0 {
+		plan.NewRuns, plan.Edits = newRuns, edits
+		plan.Secrets = appendSecrets(plan.Secrets, records)
+	}
+	if t.cfg.WholeBlock {
+		for _, locale := range v.TargetLocales() {
+			// A token of its own per locale, so a target's originals never
+			// share a key with the source's on the block.
+			opts := t.opts
+			if opts.TokenPrefix == "" {
+				opts.TokenPrefix = redaction.DefaultTokenPrefix
+			}
+			opts.TokenPrefix += string(locale) + "-"
+			runs := v.TargetRuns(locale)
+			tr, recs, _, err := t.redactRuns(v, runs, model.RunsText(runs), locale, false, opts)
+			if err != nil {
+				return tool.EditPlan{}, err
+			}
+			if len(recs) > 0 {
+				plan.SetTarget(locale, tr)
+				plan.Secrets = appendSecrets(plan.Secrets, recs)
+			}
+		}
+	}
+	return plan, nil
+}
 
+// redactRuns detects the sensitive spans in one side of a block and returns
+// the redacted runs with what they withheld. Entity overlays anchor to the
+// source, so they drive the source side only.
+func (t *RedactTool) redactRuns(v tool.BlockView, runs []model.Run, text string, locale model.LocaleID, source bool, opts redaction.RedactOptions) ([]model.Run, []redaction.Redacted, []model.RunEdit, error) {
+	if len(runs) == 0 {
+		return nil, nil, nil, nil
+	}
 	var matches []redaction.Match
 	if t.rules != nil {
-		ms, err := t.rules.Detect(v.Context(), text, v.SourceLocale())
+		ms, err := t.rules.Detect(v.Context(), text, locale)
 		if err != nil {
-			return tool.EditPlan{}, fmt.Errorf("redact: %w", err)
+			return nil, nil, nil, fmt.Errorf("redact: %w", err)
 		}
 		matches = append(matches, ms...)
 	}
-	if t.useEntities {
+	if t.useEntities && source {
 		matches = append(matches, t.entityMatches(v, text)...)
 	}
 	matches = redaction.NormalizeMatches(matches)
 	if len(matches) == 0 {
-		return tool.EditPlan{}, nil
+		return nil, nil, nil, nil
 	}
+	newRuns, records, edits := redaction.Redact(runs, matches, opts)
+	return newRuns, records, edits, nil
+}
 
-	newRuns, records, edits := redaction.Redact(runs, matches, t.opts)
-	if len(records) == 0 {
-		return tool.EditPlan{}, nil
+func appendSecrets(secrets []tool.Secret, records []redaction.Redacted) []tool.Secret {
+	for _, r := range records {
+		secrets = append(secrets, tool.Secret{Token: r.Token, Category: r.Category, Disp: r.Disp, Original: r.Original})
 	}
-	secrets := make([]tool.Secret, len(records))
-	for i, r := range records {
-		secrets[i] = tool.Secret{Token: r.Token, Category: r.Category, Disp: r.Disp, Original: r.Original}
-	}
-	return tool.EditPlan{NewRuns: newRuns, Edits: edits, Secrets: secrets}, nil
+	return secrets
 }
 
 // vaultSecrets is the applier's secret sink: it persists the recovery records
