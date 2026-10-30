@@ -1098,26 +1098,6 @@ func projectRel(root, path string) string {
 	return filepath.ToSlash(path)
 }
 
-// rootSpelled spells an absolute path inside root the way root spells it, and
-// reports whether it is inside. The two can name one directory differently
-// when one passed through a symbolic link (macOS reaches /var through
-// /private/var), so a path that is not under root as written is compared
-// again with the links resolved.
-func rootSpelled(root, abs string) (string, bool) {
-	if rel, inside := underRoot(root, abs); inside {
-		return filepath.Join(root, filepath.FromSlash(rel)), true
-	}
-	realRoot, rerr := filepath.EvalSymlinks(root)
-	realPath, perr := filepath.EvalSymlinks(abs)
-	if rerr != nil || perr != nil {
-		return abs, false
-	}
-	if rel, inside := underRoot(realRoot, realPath); inside {
-		return filepath.Join(root, filepath.FromSlash(rel)), true
-	}
-	return abs, false
-}
-
 // cwdAbs makes a path the check reported relative to the working directory
 // absolute.
 func cwdAbs(path string) string {

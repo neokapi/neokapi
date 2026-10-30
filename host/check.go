@@ -1241,9 +1241,12 @@ func patternRules(forbid, require []string) []check.PatternRule {
 // read by the markdown reader when the recipe binds mdx. Both are text no
 // convergence run ever touches, held to a bar meant for prose.
 type checkFormats struct {
-	// byPath is keyed by absolute path; a file the project does not declare is
-	// absent, and reads as "detect by extension, reader defaults".
+	// byPath is keyed by absolute path, spelled the way root spells it; a file
+	// the project does not declare is absent, and reads as "detect by
+	// extension, reader defaults".
 	byPath map[string]resolvedFormat
+	// root is the project directory, empty outside a project.
+	root string
 	// directives are the project's `defaults.comments.directives`, in force for
 	// a file no item declares.
 	directives []string
@@ -1280,6 +1283,7 @@ func (a *App) newCheckFormats(cmd Command) (*checkFormats, error) {
 	}
 	f.directives = proj.Defaults.Comments.Directives
 	pctx := project.NewProjectContext(proj, filepath.Join(filepath.Dir(projectPath), "x.kapi"))
+	f.root = pctx.ProjectDir
 	resolved, rerr := pctx.ResolveContent(a.FormatReg)
 	if rerr != nil {
 		// A recipe pattern that will not expand is a fault worth failing on — and
@@ -1362,7 +1366,10 @@ func (f *checkFormats) directivesFor(file string) []string {
 	return f.directives
 }
 
-// lookup returns what the project declared for one file.
+// lookup returns what the project declared for one file. A file named
+// through a symbolic link to the project directory (a working directory under
+// /var when the recipe was named under /private/var) is looked up as the
+// project directory spells it.
 func (f *checkFormats) lookup(file string) (resolvedFormat, bool) {
 	if f == nil || len(f.byPath) == 0 {
 		return resolvedFormat{}, false
@@ -1372,6 +1379,9 @@ func (f *checkFormats) lookup(file string) (resolvedFormat, bool) {
 		if r, err := filepath.Abs(abs); err == nil {
 			abs = r
 		}
+	}
+	if f.root != "" {
+		abs, _ = rootSpelled(f.root, abs)
 	}
 	rf, ok := f.byPath[abs]
 	return rf, ok
