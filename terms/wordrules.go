@@ -96,7 +96,7 @@ func PromoteRule(ctx context.Context, store Terminology, loc model.LocaleID, r p
 	if err != nil {
 		return false, fmt.Errorf("read the terms: %w", err)
 	}
-	concepts, target, changed := UpsertDecision(concepts, Decision{
+	concepts, target, left, changed := UpsertDecision(concepts, Decision{
 		Text:        r.Term,
 		Locale:      loc,
 		Status:      model.TermForbidden,
@@ -115,6 +115,11 @@ func PromoteRule(ctx context.Context, store Terminology, loc model.LocaleID, r p
 	}
 	if !changed {
 		return false, nil
+	}
+	if left >= 0 {
+		if err := store.AddConcept(ctx, concepts[left]); err != nil {
+			return false, fmt.Errorf("write concept %s: %w", concepts[left].ID, err)
+		}
 	}
 	if err := store.AddConcept(ctx, *c); err != nil {
 		return false, fmt.Errorf("write concept %s: %w", c.ID, err)

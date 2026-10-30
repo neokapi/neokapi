@@ -118,14 +118,17 @@ func (a *App) landWordRules(ctx context.Context, tb terms.Terminology, rules []c
 				continue
 			}
 		}
-		var target int
+		var target, left int
 		var changed bool
-		concepts, target, changed = upsertTerm(concepts, d)
+		concepts, target, left, changed = upsertTerm(concepts, d)
 		if changed {
 			if rule.Note != "" && concepts[target].Definition == "" {
 				concepts[target].Definition = rule.Note
 			}
 			touched[target] = true
+		}
+		if left >= 0 {
+			touched[left] = true
 		}
 	}
 	for i := range concepts {

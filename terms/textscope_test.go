@@ -109,7 +109,7 @@ func TestUpsertDecision_RulesMarkedOtherwiseKeepTheirOwnConcept(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			var concepts []terms.Concept
 			for _, d := range order {
-				concepts, _, _ = terms.UpsertDecision(concepts, d)
+				concepts, _, _, _ = terms.UpsertDecision(concepts, d)
 			}
 			require.Len(t, concepts, 2)
 			fails := map[string]bool{}
@@ -122,7 +122,7 @@ func TestUpsertDecision_RulesMarkedOtherwiseKeepTheirOwnConcept(t *testing.T) {
 			// Deciding the same again changes nothing.
 			for _, d := range order {
 				var changed bool
-				concepts, _, changed = terms.UpsertDecision(concepts, d)
+				concepts, _, _, changed = terms.UpsertDecision(concepts, d)
 				assert.False(t, changed)
 			}
 			assert.Len(t, concepts, 2)
@@ -131,16 +131,16 @@ func TestUpsertDecision_RulesMarkedOtherwiseKeepTheirOwnConcept(t *testing.T) {
 
 	t.Run("marked alike", func(t *testing.T) {
 		var concepts []terms.Concept
-		concepts, _, _ = terms.UpsertDecision(concepts, utilize)
-		concepts, _, _ = terms.UpsertDecision(concepts, terms.Decision{Text: "employ", Locale: "en", Status: model.TermForbidden, Replacement: "use"})
+		concepts, _, _, _ = terms.UpsertDecision(concepts, utilize)
+		concepts, _, _, _ = terms.UpsertDecision(concepts, terms.Decision{Text: "employ", Locale: "en", Status: model.TermForbidden, Replacement: "use"})
 		require.Len(t, concepts, 1, "one concept per preferred term")
 		assert.Len(t, concepts[0].Terms, 3)
 	})
 
 	t.Run("a different text scope", func(t *testing.T) {
 		var concepts []terms.Concept
-		concepts, _, _ = terms.UpsertDecision(concepts, utilize)
-		concepts, _, _ = terms.UpsertDecision(concepts, terms.Decision{Text: "employ", Locale: "en", Status: model.TermForbidden, Replacement: "use", TextScope: profile.ScopeProse})
+		concepts, _, _, _ = terms.UpsertDecision(concepts, utilize)
+		concepts, _, _, _ = terms.UpsertDecision(concepts, terms.Decision{Text: "employ", Locale: "en", Status: model.TermForbidden, Replacement: "use", TextScope: profile.ScopeProse})
 		require.Len(t, concepts, 2)
 		scopes := map[string]string{}
 		for _, r := range terms.SourceWordRules(concepts, "en") {
@@ -149,9 +149,59 @@ func TestUpsertDecision_RulesMarkedOtherwiseKeepTheirOwnConcept(t *testing.T) {
 		assert.Equal(t, map[string]string{"utilize": "", "employ": profile.ScopeProse}, scopes)
 	})
 
+	// A store written before rules kept their own marking holds both terms in
+	// one concept, advisory for both. Landing the two rules again moves the
+	// term marked otherwise into a concept of its own, which keeps the point
+	// of the one it left; a third landing changes nothing.
+	t.Run("a concept merged earlier splits", func(t *testing.T) {
+		merged := terms.Concept{ID: "term:en:utilize", Domain: "docs", Advisory: true, Terms: []terms.Term{
+			{Text: "utilize", Locale: "en", Status: model.TermForbidden, Note: terms.ReplacementNote("use")},
+			{Text: "use", Locale: "en", Status: model.TermPreferred},
+			{Text: "leverage", Locale: "en", Status: model.TermForbidden, Note: terms.ReplacementNote("use")},
+		}}
+		merged.ScopeToProfile("docs")
+		concepts := []terms.Concept{merged}
+
+		var written []string
+		for _, d := range []terms.Decision{utilize, leverage} {
+			var target, left int
+			var changed bool
+			concepts, target, left, changed = terms.UpsertDecision(concepts, d)
+			if changed {
+				written = append(written, concepts[target].ID)
+			}
+			if left >= 0 {
+				written = append(written, concepts[left].ID)
+			}
+		}
+		require.Len(t, concepts, 2)
+		assert.ElementsMatch(t, []string{"term:en:utilize", "term:en:utilize:fails"}, written,
+			"the moved term's concept and the one it left are both written back")
+
+		fails := map[string]bool{}
+		for _, r := range terms.SourceWordRules(concepts, "en") {
+			fails[r.Term] = !r.Advisory
+			assert.Equal(t, "use", r.Replacement, "%s names the replacement", r.Term)
+		}
+		assert.Equal(t, map[string]bool{"utilize": true, "leverage": false}, fails)
+		for _, c := range concepts {
+			assert.Equal(t, "docs", c.Profile(), "%s keeps the point", c.ID)
+			assert.Equal(t, "docs", c.Domain)
+		}
+
+		for _, d := range []terms.Decision{utilize, leverage} {
+			var left int
+			var changed bool
+			concepts, _, left, changed = terms.UpsertDecision(concepts, d)
+			assert.False(t, changed, "%s lands again unchanged", d.Text)
+			assert.Equal(t, -1, left)
+		}
+		assert.Len(t, concepts, 2)
+	})
+
 	t.Run("a concept with only the replacement takes the marking", func(t *testing.T) {
 		concepts := []terms.Concept{{ID: "use", Terms: []terms.Term{{Text: "use", Locale: "en", Status: model.TermPreferred}}}}
-		concepts, target, _ := terms.UpsertDecision(concepts, leverage)
+		concepts, target, _, _ := terms.UpsertDecision(concepts, leverage)
 		require.Len(t, concepts, 1)
 		assert.Equal(t, 0, target)
 		assert.True(t, concepts[0].Advisory)

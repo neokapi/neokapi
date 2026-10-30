@@ -151,6 +151,34 @@ func TestAdvisorySurvivesTBXAndJSON(t *testing.T) {
 	assert.Equal(t, want, advisoryFlags(got), "a JSON round trip keeps the flag")
 }
 
+// TestTextScopeSurvivesTBX exports a concept scoped to prose as TBX, imports
+// it into a fresh store, and reads the scope back. A concept with no scope
+// carries no descrip for it.
+func TestTextScopeSurvivesTBX(t *testing.T) {
+	ctx := context.Background()
+	src := dntStore(t)
+	scoped := advisoryLeverageConcept()
+	scoped.SetTextScope(profile.ScopeProse)
+	require.NoError(t, src.AddConcept(ctx, scoped))
+	require.NoError(t, src.AddConcept(ctx, advisoryUtilizeConcept()))
+
+	var tbx bytes.Buffer
+	require.NoError(t, ExportTBX(ctx, src, &tbx, TBXExportOptions{}))
+	assert.Contains(t, tbx.String(), `<descrip type="x-textScope">prose</descrip>`)
+	assert.Equal(t, 1, bytes.Count(tbx.Bytes(), []byte("x-textScope")))
+
+	into := dntStore(t)
+	_, err := ImportTBX(ctx, into, bytes.NewReader(tbx.Bytes()), TBXImportOptions{})
+	require.NoError(t, err)
+	got, err := into.Concepts(ctx)
+	require.NoError(t, err)
+	scopes := map[string]string{}
+	for _, c := range got {
+		scopes[c.ID] = c.TextScope()
+	}
+	assert.Equal(t, map[string]string{"leverage": profile.ScopeProse, "utilize": ""}, scopes)
+}
+
 func TestImportCSVReadsTheAdvisoryColumn(t *testing.T) {
 	ctx := context.Background()
 

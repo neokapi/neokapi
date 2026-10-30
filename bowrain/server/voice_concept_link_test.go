@@ -153,6 +153,34 @@ func TestLandWordRules_WritesThePacksTerms(t *testing.T) {
 	assert.Zero(t, n)
 }
 
+// Each word rule lands with its own marking and scope: two rules naming one
+// replacement keep their own advisory marking, and a rule scoped to prose
+// keeps the scope on its concept. Landing them again changes nothing.
+func TestLandWordRules_KeepsEachRulesMarkingAndScope(t *testing.T) {
+	srv := linkTestServer(t)
+	ctx := context.Background()
+	rules := []coreprofile.TermRule{
+		{Term: "utilize", Replacement: "use"},
+		{Term: "leverage", Replacement: "use", Advisory: true},
+		{Term: "synergy", Replacement: "cooperation", Scope: coreprofile.ScopeProse},
+	}
+	_, err := srv.landWordRules(ctx, "acme", "ws-acme", rules)
+	require.NoError(t, err)
+
+	byTerm := map[string]coreprofile.TermRule{}
+	for _, r := range workspaceWordRulesFor(t, srv, "acme") {
+		byTerm[r.Term] = r
+	}
+	assert.False(t, byTerm["utilize"].Advisory)
+	assert.True(t, byTerm["leverage"].Advisory)
+	assert.Equal(t, "use", byTerm["leverage"].Replacement)
+	assert.Equal(t, coreprofile.ScopeProse, byTerm["synergy"].Scope)
+
+	n, err := srv.landWordRules(ctx, "acme", "ws-acme", rules)
+	require.NoError(t, err)
+	assert.Zero(t, n)
+}
+
 func TestFirstWorkspaceSourceLocale(t *testing.T) {
 	ctx := context.Background()
 	ps := &fakeProjectContentStore{projects: []*platstore.Project{

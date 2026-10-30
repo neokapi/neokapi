@@ -121,6 +121,7 @@ func (s *Server) landWordRules(ctx context.Context, wsSlug, wsID string, rules [
 			Status:      model.TermForbidden,
 			Replacement: strings.TrimSpace(r.Replacement),
 			Advisory:    r.Advisory,
+			TextScope:   r.Scope,
 			Competitor:  r.Competitor,
 			Forms:       r.Forms,
 		}
@@ -130,11 +131,19 @@ func (s *Server) landWordRules(ctx context.Context, wsSlug, wsID string, rules [
 		if d.Text == "" {
 			continue
 		}
-		var target int
+		var target, left int
 		var changed bool
-		concepts, target, changed = terms.UpsertDecision(concepts, d)
+		concepts, target, left, changed = terms.UpsertDecision(concepts, d)
 		if !changed {
 			continue
+		}
+		if left >= 0 {
+			// The term moved out of a concept whose other rules are marked
+			// otherwise (terms.UpsertDecision).
+			if err := tb.AddConcept(ctx, concepts[left]); err != nil {
+				return written, err
+			}
+			written++
 		}
 		if err := tb.AddConcept(ctx, concepts[target]); err != nil {
 			return written, err

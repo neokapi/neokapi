@@ -108,6 +108,9 @@ func ExportTBX(ctx context.Context, tb Terminology, writer io.Writer, opts TBXEx
 		if concept.Advisory {
 			out.Descrips = append(out.Descrips, tbxOutDescrip{Type: tbxAdvisoryDescripType, Value: "true"})
 		}
+		if scope := concept.TextScope(); scope != "" {
+			out.Descrips = append(out.Descrips, tbxOutDescrip{Type: tbxTextScopeDescripType, Value: scope})
+		}
 		if concept.DoNotTranslate {
 			out.Descrips = append(out.Descrips, tbxOutDescrip{Type: tbxDoNotTranslateDescripType, Value: "true"})
 		}
