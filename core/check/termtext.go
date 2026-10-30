@@ -95,8 +95,7 @@ func TermText(s string) string {
 
 // PlaceholderText is s with every placeholder and every URL (URLSpans)
 // overwritten byte for byte, as TermText overwrites them, and code, commands
-// and flags left as they are. A URL is an address, so "https://example.com/
-// utilize" does not use the term "utilize", whatever the rule's scope.
+// and flags left as they are.
 //
 // The readers that show where a term is written read through it: the term
 // search in core/profile (profile.MatchTermRulesInRuns), the declared-term

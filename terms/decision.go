@@ -42,17 +42,15 @@ type Decision struct {
 // `replaces` names, else the one that declares the replacement, when the rules
 // it holds carry the term's advisory marking and text scope (sameRuleFlags).
 // Only a decision that names nothing already in the graph, or that would
-// change the marking of rules another term put there, opens a new concept. That is what
-// makes the decision answerable later — "what should this say instead" is the
-// preferred term of the concept the retired word sits in, so a term filed on
-// its own island can never be answered, however clearly the decision was
-// written. A replacement no concept declares yet is added to the joined concept
-// as its preferred term, for the same reason.
+// change the marking of rules another term put there, opens a new concept.
+// Joining is what makes the decision answerable later: "what should this say
+// instead" is the preferred term of the concept the retired word sits in. A
+// replacement no concept declares yet is added to the joined concept as its
+// preferred term, for the same reason.
 //
 // It is idempotent: an entry already recorded this way returns changed=false so
 // apply reports a skipped no-op. Terms are matched case-insensitively on text
-// within a locale; a new concept is keyed by a stable id so reading the same
-// decision again is reproducible.
+// within a locale; a new concept is keyed by a stable id.
 //
 // target is the index of the one concept the decision touched, which is the
 // concept the caller writes back to the store.
@@ -148,14 +146,13 @@ func UpsertDecision(concepts []Concept, d Decision) (out []Concept, target int, 
 }
 
 // sameRuleFlags reports whether a discouraged term decided by d can join c by
-// sharing its replacement. The concept carries one advisory marking and one
-// text scope for all of its rules, so a term marked otherwise than the rules
-// c already holds in d's language would change theirs: "leverage → use",
-// advisory, joined to the concept holding "utilize → use" would make a use of
-// utilize report without failing. Such a term opens a concept of its own and
-// names the replacement in its note (ReplacementNote), where PreferredTerm
-// reads it. A concept holding no rule in that language takes the term's
-// marking, and a term that is not discouraged carries none.
+// sharing its replacement. A concept carries one advisory marking and one text
+// scope for all of its rules. A term marked otherwise than the rules c holds in
+// d's language would change theirs: an advisory "leverage → use" joined to
+// "utilize → use" would stop utilize from failing. Such a term opens a concept
+// of its own and names the replacement in its note (ReplacementNote), where
+// PreferredTerm reads it. A concept holding no rule in that language takes the
+// term's marking, and a term that is not discouraged carries none.
 func sameRuleFlags(c Concept, d Decision) bool {
 	if !d.Status.Discouraged() {
 		return true

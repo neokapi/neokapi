@@ -79,8 +79,8 @@ func Fix(f Finding, runs []model.Run, at change.Ref, rev string) *change.Op {
 }
 
 // KeepInitialCapital is replacement as it replaces words: with the capital
-// the words start with when the replacement starts in lower case, and as
-// written otherwise. A replacement that differs from the words only in case
+// the words start with when the replacement starts in lower case, so "E-mail"
+// with "email" becomes "Email", and as written otherwise. A replacement that differs from the words only in case
 // is a rule about how to write them, such as "kapi" for "Kapi", and lands as
 // written.
 func KeepInitialCapital(words, replacement string) string {
