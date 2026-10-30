@@ -270,6 +270,19 @@
             "short": "Remove a config value, restoring the built-in default"
           }
         },
+        "connect": {
+          "example": "  kapi connect\n  kapi connect --dry-run\n  kapi connect claude\n  kapi connect codex --json",
+          "flags": {
+            "dry-run": {
+              "usage": "list the files kapi connect would write, and write nothing"
+            },
+            "project": {
+              "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
+            }
+          },
+          "long": "Put an assistant on this project. The assistant reads the project's rules\nin AGENTS.md and CLAUDE.md as it starts, asks 'kapi context \u003cpath\u003e' before it\nwrites a file, and runs 'kapi check' on each file it edited.\n\nkapi connect writes what each assistant needs and lists every file as\ncreated, updated or kept:\n\n  kapi.yaml            the recipe, written as kapi init writes it when the\n                       folder has none\n  AGENTS.md, CLAUDE.md the Writing rules section; the rest of each file is\n                       kept as you wrote it\n  .mcp.json and the    the MCP server entry that starts 'kapi mcp' for this\n  other hosts' files   project, and the kapi skill where the host reads skills\n\nWith no argument it connects Claude Code and every assistant whose folder the\nproject keeps (.cursor/, .vscode/, .codex/, .agents/), and lists the others.\nName one to connect it alone: claude, cursor, vscode, codex or agents.\n\nClaude Code runs the project's check when it finishes through the Stop hook\nof the kapi Claude Code plugin. kapi connect reports that hook as pending\nuntil the project's .claude/settings.json enables the plugin, with the\ncommands that install it.\n\nRunning it again rewrites nothing that is current. --dry-run lists the same\nfiles with what it would do and writes nothing.",
+          "short": "Put an assistant on this project: rules as it starts, kapi check on every edit"
+        },
         "context": {
           "atlas": {
             "example": "  kapi context atlas\n  kapi context atlas --json \u003e atlas.json\n  kapi context atlas --all-projects --json",
