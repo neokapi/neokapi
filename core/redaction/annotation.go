@@ -1,5 +1,7 @@
 package redaction
 
+import "github.com/neokapi/neokapi/core/model"
+
 // SecretAnnotationKey is the Block.Annotations key under which an in-process
 // pipeline carries the token→original mapping between the redact and unredact
 // tools. It is deliberately not a key any format writer serializes, so the
@@ -17,6 +19,13 @@ type SecretAnnotation struct {
 	// Values maps each placeholder token (the PlaceholderRun ID) to its
 	// original value.
 	Values map[string]RedactedValue
+	// Source is the source's runs as redact read them, and Targets each
+	// target edition redact rewrote, as it read it. Unredact puts back an
+	// edition whose restored content equals what was read, with the status
+	// and origin it had, so a redact and unredact around a tool that left it
+	// alone change nothing about it.
+	Source  []model.Run
+	Targets map[model.LocaleID]model.Edition
 }
 
 // AnnotationType identifies this annotation.

@@ -89,16 +89,17 @@ func (a *App) runContainer(ctx context.Context, cfg ToolRunConfig, inputPath, ou
 // format (AD-005) the entry is not even buffered whole. Only this one entry is
 // held at a time (AD-026 §6).
 func (a *App) runContainerEntry(ctx context.Context, cfg ToolRunConfig, runner *flow.FileRunner, fmtName string, e container.Entry) ([]byte, error) {
-	t, err := cfg.NewTool()
+	chain, err := a.newToolChain(cfg)
 	if err != nil {
-		return nil, fmt.Errorf("create tool: %w", err)
+		return nil, err
 	}
+	t := chain.main
 	if cfg.ParallelBlocks > 1 {
 		t = tool.NewParallelBlockTool(t, cfg.ParallelBlocks)
 	}
 
 	var out bytes.Buffer
-	if err := runner.RunStream(ctx, cfg.ToolName, []tool.Tool{t}, bytes.NewReader(e.Data), e.Name, registry.FormatID(fmtName), &out, cfg.TargetLang); err != nil {
+	if err := runner.RunStream(ctx, cfg.ToolName, chain.tools(t), bytes.NewReader(e.Data), e.Name, registry.FormatID(fmtName), &out, cfg.TargetLang); err != nil {
 		return nil, err
 	}
 	return out.Bytes(), nil

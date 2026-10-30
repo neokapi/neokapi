@@ -113,6 +113,9 @@ type Secret struct {
 	Category string
 	Disp     string
 	Original string
+	// Locale names the target the original was withheld from; empty for the
+	// source.
+	Locale model.LocaleID
 }
 
 // FullSpanEdit returns the single whole-text RunEdit mapping oldRuns'

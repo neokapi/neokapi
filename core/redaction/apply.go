@@ -376,6 +376,95 @@ func nextTokenMatch(text string, from int, entries []RedactedValue) (start, end 
 	return start, end, original, best != -1
 }
 
+// RestoreTree is RestorePlan over a run sequence and over every plural form
+// and select case in it, where redact withholds values the same way. A
+// sequence holding a plural or a select reports one edit over its whole
+// flattened text, since the text of a form has no position in the sequence's
+// own.
+func RestoreTree(runs []model.Run, get func(token string) (string, bool), entries []RedactedValue) ([]model.Run, int, []model.RunEdit) {
+	out, restored, edits := RestorePlan(runs, get, entries)
+	if !model.HasStructuredRuns(out) {
+		return out, restored, edits
+	}
+	tree := make([]model.Run, len(out))
+	copy(tree, out)
+	for i, r := range tree {
+		switch {
+		case r.Plural != nil:
+			forms := make(map[model.PluralForm][]model.Run, len(r.Plural.Forms))
+			for form, fr := range r.Plural.Forms {
+				nr, n, _ := RestoreTree(fr, get, entries)
+				forms[form] = nr
+				restored += n
+			}
+			tree[i] = model.Run{Plural: &model.PluralRun{Pivot: r.Plural.Pivot, Forms: forms}}
+		case r.Select != nil:
+			cases := make(map[string][]model.Run, len(r.Select.Cases))
+			for key, cr := range r.Select.Cases {
+				nr, n, _ := RestoreTree(cr, get, entries)
+				cases[key] = nr
+				restored += n
+			}
+			tree[i] = model.Run{Select: &model.SelectRun{Pivot: r.Select.Pivot, Cases: cases}}
+		}
+	}
+	if restored == 0 {
+		return runs, 0, nil
+	}
+	oldText, newText := model.RunsText(runs), model.RunsText(tree)
+	if oldText == newText {
+		return tree, restored, nil
+	}
+	return tree, restored, []model.RunEdit{{
+		Start:  0,
+		End:    utf8.RuneCountInString(oldText),
+		NewLen: utf8.RuneCountInString(newText),
+	}}
+}
+
+// SameText reports whether two run sequences hold the same content once
+// adjacent text runs are joined, in every plural form and select case too. A
+// restore splits a text run around each value it puts back, so the content it
+// gives back can equal what was redacted while the runs differ.
+func SameText(a, b []model.Run) bool {
+	return string(model.CanonicalRunsJSON(joinText(a))) == string(model.CanonicalRunsJSON(joinText(b)))
+}
+
+func joinText(runs []model.Run) []model.Run {
+	out := make([]model.Run, 0, len(runs))
+	for _, r := range runs {
+		switch {
+		case r.Text != nil:
+			if n := len(out); n > 0 && out[n-1].Text != nil {
+				prev, next := *out[n-1].Text, *r.Text
+				prev.Text, next.Text = "", ""
+				if prev == next {
+					joined := *out[n-1].Text
+					joined.Text += r.Text.Text
+					out[n-1] = model.Run{Text: &joined}
+					continue
+				}
+			}
+			out = append(out, r)
+		case r.Plural != nil:
+			forms := make(map[model.PluralForm][]model.Run, len(r.Plural.Forms))
+			for form, fr := range r.Plural.Forms {
+				forms[form] = joinText(fr)
+			}
+			out = append(out, model.Run{Plural: &model.PluralRun{Pivot: r.Plural.Pivot, Forms: forms}})
+		case r.Select != nil:
+			cases := make(map[string][]model.Run, len(r.Select.Cases))
+			for key, cr := range r.Select.Cases {
+				cases[key] = joinText(cr)
+			}
+			out = append(out, model.Run{Select: &model.SelectRun{Pivot: r.Select.Pivot, Cases: cases}})
+		default:
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
 // TextOf returns the flattened plain text of a run sequence using only
 // TextRun content — the coordinate space detectors and [Redact] share. It
 // mirrors model.Block.SourceText for a single run slice.

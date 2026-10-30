@@ -9,6 +9,7 @@ import (
 	"github.com/neokapi/neokapi/core/redaction"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/schema"
+	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/core/tools"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -248,4 +249,120 @@ func TestRedactConfig_Validate(t *testing.T) {
 
 	ok := &tools.RedactConfig{Detectors: []string{tools.DetectRules, tools.DetectEntities}}
 	assert.NoError(t, ok.Validate())
+}
+
+// WholeBlock redacts a block marked not translatable and each translation
+// beside the source, each translation under tokens of its own, and unredact
+// restores every side.
+func TestRedactUnredact_WholeBlock(t *testing.T) {
+	const target = "Mr Bean est le nouveau King of England"
+	newBlock := func() *model.Block {
+		b := newBeanBlock()
+		b.Translatable = false
+		b.SetTargetText("fr", target)
+		return b
+	}
+
+	plain, err := tools.NewRedactTool(&tools.RedactConfig{Detectors: []string{tools.DetectRules}, Rules: beanRules()})
+	require.NoError(t, err)
+	untouched := newBlock()
+	processPart(t, plain, &model.Part{Type: model.PartBlock, Resource: untouched})
+	assert.Equal(t, beanSentence, untouched.SourceText(), "without WholeBlock a block marked not translatable is left alone")
+
+	whole, err := tools.NewRedactTool(&tools.RedactConfig{Detectors: []string{tools.DetectRules}, Rules: beanRules(), WholeBlock: true})
+	require.NoError(t, err)
+	block := newBlock()
+	processPart(t, whole, &model.Part{Type: model.PartBlock, Resource: block})
+	assert.NotContains(t, block.SourceText(), "Mr Bean")
+	assert.NotContains(t, model.RunsText(block.TargetRuns("fr")), "Mr Bean")
+	ann, ok := model.AnnoAs[*redaction.SecretAnnotation](block, redaction.SecretAnnotationKey)
+	require.True(t, ok)
+	assert.Len(t, ann.Values, 4, "the source's two originals and the translation's two, each under a token of its own")
+
+	unredact, err := tools.NewUnredactTool(&tools.UnredactConfig{})
+	require.NoError(t, err)
+	processPart(t, unredact, &model.Part{Type: model.PartBlock, Resource: block})
+	assert.Equal(t, beanSentence, block.SourceText())
+	assert.Equal(t, target, block.TargetText("fr"))
+}
+
+// A translation redact and unredact went around keeps its runs, status and
+// origin when the tool between them left it alone; one the tool changed is
+// the tool's draft.
+func TestRedactUnredact_KeepsATranslationTheToolLeftAlone(t *testing.T) {
+	const fr, de = "Mr Bean est le nouveau King of England", "Mr Bean ist der neue King of England"
+	human := model.Origin{Kind: "human", Reference: "xliff"}
+	block := newBeanBlock()
+	block.SetTargetEdition(model.Variant("fr"), model.Edition{Runs: []model.Run{{Text: &model.TextRun{Text: fr}}}, Status: model.Status(model.TargetStatusEstablished), Origin: human})
+	block.SetTargetEdition(model.Variant("de"), model.Edition{Runs: []model.Run{{Text: &model.TextRun{Text: de}}}, Status: model.Status(model.TargetStatusEstablished), Origin: human})
+	block.SetTargetEdition(model.Variant("es"), model.Edition{Runs: []model.Run{{Text: &model.TextRun{Text: "Mr Bean es el nuevo King of England"}}}, Status: model.Status(model.TargetStatusTranslated)})
+	sourceBefore := model.CanonicalRunsJSON(block.SourceRuns())
+	frBefore, _ := block.TargetEdition("fr")
+
+	whole, err := tools.NewRedactTool(&tools.RedactConfig{Detectors: []string{tools.DetectRules}, Rules: beanRules(), WholeBlock: true})
+	require.NoError(t, err)
+	processPart(t, whole, &model.Part{Type: model.PartBlock, Resource: block})
+	// The tool between the steps rewrites the German, placeholders kept.
+	redacted := block.TargetRuns("de")
+	changed := append([]model.Run{{Text: &model.TextRun{Text: "Neu: "}}}, redacted...)
+	v := tool.NewVariantView(block)
+	v.SetTargetRuns("de", changed)
+
+	unredact, err := tools.NewUnredactTool(&tools.UnredactConfig{})
+	require.NoError(t, err)
+	processPart(t, unredact, &model.Part{Type: model.PartBlock, Resource: block})
+
+	assert.Equal(t, string(sourceBefore), string(model.CanonicalRunsJSON(block.SourceRuns())), "the source goes back as it was read")
+	frAfter, ok := block.TargetEdition("fr")
+	require.True(t, ok)
+	assert.Equal(t, string(model.CanonicalRunsJSON(frBefore.Runs)), string(model.CanonicalRunsJSON(frAfter.Runs)))
+	assert.Equal(t, model.Status(model.TargetStatusEstablished), frAfter.Status, "established stays established")
+	assert.Equal(t, human, frAfter.Origin, "the origin is the one it was read with")
+
+	esAfter, ok := block.TargetEdition("es")
+	require.True(t, ok)
+	assert.Equal(t, model.Status(model.TargetStatusTranslated), esAfter.Status)
+	assert.Equal(t, model.Origin{}, esAfter.Origin, "a translation read with no origin takes none from redact")
+
+	deAfter, ok := block.TargetEdition("de")
+	require.True(t, ok)
+	assert.Equal(t, "Neu: "+de, model.RunsText(deAfter.Runs))
+	assert.Equal(t, model.Status(model.TargetStatusDraft), deAfter.Status, "a translation the tool changed is a draft")
+	_, ok = block.Anno(redaction.SecretAnnotationKey)
+	assert.False(t, ok)
+}
+
+// Detection reads the text runs redact carves, and every plural form is
+// redacted under tokens of its own; unredact restores inside the forms.
+func TestRedactUnredact_PluralForms(t *testing.T) {
+	plural := func() *model.Block {
+		b := model.NewBlock("p1", "")
+		b.SourceLocale = "en"
+		b.SetSourceRuns([]model.Run{
+			{Plural: &model.PluralRun{Pivot: "count", Forms: map[model.PluralForm][]model.Run{
+				model.PluralOne:   {{Text: &model.TextRun{Text: "one file for Mr Bean"}}},
+				model.PluralOther: {{Text: &model.TextRun{Text: "many files for Mr Bean"}}},
+			}}},
+			{Text: &model.TextRun{Text: " sent to Mr Bean, the King of England."}},
+		})
+		return b
+	}
+	block := plural()
+	before := model.CanonicalRunsJSON(block.SourceRuns())
+	whole, err := tools.NewRedactTool(&tools.RedactConfig{Detectors: []string{tools.DetectRules}, Rules: beanRules(), WholeBlock: true})
+	require.NoError(t, err)
+	processPart(t, whole, &model.Part{Type: model.PartBlock, Resource: block})
+
+	flat := string(model.CanonicalRunsJSON(block.SourceRuns()))
+	assert.NotContains(t, flat, "Bean", "no form keeps the name")
+	assert.NotContains(t, flat, "England")
+	assert.Contains(t, block.SourceRuns()[1].Text.Text, " sent to ", "the text after the plural is carved where the name is")
+	ann, ok := model.AnnoAs[*redaction.SecretAnnotation](block, redaction.SecretAnnotationKey)
+	require.True(t, ok)
+	assert.Len(t, ann.Values, 4, "one name in each form, a name and a role after the plural")
+
+	unredact, err := tools.NewUnredactTool(&tools.UnredactConfig{})
+	require.NoError(t, err)
+	processPart(t, unredact, &model.Part{Type: model.PartBlock, Resource: block})
+	assert.Equal(t, string(before), string(model.CanonicalRunsJSON(block.SourceRuns())))
 }

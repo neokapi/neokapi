@@ -61,6 +61,11 @@ Reach for exec when you want exactly one tool's behavior: a bare
 converter. The verb pairs with 'kapi run <flow>' the way 'kapi tools' pairs
 with 'kapi flows': run composes a pipeline, exec executes one tool.
 
+In a project that declares a redaction policy, a tool that calls a model reads
+every block, and each translation beside it, with the policy's rules applied,
+and its output carries the original values. A policy that detects entities
+stops the run, because no step ahead of the tool finds them.
+
 Discover tools and their options with 'kapi tools list' and
 'kapi tools schema <name>'.`,
 		// Fail loudly on a tool name that doesn't exist (or no longer exists —
@@ -276,8 +281,17 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 				return perr
 			}
 
+			// The parameters the command sets, which settle whether the run
+			// calls a provider: a provider left at its flag default is the
+			// configured one's to name, as newTool leaves it.
+			toolConfig := ReadAllSchemaFlags(cmd, ToolSchema)
+			if !cmd.Flags().Changed("provider") {
+				delete(toolConfig, "provider")
+			}
+
 			rc := ToolRunConfig{
 				ToolName:       toolName,
+				ToolConfig:     toolConfig,
 				Project:        projectPath,
 				Files:          args,
 				FormatMappings: mappings,

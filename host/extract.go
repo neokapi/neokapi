@@ -725,6 +725,24 @@ func applyMemoryPrefill(ctx context.Context, tm memory.ContentMemory, block *mod
 // mode, writing originals to the batch vault sidecar at vaultPath. Rule paths
 // in the spec are resolved relative to rootDir.
 func applyRedaction(ctx context.Context, blocks []*model.Block, spec *project.RedactionSpec, rootDir, vaultPath string, sourceLocale model.LocaleID) error {
+	rt, err := tools.NewRedactTool(redactToolConfig(spec, rootDir, vaultPath, sourceLocale))
+	if err != nil {
+		return err
+	}
+	for _, b := range blocks {
+		part := &model.Part{Type: model.PartBlock, Resource: b}
+		if _, err := rt.ApplyContext(ctx, part); err != nil {
+			return err
+		}
+	}
+	return rt.Flush()
+}
+
+// redactToolConfig is the redact tool's configuration for a declared policy.
+// Rule paths are resolved relative to rootDir. An empty vaultPath keeps the
+// originals on the block for an unredact later in the same run; a path writes
+// them to a sidecar vault there.
+func redactToolConfig(spec *project.RedactionSpec, rootDir, vaultPath string, sourceLocale model.LocaleID) *tools.RedactConfig {
 	cfg := &tools.RedactConfig{
 		Detectors:    spec.Detectors,
 		Placeholder:  spec.Placeholder,
@@ -741,17 +759,7 @@ func applyRedaction(ctx context.Context, blocks []*model.Block, spec *project.Re
 			cfg.RulesPath = filepath.Join(rootDir, spec.Rules)
 		}
 	}
-	rt, err := tools.NewRedactTool(cfg)
-	if err != nil {
-		return err
-	}
-	for _, b := range blocks {
-		part := &model.Part{Type: model.PartBlock, Resource: b}
-		if _, err := rt.ApplyContext(ctx, part); err != nil {
-			return err
-		}
-	}
-	return rt.Flush()
+	return cfg
 }
 
 func applySegmentation(ctx context.Context, blocks []*model.Block, conf project.SegmentationDefaults) error {

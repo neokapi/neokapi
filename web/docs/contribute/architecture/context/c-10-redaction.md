@@ -2,7 +2,7 @@
 id: c-10-redaction
 sidebar_position: 10
 title: "C-10: Redaction and clearance"
-description: "Architecture decision: redaction replaces sensitive spans with protected placeholders before content leaves the machine, keeping the original in a local vault; the policy is read at extract, at ingest, and by the flow placement gate."
+description: "Architecture decision: redaction replaces sensitive spans with protected placeholders before content leaves the machine, keeping the original in a local vault; the policy is read at extract, at ingest, by single-tool runs, and by the flow placement gate."
 keywords: [redaction, sensitive content, placeholders, unredact, vault, privacy, architecture decision, neokapi]
 ---
 
@@ -177,7 +177,28 @@ policy is read at every point content can leave:
    a gate rather than an implicit rewrite: silently inserting a step into a
    user's flow would change what their flow means, while refusing to run it says
    so.
-4. **The operation log.** The record of an applied edit travels to every
+4. **A single-tool run.** `kapi exec <tool>`, and the MCP tools that run one
+   registry tool over a caller's text, compose no flow of the user's, so the run
+   itself places the steps (`host/toolrun_redact.go`). When the tool's contract,
+   refined for its config, carries an API call, `redact` runs ahead of it with
+   the project's rules and `unredact` after it, the originals riding on the
+   block in between as they do in `secure-translate`. The tools a run reaches
+   read the whole block, so the step is configured for it (`WholeBlock`): it
+   redacts blocks marked not translatable, and each target locale's runs under
+   tokens of their own. Detection reads a run sequence's own text runs, the
+   coordinates the carve uses, and every plural form and select case is
+   redacted the same way under a prefix of its own. Unredact puts back an
+   edition whose restored content equals what redact read exactly as it was
+   read, and re-stamps a translation's status and origin, so the two steps
+   around a tool that left a translation alone change nothing about it. A
+   collector that sends what it gathered to a model
+   (voice-infer's draft) reads the blocks between the two steps. A policy that
+   detects entities is refused, because entity detection reads annotations an
+   extraction step leaves and a run of one tool has none. A tool that calls no
+   provider runs alone. The chain each run builds is held to
+   `CheckRedactionCoverage` and `CheckPlacement`, so a run without the redact
+   step fails the gate a flow fails.
+5. **The operation log.** The record of an applied edit travels to every
    context backend the project shares its context through, so the recorder
    redacts the runs and the note it keeps, vaulting each run sequence under the
    edition and revision it belongs to, and leaves the change set as sent out

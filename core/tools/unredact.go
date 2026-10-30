@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -126,21 +127,116 @@ func (t *UnredactTool) handleBlock(v tool.BlockView) (tool.EditPlan, error) {
 		return tool.EditPlan{}, nil
 	}
 
+	var read *redaction.SecretAnnotation
+	if t.vault == nil {
+		read, _ = ann.(*redaction.SecretAnnotation)
+	}
+
 	var plan tool.EditPlan
 	// Restore by placeholder ID (structure-preserving formats: in-process
 	// pipelines, XLIFF inline codes) and by visible token text (formats that
 	// flattened the placeholder to its string on write), in one pass that also
-	// yields the structured edits for overlay rebasing.
-	if sr, n, edits := redaction.RestorePlan(v.SourceRuns(), get, entries); n > 0 {
+	// yields the structured edits for overlay rebasing. Plural forms and select
+	// cases are restored the same way.
+	if sr, n, edits := redaction.RestoreTree(v.SourceRuns(), get, entries); n > 0 {
+		// A source nothing changed between redact and unredact goes back as
+		// redact read it, its runs unsplit.
+		if read != nil && read.Source != nil && redaction.SameText(sr, read.Source) {
+			sr = read.Source
+		}
 		plan.NewRuns = sr
 		plan.Edits = edits
 	}
+	var kept map[model.LocaleID]model.Edition
 	for _, locale := range v.TargetLocales() {
-		if tr, n, _ := redaction.RestorePlan(v.TargetRuns(locale), get, entries); n > 0 {
-			plan.SetTarget(locale, tr)
+		tr, n, _ := redaction.RestoreTree(v.TargetRuns(locale), get, entries)
+		if n == 0 {
+			continue
 		}
+		// A translation nothing changed between redact and unredact goes back
+		// as redact read it, and keeps its status and origin: the rewrite
+		// lands as a tool's draft, so Process stamps them back once it has.
+		if read != nil {
+			if was, ok := read.Targets[locale]; ok && redaction.SameText(tr, was.Runs) {
+				tr = was.Runs
+				if kept == nil {
+					kept = map[model.LocaleID]model.Edition{}
+				}
+				kept[locale] = was
+			}
+		}
+		plan.SetTarget(locale, tr)
+	}
+	if kept != nil {
+		v.Annotate(keptProvenanceKey, &keptProvenance{Targets: kept})
 	}
 
 	v.RemoveAnnotation(redaction.SecretAnnotationKey)
 	return plan, nil
+}
+
+// keptProvenanceKey is the annotation under which unredact carries, from its
+// handler to the end of its own dispatch, the status and origin of each
+// translation it put back as redact read it.
+const keptProvenanceKey = "redaction.kept-provenance"
+
+type keptProvenance struct {
+	Targets map[model.LocaleID]model.Edition
+}
+
+func (*keptProvenance) TypeName() string { return keptProvenanceKey }
+
+// Process runs the restore and stamps back the provenance of each
+// translation it put back unchanged.
+func (t *UnredactTool) Process(ctx context.Context, in <-chan *model.Part, out chan<- *model.Part) error {
+	mid := make(chan *model.Part)
+	errc := make(chan error, 1)
+	go func() {
+		defer close(mid)
+		errc <- t.BaseTool.Process(ctx, in, mid)
+	}()
+	for p := range mid {
+		keepProvenance(ctx, p)
+		select {
+		case out <- p:
+		case <-ctx.Done():
+		}
+	}
+	return <-errc
+}
+
+// Apply is ApplyContext with no deadline.
+func (t *UnredactTool) Apply(part *model.Part) (*model.Part, error) {
+	return t.ApplyContext(context.Background(), part)
+}
+
+// ApplyContext restores one part and stamps back the provenance of each
+// translation it put back unchanged.
+func (t *UnredactTool) ApplyContext(ctx context.Context, part *model.Part) (*model.Part, error) {
+	res, err := t.BaseTool.ApplyContext(ctx, part)
+	if err == nil {
+		keepProvenance(ctx, res)
+	}
+	return res, err
+}
+
+// keepProvenance gives each translation unredact put back as redact read it
+// the status and origin it had before redact rewrote it.
+func keepProvenance(ctx context.Context, p *model.Part) {
+	if p == nil {
+		return
+	}
+	b, ok := p.Resource.(*model.Block)
+	if !ok || b == nil {
+		return
+	}
+	kept, ok := model.AnnoAs[*keptProvenance](b, keptProvenanceKey)
+	if !ok {
+		return
+	}
+	v := tool.NewVariantViewWithContext(ctx, b)
+	for locale, was := range kept.Targets {
+		v.StampTargetProvenance(locale, model.TargetStatus(was.Status), was.Origin)
+	}
+	v.RemoveAnnotation(keptProvenanceKey)
 }
