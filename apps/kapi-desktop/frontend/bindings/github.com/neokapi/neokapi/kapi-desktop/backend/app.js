@@ -892,16 +892,6 @@ export function GetAllLocales() {
 }
 
 /**
- * GetAppMode returns the persisted app mode ("projects" or "adhoc").
- * Defaults to "projects" (project-first) for a first-ever launch or when the
- * persisted value is empty/unknown. The frontend calls this at startup.
- * @returns {$CancellablePromise<string>}
- */
-export function GetAppMode() {
-    return $Call.ByID(347405920);
-}
-
-/**
  * GetBasePath returns the project root: the .kapi file's parent directory.
  * For unsaved projects, returns the user's home directory.
  * @param {string} tabID
@@ -1379,8 +1369,8 @@ export function GetSampleInfo(tabID) {
 }
 
 /**
- * GetSessionState returns the persisted project-first session: the mode plus
- * the projects to restore and which one was active. The frontend reads this
+ * GetSessionState returns the persisted session: the projects to restore and
+ * which one was active. The frontend reads this
  * at startup to reopen the previous session; if LastOpenProjects is empty it
  * falls back to the home screen.
  * 
@@ -2092,8 +2082,14 @@ export function OpenMemoryDialog() {
 }
 
 /**
- * OpenProject loads a kapi.yaml recipe from disk and returns its tab ID.
- * If the recipe is already open in another tab, returns that tab's ID.
+ * OpenProject opens a project folder as a tab and returns it. The path may be
+ * the folder, its kapi.yaml, or a file inside the folder, which opens the
+ * folder. If the project is already open in another tab, that tab is returned.
+ * 
+ * A folder with no kapi.yaml opens on the recipe `kapi init` would write
+ * there, held in memory until a person changes something it holds (see
+ * ensureRecipe). A folder the workspace knows as a project whose recipe has
+ * since gone is refused, as is a folder that is gone.
  * @param {string} path
  * @returns {$CancellablePromise<$models.TabInfo | null>}
  */
@@ -2726,10 +2722,9 @@ export function SaveProvider(req) {
 }
 
 /**
- * SaveSessionState persists the project-first session so the next launch can
- * restore the open tabs. The frontend calls this whenever the open-project set
- * or the active tab changes (and at shutdown). Mode is normalized; empty or
- * unknown values become "projects".
+ * SaveSessionState persists the session so the next launch can restore the
+ * open tabs. The frontend calls this whenever the open-project set or the
+ * active tab changes (and at shutdown).
  * @param {$models.SessionState} state
  * @returns {$CancellablePromise<void>}
  */
@@ -2866,15 +2861,6 @@ export function SelectAIProvider(providerID, model) {
  */
 export function SetActiveFilter(tabID, filterID) {
     return $Call.ByID(3256035612, tabID, filterID);
-}
-
-/**
- * SetAppMode persists the app mode. Unknown values fall back to "projects".
- * @param {string} mode
- * @returns {$CancellablePromise<void>}
- */
-export function SetAppMode(mode) {
-    return $Call.ByID(34587212, mode);
 }
 
 /**
