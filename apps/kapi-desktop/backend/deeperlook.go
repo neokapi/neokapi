@@ -56,13 +56,14 @@ func (a *App) deeperLookApp() *host.App {
 }
 
 // DeeperLookModel names the model a deeper look of the tab would ask, and
-// whether there is one. It asks no model, and answers from the session's kept
-// answer when there is one (lookmodel.go).
+// whether there is one. It asks no model.
 func (a *App) DeeperLookModel(tabID string) (*DeeperLookModelDTO, error) {
 	op := a.getOpenProject(tabID)
 	if op == nil {
 		return nil, fmt.Errorf("project tab %q not found", tabID)
 	}
+	// The answer is kept for the session, so showing the Map again reads no
+	// saved key (lookmodel.go).
 	model := a.lookModel(op.Project)
 	return &model, nil
 }

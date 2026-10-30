@@ -1,15 +1,14 @@
 package backend
 
-// The Map asks whether a model is connected each time it is shown, and the
-// answer comes from a credential lookup that reads the saved key from the OS
-// keychain once per tool the deeper look builds. lookModelCache keeps that
-// answer for the session, so showing the Map again reads no key.
+// The Map asks whether a model is connected each time it is shown. The
+// credential lookup behind the answer reads the saved key from the OS keychain
+// once per tool the deeper look builds. lookModelCache keeps the answer for
+// the session, so showing the Map again reads no key.
 //
-// The App drops every kept answer when the person saves, removes or marks a
-// default provider key, or changes the default model, and when a deeper look
-// finds no model to ask. An answer older than lookModelTTL is read again, which
-// bounds how long a key removed outside the app, by `kapi credentials` in a
-// terminal, still reads as connected.
+// The App drops the kept answers when a provider key or the default model
+// changes, and when a deeper look finds no model to ask. An answer older than
+// lookModelTTL is read again, so a key removed by `kapi credentials` in a
+// terminal stops reading as connected within that time.
 
 import (
 	"encoding/json"
