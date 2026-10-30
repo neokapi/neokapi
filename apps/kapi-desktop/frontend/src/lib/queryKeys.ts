@@ -140,6 +140,7 @@ export const qk = {
   extractResult: (tabID: string) => ["extract-result", tabID] as const,
   storeSync: (tabID: string) => ["store-sync", tabID] as const,
   mapSummary: (tabID: string) => ["map-summary", tabID] as const,
+  deeperLookModel: (tabID: string) => ["ai", "deeper-look-model", tabID] as const,
   readerFile: (tabID: string, relPath: string) => ["reader-file", tabID, relPath] as const,
   checks: (tabID: string, filterID: string) => ["checks", tabID, filterID] as const,
   reviewQueue: (tabID: string) => ["review-queue", tabID] as const,

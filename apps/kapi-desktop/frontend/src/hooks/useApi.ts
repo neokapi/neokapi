@@ -33,6 +33,8 @@ import type {
   ExtractResult,
   StoreSyncResult,
   MapSummary,
+  DeeperLookModel,
+  DeeperLookResult,
   ReaderFile,
   RulesDecideView,
   RuleAnswer,
@@ -150,6 +152,10 @@ export const api = {
   syncProjectStore: (tabID: string) => call<StoreSyncResult>("SyncProjectStore", tabID),
   /** The Map of the tab's project: its counts, file rows and suggestions, in one read. */
   mapSummary: (tabID: string) => call<MapSummary>("MapSummary", tabID),
+  /** The model a deeper look of the tab would ask, and whether one is connected. */
+  deeperLookModel: (tabID: string) => call<DeeperLookModel>("DeeperLookModel", tabID),
+  /** Read the tab's files with the connected model and file what it proposes. */
+  deeperLook: (tabID: string) => call<DeeperLookResult>("DeeperLook", tabID),
   getConvergence: (tabID: string) => call<ConvergenceReport>("GetConvergence", tabID),
   getConvergePlan: (tabID: string) => call<ConvergePlan>("GetConvergePlan", tabID),
   getProjectServer: (tabID: string) => call<ProjectServer>("GetProjectServer", tabID),

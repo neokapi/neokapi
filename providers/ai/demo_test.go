@@ -231,6 +231,34 @@ func TestDemoProvider_NeutralSchema(t *testing.T) {
 	assert.Empty(t, out.Issues)
 }
 
+func TestDemoProvider_TermExtraction(t *testing.T) {
+	// The terminology schema lists the names in the text after the prompt's
+	// instruction: a run of capitalised words, or one capitalised word inside
+	// a sentence, never a word that only opens one.
+	p := newTestDemo()
+	turn := "Extract key terminology from the following en text. Return notable terms, or an empty array if none found.\n\n" +
+		"Text: Harbor Help answers you. Open it in Kapi Desktop. Send it to Kapi. The Kapi app works."
+	resp, err := p.ChatStructured(context.Background(), []Message{TextMessage("user", turn)}, JSONSchema{Name: "terminology_extraction"})
+	require.NoError(t, err)
+	var out struct {
+		Terms []struct {
+			Term       string `json:"term"`
+			Definition string `json:"definition"`
+		} `json:"terms"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(resp.Content), &out), resp.Content)
+	var names []string
+	for _, term := range out.Terms {
+		names = append(names, term.Term)
+		assert.Contains(t, term.Definition, "⟦demo⟧")
+	}
+	assert.Equal(t, []string{"Harbor Help", "Kapi Desktop", "Kapi"}, names)
+
+	again, err := p.ChatStructured(context.Background(), []Message{TextMessage("user", turn)}, JSONSchema{Name: "terminology_extraction"})
+	require.NoError(t, err)
+	assert.Equal(t, resp.Content, again.Content, "the same text yields the same terms")
+}
+
 func TestDemoProvider_NoticeOnce(t *testing.T) {
 	// Reset the once guard for an isolated assertion.
 	noticeOnce = sync.OnceFunc(func() {

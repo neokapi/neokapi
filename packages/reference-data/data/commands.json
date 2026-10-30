@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-30T18:36:14Z",
+  "generatedAt": "2026-10-30T19:25:30Z",
   "commands": [
     {
       "id": "add",
@@ -1107,9 +1107,15 @@
       ],
       "use": "suggest",
       "short": "File what kapi can see in the files as suggestions for you to decide",
-      "long": "Read the files this project declares and file what kapi can see in them as\nsuggestions:\n\n  - a word the files write more than one way, such as e-mail and email: the\n    form written most often, instead of the others\n  - in a project that binds no voice, the words a starter voice pack avoids,\n    when the files use three or more of them\n  - the files addressing the reader as you, when most blocks with a personal\n    pronoun do and none says we\n\nEach suggestion is noticed by kapi and waits for you in \"kapi context review\".\nChecks report it and none fails on it until you keep it. Nothing else is\nwritten: not the recipe, not a rules file. No AI model is used.\n\nRunning it again files nothing new. A suggestion you dropped stays dropped,\nand one the files have changed is filed again as it now stands. --dry-run\nprints what it would file and records nothing.",
+      "long": "Read the files this project declares and file what kapi can see in them as\nsuggestions:\n\n  - a word the files write more than one way, such as e-mail and email: the\n    form written most often, instead of the others\n  - in a project that binds no voice, the words a starter voice pack avoids,\n    when the files use three or more of them\n  - the files addressing the reader as you, when most blocks with a personal\n    pronoun do and none says we\n\nEach suggestion is noticed by kapi and waits for you in \"kapi context review\".\nChecks report it and none fails on it until you keep it. Nothing else is\nwritten: not the recipe, not a rules file. Without --ai no AI model is used.\n\n--ai then asks the connected AI model about the same blocks, through\nterm-extract and voice-infer, and files what it proposes the same way: the\nterms the files use, and the voice measures it reads, such as whom the files\naddress and how long their sentences run. A term is filed only when the files\nwrite it as the model wrote it in two or more blocks. In a project that binds\na voice, no voice measures are filed. These suggestions are noticed by kapi\nwith the model's name. Without --ai the command needs no network; with it,\nkapi reaches the model's provider. With no AI provider configured, or no key\nfor the one configured, --ai refuses before anything is filed; \"kapi models\nsetup\" connects one.\n\nRunning it again files nothing new. A suggestion you dropped stays dropped,\nand one the files have changed is filed again as it now stands. --dry-run\nprints what it would file and records nothing; with --ai it still asks the\nmodel.",
       "groupID": "context-person",
       "flags": [
+        {
+          "name": "ai",
+          "usage": "then ask the connected AI model and file what it proposes",
+          "default": "false",
+          "type": "bool"
+        },
         {
           "name": "dry-run",
           "usage": "print what would be filed and record nothing",
@@ -1126,6 +1132,7 @@
       "examples": [
         "kapi context suggest",
         "kapi context suggest --dry-run",
+        "kapi context suggest --ai",
         "kapi context suggest --json"
       ],
       "offlineCapable": true,

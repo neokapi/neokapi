@@ -86,6 +86,8 @@ type ContextSuggestResult struct {
 	Blocks int `json:"blocks"`
 	// Suggestions are the findings, in the order the pass made them.
 	Suggestions []SuggestedFinding `json:"suggestions"`
+	// AI is the deeper look that followed the pass, when one was asked for.
+	AI *DeeperLookResult `json:"ai,omitempty"`
 }
 
 // SuggestedFinding is one finding.
@@ -110,6 +112,10 @@ type SuggestedFinding struct {
 	Pack string `json:"pack,omitempty"`
 	// Address is the count behind an address finding.
 	Address *SuggestedAddress `json:"address,omitempty"`
+	// Measure and Value are the voice measure a voice finding names and the
+	// value the model read: person_pov and second.
+	Measure string `json:"measure,omitempty"`
+	Value   string `json:"value,omitempty"`
 	// Blocks and Files say where the finding was seen.
 	Blocks int      `json:"blocks"`
 	Files  []string `json:"files"`
@@ -137,18 +143,38 @@ type SuggestedAddress struct {
 }
 
 // FormatText prints one line per finding, in the words the review queue
-// uses, then where to decide.
+// uses, then what the deeper look's model read and its lines, then where to
+// decide.
 func (r ContextSuggestResult) FormatText(w io.Writer) error {
 	var b strings.Builder
-	if len(r.Suggestions) == 0 {
+	if len(r.Suggestions) == 0 && r.AI == nil {
 		fmt.Fprintf(&b, "Nothing to suggest in %s across %s.\n",
 			countWord(r.Blocks, "block", "blocks"), countWord(r.Files, "file", "files"))
 		_, err := io.WriteString(w, b.String())
 		return err
 	}
+	waiting := writeSuggestLines(&b, r.Suggestions, r.DryRun)
+	if r.AI != nil {
+		if len(r.Suggestions) > 0 {
+			b.WriteString("\n")
+		}
+		if r.AI.writeLines(&b) {
+			waiting = true
+		}
+	}
+	if waiting && !r.DryRun {
+		b.WriteString("\nDecide with kapi context review.\n")
+	}
+	_, err := io.WriteString(w, b.String())
+	return err
+}
+
+// writeSuggestLines writes one line per finding and reports whether any of
+// them waits for a person.
+func writeSuggestLines(b *strings.Builder, suggestions []SuggestedFinding, dry bool) bool {
 	waiting := false
-	for _, s := range r.Suggestions {
-		label := suggestOutcomeLabel(s.Outcome, r.DryRun)
+	for _, s := range suggestions {
+		label := suggestOutcomeLabel(s.Outcome, dry)
 		line := fmt.Sprintf("%-14s", label)
 		if s.Short != "" {
 			line += s.Short + "  "
@@ -162,11 +188,7 @@ func (r ContextSuggestResult) FormatText(w io.Writer) error {
 			waiting = true
 		}
 	}
-	if waiting && !r.DryRun {
-		b.WriteString("\nDecide with kapi context review.\n")
-	}
-	_, err := io.WriteString(w, b.String())
-	return err
+	return waiting
 }
 
 // suggestOutcomeLabel is the word a line opens with.
@@ -192,17 +214,22 @@ func suggestOutcomeLabel(outcome string, dry bool) string {
 	return outcome
 }
 
-// detail is the count a spelling finding's line carries. The other kinds
-// state their counts in their own sentence.
+// detail is the count a spelling or a term finding's line carries. The other
+// kinds state their counts in their own sentence, or count nothing.
 func (s SuggestedFinding) detail() string {
-	if s.Kind != SuggestKindSpelling {
+	where := countWord(s.Blocks, "block", "blocks") + " in " + countWord(len(s.Files), "file", "files")
+	switch s.Kind {
+	case SuggestKindTerm:
+		return where
+	case SuggestKindSpelling:
+	default:
 		return ""
 	}
 	parts := make([]string, 0, len(s.Forms))
 	for _, f := range s.Forms {
 		parts = append(parts, f.Form+" "+strconv.Itoa(f.Count))
 	}
-	return strings.Join(parts, ", ") + "; " + countWord(s.Blocks, "block", "blocks") + " in " + countWord(len(s.Files), "file", "files")
+	return strings.Join(parts, ", ") + "; " + where
 }
 
 // countWord renders a count with its noun: "1 block", "3 blocks".
@@ -239,7 +266,7 @@ func (s *contextOpsSession) suggestFromFiles(ctx context.Context, dry bool) (Con
 	if err != nil {
 		return out, err
 	}
-	f := &suggestFiler{s: s, records: records, dry: dry, scopes: map[string]suggestPoint{}}
+	f := &suggestFiler{s: s, actor: SuggestActor, records: records, dry: dry, scopes: map[string]suggestPoint{}}
 
 	findings := spellingFindings(corpus)
 	if english(corpus.language) {
@@ -405,6 +432,13 @@ type suggestFinding struct {
 	// key names what the finding is about, so a later run finds the
 	// suggestion it filed: the letters of a word, a pack, a habit.
 	key string
+	// aliases are the keys a record by another pass carries for the same
+	// thing: the pass over the files writes "address:second" for what the
+	// deeper look calls the point of view.
+	aliases []string
+	// letters are the letters of the word a finding about a word is about,
+	// for telling a rule about the same word from someone else.
+	letters string
 	// signature is what the finding says, so a later run can tell whether
 	// the files changed it.
 	signature string
@@ -414,6 +448,8 @@ type suggestFinding struct {
 	forms    []SuggestedForm
 	pack     string
 	address  *SuggestedAddress
+	measure  string
+	value    string
 	blocks   int
 	files    []string
 	evidence []contextop.Evidence
@@ -994,6 +1030,7 @@ func addressFinding(c suggestCorpus) (suggestFinding, bool) {
 	fd := suggestFinding{
 		kind:      SuggestKindAddress,
 		key:       "address:second",
+		aliases:   []string{deeperLookKeyPOV},
 		signature: "second",
 		note:      suggestNoteAddress,
 		address:   &SuggestedAddress{You: you, We: we, Pronouns: any, PersonPOV: "second"},
@@ -1012,10 +1049,67 @@ func addressFinding(c suggestCorpus) (suggestFinding, bool) {
 // suggestFiler files findings into the log, against what the log already
 // holds.
 type suggestFiler struct {
-	s       *contextOpsSession
+	s *contextOpsSession
+	// actor files the findings: kapi for the pass over the files, kapi with
+	// the model's name for the deeper look (ai).
+	actor   contextop.Actor
+	ai      bool
 	records []contextop.Record
 	dry     bool
 	scopes  map[string]suggestPoint
+	// pass holds what the pass over the files found in the same run, by key
+	// and by the letters of a word, for the deeper look that follows it. A dry
+	// run records nothing, so the log cannot say what the pass would file.
+	pass map[string]bool
+}
+
+// passKnows reports a deeper-look finding the pass over the files made in the
+// same run.
+func (f *suggestFiler) passKnows(fd suggestFinding) bool {
+	if !f.ai || len(f.pass) == 0 {
+		return false
+	}
+	if f.pass[fd.key] || (fd.letters != "" && f.pass["letters:"+fd.letters]) {
+		return true
+	}
+	for _, alias := range fd.aliases {
+		if f.pass[alias] {
+			return true
+		}
+	}
+	return false
+}
+
+// passFound indexes what the pass over the files found and would file or did
+// file, for passKnows: the address finding's key, and a spelling's letters.
+func passFound(res *ContextSuggestResult) map[string]bool {
+	if res == nil {
+		return nil
+	}
+	out := map[string]bool{}
+	for _, s := range res.Suggestions {
+		if s.Outcome != SuggestFiled && s.Outcome != SuggestUpdated && s.Outcome != SuggestUnchanged {
+			continue
+		}
+		switch s.Kind {
+		case SuggestKindAddress:
+			out["address:second"] = true
+		case SuggestKindSpelling:
+			if rule, ok := s.Subject.Rule(); ok && rule.Replacement != "" {
+				out["letters:"+spellingKey(rule.Replacement)] = true
+			}
+		}
+	}
+	return out
+}
+
+// mine reports a record this kind of pass filed: one by kapi for the pass over
+// the files, and one by any model the deeper look asked for the deeper look.
+func (f *suggestFiler) mine(r contextop.Record) bool {
+	if f.ai {
+		return deeperLookRecord(r)
+	}
+	return r.Actor == SuggestActor
 }
 
 // suggestPoint is the governance and the point one file resolves to.
@@ -1033,6 +1127,8 @@ func (f *suggestFiler) file(ctx context.Context, fd suggestFinding) (SuggestedFi
 		Forms:    fd.forms,
 		Pack:     fd.pack,
 		Address:  fd.address,
+		Measure:  fd.measure,
+		Value:    fd.value,
 		Blocks:   fd.blocks,
 		Files:    fd.files,
 	}
@@ -1046,14 +1142,26 @@ func (f *suggestFiler) file(ctx context.Context, fd suggestFinding) (SuggestedFi
 		out.Outcome, out.ID = SuggestDropped, dropped.ID
 		out.Short = contextop.ShortID(dropped.ID)
 		return out, nil
-	case prior == nil && fd.kind == SuggestKindSpelling && f.known(fd):
+	case prior == nil && f.known(fd):
 		out.Outcome = SuggestKnown
 		return out, nil
-	case prior != nil && (f.signature(*prior) == fd.signature || prior.Established || prior.Status != contextop.StatusSuggested):
-		// Unchanged, or no longer the pass's to change: a person kept it, or
-		// it waits on a choice between two sides.
+	case prior != nil && (f.signature(*prior) == fd.signature || prior.Established || prior.Status != contextop.StatusSuggested ||
+		prior.Actor != f.actor):
+		// Unchanged, or no longer the pass's to change: a person kept it, it
+		// waits on a choice between two sides, or another model filed it, and
+		// only its author withdraws a suggestion. The line shows the record
+		// that stands, which says something else when the files or the model
+		// moved on without it.
 		out.Outcome, out.ID = SuggestUnchanged, prior.ID
 		out.Short = contextop.ShortID(prior.ID)
+		if f.signature(*prior) != fd.signature {
+			out.Subject = prior.Subject
+			out.Sentence = ruleSentence(prior.Subject)
+			if fd.kind == SuggestKindVoice {
+				out.Value = f.signature(*prior)
+			}
+			return out, nil
+		}
 		if !f.dry {
 			if err := f.recordUsage(ctx, *prior, fd); err != nil {
 				return out, err
@@ -1072,14 +1180,14 @@ func (f *suggestFiler) file(ctx context.Context, fd suggestFinding) (SuggestedFi
 		return out, nil
 	}
 	if prior != nil {
-		if _, err := f.s.setAside(ctx, contextop.KindWithdraw, SuggestActor, *prior,
+		if _, err := f.s.setAside(ctx, contextop.KindWithdraw, f.actor, *prior,
 			"the files changed what it says: filed again as it now stands"); err != nil {
 			return out, err
 		}
 	}
 	basis, scope := f.pointOf(fd.files)
 	op, err := f.s.appendObservation(ctx, contextop.Record{
-		Actor:    SuggestActor,
+		Actor:    f.actor,
 		Kind:     contextop.KindObserve,
 		Project:  f.s.key,
 		Subject:  fd.subject,
@@ -1102,18 +1210,26 @@ func (f *suggestFiler) file(ctx context.Context, fd suggestFinding) (SuggestedFi
 // record of it that still answers, or failing that the one a person dropped.
 // A withdrawn or reset record says nothing about it either way. For a
 // spelling, a suggestion about the same letters that a person dropped counts
-// whoever filed it.
+// whoever filed it; for the deeper look, any dropped suggestion about the same
+// thing does.
 func (f *suggestFiler) prior(fd suggestFinding) (answering, dropped *contextop.Record) {
 	for i := range f.records {
 		r := &f.records[i]
 		if r.Kind != contextop.KindObserve && r.Kind != contextop.KindCorrect {
 			continue
 		}
-		mine := r.Actor == SuggestActor
-		if !mine && !(fd.kind == SuggestKindSpelling && r.Status == contextop.StatusDropped) {
+		mine := f.mine(*r)
+		othersDrop := fd.kind == SuggestKindSpelling || fd.kind == SuggestKindAddress || f.ai
+		if !mine && !(othersDrop && r.Status == contextop.StatusDropped) {
 			continue
 		}
-		if f.keyOf(*r) != fd.key {
+		key := f.keyOf(*r)
+		if key != fd.key && (mine || !slices.Contains(fd.aliases, key)) {
+			continue
+		}
+		if key == deeperLookKeyPOV && fd.kind == SuggestKindAddress && f.signature(*r) != "second" {
+			// The deeper look's note about whom the files address says the
+			// reader is addressed as you only when its value is second.
 			continue
 		}
 		switch {
@@ -1149,6 +1265,9 @@ func (f *suggestFiler) keyOf(r contextop.Record) string {
 			if name, _, ok := strings.Cut(rest, " starter pack avoids: "); ok {
 				return "pack:" + name
 			}
+		case strings.HasPrefix(r.Note, deeperLookNotePrefix):
+			key, _, _ := strings.Cut(strings.TrimPrefix(r.Note, deeperLookNotePrefix), " = ")
+			return key
 		}
 	}
 	return ""
@@ -1165,6 +1284,10 @@ func (f *suggestFiler) signature(r contextop.Record) string {
 		if r.Note == suggestNoteAddress {
 			return "second"
 		}
+		if strings.HasPrefix(r.Note, deeperLookNotePrefix) {
+			_, sig, _ := strings.Cut(r.Note, " = ")
+			return sig
+		}
 		if _, words, ok := strings.Cut(r.Note, " starter pack avoids: "); ok {
 			return words
 		}
@@ -1172,13 +1295,39 @@ func (f *suggestFiler) signature(r contextop.Record) string {
 	return ""
 }
 
-// known reports a spelling the project already has a rule or a suggestion
-// about from someone else: one that still answers and whose form to use, or
-// a form it avoids, has the same letters.
+// known reports a finding the project already has a rule or a suggestion
+// about from someone else, one that still answers. For a word, that is a rule
+// whose form to use, or a form it avoids, has the same letters. For the reader
+// addressed as you, it is the deeper look's note saying so. For the deeper
+// look, it is also a note the pass over the files filed about the same thing.
+// The words a starter pack avoids are the pass's own, and known to no one
+// else.
 func (f *suggestFiler) known(fd suggestFinding) bool {
-	letters := strings.TrimPrefix(fd.key, "spelling:")
+	if fd.kind == SuggestKindPackWords {
+		return false
+	}
+	letters := fd.letters
+	if fd.kind == SuggestKindSpelling {
+		letters = strings.TrimPrefix(fd.key, "spelling:")
+	}
+	if f.passKnows(fd) {
+		return true
+	}
 	for _, r := range f.records {
-		if r.Actor == SuggestActor || !r.Status.Answers() {
+		if f.mine(r) || !r.Status.Answers() {
+			continue
+		}
+		key := f.keyOf(r)
+		switch {
+		case fd.kind == SuggestKindAddress:
+			if key == deeperLookKeyPOV && f.signature(r) == "second" {
+				return true
+			}
+			continue
+		case f.ai && key != "" && (key == fd.key || slices.Contains(fd.aliases, key)):
+			return true
+		}
+		if letters == "" {
 			continue
 		}
 		rule, ok := r.Rule()
@@ -1216,7 +1365,7 @@ func (f *suggestFiler) recordUsage(ctx context.Context, target contextop.Record,
 	}
 	sig := *fd.usage
 	_, err = f.s.ledger.Append(ctx, contextop.Record{
-		Actor:   SuggestActor,
+		Actor:   f.actor,
 		Kind:    contextop.KindSignal,
 		Target:  target.ID,
 		Project: target.Project,

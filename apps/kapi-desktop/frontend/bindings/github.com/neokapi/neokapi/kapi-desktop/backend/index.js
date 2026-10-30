@@ -64,6 +64,8 @@ export {
     ContextWidenUnit,
     ConvergePlan,
     CustomLocale,
+    DeeperLookDTO,
+    DeeperLookModelDTO,
     DefaultModelInfo,
     DesktopFinding,
     DetectedAIProvider,

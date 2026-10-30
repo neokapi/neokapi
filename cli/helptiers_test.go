@@ -253,6 +253,8 @@ var languageWork = regexp.MustCompile(`(?i)translat|locale|bilingual|monolingual
 // project reads no word about other languages on the root help, on bare
 // `kapi`, or in `kapi status`.
 func TestOneLanguageProject_NamesNoLanguageWork(t *testing.T) {
+	// The deeper look asks the demo provider, so no row reaches a real model.
+	useDemoAI(t)
 	recipe, root := monolingualProject(t)
 	t.Setenv("KAPI_NO_PROJECT", "")
 	t.Setenv("KAPI_PROJECT", recipe)
@@ -276,6 +278,10 @@ func TestOneLanguageProject_NamesNoLanguageWork(t *testing.T) {
 		{name: "kapi share --help", args: []string{"share", "--help"}},
 		{name: "kapi share", args: []string{"share"}},
 		{name: "kapi open --help", args: []string{"open", "--help"}},
+		{name: "kapi context suggest --help", args: []string{"context", "suggest", "--help"}},
+		// A dry run, since the tests in this package share one workspace and
+		// a filed suggestion would reach the next test's Map of this project.
+		{name: "kapi context suggest --ai --dry-run", args: []string{"context", "suggest", "--ai", "--dry-run"}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			out := runRoot(t, tt.args...)
