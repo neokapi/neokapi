@@ -65,11 +65,9 @@ type RewriteResult struct {
 // not be substituted.
 //
 // Matching is [MatchTermRulesInText], so the rewrite sees exactly the hits the
-// word-rule check reports: whole words, declared forms, case sensitivity,
-// scope, containment suppression and character references all apply. A hit is
-// substituted when its rule names a replacement and the matched text is the
-// term itself, in any casing for a case-insensitive rule. A hit a character
-// reference spells an edge of is never substituted (check.Fix skips it too).
+// word-rule check reports. A hit is substituted when its rule names a
+// replacement and the matched text is the term itself, in any casing for a
+// case-insensitive rule, and no character reference spells an edge of it.
 // Every other hit stays in the text and is reported under Skipped with its
 // reason, so a caller can tell "nothing to fix" from "violations found and not
 // fixed" and finish the edit by hand.
