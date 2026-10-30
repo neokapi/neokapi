@@ -249,3 +249,38 @@ func TestRedactConfig_Validate(t *testing.T) {
 	ok := &tools.RedactConfig{Detectors: []string{tools.DetectRules, tools.DetectEntities}}
 	assert.NoError(t, ok.Validate())
 }
+
+// WholeBlock redacts a block marked not translatable and each translation
+// beside the source, each translation under tokens of its own, and unredact
+// restores every side.
+func TestRedactUnredact_WholeBlock(t *testing.T) {
+	const target = "Mr Bean est le nouveau King of England"
+	newBlock := func() *model.Block {
+		b := newBeanBlock()
+		b.Translatable = false
+		b.SetTargetText("fr", target)
+		return b
+	}
+
+	plain, err := tools.NewRedactTool(&tools.RedactConfig{Detectors: []string{tools.DetectRules}, Rules: beanRules()})
+	require.NoError(t, err)
+	untouched := newBlock()
+	processPart(t, plain, &model.Part{Type: model.PartBlock, Resource: untouched})
+	assert.Equal(t, beanSentence, untouched.SourceText(), "without WholeBlock a block marked not translatable is left alone")
+
+	whole, err := tools.NewRedactTool(&tools.RedactConfig{Detectors: []string{tools.DetectRules}, Rules: beanRules(), WholeBlock: true})
+	require.NoError(t, err)
+	block := newBlock()
+	processPart(t, whole, &model.Part{Type: model.PartBlock, Resource: block})
+	assert.NotContains(t, block.SourceText(), "Mr Bean")
+	assert.NotContains(t, model.RunsText(block.TargetRuns("fr")), "Mr Bean")
+	ann, ok := model.AnnoAs[*redaction.SecretAnnotation](block, redaction.SecretAnnotationKey)
+	require.True(t, ok)
+	assert.Len(t, ann.Values, 4, "the source's two originals and the translation's two, each under a token of its own")
+
+	unredact, err := tools.NewUnredactTool(&tools.UnredactConfig{})
+	require.NoError(t, err)
+	processPart(t, unredact, &model.Part{Type: model.PartBlock, Resource: block})
+	assert.Equal(t, beanSentence, block.SourceText())
+	assert.Equal(t, target, block.TargetText("fr"))
+}
