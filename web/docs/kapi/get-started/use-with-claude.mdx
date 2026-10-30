@@ -1,16 +1,17 @@
 ---
 title: Use with Claude
-description: "Two directions: work in Claude while it drives kapi (Agent Skill, MCP), or let kapi run Claude through your local Claude Code sign-in, no API key needed."
-keywords: [kapi, claude, claude code, claude subscription, agent skills, mcp, model context protocol, kapi models setup, voice profile, terminology, CI]
+description: "Run kapi connect to put Claude on a project: it reads the rules as it starts, asks kapi context before it writes, and runs kapi check after. kapi can also run Claude through your local Claude Code sign-in, with no API key."
+keywords: [kapi, claude, claude code, claude subscription, kapi connect, agent skills, mcp, model context protocol, kapi models setup, voice profile, terms, CI]
 ---
 
 # Use with Claude
 
-An agent in a kapi project gets the project's rules in the order it needs them. As it starts, it reads them in `CLAUDE.md` and `AGENTS.md`. Before it writes a file those rules do not cover, it asks `kapi context <path>`. After it edits, it runs `kapi check` on each file it changed, and the Stop hook in the Claude Code plugin runs the project gate (`kapi check --ship`) when it tries to finish.
+Run `kapi connect` in the project's folder to put Claude, or another assistant,
+on the project. The sections below say what it writes and why, then how to set
+the same up by hand. In the other direction, kapi can run Claude through your
+Claude Code sign-in; see [Let kapi run Claude](#let-kapi-run-claude).
 
 ## Connect an assistant
-
-Run `kapi connect` in the project's folder:
 
 ```text
 $ kapi connect
@@ -31,30 +32,105 @@ Project
 See what an assistant reads for a file: kapi context <path> --explain
 ```
 
-It connects Claude Code and each assistant whose folder the project keeps, and lists the others. Each line says what happened: created, updated or kept for a file; deleted, or removed the section, for a rules file in a folder that has no rules of its own any more; pending for the Stop hook. A folder with no recipe gets the one `kapi init` writes. `AGENTS.md` and `CLAUDE.md` get the Writing rules section, and the rest of each file stays as you wrote it. A second run keeps every file as it is.
+That run was in a folder with a `.cursor/` directory, a `CLAUDE.md` of its own
+and no recipe. `kapi connect` connects Claude Code and each assistant whose
+folder the project keeps, and lists the others. Each line says what happened:
+created, updated or kept for a file; deleted, or removed the section, for a
+rules file in a folder that has no rules of its own any more. A folder with no
+recipe gets the one `kapi init` writes. A second run keeps every file as it is.
 
-- `kapi connect --dry-run` lists the same files with what it would do, and writes none of them.
-- `kapi connect codex` connects one assistant: `claude`, `cursor`, `vscode`, `codex` or `agents`. Any other name exits with status 1 and lists these.
+- `kapi connect --dry-run` lists the same files with what it would do, and
+  writes none of them.
+- `kapi connect codex` connects one assistant: `claude`, `cursor`, `vscode`,
+  `codex` or `agents`. Any other name exits with status 1 and lists these.
 - `kapi connect --json` gives the assistants and the files as data.
 
-The Stop hook belongs to the kapi Claude Code plugin, which you install inside Claude Code with the two commands on its line. `kapi connect` reads the project's `.claude/settings.json` and `.claude/settings.local.json`, and then your own Claude Code settings (`settings.json` in `$CLAUDE_CONFIG_DIR`, or in `~/.claude`). It reports the hook as kept once one of them enables the plugin, and `kept (enabled for your user)` when only your own settings do. [What `kapi connect` writes](#what-kapi-init-wires-up) lists each assistant's files.
+`kapi init` writes the same files when it creates a project, so a project made
+with `kapi init` is already connected to Claude Code. Running `kapi connect` is
+how a project created earlier gets the current wiring.
 
-kapi and Claude connect in **two directions**. In one, you work in Claude and it drives kapi: the assistant writes inside kapi's guardrails. In the other, kapi runs Claude: your local Claude Code sign-in becomes kapi's AI provider, so `kapi up` and `kapi translate` run on your Claude subscription with no API key. Start from what you have:
+## What it wrote, and why
 
-| You have… | Use |
+An assistant on a kapi project meets the rules at three points: as it starts,
+before it writes, and after it edits.
+
+**As it starts**, it reads the Writing rules section of `CLAUDE.md`, the file
+Claude Code reads, or of `AGENTS.md`, which most other agents read: the voice,
+what to write and what not, and the `kapi check` line. A folder whose rules
+differ from the root's gets files of its own, so a rename kept for `help/` is
+stated in `help/CLAUDE.md`, and `api/CLAUDE.md` says the old name is correct
+there. kapi rewrites the section when the rules change and leaves the rest of
+each file as you wrote it; a `CLAUDE.md` that imports `@AGENTS.md` gets no
+section of its own. See [rules files for agents](/kapi/context#rules-files).
+
+**Before it writes** a file the section does not cover, it asks
+`kapi context <path>`, or `context_read` through the MCP server.
+`kapi context <path> --explain` prints what it reads there.
+
+**After it edits**, it runs `kapi check` on each file it changed, or
+`check_file`, and fixes what fails. The Stop hook in the kapi Claude Code
+plugin runs the project gate (`kapi check --ship`) when Claude tries to finish,
+and keeps it working while a gate fails. `kapi connect` reports the hook as
+pending until the plugin is installed and enabled, with the two commands that
+install it.
+
+As it works, the assistant notes what the files keep to and what you change in
+its drafts, with the file and sentence each came from. Each note arrives as a
+suggestion: checks report it and none fails on it until you keep it with
+`kapi rules`. A note holds only in the files where the assistant saw it until
+you widen it. See [Growing context](/kapi/context-decisions).
+
+### What `kapi connect` writes {#what-kapi-init-wires-up}
+
+| Agent | What it gets |
 |---|---|
-| **Claude Pro or Max** (Claude Code installed) | Both directions. [Work in Claude](#work-in-claude) via the skill or MCP; run `kapi models setup` and [kapi runs Claude](#let-kapi-run-claude) on your subscription, no key. |
-| **An API key** (Anthropic, OpenAI, Gemini) | `kapi models setup` finds keys already in your environment, or stores one in the OS keychain, and verifies it with a test call. |
-| **Nothing, or offline** | A local model via [`kapi models ollama`](/kapi/recipes/choose-a-translation-provider), or Kapi Desktop's demo engine (illustrative output, no AI). |
+| **Claude Code** | `.mcp.json` with the `kapi` server, and the kapi skill in `.claude/skills/kapi/SKILL.md` |
+| **Cursor** | `.cursor/mcp.json` with the `kapi` server |
+| **VS Code** | `.vscode/mcp.json` with the `kapi` server |
+| **Codex** | `.codex/config.toml` with the `kapi` server, read once you trust the repository |
+| **Any SKILL.md-aware tool** | the kapi skill in `.agents/skills/kapi/SKILL.md` |
 
-## Work in Claude
+Every agent also gets the rules files. The skill says how to read what applies
+to a file, note what it sees and what you change, check edits, and report the
+session, with the CLI and MCP form of each. `kapi help <topic>` prints the
+longer guides from your installed binary.
 
-You describe the outcome; Claude runs kapi. kapi supplies the guardrails (the faithful round-trip, voice profile, terminology, the check gates) and Claude does the writing inside them. All paths need `kapi` on your `PATH` ([installation](/kapi/get-started/installation)); no provider credential is required for attended work: Claude writes, kapi applies and checks, with no second model.
+Claude Code is wired every time. The others are wired when the project already
+keeps their directory, so neither command adds a directory for an editor you do
+not use. Name one with `kapi connect <assistant>`, or choose with
+`kapi init --agents`:
 
-| You work in… | Use | How it drives kapi |
+```bash
+kapi init --agents claude-code,cursor   # exactly these
+kapi init --agents all                  # every agent kapi knows
+kapi init --agents none                 # write no agent configuration
+```
+
+`kapi init --no-rules-files` leaves out the rules files.
+
+Everything it writes is inside the project, and the MCP entry holds a command
+and nothing else: no shell, no environment, no credential. An entry called
+`kapi` that you wrote or changed is left exactly as it is. An entry exactly as
+kapi wrote it follows the recipe, so after you add target languages, running
+`kapi connect` again adds the translation tools. A skill directory an earlier
+kapi filled with reference files is cleared of the files kapi wrote there, and
+any file of yours in it stays.
+
+Claude Code asks you to approve a project MCP server the first time you open the
+project, so review `.mcp.json` before you say yes, the way you would any file a
+repository ships.
+
+## Set it up by hand
+
+These are the pieces `kapi connect` writes, for a client it does not configure
+or a setup you want to control yourself. All of them need `kapi` on your `PATH`
+([installation](/kapi/get-started/installation)), and none needs a provider
+credential for attended work: Claude writes, kapi applies and checks.
+
+| You work in… | Use | How it reaches kapi |
 |---|---|---|
-| **Chat** (Claude Code, plain-language prompts) | the **Agent Skill** (`SKILL.md`) | Claude runs `kapi` commands itself and loops until the gates pass |
-| **IDE** (Claude Desktop, Cursor, Windsurf, VS Code) | the **MCP server** (`kapi mcp`) | the rules in `AGENTS.md` and `CLAUDE.md`, `context_read` for a file they do not cover, `context_note` for what it notices, and `check_file`; `--tools` adds [more sets](/reference/mcp#available-tools) |
+| **Chat** (Claude Code, plain-language prompts) | the **Agent Skill** (`SKILL.md`) | Claude runs `kapi` commands itself and loops until the checks pass |
+| **IDE** (Claude Desktop, Cursor, Windsurf, VS Code) | the **MCP server** (`kapi mcp`) | `context_read` for a file the rules files do not cover, `context_note` for what it notices, and `check_file`; `--tools` adds [more sets](/reference/mcp#available-tools) |
 | **CI** (no assistant in the loop) | the **CLI** directly | `kapi check` / `kapi check --ship` exit non-zero, failing the build |
 
 <details>
@@ -67,7 +143,14 @@ You describe the outcome; Claude runs kapi. kapi supplies the guardrails (the fa
 /plugin install kapi@neokapi-plugins
 ```
 
-The **Stop hook** runs the project gate (`kapi check --ship`) when Claude tries to finish and keeps it working while a gate fails; the **PreToolUse hook** denies hand-edits to generated translation targets, steering changes through the source. Both are fail-open outside a project, and both follow one [decision protocol](#the-hook-decision-protocol).
+The **Stop hook** is the one described above. The **PreToolUse hook** denies
+hand-edits to generated translation targets, steering changes through the
+source. Both are fail-open outside a project, and both follow one
+[decision protocol](#the-hook-decision-protocol). `kapi connect` reads the
+project's `.claude/settings.json` and `.claude/settings.local.json`, then your
+own Claude Code settings (`settings.json` in `$CLAUDE_CONFIG_DIR`, or in
+`~/.claude`), and reports the hook as kept once one of them enables the plugin,
+or `kept (enabled for your user)` when only your own settings do.
 
 **Copilot, Cursor, Windsurf, VS Code, Codex**: `SKILL.md` is an open standard:
 
@@ -80,8 +163,6 @@ npx skills update kapi                               # refresh later
 
 <details>
 <summary>Install the MCP server (Claude Desktop, Claude Code, Cursor, and the rest)</summary>
-
-`kapi connect` configures supported clients. Use the following example for manual configuration or another compatible client.
 
 Your client launches `kapi mcp` as a stdio subprocess. Claude Code and Cursor read the server list under `mcpServers`; VS Code reads it under `servers`. Claude Desktop uses `claude_desktop_config.json` with the same shape as Claude Code's:
 
@@ -117,41 +198,6 @@ An unreadable, empty, or malformed hook payload; a session directory kapi cannot
 
 The wire shapes are Claude Code's, and Claude Code versions its own hook schema; kapi does not add a version of its own. What is stable here is the policy in the table: fail open, and report the bypass.
 
-Both integrations follow the workflow at the top of this page. A [project](/kapi/get-started/first-project) says which voice and terms apply to each file. For example, ask: “Check `README.md` against our voice profile and fix the failing findings.”
-
-As it works, the agent notes what the files do every time and what you change in its drafts, with the file and sentence each came from. Each note arrives as a **suggestion**: checks report it and none fails on it until you keep it. An agent that noted something ends its report with what its session suggested and the command that reviews it, `kapi context review --session <id>`. A note holds only in the files where the agent saw it until you widen it in review. See [Growing context](/kapi/context-decisions).
-
-The project also states its rules where the assistant reads them first. `kapi init` writes a section into `CLAUDE.md`, the file Claude Code reads, and into `AGENTS.md`, which most other agents read: the voice, what to write and what not, and the `kapi check` line. A folder whose rules differ from the root's gets files of its own, so a rename kept for `help/` is stated in `help/CLAUDE.md`, and `api/CLAUDE.md` says the old name is correct there. kapi rewrites the section when the context changes and leaves the rest of each file as you wrote it; a `CLAUDE.md` that imports `@AGENTS.md` gets no section of its own. See [rules files for agents](/kapi/context#rules-files).
-
-### What `kapi connect` writes {#what-kapi-init-wires-up}
-
-`kapi connect` and `kapi init` write the configuration the agent itself reads, so an agent opened in the project finds kapi with nothing else installed:
-
-| Agent | What it gets |
-|---|---|
-| **Claude Code** | `.mcp.json` with the `kapi` server, and the kapi skill in `.claude/skills/kapi/SKILL.md` |
-| **Cursor** | `.cursor/mcp.json` with the `kapi` server |
-| **VS Code** | `.vscode/mcp.json` with the `kapi` server |
-| **Codex** | `.codex/config.toml` with the `kapi` server, read once you trust the repository |
-| **Any SKILL.md-aware tool** | the kapi skill in `.agents/skills/kapi/SKILL.md` |
-
-The skill explains how to read what applies to a file, note what it sees and what you change, check edits, and report the session. It gives CLI and MCP equivalents. For detailed guidance, `kapi help` lists topics and `kapi help <topic>` prints the selected guide from your installed binary.
-
-Claude Code is wired every time. The others are wired when the project already keeps their directory, so neither command adds a directory for an editor you do not use. Name one with `kapi connect <assistant>`, or choose with `kapi init --agents`:
-
-```bash
-kapi init --agents claude-code,cursor   # exactly these
-kapi init --agents all                  # every agent kapi knows
-kapi init --agents none                 # write no agent configuration
-```
-
-`--agents` chooses the configuration each agent reads. The rules files are
-written for every agent; `kapi init --no-rules-files` leaves them out.
-
-Everything it writes is inside the project, and it writes nothing but a command: no shell, no environment, no credential. An entry called `kapi` that you wrote or changed is left exactly as it is; an entry exactly as kapi wrote it follows the recipe, so adding target languages and running `kapi connect` again gives the agent the translation tools. Running `kapi connect` is also how a project you created earlier gets the same wiring. A skill directory an earlier kapi filled with reference files is cleared of the files kapi wrote there, and any file of yours in it stays.
-
-Claude Code asks you to approve a project MCP server the first time you open the project, so review `.mcp.json` before you say yes, the way you would any file a repository ships.
-
 ## Let kapi run Claude
 
 For unattended runs (`kapi up` across every locale, `kapi translate` without you in the loop) kapi needs a provider of its own. If Claude Code is signed in on your machine, that provider can be your Claude subscription:
@@ -159,6 +205,12 @@ For unattended runs (`kapi up` across every locale, `kapi translate` without you
 ```bash
 kapi models setup     # detects the Claude Code CLI ("uses your Claude subscription"): one confirm, no key
 ```
+
+| You have… | Use |
+|---|---|
+| **Claude Pro or Max** (Claude Code installed) | `kapi models setup`, and kapi runs Claude on your subscription with no key. |
+| **An API key** (Anthropic, OpenAI, Gemini) | `kapi models setup` finds keys already in your environment, or stores one in the OS keychain, and verifies it with a test call. |
+| **Nothing, or offline** | A local model via [`kapi models ollama`](/kapi/recipes/choose-a-translation-provider), or Kapi Desktop's demo engine (illustrative output, no AI). |
 
 Setup verifies the choice with a small test call and writes the default provider to the global config, shared with Kapi Desktop, whose first-open **Connect your AI** card offers the same detected sign-in as a one-click button. `kapi models list` shows it under *Detected*, alongside Ollama models and any cloud keys. Subscription use is window-limited: a heavy run that exhausts your Claude usage window holds back the remainder and reports when it resumes ("Claude subscription limit reached; resumes ~7pm"); the next `kapi up` picks up exactly the blocks still pending. For uninterrupted or CI runs use an API key instead: subscription auth is bound to your personal sign-in and its usage window, so **CI should always use a key** (a provider env var, or `kapi credentials add`). See [Ship gates & CI](/kapi/recipes/ship-gates-and-ci).
 
