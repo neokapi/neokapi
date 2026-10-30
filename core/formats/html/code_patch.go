@@ -3,24 +3,25 @@ package html
 import (
 	"strings"
 
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// An edit that changes a block's codes and leaves its text as it was read
-// (set_attribute respells a code's start tag, mark adds a code around words
-// the block holds) is written as a patch of the block's own bytes: each held
-// code's new markup replaces its old markup, each new code is inserted where
-// it sits in the text, and every other byte, the whitespace extraction
-// normalized and the characters the encoding pass would rewrite included,
-// is copied from the document. An edit to the text takes the encoding pass
-// (renderSourceRuns, htmlEncodeBlockText).
+// An edit to a block's source is written as a patch of the block's own bytes.
+// Every character and code the edit kept is copied from the document as it
+// spells it: the whitespace extraction normalized, a quote or a bare ampersand,
+// a code's markup. A code whose markup the edit changed (set_attribute
+// respells a start tag) is written with its new markup, a code the edit added
+// (mark) is inserted where it sits, and text the edit added is escaped the
+// minimum element content needs, `&` and `<`. Bytes of the block the edit
+// removed are left out, and nothing outside the block changes.
 
-// patchedSource writes a block whose source edit changed only its codes as a
-// patch of its bytes in the document, and returns what the block rendered to
-// as read. original is the bytes a SkeletonOriginal recorded for the block, or
-// nil when the reader kept its bytes as read. It reports false when the writer
-// writes a translation of the block, the block is unedited, or the edit is
-// one patchCodes declines.
+// patchedSource writes a block whose source an edit changed as a patch of its
+// bytes in the document, and returns what the block rendered to as read.
+// original is the bytes a SkeletonOriginal recorded for the block, or nil when
+// the reader kept its bytes as read. It reports false when the writer writes a
+// translation of the block, the block is unedited, or the edit is one
+// patchEdit declines.
 func (w *Writer) patchedSource(block *model.Block, original []byte) (patched, asRead string, ok bool) {
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
 		return "", "", false
@@ -35,98 +36,123 @@ func (w *Writer) patchedSource(block *model.Block, original []byte) (patched, as
 		doc = string(original)
 	}
 	src, _ := block.Edition(model.EditionKey{})
-	patched, ok = patchCodes(doc, read, src.Runs)
+	patched, ok = patchEdit(doc, read, src.Runs)
 	return patched, asRead, ok
 }
 
-// patchCodes writes edited, which holds the text of read and differs from it
-// only in its codes, as original with those code changes. original is the
-// block's bytes in the document, which read renders to once the reader's
-// whitespace normalization is undone. It reports false when the edit changes
-// the text, moves or removes a code, or original does not align with read;
-// the caller then renders the block.
-func patchCodes(original string, read, edited []model.Run) (string, bool) {
-	if !flatRuns(read) || !flatRuns(edited) || model.RunsText(read) != model.RunsText(edited) {
+// patchItem is one element of a block's runs for the patch: a byte of a text
+// run, or a code. start and end locate an element of the block as read in its
+// original bytes.
+type patchItem struct {
+	text       byte
+	code       bool
+	key, data  string
+	start, end int
+}
+
+// patchItems flattens runs into the elements patchEdit aligns. spans, when
+// given, are where each run sits in the original bytes (alignRuns).
+func patchItems(runs []model.Run, spans []runSpan) []patchItem {
+	var items []patchItem
+	for i, r := range runs {
+		if r.Text == nil {
+			k, _ := patchKey(r)
+			it := patchItem{code: true, key: k, data: runData(r)}
+			if spans != nil {
+				it.start, it.end = spans[i].start, spans[i].end
+			}
+			items = append(items, it)
+			continue
+		}
+		t := r.Text.Text
+		for j := range len(t) {
+			it := patchItem{text: t[j]}
+			if spans != nil {
+				it.start, it.end = spans[i].text[j], spans[i].text[j+1]
+			}
+			items = append(items, it)
+		}
+	}
+	return items
+}
+
+// patchEdit writes edited, the block's runs after an edit, as original with
+// the edit's changes. original is the block's bytes in the document, which read
+// renders to once the reader's whitespace normalization is undone. The runs as
+// read and as edited are aligned element by element (format.MatchEdit): a
+// text byte matches the same byte, and a code matches the code of the same
+// kind and id. A kept element is copied from original, with a kept code's
+// markup replaced when the edit changed it; an added element is written where
+// the edit put it, right after the kept element before it; a removed one is
+// left out. Bytes of original that belong to no element (whitespace the
+// reader peeled off the block's edges) are copied. It reports false when
+// either side holds a run other than text and codes, or original does not
+// align with read; the caller then renders the block.
+func patchEdit(original string, read, edited []model.Run) (string, bool) {
+	if !flatRuns(read) || !flatRuns(edited) {
 		return "", false
 	}
 	spans, ok := alignRuns(original, read)
 	if !ok {
 		return "", false
 	}
-	held := map[string]bool{}
-	for _, r := range read {
-		if k, ok := patchKey(r); ok {
-			held[k] = true
+	from, to := patchItems(read, spans), patchItems(edited, nil)
+	match := format.MatchEdit(len(from), len(to), func(i, j int) bool {
+		a, b := from[i], to[j]
+		if a.code || b.code {
+			return a.code && b.code && a.key == b.key
 		}
-	}
+		return a.text == b.text
+	})
 
 	var b strings.Builder
 	b.Grow(len(original) + 64)
-	oc := 0
-	copyTo := func(p int) bool {
-		if p < oc {
-			return false
+	oc, j := 0, 0
+	started := false
+	var added []byte
+	// insert writes the edited elements before index upto. Before the first
+	// element as read, the bytes leading up to it are copied first, so added
+	// content sits against the content it precedes.
+	insert := func(upto int, lead int) {
+		if j >= upto {
+			return
 		}
-		b.WriteString(original[oc:p])
-		oc = p
-		return true
-	}
-	ri, off := 0, 0
-	for _, e := range edited {
-		if e.Text != nil {
-			x := e.Text.Text
-			for x != "" {
-				if ri >= len(read) || read[ri].Text == nil {
-					return "", false
-				}
-				rest := read[ri].Text.Text[off:]
-				n := min(len(x), len(rest))
-				if x[:n] != rest[:n] {
-					return "", false
-				}
-				x, off = x[n:], off+n
-				if off == len(read[ri].Text.Text) {
-					ri, off = ri+1, 0
-				}
-			}
-			continue
+		if !started {
+			b.WriteString(original[oc:lead])
+			oc = lead
 		}
-		k, _ := patchKey(e)
-		if off == 0 && ri < len(read) && read[ri].Text == nil {
-			if rk, _ := patchKey(read[ri]); rk == k {
-				if data := runData(e); data != runData(read[ri]) {
-					if !copyTo(spans[ri].start) {
-						return "", false
-					}
-					b.WriteString(data)
-					oc = spans[ri].end
-				}
-				ri++
+		for ; j < upto; j++ {
+			if e := to[j]; !e.code {
+				added = append(added, e.text)
 				continue
 			}
+			_, _ = htmlTextEscaper.WriteString(&b, string(added))
+			added = added[:0]
+			b.WriteString(to[j].data)
 		}
-		if held[k] {
-			return "", false
-		}
-		var at int
-		switch {
-		case ri < len(read) && read[ri].Text != nil:
-			at = spans[ri].text[off]
-		case e.PcClose != nil && ri > 0 && read[ri-1].Text != nil:
-			at = spans[ri-1].end
-		case ri < len(read):
-			at = spans[ri].start
-		case ri > 0:
-			at = spans[ri-1].end
-		}
-		if !copyTo(at) {
-			return "", false
-		}
-		b.WriteString(runData(e))
+		_, _ = htmlTextEscaper.WriteString(&b, string(added))
+		added = added[:0]
 	}
-	if ri != len(read) || !copyTo(len(original)) {
-		return "", false
+	for i, it := range from {
+		if match[i] < 0 {
+			b.WriteString(original[oc:it.start])
+			oc = it.end
+			started = true
+			continue
+		}
+		insert(match[i], it.start)
+		started = true
+		b.WriteString(original[oc:it.start])
+		if e := to[match[i]]; e.code && e.data != it.data {
+			b.WriteString(e.data)
+		} else {
+			b.WriteString(original[it.start:it.end])
+		}
+		oc = it.end
+		j = match[i] + 1
 	}
+	insert(len(to), 0)
+	b.WriteString(original[oc:])
 	return b.String(), true
 }
 

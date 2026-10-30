@@ -232,7 +232,21 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 		quote := lastTextByte
 		lastTextByte = 0
 		switch entry.Type {
-		case format.SkeletonText, format.SkeletonInserted:
+		case format.SkeletonInserted:
+			// The bytes the reader adds to a document that lacks them (the
+			// Content-Type meta) belong to a translation the writer
+			// produces. A write of the document's own language edits the
+			// file in place and adds nothing the source does not hold.
+			if w.Locale.IsEmpty() {
+				continue
+			}
+			if _, err := w.Output.Write(entry.Data); err != nil {
+				return err
+			}
+			if n := len(entry.Data); n > 0 {
+				lastTextByte = entry.Data[n-1]
+			}
+		case format.SkeletonText:
 			if _, err := w.Output.Write(entry.Data); err != nil {
 				return err
 			}
@@ -279,11 +293,18 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 						// and leave the quotes after it unescaped, ending the
 						// value early.
 						text = encodeAttrValue(text, quote, "&quot;")
+					case w.Locale.IsEmpty() && !sourceEdited(block):
+						// A write in the document's own language replays
+						// a block nothing edited as the reader read it:
+						// its runs hold the document's bytes, and the
+						// encoding pass would respell its quotes and
+						// whitespace.
+						text = w.substituteBlockRefs(text, blocks)
 					default:
 						if patched, asRead, ok := w.patchedSource(block, original); ok {
-							// The edit changed codes and no text: the
-							// block's own bytes with the code changes, and
-							// the whitespace trimmed after it, as unedited.
+							// The edit as a patch of the block's own bytes,
+							// and the whitespace trimmed after it, as
+							// unedited.
 							text = w.substituteBlockRefs(patched, blocks)
 							lastRefRendered = asRead
 							break
@@ -312,6 +333,13 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 		}
 	}
 	return nil
+}
+
+// sourceEdited reports whether an edit changed block's source since the reader
+// read it.
+func sourceEdited(block *model.Block) bool {
+	_, edited := block.SourceAsRead()
+	return edited
 }
 
 // htmlEncodeBlockText post-processes a rendered block's text the same

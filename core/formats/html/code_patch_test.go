@@ -44,29 +44,40 @@ func TestPatchCodes(t *testing.T) {
 			"\n    <strong>Order</strong> the <a href=\"/box\">weekly box</a>\n    before Friday, \"rain\"\n    & shine."},
 		{"a new code around a held one", []model.Run{model.TextR("Order the "), s, open, model.TextR("weekly box"), closing, e, model.TextR(" before Friday, \"rain\" & shine.")},
 			"\n    Order the <strong><a href=\"/box\">weekly box</a></strong>\n    before Friday, \"rain\"\n    & shine."},
+		{"a word replaced", []model.Run{model.TextR("Order the "), open, model.TextR("weekly box"), closing, model.TextR(" before Monday, \"rain\" & shine.")},
+			"\n    Order the <a href=\"/box\">weekly box</a>\n    before Monday, \"rain\"\n    & shine."},
+		{"added text that needs escaping", []model.Run{model.TextR("Order the "), open, model.TextR("weekly box"), closing, model.TextR(" before Friday & <Monday>, \"rain\" & shine.")},
+			"\n    Order the <a href=\"/box\">weekly box</a>\n    before Friday &amp; &lt;Monday>, \"rain\"\n    & shine."},
+		{"a code removed", []model.Run{model.TextR("Order the weekly box before Friday, \"rain\" & shine.")},
+			"\n    Order the weekly box\n    before Friday, \"rain\"\n    & shine."},
+		{"a code moved", []model.Run{open, model.TextR("Order the "), closing, model.TextR("weekly box before Friday, \"rain\" & shine.")},
+			"\n    <a href=\"/box\">Order the </a>weekly box\n    before Friday, \"rain\"\n    & shine."},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, ok := patchCodes(original, read, tc.edited)
+			got, ok := patchEdit(original, read, tc.edited)
 			assert.True(t, ok)
 			assert.Equal(t, tc.want, got)
 		})
 	}
 
-	// What patchCodes declines, the writer renders.
-	for _, tc := range []struct {
-		name     string
-		original string
-		edited   []model.Run
-	}{
-		{"a text edit", original, []model.Run{model.TextR("Order the "), open, model.TextR("weekly box"), closing, model.TextR(" before Monday, \"rain\" & shine.")}},
-		{"a code removed", original, []model.Run{model.TextR("Order the weekly box before Friday, \"rain\" & shine.")}},
-		{"a code moved", original, []model.Run{open, model.TextR("Order the "), closing, model.TextR("weekly box before Friday, \"rain\" & shine.")}},
-		{"bytes that do not align", "Order the weekly box", []model.Run{model.TextR("Order the "), open, model.TextR("weekly box"), closing, model.TextR(" before Friday, \"rain\" & shine.")}},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			_, ok := patchCodes(tc.original, read, tc.edited)
-			assert.False(t, ok)
-		})
-	}
+	// What patchEdit declines, the writer renders.
+	t.Run("bytes that do not align", func(t *testing.T) {
+		_, ok := patchEdit("Order the weekly box", read, read)
+		assert.False(t, ok)
+	})
+}
+
+// Runs of whitespace the reader collapsed keep their bytes beside an edit,
+// and the whitespace the reader peeled off the edges stays where it was.
+func TestPatchEditKeepsCollapsedWhitespace(t *testing.T) {
+	const original = "  We utilize   the\n   widget.  "
+	read := []model.Run{model.TextR("We utilize the widget.")}
+	got, ok := patchEdit(original, read, []model.Run{model.TextR("We use the widget.")})
+	assert.True(t, ok)
+	assert.Equal(t, "  We use   the\n   widget.  ", got)
+
+	got, ok = patchEdit(original, read, []model.Run{model.TextR("Today we use the widget.")})
+	assert.True(t, ok)
+	assert.Equal(t, "  Today we use   the\n   widget.  ", got)
 }
