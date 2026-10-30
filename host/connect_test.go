@@ -393,3 +393,31 @@ func TestConnectHosts_DryRunOverAConnectedProject(t *testing.T) {
 	assert.Contains(t, text.String(), "Claude Code   connected · nothing to write\n")
 	assert.NotContains(t, text.String(), "would")
 }
+
+func TestConnectHosts_HostsOnlyReadsNoContext(t *testing.T) {
+	app, _ := contextOpsApp(t)
+	dir := connectFolder(t, "site")
+	_, err := InitProject(dir, InitOptions{})
+	require.NoError(t, err)
+	require.NoError(t, os.RemoveAll(filepath.Join(dir, ".kapi")))
+	before := snapshot(t, dir)
+
+	res := connectIn(t, app, dir, ConnectOptions{Hosts: []AgentHost{AgentHostClaudeCode}, HostsOnly: true})
+	assert.True(t, res.DryRun, "reading the assistants is a dry run")
+	assert.Equal(t, before, snapshot(t, dir), "it writes nothing")
+	assert.NoDirExists(t, filepath.Join(dir, ".kapi"), "and opens no store")
+	require.Len(t, res.Files, 1, "the rules files are left out")
+	assert.Equal(t, ConnectRecipe, res.Files[0].Kind)
+
+	full := connectIn(t, app, dir, ConnectOptions{Hosts: []AgentHost{AgentHostClaudeCode}, DryRun: true})
+	assert.Equal(t, full.Hosts, res.Hosts, "the assistants read as a full dry run reads them")
+}
+
+func TestClaudePluginCommands(t *testing.T) {
+	assert.Equal(t, []string{
+		"/plugin marketplace add neokapi/claude-plugins",
+		"/plugin install kapi@neokapi-plugins",
+	}, ClaudePluginCommands())
+	assert.Equal(t, "in Claude Code, /plugin marketplace add neokapi/claude-plugins, then /plugin install kapi@neokapi-plugins",
+		claudePluginSteps)
+}

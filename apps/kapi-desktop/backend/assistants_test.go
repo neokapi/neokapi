@@ -43,11 +43,15 @@ func TestAssistantsView_NothingConnected(t *testing.T) {
 	app := assistantsApp(t)
 	tab, recipe := openSharingProject(t, app, "Assistants")
 	root := filepath.Dir(recipe)
+	require.NoDirExists(t, filepath.Join(root, project.StateDirName), "opening the project left no state")
 
 	view, err := app.AssistantsView(tab)
 	require.NoError(t, err)
 	assert.False(t, view.NeedsCheckout)
-	assert.Equal(t, 0, view.Rules)
+	require.NotNil(t, view.Rules)
+	assert.Equal(t, 0, *view.Rules)
+	assert.Empty(t, view.HostsError)
+	assert.Empty(t, view.SessionsError)
 	assert.Empty(t, view.Sessions)
 	assert.NotEmpty(t, view.ProjectKey)
 
@@ -72,8 +76,8 @@ func TestAssistantsView_NothingConnected(t *testing.T) {
 	assert.True(t, desktop.Personal)
 	assert.False(t, desktop.Available, "its configuration folder does not exist")
 
-	// Reading the page writes nothing.
-	for _, rel := range []string{".mcp.json", ".claude", "AGENTS.md", "CLAUDE.md", ".cursor", ".vscode", ".codex", ".agents"} {
+	// Reading the page writes nothing, not even the project's state.
+	for _, rel := range []string{".mcp.json", ".claude", "AGENTS.md", "CLAUDE.md", ".cursor", ".vscode", ".codex", ".agents", project.StateDirName} {
 		_, serr := os.Stat(filepath.Join(root, rel))
 		assert.True(t, os.IsNotExist(serr), rel)
 	}
@@ -136,6 +140,17 @@ func TestConnectAssistant_WritesWhatKapiConnectWrites(t *testing.T) {
 	for _, f := range connectFiles(again) {
 		assert.Contains(t, []host.ConnectAction{host.ConnectKept, host.ConnectPending}, f.Action, f.Path)
 	}
+
+	// With the rules files gone the assistant reads nothing of the project's
+	// rules, so its row is not connected and offers Connect again.
+	require.NoError(t, os.Remove(filepath.Join(root, "AGENTS.md")))
+	require.NoError(t, os.Remove(filepath.Join(root, "CLAUDE.md")))
+	view, err = app.AssistantsView(tab)
+	require.NoError(t, err)
+	claude = assistantRow(t, view.Hosts, "claude-code")
+	assert.False(t, claude.Connected)
+	assert.Equal(t, "rules files missing", claude.Reason)
+	assert.True(t, claude.Available)
 }
 
 // TestAssistantsView_CheckFromTheProjectSettings: a project whose Claude Code
