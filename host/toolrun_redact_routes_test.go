@@ -19,6 +19,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neokapi/neokapi/core/blockstore"
+	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
@@ -51,6 +53,29 @@ func exchangesSent(t *testing.T) func() []string {
 	}
 }
 
+// kpzOverlays returns every overlay a .kpz workspace's cache keeps, joined.
+func kpzOverlays(t *testing.T, a *App, work string) string {
+	t.Helper()
+	c, err := a.ensureKpzCache(t.Context(), work)
+	require.NoError(t, err)
+	var all strings.Builder
+	for _, src := range c.meta.Sources {
+		store, err := sqlitestore.New(c.storePath(src.Key))
+		require.NoError(t, err)
+		sess, err := store.Begin(t.Context())
+		require.NoError(t, err)
+		enum, ok := sess.(blockstore.OverlayEnumerator)
+		require.True(t, ok, "the workspace store enumerates its overlays")
+		for ov, err := range enum.AllOverlays() {
+			require.NoError(t, err)
+			all.WriteString(ov.Kind + " " + string(ov.Payload) + "\n")
+		}
+		require.NoError(t, sess.Close())
+		require.NoError(t, store.Close())
+	}
+	return all.String()
+}
+
 // requireNoCallHolds fails when no provider call was made, or when any call
 // carries the name the policy withholds.
 func requireNoCallHolds(t *testing.T, calls []string) {
@@ -80,7 +105,16 @@ const redactedXLIFF = `<?xml version="1.0" encoding="UTF-8"?>
 </xliff>
 `
 
-const redactedMarkdown = "# Contacts\n\nWrite to Ada Lovelace today.\n\n```yaml\ncontact: Ada Lovelace\n```\n"
+// redactedARB names the person inside each plural form and in the text after
+// the plural, where a carve at the wrong offset would split the name.
+const redactedARB = `{
+  "@@locale": "en",
+  "sent": "{count, plural, one{# file for Ada Lovelace} other{# files for Ada Lovelace}} sent to Ada Lovelace today.",
+  "@sent": {"placeholders": {"count": {"type": "int"}}}
+}
+`
+
+const redactedMarkdown ="# Contacts\n\nWrite to Ada Lovelace today.\n\n```yaml\ncontact: Ada Lovelace\n```\n"
 
 // Every route a run of one tool takes sends the provider the redacted blocks:
 // the source, the blocks marked not translatable, and the translations.
@@ -97,6 +131,25 @@ func TestToolRun_RedactionRoutes(t *testing.T) {
 				ToolName: "term-extract", Project: recipe, Files: []string{md},
 				ToolConfig: config, NewTool: demoTool(a, "term-extract", config, ""),
 			}))
+		}},
+		{"a plural term-extract reads", func(t *testing.T, a *App, recipe string) {
+			arb := filepath.Join(filepath.Dir(recipe), "docs", "app_en.arb")
+			require.NoError(t, os.WriteFile(arb, []byte(redactedARB), 0o600))
+			config := map[string]any{"provider": "demo"}
+			require.NoError(t, a.RunToolOnFiles(t.Context(), ToolRunConfig{
+				ToolName: "term-extract", Project: recipe, Files: []string{arb},
+				ToolConfig: config, NewTool: demoTool(a, "term-extract", config, ""),
+			}))
+		}},
+		{"a plural translated and written back", func(t *testing.T, a *App, recipe string) {
+			root := filepath.Dir(recipe)
+			arb := filepath.Join(root, "docs", "app_en.arb")
+			require.NoError(t, os.WriteFile(arb, []byte(redactedARB), 0o600))
+			cfg := translateRun(a, recipe, arb)
+			require.NoError(t, a.RunToolOnFiles(t.Context(), cfg))
+			out, err := os.ReadFile(filepath.Join(root, "docs", "app_fr.arb"))
+			require.NoError(t, err)
+			assert.Equal(t, 3, strings.Count(string(out), redactedName), "each form and the text after the plural carry the name again: %s", out)
 		}},
 		{"voice-infer's draft from the run's blocks", func(t *testing.T, a *App, recipe string) {
 			md := filepath.Join(filepath.Dir(recipe), "docs", "contacts.md")
@@ -162,6 +215,42 @@ func TestToolRun_RedactionRoutes(t *testing.T) {
 			require.NotEmpty(t, merged, "the merge wrote a translation")
 			assert.Contains(t, strings.Join(merged, "\n"), "⟦fr⟧", "the merge wrote the translation")
 			assert.Contains(t, strings.Join(merged, "\n"), redactedName, "the merged translation carries the name again")
+		}},
+		{"a .kpz translation review leaves as it was", func(t *testing.T, a *App, recipe string) {
+			t.Setenv("KAPI_KPZ_CACHE", t.TempDir())
+			dir := t.TempDir()
+			xlf := filepath.Join(dir, "page.xlf")
+			require.NoError(t, os.WriteFile(xlf, []byte(strings.Replace(redactedXLIFF, `state="translated"`, `state="final"`, 1)), 0o600))
+			work := filepath.Join(dir, "work.kpz")
+			a.Quiet = true
+			require.NoError(t, a.ExtractToKpz(t.Context(), []string{xlf}, work, "fr", "", false))
+			config := map[string]any{"provider": "demo"}
+			require.NoError(t, a.RunToolOnFiles(t.Context(), ToolRunConfig{
+				ToolName: "review", Project: recipe, Files: []string{work}, TargetLang: "fr",
+				ToolConfig: config, NewTool: demoTool(a, "review", config, "fr"),
+			}))
+			out := t.TempDir()
+			require.NoError(t, a.MergeFromKpz(t.Context(), work, out))
+			var merged []string
+			require.NoError(t, filepath.WalkDir(out, func(p string, d os.DirEntry, err error) error {
+				if err == nil && !d.IsDir() {
+					b, rerr := os.ReadFile(p)
+					merged = append(merged, string(b))
+					return rerr
+				}
+				return err
+			}))
+			all := strings.Join(merged, "\n")
+			assert.Contains(t, all, `state="final"`, "the translation keeps the state it was read with: %s", all)
+			assert.Contains(t, all, "Écrivez à Ada Lovelace aujourd'hui.")
+
+			// What the workspace keeps of the translation: no draft, and no
+			// edition redact claims to have produced.
+			stored := kpzOverlays(t, a, work)
+			require.NotEmpty(t, stored)
+			assert.NotContains(t, stored, `"tool":"redact"`)
+			assert.NotContains(t, stored, `"tool":"unredact"`)
+			assert.NotContains(t, stored, `"draft"`)
 		}},
 		{"an entry inside a zip archive", func(t *testing.T, a *App, recipe string) {
 			root := filepath.Dir(recipe)
