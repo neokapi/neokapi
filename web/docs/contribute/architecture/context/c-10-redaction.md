@@ -185,7 +185,13 @@ policy is read at every point content can leave:
    block in between as they do in `secure-translate`. The tools a run reaches
    read the whole block, so the step is configured for it (`WholeBlock`): it
    redacts blocks marked not translatable, and each target locale's runs under
-   tokens of their own. A collector that sends what it gathered to a model
+   tokens of their own. Detection reads a run sequence's own text runs, the
+   coordinates the carve uses, and every plural form and select case is
+   redacted the same way under a prefix of its own. Unredact puts back an
+   edition whose restored content equals what redact read exactly as it was
+   read, and re-stamps a translation's status and origin, so the two steps
+   around a tool that left a translation alone change nothing about it. A
+   collector that sends what it gathered to a model
    (voice-infer's draft) reads the blocks between the two steps. A policy that
    detects entities is refused, because entity detection reads annotations an
    extraction step leaves and a run of one tool has none. A tool that calls no

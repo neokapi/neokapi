@@ -114,7 +114,7 @@ const redactedARB = `{
 }
 `
 
-const redactedMarkdown ="# Contacts\n\nWrite to Ada Lovelace today.\n\n```yaml\ncontact: Ada Lovelace\n```\n"
+const redactedMarkdown = "# Contacts\n\nWrite to Ada Lovelace today.\n\n```yaml\ncontact: Ada Lovelace\n```\n"
 
 // Every route a run of one tool takes sends the provider the redacted blocks:
 // the source, the blocks marked not translatable, and the translations.
