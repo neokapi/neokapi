@@ -20,14 +20,13 @@ import (
 
 // Deciding about suggestions, as `kapi rules` asks a person.
 //
-// Each suggestion becomes one question with the evidence as its options: for
-// a name the files write more than one way, every form with the blocks and
-// files that write it; for a disagreement, each side. Beside each option is
-// what keeping it does: how many blocks a check then reports, and where the
-// rule applies. The counts come from one read of the project's source files,
-// made before the first question, with the matcher a check's usage count
-// uses (formMatcher). Every answer is a ContextReviewRequest, the request
-// `kapi context review` records its decisions with.
+// Each suggestion is one question with the evidence as its options: each form
+// of a name, with the blocks and files that write it, or each side of a
+// disagreement. Beside each option is what keeping it does: the blocks a
+// check then reports, and where the rule applies. The counts come from one
+// read of the project's source, made before the first question, with the
+// matcher a check's usage count uses (formMatcher). Every answer is the
+// ContextReviewRequest `kapi context review` records its decisions with.
 
 // The kinds of decision a person is asked about.
 const (
@@ -630,7 +629,7 @@ func (a *App) NarrowRule(ctx context.Context, req RulesNarrowRequest) (RulesNarr
 	case target.Status != contextop.StatusEstablished:
 		return RulesNarrowResult{}, fmt.Errorf("operation %s is %s; keep it before narrowing it", contextop.ShortID(target.ID), target.Status)
 	case target.Subject.Kind == contextop.SubjectMemory:
-		return RulesNarrowResult{}, errors.New("a content-memory pair holds across the project: it has no scope to narrow")
+		return RulesNarrowResult{}, errors.New("a content-memory pair holds across the project and cannot be narrowed")
 	case target.Scope.Level == contextop.LevelWorkspace:
 		return RulesNarrowResult{}, errors.New("this rule holds across the workspace, in the workspace's rule store, which holds no collections: drop it and keep it in this project to narrow it")
 	}
@@ -661,7 +660,7 @@ func (a *App) NarrowRule(ctx context.Context, req RulesNarrowRequest) (RulesNarr
 	}
 	if maps.Equal(merged, narrowed.Coordinates) && !narrowed.AllProfiles {
 		if maps.Equal(coordinates, st.rootCoordinates) {
-			return RulesNarrowResult{}, fmt.Errorf("%s sits at the project's own point: it has no profile, channel or coordinate of its own, and a rule's scope is a set of coordinates, so no scope tells it apart from the rest of the project. Give it a profile or coordinates in kapi.yaml, or narrow to a collection that has them", to)
+			return RulesNarrowResult{}, fmt.Errorf("%s sits at the project's own point: it has no profile, channel or coordinate of its own, and a rule holds at a set of coordinates, so nothing tells it apart from the rest of the project. Give it a profile or coordinates in kapi.yaml, or narrow to a collection that has them", to)
 		}
 		return RulesNarrowResult{}, fmt.Errorf("this rule already holds only where %s sits", to)
 	}

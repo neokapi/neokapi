@@ -240,7 +240,9 @@ func TestListRulesGroupsAndCounts(t *testing.T) {
 
 	// The voice's measures and patterns, and the kept note.
 	tone := groups[RulesGroupTone].Rules
-	assert.True(t, hasLine(tone, func(l RuleLine) bool { return l.Sentence == "Sentence length: short." && l.From[0] == "voice Technical Documentation" }))
+	assert.True(t, hasLine(tone, func(l RuleLine) bool {
+		return l.Sentence == "Sentence length: short." && l.From[0] == "voice Technical Documentation"
+	}))
 	assert.True(t, hasLine(tone, func(l RuleLine) bool {
 		return l.Sentence == "Avoid: Minimizing words that assume reader knowledge." && l.Fails
 	}))

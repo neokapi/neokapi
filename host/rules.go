@@ -573,7 +573,7 @@ func voiceLines(v *coreprofile.VoiceProfile) []RuleLine {
 		})
 	}
 	if v.Tone.Formality != "" {
-		add("Formality: " + v.Tone.Formality + ".", false)
+		add("Formality: "+v.Tone.Formality+".", false)
 	}
 	if len(v.Tone.Personality) > 0 {
 		add("Personality: "+strings.Join(v.Tone.Personality, ", ")+".", false, v.Tone.Personality...)
