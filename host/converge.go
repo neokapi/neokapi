@@ -1093,7 +1093,11 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 			}
 			// Per-file progress lines go nowhere: the structured result carries
 			// the counts, and stray lines would corrupt --json output.
-			n, merr := a.materializeProject(ctx, io.Discard, proj, projectPath, []model.LocaleID{model.LocaleID(lc.Locale)}, false, facts.unread)
+			// A stored translation of a source that changed since is not
+			// written (materializeEdition). The loop reports the locale's
+			// standing through its coverage, so that count stays out of the
+			// result.
+			n, _, merr := a.materializeProject(ctx, io.Discard, proj, projectPath, []model.LocaleID{model.LocaleID(lc.Locale)}, false, facts.unread)
 			if merr != nil {
 				return fmt.Errorf("materialize %s: %w", lc.Locale, merr)
 			}

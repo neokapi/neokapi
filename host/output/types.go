@@ -486,7 +486,11 @@ func (o MergeOutput) FormatText(w io.Writer) error {
 // MergeStoreOutput represents the result of `kapi merge` with no -i in a
 // project: localized files materialized from the project block store.
 type MergeStoreOutput struct {
-	Written          int  `json:"written"`
+	Written int `json:"written"`
+	// Stale is how many blocks the store holds a translation of another
+	// source for: the source changed since the translation was made, and the
+	// merge wrote none of them.
+	Stale            int  `json:"stale,omitempty"`
 	FromProjectStore bool `json:"from_project_store"`
 	// Warnings name the declared files the merge did not write because no
 	// installed reader opens their format (check.WarningFormatNoReader).
@@ -494,7 +498,11 @@ type MergeStoreOutput struct {
 }
 
 func (o MergeStoreOutput) FormatText(w io.Writer) error {
-	fmt.Fprintf(w, "\nMerge complete. wrote=%d file(s) from the project store.\n", o.Written)
+	if o.Stale > 0 {
+		fmt.Fprintf(w, "\nMerge complete. wrote=%d file(s) stale=%d from the project store.\n", o.Written, o.Stale)
+	} else {
+		fmt.Fprintf(w, "\nMerge complete. wrote=%d file(s) from the project store.\n", o.Written)
+	}
 	for _, warning := range o.Warnings {
 		fmt.Fprintf(w, "  Set aside: %s.\n", warning.Message)
 	}

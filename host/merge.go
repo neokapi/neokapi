@@ -252,12 +252,12 @@ func (a *App) MergeFromProjectStore(cmd Command) error {
 	// A collection in a format no installed reader opens has nothing in the
 	// store and cannot be rewritten, so the merge leaves it out and names it.
 	unread := a.newUnreadSetFor("materialized")
-	written, err := a.materializeProject(ctx, lineOut, proj, projectPath, locales, noMemoryUpdate, unread)
+	written, stale, err := a.materializeProject(ctx, lineOut, proj, projectPath, locales, noMemoryUpdate, unread)
 	if err != nil {
 		return err
 	}
 	unread.warn(a, cmd)
-	return output.Print(cmd, output.MergeStoreOutput{Written: written, FromProjectStore: true, Warnings: unread.warnings()})
+	return output.Print(cmd, output.MergeStoreOutput{Written: written, Stale: stale, FromProjectStore: true, Warnings: unread.warnings()})
 }
 
 // materializeFromProjectStore is the shared materialize path (#1078 C2/C3):
@@ -271,37 +271,40 @@ func (a *App) MergeFromProjectStore(cmd Command) error {
 // locales when the materialize policy (defaults.materialize / --materialize)
 // says so. Returns the number of files written.
 func (a *App) materializeFromProjectStore(ctx context.Context, out io.Writer, proj *project.KapiProject, projectPath string, locales []model.LocaleID, noMemoryUpdate bool) (int, error) {
-	return a.materializeProject(ctx, out, proj, projectPath, locales, noMemoryUpdate, nil)
+	written, _, err := a.materializeProject(ctx, out, proj, projectPath, locales, noMemoryUpdate, nil)
+	return written, err
 }
 
 // materializeProject is materializeFromProjectStore for a run that set content
 // aside: the files unread names were never read, so the run produced nothing
-// for them and writes nothing for them.
-func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *project.KapiProject, projectPath string, locales []model.LocaleID, noMemoryUpdate bool, unread *UnreadSet) (int, error) {
+// for them and writes nothing for them. It also returns how many blocks the
+// store holds a translation of another source for (materializeEdition), which
+// it writes none of.
+func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *project.KapiProject, projectPath string, locales []model.LocaleID, noMemoryUpdate bool, unread *UnreadSet) (written, stale int, err error) {
 	pctx := project.NewProjectContext(proj, projectPath)
 	layout, err := project.LayoutFor(projectPath)
 	if err != nil {
-		return 0, fmt.Errorf("resolve project layout: %w", err)
+		return 0, 0, fmt.Errorf("resolve project layout: %w", err)
 	}
 	if len(locales) == 0 {
-		return 0, errors.New("merge: no target locales to materialize")
+		return 0, 0, errors.New("merge: no target locales to materialize")
 	}
 
 	if err := project.EnsureLayout(layout); err != nil {
-		return 0, fmt.Errorf("merge: ensure project layout: %w", err)
+		return 0, 0, fmt.Errorf("merge: ensure project layout: %w", err)
 	}
 	db, err := a.ProjectDB(ctx, layout.Root)
 	if err != nil {
-		return 0, fmt.Errorf("merge: open project store: %w", err)
+		return 0, 0, fmt.Errorf("merge: open project store: %w", err)
 	}
 	store := a.projectBlocksAutocommit(db)
 	if store == nil {
-		return 0, fmt.Errorf("merge: read the block cache: %w", projectdb.ErrNoStore)
+		return 0, 0, fmt.Errorf("merge: read the block cache: %w", projectdb.ErrNoStore)
 	}
 
 	files, err := pctx.ResolveContent(a.FormatReg)
 	if err != nil {
-		return 0, fmt.Errorf("merge: resolve project content: %w", err)
+		return 0, 0, fmt.Errorf("merge: resolve project content: %w", err)
 	}
 	// A file declared for its comments alone has no target to materialize, and
 	// neither has a file in a format no installed reader opens, nor one whose
@@ -321,26 +324,26 @@ func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *proje
 	if len(files) == 0 {
 		switch {
 		case !unread.empty():
-			return 0, fmt.Errorf("merge: nothing was materialized: %s", unread.summary())
+			return 0, 0, fmt.Errorf("merge: nothing was materialized: %s", unread.summary())
 		case sourceOnly > 0:
 			// Every file is source-only: there is no translation to write.
-			return 0, nil
+			return 0, 0, nil
 		}
-		return 0, errors.New("merge: project has no source files to materialize (check content patterns)")
+		return 0, 0, errors.New("merge: project has no source files to materialize (check content patterns)")
 	}
 
 	// Admission: refuse the whole materialize pass when any destination is
 	// blocked (#1449), rather than writing some locales and then failing —
 	// nothing is written yet, and every blocked path is named at once.
 	if berr := checkMaterializeTargetsWritable(proj, layout.Root, files, locales); berr != nil {
-		return 0, fmt.Errorf("merge: %w", berr)
+		return 0, 0, fmt.Errorf("merge: %w", berr)
 	}
 
 	var tm *projector.Memory
 	if !noMemoryUpdate {
 		w, werr := a.Projector(ctx, db.Layout().Root)
 		if werr != nil {
-			return 0, fmt.Errorf("merge: %w", werr)
+			return 0, 0, fmt.Errorf("merge: %w", werr)
 		}
 		tm = w.With(projector.Origin{By: "merge"}).Memory()
 	}
@@ -356,14 +359,14 @@ func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *proje
 	// say; the locale's standing is what coverage already reports.
 	keptLocales, err := a.keptLocales(ctx, layout.Root)
 	if err != nil {
-		return 0, fmt.Errorf("merge: read the workspace home: %w", err)
+		return 0, 0, fmt.Errorf("merge: read the workspace home: %w", err)
 	}
 	locales, err = localesWithStoredTargets(ctx, store, keptLocales, locales)
 	if err != nil {
-		return 0, fmt.Errorf("merge: read the stored targets: %w", err)
+		return 0, 0, fmt.Errorf("merge: read the stored targets: %w", err)
 	}
 	if len(locales) == 0 {
-		return 0, nil
+		return 0, 0, nil
 	}
 
 	// The change service writes each translation from its source's skeleton,
@@ -371,20 +374,19 @@ func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *proje
 	// be told the language it holds.
 	services := &materializeServices{app: a, ctx: ctx, recipe: projectPath, source: pctx.SourceLocale}
 
-	written := 0
 	for _, f := range files {
 		srcFormat := f.Format
 		if srcFormat == "" {
 			srcFormat = detectSourceFormat(a.FormatReg, pctx, f.Relative, f.Path)
 		}
 		if srcFormat == "" {
-			return written, fmt.Errorf("merge: cannot detect format for source %s", f.Path)
+			return written, stale, fmt.Errorf("merge: cannot detect format for source %s", f.Path)
 		}
 		for _, locale := range locales {
 			entry := &project.ExtractionFile{Source: f.Relative}
 			targetPath, terr := resolveMergeOutputPath(entry, proj, layout.Root, locale)
 			if terr != nil {
-				return written, terr
+				return written, stale, terr
 			}
 
 			// Whole-image (target-asset) replacement: an existing localized
@@ -400,12 +402,13 @@ func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *proje
 			fileCtx := blockstore.WithSourceRel(ctx, f.Relative)
 			svc, serr := services.of(locale)
 			if serr != nil {
-				return written, fmt.Errorf("merge: %w", serr)
+				return written, stale, fmt.Errorf("merge: %w", serr)
 			}
 			ref := filepath.ToSlash(f.Relative)
-			held, wrote, keptEd, merr := a.deliverEdition(ctx, fileCtx, svc, store, layout.Root, ref, locale)
+			held, staleHere, wrote, keptEd, merr := a.deliverEdition(ctx, fileCtx, svc, store, layout.Root, ref, locale)
+			stale += staleHere
 			if merr != nil {
-				return written, fmt.Errorf("merge: materialize %s → %s: %w", f.Relative, locale, merr)
+				return written, stale, fmt.Errorf("merge: materialize %s → %s: %w", f.Relative, locale, merr)
 			}
 			if held == 0 {
 				// Neither the workspace home nor the store holds a
@@ -440,7 +443,7 @@ func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *proje
 		fmt.Fprintf(os.Stderr, "Warning: merge: %v (the target files were written)\n", ferr)
 	}
 
-	return written, nil
+	return written, stale, nil
 }
 
 // deliverEdition writes the translation of ref into locale from what the
@@ -449,19 +452,20 @@ func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *proje
 // read there. The release expects the head the delivery read, so an edit to
 // the kept edition that lands in between is never released unwritten: the
 // delivery reads the edition again and writes it. It returns how many blocks
-// had a translation to write, whether the file was written, and what the
+// had a translation to write, how many held a stored translation of another
+// source (materializeEdition), whether the file was written, and what the
 // workspace home kept that the file now holds.
-func (a *App) deliverEdition(ctx, fileCtx context.Context, svc *change.Service, store blockstore.Store, root, ref string, locale model.LocaleID) (int, bool, *workhome.Held, error) {
+func (a *App) deliverEdition(ctx, fileCtx context.Context, svc *change.Service, store blockstore.Store, root, ref string, locale model.LocaleID) (int, int, bool, *workhome.Held, error) {
 	edition := model.EditionKey{Locale: locale}
 	wroteAny := false
 	for attempt := 0; ; attempt++ {
 		kept, err := a.keptEdition(ctx, root, ref, edition)
 		if err != nil {
-			return 0, false, nil, fmt.Errorf("read the %s drafts of %s: %w", locale, ref, err)
+			return 0, 0, false, nil, fmt.Errorf("read the %s drafts of %s: %w", locale, ref, err)
 		}
-		n, wrote, err := materializeEdition(fileCtx, svc, store, kept, ref, locale)
+		n, stale, wrote, err := materializeEdition(fileCtx, svc, store, kept, ref, locale)
 		if err != nil {
-			return 0, wroteAny, nil, err
+			return 0, 0, wroteAny, nil, err
 		}
 		wroteAny = wroteAny || wrote
 		err = a.releaseKept(ctx, root, ref, edition, kept, nil, materializeActor, "merge")
@@ -469,9 +473,9 @@ func (a *App) deliverEdition(ctx, fileCtx context.Context, svc *change.Service, 
 			continue
 		}
 		if err != nil {
-			return n, wroteAny, kept, fmt.Errorf("release the %s drafts of %s from the workspace home: %w", locale, ref, err)
+			return n, stale, wroteAny, kept, fmt.Errorf("release the %s drafts of %s from the workspace home: %w", locale, ref, err)
 		}
-		return n, wroteAny, kept, nil
+		return n, stale, wroteAny, kept, nil
 	}
 }
 
@@ -566,8 +570,15 @@ func absorbStoreTargets(ctx context.Context, reg *registry.FormatRegistry, srcFo
 		if len(o.Payload) == 0 {
 			continue // recorded but empty — nothing to absorb
 		}
-		if oaerr := applyTargetOverlay(b, target, o.Payload); oaerr != nil {
+		// A translation of a source that has changed since is not the
+		// translation of this one: the content memory gets no pair of the two.
+		// The materialize pass counts it as stale (materializeEdition).
+		stale, oaerr := applyCurrentTargetOverlay(b, b, target, o.Payload)
+		if oaerr != nil {
 			return newCount, updatedCount, oaerr
+		}
+		if stale {
+			continue
 		}
 		n, u, aerr := absorber.absorb(ctx, b, source, target, "store", sourceRel, sourceAbs)
 		if aerr != nil {
@@ -684,6 +695,13 @@ func (a *App) MergeOneKpz(cmd Command, kpzInput string) error {
 			if blockstore.CanonicalOverlayKind(ov.Kind) != blockstore.TargetOverlayKind(targetLocale) || (ov.Source != "" && ov.Source != member) {
 				continue
 			}
+			// The block carries no source here, so the overlay's source stamp
+			// has nothing to be compared with, and this path applies every
+			// overlay as it is. The rule that a stamp naming another source is
+			// stale (blockstore.TargetOverlay.StaleFor) is kept by the revisions
+			// instead: mergeReturned counts a unit as stale when its basis, or
+			// for a unit with none the content hash the package records for
+			// the file, names a source the project no longer holds.
 			b := &model.Block{ID: ov.BlockHash}
 			if err := applyTargetOverlay(b, targetLocale, ov.Payload); err != nil {
 				return err

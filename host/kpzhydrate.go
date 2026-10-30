@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync/atomic"
 
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/model"
@@ -15,10 +16,17 @@ import (
 // stored `targets/<locale>` overlay and applies it to the in-flight block so
 // the writer emits the translated output. It recomputes nothing (no tool
 // re-runs, no network) — it only replays the work already in the workspace.
+// An overlay whose source stamp names another source than the block's is a
+// translation of a source that changed since: it is not applied, and Stale
+// counts it.
 type hydrateTargetsTool struct {
 	tool.BaseTool
 	locale model.LocaleID
+	stale  atomic.Int64
 }
+
+// Stale is how many blocks held a stored translation of another source.
+func (t *hydrateTargetsTool) Stale() int { return int(t.stale.Load()) }
 
 func newHydrateTargetsTool(locale model.LocaleID) *hydrateTargetsTool {
 	t := &hydrateTargetsTool{locale: locale}
@@ -53,8 +61,12 @@ func (t *hydrateTargetsTool) SessionProcess(ctx context.Context, sess blockstore
 					return fmt.Errorf("read %s overlay for block %s: %w", kind, blockKey(b), err)
 				}
 				if err == nil && len(o.Payload) > 0 {
-					if aerr := applyTargetOverlay(b, t.locale, o.Payload); aerr != nil {
+					stale, aerr := applyCurrentTargetOverlay(b, b, t.locale, o.Payload)
+					if aerr != nil {
 						return aerr
+					}
+					if stale {
+						t.stale.Add(1)
 					}
 				}
 			}
@@ -76,10 +88,44 @@ func (t *hydrateTargetsTool) SessionProcess(ctx context.Context, sess blockstore
 // text while the run still counted it applied. A stored overlay that cannot be
 // read is a fault in the workspace, not an absent translation.
 func applyTargetOverlay(b *model.Block, locale model.LocaleID, payload []byte) error {
+	p, err := decodeTargetOverlay(b, locale, payload)
+	if err != nil {
+		return err
+	}
+	setTargetOverlay(b, locale, p)
+	return nil
+}
+
+// applyCurrentTargetOverlay is applyTargetOverlay for a merge that holds the
+// block it read from the file (read): it applies the overlay to dst, which may
+// be read itself, only while the overlay's source stamp names read's source as
+// read (blockstore.TargetOverlay.StaleFor). An overlay whose stamp names
+// another source is a translation of a source that has changed since: dst is
+// left as it is and stale is true, for the merge to count. An overlay with no
+// stamp applies as it is.
+func applyCurrentTargetOverlay(read, dst *model.Block, locale model.LocaleID, payload []byte) (stale bool, err error) {
+	p, err := decodeTargetOverlay(read, locale, payload)
+	if err != nil {
+		return false, err
+	}
+	if p.StaleFor(read) {
+		return true, nil
+	}
+	setTargetOverlay(dst, locale, p)
+	return false, nil
+}
+
+// decodeTargetOverlay decodes a target-overlay payload stored for b.
+func decodeTargetOverlay(b *model.Block, locale model.LocaleID, payload []byte) (blockstore.TargetOverlay, error) {
 	var p blockstore.TargetOverlay
 	if err := json.Unmarshal(payload, &p); err != nil {
-		return fmt.Errorf("decode target overlay for block %s (%s): %w", blockKey(b), locale, err)
+		return p, fmt.Errorf("decode target overlay for block %s (%s): %w", blockKey(b), locale, err)
 	}
+	return p, nil
+}
+
+// setTargetOverlay sets b's target for locale from a decoded overlay.
+func setTargetOverlay(b *model.Block, locale model.LocaleID, p blockstore.TargetOverlay) {
 	switch {
 	case len(p.Runs) > 0:
 		b.SetTargetRuns(locale, p.Runs)
@@ -105,5 +151,4 @@ func applyTargetOverlay(b *model.Block, locale model.LocaleID, payload []byte) e
 			b.SetTargetEdition(model.Variant(locale), t)
 		}
 	}
-	return nil
 }
