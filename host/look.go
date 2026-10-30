@@ -544,8 +544,9 @@ func (a *App) LookFile(cmd Command, path string) (*LookReader, error) {
 	root := ""
 	if recipe != "" {
 		root = filepath.Dir(recipe)
-		if rel, inside := projectRelative(root, abs); inside {
-			out.Path = rel
+		if spelled, inside := rootSpelled(root, abs); inside {
+			abs = spelled
+			out.Path, _ = underRoot(root, abs)
 		}
 	}
 
@@ -563,9 +564,9 @@ func (a *App) LookFile(cmd Command, path string) (*LookReader, error) {
 		var report check.Report
 		var cerr error
 		if out.Declared {
-			report, cerr = a.ComputeDeclaredCheck(pcmd, []string{path})
+			report, cerr = a.ComputeDeclaredCheck(pcmd, []string{abs})
 		} else {
-			report, cerr = a.ComputeCheck(pcmd, []string{path})
+			report, cerr = a.ComputeCheck(pcmd, []string{abs})
 		}
 		if cerr != nil {
 			return fmt.Errorf("check %s: %w", path, cerr)
@@ -1026,10 +1027,31 @@ func padRight(s string, width int) string {
 // projectRel names an absolute path inside root by its project-relative,
 // slash-separated form, and any other path as it is.
 func projectRel(root, path string) string {
-	if rel, err := filepath.Rel(root, path); err == nil && !strings.HasPrefix(rel, "..") {
-		return filepath.ToSlash(rel)
+	if spelled, inside := rootSpelled(root, path); inside {
+		rel, _ := underRoot(root, spelled)
+		return rel
 	}
 	return filepath.ToSlash(path)
+}
+
+// rootSpelled spells an absolute path inside root the way root spells it, and
+// reports whether it is inside. The two can name one directory differently
+// when one passed through a symbolic link (macOS reaches /var through
+// /private/var), so a path that is not under root as written is compared
+// again with the links resolved.
+func rootSpelled(root, abs string) (string, bool) {
+	if rel, inside := underRoot(root, abs); inside {
+		return filepath.Join(root, filepath.FromSlash(rel)), true
+	}
+	realRoot, rerr := filepath.EvalSymlinks(root)
+	realPath, perr := filepath.EvalSymlinks(abs)
+	if rerr != nil || perr != nil {
+		return abs, false
+	}
+	if rel, inside := underRoot(realRoot, realPath); inside {
+		return filepath.Join(root, filepath.FromSlash(rel)), true
+	}
+	return abs, false
 }
 
 // cwdAbs makes a path the check reported relative to the working directory
