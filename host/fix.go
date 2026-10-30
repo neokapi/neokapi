@@ -422,12 +422,14 @@ func (r *FixResult) FormatText(w io.Writer) error {
 	default:
 		fmt.Fprintf(w, "%d %s %s %s\n", r.Fixed, fixed, inFiles, pluralUnit(len(r.Files), "file", "files"))
 	}
+	// A file is named as its change set names it: by its path from the
+	// project root inside a project, whichever directory kapi fix ran in.
 	width := 0
 	for _, f := range r.Files {
-		width = max(width, len(f.File))
+		width = max(width, len(f.Doc))
 	}
 	for _, f := range r.Files {
-		fmt.Fprintf(w, "  %-*s  %d %s", width, f.File, f.Fixed, fixed)
+		fmt.Fprintf(w, "  %-*s  %d %s", width, f.Doc, f.Fixed, fixed)
 		if len(f.Pairs) <= 3 {
 			pairs := make([]string, len(f.Pairs))
 			for i, p := range f.Pairs {
@@ -451,6 +453,9 @@ func (r *FixResult) FormatText(w io.Writer) error {
 		fmt.Fprintf(w, "%s not fixed. Edit by hand:\n", pluralUnit(n, "finding", "findings"))
 		for _, u := range r.NotFixed {
 			loc := u.Finding.Location.File
+			if u.Finding.Fix != nil {
+				loc = u.Finding.Fix.At.Doc
+			}
 			if u.Finding.Location.Block != "" {
 				loc += " " + u.Finding.Location.Block
 			}
