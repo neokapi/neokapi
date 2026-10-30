@@ -10506,6 +10506,78 @@ export class SetTermStatusRequest {
 }
 
 /**
+ * ShareView is the Share page: the rung a project's rules reach, the place
+ * they are shared through and how far apart this machine and that place were
+ * at the last sync. Rung is host.ShareRungMachine, ShareRungTeam or
+ * ShareRungBowrain, read the way `kapi share --status` reads it.
+ */
+export class ShareView {
+    /**
+     * Creates a new ShareView instance.
+     * @param {Partial<ShareView>} [$$source = {}] - The source object to create the ShareView.
+     */
+    constructor($$source = {}) {
+        if (!("rung" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["rung"] = "";
+        }
+        if (!("sharing" in $$source)) {
+            /**
+             * @member
+             * @type {ProjectSharing | null}
+             */
+            this["sharing"] = null;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Rules counts the rules in force at the project's own point, the count
+             * the Map shows. Nil when they could not be counted.
+             * @member
+             * @type {number | null | undefined}
+             */
+            this["rules"] = undefined;
+        }
+        if (!("bowrain_plugin" in $$source)) {
+            /**
+             * BowrainPlugin reports whether the kapi-bowrain plugin is installed,
+             * which connecting a project to a Bowrain server needs.
+             * @member
+             * @type {boolean}
+             */
+            this["bowrain_plugin"] = false;
+        }
+        if (!("recipe_written" in $$source)) {
+            /**
+             * RecipeWritten is false for a folder opened without a kapi.yaml.
+             * SetProjectSharing writes the recipe before it names a place in it.
+             * @member
+             * @type {boolean}
+             */
+            this["recipe_written"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ShareView instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ShareView}
+     */
+    static createFrom($$source = {}) {
+        const $$createField1_0 = $$createType180;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("sharing" in $$parsedSource) {
+            $$parsedSource["sharing"] = $$createField1_0($$parsedSource["sharing"]);
+        }
+        return new ShareView(/** @type {Partial<ShareView>} */($$parsedSource));
+    }
+}
+
+/**
  * StoreSyncResult reports one SyncProjectStore call.
  */
 export class StoreSyncResult {
@@ -10946,8 +11018,8 @@ export class ToolInfo {
     static createFrom($$source = {}) {
         const $$createField6_0 = $$createType6;
         const $$createField7_0 = $$createType6;
-        const $$createField10_0 = $$createType180;
-        const $$createField11_0 = $$createType180;
+        const $$createField10_0 = $$createType182;
+        const $$createField11_0 = $$createType182;
         const $$createField12_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tags" in $$parsedSource) {
@@ -11748,12 +11820,12 @@ export class VoicePointDTO {
         const $$createField2_0 = $$createType13;
         const $$createField3_0 = $$createType6;
         const $$createField4_0 = $$createType6;
-        const $$createField7_0 = $$createType182;
-        const $$createField9_0 = $$createType184;
+        const $$createField7_0 = $$createType184;
+        const $$createField9_0 = $$createType186;
         const $$createField11_0 = $$createType128;
         const $$createField12_0 = $$createType130;
         const $$createField13_0 = $$createType6;
-        const $$createField14_0 = $$createType185;
+        const $$createField14_0 = $$createType187;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("point" in $$parsedSource) {
             $$parsedSource["point"] = $$createField0_0($$parsedSource["point"]);
@@ -11868,8 +11940,8 @@ export class VoiceSaveResult {
      * @returns {VoiceSaveResult}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType187;
-        const $$createField6_0 = $$createType189;
+        const $$createField4_0 = $$createType189;
+        const $$createField6_0 = $$createType191;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("problems" in $$parsedSource) {
             $$parsedSource["problems"] = $$createField4_0($$parsedSource["problems"]);
@@ -12027,7 +12099,7 @@ export class WorkspaceHome {
      * @returns {WorkspaceHome}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType191;
+        const $$createField2_0 = $$createType193;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("projects" in $$parsedSource) {
             $$parsedSource["projects"] = $$createField2_0($$parsedSource["projects"]);
@@ -12130,10 +12202,10 @@ export class WorkspaceProject {
      * @returns {WorkspaceProject}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType193;
+        const $$createField3_0 = $$createType195;
         const $$createField4_0 = $$createType138;
-        const $$createField5_0 = $$createType195;
-        const $$createField6_0 = $$createType197;
+        const $$createField5_0 = $$createType197;
+        const $$createField6_0 = $$createType180;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("checkouts" in $$parsedSource) {
             $$parsedSource["checkouts"] = $$createField3_0($$parsedSource["checkouts"]);
@@ -12490,23 +12562,23 @@ const $$createType175 = flow$0.FlowStep.createFrom;
 const $$createType176 = $Create.Array($$createType175);
 const $$createType177 = RunTraceFile.createFrom;
 const $$createType178 = $Create.Array($$createType177);
-const $$createType179 = IOPort.createFrom;
-const $$createType180 = $Create.Array($$createType179);
-const $$createType181 = VoiceBindingDTO.createFrom;
-const $$createType182 = $Create.Nullable($$createType181);
-const $$createType183 = profile$0.VoiceProfile.createFrom;
+const $$createType179 = ProjectSharing.createFrom;
+const $$createType180 = $Create.Nullable($$createType179);
+const $$createType181 = IOPort.createFrom;
+const $$createType182 = $Create.Array($$createType181);
+const $$createType183 = VoiceBindingDTO.createFrom;
 const $$createType184 = $Create.Nullable($$createType183);
-const $$createType185 = VoiceEditTargetDTO.createFrom;
-const $$createType186 = profile$0.ProfileProblem.createFrom;
-const $$createType187 = $Create.Array($$createType186);
-const $$createType188 = RulesFilesDTO.createFrom;
-const $$createType189 = $Create.Nullable($$createType188);
-const $$createType190 = WorkspaceProject.createFrom;
-const $$createType191 = $Create.Array($$createType190);
-const $$createType192 = WorkspaceCheckout.createFrom;
+const $$createType185 = profile$0.VoiceProfile.createFrom;
+const $$createType186 = $Create.Nullable($$createType185);
+const $$createType187 = VoiceEditTargetDTO.createFrom;
+const $$createType188 = profile$0.ProfileProblem.createFrom;
+const $$createType189 = $Create.Array($$createType188);
+const $$createType190 = RulesFilesDTO.createFrom;
+const $$createType191 = $Create.Nullable($$createType190);
+const $$createType192 = WorkspaceProject.createFrom;
 const $$createType193 = $Create.Array($$createType192);
-const $$createType194 = host$0.ContextProjectStanding.createFrom;
-const $$createType195 = $Create.Nullable($$createType194);
-const $$createType196 = ProjectSharing.createFrom;
+const $$createType194 = WorkspaceCheckout.createFrom;
+const $$createType195 = $Create.Array($$createType194);
+const $$createType196 = host$0.ContextProjectStanding.createFrom;
 const $$createType197 = $Create.Nullable($$createType196);
 const $$createType198 = contextop$0.Subject.createFrom;

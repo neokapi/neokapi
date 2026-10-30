@@ -155,6 +155,7 @@ export {
     SaveUserFlowRequest,
     SessionState,
     SetTermStatusRequest,
+    ShareView,
     StoreSyncResult,
     TabInfo,
     TermDTO,
