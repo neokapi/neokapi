@@ -460,6 +460,7 @@ export function ViewSwitch({
             decideRow={decideRowOf(effectiveView)}
             hasTargetLanguages={(history.project.defaults?.target_languages?.length ?? 0) > 0}
             contextOnly={activeTab.info.context_only}
+            onNavigate={navigate}
           />
         );
 

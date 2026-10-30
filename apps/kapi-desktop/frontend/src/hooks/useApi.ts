@@ -34,6 +34,9 @@ import type {
   StoreSyncResult,
   MapSummary,
   ReaderFile,
+  RulesDecideView,
+  RuleAnswer,
+  RuleDecideResult,
   ConvergenceReport,
   ConvergePlan,
   RunError,
@@ -525,6 +528,18 @@ export const api = {
   /** The rules and suggestions of the tab's project; `since` empty reads the marker. */
   projectContextDigest: (tabID: string, since: string) =>
     call<ContextDigest>("ProjectContextDigest", tabID, since),
+  /** The questions `kapi rules` asks about the tab's project, one per suggestion. */
+  rulesDecideView: (tabID: string) => call<RulesDecideView>("RulesDecideView", tabID),
+  /**
+   * Record one answer: keep (with the form a kept name writes, empty for the
+   * suggestion's own), drop (Not a rule) or later. `id` names the suggestion,
+   * or the side of a disagreement a keep chooses.
+   */
+  decideRule: (tabID: string, id: string, answer: RuleAnswer, form: string) =>
+    call<RuleDecideResult>("DecideRule", tabID, id, answer, form),
+  /** What keeping a name with a form the person typed does. */
+  rulesDecideConsequence: (tabID: string, id: string, form: string) =>
+    call<string>("RulesDecideConsequence", tabID, id, form),
   /** The atlas of the tab's project: rules, terms and content on their axes, over time. */
   projectContextAtlas: (tabID: string) => call<AtlasData>("ProjectContextAtlas", tabID),
   /** Record that the person looked now; returns the marker it replaced. */

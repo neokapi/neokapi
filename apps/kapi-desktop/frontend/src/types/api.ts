@@ -1941,6 +1941,74 @@ export interface MapSuggestionRow {
   files: number;
 }
 
+/** One answer to a Decide question (RuleOptionDTO): a form of a name, or one side of a disagreement. */
+export interface RuleOption {
+  /** One wording of a name. */
+  form?: string;
+  /** One side of a disagreement: its id, short id and sentence. */
+  id?: string;
+  short?: string;
+  sentence?: string;
+  /** Where the project's source writes it. */
+  blocks: number;
+  files: number;
+  /** What keeping this option does. */
+  consequence: string;
+  /** Who suggested the side, for a disagreement. */
+  noticed_by?: ContextActor;
+}
+
+/** One question Decide asks about a suggestion (RuleDecisionDTO), as `kapi rules` asks it. */
+export interface RuleDecision {
+  /** The suggestion's id. A disagreement has none; each option carries its side's. */
+  id?: string;
+  short?: string;
+  kind: "name" | "word" | "note" | "memory" | "disagreement";
+  question: string;
+  /** What a disagreement is about. */
+  reason?: string;
+  sentence: string;
+  /** The wording the question is about, for its row in the list. */
+  label: string;
+  /** How many wordings a word rule's check reports. */
+  avoided: number;
+  /** The forms of a name or the sides of a disagreement, the most used first. */
+  options: RuleOption[];
+  /** The option a keep takes unless the person picks another. */
+  chosen: number;
+  /** The question takes a form the person types (Other…). */
+  other: boolean;
+  /** What keeping it does, for a question with no options. */
+  consequence?: string;
+  /** The sentence the suggestion was seen in, and its file. */
+  seen?: ContextEvidence;
+  /** Where a kept rule holds. */
+  applies: string;
+  noticed_by: ContextActor;
+}
+
+/** Every question Decide asks about one project (RulesDecideViewDTO). */
+export interface RulesDecideView {
+  project: string;
+  project_name: string;
+  decisions: RuleDecision[];
+  /** The counts `kapi rules list` opens with. */
+  rules: number;
+  suggested: number;
+  narrowed: number;
+}
+
+/** An answer to a Decide question: "drop" is Not a rule. */
+export type RuleAnswer = "keep" | "drop" | "later";
+
+/** What one answer recorded (RuleDecideResultDTO). */
+export interface RuleDecideResult {
+  answer: RuleAnswer;
+  kept: number;
+  dropped: number;
+  later: number;
+}
+
 /** Everything the Map renders, in one read (MapSummary). */
 export interface MapSummary {
   project_key?: string;

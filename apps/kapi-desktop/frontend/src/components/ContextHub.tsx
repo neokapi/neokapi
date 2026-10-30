@@ -1,8 +1,8 @@
 // The Context pillar, and the surfaces that read the project's context graph.
 //
-// One rail, in the order a person meets it: Decide holds the rules and
-// suggestions kapi keeps for the project and is where a person reviews them,
-// and the project's Map leads to it;
+// One rail, in the order a person meets it: Decide asks about each suggestion
+// waiting for the project, one question at a time, and the project's Map
+// leads to it;
 // Explore lays all of it out on its axes and over time; Ask answers a question
 // at a point; Assistant shows what an assistant reads;
 // Voice reads the profile governing each point whole; the two stores hold
@@ -34,6 +34,7 @@ import { qk } from "../lib/queryKeys";
 import { AssistantPanel } from "./AssistantPanel";
 import { ContextAtlasView } from "./ContextAtlasView";
 import { ContextDigestPanel } from "./ContextDigestPanel";
+import { DecidePage } from "./DecidePage";
 import { ContextExplorerView } from "./ContextExplorerView";
 import { ContextFeedPanel } from "./ContextFeedPanel";
 import { VoicePage } from "./VoicePage";
@@ -83,6 +84,8 @@ export interface ContextHubProps {
    * out of a tab that has none.
    */
   contextOnly?: boolean;
+  /** Go to another view of the project: "map", … */
+  onNavigate?: (view: string) => void;
 }
 
 const SECTIONS: Array<{
@@ -144,6 +147,7 @@ export function ContextHub({
   decideRow,
   hasTargetLanguages,
   contextOnly,
+  onNavigate,
 }: ContextHubProps) {
   const [active, setActive] = useState<ContextSection>(section ?? (pin ? "explorer" : "rules"));
   // A pin set from inside the hub (the memory browser opening a unit) rather
@@ -184,7 +188,7 @@ export function ContextHub({
             <SectionLabel id={s.id} />
           </button>
         ))}
-        <SectionCommand section={current} />
+        <SectionCommand section={current} contextOnly={contextOnly} />
       </nav>
       <div className="min-h-0 flex-1">
         {current === "explorer" && (
@@ -210,24 +214,30 @@ export function ContextHub({
             </div>
           </ScrollArea>
         )}
-        {current === "rules" && (
-          // The digest is a list beside a detail pane, each scrolling on its
-          // own, so the section holds a fixed height rather than scrolling.
+        {current === "rules" && !contextOnly && (
+          // One question per suggestion, as `kapi rules` asks it. It counts
+          // uses in the project's files, so a tab with a checkout has it.
+          <DecidePage
+            tabID={tabID}
+            defaultSelected={decideRow}
+            onOpenFile={(path) => {
+              setUnitPin({ path });
+              setActive("explorer");
+            }}
+            onOpenMap={onNavigate ? () => onNavigate("map") : undefined}
+          />
+        )}
+        {current === "rules" && contextOnly && (
+          // A tab over a project's context alone has no files to count uses
+          // in: it reads the digest, a list beside a detail pane, each
+          // scrolling on its own, so the section holds a fixed height.
           <div className="flex h-full min-h-0 flex-col">
             <PageHeader className="mb-0 shrink-0 px-6 pt-5 pb-3" title={t("Decide")} />
             <div className="min-h-0 flex-1 border-t border-border">
               <ContextDigestPanel
                 tabID={tabID}
                 defaultSelected={decideRow}
-                canDecide={!contextOnly}
-                onOpenFile={
-                  contextOnly
-                    ? undefined
-                    : (path) => {
-                        setUnitPin({ path });
-                        setActive("explorer");
-                      }
-                }
+                canDecide={false}
                 onConnectAssistant={offers("agent") ? () => setActive("agent") : undefined}
               />
             </div>
@@ -288,7 +298,7 @@ function ProjectHistory({ tabID }: { tabID: string }) {
  * up, which are two commands, so neither is the page's equivalent.
  */
 const SECTION_COMMANDS: Partial<Record<ContextSection, string>> = {
-  rules: "kapi context review",
+  rules: "kapi rules",
   atlas: "kapi context atlas",
   explorer: "kapi context <path>",
   agent: "kapi init",
@@ -301,8 +311,16 @@ const SECTION_COMMANDS: Partial<Record<ContextSection, string>> = {
  * The current section's command, as a mono chip at the right of the nav: one
  * place on the page, and never a caption under a section.
  */
-function SectionCommand({ section }: { section: ContextSection }) {
-  const command = SECTION_COMMANDS[section];
+function SectionCommand({
+  section,
+  contextOnly,
+}: {
+  section: ContextSection;
+  contextOnly?: boolean;
+}) {
+  // A tab with no checkout reads the digest, which is the review's.
+  const command =
+    section === "rules" && contextOnly ? "kapi context review" : SECTION_COMMANDS[section];
   if (!command) return null;
   return (
     <SimpleTooltip content={t("The same in the terminal")}>
