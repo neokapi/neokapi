@@ -136,11 +136,11 @@ func TestHelpGroups_RenderInPorcelainOrder(t *testing.T) {
 // and the visible command count must not silently creep back up. Raising a
 // budget is a deliberate product decision, not a side effect.
 //
-// Each budget guards one page, and counts the commands on it apart from the
-// Work group's lead verbs (workLeads), which the length of workLeads caps.
-// defaultPageBudget is the default `kapi --help` outside a project: the
-// person tier (Work, Assets, and the commands in no group). allPageBudget is
-// `kapi help --all`: every visible command.
+// Each budget guards one page. It counts the commands on that page apart from
+// the Work group's lead verbs, whose list caps them. The default page budget
+// guards `kapi --help` outside a project, which lists Work, Assets and the
+// commands in no group. The all page budget guards `kapi help --all`, which
+// lists every visible command.
 func TestRootHelpBudget(t *testing.T) {
 	const (
 		defaultPageBudget = 14
