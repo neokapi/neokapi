@@ -14,9 +14,11 @@ import (
 // ReadSourceBlocks opens path with the given format reader, applies per-item
 // format config, and drains the reader into its blocks (translatable and not)
 // plus the first layer it emits. It is the single source-reading path shared by
-// the CLI (merge, extract) and kapi-desktop (extract → block store) so both
-// read and number blocks identically — block numbering depends on the same
-// reader + config, so any divergence would desync merge and coverage.
+// the CLI (merge, extract, the block cache `kapi up` fills) and kapi-desktop
+// (the block cache it fills on open), so both read and number blocks
+// identically. The reader gets the skeleton store a write would give it
+// (WireReadSkeleton), so the blocks are the ones a check reports and an edit
+// names.
 func ReadSourceBlocks(
 	ctx context.Context,
 	reg *registry.FormatRegistry,
@@ -30,12 +32,12 @@ func ReadSourceBlocks(
 	}
 	// Per-item format config (e.g. translateFrontMatter on a docs item) must
 	// apply on every re-read exactly as it did at extract time.
-	if len(cfg) > 0 {
-		if c := reader.Config(); c != nil {
-			if err := c.ApplyMap(cfg); err != nil {
-				return nil, nil, fmt.Errorf("apply format config: %w", err)
-			}
-		}
+	if err := ApplyReaderConfig(reader, cfg); err != nil {
+		return nil, nil, fmt.Errorf("apply format config: %w", err)
+	}
+	// The reader closes before the skeleton store it writes into.
+	if store := WireReadSkeleton(reg, formatName, reader); store != nil {
+		defer func() { _ = store.Close() }()
 	}
 	f, err := os.Open(path)
 	if err != nil {
@@ -72,6 +74,24 @@ func ReadSourceBlocks(
 		}
 	}
 	return blocks, layer, nil
+}
+
+// WireReadSkeleton gives reader the skeleton store a write of the document
+// would give it, one that keeps nothing (format.NewWiredReadSkeleton), and
+// returns it, or nil when the format has no skeleton path. A reader can read a
+// document differently with a skeleton wired: the HTML reader keeps character
+// references as codes, and the MDX reader reads a JSX element's block-level
+// children as markdown. The change service reads every document that way, so
+// every read that reports blocks wires one too.
+func WireReadSkeleton(reg *registry.FormatRegistry, formatName string, reader format.DataFormatReader) *format.SkeletonStore {
+	if _, ok := reader.(format.SkeletonStoreEmitter); !ok || !reg.HasWriter(registry.FormatID(formatName)) {
+		return nil
+	}
+	writer, err := reg.NewWriter(registry.FormatID(formatName))
+	if err != nil {
+		return nil
+	}
+	return format.NewWiredReadSkeleton(reader, writer)
 }
 
 // BlockStoreHash returns a stable, globally-unique key for a block in a

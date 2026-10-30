@@ -89,6 +89,7 @@ func (a *App) InspectArchiveEntry(tabID, archivePath, entry string) (string, err
 			return "", fmt.Errorf("configure reader for %q: %w", fmtName, cerr)
 		}
 	}
+	project.WireReadSkeleton(a.formatReg, fmtName, reader)
 
 	doc := &model.RawDocument{
 		URI:          archivePath + "!" + entry,
