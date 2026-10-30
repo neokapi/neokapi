@@ -129,6 +129,28 @@ func TestToolRun_RedactsBeforeTheProviderReadsAndRestoresAfter(t *testing.T) {
 	assert.Equal(t, redactedPage, string(src), "the source file is left as it was")
 }
 
+func TestToolRun_TermExtractReadsTheRedactedBlocks(t *testing.T) {
+	isolateKapiEnv(t)
+	onlyDemoProvider(t)
+	recipe := redactProject(t, redactionYAML)
+	saw := providerSaw(t)
+	a := &App{SourceLang: "en"}
+	a.InitRegistries()
+	config := map[string]any{"provider": "demo"}
+	require.NoError(t, a.RunToolOnFiles(t.Context(), ToolRunConfig{
+		ToolName:   "term-extract",
+		Project:    recipe,
+		Files:      []string{filepath.Join(filepath.Dir(recipe), "docs", "page.json")},
+		ToolConfig: config,
+		NewTool: func() (tool.Tool, error) {
+			return a.ToolReg.NewToolWithConfig(registry.ToolID("term-extract"), map[string]any{"provider": "demo"}, "")
+		},
+	}))
+	sent := saw()
+	require.Contains(t, sent, "Write to", "the run asked the provider about the block")
+	assert.NotContains(t, sent, redactedName)
+}
+
 func TestToolRun_LeavesAToolThatCallsNoProviderAsItWas(t *testing.T) {
 	// case-transform calls no provider, so it reads the name and upper-cases
 	// it; under redaction it would have read a placeholder, and the restored
@@ -226,4 +248,33 @@ func TestToolRun_ChainCoverage(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, pol.declared)
 	assert.Nil(t, pol.redaction, "a tool that calls no provider runs alone")
+}
+
+// qa calls a provider in AI mode only, and the registry fills in the
+// configured default provider only for a contract that needs credentials, so
+// a configured provider leaves rules mode as it is.
+func TestToolRun_QACallsAProviderInAIModeOnly(t *testing.T) {
+	isolateKapiEnv(t)
+	onlyDemoProvider(t)
+	t.Setenv("KAPI_AI_PROVIDER", "demo")
+	recipe := redactProject(t, redactionYAML)
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	a := &App{SourceLang: "en"}
+	a.InitRegistries()
+
+	for config, redacts := range map[string]bool{"": false, "rules": false, "ai": true} {
+		cfg := map[string]any{}
+		if config != "" {
+			cfg["mode"] = config
+		}
+		pol, err := a.toolRunPolicyFor(recipe, proj, "qa", cfg)
+		require.NoError(t, err)
+		assert.Equal(t, redacts, pol.redaction != nil, "mode %q", config)
+
+		built, err := a.ToolReg.NewToolWithConfig(registry.ToolID("qa"), cfg, "fr")
+		require.NoError(t, err)
+		_, judges := built.(interface{ TotalUsage() aiprovider.TokenUsage })
+		assert.Equal(t, redacts, judges, "the tool the registry builds for mode %q", config)
+	}
 }

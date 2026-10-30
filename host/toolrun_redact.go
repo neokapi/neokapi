@@ -64,6 +64,10 @@ func (a *App) toolRunPolicyFor(recipe string, proj *project.KapiProject, toolNam
 // toolCallsProvider reports whether a run of the tool with config reaches a
 // provider: its contract, refined for the config, carries an API call. A
 // tool whose contract the registry does not hold calls none it declares.
+//
+// The registry fills in the configured default provider only for a tool
+// whose contract, resolved for the same config, requires credentials, so the
+// answer for the config the command sets is the answer for the tool it builds.
 func (a *App) toolCallsProvider(toolName string, config map[string]any) bool {
 	if a.ToolReg == nil {
 		return false
