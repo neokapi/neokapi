@@ -236,26 +236,62 @@ func TestCheck_ATermBesideACharacterReferenceIsFoundAndFixed(t *testing.T) {
 // whole word, and a replacement of the letters beside the reference would
 // leave the reference behind ("coffee shop&eacute;").
 func TestCheck_ATermAReferenceSpellsAnEdgeOfGetsNoFix(t *testing.T) {
+	const src = "<html><head><title>Guide</title></head>\n<body>\n<p>Meet at the caf&eacute; by the &Eacute;cole.</p>\n</body></html>\n"
+	assertSpelledEdgeFixes(t, src, nil, map[string]int{"café": 1, "École": 1}, src)
+}
+
+// When the word a reference spells an edge of is also written plainly in the
+// block, the plain use gets its fix by position and the spelled one none, so
+// no fix looks the word up by its text and is refused as ambiguous with the
+// rest of the change set.
+func TestCheck_ASpelledTermBesideItsPlainUse(t *testing.T) {
+	const src = "<html><head><title>Guide</title></head>\n<body>\n<p>Meet at the caf&eacute;, not the café.</p>\n</body></html>\n"
+	assertSpelledEdgeFixes(t, src, map[string]int{"café": 1}, map[string]int{"café": 1},
+		strings.Replace(src, "not the café", "not the coffee shop", 1))
+}
+
+// assertSpelledEdgeFixes checks page src under rules for "café" and "école",
+// counts the term findings with a fix and without one by snippet, applies the
+// fixes through the change service, and compares the file with want.
+func assertSpelledEdgeFixes(t *testing.T, src string, fixed, unfixed map[string]int, want string) {
+	t.Helper()
 	f := newCommitFixture(t)
 	voice := commitVoice + "  - term: café\n    replacement: coffee shop\n  - term: école\n    replacement: school\n"
 	require.NoError(t, os.WriteFile(layoutVoicePath(t, f.root), []byte(voice), 0o644))
 	readProjectContext(t, f.root)
 	page := filepath.Join(f.root, "docs", "page.html")
-	const src = "<html><head><title>Guide</title></head>\n<body>\n<p>Meet at the caf&eacute; by the &Eacute;cole.</p>\n</body></html>\n"
 	require.NoError(t, os.WriteFile(page, []byte(src), 0o644))
 
 	report, err := f.app.ComputeCheck(f.command(t), []string{page})
 	require.NoError(t, err)
-	found := map[string]bool{}
+	gotFixed, gotUnfixed := map[string]int{}, map[string]int{}
+	var ops []change.Op
 	for _, d := range report.Findings {
 		if d.Rule != "terms.vocabulary" {
 			continue
 		}
-		found[d.Location.Snippet] = true
-		assert.Nil(t, d.Fix, "%q is reported with no fix", d.Location.Snippet)
+		if d.Fix == nil {
+			gotUnfixed[d.Location.Snippet]++
+			continue
+		}
+		assert.Nil(t, d.Fix.Body.(*change.ReplaceText).Edits[0].Find, "a fix names its words by position")
+		gotFixed[d.Location.Snippet]++
+		ops = append(ops, *d.Fix)
 	}
-	assert.Equal(t, map[string]bool{"café": true, "École": true}, found, "%+v", report.Findings)
+	if fixed == nil {
+		fixed = map[string]int{}
+	}
+	assert.Equal(t, fixed, gotFixed, "%+v", report.Findings)
+	assert.Equal(t, unfixed, gotUnfixed, "%+v", report.Findings)
+
+	if len(ops) > 0 {
+		svc, err := f.app.ChangeService(t.Context(), ChangeServiceOptions{Project: f.recipe, Origin: "test"})
+		require.NoError(t, err)
+		res, err := svc.Apply(t.Context(), change.Set{Ops: ops}, change.Actor{Kind: change.ActorPerson})
+		require.NoError(t, err)
+		require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+	}
 	got, err := os.ReadFile(page)
 	require.NoError(t, err)
-	assert.Equal(t, src, string(got), "nothing is written")
+	assert.Equal(t, want, string(got))
 }

@@ -252,9 +252,11 @@ func HitsToFindings(hits []VocabHit, text string, runs []model.Run) []VoiceFindi
 		switch {
 		case hit.Spelled != "":
 			// A character reference spells an edge of the words: they are
-			// quoted as the page shows them and carry no position, so no
-			// replacement is built over the reference.
+			// quoted as the page shows them, carry no position, and are marked
+			// so no replacement is built over the reference, by position or by
+			// finding the words elsewhere in the block (check.Fix).
 			f.OriginalText = hit.Spelled
+			f.Metadata = map[string]string{check.MetaSpelled: "true"}
 		case len(runs) > 0:
 			f.Position = model.RangeAnchorForBytes(runs, hit.Start, hit.End)
 		}

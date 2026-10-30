@@ -8,6 +8,13 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
+// MetaSpelled is the metadata key that marks a finding whose words a
+// character reference spells an edge of. Its words are quoted as the page shows
+// them and no span of the block's text holds them, so it gets no fix: a
+// replacement found by its text could land on another use of the words, or be
+// refused as ambiguous with the rest of the change set.
+const MetaSpelled = "spelled"
+
 // Fix is the change operation that applies a finding's replacement to the
 // edition it was raised on. It is a replace_text of the finding's words with
 // Metadata["replacement"], guarded by rev, the revision the check read. at
@@ -21,14 +28,14 @@ import (
 // of the words it replaces. A link, a bold span or a placeholder among the
 // words would be deleted with them. Words inside a code span
 // (model.TypeInlineCode) are a command or an identifier, not prose. Fix
-// returns nil for both, for a finding with no replacement, and for one whose
-// words nothing locates.
+// returns nil for both, for a finding with no replacement, for one whose
+// words nothing locates, and for one marked MetaSpelled.
 func Fix(f Finding, runs []model.Run, at change.Ref, rev string) *change.Op {
 	replacement := ""
 	if f.Metadata != nil {
 		replacement = f.Metadata["replacement"]
 	}
-	if replacement == "" || rev == "" {
+	if replacement == "" || rev == "" || f.Metadata[MetaSpelled] != "" {
 		return nil
 	}
 	var sel change.Selection
