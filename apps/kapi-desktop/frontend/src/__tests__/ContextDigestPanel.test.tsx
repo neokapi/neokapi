@@ -29,7 +29,7 @@ afterEach(() => {
 
 async function openPanel() {
   render(<ContextDigestPanel tabID="t1" />);
-  await screen.findByRole("listbox", { name: "What's new" });
+  await screen.findByRole("listbox", { name: "Decide" });
 }
 
 const row = (id: string) =>

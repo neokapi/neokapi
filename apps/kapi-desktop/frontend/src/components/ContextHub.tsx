@@ -1,7 +1,8 @@
 // The Context pillar, and the surfaces that read the project's context graph.
 //
-// One rail, in the order a person meets it: What's new holds the rules and
-// suggestions kapi keeps for the project and is where a person reviews them;
+// One rail, in the order a person meets it: Decide holds the rules and
+// suggestions kapi keeps for the project and is where a person reviews them,
+// and the project's Map leads to it;
 // Explore lays all of it out on its axes and over time; Ask answers a question
 // at a point; Assistant shows what an assistant reads;
 // Voice reads the profile governing each point whole; the two stores hold
@@ -69,6 +70,11 @@ export interface ContextHubProps {
   section?: ContextSection;
   /** Open the explorer pinned at a point, e.g. from a check finding. */
   pin?: ContextPin;
+  /**
+   * The Decide row to open on, by its key in the list (`suggested:<id>`,
+   * `conflict:<id>`), when the Map sent a person here for one suggestion.
+   */
+  decideRow?: string;
   /** Whether the project declares targets. Memory appears when it does. */
   hasTargetLanguages?: boolean;
   /**
@@ -124,6 +130,7 @@ export function ContextHub({
   projectName,
   section,
   pin,
+  decideRow,
   hasTargetLanguages,
   contextOnly,
 }: ContextHubProps) {
@@ -196,13 +203,11 @@ export function ContextHub({
           // The digest is a list beside a detail pane, each scrolling on its
           // own, so the section holds a fixed height rather than scrolling.
           <div className="flex h-full min-h-0 flex-col">
-            <PageHeader
-              className="mb-0 shrink-0 px-6 pt-5 pb-3"
-              title={t("What's new for {project}", { project: projectName })}
-            />
+            <PageHeader className="mb-0 shrink-0 px-6 pt-5 pb-3" title={t("Decide")} />
             <div className="min-h-0 flex-1 border-t border-border">
               <ContextDigestPanel
                 tabID={tabID}
+                defaultSelected={decideRow}
                 canDecide={!contextOnly}
                 onOpenFile={
                   contextOnly
@@ -232,7 +237,7 @@ export function ContextHub({
         )}
         {current === "history" && (
           // History is a list of sessions beside a detail pane, each scrolling
-          // on its own, so the section holds a fixed height as What's new does.
+          // on its own, so the section holds a fixed height as Decide does.
           <div className="flex h-full min-h-0 flex-col">
             <PageHeader className="mb-0 shrink-0 px-6 pt-5 pb-3" title="History" />
             <div className="min-h-0 flex-1 border-t border-border">
@@ -305,7 +310,7 @@ function SectionCommand({ section }: { section: ContextSection }) {
 function SectionLabel({ id }: { id: ContextSection }) {
   switch (id) {
     case "rules":
-      return <>What&apos;s new</>;
+      return <>Decide</>;
     case "atlas":
       return <>Explore</>;
     case "explorer":

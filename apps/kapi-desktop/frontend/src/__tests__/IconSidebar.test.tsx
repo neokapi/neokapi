@@ -8,7 +8,7 @@ describe("IconSidebar", () => {
     render(
       <IconSidebar mode="projects" active="home" onChange={vi.fn()} hasTargetLanguages={false} />,
     );
-    expect(screen.getByRole("button", { name: "Checks" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Map" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Review" })).not.toBeInTheDocument();
   });
 
@@ -59,21 +59,26 @@ describe("IconSidebar", () => {
     expect(screen.queryByRole("button", { name: "Checks" })).not.toBeInTheDocument();
   });
 
-  it("puts Context first among the project's items", () => {
+  it("puts the Map first among the project's items, and no Checks page beside it", () => {
     render(
       <IconSidebar mode="projects" active="home" onChange={vi.fn()} hasTargetLanguages={true} />,
     );
     const labels = screen.getAllByRole("button").map((b) => b.getAttribute("aria-label"));
     expect(labels).toEqual([
       "Home",
+      "Map",
       "Context",
       "Project",
-      "Checks",
       "Review",
       "Toolbox",
       "Project Settings",
       "App Settings",
     ]);
+  });
+
+  it("keeps the Map lit while its findings are open", () => {
+    render(<IconSidebar mode="projects" active="checks" onChange={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "Map" }).className).toContain("bg-primary");
   });
 
   it("keeps Context lit while the hub is open on one of its sections", () => {

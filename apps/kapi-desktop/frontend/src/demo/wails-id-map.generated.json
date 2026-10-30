@@ -115,6 +115,7 @@
   "1945825244": "ListNamedTerms",
   "1949354187": "GetWorkspaceDocumentConflicts",
   "1959631339": "AnnotateEntities",
+  "1961346714": "MapSummary",
   "1968372733": "RenameChannel",
   "1993959141": "ContextWidenReach",
   "2010328003": "AddRelation",

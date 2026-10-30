@@ -1841,6 +1841,51 @@ export interface StoreSyncResult {
   skipped?: ExtractSkip[];
 }
 
+/** One content file on the Map (MapSummary). */
+export interface MapFileRow {
+  /** Absolute, for the preview. */
+  path: string;
+  /** Project-relative and slash-separated, for the row. */
+  relative: string;
+  format?: string;
+  collection?: string;
+  /** The file's blocks in the block cache. */
+  blocks: number;
+  /** The file's findings in the last checks run over the whole project. */
+  findings: number;
+}
+
+/** One item awaiting a decision on the Map. */
+export interface MapSuggestionRow {
+  /** "conflict" (the item is the disagreement's first side) or "suggested". */
+  group: "conflict" | "suggested";
+  item: DigestItem;
+  conflict?: DigestConflict;
+  /** Distinct blocks and files the item's evidence names. */
+  blocks: number;
+  files: number;
+}
+
+/** Everything the Map renders, in one read (MapSummary). */
+export interface MapSummary {
+  project_key?: string;
+  files: number;
+  blocks: number;
+  rules: number;
+  /** Findings of the last whole-project checks run; null when none has run. */
+  findings: number | null;
+  checked_at?: string;
+  /** Files the block cache holds blocks for, and when the store sync last found it current. */
+  read_files: number;
+  read_at?: string;
+  suggested: number;
+  conflicts: number;
+  awaiting: number;
+  target_languages: string[];
+  file_rows: MapFileRow[];
+  suggestions: MapSuggestionRow[];
+}
+
 /** Outcome of adopting a user/ad-hoc flow into a project recipe. */
 export interface AdoptFlowResult {
   name: string;

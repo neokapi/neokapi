@@ -32,6 +32,7 @@ import type {
   DocumentRebase,
   ExtractResult,
   StoreSyncResult,
+  MapSummary,
   ConvergenceReport,
   ConvergePlan,
   RunError,
@@ -143,6 +144,8 @@ export const api = {
   getProjectStatus: (tabID: string) => call<ProjectStatus>("GetProjectStatus", tabID),
   runExtract: (tabID: string) => call<ExtractResult>("RunExtract", tabID),
   syncProjectStore: (tabID: string) => call<StoreSyncResult>("SyncProjectStore", tabID),
+  /** The Map of the tab's project: its counts, file rows and suggestions, in one read. */
+  mapSummary: (tabID: string) => call<MapSummary>("MapSummary", tabID),
   getConvergence: (tabID: string) => call<ConvergenceReport>("GetConvergence", tabID),
   getConvergePlan: (tabID: string) => call<ConvergePlan>("GetConvergePlan", tabID),
   getProjectServer: (tabID: string) => call<ProjectServer>("GetProjectServer", tabID),

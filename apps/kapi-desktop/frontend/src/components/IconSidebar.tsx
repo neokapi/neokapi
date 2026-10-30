@@ -7,9 +7,9 @@ import {
   Database,
   Wrench,
   FileText,
+  Map as MapIcon,
   Settings,
   SlidersHorizontal,
-  ShieldCheck,
 } from "lucide-react";
 import { SimpleTooltip } from "@neokapi/ui-primitives";
 
@@ -91,6 +91,15 @@ const projectItems: SidebarItem[] = [
   { type: "separator" },
   {
     type: "item",
+    view: "map",
+    icon: <MapIcon size={20} strokeWidth={SW} />,
+    label: "Map",
+    // The findings open from the Map's count, so the Checks page stays lit
+    // under it.
+    activeViews: ["checks"],
+  },
+  {
+    type: "item",
     view: "context",
     icon: <Compass size={20} strokeWidth={SW} />,
     label: "Context",
@@ -104,12 +113,6 @@ const projectItems: SidebarItem[] = [
     view: "project-home",
     icon: <FolderKanban size={20} strokeWidth={SW} />,
     label: "Project",
-  },
-  {
-    type: "item",
-    view: "checks",
-    icon: <ShieldCheck size={20} strokeWidth={SW} />,
-    label: "Checks",
   },
   {
     type: "item",

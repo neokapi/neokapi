@@ -11,6 +11,7 @@ import { ToolboxPage } from "./ToolboxPage";
 import { TermsPage } from "./TermsPage";
 import { MemoriesPage } from "./MemoriesPage";
 import { ChecksPanel } from "./ChecksPanel";
+import { MapPage } from "./MapPage";
 import { ContextHub, contextSectionOf, type ContextPin } from "./ContextHub";
 import { HistoryView } from "./HistoryView";
 import { ReviewPage, type ReviewScope } from "./ReviewPage";
@@ -155,11 +156,24 @@ export function ViewSwitch({
   // keys the hub so re-entering with a new pin resets it.
   const [contextPin, setContextPin] = useState<ContextPin | null>(null);
   const contextEntry = useRef(0);
+  // The Map's Decide opens the hub's Decide section, on the row it names when
+  // a suggestion's own Decide sent it there.
+  const [decideRow, setDecideRow] = useState<string | null>(null);
   const handleOpenContext = useCallback(
     (pin?: ContextPin) => {
       contextEntry.current += 1;
       setContextPin(pin ?? null);
+      setDecideRow(null);
       navigate("context");
+    },
+    [navigate],
+  );
+  const handleDecide = useCallback(
+    (rowKey?: string) => {
+      contextEntry.current += 1;
+      setContextPin(null);
+      setDecideRow(rowKey ?? null);
+      navigate("context:rules");
     },
     [navigate],
   );
@@ -304,6 +318,16 @@ export function ViewSwitch({
   // successful install remounts the view.
   const projectView = ((): ReactNode => {
     switch (route) {
+      case "map":
+        return (
+          <MapPage
+            tabID={tabID}
+            projectName={activeTab.info.name || history.project.name}
+            onDecide={handleDecide}
+            onNavigate={navigate}
+          />
+        );
+
       // `content` folds into the merged project home (issue #1068). Kept as an
       // alias so existing onNavigate("content") calls and saved deep links still
       // resolve to the collection-centric surface.
@@ -415,6 +439,7 @@ export function ViewSwitch({
             projectName={history.project.name}
             section={hubSection}
             pin={contextPin ?? undefined}
+            decideRow={decideRow ?? undefined}
             hasTargetLanguages={(history.project.defaults?.target_languages?.length ?? 0) > 0}
             contextOnly={activeTab.info.context_only}
           />

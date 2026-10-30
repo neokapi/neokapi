@@ -288,7 +288,7 @@ export function ContextDigestView({
         list={
           <>
             <DigestCaption digest={digest} since={since} />
-            <ListDetailList selectedId={selectedKey} onSelect={select} aria-label={t("What's new")}>
+            <ListDetailList selectedId={selectedKey} onSelect={select} aria-label={t("Decide")}>
               {inGroup("conflict").length > 0 && (
                 <ListDetailGroup
                   data-slot="digest-conflicts"

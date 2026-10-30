@@ -134,6 +134,7 @@ export const qk = {
   projectFilters: (tabID: string) => ["project-filters", tabID] as const,
   extractResult: (tabID: string) => ["extract-result", tabID] as const,
   storeSync: (tabID: string) => ["store-sync", tabID] as const,
+  mapSummary: (tabID: string) => ["map-summary", tabID] as const,
   checks: (tabID: string, filterID: string) => ["checks", tabID, filterID] as const,
   reviewQueue: (tabID: string) => ["review-queue", tabID] as const,
   reviewUnit: (tabID: string, locale: string, file: string, key: string) =>
