@@ -136,16 +136,16 @@ credential for attended work: Claude writes, kapi applies and checks.
 <details>
 <summary>Install the Agent Skill (Claude Code and any SKILL.md-aware tool)</summary>
 
-**Claude Code**: the plugin bundles the skill plus two hooks:
+**Claude Code**: the plugin bundles the skill, the hook above that runs the
+project gate, and a **PreToolUse hook**:
 
 ```text
 /plugin marketplace add neokapi/claude-plugins
 /plugin install kapi@neokapi-plugins
 ```
 
-The **Stop hook** is the one described above. The **PreToolUse hook** denies
-hand-edits to generated translation targets, steering changes through the
-source. Both are fail-open outside a project, and both follow one
+The PreToolUse hook denies hand-edits to generated translation targets,
+steering changes through the source. Both hooks are fail-open outside a project, and both follow one
 [decision protocol](#the-hook-decision-protocol). `kapi connect` reads the
 project's `.claude/settings.json` and `.claude/settings.local.json`, then your
 own Claude Code settings (`settings.json` in `$CLAUDE_CONFIG_DIR`, or in
