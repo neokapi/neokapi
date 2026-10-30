@@ -176,7 +176,12 @@ func TestEvaluateBlastRadiusBesideCharacterReferences(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			text := model.RunsText(tc.runs)
-			block := EvalBlock{BlockID: "b1", CollectionID: "c1", Text: text, Runs: tc.runs}
+			stored := &model.Block{ID: "b1"}
+			stored.SetSourceRuns(tc.runs)
+			block := EvalBlockFor(stored, "c1", "c1")
+			if block.Text != text || block.Runs == nil {
+				t.Fatalf("EvalBlockFor = %+v, want the text and the runs that hold a reference", block)
+			}
 			br := EvaluateBlastRadius([]EvalBlock{block}, nil, referenceRules)
 			if want := len(MatchTermRulesInRuns(referenceRules, text, tc.runs)); want != tc.violations {
 				t.Fatalf("core/profile finds %d hits, the case expects %d", want, tc.violations)
@@ -188,5 +193,13 @@ func TestEvaluateBlastRadiusBesideCharacterReferences(t *testing.T) {
 				t.Errorf("PrescribedBlocks = %d, want %d", br.PrescribedBlocks, tc.prescribed)
 			}
 		})
+	}
+
+	// Runs that hold no reference change nothing a search finds, so the
+	// projection keeps the text alone.
+	plain := &model.Block{ID: "b2"}
+	plain.SetSourceRuns([]model.Run{model.TextR("We "), model.TextR("utilize it")})
+	if got := EvalBlockFor(plain, "c1", "c1"); got.Runs != nil || got.Text != "We utilize it" {
+		t.Errorf("EvalBlockFor = %+v, want the text and no runs", got)
 	}
 }

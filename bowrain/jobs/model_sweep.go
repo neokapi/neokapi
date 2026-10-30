@@ -128,7 +128,7 @@ func (c *SweepContext) Empty() bool {
 //   - terms traps: the source contains a terms store source term, so the
 //     mandated rendering is checkable in the target (term-check);
 //   - voice traps: the source tempts a forbidden/competitor word rule the
-//     profile carries (coreprofile.MatchCarriedTerms against the source: a
+//     profile carries (coreprofile.MatchTermRulesInRuns against the source: a
 //     model that carries the term over is non-compliant) or matches a
 //     mechanical prohibited style pattern;
 //   - dnt traps: the source carries a do-not-translate term whose verbatim
@@ -156,13 +156,17 @@ func DeriveSweepFixtures(blocks []*venue.StoredBlock, sc *SweepContext) []SweepF
 	}
 	sort.Strings(ruledTerms)
 
-	classify := func(text string) string {
+	// A block's terms are looked for as `kapi check` looks for them: in its
+	// search text, where a character reference stands for its character.
+	classify := func(b *model.Block) string {
+		text, runs := b.SourceText(), b.SourceRuns()
+		search := coreprofile.NewSearchText(text, runs).Text
 		switch {
-		case containsAnyTerm(text, ruledTerms):
+		case containsAnyTerm(search, ruledTerms):
 			return "terms"
-		case isVoiceTrap(text, sc.Profile):
+		case isVoiceTrap(text, runs, sc.Profile):
 			return "voice"
-		case containsAnyTerm(text, sc.DNT):
+		case containsAnyTerm(search, sc.DNT):
 			return "dnt"
 		}
 		return ""
@@ -178,7 +182,7 @@ func DeriveSweepFixtures(blocks []*venue.StoredBlock, sc *SweepContext) []SweepF
 		if strings.TrimSpace(text) == "" || len(text) > sweepMaxSourceLen {
 			continue
 		}
-		trap := classify(text)
+		trap := classify(sb.Block)
 		if trap == "" || counts[trap] >= quota[trap] {
 			continue
 		}
@@ -203,7 +207,7 @@ func DeriveSweepFixtures(blocks []*venue.StoredBlock, sc *SweepContext) []SweepF
 		if strings.TrimSpace(text) == "" || len(text) > sweepMaxSourceLen {
 			continue
 		}
-		trap := classify(text)
+		trap := classify(sb.Block)
 		if trap == "" {
 			continue
 		}
@@ -227,15 +231,17 @@ func containsAnyTerm(text string, terms []string) bool {
 	return false
 }
 
-// isVoiceTrap reports whether the source text tempts a word rule the profile
-// carries (a forbidden/competitor term present in the source is likely to be
-// carried into a target unless steered) or matches a mechanical prohibited
-// style pattern: what the voice score sweepVoiceAdherent applies can see.
-func isVoiceTrap(text string, profile *coreprofile.VoiceProfile) bool {
+// isVoiceTrap reports whether a block's source text, flattened from runs,
+// tempts a word rule the profile carries (a forbidden/competitor term present
+// in the source is likely to be carried into a target unless steered) or
+// matches a mechanical prohibited style pattern: what the voice score
+// sweepVoiceAdherent applies can see.
+func isVoiceTrap(text string, runs []model.Run, profile *coreprofile.VoiceProfile) bool {
 	if profile == nil {
 		return false
 	}
-	return len(coreprofile.MatchCarriedTerms(profile, text)) > 0 || len(coreprofile.MatchPatterns(profile, text)) > 0
+	return len(coreprofile.MatchTermRulesInRuns(coreprofile.CarriedRuleSets(profile), text, runs)) > 0 ||
+		len(coreprofile.MatchPatterns(profile, text)) > 0
 }
 
 // SweepFixtureDigest keys sweep results to exactly what was measured: the
@@ -372,7 +378,8 @@ func sweepVoiceAdherent(target string, profile *coreprofile.VoiceProfile) bool {
 	if profile == nil {
 		return true
 	}
-	findings := coreprofile.Findings(profile, target, []model.Run{{Text: &model.TextRun{Text: target}}})
+	// A model's output is text alone, so it is matched as plain text.
+	findings := coreprofile.Findings(profile, target, nil)
 	return coreprofile.CalculateScore(findings).Overall >= profile.ComplianceBar()
 }
 

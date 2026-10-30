@@ -509,9 +509,8 @@ func (s *Server) HandleCheckVoiceDraft(c echo.Context) error {
 	// Unicode-aware matching of the workspace's word rules and the draft's
 	// proposed ones, plus prohibited style patterns, anchored to a single text
 	// run.
-	runs := []model.Run{{Text: &model.TextRun{Text: req.Text}}}
 	draft := req.Profile.Carry("draft", req.TermRules)
-	findings, err := s.voiceGateFindings(c.Request().Context(), c.Param("ws"), draft, "", req.Text, runs)
+	findings, err := s.voiceGateFindings(c.Request().Context(), c.Param("ws"), draft, "", req.Text)
 	if err != nil {
 		return serverErr(c, err)
 	}

@@ -28,13 +28,16 @@ func (s *Server) workspaceWordRules(ctx context.Context, wsSlug string, loc mode
 
 // voiceGateFindings is what the deterministic voice gate raises on text under
 // profile: the workspace's word rules and any the profile's file carries, then
-// the profile's patterns.
-func (s *Server) voiceGateFindings(ctx context.Context, wsSlug string, profile *coreprofile.VoiceProfile, loc model.LocaleID, text string, runs []model.Run) ([]coreprofile.VoiceFinding, error) {
+// the profile's patterns. A request carries text and no runs, so the word
+// rules are matched as plain text (coreprofile.MatchTermRulesInText) and each
+// finding is anchored to one text run over the text.
+func (s *Server) voiceGateFindings(ctx context.Context, wsSlug string, profile *coreprofile.VoiceProfile, loc model.LocaleID, text string) ([]coreprofile.VoiceFinding, error) {
 	rules, err := s.workspaceWordRules(ctx, wsSlug, loc)
 	if err != nil {
 		return nil, err
 	}
 	sets := append(voicescope.WordRuleSets(rules), coreprofile.CarriedRuleSets(profile)...)
-	findings := coreprofile.HitsToFindings(coreprofile.MatchTermRules(sets, text), text, runs)
+	runs := []model.Run{{Text: &model.TextRun{Text: text}}}
+	findings := coreprofile.HitsToFindings(coreprofile.MatchTermRulesInText(sets, text), text, runs)
 	return append(findings, coreprofile.PatternFindings(profile, text, runs)...), nil
 }

@@ -187,9 +187,11 @@ func (s *MCPServer) handleEvaluateRule(ctx context.Context, req *mcp.CallToolReq
 	baseline := voicescope.WordRuleSets(rules)
 	candidate := coreprofile.CandidateWithRule(baseline, coreprofile.SuggestedRule{Term: input.Term, Replacement: input.Replacement})
 	// Walked a batch at a time, projecting as it goes: the evaluation wants an
-	// id, a name and the source text, and holding the stored blocks those came
-	// from — runs, every target, properties, annotations — alongside the
-	// projection meant paying for the corpus twice to look at part of it once.
+	// id, a name, the source text and, where they hold a character reference,
+	// the source runs (coreprofile.EvalBlockFor). Holding the stored blocks
+	// those came from (runs, every target, properties, annotations) alongside
+	// the projection meant paying for the corpus twice to look at part of it
+	// once.
 	var blocks []coreprofile.EvalBlock
 	err = store.EachBlockBatch(ctx, s.contentStore,
 		store.BlockQuery{ProjectID: projectID, Stream: input.Stream},
@@ -199,12 +201,7 @@ func (s *MCPServer) handleEvaluateRule(ctx context.Context, req *mcp.CallToolReq
 				if sb == nil || sb.Block == nil {
 					continue
 				}
-				blocks = append(blocks, coreprofile.EvalBlock{
-					BlockID:        sb.Block.ID,
-					CollectionID:   sb.ItemName,
-					CollectionName: sb.ItemName,
-					Text:           sb.Block.SourceText(),
-				})
+				blocks = append(blocks, coreprofile.EvalBlockFor(sb.Block, sb.ItemName, sb.ItemName))
 			}
 			return nil
 		})

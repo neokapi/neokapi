@@ -221,8 +221,7 @@ func (s *Server) recheckConceptViolations(ctx context.Context, wsID, conceptID, 
 // newly promoted forbidden term, scoped to that term so an existing target that
 // only tripped an OLDER rule is not swept up. The oracle is the workspace terms
 // store's word rule for the term, in whatever language the store holds it,
-// matched by core/profile.MatchTermRules (the matcher the voice gate and the
-// blast radius both call).
+// matched through the target's runs (targetUsesRules).
 func (s *Server) recheckRuleViolations(ctx context.Context, wsID, profileID, term, actor string) error {
 	lowerTerm := strings.ToLower(strings.TrimSpace(term))
 	if lowerTerm == "" {
@@ -243,9 +242,17 @@ func (s *Server) recheckRuleViolations(ctx context.Context, wsID, profileID, ter
 	}
 	sets := voicescope.WordRuleSets(promoted)
 	violates := func(sb *venue.StoredBlock, _, tgtLoc model.LocaleID) bool {
-		return len(coreprofile.MatchTermRules(sets, sb.Block.TargetText(tgtLoc))) > 0
+		return targetUsesRules(sets, sb.Block, tgtLoc)
 	}
 	return s.recheckWorkspaceTargets(ctx, wsID, "rule:"+profileID+":"+lowerTerm, violates, actor)
+}
+
+// targetUsesRules reports whether the block's target in tgtLoc uses a term the
+// rule sets name, found through the target's runs as `kapi check` finds it
+// (core/profile.MatchTermRulesInRuns). A term a character reference spells an
+// edge of is a use too.
+func targetUsesRules(sets []coreprofile.TermRuleSet, b *model.Block, tgtLoc model.LocaleID) bool {
+	return len(coreprofile.MatchTermRulesInRuns(sets, b.TargetText(tgtLoc), b.TargetRuns(tgtLoc))) > 0
 }
 
 // recheckWorkspaceTargets walks the governed projects of one workspace and

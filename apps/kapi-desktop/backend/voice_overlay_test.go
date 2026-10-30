@@ -2,10 +2,12 @@ package backend
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/terms"
 )
 
 func TestVoiceOverlay_ContainmentSuppression(t *testing.T) {
@@ -38,6 +40,48 @@ func TestVoiceOverlay_CarriedTerms(t *testing.T) {
 	}
 	if got := ov.Spans[0].Props["kind"]; got != "competitor" {
 		t.Fatalf("kind = %q, want competitor", got)
+	}
+}
+
+// The term overlay asks the terms store about the search text, so a term
+// beside a character reference is found and anchored in its own text run, and
+// a term a reference spells an edge of carries the page's spelling.
+func TestTermOverlay_CharacterReferences(t *testing.T) {
+	ctx := t.Context()
+	store := terms.NewInMemoryStore(terms.WithMaxConcepts(0))
+	for id, text := range map[string]string{"c1": "utilize", "c2": "next", "c3": "café"} {
+		if err := store.AddConcept(ctx, terms.Concept{ID: id, Terms: []terms.Term{{Text: text, Locale: "en", Status: model.TermApproved}}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cases := []struct {
+		name    string
+		runs    []model.Run
+		term    string
+		spelled string
+	}{
+		{"before a reference", []model.Run{model.TextR("utilize"), entityRun("1", "&amp;"), model.TextR("more")}, "utilize", ""},
+		{"after a reference", []model.Run{model.TextR("word"), entityRun("1", "&nbsp;"), model.TextR("next")}, "next", ""},
+		{"between references", []model.Run{entityRun("1", "&amp;"), model.TextR("utilize"), entityRun("2", "&nbsp;")}, "utilize", ""},
+		{"a reference spells the last letter", []model.Run{model.TextR("caf"), entityRun("1", "&eacute;")}, "café", "café"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ov := termOverlay(ctx, store, tc.runs, model.RunsText(tc.runs), "en", "")
+			if ov == nil || len(ov.Spans) != 1 {
+				t.Fatalf("want one span, got %+v", ov)
+			}
+			span := ov.Spans[0]
+			if span.Props["term"] != tc.term || span.Props["spelled"] != tc.spelled {
+				t.Fatalf("span props = %v, want term %q spelled %q", span.Props, tc.term, tc.spelled)
+			}
+			if tc.spelled == "" {
+				start := strings.Index(model.RunsText(tc.runs), tc.term)
+				if want := model.RangeAnchorForBytes(tc.runs, start, start+len(tc.term)); !reflect.DeepEqual(span.Range, want) {
+					t.Fatalf("span range = %+v, want %+v", span.Range, want)
+				}
+			}
+		})
 	}
 }
 

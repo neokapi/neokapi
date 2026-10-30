@@ -16,16 +16,26 @@ type EvalBlock struct {
 	CollectionID   string
 	CollectionName string
 	Text           string
-	// Runs are the runs Text flattens from. With none, Text is matched as
-	// plain text (MatchTermRulesInText).
+	// Runs are the runs Text flattens from, needed only when they hold a
+	// character reference (EvalBlockFor keeps them then and only then).
 	Runs []model.Run
 }
 
-// hits matches the rule sets in the block, through its runs when it has them.
-func (b EvalBlock) hits(sets []TermRuleSet) []VocabHit {
-	if b.Runs == nil {
-		return MatchTermRulesInText(sets, b.Text)
+// EvalBlockFor projects a block onto what the evaluator scores: its id, the
+// collection given, its source text, and its source runs when they hold a
+// character reference. A caller collecting a whole project keeps the runs
+// only where they change what a term search finds.
+func EvalBlockFor(b *model.Block, collectionID, collectionName string) EvalBlock {
+	eb := EvalBlock{BlockID: b.ID, CollectionID: collectionID, CollectionName: collectionName, Text: b.SourceText()}
+	if runs := b.SourceRuns(); hasEntityCode(runs) {
+		eb.Runs = runs
 	}
+	return eb
+}
+
+// hits matches the rule sets in the block's text through its runs, as `kapi
+// check` matches them.
+func (b EvalBlock) hits(sets []TermRuleSet) []VocabHit {
 	return MatchTermRulesInRuns(sets, b.Text, b.Runs)
 }
 

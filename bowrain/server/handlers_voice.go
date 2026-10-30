@@ -475,8 +475,7 @@ func (s *Server) HandleCheckVoice(c echo.Context) error {
 	// The request carries a whole text rather than one block of one, so the
 	// document-scope rules apply too (profile.DocumentFindings): the required
 	// patterns this endpoint's own profile card counts as rules.
-	runs := []model.Run{{Text: &model.TextRun{Text: req.Text}}}
-	findings, err := s.voiceGateFindings(ctx, c.Param("ws"), profile, model.LocaleID(req.Locale), req.Text, runs)
+	findings, err := s.voiceGateFindings(ctx, c.Param("ws"), profile, model.LocaleID(req.Locale), req.Text)
 	if err != nil {
 		return serverErr(c, err)
 	}

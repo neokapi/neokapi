@@ -42,11 +42,7 @@ func persistDraftVoiceScores(ctx context.Context, deps *WorkerDeps, job *Transla
 		if text == "" {
 			continue
 		}
-		// Anchor findings to a single synthetic text run over the checked text,
-		// exactly like the HTTP check surfaces (HandleCheckVoice).
-		runs := []model.Run{{Text: &model.TextRun{Text: text}}}
-		findings := coreprofile.HitsToFindings(coreprofile.MatchTermRules(sets, text), text, runs)
-		findings = append(findings, coreprofile.PatternFindings(profile, text, runs)...)
+		findings := draftVoiceFindings(sets, profile, text, b.TargetRuns(locale))
 		score := coreprofile.CalculateScore(findings)
 		err := deps.VoiceStore.StoreScore(ctx, &coreprofile.StoredScore{
 			ProjectID:      job.ProjectID,
@@ -70,4 +66,16 @@ func persistDraftVoiceScores(ctx context.Context, deps *WorkerDeps, job *Transla
 		slog.DebugContext(ctx, "persisted draft voice scores",
 			"job_id", job.ID, "locale", string(locale), "blocks", stored)
 	}
+}
+
+// draftVoiceFindings is what the deterministic gate raises on a draft target:
+// the word rules found through the target's runs, as `kapi check` finds them,
+// then the profile's patterns, each anchored to the runs. A target held as
+// text alone is anchored to one text run over it.
+func draftVoiceFindings(sets []coreprofile.TermRuleSet, profile *coreprofile.VoiceProfile, text string, runs []model.Run) []coreprofile.VoiceFinding {
+	if len(runs) == 0 {
+		runs = []model.Run{{Text: &model.TextRun{Text: text}}}
+	}
+	findings := coreprofile.HitsToFindings(coreprofile.MatchTermRulesInRuns(sets, text, runs), text, runs)
+	return append(findings, coreprofile.PatternFindings(profile, text, runs)...)
 }

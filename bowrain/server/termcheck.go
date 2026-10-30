@@ -85,8 +85,8 @@ func blockTermComplianceWith(ctx context.Context, block *model.Block, srcLoc, tg
 	}
 	// PRESENCE (voice profile): a forbidden/competitor rule or a prohibited style
 	// pattern matches the target. core/profile.Findings is the canonical
-	// deterministic gate.
-	if profile != nil && len(coreprofile.Findings(profile, targetText, nil)) > 0 {
+	// deterministic gate, and reads the target's runs as `kapi check` does.
+	if profile != nil && len(coreprofile.Findings(profile, targetText, block.TargetRuns(tgtLoc))) > 0 {
 		return store.TermComplianceViolation
 	}
 	// ABSENCE (terms and the recipe's rules): the source uses a concept or a

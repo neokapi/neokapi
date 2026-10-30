@@ -180,7 +180,7 @@ func PatternHitsToFindings(hits []PatternHit, text string, runs []model.Run) []V
 // Findings is a voice file's deterministic gate at BLOCK scope: the word rules
 // the file carries plus the voice's prohibited style patterns, mapped onto
 // findings in that order. runs anchors the findings' positions; pass nil for
-// plain text.
+// plain text, whose word rules are then matched by [MatchTermRulesInText].
 //
 // Every surface that reports what a profile says about a piece of text calls
 // this rather than assembling the two matchers itself, so no surface can enforce
@@ -189,7 +189,11 @@ func PatternHitsToFindings(hits []PatternHit, text string, runs []model.Run) []V
 // The required patterns are not here, and the omission is the rule's semantics
 // rather than a gap: see [DocumentFindings].
 func Findings(p *VoiceProfile, text string, runs []model.Run) []VoiceFinding {
-	findings := HitsToFindings(MatchTermRulesInRuns(CarriedRuleSets(p), text, runs), text, runs)
+	hits := MatchTermRulesInText(CarriedRuleSets(p), text)
+	if runs != nil {
+		hits = MatchTermRulesInRuns(CarriedRuleSets(p), text, runs)
+	}
+	findings := HitsToFindings(hits, text, runs)
 	return append(findings, PatternFindings(p, text, runs)...)
 }
 

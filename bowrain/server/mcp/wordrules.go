@@ -38,13 +38,16 @@ func (s *MCPServer) wordRuleSets(ctx context.Context, profile *coreprofile.Voice
 }
 
 // voiceFindings is what the deterministic gate raises on text under profile:
-// the word rules wordRuleSets gathers, then the profile's patterns.
+// the word rules wordRuleSets gathers, then the profile's patterns. A tool
+// call carries text and no runs, so the word rules are matched as plain text
+// (coreprofile.MatchTermRulesInText) and each finding is anchored to one text
+// run over the text.
 func (s *MCPServer) voiceFindings(ctx context.Context, profile *coreprofile.VoiceProfile, loc model.LocaleID, text string) ([]coreprofile.VoiceFinding, error) {
 	sets, err := s.wordRuleSets(ctx, profile, loc)
 	if err != nil {
 		return nil, err
 	}
 	runs := []model.Run{{Text: &model.TextRun{Text: text}}}
-	findings := coreprofile.HitsToFindings(coreprofile.MatchTermRules(sets, text), text, runs)
+	findings := coreprofile.HitsToFindings(coreprofile.MatchTermRulesInText(sets, text), text, runs)
 	return append(findings, coreprofile.PatternFindings(profile, text, runs)...), nil
 }

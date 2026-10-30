@@ -175,8 +175,11 @@ func (t *VoiceVocabCheckTool) Canaries(ctx context.Context) (canaries []check.Ca
 	if p := t.profile; p != nil {
 		add := func(name string, texts ...string) bool {
 			for _, text := range texts {
-				if text != "" && len(coreprofile.Findings(p, text, nil)) > 0 {
-					canaries = append(canaries, check.Canary{Name: name, Block: check.CanaryBlock(text)})
+				if text == "" {
+					continue
+				}
+				if block := check.CanaryBlock(text); len(coreprofile.Findings(p, text, block.SourceRuns())) > 0 {
+					canaries = append(canaries, check.Canary{Name: name, Block: block})
 					return true
 				}
 			}
