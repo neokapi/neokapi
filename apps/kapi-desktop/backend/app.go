@@ -145,6 +145,10 @@ type App struct {
 	// user's configured default, identical to the CLI.
 	aiConfig *appconfig.AppConfig
 
+	// lookModels keeps whether a model is connected for the deeper look, so
+	// showing the Map reads no saved key from the keychain (lookmodel.go).
+	lookModels lookModelCache
+
 	// eventSink, when non-nil, receives every emitted event in addition to the
 	// Wails app. The recording wbridge (cmd/wbridge) sets this to stream events
 	// to the browser over SSE, since a plain browser has no Wails event channel.

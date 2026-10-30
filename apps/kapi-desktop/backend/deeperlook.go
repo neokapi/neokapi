@@ -56,18 +56,15 @@ func (a *App) deeperLookApp() *host.App {
 }
 
 // DeeperLookModel names the model a deeper look of the tab would ask, and
-// whether there is one. It asks no model.
+// whether there is one. It asks no model, and answers from the session's kept
+// answer when there is one (lookmodel.go).
 func (a *App) DeeperLookModel(tabID string) (*DeeperLookModelDTO, error) {
 	op := a.getOpenProject(tabID)
 	if op == nil {
 		return nil, fmt.Errorf("project tab %q not found", tabID)
 	}
-	run := &host.App{Credentials: a.credentials, Config: a.aiConfig}
-	provider, model, err := run.ResolveDeeperLookModel(op.Project)
-	if err != nil {
-		return &DeeperLookModelDTO{}, nil //nolint:nilerr // no model to ask is the answer, not a failure
-	}
-	return &DeeperLookModelDTO{Connected: true, Provider: provider, Model: model}, nil
+	model := a.lookModel(op.Project)
+	return &model, nil
 }
 
 // DeeperLook reads the tab's source blocks with the connected model and files
@@ -85,6 +82,9 @@ func (a *App) DeeperLook(tabID string) (*DeeperLookDTO, error) {
 	// recipe gets one only for a run that will ask a model.
 	run := a.deeperLookApp()
 	if _, _, err := run.ResolveDeeperLookModel(op.Project); err != nil {
+		// The Map asks again when this refusal reaches it, and the answer
+		// it then gets is read from the keychain.
+		a.forgetLookModels()
 		return nil, err
 	}
 	if err := a.ensureRecipe(op); err != nil {

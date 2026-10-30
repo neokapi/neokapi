@@ -114,6 +114,7 @@ func (a *App) SetDefaultModel(model, provider string) error {
 // writeDefaultModel persists ai.provider/ai.model to the global config file and
 // mirrors the values into the in-memory config the preprocessor reads.
 func (a *App) writeDefaultModel(provider, model string) error {
+	defer a.forgetLookModels()
 	if err := appconfig.SetGlobalConfig(appconfig.KeyAIProvider, provider); err != nil {
 		return fmt.Errorf("set %s: %w", appconfig.KeyAIProvider, err)
 	}
