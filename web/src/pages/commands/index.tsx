@@ -15,7 +15,7 @@ export default function Commands() {
   return (
     <Layout
       title="Command Reference"
-      description="Interactive reference for every kapi CLI command — synopsis, flags, and examples generated from the binary, with a live Run button for commands that work in the browser."
+      description="Interactive reference for every kapi CLI command: synopsis, flags, and examples generated from the binary, with a live Run button for commands that work in the browser."
     >
       <main className="container margin-vert--lg">
         <h1>Command Reference</h1>
@@ -24,9 +24,16 @@ export default function Commands() {
           the version you have installed. Select a command to read its description, flags, and
           examples. Commands that run entirely in the browser carry a <strong>Run</strong> button
           that executes them against a small sample file. AI and MT commands carry a{" "}
-          <strong>Demo</strong> badge and run via a built-in stub — the output is illustrative, not
-          from a real model. Commands that need network access, an API key, or local system access
-          point to a walkthrough instead. Each command has a shareable link.
+          <strong>Demo</strong> badge and run against a built-in stub, so their output is
+          illustrative rather than from a real model. Commands that need network access, an API key,
+          or local system access point to a walkthrough instead. Each command has a shareable link.
+        </p>
+        <p>
+          The groups are the ones the installed kapi prints in its help. Work and Assets are the
+          writing commands, and <code>kapi --help</code> shows them in every project. Languages
+          appears there when the recipe declares a target language, and{" "}
+          <code>kapi help languages</code> lists it in any project. Advanced is listed under{" "}
+          <code>kapi help --all</code>. Every command runs whether or not the default help lists it.
         </p>
 
         <CommandGrid commands={commands} />

@@ -1,6 +1,6 @@
 ---
 title: Add languages
-description: "Take a source-only project multilingual: declare target locales, run kapi up until every language clears its ship gate, and review what parks."
+description: "Take a source-only project multilingual: declare target locales, run kapi up until every language clears its ship gate, and review what it holds back."
 keywords: [kapi, target languages, multilingual, kapi up, ship gate, review, coverage]
 ---
 
@@ -12,11 +12,13 @@ import { PendingMedia } from "@neokapi/docs-shared";
 
 Going multilingual is one loop: declare the target locales, let `kapi up` catch every language up to its ship gate, review what needs a person, and gate the release on `kapi check --ship`. Translation drift never breaks a build; a language that is behind is pending work.
 
+In the installed kapi, declaring a target language in the recipe also adds the language commands (`translate`, `pseudo-translate`, `memory`) to `kapi --help`. Before that, `kapi help languages` lists them.
+
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
 
 1. **Add the locales.** In **Project Settings**, add the target languages you translate into (for example `fr`, `de`).
-2. **Bring up to date.** Back on the project view, the coverage panel now shows one row per locale against the ship gate. **Plan…** previews the pending work first: content-memory leverage, remaining AI work, a token estimate, nothing written. Then click **Bring up to date**; kapi runs the default flow over every locale that is short of its gate, looping until each scope ships or parks.
+2. **Bring up to date.** Back on the project view, the coverage panel now shows one row per locale against the ship gate. **Plan…** previews the pending work first: content-memory leverage, remaining AI work, a token estimate, nothing written. Then click **Bring up to date**; kapi runs the default flow over every locale that is short of its gate, looping until each scope ships or a gate holds it back for a person.
 3. **Review.** Click a ship-gate cell to open the **Review** queue for that locale: inspect each translation, edit if needed, approve or reject. Approvals raise the approved coverage that an `{ established: … }` gate measures; the recipe spells the approved rung `established`.
 
 <PendingMedia kind="video" scene="harness/demos/kapi-desktop-projects/demo.yaml">
@@ -31,7 +33,7 @@ Ask for the outcome:
 
 > Add French and German to this project and bring both up to date.
 
-Claude adds `target_languages` to the recipe, runs `kapi up`, reads `kapi status` for what parked, and walks you through the review worklist conversationally; you approve, it records the decisions with `kapi apply`. See [Use with Claude](/kapi/get-started/use-with-claude).
+Claude adds `target_languages` to the recipe, runs `kapi up`, reads `kapi status` for what is waiting for a person, and walks you through the review worklist conversationally; you approve, it records the decisions with `kapi apply`. See [Use with Claude](/kapi/get-started/use-with-claude).
 
 </TabItem>
 <TabItem value="cli" label="CLI">
@@ -62,7 +64,7 @@ every file an earlier entry claims.
 Then catch up, inspect, and gate:
 
 ```bash
-kapi up                  # run the default flow until every gated scope ships or parks
+kapi up                  # run the default flow; stop where a gate holds content back
 kapi status              # per-locale coverage and ship-gate standing (never fails)
 kapi status --review     # the worklist: translated blocks awaiting a person
 kapi check --ship        # enforce the gates: the pre-release bar, exit 3 when unmet

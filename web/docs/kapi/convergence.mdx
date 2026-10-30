@@ -291,7 +291,7 @@ translation as reference, offered only when the same governing context is in
 force. `reuse: none` turns that read off for a cheap run.
 
 ```bash
-kapi up                # loop the default flow until every gated scope ships or parks
+kapi up                # run the default flow; stop where a gate holds content back
 kapi up --plan         # dry run: pending work, content-memory leverage, and a token estimate per locale
 kapi up --passes 1     # a single pass over every locale that needs work
 kapi up --materialize  # also write the translated files for the shippable locales

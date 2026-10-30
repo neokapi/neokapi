@@ -1138,7 +1138,7 @@ const config: Config = {
             // lists them too. Plugins load on demand from the navbar status
             // widget.
             { label: "Learn kapi", to: "/learn" },
-            { label: "Start here: one language", to: "/learn/northsea-project" },
+            { label: "Start here: your writing", to: "/learn/northsea-project" },
             { label: "Add languages", to: "/learn/compass-axis" },
             { label: "The content engine", to: "/learn/mart-formats" },
             { type: "html", value: '<hr class="dropdown-separator">' },
@@ -1294,7 +1294,7 @@ const config: Config = {
           items: [
             {
               label: "Get started",
-              to: "/kapi/get-started/quickstart",
+              to: "/kapi/get-started/first-project",
             },
             {
               label: "Kapi",

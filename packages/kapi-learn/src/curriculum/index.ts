@@ -29,7 +29,7 @@ export type {
 export const SERIES: readonly Series[] = [
   {
     id: "start-here",
-    title: "Start here: one language",
+    title: "Start here: your writing",
     tagline: "Govern the content you already have.",
     description:
       "A company repository in one language: operator documentation, interface strings and a marketing page. Read the project's context in, ask what applies to a file, run the checks like tests, record a decision, and edit a block through the engine. No second language, no server, no credential.",

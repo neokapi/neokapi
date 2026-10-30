@@ -1,4 +1,4 @@
-// Series 1, "Start here": one language, in the Northsea sample.
+// Series 1, "Start here: your writing", in the Northsea sample.
 //
 // Northsea Maritime Systems keeps operator documentation, interface strings
 // and a marketing page in one repository, in one language. The four labs

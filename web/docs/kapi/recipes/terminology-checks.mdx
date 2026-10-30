@@ -1,9 +1,9 @@
 ---
 id: terminology-checks
 title: "Keep terms consistent"
-sidebar_label: "Terminology checks"
+sidebar_label: "Keep terms consistent"
 sidebar_position: 5
-description: "Import a term list, look up terms, and flag terminology drift, in source and in every translated file, before it ships."
+description: "Keep a project's key terms consistent: fail a source file that uses a forbidden term, then import a term list and flag terminology drift in every translated file."
 hide_table_of_contents: true
 ---
 
@@ -20,7 +20,7 @@ settings,paramètres,ui`;
 
 # Keep terms consistent
 
-**Goal:** decide once how your key terms carry across languages (product names, UI actions, the words your domain depends on) and have kapi flag anything that drifts before it ships. The same terms store guides translation up front and validates it after. Concepts: [Terminology](/framework/terminology); storage models: [Memory & terms storage](/kapi/recipes/memory-and-terms-storage).
+**Goal:** decide once which words your project uses for its key terms (product names, UI actions, the words your domain depends on) and have kapi flag anything that drifts. In a project with one language, the terms store holds the word to use and the words to avoid, and `kapi check` fails a source file that uses a forbidden term, under the rule `terms.vocabulary`; a term marked advisory reports the use without failing. When the recipe declares a target language, the same terms store also says how each term carries into that language: it guides translation up front and validates it after, which is what most of this page covers. Concepts: [Terminology](/framework/terminology); storage models: [Memory & terms storage](/kapi/recipes/memory-and-terms-storage).
 
 kapi keeps terms in a [terms bundle](/reference/serialization/terms) (`terms.json`). To bring in a list your team already maintains elsewhere, import it across the boundary, a spreadsheet exported to CSV for example:
 

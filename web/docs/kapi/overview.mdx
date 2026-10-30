@@ -1,91 +1,103 @@
 ---
 sidebar_position: 0
 title: kapi
-description: "Edit and check the content in your project. kapi reads existing files, resolves applicable terms and writing guidance, and reports findings from configured checks."
-keywords: [kapi, kapi CLI, kapi desktop, content engine, context, agent skill, MCP, checks, overview]
+description: "kapi reads your project's files, holds the rules the project keeps, tells a person or an agent what applies before they write, and fails kapi check on a failing finding. It works in a project with one language."
+keywords: [kapi, writing rules, terms, voice profile, kapi context, kapi check, agent, AGENTS.md, CLAUDE.md, Kapi Desktop, overview]
 ---
 
-# Edit and check the content in your project
+# Keep your writing consistent, and check every edit
 
-kapi reads your existing files, resolves the terms and writing guidance that
-apply, and reports findings from the checks you configure. It is built on the
-open [neokapi content engine](/framework/architecture).
+A help article, an API reference and a release note should use the same words,
+whoever writes them. kapi reads the files in your project and holds the rules
+the project keeps: its terms, its voice, and the suggestions a person decided to
+keep. Before you or an agent writes, `kapi context <path>` says what applies to
+that file. After the edit, `kapi check` fails when a finding fails. None of it
+needs linguistic training, and all of it works in a project with one language.
 
 [Start a project](/kapi/get-started/first-project) or
 [use kapi with your agent](/kapi/get-started/use-with-claude).
 
-## Start with one language
+## See what applies
 
-A help article and an API reference can describe the same feature with
-different terms. Bind each collection to its writing guidance, inspect what
-applies to a file, then edit the content and run the configured checks.
+`kapi context <path>` prints the rules that apply to one file: the voice, the
+words to use and to avoid, and what has been suggested but not yet decided.
+`kapi init` also writes these rules into a section of `AGENTS.md` and
+`CLAUDE.md`, which an agent loads as it starts, and kapi rewrites that section
+when the rules change. In Kapi Desktop, a project's **Context** pages show the
+same rules: **What's new**, **Ask** for one file, **Voice** and **Terms**. See
+[Context](/kapi/context).
 
-The [first-project walkthrough](/kapi/get-started/first-project) uses an existing
-repository. You can inspect the file diff and each reported finding before
-accepting an edit. Supported formats have different preservation properties;
-see the [format evidence](/format-maturity) for the formats you use.
+## Decide what becomes a rule
 
-## Understand a check result
+An agent records what it notices with `kapi context note`, such as how the
+project spells its product or a wording you changed in its draft. Each note
+arrives as a suggestion. Checks report a suggestion and never fail on it. A
+person decides with `kapi context review`, or with **Keep**, **Change** and
+**Drop** under **What's new** in the desktop, and a suggestion that person
+keeps becomes a rule that fails a check.
 
-A missing placeholder or a prohibited term can be checked against an explicit
-rule. A passing gate means those configured checks met their thresholds.
-Factual accuracy and overall writing quality need their own analysis and
-review; an absence of rule findings does not establish either.
+The **terms store** holds the word rules: a term, what to use instead, and the
+concepts the project agrees on. The **voice profile** holds tone, style
+measures and pattern rules, and the recipe binds it with `defaults.voice`. A
+rule kept with `--advisory` reports its findings and never fails a check. See
+[Growing context](/kapi/context-decisions).
 
-Inspect the [available checks](/framework/checks) and choose which should block
-your workflow. People and agents can read the applicable guidance before
-writing, then use findings to locate and repair specific issues.
+## Check every edit
 
-## Add languages when needed
+`kapi check <file>` runs the configured checks and prints each finding with
+its rule id. It exits `3` when a finding fails, so the same command gates CI,
+and `kapi check --ship` enforces the project's release policy. The kapi plugin
+for Claude Code adds a Stop hook that runs `kapi check --ship` when the agent
+tries to finish and keeps it working while a gate fails.
 
-Use `kapi up` to draft changed content, reuse content memory and collect work
-that needs a person. Review and approve changes in the desktop app, and run
-configured gates in CI. A project with one source language can use the same
-project guidance and checks.
+A passing check means the configured checks met their thresholds. Factual
+accuracy and overall quality need their own review. See
+[Check content like tests](/kapi/recipes/verify-content) and the
+[check reference](/reference/checks).
+
+## Add languages when you need them
+
+Add a target language to the recipe when the project needs one. `kapi up` then
+translates changed content into each language, reuses earlier translations
+from the content memory, and holds back what needs a person for review.
+`kapi translate` translates a single file. See
+[Add languages](/kapi/get-started/add-languages) and
+[the kapi loop](/kapi/convergence).
+
+In the installed kapi, the language commands appear in `kapi --help` once the
+recipe declares a target language. Before that, `kapi help languages` lists
+them.
+
+## The engine underneath
+
+kapi runs on the open neokapi content engine. Format readers extract each file
+into blocks, tools process the blocks, flows chain tools, and format writers
+put the edits back with the structure around the text kept. Formats differ in
+what they preserve; the [format evidence](/format-maturity) shows what holds
+for each. `kapi help --all` lists every command, including the engine's. See
+[Framework](/framework/architecture).
 
 ## Three ways to run it
 
-kapi is available through the CLI, an agent skill, an MCP server and the desktop app.
-These surfaces use the same **engine, tools, flows, and
-[kapi projects](/reference/project-file)**, so a workflow built in one runs in
-the others:
+The CLI, your agent and Kapi Desktop work on the same
+[kapi projects](/reference/project-file), so a rule kept in one holds in the
+others:
 
-- **Kapi CLI**: a single binary that operates directly on files. Best for
-  automation, scripting, and CI.
-- **Your AI agent**: kapi writes the project's rules into `AGENTS.md` and
-  `CLAUDE.md`, which the agent loads as it starts, and the agent skill and the
-  MCP server let whichever AI you already use (Claude, or any skill/MCP-capable
-  tool) drive kapi by plain language inside its guardrails. See
-  [Use with Claude](/kapi/get-started/use-with-claude).
-- **Kapi Desktop**: a visual app where you read what your projects write by,
-  keep, change or drop what your assistants noticed, connect an assistant, and
-  see whether a project's context stays on this Mac or is shared with your
-  team. The project's files, checks and review queue sit beside it. No YAML, no
-  flags. See the [Kapi Desktop overview](/kapi/desktop/overview).
-
-Not sure which fits? See **[Kapi CLI or Kapi Desktop?](/kapi/get-started/cli-vs-desktop)**
-
-## How you'll work
-
-You drive Kapi either **ad-hoc** (one-off, on files you name) or as a **project**
-(a `kapi.yaml` recipe plus a store that remembers your work): the same
-commands, a different binding. See
-**[Projects](/kapi/projects)**.
-
-From there it's task by task: the [Kapi CLI guides](/kapi/cli) walk preparing your
-source and going multilingual, and [Kapi Desktop](/kapi/desktop/overview) does the
-same work visually.
+- **Kapi CLI**: one binary that operates on files, for scripts and CI.
+- **Your agent**: `kapi init` writes the rules into `AGENTS.md` and
+  `CLAUDE.md`, adds the kapi skill and an MCP server entry, so the agent you
+  already use reads the rules and runs the checks. See
+  [Use with your agent](/kapi/get-started/use-with-claude).
+- **Kapi Desktop**: an app where you read the rules a project keeps, decide
+  about what your assistants noticed, and check the project's files, with no
+  YAML and no flags. See the [Kapi Desktop overview](/kapi/desktop/overview)
+  and [CLI or Desktop?](/kapi/get-started/cli-vs-desktop)
 
 ## Next
 
-- **[Context](/kapi/context)**: the model kapi holds; where a piece of content
-  sits, and what governs that place.
 - **[Installation](/kapi/get-started/installation)**: the CLI (Homebrew or
   download) and Kapi Desktop (macOS cask).
-- **[Learn kapi](/learn)**: eleven short labs that run the real engine in your
-  browser on a sample company's files, from the first check to a review that
-  releases a language. No install.
-- **[Quick Start](/kapi/get-started/quickstart)**: do something in your browser,
-  no install.
-- **[Use Kapi with your AI agent](/kapi/get-started/use-with-claude)**: wire it
-  into Claude, Cursor, and more.
+- **[Learn kapi](/learn)**: short labs that run the real engine in your
+  browser on a sample company's files. No install.
+- **[Try it in your browser](/kapi/get-started/quickstart)**: engine
+  demonstrations you run without installing anything.
