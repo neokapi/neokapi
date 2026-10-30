@@ -262,17 +262,25 @@ func (p valuePlan) render(spelling valueSpelling, escapeSlashes bool) []byte {
 	return []byte(b.String())
 }
 
+// maxHeldOutput is the most output a valueWriter holds behind a value that
+// waits on the document's spelling. Past it the held values are rendered with
+// the counts so far and the rest of the document streams, so a write holds a
+// bounded window of a large document whatever the edit adds.
+const maxHeldOutput = 1 << 20
+
 // valueWriter writes a document from its skeleton entries and counts its
 // spelling on the way. A value whose added characters wait on the counts of
 // the whole document is held, with every byte written after it, until the
-// last entry is counted (finish). A document no such edit touches is written
-// as its entries arrive.
+// last entry is counted (finish) or maxHeldOutput is held, whichever comes
+// first. A document no such edit touches is written as its entries arrive.
 type valueWriter struct {
 	out           io.Writer
 	escapeSlashes bool
 	spelling      valueSpelling
 	holding       bool
 	held          []heldPart
+	// heldSize is the bytes held, a waiting value counted by its characters.
+	heldSize int
 }
 
 // heldPart is output held until the document's spelling is known: bytes, or a
@@ -306,7 +314,7 @@ func (v *valueWriter) value(read valueAsRead, text string, quote byte) error {
 			if p.waits() {
 				v.holding = true
 				v.held = append(v.held, heldPart{plan: &p})
-				return nil
+				return v.hold(len(p.units) + len(p.edited))
 			}
 			return v.write(p.render(v.spelling, v.escapeSlashes))
 		}
@@ -318,14 +326,24 @@ func (v *valueWriter) value(read valueAsRead, text string, quote byte) error {
 func (v *valueWriter) write(data []byte) error {
 	if v.holding {
 		v.held = append(v.held, heldPart{data: append([]byte(nil), data...)})
-		return nil
+		return v.hold(len(data))
 	}
 	_, err := v.out.Write(data)
 	return err
 }
 
-// finish renders the held values under the whole document's spelling and
-// writes everything held.
+// hold counts n more bytes held and, past maxHeldOutput, writes what is held
+// with the counts so far.
+func (v *valueWriter) hold(n int) error {
+	v.heldSize += n
+	if v.heldSize <= maxHeldOutput {
+		return nil
+	}
+	return v.finish()
+}
+
+// finish renders the held values under the counts so far, the whole
+// document's at the last entry, and writes everything held.
 func (v *valueWriter) finish() error {
 	for _, h := range v.held {
 		data := h.data
@@ -336,6 +354,6 @@ func (v *valueWriter) finish() error {
 			return err
 		}
 	}
-	v.held, v.holding = nil, false
+	v.held, v.holding, v.heldSize = nil, false, 0
 	return nil
 }
