@@ -423,9 +423,9 @@ func RestoreTree(runs []model.Run, get func(token string) (string, bool), entrie
 }
 
 // SameText reports whether two run sequences hold the same content once
-// adjacent text runs are joined, in every plural form and select case too: a
-// restore splits a text run around each value it puts back, and the content
-// it gives back can equal what was redacted without the runs being the same.
+// adjacent text runs are joined, in every plural form and select case too. A
+// restore splits a text run around each value it puts back, so the content it
+// gives back can equal what was redacted while the runs differ.
 func SameText(a, b []model.Run) bool {
 	return string(model.CanonicalRunsJSON(joinText(a))) == string(model.CanonicalRunsJSON(joinText(b)))
 }
