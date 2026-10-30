@@ -162,7 +162,6 @@ func unicodeEscape(s string) (r rune, size int, ok bool) {
 	return rune(hi), 4, true
 }
 
-
 // observeText counts the spellings of the strings in skeleton text: the keys
 // and the values the reader did not extract. A comment is skipped, so a quote
 // or a slash in one counts for nothing. A string the text does not close is
