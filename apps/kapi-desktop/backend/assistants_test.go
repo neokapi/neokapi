@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -192,6 +193,31 @@ func TestAssistantsView_Sessions(t *testing.T) {
 	assert.Equal(t, 1, s.Suggestions)
 	assert.Equal(t, 1, s.Awaiting)
 	assert.NotEmpty(t, s.Last)
+	assert.Zero(t, s.Checked, "a session that ran no check counts none")
+}
+
+// TestAssistantsView_HookOnlySession: a session that only ran the Stop hook
+// is a session on the page with no operations and what its runs caught.
+func TestAssistantsView_HookOnlySession(t *testing.T) {
+	app := assistantsApp(t)
+	tab, _ := openSharingProject(t, app, "Assistants")
+	view, err := app.AssistantsView(tab)
+	require.NoError(t, err)
+	require.NotEmpty(t, view.ProjectKey)
+
+	hookRun(t, app, view.ProjectKey, "sess-hook", "t1", time.Time{}, failingRun())
+	hookRun(t, app, view.ProjectKey, "sess-hook", "t2", time.Time{}, cleanRun())
+
+	view, err = app.AssistantsView(tab)
+	require.NoError(t, err)
+	require.Len(t, view.Sessions, 1)
+	s := view.Sessions[0]
+	assert.Equal(t, "session:sess-hook", s.ID)
+	assert.Equal(t, "claude-code", s.Actor.Name)
+	assert.Zero(t, s.Operations)
+	assert.Equal(t, [4]int{1, 2, 0, 1}, [4]int{s.Files, s.Checked, s.Failing, s.Caught})
+	assert.True(t, s.Failed)
+	assert.False(t, s.Clean)
 }
 
 // TestConnectAssistant_RefusesWhatKapiConnectRefuses: an assistant kapi

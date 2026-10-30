@@ -82,6 +82,15 @@ type AssistantSession struct {
 	Kept        int `json:"kept"`
 	Dropped     int `json:"dropped"`
 	Awaiting    int `json:"awaiting"`
+	// Files, Checked, Failing and Caught are what the session's check runs
+	// found, and Clean and Failed the verdicts they reached, as the feed
+	// group carries them.
+	Files   int  `json:"files"`
+	Checked int  `json:"checked"`
+	Failing int  `json:"failing"`
+	Caught  int  `json:"caught"`
+	Clean   bool `json:"clean"`
+	Failed  bool `json:"failed"`
 }
 
 // AssistantsView is the Assistants page of one tab.
@@ -162,6 +171,12 @@ func (a *App) AssistantsView(tabID string) (*AssistantsView, error) {
 				Kept:        g.Kept,
 				Dropped:     g.Dropped,
 				Awaiting:    g.Awaiting,
+				Files:       g.Files,
+				Checked:     g.Checked,
+				Failing:     g.Failing,
+				Caught:      g.Caught,
+				Clean:       g.Clean,
+				Failed:      g.Failed,
 			})
 		}
 	}
