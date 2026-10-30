@@ -2,32 +2,87 @@
 id: connect-an-assistant
 title: "Connect an assistant"
 sidebar_label: "Connect an assistant"
-description: "Connect Claude Code, Cursor, VS Code, Codex or Claude Desktop to a project from Kapi Desktop, so the assistant reads the project's rules, records what it notices, and checks what it changed."
-keywords: [Kapi Desktop, assistant, connect, MCP, Claude Code, Cursor, VS Code, Codex, Claude Desktop, rules files, AGENTS.md, CLAUDE.md, kapi init]
+description: "Connect Claude Code, Cursor, VS Code, Codex or Claude Desktop to a project from the Assistants page of Kapi Desktop, so the assistant reads the project's rules, records what it notices, and checks what it changed."
+keywords: [Kapi Desktop, assistant, connect, MCP, Claude Code, Cursor, VS Code, Codex, Claude Desktop, rules files, AGENTS.md, CLAUDE.md, kapi connect, sessions]
 ---
 
 # Connect an assistant
 
 **Goal:** put the assistant you write with on a project, so it follows the
 project's rules and leaves what it notices for you to review. You do this once
-per project and assistant, from the project's **Assistant** section, with no
+per project and assistant, on the project's **Assistants** page, with no
 terminal.
 
-## What connecting writes
+## The Assistants page
 
-Connecting gives the assistant a way to reach kapi: an MCP entry that starts
-kapi's server for this project. Each assistant reads it from its own file:
+Open the project's **Context** hub and choose **Assistants**. The title names
+the project, and the line under it says what connecting does: the assistant's
+edits are checked, it follows the rules the project keeps, and it leaves its
+suggestions on this page.
 
-| Assistant | What Connect writes |
+**Assistants** has a row for each assistant: Claude Code, Cursor, VS Code,
+Codex, Agent skills, and Claude Desktop on macOS and Windows. Each row shows the
+assistant's mark and one of two states:
+
+- **Not connected**, with **Connect** at the end of the row.
+- **Connected**, followed by what the assistant gets: **rules + check on every
+  edit** for Claude Code with the kapi plugin enabled, **rules** otherwise.
+
+**Show what it reads**, beside the title, opens the rules files and the brief
+for a file, which every assistant reads alike.
+
+**Sessions** lists what was recorded in the project, one row per session,
+newest first: the assistant or the person who worked, when, and the counts the
+session carries, such as `2 suggestions · 1 correction`. A dot marks a session
+with a suggestion still waiting for you.
+
+## Steps
+
+1. **Open the project.** Connecting writes files into the project, so it needs
+   a checkout on this machine. A context-only tab says so in place of the
+   rows.
+2. **Click Connect** on the row for your assistant. The row turns to
+   **Connected** and lists the files it wrote. Hover over **Connected** to see
+   the files that carry the connection. For Claude Desktop, confirm the file
+   it names first.
+3. **Turn on the check in Claude Code.** The check that runs when Claude Code
+   finishes comes from the kapi Claude Code plugin. Until the plugin is
+   enabled, the Claude Code row names the two commands to run inside Claude
+   Code: `/plugin marketplace add neokapi/claude-plugins`, then
+   `/plugin install kapi@neokapi-plugins`.
+4. **Open your assistant in the project folder.** Claude Code asks you to
+   approve the project's MCP server the first time. Review `.mcp.json` before
+   you say yes, the way you would any file a repository ships. Claude Desktop
+   reads its file when it starts, so restart it.
+5. **Read a session.** When the assistant has worked in the project, its
+   session appears under **Sessions**. Select it to open **Sessions** on it:
+   each entry in order, with **Keep** and **Not a rule** on a suggestion still
+   waiting. **Reset to before this session** goes back to how the context
+   stood before the session started.
+
+## What Connect writes
+
+Connect writes what `kapi connect <assistant>` writes for that one assistant,
+and reports each file as created, updated or kept. A second Connect keeps every
+file as it is.
+
+| Assistant | Its own files |
 | --- | --- |
 | **Claude Code** | `.mcp.json` with the `kapi` server, and the kapi skill in `.claude/skills/kapi/` |
 | **Cursor** | `.cursor/mcp.json` with the `kapi` server |
 | **VS Code** | `.vscode/mcp.json` with the `kapi` server |
 | **Codex** | `.codex/config.toml` with the `kapi` server, read once you trust the repository |
+| **Agent skills** | the kapi skill in `.agents/skills/kapi/`, for any tool that reads `SKILL.md` |
 | **Claude Desktop** | a `kapi` entry in your own `claude_desktop_config.json`, after you confirm |
 
-The first four files sit in the project, and you commit them like any other
-file, so a teammate who opens the project gets the same entry. Each holds a
+Every assistant also reads the project's **rules files**. Connect writes the
+project's rules into `AGENTS.md` and `CLAUDE.md`, at the root and in each
+folder whose rules differ, where an assistant loads them as it starts. A folder
+opened without a recipe gets its `kapi.yaml` first, since the server entry
+names it.
+
+The files sit in the project, and you commit them like any other file, so a
+teammate who opens the project gets the same entry. Each server entry holds a
 command and nothing else: no shell, no environment, no credential. An entry
 called `kapi` that you wrote or changed yourself is left as it is.
 
@@ -37,32 +92,6 @@ Claude Desktop reads one file for every project, outside them all:
 that file and asks before it changes it. The entry names the `kapi` binary by
 its full path, since an app started from the Dock or the Start menu does not
 read your shell's `PATH`.
-
-Every assistant also reads the project's **rules files**. kapi writes the
-project's rules into `AGENTS.md` and `CLAUDE.md`, at the root and in each
-folder whose rules differ, where an assistant loads them as it starts, with no
-tool call.
-
-## Steps
-
-1. **Open the project.** Connecting writes files into the project, so it needs
-   a checkout on this machine. A context-only tab says so in place of the
-   rows.
-2. **Open Assistant.** In the project's **Context** hub, open **Assistant**.
-   **Connected assistants** has a row for each assistant. The dot before a
-   name is filled when that assistant is connected and an outline when it is
-   not.
-3. **Click Connect** on the row for yours. The dot fills, **Connected**
-   follows the name, and the row lists the files it wrote. Hover over
-   **Connected** to see the files that carry the connection. For Claude
-   Desktop, confirm the file it names first.
-4. **Check the rules files.** On the **Rules files** tab, expand a row to read
-   the section kapi wrote. When a file is not written yet, click **Write them
-   now**.
-5. **Open your assistant in the project folder.** Claude Code asks you to
-   approve the project's MCP server the first time. Review `.mcp.json` before
-   you say yes, the way you would any file a repository ships. Claude Desktop
-   reads its file when it starts, so restart it.
 
 ## What the assistant then does
 
@@ -77,33 +106,33 @@ The kapi skill asks an assistant for four habits:
 3. **Record your corrections.** When you change a wording in its draft, it
    records the change as a suggestion.
 4. **Check what it changed.** It runs `kapi check` on each file it changed and
-   fixes what the check reports.
+   fixes what the check reports. With the kapi plugin, Claude Code runs the
+   project's check when it finishes and keeps working while a check fails.
 
 An assistant without the skill reads the rules files, which end by asking it
 to check what it changed and to record what it notices.
 
 What the assistant records appears in Kapi Desktop within a second or two:
 under **What's new** on the home, on the project's **Map** under **What your
-files do**, and in the project's **Decide**, as a suggestion with the file and
-sentence it was seen in and "noticed by" the assistant's name. A suggestion advises at once and fails no check. It becomes a
-rule when you keep it. [Review what your assistant
+files do**, in the project's **Decide**, and as a session on the Assistants
+page. A suggestion advises at once and fails no check. It becomes a rule when
+you keep it. [Review what your assistant
 noticed](/kapi/desktop/recipes/review-what-your-assistant-noticed) walks
 through deciding.
 
 ## The same on the command line
 
-`kapi init` writes the same wiring for the assistants it detects, and
-`--agents` names them yourself:
+`kapi connect` writes the same files from a terminal:
 
 ```bash
-kapi init                                # Claude Code, plus the assistants whose folders the project keeps
-kapi init --agents claude-code,cursor    # exactly these
-kapi init --agents none                  # no assistant configuration
+kapi connect             # Claude Code, plus the assistants whose folders the project keeps
+kapi connect cursor      # one assistant
+kapi connect --dry-run   # what it would write, writing nothing
 ```
 
-`kapi init --no-rules-files` leaves out the rules files. See [what `kapi
-init` wires up](/kapi/get-started/use-with-claude#what-kapi-init-wires-up)
-and [rules files for agents](/kapi/context#rules-files).
+See [use with Claude](/kapi/get-started/use-with-claude#what-kapi-init-wires-up)
+for each file and the Stop hook, and [rules files for
+agents](/kapi/context#rules-files).
 
 ## Next
 

@@ -48,7 +48,7 @@ Above the actions, a line says what keeping the picked option does, such as
 Below them, **Seen in** quotes the sentence and names the file and the
 assistant that filed it. **Keep** (`k`), **Not a rule** (`n`) and **Later**
 (`l`) answer, the option numbers pick another option, and the next question is
-selected. **History** widens a kept rule across the project or the workspace.
+selected. **Sessions**, under Assistants, widens a kept rule across the project or the workspace.
 
 <ThemedVideo
   sources={{
@@ -67,16 +67,18 @@ walk, step by step, on the sample.
 there. Search a word and it returns the terms that cover it, the prior wording
 that used it, and where.
 
-## What your assistant reads
+## Assistants
 
-**Assistant** shows what an assistant working in the project is told.
-**Connected assistants** has a row for Claude Code, Cursor, VS Code, Codex and
-Claude Desktop. A filled dot and **Connected** mark an assistant that is
-connected, and **Connect** on any other row writes the files `kapi init`
-writes. Below the rows are two tabs. **Rules files** shows the section kapi
-writes into `AGENTS.md` and `CLAUDE.md`, which an assistant reads as it
-starts. **The brief for a file** is the full answer an assistant gets for the
-file you choose, the same text `kapi context <path>` prints. See [Connect an
+**Assistants** has a row for Claude Code, Cursor, VS Code, Codex, Agent skills
+and Claude Desktop. A connected assistant reads **Connected** and what it gets:
+the rules, and the check on every edit once Claude Code has the kapi plugin.
+**Connect** on any other row writes the files `kapi connect` writes for that
+assistant. **Show what it reads**, beside the title, opens two tabs. **Rules files** shows the
+section kapi writes into `AGENTS.md` and `CLAUDE.md`, which an assistant reads
+as it starts. **The brief for a file** is the full answer an assistant gets for
+the file you choose, the same text `kapi context <path>` prints. Below the
+assistants, **Sessions** lists what you and the assistants recorded in the
+project, one row per session. See [Connect an
 assistant](/kapi/desktop/recipes/connect-an-assistant).
 
 ## Voice, terms and content memory
@@ -109,13 +111,14 @@ and every language the entry holds, beside **Edit**, **Mark entities** and
 marked, **Delete** and **Mark entities** act on all of them. **Add entry** sits
 at the top of the page.
 
-## History
+## Sessions
 
-**History** lists what was recorded in the project, one session per row, newest
-first: who worked, when, and how many operations the session holds. Select a
-session to see its operations beside the list. A suggestion still waiting for a
-decision keeps **Keep**, **Edit** and **Drop** on its row, with the sentence it
-was seen in behind a click. **Reset to before this session**, above the
+**Sessions** opens from a session on the Assistants page, or from **All
+sessions** under them. It lists what was recorded in the project, one session
+per row, newest first: who worked, when, and how many operations the session
+holds. Select a session to see its operations beside the list. A suggestion
+still waiting for a decision keeps **Keep**, **Edit** and **Not a rule** on its
+row, with the sentence it was seen in behind a click. **Reset to before this session**, above the
 operations, goes back to how the context stood before the session started. The
 reset is recorded too, and **Take this reset back** on it brings back what it
 set aside.

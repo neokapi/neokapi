@@ -1593,9 +1593,10 @@ async function contextWalk(c: WalkCtx): Promise<void> {
   await settle();
 
   // The brief an assistant gets for the store's interface strings, which the
-  // kept word now governs. Assistant opens on its Rules files tab, so the
-  // beat clicks the brief's tab first.
-  await humanClick(page, contextSection(page, "Assistant"));
+  // kept word now governs. Show what it reads, on the Assistants page, opens
+  // on its Rules files tab, so the beat clicks the brief's tab first.
+  await humanClick(page, contextSection(page, "Assistants"));
+  await humanClick(page, page.locator('[data-slot="assistants-reads"]'));
   await page.waitForSelector('[data-slot="rules-files"]', { timeout: 30_000 });
   await page.waitForTimeout(1000);
   // The crop runs from the brief's tab and the file picker down to the kept
