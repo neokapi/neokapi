@@ -249,7 +249,7 @@ collections:
 // project reads no word about other languages on the root help, on bare
 // `kapi`, or in `kapi status`.
 func TestOneLanguageProject_NamesNoLanguageWork(t *testing.T) {
-	recipe, _ := monolingualProject(t)
+	recipe, root := monolingualProject(t)
 	t.Setenv("KAPI_NO_PROJECT", "")
 	t.Setenv("KAPI_PROJECT", recipe)
 
@@ -262,6 +262,8 @@ func TestOneLanguageProject_NamesNoLanguageWork(t *testing.T) {
 		{name: "kapi help", args: []string{"help"}},
 		{name: "kapi", args: nil},
 		{name: "kapi status", args: []string{"status"}},
+		{name: "kapi look", args: []string{"look"}},
+		{name: "kapi look <path>", args: []string{"look", filepath.Join(root, "docs", "berths.md")}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			out := runRoot(t, tt.args...)
@@ -281,9 +283,9 @@ func TestOneLanguageProject_NamesNoLanguageWork(t *testing.T) {
 
 // TestFreshOneLanguageProject_StatusNamesTheNextStep: a project `kapi init`
 // just scaffolded has no content and no target language. Its status is one
-// source line naming the command that adds content, never an empty report,
-// and bare `kapi` prints that line above its hints. Neither names language
-// work.
+// source line naming the command that adds content, never an empty report.
+// `kapi look` prints that line in place of the Map's counts, and bare `kapi`
+// prints it above its hint. None names language work.
 func TestFreshOneLanguageProject_StatusNamesTheNextStep(t *testing.T) {
 	isolateHelp(t)
 	dir := t.TempDir()
@@ -299,6 +301,7 @@ func TestFreshOneLanguageProject_StatusNamesTheNextStep(t *testing.T) {
 		args []string
 	}{
 		{name: "kapi status", args: []string{"status"}},
+		{name: "kapi look", args: []string{"look"}},
 		{name: "kapi", args: nil},
 	} {
 		t.Run(tt.name, func(t *testing.T) {

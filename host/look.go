@@ -327,7 +327,20 @@ func (a *App) lookLanguages(ctx context.Context, proj *project.KapiProject, root
 	if err != nil {
 		return nil
 	}
+	// The languages the recipe declares, and any a unit resolves beyond them.
 	locales := map[string]bool{}
+	for _, l := range proj.Defaults.TargetLanguages {
+		locales[string(l)] = true
+	}
+	for i := range proj.Collections {
+		for _, item := range proj.Collections[i].EffectiveItems() {
+			if item.Target != "" {
+				for _, l := range item.TargetLanguages {
+					locales[string(l)] = true
+				}
+			}
+		}
+	}
 	for _, u := range units {
 		if u.Locale != "" {
 			locales[u.Locale] = true

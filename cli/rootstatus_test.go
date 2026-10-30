@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -26,8 +27,8 @@ func newBareRoot(a *App) (*cobra.Command, *bytes.Buffer) {
 }
 
 // TestRootRunE_InProject: bare `kapi` inside a project with a target language
-// prints the status summary (the `kapi status` renderer) plus the `kapi up`
-// hint lines.
+// prints the Map (the `kapi look` renderer) with its languages line, then the
+// line naming where the commands are listed.
 func TestRootRunE_InProject(t *testing.T) {
 	root := writeStatusProject(t)
 	t.Chdir(root)
@@ -36,21 +37,22 @@ func TestRootRunE_InProject(t *testing.T) {
 	cmd, buf := newBareRoot(a)
 	cmd.SetArgs(nil)
 
-	// RunStatus prints through output.Print on the fresh status command,
-	// which writes to the redirected stdout; capture both.
+	// The Map prints through output.Print, which writes to the redirected
+	// stdout; capture both.
 	stdout, err := captureStdout(t, cmd.Execute)
 	require.NoError(t, err)
 
 	combined := stdout + buf.String()
-	assert.Contains(t, combined, "scope", "the status coverage grid renders")
-	assert.Contains(t, combined, "run `kapi up` to catch up")
-	assert.Contains(t, combined, "kapi --help for the commands")
-	assert.NotContains(t, combined, "run `kapi check` to check the content")
-	assert.NotContains(t, combined, "Usage:", "in-project bare kapi shows status, not help")
+	assert.Contains(t, combined, "1 file · 3 blocks", "the Map's counts render")
+	assert.Contains(t, combined, "3 languages · ", "a target language adds the languages line")
+	assert.Contains(t, combined, "kapi status for coverage")
+	assert.Contains(t, combined, "See a file with `kapi look <path>`.")
+	assert.True(t, strings.HasSuffix(combined, "\nkapi --help for the commands\n"), combined)
+	assert.NotContains(t, combined, "Usage:", "in-project bare kapi shows the Map, not help")
 }
 
 // TestRootRunE_OneLanguageProject: in a project that names no target language
-// the hint is `kapi check`, since there is nothing for `kapi up` to catch up.
+// the Map has no languages line and names `kapi check` as the next step.
 func TestRootRunE_OneLanguageProject(t *testing.T) {
 	recipe, _ := monolingualProject(t)
 	t.Setenv("KAPI_NO_PROJECT", "")
@@ -64,10 +66,11 @@ func TestRootRunE_OneLanguageProject(t *testing.T) {
 	require.NoError(t, err)
 
 	combined := stdout + buf.String()
-	assert.Contains(t, combined, "source", "the status summary renders")
-	assert.Contains(t, combined, "run `kapi check` to check the content")
+	assert.Contains(t, combined, "docs/berths.md", "the Map lists the file")
+	assert.Contains(t, combined, "Check with `kapi check`. See a file with `kapi look <path>`.")
 	assert.Contains(t, combined, "kapi --help for the commands")
 	assert.NotContains(t, combined, "kapi up")
+	assert.NotContains(t, combined, "languages")
 }
 
 // TestRootRunE_NoProject: outside a project the bare root falls back to the
@@ -80,5 +83,5 @@ func TestRootRunE_NoProject(t *testing.T) {
 
 	require.NoError(t, cmd.Execute())
 	assert.Contains(t, buf.String(), "Usage:", "outside a project the bare root shows help")
-	assert.NotContains(t, buf.String(), "run `kapi up` to catch up")
+	assert.NotContains(t, buf.String(), "See a file with `kapi look <path>`.")
 }
