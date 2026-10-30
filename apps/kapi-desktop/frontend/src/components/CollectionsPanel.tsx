@@ -64,6 +64,7 @@ import { isBareEntry } from "../types/api";
 import { useQuery } from "@tanstack/react-query";
 import { api, call, type OutputFileInfo } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
+import { declaresTargetLanguages } from "../lib/languages";
 import { FormatConfigDialog, type FormatConfigValue } from "./FormatConfigDialog";
 import { engineFormatFor, engineOf, enginesForFormat } from "../lib/engines";
 import { CollectionPointBadge, CollectionPointFields } from "./CollectionPointFields";
@@ -218,6 +219,12 @@ export interface CollectionsPanelProps {
   status?: ProjectStatus;
   /** Pre-loaded convergence for Storybook/tests — skips api.getConvergence(). */
   convergence?: ConvergenceReport;
+  /**
+   * Whether the saved recipe declares a target language. Without one the panel
+   * draws no coverage: no per-language columns, timeline or strip. Defaults to
+   * `declaresTargetLanguages(project)`.
+   */
+  hasTargetLanguages?: boolean;
 }
 
 function formatSize(bytes: number): string {
@@ -582,7 +589,9 @@ export function CollectionsPanel({
   status: propStatus,
   convergence: propConvergence,
   governance: propGovernance,
+  hasTargetLanguages,
 }: CollectionsPanelProps) {
+  const languages = hasTargetLanguages ?? declaresTargetLanguages(project);
   const { showError } = useError();
   const { locales } = useLocales();
   const { hasActive } = useJobFeed();
@@ -929,9 +938,11 @@ export function CollectionsPanel({
     .map(({ coll }) => statusByLabel.get(statusLabelOf(coll)))
     .filter((c): c is CollectionStatus => !!c);
   const totalBlocks = visibleStatuses.reduce((s, c) => s + c.blockCount, 0);
-  const stripLangs = Array.from(
-    new Set(visibleStatuses.flatMap((c) => filterLanguages(c.targetLanguages, activeFilter))),
-  );
+  const stripLangs = languages
+    ? Array.from(
+        new Set(visibleStatuses.flatMap((c) => filterLanguages(c.targetLanguages, activeFilter))),
+      )
+    : [];
   const stripCoverage = stripLangs.map((lang) => {
     let translated = 0;
     let total = 0;
@@ -1638,17 +1649,20 @@ export function CollectionsPanel({
   // Collections are coloured by their position in the displayed list so a row's
   // dot matches its cake slice. The coverage columns are the union of the
   // displayed collections' target languages (narrowed by the filter); with many
-  // languages the per-language bars give way to a compact heatmap.
-  const columnLangs = filterLanguages(
-    Array.from(
-      new Set(
-        visibleCollections.flatMap(({ coll }) =>
-          (coll.target_languages ?? project.defaults?.target_languages ?? []).map(String),
+  // languages the per-language bars give way to a compact heatmap. A recipe
+  // that declares no target language has no columns.
+  const columnLangs = languages
+    ? filterLanguages(
+        Array.from(
+          new Set(
+            visibleCollections.flatMap(({ coll }) =>
+              (coll.target_languages ?? project.defaults?.target_languages ?? []).map(String),
+            ),
+          ),
         ),
-      ),
-    ),
-    activeFilter,
-  );
+        activeFilter,
+      )
+    : [];
   const heatmap = columnLangs.length >= HEATMAP_LANG_THRESHOLD;
   // Ship-gate ladder standing per (collection, locale), keyed the same way the
   // convergence report reports it (collection "" for bare/unnamed entries).
@@ -2079,8 +2093,9 @@ export function CollectionsPanel({
           </Card>
         ))}
 
-      {/* Archive collections get the translation-state panel (unchanged). */}
-      {collections.some((c) => c.archive) && (
+      {/* Archive collections get the translation-state panel, once the recipe
+          declares a target language. */}
+      {languages && collections.some((c) => c.archive) && (
         <div className="mb-4">
           <TranslationStatusPanel tabID={tabID} />
         </div>

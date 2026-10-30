@@ -50,9 +50,6 @@ func (a *App) SaveProvider(req ProviderSaveRequest) (*ProviderInfo, error) {
 		return nil, errors.New("credential store not initialized")
 	}
 
-	// The saved record or key changes what the deeper look would ask, even
-	// when the save fails after writing the record.
-	defer a.forgetLookModels()
 	cfg, err := host.SaveCredential(a.credentials, credentials.ProviderConfig{
 		ID:           req.ID,
 		Name:         req.Name,
@@ -75,7 +72,6 @@ func (a *App) SetProviderDefault(id string) error {
 	if a.credentials == nil {
 		return errors.New("credential store not initialized")
 	}
-	defer a.forgetLookModels()
 	return a.credentials.SetDefault(id)
 }
 
@@ -84,7 +80,6 @@ func (a *App) DeleteProvider(id string) error {
 	if a.credentials == nil {
 		return errors.New("credential store not initialized")
 	}
-	defer a.forgetLookModels()
 	return host.RemoveCredential(a.credentials, id)
 }
 

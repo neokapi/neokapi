@@ -25,8 +25,9 @@ import (
 
 // skelFailReader reads one translatable block, but fails the read as soon as a
 // SkeletonStore is wired. That is exactly the divergence the old guard hid:
-// ReadSourceBlocks (no skeleton) succeeds while captureSkeletonBytes (skeleton
-// wired) does not.
+// ReadSourceBlocks succeeds, because it wires a read skeleton only for a format
+// with a writer and the fixture registers none, while captureSkeletonBytes
+// wires one and fails.
 type skelFailReader struct {
 	format.BaseFormatReader
 	skel *format.SkeletonStore

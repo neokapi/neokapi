@@ -30,6 +30,7 @@ import { Undo2, Redo2 } from "lucide-react";
 import { Button, SimpleTooltip, Toaster, TooltipProvider } from "@neokapi/ui-primitives";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
+import { declaresTargetLanguages } from "./lib/languages";
 
 export default function App() {
   return (
@@ -295,9 +296,7 @@ function AppInner() {
                 active={tm.effectiveView}
                 onChange={tm.navigate}
                 projectDisabled={!tm.activeTab}
-                hasTargetLanguages={
-                  (tm.activeTab?.project.defaults?.target_languages?.length ?? 0) > 0
-                }
+                hasTargetLanguages={declaresTargetLanguages(tm.activeTab?.project)}
               />
             </div>
           </div>

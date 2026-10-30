@@ -1847,9 +1847,17 @@ func (c *BowrainSourceConnector) buildItemMeta(ctx context.Context, changed []it
 		if err != nil {
 			continue
 		}
+		// The block index names the blocks the push sends, so it reads the file
+		// under the same recipe config and skeleton wiring readBlocksAndMedia does.
+		if err := c.configureReaderFor(reader, formatName, absPath); err != nil {
+			reader.Close()
+			continue
+		}
+		coreproj.WireReadSkeleton(c.formatReg, formatName, reader)
 
 		f, err := os.Open(absPath)
 		if err != nil {
+			reader.Close()
 			continue
 		}
 
@@ -1860,6 +1868,7 @@ func (c *BowrainSourceConnector) buildItemMeta(ctx context.Context, changed []it
 		}
 
 		result, err := editor.ParseItem(ctx, reader, doc, sourceLocale, formatName, itemName)
+		f.Close()
 		if err != nil {
 			continue
 		}
@@ -1906,6 +1915,10 @@ func (c *BowrainSourceConnector) readBlocksAndMedia(ctx context.Context, filePat
 	if cfg := reader.Config(); cfg != nil {
 		_ = cfg.ApplyMap(map[string]any{"extractMedia": true})
 	}
+	// The check, the block cache and the change service read every document
+	// with the skeleton a write would wire, and pull writes with one. Reading
+	// the same way gives the venue the block ids they name.
+	coreproj.WireReadSkeleton(c.formatReg, formatName, reader)
 
 	f, err := os.Open(filePath)
 	if err != nil {
