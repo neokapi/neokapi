@@ -389,6 +389,14 @@ func (a *App) RecordContextObservation(ctx context.Context, req ContextObserveRe
 	if stamped.Scope, err = s.submittedScope(stamped.Scope, req.Point, req.ValidFrom, req.ValidTo); err != nil {
 		return ContextOperation{}, err
 	}
+	return s.appendObservation(ctx, stamped)
+}
+
+// appendObservation records an observation the session has stamped and
+// settles what recording it changed. Every observation reaches the log here:
+// a note from `kapi context note`, an agent's context_note, and what the
+// suggestions pass files (SuggestFromFiles).
+func (s *contextOpsSession) appendObservation(ctx context.Context, stamped contextop.Record) (ContextOperation, error) {
 	before, err := s.ledger.Records(ctx, contextop.Filter{Project: s.key, Subjects: true})
 	if err != nil {
 		return ContextOperation{}, err
