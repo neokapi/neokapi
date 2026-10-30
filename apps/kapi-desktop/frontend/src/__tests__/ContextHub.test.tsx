@@ -228,10 +228,14 @@ describe("ContextHub", () => {
 
   it("lists the project's own history", async () => {
     const digest = vi.spyOn(api, "projectContextDigest").mockResolvedValue(CONTEXT_DIGEST);
+    const mark = vi.spyOn(api, "markProjectContextDigestSeen").mockResolvedValue("");
     render(<ContextHub tabID="t1" projectName="Northsea" section="history" />);
     expect(await screen.findByText(`feed for ${CONTEXT_DIGEST.project}`)).toBeInTheDocument();
     expect(digest).toHaveBeenCalledWith("t1", "");
+    // History lists what is new, so opening it moves the home's marker.
+    expect(mark).toHaveBeenCalledWith("t1");
     digest.mockRestore();
+    mark.mockRestore();
   });
 
   it("gives History the full height, so its list and detail scroll on their own", async () => {

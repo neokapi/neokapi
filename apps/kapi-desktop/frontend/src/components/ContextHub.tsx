@@ -14,8 +14,8 @@
 // Memory stays behind the gate the sidebar applies: a project with no target
 // languages is not shown a surface it has nothing to put in.
 
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BookOpen,
   Bot,
@@ -283,11 +283,21 @@ export function ContextHub({
  * project, which the digest's first read carries; this shares that read.
  */
 function ProjectHistory({ tabID }: { tabID: string }) {
+  const qc = useQueryClient();
   const digest = useQuery({
     queryKey: qk.projectContextDigest(tabID, ""),
     queryFn: () => api.projectContextDigest(tabID, ""),
   });
   const key = digest.data?.project;
+  // History lists every operation, so opening it moves the home's "since you
+  // last looked" marker: the home opens a project here when its news is a
+  // rule kept elsewhere rather than something to decide.
+  useEffect(() => {
+    if (!key) return;
+    void api.markProjectContextDigestSeen(tabID).then(() => {
+      void qc.invalidateQueries({ queryKey: qk.workspaceProjects() });
+    });
+  }, [key, tabID, qc]);
   if (!key) return digest.isLoading ? <LoadingSpinner /> : null;
   return <ContextFeedPanel projectKey={key} />;
 }

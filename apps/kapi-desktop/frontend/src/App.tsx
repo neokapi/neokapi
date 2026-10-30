@@ -25,6 +25,7 @@ import { NewProjectDialog } from "./components/NewProjectDialog";
 import { OpenScreen, firstScreen } from "./components/OpenScreen";
 import { useShortenHome } from "./hooks/useShortenHome";
 import { isMacDesktop } from "./lib/platform";
+import { whatsNewView } from "./components/WhatsNew";
 import { Undo2, Redo2 } from "lucide-react";
 import { Button, SimpleTooltip, Toaster, TooltipProvider } from "@neokapi/ui-primitives";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -66,16 +67,18 @@ function AppInner() {
   } = useAppInit();
   const tm = useTabManager();
 
-  // What's new on the home opens a project on its Decide section: from a
-  // checkout on this machine when there is one, on its context alone when not.
+  // What's new on the home opens a project on Decide while something waits
+  // there, and on History otherwise (whatsNewView): from a checkout on this
+  // machine when there is one, on its context alone when not.
   const openWhatsNew = useCallback(
     (key: string) => {
       const row = workspace?.projects.find((p) => p.key === key);
       const live = row?.checkouts.find((c) => !c.missing);
-      if (live) void tm.openRecent(live.recipe, "context:rules");
-      else void tm.openWorkspaceContext(key, "context:rules");
+      const view = whatsNewView(standings?.find((s) => s.project === key));
+      if (live) void tm.openRecent(live.recipe, view);
+      else void tm.openWorkspaceContext(key, view);
     },
-    [workspace, tm],
+    [workspace, standings, tm],
   );
   // Start here connects an assistant in the most recently opened project.
   const latestTab = tm.tabs[tm.tabs.length - 1];

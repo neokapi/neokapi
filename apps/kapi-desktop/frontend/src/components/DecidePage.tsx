@@ -237,13 +237,16 @@ export function DecideView({
     <PageHeader
       className="mb-0 shrink-0 px-6 pt-5 pb-3"
       title={t("{project} · Decide", "the Decide page title", { project: view.project_name })}
+      // With nothing waiting, the empty state states the kept count.
       subtitle={
-        <span data-slot="decide-counts" className="tabular-nums">
-          {t("{open} to decide · {kept} kept", "the Decide page's counts", {
-            open: decisions.length,
-            kept: view.rules,
-          })}
-        </span>
+        decisions.length > 0 ? (
+          <span data-slot="decide-counts" className="tabular-nums">
+            {t("{open} to decide · {kept} kept", "the Decide page's counts", {
+              open: decisions.length,
+              kept: view.rules,
+            })}
+          </span>
+        ) : undefined
       }
     />
   );
@@ -376,7 +379,10 @@ function RowMeta({ decision: d }: { decision: RuleDecision }) {
           })}
         >
           <span className="text-[11px] text-muted-foreground tabular-nums">
-            {t("{lead} of {total}", "a Decide row: blocks", { lead, total })}
+            {t("{lead} of {total, plural, one {# block} other {# blocks}}", "a Decide row", {
+              lead,
+              total,
+            })}
           </span>
         </SimpleTooltip>
       );
@@ -677,15 +683,26 @@ export function DecidePage({ tabID, defaultSelected, onOpenFile, onOpenMap }: De
     queryFn: () => api.rulesDecideView(tabID),
     placeholderData: (previous) => previous,
   });
-  useInvalidateOnEvent("workspace:changed", [qk.rulesDecide(tabID)]);
+  // A decision recorded here or elsewhere, and a file written or read again,
+  // change the questions or their counts. A decision made here arrives as
+  // workspace:changed, so the answer itself refetches nothing.
+  useInvalidateOnEvent(
+    ["workspace:changed", "project-files-changed", "project:extracted"],
+    [qk.rulesDecide(tabID)],
+  );
 
-  // Opening Decide is looking at what kapi learned, as the digest counts it:
-  // the home's "new" standings are read from the marker this moves.
+  // The home's "since you last looked" marker moves once Decide shows what
+  // waits. A project whose news is only a rule kept elsewhere shows nothing
+  // here, and its marker moves in History, which lists it.
+  const shows = (query.data?.decisions.length ?? 0) > 0;
+  const marked = useRef(false);
   useEffect(() => {
+    if (!shows || marked.current) return;
+    marked.current = true;
     void api.markProjectContextDigestSeen(tabID).then(() => {
       void qc.invalidateQueries({ queryKey: qk.workspaceProjects() });
     });
-  }, [tabID, qc]);
+  }, [shows, tabID, qc]);
 
   const decide = useMutation({
     mutationFn: async ({
@@ -700,8 +717,9 @@ export function DecidePage({ tabID, defaultSelected, onOpenFile, onOpenMap }: De
       const { id, form } = answerArgs(d, answer, pick);
       return api.decideRule(tabID, id, answer, form);
     },
+    // Decide itself reads again on the workspace:changed the backend emits
+    // for a recorded answer.
     onSettled: () => {
-      void qc.invalidateQueries({ queryKey: qk.rulesDecide(tabID) });
       void qc.invalidateQueries({ queryKey: ["context-digest", tabID] });
       void qc.invalidateQueries({ queryKey: ["context-feed"] });
       void qc.invalidateQueries({ queryKey: qk.mapSummary(tabID) });
@@ -717,7 +735,12 @@ export function DecidePage({ tabID, defaultSelected, onOpenFile, onOpenMap }: De
     return () => window.clearTimeout(handle);
   }, [typed]);
   const consequence = useQuery({
-    queryKey: qk.rulesDecideConsequence(tabID, settled?.id ?? "", settled?.form ?? ""),
+    // Keyed on the view's read as well, so a typed form is counted again once
+    // the view (and the backend's copy of its blocks) is.
+    queryKey: [
+      ...qk.rulesDecideConsequence(tabID, settled?.id ?? "", settled?.form ?? ""),
+      query.dataUpdatedAt,
+    ],
     queryFn: () => api.rulesDecideConsequence(tabID, settled!.id, settled!.form),
     enabled: !!settled?.id && !!settled.form.trim(),
   });

@@ -71,7 +71,7 @@ describe("Decide's question", () => {
     expect(rows[1].textContent).toContain("3 forms");
     expect(rows[2].textContent).toContain("business");
     expect(rows[2].textContent).toContain("1 word");
-    expect(rows[0].textContent).toContain("6 of 7");
+    expect(rows[0].textContent).toContain("6 of 7 blocks");
   });
 
   it("asks which form a name takes, the options with their blocks and files, and Other…", () => {
@@ -123,6 +123,7 @@ describe("Decide's question", () => {
     const { onOpenMap } = renderDecide(EMPTY_DECIDE_VIEW);
     expect(slot("decide-empty")!.textContent).toContain("Nothing to decide.");
     expect(slot("decide-empty")!.textContent).toContain("14 rules kept");
+    expect(slot("decide-counts")).toBeNull();
     await userEvent.click(slot("decide-open-map")!);
     expect(onOpenMap).toHaveBeenCalled();
   });
