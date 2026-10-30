@@ -212,7 +212,9 @@ export function MapView({
             onNavigate={onNavigate}
             onShowFiles={onShowFiles}
           />
-          {summary.suggested > 0 && (
+          {/* The Decide button carries the same number unless disagreements
+              wait too, so the link shows only when the two differ. */}
+          {summary.suggested > 0 && summary.suggested !== summary.awaiting && (
             <Button
               variant="link"
               size="sm"
@@ -281,19 +283,23 @@ export function MapView({
 }
 
 /** When kapi last read the project's files, under the title. */
+// The files count beside it says how many there are, so the line names a
+// number only when kapi read a different number of them (a file no reader
+// opens, or a file waiting for the next read).
 function ReadLine({ summary }: { summary: MapSummary }) {
+  const sameCount = summary.read_files === summary.files;
+  if (sameCount && !summary.read_at) return null;
+  const when = summary.read_at && <When iso={summary.read_at} relative />;
+  if (sameCount) {
+    return <span data-slot="map-read">Read {when}</span>;
+  }
   const read = t("Read {count, plural, one {# file} other {# files}}", "under the project title", {
     count: summary.read_files,
   });
   return (
     <span data-slot="map-read">
       {read}
-      {summary.read_at && (
-        <>
-          {" "}
-          <When iso={summary.read_at} relative />
-        </>
-      )}
+      {when && <> {when}</>}
     </span>
   );
 }

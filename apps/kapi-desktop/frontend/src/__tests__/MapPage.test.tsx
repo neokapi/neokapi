@@ -6,8 +6,10 @@ import { api } from "../hooks/useApi";
 import {
   MAP_ALL_KEPT,
   MAP_EMPTY,
+  MAP_PARTLY_READ,
   MAP_PENDING,
   MAP_SOURCE_ONLY_UNCHECKED,
+  MAP_SUGGESTED_ONLY,
 } from "../stories/fixtures/mapSummary";
 import type { MapSummary } from "../types/api";
 
@@ -61,9 +63,21 @@ describe("the Map", () => {
     expect(unchecked.querySelector('[data-tone="muted"]')).not.toBeNull();
   });
 
-  it("names when kapi read the files", () => {
+  it("names when kapi read the files, and no count the files count already gives", () => {
     renderView(MAP_PENDING);
-    expect(document.querySelector('[data-slot="map-read"]')?.textContent).toMatch(/^Read 4 files /);
+    const read = document.querySelector('[data-slot="map-read"]')?.textContent ?? "";
+    expect(read).toMatch(/^Read /);
+    expect(read).not.toMatch(/\d+ files?/);
+  });
+
+  it("names how many files kapi read when that differs from the files count", () => {
+    renderView(MAP_PARTLY_READ);
+    expect(document.querySelector('[data-slot="map-read"]')?.textContent).toMatch(/^Read 3 files /);
+  });
+
+  it("leaves the line out before the first read when the counts agree", () => {
+    renderView({ ...MAP_ALL_KEPT, read_at: undefined });
+    expect(document.querySelector('[data-slot="map-read"]')).toBeNull();
   });
 
   it("lists each suggestion with its kind mark and evidence, and Decide opens that row", async () => {
@@ -81,6 +95,12 @@ describe("the Map", () => {
     expect(decideRowKey(MAP_PENDING.suggestions[0])).toBe(
       `conflict:${MAP_PENDING.suggestions[0].item.id}`,
     );
+  });
+
+  it("shows kapi suggests only when disagreements make it differ from Decide", () => {
+    renderView(MAP_SUGGESTED_ONLY);
+    expect(screen.getByRole("button", { name: "Decide 4" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /kapi suggests/ })).not.toBeInTheDocument();
   });
 
   it("offers Decide with the count awaiting, and kapi suggests beside the counts", async () => {

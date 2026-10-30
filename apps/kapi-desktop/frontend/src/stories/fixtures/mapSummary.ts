@@ -116,6 +116,21 @@ export const MAP_ALL_KEPT: MapSummary = {
   suggestions: [],
 };
 
+/** Suggestions and no disagreement: Decide carries the one number. */
+export const MAP_SUGGESTED_ONLY: MapSummary = {
+  ...MAP_PENDING,
+  suggested: SUGGESTIONS.length - 1,
+  conflicts: 0,
+  awaiting: SUGGESTIONS.length - 1,
+  suggestions: SUGGESTIONS.slice(1),
+};
+
+/** One file no reader opens, so kapi read fewer files than the project has. */
+export const MAP_PARTLY_READ: MapSummary = {
+  ...MAP_ALL_KEPT,
+  read_files: FILES.length - 1,
+};
+
 /** A source-only project, never checked in this session. */
 export const MAP_SOURCE_ONLY_UNCHECKED: MapSummary = {
   ...MAP_ALL_KEPT,

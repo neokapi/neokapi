@@ -5,8 +5,10 @@ import { MapPage, MapView } from "../components/MapPage";
 import {
   MAP_ALL_KEPT,
   MAP_EMPTY,
+  MAP_PARTLY_READ,
   MAP_PENDING,
   MAP_SOURCE_ONLY_UNCHECKED,
+  MAP_SUGGESTED_ONLY,
 } from "./fixtures/mapSummary";
 
 const TAB = "tab-fernwell";
@@ -50,6 +52,16 @@ type Story = StoryObj<typeof MapPage>;
 
 /** An assistant noticed names, words and a way of writing; one disagreement waits. */
 export const SuggestionsPending: Story = {};
+
+/** Suggestions and no disagreement: the Decide button carries the count alone. */
+export const SuggestionsOnly: Story = {
+  args: { summary: MAP_SUGGESTED_ONLY },
+};
+
+/** kapi read fewer files than the project has, so the line under the title names how many. */
+export const PartlyRead: Story = {
+  args: { summary: MAP_PARTLY_READ },
+};
 
 /** A new project whose collections match no file yet. */
 export const Empty: Story = {
