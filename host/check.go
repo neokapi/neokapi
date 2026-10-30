@@ -1366,10 +1366,8 @@ func (f *checkFormats) directivesFor(file string) []string {
 	return f.directives
 }
 
-// lookup returns what the project declared for one file. A file named
-// through a symbolic link to the project directory (a working directory under
-// /var when the recipe was named under /private/var) is looked up as the
-// project directory spells it.
+// lookup returns what the project declared for one file, its path spelled
+// the way root spells it (rootSpelled).
 func (f *checkFormats) lookup(file string) (resolvedFormat, bool) {
 	if f == nil || len(f.byPath) == 0 {
 		return resolvedFormat{}, false
