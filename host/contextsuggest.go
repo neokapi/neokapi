@@ -140,9 +140,9 @@ type SuggestedForm struct {
 // that use a personal pronoun, how many address the reader as you and how
 // many say we.
 type SuggestedAddress struct {
-	You      int    `json:"you"`
-	We       int    `json:"we"`
-	Pronouns int    `json:"pronouns"`
+	You       int    `json:"you"`
+	We        int    `json:"we"`
+	Pronouns  int    `json:"pronouns"`
 	PersonPOV string `json:"person_pov"`
 }
 
@@ -297,6 +297,7 @@ type suggestBlock struct {
 // opens is passed over.
 func (s *contextOpsSession) suggestCorpus(ctx context.Context) (suggestCorpus, error) {
 	a := s.app
+	a.InitRegistries()
 	c := suggestCorpus{language: string(s.proj.Defaults.SourceLanguage)}
 	if c.language == "" {
 		c.language = a.SourceLocale()
@@ -421,11 +422,11 @@ func suggestTokens(text string) []suggestToken {
 			breakPair()
 			continue
 		}
-		core := strings.TrimLeftFunc(chunk, func(r rune) bool { return !unicode.IsLetter(r) })
+		core := strings.TrimLeftFunc(chunk, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) })
 		if len(core) != len(chunk) {
 			breakPair()
 		}
-		trimmed := strings.TrimRightFunc(core, func(r rune) bool { return !unicode.IsLetter(r) })
+		trimmed := strings.TrimRightFunc(core, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) })
 		if !isSuggestWord(trimmed) {
 			breakPair()
 			continue
@@ -510,10 +511,11 @@ func upperInitial(word string) string {
 
 // variantCount is one form's uses.
 type variantCount struct {
-	count, blocks int
-	files         map[string]int
-	spellings     map[string]int
-	lastBlock     int
+	count     int
+	files     map[string]int
+	spellings map[string]int
+	// blocks are the blocks that use the form, each once, in order.
+	blocks []int
 	// sample is the first block that uses the form, for a quote.
 	sample int
 }
@@ -540,15 +542,14 @@ func spellingFindings(c suggestCorpus) []suggestFinding {
 		}
 		v := forms[form]
 		if v == nil {
-			v = &variantCount{files: map[string]int{}, spellings: map[string]int{}, lastBlock: -1, sample: block}
+			v = &variantCount{files: map[string]int{}, spellings: map[string]int{}, sample: block}
 			forms[form] = v
 		}
 		v.count++
 		v.spellings[written]++
 		v.files[file]++
-		if v.lastBlock != block {
-			v.blocks++
-			v.lastBlock = block
+		if n := len(v.blocks); n == 0 || v.blocks[n-1] != block {
+			v.blocks = append(v.blocks, block)
 		}
 	}
 	for i, b := range c.blocks {
@@ -591,7 +592,7 @@ func spellingFinding(c suggestCorpus, key string, forms map[string]*variantCount
 	}
 	list := make([]ranked, 0, len(forms))
 	for form, v := range forms {
-		list = append(list, ranked{form: form, written: mostWritten(v.spellings), v: v})
+		list = append(list, ranked{form: form, written: writtenAs(form, v.spellings), v: v})
 	}
 	sort.Slice(list, func(i, j int) bool {
 		if list[i].v.count != list[j].v.count {
@@ -602,10 +603,13 @@ func spellingFinding(c suggestCorpus, key string, forms map[string]*variantCount
 
 	fd := suggestFinding{kind: SuggestKindSpelling, key: "spelling:" + key, note: suggestNoteSpelling}
 	files := map[string]bool{}
+	blocks := map[int]bool{}
 	others := make([]string, 0, len(list)-1)
 	for i, r := range list {
-		fd.forms = append(fd.forms, SuggestedForm{Form: r.written, Count: r.v.count, Blocks: r.v.blocks, Files: slices.Sorted(maps.Keys(r.v.files))})
-		fd.blocks += r.v.blocks
+		fd.forms = append(fd.forms, SuggestedForm{Form: r.written, Count: r.v.count, Blocks: len(r.v.blocks), Files: slices.Sorted(maps.Keys(r.v.files))})
+		for _, b := range r.v.blocks {
+			blocks[b] = true
+		}
 		for f := range r.v.files {
 			files[f] = true
 		}
@@ -614,6 +618,7 @@ func spellingFinding(c suggestCorpus, key string, forms map[string]*variantCount
 		}
 	}
 	fd.files = slices.Sorted(maps.Keys(files))
+	fd.blocks = len(blocks)
 
 	rule := contextop.ObservedRule(list[0].written, others)
 	fd.subject = contextop.Subject{Kind: contextop.SubjectTerm, Term: &rule, Text: spellingCounts(fd.forms)}
@@ -656,9 +661,14 @@ func spellingFinding(c suggestCorpus, key string, forms map[string]*variantCount
 	return fd
 }
 
-// mostWritten is the spelling written most often, the first in order on a
-// tie.
-func mostWritten(spellings map[string]int) string {
+// writtenAs is how a form is shown: as the form itself where the files write
+// it so, which is how a word reads inside a sentence, and otherwise as the
+// spelling written most often, the first in order on a tie. "Sign in" at the
+// head of a page and "sign in" in its prose are shown as "sign in".
+func writtenAs(form string, spellings map[string]int) string {
+	if spellings[form] > 0 {
+		return form
+	}
 	best, n := "", -1
 	for _, w := range slices.Sorted(maps.Keys(spellings)) {
 		if spellings[w] > n {
@@ -786,7 +796,7 @@ func packFindings(c suggestCorpus) ([]suggestFinding, error) {
 		fd.note = suggestNotePack(name) + fd.signature
 		fd.subject = contextop.Subject{Kind: contextop.SubjectNote, Text: fmt.Sprintf(
 			"The files use %d words the %s starter pack avoids: %s, in %s across %s.",
-			len(found), name, orList(counted), countWord(fd.blocks, "block", "blocks"), countWord(len(fd.files), "file", "files"))}
+			len(found), name, andList(counted), countWord(fd.blocks, "block", "blocks"), countWord(len(fd.files), "file", "files"))}
 		fd.evidence = fileEvidence(fd.files, c.blocks[sample], found[0].Form)
 		out = append(out, fd)
 	}
@@ -1144,4 +1154,16 @@ func (f *suggestFiler) pointOf(files []string) (contextop.Basis, contextop.Scope
 		scope.Level = contextop.LevelProject
 	}
 	return basis, scope
+}
+
+// andList joins items the way a sentence lists them together: "a", "a and
+// b", "a, b and c".
+func andList(items []string) string {
+	switch len(items) {
+	case 0:
+		return ""
+	case 1:
+		return items[0]
+	}
+	return strings.Join(items[:len(items)-1], ", ") + " and " + items[len(items)-1]
 }

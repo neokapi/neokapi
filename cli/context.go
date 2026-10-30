@@ -50,14 +50,15 @@ reached; --json gives all of it as data.
 
 Rules grow out of ordinary work. An assistant notes what it sees and what you
 change, and each note arrives as a suggestion: checks report it and none fails
-on it until you keep it. Decide about suggestions with review, lay out the
-whole context with atlas, look up the places a geo axis takes with places,
-share the context with the rest of the team with sync, and go back to an
-earlier state with reset.`,
+on it until you keep it. suggest files what kapi can see in the files the same
+way. Decide about suggestions with review, lay out the whole context with
+atlas, look up the places a geo axis takes with places, share the context with
+the rest of the team with sync, and go back to an earlier state with reset.`,
 		Example: "  kapi context docs/guide.md\n" +
 			"  kapi context docs/guide.md --explain\n" +
 			"  kapi context cmd/main.go --comments\n" +
 			"  kapi context search widget\n" +
+			"  kapi context suggest\n" +
 			"  kapi context review\n" +
 			"  kapi context atlas\n" +
 			"  kapi context places oslo\n" +
@@ -123,6 +124,7 @@ earlier state with reset.`,
 	)
 	for _, sub := range []*cobra.Command{
 		newContextSearchCmd(a),
+		newContextSuggestCmd(a),
 		newContextReviewCmd(a),
 		newContextAtlasCmd(a),
 		newContextPlacesCmd(a),
