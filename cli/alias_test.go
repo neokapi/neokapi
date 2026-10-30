@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"slices"
 	"strings"
 	"testing"
 
@@ -135,29 +136,61 @@ func TestHelpGroups_RenderInPorcelainOrder(t *testing.T) {
 // and the visible command count must not silently creep back up. Raising a
 // budget is a deliberate product decision, not a side effect.
 //
-// Each budget guards one page. defaultPageBudget is the default `kapi
-// --help` outside a project: the person tier (Work, Assets, and the commands
-// in no group). allPageBudget is `kapi help --all`: every visible command.
-// Both are the count on the page apart from the Work group's lead verbs
-// (workLeads), plus room for every lead verb, registered or not.
+// Each budget guards one page, and counts the commands on it apart from the
+// Work group's lead verbs (workLeads), which the length of workLeads caps.
+// defaultPageBudget is the default `kapi --help` outside a project: the
+// person tier (Work, Assets, and the commands in no group). allPageBudget is
+// `kapi help --all`: every visible command.
 func TestRootHelpBudget(t *testing.T) {
 	const (
-		defaultPageBudget = 14 + 7
-		allPageBudget     = 37 + 7
+		defaultPageBudget = 14
+		allPageBudget     = 37
 	)
-	require.Len(t, workLeads, 7, "the budgets leave room for each lead verb")
+	require.Len(t, workLeads, 7, "the lead verbs are capped by their list")
 
-	a := processOnlyApp(t)
-	root := &cobra.Command{Use: "kapi", Short: "test"}
-	AddCommandGroups(a, root)
-	for _, c := range KapiCommandSet(a) {
-		root.AddCommand(c)
+	for _, tt := range []struct {
+		name  string
+		extra *cobra.Command
+		over  bool
+	}{
+		{name: "the root as kapi registers it"},
+		{name: "must fail: one more command in no group", extra: &cobra.Command{Use: "stray", Short: "x", Run: func(*cobra.Command, []string) {}}, over: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			a := processOnlyApp(t)
+			root := &cobra.Command{Use: "kapi", Short: "test"}
+			AddCommandGroups(a, root)
+			for _, c := range KapiCommandSet(a) {
+				root.AddCommand(c)
+			}
+			if tt.extra != nil {
+				root.AddCommand(tt.extra)
+			}
+
+			shown, all := budgetedCommands(root)
+			if tt.over {
+				assert.Greater(t, len(shown), defaultPageBudget, "a stray command breaks the default page's budget")
+				assert.Greater(t, len(all), allPageBudget, "a stray command breaks the help --all budget")
+				return
+			}
+			assert.LessOrEqualf(t, len(shown), defaultPageBudget,
+				"the default root help grew past its budget; a new verb belongs in a group the default page leaves out (Languages, Advanced), in kapi exec or an assets subtree, or in hidden plumbing; counted now: %v", shown)
+			assert.LessOrEqualf(t, len(all), allPageBudget,
+				"kapi help --all grew past its budget; new verbs belong in a group (kapi exec, an assets subtree) or hidden plumbing; counted now: %v", all)
+		})
 	}
+}
 
+// budgetedCommands lists the visible root commands TestRootHelpBudget counts,
+// the Work group's lead verbs left out: those on the default page outside a
+// project, and all of them.
+func budgetedCommands(root *cobra.Command) (shown, all []string) {
 	person := usageScope{tiered: true}
-	var all, shown []string
 	for _, c := range root.Commands() {
 		if c.Hidden || !c.IsAvailableCommand() {
+			continue
+		}
+		if c.GroupID == workGroupID && slices.Contains(workLeads, c.Name()) {
 			continue
 		}
 		all = append(all, c.Name())
@@ -165,8 +198,5 @@ func TestRootHelpBudget(t *testing.T) {
 			shown = append(shown, c.Name())
 		}
 	}
-	assert.LessOrEqualf(t, len(shown), defaultPageBudget,
-		"the default root help grew past its budget; a new verb belongs in a group the default page leaves out (Languages, Advanced), in kapi exec or an assets subtree, or in hidden plumbing; shown now: %v", shown)
-	assert.LessOrEqualf(t, len(all), allPageBudget,
-		"kapi help --all grew past its budget; new verbs belong in a group (kapi exec, an assets subtree) or hidden plumbing; visible now: %v", all)
+	return shown, all
 }
