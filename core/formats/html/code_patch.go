@@ -139,9 +139,17 @@ func patchEdit(original string, read, edited []model.Run) (string, bool) {
 		insert(match[i], it.start)
 		started = true
 		b.WriteString(original[oc:it.start])
-		if e := to[match[i]]; e.code && e.data != it.data {
+		e := to[match[i]]
+		switch {
+		case e.code && e.data != it.data:
 			b.WriteString(e.data)
-		} else {
+		case !e.code && (e.text == '<' || e.text == '&') && !nextKept(match, i, len(to)):
+			// A bare `<` or `&` the document holds as text reads as text
+			// because of the byte after it. The edit changed that byte, so
+			// the kept character is escaped and cannot open a tag or a
+			// reference with what follows.
+			_, _ = htmlTextEscaper.WriteString(&b, string(e.text))
+		default:
 			b.WriteString(original[it.start:it.end])
 		}
 		oc = it.end
@@ -150,6 +158,16 @@ func patchEdit(original string, read, edited []model.Run) (string, bool) {
 	insert(len(to), 0)
 	b.WriteString(original[oc:])
 	return b.String(), true
+}
+
+// nextKept reports whether the element after element i as read is still the
+// element after it in the edit: the next element as read is kept right after
+// it, or element i is the last of both sequences.
+func nextKept(match []int, i, edited int) bool {
+	if i+1 < len(match) {
+		return match[i+1] >= 0 && match[i+1] == match[i]+1
+	}
+	return match[i]+1 == edited
 }
 
 // runSpan is where a run of read sits in the block's original bytes. For a

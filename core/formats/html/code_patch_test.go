@@ -81,3 +81,24 @@ func TestPatchEditKeepsCollapsedWhitespace(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, "  Today we use   the\n   widget.  ", got)
 }
+
+// A bare `<` or `&` reads as text because of the byte after it. When an edit
+// changes that byte, the kept character is escaped, so it opens no tag and no
+// character reference with what follows; where the byte after it is kept, it
+// keeps its spelling.
+func TestPatchEditEscapesAKeptMarkupCharacterBesideTheEdit(t *testing.T) {
+	cases := []struct{ name, original, read, edited, want string }{
+		{"a < before a removed space", "a < b c", "a < b c", "a <b c", "a &lt;b c"},
+		{"an & before added letters", "R & D", "R & D", "R &copy D", "R &amp;copy D"},
+		{"an & at the end before added text", "R &", "R &", "R &amp", "R &amp;amp"},
+		{"a < whose next byte is kept", "a < b c", "a < b c", "a < b d", "a < b d"},
+		{"an & whose next byte is kept", "R & D now", "R & D now", "R & D later", "R & D later"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, ok := patchEdit(tc.original, []model.Run{model.TextR(tc.read)}, []model.Run{model.TextR(tc.edited)})
+			assert.True(t, ok)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}

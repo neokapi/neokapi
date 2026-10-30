@@ -117,6 +117,18 @@ func TestTextEditKeepsTheDocumentsBytes(t *testing.T) {
 			from: "We  utilize", to: "We  use",
 		},
 		{
+			name: "a kept bare < before a removed space",
+			doc:  "<html><body><p>So a < b holds.</p><p>Keep   this.</p></body></html>",
+			pick: "So", op: replaceWord("a < b", "a <b"),
+			from: "a < b", to: "a &lt;b",
+		},
+		{
+			name: "a kept bare & before added letters",
+			doc:  "<html><body><p>Our R & D team.</p><p>Keep   this.</p></body></html>",
+			pick: "Our", op: replaceWord("R & D", "R &copy D"),
+			from: "R & D", to: "R &amp;copy D",
+		},
+		{
 			name: "added text that needs escaping",
 			doc:  "<html><body><p>Say   \"hi\" &amp; utilize it.</p><p>Keep   this.</p></body></html>",
 			pick: "Say", op: replaceWord("utilize", "use <b> & co"),
