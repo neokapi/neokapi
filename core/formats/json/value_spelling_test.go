@@ -57,9 +57,8 @@ func replaceIn(from, to string) func(*model.Block) {
 
 // An edited value keeps the spelling of every character the edit left: an
 // escape stays an escape, a literal slash stays literal, and only the words
-// the edit changed differ. The edit of "b" is the one a fix of the value
-// "café utilize <b>e-mail</b>" makes, which once came back as
-// "café use <b>email<\/b>".
+// the edit changed differ. The edit of "b" is the one a fix of its two terms
+// makes: the \u escape and the literal slash of "</b>" stay as written.
 func TestEditedValueKeepsTheSpellingOfWhatItKept(t *testing.T) {
 	const doc = "{\n    \"a\": \"Hello {name}, utilize it\",\n  \"b\" :\"caf\\u00e9 utilize <b>e-mail</b>\",\n  \"c\": \"nothing\"\n}"
 	tests := []struct {
@@ -85,9 +84,15 @@ func TestEditedValueKeepsTheSpellingOfWhatItKept(t *testing.T) {
 		},
 		{
 			name:   "an added non-ASCII character is escaped as the file escapes",
-			doc:    `{"a": "café", "b": "utilize"}`,
+			doc:    "{\"a\": \"caf\\u00e9\", \"b\": \"utilize\"}",
 			mutate: replaceIn("utilize", "naïve"),
-			want:   `{"a": "café", "b": "naïve"}`,
+			want:   "{\"a\": \"caf\\u00e9\", \"b\": \"na\\u00efve\"}",
+		},
+		{
+			name:   "an added character beyond the BMP is a surrogate pair",
+			doc:    "{\"a\": \"caf\\u00E9\", \"b\": \"utilize\"}",
+			mutate: replaceIn("utilize", "\U0001F600"),
+			want:   "{\"a\": \"caf\\u00E9\", \"b\": \"\\uD83D\\uDE00\"}",
 		},
 		{
 			name:   "an added non-ASCII character is UTF-8 in a UTF-8 file",
@@ -109,9 +114,9 @@ func TestEditedValueKeepsTheSpellingOfWhatItKept(t *testing.T) {
 		},
 		{
 			name:   "an astral escape survives beside the edit",
-			doc:    `{"a": "😀 utilize"}`,
+			doc:    "{\"a\": \"\\ud83d\\ude00 utilize\"}",
 			mutate: replaceIn("utilize", "use"),
-			want:   `{"a": "😀 use"}`,
+			want:   "{\"a\": \"\\ud83d\\ude00 use\"}",
 		},
 	}
 	for _, tc := range tests {

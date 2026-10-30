@@ -166,3 +166,36 @@ func TestCheck_WordsThatSpanFormattingGetNoFix(t *testing.T) {
 	d := fixFor(t, f, guide)
 	assert.Nil(t, d.Fix, "the bold inside the words would go with them")
 }
+
+// The check reads an HTML page the way the change service does, so its fix
+// names the revision and run positions an apply resolves. A paragraph with a
+// run of spaces and character references is where the two readings parted: the
+// fix was refused as stale although nothing had changed the block.
+func TestCheck_AnHTMLFixLandsWhereTheCheckReadIt(t *testing.T) {
+	f := newCommitFixture(t)
+	page := filepath.Join(f.root, "docs", "page.html")
+	const src = "<!DOCTYPE html>\n<html><head><title>Guide</title></head>\n<body>\n<p>We utilize   the <a href=\"x\">widget</a>&nbsp;and &eacute;.</p>\n<p>Keep   this    spacing.</p>\n</body></html>\n"
+	require.NoError(t, os.WriteFile(page, []byte(src), 0o644))
+
+	d := fixFor(t, f, page)
+	require.NotNil(t, d.Fix)
+
+	svc, err := f.app.ChangeService(t.Context(), ChangeServiceOptions{Project: f.recipe, Origin: "test"})
+	require.NoError(t, err)
+	read, err := svc.Read(t.Context(), change.ReadRequest{Doc: d.Fix.At.Doc})
+	require.NoError(t, err)
+	var rev string
+	for _, b := range read.Blocks {
+		if b.Ref.Block == d.Fix.At.Block {
+			rev = b.Rev
+		}
+	}
+	assert.Equal(t, rev, d.Fix.IfMatch, "the check and the change service compute one revision for the block")
+
+	res, err := svc.Apply(t.Context(), change.Set{Ops: []change.Op{*d.Fix}}, change.Actor{Kind: change.ActorPerson})
+	require.NoError(t, err)
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+	got, err := os.ReadFile(page)
+	require.NoError(t, err)
+	assert.Equal(t, strings.Replace(src, "We utilize   the", "We use   the", 1), string(got))
+}
