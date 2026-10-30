@@ -75,7 +75,7 @@ func (a *App) GetKeptConflicts(tabID string) ([]KeptConflict, error) {
 	if op == nil {
 		return nil, fmt.Errorf("project tab %q not found", tabID)
 	}
-	if op.Project == nil || op.Path == "" {
+	if op.Project == nil || !op.onDisk() {
 		return []KeptConflict{}, nil
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), changeTimeout)

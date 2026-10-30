@@ -14,7 +14,6 @@ import { IconSidebar } from "./components/IconSidebar";
 import { JobFeedButton } from "./components/JobFeedButton";
 import { AIActivityButton } from "./components/AIActivityButton";
 import { FilterMenu } from "./components/FilterMenu";
-import { ModeToggle } from "./components/ModeToggle";
 import { TabBar } from "./components/TabBar";
 import { SaveBar } from "./components/SaveBar";
 import { UnsavedDialog } from "./components/UnsavedDialog";
@@ -23,6 +22,7 @@ import { TelemetryNoticeDialog } from "./components/TelemetryNoticeDialog";
 import { initAnalytics, capturePageview } from "./analytics";
 import { ViewSwitch } from "./components/ViewSwitch";
 import { NewProjectDialog } from "./components/NewProjectDialog";
+import { OpenScreen, firstScreen } from "./components/OpenScreen";
 import { useShortenHome } from "./hooks/useShortenHome";
 import { isMacDesktop } from "./lib/platform";
 import { Undo2, Redo2 } from "lucide-react";
@@ -107,9 +107,10 @@ function AppInner() {
   // project names or file paths.
   useEffect(() => {
     const view = tm.effectiveView;
-    const route = GLOBAL_OVERLAYS.has(view) ? view : `${tm.mode}/${view.split(":")[0]}`;
+    // The "projects/" prefix keeps the routes the analytics already hold.
+    const route = GLOBAL_OVERLAYS.has(view) ? view : `projects/${view.split(":")[0]}`;
     capturePageview(route);
-  }, [tm.mode, tm.effectiveView]);
+  }, [tm.effectiveView]);
 
   // Warn before window close/quit if there are unsaved changes or running flows.
   useEffect(() => {
@@ -135,7 +136,7 @@ function AppInner() {
   // --- Keyboard shortcuts ---
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (tm.mode !== "projects" || !tm.activeTab) return;
+      if (!tm.activeTab) return;
       const meta = e.metaKey || e.ctrlKey;
       if (meta && e.key === "z" && !e.shiftKey) {
         e.preventDefault();
@@ -150,7 +151,7 @@ function AppInner() {
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [tm.mode, tm.activeTab, history, handleSaveProject]);
+  }, [tm.activeTab, history, handleSaveProject]);
 
   // --- Unsaved-changes guard for tab close ---
   const [pendingCloseTabID, setPendingCloseTabID] = useState<string | null>(null);
@@ -214,7 +215,6 @@ function AppInner() {
     addTab: tm.addTab,
     updateTabInfo: tm.updateTabInfo,
     setShowNewProjectForm: tm.setShowNewProjectForm,
-    setMode: tm.switchMode as (m: "projects") => void,
   });
 
   // --- Render ---
@@ -223,15 +223,58 @@ function AppInner() {
   // clear them. Windows/Linux have a native frame — drop those insets so the
   // sidebar's Home icon sits at the very top instead of an empty gap.
   const isMac = isMacDesktop();
-  // The Active Filter is per-project-tab and only applies in project mode with a
-  // saved project loaded.
-  const filterTabID = tm.mode === "projects" ? tm.activeTabID : null;
-  const filterEnabled =
-    tm.mode === "projects" && !!tm.activeTab && !tm.activeTab.isEmpty && !!tm.activeTab.info.path;
+  // The Active Filter is per-project-tab and applies with a project loaded.
+  const filterTabID = tm.activeTabID;
+  const filterEnabled = !!tm.activeTab && !tm.activeTab.isEmpty && !!tm.activeTab.info.path;
   // The active project's block cache follows its files; nobody runs an extract.
   useProjectStoreSync(
     filterEnabled && !tm.activeTab?.info.context_only ? (tm.activeTabID ?? undefined) : undefined,
   );
+  // Until two projects are registered the home is the Open screen. With no
+  // folder open it fills the window: no sidebar, no top bar, nothing to act on
+  // but the ways in (see firstScreen).
+  const openScreen = (workspace?.projects.length ?? 0) < 2;
+  const screen = firstScreen({
+    workspace,
+    workspaceError,
+    tabCount: tm.tabs.length,
+    restoring: tm.restoring,
+    view: tm.effectiveView,
+  });
+  const dialogs = (
+    <>
+      {tm.showNewProjectForm && (
+        <NewProjectDialog
+          onCreate={tm.createProject}
+          onCancel={() => tm.setShowNewProjectForm(false)}
+          shortenHome={shortenHome}
+        />
+      )}
+      {showTelemetryNotice && (
+        <TelemetryNoticeDialog onClose={() => setShowTelemetryNotice(false)} />
+      )}
+    </>
+  );
+  if (screen !== "app") {
+    return (
+      <div className="flex h-screen flex-col bg-background text-foreground">
+        <div className="h-12 shrink-0" style={{ WebkitAppRegion: "drag" } as React.CSSProperties} />
+        <main className="min-h-0 flex-1">
+          {screen === "open" && (
+            <OpenScreen
+              workspace={workspace}
+              onChooseFolder={() => void tm.openProject()}
+              onOpenPath={(path) => void tm.openRecent(path)}
+              onTrySample={() => tm.createSampleProject("kapimart")}
+              onOpenSettings={() => tm.navigate("app-settings")}
+            />
+          )}
+        </main>
+        {dialogs}
+      </div>
+    );
+  }
+
   return (
     <ActiveFilterProvider tabID={filterTabID} enabled={filterEnabled}>
       <div className="flex h-screen flex-col bg-background text-foreground">
@@ -246,10 +289,9 @@ function AppInner() {
             )}
             <div className="flex-1 border-r border-border">
               <IconSidebar
-                mode={tm.mode}
                 active={tm.effectiveView}
                 onChange={tm.navigate}
-                projectDisabled={tm.mode === "projects" && !tm.activeTab}
+                projectDisabled={!tm.activeTab}
                 hasTargetLanguages={
                   (tm.activeTab?.project.defaults?.target_languages?.length ?? 0) > 0
                 }
@@ -265,7 +307,7 @@ function AppInner() {
               style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
             >
               {/* Undo / Redo */}
-              {tm.mode === "projects" && tm.activeTab && (
+              {tm.activeTab && (
                 <div
                   className={`flex shrink-0 items-center gap-0.5 pb-1.5 ${isMac ? "pl-16" : "pl-2"}`}
                   style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
@@ -302,10 +344,10 @@ function AppInner() {
               )}
               {/* Tabs or spacer */}
               <div
-                className={`flex-1 ${tm.mode === "projects" && tm.activeTab ? "pl-2" : isMac ? "pl-16" : "pl-2"}`}
+                className={`flex-1 ${tm.activeTab ? "pl-2" : isMac ? "pl-16" : "pl-2"}`}
                 style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
               >
-                {tm.mode === "projects" && tm.tabs.length > 0 && (
+                {tm.tabs.length > 0 && (
                   <TabBar
                     tabs={tm.tabs.map((t) => t.info)}
                     activeTabID={tm.activeTabID}
@@ -319,7 +361,7 @@ function AppInner() {
                   />
                 )}
               </div>
-              {/* Job feed + mode toggle */}
+              {/* Filter, job feed and AI activity */}
               <div
                 className="flex shrink-0 items-center gap-1.5 px-3 pb-1.5"
                 style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
@@ -334,14 +376,12 @@ function AppInner() {
                   }}
                 />
                 <AIActivityButton />
-                <ModeToggle mode={tm.mode} onChange={tm.switchMode} />
               </div>
             </div>
 
             {/* Content */}
             <main className="flex-1 overflow-auto">
               <ViewSwitch
-                mode={tm.mode}
                 effectiveView={tm.effectiveView}
                 activeTab={tm.activeTab}
                 history={history}
@@ -360,39 +400,22 @@ function AppInner() {
                 onOpenCheckout={tm.openRecent}
                 onOpenContext={tm.openWorkspaceContext}
                 onForgetProject={forgetProject}
-                onNewProject={() => {
-                  tm.switchMode("projects");
-                  tm.setShowNewProjectForm(true);
-                }}
+                onNewProject={() => tm.setShowNewProjectForm(true)}
                 onOpenProject={tm.openProject}
                 onCreateSampleProject={tm.createSampleProject}
                 onResetSample={tm.resetSample}
-                adoptTarget={(() => {
-                  // In ad-hoc mode, offer adoption into the active project tab, or
-                  // the most recently opened one if none is active.
-                  const target =
-                    tm.tabs.find((t) => t.info.id === tm.activeTabID) ??
-                    tm.tabs[tm.tabs.length - 1];
-                  return target ? { id: target.info.id, name: target.info.name } : null;
-                })()}
+                onOpenPath={(path) => void tm.openRecent(path)}
+                openScreen={openScreen}
               />
             </main>
           </div>
         </div>
 
         {/* Save bar — full width below sidebar + content */}
-        {tm.mode === "projects" && tm.activeTab && (
-          <SaveBar isDirty={history.isDirty} onSave={handleSaveProject} />
-        )}
+        {tm.activeTab && <SaveBar isDirty={history.isDirty} onSave={handleSaveProject} />}
 
         {/* Dialogs */}
-        {tm.showNewProjectForm && (
-          <NewProjectDialog
-            onCreate={tm.createProject}
-            onCancel={() => tm.setShowNewProjectForm(false)}
-            shortenHome={shortenHome}
-          />
-        )}
+        {dialogs}
         {pendingFlowCloseTabID && (
           <RunningFlowDialog
             onCancelFlow={() => void handleFlowCancelAndClose()}
@@ -405,9 +428,6 @@ function AppInner() {
             onDiscard={handleUnsavedDiscard}
             onCancel={() => setPendingCloseTabID(null)}
           />
-        )}
-        {showTelemetryNotice && (
-          <TelemetryNoticeDialog onClose={() => setShowTelemetryNotice(false)} />
         )}
       </div>
     </ActiveFilterProvider>

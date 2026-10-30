@@ -1,7 +1,6 @@
 package backend
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -202,12 +201,9 @@ func (a *App) OpenProjectDialog() (*TabInfo, error) {
 		return nil, nil // user canceled
 	}
 
-	recipe := filepath.Join(dir, project.RecipeFileName)
-	if _, err := os.Stat(recipe); err != nil {
-		return nil, fmt.Errorf("no %s in %q. Choose a folder that contains a kapi project", project.RecipeFileName, dir)
-	}
-
-	return a.OpenProject(recipe)
+	// Any folder opens. One without a kapi.yaml opens on the recipe kapi init
+	// would write there, and gets the file when a person first changes it.
+	return a.OpenProject(dir)
 }
 
 // SaveProjectDialog shows a native folder picker and saves the project's

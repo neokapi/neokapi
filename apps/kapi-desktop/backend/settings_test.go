@@ -58,42 +58,19 @@ func TestAppSaveSettings(t *testing.T) {
 }
 
 // isolatedSettingsApp returns an App whose settings store writes to a temp dir
-// so mode/session tests never touch the developer's real config.
+// so session tests never touch the developer's real config.
 func isolatedSettingsApp(t *testing.T) *App {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "settings.json")
 	return &App{settings: &settingsStore{filePath: path, settings: AppSettings{Theme: "system"}}}
 }
 
-func TestGetAppModeDefaultsToProjects(t *testing.T) {
-	app := isolatedSettingsApp(t)
-	// First-ever launch: empty Mode → project-first default.
-	assert.Equal(t, AppModeProjects, app.GetAppMode())
-}
-
-func TestSetAppModePersists(t *testing.T) {
-	app := isolatedSettingsApp(t)
-
-	app.SetAppMode(AppModeAdhoc)
-	assert.Equal(t, AppModeAdhoc, app.GetAppMode())
-
-	// Reload from disk to confirm persistence.
-	reloaded := &settingsStore{filePath: app.settings.filePath}
-	reloaded.load()
-	assert.Equal(t, AppModeAdhoc, reloaded.settings.Mode)
-
-	// Unknown values fall back to projects.
-	app.SetAppMode("garbage")
-	assert.Equal(t, AppModeProjects, app.GetAppMode())
-}
-
 func TestSessionStateRoundTrip(t *testing.T) {
 	app := isolatedSettingsApp(t)
 
-	// Default (nothing saved): projects mode, no projects → frontend falls
-	// back to home screen.
+	// Default (nothing saved): no projects, so the frontend shows the Open
+	// screen.
 	got := app.GetSessionState()
-	assert.Equal(t, AppModeProjects, got.Mode)
 	assert.Empty(t, got.LastOpenProjects)
 	assert.Empty(t, got.ActiveProject)
 
@@ -103,13 +80,11 @@ func TestSessionStateRoundTrip(t *testing.T) {
 	b := createTempKapi(t, "b")
 
 	app.SaveSessionState(SessionState{
-		Mode:             AppModeProjects,
 		LastOpenProjects: []string{a, b, a, ""},
 		ActiveProject:    b,
 	})
 
 	got = app.GetSessionState()
-	assert.Equal(t, AppModeProjects, got.Mode)
 	// Deduped and empty-filtered, order preserved.
 	assert.Equal(t, []string{a, b}, got.LastOpenProjects)
 	assert.Equal(t, b, got.ActiveProject)
@@ -136,7 +111,6 @@ func TestSessionStateDropsGoneProjects(t *testing.T) {
 
 	app := isolatedSettingsApp(t)
 	app.SaveSessionState(SessionState{
-		Mode:             AppModeProjects,
 		LastOpenProjects: []string{deleted, kept, moved},
 		ActiveProject:    deleted,
 	})
@@ -161,7 +135,6 @@ func TestSessionStateKeepsActiveWhenOnlyOthersAreGone(t *testing.T) {
 
 	app := isolatedSettingsApp(t)
 	app.SaveSessionState(SessionState{
-		Mode:             AppModeProjects,
 		LastOpenProjects: []string{gone, kept},
 		ActiveProject:    kept,
 	})
@@ -172,8 +145,8 @@ func TestSessionStateKeepsActiveWhenOnlyOthersAreGone(t *testing.T) {
 }
 
 func TestSettingsBackwardCompatibility(t *testing.T) {
-	// A legacy settings.json without mode/session fields must still load,
-	// keep its existing fields, and default mode to projects.
+	// A legacy settings.json without session fields must still load and keep
+	// its existing fields.
 	dir := t.TempDir()
 	path := filepath.Join(dir, "settings.json")
 	legacy := `{"theme":"dark","ui_language":"qps"}`
@@ -185,15 +158,13 @@ func TestSettingsBackwardCompatibility(t *testing.T) {
 
 	assert.Equal(t, "dark", app.GetTheme())
 	assert.Equal(t, "qps", app.GetUILanguage())
-	assert.Equal(t, AppModeProjects, app.GetAppMode())
 
 	// Saving session state must not clobber the legacy fields.
-	app.SaveSessionState(SessionState{Mode: AppModeAdhoc, LastOpenProjects: []string{"/x.kapi"}})
+	app.SaveSessionState(SessionState{LastOpenProjects: []string{"/x.kapi"}})
 	reloaded := &settingsStore{filePath: path}
 	reloaded.load()
 	assert.Equal(t, "dark", reloaded.settings.Theme)
 	assert.Equal(t, "qps", reloaded.settings.UILanguage)
-	assert.Equal(t, AppModeAdhoc, reloaded.settings.Mode)
 }
 
 // TestTelemetryProjectionFollowsSharedConfig is finding 4: the desktop

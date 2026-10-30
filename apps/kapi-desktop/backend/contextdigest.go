@@ -74,6 +74,9 @@ func (a *App) KeepContextGroup(projectKey string, ids []string) (int, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), contextFeedTimeout)
 	defer cancel()
+	if err := a.ensureRecipeForKey(workspace.ProjectKey(project)); err != nil {
+		return 0, err
+	}
 	res, err := a.hostEngine().KeepContextOperations(ctx, host.ContextKeepRequest{
 		Actor:   deskPerson(),
 		Project: project,
@@ -93,6 +96,9 @@ func (a *App) ChooseContextSide(req ContextDecisionRequest) (*ContextFeedEntry, 
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), contextFeedTimeout)
 	defer cancel()
+	if err := a.ensureRecipeForKey(workspace.ProjectKey(project)); err != nil {
+		return nil, err
+	}
 	res, err := a.hostEngine().ChooseContextSide(ctx, host.ContextChooseRequest{
 		Actor:       deskPerson(),
 		Project:     project,

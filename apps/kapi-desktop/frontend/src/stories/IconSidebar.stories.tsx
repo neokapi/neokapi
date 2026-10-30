@@ -21,18 +21,10 @@ const meta: Meta<typeof IconSidebar> = {
 export default meta;
 type Story = StoryObj<typeof IconSidebar>;
 
-export const AdhocMode: Story = {
-  args: {
-    mode: "adhoc",
-    active: "tools",
-  },
-};
-
 // A single-language project: the content surfaces show; Content Memory
 // stays absent until the project has target languages.
 export const ProjectMode: Story = {
   args: {
-    mode: "projects",
     active: "project-home",
     hasTargetLanguages: false,
   },
@@ -42,7 +34,6 @@ export const ProjectMode: Story = {
 // not announced.
 export const ProjectMultilingual: Story = {
   args: {
-    mode: "projects",
     active: "memories",
     hasTargetLanguages: true,
   },
@@ -50,7 +41,6 @@ export const ProjectMultilingual: Story = {
 
 export const ProjectDisabled: Story = {
   args: {
-    mode: "projects",
     active: "home",
     projectDisabled: true,
   },

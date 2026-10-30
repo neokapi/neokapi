@@ -21,6 +21,8 @@ import { HomePage } from "./HomePage";
 import { ProjectSetupPage } from "./ProjectSetupPage";
 import { ProjectSettingsPage } from "./ProjectSettingsPage";
 import { ProjectPresetPage } from "./ProjectPresetPage";
+import { ProjectSettingsTabs, settingsSectionOf } from "./ProjectSettingsTabs";
+import { OpenScreen } from "./OpenScreen";
 import { useJobFeed } from "../context/JobFeedContext";
 
 /**
@@ -57,7 +59,6 @@ function RunnerViewFallback({
 }
 
 interface ViewSwitchProps {
-  mode: "adhoc" | "projects";
   effectiveView: string;
   activeTab: TabState | null;
   history: ProjectHistory;
@@ -90,12 +91,16 @@ interface ViewSwitchProps {
   onCreateSampleProject: (name: string) => void;
   /** Reset an out-of-date sample project to the version bundled with this kapi. */
   onResetSample: (tabID: string) => void;
-  /** An open project tab to offer ad-hoc flow adoption into ({id,name}). */
-  adoptTarget?: { id: string; name: string } | null;
+  /** Open a folder, a recipe or a file inside a folder, by path. */
+  onOpenPath: (path: string) => void;
+  /**
+   * The home is the Open screen rather than the workspace overview: fewer than
+   * two projects are registered, so there is nothing to compare.
+   */
+  openScreen: boolean;
 }
 
 export function ViewSwitch({
-  mode,
   effectiveView,
   activeTab,
   history,
@@ -118,7 +123,8 @@ export function ViewSwitch({
   onOpenProject,
   onCreateSampleProject,
   onResetSample,
-  adoptTarget,
+  onOpenPath,
+  openScreen,
 }: ViewSwitchProps) {
   // State for the runner view — set when the user clicks Run on a flow. runId is
   // a fresh token per Run click so the runner auto-launches exactly once per
@@ -213,8 +219,20 @@ export function ViewSwitch({
     navigate("runner");
   }, [history, navigate]);
 
-  // Home — global overlay in both modes
+  // Home, a global overlay over every tab: the Open screen until two projects
+  // are registered, the workspace overview from then on.
   if (effectiveView === "home") {
+    if (openScreen) {
+      return (
+        <OpenScreen
+          workspace={workspace}
+          onChooseFolder={onOpenProject}
+          onOpenPath={onOpenPath}
+          onTrySample={() => onCreateSampleProject("kapimart")}
+          onOpenSettings={() => navigate("app-settings")}
+        />
+      );
+    }
     return (
       <AppHome
         workspace={workspace}
@@ -245,36 +263,7 @@ export function ViewSwitch({
     <SettingsPage startHereDismissed={startHereDismissed} onRestoreStartHere={onRestoreStartHere} />
   );
 
-  // Ad-hoc views
-  if (mode === "adhoc") {
-    switch (effectiveView) {
-      // The Toolbox hosts Tools + Flows as route-driven tabs; flows are no
-      // longer a sidebar pillar.
-      case "tools":
-      case "flows":
-        return (
-          <ToolboxPage
-            tab={effectiveView === "flows" ? "flows" : "tools"}
-            onTabChange={navigate}
-            tools={<ToolRunnerPage />}
-            flows={<FlowsPage adoptTabID={adoptTarget?.id} adoptProjectName={adoptTarget?.name} />}
-          />
-        );
-      case "termbases":
-        return <TermsPage />;
-      case "memories":
-        return <MemoriesPage />;
-      case "formats":
-        return <FormatsPage />;
-      case "settings":
-      case "app-settings":
-        return settings;
-      default:
-        return null;
-    }
-  }
-
-  // Global app settings — accessible from any mode via bottom gear icon
+  // Global app settings, from the gear at the bottom of the sidebar
   if (effectiveView === "app-settings") {
     return settings;
   }
@@ -452,14 +441,29 @@ export function ViewSwitch({
           <ReviewPage key={reviewEntry.current} tabID={tabID} scope={reviewScope ?? undefined} />
         );
 
+      // Project Settings holds the project's settings and, under Tools, the
+      // app-wide tools, flows, terms, content memories and formats.
       case "project-settings":
         return (
-          <ProjectSettingsPage
-            tabID={tabID}
-            project={history.project}
-            onUpdate={updateProject}
-            pluginIssues={activeTab.pluginIssues}
+          <ProjectSettingsTabs
+            section={settingsSectionOf(effectiveView)}
             onNavigate={navigate}
+            settings={
+              <ProjectSettingsPage
+                tabID={tabID}
+                project={history.project}
+                onUpdate={updateProject}
+                pluginIssues={activeTab.pluginIssues}
+                onNavigate={navigate}
+              />
+            }
+            tools={{
+              tools: <ToolRunnerPage />,
+              flows: <FlowsPage adoptTabID={tabID} adoptProjectName={activeTab.info.name} />,
+              terms: <TermsPage />,
+              memories: <MemoriesPage />,
+              formats: <FormatsPage />,
+            }}
           />
         );
 

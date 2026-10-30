@@ -606,7 +606,7 @@ function MemoriesView() {
   );
 }
 
-// ── App shell (mirrors App.tsx chrome, adhoc mode) ──────────────────────────
+// ── App shell (mirrors App.tsx chrome) ──────────────────────────────────────
 export default function DemoApp() {
   const [view, setView] = useState("home");
 
@@ -618,7 +618,7 @@ export default function DemoApp() {
           <div className="flex shrink-0 flex-col bg-sidebar">
             <div className="h-12 shrink-0" />
             <div className="flex-1 border-r border-border">
-              <IconSidebar mode="adhoc" active={view} onChange={setView} />
+              <IconSidebar active={view} onChange={setView} />
             </div>
           </div>
 

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import type { ReactNode } from "react";
 import { act, renderHook, waitFor } from "./testUtils";
+import { Events } from "@wailsio/runtime";
 
 import { api } from "../hooks/useApi";
 import { landingView, useTabManager } from "../hooks/useTabManager";
@@ -13,9 +14,7 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 const TAB = { id: "tab-1", name: "KapiMart", path: "/fakehome/src/kapimart/kapi.yaml" };
 
 function stubBackend({ empty = false, preset = "" } = {}) {
-  vi.spyOn(api, "getAppMode").mockResolvedValue("projects");
   vi.spyOn(api, "getSessionState").mockResolvedValue({
-    mode: "projects",
     lastOpenProjects: [],
     activeProject: "",
   });
@@ -64,5 +63,54 @@ describe("where a project tab lands", () => {
 
   it("lands every project on its Map, one waiting to be set up too", () => {
     expect(landingView()).toBe("map");
+  });
+});
+
+describe("a folder opened without a recipe", () => {
+  beforeEach(() => stubBackend());
+  afterEach(() => vi.restoreAllMocks());
+
+  it("marks the tab once the backend writes its recipe", async () => {
+    vi.mocked(Events.On).mockClear();
+    vi.spyOn(api, "openProject").mockResolvedValue({ ...TAB, recipe_written: false });
+    const { result } = renderHook(() => useTabManager(), { wrapper });
+    await act(() => result.current.openRecent("/fakehome/src/kapimart"));
+    expect(result.current.activeTab?.info.recipe_written).toBe(false);
+
+    const call = vi.mocked(Events.On).mock.calls.find((c) => c[0] === "project:recipe-written");
+    expect(call).toBeDefined();
+    act(() => (call![1] as (e: { data: unknown }) => void)({ data: { tabID: TAB.id } }));
+    expect(result.current.activeTab?.info.recipe_written).toBe(true);
+  });
+});
+
+describe("restoring the remembered session", () => {
+  beforeEach(() => stubBackend());
+  afterEach(() => vi.restoreAllMocks());
+
+  it("stays restoring until the remembered tab is back", async () => {
+    vi.spyOn(api, "getSessionState").mockResolvedValue({
+      lastOpenProjects: [TAB.path],
+      activeProject: TAB.path,
+    });
+    const seen: Array<{ restoring: boolean; tabs: number }> = [];
+    const { result } = renderHook(
+      () => {
+        const tm = useTabManager();
+        seen.push({ restoring: tm.restoring, tabs: tm.tabs.length });
+        return tm;
+      },
+      { wrapper },
+    );
+    expect(result.current.restoring).toBe(true);
+    await waitFor(() => expect(result.current.restoring).toBe(false));
+    expect(result.current.tabs).toHaveLength(1);
+    expect(seen.some((s) => !s.restoring && s.tabs === 0)).toBe(false);
+  });
+
+  it("ends restoring when there is nothing to reopen", async () => {
+    const { result } = renderHook(() => useTabManager(), { wrapper });
+    await waitFor(() => expect(result.current.restoring).toBe(false));
+    expect(result.current.tabs).toHaveLength(0);
   });
 });

@@ -148,6 +148,11 @@ func (a *App) ConnectAgentHost(tabID, hostName string) (*host.AgentWiringResult,
 	if root == "" {
 		return nil, errors.New("this tab holds the project's context and no checkout of it; open the project's folder to connect an assistant")
 	}
+	// The assistant's server entry starts kapi on the recipe, so connecting
+	// one is what writes the recipe of a folder opened without it.
+	if err := a.ensureRecipe(op); err != nil {
+		return nil, err
+	}
 	var targets []string
 	a.mu.RLock()
 	if op.Project != nil {
@@ -182,12 +187,14 @@ func (a *App) ConnectAgentHost(tabID, hostName string) (*host.AgentWiringResult,
 // the section it would write now and whether the file is on disk. A tab
 // holding the context alone lists none.
 func (a *App) RulesFiles(tabID string) ([]RulesFileView, error) {
-	_, recipe, root, err := a.checkoutOf(tabID)
+	op, recipe, root, err := a.checkoutOf(tabID)
 	if err != nil {
 		return nil, err
 	}
 	out := []RulesFileView{}
-	if root == "" {
+	// The rules come from the recipe on disk, which a folder opened without
+	// one does not have yet.
+	if root == "" || !op.onDisk() {
 		return out, nil
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), agentWiringTimeout)
@@ -205,12 +212,15 @@ func (a *App) RulesFiles(tabID string) ([]RulesFileView, error) {
 // WriteRulesFiles writes a tab's project's rules files, as `kapi context sync
 // --files-only` does, and reports what it wrote.
 func (a *App) WriteRulesFiles(tabID string) (*host.RulesFilesResult, error) {
-	_, recipe, root, err := a.checkoutOf(tabID)
+	op, recipe, root, err := a.checkoutOf(tabID)
 	if err != nil {
 		return nil, err
 	}
 	if root == "" {
 		return nil, errors.New("this tab holds the project's context and no checkout of it; open the project's folder to write its rules files")
+	}
+	if err := a.ensureRecipe(op); err != nil {
+		return nil, err
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), agentWiringTimeout)
 	defer cancel()

@@ -40,6 +40,12 @@ func (a *App) SyncProjectStore(tabID string) (*StoreSyncResult, error) {
 	if op.Project == nil || !ok {
 		return &StoreSyncResult{}, nil
 	}
+	// A folder opened without a recipe gets a block cache only when its
+	// drafted recipe reads something, and never in a home directory or at the
+	// root of the disk, whose trees are not walked.
+	if op.unsaved.Load() && (len(op.Project.Collections) == 0 || broadFolder(root)) {
+		return &StoreSyncResult{}, nil
+	}
 	if a.runActive() {
 		return &StoreSyncResult{}, nil
 	}

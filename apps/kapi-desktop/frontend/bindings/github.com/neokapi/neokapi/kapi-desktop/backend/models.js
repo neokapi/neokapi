@@ -983,15 +983,6 @@ export class AppSettings {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Mode persists the app's project-first vs ad-hoc preference across
-             * launches. Empty (legacy settings) is treated as AppModeProjects.
-             * @member
-             * @type {string | undefined}
-             */
-            this["mode"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
              * LastOpenProjects is the ordered list of project recipe paths that
              * were open when the app last persisted its session. Most-recently
              * activated first. The frontend restores these tabs at startup.
@@ -1049,7 +1040,7 @@ export class AppSettings {
     static createFrom($$source = {}) {
         const $$createField4_0 = $$createType6;
         const $$createField5_0 = $$createType19;
-        const $$createField7_0 = $$createType6;
+        const $$createField6_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("hidden_locales" in $$parsedSource) {
             $$parsedSource["hidden_locales"] = $$createField4_0($$parsedSource["hidden_locales"]);
@@ -1058,7 +1049,7 @@ export class AppSettings {
             $$parsedSource["custom_locales"] = $$createField5_0($$parsedSource["custom_locales"]);
         }
         if ("last_open_projects" in $$parsedSource) {
-            $$parsedSource["last_open_projects"] = $$createField7_0($$parsedSource["last_open_projects"]);
+            $$parsedSource["last_open_projects"] = $$createField6_0($$parsedSource["last_open_projects"]);
         }
         return new AppSettings(/** @type {Partial<AppSettings>} */($$parsedSource));
     }
@@ -9405,8 +9396,8 @@ export class SaveUserFlowRequest {
 }
 
 /**
- * SessionState is the persisted project-first session the frontend restores
- * at startup: which mode to open in and which projects to reopen.
+ * SessionState is the persisted session the frontend restores at startup:
+ * which projects to reopen and which of them was active.
  */
 export class SessionState {
     /**
@@ -9414,13 +9405,6 @@ export class SessionState {
      * @param {Partial<SessionState>} [$$source = {}] - The source object to create the SessionState.
      */
     constructor($$source = {}) {
-        if (!("mode" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["mode"] = "";
-        }
         if (!("lastOpenProjects" in $$source)) {
             /**
              * @member
@@ -9445,10 +9429,10 @@ export class SessionState {
      * @returns {SessionState}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType6;
+        const $$createField0_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("lastOpenProjects" in $$parsedSource) {
-            $$parsedSource["lastOpenProjects"] = $$createField1_0($$parsedSource["lastOpenProjects"]);
+            $$parsedSource["lastOpenProjects"] = $$createField0_0($$parsedSource["lastOpenProjects"]);
         }
         return new SessionState(/** @type {Partial<SessionState>} */($$parsedSource));
     }
@@ -9634,6 +9618,16 @@ export class TabInfo {
              * @type {boolean | undefined}
              */
             this["context_only"] = undefined;
+        }
+        if (!("recipe_written" in $$source)) {
+            /**
+             * RecipeWritten reports whether the project's kapi.yaml is on disk. A
+             * folder opened without one has it written the first time a person
+             * changes something the recipe holds; until then this is false.
+             * @member
+             * @type {boolean}
+             */
+            this["recipe_written"] = false;
         }
 
         Object.assign(this, $$source);

@@ -203,9 +203,7 @@ export const api = {
   runAIPreReview: (tabID: string, locale: string, scope: PreReviewScope) =>
     call<PreReviewResult>("RunAIPreReview", tabID, locale, scope),
 
-  // App mode + session (project-first restore)
-  getAppMode: () => call<string>("GetAppMode"),
-  setAppMode: (mode: string) => call<void>("SetAppMode", mode),
+  // Session restore
   getSessionState: () => call<SessionState>("GetSessionState"),
   saveSessionState: (state: SessionState) => call<void>("SaveSessionState", state),
 

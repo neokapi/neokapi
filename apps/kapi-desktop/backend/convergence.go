@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -27,7 +28,13 @@ func (a *App) checkProjectOnDisk(op *openProject) error {
 	if op.Path == "" {
 		return nil
 	}
-	if _, err := os.Stat(op.Path); err != nil {
+	// A folder opened without a recipe has none to lose; it is the folder
+	// that has to be there.
+	probe := op.Path
+	if op.unsaved.Load() {
+		probe = filepath.Dir(op.Path)
+	}
+	if _, err := os.Stat(probe); err != nil {
 		if op.missingWarned.CompareAndSwap(false, true) {
 			a.logger.Printf("project tab %s: recipe unreadable at %s (%v), reporting missing/moved to the UI", op.ID, op.Path, err)
 		}
@@ -50,7 +57,7 @@ func (a *App) GetConvergence(tabID string) (*host.ConvergenceReport, error) {
 	if op == nil {
 		return nil, fmt.Errorf("project tab %q not found", tabID)
 	}
-	if op.Project == nil || op.Path == "" {
+	if op.Project == nil || !op.onDisk() {
 		return &host.ConvergenceReport{}, nil
 	}
 	if err := a.checkProjectOnDisk(op); err != nil {
@@ -86,7 +93,7 @@ func (a *App) GetConvergePlan(tabID string) (*ConvergePlan, error) {
 	if op == nil {
 		return nil, fmt.Errorf("project tab %q not found", tabID)
 	}
-	if op.Project == nil || op.Path == "" {
+	if op.Project == nil || !op.onDisk() {
 		return &ConvergePlan{}, nil
 	}
 	if err := a.checkProjectOnDisk(op); err != nil {
@@ -161,6 +168,9 @@ func (a *App) BringUpToDate(tabID string) error {
 	}
 	if len(op.Project.Defaults.TargetLanguages) == 0 {
 		return errors.New("no target languages configured (defaults.target_languages)")
+	}
+	if err := a.ensureRecipe(op); err != nil {
+		return err
 	}
 
 	if a.runState == nil {

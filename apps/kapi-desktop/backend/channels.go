@@ -124,7 +124,7 @@ func (a *App) DeclareChannel(tabID, profile, channel string) (*project.KapiProje
 		return nil, err
 	}
 	if op.Path != "" {
-		if err := project.Save(op.Path, op.Project); err != nil {
+		if err := a.saveRecipe(op); err != nil {
 			return nil, err
 		}
 	}
@@ -147,7 +147,7 @@ func (a *App) RenameChannel(tabID, profile, oldChannel, newChannel string) (*pro
 		return nil, err
 	}
 	if op.Path != "" {
-		if err := project.Save(op.Path, op.Project); err != nil {
+		if err := a.saveRecipe(op); err != nil {
 			return nil, err
 		}
 	}

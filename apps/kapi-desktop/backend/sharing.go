@@ -121,7 +121,7 @@ func (a *App) SetProjectSharing(tabID string, spec project.ContextBackend) (*Pro
 	} else {
 		op.Project.Context = nil
 	}
-	err := project.Save(op.Path, op.Project)
+	err := a.saveRecipe(op)
 	path, proj := op.Path, op.Project
 	a.mu.Unlock()
 	if err != nil {

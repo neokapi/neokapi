@@ -1,6 +1,5 @@
 {
   "28274782": "SearchMemoryEntriesFiltered",
-  "34587212": "SetAppMode",
   "45744676": "KeepContextSuggestion",
   "53811222": "WrittenBackFile",
   "68337910": "GetConvergePlan",
@@ -24,7 +23,6 @@
   "293000340": "SetTermStatus",
   "303936325": "GetSessionState",
   "304290764": "GetFlow",
-  "347405920": "GetAppMode",
   "370597079": "ReleaseKeptWording",
   "382418249": "SaveFormatPreset",
   "396660556": "ProjectContextDigest",

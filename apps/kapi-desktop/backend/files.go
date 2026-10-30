@@ -179,11 +179,13 @@ func (a *App) ListProjectFiles(tabID string) ([]ProjectFileInfo, error) {
 //     adds content pattern input/* → output/{lang}/*.
 //   - "empty": No-op, just keeps the empty project.
 func (a *App) ApplyTemplate(tabID, template string) error {
-	op := a.getOpenProject(tabID)
+	basePath := a.GetBasePath(tabID)
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	op := a.projects[tabID]
 	if op == nil {
 		return fmt.Errorf("tab %q not found", tabID)
 	}
-	basePath := a.GetBasePath(tabID)
 	if basePath == "" {
 		return errors.New("project has no base path")
 	}
@@ -201,7 +203,7 @@ func (a *App) ApplyTemplate(tabID, template string) error {
 			Path:   "input/*",
 			Target: "output/{lang}/*",
 		})
-		if err := project.Save(op.Path, op.Project); err != nil {
+		if err := a.saveRecipe(op); err != nil {
 			return fmt.Errorf("save project: %w", err)
 		}
 	case "empty":

@@ -374,7 +374,7 @@ func (a *App) ReviewQueue(tabID string, filter ProjectFilter) (host.ReviewQueue,
 	if op == nil {
 		return host.ReviewQueue{}, fmt.Errorf("project tab %q not found", tabID)
 	}
-	if op.Project == nil || op.Path == "" {
+	if op.Project == nil || !op.onDisk() {
 		return host.ReviewQueue{Pending: []host.ReviewQueueItem{}}, nil
 	}
 
