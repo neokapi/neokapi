@@ -93,6 +93,27 @@ func TestVoiceVocabCanaries(t *testing.T) {
 	}
 }
 
+// A held rule set's canary is confirmed through the search the tool runs on
+// the canary block's runs, so each canary the tool is given is one it catches.
+// A canary is the term itself, so no character reference sits in it.
+func TestVoiceVocabCanariesForHeldRuleSets(t *testing.T) {
+	for _, term := range []string{"utilize", "next", "café"} {
+		t.Run(term, func(t *testing.T) {
+			set := coreprofile.TermRuleSet{Rules: []coreprofile.TermRule{{Term: term, Replacement: "x"}}}
+			tool := NewVoiceVocabCheckTool(nil, nil).Holding(set)
+			canaries, uncheckable, err := tool.Canaries(context.Background())
+			require.NoError(t, err)
+			require.Len(t, canaries, 1)
+			block := canaries[0].Block
+			assert.Len(t, coreprofile.MatchTermRulesInRuns([]coreprofile.TermRuleSet{set}, block.SourceText(), block.SourceRuns()), 1)
+
+			outcome, err := check.Probe(canaries, uncheckable, findingsVia(tool, voiceFindings))
+			require.NoError(t, err)
+			assert.Equal(t, check.CanaryCaught, outcome.Status)
+		})
+	}
+}
+
 func TestVoiceVocabCanaries_NothingToCatch(t *testing.T) {
 	ctx := context.Background()
 	toneOnly := &coreprofile.VoiceProfile{ID: "tone"}

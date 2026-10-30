@@ -151,7 +151,7 @@ func (s *MCPServer) handleSuggestCorrections(ctx context.Context, req *mcp.CallT
 	if err != nil {
 		return nil, suggestCorrectionsOutput{}, err
 	}
-	findings := coreprofile.HitsToFindings(coreprofile.MatchTermRules(sets, input.Text), input.Text, nil)
+	findings := coreprofile.HitsToFindings(coreprofile.MatchTermRulesInText(sets, input.Text), input.Text, nil)
 	var corrections []correction
 	corrected := input.Text
 

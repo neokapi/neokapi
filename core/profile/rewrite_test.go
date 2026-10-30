@@ -5,6 +5,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/neokapi/neokapi/core/model"
 )
 
 func TestRewriteTermRules(t *testing.T) {
@@ -167,4 +169,43 @@ func TestRewriteVocabulary_AgreesWithCheck(t *testing.T) {
 	}
 	assert.Len(t, MatchCarriedTerms(p, got.Text), skippedTotal,
 		"what the check still finds in the rewritten text is exactly what was reported skipped")
+}
+
+// The rewrite reads text as written (MatchTermRulesInText): a term beside a
+// written reference is substituted and the reference kept, and a reference
+// spells nothing, so "caf&eacute;" holds no "café" and "R&amp;D" no "R&D".
+func TestRewriteTermRulesBesideCharacterReferences(t *testing.T) {
+	rules := append([]TermRuleSet{{Rules: []TermRule{{Term: "R&D", Replacement: "research"}}}}, referenceRules...)
+	cases := []struct {
+		text string
+		want string
+	}{
+		{"utilize&amp;more", "use&amp;more"},
+		{"word&nbsp;next", "word&nbsp;following"},
+		{"&amp;utilize&nbsp;", "&amp;use&nbsp;"},
+		{"caf&eacute;", "caf&eacute;"},
+		{"R&amp;D", "R&amp;D"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.text, func(t *testing.T) {
+			got := RewriteTermRules(rules, tc.text)
+			assert.Equal(t, tc.want, got.Text)
+			assert.Empty(t, got.Skipped)
+			assert.Len(t, MatchTermRulesInText(rules, tc.text), len(got.Changes))
+		})
+	}
+	assert.Empty(t, MatchTermRulesInText(rules, "R&amp;D"), "a written reference spells nothing")
+}
+
+// A hit the runs form marks Spelled is never substituted: it is reported
+// under Skipped with the page's spelling.
+func TestRewriteHitsSkipsSpelled(t *testing.T) {
+	runs := []model.Run{model.TextR("the caf"), entity("1", "&eacute;"), model.TextR(" and utilize")}
+	text := model.RunsText(runs)
+	got := rewriteHits(text, MatchTermRulesInRuns(referenceRules, text, runs))
+	assert.Equal(t, "the caf and use", got.Text)
+	assert.Equal(t, []RewriteSkip{{
+		Term: "café", List: "forbidden", Fails: true, Replacement: "coffee shop",
+		Matched: []string{"café"}, Count: 1, Reason: RewriteSkipCharacterReference,
+	}}, got.Skipped)
 }

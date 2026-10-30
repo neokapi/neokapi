@@ -143,9 +143,11 @@ func (s *Server) HandleEvaluateRulePromotion(c echo.Context) error {
 	candidate := coreprofile.CandidateWithRule(baseline, coreprofile.SuggestedRule{Term: req.Term, Replacement: req.Replacement})
 
 	// Walked a batch at a time, projecting as it goes: the evaluation wants an
-	// id, a name and the source text, and holding the stored blocks those came
-	// from — runs, every target, properties, annotations — alongside the
-	// projection meant paying for the corpus twice to look at part of it once.
+	// id, a name, the source text and, where they hold a character reference,
+	// the source runs (coreprofile.EvalBlockFor). Holding the stored blocks
+	// those came from (runs, every target, properties, annotations) alongside
+	// the projection meant paying for the corpus twice to look at part of it
+	// once.
 	var blocks []coreprofile.EvalBlock
 	err = store.EachBlockBatch(ctx, s.ContentStore,
 		store.BlockQuery{ProjectID: req.ProjectID, Stream: req.Stream},
@@ -155,12 +157,7 @@ func (s *Server) HandleEvaluateRulePromotion(c echo.Context) error {
 				if sb == nil || sb.Block == nil {
 					continue
 				}
-				blocks = append(blocks, coreprofile.EvalBlock{
-					BlockID:        sb.Block.ID,
-					CollectionID:   sb.ItemName,
-					CollectionName: sb.ItemName,
-					Text:           sb.Block.SourceText(),
-				})
+				blocks = append(blocks, coreprofile.EvalBlockFor(sb.Block, sb.ItemName, sb.ItemName))
 			}
 			return nil
 		})

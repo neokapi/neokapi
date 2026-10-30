@@ -99,12 +99,7 @@ func (s *SearchText) write(b *strings.Builder, runs []model.Run) {
 				if r.Ph.Type != entityCodeType {
 					continue
 				}
-				spelled := html.UnescapeString(r.Ph.Data)
-				if spelled == r.Ph.Data {
-					// A reference the decoder does not know still ends a
-					// word on the page.
-					spelled = " "
-				}
+				spelled := spellReference(r.Ph.Data)
 				for range len(spelled) {
 					s.back = append(s.back, textAt)
 					s.ref = append(s.ref, true)
@@ -149,14 +144,32 @@ func hasEntityCode(runs []model.Run) bool {
 	return false
 }
 
-// MatchTermRulesInRuns is MatchTermRules over a block's text and the runs it
-// flattens from: a term is looked for in the SearchText, so a character
-// reference beside a word ends it as the page shows, and each hit's offsets
-// index text. A hit whose first or last character a reference spells carries
-// Spelled, the words as the page shows them.
+// MatchTermRulesInRuns returns every hit under the rule sets in a block's text
+// and the runs it flattens from. A term is looked for in the SearchText, so a
+// character reference beside a word ends it as the page shows, and each hit's
+// offsets index text. A hit whose first or last character a reference spells
+// carries Spelled, the words as the page shows them.
+//
+// It and [MatchTermRulesInText] are the one definition of what it means for
+// content to use a term rule. Every surface that matches term rules reaches
+// one of them: `kapi check`, the overlays, the scoring and rewrite tools, the
+// blast radius, so a word is a hit for every such gate or for none.
 func MatchTermRulesInRuns(sets []TermRuleSet, text string, runs []model.Run) []VocabHit {
-	search := NewSearchText(text, runs)
-	hits := MatchTermRules(sets, search.Text)
+	return matchSearchText(sets, NewSearchText(text, runs))
+}
+
+// MatchTermRulesInText is [MatchTermRulesInRuns] for a caller that holds text
+// and no runs: a text a person or an agent submits, a model's output. The text
+// is read as `kapi check` reads a block of one text run, so `&amp;` written in
+// it is five characters and no character reference spells a word.
+func MatchTermRulesInText(sets []TermRuleSet, text string) []VocabHit {
+	return matchSearchText(sets, SearchText{Text: text})
+}
+
+// matchSearchText matches the rule sets in the search text and maps each hit
+// back to the text it was built from.
+func matchSearchText(sets []TermRuleSet, search SearchText) []VocabHit {
+	hits := matchTermRules(sets, search.Text)
 	if search.back == nil {
 		return hits
 	}
@@ -167,4 +180,14 @@ func MatchTermRulesInRuns(sets []TermRuleSet, text string, runs []model.Run) []V
 		hits[i].Start, hits[i].End = search.ToText(h.Start), search.ToText(h.End)
 	}
 	return hits
+}
+
+// spellReference returns the character a reference spells. A reference the
+// decoder does not know still ends a word on the page, so it spells a space.
+func spellReference(ref string) string {
+	spelled := html.UnescapeString(ref)
+	if spelled == ref {
+		return " "
+	}
+	return spelled
 }

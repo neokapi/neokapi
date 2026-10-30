@@ -20,7 +20,7 @@ import (
 
 // voiceProfile is the small, deterministic voice the lab's annotators match
 // against, carrying its word rules the way a starter pack does.
-// labInspectAnnotated matches them with profile.MatchCarriedTerms so the docs
+// labInspectAnnotated matches them with profile.MatchTermRulesInRuns so the docs
 // "Anatomy" explorer can show word-rule overlays without any network or store.
 // Forbidden terms suggest a preferred replacement; the competitor term has no
 // replacement. Kept tiny and stable so the rendered overlays are reproducible.

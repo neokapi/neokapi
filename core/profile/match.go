@@ -57,9 +57,10 @@ type VocabHit struct {
 	// surface shows it as the suggestion it is.
 	Suggested bool
 	// Spelled is the hit as the page shows it, set when a character reference
-	// spells its first or last character (MatchTermRulesInRuns). Start and End
-	// then cover only the hit's own text, so the hit is reported by Spelled
-	// with no position, and no fix is built from it.
+	// spells its first or last character (MatchTermRulesInRuns,
+	// MatchTermRulesInText). No span of the text holds the words as the page
+	// shows them, so the hit is reported by Spelled with no position, and no
+	// edit is built from it.
 	Spelled string
 }
 
@@ -86,17 +87,15 @@ type TermRuleSet struct {
 	Suggested bool
 }
 
-// MatchTermRules returns every hit in text under the given rule sets. Matching
+// matchTermRules returns every hit in text under the given rule sets. Matching
 // is whole-word and Unicode-aware (check.FindTerm), so "use" never matches
 // inside "user". A hit fails unless its rule is advisory or its set is
 // suggested; a rule naming no term is skipped. Case follows
 // TermRule.MatchesCase.
 //
-// This is the single definition of what it means for a text to use a declared
-// term. Every caller reaches it: the voice-vocabulary gate through
-// [MatchVocabulary], and the term-locating pass through this entry point
-// directly, so a word is a hit for the whole gate or for none of it.
-func MatchTermRules(sets []TermRuleSet, text string) []VocabHit {
+// text is the search text (SearchText). A caller reaches this through
+// [MatchTermRulesInRuns] or [MatchTermRulesInText], which build it.
+func matchTermRules(sets []TermRuleSet, text string) []VocabHit {
 	// A placeholder's name is not a use of a term (check.PlaceholderText). Code
 	// stays readable, so a rule that names no scope still finds a name written
 	// wrongly in a code sample. The projection keeps every offset, so a hit
@@ -219,11 +218,10 @@ func HasWordRules(p *VoiceProfile) bool {
 // MatchCarriedTerms returns every hit in text under the word rules the
 // profile's voice file carries. A nil profile yields no hits.
 //
-// It is the profile-shaped reading of [MatchTermRules], for the callers that
-// hold a whole voice file and want all of its rules: the blast-radius
-// evaluator and the scoring surfaces.
+// It is the profile-shaped reading of [MatchTermRulesInText], for a caller
+// that holds a whole voice file and text with no runs.
 func MatchCarriedTerms(p *VoiceProfile, text string) []VocabHit {
-	return MatchTermRules(CarriedRuleSets(p), text)
+	return MatchTermRulesInText(CarriedRuleSets(p), text)
 }
 
 // HitsToFindings maps word-rule hits onto findings: the presentation

@@ -1633,12 +1633,13 @@ export function InspectFile(tabID, filePath) {
  * source-anchored stand-off overlays before serialization:
  * 
  *   - term overlays (type "term") from the project's auto-opened terms
- *     (LookupAll over each block's source text), carrying the matched surface
- *     form, its preferred target translation and domain;
+ *     (LookupAll over each block's search text, coreprofile.SearchText),
+ *     carrying the matched surface form, its preferred target translation and
+ *     domain;
  *   - word-rule overlays (type "qa", props.category="voice-vocabulary") from
  *     the terms: the forbidden, competitor and retired terms of the project's
  *     terms store and the terms the voice governing this file's point carries
- *     (coreprofile.MatchTermRules), beside that voice's prohibited patterns;
+ *     (coreprofile.MatchTermRulesInRuns), beside that voice's prohibited patterns;
  *   - rule-based check overlays (type "qa") from the shared source-only shape rules
  *     (double spaces, doubled words — check.HygieneOverlay).
  * 

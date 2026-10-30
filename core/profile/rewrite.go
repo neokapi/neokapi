@@ -17,6 +17,12 @@ const (
 	// The replacement is worded for the bare term, and substituting it for an
 	// inflection leaves the wrong shape in the sentence ("we are use it").
 	RewriteSkipInflectedForm RewriteReason = "inflected_form"
+	// RewriteSkipCharacterReference is a match found through a block's runs
+	// whose first or last character a character reference spells, such as
+	// "caf&eacute;" for "café" (VocabHit.Spelled). The block's text holds the
+	// reference as a code, so a substitution would replace it. Matched holds
+	// the words as the page shows them.
+	RewriteSkipCharacterReference RewriteReason = "character_reference"
 )
 
 // RewriteChange is one substitution the rewrite made: every occurrence of the
@@ -59,20 +65,25 @@ type RewriteResult struct {
 // replacement each rule names and reports every rule that matched and could
 // not be substituted.
 //
-// Matching is [MatchTermRules], so the rewrite sees exactly the hits the
-// word-rule check reports: whole words, declared forms, case sensitivity,
-// scope and containment suppression all apply. A hit is substituted when its
-// rule names a replacement and the matched text is the term itself, in any
-// casing for a case-insensitive rule. Every other hit stays in the text and is
-// reported under Skipped with its reason, so a caller can tell "nothing to
-// fix" from "violations found and not fixed" and finish the edit by hand.
+// Matching is [MatchTermRulesInText], so the rewrite sees exactly the hits the
+// word-rule check reports. A hit is substituted when its rule names a
+// replacement and the matched text is the term itself, in any casing for a
+// case-insensitive rule, and is not Spelled (rewriteHits). Every other hit
+// stays in the text and is reported under Skipped with its reason, so a
+// caller can tell "nothing to fix" from "violations found and not fixed" and
+// finish the edit by hand.
 //
 // Where two rules claim overlapping text, the hit that starts first wins, and
 // the longer one on a tie. A hit inside replaced text is neither substituted
 // nor reported, because the text it matched is gone.
 func RewriteTermRules(sets []TermRuleSet, text string) RewriteResult {
+	return rewriteHits(text, MatchTermRulesInText(sets, text))
+}
+
+// rewriteHits applies the substitutions hits allow to text, which they index.
+// A Spelled hit, which only the runs form returns, is never substituted.
+func rewriteHits(text string, hits []VocabHit) RewriteResult {
 	res := RewriteResult{Text: text}
-	hits := MatchTermRules(sets, text)
 	if len(hits) == 0 {
 		return res
 	}
@@ -81,7 +92,7 @@ func RewriteTermRules(sets []TermRuleSet, text string) RewriteResult {
 	// substitute them.
 	var candidates []int
 	for i, h := range hits {
-		if h.Replacement != "" && strings.EqualFold(text[h.Start:h.End], h.Term) {
+		if h.Spelled == "" && h.Replacement != "" && strings.EqualFold(text[h.Start:h.End], h.Term) {
 			candidates = append(candidates, i)
 		}
 	}
@@ -145,10 +156,13 @@ func RewriteTermRules(sets []TermRuleSet, text string) RewriteResult {
 			continue
 		}
 		reason := RewriteSkipNoReplacement
-		if h.Replacement != "" {
+		matched := text[h.Start:h.End]
+		switch {
+		case h.Spelled != "":
+			reason, matched = RewriteSkipCharacterReference, h.Spelled
+		case h.Replacement != "":
 			reason = RewriteSkipInflectedForm
 		}
-		matched := text[h.Start:h.End]
 		k := key{h.Kind, h.Term, reason}
 		if j, ok := skipAt[k]; ok {
 			s := &res.Skipped[j]

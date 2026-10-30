@@ -62,8 +62,8 @@ const termTextFill = '\x1f'
 // decide which rules a translate prompt carries. Code keeps its words in a
 // translation, so a term written in the source's code owes no rendering,
 // whatever the rule's scope. A reader who is shown where a term is written
-// sees it in code as well: profile.MatchTermRules and terms.Locate read
-// through PlaceholderText, and a voice term rule leaves code out with its
+// sees it in code as well: the term search in core/profile and terms.Locate
+// read through PlaceholderText, and a voice term rule leaves code out with its
 // scope.
 //
 // A placeholder's name is program syntax, so "{vessel} is alongside" does not
@@ -95,10 +95,10 @@ func TermText(s string) string {
 // PlaceholderText is s with every placeholder overwritten byte for byte, as
 // TermText overwrites it, and code, commands and flags left as they are.
 //
-// The readers that show where a term is written read through it:
-// profile.MatchTermRules, the declared-term matcher behind the voice vocabulary
-// gate and the source terminology gate, and the terms store lookup in
-// terms.Locate. A rule that names no scope matches inside code, so a name
+// The readers that show where a term is written read through it: the term
+// search in core/profile (profile.MatchTermRulesInRuns), the declared-term
+// matcher behind the voice vocabulary gate and the source terminology gate,
+// and the terms store lookup in terms.Locate. A rule that names no scope matches inside code, so a name
 // written wrongly in a code sample is still found, and a rule scoped to prose
 // leaves code out itself.
 //

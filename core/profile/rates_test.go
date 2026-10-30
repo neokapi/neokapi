@@ -211,17 +211,17 @@ func TestTermRulesTakeAScopeToo(t *testing.T) {
 		},
 	}}
 
-	prose := MatchTermRules(sets, "Point it at the endpoint you chose.")
+	prose := MatchTermRulesInText(sets, "Point it at the endpoint you chose.")
 	assert.Len(t, prose, 1, "a scoped term still fires in prose")
 
-	fenced := MatchTermRules(sets, "Run this:\n\n```\ncurl https://x/endpoint\n```\n")
+	fenced := MatchTermRulesInText(sets, "Run this:\n\n```\ncurl https://x/endpoint\n```\n")
 	assert.Empty(t, fenced, "and not inside a fence")
 
-	inline := MatchTermRules(sets, "The `endpoint` argument takes a URL.")
+	inline := MatchTermRulesInText(sets, "The `endpoint` argument takes a URL.")
 	assert.Empty(t, inline, "nor inside a backtick span")
 
 	// An unscoped rule is unchanged: a name written wrongly in a code sample is
 	// still written wrongly.
-	code := MatchTermRules(sets, "```\n# Ripgrep is fast\n```")
+	code := MatchTermRulesInText(sets, "```\n# Ripgrep is fast\n```")
 	assert.Len(t, code, 1, "an unscoped rule still matches everywhere")
 }

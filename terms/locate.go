@@ -8,11 +8,11 @@
 // Both are the same kind of statement about the same words, so answering them
 // separately is how two gates come to disagree about whether a word is in use.
 //
-// This package answers them together. It matches with check.TermMatcher through
-// profile.MatchTermRules, so a word is a hit for the whole gate or for none of
-// it; it resolves the store's matches to what the concept says to say instead;
-// and it hands back occurrences already anchored to the block's runs, so no
-// consumer re-derives a position from a byte offset.
+// This package answers them together. It matches with check.TermMatcher
+// through profile.MatchTermRulesInRuns, so a word is a hit for the whole gate
+// or for none of it; it resolves the store's matches to what the concept says
+// to say instead; and it hands back occurrences already anchored to the
+// block's runs, so no consumer re-derives a position from a byte offset.
 //
 // What a consumer does with an occurrence is its own business: the word-rule
 // gate raises a finding, term-check reports a violation, dnt-check

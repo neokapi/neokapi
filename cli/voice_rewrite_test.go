@@ -113,6 +113,39 @@ func TestVoiceRewrite_HumanOutputSummarisesSkipped(t *testing.T) {
 	assert.Contains(t, raw, "verify with 'kapi voice check'")
 }
 
+// A term beside a character reference written in the text is rewritten and
+// the reference kept. The text is read as written, so "caf&eacute;" holds no
+// "café" and is left as it is with nothing skipped.
+func TestVoiceRewrite_CharacterReferences(t *testing.T) {
+	path := writeTempProfile(t, `name: References
+tone:
+    formality: neutral
+vocabulary:
+    forbidden_terms:
+        - term: utilize
+          replacement: use
+        - term: next
+          replacement: following
+        - term: café
+          replacement: coffee shop
+`)
+	for text, rewritten := range map[string]string{
+		"utilize&amp;more":   "use&amp;more",
+		"word&nbsp;next":     "word&nbsp;following",
+		"&amp;utilize&nbsp;": "&amp;use&nbsp;",
+		"caf&eacute;":        "caf&eacute;",
+	} {
+		t.Run(text, func(t *testing.T) {
+			raw, runErr := runVoiceRewrite(t, "--profile-file", path, "--input-text", text, "--json")
+			require.NoError(t, runErr)
+			var out output.VoiceRewriteOutput
+			require.NoError(t, json.Unmarshal([]byte(raw), &out), raw)
+			assert.Equal(t, rewritten, out.Rewritten)
+			assert.Empty(t, out.Skipped)
+		})
+	}
+}
+
 func TestVoiceRewrite_CleanTextReportsNothing(t *testing.T) {
 	path := writeTempProfile(t, northwindVoice)
 

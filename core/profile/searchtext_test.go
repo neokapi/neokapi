@@ -1,6 +1,7 @@
 package profile
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -92,4 +93,52 @@ func TestSearchTextKeepsTextTheRunsDoNotSpell(t *testing.T) {
 	assert.Equal(t, []int{0, 1, 1, 2}, []int{s.ToText(0), s.ToText(1), s.ToText(2), s.ToText(3)})
 	assert.True(t, s.SpelledAtEdge(1, 2))
 	assert.False(t, s.SpelledAtEdge(0, 1))
+}
+
+// referenceRules are the rules the reference cases below are matched under.
+var referenceRules = []TermRuleSet{{Rules: []TermRule{
+	{Term: "utilize", Replacement: "use"},
+	{Term: "next", Replacement: "following"},
+	{Term: "café", Replacement: "coffee shop"},
+}}}
+
+// hitView names each hit by the text it covers, or by "spelled:" and the
+// page's spelling, with its start.
+func hitView(text string, hits []VocabHit) []string {
+	var out []string
+	for _, h := range hits {
+		if h.Spelled != "" {
+			out = append(out, fmt.Sprintf("spelled:%s@%d", h.Spelled, h.Start))
+			continue
+		}
+		out = append(out, fmt.Sprintf("%s@%d", text[h.Start:h.End], h.Start))
+	}
+	return out
+}
+
+// Text with no runs is read as written, as `kapi check` reads a block of one
+// text run: a reference written in it is its own characters, so it ends a
+// word with its "&" and ";" and spells nothing.
+func TestMatchTermRulesInTextReadsTextAsWritten(t *testing.T) {
+	cases := []struct {
+		name string
+		text string
+		want []string
+	}{
+		{"before a reference", "utilize&amp;more", []string{"utilize@0"}},
+		{"after a reference", "word&nbsp;next", []string{"next@10"}},
+		{"between references", "&amp;utilize&nbsp;", []string{"utilize@5"}},
+		{"a reference that would spell the last letter", "caf&eacute;", nil},
+		{"a reference that would spell a letter inside a word", "utiliz&#101;d", nil},
+		{"an ampersand that is no reference", "R&D: utilize & next", []string{"utilize@5", "next@15"}},
+		{"no reference", "We utilize the next café", []string{"utilize@3", "next@15", "café@20"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			hits := MatchTermRulesInText(referenceRules, tc.text)
+			assert.Equal(t, tc.want, hitView(tc.text, hits))
+			assert.Equal(t, MatchTermRulesInRuns(referenceRules, tc.text, []model.Run{model.TextR(tc.text)}), hits,
+				"the plain form is the runs form over one text run")
+		})
+	}
 }

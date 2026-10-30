@@ -3,16 +3,40 @@ package profile
 import (
 	"fmt"
 	"slices"
+
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // EvalBlock is the minimal content unit the blast-radius evaluator scores: a
-// block's identity, the collection it belongs to, and its text. Callers load
-// these from their content store; core/profile stays free of any store dependency.
+// block's identity, the collection it belongs to, and its text with the runs
+// it flattens from. Callers load these from their content store; core/profile
+// stays free of any store dependency.
 type EvalBlock struct {
 	BlockID        string
 	CollectionID   string
 	CollectionName string
 	Text           string
+	// Runs are the runs Text flattens from, needed only when they hold a
+	// character reference (EvalBlockFor keeps them then and only then).
+	Runs []model.Run
+}
+
+// EvalBlockFor projects a block onto what the evaluator scores: its id, the
+// collection given, its source text, and its source runs when they hold a
+// character reference. A caller collecting a whole project keeps the runs
+// only where they change what a term search finds.
+func EvalBlockFor(b *model.Block, collectionID, collectionName string) EvalBlock {
+	eb := EvalBlock{BlockID: b.ID, CollectionID: collectionID, CollectionName: collectionName, Text: b.SourceText()}
+	if runs := b.SourceRuns(); hasEntityCode(runs) {
+		eb.Runs = runs
+	}
+	return eb
+}
+
+// hits matches the rule sets in the block's text through its runs, as `kapi
+// check` matches them.
+func (b EvalBlock) hits(sets []TermRuleSet) []VocabHit {
+	return MatchTermRulesInRuns(sets, b.Text, b.Runs)
 }
 
 // EvaluateBlastRadius reports the impact of moving from the baseline word rules
@@ -45,8 +69,8 @@ func EvaluateBlastRadius(blocks []EvalBlock, baseline, candidate []TermRuleSet) 
 	var colOrder []string
 
 	for _, b := range blocks {
-		baseHits := MatchTermRules(baseline, b.Text)
-		candHits := MatchTermRules(candidate, b.Text)
+		baseHits := b.hits(baseline)
+		candHits := b.hits(candidate)
 		baseKeys := hitKeySet(baseHits)
 		candKeys := hitKeySet(candHits)
 
@@ -58,7 +82,9 @@ func EvaluateBlastRadius(blocks []EvalBlock, baseline, candidate []TermRuleSet) 
 				if h.fails {
 					newFailing++
 				}
-				if h.replacement != "" {
+				// A hit a character reference spells an edge of is never
+				// edited (check.Fix), so its replacement prescribes nothing.
+				if h.replacement != "" && !h.spelled {
 					prescribed = true
 				}
 			}
@@ -130,12 +156,13 @@ func CandidateWithRule(baseline []TermRuleSet, r SuggestedRule) []TermRuleSet {
 	return append(out, TermRuleSet{Rules: rules, Kind: VocabForbidden})
 }
 
-// keyedHit carries the two properties a diff of two hit sets reads: whether the
-// violation fails, and whether the rule that raised it says what to write
-// instead.
+// keyedHit carries the properties a diff of two hit sets reads: whether the
+// violation fails, whether the rule that raised it says what to write instead,
+// and whether a character reference spells an edge of it.
 type keyedHit struct {
 	fails       bool
 	replacement string
+	spelled     bool
 }
 
 // hitKeySet keys each hit by category and byte range so the same violation in the
@@ -147,6 +174,7 @@ func hitKeySet(hits []VocabHit) map[string]keyedHit {
 		m[fmt.Sprintf("%s|%d|%d", h.Category, h.Start, h.End)] = keyedHit{
 			fails:       h.Fails,
 			replacement: h.Replacement,
+			spelled:     h.Spelled != "",
 		}
 	}
 	return m

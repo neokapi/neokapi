@@ -156,3 +156,50 @@ func TestProfileClone_Independent(t *testing.T) {
 		t.Errorf("clone leaked into baseline Locales: %v", p.Locales)
 	}
 }
+
+// The blast radius matches each block through its runs, so a term beside a
+// character reference is a new violation with a prescribed replacement, and a
+// term a reference spells an edge of is a new violation that prescribes no
+// edit (check.Fix makes none).
+func TestEvaluateBlastRadiusBesideCharacterReferences(t *testing.T) {
+	cases := []struct {
+		name       string
+		runs       []model.Run
+		violations int
+		prescribed int
+	}{
+		{"before a reference", []model.Run{model.TextR("utilize"), entity("1", "&amp;"), model.TextR("more")}, 1, 1},
+		{"after a reference", []model.Run{model.TextR("word"), entity("1", "&nbsp;"), model.TextR("next")}, 1, 1},
+		{"between references", []model.Run{entity("1", "&amp;"), model.TextR("utilize"), entity("2", "&nbsp;")}, 1, 1},
+		{"a reference spells the last letter", []model.Run{model.TextR("caf"), entity("1", "&eacute;")}, 1, 0},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			text := model.RunsText(tc.runs)
+			stored := &model.Block{ID: "b1"}
+			stored.SetSourceRuns(tc.runs)
+			block := EvalBlockFor(stored, "c1", "c1")
+			if block.Text != text || block.Runs == nil {
+				t.Fatalf("EvalBlockFor = %+v, want the text and the runs that hold a reference", block)
+			}
+			br := EvaluateBlastRadius([]EvalBlock{block}, nil, referenceRules)
+			if want := len(MatchTermRulesInRuns(referenceRules, text, tc.runs)); want != tc.violations {
+				t.Fatalf("core/profile finds %d hits, the case expects %d", want, tc.violations)
+			}
+			if br.NewViolations != tc.violations {
+				t.Errorf("NewViolations = %d, want %d", br.NewViolations, tc.violations)
+			}
+			if br.PrescribedBlocks != tc.prescribed {
+				t.Errorf("PrescribedBlocks = %d, want %d", br.PrescribedBlocks, tc.prescribed)
+			}
+		})
+	}
+
+	// Runs that hold no reference change nothing a search finds, so the
+	// projection keeps the text alone.
+	plain := &model.Block{ID: "b2"}
+	plain.SetSourceRuns([]model.Run{model.TextR("We "), model.TextR("utilize it")})
+	if got := EvalBlockFor(plain, "c1", "c1"); got.Runs != nil || got.Text != "We utilize it" {
+		t.Errorf("EvalBlockFor = %+v, want the text and no runs", got)
+	}
+}
