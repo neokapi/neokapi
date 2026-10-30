@@ -296,6 +296,79 @@ export interface DesktopFinding {
   /** The lines of the file the finding's block spans, when its place in the
    *  file is known, as it is for a comment. */
   lines?: LineRange;
+  /** The family of checks that raised it, as `kapi check` names it: terms,
+   *  voice, placeholder, dnt, or a comment check's name. */
+  check?: string;
+  /** The word a term rule is about, when a term rule raised it. */
+  term?: string;
+  /** Raised by a rule nobody has established; it never fails. */
+  suggested?: boolean;
+}
+
+// --- The Reader (matches backend ReaderFileDTO, backend/reader.go) ---
+
+/** One content file as the Reader draws it. */
+export interface ReaderFile {
+  /** Project-relative and slash-separated. */
+  path: string;
+  abs: string;
+  format?: string;
+  /** The file's source blocks in file order. */
+  blocks: ReaderBlock[];
+  /** Findings that name no block of the file. */
+  document: ReaderFinding[];
+  findings: number;
+  fixable: number;
+  verdict: "passed" | "failed" | "did_not_run";
+  /** The context answer for the file, in the order `kapi context <path>` prints it. */
+  rules: ReaderRule[];
+  rules_total: number;
+  attention: string[];
+  /** The fixes the change service refused in the last fix, with its reasons. */
+  refused: ReaderRefusal[];
+}
+
+/** One block of the file. */
+export interface ReaderBlock {
+  id: string;
+  runs: Run[];
+  findings: ReaderFinding[];
+}
+
+/** One finding, placed on its block. */
+export interface ReaderFinding {
+  /** Names the finding for FixFinding. */
+  id: string;
+  block_id?: string;
+  position?: RunAnchor;
+  span?: { start: number; end: number };
+  /** name, word, tone, or the check that raised it. */
+  kind: string;
+  label: string;
+  fails: boolean;
+  suggested?: boolean;
+  fixable: boolean;
+  /** The translation a target-side finding is about. */
+  locale?: string;
+}
+
+/** One rule that holds at the file. */
+export interface ReaderRule {
+  /** tone, name, word, keep or note. */
+  kind: string;
+  rule: string;
+  status: string;
+  /** Where the rule is held: terms, a pack, the workspace, the voice profile. */
+  from?: string;
+  /** Who recorded the rule, and when (RFC 3339), when the answer carries them. */
+  by?: string;
+  at?: string;
+}
+
+/** One fix the change service refused, with its reason. */
+export interface ReaderRefusal {
+  finding_id: string;
+  reason: string;
 }
 
 /** A range of lines in a file, both ends included. Mirrors format.LineRange. */

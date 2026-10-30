@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/blockstore"
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/contextop"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
@@ -126,6 +127,66 @@ func (op *openProject) recordCheck(res *CheckRunResult, at time.Time) {
 	}
 	op.mapMu.Lock()
 	defer op.mapMu.Unlock()
+	op.lastCheck = t
+}
+
+// replaceCheckedFile puts one file's findings, from a checks run over that
+// file alone in the same target languages, in place of that file's entry in
+// the last whole-project run, so the Map and the Checks page count what the
+// file holds after a fix. path is the file's absolute path. The verdict and
+// the score are decided again over every file's findings; a run that did not
+// run stays one that did not run. With no whole-project run recorded there
+// is nothing to replace.
+func (op *openProject) replaceCheckedFile(path string, one *CheckRunResult) {
+	var found []DesktopFinding
+	for _, f := range one.Files {
+		if f.Path == path {
+			found = append(found, f.Findings...)
+		}
+	}
+	op.mapMu.Lock()
+	defer op.mapMu.Unlock()
+	last := op.lastCheck
+	if last == nil || last.result == nil {
+		return
+	}
+	res := *last.result
+	res.Files = make([]CheckFileResult, 0, len(last.result.Files))
+	placed := false
+	for _, f := range last.result.Files {
+		if f.Path == path {
+			if !placed {
+				res.Files = append(res.Files, CheckFileResult{Path: path, Findings: found})
+				placed = true
+			}
+			continue
+		}
+		res.Files = append(res.Files, f)
+	}
+	if !placed {
+		res.Files = append(res.Files, CheckFileResult{Path: path, Findings: found})
+	}
+	var scored []check.Finding
+	failing := false
+	for _, f := range res.Files {
+		for _, d := range f.Findings {
+			scored = append(scored, check.Finding{Category: d.Category, Fails: d.Fails, Suggested: d.Suggested})
+			failing = failing || d.Fails
+		}
+	}
+	res.Score = check.CalculateScore(scored).Overall
+	if res.Verdict != string(check.VerdictDidNotRun) {
+		res.Pass = !failing
+		res.Verdict = string(check.VerdictFailed)
+		if res.Pass {
+			res.Verdict = string(check.VerdictPassed)
+		}
+	}
+	t := &mapCheckTally{at: last.at, byFile: map[string]int{}, result: &res}
+	for _, f := range res.Files {
+		t.byFile[f.Path] += len(f.Findings)
+		t.findings += len(f.Findings)
+	}
 	op.lastCheck = t
 }
 

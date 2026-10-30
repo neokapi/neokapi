@@ -54,9 +54,9 @@ const projectItems: SidebarItem[] = [
     view: "map",
     icon: <MapIcon size={20} strokeWidth={SW} />,
     label: "Map",
-    // The findings open from the Map's count, so the Checks page stays lit
-    // under it.
-    activeViews: ["checks"],
+    // The findings open from the Map's count and a file opens in the Reader
+    // from its Files rows, so the Checks page and the Reader stay lit under it.
+    activeViews: ["checks", "reader"],
   },
   {
     type: "item",
@@ -120,7 +120,7 @@ export function IconSidebar({
           const isActive =
             active === item.view ||
             active.startsWith(`${item.view}:`) ||
-            (item.activeViews?.includes(active) ?? false);
+            (item.activeViews?.some((v) => active === v || active.startsWith(`${v}:`)) ?? false);
           const title = disabled ? `${item.label} (open a project first)` : item.label;
           return (
             <SimpleTooltip key={item.view} content={title} side="right">

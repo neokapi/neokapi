@@ -31,6 +31,12 @@ checks every file and refreshes the counts, and the findings count opens what
 the checks found. **Decide** on a suggestion's row, or at the top of the Map,
 opens Decide.
 
+**Open** on a file shows it in the Reader: its blocks in file order, each
+finding marked on its words with a row under the block, and **Fix** beside a
+finding whose rule names a replacement and has no formatting among its words.
+The rules that hold at the file run down the margin, as `kapi context <path>`
+prints them.
+
 In Decide, a list holds one line per item, and the pane beside it shows the item
 you select: the sentence it was seen in, the file, and the assistant that
 noticed it. **Needs you** comes first, with two suggestions that disagree
@@ -204,7 +210,7 @@ change the wording or change the rule. A finding whose rule names the wording to
 use instead offers **Apply fix**, which puts that wording in place of the flagged
 words in the file. When the flagged words have formatting among them, such as a
 link or bold text, there is no Apply fix, because plain wording in their place
-would drop the formatting; open the document and edit them there. When the text
+would drop the formatting; edit them by hand in the file. When the text
 changed after the run, the panel shows it as it is now and asks before applying
 the fix. Collections can be re-run individually as you work.
 

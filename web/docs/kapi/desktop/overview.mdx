@@ -117,10 +117,20 @@ suggestions alone. With nothing to decide, the list says "No suggestions yet."
 and offers **Connect an assistant**.
 
 **Files** has one row for each content file: its format, its name, its blocks
-and its findings, the files with the most findings first. **Open** previews the
-file. A project with no content files says "No content files yet" and offers
-**Add files**, or **Set up the project** while its folder is empty or matches a
-preset kapi recognises. A new project opens on its Map too.
+and its findings, the files with the most findings first. **Open** shows the
+file in the Reader. A project with no content files says "No content files
+yet" and offers **Add files**, or **Set up the project** while its folder is
+empty or matches a preset kapi recognises. A new project opens on its Map too.
+
+The **Reader** draws a file's blocks in file order. Each finding is marked on
+the words it is about, with a row under its block: its kind, the wording a term
+rule asks for or the check's message, and **Fix** when the rule names a
+replacement and no formatting sits among the words. **Fix _n_ in this file**
+applies every such fix at once, through the file's format, and a fix that
+cannot apply says why under its finding. **Rules here**, beside the blocks,
+lists what `kapi context <path>` prints for the file, in the same order. A
+finding on the Checks page opens the Reader at its block. A file kapi read no
+blocks from, and a finding on a comment, open in the preview.
 
 **Run on everything** runs the checks over every file, in the project's target
 languages, and refreshes the counts. The Map runs them once on its own the first

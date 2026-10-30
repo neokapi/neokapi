@@ -7,7 +7,9 @@
 // what it already holds. It reads again when the store sync finishes, when the
 // files change and when the context changes. Findings come from the last
 // checks run over the whole project: the page runs one the first time it opens
-// a tab that has none, and again when the person asks.
+// a tab that has none, and again when the person asks. A file's Open leads to
+// the Reader when the block cache holds blocks for it, and to the preview when
+// it holds none.
 
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -56,6 +58,11 @@ export interface MapPageProps {
   /** Go to another view of the project: "checks", "context:atlas", … */
   onNavigate: (view: string) => void;
   /**
+   * Open a file the block cache has read in the Reader, by its
+   * project-relative path. A file with no blocks opens in the preview.
+   */
+  onOpenReader?: (relative: string) => void;
+  /**
    * The project waits to be set up: its folder is empty, or it matches a
    * preset. The files' empty state then leads to the page that sets it up.
    */
@@ -68,6 +75,7 @@ export function MapPage({
   summary: given,
   onDecide,
   onNavigate,
+  onOpenReader,
   setupPending,
 }: MapPageProps) {
   const qc = useQueryClient();
@@ -137,7 +145,9 @@ export function MapPage({
         onNavigate={onNavigate}
         setupPending={setupPending}
         onShowFiles={() => filesRef.current?.scrollIntoView({ behavior: "smooth" })}
-        onOpenFile={setPreview}
+        onOpenFile={(row) =>
+          onOpenReader && row.blocks > 0 ? onOpenReader(row.relative) : setPreview(row)
+        }
         onAddFiles={async () => {
           const added = await api.addFilesDialog(tabID, "");
           if (added && added.length > 0) void qc.invalidateQueries({ queryKey: key });

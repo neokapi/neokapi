@@ -4253,6 +4253,32 @@ export class DesktopFinding {
              */
             this["target_runs"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Check is the family of checks that raised the finding, as `kapi check`
+             * names it: terms, voice, placeholder, dnt, or a comment check's name.
+             * @member
+             * @type {string | undefined}
+             */
+            this["check"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Term is the word a term rule is about, when a term rule raised it.
+             * @member
+             * @type {string | undefined}
+             */
+            this["term"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Suggested marks a finding raised by a rule nobody has established. It
+             * never fails.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["suggested"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -8145,6 +8171,475 @@ export class ProviderTypeInfo {
 }
 
 /**
+ * ReaderBlockDTO is one block of the file.
+ */
+export class ReaderBlockDTO {
+    /**
+     * Creates a new ReaderBlockDTO instance.
+     * @param {Partial<ReaderBlockDTO>} [$$source = {}] - The source object to create the ReaderBlockDTO.
+     */
+    constructor($$source = {}) {
+        if (!("id" in $$source)) {
+            /**
+             * ID is the block's id as the check names it.
+             * @member
+             * @type {string}
+             */
+            this["id"] = "";
+        }
+        if (!("runs" in $$source)) {
+            /**
+             * Runs are the block's source runs, which the Reader projects for display.
+             * @member
+             * @type {model$0.Run[]}
+             */
+            this["runs"] = [];
+        }
+        if (!("findings" in $$source)) {
+            /**
+             * @member
+             * @type {ReaderFindingDTO[]}
+             */
+            this["findings"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ReaderBlockDTO instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ReaderBlockDTO}
+     */
+    static createFrom($$source = {}) {
+        const $$createField1_0 = $$createType76;
+        const $$createField2_0 = $$createType142;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("runs" in $$parsedSource) {
+            $$parsedSource["runs"] = $$createField1_0($$parsedSource["runs"]);
+        }
+        if ("findings" in $$parsedSource) {
+            $$parsedSource["findings"] = $$createField2_0($$parsedSource["findings"]);
+        }
+        return new ReaderBlockDTO(/** @type {Partial<ReaderBlockDTO>} */($$parsedSource));
+    }
+}
+
+/**
+ * ReaderFileDTO is one content file as the Reader draws it.
+ */
+export class ReaderFileDTO {
+    /**
+     * Creates a new ReaderFileDTO instance.
+     * @param {Partial<ReaderFileDTO>} [$$source = {}] - The source object to create the ReaderFileDTO.
+     */
+    constructor($$source = {}) {
+        if (!("path" in $$source)) {
+            /**
+             * Path is the file, project-relative and slash-separated; Abs is the same
+             * file on disk.
+             * @member
+             * @type {string}
+             */
+            this["path"] = "";
+        }
+        if (!("abs" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["abs"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Format is the format the recipe reads the file as.
+             * @member
+             * @type {string | undefined}
+             */
+            this["format"] = undefined;
+        }
+        if (!("blocks" in $$source)) {
+            /**
+             * Blocks are the file's source blocks in file order, each with the
+             * findings on it.
+             * @member
+             * @type {ReaderBlockDTO[]}
+             */
+            this["blocks"] = [];
+        }
+        if (!("document" in $$source)) {
+            /**
+             * Document holds the findings that name no block of the file.
+             * @member
+             * @type {ReaderFindingDTO[]}
+             */
+            this["document"] = [];
+        }
+        if (!("findings" in $$source)) {
+            /**
+             * Findings counts every finding the check reports for the file, and
+             * Fixable those with a fix.
+             * @member
+             * @type {number}
+             */
+            this["findings"] = 0;
+        }
+        if (!("fixable" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["fixable"] = 0;
+        }
+        if (!("verdict" in $$source)) {
+            /**
+             * Verdict is the checks run's: "passed", "failed" or "did_not_run". A run
+             * that did not run found nothing because it checked nothing.
+             * @member
+             * @type {string}
+             */
+            this["verdict"] = "";
+        }
+        if (!("rules" in $$source)) {
+            /**
+             * Rules are what the context answer for the file holds, in the order
+             * `kapi context <path>` prints them. RulesTotal counts every rule the
+             * answer holds when the list is capped.
+             * @member
+             * @type {ReaderRuleDTO[]}
+             */
+            this["rules"] = [];
+        }
+        if (!("rules_total" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["rules_total"] = 0;
+        }
+        if (!("attention" in $$source)) {
+            /**
+             * Attention is what the context answer says to act on before relying on
+             * it, such as a binding that failed to load.
+             * @member
+             * @type {string[]}
+             */
+            this["attention"] = [];
+        }
+        if (!("refused" in $$source)) {
+            /**
+             * Refused names the fixes the change service refused in the last fix,
+             * each with the service's reason. A refused fix changed nothing.
+             * @member
+             * @type {ReaderRefusalDTO[]}
+             */
+            this["refused"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ReaderFileDTO instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ReaderFileDTO}
+     */
+    static createFrom($$source = {}) {
+        const $$createField3_0 = $$createType144;
+        const $$createField4_0 = $$createType142;
+        const $$createField8_0 = $$createType146;
+        const $$createField10_0 = $$createType6;
+        const $$createField11_0 = $$createType148;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("blocks" in $$parsedSource) {
+            $$parsedSource["blocks"] = $$createField3_0($$parsedSource["blocks"]);
+        }
+        if ("document" in $$parsedSource) {
+            $$parsedSource["document"] = $$createField4_0($$parsedSource["document"]);
+        }
+        if ("rules" in $$parsedSource) {
+            $$parsedSource["rules"] = $$createField8_0($$parsedSource["rules"]);
+        }
+        if ("attention" in $$parsedSource) {
+            $$parsedSource["attention"] = $$createField10_0($$parsedSource["attention"]);
+        }
+        if ("refused" in $$parsedSource) {
+            $$parsedSource["refused"] = $$createField11_0($$parsedSource["refused"]);
+        }
+        return new ReaderFileDTO(/** @type {Partial<ReaderFileDTO>} */($$parsedSource));
+    }
+}
+
+/**
+ * ReaderFindingDTO is one finding, placed on its block.
+ */
+export class ReaderFindingDTO {
+    /**
+     * Creates a new ReaderFindingDTO instance.
+     * @param {Partial<ReaderFindingDTO>} [$$source = {}] - The source object to create the ReaderFindingDTO.
+     */
+    constructor($$source = {}) {
+        if (!("id" in $$source)) {
+            /**
+             * ID names the finding for FixFinding. It is the same in every read of
+             * the file while the finding stands.
+             * @member
+             * @type {string}
+             */
+            this["id"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["block_id"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Position is the run range the finding is about, over the block's
+             * source runs; Span is that range in code points of the block's own text,
+             * in which an inline code has no width. Span is absent for a finding the
+             * check located at the block alone or inside a plural.
+             * @member
+             * @type {model$0.Anchor | undefined}
+             */
+            this["position"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {ReaderSpan | null | undefined}
+             */
+            this["span"] = undefined;
+        }
+        if (!("kind" in $$source)) {
+            /**
+             * Kind is the mark the finding carries: "name" for a term rule about a
+             * spelling, "word" for any other term rule, "tone" for a voice rule, and
+             * otherwise the check that raised it (placeholder, dnt, …).
+             * @member
+             * @type {string}
+             */
+            this["kind"] = "";
+        }
+        if (!("label" in $$source)) {
+            /**
+             * Label is the line under the block: the wording a term rule asks for and
+             * the word it avoids, or the check's message.
+             * @member
+             * @type {string}
+             */
+            this["label"] = "";
+        }
+        if (!("fails" in $$source)) {
+            /**
+             * Fails says whether the finding fails the check; Suggested marks one a
+             * rule nobody has established raised, which never fails.
+             * @member
+             * @type {boolean}
+             */
+            this["fails"] = false;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["suggested"] = undefined;
+        }
+        if (!("fixable" in $$source)) {
+            /**
+             * Fixable says the finding carries a fix.
+             * @member
+             * @type {boolean}
+             */
+            this["fixable"] = false;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Locale is the language of the translation a target-side finding is
+             * about; empty for a finding on the source.
+             * @member
+             * @type {string | undefined}
+             */
+            this["locale"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ReaderFindingDTO instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ReaderFindingDTO}
+     */
+    static createFrom($$source = {}) {
+        const $$createField2_0 = $$createType73;
+        const $$createField3_0 = $$createType150;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("position" in $$parsedSource) {
+            $$parsedSource["position"] = $$createField2_0($$parsedSource["position"]);
+        }
+        if ("span" in $$parsedSource) {
+            $$parsedSource["span"] = $$createField3_0($$parsedSource["span"]);
+        }
+        return new ReaderFindingDTO(/** @type {Partial<ReaderFindingDTO>} */($$parsedSource));
+    }
+}
+
+/**
+ * ReaderRefusalDTO is one fix the change service refused.
+ */
+export class ReaderRefusalDTO {
+    /**
+     * Creates a new ReaderRefusalDTO instance.
+     * @param {Partial<ReaderRefusalDTO>} [$$source = {}] - The source object to create the ReaderRefusalDTO.
+     */
+    constructor($$source = {}) {
+        if (!("finding_id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["finding_id"] = "";
+        }
+        if (!("reason" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["reason"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ReaderRefusalDTO instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ReaderRefusalDTO}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ReaderRefusalDTO(/** @type {Partial<ReaderRefusalDTO>} */($$parsedSource));
+    }
+}
+
+/**
+ * ReaderRuleDTO is one rule that holds at the file.
+ */
+export class ReaderRuleDTO {
+    /**
+     * Creates a new ReaderRuleDTO instance.
+     * @param {Partial<ReaderRuleDTO>} [$$source = {}] - The source object to create the ReaderRuleDTO.
+     */
+    constructor($$source = {}) {
+        if (!("kind" in $$source)) {
+            /**
+             * Kind is the mark: "tone" for the voice, "name" or "word" for a term
+             * rule, "keep" for a wording a rule elsewhere leaves correct here, "note"
+             * for a note.
+             * @member
+             * @type {string}
+             */
+            this["kind"] = "";
+        }
+        if (!("rule" in $$source)) {
+            /**
+             * Rule is the rule as one line.
+             * @member
+             * @type {string}
+             */
+            this["rule"] = "";
+        }
+        if (!("status" in $$source)) {
+            /**
+             * Status is "established", "suggested" or "contested".
+             * @member
+             * @type {string}
+             */
+            this["status"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * From is where the rule is held: terms, a pack, the workspace, or the
+             * voice profile.
+             * @member
+             * @type {string | undefined}
+             */
+            this["from"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * By is who recorded the rule and At when, RFC 3339, when the answer
+             * carries them.
+             * @member
+             * @type {string | undefined}
+             */
+            this["by"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["at"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ReaderRuleDTO instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ReaderRuleDTO}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ReaderRuleDTO(/** @type {Partial<ReaderRuleDTO>} */($$parsedSource));
+    }
+}
+
+/**
+ * ReaderSpan is a half-open code-point range [Start, End).
+ */
+export class ReaderSpan {
+    /**
+     * Creates a new ReaderSpan instance.
+     * @param {Partial<ReaderSpan>} [$$source = {}] - The source object to create the ReaderSpan.
+     */
+    constructor($$source = {}) {
+        if (!("start" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["start"] = 0;
+        }
+        if (!("end" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["end"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ReaderSpan instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ReaderSpan}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ReaderSpan(/** @type {Partial<ReaderSpan>} */($$parsedSource));
+    }
+}
+
+/**
  * RecipeAxisDTO is one axis a recipe can put a coordinate on.
  */
 export class RecipeAxisDTO {
@@ -8274,7 +8769,7 @@ export class RecipeGovernanceDTO {
      * @returns {RecipeGovernanceDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType142;
+        const $$createField0_0 = $$createType152;
         const $$createField1_0 = $$createType6;
         const $$createField2_0 = $$createType6;
         const $$createField3_0 = $$createType6;
@@ -8361,7 +8856,7 @@ export class RelationDTO {
      * @returns {RelationDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField5_0 = $$createType144;
+        const $$createField5_0 = $$createType154;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("validity" in $$parsedSource) {
             $$parsedSource["validity"] = $$createField5_0($$parsedSource["validity"]);
@@ -8648,9 +9143,9 @@ export class ReviewUnitDetail {
      * @returns {ReviewUnitDetail}
      */
     static createFrom($$source = {}) {
-        const $$createField10_0 = $$createType146;
+        const $$createField10_0 = $$createType156;
         const $$createField12_0 = $$createType25;
-        const $$createField15_0 = $$createType148;
+        const $$createField15_0 = $$createType158;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("origin" in $$parsedSource) {
             $$parsedSource["origin"] = $$createField10_0($$parsedSource["origin"]);
@@ -8855,7 +9350,7 @@ export class RunError {
      * @returns {RunError}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType150;
+        const $$createField3_0 = $$createType160;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("actions" in $$parsedSource) {
             $$parsedSource["actions"] = $$createField3_0($$parsedSource["actions"]);
@@ -9134,10 +9629,10 @@ export class RunEvent {
      * @returns {RunEvent}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType152;
-        const $$createField8_0 = $$createType154;
-        const $$createField11_0 = $$createType156;
-        const $$createField12_0 = $$createType158;
+        const $$createField4_0 = $$createType162;
+        const $$createField8_0 = $$createType164;
+        const $$createField11_0 = $$createType166;
+        const $$createField12_0 = $$createType168;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("error" in $$parsedSource) {
             $$parsedSource["error"] = $$createField4_0($$parsedSource["error"]);
@@ -9259,8 +9754,8 @@ export class RunTraces {
      * @returns {RunTraces}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType160;
-        const $$createField2_0 = $$createType162;
+        const $$createField1_0 = $$createType170;
+        const $$createField2_0 = $$createType172;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("steps" in $$parsedSource) {
             $$parsedSource["steps"] = $$createField1_0($$parsedSource["steps"]);
@@ -9386,7 +9881,7 @@ export class SaveUserFlowRequest {
      * @returns {SaveUserFlowRequest}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType160;
+        const $$createField3_0 = $$createType170;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("steps" in $$parsedSource) {
             $$parsedSource["steps"] = $$createField3_0($$parsedSource["steps"]);
@@ -9730,7 +10225,7 @@ export class TermDTO {
      */
     static createFrom($$source = {}) {
         const $$createField6_0 = $$createType6;
-        const $$createField8_0 = $$createType144;
+        const $$createField8_0 = $$createType154;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("forms" in $$parsedSource) {
             $$parsedSource["forms"] = $$createField6_0($$parsedSource["forms"]);
@@ -9959,8 +10454,8 @@ export class ToolInfo {
     static createFrom($$source = {}) {
         const $$createField6_0 = $$createType6;
         const $$createField7_0 = $$createType6;
-        const $$createField10_0 = $$createType164;
-        const $$createField11_0 = $$createType164;
+        const $$createField10_0 = $$createType174;
+        const $$createField11_0 = $$createType174;
         const $$createField12_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tags" in $$parsedSource) {
@@ -10174,7 +10669,7 @@ export class UserFlowDetail {
      * @returns {UserFlowDetail}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType160;
+        const $$createField4_0 = $$createType170;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("steps" in $$parsedSource) {
             $$parsedSource["steps"] = $$createField4_0($$parsedSource["steps"]);
@@ -10761,12 +11256,12 @@ export class VoicePointDTO {
         const $$createField2_0 = $$createType13;
         const $$createField3_0 = $$createType6;
         const $$createField4_0 = $$createType6;
-        const $$createField7_0 = $$createType166;
-        const $$createField9_0 = $$createType168;
+        const $$createField7_0 = $$createType176;
+        const $$createField9_0 = $$createType178;
         const $$createField11_0 = $$createType128;
         const $$createField12_0 = $$createType130;
         const $$createField13_0 = $$createType6;
-        const $$createField14_0 = $$createType169;
+        const $$createField14_0 = $$createType179;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("point" in $$parsedSource) {
             $$parsedSource["point"] = $$createField0_0($$parsedSource["point"]);
@@ -10881,8 +11376,8 @@ export class VoiceSaveResult {
      * @returns {VoiceSaveResult}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType171;
-        const $$createField6_0 = $$createType173;
+        const $$createField4_0 = $$createType181;
+        const $$createField6_0 = $$createType183;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("problems" in $$parsedSource) {
             $$parsedSource["problems"] = $$createField4_0($$parsedSource["problems"]);
@@ -11040,7 +11535,7 @@ export class WorkspaceHome {
      * @returns {WorkspaceHome}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType175;
+        const $$createField2_0 = $$createType185;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("projects" in $$parsedSource) {
             $$parsedSource["projects"] = $$createField2_0($$parsedSource["projects"]);
@@ -11143,10 +11638,10 @@ export class WorkspaceProject {
      * @returns {WorkspaceProject}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType177;
+        const $$createField3_0 = $$createType187;
         const $$createField4_0 = $$createType138;
-        const $$createField5_0 = $$createType179;
-        const $$createField6_0 = $$createType181;
+        const $$createField5_0 = $$createType189;
+        const $$createField6_0 = $$createType191;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("checkouts" in $$parsedSource) {
             $$parsedSource["checkouts"] = $$createField3_0($$parsedSource["checkouts"]);
@@ -11310,7 +11805,7 @@ export class WorkspaceRule {
      * @returns {WorkspaceRule}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType182;
+        const $$createField3_0 = $$createType192;
         const $$createField7_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("subject" in $$parsedSource) {
@@ -11465,45 +11960,55 @@ const $$createType137 = ContextFilesNoticeDTO.createFrom;
 const $$createType138 = $Create.Nullable($$createType137);
 const $$createType139 = VoicePointDTO.createFrom;
 const $$createType140 = $Create.Array($$createType139);
-const $$createType141 = RecipeAxisDTO.createFrom;
+const $$createType141 = ReaderFindingDTO.createFrom;
 const $$createType142 = $Create.Array($$createType141);
-const $$createType143 = ValidityDTO.createFrom;
-const $$createType144 = $Create.Nullable($$createType143);
-const $$createType145 = model$0.Origin.createFrom;
-const $$createType146 = $Create.Nullable($$createType145);
-const $$createType147 = review$0.Context.createFrom;
-const $$createType148 = $Create.Nullable($$createType147);
-const $$createType149 = RunErrorAction.createFrom;
-const $$createType150 = $Create.Array($$createType149);
-const $$createType151 = RunError.createFrom;
-const $$createType152 = $Create.Nullable($$createType151);
-const $$createType153 = flow$0.StepSnapshot.createFrom;
-const $$createType154 = $Create.Array($$createType153);
-const $$createType155 = convergence$0.Event.createFrom;
+const $$createType143 = ReaderBlockDTO.createFrom;
+const $$createType144 = $Create.Array($$createType143);
+const $$createType145 = ReaderRuleDTO.createFrom;
+const $$createType146 = $Create.Array($$createType145);
+const $$createType147 = ReaderRefusalDTO.createFrom;
+const $$createType148 = $Create.Array($$createType147);
+const $$createType149 = ReaderSpan.createFrom;
+const $$createType150 = $Create.Nullable($$createType149);
+const $$createType151 = RecipeAxisDTO.createFrom;
+const $$createType152 = $Create.Array($$createType151);
+const $$createType153 = ValidityDTO.createFrom;
+const $$createType154 = $Create.Nullable($$createType153);
+const $$createType155 = model$0.Origin.createFrom;
 const $$createType156 = $Create.Nullable($$createType155);
-const $$createType157 = host$0.ConvergeOutput.createFrom;
+const $$createType157 = review$0.Context.createFrom;
 const $$createType158 = $Create.Nullable($$createType157);
-const $$createType159 = flow$0.FlowStep.createFrom;
+const $$createType159 = RunErrorAction.createFrom;
 const $$createType160 = $Create.Array($$createType159);
-const $$createType161 = RunTraceFile.createFrom;
-const $$createType162 = $Create.Array($$createType161);
-const $$createType163 = IOPort.createFrom;
+const $$createType161 = RunError.createFrom;
+const $$createType162 = $Create.Nullable($$createType161);
+const $$createType163 = flow$0.StepSnapshot.createFrom;
 const $$createType164 = $Create.Array($$createType163);
-const $$createType165 = VoiceBindingDTO.createFrom;
+const $$createType165 = convergence$0.Event.createFrom;
 const $$createType166 = $Create.Nullable($$createType165);
-const $$createType167 = profile$0.VoiceProfile.createFrom;
+const $$createType167 = host$0.ConvergeOutput.createFrom;
 const $$createType168 = $Create.Nullable($$createType167);
-const $$createType169 = VoiceEditTargetDTO.createFrom;
-const $$createType170 = profile$0.ProfileProblem.createFrom;
-const $$createType171 = $Create.Array($$createType170);
-const $$createType172 = RulesFilesDTO.createFrom;
-const $$createType173 = $Create.Nullable($$createType172);
-const $$createType174 = WorkspaceProject.createFrom;
-const $$createType175 = $Create.Array($$createType174);
-const $$createType176 = WorkspaceCheckout.createFrom;
-const $$createType177 = $Create.Array($$createType176);
-const $$createType178 = host$0.ContextProjectStanding.createFrom;
-const $$createType179 = $Create.Nullable($$createType178);
-const $$createType180 = ProjectSharing.createFrom;
-const $$createType181 = $Create.Nullable($$createType180);
-const $$createType182 = contextop$0.Subject.createFrom;
+const $$createType169 = flow$0.FlowStep.createFrom;
+const $$createType170 = $Create.Array($$createType169);
+const $$createType171 = RunTraceFile.createFrom;
+const $$createType172 = $Create.Array($$createType171);
+const $$createType173 = IOPort.createFrom;
+const $$createType174 = $Create.Array($$createType173);
+const $$createType175 = VoiceBindingDTO.createFrom;
+const $$createType176 = $Create.Nullable($$createType175);
+const $$createType177 = profile$0.VoiceProfile.createFrom;
+const $$createType178 = $Create.Nullable($$createType177);
+const $$createType179 = VoiceEditTargetDTO.createFrom;
+const $$createType180 = profile$0.ProfileProblem.createFrom;
+const $$createType181 = $Create.Array($$createType180);
+const $$createType182 = RulesFilesDTO.createFrom;
+const $$createType183 = $Create.Nullable($$createType182);
+const $$createType184 = WorkspaceProject.createFrom;
+const $$createType185 = $Create.Array($$createType184);
+const $$createType186 = WorkspaceCheckout.createFrom;
+const $$createType187 = $Create.Array($$createType186);
+const $$createType188 = host$0.ContextProjectStanding.createFrom;
+const $$createType189 = $Create.Nullable($$createType188);
+const $$createType190 = ProjectSharing.createFrom;
+const $$createType191 = $Create.Nullable($$createType190);
+const $$createType192 = contextop$0.Subject.createFrom;

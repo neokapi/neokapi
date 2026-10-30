@@ -78,6 +78,14 @@ type DesktopFinding struct {
 	// TargetRuns are the block's runs in the target locale a target-side finding
 	// names, when the block carries them.
 	TargetRuns []model.Run `json:"target_runs,omitempty"`
+	// Check is the family of checks that raised the finding, as `kapi check`
+	// names it: terms, voice, placeholder, dnt, or a comment check's name.
+	Check string `json:"check,omitempty"`
+	// Term is the word a term rule is about, when a term rule raised it.
+	Term string `json:"term,omitempty"`
+	// Suggested marks a finding raised by a rule nobody has established. It
+	// never fails.
+	Suggested bool `json:"suggested,omitempty"`
 }
 
 // CheckFileResult groups the findings for a single content file.
@@ -122,6 +130,23 @@ type CheckRunResult struct {
 // (WithDocumentCache) so unchanged files replay instead of re-parsing —
 // exactly the `kapi check` semantics: the gate fails on any failing finding.
 func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, error) {
+	return a.runChecks(tabID, filter, checkScope{})
+}
+
+// checkScope narrows a checks run to one file, for the Reader, and keeps the
+// source blocks the run read from it.
+type checkScope struct {
+	// file is the project-relative, slash-separated file the run checks; empty
+	// checks every file the filter selects.
+	file string
+	// blocks, when set, receives the source blocks the run read from file:
+	// the blocks its findings name and its fixes are guarded by.
+	blocks *[]*model.Block
+}
+
+// runChecks is RunChecks within scope. A run narrowed to one file is never the
+// run the Map counts findings from.
+func (a *App) runChecks(tabID string, filter ProjectFilter, scope checkScope) (*CheckRunResult, error) {
 	langs, lerr := canonicalLocales(filter.Languages)
 	if lerr != nil {
 		return nil, lerr
@@ -197,6 +222,9 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 			if filter.FilesNarrowed() && !filter.MatchesFile(rf.Collection, rf.Relative) {
 				continue
 			}
+			if scope.file != "" && filepath.ToSlash(rf.Relative) != scope.file {
+				continue
+			}
 			// A file declared for its comments alone holds no value the panel reads,
 			// and only its comments are checked.
 			if rf.CommentsOnly() {
@@ -226,6 +254,9 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 				return fmt.Errorf("read check source %s: %w", rf.Relative, rerr)
 			}
 			blocksChecked += len(sourceBlocks)
+			if scope.blocks != nil && *scope.blocks == nil {
+				*scope.blocks = sourceBlocks
+			}
 			if rf.CommentItem != nil {
 				commentFiles = append(commentFiles, rf)
 			}
@@ -251,7 +282,8 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 			}
 			// runSource runs one source-side checker over the file's blocks and
 			// records it under its analyzer id.
-			runSource := func(id, what string, tool *coretools.VoiceVocabCheckTool, voice *coreprofile.VoiceProfile) {
+			// family is the name `kapi check` gives the analyzer's findings.
+			runSource := func(id, family, what string, tool *coretools.VoiceVocabCheckTool, voice *coreprofile.VoiceProfile) {
 				before := len(fileFindings)
 				for _, b := range sourceBlocks {
 					if cerr := host.RunCheckTool(ctx, tool, b); cerr != nil {
@@ -260,7 +292,9 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 					}
 					if ann, ok := model.AnnoAs[*coreprofile.VoiceAnnotation](b, model.AnnoVoice); ok {
 						for _, f := range ann.Findings {
-							fileFindings = append(fileFindings, withFix(toDesktopFinding(f, b, "source", sourceLang, filePoint), f, b, filepath.ToSlash(rf.Relative), pctx.SourceLocale))
+							df := withFix(toDesktopFinding(f, b, "source", sourceLang, filePoint), f, b, filepath.ToSlash(rf.Relative), pctx.SourceLocale)
+							df.Check = family
+							fileFindings = append(fileFindings, df)
 							allFindings = append(allFindings, f)
 						}
 					}
@@ -280,7 +314,7 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 			// bound starter pack's terms. One analyzer checks them all.
 			words := coreprofile.CarriedRuleSets(profile)
 			if fileTerms != nil || len(words) > 0 {
-				runSource("terms", "terms",
+				runSource("terms", "terms", "terms",
 					coretools.NewVoiceVocabCheckTool(nil, fileTerms).
 						InSourceLocale(pctx.SourceLocale).
 						Holding(words...),
@@ -290,7 +324,7 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 			// its constraints.
 			if voice := profile.VoiceOnly(); checkErr == nil && voice != nil &&
 				(coreprofile.HasDeterministicRules(voice) || len(words) == 0) {
-				runSource("voice.rules", "voice", coretools.NewVoiceVocabCheckTool(voice, nil), voice)
+				runSource("voice.rules", "voice", "voice", coretools.NewVoiceVocabCheckTool(voice, nil), voice)
 			}
 
 			// Target-side checks, once per filtered language.
@@ -335,7 +369,9 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 						break
 					}
 					for _, f := range host.FindingsFromBlock(b, true) {
-						fileFindings = append(fileFindings, toDesktopFinding(f, b, "target", lang, filePoint))
+						df := toDesktopFinding(f, b, "target", lang, filePoint)
+						df.Check = "placeholder"
+						fileFindings = append(fileFindings, df)
 						allFindings = append(allFindings, f)
 					}
 				}
@@ -360,7 +396,9 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 							break
 						}
 						for _, f := range host.FindingsFromBlock(b, true) {
-							fileFindings = append(fileFindings, toDesktopFinding(f, b, "target", lang, filePoint))
+							df := toDesktopFinding(f, b, "target", lang, filePoint)
+							df.Check = "dnt"
+							fileFindings = append(fileFindings, df)
 							allFindings = append(allFindings, f)
 						}
 					}
@@ -427,7 +465,7 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 	result.Warnings = check.MergeWarnings(warnings, result.Warnings)
 	// A run over every file in every target language is the one the Map
 	// counts findings from.
-	if coversProject(filter, op.Project) {
+	if scope.file == "" && coversProject(filter, op.Project) {
 		op.recordCheck(result, time.Now())
 	}
 	return result, nil
@@ -532,6 +570,8 @@ func checkComments(ctx context.Context, capp *host.App, projectPath string, file
 func commentFinding(d check.Diagnostic, rf project.ResolvedFile, locale string) DesktopFinding {
 	f := DesktopFinding{
 		Category:     d.Check,
+		Check:        d.Check,
+		Suggested:    d.Suggested,
 		Fails:        d.Fails,
 		Message:      d.Message,
 		Suggestion:   d.Suggestion,
@@ -863,6 +903,8 @@ func toDesktopFinding(f check.Finding, b *model.Block, field string, locale stri
 		Collection:   point.Collection,
 		Position:     f.Position,
 		SourceRuns:   b.SourceRuns(),
+		Term:         f.Metadata["term"],
+		Suggested:    f.Suggested,
 	}
 	if field == "target" {
 		df.TargetRuns = b.TargetRuns(model.LocaleID(locale))

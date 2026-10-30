@@ -53,6 +53,12 @@ func newRuleList() *ruleList {
 
 func fold(s string) string { return strings.ToLower(strings.TrimSpace(s)) }
 
+// FoldWording folds a wording the way a by-location answer compares two: in
+// lower case, with the space around it taken off. A surface that matches its
+// own rows against the answer's rules, as the text answer does when it leaves
+// out a suggestion a rule already states, folds with it.
+func FoldWording(s string) string { return fold(s) }
+
 // add merges one rule into the list. A rule whose Say is already listed adds
 // its avoided wordings and its note to that line; a bare ban already stated by
 // another line is dropped.
