@@ -22,13 +22,13 @@ import (
 // up owns the verb in every install (the no-shadowing rule). The venue is
 // resolved here: when the recipe binds a convergence venue and a plugin
 // provides the hidden `server-up` plumbing (kapi-bowrain), the run is
-// dispatched there — push, converge on the server, stream progress, pull
+// dispatched there: push, converge on the server, stream progress, pull
 // results. Otherwise the loop runs locally via ExecuteUp. The resolved venue
 // is printed up front whenever a bound venue makes the choice ambiguous.
 func NewUpCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "up",
-		Short:   "Bring the project up to date (run the default flow until every gated scope ships or parks)",
+		Short:   "Bring the project up to date: run the default flow and stop where a gate holds content back",
 		GroupID: "work",
 		Args:    cobra.NoArgs,
 		Long: `Bring the project up to date: the recipe declares the languages, the flow, and
@@ -84,7 +84,7 @@ gates (e.g. before a release tag).
 
 --passes 1 runs a single pass (the behavior of the bare 'kapi run');
 --passes N caps the loop at N passes.`,
-		Example: `  kapi up                # loop the default flow until every gated scope ships or parks
+		Example: `  kapi up                # run the default flow; stop where a gate holds content back
   kapi up --plan         # dry run: pending work, content-memory leverage, and a token estimate per locale
   kapi up --passes 1     # a single pass over every locale that needs work
   kapi up --materialize  # also write target-language files for the shippable locales
@@ -115,7 +115,7 @@ gates (e.g. before a release tag).
 	return cmd
 }
 
-// runUpWithVenue executes the run at the venue host.ResolveUpVenue picks — the
+// runUpWithVenue executes the run at the venue host.ResolveUpVenue picks, the
 // same decision every surface offering the verb makes, an agent over MCP
 // included. What is the terminal's own is here: the resolved-venue line, the
 // user's flags re-rendered as argv for the plumbing subprocess, and the live
@@ -161,7 +161,7 @@ func upVenueOptions(cmd *cobra.Command) host.UpVenueOptions {
 }
 
 // printUpVenue names the resolved venue on stderr before the run starts.
-// Printed only when a bound venue makes the choice ambiguous — a plain
+// Printed only when a bound venue makes the choice ambiguous; a plain
 // local project gets no banner. Suppressed under --quiet and --json (the
 // NDJSON stream is the machine surface; agents read the plan/events).
 func printUpVenue(a *App, cmd *cobra.Command, local bool, serverURL string) {

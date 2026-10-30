@@ -13,7 +13,7 @@ func AddPersistentFlags(a *App, cmd *cobra.Command) {
 	cmd.PersistentFlags().BoolVarP(&a.Quiet, "quiet", "q", false, "suppress output")
 	cmd.PersistentFlags().BoolVarP(&a.AssumeYes, "yes", "y", false, "assume yes for confirmation prompts (e.g. plugin auto-install)")
 	cmd.PersistentFlags().StringVar(&a.PluginDir, "plugin-dir", "", "plugin directory")
-	cmd.PersistentFlags().StringVar(&a.Lang, "lang", "", "UI locale for tool/format/plugin metadata (BCP-47, e.g. fr); falls back to KAPI_LANG / LC_ALL / LANG")
+	cmd.PersistentFlags().StringVar(&a.Lang, "lang", "", "UI language for tool/format/plugin metadata (BCP-47, e.g. fr); falls back to KAPI_LANG / LC_ALL / LANG")
 
 	// --explain-prompts shows exactly what kapi sends to the LLM on your behalf:
 	// the rendered prompt (including the voice profile and terms it wove in),
@@ -30,16 +30,22 @@ func AddPersistentFlags(a *App, cmd *cobra.Command) {
 	output.AddPersistentFlags(cmd.PersistentFlags())
 }
 
-// Porcelain comes first: "Work:" holds the everyday project verbs
-// (init, add, up, status, apply, check), "Languages:" the verbs that produce
-// content in other languages for ad-hoc files (translate, pseudo-translate:
-// guardrailed built-in flows rather than raw tools), and "Assets:" the
-// standing resources (memory, terms, voice, models, credentials).
-// "Advanced:" collects the plumbing (run, flows, exec, tools, extract, merge,
-// pack/unpack/info, inspect, stats, formats, plugin, config, hook, mcp).
-// Standard commands (version, update, completion) stay ungrouped under
-// cobra's "Additional Commands:". Raw registry tools render no root group at
-// all: they live under `kapi exec`.
+// AddCommandGroups registers the root command groups. Each group belongs to a
+// tier of the root help (helptiers.go):
+//
+//   - Person, always shown: "Work:" (init, add, ls, rm, up, status, apply,
+//     check, context) and "Assets:" (terms, voice, models, credentials).
+//   - Languages, shown when the project declares a target language and in
+//     `kapi help --all` and `kapi help languages`: "Languages:" (translate,
+//     pseudo-translate, and memory, the content memory they reuse).
+//   - Engine, shown only in `kapi help --all`: "Advanced:" (run, flows, exec,
+//     tools, extract, merge, pack, unpack, info, resolve, inspect, stats,
+//     formats, store, plugin, config, trust, mcp, completion, telemetry).
+//
+// The tiers filter the help page only. Every command runs, completes and
+// appears in the reference whatever its tier. help, version and update stay
+// ungrouped under "Additional Commands:", which every view shows. Registry
+// tools have no root group: they live under `kapi exec`.
 func AddCommandGroups(a *App, cmd *cobra.Command) {
 	cmd.AddGroup(
 		&cobra.Group{ID: "work", Title: "Work:"},

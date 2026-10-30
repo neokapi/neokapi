@@ -2,6 +2,7 @@ package host
 
 import (
 	"bytes"
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -13,7 +14,7 @@ import (
 
 // The ship column is a gate verdict, not a percentage. These tests pin both
 // halves of that: the verdict names the first unmet gate, and the pipeline
-// column reports distance to the bar — derived from the existing gate model, so
+// column reports distance to the bar, derived from the existing gate model, so
 // the number and the verdict can never disagree.
 
 // covRow builds a LocaleCoverage the way RollupGates would, from a gate and a
@@ -184,6 +185,59 @@ func TestStatusJSONCarriesTheVerdict(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, "translated", ja.Blocking)
 	assert.Equal(t, 0, ja.ShipProgress, "no ja file at all")
+}
+
+// TestStatusTextOfAProjectWithNoTargetLanguage: with no target language the
+// source line is the whole report. Nothing stands in for the coverage grid, so
+// a one-language project reads nothing about languages it does not have. With
+// no source content the source line says so, so the report is never empty. A
+// project that names target languages and tracks none still says so.
+func TestStatusTextOfAProjectWithNoTargetLanguage(t *testing.T) {
+	source := &SourceCoverage{Total: 2, Pct: map[string]int{"written": 100, "established": 0}}
+	tests := []struct {
+		name    string
+		out     StatusOutput
+		want    string
+		without []string
+	}{
+		{
+			name:    "no target language",
+			out:     StatusOutput{Source: source, Monolingual: true},
+			want:    "source      2 blocks · written 100% · approved 0%\n",
+			without: []string{"Monolingual", "per-language", "target"},
+		},
+		{
+			name:    "no target language and no source content",
+			out:     StatusOutput{Monolingual: true},
+			want:    "source      no content yet: add files with `kapi add <pattern>`\n",
+			without: []string{"Monolingual", "No target content tracked"},
+		},
+		{
+			name:    "no target language and only unreadable content",
+			out:     StatusOutput{Source: &SourceCoverage{Unreadable: []string{"okf_idml"}}, Monolingual: true},
+			want:    "source      no content read: no reader for okf_idml\n",
+			without: []string{"Monolingual", "no content yet"},
+		},
+		{
+			name: "target languages with nothing tracked",
+			out:  StatusOutput{Source: source},
+			want: "source      2 blocks · written 100% · approved 0%\n\n" +
+				"No target content tracked (no content collections with target locales).\n",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			text := renderStatus(t, tt.out)
+			assert.Equal(t, tt.want, text)
+			for _, s := range tt.without {
+				assert.NotContains(t, text, s)
+			}
+		})
+	}
+
+	raw, err := json.Marshal(StatusOutput{Source: source, Monolingual: true})
+	require.NoError(t, err)
+	assert.Contains(t, string(raw), `"monolingual":true`, "the JSON keeps the field")
 }
 
 func rep(state string, n int) []string {

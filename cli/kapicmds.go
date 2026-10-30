@@ -13,21 +13,20 @@ import (
 
 // KapiRootShort / KapiRootLong are the canonical root help strings for the
 // kapi CLI. They live here (rather than in kapi/cmd/kapi) so the cli/i18n
-// generator — which cannot import the kapi module — emits them into
+// generator, which cannot import the kapi module, emits them into
 // commands.json under the cli.commands.kapi.* scopes.
 const (
 	KapiRootShort = "A format-aware content engine that knows your project's context"
-	KapiRootLong  = `kapi parses any format into one content model, edits and checks the content
-inside it, and writes it back faithfully. It holds a project's context, such as
-its terms and its voice, which its checks and AI tools apply. The same model
-serves format conversion and translation into other languages.`
+	KapiRootLong  = `kapi reads any format into one content model, checks the content against the
+project's rules, and writes edits back faithfully. It holds the project's
+context, such as its terms and its voice, which its checks and AI tools apply.`
 )
 
 // KapiCommandSet constructs the full built-in command set of the kapi CLI,
 // in registration order. kapi/cmd/kapi attaches these to its root command;
 // the cli/i18n generator walks the same set to extract help strings, so the
-// two can never drift. Plugin-contributed commands are not included — they
-// attach via the command factories and the plugin host.
+// two can never drift. Plugin-contributed commands attach through the command
+// factories and the plugin host, outside this set.
 func KapiCommandSet(a *App) []*cobra.Command {
 	var cmds []*cobra.Command
 
@@ -100,13 +99,13 @@ func KapiCommandSet(a *App) []*cobra.Command {
 	return cmds
 }
 
-// HelpTranslator resolves the Translator used to localize command help at
+// HelpTranslator resolves the Translator that localizes command help at
 // construction time. Cobra renders --help before any hook runs, so the
 // --lang flag cannot participate here: help honors KAPI_LANG, the config
 // file's `language` key, and the POSIX env chain, while --lang still
 // localizes metadata in command output (tools/formats listings). The config
-// load is best-effort — a missing or unreadable config file simply leaves
-// the env chain in charge.
+// load is best-effort: a missing or unreadable config file leaves the env
+// chain in charge.
 func HelpTranslator() i18n.Translator {
 	cfg := config.NewAppConfig()
 	_ = cfg.Load()
@@ -120,7 +119,7 @@ func HelpTranslator() i18n.Translator {
 // path segment is always "kapi" regardless of the root command's name, so
 // catalogs stay valid across binaries built on the shared CLI base. Misses
 // fall back to the English source (gettext semantics), so commands the
-// catalog doesn't know — plugin commands, new built-ins — stay English.
+// catalog doesn't know (plugin commands, new built-ins) stay English.
 func LocalizeCommandHelp(root *cobra.Command, t i18n.Translator) {
 	if root == nil || t == nil || t.Locale() == "en" {
 		return
@@ -162,7 +161,7 @@ func localizeCommand(c *cobra.Command, path string, t i18n.Translator) {
 // down the tree and its usage is keyed under the command that declared it.
 // Hidden flags and cobra's generated --help are skipped: neither is printed.
 // A flag with no usage text is still visited, because it is still a flag the
-// reference documents; a caller that only wants translatable text skips it.
+// reference documents; a caller that only wants text to translate skips it.
 //
 // The help inventory generator, the runtime localizer and the reference
 // dataset all walk flags through this function, so the key a catalog carries
@@ -183,7 +182,7 @@ func VisitLocalizableFlags(c *cobra.Command, fn func(*pflag.Flag)) {
 // against translations that lost their line structure. The project content memory's
 // plain-text fast path normalizes whitespace on stored variants
 // (memory.NormalizeText), so a content memory-leveraged catalog can carry a Long whose
-// line breaks were collapsed to spaces — rendering as one unreadable
+// line breaks were collapsed to spaces, which renders as one unreadable
 // paragraph. Until the content memory round-trips line structure, prefer the English
 // source over a structurally damaged translation.
 func helpText(t i18n.Translator, scope i18n.Scope, source string) string {

@@ -14,7 +14,7 @@ import (
 	_ "github.com/neokapi/neokapi/core/formats" // register markdown
 )
 
-// Journey 1 — the monolingual front door. A team with one language, a bound
+// Journey 1: the monolingual front door. A team with one language, a bound
 // voice profile and a committed vocabulary drives discover → context → check →
 // converge with no target language anywhere in the recipe. These tests hold the
 // verb surface to that: `up` completes, `status` reports the one axis the
@@ -124,8 +124,8 @@ func runCLI(t *testing.T, cmd *cobra.Command, args ...string) (string, error) {
 // project with no target language runs to completion. It seeds the committed
 // context, extracts the working tree into the store and refreshes the occurrence
 // graph; only the per-locale fan-out is skipped, because there is no locale to
-// fan out to. The verb used to refuse to start, which left a one-language
-// project with no way to compile its own sources into the store at all.
+// fan out to. A one-language project has no other way to compile its own
+// sources into the store, so the verb must start.
 func TestUp_MonolingualProjectConverges(t *testing.T) {
 	a := processOnlyApp(t)
 	recipe, root := monolingualProject(t)
@@ -142,8 +142,8 @@ func TestUp_MonolingualProjectConverges(t *testing.T) {
 }
 
 // TestUp_MonolingualNeedsNoAIProvider: a monolingual run makes no provider call,
-// so it must not demand a provider. Nothing configures one here — the fixture's
-// config dir is empty — and the run must still complete.
+// so it must not demand a provider. Nothing configures one here (the fixture's
+// config dir is empty), and the run must still complete.
 func TestUp_MonolingualNeedsNoAIProvider(t *testing.T) {
 	a := processOnlyApp(t)
 	recipe, _ := monolingualProject(t)
@@ -156,7 +156,7 @@ func TestUp_MonolingualNeedsNoAIProvider(t *testing.T) {
 // TestUpPlan_MonolingualWritesNothing: the plan is a dry run on every project
 // shape. It must neither error on a monolingual recipe nor leave a store behind,
 // and it must say what the run would do rather than "every block has a committed
-// target" — a sentence about units that do not exist.
+// target", a sentence about units that do not exist.
 func TestUpPlan_MonolingualWritesNothing(t *testing.T) {
 	a := processOnlyApp(t)
 	recipe, root := monolingualProject(t)
@@ -170,9 +170,9 @@ func TestUpPlan_MonolingualWritesNothing(t *testing.T) {
 }
 
 // TestStatus_MonolingualReportsTheSource: a monolingual project has real
-// standing — how much source it tracks — and reported none of it, because source
-// readiness was derived from the per-locale units a project with no locale never
-// resolves.
+// standing, how much source it tracks, and the source line is the whole of
+// it. Nothing stands in for the coverage grid, and the JSON still says the
+// project is monolingual.
 func TestStatus_MonolingualReportsTheSource(t *testing.T) {
 	a := processOnlyApp(t)
 	recipe, _ := monolingualProject(t)
@@ -181,11 +181,15 @@ func TestStatus_MonolingualReportsTheSource(t *testing.T) {
 	require.NoError(t, err, out)
 
 	assert.Contains(t, out, "source", "the source-readiness line is the project's one axis")
-	assert.Contains(t, out, "Monolingual project")
+	assert.NotContains(t, out, "Monolingual project")
 	assert.NotContains(t, out, "No target content tracked")
+
+	raw, err := runCLI(t, NewStatusCmd(a), "--project", recipe, "--json")
+	require.NoError(t, err, raw)
+	assert.Contains(t, raw, `"monolingual": true`)
 }
 
-// TestCheck_MonolingualFiresTheVoiceViolation: journey 1 step 3 — the bound
+// TestCheck_MonolingualFiresTheVoiceViolation: journey 1 step 3. The bound
 // gates run on a project with no target language, and a forbidden word in the
 // source is a finding.
 func TestCheck_MonolingualFiresTheVoiceViolation(t *testing.T) {
@@ -198,10 +202,10 @@ func TestCheck_MonolingualFiresTheVoiceViolation(t *testing.T) {
 }
 
 // TestCheck_MonolingualFiresTheTermsViolation: the vocabulary the project
-// committed is enforced, not merely retrievable. A term retired in
-// `.kapi/terms.json` was visible to `kapi context search` and invisible to every
-// gate, so one decision had to be written twice — once as a term, once as a
-// voice rule — to be both recorded and held to.
+// committed is enforced as well as retrievable. A term retired in
+// `.kapi/terms.json` must reach every gate as well as `kapi context search`,
+// so one decision is written once, as a term, and is both recorded and held
+// to.
 func TestCheck_MonolingualFiresTheTermsViolation(t *testing.T) {
 	a := processOnlyApp(t)
 	recipe, _ := monolingualProjectRead(t)
@@ -217,11 +221,10 @@ func TestCheck_MonolingualFiresTheTermsViolation(t *testing.T) {
 }
 
 // TestContext_BothRetrievalPrimitivesAgree: journey 1 step 2 gives a caller two
-// ways to ask about the same graph — by location and by content — and they must
-// not disagree. By-location answered from the committed terms document while
-// by-content answered from the derived store, so on a monolingual project (whose
-// store nothing seeded, because `up` refused to run) one was complete and the
-// other empty.
+// ways to ask about the same graph, by location and by content, and they must
+// agree. By-location reads the committed terms document and by-content reads
+// the derived store, so on a monolingual project both answer only once `up`
+// has seeded the store.
 func TestContext_BothRetrievalPrimitivesAgree(t *testing.T) {
 	a := processOnlyApp(t)
 	recipe, root := monolingualProjectRead(t)
@@ -240,7 +243,7 @@ func TestContext_BothRetrievalPrimitivesAgree(t *testing.T) {
 }
 
 // TestContextSearch_ReportsAnUnseededStore: before anything compiles the
-// committed sources, the derived store is empty — and an empty store must not
+// committed sources, the derived store is empty, and an empty store must not
 // answer like a project that holds no such term. A caller cannot tell "no
 // answer" from "nowhere to look" unless the answer says so.
 func TestContextSearch_ReportsAnUnseededStore(t *testing.T) {

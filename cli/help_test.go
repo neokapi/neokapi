@@ -22,7 +22,7 @@ func TestStyledHelpDoesNotMutateGlobalColorMode(t *testing.T) {
 	cmd.Flags().String("color", "always", "colorize output")
 
 	var buf bytes.Buffer
-	require.NoError(t, renderStyledUsage(cmd, &buf))
+	require.NoError(t, renderStyledUsage(cmd, &buf, helpView{}))
 
 	// The explicit mode is honored: --color=always produced ANSI.
 	require.Contains(t, buf.String(), "\x1b[", "help should honor --color=always")

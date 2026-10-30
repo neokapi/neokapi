@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-17T11:19:38Z",
+  "generatedAt": "2026-10-30T10:58:50Z",
   "commands": [
     {
       "id": "add",
@@ -314,6 +314,7 @@
       "use": "completion [bash|zsh|fish|powershell]",
       "short": "Generer skallutfyllingsskript",
       "long": "Generer et skallfullføringsskript for det angitte skallet.\n\nSlik laster du inn fullføringer:\n\nBash:\n  $ source \u003c(kapi completion bash)\n  # Eller installer permanent:\n  $ kapi completion bash \u003e /etc/bash_completion.d/kapi\n\nZsh:\n  $ source \u003c(kapi completion zsh)\n  # Eller installer permanent:\n  $ kapi completion zsh \u003e \"${fpath[1]}/_kapi\"\n\nFish:\n  $ kapi completion fish | source\n  # Eller installer permanent:\n  $ kapi completion fish \u003e ~/.config/fish/completions/kapi.fish\n\nPowerShell:\n  PS\u003e kapi completion powershell | Out-String | Invoke-Expression\n",
+      "groupID": "advanced",
       "offlineCapable": true,
       "runnableInBrowser": true,
       "demoMode": false
@@ -6147,7 +6148,7 @@
       "use": "memory",
       "short": "Administrer innholdsminne",
       "long": "Administrer content memory.\n\nEn content memory lagrer tidligere produsert innhold som en SQLite-database: kilde-\nsegmenter med de målversjonene som er fastsatt for dem. Bruk disse kommandoene til å\nimportere/eksportere TMX, slå opp treff og administrere oppføringer.\n\nInnenfor et prosjekt betyr ingen flagg prosjektets egen content memory, et undersystem av\n.kapi/work/store.db, og det er derfor den adresseres via prosjekt og ikke via sti.\nBruk -p til å navngi prosjektet eksplisitt.\n\nFritstående store i stedet (gjensidig utelukkende):\n  --name \u003cn\u003e      Navngitt content memory i kapis konfigkatalog (memory/\u003cn\u003e.db)\n  --local         Content memory i gjeldende katalog (./memory.db)\n  --file \u003cpath\u003e   Eksplisitt filsti\n\nUtenfor et prosjekt uten flagg: samme som --local (bruker ./memory.db).",
-      "groupID": "assets",
+      "groupID": "languages",
       "examples": [
         "kapi memory stats",
         "kapi memory lookup \"welcome back\" -s en -t fr",
@@ -7476,7 +7477,7 @@
       "use": "resolve [flags] DOC",
       "short": "Rebase or discard a version of a .kpz document that did not land",
       "long": "Settle a version of a document a .kpz carries that was written from an older\nversion than the one the document holds now, and so did not land. It happens\nwhen the .kpz on disk is replaced while its working cache holds edits nobody\npacked, and when two machines' edits to one document meet. kapi status lists\neach such version as a conflict with its write and the command that settles it.\n\n--rebase WRITE carries the version's changes over onto the document as it\nstands, block by block, through the same checks kapi apply runs: a block the\nversion added is added, one it removed is removed, and one whose text it\nchanged takes the change. A block the document changed too is left for you,\nand kapi status lists it; a set_content to it through kapi apply decides it,\nkeeping the current wording included. --discard WRITE drops the version and\nkeeps the document as it stands, and after a rebase it keeps the current\nwording of every block left.\n\nDOC names the document as kapi status prints it (work.kpz!guide.md). Quote it\nin a shell that expands \"!\".\n\nExit status: 0 when the version was settled or rebased; 2 when DOC names no\ndocument of a .kpz or WRITE is not a version that did not land; 3 when the\nrebase's changes were refused, and nothing was settled.",
-      "groupID": "work",
+      "groupID": "advanced",
       "flags": [
         {
           "name": "discard",
@@ -7969,6 +7970,7 @@
       "use": "telemetry",
       "short": "Vis eller endre anonym brukstelemetri (status, på, av)",
       "long": "kapi samler inn anonym brukstelemetri for å veilede utviklingen: navnet på den\ninnebygde kommandoen som kjørte, en grov varighetsklasse, avslutningsklassen, kapi-\nversjonen, samt operativsystem og arkitektur, knyttet til en tilfeldig\nanonym ID. Den samler aldri inn argumenter, flaggverdier, filstier, fil-\ninnhold eller prosjektnavn.\n\nTelemetri deaktiveres av ett av følgende: 'kapi telemetry off', KAPI_TELEMETRY=0,\nDO_NOT_TRACK=1, et CI-miljø, en build laget med -tags notelemetry, eller en\nbuild uten telemetrinøkkel (enhver build du kompilerer selv).\n\nSe https://neokapi.github.io/reference/telemetry for den fullstendige hendelseslisten.",
+      "groupID": "advanced",
       "examples": [
         "kapi telemetry status",
         "kapi telemetry off"
@@ -9206,7 +9208,7 @@
         }
       ],
       "examples": [
-        "kapi up                # loop the default flow until every gated scope ships or parks",
+        "kapi up                # run the default flow; stop where a gate holds content back",
         "kapi up --plan         # dry run: pending work, content-memory leverage, and a token estimate per locale",
         "kapi up --passes 1     # a single pass over every locale that needs work",
         "kapi up --materialize  # also write target-language files for the shippable locales",

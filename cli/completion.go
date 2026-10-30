@@ -8,8 +8,9 @@ import (
 // completion scripts. Supports bash, zsh, fish, and powershell.
 func NewCompletionCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "completion [bash|zsh|fish|powershell]",
-		Short: "Generate shell completion script",
+		Use:     "completion [bash|zsh|fish|powershell]",
+		Short:   "Generate shell completion script",
+		GroupID: "advanced",
 		Long: `Generate a shell completion script for the specified shell.
 
 To load completions:

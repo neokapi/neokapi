@@ -11,30 +11,35 @@ import (
 )
 
 // SetupStyledHelp installs a colorized help/usage renderer on root (inherited by
-// every subcommand). It reuses cobra's own layout — command groups, flag
-// columns, aliases, examples — but pipes each section through host/output's
+// every subcommand). It reuses cobra's own layout (command groups, flag
+// columns, aliases, examples) and pipes each section through host/output's
 // Theme, so help picks up the same WCAG-safe palette and --color / NO_COLOR /
 // isatty handling as the rest of the CLI. When color resolves off (piped,
-// --color=never, NO_COLOR) every style renders as a no-op and the output is the
-// plain text cobra produces today.
+// --color=never, NO_COLOR) every style renders as a no-op and the output is
+// cobra's plain text. On the root, the renderer also applies the help tiers
+// (helptiers.go).
 //
 // This must run after LocalizeCommandHelp: the template reads Short/Long/Example
 // at render time, so localized help still flows through unchanged.
 func SetupStyledHelp(root *cobra.Command) {
 	root.SetUsageFunc(func(cmd *cobra.Command) error {
-		return renderStyledUsage(cmd, cmd.OutOrStdout())
+		return renderStyledUsage(cmd, cmd.OutOrStdout(), helpView{})
 	})
 	root.SetHelpFunc(func(cmd *cobra.Command, _ []string) {
-		w := cmd.OutOrStdout()
-		if long := strings.TrimSpace(cmd.Long); long != "" {
-			_, _ = io.WriteString(w, long+"\n\n")
-		} else if short := strings.TrimSpace(cmd.Short); short != "" {
-			_, _ = io.WriteString(w, short+"\n\n")
-		}
-		if cmd.Runnable() || cmd.HasSubCommands() {
-			_ = renderStyledUsage(cmd, w)
-		}
+		writeStyledHelp(cmd, cmd.OutOrStdout(), helpView{})
 	})
+}
+
+// writeStyledHelp prints cmd's Long (or its Short) and then its usage in view.
+func writeStyledHelp(cmd *cobra.Command, w io.Writer, view helpView) {
+	if long := strings.TrimSpace(cmd.Long); long != "" {
+		_, _ = io.WriteString(w, long+"\n\n")
+	} else if short := strings.TrimSpace(cmd.Short); short != "" {
+		_, _ = io.WriteString(w, short+"\n\n")
+	}
+	if cmd.Runnable() || cmd.HasSubCommands() {
+		_ = renderStyledUsage(cmd, w, view)
+	}
 }
 
 // themeFor resolves --color from the command's flags (help renders before any
@@ -46,9 +51,16 @@ func themeFor(cmd *cobra.Command, w io.Writer) *output.Styles {
 	return output.ThemeWithMode(w, output.ResolveColorMode(cmd))
 }
 
-func renderStyledUsage(cmd *cobra.Command, w io.Writer) error {
+// renderStyledUsage renders cmd's usage. On the root, view and the project's
+// target languages select the groups and flags it lists (see helptiers.go).
+func renderStyledUsage(cmd *cobra.Command, w io.Writer, view helpView) error {
 	st := themeFor(cmd, w)
-	t := template.Must(template.New("usage").Funcs(usageFuncs(st)).Parse(styledUsageTemplate))
+	scope := scopeFor(cmd, view)
+	funcs := usageFuncs(st)
+	funcs["groupShown"] = scope.groupShown
+	funcs["localFlagUsages"] = scope.localFlagUsages
+	funcs["footerHints"] = scope.footerHints
+	t := template.Must(template.New("usage").Funcs(funcs).Parse(styledUsageTemplate))
 	return t.Execute(w, cmd)
 }
 
@@ -62,7 +74,7 @@ func usageFuncs(st *output.Styles) template.FuncMap {
 	return template.FuncMap{
 		// heading styles a section title (bold): "Work:", "Flags:", …
 		"heading": heading.Render,
-		// cmdname accents a command name — the token you'd retype next.
+		// cmdname accents a command name, the token you'd retype next.
 		"cmdname": st.Accent.Render,
 		// muted renders secondary chrome (the footer hint).
 		"muted": st.Muted.Render,
@@ -85,7 +97,8 @@ func usageFuncs(st *output.Styles) template.FuncMap {
 }
 
 // styledUsageTemplate mirrors cobra's default usage template, wrapping section
-// headings, command names and flag names in style funcs.
+// headings, command names and flag names in style funcs. groupShown,
+// localFlagUsages and footerHints apply the root's tiers.
 const styledUsageTemplate = `{{heading "Usage:"}}{{if .Runnable}}
   {{.UseLine}}{{end}}{{if .HasAvailableSubCommands}}
   {{.CommandPath}} [command]{{end}}{{if gt (len .Aliases) 0}}
@@ -97,16 +110,16 @@ const styledUsageTemplate = `{{heading "Usage:"}}{{if .Runnable}}
 {{.Example}}{{end}}{{if .HasAvailableSubCommands}}{{$cmds := .Commands}}{{if eq (len .Groups) 0}}
 
 {{heading "Available Commands:"}}{{range $cmds}}{{if (or .IsAvailableCommand (eq .Name "help"))}}
-  {{cmdname (rpad .Name .NamePadding)}} {{.Short}}{{end}}{{end}}{{else}}{{range $group := .Groups}}
+  {{cmdname (rpad .Name .NamePadding)}} {{.Short}}{{end}}{{end}}{{else}}{{range $group := .Groups}}{{if groupShown $group.ID}}
 
 {{heading $group.Title}}{{range $cmds}}{{if (and (eq .GroupID $group.ID) (or .IsAvailableCommand (eq .Name "help")))}}
-  {{cmdname (rpad .Name .NamePadding)}} {{.Short}}{{end}}{{end}}{{end}}{{if not .AllChildCommandsHaveGroup}}
+  {{cmdname (rpad .Name .NamePadding)}} {{.Short}}{{end}}{{end}}{{end}}{{end}}{{if not .AllChildCommandsHaveGroup}}
 
 {{heading "Additional Commands:"}}{{range $cmds}}{{if (and (eq .GroupID "") (or .IsAvailableCommand (eq .Name "help")))}}
   {{cmdname (rpad .Name .NamePadding)}} {{.Short}}{{end}}{{end}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
 
 {{heading "Flags:"}}
-{{styleFlags (trim .LocalFlags.FlagUsages)}}{{end}}{{if .HasAvailableInheritedFlags}}
+{{styleFlags (trim (localFlagUsages .))}}{{end}}{{if .HasAvailableInheritedFlags}}
 
 {{heading "Global Flags:"}}
 {{styleFlags (trim .InheritedFlags.FlagUsages)}}{{end}}{{if .HasHelpSubCommands}}
@@ -114,5 +127,6 @@ const styledUsageTemplate = `{{heading "Usage:"}}{{if .Runnable}}
 {{heading "Additional help topics:"}}{{range .Commands}}{{if .IsAdditionalHelpTopicCommand}}
   {{cmdname (rpad .CommandPath .CommandPathPadding)}} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableSubCommands}}
 
-{{muted (printf "Use \"%s [command] --help\" for more information about a command." .CommandPath)}}{{end}}
+{{muted (printf "Use \"%s [command] --help\" for more information about a command." .CommandPath)}}{{range footerHints .}}
+{{muted .}}{{end}}{{end}}
 `

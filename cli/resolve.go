@@ -11,7 +11,7 @@ func NewResolveCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "resolve [flags] DOC",
 		Short:   "Rebase or discard a version of a .kpz document that did not land",
-		GroupID: "work",
+		GroupID: "advanced",
 		Long: `Settle a version of a document a .kpz carries that was written from an older
 version than the one the document holds now, and so did not land. It happens
 when the .kpz on disk is replaced while its working cache holds edits nobody
