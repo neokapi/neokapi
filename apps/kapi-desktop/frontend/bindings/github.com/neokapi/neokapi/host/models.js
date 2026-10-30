@@ -2625,6 +2625,15 @@ export class ContextRule {
              */
             this["from"] = [];
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Advisory marks a rule a check reports a use of the avoided wording
+             * under and fails nothing on.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["advisory"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -3257,6 +3266,15 @@ export class ContextTermHit {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Advisory marks a discouraged term whose concept is advisory: a check
+             * reports a use of it and fails nothing.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["advisory"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * ValidFrom/ValidTo carry the term's own time scoping when it has any.
              * A rule that starts or stops on a date is what lets a context survive a
              * rename without being rewritten, so a caller must be able to see that the
@@ -3338,10 +3356,10 @@ export class ContextTermHit {
      * @returns {ContextTermHit}
      */
     static createFrom($$source = {}) {
-        const $$createField12_0 = $$createType80;
+        const $$createField13_0 = $$createType80;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("top_uses" in $$parsedSource) {
-            $$parsedSource["top_uses"] = $$createField12_0($$parsedSource["top_uses"]);
+            $$parsedSource["top_uses"] = $$createField13_0($$parsedSource["top_uses"]);
         }
         return new ContextTermHit(/** @type {Partial<ContextTermHit>} */($$parsedSource));
     }
