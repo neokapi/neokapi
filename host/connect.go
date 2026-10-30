@@ -18,19 +18,12 @@ import (
 
 // `kapi connect`: put an assistant on a project.
 //
-// An assistant in a kapi project reads the project's rules as it starts (the
-// rules files, host/rulesfiles.go), reaches kapi through the MCP server entry
-// and the skill its host loads (host/agentwiring.go), and has its edits checked
-// by kapi. ConnectHosts writes all of that for each assistant in one pass,
-// writing the recipe first when the folder has none, and reports every file
-// as created, updated or kept. It writes through the same services `kapi init`
-// and `kapi context sync --files-only` use, so the files are the ones those
-// commands write.
-//
-// The check that runs when Claude Code finishes is the Stop hook of the kapi
-// Claude Code plugin. The plugin is installed inside Claude Code, so connect
-// reports it as a step to take until the project's Claude Code settings
-// enable it.
+// ConnectHosts writes the rules files (host/rulesfiles.go) and each
+// assistant's MCP entry and skill (host/agentwiring.go), the recipe first when
+// the folder has none, through the services `kapi init` uses. It reports each
+// file as created, updated or kept. The Stop hook comes from the kapi Claude
+// Code plugin, so it is reported as a step to take until the project's Claude
+// Code settings enable the plugin.
 
 // ConnectOptions configures ConnectHosts.
 type ConnectOptions struct {

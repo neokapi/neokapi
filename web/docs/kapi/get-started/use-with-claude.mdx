@@ -31,7 +31,7 @@ Project
 See what an assistant reads for a file: kapi context <path> --explain
 ```
 
-It connects Claude Code and each assistant whose folder the project keeps, and lists the others. Every line says what happened to one file: created, updated or kept. A folder with no recipe gets the one `kapi init` writes. `AGENTS.md` and `CLAUDE.md` get the Writing rules section, and the rest of each file stays as you wrote it. A second run keeps every file as it is.
+It connects Claude Code and each assistant whose folder the project keeps, and lists the others. Each file line says created, updated or kept. A folder with no recipe gets the one `kapi init` writes. `AGENTS.md` and `CLAUDE.md` get the Writing rules section, and the rest of each file stays as you wrote it. A second run keeps every file as it is.
 
 - `kapi connect --dry-run` lists the same files with what it would do, and writes nothing.
 - `kapi connect codex` connects one assistant: `claude`, `cursor`, `vscode`, `codex` or `agents`. Any other name exits with status 1 and lists these.

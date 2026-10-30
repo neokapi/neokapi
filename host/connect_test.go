@@ -3,7 +3,6 @@ package host
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -217,7 +216,7 @@ func TestConnectHosts_NamedHost(t *testing.T) {
 	assert.Equal(t, ConnectCreated, res.Hosts[0].Files[0].Action)
 
 	_, err := os.Stat(filepath.Join(dir, ".mcp.json"))
-	assert.True(t, errors.Is(err, fs.ErrNotExist), "naming Codex writes no Claude Code file")
+	assert.ErrorIs(t, err, fs.ErrNotExist, "naming Codex writes no Claude Code file")
 }
 
 func TestConnectHosts_ClaudePluginEnabledInTheProject(t *testing.T) {
