@@ -265,7 +265,7 @@ the store sync has not read:
 | Header | the project's name; when the store sync last found the block cache current with the files on disk ("Read 2 minutes ago"), naming how many files the cache holds only when that differs from the files count; **Run on everything**; **Decide** with the count of conflicts and suggestions awaiting a person | the time `SyncProjectStore` records on the tab, the block cache |
 | Counts | **files** (the recipe's resolved content files), **blocks** (the cache's translatable blocks for them, as `GetProjectStatus` counts them), **rules** (the concepts in the bound terms store, the word and pattern rules of the voice profile at the project's own point, and the notes a person kept) and **findings** (the last checks run over every file), the only one in the warning ink and only above zero. Blocks open Ask, rules open Explore, and findings open the checks panel. **kapi suggests** beside them shows only when conflicts make its number differ from Decide's | the block cache, the terms and voice stores, the operation log, the tab's last whole-project `RunChecks` |
 | What your files do | one row for each conflict and each suggestion the digest holds: its kind as a `KindIcon`, the rule, the quotation, and the distinct blocks and files its evidence names. **Decide** opens the Decide section selecting that row (`conflict:<id>` or `suggested:<id>`) | `host.App.ContextDigest`, and the operation log for the evidence |
-| What your files do, empty | "No suggestions yet." and **Connect an assistant**, which opens the Assistant section | |
+| What your files do, empty | "No suggestions yet." and **Connect an assistant**, which opens the Assistants section | |
 | Files | one row per content file: format, name (the folder on the meta line), blocks, findings when above zero, and **Open**, which previews the file. Most findings first, then by path. An empty list offers **Add files**, or **Set up the project** while the project waits to be set up | the resolved content, the block cache, the last checks run |
 
 The checks run behind the findings count is `RunChecks` over every file in
@@ -337,17 +337,17 @@ The stores are sections of one hub, beside the graph, in this order:
 | **Decide** (`rules`) | one question per suggestion waiting for a person, the questions `kapi rules` asks ([below](#decide)); on a tab with no checkout, the digest of what was recorded, without the decisions | `RulesDecideView` and `DecideRule`, over `host.App.DecideRules` and `host.App.DecideRule`; `ProjectContextDigest` for a tab with no checkout |
 | **Explore** (`atlas`) | the project's context on its axes and over time, through `@neokapi/context-atlas` ([below](#exploring-the-context)) | `ProjectContextAtlas`, over `host.App.ContextAtlas` |
 | **Ask** (`explorer`) | the context graph by file and by word, through `@neokapi/context-explorer`; the governs pane renders the same guide the retrieval surface serves ([C-06](../context/c-06-retrieval.md)) | `ContextAt`, `ContextGoverns`, `ContextLives`, `ContextRelates`, `ContextSearch` |
-| **Assistant** (`agent`) | what an assistant working in the project reads: the connected assistants, the rules files, and the brief for one file ([below](#connecting-an-assistant)). The brief is the resolved context for one file as an agent receives it: `AgentContextAt` calls the desktop's `ContextAt` and renders the answer's own `FormatText`, so the body on screen is the `context://` resource body rather than a second rendering of it | `AgentHosts`, `ConnectAgentHost`, `RulesFiles`, `WriteRulesFiles`, `AgentContextAt` |
+| **Assistants** (`agent`) | each assistant and its connection, with Connect, and the newest sessions recorded in the project ([below](#connecting-an-assistant)). **Show what it reads** opens the rules files and the brief for one file. The brief is the resolved context for one file as an agent receives it: `AgentContextAt` calls the desktop's `ContextAt` and renders the answer's own `FormatText`, so the body on screen is the `context://` resource body rather than a second rendering of it | `AssistantsView`, `ConnectAssistant`, `ConnectAgentHost` (Claude Desktop), `RulesFiles`, `WriteRulesFiles`, `AgentContextAt` |
 | **Voice** | the whole resolved profile per point: tone, style patterns with severities and rates, term rules, examples, and the locale, channel and persona overrides as authored ([C-07](../context/c-07-voice-profiles.md)); the profile is edited here | `ProjectVoice`, `SaveVoiceProfile` |
 | **Terms** | the terms store: search, facets, provenance, concept relations | `SearchTerms` |
 | **Content Memory** (`memory`) | the content memory: search, facets, activity, provenance, the languages gate | `SearchMemoryEntries` |
-| **History** (`history`) | the project's feed ([below](#the-feed-of-recorded-context-operations)), with a reset to before each session | `ContextFeed` with the project key, `ContextResetScope`, `ResetContext` |
+| **Sessions** (`history`) | the project's feed ([below](#the-feed-of-recorded-context-operations)), with a reset to before each session. It is not on the section bar: a session on the Assistants page, or **All sessions** there, opens it, and the bar marks Assistants while it is open | `ContextFeed` with the project key, `ContextResetScope`, `ResetContext` |
 | **Share** (`share`) | how far the project's context reaches, as three rungs ([below](#sharing-and-the-ladder-of-reach)) | `ProjectSharing`, `SetProjectSharing`, `SyncProjectContext` |
 
 Each id is routable, so a persisted view and a link from the home or the Map
 land on its section. Each section names the command that does the same on the
 command line, as a chip at the right of the section bar: `kapi context review`, `kapi context atlas`, `kapi context
-log`, `kapi context sync`, `kapi init`.
+log`, `kapi context sync`, `kapi connect`.
 
 The voice section resolves every point the recipe declares twice: as declared,
 and at the governance instant. A binding whose window excluded the instant is
@@ -420,15 +420,16 @@ The app is meant to sit open beside an agent that is working. The agent runs in
 another process, through the CLI or its MCP server, and records what it learns
 as context operations in this machine account's workspace log
 ([C-11](../context/c-11-context-operations.md)). The desktop reads that log and
-shows it in three places: as each project's questions in its Decide section, as the
-project's History, and as the workspace-wide History view the home links to,
-which is the same feed read with no project key.
+shows it in four places: as each project's questions in its Decide section, as
+the sessions on its Assistants page and in its Sessions section, and as the
+workspace-wide History view the home links to, which is the same feed read
+with no project key.
 
 The feed groups by session. An agent session is the id its operations carry, so
 one run is one card however long it lasts. A person at a terminal and a tool
 record no session, so their operations group by actor and local day, which is
 the span a person recognises as their own work. Each card carries the counts a
-finished session reads out in one line (recorded, corrected, kept and dropped),
+finished session reads out in one line (suggestions, corrections, kept and dropped),
 and says "still working" until nothing has been added for two minutes.
 
 Each operation shows its kind, its actor with the machine an agent ran on, the
@@ -522,15 +523,15 @@ on `workspace:changed`, `project-files-changed` and `project:extracted`.
 "Since you last looked" is a marker per project in this machine account's kapi
 config (`context-digest.json` under the config root), never in the log. The
 home's What's new opens a project on Decide while a suggestion or a
-disagreement waits there, and on History otherwise. Decide moves the marker
-once it shows a question, and History moves it as it opens, since it lists
+disagreement waits there, and on Sessions otherwise. Decide moves the marker
+once it shows a question, and Sessions moves it as it opens, since it lists
 every operation.
 
 A tab with no checkout on this machine has no source to count uses in. Its
 Decide section shows the digest instead (`host.App.ContextDigest`, the call
 `kapi context review` lists): the conflicts, the suggestions by theme, the
 rules in force and the drift, without the decisions. Rules already in force are
-dropped and widened from History.
+dropped and widened from Sessions.
 
 ### Sharing and the ladder of reach
 
@@ -571,30 +572,40 @@ of its own.
 
 ### Connecting an assistant
 
-The Assistant section's first part has one row for each host
-`host.WriteAgentWiring` writes for (Claude Code, Cursor, VS Code, Codex) and
-one for Claude Desktop. `AgentHosts` reports for each whether it is detected,
-through `host.DetectAgentHosts` for the four and the presence of its
-configuration directory for Claude Desktop, and whether kapi's entry for this
-recipe is present, read back through a reader in `host` so the desktop parses
-none of the files itself. `ConnectAgentHost` calls `host.WriteAgentWiring` for
-the four with the skill tree `kapi init` passes, so the desktop writes the
-files the CLI writes: `.mcp.json` and `.claude/skills/kapi` for Claude Code,
-`.cursor/mcp.json`, `.vscode/mcp.json` and `.codex/config.toml`.
+The Assistants section has one row for each assistant `kapi connect` knows
+(Claude Code, Cursor, VS Code, Codex, Agent skills) and one for Claude
+Desktop. `AssistantsView` reads the rows through `host.App.ConnectHosts` with
+`HostsOnly`: a dry run over each assistant's own files that plans no rules
+files, resolves no context and opens no store, so the page can be read on
+every workspace change. An assistant is connected when that run would leave
+each of its files as it is and the project's rules files hold kapi's section
+(`host.HasRulesFiles`); with the files in place and the rules files gone, the
+row reads "rules files missing" and offers Connect. The Claude Code row reports
+the plugin's check as on or pending, and while pending names the two commands
+`host.ClaudePluginCommands` returns. `ConnectAssistant` runs `ConnectHosts` for
+one assistant, as `kapi connect <assistant>` does, after the desktop writes the
+recipe of a folder opened without one, so it writes the files the CLI writes:
+the rules files, the assistant's MCP entry and its skill.
 
 Claude Desktop reads one user-level file, `claude_desktop_config.json` in its
 application-support directory. The host layer writes only inside a project, so
-that entry is the desktop backend's to write. After the person confirms, it
-adds a `kapi` server entry that names the absolute path of the `kapi` binary
-and the recipe, and keeps every other key in the file.
+that entry is the desktop backend's to write, through `ConnectAgentHost`. After
+the person confirms, it adds a `kapi` server entry that names the absolute path
+of the `kapi` binary and the recipe, and keeps every other key in the file.
 
-The second part shows the rules files
-([C-06](../context/c-06-retrieval.md#rules-files)) as kapi would write them.
-`RulesFiles` reads through a read-only planner in `host`, which resolves the
-sections `WriteRulesFiles` writes and writes nothing, so opening the section
-changes no file. **Write them now** is `host.App.WriteRulesFiles`. The third
-part is the brief for one file, described in the hub's table. A context-only
-tab has no checkout to write into, so it shows no hosts.
+Below the assistants, the page lists the newest sessions of the project's feed
+([below](#the-feed-of-recorded-context-operations)) with their counts. The
+assistants and the sessions are read apart, so a failure in one leaves the
+other on the page. A session opens the **Sessions** section on it.
+
+**Show what it reads**, in the page header, opens two tabs. The first shows the
+rules files ([C-06](../context/c-06-retrieval.md#rules-files)) as kapi would
+write them. `RulesFiles` reads through a read-only planner in `host`, which
+resolves the sections `WriteRulesFiles` writes and writes nothing, so opening
+the tab changes no file. **Write them now** is `host.App.WriteRulesFiles`. The
+second is the brief for one file, described in the hub's table. A context-only
+tab has no checkout to write into, so it shows no assistants and keeps the
+sessions.
 
 ### Governance editing
 

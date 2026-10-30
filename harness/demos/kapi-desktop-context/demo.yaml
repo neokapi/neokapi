@@ -89,7 +89,7 @@ narration:
     beat: assistant
     caption: The brief for one file carries your rule.
     text: >-
-      Assistant shows what an assistant reads. For the store's interface
+      Assistants shows what an assistant reads. For the store's interface
       strings, the brief marks basket as discouraged and says cart instead,
       the rule you kept a moment ago. It is the answer kapi context prints for
       that file.
