@@ -29,9 +29,30 @@ func shareFolder(t *testing.T) string {
 	require.NoError(t, err)
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, "docs"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "docs", "guide.md"), []byte("# Guide\n\nWe utilise the widget.\n"), 0o644))
-	t.Setenv("KAPI_NO_PROJECT", "1")
+	t.Setenv("KAPI_NO_PROJECT", "")
+	t.Setenv("KAPI_PROJECT", "")
 	t.Chdir(dir)
 	return dir
+}
+
+// TestShareCmd_RefusesUnderNoProject: with KAPI_NO_PROJECT set and no -p,
+// share neither reads nor writes the folder it stands in, and says what
+// `kapi context sync` says; -p names the folder.
+func TestShareCmd_RefusesUnderNoProject(t *testing.T) {
+	dir := shareFolder(t)
+	t.Setenv("KAPI_NO_PROJECT", "1")
+	for _, args := range [][]string{{"share"}, {"share", "--status"}, {"share", "--via", "folder", t.TempDir()}} {
+		_, err := runRootErr(t, args...)
+		require.Error(t, err, "%v", args)
+		assert.Contains(t, err.Error(), "KAPI_NO_PROJECT is set and no -p was given")
+		_, syncErr := runRootErr(t, "context", "sync")
+		require.Error(t, syncErr)
+		assert.Equal(t, syncErr.Error(), err.Error(), "the message context sync gives")
+	}
+	assert.NoFileExists(t, filepath.Join(dir, "kapi.yaml"))
+
+	out := runRoot(t, "share", "-p", filepath.Join(dir, "kapi.yaml"))
+	assert.True(t, strings.HasPrefix(out, "How far your rules reach\n"), out)
 }
 
 // runRootErr executes args on a fresh tiered root and returns what it printed
@@ -96,7 +117,7 @@ func TestShareCmd_BowrainWithoutThePlugin(t *testing.T) {
 	require.Error(t, err, out)
 	assert.Contains(t, err.Error(), "kapi plugin install bowrain")
 	assert.Contains(t, err.Error(), "brew install neokapi/tap/bowrain-cli")
-	assert.Equal(t, host.ExitUsage, host.ExitCode(nil, err))
+	assert.Equal(t, host.ExitError, host.ExitCode(nil, err), "the plugin is not installed")
 	assert.NoFileExists(t, filepath.Join(dir, "kapi.yaml"), "nothing is written")
 }
 

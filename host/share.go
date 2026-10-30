@@ -430,11 +430,10 @@ func (a *App) bowrainPlugin() *pluginhost.Plugin {
 // first when the folder has none. Everything the place needs is checked
 // before anything is written.
 func (a *App) shareVia(ctx context.Context, req ShareRequest, res *ShareResult) error {
-	root := filepath.Dir(req.Project)
 	if req.Via == ShareViaBowrain {
 		return a.shareViaBowrain(ctx, req, res)
 	}
-	spec, err := shareSpec(ctx, req, root)
+	spec, err := a.ShareBlock(ctx, req)
 	if err != nil {
 		return err
 	}
@@ -458,6 +457,45 @@ func (a *App) shareVia(ctx context.Context, req ShareRequest, res *ShareResult) 
 	}
 	res.Files = append(res.Files, file)
 	return nil
+}
+
+// ShareBlock is the `context:` block `kapi share --via` writes for req: the
+// place req names, with the fields --via cannot name kept from the block the
+// recipe already holds. It writes nothing and reaches no place.
+func (a *App) ShareBlock(ctx context.Context, req ShareRequest) (project.ContextBackend, error) {
+	spec, err := shareSpec(ctx, req, filepath.Dir(req.Project))
+	if err != nil {
+		return spec, err
+	}
+	existing, err := recipeContextBackend(req.Project)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return spec, err
+	}
+	return keepUnsetFields(spec, existing), nil
+}
+
+// keepUnsetFields carries over the fields of the recipe's block that --via
+// has no way to name, when the block is of the same kind: a git block's
+// remote and ref, an S3 block's region and endpoint. A share through the place
+// the recipe already names keeps the place as it was written.
+func keepUnsetFields(spec project.ContextBackend, existing *project.ContextBackend) project.ContextBackend {
+	if existing == nil || existing.Kind() != spec.Kind() {
+		return spec
+	}
+	keep := func(field *string, was string) {
+		if *field == "" {
+			*field = was
+		}
+	}
+	switch spec.Kind() {
+	case project.ContextBackendGit:
+		keep(&spec.Remote, existing.Remote)
+		keep(&spec.Ref, existing.Ref)
+	case project.ContextBackendS3:
+		keep(&spec.Region, existing.Region)
+		keep(&spec.Endpoint, existing.Endpoint)
+	}
+	return spec
 }
 
 // shareSpec is the `context:` block a --via names, in the shape the desktop's
@@ -544,13 +582,20 @@ func (a *App) shareViaBowrain(ctx context.Context, req ShareRequest, res *ShareR
 	plugin := a.bowrainPlugin()
 	if plugin == nil {
 		hint, _ := PluginHintFor(bowrainPlugin)
-		return WithExitCode(ExitUsage, fmt.Errorf(
+		return WithExitCode(ExitError, fmt.Errorf(
 			"sharing on Bowrain needs the kapi-bowrain plugin, which is not installed: install it with `kapi plugin install %s` or `brew install %s`, then run kapi share --via bowrain <server-url>",
 			hint.Plugin, hint.Formula))
 	}
 	if req.Location == "" {
 		return WithExitCode(ExitUsage, errors.New("--via bowrain needs the server: kapi share --via bowrain <server-url>"))
 	}
+	// The plugin's handler connects the project its recipe describes, so the
+	// recipe is written first. A recipe this share wrote is taken away again
+	// when the connect fails, and the folder is left as it was.
+	root := filepath.Dir(req.Project)
+	stateDir := filepath.Join(root, project.StateDirName)
+	_, statErr := os.Stat(stateDir)
+	hadStateDir := statErr == nil
 	file, err := a.ensureRecipe(req.Project)
 	if err != nil {
 		return err
@@ -560,7 +605,13 @@ func (a *App) shareViaBowrain(ctx context.Context, req ShareRequest, res *ShareR
 		return err
 	}
 	args := []string{"command", bowrainConnect, "--server", req.Location}
-	if err := pluginhost.RunContributionSubprocess(ctx, plugin, args, filepath.Dir(req.Project)); err != nil {
+	if err := pluginhost.RunContributionSubprocess(ctx, plugin, args, root); err != nil {
+		if file.Action == ShareFileCreated {
+			_ = os.Remove(req.Project)
+			if !hadStateDir {
+				_ = os.RemoveAll(stateDir)
+			}
+		}
 		return err
 	}
 	after, err := os.ReadFile(req.Project)

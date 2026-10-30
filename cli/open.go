@@ -85,7 +85,7 @@ status 1. --dry-run prints the command it would run.`,
 			}
 			argv := host.DesktopOpenCommand(goos, app, target)
 			if dry, _ := cmd.Flags().GetBool("dry-run"); dry {
-				_, err := fmt.Fprintln(cmd.OutOrStdout(), shellLine(argv))
+				_, err := fmt.Fprintln(cmd.OutOrStdout(), shellLine(goos, argv))
 				return err
 			}
 			if err := launch.run(CmdContext(cmd), argv); err != nil {
@@ -120,12 +120,16 @@ func openDir(cmd *cobra.Command, args []string) (string, error) {
 	return os.Getwd()
 }
 
-// shellLine renders argv the way a person would type it, quoting each word
-// that holds a space.
-func shellLine(argv []string) string {
+// shellLine renders argv the way a person would type it in the system's
+// shell, quoting each word that holds a space: in single quotes for a POSIX
+// shell, in double quotes for cmd on Windows, where a path cannot hold one.
+func shellLine(goos string, argv []string) string {
 	words := make([]string, len(argv))
 	for i, w := range argv {
-		if strings.ContainsAny(w, " \t'\"") {
+		switch {
+		case goos == "windows" && strings.ContainsAny(w, " \t&()^|<>"):
+			w = `"` + w + `"`
+		case goos != "windows" && strings.ContainsAny(w, " \t'\"$`\\&;|<>()*?"):
 			w = "'" + strings.ReplaceAll(w, "'", `'\''`) + "'"
 		}
 		words[i] = w

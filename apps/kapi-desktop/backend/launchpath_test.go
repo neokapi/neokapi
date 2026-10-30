@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -128,29 +129,68 @@ func TestOutsideOpener(t *testing.T) {
 
 // TestShareWritesWhatTheShareSectionWrites: `kapi share --via folder` and the
 // desktop's Share section write the same `context:` block for the same folder.
+//
+// The desktop's spec is what ShareSetupDialog.shareSpec sends for each place
+// with only its required fields filled: a folder's path, nothing for git, an S3
+// bucket and prefix. The folder share runs whole, sync included, and the two
+// recipes' blocks are compared as written. Git and S3 compare the block the
+// share would write (host.ShareBlock), since a sync through them needs a
+// remote this test does not have.
 func TestShareWritesWhatTheShareSectionWrites(t *testing.T) {
-	app := newWorkspaceApp(t)
-	tab, desktopRecipe := openSharingProject(t, app, "Desktop")
-	_, cliRecipe := scaffoldNamedProject(t, filepath.Join(t.TempDir(), "cli"), project.NewID(), "Desktop")
 	shared := filepath.Join(t.TempDir(), "team-share")
+	for _, tt := range []struct {
+		name     string
+		desktop  project.ContextBackend
+		via      string
+		location string
+		repo     bool
+		whole    bool
+	}{
+		{name: "folder", desktop: project.ContextBackend{Backend: project.ContextBackendFile, Path: shared},
+			via: host.ShareViaFolder, location: shared, whole: true},
+		{name: "git", desktop: project.ContextBackend{Backend: project.ContextBackendGit},
+			via: host.ShareViaGit, repo: true},
+		{name: "s3", desktop: project.ContextBackend{Backend: project.ContextBackendS3, Bucket: "acme-kapi", Prefix: "site/"},
+			via: host.ShareViaS3, location: "s3://acme-kapi/site/"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			app := newWorkspaceApp(t)
+			tab, desktopRecipe := openSharingProject(t, app, "Desktop")
+			cliDir, cliRecipe := scaffoldNamedProject(t, filepath.Join(t.TempDir(), "cli"), project.NewID(), "Desktop")
+			if tt.repo {
+				if _, err := exec.LookPath("git"); err != nil {
+					t.Skip("git is not installed")
+				}
+				out, err := exec.Command("git", "init", "--quiet", cliDir).CombinedOutput()
+				require.NoError(t, err, "%s", out)
+			}
 
-	_, err := app.SetProjectSharing(tab, project.ContextBackend{Backend: project.ContextBackendFile, Path: shared})
-	require.NoError(t, err)
-	_, err = app.hostEngine().Share(t.Context(), host.ShareRequest{Project: cliRecipe, Via: host.ShareViaFolder, Location: shared})
-	require.NoError(t, err)
+			_, err := app.SetProjectSharing(tab, tt.desktop)
+			require.NoError(t, err)
+			fromDesktop, err := project.Load(desktopRecipe)
+			require.NoError(t, err)
 
-	fromDesktop, err := project.Load(desktopRecipe)
-	require.NoError(t, err)
-	fromCLI, err := project.Load(cliRecipe)
-	require.NoError(t, err)
-	assert.Equal(t, fromDesktop.Context, fromCLI.Context)
+			req := host.ShareRequest{Project: cliRecipe, Via: tt.via, Location: tt.location}
+			if !tt.whole {
+				block, err := app.hostEngine().ShareBlock(t.Context(), req)
+				require.NoError(t, err)
+				assert.Equal(t, fromDesktop.Context, &block)
+				return
+			}
+			_, err = app.hostEngine().Share(t.Context(), req)
+			require.NoError(t, err)
+			fromCLI, err := project.Load(cliRecipe)
+			require.NoError(t, err)
+			assert.Equal(t, fromDesktop.Context, fromCLI.Context)
 
-	block := func(path string) []byte {
-		data, err := os.ReadFile(path)
-		require.NoError(t, err)
-		i := bytes.Index(data, []byte("context:"))
-		require.GreaterOrEqual(t, i, 0, "%s names a place:\n%s", path, data)
-		return data[i:]
+			block := func(path string) []byte {
+				data, err := os.ReadFile(path)
+				require.NoError(t, err)
+				i := bytes.Index(data, []byte("context:"))
+				require.GreaterOrEqual(t, i, 0, "%s names a place:\n%s", path, data)
+				return data[i:]
+			}
+			assert.Equal(t, string(block(desktopRecipe)), string(block(cliRecipe)), "the same block, spelled the same way")
+		})
 	}
-	assert.Equal(t, string(block(desktopRecipe)), string(block(cliRecipe)), "the same block, spelled the same way")
 }

@@ -26,7 +26,7 @@ it, and read what they shared.
 
 The rules reach as far as one of three rungs:
 
-  On this Mac          your rules, your assistants
+  On this machine      your rules, your assistants
   With your team       a shared folder or git
   Managed on Bowrain   a team queue, who kept what, the same screens in a browser
 
@@ -43,7 +43,8 @@ it up.
   kapi share --via bowrain <url>    a Bowrain server (needs the kapi-bowrain plugin)
 
 A folder with no kapi.yaml gets the one kapi init writes. Commit kapi.yaml so
-every checkout names the same place.
+every checkout names the same place. --via bowrain runs the plugin's connect,
+which prints what it prints, so its output is not JSON under --json.
 
 --status prints the rung and the last sync without syncing. --no-push,
 --files-only, --merged, --pr and --merger mean what they mean for
@@ -97,11 +98,16 @@ changes here.`,
 
 // shareRecipePath is the recipe `kapi share` reads and writes: the project
 // kapi resolves, or kapi.yaml in the working directory when it resolves none.
-// The file may not exist yet.
+// The file may not exist yet. With KAPI_NO_PROJECT set and no -p, it refuses
+// as `kapi context sync` does, so an isolated run inside a project never
+// reads or syncs that project's recipe.
 func shareRecipePath(cmd *cobra.Command) (string, error) {
 	recipe, err := ResolveProjectPath(cmd)
 	if err != nil || recipe != "" {
 		return recipe, err
+	}
+	if os.Getenv(project.NoProjectEnvVar) != "" {
+		return RequireProjectPath(cmd)
 	}
 	cwd, err := os.Getwd()
 	if err != nil {

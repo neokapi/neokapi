@@ -173,6 +173,7 @@ func TestShare_RefusesWhatItCannotUse(t *testing.T) {
 		name string
 		req  ShareRequest
 		want string
+		code int
 	}{
 		{name: "a folder with no path", req: ShareRequest{Via: ShareViaFolder}, want: "kapi share --via folder <path>"},
 		{name: "s3 with no bucket", req: ShareRequest{Via: ShareViaS3}, want: "kapi share --via s3 s3://<bucket>/<prefix>"},
@@ -181,7 +182,8 @@ func TestShare_RefusesWhatItCannotUse(t *testing.T) {
 		{name: "no such place", req: ShareRequest{Via: "ftp"}, want: `--via "ftp" is not a place to share through; use git, folder, s3, bowrain`},
 		{name: "a value with no place", req: ShareRequest{Location: "/tmp/x"}, want: "give it with --via"},
 		{name: "bowrain without the plugin", req: ShareRequest{Via: ShareViaBowrain, Location: "https://bowrain.example"},
-			want: "needs the kapi-bowrain plugin, which is not installed: install it with `kapi plugin install bowrain` or `brew install neokapi/tap/bowrain-cli`"},
+			want: "needs the kapi-bowrain plugin, which is not installed: install it with `kapi plugin install bowrain` or `brew install neokapi/tap/bowrain-cli`",
+			code: ExitError},
 		{name: "a place with --status", req: ShareRequest{Via: ShareViaFolder, Location: "/tmp/x", Status: true}, want: "--status"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -189,7 +191,11 @@ func TestShare_RefusesWhatItCannotUse(t *testing.T) {
 			tt.req.Project = recipeOf(root)
 			_, err := app.Share(t.Context(), tt.req)
 			require.ErrorContains(t, err, tt.want)
-			assert.Equal(t, ExitUsage, ExitCode(nil, err))
+			code := tt.code
+			if code == 0 {
+				code = ExitUsage
+			}
+			assert.Equal(t, code, ExitCode(nil, err))
 			assert.NoFileExists(t, recipeOf(root), "nothing is written")
 		})
 	}

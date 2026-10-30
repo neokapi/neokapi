@@ -79,7 +79,7 @@ func TestOpenCmd_DryRunPrintsTheCommandForEachSystem(t *testing.T) {
 		{name: "Windows, a per-user install", env: fakeDesktop("windows", `D:\AppData\Local\Programs\Kapi\Kapi.exe`), path: folder,
 			want: `D:\AppData\Local\Programs\Kapi\Kapi.exe ` + folder + "\n"},
 		{name: "Windows, a machine install", env: fakeDesktop("windows", `C:\Program Files\Kapi\Kapi.exe`), path: folder,
-			want: `'C:\Program Files\Kapi\Kapi.exe' ` + folder + "\n", wantStart: []string{`C:\Program Files\Kapi\Kapi.exe`, folder}},
+			want: `"C:\Program Files\Kapi\Kapi.exe" ` + folder + "\n", wantStart: []string{`C:\Program Files\Kapi\Kapi.exe`, folder}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			out, ran, err := runOpen(t, tt.env, tt.path, "--dry-run")
@@ -96,6 +96,17 @@ func TestOpenCmd_DryRunPrintsTheCommandForEachSystem(t *testing.T) {
 			assert.Contains(t, out, "in Kapi Desktop\n")
 		})
 	}
+}
+
+// TestShellLine prints the command the way the system's shell takes it.
+func TestShellLine(t *testing.T) {
+	assert.Equal(t, `open -a /Applications/Kapi.app '/Volumes/team/My Site/kapi.yaml'`,
+		shellLine("darwin", []string{"open", "-a", "/Applications/Kapi.app", "/Volumes/team/My Site/kapi.yaml"}))
+	assert.Equal(t, `/opt/Kapi/Kapi '/srv/it'\''s here'`, shellLine("linux", []string{"/opt/Kapi/Kapi", "/srv/it's here"}))
+	assert.Equal(t, `"C:\Program Files\Kapi\Kapi.exe" "D:\My Site"`,
+		shellLine("windows", []string{`C:\Program Files\Kapi\Kapi.exe`, `D:\My Site`}))
+	assert.Equal(t, `D:\AppData\Local\Programs\Kapi\Kapi.exe D:\site`,
+		shellLine("windows", []string{`D:\AppData\Local\Programs\Kapi\Kapi.exe`, `D:\site`}), "a backslash is no quote in cmd")
 }
 
 func TestOpenCmd_FindsTheAppOnPath(t *testing.T) {
