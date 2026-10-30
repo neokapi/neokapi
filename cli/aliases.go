@@ -33,6 +33,7 @@ type (
 	CredentialRow                 = host.CredentialRow
 	CredentialSavedOutput         = host.CredentialSavedOutput
 	DiffOptions                   = host.DiffOptions
+	FixOptions                    = host.FixOptions
 	InitOptions                   = host.InitOptions
 	InitResult                    = host.InitResult
 	ProposedCollection            = host.ProposedCollection
