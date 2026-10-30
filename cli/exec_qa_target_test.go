@@ -17,7 +17,7 @@ import (
 // output layout. qa reads a translation and writes only findings: it pairs a
 // translation file with --target, it writes no file a run does not name, and
 // a run that compared no translation exits as a check that did not run.
-func TestExecQANeverWritesOverTheTranslation(t *testing.T) {
+func TestExecQualityCheckNeverWritesOverTheTranslation(t *testing.T) {
 	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
 	t.Setenv("KAPI_DATA_DIR", t.TempDir())
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
