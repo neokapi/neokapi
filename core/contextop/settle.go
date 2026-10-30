@@ -519,14 +519,19 @@ func dedupe(in []string) []string {
 
 // address is the content address of an operation whose meaning is its
 // evidence: an establishment is the suggestion and the signals it rested on,
-// and a signal is the suggestion and what was seen. Recording either twice, on
-// one machine or on two, is one operation. Every other kind is addressed by
-// its id alone.
+// and a signal is the suggestion and what was seen. A check run is the session
+// and the turn it ran for. Recording any of them twice, on one machine or on
+// two, is one operation. Every other kind is addressed by its id alone.
 func address(r Record) string {
 	var parts []string
 	switch r.Kind {
 	case KindEstablish:
 		parts = append([]string{string(r.Kind), r.Target}, r.Because...)
+	case KindCheck:
+		if r.Check == nil || r.Check.Turn == "" {
+			return ""
+		}
+		parts = []string{string(r.Kind), string(r.Project), r.Actor.Session, r.Check.Turn}
 	case KindSignal:
 		if r.Signal == nil {
 			return ""

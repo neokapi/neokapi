@@ -86,6 +86,10 @@ func PersonDecides(t Transition) error {
 		return refuse(t, "only a tool records evidence and settles on it")
 	case KindReset:
 		return refuse(t, "only a person resets the context")
+	case KindCheck:
+		// A check run reports what a check found and changes nothing the
+		// context holds, so any actor may record one.
+		return nil
 	}
 	return refuse(t, fmt.Sprintf("%q is not an operation kind", t.Kind))
 }

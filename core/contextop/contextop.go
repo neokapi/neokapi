@@ -156,10 +156,17 @@ const (
 	// derived from that evidence, so two machines settling the same thing
 	// record one operation. It is applied like a keep.
 	KindEstablish Kind = "establish"
+	// KindCheck records one run of a project's checks on an assistant's
+	// behalf: the Claude Code Stop hook running `kapi check --ship` as a turn
+	// ends. It carries a [CheckRun] and no subject, names no other operation,
+	// and changes nothing the context holds. Its id is derived from the
+	// session and the turn, so the hook running twice for one turn records one
+	// operation.
+	KindCheck Kind = "check"
 )
 
 // Kinds is every operation kind, in the order a reader meets them.
-var Kinds = []Kind{KindObserve, KindCorrect, KindImport, KindEdit, KindKeep, KindDrop, KindWithdraw, KindReset, KindWiden, KindSignal, KindEstablish}
+var Kinds = []Kind{KindObserve, KindCorrect, KindImport, KindEdit, KindKeep, KindDrop, KindWithdraw, KindReset, KindWiden, KindSignal, KindEstablish, KindCheck}
 
 // Valid reports whether k is one of the declared kinds.
 func (k Kind) Valid() bool { return slices.Contains(Kinds, k) }
@@ -506,6 +513,8 @@ type Record struct {
 	Signal *Signal `json:"signal,omitempty"`
 	// Because names the operations an establish operation rested on.
 	Because []string `json:"because,omitempty"`
+	// Check is what a check operation found.
+	Check *CheckRun `json:"check,omitempty"`
 	// Standing counts the evidence for and against a suggestion, folded from
 	// the log. It is set on a term rule that settling considers.
 	Standing *Standing `json:"standing,omitempty"`
@@ -539,6 +548,7 @@ type payload struct {
 	Note       string      `json:"note,omitempty"`
 	Signal     *Signal     `json:"signal,omitempty"`
 	Because    []string    `json:"because,omitempty"`
+	Check      *CheckRun   `json:"check,omitempty"`
 }
 
 // encode renders a record as the workspace operation that carries it.
@@ -555,6 +565,7 @@ func encode(r Record) (workspace.Op, error) {
 		Note:       r.Note,
 		Signal:     r.Signal,
 		Because:    r.Because,
+		Check:      r.Check,
 	})
 	if err != nil {
 		return workspace.Op{}, fmt.Errorf("contextop: encode %s operation: %w", r.Kind, err)
@@ -597,6 +608,7 @@ func decode(op workspace.Op) (Record, bool, error) {
 		Note:       body.Note,
 		Signal:     body.Signal,
 		Because:    body.Because,
+		Check:      body.Check,
 		At:         op.At.UTC(),
 	}, true, nil
 }

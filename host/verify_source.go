@@ -143,7 +143,8 @@ func (a *App) verifySourceChecks(ctx context.Context, cmd Command, u VerifyUnit,
 			gate.Pass = false
 		}
 		gate.Findings = append(gate.Findings, verifyFinding{Gate: gateChecks, File: u.DisplayPath,
-			Block: d.Location.Block, Locale: u.Locale, Fails: d.Fails, Message: d.Message, Suggestion: d.Suggestion, Point: d.Point})
+			Block: d.Location.Block, Rule: d.Rule, Quote: d.Location.Snippet, Locale: u.Locale, Fails: d.Fails,
+			Message: d.Message, Suggestion: d.Suggestion, Point: d.Point})
 	}
 	return nil
 }
