@@ -176,7 +176,7 @@ func (a *App) DeeperLook(ctx context.Context, req DeeperLookRequest) (DeeperLook
 	if !s.checkedOut() {
 		return DeeperLookResult{}, fmt.Errorf("project %s has no checkout on this machine, so there are no files to read", s.key)
 	}
-	provider, modelName, ok := a.deeperLookModel(s.proj)
+	provider, modelName, ok := a.ResolveDeeperLookModel(s.proj)
 	if !ok {
 		return DeeperLookResult{}, errNoAIProvider()
 	}
@@ -250,18 +250,18 @@ func (a *App) DeeperLookModel(ctx context.Context, projectRef string) (provider,
 	if err != nil {
 		return "", "", err
 	}
-	provider, modelName, ok := a.deeperLookModel(s.proj)
+	provider, modelName, ok := a.ResolveDeeperLookModel(s.proj)
 	if !ok {
 		return "", "", errNoAIProvider()
 	}
 	return provider, modelName, nil
 }
 
-// deeperLookModel is the provider and model the deeper look asks, by the
+// ResolveDeeperLookModel is the provider and model the deeper look asks, by the
 // resolution `kapi exec term-extract` makes: the recipe's preset for the tool,
 // then the app config. ok is false when nothing names a model to ask: no
 // provider there, no saved credential and no API key in the environment.
-func (a *App) deeperLookModel(proj *project.KapiProject) (provider, modelName string, ok bool) {
+func (a *App) ResolveDeeperLookModel(proj *project.KapiProject) (provider, modelName string, ok bool) {
 	res := EffectiveAIModel(a.Config, proj, "term-extract", "")
 	ok = res.Configured || len(credentials.ProvidersWithEnvKey()) > 0 ||
 		(a.Credentials != nil && len(a.Credentials.List()) > 0)
@@ -284,7 +284,7 @@ func (a *App) deeperLookModel(proj *project.KapiProject) (provider, modelName st
 // builds it: the recipe's preset for the tool, then the default provider and
 // model the app config or the environment names, then the registry's
 // credential resolution. The provider and model come from EffectiveAIModel,
-// the resolution deeperLookModel reports, so the model asked is the model
+// the resolution ResolveDeeperLookModel reports, so the model asked is the model
 // named.
 func (a *App) deeperLookTool(proj *project.KapiProject, toolName, language string) (any, error) {
 	a.InitRegistries()
