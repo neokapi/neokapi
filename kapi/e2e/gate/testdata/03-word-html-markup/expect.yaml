@@ -23,8 +23,5 @@ stages:
             <p>Please&nbsp;use the form below.</p>
             </body>
             </html>
-          xfail: >-
-            kapi fix refuses the block beside &nbsp; ("kapi read this block
-            differently when writing it"), so that utilize stays and still fails
         context:
           names: ['use, not "utilize"']

@@ -30,7 +30,3 @@ stages:
             {
               "notice": "Check your email \u2014 the link expires in an hour."
             }
-          xfail: >-
-            kapi fix refuses the file ("kapi cannot write this file without
-            changing other bytes"): rewriting the value would re-encode the
-            \u escape inside it
