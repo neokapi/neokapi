@@ -17,12 +17,12 @@ import (
 
 // An edit of one block changes the bytes of the words it replaces and no
 // other byte of the file. The operations matrix (opsmatrix_test.go) asserts
-// this over templates through change.ApplyBlock; this table drives the change
-// service itself, the read and the write `kapi apply` makes, over documents
-// whose spelling a writer is tempted to normalize: escapes and literal slashes
-// in JSON, a byte order mark, runs of spaces, character references and a head
-// with no charset declaration in HTML, CRLF line ends, trailing spaces and
-// tables in Markdown.
+// this over templates through change.ApplyBlock. This table drives the change
+// service itself, the read and the write `kapi apply` makes. Its documents
+// hold what a writer can respell: escapes, literal slashes and a byte order
+// mark in JSON; runs of spaces, character references and a head with no
+// charset declaration in HTML; CRLF line ends, trailing spaces and a table in
+// Markdown.
 //
 // A format that cannot make the claim yet is listed with expectFail and the
 // reason, and the test asserts that it still fails, so a fix that makes it pass

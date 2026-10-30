@@ -8,13 +8,11 @@ import (
 )
 
 // An edit to a block's source is written as a patch of the block's own bytes.
-// Every character and code the edit kept is copied from the document as it
-// spells it: the whitespace extraction normalized, a quote or a bare ampersand,
-// a code's markup. A code whose markup the edit changed (set_attribute
-// respells a start tag) is written with its new markup, a code the edit added
-// (mark) is inserted where it sits, and text the edit added is escaped the
-// minimum element content needs, `&` and `<`. Bytes of the block the edit
-// removed are left out, and nothing outside the block changes.
+// Every character and code the edit kept is copied as the document spells it:
+// the whitespace extraction normalized, a quote, a bare ampersand, a code's
+// markup. A code whose markup the edit changed (set_attribute) gets its new
+// markup, and a code the edit added (mark) is inserted where it sits. Text the
+// edit added is escaped the minimum element content needs, `&` and `<`.
 
 // patchedSource writes a block whose source an edit changed as a patch of its
 // bytes in the document, and returns what the block rendered to as read.
@@ -78,16 +76,14 @@ func patchItems(runs []model.Run, spans []runSpan) []patchItem {
 
 // patchEdit writes edited, the block's runs after an edit, as original with
 // the edit's changes. original is the block's bytes in the document, which read
-// renders to once the reader's whitespace normalization is undone. The runs as
-// read and as edited are aligned element by element (format.MatchEdit): a
-// text byte matches the same byte, and a code matches the code of the same
-// kind and id. A kept element is copied from original, with a kept code's
-// markup replaced when the edit changed it; an added element is written where
-// the edit put it, right after the kept element before it; a removed one is
-// left out. Bytes of original that belong to no element (whitespace the
-// reader peeled off the block's edges) are copied. It reports false when
-// either side holds a run other than text and codes, or original does not
-// align with read; the caller then renders the block.
+// renders to once the reader's whitespace normalization is undone. The two run
+// sequences are aligned element by element (format.MatchEdit): a text byte
+// matches the same byte, a code the code of the same kind and id. A kept
+// element is copied from original, a kept code with its new markup when the
+// edit changed it. An added element goes right after the kept element before
+// it, and a removed one is left out. Whitespace the reader peeled off the
+// block's edges is copied. It reports false when either side holds a run
+// other than text and codes, or original does not align with read.
 func patchEdit(original string, read, edited []model.Run) (string, bool) {
 	if !flatRuns(read) || !flatRuns(edited) {
 		return "", false

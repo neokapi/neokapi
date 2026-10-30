@@ -1935,9 +1935,9 @@ func (a *App) readBlocksAs(ctx context.Context, path, fmtName string, cfg map[st
 	// or gate run reading under ctx. A cached read reached it too.
 	a.recordFormatPlugin(ctx, path, fmtName)
 	// When the project document cache is open, serve unchanged files from it,
-	// streaming the parts one at a time and projecting out the translatable blocks
-	// — the read/coverage path never reconstructs output, so it never opens the
-	// skeleton. The key is namespaced ("rbw|") and disjoint from the runner's key.
+	// streaming the parts one at a time and projecting out the translatable
+	// blocks. The read/coverage path never reconstructs output, so it never opens
+	// the skeleton. The key is namespaced ("rbw|") and disjoint from the runner's.
 	if a.docCache != nil {
 		configKey := readBlocksConfigKey(fmtName, cfg, sourceLang)
 		if doc := a.docCache.OpenDocument(path, configKey); doc != nil {
@@ -2005,8 +2005,8 @@ func streamTranslatableBlocks(ctx context.Context, doc flow.CachedDocument) ([]*
 
 // recordAndCollectBlocks is the read-path cache miss: it parses the file once,
 // streaming each part into the document-cache recorder (so the next read replays
-// it) AND collecting the translatable blocks — holding only the blocks it returns,
-// not the whole document. The recorded entry has no skeleton (the reader's
+// it) AND collecting the translatable blocks. It holds only the blocks it
+// returns, not the whole document. The recorded entry has no skeleton (the reader's
 // emitter writes into a store that keeps nothing): the read path never
 // reconstructs output, and its "rbw|" key is disjoint from the runner's, so no
 // writer ever reads a skeleton-less entry.

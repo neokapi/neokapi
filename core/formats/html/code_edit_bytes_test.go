@@ -88,10 +88,10 @@ func replaceWord(find, with string) func(b *model.Block) change.Op {
 	}
 }
 
-// A change to a block's text changes the words it replaces and nothing else:
-// no meta is added to a head that declares no charset, the whitespace of the
-// edited block and of every other block keeps its bytes, and the entities,
-// quotes and tags around the edit stay as the document spells them.
+// A change to a block's text changes the words it replaces and nothing else.
+// No meta is added to a head that declares no charset. The whitespace of every
+// block keeps its bytes, and the entities, quotes and tags around the edit
+// stay as the document spells them.
 func TestTextEditKeepsTheDocumentsBytes(t *testing.T) {
 	cases := []struct {
 		name, doc, pick string
