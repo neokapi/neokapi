@@ -79,11 +79,11 @@ func Fix(f Finding, runs []model.Run, at change.Ref, rev string) *change.Op {
 // replacement takes a capital when the words begin a sentence (atSentence) or
 // their first word is Title-case, so "E-mail" with "email" becomes "Email".
 //
-// Otherwise the replacement lands as written. That covers a replacement with
-// a capital after its first letter ("iPhone", "macOS"), words that start with
-// an acronym ("URL") or carry a capital in a later word ("Kapi CLI"), since
-// their capitals belong to a name rather than to the sentence, and words that
-// differ from the replacement only in case ("Kapi" for "kapi").
+// Otherwise the replacement lands as written: a replacement with a capital
+// after its first letter ("iPhone", "macOS"), and words that differ from it
+// only in case ("Kapi" for "kapi"). So do words that start with an acronym
+// ("URL") or carry a capital in a later word ("Kapi CLI"), whose capitals
+// belong to a name rather than to the sentence.
 func KeepInitialCapital(words, replacement string, atSentence bool) string {
 	r, size := utf8.DecodeRuneInString(replacement)
 	w, _ := utf8.DecodeRuneInString(words)
