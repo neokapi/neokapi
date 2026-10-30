@@ -1068,7 +1068,8 @@ func lookUnreadReason(a *App, file, name string, err error) string {
 	if a.NoReaderFor(file) && name == "" {
 		return "no reader for " + cmp.Or(filepath.Ext(file), filepath.Base(file))
 	}
-	return err.Error()
+	first, _, _ := strings.Cut(err.Error(), "\n")
+	return first
 }
 
 // appendUnique appends s to list unless list holds it.
