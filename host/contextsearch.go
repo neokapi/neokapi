@@ -277,6 +277,9 @@ type ContextTermHit struct {
 	// Discouraged is the one-glance answer to "may I use this word?", derived
 	// from Status so a caller does not have to know the status vocabulary.
 	Discouraged bool `json:"discouraged"`
+	// Advisory marks a discouraged term whose concept is advisory: a check
+	// reports a use of it and fails nothing.
+	Advisory bool `json:"advisory,omitempty"`
 	// ValidFrom/ValidTo carry the term's own time scoping when it has any.
 	// A rule that starts or stops on a date is what lets a context survive a
 	// rename without being rewritten, so a caller must be able to see that the
@@ -1020,7 +1023,8 @@ func termHits(concepts []terms.Concept, locale model.LocaleID) []ContextTermHit 
 				Discouraged: t.Status.Discouraged(),
 			}
 			if hit.Discouraged {
-				hit.Replacement = preferredTerm(c, t.Locale)
+				hit.Replacement = discouragedReplacement(c, t)
+				hit.Advisory = c.Advisory
 			}
 			if v := t.Validity; v != nil {
 				if v.ValidFrom != nil {
@@ -1034,6 +1038,19 @@ func termHits(concepts []terms.Concept, locale model.LocaleID) []ContextTermHit 
 		}
 	}
 	return out
+}
+
+// discouragedReplacement is what to say instead of the discouraged term t of
+// c: the concept's preferred wording in t's language, or the wording t's note
+// names (terms.ReplacementFromNote), as the check reads it (terms.PreferredTerm).
+// A term whose concept would otherwise mark the rules of another term
+// differently stands in a concept of its own, with the replacement in its
+// note (terms.UpsertDecision).
+func discouragedReplacement(c terms.Concept, t terms.Term) string {
+	if pref := preferredTerm(c, t.Locale); pref != "" {
+		return pref
+	}
+	return terms.ReplacementFromNote(t.Note)
 }
 
 // preferredTerm finds the concept's preferred wording in one locale — what to

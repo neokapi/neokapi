@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -93,6 +94,9 @@ func matchPatternText(p *VoiceProfile, t PatternText) []PatternHit {
 		}
 	}
 
+	// A URL is an address, not prose (check.URLSpans).
+	urls := check.URLSpans(text)
+
 	var hits []PatternHit
 	for _, pat := range p.Style.ProhibitedPatterns {
 		src := strings.TrimSpace(pat.Regex)
@@ -118,6 +122,9 @@ func matchPatternText(p *VoiceProfile, t PatternText) []PatternHit {
 				continue
 			}
 			if !inScope(pat.Scope, text, spans, m[0]) {
+				continue
+			}
+			if insideURL(urls, m[0]) {
 				continue
 			}
 			if notAfter != nil && notAfter.MatchString(text[:m[0]]) {
@@ -333,6 +340,19 @@ func headingLine(text string, pos int) bool {
 func within(spans []span, pos int) bool {
 	for _, s := range spans {
 		if pos >= s.start && pos < s.end {
+			return true
+		}
+	}
+	return false
+}
+
+// insideURL reports whether a match at pos starts inside one of the URLs, past
+// its first character. A pattern that matches from where a URL starts, such as
+// one for "http://", is a rule about the address and still fires; the words of
+// its host and path are not prose for a pattern to judge.
+func insideURL(urls [][2]int, pos int) bool {
+	for _, u := range urls {
+		if pos > u[0] && pos < u[1] {
 			return true
 		}
 	}

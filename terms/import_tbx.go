@@ -154,6 +154,8 @@ func ImportTBX(ctx context.Context, tb Terminology, reader io.Reader, opts TBXIm
 				concept.DoNotTranslate = strings.EqualFold(strings.TrimSpace(d.Value), "true")
 			case strings.ToLower(tbxAdvisoryDescripType):
 				concept.Advisory = strings.EqualFold(strings.TrimSpace(d.Value), "true")
+			case strings.ToLower(tbxTextScopeDescripType):
+				concept.SetTextScope(strings.TrimSpace(d.Value))
 			}
 		}
 
@@ -299,6 +301,10 @@ const tbxDoNotTranslateDescripType = "x-doNotTranslate"
 // tbxAdvisoryDescripType is the local concept descrip that marks a concept's
 // rules advisory: a use of its forbidden terms reports without failing.
 const tbxAdvisoryDescripType = "x-advisory"
+
+// tbxTextScopeDescripType is the local concept descrip that names where in a
+// text the concept's rules apply (Concept.TextScope): prose, code or heading.
+const tbxTextScopeDescripType = "x-textScope"
 
 // parseTBXStatus maps TBX administrativeStatus / normativeAuthorization values
 // (and a few plain status spellings) onto the terms store status vocabulary.

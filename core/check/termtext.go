@@ -2,6 +2,7 @@ package check
 
 import (
 	"regexp"
+	"slices"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -51,10 +52,10 @@ var NonBracePlaceholderToken = regexp.MustCompile(
 // bridge one as the gap in a term of several words.
 const termTextFill = '\x1f'
 
-// TermText is text as a term is matched against it: every placeholder and
-// every span of program syntax overwritten byte for byte, and every word a
-// reader sees in prose left where it was, so an offset into the result is an
-// offset into s.
+// TermText is text as a term is matched against it: every placeholder, every
+// URL and every span of program syntax overwritten byte for byte, and every
+// word a reader sees in prose left where it was, so an offset into the result
+// is an offset into s.
 //
 // It is the projection a source is read through to decide what its translation
 // owes the terms. term-check reads the source through it to decide which rules
@@ -71,8 +72,8 @@ const termTextFill = '\x1f'
 // too, so "Run `kapi check`" does not use the term "check", and "check" in the
 // prose beside it does.
 //
-// The placeholders are the spans PlaceholderText overwrites. The program
-// syntax is:
+// The placeholders and URLs are the spans PlaceholderText overwrites. The
+// program syntax is:
 //
 //   - inline code and fenced blocks (CodeSpans);
 //   - a kapi command in single or double quotes, straight or curly, which may
@@ -89,11 +90,12 @@ const termTextFill = '\x1f'
 // runs are already absent. TermText reaches the placeholders and the code a
 // format reader left inside text runs.
 func TermText(s string) string {
-	return overwrite(s, append(placeholderSpans(s), programSyntaxSpans(s)...))
+	return overwrite(s, slices.Concat(placeholderSpans(s), URLSpans(s), programSyntaxSpans(s)))
 }
 
-// PlaceholderText is s with every placeholder overwritten byte for byte, as
-// TermText overwrites it, and code, commands and flags left as they are.
+// PlaceholderText is s with every placeholder and every URL (URLSpans)
+// overwritten byte for byte, as TermText overwrites them, and code, commands
+// and flags left as they are.
 //
 // The readers that show where a term is written read through it: the term
 // search in core/profile (profile.MatchTermRulesInRuns), the declared-term
@@ -111,7 +113,7 @@ func TermText(s string) string {
 // other text, including text that does not parse as ICU, is read for the
 // placeholder styles of PlaceholderToken, and the rest of it is kept as it is.
 func PlaceholderText(s string) string {
-	return overwrite(s, placeholderSpans(s))
+	return overwrite(s, append(placeholderSpans(s), URLSpans(s)...))
 }
 
 // placeholderSpans returns the byte range of every placeholder in s.

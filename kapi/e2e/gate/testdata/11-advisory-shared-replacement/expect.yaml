@@ -10,19 +10,13 @@ stages:
         check:
           report:
             - {rule: terms.vocabulary, block: "guide/p", quote: leverage, fails: false}
-            - rule: terms.vocabulary
-              block: "guide/p#2"
-              quote: utilize
-              fails: true
-              xfail: >-
-                the import folds both rules into one terms-store concept (the
-                replacement "use"), and the advisory marking of leverage
-                applies to utilize too, so it only reports
+            - {rule: terms.vocabulary, block: "guide/p#2", quote: utilize, fails: true}
+        context:
+          names: ['use, not "leverage"', 'use, not "utilize"']
     hook:
       blocks: true
       names:
         - Forbidden term "utilize" found
-      xfail: the unmarked rule only reports, so nothing fails and the hook lets the assistant stop
   - name: fixed
     files:
       - path: docs/guide.md
@@ -33,4 +27,3 @@ stages:
             We leverage the cache.
 
             We use the tool.
-          xfail: the unmarked rule only reports, so kapi fix leaves utilize as it is

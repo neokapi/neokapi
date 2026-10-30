@@ -223,6 +223,9 @@ func storeOccurrences(ctx context.Context, req LocateRequest) ([]Occurrence, err
 	// in it is mapped back to req.Text.
 	search := profile.NewSearchText(req.Text, req.Runs)
 	text := check.PlaceholderText(search.Text)
+	// A concept's rules apply where its text scope says (Concept.TextScope),
+	// read off the runs as a rule held beside the store is (profile.ScopedText).
+	scoped := profile.NewScopedText(req.Text, req.Runs)
 	for _, loc := range LookupLocales(req.Locale) {
 		found, err := req.Store.LookupAll(ctx, text, LookupOptions{
 			SourceLocale: loc,
@@ -248,11 +251,18 @@ func storeOccurrences(ctx context.Context, req LocateRequest) ([]Occurrence, err
 				continue
 			}
 			seen[key] = true
+			concept, err := wholeConcept(ctx, req.Store, m.Concept)
+			if err != nil {
+				return nil, err
+			}
+			if !scoped.Applies(concept.TextScope(), m.Position.Start) {
+				continue
+			}
+			m.Concept = concept
 			replacement, err := PreferredTerm(ctx, req.Store, m, req.Locale)
 			if err != nil {
 				return nil, err
 			}
-			concept := m.Concept
 			out = append(out, Occurrence{
 				Anchor:         anchor,
 				Text:           surface,
@@ -276,6 +286,25 @@ func storeOccurrences(ctx context.Context, req LocateRequest) ([]Occurrence, err
 		}
 	}
 	return out, nil
+}
+
+// wholeConcept is the concept a match denotes with its terms and properties.
+// The in-memory store hands back the whole concept with a match, and the
+// SQLite one a stub carrying the id, the definition and the flags but neither
+// the other terms nor the properties (see PreferredTerm), so a stub is read
+// from the store. A concept the store no longer holds stays the stub.
+func wholeConcept(ctx context.Context, store Terminology, c Concept) (Concept, error) {
+	if c.ID == "" || len(c.Terms) > 0 {
+		return c, nil
+	}
+	full, found, err := store.GetConcept(ctx, c.ID)
+	if err != nil {
+		return Concept{}, fmt.Errorf("read concept %s: %w", c.ID, err)
+	}
+	if !found {
+		return c, nil
+	}
+	return full, nil
 }
 
 // anchorFor resolves a byte span onto the runs it sits in. A caller matching

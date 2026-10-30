@@ -2,6 +2,7 @@ package check
 
 import (
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/neokapi/neokapi/core/change"
@@ -24,11 +25,12 @@ const MetaSpelled = "spelled"
 // ambiguous when it occurs more than once.
 //
 // A replacement is plain text, so it keeps an inline code only at either end
-// of the words it replaces. A link, a bold span or a placeholder among the
-// words would be deleted with them. Words inside a code span
-// (model.TypeInlineCode) are a command or an identifier, not prose. Fix
-// returns nil for both, for a finding with no replacement, for one whose
-// words nothing locates, and for one marked MetaSpelled.
+// of the words. Fix returns nil where a replacement would delete a link, a
+// bold span or a placeholder among the words, for words in a code span
+// (model.TypeInlineCode) or a URL (URLSpans), for a finding with no
+// replacement, for words nothing locates, and for a finding marked
+// MetaSpelled. A lower-case replacement may take a capital
+// (KeepInitialCapital).
 func Fix(f Finding, runs []model.Run, at change.Ref, rev string) *change.Op {
 	replacement := ""
 	if f.Metadata != nil {
@@ -48,12 +50,19 @@ func Fix(f Finding, runs []model.Run, at change.Ref, rev string) *change.Op {
 		if codeInside(seq, start, end) || inInlineCode(seq, start, end) {
 			return nil
 		}
+		text := model.SequenceText(seq)
+		from, to := byteOffset(text, start), byteOffset(text, end)
+		if InURL(text, from, to) {
+			return nil
+		}
+		replacement = KeepInitialCapital(text[from:to], replacement, sentenceStart(text, from))
 		sel = change.Selection{Path: f.Position.Path, Range: &change.Span{Start: f.Position.Start, End: f.Position.End}}
 	case f.OriginalText != "":
 		if !foundInTextAlone(runs, f.OriginalText) {
 			return nil
 		}
 		find := f.OriginalText
+		replacement = KeepInitialCapital(find, replacement, false)
 		sel = change.Selection{Find: &find}
 	default:
 		return nil
@@ -64,6 +73,78 @@ func Fix(f Finding, runs []model.Run, at change.Ref, rev string) *change.Op {
 		IfMatch: rev,
 		Body:    &change.ReplaceText{Edits: []change.TextEdit{{Selection: sel, Text: replacement}}},
 	}
+}
+
+// KeepInitialCapital is replacement as it replaces words. A lower-case
+// replacement takes a capital when the words begin a sentence (atSentence) or
+// their first word is Title-case, so "E-mail" with "email" becomes "Email".
+//
+// Otherwise the replacement lands as written: a replacement with a capital
+// after its first letter ("iPhone", "macOS"), and words that differ from it
+// only in case ("Kapi" for "kapi"). So do words that start with an acronym
+// ("URL") or carry a capital in a later word ("Kapi CLI"), whose capitals
+// belong to a name rather than to the sentence.
+func KeepInitialCapital(words, replacement string, atSentence bool) string {
+	r, size := utf8.DecodeRuneInString(replacement)
+	w, _ := utf8.DecodeRuneInString(words)
+	switch {
+	case !unicode.IsLower(r), !unicode.IsUpper(w),
+		hasUpper(replacement[size:]), strings.EqualFold(words, replacement):
+		return replacement
+	}
+	first, rest, _ := strings.Cut(words, " ")
+	if isAcronym(first) || hasUpper(rest) || !atSentence && !titleCase(first) {
+		return replacement
+	}
+	return string(unicode.ToUpper(r)) + replacement[size:]
+}
+
+// sentenceStart reports whether byte offset pos of text begins a sentence:
+// nothing but space before it, or a full stop, question mark, exclamation
+// mark, colon or line break before the space.
+func sentenceStart(text string, pos int) bool {
+	before := strings.TrimRight(text[:pos], " \t")
+	if before == "" {
+		return true
+	}
+	r, _ := utf8.DecodeLastRuneInString(before)
+	return strings.ContainsRune(".!?:\n", r)
+}
+
+// titleCase reports whether word is one capital followed by no other.
+func titleCase(word string) bool {
+	r, size := utf8.DecodeRuneInString(word)
+	return unicode.IsUpper(r) && !hasUpper(word[size:])
+}
+
+// isAcronym reports whether word holds two letters or more, every one a
+// capital, such as "URL".
+func isAcronym(word string) bool {
+	letters := 0
+	for _, r := range word {
+		if !unicode.IsLetter(r) {
+			continue
+		}
+		if !unicode.IsUpper(r) {
+			return false
+		}
+		letters++
+	}
+	return letters > 1
+}
+
+// hasUpper reports whether s holds a capital.
+func hasUpper(s string) bool { return strings.ContainsFunc(s, unicode.IsUpper) }
+
+// byteOffset is the byte offset of the code point at index n of text.
+func byteOffset(text string, n int) int {
+	for i := range text {
+		if n == 0 {
+			return i
+		}
+		n--
+	}
+	return len(text)
 }
 
 // ownOffset is the code-point offset of p into the text seq holds itself
@@ -122,8 +203,8 @@ func inInlineCode(seq []model.Run, start, end int) bool {
 }
 
 // foundInTextAlone reports whether words occur in the text runs hold
-// themselves, and no occurrence has an inline code inside it, as the change
-// service finds them.
+// themselves, and no occurrence has an inline code inside it or sits in a URL,
+// as the change service finds them.
 func foundInTextAlone(runs []model.Run, words string) bool {
 	text := model.SequenceText(runs)
 	n := utf8.RuneCountInString(words)
@@ -134,7 +215,7 @@ func foundInTextAlone(runs []model.Run, words string) bool {
 			break
 		}
 		start := utf8.RuneCountInString(text[:i+j])
-		if codeInside(runs, start, start+n) || inInlineCode(runs, start, start+n) {
+		if codeInside(runs, start, start+n) || inInlineCode(runs, start, start+n) || InURL(text, i+j, i+j+len(words)) {
 			return false
 		}
 		found = true

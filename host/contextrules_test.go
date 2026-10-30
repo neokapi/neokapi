@@ -5,7 +5,9 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/contextop"
+	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -38,6 +40,65 @@ func TestSayThisNotThatStatesEachRuleOnce(t *testing.T) {
 	capped, total := sayThisNotThat(hits, binding, voice, 2)
 	assert.Len(t, capped, 2)
 	assert.Equal(t, 3, total)
+}
+
+// Two rules with one wording to use stay two lines when one of them is
+// advisory, so each keeps its own outcome; marked alike, they share a line.
+func TestSayThisNotThatKeepsAdvisoryRulesApart(t *testing.T) {
+	hits := []ContextTermHit{
+		{ConceptID: "use", Term: "utilize", Locale: "en", Status: "forbidden", Discouraged: true, Replacement: "use"},
+		{ConceptID: "use", Term: "use", Locale: "en", Status: "preferred"},
+		{ConceptID: "leverage", Term: "leverage", Locale: "en", Status: "forbidden", Discouraged: true, Replacement: "use", Advisory: true},
+		{ConceptID: "employ", Term: "employ", Locale: "en", Status: "forbidden", Discouraged: true, Replacement: "use"},
+	}
+	rules, total := sayThisNotThat(hits, nil, nil, 0)
+	require.Equal(t, 2, total)
+	assert.Equal(t, ContextRule{Say: "use", Not: []string{"utilize", "employ"}, Locale: "en", From: []string{"terms"}}, rules[0])
+	assert.Equal(t, ContextRule{Say: "use", Not: []string{"leverage"}, Locale: "en", From: []string{"terms"}, Advisory: true}, rules[1])
+}
+
+// A rule that only names the wording to use avoids nothing and has no outcome
+// of its own, so it shares the line of an advisory rule with that wording,
+// whichever arrives first.
+func TestSayThisNotThatMergesABareWordingIntoAnAdvisoryLine(t *testing.T) {
+	advisory := ContextTermHit{ConceptID: "cart", Term: "cart", Locale: "en", Status: "forbidden", Discouraged: true, Replacement: "shopping cart", Advisory: true}
+	want := ContextRule{Say: "shopping cart", Not: []string{"cart"}, Locale: "en", From: []string{"terms", "voice house"}, Advisory: true}
+
+	// The bare wording after the advisory rule.
+	voice := (&coreprofile.VoiceProfile{}).Carry("voice house", []coreprofile.TermRule{{Replacement: "shopping cart"}})
+	rules, total := sayThisNotThat([]ContextTermHit{advisory}, nil, voice, 0)
+	require.Equal(t, 1, total)
+	assert.Equal(t, want, rules[0])
+
+	// The bare wording first: a workspace rule naming only the wording, then
+	// the advisory rule from the voice file.
+	binding := []coreprofile.TermRule{{Replacement: "shopping cart"}}
+	voice = (&coreprofile.VoiceProfile{}).Carry("voice house", []coreprofile.TermRule{{Term: "cart", Replacement: "shopping cart", Advisory: true}})
+	rules, total = sayThisNotThat(nil, binding, voice, 0)
+	require.Equal(t, 1, total)
+	assert.Equal(t, ContextRule{Say: "shopping cart", Not: []string{"cart"}, From: []string{"workspace", "voice house"}, Advisory: true}, rules[0])
+
+	// A failing rule with the same wording after that still has its own line.
+	voice = (&coreprofile.VoiceProfile{}).Carry("voice house", []coreprofile.TermRule{
+		{Term: "cart", Replacement: "shopping cart", Advisory: true},
+		{Term: "basket", Replacement: "shopping cart"},
+	})
+	rules, total = sayThisNotThat(nil, binding, voice, 0)
+	require.Equal(t, 2, total)
+	assert.Equal(t, []string{"basket"}, rules[1].Not)
+	assert.False(t, rules[1].Advisory)
+}
+
+// A discouraged term standing in a concept of its own names its replacement
+// in its note, and the answer reads it there as the check does.
+func TestDiscouragedReplacementReadsTheNote(t *testing.T) {
+	c := terms.Concept{ID: "leverage", Terms: []terms.Term{
+		{Text: "leverage", Locale: "en", Status: model.TermForbidden, Note: terms.ReplacementNote("use")},
+	}}
+	assert.Equal(t, "use", discouragedReplacement(c, c.Terms[0]))
+
+	c.Terms = append(c.Terms, terms.Term{Text: "rely on", Locale: "en", Status: model.TermPreferred})
+	assert.Equal(t, "rely on", discouragedReplacement(c, c.Terms[0]), "the preferred term comes first")
 }
 
 // The text answer: the voice brief, one list of word rules, the suggestions

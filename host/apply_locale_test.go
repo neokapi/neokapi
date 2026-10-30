@@ -56,13 +56,13 @@ func TestUpsertTerm_CanonicalLocaleJoinsTheConcept(t *testing.T) {
 		Terms: []terms.Term{{Text: "berth", Locale: "en-GB", Status: model.TermPreferred}},
 	}}
 	// A decision spelled en_GB about the same term is the same term.
-	got, _, changed := upsertTerm(existing, termDecision{Text: "berth", Locale: "en_GB", Status: model.TermPreferred})
+	got, _, _, changed := upsertTerm(existing, termDecision{Text: "berth", Locale: "en_GB", Status: model.TermPreferred})
 	assert.False(t, changed, "already recorded under the canonical spelling")
 	assert.Len(t, got, 1)
 
 	// A new concept minted from a POSIX spelling carries the canonical id and
 	// locale.
-	got, _, changed = upsertTerm(nil, termDecision{Text: "dock", Locale: "en_GB", Status: model.TermForbidden, Replacement: "berth"})
+	got, _, _, changed = upsertTerm(nil, termDecision{Text: "dock", Locale: "en_GB", Status: model.TermForbidden, Replacement: "berth"})
 	require.True(t, changed)
 	require.Len(t, got, 1)
 	assert.Equal(t, "term:en-GB:dock", got[0].ID)

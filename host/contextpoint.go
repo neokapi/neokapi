@@ -1014,7 +1014,8 @@ func termsInForce(concepts []terms.Concept, locale model.LocaleID, at time.Time,
 				Discouraged: t.Status.Discouraged(),
 			}
 			if hit.Discouraged {
-				hit.Replacement = preferredTerm(c, t.Locale)
+				hit.Replacement = discouragedReplacement(c, t)
+				hit.Advisory = c.Advisory
 			}
 			if v := t.Validity; v != nil {
 				if v.ValidFrom != nil {

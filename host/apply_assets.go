@@ -265,7 +265,7 @@ func (a *App) applyTermEntryTo(ctx context.Context, w *projector.Projector, e ch
 	}
 
 	held := len(concepts)
-	concepts, target, changed := upsertTerm(concepts, termDecision{
+	concepts, target, left, changed := upsertTerm(concepts, termDecision{
 		Text:           e.Term,
 		Locale:         model.LocaleID(locale),
 		Status:         status,
@@ -301,8 +301,14 @@ func (a *App) applyTermEntryTo(ctx context.Context, w *projector.Projector, e ch
 	}
 	// A new concept for a rule seen at a profile's point holds there. A term
 	// joining a concept the project already holds keeps that concept's scope.
-	if target >= held {
+	// A term that moved out of a concept keeps the point it held at.
+	if target >= held && left < 0 {
 		concepts[target].ScopeToPoint(e.Profile, e.Coordinates)
+	}
+	if left >= 0 {
+		if err := tb.AddConcept(ctx, concepts[left]); err != nil {
+			return errResult(res, fmt.Sprintf("write concept %s: %v", concepts[left].ID, err))
+		}
 	}
 	if err := tb.AddConcept(ctx, concepts[target]); err != nil {
 		return errResult(res, fmt.Sprintf("write concept %s: %v", concepts[target].ID, err))
@@ -338,7 +344,7 @@ func sameScope(c terms.Concept, profile string, coordinates map[string]string) b
 type termDecision = terms.Decision
 
 // upsertTerm lands a term decision in the concept set (terms.UpsertDecision).
-func upsertTerm(concepts []terms.Concept, d termDecision) ([]terms.Concept, int, bool) {
+func upsertTerm(concepts []terms.Concept, d termDecision) ([]terms.Concept, int, int, bool) {
 	return terms.UpsertDecision(concepts, d)
 }
 

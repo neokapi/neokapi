@@ -1,6 +1,7 @@
 package terms
 
 import (
+	"maps"
 	"regexp"
 	"slices"
 	"strings"
@@ -25,6 +26,10 @@ type Decision struct {
 	// Advisory, for a discouraged term, marks the concept's rules advisory: a
 	// use of the term reports without failing a check.
 	Advisory bool
+	// TextScope, for a discouraged term, names where in a text the concept's
+	// rules apply (Concept.TextScope): prose, code or headings. Empty is
+	// everywhere.
+	TextScope string
 	// Competitor records the term as a competitor's name.
 	Competitor bool
 	// Forms are the other surface shapes the term takes.
@@ -33,47 +38,69 @@ type Decision struct {
 
 // UpsertDecision lands a term decision in the concept set.
 //
-// The term joins a CONCEPT rather than getting one of its own wherever the
-// entry says which: the concept that already declares it, else the one
-// `replaces` names, else the one that declares the replacement. Only a decision
-// that names nothing already in the graph opens a new concept. That is what
-// makes the decision answerable later — "what should this say instead" is the
-// preferred term of the concept the retired word sits in, so a term filed on
-// its own island can never be answered, however clearly the decision was
-// written. A replacement no concept declares yet is added to the joined concept
-// as its preferred term, for the same reason.
+// The term joins the concept that already declares it, else the one
+// `replaces` names, else the one that declares the replacement, so "what
+// should this say instead" is the preferred term of the term's concept. A
+// replacement no concept declares yet becomes that concept's preferred term.
 //
-// It is idempotent: an entry already recorded this way returns changed=false so
-// apply reports a skipped no-op. Terms are matched case-insensitively on text
-// within a locale; a new concept is keyed by a stable id so reading the same
-// decision again is reproducible.
+// A concept carries one advisory marking and one text scope for its rules
+// (sameRuleFlags). A term marked otherwise than the other rules of its concept
+// moves to a concept of its own, and left is the index of the concept it
+// left, or -1. A term marked otherwise than its replacement's concept opens a
+// concept of its own too.
 //
-// target is the index of the one concept the decision touched, which is the
-// concept the caller writes back to the store.
-func UpsertDecision(concepts []Concept, d Decision) (out []Concept, target int, changed bool) {
+// It is idempotent: a decision already recorded returns changed=false. The
+// caller writes back target, and left when it is not -1.
+func UpsertDecision(concepts []Concept, d Decision) (out []Concept, target, left int, changed bool) {
 	// Canonical before it reaches the store or the concept id, so a decision
 	// written as "en_US" joins the concept "en-US" already holds.
 	d.Locale = model.NormalizeLocale(d.Locale)
 	now := time.Now().UTC()
 	noteWant := ReplacementNote(d.Replacement)
 
+	left = -1
+	var moving *Term
 	target = IndexOfTerm(concepts, d.Text, d.Locale)
-	if target < 0 && d.Replaces != "" {
+	if target >= 0 && !sameRuleFlags(concepts[target], d) {
+		// The term moves to a concept of its own, which keeps the point, the
+		// domain and the do-not-translate flag of the one it leaves.
+		c := &concepts[target]
+		ti := TermIndex(c, d.Text, d.Locale)
+		t := c.Terms[ti]
+		moving = &t
+		c.Terms = slices.Delete(c.Terms, ti, ti+1)
+		c.UpdatedAt = now
+		left, target = target, -1
+	}
+	if target < 0 && moving == nil && d.Replaces != "" {
 		target = IndexOfConcept(concepts, d.Replaces, d.Locale)
 	}
 	if target < 0 && d.Replacement != "" {
 		target = IndexOfTerm(concepts, d.Replacement, d.Locale)
+		if target >= 0 && !sameRuleFlags(concepts[target], d) {
+			target = -1
+		}
 	}
 
 	if target < 0 {
-		concepts = append(concepts, Concept{
-			ID:        DecisionConceptID(d.Text, d.Locale),
+		fresh := Concept{
+			ID:        freeConceptID(concepts, d),
 			Source:    TermSourceTerminology,
 			CreatedAt: now,
 			UpdatedAt: now,
-		})
+		}
+		if left >= 0 {
+			from := concepts[left]
+			fresh.ProjectID, fresh.Domain, fresh.Definition = from.ProjectID, from.Domain, from.Definition
+			fresh.Source, fresh.DoNotTranslate = from.Source, from.DoNotTranslate
+			fresh.Properties = maps.Clone(from.Properties)
+		}
+		concepts = append(concepts, fresh)
 		target = len(concepts) - 1
 		changed = true
+	}
+	if moving != nil {
+		concepts[target].Terms = append(concepts[target].Terms, *moving)
 	}
 
 	c := &concepts[target]
@@ -108,6 +135,10 @@ func UpsertDecision(concepts []Concept, d Decision) (out []Concept, target int, 
 		c.Advisory = d.Advisory
 		changed = true
 	}
+	if d.Status.Discouraged() && c.TextScope() != d.TextScope {
+		c.SetTextScope(d.TextScope)
+		changed = true
+	}
 
 	// The replacement becomes the concept's preferred term when the graph does
 	// not have it yet — including under another concept, which would otherwise
@@ -131,7 +162,43 @@ func UpsertDecision(concepts []Concept, d Decision) (out []Concept, target int, 
 	if changed {
 		c.UpdatedAt = now
 	}
-	return concepts, target, changed
+	return concepts, target, left, changed
+}
+
+// freeConceptID is the id of the concept a decision opens: the stable id of
+// its term (DecisionConceptID), or, when a concept already carries that id,
+// that id with the term's marking appended.
+func freeConceptID(concepts []Concept, d Decision) string {
+	id := DecisionConceptID(d.Text, d.Locale)
+	if !slices.ContainsFunc(concepts, func(c Concept) bool { return c.ID == id }) {
+		return id
+	}
+	mark := "fails"
+	if d.Advisory {
+		mark = "advisory"
+	}
+	if d.TextScope != "" {
+		mark += "-" + d.TextScope
+	}
+	return id + ":" + mark
+}
+
+// sameRuleFlags reports whether a discouraged term decided by d can join c by
+// sharing its replacement. A concept carries one advisory marking and one text
+// scope for all of its rules. A term marked otherwise than the rules c holds in
+// d's language would change theirs: an advisory "leverage → use" joined to
+// "utilize → use" would stop utilize from failing. Such a term opens a concept
+// of its own and names the replacement in its note (ReplacementNote), where
+// PreferredTerm reads it. A concept holding no rule in that language takes the
+// term's marking, and a term that is not discouraged carries none.
+func sameRuleFlags(c Concept, d Decision) bool {
+	if !d.Status.Discouraged() {
+		return true
+	}
+	holdsRule := slices.ContainsFunc(c.Terms, func(t Term) bool {
+		return t.Locale == d.Locale && (t.Status.Discouraged() || t.CompetitorTerm) && !strings.EqualFold(t.Text, d.Text)
+	})
+	return !holdsRule || (c.Advisory == d.Advisory && c.TextScope() == d.TextScope)
 }
 
 // IndexOfTerm returns the index of the concept declaring text in locale, or -1.
