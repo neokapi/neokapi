@@ -38,7 +38,7 @@ no webhook secret to manage. GitLab always uses a project access token.
 - Pushes to any branch other than the tracked one, including the delivery
   branch itself, are ignored, so the connector's own deliveries never
   re-trigger a run.
-- When a run parks work for a person, the request says so; approvals travel
+- When a run leaves work waiting for review, the request says so; approvals travel
   through the project's [review session](/server/review) and arrive in a later
   delivery.
 

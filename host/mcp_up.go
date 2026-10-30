@@ -21,7 +21,7 @@ func init() {
 // upMCPInput is the input to the `up` MCP tool.
 type upMCPInput struct {
 	Project     string `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
-	Passes      int    `json:"passes,omitempty" jsonschema:"maximum reconciliation passes (0 = loop until up to date or parked; 1 = single pass)"`
+	Passes      int    `json:"passes,omitempty" jsonschema:"maximum reconciliation passes (0 = loop until up to date or waiting for review; 1 = single pass)"`
 	Jobs        int    `json:"jobs,omitempty" jsonschema:"how many languages to catch up concurrently per pass (0 = project default, else 4)"`
 	Materialize bool   `json:"materialize,omitempty" jsonschema:"after the loop, write the target-language files for every shippable locale (overrides the recipe's materialize policy)"`
 	NoChecks    bool   `json:"no_checks,omitempty" jsonschema:"skip the project's bound checks inside the loop (failing blocks then count as translated)"`
@@ -39,11 +39,11 @@ func registerUpMCPTools(server *mcp.Server, a *App) {
 		Name: "up",
 		Description: "Bring a kapi project up to date against its ship gates: re-extract drifted sources, run the " +
 			"default flow (content memory reuse then AI translate) over every target language, concurrently per language, " +
-			"loop until every gated scope is shippable or parks for a human, and run the project's bound checks " +
+			"loop until every gated scope is shippable or waits for review, and run the project's bound checks " +
 			"each pass. In a project connected to a Bowrain server the run happens there (push, converge on the " +
 			"org's keys and shared content memory, pull the results); pass local to run the loop on this machine " +
-			"instead. Never fails on pending target work: parked blocks are reported, not thrown. Returns the " +
-			"structured result (per-locale standing, parked scopes, materialized files). Use up_plan " +
+			"instead. Never fails on pending target work: blocks waiting for review are reported, not thrown. Returns the " +
+			"structured result (per-locale standing, scopes waiting for review, materialized files). Use up_plan " +
 			"first to see the pending work and token estimate.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in upMCPInput) (*mcp.CallToolResult, *ConvergeOutput, error) {
 		path, err := a.mcpProjectPath(in.Project)

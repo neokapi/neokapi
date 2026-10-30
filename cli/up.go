@@ -15,7 +15,7 @@ import (
 // It is the porcelain home of the kapi loop (the convergence model, issue
 // #1078 C1): the recipe is the desired state, and `up` runs the project's
 // default flow over all content across every target language, looping until
-// every gated scope ships or is parked for a human. It reuses the same engine
+// every gated scope ships or waits for review. It reuses the same engine
 // as the no-argument `kapi run` (RunDefaultFlowConverge), with until-gate
 // looping ON by default.
 //
@@ -34,7 +34,7 @@ func NewUpCmd(a *App) *cobra.Command {
 		Long: `Bring the project up to date: the recipe declares the languages, the flow, and
 the gates that decide shippable; kapi up runs the project's default flow
 (defaults.flow) over every target language, looping until every gated scope is
-shippable or parked for a human.
+shippable or waits for review.
 
 Without defaults.flow, up runs the built-in default flow, Memory reuse (recycle)
 followed by AI translate, so a recipe needs no flow YAML at all to catch up.
@@ -47,8 +47,8 @@ Re-extract). --no-extract opts out.
 
 Each pass re-derives coverage from the working tree, runs the flow only for
 the locales still short of their gate, and stops when everything ships, a pass
-makes no progress (the remainder parks, because it needs a human), or the pass cap is
-reached. After each pass the project's bound checks run over what was
+makes no progress (the remainder waits for review, because it needs a person), or the
+pass cap is reached. After each pass the project's bound checks run over what was
 produced: a translation with failing findings (dropped placeholders,
 terminology violations) still counts as translated, which it is, and holds its
 locale out of shipping until the finding is fixed. 'kapi status' runs the same checks and
@@ -58,8 +58,8 @@ The materialize policy determines whether the run owns delivery of the
 target-language files. Under 'defaults.materialize: on-converge' (or the
 --materialize flag) it does, and the ship gate holds it back: each pass drafts
 into a run-local tree, and only a locale whose gated scopes are all shippable
-has its files written where the recipe points, and a parked locale's files are
-absent, not merely unblessed. The default ('manual') leaves delivery to
+has its files written where the recipe points, and the files of a locale
+waiting for review are absent, not merely unblessed. The default ('manual') leaves delivery to
 'kapi merge' and claims no gate.
 
 Venue: in a server-connected project (a recipe with a bowrain: block, with the
@@ -77,8 +77,8 @@ leverage, the remaining AI work, and a rough token estimate, computed locally
 against the working tree, with no provider calls and no writes. Combine with
 --json for agents.
 
-up never fails the build on target drift: parked, pending target content is
-normal toil, reported rather than thrown. Use 'kapi status' to inspect
+up never fails the build on target drift: target content that is pending or
+waiting for review is normal toil, reported rather than thrown. Use 'kapi status' to inspect
 standing without running anything, and 'kapi check --ship' to enforce the
 gates (e.g. before a release tag).
 

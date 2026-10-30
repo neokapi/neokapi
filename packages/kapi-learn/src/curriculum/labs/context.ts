@@ -72,10 +72,10 @@ export const contextEngine: Lab = {
       id: "up",
       title: "Converge, and the memory grows",
       narration:
-        "The loop reads the memory before it writes anything. Blocks the project already settled are recycled, the rest are drafted, and what was written joins the memory for the next run: watch the entry count rise and the edges to each edition thicken. Dutch stays parked: its drafts are AI-translated and nobody has reviewed them.",
+        "The loop reads the memory before it writes anything. Blocks the project already settled are recycled, the rest are drafted, and what was written joins the memory for the next run: watch the entry count rise and the edges to each edition thicken. Dutch waits for review: its drafts are AI-translated and nobody has reviewed them.",
       command: "kapi up",
-      expect: ["parked (needs human)"],
-      notice: ["parked (needs human)"],
+      expect: ["waiting for review"],
+      notice: ["waiting for review"],
       focus: "memory",
     },
     {

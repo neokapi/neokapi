@@ -434,7 +434,7 @@ export const GatedLoop: Story = {
           kind: "gate",
           label: "target ship-gate",
           sub: "ship_gate",
-          hold: "park — needs review",
+          hold: "wait for review",
         },
         { kind: "done", label: "converged" },
       ]}

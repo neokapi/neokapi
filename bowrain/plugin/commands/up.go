@@ -42,13 +42,13 @@ var upCmd = &cobra.Command{
 	Args:   cobra.NoArgs,
 	Long: `Bring the project up to date against its ship gates: run the project's default
 flow over all content across every target language, looping until every gated
-scope ships or is parked for a human.
+scope ships or waits for review.
 
 In a server-connected project (a recipe with a bowrain: block) the loop runs on
 the Bowrain server by default, on the org's keys, against the org's Memory and
 terminology, and this command pushes local changes, streams the server run's
-live progress, and pulls the produced targets when the run finishes. Parked
-translations land in the team's review queue on the server.
+live progress, and pulls the produced targets when the run finishes. Translations
+waiting for review land in the team's review queue on the server.
 
 The push phase carries the same payload as kapi push: content blocks, governed
 terminology edits, and the recipe-bound voice profile (upserted into the

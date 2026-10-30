@@ -10,7 +10,7 @@ export interface ConvergeRunViewProps {
   running?: boolean;
   /** Whether the run was cancelled (renders the terminal cancelled row). */
   canceled?: boolean;
-  /** Open the Review page filtered to a parked (collection, locale) scope. */
+  /** Open the Review page filtered to a (collection, locale) scope waiting for review. */
   onOpenReview?: (scope: { collection?: string; locale?: string }) => void;
 }
 

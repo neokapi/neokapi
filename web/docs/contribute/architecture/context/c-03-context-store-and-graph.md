@@ -524,7 +524,7 @@ that withheld its values and with placeholders anywhere else. A policy that
 detects entities needs a read's entity annotations, which a record's runs do
 not carry, so under one a record keeps revisions and hashes only, and the
 workspace home keeps no edition at all: a change to a translation with no file
-is refused, and a gated run leaves its parked drafts in the producer's cache.
+is refused, and a gated run leaves its held-back drafts in the producer's cache.
 
 An operation is addressed by the document, the actor and each transition with
 the address of the operation it extends, the one that most recently left the
@@ -547,7 +547,7 @@ recorded block among siblings whose positions moved.
 
 An edition with no file has the log as its home. Under
 `defaults.materialize: on-converge` a locale's files appear only when it clears
-its ship gate, so a parked locale's drafts, the edits a person or an agent makes
+its ship gate, so a held-back locale's drafts, the edits a person or an agent makes
 to them, and the drafts a gated run produced that `kapi merge` has not
 delivered all live in the **workspace home** (`core/workhome`), outside the
 checkout, until a delivery writes them to the files the recipe names.
@@ -644,7 +644,7 @@ projection like the others: a rebuild replays it and a checkpoint carries it.
 ### Deleting derived data {#kapiwork-is-free-to-delete}
 
 The parse cache, extraction batches, collection overlays and `store.db` can be
-rebuilt from content files. A parked locale's drafts are kept in the workspace
+rebuilt from content files. A held-back locale's drafts are kept in the workspace
 home, so deleting `.kapi/work/` loses none of them: the next `kapi up` writes the
 overlays a producer serves them from back into the block store from the stamps
 the workspace home keeps, and the pass calls no provider for them. A draft a

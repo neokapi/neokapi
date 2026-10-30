@@ -20,12 +20,13 @@ const runStateColor: Record<ConvergenceRunState, string> = {
   failed: "bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive",
 };
 
-// Display labels for the machine run states — the wire value `converged` reads
-// as the product's "up to date"; the rest keep their plain casing.
+// Display labels for the machine run states. The wire value `converged` reads
+// as the product's "up to date" and `parked` as "waiting for review"; the rest
+// keep their plain casing.
 const runStateLabel: Record<ConvergenceRunState, string> = {
   running: "Running",
   converged: "Up to date",
-  parked: "Parked",
+  parked: "Waiting for review",
   canceled: "Canceled",
   failed: "Failed",
 };
@@ -39,14 +40,24 @@ function triggerLabel(trigger: string): string {
   return labels[trigger] || trigger;
 }
 
-/** Compact "3 shippable · 1 parked" summary from a run's locale standing. */
+// Display labels for a locale's ship verdict; the wire value `parked` reads as
+// "waiting for review".
+const localeStateLabel: Record<string, string> = {
+  shippable: "shippable",
+  pending: "pending",
+  parked: "waiting for review",
+};
+
+/** Compact "3 shippable · 1 waiting for review" summary from a run's locale standing. */
 function localeSummary(run: ConvergenceRun): string {
   const locales = run.locales ?? [];
   if (locales.length === 0) return "·";
   const counts: Record<string, number> = {};
   for (const l of locales) counts[l.state] = (counts[l.state] ?? 0) + 1;
   const order = ["shippable", "pending", "parked"];
-  const parts = order.filter((s) => counts[s]).map((s) => `${counts[s]} ${s}`);
+  const parts = order
+    .filter((s) => counts[s])
+    .map((s) => `${counts[s]} ${localeStateLabel[s] ?? s}`);
   return parts.length > 0 ? parts.join(" · ") : `${locales.length} locales`;
 }
 

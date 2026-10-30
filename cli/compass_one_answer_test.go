@@ -366,7 +366,7 @@ func assertWithheld(t *testing.T, s surfaces, locale string) {
 //  3. a wrong decision the loop cannot absorb, because that decision IS what it
 //     recycles. Here the locale carrying the finding is withheld, and all three
 //     surfaces have to say so — the case the surfaces used to answer three ways:
-//     up called the locale `parked (needs human)` at `translated 95%`, status
+//     up called the locale `waiting for review` at `translated 95%`, status
 //     called it `translated 100% / ready`, and the manifest the deployed page
 //     reads offered it as governed.
 //

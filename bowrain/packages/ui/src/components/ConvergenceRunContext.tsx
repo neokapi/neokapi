@@ -13,7 +13,7 @@ import type { ConvergenceRun } from "../types/api";
  *  - needs_credits    → "Out of credits, N translations left for the AI" + Buy credits
  *  - quota_exceeded   → "AI usage limit reached" (resume when the limit resets)
  *  - no_target_locales → "No target languages configured" (add one in settings)
- *  - parked (checks)  → "Parked — open review"
+ *  - parked (checks)  → "Waiting for review" + Open review
  *  - running w/ frozen last_activity → "waiting…"
  *
  * A completed run with newly produced translations also renders the awaiting-
@@ -36,7 +36,7 @@ export interface ConvergenceRunContextProps {
   onSettleSource?: () => void;
   /** Open the buy-credits / upgrade path (needs_credits next action). */
   onBuyCredits?: () => void;
-  /** Open the review queue (parked-on-checks next action). */
+  /** Open the review queue (the next action for a run waiting for review). */
   onOpenReview?: () => void;
   /**
    * Open the review surface for this project/stream (awaiting-review next
@@ -109,7 +109,7 @@ export function ConvergenceRunContext({
   const banner = stallBanner(run, { onSettleSource, onBuyCredits, onOpenReview });
 
   // The review hand-off: a converged run whose new translations await a
-  // person's approval. Parked runs carry the count inside the parked banner instead.
+  // person's approval. A run waiting for review carries the count inside its banner instead.
   const review =
     reviewEnabled !== false && run.state === "converged"
       ? awaitingReviewBanner(run, onOpenReviewSurface ?? onOpenReview)
@@ -242,19 +242,19 @@ function stallBanner(
     );
   }
 
-  // A parked run with no more specific reason: pending human review. The body
-  // carries the produced count so the parked frame also says how much new work
-  // sits in the review queue.
+  // A run in the `parked` state with no more specific reason waits for a
+  // person's review. The body carries the produced count, so the banner also
+  // says how much new work sits in the review queue.
   if (run.state === "parked") {
     const { total, breakdown } = awaitingReview(run);
-    let body = "The run advanced everything it could and parked the remainder for review.";
+    let body = "The run advanced everything it could. The remainder waits for review.";
     if (total > 0) {
       body += ` ${total} block${total === 1 ? "" : "s"} awaiting review${breakdown ? ` (${breakdown})` : ""}.`;
     }
     return (
       <BannerAlert
         variant="warning"
-        title="Parked, pending review"
+        title="Waiting for review"
         body={body}
         action={actions.onOpenReview && { label: "Open review", onClick: actions.onOpenReview }}
       />

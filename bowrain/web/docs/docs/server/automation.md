@@ -186,7 +186,7 @@ it, the command prints the cause and the push goes ahead.
 
 Catching the project up on push is the project's `bowrain.converge` policy
 rather than an automation. With the default `on-push`, the server runs a full
-pass (reuse, drafting, checks, terms, gates, parking) after every push, recorded
+pass (reuse, drafting, checks, terms, gates, review holds) after every push, recorded
 as a run anyone can watch:
 
 ```yaml
@@ -209,9 +209,9 @@ owner or admin. See
 
 Every run, started by a push, by `kapi up`, or manually, appears in the
 project's **Runs** view in the web and desktop app, with its state (*Running*,
-*Up to date*, *Parked*), its trigger, the pass count, and a per-locale summary
-such as "3 shippable · 1 parked". A **Run now** button starts a run from the
-app, and an in-flight run can be canceled. Parked translations land in the
+*Up to date*, *Waiting for review*), its trigger, the pass count, and a per-locale summary
+such as "3 shippable · 1 waiting for review". A **Run now** button starts a run from the
+app, and an in-flight run can be canceled. Translations waiting for review land in the
 [review session](/server/review).
 
 ## Quality gate events
@@ -258,7 +258,7 @@ keep the notifications and stop the email, turn off email for the
 **Automation** category in notification preferences.
 
 A run stops starting translation jobs once the workspace reaches its monthly AI
-usage limit. It parks with the reason *usage limit reached*, and the work done
+usage limit. It stops with the reason *usage limit reached*, and the work done
 so far is kept.
 
 ## Loop prevention

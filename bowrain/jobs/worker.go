@@ -559,7 +559,7 @@ func processJobWithDeps(ctx context.Context, deps *WorkerDeps, jobID string) err
 // cancellation, because that one can no longer write.
 func deferInterruptedJob(ctx context.Context, deps *WorkerDeps, job *TranslationJob, epoch int64) error {
 	book := context.WithoutCancel(ctx)
-	cause := errors.New("worker shutting down; job parked for the next worker")
+	cause := errors.New("worker shutting down; job deferred to the next worker")
 	deferred, derr := deps.JobStore.DeferJob(book, job.ID, epoch, deps.maxJobDeferrals(),
 		"deferred: "+cause.Error())
 	if derr != nil {

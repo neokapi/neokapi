@@ -10,7 +10,7 @@
 #
 # `kapi up` is the porcelain: it treats the recipe as the desired state and
 # loops the project's flow across every target locale until each ship gate is
-# met or the remainder parks for a person. The closing beats run the plumbing
+# met or the remainder waits for review by a person. The closing beats run the plumbing
 # that loop automates — one flow pass (`run`), materializing files (`merge`),
 # and the bilingual handoff (`extract`).
 #

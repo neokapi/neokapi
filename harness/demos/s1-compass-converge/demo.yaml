@@ -37,7 +37,7 @@ script:
   - command: cat site/ship.json
   - comment: One verb. Approved wording is recycled; only what is left reaches a provider.
   - command: kapi up
-  - comment: Norwegian and German clear the ship gate on translated work. Dutch parks, because one of its units fails the project's bound checks.
+  - comment: Norwegian and German clear the ship gate on translated work. Dutch waits for review, because one of its units fails the project's bound checks.
   - command: kapi status
   - command: kapi status --ship --emit site/ship.json
   - command: cat site/ship.json
@@ -86,10 +86,10 @@ narration:
     kind: terminal
     through: 13
     highlight: { text: [blocked, checks] }
-    caption: Two languages offered. Dutch parks on a failing check.
+    caption: Two languages offered. Dutch waits for review on a failing check.
     text: >-
-      Norwegian and German clear the ship gate on translated work. Dutch parks: one
-      of its units fails the checks the project binds, and a locale holding a
+      Norwegian and German clear the ship gate on translated work. Dutch waits for
+      review: one of its units fails the checks the project binds, and a locale holding a
       failing unit is held back until somebody looks. Its drafts are safe in the
       store; what the gate withholds is delivery.
 

@@ -71,7 +71,7 @@ describe("LoopStatusRow", () => {
       />,
     );
     const run = screen.getByTestId("loop-card-run");
-    expect(within(run).getByText("Parked")).toBeInTheDocument();
+    expect(within(run).getByText("Waiting for review")).toBeInTheDocument();
     expect(within(run).getByText(/needs credits/)).toBeInTheDocument();
     expect(within(run).getByText(/Website · 3h ago/)).toBeInTheDocument();
   });

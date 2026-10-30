@@ -358,7 +358,7 @@ applied to. The implementation note
 [The file home](../../implementation/engine/file-home.md) has the details.
 
 **The workspace home** (`core/workhome`) keeps the editions that have no file
-yet: a parked locale's drafts and the edits made to them
+yet: a held-back locale's drafts and the edits made to them
 ([C-03](../context/c-03-context-store-and-graph.md#the-workspace-home)). Such
 an edition belongs to a document whose own edition is a file, so the file home
 reaches it: the layout names the file the edition will be delivered to, and a
@@ -377,7 +377,7 @@ record is the commit:
 before `Commit`, the result names the workspace home for that edition
 (`StagedFile.Home`), and the service's recorder records nothing more for it
 (`StagedFile.Recorded`). The conformance suite runs on the workspace home with
-the edition files of a parked locale as its documents, and removes the French
+the edition files of a held-back locale as its documents, and removes the French
 it keeps of a PO catalog and of a JSON file. A removal drops the kept block, for
 the formats whose description lists `remove_edition`, as it would leave the
 file the translation will be delivered to. The recipe picks the
@@ -458,7 +458,7 @@ the kapi host runs commits this way: `kapi translate`, `pseudo-translate`,
 `run`, `exec` and `up`, the same runs in Kapi Desktop and over MCP, a pull's
 target files, and the delivery of a convergence pass's drafts. The host's flow
 home takes its locks where the project's change service takes them, so a flow
-and a change set on one file take turns. A gated run that parks a locale writes
+and a change set on one file take turns. A gated run that holds a locale back writes
 that locale's drafts into the workspace home instead
 (`workhome.Home.Produce`): one write per document, each draft guarded by the
 revision the run first read of it, with its basis and the stamp its producer
@@ -538,7 +538,7 @@ prints a change set with no operation, which applies and writes nothing.
 A printing `kapi up` runs one pass. A gated pass drafts into its private tree
 as any pass does (`Options.WriteUnder` lets the printing home write there),
 the gate evaluates the drafts, and delivery prints what it would commit for
-each locale that clears its gate; a parked locale is named and prints nothing.
+each locale that clears its gate; a held-back locale is named and prints nothing.
 A printing run records no change, absorbs nothing into the content memory and
 stamps nothing. As any pass does, it extracts the source into the derived store
 and caches under `.kapi/work`, and records the identity of a document it reads
@@ -599,7 +599,7 @@ written to `po/fr.po`, in French, and the source catalog holds no edition, for
 every surface. Decisions and asset operations
 land through the host's review-queue and asset functions, a decision bound to
 the wording the change set landed rather than to a later read of the file; on
-an edition with no content in its home, such as a parked locale's draft, the
+an edition with no content in its home, such as a held-back locale's draft, the
 decision binds to the draft the project store holds. Such a decision names the
 edition it read as `absent`, and is refused as stale once the home holds the
 edition. The hooks each plug in at

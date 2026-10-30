@@ -50,7 +50,7 @@ kapi up --plan   # dry run: pending work, reuse from memory, and a cost estimate
 
 On a connected project `kapi up` prints its resolved venue first (*server*),
 pushes what drifted, streams the run's progress into the terminal, and pulls the
-results down. What a machine cannot decide parks into the team's
+results down. What a machine cannot decide waits in the team's
 [review session](/server/review). See [`kapi up`](/cli/commands/up) for flags and
 venue resolution, and [Keeping content caught up](/the-loop) for what a run
 does.

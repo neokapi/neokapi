@@ -60,8 +60,8 @@ export const Running: Story = {
   args: { model: runningModel, running: true },
 };
 
-/** A parked outcome with deep-link chips (kapi-desktop's structured result). */
-export const Parked: Story = {
+/** An outcome waiting for review, with deep-link chips (kapi-desktop's structured result). */
+export const WaitingForReview: Story = {
   args: {
     model: settledModel,
     result: {

@@ -110,7 +110,7 @@ func TestUp_ParksUnreachableGate(t *testing.T) {
 
 	out, err := runUp(t, a, recipe)
 	require.NoError(t, err, "parked work is reported, never a build failure")
-	assert.Contains(t, out, "parked (needs human)")
+	assert.Contains(t, out, "waiting for review")
 	assert.Contains(t, out, "Not yet up to date")
 }
 
@@ -123,7 +123,7 @@ func TestUp_PassesCapsLoop(t *testing.T) {
 	require.NoError(t, err, out)
 	// The pseudo flow stalls after pass 1 (reviewed needs a human); the loop
 	// stops on no-progress before hitting the cap and parks the locale.
-	assert.Contains(t, out, "parked (needs human)")
+	assert.Contains(t, out, "waiting for review")
 }
 
 // TestUp_RejectsNegativePasses: a negative --passes is a usage error.
@@ -300,7 +300,7 @@ func TestUp_MaterializeSkipsParkedLocale(t *testing.T) {
 
 	out, err := runUp(t, a, recipe, "--materialize")
 	require.NoError(t, err, out)
-	assert.Contains(t, out, "parked (needs human)", out)
+	assert.Contains(t, out, "waiting for review", out)
 	assert.NotContains(t, out, "Materialized", "a parked locale must not materialize")
 
 	for _, f := range []string{"a.json", "b.json"} {

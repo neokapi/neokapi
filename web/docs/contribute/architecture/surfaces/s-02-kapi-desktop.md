@@ -123,7 +123,7 @@ what the person does with the revision it read:
   `set_content` addressed by the path the read lists. An AI proposal is accepted as the same
   `set_content`.
 - Approve and Reject send `decide` with the outcome `establish` or `reject`, Reject with the reviewer's note on the
-  change set. A parked draft, which reads as `absent`, is decided as `absent`.
+  change set. A held-back draft, which reads as `absent`, is decided as `absent`.
   Approving the clean blocks of a view reads each one as it approves it and runs
   its checks again; a block whose text is no longer what its row lists, or that
   now trips a check, stops the batch with its row brought up to date.

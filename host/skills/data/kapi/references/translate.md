@@ -153,7 +153,7 @@ start by reading it:
 kapi status                  # per-locale coverage + each scope's ship standing
 kapi up                      # catch up: loop the project's default flow over ALL
                              #   content × every target language until each scope
-                             #   ships or "parks"; runs locales concurrently
+                             #   ships or waits for review; runs locales concurrently
 kapi up --plan               # dry run: pending work, content-memory leverage, token estimate
 kapi up --json               # NDJSON event stream (one event per line, final
                              #   record = the result); use this to drive the loop
@@ -162,7 +162,7 @@ kapi up --json               # NDJSON event stream (one event per line, final
 `kapi up` is the one verb that runs the loop. With no `defaults.flow` in the recipe it
 runs the built-in default flow (content memory recycle → AI translate) and materializes the
 translated files. Drift is never an error: a behind locale is *pending*, and work
-a machine can't finish *parks* (reported, exit 0), so neither blocks you.
+a machine can't finish *waits for review* (reported, exit 0), so neither blocks you.
 
 Every flow run (`up`, `translate`, `pseudo-translate`, `run`, `exec`) writes a
 file only while it still holds what it held when the run began: a file someone
@@ -193,8 +193,8 @@ target file whole from its source, and `kapi apply` edits the file as it
 stands, so a target file the two would write differently (an entry only the
 target holds, or a key the source gained that `kapi apply` cannot add there,
 or adds in another place) is left out, and `kapi up` writes it. So are a file the recipe does not keep there (an `-o` path), a
-conversion, an archive, and every file of a locale `kapi up` would park at its
-ship gate. In a project, `kapi translate`, `pseudo-translate` and `run` without
+conversion, an archive, and every file of a locale `kapi up` would hold back at
+its ship gate. In a project, `kapi translate`, `pseudo-translate` and `run` without
 `-o` write no file, so they print nothing: use `kapi up --print-ops`. A printing
 run reads the content memory as it stands (a pass that writes first takes the
 committed translations into it), and `kapi apply` records the change as yours,

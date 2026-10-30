@@ -11,8 +11,8 @@ import { LanesDiagram, KapiLink } from "@neokapi/docs-shared";
 CI is where drift is made: every merge changes source content and leaves its
 translations, terms, and voice conformance behind. It is also the
 natural place to catch up. [The kapi loop](/the-loop) runs on every change or
-on a schedule; what a machine cannot decide **parks** into the team's review
-session on the server; and the ship gate protects releases without ever failing
+on a schedule; what a machine cannot decide **waits for review** in the team's
+review session on the server; and the ship gate protects releases without ever failing
 an ordinary build on target-language drift.
 
 On a project connected to a Bowrain server, a CI run of `kapi up` executes on
@@ -70,10 +70,10 @@ a pipeline needs:
 | Command | Role | Exit behavior |
 |---|---|---|
 | `kapi status` | **Observe**: per-locale coverage and gate standing | Always `0`: behind is pending work, not an error |
-| `kapi up` | **Produce**: runs the kapi loop | `0` whether the run caught everything up, parked work for review, or went on after the event stream ended early; non-zero when the run broke or its outcome is unknown |
+| `kapi up` | **Produce**: runs the kapi loop | `0` whether the run caught everything up, left work waiting for review, or went on after the event stream ended early; non-zero when the run broke or its outcome is unknown |
 | `kapi check --ship` | **Enforce**: the release bar | `0` pass, `3` gate unmet, `4` a gate did not run, `1` operational error |
 
-Parked work is pending review, not an error. The gate is the explicit,
+Work waiting for review is pending, not an error. The gate is the explicit,
 opt-in enforcement point: wire it into merge-request pipelines and a quality
 regression cannot merge, while day-to-day drift flows through review instead
 of breaking builds.

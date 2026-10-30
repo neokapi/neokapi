@@ -94,7 +94,7 @@ func compactTokens(n int) string {
 // the up verb in a server-connected install (kapi-bowrain) presents the exact
 // same local surface and delegates to ExecuteUp for the local venue.
 func AddUpFlags(cmd Command) {
-	cmd.Flags().Int("passes", 0, "maximum reconciliation passes (0 = loop until up to date or parked, capped at 5; 1 = single pass)")
+	cmd.Flags().Int("passes", 0, "maximum reconciliation passes (0 = loop until up to date or waiting for review, capped at 5; 1 = single pass)")
 	cmd.Flags().Int("jobs", 0, "how many languages to catch up concurrently per pass (0 = the recipe's defaults.jobs, else 4)")
 	cmd.Flags().Bool("no-extract", false, "skip the pre-pass source-drift check and block-store re-extraction")
 	cmd.Flags().Bool("no-checks", false, "skip the bound checks in the loop (produced blocks count as translated even when failing guardrails)")

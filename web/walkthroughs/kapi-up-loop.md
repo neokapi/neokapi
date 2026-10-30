@@ -19,7 +19,7 @@ ship gate. The gate requires 100% translated and 100% approved content.
 
 `kapi up --plan` previews pending units, exact content-memory matches, remaining
 AI work and estimated tokens. `kapi up` fills the translations from content
-memory, then parks the locale awaiting human review. It exits zero;
+memory, then holds the locale back for review by a person. It exits zero;
 `kapi status --review` lists the remaining work.
 
 `kapi check --ship` exits 3 while required reviews are missing. `kapi apply`

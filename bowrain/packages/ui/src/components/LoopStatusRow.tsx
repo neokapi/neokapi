@@ -46,7 +46,7 @@ export interface LoopVoiceHealth {
 export interface LoopRunStatus {
   /** running | converged | parked | failed | canceled */
   state: string;
-  /** Why a parked/failed run did not converge (needs_credits | …). */
+  /** Why a run waiting for review or a failed run did not converge (needs_credits | …). */
   stallReason?: string;
   /** The run's project, for attribution under the state. */
   projectName?: string;
@@ -120,7 +120,7 @@ function relativeTime(iso: string): string {
 const RUN_STATE_LABELS: Record<string, string> = {
   running: "Running",
   converged: "Converged",
-  parked: "Parked",
+  parked: "Waiting for review",
   failed: "Failed",
   canceled: "Canceled",
 };

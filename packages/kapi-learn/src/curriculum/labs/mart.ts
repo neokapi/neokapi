@@ -353,7 +353,7 @@ export const martProject: Lab = {
       id: "up",
       title: "Run the loop",
       narration:
-        "kapi up drafts the missing German and Japanese with the demo stub, after recycling what the catalogs and the memory already hold. Japanese parks on a failing check, for a person to look at.",
+        "kapi up drafts the missing German and Japanese with the demo stub, after recycling what the catalogs and the memory already hold. Japanese waits for review on a failing check, for a person to look at.",
       command: "kapi up",
       expect: ["Ran flow"],
     },

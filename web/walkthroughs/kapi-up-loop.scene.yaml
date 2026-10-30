@@ -3,8 +3,8 @@
 #   node --experimental-strip-types scripts/walkthrough-gen/gen.ts kapi-up-loop
 #
 # The kapi-loop trust moment, end to end: preview the work (`up --plan`),
-# produce (`up` fills every target from the content memory, then parks — the ship gate
-# requires review, and review needs a person), read the worklist
+# produce (`up` fills every target from the content memory, then holds the
+# locale back for review: the ship gate requires review, and review needs a person), read the worklist
 # (`status --review`), watch the gate block (`check --ship`, exit 3), record
 # the decision (`apply`), and watch the same gate clear (exit 0).
 #
@@ -13,7 +13,7 @@
 # recording. The embed below is the focused offline subset: the project seeds
 # already produced (messages.fr.json committed), so `status --review`,
 # `apply`, and the closing `status` run live against the in-memory filesystem
-# — the same park → decide → shippable arc, minus the native-only verbs.
+# — the same wait for review → decide → shippable arc, minus the native-only verbs.
 #
 # Fully offline in every venue: the recipe's memory-recycle flow leverages the content memory
 # only — no LLM, no network. The ship gate is translated: 100 + established: 100,
@@ -178,7 +178,7 @@ steps:
     narration: --plan reports pending units, exact content-memory matches, remaining AI work and estimated tokens for each locale. It makes no provider calls or writes.
     offline: false
   - command: kapi up
-    narration: up fills all French targets from content memory, then parks the locale awaiting human review. The command exits zero.
+    narration: up fills all French targets from content memory, then holds the locale back for review by a person. The command exits zero.
     offline: false
   - command: kapi status --review
     narration: List translated units awaiting approval, each with the source document, block and language a decision names.
