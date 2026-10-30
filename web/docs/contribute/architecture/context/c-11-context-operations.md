@@ -31,8 +31,9 @@ suggestions; established rules live in the stores.
 
 `contextop.PersonDecides` defines the permission policy. An agent or a tool
 may observe, record a correction, and withdraw its own suggestion in the
-session that recorded it. Only a tool records evidence (`signal`) and the
-establishments settling derives from it (`establish`). Only a person keeps,
+session that recorded it. Any actor may record a check run (`check`), which
+changes nothing the context holds. Only a tool records evidence (`signal`) and
+the establishments settling derives from it (`establish`). Only a person keeps,
 edits, drops, imports, widens, or resets the context to an earlier point.
 
 The command line splits along the same line. `kapi context` carries a
@@ -94,8 +95,8 @@ type Record struct {
 }
 ```
 
-The eleven kinds, persisted as `context.<kind>`, divide into four that carry a
-subject and seven that act on one.
+The kinds, persisted as `context.<kind>`, divide into those that carry a
+subject, those that act on one, and `check`, which does neither.
 
 - `observe` records something somebody noticed. Stated in prose, it is a note,
   such as who the documents address. Stated as the form the project uses for a
@@ -114,6 +115,14 @@ subject and seven that act on one.
 - `signal` records evidence about a suggestion that nobody wrote down by hand,
   and `establish` records that settling established one
   ([below](#suggestions-settle-by-evidence)).
+- `check` records one run of the project's checks for an assistant: the Claude
+  Code Stop hook running `kapi check --ship` as a turn ends. Its `CheckRun`
+  holds the files the turn edited, the failing findings by file, rule id and
+  quote, and whether the run was clean. Its id is derived from the session and
+  the turn, so the hook running twice for one turn records one operation. A
+  failing finding that one run reports and the session's next run no longer
+  finds on the same file counts as caught; `host.SessionOutcomes` derives the
+  count from the log and nothing stores it.
 
 `contextop.Ledger` derives status by replaying the log in order and applying
 subsequent operations to each subject:
