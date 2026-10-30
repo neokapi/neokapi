@@ -27,7 +27,7 @@ func TestSameContent_JoinsAdjacentTextRuns(t *testing.T) {
 	assert.Equal(t, "Hello ", split[0].Text.Text)
 
 	// Runs that differ in a field besides their text stay apart: a split
-	// between translatable text and a do-not-translate span is a change.
+	// between text and a do-not-translate span is a change.
 	marked := []model.Run{model.TextR("run "), {Text: &model.TextRun{Text: "kapi check", NoTranslate: true}}}
 	assert.False(t, sameContent(marked, []model.Run{model.TextR("run kapi check")}))
 	assert.True(t, sameContent(marked, marked))
