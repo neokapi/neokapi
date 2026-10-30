@@ -2,6 +2,7 @@ package cli
 
 import (
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -50,6 +51,32 @@ var rootDefaultFlags = map[string]bool{
 	"verbose": true,
 	"yes":     true,
 	"color":   true,
+}
+
+// leadCommands are listed first in their group on the root help, in this
+// order. The rest of each group follows in cobra's alphabetical order.
+var leadCommands = []string{"look"}
+
+// ordered returns the root's commands with leadCommands first. A subcommand's
+// help lists its commands as cobra sorts them.
+func (s usageScope) ordered(cmds []*cobra.Command) []*cobra.Command {
+	if !s.tiered {
+		return cmds
+	}
+	out := make([]*cobra.Command, 0, len(cmds))
+	for _, name := range leadCommands {
+		for _, c := range cmds {
+			if c.Name() == name {
+				out = append(out, c)
+			}
+		}
+	}
+	for _, c := range cmds {
+		if !slices.Contains(leadCommands, c.Name()) {
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 // helpView selects how much of the root a help render shows.

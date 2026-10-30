@@ -60,6 +60,7 @@ func renderStyledUsage(cmd *cobra.Command, w io.Writer, view helpView) error {
 	funcs["groupShown"] = scope.groupShown
 	funcs["localFlagUsages"] = scope.localFlagUsages
 	funcs["footerHints"] = scope.footerHints
+	funcs["ordered"] = scope.ordered
 	t := template.Must(template.New("usage").Funcs(funcs).Parse(styledUsageTemplate))
 	return t.Execute(w, cmd)
 }
@@ -107,7 +108,7 @@ const styledUsageTemplate = `{{heading "Usage:"}}{{if .Runnable}}
   {{.NameAndAliases}}{{end}}{{if .HasExample}}
 
 {{heading "Examples:"}}
-{{.Example}}{{end}}{{if .HasAvailableSubCommands}}{{$cmds := .Commands}}{{if eq (len .Groups) 0}}
+{{.Example}}{{end}}{{if .HasAvailableSubCommands}}{{$cmds := ordered .Commands}}{{if eq (len .Groups) 0}}
 
 {{heading "Available Commands:"}}{{range $cmds}}{{if (or .IsAvailableCommand (eq .Name "help"))}}
   {{cmdname (rpad .Name .NamePadding)}} {{.Short}}{{end}}{{end}}{{else}}{{range $group := .Groups}}{{if groupShown $group.ID}}
