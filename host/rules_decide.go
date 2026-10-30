@@ -57,6 +57,9 @@ type RulesDecideView struct {
 
 	st     *rulesState
 	blocks []ruleBlock
+	// stamp names the source the blocks were read from: each file's path,
+	// size and modification time, and the recipe's.
+	stamp string
 }
 
 // RuleDecision is one question.
@@ -125,13 +128,14 @@ func (a *App) DecideRules(ctx context.Context, req RulesRequest) (*RulesDecideVi
 	if err != nil {
 		return nil, err
 	}
-	return a.decideView(ctx, st, req.WithCounts, true)
+	return a.decideView(ctx, st, req.WithCounts, true, req.Reuse)
 }
 
 // decideView reads the questions. With counted false it reads no block of the
 // project's source, so no option counts its uses and none states what keeping
-// it does: what recording an answer needs, and no more.
-func (a *App) decideView(ctx context.Context, st *rulesState, withCounts, counted bool) (*RulesDecideView, error) {
+// it does: what recording an answer needs, and no more. reuse is a view read
+// earlier whose blocks are counted again while the source is unchanged.
+func (a *App) decideView(ctx context.Context, st *rulesState, withCounts, counted bool, reuse *RulesDecideView) (*RulesDecideView, error) {
 	digest, err := a.ContextDigest(ctx, ContextDigestRequest{Project: st.recipe})
 	if err != nil {
 		return nil, err
@@ -161,7 +165,7 @@ func (a *App) decideView(ctx context.Context, st *rulesState, withCounts, counte
 		}
 	}
 	if counted && needsBlocks(v.Decisions, items) {
-		v.blocks = a.ruleBlocks(ctx, st)
+		v.blocks, v.stamp = a.ruleBlocks(ctx, st, reuse)
 	}
 	// A disagreement's counts are read now the blocks are.
 	for i := range v.Decisions {
@@ -400,18 +404,25 @@ func countBlocks(blocks []ruleBlock, scope contextop.Scope, st *rulesState, re *
 }
 
 // ruleBlocks reads every block of the project's source once, with the
-// coordinates of the point each file sits at. A file that will not read is
-// left out: a count is advice, and not worth failing the question over.
-func (a *App) ruleBlocks(ctx context.Context, st *rulesState) []ruleBlock {
+// coordinates of the point each file sits at, and the stamp of what it read.
+// When reuse read the same project's source and no file or the recipe has
+// changed since, its blocks are returned without reading a file. A file that
+// will not read is left out: a count is advice, and not worth failing the
+// question over.
+func (a *App) ruleBlocks(ctx context.Context, st *rulesState, reuse *RulesDecideView) ([]ruleBlock, string) {
 	a.InitRegistries()
 	pctx := project.NewProjectContext(st.proj, st.recipe)
 	resolved, err := pctx.ResolveContent(a.FormatReg)
 	if err != nil {
-		return nil
+		return nil, ""
+	}
+	stamp := sourceStamp(st.recipe, resolved)
+	if reuse != nil && reuse.st != nil && reuse.st.key == st.key && reuse.stamp == stamp {
+		return reuse.blocks, stamp
 	}
 	formats, err := a.newCheckFormats(st.cmd)
 	if err != nil {
-		return nil
+		return nil, ""
 	}
 	var out []ruleBlock
 	read := map[string]bool{}
@@ -434,7 +445,26 @@ func (a *App) ruleBlocks(ctx context.Context, st *rulesState) []ruleBlock {
 			out = append(out, ruleBlock{file: rel, coordinates: coordinates, text: b.SourceText()})
 		}
 	}
-	return out
+	return out, stamp
+}
+
+// sourceStamp names the source a count reads: the recipe and each resolved
+// file, by path, size and modification time. Two stamps are equal while no
+// file has been added, removed or written.
+func sourceStamp(recipe string, resolved []project.ResolvedFile) string {
+	var b strings.Builder
+	line := func(path string) {
+		b.WriteString(path)
+		if info, err := os.Stat(path); err == nil {
+			fmt.Fprintf(&b, "\t%d\t%d", info.Size(), info.ModTime().UnixNano())
+		}
+		b.WriteByte('\n')
+	}
+	line(recipe)
+	for _, rf := range resolved {
+		line(rf.Path)
+	}
+	return b.String()
 }
 
 // KeepRequest is the decision that keeps option (an index into Options, -1
@@ -573,7 +603,7 @@ func (a *App) DecideRule(ctx context.Context, req RuleDecideRequest) (RuleDecide
 	if err != nil {
 		return out, err
 	}
-	v, err := a.decideView(ctx, st, false, false)
+	v, err := a.decideView(ctx, st, false, false, nil)
 	if err != nil {
 		return out, err
 	}

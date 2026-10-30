@@ -118,7 +118,12 @@ func (a *App) RulesDecideView(tabID string) (*RulesDecideViewDTO, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), rulesDecideTimeout)
 	defer cancel()
-	view, err := a.hostEngine().DecideRules(ctx, host.RulesRequest{Project: op.Path, WithCounts: true})
+	// The last read's blocks are counted again while the source is unchanged,
+	// so an answer does not cost a read of every file.
+	op.decideMu.Lock()
+	last := op.decideView
+	op.decideMu.Unlock()
+	view, err := a.hostEngine().DecideRules(ctx, host.RulesRequest{Project: op.Path, WithCounts: true, Reuse: last})
 	if err != nil {
 		return nil, err
 	}

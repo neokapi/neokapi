@@ -1,7 +1,10 @@
 package host
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -58,6 +61,39 @@ func TestDecideRuleRecordsOneAnswerAtATime(t *testing.T) {
 
 	_, err = app.DecideRule(t.Context(), RuleDecideRequest{Actor: person, Project: recipe, ID: word.ID, Answer: RuleAnswerKeep})
 	require.ErrorContains(t, err, "waits for a decision", "a decided suggestion is not answered twice")
+}
+
+// TestDecideRulesReusesBlocksUntilTheFilesChange: a view read again with the
+// last one counts over the blocks that one read while no source file has
+// changed, and reads the files again once one has.
+func TestDecideRulesReusesBlocksUntilTheFilesChange(t *testing.T) {
+	app, _ := contextOpsApp(t)
+	root := rulesProject(t, "rulesdecidereuse", false)
+	name := suggestName(t, app, root)
+	recipe := recipeOf(root)
+
+	first, err := app.DecideRules(t.Context(), RulesRequest{Project: recipe})
+	require.NoError(t, err)
+	require.NotEmpty(t, first.blocks)
+	again, err := app.DecideRules(t.Context(), RulesRequest{Project: recipe, Reuse: first})
+	require.NoError(t, err)
+	assert.Same(t, &first.blocks[0], &again.blocks[0], "the same blocks, not read again")
+	assert.Equal(t, decisionFor(t, first, name.ID).Options, decisionFor(t, again, name.ID).Options)
+
+	// One more block in docs that writes the avoided form.
+	path := filepath.Join(root, "docs", "a.md")
+	body, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(path, append(body, []byte("\nSign In here too.\n")...), 0o600))
+	later := time.Now().Add(2 * time.Second)
+	require.NoError(t, os.Chtimes(path, later, later))
+
+	changed, err := app.DecideRules(t.Context(), RulesRequest{Project: recipe, Reuse: again})
+	require.NoError(t, err)
+	before := decisionFor(t, again, name.ID).Options[1]
+	after := decisionFor(t, changed, name.ID).Options[1]
+	require.Equal(t, "Sign In", after.Form)
+	assert.Equal(t, before.Blocks+1, after.Blocks, "the changed file is read again")
 }
 
 // TestDecideRuleRefusesAnUnknownAnswer: an answer other than keep, drop and

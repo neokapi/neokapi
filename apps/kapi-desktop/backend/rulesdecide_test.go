@@ -2,8 +2,10 @@ package backend
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -117,6 +119,53 @@ func TestRulesDecideView_KapiMart(t *testing.T) {
 	assert.Contains(t, typed, "If you keep \"QuickCast\": ")
 	_, err = app.RulesDecideConsequence(tabID, business.ID, "trade")
 	require.Error(t, err, "only a name takes a form of its own")
+}
+
+// TestRulesDecideView_CountsAgainWhenAFileChanges: the questions count over
+// the blocks the last read took while no file changes, and a file written
+// since is read again, so the counts and what keeping a typed form does follow
+// the files.
+func TestRulesDecideView_CountsAgainWhenAFileChanges(t *testing.T) {
+	app, recipe, tabID := openKapiMart(t)
+	engine := agentProcess(t, app)
+	name := agentSuggest(t, engine, recipe, "sess-1", "Kapi Mart", "KapiMart", "web/en/getting-started.md", "Welcome to the KapiMart Developer Platform!")
+
+	blocksOf := func(view *RulesDecideViewDTO, form string) int {
+		t.Helper()
+		for _, d := range view.Decisions {
+			if d.ID != name.ID {
+				continue
+			}
+			for _, o := range d.Options {
+				if o.Form == form {
+					return o.Blocks
+				}
+			}
+		}
+		t.Fatalf("no option %q on %s", form, name.ID)
+		return 0
+	}
+	first, err := app.RulesDecideView(tabID)
+	require.NoError(t, err)
+	again, err := app.RulesDecideView(tabID)
+	require.NoError(t, err)
+	assert.Equal(t, blocksOf(first, "Kapi Mart"), blocksOf(again, "Kapi Mart"))
+	typedBefore, err := app.RulesDecideConsequence(tabID, name.ID, "KapiMart")
+	require.NoError(t, err)
+
+	path := filepath.Join(filepath.Dir(recipe), "web", "en", "faq.md")
+	body, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(path, append(body, []byte("\n\nVisit Kapi Mart today.\n")...), 0o600))
+	later := time.Now().Add(2 * time.Second)
+	require.NoError(t, os.Chtimes(path, later, later))
+
+	changed, err := app.RulesDecideView(tabID)
+	require.NoError(t, err)
+	assert.Equal(t, blocksOf(again, "Kapi Mart")+1, blocksOf(changed, "Kapi Mart"), "the written file is read again")
+	typedAfter, err := app.RulesDecideConsequence(tabID, name.ID, "KapiMart")
+	require.NoError(t, err)
+	assert.NotEqual(t, typedBefore, typedAfter, "a typed form is counted over the new read")
 }
 
 // TestDecideRule_KeepRecordsWhatRulesKeepRecords: keeping a suggestion in
