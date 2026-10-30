@@ -287,6 +287,19 @@ func same(a, b Record) bool {
 	return false
 }
 
+// refiled reports a member that a later member of its group restates by the
+// same actor: an author who withdrew a suggestion and recorded it again as
+// it now stands. That withdrawal replaces the suggestion and says nothing
+// against the rule.
+func refiled(records []Record, members []int, i int) bool {
+	for _, j := range members {
+		if records[j].Seq > records[i].Seq && sameActor(records[j].Actor, records[i].Actor) {
+			return true
+		}
+	}
+	return false
+}
+
 // settleGroup settles one group of suggestions stating the same rule.
 func settleGroup(records []Record, f *settleFacts, group, dropped []int, rivals map[int][]string) {
 	first := records[group[0]]
@@ -325,7 +338,7 @@ func settleGroup(records []Record, f *settleFacts, group, dropped []int, rivals 
 	for _, i := range members {
 		a := records[i].Actor
 		sessions[string(a.Kind)+"\x00"+a.Name+"\x00"+a.Session] = true
-		if f.withdrawnBy[i] != "" {
+		if f.withdrawnBy[i] != "" && !refiled(records, members, i) {
 			against = append(against, f.withdrawnBy[i])
 		}
 	}
@@ -383,7 +396,11 @@ func settleGroup(records []Record, f *settleFacts, group, dropped []int, rivals 
 					standing.Merges = append(standing.Merges, mergeLabel(*sig.Signal))
 				}
 			case SignalUsage:
-				usage = append(usage, sig)
+				// A count made for wording its author has since restated
+				// counted other forms, so it is no base to compare with.
+				if !refiled(records, members, i) {
+					usage = append(usage, sig)
+				}
 			case SignalApplied:
 				standing.Applied++
 			}

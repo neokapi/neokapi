@@ -245,6 +245,10 @@ collections:
 	assert.NotEmpty(t, recorded, "project.Load reports the near-miss key, so the recipe exercises the hook")
 }
 
+// languageWork matches a line that names work in other languages, which a
+// person in a one-language project should never read.
+var languageWork = regexp.MustCompile(`(?i)translat|locale|bilingual|monolingual|target language|per-language|l10n|localiz`)
+
 // TestOneLanguageProject_NamesNoLanguageWork: a person in a one-language
 // project reads no word about other languages on the root help, on bare
 // `kapi`, or in `kapi status`.
@@ -253,7 +257,7 @@ func TestOneLanguageProject_NamesNoLanguageWork(t *testing.T) {
 	t.Setenv("KAPI_NO_PROJECT", "")
 	t.Setenv("KAPI_PROJECT", recipe)
 
-	banned := regexp.MustCompile(`(?i)translat|locale|bilingual|monolingual|target language|per-language|l10n|localiz`)
+	banned := languageWork
 	for _, tt := range []struct {
 		name string
 		args []string
@@ -295,7 +299,7 @@ func TestFreshOneLanguageProject_StatusNamesTheNextStep(t *testing.T) {
 	t.Setenv("KAPI_PROJECT", dir)
 
 	const line = "source      no content yet: add files with `kapi add <pattern>`"
-	banned := regexp.MustCompile(`(?i)translat|locale|bilingual|monolingual|target language|per-language|l10n|localiz`)
+	banned := languageWork
 	for _, tt := range []struct {
 		name string
 		args []string

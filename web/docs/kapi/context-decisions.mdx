@@ -2,7 +2,7 @@
 sidebar_position: 5
 title: Growing context
 description: "An assistant notes what the project's files do and what you change; each note arrives as a suggestion; you keep, drop or widen it with kapi context review, and reset goes back to an earlier state."
-keywords: [kapi, context, note, review, keep, drop, choose, widen, reset, suggestion, rule, contested, evidence, terms, content memory, agent, session]
+keywords: [kapi, context, note, suggest, review, keep, drop, choose, widen, reset, suggestion, rule, contested, evidence, terms, content memory, agent, session]
 ---
 
 # Growing context
@@ -15,6 +15,7 @@ decide about it when it suits you. A suggestion you keep becomes a **rule**.
 
 | Command | Does |
 | --- | --- |
+| `kapi context suggest` | file what kapi can see in the project's files as suggestions |
 | `kapi context review` | decide about what is waiting: keep, drop, choose a side, apply more widely |
 | `kapi context reset --before <when>` | go back to how the context stood at an earlier point |
 | `kapi context note` | record what you noticed, or what a person changed (an assistant runs this) |
@@ -62,6 +63,27 @@ that recorded it:
 ```bash
 kapi context note --withdraw 0n794e2gk7 --why "recorded the wrong way round"
 ```
+
+## What kapi sees in the files {#what-kapi-sees-in-the-files}
+
+`kapi context suggest` reads the files the recipe declares and files what it
+can see in them, with no AI model:
+
+| It sees | It suggests |
+| --- | --- |
+| one word written more than one way, such as `e-mail` and `email` | the form written most often, instead of the others |
+| three or more words a starter voice pack avoids, in a project that binds no voice | a note naming the pack and the words |
+| most blocks with a personal pronoun addressing the reader as you, and none saying we | a note that the files address the reader as you |
+
+```bash
+kapi context suggest             # file the suggestions
+kapi context suggest --dry-run   # print them and record nothing
+```
+
+Each suggestion is noticed by kapi, with the counts and a quote from the
+files, and waits for you in review like an assistant's note. You decide about
+each one. Running the command again files nothing new, and a suggestion you
+dropped stays dropped.
 
 ## A suggestion never stops your work
 

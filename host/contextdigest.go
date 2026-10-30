@@ -1108,7 +1108,10 @@ func actorPhrase(a contextop.Actor, possessive bool) string {
 		}
 		return name
 	}
-	name := "kapi " + a.Name
+	name := "kapi"
+	if a.Name != "" && a.Name != SuggestActor.Name {
+		name += " " + a.Name
+	}
 	if possessive {
 		return name + "'s"
 	}
