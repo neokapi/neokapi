@@ -83,7 +83,7 @@ object at the top level of its gate output, once for every gate it ran.
 
 Field-by-field, the Report is documented in [Checks](/framework/checks); the flags in the [`check` reference](/reference/commands/check).
 
-**Exit codes are the gate:** `0` pass, `3` at least one finding fails, `4` did not run, `1` operational error, so `kapi check` drops straight into CI. A check did not run when it examined no content, or when one of its checks reported nothing on the known-bad sample it is given beside your content. It never exits `0`. Whether a finding fails is set by the rule that raised it: an established term or voice rule fails unless it is marked `advisory: true`, and a suggested rule or a style measure reports (see [What fails](/framework/checks#what-fails)). The score is reported and never decides the exit code. `--no-fail` exits `0` when a finding fails, for report-only sweeps, and never turns a check that did not run into a pass.
+**Exit codes are the gate:** `0` pass, `3` at least one finding fails, `4` did not run, `1` operational error, so `kapi check` drops straight into CI. A check did not run when it examined no content, or when one of its checks reported nothing on the known-bad sample it is given beside your content. It never exits `0`. Whether a finding fails is set by the rule that raised it: an established term fails unless it is marked `advisory: true`, a voice pattern or a style measure fails only when it is marked `fails: true`, and a suggested rule reports (see [What fails](/framework/checks#what-fails)). The score is reported and never decides the exit code. `--no-fail` exits `0` when a finding fails, for report-only sweeps, and never turns a check that did not run into a pass.
 
 **Check only what changed:** `kapi check --diff-against HEAD` checks the content blocks your edits touched, each block whole, `--staged` checks what the next commit records, `--diff-range` checks the change between two commits, and `--diff-file` takes a diff you already have. See [Check changes in git](#check-changes-in-git). `--validate report|strict` folds reader structure/encoding findings into the same Report.
 
@@ -523,8 +523,8 @@ style:
       scope: prose
 ```
 
-Each pattern fails a check where it matches. Add `advisory: true` to a pattern
-to have it report instead.
+Each pattern reports where it matches. Add `fails: true` to a pattern to make a
+match fail the check.
 
 `not_after` keeps "is used to" and "an id, used to flag" out of the rule, which
 a regular expression alone cannot say.

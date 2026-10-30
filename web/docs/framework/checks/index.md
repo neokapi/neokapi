@@ -326,10 +326,13 @@ downstream gate.
 
 A finding's `fails` field is determined by the rule and its status:
 
-- An established rule fails: a forbidden or competitor term in the terms store,
-  a term rule, a voice profile's prohibited or required pattern. A rule marked
-  `advisory: true`, or a terms-store concept marked advisory, reports instead. A
-  retired term in the terms store reports.
+- An established word rule fails: a forbidden or competitor term in the terms
+  store, or a term rule. A rule marked `advisory: true`, or a terms-store
+  concept marked advisory, reports instead. A retired term in the terms store
+  reports.
+- A voice profile's prohibited or required pattern reports, and so does its
+  rate ceiling. A pattern marked `fails: true` fails, unless it is also marked
+  `advisory: true`.
 - A suggested rule, one recorded by `kapi context note` and not yet kept,
   reports and never fails. Its finding carries `suggested: true`
   and reads `Suggested rule about "X", not yet established`.

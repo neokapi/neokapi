@@ -67,6 +67,8 @@ only report. A rule whose `replacement` is a capitalised product name
 lower-case slug is left alone; set `case_sensitive` to override. Phrasing to
 avoid that is a pattern rather than a term (`!{2,}`, a sentence opening with
 "Just") goes under `style.prohibited_patterns` as a regex with a message. A
+pattern only reports until a person marks it `fails: true`; leave that choice to
+the person. A
 profile written with a `vocabulary:` list (`forbidden_terms`, `competitor_terms`,
 `preferred_terms`) still loads; import converts it into terms and says so.
 

@@ -46,8 +46,9 @@ within the requested scope and re-check.
 
 Each finding has `fails`. The check fails (exit 3) when at least one finding
 fails; `summary.failing` counts them. Fix every failing finding. A finding with
-`fails: false` reports: an advisory rule, a style measure such as a comment
-limit, or `suggested: true` for a rule nobody has confirmed yet. Weigh those
+`fails: false` reports: an advisory rule, a voice pattern or style measure
+nobody has marked `fails: true`, or `suggested: true` for a rule nobody has
+confirmed yet. Weigh those
 and fix what the context supports. The `score` is reported and decides nothing.
 For the failing findings that carry a `fix`, run `kapi fix --json` on the same
 files: it applies each replacement through the change service and lists the

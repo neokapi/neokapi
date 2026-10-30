@@ -17,7 +17,7 @@ import (
 // inline code span is out of its reach in both, and plain prose is not.
 func TestVoicePatternRulesSkipInlineCodeInBothCommands(t *testing.T) {
 	const voice = "id: v\nname: V\nstyle:\n  prohibited_patterns:\n" +
-		"    - regex: '(?i)\\brule\\s+prefer'\n      scope: prose\n      description: anthropomorphism\n"
+		"    - regex: '(?i)\\brule\\s+prefer'\n      scope: prose\n      description: anthropomorphism\n      fails: true\n"
 
 	tests := []struct {
 		name     string
@@ -71,7 +71,7 @@ func TestVoicePatternRulesSkipInlineCodeInBothCommands(t *testing.T) {
 // run as code, as it reads a Markdown code span.
 func TestVoicePatternRulesSkipBacktickCodeInGoComments(t *testing.T) {
 	const voice = "id: v\nname: V\nstyle:\n  prohibited_patterns:\n" +
-		"    - regex: '(?i)\\brule\\s+prefer'\n      scope: prose\n      description: anthropomorphism\n"
+		"    - regex: '(?i)\\brule\\s+prefer'\n      scope: prose\n      description: anthropomorphism\n      fails: true\n"
 
 	tests := []struct {
 		name    string
