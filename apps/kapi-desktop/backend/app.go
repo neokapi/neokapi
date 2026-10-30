@@ -276,6 +276,12 @@ type openProject struct {
 	storeReadAt time.Time
 	lastCheck   *mapCheckTally
 
+	// The questions Decide last read (rulesdecide.go), with the blocks they
+	// were counted over, so what keeping a typed form does is stated without
+	// reading the project's files again. decideMu guards it.
+	decideMu   sync.Mutex
+	decideView *host.RulesDecideView
+
 	// unsaved marks a tab over a folder that holds no kapi.yaml. Its Project
 	// is the recipe `kapi init` would write there, held in memory, and draft
 	// is that recipe as the bytes ensureRecipe writes. recipeMu serializes the
