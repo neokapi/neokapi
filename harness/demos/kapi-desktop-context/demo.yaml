@@ -17,7 +17,7 @@ aspects:
 
 # keep, change, choose and assistant carry no crop: the walk crops each to
 # what it marks during the beat (beatSpan in record-desktop.ts): the row acted
-# on in What's new's list, the field or the sides in its detail pane, and the
+# on in Decide's list, the field or the sides in its detail pane, and the
 # rule it became; or the file picker and the kept rule's line.
 #
 # The sample arrives with two assistant sessions (claude-code, then codex),
@@ -25,7 +25,7 @@ aspects:
 # it off camera, reviews it on camera, and records one more note as
 # claude-code from a shell while the home is on screen.
 outro:
-  line: Open What's new and press a on the first thing that is right.
+  line: Open Decide and press a on the first thing that is right.
   pointer: kapi context review
 
 narration:
@@ -51,7 +51,7 @@ narration:
     caption: The disagreement comes first.
     crop: { selector: ['[data-slot="list-detail-list"]', '[data-slot="list-detail-toolbar"]', '[data-slot="digest-conflict-sides"]'] }
     text: >-
-      Decide opens the project on What's new, with the disagreement first.
+      The Decide button opens the project's suggestions, with the disagreement first.
       codex says log in, claude-code says sign in, and each side quotes the
       sentence it was seen in.
 

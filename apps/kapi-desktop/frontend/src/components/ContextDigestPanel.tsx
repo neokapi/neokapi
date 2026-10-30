@@ -27,6 +27,8 @@ export interface ContextDigestPanelProps {
   tabID: string;
   /** Decisions can be written: the tab holds a checkout. */
   canDecide?: boolean;
+  /** The row to open on, by its key in the list (`suggested:<id>`, …). */
+  defaultSelected?: string;
   /** Open the explorer at a file the digest names. */
   onOpenFile?: (path: string) => void;
   /** Open the project's Assistant section, from the empty digest. */
@@ -36,6 +38,7 @@ export interface ContextDigestPanelProps {
 export function ContextDigestPanel({
   tabID,
   canDecide = true,
+  defaultSelected,
   onOpenFile,
   onConnectAssistant,
 }: ContextDigestPanelProps) {
@@ -109,6 +112,7 @@ export function ContextDigestPanel({
         error={query.error}
         since={since}
         canDecide={canDecide}
+        defaultSelected={defaultSelected}
         onKeep={async (item, replacement) => {
           await keep.mutateAsync({ item, replacement });
         }}

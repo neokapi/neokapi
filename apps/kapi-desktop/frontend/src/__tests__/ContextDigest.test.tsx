@@ -39,7 +39,7 @@ const row = (id: string) =>
 const toolbar = () => slot("list-detail-toolbar")!;
 const key = (k: string) => fireEvent.keyDown(window, { key: k });
 
-describe("What's new as a list", () => {
+describe("Decide as a list", () => {
   it("groups the rows as Needs you, Suggested, Established, Earlier and Drift, with counts", () => {
     renderDigest(CONTEXT_DIGEST);
     const groups = all("list-detail-group").map((g) => g.textContent?.trim());

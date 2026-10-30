@@ -19,13 +19,15 @@ every project this machine account has run kapi in, whichever surface ran it
 ([C-03](../context/c-03-context-store-and-graph.md)), and the rules that hold
 in all of them. The record of what people and agents have recorded about their
 context ([C-11](../context/c-11-context-operations.md)) is a History view of
-its own. Projects open from there as tabs, several at a time, on a Context hub
-that opens on the digest of what kapi learned about how the project writes,
-beside the graph explorer, what an assistant working in the project reads, the
-voice profile, the terms, the content memory, the project's history and where
-its context is shared. Each tab also carries a project section with what the
-project stands at and a map of its coordinate points, a checks panel, a review
-queue, governance editing on the recipe, a runner that brings the project up to
+its own. Projects open from there as tabs, several at a time, on a **Map**:
+the project's content files, the counts of its files, blocks, rules and
+findings, and the suggestions awaiting a person. Beside it, a Context hub
+opens on **Decide**, the digest of what kapi learned about how the project
+writes, beside the graph explorer, what an assistant working in the project
+reads, the voice profile, the terms, the content memory, the project's history
+and where its context is shared. Each tab also carries a project section with
+what the project stands at and a map of its coordinate points, a checks panel
+the Map's findings count opens, a review queue, governance editing on the recipe, a runner that brings the project up to
 date through the same venue the CLI uses, a tool reference, and an OS-keychain
 credential vault. It depends on the framework and `host` only. It
 links neither Cobra nor the `cli` module, and no package from the platform
@@ -192,7 +194,7 @@ newest session first. A row is the latest session's actor as an `ActorMark`,
 the project and how long ago, one chip per digest theme the session noticed
 ("3 names", "1 word") and a warning chip for the conflicts, then one button,
 Decide while there is a conflict and Review otherwise, which opens the
-project's tab on What's new. A working session adds a chip with a live dot.
+project's tab on Decide. A working session adds a chip with a live dot.
 
 Each project row is one line of aligned columns: the voice profile governing
 the project's default point, the rules in force, an icon and one word for where
@@ -246,10 +248,39 @@ changes, triggering a frontend refetch. Reopening an unchanged registration
 leaves the revision unchanged. This requires one indexed query per second and
 avoids interpreting filesystem events from SQLite database and WAL files.
 
+### The Map
+
+Every project tab opens on its **Map**, and a persisted view opens where it
+was. The project rail lists, in order, Map, Context, Project, Review (only
+while the project declares target languages), Toolbox and Project Settings;
+the checks panel has no entry of its own. A project waiting to be set up, an
+empty folder or one matching a preset, opens on the Map too, and the Map's
+empty files list leads to the project section, where the setup and the preset
+are offered. The Map is an overview in the page patterns guide's sense, and it renders from one bound call,
+`MapSummary`, which answers from what the app already holds and reads no file
+the store sync has not read:
+
+| Region | What it shows | Read from |
+| --- | --- | --- |
+| Header | the project's name; when the store sync last found the block cache current with the files on disk ("Read 2 minutes ago"), naming how many files the cache holds only when that differs from the files count; **Run on everything**; **Decide** with the count of conflicts and suggestions awaiting a person | the time `SyncProjectStore` records on the tab, the block cache |
+| Counts | **files** (the recipe's resolved content files), **blocks** (the cache's translatable blocks for them, as `GetProjectStatus` counts them), **rules** (the concepts in the bound terms store, the word and pattern rules of the voice profile at the project's own point, and the notes a person kept) and **findings** (the last checks run over every file), the only one in the warning ink and only above zero. Blocks open Ask, rules open Explore, and findings open the checks panel. **kapi suggests** beside them shows only when conflicts make its number differ from Decide's | the block cache, the terms and voice stores, the operation log, the tab's last whole-project `RunChecks` |
+| What your files do | one row for each conflict and each suggestion the digest holds: its kind as a `KindIcon`, the rule, the quotation, and the distinct blocks and files its evidence names. **Decide** opens the Decide section selecting that row (`conflict:<id>` or `suggested:<id>`) | `host.App.ContextDigest`, and the operation log for the evidence |
+| What your files do, empty | "No suggestions yet." and **Connect an assistant**, which opens the Assistant section | |
+| Files | one row per content file: format, name (the folder on the meta line), blocks, findings when above zero, and **Open**, which previews the file. Most findings first, then by path. An empty list offers **Add files**, or **Set up the project** while the project waits to be set up | the resolved content, the block cache, the last checks run |
+
+The checks run behind the findings count is `RunChecks` over every file in
+the recipe's target languages, the same run the checks panel makes. A run that
+narrows the files leaves the Map's counts as they were. The tab keeps the last
+run over every file and every target language in memory; a narrower run, from
+the checks panel under the menu-bar filter, does not replace it. The Map runs
+one itself the first time it opens a tab that has none in this session, and
+**Run on everything** runs it again. The findings count opens the checks panel
+on that run (`LastProjectChecks`), so the count and the panel agree until the
+person runs the panel's own checks.
+
 ### The project home and the point map
 
-A project tab opens on its Context hub (below), and a persisted view opens
-where it was. The **Project** section shows the project's **standing**, in the two-axis shape
+The **Project** section shows the project's **standing**, in the two-axis shape
 `kapi status` prints: content on one row, governance on the other, and the
 venue and stream on the identity line. Below it, the point map lists every
 coordinate point the recipe declares ([C-02](../context/c-02-coordinates-and-governance.md)),
@@ -303,7 +334,7 @@ The stores are sections of one hub, beside the graph, in this order:
 
 | Section (id) | What it shows | Answered by |
 | --- | --- | --- |
-| **What's new** (`rules`) | the digest of the rules and suggestions kept for the project, newest since the person last looked first ([below](#the-digest)), where a person reviews them | `ProjectContextDigest`, over `host.App.ContextDigest` |
+| **Decide** (`rules`) | the digest of the rules and suggestions kept for the project, newest since the person last looked first ([below](#the-digest)), where a person reviews them | `ProjectContextDigest`, over `host.App.ContextDigest` |
 | **Explore** (`atlas`) | the project's context on its axes and over time, through `@neokapi/context-atlas` ([below](#exploring-the-context)) | `ProjectContextAtlas`, over `host.App.ContextAtlas` |
 | **Ask** (`explorer`) | the context graph by file and by word, through `@neokapi/context-explorer`; the governs pane renders the same guide the retrieval surface serves ([C-06](../context/c-06-retrieval.md)) | `ContextAt`, `ContextGoverns`, `ContextLives`, `ContextRelates`, `ContextSearch` |
 | **Assistant** (`agent`) | what an assistant working in the project reads: the connected assistants, the rules files, and the brief for one file ([below](#connecting-an-assistant)). The brief is the resolved context for one file as an agent receives it: `AgentContextAt` calls the desktop's `ContextAt` and renders the answer's own `FormatText`, so the body on screen is the `context://` resource body rather than a second rendering of it | `AgentHosts`, `ConnectAgentHost`, `RulesFiles`, `WriteRulesFiles`, `AgentContextAt` |
@@ -313,9 +344,9 @@ The stores are sections of one hub, beside the graph, in this order:
 | **History** (`history`) | the project's feed ([below](#the-feed-of-recorded-context-operations)), with a reset to before each session | `ContextFeed` with the project key, `ContextResetScope`, `ResetContext` |
 | **Share** (`share`) | how far the project's context reaches, as three rungs ([below](#sharing-and-the-ladder-of-reach)) | `ProjectSharing`, `SetProjectSharing`, `SyncProjectContext` |
 
-Each id is routable, so a persisted view and a link from the home land on its
-section. Each section carries a caption naming the command that does the same
-on the command line: `kapi context review`, `kapi context atlas`, `kapi context
+Each id is routable, so a persisted view and a link from the home or the Map
+land on its section. Each section names the command that does the same on the
+command line, as a chip at the right of the section bar: `kapi context review`, `kapi context atlas`, `kapi context
 log`, `kapi context sync`, `kapi init`.
 
 The voice section resolves every point the recipe declares twice: as declared,
@@ -389,7 +420,7 @@ The app is meant to sit open beside an agent that is working. The agent runs in
 another process, through the CLI or its MCP server, and records what it learns
 as context operations in this machine account's workspace log
 ([C-11](../context/c-11-context-operations.md)). The desktop reads that log and
-shows it in three places: as each project's digest in its What's new, as the
+shows it in three places: as each project's digest in its Decide section, as the
 project's History, and as the workspace-wide History view the home links to,
 which is the same feed read with no project key.
 
@@ -443,9 +474,10 @@ count of work waiting.
 
 ### The digest
 
-A project's Context hub opens on **What's new**, the digest of the rules and
-suggestions kept for the project, under the heading "What's new for" and the
-project's name. Review there is discovery, never a gate: a
+A project's Context hub opens on **Decide**, the digest of the rules and
+suggestions kept for the project, under the heading "Decide". The Map opens it
+too, selecting the row a person chose there. Review there is discovery, never a
+gate: a
 suggestion advises agents and checks from the moment it is recorded, and one
 nobody answers keeps advising, so the digest reads as news and carries no count
 of unread work. `host.App.ContextDigest` assembles it from the operation log,

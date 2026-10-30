@@ -263,6 +263,13 @@ type openProject struct {
 	// polling surface (the home hero) doesn't spam ERR lines while the tab's
 	// directory is moved (e.g. mid sample reset). Reset when the file is back.
 	missingWarned atomic.Bool
+
+	// What the Map shows from this session's own reads (mapsummary.go): when
+	// the store sync last found the block cache current, and the counts of
+	// the last checks run over the whole project. mapMu guards both.
+	mapMu       sync.Mutex
+	storeReadAt time.Time
+	lastCheck   *mapCheckTally
 }
 
 // GetProjectMemoryHandle returns the auto-opened content-memory handle for a

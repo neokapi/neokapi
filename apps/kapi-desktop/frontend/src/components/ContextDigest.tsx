@@ -1,4 +1,4 @@
-// What's new for a project: the rules and suggestions kapi holds for it, as a
+// Decide for a project: the rules and suggestions kapi holds for it, as a
 // list and a detail pane.
 //
 // The list is one line per item in five groups: Needs you (each
@@ -288,7 +288,7 @@ export function ContextDigestView({
         list={
           <>
             <DigestCaption digest={digest} since={since} />
-            <ListDetailList selectedId={selectedKey} onSelect={select} aria-label={t("What's new")}>
+            <ListDetailList selectedId={selectedKey} onSelect={select} aria-label={t("Decide")}>
               {inGroup("conflict").length > 0 && (
                 <ListDetailGroup
                   data-slot="digest-conflicts"

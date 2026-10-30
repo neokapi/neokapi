@@ -31,11 +31,11 @@ describe("where a project tab lands", () => {
   beforeEach(() => stubBackend());
   afterEach(() => vi.restoreAllMocks());
 
-  it("opens a project on its Context hub", async () => {
+  it("opens a project on its Map", async () => {
     const { result } = renderHook(() => useTabManager(), { wrapper });
     await act(() => result.current.openRecent(TAB.path));
-    await waitFor(() => expect(result.current.activeTab?.view).toBe("context"));
-    expect(result.current.effectiveView).toBe("context");
+    await waitFor(() => expect(result.current.activeTab?.view).toBe("map"));
+    expect(result.current.effectiveView).toBe("map");
   });
 
   it("opens a project on the view a caller names", async () => {
@@ -62,9 +62,7 @@ describe("where a project tab lands", () => {
     expect(result.current.effectiveView).toBe("context:agent");
   });
 
-  it("sends a project that must be set up first to the page that sets it up", () => {
-    expect(landingView(true)).toBe("project-home");
-    expect(landingView(false, "i18next")).toBe("project-home");
-    expect(landingView(false)).toBe("context");
+  it("lands every project on its Map, one waiting to be set up too", () => {
+    expect(landingView()).toBe("map");
   });
 });

@@ -3,6 +3,7 @@ package backend
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/neokapi/neokapi/core/project"
 )
@@ -62,6 +63,7 @@ func (a *App) SyncProjectStore(tabID string) (*StoreSyncResult, error) {
 	}
 	ctx := context.Background()
 	if !db.DetectStoreDrift(ctx, resolved).Any() {
+		op.recordStoreRead(time.Now())
 		return &StoreSyncResult{}, nil
 	}
 
@@ -70,6 +72,7 @@ func (a *App) SyncProjectStore(tabID string) (*StoreSyncResult, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read the project's files: %w", err)
 	}
+	op.recordStoreRead(time.Now())
 	out := &StoreSyncResult{Extracted: true, Files: stats.Files, Blocks: stats.Blocks}
 	for _, s := range stats.Skipped {
 		out.Skipped = append(out.Skipped, ExtractSkip{Path: s.Path, Reason: s.Reason})

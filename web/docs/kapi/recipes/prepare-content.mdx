@@ -19,7 +19,7 @@ import TabItem from "@theme/TabItem";
 
 1. **See what goes out.** Open a file from a content collection: the **Blocks** view is exactly the text a translation run works on; everything else is structure the round-trip preserves. Only blocks are translated.
 2. **Protect and reuse.** Under **Toolbox → Flows**, put `redact` and `recycle` steps ahead of `translate` in the project's flow: sensitive spans become placeholders before any provider is called, and memory matches fill first, so a run pays only for what's new.
-3. **Hold every language to the bar.** Bind the voice profile in **Project Settings** and commit the term list the recipe binds (`kapi terms import` writes it; **Context → Terms** shows it); the **Checks** view then reports terminology and quality findings per block, and a locale doesn't reach its ship gate past a failing check.
+3. **Hold every language to the bar.** Bind the voice profile in **Project Settings** and commit the term list the recipe binds (`kapi terms import` writes it; **Context → Terms** shows it); the **findings** count on the project's **Map** then opens terminology and quality findings per block, and a locale doesn't reach its ship gate past a failing check.
 
 </TabItem>
 <TabItem value="agent" label="Agent (Claude)">

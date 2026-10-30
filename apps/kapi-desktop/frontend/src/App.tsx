@@ -66,7 +66,7 @@ function AppInner() {
   } = useAppInit();
   const tm = useTabManager();
 
-  // What's new on the home opens a project on its own What's new: from a
+  // What's new on the home opens a project on its Decide section: from a
   // checkout on this machine when there is one, on its context alone when not.
   const openWhatsNew = useCallback(
     (key: string) => {

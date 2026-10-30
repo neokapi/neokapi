@@ -30,9 +30,9 @@ narration:
     beat: open-project
     caption: Four collections, and nothing read yet.
     text: >-
-      The sample opens on its standing: four collections, every coverage column
-      empty, and a panel saying in as many words that nothing has been
-      extracted.
+      The sample opens on its Map, and the project section beside it shows the
+      standing: four collections, every coverage column empty, and a panel
+      saying in as many words that nothing has been extracted.
 
   - id: extract
     kind: desktop

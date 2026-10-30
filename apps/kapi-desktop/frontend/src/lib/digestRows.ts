@@ -1,4 +1,4 @@
-// The rows of a project's digest in the order What's new lists them, and where
+// The rows of a project's digest in the order Decide lists them, and where
 // the selection goes as a person works down the list.
 //
 // The list has five groups: Needs you (one row per disagreement), Suggested

@@ -120,9 +120,9 @@ describe("the monolingual home", () => {
     render(<IconSidebar mode="projects" active="home" onChange={vi.fn()} />);
     expect(screen.queryByRole("button", { name: "Review" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Content Memory" })).not.toBeInTheDocument();
-    // Context, Checks and the rest are fully present.
+    // The Map, Context and the rest are fully present.
+    expect(screen.getByRole("button", { name: "Map" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Context" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Checks" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Toolbox" })).toBeInTheDocument();
   });
 

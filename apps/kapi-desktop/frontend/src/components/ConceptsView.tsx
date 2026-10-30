@@ -133,7 +133,7 @@ export function ConceptsView({
         <EmptyState
           icon={<BookOpen size={20} />}
           title="No terms yet"
-          description="The words this project has agreed appear here: a term you keep in What's new, or one imported with kapi terms import."
+          description="The words this project has agreed appear here: a term you keep in Decide, or one imported with kapi terms import."
         />
       </div>
     );

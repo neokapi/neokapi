@@ -252,6 +252,23 @@ export function ChecksPanel({
     if (propResult) setResult(propResult);
   }, [propResult]);
 
+  // The panel opens on the last run over every file and target language, the
+  // run the Map's findings count is read from, so the count and the panel
+  // agree. Running the checks here replaces it.
+  useEffect(() => {
+    if (propResult) return;
+    let cancelled = false;
+    api
+      .lastProjectChecks(tabID)
+      .then((last) => {
+        if (!cancelled && last) setResult((current) => current ?? last);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [tabID, propResult]);
+
   // Checks are scoped by the project's Active Filter (collections + glob of
   // files, and its target languages). There is no per-panel language picker —
   // pick which languages to check via the menu-bar filter. No languages → only

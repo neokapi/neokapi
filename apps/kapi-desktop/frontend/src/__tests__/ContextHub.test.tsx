@@ -92,20 +92,17 @@ const railLabels = () =>
   ).map((b) => b.textContent);
 
 describe("ContextHub", () => {
-  it("opens on What's new for the project", () => {
+  it("opens on Decide", () => {
     render(<ContextHub tabID="t1" projectName="Northsea" />);
     expect(screen.getByText("digest for t1")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "What's new for Northsea" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "What's new" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
+    expect(screen.getByRole("heading", { name: "Decide" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Decide" })).toHaveAttribute("aria-current", "page");
   });
 
   it("names the sections in the order a person meets them", () => {
     render(<ContextHub tabID="t1" projectName="Northsea" hasTargetLanguages />);
     expect(railLabels()).toEqual([
-      "What's new",
+      "Decide",
       "Explore",
       "Ask",
       "Assistant",
@@ -120,7 +117,7 @@ describe("ContextHub", () => {
   it("keeps what a tab with no checkout can read, and drops what reads files", async () => {
     render(<ContextHub tabID="t1" projectName="Northsea" contextOnly />);
     expect(railLabels()).toEqual([
-      "What's new",
+      "Decide",
       "Explore",
       "Assistant",
       "Terms",
@@ -171,10 +168,10 @@ describe("ContextHub", () => {
     vi.restoreAllMocks();
   });
 
-  it("carries no caption under the What's new and History titles", async () => {
+  it("carries no caption under the Decide and History titles", async () => {
     vi.spyOn(api, "projectContextDigest").mockResolvedValue(CONTEXT_DIGEST);
     render(<ContextHub tabID="t1" projectName="Northsea" />);
-    const title = screen.getByRole("heading", { name: "What's new for Northsea" });
+    const title = screen.getByRole("heading", { name: "Decide" });
     expect(title.parentElement?.querySelector("p")).toBeNull();
     expect(document.body.textContent).not.toContain("The same as");
     await userEvent.click(screen.getByRole("button", { name: "History" }));

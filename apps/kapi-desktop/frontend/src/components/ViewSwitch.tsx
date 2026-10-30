@@ -11,7 +11,8 @@ import { ToolboxPage } from "./ToolboxPage";
 import { TermsPage } from "./TermsPage";
 import { MemoriesPage } from "./MemoriesPage";
 import { ChecksPanel } from "./ChecksPanel";
-import { ContextHub, contextSectionOf, type ContextPin } from "./ContextHub";
+import { MapPage } from "./MapPage";
+import { ContextHub, contextSectionOf, decideRowOf, type ContextPin } from "./ContextHub";
 import { HistoryView } from "./HistoryView";
 import { ReviewPage, type ReviewScope } from "./ReviewPage";
 import { FormatsPage } from "./FormatsPage";
@@ -76,7 +77,7 @@ interface ViewSwitchProps {
   hasOpenProject: boolean;
   /** Open the most recent project tab on its Assistant section. */
   onConnectAssistant: () => void;
-  /** Open a project on its What's new, by workspace key. */
+  /** Open a project on its Decide section, by workspace key. */
   onOpenWhatsNew: (key: string) => void;
   /** Open a project from one of its checkouts, by recipe path. */
   onOpenCheckout: (recipe: string) => void;
@@ -160,6 +161,17 @@ export function ViewSwitch({
       contextEntry.current += 1;
       setContextPin(pin ?? null);
       navigate("context");
+    },
+    [navigate],
+  );
+  // The Map's Decide opens the hub's Decide section. A suggestion's own Decide
+  // names its row in the view ("context:rules:<row key>"), so the row travels
+  // with the route and a later visit from the rail opens on no row of its own.
+  const handleDecide = useCallback(
+    (rowKey?: string) => {
+      contextEntry.current += 1;
+      setContextPin(null);
+      navigate(rowKey ? `context:rules:${rowKey}` : "context:rules");
     },
     [navigate],
   );
@@ -304,6 +316,17 @@ export function ViewSwitch({
   // successful install remounts the view.
   const projectView = ((): ReactNode => {
     switch (route) {
+      case "map":
+        return (
+          <MapPage
+            tabID={tabID}
+            projectName={activeTab.info.name || history.project.name}
+            onDecide={handleDecide}
+            onNavigate={navigate}
+            setupPending={!!activeTab.isEmpty || !!activeTab.detectedPreset}
+          />
+        );
+
       // `content` folds into the merged project home (issue #1068). Kept as an
       // alias so existing onNavigate("content") calls and saved deep links still
       // resolve to the collection-centric surface.
@@ -415,6 +438,7 @@ export function ViewSwitch({
             projectName={history.project.name}
             section={hubSection}
             pin={contextPin ?? undefined}
+            decideRow={decideRowOf(effectiveView)}
             hasTargetLanguages={(history.project.defaults?.target_languages?.length ?? 0) > 0}
             contextOnly={activeTab.info.context_only}
           />
