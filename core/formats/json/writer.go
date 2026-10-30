@@ -218,6 +218,7 @@ func (w *Writer) fallbackChildText(parts []*model.Part) string {
 // This produces byte-exact output — only translated text differs from the original.
 func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[string]*model.Block, childLayerValues map[string]string) error {
 	var asRead valueAsRead
+	var spelling valueSpelling
 	for {
 		entry, err := store.Next()
 		if errors.Is(err, io.EOF) {
@@ -233,6 +234,7 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 			}
 		case format.SkeletonOriginal:
 			asRead.set(entry.Data)
+			spelling.observe(asRead.raw)
 		case format.SkeletonRef:
 			read := asRead.take()
 			refID := string(entry.Data)
@@ -241,22 +243,17 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 			if strings.HasPrefix(refID, "layer:") {
 				layerPath := refID[6:]
 				text = childLayerValues[layerPath]
+				read = valueAsRead{}
 			} else if block, ok := blocks[refID]; ok {
 				text = w.blockText(block)
-				if raw, ok := read.replay(text); ok {
-					if _, err := w.Output.Write(raw); err != nil {
-						return err
-					}
-					continue
-				}
+				read.target = w.writesTarget(block)
 				// JSON5 single-quoted source values round-trip with
 				// the same delimiter (set by the reader on the block).
 				if block.Properties["json.quote"] == "'" {
 					quote = '\''
 				}
 			}
-			encoded := escapeJSONStringQuoted(text, w.cfg.EscapeForwardSlashes, quote)
-			if _, err := io.WriteString(w.Output, encoded); err != nil {
+			if _, err := w.Output.Write(w.writeValue(read, text, quote, spelling)); err != nil {
 				return err
 			}
 		}
@@ -269,6 +266,10 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 type valueAsRead struct {
 	text, raw []byte
 	ok        bool
+	// target is set when the writer writes the block's translation in place
+	// of the value, which writeValue encodes whole rather than patching the
+	// source's bytes.
+	target bool
 }
 
 func (v *valueAsRead) set(payload []byte) {
@@ -376,6 +377,7 @@ func (w *Writer) streamWrite(ctx context.Context, parts <-chan *model.Part) erro
 	pendingBlocks := make(map[string]*model.Block) // arrived before their ref
 	pendingLayers := make(map[string]string)       // rendered before their ref
 	var asRead valueAsRead
+	var spelling valueSpelling
 
 	// blockFor returns the block with id, pulling items until it appears. The
 	// reader emits a ref's block right after the ref, so this usually receives
@@ -436,6 +438,7 @@ func (w *Writer) streamWrite(ctx context.Context, parts <-chan *model.Part) erro
 			}
 		case format.SkeletonOriginal:
 			asRead.set(entry.Data)
+			spelling.observe(asRead.raw)
 		case format.SkeletonRef:
 			read := asRead.take()
 			refID := string(entry.Data)
@@ -443,22 +446,17 @@ func (w *Writer) streamWrite(ctx context.Context, parts <-chan *model.Part) erro
 			quote := byte('"')
 			if layerPath, isLayer := strings.CutPrefix(refID, "layer:"); isLayer {
 				text = layerFor(layerPath)
+				read = valueAsRead{}
 			} else if block := blockFor(refID); block != nil {
 				text = w.blockText(block)
-				if raw, ok := read.replay(text); ok {
-					if _, err := w.Output.Write(raw); err != nil {
-						return err
-					}
-					continue
-				}
+				read.target = w.writesTarget(block)
 				// JSON5 single-quoted source values round-trip with
 				// the same delimiter (set by the reader on the block).
 				if block.Properties["json.quote"] == "'" {
 					quote = '\''
 				}
 			}
-			encoded := escapeJSONStringQuoted(text, w.cfg.EscapeForwardSlashes, quote)
-			if _, err := io.WriteString(w.Output, encoded); err != nil {
+			if _, err := w.Output.Write(w.writeValue(read, text, quote, spelling)); err != nil {
 				return err
 			}
 		}
@@ -719,10 +717,16 @@ func (w *Writer) writeIndent(buf *strings.Builder, level int) {
 // something that matches nothing. The extraction rule was already right and the
 // blocks were already marked correctly; nothing asked them on the way out.
 func (w *Writer) blockText(block *model.Block) string {
-	if !w.Locale.IsEmpty() && block.Translatable && block.HasTarget(w.Locale) {
+	if w.writesTarget(block) {
 		return block.TargetText(w.Locale)
 	}
 	return block.SourceText()
+}
+
+// writesTarget reports whether the writer writes block's translation rather
+// than its source.
+func (w *Writer) writesTarget(block *model.Block) bool {
+	return !w.Locale.IsEmpty() && block.Translatable && block.HasTarget(w.Locale)
 }
 
 // orderedMap preserves key insertion order.
