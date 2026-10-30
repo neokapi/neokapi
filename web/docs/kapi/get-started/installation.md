@@ -100,8 +100,8 @@ it as the default, shared with Kapi Desktop. Usually that's one confirm, not a
 key paste. To store a key explicitly (or in CI, where a key is the right
 choice), use `kapi credentials add <name> --provider <p> --api-key …`. Keys
 live in your OS keychain. See [Use with Claude](/kapi/get-started/use-with-claude)
-for the subscription option and the
-[Quick Start](/kapi/get-started/quickstart) for what to run next.
+for the subscription option and
+[Your first project](/kapi/get-started/first-project) for what to run next.
 
 ## Install Kapi Desktop
 

@@ -23,13 +23,14 @@ function HomepageHeader() {
           />
           <Heading as="h1" className={clsx("hero__title", styles.heroTitle)}>
             <Translate id="home.hero.title">
-              The open content engine for people and AI agents.
+              Keep your project's writing consistent, whether a person or an agent writes it.
             </Translate>
           </Heading>
           <p className={styles.heroSubtitle}>
             <Translate id="home.hero.subtitle.engine">
-              Read, edit and check content across formats, with kapi bringing the engine and your
-              project's writing guidance to the files you already maintain.
+              kapi reads your files, holds the rules your project keeps, and checks your edits
+              against them. Add languages when you need them. kapi is built on neokapi, the open
+              content engine.
             </Translate>
           </p>
           <div className={styles.buttons}>
@@ -136,23 +137,9 @@ type ProductItem = {
   linkText: string;
 };
 
+// The feature cards follow kapi's tiers: three for the writing gate, one for
+// languages, two for the engine underneath. A row holds three cards.
 const NeokapiFeatures: ProductItem[] = [
-  {
-    title: translate({
-      id: "home.feat.model.title",
-      message: "Read existing files",
-    }),
-    description: translate({
-      id: "home.feat.model.description",
-      message:
-        "Read JSON, Markdown, HTML and office documents into a common content model. Inspect support and fidelity evidence for the format you use.",
-    }),
-    link: "/framework/formats",
-    linkText: translate({
-      id: "home.feat.model.linkText",
-      message: "Formats",
-    }),
-  },
   {
     title: translate({
       id: "home.feat.context.title",
@@ -161,7 +148,7 @@ const NeokapiFeatures: ProductItem[] = [
     description: translate({
       id: "home.feat.context.description",
       message:
-        "Bind terms and writing guidance to your project's collections. Inspect which guidance applies before you edit a help article, an API reference or a legal notice. Kapi Desktop shows what your assistants noticed and where each project's context lives.",
+        "Keep the project's terms, its voice and the suggestions a person kept in one place. Ask what applies to a file before you or an agent writes it. Kapi Desktop shows what your assistants noticed, for you to keep or drop.",
     }),
     link: "/kapi/desktop/overview",
     linkText: translate({
@@ -177,12 +164,28 @@ const NeokapiFeatures: ProductItem[] = [
     description: translate({
       id: "home.feat.edit.description",
       message:
-        "Edit content through format-aware tools and inspect the resulting file diff. Configured checks report specific issues, such as a missing placeholder or a prohibited term; a passing gate covers those checks.",
+        "Run kapi check after each edit. It reports each finding with its rule, such as a forbidden term or a doubled word, and fails when a finding fails, in a terminal, in an agent's session or in CI.",
     }),
     link: "/framework/checks",
     linkText: translate({
       id: "home.feat.edit.linkText",
       message: "Checks",
+    }),
+  },
+  {
+    title: translate({
+      id: "home.feat.model.title",
+      message: "Read existing files",
+    }),
+    description: translate({
+      id: "home.feat.model.description",
+      message:
+        "Work on the JSON, Markdown, HTML and office documents you already maintain. kapi writes each edit back with the file's structure kept. Inspect the support and fidelity evidence for the format you use.",
+    }),
+    link: "/framework/formats",
+    linkText: translate({
+      id: "home.feat.model.linkText",
+      message: "Formats",
     }),
   },
   {
@@ -193,28 +196,12 @@ const NeokapiFeatures: ProductItem[] = [
     description: translate({
       id: "home.feat.langs.description",
       message:
-        "Use kapi up to draft changed content and collect work that needs review. Reuse content memory, review changes in the desktop app, and run configured gates in CI.",
+        "Add a target language to the recipe, and kapi up translates changed content, reuses the content memory and holds back what needs a person. Review it in the desktop app and run the gates for each language in CI.",
     }),
     link: "/kapi/get-started/add-languages",
     linkText: translate({
       id: "home.feat.langs.linkText",
-      message: "Go multilingual",
-    }),
-  },
-  {
-    title: translate({
-      id: "home.feat.measured.title",
-      message: "Measured",
-    }),
-    description: translate({
-      id: "home.feat.measured.description",
-      message:
-        "Format support is measured rather than claimed. The format-maturity and benchmark dashboards show whether it holds, under load and per format.",
-    }),
-    link: "/format-maturity",
-    linkText: translate({
-      id: "home.feat.measured.linkText",
-      message: "See the dashboards",
+      message: "Add languages",
     }),
   },
   {
@@ -225,12 +212,28 @@ const NeokapiFeatures: ProductItem[] = [
     description: translate({
       id: "home.feat.oss.description",
       message:
-        "Open source, Apache-2.0, written in Go. Format-agnostic and headless: a content layer a person or an agent can drive.",
+        "The neokapi engine underneath is open source, Apache-2.0, written in Go. Its formats, tools and flows run headless, for a person or an agent to drive or for your own Go program to embed.",
     }),
     link: "/framework/architecture",
     linkText: translate({
       id: "home.feat.oss.linkText",
       message: "Architecture",
+    }),
+  },
+  {
+    title: translate({
+      id: "home.feat.measured.title",
+      message: "Measured",
+    }),
+    description: translate({
+      id: "home.feat.measured.description",
+      message:
+        "The engine's format support is measured rather than claimed. The format-maturity and benchmark dashboards show whether it holds, under load and per format.",
+    }),
+    link: "/format-maturity",
+    linkText: translate({
+      id: "home.feat.measured.linkText",
+      message: "See the dashboards",
     }),
   },
 ];
@@ -253,11 +256,14 @@ function HomepageFeatures() {
       <div className="container">
         <div className="text--center margin-bottom--lg">
           <Heading as="h2">
-            <Translate id="home.section.engine.title">Parse it, check it, write it back</Translate>
+            <Translate id="home.section.engine.title">
+              See what applies, then check every edit
+            </Translate>
           </Heading>
           <p className={styles.sectionSubtitle}>
             <Translate id="home.section.engine.subtitle">
-              Start with one file and one language. Inspect the edit and the checks that ran.
+              Start with your own files in one language. Add languages and reach into the engine
+              when you need them.
             </Translate>
           </p>
         </div>
@@ -338,7 +344,7 @@ export default function Home() {
       description={translate({
         id: "home.meta.description",
         message:
-          "The open content engine for people and AI agents. Read, edit and check content across formats, and use kapi to apply your project's terms and writing guidance.",
+          "kapi reads your files, holds the rules your project keeps, and checks your edits against them, in one language or many. It is built on neokapi, the open content engine.",
       })}
     >
       <StructuredData />

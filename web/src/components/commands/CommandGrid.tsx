@@ -24,6 +24,18 @@ const GROUP_LABELS: Record<string, string> = {
   [OTHER_GROUP]: t("Other", "command group heading"),
 };
 
+// The order the groups render in, the order cli.AddCommandGroups registers
+// them for the root help: the writing commands (Work, Assets), then Languages,
+// then Advanced. A group not listed here follows them, and the catch-all comes
+// last.
+const GROUP_ORDER = ["work", "assets", "languages", "advanced"];
+
+function groupRank(key: string): number {
+  if (key === OTHER_GROUP) return GROUP_ORDER.length + 1;
+  const i = GROUP_ORDER.indexOf(key);
+  return i === -1 ? GROUP_ORDER.length : i;
+}
+
 const FILTER_LABELS: Record<Filter, string> = {
   all: t("All", "command filter"),
   runnable: t("Run", "command filter: runs in the browser"),
@@ -75,21 +87,29 @@ export default function CommandGrid({ commands }: Props) {
     });
   }, [commands, search, filter]);
 
-  // Group by cobra group id, then sort groups by label with the catch-all last.
+  // A subcommand files under the group of the top-level command it belongs
+  // to, as the root help lists it: `terms import` sits with `terms` under
+  // Assets, and `context review` with `context` under Work.
+  const rootGroups = useMemo(() => {
+    const map = new Map<string, string | undefined>();
+    for (const c of commands) if (c.path.length === 1) map.set(c.path[0], c.groupID);
+    return map;
+  }, [commands]);
+
+  // Group by the top-level command's group id, then order the groups by
+  // GROUP_ORDER.
   const grouped = useMemo(() => {
     const map = new Map<string, CommandEntry[]>();
     for (const c of filtered) {
-      const key = groupKey(c.groupID);
+      const key = groupKey(c.path.length > 1 ? rootGroups.get(c.path[0]) : c.groupID);
       const list = map.get(key) ?? [];
       list.push(c);
       map.set(key, list);
     }
-    return [...map.entries()].sort(([a], [b]) => {
-      if (a === OTHER_GROUP) return 1;
-      if (b === OTHER_GROUP) return -1;
-      return groupLabel(a).localeCompare(groupLabel(b));
-    });
-  }, [filtered]);
+    return [...map.entries()].sort(
+      ([a], [b]) => groupRank(a) - groupRank(b) || groupLabel(a).localeCompare(groupLabel(b)),
+    );
+  }, [filtered, rootGroups]);
 
   const filterButton = (value: Filter) => (
     <button

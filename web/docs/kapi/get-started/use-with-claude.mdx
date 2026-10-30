@@ -6,7 +6,9 @@ keywords: [kapi, claude, claude code, claude subscription, agent skills, mcp, mo
 
 # Use with Claude
 
-kapi and Claude connect in **two directions**. In one, you work in Claude and it drives kapi: the assistant writes and translates inside kapi's guardrails. In the other, kapi runs Claude: your local Claude Code sign-in becomes kapi's AI provider, so `kapi up` and `kapi translate` run on your Claude subscription with no API key. Start from what you have:
+An agent in a kapi project gets the project's rules in the order it needs them. As it starts, it reads them in `CLAUDE.md` and `AGENTS.md`. Before it writes a file those rules do not cover, it asks `kapi context <path>`. After it edits, it runs `kapi check` on each file it changed, and the Stop hook in the Claude Code plugin runs the project gate (`kapi check --ship`) when it tries to finish.
+
+kapi and Claude connect in **two directions**. In one, you work in Claude and it drives kapi: the assistant writes inside kapi's guardrails. In the other, kapi runs Claude: your local Claude Code sign-in becomes kapi's AI provider, so `kapi up` and `kapi translate` run on your Claude subscription with no API key. Start from what you have:
 
 | You have… | Use |
 |---|---|
@@ -84,7 +86,7 @@ An unreadable, empty, or malformed hook payload; a session directory kapi cannot
 
 The wire shapes are Claude Code's, and Claude Code versions its own hook schema; kapi does not add a version of its own. What is stable here is the policy in the table: fail open, and report the bypass.
 
-The workflow is the same for either integration: the agent writes to the rules in `CLAUDE.md` and `AGENTS.md`, asks `kapi context <path>` only for a file those rules do not cover, and runs `kapi check` on each file it changed. A [project](/kapi/get-started/first-project) says which voice and terms apply to each file. For example, ask: “Check `README.md` against our voice profile and fix the failing findings.”
+Both integrations follow the workflow at the top of this page. A [project](/kapi/get-started/first-project) says which voice and terms apply to each file. For example, ask: “Check `README.md` against our voice profile and fix the failing findings.”
 
 As it works, the agent notes what the files do every time and what you change in its drafts, with the file and sentence each came from. Each note arrives as a **suggestion**: checks report it and none fails on it until you keep it. An agent that noted something ends its report with what its session suggested and the command that reviews it, `kapi context review --session <id>`. A note holds only in the files where the agent saw it until you widen it in review. See [Growing context](/kapi/context-decisions).
 
