@@ -44,7 +44,7 @@ func TestContextSuggestPrintsWhatItFiled(t *testing.T) {
 	require.Len(t, lines, 4, out)
 	assert.Regexp(t, `^Filed\s+\S+\s+Write email, not e-mail or e mail\. \(email 2, e-mail 1; 3 blocks in 1 file\)$`, lines[0])
 	assert.Regexp(t, `^Filed\s+\S+\s+The files address the reader as you \(person_pov: second\): 3 of 3 blocks with a personal pronoun say you, and none says we\.$`, lines[1])
-	assert.Equal(t, "", lines[2])
+	assert.Empty(t, lines[2])
 	assert.Equal(t, "Decide with kapi context review.", lines[3])
 
 	again := runContext(t, a, "suggest", "-p", recipe)
