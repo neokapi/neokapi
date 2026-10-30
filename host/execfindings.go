@@ -163,6 +163,9 @@ func (c *findingsCollector) Result() (flow.CollectorResult, error) {
 		report.Verdict, report.Pass = check.VerdictDidNotRun, false
 		report.DidNotRunCause = check.CauseContentNotChecked
 		report.DidNotRun = []string{fmt.Sprintf("no block holds a %s translation for %s to compare with its source; name the source file and pass its translation with --target <file>, or run it on a file that holds both, such as XLIFF", lang, c.readsTarget)}
+		out := newFindingsReport(report)
+		out.untranslated = &untranslatedRun{tool: c.readsTarget, lang: lang}
+		return flow.CollectorResult{Name: "findings", Data: out}, nil
 	}
 	return flow.CollectorResult{Name: "findings", Data: newFindingsReport(report)}, nil
 }
@@ -189,7 +192,15 @@ type findingsReport struct {
 	// them, when the check read no content block.
 	DidNotRun      []string `json:"did_not_run,omitempty"`
 	DidNotRunCause string   `json:"did_not_run_cause,omitempty"`
+
+	// untranslated is set when the run's tool compares a block's source with
+	// its translation and no block it read held one (see notRunError).
+	untranslated *untranslatedRun
 }
+
+// untranslatedRun names the tool that read no translation, and the language
+// it looked for one in.
+type untranslatedRun struct{ tool, lang string }
 
 // newFindingsReport keeps what a report that is not the gate carries from a
 // built check.Report: the findings and their roll-up, and did_not_run with its

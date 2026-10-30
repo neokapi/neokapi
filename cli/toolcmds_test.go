@@ -205,16 +205,18 @@ func TestExecChecksAcceptTheirDecisiveInput(t *testing.T) {
 
 // A check that compares a source with its translation can pair one source
 // file with a translation kept in a file of its own (--target), as `kapi check
-// --target` does; a translation read alone holds no source to compare. A tool
-// that writes a file, or reads no translation, offers no --target.
+// --target` does; a translation read alone holds no source to compare. qa
+// writes a file only where -o names one, and then only the content it read
+// with its findings, so it pairs one too. A tool that writes a translation, or
+// reads none, offers no --target.
 func TestExecTranslationChecksPairATargetFile(t *testing.T) {
 	tools := execChildren(t, newTestApp())
-	for _, name := range []string{"term-check", "dnt-check", "placeholder-check"} {
+	for _, name := range []string{"term-check", "dnt-check", "placeholder-check", "qa"} {
 		cmd := tools[name]
 		require.NotNil(t, cmd, "expected `exec %s`", name)
 		assert.NotNil(t, cmd.Flags().Lookup("target"), "`exec %s` pairs a translation file with --target", name)
 	}
-	for _, name := range []string{"qa", "translate", "pseudo-translate", "xml-validation", "voice-check"} {
+	for _, name := range []string{"translate", "pseudo-translate", "xml-validation", "voice-check", "review"} {
 		cmd := tools[name]
 		require.NotNil(t, cmd, "expected `exec %s`", name)
 		assert.Nil(t, cmd.Flags().Lookup("target"), "`exec %s` takes no --target", name)
