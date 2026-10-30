@@ -17,7 +17,7 @@ import (
 )
 
 // uploadOnce uploads one file through the editor's upload path and returns the
-// item's stored blocks, keyed by the key the file's reader gave each block.
+// item's stored blocks, keyed by the name the file's reader gave each block.
 func uploadOnce(t *testing.T, srv *Server, pid, name string, data []byte) (*ProjectInfoResponse, map[string]*venue.StoredBlock) {
 	t.Helper()
 	ctx := t.Context()
@@ -27,12 +27,15 @@ func uploadOnce(t *testing.T, srv *Server, pid, name string, data []byte) (*Proj
 
 	stored, err := srv.ContentStore.GetBlocks(ctx, store.BlockQuery{ProjectID: pid, Stream: "main", ItemName: name})
 	require.NoError(t, err)
-	bySource := make(map[string]*venue.StoredBlock, len(stored))
+	byName := make(map[string]*venue.StoredBlock, len(stored))
+	keys := map[string]bool{}
 	for _, sb := range stored {
-		require.NotContains(t, bySource, sb.SourceID, "one row per reader key")
-		bySource[sb.SourceID] = sb
+		require.NotContains(t, byName, sb.Block.Name, "one row per reader name")
+		require.False(t, keys[sb.SourceID], "one row per durable key")
+		keys[sb.SourceID] = true
+		byName[sb.Block.Name] = sb
 	}
-	return info, bySource
+	return info, byName
 }
 
 func storedIDs(blocks map[string]*venue.StoredBlock) []string {
@@ -123,9 +126,70 @@ func TestEditorUpload_AChangedFileKeepsTranslationsAndDropsWhatIsGone(t *testing
 	assert.Contains(t, second, "signup", "the new block is added")
 }
 
-// A block whose key changes is a different block: the old row goes and a new
-// row stands under the new key.
-func TestEditorUpload_ARenamedBlockReplacesTheOldRow(t *testing.T) {
+// An item stored by an upload that keyed its rows by reader names is uploaded
+// again. The rows match on their hashes, so each keeps its id, its key and its
+// translation.
+func TestEditorUpload_RowsKeyedByReaderNamesKeepTheirIDs(t *testing.T) {
+	srv, token := newTestServer(t)
+	pid := createProject(t, srv, token)
+	ctx := t.Context()
+	const name = "email-templates.html"
+
+	data, err := os.ReadFile(kapimartEmailTemplates)
+	require.NoError(t, err)
+	blocks := readAsUploadDoes(t, srv.FormatRegistry, name, data, model.LocaleEnglish)
+	require.NoError(t, srv.ContentStore.StoreItem(ctx, pid, "main", &store.Item{Name: name, Format: "html", ItemType: "file", Properties: map[string]string{}}))
+	require.NoError(t, srv.ContentStore.StoreBlocksForItem(ctx, pid, "main", name, blocks))
+
+	seeded := itemRows(t, srv, pid, name)
+	require.Len(t, seeded, len(blocks))
+	var translated *venue.StoredBlock
+	for _, sb := range seeded {
+		require.Equal(t, sb.Block.Name, sb.SourceID, "the seed keys rows by reader name")
+		if translated == nil || sb.Block.ID < translated.Block.ID {
+			translated = sb
+		}
+	}
+	_, err = srv.ContentStore.UpdateBlock(ctx, pid, "main", translated.Block.ID, func(sb *venue.StoredBlock) error {
+		sb.Block.SetTargetText(model.LocaleID("fr"), "Bonjour")
+		return nil
+	})
+	require.NoError(t, err)
+
+	_, err = editorAddFiles(ctx, srv.ContentStore, srv.FormatRegistry, pid, "main", map[string][]byte{name: data})
+	require.NoError(t, err)
+
+	after := itemRows(t, srv, pid, name)
+	require.Len(t, after, len(seeded))
+	for id, sb := range seeded {
+		if assert.Contains(t, after, id) {
+			assert.Equal(t, sb.SourceID, after[id].SourceID, "the row keeps its key")
+		}
+	}
+	assert.Equal(t, "Bonjour", after[translated.Block.ID].Block.TargetText(model.LocaleID("fr")))
+}
+
+// A block renamed with its words unchanged is matched on its words, as a push
+// matches it, and keeps its row.
+func TestEditorUpload_ARenamedBlockWithTheSameWordsKeepsItsRow(t *testing.T) {
+	srv, token := newTestServer(t)
+	pid := createProject(t, srv, token)
+	const name = "en.json"
+
+	_, first := uploadOnce(t, srv, pid, name, []byte(`{"title":"Welcome","body":"Read on"}`))
+	require.Len(t, first, 2)
+
+	_, second := uploadOnce(t, srv, pid, name, []byte(`{"title":"Welcome","intro":"Read on"}`))
+	require.Len(t, second, 2)
+	assert.NotContains(t, second, "body")
+	require.Contains(t, second, "intro")
+	assert.Equal(t, first["body"].Block.ID, second["intro"].Block.ID, "the renamed block keeps its row")
+	assert.Equal(t, first["title"].Block.ID, second["title"].Block.ID)
+}
+
+// A block renamed and reworded at once matches nothing: the old row goes and a
+// new row stands in its place.
+func TestEditorUpload_ARenamedAndRewordedBlockReplacesTheOldRow(t *testing.T) {
 	srv, token := newTestServer(t)
 	pid := createProject(t, srv, token)
 	ctx := t.Context()
@@ -136,16 +200,17 @@ func TestEditorUpload_ARenamedBlockReplacesTheOldRow(t *testing.T) {
 	oldBody := first["body"]
 	require.NotNil(t, oldBody)
 
-	_, second := uploadOnce(t, srv, pid, name, []byte(`{"title":"Welcome","intro":"Read on"}`))
+	_, second := uploadOnce(t, srv, pid, name, []byte(`{"title":"Welcome","intro":"Start here"}`))
 	require.Len(t, second, 2)
 	assert.NotContains(t, second, "body")
 	renamed := second["intro"]
 	require.NotNil(t, renamed)
-	assert.NotEqual(t, oldBody.Block.ID, renamed.Block.ID, "the new key stands on a new row")
+	assert.NotEqual(t, oldBody.Block.ID, renamed.Block.ID, "the new block stands on a new row")
+	assert.NotEqual(t, oldBody.SourceID, renamed.SourceID, "under a new key")
 	assert.Equal(t, first["title"].Block.ID, second["title"].Block.ID)
 
 	_, err := srv.ContentStore.GetBlock(ctx, pid, "main", oldBody.Block.ID)
-	require.Error(t, err, "the old key's row is gone")
+	require.Error(t, err, "the old row is gone")
 }
 
 // A file that reads to no blocks leaves its item with none.
