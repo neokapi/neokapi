@@ -186,6 +186,11 @@ func (a *App) RunFlow(tabID, flowName string, inputPaths []string, targetLangs [
 	if len(inputPaths) == 0 {
 		return errors.New("no input files specified")
 	}
+	// A run writes into the folder, so a folder opened without a recipe gets
+	// its kapi.yaml first, and the run reads the project from it.
+	if err := a.ensureRecipe(op); err != nil {
+		return err
+	}
 
 	if a.runState == nil {
 		a.runState = newRunner()

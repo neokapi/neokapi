@@ -11,13 +11,6 @@ import (
 	"github.com/neokapi/neokapi/host/telemetry"
 )
 
-// App modes. The desktop is project-first: "projects" is the default for a
-// first-ever launch. "adhoc" is the secondary loose-file "quick tools" path.
-const (
-	AppModeProjects = "projects"
-	AppModeAdhoc    = "adhoc"
-)
-
 // AppSettings holds persisted user preferences.
 type AppSettings struct {
 	Theme            string `json:"theme"`                       // "system", "dark", or "light"
@@ -28,10 +21,6 @@ type AppSettings struct {
 	StartHereDismissed bool           `json:"start_here_dismissed,omitempty"`
 	HiddenLocales      []string       `json:"hidden_locales,omitempty"` // locale codes to hide from selectors
 	CustomLocales      []CustomLocale `json:"custom_locales,omitempty"` // additional locales not in the well-known list
-
-	// Mode persists the app's project-first vs ad-hoc preference across
-	// launches. Empty (legacy settings) is treated as AppModeProjects.
-	Mode string `json:"mode,omitempty"`
 
 	// LastOpenProjects is the ordered list of project recipe paths that
 	// were open when the app last persisted its session. Most-recently
@@ -60,10 +49,9 @@ type CustomLocale struct {
 	DisplayName string `json:"display_name,omitempty"`
 }
 
-// SessionState is the persisted project-first session the frontend restores
-// at startup: which mode to open in and which projects to reopen.
+// SessionState is the persisted session the frontend restores at startup:
+// which projects to reopen and which of them was active.
 type SessionState struct {
-	Mode             string   `json:"mode"`
 	LastOpenProjects []string `json:"lastOpenProjects"`
 	ActiveProject    string   `json:"activeProject"`
 }
@@ -243,34 +231,8 @@ func (a *App) RestoreStartHere() error {
 	return a.settings.persist()
 }
 
-// normalizeMode coerces a persisted/requested mode into one of the two valid
-// values, defaulting to project-first for empty or unknown input.
-func normalizeMode(mode string) string {
-	if mode == AppModeAdhoc {
-		return AppModeAdhoc
-	}
-	return AppModeProjects
-}
-
-// GetAppMode returns the persisted app mode ("projects" or "adhoc").
-// Defaults to "projects" (project-first) for a first-ever launch or when the
-// persisted value is empty/unknown. The frontend calls this at startup.
-func (a *App) GetAppMode() string {
-	a.settings.mu.Lock()
-	defer a.settings.mu.Unlock()
-	return normalizeMode(a.settings.settings.Mode)
-}
-
-// SetAppMode persists the app mode. Unknown values fall back to "projects".
-func (a *App) SetAppMode(mode string) {
-	a.settings.mu.Lock()
-	defer a.settings.mu.Unlock()
-	a.settings.settings.Mode = normalizeMode(mode)
-	a.settings.save()
-}
-
-// GetSessionState returns the persisted project-first session: the mode plus
-// the projects to restore and which one was active. The frontend reads this
+// GetSessionState returns the persisted session: the projects to restore and
+// which one was active. The frontend reads this
 // at startup to reopen the previous session; if LastOpenProjects is empty it
 // falls back to the home screen.
 //
@@ -301,16 +263,14 @@ func (a *App) GetSessionState() SessionState {
 		}
 	}
 	return SessionState{
-		Mode:             normalizeMode(s.Mode),
 		LastOpenProjects: paths,
 		ActiveProject:    active,
 	}
 }
 
-// SaveSessionState persists the project-first session so the next launch can
-// restore the open tabs. The frontend calls this whenever the open-project set
-// or the active tab changes (and at shutdown). Mode is normalized; empty or
-// unknown values become "projects".
+// SaveSessionState persists the session so the next launch can restore the
+// open tabs. The frontend calls this whenever the open-project set or the
+// active tab changes (and at shutdown).
 func (a *App) SaveSessionState(state SessionState) {
 	a.settings.mu.Lock()
 	defer a.settings.mu.Unlock()
@@ -323,7 +283,6 @@ func (a *App) SaveSessionState(state SessionState) {
 		seen[p] = true
 		paths = append(paths, p)
 	}
-	a.settings.settings.Mode = normalizeMode(state.Mode)
 	a.settings.settings.LastOpenProjects = paths
 	a.settings.settings.ActiveProject = state.ActiveProject
 	a.settings.save()

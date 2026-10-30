@@ -45,8 +45,14 @@ func TestOpenProjectRefusesAGoneRecipe(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			app := NewApp()
+			app := newWorkspaceApp(t)
 			path := scaffoldProject(t, "KapiMart")
+			// Opened once, the project is registered in the workspace, which
+			// is what makes a folder without its recipe a lost project rather
+			// than a folder to open.
+			first, err := app.OpenProject(path)
+			require.NoError(t, err)
+			app.CloseProject(first.ID)
 			tt.remove(t, path)
 
 			tab, err := app.OpenProject(path)
@@ -118,7 +124,6 @@ func TestGoneProjectIsRememberedNotRestored(t *testing.T) {
 		t.Cleanup(func() { app.CloseProject(tab.ID) })
 	}
 	app.SaveSessionState(SessionState{
-		Mode:             AppModeProjects,
 		LastOpenProjects: []string{gone, kept},
 		ActiveProject:    gone,
 	})

@@ -399,6 +399,11 @@ func (a *App) KeepContextSuggestion(req ContextDecisionRequest) (*ContextFeedEnt
 	ctx, cancel := context.WithTimeout(context.Background(), contextFeedTimeout)
 	defer cancel()
 
+	// Keeping a suggestion is the first act that gives a folder opened
+	// without a recipe its kapi.yaml.
+	if err := a.ensureRecipeForKey(workspace.ProjectKey(project)); err != nil {
+		return nil, err
+	}
 	written, err := a.hostEngine().KeepContextOperation(ctx, host.ContextKeepRequest{
 		Actor:       deskPerson(),
 		Project:     project,
@@ -518,6 +523,9 @@ func (a *App) WidenContextRule(req ContextDecisionRequest) (*ContextFeedEntry, e
 	ctx, cancel := context.WithTimeout(context.Background(), contextFeedTimeout)
 	defer cancel()
 
+	if err := a.ensureRecipeForKey(workspace.ProjectKey(project)); err != nil {
+		return nil, err
+	}
 	written, err := a.hostEngine().WidenContextOperation(ctx, host.ContextWidenRequest{
 		Actor:   deskPerson(),
 		Project: project,

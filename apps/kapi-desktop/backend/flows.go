@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/flow"
-	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/host/flowdef"
 	"gopkg.in/yaml.v3"
@@ -292,7 +291,7 @@ func (a *App) AdoptUserFlowIntoProject(tabID, flowID string) (*AdoptFlowResult, 
 	if op.Path == "" {
 		return nil, errors.New("project has no file path; save it before adopting flows")
 	}
-	if err := project.Save(op.Path, op.Project); err != nil {
+	if err := a.saveRecipe(op); err != nil {
 		// Roll back the in-memory addition so state stays consistent with disk.
 		delete(op.Project.Flows, name)
 		return nil, fmt.Errorf("save project: %w", err)

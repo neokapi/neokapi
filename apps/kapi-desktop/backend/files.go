@@ -201,7 +201,7 @@ func (a *App) ApplyTemplate(tabID, template string) error {
 			Path:   "input/*",
 			Target: "output/{lang}/*",
 		})
-		if err := project.Save(op.Path, op.Project); err != nil {
+		if err := a.saveRecipe(op); err != nil {
 			return fmt.Errorf("save project: %w", err)
 		}
 	case "empty":

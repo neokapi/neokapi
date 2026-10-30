@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/neokapi/neokapi/core/flow"
-	"github.com/neokapi/neokapi/core/project"
 )
 
 // SaveProjectFlow writes a flow's steps (and their inline options) to the
@@ -31,7 +30,7 @@ func (a *App) SaveProjectFlow(tabID, name string, spec *flow.StepsSpec) error {
 	}
 	op.Project.Flows[name] = spec
 	if op.Path != "" {
-		return project.Save(op.Path, op.Project)
+		return a.saveRecipe(op)
 	}
 	return nil
 }
@@ -55,7 +54,7 @@ func (a *App) SetDefaultFlow(tabID, name string) error {
 	}
 	op.Project.Defaults.Flow = name
 	if op.Path != "" {
-		return project.Save(op.Path, op.Project)
+		return a.saveRecipe(op)
 	}
 	return nil
 }
@@ -92,7 +91,7 @@ func (a *App) RenameProjectFlow(tabID, oldName, newName string) error {
 		op.Project.Defaults.Flow = newName
 	}
 	if op.Path != "" {
-		return project.Save(op.Path, op.Project)
+		return a.saveRecipe(op)
 	}
 	return nil
 }

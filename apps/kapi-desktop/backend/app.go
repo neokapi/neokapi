@@ -153,6 +153,11 @@ type App struct {
 	eventSink func(name string, data any)
 
 	logger *log.Logger
+
+	// initFormatsReg is the registry of built-in formats a folder opened
+	// without a recipe has its collections proposed from (see initFormats).
+	initFormatsOnce sync.Once
+	initFormatsReg  *registry.FormatRegistry
 }
 
 // NewApp creates a new Kapi backend service.
@@ -270,6 +275,14 @@ type openProject struct {
 	mapMu       sync.Mutex
 	storeReadAt time.Time
 	lastCheck   *mapCheckTally
+
+	// unsaved marks a tab over a folder that holds no kapi.yaml. Its Project
+	// is the recipe `kapi init` would write there, held in memory, and draft
+	// is that recipe as the bytes ensureRecipe writes. recipeMu serializes the
+	// write.
+	unsaved  atomic.Bool
+	draft    []byte
+	recipeMu sync.Mutex
 }
 
 // GetProjectMemoryHandle returns the auto-opened content-memory handle for a
@@ -422,6 +435,10 @@ type TabInfo struct {
 	// workspace for a project no checkout on this machine carries. Its Path is
 	// empty and the surfaces that read files are not offered.
 	ContextOnly bool `json:"context_only,omitempty"`
+	// RecipeWritten reports whether the project's kapi.yaml is on disk. A
+	// folder opened without one has it written the first time a person
+	// changes something the recipe holds; until then this is false.
+	RecipeWritten bool `json:"recipe_written"`
 }
 
 // NewProject creates a new project, saves it to disk, and opens it as a tab.
@@ -517,7 +534,7 @@ func (a *App) NewProject(name, sourceLang string, targetLangs []string, savePath
 
 	a.startWatcher(op)
 	a.registerInWorkspace(op)
-	return &TabInfo{ID: tabID, Name: displayName, Path: savePath}, nil
+	return &TabInfo{ID: tabID, Name: displayName, Path: savePath, RecipeWritten: true}, nil
 }
 
 // startWatcher begins file system polling for a project tab.
@@ -526,6 +543,9 @@ func (a *App) startWatcher(op *openProject) {
 		return
 	}
 	dir := filepath.Dir(op.Path)
+	if broadFolder(dir) {
+		return
+	}
 	fw := newFileWatcher(a, op.ID, dir)
 	op.watcher = fw
 	fw.Start()
@@ -541,17 +561,31 @@ func projectDisplayName(proj *project.KapiProject, path string) string {
 	return filepath.Base(filepath.Dir(path))
 }
 
-// OpenProject loads a kapi.yaml recipe from disk and returns its tab ID.
-// If the recipe is already open in another tab, returns that tab's ID.
+// OpenProject opens a project folder as a tab and returns it. The path may be
+// the folder, its kapi.yaml, or a file inside the folder, which opens the
+// folder. If the project is already open in another tab, that tab is returned.
+//
+// A folder with no kapi.yaml opens on the recipe `kapi init` would write
+// there, held in memory until a person changes something it holds (see
+// ensureRecipe). A folder the workspace knows as a project whose recipe has
+// since gone is refused, as is a folder that is gone.
 func (a *App) OpenProject(path string) (*TabInfo, error) {
+	target, err := resolveOpenTarget(path)
+	if err != nil {
+		return nil, err
+	}
+	path = target.recipe
 	// A recipe that is gone from disk yields no tab, and the check comes
 	// before the already-open lookup on purpose: a tab opened before the file
 	// went away still matches by path, and handing it back gives the frontend
 	// a project that looks live until a page reads the recipe and fails. That
 	// is what the walkthrough recorder filmed, its home wiped underneath a
 	// backend that stayed up (#2560).
-	if ok, reason := recipeStatus(path); !ok {
-		return nil, recipeGoneError(path, reason)
+	if !target.exists {
+		ok, reason := recipeStatus(path)
+		if !ok && (reason == recipeGoneMoved || a.registeredCheckout(filepath.Dir(path))) {
+			return nil, recipeGoneError(path, reason)
+		}
 	}
 
 	// Check if already open. Two spellings of one file (one through a
@@ -559,12 +593,20 @@ func (a *App) OpenProject(path string) (*TabInfo, error) {
 	// hand can be) are one project and one tab.
 	a.mu.RLock()
 	for _, op := range a.projects {
-		if sameRecipePath(op.Path, path) {
+		if op.contextOnly {
+			continue
+		}
+		if sameRecipePath(op.Path, path) || (op.unsaved.Load() && sameDir(filepath.Dir(op.Path), filepath.Dir(path))) {
 			a.mu.RUnlock()
-			return &TabInfo{ID: op.ID, Name: projectDisplayName(op.Project, op.Path), Path: op.Path}, nil
+			info := tabInfoOf(op)
+			return &info, nil
 		}
 	}
 	a.mu.RUnlock()
+
+	if !target.exists {
+		return a.openFolder(path)
+	}
 
 	proj, err := project.Load(path)
 	if err != nil {
@@ -599,8 +641,41 @@ func (a *App) OpenProject(path string) (*TabInfo, error) {
 
 	a.startWatcher(op)
 	a.registerInWorkspace(op)
-	displayName := projectDisplayName(proj, path)
-	return &TabInfo{ID: tabID, Name: displayName, Path: path}, nil
+	info := tabInfoOf(op)
+	return &info, nil
+}
+
+// openFolder opens a folder that holds no kapi.yaml, on the recipe kapi init
+// would write there. recipe is the path that recipe will have.
+//
+// The tab watches the folder and reads its block cache like any other. It is
+// not registered in the workspace until its recipe is written: a registered
+// checkout without a recipe reads everywhere as a project whose recipe was
+// deleted.
+func (a *App) openFolder(recipe string) (*TabInfo, error) {
+	dir := filepath.Dir(recipe)
+	proj, draft, err := draftRecipe(dir, a.draftSourceLocale(), a.initFormats())
+	if err != nil {
+		return nil, err
+	}
+	op := &openProject{
+		ID:           id.New(),
+		Path:         recipe,
+		Project:      proj,
+		draft:        draft,
+		workspaceKey: workspaceKeyFor(proj, dir),
+	}
+	op.unsaved.Store(true)
+
+	a.autoOpenProjectResources(op)
+
+	a.mu.Lock()
+	a.projects[op.ID] = op
+	a.mu.Unlock()
+
+	a.startWatcher(op)
+	info := tabInfoOf(op)
+	return &info, nil
 }
 
 // UpdateProject replaces the in-memory project state for a tab.
@@ -613,7 +688,13 @@ func (a *App) UpdateProject(tabID string, proj *project.KapiProject) error {
 	if op == nil {
 		return fmt.Errorf("tab %q not found", tabID)
 	}
+	changed := op.unsaved.Load() && !sameRecipe(op.Project, proj)
 	op.Project = proj
+	if changed {
+		// A person changed a setting the recipe holds, in a folder whose
+		// recipe is not on disk yet: this is the change that writes it.
+		return a.ensureRecipe(op)
+	}
 	return nil
 }
 
@@ -711,6 +792,11 @@ func projectRoot(op *openProject) (string, bool) {
 	if op == nil || op.Path == "" {
 		return "", false
 	}
+	if op.unsaved.Load() {
+		// A folder opened without a recipe: its root is the folder, and the
+		// recipe it will hold is not there to resolve from.
+		return filepath.Dir(op.Path), true
+	}
 	layout, err := project.LayoutFor(op.Path)
 	if err != nil {
 		return "", false
@@ -724,11 +810,7 @@ func (a *App) ListTabs() []TabInfo {
 	defer a.mu.RUnlock()
 	var tabs []TabInfo
 	for _, op := range a.projects {
-		if op.contextOnly {
-			tabs = append(tabs, TabInfo{ID: op.ID, Name: op.contextName, ContextOnly: true})
-			continue
-		}
-		tabs = append(tabs, TabInfo{ID: op.ID, Name: op.Project.Name, Path: op.Path})
+		tabs = append(tabs, tabInfoOf(op))
 	}
 	return tabs
 }
@@ -745,7 +827,7 @@ func (a *App) SaveProject(tabID string) error {
 	if op.Path == "" {
 		return errors.New("project has no file path (use SaveProjectAs)")
 	}
-	return project.Save(op.Path, op.Project)
+	return a.saveRecipe(op)
 }
 
 // SaveProjectAs writes a project to a new file path.
@@ -761,6 +843,8 @@ func (a *App) SaveProjectAs(tabID, path string) error {
 		return err
 	}
 	op.Path = path
+	op.unsaved.Store(false)
+	op.draft = nil
 	return nil
 }
 
