@@ -382,6 +382,7 @@ func countBlocks(blocks []ruleBlock, scope contextop.Scope, st *rulesState, re *
 // coordinates of the point each file sits at. A file that will not read is
 // left out: a count is advice, and not worth failing the question over.
 func (a *App) ruleBlocks(ctx context.Context, st *rulesState) []ruleBlock {
+	a.InitRegistries()
 	pctx := project.NewProjectContext(st.proj, st.recipe)
 	resolved, err := pctx.ResolveContent(a.FormatReg)
 	if err != nil {
@@ -570,6 +571,9 @@ func (a *App) LeaveRulesForLater(ctx context.Context, project string, ids []stri
 
 // RulesNarrowRequest limits a kept rule to part of a project.
 type RulesNarrowRequest struct {
+	// Actor is who is acting. An empty Kind is a command line, where the
+	// environment answers (host/contextactor.go).
+	Actor   contextop.Actor
 	Project string
 	// ID names the rule, or a decision about it.
 	ID string
@@ -665,7 +669,7 @@ func (a *App) NarrowRule(ctx context.Context, req RulesNarrowRequest) (RulesNarr
 	narrowed.AllProfiles = false
 	narrowed.Level = contextop.LevelProject
 
-	actor, note, err := s.actorFor(ctx, contextop.Actor{}, req.Note)
+	actor, note, err := s.actorFor(ctx, req.Actor, req.Note)
 	if err != nil {
 		return RulesNarrowResult{}, err
 	}
@@ -714,6 +718,7 @@ func (a *App) narrowPoint(_ context.Context, st *rulesState, to string) (project
 	}
 	// Every source file in the folder has to sit at one point, or no one
 	// scope covers the folder alone.
+	a.InitRegistries()
 	pctx := project.NewProjectContext(st.proj, st.recipe)
 	resolved, rerr := pctx.ResolveContent(a.FormatReg)
 	if rerr != nil {

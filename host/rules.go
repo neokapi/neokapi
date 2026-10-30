@@ -14,6 +14,7 @@ import (
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/workspace"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // `kapi rules`: the rules a project keeps, in a person's words.
@@ -295,7 +296,7 @@ func (a *App) ListRules(ctx context.Context, req RulesRequest) (RulesListing, er
 }
 
 func (a *App) listRules(ctx context.Context, st *rulesState) (RulesListing, error) {
-	answer, voice, err := a.rulesAnswer(st)
+	answer, voice, concepts, err := a.rulesAnswer(st)
 	if err != nil {
 		return RulesListing{}, err
 	}
@@ -312,20 +313,29 @@ func (a *App) listRules(ctx context.Context, st *rulesState) (RulesListing, erro
 			Sentence: contextRuleSentence(r),
 			From:     slices.Clone(r.From),
 			Applies:  "the whole project",
-			Fails:    true,
+			Fails:    answerRuleFails(r, concepts, voice),
 			words:    append(append([]string{r.Say}, r.Not...), r.Also...),
 		}
-		if slices.Contains(r.From, "workspace") {
-			line.Applies = "every project in the workspace"
-		}
 		if op, ok := matchEstablished(r, established, matched); ok {
+			// The operation states the rule whole: a form the terms store
+			// folds away with case is still one the check holds files to.
 			line.ID, line.Short = op.ID, contextop.ShortID(op.ID)
+			line.Sentence = ruleSentence(op.Subject)
+			line.words = append(line.words, subjectWords(op.Subject)...)
+			line.Applies, line.Narrowed = st.applies(op.Scope)
+			if op.Scope.Level != contextop.LevelWorkspace {
+				// The answer labels a kept rule's case-only forms, which the
+				// log enforces beside the store, as the workspace's.
+				line.From = slices.DeleteFunc(line.From, func(f string) bool { return f == "workspace" })
+			}
 			if rule, rok := op.Rule(); rok {
 				line.Fails = !rule.Advisory
 			}
 			if kept := st.keptBy(op); kept != "" {
 				line.From = append(line.From, kept)
 			}
+		} else if slices.Equal(r.From, []string{"workspace"}) {
+			line.Applies = "every project in the workspace"
 		}
 		lines = append(lines, line)
 	}
@@ -438,15 +448,43 @@ func (st *rulesState) suggestionLines() []RuleLine {
 
 // rulesAnswer reads the answer `kapi context` gives at the project's own
 // point, and the voice profile in force there.
-func (a *App) rulesAnswer(st *rulesState) (*ContextAnswer, *coreprofile.VoiceProfile, error) {
+func (a *App) rulesAnswer(st *rulesState) (*ContextAnswer, *coreprofile.VoiceProfile, []terms.Concept, error) {
 	req := ContextPointRequest{Path: filepath.Join(st.root, rulesRootSample), Limit: 1 << 16, rulesOnly: true}
 	src, release := a.ContextSourcesAt(st.cmd, req)
 	defer release()
 	res, err := ResolveContextAt(CmdContext(st.cmd), src, req)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
-	return res, src.Voice, nil
+	return res, src.Voice, src.Concepts, nil
+}
+
+// answerRuleFails reports whether a check fails on a word rule of the answer:
+// a rule that avoids a wording fails unless the concept or the voice file
+// holding it marks it advisory. A rule that only names the wording to use
+// avoids nothing, so nothing fails on it.
+func answerRuleFails(r ContextRule, concepts []terms.Concept, voice *coreprofile.VoiceProfile) bool {
+	if len(r.Not) == 0 {
+		return false
+	}
+	avoided := func(word string) bool {
+		return slices.ContainsFunc(r.Not, func(n string) bool { return fold(n) == fold(word) })
+	}
+	if slices.Contains(r.From, "terms") {
+		for _, c := range concepts {
+			for _, t := range c.Terms {
+				if avoided(t.Text) {
+					return !c.Advisory
+				}
+			}
+		}
+	}
+	for _, t := range voice.CarriedTerms().Rules {
+		if avoided(t.Term) {
+			return !t.Advisory
+		}
+	}
+	return true
 }
 
 // matchEstablished finds the operation in the log that put a word rule of the
@@ -476,11 +514,8 @@ func matchEstablished(r ContextRule, established []contextop.Record, matched map
 // rulesGroupOf sorts a word rule of the answer: a name when the wordings it
 // avoids are spellings of the one it uses, a word otherwise.
 func rulesGroupOf(r ContextRule) string {
-	if r.Say == "" {
+	if r.Say == "" || len(r.Not) == 0 {
 		return RulesGroupWords
-	}
-	if len(r.Not) == 0 {
-		return RulesGroupNames
 	}
 	want := spellingKey(r.Say)
 	for _, n := range r.Not {
