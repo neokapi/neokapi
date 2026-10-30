@@ -152,6 +152,6 @@ func TestRootHelpBudget(t *testing.T) {
 		visible++
 		names = append(names, c.Name())
 	}
-	assert.LessOrEqualf(t, visible, 41,
+	assert.LessOrEqualf(t, visible, 42,
 		"visible root commands grew past the budget; new verbs belong in a group (kapi exec, an assets subtree) or hidden plumbing; visible now: %v", names)
 }

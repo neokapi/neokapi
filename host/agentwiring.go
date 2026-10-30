@@ -174,6 +174,8 @@ type AgentWiringOptions struct {
 	// Tools are the `kapi mcp --tools` sets the entry names. Empty writes no
 	// flag, which serves the default set.
 	Tools []string
+	// DryRun reports what a write would do and writes and removes nothing.
+	DryRun bool
 }
 
 // ErrUnknownAgentHost reports a host name kapi does not wire.
@@ -391,6 +393,7 @@ func WriteAgentWiring(opts AgentWiringOptions) (*AgentWiringResult, error) {
 		recipe = project.RecipeFileName
 	}
 	entry := kapiMCPEntry(recipe, opts.Tools)
+	w := projectWrites{dry: opts.DryRun}
 
 	res := &AgentWiringResult{}
 	for _, host := range agentHostOrder {
@@ -400,7 +403,7 @@ func WriteAgentWiring(opts AgentWiringOptions) (*AgentWiringResult, error) {
 		res.Hosts = append(res.Hosts, host)
 
 		if cfg, ok := agentMCPConfigs[host]; ok {
-			file, err := upsertMCPServerEntry(filepath.Join(opts.Root, filepath.FromSlash(cfg.path)), cfg.serversKey, entry)
+			file, err := upsertMCPServerEntry(w, filepath.Join(opts.Root, filepath.FromSlash(cfg.path)), cfg.serversKey, entry)
 			if err != nil {
 				return nil, err
 			}
@@ -409,7 +412,7 @@ func WriteAgentWiring(opts AgentWiringOptions) (*AgentWiringResult, error) {
 		}
 
 		if host == AgentHostCodex {
-			file, err := upsertCodexMCPServerEntry(filepath.Join(opts.Root, filepath.FromSlash(codexMCPConfigPath)), entry)
+			file, err := upsertCodexMCPServerEntry(w, filepath.Join(opts.Root, filepath.FromSlash(codexMCPConfigPath)), entry)
 			if err != nil {
 				return nil, err
 			}
@@ -421,7 +424,7 @@ func WriteAgentWiring(opts AgentWiringOptions) (*AgentWiringResult, error) {
 		if !ok || opts.Skills == nil {
 			continue
 		}
-		files, err := writeSkillTree(filepath.Join(opts.Root, filepath.FromSlash(dir)), opts.Skills, opts.Retired)
+		files, err := writeSkillTree(w, filepath.Join(opts.Root, filepath.FromSlash(dir)), opts.Skills, opts.Retired)
 		if err != nil {
 			return nil, err
 		}
@@ -578,7 +581,7 @@ func codexMCPServerArgs(path string) []string {
 // key kapi does not know about survives the round trip. A file that already
 // names a server called kapi is left byte for byte as it is: whatever it says,
 // someone put it there.
-func upsertMCPServerEntry(path, serversKey string, entry mcpServerEntry) (AgentWiringFile, error) {
+func upsertMCPServerEntry(w projectWrites, path, serversKey string, entry mcpServerEntry) (AgentWiringFile, error) {
 	out := AgentWiringFile{Detail: describeMCPEntry(entry)}
 
 	raw, err := os.ReadFile(path)
@@ -588,7 +591,7 @@ func upsertMCPServerEntry(path, serversKey string, entry mcpServerEntry) (AgentW
 		if merr != nil {
 			return out, merr
 		}
-		if werr := writeProjectFile(path, doc); werr != nil {
+		if werr := w.write(path, doc); werr != nil {
 			return out, werr
 		}
 		out.Action = AgentWiringCreated
@@ -624,7 +627,7 @@ func upsertMCPServerEntry(path, serversKey string, entry mcpServerEntry) (AgentW
 	if merr != nil {
 		return out, merr
 	}
-	if werr := writeProjectFile(path, updated); werr != nil {
+	if werr := w.write(path, updated); werr != nil {
 		return out, werr
 	}
 	out.Action = AgentWiringUpdated
@@ -667,14 +670,14 @@ const (
 // comments, ordering and spacing exactly as they were. Reading it back as TOML
 // answers the one question that has to be settled before writing, which is
 // whether a server called kapi is already there.
-func upsertCodexMCPServerEntry(path string, entry mcpServerEntry) (AgentWiringFile, error) {
+func upsertCodexMCPServerEntry(w projectWrites, path string, entry mcpServerEntry) (AgentWiringFile, error) {
 	out := AgentWiringFile{Detail: describeMCPEntry(entry)}
 	block := codexMCPServerBlock(entry)
 
 	raw, err := os.ReadFile(path)
 	switch {
 	case errors.Is(err, fs.ErrNotExist):
-		if werr := writeProjectFile(path, []byte(block)); werr != nil {
+		if werr := w.write(path, []byte(block)); werr != nil {
 			return out, werr
 		}
 		out.Action = AgentWiringCreated
@@ -698,7 +701,7 @@ func upsertCodexMCPServerEntry(path string, entry mcpServerEntry) (AgentWiringFi
 			case old == block:
 				out.Action = AgentWiringUnchanged
 			default:
-				if werr := writeProjectFile(path, []byte(strings.Replace(string(raw), old, block, 1))); werr != nil {
+				if werr := w.write(path, []byte(strings.Replace(string(raw), old, block, 1))); werr != nil {
 					return out, werr
 				}
 				out.Action = AgentWiringUpdated
@@ -714,7 +717,7 @@ func upsertCodexMCPServerEntry(path string, entry mcpServerEntry) (AgentWiringFi
 	if held != "" {
 		held += "\n"
 	}
-	if werr := writeProjectFile(path, []byte(held+block)); werr != nil {
+	if werr := w.write(path, []byte(held+block)); werr != nil {
 		return out, werr
 	}
 	out.Action = AgentWiringUpdated
@@ -810,7 +813,7 @@ func describeMCPEntry(entry mcpServerEntry) string {
 // this binary documents, and a copy that lags the binary names commands the
 // binary may no longer have. A file an earlier kapi copied there and this one
 // no longer ships is removed; any other file is left where it is.
-func writeSkillTree(dir string, tree fs.FS, retired func([]byte) bool) ([]AgentWiringFile, error) {
+func writeSkillTree(w projectWrites, dir string, tree fs.FS, retired func([]byte) bool) ([]AgentWiringFile, error) {
 	names, err := fs.ReadDir(tree, ".")
 	if err != nil {
 		return nil, fmt.Errorf("read the embedded skill tree: %w", err)
@@ -824,7 +827,7 @@ func writeSkillTree(dir string, tree fs.FS, retired func([]byte) bool) ([]AgentW
 		if serr != nil {
 			return nil, fmt.Errorf("read the embedded skill %s: %w", name.Name(), serr)
 		}
-		file, werr := writeOneSkill(filepath.Join(dir, name.Name()), sub, retired)
+		file, werr := writeOneSkill(w, filepath.Join(dir, name.Name()), sub, retired)
 		if werr != nil {
 			return nil, werr
 		}
@@ -837,7 +840,7 @@ func writeSkillTree(dir string, tree fs.FS, retired func([]byte) bool) ([]AgentW
 
 // writeOneSkill copies one skill's files into dir, clears out what an earlier
 // kapi left there, and reports what changed.
-func writeOneSkill(dir string, skill fs.FS, retired func([]byte) bool) (AgentWiringFile, error) {
+func writeOneSkill(w projectWrites, dir string, skill fs.FS, retired func([]byte) bool) (AgentWiringFile, error) {
 	var (
 		out     AgentWiringFile
 		count   int
@@ -870,13 +873,13 @@ func writeOneSkill(dir string, skill fs.FS, retired func([]byte) bool) (AgentWir
 		default:
 			updated++
 		}
-		return writeProjectFile(target, body)
+		return w.write(target, body)
 	})
 	if err != nil {
 		return out, err
 	}
 
-	out.Removed, out.Kept, err = sweepSkillDir(dir, shipped, retired)
+	out.Removed, out.Kept, err = sweepSkillDir(w, dir, shipped, retired)
 	if err != nil {
 		return out, err
 	}
@@ -899,7 +902,7 @@ func writeOneSkill(dir string, skill fs.FS, retired func([]byte) bool) (AgentWir
 // sweepSkillDir removes the files under dir that an earlier kapi copied there
 // and this binary does not ship, and lists the ones it leaves because kapi did
 // not write them. Directories the sweep empties are removed too.
-func sweepSkillDir(dir string, shipped map[string]bool, retired func([]byte) bool) (removed, kept []string, err error) {
+func sweepSkillDir(w projectWrites, dir string, shipped map[string]bool, retired func([]byte) bool) (removed, kept []string, err error) {
 	var dirs []string
 	werr := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -927,7 +930,7 @@ func sweepSkillDir(dir string, shipped map[string]bool, retired func([]byte) boo
 			return fmt.Errorf("read %s: %w", p, rerr)
 		}
 		if retired != nil && retired(body) {
-			if rmErr := os.Remove(p); rmErr != nil {
+			if rmErr := w.remove(p); rmErr != nil {
 				return fmt.Errorf("remove %s: %w", p, rmErr)
 			}
 			removed = append(removed, rel)
@@ -939,6 +942,9 @@ func sweepSkillDir(dir string, shipped map[string]bool, retired func([]byte) boo
 	if werr != nil {
 		return nil, nil, werr
 	}
+	if w.dry {
+		return removed, kept, nil
+	}
 	// Deepest first, so a directory is tried after everything under it.
 	sort.Slice(dirs, func(i, j int) bool { return len(dirs[i]) > len(dirs[j]) })
 	for _, d := range dirs {
@@ -947,6 +953,35 @@ func sweepSkillDir(dir string, shipped map[string]bool, retired func([]byte) boo
 		}
 	}
 	return removed, kept, nil
+}
+
+// projectWrites writes and removes the files of one wiring run. A dry run
+// does neither, so the run reports what it would do and the tree stays as it
+// is.
+type projectWrites struct{ dry bool }
+
+// write writes one file, creating the directories above it.
+func (w projectWrites) write(path string, body []byte) error {
+	if w.dry {
+		return nil
+	}
+	return writeProjectFile(path, body)
+}
+
+// writeFile writes one file into a directory that exists.
+func (w projectWrites) writeFile(path string, body []byte) error {
+	if w.dry {
+		return nil
+	}
+	return os.WriteFile(path, body, 0o644)
+}
+
+// remove removes one file.
+func (w projectWrites) remove(path string) error {
+	if w.dry {
+		return nil
+	}
+	return os.Remove(path)
 }
 
 // writeProjectFile writes one file, creating the directories above it.

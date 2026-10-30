@@ -91,6 +91,10 @@ host's skills directory. It names every file it writes and leaves an entry
 someone else put there alone. `--agents <list|all|none>` chooses; tell the user
 which files landed, since they commit them.
 
+`kapi connect` writes the same files for the assistants found in the folder,
+and the recipe first when there is none (`kapi connect codex` names one;
+`--dry-run` lists the files and writes nothing).
+
 - **`.kapi/`**: this checkout's cache, ignored by version control. `work/store.db`
   is the checkout's projection of the working tree: the block cache, the
   overlays a run wrote, the extraction stamps. Beside it sit the caches, the
