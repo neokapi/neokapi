@@ -177,15 +177,18 @@ func runsCaught(records []contextop.Record) map[string]int {
 }
 
 // hookRunRecord builds the check operation for one Stop hook run.
+//
+// Two gates can report one finding: the terminology gate and the checks gate
+// both hold a source block to its word rules. The record counts a finding
+// once, by its file, rule, wording and block.
 func hookRunRecord(in stopHookInput, root string, out verifyOutput) contextop.Record {
 	run := &contextop.CheckRun{
 		Hook:    "stop",
 		Verdict: string(out.Verdict),
 		Covered: len(out.covered),
-		Failing: out.Summary.Failing,
 	}
-	run.Clean = out.Verdict == check.VerdictPassed && run.Failing == 0
 	rules := map[string]bool{}
+	seen := map[string]bool{}
 	for _, g := range out.Gates {
 		for _, f := range g.Findings {
 			if !f.Fails {
@@ -198,12 +201,19 @@ func hookRunRecord(in stopHookInput, root string, out verifyOutput) contextop.Re
 			if finding.Quote == "" {
 				finding.Message = f.Message
 			}
+			key := finding.Key() + "\x00" + finding.Block
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			run.Failing++
 			rules[finding.Rule] = true
 			if len(run.Findings) < contextop.CheckRunMaxFindings {
 				run.Findings = append(run.Findings, finding)
 			}
 		}
 	}
+	run.Clean = out.Verdict == check.VerdictPassed && run.Failing == 0
 	for rule := range rules {
 		run.Rules = append(run.Rules, rule)
 	}
