@@ -76,8 +76,8 @@ func TestTargetsMatchThroughTheirRuns(t *testing.T) {
 			b := &model.Block{ID: "b1", Translatable: true}
 			b.SetSourceText("source")
 			b.SetTargetRuns("fr", tc.runs)
-			want := len(coreprofile.MatchTermRulesInRuns(sets, model.RunsText(tc.runs), tc.runs)) > 0
-			require.Equal(t, tc.uses, want)
+			found := len(coreprofile.MatchTermRulesInRuns(sets, model.RunsText(tc.runs), tc.runs)) > 0
+			require.Equal(t, tc.uses, found, "core/profile")
 
 			assert.Equal(t, tc.uses, targetUsesRules(sets, b, "fr"))
 			compliance := blockTermCompliance(t.Context(), b, "en", "fr", nil, profile)
