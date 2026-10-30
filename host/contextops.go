@@ -63,6 +63,10 @@ type ContextOperation struct {
 	// force, empty for every other operation. It is the assetResult detail from
 	// the applier that wrote it.
 	Landed string `json:"landed,omitempty"`
+	// Caught counts, for a check run, the failing findings the session's
+	// previous run reported that this run no longer finds on the same file
+	// (host/hookoutcomes.go). It is read from the log, never stored.
+	Caught int `json:"caught,omitempty"`
 }
 
 // ContextOperationList is what `kapi context log` prints.
@@ -152,6 +156,8 @@ type ContextLogRequest struct {
 	// Subjects narrows to the operations that carry a rule or a fact of their
 	// own, leaving out the decisions about them.
 	Subjects bool
+	// Kinds narrows to particular operation kinds. Empty reads every kind.
+	Kinds []contextop.Kind
 	// Limit keeps the most recent N. Zero keeps them all.
 	Limit int
 	// ID narrows to one rule or fact and every operation that acted on it: its
@@ -740,6 +746,7 @@ func (a *App) ContextOperations(ctx context.Context, req ContextLogRequest) (Con
 		Actor:    req.Actor,
 		Since:    req.Since,
 		Subjects: req.Subjects,
+		Kinds:    req.Kinds,
 		Limit:    req.Limit,
 	}
 	if req.ID != "" {
@@ -769,11 +776,30 @@ func (a *App) ContextOperations(ctx context.Context, req ContextLogRequest) (Con
 			records = records[:req.Limit]
 		}
 	}
+	caught, err := checkRunsCaught(ctx, ledger, key, records)
+	if err != nil {
+		return ContextOperationList{}, err
+	}
 	out := ContextOperationList{Project: string(key), Operations: make([]ContextOperation, 0, len(records))}
 	for _, r := range records {
-		out.Operations = append(out.Operations, ContextOperation{Record: r})
+		out.Operations = append(out.Operations, ContextOperation{Record: r, Caught: caught[r.ID]})
 	}
 	return out, nil
+}
+
+// checkRunsCaught reads what each check run in records caught. A run is
+// compared with the session's previous run, which the filter that chose
+// records may have left out, so the project's check runs are read whole when
+// records holds one.
+func checkRunsCaught(ctx context.Context, ledger *contextop.Ledger, key workspace.ProjectKey, records []contextop.Record) (map[string]int, error) {
+	if !slices.ContainsFunc(records, func(r contextop.Record) bool { return r.Kind == contextop.KindCheck }) {
+		return nil, nil
+	}
+	runs, err := ledger.Records(ctx, contextop.Filter{Project: key, Kinds: []contextop.Kind{contextop.KindCheck}})
+	if err != nil {
+		return nil, err
+	}
+	return runsCaught(runs), nil
 }
 
 // logSession reads the session a log request narrows to, answering

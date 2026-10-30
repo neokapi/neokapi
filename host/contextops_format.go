@@ -31,8 +31,11 @@ func (o ContextOperation) line() string {
 		"#" + contextop.ShortID(o.ID),
 		o.At.Format(time.RFC3339),
 		o.Actor.String(),
-		string(o.Kind),
 	}
+	if o.Kind == contextop.KindCheck && o.Check != nil {
+		return strings.Join(append(parts, describeCheckRun(*o.Check, o.Caught)), "  ")
+	}
+	parts = append(parts, string(o.Kind))
 	switch o.Subject.Kind {
 	case contextop.SubjectNone:
 	case contextop.SubjectNote:
@@ -84,6 +87,11 @@ func (l ContextOperationList) FormatText(w io.Writer) error {
 		}
 		for _, e := range op.Evidence {
 			if _, err := fmt.Fprintln(w, "  seen in "+describeEvidence(e)); err != nil {
+				return err
+			}
+		}
+		if op.Check != nil && op.Check.Edited && len(op.Check.Files) > 0 {
+			if _, err := fmt.Fprintln(w, "  after editing "+strings.Join(op.Check.Files, ", ")); err != nil {
 				return err
 			}
 		}
