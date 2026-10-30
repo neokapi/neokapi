@@ -86,7 +86,7 @@ func (d *differ) bisect(a0, a1, b0, b1 int) (int, int, bool) {
 	// even delta the backward path meets the forward one.
 	front := delta%2 != 0
 	k1start, k1end, k2start, k2end := 0, 0, 0, 0
-	for step := 0; step < maxD; step++ {
+	for step := range maxD {
 		d.budget -= 2*step + 1
 		if d.budget < 0 {
 			return 0, 0, false
