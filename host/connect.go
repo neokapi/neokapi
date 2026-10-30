@@ -85,7 +85,7 @@ const (
 // ConnectFile is one file connecting wrote or considered.
 type ConnectFile struct {
 	// Path is project-relative and slash-separated. Empty for a pending step.
-	Path   string          `json:"path"`
+	Path   string          `json:"path,omitempty"`
 	Kind   ConnectFileKind `json:"kind"`
 	Action ConnectAction   `json:"action"`
 	// Detail adds what a person reading the line needs: the step to take for
