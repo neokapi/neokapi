@@ -182,9 +182,9 @@ func buildAppMenu(app *application.App, appService *backend.App) *application.Me
 	// Standard role items (About, Quit, Services…) are localized by macOS.
 	tr := appService.T()
 
-	// App menu (macOS standard) — built manually (mirrors Wails' NewAppMenu) so
-	// "Check for Updates…" sits directly below "About Kapi", the conventional
-	// macOS placement, rather than in the File menu.
+	// App menu (macOS standard), built by hand (it mirrors Wails' NewAppMenu)
+	// so "Check for Updates…" sits directly below "About Kapi", the
+	// conventional macOS placement, rather than in the File menu.
 	appMenu := menu.AddSubmenu("Kapi")
 	appMenu.AddRole(application.About)
 	appMenu.AddSeparator()

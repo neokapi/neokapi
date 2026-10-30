@@ -2,6 +2,7 @@ package backend
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -80,9 +81,9 @@ func TestSingleInstanceID(t *testing.T) {
 // dbusNameError applies the element rules Wails v3 checks a Linux
 // single-instance id against before it claims the name on the session bus.
 func dbusNameError(id string) error {
-	for _, element := range strings.Split(id, ".") {
+	for element := range strings.SplitSeq(id, ".") {
 		if element == "" {
-			return fmt.Errorf("empty element")
+			return errors.New("empty element")
 		}
 		if element[0] >= '0' && element[0] <= '9' {
 			return fmt.Errorf("element %q starts with a digit", element)
