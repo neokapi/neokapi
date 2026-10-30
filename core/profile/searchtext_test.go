@@ -1,6 +1,7 @@
 package profile
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -92,4 +93,83 @@ func TestSearchTextKeepsTextTheRunsDoNotSpell(t *testing.T) {
 	assert.Equal(t, []int{0, 1, 1, 2}, []int{s.ToText(0), s.ToText(1), s.ToText(2), s.ToText(3)})
 	assert.True(t, s.SpelledAtEdge(1, 2))
 	assert.False(t, s.SpelledAtEdge(0, 1))
+}
+
+// referenceRules are the rules the reference cases below are matched under.
+var referenceRules = []TermRuleSet{{Rules: []TermRule{
+	{Term: "utilize", Replacement: "use"},
+	{Term: "next", Replacement: "following"},
+	{Term: "café", Replacement: "coffee shop"},
+}}}
+
+// hitView names each hit by the text it covers, or by "spelled:" and the
+// page's spelling, with its start.
+func hitView(text string, hits []VocabHit) []string {
+	var out []string
+	for _, h := range hits {
+		if h.Spelled != "" {
+			out = append(out, fmt.Sprintf("spelled:%s@%d", h.Spelled, h.Start))
+			continue
+		}
+		out = append(out, fmt.Sprintf("%s@%d", text[h.Start:h.End], h.Start))
+	}
+	return out
+}
+
+// Text with no runs reads a character reference written in it as the
+// character it spells, as the HTML reader does, and each hit indexes the
+// text with the reference's bytes. A hit a reference spells an edge of is
+// reported as the page shows it.
+func TestMatchTermRulesInTextReadsCharacterReferences(t *testing.T) {
+	cases := []struct {
+		name string
+		text string
+		want []string
+	}{
+		{"before a reference", "utilize&amp;more", []string{"utilize@0"}},
+		{"after a reference", "word&nbsp;next", []string{"next@10"}},
+		{"between references", "&amp;utilize&nbsp;", []string{"utilize@5"}},
+		{"a reference spells the last letter", "caf&eacute;", []string{"spelled:café@0"}},
+		{"a numeric reference spells a letter inside a word", "utiliz&#101;d", nil},
+		{"an unknown reference ends a word", "utilize&nosuch;x", []string{"utilize@0"}},
+		{"an ampersand that is no reference stays", "R&D: utilize & next", []string{"utilize@5", "next@15"}},
+		{"no reference", "We utilize the next café", []string{"utilize@3", "next@15", "café@20"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, hitView(tc.text, MatchTermRulesInText(referenceRules, tc.text)))
+		})
+	}
+}
+
+// The plain form and the runs form agree: on text with no reference the plain
+// form returns what the runs form returns for the text as one run, and a
+// reference written in text reads as the reader's reference code reads.
+func TestMatchTermRulesInTextAgreesWithRuns(t *testing.T) {
+	plain := "We utilize the next café, and utilize it."
+	assert.Equal(t, MatchTermRulesInRuns(referenceRules, plain, []model.Run{model.TextR(plain)}), MatchTermRulesInText(referenceRules, plain))
+
+	cases := []struct {
+		text string
+		runs []model.Run
+	}{
+		{"utilize&amp;more", []model.Run{model.TextR("utilize"), entity("1", "&amp;"), model.TextR("more")}},
+		{"word&nbsp;next", []model.Run{model.TextR("word"), entity("1", "&nbsp;"), model.TextR("next")}},
+		{"caf&eacute;", []model.Run{model.TextR("caf"), entity("1", "&eacute;")}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.text, func(t *testing.T) {
+			fromText := MatchTermRulesInText(referenceRules, tc.text)
+			blockText := model.RunsText(tc.runs)
+			fromRuns := MatchTermRulesInRuns(referenceRules, blockText, tc.runs)
+			require.Len(t, fromText, len(fromRuns))
+			for i := range fromRuns {
+				assert.Equal(t, fromRuns[i].Term, fromText[i].Term)
+				assert.Equal(t, fromRuns[i].Spelled, fromText[i].Spelled)
+				if fromRuns[i].Spelled == "" {
+					assert.Equal(t, blockText[fromRuns[i].Start:fromRuns[i].End], tc.text[fromText[i].Start:fromText[i].End])
+				}
+			}
+		})
+	}
 }

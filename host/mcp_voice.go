@@ -114,7 +114,7 @@ type voiceChangeMCP struct {
 
 // voiceRewriteMCPOutput is the voice_rewrite result. Skipped lists the
 // vocabulary rules that matched and were left in place, with the reason
-// (no_replacement, or inflected_form), so an agent knows the text still
+// (no_replacement, inflected_form or character_reference), so an agent knows the text still
 // carries violations it has to edit by hand.
 type voiceRewriteMCPOutput struct {
 	Profile   string                `json:"profile"`

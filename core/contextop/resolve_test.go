@@ -125,7 +125,7 @@ func TestResolution_RuleSetsMarkCandidatesAdvisory(t *testing.T) {
 	assert.False(t, sets[0].Suggested, "a widened rule binds")
 	assert.True(t, sets[1].Suggested, "a candidate advises")
 
-	hits := profile.MatchTermRules(sets, "we leverage and utilise it")
+	hits := profile.MatchTermRulesInText(sets, "we leverage and utilise it")
 	require.Len(t, hits, 2)
 	byTerm := map[string]profile.VocabHit{}
 	for _, h := range hits {

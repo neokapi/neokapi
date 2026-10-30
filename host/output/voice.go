@@ -135,6 +135,8 @@ func rewriteSkipReason(s profile.RewriteSkip) string {
 		}
 		return fmt.Sprintf("matched as %s; the replacement %q is worded for %q",
 			strings.Join(quoted, ", "), s.Replacement, s.Term)
+	case profile.RewriteSkipCharacterReference:
+		return "written with a character reference"
 	default:
 		if s.Note != "" {
 			return "no replacement in the profile (" + s.Note + ")"

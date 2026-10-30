@@ -24,10 +24,10 @@ func profileWith(forbidden, competitor []TermRule) *VoiceProfile {
 func TestMatchTermRules_PlaceholderNamesAreNotHits(t *testing.T) {
 	sets := CarriedRuleSets(profileWith([]TermRule{{Term: "vessel", Replacement: "ship"}}, nil))
 
-	assert.Empty(t, MatchTermRules(sets, "{vessel} is alongside until {until}."))
+	assert.Empty(t, MatchTermRulesInText(sets, "{vessel} is alongside until {until}."))
 
 	text := "The {vessel} name and the vessel itself"
-	hits := MatchTermRules(sets, text)
+	hits := MatchTermRulesInText(sets, text)
 	require.Len(t, hits, 1)
 	assert.Equal(t, strings.LastIndex(text, "vessel"), hits[0].Start)
 	assert.Equal(t, "vessel", text[hits[0].Start:hits[0].End])
@@ -289,7 +289,7 @@ func TestTermRuleMatchesCase(t *testing.T) {
 func TestMatchTermRules_NameRuleIsCaseSensitive(t *testing.T) {
 	sets := []TermRuleSet{{Rules: []TermRule{{Term: "QuickCast", Forms: []string{"Quick Cast"}, Replacement: "Quickcast"}}}}
 	text := "Open QuickCast at example.com/quickcast, or Quick Cast, or Quickcast."
-	hits := MatchTermRules(sets, text)
+	hits := MatchTermRulesInText(sets, text)
 	var got []string
 	for _, h := range hits {
 		got = append(got, text[h.Start:h.End])

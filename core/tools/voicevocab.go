@@ -217,10 +217,11 @@ func (t *VoiceVocabCheckTool) Canaries(ctx context.Context) (canaries []check.Ca
 				continue
 			}
 			for _, text := range []string{term, "`" + term + "`"} {
-				if len(coreprofile.MatchTermRules([]coreprofile.TermRuleSet{set}, text)) > 0 {
+				block := check.CanaryBlock(text)
+				if len(coreprofile.MatchTermRulesInRuns([]coreprofile.TermRuleSet{set}, text, block.SourceRuns())) > 0 {
 					canaries = append(canaries, check.Canary{
 						Name:  fmt.Sprintf("%s term %q", set.Kind, term),
-						Block: check.CanaryBlock(text),
+						Block: block,
 					})
 					found = true
 					break

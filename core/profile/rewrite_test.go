@@ -168,3 +168,31 @@ func TestRewriteVocabulary_AgreesWithCheck(t *testing.T) {
 	assert.Len(t, MatchCarriedTerms(p, got.Text), skippedTotal,
 		"what the check still finds in the rewritten text is exactly what was reported skipped")
 }
+
+// The rewrite matches through MatchTermRulesInText, so a term beside a
+// character reference is substituted and the reference kept, and a term a
+// reference spells an edge of is reported as the page shows it and left in
+// place: the text holds the reference, not the character.
+func TestRewriteTermRulesBesideCharacterReferences(t *testing.T) {
+	cases := []struct {
+		text    string
+		want    string
+		skipped []RewriteSkip
+	}{
+		{"utilize&amp;more", "use&amp;more", nil},
+		{"word&nbsp;next", "word&nbsp;following", nil},
+		{"&amp;utilize&nbsp;", "&amp;use&nbsp;", nil},
+		{"caf&eacute;", "caf&eacute;", []RewriteSkip{{
+			Term: "café", List: "forbidden", Fails: true, Replacement: "coffee shop",
+			Matched: []string{"café"}, Count: 1, Reason: RewriteSkipCharacterReference,
+		}}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.text, func(t *testing.T) {
+			got := RewriteTermRules(referenceRules, tc.text)
+			assert.Equal(t, tc.want, got.Text)
+			assert.Equal(t, tc.skipped, got.Skipped)
+			assert.Equal(t, len(MatchTermRulesInText(referenceRules, tc.text)), len(got.Changes)+len(got.Skipped))
+		})
+	}
+}

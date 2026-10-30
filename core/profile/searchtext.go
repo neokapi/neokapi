@@ -2,6 +2,7 @@ package profile
 
 import (
 	"html"
+	"regexp"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -99,12 +100,7 @@ func (s *SearchText) write(b *strings.Builder, runs []model.Run) {
 				if r.Ph.Type != entityCodeType {
 					continue
 				}
-				spelled := html.UnescapeString(r.Ph.Data)
-				if spelled == r.Ph.Data {
-					// A reference the decoder does not know still ends a
-					// word on the page.
-					spelled = " "
-				}
+				spelled := spellReference(r.Ph.Data)
 				for range len(spelled) {
 					s.back = append(s.back, textAt)
 					s.ref = append(s.ref, true)
@@ -149,14 +145,34 @@ func hasEntityCode(runs []model.Run) bool {
 	return false
 }
 
-// MatchTermRulesInRuns is MatchTermRules over a block's text and the runs it
-// flattens from: a term is looked for in the SearchText, so a character
-// reference beside a word ends it as the page shows, and each hit's offsets
-// index text. A hit whose first or last character a reference spells carries
-// Spelled, the words as the page shows them.
+// MatchTermRulesInRuns returns every hit under the rule sets in a block's text
+// and the runs it flattens from. A term is looked for in the SearchText, so a
+// character reference beside a word ends it as the page shows, and each hit's
+// offsets index text. A hit whose first or last character a reference spells
+// carries Spelled, the words as the page shows them.
+//
+// It and [MatchTermRulesInText] are the one definition of what it means for
+// content to use a declared term. Every surface that finds a term reaches one
+// of them: `kapi check`, the overlays, the scoring and rewrite tools, the
+// blast radius, so a word is a hit for every gate or for none.
 func MatchTermRulesInRuns(sets []TermRuleSet, text string, runs []model.Run) []VocabHit {
-	search := NewSearchText(text, runs)
-	hits := MatchTermRules(sets, search.Text)
+	return matchSearchText(sets, NewSearchText(text, runs))
+}
+
+// MatchTermRulesInText is [MatchTermRulesInRuns] for a caller that holds text
+// and no runs: a text a person or an agent submits, a model's output. Each
+// character reference written in the text (`&amp;`, `&#233;`) stands for the
+// character it spells, as the HTML reader reads one, and each hit's offsets
+// index text with the reference's own bytes. On text that holds no reference
+// it returns what [MatchTermRulesInRuns] returns for the text as one text run.
+func MatchTermRulesInText(sets []TermRuleSet, text string) []VocabHit {
+	return matchSearchText(sets, newPlainSearchText(text))
+}
+
+// matchSearchText matches the rule sets in the search text and maps each hit
+// back to the text it was built from.
+func matchSearchText(sets []TermRuleSet, search SearchText) []VocabHit {
+	hits := matchTermRules(sets, search.Text)
 	if search.back == nil {
 		return hits
 	}
@@ -167,4 +183,56 @@ func MatchTermRulesInRuns(sets []TermRuleSet, text string, runs []model.Run) []V
 		hits[i].Start, hits[i].End = search.ToText(h.Start), search.ToText(h.End)
 	}
 	return hits
+}
+
+// characterReference matches a character reference written in text. It is
+// the pattern the HTML reader splits a reference out of text with
+// (core/formats/html), so plain text and a block the reader built read a
+// reference alike.
+var characterReference = regexp.MustCompile(`&(?:[A-Za-z][A-Za-z0-9]*|#[0-9]+|#[xX][0-9A-Fa-f]+);`)
+
+// newPlainSearchText returns the search text for text that has no runs. Each
+// character reference written in text stands for the character it spells, and
+// every byte of what it spells maps back to the reference's first byte, so a
+// hit that ends after it ends after the reference.
+func newPlainSearchText(text string) SearchText {
+	refs := characterReference.FindAllStringIndex(text, -1)
+	if len(refs) == 0 {
+		return SearchText{Text: text}
+	}
+	s := SearchText{}
+	var b strings.Builder
+	b.Grow(len(text))
+	pos := 0
+	plain := func(end int) {
+		for i := pos; i < end; i++ {
+			s.back = append(s.back, i)
+			s.ref = append(s.ref, false)
+		}
+		b.WriteString(text[pos:end])
+	}
+	for _, r := range refs {
+		plain(r[0])
+		spelled := spellReference(text[r[0]:r[1]])
+		for range len(spelled) {
+			s.back = append(s.back, r[0])
+			s.ref = append(s.ref, true)
+		}
+		b.WriteString(spelled)
+		pos = r[1]
+	}
+	plain(len(text))
+	s.back = append(s.back, len(text))
+	s.Text = b.String()
+	return s
+}
+
+// spellReference returns the character a reference spells. A reference the
+// decoder does not know still ends a word on the page, so it spells a space.
+func spellReference(ref string) string {
+	spelled := html.UnescapeString(ref)
+	if spelled == ref {
+		return " "
+	}
+	return spelled
 }
