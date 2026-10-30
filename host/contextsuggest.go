@@ -563,10 +563,67 @@ func spellingFindings(c suggestCorpus) []suggestFinding {
 	var out []suggestFinding
 	for _, key := range slices.Sorted(maps.Keys(groups)) {
 		forms := groups[key]
+		if english(c.language) {
+			forms = englishVariants(forms)
+		}
+		if allPhrases(forms) {
+			// "the website" and "the WebSite" differ in a word the group of
+			// that word reports already.
+			continue
+		}
 		if len(forms) < 2 {
 			continue
 		}
 		out = append(out, spellingFinding(c, key, forms))
+	}
+	return out
+}
+
+// allPhrases reports a group whose every form is two words: a phrase written
+// two ways that is never written as one word.
+func allPhrases(forms map[string]*variantCount) bool {
+	for form := range forms {
+		if !strings.Contains(form, " ") {
+			return false
+		}
+	}
+	return true
+}
+
+// particles are the English adverbs that make a phrasal verb with the word
+// before them.
+var particles = []string{"up", "out", "in", "on", "off", "down", "over", "back", "away", "through"}
+
+// englishVariants leaves out of a group the spellings English writes
+// differently in different places. A phrasal verb is open and its noun is
+// closed or hyphenated (set up, the setup). A compound before a noun is
+// hyphenated and open elsewhere (real-time events, in real time).
+func englishVariants(forms map[string]*variantCount) map[string]*variantCount {
+	out := map[string]*variantCount{}
+	closed := false
+	for form, v := range forms {
+		first, second, spaced := strings.Cut(form, " ")
+		if spaced && slices.Contains(particles, strings.ToLower(second)) && first != "" {
+			continue
+		}
+		if !strings.ContainsAny(form, " -") {
+			closed = true
+		}
+		out[form] = v
+	}
+	if !closed {
+		hyphen, space := 0, 0
+		for form := range out {
+			switch {
+			case strings.Contains(form, " "):
+				space++
+			case strings.Contains(form, "-"):
+				hyphen++
+			}
+		}
+		if hyphen > 0 && space > 0 && hyphen+space == len(out) {
+			return nil
+		}
 	}
 	return out
 }
@@ -626,24 +683,20 @@ func spellingFinding(c suggestCorpus, key string, forms map[string]*variantCount
 	fd.subject = contextop.Subject{Kind: contextop.SubjectTerm, Term: &rule, Text: spellingCounts(fd.forms)}
 	fd.signature = ruleSignature(rule)
 
-	// The files that write an avoided form come first: they are where the
-	// rule would report.
-	var evidence []contextop.Evidence
-	named := map[string]bool{}
-	for _, r := range append(list[1:], list[0]) {
+	// The block quoted shows an avoided form, so its file comes first; the
+	// other files that write an avoided form follow, since they are where the
+	// rule would report, and then the files that write the form to use.
+	sample := c.blocks[list[1].v.sample]
+	evidence := []contextop.Evidence{{Path: sample.file, Quote: quoteAround(sample.plain, list[1].written)}}
+	named := map[string]bool{sample.file: true}
+	order := append(slices.Clone(list[1:]), list[0])
+	for _, r := range order {
 		for _, f := range slices.Sorted(maps.Keys(r.v.files)) {
 			if named[f] || len(evidence) == maxSuggestEvidence {
 				continue
 			}
 			named[f] = true
 			evidence = append(evidence, contextop.Evidence{Path: f})
-		}
-	}
-	if len(evidence) > 0 {
-		sample := c.blocks[list[1].v.sample]
-		evidence[0].Quote = quoteAround(sample.plain, list[1].written)
-		if sample.file != evidence[0].Path {
-			evidence[0].Path = sample.file
 		}
 	}
 	fd.evidence = evidence

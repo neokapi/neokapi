@@ -78,13 +78,13 @@ func TestSuggestFromFiles_Spelling(t *testing.T) {
 		{
 			name: "a two-word phrase beside its hyphenated and closed spellings",
 			files: map[string]string{
-				"docs/a.md": "Open the page and sign in.\n\nYou sign in once a day.\n\nThe sign-in page is slow.\n\nUse signin as the route name.\n",
+				"docs/a.md": "Visit the website today.\n\nThe website is new.\n\nOur web site moved.\n\nSee the web-site map.\n",
 			},
 			want: map[string][]SuggestedForm{
-				"Write sign in, not sign-in or signin.": {
-					{Form: "sign in", Count: 2, Blocks: 2, Files: []string{"docs/a.md"}},
-					{Form: "sign-in", Count: 1, Blocks: 1, Files: []string{"docs/a.md"}},
-					{Form: "signin", Count: 1, Blocks: 1, Files: []string{"docs/a.md"}},
+				"Write website, not web site or web-site.": {
+					{Form: "website", Count: 2, Blocks: 2, Files: []string{"docs/a.md"}},
+					{Form: "web site", Count: 1, Blocks: 1, Files: []string{"docs/a.md"}},
+					{Form: "web-site", Count: 1, Blocks: 1, Files: []string{"docs/a.md"}},
 				},
 			},
 		},
@@ -105,14 +105,28 @@ func TestSuggestFromFiles_Spelling(t *testing.T) {
 		{
 			name: "a form to avoid written only at the start of a sentence is named in lower case",
 			files: map[string]string{
-				"docs/a.md": "Pick up at the desk.\n\nThe pick-up point is open.\n\nBook a pick-up slot.\n",
+				"docs/a.md": "Web site maps are slow.\n\nThe website is new.\n\nVisit the website.\n",
 			},
 			want: map[string][]SuggestedForm{
-				"Write pick-up, not pick up.": {
-					{Form: "pick-up", Count: 2, Blocks: 2, Files: []string{"docs/a.md"}},
-					{Form: "pick up", Count: 1, Blocks: 1, Files: []string{"docs/a.md"}},
+				"Write website, not web site or web-site.": {
+					{Form: "website", Count: 2, Blocks: 2, Files: []string{"docs/a.md"}},
+					{Form: "web site", Count: 1, Blocks: 1, Files: []string{"docs/a.md"}},
 				},
 			},
+		},
+		{
+			name: "a verb with a particle is not a spelling of its noun",
+			files: map[string]string{
+				"docs/a.md": "Set up the app.\n\nThe setup is quick.\n\nRead the setup guide.\n\nCheck out now.\n\nThe checkout is open.\n\nSign in first. The sign-in page loads.\n",
+			},
+			want: map[string][]SuggestedForm{},
+		},
+		{
+			name: "a compound written open and hyphenated with no closed form is not a variant",
+			files: map[string]string{
+				"docs/a.md": "Real-time events arrive.\n\nWe stream in real time.\n\nThe real-time view updates.\n",
+			},
+			want: map[string][]SuggestedForm{},
 		},
 		{
 			name: "a capital inside a word is part of its spelling",
@@ -337,16 +351,16 @@ func TestSuggestFromFiles_GainedFormUpdatesInPlace(t *testing.T) {
 	app, _ := contextOpsApp(t)
 	ctx := context.Background()
 	root := suggestProject(t, "gainedform", "", map[string]string{
-		"docs/a.md": "Open the page and sign in.\n\nYou sign in once a day.\n\nThe sign-in page is slow.\n",
+		"docs/a.md": "Visit the website.\n\nThe website is new.\n\nOur web site moved.\n",
 	})
 	first, err := app.SuggestFromFiles(ctx, ContextSuggestRequest{Project: recipeOf(root)})
 	require.NoError(t, err)
 	spelling := suggestionsOf(first, SuggestKindSpelling)
 	require.Len(t, spelling, 1)
-	assert.Equal(t, "Write sign in, not sign-in.", spelling[0].Sentence)
+	assert.Equal(t, "Write website, not web site or web-site.", spelling[0].Sentence)
 
 	require.NoError(t, os.WriteFile(filepath.Join(root, "docs", "a.md"),
-		[]byte("Open the page and sign in.\n\nYou sign in once a day.\n\nThe sign-in page is slow.\n\nThe signin route.\n"), 0o600))
+		[]byte("Visit the website.\n\nThe website is new.\n\nOur web site moved.\n\nThe WebSite page.\n"), 0o600))
 	dry, err := app.SuggestFromFiles(ctx, ContextSuggestRequest{Project: recipeOf(root), DryRun: true})
 	require.NoError(t, err)
 	assert.Equal(t, SuggestUpdated, suggestionsOf(dry, SuggestKindSpelling)[0].Outcome)
@@ -356,7 +370,7 @@ func TestSuggestFromFiles_GainedFormUpdatesInPlace(t *testing.T) {
 	updated := suggestionsOf(second, SuggestKindSpelling)
 	require.Len(t, updated, 1)
 	assert.Equal(t, SuggestUpdated, updated[0].Outcome)
-	assert.Equal(t, "Write sign in, not sign-in or signin.", updated[0].Sentence)
+	assert.Equal(t, "Write website, not WebSite, web site or web-site.", updated[0].Sentence)
 
 	old, err := app.ContextSubject(ctx, recipeOf(root), spelling[0].ID)
 	require.NoError(t, err)
@@ -400,4 +414,38 @@ func TestSuggestFromFiles_KnownWordIsLeftAlone(t *testing.T) {
 	require.Len(t, res.Suggestions, 1)
 	assert.Equal(t, SuggestKnown, res.Suggestions[0].Outcome, "an agent's suggestion about the word stands without a rival")
 	assert.Empty(t, res.Suggestions[0].ID)
+}
+
+func TestSuggestFromFiles_EvidenceNamesEachFileOnce(t *testing.T) {
+	app, _ := contextOpsApp(t)
+	ctx := context.Background()
+	// The catalogue is read first, so the quoted block sits in a file that
+	// sorts after the page.
+	root := t.TempDir()
+	for rel, body := range map[string]string{
+		"kapi.yaml": "version: v1\nid: " + projectIDFor("evidenceonce") + "\nname: evidenceonce\ndefaults:\n  source_language: en\n" +
+			"collections:\n  - name: app\n    source_only: true\n    content:\n      - path: \"i18n/*.json\"\n" +
+			"  - name: docs\n    content:\n      - path: \"docs/*.md\"\n",
+		"i18n/en.json": `{"notice": "Check your e-mail for the code."}`,
+		"docs/a.md":    "Send an email.\n\nReply by email.\n\nOr send an e-mail.\n",
+		"docs/b.md":    "Your email is private.\n",
+	} {
+		path := filepath.Join(root, filepath.FromSlash(rel))
+		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o700))
+		require.NoError(t, os.WriteFile(path, []byte(body), 0o600))
+	}
+	res, err := app.SuggestFromFiles(ctx, ContextSuggestRequest{Project: recipeOf(root)})
+	require.NoError(t, err)
+	spelling := suggestionsOf(res, SuggestKindSpelling)
+	require.Len(t, spelling, 1)
+
+	op, err := app.ContextSubject(ctx, recipeOf(root), spelling[0].ID)
+	require.NoError(t, err)
+	var paths []string
+	for _, e := range op.Evidence {
+		paths = append(paths, e.Path)
+	}
+	assert.Equal(t, []string{"i18n/en.json", "docs/a.md", "docs/b.md"}, paths,
+		"the quoted file first, then the other files that write an avoided form, then the rest, each once")
+	assert.Equal(t, "Check your e-mail for the code.", op.Evidence[0].Quote)
 }
