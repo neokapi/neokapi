@@ -458,7 +458,7 @@
                 "usage": "treat what came after a date (2006-01-02) or instant as new, in place of the marker"
               },
               "use": {
-                "usage": "with one --keep: change what the rule says to write instead"
+                "usage": "with one --keep or --choose: change what the rule says to write instead"
               },
               "valid-from": {
                 "usage": "with --keep: the rule holds from this date (2006-01-02) or instant on"
@@ -3763,11 +3763,11 @@
                 "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
               },
               "to": {
-                "usage": "the collection or folder the rule applies to"
+                "usage": "the collection the rule applies to, or a folder of it"
               }
             },
-            "long": "Limit a kept rule to one collection, or to one folder of the project. The\nrule holds at the profile, channel and coordinates the collection or folder\nsits at, and nowhere else. A folder that sits at the project's own point has\nno coordinate to tell it apart, and kapi says so.",
-            "short": "Limit a kept rule to a collection or a folder"
+            "long": "Limit a kept rule to one collection. Name the collection, or a folder: a\nfolder names the collection its files belong to, and the rule then holds in\nthat whole collection. The rule holds at the profile, channel and coordinates\nthe collection sits at, and in every collection that shares them. A folder\nwhose files sit at the project's own point has no coordinate to tell it\napart, and kapi says so.",
+            "short": "Limit a kept rule to one collection, named directly or by a folder"
           },
           "short": "Decide, list, narrow or drop the rules your project keeps"
         },
