@@ -19,8 +19,8 @@ func newContextSuggestCmd(a *App) *cobra.Command {
 		Long: `Read the files this project declares and file what kapi can see in them as
 suggestions:
 
-  - a word the files write more than one way, such as e-mail and email, or
-    sign in and sign-in: the form written most often, instead of the others
+  - a word the files write more than one way, such as e-mail and email: the
+    form written most often, instead of the others
   - in a project that binds no voice, the words a starter voice pack avoids,
     when the files use three or more of them
   - the files addressing the reader as you, when most blocks with a personal

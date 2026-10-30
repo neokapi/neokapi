@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"testing"
 
@@ -134,7 +133,7 @@ func TestContextSuggestJSON(t *testing.T) {
 func TestContextSuggestNamesNoLanguageWork(t *testing.T) {
 	recipe := writeSuggestProject(t)
 	a := &App{}
-	banned := regexp.MustCompile(`(?i)translat|locale|bilingual|monolingual|target language|per-language|l10n|localiz`)
+	banned := languageWork
 	for _, args := range [][]string{
 		{"suggest", "-p", recipe},
 		{"suggest", "--dry-run", "-p", recipe},
