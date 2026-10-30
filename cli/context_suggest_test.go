@@ -9,6 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/neokapi/neokapi/core/credentials/providerenv"
 )
 
 // `kapi context suggest` on the command line: it prints what it filed in the
@@ -128,15 +130,158 @@ func TestContextSuggestJSON(t *testing.T) {
 	assert.Equal(t, "address", res.Suggestions[1].Kind)
 }
 
+// useDemoAI makes the demo provider the configured one and clears every
+// provider key the environment could hold, so no test reaches a real model.
+func useDemoAI(t *testing.T) {
+	t.Helper()
+	clearAIEnv(t)
+	t.Setenv("KAPI_AI_PROVIDER", "demo")
+}
+
+func clearAIEnv(t *testing.T) {
+	t.Helper()
+	for _, vars := range providerenv.Vars {
+		for _, v := range vars {
+			t.Setenv(v, "")
+		}
+	}
+	t.Setenv("KAPI_AI_PROVIDER", "")
+	t.Setenv("KAPI_AI_MODEL", "")
+}
+
+// writeDeeperProject is writeSuggestProject with a product name the files
+// write in two blocks.
+func writeDeeperProject(t *testing.T) string {
+	t.Helper()
+	recipe := writeSuggestProject(t)
+	require.NoError(t, os.WriteFile(filepath.Join(filepath.Dir(recipe), "docs", "help.md"), []byte(
+		"# Help\n\nAsk Harbor Help about your plan.\n\nHarbor Help answers within a day.\n"), 0o644))
+	return recipe
+}
+
+func TestContextSuggestAIFilesWhatTheModelProposes(t *testing.T) {
+	useDemoAI(t)
+	recipe := writeDeeperProject(t)
+	a := &App{}
+
+	out := runContext(t, a, "suggest", "--ai", "-p", recipe)
+	assert.Regexp(t, `(?m)^Filed\s+\S+\s+Write email, not e-mail or e mail\.`, out, "the pass over the files runs first")
+	assert.Regexp(t, `(?m)^Filed\s+\S+\s+Write Harbor Help, not Harbor-Help or HarborHelp\. \(2 blocks in 1 file\)$`, out)
+	assert.Regexp(t, `(?m)^Known\s+The files address the reader as you \(person_pov: second\)\.$`, out,
+		"the pass filed that already, so the model's reading of it is not filed again")
+	assert.Regexp(t, `(?m)^Filed\s+\S+\s+The files keep sentences short \(sentence_length: short\)\.$`, out)
+	assert.Regexp(t, `(?m)^demo-stub read 7 blocks in 2 files \(\d+ tokens\)\.$`, out)
+	assert.Equal(t, 1, strings.Count(out, "Decide with kapi context review."), out)
+
+	again := runContext(t, a, "suggest", "--ai", "-p", recipe)
+	assert.NotRegexp(t, `(?m)^Filed`, again, "a second run files nothing")
+	assert.Regexp(t, `(?m)^Unchanged\s+\S+\s+Write Harbor Help`, again)
+
+	log := runContext(t, a, "log", "-p", recipe, "--status", "suggested", "--json")
+	var ops struct {
+		Operations []struct {
+			Actor struct {
+				Kind string `json:"kind"`
+				Name string `json:"name"`
+			} `json:"actor"`
+		} `json:"operations"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(log), &ops), log)
+	names := map[string]int{}
+	for _, op := range ops.Operations {
+		assert.Equal(t, "tool", op.Actor.Kind)
+		names[op.Actor.Name]++
+	}
+	assert.Equal(t, 2, names["kapi"], "the pass over the files files as kapi")
+	assert.Positive(t, names["demo-stub"], "the deeper look files as kapi with the model's name")
+}
+
+func TestContextSuggestAIDryRunFilesNothing(t *testing.T) {
+	useDemoAI(t)
+	recipe := writeDeeperProject(t)
+	a := &App{}
+
+	out := runContext(t, a, "suggest", "--ai", "--dry-run", "-p", recipe)
+	assert.Regexp(t, `(?m)^Would file\s+Write Harbor Help, not Harbor-Help or HarborHelp\.`, out)
+	assert.Regexp(t, `(?m)^demo-stub read 7 blocks in 2 files`, out, "a dry run still asks the model")
+	assert.NotContains(t, out, "Decide with")
+
+	log := runContext(t, a, "log", "-p", recipe, "--json")
+	var ops struct {
+		Operations []json.RawMessage `json:"operations"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(log), &ops), log)
+	assert.Empty(t, ops.Operations)
+}
+
+func TestContextSuggestAIJSON(t *testing.T) {
+	useDemoAI(t)
+	recipe := writeDeeperProject(t)
+	a := &App{}
+
+	out := runContext(t, a, "suggest", "--ai", "--dry-run", "-p", recipe, "--json")
+	var res struct {
+		Suggestions []json.RawMessage `json:"suggestions"`
+		AI          *struct {
+			Provider    string `json:"provider"`
+			Model       string `json:"model"`
+			Asked       int    `json:"asked"`
+			Suggestions []struct {
+				Kind    string `json:"kind"`
+				Outcome string `json:"outcome"`
+				Measure string `json:"measure"`
+				Value   string `json:"value"`
+			} `json:"suggestions"`
+		} `json:"ai"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(out), &res), out)
+	require.NotNil(t, res.AI)
+	assert.Equal(t, "demo", res.AI.Provider)
+	assert.Equal(t, "demo-stub", res.AI.Model)
+	assert.Equal(t, 7, res.AI.Asked)
+	kinds := map[string]bool{}
+	for _, s := range res.AI.Suggestions {
+		kinds[s.Kind] = true
+		if s.Kind == "voice" {
+			assert.NotEmpty(t, s.Measure)
+			assert.NotEmpty(t, s.Value)
+		}
+	}
+	assert.True(t, kinds["term"] && kinds["voice"], "%+v", res.AI.Suggestions)
+
+	plain := runContext(t, a, "suggest", "-p", recipe, "--dry-run", "--json")
+	assert.NotContains(t, plain, `"ai"`, "without --ai the result carries no deeper look")
+}
+
+func TestContextSuggestAIRefusesWithoutAProvider(t *testing.T) {
+	clearAIEnv(t)
+	recipe := writeDeeperProject(t)
+	a := &App{}
+
+	_, err := runContextE(t, a, "suggest", "--ai", "-p", recipe)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no AI provider configured")
+
+	log := runContext(t, a, "log", "-p", recipe, "--json")
+	var ops struct {
+		Operations []json.RawMessage `json:"operations"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(log), &ops), log)
+	assert.Empty(t, ops.Operations, "the refusal comes before the pass files anything")
+}
+
 // TestContextSuggestNamesNoLanguageWork: in a one-language project the pass
 // and its help name no work in other languages.
 func TestContextSuggestNamesNoLanguageWork(t *testing.T) {
-	recipe := writeSuggestProject(t)
+	useDemoAI(t)
+	recipe := writeDeeperProject(t)
 	a := &App{}
 	banned := languageWork
 	for _, args := range [][]string{
 		{"suggest", "-p", recipe},
 		{"suggest", "--dry-run", "-p", recipe},
+		{"suggest", "--ai", "--dry-run", "-p", recipe},
+		{"suggest", "--ai", "-p", recipe},
 		{"suggest", "--help"},
 	} {
 		out := runContext(t, a, args...)

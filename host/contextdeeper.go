@@ -178,7 +178,7 @@ func (a *App) DeeperLook(ctx context.Context, req DeeperLookRequest) (DeeperLook
 	}
 	provider, modelName, ok := a.deeperLookModel(s.proj)
 	if !ok {
-		return DeeperLookResult{}, fmt.Errorf("%w: connect one with kapi models setup, then run this again", ErrNoAIProvider)
+		return DeeperLookResult{}, errNoAIProvider()
 	}
 	out := DeeperLookResult{
 		Project:     string(s.key),
@@ -235,6 +235,26 @@ func (a *App) DeeperLook(ctx context.Context, req DeeperLookRequest) (DeeperLook
 		out.Suggestions = append(out.Suggestions, sug)
 	}
 	return out, nil
+}
+
+// errNoAIProvider is the refusal, with the command that connects a model.
+func errNoAIProvider() error {
+	return fmt.Errorf("%w: connect one with kapi models setup, then run this again", ErrNoAIProvider)
+}
+
+// DeeperLookModel names the provider and model the deeper look would ask
+// about a project, or refuses with ErrNoAIProvider when nothing names one. It
+// asks no model.
+func (a *App) DeeperLookModel(ctx context.Context, projectRef string) (provider, modelName string, err error) {
+	s, err := a.contextOps(ctx, projectRef)
+	if err != nil {
+		return "", "", err
+	}
+	provider, modelName, ok := a.deeperLookModel(s.proj)
+	if !ok {
+		return "", "", errNoAIProvider()
+	}
+	return provider, modelName, nil
 }
 
 // deeperLookModel is the provider and model the deeper look asks, by the
