@@ -30,9 +30,9 @@ narration:
     beat: new-project
     caption: Created, and governing nothing yet.
     text: >-
-      A new project asks for a name and a structure, and nothing else. What it
-      opens on is the standing, which at this point is empty: no target
-      language, no content read, nothing to be behind on.
+      A new project asks for a name and a structure, and nothing else. It opens
+      on its Map, which leads to the structure, and the standing after it is
+      empty: no target language, no content read, nothing to be behind on.
 
   - id: add-language
     kind: desktop
