@@ -99,9 +99,9 @@ export const Converged: Story = {
   },
 };
 
-/** Parked: the loop stalled short of the gate — each parked (collection,
- *  locale) scope deep-links into the Review page. */
-export const Parked: Story = {
+/** Waiting for review: the loop stalled short of the gate, and each
+ *  (collection, locale) scope waiting for review deep-links into the Review page. */
+export const WaitingForReview: Story = {
   args: {
     events: [
       ...TWO_PASSES,

@@ -43,7 +43,7 @@ export interface ConvergenceRunViewProps {
    * When omitted, the view falls back to a compact done-footer from the model.
    */
   result?: ConvergenceOutcome;
-  /** Open a review surface filtered to a parked (collection, locale) scope. */
+  /** Open a review surface filtered to a (collection, locale) scope waiting for review. */
   onOpenReview?: (scope: { collection?: string; locale?: string }) => void;
 }
 
@@ -53,6 +53,18 @@ const localeStateColor: Record<string, string> = {
   parked: "bg-warning/10 text-warning-ink",
   pending: "bg-muted text-muted-foreground",
 };
+
+/**
+ * Display label for a locale's ship verdict. The wire values are
+ * `shippable | parked | pending`; `parked` reads as "waiting for review".
+ * An unknown value passes through.
+ */
+function localeStateLabel(state: string): string {
+  if (state === "shippable") return t("Shippable");
+  if (state === "parked") return t("Waiting for review");
+  if (state === "pending") return t("Pending");
+  return state;
+}
 
 /**
  * The live convergence view of a "Bring up to date" run. It renders the reduced
@@ -167,7 +179,7 @@ export function ConvergenceRunView({
  */
 function finalStateLabel(state?: string): string {
   if (state === "converged") return t("Up to date");
-  if (state === "parked") return t("Parked");
+  if (state === "parked") return t("Waiting for review");
   return state ?? t("done");
 }
 
@@ -271,7 +283,7 @@ function ConvergeOutcomeBlock({
         <div className="space-y-1.5">
           <p className="flex items-center gap-1.5 text-xs text-warning-ink">
             <PauseCircle size={13} />
-            {t("{count} scope(s) parked. They need a human to advance.", {
+            {t("{count} scope(s) waiting for review by a person.", {
               count: parked.length,
             })}
           </p>
@@ -441,11 +453,11 @@ function ConvergeLocaleRowView({ row }: { row: ConvergenceLocaleRow }) {
       {row.localeState && (
         <Badge
           className={cn(
-            "shrink-0 text-[10px] capitalize",
+            "shrink-0 text-[10px]",
             localeStateColor[row.localeState] ?? "bg-muted text-muted-foreground",
           )}
         >
-          {row.localeState}
+          {localeStateLabel(row.localeState)}
         </Badge>
       )}
     </div>

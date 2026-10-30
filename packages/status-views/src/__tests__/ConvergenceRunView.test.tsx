@@ -59,7 +59,7 @@ describe("ConvergenceRunView — live locale rows", () => {
 });
 
 describe("ConvergenceRunView — structured outcome (kapi-desktop)", () => {
-  it("deep-links a parked scope to review filtered to it", async () => {
+  it("deep-links a scope waiting for review to review filtered to it", async () => {
     const onOpenReview = vi.fn();
     render(
       <ConvergenceRunView
@@ -72,7 +72,7 @@ describe("ConvergenceRunView — structured outcome (kapi-desktop)", () => {
         onOpenReview={onOpenReview}
       />,
     );
-    expect(screen.getByText(/1 scope\(s\) parked/)).toBeInTheDocument();
+    expect(screen.getByText(/1 scope\(s\) waiting for review/)).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Review de-DE · docs" }));
     expect(onOpenReview).toHaveBeenCalledWith({ collection: "docs", locale: "de-DE" });
@@ -129,7 +129,8 @@ describe("ConvergenceRunView — header + logs + done footer (bowrain)", () => {
     render(<ConvergenceRunView model={model} run={{ id: "run-8f2a1c0e", trigger: "manual" }} />);
     expect(screen.getByText("Manual run")).toBeInTheDocument();
     expect(screen.getByText("Run run-8f2a")).toBeInTheDocument();
-    expect(screen.getByText("shippable")).toBeInTheDocument();
+    expect(screen.getByText("Shippable")).toBeInTheDocument();
+    expect(screen.getAllByText("Waiting for review").length).toBeGreaterThan(0);
     expect(screen.getByText("Log (1)")).toBeInTheDocument();
     expect(screen.getByText("3 files written")).toBeInTheDocument();
   });

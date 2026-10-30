@@ -67,11 +67,11 @@ export interface RunnerPageProps {
   /**
    * Convergence mode (Bring up to date): the run goes through the shared
    * `kapi up` engine and the page renders passes (extracted / produced /
-   * failing checks / parked) instead of raw flow logs. Custom-flow runs keep
+   * failing checks / waiting for review) instead of raw flow logs. Custom-flow runs keep
    * the classic runner view.
    */
   converge?: boolean;
-  /** Open the Review page filtered to a parked (collection, locale) scope. */
+  /** Open the Review page filtered to a (collection, locale) scope waiting for review. */
   onOpenReview?: (scope: { collection?: string; locale?: string }) => void;
 }
 

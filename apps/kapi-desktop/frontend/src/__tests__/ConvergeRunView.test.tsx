@@ -79,10 +79,10 @@ describe("ConvergeRunView — live locale rows", () => {
     expect(screen.getByText("Deriving state and running the first pass…")).toBeInTheDocument();
   });
 
-  it("deep-links a parked scope to the Review page filtered to it", async () => {
+  it("deep-links a scope waiting for review to the Review page filtered to it", async () => {
     const onOpenReview = vi.fn();
     render(<ConvergeRunView events={[...liveEvents, completeEvent]} onOpenReview={onOpenReview} />);
-    expect(screen.getByText(/1 scope\(s\) parked/)).toBeInTheDocument();
+    expect(screen.getByText(/1 scope\(s\) waiting for review/)).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Review de-DE · docs" }));
     expect(onOpenReview).toHaveBeenCalledWith({ collection: "docs", locale: "de-DE" });
