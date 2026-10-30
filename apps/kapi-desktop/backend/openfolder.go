@@ -20,12 +20,12 @@ import (
 )
 
 // A folder opens whether or not it holds a recipe. One without a kapi.yaml
-// opens on a recipe held in memory, the one `kapi init` would write there, and
-// the recipe reaches the disk the first time a person changes something that
-// lives in it or acts on the project: keeping a suggestion, connecting an
-// assistant, saving a setting, running a flow. Until then the folder holds no
-// kapi.yaml, the project is not registered in the workspace, and every surface
-// that reads the recipe from disk answers as for a project with nothing in it.
+// opens on a recipe held in memory, the one `kapi init` would write there.
+// ensureRecipe writes it the first time a person changes something it holds or
+// acts on the project: keeping a suggestion, connecting an assistant, saving a
+// setting, running a flow. Until then the folder holds no kapi.yaml and the
+// workspace has no record of it. Every surface that reads the recipe from disk
+// answers as for a project with nothing in it.
 
 // openTarget is what a path handed to OpenProject names: the recipe path the
 // tab is keyed on, and whether that recipe is on disk.

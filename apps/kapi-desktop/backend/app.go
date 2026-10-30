@@ -575,11 +575,11 @@ func (a *App) OpenProject(path string) (*TabInfo, error) {
 		return nil, err
 	}
 	path = target.recipe
-	// A recipe that is gone from disk yields no tab, and the check comes
-	// before the already-open lookup on purpose: a tab opened before the file
-	// went away still matches by path, and handing it back gives the frontend
-	// a project that looks live until a page reads the recipe and fails. That
-	// is what the walkthrough recorder filmed, its home wiped underneath a
+	// A recipe that is gone from disk yields no tab. The check comes before
+	// the already-open lookup on purpose: a tab opened before the file went
+	// away still matches by path, and handing it back gives the frontend a
+	// project that looks live until a page reads the recipe and fails. That is
+	// what the walkthrough recorder filmed, its home wiped underneath a
 	// backend that stayed up (#2560).
 	if !target.exists {
 		ok, reason := recipeStatus(path)
@@ -691,8 +691,8 @@ func (a *App) UpdateProject(tabID string, proj *project.KapiProject) error {
 	changed := op.unsaved.Load() && !sameRecipe(op.Project, proj)
 	op.Project = proj
 	if changed {
-		// A person changed a setting the recipe holds, in a folder whose
-		// recipe is not on disk yet: this is the change that writes it.
+		// A person changed a setting the recipe holds, in a folder opened
+		// without a kapi.yaml. The first such change writes the file.
 		return a.ensureRecipe(op)
 	}
 	return nil

@@ -233,7 +233,10 @@ function AppInner() {
   // Until two projects are registered the home is the Open screen. With no
   // folder open it fills the window: no sidebar, no top bar, nothing to act on
   // but the ways in.
+  // While the workspace is read and no folder is open, the window holds the
+  // title bar alone, so neither screen shows and gives way to the other.
   const openScreen = (workspace?.projects.length ?? 0) < 2;
+  const reading = !workspace && !workspaceError;
   const firstLaunch = openScreen && tm.tabs.length === 0;
   const dialogs = (
     <>
@@ -254,12 +257,14 @@ function AppInner() {
       <div className="flex h-screen flex-col bg-background text-foreground">
         <div className="h-12 shrink-0" style={{ WebkitAppRegion: "drag" } as React.CSSProperties} />
         <main className="min-h-0 flex-1">
-          <OpenScreen
-            workspace={workspace}
-            onChooseFolder={() => void tm.openProject()}
-            onOpenPath={(path) => void tm.openRecent(path)}
-            onTrySample={() => tm.createSampleProject("kapimart")}
-          />
+          {!reading && (
+            <OpenScreen
+              workspace={workspace}
+              onChooseFolder={() => void tm.openProject()}
+              onOpenPath={(path) => void tm.openRecent(path)}
+              onTrySample={() => tm.createSampleProject("kapimart")}
+            />
+          )}
         </main>
         {dialogs}
       </div>
