@@ -26,19 +26,26 @@ For what kapi is and how the surfaces relate, see the
 
 ## Get oriented
 
-Inside a project, `kapi look`, or `kapi` on its own, prints the project: its
-files, the blocks in them, the rules in force, the findings a check reports
-and the suggestions waiting for you. `kapi look <path>` prints one file with
-its findings and rules in place.
+`kapi --help` lists the writing commands in every project. It adds the
+language commands once the recipe declares a target language, and before that
+`kapi help languages` lists them. `kapi help --all` lists every command,
+including the engine's.
 
-In the installed kapi, `kapi --help` shows the writing commands, adds the
-language commands when the recipe declares a target language, and
-`kapi help --all` lists every command, including the engine's. The tour below
-runs a copy of `kapi` in your browser, with no install and no server. That copy
-prints the full list from `kapi --help`. Then `kapi formats` and `kapi tools`,
-two engine commands, list the format readers and the processing tools you can
-run on extracted content. Step through the tour from the rail, or press
-**Run all**.
+The writing commands lead with seven, in the order a person meets them:
+
+- `kapi look`: see the project, or one file with its rules and findings in place.
+- `kapi rules`: decide, list, narrow or drop the rules the project keeps.
+- `kapi check`: check content against its rules, and fail on a failing finding.
+- `kapi fix`: apply the fixes kapi can make on its own.
+- `kapi connect`: put an assistant on the project.
+- `kapi share`: share the rules with your team.
+- `kapi open`: open the folder in Kapi Desktop.
+
+The tour below runs a copy of `kapi` in your browser, with no install and no
+server. That copy prints the full list from `kapi --help`. Then `kapi formats`
+and `kapi tools`, two engine commands, list the format readers and the
+processing tools you can run on a file's blocks. Step through the tour from the
+rail, or press **Run all**.
 
 <KapiGuidedEmbed id="kapi-overview" />
 
