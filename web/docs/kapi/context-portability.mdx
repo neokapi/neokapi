@@ -13,7 +13,9 @@ A project's context is its rules and suggestions, its terms, voice profiles
 and content memory, and the record of who approved what. It lives in your
 [workspace](/kapi/project-store) on this machine, shared by every clone and
 worktree of the project. `kapi context sync` shares it with the rest of the
-team.
+team. `kapi share` runs the same sync for a person, and `kapi share --via git`
+or `kapi share --via folder <path>` writes the `context:` block below before
+its first sync.
 
 | Command | Use it to |
 | --- | --- |

@@ -13,8 +13,20 @@ voice profile and content memory, and see what everyone else's assistants
 noticed. The project's **Share** section shows how far its context reaches and
 sets up the next step.
 
-**For the command line**, see [Sharing context](/kapi/context-portability),
-which covers `kapi context sync` and every flag.
+**From the command line**, `kapi share` does the same:
+
+| Command | What it does |
+| --- | --- |
+| `kapi share` | prints the rungs with the current one marked, or syncs through the place `kapi.yaml` names |
+| `kapi share --via git` | keeps the context in a ref of the project's repository, then syncs |
+| `kapi share --via folder <path>` | keeps it in a folder every machine reaches, then syncs |
+| `kapi share --via s3 s3://<bucket>/<prefix>` | keeps it in an S3 bucket, then syncs |
+| `kapi share --status` | prints the rung and the last sync, without syncing |
+
+`--via` writes the same `context:` block the dialog below saves, and writes a
+`kapi.yaml` first in a folder that has none. An assistant or a CI job runs
+`kapi context sync`, which syncs the same way; see
+[Sharing context](/kapi/context-portability) for its flags.
 
 ## On this Mac
 
