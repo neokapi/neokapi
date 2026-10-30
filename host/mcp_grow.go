@@ -59,9 +59,13 @@ func registerContextGrowthMCPTools(server *mcp.Server, a *App) {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "context_session_summary",
-		Description: "Report what this session recorded with context_note. Call it only if you recorded " +
-			"a note, and end your report with what it says, including the command a person reviews " +
-			"the session with.",
+		Description: "Report what this session recorded with context_note, and what the Stop hook's check " +
+			"runs found in it: `checked` runs, the `failing` findings the latest run left, the `caught` " +
+			"findings and the `files` the session edited. A finding is caught when a hook run reported it " +
+			"and the next run on the same file no longer found it. The hook records its runs under the " +
+			"assistant host's session id; pass that id in `session` to read them. Call it only if you " +
+			"recorded a note, and end your report with what it says, including the command a person " +
+			"reviews the session with.",
 	}, a.handleContextSessionSummary)
 }
 
@@ -260,6 +264,17 @@ type contextSessionOutput struct {
 	Withdrawn   int `json:"withdrawn"`
 	Dropped     int `json:"dropped"`
 	Reset       int `json:"reset"`
+	// Checked, Failing, Caught and Files are what the session's check runs
+	// found (SessionOutcomes), under the names the desktop feed gives them.
+	// Checked counts the runs the Stop hook recorded and Failing the failing
+	// findings the latest run left. Caught counts the findings one run
+	// reported and the next no longer found on the same file, and Files the
+	// files the session's turns edited. Each is present at zero, so a session
+	// with no run (checked 0) reads apart from a clean one.
+	Checked int `json:"checked"`
+	Failing int `json:"failing"`
+	Caught  int `json:"caught"`
+	Files   int `json:"files"`
 	// First and Last bound the session in time, RFC 3339.
 	First string `json:"first,omitempty"`
 	Last  string `json:"last,omitempty"`
@@ -422,12 +437,17 @@ func (a *App) handleContextSessionSummary(ctx context.Context, req *mcp.CallTool
 	if session == "" {
 		session = MCPSessionID()
 	}
-	summary, err := a.ContextSessionSummary(ctx, ContextSessionRequest{Project: recipe, Session: session})
+	sreq := ContextSessionRequest{Project: recipe, Session: session}
+	summary, err := a.ContextSessionSummary(ctx, sreq)
+	if err != nil {
+		return nil, contextSessionOutput{}, err
+	}
+	outcomes, err := a.SessionOutcomes(ctx, sreq)
 	if err != nil {
 		return nil, contextSessionOutput{}, err
 	}
 	a.NoteMCPSession(ctx, recipe, mcpClientName(req))
-	return nil, sessionOutput(summary), nil
+	return nil, sessionOutput(summary, outcomes), nil
 }
 
 // ─── Rendering ──────────────────────────────────────────────────────────────
@@ -447,9 +467,10 @@ func recordedOutput(op ContextOperation) contextRecordOutput {
 	}
 }
 
-// sessionOutput renders a session summary flat, counted by what it recorded and
-// by what became of it, with the sentence an agent ends its report on.
-func sessionOutput(s contextop.SessionSummary) contextSessionOutput {
+// sessionOutput renders a session summary flat, counted by what it recorded, by
+// what became of it and by what its check runs found, with the sentence an
+// agent ends its report on.
+func sessionOutput(s contextop.SessionSummary, o SessionOutcomes) contextSessionOutput {
 	out := contextSessionOutput{
 		Session:     s.Session,
 		Project:     string(s.Project),
@@ -463,6 +484,10 @@ func sessionOutput(s contextop.SessionSummary) contextSessionOutput {
 		Withdrawn:   s.ByStatus[contextop.StatusWithdrawn],
 		Dropped:     s.ByStatus[contextop.StatusDropped],
 		Reset:       s.ByStatus[contextop.StatusReset],
+		Checked:     o.Checked,
+		Failing:     o.Failing,
+		Caught:      o.Caught,
+		Files:       o.Files,
 		Review:      "kapi context review --session " + s.Session,
 	}
 	if !s.First.IsZero() {
@@ -471,16 +496,17 @@ func sessionOutput(s contextop.SessionSummary) contextSessionOutput {
 	if !s.Last.IsZero() {
 		out.Last = s.Last.UTC().Format(time.RFC3339)
 	}
-	out.Report = sessionReport(out)
+	out.Report = sessionReport(out, s.Operations-s.ByKind[contextop.KindCheck])
 	return out
 }
 
-// sessionReport is the sentence an agent ends its task report with. A session
-// that recorded nothing says so, because "I recorded nothing about this
-// project" is a fact a person can act on.
-func sessionReport(s contextSessionOutput) string {
-	if s.Operations == 0 {
-		return fmt.Sprintf("Recorded nothing about this project's context (session %s).", s.Session)
+// sessionReport is the sentence an agent ends its task report with. notes
+// counts the session's operations other than its check runs. A session that
+// recorded no note says so, because "I recorded nothing about this project" is
+// a fact a person can act on.
+func sessionReport(s contextSessionOutput, notes int) string {
+	if notes == 0 {
+		return fmt.Sprintf("Recorded nothing about this project's context (session %s).", s.Session) + checkRunsReport(s)
 	}
 	var parts []string
 	if s.Observed > 0 {
@@ -497,7 +523,21 @@ func sessionReport(s contextSessionOutput) string {
 		}
 		report += "."
 	}
-	return report + " Review with `" + s.Review + "`."
+	return report + checkRunsReport(s) + " Review with `" + s.Review + "`."
+}
+
+// checkRunsReport is what the session's check runs found, as a sentence that
+// follows another: " Checks ran 2 times on 1 edited file: 1 failing, 1
+// caught." A session the Stop hook recorded no run for adds nothing.
+func checkRunsReport(s contextSessionOutput) string {
+	if s.Checked == 0 {
+		return ""
+	}
+	ran := "Checks ran " + plural(s.Checked, "time", "times")
+	if s.Files > 0 {
+		ran += " on " + plural(s.Files, "edited file", "edited files")
+	}
+	return fmt.Sprintf(" %s: %d failing, %d caught.", ran, s.Failing, s.Caught)
 }
 
 // mcpEvidence renders the location a call named as the evidence behind it.

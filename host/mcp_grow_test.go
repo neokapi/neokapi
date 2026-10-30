@@ -140,7 +140,7 @@ func TestSessionReportIsWhatAnAgentSays(t *testing.T) {
 		Operations: 3,
 		ByKind:     map[contextop.Kind]int{contextop.KindObserve: 2, contextop.KindCorrect: 1},
 		ByStatus:   map[contextop.Status]int{contextop.StatusSuggested: 2, contextop.StatusContested: 1},
-	})
+	}, SessionOutcomes{})
 	assert.Equal(t, 2, out.Observed)
 	assert.Equal(t, 1, out.Corrected)
 	assert.Equal(t, 2, out.Suggested)
@@ -150,7 +150,7 @@ func TestSessionReportIsWhatAnAgentSays(t *testing.T) {
 	assert.Contains(t, out.Report, "3 suggestions are waiting for a person, 1 of them contested")
 	assert.Contains(t, out.Report, out.Review)
 
-	quiet := sessionOutput(contextop.SessionSummary{Session: "s0"})
+	quiet := sessionOutput(contextop.SessionSummary{Session: "s0"}, SessionOutcomes{})
 	assert.Contains(t, quiet.Report, "Recorded nothing",
 		"a session that recorded nothing says so, which is a fact a person can act on")
 }
