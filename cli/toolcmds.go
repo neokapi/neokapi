@@ -61,6 +61,9 @@ Reach for exec when you want exactly one tool's behavior: a bare
 converter. The verb pairs with 'kapi run <flow>' the way 'kapi tools' pairs
 with 'kapi flows': run composes a pipeline, exec executes one tool.
 
+In a project that declares a redaction policy, a tool that sends blocks to a
+model reads them redacted, and its output carries the original values.
+
 Discover tools and their options with 'kapi tools list' and
 'kapi tools schema <name>'.`,
 		// Fail loudly on a tool name that doesn't exist (or no longer exists —
