@@ -220,7 +220,7 @@ type Pattern struct {
 	// failing. See Failing.
 	Fails bool `json:"fails,omitempty" yaml:"fails,omitempty"`
 	// Advisory makes a match report without failing a check, whatever Fails
-	// says. It is the default, and a profile may still state it.
+	// says. Reporting is the default, so the key restates it.
 	Advisory bool `json:"advisory,omitempty" yaml:"advisory,omitempty"`
 
 	// Rate turns a prohibition into a ceiling: not "never" but "not this
