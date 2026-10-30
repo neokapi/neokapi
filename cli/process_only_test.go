@@ -257,7 +257,7 @@ func runDocCacheKeys(t *testing.T, recipe string) []string {
 }
 
 // TestRun_InProject_PopulatesAndReusesDocumentCache verifies the real CLI wiring:
-// a process-only run populates the project document cache under a "|doc|" key, and
+// a process-only run populates the project document cache under a "|read|" key, and
 // a second run produces the identical work (served from the cache).
 func TestRun_InProject_PopulatesAndReusesDocumentCache(t *testing.T) {
 	a := processOnlyApp(t)
@@ -268,13 +268,13 @@ func TestRun_InProject_PopulatesAndReusesDocumentCache(t *testing.T) {
 	require.NoError(t, err, "run output: %s", out)
 
 	keys := runDocCacheKeys(t, recipe)
-	hasRunKey := false
+	hasReadKey := false
 	for _, k := range keys {
-		if strings.Contains(k, "|run|") {
-			hasRunKey = true
+		if strings.Contains(k, "|read|") {
+			hasReadKey = true
 		}
 	}
-	assert.True(t, hasRunKey, "the process-only run must populate the document cache under a |run| key; got %v", keys)
+	assert.True(t, hasReadKey, "the process-only run must populate the document cache under a |read| key; got %v", keys)
 	first := storeOverlayCount(t, recipe, "targets/fr-FR")
 	assert.Equal(t, 1, first)
 
