@@ -1200,9 +1200,9 @@ func sameRuns(a, b []model.Run) bool {
 }
 
 // sameContent reports whether two run sequences say the same as a file holds
-// it: the same text and the same codes with the same types and attributes,
-// whatever each code's native form, its labels and the do-not-translate marks
-// on text, which a writer takes from the file or does not write. How the text
+// it: the same text and the same codes with the same types and attributes.
+// Each code's native form, its labels and the do-not-translate marks on text
+// do not count, since a writer takes them from the file or does not write them. How the text
 // between two codes is split into runs does not count either: no file records
 // it.
 func sameContent(a, b []model.Run) bool {

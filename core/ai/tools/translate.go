@@ -1235,9 +1235,8 @@ func (t *AITranslateTool) blockContext(ctx context.Context, b *model.Block, neig
 // context source to be forgotten, which is how the prior version was nearly
 // shipped outside the cache key.
 //
-// The source stamp names the source as read, so when a step ahead of this one
-// rewrote the source (redact, a script), the text the model was sent goes into
-// the key as well (blockstore.ReuseConfig).
+// A source a step rewrote also puts the text sent in the key
+// (blockstore.ReuseConfig).
 func (t *AITranslateTool) cacheFingerprint(ctx context.Context, b *model.Block) string {
 	if b == nil {
 		return t.configFP
