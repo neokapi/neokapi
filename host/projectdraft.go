@@ -10,15 +10,12 @@ import (
 )
 
 // A draft project is a folder an embedding host has opened on a recipe that
-// is not on disk yet: the desktop opens any folder, and writes its kapi.yaml
-// only when a person first changes something the recipe holds. Until then the
-// folder is left as it was found. The store of a draft therefore keeps its
-// `.kapi/` state outside the folder, and the project is not registered in the
-// workspace, because a registered checkout without a recipe reads everywhere
-// as a project whose recipe was deleted.
-//
-// The CLI never binds a draft: every command it runs has a recipe on disk or
-// none at all.
+// is not on disk yet. The desktop opens any folder and writes its kapi.yaml
+// when a person first changes something the recipe holds; until then the
+// folder is left as it was found. A draft's store keeps its state outside the
+// folder, and the workspace registers nothing for it: a registered checkout
+// without a recipe reads everywhere as a project whose recipe was deleted.
+// The CLI never binds a draft.
 
 // draftProject is where the store of a draft keeps its state, and the key its
 // context is kept under in the workspace.
