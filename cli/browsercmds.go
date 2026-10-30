@@ -178,6 +178,7 @@ func BrowserCommandSet(a *App) []*cobra.Command {
 		NewStatusCmd(a),
 		NewCheckCmd(a),
 		NewFixCmd(a),
+		NewRulesCmd(a),
 		NewHookCmd(a),
 		NewInitCmd(a),
 		NewAddCmd(a),

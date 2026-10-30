@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-30T16:51:27Z",
+  "generatedAt": "2026-10-30T17:13:45Z",
   "commands": [
     {
       "id": "add",
@@ -977,7 +977,7 @@
         },
         {
           "name": "use",
-          "usage": "with one --keep: change what the rule says to write instead",
+          "usage": "with one --keep or --choose: change what the rule says to write instead",
           "type": "string"
         },
         {
@@ -7680,6 +7680,231 @@
           "default": "false",
           "type": "bool"
         }
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "rules",
+      "path": [
+        "rules"
+      ],
+      "use": "rules",
+      "short": "Decide, list, narrow or drop the rules your project keeps",
+      "long": "The rules are what your project keeps to: names and their spelling, words to\navoid, and the voice's measures and patterns. An assistant suggests a rule\nwhen it notices one in your files. Checks report a suggestion, and none fails\non it until you keep it.\n\nWith suggestions waiting, kapi rules asks about each one in turn: which form\nyour files use, or whether to keep it. Before you answer, it shows what\nkeeping it does: how many blocks a check then reports, and where the rule\napplies.\n\n  k  keep             n  not a rule         l  later\n  a number picks another form, or types one of your own (Other…)\n\nA kept name or word fails a check from then on. A kept note is stated to\nwriters and assistants, and no check reads it. Outside a terminal, kapi rules\nlists the questions with the id each decision takes:\n\n  --keep \u003cid\u003e        keep a suggestion (repeatable); --use picks the form\n  --drop \u003cid\u003e        not a rule: set a suggestion or a kept rule aside\n  --later \u003cid\u003e       leave it waiting; it keeps advising\n  --choose \u003cid\u003e      keep one side where two suggestions disagree\n\nkapi context review records the same decisions for an assistant.",
+      "groupID": "work",
+      "flags": [
+        {
+          "name": "advisory",
+          "usage": "with a keep: the rule reports without failing a check (--advisory=false makes it fail)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "choose",
+          "usage": "keep this side where two suggestions disagree and set the other aside",
+          "type": "string"
+        },
+        {
+          "name": "drop",
+          "usage": "not a rule: set a suggestion or a kept rule aside by id (repeatable)",
+          "default": "[]",
+          "type": "stringArray"
+        },
+        {
+          "name": "keep",
+          "usage": "keep a suggestion by id (repeatable)",
+          "default": "[]",
+          "type": "stringArray"
+        },
+        {
+          "name": "later",
+          "usage": "leave a suggestion waiting by id (repeatable); it keeps advising",
+          "default": "[]",
+          "type": "stringArray"
+        },
+        {
+          "name": "note",
+          "usage": "why",
+          "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        },
+        {
+          "name": "use",
+          "usage": "with one --keep or --choose: the form the rule says to write",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi rules",
+        "kapi rules list",
+        "kapi rules --keep 0n794e2gk7 --use \"Sign in\"",
+        "kapi rules keep 0n794e2gk7",
+        "kapi rules drop 0n794e2gk7",
+        "kapi rules narrow 0n794e2gk7 --to docs",
+        "kapi rules find \"sign in\""
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "rules.drop",
+      "path": [
+        "rules",
+        "drop"
+      ],
+      "use": "drop \u003cid\u003e",
+      "short": "Set a suggestion or a kept rule aside",
+      "long": "Set aside the suggestion or rule an id names, the same as answering n in\nkapi rules. A kept rule stops applying at once and is taken back out of the\nterms store. The decision is recorded beside the one it replaces, so the log\nkeeps both.",
+      "flags": [
+        {
+          "name": "note",
+          "usage": "why",
+          "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi rules drop 0n794e2gk7",
+        "kapi rules drop 0n794e2gk7 --note \"we say it both ways\""
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "rules.find",
+      "path": [
+        "rules",
+        "find"
+      ],
+      "use": "find \u003cword\u003e",
+      "short": "Find the rules, suggestions and decisions that mention a word",
+      "long": "Find what the project keeps about one word: the rules that mention it, the\nsuggestions waiting, and the suggestions a person decided were not a rule,\neach with where it applies.",
+      "flags": [
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi rules find \"sign in\"",
+        "kapi rules find widget --json"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "rules.keep",
+      "path": [
+        "rules",
+        "keep"
+      ],
+      "use": "keep \u003cid\u003e",
+      "short": "Keep a suggestion as a rule",
+      "long": "Keep the suggestion an id names as a rule, the same as answering k in\nkapi rules. --use picks the form a name is kept as.",
+      "flags": [
+        {
+          "name": "advisory",
+          "usage": "with a keep: the rule reports without failing a check (--advisory=false makes it fail)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "note",
+          "usage": "why",
+          "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        },
+        {
+          "name": "use",
+          "usage": "with one --keep or --choose: the form the rule says to write",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi rules keep 0n794e2gk7",
+        "kapi rules keep 0n794e2gk7 --use \"Sign in\""
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "rules.list",
+      "path": [
+        "rules",
+        "list"
+      ],
+      "use": "list",
+      "short": "List the rules in force and the suggestions waiting",
+      "long": "List every rule the project keeps, one line each, grouped as names, words,\ntone and suggested. Each line says where the rule comes from (the terms store,\nthe voice profile, or who kept it and when) and, for a rule narrowed to part\nof the project, where it applies. The id at the end of a line is what\nkapi rules keep, drop and narrow take.",
+      "flags": [
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi rules list",
+        "kapi rules list --json"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "rules.narrow",
+      "path": [
+        "rules",
+        "narrow"
+      ],
+      "use": "narrow \u003cid\u003e --to \u003ccollection|folder\u003e",
+      "short": "Limit a kept rule to one collection, named directly or by a folder",
+      "long": "Limit a kept rule to one collection. Name the collection, or a folder: a\nfolder names the collection its files belong to, and the rule then holds in\nthat whole collection. The rule holds at the profile, channel and coordinates\nthe collection sits at, and in every collection that shares them. A folder\nwhose files sit at the project's own point has no coordinate to tell it\napart, and kapi says so.",
+      "flags": [
+        {
+          "name": "note",
+          "usage": "why",
+          "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        },
+        {
+          "name": "to",
+          "usage": "the collection the rule applies to, or a folder of it",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi rules narrow 0n794e2gk7 --to docs",
+        "kapi rules narrow 0n794e2gk7 --to web/src"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,

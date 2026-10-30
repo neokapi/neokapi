@@ -228,3 +228,40 @@ func TestContextNoteRecordsAChangeAndTakesANoteBack(t *testing.T) {
 	_, err = runContextE(t, a, "review", "--keep", op.ID, "-p", recipe)
 	require.Error(t, err, "an assistant does not decide")
 }
+
+func TestContextReviewChoosesASideAndChangesWhatItSays(t *testing.T) {
+	t.Setenv("KAPI_ACTOR", "person")
+	recipe := writeContextReviewProject(t)
+	a := &App{}
+	chosen := noteID(t, a, recipe, "use", "utilise")
+	out := runContext(t, a, "note", "--term", "employ", "--instead-of", "utilise",
+		"--seen-in", "docs/guide.md", "-p", recipe, "--json")
+	var noted struct {
+		ID     string `json:"id"`
+		Status string `json:"status"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(out), &noted), out)
+	rival := noted.ID
+	assert.Equal(t, "contested", noted.Status)
+	require.Equal(t, "contested", statusOf(t, a, recipe, chosen), "two rules about utilise disagree")
+
+	out = runContext(t, a, "review", "--choose", chosen, "--use", "apply", "-p", recipe, "--json")
+	var res struct {
+		Chosen struct {
+			Kept struct {
+				Subject struct {
+					Term struct {
+						Replacement string `json:"replacement"`
+					} `json:"term"`
+				} `json:"subject"`
+			} `json:"kept"`
+		} `json:"chosen"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(out), &res), out)
+	assert.Equal(t, "apply", res.Chosen.Kept.Subject.Term.Replacement, "--use changes the side --choose keeps")
+	assert.Equal(t, "established", statusOf(t, a, recipe, chosen))
+	assert.Equal(t, "dropped", statusOf(t, a, recipe, rival))
+
+	_, err := runContextE(t, a, "review", "--keep", chosen, "--choose", rival, "--use", "apply", "-p", recipe)
+	require.ErrorContains(t, err, "name one --keep or one --choose")
+}

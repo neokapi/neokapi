@@ -269,6 +269,8 @@ func TestOneLanguageProject_NamesNoLanguageWork(t *testing.T) {
 		{name: "kapi look", args: []string{"look"}},
 		{name: "kapi look <path>", args: []string{"look", filepath.Join(root, "docs", "berths.md")}},
 		{name: "kapi fix --help", args: []string{"fix", "--help"}},
+		{name: "kapi rules --help", args: []string{"rules", "--help"}},
+		{name: "kapi rules list", args: []string{"rules", "list"}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			out := runRoot(t, tt.args...)
