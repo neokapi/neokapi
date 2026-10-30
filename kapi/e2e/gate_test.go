@@ -19,29 +19,13 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// The gate conformance suite proves, against the built binary, that the gate
-// catches what it claims to catch and leaves alone what it claims to leave
-// alone.
-//
-// Each case is a directory under gate/testdata: a small project (a kapi.yaml,
-// its content files, and any context files under .kapi/) and an expect.yaml
-// beside it. The suite copies the project to a fresh directory, runs the
-// case's setup steps through kapi, and then holds four surfaces to what the
-// expect.yaml names:
-//
-//   - check: the findings `kapi check --json` reports for a file, and the ones
-//     it must not report;
-//   - fix: what `kapi fix` writes, byte for byte, and how many failing
-//     findings a second check finds;
-//   - context: what `kapi context <path>` names among the file's rules;
-//   - hook: what the Claude Code plugin's Stop hook decides after an edit.
-//
-// An expectation main does not meet yet carries `xfail: <reason>`. It is
-// reported as an expected failure, and the test fails when such an
-// expectation passes, so the row is updated when the behaviour lands.
-//
-// Run it with `make gate-conformance`, which prints the matrix: one line per
-// case and surface.
+// The gate conformance suite holds the built binary to what the gate claims to
+// catch and to leave alone. Each case under gate/testdata is a small project
+// and an expect.yaml naming what `kapi check`, `kapi fix`, `kapi context` and
+// the plugin's Stop hook do with it. An expectation the code does not meet yet
+// carries `xfail: <reason>`, and the test fails once it passes. `make
+// gate-conformance` prints the matrix; web/docs/contribute/testing.md describes
+// the expect.yaml keys.
 
 // gateCase is one fixture's expect.yaml.
 type gateCase struct {
