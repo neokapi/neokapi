@@ -232,9 +232,9 @@ function AppInner() {
   );
   // Until two projects are registered the home is the Open screen. With no
   // folder open it fills the window: no sidebar, no top bar, nothing to act on
-  // but the ways in.
-  // While the workspace is read and no folder is open, the window holds the
-  // title bar alone, so neither screen shows and gives way to the other.
+  // but the ways in. While the workspace is still being read, the window holds
+  // the title bar alone, so the Open screen never shows only to give way to the
+  // workspace home.
   const openScreen = (workspace?.projects.length ?? 0) < 2;
   const reading = !workspace && !workspaceError;
   const firstLaunch = openScreen && tm.tabs.length === 0;
