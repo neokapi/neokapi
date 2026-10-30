@@ -276,6 +276,8 @@ export function useTabManager() {
   // --- Startup: read the persisted session, reopen projects ---
   useEffect(() => {
     let cancelled = false;
+    // Recipe path → tab id of each remembered project the restore reopened.
+    const openedByPath = new Map<string, string>();
     void (async () => {
       try {
         const session = await api.getSessionState();
@@ -292,7 +294,6 @@ export function useTabManager() {
         // recipe path to its opened tab id so we can restore the active tab.
         // recipes are most-recent first; open oldest-first so the resulting tab
         // order (append) matches and the session round-trips on re-persist.
-        const openedByPath = new Map<string, string>();
         for (const path of [...recipes].reverse()) {
           try {
             const tab = await api.openProject(path);
@@ -322,11 +323,40 @@ export function useTabManager() {
         if (!cancelled) setGlobalView("home");
       } finally {
         if (!cancelled) {
+          await showOutsideTabs(new Set(openedByPath.values()));
+        }
+        if (!cancelled) {
           restoredRef.current = true;
           setRestoring(false);
         }
       }
     })();
+
+    // A folder handed to the app as it starts (`kapi open`, a path argument,
+    // a recipe dropped on the dock icon) opens in the backend before this
+    // window listens for "open-project-tab", and while the session above is
+    // restored. Once the restore is done, every tab the backend holds that it
+    // did not reopen is shown, and the last of them is the one in front.
+    async function showOutsideTabs(restored: Set<string>) {
+      try {
+        const held = (await api.listTabs()) ?? [];
+        let last: string | null = null;
+        for (const tab of held) {
+          if (cancelled) return;
+          if (restored.has(tab.id)) continue;
+          const proj = await api.getProject(tab.id);
+          if (!proj || cancelled) continue;
+          await addTab(tab, proj);
+          last = tab.id;
+        }
+        if (last && !cancelled) {
+          setActiveTabID(last);
+          setGlobalView("");
+        }
+      } catch {
+        // The session restore stands as it is.
+      }
+    }
     return () => {
       cancelled = true;
     };
