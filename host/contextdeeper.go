@@ -615,8 +615,17 @@ func deeperVoiceFindings(c suggestCorpus, draft *coreprofile.VoiceProfile) []sug
 	}
 
 	var out []suggestFinding
+	// A measure of the whole text quotes the first block that reads as a
+	// sentence, five words or more, rather than a heading.
+	prose := 0
+	for i, b := range c.blocks {
+		if len(strings.Fields(b.plain)) >= 5 {
+			prose = i
+			break
+		}
+	}
 	for _, m := range measures {
-		sample, blocks := 0, len(c.blocks)
+		sample, blocks := prose, len(c.blocks)
 		files := c.files
 		if m.sample != nil {
 			sample, blocks = -1, 0

@@ -135,6 +135,10 @@ func TestDeeperLook_FilesTermsAndVoiceAsKapiWithTheModel(t *testing.T) {
 	assert.Equal(t, "Open the Dockyard to see your boats. You can't miss it.", contraction.Quote.Quote,
 		"the quote shows a block with a contraction")
 	assert.Equal(t, 1, contraction.Blocks)
+	length := measureOf(t, res, "sentence_length")
+	require.NotNil(t, length.Quote)
+	assert.Equal(t, "Harbor Help answers your questions. You can ask it anything.", length.Quote.Quote,
+		"a measure of the whole text quotes a sentence, not the heading")
 
 	digest, err := app.ContextDigest(ctx, ContextDigestRequest{Project: recipeOf(root)})
 	require.NoError(t, err)

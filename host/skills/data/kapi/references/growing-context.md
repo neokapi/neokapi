@@ -46,7 +46,9 @@ the person made.
   name you introduced yourself; `--seen-in` names a file that was there before
   you started. `kapi context suggest` files each word the files write more
   than one way as a suggestion noticed by kapi, with its counts, without an AI
-  model.
+  model; with `--ai` it then asks the user's connected model for the terms
+  and voice measures the files show, which costs the user tokens, so run it
+  only when they ask.
 
   Everything recorded is a **suggestion**: every check reports it, and no check
   can fail on it until a person's signal backs it. A note holds only where
