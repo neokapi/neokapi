@@ -592,7 +592,7 @@ func spellingFinding(c suggestCorpus, key string, forms map[string]*variantCount
 	}
 	list := make([]ranked, 0, len(forms))
 	for form, v := range forms {
-		list = append(list, ranked{form: form, written: writtenAs(form, v.spellings), v: v})
+		list = append(list, ranked{form: form, written: form, v: v})
 	}
 	sort.Slice(list, func(i, j int) bool {
 		if list[i].v.count != list[j].v.count {
@@ -600,6 +600,11 @@ func spellingFinding(c suggestCorpus, key string, forms map[string]*variantCount
 		}
 		return list[i].form < list[j].form
 	})
+	// The form to write is shown as the files write it. A form to avoid is
+	// shown as the form, which a rule matching either case finds however it
+	// is capitalised; a rule that tells two spellings apart by case alone
+	// matches as written, so it names each capitalisation the files use.
+	list[0].written = writtenAs(list[0].form, list[0].v.spellings)
 
 	fd := suggestFinding{kind: SuggestKindSpelling, key: "spelling:" + key, note: suggestNoteSpelling}
 	files := map[string]bool{}
@@ -613,8 +618,16 @@ func spellingFinding(c suggestCorpus, key string, forms map[string]*variantCount
 		for f := range r.v.files {
 			files[f] = true
 		}
-		if i > 0 {
-			others = append(others, r.written)
+		if i == 0 {
+			continue
+		}
+		others = append(others, r.written)
+		if strings.EqualFold(r.form, list[0].written) {
+			for _, spelling := range slices.Sorted(maps.Keys(r.v.spellings)) {
+				if spelling != r.written {
+					others = append(others, spelling)
+				}
+			}
 		}
 	}
 	fd.files = slices.Sorted(maps.Keys(files))

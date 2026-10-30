@@ -103,14 +103,26 @@ func TestSuggestFromFiles_Spelling(t *testing.T) {
 			want: map[string][]SuggestedForm{},
 		},
 		{
+			name: "a form to avoid written only at the start of a sentence is named in lower case",
+			files: map[string]string{
+				"docs/a.md": "Pick up at the desk.\n\nThe pick-up point is open.\n\nBook a pick-up slot.\n",
+			},
+			want: map[string][]SuggestedForm{
+				"Write pick-up, not pick up.": {
+					{Form: "pick-up", Count: 2, Blocks: 2, Files: []string{"docs/a.md"}},
+					{Form: "pick up", Count: 1, Blocks: 1, Files: []string{"docs/a.md"}},
+				},
+			},
+		},
+		{
 			name: "a capital inside a word is part of its spelling",
 			files: map[string]string{
 				"docs/a.md": "Push the branch to GitHub.\n\nOpen GitHub and review.\n\nThe Github app is installed.\n",
 			},
 			want: map[string][]SuggestedForm{
-				"Write GitHub, not Github, Git Hub or Git-Hub.": {
+				"Write GitHub, not github, Github, Git Hub or Git-Hub.": {
 					{Form: "GitHub", Count: 2, Blocks: 2, Files: []string{"docs/a.md"}},
-					{Form: "Github", Count: 1, Blocks: 1, Files: []string{"docs/a.md"}},
+					{Form: "github", Count: 1, Blocks: 1, Files: []string{"docs/a.md"}},
 				},
 			},
 		},
