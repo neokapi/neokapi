@@ -1,16 +1,13 @@
 package backend
 
-// The Reader: one content file as a person reads it. Its blocks are drawn in
-// file order with each finding on the words it is about, and the rules that
-// hold at the file run down the margin.
+// The Reader: one content file as a person reads it, its blocks in file order
+// with each finding on its words and the rules that hold there in a margin.
 //
-// Every part of the answer is one another surface gives for the same file:
-// the blocks and findings are a checks run over that file alone (runChecks),
-// the same run the Checks page makes, and the rules are the answer
-// `kapi context <path>` prints (ContextAt), in its order. A fix is the
-// finding's own change operation (check.Fix), applied through the change
-// service as the person at the keyboard, so the format's writer keeps the
-// rest of the file as it was.
+// The blocks and findings are a checks run over that file alone (runChecks),
+// and the rules are the answer `kapi context <path>` prints (ContextAt). A fix
+// is the finding's own change operation (check.Fix), applied through the
+// change service as the person at the keyboard, so the format's writer keeps
+// the rest of the file as it was.
 
 import (
 	"context"
@@ -524,9 +521,10 @@ func spellingKey(form string) string {
 }
 
 // readerRules turns the context answer for a file into the margin's rows, in
-// the order `kapi context <path>` prints the answer: the voice, what to say
-// and what not, the wordings a rule elsewhere leaves correct here, the notes
-// established at the file, and the suggestions not already stated as a rule.
+// the order `kapi context <path>` prints it. The voice comes first, then what
+// to say and what not, and the wordings a rule elsewhere leaves correct here.
+// The notes established at the file follow, and last the suggestions not
+// already stated as a rule.
 func readerRules(ans *host.ContextAnswer) ([]ReaderRuleDTO, int) {
 	out := []ReaderRuleDTO{}
 	if ans == nil {

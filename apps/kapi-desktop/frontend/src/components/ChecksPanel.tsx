@@ -637,7 +637,7 @@ export function ChecksPanel({
                                       refindable(fixFinding.current, fixer.stale.current)
                                         ? undefined
                                         : t(
-                                            "The fix no longer fits this text: its words are gone, or formatting now sits among them. Open the document to edit it.",
+                                            "The fix no longer fits this text: its words are gone, or formatting now sits among them. Edit it by hand.",
                                           )
                                     }
                                     onDiscard={() => {
