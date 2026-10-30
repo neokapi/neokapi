@@ -1,0 +1,28 @@
+description: >-
+  A word rule marked advisory: true reports and never fails, and kapi fix
+  leaves its words, while the failing rule beside it is fixed. With only the
+  advisory finding left, the Stop hook lets the assistant stop.
+stages:
+  - name: imported
+    steps:
+      - kapi: [store, import]
+    files:
+      - path: docs/guide.md
+        check:
+          failing: 1
+          reporting: 1
+          report:
+            - {rule: terms.vocabulary, block: "guide/p", quote: leverage, fails: false}
+            - {rule: terms.vocabulary, block: "guide/p#2", quote: utilize, fails: true}
+        fix:
+          failing: 0
+          after: |
+            # Guide
+
+            We leverage the cache.
+
+            We use the tool.
+        context:
+          names: ['rely on, not "leverage"', 'use, not "utilize"']
+    hook:
+      blocks: false

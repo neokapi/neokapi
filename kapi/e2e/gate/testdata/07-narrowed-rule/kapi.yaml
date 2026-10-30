@@ -1,0 +1,18 @@
+version: v1
+name: gate-narrowed
+defaults:
+  source_language: en
+profiles:
+  site:
+    channels: [docs, blog]
+collections:
+  - name: docs
+    channel: site/docs
+    source_only: true
+    content:
+      - path: "docs/*.md"
+  - name: blog
+    channel: site/blog
+    source_only: true
+    content:
+      - path: "blog/*.md"

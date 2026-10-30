@@ -1,0 +1,4 @@
+name: house
+terms:
+  - term: e-mail
+    replacement: email

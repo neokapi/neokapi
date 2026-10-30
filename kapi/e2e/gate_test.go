@@ -105,8 +105,6 @@ type checkExpect struct {
 	// must not.
 	Report []findingExpect `yaml:"report"`
 	Absent []findingExpect `yaml:"absent"`
-	// Warning, when set, is a substring one of the report's warnings carries.
-	Warning string `yaml:"warning"`
 }
 
 // findingExpect matches a finding on every field it sets.
@@ -169,7 +167,6 @@ type checkReport struct {
 			Snippet string `json:"snippet"`
 		} `json:"location"`
 	} `json:"findings"`
-	Warnings []json.RawMessage `json:"warnings"`
 }
 
 // Surfaces, in the order the matrix prints them.
@@ -225,7 +222,7 @@ func (m gateMatrix) String() string {
 			default:
 				status = "pass"
 			}
-			fmt.Fprintf(&b, "  %-28s %-8s %s\n", name, surface, status)
+			fmt.Fprintf(&b, "  %-31s %-8s %s\n", name, surface, status)
 		}
 	}
 	return b.String()
@@ -568,15 +565,6 @@ func (r gateRun) checkFile(t *testing.T, path string, ce checkExpect, o *gateOut
 	}
 	for _, f := range ce.Absent {
 		expectation(t, o, prefix+"does not report "+describeFinding(f), f.matches(rep) == 0, f.Xfail, detail)
-	}
-	if ce.Warning != "" {
-		found := false
-		for _, w := range rep.Warnings {
-			if strings.Contains(string(w), ce.Warning) {
-				found = true
-			}
-		}
-		expectation(t, o, prefix+"warns "+ce.Warning, found, "", detail)
 	}
 }
 

@@ -1,0 +1,9 @@
+version: v1
+name: gate-spelling-json
+defaults:
+  source_language: en
+collections:
+  - name: App
+    source_only: true
+    content:
+      - path: "i18n/*.json"

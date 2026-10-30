@@ -1,0 +1,72 @@
+description: >-
+  A voice pattern rule (an em dash) reports or fails as its marking says, and
+  kapi fix leaves a tone finding for a person to rewrite.
+
+  These rows hold main's semantics: a pattern with no marking fails, and
+  advisory: true makes it report. PR #3296 makes tone rules advisory by
+  default, so an unmarked pattern reports and only fails: true fails. When
+  #3296 lands, the "unmarked" stage flips: fails becomes false, failing 0 and
+  reporting 1, and the hook no longer blocks. On main, fails: true is a key
+  the voice does not read, and the pattern fails because it is unmarked.
+stages:
+  - name: unmarked
+    steps:
+      - kapi: [store, import]
+    files:
+      - path: docs/guide.md
+        check:
+          failing: 1
+          report:
+            - {rule: voice.style, block: "guide/p", quote: "—", fails: true}
+        fix: {}
+        context:
+          names: ["Voice: house.", Use a comma or a full stop]
+    hook:
+      blocks: true
+      names:
+        - FAILS [voice] docs/guide.md
+        - "Prohibited pattern: Use a comma or a full stop"
+  - name: advisory
+    steps:
+      - write:
+          path: .kapi/voice.yaml
+          content: |
+            name: house
+            style:
+              prohibited_patterns:
+                - regex: '—'
+                  description: Use a comma or a full stop
+                  advisory: true
+      - kapi: [store, import]
+    files:
+      - path: docs/guide.md
+        check:
+          failing: 0
+          reporting: 1
+          report:
+            - {rule: voice.style, block: "guide/p", quote: "—", fails: false}
+        fix: {}
+    hook:
+      blocks: false
+  - name: marked-fails
+    steps:
+      - write:
+          path: .kapi/voice.yaml
+          content: |
+            name: house
+            style:
+              prohibited_patterns:
+                - regex: '—'
+                  description: Use a comma or a full stop
+                  fails: true
+      - kapi: [store, import]
+    files:
+      - path: docs/guide.md
+        check:
+          failing: 1
+          report:
+            - {rule: voice.style, block: "guide/p", quote: "—", fails: true}
+    hook:
+      blocks: true
+      names:
+        - FAILS [voice] docs/guide.md

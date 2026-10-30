@@ -2194,6 +2194,16 @@ test-e2e: ## Run all end-to-end tests
 test-e2e-kapi: i18n-catalogs ## Run kapi e2e tests
 	$(GO) test -tags "fts5,e2e" ./kapi/e2e/... -count=1 -v
 
+# The gate conformance suite is TestGateConformance in the kapi e2e package
+# (fixtures under kapi/e2e/gate/testdata), so it runs against the binary and
+# the isolation env that package's TestMain sets up. The matrix is written to a
+# file and printed here, because go test prints nothing of a passing test.
+GATE_MATRIX ?= $(CURDIR)/bin/gate-conformance.txt
+gate-conformance: i18n-catalogs ## Run the gate conformance suite against the built kapi and print its matrix
+	@mkdir -p $(dir $(GATE_MATRIX)) && rm -f $(GATE_MATRIX)
+	@KAPI_GATE_MATRIX=$(GATE_MATRIX) $(GO) test -tags "fts5,e2e" ./kapi/e2e/ -run '^TestGateConformance$$' -count=1; \
+	status=$$?; cat $(GATE_MATRIX) 2>/dev/null; exit $$status
+
 test-e2e-bowrain: ; $(MAKE) -C bowrain $@
 test-e2e-cloud: ; $(MAKE) -C bowrain $@ ## Run cloud e2e tests against a live server
 test-e2e-dev: ; $(MAKE) -C bowrain $@ ## Run cloud e2e tests against dev environment
@@ -3353,7 +3363,7 @@ help: ## Show this help
         check-extract-fixtures \
         flow-editor-deps flow-editor-check flow-editor-test \
         kapi-storybook kapi-storybook-build bowrain-storybook bowrain-storybook-build \
-        cover test-e2e test-e2e-kapi test-e2e-bowrain test-e2e-cloud test-e2e-dev \
+        cover test-e2e test-e2e-kapi gate-conformance test-e2e-bowrain test-e2e-cloud test-e2e-dev \
         face-parity face-parity-update \
         bench bench-build bench-run bench-run-full bench-stress fetch-okapi-testdata \
         logo harness-deps harness-check harness-videos \

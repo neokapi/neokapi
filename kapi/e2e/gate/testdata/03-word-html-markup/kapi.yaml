@@ -1,0 +1,9 @@
+version: v1
+name: gate-word-html
+defaults:
+  source_language: en
+collections:
+  - name: Site
+    source_only: true
+    content:
+      - path: "web/*.html"

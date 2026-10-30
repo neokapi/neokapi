@@ -1,0 +1,24 @@
+description: >-
+  With a target language and a translated file, the English rule fails on the
+  source and kapi fix rewrites the source only. The French translation keeps
+  every byte, whether kapi fix runs over the project or names the translation.
+stages:
+  - name: imported
+    steps:
+      - kapi: [store, import]
+    files:
+      - path: docs/guide.md
+        check:
+          failing: 1
+          report:
+            - {rule: terms.vocabulary, block: "guide/p", quote: e-mail, fails: true}
+        fix:
+          args: []
+          failing: 0
+          after: |
+            # Guide
+
+            Send us an email to start.
+          unchanged: [docs/fr/guide.md]
+      - path: docs/fr/guide.md
+        fix: {}
