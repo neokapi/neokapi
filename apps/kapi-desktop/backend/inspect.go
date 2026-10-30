@@ -182,6 +182,9 @@ func (a *App) readPartsForInspect(ctx context.Context, pctx *project.ProjectCont
 			return nil, fmt.Errorf("configure reader for %q: %w", fmtName, cerr)
 		}
 	}
+	// The block cache, the check and the change service read with the skeleton
+	// a write would wire, so the tree holds the blocks they name.
+	project.WireReadSkeleton(a.formatReg, fmtName, reader)
 
 	content, err := os.ReadFile(path)
 	if err != nil {

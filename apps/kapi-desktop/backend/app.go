@@ -1767,6 +1767,7 @@ func (a *App) RunFormatReader(formatName string, filePath string, config map[str
 			}
 		}
 	}
+	project.WireReadSkeleton(a.formatReg, formatName, reader)
 
 	// Open the file.
 	f, err := os.Open(filePath)

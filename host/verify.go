@@ -1958,8 +1958,8 @@ func (a *App) readBlocksAs(ctx context.Context, path, fmtName string, cfg map[st
 // namespaced ("rbw|") so it never collides with the flow runner's key for the
 // same file, and read-path entries carry no skeleton (status writes no file).
 // The namespace names the reading: the blocks a reader produces with a read
-// skeleton wired (wireReadSkeleton), so an entry recorded by a read that wired
-// none is never replayed.
+// skeleton wired (project.WireReadSkeleton), so an entry recorded by a read
+// that wired none is never replayed.
 //
 // The format config is part of the key because it decides which text a reader
 // even emits: the same YAML read with and without the project's
@@ -2030,7 +2030,10 @@ func (a *App) recordAndCollectBlocks(ctx context.Context, path, fmtName string, 
 	if err := applyFormatConfig(reader, cfg); err != nil {
 		return nil, fmt.Errorf("apply format config for %q: %w", filepath.Base(path), err)
 	}
-	a.wireReadSkeleton(fmtName, reader)
+	// The change service and the block cache read every document with this
+	// wiring, so a check reports the blocks, run positions and revisions an edit
+	// of them names.
+	project.WireReadSkeleton(a.FormatReg, fmtName, reader)
 
 	content, err := os.ReadFile(path)
 	if err != nil {
@@ -2122,7 +2125,7 @@ func (a *App) readBlocksValidated(ctx context.Context, path, fmtName string, cfg
 	if err := applyFormatConfig(reader, cfg); err != nil {
 		return nil, nil, fmt.Errorf("apply format config for %q: %w", filepath.Base(path), err)
 	}
-	a.wireReadSkeleton(fmtName, reader)
+	project.WireReadSkeleton(a.FormatReg, fmtName, reader)
 
 	// Set the validation mode on the reader's config before Open. Formats that
 	// have not opted into RVM don't satisfy ValidationConfig; their ValidationMode
@@ -2183,23 +2186,6 @@ func (a *App) readBlocksValidated(ctx context.Context, path, fmtName string, cfg
 		return nil, nil, readErr
 	}
 	return blocks, diags, nil
-}
-
-// wireReadSkeleton gives reader the skeleton store a write of the document
-// would give it, one that keeps nothing (format.NewWiredReadSkeleton). A reader
-// can read a document differently with a skeleton wired: the HTML reader keeps
-// character references as codes and runs of spaces as written. The change
-// service reads every document that way, so a check reads it the same way and
-// reports the blocks, run positions and revisions an edit of them names.
-func (a *App) wireReadSkeleton(fmtName string, reader format.DataFormatReader) {
-	if _, ok := reader.(format.SkeletonStoreEmitter); !ok || !a.FormatReg.HasWriter(registry.FormatID(fmtName)) {
-		return
-	}
-	writer, err := a.FormatReg.NewWriter(registry.FormatID(fmtName))
-	if err != nil {
-		return
-	}
-	format.NewWiredReadSkeleton(reader, writer)
 }
 
 func firstNonEmpty(vals ...string) string {

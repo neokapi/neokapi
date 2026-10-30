@@ -27,7 +27,7 @@ import (
 // stamped by THIS version, not the binary version: a CLI and a desktop built
 // from different releases with the same extraction semantics share one cache
 // instead of endlessly invalidating each other's.
-const BlockStoreSchemaVersion = "2026-07-05.1"
+const BlockStoreSchemaVersion = "2026-10-30.1"
 
 // SourceStamp records the identity of one source file at extract time: its
 // content hash plus the (size, mtime) fast-path pair, so drift detection only
