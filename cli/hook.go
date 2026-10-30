@@ -58,6 +58,12 @@ verify gates for the project in the session's working directory, and:
     error. Claude is still free to finish, and the run is on record as
     un-gated rather than passing.
 
+Each run that reaches the gates is recorded in the project's log, under the
+session's assistant: the files the turn edited, the failing findings and
+whether the run was clean. "kapi context log" lists the runs. A finding one run
+reports and the session's next run no longer finds on the same file counts as
+caught. --json prints the decision with the id of that record.
+
 Wire it up via the kapi Claude Code plugin (hooks/hooks.json). It fails open:
 anything other than a clean gate failure lets Claude stop, so a missing project
 or a verify error never traps the assistant. Claude Code caps consecutive
