@@ -194,10 +194,11 @@ a workspace of its own. It prints a matrix with one line per case and surface
 reason, or `not covered`.
 
 Each case is a directory under `kapi/e2e/gate/testdata/<case>/`. The directory
-is a small project: a `kapi.yaml`, its content files, and any context files
-under `.kapi/` (a `voice.yaml` whose `terms:` and patterns `kapi store import`
-reads into the project's store). Beside them, `expect.yaml` lists stages. Each
-stage runs its `steps` and then checks its expectations:
+is a small project: a `kapi.yaml`, its content files, and, for a case that
+needs rules, a `voice.yaml` under `.kapi/`. That file is the artifact a
+`kapi store import` step reads into the project's store: its `terms:` into the
+terms store and its patterns into the voice profile. Beside them, `expect.yaml`
+lists stages. Each stage runs its `steps` and then checks its expectations:
 
 ```yaml
 description: A kept name rule fails a check on each rejected form.
