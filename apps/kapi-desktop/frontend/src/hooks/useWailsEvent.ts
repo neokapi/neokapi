@@ -28,6 +28,15 @@ function getEvents(): Promise<WailsEvents | null> {
 }
 
 /**
+ * Resolves once the Wails event runtime is loaded: to true in the app, to
+ * false in Storybook and vitest, where there is none. A listener subscribed
+ * with useWailsEvent before this resolves is in place when it does.
+ */
+export function wailsEventsReady(): Promise<boolean> {
+  return getEvents().then((events) => events !== null);
+}
+
+/**
  * Subscribe to a Wails event. The callback fires whenever the backend
  * emits the named event. Automatically cleans up on unmount.
  *

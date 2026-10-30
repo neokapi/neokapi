@@ -1,7 +1,7 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import type { KapiProject, TabInfo } from "../types/api";
 import { api } from "./useApi";
-import { useWailsEvent } from "./useWailsEvent";
+import { useWailsEvent, wailsEventsReady } from "./useWailsEvent";
 import { useError } from "../components/ErrorBanner";
 
 interface MenuEventsOptions {
@@ -69,4 +69,25 @@ export function useMenuEvents({
       if (proj) await addTab(tab, proj);
     }
   });
+
+  // A folder handed to the app as it starts (`kapi open`, a path argument, a
+  // recipe dropped on the dock icon) can open before this window listens for
+  // "open-project-tab". Once the listener is in place, every tab the backend
+  // holds is shown; addTab leaves a tab that is already shown as it is.
+  useEffect(() => {
+    let cancelled = false;
+    void wailsEventsReady().then(async (ready) => {
+      if (!ready || cancelled) return;
+      const tabs = (await api.listTabs()) ?? [];
+      for (const tab of tabs) {
+        if (cancelled) return;
+        const proj = await api.getProject(tab.id);
+        if (proj) await addTab(tab, proj);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once, as the window starts
+  }, []);
 }

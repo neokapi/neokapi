@@ -161,7 +161,7 @@ func (r *ShareResult) FormatText(w io.Writer) error {
 			if rung.Current || what == "" {
 				what = rung.Reach
 			}
-			fmt.Fprintf(w, "  %s %-18s %s\n", mark, rung.Label, what)
+			fmt.Fprintf(w, "  %s %-20s %s\n", mark, rung.Label, what)
 		}
 		return nil
 	}
@@ -258,11 +258,11 @@ func (r *ShareResult) statusLine() string {
 	if st == nil {
 		return "not synced from this machine yet"
 	}
-	push := changeCount(st.ToPush) + " to push"
+	push := waiting(st.ToPush, "push")
 	if st.Contacted.IsZero() {
 		return push + " · never synced"
 	}
-	line := push + " · " + changeCount(st.ToPull) + " to pull · last sync " + r.when(st.Contacted)
+	line := push + " · " + waiting(st.ToPull, "pull") + " · last sync " + r.when(st.Contacted)
 	if st.Error != "" {
 		line += " (the place could not be reached)"
 	}
@@ -275,6 +275,14 @@ func changeCount(n int) string {
 		return "none"
 	}
 	return pluralUnit(n, "change", "changes")
+}
+
+// waiting counts the changes waiting for a push or a pull.
+func waiting(n int, verb string) string {
+	if n == 0 {
+		return "nothing to " + verb
+	}
+	return pluralUnit(n, "change", "changes") + " to " + verb
 }
 
 // when says how long ago t was, in a person's words.
