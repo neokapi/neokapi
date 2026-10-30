@@ -5,7 +5,8 @@ description: Use when writing or editing prose that ships from this repository (
 
 # kapi
 
-kapi holds this project's voice, terms and approved wording. Keep four habits.
+kapi holds this project's voice, terms and rules; a person decides with
+`kapi rules` what becomes a rule. Keep four habits.
 
 ## 1. Follow the rules files
 
@@ -13,7 +14,7 @@ kapi writes each folder's rules into AGENTS.md and CLAUDE.md. Follow them
 without asking first. A "Keep as it is" line means the old name is correct
 there, even when the task asks for the rename.
 
-Only for a file no section covers, or for the full answer:
+Only for a file no section covers, or the full answer:
 
 - CLI: `kapi context <file>`, or `kapi context search <word>`
 - MCP: `context_read` with the file, or `context_search`
@@ -30,7 +31,7 @@ files write two ways.
   or `"<fact>"` for the variety
 - MCP: `context_note` (`term` and `instead_of`, or `text`)
 
-`--withdraw <id>` takes a note back. A person decides what becomes a rule.
+`--withdraw <id>` takes a note back.
 
 ## 3. Record the person's corrections
 
