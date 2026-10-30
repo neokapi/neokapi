@@ -10,8 +10,8 @@ import { ThemedVideo, PhaseFlow } from "@neokapi/docs-shared";
 # Review
 
 Review is the promote step of [catching content up](/the-loop). A run drafts
-and checks, and **parks** what a machine cannot decide; a person promotes it
-here. Every decision is recorded against the workspace, feeds the
+and checks, and **holds back for review** what a machine cannot decide; a
+person promotes it here. Every decision is recorded against the workspace, feeds the
 [context graph](/server/context), and decides what a locale can ship as.
 
 <ThemedVideo
@@ -142,7 +142,7 @@ Two records, written for every approval whichever route made it:
 
 ### The reviewer is summoned
 
-When a run parks work, the reviewer is told: a review task opens, an email goes
+When a run leaves work waiting for review, the reviewer is told: a review task opens, an email goes
 out, and the app shows a banner and a badge sized to what is actually pending.
 The summons names the count and the locales, not the whole project.
 
@@ -155,12 +155,12 @@ needs another click.
 
 <PhaseFlow
   nodes={[
-    { label: "run parks", sub: "checks green is not enough", role: "translate" },
+    { label: "run holds back", sub: "checks green is not enough", role: "translate" },
     { label: "session", sub: "approve · reject · edit · correct the context", role: "qa", edge: "summons" },
     { label: "review complete", sub: "last pending block approved", edge: "approve" },
     { label: "completing run", sub: "delivers approved content", role: "io", edge: "continues" },
   ]}
-  caption="A run parks what it cannot decide; the session promotes it; the last approval starts the run that delivers."
+  caption="A run holds back what it cannot decide; the session promotes it; the last approval starts the run that delivers."
 />
 
 ## Source review: the first worklist
@@ -174,9 +174,10 @@ language.
 
 When a run holds on source:
 
-- The run parks with the reason `source_not_ready` and records how many blocks
-  are blocked on source. In the **Runs** view this reads as *parked, N blocks
-  need source review*; the run still exits without error.
+- The run stops with the reason `source_not_ready` and records how many blocks
+  are blocked on source. In the **Runs** view this reads as *Source not ready*:
+  *N blocks need settling or source review before translating*. The run still
+  exits without error.
 - The loop opens a **source review** task for a member with source-edit
   permission. It is the same task queue as translate, review and the fix-up
   tasks, and appears on the task board and in *My Tasks*.
@@ -279,7 +280,7 @@ rule's author.
 
 ## Related
 
-- [Keeping content caught up](/the-loop): where a run parks, and why
+- [Keeping content caught up](/the-loop): what a run holds back for review, and why
 - [Voice and corrections](/server/context-voice): how a correction becomes a rule
 - [Members and roles](/server/members-and-roles): who may review which point
 - [The loop in CI](/cli/ci/overview): the ship gate, in a pipeline

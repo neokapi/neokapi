@@ -47,10 +47,11 @@ run changed in the `kapi-changed-files.txt` artifact and the
 `KAPI_HAS_CHANGES` variable, for a delivery job of your own. With
 `deliver: mr`, when the run produced changes, the job pushes a branch and
 opens a merge request through the API (`GITLAB_API_TOKEN`) carrying the run
-report: outcome, passes, parked locales. `deliver: commit` pushes a commit to
-the pipeline's branch instead. A run that **parks** still delivers what it
-caught up; the parked locales are the review queue, not a failure (set
-`fail_on_parked: true` to hard-fail instead).
+report: outcome, passes, languages waiting for review. `deliver: commit` pushes a commit to
+the pipeline's branch instead. A run that leaves work **waiting for
+review** still delivers what it caught up; the languages waiting for review
+are the review queue, not a failure (set `fail_on_parked: true` to hard-fail
+instead).
 
 The `stage` input names the stage the job runs in, and the pipeline's
 `stages:` list must declare it: GitLab refuses to create a pipeline in which a
@@ -64,7 +65,7 @@ The job publishes its result as dotenv variables for downstream jobs:
 
 | Variable | Value |
 |---|---|
-| `KAPI_OUTCOME` | `converged` or `parked` |
+| `KAPI_OUTCOME` | `converged`, or `parked` when work waits for review |
 | `KAPI_PASSES` | Reconciliation passes the run took |
 | `KAPI_PARKED_LOCALES` | Comma-separated locales still short of their gate |
 | `KAPI_HAS_CHANGES` | `true` when the run left changes in the working tree, `false` otherwise |
@@ -73,7 +74,7 @@ The job publishes its result as dotenv variables for downstream jobs:
 report:
   stage: .post
   script:
-    - 'echo "kapi up: $KAPI_OUTCOME after $KAPI_PASSES pass(es); parked: ${KAPI_PARKED_LOCALES:-none}"'
+    - 'echo "kapi up: $KAPI_OUTCOME after $KAPI_PASSES pass(es); waiting for review: ${KAPI_PARKED_LOCALES:-none}"'
 ```
 
 ## Gate merge requests

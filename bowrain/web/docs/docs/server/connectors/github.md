@@ -35,7 +35,7 @@ filename stem equal to the source language becomes the target language
 (`locales/en/app.json → locales/fr/app.json`); other layouts get the language
 suffixed to the stem.
 
-When a run parks work for a person, the pull/merge request says so; approvals
+When a run leaves work waiting for review, the pull/merge request says so; approvals
 travel through the project's [review session](/server/review) and arrive in a
 later delivery.
 

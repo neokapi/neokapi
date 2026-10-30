@@ -262,7 +262,7 @@ refuses a translation.
 
 A push asserts the ref it last observed only for the governance it writes. It
 asserts the decisions component when its records include a decision (a review
-state, an approval, a parked translation, an assignee or a note), and
+state, an approval, a translation held for review, an assignee or a note), and
 the server refuses it with `409 governance_moved` when another decision has
 landed since. Records that say only what was produced for a block assert nothing
 and merge by record time. The decisions component folds decisions alone, so the

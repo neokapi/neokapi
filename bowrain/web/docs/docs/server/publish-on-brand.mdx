@@ -26,7 +26,7 @@ result back where it came from.
     { label: "Establish the context", sub: "axes + voice profile + terms", role: "annotate" },
     { label: "Connect", sub: "WordPress · HubSpot · Figma", role: "io", edge: "fetch" },
     { label: "Draft and check", sub: "the loop runs on the server", role: "translate", edge: "run" },
-    { label: "Review", sub: "parked work, approvals", role: "qa", edge: "parked translations" },
+    { label: "Review", sub: "work waiting for review, approvals", role: "qa", edge: "translations waiting for review" },
     { label: "Publish back", sub: "explicit, per connector", role: "io", edge: "approved" },
   ]}
   caption="Context first, then connect, run the loop, review, and publish back."
@@ -104,8 +104,8 @@ Content fetched from a connector is ordinary project content, and
 [a server run](/the-loop) is how it catches up: each run checks the source
 against the context, reuses what the workspace already remembers, drafts the
 rest with AI steered by the voice profile and vocabulary in force at each
-point, checks everything it produced, and **parks** what a machine cannot
-decide for a person. Parked work is pending review, not an error.
+point, checks everything it produced, and **holds back for review** what a machine
+cannot decide. Work waiting for review is pending, not an error.
 
 From the web app, start a run from the project's **Runs** view with **Run
 now**; the run's progress, pass count, and per-locale summary appear in the
@@ -120,7 +120,7 @@ applies to content from any connector.
 
 ## 4. Review
 
-What the loop parks lands in the project's [review session](/server/review),
+What the loop holds back lands in the project's [review session](/server/review),
 which walks every pending block across items and locales with the source, the
 draft, the checks and the voice findings side by side. Approve, reject or edit
 each block, or approve everything that passes the checks and the voice bar in
@@ -149,7 +149,7 @@ states exactly what its publish writes.
 
 ## What's next
 
-- [Keeping content caught up](/the-loop): what a run does, who starts it, and where parked work goes
+- [Keeping content caught up](/the-loop): what a run does, who starts it, and where work waiting for review goes
 - [Context scan](/server/context-scan): propose axes, a voice profile and terms from material you already have
 - [Voice and corrections](/server/context-voice): how corrections become enforced rules
 - [Connectors](/server/connectors): every connector, including repositories and checkouts

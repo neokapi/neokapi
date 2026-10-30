@@ -82,8 +82,8 @@ kapi pull        # fetch teammates' and reviewers' work (pure transport)
 
 `kapi up` is the verb that catches a project up: it pushes what drifted, the
 server runs on the organization's keys and shared memory, progress streams into
-the terminal, and results land in the tree. What a machine cannot decide parks
-into the team's [review session](/server/review).
+the terminal, and results land in the tree. What a machine cannot decide waits
+in the team's [review session](/server/review).
 
 The full command reference lives in the [CLI section](/cli/overview); the
 mechanics of a run are in [Keeping content caught up](/the-loop).

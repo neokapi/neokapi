@@ -82,7 +82,7 @@ kapi status      # per-scope coverage, ship standing, server standing, and venue
 
 `kapi up` pushes what drifted, runs on the server with the organization's keys
 and shared memory, streams progress into the terminal, and pulls the results
-down. What a machine cannot decide parks into the team's
+down. What a machine cannot decide waits in the team's
 [review session](/server/review).
 
 The full command set, flows, and the CI contract are in the

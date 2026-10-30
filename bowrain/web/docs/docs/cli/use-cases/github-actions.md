@@ -97,14 +97,14 @@ jobs:
           git push
 ```
 
-With `command: up` (the default), the action runs `kapi up` (the kapi loop on the server: push → catch up → pull) and reports what the run left in the working tree. The action commits nothing; the last step above commits and pushes. A run that **caught up** (`converged`: every gated scope cleared its ship gate) leaves the produced results; a run that **parked** (work remains that needs a person) leaves what did catch up and annotates the parked locales; a **failed** run exits non-zero, so the steps after it are skipped. It sets outputs you can use in subsequent steps:
+With `command: up` (the default), the action runs `kapi up` (the kapi loop on the server: push → catch up → pull) and reports what the run left in the working tree. The action commits nothing; the last step above commits and pushes. A run that **caught up** (`converged`: every gated scope cleared its ship gate) leaves the produced results; a run that leaves work **waiting for review** (outcome `parked`: work a person has to decide) leaves what did catch up and annotates the languages waiting for review; a **failed** run exits non-zero, so the steps after it are skipped. It sets outputs you can use in subsequent steps:
 
 | Output              | Description                                                        |
 | ------------------- | ------------------------------------------------------------------ |
 | `status`            | `success`, `no-changes`, or `failed`                               |
-| `outcome`           | With `command: up`: `converged` or `parked`                        |
+| `outcome`           | With `command: up`: `converged`, or `parked` when work waits for review |
 | `passes`            | With `command: up`: how many reconciliation passes the run took    |
-| `parked-locales`    | With `command: up`: comma-separated locales still short of their gate |
+| `parked-locales`    | With `command: up`: comma-separated languages waiting for review, short of their gate |
 | `gate`              | With `command: check`: `pass` or `fail`; empty when the check did not run or errored |
 | `result`            | With `command: check`: `passed`, `failed`, `did_not_run`, or `error` |
 | `did-not-run-cause` | With `command: check`, when `result` is `did_not_run`: the cause kapi reported |
@@ -121,7 +121,7 @@ With `plan: true`, the `plan-*` outputs carry the pending translations, the ones
 | `args`           | `""`                                    | Additional arguments                     |
 | `project`        | `""`                                    | Path to the `kapi.yaml` recipe (`-p` flag)   |
 | `plan`           | `false`                                 | With `command: up`, dry-run instead (`kapi up --plan`): report pending work, memory reuse, and a token estimate; no writes, no provider calls. Pairs with `pr-comment` to post the cost of a change on its PR |
-| `fail-on-parked` | `false`                                 | With `command: up`, fail the workflow when the run parks instead of reporting partial progress |
+| `fail-on-parked` | `false`                                 | With `command: up`, fail the workflow when work waits for review instead of reporting partial progress |
 | `pr-comment`     | `false`                                 | On pull-request events, post one sticky comment with the report (plan, `kapi up` outcome, or check result) that re-runs update in place |
 | `token`          | `github.token`                          | GitHub token for the sticky PR comment   |
 | `paths`          | `""` (the whole working tree)           | Space-separated paths to scan for changes |

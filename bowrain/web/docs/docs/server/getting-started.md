@@ -101,7 +101,8 @@ Content that arrived is caught up by a [run](/the-loop): start one from the
 project's **Runs** view with **Run now**, or let the project's push policy
 start one. A run checks the source against the context, drafts any target
 languages with AI steered by the voice and the terms in force at each point,
-checks what it produced, and parks what a person has to decide.
+checks what it produced, and holds back for review what a person has to
+decide.
 
 To work on one file, open it from the project view. The
 [editor](/server/translation-editor) shows the source, the target if there is
@@ -112,7 +113,7 @@ targets on demand; **Pseudo** generates pseudo-translations for layout testing.
 
 ## Reviewing
 
-What a run parks lands in the project's [review session](/server/review).
+What a run holds back lands in the project's [review session](/server/review).
 Approve, reject or edit each block, or approve everything that passes the
 checks and the voice bar in one action. Approving the last pending block starts
 the run that delivers. The per-locale [ship state](/server/review#ship-states)

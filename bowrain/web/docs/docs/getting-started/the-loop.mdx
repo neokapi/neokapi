@@ -3,7 +3,7 @@ sidebar_position: 3
 title: Keeping content caught up
 slug: /the-loop
 description: How a Bowrain project stays current. A connector sync, a push, or a developer's command starts a server run that drafts, checks, and gates; review promotes what needs a person; the ship gate releases. Formally, the model is convergence.
-keywords: [convergence, catch up, bowrain, server run, converge on push, ship gate, review, runs, parked, connectors]
+keywords: [convergence, catch up, bowrain, server run, converge on push, ship gate, review, runs, waiting for review, connectors]
 ---
 
 import { PhaseFlow, LanesDiagram, GatedLoopDiagram, ThemedVideo, KapiLink } from "@neokapi/docs-shared";
@@ -12,8 +12,8 @@ import { PhaseFlow, LanesDiagram, GatedLoopDiagram, ThemedVideo, KapiLink } from
 
 When source content changes, translations and previous check results may need
 updating. A Bowrain **run** reuses eligible content memory, drafts the remaining
-text and checks the results. Work that needs a reviewer is **parked** in the
-team's review queue.
+text and checks the results. Work that needs a reviewer **waits for review** in
+the team's review queue.
 
 Runs execute on the server using the configured AI credentials and the
 workspace's shared terms, content memory and voice profiles. Content imported
@@ -40,7 +40,7 @@ Producing, promoting, and releasing stay separate. Each role has a home:
       label: "promote",
       sub: "Review in the web or desktop app",
       role: "annotate",
-      edge: "parked translations land here",
+      edge: "translations waiting for review land here",
     },
     {
       label: "release",
@@ -55,7 +55,7 @@ Producing, promoting, and releasing stay separate. Each role has a home:
 - **A run produces.** A server-side flow over connector content, a push under
   the `bowrain.converge` policy, or a developer's `kapi up`: each drives every
   block as far up its lifecycle as a flow can take it unaided.
-- **Review promotes.** What a run parks appears in the project's
+- **Review promotes.** What a run holds back appears in the project's
   [review session](/server/review), where a person (or several; decisions are
   shared) advances a translation past what a machine can decide.
 - **The gate releases.** [`kapi check --ship`](/cli/use-cases/brand-terminology-ci)
@@ -101,7 +101,7 @@ The gate can require human approval when the project needs it.
       kind: "gate",
       label: "target ship-gate",
       sub: "ship_gate",
-      hold: "park: review queue",
+      hold: "wait: review queue",
     },
     { kind: "done", label: "converged" },
   ]}
@@ -115,7 +115,7 @@ The gate can require human approval when the project needs it.
 - **Hold the source.** The project's `defaults.translate_after` (default
   `written`) is the source-side counterpart of
   the ship gate. Source that
-  has not cleared its bar **holds**: the run parks with the reason
+  has not cleared its bar **holds**: the run stops with the reason
   `source_not_ready`, opens a **source-review task** in the team's queue (see
   [Review](/server/review)), and reports how many blocks are blocked on source.
   Set `translate_after: none` to translate without holding the source.
@@ -124,7 +124,7 @@ The gate can require human approval when the project needs it.
   remainder, check what was produced. Protected terms stay protected through the
   model.
 - **Hold at the target ship-gate.** A locale that clears its `ship_gate` is
-  shippable; whatever a machine cannot decide **parks** for review rather than
+  shippable; whatever a machine cannot decide **waits for review** rather than
   shipping under-reviewed.
 
 Editing a source block re-opens the hold for changed segments. The next
@@ -187,16 +187,16 @@ A connector, push policy or explicit command can start a server run:
 Every surface reads the same derived state:
 
 - **In the web and desktop app**, a project's **Runs** view lists the
-  server-side runs (*Running*, *Up to date*, *Parked*) with the trigger
+  server-side runs (*Running*, *Up to date*, *Waiting for review*) with the trigger
   (*Manual*, *kapi up*, *On push*), the pass count, and a per-language summary
-  such as "3 shippable · 1 parked". A **Run now** button starts a run from the
+  such as "3 shippable · 1 waiting for review". A **Run now** button starts a run from the
   app, and an in-flight run can be canceled.
 - **In the terminal**, [`kapi status`](/cli/commands/status) shows the
   per-language coverage grid, the server standing, and the effective venue and
   `bowrain.converge` policy.
-- **In the review session**, parked translations are the worklist: a run reports them
-  as awaiting a person and still exits zero. Parked work is pending review, not
-  an error.
+- **In the review session**, translations waiting for review are the worklist: a
+  run reports them as awaiting a person and still exits zero. Work waiting for
+  review is pending, not an error.
 
 A run started from the app and a run started from a terminal emit the same event
 stream. The Runs view, CLI and `--json` output report progress from those events.
@@ -218,6 +218,6 @@ date on the server:
 
 - [Connectors](/server/connectors): every route into a workspace
 - [Quick start](/quickstart): get content in, from your systems or from a codebase
-- [Review](/server/review): where parked work gets promoted
+- [Review](/server/review): where work waiting for review gets promoted
 - [The loop in CI](/cli/ci/overview): pipelines and the ship gate
 - <KapiLink to="/kapi/convergence">The full model on the kapi site</KapiLink>: ladders, gates, ship states
