@@ -193,7 +193,21 @@ func (a *App) WriteRulesFiles(ctx context.Context, recipePath string) (*RulesFil
 	}
 	rulesFilesMu.Lock()
 	defer rulesFilesMu.Unlock()
-	return writeRulesPlan(root, plan)
+	return writeRulesPlan(projectWrites{}, root, plan)
+}
+
+// PreviewRulesFiles reports what WriteRulesFiles would do to each rules file
+// now, and writes nothing.
+func (a *App) PreviewRulesFiles(ctx context.Context, recipePath string) (*RulesFilesResult, error) {
+	cmd, root, proj, err := a.rulesProject(ctx, recipePath)
+	if err != nil {
+		return nil, err
+	}
+	plan, err := a.planRulesFiles(cmd, root, proj)
+	if err != nil {
+		return nil, err
+	}
+	return writeRulesPlan(projectWrites{dry: true}, root, plan)
 }
 
 // RefreshRulesFiles rewrites the rules files of a project that has them: one
@@ -985,12 +999,13 @@ func dedupeStrings(in []string) []string {
 }
 
 // writeRulesPlan writes every folder's files and takes kapi's section out of
-// the files in folders that no longer need one.
-func writeRulesPlan(root string, plan rulesPlan) (*RulesFilesResult, error) {
+// the files in folders that no longer need one. A dry w reports the same
+// actions and writes nothing.
+func writeRulesPlan(w projectWrites, root string, plan rulesPlan) (*RulesFilesResult, error) {
 	res := &RulesFilesResult{}
 	want := rulesPlanSections(plan)
 	for _, dir := range sortedRulesDirs(want) {
-		files, err := writeFolderRules(root, dir, want[dir])
+		files, err := writeFolderRules(w, root, dir, want[dir])
 		if err != nil {
 			return res, err
 		}
@@ -1002,7 +1017,7 @@ func writeRulesPlan(root string, plan rulesPlan) (*RulesFilesResult, error) {
 		return res, err
 	}
 	for _, rel := range stale {
-		action, err := removeRulesSection(filepath.Join(root, filepath.FromSlash(rel)))
+		action, err := removeRulesSection(w, filepath.Join(root, filepath.FromSlash(rel)))
 		if err != nil {
 			return res, err
 		}
@@ -1088,7 +1103,7 @@ func (a *App) PlanRulesFiles(ctx context.Context, recipePath string) ([]RulesFil
 // writeFolderRules writes a folder's section into its AGENTS.md and CLAUDE.md.
 // A CLAUDE.md that imports AGENTS.md, or is the same file, reaches the section
 // through it and is given none of its own.
-func writeFolderRules(root, dir, section string) ([]RulesFile, error) {
+func writeFolderRules(w projectWrites, root, dir, section string) ([]RulesFile, error) {
 	var out []RulesFile
 	agents := filepath.Join(root, filepath.FromSlash(dir), "AGENTS.md")
 	claude := filepath.Join(root, filepath.FromSlash(dir), "CLAUDE.md")
@@ -1099,7 +1114,7 @@ func writeFolderRules(root, dir, section string) ([]RulesFile, error) {
 				continue
 			}
 			if doc, err := os.ReadFile(claude); err == nil && agentrules.ImportsAgents(doc) {
-				action, rerr := removeRulesSection(claude)
+				action, rerr := removeRulesSection(w, claude)
 				if rerr != nil {
 					return out, rerr
 				}
@@ -1109,7 +1124,7 @@ func writeFolderRules(root, dir, section string) ([]RulesFile, error) {
 				continue
 			}
 		}
-		action, err := upsertRulesSection(path, section)
+		action, err := upsertRulesSection(w, path, section)
 		if err != nil {
 			return out, fmt.Errorf("%s: %w", rel, err)
 		}
@@ -1120,10 +1135,10 @@ func writeFolderRules(root, dir, section string) ([]RulesFile, error) {
 
 // upsertRulesSection writes section into the file at path, creating it when
 // it does not exist.
-func upsertRulesSection(path, section string) (RulesFileAction, error) {
+func upsertRulesSection(w projectWrites, path, section string) (RulesFileAction, error) {
 	doc, err := os.ReadFile(path)
 	if errors.Is(err, fs.ErrNotExist) {
-		if werr := os.WriteFile(path, []byte(section), 0o644); werr != nil {
+		if werr := w.writeFile(path, []byte(section)); werr != nil {
 			return "", werr
 		}
 		return RulesFileCreated, nil
@@ -1138,7 +1153,7 @@ func upsertRulesSection(path, section string) (RulesFileAction, error) {
 	if bytes.Equal(out, doc) {
 		return RulesFileUnchanged, nil
 	}
-	if err := os.WriteFile(path, out, 0o644); err != nil {
+	if err := w.writeFile(path, out); err != nil {
 		return "", err
 	}
 	return RulesFileUpdated, nil
@@ -1147,7 +1162,7 @@ func upsertRulesSection(path, section string) (RulesFileAction, error) {
 // removeRulesSection takes kapi's section out of the file at path, and deletes
 // the file when nothing else is in it. It reports "" when the file holds no
 // section.
-func removeRulesSection(path string) (RulesFileAction, error) {
+func removeRulesSection(w projectWrites, path string) (RulesFileAction, error) {
 	doc, err := os.ReadFile(path)
 	if errors.Is(err, fs.ErrNotExist) {
 		return "", nil
@@ -1160,12 +1175,12 @@ func removeRulesSection(path string) (RulesFileAction, error) {
 		return "", err
 	}
 	if agentrules.Empty(out) {
-		if err := os.Remove(path); err != nil {
+		if err := w.remove(path); err != nil {
 			return "", err
 		}
 		return RulesFileDeleted, nil
 	}
-	if err := os.WriteFile(path, out, 0o644); err != nil {
+	if err := w.writeFile(path, out); err != nil {
 		return "", err
 	}
 	return RulesFileRemoved, nil
