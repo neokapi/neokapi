@@ -132,10 +132,21 @@ func TestHelpGroups_RenderInPorcelainOrder(t *testing.T) {
 
 // TestRootHelpBudget pins the visible root surface (surface strategy A6):
 // demoted tool verbs, deprecated aliases, and machine plumbing are hidden,
-// and the visible command count must not silently creep back up. Raising the
-// budget is a deliberate product decision, not a side effect. The ceiling is
-// being re-based on the default page's tier.
+// and the visible command count must not silently creep back up. Raising a
+// budget is a deliberate product decision, not a side effect.
+//
+// Each budget guards one page. defaultPageBudget is the default `kapi
+// --help` outside a project: the person tier (Work, Assets, and the commands
+// in no group). allPageBudget is `kapi help --all`: every visible command.
+// Both are the count on the page apart from the Work group's lead verbs
+// (workLeads), plus room for every lead verb, registered or not.
 func TestRootHelpBudget(t *testing.T) {
+	const (
+		defaultPageBudget = 14 + 7
+		allPageBudget     = 37 + 7
+	)
+	require.Len(t, workLeads, 7, "the budgets leave room for each lead verb")
+
 	a := processOnlyApp(t)
 	root := &cobra.Command{Use: "kapi", Short: "test"}
 	AddCommandGroups(a, root)
@@ -143,15 +154,19 @@ func TestRootHelpBudget(t *testing.T) {
 		root.AddCommand(c)
 	}
 
-	visible := 0
-	var names []string
+	person := usageScope{tiered: true}
+	var all, shown []string
 	for _, c := range root.Commands() {
 		if c.Hidden || !c.IsAvailableCommand() {
 			continue
 		}
-		visible++
-		names = append(names, c.Name())
+		all = append(all, c.Name())
+		if person.groupShown(c.GroupID) {
+			shown = append(shown, c.Name())
+		}
 	}
-	assert.LessOrEqualf(t, visible, 42,
-		"visible root commands grew past the budget; new verbs belong in a group (kapi exec, an assets subtree) or hidden plumbing; visible now: %v", names)
+	assert.LessOrEqualf(t, len(shown), defaultPageBudget,
+		"the default root help grew past its budget; a new verb belongs in a group the default page leaves out (Languages, Advanced), in kapi exec or an assets subtree, or in hidden plumbing; shown now: %v", shown)
+	assert.LessOrEqualf(t, len(all), allPageBudget,
+		"kapi help --all grew past its budget; new verbs belong in a group (kapi exec, an assets subtree) or hidden plumbing; visible now: %v", all)
 }
