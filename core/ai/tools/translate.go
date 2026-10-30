@@ -1232,8 +1232,8 @@ func (t *AITranslateTool) blockContext(ctx context.Context, b *model.Block, neig
 // It asks the context for its digest unconditionally rather than gating on which
 // context sources are configured. Context.Digest already returns "" when nothing
 // beyond the key is present, so the gate bought nothing but a place for the next
-// context source to be forgotten — which is exactly how the prior version was
-// nearly shipped outside the cache key.
+// context source to be forgotten, which is how the prior version was nearly
+// shipped outside the cache key.
 //
 // The source stamp names the source as read, so when a step ahead of this one
 // rewrote the source (redact, a script), the text the model was sent goes into

@@ -8,7 +8,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// Text split across adjacent runs says what the same text in one run says: a
+// Text split across adjacent runs says what the same text in one run says. A
 // file records no split, so a change that only splits or joins text is the
 // edition as it was. unredact puts each withheld value back as a run of its
 // own, and the reader of the file returns one.

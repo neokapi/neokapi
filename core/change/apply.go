@@ -1202,17 +1202,17 @@ func sameRuns(a, b []model.Run) bool {
 // sameContent reports whether two run sequences say the same as a file holds
 // it: the same text and the same codes with the same types and attributes,
 // whatever each code's native form, its labels and the do-not-translate marks
-// on text, which a writer takes from the file or does not write, and however
-// the text between two codes is split into runs, which no file records.
+// on text, which a writer takes from the file or does not write. How the text
+// between two codes is split into runs does not count either: no file records
+// it.
 func sameContent(a, b []model.Run) bool {
 	return bytes.Equal(model.CanonicalRunsJSON(contentOnly(a)), model.CanonicalRunsJSON(contentOnly(b)))
 }
 
 // contentOnly is runs with every code's native form and labels and every
 // text's do-not-translate mark left out, and adjacent text runs joined into
-// one, branches included. unredact, for one, puts each withheld value back as
-// a text run of its own beside the text around it, where a reader of the file
-// produces one run.
+// one, branches included. unredact puts each withheld value back as a text run
+// of its own beside the text around it. A reader of the file produces one run.
 func contentOnly(runs []model.Run) []model.Run {
 	out := make([]model.Run, 0, len(runs))
 	for _, r := range runs {

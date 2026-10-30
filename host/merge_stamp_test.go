@@ -149,6 +149,18 @@ func TestHydrateTargets_AStaleSourceStampIsCountedAndNotApplied(t *testing.T) {
 	assert.False(t, blocks[1].HasTarget("fr"), "a stale overlay is not applied")
 	assert.Equal(t, "Merci", blocks[2].TargetText("fr"))
 	assert.Equal(t, 1, tl.Stale())
+
+	// A skeleton-only workspace rebuilds each block from its id alone, so the
+	// stamp has no source to be compared with and the overlay applies.
+	skeleton := &model.Block{ID: "moved", Translatable: true}
+	tl = newHydrateTargetsTool("fr")
+	in = make(chan *model.Part, 1)
+	out = make(chan *model.Part, 1)
+	in <- &model.Part{Type: model.PartBlock, Resource: skeleton}
+	close(in)
+	require.NoError(t, tl.SessionProcess(ctx, sess, in, out))
+	assert.Equal(t, "Au revoir", skeleton.TargetText("fr"))
+	assert.Zero(t, tl.Stale())
 }
 
 // A flow that redacts the source before it translates and restores it after
@@ -218,4 +230,49 @@ func TestProcessOnlyRedactedFlowThenMerge_EveryTranslationLandsUntilTheSourceMov
 	assert.Equal(t, 1, stale)
 	assert.Equal(t, "Hello again Mr Bean", got["greeting"], "the stale translation is not written")
 	assert.Equal(t, farewell, got["farewell"])
+}
+
+// The `.kpz` round trip of a flow that redacts before it translates and
+// restores after: extract, transform the workspace with the flow, merge, and
+// every translation lands with the withheld value restored.
+func TestKpzRedactedFlowThenMerge_EveryTranslationLands(t *testing.T) {
+	t.Setenv("KAPI_KPZ_CACHE", t.TempDir())
+	dir := t.TempDir()
+	src := filepath.Join(dir, "messages.json")
+	require.NoError(t, os.WriteFile(src, []byte(`{"greeting":"Hello Mr Bean","farewell":"Goodbye Mr Bean"}`), 0o644))
+	a := &App{SourceLang: "en", Quiet: true}
+	a.InitRegistries()
+	work := filepath.Join(dir, "work.kpz")
+	require.NoError(t, a.ExtractToKpz(context.Background(), []string{src}, work, "fr", "", false))
+
+	chain := func() ([]tool.Tool, func(), error) {
+		redact, err := tools.NewRedactTool(&tools.RedactConfig{
+			Detectors: []string{tools.DetectRules},
+			Rules:     []redaction.Rule{{Term: "Mr Bean", Category: "person"}},
+		})
+		if err != nil {
+			return nil, nil, err
+		}
+		pseudo, err := tools.NewPseudoTranslateFromConfig(map[string]any{"target_locale": "fr"}, "fr")
+		if err != nil {
+			return nil, nil, err
+		}
+		unredact, err := tools.NewUnredactTool(&tools.UnredactConfig{})
+		if err != nil {
+			return nil, nil, err
+		}
+		return []tool.Tool{redact, pseudo, unredact}, func() {}, nil
+	}
+	require.NoError(t, a.transformKpzInPlace(context.Background(), work, "redacted-translate", chain, "fr", "", false, false))
+
+	out := filepath.Join(dir, "out")
+	require.NoError(t, a.MergeFromKpz(context.Background(), work, out))
+	data, err := os.ReadFile(filepath.Join(out, "messages.json"))
+	require.NoError(t, err)
+	var got map[string]string
+	require.NoError(t, json.Unmarshal(data, &got))
+	for key, source := range map[string]string{"greeting": "Hello Mr Bean", "farewell": "Goodbye Mr Bean"} {
+		assert.NotEqual(t, source, got[key], "%s: the translation lands", key)
+		assert.Contains(t, got[key], "Mr Bean", "%s: the redacted value is restored", key)
+	}
 }

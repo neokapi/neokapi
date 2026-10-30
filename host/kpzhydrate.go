@@ -15,7 +15,7 @@ import (
 // hydrateTargetsTool is the internal merge step: for each block it reads the
 // stored `targets/<locale>` overlay and applies it to the in-flight block so
 // the writer emits the translated output. It recomputes nothing (no tool
-// re-runs, no network) — it only replays the work already in the workspace.
+// re-runs, no network). It replays the work already in the workspace.
 // An overlay whose source stamp names another source than the block's is a
 // translation of a source that changed since: it is not applied, and Stale
 // counts it.
