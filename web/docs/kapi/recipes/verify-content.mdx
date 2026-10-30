@@ -116,17 +116,22 @@ kapi check: 1 failing finding remains (voice)
 ```
 
 `kapi fix` changes failing findings with a replacement and nothing else. A
-finding about tone or style, a rule with no replacement, and words that hold a
-link, a formatting span or a placeholder have no automatic fix, and kapi lists
-them for you to edit. A finding that only reports stays as it is. A fix the
-change service refuses is listed with the reason, and the file's other fixes
-land. After writing, `kapi fix` checks the files it wrote again and prints how
-many failing findings remain.
+finding about tone or style, a rule with no replacement, words inside a code
+span, and words that hold a link, a formatting span or a placeholder have no
+automatic fix, and kapi lists them for you to edit. A finding that only reports
+stays as it is. A fix the change service refuses is listed with the reason, and
+the file's other fixes land. After writing, `kapi fix` checks the files it
+wrote again and prints how many failing findings remain.
+
+`kapi fix` previews each file's change set before it writes. When the preview
+shows a change outside the replaced words, such as an escape the format's
+writer spells another way, kapi leaves the file as it is and lists its fixes as
+not fixed.
 
 `--dry-run` prints the diff each file would get and writes nothing. `--json`
 prints the `kapi.fix-result/v1` result, with each file's change set result. The
-exit code is `0` when every fix landed, `1` when a fix was refused, and `4`
-when the check did not run.
+exit code is `0` when every fix landed, `1` when a fix did not, and `4` when
+the check did not run.
 
 ## Check changes in git
 

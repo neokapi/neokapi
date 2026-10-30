@@ -1,12 +1,16 @@
 package host
 
 import (
-	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/change"
@@ -91,11 +95,17 @@ type FixRemaining struct {
 
 // RunFix is kapi fix: it runs the check, applies every fix the check
 // computed through the change service, and prints what it did. It exits 0
-// when every fix landed, 1 when a fix was refused, and as kapi check does
-// when the check did not run.
+// when every fix landed, 1 when a fix was not, and as kapi check does when the
+// check did not run. When writing stops on an error, the files written before
+// it are listed first.
 func (a *App) RunFix(cmd Command, opts FixOptions) error {
-	res, err := a.FixFiles(CmdContext(cmd), cmd, opts)
+	res, err := a.FixFiles(cmd, opts)
 	if err != nil {
+		if res != nil && len(res.Files) > 0 {
+			if perr := output.Print(cmd, res); perr != nil {
+				return errors.Join(err, perr)
+			}
+		}
 		return err
 	}
 	if output.ResolveFormat(cmd) == output.FormatText && opts.DryRun {
@@ -119,9 +129,14 @@ func (a *App) RunFix(cmd Command, opts FixOptions) error {
 // finding that carries one, one change set per document, through the change
 // service kapi apply uses, as the person or agent the environment names. A fix
 // the service refuses is left out of its change set and reported, and the
-// other fixes of the document land. A finding that only reports is left as it
-// is. After writing, the files written are checked again.
-func (a *App) FixFiles(ctx context.Context, cmd Command, opts FixOptions) (*FixResult, error) {
+// other fixes of the document land. A document the service cannot write
+// without changing bytes outside the fixed words is not written. A finding
+// that only reports is left as it is. After writing, the files written are
+// checked again.
+//
+// When writing stops on an error, FixFiles returns the error with the result
+// so far, which lists the files already written.
+func (a *App) FixFiles(cmd Command, opts FixOptions) (*FixResult, error) {
 	report, err := a.ComputeCheck(cmd, opts.Paths)
 	if err != nil {
 		return nil, err
@@ -129,27 +144,62 @@ func (a *App) FixFiles(ctx context.Context, cmd Command, opts FixOptions) (*FixR
 	if report.Verdict == check.VerdictDidNotRun {
 		return nil, fmt.Errorf("%w: %s (%s): %s", ErrCheckNotRun, check.CauseSummary(report.DidNotRunCause), report.DidNotRunCause, strings.Join(report.DidNotRun, "; "))
 	}
+	return a.fixReport(cmd, opts, report)
+}
 
+// fixReport applies the fixes of a report kapi fix's check produced.
+func (a *App) fixReport(cmd Command, opts FixOptions, report check.Report) (*FixResult, error) {
+	recipe, err := ResolveProjectPath(cmd)
+	if err != nil {
+		return nil, err
+	}
 	res := &FixResult{Schema: FixResultSchemaID, DryRun: opts.DryRun, Files: []FixedFile{}, NotFixed: []UnfixedFinding{}, NeedsRewrite: []check.Diagnostic{}}
-	docs, order := fixesByDoc(report.Findings)
+	docs := a.newFixDocs(recipe)
 	for _, d := range report.Findings {
-		if d.Fails && d.Fix == nil {
+		if !d.Fails {
+			continue
+		}
+		switch {
+		case d.Fix != nil:
+		case docs.translation(d.Location.File):
+			res.NotFixed = append(res.NotFixed, UnfixedFinding{Finding: d, Reason: fixReasonTranslation})
+		default:
 			res.NeedsRewrite = append(res.NeedsRewrite, d)
 		}
 	}
+	byDoc, order := fixesByDoc(report.Findings)
 	if len(order) > 0 {
-		if err := a.applyFixes(ctx, cmd, opts, docs, order, res); err != nil {
-			return nil, err
+		if err := a.applyFixes(cmd, recipe, opts, byDoc, order, res); err != nil {
+			return res, err
 		}
 	}
 	if !opts.DryRun {
 		remaining, err := a.fixRemaining(cmd, opts, report, res)
 		if err != nil {
-			return nil, err
+			return res, err
 		}
 		res.Remaining = remaining
 	}
 	return res, nil
+}
+
+// The reasons kapi fix gives for a fix it did not make, beside the change
+// service's refusals (fixRefusalReason).
+const (
+	fixReasonTranslation = "a translation's file; edit the source or review it in kapi status --review"
+	fixReasonOtherBytes  = "kapi cannot write this file without changing other bytes"
+)
+
+// translation reports whether file is the file of a translation in the
+// project, which no fix names (fixDocs.names).
+func (d *fixDocs) translation(file string) bool {
+	if d.recipe == "" || file == "" {
+		return false
+	}
+	if _, named := d.doc(file); named {
+		return false
+	}
+	return d.layout != nil
 }
 
 // docFixes are the fixes of one document: its operations, each with the
@@ -203,17 +253,49 @@ func opKey(op change.Op) string {
 	return string(raw)
 }
 
-// applyFixes applies each document's fixes as one change set. A change set
-// with a refused operation writes nothing, so the refused operation is taken
-// out, recorded as not fixed, and the rest is sent again.
-func (a *App) applyFixes(ctx context.Context, cmd Command, opts FixOptions, docs map[string]*docFixes, order []string, res *FixResult) error {
-	resolved, err := a.commandActor()
-	if err != nil {
-		return err
+// fixer applies the fixes of one kapi fix run, document by document.
+type fixer struct {
+	app      *App
+	cmd      Command
+	recipe   string
+	root     string
+	actor    change.Actor
+	resolved ResolvedActor
+	note     string
+	services map[bool]*change.Service
+}
+
+// service is the change service for a document inside the project, or for
+// one outside it, which resolves from the project's root as kapi apply
+// resolves one.
+func (f *fixer) service(outside bool) (*change.Service, error) {
+	if svc, ok := f.services[outside]; ok {
+		return svc, nil
 	}
-	actor := changeActorOf(resolved.Actor)
-	note := resolved.NoteWith("applied with `kapi fix`")
-	recipe, err := ResolveProjectPath(cmd)
+	opts := ChangeServiceOptions{
+		Project: f.recipe, Origin: "fix", Encoding: f.app.Encoding, SourceLocale: model.LocaleID(f.app.SourceLang),
+		AnyPath: f.recipe == "",
+	}
+	if outside {
+		opts.Project, opts.Root, opts.AnyPath = "", f.root, true
+	}
+	svc, err := f.app.changeService(CmdContext(f.cmd), f.cmd, opts)
+	if err != nil {
+		return nil, err
+	}
+	f.services[outside] = svc
+	return svc, nil
+}
+
+// applyFixes applies each document's fixes as one change set. Each set is
+// previewed first. A previewed set with a refused operation writes nothing, so
+// the refused operation is taken out, recorded as not fixed, and the rest is
+// previewed again. A preview whose file differs from the file on disk
+// anywhere but in the words the fixes replace is not applied, and every fix of
+// the document is recorded as not fixed: kapi fix writes only the words a
+// finding names.
+func (a *App) applyFixes(cmd Command, recipe string, opts FixOptions, docs map[string]*docFixes, order []string, res *FixResult) error {
+	resolved, err := a.commandActor()
 	if err != nil {
 		return err
 	}
@@ -221,73 +303,245 @@ func (a *App) applyFixes(ctx context.Context, cmd Command, opts FixOptions, docs
 	if err != nil {
 		return err
 	}
-	services := map[bool]*change.Service{}
-	serviceFor := func(outside bool) (*change.Service, error) {
-		if svc, ok := services[outside]; ok {
-			return svc, nil
-		}
-		svcOpts := ChangeServiceOptions{
-			Project: recipe, Origin: "fix", Encoding: a.Encoding, SourceLocale: model.LocaleID(a.SourceLang),
-			AnyPath: recipe == "",
-		}
-		if outside {
-			svcOpts.Project, svcOpts.Root, svcOpts.AnyPath = "", root, true
-		}
-		svc, err := a.changeService(ctx, cmd, svcOpts)
-		if err != nil {
-			return nil, err
-		}
-		services[outside] = svc
-		return svc, nil
-	}
-	mode := change.ModeApply
-	if opts.DryRun {
-		mode = change.ModePreview
-	}
+	f := &fixer{app: a, cmd: cmd, recipe: recipe, root: root, actor: changeActorOf(resolved.Actor), resolved: resolved,
+		note: resolved.NoteWith("applied with `kapi fix`"), services: map[bool]*change.Service{}}
 	for _, doc := range order {
-		df := docs[doc]
-		outside := recipe != "" && filepath.IsAbs(filepath.FromSlash(doc)) && !under(root, filepath.FromSlash(doc))
-		svc, err := serviceFor(outside)
-		if err != nil {
+		if err := f.fixDoc(doc, docs[doc], opts.DryRun, res); err != nil {
 			return err
-		}
-		ops := slices.Clone(df.ops)
-		for len(ops) > 0 {
-			set := change.Set{Mode: mode, Note: note, Ops: make([]change.Op, len(ops))}
-			for i, o := range ops {
-				set.Ops[i] = o.op
-			}
-			var before map[int]string
-			if actor.Kind == change.ActorAgent {
-				before = wordingBefore(ctx, svc, set)
-			}
-			out, err := svc.Apply(ctx, set, actor)
-			if err != nil {
-				return err
-			}
-			switch out.Status {
-			case change.SetApplied, change.SetPreviewed, change.SetPartial:
-				if out.Status != change.SetPreviewed {
-					a.noteAgentEdits(ctx, recipe, resolved.Actor, appliedWording(set, out, before))
-				}
-				res.Files = append(res.Files, fixedFile(df.file, doc, ops, out))
-				res.Fixed += res.Files[len(res.Files)-1].Fixed
-				ops = nil
-				continue
-			}
-			i := refusedOp(out)
-			if i < 0 {
-				// Refused as a whole: none of the document's fixes can land.
-				for _, o := range ops {
-					res.NotFixed = append(res.NotFixed, unfixed(o, out.Error)...)
-				}
-				break
-			}
-			res.NotFixed = append(res.NotFixed, unfixed(ops[i], out.Ops[i].Error)...)
-			ops = slices.Delete(ops, i, i+1)
 		}
 	}
 	return nil
+}
+
+// fixDoc previews, guards and applies the fixes of one document.
+func (f *fixer) fixDoc(doc string, df *docFixes, dryRun bool, res *FixResult) error {
+	ctx := CmdContext(f.cmd)
+	outside := f.recipe != "" && filepath.IsAbs(filepath.FromSlash(doc)) && !under(f.root, filepath.FromSlash(doc))
+	svc, err := f.service(outside)
+	if err != nil {
+		return err
+	}
+	ops := slices.Clone(df.ops)
+	for len(ops) > 0 {
+		set := change.Set{Mode: change.ModePreview, Note: f.note, Ops: make([]change.Op, len(ops))}
+		for i, o := range ops {
+			set.Ops[i] = o.op
+		}
+		original, rerr := os.ReadFile(df.file)
+		preview, err := svc.Apply(ctx, set, f.actor)
+		if err != nil {
+			return err
+		}
+		if preview.Status != change.SetPreviewed {
+			ops = dropRefused(ops, preview, res)
+			continue
+		}
+		if rerr != nil || !keepsOtherBytes(original, ops, preview) {
+			for _, o := range ops {
+				res.NotFixed = append(res.NotFixed, unfixedFor(o, fixReasonOtherBytes, nil)...)
+			}
+			return nil
+		}
+		if dryRun {
+			f.landed(df, doc, ops, preview, res)
+			return nil
+		}
+		set.Mode = change.ModeApply
+		var before map[int]string
+		if f.actor.Kind == change.ActorAgent {
+			before = wordingBefore(ctx, svc, set)
+		}
+		out, err := svc.Apply(ctx, set, f.actor)
+		if err != nil {
+			return err
+		}
+		switch out.Status {
+		case change.SetApplied, change.SetPartial:
+			f.app.noteAgentEdits(ctx, f.recipe, f.resolved.Actor, appliedWording(set, out, before))
+			f.landed(df, doc, ops, out, res)
+			return nil
+		}
+		ops = dropRefused(ops, out, res)
+	}
+	return nil
+}
+
+// landed records a document's change set that landed, or would in a dry run.
+func (f *fixer) landed(df *docFixes, doc string, ops []fixOp, out *change.Result, res *FixResult) {
+	res.Files = append(res.Files, fixedFile(df.file, doc, ops, out))
+	res.Fixed += res.Files[len(res.Files)-1].Fixed
+}
+
+// dropRefused records the operation that refused a change set as not fixed
+// and returns the others. A change set refused as a whole fixes nothing.
+func dropRefused(ops []fixOp, out *change.Result, res *FixResult) []fixOp {
+	i := refusedOp(out)
+	if i < 0 || i >= len(ops) {
+		for _, o := range ops {
+			res.NotFixed = append(res.NotFixed, unfixed(o, out.Error)...)
+		}
+		return nil
+	}
+	res.NotFixed = append(res.NotFixed, unfixed(ops[i], out.Ops[i].Error)...)
+	return slices.Delete(ops, i, i+1)
+}
+
+// keepsOtherBytes reports whether the file a preview would write differs from
+// original only in the words the previewed fixes replace. The file is rebuilt
+// from original and the preview's diff, and must have the digest the preview
+// reports. A preview that writes nothing keeps every byte; one that writes
+// more than one file, renders no diff (a file too large or not text) or
+// cannot be rebuilt is not shown to keep them.
+func keepsOtherBytes(original []byte, ops []fixOp, preview *change.Result) bool {
+	var written []change.DocResult
+	for _, d := range preview.Docs {
+		if d.After != nil {
+			written = append(written, d)
+		}
+	}
+	if len(written) == 0 {
+		return true
+	}
+	if len(written) > 1 || len(preview.Docs) == 0 || preview.Docs[0].Diff == "" {
+		return false
+	}
+	after, ok := applyUnifiedDiff(string(original), preview.Docs[0].Diff)
+	if !ok {
+		return false
+	}
+	sum := sha256.Sum256([]byte(after))
+	if "sha256:"+hex.EncodeToString(sum[:]) != *written[0].After {
+		return false
+	}
+	var pairs []FixPair
+	for i, o := range ops {
+		if i < len(preview.Ops) && preview.Ops[i].Status != change.OpPreviewed {
+			continue
+		}
+		body, ok := o.op.Body.(*change.ReplaceText)
+		if !ok || len(body.Edits) != 1 || len(o.findings) == 0 {
+			return false
+		}
+		pairs = append(pairs, FixPair{From: o.findings[0].Location.Snippet, To: body.Edits[0].Text})
+	}
+	return onlyPairsDiffer(string(original), after, pairs)
+}
+
+// onlyPairsDiffer reports whether after is before with each pair's From
+// replaced by its To once, in some order, and nothing else changed. At each
+// point where the two texts part, the pair that accounts for the difference is
+// the one whose words start closest to that point.
+func onlyPairsDiffer(before, after string, pairs []FixPair) bool {
+	i, j := 0, 0
+	left := slices.Clone(pairs)
+	for len(left) > 0 {
+		m := commonPrefix(before[i:], after[j:])
+		pick, at := -1, -1
+		for n, p := range left {
+			if p.From == "" {
+				return false
+			}
+			for k := i + m; k >= i; k-- {
+				if strings.HasPrefix(before[k:], p.From) && strings.HasPrefix(after[j+(k-i):], p.To) {
+					if k > at {
+						pick, at = n, k
+					}
+					break
+				}
+			}
+		}
+		if pick < 0 {
+			return false
+		}
+		p := left[pick]
+		j += at - i + len(p.To)
+		i = at + len(p.From)
+		left = slices.Delete(left, pick, pick+1)
+	}
+	return before[i:] == after[j:]
+}
+
+// commonPrefix is the length in bytes of the prefix a and b share.
+func commonPrefix(a, b string) int {
+	n := min(len(a), len(b))
+	for i := range n {
+		if a[i] != b[i] {
+			return i
+		}
+	}
+	return n
+}
+
+// applyUnifiedDiff applies a unified diff of one file, as a change preview
+// renders it, to before. The preview splits both texts into lines that each
+// end in a newline, the last one given a newline it may not have, so the
+// result drops that one. False when the diff does not apply to before.
+func applyUnifiedDiff(before, diff string) (string, bool) {
+	lines := previewLines(before)
+	var out []string
+	pos := 0
+	inHunk := false
+	for _, l := range strings.SplitAfter(diff, "\n") {
+		switch {
+		case l == "":
+		case strings.HasPrefix(l, "@@ "):
+			start, ok := hunkStart(l)
+			if !ok || start < pos || start > len(lines) {
+				return "", false
+			}
+			out = append(out, lines[pos:start]...)
+			pos, inHunk = start, true
+		case !inHunk:
+			// The --- and +++ header lines.
+		case l[0] == ' ' || l[0] == '-':
+			if pos >= len(lines) || lines[pos] != l[1:] {
+				return "", false
+			}
+			if l[0] == ' ' {
+				out = append(out, lines[pos])
+			}
+			pos++
+		case l[0] == '+':
+			out = append(out, l[1:])
+		default:
+			return "", false
+		}
+	}
+	out = append(out, lines[pos:]...)
+	return strings.TrimSuffix(strings.Join(out, ""), "\n"), true
+}
+
+// previewLines splits s the way the preview's diff does: after each newline,
+// with a newline added to the last line.
+func previewLines(s string) []string {
+	lines := strings.SplitAfter(s, "\n")
+	lines[len(lines)-1] += "\n"
+	return lines
+}
+
+// hunkStart is the index of the first line of before a hunk header
+// ("@@ -start,count +start,count @@") names. A hunk of no lines names the
+// line before it.
+func hunkStart(header string) (int, bool) {
+	from, _, ok := strings.Cut(strings.TrimPrefix(header, "@@ -"), " ")
+	if !ok {
+		return 0, false
+	}
+	first, count, hasCount := strings.Cut(from, ",")
+	n, err := strconv.Atoi(first)
+	if err != nil {
+		return 0, false
+	}
+	if hasCount {
+		c, err := strconv.Atoi(count)
+		if err != nil {
+			return 0, false
+		}
+		if c == 0 {
+			return n, true
+		}
+	}
+	return n - 1, true
 }
 
 // refusedOp is the index of the operation that refused a change set, or -1
@@ -327,9 +581,15 @@ func fixedFile(file, doc string, ops []fixOp, res *change.Result) FixedFile {
 
 // unfixed records the findings of a refused operation as not fixed.
 func unfixed(o fixOp, e *change.Error) []UnfixedFinding {
+	return unfixedFor(o, fixRefusalReason(e), e)
+}
+
+// unfixedFor records the findings of an operation that did not land as not
+// fixed, for reason.
+func unfixedFor(o fixOp, reason string, e *change.Error) []UnfixedFinding {
 	out := make([]UnfixedFinding, 0, len(o.findings))
 	for _, d := range o.findings {
-		out = append(out, UnfixedFinding{Finding: d, Reason: fixRefusalReason(e), Error: e})
+		out = append(out, UnfixedFinding{Finding: d, Reason: reason, Error: e})
 	}
 	return out
 }
@@ -345,7 +605,10 @@ func fixRefusalReason(e *change.Error) string {
 	case e.Code == change.CodeAmbiguous:
 		return "the words occur more than once in the block"
 	case e.Code == change.CodeStale, e.Code == change.CodeDocChanged:
-		return "the block changed after the check read it"
+		// The revision the check computed is not the one the service reads:
+		// the file changed since, or the service reads the block another
+		// way.
+		return "kapi read this block differently when writing it"
 	case e.Code == change.CodeGuard:
 		return "the replacement would remove formatting inside the words"
 	case e.Code == change.CodeGateFailed:
@@ -415,6 +678,8 @@ func (r *FixResult) FormatText(w io.Writer) error {
 		fixed = "to fix"
 	}
 	switch {
+	case r.Fixed == 0 && len(r.NotFixed) == 0 && len(r.NeedsRewrite) == 0:
+		fmt.Fprintln(w, "Nothing to fix: no failing findings.")
 	case r.Fixed == 0 && len(r.NotFixed) == 0:
 		fmt.Fprintln(w, "Nothing to fix: no failing finding has an automatic fix.")
 	case r.DryRun:

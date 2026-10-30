@@ -142,7 +142,7 @@ kapi check: 1 failing finding remains (voice)
 func TestFixFiles_Result(t *testing.T) {
 	f := newFixFixture(t)
 
-	res, err := f.app.FixFiles(t.Context(), f.command(t, nil), FixOptions{})
+	res, err := f.app.FixFiles(f.command(t, nil), FixOptions{})
 	require.NoError(t, err)
 	assert.Equal(t, 4, res.Fixed)
 	require.Len(t, res.Files, 2)
@@ -183,7 +183,7 @@ func TestFixFiles_DryRunWritesNothing(t *testing.T) {
 	assert.Contains(t, text, "4 to fix in 2 files; nothing written (--dry-run)\n")
 	assert.NotContains(t, text, "kapi check:", "a dry run checks nothing again")
 
-	res, err := f.app.FixFiles(t.Context(), f.command(t, nil), FixOptions{DryRun: true})
+	res, err := f.app.FixFiles(f.command(t, nil), FixOptions{DryRun: true})
 	require.NoError(t, err)
 	assert.True(t, res.DryRun)
 	assert.Equal(t, 4, res.Fixed)
@@ -201,7 +201,7 @@ func TestFixFiles_DryRunWritesNothing(t *testing.T) {
 func TestFixFiles_JSON(t *testing.T) {
 	f := newFixFixture(t)
 
-	res, err := f.app.FixFiles(t.Context(), f.command(t, nil), FixOptions{})
+	res, err := f.app.FixFiles(f.command(t, nil), FixOptions{})
 	require.NoError(t, err)
 	raw, err := json.Marshal(res)
 	require.NoError(t, err)
@@ -261,7 +261,7 @@ func TestRunFix_ExitsZeroWhenEveryFixLanded(t *testing.T) {
 
 	out.Reset()
 	require.NoError(t, f.app.RunFix(f.command(t, &out), FixOptions{Paths: []string{"strings/en.json"}}))
-	assert.Equal(t, "Nothing to fix: no failing finding has an automatic fix.\nkapi check: no failing findings\n", out.String())
+	assert.Equal(t, "Nothing to fix: no failing findings.\nkapi check: no failing findings\n", out.String())
 }
 
 // A check that did not run exits as kapi check does, 4, and writes nothing.
@@ -277,16 +277,103 @@ func TestRunFix_CheckThatDidNotRun(t *testing.T) {
 
 // The file of a translation, named explicitly, gets no fix: the check holds
 // its words to the source language's rules, and the change service reads the
-// file as the translation. Its finding is listed as needing a rewrite and the
-// file stays as it is.
+// file as the translation. Its finding is listed as not fixed, with where to
+// act on it, and the file stays as it is.
 func TestFixFiles_ANamedTranslationIsNotWritten(t *testing.T) {
 	f := newFixFixture(t)
 
-	res, err := f.app.FixFiles(t.Context(), f.command(t, nil), FixOptions{Paths: []string{"docs/fr/guide.md"}})
+	var out bytes.Buffer
+	err := f.app.RunFix(f.command(t, &out), FixOptions{Paths: []string{"docs/fr/guide.md"}})
+	assert.Equal(t, ExitError, ExitCode(nil, err))
+	assert.Contains(t, out.String(), "  docs/fr/guide.md guide/p \"utilize\": a translation's file; edit the source or review it in kapi status --review\n")
+	assert.Equal(t, fixFrench, fixedBytes(t, f.french))
+
+	res, err := f.app.FixFiles(f.command(t, nil), FixOptions{Paths: []string{"docs/fr/guide.md"}})
 	require.NoError(t, err)
 	assert.Equal(t, 0, res.Fixed)
 	assert.Empty(t, res.Files)
-	require.NotEmpty(t, res.NeedsRewrite)
-	assert.Equal(t, "terms.vocabulary", res.NeedsRewrite[0].Rule)
-	assert.Equal(t, fixFrench, fixedBytes(t, f.french))
+	assert.Empty(t, res.NeedsRewrite)
+	require.Len(t, res.NotFixed, 1)
+	assert.Equal(t, "terms.vocabulary", res.NotFixed[0].Finding.Rule)
+	assert.Equal(t, fixReasonTranslation, res.NotFixed[0].Reason)
+}
+
+// A file the change service cannot write without changing bytes beside the
+// fixed words is not written. The JSON writer writes the escape \u00e9 as
+// the character it names, so kapi fix lists the fix as not fixed and leaves
+// the file as it is.
+func TestFixFiles_AFileWrittenWithOtherChangesIsNotWritten(t *testing.T) {
+	f := newFixFixture(t)
+	escaped := filepath.Join(f.root, "other", "cafe.json")
+	const content = "{\n  \"title\": \"Please utilize the caf\\u00e9\"\n}\n"
+	require.NoError(t, os.MkdirAll(filepath.Dir(escaped), 0o755))
+	require.NoError(t, os.WriteFile(escaped, []byte(content), 0o644))
+
+	var out bytes.Buffer
+	err := f.app.RunFix(f.command(t, &out), FixOptions{Paths: []string{"other/cafe.json"}})
+	assert.Equal(t, ExitError, ExitCode(nil, err))
+	assert.Equal(t, content, fixedBytes(t, escaped), "the file is not written")
+	assert.Contains(t, out.String(), "  other/cafe.json title \"utilize\": kapi cannot write this file without changing other bytes\n")
+
+	res, err := f.app.FixFiles(f.command(t, nil), FixOptions{Paths: []string{"other/cafe.json"}, DryRun: true})
+	require.NoError(t, err)
+	assert.Equal(t, 0, res.Fixed)
+	require.Len(t, res.NotFixed, 1)
+	assert.Equal(t, fixReasonOtherBytes, res.NotFixed[0].Reason)
+}
+
+// A block that changed between the check and the write is refused by the
+// change service as stale, not written over: its fixes are listed as not
+// fixed, the edit made in between stays, and the fixes of other blocks land.
+func TestFixFiles_AStaleBlockIsRefusedNotForced(t *testing.T) {
+	f := newFixFixture(t)
+	cmd := f.command(t, nil)
+	report, err := f.app.ComputeCheck(cmd, []string{"docs/guide.md"})
+	require.NoError(t, err)
+
+	edited := strings.Replace(fixGuide, "Simply send", "Then simply send", 1)
+	require.NoError(t, os.WriteFile(f.guide, []byte(edited), 0o644))
+
+	res, err := f.app.fixReport(cmd, FixOptions{Paths: []string{"docs/guide.md"}}, report)
+	require.NoError(t, err)
+	var stale []string
+	for _, u := range res.NotFixed {
+		if u.Error != nil && u.Error.Code == change.CodeStale {
+			stale = append(stale, u.Finding.Location.Snippet)
+		}
+	}
+	assert.Equal(t, []string{"e-mail", "mail address"}, stale, "both fixes of the edited block are refused as stale: %+v", res.NotFixed)
+	assert.Equal(t, 2, res.Fixed, "the block nobody edited is fixed")
+	assert.Equal(t, strings.Replace(edited, "**utilize** the widget and utilize it", "**use** the widget and use it", 1), fixedBytes(t, f.guide))
+}
+
+// No finding kapi check raises reaches the ambiguous-quote refusal: every word
+// rule's finding carries the run range of its words (profile.HitsToFindings
+// over the block's runs), so its fix names the words by position, and
+// check.Fix falls back to a quoted find only for a finding with no range. The
+// refusal is covered where a find is sent (core/change).
+
+// onlyPairsDiffer accepts a text that differs from the original in the fixed
+// words alone, and refuses one that differs anywhere else.
+func TestOnlyPairsDiffer(t *testing.T) {
+	use := []FixPair{{"utilize", "use"}}
+	assert.True(t, onlyPairsDiffer("We utilize it.", "We use it.", use))
+	assert.True(t, onlyPairsDiffer("utilize and utilize", "use and use", []FixPair{{"utilize", "use"}, {"utilize", "use"}}))
+	assert.True(t, onlyPairsDiffer("an e-mail and a login", "an email and a sign in", []FixPair{{"login", "sign in"}, {"e-mail", "email"}}))
+	assert.False(t, onlyPairsDiffer("We utilize  it.", "We use it.", use), "a collapsed space")
+	assert.False(t, onlyPairsDiffer("caf\\u00e9 utilize", "café use", use), "a decoded escape")
+	assert.False(t, onlyPairsDiffer("We utilize it.", "We utilize it.", use), "a fix that changed nothing")
+	assert.False(t, onlyPairsDiffer("<p>utilize</p>", "<meta charset=\"utf-8\"><p>use</p>", use), "an added element")
+}
+
+// applyUnifiedDiff rebuilds the text a preview's diff describes.
+func TestApplyUnifiedDiff(t *testing.T) {
+	before := "a\nb\nc\nd\ne\nf\ng\nh\n"
+	diff := "--- a/x\n+++ b/x\n@@ -1,4 +1,4 @@\n a\n-b\n+B\n c\n d\n@@ -6,3 +6,4 @@\n f\n g\n+G\n h\n"
+	got, ok := applyUnifiedDiff(before, diff)
+	require.True(t, ok)
+	assert.Equal(t, "a\nB\nc\nd\ne\nf\ng\nG\nh\n", got)
+
+	_, ok = applyUnifiedDiff("x\ny\n", diff)
+	assert.False(t, ok, "a diff of another text does not apply")
 }
