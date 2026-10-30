@@ -39,6 +39,13 @@ func TestTargetOverlay_StaleFor(t *testing.T) {
 			"a block rebuilt from a skeleton holds no source to compare the stamp with")
 	}
 
+	// A step that empties the source leaves the source as read to compare
+	// with: an overlay stamped with another source is stale.
+	emptied := model.NewBlock("b1", "Goodbye")
+	emptied.EditSourceText("")
+	assert.True(t, TargetOverlay{Text: "Bonjour", Source: SourceStamp("Hello")}.StaleFor(emptied))
+	assert.False(t, TargetOverlay{Text: "Au revoir", Source: SourceStamp("Goodbye")}.StaleFor(emptied))
+
 	// The block's source as read is what the stamp is compared with, so a
 	// translation made after a step rewrote the source is current.
 	redacted := model.NewBlock("b1", "Hello Mr Bean")

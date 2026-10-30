@@ -137,13 +137,21 @@ func BlockSourceStamp(b *model.Block) string { return SourceStamp(AsReadSourceTe
 // A merge applies no stale overlay and counts it as stale. An overlay with no
 // stamp (an import, a pseudo-translation, data older than the stamp) is never
 // stale, since nothing in it says which source it answered. Neither is an
-// overlay for a block that holds no source: a block rebuilt from a skeleton
-// carries its id alone, and has no source to compare the stamp with.
+// overlay for a block that carries no source at all, neither as read nor now:
+// a block rebuilt from a skeleton carries its id alone (partsFromSkeleton),
+// and has no source to compare the stamp with. A block whose source as read
+// is empty, or a step emptied, is compared like any other.
 func (o TargetOverlay) StaleFor(b *model.Block) bool {
-	if o.Source == "" || !holdsSource(b.SourceRuns()) {
+	if o.Source == "" || !carriesSource(b) {
 		return false
 	}
 	return o.Source != BlockSourceStamp(b)
+}
+
+// carriesSource reports whether b carries a source, as read or now.
+func carriesSource(b *model.Block) bool {
+	read, _ := b.SourceAsRead()
+	return holdsSource(read) || holdsSource(b.SourceRuns())
 }
 
 // holdsSource reports whether runs hold anything beyond empty text: a block

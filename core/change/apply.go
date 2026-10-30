@@ -1210,16 +1210,20 @@ func sameContent(a, b []model.Run) bool {
 }
 
 // contentOnly is runs with every code's native form and labels and every
-// text's do-not-translate mark left out, and adjacent text runs joined into
-// one, branches included. unredact puts each withheld value back as a text run
-// of its own beside the text around it. A reader of the file produces one run.
+// text's do-not-translate mark left out, branches included. Adjacent text runs
+// that agree on every field but their text are joined into one: unredact puts
+// each withheld value back as a text run of its own beside the text around
+// it, and a reader of the file produces one run.
 func contentOnly(runs []model.Run) []model.Run {
 	out := make([]model.Run, 0, len(runs))
+	var prev *model.TextRun // the run before r, when it is text
 	for _, r := range runs {
+		cur := r.Text
 		switch {
 		case r.Text != nil:
-			if n := len(out); n > 0 && out[n-1].Text != nil {
+			if n := len(out); n > 0 && prev != nil && sameTextFields(*prev, *r.Text) {
 				out[n-1].Text.Text += r.Text.Text
+				prev = cur
 				continue
 			}
 			t := *r.Text
@@ -1254,8 +1258,16 @@ func contentOnly(runs []model.Run) []model.Run {
 		default:
 			out = append(out, r)
 		}
+		prev = cur
 	}
 	return out
+}
+
+// sameTextFields reports whether two text runs agree on every field but
+// their text.
+func sameTextFields(a, b model.TextRun) bool {
+	a.Text, b.Text = "", ""
+	return a == b
 }
 
 // pathText renders a run path as JSON, for messages and grouping.
