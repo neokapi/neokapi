@@ -1454,13 +1454,15 @@ function recordLiveNote(): void {
  * claude-code noticed names and a word and recorded a correction a person
  * made, and codex took the other side of that correction. The walk opens the
  * sample from the Open screen and reads what waits on its Map, opens Decide
- * from there, keeps a name with `a`, changes a word's form with `c`, settles
- * the disagreement, reads the brief an assistant gets for a file, watches a
- * note recorded from outside the app arrive on the Map, and ends on Share.
+ * from there, settles the disagreement by picking a side and pressing `k`,
+ * keeps a name in the form its files use and a word with `k`, reads the brief
+ * an assistant gets for a file, watches a note recorded from outside the app
+ * arrive on the Map, and ends on Share.
  *
- * Decide is a list beside a detail pane. The keep, change and choose
- * beats select a row, act on it, and end on the rule it became, at the top of
- * Established, so each crop is the union of the two (beatSpan).
+ * Decide is a list of suggestions beside one question about the selected
+ * one. The choose, keep and word beats select a row, read its question, and
+ * answer it; the answered row leaves the list, so each crop is the row and
+ * the question (beatSpan).
  */
 async function contextWalk(c: WalkCtx): Promise<void> {
   const { page, beatEls, beatSpan, cursorTo, cue, sidebar } = c;
@@ -1468,8 +1470,11 @@ async function contextWalk(c: WalkCtx): Promise<void> {
   const map = ['[data-slot="map-decide"]', '[data-slot="map-counts"]', '[data-slot="map-suggestions"]'];
   const waiting = '[data-slot="map-suggestions"] [data-slot="map-suggestion"]';
   const suggestion = (text: string) =>
-    page.locator('[data-slot="digest-suggested"] [data-slot="digest-item"]').filter({ hasText: text }).first();
-  const kept = '[data-slot="digest-established"] [data-slot="digest-item"]';
+    page.locator('[data-slot="decide-item"]').filter({ hasText: text }).first();
+  // The question about the selected row, and the line that says what keeping
+  // the picked option does.
+  const question = page.locator('[data-slot="decide-question"]');
+  const consequence = page.locator('[data-slot="decide-consequence"]');
   // A row of the list is selected by clicking it, and the detail pane beside
   // the list shows it.
   const select = async (item: Locator) => {
@@ -1491,9 +1496,10 @@ async function contextWalk(c: WalkCtx): Promise<void> {
   // are timed by, so a beat's slice ends a moment after the walk has moved on.
   // A still second after each beat keeps the next scroll out of its last frames.
   const settle = () => page.waitForTimeout(1000);
-  // The disagreement's two sides in the detail pane, codex's and claude-code's.
-  const codexSide = page.locator('[data-slot="digest-side"]').filter({ hasText: "Write log in" }).first();
-  const side = page.locator('[data-slot="digest-side"]').filter({ hasText: "Write sign in" }).first();
+  // The disagreement's two sides, the question's options: codex's and
+  // claude-code's.
+  const codexSide = page.locator('[data-slot="decide-option"]').filter({ hasText: "Write log in" }).first();
+  const side = page.locator('[data-slot="decide-option"]').filter({ hasText: "Write sign in" }).first();
   // Each beat acts when its narration names the act (cue), so the screen and
   // the words over it agree.
 
@@ -1514,13 +1520,13 @@ async function contextWalk(c: WalkCtx): Promise<void> {
   });
   await settle();
 
-  // Decide opens on the disagreement, selected, its two sides in the detail
-  // pane.
-  await beatEls("decide", ['[data-slot="list-detail-list"]', '[data-slot="list-detail-toolbar"]', '[data-slot="digest-conflict-sides"]'], async () => {
+  // Decide opens on the disagreement, selected: one question, its two sides
+  // as the options.
+  await beatEls("decide", ['[data-slot="list-detail-list"]', '[data-slot="decide-question"]'], async () => {
     await humanClick(page, page.locator('[data-slot="map-decide"]'));
-    await page.waitForSelector('[data-slot="digest-conflicts"]', { timeout: 60_000 });
+    await page.waitForSelector('[data-slot="decide-item"][data-kind="disagreement"]', { timeout: 60_000 });
     await page.waitForTimeout(1500);
-    await cursorTo('[data-slot="digest-conflicts"] [data-slot="digest-item"]');
+    await cursorTo('[data-slot="decide-item"][data-kind="disagreement"]');
     await cue("codex", 5.4);
     await restOn(codexSide);
     await cue("claude-code", 7.4);
@@ -1529,69 +1535,59 @@ async function contextWalk(c: WalkCtx): Promise<void> {
   });
   await settle();
 
-  // The product name, kept with one key. The crop holds the row where the key
-  // was pressed and the rule where it landed.
+  // The product name, in the form its files use. The options are its forms,
+  // the most used first, and the line above the actions says what keeping the
+  // picked one does. One key keeps it, and the row leaves the list.
   const name = suggestion("KapiMart");
   await centre(page, name);
   await beatSpan("keep", async (mark) => {
     await select(name);
     await mark(name);
-    await cue("keeps", 6.5);
-    await page.keyboard.press("a");
-    await page.waitForTimeout(900);
-    await centre(page, page.locator(kept).first());
-    await restOn(page.locator(kept).first());
-    await mark(page.locator(kept).first());
+    await mark(question);
+    await cue("blocks", 4.2);
+    await restOn(consequence);
+    await cue("keeps", 8.4);
+    await page.keyboard.press("k");
+    await name.waitFor({ state: "detached", timeout: 10_000 });
     await page.waitForTimeout(1200);
   });
   await settle();
 
-  // A word, kept in the form the terms prefer. The field takes the detail
-  // pane's toolbar, holding the suggestion's own form, so it is selected and
-  // typed over. The crop spans the row, the field and the rule it became.
-  const word = suggestion("not basket");
+  // A word the files avoid, asked as keep this as a rule. The crop holds the
+  // row and the question.
+  const word = suggestion("basket");
   await centre(page, word);
-  await beatSpan("change", async (mark) => {
+  await beatSpan("word", async (mark) => {
     await select(word);
-    await cue("c", 7.2);
-    await page.keyboard.press("c");
-    const form = page.locator('[data-slot="digest-change"] input');
-    await form.waitFor({ state: "visible", timeout: 10_000 });
-    await page.waitForTimeout(500);
-    await form.selectText();
-    await form.pressSequentially("shopping cart", { delay: 95 });
-    await page.waitForTimeout(700);
     await mark(word);
-    await mark(page.locator('[data-slot="digest-change"]'));
-    await humanClick(page, page.locator('[data-slot="keep-changed"]'));
-    await page.waitForTimeout(500);
-    await follow(page.locator(kept).first());
-    await mark(page.locator(kept).first());
-    await page.waitForTimeout(600);
+    await mark(question);
+    await cue("check", 5.6);
+    await follow(consequence);
+    await cue("k", 8.0);
+    await page.keyboard.press("k");
+    await word.waitFor({ state: "detached", timeout: 10_000 });
+    await page.waitForTimeout(800);
   });
   await settle();
 
-  // The disagreement, selected at the top of the list: its sides sit beside
-  // each other in the detail pane, codex's first. The walk chooses
-  // claude-code's, the change a person made, by its text rather than its
-  // place. The row leaves the list, and the beat ends on the three rules kept.
-  const disagreement = page.locator('[data-slot="digest-conflicts"] [data-slot="digest-item"]').first();
+  // The disagreement, at the top of the list: one question whose options are
+  // the two sides, codex's and claude-code's, each saying what keeping it
+  // does. The walk picks claude-code's, the change a person made, by its text
+  // rather than its place, and keeps it. The row leaves the list.
+  const disagreement = page.locator('[data-slot="decide-item"][data-kind="disagreement"]').first();
   await centre(page, disagreement);
   await beatSpan("choose", async (mark) => {
     await select(disagreement);
     await side.waitFor({ state: "visible", timeout: 10_000 });
     await mark(disagreement);
-    await mark(page.locator('[data-slot="digest-conflict-sides"]'));
+    await mark(question);
     await cue("codex", 2.8);
     await restOn(codexSide);
     await cue("claude-code's", 6.5);
-    await restOn(side);
-    await cue("choose", 11.1);
-    await humanClick(page, side.locator('[data-slot="keep-item"]'));
-    await page.waitForSelector('[data-slot="digest-conflicts"]', { state: "detached", timeout: 15_000 });
-    await page.waitForTimeout(400);
-    await follow(page.locator(kept).first());
-    for (let i = 0; i < 3; i++) await mark(page.locator(kept).nth(i));
+    await humanClick(page, side);
+    await cue("keep", 11.1);
+    await page.keyboard.press("k");
+    await disagreement.waitFor({ state: "detached", timeout: 15_000 });
     await page.waitForTimeout(600);
   });
   await settle();
@@ -1608,7 +1604,7 @@ async function contextWalk(c: WalkCtx): Promise<void> {
   // narration names it.
   const briefTab = page.getByTestId("assistant-tab-brief");
   const picker = page.locator('[aria-label="Choose a file"]');
-  const keptTerm = page.locator('[data-slot="assistant-brief"] li').filter({ hasText: "say shopping cart instead" });
+  const keptTerm = page.locator('[data-slot="assistant-brief"] li').filter({ hasText: "say cart instead" });
   await humanClick(page, briefTab);
   await page.waitForSelector('[data-slot="assistant-brief"]', { timeout: 10_000 });
   await page.waitForTimeout(600);

@@ -52,6 +52,17 @@ export function projectsWithNews(standings: ContextProjectStanding[]): ContextPr
     .sort((a, b) => (b.latest?.at ?? "").localeCompare(a.latest?.at ?? ""));
 }
 
+/**
+ * The view a project's row opens: Decide while a suggestion or a disagreement
+ * waits, else History, which lists the operations behind what is new, such as
+ * a rule kept on another machine. Each of the two moves the marker as it shows
+ * them.
+ */
+export function whatsNewView(standing: ContextProjectStanding | undefined): string {
+  if (standing && standing.suggested === 0 && standing.conflicts === 0) return "context:history";
+  return "context:rules";
+}
+
 /** Whether any project holds anything at all: a rule, a suggestion, a disagreement. */
 function anythingRecorded(standings: ContextProjectStanding[]): boolean {
   return standings.some((s) => s.rules > 0 || s.suggested > 0 || s.conflicts > 0 || s.new > 0);

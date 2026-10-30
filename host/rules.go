@@ -152,6 +152,13 @@ func (r RuleLine) text(withApplies bool) string {
 // to resolve the project the way every command does.
 type RulesRequest struct {
 	Project string
+	// WithCounts fills a decide view's Counts while suggestions wait too, for
+	// a surface that shows how many rules are kept beside the questions.
+	WithCounts bool
+	// Reuse is a decide view read earlier for the same project. Its blocks
+	// are counted over again, rather than read from the files, while no
+	// source file has changed since it read them.
+	Reuse *RulesDecideView
 }
 
 // rulesState is what every rules call reads once: the project, its log as

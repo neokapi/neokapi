@@ -57,6 +57,9 @@ type RulesDecideView struct {
 
 	st     *rulesState
 	blocks []ruleBlock
+	// stamp names the source the blocks were read from: each file's path,
+	// size and modification time, and the recipe's.
+	stamp string
 }
 
 // RuleDecision is one question.
@@ -86,8 +89,9 @@ type RuleDecision struct {
 	// SuggestedBy names who suggested it.
 	SuggestedBy string `json:"suggested_by,omitempty"`
 
-	subject contextop.Subject
-	scope   contextop.Scope
+	subject   contextop.Subject
+	scope     contextop.Scope
+	noticedBy contextop.Actor
 }
 
 // RuleOption is one answer to a question.
@@ -105,8 +109,9 @@ type RuleOption struct {
 	// Consequence says what keeping this option does.
 	Consequence string `json:"consequence"`
 
-	subject contextop.Subject
-	scope   contextop.Scope
+	subject   contextop.Subject
+	scope     contextop.Scope
+	noticedBy contextop.Actor
 }
 
 // ruleBlock is one block of the project's source as the counts read it.
@@ -123,6 +128,14 @@ func (a *App) DecideRules(ctx context.Context, req RulesRequest) (*RulesDecideVi
 	if err != nil {
 		return nil, err
 	}
+	return a.decideView(ctx, st, req.WithCounts, true, req.Reuse)
+}
+
+// decideView reads the questions. With counted false it reads no block of the
+// project's source, so no option counts its uses and none states what keeping
+// it does: what recording an answer needs, and no more. reuse is a view read
+// earlier whose blocks are counted again while the source is unchanged.
+func (a *App) decideView(ctx context.Context, st *rulesState, withCounts, counted bool, reuse *RulesDecideView) (*RulesDecideView, error) {
 	digest, err := a.ContextDigest(ctx, ContextDigestRequest{Project: st.recipe})
 	if err != nil {
 		return nil, err
@@ -151,25 +164,32 @@ func (a *App) DecideRules(ctx context.Context, req RulesRequest) (*RulesDecideVi
 			}
 		}
 	}
-	if needsBlocks(v.Decisions, items) {
-		v.blocks = a.ruleBlocks(ctx, st)
+	if counted && needsBlocks(v.Decisions, items) {
+		v.blocks, v.stamp = a.ruleBlocks(ctx, st, reuse)
 	}
 	// A disagreement's counts are read now the blocks are.
 	for i := range v.Decisions {
+		if !counted {
+			break
+		}
 		v.fill(&v.Decisions[i])
 	}
 	for _, it := range items {
 		d := v.suggestion(it)
-		v.fill(&d)
+		if counted {
+			v.fill(&d)
+		}
 		v.Decisions = append(v.Decisions, d)
 	}
 
-	if len(v.Decisions) == 0 {
+	if len(v.Decisions) == 0 || withCounts {
 		listing, lerr := a.listRules(ctx, st)
 		if lerr != nil {
 			return nil, lerr
 		}
 		v.Counts = listing.Counts
+	}
+	if len(v.Decisions) == 0 {
 		v.Hint = "kapi context suggest"
 	}
 	return v, nil
@@ -199,13 +219,13 @@ func (v *RulesDecideView) disagreement(c DigestConflict) RuleDecision {
 		}
 		d.Options = append(d.Options, RuleOption{
 			ID: side.ID, Short: side.Short, Sentence: side.Sentence,
-			subject: side.Subject, scope: r.Scope,
+			subject: side.Subject, scope: r.Scope, noticedBy: side.NoticedBy,
 		})
 		if d.Seen == nil && side.Quote != nil {
 			d.Seen = side.Quote
 		}
 		if d.scope.Level == "" {
-			d.scope = r.Scope
+			d.scope, d.subject, d.noticedBy = r.Scope, side.Subject, side.NoticedBy
 		}
 	}
 	if names {
@@ -221,7 +241,7 @@ func (v *RulesDecideView) suggestion(it DigestItem) RuleDecision {
 	d := RuleDecision{
 		ID: it.ID, Short: it.Short, Sentence: it.Sentence, Seen: it.Quote,
 		Question: questionKeep, SuggestedBy: actorPhrase(it.NoticedBy, false),
-		subject: it.Subject, scope: r.Scope,
+		subject: it.Subject, scope: r.Scope, noticedBy: it.NoticedBy,
 	}
 	switch {
 	case it.Subject.Kind == contextop.SubjectMemory:
@@ -384,18 +404,25 @@ func countBlocks(blocks []ruleBlock, scope contextop.Scope, st *rulesState, re *
 }
 
 // ruleBlocks reads every block of the project's source once, with the
-// coordinates of the point each file sits at. A file that will not read is
-// left out: a count is advice, and not worth failing the question over.
-func (a *App) ruleBlocks(ctx context.Context, st *rulesState) []ruleBlock {
+// coordinates of the point each file sits at, and the stamp of what it read.
+// When reuse read the same project's source and no file or the recipe has
+// changed since, its blocks are returned without reading a file. A file that
+// will not read is left out: a count is advice, and not worth failing the
+// question over.
+func (a *App) ruleBlocks(ctx context.Context, st *rulesState, reuse *RulesDecideView) ([]ruleBlock, string) {
 	a.InitRegistries()
 	pctx := project.NewProjectContext(st.proj, st.recipe)
 	resolved, err := pctx.ResolveContent(a.FormatReg)
 	if err != nil {
-		return nil
+		return nil, ""
+	}
+	stamp := sourceStamp(st.recipe, resolved)
+	if reuse != nil && reuse.st != nil && reuse.st.key == st.key && reuse.stamp == stamp {
+		return reuse.blocks, stamp
 	}
 	formats, err := a.newCheckFormats(st.cmd)
 	if err != nil {
-		return nil
+		return nil, ""
 	}
 	var out []ruleBlock
 	read := map[string]bool{}
@@ -418,7 +445,26 @@ func (a *App) ruleBlocks(ctx context.Context, st *rulesState) []ruleBlock {
 			out = append(out, ruleBlock{file: rel, coordinates: coordinates, text: b.SourceText()})
 		}
 	}
-	return out
+	return out, stamp
+}
+
+// sourceStamp names the source a count reads: the recipe and each resolved
+// file, by path, size and modification time. Two stamps are equal while no
+// file has been added, removed or written.
+func sourceStamp(recipe string, resolved []project.ResolvedFile) string {
+	var b strings.Builder
+	line := func(path string) {
+		b.WriteString(path)
+		if info, err := os.Stat(path); err == nil {
+			fmt.Fprintf(&b, "\t%d\t%d", info.Size(), info.ModTime().UnixNano())
+		}
+		b.WriteByte('\n')
+	}
+	line(recipe)
+	for _, rf := range resolved {
+		line(rf.Path)
+	}
+	return b.String()
 }
 
 // KeepRequest is the decision that keeps option (an index into Options, -1
@@ -451,6 +497,144 @@ func (d RuleDecision) DropRequest() ContextReviewRequest {
 		ids[i] = o.ID
 	}
 	return ContextReviewRequest{Drop: ids}
+}
+
+// NoticedBy is who suggested what the question is about: the suggestion's
+// actor, or the first side's for a disagreement.
+func (d RuleDecision) NoticedBy() contextop.Actor { return d.noticedBy }
+
+// NoticedBy is who suggested the side an option stands for. An option that is
+// a form of a name has none of its own.
+func (o RuleOption) NoticedBy() contextop.Actor { return o.noticedBy }
+
+// Label is the wording a question is about, for a list that shows each
+// question on one line. For a name it is the form the suggestion says to
+// write, and for a word rule the wording it avoids, which both sides of a
+// disagreement share. A content-memory pair gives its source, and a note its
+// prose.
+func (d RuleDecision) Label() string {
+	if rule, ok := d.subject.Rule(); ok {
+		if d.Kind == RuleDecisionName {
+			return rule.Replacement
+		}
+		return rule.Term
+	}
+	if m := d.subject.Memory; m != nil {
+		return m.Source
+	}
+	return d.subject.Text
+}
+
+// Avoided counts the wordings a word rule's check reports: the term and its
+// other forms. A question about anything else counts none.
+func (d RuleDecision) Avoided() int {
+	rule, ok := d.subject.Rule()
+	if !ok || d.Kind == RuleDecisionName {
+		return 0
+	}
+	n := 0
+	for _, f := range append([]string{rule.Term}, rule.Forms...) {
+		if strings.TrimSpace(f) != "" && f != rule.Replacement {
+			n++
+		}
+	}
+	return n
+}
+
+// Find returns the question id belongs to, and the option it names: id is a
+// suggestion's own, or one side's of a disagreement. The option is -1 for a
+// suggestion's own id.
+func (v *RulesDecideView) Find(id string) (RuleDecision, int, bool) {
+	for _, d := range v.Decisions {
+		if id != "" && d.ID == id {
+			return d, -1, true
+		}
+		for i, o := range d.Options {
+			if id != "" && o.ID == id {
+				return d, i, true
+			}
+		}
+	}
+	return RuleDecision{}, -1, false
+}
+
+// The answers a person gives to a question, as RuleDecideRequest.Action
+// names them. Not a rule is a drop.
+const (
+	RuleAnswerKeep  = "keep"
+	RuleAnswerDrop  = "drop"
+	RuleAnswerLater = "later"
+)
+
+// RuleDecideRequest is one answer to one question, for a surface that asks
+// the questions `kapi rules` asks and records each answer as it is given.
+type RuleDecideRequest struct {
+	// Actor is who is answering. An empty Kind is a command line, where the
+	// environment answers (host/contextactor.go).
+	Actor contextop.Actor
+	// Project is the recipe path.
+	Project string
+	// ID names the suggestion, or for a disagreement the side a keep chooses.
+	ID string
+	// Answer is RuleAnswerKeep, RuleAnswerDrop or RuleAnswerLater.
+	Answer string
+	// Form is the form a kept name says to write: one of the options, or one
+	// the person typed. Empty keeps the form the suggestion names.
+	Form string
+	Note string
+}
+
+// RuleDecideResult is what one answer recorded: the review round a keep or a
+// drop is, or the suggestions a later leaves waiting.
+type RuleDecideResult struct {
+	Answer string               `json:"answer"`
+	Review *ContextReviewResult `json:"review,omitempty"`
+	Later  []string             `json:"later,omitempty"`
+}
+
+// DecideRule records one answer to one question: a keep, a not a rule or a
+// later, through the calls `kapi rules` makes for k, n and l (KeepRequest,
+// DropRequest and LeaveRulesForLater). It reads the questions again first,
+// without counting uses, so an answer to a suggestion decided meanwhile is
+// refused rather than recorded twice.
+func (a *App) DecideRule(ctx context.Context, req RuleDecideRequest) (RuleDecideResult, error) {
+	out := RuleDecideResult{Answer: req.Answer}
+	st, err := a.rulesState(ctx, req.Project)
+	if err != nil {
+		return out, err
+	}
+	v, err := a.decideView(ctx, st, false, false, nil)
+	if err != nil {
+		return out, err
+	}
+	d, option, ok := v.Find(req.ID)
+	if !ok {
+		return out, fmt.Errorf("no suggestion %s waits for a decision", contextop.ShortID(req.ID))
+	}
+	var review ContextReviewRequest
+	switch req.Answer {
+	case RuleAnswerKeep:
+		review = d.KeepRequest(option, req.Form)
+	case RuleAnswerDrop:
+		review = d.DropRequest()
+	case RuleAnswerLater:
+		ids := []string{d.ID}
+		if d.Kind == RuleDecisionDisagreement {
+			ids = ids[:0]
+			for _, o := range d.Options {
+				ids = append(ids, o.ID)
+			}
+		}
+		later, lerr := a.LeaveRulesForLater(ctx, req.Project, ids)
+		out.Later = later.Later
+		return out, lerr
+	default:
+		return out, fmt.Errorf("answer %q is none of keep, drop and later", req.Answer)
+	}
+	review.Actor, review.Project, review.Note = req.Actor, req.Project, req.Note
+	res, err := a.DecideContextReview(ctx, review)
+	out.Review = &res
+	return out, err
 }
 
 // FormatText lists every question without asking it: what a terminal-less

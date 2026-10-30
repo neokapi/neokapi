@@ -137,45 +137,46 @@ languages, and refreshes the counts. The Map runs them once on its own the first
 time a project opens in a session, and kapi reads the files again whenever they
 change.
 
-## Decide, and the three verbs
+## Decide, and the three answers
 
 **Decide** is the first section of the project's **Context** hub, and the
-Map's Decide buttons open it. It opens with the line "Since you last looked".
-What
-needs you comes first: two suggestions that disagree about one word. The
-suggestions follow, grouped by theme, such as names and spellings, words to
-avoid, and how the project writes. Each shows its evidence: the file, the
-block and the sentence it was seen in, and who noticed it.
+Map's Decide buttons open it. Its title is the project's name and Decide, with
+the number of suggestions to decide and the number of rules kept. The list
+holds one row per suggestion waiting for you, and the pane beside it asks one
+question about the row you select, the same question `kapi rules` asks:
+
+- For a name, "Which one do your files use?". The options are its forms, the
+  most used first, each with the blocks and files that write it, and
+  **Other…** takes a form of your own.
+- For a word or a note, "Keep this as a rule?".
+- For two suggestions that disagree, one question with a side per option, each
+  with who suggested it and what keeping it does.
+
+Before you answer, a line says what keeping the picked option does: how many
+blocks a check then reports, and where the rule applies. Below the actions,
+**Seen in** quotes the sentence the suggestion was seen in, names the file,
+which opens Ask there, and shows the mark of the assistant that filed it.
 
 A suggestion advises from the moment it is recorded. A check reports it and
 fails nothing, so an assistant's suggestion never stops your work. It becomes a
-rule when you keep it. For each suggestion you have three verbs:
+rule when you keep it. Each question takes one of three answers:
 
 - **Keep** makes it a rule in the project's terms, voice profile or content
-  memory, where every check reads it.
-- **Change** edits what the rule says to write instead, and keeps it with that
-  form.
-- **Drop** sets it aside, and it stops advising at once. Dropping a rule
-  already in force takes it back out.
+  memory, where every check reads it. On a disagreement, it keeps the side you
+  picked and sets the other aside.
+- **Not a rule** sets it aside, and it stops advising at once.
+- **Later** records nothing. The suggestion keeps advising, and Decide asks
+  about it again the next time you open it.
 
-Two more settle the cases the verbs do not:
+The keys: `k` keeps, `n` answers not a rule, `l` leaves it for later, and the
+option numbers pick another option. After each answer the next question is
+selected. With none left, Decide says "Nothing to decide." with the number of
+rules kept and a link to the Map. **History** drops or widens a rule already
+in force.
 
-- **Choose this side** settles two suggestions that disagree: the side you
-  choose is kept and the other dropped.
-- **Apply more widely** puts a rule in force across the whole project, or in
-  every project in your workspace. The confirmation says where it will hold.
-
-The keys: `j` and `k` move, `a` keeps, `c` changes, `d` drops, and `o` opens
-Ask at the file the evidence came from.
-
-Decide reads as news. The next time you open it, what is new since then
-sits on top and what you saw before sits below it. A suggestion you leave alone
-keeps advising, so there is nothing to clear. With nothing recorded yet, the
-section ends with a link to the Assistant section: "Connect an assistant to
-start."
-
-Deciding needs a readable checkout of the project on this machine. The chip
-at the right of the section bar reads `kapi context review`.
+Deciding needs a readable checkout of the project on this machine. A project
+with no checkout here shows what was recorded for it, without the answers. The
+chip at the right of the section bar reads `kapi rules`.
 
 ## Ask
 
@@ -305,11 +306,12 @@ In the first session, claude-code noticed how the store spells its own name, a
 word the copy uses in place of another, a spelling it keeps to, and how the
 store copy addresses the shopper. It also recorded a correction a person made
 to its draft. In the later session, codex took the other side of that
-correction, so Decide opens with one disagreement under what needs you.
+correction, so Decide opens on one disagreement.
 
-Every piece of evidence quotes a sentence in the sample's files, so `o` opens
-the file at it. You can keep, change, drop and choose, see the kept rule in the
-Assistant section, and reset to before either session from History. Nothing
+Every piece of evidence quotes a sentence in the sample's files, and clicking
+the file under **Seen in** opens it. You can keep, mark not a rule, or leave
+for later, see the kept rule in the Assistant section, and reset to before
+either session from History. Nothing
 calls a model. [Review what your assistant
 noticed](/kapi/desktop/recipes/review-what-your-assistant-noticed) is the walk
 through it.

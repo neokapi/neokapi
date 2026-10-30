@@ -2,7 +2,13 @@ import { describe, it, expect, vi } from "vite-plus/test";
 import userEvent from "@testing-library/user-event";
 import { render, screen } from "./testUtils";
 
-import { WhatsNew, WorkspaceNumbers, markActor, newsChips } from "../components/WhatsNew";
+import {
+  WhatsNew,
+  WorkspaceNumbers,
+  markActor,
+  newsChips,
+  whatsNewView,
+} from "../components/WhatsNew";
 import {
   ACME,
   FIELD_GUIDE,
@@ -277,5 +283,16 @@ describe("the mark a session is drawn with", () => {
       name: "Ingrid Solberg",
     });
     expect(markActor({ kind: "tool" })).toEqual({ actor: "tool" });
+  });
+});
+
+describe("where a row of What's new opens", () => {
+  it("opens Decide while something waits, and History when the news is only a rule kept elsewhere", () => {
+    expect(whatsNewView(KAPIMART)).toBe("context:rules");
+    expect(whatsNewView({ ...KAPIMART, suggested: 0, conflicts: 1 })).toBe("context:rules");
+    expect(whatsNewView({ ...KAPIMART, suggested: 0, conflicts: 0, new: 1 })).toBe(
+      "context:history",
+    );
+    expect(whatsNewView(undefined)).toBe("context:rules");
   });
 });

@@ -22,8 +22,8 @@ context ([C-11](../context/c-11-context-operations.md)) is a History view of
 its own. Projects open from there as tabs, several at a time, on a **Map**:
 the project's content files, the counts of its files, blocks, rules and
 findings, and the suggestions awaiting a person. Beside it, a Context hub
-opens on **Decide**, the digest of what kapi learned about how the project
-writes, beside the graph explorer, what an assistant working in the project
+opens on **Decide**, one question for each suggestion about how the project
+writes that waits for a person, beside the graph explorer, what an assistant working in the project
 reads, the voice profile, the terms, the content memory, the project's history
 and where its context is shared. Each tab also carries a project section with
 what the project stands at and a map of its coordinate points, a checks panel
@@ -334,7 +334,7 @@ The stores are sections of one hub, beside the graph, in this order:
 
 | Section (id) | What it shows | Answered by |
 | --- | --- | --- |
-| **Decide** (`rules`) | the digest of the rules and suggestions kept for the project, newest since the person last looked first ([below](#the-digest)), where a person reviews them | `ProjectContextDigest`, over `host.App.ContextDigest` |
+| **Decide** (`rules`) | one question per suggestion waiting for a person, the questions `kapi rules` asks ([below](#decide)); on a tab with no checkout, the digest of what was recorded, without the decisions | `RulesDecideView` and `DecideRule`, over `host.App.DecideRules` and `host.App.DecideRule`; `ProjectContextDigest` for a tab with no checkout |
 | **Explore** (`atlas`) | the project's context on its axes and over time, through `@neokapi/context-atlas` ([below](#exploring-the-context)) | `ProjectContextAtlas`, over `host.App.ContextAtlas` |
 | **Ask** (`explorer`) | the context graph by file and by word, through `@neokapi/context-explorer`; the governs pane renders the same guide the retrieval surface serves ([C-06](../context/c-06-retrieval.md)) | `ContextAt`, `ContextGoverns`, `ContextLives`, `ContextRelates`, `ContextSearch` |
 | **Assistant** (`agent`) | what an assistant working in the project reads: the connected assistants, the rules files, and the brief for one file ([below](#connecting-an-assistant)). The brief is the resolved context for one file as an agent receives it: `AgentContextAt` calls the desktop's `ContextAt` and renders the answer's own `FormatText`, so the body on screen is the `context://` resource body rather than a second rendering of it | `AgentHosts`, `ConnectAgentHost`, `RulesFiles`, `WriteRulesFiles`, `AgentContextAt` |
@@ -420,7 +420,7 @@ The app is meant to sit open beside an agent that is working. The agent runs in
 another process, through the CLI or its MCP server, and records what it learns
 as context operations in this machine account's workspace log
 ([C-11](../context/c-11-context-operations.md)). The desktop reads that log and
-shows it in three places: as each project's digest in its Decide section, as the
+shows it in three places: as each project's questions in its Decide section, as the
 project's History, and as the workspace-wide History view the home links to,
 which is the same feed read with no project key.
 
@@ -472,44 +472,65 @@ person has not seen (`host.App.ContextStandings`, one fold of the log for every
 registered project). A project with nothing new has no row: the home carries no
 count of work waiting.
 
-### The digest
+### Decide
 
-A project's Context hub opens on **Decide**, the digest of the rules and
-suggestions kept for the project, under the heading "Decide". The Map opens it
-too, selecting the row a person chose there. Review there is discovery, never a
-gate: a
-suggestion advises agents and checks from the moment it is recorded, and one
-nobody answers keeps advising, so the digest reads as news and carries no count
-of unread work. `host.App.ContextDigest` assembles it from the operation log,
-the same call `kapi context review` lists outside a terminal, and the desktop renders it in five
-sections, in this order:
+A project's Context hub opens on **Decide**, titled with the project's name,
+with the number of suggestions to decide and the number of rules kept. The Map
+opens it too, selecting the row a person chose there (`conflict:<id>` or
+`suggested:<id>`, matched against a question's own id or one of its sides').
+Deciding there is discovery, never a gate: a suggestion advises agents and
+checks from the moment it is recorded, and one nobody answers keeps advising.
 
-| Section | What a person does |
+The page is a list beside a detail pane. The list holds one row per suggestion
+waiting for a person: its kind as a `KindIcon`, the wording it is about, and
+how much it covers (`3 forms`, `1 word`, `1 of 1 blocks` for a disagreement).
+The pane asks one question about the selected row. `RulesDecideView` answers
+with the questions `kapi rules` asks (`host.App.DecideRules`), so the terminal
+and the desktop ask the same thing in the same order:
+
+| Suggestion | The question and its options |
 | --- | --- |
-| **Needs you** | the conflicts: two rules that disagree about one word, or a rule the evidence turned against. Choosing a side keeps it and sets the others aside (`ChooseContextSide`) |
-| **Established** | the rules that came into force, with what they rest on ("merged in #412", "your correction in docs/billing.md", "kept by you"). Drop takes one back out |
-| **Suggested** | suggestions grouped by theme (names and spellings, words to avoid, how the project writes, wording in other languages), then by collection where they sit in more than one. Keep, change then keep, drop, or keep a whole group (`KeepContextGroup`) |
-| **Drift** | an established rule whose latest usage count (from a whole-project `kapi check` or `kapi up`) writes a rejected form more often than the count taken when the rule came into force, or the first count after it |
-| **Numbers** | "kapi knows 23 rules for Fernwell; 4 are new this week" |
+| A name | "Which one do your files use?": each form with the blocks and files of the project's source that write it, the most used first, and **Other…** for a form the person types |
+| A word, a note or a content-memory pair | "Keep this as a rule?", with no options |
+| A disagreement | "Which one holds?" (or "Which one do your files use?" for two names): one option per side, each with who suggested it, its blocks and files, and what keeping it does |
 
-Each item states its rule as a sentence ("Write Quickcast, not Quick cast or
-QuickCast"), the quotation it was seen in with a link that opens the explorer at
-that file, its standing as plain counts, and who noticed it. Where a check has
-counted the rule's forms, the item carries the project's own words back to it:
-`docs/ says "studio" 41 times and "business" twice`.
+Before the actions, a line states what keeping the picked option does: the
+blocks a check then reports, and where the rule applies ("If you keep
+"KapiMart": no block uses the other 2 forms. Applies to Website."). A form
+typed under **Other…** is counted through `RulesDecideConsequence`, over the
+blocks the last read counted. Below the actions, **Seen in** quotes the
+sentence the suggestion was seen in, names the file (which opens Ask there),
+and shows who filed it.
+
+**Keep** (`k`), **Not a rule** (`n`) and **Later** (`l`) answer; the option
+numbers pick an option. `DecideRule(tabID, id, answer, form)` records the
+answer through `host.App.DecideRule`, which makes the calls `kapi rules` makes
+for the same keys: a keep is `DecideContextReview` with the suggestion kept in
+the picked form, or with the picked side chosen; Not a rule drops the
+suggestion, or every side of a disagreement; Later records nothing and leaves
+the suggestion advising, and the page leaves it out until it is opened again.
+The first keep writes the recipe of a folder opened without one. After each
+answer the next question is selected, and with none left the page says
+"Nothing to decide." with the number of rules kept and a link to the Map.
+
+Counting reads every block of the project's source once per view. The tab
+holds the last view, and the next read counts over its blocks again while no
+source file and not the recipe has changed (by path, size and modification
+time), so an answer does not cost a read of every file. The page reads again
+on `workspace:changed`, `project-files-changed` and `project:extracted`.
 
 "Since you last looked" is a marker per project in this machine account's kapi
 config (`context-digest.json` under the config root), never in the log. The
-panel reads the digest from the marker once when it opens, holds that instant
-for as long as it stays open, and moves the marker to now, so what was new when
-the person arrived stays marked new until they leave. Items the person has seen
-stay in the digest under "Earlier". A digest with nothing new says "Nothing new
-since Tuesday" beside the numbers.
+home's What's new opens a project on Decide while a suggestion or a
+disagreement waits there, and on History otherwise. Decide moves the marker
+once it shows a question, and History moves it as it opens, since it lists
+every operation.
 
-The keys act on the item under the cursor: `j`/`k` move, `a` keeps (or chooses
-a side), `c` changes the form to write and keeps, `d` drops a suggestion or takes a
-rule in force back out, `g` keeps the group, and `o` opens the file. A project with no
-checkout on this machine shows its digest without the decisions.
+A tab with no checkout on this machine has no source to count uses in. Its
+Decide section shows the digest instead (`host.App.ContextDigest`, the call
+`kapi context review` lists): the conflicts, the suggestions by theme, the
+rules in force and the drift, without the decisions. Rules already in force are
+dropped and widened from History.
 
 ### Sharing and the ladder of reach
 
@@ -690,12 +711,12 @@ stable session id. Every piece of evidence quotes text in the sample's files,
 because the host refuses evidence it cannot find. The first session notes a
 name, a word to use, a spelling, a correction a person made and one observation
 about how the store copy addresses the reader. The second takes the other side
-of the correction and notes one more name, so the digest opens with a conflict
-under Needs you, and a first-time user practises keeping, changing, dropping,
-choosing and resetting on the real surfaces with no model call.
+of the correction and notes one more name, so Decide opens on a disagreement,
+and a first-time user practises keeping, marking not a rule, leaving for later
+and resetting on the real surfaces with no model call.
 
 Before the agent sessions, the seed records six notes as a teammate and keeps
-them. The notes are established from the start, and the digest still opens on
+them. The notes are established from the start, and Decide still opens on
 the assistants' suggestions. The notes give Explore data on each declared axis.
 The sample's recipe declares places (the Nordics, Oslo, Grünerløkka and
 Greater Oslo) and types `market` as a geo axis over them, `age` as a range and

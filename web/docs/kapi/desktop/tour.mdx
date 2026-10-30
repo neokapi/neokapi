@@ -37,15 +37,18 @@ finding whose rule names a replacement and has no formatting among its words.
 The rules that hold at the file run down the margin, as `kapi context <path>`
 prints them.
 
-In Decide, a list holds one line per item, and the pane beside it shows the item
-you select: the sentence it was seen in, the file, and the assistant that
-noticed it. **Needs you** comes first, with two suggestions that disagree
-about one word. **Suggested**, **Established** and, when content moves away
-from a rule, **Drift** follow. `j` and `k` move the selection. **Keep** (`a`),
-**Change** (`c`) and **Drop** (`d`) decide about a suggestion, and the
-selection moves on to the next one. A disagreement shows its two sides next
-to each other, and **Choose this side** settles it. **Apply more widely** puts
-a rule in force across the project or the workspace.
+In Decide, a list holds one row per suggestion, and the pane beside it asks one
+question about the row you select, the same question `kapi rules` asks. For a
+name, the question is "Which one do your files use?", and the options are its
+forms, the most used first, each with the blocks and files that write it, and
+**Other…** for a form of your own. For a word or a note, it is "Keep this as a
+rule?". Two suggestions that disagree are one question, with a side per option.
+Above the actions, a line says what keeping the picked option does, such as
+"If you keep "KapiMart": no block uses the other 2 forms. Applies to Website."
+Below them, **Seen in** quotes the sentence and names the file and the
+assistant that filed it. **Keep** (`k`), **Not a rule** (`n`) and **Later**
+(`l`) answer, the option numbers pick another option, and the next question is
+selected. **History** widens a kept rule across the project or the workspace.
 
 <ThemedVideo
   sources={{

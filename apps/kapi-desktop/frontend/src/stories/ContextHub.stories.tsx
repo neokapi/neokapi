@@ -7,7 +7,8 @@ import { RESET_FEED } from "./fixtures/contextFeed";
 import { HOSTS_NONE_CONNECTED } from "./fixtures/agentHosts";
 import { RULES_FILES_WRITTEN } from "./fixtures/rulesFiles";
 import { LOCAL_SHARING } from "./fixtures/sharing";
-import type { ContextDigest } from "../types/api";
+import { DECIDE_VIEW, EMPTY_DECIDE_VIEW } from "./fixtures/rulesDecide";
+import type { ContextDigest, RulesDecideView } from "../types/api";
 
 const TAB = "tab-fernwell";
 
@@ -15,7 +16,7 @@ const TAB = "tab-fernwell";
  * The hub reads every section through react-query, so a story pre-loads the
  * cache: a seeded query answers from it and never reaches the backend.
  */
-function seeded(digest: ContextDigest) {
+function seeded(digest: ContextDigest, decide: RulesDecideView = DECIDE_VIEW) {
   return function SeededHub(Story: React.ComponentType) {
     const client = new QueryClient({
       defaultOptions: {
@@ -25,6 +26,7 @@ function seeded(digest: ContextDigest) {
     // The digest's first read, then the read from the instant it answered.
     client.setQueryData(qk.projectContextDigest(TAB, ""), digest);
     client.setQueryData(qk.projectContextDigest(TAB, digest.since ?? ""), digest);
+    client.setQueryData(qk.rulesDecide(TAB), decide);
     client.setQueryData(qk.contextFeed(digest.project), RESET_FEED);
     client.setQueryData(qk.projectSharing(TAB), LOCAL_SHARING);
     client.setQueryData(qk.agentHosts(TAB), HOSTS_NONE_CONNECTED);
@@ -51,13 +53,21 @@ const meta: Meta<typeof ContextHub> = {
 export default meta;
 type Story = StoryObj<typeof ContextHub>;
 
-/** The hub opens on Decide, with the digest since the person last looked. */
+/** The hub opens on Decide, one question per suggestion. */
 export const WhatsNew: Story = {};
 
-/** Nothing is recorded yet, and the empty text points at the Assistant. */
+/** Nothing waits for a decision: the rules count and the way to the Map. */
 export const NothingRecorded: Story = {
-  decorators: [seeded({ ...EMPTY_DIGEST, project: CONTEXT_DIGEST.project, since: LAST_LOOKED })],
+  decorators: [
+    seeded(
+      { ...EMPTY_DIGEST, project: CONTEXT_DIGEST.project, since: LAST_LOOKED },
+      EMPTY_DECIDE_VIEW,
+    ),
+  ],
 };
+
+/** A project with no checkout here: Decide reads the digest, without decisions. */
+export const ContextOnlyDecide: Story = { args: { contextOnly: true } };
 
 /** What your assistant reads: the connections, the rules files and the brief for a file. */
 export const Assistant: Story = { args: { section: "agent" } };

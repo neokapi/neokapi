@@ -94,6 +94,11 @@ export const qk = {
   contextFeed: (projectKey: string) => ["context-feed", projectKey] as const,
   /** The digest of the project a tab holds, read from one instant. */
   projectContextDigest: (tabID: string, since: string) => ["context-digest", tabID, since] as const,
+  /** The questions Decide asks about the project a tab holds. */
+  rulesDecide: (tabID: string) => ["rules-decide", tabID] as const,
+  /** What keeping a name with a form the person typed does. */
+  rulesDecideConsequence: (tabID: string, id: string, form: string) =>
+    ["rules-decide", tabID, "consequence", id, form] as const,
   /** The atlas of the project a tab holds. */
   projectContextAtlas: (tabID: string) => ["context-atlas", tabID] as const,
   /** Where one rule would answer once widened. */

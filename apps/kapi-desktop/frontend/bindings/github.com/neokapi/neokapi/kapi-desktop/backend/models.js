@@ -9161,6 +9161,380 @@ export class ReviewUnitDetail {
 }
 
 /**
+ * RuleDecideResultDTO is what one answer recorded.
+ */
+export class RuleDecideResultDTO {
+    /**
+     * Creates a new RuleDecideResultDTO instance.
+     * @param {Partial<RuleDecideResultDTO>} [$$source = {}] - The source object to create the RuleDecideResultDTO.
+     */
+    constructor($$source = {}) {
+        if (!("answer" in $$source)) {
+            /**
+             * Answer is "keep", "drop" or "later".
+             * @member
+             * @type {string}
+             */
+            this["answer"] = "";
+        }
+        if (!("kept" in $$source)) {
+            /**
+             * Kept and Dropped count the operations the answer recorded; a choice
+             * between two sides keeps one and drops the rest.
+             * @member
+             * @type {number}
+             */
+            this["kept"] = 0;
+        }
+        if (!("dropped" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["dropped"] = 0;
+        }
+        if (!("later" in $$source)) {
+            /**
+             * Later counts the suggestions left waiting, which records nothing.
+             * @member
+             * @type {number}
+             */
+            this["later"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RuleDecideResultDTO instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {RuleDecideResultDTO}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new RuleDecideResultDTO(/** @type {Partial<RuleDecideResultDTO>} */($$parsedSource));
+    }
+}
+
+/**
+ * RuleDecisionDTO is one question.
+ */
+export class RuleDecisionDTO {
+    /**
+     * Creates a new RuleDecisionDTO instance.
+     * @param {Partial<RuleDecisionDTO>} [$$source = {}] - The source object to create the RuleDecisionDTO.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * ID names the suggestion; a disagreement has none, and each option
+             * carries its side's.
+             * @member
+             * @type {string | undefined}
+             */
+            this["id"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["short"] = undefined;
+        }
+        if (!("kind" in $$source)) {
+            /**
+             * Kind is "name", "word", "note", "memory" or "disagreement".
+             * @member
+             * @type {string}
+             */
+            this["kind"] = "";
+        }
+        if (!("question" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["question"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Reason says what a disagreement is about.
+             * @member
+             * @type {string | undefined}
+             */
+            this["reason"] = undefined;
+        }
+        if (!("sentence" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["sentence"] = "";
+        }
+        if (!("label" in $$source)) {
+            /**
+             * Label is the wording the question is about, for its row in the list,
+             * and Avoided how many wordings a word rule's check reports.
+             * @member
+             * @type {string}
+             */
+            this["label"] = "";
+        }
+        if (!("avoided" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["avoided"] = 0;
+        }
+        if (!("options" in $$source)) {
+            /**
+             * Options are the forms of a name or the sides of a disagreement, the
+             * most used first. Chosen is the option a keep takes unless the person
+             * picks another.
+             * @member
+             * @type {RuleOptionDTO[]}
+             */
+            this["options"] = [];
+        }
+        if (!("chosen" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["chosen"] = 0;
+        }
+        if (!("other" in $$source)) {
+            /**
+             * Other reports a question that takes a form the person types: a name.
+             * @member
+             * @type {boolean}
+             */
+            this["other"] = false;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Consequence says what keeping it does, for a question with no options.
+             * @member
+             * @type {string | undefined}
+             */
+            this["consequence"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Seen is the sentence the suggestion was seen in, and its file.
+             * @member
+             * @type {ContextEvidenceDTO | null | undefined}
+             */
+            this["seen"] = undefined;
+        }
+        if (!("applies" in $$source)) {
+            /**
+             * Applies is where a kept rule holds.
+             * @member
+             * @type {string}
+             */
+            this["applies"] = "";
+        }
+        if (!("noticed_by" in $$source)) {
+            /**
+             * @member
+             * @type {ContextActorDTO}
+             */
+            this["noticed_by"] = (new ContextActorDTO());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RuleDecisionDTO instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {RuleDecisionDTO}
+     */
+    static createFrom($$source = {}) {
+        const $$createField8_0 = $$createType160;
+        const $$createField12_0 = $$createType161;
+        const $$createField14_0 = $$createType33;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("options" in $$parsedSource) {
+            $$parsedSource["options"] = $$createField8_0($$parsedSource["options"]);
+        }
+        if ("seen" in $$parsedSource) {
+            $$parsedSource["seen"] = $$createField12_0($$parsedSource["seen"]);
+        }
+        if ("noticed_by" in $$parsedSource) {
+            $$parsedSource["noticed_by"] = $$createField14_0($$parsedSource["noticed_by"]);
+        }
+        return new RuleDecisionDTO(/** @type {Partial<RuleDecisionDTO>} */($$parsedSource));
+    }
+}
+
+/**
+ * RuleOptionDTO is one answer to a question.
+ */
+export class RuleOptionDTO {
+    /**
+     * Creates a new RuleOptionDTO instance.
+     * @param {Partial<RuleOptionDTO>} [$$source = {}] - The source object to create the RuleOptionDTO.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * Form is one wording of a name; ID, Short and Sentence name and state one
+             * side of a disagreement.
+             * @member
+             * @type {string | undefined}
+             */
+            this["form"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["id"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["short"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["sentence"] = undefined;
+        }
+        if (!("blocks" in $$source)) {
+            /**
+             * Blocks and Files count where the project's source writes it.
+             * @member
+             * @type {number}
+             */
+            this["blocks"] = 0;
+        }
+        if (!("files" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["files"] = 0;
+        }
+        if (!("consequence" in $$source)) {
+            /**
+             * Consequence says what keeping this option does.
+             * @member
+             * @type {string}
+             */
+            this["consequence"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * NoticedBy is who suggested the side, for a disagreement.
+             * @member
+             * @type {ContextActorDTO | null | undefined}
+             */
+            this["noticed_by"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RuleOptionDTO instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {RuleOptionDTO}
+     */
+    static createFrom($$source = {}) {
+        const $$createField7_0 = $$createType162;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("noticed_by" in $$parsedSource) {
+            $$parsedSource["noticed_by"] = $$createField7_0($$parsedSource["noticed_by"]);
+        }
+        return new RuleOptionDTO(/** @type {Partial<RuleOptionDTO>} */($$parsedSource));
+    }
+}
+
+/**
+ * RulesDecideViewDTO is every question Decide asks about one project.
+ */
+export class RulesDecideViewDTO {
+    /**
+     * Creates a new RulesDecideViewDTO instance.
+     * @param {Partial<RulesDecideViewDTO>} [$$source = {}] - The source object to create the RulesDecideViewDTO.
+     */
+    constructor($$source = {}) {
+        if (!("project" in $$source)) {
+            /**
+             * Project is the project's workspace key, and ProjectName what a person
+             * calls it.
+             * @member
+             * @type {string}
+             */
+            this["project"] = "";
+        }
+        if (!("project_name" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["project_name"] = "";
+        }
+        if (!("decisions" in $$source)) {
+            /**
+             * @member
+             * @type {RuleDecisionDTO[]}
+             */
+            this["decisions"] = [];
+        }
+        if (!("rules" in $$source)) {
+            /**
+             * Rules, Suggested and Narrowed are the counts `kapi rules list` opens
+             * with: the rules in force, the suggestions waiting and the rules that
+             * hold in only part of the project.
+             * @member
+             * @type {number}
+             */
+            this["rules"] = 0;
+        }
+        if (!("suggested" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["suggested"] = 0;
+        }
+        if (!("narrowed" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["narrowed"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RulesDecideViewDTO instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {RulesDecideViewDTO}
+     */
+    static createFrom($$source = {}) {
+        const $$createField2_0 = $$createType164;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("decisions" in $$parsedSource) {
+            $$parsedSource["decisions"] = $$createField2_0($$parsedSource["decisions"]);
+        }
+        return new RulesDecideViewDTO(/** @type {Partial<RulesDecideViewDTO>} */($$parsedSource));
+    }
+}
+
+/**
  * RulesFileView is one rules file kapi writes for a project.
  */
 export class RulesFileView {
@@ -9350,7 +9724,7 @@ export class RunError {
      * @returns {RunError}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType160;
+        const $$createField3_0 = $$createType166;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("actions" in $$parsedSource) {
             $$parsedSource["actions"] = $$createField3_0($$parsedSource["actions"]);
@@ -9629,10 +10003,10 @@ export class RunEvent {
      * @returns {RunEvent}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType162;
-        const $$createField8_0 = $$createType164;
-        const $$createField11_0 = $$createType166;
-        const $$createField12_0 = $$createType168;
+        const $$createField4_0 = $$createType168;
+        const $$createField8_0 = $$createType170;
+        const $$createField11_0 = $$createType172;
+        const $$createField12_0 = $$createType174;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("error" in $$parsedSource) {
             $$parsedSource["error"] = $$createField4_0($$parsedSource["error"]);
@@ -9754,8 +10128,8 @@ export class RunTraces {
      * @returns {RunTraces}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType170;
-        const $$createField2_0 = $$createType172;
+        const $$createField1_0 = $$createType176;
+        const $$createField2_0 = $$createType178;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("steps" in $$parsedSource) {
             $$parsedSource["steps"] = $$createField1_0($$parsedSource["steps"]);
@@ -9881,7 +10255,7 @@ export class SaveUserFlowRequest {
      * @returns {SaveUserFlowRequest}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType170;
+        const $$createField3_0 = $$createType176;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("steps" in $$parsedSource) {
             $$parsedSource["steps"] = $$createField3_0($$parsedSource["steps"]);
@@ -10454,8 +10828,8 @@ export class ToolInfo {
     static createFrom($$source = {}) {
         const $$createField6_0 = $$createType6;
         const $$createField7_0 = $$createType6;
-        const $$createField10_0 = $$createType174;
-        const $$createField11_0 = $$createType174;
+        const $$createField10_0 = $$createType180;
+        const $$createField11_0 = $$createType180;
         const $$createField12_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tags" in $$parsedSource) {
@@ -10669,7 +11043,7 @@ export class UserFlowDetail {
      * @returns {UserFlowDetail}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType170;
+        const $$createField4_0 = $$createType176;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("steps" in $$parsedSource) {
             $$parsedSource["steps"] = $$createField4_0($$parsedSource["steps"]);
@@ -11256,12 +11630,12 @@ export class VoicePointDTO {
         const $$createField2_0 = $$createType13;
         const $$createField3_0 = $$createType6;
         const $$createField4_0 = $$createType6;
-        const $$createField7_0 = $$createType176;
-        const $$createField9_0 = $$createType178;
+        const $$createField7_0 = $$createType182;
+        const $$createField9_0 = $$createType184;
         const $$createField11_0 = $$createType128;
         const $$createField12_0 = $$createType130;
         const $$createField13_0 = $$createType6;
-        const $$createField14_0 = $$createType179;
+        const $$createField14_0 = $$createType185;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("point" in $$parsedSource) {
             $$parsedSource["point"] = $$createField0_0($$parsedSource["point"]);
@@ -11376,8 +11750,8 @@ export class VoiceSaveResult {
      * @returns {VoiceSaveResult}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType181;
-        const $$createField6_0 = $$createType183;
+        const $$createField4_0 = $$createType187;
+        const $$createField6_0 = $$createType189;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("problems" in $$parsedSource) {
             $$parsedSource["problems"] = $$createField4_0($$parsedSource["problems"]);
@@ -11535,7 +11909,7 @@ export class WorkspaceHome {
      * @returns {WorkspaceHome}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType185;
+        const $$createField2_0 = $$createType191;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("projects" in $$parsedSource) {
             $$parsedSource["projects"] = $$createField2_0($$parsedSource["projects"]);
@@ -11638,10 +12012,10 @@ export class WorkspaceProject {
      * @returns {WorkspaceProject}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType187;
+        const $$createField3_0 = $$createType193;
         const $$createField4_0 = $$createType138;
-        const $$createField5_0 = $$createType189;
-        const $$createField6_0 = $$createType191;
+        const $$createField5_0 = $$createType195;
+        const $$createField6_0 = $$createType197;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("checkouts" in $$parsedSource) {
             $$parsedSource["checkouts"] = $$createField3_0($$parsedSource["checkouts"]);
@@ -11805,7 +12179,7 @@ export class WorkspaceRule {
      * @returns {WorkspaceRule}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType192;
+        const $$createField3_0 = $$createType198;
         const $$createField7_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("subject" in $$parsedSource) {
@@ -11978,37 +12352,43 @@ const $$createType155 = model$0.Origin.createFrom;
 const $$createType156 = $Create.Nullable($$createType155);
 const $$createType157 = review$0.Context.createFrom;
 const $$createType158 = $Create.Nullable($$createType157);
-const $$createType159 = RunErrorAction.createFrom;
+const $$createType159 = RuleOptionDTO.createFrom;
 const $$createType160 = $Create.Array($$createType159);
-const $$createType161 = RunError.createFrom;
-const $$createType162 = $Create.Nullable($$createType161);
-const $$createType163 = flow$0.StepSnapshot.createFrom;
+const $$createType161 = $Create.Nullable($$createType37);
+const $$createType162 = $Create.Nullable($$createType33);
+const $$createType163 = RuleDecisionDTO.createFrom;
 const $$createType164 = $Create.Array($$createType163);
-const $$createType165 = convergence$0.Event.createFrom;
-const $$createType166 = $Create.Nullable($$createType165);
-const $$createType167 = host$0.ConvergeOutput.createFrom;
+const $$createType165 = RunErrorAction.createFrom;
+const $$createType166 = $Create.Array($$createType165);
+const $$createType167 = RunError.createFrom;
 const $$createType168 = $Create.Nullable($$createType167);
-const $$createType169 = flow$0.FlowStep.createFrom;
+const $$createType169 = flow$0.StepSnapshot.createFrom;
 const $$createType170 = $Create.Array($$createType169);
-const $$createType171 = RunTraceFile.createFrom;
-const $$createType172 = $Create.Array($$createType171);
-const $$createType173 = IOPort.createFrom;
-const $$createType174 = $Create.Array($$createType173);
-const $$createType175 = VoiceBindingDTO.createFrom;
-const $$createType176 = $Create.Nullable($$createType175);
-const $$createType177 = profile$0.VoiceProfile.createFrom;
-const $$createType178 = $Create.Nullable($$createType177);
-const $$createType179 = VoiceEditTargetDTO.createFrom;
-const $$createType180 = profile$0.ProfileProblem.createFrom;
-const $$createType181 = $Create.Array($$createType180);
-const $$createType182 = RulesFilesDTO.createFrom;
-const $$createType183 = $Create.Nullable($$createType182);
-const $$createType184 = WorkspaceProject.createFrom;
-const $$createType185 = $Create.Array($$createType184);
-const $$createType186 = WorkspaceCheckout.createFrom;
+const $$createType171 = convergence$0.Event.createFrom;
+const $$createType172 = $Create.Nullable($$createType171);
+const $$createType173 = host$0.ConvergeOutput.createFrom;
+const $$createType174 = $Create.Nullable($$createType173);
+const $$createType175 = flow$0.FlowStep.createFrom;
+const $$createType176 = $Create.Array($$createType175);
+const $$createType177 = RunTraceFile.createFrom;
+const $$createType178 = $Create.Array($$createType177);
+const $$createType179 = IOPort.createFrom;
+const $$createType180 = $Create.Array($$createType179);
+const $$createType181 = VoiceBindingDTO.createFrom;
+const $$createType182 = $Create.Nullable($$createType181);
+const $$createType183 = profile$0.VoiceProfile.createFrom;
+const $$createType184 = $Create.Nullable($$createType183);
+const $$createType185 = VoiceEditTargetDTO.createFrom;
+const $$createType186 = profile$0.ProfileProblem.createFrom;
 const $$createType187 = $Create.Array($$createType186);
-const $$createType188 = host$0.ContextProjectStanding.createFrom;
+const $$createType188 = RulesFilesDTO.createFrom;
 const $$createType189 = $Create.Nullable($$createType188);
-const $$createType190 = ProjectSharing.createFrom;
-const $$createType191 = $Create.Nullable($$createType190);
-const $$createType192 = contextop$0.Subject.createFrom;
+const $$createType190 = WorkspaceProject.createFrom;
+const $$createType191 = $Create.Array($$createType190);
+const $$createType192 = WorkspaceCheckout.createFrom;
+const $$createType193 = $Create.Array($$createType192);
+const $$createType194 = host$0.ContextProjectStanding.createFrom;
+const $$createType195 = $Create.Nullable($$createType194);
+const $$createType196 = ProjectSharing.createFrom;
+const $$createType197 = $Create.Nullable($$createType196);
+const $$createType198 = contextop$0.Subject.createFrom;
