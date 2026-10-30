@@ -177,7 +177,6 @@ func TestAssistantsView_Sessions(t *testing.T) {
 	assert.Equal(t, 1, s.Suggestions)
 	assert.Equal(t, 1, s.Awaiting)
 	assert.NotEmpty(t, s.Last)
-	assert.False(t, view.MoreSessions)
 }
 
 // TestConnectAssistant_RefusesWhatKapiConnectRefuses: an assistant kapi

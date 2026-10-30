@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
@@ -94,6 +94,28 @@ describe("History wired to the backend", () => {
       project: "kapimart",
       id: IN_FORCE.id,
     });
+  });
+
+  it("opened on a session from the Assistants page, decides its suggestion with Keep or Not a rule", async () => {
+    const group = CONTEXT_FEED.groups.find((g) => g.entries.some((e) => e.id === CANDIDATE.id))!;
+    renderPanel(
+      <ContextFeedPanel projectKey="kapimart" keyboard={false} defaultSelected={group.id} />,
+    );
+    await waitFor(() => expect(detail()?.dataset.session).toBe(group.id));
+    const row = entry(CANDIDATE.id);
+    const actions = row.querySelector<HTMLElement>("[data-slot='context-actions']")!;
+    expect(
+      within(actions)
+        .getAllByRole("button")
+        .map((b) => b.getAttribute("data-slot")),
+    ).toEqual(["keep-suggestion", "edit-suggestion", "drop-suggestion"]);
+    fireEvent.click(within(actions).getByRole("button", { name: "Not a rule" }));
+    await waitFor(() =>
+      expect(api.dropContextSuggestion).toHaveBeenCalledWith({
+        project: "kapimart",
+        id: CANDIDATE.id,
+      }),
+    );
   });
 
   it("resets to before the selected session after the confirmation", async () => {

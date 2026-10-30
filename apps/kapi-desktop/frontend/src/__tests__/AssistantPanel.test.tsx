@@ -3,17 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { render, screen, waitFor, within } from "./testUtils";
 
 import { AssistantPanel } from "../components/AssistantPanel";
-import { AssistantHosts, canConnect, orderHosts } from "../components/AssistantHosts";
 import { RulesFilesView } from "../components/RulesFilesView";
 import { api } from "../hooks/useApi";
-import {
-  CONNECT_CLAUDE_DESKTOP_RESULT,
-  CONNECT_CURSOR_RESULT,
-  CLAUDE_DESKTOP_CONFIG,
-  HOSTS_ALL_CONNECTED,
-  HOSTS_CLAUDE_DESKTOP_ABSENT,
-  HOSTS_NONE_CONNECTED,
-} from "../stories/fixtures/agentHosts";
 import {
   RULES_FILES_NOT_WRITTEN,
   RULES_FILES_PARTLY_WRITTEN,
@@ -29,20 +20,6 @@ afterEach(() => {
 const HELP =
   "kapi writes the rules into AGENTS.md and CLAUDE.md, which an assistant reads as it starts.";
 
-const hostRow = (host: string) =>
-  document.querySelector<HTMLElement>(`[data-slot='assistant-host'][data-host='${host}']`);
-const hostOrder = () =>
-  Array.from(document.querySelectorAll<HTMLElement>("[data-slot='assistant-host']")).map(
-    (el) => el.dataset.host,
-  );
-const connectButton = (host: string) =>
-  hostRow(host)?.querySelector<HTMLButtonElement>("[data-slot='assistant-host-connect']") ?? null;
-const caption = (host: string) =>
-  hostRow(host)?.querySelector("[data-slot='assistant-host-connected']")?.textContent?.trim() ??
-  null;
-const dot = (host: string) =>
-  hostRow(host)?.querySelector<HTMLElement>("[data-slot='assistant-host-dot']") ?? null;
-
 /** The brief's backend: the files the picker offers, and the one answer. */
 function stubBrief() {
   vi.spyOn(api, "contextOptions").mockResolvedValue(BRIEF_FILES);
@@ -50,16 +27,12 @@ function stubBrief() {
 }
 
 describe("What your assistant reads", () => {
-  it("shows the connections, then two tabs, opening on the rules files", () => {
-    render(
-      <AssistantPanel tabID="t1" hosts={HOSTS_ALL_CONNECTED} rulesFiles={RULES_FILES_WRITTEN} />,
-    );
+  it("shows two tabs, opening on the rules files", () => {
+    render(<AssistantPanel tabID="t1" rulesFiles={RULES_FILES_WRITTEN} />);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
       "What your assistant reads",
     );
-    expect(screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent)).toEqual([
-      "Connected assistants",
-    ]);
+    expect(screen.queryAllByRole("heading", { level: 2 })).toHaveLength(0);
     expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
       "Rules files",
       "The brief for a file",
@@ -77,9 +50,7 @@ describe("What your assistant reads", () => {
   });
 
   it("names no command line and explains nothing under a heading", () => {
-    render(
-      <AssistantPanel tabID="t1" hosts={HOSTS_ALL_CONNECTED} rulesFiles={RULES_FILES_WRITTEN} />,
-    );
+    render(<AssistantPanel tabID="t1" rulesFiles={RULES_FILES_WRITTEN} />);
     const panel = document.querySelector<HTMLElement>("[data-slot='assistant-panel']")!;
     expect(panel.textContent).not.toMatch(/The same as/);
     expect(panel.textContent).not.toContain(HELP);
@@ -87,9 +58,7 @@ describe("What your assistant reads", () => {
 
   it("switches to the brief for a file, with the picker and what it needs", async () => {
     stubBrief();
-    render(
-      <AssistantPanel tabID="t1" hosts={HOSTS_ALL_CONNECTED} rulesFiles={RULES_FILES_WRITTEN} />,
-    );
+    render(<AssistantPanel tabID="t1" rulesFiles={RULES_FILES_WRITTEN} />);
     await userEvent.click(screen.getByRole("tab", { name: "The brief for a file" }));
 
     expect(screen.getByRole("tab", { name: "The brief for a file" })).toHaveAttribute(
@@ -112,7 +81,7 @@ describe("What your assistant reads", () => {
       <AssistantPanel
         tabID="t1"
         path={BRIEF_PATH}
-        hosts={HOSTS_ALL_CONNECTED}
+
         rulesFiles={RULES_FILES_WRITTEN}
       />,
     );
@@ -132,9 +101,7 @@ describe("What your assistant reads", () => {
 
   it("moves to the brief when a path is handed in later", async () => {
     const read = stubBrief();
-    const { rerender } = render(
-      <AssistantPanel tabID="t1" hosts={HOSTS_ALL_CONNECTED} rulesFiles={RULES_FILES_WRITTEN} />,
-    );
+    const { rerender } = render(<AssistantPanel tabID="t1" rulesFiles={RULES_FILES_WRITTEN} />);
     expect(screen.getByRole("tab", { name: "Rules files" })).toHaveAttribute(
       "aria-selected",
       "true",
@@ -143,7 +110,7 @@ describe("What your assistant reads", () => {
       <AssistantPanel
         tabID="t1"
         path={BRIEF_PATH}
-        hosts={HOSTS_ALL_CONNECTED}
+
         rulesFiles={RULES_FILES_WRITTEN}
       />,
     );
@@ -154,116 +121,11 @@ describe("What your assistant reads", () => {
     await waitFor(() => expect(read).toHaveBeenCalledWith("t1", BRIEF_PATH, 0));
   });
 
-  it("context-only: says connecting needs a checkout and shows no rows or tabs", () => {
-    render(<AssistantPanel tabID="t1" contextOnly />);
-    expect(
-      document.querySelector("[data-slot='assistant-hosts-needs-checkout']")?.textContent,
-    ).toBe("Connecting an assistant needs a checkout of this project on this Mac.");
-    expect(document.querySelector("[data-slot='assistant-host']")).toBeNull();
-    expect(screen.queryByRole("tab")).toBeNull();
-    expect(document.querySelector("[data-slot='rules-files']")).toBeNull();
-    expect(document.querySelector("[data-slot='assistant-brief']")).toBeNull();
-  });
-});
-
-describe("connected assistants", () => {
-  it("marks each connected assistant with a filled dot and Connected, and gives its row no button", () => {
-    render(<AssistantHosts tabID="t1" hosts={HOSTS_ALL_CONNECTED} />);
-    for (const host of ["claude-code", "cursor", "vscode", "codex", "claude-desktop"]) {
-      expect(dot(host)?.className).toContain("bg-success");
-      expect(caption(host)).toBe("Connected");
-      expect(hostRow(host)?.querySelector("button")).toBeNull();
-    }
-    expect(screen.queryAllByRole("button")).toHaveLength(0);
-    expect(screen.queryByRole("button", { name: "Connect" })).toBeNull();
-    expect(screen.queryByText(/kapi init/)).toBeNull();
-    expect(screen.queryByText(/not connected/)).toBeNull();
-  });
-
-  it("offers Connect on every assistant that is not connected, with an outline dot and no caption", () => {
-    render(<AssistantHosts tabID="t1" hosts={HOSTS_NONE_CONNECTED} />);
-    for (const host of ["claude-code", "cursor", "vscode", "codex", "claude-desktop"]) {
-      expect(connectButton(host)).not.toBeNull();
-      expect(caption(host)).toBeNull();
-      expect(dot(host)?.className).not.toContain("bg-success");
-    }
-    expect(hostRow("cursor")).toHaveTextContent(/^Cursor\s*Connect$/);
-  });
-
-  it("lists assistants that are neither here nor connected last, muted, and Claude Desktop without Connect", () => {
-    render(<AssistantHosts tabID="t1" hosts={HOSTS_CLAUDE_DESKTOP_ABSENT} />);
-    expect(hostOrder()).toEqual(["claude-code", "cursor", "vscode", "codex", "claude-desktop"]);
-    expect(hostRow("claude-code")?.dataset.absent).toBeUndefined();
-    expect(hostRow("vscode")?.dataset.absent).toBe("true");
-    expect(hostRow("claude-desktop")?.dataset.absent).toBe("true");
-    expect(connectButton("claude-desktop")).toBeNull();
-    expect(hostRow("claude-code")?.querySelector("button")).toBeNull();
-    expect(connectButton("vscode")).not.toBeNull();
-  });
-
-  it("orders present assistants before absent ones", () => {
-    const absentFirst = [HOSTS_CLAUDE_DESKTOP_ABSENT[4], HOSTS_CLAUDE_DESKTOP_ABSENT[0]];
-    expect(orderHosts(absentFirst).map((h) => h.host)).toEqual(["claude-code", "claude-desktop"]);
-    expect(canConnect(HOSTS_CLAUDE_DESKTOP_ABSENT[4])).toBe(false);
-    expect(canConnect(HOSTS_NONE_CONNECTED[4])).toBe(true);
-  });
-
-  it("Connect writes the files, shows what it wrote, and reads the hosts again", async () => {
-    const read = vi.spyOn(api, "agentHosts").mockResolvedValue(HOSTS_NONE_CONNECTED);
-    const connect = vi.spyOn(api, "connectAgentHost").mockResolvedValue(CONNECT_CURSOR_RESULT);
-    render(<AssistantHosts tabID="t1" />);
-    await waitFor(() => expect(connectButton("cursor")).not.toBeNull());
-
-    await userEvent.click(connectButton("cursor")!);
-    expect(connect).toHaveBeenCalledWith("t1", "cursor");
-    await waitFor(() =>
-      expect(
-        hostRow("cursor")?.querySelector("[data-slot='assistant-host-wrote']")?.textContent,
-      ).toBe(".cursor/mcp.json · created"),
-    );
-    await waitFor(() => expect(read).toHaveBeenCalledTimes(2));
-  });
-
-  it("asks before writing into Claude Desktop's own configuration", async () => {
-    const connect = vi
-      .spyOn(api, "connectAgentHost")
-      .mockResolvedValue(CONNECT_CLAUDE_DESKTOP_RESULT);
-    render(<AssistantHosts tabID="t1" hosts={HOSTS_NONE_CONNECTED} />);
-
-    await userEvent.click(connectButton("claude-desktop")!);
-    const dialog = await screen.findByRole("dialog");
-    expect(within(dialog).getByText(/^This writes an entry/).textContent).toBe(
-      `This writes an entry into your own Claude Desktop configuration at ${CLAUDE_DESKTOP_CONFIG}.`,
-    );
-    expect(connect).not.toHaveBeenCalled();
-
-    await userEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
-    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(connect).not.toHaveBeenCalled();
-
-    await userEvent.click(connectButton("claude-desktop")!);
-    await userEvent.click(
-      within(await screen.findByRole("dialog")).getByRole("button", { name: "Connect" }),
-    );
-    expect(connect).toHaveBeenCalledWith("t1", "claude-desktop");
-  });
-
-  it("ends the question without a path when the backend sends none", async () => {
-    const noPath = { ...HOSTS_NONE_CONNECTED[4], files: undefined };
-    render(<AssistantHosts tabID="t1" hosts={[noPath]} />);
-    await userEvent.click(connectButton("claude-desktop")!);
-    const dialog = await screen.findByRole("dialog");
-    expect(within(dialog).getByText(/^This writes an entry/).textContent).toBe(
-      "This writes an entry into your own Claude Desktop configuration.",
-    );
-  });
-
-  it("connects every other assistant without asking", async () => {
-    const connect = vi.spyOn(api, "connectAgentHost").mockResolvedValue(CONNECT_CURSOR_RESULT);
-    render(<AssistantHosts tabID="t1" hosts={HOSTS_NONE_CONNECTED} />);
-    await userEvent.click(connectButton("cursor")!);
-    expect(screen.queryByRole("dialog")).toBeNull();
-    expect(connect).toHaveBeenCalledWith("t1", "cursor");
+  it("goes back to the Assistants page", async () => {
+    const onBack = vi.fn();
+    render(<AssistantPanel tabID="t1" rulesFiles={RULES_FILES_WRITTEN} onBack={onBack} />);
+    await userEvent.click(screen.getByRole("button", { name: "Assistants" }));
+    expect(onBack).toHaveBeenCalledOnce();
   });
 });
 

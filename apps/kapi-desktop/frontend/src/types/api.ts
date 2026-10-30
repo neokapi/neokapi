@@ -1027,6 +1027,86 @@ export interface AgentWiringResult {
   files?: AgentWiringFile[];
 }
 
+/** One assistant on the Assistants page. */
+export interface AssistantHostView {
+  /** "claude-code", "cursor", "vscode", "codex", "agents" or "claude-desktop". */
+  host: string;
+  label: string;
+  /** Its files are in place: connecting again would write none of them. */
+  connected: boolean;
+  /** kapi check runs when it finishes, through the kapi Claude Code plugin. */
+  check: boolean;
+  /** The commands that turn the check on, while the plugin is not enabled. */
+  pending?: string[];
+  /** Its own files, relative to the project; Claude Desktop's by absolute path. */
+  files?: string[];
+  /** Configured in a file of the person's own, so Connect asks first. */
+  personal?: boolean;
+  /** Connect can run here. */
+  available: boolean;
+}
+
+/** One session in a project's feed, counted. */
+export interface AssistantSession {
+  /** The feed group's id, which the Sessions view opens on. */
+  id: string;
+  actor: ContextActor;
+  /** RFC3339, UTC. */
+  last: string;
+  quiet: boolean;
+  operations: number;
+  suggestions: number;
+  corrections: number;
+  kept: number;
+  dropped: number;
+  awaiting: number;
+}
+
+/** A tab's Assistants page. */
+export interface AssistantsView {
+  /** The rules in force at the project's own point, as the Map counts them. */
+  rules: number;
+  /** No checkout here, so no files to connect an assistant through. */
+  needs_checkout: boolean;
+  hosts: AssistantHostView[];
+  /** The project's workspace key, which the Sessions view is narrowed by. */
+  project_key?: string;
+  /** The newest sessions, newest first. */
+  sessions: AssistantSession[];
+}
+
+/** One file kapi connect wrote or considered. */
+export interface ConnectFile {
+  /** Project-relative; empty for a step a person takes. */
+  path?: string;
+  /** "recipe", "rules", "mcp", "skill" or "hook". */
+  kind: string;
+  /** "created", "updated", "kept", "removed", "deleted" or "pending". */
+  action: string;
+  detail?: string;
+}
+
+/** One assistant and what connecting did for it. */
+export interface ConnectHost {
+  host: string;
+  label: string;
+  connected: boolean;
+  reason?: string;
+  reads?: string[];
+  files?: ConnectFile[];
+}
+
+/** What kapi connect did. */
+export interface ConnectResult {
+  root: string;
+  recipe: string;
+  dry_run: boolean;
+  default?: boolean;
+  hosts: ConnectHost[];
+  /** The recipe and the rules files, which every assistant reads. */
+  files: ConnectFile[];
+}
+
 /** One rules file kapi writes for a project. */
 export interface RulesFileView {
   /** Relative to the project root. */
