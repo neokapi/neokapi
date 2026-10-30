@@ -415,8 +415,8 @@ func (a *App) connectRecipe(root, recipe string, dry bool) (file ConnectFile, ta
 // connectRulesFiles writes the project's rules files, or reports what a write
 // would do. A dry run over a folder with no recipe reads the plan of a new
 // project, whose context is empty: the root's section with no rules, and no
-// folder with rules of its own, so a section kapi wrote into a sub-folder's
-// file is reported as the real run takes it out.
+// folder with rules of its own. A section kapi wrote into a sub-folder's file
+// is reported as the real run takes it out.
 func (a *App) connectRulesFiles(ctx context.Context, root, recipe string, haveRecipe, dry bool) ([]ConnectFile, error) {
 	var (
 		res *RulesFilesResult
