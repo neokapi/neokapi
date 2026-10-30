@@ -2,7 +2,7 @@
 id: share-context-with-your-team
 title: "Share context with your team"
 sidebar_label: "Share context with your team"
-description: "Use Kapi Desktop's Share section to move a project's context from this Mac to a place every machine syncs: a git ref, a folder or an S3 bucket."
+description: "Use Kapi Desktop's Share page to move a project's context from this Mac to a place every machine syncs: a git ref, a folder or an S3 bucket."
 keywords: [Kapi Desktop, share, sync, context, git, folder, S3, workspace, kapi share, kapi context sync, team]
 ---
 
@@ -105,8 +105,13 @@ fresh clone fetches branches and tags and leaves the context ref alone, so the
 first sync is what brings the context in.
 
 When the place cannot be reached, the rung says "The place could not be
-reached at 10:03." and shows the error the place returned. Nothing changes
-here: what this machine recorded waits, and the next sync shares it.
+reached." and shows the error the place returned. Nothing changes here: what
+this machine recorded waits, and the next sync shares it.
+
+When the `context:` block in `kapi.yaml` cannot be read, for example after a
+hand edit names a backend kapi does not have, **On this Mac** stays current.
+It says "The place kapi.yaml names could not be read.", shows the recipe
+check's words, and keeps **Change**, which saves a place that reads.
 
 ## A managed workspace
 
