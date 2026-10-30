@@ -3423,6 +3423,19 @@
           },
           "short": "Manage attached LLMs and ML models"
         },
+        "open": {
+          "example": "  kapi open\n  kapi open ~/work/site\n  kapi open --dry-run",
+          "flags": {
+            "dry-run": {
+              "usage": "print the command that opens Kapi Desktop, and run nothing"
+            },
+            "project": {
+              "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
+            }
+          },
+          "long": "Open the project in Kapi Desktop: the project kapi finds from here, or the\nfolder or kapi.yaml you name. A window that is already open shows it in a new\ntab.\n\nWhen Kapi Desktop is not installed, open says where to get it and exits with\nstatus 1. --dry-run prints the command it would run.",
+          "short": "Open this folder in Kapi Desktop"
+        },
         "pack": {
           "example": "  kapi pack -o snapshot.kpz   # a kapi project\n  kapi pack work.kpz         # eject a .kpz workspace's cache",
           "flags": {
@@ -3871,6 +3884,37 @@
           },
           "long": "Run a composed flow that chains multiple tools together.\n\nFlows are multi-tool pipelines. For single-tool operations, use the\ntool directly (e.g. \"kapi translate\" instead of \"kapi run translate\").\nTo bring the whole project up to date, use 'kapi up': the kapi loop\nlives there; run is the escape hatch for one named pipeline, one pass.\n\nBuilt-in flows:\n  translate-qa    Translate + quality check using AI/LLM\n\nCustom flows are defined inline in the kapi.yaml recipe under flows:, or one\nYAML file per flow in the directory the recipe names with flows_dir:. A\nproject's flow runs in place of a built-in flow of the same name.\n\nUse -p to run a flow from a kapi.yaml recipe:\n  kapi run translate -p kapi.yaml",
           "short": "Run a composed flow (a named multi-tool pipeline)"
+        },
+        "share": {
+          "example": "  kapi share\n  kapi share --via git\n  kapi share --via folder /Volumes/team/kapi\n  kapi share --status",
+          "flags": {
+            "files-only": {
+              "usage": "write the project's rules files (AGENTS.md, CLAUDE.md) from this machine's context and do nothing else"
+            },
+            "merged": {
+              "usage": "a range of commits that reached the default branch, counted as a person's signal"
+            },
+            "merger": {
+              "usage": "who merged it (the last commit's committer when unset)"
+            },
+            "no-push": {
+              "usage": "read what others shared and share nothing back"
+            },
+            "pr": {
+              "usage": "the pull request that merged the range (read from the commit subject when unset)"
+            },
+            "project": {
+              "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
+            },
+            "status": {
+              "usage": "print the rung and the last sync, without syncing"
+            },
+            "via": {
+              "usage": "the place to share through: git, folder \u003cpath\u003e, s3 \u003curl\u003e or bowrain \u003curl\u003e"
+            }
+          },
+          "long": "Share this project's rules, terms and decisions with the people who work on\nit, and read what they shared.\n\nThe rules reach as far as one of three rungs:\n\n  On this machine      your rules, your assistants\n  With your team       a shared folder or git\n  Managed on Bowrain   a team queue, who kept what, the same screens in a browser\n\nWith no flags, share syncs through the place kapi.yaml names: it reads what\nthe others shared, merges it here, and shares what was kept on this machine.\nA project that names no place prints the rungs, with the command that moves\nit up.\n\n--via names the place and writes it into kapi.yaml, then syncs once:\n\n  kapi share --via git              a ref of this repository, outside every branch\n  kapi share --via folder \u003cpath\u003e    a folder every machine reaches\n  kapi share --via s3 \u003curl\u003e         an S3 bucket, s3://\u003cbucket\u003e/\u003cprefix\u003e\n  kapi share --via bowrain \u003curl\u003e    a Bowrain server (needs the kapi-bowrain plugin)\n\nA folder with no kapi.yaml gets the one kapi init writes. Commit kapi.yaml so\nevery checkout names the same place. --via bowrain runs the plugin's connect,\nwhich prints what it prints, so its output is not JSON under --json.\n\n--status prints the rung and the last sync without syncing. --no-push,\n--files-only, --merged, --pr and --merger mean what they mean for\nkapi context sync, the spelling an assistant or a CI job uses.\n\nIt exits with status 5 when the shared place cannot be reached, and nothing\nchanges here.",
+          "short": "Share the rules with your team"
         },
         "short": "A format-aware content engine that knows your project's context",
         "stats": {
