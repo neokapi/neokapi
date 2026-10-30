@@ -3573,7 +3573,7 @@ export class ConvergeLocaleResult {
         }
         if (/** @type {any} */(false)) {
             /**
-             * the loop left work here (needs human)
+             * the loop left work here, waiting for review
              * @member
              * @type {boolean | undefined}
              */
