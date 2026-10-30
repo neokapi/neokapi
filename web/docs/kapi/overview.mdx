@@ -54,7 +54,9 @@ rule kept with `--advisory` reports its findings and never fails a check. See
 its rule id. It exits `3` when a finding fails, so the same command gates CI,
 and `kapi check --ship` enforces the project's release policy. The kapi plugin
 for Claude Code adds a Stop hook that runs `kapi check --ship` when the agent
-tries to finish and keeps it working while a gate fails.
+tries to finish and keeps it working while a gate fails. `kapi fix` applies the
+replacement each failing word-rule finding names, through the change service
+`kapi apply` uses, and lists the findings that need a rewrite.
 
 A passing check means the configured checks met their thresholds. Factual
 accuracy and overall quality need their own review. See

@@ -18,9 +18,7 @@ import (
 // fixVoice is the voice of the fix fixture. Its word rules move into the
 // project's terms when the context is read: "utilize", "e-mail" and "mail
 // address" fail and name a replacement, the last two over part of the same
-// words;
-// "login" is advisory. Its pattern prohibits "simply" and names no
-// replacement.
+// words; "login" is advisory. Its one pattern names no replacement.
 const fixVoice = `name: Fix Voice
 style:
   prohibited_patterns:

@@ -15,18 +15,18 @@ func NewFixCmd(a *App) *cobra.Command {
 		Short:   "Apply the fixes kapi can make on its own",
 		GroupID: "work",
 		Args:    cobra.ArbitraryArgs,
-		Long: `Run the check 'kapi check' runs and apply the fixes it computed: each failing
-finding of a name, spelling or word rule that names a replacement. Each file's
-fixes are one change set, applied through the change service 'kapi apply'
-uses, so the file keeps its formatting and every byte outside the replaced
-words stays as it is.
+		Long: `Run the checks 'kapi check' runs and apply the fixes they computed: the
+replacement that each failing finding of a name, spelling or word rule names.
+Each file's fixes are one change set, applied through the change service 'kapi
+apply' uses, so the file keeps its formatting and every byte outside the
+replaced words stays as it is.
 
-kapi fix changes only the words a finding objects to. It does not rewrite a
-finding about tone or style, a rule with no replacement, or words that hold a
-link, a formatting span or a placeholder, which the replacement would delete.
-These are listed as needing a rewrite. A finding that only reports is left as
-it is. A fix the change service refuses, such as one whose words another fix
-also changes, is listed with the reason, and the other fixes of the file land.
+Some findings have no automatic fix: a finding about tone or style, a rule
+with no replacement, and words that hold a link, a formatting span or a
+placeholder, which the replacement would delete. kapi fix lists them as
+needing a rewrite. A finding that only reports stays as it is. A fix the
+change service refuses, such as one over words another fix also changes, is
+listed with the reason, and the file's other fixes land.
 
 With no file arguments inside a project, kapi fix checks the project's declared
 content; naming files narrows it to those. After writing, it checks the files
