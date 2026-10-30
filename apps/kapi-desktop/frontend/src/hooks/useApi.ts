@@ -67,6 +67,7 @@ import type {
   ContextWidenPreview,
   WorkspaceRule,
   ProjectSharing,
+  ShareView,
   ContextBackend,
   ContextSyncResult,
   AgentHostStatus,
@@ -476,12 +477,15 @@ export const api = {
 
   // Where a project's context reaches: this machine, a place the recipe names
   // under `context:`, and a Bowrain server.
-  /** Where the tab's project keeps its context and how far it reaches. */
-  projectSharing: (tabID: string) => call<ProjectSharing>("ProjectSharing", tabID),
-  /** Write the `context:` block of the tab's recipe; a local spec removes it. */
+  /** The Share page: the rung, the place, the counts and the last sync. */
+  shareView: (tabID: string) => call<ShareView>("ShareView", tabID),
+  /**
+   * Write the `context:` block of the tab's recipe, writing the recipe first
+   * in a folder that has none; a local spec removes the block.
+   */
   setProjectSharing: (tabID: string, spec: ContextBackend) =>
     call<ProjectSharing>("SetProjectSharing", tabID, spec),
-  /** Pull and push the tab's project's context, as `kapi context sync` does. */
+  /** Pull and push the tab's project's context, as `kapi share` does. */
   syncProjectContext: (tabID: string) => call<ContextSyncResult>("SyncProjectContext", tabID),
 
   // What an assistant reads: the connection per host, and the rules files.

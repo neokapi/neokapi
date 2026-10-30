@@ -6,7 +6,7 @@ import { CONTEXT_DIGEST, EMPTY_DIGEST, LAST_LOOKED } from "./fixtures/contextDig
 import { RESET_FEED } from "./fixtures/contextFeed";
 import { HOSTS_NONE_CONNECTED } from "./fixtures/agentHosts";
 import { RULES_FILES_WRITTEN } from "./fixtures/rulesFiles";
-import { LOCAL_SHARING } from "./fixtures/sharing";
+import { LOCAL_VIEW } from "./fixtures/sharing";
 import { DECIDE_VIEW, EMPTY_DECIDE_VIEW } from "./fixtures/rulesDecide";
 import type { ContextDigest, RulesDecideView } from "../types/api";
 
@@ -28,7 +28,7 @@ function seeded(digest: ContextDigest, decide: RulesDecideView = DECIDE_VIEW) {
     client.setQueryData(qk.projectContextDigest(TAB, digest.since ?? ""), digest);
     client.setQueryData(qk.rulesDecide(TAB), decide);
     client.setQueryData(qk.contextFeed(digest.project), RESET_FEED);
-    client.setQueryData(qk.projectSharing(TAB), LOCAL_SHARING);
+    client.setQueryData(qk.shareView(TAB), LOCAL_VIEW);
     client.setQueryData(qk.agentHosts(TAB), HOSTS_NONE_CONNECTED);
     client.setQueryData(qk.rulesFiles(TAB), RULES_FILES_WRITTEN);
     return (

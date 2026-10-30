@@ -122,29 +122,30 @@ set aside.
 
 ## Share
 
-**Share** shows how far the project's context reaches, as a stepper over
-three rungs. The rung the project stands on is filled, and the card under the
-stepper describes the rung you select, with the one action that moves the
-project on. **On this Mac** is where every project starts: every clone and
-worktree on this machine reads the same context, and the card names your
-workspace folder. **Shared with your team** is a git ref, a folder or an S3
-bucket that every machine syncs. Its card offers **Set up sharing** until a
-place is named, then shows the place and the last sync, with **Sync now** and
-**Change**. See [Share context with your
+**Share** is titled with the project's name, such as **Fernwell · Share**, and
+lists how far your rules reach as three rungs. Each rung says what reaching it
+changes for you, and the one the project stands on carries a **Current**
+badge. **On this Mac** is where every project starts: your rules and your
+assistants, read by every clone and worktree on this machine. While it is
+current, it shows your workspace folder and **Change**, which opens the dialog
+that names a place. **With your team** is a git ref, a folder or an S3 bucket
+that every machine syncs. Once `kapi.yaml` names one, the rung reads the rules
+in force and the last sync, such as "12 rules · synced 10:03". Under it are
+the place, the changes waiting to push and to pull, **Sync now** and
+**Change**. In a folder you opened without a `kapi.yaml`, **Change** writes
+the recipe first. See [Share context with your
 team](/kapi/desktop/recipes/share-context-with-your-team).
 
 :::note[Works with Bowrain]
-The third rung is **Managed on Bowrain**. Its card reads "Bowrain holds every
-project's context in one workspace, with roles, review and a record of who
-decided what, and runs the project's loop on the server." and offers **About
-Bowrain**, which opens [How Bowrain and kapi fit
+The third rung is **Managed on Bowrain**: a team queue, who kept what, the
+same screens in a browser. Until the project is connected, the rung shows the
+command that connects it, `kapi share --via bowrain <server-url>`, which needs
+the **kapi-bowrain** plugin (`brew install neokapi/tap/bowrain-cli`), and
+**About Bowrain**, which opens [How Bowrain and kapi fit
 together](https://bowrain.cloud/docs/getting-started/kapi-vs-bowrain). A
-project whose recipe declares a `bowrain:` block reaches a Bowrain server,
-and the rung is then the current one. Its card reads "The recipe connects this
-project to a Bowrain server.", names the server and the workspace, for example
-`app.bowrain.cloud` and `acme`, and offers **Open the project**. The
-**kapi-bowrain** plugin (`brew install neokapi/tap/bowrain-cli`) carries the
-transport.
+project whose recipe declares a `bowrain:` block stands on the third rung,
+which then names the server and the workspace, for example
+`app.bowrain.cloud` and `acme`, and offers **Open the project**.
 :::
 
 ## Where the project stands

@@ -4,58 +4,62 @@ import { render, screen, waitFor, within } from "./testUtils";
 
 import {
   BOWRAIN_ABOUT_URL,
+  BOWRAIN_SHARE_COMMAND,
   SharePanel,
   lastSegments,
-  rungStates,
-  shareRung,
+  reachedRungs,
   venueLink,
   venueParts,
   venueProject,
-  type ShareRung,
 } from "../components/SharePanel";
 import { api } from "../hooks/useApi";
 import {
-  BOWRAIN_CONNECTED,
-  BOWRAIN_WITHOUT_TEAM,
+  BOWRAIN_VIEW,
+  BOWRAIN_WITHOUT_TEAM_VIEW,
   CONTACTED,
   FOLDER_UNREACHABLE,
-  GIT_IN_SYNC,
-  GIT_NEVER_SYNCED,
-  GIT_PUSHES_WAITING,
-  LOCAL_SHARING,
-  S3_IN_SYNC,
+  FOLDER_UNREACHABLE_VIEW,
+  GIT_NEVER_SYNCED_VIEW,
+  GIT_PUSHES_WAITING_VIEW,
+  GIT_VIEW,
+  LOCAL_VIEW,
+  LOCAL_VIEW_WITH_PLUGIN,
+  S3_VIEW,
   SYNC_ERROR,
   SYNC_RESULT,
+  BROKEN_PLACE_ERROR,
+  BROKEN_PLACE_VIEW,
 } from "../stories/fixtures/sharing";
-import type { ProjectSharing } from "../types/api";
+import type { ShareRungID } from "../types/api";
 
 afterEach(() => {
   vi.restoreAllMocks();
 });
 
-/** The stepper's element for one rung. */
-const rung = (name: ShareRung) =>
-  document.querySelector<HTMLElement>(`[data-slot='share-rung'][data-rung='${name}']`);
+/** The list item for one rung. */
+const rung = (name: ShareRungID) =>
+  document.querySelector<HTMLElement>(`[data-slot='share-rung'][data-rung='${name}']`)!;
 
-/** Each rung's state, as the stepper draws it. */
-const states = () =>
+/** The rungs, nearest first, by name. */
+const names = () =>
   Array.from(document.querySelectorAll<HTMLElement>("[data-slot='share-rung']")).map(
-    (el) => el.dataset.state,
+    (el) => el.querySelector("p")?.textContent,
   );
 
-/** The rung the stepper marks as the one the project stands on. */
+/** The rung the list marks as the one the project stands on. */
 const marked = () =>
   Array.from(document.querySelectorAll<HTMLElement>("[data-slot='share-rung'][data-current]")).map(
     (el) => el.dataset.rung,
   );
 
-const card = () => document.querySelector<HTMLElement>("[data-slot='share-card']")!;
-const sentence = () => card().querySelector("[data-slot='share-state']")?.textContent ?? "";
-const slot = (name: string) => card().querySelector<HTMLElement>(`[data-slot='${name}']`);
+const reach = (name: ShareRungID) =>
+  rung(name).querySelector("[data-slot='share-reach']")?.textContent ?? "";
+const slot = (name: string, within: HTMLElement = document.body) =>
+  within.querySelector<HTMLElement>(`[data-slot='${name}']`);
 
-/** The facts in the card, as label and value. */
-const facts = () => {
-  const dts = Array.from(card().querySelectorAll("dt"));
+/** The facts under a rung, as label and value. */
+const facts = (name: ShareRungID) => {
+  const dts = Array.from(rung(name).querySelectorAll("dt"));
   return Object.fromEntries(dts.map((dt) => [dt.textContent, dt.nextElementSibling?.textContent]));
 };
 
@@ -67,36 +71,22 @@ const primaries = () =>
     ),
   ).map((b) => b.textContent);
 
-/** The last contact as the card draws it. */
+/** The last contact as the team rung draws it. */
 const contactTime = () => {
-  const time = card().querySelector("time");
+  const time = rung("team").querySelector("time");
   expect(time).toHaveAttribute("dateTime", CONTACTED);
   return time?.textContent ?? "";
 };
 
-const ABOUT =
-  "Bowrain holds every project's context in one workspace, with roles, review and a record of who decided what, and runs the project's loop on the server.";
-
-describe("the rung a project stands on", () => {
-  it("is the farthest it reaches", () => {
-    expect(shareRung(LOCAL_SHARING)).toBe("mac");
-    expect(shareRung(GIT_IN_SYNC)).toBe("team");
-    expect(shareRung(BOWRAIN_CONNECTED)).toBe("bowrain");
-    expect(shareRung(BOWRAIN_WITHOUT_TEAM)).toBe("bowrain");
-  });
-
-  it("is current, with the reached rungs under it done and the rest to do", () => {
-    expect(rungStates(LOCAL_SHARING)).toEqual({ mac: "current", team: "todo", bowrain: "todo" });
-    expect(rungStates(GIT_IN_SYNC)).toEqual({ mac: "done", team: "current", bowrain: "todo" });
-    expect(rungStates(BOWRAIN_CONNECTED)).toEqual({
-      mac: "done",
-      team: "done",
-      bowrain: "current",
-    });
-    expect(rungStates(BOWRAIN_WITHOUT_TEAM)).toEqual({
-      mac: "done",
-      team: "todo",
-      bowrain: "current",
+describe("the rungs a project has reached", () => {
+  it("are this Mac always, the team's once a place is named, and Bowrain's once connected", () => {
+    expect(reachedRungs(LOCAL_VIEW)).toEqual({ machine: true, team: false, bowrain: false });
+    expect(reachedRungs(GIT_VIEW)).toEqual({ machine: true, team: true, bowrain: false });
+    expect(reachedRungs(BOWRAIN_VIEW)).toEqual({ machine: true, team: true, bowrain: true });
+    expect(reachedRungs(BOWRAIN_WITHOUT_TEAM_VIEW)).toEqual({
+      machine: true,
+      team: false,
+      bowrain: true,
     });
   });
 
@@ -140,213 +130,206 @@ describe("the rung a project stands on", () => {
 });
 
 describe("the Share page", () => {
-  it("has its title and subtitle, and no command line", () => {
-    render(<SharePanel tabID="t1" sharing={LOCAL_SHARING} />);
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Share");
-    expect(screen.getByText("How far this project's context reaches.")).toBeInTheDocument();
-    expect(screen.queryByText(/kapi context sync/)).toBeNull();
-    expect(screen.queryByText(/^Not yet/)).toBeNull();
-    expect(screen.queryByText(/^Not connected/)).toBeNull();
-  });
-
-  it("draws the three rungs as a stepper", () => {
-    render(<SharePanel tabID="t1" sharing={LOCAL_SHARING} />);
-    const ladder = screen.getByRole("radiogroup", { name: "How far this context reaches" });
+  it("is titled with the project, says how far the rules reach, and lists three rungs", () => {
+    render(<SharePanel tabID="t1" projectName="Fernwell" view={LOCAL_VIEW} />);
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Fernwell · Share");
+    expect(screen.getByText("How far your rules reach", { selector: "p" })).toBeInTheDocument();
+    const ladder = screen.getByRole("list", { name: "How far your rules reach" });
     expect(ladder.dataset.slot).toBe("share-ladder");
+    expect(within(ladder).getAllByRole("listitem")).toHaveLength(3);
+    expect(names()).toEqual(["On this Mac", "With your team", "Managed on Bowrain"]);
+    expect(screen.queryByText(/kapi context sync/)).toBeNull();
+  });
+
+  it("names what each rung changes for the person", () => {
+    render(<SharePanel tabID="t1" view={LOCAL_VIEW} />);
+    expect(reach("machine")).toBe("Your rules, your assistants");
+    expect(reach("team")).toBe("A shared folder or git");
+    expect(reach("bowrain")).toBe("A team queue, who kept what, the same screens in a browser");
+  });
+
+  it("on this Mac: the first rung current, with the workspace and Change", () => {
+    render(<SharePanel tabID="t1" view={LOCAL_VIEW} />);
+    expect(marked()).toEqual(["machine"]);
+    expect(rung("machine")).toHaveAttribute("aria-current", "step");
+    expect(slot("share-current", rung("machine"))?.textContent).toBe("Current");
+    expect(slot("share-workspace", rung("machine"))?.textContent).toBe("workspaces/default");
+    expect(within(rung("machine")).getByRole("button", { name: "Change" })).toBeInTheDocument();
+    expect(within(rung("team")).queryByRole("button")).toBeNull();
+    expect(primaries()).toEqual(["Change"]);
+  });
+
+  it("with a place kapi.yaml names and kapi cannot read: the first rung, the error and Change", () => {
+    render(<SharePanel tabID="t1" view={BROKEN_PLACE_VIEW} />);
+    expect(marked()).toEqual(["machine"]);
     expect(
-      within(ladder)
-        .getAllByRole("radio")
-        .map((r) => r.textContent),
-    ).toEqual(["On this Mac", "Shared with your team", "Managed on Bowrain"]);
+      within(rung("machine")).getByText("The place kapi.yaml names could not be read."),
+    ).toBeInTheDocument();
+    expect(slot("share-view-error", rung("machine"))?.textContent).toBe(BROKEN_PLACE_ERROR);
+    expect(primaries()).toEqual(["Change"]);
   });
 
-  it("on this Mac: the first rung current, its card and Set up sharing", () => {
-    render(<SharePanel tabID="t1" sharing={LOCAL_SHARING} />);
-    expect(marked()).toEqual(["mac"]);
-    expect(rung("mac")).toHaveAttribute("aria-current", "step");
-    expect(states()).toEqual(["current", "todo", "todo"]);
-
-    expect(card().dataset.rung).toBe("mac");
-    expect(within(card()).getByRole("heading", { level: 2 })).toHaveTextContent("On this Mac");
-    expect(sentence()).toBe(
-      "Every clone and worktree of this project on this Mac reads the same context.",
-    );
-    expect(slot("share-workspace")?.textContent).toBe("workspaces/default");
-    expect(primaries()).toEqual(["Set up sharing"]);
-  });
-
-  it("shared through git: the second rung current, with the place and the last sync", () => {
-    render(<SharePanel tabID="t1" sharing={GIT_IN_SYNC} />);
+  it("with your team through git: the place, the rules, the last sync and the counts", () => {
+    render(<SharePanel tabID="t1" view={GIT_VIEW} />);
     expect(marked()).toEqual(["team"]);
-    expect(states()).toEqual(["done", "current", "todo"]);
-    expect(card().dataset.rung).toBe("team");
-    expect(slot("share-kind")?.textContent).toBe("git");
-    expect(slot("share-place")?.textContent).toBe("origin refs/kapi/context");
-    expect(facts()).toEqual({
+    expect(rung("team")).toHaveAttribute("aria-current", "step");
+    expect(reach("team")).toBe(`12 rules · synced ${contactTime()}`);
+    expect(slot("share-kind", rung("team"))?.textContent).toBe("git");
+    expect(slot("share-place", rung("team"))?.textContent).toBe("origin refs/kapi/context");
+    expect(facts("team")).toEqual({
       Through: "gitorigin refs/kapi/context",
-      "Last sync": contactTime(),
       "To push": "0",
       "To pull": "0",
     });
+    // The workspace belongs to the first rung only while it is current.
+    expect(slot("share-workspace")).toBeNull();
     expect(primaries()).toEqual(["Sync now"]);
-    expect(within(card()).getByRole("button", { name: "Change" })).toHaveAttribute(
+    expect(within(rung("team")).getByRole("button", { name: "Change" })).toHaveAttribute(
       "data-variant",
       "ghost",
     );
   });
 
-  it("shared, with pushes waiting", () => {
-    render(<SharePanel tabID="t1" sharing={GIT_PUSHES_WAITING} />);
-    expect(facts()["To push"]).toBe("2");
-    expect(facts()["To pull"]).toBe("0");
+  it("with pushes waiting", () => {
+    render(<SharePanel tabID="t1" view={GIT_PUSHES_WAITING_VIEW} />);
+    expect(facts("team")["To push"]).toBe("2");
+    expect(facts("team")["To pull"]).toBe("0");
   });
 
-  it("shared, and never synced from this Mac", () => {
-    render(<SharePanel tabID="t1" sharing={GIT_NEVER_SYNCED} />);
-    expect(facts()).toEqual({
+  it("never synced from this Mac", () => {
+    render(<SharePanel tabID="t1" view={GIT_NEVER_SYNCED_VIEW} />);
+    expect(reach("team")).toBe("12 rules · not synced from this Mac yet");
+    expect(facts("team")).toEqual({
       Through: "gitorigin refs/kapi/context",
-      "Last sync": "Not yet from this Mac",
       "To push": "4",
       "To pull": "Known after the first sync",
     });
   });
 
-  it("through a folder that could not be reached: says when, and what it reported", () => {
-    render(<SharePanel tabID="t1" sharing={FOLDER_UNREACHABLE} />);
-    expect(slot("share-kind")?.textContent).toBe("A folder");
-    expect(slot("share-place")?.textContent).toBe("/Volumes/team/kapi/fernwell");
-    expect(screen.getByText(/^The place could not be reached at/).textContent).toBe(
-      `The place could not be reached at ${contactTime()}.`,
-    );
+  it("one rule, and rules that could not be counted", () => {
+    const { unmount } = render(<SharePanel tabID="t1" view={{ ...GIT_VIEW, rules: 1 }} />);
+    expect(reach("team")).toBe(`1 rule · synced ${contactTime()}`);
+    unmount();
+    render(<SharePanel tabID="t1" view={{ ...GIT_VIEW, rules: undefined }} />);
+    expect(reach("team")).toBe(`synced ${contactTime()}`);
+  });
+
+  it("through a folder that could not be reached: says so once, with the time on the rung", () => {
+    render(<SharePanel tabID="t1" view={FOLDER_UNREACHABLE_VIEW} />);
+    expect(slot("share-kind", rung("team"))?.textContent).toBe("A shared folder");
+    expect(slot("share-place", rung("team"))?.textContent).toBe("/Volumes/team/kapi/fernwell");
+    expect(reach("team")).toBe(`12 rules · synced ${contactTime()}`);
+    expect(rung("team").querySelectorAll("time")).toHaveLength(1);
+    expect(within(rung("team")).getByText("The place could not be reached.")).toBeInTheDocument();
     expect(slot("share-status-error")?.textContent).toBe(FOLDER_UNREACHABLE.status?.error);
     expect(primaries()).toEqual(["Sync now"]);
   });
 
   it("through S3", () => {
-    render(<SharePanel tabID="t1" sharing={S3_IN_SYNC} />);
-    expect(slot("share-kind")?.textContent).toBe("S3");
-    expect(slot("share-place")?.textContent).toBe("s3://acme-kapi/fernwell/");
+    render(<SharePanel tabID="t1" view={S3_VIEW} />);
+    expect(slot("share-kind", rung("team"))?.textContent).toBe("S3");
+    expect(slot("share-place", rung("team"))?.textContent).toBe("s3://acme-kapi/fernwell/");
   });
 
-  it("connected to Bowrain: the third rung current, with the server and workspace", () => {
-    render(<SharePanel tabID="t1" sharing={BOWRAIN_CONNECTED} />);
+  it("before Bowrain: the command that connects it and About Bowrain, with no button to press", () => {
+    render(<SharePanel tabID="t1" view={LOCAL_VIEW} />);
+    const bowrain = rung("bowrain");
+    expect(slot("share-bowrain-command", bowrain)?.textContent).toBe(BOWRAIN_SHARE_COMMAND);
+    expect(slot("share-bowrain-plugin", bowrain)?.textContent).toBe(
+      "Needs the kapi-bowrain plugin",
+    );
+    const about = within(bowrain).getByRole("link", { name: "About Bowrain" });
+    expect(about).toHaveAttribute("href", BOWRAIN_ABOUT_URL);
+    expect(about).toHaveAttribute("target", "_blank");
+    expect(about).toHaveAttribute("rel", "noopener noreferrer");
+    expect(within(bowrain).queryByRole("button")).toBeNull();
+  });
+
+  it("before Bowrain, with the plugin installed: the command alone", () => {
+    render(<SharePanel tabID="t1" view={LOCAL_VIEW_WITH_PLUGIN} />);
+    expect(slot("share-bowrain-command", rung("bowrain"))).not.toBeNull();
+    expect(slot("share-bowrain-plugin", rung("bowrain"))).toBeNull();
+  });
+
+  it("managed on Bowrain: the third rung current, with the server, and the team place under its own", () => {
+    render(<SharePanel tabID="t1" view={BOWRAIN_VIEW} />);
     expect(marked()).toEqual(["bowrain"]);
-    expect(states()).toEqual(["done", "done", "current"]);
-    expect(card().dataset.rung).toBe("bowrain");
-    expect(sentence()).toBe("The recipe connects this project to a Bowrain server.");
-    expect(slot("share-server")?.textContent).toBe("app.bowrain.cloud");
-    expect(slot("share-venue-workspace")?.textContent).toBe("acme");
-    const open = within(card()).getByRole("link", { name: "Open the project" });
+    const bowrain = rung("bowrain");
+    expect(slot("share-server", bowrain)?.textContent).toBe("app.bowrain.cloud");
+    expect(slot("share-venue-workspace", bowrain)?.textContent).toBe("acme");
+    expect(slot("share-bowrain-command")).toBeNull();
+    const open = within(bowrain).getByRole("link", { name: "Open the project" });
     expect(open).toHaveAttribute("href", "https://app.bowrain.cloud/acme/help");
     expect(open).toHaveAttribute("target", "_blank");
     expect(open).toHaveAttribute("rel", "noopener noreferrer");
-    expect(primaries()).toEqual([]);
+    expect(slot("share-place", rung("team"))?.textContent).toBe("origin refs/kapi/context");
+    expect(primaries()).toEqual(["Sync now"]);
   });
 
-  it("connected to Bowrain through a URL with another scheme: offers no link to open", () => {
+  it("managed on Bowrain through a URL with another scheme: offers no link to open", () => {
     render(
       <SharePanel
         tabID="t1"
-        sharing={{ ...BOWRAIN_CONNECTED, venue_url: "javascript:alert(document.domain)" }}
+        view={{
+          ...BOWRAIN_VIEW,
+          sharing: { ...BOWRAIN_VIEW.sharing, venue_url: "javascript:alert(document.domain)" },
+        }}
       />,
     );
-    expect(card().dataset.rung).toBe("bowrain");
-    expect(slot("share-server")?.textContent).toBe("app.bowrain.cloud");
+    expect(slot("share-server", rung("bowrain"))?.textContent).toBe("app.bowrain.cloud");
     expect(slot("share-open-bowrain")).toBeNull();
-    expect(within(card()).queryByRole("link")).toBeNull();
+    expect(within(rung("bowrain")).queryByRole("link")).toBeNull();
   });
 
-  it("connected to Bowrain with no team place: the team rung stays to do", () => {
-    render(<SharePanel tabID="t1" sharing={BOWRAIN_WITHOUT_TEAM} />);
-    expect(states()).toEqual(["done", "todo", "current"]);
-  });
-
-  it("context-only: the rungs, and why sharing needs a checkout, with no button", async () => {
-    render(<SharePanel tabID="t1" sharing={LOCAL_SHARING} contextOnly />);
-    expect(states()).toEqual(["current", "todo", "todo"]);
-    const needs =
-      "Sharing is named in the project's kapi.yaml, so it needs a checkout of this project on this Mac.";
-    expect(slot("share-needs-checkout")?.textContent).toBe(needs);
-    expect(within(card()).queryByRole("button")).toBeNull();
-
-    await userEvent.click(rung("team")!);
-    expect(card().dataset.rung).toBe("team");
-    expect(slot("share-needs-checkout")?.textContent).toBe(needs);
-    expect(within(card()).queryByRole("button")).toBeNull();
-  });
-});
-
-describe("choosing a rung to read about", () => {
-  it("shows the clicked rung's card and keeps the current rung marked", async () => {
-    render(<SharePanel tabID="t1" sharing={LOCAL_SHARING} />);
-    await userEvent.click(rung("bowrain")!);
-    expect(card().dataset.rung).toBe("bowrain");
-    expect(rung("bowrain")).toHaveAttribute("aria-checked", "true");
-    expect(marked()).toEqual(["mac"]);
-    expect(sentence()).toBe(ABOUT);
-    const about = within(card()).getByRole("link", { name: "About Bowrain" });
-    expect(about).toHaveAttribute("href", BOWRAIN_ABOUT_URL);
-    // Both links on the page open the way every external link in the app does.
-    expect(about).toHaveAttribute("target", "_blank");
-    expect(about).toHaveAttribute("rel", "noopener noreferrer");
-
-    await userEvent.click(rung("team")!);
-    expect(card().dataset.rung).toBe("team");
-    expect(sentence()).toBe(
-      "Every machine that syncs this project reads the same context, through a git ref, a folder or an S3 bucket.",
+  it("managed on Bowrain with no team place: the team rung offers Change", () => {
+    render(<SharePanel tabID="t1" view={BOWRAIN_WITHOUT_TEAM_VIEW} />);
+    expect(marked()).toEqual(["bowrain"]);
+    expect(reach("team")).toBe("A shared folder or git");
+    expect(within(rung("team")).getByRole("button", { name: "Change" })).toHaveAttribute(
+      "data-variant",
+      "outline",
     );
-    expect(primaries()).toEqual(["Set up sharing"]);
+    expect(primaries()).toEqual([]);
   });
 
-  it("moves between rungs with the arrow keys", async () => {
-    render(<SharePanel tabID="t1" sharing={LOCAL_SHARING} />);
-    rung("mac")!.focus();
-    await userEvent.keyboard("{ArrowRight}");
-    expect(card().dataset.rung).toBe("team");
-    await userEvent.keyboard("{ArrowRight}");
-    expect(card().dataset.rung).toBe("bowrain");
-  });
-
-  it("offers at most one primary button on every rung, and none on Bowrain's", async () => {
-    const expected: Array<[ProjectSharing, Record<ShareRung, string[]>]> = [
-      [LOCAL_SHARING, { mac: ["Set up sharing"], team: ["Set up sharing"], bowrain: [] }],
-      [GIT_IN_SYNC, { mac: [], team: ["Sync now"], bowrain: [] }],
-      [BOWRAIN_CONNECTED, { mac: [], team: ["Sync now"], bowrain: [] }],
-    ];
-    for (const [sharing, perRung] of expected) {
-      const { unmount } = render(<SharePanel tabID="t1" sharing={sharing} />);
-      for (const r of ["mac", "team", "bowrain"] as const) {
-        await userEvent.click(rung(r)!);
-        expect({ rung: r, primaries: primaries() }).toEqual({ rung: r, primaries: perRung[r] });
-      }
-      unmount();
-    }
+  it("context-only: the rungs, and why sharing needs a checkout, with no button or command", () => {
+    render(<SharePanel tabID="t1" view={LOCAL_VIEW} contextOnly />);
+    expect(marked()).toEqual(["machine"]);
+    expect(slot("share-needs-checkout")?.textContent).toBe(
+      "Sharing is named in the project's kapi.yaml, so it needs a checkout of this project on this Mac.",
+    );
+    expect(screen.queryByRole("button")).toBeNull();
+    expect(slot("share-bowrain-command")).toBeNull();
+    expect(slot("share-bowrain-plugin")).toBeNull();
+    expect(
+      within(rung("bowrain")).getByRole("link", { name: "About Bowrain" }),
+    ).toBeInTheDocument();
   });
 });
 
-describe("setting up and changing the place", () => {
-  it("Set up sharing opens the dialog", async () => {
-    render(<SharePanel tabID="t1" sharing={LOCAL_SHARING} />);
-    await userEvent.click(screen.getByRole("button", { name: "Set up sharing" }));
+describe("Change", () => {
+  it("opens the dialog from this Mac's rung", async () => {
+    render(<SharePanel tabID="t1" view={LOCAL_VIEW} />);
+    await userEvent.click(screen.getByRole("button", { name: "Change" }));
     expect(await screen.findByRole("dialog")).toHaveTextContent("Set up sharing");
   });
 
-  it("Change opens the same dialog", async () => {
-    render(<SharePanel tabID="t1" sharing={GIT_IN_SYNC} />);
+  it("opens the same dialog from the team's rung", async () => {
+    render(<SharePanel tabID="t1" view={GIT_VIEW} />);
     await userEvent.click(screen.getByRole("button", { name: "Change" }));
     expect(await screen.findByRole("dialog")).toHaveTextContent("Set up sharing");
   });
 });
 
 describe("Sync now", () => {
-  it("syncs and shows what the sync did in the card", async () => {
+  it("calls the sync binding and shows what the sync did under the rung", async () => {
     const sync = vi.spyOn(api, "syncProjectContext").mockResolvedValue(SYNC_RESULT);
-    render(<SharePanel tabID="t1" sharing={GIT_PUSHES_WAITING} />);
+    render(<SharePanel tabID="t1" view={GIT_PUSHES_WAITING_VIEW} />);
     await userEvent.click(screen.getByRole("button", { name: "Sync now" }));
 
     expect(sync).toHaveBeenCalledWith("t1");
     await waitFor(() =>
-      expect(slot("share-sync-result")?.textContent).toBe(
+      expect(slot("share-sync-result", rung("team"))?.textContent).toBe(
         "Pulled 3, pushed 2, rules files written",
       ),
     );
@@ -357,14 +340,14 @@ describe("Sync now", () => {
       ...SYNC_RESULT,
       rules_files: { files: [{ path: "AGENTS.md", action: "unchanged" }] },
     });
-    render(<SharePanel tabID="t1" sharing={GIT_IN_SYNC} />);
+    render(<SharePanel tabID="t1" view={GIT_VIEW} />);
     await userEvent.click(screen.getByRole("button", { name: "Sync now" }));
     await waitFor(() => expect(slot("share-sync-result")?.textContent).toBe("Pulled 3, pushed 2"));
   });
 
   it("shows the error exactly as the backend returned it", async () => {
     vi.spyOn(api, "syncProjectContext").mockRejectedValue(new Error(SYNC_ERROR));
-    render(<SharePanel tabID="t1" sharing={GIT_IN_SYNC} />);
+    render(<SharePanel tabID="t1" view={GIT_VIEW} />);
     await userEvent.click(screen.getByRole("button", { name: "Sync now" }));
 
     const error = await screen.findByRole("alert");
@@ -374,8 +357,8 @@ describe("Sync now", () => {
 });
 
 describe("reading the backend", () => {
-  it("reads the project's sharing when none is given", async () => {
-    const read = vi.spyOn(api, "projectSharing").mockResolvedValue(GIT_IN_SYNC);
+  it("reads the Share page when none is given", async () => {
+    const read = vi.spyOn(api, "shareView").mockResolvedValue(GIT_VIEW);
     render(<SharePanel tabID="t1" />);
     expect(read).toHaveBeenCalledWith("t1");
     await waitFor(() => expect(marked()).toEqual(["team"]));

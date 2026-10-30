@@ -2,16 +2,16 @@
 id: share-context-with-your-team
 title: "Share context with your team"
 sidebar_label: "Share context with your team"
-description: "Use Kapi Desktop's Share section to move a project's context from this Mac to a place every machine syncs: a git ref, a folder or an S3 bucket."
-keywords: [Kapi Desktop, share, sync, context, git, folder, S3, workspace, kapi context sync, team]
+description: "Use Kapi Desktop's Share page to move a project's context from this Mac to a place every machine syncs: a git ref, a folder or an S3 bucket."
+keywords: [Kapi Desktop, share, sync, context, git, folder, S3, workspace, kapi share, kapi context sync, team]
 ---
 
 # Share context with your team
 
 **Goal:** have everyone who works on a project read the same rules, terms,
 voice profile and content memory, and see what everyone else's assistants
-noticed. The project's **Share** section shows how far its context reaches and
-sets up the next step.
+noticed. The project's **Share** page shows how far its rules reach and sets
+up the next step.
 
 **From the command line**, `kapi share` does the same:
 
@@ -30,10 +30,20 @@ sets up the next step.
 
 ## On this Mac
 
-Every project starts here. Share marks the first rung as current, and its
-card reads "Every clone and worktree of this project on this Mac reads the
-same context." **Workspace** names your workspace folder by its last two
-segments. Hover over it for the full path.
+Every project starts here. The page is titled with the project's name, such
+as **Fernwell · Share**, and lists three rungs under "How far your rules
+reach". Each rung says what reaching it changes for you:
+
+| Rung | What it adds |
+| --- | --- |
+| **On this Mac** | your rules, your assistants |
+| **With your team** | a shared folder or git |
+
+The third rung is a managed workspace; see [A managed
+workspace](#a-managed-workspace). The rung the project stands on carries a
+**Current** badge. While **On this Mac** is current, it shows **Workspace**,
+your workspace folder by its last two segments, and **Change**. Hover over the
+folder for the full path.
 
 Your workspace is one folder for your account on this machine, and it holds
 the context of every project you work on. kapi joins a checkout to its
@@ -44,9 +54,8 @@ reads none of it until you share it.
 
 ## Choose a place to share it
 
-Click **Set up sharing** on the first rung's card. The second rung's card,
-**Shared with your team**, offers the same button. Choose one of three
-places:
+Click **Change** under **On this Mac**. The dialog, **Set up sharing**, offers
+three places:
 
 | Place | What it needs | Who can reach it |
 | --- | --- | --- |
@@ -66,44 +75,51 @@ context:
   ref: refs/kapi/context
 ```
 
-Commit the recipe, so every checkout of the project names the same place.
+In a folder you opened without a `kapi.yaml`, saving writes the recipe first,
+the same draft `kapi init` writes, with the `context:` block in it. Commit the
+recipe, so every checkout of the project names the same place.
 
 ## Sync
 
 Saving offers **Sync now**. A sync takes in what the rest of the team shared
 and merges it here, then shares what this machine recorded, then rewrites the
 project's rules files so the next assistant session reads what the team
-decided. The card shows the result, such as "Pulled 3, pushed 2, rules files
-written". Running it twice changes nothing, and two people who sync at once
-both succeed.
+decided. The result appears under the rung, such as "Pulled 3, pushed 2,
+rules files written". Running it twice changes nothing, and two people who
+sync at once both succeed.
 
-Between syncs the second rung is current, and its card says where the context
-is shared and how far apart this machine and the shared copy were at the last
-sync:
+Once `kapi.yaml` names a place, **With your team** is current. The rung reads
+the rules in force and when this machine last synced, such as "12 rules ·
+synced 10:03", and under it says where the context is shared and how far apart
+this machine and the shared copy were at the last sync:
 
 | Fact | Example |
 | --- | --- |
 | **Through** | git, `origin refs/kapi/context` |
-| **Last sync** | 10:03 |
 | **To push** | 2 |
 | **To pull** | 0 |
 
 **Change** opens the same dialog, to name another place. A teammate who pulls
-the recipe opens the project and clicks **Sync now** on the same card. A fresh
-clone fetches branches and tags and leaves the context ref alone, so the first
-sync is what brings the context in.
+the recipe opens the project and clicks **Sync now** under the same rung. A
+fresh clone fetches branches and tags and leaves the context ref alone, so the
+first sync is what brings the context in.
 
-When the place cannot be reached, the card says "The place could not be
-reached at 10:03." and shows the error the place returned. Nothing changes
-here: what this machine recorded waits, and the next sync shares it.
+When the place cannot be reached, the rung says "The place could not be
+reached." and shows the error the place returned. Nothing changes here: what
+this machine recorded waits, and the next sync shares it.
+
+When the `context:` block in `kapi.yaml` cannot be read, for example after a
+hand edit names a backend kapi does not have, **On this Mac** stays current.
+It says "The place kapi.yaml names could not be read.", shows the recipe
+check's words, and keeps **Change**, which saves a place that reads.
 
 ## A managed workspace
 
-The third rung is a managed workspace: a server that holds every project's
-context in one workspace, with roles, review and a record of who decided what,
-and runs the project's loop on the server. A project reaches one through the
-venue its recipe declares, which is separate from the `context:` place, and
-the rung's card then names the server and the workspace there. The note in the
+The third rung is a managed workspace. It adds a team queue, a record of who
+kept what, and the same screens in a browser. Until a project is connected,
+the rung shows the command that connects it. A project reaches one through a
+block of its recipe that is separate from the `context:` place, and the rung
+then names the server and the workspace there. The note in the
 [tour](/kapi/desktop/tour#share) says where to read more.
 
 ## Next

@@ -1,15 +1,20 @@
-// Share: how far one project's context reaches, as a stepper over three rungs.
-// On this Mac, the workspace every clone and worktree here reads. Shared with
-// your team, the place kapi.yaml names under `context:`, which every machine
-// that syncs the project reads. Managed on Bowrain, the server a recipe's
-// `bowrain:` block connects to. The farthest rung reached is current.
+// Share: how far one project's rules reach, as three rungs in one list.
+// On this Mac, the workspace every clone and worktree here reads. With your
+// team, the place kapi.yaml names under `context:`, which every machine that
+// syncs the project reads. Managed on Bowrain, the server a recipe's
+// `bowrain:` block connects to.
 //
-// One card under the stepper describes the rung the reader selected, the
-// current one until they click another: a sentence, the facts, and the one
-// action that moves the project on. Sync is `kapi context sync` run here. Its
-// result, or its error word for word, stays in the card until the next sync.
+// The backend's ShareView names the rung the way `kapi share --status` does,
+// and the list marks it. The facts and actions sit under the rung they
+// belong to: the workspace under this Mac's while it is current, the place,
+// its counts, Sync now and Change under the team rung once the recipe names a
+// place, and the server under Bowrain's once the recipe connects to one.
+// Sync now is the sync `kapi share` runs. Its result, or its error word for
+// word, stays under the rung until the next sync. Change opens the dialog
+// that writes the `context:` block, and the recipe with it in a folder that
+// has none.
 
-import { useId, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { t } from "@neokapi/i18n-react/runtime";
 import {
@@ -30,56 +35,48 @@ import {
   LoadingSpinner,
   PageHeader,
   SimpleTooltip,
-  Stepper,
   When,
   parseAppError,
-  type StepState,
-  type StepperStep,
 } from "@neokapi/ui-primitives";
 import { qk } from "../lib/queryKeys";
 import { useInvalidateOnEvent } from "../hooks/useInvalidateOnEvent";
 import { useShortenHome } from "../hooks/useShortenHome";
 import { ShareSetupDialog } from "./ShareSetupDialog";
 import { api } from "../hooks/useApi";
-import type { ContextSyncResult, ProjectSharing, SyncStatus } from "../types/api";
+import type {
+  ContextSyncResult,
+  ProjectSharing,
+  ShareRungID,
+  ShareView,
+  SyncStatus,
+} from "../types/api";
 
 /** Where the About Bowrain action leads. */
 export const BOWRAIN_ABOUT_URL = "https://bowrain.cloud/docs/getting-started/kapi-vs-bowrain";
 
-/** The rungs of the ladder, nearest first. */
-export type ShareRung = "mac" | "team" | "bowrain";
+/** The command that connects a project to a Bowrain server. */
+export const BOWRAIN_SHARE_COMMAND = "kapi share --via bowrain <server-url>";
 
-const RUNGS: ShareRung[] = ["mac", "team", "bowrain"];
+/** The rungs of the ladder, nearest first. */
+export const RUNGS: ShareRungID[] = ["machine", "team", "bowrain"];
 
 /** True when kapi.yaml names a place to share the context through. */
 export function sharingSetUp(sharing: ProjectSharing): boolean {
   return !!sharing.kind && sharing.kind !== "local";
 }
 
-/** The rung a project stands on: the farthest it reaches. */
-export function shareRung(sharing: ProjectSharing): ShareRung {
-  if (sharing.venue_host) return "bowrain";
-  if (sharingSetUp(sharing)) return "team";
-  return "mac";
-}
-
 /**
- * Each rung's state. The farthest rung reached is current, a reached rung
- * under it is done, and the rest are still to do, so a project connected to
- * Bowrain without a team place shows the team rung to do.
+ * The rungs a project has reached. This Mac always is; the team rung once the
+ * recipe names a place; Bowrain's once the recipe connects to a server. A
+ * project connected to Bowrain without a team place has not reached the team
+ * rung.
  */
-export function rungStates(sharing: ProjectSharing): Record<ShareRung, StepState> {
-  const reached: Record<ShareRung, boolean> = {
-    mac: true,
-    team: sharingSetUp(sharing),
-    bowrain: !!sharing.venue_host,
+export function reachedRungs(view: ShareView): Record<ShareRungID, boolean> {
+  return {
+    machine: true,
+    team: sharingSetUp(view.sharing),
+    bowrain: view.rung === "bowrain",
   };
-  const at = RUNGS.indexOf(shareRung(sharing));
-  const state = (rung: ShareRung, i: number): StepState => {
-    if (i === at) return "current";
-    return i < at && reached[rung] ? "done" : "todo";
-  };
-  return { mac: state("mac", 0), team: state("team", 1), bowrain: state("bowrain", 2) };
 }
 
 /** The last `n` segments of a path, so `…/kapi/workspaces/default` reads `workspaces/default`. */
@@ -98,29 +95,35 @@ export function syncWroteRulesFiles(result: ContextSyncResult): boolean {
 
 export interface SharePanelProps {
   tabID: string;
-  /** Pre-loaded sharing for Storybook and tests, which reach no backend. */
-  sharing?: ProjectSharing;
+  /** The open project's name, which leads the page title. */
+  projectName?: string;
+  /** A pre-loaded page for Storybook and tests, which reach no backend. */
+  view?: ShareView;
   /**
    * A tab over a project's context alone, with no checkout here. Sharing is
    * named in kapi.yaml, so no rung can be set up from it.
    */
   contextOnly?: boolean;
-  /** Called once Set up sharing has saved a place to kapi.yaml. */
+  /** Called once Change has saved a place to kapi.yaml. */
   onSetUp?: (sharing: ProjectSharing) => void;
 }
 
-export function SharePanel({ tabID, sharing: given, contextOnly, onSetUp }: SharePanelProps) {
+export function SharePanel({
+  tabID,
+  projectName,
+  view: given,
+  contextOnly,
+  onSetUp,
+}: SharePanelProps) {
   const qc = useQueryClient();
-  const titleId = useId();
-  const [selected, setSelected] = useState<ShareRung | null>(null);
   const [settingUp, setSettingUp] = useState(false);
   const [result, setResult] = useState<ContextSyncResult | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
 
-  const key = qk.projectSharing(tabID);
+  const key = qk.shareView(tabID);
   const query = useQuery({
     queryKey: key,
-    queryFn: () => api.projectSharing(tabID),
+    queryFn: () => api.shareView(tabID),
     enabled: !given,
     placeholderData: (previous) => previous,
   });
@@ -143,70 +146,64 @@ export function SharePanel({ tabID, sharing: given, contextOnly, onSetUp }: Shar
     onSettled: refresh,
   });
 
-  const sharing = given ?? query.data ?? null;
+  const view = given ?? query.data ?? null;
   if (query.error && !given) {
     return (
       <ErrorNotice
         error={query.error}
-        title="Where this project's context is shared could not be read"
+        title="How far this project's rules reach could not be read"
       />
     );
   }
-  if (!sharing) return query.isLoading ? <LoadingSpinner /> : null;
+  if (!view) return query.isLoading ? <LoadingSpinner /> : null;
 
-  const states = rungStates(sharing);
-  const shown = selected ?? shareRung(sharing);
-  const steps: StepperStep[] = RUNGS.map((rung) => ({
-    id: rung,
-    label: <RungName rung={rung} />,
-    state: states[rung],
-  }));
-  const setUp = () => setSettingUp(true);
+  const reached = reachedRungs(view);
+  const change = () => setSettingUp(true);
 
   return (
     <div data-slot="share-panel">
       <PageHeader
         className="mb-5"
-        title="Share"
-        subtitle="How far this project's context reaches."
+        title={projectName ? t("{project} · Share", { project: projectName }) : t("Share")}
+        subtitle="How far your rules reach"
       />
-      <Stepper
+      <ol
         data-slot="share-ladder"
-        aria-label="How far this context reaches"
-        value={shown}
-        onChange={(id) => setSelected(id as ShareRung)}
-        steps={steps}
-        stepAttributes={(step) => ({
-          "data-slot": "share-rung",
-          "data-rung": step.id,
-          "data-current": step.state === "current" || undefined,
-        })}
-      />
-
-      <section
-        data-slot="share-card"
-        data-rung={shown}
-        aria-labelledby={titleId}
-        className="mt-5 rounded-lg border border-border px-4 py-3.5"
+        aria-label={t("How far your rules reach")}
+        className="divide-y divide-border rounded-lg border border-border"
       >
-        <h2 id={titleId} className="flex items-center gap-2 text-sm font-semibold">
-          <RungIcon rung={shown} />
-          <RungName rung={shown} />
-        </h2>
-        {shown === "mac" && <MacCard sharing={sharing} contextOnly={contextOnly} onSetUp={setUp} />}
-        {shown === "team" && (
-          <TeamCard
-            sharing={sharing}
-            contextOnly={contextOnly}
-            onSetUp={setUp}
-            onSync={() => sync.mutate()}
-            syncing={sync.isPending}
-            result={result}
-            syncError={syncError}
-          />
-        )}
-        {shown === "bowrain" && <BowrainCard sharing={sharing} />}
-      </section>
+        {RUNGS.map((rung) => (
+          <RungRow
+            key={rung}
+            rung={rung}
+            view={view}
+            current={view.rung === rung}
+            reached={reached[rung]}
+          >
+            {rung === "machine" && view.rung === "machine" && (
+              <MachineDetail view={view} contextOnly={contextOnly} onChange={change} />
+            )}
+            {rung === "team" && reached.team && (
+              <TeamDetail
+                sharing={view.sharing}
+                onChange={change}
+                onSync={() => sync.mutate()}
+                syncing={sync.isPending}
+                result={result}
+                syncError={syncError}
+              />
+            )}
+            {rung === "team" && !reached.team && view.rung === "bowrain" && (
+              <Actions>
+                <Button size="sm" variant="outline" data-slot="share-change" onClick={change}>
+                  Change
+                </Button>
+              </Actions>
+            )}
+            {rung === "bowrain" && <BowrainDetail view={view} contextOnly={contextOnly} />}
+          </RungRow>
+        ))}
+      </ol>
 
       {!contextOnly && (
         <ShareSetupDialog
@@ -224,22 +221,111 @@ export function SharePanel({ tabID, sharing: given, contextOnly, onSetUp }: Shar
   );
 }
 
-/** A rung's name, written here so the stepper and the card say it the same way. */
-function RungName({ rung }: { rung: ShareRung }) {
+/** One rung: its mark, name and reach, the Current badge, and what sits under it. */
+function RungRow({
+  rung,
+  view,
+  current,
+  reached,
+  children,
+}: {
+  rung: ShareRungID;
+  view: ShareView;
+  current: boolean;
+  reached: boolean;
+  children?: React.ReactNode;
+}) {
+  return (
+    <li
+      data-slot="share-rung"
+      data-rung={rung}
+      data-current={current || undefined}
+      data-reached={reached || undefined}
+      aria-current={current ? "step" : undefined}
+      className="px-4 py-3"
+    >
+      <div className="flex min-h-6 items-center gap-3">
+        <RungIcon rung={rung} reached={reached} />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium">
+            <RungName rung={rung} />
+          </p>
+          <p data-slot="share-reach" className="text-[11px] text-muted-foreground">
+            <RungReach rung={rung} view={view} />
+          </p>
+        </div>
+        {current && (
+          <Badge variant="secondary" data-slot="share-current" className="shrink-0">
+            Current
+          </Badge>
+        )}
+      </div>
+      {children}
+    </li>
+  );
+}
+
+/** A rung's name, written here so it is translated. */
+function RungName({ rung }: { rung: ShareRungID }) {
   switch (rung) {
-    case "mac":
+    case "machine":
       return <>On this Mac</>;
     case "team":
-      return <>Shared with your team</>;
+      return <>With your team</>;
     case "bowrain":
       return <>Managed on Bowrain</>;
   }
 }
 
-function RungIcon({ rung }: { rung: ShareRung }) {
-  const props = { size: 15, "aria-hidden": true, className: "shrink-0 text-muted-foreground" };
+/**
+ * What reaching a rung changes for the person. A team rung the project has
+ * reached says instead how many rules travel and when this Mac last synced.
+ */
+function RungReach({ rung, view }: { rung: ShareRungID; view: ShareView }) {
   switch (rung) {
-    case "mac":
+    case "machine":
+      return <>Your rules, your assistants</>;
+    case "team":
+      return sharingSetUp(view.sharing) ? (
+        <TeamStanding view={view} />
+      ) : (
+        <>A shared folder or git</>
+      );
+    case "bowrain":
+      return <>A team queue, who kept what, the same screens in a browser</>;
+  }
+}
+
+/** "12 rules · synced 10:03", for a project shared with the team. */
+function TeamStanding({ view }: { view: ShareView }) {
+  const contacted = view.sharing.status?.contacted;
+  return (
+    <span data-slot="share-team-standing">
+      {view.rules !== undefined && (
+        <span className="tabular-nums">
+          {t("{count, plural, one {# rule} other {# rules}}", { count: view.rules })}
+        </span>
+      )}
+      {view.rules !== undefined && " · "}
+      {contacted ? (
+        <span data-slot="share-last-sync">
+          synced <ContactTime iso={contacted} />
+        </span>
+      ) : (
+        <span data-slot="share-last-sync">not synced from this Mac yet</span>
+      )}
+    </span>
+  );
+}
+
+function RungIcon({ rung, reached }: { rung: ShareRungID; reached: boolean }) {
+  const props = {
+    size: 15,
+    "aria-hidden": true,
+    className: reached ? "shrink-0 text-foreground" : "shrink-0 text-muted-foreground",
+  };
+  switch (rung) {
+    case "machine":
       return <Laptop {...props} />;
     case "team":
       return <Users {...props} />;
@@ -248,25 +334,16 @@ function RungIcon({ rung }: { rung: ShareRung }) {
   }
 }
 
-/** The card's one sentence. */
-function ShareSentence({ children }: { children: React.ReactNode }) {
+/** The facts under a rung, one labelled row each. */
+function Facts({ children }: { children: React.ReactNode }) {
   return (
-    <p data-slot="share-state" className="mt-1 text-sm text-muted-foreground">
-      {children}
-    </p>
-  );
-}
-
-/** The card's facts, one labelled row each. */
-function ShareFacts({ children }: { children: React.ReactNode }) {
-  return (
-    <dl className="mt-3 grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-1.5">
+    <dl className="mt-3 ml-7 grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-1.5">
       {children}
     </dl>
   );
 }
 
-function ShareFact({ label, children }: { label: string; children: React.ReactNode }) {
+function Fact({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <>
       <dt className="text-[11px] text-muted-foreground">{label}</dt>
@@ -275,7 +352,7 @@ function ShareFact({ label, children }: { label: string; children: React.ReactNo
   );
 }
 
-/** A path, place or host: the project's own value, in the mono font. */
+/** A path, place, host or command: a value of the project's own, in the mono font. */
 function MonoChip({ slot, children }: { slot: string; children: React.ReactNode }) {
   return (
     <Badge
@@ -289,121 +366,104 @@ function MonoChip({ slot, children }: { slot: string; children: React.ReactNode 
   );
 }
 
-/** The card's actions, in one row. */
+/** The actions under a rung, in one row. */
 function Actions({ children }: { children: React.ReactNode }) {
-  return <div className="mt-3.5 flex flex-wrap items-center gap-2">{children}</div>;
+  return <div className="mt-3 ml-7 flex flex-wrap items-center gap-2">{children}</div>;
 }
 
-/** Why a context-only tab offers no setup. */
+/** Why a context-only tab offers no change. */
 function NeedsCheckout() {
   return (
-    <p data-slot="share-needs-checkout" className="mt-3 text-[11px] text-muted-foreground">
+    <p data-slot="share-needs-checkout" className="mt-3 ml-7 text-[11px] text-muted-foreground">
       Sharing is named in the project&apos;s <span translate="no">kapi.yaml</span>, so it needs a
       checkout of this project on this Mac.
     </p>
   );
 }
 
-function MacCard({
-  sharing,
+function MachineDetail({
+  view,
   contextOnly,
-  onSetUp,
+  onChange,
 }: {
-  sharing: ProjectSharing;
+  view: ShareView;
   contextOnly?: boolean;
-  onSetUp: () => void;
+  onChange: () => void;
 }) {
   const shorten = useShortenHome();
+  const workspace = view.sharing.workspace;
   return (
     <>
-      <ShareSentence>
-        Every clone and worktree of this project on this Mac reads the same context.
-      </ShareSentence>
-      <ShareFacts>
-        <ShareFact label="Workspace">
-          <SimpleTooltip content={<span translate="no">{shorten(sharing.workspace)}</span>}>
+      <Facts>
+        <Fact label={t("Workspace")}>
+          <SimpleTooltip content={<span translate="no">{shorten(workspace)}</span>}>
             <span
               tabIndex={0}
               className="inline-flex min-w-0 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
             >
-              <MonoChip slot="share-workspace">{lastSegments(sharing.workspace, 2)}</MonoChip>
+              <MonoChip slot="share-workspace">{lastSegments(workspace, 2)}</MonoChip>
             </span>
           </SimpleTooltip>
-        </ShareFact>
-      </ShareFacts>
+        </Fact>
+      </Facts>
+      {view.error && (
+        <div className="mt-3 ml-7">
+          <p className="flex items-center gap-1.5 text-sm text-warning-ink">
+            <TriangleAlert size={14} aria-hidden className="shrink-0" />
+            <span>The place kapi.yaml names could not be read.</span>
+          </p>
+          <p
+            data-slot="share-view-error"
+            className="mt-1 font-mono text-[11px] text-muted-foreground"
+            translate="no"
+          >
+            {view.error}
+          </p>
+        </div>
+      )}
       {contextOnly ? (
         <NeedsCheckout />
       ) : (
-        !sharingSetUp(sharing) && (
-          <Actions>
-            <Button size="sm" data-slot="share-set-up" onClick={onSetUp}>
-              Set up sharing
-            </Button>
-          </Actions>
-        )
+        <Actions>
+          <Button size="sm" data-slot="share-change" onClick={onChange}>
+            Change
+          </Button>
+        </Actions>
       )}
     </>
   );
 }
 
-function TeamCard({
+function TeamDetail({
   sharing,
-  contextOnly,
-  onSetUp,
+  onChange,
   onSync,
   syncing,
   result,
   syncError,
 }: {
   sharing: ProjectSharing;
-  contextOnly?: boolean;
-  onSetUp: () => void;
+  onChange: () => void;
   onSync: () => void;
   syncing: boolean;
   result: ContextSyncResult | null;
   syncError: string | null;
 }) {
-  if (!sharingSetUp(sharing)) {
-    return (
-      <>
-        <ShareSentence>
-          Every machine that syncs this project reads the same context, through a git ref, a folder
-          or an S3 bucket.
-        </ShareSentence>
-        {contextOnly ? (
-          <NeedsCheckout />
-        ) : (
-          <Actions>
-            <Button size="sm" data-slot="share-set-up" onClick={onSetUp}>
-              Set up sharing
-            </Button>
-          </Actions>
-        )}
-      </>
-    );
-  }
   const status = sharing.status;
   return (
     <>
-      <ShareSentence>Every machine that syncs this project reads the same context.</ShareSentence>
-      <ShareFacts>
-        <ShareFact label="Through">
+      <Facts>
+        <Fact label={t("Through")}>
           <PlaceKind kind={sharing.kind} />
           {sharing.location && <MonoChip slot="share-place">{sharing.location}</MonoChip>}
-        </ShareFact>
-        {status && <Standing status={status} />}
-      </ShareFacts>
+        </Fact>
+        <Standing status={status} />
+      </Facts>
       {status?.error && (
-        <div className="mt-3">
+        <div className="mt-3 ml-7">
           <p className="flex items-center gap-1.5 text-sm text-warning-ink">
             <TriangleAlert size={14} aria-hidden className="shrink-0" />
-            {status.contacted ? (
-              <span>
-                The place could not be reached at <ContactTime iso={status.contacted} />.
-              </span>
-            ) : (
-              <span>The place could not be reached.</span>
-            )}
+            <span>The place could not be reached.</span>
           </p>
           <p
             data-slot="share-status-error"
@@ -418,7 +478,7 @@ function TeamCard({
         <Button size="sm" data-slot="share-sync" disabled={syncing} onClick={onSync}>
           Sync now
         </Button>
-        <Button size="sm" variant="ghost" data-slot="share-change" onClick={onSetUp}>
+        <Button size="sm" variant="ghost" data-slot="share-change" onClick={onChange}>
           Change
         </Button>
         {syncing && <LoadingSpinner size="sm" />}
@@ -428,7 +488,7 @@ function TeamCard({
         <p
           data-slot="share-sync-error"
           role="alert"
-          className="mt-2 font-mono text-xs text-destructive"
+          className="mt-2 ml-7 font-mono text-xs text-destructive"
           translate="no"
         >
           {syncError}
@@ -453,7 +513,7 @@ function PlaceKind({ kind }: { kind: string }) {
       return (
         <span data-slot="share-kind" className="inline-flex items-center gap-1.5">
           <Folder {...icon} />
-          {t("A folder")}
+          {t("A shared folder")}
         </span>
       );
     case "s3":
@@ -472,25 +532,24 @@ function PlaceKind({ kind }: { kind: string }) {
   );
 }
 
-/** When this Mac last reached the place, and how far apart the two were then. */
-function Standing({ status }: { status: SyncStatus }) {
+/**
+ * How far apart this Mac and the place were at the last sync. When that was
+ * is on the rung's own line above.
+ */
+function Standing({ status }: { status?: SyncStatus }) {
+  const contacted = status?.contacted;
   return (
     <>
-      <ShareFact label="Last sync">
-        <span data-slot="share-last-sync">
-          {status.contacted ? <ContactTime iso={status.contacted} /> : <>Not yet from this Mac</>}
-        </span>
-      </ShareFact>
-      <ShareFact label="To push">
+      <Fact label={t("To push")}>
         <span data-slot="share-to-push" className="tabular-nums">
-          {status.to_push}
+          {status?.to_push ?? 0}
         </span>
-      </ShareFact>
-      <ShareFact label="To pull">
+      </Fact>
+      <Fact label={t("To pull")}>
         <span data-slot="share-to-pull" className="tabular-nums">
-          {status.contacted ? status.to_pull : <>Known after the first sync</>}
+          {contacted ? status?.to_pull : <>Known after the first sync</>}
         </span>
-      </ShareFact>
+      </Fact>
     </>
   );
 }
@@ -511,7 +570,7 @@ function SyncResultLine({ result }: { result: ContextSyncResult }) {
   const pulled = result.pull?.merged ?? 0;
   const pushed = result.push?.pushed ?? 0;
   return (
-    <div data-slot="share-sync-result" className="mt-2">
+    <div data-slot="share-sync-result" className="mt-2 ml-7">
       <p className="text-sm">
         {syncWroteRulesFiles(result)
           ? t("Pulled {pulled}, pushed {pushed}, rules files written", { pulled, pushed })
@@ -529,45 +588,51 @@ function SyncResultLine({ result }: { result: ContextSyncResult }) {
   );
 }
 
-function BowrainCard({ sharing }: { sharing: ProjectSharing }) {
-  if (!sharing.venue_host) {
+/**
+ * Under Bowrain's rung: the server and workspace once the recipe connects to
+ * one; until then the command that connects it, which needs the kapi-bowrain
+ * plugin, and where to read about Bowrain. A tab with no checkout leaves the
+ * command out, since nothing connects from there.
+ */
+function BowrainDetail({ view, contextOnly }: { view: ShareView; contextOnly?: boolean }) {
+  const sharing = view.sharing;
+  if (view.rung !== "bowrain") {
     return (
-      <>
-        <ShareSentence>
-          Bowrain holds every project&apos;s context in one workspace, with roles, review and a
-          record of who decided what, and runs the project&apos;s loop on the server.
-        </ShareSentence>
-        <Actions>
-          <Button size="sm" variant="outline" asChild>
-            <a
-              href={BOWRAIN_ABOUT_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              data-slot="share-about-bowrain"
-            >
-              About Bowrain
-              <ExternalLink size={13} aria-hidden />
-            </a>
-          </Button>
-        </Actions>
-      </>
+      <Actions>
+        {!contextOnly && <MonoChip slot="share-bowrain-command">{BOWRAIN_SHARE_COMMAND}</MonoChip>}
+        {!contextOnly && !view.bowrain_plugin && (
+          <span data-slot="share-bowrain-plugin" className="text-[11px] text-muted-foreground">
+            Needs the <span translate="no">kapi-bowrain</span> plugin
+          </span>
+        )}
+        <Button size="sm" variant="outline" asChild>
+          <a
+            href={BOWRAIN_ABOUT_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-slot="share-about-bowrain"
+          >
+            About Bowrain
+            <ExternalLink size={13} aria-hidden />
+          </a>
+        </Button>
+      </Actions>
     );
   }
   const venue = venueParts(sharing.venue_url);
   const link = venueLink(sharing);
   return (
     <>
-      <ShareSentence>The recipe connects this project to a Bowrain server.</ShareSentence>
-      <ShareFacts>
-        <ShareFact label="Server">
-          <MonoChip slot="share-server">{sharing.venue_host}</MonoChip>
-        </ShareFact>
+      <Facts>
+        <Fact label={t("Server")}>
+          <MonoChip slot="share-server">{sharing.venue_host || t("A Bowrain server")}</MonoChip>
+        </Fact>
         {venue.workspace && (
-          <ShareFact label="Workspace">
+          <Fact label={t("Workspace")}>
             <MonoChip slot="share-venue-workspace">{venue.workspace}</MonoChip>
-          </ShareFact>
+          </Fact>
         )}
-      </ShareFacts>
+      </Facts>
       {link && (
         <Actions>
           <Button size="sm" variant="outline" asChild>
