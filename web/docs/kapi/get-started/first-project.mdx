@@ -1,7 +1,7 @@
 ---
 title: Your first project
-description: "Create a kapi project in Kapi Desktop, from your AI assistant, or on the command line, then work as you normally would and keep what your agent noticed."
-keywords: [kapi, project, first project, Kapi Desktop, kapi init, context, suggestion, keep, kapi check]
+description: "Open a folder, see what kapi finds in it, decide what becomes a rule, check and fix every edit, put an assistant on the project, and share the rules."
+keywords: [kapi, project, first project, Kapi Desktop, kapi init, kapi look, kapi rules, kapi check, kapi fix, kapi connect, kapi share]
 ---
 
 import Tabs from "@theme/Tabs";
@@ -12,61 +12,39 @@ import { PendingMedia } from "@neokapi/docs-shared";
 
 A project is a committed recipe (`kapi.yaml`) that says which files count as
 content, plus the wiring that lets the coding agents in your repository reach
-kapi. Set it up once and every surface works the same project: the desktop app,
-your assistant, and the CLI.
+kapi. The desktop app, your assistant and the CLI all work on the same project.
 
-Your first project has one language, and this page sets up its gate: the
-rules the project keeps, and a `kapi check` that fails when content breaks
-one. A new project has no terms, approved wording or voice rules. Build its context
-as you work: your agent suggests rules from what it notices, and you keep the
-ones you want `kapi check` to enforce.
+Your first project has one language. This page walks it from an empty recipe
+to a rule that `kapi check` enforces: open the folder, see what kapi finds,
+decide what becomes a rule, check and fix, put an assistant on it, and share
+the rules. Languages are a later step.
 
-That context lives in your workspace on this machine, one store per project,
-and every checkout, worktree and clone of the project reads the same one. The
-recipe says which files are content and which voice and terms apply to them;
-the workspace holds the voice, the terms and the rules themselves.
+The examples come from `acme-docs`, a git repository with a `README.md` and
+five Markdown files under `docs/`. Two of its blocks write *e-mail* where the
+others write *email*.
 
-The loop below is about your own writing. Languages are a later step:
-[Add languages](/kapi/get-started/add-languages) when you want them.
-
-## 1. Create the project
+## 1. Open the folder
 
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
 
 Install [Kapi Desktop](/kapi/get-started/installation#install-kapi-desktop) and
-open it. On first open, the **Connect your AI** card offers whatever it detects
-(a Claude Code sign-in that
-[uses your Claude subscription](/kapi/get-started/use-with-claude#let-kapi-run-claude)
-with no key, a local Ollama model, or a stored API key) in one click; or skip
-and use the demo engine.
+open it. Click **Choose a folder**, or drop the folder on the window. To look
+around first, **Try with KapiMart** opens a sample project with rules, terms
+and an assistant's notes to decide about.
 
-1. **Create the project.** On the home screen, click **New project**, name it,
-   and pick a source language. Or click **Try the sample** under **Start here**
-   to explore a realistic, pre-seeded project first: content collections, a
-   voice profile and terms, five target languages, and a stocked content memory.
-   The sample arrives with an assistant's notes to review.
-2. **Add content.** In the **Project** view, add a pattern that matches your
-   source files (for example `docs/**/*.md`). Kapi lists the matched files and
-   the detected format, grouped into a collection.
-3. **Review project status.** The **Project** section shows two axes: **Content**
-   (what has been read in, what changed on disk, what is
-   missing) and **Governance** (the voice profile in force, the terms that apply,
-   when it last converged). Below, **Where content sits** gives one row for
-   each part of the project the recipe declares. Choose a voice profile under
-   **Project Settings**; the **Context** hub then shows what applies to any file.
-4. **Bring it up to date.** **Bring up to date** runs the project's default flow
-   until every gated scope is shippable or waits for review by a person, the desktop form
-   of `kapi up`. For a source-only project that means the checks, and the
-   findings count on the project's **Map** shows what they found. Anything a
-   machine cannot decide lands in the **Review** queue; see
-   [Review & approve](/kapi/recipes/review-and-approve).
-5. **Come back to Decide.** What an assistant noticed while it worked
-   appears under **What's new** on the home and under **What your files do**
-   on the project's **Map**. **Decide** opens the list of suggestions. Keep
-   what is right and change or drop the rest; [review what your
-   assistant noticed](/kapi/desktop/recipes/review-what-your-assistant-noticed)
-   walks through it on the sample.
+Kapi Desktop reads the files and changes nothing until you ask. The project
+opens on its **Map**, the desktop form of `kapi look`. From there:
+
+- **What your files do** lists the suggestions, and **Decide** asks about each
+  one with **Keep**, **Not a rule** or **Later**.
+- A row under **Files** opens the file in the **Reader**, with each finding in
+  place, the rules in the margin and **Fix** where kapi can fix a finding.
+- The project's **Context** pages hold the **Assistant** section, which
+  connects an assistant, and the **Share** section.
+
+[Review what your assistant noticed](/kapi/desktop/recipes/review-what-your-assistant-noticed)
+walks through the same steps on the sample.
 
 <PendingMedia kind="video" scene="harness/demos/kapi-desktop-projects/demo.yaml">
   Creating a project from the New Project dialog, opening the KapiMart sample,
@@ -82,253 +60,243 @@ connected, ask for the project:
 > Set kapi up for this project.
 
 Claude runs `kapi init` and presents the proposed content collections for your
-review. Commit the generated recipe and agent configuration. Subsequent
-sessions can use the project settings when you ask for a check.
+review. Commit the generated recipe and agent configuration. Step 3, deciding
+what becomes a rule, is yours, in a terminal or in Kapi Desktop.
 
 </TabItem>
 <TabItem value="cli" label="CLI">
 
-[Install the CLI](/kapi/get-started/installation), then from your content
-directory:
+[Install the CLI](/kapi/get-started/installation), then from the folder:
 
-```bash
-kapi init                      # write kapi.yaml with the content it finds, and wire your agents
-```
-
-`kapi init` reads the files in the directory, honouring `.gitignore` and
-skipping dependency and build directories, and names what it chose and every
-file it writes:
-
-```
+```text
+$ kapi init
 Initialized kapi project "acme-docs"
   recipe: /path/to/acme-docs/kapi.yaml
   collections (proposed from the files here; edit the recipe to change them):
     README.md     markdown, 1 file
-    docs/**/*.md  markdown, 12 files
+    docs/**/*.md  markdown, 5 files
   mcp:    .mcp.json (created: kapi mcp --project kapi.yaml)
   skill:  .claude/skills/kapi (created: 1 file)
   rules:  AGENTS.md (created)
   rules:  CLAUDE.md (created)
 ```
 
-The collections are the files kapi reads as content: documents grouped by
-directory, a file at the root on its own, and i18n catalogs where a known
-framework layout or a file named for the source language marks them. Each one
-carries a comment in the recipe saying what it matched. Change them freely;
-`kapi add "<pattern>"` adds another. Running `kapi init` again leaves them as
-they are and prints any content no collection reads yet, with the lines to add.
-
-The last four lines are the wiring: an MCP entry that starts `kapi mcp` for
-this project, a short kapi skill that tells an agent what to do and leaves the
-rest to `kapi help <topic>`, and the project's rules written into `AGENTS.md`
-and `CLAUDE.md`. Those two files sit at the root and in each folder whose rules
-differ, where an agent loads them without asking. A new project has no rules
-yet, so its section says so and names `kapi check`; see
-[rules files for agents](/kapi/context#rules-files). Choose the agents with
-`--agents`, or opt out with `--agents none`; `--no-rules-files` leaves out the
-rules files. See
-[what `kapi init` wires up](/kapi/get-started/use-with-claude#what-kapi-init-wires-up).
-
-For a known stack, `kapi init --preset react-i18next` (or `nextjs`, `vue-i18n`,
-…) writes its catalog layout even before the files exist;
+`kapi init` reads the files in the folder, honouring `.gitignore` and skipping
+dependency and build directories. The collections are the files kapi reads as
+content: documents grouped by directory, a file at the root on its own, and
+i18n catalogs where a known framework layout or a file named for the source
+language marks them. `kapi add "<pattern>"` adds another. Running `kapi init`
+again leaves them as they are and prints any content no collection reads yet.
+For a known stack, `kapi init --preset react-i18next` (or `nextjs`,
+`vue-i18n`, …) writes its catalog layout before the files exist;
 `kapi init --list-presets` lists them.
 
-The recipe is plain YAML. `defaults:` carries what applies to every collection,
-and `collections:` names the content:
+The last four lines connect Claude Code; step 6 says what they are.
+
+The recipe is plain YAML:
 
 ```yaml title="kapi.yaml"
 version: v1
-id: prj_fbqdv5uoovvpkaarpy5vnexhaq
+# This project's stable identity. It survives a rename, a move and a clone,
+# and everything kapi records about the project is keyed on it. Keep it.
+id: prj_fyvo35str3o4bv3aty766bj6w4
 name: acme-docs
 defaults:
   source_language: en
 
+# Collections are the files kapi reads as content. kapi init proposed these
+# from the files it found. Edit them freely; 'kapi add <pattern>' adds more.
 collections:
   # README.md: Markdown, at the root
   - path: README.md
     format: markdown
-  # docs/: 12 Markdown files
+  # docs/: 5 Markdown files
   - path: "docs/**/*.md"
     format: markdown
 ```
 
-`id:` is the project's identity. It survives a rename, a move and a clone, and
-it is what joins two checkouts of one repository to one context. Keep it.
-
-`kapi look`, or `kapi` on its own, prints the project as kapi reads it:
-
-```
-acme-docs · read 13 files just now
-
-  13 files · 32 blocks · 0 rules · 0 findings
-
-Files
-  docs/faq.md               3 blocks
-  docs/guide.md             4 blocks
-  docs/guides/billing.md    2 blocks
-  docs/guides/projects.md   3 blocks
-  docs/guides/settings.md   2 blocks
-  docs/guides/sharing.md    2 blocks
-  docs/installation.md      3 blocks
-  docs/reference/api.md     3 blocks
-  docs/reference/errors.md  2 blocks
-  docs/reference/limits.md  2 blocks
-  docs/release-notes.md     2 blocks
-  docs/screens.md           2 blocks
-  README.md                 2 blocks
-
-Check with `kapi check`. See a file with `kapi look <path>`.
-```
-
-`kapi look docs/guide.md` prints that file's blocks, each finding marked under
-the words it is about, and the rules that hold there.
-
-Commit the recipe and agent configuration. `kapi init` excludes `.kapi/` from
-version control. It contains derived stores and caches, personal reader
-filters, and any redaction vault. The derived data can be rebuilt, but deleting
-the vault loses its withheld originals. See [The project store](/kapi/project-store).
-
-Terms, voice profiles, content memory and approval records are stored in your
-workspace under the project's `id:`. A rule you keep in one checkout therefore
-applies across its branches and worktrees. See
-[Sharing context](/kapi/context-portability) for sharing that context with the
-rest of the team with `kapi context sync`.
+`id:` joins every checkout, worktree and clone of the repository to one
+context, so keep it. Commit the recipe and the agent configuration. `kapi init`
+excludes `.kapi/` from version control: it holds derived stores and caches,
+personal reader filters, and any redaction vault, whose withheld originals are
+lost if you delete it. See [The project store](/kapi/project-store) and the
+[project file reference](/reference/project-file).
 
 Every kapi command run anywhere in the tree finds the project by walking up,
-like git. See the [project file reference](/reference/project-file) for the full
-schema. When you want AI-backed steps, `kapi models setup` detects what you
-already have and confirms it as the default
-([Use with Claude](/kapi/get-started/use-with-claude)).
+like git.
 
 </TabItem>
 </Tabs>
 
-## 2. Work as you normally would
+## 2. See what applies
 
-The next step is the work itself. Open your assistant in the repository and give
-it an ordinary writing task: fix a page, draft a section, rename a feature
-across the docs. Claude Code asks you to approve the project MCP server the
-first time, so review `.mcp.json` the way you would any file a repository ships.
+`kapi look`, or `kapi` on its own, prints the project as kapi reads it:
 
-While it works, the agent follows the rules in `CLAUDE.md` or `AGENTS.md` and
-**records what it notices**: how you spell your own product, which word you use
-where two would do, and every wording you change in its draft. Each of those is
-recorded as a **suggestion** with the file it came from, and holds only where
-the agent saw it. An agent that recorded something ends its report with what
-the session recorded.
+```text
+$ kapi look
+acme-docs · read 6 files just now
 
-Checks report suggestions without changing scores or failing gates. A person
-must keep a suggestion before it becomes a rule.
+  6 files · 18 blocks · 0 rules · 2 findings · kapi suggests 1
 
-## 3. Review what it suggested
+What your files do
+  Name  email, not e-mail, e mail  5 of 7 uses
 
-```bash
-kapi context review
+Files
+  docs/guide.md          5 blocks · 2 findings
+  docs/faq.md            3 blocks
+  docs/installation.md   3 blocks
+  docs/reference/api.md  3 blocks
+  docs/release-notes.md  2 blocks
+  README.md              2 blocks
+
+Decide with `kapi rules`. See a file with `kapi look <path>`.
 ```
 
-The first `kapi look` on a project with no rules files what kapi sees in the
-files as suggestions, such as one word written two ways, with no model. It
-finds nothing in the files above, so review starts empty:
+A new project has no rules, so the first look files what kapi sees in the
+files as suggestions, with no model. Here the files write *email* five times
+and *e-mail* twice. The two findings are the uses of *e-mail*, reported against
+the suggestion and failing nothing. `kapi look docs/guide.md` prints that
+file's blocks with each finding marked under the words it is about.
 
-```
-Nothing is waiting for you. Assistants' notes appear here as suggestions.
-```
+## 3. Decide what becomes a rule
 
-After a session, review asks about each suggestion in turn, with the file and
-sentence it was seen in:
+`kapi rules` asks about each suggestion, with the evidence and what keeping it
+does:
 
-```
-[1/2] 0n791c0w3d  Write use, not utilise.
-  seen "We utilise the widget to configure your account." in docs/guide.md
-  noticed by claude-code
-k keep, w keep and apply more widely, d drop, s skip, q quit:
-```
+```text
+$ kapi rules
+[1/1] Which one do your files use?  #0rbnyk4bjm
+  * 1) email  5 blocks in 4 files
+    2) e-mail  2 blocks in 1 file
+    3) e mail  0 blocks in 0 files
+    4) Other…
+  If you keep "email": the other 2 forms become findings in 2 blocks. Applies to the whole project.
+  Seen "Create a workspace, then invite your team by e-mail address." in docs/guide.md
 
-Answer `k` to keep a suggestion, `d` to drop it, or `s` to leave it for later.
-A suggestion you skip keeps advising. `--session <id>` narrows the review to
-one agent run, the id the agent gave at the end of its report.
-
-Outside a terminal, review lists what is waiting with the id each decision
-takes, and you decide by id:
-
-```bash
-kapi context review --keep 0n791c0w3d
+Decide with: kapi rules --keep <id>, --drop <id> or --later <id>
 ```
 
-```
-#0n792jyqxw  2026-09-21T19:23:01Z  person  keep  of #0n791c0w3d
-  written to the project's terms store
-```
+In a terminal it waits for your answer: `k` keeps the marked form, a number
+picks another, `n` says it is not a rule, and `l` leaves it for later. A
+suggestion left for later keeps advising. Outside a terminal it lists the
+questions, and you decide by id with `kapi rules --keep 0rbnyk4bjm`.
 
-In Kapi Desktop the same list is **Decide**, in a project's **Context** hub
-and reached from the project's **Map**, with **Keep**, **Change** and **Drop**
-on each suggestion and the evidence beside it.
-
-## 4. What keeping does
-
-A suggestion you keep becomes a rule. It is written to the project's terms,
-where every checkout reads it, beside the evidence it rested on. kapi also
-rewrites its section of `CLAUDE.md` and `AGENTS.md`, so the next agent session
-reads the rule there:
+A kept suggestion becomes a rule in the project's terms store, beside the
+evidence it rested on. kapi rewrites its section of `CLAUDE.md` and
+`AGENTS.md`, so the next agent session reads the rule there:
 
 ```
 Say this, not that:
-- use, not "utilise"
+- email, not "e mail" or "e-mail"
 ```
 
-Change it as you keep it with `--use` and `--advisory`, or drop it with
-`--drop`. Either way
-the record stays, so the same suggestion is recognisable the next time
-somebody makes it.
+`--advisory` keeps a rule that reports and never fails. `kapi rules list`
+lists what the project keeps, and `kapi rules drop <id>` sets a rule aside.
+Only a person keeps or drops a suggestion; see
+[Growing context](/kapi/context-decisions).
 
-Only a person keeps or drops a suggestion, or goes back to before an agent's
-session. See [Growing context](/kapi/context-decisions) for every decision and
-who may make it.
+## 4. Check
 
-## 5. Check
+Before you kept it, the suggestion only reported and `kapi check` passed. Now
+it fails on each use of *e-mail*:
 
-```bash
-kapi check docs/guide.md
-```
-
-Before you kept anything, the suggestion read as a note and the check passed:
-
-```
-  outcome  rule              location                                    message
-  REPORTS  terms.vocabulary  docs/guide.md:getting-started/next-steps/p  Suggested rule about "utilise", not yet established
-                                                                         ↳ Use "use" instead
-  REPORTS  terms.vocabulary  docs/guide.md:getting-started/p             Suggested rule about "utilise", not yet established
-                                                                         ↳ Use "use" instead
-
-PASS configured checks: 0 failing, 2 reported · score 100/100
-  Coverage: 1 analyzer run completed.
-  Context: docs/guide.md; voice none (project); terms none loaded
-```
-
-The `Context:` line identifies the applicable voice profile and whether terms
-were loaded. After you keep the rule, the check fails on uses of “utilise”:
-
-```
-  outcome  rule              location                                    message
-  FAILS    terms.vocabulary  docs/guide.md:getting-started/next-steps/p  Forbidden term "utilise" found
-                                                                         ↳ Use "use" instead
-  FAILS    terms.vocabulary  docs/guide.md:getting-started/p             Forbidden term "utilise" found
-                                                                         ↳ Use "use" instead
+```text
+$ kapi check docs/guide.md
+  outcome  rule              location                                      message
+  FAILS    terms.vocabulary  docs/guide.md:getting-started/next-steps/p#2  Forbidden term "e-mail" found
+                                                                           ↳ Use "email" instead
+  FAILS    terms.vocabulary  docs/guide.md:getting-started/p               Forbidden term "e-mail" found
+                                                                           ↳ Use "email" instead
 
 FAIL configured checks: 2 failing, 0 reported · score 50/100
   Coverage: 2 analyzer runs completed.
   Context: docs/guide.md; voice none (project); terms loaded
+Error: quality gate failed
 ```
 
-Run `kapi check` with no path to check the whole project, and `kapi check
---ship` to enforce release policy. Both exit `3` when a finding fails, which is
-what makes it a CI step: see [Ship gates & CI](/kapi/recipes/ship-gates-and-ci).
+The `Context:` line names the voice profile that applies and whether terms were
+loaded. `kapi check` with no path checks the whole project, and
+`kapi check --ship` enforces the release policy. Both exit `3` when a finding
+fails, which is what makes the check a CI step: see
+[Ship gates & CI](/kapi/recipes/ship-gates-and-ci).
 
-Repeat steps 2 to 5 to build a reviewed set of rules from your writing work.
+## 5. Fix
+
+`kapi fix` applies the replacement each failing word-rule finding names, then
+checks the files it wrote again:
+
+```text
+$ kapi fix
+2 fixed in 1 file
+  docs/guide.md  2 fixed: e-mail → email, e-mail → email
+kapi check: no failing findings
+```
+
+Every byte outside the replaced words stays as it was. `kapi fix --dry-run`
+prints the change each file would get and writes nothing. A finding about tone
+or style, or one over words that hold a link or a placeholder, has no automatic
+fix, and `kapi fix` lists it as needing a rewrite.
+
+## 6. Put an assistant on it
+
+`kapi connect` writes what an assistant needs to follow the rules: the rules
+section in `AGENTS.md` and `CLAUDE.md`, an MCP server entry that starts
+`kapi mcp` for this project, and the kapi skill. `kapi init` already did this
+for Claude Code, so here every file is kept:
+
+```text
+$ kapi connect
+Claude Code   connected · rules, MCP server, skill
+  .mcp.json            kept
+  .claude/skills/kapi  kept
+  Stop hook            pending: in Claude Code, /plugin marketplace add neokapi/claude-plugins, then /plugin install kapi@neokapi-plugins
+Cursor        not connected: no .cursor/ folder here (kapi connect cursor adds it)
+VS Code       not connected: no .vscode/ folder here (kapi connect vscode adds it)
+Codex         not connected: no .codex/ folder here (kapi connect codex adds it)
+
+Project
+  kapi.yaml            kept
+  AGENTS.md            kept
+  CLAUDE.md            kept
+
+See what an assistant reads for a file: kapi context <path> --explain
+```
+
+Then give the assistant an ordinary writing task. It reads the rules as it
+starts, asks `kapi context <path>` before it writes a file the rules section
+does not cover, and runs `kapi check` on each file it changed. Claude Code asks
+you to approve the project MCP server the first time, so review `.mcp.json` the
+way you would any file a repository ships.
+
+While it works, the assistant notes what the files keep to and the wording you
+change in its drafts. Each note arrives as a suggestion in `kapi rules`, and
+step 3 decides it. See [Use with Claude](/kapi/get-started/use-with-claude).
+
+## 7. Share the rules
+
+The rules live in your workspace on this machine, keyed on the project's
+`id:`, so every checkout here reads the same ones. `kapi share` shares them
+with the people who work on the project. In a repository with a remote,
+`--via git` keeps them in a ref outside every branch:
+
+```text
+$ kapi share --via git
+kapi.yaml  updated
+With your team · through git (origin refs/kapi/context)
+  pushed 6 changes · pulled none · last sync just now
+```
+
+Commit the change to `kapi.yaml` so every checkout shares through the same
+place. After that, `kapi share` on its own reads what the others shared and
+shares what was kept here. See [Sharing context](/kapi/context-portability).
+
+## Later: add languages
+
+When the project needs a target language, add it to the recipe and run
+`kapi up`. See [Add languages](/kapi/get-started/add-languages).
 
 ## Next
 
-- [Add languages](/kapi/get-started/add-languages): target locales, `kapi up`, review, gates.
-- [Growing context](/kapi/context-decisions): noting, reviewing, and going back to before an agent's session.
+- [Growing context](/kapi/context-decisions): noting, deciding, and going back to before an agent's session.
 - [Projects](/kapi/projects): the concept; ad-hoc vs project, the recipe, the store.
 - [Set up your brand guide in 10 minutes](/kapi/recipes/brand-guide-in-10-minutes): writing a voice profile by hand, when you want one.
