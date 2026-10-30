@@ -962,11 +962,13 @@ func wrapRunes(text []rune, width int) []runeLine {
 
 // writeCarets draws, under one wrapped line, a caret under every rune of the
 // line a finding covers, then the label of each finding that starts on the
-// line, beginning at its first caret. next is where the following line starts
-// (the text's length for the last line), so a finding that starts on the space
-// a line breaks at is labelled once, on the line before the break. Labels that
-// fit share a row when they do not touch; a label too long for the room right
-// of its caret wraps onto the rows below it, at the same column.
+// line, beginning at its first caret.
+//
+// next is where the following line starts, or the text's length for the last
+// line. A finding is labelled on the line it starts on, and one that starts on
+// the space a line breaks at is labelled on the line before the break. Labels
+// that fit share a row when they do not touch. A label too long for the room
+// right of its caret wraps onto the rows below it, at the same column.
 func writeCarets(w io.Writer, s *output.Styles, indent string, ln runeLine, next int, findings []LookFinding, textW int) {
 	carets := make([]rune, ln.end-ln.start)
 	for i := range carets {
