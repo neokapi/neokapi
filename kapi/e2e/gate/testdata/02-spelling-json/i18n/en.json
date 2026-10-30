@@ -1,0 +1,8 @@
+{
+  "welcome":  "Send us an e-mail to start.",
+  "help":     "Questions? Reply to the e-mail we sent.",
+  "settings": {
+    "notify": "Notify me by e-mail",
+    "theme":  "Dark theme"
+  }
+}

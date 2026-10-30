@@ -1,0 +1,9 @@
+version: v1
+name: gate-advisory
+defaults:
+  source_language: en
+collections:
+  - name: Docs
+    source_only: true
+    content:
+      - path: "docs/*.md"

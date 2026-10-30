@@ -1,0 +1,5 @@
+name: house
+style:
+  prohibited_patterns:
+    - regex: '—'
+      description: Use a comma or a full stop

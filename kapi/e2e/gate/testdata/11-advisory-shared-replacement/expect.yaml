@@ -1,0 +1,36 @@
+description: >-
+  Two word rules that name the same replacement keep their own marking: the
+  advisory one reports and the unmarked one fails.
+stages:
+  - name: imported
+    steps:
+      - kapi: [store, import]
+    files:
+      - path: docs/guide.md
+        check:
+          report:
+            - {rule: terms.vocabulary, block: "guide/p", quote: leverage, fails: false}
+            - rule: terms.vocabulary
+              block: "guide/p#2"
+              quote: utilize
+              fails: true
+              xfail: >-
+                the import folds both rules into one terms-store concept (the
+                replacement "use"), and the advisory marking of leverage
+                applies to utilize too, so it only reports
+    hook:
+      blocks: true
+      names:
+        - Forbidden term "utilize" found
+      xfail: the unmarked rule only reports, so nothing fails and the hook lets the assistant stop
+  - name: fixed
+    files:
+      - path: docs/guide.md
+        fix:
+          after: |
+            # Guide
+
+            We leverage the cache.
+
+            We use the tool.
+          xfail: the unmarked rule only reports, so kapi fix leaves utilize as it is

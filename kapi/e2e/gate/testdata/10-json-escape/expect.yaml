@@ -1,0 +1,32 @@
+description: >-
+  A JSON file that writes a character as a \u escape is fixed and keeps the
+  escape as it is written, whether the escape sits in another value or in the
+  value kapi fix rewrites.
+stages:
+  - name: imported
+    steps:
+      - kapi: [store, import]
+    files:
+      - path: i18n/en.json
+        check:
+          failing: 1
+          report:
+            - {rule: terms.vocabulary, block: welcome, quote: e-mail, fails: true}
+        fix:
+          failing: 0
+          after: |
+            {
+              "welcome": "Send us an email to start.",
+              "pending": "Saving\u2026"
+            }
+      - path: i18n/notice.json
+        check:
+          failing: 1
+          report:
+            - {rule: terms.vocabulary, block: notice, quote: e-mail, fails: true}
+        fix:
+          failing: 0
+          after: |
+            {
+              "notice": "Check your email \u2014 the link expires in an hour."
+            }

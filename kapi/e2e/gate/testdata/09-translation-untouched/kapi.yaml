@@ -1,0 +1,10 @@
+version: v1
+name: gate-translation
+defaults:
+  source_language: en
+  target_languages: [fr]
+collections:
+  - name: Docs
+    content:
+      - path: "docs/*.md"
+        target: "docs/{lang}/*.md"

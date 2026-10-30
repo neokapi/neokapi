@@ -1,0 +1,31 @@
+description: >-
+  A spelling rule, email not e-mail, read from the voice file into the terms
+  store, fails a check on each use in a JSON file, and kapi fix rewrites those
+  words and keeps every other byte, including the alignment and the nesting.
+stages:
+  - name: imported
+    steps:
+      - kapi: [store, import]
+    files:
+      - path: i18n/en.json
+        check:
+          failing: 3
+          report:
+            - {rule: terms.vocabulary, block: welcome, quote: e-mail, fails: true}
+            - {rule: terms.vocabulary, block: help, quote: e-mail, fails: true}
+            - {rule: terms.vocabulary, block: settings.notify, quote: e-mail, fails: true}
+          absent:
+            - {block: settings.theme}
+        fix:
+          failing: 0
+          after: |
+            {
+              "welcome":  "Send us an email to start.",
+              "help":     "Questions? Reply to the email we sent.",
+              "settings": {
+                "notify": "Notify me by email",
+                "theme":  "Dark theme"
+              }
+            }
+        context:
+          names: ['email, not "e-mail"']

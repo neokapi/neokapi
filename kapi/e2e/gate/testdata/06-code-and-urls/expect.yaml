@@ -1,0 +1,44 @@
+description: >-
+  A banned word in program syntax is left alone. A rule scoped to prose does
+  not fire inside a markdown code span; no rule fires on a URL or a link
+  target, or on a JSON key; and kapi fix never rewrites any of them.
+
+  A rule that names no scope matches inside code on purpose, so a name written
+  wrongly in a code sample is still found (core/check/termtext.go,
+  PlaceholderText). Its finding in a code span fails, and kapi fix lists it as
+  needing a rewrite rather than changing the command.
+stages:
+  - name: imported
+    steps:
+      - kapi: [store, import]
+    files:
+      - path: docs/code.md
+        check:
+          report:
+            # Unscoped: reported in the code span by design.
+            - {rule: terms.vocabulary, block: "code/p", quote: utilize, fails: true}
+          absent:
+            - quote: leverage
+              xfail: >-
+                a prose-scoped rule still fires inside a markdown code span,
+                read from the terms store or from --profile-file alike (the
+                reader holds the span as inline-code runs, and the scope looks
+                for backticks in the text)
+        fix: {}
+        context:
+          names: ['use, not "utilize"', 'rely on, not "leverage"']
+      - path: docs/links.md
+        check:
+          absent:
+            - block: "links/p"
+              quote: utilize
+              xfail: a bare URL in markdown prose is read as words, so the rule fires on its path
+            - {block: "links/p#2", quote: utilize}
+        fix:
+          xfail: >-
+            kapi fix rewrites the bare URL's path to
+            https://example.com/use/setup, which breaks the link
+      - path: i18n/en.json
+        check:
+          failing: 0
+          reporting: 0

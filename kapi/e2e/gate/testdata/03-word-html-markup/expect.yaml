@@ -1,0 +1,27 @@
+description: >-
+  A word rule, use not utilize, finds the word inside a <b> element and beside
+  a &nbsp; entity in HTML, and kapi fix replaces each on the right bytes,
+  leaving the markup and the entity as they are.
+stages:
+  - name: imported
+    steps:
+      - kapi: [store, import]
+    files:
+      - path: web/index.html
+        check:
+          failing: 2
+          report:
+            - {rule: terms.vocabulary, block: p, quote: utilize, fails: true}
+            - {rule: terms.vocabulary, block: "p#2", quote: utilize, fails: true}
+        fix:
+          failing: 0
+          after: |
+            <!DOCTYPE html>
+            <html lang="en">
+            <body>
+            <p>We <b>use</b> the tool every day.</p>
+            <p>Please&nbsp;use the form below.</p>
+            </body>
+            </html>
+        context:
+          names: ['use, not "utilize"']

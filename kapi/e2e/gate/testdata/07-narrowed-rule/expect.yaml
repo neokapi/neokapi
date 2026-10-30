@@ -1,0 +1,46 @@
+description: >-
+  A kept rule holds in the whole project until a person narrows it with kapi
+  rules narrow; from then on it fails in that collection and is silent in the
+  other.
+stages:
+  - name: whole-project
+    steps:
+      - actor: agent
+        kapi: [context, note, --term, use, --instead-of, utilise]
+      - keep: Write use, not utilise.
+    files:
+      - path: docs/guide.md
+        check:
+          failing: 1
+          report:
+            - {rule: terms.vocabulary, block: "guide/p", quote: utilise, fails: true}
+      - path: blog/post.md
+        check:
+          failing: 1
+          report:
+            - {rule: terms.vocabulary, block: "post/p", quote: utilise, fails: true}
+  - name: narrowed-to-docs
+    steps:
+      - narrow: Write use, not utilise.
+        to: docs
+    files:
+      - path: docs/guide.md
+        check:
+          failing: 1
+          report:
+            - {rule: terms.vocabulary, block: "guide/p", quote: utilise, fails: true}
+        context:
+          names: ['use, not "utilise"']
+      - path: blog/post.md
+        check:
+          failing: 0
+          reporting: 0
+          absent:
+            - {quote: utilise}
+        fix: {}
+        context:
+          omits: ['use, not "utilise"']
+    hook:
+      blocks: true
+      names:
+        - FAILS [terminology] docs/guide.md

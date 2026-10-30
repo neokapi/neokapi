@@ -1,0 +1,7 @@
+name: house
+terms:
+  - term: leverage
+    replacement: rely on
+    advisory: true
+  - term: utilize
+    replacement: use

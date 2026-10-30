@@ -1,0 +1,10 @@
+version: v1
+name: gate-code-urls
+defaults:
+  source_language: en
+collections:
+  - name: Docs
+    source_only: true
+    content:
+      - path: "docs/*.md"
+      - path: "i18n/*.json"

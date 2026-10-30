@@ -1,0 +1,46 @@
+description: >-
+  A kept name rule, "Sign in" not "Log in", "login" or "Signin", fails a check
+  on each rejected form, kapi fix rewrites exactly those words, and the Stop
+  hook blocks an assistant that writes one again.
+stages:
+  - name: kept
+    steps:
+      - actor: agent
+        kapi: [context, note, --term, Sign in, --instead-of, Log in, --instead-of, login, --instead-of, Signin, --seen-in, docs/guide.md]
+      - keep: Write Sign in, not Log in, login, Signin, Sign-in or SignIn.
+    files:
+      - path: docs/guide.md
+        check:
+          failing: 3
+          reporting: 0
+          report:
+            - {rule: terms.vocabulary, block: "welcome/p#2", quote: Log in, fails: true}
+            - {rule: terms.vocabulary, block: "welcome/p#3", quote: login, fails: true}
+            - {rule: terms.vocabulary, block: "welcome/p#4", quote: Signin, fails: true}
+          absent:
+            - {quote: Sign in}
+        fix:
+          failing: 0
+          after: |
+            # Welcome
+
+            Sign in to start.
+
+            Sign in with your account.
+
+            Open the Sign in page.
+
+            Sign in takes a moment.
+        context:
+          names: ['Sign in, not "Log in", "login"']
+    hook:
+      blocks: false
+  - name: assistant-edit
+    hook:
+      edit:
+        path: docs/guide.md
+        append: "\nLog in again after an hour.\n"
+      blocks: true
+      names:
+        - FAILS [terminology] docs/guide.md
+        - Forbidden term "Log in" found

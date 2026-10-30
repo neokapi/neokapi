@@ -1,0 +1,35 @@
+description: >-
+  A rule an assistant suggests with kapi context note --suggest reports with
+  suggested: true and fails nothing, so neither kapi fix nor the Stop hook acts
+  on it. Once a person keeps it with kapi rules --keep, it fails.
+stages:
+  - name: suggested
+    steps:
+      - actor: agent
+        kapi: [context, note, --from, utilise, --to, use, --seen-in, docs/guide.md, --suggest]
+    files:
+      - path: docs/guide.md
+        check:
+          failing: 0
+          reporting: 1
+          report:
+            - {rule: terms.vocabulary, block: "guide/p", quote: utilise, fails: false, suggested: true}
+        fix: {}
+    hook:
+      blocks: false
+  - name: kept
+    steps:
+      - keep: Write use, not utilise.
+    files:
+      - path: docs/guide.md
+        check:
+          failing: 1
+          reporting: 0
+          report:
+            - {rule: terms.vocabulary, block: "guide/p", quote: utilise, fails: true, suggested: false}
+        context:
+          names: ['use, not "utilise"']
+    hook:
+      blocks: true
+      names:
+        - Forbidden term "utilise" found

@@ -175,6 +175,79 @@ separate suite in the [okapi-bridge repository](https://github.com/neokapi/okapi
 (`parity/`). It compiles against a released neokapi module and runs on a
 schedule there; see [A-02](/contribute/architecture/assurance/a-02-parity).
 
+## Gate Conformance Suite
+
+The gate conformance suite holds the built `kapi` binary to what the gate
+claims. Each case states which findings `kapi check` reports and which it
+leaves alone, what `kapi fix` writes, what `kapi context <path>` names among a
+file's rules, and what the Claude Code plugin's Stop hook decides after an
+edit. Run it with:
+
+```bash
+make gate-conformance
+```
+
+The target runs `TestGateConformance` in `kapi/e2e/`, so it uses the binary and
+the isolation environment that package's `TestMain` sets up, and gives each case
+a workspace of its own. It prints a matrix with one line per case and surface
+(`check`, `fix`, `context`, `hook`): `pass`, `fail`, `expected-fail` with the
+reason, or `not covered`.
+
+Each case is a directory under `kapi/e2e/gate/testdata/<case>/`. The directory
+is a small project: a `kapi.yaml`, its content files, and any context files
+under `.kapi/` (a `voice.yaml` whose `terms:` and patterns `kapi store import`
+reads into the project's store). Beside them, `expect.yaml` lists stages. Each
+stage runs its `steps` and then checks its expectations:
+
+```yaml
+description: A kept name rule fails a check on each rejected form.
+stages:
+  - name: kept
+    steps:
+      - actor: agent
+        kapi: [context, note, --term, Sign in, --instead-of, Log in]
+      - keep: Write Sign in, not Log in, Sign-in, Signin or SignIn.
+    files:
+      - path: docs/guide.md
+        check:
+          failing: 1
+          report:
+            - {rule: terms.vocabulary, block: "welcome/p", quote: Log in, fails: true}
+          absent:
+            - {quote: Sign in}
+        fix:
+          failing: 0
+          after: |
+            # Welcome
+
+            Sign in with your account.
+        context:
+          names: ['Sign in, not "Log in"']
+    hook:
+      edit: {path: docs/guide.md, append: "\nLog in again.\n"}
+      blocks: true
+      names: [Forbidden term "Log in" found]
+```
+
+A step is a `kapi` command line (run in the project, as the person or as an
+`agent`), a `keep` or `narrow` of a rule named by the sentence `kapi rules`
+prints, or a `write` to a file. A `fix` with no `after` asserts that the file
+keeps its bytes; `args: []` runs `kapi fix` over the whole project, and
+`unchanged` names other files whose bytes must not move.
+
+To add a case, copy the nearest directory, change the project and the
+expectations, and run `make gate-conformance`. A failing expectation prints the
+full `kapi check --json` report, or the fix output and both versions of the
+file. Find the block ids and quoted words there.
+
+An expectation the current code does not meet carries `xfail: <reason>`. It is
+listed as `expected-fail` with that reason and does not fail the run. When the
+behaviour lands, the expectation passes, the run fails and names the `xfail` to
+remove. Never mark an expectation as skipped instead.
+
+The fixtures contain banned words on purpose. The repository's own `kapi.yaml`
+excludes `**/testdata/**`, so `kapi check` on the repository never reads them.
+
 ## CI
 
 Tests run automatically via GitHub Actions on every push and pull request. See `.github/workflows/ci.yml`.
