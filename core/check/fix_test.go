@@ -45,6 +45,9 @@ func TestFix(t *testing.T) {
 		model.PcCloseR(model.PcCloseRun{ID: "1", Type: model.TypeInlineCode, Data: "`"}),
 		model.TextR(" once, then utilize it."),
 	}
+	// "See https://example.com/utilize for it." with the address written
+	// bare, which a reader keeps as text.
+	bareURL := []model.Run{model.TextR("See https://example.com/utilize for it.")}
 	rangeOf := func(sr, so, er, eo int) model.Anchor {
 		return model.Anchor{Kind: model.AnchorRange, Start: model.RunPos{Run: sr, Offset: so}, End: model.RunPos{Run: er, Offset: eo}}
 	}
@@ -122,6 +125,34 @@ func TestFix(t *testing.T) {
 			f:    Finding{OriginalText: "utilize", Position: rangeOf(4, 12, 4, 19), Metadata: replacing},
 			runs: codeSpan, at: own, rev: rev,
 			want: `{"op":"replace_text","at":{"doc":"docs/guide.md","block":"guide/p"},"if_match":"r:0123456789abcdef","edits":[{"range":{"start":{"run":4,"offset":12},"end":{"run":4,"offset":19}},"text":"use"}]}`,
+		},
+		{
+			name: "words inside a bare URL have no fix, which would break the address",
+			f:    Finding{OriginalText: "utilize", Position: rangeOf(0, 24, 0, 31), Metadata: replacing},
+			runs: bareURL, at: own, rev: rev,
+		},
+		{
+			name: "quoted words inside a bare URL have no fix",
+			f:    Finding{OriginalText: "utilize", Metadata: replacing},
+			runs: bareURL, at: own, rev: rev,
+		},
+		{
+			name: "a lower-case replacement keeps the capital of the words it replaces",
+			f:    Finding{OriginalText: "E-mail", Position: rangeOf(0, 0, 0, 6), Metadata: map[string]string{"replacement": "email"}},
+			runs: []model.Run{model.TextR("E-mail address")}, at: own, rev: rev,
+			want: `{"op":"replace_text","at":{"doc":"docs/guide.md","block":"guide/p"},"if_match":"r:0123456789abcdef","edits":[{"range":{"start":{"run":0},"end":{"run":0,"offset":6}},"text":"Email"}]}`,
+		},
+		{
+			name: "quoted words keep their capital too",
+			f:    Finding{OriginalText: "Utilize", Metadata: replacing},
+			runs: []model.Run{model.TextR("Utilize the widget.")}, at: own, rev: rev,
+			want: `{"op":"replace_text","at":{"doc":"docs/guide.md","block":"guide/p"},"if_match":"r:0123456789abcdef","edits":[{"find":"Utilize","text":"Use"}]}`,
+		},
+		{
+			name: "a replacement the rule writes with a capital lands as written",
+			f:    Finding{OriginalText: "login", Position: rangeOf(0, 9, 0, 14), Metadata: map[string]string{"replacement": "Sign in"}},
+			runs: []model.Run{model.TextR("Open the login page.")}, at: own, rev: rev,
+			want: `{"op":"replace_text","at":{"doc":"docs/guide.md","block":"guide/p"},"if_match":"r:0123456789abcdef","edits":[{"range":{"start":{"run":0,"offset":9},"end":{"run":0,"offset":14}},"text":"Sign in"}]}`,
 		},
 		{name: "quoted words the edition does not hold have no fix", f: Finding{OriginalText: "leverage", Metadata: replacing}, runs: plain, at: own, rev: rev},
 		{name: "a range outside the runs has no fix", f: Finding{OriginalText: "utilize", Position: rangeOf(0, 3, 9, 0), Metadata: replacing}, runs: plain, at: own, rev: rev},
