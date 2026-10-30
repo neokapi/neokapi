@@ -32,7 +32,7 @@ func TestUp_ChecksInLoop_FailingPlaceholderParks(t *testing.T) {
 
 	out, err := runUp(t, a, recipe)
 	require.NoError(t, err, "failing checks park the locale — never a build failure")
-	assert.Contains(t, out, "parked (needs human)", out)
+	assert.Contains(t, out, "waiting for review", out)
 	assert.Contains(t, out, "1 block(s) failing checks", out)
 	assert.Contains(t, out, "Not yet up to date", out)
 

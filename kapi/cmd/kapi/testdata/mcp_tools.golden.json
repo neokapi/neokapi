@@ -2257,7 +2257,7 @@
           "type": "boolean"
         },
         "passes": {
-          "description": "maximum reconciliation passes (0 = loop until up to date or parked; 1 = single pass)",
+          "description": "maximum reconciliation passes (0 = loop until up to date or waiting for review; 1 = single pass)",
           "type": "integer"
         },
         "project": {

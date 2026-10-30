@@ -184,6 +184,6 @@ func TestConverge_UntilGateParksUnreachableGate(t *testing.T) {
 	out, err := runConverge(t, a, recipe, ConvergeOptions{UntilGate: true, MaxPasses: 2})
 	require.NoError(t, err, "parked work is reported, never a build failure")
 
-	assert.Contains(t, out, "parked (needs human)", "reviewed:100 cannot be reached by an automated flow")
+	assert.Contains(t, out, "waiting for review", "reviewed:100 cannot be reached by an automated flow")
 	assert.Contains(t, out, "Not yet up to date")
 }

@@ -204,7 +204,7 @@ func (o ConvergeOutput) FormatText(w io.Writer) error {
 		state := s.Warn.Render("pending")
 		switch {
 		case lc.Parked:
-			state = s.Warn.Render("parked (needs human)")
+			state = s.Warn.Render("waiting for review")
 		case lc.ShipState == ShipStateNotGated:
 			// No ship gate matches the locale's content, so there is no bar the
 			// run could report it as clearing.
@@ -261,7 +261,7 @@ func (o ConvergeOutput) FormatText(w io.Writer) error {
 	} else if o.StallReason == convergence.StallSourceNotReady {
 		fmt.Fprintln(w, "Held on source. Nothing translatable is settled yet. Set defaults.translate_after: none to draft freely.")
 	} else {
-		fmt.Fprintln(w, "Not yet up to date: parked locales await human review (never a build failure).")
+		fmt.Fprintln(w, "Not yet up to date: some languages wait for review (never a build failure).")
 	}
 	if o.MaterializedFiles > 0 {
 		fmt.Fprintf(w, "Materialized %d target file(s) from the project store.\n", o.MaterializedFiles)
