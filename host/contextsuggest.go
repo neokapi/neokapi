@@ -2,6 +2,8 @@ package host
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"maps"
@@ -20,6 +22,7 @@ import (
 	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/profile/packs"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/workspace"
 )
 
 // The suggestions pass (`kapi context suggest`) reads the source blocks of
@@ -216,10 +219,17 @@ func (a *App) SuggestFromFiles(ctx context.Context, req ContextSuggestRequest) (
 	if err != nil {
 		return ContextSuggestResult{}, err
 	}
+	return s.suggestFromFiles(ctx, req.DryRun)
+}
+
+// suggestFromFiles runs the suggestions pass over the session's checkout. A
+// run that is not a dry run stamps the checkout (noteSuggestPass), whatever it
+// found.
+func (s *contextOpsSession) suggestFromFiles(ctx context.Context, dry bool) (ContextSuggestResult, error) {
 	if !s.checkedOut() {
 		return ContextSuggestResult{}, fmt.Errorf("project %s has no checkout on this machine, so there are no files to read", s.key)
 	}
-	out := ContextSuggestResult{Project: string(s.key), DryRun: req.DryRun, Suggestions: []SuggestedFinding{}}
+	out := ContextSuggestResult{Project: string(s.key), DryRun: dry, Suggestions: []SuggestedFinding{}}
 
 	corpus, err := s.suggestCorpus(ctx)
 	if err != nil {
@@ -231,7 +241,7 @@ func (a *App) SuggestFromFiles(ctx context.Context, req ContextSuggestRequest) (
 	if err != nil {
 		return out, err
 	}
-	f := &suggestFiler{s: s, records: records, dry: req.DryRun, scopes: map[string]suggestPoint{}}
+	f := &suggestFiler{s: s, records: records, dry: dry, scopes: map[string]suggestPoint{}}
 
 	findings := spellingFindings(corpus)
 	if english(corpus.language) {
@@ -253,7 +263,51 @@ func (a *App) SuggestFromFiles(ctx context.Context, req ContextSuggestRequest) (
 		}
 		out.Suggestions = append(out.Suggestions, sug)
 	}
+	if !dry {
+		if err := s.noteSuggestPass(ctx, corpus); err != nil {
+			return out, err
+		}
+	}
 	return out, nil
+}
+
+// suggestPassStampPath is the path of the stamp a run of the suggestions pass
+// leaves for a checkout, in the table where `kapi store import` stamps each
+// context file it read (workspace.ContextImportStamp). It begins with a slash,
+// so no project-relative file path is spelled the same way. A run that files
+// nothing leaves nothing in the context log, and the stamp is how the first
+// look at a project (lookFirstPass) knows the pass has run there.
+const suggestPassStampPath = "/kapi context suggest"
+
+// noteSuggestPass stamps the checkout with the digest of the blocks the pass
+// read. A pass that read no blocks has seen nothing, and a workspace opened
+// for reading records nothing, so both leave the checkout unstamped.
+func (s *contextOpsSession) noteSuggestPass(ctx context.Context, c suggestCorpus) error {
+	if len(c.blocks) == 0 || s.ws.Describe().ReadOnly {
+		return nil
+	}
+	sum := sha256.New()
+	for _, b := range c.blocks {
+		_, _ = io.WriteString(sum, b.file+"\x00"+b.text+"\x00")
+	}
+	return s.ws.NoteContextImports(ctx, workspace.ContextImportStamp{
+		Project:  s.key,
+		Checkout: normalizedCheckout(s.root),
+		Path:     suggestPassStampPath,
+		Digest:   hex.EncodeToString(sum.Sum(nil)),
+	})
+}
+
+// suggestPassRan reports whether the suggestions pass has run over this
+// checkout: whether noteSuggestPass stamped it.
+func (s *contextOpsSession) suggestPassRan(ctx context.Context) (bool, error) {
+	stamps, err := s.ws.ContextImports(ctx, s.key, normalizedCheckout(s.root))
+	if err != nil {
+		return false, err
+	}
+	return slices.ContainsFunc(stamps, func(st workspace.ContextImportStamp) bool {
+		return st.Path == suggestPassStampPath
+	}), nil
 }
 
 // english reports a source language the English word lists apply to.

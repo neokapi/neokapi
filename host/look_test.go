@@ -10,7 +10,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/check"
+	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/workspace"
 )
 
 // TestLookReader_CaretsFollowTheWrappedLine: a block wider than the terminal
@@ -151,4 +153,128 @@ func TestWrapRunes(t *testing.T) {
 		}
 		assert.Equal(t, tt.want, got, tt.text)
 	}
+}
+
+// lookStamp is the stamp the suggestions pass left for the checkout at root
+// of the project suggestProject wrote under name, and whether it left one.
+func lookStamp(t *testing.T, app *App, name, root string) (workspace.ContextImportStamp, bool) {
+	t.Helper()
+	ws, err := app.Workspace(t.Context())
+	require.NoError(t, err)
+	stamps, err := ws.ContextImports(t.Context(), workspace.ProjectKey(projectIDFor(name)), normalizedCheckout(root))
+	require.NoError(t, err)
+	for _, s := range stamps {
+		if s.Path == suggestPassStampPath {
+			return s, true
+		}
+	}
+	return workspace.ContextImportStamp{}, false
+}
+
+// kapiRecords counts the operations the suggestions pass recorded for the
+// project at root.
+func kapiRecords(t *testing.T, app *App, root string) int {
+	t.Helper()
+	log, err := app.ContextOperations(t.Context(), ContextLogRequest{Project: recipeOf(root)})
+	require.NoError(t, err)
+	n := 0
+	for _, op := range log.Operations {
+		if op.Actor == SuggestActor {
+			n++
+		}
+	}
+	return n
+}
+
+// lookMap runs the Map over the project at root.
+func lookMap(t *testing.T, app *App, root string) *LookProject {
+	t.Helper()
+	m, err := app.LookProject(lookCommand(t.Context(), recipeOf(root)))
+	require.NoError(t, err)
+	return m
+}
+
+// TestLookProject_FirstLookFilesWhatKapiSees: the first look at a new project
+// runs the suggestions pass, so the Map counts what the files do without a
+// model, and a second look runs no pass.
+func TestLookProject_FirstLookFilesWhatKapiSees(t *testing.T) {
+	app, _ := contextOpsApp(t)
+	root := suggestProject(t, "firstlook", "", map[string]string{
+		"docs/a.md": "Send an email.\n\nReply by email.\n\nOr send an e-mail.\n",
+	})
+
+	m := lookMap(t, app, root)
+	require.Equal(t, 1, m.Suggests)
+	require.Len(t, m.Suggestions, 1)
+	assert.Equal(t, "Name", m.Suggestions[0].Kind)
+	assert.Equal(t, "email, not e-mail, e mail", m.Suggestions[0].Text)
+	assert.Equal(t, "kapi context review", m.Next)
+	var text bytes.Buffer
+	require.NoError(t, m.FormatText(&text))
+	assert.Contains(t, text.String(), "kapi suggests 1")
+	assert.Contains(t, text.String(), "What your files do\n  Name  email, not e-mail, e mail  2 of 3 uses\n")
+
+	first, ok := lookStamp(t, app, "firstlook", root)
+	require.True(t, ok, "the pass stamps the checkout")
+	filed := kapiRecords(t, app, root)
+	require.Positive(t, filed)
+
+	// A person drops the suggestion, so nothing answers; the stamp says the
+	// pass has run.
+	_, err := app.DecideContextReview(t.Context(), ContextReviewRequest{Actor: person, Project: recipeOf(root), Drop: []string{m.Suggestions[0].ID}})
+	require.NoError(t, err)
+	assert.Zero(t, lookMap(t, app, root).Suggests)
+	second, ok := lookStamp(t, app, "firstlook", root)
+	require.True(t, ok)
+	assert.Equal(t, first.At, second.At, "the second look runs no pass")
+	assert.Equal(t, filed, kapiRecords(t, app, root))
+}
+
+// TestLookProject_EmptyPassRunsOnce: a pass that finds nothing records no
+// operation, and its stamp keeps the next look from running it again.
+func TestLookProject_EmptyPassRunsOnce(t *testing.T) {
+	app, _ := contextOpsApp(t)
+	root := suggestProject(t, "emptypass", "", map[string]string{"docs/a.md": "# Guide\n\nOpen the editor to write.\n"})
+
+	assert.Zero(t, lookMap(t, app, root).Suggests)
+	assert.Zero(t, kapiRecords(t, app, root))
+	first, ok := lookStamp(t, app, "emptypass", root)
+	require.True(t, ok, "an empty pass stamps the checkout")
+
+	lookMap(t, app, root)
+	second, ok := lookStamp(t, app, "emptypass", root)
+	require.True(t, ok)
+	assert.Equal(t, first.At, second.At, "the second look runs no pass")
+}
+
+// TestLookProject_NoBlocksNoStamp: a project with no content has given the
+// pass nothing to read, so the look after files are added still runs it.
+func TestLookProject_NoBlocksNoStamp(t *testing.T) {
+	app, _ := contextOpsApp(t)
+	root := suggestProject(t, "noblocks", "", nil)
+
+	assert.NotNil(t, lookMap(t, app, root).Source)
+	_, ok := lookStamp(t, app, "noblocks", root)
+	assert.False(t, ok)
+}
+
+// TestLookProject_KeptRuleRunsNoPass: a project with a rule a person kept is
+// past its first look, so the look runs no pass over it.
+func TestLookProject_KeptRuleRunsNoPass(t *testing.T) {
+	app, _ := contextOpsApp(t)
+	root := suggestProject(t, "keptrule", "", map[string]string{
+		"docs/a.md": "Send an email.\n\nReply by email.\n\nOr send an e-mail.\n",
+	})
+	op, err := app.RecordContextObservation(t.Context(), ContextObserveRequest{
+		Actor: agentIn("s1"), Project: recipeOf(root), Term: "email", InsteadOf: []string{"e-mail"},
+		Evidence: []contextop.Evidence{{Path: "docs/a.md"}},
+	})
+	require.NoError(t, err)
+	_, err = app.KeepContextOperation(t.Context(), ContextKeepRequest{Actor: person, Project: recipeOf(root), ID: op.ID})
+	require.NoError(t, err)
+
+	assert.Zero(t, lookMap(t, app, root).Suggests)
+	_, ok := lookStamp(t, app, "keptrule", root)
+	assert.False(t, ok, "no pass ran")
+	assert.Zero(t, kapiRecords(t, app, root))
 }

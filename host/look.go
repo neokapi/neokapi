@@ -115,6 +115,7 @@ func (a *App) LookProject(cmd Command) (*LookProject, error) {
 		return nil, fmt.Errorf("load project: %w", err)
 	}
 	root := filepath.Dir(recipe)
+	a.lookFirstPass(ctx, recipe)
 	pcmd := lookCommand(ctx, recipe)
 	a.applyProjectSourceLang(pcmd)
 
@@ -194,6 +195,32 @@ func (a *App) LookProject(cmd Command) (*LookProject, error) {
 		out.Next = "kapi check"
 	}
 	return out, nil
+}
+
+// lookFirstPass runs the suggestions pass (`kapi context suggest`) the first
+// time a project is looked at, so the Map of a new project counts what the
+// files already do. It runs over a checkout the pass has never stamped, in a
+// project whose context log holds no rule and no suggestion that answers. A
+// pass that cannot run leaves the Map to count what the log holds, and the
+// Map prints nothing about it either way.
+func (a *App) lookFirstPass(ctx context.Context, recipe string) {
+	s, err := a.contextOps(ctx, recipe)
+	if err != nil || !s.checkedOut() || s.ws.Describe().ReadOnly {
+		return
+	}
+	if ran, err := s.suggestPassRan(ctx); err != nil || ran {
+		return
+	}
+	records, err := s.ledger.Records(ctx, contextop.Filter{Project: s.key, Subjects: true})
+	if err != nil {
+		return
+	}
+	for _, r := range records {
+		if r.Status.Answers() {
+			return
+		}
+	}
+	_, _ = s.suggestFromFiles(ctx, false)
 }
 
 // lookCommand is the command the Map and the Reader run the check and the

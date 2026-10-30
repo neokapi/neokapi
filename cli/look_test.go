@@ -187,6 +187,36 @@ func TestLookMap_JSON(t *testing.T) {
 	assert.Equal(t, "kapi context review", m.Next)
 }
 
+// TestLookMap_FirstLookFilesWhatKapiSees: the first look at a project whose
+// files write one word two ways counts the suggestion the suggestions pass
+// files, in the text and in --json alike, and prints nothing else about it.
+func TestLookMap_FirstLookFilesWhatKapiSees(t *testing.T) {
+	for _, first := range []string{"text", "json"} {
+		t.Run(first, func(t *testing.T) {
+			writeLookProject(t, "", map[string]string{"docs/guide.md": "# Guide\n\nSend an email.\n\nReply by email.\n\nOr send an e-mail.\n"})
+
+			var m host.LookProject
+			var out string
+			if first == "json" {
+				require.NoError(t, json.Unmarshal([]byte(runRoot(t, "look", "--json")), &m))
+				out = runRoot(t, "look")
+			} else {
+				out = runRoot(t, "look")
+				require.NoError(t, json.Unmarshal([]byte(runRoot(t, "look", "--json")), &m))
+			}
+			assert.Contains(t, out, "1 file · 4 blocks · 0 rules · 1 finding · kapi suggests 1\n")
+			assert.Contains(t, out, "\nWhat your files do\n  Name  email, not e-mail, e mail  2 of 3 uses\n\nFiles\n")
+			assert.True(t, strings.HasPrefix(out, m.Project+" · read 1 file just now\n\n"), out)
+
+			assert.Equal(t, 1, m.Suggests)
+			require.Len(t, m.Suggestions, 1)
+			assert.Equal(t, "email, not e-mail, e mail", m.Suggestions[0].Text)
+			assert.Equal(t, 1, m.Findings)
+			assert.Equal(t, "kapi context review", m.Next)
+		})
+	}
+}
+
 // TestLookReader_CaretsUnderTheFinding: a finding with a range is drawn with
 // carets under exactly the runes it covers, and its label starts at the first
 // caret; a finding with none is a line under the block.
