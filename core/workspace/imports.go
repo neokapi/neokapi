@@ -30,7 +30,9 @@ CREATE TABLE IF NOT EXISTS workspace_context_imports (
 }}
 
 // ContextImportStamp is one context file a checkout has read into the
-// workspace, and the bytes it held when it was read.
+// workspace, and the bytes it held when it was read. A stamp whose Path
+// begins with "/" names a pass that ran over the checkout instead, such as
+// the suggestions pass, and carries no digest.
 //
 // The rows an import writes are shared: a project's terms, voice profiles,
 // content memory and recorded decisions live in the workspace, and every
@@ -50,7 +52,8 @@ type ContextImportStamp struct {
 	// whatever wrote the stamp.
 	Checkout string
 	// Path names the file inside that checkout, project-relative and
-	// slash-separated.
+	// slash-separated. A Path that begins with "/" names a pass that ran over
+	// the checkout, not a file.
 	Path string
 	// Digest is the SHA-256 of the bytes that were read, as lower-case hex.
 	Digest string
