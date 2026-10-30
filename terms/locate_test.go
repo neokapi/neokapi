@@ -114,3 +114,25 @@ func TestLocate_CharacterReferencesEndAWord(t *testing.T) {
 		})
 	}
 }
+
+// An occurrence whose last letter a character reference spells is quoted as
+// the page shows it and carries no anchor, from the rules and from the store.
+func TestLocate_AReferenceAtAnEdgeIsSpelledWithNoAnchor(t *testing.T) {
+	ctx := context.Background()
+	store := terms.NewInMemoryStore()
+	require.NoError(t, store.AddConcept(ctx, terms.Concept{
+		ID:    "cafe",
+		Terms: []terms.Term{{Text: "café", Locale: model.LocaleEnglish, Status: model.TermPreferred}},
+	}))
+	rules := []profile.TermRuleSet{{Rules: []profile.TermRule{{Term: "café", Replacement: "coffee shop"}}}}
+	runs := []model.Run{model.TextR("the caf"), model.PhR(model.PlaceholderRun{ID: "1", Type: "code:entity", Data: "&eacute;"}), model.TextR(" menu")}
+	got, err := terms.Locate(ctx, terms.LocateRequest{Text: model.RunsText(runs), Runs: runs, RuleSets: rules, Store: store, Locale: model.LocaleEnglish})
+	require.NoError(t, err)
+	require.Len(t, got, 2, "one occurrence from the rule, one from the store")
+	for _, o := range got {
+		assert.True(t, o.Spelled, "%s occurrence", o.Source)
+		assert.Equal(t, "café", o.Text, "%s occurrence", o.Source)
+		assert.Equal(t, model.Anchor{}, o.Anchor, "%s occurrence", o.Source)
+		assert.Equal(t, "café", o.Hit().Spelled, "%s occurrence", o.Source)
+	}
+}

@@ -230,3 +230,32 @@ func TestCheck_ATermBesideACharacterReferenceIsFoundAndFixed(t *testing.T) {
 	want := strings.Replace(strings.Replace(src, "and   utilize&amp;", "and   use&amp;", 1), "Say&nbsp;utilize", "Say&nbsp;use", 1)
 	assert.Equal(t, want, string(got))
 }
+
+// A term whose first or last letter a character reference spells is reported
+// as the page shows it, with no fix: no span of the block's text holds the
+// whole word, and a replacement of the letters beside the reference would
+// leave the reference behind ("coffee shop&eacute;").
+func TestCheck_ATermAReferenceSpellsAnEdgeOfGetsNoFix(t *testing.T) {
+	f := newCommitFixture(t)
+	voice := commitVoice + "  - term: café\n    replacement: coffee shop\n  - term: école\n    replacement: school\n"
+	require.NoError(t, os.WriteFile(layoutVoicePath(t, f.root), []byte(voice), 0o644))
+	readProjectContext(t, f.root)
+	page := filepath.Join(f.root, "docs", "page.html")
+	const src = "<html><head><title>Guide</title></head>\n<body>\n<p>Meet at the caf&eacute; by the &Eacute;cole.</p>\n</body></html>\n"
+	require.NoError(t, os.WriteFile(page, []byte(src), 0o644))
+
+	report, err := f.app.ComputeCheck(f.command(t), []string{page})
+	require.NoError(t, err)
+	found := map[string]bool{}
+	for _, d := range report.Findings {
+		if d.Rule != "terms.vocabulary" {
+			continue
+		}
+		found[d.Location.Snippet] = true
+		assert.Nil(t, d.Fix, "%q is reported with no fix", d.Location.Snippet)
+	}
+	assert.Equal(t, map[string]bool{"café": true, "École": true}, found, "%+v", report.Findings)
+	got, err := os.ReadFile(page)
+	require.NoError(t, err)
+	assert.Equal(t, src, string(got), "nothing is written")
+}

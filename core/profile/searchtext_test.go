@@ -17,9 +17,11 @@ func entity(id, data string) model.Run {
 
 // A character reference beside a word ends the word, as the page shows it,
 // and every hit indexes the block's text, where the reference has no width.
-// Other codes keep their zero width: a bold word is still the word.
+// Other codes keep their zero width: a bold word is still the word. A hit
+// whose first or last character a reference spells is reported as the page
+// shows it ("spelled:" below), because no span of the block's text holds it.
 func TestMatchTermRulesInRunsReadsCharacterReferences(t *testing.T) {
-	rules := []TermRuleSet{{Rules: []TermRule{{Term: "utilize", Replacement: "use"}, {Term: "café"}}}}
+	rules := []TermRuleSet{{Rules: []TermRule{{Term: "utilize", Replacement: "use"}, {Term: "café", Replacement: "coffee shop"}, {Term: "école", Replacement: "school"}}}}
 	bold := func(id string) (model.Run, model.Run) {
 		return model.PcOpenR(model.PcOpenRun{ID: id, Type: "fmt:bold", Data: "<b>"}),
 			model.PcCloseR(model.PcCloseRun{ID: id, Type: "fmt:bold", Data: "</b>"})
@@ -28,14 +30,16 @@ func TestMatchTermRulesInRunsReadsCharacterReferences(t *testing.T) {
 	cases := []struct {
 		name string
 		runs []model.Run
-		want []string // the text of each hit, from the block's text
+		want []string // each hit: its text in the block's text, or "spelled:" and the page's spelling
 		at   []int    // the start of each hit in the block's text
 	}{
 		{"before a reference", []model.Run{model.TextR("We utilize"), entity("1", "&amp;"), model.TextR("more")}, []string{"utilize"}, []int{3}},
 		{"after a reference", []model.Run{model.TextR("Say"), entity("1", "&nbsp;"), model.TextR("utilize it")}, []string{"utilize"}, []int{3}},
 		{"between references", []model.Run{model.TextR("a"), entity("1", "&mdash;"), model.TextR("utilize"), entity("2", "&#160;"), model.TextR("b")}, []string{"utilize"}, []int{1}},
 		{"a reference that spells a letter continues the word", []model.Run{model.TextR("We utiliz"), entity("1", "&#101;"), model.TextR("d it")}, nil, nil},
-		{"a reference inside a term is part of it", []model.Run{model.TextR("the caf"), entity("1", "&eacute;"), model.TextR(" menu")}, []string{"caf"}, []int{4}},
+		{"a reference that spells the last letter", []model.Run{model.TextR("the caf"), entity("1", "&eacute;"), model.TextR(" menu")}, []string{"spelled:café"}, []int{4}},
+		{"a numeric reference that spells the last letter", []model.Run{model.TextR("We utiliz"), entity("1", "&#101;"), model.TextR(" it")}, []string{"spelled:utilize"}, []int{3}},
+		{"a reference that spells the first letter", []model.Run{model.TextR("the "), entity("1", "&Eacute;"), model.TextR("cole")}, []string{"spelled:École"}, []int{4}},
 		{"an unknown reference ends a word", []model.Run{model.TextR("utilize"), entity("1", "&nosuch;"), model.TextR("x")}, []string{"utilize"}, []int{0}},
 		{"a bold word keeps its zero-width codes", []model.Run{model.TextR("We "), open, model.TextR("utilize"), closing, model.TextR(" it"), entity("1", "&amp;")}, []string{"utilize"}, []int{3}},
 		{"codes that are not references join the text", []model.Run{model.TextR("util"), open, model.TextR("ize"), closing, model.TextR("more")}, nil, nil},
@@ -47,7 +51,11 @@ func TestMatchTermRulesInRunsReadsCharacterReferences(t *testing.T) {
 			var got []string
 			var at []int
 			for _, h := range hits {
-				got = append(got, text[h.Start:h.End])
+				if h.Spelled != "" {
+					got = append(got, "spelled:"+h.Spelled)
+				} else {
+					got = append(got, text[h.Start:h.End])
+				}
 				at = append(at, h.Start)
 			}
 			assert.Equal(t, tc.want, got)
@@ -57,27 +65,31 @@ func TestMatchTermRulesInRunsReadsCharacterReferences(t *testing.T) {
 }
 
 // A hit's run anchor and the span a fix replaces come from the block's runs:
-// the word before a reference is a range inside its own text run.
+// the word before a reference is a range inside its own text run. A hit a
+// reference spells an edge of is quoted as the page shows it with no position,
+// so no replacement is built over the reference.
 func TestMatchTermRulesInRunsAnchorsInTheTextRun(t *testing.T) {
-	runs := []model.Run{model.TextR("and   utilize"), entity("1", "&amp;"), model.TextR("more")}
+	rules := []TermRuleSet{{Rules: []TermRule{{Term: "utilize", Replacement: "use"}, {Term: "café", Replacement: "coffee shop"}}}}
+	runs := []model.Run{model.TextR("and   utilize"), entity("1", "&amp;"), model.TextR("more caf"), entity("2", "&eacute;")}
 	text := model.RunsText(runs)
-	hits := MatchTermRulesInRuns([]TermRuleSet{{Rules: []TermRule{{Term: "utilize", Replacement: "use"}}}}, text, runs)
-	require.Len(t, hits, 1)
-	findings := HitsToFindings(hits, text, runs)
-	require.Len(t, findings, 1)
+	findings := HitsToFindings(MatchTermRulesInRuns(rules, text, runs), text, runs)
+	require.Len(t, findings, 2)
 	assert.Equal(t, "utilize", findings[0].OriginalText)
 	assert.Equal(t, model.RangeAnchorForBytes(runs, 6, 13), findings[0].Position)
+	assert.Equal(t, "café", findings[1].OriginalText)
+	assert.Equal(t, model.Anchor{}, findings[1].Position)
 }
 
 // Text the runs do not flatten to is searched as given.
-func TestTermSearchTextKeepsTextTheRunsDoNotSpell(t *testing.T) {
+func TestSearchTextKeepsTextTheRunsDoNotSpell(t *testing.T) {
 	runs := []model.Run{model.TextR("a"), entity("1", "&amp;"), model.TextR("b")}
-	search, toText := TermSearchText("something else", runs)
-	assert.Equal(t, "something else", search)
-	assert.Nil(t, toText)
+	s := NewSearchText("something else", runs)
+	assert.Equal(t, "something else", s.Text)
+	assert.Equal(t, 3, s.ToText(3))
 
-	search, toText = TermSearchText("ab", runs)
-	assert.Equal(t, "a&b", search)
-	require.NotNil(t, toText)
-	assert.Equal(t, []int{0, 1, 1, 2}, []int{toText(0), toText(1), toText(2), toText(3)})
+	s = NewSearchText("ab", runs)
+	assert.Equal(t, "a&b", s.Text)
+	assert.Equal(t, []int{0, 1, 1, 2}, []int{s.ToText(0), s.ToText(1), s.ToText(2), s.ToText(3)})
+	assert.True(t, s.SpelledAtEdge(1, 2))
+	assert.False(t, s.SpelledAtEdge(0, 1))
 }

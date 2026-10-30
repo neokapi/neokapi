@@ -56,6 +56,11 @@ type VocabHit struct {
 	// yet. It never fails, so the hit is reported and settles nothing. A
 	// surface shows it as the suggestion it is.
 	Suggested bool
+	// Spelled is the hit as the page shows it, set when a character reference
+	// spells its first or last character (MatchTermRulesInRuns). Start and End
+	// then cover only the hit's own text, so the hit is reported by Spelled
+	// with no position, and no fix is built from it.
+	Spelled string
 }
 
 // A TermRuleSet is one source of word rules matched together: the rules, what
@@ -244,7 +249,13 @@ func HitsToFindings(hits []VocabHit, text string, runs []model.Run) []VoiceFindi
 			OriginalText: text[hit.Start:hit.End],
 			Suggested:    hit.Suggested,
 		}
-		if len(runs) > 0 {
+		switch {
+		case hit.Spelled != "":
+			// A character reference spells an edge of the words: they are
+			// quoted as the page shows them and carry no position, so no
+			// replacement is built over the reference.
+			f.OriginalText = hit.Spelled
+		case len(runs) > 0:
 			f.Position = model.RangeAnchorForBytes(runs, hit.Start, hit.End)
 		}
 		switch {

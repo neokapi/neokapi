@@ -12,7 +12,7 @@ import (
 // reference (`&amp;`, `&nbsp;`) as an inline code, and the page shows it as a
 // character. In the zero-width text `utilize&amp;more` reads as "utilizemore".
 //
-// TermSearchText is the text a term is looked for in: each character reference
+// SearchText is the text a term is looked for in: each character reference
 // stands for the character it spells, and every other code keeps its zero
 // width. A hit is mapped back to offsets of the block's text, so its anchor
 // and fix span come from the block's own runs.
@@ -21,37 +21,68 @@ import (
 // reference.
 const entityCodeType = "code:entity"
 
-// TermSearchText returns the text a term is looked for in, for text that the
-// runs flatten to, and a function from an offset in that search text to the
-// offset in text it stands for. When the runs hold no character reference, or
-// do not flatten to text, it returns text itself and a nil function.
-func TermSearchText(text string, runs []model.Run) (string, func(int) int) {
-	if !hasEntityCode(runs) {
-		return text, nil
-	}
-	var b strings.Builder
-	b.Grow(len(text) + 8)
-	var back []int
-	writeSearchText(&b, &back, runs)
-	if model.RunsText(runs) != text {
-		return text, nil
-	}
-	back = append(back, len(text))
-	return b.String(), func(i int) int {
-		if i < 0 {
-			return 0
-		}
-		if i >= len(back) {
-			return back[len(back)-1]
-		}
-		return back[i]
-	}
+// SearchText is the text a term is looked for in, for a block's text and the
+// runs it flattens from.
+type SearchText struct {
+	// Text is the text searched.
+	Text string
+	// back maps each byte offset of Text, its end included, to the offset in
+	// the block's text it stands for; nil when Text is the block's text.
+	back []int
+	// ref marks the bytes of Text a character reference spells.
+	ref []bool
 }
 
-// writeSearchText writes the search text of runs to b and, for each byte
-// written, the offset in the block's text it stands for to back. A plural or a
-// select is read in its "other" branch, as model.RunsText reads it.
-func writeSearchText(b *strings.Builder, back *[]int, runs []model.Run) {
+// NewSearchText returns the search text for text, which runs flatten to. When
+// the runs hold no character reference, or do not flatten to text, the search
+// text is text itself.
+func NewSearchText(text string, runs []model.Run) SearchText {
+	if !hasEntityCode(runs) {
+		return SearchText{Text: text}
+	}
+	s := SearchText{}
+	var b strings.Builder
+	b.Grow(len(text) + 8)
+	s.write(&b, runs)
+	if model.RunsText(runs) != text {
+		return SearchText{Text: text}
+	}
+	s.back = append(s.back, len(text))
+	s.Text = b.String()
+	return s
+}
+
+// ToText maps an offset of the search text to the offset in the block's text
+// it stands for.
+func (s SearchText) ToText(i int) int {
+	if s.back == nil {
+		return i
+	}
+	if i < 0 {
+		return 0
+	}
+	if i >= len(s.back) {
+		return s.back[len(s.back)-1]
+	}
+	return s.back[i]
+}
+
+// SpelledAtEdge reports whether a character reference spells the first or the
+// last byte of the hit [start, end) of the search text. Such a hit has no span
+// of the block's text that holds all of it: the block's text holds the words
+// beside the reference, and the reference is a code.
+func (s SearchText) SpelledAtEdge(start, end int) bool {
+	if s.ref == nil || end <= start {
+		return false
+	}
+	return s.ref[start] || s.ref[end-1]
+}
+
+// write writes the search text of runs to b, recording for each byte written
+// the offset in the block's text it stands for and whether a reference spells
+// it. A plural or a select is read in its "other" branch, as model.RunsText
+// reads it.
+func (s *SearchText) write(b *strings.Builder, runs []model.Run) {
 	textAt := 0
 	var walk func(runs []model.Run)
 	walk = func(runs []model.Run) {
@@ -59,7 +90,8 @@ func writeSearchText(b *strings.Builder, back *[]int, runs []model.Run) {
 			switch r.Kind() {
 			case model.RunKindText:
 				for i := range len(r.Text.Text) {
-					*back = append(*back, textAt+i)
+					s.back = append(s.back, textAt+i)
+					s.ref = append(s.ref, false)
 				}
 				b.WriteString(r.Text.Text)
 				textAt += len(r.Text.Text)
@@ -74,7 +106,8 @@ func writeSearchText(b *strings.Builder, back *[]int, runs []model.Run) {
 					spelled = " "
 				}
 				for range len(spelled) {
-					*back = append(*back, textAt)
+					s.back = append(s.back, textAt)
+					s.ref = append(s.ref, true)
 				}
 				b.WriteString(spelled)
 			case model.RunKindPlural:
@@ -117,22 +150,21 @@ func hasEntityCode(runs []model.Run) bool {
 }
 
 // MatchTermRulesInRuns is MatchTermRules over a block's text and the runs it
-// flattens from: a term is looked for in TermSearchText, so a character
+// flattens from: a term is looked for in the SearchText, so a character
 // reference beside a word ends it as the page shows, and each hit's offsets
-// index text. A hit that lies inside one character reference has no text of
-// its own to report or replace and is left out.
+// index text. A hit whose first or last character a reference spells carries
+// Spelled, the words as the page shows them.
 func MatchTermRulesInRuns(sets []TermRuleSet, text string, runs []model.Run) []VocabHit {
-	search, toText := TermSearchText(text, runs)
-	hits := MatchTermRules(sets, search)
-	if toText == nil {
+	search := NewSearchText(text, runs)
+	hits := MatchTermRules(sets, search.Text)
+	if search.back == nil {
 		return hits
 	}
-	out := hits[:0]
-	for _, h := range hits {
-		h.Start, h.End = toText(h.Start), toText(h.End)
-		if h.End > h.Start {
-			out = append(out, h)
+	for i, h := range hits {
+		if search.SpelledAtEdge(h.Start, h.End) {
+			hits[i].Spelled = search.Text[h.Start:h.End]
 		}
+		hits[i].Start, hits[i].End = search.ToText(h.Start), search.ToText(h.End)
 	}
-	return out
+	return hits
 }
