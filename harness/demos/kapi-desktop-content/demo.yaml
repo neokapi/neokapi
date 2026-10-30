@@ -1,6 +1,6 @@
 id: kapi-desktop-content
-title: Nothing is read until you read it
-subtitle: One extract, and every collection has a number against every language.
+title: What a collection holds
+subtitle: Every matched file read as the project opens, and one file as keys and values.
 kind: use-case
 publishAs: kapi-desktop-content
 terminal: desktop
@@ -14,37 +14,36 @@ aspects:
   - Keyed file preview
   - Format detection
 outro:
-  line: Extract once; edits re-extract themselves.
+  line: Edit a file; the app reads it again.
   pointer: kapi status
 
 narration:
   - id: title
     kind: title
     text: >-
-      A collection is a set of file patterns, and until the project reads them
-      it knows nothing about what is inside. One extract, and every language has
-      a number against it.
+      A collection is a set of file patterns. The app reads the files they
+      match as the project opens, and every language has a number against it.
 
   - id: open-project
     kind: desktop
     beat: open-project
-    caption: Four collections, and nothing read yet.
+    caption: The collections, read as the project opens.
     text: >-
       The sample opens on its Map, and the project section beside it shows the
-      standing: four collections, every coverage column empty, and a panel
-      saying in as many words that nothing has been extracted.
+      standing: the blocks read from its collections, and the voice and terms
+      that govern them.
 
   - id: extract
     kind: desktop
     beat: extract
-    caption: Read once, and the coverage fills in.
+    caption: Read on its own, and the coverage fills in.
     crop: { selector: ['[data-slot="ship-gate-cell"]', '[data-testid="collection-file-count"]'] }
     highlight: { selector: '[data-slot="ship-gate-cell"]' }
     hold: 12
     text: >-
-      Extract reads every matched file with the format Kapi detected for it and
+      The app reads every matched file with the format it detected for it and
       turns each one into blocks. The counts and the ladder for each language
-      arrive from that, which is why the screen was blank until now.
+      come from that read.
 
   - id: patterns
     kind: desktop
@@ -79,5 +78,5 @@ narration:
   - id: outro
     kind: outro
     text: >-
-      Extract once. After that an edit to a source file re-extracts it, so what
-      the project knows stays level with the working tree.
+      An edit to a source file is read again on its own, so what the project
+      knows stays level with the working tree.

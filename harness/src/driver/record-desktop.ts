@@ -932,7 +932,7 @@ const NEW_PROJECT_DIR = path.join(ISO_HOME, "KapiProjects", "Acme Help Center");
 async function projectsWalk(c: WalkCtx): Promise<void> {
   const { page, beat, beatEls, cursorTo, sidebar } = c;
   // An empty folder, made off camera: a project starts from a folder, and this
-  // one holds nothing yet. The home is wiped between passes, so each pass
+  // one holds nothing yet. ISO_HOME is wiped between passes, so each pass
   // makes its own.
   fs.mkdirSync(NEW_PROJECT_DIR, { recursive: true });
   await beat("intro", null, async () => {
@@ -1025,7 +1025,7 @@ async function projectsWalk(c: WalkCtx): Promise<void> {
  *  shows is the form a key is typed into, which is the claim the narration
  *  makes. */
 async function configWalk(c: WalkCtx): Promise<void> {
-  const { page, beat, beatEls, cursorTo, sidebar } = c;
+  const { page, beat, beatEls, cursorTo } = c;
   const tab = (label: string) => page.locator(`[role="tab"]:has-text("${label}")`);
   // With no folder open the window is the Open screen, which has no rail; its
   // Settings link opens the app's settings, and the rail with them.

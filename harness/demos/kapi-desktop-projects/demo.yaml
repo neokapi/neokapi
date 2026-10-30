@@ -1,6 +1,6 @@
 id: kapi-desktop-projects
 title: A recipe written for you
-subtitle: Name a project, give it a language, point it at content, and read the plan.
+subtitle: Open a folder, give it a language, point it at content, and read the plan.
 kind: use-case
 publishAs: kapi-desktop-projects
 terminal: desktop
@@ -14,7 +14,7 @@ aspects:
   - Content patterns
   - The catch-up plan
 outro:
-  line: Create one, add a language, read the plan.
+  line: Open a folder, add a language, read the plan.
   pointer: kapi up --plan
 
 narration:
@@ -22,17 +22,18 @@ narration:
     kind: title
     text: >-
       A kapi project is a recipe beside your files, and Kapi Desktop writes it
-      for you. Name it, give it a language, point it at content, and see what
-      one click would do.
+      for you. Open a folder, give it a language, point it at content, and see
+      what one click would do.
 
   - id: new-project
     kind: desktop
     beat: new-project
-    caption: Created, and governing nothing yet.
+    caption: Opened, and governing nothing yet.
     text: >-
-      A new project asks for a name and a structure, and nothing else. It opens
-      on its Map, which leads to the structure, and the standing after it is
-      empty: no target language, no content read, nothing to be behind on.
+      A project starts from a folder. Dropped on the Open screen, an empty one
+      opens on its Map, which offers to set the project up, and a template
+      gives it a structure. The standing after it is empty: no target
+      language, no content read, nothing to be behind on.
 
   - id: add-language
     kind: desktop
@@ -68,5 +69,5 @@ narration:
   - id: outro
     kind: outro
     text: >-
-      Create a project, declare a language and a pattern, then read the plan
+      Open a folder, declare a language and a pattern, then read the plan
       before you press the one button that does the work.
