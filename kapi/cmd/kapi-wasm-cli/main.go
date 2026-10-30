@@ -83,7 +83,7 @@ const browserDataDir = "/.kapi-data"
 //     globals stay callable. The host must install its fs/process shims (the
 //     wasm_exec.js environment) before instantiation.
 //   - Reverse bridges: the engine optionally calls back into host-provided
-//     globals — __kapiPdfium (PDF text+geometry), kapiLocalGenerate (on-device
+//     globals: __kapiPdfium (PDF text+geometry), kapiLocalGenerate (on-device
 //     LLM), kapiLocalNER (on-device NER), kapiBrowserTranslate (+ the
 //     platform's Translator API). These are capabilities the page MAY provide;
 //     each engine feature degrades with an actionable error when its bridge is
@@ -146,7 +146,7 @@ func main() {
 
 	// Register the mt-translate tool so it is enumerated by NewToolCommands(). Its
 	// engine is resolved per run (browser Translator API where available, else the
-	// keyless demo provider — see registerMT). The AI tools (translate, qa,
+	// keyless demo provider (see registerMT)). The AI tools (translate, qa,
 	// voice-check, …) are already registered by InitRegistries; the demo
 	// provider is forced for them per command run via forceDemoProviders.
 	registerMT(app.ToolReg)
@@ -220,7 +220,7 @@ func runOnce(argv []string) (code int) {
 
 	// The browser build has no PersistentPostRun, so nothing rendered the
 	// --explain-prompts transcript: the flag parsed, the recorder captured every
-	// call, and the output was dropped on the floor. Flush it here — including
+	// call, and the output was dropped on the floor. Flush it here, including
 	// when the command failed, since a failed run's prompts are the ones you most
 	// want to see.
 	defer func() {
@@ -254,7 +254,8 @@ func runOnce(argv []string) (code int) {
 func buildRoot() *cobra.Command {
 	root := &cobra.Command{
 		Use:           "kapi",
-		Short:         "A format-aware content engine (browser build): parse, edit, check and convert content in any format",
+		Short:         cli.KapiRootShort + " (browser build)",
+		Long:          cli.KapiRootLong,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRunE: func(*cobra.Command, []string) error {
@@ -284,6 +285,15 @@ func buildRoot() *cobra.Command {
 	for _, c := range cli.BrowserCommandSet(app) {
 		root.AddCommand(c)
 	}
+
+	// The same help as the native binary: the tiered root page (the writing
+	// commands, the language commands once the project in the page's file
+	// system declares a target language, the engine under `kapi help --all`)
+	// and `kapi help <topic>` for the skill's reference topics. Styles follow
+	// --color and the output stream, so a page that renders no ANSI gets
+	// plain text.
+	cli.SetupStyledHelp(root)
+	cli.SetupHelpTopics(root)
 
 	return root
 }

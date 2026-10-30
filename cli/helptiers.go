@@ -2,6 +2,7 @@ package cli
 
 import (
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -74,12 +75,12 @@ func scopeFor(cmd *cobra.Command, view helpView) usageScope {
 	return s
 }
 
-// groupShown reports whether the root group id renders in this scope.
-func (s usageScope) groupShown(id string) bool {
+// tierShown reports whether a tier renders in this scope.
+func (s usageScope) tierShown(tier helpTier) bool {
 	if !s.tiered || s.all {
 		return true
 	}
-	switch groupTiers[id] {
+	switch tier {
 	case tierLanguages:
 		return s.languages
 	case tierEngine:
@@ -87,6 +88,27 @@ func (s usageScope) groupShown(id string) bool {
 	default:
 		return true
 	}
+}
+
+// groupShown reports whether the root group id renders in this scope.
+func (s usageScope) groupShown(id string) bool {
+	return s.tierShown(groupTiers[id])
+}
+
+// topicTier says which tier a help topic of the kapi skill serves. The
+// translate topic and the i18n topics (the framework playbooks under the
+// skill's references/i18n) are language work. Every other topic is the person
+// tier, so a new topic is shown until someone assigns it.
+func topicTier(name string) helpTier {
+	if name == "translate" || name == "i18n" || strings.HasPrefix(name, "i18n-") {
+		return tierLanguages
+	}
+	return tierPerson
+}
+
+// topicShown reports whether the help topic renders in this scope.
+func (s usageScope) topicShown(name string) bool {
+	return s.tierShown(topicTier(name))
 }
 
 // localFlagUsages renders c's Flags block. The default root view lists only
