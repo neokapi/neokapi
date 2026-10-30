@@ -34,8 +34,10 @@ func TestTargetOverlay_StaleFor(t *testing.T) {
 	assert.False(t, TargetOverlay{Text: "Bonjour", Source: SourceStamp("Hello")}.StaleFor(b))
 	assert.True(t, TargetOverlay{Text: "Bonjour", Source: SourceStamp("Hello there")}.StaleFor(b))
 	assert.False(t, TargetOverlay{Text: "Bonjour"}.StaleFor(b), "a stampless overlay applies")
-	assert.False(t, TargetOverlay{Text: "Bonjour", Source: SourceStamp("Hello")}.StaleFor(&model.Block{ID: "b1"}),
-		"a block rebuilt from a skeleton holds no source to compare the stamp with")
+	for _, skeleton := range []*model.Block{{ID: "b1"}, model.NewBlock("b1", "")} {
+		assert.False(t, TargetOverlay{Text: "Bonjour", Source: SourceStamp("Hello")}.StaleFor(skeleton),
+			"a block rebuilt from a skeleton holds no source to compare the stamp with")
+	}
 
 	// The block's source as read is what the stamp is compared with, so a
 	// translation made after a step rewrote the source is current.

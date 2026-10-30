@@ -152,7 +152,8 @@ func TestHydrateTargets_AStaleSourceStampIsCountedAndNotApplied(t *testing.T) {
 
 	// A skeleton-only workspace rebuilds each block from its id alone, so the
 	// stamp has no source to be compared with and the overlay applies.
-	skeleton := &model.Block{ID: "moved", Translatable: true}
+	skeleton := model.NewBlock("moved", "")
+	skeleton.Translatable = true
 	tl = newHydrateTargetsTool("fr")
 	in = make(chan *model.Part, 1)
 	out = make(chan *model.Part, 1)

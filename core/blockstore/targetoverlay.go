@@ -140,10 +140,21 @@ func BlockSourceStamp(b *model.Block) string { return SourceStamp(AsReadSourceTe
 // overlay for a block that holds no source: a block rebuilt from a skeleton
 // carries its id alone, and has no source to compare the stamp with.
 func (o TargetOverlay) StaleFor(b *model.Block) bool {
-	if o.Source == "" || len(b.SourceRuns()) == 0 {
+	if o.Source == "" || !holdsSource(b.SourceRuns()) {
 		return false
 	}
 	return o.Source != BlockSourceStamp(b)
+}
+
+// holdsSource reports whether runs hold anything beyond empty text: a block
+// rebuilt from a skeleton holds no run, or one empty text run.
+func holdsSource(runs []model.Run) bool {
+	for _, r := range runs {
+		if r.Text == nil || r.Text.Text != "" {
+			return true
+		}
+	}
+	return false
 }
 
 // ReuseConfig is the configuration a producer records beside a translation of
