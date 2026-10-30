@@ -492,12 +492,21 @@ export function NoticedMark({ who, decorative }: { who: Actor; decorative?: bool
   return <ActorMark actor={actor} size="sm" decorative={decorative} />;
 }
 
+/**
+ * The name a kapi tool is shown by: "kapi check" for the check, and "kapi"
+ * alone for kapi itself, which files what it sees in the files under the
+ * name "kapi".
+ */
+export function toolName(name?: string): string {
+  return name && name !== "kapi" ? `kapi ${name}` : "kapi";
+}
+
 /** Who recorded an item: their mark, their name, and the session it came from. */
 export function NoticedBy({ who }: { who: Actor }) {
   const mark = <NoticedMark who={who} decorative />;
   let name: React.ReactNode;
   if (who.kind === "agent") name = who.name || t("an assistant");
-  else if (who.kind === "tool") name = `kapi ${who.name ?? ""}`.trim();
+  else if (who.kind === "tool") name = toolName(who.name);
   else name = who.name || t("you");
   return (
     <span className="inline-flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
