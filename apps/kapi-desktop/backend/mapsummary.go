@@ -332,7 +332,9 @@ func (a *App) mapRuleCount(ctx context.Context, op *openProject) (int, error) {
 		total += n
 	}
 
-	if op.workspaceKey != "" {
+	// The context log reads a project by its recipe, so a folder whose recipe
+	// is not written yet has no kept notes to count.
+	if op.workspaceKey != "" && op.onDisk() {
 		log, lerr := a.hostEngine().ContextOperations(ctx, host.ContextLogRequest{
 			Project:  op.Path,
 			Status:   contextop.StatusEstablished,
@@ -411,6 +413,11 @@ func voiceRuleCount(p *coreprofile.VoiceProfile) int {
 // digest, the same read the Decide view makes, with each item's evidence
 // counted from the operation that carries it.
 func (a *App) mapSuggestions(ctx context.Context, op *openProject, out *MapSummaryDTO) error {
+	if !op.onDisk() {
+		// Suggestions are recorded against a recipe; a folder without one
+		// has none yet.
+		return nil
+	}
 	digest, err := a.hostEngine().ContextDigest(ctx, host.ContextDigestRequest{Key: op.workspaceKey})
 	if err != nil {
 		return fmt.Errorf("read the project's suggestions: %w", err)
