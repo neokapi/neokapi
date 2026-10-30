@@ -10,23 +10,23 @@ needsAi: false
 oneshot: true
 aspects:
   - What waits on the Map
-  - Keep, change and choose
+  - One question per suggestion
   - The brief an assistant reads
   - A note arriving from outside the app
   - How far the context reaches
 
-# keep, change, choose and assistant carry no crop: the walk crops each to
-# what it marks during the beat (beatSpan in record-desktop.ts): the row acted
-# on in Decide's list, the field or the sides in its detail pane, and the
-# rule it became; or the file picker and the kept rule's line.
+# keep, word, choose and assistant carry no crop: the walk crops each to what
+# it marks during the beat (beatSpan in record-desktop.ts): the row answered in
+# Decide's list and the question beside it; or the file picker and the kept
+# rule's line.
 #
 # The sample arrives with two assistant sessions (claude-code, then codex),
 # seeded by the desktop backend when the sample is created. The walk creates
 # it on camera from the Open screen, reviews it, and records one more note as
 # claude-code from a shell while the Map is on screen.
 outro:
-  line: Open Decide and press a on the first thing that is right.
-  pointer: kapi context review
+  line: Open Decide and press k on the first thing that is right.
+  pointer: kapi rules
 
 narration:
   - id: title
@@ -48,39 +48,41 @@ narration:
   - id: decide
     kind: desktop
     beat: decide
-    caption: The disagreement comes first.
-    crop: { selector: ['[data-slot="list-detail-list"]', '[data-slot="list-detail-toolbar"]', '[data-slot="digest-conflict-sides"]'] }
+    caption: One question per suggestion.
+    crop: { selector: ['[data-slot="list-detail-list"]', '[data-slot="decide-question"]'] }
     text: >-
-      The Decide button opens the project's suggestions, with the disagreement first.
-      codex says log in, claude-code says sign in, and each side quotes the
-      sentence it was seen in.
+      The Decide button opens one question per suggestion, the disagreement
+      first. Its options are the two sides: codex says log in, claude-code
+      says sign in, and each side says what keeping it does.
 
   - id: keep
     kind: desktop
     beat: keep
-    caption: One key keeps a suggestion.
+    caption: Keep a name in the form your files use.
     text: >-
-      claude-code noticed that the product name is written as one word,
-      KapiMart. Pressing a keeps the suggestion, and it moves to Established
-      as a rule, kept by you.
+      For the product name, the question is which form your files use. The
+      line above the actions says how many blocks a check then reports, and
+      where the rule applies. Pressing k keeps KapiMart, and the next question
+      is selected.
 
-  - id: change
+  - id: word
     kind: desktop
-    beat: change
-    caption: Change the form, then keep it.
+    beat: word
+    caption: A word, kept as a rule.
     text: >-
-      claude-code also noticed that the store says cart, not basket. The terms
-      prefer shopping cart, so c opens the form, you write shopping cart, and
-      the rule is kept in that form.
+      claude-code also noticed that the store says cart, not basket. The
+      question is whether to keep it, with what a check reports once you do.
+      Pressing k keeps it.
 
   - id: choose
     kind: desktop
     beat: choose
-    caption: One side chosen, the other set aside.
+    caption: One side kept, the other set aside.
     text: >-
       Now the disagreement. The sentence codex quoted says signing in, the
       opposite of its own rule, and claude-code's side is a change a person
-      made in the error messages. You choose sign in, and log in is set aside.
+      made in the error messages. You pick sign in and keep it, and log in is
+      set aside.
 
   - id: assistant
     kind: desktop
@@ -88,9 +90,9 @@ narration:
     caption: The brief for one file carries your rule.
     text: >-
       Assistant shows what an assistant reads. For the store's interface
-      strings, the brief marks basket as discouraged and says shopping cart
-      instead, the rule you kept a moment ago. It is the answer kapi context
-      prints for that file.
+      strings, the brief marks basket as discouraged and says cart instead,
+      the rule you kept a moment ago. It is the answer kapi context prints for
+      that file.
 
   - id: live
     kind: desktop
