@@ -900,31 +900,53 @@ async function explorerWalk(c: WalkCtx): Promise<void> {
   });
 }
 
-/** Create a project, give it a language and a collection, and read the plan.
+/**
+ * Drop a folder on the Open screen, as a person drops one from Finder.
  *
- *  Every beat here acts. The one thing this walk cannot do is add files: the
- *  "Add Files" button opens a native picker (CollectionsPanel.handleAddFiles →
- *  api.addFilesDialog) and the drop path reads File.path, which Chromium does
- *  not set, so neither is drivable from Playwright. A collection is therefore
- *  declared the way the recipe declares it, by a name and a glob, and the plan
- *  is read on the sample project, which has content to plan over. */
+ * The window reports a native drop to the frontend as a `files-dropped` event
+ * carrying the paths (main.go, WindowFilesDropped), and the Open screen opens
+ * the first one (OpenScreen.tsx). A drag from outside the browser is not
+ * something Playwright can make, so the walk delivers the same event through
+ * the runtime's own dispatch, the one real-main.tsx feeds every backend event
+ * into. Everything after it is the app's own path: the backend resolves the
+ * folder and opens it as a tab.
+ */
+async function dropFolder(page: Page, dir: string): Promise<void> {
+  await page.evaluate((p) => {
+    const wails = (window as unknown as { _wails?: { dispatchWailsEvent?: (e: { name: string; data: unknown }) => void } })._wails;
+    if (!wails?.dispatchWailsEvent) throw new Error("the Wails runtime is not on the page");
+    wails.dispatchWailsEvent({ name: "files-dropped", data: [p] });
+  }, dir);
+}
+
+/** The folder the projects walk opens: empty, so the project starts from nothing. */
+const NEW_PROJECT_DIR = path.join(ISO_HOME, "KapiProjects", "Acme Help Center");
+
+/** Open a folder as a project, give it a language and a collection, and read the plan.
+ *
+ *  Every beat here acts. The folder is empty, so the project has no content:
+ *  the collection is declared the way the recipe declares it, by a name and a
+ *  glob ("Add Files" opens a native picker, CollectionsPanel.handleAddFiles →
+ *  api.addFilesDialog, which Playwright cannot drive), and the plan is read on
+ *  the sample project, which has content to plan over. */
 async function projectsWalk(c: WalkCtx): Promise<void> {
   const { page, beat, beatEls, cursorTo, sidebar } = c;
+  // An empty folder, made off camera: a project starts from a folder, and this
+  // one holds nothing yet. ISO_HOME is wiped between passes, so each pass
+  // makes its own.
+  fs.mkdirSync(NEW_PROJECT_DIR, { recursive: true });
   await beat("intro", null, async () => {
-    // The light pass created a project and left it open; New Project is on the
-    // home screen, so the dark pass has to get back there first.
     await landOnHome(page);
     await idle(page, 2000);
   });
-  // Name it and create it. The new tab opens on its Map, whose empty files
-  // list leads to the project home and its templates; take the input/output
-  // one. Nothing is governed yet, which is what the next beats change.
+  // The folder, dropped on the Open screen. It opens as a tab on its Map, whose
+  // empty files list leads to the project home and its templates; take the
+  // input/output one. Nothing is governed yet, which is what the next beats
+  // change.
   await beat("new-project", null, async () => {
-    await humanClick(page, page.locator('button:has-text("New project")').first());
-    await page.waitForTimeout(400);
-    await humanType(page, page.locator('input[placeholder="My App"]'), "Acme Help Center");
-    await page.waitForTimeout(600);
-    await humanClick(page, page.locator('button:has-text("Create Project")'));
+    await cursorTo('[data-slot="open-screen"] h1', 700);
+    await page.waitForTimeout(500);
+    await dropFolder(page, NEW_PROJECT_DIR);
     await page.waitForSelector('[data-slot="map"]', { timeout: 60_000 });
     await page.waitForTimeout(900);
     await humanClick(page, page.locator('button:has-text("Set up the project")'));
@@ -1003,11 +1025,14 @@ async function projectsWalk(c: WalkCtx): Promise<void> {
  *  shows is the form a key is typed into, which is the claim the narration
  *  makes. */
 async function configWalk(c: WalkCtx): Promise<void> {
-  const { page, beat, beatEls, cursorTo, sidebar } = c;
+  const { page, beat, beatEls, cursorTo } = c;
   const tab = (label: string) => page.locator(`[role="tab"]:has-text("${label}")`);
+  // With no folder open the window is the Open screen, which has no rail; its
+  // Settings link opens the app's settings, and the rail with them.
   await beat("open-settings", { x: 0, y: 0.04, w: 0.34, h: 0.66 }, async () => {
     await idle(page, 1200);
-    await humanClick(page, sidebar("App Settings"));
+    await humanClick(page, page.locator('[data-slot="open-settings"]'));
+    await page.waitForSelector('button[aria-label="App Settings"]', { timeout: 20_000 });
     await page.waitForTimeout(1200);
   });
   // General: appearance + UI language. Neither is clicked: the theme control
@@ -1043,14 +1068,12 @@ async function configWalk(c: WalkCtx): Promise<void> {
   });
 }
 /**
- * Land on the app home, whichever state the app restored.
+ * Land on the Open screen, whichever state the app is in.
  *
- * Both themes of a demo record against one backend, and the app persists its
- * session: the second pass reopens the project the first one opened
- * (useTabManager restores lastOpenProjects on start) and lands on that
- * project, not on the home screen. `Home` is the one rail item that stays
- * enabled with no project open, so it reaches the sample card from either
- * state.
+ * Each pass starts with nothing registered (recordDesktop resetHome), so the
+ * home is the Open screen: with no folder open it is the whole window and has
+ * no rail, and with one open, `Home` on the rail leads back to it. Either way
+ * it carries "Try with KapiMart", which is what every caller opens next.
  */
 async function landOnHome(page: Page): Promise<void> {
   const home = page.locator('button[aria-label="Home"]');
@@ -1064,12 +1087,12 @@ async function landOnHome(page: Page): Promise<void> {
 /**
  * Open the KapiMart sample project, from either state a theme pass can start in.
  *
- * The two passes share one backend and the app restores its session, so the
- * second pass starts with the project already open. Clicking the sample card
- * in that state re-runs the scaffold and lands on the Get Started template
- * picker, which replaces the project home, and the walk films that instead.
- * A rail item is enabled exactly when a project tab is open, so read it to
- * tell the two states apart and go back through the project home button.
+ * A walk that has already opened the sample starts its next step with the
+ * project open. Pressing Try with KapiMart in that state re-runs the scaffold
+ * and lands on the Get Started template picker, which replaces the project
+ * home, and the walk films that instead. A rail item is enabled exactly when
+ * a project tab is open, so read it to tell the two states apart and go back
+ * through the project home button.
  */
 async function openSample(page: Page, testid: string, readyLabel: string): Promise<void> {
   const ready = `button[aria-label="${readyLabel}"]:not([disabled])`;
@@ -1143,39 +1166,36 @@ async function closePreview(page: Page): Promise<void> {
  *
  * Content stopped being a rail item when the project home merged (#2273), so
  * the collections ARE the front door: the standing and the point map sit above
- * them and every collection opens in place. The walk extracts on camera,
- * because the coverage the narration describes does not exist until it has:
- * the sample ships its content unread, and the empty-state panel says so.
+ * them and every collection opens in place. The app reads the project's files
+ * itself as the tab opens and again when one changes (App.tsx
+ * useProjectStoreSync), so the walk waits for the counts that read produces.
  * Opening a file from a collection raises the preview sheet, which reads a
  * keyed format (JSON, YAML, .properties) as a table of keys beside their
  * values, with the file itself one click away.
  */
 async function contentWalk(c: WalkCtx): Promise<void> {
   const { page, beat, beatEls, cursorTo, sidebar } = c;
-  // Open the KapiMart sample → its project home, which opens on the standing:
-  // four collections, nothing extracted, every language at zero.
+  // Open the KapiMart sample: it lands on its Map, and openSample goes on to
+  // the project home, which opens on the standing.
   await beatEls("open-project", ['[data-testid="project-standing"]'], async () => {
     await landOnHome(page);
     await openSample(page, "sample-kapimart", "Project");
     await moveTo(page, WIDTH * 0.5, HEIGHT * 0.24, 700);
     await page.waitForTimeout(1800);
   });
-  // Extract, on camera. The empty-state button is the one that is not behind
-  // the Advanced disclosure (CollectionsPanel.tsx), and it is the only thing
-  // that turns "nothing extracted yet" into counts.
+  // What the read produced: a file count per collection and a gate cell per
+  // language. Reading the collections takes a moment, and the beat is the
+  // counts being there, so the wait is for the gate cells rather than a fixed
+  // pause, and a take without them fails rather than film an empty table.
   await beatEls("extract", ['[data-testid="collection-file-count"]', '[data-slot="ship-gate-cell"]'], async () => {
-    const run = page.locator('button:has-text("Run extract")').first();
-    if (await run.count()) {
-      await cursorTo('button:has-text("Run extract")');
-      await humanClick(page, run);
-    }
-    // Reading four collections takes a moment, and the beat is the counts
-    // arriving, so the wait is for the gate cells rather than a fixed pause.
-    await page.waitForSelector('[data-slot="ship-gate-cell"]', { timeout: 120_000 }).catch(() => {});
+    await page.waitForSelector('[data-slot="ship-gate-cell"]', { timeout: 120_000 }).catch(() => {
+      throw new Error("kapi-desktop-content: no ship-gate cell rendered within 120 s of opening the project");
+    });
     // The collections table sits below the project standing, so bring it on
     // camera: a crop is resolved from element boxes, and an element scrolled
     // past the fold contributes nothing to one.
     await page.locator('[data-slot="ship-gate-cell"]').first().scrollIntoViewIfNeeded().catch(() => {});
+    await cursorTo('[data-testid="collection-file-count"]');
     await page.waitForTimeout(2600);
   });
   // Open one collection: its patterns, and the files they match.
@@ -1363,14 +1383,6 @@ async function callBackend(method: string, args: unknown[] = []): Promise<unknow
 const CONTEXT_SAMPLE_KEY = "KapiMart";
 
 /**
- * How long the home says an assistant "is working" in a project after its last
- * operation (host.ContextSessionQuietAfter, two minutes), with a margin. The
- * sample's seeded sessions carry the time they were recorded, so the home
- * says codex is working in KapiMart until this has passed.
- */
-const SESSION_QUIET_MS = 125_000;
-
-/**
  * The note the `live` beat records. The docs write "sandbox" where an API's
  * docs often say "test mode", and the quoted sentence is in web/en/faq.md,
  * because kapi refuses evidence it cannot find in the file.
@@ -1396,40 +1408,22 @@ async function centre(page: Page, locator: Locator): Promise<void> {
 }
 
 /**
- * Give the pass a sample nobody has looked at, with its two assistant sessions.
+ * Give the pass a sample nobody has looked at.
  *
  * Both passes share one backend and one workspace, and the workspace keeps a
  * project's context by its key, not by its folder. The light pass's decisions
  * would otherwise still be in force when the dark pass opens the sample, so
- * the project is removed from the workspace first and the person's "last
- * looked" marker with it (host.ContextDigestMarkerPath, in the isolated
- * config). A first pass has neither, and both steps do nothing.
+ * the project is removed from the workspace (recordDesktop's resetHome does
+ * the same for every project) and the person's "last looked" marker with it
+ * (host.ContextDigestMarkerPath, in the isolated config). A first pass has
+ * neither, and both steps do nothing.
  *
- * The sample is created through the backend rather than with Start here's
- * button. The button opens the new tab on the project's Map, and the walk
- * opens the project for the first time from the home's row, which leads to
- * Decide; opening Decide marks everything in it seen. CreateSampleProject is
- * the method the button calls; its tab is closed again, so the frontend opens
- * the project from the home, as the beats show.
+ * The sample itself is created on camera, by Try with KapiMart, which
+ * scaffolds it with its two assistant sessions (CreateSampleProject).
  */
-async function freshContextSample(page: Page): Promise<void> {
+async function freshContextSample(): Promise<void> {
   await callBackend("ForgetWorkspaceProject", [CONTEXT_SAMPLE_KEY]).catch(() => {});
   fs.rmSync(path.join(ISO_DIR, "context-digest.json"), { force: true });
-  const created = Date.now();
-  const tab = (await callBackend("CreateSampleProject", ["kapimart"])) as { id?: string } | null;
-  if (!tab?.id) throw new Error("kapi-desktop-context: CreateSampleProject returned no tab");
-  await callBackend("CloseProject", [tab.id]);
-  // Off camera, until the home no longer says codex is working in KapiMart.
-  const remaining = SESSION_QUIET_MS - (Date.now() - created);
-  if (remaining > 0) await page.waitForTimeout(remaining);
-  // The home read the standings while codex was still working; read them again.
-  await page.reload({ waitUntil: "domcontentloaded" });
-  await page.waitForSelector(`[data-slot="whats-new-row"][data-project="${CONTEXT_SAMPLE_KEY}"]`, { timeout: 30_000 });
-  await injectCursor(page);
-  await page.waitForTimeout(800);
-  if (await page.locator('[data-slot="workspace-working"]').count()) {
-    throw new Error("kapi-desktop-context: the home still says an assistant is working after the quiet period");
-  }
 }
 
 /**
@@ -1458,11 +1452,11 @@ function recordLiveNote(): void {
  *
  * The sample arrives with two assistant sessions (backend/sample/session.go):
  * claude-code noticed names and a word and recorded a correction a person
- * made, and codex took the other side of that correction. The walk reads the
- * news on the home, opens the project's Decide section, keeps a name with `a`,
- * changes a word's form with `c`, settles the disagreement, reads the brief an
- * assistant gets for a file, watches a note recorded from outside the app
- * arrive on the home, and ends on Share.
+ * made, and codex took the other side of that correction. The walk opens the
+ * sample from the Open screen and reads what waits on its Map, opens Decide
+ * from there, keeps a name with `a`, changes a word's form with `c`, settles
+ * the disagreement, reads the brief an assistant gets for a file, watches a
+ * note recorded from outside the app arrive on the Map, and ends on Share.
  *
  * Decide is a list beside a detail pane. The keep, change and choose
  * beats select a row, act on it, and end on the rule it became, at the top of
@@ -1470,8 +1464,9 @@ function recordLiveNote(): void {
  */
 async function contextWalk(c: WalkCtx): Promise<void> {
   const { page, beatEls, beatSpan, cursorTo, cue, sidebar } = c;
-  const row = `[data-slot="whats-new-row"][data-project="${CONTEXT_SAMPLE_KEY}"]`;
-  const home = ['[data-slot="workspace-numbers"]', '[data-slot="whats-new"]', '[data-slot="home-projects"]'];
+  // The Map's header, counts and the list of what waits for a decision.
+  const map = ['[data-slot="map-decide"]', '[data-slot="map-counts"]', '[data-slot="map-suggestions"]'];
+  const waiting = '[data-slot="map-suggestions"] [data-slot="map-suggestion"]';
   const suggestion = (text: string) =>
     page.locator('[data-slot="digest-suggested"] [data-slot="digest-item"]').filter({ hasText: text }).first();
   const kept = '[data-slot="digest-established"] [data-slot="digest-item"]';
@@ -1502,25 +1497,27 @@ async function contextWalk(c: WalkCtx): Promise<void> {
   // Each beat acts when its narration names the act (cue), so the screen and
   // the words over it agree.
 
-  await freshContextSample(page);
+  await freshContextSample();
+  await landOnHome(page);
 
-  // The row reads by its mark and its chips: codex was the last to work there,
-  // and what it noticed, by kind, with the one that needs a person.
-  await beatEls("home", home, async () => {
-    await cue("row", 3.2);
-    await restOn(page.locator(row));
-    await cue("codex", 7.2);
-    await cursorTo(`${row} [data-slot="whats-new-actor"]`, 700);
-    await cue("noticed", 9.7);
-    await cursorTo(`${row} [data-slot="whats-new-chips"]`, 900);
-    await page.waitForTimeout(1500);
+  // Try with KapiMart scaffolds the sample with its two sessions and opens it
+  // on the Map, whose list holds what the assistants noticed and nobody has
+  // decided, the disagreement first. The Decide button counts them.
+  await beatEls("map", map, async () => {
+    await humanClick(page, page.getByTestId("sample-kapimart"));
+    await page.waitForSelector(waiting, { timeout: 60_000 });
+    await cue("row", 3.6);
+    await restOn(page.locator(waiting).first());
+    await cue("decide", 9.4);
+    await cursorTo('[data-slot="map-decide"]', 700);
+    await page.waitForTimeout(1200);
   });
   await settle();
 
-  // The button reads Decide while the project holds a disagreement, and the
-  // list opens with it selected, its two sides in the detail pane.
-  await beatEls("whats-new", ['[data-slot="list-detail-list"]', '[data-slot="list-detail-toolbar"]', '[data-slot="digest-conflict-sides"]'], async () => {
-    await humanClick(page, page.locator(`${row} [data-slot="whats-new-open"]`));
+  // Decide opens on the disagreement, selected, its two sides in the detail
+  // pane.
+  await beatEls("decide", ['[data-slot="list-detail-list"]', '[data-slot="list-detail-toolbar"]', '[data-slot="digest-conflict-sides"]'], async () => {
+    await humanClick(page, page.locator('[data-slot="map-decide"]'));
     await page.waitForSelector('[data-slot="digest-conflicts"]', { timeout: 60_000 });
     await page.waitForTimeout(1500);
     await cursorTo('[data-slot="digest-conflicts"] [data-slot="digest-item"]');
@@ -1632,37 +1629,27 @@ async function contextWalk(c: WalkCtx): Promise<void> {
   });
   await settle();
 
-  // Back on the home, a note arrives from outside the app. The home learns of
-  // it from the backend's workspace watcher, as the shipped app does, and the
-  // take fails rather than narrate a row that never came.
-  await humanClick(page, sidebar("Home"));
-  await page.waitForSelector('[data-slot="home-projects"]', { timeout: 20_000 });
+  // Back on the Map, a note arrives from outside the app. The Map reads again
+  // when the backend's workspace watcher reports that the log moved, as the
+  // shipped app does, and the take fails rather than narrate a row that never
+  // came.
+  await humanClick(page, sidebar("Map"));
+  await page.waitForSelector(waiting, { timeout: 20_000 });
   await page.waitForTimeout(1000);
-  // The cursor waits on the row's mark, which names who noticed something
-  // last and is what the note changes.
-  await beatEls("live", home, async () => {
-    await cursorTo(`${row} [data-slot="whats-new-actor"]`, 800);
-    // The row is already there: the rules kept on camera are new since the
-    // person looked. What the note changes is who noticed something: the row
-    // takes claude-code's mark, and a chip says it is working there now. The
-    // note is recorded once the narration has said what it holds, so the row
-    // changes as the narration says it does.
+  const arrived = page.locator(waiting).filter({ hasText: "sandbox" }).first();
+  await beatEls("live", map, async () => {
+    await cursorTo('[data-slot="map-suggestions"]', 800);
+    // The note is recorded once the narration has said what it holds, so the
+    // row arrives as the narration says it does.
     await cue("test", 7.2);
     recordLiveNote();
-    await page
-      .locator(
-        `${row}:has([data-slot="whats-new-actor"][data-actor="claude-code"]):has([data-slot="workspace-working"])`,
-      )
-      .waitFor({ state: "visible", timeout: 10_000 })
-      .catch(() => {
-        throw new Error(
-          "kapi-desktop-context: the note recorded as claude-code did not reach the home within 10 s (no claude-code mark and working chip on the row)",
-        );
-      });
-    await cue("chip", 11.9);
-    await cursorTo(`${row} [data-slot="whats-new-chip"]`, 600);
-    await cue("working", 14.6);
-    await cursorTo(`${row} [data-slot="workspace-working"]`, 500);
+    await arrived.waitFor({ state: "visible", timeout: 10_000 }).catch(() => {
+      throw new Error("kapi-desktop-context: the note recorded as claude-code did not reach the Map within 10 s (no sandbox row)");
+    });
+    await cue("row", 10.6);
+    await restOn(arrived);
+    await cue("decide", 13.2);
+    await cursorTo('[data-slot="map-decide"]', 500);
     await page.waitForTimeout(200);
   });
   await settle();
@@ -2882,8 +2869,14 @@ export async function recordDesktop(id: string, opts: RecordOptions = {}): Promi
   // the home alone left the dark pass reopening a project whose files were
   // gone: the app showed the template picker, or a review page that could not
   // read its recipe, under a walk that had found its rail item enabled. Close
-  // every tab and forget the session through the wbridge as well, so both
-  // passes start on the home screen and scaffold the sample the same way.
+  // every tab and forget the session through the wbridge as well.
+  //
+  // The workspace outlives the home too, and what it holds decides the first
+  // screen: the Open screen until two projects are registered, the overview
+  // with its counts from then on (OpenScreen.tsx firstScreen). A walk that
+  // registers a project in the light pass would otherwise start the dark pass
+  // on a different screen, so every project the workspace holds is forgotten,
+  // and both passes start on the Open screen with nothing registered.
   const bridge = async (method: string, args: unknown[] = []): Promise<unknown> => {
     const r = await fetch("http://127.0.0.1:5175/wbridge", {
       method: "POST",
@@ -2899,9 +2892,17 @@ export async function recordDesktop(id: string, opts: RecordOptions = {}): Promi
         for (const tab of tabs ?? []) {
           if (tab?.id) await bridge("CloseProject", [tab.id]);
         }
-        await bridge("SaveSessionState", [{ mode: "projects", lastOpenProjects: [], activeProject: "" }]);
+        await bridge("SaveSessionState", [{ lastOpenProjects: [], activeProject: "" }]);
       } catch (e) {
         console.warn(`  ! could not close the open projects on the wbridge: ${(e as Error)?.message}`);
+      }
+      try {
+        const registered = (await bridge("ListWorkspaceProjects")) as { projects?: Array<{ key?: string }> } | null;
+        for (const p of registered?.projects ?? []) {
+          if (p?.key) await bridge("ForgetWorkspaceProject", [p.key]);
+        }
+      } catch (e) {
+        console.warn(`  ! could not empty the workspace on the wbridge: ${(e as Error)?.message}`);
       }
     }
     // The workspace lives under the home (ISO_DATA) and the running backend

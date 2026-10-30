@@ -9,7 +9,7 @@ needsAi: false
 # One continuous narration read: uniform voice speed and tone across scenes.
 oneshot: true
 aspects:
-  - What's new across projects
+  - What waits on the Map
   - Keep, change and choose
   - The brief an assistant reads
   - A note arriving from outside the app
@@ -22,8 +22,8 @@ aspects:
 #
 # The sample arrives with two assistant sessions (claude-code, then codex),
 # seeded by the desktop backend when the sample is created. The walk creates
-# it off camera, reviews it on camera, and records one more note as
-# claude-code from a shell while the home is on screen.
+# it on camera from the Open screen, reviews it, and records one more note as
+# claude-code from a shell while the Map is on screen.
 outro:
   line: Open Decide and press a on the first thing that is right.
   pointer: kapi context review
@@ -35,19 +35,19 @@ narration:
       An assistant working in a project notices how its files are written. The
       desktop is where you read what it noticed and decide what holds.
 
-  - id: home
+  - id: map
     kind: desktop
-    beat: home
-    caption: What is new, and who noticed it.
-    crop: { selector: ['[data-slot="workspace-numbers"]', '[data-slot="whats-new"]', '[data-slot="home-projects"]'] }
+    beat: map
+    caption: What waits for you, on the Map.
+    crop: { selector: ['[data-slot="map-decide"]', '[data-slot="map-counts"]', '[data-slot="map-suggestions"]'] }
     text: >-
-      The home opens on your context, with a row for each project that has
-      news. In KapiMart, codex was the last to work: it noticed a name and a
-      word, and one disagreement needs you.
+      Try with KapiMart opens the sample on its Map. Each row under What your
+      files do is something an assistant noticed and nobody has decided yet,
+      and the Decide button counts them.
 
-  - id: whats-new
+  - id: decide
     kind: desktop
-    beat: whats-new
+    beat: decide
     caption: The disagreement comes first.
     crop: { selector: ['[data-slot="list-detail-list"]', '[data-slot="list-detail-toolbar"]', '[data-slot="digest-conflict-sides"]'] }
     text: >-
@@ -96,12 +96,11 @@ narration:
     kind: desktop
     beat: live
     caption: A note from outside the app, arriving live.
-    crop: { selector: ['[data-slot="workspace-numbers"]', '[data-slot="whats-new"]', '[data-slot="home-projects"]'] }
+    crop: { selector: ['[data-slot="map-decide"]', '[data-slot="map-counts"]', '[data-slot="map-suggestions"]'] }
     text: >-
-      Back on the home, a note arrives from a terminal off screen, recorded as
-      claude-code: the docs say sandbox, not test mode. Within a second the
-      KapiMart row carries claude-code's mark and a chip for one word, and the
-      home says it is working there now.
+      Back on the Map, a note arrives from a terminal off screen, recorded as
+      claude-code: the docs say sandbox, not test mode. Within a second it is a
+      row of its own in the list, and the Decide button counts one more.
 
   - id: share
     kind: desktop

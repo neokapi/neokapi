@@ -64,8 +64,8 @@ narration:
     highlight: { selector: '[data-testid="flow-default-badge"]' }
     text: >-
       Marking it the project's default is what binds it. From here the one
-      button on the home runs this flow, and so does the same flow name from a
-      terminal in the same folder.
+      button on the Project page runs this flow, and so does the same flow
+      name from a terminal in the same folder.
 
   - id: outro
     kind: outro
