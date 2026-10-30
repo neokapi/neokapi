@@ -25,8 +25,6 @@ import { ProjectSettingsPage } from "./ProjectSettingsPage";
 import { ProjectPresetPage } from "./ProjectPresetPage";
 import { ProjectSettingsTabs, settingsSectionOf } from "./ProjectSettingsTabs";
 import { OpenScreen } from "./OpenScreen";
-import { LanguagesPage } from "./LanguagesPage";
-import { declaresTargetLanguages } from "../lib/languages";
 import { useJobFeed } from "../context/JobFeedContext";
 
 /**
@@ -287,10 +285,6 @@ export function ViewSwitch({
   if (!activeTab) return null;
 
   const tabID = activeTab.info.id;
-  // Whether the saved recipe declares a target language. The rail reads the
-  // same answer from the same recipe, so the Languages door, Review, Content
-  // memory and the Project page's language standing appear together.
-  const languages = declaresTargetLanguages(activeTab.project);
   // "context:<section>" opens the hub on one section; the view's base is the route.
   const route = effectiveView.split(":")[0];
   const hubSection = contextSectionOf(effectiveView);
@@ -322,35 +316,8 @@ export function ViewSwitch({
   // not installed — issue #4) shows a recoverable install prompt instead of
   // crashing the webview. The boundary key includes pluginsResolved so a
   // successful install remounts the view.
-  // The Project page, also the language view of a project with a target
-  // language: the Languages entry opens it on its language standing.
-  const homePage = (focusLanguages: boolean) => (
-    <HomePage
-      project={history.project}
-      displayName={activeTab.info.name}
-      tabID={tabID}
-      onUpdate={updateProject}
-      onRunFlow={handleRunFlow}
-      onBringUpToDate={handleBringUpToDate}
-      onNavigate={navigate}
-      onOpenReview={handleOpenReview}
-      pluginsResolved={activeTab.pluginsResolved}
-      pluginIssues={activeTab.pluginIssues}
-      onResetSample={() => onResetSample(tabID)}
-      onOpenPoint={handleOpenContext}
-      hasTargetLanguages={languages}
-      focusLanguages={focusLanguages}
-    />
-  );
-  // The Languages door of a project with no target language. A persisted
-  // Review view lands here too, since Review has nothing to hold yet.
-  const languagesPage = <LanguagesPage project={history.project} onUpdate={updateProject} />;
-
   const projectView = ((): ReactNode => {
     switch (route) {
-      case "languages":
-        return languages ? homePage(true) : languagesPage;
-
       case "map":
         return (
           <MapPage
@@ -405,7 +372,22 @@ export function ViewSwitch({
             />
           );
         }
-        return homePage(false);
+        return (
+          <HomePage
+            project={history.project}
+            displayName={activeTab.info.name}
+            tabID={tabID}
+            onUpdate={updateProject}
+            onRunFlow={handleRunFlow}
+            onBringUpToDate={handleBringUpToDate}
+            onNavigate={navigate}
+            onOpenReview={handleOpenReview}
+            pluginsResolved={activeTab.pluginsResolved}
+            pluginIssues={activeTab.pluginIssues}
+            onResetSample={() => onResetSample(tabID)}
+            onOpenPoint={handleOpenContext}
+          />
+        );
 
       // The Toolbox hosts Tools + Flows as route-driven tabs. Flows are
       // authored/managed here (the library); running a flow against the
@@ -476,7 +458,7 @@ export function ViewSwitch({
             section={hubSection}
             pin={contextPin ?? undefined}
             decideRow={decideRowOf(effectiveView)}
-            hasTargetLanguages={languages}
+            hasTargetLanguages={(history.project.defaults?.target_languages?.length ?? 0) > 0}
             contextOnly={activeTab.info.context_only}
             onNavigate={navigate}
           />
@@ -492,7 +474,6 @@ export function ViewSwitch({
         );
 
       case "review":
-        if (!languages) return languagesPage;
         return (
           <ReviewPage key={reviewEntry.current} tabID={tabID} scope={reviewScope ?? undefined} />
         );

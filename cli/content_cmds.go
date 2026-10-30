@@ -300,8 +300,7 @@ standing ("2 to push" / "synced"), derived from the sync cache.
 					seen[rp] = true
 					entry := output.LsEntry{Path: rp, Format: fmtName}
 					if stats {
-						blocks, words, _ := a.CountFileBlocks(ctx, filepath.Join(root, rp), registry.FormatID(fmtName), proj.Defaults.SourceLanguage,
-							coreproj.MergeFormatConfig(proj.Defaults.Formats, fmtName, &it.Item))
+						blocks, words, _ := a.CountFileBlocks(ctx, filepath.Join(root, rp), registry.FormatID(fmtName), proj.Defaults.SourceLanguage)
 						entry.Blocks, entry.Words = blocks, words
 						out.Blocks += blocks
 						out.Words += words

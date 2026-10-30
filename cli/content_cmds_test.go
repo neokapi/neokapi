@@ -2,7 +2,6 @@ package cli
 
 import (
 	"bytes"
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -427,39 +426,4 @@ collections:
 	assert.Contains(t, out, "BLOCKS")
 	assert.Contains(t, out, "WORDS")
 	assert.Contains(t, out, "blocks, ")
-}
-
-// TestLs_StatsCountsTheBlocksACheckReads: `kapi ls --stats` counts the blocks a
-// check reports. The kapimart email templates read to a different block set
-// unless the read wires a skeleton, as a check does.
-func TestLs_StatsCountsTheBlocksACheckReads(t *testing.T) {
-	a := processOnlyApp(t)
-	real, err := filepath.EvalSymlinks(t.TempDir())
-	require.NoError(t, err)
-	recipe := filepath.Join(real, "app.kapi")
-	require.NoError(t, os.WriteFile(recipe, []byte("version: v1\nname: LsStats\ndefaults:\n  source_language: en\ncollections:\n  - path: email/*.html\n"), 0o644))
-	templates, err := os.ReadFile("../apps/kapi-desktop/backend/sample/kapimart/src/en/email-templates.html")
-	require.NoError(t, err)
-	src := filepath.Join(real, "email", "email-templates.html")
-	require.NoError(t, os.MkdirAll(filepath.Dir(src), 0o755))
-	require.NoError(t, os.WriteFile(src, templates, 0o644))
-
-	cmd := NewLsCmd(a)
-	cmd.SetArgs([]string{"--stats", "--json", "--project", recipe})
-	var out bytes.Buffer
-	cmd.SetOut(&out)
-	cmd.SetErr(&out)
-	require.NoError(t, cmd.Execute(), out.String())
-	var listed struct {
-		Files []struct {
-			Path   string `json:"path"`
-			Blocks int    `json:"blocks"`
-		} `json:"files"`
-	}
-	require.NoError(t, json.Unmarshal(out.Bytes(), &listed), out.String())
-	require.Len(t, listed.Files, 1)
-
-	checked, err := a.ReadBlocksForCheck(t.Context(), src, "html", nil, "en")
-	require.NoError(t, err)
-	assert.Equal(t, len(checked), listed.Files[0].Blocks)
 }

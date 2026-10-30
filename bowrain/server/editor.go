@@ -34,7 +34,6 @@ import (
 	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
-	coreproj "github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
 	libtools "github.com/neokapi/neokapi/core/tools"
@@ -650,9 +649,6 @@ func editorAddFilesInternal(ctx context.Context, cs store.ContentStore, formatRe
 			skip(itemName, fmt.Sprintf("no reader for format %q: %s", fmtName, err))
 			continue
 		}
-		// kapi push and the check read with the skeleton a write would wire,
-		// so an uploaded file holds the blocks a pushed one does.
-		coreproj.WireReadSkeleton(formatReg, fmtName, reader)
 
 		doc := &model.RawDocument{
 			URI:          itemName,

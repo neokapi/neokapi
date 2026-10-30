@@ -90,26 +90,6 @@ export const NoFlows: Story = {
   },
 };
 
-/** A project with one language: no targets in the header, no coverage, and
- *  no Bring up to date or Plan…. Languages + on the rail is the way in. */
-export const SourceOnly: Story = {
-  args: {
-    displayName: "Handbook",
-    project: {
-      version: "v1",
-      name: "Handbook",
-      defaults: { source_language: "en-US" },
-      collections: [{ name: "Handbook", content: [{ path: "docs/**/*.md" }] }],
-    },
-    status: {
-      projectPath: "/Users/dev/projects/handbook/kapi.yaml",
-      projectName: "Handbook",
-      hasData: true,
-      collections: [{ name: "Handbook", blockCount: 84, coverage: {}, targetLanguages: [] }],
-    },
-  },
-};
-
 /** The collection-centric spine with extracted block counts + coverage — the
  *  merged surface from issue #1068 (Option A). */
 export const WithCoverage: Story = {
