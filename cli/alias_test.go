@@ -71,7 +71,7 @@ func TestKapiCommandSet_PorcelainLayout(t *testing.T) {
 
 // TestHelpGroups_RenderInPorcelainOrder: outside a project the default root
 // help renders Work, then Assets, and neither Languages nor Advanced;
-// `kapi help --all` renders Work, Languages, Assets, Advanced in that order.
+// `kapi help --all` renders Work, Assets, Languages, Advanced in that order.
 // Neither view leaves a dangling GroupID (cobra panics on an undefined group id
 // at Execute time, so a clean run of each is itself the wiring gate).
 func TestHelpGroups_RenderInPorcelainOrder(t *testing.T) {
@@ -111,13 +111,13 @@ func TestHelpGroups_RenderInPorcelainOrder(t *testing.T) {
 	assert.Equal(t, -1, at[3], "Advanced is left out of the default page")
 
 	all := render(t, "help", "--all")
-	at = indexes(all, "Work:", "Languages:", "Assets:", "Advanced:", "Additional Commands:")
-	for i, h := range []string{"Work:", "Languages:", "Assets:", "Advanced:", "Additional Commands:"} {
+	at = indexes(all, "Work:", "Assets:", "Languages:", "Advanced:", "Additional Commands:")
+	for i, h := range []string{"Work:", "Assets:", "Languages:", "Advanced:", "Additional Commands:"} {
 		require.NotEqual(t, -1, at[i], "%s renders in kapi help --all", h)
 	}
-	assert.Less(t, at[0], at[1], "Work renders before Languages")
-	assert.Less(t, at[1], at[2], "Languages renders before Assets")
-	assert.Less(t, at[2], at[3], "Assets renders before Advanced")
+	assert.Less(t, at[0], at[1], "Work renders before Assets")
+	assert.Less(t, at[1], at[2], "Assets renders before Languages")
+	assert.Less(t, at[2], at[3], "Languages renders before Advanced")
 	assert.Less(t, at[3], at[4], "Advanced renders before Additional Commands")
 
 	for _, view := range []string{help, all} {

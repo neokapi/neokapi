@@ -49,8 +49,8 @@ func AddPersistentFlags(a *App, cmd *cobra.Command) {
 func AddCommandGroups(a *App, cmd *cobra.Command) {
 	cmd.AddGroup(
 		&cobra.Group{ID: "work", Title: "Work:"},
-		&cobra.Group{ID: "languages", Title: "Languages:"},
 		&cobra.Group{ID: "assets", Title: "Assets:"},
+		&cobra.Group{ID: "languages", Title: "Languages:"},
 		&cobra.Group{ID: "advanced", Title: "Advanced:"},
 	)
 }
