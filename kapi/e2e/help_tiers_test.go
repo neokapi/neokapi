@@ -78,4 +78,42 @@ func TestHelpTiers_FreshProjectStatus(t *testing.T) {
 	status, stderr := kapiAt(t, dir, "status")
 	assert.Empty(t, stderr)
 	assert.Equal(t, "source      no content yet: add files with `kapi add <pattern>`\n", status)
+
+	bare, stderr := kapiAt(t, dir)
+	assert.Empty(t, stderr)
+	assert.Equal(t, "source      no content yet: add files with `kapi add <pattern>`\n\nkapi --help for the commands\n", bare)
+}
+
+// TestLook_RealRoot drives `kapi look` and bare `kapi` through the real root:
+// the Map names the file and its finding, bare `kapi` is the Map with the
+// line naming where the commands are, and the Reader draws carets under the
+// finding with a range.
+func TestLook_RealRoot(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "kapi.yaml"), []byte(`version: v1
+name: look-e2e
+defaults:
+  source_language: en
+collections:
+  - path: "docs/*.md"
+`), 0o644))
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "docs"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "docs", "guide.md"),
+		[]byte("# Guide\n\nOpen the  editor to write.\n"), 0o644))
+
+	look, stderr := kapiAt(t, dir, "look")
+	assert.Empty(t, stderr)
+	assert.Contains(t, look, "look-e2e · read 1 file just now\n")
+	assert.Contains(t, look, "  1 file · 2 blocks · 0 rules · 1 finding\n")
+	assert.Contains(t, look, "Files\n  docs/guide.md  2 blocks · 1 finding\n")
+	assert.True(t, strings.HasSuffix(look, "\nCheck with `kapi check`. See a file with `kapi look <path>`.\n"), look)
+
+	bare, _ := kapiAt(t, dir)
+	assert.Equal(t, look+"\nkapi --help for the commands\n", bare)
+
+	reader, stderr := kapiAt(t, dir, "look", "docs/guide.md")
+	assert.Empty(t, stderr)
+	assert.True(t, strings.HasPrefix(reader, "docs/guide.md · 2 blocks · 1 finding\n\nh        Guide\nguide/p  Open the  editor to write.\n"), reader)
+	assert.Contains(t, reader, "         Hygiene: Content contains consecutive spaces\n")
+	assert.Contains(t, reader, "`kapi check docs/guide.md` for the report. `kapi context docs/guide.md` for an assistant.\n")
 }

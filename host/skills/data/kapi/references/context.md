@@ -19,7 +19,9 @@ kapi context search "sign in" --json
 ```
 
 `kapi context <path>` returns the file's resolved point, full voice guidance,
-applicable terms, pending suggestions and governance windows.
+applicable terms, pending suggestions and governance windows. `kapi look
+<path>` is the same answer drawn on the file's text for a person, with each
+finding marked under the words it is about.
 
 `kapi context search` searches for a word or phrase across the project's
 configured stores. The usage count on each term is as of the last `kapi up`: a term

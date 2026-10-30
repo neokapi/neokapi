@@ -2951,6 +2951,16 @@
           "short": "Stream-edit the text/content inside files (use ksed)"
         },
         "long": "kapi reads any format into one content model, checks the content against the\nproject's rules, and writes edits back faithfully. It holds the project's\ncontext, such as its terms and its voice, which its checks and AI tools apply.",
+        "look": {
+          "example": "  kapi look\n  kapi look docs/guide.md\n  kapi look docs/guide.md --json",
+          "flags": {
+            "project": {
+              "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
+            }
+          },
+          "long": "See where the project stands, or read one file with what applies to it.\n\nWith no path, look prints the project: the files kapi reads, the blocks in\nthem, the rules in force, the findings kapi check reports, and the\nsuggestions waiting for you in kapi context review. Inside a project, kapi\nwith no command prints the same.\n\nWith a path, look prints the file's blocks in order, each one named the way\nkapi check and kapi inspect name it. A finding is marked with carets under the\nwords it is about, and the rules that hold in the file follow the blocks. A\nfile the project does not read as content is shown too, without rules.\n\n--json gives the same as data.",
+          "short": "See the project, or one file with its rules and findings in place"
+        },
         "ls": {
           "flags": {
             "color": {

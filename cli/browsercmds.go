@@ -174,6 +174,7 @@ func BrowserCommandSet(a *App) []*cobra.Command {
 	cmds = append(cmds, NewApplyCmd(a))
 	cmds = append(cmds, NewStatsCmd(a))
 	cmds = append(cmds,
+		NewLookCmd(a),
 		NewStatusCmd(a),
 		NewCheckCmd(a),
 		NewHookCmd(a),

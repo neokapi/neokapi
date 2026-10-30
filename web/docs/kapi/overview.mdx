@@ -19,8 +19,14 @@ needs linguistic training, and all of it works in a project with one language.
 
 ## See what applies
 
-`kapi context <path>` prints the rules that apply to one file: the voice, the
-words to use and to avoid, and what has been suggested but not yet decided.
+`kapi look` prints the project at a glance: its files, the blocks in them, the
+rules in force, the findings a check reports and the suggestions waiting for
+you. `kapi look <path>` prints one file's blocks with each finding marked
+under the words it is about, and the rules that hold there.
+
+`kapi context <path>` prints the rules that apply to one file as the text an
+assistant reads: the voice, the words to use and to avoid, and what has been
+suggested but not yet decided.
 `kapi init` also writes these rules into a section of `AGENTS.md` and
 `CLAUDE.md`, which an agent loads as it starts, and kapi rewrites that section
 when the rules change. In Kapi Desktop, a project's **Context** pages show the
