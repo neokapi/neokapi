@@ -70,8 +70,8 @@ type Tier = {
 
 // Two ways to USE the engine: directly as a Go library, or through kapi (the
 // CLI + desktop app built on it). neokapi-i18n is a separate React i18n library
-// that lives in the same codebase — highlighted on its own below, not framed as
-// a third "way to use the engine".
+// in the same codebase, shown on its own below rather than as a third way to
+// use the engine.
 // translate() rather than <Translate>: a literal in a const never reaches the
 // JSX walker, so write-translations would not see it.
 const Tiers: Tier[] = [
