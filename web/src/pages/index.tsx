@@ -148,7 +148,7 @@ const NeokapiFeatures: ProductItem[] = [
     description: translate({
       id: "home.feat.context.description",
       message:
-        "Keep the project's terms, its voice and the suggestions a person kept in one place. Ask what applies to a file before you or an agent writes it. Kapi Desktop shows what your assistants noticed, for you to keep or drop.",
+        "See what applies to each file with kapi look, decide which suggestions become rules with kapi rules, and check every edit with kapi check. Kapi Desktop shows the same on the Map, in Decide and in the Reader.",
     }),
     link: "/kapi/desktop/overview",
     linkText: translate({
@@ -164,7 +164,7 @@ const NeokapiFeatures: ProductItem[] = [
     description: translate({
       id: "home.feat.edit.description",
       message:
-        "Run kapi check after each edit. It reports each finding with its rule, such as a forbidden term or a doubled word, and fails when a finding fails, in a terminal, in an agent's session or in CI.",
+        "kapi check reports each finding with its rule, such as a forbidden term or a doubled word, and fails when a finding fails, in a terminal, in an agent's session or in CI. kapi fix makes the fixes it can on its own.",
     }),
     link: "/framework/checks",
     linkText: translate({

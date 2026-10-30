@@ -29,11 +29,13 @@ export default function Commands() {
           or local system access point to a walkthrough instead. Each command has a shareable link.
         </p>
         <p>
-          The groups are the ones the installed kapi prints in its help. Work and Assets are the
-          writing commands, and <code>kapi --help</code> shows them in every project. Languages
-          appears there when the recipe declares a target language, and{" "}
-          <code>kapi help languages</code> lists it in any project. Advanced is listed under{" "}
-          <code>kapi help --all</code>. Every command runs whether or not the default help lists it.
+          The groups are the ones the installed kapi prints in its help. In every project,{" "}
+          <code>kapi --help</code> shows Work, led by <code>look</code>, <code>check</code>,{" "}
+          <code>fix</code>, <code>rules</code>, <code>connect</code>, <code>share</code> and{" "}
+          <code>open</code>, and Assets. Languages appears there when the recipe declares a target
+          language, and <code>kapi help languages</code> lists it in any project. Advanced is listed
+          under <code>kapi help --all</code>. Every command runs whether or not the default help
+          lists it. Below, each group lists its commands alphabetically.
         </p>
 
         <CommandGrid commands={commands} />
