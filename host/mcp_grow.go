@@ -263,11 +263,12 @@ type contextSessionOutput struct {
 	Dropped     int `json:"dropped"`
 	Reset       int `json:"reset"`
 	// Checked, Failing, Caught and Files are what the session's check runs
-	// found (SessionOutcomes), under the names the desktop feed gives them:
-	// the runs the Stop hook recorded, the failing findings the latest run
-	// left, the findings one run reported and the next no longer found on the
-	// same file, and the files the session's turns edited. Each is present at
-	// zero, so a session with no run (checked 0) reads apart from a clean one.
+	// found (SessionOutcomes), under the names the desktop feed gives them.
+	// Checked counts the runs the Stop hook recorded and Failing the failing
+	// findings the latest run left. Caught counts the findings one run
+	// reported and the next no longer found on the same file, and Files the
+	// files the session's turns edited. Each is present at zero, so a session
+	// with no run (checked 0) reads apart from a clean one.
 	Checked int `json:"checked"`
 	Failing int `json:"failing"`
 	Caught  int `json:"caught"`

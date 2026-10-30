@@ -391,6 +391,19 @@ and `reset`, with the sentence to end a task report on. The report ends with
 the `kapi context review --session <id>` command a person reviews the session's
 suggestions with.
 
+It also returns what the Stop hook's check runs found in the session:
+
+| Field | Counts |
+| --- | --- |
+| `checked` | the runs the hook recorded |
+| `failing` | the failing findings the latest run left |
+| `caught` | the findings a run reported that the next run on the same file no longer found |
+| `files` | the files the session's turns edited |
+
+Each field is present at zero, so `checked: 0` means no run was recorded. The
+hook records a run under the assistant host's session id. To read its runs,
+pass that id in `session`.
+
 <McpToolParams name="context_session_summary" />
 
 Keeping, dropping, widening, resetting and syncing are reserved for people,
