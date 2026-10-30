@@ -42,12 +42,13 @@ func (a *App) InspectFile(tabID, filePath string) (string, error) {
 // source-anchored stand-off overlays before serialization:
 //
 //   - term overlays (type "term") from the project's auto-opened terms
-//     (LookupAll over each block's source text), carrying the matched surface
-//     form, its preferred target translation and domain;
+//     (LookupAll over each block's search text, coreprofile.SearchText),
+//     carrying the matched surface form, its preferred target translation and
+//     domain;
 //   - word-rule overlays (type "qa", props.category="voice-vocabulary") from
 //     the terms: the forbidden, competitor and retired terms of the project's
 //     terms store and the terms the voice governing this file's point carries
-//     (coreprofile.MatchTermRules), beside that voice's prohibited patterns;
+//     (coreprofile.MatchTermRulesInRuns), beside that voice's prohibited patterns;
 //   - rule-based check overlays (type "qa") from the shared source-only shape rules
 //     (double spaces, doubled words — check.HygieneOverlay).
 //
@@ -349,7 +350,10 @@ func (a *App) annotateParts(ctx context.Context, op *openProject, parts []*model
 // surface form (term), its preferred target translation (target) and domain.
 // Returns nil when nothing matches.
 func termOverlay(ctx context.Context, tb terms.Terminology, runs []model.Run, source string, sourceLoc, targetLoc model.LocaleID) *model.Overlay {
-	matches, err := tb.LookupAll(ctx, source, terms.LookupOptions{
+	// The store is asked about the search text, where a character reference
+	// stands for its character, and each match is mapped back to the runs.
+	search := coreprofile.NewSearchText(source, runs)
+	matches, err := tb.LookupAll(ctx, search.Text, terms.LookupOptions{
 		SourceLocale: sourceLoc,
 		TargetLocale: targetLoc,
 	})
@@ -375,8 +379,11 @@ func termOverlay(ctx context.Context, tb terms.Terminology, runs []model.Run, so
 		if domain != "" {
 			props["domain"] = domain
 		}
+		if search.SpelledAtEdge(m.Position.Start, m.Position.End) {
+			props["spelled"] = search.Text[m.Position.Start:m.Position.End]
+		}
 		spans = append(spans, model.Span{
-			Range: model.RangeAnchorForBytes(runs, m.Position.Start, m.Position.End),
+			Range: model.RangeAnchorForBytes(runs, search.ToText(m.Position.Start), search.ToText(m.Position.End)),
 			Props: props,
 		})
 	}
@@ -400,14 +407,17 @@ func wordRuleSets(ctx context.Context, tb terms.Terminology, profile *coreprofil
 }
 
 // voiceOverlay builds an OverlayCheck over the source runs from the word rules
-// governing the file (coreprofile.MatchTermRules) and its voice profile's
+// governing the file (coreprofile.MatchTermRulesInRuns, the search `kapi
+// check` runs) and its voice profile's
 // prohibited style patterns (coreprofile.MatchPatternsInRuns). Findings ride on the
 // "qa" overlay type (the model's overlay enum has no dedicated type for them)
 // tagged with category="voice-vocabulary" or category="voice-pattern" plus the
 // matched term or rule, whether it fails, kind and any preferred replacement.
+// A hit a character reference spells an edge of carries the words as the page
+// shows them in "spelled", over the span of its own text.
 // Returns nil when nothing matches.
 func voiceOverlay(words []coreprofile.TermRuleSet, profile *coreprofile.VoiceProfile, runs []model.Run, source string) *model.Overlay {
-	hits := coreprofile.MatchTermRules(words, source)
+	hits := coreprofile.MatchTermRulesInRuns(words, source, runs)
 	patterns := coreprofile.MatchPatternsInRuns(profile, runs)
 	if len(hits) == 0 && len(patterns) == 0 {
 		return nil
@@ -429,6 +439,9 @@ func voiceOverlay(words []coreprofile.TermRuleSet, profile *coreprofile.VoicePro
 		}
 		if h.Replacement != "" {
 			props["replacement"] = h.Replacement
+		}
+		if h.Spelled != "" {
+			props["spelled"] = h.Spelled
 		}
 		spans = append(spans, model.Span{
 			Range: model.RangeAnchorForBytes(runs, h.Start, h.End),

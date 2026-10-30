@@ -225,7 +225,10 @@ func termOverlay(ctx context.Context, runs []model.Run, source string) *model.Ov
 	if err != nil {
 		return nil
 	}
-	matches, err := tb.LookupAll(ctx, source, terms.LookupOptions{
+	// The store is asked about the search text, where a character reference
+	// stands for its character, and each match is mapped back to the runs.
+	search := profile.NewSearchText(source, runs)
+	matches, err := tb.LookupAll(ctx, search.Text, terms.LookupOptions{
 		SourceLocale: model.LocaleID("en"),
 		TargetLocale: model.LocaleID("fr"),
 	})
@@ -247,8 +250,11 @@ func termOverlay(ctx context.Context, runs []model.Run, source string) *model.Ov
 		if m.Concept.Domain != "" {
 			props["domain"] = m.Concept.Domain
 		}
+		if search.SpelledAtEdge(m.Position.Start, m.Position.End) {
+			props["spelled"] = search.Text[m.Position.Start:m.Position.End]
+		}
 		spans = append(spans, model.Span{
-			Range: model.RangeAnchorForBytes(runs, m.Position.Start, m.Position.End),
+			Range: model.RangeAnchorForBytes(runs, search.ToText(m.Position.Start), search.ToText(m.Position.End)),
 			Props: props,
 		})
 	}
@@ -257,14 +263,16 @@ func termOverlay(ctx context.Context, runs []model.Run, source string) *model.Ov
 
 // voiceOverlay builds an OverlayCheck over the source runs from the seeded voice
 // profile: both halves of its deterministic gate, word rules
-// (profile.MatchCarriedTerms) and prohibited style patterns
-// (profile.MatchPatternsInRuns). Findings ride on the `OverlayCheck` type (the model's
-// fixed overlay enum has no dedicated voice type) and are tagged with
+// (profile.MatchTermRulesInRuns, the search `kapi check` runs) and prohibited
+// style patterns (profile.MatchPatternsInRuns). Findings ride on the
+// `OverlayCheck` type (the model's fixed overlay enum has no dedicated voice
+// type) and are tagged with
 // category="voice-vocabulary" or category="voice-pattern" plus the matched term
-// or rule, severity and any preferred replacement. Returns nil when nothing
-// matches.
+// or rule, severity and any preferred replacement. A hit a character reference
+// spells an edge of carries the words as the page shows them in "spelled".
+// Returns nil when nothing matches.
 func voiceOverlay(runs []model.Run, source string) *model.Overlay {
-	hits := profile.MatchCarriedTerms(voiceProfile, source)
+	hits := profile.MatchTermRulesInRuns(profile.CarriedRuleSets(voiceProfile), source, runs)
 	patterns := profile.MatchPatternsInRuns(voiceProfile, runs)
 	if len(hits) == 0 && len(patterns) == 0 {
 		return nil
@@ -286,6 +294,9 @@ func voiceOverlay(runs []model.Run, source string) *model.Overlay {
 		}
 		if h.Replacement != "" {
 			props["replacement"] = h.Replacement
+		}
+		if h.Spelled != "" {
+			props["spelled"] = h.Spelled
 		}
 		spans = append(spans, model.Span{
 			Range: model.RangeAnchorForBytes(runs, h.Start, h.End),
