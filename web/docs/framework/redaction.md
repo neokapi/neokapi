@@ -33,8 +33,12 @@ In the CLI, `redact` and `unredact` are pipeline steps: the built-in
 (`kapi run secure-translate`), a project flow can place the same steps around
 its own pipeline, and `kapi extract --redact` protects a translator hand-off.
 In a project that declares `defaults.redaction`, `kapi exec <tool>` puts the
-same two steps around a tool that calls a model. See [Understanding the CLI layers](/kapi/direct-execution-layer) for the
-flow and single-tool surfaces.
+same two steps around a tool that calls a model. They apply the policy's rules
+to every block the tool reads, blocks marked not translatable included, and to
+each translation beside the source. A policy that detects entities stops the
+run, because no step ahead of the tool finds them. See
+[Understanding the CLI layers](/kapi/direct-execution-layer) for the flow and
+single-tool surfaces.
 
 ## How it stays local
 

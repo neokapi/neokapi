@@ -182,7 +182,13 @@ policy is read at every point content can leave:
    itself places the steps (`host/toolrun_redact.go`). When the tool's contract,
    refined for its config, carries an API call, `redact` runs ahead of it with
    the project's rules and `unredact` after it, the originals riding on the
-   block in between as they do in `secure-translate`. A tool that calls no
+   block in between as they do in `secure-translate`. The tools a run reaches
+   read the whole block, so the step is configured for it (`WholeBlock`): it
+   redacts blocks marked not translatable, and each target locale's runs under
+   tokens of their own. A collector that sends what it gathered to a model
+   (voice-infer's draft) reads the blocks between the two steps. A policy that
+   detects entities is refused, because entity detection reads annotations an
+   extraction step leaves and a run of one tool has none. A tool that calls no
    provider runs alone. The chain each run builds is held to
    `CheckRedactionCoverage` and `CheckPlacement`, so a run without the redact
    step fails the gate a flow fails.

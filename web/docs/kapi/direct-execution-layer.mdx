@@ -79,8 +79,11 @@ while debugging a flow, or a one-off check on a file. See the
 [`exec` reference](/reference/commands/exec).
 
 In a project that declares a [redaction policy](/framework/redaction#recipe-configuration),
-`exec` puts `redact` before a tool that calls a model and `unredact` after it,
-so the model reads placeholders and the output carries the original values.
+`exec` puts `redact` before a tool that calls a model and `unredact` after it.
+The model reads placeholders in every block and in each translation beside it,
+and the output carries the original values. A policy that detects entities
+stops the run; run the tool in a flow with `entity-extract` ahead of `redact`
+instead.
 
 ## `run`: compose tools into a flow
 
