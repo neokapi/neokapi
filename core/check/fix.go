@@ -9,21 +9,20 @@ import (
 )
 
 // Fix is the change operation that applies a finding's replacement to the
-// edition it was raised on: a replace_text of the words the finding objects
-// to with the wording its rule asks for (Metadata["replacement"]), guarded by
-// rev, the revision of the edition the check read. at names that edition, and
-// runs are its runs as the check read them.
+// edition it was raised on. It is a replace_text of the finding's words with
+// Metadata["replacement"], guarded by rev, the revision the check read. at
+// names the edition, and runs are its runs as the check read them.
 //
-// The words are named by the finding's run range when it has one and at is
-// the block's own edition, the runs a position is anchored to; otherwise by
-// the text the finding quotes, which the change service refuses as ambiguous
-// when it occurs more than once.
+// The finding's run range names the words when at is the block's own edition.
+// Otherwise the quoted text does, which the change service refuses as
+// ambiguous when it occurs more than once.
 //
 // A replacement is plain text, so it keeps an inline code only at either end
-// of the words it replaces: a link, a bold span or a placeholder that sits
-// among the words would be deleted with them. A finding whose words hold one
-// has no fix, and is edited by hand. Fix returns nil for it, for a finding
-// with no replacement, and for one with nothing that locates its words.
+// of the words it replaces. A link, a bold span or a placeholder among the
+// words would be deleted with them. Words inside a code span
+// (model.TypeInlineCode) are a command or an identifier, not prose. Fix
+// returns nil for both, for a finding with no replacement, and for one whose
+// words nothing locates.
 func Fix(f Finding, runs []model.Run, at change.Ref, rev string) *change.Op {
 	replacement := ""
 	if f.Metadata != nil {
@@ -39,7 +38,8 @@ func Fix(f Finding, runs []model.Run, at change.Ref, rev string) *change.Op {
 		if !ok || !f.Position.InBounds(seq) {
 			return nil
 		}
-		if codeInside(seq, ownOffset(seq, f.Position.Start), ownOffset(seq, f.Position.End)) {
+		start, end := ownOffset(seq, f.Position.Start), ownOffset(seq, f.Position.End)
+		if codeInside(seq, start, end) || inInlineCode(seq, start, end) {
 			return nil
 		}
 		sel = change.Selection{Path: f.Position.Path, Range: &change.Span{Start: f.Position.Start, End: f.Position.End}}
@@ -93,6 +93,28 @@ func codeInside(seq []model.Run, start, end int) bool {
 	return false
 }
 
+// inInlineCode reports whether [start, end) of seq's own text lies inside an
+// inline code span: a paired code of type model.TypeInlineCode that opens at
+// or before start and closes at or after end.
+func inInlineCode(seq []model.Run, start, end int) bool {
+	at := 0
+	open := map[string]int{}
+	for _, r := range seq {
+		switch {
+		case r.Text != nil:
+			at += utf8.RuneCountInString(r.Text.Text)
+		case r.PcOpen != nil && r.PcOpen.Type == model.TypeInlineCode:
+			open[r.PcOpen.ID] = at
+		case r.PcClose != nil && r.PcClose.Type == model.TypeInlineCode:
+			if from, ok := open[r.PcClose.ID]; ok && from <= start && end <= at {
+				return true
+			}
+			delete(open, r.PcClose.ID)
+		}
+	}
+	return false
+}
+
 // foundInTextAlone reports whether words occur in the text runs hold
 // themselves, and no occurrence has an inline code inside it, as the change
 // service finds them.
@@ -106,7 +128,7 @@ func foundInTextAlone(runs []model.Run, words string) bool {
 			break
 		}
 		start := utf8.RuneCountInString(text[:i+j])
-		if codeInside(runs, start, start+n) {
+		if codeInside(runs, start, start+n) || inInlineCode(runs, start, start+n) {
 			return false
 		}
 		found = true

@@ -2787,6 +2787,40 @@
           "long": "Emit bilingual XLIFF 2.x (default) or PO files for each target language\ndeclared in a kapi project, pre-filled from the project's content memory.\n\nEach invocation writes one batch of outputs under .kapi/work/cache/extractions/\u003cbatch-id\u003e/\nplus one bilingual file per source → target pair in --out-dir (default \"out/\").\nEvery block carries the revision of its translation and of its source, which\nkapi merge checks the returned file against.",
           "short": "Emit a bilingual file for a translator: native .kpz or XLIFF/PO"
         },
+        "fix": {
+          "example": "  kapi fix\n  kapi fix docs/guide.md\n  kapi fix 'docs/**/*.md' --dry-run\n  kapi fix --json",
+          "flags": {
+            "dry-run": {
+              "usage": "print the change each file would get and write nothing"
+            },
+            "pack": {
+              "usage": "built-in voice starter pack"
+            },
+            "profile": {
+              "usage": "voice profile name from the local store"
+            },
+            "profile-file": {
+              "usage": "path to a voice profile YAML"
+            },
+            "project": {
+              "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
+            },
+            "source-lang": {
+              "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)"
+            },
+            "termstore": {
+              "usage": "named terms or terms-store path the checks read (defaults to the project terms store)"
+            },
+            "voice": {
+              "usage": "also run the voice/style-similarity check (needs the kapi-check plugin and a profile with examples); its findings have no automatic fix"
+            },
+            "voice-min": {
+              "usage": "voice-similarity cutoff (cosine, 0-1) below which a block is flagged off-voice"
+            }
+          },
+          "long": "Run the checks 'kapi check' runs and apply the fixes they computed: the\nreplacement that each failing finding of a name, spelling or word rule names.\nEach file's fixes are one change set, applied through the change service 'kapi\napply' uses, so the file keeps its formatting and every byte outside the\nreplaced words stays as it is. kapi fix previews each change set first, and a\nfile the change service cannot write without changing other bytes is not\nwritten; its fixes are listed as not fixed.\n\nSome findings have no automatic fix: a finding about tone or style, a rule\nwith no replacement, words inside a code span, and words that hold a link, a\nformatting span or a placeholder, which the replacement would delete. kapi\nfix lists them as needing a rewrite. A finding that only reports stays as it\nis. A fix the change service refuses, such as one over words another fix also\nchanges, is listed with the reason, and the file's other fixes land.\n\nWith no file arguments inside a project, kapi fix checks the project's declared\ncontent; naming files narrows it to those. After writing, it checks the files\nit wrote again and prints how many failing findings remain. The voice,\nprofile and terms flags select what the check holds the content to, as they\ndo for 'kapi check'. kapi fix takes no --ship: the project gate mode of 'kapi\ncheck' computes no fixes, so run 'kapi check --ship' after kapi fix.\n\n--dry-run prints the change each file would get, as 'kapi apply --dry-run'\nprints it, and writes nothing. --json prints the result (kapi.fix-result/v1):\nthe change set result of each file, the findings not fixed and the findings\nthat need a rewrite.\n\nExit codes: 0 when every fix landed, 1 when a fix did not, 4 when the check\ndid not run.",
+          "short": "Apply the fixes kapi can make on its own"
+        },
         "flows": {
           "example": "  kapi flows",
           "list": {

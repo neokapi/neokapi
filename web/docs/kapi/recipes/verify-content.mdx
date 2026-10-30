@@ -12,7 +12,7 @@ import { PendingMedia } from "@neokapi/docs-shared";
 
 # Check content like tests
 
-**Goal:** verify content before it ships (over-long strings, forbidden phrases, voice drift, structural faults) with a repeatable gate: structured findings, a pass/fail, and an exit code. `kapi check` never modifies content; fixing flagged blocks is [`kapi apply`'s job](/kapi/recipes/rewrite-content). For the Report model and every check family, see [Checks](/framework/checks).
+**Goal:** verify content before it ships (over-long strings, forbidden phrases, voice drift, structural faults) with a repeatable gate: structured findings, a pass/fail, and an exit code. `kapi check` never modifies content; [`kapi fix`](#fix-what-kapi-can) applies the fixes it computed, and [`kapi apply`](/kapi/recipes/rewrite-content) lands the other edits. For the Report model and every check family, see [Checks](/framework/checks).
 
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
@@ -91,6 +91,47 @@ Field-by-field, the Report is documented in [Checks](/framework/checks); the fla
 
 </TabItem>
 </Tabs>
+
+## Fix what kapi can
+
+A finding of a word rule that names a replacement carries its fix: the
+`replace_text` operation that puts the replacement in place of the words. `kapi
+fix` runs the same check and applies those fixes, one change set per file,
+through the change service `kapi apply` uses, so each file keeps its formatting.
+
+```bash
+kapi fix                       # the project's declared content
+kapi fix docs/guide.md         # one file
+kapi fix 'docs/**/*.md' --dry-run
+```
+
+```text
+4 fixed in 2 files
+  docs/guide.md    3 fixed: utilize → use, utilize → use, e-mail → email
+  strings/en.json  1 fixed: utilize → use
+1 finding needs a rewrite, with no automatic fix (voice.style). Edit by hand.
+1 finding not fixed. Edit by hand:
+  docs/guide.md guide/p#2 "mail address": another fix changes the same words
+kapi check: 1 failing finding remains (voice)
+```
+
+`kapi fix` changes failing findings with a replacement and nothing else. A
+finding about tone or style, a rule with no replacement, words inside a code
+span, and words that hold a link, a formatting span or a placeholder have no
+automatic fix, and kapi lists them for you to edit. A finding that only reports
+stays as it is. A fix the change service refuses is listed with the reason, and
+the file's other fixes land. After writing, `kapi fix` checks the files it
+wrote again and prints how many failing findings remain.
+
+`kapi fix` previews each file's change set before it writes. When the preview
+shows a change outside the replaced words, such as an escape the format's
+writer spells another way, kapi leaves the file as it is and lists its fixes as
+not fixed.
+
+`--dry-run` prints the diff each file would get and writes nothing. `--json`
+prints the `kapi.fix-result/v1` result, with each file's change set result. The
+exit code is `0` when every fix landed, `1` when a fix did not, and `4` when
+the check did not run.
 
 ## Check changes in git
 

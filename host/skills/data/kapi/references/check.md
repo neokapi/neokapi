@@ -49,6 +49,9 @@ fails; `summary.failing` counts them. Fix every failing finding. A finding with
 `fails: false` reports: an advisory rule, a style measure such as a comment
 limit, or `suggested: true` for a rule nobody has confirmed yet. Weigh those
 and fix what the context supports. The `score` is reported and decides nothing.
+For the failing findings that carry a `fix`, run `kapi fix --json` on the same
+files: it applies each replacement through the change service and lists the
+findings left for you to rewrite.
 
 Every word rule is a term, and every word-rule finding has rule id
 `terms.vocabulary` (`Forbidden term "x" found`, `Competitor term "x" found`,
