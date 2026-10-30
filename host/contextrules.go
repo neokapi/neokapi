@@ -42,7 +42,8 @@ type ContextRule struct {
 
 // ruleList merges rules into one list, keyed by the wording to use and by
 // whether the rule is advisory, so a rule held in two places is one line and
-// two rules with one wording to use and different outcomes stay two.
+// two rules with one wording to use and different outcomes stay two
+// (lineFor).
 type ruleList struct {
 	rules []ContextRule
 	// bySay indexes rules by their folded Say wording and advisory marking
@@ -82,7 +83,7 @@ func (l *ruleList) add(r ContextRule, from string) {
 		r.Not = fresh
 	}
 	if r.Say != "" {
-		if i, held := l.bySay[sayKey(r)]; held {
+		if i, held := l.lineFor(r); held {
 			existing := &l.rules[i]
 			for _, n := range r.Not {
 				if !l.avoided[fold(n)] && fold(n) != fold(existing.Say) {
@@ -105,6 +106,32 @@ func (l *ruleList) add(r ContextRule, from string) {
 	}
 	r.From = []string{from}
 	l.rules = append(l.rules, r)
+}
+
+// lineFor finds the line r merges into: the line with r's Say and advisory
+// marking. A rule that avoids nothing has no outcome of its own, so it merges
+// into a line with its Say whatever that line's marking; and a line that
+// avoids nothing yet takes the first rule with its Say that does, with that
+// rule's marking.
+func (l *ruleList) lineFor(r ContextRule) (int, bool) {
+	if i, held := l.bySay[sayKey(r)]; held {
+		return i, true
+	}
+	other := r
+	other.Advisory = !r.Advisory
+	i, held := l.bySay[sayKey(other)]
+	switch {
+	case !held:
+		return 0, false
+	case len(r.Not) == 0:
+		return i, true
+	case len(l.rules[i].Not) == 0:
+		delete(l.bySay, sayKey(other))
+		l.rules[i].Advisory = r.Advisory
+		l.bySay[sayKey(r)] = i
+		return i, true
+	}
+	return 0, false
 }
 
 // sayKey is the key a rule merges under: its folded Say wording, and whether
