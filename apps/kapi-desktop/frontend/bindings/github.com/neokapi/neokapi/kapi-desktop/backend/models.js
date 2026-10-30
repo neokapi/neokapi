@@ -10549,14 +10549,15 @@ export class ShareView {
              */
             this["bowrain_plugin"] = false;
         }
-        if (!("recipe_written" in $$source)) {
+        if (/** @type {any} */(false)) {
             /**
-             * RecipeWritten is false for a folder opened without a kapi.yaml.
-             * SetProjectSharing writes the recipe before it names a place in it.
+             * Error is what reading the recipe's place reported, such as a
+             * `context:` block the recipe check refuses. The page then stands on the
+             * first rung, where the context stays until the block is fixed.
              * @member
-             * @type {boolean}
+             * @type {string | undefined}
              */
-            this["recipe_written"] = false;
+            this["error"] = undefined;
         }
 
         Object.assign(this, $$source);

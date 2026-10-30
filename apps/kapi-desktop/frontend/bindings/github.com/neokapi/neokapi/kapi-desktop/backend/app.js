@@ -3090,7 +3090,8 @@ export function SetUILanguage(lang) {
  * ShareView reads the Share page for a tab through the host's `kapi share
  * --status`: the rung, the place, the counts and the last sync, without
  * reaching the place. A tab holding the context alone stands on the first
- * rung, since sharing is named in a recipe and that tab has none.
+ * rung, since sharing is named in a recipe and that tab has none. A recipe
+ * whose place cannot be read stands there too, with the error beside it.
  * @param {string} tabID
  * @returns {$CancellablePromise<$models.ShareView | null>}
  */
@@ -3103,8 +3104,8 @@ export function ShareView(tabID) {
 /**
  * SyncProjectContext pulls what other machines shared through the place a
  * tab's recipe names, and pushes what this machine recorded: the sync `kapi
- * share` and `kapi context sync` run. A place that cannot be reached returns the host's error as it is,
- * with nothing changed here.
+ * share` and `kapi context sync` run. A place that cannot be reached returns
+ * the host's error as it is, with nothing changed here.
  * @param {string} tabID
  * @returns {$CancellablePromise<host$0.ContextSyncResult | null>}
  */
