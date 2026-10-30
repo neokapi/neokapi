@@ -186,8 +186,8 @@ func opsMatrix() []opsFixture {
 		{format: "html", template: "html.html.tmpl"},
 		{format: "i18next", template: "i18next.json.tmpl"},
 		// Strings in an array are not extracted by default. An edited value
-		// is encoded under escapeForwardSlashes (on by default), so the edited
-		// value here already spells its slash as \/.
+		// keeps the spelling of every character the edit kept, so the escaped
+		// slash of the edited value stays \/.
 		{format: "json", template: "json.json.tmpl"},
 		{format: "markdown", template: "markdown.md.tmpl"},
 		{format: "mdx", template: "mdx.mdx.tmpl"},
