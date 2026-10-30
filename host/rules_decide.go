@@ -478,9 +478,10 @@ func (d RuleDecision) NoticedBy() contextop.Actor { return d.noticedBy }
 func (o RuleOption) NoticedBy() contextop.Actor { return o.noticedBy }
 
 // Label is the wording a question is about, for a list that shows each
-// question on one line: the form a name's suggestion says to write, the
-// wording a word rule avoids (which both sides of a disagreement share), the
-// source of a content-memory pair, or the prose of a note.
+// question on one line. For a name it is the form the suggestion says to
+// write, and for a word rule the wording it avoids, which both sides of a
+// disagreement share. A content-memory pair gives its source, and a note its
+// prose.
 func (d RuleDecision) Label() string {
 	if rule, ok := d.subject.Rule(); ok {
 		if d.Kind == RuleDecisionName {

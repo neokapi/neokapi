@@ -1,11 +1,13 @@
 package backend
 
-// Decide on a project's Context hub: each suggestion waiting for a person as
-// one question, with the evidence as its options. host.DecideRules reads the
-// questions `kapi rules` asks, with each option's blocks and files and what
-// keeping it does, and host.DecideRule records an answer through the calls
-// `kapi rules` makes for k, n and l. This file shapes the one for the screen
-// and passes the other on; it decides nothing of its own.
+// Decide asks about each suggestion waiting for a person as one question, with
+// the evidence as its options.
+//
+// The host reads the questions `kapi rules` asks (DecideRules), with each
+// option's blocks and files and what keeping it does. It records an answer
+// through the calls `kapi rules` makes for k, n and l (DecideRule). This file
+// shapes the questions for the screen and passes the answers on. It decides
+// nothing of its own.
 
 import (
 	"context"
