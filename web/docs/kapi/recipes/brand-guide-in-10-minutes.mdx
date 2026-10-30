@@ -27,11 +27,15 @@ Choose a built-in starter pack and adapt it to your requirements: `professional-
 
 The fastest ten minutes: the assistant drafts from signal you already have:
 
-> Draft a voice profile for us. Base the tone on our README and landing page, forbid the usual filler ("leverage", "seamless", "cutting-edge"), and use "sign in" not "log in". Bind it in the recipe.
+```text
+Draft a voice profile for us. Base the tone on our README and landing page, forbid the usual filler ("leverage", "seamless", "cutting-edge"), and use "sign in" not "log in". Bind it in the recipe.
+```
 
 The assistant scaffolds from `kapi voice new`, fills tone and terms from your existing copy, writes `brand/voice.yaml`, binds it under `defaults.voice`, and runs `kapi context sync --files-only` so `AGENTS.md` and `CLAUDE.md` state the voice for the next session. You review the YAML (it's short) and correct the judgment calls. Then ask for the proof:
 
-> Now check the README against it.
+```text
+Now check the README against it.
+```
 
 </TabItem>
 <TabItem value="cli" label="CLI">
