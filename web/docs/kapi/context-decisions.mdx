@@ -1,8 +1,8 @@
 ---
 sidebar_position: 5
 title: Growing context
-description: "An assistant notes what the project's files do and what you change; each note arrives as a suggestion; you keep, drop or widen it with kapi context review, and reset goes back to an earlier state."
-keywords: [kapi, context, note, suggest, review, keep, drop, choose, widen, reset, suggestion, rule, contested, evidence, terms, content memory, agent, session]
+description: "An assistant notes what the project's files do and what you change; each note arrives as a suggestion; you keep or drop it with kapi rules, widen it with kapi context review, and reset goes back to an earlier state."
+keywords: [kapi, context, rules, note, suggest, review, keep, drop, choose, widen, reset, suggestion, rule, contested, evidence, terms, content memory, agent, session]
 ---
 
 # Growing context
@@ -16,7 +16,8 @@ decide about it when it suits you. A suggestion you keep becomes a **rule**.
 | Command | Does |
 | --- | --- |
 | `kapi context suggest` | file what kapi can see in the project's files as suggestions |
-| `kapi context review` | decide about what is waiting: keep, drop, choose a side, apply more widely |
+| `kapi rules` | decide about each suggestion, list the rules in force, narrow or drop one |
+| `kapi context review` | the same decisions, as an assistant records them, and applying a rule more widely |
 | `kapi context reset --before <when>` | go back to how the context stood at an earlier point |
 | `kapi context note` | record what you noticed, or what a person changed (an assistant runs this) |
 | `kapi context log` | list what was recorded, or what one assistant session recorded |
@@ -91,6 +92,60 @@ A suggestion advises at once: `kapi context <path>` lists it under
 *Suggested, not yet established*, and checks report text that goes against it.
 No check fails on it and no score changes until it becomes a rule. A
 suggestion nobody answers keeps advising, so nothing here has to be cleared.
+
+## Deciding with kapi rules {#deciding-with-kapi-rules}
+
+```bash
+kapi rules
+```
+
+In a terminal, `kapi rules` asks one question per suggestion. For a name the
+files write more than one way, the options are the forms, each with the blocks
+and files that use it. Before you answer, it says what keeping the marked form
+does: how many blocks a check then reports, and where the rule applies.
+
+```
+[1/2] Which one do your files use?  #0rbavbmqsx
+  * 1) Quickcast  2 blocks in 2 files
+    2) Quick cast  1 block in 1 file
+    3) Quick-cast  0 blocks in 0 files
+    4) QuickCast  1 block in 1 file
+    5) Other…
+  If you keep "Quickcast": the other 3 forms become findings in 2 blocks. Applies to the whole project.
+  Seen "Quickcast forecasts the next hour." in docs/billing.md
+k keep, n not a rule, l later, 1-5 pick another, q quit:
+```
+
+A number marks another form and says again what keeping it does. **Other…**
+takes a form you type. `k` keeps the marked form, `n` sets the suggestion
+aside as not a rule, and `l` leaves it waiting. Outside a terminal, `kapi
+rules` prints the same questions, and the decisions take the id:
+
+```bash
+kapi rules --keep 0rbavbmqsx --use "Quickcast"
+kapi rules --drop 0rbavbp7cv
+kapi rules --later 0rbavbp7cv
+```
+
+`kapi rules list` lists the rules in force, one line each, grouped as names,
+words, tone and suggested:
+
+```
+1 rule · 1 suggested · 0 narrowed
+
+Names
+  Write Quickcast, not Quick cast, Quick-cast or QuickCast.  terms · kept by you, 2026-10-30  #0rbavbmqsx
+
+Suggested
+  Write use, not utilise.  suggested by claude-code  #0rbavbp7cv
+```
+
+`kapi rules keep <id>` and `kapi rules drop <id>` decide about one line.
+`kapi rules narrow <id> --to <collection>` limits a kept rule to one collection
+or folder, and `kapi rules find <word>` lists the rules, suggestions and
+decisions that mention a word. `kapi context review`, below, records the same
+decisions; it is the spelling an assistant uses, and it also applies a rule
+more widely.
 
 ## Reviewing what kapi learned {#reviewing-what-kapi-learned}
 

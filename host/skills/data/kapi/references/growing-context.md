@@ -233,6 +233,9 @@ kapi context review --keep 0n794e2gk7 --use dashboard   # keep, editing the rule
 kapi context review --drop 0n79gkq853
 ```
 
+`kapi rules` is the person's spelling of `kapi context review`: it records the
+same decisions, so tell a person who decides at the terminal to run `kapi rules`.
+
 ## 4. Bind
 
 Create the project (or adopt the existing recipe, `kapi init` is idempotent):

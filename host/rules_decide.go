@@ -300,7 +300,7 @@ func (v *RulesDecideView) keepConsequence(subject contextop.Subject, scope conte
 	where := " Applies to " + applies + "."
 	switch subject.Kind {
 	case contextop.SubjectNote, contextop.SubjectNone:
-		return "If you keep it: writers and assistants read it where it applies. No check fails on it." + where
+		return "If you keep it: it is stated to writers and assistants where it applies. No check reads it." + where
 	case contextop.SubjectMemory:
 		return "If you keep it: the content memory holds this wording." + where
 	}

@@ -24,19 +24,20 @@ func NewRulesCmd(a *App) *cobra.Command {
 		GroupID: "work",
 		Long: `The rules are what your project keeps to: names and their spelling, words to
 avoid, and the voice's measures and patterns. An assistant suggests a rule
-when it notices one in your files; checks report a suggestion and none fails
+when it notices one in your files. Checks report a suggestion, and none fails
 on it until you keep it.
 
 With suggestions waiting, kapi rules asks about each one in turn: which form
-your files use, or whether to keep it. Before you answer it shows what keeping
-it does: how many blocks a check then reports, and where the rule applies.
+your files use, or whether to keep it. Before you answer, it shows what
+keeping it does: how many blocks a check then reports, and where the rule
+applies.
 
   k  keep             n  not a rule         l  later
   a number picks another form, or types one of your own (Other…)
 
-A kept name or word fails a check from then on. A kept note reports and fails
-nothing. Elsewhere than at a terminal, kapi rules lists the questions with the
-id each decision takes:
+A kept name or word fails a check from then on. A kept note is stated to
+writers and assistants, and no check reads it. Outside a terminal, kapi rules
+lists the questions with the id each decision takes:
 
   --keep <id>        keep a suggestion (repeatable); --use picks the form
   --drop <id>        not a rule: set a suggestion or a kept rule aside
