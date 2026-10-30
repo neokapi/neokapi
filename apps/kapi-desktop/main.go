@@ -123,15 +123,15 @@ func main() {
 	})
 
 	// A project path from outside the app opens as a tab and brings the
-	// window to the front. A folder that holds a recipe opens through it.
-	// The frontend also lists the open tabs as it starts, so a path handed
-	// over before it listens still shows.
+	// window to the front; OpenProject opens a folder or a recipe. The
+	// frontend also lists the open tabs once it has restored the session, so
+	// a path handed over before it listens still shows.
 	openOutside := func(path string) {
 		application.InvokeSync(func() {
 			win.Focus()
 		})
 		go func() {
-			tab, err := appService.OpenProject(backend.OutsidePath(path))
+			tab, err := appService.OpenProject(path)
 			if err != nil {
 				slog.Info("open file", "error", err)
 				return

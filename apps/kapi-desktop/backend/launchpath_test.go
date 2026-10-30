@@ -17,8 +17,8 @@ import (
 )
 
 // TestLaunchPath reads the project path a launch names: the first argument
-// that is not a flag and exists, resolved against the launch's directory, and
-// the recipe of a folder that holds one.
+// that is not a flag and exists, resolved against the launch's directory. A
+// folder is handed on as a folder; OpenProject finds its recipe.
 func TestLaunchPath(t *testing.T) {
 	withRecipe := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(withRecipe, project.RecipeFileName), []byte("version: v1\nname: x\n"), 0o644))
@@ -32,7 +32,7 @@ func TestLaunchPath(t *testing.T) {
 		want string
 	}{
 		{name: "none", args: nil, want: ""},
-		{name: "a folder with a recipe", args: []string{withRecipe}, want: filepath.Join(withRecipe, project.RecipeFileName)},
+		{name: "a folder with a recipe", args: []string{withRecipe}, want: withRecipe},
 		{name: "a folder with none", args: []string{plain}, want: plain},
 		{name: "the recipe itself", args: []string{filepath.Join(withRecipe, project.RecipeFileName)}, want: filepath.Join(withRecipe, project.RecipeFileName)},
 		{name: "relative to the launch", args: []string{filepath.Base(plain)}, dir: parent, want: plain},

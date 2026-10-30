@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-
-	"github.com/neokapi/neokapi/core/project"
 )
 
 // A project reaches the app from outside it in three ways. macOS hands it a
@@ -20,7 +18,7 @@ import (
 // LaunchPath is the project path among a launch's arguments: the first one
 // that is not a flag and names a file or folder that exists, resolved against
 // dir, the directory the launch ran in. It is empty when the launch named
-// none.
+// none. OpenProject takes the path as it is, a folder or a recipe.
 func LaunchPath(args []string, dir string) string {
 	for _, arg := range args {
 		if arg == "" || strings.HasPrefix(arg, "-") {
@@ -32,24 +30,9 @@ func LaunchPath(args []string, dir string) string {
 		if _, err := os.Stat(arg); err != nil {
 			continue
 		}
-		return OutsidePath(arg)
+		return arg
 	}
 	return ""
-}
-
-// OutsidePath is the path OpenProject takes for a path handed to the app from
-// outside: the recipe of a folder that holds one, and the path as given
-// otherwise.
-func OutsidePath(path string) string {
-	info, err := os.Stat(path)
-	if err != nil || !info.IsDir() {
-		return path
-	}
-	recipe := filepath.Join(path, project.RecipeFileName)
-	if _, err := os.Stat(recipe); err == nil {
-		return recipe
-	}
-	return path
 }
 
 // SingleInstanceID names this installation of the app for the single-instance
