@@ -36,6 +36,15 @@ func TestFix(t *testing.T) {
 		model.PcCloseR(model.PcCloseRun{ID: "1", Type: "fmt:bold", Data: "**"}),
 		model.TextR(" daily."),
 	}
+	// "Run `utilize` once, then utilize it." with the command in a code span,
+	// as the Markdown reader builds it.
+	codeSpan := []model.Run{
+		model.TextR("Run "),
+		model.PcOpenR(model.PcOpenRun{ID: "1", Type: model.TypeInlineCode, Data: "`"}),
+		model.TextR("utilize"),
+		model.PcCloseR(model.PcCloseRun{ID: "1", Type: model.TypeInlineCode, Data: "`"}),
+		model.TextR(" once, then utilize it."),
+	}
 	rangeOf := func(sr, so, er, eo int) model.Anchor {
 		return model.Anchor{Kind: model.AnchorRange, Start: model.RunPos{Run: sr, Offset: so}, End: model.RunPos{Run: er, Offset: eo}}
 	}
@@ -92,6 +101,22 @@ func TestFix(t *testing.T) {
 			f:    Finding{OriginalText: "utilize", Position: rangeOf(0, 3, 0, 10), Metadata: replacing},
 			runs: bold, at: own, rev: rev,
 			want: `{"op":"replace_text","at":{"doc":"docs/guide.md","block":"guide/p"},"if_match":"r:0123456789abcdef","edits":[{"range":{"start":{"run":0,"offset":3},"end":{"run":0,"offset":10}},"text":"use"}]}`,
+		},
+		{
+			name: "words inside a code span have no fix",
+			f:    Finding{OriginalText: "utilize", Position: rangeOf(2, 0, 3, 0), Metadata: replacing},
+			runs: codeSpan, at: own, rev: rev,
+		},
+		{
+			name: "quoted words inside a code span have no fix",
+			f:    Finding{OriginalText: "utilize once", Metadata: replacing},
+			runs: []model.Run{codeSpan[1], model.TextR("utilize once"), codeSpan[3]}, at: own, rev: rev,
+		},
+		{
+			name: "words after a code span are replaced",
+			f:    Finding{OriginalText: "utilize", Position: rangeOf(4, 12, 4, 19), Metadata: replacing},
+			runs: codeSpan, at: own, rev: rev,
+			want: `{"op":"replace_text","at":{"doc":"docs/guide.md","block":"guide/p"},"if_match":"r:0123456789abcdef","edits":[{"range":{"start":{"run":4,"offset":12},"end":{"run":4,"offset":19}},"text":"use"}]}`,
 		},
 		{name: "quoted words the edition does not hold have no fix", f: Finding{OriginalText: "leverage", Metadata: replacing}, runs: plain, at: own, rev: rev},
 		{name: "a range outside the runs has no fix", f: Finding{OriginalText: "utilize", Position: rangeOf(0, 3, 9, 0), Metadata: replacing}, runs: plain, at: own, rev: rev},
