@@ -17,14 +17,14 @@ import { PendingMedia } from "@neokapi/docs-shared";
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
 
-Open your project and switch to the **Checks** view.
+Open your project. It opens on its **Map**, whose **findings** count reports what the checks found.
 
-1. **Run the checkset.** Kapi runs the project's bound rules (hygiene, length, patterns, the word rules held as terms, and the voice's patterns when a profile is bound) over the tracked content.
-2. **Read the findings.** Each finding names its rule, whether it fails or only reports, and the exact block; click through to see the flagged text in context.
+1. **Run the checkset.** **Run on everything** on the Map runs the project's bound rules (hygiene, length, patterns, the word rules held as terms, and the voice's patterns when a profile is bound) over the tracked content.
+2. **Read the findings.** Click the **findings** count. Each finding names its rule, whether it fails or only reports, and the exact block; click through to see the flagged text in context.
 3. **Fix and re-run.** Edit the source, re-run, and watch the findings clear. The same gate result the CLI reports is what the panel shows.
 
 <PendingMedia kind="screenshot">
-  The Checks view: a findings list grouped by rule, failing findings first,
+  The findings the Map's count opens: a list grouped by rule, failing findings first,
   with a block-level detail pane and the pass/fail summary.
 </PendingMedia>
 

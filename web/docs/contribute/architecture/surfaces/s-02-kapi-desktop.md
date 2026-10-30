@@ -250,10 +250,13 @@ avoids interpreting filesystem events from SQLite database and WAL files.
 
 ### The Map
 
-A project tab opens on its **Map**, and a persisted view opens where it was.
-A project that has to be set up first, an empty folder or one matching a
-preset, opens on the project section instead. The Map is an overview in the
-page patterns guide's sense, and it renders from one bound call,
+Every project tab opens on its **Map**, and a persisted view opens where it
+was. The project rail lists, in order, Map, Context, Project, Review (only
+while the project declares target languages), Toolbox and Project Settings;
+the checks panel has no entry of its own. A project waiting to be set up, an
+empty folder or one matching a preset, opens on the Map too, and the Map's
+empty files list leads to the project section, where the setup and the preset
+are offered. The Map is an overview in the page patterns guide's sense, and it renders from one bound call,
 `MapSummary`, which answers from what the app already holds and reads no file
 the store sync has not read:
 
@@ -262,15 +265,18 @@ the store sync has not read:
 | Header | the project's name; when the store sync last found the block cache current with the files on disk ("Read 2 minutes ago"), naming how many files the cache holds only when that differs from the files count; **Run on everything**; **Decide** with the count of conflicts and suggestions awaiting a person | the time `SyncProjectStore` records on the tab, the block cache |
 | Counts | **files** (the recipe's resolved content files), **blocks** (the cache's translatable blocks for them, as `GetProjectStatus` counts them), **rules** (the concepts in the bound terms store, the word and pattern rules of the voice profile at the project's own point, and the notes a person kept) and **findings** (the last checks run over every file), the only one in the warning ink and only above zero. Blocks open Ask, rules open Explore, and findings open the checks panel. **kapi suggests** beside them shows only when conflicts make its number differ from Decide's | the block cache, the terms and voice stores, the operation log, the tab's last whole-project `RunChecks` |
 | What your files do | one row for each conflict and each suggestion the digest holds: its kind as a `KindIcon`, the rule, the quotation, and the distinct blocks and files its evidence names. **Decide** opens the Decide section selecting that row (`conflict:<id>` or `suggested:<id>`) | `host.App.ContextDigest`, and the operation log for the evidence |
-| Files | one row per content file: format, name (the folder on the meta line), blocks, findings when above zero, and **Open**, which previews the file. Most findings first, then by path | the resolved content, the block cache, the last checks run |
+| What your files do, empty | "No suggestions yet." and **Connect an assistant**, which opens the Assistant section | |
+| Files | one row per content file: format, name (the folder on the meta line), blocks, findings when above zero, and **Open**, which previews the file. Most findings first, then by path. An empty list offers **Add files**, or **Set up the project** while the project waits to be set up | the resolved content, the block cache, the last checks run |
 
 The checks run behind the findings count is `RunChecks` over every file in
 the recipe's target languages, the same run the checks panel makes. A run that
 narrows the files leaves the Map's counts as they were. The tab keeps the last
-whole-project run in memory, so the Map runs one itself the first time it opens
-a tab that has none in this session, and **Run on everything** runs it again.
-The checks panel has no entry of its own in the rail; the findings count is how
-a person reaches it.
+run over every file and every target language in memory; a narrower run, from
+the checks panel under the menu-bar filter, does not replace it. The Map runs
+one itself the first time it opens a tab that has none in this session, and
+**Run on everything** runs it again. The findings count opens the checks panel
+on that run (`LastProjectChecks`), so the count and the panel agree until the
+person runs the panel's own checks.
 
 ### The project home and the point map
 

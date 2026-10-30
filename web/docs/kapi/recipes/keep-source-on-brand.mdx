@@ -32,9 +32,9 @@ enforces what the last one passed. No server, no model, no second language.
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
 
-With a voice profile bound in the project (Project Settings), the **Checks** view enforces it over everything the project tracks:
+With a voice profile bound in the project (Project Settings), the checks enforce it over everything the project tracks:
 
-1. **Run the checks.** Word-rule and voice findings appear alongside hygiene and length, each named by rule, located to a block, with the suggested wording.
+1. **Run the checks.** **Run on everything** on the project's **Map** runs them, and its **findings** count opens what they found. Word-rule and voice findings appear alongside hygiene and length, each named by rule, located to a block, with the suggested wording.
 2. **Fix at the block.** Open the flagged file, correct the wording, re-run; the score climbs as findings clear.
 3. **Fix the rule as well as the draft.** A recurring off-brand term belongs in the project's terms: add it under **Context → Terms** so every later check enforces it.
 
@@ -86,7 +86,7 @@ The `term` operation lands in the project's terms after the content, so the next
 
 ## In a project
 
-Bind the profile once (`defaults.voice.profile`, naming the profile in the project's voice store) and every surface picks it up: the Checks view, the assistant's loop, bare `kapi check`, and the [ship gate](/kapi/recipes/ship-gates-and-ci)'s voice gate. When translating, a bound voice is also injected into the translation prompt, so target-language output starts on-brand.
+Bind the profile once (`defaults.voice.profile`, naming the profile in the project's voice store) and every surface picks it up: the findings on the desktop Map, the assistant's loop, bare `kapi check`, and the [ship gate](/kapi/recipes/ship-gates-and-ci)'s voice gate. When translating, a bound voice is also injected into the translation prompt, so target-language output starts on-brand.
 
 ## Next
 
