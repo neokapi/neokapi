@@ -1586,7 +1586,7 @@ export interface LoopRollupRun {
   stream?: string;
   /** running | converged | parked | failed | canceled */
   state: string;
-  /** Why a parked/failed run did not converge (needs_credits | …). */
+  /** Why a run waiting for review or a failed run did not converge (needs_credits | …). */
   stall_reason?: string;
   trigger?: string;
   created_at?: string;

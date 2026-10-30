@@ -91,14 +91,14 @@ describe("ConvergenceRunContext awaiting review", () => {
     expect(screen.queryByText(/awaiting review/)).not.toBeInTheDocument();
   });
 
-  it("folds the count into the parked banner instead of a second element", () => {
+  it("folds the count into the waiting-for-review banner instead of a second element", () => {
     render(<ConvergenceRunContext run={makeRun({ state: "parked" })} />);
 
-    expect(screen.getByText("Parked, pending review")).toBeInTheDocument();
+    expect(screen.getByText("Waiting for review")).toBeInTheDocument();
     expect(
       screen.getByText(/20 blocks awaiting review \(fr-FR 12 · de-DE 8\)/),
     ).toBeInTheDocument();
-    // No standalone converged-style element alongside the parked banner.
+    // No standalone converged-style element alongside the waiting-for-review banner.
     expect(screen.queryByText("20 blocks awaiting review")).not.toBeInTheDocument();
   });
 });
@@ -108,7 +108,7 @@ describe("ConvergenceRunContext awaiting review", () => {
 // ---------------------------------------------------------------------------
 
 describe("ConvergenceRunContext no target languages", () => {
-  it("labels a no_target_locales park with the configuration banner", () => {
+  it("labels a no_target_locales hold with the configuration banner", () => {
     const run = makeRun({
       state: "parked",
       stall_reason: "no_target_locales",
@@ -119,7 +119,7 @@ describe("ConvergenceRunContext no target languages", () => {
 
     expect(screen.getByText("No target languages configured")).toBeInTheDocument();
     expect(screen.getByText(/nothing to converge toward/)).toBeInTheDocument();
-    // Not the generic pending-review park: the next action is configuration.
-    expect(screen.queryByText("Parked, pending review")).not.toBeInTheDocument();
+    // Not the generic waiting-for-review banner: the next action is configuration.
+    expect(screen.queryByText("Waiting for review")).not.toBeInTheDocument();
   });
 });

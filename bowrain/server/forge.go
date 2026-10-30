@@ -547,7 +547,7 @@ func forgeDeliveryReport(ev platev.Event, proj *platstore.Project) (title, body 
 		state, ev.Data["passes"], proj.Name)
 	b.WriteString("\nProduced by the kapi loop running on Bowrain. ")
 	if state == bstore.ConvergenceRunParked {
-		b.WriteString("Some work parked for a person. It is waiting in the project's review queue and will arrive in a later delivery once approved.")
+		b.WriteString("Some work waits for review by a person. It is in the project's review queue and will arrive in a later delivery once approved.")
 	} else {
 		b.WriteString("Every gated scope cleared its ship gate.")
 	}

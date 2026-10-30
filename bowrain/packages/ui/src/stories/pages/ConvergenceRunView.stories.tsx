@@ -94,7 +94,7 @@ export const Converged: Story = {
   },
 };
 
-export const Parked: Story = {
+export const WaitingForReview: Story = {
   args: {
     model: reduceRun(parkedEvents),
     run: { ...run, trigger: "cli" },
