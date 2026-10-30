@@ -4,8 +4,10 @@ package e2e
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -19,6 +21,18 @@ import (
 func TestConnect_DryRunThenTwice(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "site")
 	require.NoError(t, os.MkdirAll(dir, 0o755))
+	// The person's own Claude Code settings say whether the plugin is
+	// enabled, so they point at an empty folder here.
+	claude := t.TempDir()
+	kapiIn := func(t *testing.T, dir string, args ...string) string {
+		t.Helper()
+		cmd := exec.Command(kapiBin, args...)
+		cmd.Dir = dir
+		cmd.Env = append(append(os.Environ(), isoEnv...), "CLAUDE_CONFIG_DIR="+claude)
+		out, err := cmd.CombinedOutput()
+		require.NoError(t, err, "kapi %s failed:\n%s", strings.Join(args, " "), out)
+		return string(out)
+	}
 
 	dry := kapiIn(t, dir, "connect", "--dry-run")
 	assert.Contains(t, dry, "Claude Code   would connect · rules, MCP server, skill\n")

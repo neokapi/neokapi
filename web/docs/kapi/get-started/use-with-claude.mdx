@@ -31,13 +31,13 @@ Project
 See what an assistant reads for a file: kapi context <path> --explain
 ```
 
-It connects Claude Code and each assistant whose folder the project keeps, and lists the others. Each file line says created, updated or kept. A folder with no recipe gets the one `kapi init` writes. `AGENTS.md` and `CLAUDE.md` get the Writing rules section, and the rest of each file stays as you wrote it. A second run keeps every file as it is.
+It connects Claude Code and each assistant whose folder the project keeps, and lists the others. Each line says what happened: created, updated or kept for a file; deleted, or removed the section, for a rules file in a folder that has no rules of its own any more; pending for the Stop hook. A folder with no recipe gets the one `kapi init` writes. `AGENTS.md` and `CLAUDE.md` get the Writing rules section, and the rest of each file stays as you wrote it. A second run keeps every file as it is.
 
-- `kapi connect --dry-run` lists the same files with what it would do, and writes nothing.
+- `kapi connect --dry-run` lists the same files with what it would do, and writes none of them.
 - `kapi connect codex` connects one assistant: `claude`, `cursor`, `vscode`, `codex` or `agents`. Any other name exits with status 1 and lists these.
 - `kapi connect --json` gives the assistants and the files as data.
 
-The Stop hook belongs to the kapi Claude Code plugin, which you install inside Claude Code with the two commands on its line. `kapi connect` reads the project's `.claude/settings.json` and `.claude/settings.local.json`, and reports the hook as kept once one of them enables the plugin. A plugin installed for your user alone is recorded outside the project, so the line stays pending. [What `kapi connect` writes](#what-kapi-init-wires-up) lists each assistant's files.
+The Stop hook belongs to the kapi Claude Code plugin, which you install inside Claude Code with the two commands on its line. `kapi connect` reads the project's `.claude/settings.json` and `.claude/settings.local.json`, and then your own Claude Code settings (`settings.json` in `$CLAUDE_CONFIG_DIR`, or in `~/.claude`). It reports the hook as kept once one of them enables the plugin, and `kept (enabled for your user)` when only your own settings do. [What `kapi connect` writes](#what-kapi-init-wires-up) lists each assistant's files.
 
 kapi and Claude connect in **two directions**. In one, you work in Claude and it drives kapi: the assistant writes inside kapi's guardrails. In the other, kapi runs Claude: your local Claude Code sign-in becomes kapi's AI provider, so `kapi up` and `kapi translate` run on your Claude subscription with no API key. Start from what you have:
 

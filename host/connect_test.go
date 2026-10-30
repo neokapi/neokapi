@@ -27,10 +27,20 @@ func connectIn(t *testing.T, app *App, dir string, opts ConnectOptions) *Connect
 	return res
 }
 
+// isolateClaudeSettings points the person's Claude Code settings at an empty
+// folder, so a plugin installed on the machine running the tests is not read.
+func isolateClaudeSettings(t *testing.T) {
+	t.Helper()
+	t.Setenv("CLAUDE_CONFIG_DIR", t.TempDir())
+	t.Setenv("HOME", t.TempDir())
+}
+
 // connectFolder is an empty folder, its symlinks resolved so the paths a
-// result reports compare equal to it.
+// result reports compare equal to it. The person's Claude Code settings are
+// isolated with it.
 func connectFolder(t *testing.T, name string) string {
 	t.Helper()
+	isolateClaudeSettings(t)
 	parent, err := filepath.EvalSymlinks(t.TempDir())
 	require.NoError(t, err)
 	dir := filepath.Join(parent, name)
@@ -271,4 +281,115 @@ func TestWriteAgentWiring_DryRunWritesNothing(t *testing.T) {
 	entries, err := os.ReadDir(dir)
 	require.NoError(t, err)
 	assert.Empty(t, entries, "a dry run creates no file and no folder")
+}
+
+// writeSettings writes a Claude Code settings file enabling the kapi plugin.
+func writeSettings(t *testing.T, path string) {
+	t.Helper()
+	settings, err := json.Marshal(map[string]any{"enabledPlugins": map[string]bool{"kapi@neokapi-plugins": true}})
+	require.NoError(t, err)
+	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
+	require.NoError(t, os.WriteFile(path, settings, 0o644))
+}
+
+func TestConnectHosts_ClaudePluginEnabledForTheUser(t *testing.T) {
+	app, _ := contextOpsApp(t)
+
+	t.Run("CLAUDE_CONFIG_DIR", func(t *testing.T) {
+		dir := connectFolder(t, "site")
+		config := t.TempDir()
+		t.Setenv("CLAUDE_CONFIG_DIR", config)
+		writeSettings(t, filepath.Join(config, "settings.json"))
+		res := connectIn(t, app, dir, ConnectOptions{DryRun: true})
+		hook := res.Hosts[0].Files[len(res.Hosts[0].Files)-1]
+		assert.Equal(t, ConnectKept, hook.Action)
+		assert.Empty(t, hook.Path, "the person's own file is named by no project path")
+		var text bytes.Buffer
+		require.NoError(t, res.FormatText(&text))
+		assert.Contains(t, text.String(), "Stop hook            kept (enabled for your user)\n")
+	})
+
+	t.Run("home", func(t *testing.T) {
+		dir := connectFolder(t, "site")
+		home := t.TempDir()
+		t.Setenv("CLAUDE_CONFIG_DIR", "")
+		t.Setenv("HOME", home)
+		writeSettings(t, filepath.Join(home, ".claude", "settings.json"))
+		res := connectIn(t, app, dir, ConnectOptions{DryRun: true})
+		hook := res.Hosts[0].Files[len(res.Hosts[0].Files)-1]
+		assert.Equal(t, ConnectKept, hook.Action)
+		assert.Equal(t, "enabled for your user", hook.Detail)
+		assert.Contains(t, res.Hosts[0].Reads, "kapi check when it finishes")
+	})
+}
+
+func TestConnectHosts_DryRunWithNoRecipeReportsStaleSections(t *testing.T) {
+	app, _ := contextOpsApp(t)
+	dir := connectFolder(t, "site")
+	section := capLineLength(renderRootSection(rulesPlan{}))
+	stale := agentrules.StartLine + "\n## Writing rules for docs/\n\n- Space, not \"Workspace\"\n" + agentrules.End + "\n"
+	mine := "# Guide notes\n\nKeep this.\n"
+	for rel, body := range map[string]string{
+		"AGENTS.md":       section,
+		"docs/AGENTS.md":  stale,
+		"guide/CLAUDE.md": mine + "\n" + stale,
+	} {
+		full := filepath.Join(dir, filepath.FromSlash(rel))
+		require.NoError(t, os.MkdirAll(filepath.Dir(full), 0o755))
+		require.NoError(t, os.WriteFile(full, []byte(body), 0o644))
+	}
+	before := snapshot(t, dir)
+
+	dry := connectIn(t, app, dir, ConnectOptions{DryRun: true})
+	assert.Equal(t, before, snapshot(t, dir), "a dry run writes nothing")
+	got := actions(dry)
+	assert.Equal(t, ConnectKept, got["AGENTS.md"], "a root section that is already current is kept")
+	assert.Equal(t, ConnectDeleted, got["docs/AGENTS.md"], "a file holding only a stale section is deleted")
+	assert.Equal(t, ConnectRemoved, got["guide/CLAUDE.md"], "a stale section beside a person's text is taken out")
+
+	real := connectIn(t, app, dir, ConnectOptions{})
+	assert.Equal(t, got, actions(real), "the dry run says what the real run does")
+	_, err := os.Stat(filepath.Join(dir, "docs/AGENTS.md"))
+	require.ErrorIs(t, err, fs.ErrNotExist)
+	guide, err := os.ReadFile(filepath.Join(dir, "guide/CLAUDE.md"))
+	require.NoError(t, err)
+	assert.Equal(t, mine, string(guide))
+}
+
+func TestConnectHosts_RefusesARecipeItCannotWrite(t *testing.T) {
+	app, _ := contextOpsApp(t)
+	t.Setenv("KAPI_NO_PROJECT", "1")
+	dir := connectFolder(t, "site")
+
+	for _, tt := range []struct {
+		name    string
+		recipe  string
+		message string
+	}{
+		{name: "another name", recipe: filepath.Join(dir, "custom.yaml"), message: "no recipe at " + filepath.Join(dir, "custom.yaml")},
+		{name: "a missing folder", recipe: filepath.Join(dir, "missing", "kapi.yaml"), message: "no folder at " + filepath.Join(dir, "missing")},
+	} {
+		for _, dry := range []bool{true, false} {
+			cmd := NewEnvCommand(t.Context(), "connect")
+			cmd.Flags().String("project", tt.recipe, "")
+			_, err := app.ConnectHosts(t.Context(), cmd, ConnectOptions{DryRun: dry})
+			require.Error(t, err, "%s, dry run %v", tt.name, dry)
+			assert.Contains(t, err.Error(), tt.message)
+			entries, rerr := os.ReadDir(dir)
+			require.NoError(t, rerr)
+			assert.Empty(t, entries, "%s, dry run %v: nothing is written", tt.name, dry)
+		}
+	}
+}
+
+func TestConnectHosts_DryRunOverAConnectedProject(t *testing.T) {
+	app, _ := contextOpsApp(t)
+	dir := connectFolder(t, "site")
+	connectIn(t, app, dir, ConnectOptions{})
+
+	res := connectIn(t, app, dir, ConnectOptions{DryRun: true})
+	var text bytes.Buffer
+	require.NoError(t, res.FormatText(&text))
+	assert.Contains(t, text.String(), "Claude Code   connected · nothing to write\n")
+	assert.NotContains(t, text.String(), "would")
 }

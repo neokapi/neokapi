@@ -11,7 +11,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/neokapi/neokapi/core/agentrules"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/host/skills"
 )
@@ -33,7 +32,8 @@ type ConnectOptions struct {
 	// Hosts names the assistants to connect. Empty connects the ones found in
 	// the folder (DetectAgentHosts).
 	Hosts []AgentHost
-	// DryRun reports what connecting would write and writes nothing.
+	// DryRun reports what connecting would write and writes none of the files
+	// it reports.
 	DryRun bool
 }
 
@@ -181,27 +181,56 @@ const claudePluginSteps = "in Claude Code, /plugin marketplace add neokapi/claud
 var claudeSettingsFiles = []string{".claude/settings.json", ".claude/settings.local.json"}
 
 // claudePluginEnabledIn names the project settings file that enables the kapi
-// Claude Code plugin, empty when none does. It reads the project's own files
-// and nothing in the person's home directory.
+// Claude Code plugin, empty when none does.
 func claudePluginEnabledIn(root string) string {
 	for _, rel := range claudeSettingsFiles {
-		raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel)))
-		if err != nil {
-			continue
-		}
-		var doc struct {
-			EnabledPlugins map[string]bool `json:"enabledPlugins"`
-		}
-		if json.Unmarshal(raw, &doc) != nil {
-			continue
-		}
-		for name, on := range doc.EnabledPlugins {
-			if on && strings.HasPrefix(name, "kapi@") {
-				return rel
-			}
+		if enablesKapiPlugin(filepath.Join(root, filepath.FromSlash(rel))) {
+			return rel
 		}
 	}
 	return ""
+}
+
+// claudeUserSettings is the person's own Claude Code settings file:
+// settings.json in $CLAUDE_CONFIG_DIR when it is set, else in ~/.claude.
+// False when neither can be named.
+func claudeUserSettings() (string, bool) {
+	if dir := os.Getenv("CLAUDE_CONFIG_DIR"); dir != "" {
+		return filepath.Join(dir, "settings.json"), true
+	}
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return "", false
+	}
+	return filepath.Join(home, ".claude", "settings.json"), true
+}
+
+// claudePluginEnabledForUser reports whether the person's own Claude Code
+// settings enable the kapi plugin. It reads that file and writes nothing.
+func claudePluginEnabledForUser() bool {
+	path, ok := claudeUserSettings()
+	return ok && enablesKapiPlugin(path)
+}
+
+// enablesKapiPlugin reports whether a Claude Code settings file enables a
+// plugin named kapi, from any marketplace.
+func enablesKapiPlugin(path string) bool {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	var doc struct {
+		EnabledPlugins map[string]bool `json:"enabledPlugins"`
+	}
+	if json.Unmarshal(raw, &doc) != nil {
+		return false
+	}
+	for name, on := range doc.EnabledPlugins {
+		if on && strings.HasPrefix(name, "kapi@") {
+			return true
+		}
+	}
+	return false
 }
 
 // claudeCodeFound reports whether the folder shows Claude Code in use: its
@@ -237,6 +266,9 @@ func (a *App) ConnectHosts(ctx context.Context, cmd Command, opts ConnectOptions
 			return nil, err
 		}
 		recipe = filepath.Join(root, project.RecipeFileName)
+	}
+	if err := connectableRecipe(recipe); err != nil {
+		return nil, err
 	}
 	res := &ConnectResult{Root: root, Recipe: recipe, DryRun: opts.DryRun}
 
@@ -300,8 +332,13 @@ func (a *App) ConnectHosts(ctx context.Context, cmd Command, opts ConnectOptions
 		}
 		if h.host == AgentHostClaudeCode {
 			hook := ConnectFile{Kind: ConnectHook, Action: ConnectPending, Detail: claudePluginSteps}
-			if rel := claudePluginEnabledIn(root); rel != "" {
+			switch rel := claudePluginEnabledIn(root); {
+			case rel != "":
 				hook = ConnectFile{Path: rel, Kind: ConnectHook, Action: ConnectKept, Detail: "the kapi plugin is enabled"}
+			case claudePluginEnabledForUser():
+				hook = ConnectFile{Kind: ConnectHook, Action: ConnectKept, Detail: "enabled for your user"}
+			}
+			if hook.Action == ConnectKept {
 				entry.Reads = append(entry.Reads, "kapi check when it finishes")
 			}
 			entry.Files = append(entry.Files, hook)
@@ -315,6 +352,24 @@ func (a *App) ConnectHosts(ctx context.Context, cmd Command, opts ConnectOptions
 	}
 	res.Files = append(res.Files, rules...)
 	return res, nil
+}
+
+// connectableRecipe refuses a recipe connect cannot write: one that does not
+// exist under a name other than kapi.yaml, which kapi init never writes, or
+// one whose folder does not exist. It runs before anything is written.
+func connectableRecipe(recipe string) error {
+	if _, err := os.Stat(recipe); err == nil {
+		return nil
+	}
+	dir := filepath.Dir(recipe)
+	if info, err := os.Stat(dir); err != nil || !info.IsDir() {
+		return fmt.Errorf("no folder at %s: name an existing folder, or a recipe in one", dir)
+	}
+	if filepath.Base(recipe) != project.RecipeFileName {
+		return fmt.Errorf("no recipe at %s: kapi connect writes a new recipe as %s, so name the folder or a recipe that exists",
+			recipe, project.RecipeFileName)
+	}
+	return nil
 }
 
 // connectDir is the folder a project with no recipe is connected in. A dry
@@ -358,36 +413,21 @@ func (a *App) connectRecipe(root, recipe string, dry bool) (file ConnectFile, ta
 }
 
 // connectRulesFiles writes the project's rules files, or reports what a write
-// would do. A dry run over a folder with no recipe has no context to read the
-// rules from, so it reports the root files from what is on disk: a file kapi
-// would create, or one whose section it would add.
+// would do. A dry run over a folder with no recipe reads the plan of a new
+// project, whose context is empty: the root's section with no rules, and no
+// folder with rules of its own, so a section kapi wrote into a sub-folder's
+// file is reported as the real run takes it out.
 func (a *App) connectRulesFiles(ctx context.Context, root, recipe string, haveRecipe, dry bool) ([]ConnectFile, error) {
-	if !haveRecipe {
-		var out []ConnectFile
-		agents := filepath.Join(root, "AGENTS.md")
-		for _, name := range agentrules.Names {
-			path := filepath.Join(root, name)
-			doc, err := os.ReadFile(path)
-			action := ConnectUpdated
-			switch {
-			case errors.Is(err, os.ErrNotExist):
-				action = ConnectCreated
-			case err != nil:
-				return nil, err
-			case name == "CLAUDE.md" && (sameInode(agents, path) || agentrules.ImportsAgents(doc)):
-				continue
-			}
-			out = append(out, ConnectFile{Path: name, Kind: ConnectRules, Action: action})
-		}
-		return out, nil
-	}
 	var (
 		res *RulesFilesResult
 		err error
 	)
-	if dry {
+	switch {
+	case !haveRecipe:
+		res, err = writeRulesPlan(projectWrites{dry: true}, root, rulesPlan{})
+	case dry:
 		res, err = a.PreviewRulesFiles(ctx, recipe)
-	} else {
+	default:
 		res, err = a.WriteRulesFiles(ctx, recipe)
 	}
 	if err != nil {
@@ -470,7 +510,11 @@ func (r *ConnectResult) FormatText(w io.Writer) error {
 			fmt.Fprintf(&b, "%-13s not connected: %s (kapi connect %s adds it)\n", h.Label, h.Reason, connectCommandName(h.Host))
 			continue
 		}
-		fmt.Fprintf(&b, "%-13s %s · %s\n", h.Label, state, strings.Join(h.Reads, ", "))
+		summary := strings.Join(h.Reads, ", ")
+		if r.DryRun && nothingToWrite(h.Files) {
+			state, summary = "connected", "nothing to write"
+		}
+		fmt.Fprintf(&b, "%-13s %s · %s\n", h.Label, state, summary)
 		for _, f := range h.Files {
 			fmt.Fprintf(&b, "  %-*s  %s\n", width, connectFileLabel(f), connectActionText(f, r.DryRun))
 		}
@@ -484,6 +528,17 @@ func (r *ConnectResult) FormatText(w io.Writer) error {
 	b.WriteString("\n" + connectHint + "\n")
 	_, err := io.WriteString(w, b.String())
 	return err
+}
+
+// nothingToWrite reports that a dry run would leave every one of an
+// assistant's files as it is.
+func nothingToWrite(files []ConnectFile) bool {
+	for _, f := range files {
+		if f.Action != ConnectKept && f.Action != ConnectPending {
+			return false
+		}
+	}
+	return true
 }
 
 // connectCommandName is the name `kapi connect` takes for a host.
@@ -520,6 +575,8 @@ func connectActionText(f ConnectFile, dry bool) string {
 		text = "removed the section"
 	}
 	switch {
+	case f.Kind == ConnectHook && f.Action == ConnectKept && f.Path == "":
+		return text + " (" + f.Detail + ")"
 	case f.Kind == ConnectHook && f.Action == ConnectKept:
 		return text + " (" + f.Path + ": " + f.Detail + ")"
 	case f.Detail != "":

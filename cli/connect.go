@@ -37,12 +37,12 @@ project keeps (.cursor/, .vscode/, .codex/, .agents/), and lists the others.
 Name one to connect it alone: claude, cursor, vscode, codex or agents.
 
 Claude Code runs the project's check when it finishes through the Stop hook
-of the kapi Claude Code plugin. kapi connect reports that hook as pending
-until the project's .claude/settings.json enables the plugin, with the
-commands that install it.
+of the kapi Claude Code plugin. kapi connect reports that hook as pending,
+with the commands that install it, until the project's .claude/settings.json
+or your own Claude Code settings enable the plugin.
 
 Running it again rewrites nothing that is current. --dry-run lists the same
-files with what it would do and writes nothing.`,
+files with what it would do and writes none of them.`,
 		Example: "  kapi connect\n" +
 			"  kapi connect --dry-run\n" +
 			"  kapi connect claude\n" +
@@ -65,7 +65,7 @@ files with what it would do and writes nothing.`,
 			return output.Print(cmd, res)
 		},
 	}
-	cmd.Flags().Bool("dry-run", false, "list the files kapi connect would write, and write nothing")
+	cmd.Flags().Bool("dry-run", false, "list the files kapi connect would write, and write none of them")
 	AddProjectFlag(cmd)
 	return cmd
 }

@@ -14,11 +14,14 @@ import (
 )
 
 // connectFolder is an empty folder named name, made the working directory,
-// with project discovery off so the folder is the project kapi connect writes.
+// with project discovery off so the folder is the project kapi connect writes,
+// and the person's Claude Code settings pointed at an empty folder.
 func connectFolder(t *testing.T, name string) string {
 	t.Helper()
 	isolateHelp(t)
 	t.Setenv("KAPI_NO_PROJECT", "1")
+	t.Setenv("CLAUDE_CONFIG_DIR", t.TempDir())
+	t.Setenv("HOME", t.TempDir())
 	parent, err := filepath.EvalSymlinks(t.TempDir())
 	require.NoError(t, err)
 	dir := filepath.Join(parent, name)
