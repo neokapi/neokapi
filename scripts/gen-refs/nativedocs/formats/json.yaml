@@ -159,7 +159,7 @@ parameters:
       back unchanged keeps the spelling the document gave it. An edited value
       keeps the spelling of every character the edit kept, and an added slash
       is spelled the way most of the document's slashes are spelled. The
-      option decides only for a document that spells no slash.
+      option applies only to a document that spells no slash.
     values: "`true` / `false` (default `true`)"
   useCodeFinder:
     description: Enable pattern-based inline-code detection.
