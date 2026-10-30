@@ -196,7 +196,7 @@ func (t *UnredactTool) Process(ctx context.Context, in <-chan *model.Part, out c
 		errc <- t.BaseTool.Process(ctx, in, mid)
 	}()
 	for p := range mid {
-		keepProvenance(p)
+		keepProvenance(ctx, p)
 		select {
 		case out <- p:
 		case <-ctx.Done():
@@ -215,14 +215,14 @@ func (t *UnredactTool) Apply(part *model.Part) (*model.Part, error) {
 func (t *UnredactTool) ApplyContext(ctx context.Context, part *model.Part) (*model.Part, error) {
 	res, err := t.BaseTool.ApplyContext(ctx, part)
 	if err == nil {
-		keepProvenance(res)
+		keepProvenance(ctx, res)
 	}
 	return res, err
 }
 
 // keepProvenance gives each translation unredact put back as redact read it
 // the status and origin it had before redact rewrote it.
-func keepProvenance(p *model.Part) {
+func keepProvenance(ctx context.Context, p *model.Part) {
 	if p == nil {
 		return
 	}
@@ -234,7 +234,7 @@ func keepProvenance(p *model.Part) {
 	if !ok {
 		return
 	}
-	v := tool.NewVariantView(b)
+	v := tool.NewVariantViewWithContext(ctx, b)
 	for locale, was := range kept.Targets {
 		v.StampTargetProvenance(locale, model.TargetStatus(was.Status), was.Origin)
 	}
