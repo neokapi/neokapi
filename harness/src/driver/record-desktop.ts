@@ -2348,14 +2348,14 @@ async function bowrainDesktopAutomationsWalk(c: WalkCtx): Promise<void> {
   });
 
   // The run settles, and its row says what each language got. What needs a
-  // person is parked, and parked work is already in review.
+  // person waits for review, and that work is already in the review queue.
   await beatEls("settled", ['[data-testid="run-row"]'], async () => {
     await page.waitForTimeout(3000);
     await cursorTo('[data-testid="run-row"]');
     await page.waitForTimeout(2600);
   });
 
-  // The parked work, where it waits: the project's own delivery card links
+  // The work waiting for review, where it waits: the project's own delivery card links
   // straight into the review session.
   await beatEls("parked", ['[data-testid="delivery-panel"]', '[data-testid="review-session"]'], async () => {
     await humanClick(page, page.getByTestId("subnav-dashboard"));

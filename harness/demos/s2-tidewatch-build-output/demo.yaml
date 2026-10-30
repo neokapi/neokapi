@@ -1,6 +1,6 @@
 id: s2-tidewatch-build-output
 title: The i18n tree is build output
-subtitle: The loop writes where the build looks, and a parked language leaves no files.
+subtitle: The loop writes where the build looks, and a language held back by its gate leaves no files.
 kind: use-case
 publishAs: docs-site-convergence
 # A scripted plain-shell demo: every command is deterministic and offline. The AI
@@ -34,11 +34,11 @@ script:
   - command: cat .gitignore
   - comment: One verb. Approved wording is recycled; only the remainder reaches a provider.
   - command: kapi up
-  - comment: Norwegian ships on translated work. Dutch parks, because nothing in it has been read by a person.
+  - comment: Norwegian ships on translated work. Dutch waits for review, because nothing in it has been read by a person.
   - command: kapi status
   - comment: Front matter is content, so a title in a sidebar and a description in a search result converge with the prose.
   - command: head -6 i18n/nb/docusaurus-plugin-content-docs/current/index.md
-  - comment: And only Norwegian is on disk. The ship gate controls delivery, so a parked language has no files rather than unblessed ones.
+  - comment: And only Norwegian is on disk. The ship gate controls delivery, so a language held back by its gate has no files rather than unblessed ones.
   - command: find i18n -name '*.md' | sort
 
 artifacts:
@@ -75,10 +75,10 @@ narration:
     kind: terminal
     through: 8
     highlight: { text: [nb, nl] }
-    caption: Norwegian ships. Dutch parks, and nothing failed.
+    caption: Norwegian ships. Dutch waits for review, and nothing failed.
     text: >-
       One verb converges both languages. Norwegian clears the ship gate on
-      translated work. Dutch parks, because the gate asks for half its units to
+      translated work. Dutch waits for review, because the gate asks for half its units to
       have been read by a person and none of them have.
 
   - id: translated
@@ -96,8 +96,8 @@ narration:
     through: 12
     caption: Only the language that cleared the gate is on disk.
     text: >-
-      And only Norwegian is on disk. Delivery follows the ship gate, so a parked
-      language has no files at all rather than files nobody has blessed.
+      And only Norwegian is on disk. Delivery follows the ship gate, so a language
+      held back by its gate has no files at all rather than files nobody has blessed.
 
   - id: outro
     kind: outro

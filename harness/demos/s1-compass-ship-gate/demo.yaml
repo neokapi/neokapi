@@ -30,7 +30,7 @@ outro:
 script:
   - comment: Compass ships three languages from one source. Bring them up to date first.
   - command: kapi up
-  - comment: Norwegian and German clear the ship gate on translated work. Dutch parks, because one of its units fails the project's bound checks.
+  - comment: Norwegian and German clear the ship gate on translated work. Dutch waits for review, because one of its units fails the project's bound checks.
   - command: kapi status --ship --emit site/ship.json
   - command: cat site/ship.json
   - comment: The review queue names each unit's document, block and language, which a decision addresses. This selects the Dutch a person wrote and leaves what the stub drafted.
@@ -39,7 +39,7 @@ script:
   # The report goes to stderr, so the tail has to see stderr to trim it.
   - command: kapi apply dutch.json 2>&1 | tail -3
   - comment: Each approval is in the record as it is made, attributable, and reviewable in the context log.
-  - comment: A decision unparks the language, so run the loop again. The drafts it already made are recycled, so the provider is asked for nothing a second time.
+  - comment: A decision releases the language, so run the loop again. The drafts it already made are recycled, so the provider is asked for nothing a second time.
   - command: kapi up
   - comment: Dutch is offered now, in the translated state, because not every string in it is approved.
   - command: kapi status --ship --emit site/ship.json
@@ -75,10 +75,10 @@ narration:
   - id: parked
     kind: terminal
     through: 5
-    highlight: { text: [parked, withheld] }
+    highlight: { text: ["waiting for review", withheld] }
     caption: Dutch is drafted, kept, and not offered.
     text: >-
-      Dutch parks on a failing check. Its drafts are safe in the project store
+      Dutch waits for review on a failing check. Its drafts are safe in the project store
       and nothing about them is lost; what the gate withholds is delivery, until
       somebody has looked at the unit that failed.
 

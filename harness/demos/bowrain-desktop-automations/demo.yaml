@@ -15,7 +15,7 @@ outro:
 aspects:
   - Standing rules per project
   - A run started on camera
-  - Parked work waits in review
+  - Work waiting for review is in the review queue
 
 narration:
   - id: title
@@ -48,22 +48,22 @@ narration:
   - id: settled
     kind: desktop
     beat: settled
-    caption: Up to date, or parked with a reason.
+    caption: Up to date, or waiting for review with a reason.
     hold: 16
     crop: { selector: '[data-testid="run-row"]' }
     highlight: { selector: '[data-testid="run-row"]' }
     text: >-
       Each run catches the project up and then settles. The row says what every
-      language got out of the pass, and anything that needs a person is parked
-      rather than shipped.
+      language got out of the pass, and anything that needs a person waits for
+      review rather than shipping.
 
   - id: parked
     kind: desktop
     beat: parked
-    caption: Parked work is already in review.
+    caption: Work waiting for review is already in review.
     hold: 14
     text: >-
-      Parked work is already in the review queue, waiting for somebody who
+      Work waiting for review is already in the review queue, for somebody who
       holds the permission for that language, and the next run picks up where
       this one stopped.
 

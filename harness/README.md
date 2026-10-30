@@ -40,7 +40,7 @@ tag runs a live Claude session; **shell** marks a scripted shell demo and
 | 11 | `11-cli-terms-and-queue`         | **shell.** One list of term rules reaching the model and the gate, and one review queue |
 | 12 | `s0-northsea-context`            | **shell.** The context graph arrives as files, and answers where you are and what a word means here |
 | 13 | `s0-northsea-checks`             | **shell.** Gates over prose, a correction the graph keeps, and a green converge |
-| 14 | `s1-compass-converge`            | **shell.** Three languages converged, memory recycled first, and one language parked |
+| 14 | `s1-compass-converge`            | **shell.** Three languages converged, memory recycled first, and one language waiting for review |
 | 15 | `s1-compass-ship-gate`           | **shell.** Review moves the edge, and the language picker reads one file |
 | 16 | `s2-tidewatch-build-output`      | **shell.** The i18n tree is build output, written where the site build already looks |
 | 17 | `s2-tidewatch-ci`                | **shell.** Coverage reported on a pull request, with only the source gated |
@@ -54,7 +54,7 @@ tag runs a live Claude session; **shell** marks a scripted shell demo and
 | 25 | `bowrain-cli-getting-started`    | **shell.** Your content stays in your repository: `kapi init` connects it, `push` moves the source up, and `kapi up` runs the loop on the server and pulls the results back |
 | 26 | `bowrain-cli-auth-and-workspaces` | **shell.** Pseudo-translate breaks the layout on your own screen first; `kapi auth` and `kapi workspace` then say where the content would go |
 | 27 | `bowrain-desktop-dashboard`      | **desktop.** The same workspace natively, and the one thing only the app does: edits queue while the network is gone and replay in order when it returns |
-| 28 | `bowrain-desktop-automations`    | **desktop.** A rule fires on push, a run is started on camera, and what needs a person is parked in review |
+| 28 | `bowrain-desktop-automations`    | **desktop.** A rule fires on push, a run is started on camera, and what needs a person waits in review |
 | 29 | `bowrain-web-editor`             | **desktop.** One block edited over the rendered page, a memory match applied in a click, and the same file in the next language |
 | 30 | `bowrain-web-review`             | **desktop.** Two people, one queue, and the server refusing an approval of its author's own work |
 | 31 | `bowrain-web-governance`         | **desktop.** One concept's record, the memory that answers for its wording, and that wording reaching the editor |
