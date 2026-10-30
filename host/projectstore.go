@@ -66,6 +66,9 @@ type projectStores struct {
 	// redaction policy it applies, as the recipe last read declared it.
 	keptKeys   map[string]*keptDocKeys
 	keptRedact map[string]keptRedactionRead
+	// drafts holds, by project root, the folders an embedding host opened on a
+	// recipe that is not on disk yet (projectdraft.go).
+	drafts map[string]draftProject
 }
 
 // ensureProjectStores returns the App's store holder, creating it on first use.
@@ -231,8 +234,9 @@ func (a *App) ProjectDB(ctx context.Context, root string) (*projectdb.DB, error)
 	if db, ok := s.dbs[abs]; ok {
 		return db, nil
 	}
+	layout := s.layoutFor(abs)
 	if existingStoresOnly(ctx) {
-		if _, err := os.Stat(projectLayoutAt(abs).StorePath()); err != nil {
+		if _, err := os.Stat(layout.StorePath()); err != nil {
 			return nil, errNoProjectStore
 		}
 	}
@@ -252,7 +256,7 @@ func (a *App) ProjectDB(ctx context.Context, root string) (*projectdb.DB, error)
 	}
 	s.bound[abs] = bound
 
-	db, err := projectdb.Open(openCtx, projectLayoutAt(abs), projectdb.WithWorkspace(stores))
+	db, err := projectdb.Open(openCtx, layout, projectdb.WithWorkspace(stores))
 	if err != nil {
 		return nil, err
 	}
@@ -302,6 +306,10 @@ func (s *projectStores) bindWorkspace(ctx context.Context, abs string) (projectd
 	}
 	identity, name := recipeIdentity(filepath.Join(abs, project.RecipeFileName))
 	key := workspace.ProjectKey(identity)
+	draft, isDraft := s.drafts[abs]
+	if isDraft {
+		key = draft.key
+	}
 	if key == "" {
 		key = workspace.KeyForCheckout(NormalizeCheckoutPath(abs))
 	}
@@ -311,7 +319,8 @@ func (s *projectStores) bindWorkspace(ctx context.Context, abs string) (projectd
 	}
 	// A workspace opened for reading records nothing, which is the honest
 	// outcome in a sandbox that refuses writes and no reason to fail the open.
-	if !ws.Describe().ReadOnly {
+	// A draft registers nothing until its recipe is on disk.
+	if !ws.Describe().ReadOnly && !isDraft {
 		if _, err := ws.Register(ctx, key, name, NormalizeCheckoutPath(abs)); err != nil {
 			return projectdb.Stores{}, boundProject{}, fmt.Errorf("register %s in the workspace: %w", key, err)
 		}
@@ -416,7 +425,7 @@ func (a *App) contextStorePath(ctx context.Context, root string) string {
 			return path
 		}
 	}
-	return projectLayoutAt(root).StorePath()
+	return a.ProjectStorePath(root)
 }
 
 // recipeIdentity reads the two fields of a recipe that say which project this

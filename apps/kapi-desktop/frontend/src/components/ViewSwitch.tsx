@@ -229,6 +229,7 @@ export function ViewSwitch({
           onChooseFolder={onOpenProject}
           onOpenPath={onOpenPath}
           onTrySample={() => onCreateSampleProject("kapimart")}
+          onOpenSettings={() => navigate("app-settings")}
         />
       );
     }

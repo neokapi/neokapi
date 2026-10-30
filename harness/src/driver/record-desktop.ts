@@ -811,9 +811,8 @@ function contextSection(page: Page, label: string): Locator {
 
 /** Terms + content memory, read at the project that agreed them.
  *
- *  The app opens in projects mode (backend.GetAppMode defaults to "projects"
- *  and no UI switches it), so the two stores are sections of the Context
- *  pillar rather than rail items, and each shows the OPEN PROJECT's store:
+ *  The two stores are sections of the Context pillar rather than rail items,
+ *  and each shows the OPEN PROJECT's store:
  *  TermsPage/MemoriesPage auto-select the project handle and skip the picker
  *  entirely (TermsPage.tsx `activeHandle = projectHandle || handle`). The walk
  *  therefore opens KapiMart first and reads its terms and its memory.

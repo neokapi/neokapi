@@ -12,6 +12,7 @@ const meta: Meta<typeof OpenScreen> = {
     onChooseFolder: fn(),
     onOpenPath: fn(),
     onTrySample: fn(),
+    onOpenSettings: fn(),
   },
   parameters: {
     layout: "fullscreen",

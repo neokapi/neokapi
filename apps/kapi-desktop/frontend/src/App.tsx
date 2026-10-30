@@ -22,7 +22,7 @@ import { TelemetryNoticeDialog } from "./components/TelemetryNoticeDialog";
 import { initAnalytics, capturePageview } from "./analytics";
 import { ViewSwitch } from "./components/ViewSwitch";
 import { NewProjectDialog } from "./components/NewProjectDialog";
-import { OpenScreen } from "./components/OpenScreen";
+import { OpenScreen, firstScreen } from "./components/OpenScreen";
 import { useShortenHome } from "./hooks/useShortenHome";
 import { isMacDesktop } from "./lib/platform";
 import { Undo2, Redo2 } from "lucide-react";
@@ -232,12 +232,15 @@ function AppInner() {
   );
   // Until two projects are registered the home is the Open screen. With no
   // folder open it fills the window: no sidebar, no top bar, nothing to act on
-  // but the ways in. While the workspace is still being read, the window holds
-  // the title bar alone, so the Open screen never shows only to give way to the
-  // workspace home.
+  // but the ways in (see firstScreen).
   const openScreen = (workspace?.projects.length ?? 0) < 2;
-  const reading = !workspace && !workspaceError;
-  const firstLaunch = openScreen && tm.tabs.length === 0;
+  const screen = firstScreen({
+    workspace,
+    workspaceError,
+    tabCount: tm.tabs.length,
+    restoring: tm.restoring,
+    view: tm.effectiveView,
+  });
   const dialogs = (
     <>
       {tm.showNewProjectForm && (
@@ -252,17 +255,18 @@ function AppInner() {
       )}
     </>
   );
-  if (firstLaunch) {
+  if (screen !== "app") {
     return (
       <div className="flex h-screen flex-col bg-background text-foreground">
         <div className="h-12 shrink-0" style={{ WebkitAppRegion: "drag" } as React.CSSProperties} />
         <main className="min-h-0 flex-1">
-          {!reading && (
+          {screen === "open" && (
             <OpenScreen
               workspace={workspace}
               onChooseFolder={() => void tm.openProject()}
               onOpenPath={(path) => void tm.openRecent(path)}
               onTrySample={() => tm.createSampleProject("kapimart")}
+              onOpenSettings={() => tm.navigate("app-settings")}
             />
           )}
         </main>

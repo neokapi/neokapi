@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "./testUtils";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { Events } from "@wailsio/runtime";
-import { OpenScreen, droppedPath, recentFolders } from "../components/OpenScreen";
+import { OpenScreen, droppedPath, firstScreen, recentFolders } from "../components/OpenScreen";
 import type { WorkspaceHome, WorkspaceProject } from "../types/api";
 
 function project(key: string, dir: string, lastActive: string, missing = false): WorkspaceProject {
@@ -33,6 +33,7 @@ const props = () => ({
   onChooseFolder: vi.fn(),
   onOpenPath: vi.fn(),
   onTrySample: vi.fn(),
+  onOpenSettings: vi.fn(),
 });
 
 describe("OpenScreen", () => {
@@ -48,6 +49,13 @@ describe("OpenScreen", () => {
     expect(p.onChooseFolder).toHaveBeenCalledOnce();
     await userEvent.click(screen.getByRole("button", { name: "Try with KapiMart" }));
     expect(p.onTrySample).toHaveBeenCalledOnce();
+  });
+
+  it("reaches the app's settings from its footer", async () => {
+    const p = props();
+    render(<OpenScreen {...p} />);
+    await userEvent.click(screen.getByRole("button", { name: "Settings" }));
+    expect(p.onOpenSettings).toHaveBeenCalledOnce();
   });
 
   it("says where recent folders will appear when there are none", () => {
@@ -126,5 +134,34 @@ describe("droppedPath", () => {
   it("takes the first path of a drop", () => {
     expect(droppedPath(["", "/a", "/b"])).toBe("/a");
     expect(droppedPath("nope")).toBeNull();
+  });
+});
+
+describe("firstScreen", () => {
+  const one = workspaceOf(project("prj_docs", "/fakehome/src/docs", "2026-10-01T10:00:00Z"));
+  const two = workspaceOf(
+    project("prj_docs", "/fakehome/src/docs", "2026-10-01T10:00:00Z"),
+    project("prj_site", "/fakehome/src/site", "2026-10-02T10:00:00Z"),
+  );
+  const base = { workspace: one, tabCount: 0, restoring: false, view: "home" };
+
+  it("holds the title bar alone while a remembered session is reopened", () => {
+    expect(firstScreen({ ...base, restoring: true })).toBe("blank");
+  });
+
+  it("holds the title bar alone while the workspace is read", () => {
+    expect(firstScreen({ ...base, workspace: null })).toBe("blank");
+  });
+
+  it("shows the Open screen with fewer than two projects and no folder open", () => {
+    expect(firstScreen(base)).toBe("open");
+    expect(firstScreen({ ...base, workspace: workspaceOf() })).toBe("open");
+    expect(firstScreen({ ...base, workspace: null, workspaceError: new Error("x") })).toBe("open");
+  });
+
+  it("shows the app once a folder is open, two projects exist, or settings are asked for", () => {
+    expect(firstScreen({ ...base, tabCount: 1, restoring: true })).toBe("app");
+    expect(firstScreen({ ...base, workspace: two })).toBe("app");
+    expect(firstScreen({ ...base, view: "app-settings" })).toBe("app");
   });
 });

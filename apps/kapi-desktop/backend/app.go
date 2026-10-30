@@ -654,7 +654,10 @@ func (a *App) OpenProject(path string) (*TabInfo, error) {
 // deleted.
 func (a *App) openFolder(recipe string) (*TabInfo, error) {
 	dir := filepath.Dir(recipe)
-	proj, draft, err := draftRecipe(dir, a.draftSourceLocale(), a.initFormats())
+	// The draft keeps its state under the data root, so the folder is left as
+	// it was found until its recipe is written.
+	stateDir := host.DraftStateDir(dir)
+	proj, draft, err := draftRecipe(dir, draftID(stateDir), a.draftSourceLocale(), a.initFormats())
 	if err != nil {
 		return nil, err
 	}
@@ -666,6 +669,9 @@ func (a *App) openFolder(recipe string) (*TabInfo, error) {
 		workspaceKey: workspaceKeyFor(proj, dir),
 	}
 	op.unsaved.Store(true)
+	if err := a.hostEngine().BindDraftProject(dir, op.workspaceKey, stateDir); err != nil {
+		return nil, err
+	}
 
 	a.autoOpenProjectResources(op)
 
@@ -693,7 +699,7 @@ func (a *App) UpdateProject(tabID string, proj *project.KapiProject) error {
 	if changed {
 		// A person changed a setting the recipe holds, in a folder opened
 		// without a kapi.yaml. The first such change writes the file.
-		return a.ensureRecipe(op)
+		return a.ensureRecipeLocked(op)
 	}
 	return nil
 }
@@ -732,7 +738,13 @@ func (a *App) releaseProjectResources(op *openProject) {
 		op.tbHandle = ""
 	}
 	if root, ok := projectRoot(op); ok {
-		if err := a.hostEngine().CloseProjectDB(root); err != nil {
+		// A draft's binding goes with its tab, so a recipe written in the
+		// folder from elsewhere is found the next time it opens.
+		release := a.hostEngine().CloseProjectDB
+		if op.unsaved.Load() {
+			release = a.hostEngine().UnbindDraftProject
+		}
+		if err := release(root); err != nil {
 			a.logger.Printf("close project store for %s: %v", root, err)
 		}
 	}
@@ -757,7 +769,7 @@ func (a *App) autoOpenProjectResources(op *openProject) {
 	if !ok {
 		return
 	}
-	if _, err := os.Stat(project.LayoutAt(root).StorePath()); err != nil {
+	if _, err := os.Stat(a.hostEngine().ProjectStorePath(root)); err != nil {
 		return
 	}
 	db, err := a.hostEngine().ProjectDB(context.Background(), root)
@@ -817,9 +829,9 @@ func (a *App) ListTabs() []TabInfo {
 
 // SaveProject writes a project to its file path.
 func (a *App) SaveProject(tabID string) error {
-	a.mu.RLock()
+	a.mu.Lock()
+	defer a.mu.Unlock()
 	op := a.projects[tabID]
-	a.mu.RUnlock()
 
 	if op == nil {
 		return fmt.Errorf("tab %q not found", tabID)
@@ -839,12 +851,25 @@ func (a *App) SaveProjectAs(tabID, path string) error {
 	if op == nil {
 		return fmt.Errorf("tab %q not found", tabID)
 	}
+	draftRoot := ""
+	if op.unsaved.Load() && op.Path != "" {
+		draftRoot = filepath.Dir(op.Path)
+	}
 	if err := project.Save(path, op.Project); err != nil {
 		return err
 	}
 	op.Path = path
+	if draftRoot == "" {
+		return nil
+	}
+	// A folder opened without a recipe, saved into another folder: that
+	// folder is the project now, set up as ensureRecipe sets one up.
+	if err := project.EnsureLayout(project.LayoutAt(filepath.Dir(path))); err != nil {
+		a.logger.Printf("create %s for %s: %v", project.StateDirName, path, err)
+	}
 	op.unsaved.Store(false)
 	op.draft = nil
+	a.adoptRecipe(op, draftRoot)
 	return nil
 }
 

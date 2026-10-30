@@ -83,3 +83,34 @@ describe("a folder opened without a recipe", () => {
     expect(result.current.activeTab?.info.recipe_written).toBe(true);
   });
 });
+
+describe("restoring the remembered session", () => {
+  beforeEach(() => stubBackend());
+  afterEach(() => vi.restoreAllMocks());
+
+  it("stays restoring until the remembered tab is back", async () => {
+    vi.spyOn(api, "getSessionState").mockResolvedValue({
+      lastOpenProjects: [TAB.path],
+      activeProject: TAB.path,
+    });
+    const seen: Array<{ restoring: boolean; tabs: number }> = [];
+    const { result } = renderHook(
+      () => {
+        const tm = useTabManager();
+        seen.push({ restoring: tm.restoring, tabs: tm.tabs.length });
+        return tm;
+      },
+      { wrapper },
+    );
+    expect(result.current.restoring).toBe(true);
+    await waitFor(() => expect(result.current.restoring).toBe(false));
+    expect(result.current.tabs).toHaveLength(1);
+    expect(seen.some((s) => !s.restoring && s.tabs === 0)).toBe(false);
+  });
+
+  it("ends restoring when there is nothing to reopen", async () => {
+    const { result } = renderHook(() => useTabManager(), { wrapper });
+    await waitFor(() => expect(result.current.restoring).toBe(false));
+    expect(result.current.tabs).toHaveLength(0);
+  });
+});

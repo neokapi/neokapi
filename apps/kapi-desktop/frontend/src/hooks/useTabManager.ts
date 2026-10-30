@@ -41,6 +41,9 @@ export function useTabManager() {
   // Gate session persistence until the initial restore completes so we don't
   // clobber the saved session with the empty startup state.
   const restoredRef = useRef(false);
+  // True until the remembered session has been reopened, so the first screen
+  // is not chosen from a tab list the restore has yet to fill.
+  const [restoring, setRestoring] = useState(true);
 
   const activeTab = tabs.find((t) => t.info.id === activeTabID) ?? null;
 
@@ -318,7 +321,10 @@ export function useTabManager() {
         // Fall back to the home on any failure.
         if (!cancelled) setGlobalView("home");
       } finally {
-        if (!cancelled) restoredRef.current = true;
+        if (!cancelled) {
+          restoredRef.current = true;
+          setRestoring(false);
+        }
       }
     })();
     return () => {
@@ -371,6 +377,7 @@ export function useTabManager() {
   });
 
   return {
+    restoring,
     globalView,
     tabs,
     activeTabID,

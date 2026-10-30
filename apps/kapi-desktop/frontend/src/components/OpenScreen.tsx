@@ -16,6 +16,8 @@ export interface OpenScreenProps {
   onOpenPath: (path: string) => void;
   /** Scaffold the KapiMart sample and open it. */
   onTrySample: () => void;
+  /** Open the app's settings. */
+  onOpenSettings: () => void;
 }
 
 /** One recent folder: the project it holds and the recipe path that opens it. */
@@ -40,6 +42,7 @@ export function OpenScreen({
   onChooseFolder,
   onOpenPath,
   onTrySample,
+  onOpenSettings,
 }: OpenScreenProps) {
   const shortenHome = useShortenHome();
   const recent = useMemo(() => recentFolders(workspace), [workspace]);
@@ -117,9 +120,50 @@ export function OpenScreen({
             <EmptyState title={t("Recent folders appear here.")} />
           )}
         </section>
+
+        <footer className="flex justify-center pb-6">
+          <Button
+            variant="link"
+            size="sm"
+            data-slot="open-settings"
+            className="h-auto px-0 text-xs text-muted-foreground"
+            onClick={onOpenSettings}
+          >
+            {t("Settings")}
+          </Button>
+        </footer>
       </div>
     </div>
   );
+}
+
+/** Which first screen the window shows. */
+export type FirstScreen = "blank" | "open" | "app";
+
+/**
+ * What the window shows: the app, once a folder is open or two projects are
+ * registered; the Open screen otherwise; and the title bar alone while the
+ * remembered session is reopened or the workspace is read, so neither screen
+ * shows only to give way to the other. App Settings, reached from the Open
+ * screen, open in the app.
+ */
+export function firstScreen({
+  workspace,
+  workspaceError,
+  tabCount,
+  restoring,
+  view,
+}: {
+  workspace: WorkspaceHome | null;
+  workspaceError?: unknown;
+  tabCount: number;
+  restoring: boolean;
+  view: string;
+}): FirstScreen {
+  if (tabCount > 0 || view === "app-settings") return "app";
+  if (restoring || (!workspace && !workspaceError)) return "blank";
+  if (workspace && workspace.projects.length >= 2) return "app";
+  return "open";
 }
 
 /**
