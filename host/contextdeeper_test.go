@@ -2,7 +2,6 @@ package host
 
 import (
 	"context"
-	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -286,7 +285,7 @@ func TestDeeperLook_NoProviderRefuses(t *testing.T) {
 
 	_, err := app.DeeperLook(context.Background(), DeeperLookRequest{Project: recipeOf(root)})
 	require.Error(t, err)
-	assert.True(t, errors.Is(err, ErrNoAIProvider), err.Error())
+	require.ErrorIs(t, err, ErrNoAIProvider)
 	assert.Contains(t, err.Error(), "no AI provider configured")
 }
 

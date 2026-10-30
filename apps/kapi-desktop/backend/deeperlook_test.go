@@ -1,7 +1,6 @@
 package backend
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -72,7 +71,7 @@ func TestDeeperLook_NoModelConnected(t *testing.T) {
 
 	_, err = app.DeeperLook(tabID)
 	require.Error(t, err)
-	assert.True(t, errors.Is(err, host.ErrNoAIProvider), err.Error())
+	require.ErrorIs(t, err, host.ErrNoAIProvider)
 }
 
 func TestDeeperLook_FilesWhatTheMapShows(t *testing.T) {
