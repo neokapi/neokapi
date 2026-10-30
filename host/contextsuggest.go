@@ -22,28 +22,17 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 )
 
-// The suggestions pass: what kapi can see in a project's own files, filed as
-// suggestions a person decides (`kapi context suggest`).
+// The suggestions pass (`kapi context suggest`) reads the source blocks of
+// the files the recipe declares, with no model and no network. It counts
+// three things: one word written several ways, words a starter voice pack
+// avoids, and the reader addressed as you.
 //
-// The pass reads the source blocks of the files the recipe declares, the
-// way a check reads them, and measures three things with no model and no
-// network:
+// Each finding is an observation by kapi, recorded the way `kapi context
+// note` records one. It fails no check until a person keeps it.
 //
-//   - one word written several ways: the same letters once case, spaces and
-//     hyphens are set aside (e-mail and email, sign in and sign-in);
-//   - words a starter voice pack avoids, in a project that binds no voice;
-//   - whether the files address the reader as you.
-//
-// Each finding goes into the context log as an observation by kapi itself,
-// through the same path `kapi context note` records through. It advises and
-// fails no check until a person keeps it. The pass writes nothing else: not the
-// recipe, not a rules file, not a store.
-//
-// Running it again files nothing new. A finding it filed before is matched by
-// what it is about (the letters of the word, the pack, the habit), so the same
-// files give the same log; a finding a person dropped stays dropped; and a
-// finding the files have moved on from (a word that gained a spelling) is
-// withdrawn and filed again as it now stands.
+// A later run matches each finding to its record by what it is about.
+// Unchanged files record nothing, a dropped finding stays dropped, and a
+// changed one is withdrawn and filed again.
 
 // SuggestActor is who files what the suggestions pass sees: kapi itself. An
 // agent's notes carry the agent; these carry kapi.
