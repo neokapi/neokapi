@@ -1357,19 +1357,12 @@ export class AssistantsView {
         }
         if (!("sessions" in $$source)) {
             /**
-             * Sessions are the newest of the project's sessions, newest first, and
-             * MoreSessions reports that there are more.
+             * Sessions are the newest of the project's sessions, newest first. The
+             * Sessions view lists them all.
              * @member
              * @type {AssistantSession[]}
              */
             this["sessions"] = [];
-        }
-        if (!("more_sessions" in $$source)) {
-            /**
-             * @member
-             * @type {boolean}
-             */
-            this["more_sessions"] = false;
         }
 
         Object.assign(this, $$source);
