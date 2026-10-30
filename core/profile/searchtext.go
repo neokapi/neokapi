@@ -7,19 +7,15 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// A block's text (model.RunsText) gives every inline code zero width. For most
-// codes that is what a reader sees: `<b>` around a word adds no characters. A
-// character reference is different. The HTML reader keeps `&amp;` and `&nbsp;`
-// as inline codes so a write spells them as the document did, and the page
-// shows each as a character. Matched against the zero-width text,
-// `utilize&amp;more` reads as "utilizemore" and the rule about "utilize" finds
-// nothing.
+// A block's text (model.RunsText) gives every inline code zero width, which is
+// what a reader sees of `<b>`. The HTML reader also keeps a character
+// reference (`&amp;`, `&nbsp;`) as an inline code, and the page shows it as a
+// character. In the zero-width text `utilize&amp;more` reads as "utilizemore".
 //
-// TermSearchText is the text a term is looked for in: the block's text with
-// each character reference standing for the character it spells. Every other
-// code keeps its zero width. A hit found in the search text is mapped back to
-// offsets of the block's text, so a finding's snippet, its run anchor and the
-// span a fix replaces are the ones the block's text and runs give.
+// TermSearchText is the text a term is looked for in: each character reference
+// stands for the character it spells, and every other code keeps its zero
+// width. A hit is mapped back to offsets of the block's text, so its snippet,
+// run anchor and fix span come from the block's own text and runs.
 
 // entityCodeType is the vocabulary type of an inline code that is a character
 // reference.
