@@ -10,7 +10,7 @@
 // change service as the person at the keyboard; the page then draws the file
 // as the service's result left it. Nothing on the page edits a block in place.
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, AudioLines, FileText, ListChecks, Lock, Wand2 } from "lucide-react";
 import {
@@ -35,7 +35,13 @@ import { t } from "@neokapi/i18n-react/runtime";
 import { api } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
 import { useInvalidateOnEvent } from "../hooks/useInvalidateOnEvent";
-import type { ReaderBlock, ReaderFile, ReaderFinding, ReaderRule } from "../types/api";
+import type {
+  ReaderBlock,
+  ReaderFile,
+  ReaderFinding,
+  ReaderRefusal,
+  ReaderRule,
+} from "../types/api";
 
 /**
  * The view that opens the Reader on a file, at one block when one is named:
@@ -98,8 +104,13 @@ export function ReaderPage({
   useInvalidateOnEvent(["project-files-changed", "workspace:changed"], [key]);
 
   // A fix answers with the file read again, which replaces the page's read.
+  // Its refusals are kept apart from the read: the file changing on disk
+  // reads it again, and that read carries no refusal of its own.
+  const [refused, setRefused] = useState<ReaderRefusal[] | null>(null);
   const settle = (next: ReaderFile | null) => {
-    if (next) qc.setQueryData(key, next);
+    if (!next) return;
+    qc.setQueryData(key, next);
+    setRefused(next.refused);
   };
   const fixOne = useMutation({
     mutationFn: (findingID: string) => api.fixFinding(tabID, path, findingID),
@@ -135,6 +146,7 @@ export function ReaderPage({
     <ScrollArea className="h-full">
       <ReaderView
         reader={reader}
+        refused={refused ?? reader.refused}
         focusBlockID={focusBlockID}
         busy={busy}
         fixingID={fixOne.isPending ? fixOne.variables : undefined}
@@ -152,6 +164,8 @@ export function ReaderPage({
 
 export interface ReaderViewProps {
   reader: ReaderFile;
+  /** The last fix's refusals; the read's own when absent. */
+  refused?: ReaderRefusal[];
   focusBlockID?: string;
   /** A fix is being applied. */
   busy?: boolean;
@@ -169,6 +183,7 @@ export interface ReaderViewProps {
 /** The Reader as it is drawn, from a file already read. */
 export function ReaderView({
   reader,
+  refused: given,
   focusBlockID,
   busy,
   fixingID,
@@ -180,11 +195,12 @@ export function ReaderView({
   backLabel,
   onNavigate,
 }: ReaderViewProps) {
+  const refused = given ?? reader.refused;
   const refusals = useMemo(() => {
     const out = new Map<string, string>();
-    for (const r of reader.refused) out.set(r.finding_id, r.reason);
+    for (const r of refused) out.set(r.finding_id, r.reason);
     return out;
-  }, [reader.refused]);
+  }, [refused]);
   // A refusal whose finding is gone from the file read again is drawn at the
   // top, since there is no row left to draw it under.
   const placed = useMemo(() => {
@@ -193,15 +209,20 @@ export function ReaderView({
     for (const f of reader.document) ids.add(f.id);
     return ids;
   }, [reader.blocks, reader.document]);
-  const unplaced = reader.refused.filter((r) => !placed.has(r.finding_id));
+  const unplaced = refused.filter((r) => !placed.has(r.finding_id));
 
+  // The page scrolls to the block it opened at once, when that block is first
+  // drawn. A fix reads the file again, and the reader stays where they are.
   const blocksRef = useRef<HTMLDivElement>(null);
+  const scrolledTo = useRef<string | null>(null);
   useEffect(() => {
-    if (!focusBlockID) return;
+    if (!focusBlockID || scrolledTo.current === focusBlockID) return;
     const el = blocksRef.current?.querySelector<HTMLElement>(
       `[data-block-id="${CSS.escape(focusBlockID)}"]`,
     );
-    el?.scrollIntoView?.({ block: "center" });
+    if (!el) return;
+    scrolledTo.current = focusBlockID;
+    el.scrollIntoView?.({ block: "center" });
   }, [focusBlockID, reader]);
 
   return (

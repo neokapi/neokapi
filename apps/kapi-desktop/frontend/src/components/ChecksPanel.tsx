@@ -338,10 +338,15 @@ export function ChecksPanel({
   // Open the file in the Reader when the host gives one, or else in the
   // document sheet: at one finding's block, on the side it names, or on the
   // whole file with every finding drawn. A finding that names no block (a file
-  // that could not be read) opens the file.
+  // that could not be read) opens the file. A finding on a comment carries the
+  // lines it sits on and opens in the sheet, which shows a comment by line;
+  // the Reader draws blocks and no comment.
   const openInDocument = useCallback(
     (file: CheckFileResult, finding: DesktopFinding | null) => {
-      if (onOpenReader) {
+      const onComments = finding
+        ? !!finding.lines
+        : file.findings.length > 0 && file.findings.every((f) => !!f.lines);
+      if (onOpenReader && !onComments) {
         onOpenReader(file.path, finding?.block_id || undefined);
         return;
       }
@@ -637,7 +642,7 @@ export function ChecksPanel({
                                       refindable(fixFinding.current, fixer.stale.current)
                                         ? undefined
                                         : t(
-                                            "The fix no longer fits this text: its words are gone, or formatting now sits among them. Edit it by hand.",
+                                            "The fix no longer fits this block: its words are gone, or formatting now sits among them. Edit it by hand.",
                                           )
                                     }
                                     onDiscard={() => {

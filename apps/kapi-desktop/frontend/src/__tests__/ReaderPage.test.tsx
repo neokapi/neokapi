@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, within, waitFor } from "./testUtils";
+import { qk } from "../lib/queryKeys";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, it, expect, vi } from "vite-plus/test";
 import { ErrorProvider } from "../components/ErrorBanner";
@@ -164,6 +166,46 @@ describe("the Reader", () => {
     expect(readerTargetOf(readerView("docs/billing.md"))).toEqual({ path: "docs/billing.md" });
     expect(readerTargetOf("map")).toBeNull();
   });
+
+  it("keeps a fix's refusals when the file is read again", async () => {
+    const read = vi.spyOn(api, "readerFile").mockResolvedValue(READER_WITH_FIXES);
+    vi.spyOn(api, "fixFile").mockResolvedValue(READER_REFUSED);
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <ReaderPage tabID="t1" path="docs/billing.md" onBack={vi.fn()} />
+      </QueryClientProvider>,
+    );
+    await screen.findByRole("heading", { name: "docs/billing.md" });
+    await userEvent.click(screen.getByRole("button", { name: "Fix 2 in this file" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/^Not fixed: the edit introduces/);
+
+    // The file changing on disk reads it again, and that read names no refusal.
+    await client.invalidateQueries({ queryKey: qk.readerFile("t1", "docs/billing.md") });
+    await waitFor(() => expect(read).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole("alert")).toHaveTextContent(/^Not fixed: the edit introduces/);
+  });
+
+  it("scrolls to the block it opened at once, not again after a fix", async () => {
+    const scroll = vi.fn();
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scroll;
+    try {
+      vi.spyOn(api, "readerFile").mockResolvedValue(READER_WITH_FIXES);
+      vi.spyOn(api, "fixFinding").mockResolvedValue({ ...READER_WITH_FIXES, fixable: 1 });
+      render(<ReaderPage tabID="t1" path="docs/billing.md" focusBlockID="p2" onBack={vi.fn()} />);
+      await screen.findByRole("heading", { name: "docs/billing.md" });
+      await waitFor(() => expect(scroll).toHaveBeenCalledTimes(1));
+
+      await userEvent.click(within(block("p2")).getAllByRole("button", { name: "Fix" })[0]);
+      await waitFor(() =>
+        expect(screen.getByRole("button", { name: "Fix 1 in this file" })).toBeInTheDocument(),
+      );
+      expect(scroll).toHaveBeenCalledTimes(1);
+    } finally {
+      Element.prototype.scrollIntoView = original;
+    }
+  });
 });
 
 /** The Map, the Checks page and the Reader, routed by view as ViewSwitch routes them. */
@@ -262,5 +304,42 @@ describe("opening the Reader", () => {
     expect(await screen.findByRole("heading", { name: "docs/billing.md" })).toBeInTheDocument();
     expect(read).toHaveBeenCalledWith("t1", "/work/fernwell/docs/billing.md");
     expect(block("p3").getAttribute("data-focused")).toBe("true");
+  });
+
+  it("opens a finding on a comment in the preview, which shows it by line", async () => {
+    const last: CheckRunResult = {
+      pass: false,
+      verdict: "failed",
+      score: 90,
+      files: [
+        {
+          path: "/work/fernwell/config/app.yaml",
+          findings: [
+            {
+              category: "comments",
+              fails: true,
+              message: 'Forbidden term "utilize" found',
+              block_id: "c1",
+              lines: { first: 1, last: 1 },
+            },
+          ],
+        },
+      ],
+    };
+    vi.spyOn(api, "lastProjectChecks").mockResolvedValue(last);
+    const read = vi.spyOn(api, "readerFile").mockResolvedValue(READER_WITH_FIXES);
+    const open = vi.fn();
+    render(
+      <ErrorProvider>
+        <ChecksPanel tabID="t1" onOpenReader={open} />
+      </ErrorProvider>,
+    );
+    const card = await screen.findByTestId("finding-card");
+    await userEvent.click(within(card).getByTestId("finding-open-document"));
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    await userEvent.keyboard("{Escape}");
+    await userEvent.click(screen.getByTestId("file-open-document"));
+    expect(open).not.toHaveBeenCalled();
+    expect(read).not.toHaveBeenCalled();
   });
 });
