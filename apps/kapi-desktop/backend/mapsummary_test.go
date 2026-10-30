@@ -44,8 +44,12 @@ func TestMapSummary_KapiMart(t *testing.T) {
 
 	_, err = app.SyncProjectStore(tab.ID)
 	require.NoError(t, err)
-	res, err := app.RunChecks(tab.ID, ProjectFilter{})
+	// The Map's run: every file, in every target language the recipe declares.
+	res, err := app.RunChecks(tab.ID, ProjectFilter{Languages: before.TargetLanguages})
 	require.NoError(t, err)
+	last, err := app.LastProjectChecks(tab.ID)
+	require.NoError(t, err)
+	assert.Same(t, res, last, "the checks panel opens on the run the Map counts")
 
 	engine := agentProcess(t, app)
 	quickcast := agentSuggest(t, engine, recipe, "sess-1", "Quick cast", "Quickcast", "site/index.html", "Try Quick cast today.")
@@ -133,14 +137,23 @@ func TestMapSummary_KapiMart(t *testing.T) {
 	assert.Equal(t, 1, ids[quickcast.ID].Files)
 	assert.NotEmpty(t, got.ProjectKey)
 
-	// A narrowed checks run leaves the Map's counts where the whole-project
-	// run put them.
-	_, err = app.RunChecks(tab.ID, ProjectFilter{Glob: "nothing/**"})
-	require.NoError(t, err)
-	again, err := app.MapSummary(tab.ID)
-	require.NoError(t, err)
-	require.NotNil(t, again.Findings)
-	assert.Equal(t, wantTotal, *again.Findings)
+	// A run that narrows the files, or checks fewer languages than the recipe
+	// declares, leaves the Map's counts where the whole-project run put them.
+	for _, narrow := range []ProjectFilter{
+		{Glob: "nothing/**", Languages: before.TargetLanguages},
+		{},
+		{Languages: []string{"de"}},
+	} {
+		_, err = app.RunChecks(tab.ID, narrow)
+		require.NoError(t, err)
+		again, err := app.MapSummary(tab.ID)
+		require.NoError(t, err)
+		require.NotNil(t, again.Findings)
+		assert.Equalf(t, wantTotal, *again.Findings, "after a run with %+v", narrow)
+		last, err = app.LastProjectChecks(tab.ID)
+		require.NoError(t, err)
+		assert.Same(t, res, last)
+	}
 }
 
 // TestMapSummary_EmptyProject: a project with no content files answers with
@@ -173,6 +186,9 @@ func TestMapSummary_EmptyProject(t *testing.T) {
 	assert.Empty(t, got.TargetLanguages, "a source-only project declares no target")
 	_, statErr = os.Stat(project.LayoutAt(dir).StorePath())
 	assert.True(t, os.IsNotExist(statErr), "reading the Map creates no store")
+	last, err := app.LastProjectChecks(tab.ID)
+	require.NoError(t, err)
+	assert.Nil(t, last, "no checks have run")
 }
 
 // TestMapSummary_SourceOnlyAndTargeted: the Map reports the recipe's target

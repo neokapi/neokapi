@@ -105,6 +105,8 @@ type mapCheckTally struct {
 	findings int
 	// byFile counts findings by the file's absolute path.
 	byFile map[string]int
+	// result is the run itself, which the checks panel opens on.
+	result *CheckRunResult
 }
 
 // recordStoreRead notes that the store sync found the block cache current with
@@ -117,7 +119,7 @@ func (op *openProject) recordStoreRead(at time.Time) {
 
 // recordCheck keeps the counts of a checks run over the whole project.
 func (op *openProject) recordCheck(res *CheckRunResult, at time.Time) {
-	t := &mapCheckTally{at: at, byFile: map[string]int{}}
+	t := &mapCheckTally{at: at, byFile: map[string]int{}, result: res}
 	for _, f := range res.Files {
 		t.byFile[f.Path] += len(f.Findings)
 		t.findings += len(f.Findings)
@@ -125,6 +127,47 @@ func (op *openProject) recordCheck(res *CheckRunResult, at time.Time) {
 	op.mapMu.Lock()
 	defer op.mapMu.Unlock()
 	op.lastCheck = t
+}
+
+// coversProject reports whether a checks run with this filter covers the
+// whole project: every file, and every target language the recipe declares.
+// Only such a run is the one the Map counts findings from.
+func coversProject(filter ProjectFilter, proj *project.KapiProject) bool {
+	if filter.FilesNarrowed() {
+		return false
+	}
+	if proj == nil {
+		return true
+	}
+	checked := make(map[string]bool, len(filter.Languages))
+	for _, l := range filter.Languages {
+		checked[l] = true
+	}
+	targets, err := canonicalLocales(localeStrings(proj.Defaults.TargetLanguages))
+	if err != nil {
+		return false
+	}
+	for _, l := range targets {
+		if !checked[l] {
+			return false
+		}
+	}
+	return true
+}
+
+// LastProjectChecks returns the last checks run over the whole project in
+// this session, the run the Map's findings count is read from, so the checks
+// panel opens on the findings that count names. Nil when none has run.
+func (a *App) LastProjectChecks(tabID string) (*CheckRunResult, error) {
+	op := a.getOpenProject(tabID)
+	if op == nil {
+		return nil, fmt.Errorf("project tab %q not found", tabID)
+	}
+	_, check := op.mapReads()
+	if check == nil {
+		return nil, nil
+	}
+	return check.result, nil
 }
 
 // mapReads returns what this session recorded for the Map.
