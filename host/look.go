@@ -130,25 +130,25 @@ func (a *App) LookProject(cmd Command) (*LookProject, error) {
 		}
 		var unreadable []string
 		for _, file := range files {
-			fs := LookFileSummary{Path: projectRel(root, file)}
+			summary := LookFileSummary{Path: projectRel(root, file)}
 			name, cfg := formats.forFile(a, file)
 			blocks, rerr := a.readBlocksAs(ctx, file, name, cfg, a.SourceLang)
 			if rerr != nil {
-				fs.Unread = lookUnreadReason(a, file, name, rerr)
+				summary.Unread = lookUnreadReason(a, file, name, rerr)
 				if a.NoReaderFor(file) && name == "" {
 					unreadable = appendUnique(unreadable, filepath.Ext(file))
 				}
 			}
-			fs.Blocks = len(lookBlocks(blocks))
-			out.Blocks += fs.Blocks
-			out.Files = append(out.Files, fs)
+			summary.Blocks = len(lookBlocks(blocks))
+			out.Blocks += summary.Blocks
+			out.Files = append(out.Files, summary)
 		}
 		if out.Blocks == 0 {
 			out.Source = &SourceCoverage{Unreadable: unreadable}
 			return nil
 		}
 
-		report, cerr := a.ComputeCheck(pcmd, nil)
+		report, cerr := a.ComputeCheck(pcmd, nil) //nolint:contextcheck // ctx travels on pcmd (NewEnvCommand), which computeCheck reads through CmdContext
 		if cerr != nil {
 			return fmt.Errorf("check the project's content: %w", cerr)
 		}
@@ -371,6 +371,11 @@ func (m *LookProject) FormatText(w io.Writer) error {
 		pluralUnit(m.Rules, "rule", "rules"),
 		pluralUnit(m.Findings, "finding", "findings"),
 	}
+	// Which findings fail the check, as `kapi check` splits them. All
+	// reporting is the plain count.
+	if m.Failing > 0 {
+		counts = append(counts, fmt.Sprintf("%d failing", m.Failing))
+	}
 	if m.Suggests > 0 {
 		counts = append(counts, fmt.Sprintf("kapi suggests %d", m.Suggests))
 	}
@@ -561,9 +566,9 @@ func (a *App) LookFile(cmd Command, path string) (*LookReader, error) {
 		var report check.Report
 		var cerr error
 		if out.Declared {
-			report, cerr = a.ComputeDeclaredCheck(pcmd, []string{abs})
+			report, cerr = a.ComputeDeclaredCheck(pcmd, []string{abs}) //nolint:contextcheck // ctx travels on pcmd (NewEnvCommand), which computeCheck reads through CmdContext
 		} else {
-			report, cerr = a.ComputeCheck(pcmd, []string{abs})
+			report, cerr = a.ComputeCheck(pcmd, []string{abs}) //nolint:contextcheck // ctx travels on pcmd (NewEnvCommand), which computeCheck reads through CmdContext
 		}
 		if cerr != nil {
 			return fmt.Errorf("check %s: %w", path, cerr)
@@ -814,12 +819,17 @@ func (r *LookReader) FormatText(w io.Writer) error {
 			lead = indent
 		}
 		text := []rune(b.Text)
-		for i, ln := range wrapRunes(text, textW) {
+		lines := wrapRunes(text, textW)
+		for i, ln := range lines {
 			if i > 0 {
 				lead = indent
 			}
+			next := len(text)
+			if i+1 < len(lines) {
+				next = lines[i+1].start
+			}
 			fmt.Fprintln(w, strings.TrimRight(lead+string(text[ln.start:ln.end]), " "))
-			writeCarets(w, s, indent, ln, b.Findings, textW)
+			writeCarets(w, s, indent, ln, next, b.Findings, textW)
 		}
 		for _, f := range b.Findings {
 			if f.Span == nil {
@@ -950,10 +960,14 @@ func wrapRunes(text []rune, width int) []runeLine {
 	return lines
 }
 
-// writeCarets draws, under one wrapped line, a caret under every rune a
-// finding covers, then the label of each finding that starts on the line,
-// beginning at its caret. Labels share a row when they do not touch.
-func writeCarets(w io.Writer, s *output.Styles, indent string, ln runeLine, findings []LookFinding, textW int) {
+// writeCarets draws, under one wrapped line, a caret under every rune of the
+// line a finding covers, then the label of each finding that starts on the
+// line, beginning at its first caret. next is where the following line starts
+// (the text's length for the last line), so a finding that starts on the space
+// a line breaks at is labelled once, on the line before the break. Labels that
+// fit share a row when they do not touch; a label too long for the room right
+// of its caret wraps onto the rows below it, at the same column.
+func writeCarets(w io.Writer, s *output.Styles, indent string, ln runeLine, next int, findings []LookFinding, textW int) {
 	carets := make([]rune, ln.end-ln.start)
 	for i := range carets {
 		carets[i] = ' '
@@ -961,40 +975,44 @@ func writeCarets(w io.Writer, s *output.Styles, indent string, ln runeLine, find
 	fails := false
 	type placed struct {
 		col   int
-		label string
+		lines []string
 		f     LookFinding
 	}
 	var labels []placed
 	for _, f := range findings {
-		if f.Span == nil || f.Span.End <= ln.start || f.Span.Start >= ln.end+1 {
+		if f.Span == nil || f.Span.End <= ln.start || f.Span.Start >= next {
 			continue
 		}
 		for i := max(f.Span.Start, ln.start); i < min(f.Span.End, ln.end); i++ {
 			carets[i-ln.start] = '^'
 		}
 		fails = fails || f.Fails
-		if f.Span.Start >= ln.start && f.Span.Start <= ln.end {
-			col := f.Span.Start - ln.start
-			col = max(0, min(col, textW-utf8.RuneCountInString(f.Label)))
-			labels = append(labels, placed{col: col, label: f.Label, f: f})
+		if f.Span.Start >= ln.start && f.Span.Start < next {
+			col := min(f.Span.Start, ln.end) - ln.start
+			labels = append(labels, placed{col: col, lines: wrapLabel(f.Label, textW-col), f: f})
 		}
 	}
-	if !strings.ContainsRune(string(carets), '^') {
-		return
+	if strings.ContainsRune(string(carets), '^') {
+		caretStyle := styleRenderer(s.Warn)
+		if fails {
+			caretStyle = s.Error
+		}
+		fmt.Fprintln(w, indent+caretStyle.Render(strings.TrimRight(string(carets), " ")))
 	}
-	caretStyle := styleRenderer(s.Warn)
-	if fails {
-		caretStyle = s.Error
-	}
-	fmt.Fprintln(w, indent+caretStyle.Render(strings.TrimRight(string(carets), " ")))
 
-	// Pack the labels into rows, left to right, two columns apart.
+	// Pack the one-row labels into rows, left to right, two columns apart. A
+	// wrapped label takes rows of its own below them.
 	var rows [][]placed
+	var wrapped []placed
 	for _, p := range labels {
+		if len(p.lines) > 1 {
+			wrapped = append(wrapped, p)
+			continue
+		}
 		placedRow := false
 		for i, row := range rows {
 			last := row[len(row)-1]
-			if p.col >= last.col+utf8.RuneCountInString(last.label)+2 {
+			if p.col >= last.col+utf8.RuneCountInString(last.lines[0])+2 {
 				rows[i] = append(row, p)
 				placedRow = true
 				break
@@ -1009,11 +1027,31 @@ func writeCarets(w io.Writer, s *output.Styles, indent string, ln runeLine, find
 		at := 0
 		for _, p := range row {
 			b.WriteString(strings.Repeat(" ", p.col-at))
-			b.WriteString(lookLabelStyle(s, p.f).Render(p.label))
-			at = p.col + utf8.RuneCountInString(p.label)
+			b.WriteString(lookLabelStyle(s, p.f).Render(p.lines[0]))
+			at = p.col + utf8.RuneCountInString(p.lines[0])
 		}
 		fmt.Fprintln(w, indent+b.String())
 	}
+	for _, p := range wrapped {
+		for _, line := range p.lines {
+			fmt.Fprintln(w, indent+strings.Repeat(" ", p.col)+lookLabelStyle(s, p.f).Render(line))
+		}
+	}
+}
+
+// lookMinLabelWidth is the narrowest a label wraps to, however near the right
+// edge its caret sits.
+const lookMinLabelWidth = 16
+
+// wrapLabel breaks a label into rows of at most width runes, at spaces.
+func wrapLabel(label string, width int) []string {
+	text := []rune(label)
+	width = max(width, lookMinLabelWidth)
+	var out []string
+	for _, ln := range wrapRunes(text, width) {
+		out = append(out, string(text[ln.start:ln.end]))
+	}
+	return out
 }
 
 // padRight pads s with spaces to width runes.

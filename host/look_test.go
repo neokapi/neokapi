@@ -2,6 +2,7 @@ package host
 
 import (
 	"bytes"
+	"slices"
 	"strings"
 	"testing"
 
@@ -48,6 +49,73 @@ func TestLookReader_CaretsFollowTheWrappedLine(t *testing.T) {
 	for _, l := range lines[:at+3] {
 		assert.LessOrEqual(t, len([]rune(l)), 50, "no line of the block is wider than the terminal: %q", l)
 	}
+}
+
+// lookReaderOf builds a Reader of one block whose text is text, with one
+// reporting finding labelled label over each rune range in spans.
+func lookReaderOf(t *testing.T, width int, text string, spans [][2]int, labels []string) string {
+	t.Helper()
+	runs := []model.Run{model.TextR(text)}
+	b := model.NewBlock("p1", text)
+	b.SetSourceRuns(runs)
+	var diags []check.Diagnostic
+	for _, sp := range spans {
+		anchor := model.RangeAnchor(runs, sp[0], sp[1])
+		diags = append(diags, check.Diagnostic{Check: "hygiene", Message: "m", Location: check.Location{Block: "p1", Anchor: &anchor}})
+	}
+	r := &LookReader{Path: "x.md", Declared: true, width: width}
+	r.place([]*model.Block{b}, diags)
+	for i := range r.Blocks[0].Findings {
+		r.Blocks[0].Findings[i].Label = labels[i]
+	}
+	var buf bytes.Buffer
+	require.NoError(t, r.FormatText(&buf))
+	return buf.String()
+}
+
+// TestLookReader_FindingAtAMidWordBreak: a word wider than the line breaks
+// mid-word, and a finding that starts exactly at the break is labelled once,
+// under the line it starts on, while a finding earlier on the first line keeps
+// its carets and label there.
+func TestLookReader_FindingAtAMidWordBreak(t *testing.T) {
+	// The text column is 30 runes wide (width 34 less the "p1  " gutter), so
+	// the 40-rune word breaks after rune 30.
+	text := strings.Repeat("a", 5) + strings.Repeat("b", 5) + strings.Repeat("a", 20) + strings.Repeat("c", 5) + strings.Repeat("a", 5)
+	out := lookReaderOf(t, 34, text, [][2]int{{5, 10}, {30, 35}}, []string{"first", "second"})
+	lines := strings.Split(out, "\n")
+
+	assert.Equal(t, 1, strings.Count(out, "second"), "the label at the break is drawn once:\n%s", out)
+	at := slices.Index(lines, "p1  "+text[:30])
+	require.Positive(t, at, out)
+	assert.Equal(t, "    "+strings.Repeat(" ", 5)+"^^^^^", lines[at+1])
+	assert.Equal(t, "    "+strings.Repeat(" ", 5)+"first", lines[at+2])
+	assert.Equal(t, "    "+text[30:], lines[at+3])
+	assert.Equal(t, "    ^^^^^", lines[at+4])
+	assert.Equal(t, "    second", lines[at+5])
+}
+
+// TestLookReader_LongLabelWrapsUnderItsCaret: a label longer than the room
+// right of its caret wraps onto the rows below at the caret's column, rather
+// than moving left of it.
+func TestLookReader_LongLabelWrapsUnderItsCaret(t *testing.T) {
+	text := "Short words and then a finding near the end"
+	start := strings.Index(text, "end")
+	out := lookReaderOf(t, 50, text, [][2]int{{start, start + 3}}, []string{"Word: a label much longer than the room that is left"})
+	lines := strings.Split(out, "\n")
+	at := slices.Index(lines, "p1  "+text)
+	require.Positive(t, at, out)
+	col := 4 + start
+	assert.Equal(t, strings.Repeat(" ", col)+"^^^", lines[at+1])
+	var rows []string
+	for _, l := range lines[at+2:] {
+		if strings.TrimSpace(l) == "" {
+			break
+		}
+		assert.True(t, strings.HasPrefix(l, strings.Repeat(" ", col)) && l[col] != ' ', "each row of the label starts at the caret: %q\n%s", l, out)
+		rows = append(rows, strings.TrimSpace(l))
+	}
+	assert.Greater(t, len(rows), 1, "the label wraps")
+	assert.Equal(t, "Word: a label much longer than the room that is left", strings.Join(rows, " "))
 }
 
 // TestLookSpan_PlaceholderBeforeTheFinding: a placeholder ahead of the finding
