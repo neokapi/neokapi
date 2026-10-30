@@ -1,7 +1,9 @@
 // The Assistants page: which assistants work on the project, and the sessions
 // they and the person recorded in it. A settings-and-setup page: one row per
-// assistant with its state and one action, then the sessions as rows, each
-// leading to the Sessions view where its entries are listed and decided.
+// assistant with its state and Connect, then the sessions as rows, each
+// leading to the Sessions view where its entries are listed and decided. What
+// an assistant reads is the same for every assistant, so its action sits in
+// the page header.
 //
 // Connect does what `kapi connect <host>` does for that one assistant: the
 // rules files, its MCP entry and skill, and the recipe of a folder opened
@@ -122,6 +124,16 @@ export function AssistantsPage({
       <PageHeader
         title={t("{project} · Assistants", { project: projectName })}
         subtitle={view && !view.needs_checkout && <PitchLine rules={view.rules} />}
+        actions={
+          // Every assistant reads the same rules files and briefs, so what it
+          // reads is the page's, reachable before any assistant is connected.
+          view &&
+          !view.needs_checkout && (
+            <Button size="sm" variant="outline" data-slot="assistants-reads" onClick={onShowReads}>
+              Show what it reads
+            </Button>
+          )
+        }
       />
       {query.error && !given ? (
         <ErrorNotice error={query.error} title="The assistants could not be read" />
@@ -145,7 +157,6 @@ export function AssistantsPage({
                     busy={connect.isPending && connect.variables === h.host}
                     disabled={connect.isPending}
                     onConnect={() => onConnect(h)}
-                    onShowReads={onShowReads}
                     wrote={wrote?.host === h.host ? wrote.wrote : undefined}
                     error={failed?.host === h.host ? failed.error : undefined}
                   />
@@ -191,14 +202,13 @@ function PitchLine({ rules }: { rules: number }) {
   );
 }
 
-/** One assistant: its mark and name, its state, and its one action. */
+/** One assistant: its mark and name, its state, and Connect while it is not connected. */
 function HostRow({
   host,
   shorten,
   busy,
   disabled,
   onConnect,
-  onShowReads,
   wrote,
   error,
 }: {
@@ -207,7 +217,6 @@ function HostRow({
   busy: boolean;
   disabled: boolean;
   onConnect: () => void;
-  onShowReads: () => void;
   wrote?: Wrote;
   error?: unknown;
 }) {
@@ -250,23 +259,17 @@ function HostRow({
             </p>
           </div>
         </div>
-        {host.connected ? (
-          <Button size="sm" variant="ghost" data-slot="assistant-host-reads" onClick={onShowReads}>
-            Show what it reads
+        {!host.connected && host.available && (
+          <Button
+            size="sm"
+            variant="outline"
+            data-slot="assistant-host-connect"
+            disabled={disabled}
+            onClick={onConnect}
+          >
+            {busy && <LoadingSpinner size="sm" />}
+            Connect
           </Button>
-        ) : (
-          host.available && (
-            <Button
-              size="sm"
-              variant="outline"
-              data-slot="assistant-host-connect"
-              disabled={disabled}
-              onClick={onConnect}
-            >
-              {busy && <LoadingSpinner size="sm" />}
-              Connect
-            </Button>
-          )
         )}
       </div>
       {pending && (

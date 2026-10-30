@@ -79,14 +79,17 @@ describe("the Assistants page", () => {
     expect(document.querySelector("[data-slot='assistant-host-pending']")).toBeNull();
   });
 
-  it("says what a connected assistant gets and offers what it reads in place of Connect", async () => {
-    const { onShowReads } = page(ASSISTANTS_CLAUDE_CONNECTED);
+  it("says what a connected assistant gets, and gives its row no button", () => {
+    page(ASSISTANTS_CLAUDE_CONNECTED);
     expect(state("claude-code")).toBe("Connected · rules + check on every edit");
-    expect(connectButton("claude-code")).toBeNull();
-    const reads = within(row("claude-code")!).getByRole("button", { name: "Show what it reads" });
-    await userEvent.click(reads);
-    expect(onShowReads).toHaveBeenCalledOnce();
+    expect(row("claude-code")!.querySelector("button")).toBeNull();
     expect(state("cursor")).toBe("Not connected");
+  });
+
+  it("shows what an assistant reads from the page, before any assistant is connected", async () => {
+    const { onShowReads } = page(ASSISTANTS_NONE);
+    await userEvent.click(screen.getByRole("button", { name: "Show what it reads" }));
+    expect(onShowReads).toHaveBeenCalledOnce();
   });
 
   it("names the two plugin commands under Claude Code while the check waits on them", () => {
@@ -163,6 +166,7 @@ describe("the Assistants page", () => {
     );
     expect(document.querySelector("[data-slot='assistant-host']")).toBeNull();
     expect(document.querySelector("[data-slot='assistants-pitch']")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Show what it reads" })).toBeNull();
     expect(document.querySelectorAll("[data-slot='assistant-session']")).toHaveLength(2);
   });
 });
