@@ -358,11 +358,22 @@ func (a *App) frameworkMCPHandler(name registry.ToolID, defaultTargetLang string
 		}
 		config = ApplySourceLocale(source, config)
 
+		// The call's project settles the redaction policy, as it does for
+		// `kapi exec`: a tool that calls a provider runs between redact and
+		// unredact.
+		policy, err := a.mcpToolRunPolicy(named, string(name), config)
+		if err != nil {
+			return nil, err
+		}
 		tl, err := a.ToolReg.NewToolWithConfig(name, config, targetLang)
 		if err != nil {
 			return nil, err
 		}
-		out, err := runToolOverText(ctx, tl, text, model.LocaleID(targetLang), targetText)
+		chain, err := a.chainFor(policy, string(name), config, tl)
+		if err != nil {
+			return nil, err
+		}
+		out, err := runToolOverText(ctx, chain.tools(chain.main), text, model.LocaleID(targetLang), targetText)
 		if err != nil {
 			return nil, err
 		}
@@ -391,40 +402,44 @@ type frameworkToolOutput struct {
 	Annotations map[string]json.RawMessage `json:"annotations,omitempty"`
 }
 
-// runToolOverText runs a single block tool over text and serializes the result.
-// It mirrors the streaming contract used everywhere else: feed one block part,
-// drain the output, then read the (in-place mutated) result block.
+// runToolOverText runs a chain of block tools over text and serializes the
+// result. It mirrors the streaming contract used everywhere else: feed one
+// block part through each tool in turn, then read the result block.
 //
 // targetText, when the caller supplied one, is committed as the block's target
 // for targetLang before the run. Everywhere else a target arrives from a format
 // reader; here the caller is the only source of one, and a block built without
 // it sends every bilingual tool down its "no target, nothing to do" path.
-func runToolOverText(ctx context.Context, t tool.Tool, text string, targetLang model.LocaleID, targetText string) (*frameworkToolOutput, error) {
+func runToolOverText(ctx context.Context, chain []tool.Tool, text string, targetLang model.LocaleID, targetText string) (*frameworkToolOutput, error) {
 	block := model.NewBlock("mcp", text)
 	if targetText != "" && !targetLang.IsEmpty() {
 		block.SetTargetText(targetLang, targetText)
 	}
-	in := make(chan *model.Part, 1)
-	out := make(chan *model.Part, 1)
-	in <- &model.Part{Type: model.PartBlock, Resource: block}
-	close(in)
-
-	errc := make(chan error, 1)
-	go func() {
-		defer close(out)
-		errc <- t.Process(ctx, in, out)
-	}()
-
+	parts, err := runChain(ctx, chain, []*model.Part{{Type: model.PartBlock, Resource: block}})
+	if err != nil {
+		return nil, err
+	}
 	result := block
-	for p := range out {
+	for _, p := range parts {
 		if b, ok := p.Resource.(*model.Block); ok {
 			result = b
 		}
 	}
-	if err := <-errc; err != nil {
-		return nil, err
-	}
 	return serializeBlock(result), nil
+}
+
+// mcpToolRunPolicy reads the redaction policy of the project one framework
+// tool call acts on: the one it names, else the one the server started in.
+func (a *App) mcpToolRunPolicy(named, toolName string, config map[string]any) (toolRunPolicy, error) {
+	recipe, err := a.ResolveMCPCallProject(named)
+	if err != nil || recipe == "" {
+		return toolRunPolicy{}, err
+	}
+	proj, err := project.LoadWithOptions(recipe, project.LoadOptions{SkipRequiresCheck: true})
+	if err != nil {
+		return toolRunPolicy{}, fmt.Errorf("load project %s: %w", DisplayName(recipe), err)
+	}
+	return a.toolRunPolicyFor(recipe, proj, toolName, config)
 }
 
 // serializeBlock renders a processed block into the JSON-friendly output shape.
