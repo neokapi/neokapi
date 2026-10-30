@@ -118,7 +118,7 @@ func TestLookMap(t *testing.T) {
 			want: []string{
 				"kapi suggests 1",
 				"What your files do\n  Word  sign in, not login",
-				"Decide with `kapi context review`. See a file with `kapi look <path>`.",
+				"Decide with `kapi rules`. See a file with `kapi look <path>`.",
 			},
 		},
 		{
@@ -185,7 +185,7 @@ func TestLookMap_JSON(t *testing.T) {
 	assert.Equal(t, "sign in, not login", m.Suggestions[0].Text)
 	require.Len(t, m.Files, 1)
 	assert.Equal(t, host.LookFileSummary{Path: "docs/guide.md", Blocks: 2, Findings: 2}, m.Files[0])
-	assert.Equal(t, "kapi context review", m.Next)
+	assert.Equal(t, "kapi rules", m.Next)
 }
 
 // TestLookMap_FirstLookFilesWhatKapiSees: the first look at a project whose
@@ -213,7 +213,7 @@ func TestLookMap_FirstLookFilesWhatKapiSees(t *testing.T) {
 			require.Len(t, m.Suggestions, 1)
 			assert.Equal(t, "email, not e-mail, e mail", m.Suggestions[0].Text)
 			assert.Equal(t, 1, m.Findings)
-			assert.Equal(t, "kapi context review", m.Next)
+			assert.Equal(t, "kapi rules", m.Next)
 		})
 	}
 }

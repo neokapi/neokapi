@@ -208,7 +208,7 @@ func TestLookProject_FirstLookFilesWhatKapiSees(t *testing.T) {
 	require.Len(t, m.Suggestions, 1)
 	assert.Equal(t, "Name", m.Suggestions[0].Kind)
 	assert.Equal(t, "email, not e-mail, e mail", m.Suggestions[0].Text)
-	assert.Equal(t, "kapi context review", m.Next)
+	assert.Equal(t, "kapi rules", m.Next)
 	var text bytes.Buffer
 	require.NoError(t, m.FormatText(&text))
 	assert.Contains(t, text.String(), "kapi suggests 1")

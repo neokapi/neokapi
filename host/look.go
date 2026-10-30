@@ -50,7 +50,7 @@ type LookProject struct {
 	Findings int `json:"findings"`
 	// Failing is how many of Findings fail the check.
 	Failing int `json:"failing"`
-	// Suggests counts what waits for a person in `kapi context review`:
+	// Suggests counts what waits for a person in `kapi rules`:
 	// suggestions, and disagreements between them.
 	Suggests int `json:"suggests"`
 	// Suggestions are those, one line each.
@@ -76,7 +76,7 @@ type LookFileSummary struct {
 
 // LookSuggestion is one suggestion waiting for a person.
 type LookSuggestion struct {
-	// ID is what `kapi context review --keep` takes.
+	// ID is what `kapi rules --keep` takes.
 	ID string `json:"id"`
 	// Kind is the mark the line carries: Name, Word, Note, Memory, or
 	// Disagreement.
@@ -190,7 +190,7 @@ func (a *App) LookProject(cmd Command) (*LookProject, error) {
 	case out.Source != nil:
 		out.Next = "kapi add <pattern>"
 	case out.Suggests > 0:
-		out.Next = "kapi context review"
+		out.Next = "kapi rules"
 	default:
 		out.Next = "kapi check"
 	}
@@ -430,7 +430,7 @@ func (m *LookProject) FormatText(w io.Writer) error {
 			fmt.Fprintln(w, strings.TrimRight(line, " "))
 		}
 		if rest := len(m.Suggestions) - len(shown); rest > 0 {
-			fmt.Fprintf(w, "  %s\n", s.Muted.Render(fmt.Sprintf("%d more in kapi context review", rest)))
+			fmt.Fprintf(w, "  %s\n", s.Muted.Render(fmt.Sprintf("%d more in kapi rules", rest)))
 		}
 	}
 
@@ -467,8 +467,8 @@ func (m *LookProject) FormatText(w io.Writer) error {
 // project with no content prints its source line in place of it, because that
 // line names the step.
 func (m *LookProject) NextLine() string {
-	if m.Next == "kapi context review" {
-		return "Decide with `kapi context review`. See a file with `kapi look <path>`."
+	if m.Next == "kapi rules" {
+		return "Decide with `kapi rules`. See a file with `kapi look <path>`."
 	}
 	return "Check with `kapi check`. See a file with `kapi look <path>`."
 }
