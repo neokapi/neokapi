@@ -28,19 +28,12 @@ import (
 
 // CountFileBlocks reads a source file through its format reader and returns its
 // translatable block count and total source word count (for `kapi ls --stats`).
-// cfg is the recipe's format config for the item that claims the file. The read
-// applies it and wires the read skeleton, as a check does, so the counts are
-// the blocks a check reports.
-func (a *App) CountFileBlocks(ctx context.Context, absPath string, fmtID registry.FormatID, srcLocale model.LocaleID, cfg map[string]any) (blocks, words int, err error) {
+func (a *App) CountFileBlocks(ctx context.Context, absPath string, fmtID registry.FormatID, srcLocale model.LocaleID) (blocks, words int, err error) {
 	reader, err := a.FormatReg.NewReader(fmtID)
 	if err != nil {
 		return 0, 0, err
 	}
 	defer reader.Close()
-	if err := applyFormatConfig(reader, cfg); err != nil {
-		return 0, 0, err
-	}
-	coreproj.WireReadSkeleton(a.FormatReg, string(fmtID), reader)
 	data, err := os.ReadFile(absPath)
 	if err != nil {
 		return 0, 0, err

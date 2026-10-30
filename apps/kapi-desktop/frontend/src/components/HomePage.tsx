@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Globe,
   Workflow,
@@ -23,7 +23,6 @@ import { useActiveFilter } from "../context/ActiveFilterContext";
 import { CollectionsPanel, type RunFlowHandler } from "./CollectionsPanel";
 import { ConvergenceHero } from "./ConvergenceHero";
 import { ProjectStanding, type ProjectPointsResult } from "./ProjectStanding";
-import { declaresTargetLanguages, resolvedTargetLanguages } from "../lib/languages";
 
 export interface HomePageProps {
   project: KapiProject;
@@ -61,14 +60,6 @@ export interface HomePageProps {
   server?: import("../types/api").ProjectServer;
   /** Open Context standing at a point on the map. */
   onOpenPoint?: (pin: { coordinate?: string; collection?: string }) => void;
-  /**
-   * Whether the saved recipe declares a target language. Without one the page
-   * shows no language work: no targets in the header, no coverage, no Bring up
-   * to date and no Plan…. Defaults to `declaresTargetLanguages(project)`.
-   */
-  hasTargetLanguages?: boolean;
-  /** Scroll to the language standing on open: the rail's Languages entry. */
-  focusLanguages?: boolean;
 }
 
 export function HomePage({
@@ -92,14 +83,7 @@ export function HomePage({
   points,
   server,
   onOpenPoint,
-  hasTargetLanguages,
-  focusLanguages,
 }: HomePageProps) {
-  const languages = hasTargetLanguages ?? declaresTargetLanguages(project);
-  const languagesRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (focusLanguages && languages) languagesRef.current?.scrollIntoView({ block: "start" });
-  }, [focusLanguages, languages]);
   const { active: activeFilter } = useActiveFilter();
   const [installingPlugin, setInstallingPlugin] = useState<string | null>(null);
   const [sampleInfo, setSampleInfo] = useState<SampleInfo | null>(propSampleInfo ?? null);
@@ -131,8 +115,6 @@ export function HomePage({
   }, []);
 
   const defaults = project.defaults ?? {};
-  // The languages the recipe resolves to, wherever it declares them.
-  const targets = resolvedTargetLanguages(project);
   const plugins = project.plugins ?? {};
   const flowCount = Object.keys(project.flows ?? {}).length;
   // When the active filter narrows to specific languages, only those target
@@ -152,17 +134,17 @@ export function HomePage({
             ) : (
               <span>{t("No source")}</span>
             )}
-            {languages && targets.length > 0 && (
-              <>
-                <span>&rarr;</span>
-                {targets.map((l) => (
-                  <LocalePill
-                    key={l}
-                    locale={l}
-                    muted={filterLangs.length > 0 && !filterLangs.includes(l)}
-                  />
-                ))}
-              </>
+            <span>&rarr;</span>
+            {defaults.target_languages?.length ? (
+              defaults.target_languages.map((l) => (
+                <LocalePill
+                  key={String(l)}
+                  locale={String(l)}
+                  muted={filterLangs.length > 0 && !filterLangs.includes(String(l))}
+                />
+              ))
+            ) : (
+              <span>{t("No targets")}</span>
             )}
           </span>
           {project.preset && (
@@ -282,25 +264,21 @@ export function HomePage({
           points={points}
           server={server}
           onOpenPoint={onOpenPoint}
-          hasTargetLanguages={languages}
         />
       )}
 
-      {/* Convergence hero: the language standing, with Bring up to date and
-          the pre-flight Plan… dialog. A project with no target language has
-          no language work to bring up to date, so the hero is absent. */}
-      {tabID && languages && (
-        <div ref={languagesRef} data-slot="language-standing" className="scroll-mt-6">
-          <ConvergenceHero
-            tabID={tabID}
-            onBringUpToDate={onBringUpToDate}
-            convergence={convergence}
-            plan={plan}
-            onOpenSettings={onNavigate}
-            onOpenReview={onOpenReview ? () => onOpenReview() : undefined}
-            onOpenChecks={() => onNavigate("checks")}
-          />
-        </div>
+      {/* Convergence hero — the primary verb of the home (issue #1078 C4):
+          drift summary + Bring up to date + the pre-flight Plan… dialog. */}
+      {tabID && (
+        <ConvergenceHero
+          tabID={tabID}
+          onBringUpToDate={onBringUpToDate}
+          convergence={convergence}
+          plan={plan}
+          onOpenSettings={onNavigate}
+          onOpenReview={onOpenReview ? () => onOpenReview() : undefined}
+          onOpenChecks={() => onNavigate("checks")}
+        />
       )}
 
       {/* Quick actions — the Content card is gone; the page is content now. */}
@@ -343,7 +321,6 @@ export function HomePage({
           basePath={basePath}
           status={status}
           convergence={convergence}
-          hasTargetLanguages={languages}
         />
       )}
 

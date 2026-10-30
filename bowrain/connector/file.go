@@ -15,7 +15,6 @@ import (
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
-	coreproj "github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 )
 
@@ -145,10 +144,6 @@ func (c *FileConnector) fetchFile(ctx context.Context, path string) (*platconn.C
 		return nil, fmt.Errorf("create reader for %s: %w", formatName, err)
 	}
 	defer reader.Close()
-	// Delivery splices targets onto a skeleton read of the source by block id
-	// (reparseSourceSkeleton), so this read wires a skeleton too and gives the
-	// ids that read gives.
-	coreproj.WireReadSkeleton(c.formatRegistry, formatName, reader)
 
 	f, err := os.Open(path)
 	if err != nil {
