@@ -243,8 +243,11 @@ export class CheckRun {
         }
         if (!("turn" in $$source)) {
             /**
-             * Turn identifies the turn of the session the run ended. The operation's
-             * id is derived from the session and the turn.
+             * Turn identifies the Stop event the run answered: the id of the last
+             * entry in the session's transcript. Claude Code writes an entry after
+             * every Stop hook, so each Stop gets a turn of its own, and the hook
+             * running twice on one transcript state shares one. The operation's id is
+             * derived from the session and the turn.
              * @member
              * @type {string}
              */
@@ -269,8 +272,8 @@ export class CheckRun {
         if (/** @type {any} */(false)) {
             /**
              * Files are the project-relative files the turn edited, as the session's
-             * transcript names them. When the edits are not known (Edited is false),
-             * they are the files the check read. At most CheckRunMaxFiles are listed.
+             * transcript names them, with Edited set. A run whose transcript names no
+             * edit lists the files the check read. At most CheckRunMaxFiles are listed.
              * @member
              * @type {string[] | undefined}
              */
@@ -530,8 +533,8 @@ export const Kind = {
      * behalf: the Claude Code Stop hook running `kapi check --ship` as a turn
      * ends. It carries a [CheckRun] and no subject, names no other operation,
      * and changes nothing the context holds. Its id is derived from the
-     * session and the turn, so the hook running twice for one turn records one
-     * operation.
+     * session and the transcript state the hook ran at (CheckRun.Turn), so
+     * the hook running twice for one Stop records one operation.
      */
     KindCheck: "check",
 };
