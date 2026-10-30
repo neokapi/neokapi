@@ -439,8 +439,15 @@ export function ActorName({ actor }: { actor: ContextActor }) {
 /** The one line a session's counts read out. */
 function SessionCounts({ group }: { group: ContextFeedGroup }) {
   const parts: string[] = [];
-  if (group.recorded > 0) parts.push(t("{count} recorded", { count: group.recorded }));
-  if (group.corrected > 0) parts.push(t("{count} corrected", { count: group.corrected }));
+  // The same labels as the Assistants page's session rows, for the same counts.
+  if (group.recorded > 0)
+    parts.push(
+      t("{count, plural, one {# suggestion} other {# suggestions}}", { count: group.recorded }),
+    );
+  if (group.corrected > 0)
+    parts.push(
+      t("{count, plural, one {# correction} other {# corrections}}", { count: group.corrected }),
+    );
   if (group.kept > 0) parts.push(t("{count} kept", { count: group.kept }));
   if (group.dropped > 0) parts.push(t("{count} dropped", { count: group.dropped }));
   const resets = group.entries.filter((entry) => entry.kind === "reset").length;

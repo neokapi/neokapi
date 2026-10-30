@@ -1032,8 +1032,10 @@ export interface AssistantHostView {
   /** "claude-code", "cursor", "vscode", "codex", "agents" or "claude-desktop". */
   host: string;
   label: string;
-  /** Its files are in place: connecting again would write none of them. */
+  /** Its files are in place, connecting again would write none, and the rules files are written. */
   connected: boolean;
+  /** Why an assistant whose own files are in place is not connected: "rules files missing". */
+  reason?: string;
   /** kapi check runs when it finishes, through the kapi Claude Code plugin. */
   check: boolean;
   /** The commands that turn the check on, while the plugin is not enabled. */
@@ -1064,8 +1066,12 @@ export interface AssistantSession {
 
 /** A tab's Assistants page. */
 export interface AssistantsView {
-  /** The rules in force at the project's own point, as the Map counts them. */
-  rules: number;
+  /** The rules in force at the project's own point, as the Map counts them; absent when unread. */
+  rules?: number;
+  /** Why the assistants could not be read. The sessions are read all the same. */
+  hosts_error?: string;
+  /** Why the sessions could not be read. The assistants are read all the same. */
+  sessions_error?: string;
   /** No checkout here, so no files to connect an assistant through. */
   needs_checkout: boolean;
   hosts: AssistantHostView[];

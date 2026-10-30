@@ -251,7 +251,9 @@ describe("History as a list of sessions beside a detail pane", () => {
   it("reads out what the selected session did, and says who worked and where", () => {
     renderFeed();
     const pane = detail();
-    expect(pane.querySelector("[data-slot='session-counts']")?.textContent).toContain("2 recorded");
+    expect(pane.querySelector("[data-slot='session-counts']")?.textContent).toContain(
+      "2 suggestions",
+    );
     const title = pane.querySelector("[data-slot='list-detail-toolbar']") as HTMLElement;
     expect(title.textContent).toContain("claude");
     expect(title.textContent).toContain("studio");

@@ -111,6 +111,22 @@ export const ASSISTANTS_CHECK_PENDING: AssistantsView = {
   sessions: SESSIONS.slice(0, 1),
 };
 
+/** Claude Code's own files in place, and the project's rules files deleted. */
+export const ASSISTANTS_RULES_MISSING: AssistantsView = {
+  ...ASSISTANTS_NONE,
+  hosts: [{ ...claudeCode(true), connected: false, reason: "rules files missing" }, ...OTHERS],
+  sessions: SESSIONS,
+};
+
+/** The assistants could not be read; the sessions were. */
+export const ASSISTANTS_HOSTS_FAILED: AssistantsView = {
+  ...ASSISTANTS_NONE,
+  rules: undefined,
+  hosts: [],
+  hosts_error: "load project: kapi.yaml: yaml: line 3: did not find expected key",
+  sessions: SESSIONS,
+};
+
 /** A tab over the project's context alone. */
 export const ASSISTANTS_NO_CHECKOUT: AssistantsView = {
   rules: 0,
