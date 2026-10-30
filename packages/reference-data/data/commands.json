@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-17T11:19:38Z",
+  "generatedAt": "2026-10-30T10:58:50Z",
   "commands": [
     {
       "id": "add",
@@ -314,6 +314,7 @@
       "use": "completion [bash|zsh|fish|powershell]",
       "short": "Generate shell completion script",
       "long": "Generate a shell completion script for the specified shell.\n\nTo load completions:\n\nBash:\n  $ source \u003c(kapi completion bash)\n  # Or install permanently:\n  $ kapi completion bash \u003e /etc/bash_completion.d/kapi\n\nZsh:\n  $ source \u003c(kapi completion zsh)\n  # Or install permanently:\n  $ kapi completion zsh \u003e \"${fpath[1]}/_kapi\"\n\nFish:\n  $ kapi completion fish | source\n  # Or install permanently:\n  $ kapi completion fish \u003e ~/.config/fish/completions/kapi.fish\n\nPowerShell:\n  PS\u003e kapi completion powershell | Out-String | Invoke-Expression",
+      "groupID": "advanced",
       "offlineCapable": true,
       "runnableInBrowser": true,
       "demoMode": false
@@ -6147,7 +6148,7 @@
       "use": "memory",
       "short": "Manage content memory",
       "long": "Manage content memory.\n\nA content memory stores previously produced content as a SQLite database: source\nsegments with the targets settled for them. Use these commands to import/export\nTMX, look up matches, and manage entries.\n\nInside a project, no flag means the project's own content memory, a subsystem of\n.kapi/work/store.db, which is why it is addressed by project rather than by path.\nUse -p to name the project explicitly.\n\nStandalone store instead (mutually exclusive):\n  --name \u003cn\u003e      Named content memory in the kapi config dir (memory/\u003cn\u003e.db)\n  --local         Content memory in current directory (./memory.db)\n  --file \u003cpath\u003e   Explicit file path\n\nOutside a project and with no flag: same as --local (uses ./memory.db).",
-      "groupID": "assets",
+      "groupID": "languages",
       "examples": [
         "kapi memory stats",
         "kapi memory lookup \"welcome back\" -s en -t fr",
@@ -7476,7 +7477,7 @@
       "use": "resolve [flags] DOC",
       "short": "Rebase or discard a version of a .kpz document that did not land",
       "long": "Settle a version of a document a .kpz carries that was written from an older\nversion than the one the document holds now, and so did not land. It happens\nwhen the .kpz on disk is replaced while its working cache holds edits nobody\npacked, and when two machines' edits to one document meet. kapi status lists\neach such version as a conflict with its write and the command that settles it.\n\n--rebase WRITE carries the version's changes over onto the document as it\nstands, block by block, through the same checks kapi apply runs: a block the\nversion added is added, one it removed is removed, and one whose text it\nchanged takes the change. A block the document changed too is left for you,\nand kapi status lists it; a set_content to it through kapi apply decides it,\nkeeping the current wording included. --discard WRITE drops the version and\nkeeps the document as it stands, and after a rebase it keeps the current\nwording of every block left.\n\nDOC names the document as kapi status prints it (work.kpz!guide.md). Quote it\nin a shell that expands \"!\".\n\nExit status: 0 when the version was settled or rebased; 2 when DOC names no\ndocument of a .kpz or WRITE is not a version that did not land; 3 when the\nrebase's changes were refused, and nothing was settled.",
-      "groupID": "work",
+      "groupID": "advanced",
       "flags": [
         {
           "name": "discard",
@@ -7774,8 +7775,8 @@
         "status"
       ],
       "use": "status",
-      "short": "Show source readiness and per-language coverage against the ship gates",
-      "long": "Show how far the project's source content has progressed and, per target\nlocale, how much of it is translated and whether it clears its ship gate: a\nderived dashboard, like git status. Coverage is recomputed from the content ×\ntarget files on every run; nothing is tracked as state.\n\nThis is the informational counterpart to 'kapi check --ship' (the quality gate). It\nnever fails: a locale that is behind is reported as pending rather than as an error.\nTarget-language drift is normal, expected work rather than a build break.",
+      "short": "Show how ready the project's content is against its gates",
+      "long": "Show how far the project's content has progressed and whether it clears the\nproject's gates: a derived dashboard, like git status. The standing is\nrecomputed from the working tree on every run; nothing is tracked as state.\n\nA project with target languages also gets per-language coverage: for each\ntarget locale, how much of the content is translated and whether it clears\nits ship gate. A locale that is behind is reported as pending rather than as\nan error, because target-language drift is normal, expected work.\n\nThis is the informational counterpart to 'kapi check --ship' (the quality\ngate), and it never fails.",
       "groupID": "work",
       "flags": [
         {
@@ -7969,6 +7970,7 @@
       "use": "telemetry",
       "short": "Show or change anonymous usage telemetry (status, on, off)",
       "long": "kapi collects anonymous usage telemetry to guide development: the name of the\nbuilt-in command that ran, a coarse duration bucket, the exit class, the kapi\nversion, and the operating system and architecture, keyed by a random\nanonymous ID. It never collects arguments, flag values, file paths, file\ncontents, or project names.\n\nTelemetry is disabled by any of: 'kapi telemetry off', KAPI_TELEMETRY=0,\nDO_NOT_TRACK=1, a CI environment, a build made with -tags notelemetry, or a\nbuild without a telemetry key (any build you compile yourself).\n\nSee https://neokapi.github.io/reference/telemetry for the full event list.",
+      "groupID": "advanced",
       "examples": [
         "kapi telemetry status",
         "kapi telemetry off"
@@ -8988,7 +8990,7 @@
         "up"
       ],
       "use": "up",
-      "short": "Bring the project up to date (run the default flow until every gated scope ships or parks)",
+      "short": "Bring the project up to date: run the default flow and stop where a gate holds content back",
       "long": "Bring the project up to date: the recipe declares the languages, the flow, and\nthe gates that decide shippable; kapi up runs the project's default flow\n(defaults.flow) over every target language, looping until every gated scope is\nshippable or parked for a human.\n\nWithout defaults.flow, up runs the built-in default flow, Memory reuse (recycle)\nfollowed by AI translate, so a recipe needs no flow YAML at all to catch up.\nSetting defaults.flow replaces the built-in default.\n\nBefore each pass, up re-syncs the project block store with the working tree:\nedited source files, a store written by another kapi version, or a missing\nstore trigger a re-extraction (the same shared path behind the desktop's\nRe-extract). --no-extract opts out.\n\nEach pass re-derives coverage from the working tree, runs the flow only for\nthe locales still short of their gate, and stops when everything ships, a pass\nmakes no progress (the remainder parks, because it needs a human), or the pass cap is\nreached. After each pass the project's bound checks run over what was\nproduced: a translation with failing findings (dropped placeholders,\nterminology violations) still counts as translated, which it is, and holds its\nlocale out of shipping until the finding is fixed. 'kapi status' runs the same checks and\nreports the same verdict. --no-checks opts out.\n\nThe materialize policy determines whether the run owns delivery of the\ntarget-language files. Under 'defaults.materialize: on-converge' (or the\n--materialize flag) it does, and the ship gate holds it back: each pass drafts\ninto a run-local tree, and only a locale whose gated scopes are all shippable\nhas its files written where the recipe points, and a parked locale's files are\nabsent, not merely unblessed. The default ('manual') leaves delivery to\n'kapi merge' and claims no gate.\n\nVenue: in a server-connected project (a recipe with a bowrain: block, with the\nbowrain plugin installed) the loop runs on the Bowrain server by default, on\nthe org's keys, against the org's shared Memory and terminology, and this command\npushes local changes, streams the server run's live progress, and pulls the\nproduced targets. --local keeps the loop on this machine and then pushes the\nresults so the server never goes stale; --server fails rather than falling\nback to a local run. The resolved venue is printed first whenever the recipe\nconnects to a server. Without that block, up is purely local.\n\n--plan is a dry run in every venue: instead of running anything, up reports\nthe pending work per (collection, locale): blocks missing a target, exact Memory\nleverage, the remaining AI work, and a rough token estimate, computed locally\nagainst the working tree, with no provider calls and no writes. Combine with\n--json for agents.\n\nup never fails the build on target drift: parked, pending target content is\nnormal toil, reported rather than thrown. Use 'kapi status' to inspect\nstanding without running anything, and 'kapi check --ship' to enforce the\ngates (e.g. before a release tag).\n\n--passes 1 runs a single pass (the behavior of the bare 'kapi run');\n--passes N caps the loop at N passes.",
       "groupID": "work",
       "flags": [
@@ -9206,7 +9208,7 @@
         }
       ],
       "examples": [
-        "kapi up                # loop the default flow until every gated scope ships or parks",
+        "kapi up                # run the default flow; stop where a gate holds content back",
         "kapi up --plan         # dry run: pending work, content-memory leverage, and a token estimate per locale",
         "kapi up --passes 1     # a single pass over every locale that needs work",
         "kapi up --materialize  # also write target-language files for the shippable locales",

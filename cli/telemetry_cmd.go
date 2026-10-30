@@ -27,8 +27,9 @@ const telemetryFlushWait = 100 * time.Millisecond
 // file. The events themselves are documented at telemetryDocsURL.
 func NewTelemetryCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "telemetry",
-		Short: "Show or change anonymous usage telemetry (status, on, off)",
+		Use:     "telemetry",
+		Short:   "Show or change anonymous usage telemetry (status, on, off)",
+		GroupID: "advanced",
 		Long: `kapi collects anonymous usage telemetry to guide development: the name of the
 built-in command that ran, a coarse duration bucket, the exit class, the kapi
 version, and the operating system and architecture, keyed by a random
@@ -131,8 +132,8 @@ func telemetryConfig(a *App) *config.AppConfig {
 // into Run: after each top-level command completes it shows the one-time
 // first-run notice (when eligible) and emits cli_command_run, then flushes
 // best-effort within telemetryFlushWait. builtins is the set of top-level
-// verbs registered by KapiCommandSet, captured BEFORE plugin commands attach —
-// anything outside it reports as "plugin"/"other", never by name.
+// verbs registered by KapiCommandSet, captured BEFORE plugin commands attach.
+// Anything outside it reports as "plugin"/"other", never by name.
 func NewTelemetryReporter(a *App, builtins map[string]bool) func(CommandReport) {
 	return func(r CommandReport) {
 		label := telemetryCommandLabel(r.Root, r.Executed, r.Err, builtins)
@@ -160,7 +161,7 @@ func NewTelemetryReporter(a *App, builtins map[string]bool) func(CommandReport) 
 }
 
 // telemetryExitClass buckets a process exit code into ok/usage/error. Gate
-// failures, silent exits, and signals all class as "error" — the code
+// failures, silent exits, and signals all class as "error"; the code
 // itself is never reported.
 func telemetryExitClass(code int) string {
 	switch code {
@@ -184,7 +185,7 @@ func telemetryCommandLabel(root, executed *cobra.Command, err error, builtins ma
 		return ""
 	}
 	// A --help/-h invocation of any command renders help and exits: not an
-	// eligible run — no notice, no event (cobra marks the flag Changed).
+	// eligible run: no notice, no event (cobra marks the flag Changed).
 	if executed != nil {
 		if f := executed.Flags().Lookup("help"); f != nil && f.Changed {
 			return ""
@@ -224,12 +225,9 @@ func telemetryCommandLabel(root, executed *cobra.Command, err error, builtins ma
 	// dotted path without it ("kapi memory import" → "memory.import").
 	//
 	// The label is derived from the live command path, so renaming a command
-	// renames its telemetry series. `kapi tm *` became `kapi memory *` and
-	// `kapi termbase *` became `kapi terms *`, which means those series start
-	// fresh rather than continuing the old ones; any dashboard querying the
-	// `tm.*` / `termbase.*` labels needs to union both spellings across the
-	// release boundary. That is a consequence of the deliberate CLI rename, not
-	// something this function can paper over.
+	// renames its telemetry series. The `memory.*` and `terms.*` series start
+	// where the retired `tm.*` and `termbase.*` labels end. A dashboard that
+	// spans the rename unions both spellings.
 	parts := strings.Fields(executed.CommandPath())
 	if len(parts) < 2 {
 		return "root"
@@ -239,7 +237,7 @@ func telemetryCommandLabel(root, executed *cobra.Command, err error, builtins ma
 
 // MaybeShowTelemetryNotice prints the one-time first-run notice to w and
 // persists the shown marker. Returns true when the notice was printed this
-// call. Callers must only invoke it when telemetry is enabled — a disabled
+// call. Callers must only invoke it when telemetry is enabled: a disabled
 // lattice means no notice and no events.
 func MaybeShowTelemetryNotice(cfg *config.AppConfig, w io.Writer) bool {
 	if cfg.GetBool(telemetry.KeyNoticeShown) {

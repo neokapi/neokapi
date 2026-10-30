@@ -36,8 +36,8 @@ type browserGap struct {
 // filesystem, the stores on the browser's SQLite, and the deterministic demo AI
 // provider.
 //
-// Each reason names the specific host facility the browser denies — a
-// subprocess, the OS keychain, the network, or a socket — because "not
+// Each reason names the specific host facility the browser denies (a
+// subprocess, the OS keychain, the network, or a socket), because "not
 // supported" alone tells a lab user nothing about whether their own machine
 // would behave differently.
 var browserGaps = map[string]browserGap{
@@ -63,6 +63,7 @@ var browserGaps = map[string]browserGap{
 	},
 	"telemetry": {
 		short:  "Show or change anonymous usage telemetry (status, on, off)",
+		group:  "advanced",
 		reason: "the browser build never collects or reports telemetry, so there is nothing to configure",
 	},
 	"update": {
@@ -78,7 +79,7 @@ var browserGaps = map[string]browserGap{
 
 // BrowserUnavailableReason reports why the browser build cannot run the
 // top-level verb name, and false when the verb does run there. It is the
-// single answer to "does this command work in the lab?" — the docs command
+// single answer to "does this command work in the lab?": the docs command
 // reference (scripts/gen-refs) derives its runnable-in-browser badge from it
 // rather than from a second, hand-maintained allowlist.
 func BrowserUnavailableReason(name string) (string, bool) {
@@ -98,7 +99,7 @@ func BrowserUnavailableError(name, reason string) error {
 
 // newBrowserGapCmd builds the stand-in command for a verb the browser cannot
 // run. It parses nothing and accepts anything, so every spelling a user might
-// reach for — `kapi plugin`, `kapi plugin list`, `kapi models download x --y` —
+// reach for (`kapi plugin`, `kapi plugin list`, `kapi models download x --y`)
 // lands on the same honest error rather than on a second, more confusing
 // "unknown command" from a subcommand that was never registered.
 //
@@ -141,7 +142,7 @@ func newBrowserGapCmd(name string) *cobra.Command {
 // browser are built by their real factories; the rest are the explicit
 // browser-gap commands above.
 //
-// Keep this function structurally parallel to KapiCommandSet — the two are
+// Keep this function structurally parallel to KapiCommandSet: the two are
 // meant to be read side by side, and the guard test compares them verb for
 // verb.
 func BrowserCommandSet(a *App) []*cobra.Command {
@@ -149,7 +150,7 @@ func BrowserCommandSet(a *App) []*cobra.Command {
 
 	// Porcelain. `up` converges the project by running its flows over local
 	// files; in the browser that is the in-memory filesystem, and a recipe with
-	// a bound venue simply has no plugin to dispatch to, so it stays local.
+	// a bound venue has no plugin to dispatch to, so it stays local.
 	cmds = append(cmds, NewUpCmd(a))
 	cmds = append(cmds, NewTranslateCmd(a), NewPseudoTranslateCmd(a))
 
@@ -166,7 +167,7 @@ func BrowserCommandSet(a *App) []*cobra.Command {
 	cmds = append(cmds, NewResolveCmd(a))
 
 	// Format-aware toolbox utilities. `kconv` powers the in-browser Conversion
-	// Lab — read any format, re-express it as a generative target through the
+	// Lab: read any format, re-express it as a generative target through the
 	// content model.
 	cmds = append(cmds, NewToolboxProxies(a)...)
 	cmds = append(cmds, NewInspectCmd(a))

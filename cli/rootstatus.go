@@ -8,9 +8,11 @@ import (
 
 // RootRunE is the RunE for a bare root invocation (`kapi` with no
 // subcommand). Inside a project it prints the status summary (the same text
-// renderer as `kapi status`) followed by a hint pointing at `kapi up`;
-// outside a project it falls back to the standard cobra help. --help output
-// is untouched (cobra handles the help flag before RunE runs).
+// renderer as `kapi status`) followed by two hint lines: the next command,
+// `kapi check` for a project that names no target language and `kapi up` for
+// one that does, and where the commands are listed. Outside a project it
+// falls back to the standard cobra help. --help output is untouched (cobra
+// handles the help flag before RunE runs).
 func RootRunE(a *App, cmd *cobra.Command, _ []string) error {
 	projectPath, err := ResolveProjectPath(cmd)
 	if err != nil || projectPath == "" {
@@ -34,7 +36,11 @@ func RootRunE(a *App, cmd *cobra.Command, _ []string) error {
 
 	out := cmd.OutOrStdout()
 	fmt.Fprintln(out)
-	fmt.Fprintln(out, "run `kapi up` to catch up")
-	fmt.Fprintln(out, "kapi --help for all commands")
+	if recipeDeclaresTargetLanguages(projectPath) {
+		fmt.Fprintln(out, "run `kapi up` to catch up")
+	} else {
+		fmt.Fprintln(out, "run `kapi check` to check the content")
+	}
+	fmt.Fprintln(out, "kapi --help for the commands")
 	return nil
 }

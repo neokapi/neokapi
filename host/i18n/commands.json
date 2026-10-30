@@ -2950,7 +2950,7 @@
         "ksed": {
           "short": "Stream-edit the text/content inside files (use ksed)"
         },
-        "long": "kapi parses any format into one content model, edits and checks the content\ninside it, and writes it back faithfully. It holds a project's context, such as\nits terms and its voice, which its checks and AI tools apply. The same model\nserves format conversion and translation into other languages.",
+        "long": "kapi reads any format into one content model, checks the content against the\nproject's rules, and writes edits back faithfully. It holds the project's\ncontext, such as its terms and its voice, which its checks and AI tools apply.",
         "ls": {
           "flags": {
             "color": {
@@ -3750,8 +3750,8 @@
               "usage": "source language (overrides the project's source_language)"
             }
           },
-          "long": "Show how far the project's source content has progressed and, per target\nlocale, how much of it is translated and whether it clears its ship gate: a\nderived dashboard, like git status. Coverage is recomputed from the content ×\ntarget files on every run; nothing is tracked as state.\n\nThis is the informational counterpart to 'kapi check --ship' (the quality gate). It\nnever fails: a locale that is behind is reported as pending rather than as an error.\nTarget-language drift is normal, expected work rather than a build break.",
-          "short": "Show source readiness and per-language coverage against the ship gates"
+          "long": "Show how far the project's content has progressed and whether it clears the\nproject's gates: a derived dashboard, like git status. The standing is\nrecomputed from the working tree on every run; nothing is tracked as state.\n\nA project with target languages also gets per-language coverage: for each\ntarget locale, how much of the content is translated and whether it clears\nits ship gate. A locale that is behind is reported as pending rather than as\nan error, because target-language drift is normal, expected work.\n\nThis is the informational counterpart to 'kapi check --ship' (the quality\ngate), and it never fails.",
+          "short": "Show how ready the project's content is against its gates"
         },
         "store": {
           "export": {
@@ -4263,7 +4263,7 @@
           "short": "Rehydrate a project's working state from a .kpz snapshot"
         },
         "up": {
-          "example": "  kapi up                # loop the default flow until every gated scope ships or parks\n  kapi up --plan         # dry run: pending work, content-memory leverage, and a token estimate per locale\n  kapi up --passes 1     # a single pass over every locale that needs work\n  kapi up --materialize  # also write target-language files for the shippable locales\n  kapi up --local        # connected project: run the loop on this machine, then push the results\n  kapi up -p kapi.yaml   # bring an explicit project recipe up to date",
+          "example": "  kapi up                # run the default flow; stop where a gate holds content back\n  kapi up --plan         # dry run: pending work, content-memory leverage, and a token estimate per locale\n  kapi up --passes 1     # a single pass over every locale that needs work\n  kapi up --materialize  # also write target-language files for the shippable locales\n  kapi up --local        # connected project: run the loop on this machine, then push the results\n  kapi up -p kapi.yaml   # bring an explicit project recipe up to date",
           "flags": {
             "api-key": {
               "usage": "API key for the AI provider"
@@ -4378,7 +4378,7 @@
             }
           },
           "long": "Bring the project up to date: the recipe declares the languages, the flow, and\nthe gates that decide shippable; kapi up runs the project's default flow\n(defaults.flow) over every target language, looping until every gated scope is\nshippable or parked for a human.\n\nWithout defaults.flow, up runs the built-in default flow, Memory reuse (recycle)\nfollowed by AI translate, so a recipe needs no flow YAML at all to catch up.\nSetting defaults.flow replaces the built-in default.\n\nBefore each pass, up re-syncs the project block store with the working tree:\nedited source files, a store written by another kapi version, or a missing\nstore trigger a re-extraction (the same shared path behind the desktop's\nRe-extract). --no-extract opts out.\n\nEach pass re-derives coverage from the working tree, runs the flow only for\nthe locales still short of their gate, and stops when everything ships, a pass\nmakes no progress (the remainder parks, because it needs a human), or the pass cap is\nreached. After each pass the project's bound checks run over what was\nproduced: a translation with failing findings (dropped placeholders,\nterminology violations) still counts as translated, which it is, and holds its\nlocale out of shipping until the finding is fixed. 'kapi status' runs the same checks and\nreports the same verdict. --no-checks opts out.\n\nThe materialize policy determines whether the run owns delivery of the\ntarget-language files. Under 'defaults.materialize: on-converge' (or the\n--materialize flag) it does, and the ship gate holds it back: each pass drafts\ninto a run-local tree, and only a locale whose gated scopes are all shippable\nhas its files written where the recipe points, and a parked locale's files are\nabsent, not merely unblessed. The default ('manual') leaves delivery to\n'kapi merge' and claims no gate.\n\nVenue: in a server-connected project (a recipe with a bowrain: block, with the\nbowrain plugin installed) the loop runs on the Bowrain server by default, on\nthe org's keys, against the org's shared Memory and terminology, and this command\npushes local changes, streams the server run's live progress, and pulls the\nproduced targets. --local keeps the loop on this machine and then pushes the\nresults so the server never goes stale; --server fails rather than falling\nback to a local run. The resolved venue is printed first whenever the recipe\nconnects to a server. Without that block, up is purely local.\n\n--plan is a dry run in every venue: instead of running anything, up reports\nthe pending work per (collection, locale): blocks missing a target, exact Memory\nleverage, the remaining AI work, and a rough token estimate, computed locally\nagainst the working tree, with no provider calls and no writes. Combine with\n--json for agents.\n\nup never fails the build on target drift: parked, pending target content is\nnormal toil, reported rather than thrown. Use 'kapi status' to inspect\nstanding without running anything, and 'kapi check --ship' to enforce the\ngates (e.g. before a release tag).\n\n--passes 1 runs a single pass (the behavior of the bare 'kapi run');\n--passes N caps the loop at N passes.",
-          "short": "Bring the project up to date (run the default flow until every gated scope ships or parks)"
+          "short": "Bring the project up to date: run the default flow and stop where a gate holds content back"
         },
         "update": {
           "example": "  kapi update",

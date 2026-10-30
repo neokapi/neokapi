@@ -300,8 +300,8 @@ func TestAddCommandGroupsRegistersGroups(t *testing.T) {
 		ids = append(ids, g.ID)
 		titles = append(titles, g.Title)
 	}
-	assert.Equal(t, []string{"work", "languages", "assets", "advanced"}, ids)
-	assert.Equal(t, []string{"Work:", "Languages:", "Assets:", "Advanced:"}, titles)
+	assert.Equal(t, []string{"work", "assets", "languages", "advanced"}, ids)
+	assert.Equal(t, []string{"Work:", "Assets:", "Languages:", "Advanced:"}, titles)
 }
 
 // --target-lang on `kapi exec <tool>` follows the tool's locale contract

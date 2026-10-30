@@ -16,7 +16,7 @@ func NewMemoryCmd(a *App) *cobra.Command {
 	memoryCmd := &cobra.Command{
 		Use:     "memory",
 		Short:   "Manage content memory",
-		GroupID: "assets",
+		GroupID: "languages",
 		Long: `Manage content memory.
 
 A content memory stores previously produced content as a SQLite database: source
@@ -51,9 +51,9 @@ Outside a project and with no flag: same as --local (uses ./memory.db).`,
 	for _, cmd := range []*cobra.Command{importCmd, importDirCmd, exportCmd, lookupCmd, searchCmd, statsCmd} {
 		AddResourceFlags(cmd)
 	}
-	// The project's content memory is a subsystem of `.kapi/work/store.db`, not a
-	// file a caller can name — so with no resource flag these resolve the
-	// project, and -p is how you say WHICH, exactly as for every other
+	// The project's content memory is a subsystem of `.kapi/work/store.db`
+	// rather than a file a caller can name, so with no resource flag these
+	// resolve the project, and -p is how you say WHICH, exactly as for every other
 	// project-aware verb. It also matters under KAPI_NO_PROJECT, where the
 	// upward walk is off and an explicit -p is the only way in.
 	// import-dir is left out: its -p is already --pattern, and pflag panics at
@@ -126,7 +126,7 @@ without pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV
 
 			// ImportTMXFile uses the bulk path, which skips per-row FTS5
 			// inserts. Rebuild the search/fuzzy side-tables so imported
-			// entries are visible to `kapi memory search` and fuzzy lookup —
+			// entries are visible to `kapi memory search` and fuzzy lookup,
 			// matching what import-dir does after its bulk load.
 			a.RebuildMemorySearchIndexes(cmd.Context(), tm)
 
@@ -228,9 +228,9 @@ Examples:
 			}
 
 			// Rebuild the FTS5 side-tables once the bulk load is done.
-			// The bulk path deliberately skips per-row FTS5 inserts —
-			// they're the dominant cost on large corpora — and we restore
-			// text-search + fuzzy-match capability here.
+			// The bulk path deliberately skips per-row FTS5 inserts, the
+			// dominant cost on large corpora, and this restores text search
+			// and fuzzy matching.
 			a.RebuildMemorySearchIndexes(cmd.Context(), tm)
 
 			if a.Quiet {

@@ -133,7 +133,7 @@ sign in,se connecter,anmelden,
 // Every one was run by hand in both directions before being written down: a
 // gate that cannot fail proves nothing, and one that cannot pass wastes a
 // metered sweep discovering its own bug. The `-p .` on anything reading a
-// project is not optional — the isolation contract sets KAPI_NO_PROJECT=1, so
+// project is required: the isolation contract sets KAPI_NO_PROJECT=1, so
 // discovery is off and a bare `kapi status` cannot find a recipe the agent
 // just wrote.
 
@@ -265,12 +265,12 @@ const catalogWithGovernedTerms = `{
 // Both of these were invented, and every key was wrong: `version: "1"` where
 // the loader wants `v1`, `source:`/`targets:` where the fields are
 // `source_language`/`target_languages`, and `include:` where a collection
-// carries `content: - path:`. Only the last of those was ever reported —
+// carries `content: - path:`. Only the last of those was ever reported:
 // Defaults and Collection both end in `Extras map[string]yaml.Node` with
 // `yaml:",inline"`, so an unknown key is preserved for platform layers to
 // decode rather than rejected. A recipe full of near-miss keys therefore loads
-// as a project with no source language and no targets, and says so only as
-// "Monolingual project". See issue #2223.
+// as a project with no source language and no targets, and `kapi status`
+// shows only the source line. See issue #2223.
 const loopRecipe = `version: v1
 name: northwind
 defaults:
@@ -517,7 +517,7 @@ var scenarios = []Scenario{
 		},
 		Turns: 14,
 		// Not gateReadableProject: the fixture provides the recipe, so that
-		// gate is green before the agent starts. Nor a target file — Defaults
+		// gate is green before the agent starts. Nor a target file: Defaults
 		// .Materialize is `manual` unless a recipe says otherwise, so a
 		// converged project writes no nb.json at all. What the loop moves is
 		// coverage, which status reports either way.
@@ -604,7 +604,7 @@ var scenarios = []Scenario{
 		// The prompt asks for two things, so the gate asks for two: a profile
 		// kapi validates, and terms recorded somewhere kapi or a reader can
 		// find them. `kapi terms` has no validate verb, so the terms half is
-		// existence rather than structure — the weaker half, and named as such.
+		// existence rather than structure, the weaker half, and named as such.
 		CompletionGate: gateUsableVoiceProfile + ` && ` +
 			gateHasFileMatching(`( -name '*term*' -o -name '*glossary*' )`),
 	},

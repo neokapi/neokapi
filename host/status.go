@@ -35,8 +35,8 @@ type StatusOutput struct {
 	// populated by shelling the plugin, never by importing bowrain.
 	Server *StatusServerSection `json:"server,omitempty"`
 	// Venue reports where `kapi up` would run the convergence loop. Present
-	// only when the recipe binds one — the venue of a plain local project is
-	// not ambiguous, so it stays silent.
+	// only when the recipe binds one: the venue of a plain local project is
+	// unambiguous, so it stays silent.
 	Venue *StatusVenue `json:"venue,omitempty"`
 	// Context says how far this machine and the backend the project's context
 	// is shared through were apart at the last pull or push. Absent when the
@@ -48,11 +48,11 @@ type StatusOutput struct {
 	// project's context, which kapi context sync reads (HistoryNotPulledNote).
 	HistoryNotPulled bool `json:"history_not_pulled,omitempty"`
 	// Conflicts lists what the workspace home keeps of a translation that
-	// waits for a person: an edit two machines made from one version of a
-	// draft, that a pull merged and that could not land because both changed
-	// the same block (the edit that sorts first holds it); and wording a
-	// person or an agent wrote into a draft whose file has appeared since
-	// without it, which kapi merge writes into the file.
+	// waits for a person. One kind is an edit two machines made from one
+	// version of a draft, which a pull merged and which could not land because
+	// both changed the same block (the edit that sorts first holds it). The
+	// other is wording a person or an agent wrote into a draft whose file has
+	// appeared since without it, which kapi merge writes into the file.
 	Conflicts []StatusConflict `json:"conflicts,omitempty"`
 }
 
@@ -123,8 +123,8 @@ type StatusGovernance struct {
 	// Observed is what this project recorded at its last contact with the
 	// venue. The zero value is a project that has never observed one.
 	Observed ref.Ref `json:"observed"`
-	// Venue is the ref the venue publishes now. nil when it could not be read
-	// — an unreachable server, or one too old to publish a ref. That is a
+	// Venue is the ref the venue publishes now. nil when it could not be read:
+	// an unreachable server, or one too old to publish a ref. That is a
 	// different report from "nothing moved", so it is a different value.
 	Venue *ref.Ref `json:"venue,omitempty"`
 	// ObservedAt is when the venue was last reached (RFC 3339), empty when it
@@ -144,8 +144,8 @@ func (g *StatusGovernance) Divergence() (ref.Divergence, bool) {
 
 // StatusTerminology is the standing of the workspace's governed terminology:
 // when the last concept pull ran and what it carried, plus what this project
-// has proposed and not yet had reviewed. nil when neither is known — rendered
-// as never-synced so stale local term checks are visible, not silent.
+// has proposed and not yet had reviewed. nil when neither is known, and then
+// rendered as never-synced so stale local term checks are visible.
 type StatusTerminology struct {
 	PulledAt  string `json:"pulled_at"`
 	Concepts  int    `json:"concepts"`
@@ -154,9 +154,9 @@ type StatusTerminology struct {
 	// PendingChangesets is how many governed terminology change-sets are
 	// awaiting review, with the newest one's id and review link. A pushed
 	// governed edit lives here until a reviewer merges it, and no pull can
-	// bring it down as a baseline in the meantime — so without this the terms
-	// line reported "never synced" about terminology that had in fact been
-	// sent, received, and was sitting in someone's queue.
+	// bring it down as a baseline in the meantime. This count keeps the terms
+	// line from reporting "never synced" about terminology that has been sent,
+	// received, and is sitting in someone's queue.
 	PendingChangesets int    `json:"pending_changesets,omitempty"`
 	PendingChangeset  string `json:"pending_changeset_id,omitempty"`
 	PendingURL        string `json:"pending_changeset_url,omitempty"`
@@ -174,21 +174,30 @@ var statusLadder = gate.TargetLadder()
 
 // FormatText renders the coverage grid, implementing output.TextFormatter.
 func (o StatusOutput) FormatText(w io.Writer) error {
-	// Source readiness — how far the author's own content has progressed, shown
-	// above the translation grid (the source feeds every target).
-	if o.Source != nil && o.Source.Total > 0 {
+	// Source readiness, how far the author's own content has progressed, is
+	// shown above the translation grid (the source feeds every target).
+	//
+	// A project that names no target language has no grid, and the source line
+	// is its whole standing, so nothing is printed in the grid's place. With no
+	// source content measured, the source line says so and names the next
+	// step, so the report is never empty. The JSON still carries `monolingual`
+	// for scripts.
+	noGrid := len(o.Locales) == 0 && o.Monolingual
+	switch {
+	case o.Source != nil && o.Source.Total > 0:
 		writeSourceLine(w, *o.Source)
+		if !noGrid {
+			fmt.Fprintln(w)
+		}
+	case noGrid:
+		writeNoSourceLine(w, o.Source)
 	}
-	if len(o.Locales) == 0 {
+	if len(o.Locales) > 0 {
+		o.writeCoverageGrid(w)
+	} else if !o.Monolingual {
 		// The server and venue standing still render below: a connected
 		// project with nothing tracked yet must not hide where `up` would run.
-		if o.Monolingual {
-			fmt.Fprintln(w, "Monolingual project: no target languages configured, so there is no per-language standing to report.")
-		} else {
-			fmt.Fprintln(w, "No target content tracked (no content collections with target locales).")
-		}
-	} else {
-		o.writeCoverageGrid(w)
+		fmt.Fprintln(w, "No target content tracked (no content collections with target locales).")
 	}
 	if o.Server != nil {
 		writeServerLine(w, *o.Server)
@@ -230,7 +239,7 @@ func (o StatusOutput) FormatText(w io.Writer) error {
 // collections with their own gates.
 //
 // Ship is a verdict, not a percentage. A percentage there would invite the
-// question "is 80% shippable?", whose answer is always no — a gate either holds
+// question "is 80% shippable?", whose answer is always no: a gate either holds
 // or it does not. So the column reads the ship state (`approved` or
 // `translated`) or `blocked: <rung>`, naming the
 // first unmet gate so it points at the work; the numbers live in the stage
@@ -261,14 +270,14 @@ func (o StatusOutput) writeCoverageGrid(w io.Writer) {
 }
 
 // writeBasisLines reports the two things a percentage cannot say: how many units
-// carry a decision whose source has since been rewritten (stale — withheld), and
-// how many carry one recorded before the basis was tracked (unknown — counted as
+// carry a decision whose source has since been rewritten (stale: withheld), and
+// how many carry one recorded before the basis was tracked (unknown: counted as
 // current). Silent when there are none.
 //
 // The unknown line exists because the alternative postures are both wrong:
 // treating a missing basis as drift would demote every decision a project made
 // before it was recorded, and treating it as nothing at all would leave the
-// assumption invisible. It is counted, named, and it clears itself — the next
+// assumption invisible. It is counted, named, and it clears itself: the next
 // decision on the unit records a basis.
 func (o StatusOutput) writeBasisLines(w io.Writer) {
 	stale, unknown, failing, termsNotChecked := 0, 0, 0, 0
@@ -411,8 +420,7 @@ func pipelineCell(lc LocaleCoverage, bars bool) string {
 
 // statusLabel writes a standing line's label in the report's gutter. One width
 // for every standing line, so the values line up in a column a reader can scan
-// down — which is the whole reason the axes are labelled rather than run
-// together.
+// down. The axes are labelled rather than run together for that reason.
 func statusLabel(w io.Writer, label string) {
 	fmt.Fprintf(w, "%-*s", statusLabelWidth, label)
 }
@@ -441,7 +449,7 @@ func writeVenueLine(w io.Writer, v StatusVenue) {
 // grid, on the report's two axes.
 //
 // CONTENT is a position: what is here and not there, and what is there and not
-// here. It counts, and it resolves itself — a push or a pull moves it.
+// here. It counts, and it resolves itself: a push or a pull moves it.
 //
 // GOVERNANCE is an identity: which context, terminology and decisions are in
 // force. It does not count, because two unequal identity hashes carry no
@@ -525,13 +533,13 @@ func governanceWord(s ref.Status) string {
 
 // writeTermsLine renders the terminology standing beneath the server line.
 //
-// Three states, not two. "Synced" and "never synced" were the whole vocabulary,
-// and between them sat the state a user is most likely to be in right after a
-// push: governed edits proposed and awaiting review. Those cannot appear in the
-// local baseline — a change-set holds them until a reviewer merges it — so a
-// project that had just sent its terminology upstream was told it had never
-// sent any, which is the report that sends someone to re-do work already
-// queued in front of a colleague.
+// It has three states: synced, never synced, and the state a user is most
+// likely to be in right after a push, governed edits proposed and awaiting
+// review. Those edits cannot appear in the local baseline, because a
+// change-set holds them until a reviewer merges it. Without the third state a
+// project that has just sent its terminology upstream would read that it never
+// sent any, and someone would redo work already queued in front of a
+// colleague.
 func writeTermsLine(w io.Writer, t *StatusTerminology) {
 	statusLabel(w, "terms")
 	switch {
@@ -579,7 +587,20 @@ func writeSourceLine(w io.Writer, sc SourceCoverage) {
 		standing = " · blocked: " + model.StatusLabel(sc.Pending[0].State)
 	}
 	statusLabel(w, "source")
-	fmt.Fprintf(w, "%d blocks · %s%s\n\n", sc.Total, strings.Join(cells, " · "), standing)
+	fmt.Fprintf(w, "%d blocks · %s%s\n", sc.Total, strings.Join(cells, " · "), standing)
+}
+
+// writeNoSourceLine renders the source line of a project with no source
+// content measured. sc carries the formats no installed reader opens, when
+// those are the reason; otherwise the project has no content yet, and the
+// line names the command that adds some.
+func writeNoSourceLine(w io.Writer, sc *SourceCoverage) {
+	statusLabel(w, "source")
+	if sc != nil && len(sc.Unreadable) > 0 {
+		fmt.Fprintf(w, "no content read: no reader for %s\n", strings.Join(sc.Unreadable, ", "))
+		return
+	}
+	fmt.Fprintln(w, "no content yet: add files with `kapi add <pattern>`")
 }
 
 // scopeLabel renders a coverage row's scope: the locale, or "locale/collection"
@@ -597,12 +618,12 @@ func scopeLabel(lc LocaleCoverage) string {
 // and nothing withholds it.
 //
 // The blocking rung is the *lowest* unmet one (gate.Result.Blocking), so the
-// verdict points at the work that unblocks the rest — saying "blocked: review"
-// while translation is also short would send someone to the wrong task.
+// verdict points at the work that unblocks the rest. "blocked: review" while
+// translation is also short would send someone to the wrong task.
 func shipCell(lc LocaleCoverage, s *output.Styles) string {
 	// Staleness is read before the gate, and whether or not one applies: a stale
-	// unit is not a shortfall against a bar, it is a translation of wording the
-	// project no longer has, and an ungated scope has nothing else to catch it.
+	// unit is a translation of wording the project no longer has, which no bar
+	// measures, and an ungated scope has nothing else to catch it.
 	if lc.Stale > 0 {
 		return s.Warn.Render("blocked: stale")
 	}
@@ -709,10 +730,10 @@ func (a *App) RunStatus(cmd Command, _ []string) error {
 
 		// The project's bound checks run here for the same reason `kapi up` runs
 		// them: this command publishes a ship verdict, and a verdict reached
-		// without asking the guardrails is the one that told a delivery step to
-		// ship a catalog `kapi up` had parked. The findings withhold the verdict
-		// only — the percentages below are the units' true rungs either way — so
-		// running them changes what `ship` says and nothing else (#2024).
+		// without the guardrails can tell a delivery step to ship a catalog
+		// `kapi up` parked. The findings withhold the verdict only, and the
+		// percentages below are the units' true rungs either way, so running
+		// them changes what `ship` says and nothing else (#2024).
 		//
 		// A collection in a format with no installed reader is left out of the
 		// checks and the coverage. The source readiness below names its format
@@ -728,7 +749,7 @@ func (a *App) RunStatus(cmd Command, _ []string) error {
 		}
 
 		// --ship emits the minimal picker manifest (locale → {shippable,
-		// state}) and stops — a build redirects it to ship.json, or writes it
+		// state}) and stops. A build redirects it to ship.json, or writes it
 		// with --emit. The richer coverage report is skipped: this shape is for a
 		// language picker, not a dashboard.
 		if ship, _ := cmd.Flags().GetBool("ship"); ship {
@@ -736,10 +757,10 @@ func (a *App) RunStatus(cmd Command, _ []string) error {
 			return a.emitShipManifest(cmd, BuildShipManifest(cov))
 		}
 
-		// Source readiness is measured over the project's SOURCE files, not over
-		// the target units: the author's content stands whether or not a target
-		// language carries it anywhere. Read from the units, a monolingual
-		// project reported no source at all — the one axis it does have.
+		// Source readiness is measured over the project's SOURCE files rather
+		// than the target units: the author's content stands whether or not a
+		// target language carries it anywhere. A monolingual project has no
+		// target units, and the source is the one axis it has.
 		srcUnits, err := a.SourceUnitsFromProject(proj, root)
 		if err != nil {
 			return fmt.Errorf("resolve source content: %w", err)
@@ -776,7 +797,7 @@ func (a *App) RunStatus(cmd Command, _ []string) error {
 // appendServerStatus merges the connected-server delta into the status output
 // when the recipe binds a convergence venue and the bowrain plugin is
 // installed. It shells the plugin's `server-status --json --project=<recipe>`
-// (subprocess dispatch — the cli module never imports bowrain) and folds the
+// (subprocess dispatch: the cli module never imports bowrain) and folds the
 // result under out.Server. The plugin is handed the recipe status resolved,
 // so it reports on that project and never looks for one of its own. Any
 // failure degrades to a one-line stderr warning and leaves the local report
@@ -828,9 +849,9 @@ func (a *App) statusVenue(proj *project.KapiProject) *StatusVenue {
 	return v
 }
 
-// AddStatusFlags registers the status command's flag surface on cmd —
-// shared by the cobra factory and embedded surfaces (tests, review queue
-// readers) so flag defaults stay identical everywhere.
+// AddStatusFlags registers the status command's flag surface on cmd. The
+// cobra factory and embedded surfaces (tests, review queue readers) share it,
+// so flag defaults stay identical everywhere.
 func AddStatusFlags(cmd Command) {
 	cmd.Flags().String("locale", "", "limit to a single target locale")
 	cmd.Flags().String("source-lang", "", "source language (overrides the project's source_language)")
