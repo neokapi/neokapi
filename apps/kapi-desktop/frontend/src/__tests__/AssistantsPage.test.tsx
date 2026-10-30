@@ -11,13 +11,16 @@ import {
   ASSISTANTS_NO_CHECKOUT,
   ASSISTANTS_NONE,
   ASSISTANTS_RULES_MISSING,
+  ASSISTANTS_WITH_CHECKS,
   CLAUDE_DESKTOP_CONFIG,
   CONNECT_CLAUDE_DESKTOP_RESULT,
   CONNECT_CURSOR_RESULT,
   CONNECT_NOTHING_RESULT,
   PLUGIN_COMMANDS,
+  SESSIONS_WITH_CHECKS,
   session,
 } from "../stories/fixtures/assistants";
+import { checkCounts } from "../components/ContextFeed";
 import type { AssistantsView } from "../types/api";
 
 afterEach(() => {
@@ -249,5 +252,60 @@ describe("sessions", () => {
       sessionCounts(session({ id: "s", suggestions: 1, corrections: 2, kept: 3, dropped: 4 })),
     ).toBe("1 suggestion · 2 corrections · 3 kept");
     expect(sessionCounts(session({ id: "s", operations: 2 }))).toBe("2 operations");
+  });
+});
+
+describe("what the check on every edit caught", () => {
+  const checks = (id: string) =>
+    document
+      .querySelector(`[data-session='${id}'] [data-slot='assistant-session-checks']`)
+      ?.textContent?.trim() ?? null;
+  const notes = (id: string) =>
+    document
+      .querySelector(`[data-session='${id}'] [data-slot='assistant-session-counts']`)
+      ?.textContent?.trim() ?? null;
+  const caughtTotal = () =>
+    document.querySelector("[data-slot='assistants-caught']")?.textContent?.trim() ?? null;
+
+  it("counts files, checks and what was caught beside a session's suggestions", () => {
+    page(ASSISTANTS_WITH_CHECKS);
+    expect(notes("session:sess-1")).toBe("2 suggestions");
+    expect(checks("session:sess-1")).toBe("3 files · 4 checks · 2 caught");
+  });
+
+  it("lists a session that only ran the check with its counts and no operations", () => {
+    page(ASSISTANTS_WITH_CHECKS);
+    expect(notes("session:sess-2")).toBeNull();
+    expect(checks("session:sess-2")).toBe("1 file · 2 checks · 1 failing · 0 caught");
+  });
+
+  it("reads a session whose every run was clean as its runs and clean", () => {
+    page(ASSISTANTS_WITH_CHECKS);
+    expect(checks("session:sess-3")).toBe("2 files · 3 checks · clean");
+  });
+
+  it("shows no check count for a session that ran no check", () => {
+    page(ASSISTANTS_WITH_CHECKS);
+    expect(notes("actor:person/:2026-10-28")).toBe("2 kept");
+    expect(checks("actor:person/:2026-10-28")).toBeNull();
+  });
+
+  it("shows no caught count for runs that reached no verdict", () => {
+    expect(checkCounts(session({ id: "s", checked: 2, files: 1 }))).toEqual(["1 file", "2 checks"]);
+  });
+
+  it("totals what was caught across the sessions shown, in the header", () => {
+    page(ASSISTANTS_WITH_CHECKS);
+    expect(caughtTotal()).toBe("2 caught");
+  });
+
+  it("shows no total when no session shown ran a check", () => {
+    page(ASSISTANTS_CLAUDE_CONNECTED);
+    expect(caughtTotal()).toBeNull();
+  });
+
+  it("totals zero caught once a session has run the check", () => {
+    page({ ...ASSISTANTS_WITH_CHECKS, sessions: SESSIONS_WITH_CHECKS.slice(1, 3) });
+    expect(caughtTotal()).toBe("0 caught");
   });
 });

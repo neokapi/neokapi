@@ -388,9 +388,11 @@ function SessionRow({ group, showProject }: { group: ContextFeedGroup; showProje
               className="size-1.5 rounded-full bg-warning"
             />
           )}
-          <span className="text-[11px] text-muted-foreground tabular-nums">
-            {group.entries.length}
-          </span>
+          {group.entries.length > 0 && (
+            <span className="text-[11px] text-muted-foreground tabular-nums">
+              {group.entries.length}
+            </span>
+          )}
         </>
       }
     >
@@ -436,6 +438,32 @@ export function ActorName({ actor }: { actor: ContextActor }) {
   return actor.name ? <span translate="no">{actor.name}</span> : <span>You</span>;
 }
 
+/** What a session's check runs found, as the feed and the Assistants page carry it. */
+export type CheckOutcomes = Pick<
+  ContextFeedGroup,
+  "files" | "checked" | "failing" | "caught" | "clean" | "failed"
+>;
+
+/**
+ * A session's check counts, one label each: the files its turns edited, its
+ * runs, then "clean" when every run was clean, or what was left failing and
+ * what was caught when a run failed. A session that ran no check has none.
+ */
+export function checkCounts(c: CheckOutcomes): string[] {
+  if (!c.checked) return [];
+  const parts: string[] = [];
+  if (c.files > 0)
+    parts.push(t("{count, plural, one {# file} other {# files}}", { count: c.files }));
+  parts.push(t("{count, plural, one {# check} other {# checks}}", { count: c.checked }));
+  if (c.clean) {
+    parts.push(t("clean"));
+  } else if (c.failed) {
+    if (c.failing > 0) parts.push(t("{count} failing", { count: c.failing }));
+    parts.push(t("{count} caught", { count: c.caught }));
+  }
+  return parts;
+}
+
 /** The one line a session's counts read out. */
 function SessionCounts({ group }: { group: ContextFeedGroup }) {
   const parts: string[] = [];
@@ -453,16 +481,20 @@ function SessionCounts({ group }: { group: ContextFeedGroup }) {
   const resets = group.entries.filter((entry) => entry.kind === "reset").length;
   if (resets > 0)
     parts.push(t("{count, plural, one {# reset} other {# resets}}", { count: resets }));
+  const checks = checkCounts(group);
   const counts =
     parts.length > 0
       ? parts.join(", ")
-      : t("{count, plural, one {# operation} other {# operations}}", {
-          count: group.entries.length,
-        });
+      : group.entries.length > 0 || checks.length === 0
+        ? t("{count, plural, one {# operation} other {# operations}}", {
+            count: group.entries.length,
+          })
+        : "";
   return (
     <span data-slot="session-counts">
-      {counts}
-      {group.quiet ? "" : ` · ${t("still working")}`}
+      {[counts, checks.join(" · "), group.quiet ? "" : t("still working")]
+        .filter(Boolean)
+        .join(" · ")}
     </span>
   );
 }

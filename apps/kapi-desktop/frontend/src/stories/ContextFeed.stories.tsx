@@ -129,6 +129,45 @@ export const StillWorking: Story = {
   },
 };
 
+/**
+ * Sessions the check on every edit ran in: claude's suggestions with runs
+ * that caught a finding, and a session that only ran the check, selected,
+ * which holds no operations.
+ */
+export const SessionsTheCheckRanIn: Story = {
+  args: {
+    feed: {
+      ...CONTEXT_FEED,
+      groups: [
+        feedGroup({
+          id: "session:sess-1",
+          session: "sess-1",
+          recorded: 2,
+          kept: 1,
+          files: 2,
+          checked: 3,
+          caught: 1,
+          failed: true,
+          entries: [CANDIDATE, IN_FORCE],
+        }),
+        feedGroup({
+          id: "session:sess-2",
+          session: "sess-2",
+          actor: { kind: "agent", name: "claude-code", session: "sess-2", host: "studio" },
+          first: "2026-09-21T08:10:00Z",
+          last: "2026-09-21T08:40:00Z",
+          files: 1,
+          checked: 2,
+          clean: true,
+          entries: [],
+        }),
+        ...CONTEXT_FEED.groups.slice(1),
+      ],
+    } satisfies ContextFeed,
+    defaultSelected: "session:sess-2",
+  },
+};
+
 /** A person reset the project to before claude's session; the toolbar takes the reset back. */
 export const AfterAReset: Story = { args: { feed: RESET_FEED } };
 

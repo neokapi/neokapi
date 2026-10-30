@@ -248,6 +248,47 @@ describe("History as a list of sessions beside a detail pane", () => {
     );
   });
 
+  it("reads a session that only ran the check as its check counts, with no operations", () => {
+    renderFeed(
+      {
+        ...CONTEXT_FEED,
+        groups: [
+          feedGroup({
+            id: "session:hook",
+            session: "hook",
+            files: 1,
+            checked: 2,
+            failing: 1,
+            failed: true,
+            entries: [],
+          }),
+          ...CONTEXT_FEED.groups,
+        ],
+      },
+      { defaultSelected: "session:hook" },
+    );
+    // Who worked and when, and no count of operations after them.
+    const hook = sessionRow("session:hook");
+    expect(hook.textContent?.endsWith(hook.querySelector("time")?.textContent ?? "-")).toBe(true);
+    expect(detail().querySelector("[data-slot='session-counts']")?.textContent).toBe(
+      "1 file · 2 checks · 1 failing · 0 caught",
+    );
+    expect(detail().querySelectorAll("[data-slot='context-feed-entry']")).toHaveLength(0);
+  });
+
+  it("reads out a session's check counts after its suggestions", () => {
+    renderFeed({
+      ...CONTEXT_FEED,
+      groups: [
+        { ...CONTEXT_FEED.groups[0], files: 2, checked: 3, caught: 1, failed: true },
+        ...CONTEXT_FEED.groups.slice(1),
+      ],
+    });
+    expect(detail().querySelector("[data-slot='session-counts']")?.textContent).toBe(
+      "2 suggestions, 1 kept · 2 files · 3 checks · 1 caught",
+    );
+  });
+
   it("reads out what the selected session did, and says who worked and where", () => {
     renderFeed();
     const pane = detail();

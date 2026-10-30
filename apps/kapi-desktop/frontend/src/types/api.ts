@@ -1062,6 +1062,15 @@ export interface AssistantSession {
   kept: number;
   dropped: number;
   awaiting: number;
+  /** What the session's check runs found; zero runs for a session that ran none. */
+  files: number;
+  checked: number;
+  failing: number;
+  caught: number;
+  /** A run reached a verdict and every run that did was clean. */
+  clean: boolean;
+  /** A run reached a verdict with something failing. */
+  failed: boolean;
 }
 
 /** A tab's Assistants page. */
@@ -1232,8 +1241,18 @@ export interface ContextFeedGroup {
   corrected: number;
   kept: number;
   dropped: number;
+  /** What the session's check runs found; zero runs for a session that ran none. */
+  checked: number;
+  failing: number;
+  caught: number;
+  files: number;
+  /** A run reached a verdict and every run that did was clean. */
+  clean: boolean;
+  /** A run reached a verdict with something failing. */
+  failed: boolean;
   /** Nothing has been added for a while, so the counts are of finished work. */
   quiet: boolean;
+  /** Empty for a session that only ran checks. */
   entries: ContextFeedEntry[];
 }
 
