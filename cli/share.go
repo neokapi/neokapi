@@ -18,7 +18,7 @@ import (
 // host.Share.
 func NewShareCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "share",
+		Use:     "share [location]",
 		Short:   "Share the rules with your team",
 		GroupID: "work",
 		Long: `Share this project's rules, terms and decisions with the people who work on
