@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -295,17 +296,44 @@ func TestLookReader_JSON(t *testing.T) {
 	assert.Equal(t, "suggested", r.Rules[0].Status)
 }
 
-// TestRootHelp_ListsLookFirst: look is the first command of the Work group on
-// the root help, and the rest of the group keeps its order.
-func TestRootHelp_ListsLookFirst(t *testing.T) {
+// TestRootHelp_WorkOrder: the Work group on the root help opens with look,
+// then whichever of check, fix, rules, connect, share and open are
+// registered, in that order, and the rest of the group follows alphabetically.
+// Every other group keeps cobra's order.
+func TestRootHelp_WorkOrder(t *testing.T) {
 	isolateHelp(t)
 	t.Setenv("KAPI_NO_PROJECT", "1")
 
-	rows := commandRows(helpSection(runRoot(t, "--help"), "Work:"))
+	help := runRoot(t, "help", "--all")
+	rows := commandRows(helpSection(help, "Work:"))
 	require.NotEmpty(t, rows)
 	assert.Equal(t, "look", rows[0])
-	rest := append([]string(nil), rows[1:]...)
+	assert.Contains(t, rows, "check")
+
+	lead := []string{"look", "check", "fix", "rules", "connect", "share", "open"}
+	var leads, rest []string
+	for _, name := range rows {
+		if slices.Contains(lead, name) {
+			require.Empty(t, rest, "%s follows a command outside the lead list: %v", name, rows)
+			leads = append(leads, name)
+		} else {
+			rest = append(rest, name)
+		}
+	}
+	var want []string
+	for _, name := range lead {
+		if slices.Contains(leads, name) {
+			want = append(want, name)
+		}
+	}
+	assert.Equal(t, want, leads, "the lead commands keep the list's order")
 	assert.IsIncreasing(t, rest, "the rest of the group stays in cobra's order")
+
+	for _, heading := range []string{"Assets:", "Languages:", "Advanced:"} {
+		other := commandRows(helpSection(help, heading))
+		require.NotEmpty(t, other, heading)
+		assert.IsIncreasing(t, other, "%s keeps cobra's order", heading)
+	}
 }
 
 // TestBareKapi_PrintsTheMap: bare `kapi` in a project is the Map, its own last
