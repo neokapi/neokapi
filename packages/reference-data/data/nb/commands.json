@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-30T10:58:50Z",
+  "generatedAt": "2026-10-30T15:25:06Z",
   "commands": [
     {
       "id": "add",
@@ -6023,6 +6023,32 @@
         "kapi inspect report.docx --render html,markdown   # each block rendered per format",
         "kapi inspect -p site/kapi.yaml site/docs/guide.md",
         "cat page.html | kapi inspect -f html"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "look",
+      "path": [
+        "look"
+      ],
+      "use": "look [path]",
+      "short": "See the project, or one file with its rules and findings in place",
+      "long": "See where the project stands, or read one file with what applies to it.\n\nWith no path, look prints the project: the files kapi reads, the blocks in\nthem, the rules in force, the findings kapi check reports, and the\nsuggestions waiting for you in kapi context review. Inside a project, kapi\nwith no command prints the same.\n\nWith a path, look prints the file's blocks in order, each one named the way\nkapi check and kapi inspect name it. A finding is marked with carets under the\nwords it is about, and the rules that hold in the file follow the blocks. A\nfile the project does not read as content is shown too, without rules.\n\n--json gives the same as data.",
+      "groupID": "work",
+      "flags": [
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi look",
+        "kapi look docs/guide.md",
+        "kapi look docs/guide.md --json"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,

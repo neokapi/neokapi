@@ -153,6 +153,24 @@ collections:
 `id:` is the project's identity. It survives a rename, a move and a clone, and
 it is what joins two checkouts of one repository to one context. Keep it.
 
+`kapi look`, or `kapi` on its own, prints the project as kapi reads it:
+
+```
+acme-docs · read 3 files just now
+
+  3 files · 7 blocks · 0 rules · 0 findings
+
+Files
+  docs/faq.md    2 blocks
+  docs/guide.md  3 blocks
+  README.md      2 blocks
+
+Check with `kapi check`. See a file with `kapi look <path>`.
+```
+
+`kapi look docs/guide.md` prints that file's blocks, each finding marked under
+the words it is about, and the rules that hold there.
+
 Commit the recipe and agent configuration. `kapi init` excludes `.kapi/` from
 version control. It contains derived stores and caches, personal reader
 filters, and any redaction vault. The derived data can be rebuilt, but deleting

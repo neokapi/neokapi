@@ -24,16 +24,13 @@ import (
 
 // `kapi look`: the project, and one file, for a person.
 //
-// The Map (LookProject) is the project at a glance: the files kapi reads, the
-// blocks in them, the rules in force, the findings a check reports and the
-// suggestions waiting for a decision. The Reader (LookFile) is one file's
-// blocks in order with each finding drawn under the words it is about, and the
-// rules that hold there.
+// The Map (LookProject) counts the project's files, blocks, rules, findings and
+// waiting suggestions. The Reader (LookFile) draws one file's blocks with each
+// finding under the words it is about, and the rules that hold there.
 //
-// Neither computes anything of its own. The findings are the report the check
-// command produces, the rules are the by-location context answer, and the
-// suggestions are the context digest review reads, so every number here is a
-// number another command prints. The assembly lives here, cobra-free, so the
+// The findings are the check command's report, the rules the by-location
+// context answer, and the suggestions the digest review reads, so each number
+// here is one another command prints. The assembly is cobra-free, so the
 // desktop can draw the same Map.
 
 // LookProject is the Map: what a project holds and where it stands.
