@@ -184,6 +184,21 @@ describe("Decide's answers", () => {
     expect(onAnswer).toHaveBeenLastCalledWith(NAME_DECISION, "keep", { other: "Quick-cast" });
   });
 
+  it("leaves a question for later until the page opens again, though every read still holds it", () => {
+    const onAnswer = vi.fn().mockResolvedValue(undefined);
+    const { rerender } = render(<DecideView view={WORD_VIEW} onAnswer={onAnswer} />);
+    key("l");
+    expect(onAnswer).toHaveBeenLastCalledWith(WORD_DECISION, "later", { option: 0 });
+    // The view is read again after the answer, and later recorded nothing.
+    rerender(
+      <DecideView
+        view={{ ...WORD_VIEW, decisions: [...WORD_VIEW.decisions] }}
+        onAnswer={onAnswer}
+      />,
+    );
+    expect(slot("decide-empty")!.textContent).toContain("14 rules kept · 1 left for later");
+  });
+
   it("puts a question back when its answer is not recorded", async () => {
     const onAnswer = vi.fn().mockRejectedValue(new Error("the store is read-only"));
     renderDecide(WORD_VIEW, { onAnswer });

@@ -128,10 +128,17 @@ export function DecideView({
     keys: new Set(),
   });
   const gone = answered.of === view ? answered.keys : new Set<string>();
+  // Questions left for later, until the page is opened again: later records
+  // nothing, so every read of the view still holds them.
+  const [later, setLater] = useState<ReadonlySet<string>>(() => new Set());
   const decisions = useMemo(
-    () => (view?.decisions ?? []).filter((d) => !gone.has(decisionKey(d))),
-    [view, gone],
+    () =>
+      (view?.decisions ?? []).filter(
+        (d) => !gone.has(decisionKey(d)) && !later.has(decisionKey(d)),
+      ),
+    [view, gone, later],
   );
+  const waiting = (view?.decisions ?? []).filter((d) => later.has(decisionKey(d))).length;
 
   const opened = decisionForRow(decisions, defaultSelected);
   const [chosen, setChosen] = useState<string | null>(opened ? decisionKey(opened) : null);
@@ -157,16 +164,15 @@ export function DecideView({
     const key = decisionKey(selected);
     const at = decisions.indexOf(selected);
     const next = decisions[at + 1] ?? decisions[at - 1];
-    setAnswered({ of: view, keys: new Set([...gone, key]) });
+    if (a === "later") setLater((s) => new Set([...s, key]));
+    else setAnswered({ of: view, keys: new Set([...gone, key]) });
     setChosen(next ? decisionKey(next) : null);
     setFailure(null);
     onAnswer(selected, a, pick).catch((err: unknown) => {
       setFailure(err);
-      setAnswered((s) => {
-        const keys = new Set(s.keys);
-        keys.delete(key);
-        return { ...s, keys };
-      });
+      const without = (s: ReadonlySet<string>) => new Set([...s].filter((k) => k !== key));
+      setLater(without);
+      setAnswered((s) => ({ ...s, keys: without(s.keys) }));
       setChosen(key);
     });
   };
@@ -270,11 +276,19 @@ export function DecideView({
           <div className="mx-auto max-w-xl p-6" data-slot="decide-empty">
             <EmptyState
               title={t("Nothing to decide.")}
-              description={t(
-                "{count, plural, one {# rule kept} other {# rules kept}}",
-                "the empty Decide page",
-                { count: view.rules },
-              )}
+              description={
+                waiting > 0
+                  ? t(
+                      "{count, plural, one {# rule kept} other {# rules kept}} · {later} left for later",
+                      "the empty Decide page",
+                      { count: view.rules, later: waiting },
+                    )
+                  : t(
+                      "{count, plural, one {# rule kept} other {# rules kept}}",
+                      "the empty Decide page",
+                      { count: view.rules },
+                    )
+              }
               action={
                 onOpenMap && (
                   <Button
