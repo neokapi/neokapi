@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-30T14:02:35Z",
+  "generatedAt": "2026-10-30T16:01:52Z",
   "commands": [
     {
       "id": "add",
@@ -6023,6 +6023,32 @@
         "kapi inspect report.docx --render html,markdown   # each block rendered per format",
         "kapi inspect -p site/kapi.yaml site/docs/guide.md",
         "cat page.html | kapi inspect -f html"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "look",
+      "path": [
+        "look"
+      ],
+      "use": "look [path]",
+      "short": "▒ Šéé ţĥé þŕöĵéçţ, öŕ öñé ƒîļé ŵîţĥ îţš ŕüļéš àñđ ƒîñđîñĝš îñ þļàçé ▒",
+      "long": "▒ Šéé ŵĥéŕé ţĥé þŕöĵéçţ šţàñđš, öŕ ŕéàđ öñé ƒîļé ŵîţĥ ŵĥàţ àþþļîéš ţö îţ.\n\nŴîţĥ ñö þàţĥ, ļööķ þŕîñţš ţĥé þŕöĵéçţ: ţĥé ƒîļéš ķàþî ŕéàđš, ţĥé ƃļöçķš îñ\nţĥéḿ, ţĥé ŕüļéš îñ ƒöŕçé, ţĥé ƒîñđîñĝš ķàþî çĥéçķ ŕéþöŕţš, àñđ ţĥé\nšüĝĝéšţîöñš ŵàîţîñĝ ƒöŕ ýöü îñ ķàþî çöñţéẋţ ŕéṽîéŵ. Îñšîđé à þŕöĵéçţ, ķàþî\nŵîţĥ ñö çöḿḿàñđ þŕîñţš ţĥé šàḿé.\n\nŴîţĥ à þàţĥ, ļööķ þŕîñţš ţĥé ƒîļé'š ƃļöçķš îñ öŕđéŕ, éàçĥ öñé ñàḿéđ ţĥé ŵàý\nķàþî çĥéçķ àñđ ķàþî îñšþéçţ ñàḿé îţ. À ƒîñđîñĝ îš ḿàŕķéđ ŵîţĥ çàŕéţš üñđéŕ ţĥé\nŵöŕđš îţ îš àƃöüţ, àñđ ţĥé ŕüļéš ţĥàţ ĥöļđ îñ ţĥé ƒîļé ƒöļļöŵ ţĥé ƃļöçķš. À\nƒîļé ţĥé þŕöĵéçţ đöéš ñöţ ŕéàđ àš çöñţéñţ îš šĥöŵñ ţöö, ŵîţĥöüţ ŕüļéš.\n\n--ĵšöñ ĝîṽéš ţĥé šàḿé àš đàţà. ▒",
+      "groupID": "work",
+      "flags": [
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "▒ þàţĥ ţö à ķàþî.ýàḿļ þŕöĵéçţ ŕéçîþé öŕ îţš đîŕéçţöŕý (àüţö-đîšçöṽéŕéđ ƒŕöḿ çŵđ îƒ öḿîţţéđ) ▒",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi look",
+        "kapi look docs/guide.md",
+        "kapi look docs/guide.md --json"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
