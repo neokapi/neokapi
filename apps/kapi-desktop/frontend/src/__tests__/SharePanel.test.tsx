@@ -27,7 +27,8 @@ import {
   S3_VIEW,
   SYNC_ERROR,
   SYNC_RESULT,
-  UNSAVED_VIEW,
+  BROKEN_PLACE_ERROR,
+  BROKEN_PLACE_VIEW,
 } from "../stories/fixtures/sharing";
 import type { ShareRungID } from "../types/api";
 
@@ -158,9 +159,13 @@ describe("the Share page", () => {
     expect(primaries()).toEqual(["Change"]);
   });
 
-  it("in a folder opened without a kapi.yaml: the same first rung, with Change", () => {
-    render(<SharePanel tabID="t1" view={UNSAVED_VIEW} />);
+  it("with a place kapi.yaml names and kapi cannot read: the first rung, the error and Change", () => {
+    render(<SharePanel tabID="t1" view={BROKEN_PLACE_VIEW} />);
     expect(marked()).toEqual(["machine"]);
+    expect(
+      within(rung("machine")).getByText("The place kapi.yaml names could not be read."),
+    ).toBeInTheDocument();
+    expect(slot("share-view-error", rung("machine"))?.textContent).toBe(BROKEN_PLACE_ERROR);
     expect(primaries()).toEqual(["Change"]);
   });
 
@@ -209,13 +214,13 @@ describe("the Share page", () => {
     expect(reach("team")).toBe(`synced ${contactTime()}`);
   });
 
-  it("through a folder that could not be reached: says when, and what it reported", () => {
+  it("through a folder that could not be reached: says so once, with the time on the rung", () => {
     render(<SharePanel tabID="t1" view={FOLDER_UNREACHABLE_VIEW} />);
     expect(slot("share-kind", rung("team"))?.textContent).toBe("A shared folder");
     expect(slot("share-place", rung("team"))?.textContent).toBe("/Volumes/team/kapi/fernwell");
-    expect(screen.getByText(/^The place could not be reached at/).textContent).toBe(
-      `The place could not be reached at ${contactTime()}.`,
-    );
+    expect(reach("team")).toBe(`12 rules · synced ${contactTime()}`);
+    expect(rung("team").querySelectorAll("time")).toHaveLength(1);
+    expect(within(rung("team")).getByText("The place could not be reached.")).toBeInTheDocument();
     expect(slot("share-status-error")?.textContent).toBe(FOLDER_UNREACHABLE.status?.error);
     expect(primaries()).toEqual(["Sync now"]);
   });
@@ -287,13 +292,18 @@ describe("the Share page", () => {
     expect(primaries()).toEqual([]);
   });
 
-  it("context-only: the rungs, and why sharing needs a checkout, with no button", () => {
+  it("context-only: the rungs, and why sharing needs a checkout, with no button or command", () => {
     render(<SharePanel tabID="t1" view={LOCAL_VIEW} contextOnly />);
     expect(marked()).toEqual(["machine"]);
     expect(slot("share-needs-checkout")?.textContent).toBe(
       "Sharing is named in the project's kapi.yaml, so it needs a checkout of this project on this Mac.",
     );
     expect(screen.queryByRole("button")).toBeNull();
+    expect(slot("share-bowrain-command")).toBeNull();
+    expect(slot("share-bowrain-plugin")).toBeNull();
+    expect(
+      within(rung("bowrain")).getByRole("link", { name: "About Bowrain" }),
+    ).toBeInTheDocument();
   });
 });
 

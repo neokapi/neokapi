@@ -5,6 +5,7 @@ import { ShareSetupDialog } from "../components/ShareSetupDialog";
 import {
   BOWRAIN_VIEW,
   BOWRAIN_WITHOUT_TEAM_VIEW,
+  BROKEN_PLACE_VIEW,
   FOLDER_LONG_PATH_VIEW,
   FOLDER_UNREACHABLE_VIEW,
   FOLDER_VIEW,
@@ -14,7 +15,6 @@ import {
   LOCAL_VIEW,
   LOCAL_VIEW_WITH_PLUGIN,
   S3_VIEW,
-  UNSAVED_VIEW,
 } from "./fixtures/sharing";
 
 /**
@@ -55,8 +55,8 @@ type Story = StoryObj<typeof SharePanel>;
 /** On this Mac: the first rung is current, with the workspace and Change. */
 export const OnThisMac: Story = {};
 
-/** On this Mac, in a folder opened without a kapi.yaml. Change writes the recipe first. */
-export const UnsavedFolder: Story = { args: { view: UNSAVED_VIEW } };
+/** On this Mac because kapi.yaml names a place that cannot be read: the error, and Change to fix it. */
+export const BrokenPlace: Story = { args: { view: BROKEN_PLACE_VIEW } };
 
 /** On this Mac, with the kapi-bowrain plugin installed: Bowrain's rung names the command alone. */
 export const PluginInstalled: Story = { args: { view: LOCAL_VIEW_WITH_PLUGIN } };

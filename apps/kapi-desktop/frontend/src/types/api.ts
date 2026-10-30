@@ -909,8 +909,8 @@ export interface ShareView {
   rules?: number;
   /** Whether the kapi-bowrain plugin is installed. */
   bowrain_plugin: boolean;
-  /** False for a folder opened without a kapi.yaml. */
-  recipe_written: boolean;
+  /** What reading the recipe's place reported; the page then stands on this Mac. */
+  error?: string;
 }
 
 /** The `context:` block of a recipe: where the project's context is shared. */

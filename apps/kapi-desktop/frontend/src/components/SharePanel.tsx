@@ -200,7 +200,7 @@ export function SharePanel({
                 </Button>
               </Actions>
             )}
-            {rung === "bowrain" && <BowrainDetail view={view} />}
+            {rung === "bowrain" && <BowrainDetail view={view} contextOnly={contextOnly} />}
           </RungRow>
         ))}
       </ol>
@@ -406,6 +406,21 @@ function MachineDetail({
           </SimpleTooltip>
         </Fact>
       </Facts>
+      {view.error && (
+        <div className="mt-3 ml-7">
+          <p className="flex items-center gap-1.5 text-sm text-warning-ink">
+            <TriangleAlert size={14} aria-hidden className="shrink-0" />
+            <span>The place kapi.yaml names could not be read.</span>
+          </p>
+          <p
+            data-slot="share-view-error"
+            className="mt-1 font-mono text-[11px] text-muted-foreground"
+            translate="no"
+          >
+            {view.error}
+          </p>
+        </div>
+      )}
       {contextOnly ? (
         <NeedsCheckout />
       ) : (
@@ -448,13 +463,7 @@ function TeamDetail({
         <div className="mt-3 ml-7">
           <p className="flex items-center gap-1.5 text-sm text-warning-ink">
             <TriangleAlert size={14} aria-hidden className="shrink-0" />
-            {status.contacted ? (
-              <span>
-                The place could not be reached at <ContactTime iso={status.contacted} />.
-              </span>
-            ) : (
-              <span>The place could not be reached.</span>
-            )}
+            <span>The place could not be reached.</span>
           </p>
           <p
             data-slot="share-status-error"
@@ -582,15 +591,16 @@ function SyncResultLine({ result }: { result: ContextSyncResult }) {
 /**
  * Under Bowrain's rung: the server and workspace once the recipe connects to
  * one; until then the command that connects it, which needs the kapi-bowrain
- * plugin, and where to read about Bowrain.
+ * plugin, and where to read about Bowrain. A tab with no checkout leaves the
+ * command out, since nothing connects from there.
  */
-function BowrainDetail({ view }: { view: ShareView }) {
+function BowrainDetail({ view, contextOnly }: { view: ShareView; contextOnly?: boolean }) {
   const sharing = view.sharing;
   if (view.rung !== "bowrain") {
     return (
       <Actions>
-        <MonoChip slot="share-bowrain-command">{BOWRAIN_SHARE_COMMAND}</MonoChip>
-        {!view.bowrain_plugin && (
+        {!contextOnly && <MonoChip slot="share-bowrain-command">{BOWRAIN_SHARE_COMMAND}</MonoChip>}
+        {!contextOnly && !view.bowrain_plugin && (
           <span data-slot="share-bowrain-plugin" className="text-[11px] text-muted-foreground">
             Needs the <span translate="no">kapi-bowrain</span> plugin
           </span>
