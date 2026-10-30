@@ -2542,6 +2542,39 @@ export class ContextFeedGroup {
              */
             this["dropped"] = 0;
         }
+        if (!("checked" in $$source)) {
+            /**
+             * Checked, Failing, Caught and Files are what the session's check runs
+             * found (host.SessionOutcomes): how many runs the Stop hook recorded, the
+             * failing findings its latest run left, the findings one run reported and
+             * the next no longer found, and the files the runs name. A check run is
+             * counted here and listed in no entry.
+             * @member
+             * @type {number}
+             */
+            this["checked"] = 0;
+        }
+        if (!("failing" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["failing"] = 0;
+        }
+        if (!("caught" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["caught"] = 0;
+        }
+        if (!("files" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["files"] = 0;
+        }
         if (!("quiet" in $$source)) {
             /**
              * Quiet reports a group nothing has been added to for a while, which is
@@ -2569,13 +2602,13 @@ export class ContextFeedGroup {
      */
     static createFrom($$source = {}) {
         const $$createField2_0 = $$createType33;
-        const $$createField15_0 = $$createType41;
+        const $$createField19_0 = $$createType41;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("actor" in $$parsedSource) {
             $$parsedSource["actor"] = $$createField2_0($$parsedSource["actor"]);
         }
         if ("entries" in $$parsedSource) {
-            $$parsedSource["entries"] = $$createField15_0($$parsedSource["entries"]);
+            $$parsedSource["entries"] = $$createField19_0($$parsedSource["entries"]);
         }
         return new ContextFeedGroup(/** @type {Partial<ContextFeedGroup>} */($$parsedSource));
     }

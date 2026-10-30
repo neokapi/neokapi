@@ -19,6 +19,7 @@ import (
 type stopHookInput struct {
 	CWD            string `json:"cwd"`
 	SessionID      string `json:"session_id"`
+	TranscriptPath string `json:"transcript_path"`
 	StopHookActive bool   `json:"stop_hook_active"`
 }
 
@@ -29,6 +30,14 @@ type stopHookInput struct {
 type StopHookDecision struct {
 	Decision string `json:"decision,omitempty"`
 	Reason   string `json:"reason,omitempty"`
+}
+
+// StopHookResult is what `kapi hook stop --json` prints: the decision, and the
+// id of the operation that records the run in the project's log, empty when
+// the run could not be recorded.
+type StopHookResult struct {
+	StopHookDecision
+	Record string `json:"record,omitempty"`
 }
 
 // HookNotice is what a kapi hook writes when it could not evaluate its guard at
@@ -167,19 +176,52 @@ func (a *App) RunHookStop(cmd Command) error {
 		// A checker that missed its canary leaves every gate result in doubt. The
 		// hook still fails open, but its notice names the broken checker, so it
 		// never reads like a project with nothing to check.
+		a.recordStopHookRun(cmd, in, projectPath, out)
 		return hookUntrusted(cmd, hook, fmt.Sprintf("the gates for %s: %s", projectPath, strings.Join(out.DidNotRun, "; ")))
 	case out.Verdict == check.VerdictDidNotRun:
 		// A gate that did not run reached no verdict to enforce, so the hook fails
 		// open and says why, the way it does for a gate it could not evaluate.
+		a.recordStopHookRun(cmd, in, projectPath, out)
 		return hookUnheard(cmd, hook, fmt.Sprintf("the gates for %s did not run: %s (%s)", projectPath, check.CauseSummary(out.DidNotRunCause), out.DidNotRunCause))
-	case out.Pass:
-		return nil
 	}
 
-	dec := StopHookDecision{Decision: "block", Reason: hookBlockReason(out)}
+	// The run reached the gates, so it goes on record, whatever they decided.
+	// A record that cannot be written is reported and changes no decision.
+	record := a.recordStopHookRun(cmd, in, projectPath, out)
+
+	var dec StopHookDecision
+	if !out.Pass {
+		dec = StopHookDecision{Decision: "block", Reason: hookBlockReason(out)}
+	}
+	if asJSON, _ := cmd.Flags().GetBool("json"); asJSON {
+		enc := json.NewEncoder(cmd.OutOrStdout())
+		enc.SetEscapeHTML(false)
+		return enc.Encode(StopHookResult{StopHookDecision: dec, Record: record})
+	}
+	if out.Pass {
+		return nil
+	}
 	enc := json.NewEncoder(cmd.OutOrStdout())
 	enc.SetEscapeHTML(false)
 	return enc.Encode(dec)
+}
+
+// recordStopHookRun records a Stop hook run in the project's operation log and
+// returns the operation's id. It never fails the hook: an error is written to
+// stderr as a warning and the id comes back empty.
+func (a *App) recordStopHookRun(cmd Command, in stopHookInput, projectPath string, out verifyOutput) string {
+	root := filepath.Dir(projectPath)
+	if abs, err := filepath.Abs(root); err == nil {
+		root = abs
+	}
+	restore := silenceStderr()
+	written, err := a.recordHookRun(CmdContext(cmd), projectPath, hookRunRecord(in, root, out))
+	restore()
+	if err != nil {
+		fmt.Fprintf(cmd.ErrOrStderr(), "warning: kapi hook stop: the run is not recorded in the project's log: %v\n", err)
+		return ""
+	}
+	return written.ID
 }
 
 // silenceStderr redirects os.Stderr to /dev/null and returns a function that

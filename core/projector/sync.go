@@ -8,19 +8,22 @@ import (
 	"slices"
 	"time"
 
+	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/workspace"
 	"github.com/neokapi/neokapi/kpz"
 )
 
 // LocalKinds are the operation kinds that stay on the machine that recorded
 // them when a project's context is shared (workspace.Sync): the project's
-// registration and its checkpoints.
+// registration, its checkpoints, and the runs of its checks an assistant's
+// Stop hook recorded, which name the session, paths and quotes and change
+// nothing the context holds.
 //
 // A rule a person widened to the whole workspace travels. It was decided in
 // this project and is recorded under it, so every machine that pulls the
 // project, or imports its export, holds the rule in its own workspace and
 // answers with it the way the machine that widened it does.
-var LocalKinds = []string{workspace.OpRegisterProject, workspace.OpForgetProject, KindCheckpoint}
+var LocalKinds = []string{workspace.OpRegisterProject, workspace.OpForgetProject, KindCheckpoint, contextop.OpKindPrefix + string(contextop.KindCheck)}
 
 // Syncer is the projector as a shared context's workspace.Applier: it applies
 // what a pull merged, and reads and writes the checkpoints a remote carries.

@@ -182,6 +182,15 @@ type ContextFeedGroup struct {
 	Corrected int `json:"corrected"`
 	Kept      int `json:"kept"`
 	Dropped   int `json:"dropped"`
+	// Checked, Failing, Caught and Files are what the session's check runs
+	// found (host.SessionOutcomes): how many runs the Stop hook recorded, the
+	// failing findings its latest run left, the findings one run reported and
+	// the next no longer found, and the files the runs name. A check run is
+	// counted here and listed in no entry.
+	Checked int `json:"checked"`
+	Failing int `json:"failing"`
+	Caught  int `json:"caught"`
+	Files   int `json:"files"`
 	// Quiet reports a group nothing has been added to for a while, which is
 	// when its summary is a count of finished work.
 	Quiet   bool               `json:"quiet"`
@@ -363,11 +372,22 @@ func (a *App) contextFeed(ctx context.Context, key workspace.ProjectKey, limit i
 	if err != nil {
 		return nil, err
 	}
-	// One more than the limit, so a cut feed says so.
+	// One more than the limit, so a cut feed says so. Check runs are read
+	// apart: one is recorded for every turn an assistant ends, and they are
+	// counted into their session rather than listed.
 	log, err := a.hostEngine().ContextOperations(ctx, host.ContextLogRequest{
 		Project:     string(key),
 		AllProjects: key == "",
+		Kinds:       feedKinds(),
 		Limit:       limit + 1,
+	})
+	if err != nil {
+		return nil, err
+	}
+	runs, err := a.hostEngine().ContextOperations(ctx, host.ContextLogRequest{
+		Project:     string(key),
+		AllProjects: key == "",
+		Kinds:       []contextop.Kind{contextop.KindCheck},
 	})
 	if err != nil {
 		return nil, err
@@ -385,8 +405,23 @@ func (a *App) contextFeed(ctx context.Context, key workspace.ProjectKey, limit i
 	if len(shown) > limit {
 		shown, out.Truncated = shown[:limit], true
 	}
-	out.Groups = groupContextFeed(shown, registry, a.hostEngine().GovernanceInstant())
+	checks := make([]contextop.Record, 0, len(runs.Operations))
+	for _, op := range runs.Operations {
+		checks = append(checks, op.Record)
+	}
+	out.Groups = groupContextFeed(shown, checks, registry, a.hostEngine().GovernanceInstant())
 	return out, nil
+}
+
+// feedKinds is every operation kind the feed lists as an entry.
+func feedKinds() []contextop.Kind {
+	out := make([]contextop.Kind, 0, len(contextop.Kinds))
+	for _, k := range contextop.Kinds {
+		if k != contextop.KindCheck {
+			out = append(out, k)
+		}
+	}
+	return out
 }
 
 // KeepContextSuggestion establishes a suggestion, with whatever edit and
@@ -708,7 +743,10 @@ func decidable(r contextop.Record) bool {
 // An agent session groups by the id its operations carry. A person at a
 // terminal and a tool record no session, so their work groups by actor and
 // local day, which is the span a person recognises as "what I did".
-func groupContextFeed(records []contextop.Record, registry *contextProjectIndex, now time.Time) []ContextFeedGroup {
+//
+// checks are the check runs, whose outcomes are counted into the session
+// that recorded them when that session has entries in the feed.
+func groupContextFeed(records, checks []contextop.Record, registry *contextProjectIndex, now time.Time) []ContextFeedGroup {
 	order := []string{}
 	groups := map[string]*ContextFeedGroup{}
 	for _, r := range records {
@@ -736,11 +774,17 @@ func groupContextFeed(records []contextop.Record, registry *contextProjectIndex,
 		countInto(group, r)
 	}
 
+	// A session that only ran the hook has no group here: its outcomes
+	// (host.SessionOutcomes) belong to the surface that shows them.
+	outcomes := host.SessionOutcomesOf(checks)
 	out := make([]ContextFeedGroup, 0, len(order))
 	for _, id := range order {
 		group := groups[id]
 		first, last := spanOf(group.Entries)
 		group.First, group.Last = first, last
+		if o, ok := outcomes[group.Session]; ok && group.Session != "" {
+			group.Checked, group.Failing, group.Caught, group.Files = o.Checked, o.Failing, o.Caught, o.Files
+		}
 		if parsed, err := time.Parse(time.RFC3339, last); err == nil {
 			group.Quiet = now.Sub(parsed) >= host.ContextSessionQuietAfter
 		}

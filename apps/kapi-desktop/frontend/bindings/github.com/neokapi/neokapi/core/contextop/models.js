@@ -158,6 +158,196 @@ export class Basis {
 }
 
 /**
+ * CheckFinding is one failing finding of a check run.
+ */
+export class CheckFinding {
+    /**
+     * Creates a new CheckFinding instance.
+     * @param {Partial<CheckFinding>} [$$source = {}] - The source object to create the CheckFinding.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * File is the project-relative file the finding is in.
+             * @member
+             * @type {string | undefined}
+             */
+            this["file"] = undefined;
+        }
+        if (!("rule" in $$source)) {
+            /**
+             * Rule is the rule id the check reports it under, or the gate's name for
+             * a finding that names no rule.
+             * @member
+             * @type {string}
+             */
+            this["rule"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Quote is the wording the finding is about, when the check quotes it.
+             * @member
+             * @type {string | undefined}
+             */
+            this["quote"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Message is the finding's message, kept for a finding that quotes
+             * nothing, so two of them on one file stay apart.
+             * @member
+             * @type {string | undefined}
+             */
+            this["message"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Block is the block the finding sits in, when the check names one.
+             * @member
+             * @type {string | undefined}
+             */
+            this["block"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CheckFinding instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {CheckFinding}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new CheckFinding(/** @type {Partial<CheckFinding>} */($$parsedSource));
+    }
+}
+
+/**
+ * CheckRun is what one run of a project's checks found, as a check operation
+ * carries it.
+ */
+export class CheckRun {
+    /**
+     * Creates a new CheckRun instance.
+     * @param {Partial<CheckRun>} [$$source = {}] - The source object to create the CheckRun.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * Hook names what ran the checks: "stop" for the Claude Code Stop hook.
+             * @member
+             * @type {string | undefined}
+             */
+            this["hook"] = undefined;
+        }
+        if (!("turn" in $$source)) {
+            /**
+             * Turn identifies the Stop event the run answered: the id of the last
+             * entry in the session's transcript. Claude Code writes an entry after
+             * every Stop hook, so each Stop gets a turn of its own, and the hook
+             * running twice on one transcript state shares one. The operation's id is
+             * derived from the session and the turn.
+             * @member
+             * @type {string}
+             */
+            this["turn"] = "";
+        }
+        if (!("verdict" in $$source)) {
+            /**
+             * Verdict is the run's outcome: passed, failed or did_not_run.
+             * @member
+             * @type {string}
+             */
+            this["verdict"] = "";
+        }
+        if (!("clean" in $$source)) {
+            /**
+             * Clean reports a run that reached a verdict with nothing failing.
+             * @member
+             * @type {boolean}
+             */
+            this["clean"] = false;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Files are the project-relative files the turn edited, as the session's
+             * transcript names them, with Edited set. A run whose transcript names no
+             * edit lists the files the check read. At most CheckRunMaxFiles are listed.
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["files"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Edited reports that Files are the files the turn edited.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["edited"] = undefined;
+        }
+        if (!("covered" in $$source)) {
+            /**
+             * Covered counts the files the check read.
+             * @member
+             * @type {number}
+             */
+            this["covered"] = 0;
+        }
+        if (!("failing" in $$source)) {
+            /**
+             * Failing counts the failing findings.
+             * @member
+             * @type {number}
+             */
+            this["failing"] = 0;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Rules are the distinct rule ids of the failing findings, sorted.
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["rules"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Findings are the failing findings, at most CheckRunMaxFindings of
+             * them.
+             * @member
+             * @type {CheckFinding[] | undefined}
+             */
+            this["findings"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CheckRun instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {CheckRun}
+     */
+    static createFrom($$source = {}) {
+        const $$createField4_0 = $$createType0;
+        const $$createField8_0 = $$createType0;
+        const $$createField9_0 = $$createType2;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("files" in $$parsedSource) {
+            $$parsedSource["files"] = $$createField4_0($$parsedSource["files"]);
+        }
+        if ("rules" in $$parsedSource) {
+            $$parsedSource["rules"] = $$createField8_0($$parsedSource["rules"]);
+        }
+        if ("findings" in $$parsedSource) {
+            $$parsedSource["findings"] = $$createField9_0($$parsedSource["findings"]);
+        }
+        return new CheckRun(/** @type {Partial<CheckRun>} */($$parsedSource));
+    }
+}
+
+/**
  * Correction is the wording someone changed, carried by a correct operation.
  */
 export class Correction {
@@ -337,6 +527,16 @@ export const Kind = {
      * record one operation. It is applied like a keep.
      */
     KindEstablish: "establish",
+
+    /**
+     * KindCheck records one run of a project's checks on an assistant's
+     * behalf: the Claude Code Stop hook running `kapi check --ship` as a turn
+     * ends. It carries a [CheckRun] and no subject, names no other operation,
+     * and changes nothing the context holds. Its id is derived from the
+     * session and the transcript state the hook ran at (CheckRun.Turn), so
+     * the hook running twice for one Stop records one operation.
+     */
+    KindCheck: "check",
 };
 
 /**
@@ -484,7 +684,7 @@ export class Scope {
      * @returns {Scope}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType0;
+        const $$createField1_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("coordinates" in $$parsedSource) {
             $$parsedSource["coordinates"] = $$createField1_0($$parsedSource["coordinates"]);
@@ -693,9 +893,9 @@ export class Standing {
      * @returns {Standing}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType1;
-        const $$createField3_0 = $$createType3;
-        const $$createField6_0 = $$createType1;
+        const $$createField2_0 = $$createType0;
+        const $$createField3_0 = $$createType5;
+        const $$createField6_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("merges" in $$parsedSource) {
             $$parsedSource["merges"] = $$createField2_0($$parsedSource["merges"]);
@@ -812,8 +1012,8 @@ export class Subject {
      * @returns {Subject}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType5;
-        const $$createField2_0 = $$createType7;
+        const $$createField1_0 = $$createType7;
+        const $$createField2_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("term" in $$parsedSource) {
             $$parsedSource["term"] = $$createField1_0($$parsedSource["term"]);
@@ -906,11 +1106,13 @@ export class Uses {
 }
 
 // Private type creation functions
-const $$createType0 = $Create.Map($Create.Any, $Create.Any);
-const $$createType1 = $Create.Array($Create.Any);
-const $$createType2 = Uses.createFrom;
-const $$createType3 = $Create.Nullable($$createType2);
-const $$createType4 = profile$0.TermRule.createFrom;
+const $$createType0 = $Create.Array($Create.Any);
+const $$createType1 = CheckFinding.createFrom;
+const $$createType2 = $Create.Array($$createType1);
+const $$createType3 = $Create.Map($Create.Any, $Create.Any);
+const $$createType4 = Uses.createFrom;
 const $$createType5 = $Create.Nullable($$createType4);
-const $$createType6 = MemoryPair.createFrom;
+const $$createType6 = profile$0.TermRule.createFrom;
 const $$createType7 = $Create.Nullable($$createType6);
+const $$createType8 = MemoryPair.createFrom;
+const $$createType9 = $Create.Nullable($$createType8);

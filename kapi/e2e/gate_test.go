@@ -132,8 +132,24 @@ type hookExpect struct {
 	Blocks bool `yaml:"blocks"`
 	// Names are substrings the block reason must carry.
 	Names []string `yaml:"names"`
-	Xfail string   `yaml:"xfail"`
+	// Log is what the project's log holds once the hook has run.
+	Log   *hookLogExpect `yaml:"log"`
+	Xfail string         `yaml:"xfail"`
 }
+
+// hookLogExpect is what `kapi context log --session <the hook's session>
+// --json` reads after a hook run: the run it recorded, and what the session's
+// runs have caught so far.
+type hookLogExpect struct {
+	// Failing is how many failing findings the run recorded.
+	Failing *int `yaml:"failing"`
+	// Caught is how many findings the session's runs have caught: failing in
+	// one run and gone from the same file in the next.
+	Caught *int `yaml:"caught"`
+}
+
+// hookSession is the session id the suite's Stop payloads carry.
+const hookSession = "gate-conformance"
 
 // checkReport is the part of the kapi.check/v2 report the suite reads.
 type checkReport struct {
@@ -646,7 +662,7 @@ func (r gateRun) hook(t *testing.T, he hookExpect, o *gateOutcome) {
 	bin := t.TempDir()
 	require.NoError(t, os.Symlink(kapiBin, filepath.Join(bin, "kapi")))
 	payload, err := json.Marshal(map[string]any{
-		"session_id":       "gate-conformance",
+		"session_id":       hookSession,
 		"transcript_path":  filepath.Join(bin, "transcript.jsonl"),
 		"cwd":              r.dir,
 		"permission_mode":  "default",
@@ -690,5 +706,44 @@ func (r gateRun) hook(t *testing.T, he hookExpect, o *gateOutcome) {
 		}
 	} else {
 		expectation(t, o, "hook lets the assistant stop", dec.Decision == "" && out.Len() == 0, he.Xfail, detail)
+	}
+	if he.Log != nil {
+		r.hookLog(t, *he.Log, o)
+	}
+}
+
+// hookLog reads the hook's session back from the project's log: the newest
+// check run, and what each run caught.
+func (r gateRun) hookLog(t *testing.T, le hookLogExpect, o *gateOutcome) {
+	t.Helper()
+	raw := r.kapiOK(t, nil, "context", "log", "--session", hookSession, "--json", "-p", "kapi.yaml")
+	detail := "kapi context log --session " + hookSession + " --json:\n" + raw
+	var log struct {
+		Operations []struct {
+			Kind   string `json:"kind"`
+			Caught int    `json:"caught"`
+			Check  *struct {
+				Failing int `json:"failing"`
+			} `json:"check"`
+		} `json:"operations"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(raw), &log), detail)
+	latest, caught := -1, 0
+	for _, op := range log.Operations {
+		if op.Kind != "check" || op.Check == nil {
+			continue
+		}
+		// Newest first, so the first run is the one this stage's hook recorded.
+		if latest < 0 {
+			latest = op.Check.Failing
+		}
+		caught += op.Caught
+	}
+	expectation(t, o, "hook run is in the log", latest >= 0, "", detail)
+	if le.Failing != nil {
+		expectation(t, o, fmt.Sprintf("hook run recorded failing=%d", *le.Failing), latest == *le.Failing, "", detail)
+	}
+	if le.Caught != nil {
+		expectation(t, o, fmt.Sprintf("hook session caught=%d", *le.Caught), caught == *le.Caught, "", detail)
 	}
 }

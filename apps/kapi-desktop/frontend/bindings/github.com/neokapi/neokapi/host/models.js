@@ -1942,6 +1942,14 @@ export class ContextOperation {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Check is what a check operation found.
+             * @member
+             * @type {contextop$0.CheckRun | null | undefined}
+             */
+            this["check"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * Standing counts the evidence for and against a suggestion, folded from
              * the log. It is set on a term rule that settling considers.
              * @member
@@ -1958,6 +1966,16 @@ export class ContextOperation {
              * @type {string | undefined}
              */
             this["landed"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Caught counts, for a check run, the failing findings the session's
+             * previous run reported that this run no longer finds on the same file
+             * (host/hookoutcomes.go). It is read from the log, never stored.
+             * @member
+             * @type {number | undefined}
+             */
+            this["caught"] = undefined;
         }
 
         Object.assign(this, $$source);
@@ -1979,6 +1997,7 @@ export class ContextOperation {
         const $$createField17_0 = $$createType61;
         const $$createField18_0 = $$createType0;
         const $$createField19_0 = $$createType63;
+        const $$createField20_0 = $$createType65;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("actor" in $$parsedSource) {
             $$parsedSource["actor"] = $$createField3_0($$parsedSource["actor"]);
@@ -2007,8 +2026,11 @@ export class ContextOperation {
         if ("because" in $$parsedSource) {
             $$parsedSource["because"] = $$createField18_0($$parsedSource["because"]);
         }
+        if ("check" in $$parsedSource) {
+            $$parsedSource["check"] = $$createField19_0($$parsedSource["check"]);
+        }
         if ("standing" in $$parsedSource) {
-            $$parsedSource["standing"] = $$createField19_0($$parsedSource["standing"]);
+            $$parsedSource["standing"] = $$createField20_0($$parsedSource["standing"]);
         }
         return new ContextOperation(/** @type {Partial<ContextOperation>} */($$parsedSource));
     }
@@ -2277,7 +2299,7 @@ export class ContextProjectStanding {
      * @returns {ContextProjectStanding}
      */
     static createFrom($$source = {}) {
-        const $$createField8_0 = $$createType65;
+        const $$createField8_0 = $$createType67;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("latest" in $$parsedSource) {
             $$parsedSource["latest"] = $$createField8_0($$parsedSource["latest"]);
@@ -2428,7 +2450,7 @@ export class ContextPull {
      * @returns {ContextPull}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType66;
+        const $$createField0_0 = $$createType68;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("remote" in $$parsedSource) {
             $$parsedSource["remote"] = $$createField0_0($$parsedSource["remote"]);
@@ -2555,7 +2577,7 @@ export class ContextPush {
      * @returns {ContextPush}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType66;
+        const $$createField0_0 = $$createType68;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("remote" in $$parsedSource) {
             $$parsedSource["remote"] = $$createField0_0($$parsedSource["remote"]);
@@ -2836,7 +2858,7 @@ export class ContextSearchResult {
         const $$createField3_0 = $$createType22;
         const $$createField4_0 = $$createType36;
         const $$createField5_0 = $$createType26;
-        const $$createField6_0 = $$createType68;
+        const $$createField6_0 = $$createType70;
         const $$createField7_0 = $$createType30;
         const $$createField8_0 = $$createType28;
         const $$createField9_0 = $$createType0;
@@ -2922,7 +2944,7 @@ export class ContextSettleResult {
      * @returns {ContextSettleResult}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType70;
+        const $$createField2_0 = $$createType72;
         const $$createField3_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("signals" in $$parsedSource) {
@@ -3093,7 +3115,7 @@ export class ContextSuggestion {
         const $$createField3_0 = $$createType0;
         const $$createField5_0 = $$createType0;
         const $$createField13_0 = $$createType14;
-        const $$createField14_0 = $$createType63;
+        const $$createField14_0 = $$createType65;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("contested_by" in $$parsedSource) {
             $$parsedSource["contested_by"] = $$createField3_0($$parsedSource["contested_by"]);
@@ -3171,10 +3193,10 @@ export class ContextSyncResult {
      * @returns {ContextSyncResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType72;
-        const $$createField1_0 = $$createType74;
-        const $$createField2_0 = $$createType76;
-        const $$createField3_0 = $$createType78;
+        const $$createField0_0 = $$createType74;
+        const $$createField1_0 = $$createType76;
+        const $$createField2_0 = $$createType78;
+        const $$createField3_0 = $$createType80;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pull" in $$parsedSource) {
             $$parsedSource["pull"] = $$createField0_0($$parsedSource["pull"]);
@@ -3356,7 +3378,7 @@ export class ContextTermHit {
      * @returns {ContextTermHit}
      */
     static createFrom($$source = {}) {
-        const $$createField13_0 = $$createType80;
+        const $$createField13_0 = $$createType82;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("top_uses" in $$parsedSource) {
             $$parsedSource["top_uses"] = $$createField13_0($$parsedSource["top_uses"]);
@@ -3873,9 +3895,9 @@ export class ConvergeOutput {
      * @returns {ConvergeOutput}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType82;
-        const $$createField4_0 = $$createType84;
-        const $$createField15_0 = $$createType86;
+        const $$createField3_0 = $$createType84;
+        const $$createField4_0 = $$createType86;
+        const $$createField15_0 = $$createType88;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("locales" in $$parsedSource) {
             $$parsedSource["locales"] = $$createField3_0($$parsedSource["locales"]);
@@ -4267,8 +4289,8 @@ export class DigestItem {
      */
     static createFrom($$source = {}) {
         const $$createField5_0 = $$createType55;
-        const $$createField6_0 = $$createType87;
-        const $$createField9_0 = $$createType89;
+        const $$createField6_0 = $$createType89;
+        const $$createField9_0 = $$createType91;
         const $$createField10_0 = $$createType6;
         const $$createField17_0 = $$createType0;
         const $$createField19_0 = $$createType0;
@@ -4403,7 +4425,7 @@ export class DigestTheme {
      * @returns {DigestTheme}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType91;
+        const $$createField2_0 = $$createType93;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("groups" in $$parsedSource) {
             $$parsedSource["groups"] = $$createField2_0($$parsedSource["groups"]);
@@ -4680,7 +4702,7 @@ export class RulesFilesResult {
      * @returns {RulesFilesResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType93;
+        const $$createField0_0 = $$createType95;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("files" in $$parsedSource) {
             $$parsedSource["files"] = $$createField0_0($$parsedSource["files"]);
@@ -4810,9 +4832,9 @@ export class UpPlanOutput {
      * @returns {UpPlanOutput}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType95;
-        const $$createField4_0 = $$createType94;
-        const $$createField8_0 = $$createType86;
+        const $$createField3_0 = $$createType97;
+        const $$createField4_0 = $$createType96;
+        const $$createField8_0 = $$createType88;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("scopes" in $$parsedSource) {
             $$parsedSource["scopes"] = $$createField3_0($$parsedSource["scopes"]);
@@ -5061,37 +5083,39 @@ const $$createType58 = contextop$0.Basis.createFrom;
 const $$createType59 = contextop$0.Scope.createFrom;
 const $$createType60 = contextop$0.Signal.createFrom;
 const $$createType61 = $Create.Nullable($$createType60);
-const $$createType62 = contextop$0.Standing.createFrom;
+const $$createType62 = contextop$0.CheckRun.createFrom;
 const $$createType63 = $Create.Nullable($$createType62);
-const $$createType64 = ContextActivity.createFrom;
+const $$createType64 = contextop$0.Standing.createFrom;
 const $$createType65 = $Create.Nullable($$createType64);
-const $$createType66 = workspace$0.RemoteDescriptor.createFrom;
-const $$createType67 = ContextPrecedentHit.createFrom;
-const $$createType68 = $Create.Array($$createType67);
-const $$createType69 = ContextOperation.createFrom;
+const $$createType66 = ContextActivity.createFrom;
+const $$createType67 = $Create.Nullable($$createType66);
+const $$createType68 = workspace$0.RemoteDescriptor.createFrom;
+const $$createType69 = ContextPrecedentHit.createFrom;
 const $$createType70 = $Create.Array($$createType69);
-const $$createType71 = ContextPull.createFrom;
-const $$createType72 = $Create.Nullable($$createType71);
-const $$createType73 = ContextSettleResult.createFrom;
+const $$createType71 = ContextOperation.createFrom;
+const $$createType72 = $Create.Array($$createType71);
+const $$createType73 = ContextPull.createFrom;
 const $$createType74 = $Create.Nullable($$createType73);
-const $$createType75 = ContextPush.createFrom;
+const $$createType75 = ContextSettleResult.createFrom;
 const $$createType76 = $Create.Nullable($$createType75);
-const $$createType77 = RulesFilesResult.createFrom;
+const $$createType77 = ContextPush.createFrom;
 const $$createType78 = $Create.Nullable($$createType77);
-const $$createType79 = ContextTermUse.createFrom;
-const $$createType80 = $Create.Array($$createType79);
-const $$createType81 = ConvergeLocaleResult.createFrom;
+const $$createType79 = RulesFilesResult.createFrom;
+const $$createType80 = $Create.Nullable($$createType79);
+const $$createType81 = ContextTermUse.createFrom;
 const $$createType82 = $Create.Array($$createType81);
-const $$createType83 = ParkedScope.createFrom;
+const $$createType83 = ConvergeLocaleResult.createFrom;
 const $$createType84 = $Create.Array($$createType83);
-const $$createType85 = check$0.Warning.createFrom;
+const $$createType85 = ParkedScope.createFrom;
 const $$createType86 = $Create.Array($$createType85);
-const $$createType87 = $Create.Nullable($$createType13);
-const $$createType88 = DigestUsage.createFrom;
-const $$createType89 = $Create.Nullable($$createType88);
-const $$createType90 = DigestGroup.createFrom;
-const $$createType91 = $Create.Array($$createType90);
-const $$createType92 = RulesFile.createFrom;
+const $$createType87 = check$0.Warning.createFrom;
+const $$createType88 = $Create.Array($$createType87);
+const $$createType89 = $Create.Nullable($$createType13);
+const $$createType90 = DigestUsage.createFrom;
+const $$createType91 = $Create.Nullable($$createType90);
+const $$createType92 = DigestGroup.createFrom;
 const $$createType93 = $Create.Array($$createType92);
-const $$createType94 = UpPlanScope.createFrom;
+const $$createType94 = RulesFile.createFrom;
 const $$createType95 = $Create.Array($$createType94);
+const $$createType96 = UpPlanScope.createFrom;
+const $$createType97 = $Create.Array($$createType96);

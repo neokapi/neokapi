@@ -50,7 +50,12 @@ type verifyFinding struct {
 	// a CI log or a recording, and it leaks the directory layout.
 	File string `json:"file,omitempty"`
 	// Block is the block the finding sits in, when the gate resolves one.
-	Block      string `json:"block,omitempty"`
+	Block string `json:"block,omitempty"`
+	// Rule is the rule id `kapi check` reports the finding under
+	// ("terms.vocabulary"), when the check that raised it names one.
+	Rule string `json:"rule,omitempty"`
+	// Quote is the wording the finding is about, when the check quotes it.
+	Quote      string `json:"quote,omitempty"`
 	Locale     string `json:"locale,omitempty"`
 	Fails      bool   `json:"fails"`
 	Message    string `json:"message"`
@@ -122,6 +127,10 @@ type verifyOutput struct {
 	// coverage of every analyzer the gates recorded. Nothing reads it to
 	// decide a gate or the run.
 	Evaluation *check.Evaluation `json:"evaluation,omitempty"`
+	// covered are the project-relative files the terminology and checks
+	// gates read, each once, in the order the run met them. The Stop hook
+	// records them when it knows no better list of the files a turn edited.
+	covered []string
 }
 
 // FormatText renders the verify result as a human-readable summary,
@@ -378,6 +387,7 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 	a.ResolveEncoding(proj.Defaults.Encoding)
 
 	var gates []verifyGateResult
+	var covered []string
 	// The warnings of every voice profile a gate loads, collected once for the
 	// run however many gates and files load the same profile.
 	warnings := &voiceWarnings{}
@@ -413,6 +423,7 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 		if err != nil {
 			return verifyOutput{}, err
 		}
+		covered = coveredPaths(units)
 
 		// The terminology gate runs where terms govern content: at the point
 		// each unit sits at, for its language, whether the project default or a
@@ -500,6 +511,7 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 	}
 
 	out := buildVerifyOutput(gates)
+	out.covered = covered
 	out.Warnings = check.MergeWarnings(warnings.merged(), unread.warnings())
 	// After the verdict: the record reports what the run read, and nothing
 	// above reads it.
@@ -1054,11 +1066,34 @@ func runVoiceVocabOnBlock(ctx context.Context, vocab *coretools.VoiceVocabCheckT
 	return nil, nil
 }
 
+// coveredPaths lists the files a run's units name, each once, in order.
+func coveredPaths(units []VerifyUnit) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, u := range units {
+		if u.DisplayPath == "" || seen[u.DisplayPath] {
+			continue
+		}
+		seen[u.DisplayPath] = true
+		out = append(out, u.DisplayPath)
+	}
+	return out
+}
+
+// voiceFindingToVerify renders a voice or terminology finding for the gate
+// report. Its rule id is the one `kapi check` reports: a word rule under the
+// terms family ("terms.vocabulary"), every other voice rule under voice.
 func voiceFindingToVerify(file, block string, f coreprofile.VoiceFinding) verifyFinding {
+	family := "voice"
+	if f.Category == string(coreprofile.DimensionVocabulary) {
+		family = "terms"
+	}
 	return verifyFinding{
 		Gate:       gateVoice,
 		File:       file,
 		Block:      block,
+		Rule:       check.RuleID(family, f.Category),
+		Quote:      f.OriginalText,
 		Fails:      f.Fails && !f.Suggested,
 		Message:    f.Message,
 		Suggestion: f.Suggestion,
@@ -1519,6 +1554,8 @@ func (a *App) verifyTerminology(cmd Command, proj *project.KapiProject, units []
 				gate.Findings = append(gate.Findings, verifyFinding{
 					Gate:       gateTerms,
 					File:       u.DisplayPath,
+					Block:      blockKey(b),
+					Rule:       check.RuleID("terms", f.Category),
 					Locale:     u.Locale,
 					Fails:      f.Fails,
 					Message:    f.Message,
@@ -1732,6 +1769,9 @@ func (a *App) verifyChecks(cmd Command, proj *project.KapiProject, root string, 
 				gate.Findings = append(gate.Findings, verifyFinding{
 					Gate:       gateChecks,
 					File:       u.DisplayPath,
+					Block:      blockKey(b),
+					Rule:       check.RuleID("qa", f.Category),
+					Quote:      f.OriginalText,
 					Locale:     u.Locale,
 					Fails:      failing,
 					Message:    f.Message,

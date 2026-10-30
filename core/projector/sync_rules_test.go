@@ -67,3 +67,20 @@ func ruleIDs(t *testing.T, ws *workspace.Workspace) []string {
 	}
 	return out
 }
+
+// TestCheckRunsStayOnThisMachine: a check run the Stop hook recorded names the
+// session, the files and the quoted findings, and changes nothing the context
+// holds, so a push leaves it here.
+func TestCheckRunsStayOnThisMachine(t *testing.T) {
+	ctx := t.Context()
+	remote := workspace.NewFileRemote(t.TempDir())
+	opts := workspace.SyncOptions{LocalKinds: projector.LocalKinds}
+	from, fromWS, _ := open(t)
+	_, err := fromWS.Record(ctx, workspace.Op{Project: key, Kind: "context.check", Payload: []byte(`{"check":{"turn":"t1"}}`)})
+	require.NoError(t, err)
+
+	st, err := fromWS.NewSync(remote, key, from.Syncer(), opts).Status(ctx)
+	require.NoError(t, err)
+	assert.Zero(t, st.ToPushLogged, "a check run is not counted to push")
+	assert.Zero(t, st.ToPush)
+}

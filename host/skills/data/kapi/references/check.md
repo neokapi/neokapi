@@ -154,3 +154,6 @@ declares one, the translation-coverage bar in `ship_gate:`. See [project.md](pro
 [translate.md](translate.md).
 
 The optional Claude Code Stop hook runs these project gates when installed.
+Each run is recorded in the project's log under your session, and `kapi
+context log` lists it: a finding one run reports and your next run no longer
+finds on the same file counts as caught.

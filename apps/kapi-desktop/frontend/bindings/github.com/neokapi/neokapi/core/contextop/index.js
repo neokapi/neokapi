@@ -6,6 +6,8 @@ export {
     Actor,
     ActorKind,
     Basis,
+    CheckFinding,
+    CheckRun,
     Correction,
     Evidence,
     Kind,
