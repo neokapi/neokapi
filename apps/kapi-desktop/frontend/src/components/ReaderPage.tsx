@@ -254,11 +254,6 @@ export function ReaderView({
               <EmptyState
                 icon={<FileText size={20} className="mx-auto" />}
                 title={t("No blocks in this file")}
-                action={
-                  <Button size="sm" variant="outline" onClick={onBack}>
-                    {backLabel ?? t("Back")}
-                  </Button>
-                }
               />
             </div>
           ) : (
