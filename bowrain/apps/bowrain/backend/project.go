@@ -237,7 +237,8 @@ func collectUploadFiles(filePaths []string) (map[string][]byte, error) {
 	return files, nil
 }
 
-// addItemsLocal parses files into the local cache store — the offline path.
+// addItemsLocal parses files into the local cache store, which is the offline
+// path. Each file's blocks become its item's whole block set.
 func (a *App) addItemsLocal(ctx context.Context, projectID string, filePaths []string) (*ProjectInfo, error) {
 	proj, err := a.store.GetProject(ctx, projectID)
 	if err != nil {
@@ -301,11 +302,9 @@ func (a *App) addItemsLocal(ctx context.Context, projectID string, filePaths []s
 			return nil, fmt.Errorf("store item %q: %w", itemName, err)
 		}
 
-		// Store extracted blocks.
-		if len(result.Blocks) > 0 {
-			if err := a.store.StoreBlocksForItem(ctx, projectID, "main", itemName, result.Blocks); err != nil {
-				return nil, fmt.Errorf("store blocks for %q: %w", itemName, err)
-			}
+		// The blocks the file reads to become the item's whole block set.
+		if _, err := store.ReplaceItemBlocks(ctx, a.store, projectID, "main", itemName, result.Blocks); err != nil {
+			return nil, err
 		}
 	}
 

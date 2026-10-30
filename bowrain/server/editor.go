@@ -617,10 +617,12 @@ func editorAddFilesToCollection(ctx context.Context, cs store.ContentStore, form
 }
 
 // editorAddFilesInternal is the shared upload path: it parses each file,
-// stores item + blocks (tagged with collectionID when non-empty), collects
-// per-file skip reasons, and returns the project info with Skipped set.
-// Storage errors stay hard errors — they are infrastructure failures, not
-// per-file input problems.
+// stores the item (tagged with collectionID when non-empty), replaces the
+// item's block set with the blocks the file now reads to
+// (store.ReplaceItemBlocks), collects per-file skip reasons, and returns the
+// project info with Skipped set. Uploading an unchanged file again leaves the
+// item's blocks as they were. A storage error fails the whole upload, because
+// it reports the store's state rather than a problem with one file.
 func editorAddFilesInternal(ctx context.Context, cs store.ContentStore, formatReg *registry.FormatRegistry, projectID, stream, collectionID string, files map[string][]byte) (*ProjectInfoResponse, error) {
 	proj, err := cs.GetProject(ctx, projectID)
 	if err != nil {
@@ -680,10 +682,8 @@ func editorAddFilesInternal(ctx context.Context, cs store.ContentStore, formatRe
 			return nil, fmt.Errorf("store item %q: %w", itemName, err)
 		}
 
-		if len(result.Blocks) > 0 {
-			if err := cs.StoreBlocksForItem(ctx, projectID, stream, itemName, result.Blocks); err != nil {
-				return nil, fmt.Errorf("store blocks for %q: %w", itemName, err)
-			}
+		if _, err := store.ReplaceItemBlocks(ctx, cs, projectID, stream, itemName, result.Blocks); err != nil {
+			return nil, err
 		}
 	}
 

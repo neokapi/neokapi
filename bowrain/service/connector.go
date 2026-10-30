@@ -128,23 +128,24 @@ func (s *ConnectorService) ListContent(ctx context.Context, workspaceID, connect
 	return c.List(ctx)
 }
 
-// Fetch retrieves content from a connector and stores it in the project —
-// per item, with the item bookkeeping every other ingest venue writes.
+// Fetch retrieves content from a connector and stores it in the project per
+// item.
 //
-// Each fetched ContentItem upserts an item row and stores its blocks scoped to
-// that item (StoreBlocksForItem), matching the editor-upload, sync-push, and
-// desktop ingest paths. The item rows are load-bearing, not cosmetic: the
-// dashboard stats (GetBlockStats), the convergence derive/produce steps (jobs
-// are enqueued per item), and forge delivery (per-item materialization) all
-// resolve a project's content through its items — blocks stored item-less were
-// invisible to them, so a freshly bound GitHub repository read "Up to date"
-// with zero targets and delivered nothing. Per-item storage also keeps
-// format-reader block IDs (per-file scope) from colliding across files: the
-// store maps each item's source IDs to project-unique internal IDs.
+// Each fetched ContentItem upserts an item row and makes its blocks the item's
+// whole block set (store.ReplaceItemBlocks), as the editor upload, the sync
+// push and the desktop import do. A block the fetched file no longer has is
+// removed.
 //
-// Each item stores in its own transaction; re-fetching is idempotent (items
-// upsert by name, blocks by their per-item source IDs), so a partial failure
-// heals on the next ingest.
+// The dashboard stats (GetBlockStats), the convergence derive and produce
+// steps (jobs are enqueued per item) and forge delivery (per-item
+// materialization) resolve a project's content through its items, so a block
+// stored without an item is invisible to all three. Per-item storage also
+// keeps format-reader block IDs, which are unique only within one file, from
+// colliding across files: the store maps each item's source IDs to
+// project-unique internal IDs.
+//
+// Each item stores in its own transaction, and a partial failure heals on the
+// next fetch.
 func (s *ConnectorService) Fetch(ctx context.Context, workspaceID, connectorID, projectID string, opts connector.FetchOptions) ([]*connector.ContentItem, error) {
 	if projectID == "" {
 		return nil, ErrProjectIDRequired
@@ -161,8 +162,16 @@ func (s *ConnectorService) Fetch(ctx context.Context, workspaceID, connectorID, 
 
 	for _, item := range items {
 		name := connectorItemName(item)
-		if name == "" || len(item.Blocks) == 0 {
-			continue // nothing addressable or nothing translatable to store
+		if name == "" {
+			continue // nothing addressable
+		}
+		if len(item.Blocks) == 0 {
+			// A file that reads to no blocks adds no item, and an item stored
+			// from an earlier fetch loses the blocks it had.
+			if _, err := store.ReplaceItemBlocks(ctx, s.store, projectID, "main", name, nil); err != nil {
+				return nil, fmt.Errorf("store fetched blocks: %w", err)
+			}
+			continue
 		}
 		if err := s.store.StoreItem(ctx, projectID, "main", &store.Item{
 			Name:       name,
@@ -172,8 +181,8 @@ func (s *ConnectorService) Fetch(ctx context.Context, workspaceID, connectorID, 
 		}); err != nil {
 			return nil, fmt.Errorf("store fetched item %q: %w", name, err)
 		}
-		if err := s.store.StoreBlocksForItem(ctx, projectID, "main", name, item.Blocks); err != nil {
-			return nil, fmt.Errorf("store fetched blocks for %q: %w", name, err)
+		if _, err := store.ReplaceItemBlocks(ctx, s.store, projectID, "main", name, item.Blocks); err != nil {
+			return nil, fmt.Errorf("store fetched blocks: %w", err)
 		}
 	}
 
