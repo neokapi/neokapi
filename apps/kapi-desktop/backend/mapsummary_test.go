@@ -14,11 +14,11 @@ import (
 )
 
 // TestMapSummary_KapiMart: the Map of the bundled sample counts what the other
-// surfaces count. Its files are the recipe's content files, every one of them
-// on disk; its blocks are the block cache's, as the status counts them; its
-// findings are the last whole-project checks run's, file by file; and the
-// suggestions an assistant recorded are the rows awaiting a decision, with
-// their evidence counted.
+// surfaces count. Its files are the recipe's content files, each on disk. Its
+// blocks are the block cache's, as the status counts them. Its findings are
+// the last whole-project checks run's, file by file. The suggestions an
+// assistant recorded are the rows awaiting a decision, with their evidence
+// counted.
 func TestMapSummary_KapiMart(t *testing.T) {
 	// The sample reads its context into the workspace the data directory
 	// holds, so the app and the scaffold share one of their own.

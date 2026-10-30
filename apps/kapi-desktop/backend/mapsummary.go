@@ -89,7 +89,7 @@ type MapSuggestionDTO struct {
 	// Group is "conflict" for a disagreement, whose Item is its first side,
 	// or "suggested". It and the item's id make the key the Decide view
 	// selects the row by.
-	Group string `json:"group"`
+	Group string          `json:"group"`
 	Item  host.DigestItem `json:"item"`
 	// Conflict is the disagreement, for a conflict row.
 	Conflict *host.DigestConflict `json:"conflict,omitempty"`
@@ -249,7 +249,7 @@ func localeStrings[L ~string](in []L) []string {
 // store.
 func (a *App) mapBlockCounts(ctx context.Context, op *openProject) (map[string]int, error) {
 	counts := map[string]int{}
-	db, ok := a.existingProjectStore(op)
+	db, ok := a.existingProjectStore(op) //nolint:contextcheck // the store opens under the engine's own context, as GetProjectStatus opens it
 	if !ok {
 		return counts, nil
 	}
@@ -275,14 +275,13 @@ func (a *App) mapBlockCounts(ctx context.Context, op *openProject) (map[string]i
 	return counts, nil
 }
 
-// mapRuleCount counts the rules in force at the project's own point: the
-// concepts in the terms store the project binds (a kept term rule is recorded
-// there), the word rules the voice profile's file carries and its prohibited
-// and required patterns, and the notes a person kept, which the operation log
-// alone holds.
+// mapRuleCount counts the rules in force at the project's own point. Those
+// are the concepts in the terms store the project binds, where a kept term
+// rule is recorded, and the word rules and patterns of the voice profile. The
+// notes a person kept count too; the operation log alone holds them.
 func (a *App) mapRuleCount(ctx context.Context, op *openProject) (int, error) {
 	total := 0
-	if _, ok := a.existingProjectStore(op); ok {
+	if _, ok := a.existingProjectStore(op); ok { //nolint:contextcheck // the store opens under the engine's own context
 		n, err := a.mapStoredRuleCount(ctx, op)
 		if err != nil {
 			return 0, err
