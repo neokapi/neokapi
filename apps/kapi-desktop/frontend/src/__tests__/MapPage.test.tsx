@@ -1,7 +1,7 @@
-import { render, screen, within, waitFor } from "./testUtils";
+import { act, render, screen, within, waitFor } from "./testUtils";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, it, expect, vi } from "vite-plus/test";
-import { MapPage, MapView, decideRowKey } from "../components/MapPage";
+import { DEEPER_LOOK_RESULT_MS, MapPage, MapView, decideRowKey } from "../components/MapPage";
 import { api } from "../hooks/useApi";
 import {
   MAP_ALL_KEPT,
@@ -11,7 +11,7 @@ import {
   MAP_SOURCE_ONLY_UNCHECKED,
   MAP_SUGGESTED_ONLY,
 } from "../stories/fixtures/mapSummary";
-import type { MapSummary } from "../types/api";
+import type { DeeperLookResult, MapSummary } from "../types/api";
 
 // The preview inspects the file through the backend, which no test runtime
 // provides; the Map's job is to open it on the right file.
@@ -22,7 +22,17 @@ vi.mock("../components/FilePreview", () => ({
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.useRealTimers();
 });
+
+const LOOKED: DeeperLookResult = {
+  provider: "demo",
+  model: "demo-stub",
+  filed: 3,
+  asked: 251,
+  blocks: 251,
+  tokens: 1200,
+};
 
 function renderView(summary: MapSummary, over: Partial<Parameters<typeof MapView>[0]> = {}) {
   const props = {
@@ -208,5 +218,107 @@ describe("MapPage", () => {
     );
     await userEvent.click(await screen.findByRole("button", { name: "Run on everything" }));
     expect(run).toHaveBeenCalledWith("t-run", { id: "", name: "", languages: ["de", "nb"] });
+  });
+});
+
+describe("the deeper look on the Map", () => {
+  it("offers one button with one line under What your files do", () => {
+    renderView(MAP_PENDING, { deeperLook: { model: "demo-stub" }, onDeeperLook: vi.fn() });
+    const row = document.querySelector('[data-slot="map-deeper-look"]') as HTMLElement;
+    expect(row.closest('[data-slot="map-suggestions"]')).not.toBeNull();
+    expect(within(row).getByRole("button", { name: "Deeper look with AI" })).toBeEnabled();
+    expect(row).toHaveTextContent("Reads your files with the connected model and suggests rules.");
+  });
+
+  it("has nothing to read in a project with no files", () => {
+    renderView(MAP_EMPTY, { deeperLook: { model: "demo-stub" }, onDeeperLook: vi.fn() });
+    expect(screen.getByRole("button", { name: "Deeper look with AI" })).toBeDisabled();
+  });
+
+  it("shows the quiet progress state with the model's name while it runs", () => {
+    renderView(MAP_PENDING, { deeperLook: { model: "demo-stub", running: true } });
+    expect(screen.getByRole("button", { name: "Reading with demo-stub" })).toBeDisabled();
+    expect(document.querySelector('[data-slot="map-deeper-look-line"]')).toBeNull();
+  });
+
+  it("says what the run filed, and that there was nothing more", () => {
+    renderView(MAP_PENDING, { deeperLook: { model: "demo-stub", result: LOOKED } });
+    expect(document.querySelector('[data-slot="map-deeper-look-line"]')).toHaveTextContent(
+      "3 new suggestions from demo-stub",
+    );
+    renderView(MAP_PENDING, {
+      deeperLook: { model: "demo-stub", result: { ...LOOKED, filed: 0 } },
+    });
+    const lines = document.querySelectorAll('[data-slot="map-deeper-look-line"]');
+    expect(lines[1]).toHaveTextContent("Nothing more to suggest");
+  });
+
+  it("opens the Connect your AI card when no model is connected, and runs nothing", async () => {
+    vi.spyOn(api, "detectAIProviders").mockResolvedValue({ detected: [], configured: false });
+    const look = vi.spyOn(api, "deeperLook").mockResolvedValue(LOOKED);
+    render(
+      <MapPage
+        tabID="t-nomodel"
+        projectName="Fernwell"
+        summary={MAP_PENDING}
+        deeperLookModel={{ connected: false }}
+        onDecide={vi.fn()}
+        onNavigate={vi.fn()}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Deeper look with AI" }));
+    expect(await screen.findByText("Connect your AI")).toBeInTheDocument();
+    expect(screen.getByTestId("connect-ai-card")).toHaveTextContent(
+      "Pick the model kapi reads your files with.",
+    );
+    expect(look).not.toHaveBeenCalled();
+  });
+
+  it("runs with the connected model, reads the Map again, and lets the result line go", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const summary = vi.spyOn(api, "mapSummary").mockResolvedValue(MAP_PENDING);
+    vi.spyOn(api, "runChecks").mockResolvedValue(null);
+    const look = vi.spyOn(api, "deeperLook").mockResolvedValue(LOOKED);
+    render(
+      <MapPage
+        tabID="t-look"
+        projectName="Fernwell"
+        deeperLookModel={{ connected: true, provider: "demo", model: "demo-stub" }}
+        onDecide={vi.fn()}
+        onNavigate={vi.fn()}
+      />,
+    );
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    await user.click(await screen.findByRole("button", { name: "Deeper look with AI" }));
+    expect(look).toHaveBeenCalledWith("t-look");
+    expect(await screen.findByText("3 new suggestions from demo-stub")).toBeInTheDocument();
+    const reads = summary.mock.calls.length;
+    expect(reads).toBeGreaterThan(1);
+
+    act(() => {
+      vi.advanceTimersByTime(DEEPER_LOOK_RESULT_MS);
+    });
+    await waitFor(() =>
+      expect(screen.queryByText("3 new suggestions from demo-stub")).not.toBeInTheDocument(),
+    );
+    expect(
+      screen.getByText("Reads your files with the connected model and suggests rules."),
+    ).toBeInTheDocument();
+  });
+
+  it("shows why the run failed", async () => {
+    vi.spyOn(api, "deeperLook").mockRejectedValue(new Error("anthropic: API error 401"));
+    render(
+      <MapPage
+        tabID="t-fail"
+        projectName="Fernwell"
+        summary={MAP_PENDING}
+        deeperLookModel={{ connected: true, provider: "anthropic", model: "claude-sonnet-4-5" }}
+        onDecide={vi.fn()}
+        onNavigate={vi.fn()}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Deeper look with AI" }));
+    expect(await screen.findByText("The deeper look did not run")).toBeInTheDocument();
   });
 });

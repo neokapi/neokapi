@@ -2029,6 +2029,27 @@ export interface MapSummary {
   suggestions: MapSuggestionRow[];
 }
 
+/** The model a deeper look of a tab would ask (DeeperLookModel). */
+export interface DeeperLookModel {
+  /** False when nothing names a model; the Map then offers to connect one. */
+  connected: boolean;
+  provider?: string;
+  model?: string;
+}
+
+/** What one deeper look did (DeeperLook). */
+export interface DeeperLookResult {
+  provider: string;
+  model: string;
+  /** Suggestions this run recorded new. */
+  filed: number;
+  /** Blocks the model read, of blocks. */
+  asked: number;
+  blocks: number;
+  /** Tokens the provider reported; 0 when it reported none. */
+  tokens: number;
+}
+
 /** Outcome of adopting a user/ad-hoc flow into a project recipe. */
 export interface AdoptFlowResult {
   name: string;

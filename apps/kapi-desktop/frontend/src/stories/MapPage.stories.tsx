@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MapPage, MapView } from "../components/MapPage";
+import { ConnectAICard } from "../components/ConnectAICard";
 import {
   MAP_ALL_KEPT,
   MAP_EMPTY,
@@ -40,6 +41,7 @@ const meta: Meta<typeof MapPage> = {
     tabID: TAB,
     projectName: "Fernwell",
     summary: MAP_PENDING,
+    deeperLookModel: { connected: true, provider: "demo", model: "demo-stub" },
     onDecide: fn(),
     onNavigate: fn(),
   },
@@ -89,6 +91,94 @@ export const Checking: StoryObj<typeof MapView> = {
       onDecide={fn()}
       onNavigate={fn()}
       onOpenFile={fn()}
+    />
+  ),
+};
+
+/** The Map as drawn, with the deeper look's row in a given state. */
+function DeeperLookMap(props: Partial<React.ComponentProps<typeof MapView>>) {
+  return (
+    <MapView
+      projectName="Fernwell"
+      summary={MAP_PENDING}
+      onRun={fn()}
+      onDecide={fn()}
+      onNavigate={fn()}
+      onOpenFile={fn()}
+      onDeeperLook={fn()}
+      deeperLook={{ model: "demo-stub" }}
+      {...props}
+    />
+  );
+}
+
+/** No model connected: the deeper look's button opened the Connect your AI card. */
+export const DeeperLookNoModel: StoryObj<typeof MapView> = {
+  render: () => (
+    <DeeperLookMap
+      deeperLook={{ model: null }}
+      connectAI={
+        <ConnectAICard
+          detection={{ detected: [], configured: false }}
+          description="Pick the model kapi reads your files with. You can change it any time in Settings."
+        />
+      }
+    />
+  ),
+};
+
+/** The connected model reads the files: the quiet progress state, with its name. */
+export const DeeperLookRunning: StoryObj<typeof MapView> = {
+  render: () => <DeeperLookMap deeperLook={{ model: "demo-stub", running: true }} />,
+};
+
+/** The run filed three suggestions, which appear as rows; the line says so for a few seconds. */
+export const DeeperLookDone: StoryObj<typeof MapView> = {
+  render: () => (
+    <DeeperLookMap
+      deeperLook={{
+        model: "demo-stub",
+        result: {
+          provider: "demo",
+          model: "demo-stub",
+          filed: 3,
+          asked: 251,
+          blocks: 251,
+          tokens: 1200,
+        },
+      }}
+    />
+  ),
+};
+
+/** The run found nothing the queue does not hold already. */
+export const DeeperLookNothingMore: StoryObj<typeof MapView> = {
+  render: () => (
+    <DeeperLookMap
+      summary={MAP_ALL_KEPT}
+      deeperLook={{
+        model: "demo-stub",
+        result: {
+          provider: "demo",
+          model: "demo-stub",
+          filed: 0,
+          asked: 251,
+          blocks: 251,
+          tokens: 900,
+        },
+      }}
+    />
+  ),
+};
+
+/** A long model name, and a run that failed. */
+export const DeeperLookFailed: StoryObj<typeof MapView> = {
+  render: () => (
+    <DeeperLookMap
+      deeperLook={{
+        model: "claude-sonnet-4-5-20250929",
+        error: new Error("anthropic: API error 401: the API key was not accepted"),
+      }}
     />
   ),
 };

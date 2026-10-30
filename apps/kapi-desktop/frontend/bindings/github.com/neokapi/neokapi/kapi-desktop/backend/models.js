@@ -4052,6 +4052,124 @@ export class CustomLocale {
 }
 
 /**
+ * DeeperLookDTO is what one deeper look did.
+ */
+export class DeeperLookDTO {
+    /**
+     * Creates a new DeeperLookDTO instance.
+     * @param {Partial<DeeperLookDTO>} [$$source = {}] - The source object to create the DeeperLookDTO.
+     */
+    constructor($$source = {}) {
+        if (!("provider" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["provider"] = "";
+        }
+        if (!("model" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["model"] = "";
+        }
+        if (!("filed" in $$source)) {
+            /**
+             * Filed counts the suggestions this run recorded new.
+             * @member
+             * @type {number}
+             */
+            this["filed"] = 0;
+        }
+        if (!("asked" in $$source)) {
+            /**
+             * Asked counts the blocks the model read, of Blocks.
+             * @member
+             * @type {number}
+             */
+            this["asked"] = 0;
+        }
+        if (!("blocks" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["blocks"] = 0;
+        }
+        if (!("tokens" in $$source)) {
+            /**
+             * Tokens is the token count the provider reported, zero when it reported
+             * none.
+             * @member
+             * @type {number}
+             */
+            this["tokens"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DeeperLookDTO instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {DeeperLookDTO}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DeeperLookDTO(/** @type {Partial<DeeperLookDTO>} */($$parsedSource));
+    }
+}
+
+/**
+ * DeeperLookModelDTO names the model a deeper look of a tab would ask.
+ */
+export class DeeperLookModelDTO {
+    /**
+     * Creates a new DeeperLookModelDTO instance.
+     * @param {Partial<DeeperLookModelDTO>} [$$source = {}] - The source object to create the DeeperLookModelDTO.
+     */
+    constructor($$source = {}) {
+        if (!("connected" in $$source)) {
+            /**
+             * Connected is false when nothing names a model: no provider in the
+             * recipe or the app config, no saved credential and no API key in the
+             * environment. The Map then offers to connect one.
+             * @member
+             * @type {boolean}
+             */
+            this["connected"] = false;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["provider"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["model"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DeeperLookModelDTO instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {DeeperLookModelDTO}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DeeperLookModelDTO(/** @type {Partial<DeeperLookModelDTO>} */($$parsedSource));
+    }
+}
+
+/**
  * DefaultModelInfo is the configured default AI model and the provider it
  * implies — the shared ai.provider/ai.model convention both kapi surfaces read.
  */

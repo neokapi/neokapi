@@ -19,6 +19,8 @@ export interface ConnectAICardProps {
   detection?: AIDetectionResult;
   /** Called after a provider is configured (any path). */
   onConfigured?: (providerLabel: string) => void;
+  /** The line under the title, for a surface that asks for a model for its own work. */
+  description?: string;
 }
 
 /**
@@ -27,7 +29,11 @@ export interface ConnectAICardProps {
  * primary buttons; "I have an API key" expands the vault form; a quiet link
  * skips to the demo engine. Hides itself once anything is configured.
  */
-export function ConnectAICard({ detection: propDetection, onConfigured }: ConnectAICardProps) {
+export function ConnectAICard({
+  detection: propDetection,
+  onConfigured,
+  description,
+}: ConnectAICardProps) {
   const [keyOpen, setKeyOpen] = useState(false);
   const [keyProvider, setKeyProvider] = useState(KEY_PROVIDERS[0].name);
   const [apiKey, setApiKey] = useState("");
@@ -128,9 +134,10 @@ export function ConnectAICard({ detection: propDetection, onConfigured }: Connec
         <h2 className="text-sm font-semibold">{t("Connect your AI")}</h2>
       </div>
       <p className="mb-4 text-xs text-muted-foreground">
-        {t(
-          "Translation and checks run through an AI model of your choice. Pick one to get started. You can change it any time in Settings.",
-        )}
+        {description ??
+          t(
+            "Translation and checks run through an AI model of your choice. Pick one to get started. You can change it any time in Settings.",
+          )}
       </p>
 
       {error != null && <ErrorNotice error={error} detailsLabel={t("Details")} className="mb-3" />}
