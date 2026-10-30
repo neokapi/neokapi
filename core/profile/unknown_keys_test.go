@@ -161,3 +161,18 @@ func TestUnknownKeys_SeverityNamesAdvisory(t *testing.T) {
 		t.Errorf("the message names advisory: %q", found[0].Message)
 	}
 }
+
+// A severity on a pattern names `fails: true`, the key that makes a pattern
+// fail.
+func TestUnknownKeys_PatternSeverityNamesFails(t *testing.T) {
+	found, err := UnknownKeys([]byte("name: X\nstyle:\n  prohibited_patterns:\n    - regex: x\n      severity: critical\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(found) != 1 || found[0].Field != "style.prohibited_patterns[0].severity" {
+		t.Fatalf("want one problem on the severity key, got %+v", found)
+	}
+	if !strings.Contains(found[0].Message, "`fails: true`") {
+		t.Errorf("the message names fails: %q", found[0].Message)
+	}
+}
