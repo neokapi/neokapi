@@ -708,12 +708,10 @@ func (r *FileRunner) overlayScope(ctx context.Context, inputPath string) context
 	return blockstore.WithSourceRel(ctx, blockstore.SourceNamespace(r.cfg.ProjectRoot, inputPath))
 }
 
-// commitsTargets reports whether the run should append the implicit
-// commit-targets step: the store outlives the run, so the `targets/<locale>`
-// overlays are state a later merge reads rather than throwaway per-run caching.
 // wireReadSkeleton gives reader the skeleton store a write of the document
 // would give it, one that keeps nothing (format.NewWiredReadSkeleton). It does
-// nothing when the format has no skeleton path.
+// nothing when the format has no skeleton path. It is core/project's
+// WireReadSkeleton, held here because core/project imports this package.
 func (r *FileRunner) wireReadSkeleton(reader format.DataFormatReader) {
 	id := registry.FormatID(reader.Name())
 	if _, ok := reader.(format.SkeletonStoreEmitter); !ok || !r.cfg.FormatReg.HasWriter(id) {
@@ -726,6 +724,9 @@ func (r *FileRunner) wireReadSkeleton(reader format.DataFormatReader) {
 	format.NewWiredReadSkeleton(reader, writer)
 }
 
+// commitsTargets reports whether the run should append the implicit
+// commit-targets step: the store outlives the run, so the `targets/<locale>`
+// overlays are state a later merge reads rather than throwaway per-run caching.
 func (r *FileRunner) commitsTargets(targetLang string) bool {
 	return targetLang != "" && r.cfg.Store != nil && r.cfg.Store.Capabilities().Persistent
 }
