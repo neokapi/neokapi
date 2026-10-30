@@ -317,6 +317,9 @@ func (b *atlasBuilder) operations(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	// A check run records what a check found and changes nothing the context
+	// holds, so the atlas leaves it out.
+	all = slices.DeleteFunc(all, func(r contextop.Record) bool { return r.Kind == contextop.KindCheck })
 	histories, complete, err := b.ledger.Histories(ctx, contextop.Filter{Project: b.key, Subjects: true}, 0)
 	if err != nil {
 		return err

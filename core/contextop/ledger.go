@@ -360,6 +360,10 @@ func (l *Ledger) Histories(ctx context.Context, f Filter, limit int) (histories 
 		if f.Project != "" && op.Project != f.Project {
 			continue
 		}
+		// A check run moves no status, so its instant is not one to fold at.
+		if op.Kind == OpKindPrefix+string(KindCheck) {
+			continue
+		}
 		at := op.At.UTC()
 		if !seen[at] {
 			seen[at] = true
