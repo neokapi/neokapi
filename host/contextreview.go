@@ -41,7 +41,8 @@ type ContextReviewRequest struct {
 	// WidenTo applies what Keep names more widely: "project", "workspace", or
 	// the name of an axis the rule should stop being specific about.
 	WidenTo string
-	// Replacement changes what the one kept rule says to write instead.
+	// Replacement changes what the one kept rule says to write instead: the
+	// one Keep names, or the side Choose keeps.
 	Replacement string
 	// Advisory, when set, replaces whether a kept rule only reports (true) or
 	// fails a check (false).
@@ -114,8 +115,11 @@ func (a *App) DecideContextReview(ctx context.Context, req ContextReviewRequest)
 	if (req.ValidFrom != "" || req.ValidTo != "") && len(req.Keep) == 0 {
 		return out, errors.New("--valid-from and --valid-to set the lifetime of what --keep names: name it with --keep")
 	}
-	if req.Replacement != "" && len(req.Keep) != 1 {
-		return out, errors.New("--use changes one rule as it is kept: name one --keep")
+	// --use edits one rule as it is kept: the one --keep names, or the side
+	// --choose keeps.
+	oneRule := (len(req.Keep) == 1 && req.Choose == "") || (len(req.Keep) == 0 && req.Choose != "")
+	if req.Replacement != "" && !oneRule {
+		return out, errors.New("--use changes one rule as it is kept: name one --keep or one --choose")
 	}
 	// One round of decisions writes the rules files once, at its end.
 	release := a.holdRulesFiles()

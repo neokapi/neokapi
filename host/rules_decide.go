@@ -271,14 +271,18 @@ func (v *RulesDecideView) fill(d *RuleDecision) {
 			if rule, ok := o.subject.Rule(); ok && rule.Replacement != "" {
 				o.Blocks, o.Files = v.uses(o.scope, []string{rule.Replacement}, rule.MatchesCase())
 			}
-			o.Consequence = v.keepConsequence(o.subject, o.scope, "")
+			label := ""
+			if rule, ok := o.subject.Rule(); ok {
+				label = rule.Replacement
+			}
+			o.Consequence = v.keepConsequence(o.subject, o.scope, label, digestTheme(o.subject) == DigestThemeNames)
 			if best < 0 || o.Blocks > d.Options[best].Blocks {
 				best = i
 			}
 		}
 		d.Chosen = max(best, 0)
 	default:
-		d.Consequence = v.keepConsequence(d.subject, d.scope, "")
+		d.Consequence = v.keepConsequence(d.subject, d.scope, "", false)
 	}
 }
 
@@ -289,12 +293,14 @@ func (v *RulesDecideView) Consequence(d RuleDecision, form string) string {
 	if form != "" {
 		subject, _ = editSubject(subject, form, nil)
 	}
-	return v.keepConsequence(subject, d.scope, form)
+	return v.keepConsequence(subject, d.scope, form, true)
 }
 
 // keepConsequence says what keeping subject at scope does: the blocks a check
-// then reports, and where it applies. label is the form a name is kept as.
-func (v *RulesDecideView) keepConsequence(subject contextop.Subject, scope contextop.Scope, label string) string {
+// then reports, and where it applies. label is the wording the kept rule
+// writes, empty to call it "it"; name counts the avoided wordings as the
+// other forms of one name rather than listing them.
+func (v *RulesDecideView) keepConsequence(subject contextop.Subject, scope contextop.Scope, label string, name bool) string {
 	applies, _ := v.st.applies(scope)
 	where := " Applies to " + applies + "."
 	switch subject.Kind {
@@ -314,9 +320,9 @@ func (v *RulesDecideView) keepConsequence(subject contextop.Subject, scope conte
 	}
 	var what string
 	switch {
-	case label != "" && blocks == 0:
+	case name && blocks == 0:
 		what = "no block uses " + otherForms(len(avoided)) + "."
-	case label != "":
+	case name:
 		what = otherForms(len(avoided)) + " " + become(len(avoided)) + " in " + blockCount(blocks) + "."
 	case blocks == 0:
 		what = "no block uses " + quotedAlternatives(avoided) + "."
@@ -462,7 +468,12 @@ func (v *RulesDecideView) FormatText(w io.Writer) error {
 			return err
 		}
 	}
-	_, err := fmt.Fprintln(w, "\nDecide with: kapi rules --keep <id>, --drop <id> or --later <id>")
+	line := "\nDecide with: kapi rules --keep <id>, --drop <id> or --later <id>"
+	if slices.ContainsFunc(v.Decisions, func(d RuleDecision) bool { return d.Kind == RuleDecisionDisagreement }) {
+		// A side of a disagreement is kept by choosing it; --keep refuses it.
+		line = "\nDecide with: kapi rules --keep <id>, --choose <id> (one side where two disagree), --drop <id> or --later <id>"
+	}
+	_, err := fmt.Fprintln(w, line)
 	return err
 }
 
@@ -479,7 +490,7 @@ func (d RuleDecision) Write(w io.Writer, chosen int) error {
 	if d.Reason != "" {
 		b.WriteString("  " + capitalSentence(d.Reason) + "\n")
 	}
-	if len(d.Options) == 0 || d.Kind != RuleDecisionName {
+	if d.Sentence != "" && (len(d.Options) == 0 || d.Kind != RuleDecisionName) {
 		b.WriteString("  " + d.Sentence + "\n")
 	}
 	for i, o := range d.Options {
@@ -584,13 +595,22 @@ type RulesNarrowRequest struct {
 // RulesNarrowResult is what narrowing a rule recorded.
 type RulesNarrowResult struct {
 	Operation ContextOperation `json:"operation"`
-	// Applies is where the rule holds now.
+	// To is what the person named, and Collection the collection whose point
+	// the rule now holds at: the one named, or the one a folder's files
+	// belong to.
+	To         string `json:"to"`
+	Collection string `json:"collection,omitempty"`
+	// Applies is where the rule holds now: every collection at that point.
 	Applies string `json:"applies"`
 }
 
 // FormatText says where the rule holds now.
 func (r RulesNarrowResult) FormatText(w io.Writer) error {
-	line := fmt.Sprintf("Narrowed #%s: it applies to %s now", contextop.ShortID(r.Operation.Target), r.Applies)
+	short := contextop.ShortID(r.Operation.Target)
+	line := fmt.Sprintf("Narrowed #%s: it applies to %s now", short, r.Applies)
+	if r.Collection != "" && r.Collection != r.To {
+		line = fmt.Sprintf("Narrowed #%s to the %s collection, which %s/ belongs to: it applies to %s now", short, r.Collection, r.To, r.Applies)
+	}
 	if r.Operation.Landed != "" {
 		line += " (" + r.Operation.Landed + ")"
 	}
@@ -638,7 +658,7 @@ func (a *App) NarrowRule(ctx context.Context, req RulesNarrowRequest) (RulesNarr
 	if err != nil {
 		return RulesNarrowResult{}, err
 	}
-	rc, _, coordinates, err := governedPoint(st.proj, point)
+	rc, collection, coordinates, err := governedPoint(st.proj, point)
 	if err != nil {
 		return RulesNarrowResult{}, err
 	}
@@ -693,7 +713,10 @@ func (a *App) NarrowRule(ctx context.Context, req RulesNarrowRequest) (RulesNarr
 		return RulesNarrowResult{}, err
 	}
 	applies, _ := st.applies(narrowed)
-	return RulesNarrowResult{Operation: ContextOperation{Record: written, Landed: landed}, Applies: applies}, nil
+	return RulesNarrowResult{
+		Operation: ContextOperation{Record: written, Landed: landed},
+		To:        to, Collection: collection, Applies: applies,
+	}, nil
 }
 
 // narrowPoint resolves what `--to` names: a collection the recipe declares,

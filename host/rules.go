@@ -2,8 +2,10 @@ package host
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -171,6 +173,16 @@ type rulesState struct {
 	// collections are the coordinates of each named collection's point, in
 	// recipe order.
 	collections []rulesCollection
+	// files are the project's source files, read only for a project whose
+	// collections have no names to say where a rule applies with.
+	files []rulesFile
+}
+
+// rulesFile is one source file of the project and the coordinates of the
+// point it sits at.
+type rulesFile struct {
+	rel         string
+	coordinates map[string]string
 }
 
 type rulesCollection struct {
@@ -227,6 +239,17 @@ func (a *App) rulesState(ctx context.Context, recipePath string) (*rulesState, e
 		}
 		st.collections = append(st.collections, rulesCollection{name: c.Name, coordinates: coordinates})
 	}
+	if len(st.collections) == 0 {
+		a.InitRegistries()
+		if files, rerr := project.NewProjectContext(proj, resolved).ResolveContent(a.FormatReg); rerr == nil {
+			for _, rf := range files {
+				rel := filepath.ToSlash(rf.Relative)
+				if _, _, coordinates, perr := governedPoint(proj, project.GovernancePoint{Path: rel, At: st.at}); perr == nil {
+					st.files = append(st.files, rulesFile{rel: rel, coordinates: coordinates})
+				}
+			}
+		}
+	}
 	return st, nil
 }
 
@@ -250,14 +273,37 @@ func (st *rulesState) applies(scope contextop.Scope) (string, bool) {
 		case len(in) == len(st.collections) && scope.CoversIn(st.space, st.rootCoordinates):
 			return "the whole project", false
 		case len(in) == 0:
-			return "no collection of this project (" + scope.Describe() + ")", true
+			return "no collection of this project", true
 		}
 		return strings.Join(in, ", "), true
 	}
 	if scope.CoversIn(st.space, st.rootCoordinates) {
 		return "the whole project", false
 	}
-	return scope.Describe(), true
+	if folders := st.coveredFolders(scope); len(folders) > 0 {
+		return strings.Join(folders, ", "), true
+	}
+	return "no file of this project", true
+}
+
+// coveredFolders names the folders whose source files sit where scope holds,
+// for a project that names no collection to say it with.
+func (st *rulesState) coveredFolders(scope contextop.Scope) []string {
+	var out []string
+	for _, f := range st.files {
+		if !scope.CoversIn(st.space, f.coordinates) {
+			continue
+		}
+		dir := path.Dir(f.rel)
+		if dir == "." {
+			dir = "the project's root folder"
+		}
+		if !slices.Contains(out, dir) {
+			out = append(out, dir)
+		}
+	}
+	slices.Sort(out)
+	return out
 }
 
 // established is every rule in force the project's log holds: term rules and
@@ -656,7 +702,7 @@ func (a *App) FindRules(ctx context.Context, req RulesFindRequest) (RulesFound, 
 	q := fold(req.Word)
 	out := RulesFound{Query: req.Word, Rules: []RuleLine{}, Suggested: []RuleLine{}, Decided: []RuleLine{}}
 	if q == "" {
-		return out, fmt.Errorf("name a word to find")
+		return out, errors.New("name a word to find")
 	}
 	st, err := a.rulesState(ctx, req.Project)
 	if err != nil {

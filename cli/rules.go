@@ -230,11 +230,13 @@ keeps both.`,
 func newRulesNarrowCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "narrow <id> --to <collection|folder>",
-		Short: "Limit a kept rule to a collection or a folder",
-		Long: `Limit a kept rule to one collection, or to one folder of the project. The
-rule holds at the profile, channel and coordinates the collection or folder
-sits at, and nowhere else. A folder that sits at the project's own point has
-no coordinate to tell it apart, and kapi says so.`,
+		Short: "Limit a kept rule to one collection, named directly or by a folder",
+		Long: `Limit a kept rule to one collection. Name the collection, or a folder: a
+folder names the collection its files belong to, and the rule then holds in
+that whole collection. The rule holds at the profile, channel and coordinates
+the collection sits at, and in every collection that shares them. A folder
+whose files sit at the project's own point has no coordinate to tell it
+apart, and kapi says so.`,
 		Example: "  kapi rules narrow 0n794e2gk7 --to docs\n  kapi rules narrow 0n794e2gk7 --to web/src",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -251,7 +253,7 @@ no coordinate to tell it apart, and kapi says so.`,
 			return output.Print(cmd, res)
 		},
 	}
-	cmd.Flags().String("to", "", "the collection or folder the rule applies to")
+	cmd.Flags().String("to", "", "the collection the rule applies to, or a folder of it")
 	cmd.Flags().String("note", "", "why")
 	_ = cmd.MarkFlagRequired("to")
 	AddProjectFlag(cmd)

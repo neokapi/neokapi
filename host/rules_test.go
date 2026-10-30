@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -301,21 +302,13 @@ func keptDay(t *testing.T, app *App, root, id string) string {
 }
 
 func hasPrefixSuffix(list []string, prefix, suffix string) bool {
-	for _, s := range list {
-		if strings.HasPrefix(s, prefix) && strings.HasSuffix(s, suffix) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(list, func(s string) bool {
+		return strings.HasPrefix(s, prefix) && strings.HasSuffix(s, suffix)
+	})
 }
 
 func hasLine(lines []RuleLine, match func(RuleLine) bool) bool {
-	for _, l := range lines {
-		if match(l) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(lines, match)
 }
 
 func TestNarrowRuleToACollection(t *testing.T) {
@@ -333,6 +326,7 @@ func TestNarrowRuleToACollection(t *testing.T) {
 	res, err := app.NarrowRule(t.Context(), RulesNarrowRequest{Actor: person, Project: recipeOf(root), ID: word.ID, To: "help"})
 	require.NoError(t, err)
 	assert.Equal(t, "help", res.Applies)
+	assert.Equal(t, "help", res.Collection)
 	after, err := app.ContextSubject(t.Context(), recipeOf(root), word.ID)
 	require.NoError(t, err)
 	assert.Equal(t, contextop.StatusEstablished, after.Status)
@@ -364,6 +358,42 @@ func TestNarrowRuleRefusesAFolderAtTheProjectsOwnPoint(t *testing.T) {
 	require.ErrorContains(t, err, "sits at the project's own point")
 	_, err = app.NarrowRule(t.Context(), RulesNarrowRequest{Actor: person, Project: recipeOf(root), ID: op.ID, To: "nowhere"})
 	require.ErrorContains(t, err, "neither a collection of this project nor a folder in it")
+}
+
+func TestDecideRulesAsksWhichSideOfADisagreementHolds(t *testing.T) {
+	app, _ := contextOpsApp(t)
+	root := rulesProject(t, "rulesdisagree", false)
+	use := suggestWord(t, app, root)
+	employ, err := app.RecordContextObservation(t.Context(), ContextObserveRequest{
+		Actor:   rulesAgent,
+		Project: recipeOf(root),
+		Term:    "employ", InsteadOf: []string{"utilise"},
+		Evidence: []contextop.Evidence{{Path: "docs/b.md", Quote: "We utilise the widget."}},
+	})
+	require.NoError(t, err)
+
+	view, err := app.DecideRules(t.Context(), RulesRequest{Project: recipeOf(root)})
+	require.NoError(t, err)
+	require.Len(t, view.Decisions, 1, "the two sides are one question")
+	d := view.Decisions[0]
+	assert.Equal(t, RuleDecisionDisagreement, d.Kind)
+	require.Len(t, d.Options, 2)
+	ids := []string{d.Options[0].ID, d.Options[1].ID}
+	assert.ElementsMatch(t, []string{use.ID, employ.ID}, ids)
+	for _, o := range d.Options {
+		rule, _ := o.subject.Rule()
+		assert.Equal(t, "If you keep \""+rule.Replacement+"\": \"utilise\" becomes a finding in 1 block. Applies to docs.", o.Consequence)
+	}
+
+	var text bytes.Buffer
+	require.NoError(t, view.FormatText(&text))
+	assert.Contains(t, text.String(), "--choose <id>", "a side is kept by choosing it")
+	assert.NotContains(t, text.String(), "\n  \n", "a disagreement states no sentence of its own")
+
+	// Keeping the marked side is a choice, which sets the other side aside.
+	req := d.KeepRequest(d.Chosen, "")
+	assert.Equal(t, d.Options[d.Chosen].ID, req.Choose)
+	assert.Empty(t, req.Keep)
 }
 
 func TestFindRulesNamesRulesSuggestionsAndDecisions(t *testing.T) {

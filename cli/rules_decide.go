@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -24,7 +25,7 @@ func walkRules(cmd *cobra.Command, a *App, projectPath string, view *host.RulesD
 	for i, d := range view.Decisions {
 		fmt.Fprintf(w, "\n[%d/%d] ", i+1, len(view.Decisions))
 		if err := askRule(w, in, a, cmd, projectPath, view, d, note, &tally); err != nil {
-			if err == errRulesQuit {
+			if errors.Is(err, errRulesQuit) {
 				break
 			}
 			return err

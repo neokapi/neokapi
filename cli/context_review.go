@@ -133,7 +133,7 @@ never in the project. --peek leaves it where it is.`,
 	cmd.Flags().StringArray("drop", nil, "drop a suggestion or a rule by id (repeatable)")
 	cmd.Flags().String("choose", "", "choose this side where two suggestions disagree: the other side is dropped and this one kept")
 	cmd.Flags().String("widen-to", "", "with --keep: apply it more widely: \"project\", \"workspace\", or a part of where it was seen")
-	cmd.Flags().String("use", "", "with one --keep: change what the rule says to write instead")
+	cmd.Flags().String("use", "", "with one --keep or --choose: change what the rule says to write instead")
 	cmd.Flags().Bool("advisory", false, "with --keep: make the rule report without failing a check (--advisory=false makes it fail)")
 	cmd.Flags().String("valid-from", "", "with --keep: the rule holds from this date (2006-01-02) or instant on")
 	cmd.Flags().String("valid-to", "", "with --keep: the rule holds until this date (2006-01-02) or instant, not including it")
