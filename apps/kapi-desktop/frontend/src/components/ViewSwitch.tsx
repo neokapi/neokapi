@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { t } from "@neokapi/i18n-react/runtime";
 import type { ContextProjectStanding, KapiProject, FlowSpec, WorkspaceHome } from "../types/api";
 import { ProjectErrorBoundary } from "./ProjectErrorBoundary";
 import type { TabState } from "../hooks/useTabManager";
@@ -12,6 +13,7 @@ import { TermsPage } from "./TermsPage";
 import { MemoriesPage } from "./MemoriesPage";
 import { ChecksPanel } from "./ChecksPanel";
 import { MapPage } from "./MapPage";
+import { ReaderPage, readerTargetOf, readerView } from "./ReaderPage";
 import { ContextHub, contextSectionOf, decideRowOf, type ContextPin } from "./ContextHub";
 import { HistoryView } from "./HistoryView";
 import { ReviewPage, type ReviewScope } from "./ReviewPage";
@@ -182,6 +184,17 @@ export function ViewSwitch({
     [navigate],
   );
 
+  // The Reader opens on one file from the Map's Files rows and from a finding
+  // on the Checks page, and its back button returns to the page it came from.
+  const [readerBack, setReaderBack] = useState<string>("map");
+  const handleOpenReader = useCallback(
+    (path: string, blockID?: string) => {
+      setReaderBack(effectiveView.split(":")[0] === "checks" ? "checks" : "map");
+      navigate(readerView(path, blockID));
+    },
+    [effectiveView, navigate],
+  );
+
   // Run a project flow from the home page: navigate to the runner view. An
   // optional scope (the per-collection "Run") restricts the run to a single
   // collection's files.
@@ -312,9 +325,26 @@ export function ViewSwitch({
             projectName={activeTab.info.name || history.project.name}
             onDecide={handleDecide}
             onNavigate={navigate}
+            onOpenReader={handleOpenReader}
             setupPending={!!activeTab.isEmpty || !!activeTab.detectedPreset}
           />
         );
+
+      case "reader": {
+        const target = readerTargetOf(effectiveView);
+        if (!target) return null;
+        return (
+          <ReaderPage
+            key={target.path}
+            tabID={tabID}
+            path={target.path}
+            focusBlockID={target.blockID}
+            onBack={() => navigate(readerBack)}
+            backLabel={readerBack === "checks" ? t("Back to checks") : t("Back to the Map")}
+            onNavigate={navigate}
+          />
+        );
+      }
 
       // `content` folds into the merged project home (issue #1068). Kept as an
       // alias so existing onNavigate("content") calls and saved deep links still
@@ -434,7 +464,13 @@ export function ViewSwitch({
         );
 
       case "checks":
-        return <ChecksPanel tabID={tabID} onOpenContext={handleOpenContext} />;
+        return (
+          <ChecksPanel
+            tabID={tabID}
+            onOpenContext={handleOpenContext}
+            onOpenReader={handleOpenReader}
+          />
+        );
 
       case "review":
         return (

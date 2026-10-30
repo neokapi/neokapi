@@ -180,6 +180,9 @@ func TestFixFinding_TermRule(t *testing.T) {
 	again, err := app.ReaderFile(tabID, "locales/en.json")
 	require.NoError(t, err)
 	assert.Equal(t, f.ID, readerFinding(t, again, "use, not utilize").ID, "a finding keeps its id between reads")
+	byAbs, err := app.ReaderFile(tabID, srcPath)
+	require.NoError(t, err, "the Checks page names the file by its absolute path")
+	assert.Equal(t, "locales/en.json", byAbs.Path)
 
 	after, err := app.FixFinding(tabID, "locales/en.json", f.ID)
 	require.NoError(t, err)

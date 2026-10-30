@@ -87,6 +87,11 @@ export interface ChecksPanelProps {
    * inspecting the file, so a finding can be opened without a backend.
    */
   previewTree?: ContentTree;
+  /**
+   * Open a file in the Reader, at one block when a finding names it. Absent,
+   * a file opens in the document preview.
+   */
+  onOpenReader?: (path: string, blockID?: string) => void;
 }
 
 /** What a finding does to the check as a badge: the shared tone, and the word the panel uses for it. */
@@ -231,6 +236,7 @@ export function ChecksPanel({
   changes,
   onOpenContext,
   previewTree,
+  onOpenReader,
 }: ChecksPanelProps) {
   const { showError } = useError();
   const { active: activeFilter } = useActiveFilter();
@@ -329,13 +335,21 @@ export function ChecksPanel({
     [fixer, showError],
   );
 
-  // Open the file in the document sheet: at one finding's block, on the side it
-  // names, or on the whole file with every finding drawn. A finding that names
-  // no block (a file that could not be read) opens the file.
-  const openInDocument = useCallback((file: CheckFileResult, finding: DesktopFinding | null) => {
-    setDocumentAt({ file, finding: finding?.block_id ? finding : null });
-    setDocumentOpen(true);
-  }, []);
+  // Open the file in the Reader when the host gives one, or else in the
+  // document sheet: at one finding's block, on the side it names, or on the
+  // whole file with every finding drawn. A finding that names no block (a file
+  // that could not be read) opens the file.
+  const openInDocument = useCallback(
+    (file: CheckFileResult, finding: DesktopFinding | null) => {
+      if (onOpenReader) {
+        onOpenReader(file.path, finding?.block_id || undefined);
+        return;
+      }
+      setDocumentAt({ file, finding: finding?.block_id ? finding : null });
+      setDocumentOpen(true);
+    },
+    [onOpenReader],
+  );
 
   const documentHighlights = useMemo(
     () =>

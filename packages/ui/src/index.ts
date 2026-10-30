@@ -257,6 +257,7 @@ export type {
   JudgementCardProps,
   AIPreReviewProps,
   ProvenanceCardProps,
+  FindingMark,
   FindingSnippetProps,
   ReviewTermHitView,
   ReviewFindingView,

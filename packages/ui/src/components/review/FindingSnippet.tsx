@@ -39,12 +39,25 @@ export interface FindingSnippetProps {
   /** What the mark says on hover: the finding's message. */
   label?: string;
   /**
+   * More findings to mark in the same runs, each in its own tone: a block read
+   * whole with every finding on it drawn where it sits.
+   */
+  marks?: readonly FindingMark[];
+  /**
    * The offending text as the checker quoted it, shown marked on its own when
    * the block's runs are unavailable.
    */
   fallbackText?: string;
   className?: string;
   "data-testid"?: string;
+}
+
+/** One finding to mark in a snippet's runs. */
+export interface FindingMark {
+  anchor: Anchor;
+  tone: FindingTone;
+  /** What the mark says on hover. */
+  label?: string;
 }
 
 /** The side name a lone snippet resolves its highlight under. */
@@ -56,6 +69,7 @@ export function FindingSnippet({
   anchor,
   tone,
   label,
+  marks: extra,
   fallbackText,
   className,
   "data-testid": testID,
@@ -64,10 +78,20 @@ export function FindingSnippet({
   const text = React.useMemo(() => (hasRuns ? runsText(runs) : ""), [hasRuns, runs]);
   const codes = React.useMemo(() => (hasRuns ? runsCodes(runs) : []), [hasRuns, runs]);
   const marks = React.useMemo(() => {
-    if (!hasRuns || !anchor) return [];
-    const mark = resolveHighlight(runs, { side: OWN_SIDE, anchor, tone, label: label ?? "" });
-    return mark ? [mark] : [];
-  }, [hasRuns, runs, anchor, tone, label]);
+    if (!hasRuns) return [];
+    const wanted: FindingMark[] = [...(anchor ? [{ anchor, tone, label }] : []), ...(extra ?? [])];
+    return wanted
+      .map((m) =>
+        resolveHighlight(runs, {
+          side: OWN_SIDE,
+          anchor: m.anchor,
+          tone: m.tone,
+          label: m.label ?? "",
+        }),
+      )
+      .filter((m): m is NonNullable<typeof m> => m !== null)
+      .sort((a, b) => a.start - b.start);
+  }, [hasRuns, runs, anchor, tone, label, extra]);
   const nodes = React.useMemo(() => {
     if (!hasRuns) return null;
     return weaveInline(

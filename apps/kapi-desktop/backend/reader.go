@@ -148,8 +148,8 @@ type readerRead struct {
 // ReaderFile reads one content file of the project a tab holds for the
 // Reader: its blocks, the findings a checks run over that file reports on
 // each, and the rules the context answer for it holds. relPath is
-// project-relative. A file the project keeps a translation in is refused:
-// the Reader reads the source.
+// project-relative, or absolute inside the project. A file the project keeps
+// a translation in is refused: the Reader reads the source.
 func (a *App) ReaderFile(tabID, relPath string) (*ReaderFileDTO, error) {
 	r, err := a.readerRead(tabID, relPath)
 	if err != nil {
@@ -296,7 +296,15 @@ func (a *App) readerRead(tabID, relPath string) (*readerRead, error) {
 	if op.contextOnly || op.Project == nil || op.Path == "" {
 		return nil, errors.New("the tab has no project recipe on disk")
 	}
-	rel := path.Clean(filepath.ToSlash(strings.TrimSpace(relPath)))
+	name := strings.TrimSpace(relPath)
+	// The Checks page names a file by its absolute path; one inside the
+	// project reads as the project-relative path it is.
+	if filepath.IsAbs(name) {
+		if inner, rerr := filepath.Rel(filepath.Dir(op.Path), name); rerr == nil {
+			name = inner
+		}
+	}
+	rel := path.Clean(filepath.ToSlash(name))
 	if rel == "." || rel == "" || strings.HasPrefix(rel, "../") || path.IsAbs(rel) {
 		return nil, fmt.Errorf("%q is not a file in the project", relPath)
 	}
@@ -403,9 +411,9 @@ func (r *readerRead) place(blocks []*model.Block, findings []DesktopFinding) {
 			r.dto.Document = append(r.dto.Document, f)
 			continue
 		}
-		if df.Field != "target" {
-			f.Span = readerSpan(r.dto.Blocks[i].Runs, df.Position)
-		}
+		// A finding on a translation is anchored to the source runs too
+		// (core/check), at the words the translation lost or changed.
+		f.Span = readerSpan(r.dto.Blocks[i].Runs, df.Position)
 		r.dto.Blocks[i].Findings = append(r.dto.Blocks[i].Findings, f)
 	}
 	for i := range r.dto.Blocks {

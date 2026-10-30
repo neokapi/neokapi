@@ -33,6 +33,7 @@ import type {
   ExtractResult,
   StoreSyncResult,
   MapSummary,
+  ReaderFile,
   ConvergenceReport,
   ConvergePlan,
   RunError,
@@ -259,6 +260,13 @@ export const api = {
     call<CheckRunResult>("RunChecks", tabID, filter),
   /** The last checks run over every file and target language, the Map's findings. */
   lastProjectChecks: (tabID: string) => call<CheckRunResult>("LastProjectChecks", tabID),
+
+  // The Reader: one file's blocks, the findings on them and the rules that
+  // hold there; a fix goes through the change service. See backend/reader.go.
+  readerFile: (tabID: string, relPath: string) => call<ReaderFile>("ReaderFile", tabID, relPath),
+  fixFinding: (tabID: string, relPath: string, findingID: string) =>
+    call<ReaderFile>("FixFinding", tabID, relPath, findingID),
+  fixFile: (tabID: string, relPath: string) => call<ReaderFile>("FixFile", tabID, relPath),
 
   // Runner (scoped to tab)
   runFlow: (tabID: string, name: string, inputPaths: string[], targetLangs: string[]) =>

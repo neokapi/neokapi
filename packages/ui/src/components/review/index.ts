@@ -22,6 +22,6 @@ export {
   decisionLabel,
   type ProvenanceCardProps,
 } from "./ProvenanceCard";
-export { FindingSnippet, type FindingSnippetProps } from "./FindingSnippet";
+export { FindingSnippet, type FindingMark, type FindingSnippetProps } from "./FindingSnippet";
 export { checkFindingViews } from "./model";
 export type { ReviewTermHitView, ReviewFindingView, CheckFindingLike } from "./types";
