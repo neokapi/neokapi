@@ -7,8 +7,8 @@ package backend
 //
 // The run writes the project's context log, which a folder opened without a
 // recipe has no home for. Asking for it is an act on the project, as running
-// a flow is, so the folder's kapi.yaml is written first (ensureRecipe), the way
-// a flow run writes it.
+// a flow is, so once a model is known to answer, the folder's kapi.yaml is
+// written first (ensureRecipe), the way a flow run writes it.
 
 import (
 	"context"
@@ -65,9 +65,9 @@ func (a *App) DeeperLookModel(tabID string) (*DeeperLookModelDTO, error) {
 		return nil, fmt.Errorf("project tab %q not found", tabID)
 	}
 	run := &host.App{Credentials: a.credentials, Config: a.aiConfig}
-	provider, model, ok := run.ResolveDeeperLookModel(op.Project)
-	if !ok {
-		return &DeeperLookModelDTO{}, nil
+	provider, model, err := run.ResolveDeeperLookModel(op.Project)
+	if err != nil {
+		return &DeeperLookModelDTO{}, nil //nolint:nilerr // no model to ask is the answer, not a failure
 	}
 	return &DeeperLookModelDTO{Connected: true, Provider: provider, Model: model}, nil
 }
@@ -83,6 +83,12 @@ func (a *App) DeeperLook(tabID string) (*DeeperLookDTO, error) {
 	if op.contextOnly || op.Path == "" {
 		return nil, errors.New("this tab holds no files to read: open the project's folder")
 	}
+	// The refusal comes before anything is written: a folder without a
+	// recipe gets one only for a run that will ask a model.
+	run := a.deeperLookApp()
+	if _, _, err := run.ResolveDeeperLookModel(op.Project); err != nil {
+		return nil, err
+	}
 	if err := a.ensureRecipe(op); err != nil {
 		return nil, err
 	}
@@ -93,7 +99,7 @@ func (a *App) DeeperLook(tabID string) (*DeeperLookDTO, error) {
 	// the Map.
 	ctx = withAIScope(ctx, AIActivityScope{Surface: "map", Action: "deeper-look"})
 
-	res, err := a.deeperLookApp().DeeperLook(ctx, host.DeeperLookRequest{Project: op.Path})
+	res, err := run.DeeperLook(ctx, host.DeeperLookRequest{Project: op.Path})
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +113,8 @@ func (a *App) DeeperLook(tabID string) (*DeeperLookDTO, error) {
 	if res.Usage != nil {
 		out.Tokens = res.Usage.TotalTokens()
 	}
-	if out.Filed > 0 {
+	if res.ChangedCount() > 0 {
+		// A row filed or filed again changes what the Map and Decide list.
 		a.emitEvent("workspace:changed", nil)
 	}
 	return out, nil

@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -113,6 +114,19 @@ func TestDeeperLook_FilesWhatTheMapShows(t *testing.T) {
 	settled, err := app.MapSummary(tabID)
 	require.NoError(t, err)
 	assert.Equal(t, 7, settled.Suggested)
+}
+
+func TestDeeperLook_RefusesBeforeWritingTheRecipeOfAFolder(t *testing.T) {
+	app := deeperLookTestApp(t)
+	dir := contentFolder(t, "harbor-unconnected")
+	tab, err := app.OpenProject(dir)
+	require.NoError(t, err)
+	t.Cleanup(func() { app.CloseProject(tab.ID) })
+
+	_, err = app.DeeperLook(tab.ID)
+	require.ErrorIs(t, err, host.ErrNoAIProvider)
+	_, err = os.Stat(filepath.Join(dir, "kapi.yaml"))
+	assert.ErrorIs(t, err, fs.ErrNotExist, "a run with no model to ask writes nothing")
 }
 
 func TestDeeperLook_WritesTheRecipeOfAFolderFirst(t *testing.T) {

@@ -66,6 +66,8 @@ export const DEEPER_LOOK_RESULT_MS = 6000;
 export interface DeeperLookState {
   /** The model a run asks; null when none is connected. */
   model: string | null;
+  /** Whether a model is connected is not known yet; the button waits. */
+  pending?: boolean;
   /** A run is in progress. */
   running?: boolean;
   /** The run that just ended, shown for a few seconds. */
@@ -206,12 +208,16 @@ export function MapPage({
         onRun={() => run.mutate()}
         deeperLook={{
           model: lookModel?.connected ? (lookModel.model ?? lookModel.provider ?? "") : null,
+          pending: lookModel === null,
           running: look.isPending,
           result: lookResult,
           error: look.error && !noModelError(look.error) ? look.error : undefined,
         }}
         onDeeperLook={() => {
-          if (lookModel && !lookModel.connected) setConnectOpen((open) => !open);
+          // Until the backend says whether a model is connected, a click has
+          // nothing to run and nothing to offer.
+          if (lookModel === null) return;
+          if (!lookModel.connected) setConnectOpen((open) => !open);
           else look.mutate();
         }}
         connectAI={
@@ -425,7 +431,7 @@ function DeeperLookRow({
   disabled?: boolean;
   onRun: () => void;
 }) {
-  const { model, running, result, error } = state;
+  const { model, pending, running, result, error } = state;
   let line: React.ReactNode = t("Reads your files with the connected model and suggests rules.");
   if (running) line = null;
   else if (result && result.filed > 0) {
@@ -443,7 +449,7 @@ function DeeperLookRow({
           variant="outline"
           data-slot="map-deeper-look-run"
           data-connected={model !== null}
-          disabled={running || disabled}
+          disabled={pending || running || disabled}
           onClick={onRun}
         >
           {running ? <LoadingSpinner size="sm" /> : <Sparkles size={14} />}

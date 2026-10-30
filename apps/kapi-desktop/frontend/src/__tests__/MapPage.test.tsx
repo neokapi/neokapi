@@ -1,4 +1,4 @@
-import { act, render, screen, within, waitFor } from "./testUtils";
+import { act, fireEvent, render, screen, within, waitFor } from "./testUtils";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, it, expect, vi } from "vite-plus/test";
 import { DEEPER_LOOK_RESULT_MS, MapPage, MapView, decideRowKey } from "../components/MapPage";
@@ -304,6 +304,25 @@ describe("the deeper look on the Map", () => {
     expect(
       screen.getByText("Reads your files with the connected model and suggests rules."),
     ).toBeInTheDocument();
+  });
+
+  it("waits, and runs nothing, until it knows whether a model is connected", async () => {
+    vi.spyOn(api, "deeperLookModel").mockReturnValue(new Promise(() => {}));
+    const look = vi.spyOn(api, "deeperLook").mockResolvedValue(LOOKED);
+    render(
+      <MapPage
+        tabID="t-pending"
+        projectName="Fernwell"
+        summary={MAP_PENDING}
+        onDecide={vi.fn()}
+        onNavigate={vi.fn()}
+      />,
+    );
+    const button = screen.getByRole("button", { name: "Deeper look with AI" });
+    expect(button).toBeDisabled();
+    fireEvent.click(button);
+    expect(look).not.toHaveBeenCalled();
+    expect(screen.queryByText("Connect your AI")).not.toBeInTheDocument();
   });
 
   it("shows why the run failed", async () => {

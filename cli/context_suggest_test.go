@@ -206,6 +206,9 @@ func TestContextSuggestAIDryRunFilesNothing(t *testing.T) {
 
 	out := runContext(t, a, "suggest", "--ai", "--dry-run", "-p", recipe)
 	assert.Regexp(t, `(?m)^Would file\s+Write Harbor Help, not Harbor-Help or HarborHelp\.`, out)
+	assert.Equal(t, 1, strings.Count(out, "Would file    The files address the reader as you"), out)
+	assert.Regexp(t, `(?m)^Known\s+The files address the reader as you \(person_pov: second\)\.$`, out,
+		"the pass would file it in the same run, so the model's reading of it is known")
 	assert.Regexp(t, `(?m)^demo-stub read 7 blocks in 2 files`, out, "a dry run still asks the model")
 	assert.NotContains(t, out, "Decide with")
 
@@ -257,20 +260,33 @@ func TestContextSuggestAIJSON(t *testing.T) {
 }
 
 func TestContextSuggestAIRefusesWithoutAProvider(t *testing.T) {
-	clearAIEnv(t)
-	recipe := writeDeeperProject(t)
-	a := &App{}
+	for _, tt := range []struct {
+		name string
+		env  map[string]string
+	}{
+		{name: "nothing configured"},
+		{name: "a key for a provider the run would not build", env: map[string]string{"OPENAI_API_KEY": "sk-test-not-a-key"}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			clearAIEnv(t)
+			for k, v := range tt.env {
+				t.Setenv(k, v)
+			}
+			recipe := writeDeeperProject(t)
+			a := &App{}
 
-	_, err := runContextE(t, a, "suggest", "--ai", "-p", recipe)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "no AI provider configured")
+			_, err := runContextE(t, a, "suggest", "--ai", "-p", recipe)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "no AI provider configured")
 
-	log := runContext(t, a, "log", "-p", recipe, "--json")
-	var ops struct {
-		Operations []json.RawMessage `json:"operations"`
+			log := runContext(t, a, "log", "-p", recipe, "--json")
+			var ops struct {
+				Operations []json.RawMessage `json:"operations"`
+			}
+			require.NoError(t, json.Unmarshal([]byte(log), &ops), log)
+			assert.Empty(t, ops.Operations, "the refusal comes before the pass files anything")
+		})
 	}
-	require.NoError(t, json.Unmarshal([]byte(log), &ops), log)
-	assert.Empty(t, ops.Operations, "the refusal comes before the pass files anything")
 }
 
 // TestContextSuggestNamesNoLanguageWork: in a one-language project the pass
