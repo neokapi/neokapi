@@ -3,8 +3,10 @@ import { AssistantsPage } from "../components/AssistantsPage";
 import {
   ASSISTANTS_CHECK_PENDING,
   ASSISTANTS_CLAUDE_CONNECTED,
+  ASSISTANTS_HOSTS_FAILED,
   ASSISTANTS_NO_CHECKOUT,
   ASSISTANTS_NONE,
+  ASSISTANTS_RULES_MISSING,
   SESSIONS,
   session,
 } from "./fixtures/assistants";
@@ -47,6 +49,12 @@ export const ClaudeCodeConnected: Story = { args: { view: ASSISTANTS_CLAUDE_CONN
 
 /** Claude Code connected; the check waits on the two commands that install the plugin. */
 export const CheckPending: Story = { args: { view: ASSISTANTS_CHECK_PENDING } };
+
+/** Claude Code's own files in place and the rules files deleted: not connected, Connect again. */
+export const RulesFilesMissing: Story = { args: { view: ASSISTANTS_RULES_MISSING } };
+
+/** The assistants could not be read: the error stands in their place and the sessions stay. */
+export const AssistantsFailed: Story = { args: { view: ASSISTANTS_HOSTS_FAILED } };
 
 /** A tab over the project's context alone: no assistant can be connected, the sessions stay. */
 export const NoCheckout: Story = { args: { view: ASSISTANTS_NO_CHECKOUT } };

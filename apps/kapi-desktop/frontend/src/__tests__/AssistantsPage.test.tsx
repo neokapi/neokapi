@@ -7,8 +7,10 @@ import { api } from "../hooks/useApi";
 import {
   ASSISTANTS_CHECK_PENDING,
   ASSISTANTS_CLAUDE_CONNECTED,
+  ASSISTANTS_HOSTS_FAILED,
   ASSISTANTS_NO_CHECKOUT,
   ASSISTANTS_NONE,
+  ASSISTANTS_RULES_MISSING,
   CLAUDE_DESKTOP_CONFIG,
   CONNECT_CLAUDE_DESKTOP_RESULT,
   CONNECT_CURSOR_RESULT,
@@ -84,6 +86,13 @@ describe("the Assistants page", () => {
     expect(state("claude-code")).toBe("Connected · rules + check on every edit");
     expect(row("claude-code")!.querySelector("button")).toBeNull();
     expect(state("cursor")).toBe("Not connected");
+  });
+
+  it("reads as not connected when the rules files are missing, and offers Connect", () => {
+    page(ASSISTANTS_RULES_MISSING);
+    expect(state("claude-code")).toBe("Not connected: rules files missing");
+    expect(connectButton("claude-code")).not.toBeNull();
+    expect(row("claude-code")!.querySelector("[data-slot='assistant-host-pending']")).toBeNull();
   });
 
   it("shows what an assistant reads from the page, before any assistant is connected", async () => {
@@ -198,10 +207,41 @@ describe("sessions", () => {
     expect(onOpenSession).toHaveBeenLastCalledWith();
   });
 
-  it("shows the empty state when nothing is recorded", () => {
+  it("shows the empty state when nothing is recorded, with Connect an assistant as its action", async () => {
     page(ASSISTANTS_NONE);
     expect(screen.getByText("No sessions yet")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "All sessions" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Connect an assistant" }));
+    expect(document.activeElement).toBe(connectButton("claude-code"));
+  });
+
+  it("offers no Connect in the empty state when every assistant is connected", () => {
+    page({
+      ...ASSISTANTS_CLAUDE_CONNECTED,
+      hosts: ASSISTANTS_CLAUDE_CONNECTED.hosts.map((h) => ({ ...h, connected: true })),
+      sessions: [],
+    });
+    expect(screen.getByText("No sessions yet")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Connect an assistant" })).toBeNull();
+  });
+
+  it("keeps the sessions when the assistants could not be read", () => {
+    page(ASSISTANTS_HOSTS_FAILED);
+    expect(document.querySelector("[data-slot='assistants-hosts-error']")).toHaveTextContent(
+      "The assistants could not be read",
+    );
+    expect(document.querySelector("[data-slot='assistant-host']")).toBeNull();
+    expect(document.querySelector("[data-slot='assistants-pitch']")).toBeNull();
+    expect(document.querySelectorAll("[data-slot='assistant-session']")).toHaveLength(2);
+  });
+
+  it("keeps the assistants when the sessions could not be read", () => {
+    page({ ...ASSISTANTS_CLAUDE_CONNECTED, sessions: [], sessions_error: "the log is locked" });
+    expect(document.querySelector("[data-slot='assistants-sessions-error']")).toHaveTextContent(
+      "The sessions could not be read",
+    );
+    expect(state("claude-code")).toBe("Connected · rules + check on every edit");
+    expect(screen.queryByText("No sessions yet")).toBeNull();
   });
 
   it("counts at most three facts, and the operations when none applies", () => {

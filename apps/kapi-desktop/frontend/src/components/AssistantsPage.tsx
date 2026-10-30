@@ -13,7 +13,7 @@
 // project or the person enables it, the row names the two commands that
 // install it.
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronRight, Inbox } from "lucide-react";
 import { t } from "@neokapi/i18n-react/runtime";
@@ -118,12 +118,25 @@ export function AssistantsPage({
     if (host.personal) setConfirming(host);
     else connect.mutate(host.host);
   };
+  // The empty sessions' action takes the person to the first Connect.
+  const hostsRef = useRef<HTMLElement>(null);
+  const focusConnect = () => {
+    const button = hostsRef.current?.querySelector<HTMLButtonElement>(
+      "[data-slot='assistant-host-connect']",
+    );
+    button?.scrollIntoView?.({ block: "center" });
+    button?.focus();
+  };
 
   return (
     <div data-slot="assistants-page">
       <PageHeader
         title={t("{project} · Assistants", { project: projectName })}
-        subtitle={view && !view.needs_checkout && <PitchLine rules={view.rules} />}
+        subtitle={
+          view &&
+          !view.needs_checkout &&
+          view.rules !== undefined && <PitchLine rules={view.rules} />
+        }
         actions={
           // Every assistant reads the same rules files and briefs, so what it
           // reads is the page's, reachable before any assistant is connected.
@@ -141,12 +154,16 @@ export function AssistantsPage({
         query.isLoading && <LoadingSpinner />
       ) : (
         <>
-          <section data-slot="assistants-hosts">
+          <section data-slot="assistants-hosts" ref={hostsRef}>
             <SectionHeading className="mb-1">Assistants</SectionHeading>
             {view.needs_checkout ? (
               <p data-slot="assistants-needs-checkout" className="text-sm text-muted-foreground">
                 Connecting an assistant needs a checkout of this project on this Mac.
               </p>
+            ) : view.hosts_error ? (
+              <div data-slot="assistants-hosts-error">
+                <ErrorNotice error={view.hosts_error} title="The assistants could not be read" />
+              </div>
             ) : (
               <ul className="divide-y divide-border/60">
                 {view.hosts.map((h) => (
@@ -167,7 +184,19 @@ export function AssistantsPage({
 
           <section data-slot="assistants-sessions" className="mt-8">
             <SectionHeading className="mb-1">Sessions</SectionHeading>
-            <SessionList sessions={view.sessions} onOpenSession={onOpenSession} />
+            {view.sessions_error ? (
+              <div data-slot="assistants-sessions-error">
+                <ErrorNotice error={view.sessions_error} title="The sessions could not be read" />
+              </div>
+            ) : (
+              <SessionList
+                sessions={view.sessions}
+                onOpenSession={onOpenSession}
+                onConnect={
+                  view.hosts.some((h) => !h.connected && h.available) ? focusConnect : undefined
+                }
+              />
+            )}
           </section>
         </>
       )}
@@ -253,6 +282,8 @@ function HostRow({
                     {t("Connected")} · <Gets check={host.check} />
                   </span>
                 </SimpleTooltip>
+              ) : host.reason === "rules files missing" ? (
+                t("Not connected: rules files missing")
               ) : (
                 t("Not connected")
               )}
@@ -358,9 +389,12 @@ function FileAction({ action }: { action: string }) {
 function SessionList({
   sessions,
   onOpenSession,
+  onConnect,
 }: {
   sessions: AssistantSession[];
   onOpenSession: (id?: string) => void;
+  /** Take the person to an assistant's Connect. Absent when none is left to connect. */
+  onConnect?: () => void;
 }) {
   if (sessions.length === 0) {
     return (
@@ -368,6 +402,18 @@ function SessionList({
         icon={<Inbox size={20} />}
         title="No sessions yet"
         description="What an assistant or you record in this project appears here, one row per session."
+        action={
+          onConnect && (
+            <Button
+              size="sm"
+              variant="outline"
+              data-slot="assistant-sessions-connect"
+              onClick={onConnect}
+            >
+              Connect an assistant
+            </Button>
+          )
+        }
       />
     );
   }
