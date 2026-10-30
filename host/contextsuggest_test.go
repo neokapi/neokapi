@@ -376,6 +376,14 @@ func TestSuggestFromFiles_GainedFormUpdatesInPlace(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, contextop.StatusWithdrawn, old.Status, "the earlier suggestion is taken back")
 
+	refiled, err := app.ContextSubject(ctx, recipeOf(root), updated[0].ID)
+	require.NoError(t, err)
+	assert.Equal(t, contextop.StatusSuggested, refiled.Status, "taking back its own earlier wording does not contest it")
+	if refiled.Standing != nil {
+		assert.Zero(t, refiled.Standing.Against, "the withdrawal that replaced it counts for nothing against it")
+		assert.Empty(t, refiled.Standing.AgainstBy)
+	}
+
 	// One suggestion about the word is waiting, not two.
 	waiting, err := app.ContextOperations(ctx, ContextLogRequest{Project: recipeOf(root), Status: contextop.StatusSuggested, Subjects: true})
 	require.NoError(t, err)
