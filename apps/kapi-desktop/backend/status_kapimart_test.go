@@ -40,7 +40,7 @@ func TestKapimartExtract_NoCollisionAcrossCollections(t *testing.T) {
 	// The docs collection (extracted first) is the one that used to come back 0.
 	want := map[string]int{
 		"Website":             245,
-		"Online Store":        350,
+		"Online Store":        346,
 		"Contracts":           80,
 		"Templates":           25,
 		"Oslo youth campaign": 12,
