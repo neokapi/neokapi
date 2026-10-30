@@ -61,8 +61,8 @@ func (e DesktopEnv) withDefaults(goos string) DesktopEnv {
 }
 
 // desktopCandidates are the places an install puts Kapi Desktop, in the order
-// they are tried: the macOS app bundle, the Windows installer's two scopes,
-// the binary the Linux archive holds.
+// they are tried: the macOS app bundle, the Windows installer's per-user and
+// machine folders, the binary the Linux archive holds.
 func desktopCandidates(e DesktopEnv) []string {
 	home := e.Getenv("HOME")
 	switch e.GOOS {

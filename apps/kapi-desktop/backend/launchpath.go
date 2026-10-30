@@ -10,9 +10,9 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 )
 
-// A project reaches the app from outside it in three ways: macOS hands it a
-// path as an opened file (`open -a Kapi <folder>`, a drop on the dock icon),
-// Linux and Windows start it with the path as its first argument, and a second
+// A project reaches the app from outside it in three ways. macOS hands it a
+// path as an opened file (`open -a Kapi <folder>`, a drop on the dock icon).
+// Linux and Windows start it with the path as its first argument. A second
 // launch on Linux or Windows forwards its arguments to the window already
 // open. `kapi open` uses the first two.
 
