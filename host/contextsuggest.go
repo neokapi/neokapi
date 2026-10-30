@@ -2,8 +2,6 @@ package host
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"maps"
@@ -271,37 +269,41 @@ func (s *contextOpsSession) suggestFromFiles(ctx context.Context, dry bool) (Con
 	return out, nil
 }
 
-// suggestPassStampPath is the path of the stamp a run of the suggestions pass
-// leaves for a checkout, in the table where `kapi store import` stamps each
-// context file it read (workspace.ContextImportStamp). It begins with a slash,
-// so no project-relative file path is spelled the same way. A run that files
-// nothing leaves nothing in the context log, and the stamp is how the first
-// look at a project (lookFirstPass) knows the pass has run there.
+// suggestPassStampPath is the path of the stamp that says the suggestions
+// pass is settled for a checkout, in the table where `kapi store import`
+// stamps each context file it read (workspace.ContextImportStamp). It begins
+// with a slash, so no project-relative file path is spelled the same way. The
+// pass writes it after each run, since a run that files nothing leaves
+// nothing in the context log. The first look at a project (lookFirstPass)
+// reads it, and writes it for a project whose log already holds rules.
 const suggestPassStampPath = "/kapi context suggest"
 
-// noteSuggestPass stamps the checkout with the digest of the blocks the pass
-// read. A pass that read no blocks has seen nothing, and a workspace opened
-// for reading records nothing, so both leave the checkout unstamped.
+// noteSuggestPass stamps the checkout as one the suggestions pass is settled
+// for. A pass that read no blocks has seen nothing, and leaves the checkout
+// unstamped.
 func (s *contextOpsSession) noteSuggestPass(ctx context.Context, c suggestCorpus) error {
-	if len(c.blocks) == 0 || s.ws.Describe().ReadOnly {
+	if len(c.blocks) == 0 {
 		return nil
 	}
-	sum := sha256.New()
-	for _, b := range c.blocks {
-		_, _ = io.WriteString(sum, b.file+"\x00"+b.text+"\x00")
+	return stampSuggestPass(ctx, s.ws, s.key, s.root)
+}
+
+// stampSuggestPass writes the stamp for the checkout at root. A workspace
+// opened for reading records nothing.
+func stampSuggestPass(ctx context.Context, ws *workspace.Workspace, key workspace.ProjectKey, root string) error {
+	if ws.Describe().ReadOnly {
+		return nil
 	}
-	return s.ws.NoteContextImports(ctx, workspace.ContextImportStamp{
-		Project:  s.key,
-		Checkout: normalizedCheckout(s.root),
+	return ws.NoteContextImports(ctx, workspace.ContextImportStamp{
+		Project:  key,
+		Checkout: normalizedCheckout(root),
 		Path:     suggestPassStampPath,
-		Digest:   hex.EncodeToString(sum.Sum(nil)),
 	})
 }
 
-// suggestPassRan reports whether the suggestions pass has run over this
-// checkout: whether noteSuggestPass stamped it.
-func (s *contextOpsSession) suggestPassRan(ctx context.Context) (bool, error) {
-	stamps, err := s.ws.ContextImports(ctx, s.key, normalizedCheckout(s.root))
+// suggestPassSettled reports whether the checkout at root carries the stamp.
+func suggestPassSettled(ctx context.Context, ws *workspace.Workspace, key workspace.ProjectKey, root string) (bool, error) {
+	stamps, err := ws.ContextImports(ctx, key, normalizedCheckout(root))
 	if err != nil {
 		return false, err
 	}

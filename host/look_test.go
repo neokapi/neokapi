@@ -259,7 +259,8 @@ func TestLookProject_NoBlocksNoStamp(t *testing.T) {
 }
 
 // TestLookProject_KeptRuleRunsNoPass: a project with a rule a person kept is
-// past its first look, so the look runs no pass over it.
+// past its first look, so the look runs no pass over it and stamps the
+// checkout, and the next look reads the stamp alone.
 func TestLookProject_KeptRuleRunsNoPass(t *testing.T) {
 	app, _ := contextOpsApp(t)
 	root := suggestProject(t, "keptrule", "", map[string]string{
@@ -274,7 +275,14 @@ func TestLookProject_KeptRuleRunsNoPass(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Zero(t, lookMap(t, app, root).Suggests)
-	_, ok := lookStamp(t, app, "keptrule", root)
-	assert.False(t, ok, "no pass ran")
+	assert.Zero(t, kapiRecords(t, app, root), "no pass ran")
+	first, ok := lookStamp(t, app, "keptrule", root)
+	require.True(t, ok, "the look stamps a project that already holds a rule")
+	assert.Empty(t, first.Digest)
+
+	lookMap(t, app, root)
+	second, ok := lookStamp(t, app, "keptrule", root)
+	require.True(t, ok)
+	assert.Equal(t, first.At, second.At, "the second look writes nothing")
 	assert.Zero(t, kapiRecords(t, app, root))
 }

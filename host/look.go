@@ -19,6 +19,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/workspace"
 	"github.com/neokapi/neokapi/host/output"
 )
 
@@ -199,16 +200,26 @@ func (a *App) LookProject(cmd Command) (*LookProject, error) {
 
 // lookFirstPass runs the suggestions pass (`kapi context suggest`) the first
 // time a project is looked at, so the Map of a new project counts what the
-// files already do. It runs over a checkout the pass has never stamped, in a
-// project whose context log holds no rule and no suggestion that answers. A
-// pass that cannot run leaves the Map to count what the log holds, and the
-// Map prints nothing about it either way.
+// files already do. It runs over a checkout with no suggestPassStampPath
+// stamp, in a project whose context log holds no rule and no suggestion that
+// answers. A project whose log holds one is stamped instead, so a later look
+// reads the stamp alone. A pass that cannot run leaves the Map to count what
+// the log holds, and the Map prints nothing about it either way.
 func (a *App) lookFirstPass(ctx context.Context, recipe string) {
-	s, err := a.contextOps(ctx, recipe)
-	if err != nil || !s.checkedOut() || s.ws.Describe().ReadOnly {
+	ws, err := a.Workspace(ctx)
+	if err != nil || ws == nil || ws.Describe().ReadOnly {
 		return
 	}
-	if ran, err := s.suggestPassRan(ctx); err != nil || ran {
+	identity, _ := recipeIdentity(recipe)
+	if identity == "" {
+		return
+	}
+	key, root := workspace.ProjectKey(identity), filepath.Dir(recipe)
+	if settled, err := suggestPassSettled(ctx, ws, key, root); err != nil || settled {
+		return
+	}
+	s, err := a.contextOps(ctx, recipe)
+	if err != nil || !s.checkedOut() {
 		return
 	}
 	records, err := s.ledger.Records(ctx, contextop.Filter{Project: s.key, Subjects: true})
@@ -217,6 +228,7 @@ func (a *App) lookFirstPass(ctx context.Context, recipe string) {
 	}
 	for _, r := range records {
 		if r.Status.Answers() {
+			_ = stampSuggestPass(ctx, ws, s.key, s.root)
 			return
 		}
 	}
