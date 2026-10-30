@@ -46,9 +46,9 @@ func TestMatchTermRulesInRuns_ProseScopeReadsCodeFromTheRuns(t *testing.T) {
 
 	// Without the runs the text alone says nothing about code, so a prose
 	// rule reads all of it as prose.
-	assert.Len(t, MatchTermRules(prose, text), 2)
+	assert.Len(t, MatchTermRulesInText(prose, text), 2)
 	// The same text written with backticks says it.
-	assert.Len(t, MatchTermRules(prose, "Run `leverage --now`, then leverage it."), 1)
+	assert.Len(t, MatchTermRulesInText(prose, "Run `leverage --now`, then leverage it."), 1)
 }
 
 func TestScopedText(t *testing.T) {
@@ -68,7 +68,7 @@ func TestScopedText(t *testing.T) {
 func TestMatchTermRules_URLsAreNotHits(t *testing.T) {
 	sets := []TermRuleSet{{Rules: []TermRule{{Term: "utilize", Replacement: "use"}}}}
 	text := "See https://example.com/utilize/setup, then utilize it."
-	hits := MatchTermRules(sets, text)
+	hits := MatchTermRulesInText(sets, text)
 	require.Len(t, hits, 1)
 	assert.Equal(t, strings.LastIndex(text, "utilize"), hits[0].Start)
 }
