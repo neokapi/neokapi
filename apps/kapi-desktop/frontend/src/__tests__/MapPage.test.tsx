@@ -140,7 +140,8 @@ describe("the Map", () => {
   it("says in one line when nobody has suggested anything, and leads to an assistant", async () => {
     const { onNavigate } = renderView(MAP_ALL_KEPT);
     const empty = document.querySelector('[data-slot="map-suggestions-empty"]') as HTMLElement;
-    expect(empty).toHaveTextContent("No suggestions yet. Connect an assistant.");
+    expect(empty).toHaveTextContent("No suggestions yet.");
+    expect(empty.textContent?.match(/Connect an assistant/g)).toHaveLength(1);
     expect(screen.queryByRole("button", { name: /^Decide/ })).not.toBeInTheDocument();
     await userEvent.click(within(empty).getByRole("button", { name: "Connect an assistant" }));
     expect(onNavigate).toHaveBeenCalledWith("context:agent");
@@ -153,6 +154,14 @@ describe("the Map", () => {
     await userEvent.click(within(empty).getByRole("button", { name: "Add files" }));
     expect(onAddFiles).toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "Run on everything" })).toBeDisabled();
+  });
+
+  it("leads a project waiting to be set up to the page that sets it up", async () => {
+    const { onNavigate } = renderView(MAP_EMPTY, { setupPending: true });
+    const empty = document.querySelector('[data-slot="map-files-empty"]') as HTMLElement;
+    expect(within(empty).queryByRole("button", { name: "Add files" })).not.toBeInTheDocument();
+    await userEvent.click(within(empty).getByRole("button", { name: "Set up the project" }));
+    expect(onNavigate).toHaveBeenCalledWith("project-home");
   });
 
   it("runs the checks on everything and shows a quiet progress state", async () => {

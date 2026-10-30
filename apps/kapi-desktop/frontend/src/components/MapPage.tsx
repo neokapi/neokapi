@@ -55,6 +55,11 @@ export interface MapPageProps {
   onDecide: (rowKey?: string) => void;
   /** Go to another view of the project: "checks", "context:atlas", … */
   onNavigate: (view: string) => void;
+  /**
+   * The project waits to be set up: its folder is empty, or it matches a
+   * preset. The files' empty state then leads to the page that sets it up.
+   */
+  setupPending?: boolean;
 }
 
 export function MapPage({
@@ -63,6 +68,7 @@ export function MapPage({
   summary: given,
   onDecide,
   onNavigate,
+  setupPending,
 }: MapPageProps) {
   const qc = useQueryClient();
   const key = qk.mapSummary(tabID);
@@ -129,6 +135,7 @@ export function MapPage({
         onRun={() => run.mutate()}
         onDecide={onDecide}
         onNavigate={onNavigate}
+        setupPending={setupPending}
         onShowFiles={() => filesRef.current?.scrollIntoView({ behavior: "smooth" })}
         onOpenFile={setPreview}
         onAddFiles={async () => {
@@ -156,6 +163,8 @@ export interface MapViewProps {
   onRun: () => void;
   onDecide: (rowKey?: string) => void;
   onNavigate: (view: string) => void;
+  /** The project waits to be set up (MapPageProps.setupPending). */
+  setupPending?: boolean;
   onShowFiles?: () => void;
   onOpenFile: (row: MapFileRow) => void;
   onAddFiles?: () => void;
@@ -171,6 +180,7 @@ export function MapView({
   onRun,
   onDecide,
   onNavigate,
+  setupPending,
   onShowFiles,
   onOpenFile,
   onAddFiles,
@@ -237,7 +247,7 @@ export function MapView({
           <div data-slot="map-suggestions-empty">
             <EmptyState
               icon={<Sparkles size={20} className="mx-auto" />}
-              title={t("No suggestions yet. Connect an assistant.")}
+              title={t("No suggestions yet.")}
               action={
                 <Button size="sm" variant="outline" onClick={() => onNavigate("context:agent")}>
                   Connect an assistant
@@ -262,10 +272,16 @@ export function MapView({
               icon={<FileText size={20} className="mx-auto" />}
               title={t("No content files yet")}
               action={
-                onAddFiles && (
-                  <Button size="sm" variant="outline" onClick={onAddFiles}>
-                    Add files
+                setupPending ? (
+                  <Button size="sm" variant="outline" onClick={() => onNavigate("project-home")}>
+                    Set up the project
                   </Button>
+                ) : (
+                  onAddFiles && (
+                    <Button size="sm" variant="outline" onClick={onAddFiles}>
+                      Add files
+                    </Button>
+                  )
                 )
               }
             />

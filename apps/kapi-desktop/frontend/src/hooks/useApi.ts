@@ -259,6 +259,8 @@ export const api = {
   // backend/checks.go.
   runChecks: (tabID: string, filter: ProjectFilter) =>
     call<CheckRunResult>("RunChecks", tabID, filter),
+  /** The last checks run over every file and target language, the Map's findings. */
+  lastProjectChecks: (tabID: string) => call<CheckRunResult>("LastProjectChecks", tabID),
 
   // Runner (scoped to tab)
   runFlow: (tabID: string, name: string, inputPaths: string[], targetLangs: string[]) =>

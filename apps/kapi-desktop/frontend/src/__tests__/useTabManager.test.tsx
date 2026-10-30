@@ -62,9 +62,7 @@ describe("where a project tab lands", () => {
     expect(result.current.effectiveView).toBe("context:agent");
   });
 
-  it("sends a project that must be set up first to the page that sets it up", () => {
-    expect(landingView(true)).toBe("project-home");
-    expect(landingView(false, "i18next")).toBe("project-home");
-    expect(landingView(false)).toBe("map");
+  it("lands every project on its Map, one waiting to be set up too", () => {
+    expect(landingView()).toBe("map");
   });
 });

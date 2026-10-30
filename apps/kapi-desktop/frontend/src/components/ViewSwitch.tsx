@@ -12,7 +12,7 @@ import { TermsPage } from "./TermsPage";
 import { MemoriesPage } from "./MemoriesPage";
 import { ChecksPanel } from "./ChecksPanel";
 import { MapPage } from "./MapPage";
-import { ContextHub, contextSectionOf, type ContextPin } from "./ContextHub";
+import { ContextHub, contextSectionOf, decideRowOf, type ContextPin } from "./ContextHub";
 import { HistoryView } from "./HistoryView";
 import { ReviewPage, type ReviewScope } from "./ReviewPage";
 import { FormatsPage } from "./FormatsPage";
@@ -77,7 +77,7 @@ interface ViewSwitchProps {
   hasOpenProject: boolean;
   /** Open the most recent project tab on its Assistant section. */
   onConnectAssistant: () => void;
-  /** Open a project on its What's new, by workspace key. */
+  /** Open a project on its Decide section, by workspace key. */
   onOpenWhatsNew: (key: string) => void;
   /** Open a project from one of its checkouts, by recipe path. */
   onOpenCheckout: (recipe: string) => void;
@@ -156,24 +156,22 @@ export function ViewSwitch({
   // keys the hub so re-entering with a new pin resets it.
   const [contextPin, setContextPin] = useState<ContextPin | null>(null);
   const contextEntry = useRef(0);
-  // The Map's Decide opens the hub's Decide section, on the row it names when
-  // a suggestion's own Decide sent it there.
-  const [decideRow, setDecideRow] = useState<string | null>(null);
   const handleOpenContext = useCallback(
     (pin?: ContextPin) => {
       contextEntry.current += 1;
       setContextPin(pin ?? null);
-      setDecideRow(null);
       navigate("context");
     },
     [navigate],
   );
+  // The Map's Decide opens the hub's Decide section. A suggestion's own Decide
+  // names its row in the view ("context:rules:<row key>"), so the row travels
+  // with the route and a later visit from the rail opens on no row of its own.
   const handleDecide = useCallback(
     (rowKey?: string) => {
       contextEntry.current += 1;
       setContextPin(null);
-      setDecideRow(rowKey ?? null);
-      navigate("context:rules");
+      navigate(rowKey ? `context:rules:${rowKey}` : "context:rules");
     },
     [navigate],
   );
@@ -325,6 +323,7 @@ export function ViewSwitch({
             projectName={activeTab.info.name || history.project.name}
             onDecide={handleDecide}
             onNavigate={navigate}
+            setupPending={!!activeTab.isEmpty || !!activeTab.detectedPreset}
           />
         );
 
@@ -439,7 +438,7 @@ export function ViewSwitch({
             projectName={history.project.name}
             section={hubSection}
             pin={contextPin ?? undefined}
-            decideRow={decideRow ?? undefined}
+            decideRow={decideRowOf(effectiveView)}
             hasTargetLanguages={(history.project.defaults?.target_languages?.length ?? 0) > 0}
             contextOnly={activeTab.info.context_only}
           />

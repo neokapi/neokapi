@@ -51,7 +51,7 @@ const meta: Meta<typeof ContextHub> = {
 export default meta;
 type Story = StoryObj<typeof ContextHub>;
 
-/** A project tab opens here: What's new, with the digest since the person last looked. */
+/** The hub opens on Decide, with the digest since the person last looked. */
 export const WhatsNew: Story = {};
 
 /** Nothing is recorded yet, and the empty text points at the Assistant. */

@@ -114,6 +114,17 @@ const SECTIONS: Array<{
 ];
 
 /**
+ * The Decide row a view opens on: "context:rules:<row key>" names one, such as
+ * "context:rules:suggested:<id>". Any other view names none.
+ */
+export function decideRowOf(view: string): string | undefined {
+  const prefix = "context:rules:";
+  return view.startsWith(prefix) && view.length > prefix.length
+    ? view.slice(prefix.length)
+    : undefined;
+}
+
+/**
  * The section a view opens the hub on: "context:<section>" names one, and the
  * stores' own view ids stay routable so a persisted view lands where it did.
  */

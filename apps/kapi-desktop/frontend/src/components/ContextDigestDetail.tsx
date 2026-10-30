@@ -1,4 +1,4 @@
-// The detail pane of What's new: the selected row's rule, its evidence, who
+// The detail pane of Decide: the selected row's rule, its evidence, who
 // noticed it and when, and the decisions open on it in the toolbar.
 //
 // A suggestion offers Keep, Change and Drop, and Apply more widely once it is

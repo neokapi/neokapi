@@ -1,4 +1,4 @@
-// What's new for a project: the rules and suggestions kapi holds for it, as a
+// Decide for a project: the rules and suggestions kapi holds for it, as a
 // list and a detail pane.
 //
 // The list is one line per item in five groups: Needs you (each

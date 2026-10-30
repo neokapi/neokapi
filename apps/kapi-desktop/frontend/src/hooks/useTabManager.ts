@@ -24,12 +24,12 @@ export interface TabState {
 export const GLOBAL_OVERLAYS: ReadonlySet<string> = new Set(["home", "history", "app-settings"]);
 
 /**
- * Where a newly opened project tab lands: its Map. A project that has to be
- * set up first (empty, or matching a preset) lands on the page that sets it
- * up, which is the project home.
+ * Where a newly opened project tab lands: its Map, whatever state the project
+ * is in. The Map's own empty state is a new project's first screen, and the
+ * page that sets a project up stays on the project home.
  */
-export function landingView(empty: boolean, detectedPreset?: string): string {
-  return empty || detectedPreset ? "project-home" : "map";
+export function landingView(): string {
+  return "map";
 }
 
 export function useTabManager() {
@@ -139,7 +139,7 @@ export function useTabManager() {
             detectedPreset: detected,
             pluginsResolved: pluginStatus?.satisfied ?? true,
             pluginIssues: pluginStatus?.issues,
-            view: view ?? landingView(!!empty, detected),
+            view: view ?? landingView(),
           },
         ];
       });
