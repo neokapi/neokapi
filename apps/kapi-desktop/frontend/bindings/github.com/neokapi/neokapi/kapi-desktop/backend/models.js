@@ -1131,12 +1131,22 @@ export class AssistantHostView {
         }
         if (!("connected" in $$source)) {
             /**
-             * Connected reports that the assistant's files are in place: connecting
-             * it again would write none of them.
+             * Connected reports that the assistant's files are in place, connecting
+             * it again would write none of them, and the project's rules files hold
+             * kapi's section.
              * @member
              * @type {boolean}
              */
             this["connected"] = false;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Reason says why an assistant whose own files are in place is not
+             * connected: "rules files missing".
+             * @member
+             * @type {string | undefined}
+             */
+            this["reason"] = undefined;
         }
         if (!("check" in $$source)) {
             /**
@@ -1193,14 +1203,14 @@ export class AssistantHostView {
      * @returns {AssistantHostView}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType6;
         const $$createField5_0 = $$createType6;
+        const $$createField6_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pending" in $$parsedSource) {
-            $$parsedSource["pending"] = $$createField4_0($$parsedSource["pending"]);
+            $$parsedSource["pending"] = $$createField5_0($$parsedSource["pending"]);
         }
         if ("files" in $$parsedSource) {
-            $$parsedSource["files"] = $$createField5_0($$parsedSource["files"]);
+            $$parsedSource["files"] = $$createField6_0($$parsedSource["files"]);
         }
         return new AssistantHostView(/** @type {Partial<AssistantHostView>} */($$parsedSource));
     }
@@ -1319,14 +1329,30 @@ export class AssistantsView {
      * @param {Partial<AssistantsView>} [$$source = {}] - The source object to create the AssistantsView.
      */
     constructor($$source = {}) {
-        if (!("rules" in $$source)) {
+        if (/** @type {any} */(false)) {
             /**
              * Rules is how many rules are in force at the project's own point, the
-             * count the Map shows.
+             * count the Map shows. Nil when it could not be read.
              * @member
-             * @type {number}
+             * @type {number | null | undefined}
              */
-            this["rules"] = 0;
+            this["rules"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * HostsError and SessionsError say why the assistants or the sessions
+             * could not be read; the other part of the page is read all the same.
+             * @member
+             * @type {string | undefined}
+             */
+            this["hosts_error"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["sessions_error"] = undefined;
         }
         if (!("needs_checkout" in $$source)) {
             /**
@@ -1374,14 +1400,14 @@ export class AssistantsView {
      * @returns {AssistantsView}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType22;
-        const $$createField4_0 = $$createType24;
+        const $$createField4_0 = $$createType22;
+        const $$createField6_0 = $$createType24;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("hosts" in $$parsedSource) {
-            $$parsedSource["hosts"] = $$createField2_0($$parsedSource["hosts"]);
+            $$parsedSource["hosts"] = $$createField4_0($$parsedSource["hosts"]);
         }
         if ("sessions" in $$parsedSource) {
-            $$parsedSource["sessions"] = $$createField4_0($$parsedSource["sessions"]);
+            $$parsedSource["sessions"] = $$createField6_0($$parsedSource["sessions"]);
         }
         return new AssistantsView(/** @type {Partial<AssistantsView>} */($$parsedSource));
     }
