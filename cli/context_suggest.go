@@ -35,9 +35,12 @@ written: not the recipe, not a rules file. Without --ai no AI model is used.
 term-extract and voice-infer, and files what it proposes the same way: the
 terms the files use, and the voice measures it reads, such as whom the files
 address and how long their sentences run. A term is filed only when the files
-write it as the model wrote it in two or more blocks. These suggestions are
-noticed by kapi with the model's name. With no AI provider configured, --ai
-refuses; "kapi models setup" connects one.
+write it as the model wrote it in two or more blocks. In a project that binds
+a voice, no voice measures are filed. These suggestions are noticed by kapi
+with the model's name. Without --ai the command needs no network; with it,
+kapi reaches the model's provider. With no AI provider configured, or no key
+for the one configured, --ai refuses before anything is filed; "kapi models
+setup" connects one.
 
 Running it again files nothing new. A suggestion you dropped stays dropped,
 and one the files have changed is filed again as it now stands. --dry-run
@@ -67,7 +70,7 @@ model.`,
 				return err
 			}
 			if ai {
-				deeper, err := a.DeeperLook(cmd.Context(), host.DeeperLookRequest{Project: projectPath, DryRun: dry})
+				deeper, err := a.DeeperLook(cmd.Context(), host.DeeperLookRequest{Project: projectPath, DryRun: dry, Pass: &res})
 				if err != nil {
 					return err
 				}

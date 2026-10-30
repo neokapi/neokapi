@@ -2,16 +2,19 @@ package host
 
 import (
 	"context"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/credentials/providerenv"
+	"github.com/neokapi/neokapi/core/project"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
@@ -313,4 +316,152 @@ func TestDeeperLook_RedactsBeforeTheModelReads(t *testing.T) {
 	terms := deeperOf(res, SuggestKindTerm)
 	require.Len(t, terms, 1, "the model never read the redacted name: %+v", terms)
 	assert.Equal(t, "Write Harbor Help, not Harbor-Help or HarborHelp.", terms[0].Sentence)
+	_, err = os.Stat(project.LayoutAt(root).RedactionVaultPath())
+	assert.ErrorIs(t, err, fs.ErrNotExist, "a dry run keeps no originals in the project's vault")
+
+	_, err = app.DeeperLook(context.Background(), DeeperLookRequest{Project: recipeOf(root)})
+	require.NoError(t, err)
+	_, err = os.Stat(project.LayoutAt(root).RedactionVaultPath())
+	assert.NoError(t, err, "a run keeps the originals in the project's vault")
+}
+
+func TestDeeperLook_AnotherModelsSuggestionStands(t *testing.T) {
+	useDemoProvider(t)
+	t.Setenv("KAPI_AI_MODEL", "alpha")
+	app, _ := contextOpsApp(t)
+	ctx := context.Background()
+	root := suggestProject(t, "deeperanothermodel", "", deeperLookFiles)
+
+	first, err := app.DeeperLook(ctx, DeeperLookRequest{Project: recipeOf(root)})
+	require.NoError(t, err)
+	assert.Equal(t, "alpha", first.Model)
+	was := measureOf(t, first, "contractions")
+	require.Equal(t, "sometimes", was.Value)
+
+	// The files lose their one contraction, and another model reads them.
+	require.NoError(t, os.WriteFile(filepath.Join(root, "docs", "a.md"),
+		[]byte(strings.Replace(deeperLookFiles["docs/a.md"], "You can't miss it.", "You will find it.", 1)), 0o600))
+	t.Setenv("KAPI_AI_MODEL", "beta")
+	other, err := app.DeeperLook(ctx, DeeperLookRequest{Project: recipeOf(root)})
+	require.NoError(t, err)
+	got := measureOf(t, other, "contractions")
+	assert.Equal(t, SuggestUnchanged, got.Outcome, "only its author withdraws a suggestion")
+	assert.Equal(t, was.ID, got.ID)
+	assert.Equal(t, was.Sentence, got.Sentence, "the line shows the record that stands, not the new model's reading")
+	assert.Equal(t, "sometimes", got.Value)
+
+	// The model that filed it reads the changed files and files it again.
+	t.Setenv("KAPI_AI_MODEL", "alpha")
+	again, err := app.DeeperLook(ctx, DeeperLookRequest{Project: recipeOf(root)})
+	require.NoError(t, err)
+	updated := measureOf(t, again, "contractions")
+	assert.Equal(t, SuggestUpdated, updated.Outcome)
+	assert.Equal(t, "The files write without contractions (contractions: never).", updated.Sentence)
+}
+
+func TestDeeperLook_DroppedAddressStaysDroppedInBothOrders(t *testing.T) {
+	drop := func(t *testing.T, app *App, root, id string) {
+		t.Helper()
+		_, err := app.DecideContextReview(context.Background(), ContextReviewRequest{
+			Actor: contextop.Actor{Kind: contextop.ActorPerson}, Project: recipeOf(root), Drop: []string{id},
+		})
+		require.NoError(t, err)
+	}
+
+	t.Run("the deeper look's note dropped, then the pass", func(t *testing.T) {
+		useDemoProvider(t)
+		app, _ := contextOpsApp(t)
+		ctx := context.Background()
+		root := suggestProject(t, "deeperdropaddressfirst", "", deeperLookFiles)
+
+		res, err := app.DeeperLook(ctx, DeeperLookRequest{Project: recipeOf(root)})
+		require.NoError(t, err)
+		pov := measureOf(t, res, "person_pov")
+		drop(t, app, root, pov.ID)
+
+		pass, err := app.SuggestFromFiles(ctx, ContextSuggestRequest{Project: recipeOf(root)})
+		require.NoError(t, err)
+		address := suggestionsOf(pass, SuggestKindAddress)
+		require.Len(t, address, 1)
+		assert.Equal(t, SuggestDropped, address[0].Outcome)
+		assert.Equal(t, pov.ID, address[0].ID)
+	})
+
+	t.Run("the pass's note dropped, then the deeper look", func(t *testing.T) {
+		useDemoProvider(t)
+		app, _ := contextOpsApp(t)
+		ctx := context.Background()
+		root := suggestProject(t, "deeperdropaddresssecond", "", deeperLookFiles)
+
+		pass, err := app.SuggestFromFiles(ctx, ContextSuggestRequest{Project: recipeOf(root)})
+		require.NoError(t, err)
+		address := suggestionsOf(pass, SuggestKindAddress)
+		require.Len(t, address, 1)
+		drop(t, app, root, address[0].ID)
+
+		res, err := app.DeeperLook(ctx, DeeperLookRequest{Project: recipeOf(root)})
+		require.NoError(t, err)
+		pov := measureOf(t, res, "person_pov")
+		assert.Equal(t, SuggestDropped, pov.Outcome)
+		assert.Equal(t, address[0].ID, pov.ID)
+	})
+}
+
+func TestDeeperLookChunks_CutsALongBlock(t *testing.T) {
+	long := strings.Repeat("berth ", 2000) // 12,000 runes
+	c := suggestCorpus{blocks: []suggestBlock{
+		{file: "a.md", plain: long},
+		{file: "a.md", plain: "The Dockyard lists every berth."},
+	}}
+	chunks, asked := deeperLookChunks(c)
+	assert.Equal(t, 2, asked)
+	require.Len(t, chunks, 2)
+	for _, chunk := range chunks {
+		assert.LessOrEqual(t, utf8.RuneCountInString(chunk.SourceText()), deeperLookChunkRunes)
+	}
+	assert.Equal(t, "The Dockyard lists every berth.", chunks[1].SourceText())
+}
+
+func TestDeeperLook_AKeyForAnotherProviderRefusesBeforeFiling(t *testing.T) {
+	clearProviderEnv(t)
+	t.Setenv("OPENAI_API_KEY", "sk-test-not-a-key")
+	app, _ := contextOpsApp(t)
+	ctx := context.Background()
+	root := suggestProject(t, "deeperotherkey", "", deeperLookFiles)
+
+	_, _, err := app.DeeperLookModel(ctx, recipeOf(root))
+	require.ErrorIs(t, err, ErrNoAIProvider, "the run would build anthropic and find no key for it")
+
+	_, err = app.DeeperLook(ctx, DeeperLookRequest{Project: recipeOf(root)})
+	require.ErrorIs(t, err, ErrNoAIProvider)
+	log, err := app.ContextOperations(ctx, ContextLogRequest{Project: recipeOf(root)})
+	require.NoError(t, err)
+	assert.Empty(t, log.Operations)
+}
+
+func TestDeeperLook_ABoundVoiceFilesNoVoiceMeasures(t *testing.T) {
+	useDemoProvider(t)
+	app, _ := contextOpsApp(t)
+	root := suggestProject(t, "deeperboundvoice", "  voice:\n    pack: technical-docs\n", deeperLookFiles)
+
+	res, err := app.DeeperLook(context.Background(), DeeperLookRequest{Project: recipeOf(root), DryRun: true})
+	require.NoError(t, err)
+	assert.Empty(t, deeperOf(res, SuggestKindVoice), "the bound voice states its measures already")
+	assert.Len(t, deeperOf(res, SuggestKindTerm), 2)
+}
+
+func TestDeeperLook_DryRunDoesNotRepeatThePass(t *testing.T) {
+	useDemoProvider(t)
+	app, _ := contextOpsApp(t)
+	ctx := context.Background()
+	root := suggestProject(t, "deeperdrypass", "", deeperLookFiles)
+
+	pass, err := app.SuggestFromFiles(ctx, ContextSuggestRequest{Project: recipeOf(root), DryRun: true})
+	require.NoError(t, err)
+	require.Len(t, suggestionsOf(pass, SuggestKindAddress), 1)
+
+	res, err := app.DeeperLook(ctx, DeeperLookRequest{Project: recipeOf(root), DryRun: true, Pass: &pass})
+	require.NoError(t, err)
+	assert.Equal(t, SuggestKnown, measureOf(t, res, "person_pov").Outcome,
+		"the pass would file it in the same run")
 }

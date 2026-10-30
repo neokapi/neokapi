@@ -1030,6 +1030,7 @@ func addressFinding(c suggestCorpus) (suggestFinding, bool) {
 	fd := suggestFinding{
 		kind:      SuggestKindAddress,
 		key:       "address:second",
+		aliases:   []string{deeperLookKeyPOV},
 		signature: "second",
 		note:      suggestNoteAddress,
 		address:   &SuggestedAddress{You: you, We: we, Pronouns: any, PersonPOV: "second"},
@@ -1056,6 +1057,50 @@ type suggestFiler struct {
 	records []contextop.Record
 	dry     bool
 	scopes  map[string]suggestPoint
+	// pass holds what the pass over the files found in the same run, by key
+	// and by the letters of a word, for the deeper look that follows it. A dry
+	// run records nothing, so the log cannot say what the pass would file.
+	pass map[string]bool
+}
+
+// passKnows reports a deeper-look finding the pass over the files made in the
+// same run.
+func (f *suggestFiler) passKnows(fd suggestFinding) bool {
+	if !f.ai || len(f.pass) == 0 {
+		return false
+	}
+	if f.pass[fd.key] || (fd.letters != "" && f.pass["letters:"+fd.letters]) {
+		return true
+	}
+	for _, alias := range fd.aliases {
+		if f.pass[alias] {
+			return true
+		}
+	}
+	return false
+}
+
+// passFound indexes what the pass over the files found and would file or did
+// file, for passKnows: the address finding's key, and a spelling's letters.
+func passFound(res *ContextSuggestResult) map[string]bool {
+	if res == nil {
+		return nil
+	}
+	out := map[string]bool{}
+	for _, s := range res.Suggestions {
+		if s.Outcome != SuggestFiled && s.Outcome != SuggestUpdated && s.Outcome != SuggestUnchanged {
+			continue
+		}
+		switch s.Kind {
+		case SuggestKindAddress:
+			out["address:second"] = true
+		case SuggestKindSpelling:
+			if rule, ok := s.Subject.Rule(); ok && rule.Replacement != "" {
+				out["letters:"+spellingKey(rule.Replacement)] = true
+			}
+		}
+	}
+	return out
 }
 
 // mine reports a record this kind of pass filed: one by kapi for the pass over
@@ -1104,9 +1149,19 @@ func (f *suggestFiler) file(ctx context.Context, fd suggestFinding) (SuggestedFi
 		prior.Actor != f.actor):
 		// Unchanged, or no longer the pass's to change: a person kept it, it
 		// waits on a choice between two sides, or another model filed it, and
-		// only its author withdraws a suggestion.
+		// only its author withdraws a suggestion. The line shows the record
+		// that stands, which says something else when the files or the model
+		// moved on without it.
 		out.Outcome, out.ID = SuggestUnchanged, prior.ID
 		out.Short = contextop.ShortID(prior.ID)
+		if f.signature(*prior) != fd.signature {
+			out.Subject = prior.Subject
+			out.Sentence = ruleSentence(prior.Subject)
+			if fd.kind == SuggestKindVoice {
+				out.Value = f.signature(*prior)
+			}
+			return out, nil
+		}
 		if !f.dry {
 			if err := f.recordUsage(ctx, *prior, fd); err != nil {
 				return out, err
@@ -1164,10 +1219,17 @@ func (f *suggestFiler) prior(fd suggestFinding) (answering, dropped *contextop.R
 			continue
 		}
 		mine := f.mine(*r)
-		if !mine && !((fd.kind == SuggestKindSpelling || f.ai) && r.Status == contextop.StatusDropped) {
+		othersDrop := fd.kind == SuggestKindSpelling || fd.kind == SuggestKindAddress || f.ai
+		if !mine && !(othersDrop && r.Status == contextop.StatusDropped) {
 			continue
 		}
-		if key := f.keyOf(*r); key != fd.key && (mine || !slices.Contains(fd.aliases, key)) {
+		key := f.keyOf(*r)
+		if key != fd.key && (mine || !slices.Contains(fd.aliases, key)) {
+			continue
+		}
+		if key == deeperLookKeyPOV && fd.kind == SuggestKindAddress && f.signature(*r) != "second" {
+			// The deeper look's note about whom the files address says the
+			// reader is addressed as you only when its value is second.
 			continue
 		}
 		switch {
@@ -1247,6 +1309,9 @@ func (f *suggestFiler) known(fd suggestFinding) bool {
 	letters := fd.letters
 	if fd.kind == SuggestKindSpelling {
 		letters = strings.TrimPrefix(fd.key, "spelling:")
+	}
+	if f.passKnows(fd) {
+		return true
 	}
 	for _, r := range f.records {
 		if f.mine(r) || !r.Status.Answers() {

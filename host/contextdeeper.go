@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"os"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"sort"
@@ -21,6 +23,7 @@ import (
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/host/credentials"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
@@ -86,6 +89,10 @@ type DeeperLookRequest struct {
 	// DryRun reports what the deeper look would file without recording
 	// anything. The model is still asked.
 	DryRun bool
+	// Pass is the pass over the files that ran just before, in the same run.
+	// A finding it made is not proposed again, which a dry run's log cannot
+	// tell.
+	Pass *ContextSuggestResult
 }
 
 // DeeperLookResult is what the model proposed and what became of each
@@ -106,6 +113,17 @@ type DeeperLookResult struct {
 	Usage *aiprovider.TokenUsage `json:"usage,omitempty"`
 	// Suggestions are the proposals, terms first.
 	Suggestions []SuggestedFinding `json:"suggestions"`
+}
+
+// ChangedCount counts the suggestions the run recorded new or filed again.
+func (r DeeperLookResult) ChangedCount() int {
+	n := 0
+	for _, s := range r.Suggestions {
+		if s.Outcome == SuggestFiled || s.Outcome == SuggestUpdated {
+			n++
+		}
+	}
+	return n
 }
 
 // FiledCount counts the suggestions the run recorded new.
@@ -178,9 +196,9 @@ func (a *App) DeeperLook(ctx context.Context, req DeeperLookRequest) (DeeperLook
 	if !s.checkedOut() {
 		return DeeperLookResult{}, fmt.Errorf("project %s has no checkout on this machine, so there are no files to read", s.key)
 	}
-	provider, modelName, ok := a.ResolveDeeperLookModel(s.proj)
-	if !ok {
-		return DeeperLookResult{}, errNoAIProvider()
+	provider, modelName, err := a.ResolveDeeperLookModel(s.proj)
+	if err != nil {
+		return DeeperLookResult{}, err
 	}
 	out := DeeperLookResult{
 		Project:     string(s.key),
@@ -200,7 +218,7 @@ func (a *App) DeeperLook(ctx context.Context, req DeeperLookRequest) (DeeperLook
 	if len(chunks) == 0 {
 		return out, nil
 	}
-	if err := s.redactForModel(ctx, chunks, corpus.language); err != nil {
+	if err := s.redactForModel(ctx, chunks, corpus.language, req.DryRun); err != nil {
 		return out, err
 	}
 
@@ -227,7 +245,8 @@ func (a *App) DeeperLook(ctx context.Context, req DeeperLookRequest) (DeeperLook
 	if err != nil {
 		return out, err
 	}
-	f := &suggestFiler{s: s, actor: DeeperLookActor(modelName), ai: true, records: records, dry: req.DryRun, scopes: map[string]suggestPoint{}}
+	f := &suggestFiler{s: s, actor: DeeperLookActor(modelName), ai: true, records: records, dry: req.DryRun,
+		scopes: map[string]suggestPoint{}, pass: passFound(req.Pass)}
 	findings := append(deeperTermFindings(corpus, terms), deeperVoiceFindings(corpus, draft)...)
 	for _, fd := range findings {
 		sug, err := f.file(ctx, fd)
@@ -245,28 +264,40 @@ func errNoAIProvider() error {
 }
 
 // DeeperLookModel names the provider and model the deeper look would ask
-// about a project, or refuses with ErrNoAIProvider when nothing names one. It
+// about a project, or refuses with ErrNoAIProvider when it would not run. It
 // asks no model.
 func (a *App) DeeperLookModel(ctx context.Context, projectRef string) (provider, modelName string, err error) {
 	s, err := a.contextOps(ctx, projectRef)
 	if err != nil {
 		return "", "", err
 	}
-	provider, modelName, ok := a.ResolveDeeperLookModel(s.proj)
-	if !ok {
-		return "", "", errNoAIProvider()
-	}
-	return provider, modelName, nil
+	return a.ResolveDeeperLookModel(s.proj)
 }
 
-// ResolveDeeperLookModel is the provider and model the deeper look asks, by the
-// resolution `kapi exec term-extract` makes: the recipe's preset for the tool,
-// then the app config. ok is false when nothing names a model to ask: no
-// provider there, no saved credential and no API key in the environment.
-func (a *App) ResolveDeeperLookModel(proj *project.KapiProject) (provider, modelName string, ok bool) {
-	res := EffectiveAIModel(a.Config, proj, "term-extract", "")
-	ok = res.Configured || len(credentials.ProvidersWithEnvKey()) > 0 ||
-		(a.Credentials != nil && len(a.Credentials.List()) > 0)
+// deeperLookTools are the tools the deeper look runs.
+var deeperLookTools = []string{"term-extract", "voice-infer"}
+
+// ResolveDeeperLookModel is the provider and model the deeper look asks, by
+// the resolution `kapi exec term-extract` makes: the recipe's preset for the
+// tool, then the app config or the environment, then the credential lookup
+// the tool registry makes for each tool the run builds. It refuses with
+// ErrNoAIProvider when nothing names a provider, or when the credential
+// lookup for the provider named fails, so a project it answers for runs.
+func (a *App) ResolveDeeperLookModel(proj *project.KapiProject) (provider, modelName string, err error) {
+	res := EffectiveAIModel(a.Config, proj, deeperLookTools[0], "")
+	store := a.Credentials
+	if store == nil {
+		store = &credentials.Store{}
+	}
+	for _, toolName := range deeperLookTools {
+		cfg := a.deeperLookConfig(proj, toolName, "")
+		if _, rerr := credentials.ResolveCredentials(store, toolName, []string{schema.RequiresCredentials}, cfg); rerr != nil {
+			if !res.Configured {
+				return "", "", errNoAIProvider()
+			}
+			return "", "", fmt.Errorf("%w for %s: %v", ErrNoAIProvider, res.Provider, rerr)
+		}
+	}
 	provider, modelName = res.Provider, res.Model
 	if modelName == "" {
 		if info, found := aiprovider.ProviderInfoFor(aiprovider.ProviderID(provider)); found {
@@ -279,22 +310,28 @@ func (a *App) ResolveDeeperLookModel(proj *project.KapiProject) (provider, model
 	if modelName == "" {
 		modelName = provider
 	}
-	return provider, modelName, ok
+	return provider, modelName, nil
 }
 
 // deeperLookTool builds one of the deeper look's tools the way `kapi exec`
-// builds it: the recipe's preset for the tool, then the default provider and
-// model the app config or the environment names, then the registry's
-// credential resolution. The provider and model come from EffectiveAIModel,
-// the resolution ResolveDeeperLookModel reports, so the model asked is the model
-// named.
+// builds it, from deeperLookConfig, through the registry's credential
+// resolution.
 func (a *App) deeperLookTool(proj *project.KapiProject, toolName, language string) (any, error) {
 	a.InitRegistries()
+	return a.ToolReg.NewToolWithConfig(registry.ToolID(toolName), a.deeperLookConfig(proj, toolName, language), "")
+}
+
+// deeperLookConfig is the config a deeper-look tool is built with: the
+// recipe's preset for the tool, then the default provider and model the app
+// config or the environment names. The provider and model come from
+// EffectiveAIModel, the resolution ResolveDeeperLookModel reports, so the
+// model asked is the model named.
+func (a *App) deeperLookConfig(proj *project.KapiProject, toolName, language string) map[string]any {
 	cfg := map[string]any{}
 	if proj != nil {
 		maps.Copy(cfg, proj.Defaults.Tools[toolName])
 	}
-	if _, set := cfg["locale"]; !set && toolName == "term-extract" {
+	if _, set := cfg["locale"]; !set && toolName == "term-extract" && language != "" {
 		cfg["locale"] = language
 	}
 	if res := EffectiveAIModel(a.Config, proj, toolName, ""); res.Configured {
@@ -305,7 +342,7 @@ func (a *App) deeperLookTool(proj *project.KapiProject, toolName, language strin
 			cfg["model"] = res.Model
 		}
 	}
-	return a.ToolReg.NewToolWithConfig(registry.ToolID(toolName), cfg, "")
+	return cfg
 }
 
 // deeperLookChunks gathers the project's distinct block texts into chunks for
@@ -328,6 +365,9 @@ func deeperLookChunks(c suggestCorpus) (chunks []*model.Block, asked int) {
 		if text == "" {
 			continue
 		}
+		// A block longer than a chunk is cut to one, so no chunk runs past
+		// the bound.
+		text = cutRunes(text, deeperLookChunkRunes)
 		if seen[text] {
 			asked++
 			continue
@@ -353,19 +393,42 @@ func deeperLookChunks(c suggestCorpus) (chunks []*model.Block, asked int) {
 	return chunks, asked
 }
 
+// cutRunes cuts s to at most n runes, on a rune boundary.
+func cutRunes(s string, n int) string {
+	count := 0
+	for i := range s {
+		if count == n {
+			return s[:i]
+		}
+		count++
+	}
+	return s
+}
+
 // redactForModel applies the project's declared redaction policy to the
-// chunks before any of them reaches a model, keeping the originals in the
-// project's vault, as every route that sends source out of kapi does.
-func (s *contextOpsSession) redactForModel(ctx context.Context, chunks []*model.Block, language string) error {
+// chunks before any of them reaches a model, as every route that sends source
+// out of kapi does. The originals are kept in the project's vault, except on a
+// dry run, which records nothing: its originals go to a vault of its own that
+// is removed when the redaction is done, since the redacted chunks are never
+// written anywhere.
+func (s *contextOpsSession) redactForModel(ctx context.Context, chunks []*model.Block, language string, dry bool) error {
 	spec := ProjectRedaction(s.proj)
 	if spec == nil {
 		return nil
 	}
 	layout := project.LayoutAt(s.root)
-	if err := layout.PrepareVault(); err != nil {
+	vault := layout.RedactionVaultPath()
+	if dry {
+		dir, err := os.MkdirTemp("", "kapi-deeper-look-vault-")
+		if err != nil {
+			return err
+		}
+		defer func() { _ = os.RemoveAll(dir) }()
+		vault = filepath.Join(dir, "redaction.json")
+	} else if err := layout.PrepareVault(); err != nil {
 		return err
 	}
-	return RedactAtIngest(ctx, chunks, spec, layout.Root, layout.RedactionVaultPath(), model.LocaleID(language))
+	return RedactAtIngest(ctx, chunks, spec, layout.Root, vault, model.LocaleID(language))
 }
 
 // deeperLookTerms runs term-extract over each chunk and returns the terms it
