@@ -967,7 +967,8 @@ func editSubject(subject contextop.Subject, replacement string, advisory *bool) 
 	apply := func(rule *profile.TermRule) bool {
 		changed := false
 		if replacement != "" && rule.Replacement != replacement {
-			rule.Replacement, changed = replacement, true
+			*rule = withPreferred(*rule, replacement)
+			changed = true
 		}
 		if advisory != nil && rule.Advisory != *advisory {
 			rule.Advisory, changed = *advisory, true
@@ -982,6 +983,29 @@ func editSubject(subject contextop.Subject, replacement string, advisory *bool) 
 		}
 	}
 	return subject, false
+}
+
+// withPreferred makes form the wording a rule says to write. A form the rule
+// avoided trades places with the wording it said to write before, so a name
+// kept as another of its spellings avoids the spelling the suggestion
+// preferred and never avoids the one it now prefers.
+func withPreferred(rule profile.TermRule, form string) profile.TermRule {
+	avoided := append([]string{rule.Term}, rule.Forms...)
+	if i := slices.Index(avoided, form); i >= 0 {
+		if rule.Replacement != "" {
+			avoided[i] = rule.Replacement
+		} else {
+			avoided = slices.Delete(avoided, i, i+1)
+		}
+		if len(avoided) > 0 {
+			rule.Term, rule.Forms = avoided[0], slices.Clip(avoided[1:])
+			if len(rule.Forms) == 0 {
+				rule.Forms = nil
+			}
+		}
+	}
+	rule.Replacement = form
+	return rule
 }
 
 // widenScope moves a scope outward. "workspace" puts the rule in force in every
