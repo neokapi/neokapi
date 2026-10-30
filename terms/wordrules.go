@@ -10,11 +10,35 @@ import (
 	"github.com/neokapi/neokapi/core/profile"
 )
 
+// PropTextScope is the concept property naming where in a text the concept's
+// rules apply, as a word rule's scope names it (profile.ScopeProse,
+// profile.ScopeCode, profile.ScopeHeading). A concept without it applies
+// everywhere, code included.
+const PropTextScope = "text_scope"
+
+// TextScope is where in a text the concept's rules apply, empty for
+// everywhere.
+func (c Concept) TextScope() string { return c.Properties[PropTextScope] }
+
+// SetTextScope records where in a text the concept's rules apply. An empty
+// scope removes the property, so the rules apply everywhere.
+func (c *Concept) SetTextScope(scope string) {
+	if scope == "" {
+		delete(c.Properties, PropTextScope)
+		return
+	}
+	if c.Properties == nil {
+		c.Properties = map[string]string{}
+	}
+	c.Properties[PropTextScope] = scope
+}
+
 // SourceWordRules are the word rules a set of concepts imposes on content
 // written in loc: one rule for each forbidden, retired or competitor term the
 // concepts hold in that language (or the language beneath it), with the
 // concept's preferred term as the replacement. A retired term's rule is
-// advisory, and so is every rule of an advisory concept.
+// advisory, and so is every rule of an advisory concept. Each rule carries
+// the concept's text scope.
 //
 // It is the terms store's reading as a list of rules, for a surface that shows
 // or counts them, or rewrites text by them. A check locates store terms with
@@ -38,6 +62,7 @@ func SourceWordRules(concepts []Concept, loc model.LocaleID) []profile.TermRule 
 				Competitor: t.CompetitorTerm,
 				Advisory:   c.Advisory || retired,
 				ConceptID:  c.ID,
+				Scope:      c.TextScope(),
 			}
 			if pref := c.PreferredTerm(t.Locale); pref != nil && !strings.EqualFold(pref.Text, t.Text) {
 				rule.Replacement = pref.Text

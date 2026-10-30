@@ -94,29 +94,15 @@ type TermRuleSet struct {
 // TermRule.MatchesCase.
 //
 // text is the search text (SearchText). A caller reaches this through
-// [MatchTermRulesInRuns] or [MatchTermRulesInText], which build it.
-func matchTermRules(sets []TermRuleSet, text string) []VocabHit {
-	// A placeholder's name is not a use of a term (check.PlaceholderText). Code
-	// stays readable, so a rule that names no scope still finds a name written
-	// wrongly in a code sample. The projection keeps every offset, so a hit
-	// indexes the caller's text.
+// [MatchTermRulesInRuns] or [MatchTermRulesInText], which build it. applies
+// answers whether a match at a byte offset of text counts for a rule with a
+// given scope (ScopedText.Applies).
+func matchTermRules(sets []TermRuleSet, text string, applies func(scope string, pos int) bool) []VocabHit {
+	// A placeholder's name and a URL are not a use of a term
+	// (check.PlaceholderText). Code stays readable, so a rule that names no
+	// scope still finds a name written wrongly in a code sample. The projection
+	// keeps every offset, so a hit indexes the caller's text.
 	text = check.PlaceholderText(text)
-
-	// Where code sits, computed once and only when a rule asks: an unscoped
-	// vocabulary — which is every profile written before scopes existed — pays
-	// nothing for this.
-	var codeAreas []span
-	for _, set := range sets {
-		for _, rule := range set.Rules {
-			if rule.Scope != "" {
-				codeAreas = codeSpans(text)
-				break
-			}
-		}
-		if codeAreas != nil {
-			break
-		}
-	}
 
 	var hits []VocabHit
 	for _, set := range sets {
@@ -152,7 +138,7 @@ func matchTermRules(sets []TermRuleSet, text string) []VocabHit {
 				replacementSpans = find(text, []string{rule.Replacement})
 			}
 			for _, h := range matches {
-				if !inScope(rule.Scope, text, codeAreas, h[0]) {
+				if !applies(rule.Scope, h[0]) {
 					continue
 				}
 				if spanWithinAny(h, replacementSpans) {

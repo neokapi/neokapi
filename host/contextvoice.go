@@ -100,6 +100,7 @@ func (a *App) landWordRules(ctx context.Context, tb terms.Terminology, rules []c
 			Status:      model.TermForbidden,
 			Replacement: rule.Replacement,
 			Advisory:    rule.Advisory,
+			TextScope:   rule.Scope,
 			Competitor:  rule.Competitor,
 			Forms:       rule.Forms,
 		}

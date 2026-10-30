@@ -148,14 +148,15 @@ func hasEntityCode(runs []model.Run) bool {
 // and the runs it flattens from. A term is looked for in the SearchText, so a
 // character reference beside a word ends it as the page shows, and each hit's
 // offsets index text. A hit whose first or last character a reference spells
-// carries Spelled, the words as the page shows them.
+// carries Spelled, the words as the page shows them. A rule's scope reads the
+// inline code spans the runs declare (ScopedText).
 //
 // It and [MatchTermRulesInText] are the one definition of what it means for
 // content to use a term rule. Every surface that matches term rules reaches
 // one of them: `kapi check`, the overlays, the scoring and rewrite tools, the
 // blast radius, so a word is a hit for every such gate or for none.
 func MatchTermRulesInRuns(sets []TermRuleSet, text string, runs []model.Run) []VocabHit {
-	return matchSearchText(sets, NewSearchText(text, runs))
+	return matchSearchText(sets, NewSearchText(text, runs), NewScopedText(text, runs))
 }
 
 // MatchTermRulesInText is [MatchTermRulesInRuns] for a caller that holds text
@@ -163,13 +164,16 @@ func MatchTermRulesInRuns(sets []TermRuleSet, text string, runs []model.Run) []V
 // is read as `kapi check` reads a block of one text run, so `&amp;` written in
 // it is five characters and no character reference spells a word.
 func MatchTermRulesInText(sets []TermRuleSet, text string) []VocabHit {
-	return matchSearchText(sets, SearchText{Text: text})
+	return matchSearchText(sets, SearchText{Text: text}, NewScopedText(text, nil))
 }
 
 // matchSearchText matches the rule sets in the search text and maps each hit
-// back to the text it was built from.
-func matchSearchText(sets []TermRuleSet, search SearchText) []VocabHit {
-	hits := matchTermRules(sets, search.Text)
+// back to the text it was built from. scoped reads the text the search text
+// was built from, so a position is mapped back before it is asked about.
+func matchSearchText(sets []TermRuleSet, search SearchText, scoped *ScopedText) []VocabHit {
+	hits := matchTermRules(sets, search.Text, func(scope string, pos int) bool {
+		return scoped.Applies(scope, search.ToText(pos))
+	})
 	if search.back == nil {
 		return hits
 	}

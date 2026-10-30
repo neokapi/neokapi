@@ -35,13 +35,18 @@ type ContextRule struct {
 	// From names where the rule is held: `terms`, `workspace`, or the pack
 	// (`pack technical-docs`) or voice file whose terms apply.
 	From []string `json:"from"`
+	// Advisory marks a rule a check reports a use of the avoided wording
+	// under and fails nothing on.
+	Advisory bool `json:"advisory,omitempty"`
 }
 
-// ruleList merges rules into one list, keyed by the wording to use, so a rule
-// held in two places is one line.
+// ruleList merges rules into one list, keyed by the wording to use and by
+// whether the rule is advisory, so a rule held in two places is one line and
+// two rules with one wording to use and different outcomes stay two.
 type ruleList struct {
 	rules []ContextRule
-	// bySay indexes rules by their folded Say wording.
+	// bySay indexes rules by their folded Say wording and advisory marking
+	// (sayKey).
 	bySay map[string]int
 	// avoided holds every folded wording some rule already says to avoid.
 	avoided map[string]bool
@@ -77,7 +82,7 @@ func (l *ruleList) add(r ContextRule, from string) {
 		r.Not = fresh
 	}
 	if r.Say != "" {
-		if i, held := l.bySay[fold(r.Say)]; held {
+		if i, held := l.bySay[sayKey(r)]; held {
 			existing := &l.rules[i]
 			for _, n := range r.Not {
 				if !l.avoided[fold(n)] && fold(n) != fold(existing.Say) {
@@ -93,13 +98,22 @@ func (l *ruleList) add(r ContextRule, from string) {
 			}
 			return
 		}
-		l.bySay[fold(r.Say)] = len(l.rules)
+		l.bySay[sayKey(r)] = len(l.rules)
 	}
 	for _, n := range r.Not {
 		l.avoided[fold(n)] = true
 	}
 	r.From = []string{from}
 	l.rules = append(l.rules, r)
+}
+
+// sayKey is the key a rule merges under: its folded Say wording, and whether
+// it is advisory.
+func sayKey(r ContextRule) string {
+	if r.Advisory {
+		return fold(r.Say) + "\x00advisory"
+	}
+	return fold(r.Say)
 }
 
 // sayThisNotThat builds the one list for a point from the terms in force there,
@@ -125,6 +139,7 @@ func sayThisNotThat(hits []ContextTermHit, binding []coreprofile.TermRule, voice
 		switch {
 		case h.Discouraged:
 			r.Not = append(r.Not, h.Term)
+			r.Advisory = h.Advisory
 			if r.Say == "" && h.Replacement != "" {
 				r.Say = h.Replacement
 			}
@@ -146,7 +161,7 @@ func sayThisNotThat(hits []ContextTermHit, binding []coreprofile.TermRule, voice
 	}
 
 	for _, rule := range binding {
-		l.add(ContextRule{Say: rule.Replacement, Not: wordOrNone(rule.Term), Note: rule.Note}, "workspace")
+		l.add(ContextRule{Say: rule.Replacement, Not: wordOrNone(rule.Term), Note: rule.Note, Advisory: rule.Advisory && rule.Term != ""}, "workspace")
 	}
 
 	carried := voice.CarriedTerms()
@@ -157,7 +172,7 @@ func sayThisNotThat(hits []ContextTermHit, binding []coreprofile.TermRule, voice
 			l.add(ContextRule{Say: t.Term, Note: t.Note}, carried.From)
 			continue
 		}
-		l.add(ContextRule{Say: t.Replacement, Not: wordOrNone(t.Term), Note: t.Note}, carried.From)
+		l.add(ContextRule{Say: t.Replacement, Not: wordOrNone(t.Term), Note: t.Note, Advisory: t.Advisory && t.Term != ""}, carried.From)
 	}
 
 	total := len(l.rules)
