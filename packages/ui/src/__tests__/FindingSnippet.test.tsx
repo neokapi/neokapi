@@ -38,6 +38,29 @@ describe("FindingSnippet", () => {
     expect(m.getAttribute("title")).toBe('Forbidden term "utilize" found');
   });
 
+  it("marks several findings in one text, each in its own tone", () => {
+    const { container } = render(
+      <FindingSnippet
+        runs={plain}
+        tone="muted"
+        marks={[
+          {
+            anchor: { kind: "range", start: { run: 0, offset: 19 }, end: { run: 0, offset: 28 } },
+            tone: "warning",
+          },
+          {
+            anchor: { kind: "range", start: { run: 0, offset: 7 }, end: { run: 0, offset: 14 } },
+            tone: "destructive",
+          },
+        ]}
+      />,
+    );
+    const marks = [...container.querySelectorAll<HTMLElement>('mark[data-overlay-type="finding"]')];
+    expect(marks.map((m) => m.textContent)).toEqual(["utilize", "dashboard"]);
+    expect(marks[0].className).toContain("decoration-destructive");
+    expect(marks[1].className).toContain("decoration-warning");
+  });
+
   it("marks the whole text for a block anchor", () => {
     const { container } = render(
       <FindingSnippet runs={plain} anchor={{ kind: "block" }} tone="warning" />,
