@@ -77,7 +77,7 @@ end of the page.
    notes to review." **Try the sample**
 2. "Connect an assistant. kapi writes the project's rules where it reads them,
    and the assistant records what it notices." **Connect an assistant** opens
-   the Assistant section of the sample or your first project. With no project
+   the Assistants page of the sample or your first project. With no project
    open, the button is disabled and says "Open a project first".
 3. "Come back. What it noticed appears under What's new; keep what is right."
    **How it works** opens this page.
@@ -87,7 +87,8 @@ Dismiss Start here when you no longer need it; Settings brings it back. The
 and flows that need no project are in the **Toolbox**, in the sidebar.
 
 **History**, a link beside the title, opens everything recorded in the
-workspace as its own view. See [History, and going back](#history-and-going-back).
+workspace as its own view: the sessions of every project, laid out as a
+project's [Sessions](#history-and-going-back).
 
 A project opens as a tab, on its [Map](#the-map), and the tabs you had last
 time come back where you left them.
@@ -181,8 +182,8 @@ rule when you keep it. Each question takes one of three answers:
 The keys: `k` keeps, `n` answers not a rule, `l` leaves it for later, and the
 option numbers pick another option. After each answer the next question is
 selected. With none left, Decide says "Nothing to decide." with the number of
-rules kept and a link to the Map. **History** drops or widens a rule already
-in force.
+rules kept and a link to the Map. **Sessions**, under Assistants, drops or
+widens a rule already in force.
 
 Deciding needs a readable checkout of the project on this machine. A project
 with no checkout here shows what was recorded for it, without the answers. The
@@ -227,19 +228,28 @@ where rules apply, what needs a person, and which rules hold only for a while.
 [Explore your context](/kapi/desktop/recipes/explore-your-context) goes
 through each view on the sample.
 
-## What your assistant reads
+## Assistants
 
-The **Assistant** section shows what an assistant working in the project is
-told, in three parts.
+The **Assistants** page puts an assistant on the project and shows what it
+did there. Under the title, one line says what connecting does: "Checks every
+edit · follows your 4 rules · leaves suggestions here", with the count of
+rules the project keeps.
 
-**Connected assistants** has one row for each assistant kapi can connect:
-Claude Code, Cursor, VS Code, Codex and Claude Desktop. A row reads, for
-example, "Claude Code · connected (.mcp.json, .claude/skills/kapi)" or "Cursor
-· not connected" with **Connect**. Connect writes the same files `kapi init`
-writes for that assistant and lists them. Claude Desktop reads its servers from
-your own `claude_desktop_config.json`, outside the project; its row says where
-that file is, and Connect asks before it changes it. A context-only tab shows
-no rows and says the project needs a checkout here.
+**Assistants** has one row for each assistant kapi can connect: Claude Code,
+Cursor, VS Code, Codex, Agent skills and Claude Desktop. A row reads, for
+example, "Claude Code · Connected · rules + check on every edit" or "Cursor ·
+Not connected" with **Connect**. Connect writes the same files `kapi connect`
+writes for that assistant and lists them. Until the kapi Claude Code plugin is
+enabled, the Claude Code row names the two commands that install it. Claude
+Desktop reads its servers from your own `claude_desktop_config.json`, outside
+the project, and Connect asks before it changes that file. A context-only tab
+shows no rows and says the project needs a checkout here.
+
+**Sessions** lists the newest sessions recorded in the project, yours and the
+assistants', with their counts. Selecting one opens it in
+[Sessions](#history-and-going-back).
+
+**Show what it reads**, beside the title, opens two tabs.
 
 **Rules files** says "kapi writes the rules into AGENTS.md and CLAUDE.md, which
 an assistant reads as it starts." Each file kapi writes has a row you can
@@ -253,10 +263,10 @@ words to use and to avoid, and the text the assistant reads.
 [Connect an assistant](/kapi/desktop/recipes/connect-an-assistant) walks
 through it.
 
-## History, and going back
+## Sessions, and going back {#history-and-going-back}
 
-**History** lists what was recorded in the project, one session per row,
-newest first: the assistant or the person who worked, when, and how many
+**Sessions**, reached from the Assistants page, lists what was recorded in the
+project, one session per row, newest first: the assistant or the person who worked, when, and how many
 operations the session holds. Select a session and the pane beside the list
 shows its operations: what the assistant noticed, what a person decided, and
 when. `kapi context log` prints the same record.
@@ -265,7 +275,7 @@ An assistant's session has **Reset to before this session** above its
 operations. It goes back to how the context stood before that session started.
 What the session recorded, and what was decided since, is set aside, and the
 terms, approved wording and voice are rebuilt as they stood. What was set aside
-stays in History, marked as set aside. The reset is recorded too, in the
+stays in Sessions, marked as set aside. The reset is recorded too, in the
 session of the person who made it, and **Take this reset back** there brings
 everything back. It is the same as `kapi context reset --before <session>`.
 
@@ -320,8 +330,8 @@ correction, so Decide opens on one disagreement.
 
 Every piece of evidence quotes a sentence in the sample's files, and clicking
 the file under **Seen in** opens it. You can keep, mark not a rule, or leave
-for later, see the kept rule in the Assistant section, and reset to before
-either session from History. Nothing
+for later, see the kept rule in what an assistant reads, and reset to before
+either session from Sessions. Nothing
 calls a model. [Review what your assistant
 noticed](/kapi/desktop/recipes/review-what-your-assistant-noticed) is the walk
 through it.

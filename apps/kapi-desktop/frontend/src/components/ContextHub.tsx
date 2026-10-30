@@ -4,10 +4,11 @@
 // waiting for the project, one question at a time, and the project's Map
 // leads to it;
 // Explore lays all of it out on its axes and over time; Ask answers a question
-// at a point; Assistant shows what an assistant reads;
-// Voice reads the profile governing each point whole; the two stores hold
-// what that governance is made of; History lists every operation, with the
-// resets; Share says how far the context reaches. Filing the stores here says
+// at a point; Assistants lists the assistants connected to the project and
+// the sessions recorded in it, and leads to what an assistant reads and to
+// Sessions, every operation with the resets; Voice reads the profile
+// governing each point whole; the two stores hold what that governance is
+// made of; Share says how far the context reaches. Filing the stores here says
 // what they are: the terms a project has agreed and the wording it has
 // already approved are part of its context.
 //
@@ -17,6 +18,7 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  ArrowLeft,
   BookOpen,
   Bot,
   Compass,
@@ -27,11 +29,19 @@ import {
   Sparkles,
   Telescope,
 } from "lucide-react";
-import { LoadingSpinner, PageHeader, ScrollArea, SimpleTooltip, cn } from "@neokapi/ui-primitives";
+import {
+  Button,
+  LoadingSpinner,
+  PageHeader,
+  ScrollArea,
+  SimpleTooltip,
+  cn,
+} from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import { api } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
 import { AssistantPanel } from "./AssistantPanel";
+import { AssistantsPage } from "./AssistantsPage";
 import { ContextAtlasView } from "./ContextAtlasView";
 import { ContextDigestPanel } from "./ContextDigestPanel";
 import { DecidePage } from "./DecidePage";
@@ -97,12 +107,17 @@ const SECTIONS: Array<{
    * offer it: there is no checkout behind that tab to read either from.
    */
   needsCheckout?: boolean;
+  /**
+   * Reached from another section's page rather than from the rail; the rail
+   * marks that section while this one is open.
+   */
+  under?: ContextSection;
 }> = [
   { id: "rules", icon: <Sparkles size={14} /> },
   { id: "atlas", icon: <Telescope size={14} /> },
   { id: "explorer", icon: <Compass size={14} />, needsCheckout: true },
-  // A context-only tab keeps the Assistant: its connections part says a
-  // checkout is needed, and the parts that read files stay out.
+  // A context-only tab keeps the Assistants: the page says a checkout is
+  // needed to connect one, and lists the sessions.
   { id: "agent", icon: <Bot size={14} /> },
   {
     id: "voice",
@@ -111,7 +126,7 @@ const SECTIONS: Array<{
   },
   { id: "terms", icon: <BookOpen size={14} /> },
   { id: "memory", icon: <Database size={14} />, localeGated: true },
-  { id: "history", icon: <History size={14} /> },
+  { id: "history", icon: <History size={14} />, under: "agent" },
   // A context-only tab keeps Share: the panel offers it the first rung only.
   { id: "share", icon: <Share2 size={14} /> },
 ];
@@ -153,6 +168,10 @@ export function ContextHub({
   // A pin set from inside the hub (the memory browser opening a unit) rather
   // than handed in by the router.
   const [unitPin, setUnitPin] = useState<ContextPin | null>(null);
+  // The Assistants page leads to what an assistant reads, opened at a file
+  // when the hub was handed one, and to Sessions, opened on one session.
+  const [reading, setReading] = useState(section === "agent" && !!pin?.path);
+  const [session, setSession] = useState<string | undefined>(undefined);
   // A context-only tab holds the whole of a project's context and none of its
   // files, so the language gate does not apply there: the content memory is
   // one of the two things such a tab exists to show.
@@ -164,6 +183,12 @@ export function ContextHub({
   // not stay selected.
   const current = sections.some((s) => s.id === active) ? active : sections[0].id;
   const offers = (id: ContextSection) => sections.some((s) => s.id === id);
+  // The rail entry that is marked: the open section's, or the one it sits under.
+  const marked = sections.find((s) => s.id === current)?.under ?? current;
+  const openAssistants = () => {
+    setReading(false);
+    setActive("agent");
+  };
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -171,23 +196,25 @@ export function ContextHub({
         aria-label={t("Context sections")}
         className="flex shrink-0 items-center gap-1 border-b border-border px-6 py-2"
       >
-        {sections.map((s) => (
-          <button
-            key={s.id}
-            type="button"
-            onClick={() => setActive(s.id)}
-            aria-current={current === s.id ? "page" : undefined}
-            className={cn(
-              "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm transition-colors",
-              current === s.id
-                ? "bg-accent font-medium text-foreground"
-                : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
-            )}
-          >
-            {s.icon}
-            <SectionLabel id={s.id} />
-          </button>
-        ))}
+        {sections
+          .filter((s) => !s.under)
+          .map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => (s.id === "agent" ? openAssistants() : setActive(s.id))}
+              aria-current={marked === s.id ? "page" : undefined}
+              className={cn(
+                "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm transition-colors",
+                marked === s.id
+                  ? "bg-accent font-medium text-foreground"
+                  : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+              )}
+            >
+              {s.icon}
+              <SectionLabel id={s.id} />
+            </button>
+          ))}
         <SectionCommand section={current} contextOnly={contextOnly} />
       </nav>
       <div className="min-h-0 flex-1">
@@ -210,7 +237,19 @@ export function ContextHub({
         {current === "agent" && (
           <ScrollArea className="h-full">
             <div className="mx-auto max-w-3xl px-6 py-5">
-              <AssistantPanel tabID={tabID} path={pin?.path} contextOnly={contextOnly} />
+              {reading && !contextOnly ? (
+                <AssistantPanel tabID={tabID} path={pin?.path} onBack={() => setReading(false)} />
+              ) : (
+                <AssistantsPage
+                  tabID={tabID}
+                  projectName={projectName}
+                  onShowReads={() => setReading(true)}
+                  onOpenSession={(id) => {
+                    setSession(id);
+                    setActive("history");
+                  }}
+                />
+              )}
             </div>
           </ScrollArea>
         )}
@@ -238,7 +277,7 @@ export function ContextHub({
                 tabID={tabID}
                 defaultSelected={decideRow}
                 canDecide={false}
-                onConnectAssistant={offers("agent") ? () => setActive("agent") : undefined}
+                onConnectAssistant={offers("agent") ? openAssistants : undefined}
               />
             </div>
           </div>
@@ -257,12 +296,26 @@ export function ContextHub({
           />
         )}
         {current === "history" && (
-          // History is a list of sessions beside a detail pane, each scrolling
-          // on its own, so the section holds a fixed height as Decide does.
+          // Sessions is a list beside a detail pane, each scrolling on its
+          // own, so the section holds a fixed height as Decide does.
           <div className="flex h-full min-h-0 flex-col">
-            <PageHeader className="mb-0 shrink-0 px-6 pt-5 pb-3" title="History" />
+            <PageHeader
+              className="mb-0 shrink-0 px-6 pt-5 pb-3"
+              title={t("Sessions")}
+              backButton={
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  data-slot="sessions-back"
+                  onClick={openAssistants}
+                >
+                  <ArrowLeft size={14} />
+                  {t("Assistants")}
+                </Button>
+              }
+            />
             <div className="min-h-0 flex-1 border-t border-border">
-              <ProjectHistory tabID={tabID} />
+              <ProjectHistory tabID={tabID} defaultSelected={session} />
             </div>
           </div>
         )}
@@ -282,14 +335,14 @@ export function ContextHub({
  * The project's own feed. The feed is narrowed by the workspace's key for the
  * project, which the digest's first read carries; this shares that read.
  */
-function ProjectHistory({ tabID }: { tabID: string }) {
+function ProjectHistory({ tabID, defaultSelected }: { tabID: string; defaultSelected?: string }) {
   const qc = useQueryClient();
   const digest = useQuery({
     queryKey: qk.projectContextDigest(tabID, ""),
     queryFn: () => api.projectContextDigest(tabID, ""),
   });
   const key = digest.data?.project;
-  // History lists every operation, so opening it moves the home's "since you
+  // Sessions lists every operation, so opening it moves the home's "since you
   // last looked" marker: the home opens a project here when its news is a
   // rule kept elsewhere rather than something to decide.
   useEffect(() => {
@@ -299,7 +352,7 @@ function ProjectHistory({ tabID }: { tabID: string }) {
     });
   }, [key, tabID, qc]);
   if (!key) return digest.isLoading ? <LoadingSpinner /> : null;
-  return <ContextFeedPanel projectKey={key} />;
+  return <ContextFeedPanel projectKey={key} defaultSelected={defaultSelected} />;
 }
 
 /**
@@ -311,7 +364,7 @@ const SECTION_COMMANDS: Partial<Record<ContextSection, string>> = {
   rules: "kapi rules",
   atlas: "kapi context atlas",
   explorer: "kapi context <path>",
-  agent: "kapi init",
+  agent: "kapi connect",
   voice: "kapi voice show",
   history: "kapi context log",
   share: "kapi share",
@@ -355,7 +408,7 @@ function SectionLabel({ id }: { id: ContextSection }) {
     case "explorer":
       return <>Ask</>;
     case "agent":
-      return <>Assistant</>;
+      return <>Assistants</>;
     case "voice":
       return <>Voice</>;
     case "terms":
@@ -363,7 +416,7 @@ function SectionLabel({ id }: { id: ContextSection }) {
     case "memory":
       return <>Content Memory</>;
     case "history":
-      return <>History</>;
+      return <>Sessions</>;
     case "share":
       return <>Share</>;
   }

@@ -35,6 +35,11 @@ type ConnectOptions struct {
 	// DryRun reports what connecting would write and writes none of the files
 	// it reports.
 	DryRun bool
+	// HostsOnly reports each assistant's own files as a dry run does and
+	// leaves the rules files out: no context is resolved and no store is
+	// opened, so a surface that shows the assistants can read them often.
+	// It implies DryRun, and the result's Files holds the recipe alone.
+	HostsOnly bool
 }
 
 // ConnectAction is what connecting did to one file.
@@ -172,9 +177,15 @@ func ParseConnectHost(name string) (AgentHost, error) {
 	return "", fmt.Errorf("%s: %w; kapi connect supports %s", name, ErrConnectUnsupported, supported)
 }
 
-// claudePluginSteps is how a person installs the kapi Claude Code plugin,
-// whose Stop hook runs the project's check when Claude Code finishes.
-const claudePluginSteps = "in Claude Code, /plugin marketplace add neokapi/claude-plugins, then /plugin install kapi@neokapi-plugins"
+// ClaudePluginCommands are the two commands a person runs inside Claude Code
+// to install the kapi Claude Code plugin, whose Stop hook runs the project's
+// check when Claude Code finishes.
+func ClaudePluginCommands() []string {
+	return []string{"/plugin marketplace add neokapi/claude-plugins", "/plugin install kapi@neokapi-plugins"}
+}
+
+// claudePluginSteps is the step a pending hook's line names.
+var claudePluginSteps = "in Claude Code, " + strings.Join(ClaudePluginCommands(), ", then ")
 
 // claudeSettingsFiles are the project's Claude Code settings files, the
 // shared one first.
@@ -253,6 +264,9 @@ func claudeCodeFound(root string) bool {
 // folder has none. A second run over an unchanged project rewrites nothing
 // and reports every file as kept.
 func (a *App) ConnectHosts(ctx context.Context, cmd Command, opts ConnectOptions) (*ConnectResult, error) {
+	if opts.HostsOnly {
+		opts.DryRun = true
+	}
 	recipe, err := ResolveProjectPath(cmd)
 	if err != nil {
 		return nil, err
@@ -346,6 +360,9 @@ func (a *App) ConnectHosts(ctx context.Context, cmd Command, opts ConnectOptions
 		res.Hosts = append(res.Hosts, entry)
 	}
 
+	if opts.HostsOnly {
+		return res, nil
+	}
 	rules, err := a.connectRulesFiles(ctx, root, recipe, haveRecipe, opts.DryRun)
 	if err != nil {
 		return nil, err

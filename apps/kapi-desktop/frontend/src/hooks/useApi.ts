@@ -72,6 +72,8 @@ import type {
   ContextSyncResult,
   AgentHostStatus,
   AgentWiringResult,
+  AssistantsView,
+  ConnectResult,
   RulesFileView,
   RulesFilesResult,
 } from "../types/api";
@@ -494,6 +496,11 @@ export const api = {
   /** Connect one assistant: the files `kapi init` writes, or Claude Desktop's own file. */
   connectAgentHost: (tabID: string, host: string) =>
     call<AgentWiringResult>("ConnectAgentHost", tabID, host),
+  /** The Assistants page: each assistant's connection, the rules count, the newest sessions. */
+  assistantsView: (tabID: string) => call<AssistantsView>("AssistantsView", tabID),
+  /** Connect one assistant as `kapi connect <host>` does. */
+  connectAssistant: (tabID: string, host: string) =>
+    call<ConnectResult>("ConnectAssistant", tabID, host),
   /** The rules files kapi writes for the tab's project, with each section as written now. */
   rulesFiles: (tabID: string) => call<RulesFileView[]>("RulesFiles", tabID),
   /** Write the tab's project's rules files. */

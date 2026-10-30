@@ -4,7 +4,7 @@ import { ContextHub } from "../components/ContextHub";
 import { qk } from "../lib/queryKeys";
 import { CONTEXT_DIGEST, EMPTY_DIGEST, LAST_LOOKED } from "./fixtures/contextDigest";
 import { RESET_FEED } from "./fixtures/contextFeed";
-import { HOSTS_NONE_CONNECTED } from "./fixtures/agentHosts";
+import { ASSISTANTS_CLAUDE_CONNECTED } from "./fixtures/assistants";
 import { RULES_FILES_WRITTEN } from "./fixtures/rulesFiles";
 import { LOCAL_VIEW } from "./fixtures/sharing";
 import { DECIDE_VIEW, EMPTY_DECIDE_VIEW } from "./fixtures/rulesDecide";
@@ -29,7 +29,7 @@ function seeded(digest: ContextDigest, decide: RulesDecideView = DECIDE_VIEW) {
     client.setQueryData(qk.rulesDecide(TAB), decide);
     client.setQueryData(qk.contextFeed(digest.project), RESET_FEED);
     client.setQueryData(qk.shareView(TAB), LOCAL_VIEW);
-    client.setQueryData(qk.agentHosts(TAB), HOSTS_NONE_CONNECTED);
+    client.setQueryData(qk.assistants(TAB), ASSISTANTS_CLAUDE_CONNECTED);
     client.setQueryData(qk.rulesFiles(TAB), RULES_FILES_WRITTEN);
     return (
       <QueryClientProvider client={client}>
@@ -69,11 +69,11 @@ export const NothingRecorded: Story = {
 /** A project with no checkout here: Decide reads the digest, without decisions. */
 export const ContextOnlyDecide: Story = { args: { contextOnly: true } };
 
-/** What your assistant reads: the connections, the rules files and the brief for a file. */
-export const Assistant: Story = { args: { section: "agent" } };
+/** Assistants: each assistant and its connection, then the sessions recorded here. */
+export const Assistants: Story = { args: { section: "agent" } };
 
-/** The project's own history, with a reset that can be taken back. */
-export const History: Story = { args: { section: "history" } };
+/** Sessions, reached from Assistants: the project's own, with a reset that can be taken back. */
+export const Sessions: Story = { args: { section: "history" } };
 
 /** How far the project's context reaches, on this Mac for now. */
 export const Share: Story = { args: { section: "share" } };

@@ -940,6 +940,306 @@ export class AtlasValue {
 }
 
 /**
+ * ConnectAction is what connecting did to one file.
+ * @readonly
+ * @enum {string}
+ */
+export const ConnectAction = {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero: "",
+
+    /**
+     * ConnectCreated: the file did not exist and now does.
+     */
+    ConnectCreated: "created",
+
+    /**
+     * ConnectUpdated: kapi's part of an existing file was added or rewritten.
+     */
+    ConnectUpdated: "updated",
+
+    /**
+     * ConnectKept: the file already held what kapi writes, or holds a server
+     * called kapi that someone else wrote, and was left as it is.
+     */
+    ConnectKept: "kept",
+
+    /**
+     * ConnectRemoved: kapi's section was taken out of a rules file in a folder
+     * with no rules of its own, and the rest of the file kept.
+     */
+    ConnectRemoved: "removed",
+
+    /**
+     * ConnectDeleted: such a file held nothing but kapi's section and was
+     * deleted.
+     */
+    ConnectDeleted: "deleted",
+
+    /**
+     * ConnectPending: a step a person takes outside the project's files.
+     */
+    ConnectPending: "pending",
+};
+
+/**
+ * ConnectFile is one file connecting wrote or considered.
+ */
+export class ConnectFile {
+    /**
+     * Creates a new ConnectFile instance.
+     * @param {Partial<ConnectFile>} [$$source = {}] - The source object to create the ConnectFile.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * Path is project-relative and slash-separated. Empty for a pending step.
+             * @member
+             * @type {string | undefined}
+             */
+            this["path"] = undefined;
+        }
+        if (!("kind" in $$source)) {
+            /**
+             * @member
+             * @type {ConnectFileKind}
+             */
+            this["kind"] = ConnectFileKind.$zero;
+        }
+        if (!("action" in $$source)) {
+            /**
+             * @member
+             * @type {ConnectAction}
+             */
+            this["action"] = ConnectAction.$zero;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Detail adds what a person reading the line needs: the step to take for
+             * a pending hook, or why an entry was kept.
+             * @member
+             * @type {string | undefined}
+             */
+            this["detail"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ConnectFile instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ConnectFile}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ConnectFile(/** @type {Partial<ConnectFile>} */($$parsedSource));
+    }
+}
+
+/**
+ * ConnectFileKind says what a file is to the assistant that reads it.
+ * @readonly
+ * @enum {string}
+ */
+export const ConnectFileKind = {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero: "",
+
+    /**
+     * ConnectRecipe is the project's recipe.
+     */
+    ConnectRecipe: "recipe",
+
+    /**
+     * ConnectRules is a rules file, AGENTS.md or CLAUDE.md.
+     */
+    ConnectRules: "rules",
+
+    /**
+     * ConnectMCP is a host's MCP configuration file.
+     */
+    ConnectMCP: "mcp",
+
+    /**
+     * ConnectSkill is a skill directory.
+     */
+    ConnectSkill: "skill",
+
+    /**
+     * ConnectHook is the hook that runs kapi check when the assistant
+     * finishes.
+     */
+    ConnectHook: "hook",
+};
+
+/**
+ * ConnectHost is one assistant and what connecting did for it.
+ */
+export class ConnectHost {
+    /**
+     * Creates a new ConnectHost instance.
+     * @param {Partial<ConnectHost>} [$$source = {}] - The source object to create the ConnectHost.
+     */
+    constructor($$source = {}) {
+        if (!("host" in $$source)) {
+            /**
+             * @member
+             * @type {AgentHost}
+             */
+            this["host"] = AgentHost.$zero;
+        }
+        if (!("label" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["label"] = "";
+        }
+        if (!("connected" in $$source)) {
+            /**
+             * Connected reports that the assistant's files are in place after this
+             * run, or would be after a dry run.
+             * @member
+             * @type {boolean}
+             */
+            this["connected"] = false;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Reason says why an assistant was not connected.
+             * @member
+             * @type {string | undefined}
+             */
+            this["reason"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Reads names what the assistant gets: rules, MCP server, skill, and the
+             * check when it finishes.
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["reads"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Files are the assistant's own files: its MCP configuration, its skill
+             * directory, its hook.
+             * @member
+             * @type {ConnectFile[] | undefined}
+             */
+            this["files"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ConnectHost instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ConnectHost}
+     */
+    static createFrom($$source = {}) {
+        const $$createField4_0 = $$createType0;
+        const $$createField5_0 = $$createType16;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("reads" in $$parsedSource) {
+            $$parsedSource["reads"] = $$createField4_0($$parsedSource["reads"]);
+        }
+        if ("files" in $$parsedSource) {
+            $$parsedSource["files"] = $$createField5_0($$parsedSource["files"]);
+        }
+        return new ConnectHost(/** @type {Partial<ConnectHost>} */($$parsedSource));
+    }
+}
+
+/**
+ * ConnectResult reports what ConnectHosts did.
+ */
+export class ConnectResult {
+    /**
+     * Creates a new ConnectResult instance.
+     * @param {Partial<ConnectResult>} [$$source = {}] - The source object to create the ConnectResult.
+     */
+    constructor($$source = {}) {
+        if (!("root" in $$source)) {
+            /**
+             * Root is the project root, and Recipe the recipe file in it.
+             * @member
+             * @type {string}
+             */
+            this["root"] = "";
+        }
+        if (!("recipe" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["recipe"] = "";
+        }
+        if (!("dry_run" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["dry_run"] = false;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Default reports that no assistant was found in the folder, so Claude
+             * Code was connected, as kapi connects it in every project.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["default"] = undefined;
+        }
+        if (!("hosts" in $$source)) {
+            /**
+             * Hosts are the assistants, connected or not, in the order kapi lists
+             * them.
+             * @member
+             * @type {ConnectHost[]}
+             */
+            this["hosts"] = [];
+        }
+        if (!("files" in $$source)) {
+            /**
+             * Files are the project's files every assistant reads: the recipe and
+             * the rules files.
+             * @member
+             * @type {ConnectFile[]}
+             */
+            this["files"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ConnectResult instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ConnectResult}
+     */
+    static createFrom($$source = {}) {
+        const $$createField4_0 = $$createType18;
+        const $$createField5_0 = $$createType16;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("hosts" in $$parsedSource) {
+            $$parsedSource["hosts"] = $$createField4_0($$parsedSource["hosts"]);
+        }
+        if ("files" in $$parsedSource) {
+            $$parsedSource["files"] = $$createField5_0($$parsedSource["files"]);
+        }
+        return new ConnectResult(/** @type {Partial<ConnectResult>} */($$parsedSource));
+    }
+}
+
+/**
  * ContextActivity is one session's part in a project's context: an agent
  * session, or a person's or a tool's work on one local day.
  */
@@ -1011,7 +1311,7 @@ export class ContextActivity {
      */
     static createFrom($$source = {}) {
         const $$createField0_0 = $$createType6;
-        const $$createField5_0 = $$createType15;
+        const $$createField5_0 = $$createType19;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("actor" in $$parsedSource) {
             $$parsedSource["actor"] = $$createField0_0($$parsedSource["actor"]);
@@ -1230,20 +1530,20 @@ export class ContextAnswer {
      * @returns {ContextAnswer}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType17;
-        const $$createField1_0 = $$createType19;
-        const $$createField2_0 = $$createType20;
-        const $$createField5_0 = $$createType22;
-        const $$createField6_0 = $$createType24;
-        const $$createField7_0 = $$createType26;
-        const $$createField9_0 = $$createType28;
-        const $$createField10_0 = $$createType28;
-        const $$createField11_0 = $$createType30;
-        const $$createField12_0 = $$createType32;
-        const $$createField14_0 = $$createType34;
+        const $$createField0_0 = $$createType21;
+        const $$createField1_0 = $$createType23;
+        const $$createField2_0 = $$createType24;
+        const $$createField5_0 = $$createType26;
+        const $$createField6_0 = $$createType28;
+        const $$createField7_0 = $$createType30;
+        const $$createField9_0 = $$createType32;
+        const $$createField10_0 = $$createType32;
+        const $$createField11_0 = $$createType34;
+        const $$createField12_0 = $$createType36;
+        const $$createField14_0 = $$createType38;
         const $$createField16_0 = $$createType0;
         const $$createField17_0 = $$createType0;
-        const $$createField18_0 = $$createType36;
+        const $$createField18_0 = $$createType40;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("constraints" in $$parsedSource) {
             $$parsedSource["constraints"] = $$createField0_0($$parsedSource["constraints"]);
@@ -1380,11 +1680,11 @@ export class ContextAtlas {
      * @returns {ContextAtlas}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType37;
-        const $$createField5_0 = $$createType39;
-        const $$createField6_0 = $$createType41;
-        const $$createField7_0 = $$createType43;
-        const $$createField8_0 = $$createType45;
+        const $$createField4_0 = $$createType41;
+        const $$createField5_0 = $$createType43;
+        const $$createField6_0 = $$createType45;
+        const $$createField7_0 = $$createType47;
+        const $$createField8_0 = $$createType49;
         const $$createField9_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("span" in $$parsedSource) {
@@ -1524,11 +1824,11 @@ export class ContextDigest {
      * @returns {ContextDigest}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType47;
-        const $$createField4_0 = $$createType49;
-        const $$createField5_0 = $$createType51;
-        const $$createField6_0 = $$createType53;
-        const $$createField7_0 = $$createType54;
+        const $$createField3_0 = $$createType51;
+        const $$createField4_0 = $$createType53;
+        const $$createField5_0 = $$createType55;
+        const $$createField6_0 = $$createType57;
+        const $$createField7_0 = $$createType58;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("conflicts" in $$parsedSource) {
             $$parsedSource["conflicts"] = $$createField3_0($$parsedSource["conflicts"]);
@@ -1988,16 +2288,16 @@ export class ContextOperation {
      */
     static createFrom($$source = {}) {
         const $$createField3_0 = $$createType6;
-        const $$createField5_0 = $$createType55;
-        const $$createField6_0 = $$createType57;
+        const $$createField5_0 = $$createType59;
+        const $$createField6_0 = $$createType61;
         const $$createField7_0 = $$createType14;
-        const $$createField8_0 = $$createType58;
-        const $$createField9_0 = $$createType59;
+        const $$createField8_0 = $$createType62;
+        const $$createField9_0 = $$createType63;
         const $$createField15_0 = $$createType0;
-        const $$createField17_0 = $$createType61;
+        const $$createField17_0 = $$createType65;
         const $$createField18_0 = $$createType0;
-        const $$createField19_0 = $$createType63;
-        const $$createField20_0 = $$createType65;
+        const $$createField19_0 = $$createType67;
+        const $$createField20_0 = $$createType69;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("actor" in $$parsedSource) {
             $$parsedSource["actor"] = $$createField3_0($$parsedSource["actor"]);
@@ -2299,7 +2599,7 @@ export class ContextProjectStanding {
      * @returns {ContextProjectStanding}
      */
     static createFrom($$source = {}) {
-        const $$createField8_0 = $$createType67;
+        const $$createField8_0 = $$createType71;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("latest" in $$parsedSource) {
             $$parsedSource["latest"] = $$createField8_0($$parsedSource["latest"]);
@@ -2450,7 +2750,7 @@ export class ContextPull {
      * @returns {ContextPull}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType68;
+        const $$createField0_0 = $$createType72;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("remote" in $$parsedSource) {
             $$parsedSource["remote"] = $$createField0_0($$parsedSource["remote"]);
@@ -2577,7 +2877,7 @@ export class ContextPush {
      * @returns {ContextPush}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType68;
+        const $$createField0_0 = $$createType72;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("remote" in $$parsedSource) {
             $$parsedSource["remote"] = $$createField0_0($$parsedSource["remote"]);
@@ -2855,12 +3155,12 @@ export class ContextSearchResult {
      * @returns {ContextSearchResult}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType22;
-        const $$createField4_0 = $$createType36;
-        const $$createField5_0 = $$createType26;
-        const $$createField6_0 = $$createType70;
-        const $$createField7_0 = $$createType30;
-        const $$createField8_0 = $$createType28;
+        const $$createField3_0 = $$createType26;
+        const $$createField4_0 = $$createType40;
+        const $$createField5_0 = $$createType30;
+        const $$createField6_0 = $$createType74;
+        const $$createField7_0 = $$createType34;
+        const $$createField8_0 = $$createType32;
         const $$createField9_0 = $$createType0;
         const $$createField10_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
@@ -2944,7 +3244,7 @@ export class ContextSettleResult {
      * @returns {ContextSettleResult}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType72;
+        const $$createField2_0 = $$createType76;
         const $$createField3_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("signals" in $$parsedSource) {
@@ -3115,7 +3415,7 @@ export class ContextSuggestion {
         const $$createField3_0 = $$createType0;
         const $$createField5_0 = $$createType0;
         const $$createField13_0 = $$createType14;
-        const $$createField14_0 = $$createType65;
+        const $$createField14_0 = $$createType69;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("contested_by" in $$parsedSource) {
             $$parsedSource["contested_by"] = $$createField3_0($$parsedSource["contested_by"]);
@@ -3193,10 +3493,10 @@ export class ContextSyncResult {
      * @returns {ContextSyncResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType74;
-        const $$createField1_0 = $$createType76;
-        const $$createField2_0 = $$createType78;
-        const $$createField3_0 = $$createType80;
+        const $$createField0_0 = $$createType78;
+        const $$createField1_0 = $$createType80;
+        const $$createField2_0 = $$createType82;
+        const $$createField3_0 = $$createType84;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pull" in $$parsedSource) {
             $$parsedSource["pull"] = $$createField0_0($$parsedSource["pull"]);
@@ -3378,7 +3678,7 @@ export class ContextTermHit {
      * @returns {ContextTermHit}
      */
     static createFrom($$source = {}) {
-        const $$createField13_0 = $$createType82;
+        const $$createField13_0 = $$createType86;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("top_uses" in $$parsedSource) {
             $$parsedSource["top_uses"] = $$createField13_0($$parsedSource["top_uses"]);
@@ -3713,7 +4013,7 @@ export class ConvergeLocaleResult {
      * @returns {ConvergeLocaleResult}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType15;
+        const $$createField3_0 = $$createType19;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pct" in $$parsedSource) {
             $$parsedSource["pct"] = $$createField3_0($$parsedSource["pct"]);
@@ -3895,9 +4195,9 @@ export class ConvergeOutput {
      * @returns {ConvergeOutput}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType84;
-        const $$createField4_0 = $$createType86;
-        const $$createField15_0 = $$createType88;
+        const $$createField3_0 = $$createType88;
+        const $$createField4_0 = $$createType90;
+        const $$createField15_0 = $$createType92;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("locales" in $$parsedSource) {
             $$parsedSource["locales"] = $$createField3_0($$parsedSource["locales"]);
@@ -3986,7 +4286,7 @@ export class DigestConflict {
      * @returns {DigestConflict}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType49;
+        const $$createField0_0 = $$createType53;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("sides" in $$parsedSource) {
             $$parsedSource["sides"] = $$createField0_0($$parsedSource["sides"]);
@@ -4046,7 +4346,7 @@ export class DigestDrift {
      * @returns {DigestDrift}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType48;
+        const $$createField0_0 = $$createType52;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("rule" in $$parsedSource) {
             $$parsedSource["rule"] = $$createField0_0($$parsedSource["rule"]);
@@ -4091,7 +4391,7 @@ export class DigestGroup {
      * @returns {DigestGroup}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType49;
+        const $$createField1_0 = $$createType53;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("items" in $$parsedSource) {
             $$parsedSource["items"] = $$createField1_0($$parsedSource["items"]);
@@ -4288,9 +4588,9 @@ export class DigestItem {
      * @returns {DigestItem}
      */
     static createFrom($$source = {}) {
-        const $$createField5_0 = $$createType55;
-        const $$createField6_0 = $$createType89;
-        const $$createField9_0 = $$createType91;
+        const $$createField5_0 = $$createType59;
+        const $$createField6_0 = $$createType93;
+        const $$createField9_0 = $$createType95;
         const $$createField10_0 = $$createType6;
         const $$createField17_0 = $$createType0;
         const $$createField19_0 = $$createType0;
@@ -4425,7 +4725,7 @@ export class DigestTheme {
      * @returns {DigestTheme}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType93;
+        const $$createField2_0 = $$createType97;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("groups" in $$parsedSource) {
             $$parsedSource["groups"] = $$createField2_0($$parsedSource["groups"]);
@@ -4702,7 +5002,7 @@ export class RulesFilesResult {
      * @returns {RulesFilesResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType95;
+        const $$createField0_0 = $$createType99;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("files" in $$parsedSource) {
             $$parsedSource["files"] = $$createField0_0($$parsedSource["files"]);
@@ -4832,9 +5132,9 @@ export class UpPlanOutput {
      * @returns {UpPlanOutput}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType97;
-        const $$createField4_0 = $$createType96;
-        const $$createField8_0 = $$createType88;
+        const $$createField3_0 = $$createType101;
+        const $$createField4_0 = $$createType100;
+        const $$createField8_0 = $$createType92;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("scopes" in $$parsedSource) {
             $$parsedSource["scopes"] = $$createField3_0($$parsedSource["scopes"]);
@@ -5036,86 +5336,90 @@ const $$createType11 = AtlasState.createFrom;
 const $$createType12 = $Create.Array($$createType11);
 const $$createType13 = contextop$0.Evidence.createFrom;
 const $$createType14 = $Create.Array($$createType13);
-const $$createType15 = $Create.Map($Create.Any, $Create.Any);
-const $$createType16 = profile$0.ConstraintResolution.createFrom;
-const $$createType17 = $Create.Array($$createType16);
-const $$createType18 = ContextEditionOf.createFrom;
-const $$createType19 = $Create.Nullable($$createType18);
-const $$createType20 = ContextPoint.createFrom;
-const $$createType21 = check$0.ContextProvenance.createFrom;
-const $$createType22 = $Create.Nullable($$createType21);
-const $$createType23 = review$0.Voice.createFrom;
-const $$createType24 = $Create.Nullable($$createType23);
-const $$createType25 = ContextTermHit.createFrom;
-const $$createType26 = $Create.Array($$createType25);
-const $$createType27 = ContextSuggestion.createFrom;
-const $$createType28 = $Create.Array($$createType27);
-const $$createType29 = review$0.ProfileValidity.createFrom;
+const $$createType15 = ConnectFile.createFrom;
+const $$createType16 = $Create.Array($$createType15);
+const $$createType17 = ConnectHost.createFrom;
+const $$createType18 = $Create.Array($$createType17);
+const $$createType19 = $Create.Map($Create.Any, $Create.Any);
+const $$createType20 = profile$0.ConstraintResolution.createFrom;
+const $$createType21 = $Create.Array($$createType20);
+const $$createType22 = ContextEditionOf.createFrom;
+const $$createType23 = $Create.Nullable($$createType22);
+const $$createType24 = ContextPoint.createFrom;
+const $$createType25 = check$0.ContextProvenance.createFrom;
+const $$createType26 = $Create.Nullable($$createType25);
+const $$createType27 = review$0.Voice.createFrom;
+const $$createType28 = $Create.Nullable($$createType27);
+const $$createType29 = ContextTermHit.createFrom;
 const $$createType30 = $Create.Array($$createType29);
-const $$createType31 = ContextRule.createFrom;
+const $$createType31 = ContextSuggestion.createFrom;
 const $$createType32 = $Create.Array($$createType31);
-const $$createType33 = ContextElsewhere.createFrom;
+const $$createType33 = review$0.ProfileValidity.createFrom;
 const $$createType34 = $Create.Array($$createType33);
-const $$createType35 = ContextFilesNotice.createFrom;
-const $$createType36 = $Create.Nullable($$createType35);
-const $$createType37 = AtlasSpan.createFrom;
-const $$createType38 = AtlasAxis.createFrom;
-const $$createType39 = $Create.Array($$createType38);
-const $$createType40 = AtlasPlace.createFrom;
-const $$createType41 = $Create.Array($$createType40);
-const $$createType42 = AtlasRecord.createFrom;
+const $$createType35 = ContextRule.createFrom;
+const $$createType36 = $Create.Array($$createType35);
+const $$createType37 = ContextElsewhere.createFrom;
+const $$createType38 = $Create.Array($$createType37);
+const $$createType39 = ContextFilesNotice.createFrom;
+const $$createType40 = $Create.Nullable($$createType39);
+const $$createType41 = AtlasSpan.createFrom;
+const $$createType42 = AtlasAxis.createFrom;
 const $$createType43 = $Create.Array($$createType42);
-const $$createType44 = AtlasEvent.createFrom;
+const $$createType44 = AtlasPlace.createFrom;
 const $$createType45 = $Create.Array($$createType44);
-const $$createType46 = DigestConflict.createFrom;
+const $$createType46 = AtlasRecord.createFrom;
 const $$createType47 = $Create.Array($$createType46);
-const $$createType48 = DigestItem.createFrom;
+const $$createType48 = AtlasEvent.createFrom;
 const $$createType49 = $Create.Array($$createType48);
-const $$createType50 = DigestTheme.createFrom;
+const $$createType50 = DigestConflict.createFrom;
 const $$createType51 = $Create.Array($$createType50);
-const $$createType52 = DigestDrift.createFrom;
+const $$createType52 = DigestItem.createFrom;
 const $$createType53 = $Create.Array($$createType52);
-const $$createType54 = DigestNumbers.createFrom;
-const $$createType55 = contextop$0.Subject.createFrom;
-const $$createType56 = contextop$0.Correction.createFrom;
-const $$createType57 = $Create.Nullable($$createType56);
-const $$createType58 = contextop$0.Basis.createFrom;
-const $$createType59 = contextop$0.Scope.createFrom;
-const $$createType60 = contextop$0.Signal.createFrom;
+const $$createType54 = DigestTheme.createFrom;
+const $$createType55 = $Create.Array($$createType54);
+const $$createType56 = DigestDrift.createFrom;
+const $$createType57 = $Create.Array($$createType56);
+const $$createType58 = DigestNumbers.createFrom;
+const $$createType59 = contextop$0.Subject.createFrom;
+const $$createType60 = contextop$0.Correction.createFrom;
 const $$createType61 = $Create.Nullable($$createType60);
-const $$createType62 = contextop$0.CheckRun.createFrom;
-const $$createType63 = $Create.Nullable($$createType62);
-const $$createType64 = contextop$0.Standing.createFrom;
+const $$createType62 = contextop$0.Basis.createFrom;
+const $$createType63 = contextop$0.Scope.createFrom;
+const $$createType64 = contextop$0.Signal.createFrom;
 const $$createType65 = $Create.Nullable($$createType64);
-const $$createType66 = ContextActivity.createFrom;
+const $$createType66 = contextop$0.CheckRun.createFrom;
 const $$createType67 = $Create.Nullable($$createType66);
-const $$createType68 = workspace$0.RemoteDescriptor.createFrom;
-const $$createType69 = ContextPrecedentHit.createFrom;
-const $$createType70 = $Create.Array($$createType69);
-const $$createType71 = ContextOperation.createFrom;
-const $$createType72 = $Create.Array($$createType71);
-const $$createType73 = ContextPull.createFrom;
-const $$createType74 = $Create.Nullable($$createType73);
-const $$createType75 = ContextSettleResult.createFrom;
-const $$createType76 = $Create.Nullable($$createType75);
-const $$createType77 = ContextPush.createFrom;
+const $$createType68 = contextop$0.Standing.createFrom;
+const $$createType69 = $Create.Nullable($$createType68);
+const $$createType70 = ContextActivity.createFrom;
+const $$createType71 = $Create.Nullable($$createType70);
+const $$createType72 = workspace$0.RemoteDescriptor.createFrom;
+const $$createType73 = ContextPrecedentHit.createFrom;
+const $$createType74 = $Create.Array($$createType73);
+const $$createType75 = ContextOperation.createFrom;
+const $$createType76 = $Create.Array($$createType75);
+const $$createType77 = ContextPull.createFrom;
 const $$createType78 = $Create.Nullable($$createType77);
-const $$createType79 = RulesFilesResult.createFrom;
+const $$createType79 = ContextSettleResult.createFrom;
 const $$createType80 = $Create.Nullable($$createType79);
-const $$createType81 = ContextTermUse.createFrom;
-const $$createType82 = $Create.Array($$createType81);
-const $$createType83 = ConvergeLocaleResult.createFrom;
-const $$createType84 = $Create.Array($$createType83);
-const $$createType85 = ParkedScope.createFrom;
+const $$createType81 = ContextPush.createFrom;
+const $$createType82 = $Create.Nullable($$createType81);
+const $$createType83 = RulesFilesResult.createFrom;
+const $$createType84 = $Create.Nullable($$createType83);
+const $$createType85 = ContextTermUse.createFrom;
 const $$createType86 = $Create.Array($$createType85);
-const $$createType87 = check$0.Warning.createFrom;
+const $$createType87 = ConvergeLocaleResult.createFrom;
 const $$createType88 = $Create.Array($$createType87);
-const $$createType89 = $Create.Nullable($$createType13);
-const $$createType90 = DigestUsage.createFrom;
-const $$createType91 = $Create.Nullable($$createType90);
-const $$createType92 = DigestGroup.createFrom;
-const $$createType93 = $Create.Array($$createType92);
-const $$createType94 = RulesFile.createFrom;
-const $$createType95 = $Create.Array($$createType94);
-const $$createType96 = UpPlanScope.createFrom;
+const $$createType89 = ParkedScope.createFrom;
+const $$createType90 = $Create.Array($$createType89);
+const $$createType91 = check$0.Warning.createFrom;
+const $$createType92 = $Create.Array($$createType91);
+const $$createType93 = $Create.Nullable($$createType13);
+const $$createType94 = DigestUsage.createFrom;
+const $$createType95 = $Create.Nullable($$createType94);
+const $$createType96 = DigestGroup.createFrom;
 const $$createType97 = $Create.Array($$createType96);
+const $$createType98 = RulesFile.createFrom;
+const $$createType99 = $Create.Array($$createType98);
+const $$createType100 = UpPlanScope.createFrom;
+const $$createType101 = $Create.Array($$createType100);

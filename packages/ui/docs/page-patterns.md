@@ -89,7 +89,7 @@ time. Explanation belongs in one of these, in this order of preference:
 4. **The docs.** A link, when the explanation runs past a sentence.
 
 The line that names a page's command-line equivalent is a mono chip in the
-page header's right-hand slot, as the Assistant page shows `kapi init`. It
+page header's right-hand slot, as the Assistants page shows `kapi connect`. It
 appears once per page and never as a caption under a section.
 
 ## Hierarchy

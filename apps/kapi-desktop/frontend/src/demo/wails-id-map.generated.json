@@ -158,6 +158,7 @@
   "2504531246": "IsArchive",
   "2506791156": "ListUserFlows",
   "2509806247": "GetKeptConflicts",
+  "2511701370": "ConnectAssistant",
   "2522919595": "SelectAIProvider",
   "2534931649": "WriteRulesFiles",
   "2536287501": "RebaseKeptDocument",
@@ -251,6 +252,7 @@
   "4214482200": "SaveProjectFilter",
   "4222482902": "RunExtract",
   "4238036065": "BrowsePath",
+  "4281797836": "AssistantsView",
   "4284577631": "UpdateConcept",
   "4293568018": "CreateNamedMemory"
 }
