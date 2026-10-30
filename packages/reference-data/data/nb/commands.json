@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-30T15:25:06Z",
+  "generatedAt": "2026-10-30T16:26:20Z",
   "commands": [
     {
       "id": "add",
@@ -627,6 +627,7 @@
         "kapi context docs/guide.md --explain",
         "kapi context cmd/main.go --comments",
         "kapi context search widget",
+        "kapi context suggest",
         "kapi context review",
         "kapi context atlas",
         "kapi context places oslo",
@@ -1060,6 +1061,39 @@
         "kapi context search widget",
         "kapi context search \"sign in\" --locale en",
         "kapi context search widget --json"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "context.suggest",
+      "path": [
+        "context",
+        "suggest"
+      ],
+      "use": "suggest",
+      "short": "File what kapi can see in the files as suggestions for you to decide",
+      "long": "Read the files this project declares and file what kapi can see in them as\nsuggestions:\n\n  - a word the files write more than one way, such as e-mail and email: the\n    form written most often, instead of the others\n  - in a project that binds no voice, the words a starter voice pack avoids,\n    when the files use three or more of them\n  - the files addressing the reader as you, when most blocks with a personal\n    pronoun do and none says we\n\nEach suggestion is noticed by kapi and waits for you in \"kapi context review\".\nChecks report it and none fails on it until you keep it. Nothing else is\nwritten: not the recipe, not a rules file. No AI model is used.\n\nRunning it again files nothing new. A suggestion you dropped stays dropped,\nand one the files have changed is filed again as it now stands. --dry-run\nprints what it would file and records nothing.",
+      "groupID": "context-person",
+      "flags": [
+        {
+          "name": "dry-run",
+          "usage": "print what would be filed and record nothing",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi context suggest",
+        "kapi context suggest --dry-run",
+        "kapi context suggest --json"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
