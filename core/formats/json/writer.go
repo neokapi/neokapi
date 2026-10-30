@@ -218,7 +218,7 @@ func (w *Writer) fallbackChildText(parts []*model.Part) string {
 // This produces byte-exact output — only translated text differs from the original.
 func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[string]*model.Block, childLayerValues map[string]string) error {
 	var asRead valueAsRead
-	var spelling valueSpelling
+	vw := &valueWriter{out: w.Output, escapeSlashes: w.cfg.EscapeForwardSlashes}
 	for {
 		entry, err := store.Next()
 		if errors.Is(err, io.EOF) {
@@ -229,12 +229,12 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 		}
 		switch entry.Type {
 		case format.SkeletonText:
-			if _, err := w.Output.Write(entry.Data); err != nil {
+			if err := vw.text(entry.Data); err != nil {
 				return err
 			}
 		case format.SkeletonOriginal:
 			asRead.set(entry.Data)
-			spelling.observe(asRead.raw)
+			vw.original(asRead.raw)
 		case format.SkeletonRef:
 			read := asRead.take()
 			refID := string(entry.Data)
@@ -253,12 +253,12 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 					quote = '\''
 				}
 			}
-			if _, err := w.Output.Write(w.writeValue(read, text, quote, spelling)); err != nil {
+			if err := vw.value(read, text, quote); err != nil {
 				return err
 			}
 		}
 	}
-	return nil
+	return vw.finish()
 }
 
 // valueAsRead holds the pair the reader recorded for the next value reference:
@@ -377,7 +377,7 @@ func (w *Writer) streamWrite(ctx context.Context, parts <-chan *model.Part) erro
 	pendingBlocks := make(map[string]*model.Block) // arrived before their ref
 	pendingLayers := make(map[string]string)       // rendered before their ref
 	var asRead valueAsRead
-	var spelling valueSpelling
+	vw := &valueWriter{out: w.Output, escapeSlashes: w.cfg.EscapeForwardSlashes}
 
 	// blockFor returns the block with id, pulling items until it appears. The
 	// reader emits a ref's block right after the ref, so this usually receives
@@ -433,12 +433,12 @@ func (w *Writer) streamWrite(ctx context.Context, parts <-chan *model.Part) erro
 		}
 		switch entry.Type {
 		case format.SkeletonText:
-			if _, err := w.Output.Write(entry.Data); err != nil {
+			if err := vw.text(entry.Data); err != nil {
 				return err
 			}
 		case format.SkeletonOriginal:
 			asRead.set(entry.Data)
-			spelling.observe(asRead.raw)
+			vw.original(asRead.raw)
 		case format.SkeletonRef:
 			read := asRead.take()
 			refID := string(entry.Data)
@@ -456,10 +456,13 @@ func (w *Writer) streamWrite(ctx context.Context, parts <-chan *model.Part) erro
 					quote = '\''
 				}
 			}
-			if _, err := w.Output.Write(w.writeValue(read, text, quote, spelling)); err != nil {
+			if err := vw.value(read, text, quote); err != nil {
 				return err
 			}
 		}
+	}
+	if err := vw.finish(); err != nil {
+		return err
 	}
 
 	// Drain any items past the last skeleton ref so the drainer finishes

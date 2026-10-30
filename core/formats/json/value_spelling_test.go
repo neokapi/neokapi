@@ -140,3 +140,42 @@ func TestEditOfALongValueKeepsItsEscapes(t *testing.T) {
 	assert.Equal(t, want, bufferedWriterRoundtrip(t, doc, c), "buffered")
 	assert.Equal(t, want, streamingWriterRoundtrip(t, doc, c), "streaming")
 }
+
+// An added character is spelled the way most of the whole document spells it,
+// counting the values after the edited one and the strings the reader did not
+// extract (keys, arrays), so the edit of an early value follows the file.
+func TestAnAddedCharacterFollowsTheWholeDocument(t *testing.T) {
+	tests := []struct{ name, doc, to, want string }{
+		{
+			name: "escapes after the edited value",
+			doc:  "{\"b\": \"utilize\", \"a\": \"caf\\u00e9\", \"c\": \"na\\u00efve \\u00e0\"}",
+			to:   "d\u00e9j\u00e0",
+			want: "{\"b\": \"d\\u00e9j\\u00e0\", \"a\": \"caf\\u00e9\", \"c\": \"na\\u00efve \\u00e0\"}",
+		},
+		{
+			name: "UTF-8 after the edited value",
+			doc:  "{\"b\": \"utilize\", \"a\": \"caf\u00e9\", \"c\": \"caf\\u00e9 na\u00efve \u00e0\"}",
+			to:   "d\u00e9j\u00e0",
+			want: "{\"b\": \"d\u00e9j\u00e0\", \"a\": \"caf\u00e9\", \"c\": \"caf\\u00e9 na\u00efve \u00e0\"}",
+		},
+		{
+			name: "escaped slashes in an array the reader does not extract",
+			doc:  "{\"a\": \"utilize\", \"list\": [\"a\\/b\", \"c\\/d\"]}",
+			to:   "and/or",
+			want: "{\"a\": \"and\\/or\", \"list\": [\"a\\/b\", \"c\\/d\"]}",
+		},
+		{
+			name: "literal slashes in an array the reader does not extract",
+			doc:  "{\"a\": \"utilize\", \"list\": [\"a/b\", \"c/d\"]}",
+			to:   "and/or",
+			want: "{\"a\": \"and/or\", \"list\": [\"a/b\", \"c/d\"]}",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			c := writerCase{mutate: replaceIn("utilize", tc.to)}
+			assert.Equal(t, tc.want, bufferedWriterRoundtrip(t, tc.doc, c), "buffered")
+			assert.Equal(t, tc.want, streamingWriterRoundtrip(t, tc.doc, c), "streaming")
+		})
+	}
+}

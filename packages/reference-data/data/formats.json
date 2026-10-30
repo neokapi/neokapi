@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-30T16:59:55Z",
+  "generatedAt": "2026-10-30T17:52:24Z",
   "kind": "format",
   "entries": [
     {
@@ -1942,7 +1942,7 @@
           },
           "escapeForwardSlashes": {
             "description": "Escape forward slashes in translated values.",
-            "help": "When enabled (the default), forward slashes in a translated value are\nwritten as `\\/`, matching the conservative escaping some JSON producers\nuse. Disable the option to write bare `/` characters. A value written\nback unchanged keeps the spelling the document gave it. An edited value\nkeeps the spelling of every character the edit kept, and an added slash\nis spelled the way most of the document's slashes are; the option\ndecides only for a document that spells no slash.\n",
+            "help": "When enabled (the default), forward slashes in a translated value are\nwritten as `\\/`, matching the conservative escaping some JSON producers\nuse. Disable the option to write bare `/` characters. A value written\nback unchanged keeps the spelling the document gave it. An edited value\nkeeps the spelling of every character the edit kept, and an added slash\nis spelled the way most of the document's slashes are spelled. The\noption decides only for a document that spells no slash.\n",
             "values": "`true` / `false` (default `true`)"
           },
           "exceptions": {
