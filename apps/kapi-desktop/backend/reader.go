@@ -140,6 +140,8 @@ type readerRead struct {
 	// the fixable findings in file order.
 	fixes map[string]string
 	order []string
+	// run is the checks run over the file the read was drawn from.
+	run *CheckRunResult
 }
 
 // ReaderFile reads one content file of the project a tab holds for the
@@ -212,6 +214,8 @@ func (a *App) applyReaderFixes(tabID, relPath string, r *readerRead, ids []strin
 		return nil, err
 	}
 	var refused []ReaderRefusalDTO
+	// wrote is set once a change set lands.
+	wrote := false
 	pending := slices.Clone(ids)
 	for len(pending) > 0 {
 		ops := make([]change.Op, 0, len(pending))
@@ -241,6 +245,7 @@ func (a *App) applyReaderFixes(tabID, relPath string, r *readerRead, ids []strin
 			return nil, fmt.Errorf("the fixes to %s were only partly written", r.dto.Path)
 		}
 		if res.Status != change.SetRefused {
+			wrote = res.Status == change.SetApplied
 			break
 		}
 		if res.Error != nil {
@@ -279,6 +284,14 @@ func (a *App) applyReaderFixes(tabID, relPath string, r *readerRead, ids []strin
 	out, err := a.readerRead(tabID, relPath)
 	if err != nil {
 		return nil, err
+	}
+	// The read ran the file's checks in every target language the
+	// whole-project run checks, so its findings take the file's place in that
+	// run, which the Map counts and the Checks page opens on.
+	if wrote {
+		if op := a.getOpenProject(tabID); op != nil {
+			op.replaceCheckedFile(out.dto.Abs, out.run)
+		}
 	}
 	out.dto.Refused = append(out.dto.Refused, refused...)
 	return out.dto, nil
@@ -340,6 +353,7 @@ func (a *App) readerRead(tabID, relPath string) (*readerRead, error) {
 			Refused:   []ReaderRefusalDTO{},
 		},
 		fixes: map[string]string{},
+		run:   res,
 	}
 	out.place(blocks, findings)
 
@@ -363,9 +377,15 @@ func (a *App) readerSource(tabID string, op *openProject, rel string) (project.R
 		return project.ResolvedFile{}, fmt.Errorf("resolve content: %w", err)
 	}
 	for _, rf := range resolved {
-		if filepath.ToSlash(rf.Relative) == rel {
-			return rf, nil
+		if filepath.ToSlash(rf.Relative) != rel {
+			continue
 		}
+		// A file declared for its comments holds no block the Reader draws:
+		// its findings sit on comments, which the preview shows by line.
+		if rf.CommentsOnly() {
+			return project.ResolvedFile{}, fmt.Errorf("%s is read for its comments alone, which the Reader does not draw", rel)
+		}
+		return rf, nil
 	}
 	if ans, aerr := a.ContextAt(tabID, rel, 1); aerr == nil && ans.EditionOf != nil {
 		return project.ResolvedFile{}, fmt.Errorf("%s is the %s translation of %s: the Reader reads and fixes the source",
@@ -542,12 +562,12 @@ func readerRules(ans *host.ContextAnswer) ([]ReaderRuleDTO, int) {
 	for _, rule := range ans.Rules {
 		kind := "word"
 		for _, n := range rule.Not {
-			avoided[strings.ToLower(strings.TrimSpace(n))] = true
+			avoided[host.FoldWording(n)] = true
 			if rule.Say != "" && spellingKey(n) == spellingKey(rule.Say) {
 				kind = "name"
 			}
 		}
-		said[strings.ToLower(strings.TrimSpace(rule.Say))] = true
+		said[host.FoldWording(rule.Say)] = true
 		text := rule.Say
 		switch {
 		case rule.Say != "" && len(rule.Not) > 0:
@@ -572,8 +592,8 @@ func readerRules(ans *host.ContextAnswer) ([]ReaderRuleDTO, int) {
 		out = append(out, ReaderRuleDTO{Kind: "note", Rule: n.Text, Status: n.Status, By: n.SuggestedBy, At: n.At})
 	}
 	for _, s := range ans.Suggestions {
-		if s.Kind != "note" && avoided[strings.ToLower(strings.TrimSpace(s.Term))] &&
-			(s.Replacement == "" || said[strings.ToLower(strings.TrimSpace(s.Replacement))]) {
+		if s.Kind != "note" && avoided[host.FoldWording(s.Term)] &&
+			(s.Replacement == "" || said[host.FoldWording(s.Replacement)]) {
 			continue
 		}
 		row := ReaderRuleDTO{Status: s.Status, By: s.SuggestedBy, At: s.At}

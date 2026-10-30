@@ -227,29 +227,8 @@ func TestFixFinding_RefusedIsReported(t *testing.T) {
 	wsRoot := t.TempDir()
 	app := NewApp()
 	app.hostEngine().SetWorkspaceRoot(wsRoot)
-	dir := t.TempDir()
-	srcPath := filepath.Join(dir, "locales", "en.json")
 	source := `{"greeting":"Please utilize the dashboard"}`
-	require.NoError(t, os.MkdirAll(filepath.Dir(srcPath), 0o755))
-	require.NoError(t, os.WriteFile(srcPath, []byte(source), 0o644))
-	require.NoError(t, os.MkdirAll(filepath.Join(dir, project.StateDirName), 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, project.RelStatePath("voice.yaml")), []byte(refusingVoiceYAML), 0o644))
-	recipe := filepath.Join(dir, "proj.kapi")
-	require.NoError(t, project.Save(recipe, &project.KapiProject{
-		Version:     project.CurrentVersion,
-		Defaults:    project.Defaults{SourceLanguage: "en"},
-		Collections: []project.Collection{{Path: "locales/en.json", Target: "locales/{lang}.json"}},
-	}))
-	importer := &host.App{}
-	importer.InitRegistries()
-	importer.SetWorkspaceRoot(wsRoot)
-	_, err := importer.ImportProjectContext(t.Context(), recipe, host.ContextImportRequest{})
-	require.NoError(t, err)
-	importer.Shutdown()
-	tab, err := app.OpenProject(recipe)
-	require.NoError(t, err)
-	t.Cleanup(func() { app.CloseProject(tab.ID) })
-	tabID := tab.ID
+	tabID, srcPath := gatedProject(t, app, wsRoot, source, refusingVoiceYAML)
 
 	before, err := app.ReaderFile(tabID, "locales/en.json")
 	require.NoError(t, err)
@@ -292,6 +271,129 @@ func TestFixFile_AppliesEveryFix(t *testing.T) {
 	data, err := os.ReadFile(srcPath)
 	require.NoError(t, err)
 	assert.Equal(t, `{"a":"Please use the dashboard","b":"We use it daily"}`, string(data))
+}
+
+// TestFixFile_UpdatesTheMapsRun: a fix replaces the file's entry in the last
+// whole-project run, so the Map's counts and the Checks page show what the
+// file holds after it, without a second run over every file.
+func TestFixFile_UpdatesTheMapsRun(t *testing.T) {
+	wsRoot := t.TempDir()
+	app := NewApp()
+	app.hostEngine().SetWorkspaceRoot(wsRoot)
+	tabID, srcPath := gatedProject(t, app, wsRoot, `{"a":"Please utilize the dashboard","b":"We utilize it daily"}`, houseVoiceYAML)
+
+	whole, err := app.RunChecks(tabID, ProjectFilter{})
+	require.NoError(t, err)
+	assert.Equal(t, "failed", whole.Verdict)
+	before, err := app.MapSummary(tabID)
+	require.NoError(t, err)
+	require.NotNil(t, before.Findings)
+	assert.Equal(t, 2, *before.Findings)
+
+	_, err = app.FixFile(tabID, "locales/en.json")
+	require.NoError(t, err)
+
+	after, err := app.MapSummary(tabID)
+	require.NoError(t, err)
+	require.NotNil(t, after.Findings)
+	assert.Zero(t, *after.Findings)
+	require.Len(t, after.FileRows, 1)
+	assert.Zero(t, after.FileRows[0].Findings)
+	last, err := app.LastProjectChecks(tabID)
+	require.NoError(t, err)
+	require.NotNil(t, last)
+	assert.Equal(t, "passed", last.Verdict)
+	assert.True(t, last.Pass)
+	assert.Equal(t, 100, last.Score)
+	require.Len(t, last.Files, 1)
+	assert.Equal(t, srcPath, last.Files[0].Path)
+	assert.Empty(t, last.Files[0].Findings)
+}
+
+// partialVoiceYAML asks for two replacements, one of which its own pattern
+// forbids, so a Fix all holds one fix the commit check refuses and one it
+// lets through.
+const partialVoiceYAML = `id: house
+name: House Style
+style:
+  prohibited_patterns:
+    - regex: '(?i)\bleverage\b'
+      description: Write use
+vocabulary:
+  forbidden_terms:
+    - term: utilize
+      replacement: leverage
+    - term: whilst
+      replacement: while
+`
+
+// TestFixFile_PartialRefusal: one fix the service refuses is set aside with
+// its reason, and the rest are sent again without it and land.
+func TestFixFile_PartialRefusal(t *testing.T) {
+	wsRoot := t.TempDir()
+	app := NewApp()
+	app.hostEngine().SetWorkspaceRoot(wsRoot)
+	tabID, srcPath := gatedProject(t, app, wsRoot, `{"a":"Please utilize the dashboard","b":"Read it whilst you wait"}`, partialVoiceYAML)
+
+	before, err := app.ReaderFile(tabID, "locales/en.json")
+	require.NoError(t, err)
+	require.Equal(t, 2, before.Fixable)
+	refusedID := readerFinding(t, before, "leverage, not utilize").ID
+
+	after, err := app.FixFile(tabID, "locales/en.json")
+	require.NoError(t, err)
+	require.Len(t, after.Refused, 1)
+	assert.Equal(t, refusedID, after.Refused[0].FindingID)
+	assert.Contains(t, after.Refused[0].Reason, "introduces 1 failing finding")
+	data, err := os.ReadFile(srcPath)
+	require.NoError(t, err)
+	assert.Equal(t, `{"a":"Please utilize the dashboard","b":"Read it while you wait"}`, string(data))
+	assert.Equal(t, refusedID, readerFinding(t, after, "leverage, not utilize").ID, "the refused finding still stands")
+	assert.Equal(t, 1, after.Findings)
+}
+
+// TestReaderFile_RefusesACommentsOnlyFile: a file read for its comments alone
+// holds no block the Reader draws, so the Reader refuses it and the Checks
+// page shows it in the preview.
+func TestReaderFile_RefusesACommentsOnlyFile(t *testing.T) {
+	isolateCheckPlugins(t)
+	app := NewApp()
+	tabID, _ := commentsOnlyTab(t, app, "{only: true}")
+	_, err := app.ReaderFile(tabID, "config/app.yaml")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "comments alone")
+	_, err = app.ReaderFile(tabID, "locales/en.json")
+	require.NoError(t, err, "the project's other files read")
+}
+
+// gatedProject opens a project with one JSON file under voiceYAML, its context
+// read into the workspace at wsRoot the app's engine reads, so the commit
+// check holds an edit to the same rules the Reader reports.
+func gatedProject(t *testing.T, app *App, wsRoot, source, voiceYAML string) (tabID, srcPath string) {
+	t.Helper()
+	dir := t.TempDir()
+	srcPath = filepath.Join(dir, "locales", "en.json")
+	require.NoError(t, os.MkdirAll(filepath.Dir(srcPath), 0o755))
+	require.NoError(t, os.WriteFile(srcPath, []byte(source), 0o644))
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, project.StateDirName), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, project.RelStatePath("voice.yaml")), []byte(voiceYAML), 0o644))
+	recipe := filepath.Join(dir, "proj.kapi")
+	require.NoError(t, project.Save(recipe, &project.KapiProject{
+		Version:     project.CurrentVersion,
+		Name:        "Reader",
+		Defaults:    project.Defaults{SourceLanguage: "en"},
+		Collections: []project.Collection{{Path: "locales/en.json", Target: "locales/{lang}.json"}},
+	}))
+	importer := &host.App{}
+	importer.InitRegistries()
+	importer.SetWorkspaceRoot(wsRoot)
+	_, err := importer.ImportProjectContext(t.Context(), recipe, host.ContextImportRequest{})
+	require.NoError(t, err)
+	importer.Shutdown()
+	tab, err := app.OpenProject(recipe)
+	require.NoError(t, err)
+	t.Cleanup(func() { app.CloseProject(tab.ID) })
+	return tab.ID, srcPath
 }
 
 // TestReaderFile_RefusesATranslation: the Reader reads and fixes the source.
