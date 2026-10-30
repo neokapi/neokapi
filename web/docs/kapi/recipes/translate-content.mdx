@@ -12,7 +12,7 @@ import { PendingMedia } from "@neokapi/docs-shared";
 
 # Translate with your AI
 
-**Goal:** the same content in other languages: only the text changes; keys, tags, and structure round-trip back intact. In a project the verb is **`kapi up`**: it catches every target language up to its ship gate and parks what needs a person. For a loose file, `kapi translate` does one file, one language. The trade-offs behind the model choice live in [Choose a translation model](/kapi/recipes/choose-a-translation-provider); how translation works as a tool in [Translation](/framework/translation).
+**Goal:** the same content in other languages: only the text changes; keys, tags, and structure round-trip back intact. In a project the verb is **`kapi up`**: it catches every target language up to its ship gate and holds back for review what needs a person. For a loose file, `kapi translate` does one file, one language. The trade-offs behind the model choice live in [Choose a translation model](/kapi/recipes/choose-a-translation-provider); how translation works as a tool in [Translation](/framework/translation).
 
 The loop settles the **source** before it fans out: content below the project's `translate_after` level holds (`source_not_ready`) for a source review rather than being translated into every language, so a defect in the source is fixed once rather than once per locale; see [Source first](/kapi/convergence#source-first).
 
@@ -21,14 +21,14 @@ The loop settles the **source** before it fans out: content below the project's 
 
 Open your project: the coverage panel shows one row per locale against its ship gate.
 
-1. **Bring up to date.** Click **Bring up to date**: kapi runs the project's default flow over every locale short of its gate, looping until each scope ships or parks. Progress is per-file and live.
-2. **Watch coverage climb.** Rows move toward their gate as translations land; anything a machine can't decide parks for review.
-3. **Review the parked blocks.** Open the **Review** queue from a ship-gate cell; see [Review & approve](/kapi/recipes/review-and-approve).
+1. **Bring up to date.** Click **Bring up to date**: kapi runs the project's default flow over every locale short of its gate, looping until each scope ships or waits for review. Progress is per-file and live.
+2. **Watch coverage climb.** Rows move toward their gate as translations land; anything a machine can't decide waits for review.
+3. **Review the waiting blocks.** Open the **Review** queue from a ship-gate cell; see [Review & approve](/kapi/recipes/review-and-approve).
 
 For a one-off file with no project, use a **quick tool**: pick the translate tool, a file, and a target language.
 
 <PendingMedia kind="video" scene="harness/demos/kapi-desktop-review/demo.yaml">
-  The review queue a run parks work into: every language in one list, one block
+  The review queue where a run leaves the work a person decides: every language in one list, one block
   in focus with the context behind it, and a decision taken from the keyboard.
 </PendingMedia>
 
@@ -39,7 +39,7 @@ With [kapi connected](/kapi/get-started/use-with-claude), ask:
 
 > Translate `src/locales/en.json` into French and German, keep the placeholders intact, and fix anything the checks flag.
 
-The assistant routes the work **through kapi** so the guardrails apply: approved terms from the terms store, voice profile in the prompt, placeholder integrity checked after. In a project it runs `kapi up` and reads `kapi status` for what parked; for a single document it translates block by block and lands the result through the faithful round-trip. Either way it finishes by checking, and fixes what the gate flags before telling you it's done.
+The assistant routes the work **through kapi** so the guardrails apply: approved terms from the terms store, voice profile in the prompt, placeholder integrity checked after. In a project it runs `kapi up` and reads `kapi status` for what waits for review; for a single document it translates block by block and lands the result through the faithful round-trip. Either way it finishes by checking, and fixes what the gate flags before telling you it's done.
 
 </TabItem>
 <TabItem value="cli" label="CLI">
@@ -47,7 +47,7 @@ The assistant routes the work **through kapi** so the guardrails apply: approved
 **In a project**: the recipe declares the languages and content, so the whole job is one verb:
 
 ```bash
-kapi up                # catch every locale up to its ship gate; park the rest
+kapi up                # catch every locale up to its ship gate; the rest waits for review
 kapi up --passes 1     # a single pass (the behavior of the bare 'kapi run')
 kapi status            # coverage per locale: informational, never fails
 ```

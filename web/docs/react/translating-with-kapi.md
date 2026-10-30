@@ -209,7 +209,7 @@ run `kapi store import context` again. See [Context portability](/kapi/context-p
 `kapi up` discovers the nearest `kapi.yaml` recipe (or pass `-p kapi.yaml`) and
 runs the project's default flow over every declared target language: content
 memory reuse, then AI translation, then the bound checks, looping until each
-locale clears its ship gate or parks for a person. `kapi merge` writes the
+locale clears its ship gate or waits for review by a person. `kapi merge` writes the
 per-locale catalogs the recipe maps. `kapi status` reports the coverage per
 locale without running anything, and `kapi run <flow>` runs one named flow for a
 single pass. See [Convergence](/kapi/convergence), [Flows](/framework/flows) and

@@ -32,7 +32,7 @@ checks, and `kapi up` loops a flow until the project's gates are met.
         "loop the default flow over pending blocks",
         "re-derive coverage before each pass",
         "run the bound checks, evaluate the gates",
-        "park what needs a person",
+        "hold back for review what needs a person",
       ],
     },
     {
@@ -42,7 +42,7 @@ checks, and `kapi up` loops a flow until the project's gates are met.
       steps: [
         "one named flow, one pass",
         "an ordered composition of tools",
-        "no gate loop, no parking",
+        "no gate loop, no review hold",
       ],
     },
     {
@@ -131,7 +131,7 @@ project machinery around it*. Each pass:
 3. **runs the bound checks** over what was produced, so a block with failing
    findings cannot lift its locale over the gate,
 4. **evaluates the gates** and either loops, stops when the project is up to
-   date, or **parks** what needs a person.
+   date, or **holds back for review** what needs a person.
 
 None of that is available piecemeal from the lower layers: `run` and `exec`
 skip the coverage derivation, the checks, and the gates by design. The full

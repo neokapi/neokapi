@@ -2,7 +2,7 @@
 id: c-04-block-state-and-decisions
 sidebar_position: 4
 title: "C-04: Block state and the decision record"
-description: "Architecture decision: a project's authored block state (the review ladder, approvals, parking) lives in an append-only, content-addressed decision ledger in core/state. An entry applies where the revisions of the translation and the source it blessed match the content (its hashes, for an entry recorded before revisions), so one ledger serves every checkout of a project; the .kapi/state/ shards carry one checkout's view of it as text, which kapi store import reads."
+description: "Architecture decision: a project's authored block state (the review ladder, approvals, review holds) lives in an append-only, content-addressed decision ledger in core/state. An entry applies where the revisions of the translation and the source it blessed match the content (its hashes, for an entry recorded before revisions), so one ledger serves every checkout of a project; the .kapi/state/ shards carry one checkout's view of it as text, which kapi store import reads."
 keywords: [project state, decision ledger, core/state, review, approval, convergence, append-only, content-addressed, commit, revision, basis, targetHash, architecture decision, neokapi]
 ---
 
@@ -18,7 +18,7 @@ project's **work**, and that work is itself two kinds of thing:
   ladder reachable from content. Rebuildable; it lives in the cache under
   `.kapi/work/cache/` and is ignored. Delete it and a re-run reconstructs
   identical results.
-- **Authored block state**: a person approving a translation, parking a block, or recording who reviewed what. This is *not* derivable from
+- **Authored block state**: a person approving a translation, holding a block for review, or recording who reviewed what. This is *not* derivable from
   anything; it must be **kept**.
 
 Authored state needs a carrier a plain target file cannot provide: such a file
@@ -74,12 +74,12 @@ two are separated:
 | Kind | Examples | Home | Authoritative? |
 | --- | --- | --- | --- |
 | Derived | parsed blocks, coverage, rungs reachable from content, the overlays a producer serves a draft from | `.kapi/work/cache/`, and the checkout's projection at `.kapi/work/store.db` | no: rebuildable, ignored |
-| Authored block state | approvals, parking, reviewer, notes | the decision ledger (`core/state`) in the project's context store | yes |
-| A parked locale's drafts, and the edits made to them | the text of translations whose files a gate withholds | the workspace home (`core/workhome`) in the project's context store | yes, until a delivery writes them to their files |
+| Authored block state | approvals, review holds, reviewer, notes | the decision ledger (`core/state`) in the project's context store | yes |
+| A held-back locale's drafts, and the edits made to them | the text of translations whose files a gate withholds | the workspace home (`core/workhome`) in the project's context store | yes, until a delivery writes them to their files |
 
 The cache may *mirror* authored state in transit, but it never *owns* it. A
 decision is durable in the ledger the moment it is recorded, and every checkout
-of the project reads it from there. A parked locale's drafts are text, so they
+of the project reads it from there. A held-back locale's drafts are text, so they
 have a home of their own: the workspace home keeps them in the operation log
 ([C-03](c-03-context-store-and-graph.md#the-workspace-home)), and the coverage,
 the review queue and the checks read them there while their files do not exist.
@@ -145,7 +145,7 @@ text in that pairing came to be.
 
 The ledger holds decisions only. An entry decides something when it carries a
 review state (an approval or a rejection, of a translation or of source
-wording), a rung above translated, a parked block, an assignee, a note, or an
+wording), a rung above translated, a block held for review, an assignee, a note, or an
 agent's pre-review, which is a `decide advise` (`state.UnitState.Decides`).
 `WorkStore` refuses an entry that decides nothing with
 `state.ErrDecidesNothing`: a translation, the source it was made from and the
@@ -336,7 +336,7 @@ language, and a reader that declares none leaves the block with none. The source
 half is therefore matched under every key a reader of the document gives it
 (`model.Block.SourceRevisions`), and every project read that files a block under
 the project's language keeps the language its reader declared on the block
-(`model.PropReadSourceLocale`), the workspace home's reading of a parked
+(`model.PropReadSourceLocale`), the workspace home's reading of a held-back
 locale's drafts included. The content is the same under every key, so the
 match finds exactly the source as it stands. A derivation's standing
 (`model.Block.BasisStanding`) and the record absorber's recovery of the source
@@ -528,12 +528,12 @@ governing context in force (`blockstore.TargetOverlay.ReusableFor`), and the
 plan puts that question to a producer built the way a pass builds one
 (`tool.StoredTargetReuser`), so the two answer it from one function. A block the
 step would serve this way is counted as a **stored draft** at no tokens; a
-parked locale's whole draft set reads this way on the run after the one that
-drafted it. The block store is a cache: the workspace home keeps each parked
+held-back locale's whole draft set reads this way on the run after the one that
+drafted it. The block store is a cache: the workspace home keeps each held-back
 draft with the stamp its producer serves it by (the overlay's key,
 configuration fingerprint and source stamp), and a run writes the overlays it
 lacks back before its first pass, so a checkout whose `.kapi/work/` was deleted
-serves its parked drafts without a provider call. A draft a person or an agent
+serves its held-back drafts without a provider call. A draft a person or an agent
 edited since is restored from the latest draft a producer wrote for it, which
 the log keeps.
 The plan judges a produced block only once the record absorber has read its
@@ -541,7 +541,7 @@ committed target at the bytes on disk (the digest stamps of
 [C-03](c-03-context-store-and-graph.md)); before that the corpus is unfinished,
 its silence means "not asked", and the plan says so rather than quoting either a
 free run or a provider call per translation the run will recycle. A produced
-block with no file on disk is a parked locale's draft, read out of the
+block with no file on disk is a held-back locale's draft, read out of the
 workspace home; nothing is left for the absorber to read, so the plan judges it
 at once. What the loop
 cannot do is decide, so the re-draft never restores the withdrawn approval: the

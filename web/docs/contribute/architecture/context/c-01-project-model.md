@@ -147,7 +147,7 @@ rule already present is never rewritten.
 What deleting costs, stated exactly:
 
 - `rm -rf .kapi/work` is **always free** beyond a re-extraction. Everything
-  under it is rebuilt on the next run, and a parked locale's drafts are served
+  under it is rebuilt on the next run, and a held-back locale's drafts are served
   again from the workspace home ([C-03](c-03-context-store-and-graph.md)).
 - `rm -rf .kapi` costs more: the redaction vault under `.kapi/vault/` holds
   withheld originals that are **local-only and not regenerable**
@@ -256,7 +256,7 @@ The other recipe families each have an AD or a reference section of their own:
   each unit, and delivery is an explicit `kapi merge` or `kapi up --materialize`.
   With `on-converge` the run owns delivery under the ship gate: its passes draft
   into a run-local tree, only a locale whose gated scopes are all shippable has
-  its files written to the collection's `target:` path, and a parked locale's
+  its files written to the collection's `target:` path, and a held-back locale's
   drafts are kept in the workspace home until a delivery writes them
   ([C-03](c-03-context-store-and-graph.md#the-workspace-home)).
 - `defaults.annotations` decides which stand-off annotations a writer draws

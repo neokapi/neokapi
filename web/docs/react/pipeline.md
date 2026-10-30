@@ -217,7 +217,7 @@ The extract phase stays with the bundler plugin; kapi reads what it wrote:
 vp neokapi-i18n extract
 
 # 2. Converge: run the project's flow over every target language in the recipe,
-#    looping until each locale clears its ship gate or parks for a person.
+#    looping until each locale clears its ship gate or waits for review.
 kapi up
 
 # 3. Materialize the per-locale catalogs the recipe maps, then compile them.
