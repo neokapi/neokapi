@@ -5,6 +5,12 @@ are content, the voice profile, the terms store, the declared coordinates, and
 the source and target locales) so that ordinary requests need no flags. kapi
 finds the project by walking up from the current directory, like git.
 
+In a project, an agent reads the Writing rules section of AGENTS.md or
+CLAUDE.md as it starts, asks `kapi context <path>` before it writes a file that
+section does not cover, and runs `kapi check` on each file it changed. A person
+sees the project with `kapi look`, decides with `kapi rules` which suggestions
+become rules, and shares them with `kapi share`.
+
 ## Before a command: what do you need on this machine
 
 - The `kapi` binary on PATH (`kapi version`).
