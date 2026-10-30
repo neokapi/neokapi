@@ -496,7 +496,7 @@ func findFeedEntry(t *testing.T, feed *ContextFeed, id string) ContextFeedEntry 
 
 // TestASessionCountsWhatItsChecksCaught: the Stop hook's check runs are
 // counted into the session that recorded them, never listed as entries, and a
-// session whose only operations are check runs is a group of its own.
+// session whose only operations are check runs has no group.
 func TestASessionCountsWhatItsChecksCaught(t *testing.T) {
 	app := newWorkspaceApp(t)
 	recipe, key := openFeedProject(t, app, "KapiMart")
@@ -509,7 +509,7 @@ func TestASessionCountsWhatItsChecksCaught(t *testing.T) {
 	logIn := contextop.CheckFinding{File: "docs/a.md", Rule: "terms.vocabulary", Quote: "Log in"}
 	check := func(session, turn string, run contextop.CheckRun) {
 		t.Helper()
-		run.Hook, run.Turn, run.Files, run.Covered = "stop", turn, []string{"docs/a.md"}, 1
+		run.Hook, run.Turn, run.Files, run.Edited, run.Covered = "stop", turn, []string{"docs/a.md"}, true, 1
 		_, err := ledger.Append(context.Background(), contextop.Record{
 			Project: workspace.ProjectKey(key),
 			Actor:   contextop.Actor{Kind: contextop.ActorAgent, Name: "claude-code", Session: session},
@@ -535,9 +535,6 @@ func TestASessionCountsWhatItsChecksCaught(t *testing.T) {
 	assert.Equal(t, 1, one.Recorded)
 	assert.Equal(t, [4]int{2, 0, 1, 1}, [4]int{one.Checked, one.Failing, one.Caught, one.Files})
 
-	two, ok := groups["sess-2"]
-	require.True(t, ok, "a session that only ran checks is a group of its own")
-	assert.Empty(t, two.Entries)
-	assert.Equal(t, [4]int{1, 1, 0, 1}, [4]int{two.Checked, two.Failing, two.Caught, two.Files})
-	assert.NotEmpty(t, two.Last)
+	_, ok := groups["sess-2"]
+	assert.False(t, ok, "a session that only ran checks has no group")
 }

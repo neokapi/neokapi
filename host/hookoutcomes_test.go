@@ -180,7 +180,7 @@ func TestSessionOutcomes_ACleanRunAfterAFailingOneCaughtTheFinding(t *testing.T)
 
 	other, err := app.SessionOutcomes(t.Context(), ContextSessionRequest{Project: recipeOf(root), Session: "s2"})
 	require.NoError(t, err)
-	assert.Equal(t, SessionOutcomes{Session: "s2", Checked: 1, Failing: 1, Caught: 0, Files: 1}, other,
+	assert.Equal(t, SessionOutcomes{Session: "s2", Checked: 1, Failing: 1, Caught: 0, Files: 0}, other,
 		"a finding fixed in another session is not this session's catch")
 
 	// A third session's clean run caught nothing: it never saw the finding.
@@ -193,6 +193,32 @@ func TestSessionOutcomes_ACleanRunAfterAFailingOneCaughtTheFinding(t *testing.T)
 	var log bytes.Buffer
 	require.NoError(t, ContextOperationList{Operations: runs}.FormatText(&log))
 	assert.Contains(t, log.String(), "agent claude-code/s1  checked 1 file · clean · 1 caught")
+}
+
+func TestHookStop_TwoUsesInOneBlockAreTwoFindings(t *testing.T) {
+	app := hookApp(t)
+	root := hookProject(t, app, "hookrepeat")
+	guide := filepath.Join(root, "docs", "guide.md")
+	twice := strings.Replace(hookGuide, "Log in with your account.", "Log in with your account, then Log in again.", 1)
+	require.NoError(t, os.WriteFile(guide, []byte(twice), 0o644))
+	tr := filepath.Join(t.TempDir(), "transcript.jsonl")
+
+	transcript(t, tr, "turn-1", guide)
+	runStop(t, app, root, "s1", tr, false)
+	once := strings.Replace(twice, "then Log in again", "then Sign in again", 1)
+	require.NoError(t, os.WriteFile(guide, []byte(once), 0o644))
+	transcript(t, tr, "turn-2", guide)
+	runStop(t, app, root, "s1", tr, false)
+
+	runs := checkRuns(t, app, root)
+	require.Len(t, runs, 2)
+	assert.Equal(t, 2, runs[1].Check.Failing, "two uses of the words in one block are two findings, however many gates report them")
+	assert.Equal(t, 1, runs[0].Check.Failing)
+	assert.Equal(t, 1, runs[0].Caught, "fixing one of the two is one caught")
+
+	got, err := app.SessionOutcomes(t.Context(), ContextSessionRequest{Project: recipeOf(root), Session: "s1"})
+	require.NoError(t, err)
+	assert.Equal(t, SessionOutcomes{Session: "s1", Checked: 2, Failing: 1, Caught: 1, Files: 1}, got)
 }
 
 func TestHookStop_AnUnrecordableRunKeepsItsDecision(t *testing.T) {
@@ -258,11 +284,13 @@ func TestSessionOutcomesOf_ARunThatDidNotRunComparesNothing(t *testing.T) {
 			Actor: contextop.Actor{Kind: contextop.ActorAgent, Name: "claude-code", Session: session}, Check: &run}
 	}
 	records := []contextop.Record{
-		rec("3", "s1", contextop.CheckRun{Verdict: "passed", Clean: true, Files: []string{"docs/guide.md"}}),
-		rec("2", "s1", contextop.CheckRun{Verdict: "did_not_run", Files: []string{"docs/guide.md"}}),
-		rec("1", "s1", contextop.CheckRun{Verdict: "failed", Failing: 1, Findings: []contextop.CheckFinding{logIn}, Files: []string{"docs/guide.md", "docs/other.md"}}),
+		rec("4", "s1", contextop.CheckRun{Verdict: "passed", Clean: true, Files: []string{"docs/a.md", "docs/b.md", "docs/c.md"}}),
+		rec("3", "s1", contextop.CheckRun{Verdict: "passed", Clean: true, Files: []string{"docs/guide.md"}, Edited: true}),
+		rec("2", "s1", contextop.CheckRun{Verdict: "did_not_run", Files: []string{"docs/guide.md"}, Edited: true}),
+		rec("1", "s1", contextop.CheckRun{Verdict: "failed", Failing: 1, Findings: []contextop.CheckFinding{logIn}, Files: []string{"docs/guide.md", "docs/other.md"}, Edited: true}),
 	}
 	got := SessionOutcomesOf(records)["s1"]
-	assert.Equal(t, SessionOutcomes{Session: "s1", Checked: 3, Failing: 0, Caught: 1, Files: 2}, got,
-		"a run that reached no verdict sits between the two it does not separate")
+	assert.Equal(t, SessionOutcomes{Session: "s1", Checked: 4, Failing: 0, Caught: 1, Files: 2}, got,
+		"a run that reached no verdict sits between the two it does not separate, "+
+			"and a run with no transcript names no file the session edited")
 }

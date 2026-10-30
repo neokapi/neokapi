@@ -14,8 +14,11 @@ const (
 type CheckRun struct {
 	// Hook names what ran the checks: "stop" for the Claude Code Stop hook.
 	Hook string `json:"hook,omitempty"`
-	// Turn identifies the turn of the session the run ended. The operation's
-	// id is derived from the session and the turn.
+	// Turn identifies the Stop event the run answered: the id of the last
+	// entry in the session's transcript. Claude Code writes an entry after
+	// every Stop hook, so each Stop gets a turn of its own, and the hook
+	// running twice on one transcript state shares one. The operation's id is
+	// derived from the session and the turn.
 	Turn string `json:"turn"`
 	// Verdict is the run's outcome: passed, failed or did_not_run.
 	Verdict string `json:"verdict"`

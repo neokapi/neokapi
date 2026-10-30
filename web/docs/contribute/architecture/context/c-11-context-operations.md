@@ -119,7 +119,11 @@ subject, those that act on one, and `check`, which does neither.
   Code Stop hook running `kapi check --ship` as a turn ends. Its `CheckRun`
   holds the files the turn edited, the failing findings by file, rule id and
   quote, and whether the run was clean. Its id is derived from the session and
-  the turn, so the hook running twice for one turn records one operation. A
+  the id of the transcript's last entry. Claude Code writes an entry after
+  every Stop hook, so each Stop is a run of its own, and the hook running
+  twice on one transcript state records one operation. A check run stays on the
+  machine that recorded it: sharing the context leaves it out
+  (`projector.LocalKinds`). A
   failing finding that one run reports and the session's next run no longer
   finds on the same file counts as caught; `host.SessionOutcomes` derives the
   count from the log and nothing stores it.

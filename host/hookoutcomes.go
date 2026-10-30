@@ -44,8 +44,8 @@ type SessionOutcomes struct {
 	// Caught counts the failing findings one run reported and the session's
 	// next run no longer found on the same file.
 	Caught int `json:"caught"`
-	// Files counts the distinct files the runs name: the files each turn
-	// edited, or the files the check read when the edits are not known.
+	// Files counts the distinct files the session's turns edited, as their
+	// transcripts name them. A run with no transcript adds none.
 	Files int `json:"files"`
 }
 
@@ -85,8 +85,12 @@ func SessionOutcomesOf(records []contextop.Record) map[string]SessionOutcomes {
 		for _, r := range seq {
 			run := *r.Check
 			o.Checked++
-			for _, f := range run.Files {
-				files[session][string(r.Project)+"\x00"+f] = true
+			// A run with no transcript lists the files the check read,
+			// which is the project, not what the session touched.
+			if run.Edited {
+				for _, f := range run.Files {
+					files[session][string(r.Project)+"\x00"+f] = true
+				}
 			}
 			if !run.Reached() {
 				continue
@@ -179,17 +183,21 @@ func runsCaught(records []contextop.Record) map[string]int {
 // hookRunRecord builds the check operation for one Stop hook run.
 //
 // Two gates can report one finding: the terminology gate and the checks gate
-// both hold a source block to its word rules. The record counts a finding
-// once, by its file, rule, wording and block.
+// both hold a source block to its word rules. Each gate's findings are counted
+// by file, rule, wording and block, and the record holds the largest count any
+// gate reported for each, so the second gate's copy adds nothing and two uses
+// of the same words in one block stay two findings.
 func hookRunRecord(in stopHookInput, root string, out verifyOutput) contextop.Record {
 	run := &contextop.CheckRun{
 		Hook:    "stop",
 		Verdict: string(out.Verdict),
 		Covered: len(out.covered),
 	}
-	rules := map[string]bool{}
-	seen := map[string]bool{}
+	most := map[string]int{}
+	first := map[string]contextop.CheckFinding{}
+	var order []string
 	for _, g := range out.Gates {
+		counts := map[string]int{}
 		for _, f := range g.Findings {
 			if !f.Fails {
 				continue
@@ -202,12 +210,22 @@ func hookRunRecord(in stopHookInput, root string, out verifyOutput) contextop.Re
 				finding.Message = f.Message
 			}
 			key := finding.Key() + "\x00" + finding.Block
-			if seen[key] {
-				continue
+			if _, ok := first[key]; !ok {
+				first[key] = finding
+				order = append(order, key)
 			}
-			seen[key] = true
+			counts[key]++
+		}
+		for key, n := range counts {
+			most[key] = max(most[key], n)
+		}
+	}
+	rules := map[string]bool{}
+	for _, key := range order {
+		finding := first[key]
+		rules[finding.Rule] = true
+		for range most[key] {
 			run.Failing++
-			rules[finding.Rule] = true
 			if len(run.Findings) < contextop.CheckRunMaxFindings {
 				run.Findings = append(run.Findings, finding)
 			}
@@ -248,7 +266,7 @@ func hookRunRecord(in stopHookInput, root string, out verifyOutput) contextop.Re
 
 // recordHookRun records one Stop hook run in the project's operation log and
 // returns the operation as the log holds it. A run the log already holds for
-// the same session and turn is returned in place of a new one.
+// the same session and transcript state is returned in place of a new one.
 func (a *App) recordHookRun(ctx context.Context, projectPath string, r contextop.Record) (contextop.Record, error) {
 	s, err := a.contextOps(ctx, projectPath)
 	if err != nil {
@@ -285,7 +303,8 @@ var editTools = []string{"Edit", "Write", "MultiEdit", "NotebookEdit"}
 
 // readTranscriptTurn reads the session's transcript for the turn a Stop hook
 // ran at the end of: the id of the transcript's last entry, which names the
-// turn, and the files inside root that the assistant's edits since the
+// Stop event (Claude Code writes an entry after every Stop hook, so the next
+// Stop sees a different last entry), and the files inside root that the assistant's edits since the
 // person's last message wrote, project-relative and each once. An unreadable
 // or missing transcript answers with nothing.
 func readTranscriptTurn(path, root string) (turn string, edited []string) {
@@ -318,14 +337,6 @@ func readTranscriptTurn(path, root string) (turn string, edited []string) {
 // readTranscriptLine folds one transcript line into the turn read so far.
 func readTranscriptLine(line []byte, root, turn string, edited []string) (string, []string) {
 	var entry transcriptLine
-	// A tool's result can be megabytes and says nothing the hook reads, so a
-	// line is decoded only when it can hold a prompt or a tool call.
-	if !bytes.Contains(line, []byte(`"tool_use"`)) && !bytes.Contains(line, []byte(`"user"`)) {
-		if json.Unmarshal(line, &struct{ UUID *string }{&entry.UUID}) == nil && entry.UUID != "" {
-			turn = entry.UUID
-		}
-		return turn, edited
-	}
 	if json.Unmarshal(line, &entry) != nil {
 		return turn, edited
 	}

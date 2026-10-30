@@ -22,7 +22,6 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 
@@ -746,8 +745,7 @@ func decidable(r contextop.Record) bool {
 // local day, which is the span a person recognises as "what I did".
 //
 // checks are the check runs, whose outcomes are counted into the session
-// that recorded them. A session whose only operations are check runs is a
-// group of its own with no entries, placed by its latest run.
+// that recorded them when that session has entries in the feed.
 func groupContextFeed(records, checks []contextop.Record, registry *contextProjectIndex, now time.Time) []ContextFeedGroup {
 	order := []string{}
 	groups := map[string]*ContextFeedGroup{}
@@ -776,32 +774,13 @@ func groupContextFeed(records, checks []contextop.Record, registry *contextProje
 		countInto(group, r)
 	}
 
+	// A session that only ran the hook has no group here: its outcomes
+	// (host.SessionOutcomes) belong to the surface that shows them.
 	outcomes := host.SessionOutcomesOf(checks)
-	spans := checkSpans(checks)
-	for _, r := range checks {
-		id, _ := contextGroupKey(r)
-		if _, ok := groups[id]; ok || r.Actor.Session == "" {
-			continue
-		}
-		groups[id] = &ContextFeedGroup{
-			ID:          id,
-			Session:     r.Actor.Session,
-			Actor:       actorDTO(r.Actor),
-			ProjectKey:  string(r.Project),
-			ProjectName: registry.name(r.Project),
-			Recipe:      registry.recipe(r.Project),
-			Entries:     []ContextFeedEntry{},
-		}
-		order = append(order, id)
-	}
-
 	out := make([]ContextFeedGroup, 0, len(order))
 	for _, id := range order {
 		group := groups[id]
 		first, last := spanOf(group.Entries)
-		if span, ok := spans[group.Session]; ok && group.Session != "" {
-			first, last = widenSpan(first, last, span)
-		}
 		group.First, group.Last = first, last
 		if o, ok := outcomes[group.Session]; ok && group.Session != "" {
 			group.Checked, group.Failing, group.Caught, group.Files = o.Checked, o.Failing, o.Caught, o.Files
@@ -811,39 +790,7 @@ func groupContextFeed(records, checks []contextop.Record, registry *contextProje
 		}
 		out = append(out, *group)
 	}
-	// Newest first, now that a session may begin or end with a check run.
-	sort.SliceStable(out, func(i, j int) bool { return out[i].Last > out[j].Last })
 	return out
-}
-
-// checkSpans bounds each session's check runs in time, RFC3339 in UTC.
-func checkSpans(checks []contextop.Record) map[string][2]string {
-	out := map[string][2]string{}
-	for _, r := range checks {
-		if r.Actor.Session == "" {
-			continue
-		}
-		at := r.At.UTC().Format(time.RFC3339)
-		span, ok := out[r.Actor.Session]
-		if !ok {
-			out[r.Actor.Session] = [2]string{at, at}
-			continue
-		}
-		span[0], span[1] = min(span[0], at), max(span[1], at)
-		out[r.Actor.Session] = span
-	}
-	return out
-}
-
-// widenSpan extends a group's span to cover its session's check runs.
-func widenSpan(first, last string, span [2]string) (string, string) {
-	if first == "" || span[0] < first {
-		first = span[0]
-	}
-	if last == "" || span[1] > last {
-		last = span[1]
-	}
-	return first, last
 }
 
 // contextGroupKey is the group an operation belongs to, and the local day for

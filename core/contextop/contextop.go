@@ -160,8 +160,8 @@ const (
 	// behalf: the Claude Code Stop hook running `kapi check --ship` as a turn
 	// ends. It carries a [CheckRun] and no subject, names no other operation,
 	// and changes nothing the context holds. Its id is derived from the
-	// session and the turn, so the hook running twice for one turn records one
-	// operation.
+	// session and the transcript state the hook ran at (CheckRun.Turn), so
+	// the hook running twice for one Stop records one operation.
 	KindCheck Kind = "check"
 )
 
