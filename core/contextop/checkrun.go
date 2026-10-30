@@ -22,8 +22,8 @@ type CheckRun struct {
 	// Clean reports a run that reached a verdict with nothing failing.
 	Clean bool `json:"clean"`
 	// Files are the project-relative files the turn edited, as the session's
-	// transcript names them. When the edits are not known (Edited is false),
-	// they are the files the check read. At most CheckRunMaxFiles are listed.
+	// transcript names them, with Edited set. A run whose transcript names no
+	// edit lists the files the check read. At most CheckRunMaxFiles are listed.
 	Files []string `json:"files,omitempty"`
 	// Edited reports that Files are the files the turn edited.
 	Edited bool `json:"edited,omitempty"`
