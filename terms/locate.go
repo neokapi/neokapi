@@ -150,7 +150,7 @@ func Locate(ctx context.Context, req LocateRequest) ([]Occurrence, error) {
 
 // ruleOccurrences matches the caller's declared rules through the one matcher.
 func ruleOccurrences(req LocateRequest) []Occurrence {
-	hits := profile.MatchTermRules(req.RuleSets, req.Text)
+	hits := profile.MatchTermRulesInRuns(req.RuleSets, req.Text, req.Runs)
 	if len(hits) == 0 {
 		return nil
 	}
@@ -208,8 +208,14 @@ func storeOccurrences(ctx context.Context, req LocateRequest) ([]Occurrence, err
 	// about the text with only its placeholders overwritten
 	// (check.PlaceholderText): a placeholder's name is not an occurrence, and a
 	// term inside inline code or a quoted command is. Positions are unchanged by
-	// the projection and still index req.Text.
-	text := check.PlaceholderText(req.Text)
+	// the projection. The text searched is profile.TermSearchText, where a
+	// character reference stands for its character, and each position found
+	// in it is mapped back to req.Text.
+	search, toText := profile.TermSearchText(req.Text, req.Runs)
+	if toText == nil {
+		toText = func(i int) int { return i }
+	}
+	text := check.PlaceholderText(search)
 	for _, loc := range LookupLocales(req.Locale) {
 		found, err := req.Store.LookupAll(ctx, text, LookupOptions{
 			SourceLocale: loc,
@@ -221,6 +227,10 @@ func storeOccurrences(ctx context.Context, req LocateRequest) ([]Occurrence, err
 			return nil, err
 		}
 		for _, m := range found {
+			m.Position.Start, m.Position.End = toText(m.Position.Start), toText(m.Position.End)
+			if m.Position.End <= m.Position.Start {
+				continue
+			}
 			key := hit{text: strings.ToLower(m.Term.Text), pos: m.Position.Start}
 			if seen[key] {
 				continue

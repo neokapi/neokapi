@@ -199,3 +199,34 @@ func TestCheck_AnHTMLFixLandsWhereTheCheckReadIt(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, strings.Replace(src, "We utilize   the", "We use   the", 1), string(got))
 }
+
+// A term written against a character reference is a whole word, as the page
+// shows it: the check finds it, and its fix replaces the word and keeps the
+// reference as the document spells it.
+func TestCheck_ATermBesideACharacterReferenceIsFoundAndFixed(t *testing.T) {
+	f := newCommitFixture(t)
+	page := filepath.Join(f.root, "docs", "page.html")
+	const src = "<html><head><title>Guide</title></head>\n<body>\n<p>We <b>use</b> the widget&nbsp;and   utilize&amp;more &eacute;.</p>\n<p>Say&nbsp;utilize now.</p>\n</body></html>\n"
+	require.NoError(t, os.WriteFile(page, []byte(src), 0o644))
+
+	report, err := f.app.ComputeCheck(f.command(t), []string{page})
+	require.NoError(t, err)
+	var ops []change.Op
+	for _, d := range report.Findings {
+		if d.Rule == "terms.vocabulary" && d.Location.Snippet == "utilize" {
+			require.NotNil(t, d.Fix, "the word beside the reference carries its fix: %+v", d)
+			ops = append(ops, *d.Fix)
+		}
+	}
+	require.Len(t, ops, 2, "both uses are found: %+v", report.Findings)
+
+	svc, err := f.app.ChangeService(t.Context(), ChangeServiceOptions{Project: f.recipe, Origin: "test"})
+	require.NoError(t, err)
+	res, err := svc.Apply(t.Context(), change.Set{Ops: ops}, change.Actor{Kind: change.ActorPerson})
+	require.NoError(t, err)
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+	got, err := os.ReadFile(page)
+	require.NoError(t, err)
+	want := strings.Replace(strings.Replace(src, "and   utilize&amp;", "and   use&amp;", 1), "Say&nbsp;utilize", "Say&nbsp;use", 1)
+	assert.Equal(t, want, string(got))
+}
