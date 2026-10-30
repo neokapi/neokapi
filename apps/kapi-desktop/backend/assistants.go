@@ -93,10 +93,9 @@ type AssistantsView struct {
 	// ProjectKey is the project's workspace key, which the Sessions view is
 	// narrowed by. Empty for a project the workspace does not know.
 	ProjectKey string `json:"project_key,omitempty"`
-	// Sessions are the newest of the project's sessions, newest first, and
-	// MoreSessions reports that there are more.
-	Sessions     []AssistantSession `json:"sessions"`
-	MoreSessions bool               `json:"more_sessions"`
+	// Sessions are the newest of the project's sessions, newest first. The
+	// Sessions view lists them all.
+	Sessions []AssistantSession `json:"sessions"`
 }
 
 // AssistantsView reads a tab's Assistants page: each assistant and whether it
@@ -138,7 +137,7 @@ func (a *App) AssistantsView(tabID string) (*AssistantsView, error) {
 		}
 		groups := feed.Groups
 		if len(groups) > assistantSessionsShown {
-			groups, out.MoreSessions = groups[:assistantSessionsShown], true
+			groups = groups[:assistantSessionsShown]
 		}
 		for _, g := range groups {
 			out.Sessions = append(out.Sessions, AssistantSession{

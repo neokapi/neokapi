@@ -84,6 +84,8 @@ export const qk = {
   workspaceRemoval: (key: string) => ["workspace-removal", key] as const,
   /** The resolved context for one file, as an agent receives it. */
   agentContext: (tabID: string, path: string) => ["agent-context", tabID, path] as const,
+  /** A tab's Assistants page. */
+  assistants: (tabID: string) => ["assistants", tabID] as const,
   /** Which assistants a tab's project is connected to. */
   agentHosts: (tabID: string) => ["agent-hosts", tabID] as const,
   /** The rules files kapi writes for a tab's project, with their sections. */

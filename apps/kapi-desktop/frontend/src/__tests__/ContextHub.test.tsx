@@ -1,4 +1,4 @@
-import { render, screen } from "./testUtils";
+import { render, screen, within } from "./testUtils";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi } from "vite-plus/test";
 
@@ -60,13 +60,41 @@ vi.mock("../components/ContextDigestPanel", () => ({
     </div>
   ),
 }));
-// The two panels have their own tests; here they stand in, saying what the
-// hub handed them.
-vi.mock("../components/AssistantPanel", () => ({
-  AssistantPanel: ({ tabID, contextOnly }: { tabID: string; contextOnly?: boolean }) => (
+// The panels have their own tests; here they stand in, saying what the hub
+// handed them.
+vi.mock("../components/AssistantsPage", () => ({
+  AssistantsPage: ({
+    tabID,
+    projectName,
+    onShowReads,
+    onOpenSession,
+  }: {
+    tabID: string;
+    projectName: string;
+    onShowReads: () => void;
+    onOpenSession: (id?: string) => void;
+  }) => (
     <div>
-      assistant for {tabID}
-      {contextOnly ? " without a checkout" : ""}
+      assistants for {tabID} in {projectName}
+      <button onClick={onShowReads}>show reads</button>
+      <button onClick={() => onOpenSession("session:sess-1")}>open session</button>
+    </div>
+  ),
+}));
+vi.mock("../components/AssistantPanel", () => ({
+  AssistantPanel: ({
+    tabID,
+    path,
+    onBack,
+  }: {
+    tabID: string;
+    path?: string;
+    onBack?: () => void;
+  }) => (
+    <div>
+      reads for {tabID}
+      {path ? ` at ${path}` : ""}
+      {onBack && <button onClick={onBack}>back to assistants</button>}
     </div>
   ),
 }));
@@ -79,7 +107,18 @@ vi.mock("../components/SharePanel", () => ({
   ),
 }));
 vi.mock("../components/ContextFeedPanel", () => ({
-  ContextFeedPanel: ({ projectKey }: { projectKey?: string }) => <div>feed for {projectKey}</div>,
+  ContextFeedPanel: ({
+    projectKey,
+    defaultSelected,
+  }: {
+    projectKey?: string;
+    defaultSelected?: string;
+  }) => (
+    <div>
+      feed for {projectKey}
+      {defaultSelected ? ` on ${defaultSelected}` : ""}
+    </div>
+  ),
 }));
 vi.mock("../components/DecidePage", () => ({
   DecidePage: ({
@@ -136,11 +175,10 @@ describe("ContextHub", () => {
       "Decide",
       "Explore",
       "Ask",
-      "Assistant",
+      "Assistants",
       "Voice",
       "Terms",
       "Content Memory",
-      "History",
       "Share",
     ]);
   });
@@ -150,16 +188,54 @@ describe("ContextHub", () => {
     expect(railLabels()).toEqual([
       "Decide",
       "Explore",
-      "Assistant",
+      "Assistants",
       "Terms",
       "Content Memory",
-      "History",
       "Share",
     ]);
     await userEvent.click(screen.getByRole("button", { name: "Share" }));
     expect(screen.getByText("share for t1 without a checkout")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Assistant" }));
-    expect(screen.getByText("assistant for t1 without a checkout")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Assistants" }));
+    expect(screen.getByText("assistants for t1 in Northsea")).toBeInTheDocument();
+  });
+
+  it("opens what an assistant reads from the Assistants page, and comes back", async () => {
+    render(<ContextHub tabID="t1" projectName="Northsea" section="agent" />);
+    await userEvent.click(screen.getByRole("button", { name: "show reads" }));
+    expect(screen.getByText("reads for t1")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Assistants" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "back to assistants" }));
+    expect(screen.getByText("assistants for t1 in Northsea")).toBeInTheDocument();
+  });
+
+  it("opens what an assistant reads at a file it was handed", () => {
+    render(
+      <ContextHub tabID="t1" projectName="Northsea" section="agent" pin={{ path: "docs/a.md" }} />,
+    );
+    expect(screen.getByText("reads for t1 at docs/a.md")).toBeInTheDocument();
+  });
+
+  it("opens Sessions on the session the Assistants page names, under Assistants on the rail", async () => {
+    vi.spyOn(api, "projectContextDigest").mockResolvedValue(CONTEXT_DIGEST);
+    render(<ContextHub tabID="t1" projectName="Northsea" section="agent" />);
+    await userEvent.click(screen.getByRole("button", { name: "open session" }));
+    expect(
+      await screen.findByText(`feed for ${CONTEXT_DIGEST.project} on session:sess-1`),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Sessions" })).toBeInTheDocument();
+    const rail = screen.getByRole("navigation", { name: "Context sections" });
+    expect(within(rail).getByRole("button", { name: "Assistants" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    // The back button and the rail entry share the name; the back button sits in the page.
+    const back = document.querySelector<HTMLElement>("[data-slot='sessions-back']")!;
+    await userEvent.click(back);
+    expect(screen.getByText("assistants for t1 in Northsea")).toBeInTheDocument();
+    vi.restoreAllMocks();
   });
 
   it("opens Explore, and its evidence in Ask", async () => {
@@ -183,12 +259,12 @@ describe("ContextHub", () => {
     expect(commands()).toHaveLength(1);
     expect(nav).toContainElement(commands()[0] as HTMLElement);
     expect(commands()[0].textContent).toBe("kapi rules");
-    await userEvent.click(screen.getByRole("button", { name: "History" }));
-    expect(commands()[0].textContent).toBe("kapi context log");
     await userEvent.click(screen.getByRole("button", { name: "Share" }));
     expect(commands()[0].textContent).toBe("kapi context sync");
-    await userEvent.click(screen.getByRole("button", { name: "Assistant" }));
-    expect(commands()[0].textContent).toBe("kapi init");
+    await userEvent.click(screen.getByRole("button", { name: "Assistants" }));
+    expect(commands()[0].textContent).toBe("kapi connect");
+    await userEvent.click(screen.getByRole("button", { name: "open session" }));
+    expect(commands()[0].textContent).toBe("kapi context log");
     await userEvent.click(screen.getByRole("button", { name: "Ask" }));
     expect(commands()[0].textContent).toBe("kapi context <path>");
     await userEvent.click(screen.getByRole("button", { name: "Voice" }));
@@ -206,24 +282,25 @@ describe("ContextHub", () => {
     );
   });
 
-  it("carries no caption under the Decide and History titles", async () => {
+  it("carries no caption under the Decide and Sessions titles", async () => {
     vi.spyOn(api, "projectContextDigest").mockResolvedValue(CONTEXT_DIGEST);
     render(<ContextHub tabID="t1" projectName="Northsea" contextOnly />);
     const title = screen.getByRole("heading", { name: "Decide" });
     expect(title.parentElement?.querySelector("p")).toBeNull();
     expect(document.body.textContent).not.toContain("The same as");
-    await userEvent.click(screen.getByRole("button", { name: "History" }));
+    await userEvent.click(screen.getByRole("button", { name: "Assistants" }));
+    await userEvent.click(screen.getByRole("button", { name: "open session" }));
     expect(
-      screen.getByRole("heading", { name: "History" }).parentElement?.querySelector("p"),
+      screen.getByRole("heading", { name: "Sessions" }).parentElement?.querySelector("p"),
     ).toBeNull();
     expect(document.body.textContent).not.toContain("The same as");
     vi.restoreAllMocks();
   });
 
-  it("goes to the Assistant from the empty digest's link", async () => {
+  it("goes to the Assistants from the empty digest's link", async () => {
     render(<ContextHub tabID="t1" projectName="Northsea" contextOnly />);
     await userEvent.click(screen.getByRole("button", { name: "connect" }));
-    expect(screen.getByText("assistant for t1 without a checkout")).toBeInTheDocument();
+    expect(screen.getByText("assistants for t1 in Northsea")).toBeInTheDocument();
   });
 
   it("lists the project's own history", async () => {
@@ -232,13 +309,13 @@ describe("ContextHub", () => {
     render(<ContextHub tabID="t1" projectName="Northsea" section="history" />);
     expect(await screen.findByText(`feed for ${CONTEXT_DIGEST.project}`)).toBeInTheDocument();
     expect(digest).toHaveBeenCalledWith("t1", "");
-    // History lists what is new, so opening it moves the home's marker.
+    // Sessions lists what is new, so opening it moves the home's marker.
     expect(mark).toHaveBeenCalledWith("t1");
     digest.mockRestore();
     mark.mockRestore();
   });
 
-  it("gives History the full height, so its list and detail scroll on their own", async () => {
+  it("gives Sessions the full height, so its list and detail scroll on their own", async () => {
     const digest = vi.spyOn(api, "projectContextDigest").mockResolvedValue(CONTEXT_DIGEST);
     render(<ContextHub tabID="t1" projectName="Northsea" section="history" />);
     const feed = await screen.findByText(`feed for ${CONTEXT_DIGEST.project}`);
@@ -246,7 +323,7 @@ describe("ContextHub", () => {
     expect(feed.closest("[data-slot='scroll-area']")).toBeNull();
     expect(feed.closest(".max-w-3xl")).toBeNull();
     expect(feed.parentElement?.className).toContain("flex-1");
-    expect(screen.getByRole("heading", { name: "History" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Sessions" })).toBeInTheDocument();
     digest.mockRestore();
   });
 

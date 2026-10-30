@@ -11,7 +11,7 @@
 // session's operations, one row each, with the reset the session offers in its
 // toolbar: Reset to before this session, and Take this reset back on a session
 // that holds a reset. A proposal is an operation that still takes a decision.
-// It keeps Keep, Edit and Drop on its row, and the file, the unit and the
+// It keeps Keep, Edit and Not a rule on its row, and the file, the unit and the
 // quotation it came from sit in a disclosure under the row.
 //
 // The keys are the review session's: j and k (and the arrows) move between
@@ -408,7 +408,7 @@ function SessionRow({ group, showProject }: { group: ContextFeedGroup; showProje
 }
 
 /** The mark for who worked a session: a person, an assistant by its host, or a kapi tool. */
-function SessionMark({ actor, size = "sm" }: { actor: ContextActor; size?: "sm" | "md" }) {
+export function SessionMark({ actor, size = "sm" }: { actor: ContextActor; size?: "sm" | "md" }) {
   if (actor.kind === "person") {
     return <ActorMark actor="person" name={actor.name} size={size} decorative />;
   }
@@ -417,7 +417,7 @@ function SessionMark({ actor, size = "sm" }: { actor: ContextActor; size?: "sm" 
 }
 
 /** Who worked: the agent and the machine it ran on, a tool, or a person. */
-function ActorName({ actor }: { actor: ContextActor }) {
+export function ActorName({ actor }: { actor: ContextActor }) {
   if (actor.kind === "agent") {
     return (
       <>
@@ -751,7 +751,7 @@ function RowActions({
           aria-keyshortcuts={active ? "r" : undefined}
           onClick={onDrop}
         >
-          Drop
+          Not a rule
           {active && <Shortcut k="r" />}
         </Button>
       </div>
