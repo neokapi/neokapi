@@ -493,3 +493,51 @@ func findFeedEntry(t *testing.T, feed *ContextFeed, id string) ContextFeedEntry 
 	t.Fatalf("the feed holds no operation %s", id)
 	return ContextFeedEntry{}
 }
+
+// TestASessionCountsWhatItsChecksCaught: the Stop hook's check runs are
+// counted into the session that recorded them, never listed as entries, and a
+// session whose only operations are check runs is a group of its own.
+func TestASessionCountsWhatItsChecksCaught(t *testing.T) {
+	app := newWorkspaceApp(t)
+	recipe, key := openFeedProject(t, app, "KapiMart")
+	engine := agentProcess(t, app)
+	agentSuggest(t, engine, recipe, "sess-1", "sign in", "log in", "docs/a.md", "Sign in.")
+
+	ws, err := app.hostEngine().Workspace(context.Background())
+	require.NoError(t, err)
+	ledger := contextop.NewLedger(ws, nil)
+	logIn := contextop.CheckFinding{File: "docs/a.md", Rule: "terms.vocabulary", Quote: "Log in"}
+	check := func(session, turn string, run contextop.CheckRun) {
+		t.Helper()
+		run.Hook, run.Turn, run.Files, run.Covered = "stop", turn, []string{"docs/a.md"}, 1
+		_, err := ledger.Append(context.Background(), contextop.Record{
+			Project: workspace.ProjectKey(key),
+			Actor:   contextop.Actor{Kind: contextop.ActorAgent, Name: "claude-code", Session: session},
+			Kind:    contextop.KindCheck,
+			Check:   &run,
+		})
+		require.NoError(t, err)
+	}
+	check("sess-1", "t1", contextop.CheckRun{Verdict: "failed", Failing: 1, Rules: []string{"terms.vocabulary"}, Findings: []contextop.CheckFinding{logIn}})
+	check("sess-1", "t2", contextop.CheckRun{Verdict: "passed", Clean: true})
+	check("sess-2", "t1", contextop.CheckRun{Verdict: "failed", Failing: 1, Findings: []contextop.CheckFinding{logIn}})
+
+	feed, err := app.ContextFeed(key, 0)
+	require.NoError(t, err)
+	groups := map[string]ContextFeedGroup{}
+	for _, group := range feed.Groups {
+		groups[group.Session] = group
+		for _, entry := range group.Entries {
+			assert.NotEqual(t, string(contextop.KindCheck), entry.Kind, "a check run is counted, not listed")
+		}
+	}
+	one := groups["sess-1"]
+	assert.Equal(t, 1, one.Recorded)
+	assert.Equal(t, [4]int{2, 0, 1, 1}, [4]int{one.Checked, one.Failing, one.Caught, one.Files})
+
+	two, ok := groups["sess-2"]
+	require.True(t, ok, "a session that only ran checks is a group of its own")
+	assert.Empty(t, two.Entries)
+	assert.Equal(t, [4]int{1, 1, 0, 1}, [4]int{two.Checked, two.Failing, two.Caught, two.Files})
+	assert.NotEmpty(t, two.Last)
+}

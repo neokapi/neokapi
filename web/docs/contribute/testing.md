@@ -228,13 +228,17 @@ stages:
       edit: {path: docs/guide.md, append: "\nLog in again.\n"}
       blocks: true
       names: [Forbidden term "Log in" found]
+      log: {failing: 1, caught: 0}
 ```
 
 A step is a `kapi` command line (run in the project, as the person or as an
 `agent`), a `keep` or `narrow` of a rule named by the sentence `kapi rules`
 prints, or a `write` to a file. A `fix` with no `after` asserts that the file
 keeps its bytes; `args: []` runs `kapi fix` over the whole project, and
-`unchanged` names other files whose bytes must not move.
+`unchanged` names other files whose bytes must not move. A hook's `log` reads
+`kapi context log --session` after the run: `failing` is the count the run
+recorded, and `caught` is how many findings the session's runs have caught
+so far.
 
 To add a case, copy the nearest directory, change the project and the
 expectations, and run `make gate-conformance`. A failing expectation prints the

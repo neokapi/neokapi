@@ -1,7 +1,8 @@
 description: >-
   A kept name rule, "Sign in" not "Log in", "login" or "Signin", fails a check
-  on each rejected form, kapi fix rewrites exactly those words, and the Stop
-  hook blocks an assistant that writes one again.
+  on each rejected form, kapi fix rewrites exactly those words, the Stop hook
+  blocks an assistant that writes one again, and the project's log records
+  each hook run and that the hook caught the finding the assistant then fixed.
 stages:
   - name: kept
     steps:
@@ -35,6 +36,9 @@ stages:
           names: ['Sign in, not "Log in", "login"']
     hook:
       blocks: false
+      log:
+        failing: 0
+        caught: 0
   - name: assistant-edit
     hook:
       edit:
@@ -44,3 +48,26 @@ stages:
       names:
         - FAILS [terminology] docs/guide.md
         - Forbidden term "Log in" found
+      log:
+        failing: 1
+        caught: 0
+  - name: assistant-fix
+    hook:
+      edit:
+        path: docs/guide.md
+        content: |
+          # Welcome
+
+          Sign in to start.
+
+          Sign in with your account.
+
+          Open the Sign in page.
+
+          Sign in takes a moment.
+
+          Sign in again after an hour.
+      blocks: false
+      log:
+        failing: 0
+        caught: 1
