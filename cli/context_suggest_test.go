@@ -170,7 +170,10 @@ func TestContextSuggestAIFilesWhatTheModelProposes(t *testing.T) {
 	assert.Regexp(t, `(?m)^Known\s+The files address the reader as you \(person_pov: second\)\.$`, out,
 		"the pass filed that already, so the model's reading of it is not filed again")
 	assert.Regexp(t, `(?m)^Filed\s+\S+\s+The files keep sentences short \(sentence_length: short\)\.$`, out)
-	assert.Regexp(t, `(?m)^demo-stub read 7 blocks in 2 files \(\d+ tokens\)\.$`, out)
+	assert.Regexp(t, `(?m)^demo-stub read 7 blocks in 2 files \(\d+ tokens\):$`, out)
+	modelAt := strings.Index(out, "demo-stub read")
+	assert.Less(t, strings.Index(out, "Write email"), modelAt, "the pass's lines come first")
+	assert.Greater(t, strings.Index(out, "Write Harbor Help"), modelAt, "the model is named before its lines")
 	assert.Equal(t, 1, strings.Count(out, "Decide with kapi context review."), out)
 
 	again := runContext(t, a, "suggest", "--ai", "-p", recipe)

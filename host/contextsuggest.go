@@ -143,7 +143,7 @@ type SuggestedAddress struct {
 }
 
 // FormatText prints one line per finding, in the words the review queue
-// uses, then the deeper look's lines and what its model read, then where to
+// uses, then what the deeper look's model read and its lines, then where to
 // decide.
 func (r ContextSuggestResult) FormatText(w io.Writer) error {
 	var b strings.Builder
@@ -155,10 +155,12 @@ func (r ContextSuggestResult) FormatText(w io.Writer) error {
 	}
 	waiting := writeSuggestLines(&b, r.Suggestions, r.DryRun)
 	if r.AI != nil {
-		if writeSuggestLines(&b, r.AI.Suggestions, r.DryRun) {
+		if len(r.Suggestions) > 0 {
+			b.WriteString("\n")
+		}
+		if r.AI.writeLines(&b) {
 			waiting = true
 		}
-		b.WriteString(r.AI.modelLine() + "\n")
 	}
 	if waiting && !r.DryRun {
 		b.WriteString("\nDecide with kapi context review.\n")

@@ -123,12 +123,11 @@ func (r DeeperLookResult) FiledCount() int {
 	return n
 }
 
-// FormatText prints one line per proposal, in the words the review queue
-// uses, then what the model read, then where to decide.
+// FormatText prints what the model read, then one line per proposal in the
+// words the review queue uses, then where to decide.
 func (r DeeperLookResult) FormatText(w io.Writer) error {
 	var b strings.Builder
-	waiting := writeSuggestLines(&b, r.Suggestions, r.DryRun)
-	b.WriteString(r.modelLine() + "\n")
+	waiting := r.writeLines(&b)
 	if waiting && !r.DryRun {
 		b.WriteString("\nDecide with kapi context review.\n")
 	}
@@ -136,8 +135,15 @@ func (r DeeperLookResult) FormatText(w io.Writer) error {
 	return err
 }
 
-// modelLine says what the model read: "demo-stub read 4 blocks in 1 file (312
-// tokens)."
+// writeLines writes the line naming the model and what it read, then one line
+// per proposal, and reports whether any proposal waits for a person.
+func (r DeeperLookResult) writeLines(b *strings.Builder) bool {
+	b.WriteString(r.modelLine() + "\n")
+	return writeSuggestLines(b, r.Suggestions, r.DryRun)
+}
+
+// modelLine says what the model read, before the lines it led to: "demo-stub
+// read 4 blocks in 1 file (312 tokens):".
 func (r DeeperLookResult) modelLine() string {
 	read := countWord(r.Asked, "block", "blocks")
 	if r.Asked < r.Blocks {
@@ -150,7 +156,7 @@ func (r DeeperLookResult) modelLine() string {
 	if len(r.Suggestions) == 0 {
 		return line + ": nothing more to suggest."
 	}
-	return line + "."
+	return line + ":"
 }
 
 // DeeperLookActor is who files what the model proposed: kapi, named with the

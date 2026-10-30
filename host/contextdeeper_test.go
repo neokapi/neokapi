@@ -145,7 +145,8 @@ func TestDeeperLook_FilesTermsAndVoiceAsKapiWithTheModel(t *testing.T) {
 	var printed strings.Builder
 	require.NoError(t, res.FormatText(&printed))
 	assert.Contains(t, printed.String(), "Write Harbor Help, not Harbor-Help or HarborHelp. (3 blocks in 1 file)")
-	assert.Regexp(t, `(?m)^demo-stub read 5 blocks in 1 file \(\d+ tokens\)\.$`, printed.String())
+	assert.Regexp(t, `(?m)^demo-stub read 5 blocks in 1 file \(\d+ tokens\):\n`, printed.String(),
+		"the model is named before the lines it led to")
 	assert.Contains(t, printed.String(), "\nDecide with kapi context review.\n")
 }
 
