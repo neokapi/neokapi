@@ -2,11 +2,8 @@ import {
   Home,
   Compass,
   FolderKanban,
-  BookOpen,
   ClipboardCheck,
-  Database,
   Wrench,
-  FileText,
   Map as MapIcon,
   Settings,
   SlidersHorizontal,
@@ -33,7 +30,6 @@ type SidebarItem =
   | { type: "separator" };
 
 interface IconSidebarProps {
-  mode: "adhoc" | "projects";
   active: string;
   onChange: (view: string) => void;
   projectDisabled?: boolean;
@@ -41,42 +37,6 @@ interface IconSidebarProps {
    *  only when it does — the source-first, "languages stay quiet" model. */
   hasTargetLanguages?: boolean;
 }
-
-const adhocItems: SidebarItem[] = [
-  {
-    type: "item",
-    view: "home",
-    icon: <Home size={20} strokeWidth={SW} />,
-    label: "Home",
-    activeViews: ["history"],
-  },
-  { type: "separator" },
-  {
-    type: "item",
-    view: "tools",
-    icon: <Wrench size={20} strokeWidth={SW} />,
-    label: "Toolbox",
-    activeViews: ["flows"],
-  },
-  {
-    type: "item",
-    view: "termbases",
-    icon: <BookOpen size={20} strokeWidth={SW} />,
-    label: "Terms",
-  },
-  {
-    type: "item",
-    view: "memories",
-    icon: <Database size={20} strokeWidth={SW} />,
-    label: "Content Memory",
-  },
-  {
-    type: "item",
-    view: "formats",
-    icon: <FileText size={20} strokeWidth={SW} />,
-    label: "Formats",
-  },
-];
 
 const projectItems: SidebarItem[] = [
   {
@@ -137,13 +97,12 @@ const projectItems: SidebarItem[] = [
 ];
 
 export function IconSidebar({
-  mode,
   active,
   onChange,
   projectDisabled,
   hasTargetLanguages,
 }: IconSidebarProps) {
-  const items = mode === "adhoc" ? adhocItems : projectItems;
+  const items = projectItems;
 
   return (
     <aside className="flex h-full w-12 flex-col items-center py-2">
@@ -157,7 +116,7 @@ export function IconSidebar({
           if (item.localeGated && !hasTargetLanguages) {
             return null;
           }
-          const disabled = mode === "projects" && projectDisabled && !item.alwaysEnabled;
+          const disabled = projectDisabled && !item.alwaysEnabled;
           const isActive =
             active === item.view ||
             active.startsWith(`${item.view}:`) ||

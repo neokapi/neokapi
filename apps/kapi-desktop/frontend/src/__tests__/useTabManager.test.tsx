@@ -13,9 +13,7 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 const TAB = { id: "tab-1", name: "KapiMart", path: "/fakehome/src/kapimart/kapi.yaml" };
 
 function stubBackend({ empty = false, preset = "" } = {}) {
-  vi.spyOn(api, "getAppMode").mockResolvedValue("projects");
   vi.spyOn(api, "getSessionState").mockResolvedValue({
-    mode: "projects",
     lastOpenProjects: [],
     activeProject: "",
   });

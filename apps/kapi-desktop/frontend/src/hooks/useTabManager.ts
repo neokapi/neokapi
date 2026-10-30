@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import type { AppMode, KapiProject, TabInfo, PluginIssue } from "../types/api";
+import type { KapiProject, TabInfo, PluginIssue } from "../types/api";
 import { api } from "./useApi";
 import { useError } from "../components/ErrorBanner";
 import { useWailsEvent } from "./useWailsEvent";
@@ -34,8 +34,6 @@ export function landingView(): string {
 
 export function useTabManager() {
   const { showError } = useError();
-  // Project-first: default to "projects" until the persisted app mode loads.
-  const [mode, setMode] = useState<AppMode>("projects");
   const [globalView, setGlobalView] = useState("home");
   const [tabs, setTabs] = useState<TabState[]>([]);
   const [activeTabID, setActiveTabID] = useState<string | null>(null);
@@ -48,11 +46,7 @@ export function useTabManager() {
 
   // Global overlays don't change the tab's view — clicking a tab dismisses them.
   const isGlobalOverlay = GLOBAL_OVERLAYS.has(globalView);
-  const effectiveView = isGlobalOverlay
-    ? globalView
-    : mode === "projects" && activeTab
-      ? activeTab.view
-      : globalView;
+  const effectiveView = isGlobalOverlay ? globalView : activeTab ? activeTab.view : globalView;
 
   const navigate = useCallback(
     (v: string) => {
@@ -62,14 +56,14 @@ export function useTabManager() {
       const view = v === "content" ? "project-home" : v;
       if (GLOBAL_OVERLAYS.has(view)) {
         setGlobalView(view);
-      } else if (mode === "projects" && activeTabID) {
+      } else if (activeTabID) {
         setGlobalView(""); // clear global overlay
         setTabs((prev) => prev.map((t) => (t.info.id === activeTabID ? { ...t, view } : t)));
       } else {
         setGlobalView(view);
       }
     },
-    [mode, activeTabID],
+    [activeTabID],
   );
 
   const selectTab = useCallback((id: string) => {
@@ -114,7 +108,6 @@ export function useTabManager() {
           ];
         });
         setActiveTabID(tab.id);
-        setMode("projects");
         setGlobalView("");
         return;
       }
@@ -144,7 +137,6 @@ export function useTabManager() {
         ];
       });
       setActiveTabID(tab.id);
-      setMode("projects");
       setGlobalView(""); // clear home overlay so tab's view shows
     },
     [checkPluginStatus],
@@ -168,7 +160,6 @@ export function useTabManager() {
   const openTabOn = useCallback((id: string, view: string) => {
     setTabs((prev) => prev.map((t) => (t.info.id === id ? { ...t, view } : t)));
     setActiveTabID(id);
-    setMode("projects");
     setGlobalView("");
   }, []);
 
@@ -185,23 +176,6 @@ export function useTabManager() {
       ),
     );
   }, []);
-
-  const switchMode = useCallback(
-    (m: AppMode) => {
-      setMode(m);
-      // Persist the chosen app mode so the next launch lands in the same place.
-      void api.setAppMode(m);
-      if (m === "adhoc") {
-        setActiveTabID(null);
-        setGlobalView("home");
-      } else if (tabs.length > 0) {
-        setActiveTabID(tabs[0].info.id);
-      } else {
-        setGlobalView("home");
-      }
-    },
-    [tabs],
-  );
 
   const openProject = useCallback(async () => {
     try {
@@ -296,28 +270,17 @@ export function useTabManager() {
     [addTab, showError],
   );
 
-  // --- Startup: read persisted app mode + session, reopen projects ---
+  // --- Startup: read the persisted session, reopen projects ---
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       try {
-        const savedMode = await api.getAppMode();
-        const effectiveMode: AppMode = savedMode === "adhoc" ? "adhoc" : "projects";
-        if (cancelled) return;
-        setMode(effectiveMode);
-
-        if (effectiveMode !== "projects") {
-          setActiveTabID(null);
-          setGlobalView("home");
-          return;
-        }
-
         const session = await api.getSessionState();
         const recipes = session?.lastOpenProjects ?? [];
         if (cancelled) return;
 
         if (recipes.length === 0) {
-          // First-ever launch or no remembered projects → project-first home.
+          // First-ever launch or no remembered projects → the Open screen.
           setGlobalView("home");
           return;
         }
@@ -352,7 +315,7 @@ export function useTabManager() {
           setGlobalView("home");
         }
       } catch {
-        // Fall back to project-first home on any failure.
+        // Fall back to the home on any failure.
         if (!cancelled) setGlobalView("home");
       } finally {
         if (!cancelled) restoredRef.current = true;
@@ -375,8 +338,8 @@ export function useTabManager() {
       .filter((p): p is string => !!p)
       .reverse();
     const activeProject = tabs.find((t) => t.info.id === activeTabID)?.info.path ?? "";
-    void api.saveSessionState({ mode, lastOpenProjects, activeProject });
-  }, [tabs, activeTabID, mode]);
+    void api.saveSessionState({ lastOpenProjects, activeProject });
+  }, [tabs, activeTabID]);
 
   useEffect(() => {
     persistSession();
@@ -395,8 +358,19 @@ export function useTabManager() {
     }
   });
 
+  // A folder opened without a recipe gets one the first time a person
+  // changes it; the tab follows.
+  useWailsEvent("project:recipe-written", (data) => {
+    const tabID = (data as { tabID?: string } | null)?.tabID;
+    if (!tabID) return;
+    setTabs((prev) =>
+      prev.map((t) =>
+        t.info.id === tabID ? { ...t, info: { ...t.info, recipe_written: true } } : t,
+      ),
+    );
+  });
+
   return {
-    mode,
     globalView,
     tabs,
     activeTabID,
@@ -411,7 +385,6 @@ export function useTabManager() {
     updateTab,
     updateTabInfo,
     openTabOn,
-    switchMode,
     openProject,
     openRecent,
     openWorkspaceContext,

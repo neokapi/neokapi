@@ -11,7 +11,6 @@ interface MenuEventsOptions {
   addTab: (tab: TabInfo, project: KapiProject) => Promise<void>;
   updateTabInfo: (tab: TabInfo) => void;
   setShowNewProjectForm: (v: boolean) => void;
-  setMode: (m: "projects") => void;
 }
 
 export function useMenuEvents({
@@ -21,7 +20,6 @@ export function useMenuEvents({
   addTab,
   updateTabInfo,
   setShowNewProjectForm,
-  setMode,
 }: MenuEventsOptions) {
   const { showError } = useError();
 
@@ -29,10 +27,7 @@ export function useMenuEvents({
   const activeTabIDRef = useRef(activeTabID);
   activeTabIDRef.current = activeTabID;
 
-  useWailsEvent("menu:new-project", () => {
-    setMode("projects");
-    setShowNewProjectForm(true);
-  });
+  useWailsEvent("menu:new-project", () => setShowNewProjectForm(true));
 
   useWailsEvent("menu:open-project", () => openProject());
 

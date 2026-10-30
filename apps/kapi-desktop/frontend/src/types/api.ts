@@ -488,6 +488,11 @@ export interface TabInfo {
    * project no checkout on this machine carries. Its path is empty.
    */
   context_only?: boolean;
+  /**
+   * Whether the project's kapi.yaml is on disk. A folder opened without one
+   * gets it the first time a person changes something it holds.
+   */
+  recipe_written?: boolean;
 }
 
 /** A saved "Active Filter": narrows the project to a subset of collections
@@ -629,14 +634,11 @@ export interface ConceptDoc {
   [key: string]: unknown;
 }
 
-export type AppMode = "adhoc" | "projects";
-
 /**
- * Persisted project-first session restored on the next launch.
+ * Persisted session restored on the next launch.
  * lastOpenProjects are recipe paths, most-recent first.
  */
 export interface SessionState {
-  mode: string;
   lastOpenProjects: string[];
   activeProject: string;
 }
