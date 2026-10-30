@@ -17,10 +17,11 @@ const (
 	// The replacement is worded for the bare term, and substituting it for an
 	// inflection leaves the wrong shape in the sentence ("we are use it").
 	RewriteSkipInflectedForm RewriteReason = "inflected_form"
-	// RewriteSkipCharacterReference is a match whose first or last character a
-	// character reference spells, such as "caf&eacute;" for "café". The text
-	// holds the reference and not the character, so a substitution would
-	// replace the reference.
+	// RewriteSkipCharacterReference is a match found through a block's runs
+	// whose first or last character a character reference spells, such as
+	// "caf&eacute;" for "café" (VocabHit.Spelled). The block's text holds the
+	// reference as a code, so a substitution would replace it. Matched holds
+	// the words as the page shows them.
 	RewriteSkipCharacterReference RewriteReason = "character_reference"
 )
 
@@ -67,17 +68,22 @@ type RewriteResult struct {
 // Matching is [MatchTermRulesInText], so the rewrite sees exactly the hits the
 // word-rule check reports. A hit is substituted when its rule names a
 // replacement and the matched text is the term itself, in any casing for a
-// case-insensitive rule, and no character reference spells an edge of it.
-// Every other hit stays in the text and is reported under Skipped with its
-// reason, so a caller can tell "nothing to fix" from "violations found and not
-// fixed" and finish the edit by hand.
+// case-insensitive rule, and is not Spelled (rewriteHits). Every other hit
+// stays in the text and is reported under Skipped with its reason, so a
+// caller can tell "nothing to fix" from "violations found and not fixed" and
+// finish the edit by hand.
 //
 // Where two rules claim overlapping text, the hit that starts first wins, and
 // the longer one on a tie. A hit inside replaced text is neither substituted
 // nor reported, because the text it matched is gone.
 func RewriteTermRules(sets []TermRuleSet, text string) RewriteResult {
+	return rewriteHits(text, MatchTermRulesInText(sets, text))
+}
+
+// rewriteHits applies the substitutions hits allow to text, which they index.
+// A Spelled hit, which only the runs form returns, is never substituted.
+func rewriteHits(text string, hits []VocabHit) RewriteResult {
 	res := RewriteResult{Text: text}
-	hits := MatchTermRulesInText(sets, text)
 	if len(hits) == 0 {
 		return res
 	}

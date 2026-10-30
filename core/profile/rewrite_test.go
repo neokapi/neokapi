@@ -5,6 +5,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/neokapi/neokapi/core/model"
 )
 
 func TestRewriteTermRules(t *testing.T) {
@@ -169,30 +171,41 @@ func TestRewriteVocabulary_AgreesWithCheck(t *testing.T) {
 		"what the check still finds in the rewritten text is exactly what was reported skipped")
 }
 
-// The rewrite matches through MatchTermRulesInText, so a term beside a
-// character reference is substituted and the reference kept, and a term a
-// reference spells an edge of is reported as the page shows it and left in
-// place: the text holds the reference, not the character.
+// The rewrite reads text as written (MatchTermRulesInText): a term beside a
+// written reference is substituted and the reference kept, and a reference
+// spells nothing, so "caf&eacute;" holds no "café" and "R&amp;D" no "R&D".
 func TestRewriteTermRulesBesideCharacterReferences(t *testing.T) {
+	rules := append([]TermRuleSet{{Rules: []TermRule{{Term: "R&D", Replacement: "research"}}}}, referenceRules...)
 	cases := []struct {
-		text    string
-		want    string
-		skipped []RewriteSkip
+		text string
+		want string
 	}{
-		{"utilize&amp;more", "use&amp;more", nil},
-		{"word&nbsp;next", "word&nbsp;following", nil},
-		{"&amp;utilize&nbsp;", "&amp;use&nbsp;", nil},
-		{"caf&eacute;", "caf&eacute;", []RewriteSkip{{
-			Term: "café", List: "forbidden", Fails: true, Replacement: "coffee shop",
-			Matched: []string{"café"}, Count: 1, Reason: RewriteSkipCharacterReference,
-		}}},
+		{"utilize&amp;more", "use&amp;more"},
+		{"word&nbsp;next", "word&nbsp;following"},
+		{"&amp;utilize&nbsp;", "&amp;use&nbsp;"},
+		{"caf&eacute;", "caf&eacute;"},
+		{"R&amp;D", "R&amp;D"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.text, func(t *testing.T) {
-			got := RewriteTermRules(referenceRules, tc.text)
+			got := RewriteTermRules(rules, tc.text)
 			assert.Equal(t, tc.want, got.Text)
-			assert.Equal(t, tc.skipped, got.Skipped)
-			assert.Equal(t, len(MatchTermRulesInText(referenceRules, tc.text)), len(got.Changes)+len(got.Skipped))
+			assert.Empty(t, got.Skipped)
+			assert.Len(t, MatchTermRulesInText(rules, tc.text), len(got.Changes))
 		})
 	}
+	assert.Empty(t, MatchTermRulesInText(rules, "R&amp;D"), "a written reference spells nothing")
+}
+
+// A hit the runs form marks Spelled is never substituted: it is reported
+// under Skipped with the page's spelling.
+func TestRewriteHitsSkipsSpelled(t *testing.T) {
+	runs := []model.Run{model.TextR("the caf"), entity("1", "&eacute;"), model.TextR(" and utilize")}
+	text := model.RunsText(runs)
+	got := rewriteHits(text, MatchTermRulesInRuns(referenceRules, text, runs))
+	assert.Equal(t, "the caf and use", got.Text)
+	assert.Equal(t, []RewriteSkip{{
+		Term: "café", List: "forbidden", Fails: true, Replacement: "coffee shop",
+		Matched: []string{"café"}, Count: 1, Reason: RewriteSkipCharacterReference,
+	}}, got.Skipped)
 }

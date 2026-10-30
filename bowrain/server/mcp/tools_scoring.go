@@ -9,7 +9,6 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/neokapi/neokapi/bowrain/core/voicescope"
-	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 )
@@ -157,11 +156,6 @@ func (s *MCPServer) handleSuggestCorrections(ctx context.Context, req *mcp.CallT
 	corrected := input.Text
 
 	for _, f := range findings {
-		// Words a character reference spells an edge of are not written as
-		// such in the text, so no swap is built from them (check.Fix).
-		if f.Metadata[check.MetaSpelled] != "" {
-			continue
-		}
 		// The structured replacement (the preferred term) is the concrete swap;
 		// f.Suggestion is the human-readable "Use ... instead" message used as the
 		// reason, so it must never be substituted into the corrected text.

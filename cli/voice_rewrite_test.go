@@ -113,9 +113,9 @@ func TestVoiceRewrite_HumanOutputSummarisesSkipped(t *testing.T) {
 	assert.Contains(t, raw, "verify with 'kapi voice check'")
 }
 
-// A term beside a character reference is rewritten and the reference kept; a
-// term a reference spells an edge of is left in place and reported with its
-// reason, as the page shows it.
+// A term beside a character reference written in the text is rewritten and
+// the reference kept. The text is read as written, so "caf&eacute;" holds no
+// "café" and is left as it is with nothing skipped.
 func TestVoiceRewrite_CharacterReferences(t *testing.T) {
 	path := writeTempProfile(t, `name: References
 tone:
@@ -129,32 +129,19 @@ vocabulary:
         - term: café
           replacement: coffee shop
 `)
-	cases := []struct {
-		text, rewritten, skipped string
-	}{
-		{"utilize&amp;more", "use&amp;more", ""},
-		{"word&nbsp;next", "word&nbsp;following", ""},
-		{"&amp;utilize&nbsp;", "&amp;use&nbsp;", ""},
-		{"caf&eacute;", "caf&eacute;", "café"},
-	}
-	for _, tc := range cases {
-		t.Run(tc.text, func(t *testing.T) {
-			raw, runErr := runVoiceRewrite(t, "--profile-file", path, "--input-text", tc.text, "--json")
+	for text, rewritten := range map[string]string{
+		"utilize&amp;more":   "use&amp;more",
+		"word&nbsp;next":     "word&nbsp;following",
+		"&amp;utilize&nbsp;": "&amp;use&nbsp;",
+		"caf&eacute;":        "caf&eacute;",
+	} {
+		t.Run(text, func(t *testing.T) {
+			raw, runErr := runVoiceRewrite(t, "--profile-file", path, "--input-text", text, "--json")
 			require.NoError(t, runErr)
 			var out output.VoiceRewriteOutput
 			require.NoError(t, json.Unmarshal([]byte(raw), &out), raw)
-			assert.Equal(t, tc.rewritten, out.Rewritten)
-			if tc.skipped == "" {
-				assert.Empty(t, out.Skipped)
-				return
-			}
-			require.Len(t, out.Skipped, 1)
-			assert.Equal(t, profile.RewriteSkipCharacterReference, out.Skipped[0].Reason)
-			assert.Equal(t, []string{tc.skipped}, out.Skipped[0].Matched)
-
-			human, runErr := runVoiceRewrite(t, "--profile-file", path, "--input-text", tc.text)
-			require.NoError(t, runErr)
-			assert.Contains(t, human, `"café" [fails/forbidden]: written with a character reference`)
+			assert.Equal(t, rewritten, out.Rewritten)
+			assert.Empty(t, out.Skipped)
 		})
 	}
 }

@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
-	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 )
@@ -26,30 +25,33 @@ func entityRun(id, data string) model.Run {
 }
 
 // The check endpoints find a term in a request's text as core/profile's plain
-// form finds it, and a term a reference spells an edge of is reported as the
-// page shows it with no position.
+// form finds it: the text is read as written, as `kapi check` reads a block of
+// one text run, so "caf&eacute;" holds no "café".
 func TestVoiceGateFindingsReadCharacterReferences(t *testing.T) {
 	s := &Server{}
 	profile := (&coreprofile.VoiceProfile{ID: "p"}).Carry("pack references", referenceRules)
 	cases := []struct {
 		text    string
-		matched string
-		spelled bool
+		matched string // empty for no finding
 	}{
-		{"utilize&amp;more", "utilize", false},
-		{"word&nbsp;next", "next", false},
-		{"&amp;utilize&nbsp;", "utilize", false},
-		{"caf&eacute;", "café", true},
+		{"utilize&amp;more", "utilize"},
+		{"word&nbsp;next", "next"},
+		{"&amp;utilize&nbsp;", "utilize"},
+		{"caf&eacute;", ""},
 	}
 	for _, tc := range cases {
 		t.Run(tc.text, func(t *testing.T) {
-			require.Len(t, coreprofile.MatchTermRulesInText(coreprofile.CarriedRuleSets(profile), tc.text), 1)
+			want := coreprofile.MatchTermRulesInText(coreprofile.CarriedRuleSets(profile), tc.text)
 			findings, err := s.voiceGateFindings(t.Context(), "", profile, "en", tc.text)
 			require.NoError(t, err)
+			require.Len(t, findings, len(want))
+			if tc.matched == "" {
+				assert.Empty(t, findings)
+				return
+			}
 			require.Len(t, findings, 1)
 			assert.Equal(t, tc.matched, findings[0].OriginalText)
-			assert.Equal(t, tc.spelled, findings[0].Metadata[check.MetaSpelled] != "")
-			assert.Equal(t, tc.spelled, findings[0].Position.IsZero())
+			assert.False(t, findings[0].Position.IsZero())
 		})
 	}
 }

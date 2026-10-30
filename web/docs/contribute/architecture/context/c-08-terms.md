@@ -307,20 +307,22 @@ of case otherwise, and as `case_sensitive` says when the rule sets it. That is w
 run cover every source a caller holds, and what keeps a rule-carrying tool from
 being a second-class citizen of the word-rule gate.
 
-Every surface that finds a term goes through one search with two entry
+Every surface that matches term rules goes through one search with two entry
 points. `MatchTermRulesInRuns` takes a block's text and the runs it flattens
-from; `MatchTermRulesInText` takes text that has no runs, such as a text an
-agent or a person submits for checking. Both look for a term in the search text
-(`profile.SearchText`), where a character reference such as `&amp;` or
-`&eacute;` stands for the character it spells: in runs, the HTML reader
-keeps a reference as an inline code; in plain text, a reference is written in
-the text. Each hit is mapped back to offsets of the caller's text. A hit whose
+from, and looks for a term in the search text (`profile.SearchText`): the
+HTML reader keeps a character reference such as `&amp;` or `&eacute;` as an
+inline code, and in the search text the reference stands for the character it
+spells. Each hit is mapped back to offsets of the block's text. A hit whose
 first or last character a reference spells (`caf&eacute;` for `café`) carries
-`Spelled`, the words as the page shows them. No span of the text holds those
-words, so the hit is reported with no position and no surface builds an edit
-from it: `check.Fix`, the rewrite tools and the blast radius's prescribed
-count all skip it. On text with no reference the two entry points return the
-same hits.
+`Spelled`, the words as the page shows them. No span of the block's text holds
+those words, so the hit is reported with no position and no surface builds an
+edit from it: `check.Fix`, the rewrite and the blast radius's prescribed count
+all skip it. `MatchTermRulesInText` takes text that has no runs, such as a
+text an agent or a person submits for checking, and reads it as `kapi check`
+reads a block of one text run: a reference written in the text is its own
+characters. A word is therefore a hit for every gate that matches term rules
+or for none. dnt-check and the model sweep's term traps look terms up with
+`check.FindTerm` directly.
 
 A set may be marked `Suggested`, which is how the candidates a project has
 accumulated reach the same pass ([C-11](c-11-context-operations.md)). Every hit

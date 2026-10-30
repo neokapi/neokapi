@@ -81,15 +81,19 @@ func TestDeriveSweepFixtures_VoiceTrapReadsCharacterReferences(t *testing.T) {
 	}
 }
 
-// A model's output is text alone, so the sweep's voice bar reads a reference
-// written in it as the character it spells, as core/profile's plain form does.
+// A model's output is text alone, so the sweep's voice bar reads it as
+// written, as core/profile's plain form does: "caf&eacute;" holds no "café".
 func TestSweepVoiceAdherentReadsCharacterReferences(t *testing.T) {
 	profile := (&coreprofile.VoiceProfile{ID: "p", Name: "P"}).Carry("pack references", referenceRules)
-	for _, text := range []string{"utilize&amp;more", "word&nbsp;next", "&amp;utilize&nbsp;", "caf&eacute;"} {
+	for text, adherent := range map[string]bool{
+		"utilize&amp;more":   false,
+		"word&nbsp;next":     false,
+		"&amp;utilize&nbsp;": false,
+		"caf&eacute;":        true,
+	} {
 		t.Run(text, func(t *testing.T) {
-			require.Len(t, coreprofile.MatchTermRulesInText(coreprofile.CarriedRuleSets(profile), text), 1)
-			assert.True(t, sweepVoiceAdherent("clean words", profile))
-			assert.False(t, sweepVoiceAdherent(text, profile))
+			require.Equal(t, adherent, len(coreprofile.MatchTermRulesInText(coreprofile.CarriedRuleSets(profile), text)) == 0)
+			assert.Equal(t, adherent, sweepVoiceAdherent(text, profile))
 		})
 	}
 }

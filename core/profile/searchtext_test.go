@@ -116,11 +116,10 @@ func hitView(text string, hits []VocabHit) []string {
 	return out
 }
 
-// Text with no runs reads a character reference written in it as the
-// character it spells, as the HTML reader does, and each hit indexes the
-// text with the reference's bytes. A hit a reference spells an edge of is
-// reported as the page shows it.
-func TestMatchTermRulesInTextReadsCharacterReferences(t *testing.T) {
+// Text with no runs is read as written, as `kapi check` reads a block of one
+// text run: a reference written in it is its own characters, so it ends a
+// word with its "&" and ";" and spells nothing.
+func TestMatchTermRulesInTextReadsTextAsWritten(t *testing.T) {
 	cases := []struct {
 		name string
 		text string
@@ -129,47 +128,17 @@ func TestMatchTermRulesInTextReadsCharacterReferences(t *testing.T) {
 		{"before a reference", "utilize&amp;more", []string{"utilize@0"}},
 		{"after a reference", "word&nbsp;next", []string{"next@10"}},
 		{"between references", "&amp;utilize&nbsp;", []string{"utilize@5"}},
-		{"a reference spells the last letter", "caf&eacute;", []string{"spelled:café@0"}},
-		{"a numeric reference spells a letter inside a word", "utiliz&#101;d", nil},
-		{"an unknown reference ends a word", "utilize&nosuch;x", []string{"utilize@0"}},
-		{"an ampersand that is no reference stays", "R&D: utilize & next", []string{"utilize@5", "next@15"}},
+		{"a reference that would spell the last letter", "caf&eacute;", nil},
+		{"a reference that would spell a letter inside a word", "utiliz&#101;d", nil},
+		{"an ampersand that is no reference", "R&D: utilize & next", []string{"utilize@5", "next@15"}},
 		{"no reference", "We utilize the next café", []string{"utilize@3", "next@15", "café@20"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.want, hitView(tc.text, MatchTermRulesInText(referenceRules, tc.text)))
-		})
-	}
-}
-
-// The plain form and the runs form agree: on text with no reference the plain
-// form returns what the runs form returns for the text as one run, and a
-// reference written in text reads as the reader's reference code reads.
-func TestMatchTermRulesInTextAgreesWithRuns(t *testing.T) {
-	plain := "We utilize the next café, and utilize it."
-	assert.Equal(t, MatchTermRulesInRuns(referenceRules, plain, []model.Run{model.TextR(plain)}), MatchTermRulesInText(referenceRules, plain))
-
-	cases := []struct {
-		text string
-		runs []model.Run
-	}{
-		{"utilize&amp;more", []model.Run{model.TextR("utilize"), entity("1", "&amp;"), model.TextR("more")}},
-		{"word&nbsp;next", []model.Run{model.TextR("word"), entity("1", "&nbsp;"), model.TextR("next")}},
-		{"caf&eacute;", []model.Run{model.TextR("caf"), entity("1", "&eacute;")}},
-	}
-	for _, tc := range cases {
-		t.Run(tc.text, func(t *testing.T) {
-			fromText := MatchTermRulesInText(referenceRules, tc.text)
-			blockText := model.RunsText(tc.runs)
-			fromRuns := MatchTermRulesInRuns(referenceRules, blockText, tc.runs)
-			require.Len(t, fromText, len(fromRuns))
-			for i := range fromRuns {
-				assert.Equal(t, fromRuns[i].Term, fromText[i].Term)
-				assert.Equal(t, fromRuns[i].Spelled, fromText[i].Spelled)
-				if fromRuns[i].Spelled == "" {
-					assert.Equal(t, blockText[fromRuns[i].Start:fromRuns[i].End], tc.text[fromText[i].Start:fromText[i].End])
-				}
-			}
+			hits := MatchTermRulesInText(referenceRules, tc.text)
+			assert.Equal(t, tc.want, hitView(tc.text, hits))
+			assert.Equal(t, MatchTermRulesInRuns(referenceRules, tc.text, []model.Run{model.TextR(tc.text)}), hits,
+				"the plain form is the runs form over one text run")
 		})
 	}
 }
