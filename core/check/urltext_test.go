@@ -61,18 +61,55 @@ func TestInURL(t *testing.T) {
 }
 
 func TestKeepInitialCapital(t *testing.T) {
-	tests := []struct{ words, replacement, want string }{
-		{"E-mail", "email", "Email"},
-		{"e-mail", "email", "email"},
-		{"Utilize", "use", "Use"},
-		{"login", "Sign in", "Sign in"},
-		{"Login", "Sign in", "Sign in"},
-		{"Kapi", "kapi", "kapi"},
-		{"Éditer", "modifier", "Modifier"},
-		{"utilize", "", ""},
-		{"", "use", "use"},
+	tests := []struct {
+		words, replacement string
+		atSentence         bool
+		want               string
+	}{
+		{"E-mail", "email", true, "Email"},
+		{"E-mail", "email", false, "Email"},
+		{"e-mail", "email", true, "email"},
+		{"Utilize", "use", false, "Use"},
+		{"Éditer", "modifier", true, "Modifier"},
+		// A replacement the rule writes with a capital lands as written.
+		{"login", "Sign in", false, "Sign in"},
+		{"Login", "Sign in", true, "Sign in"},
+		// A capital after the first letter belongs to the replacement.
+		{"Iphone", "iPhone", true, "iPhone"},
+		{"Mac OS", "macOS", true, "macOS"},
+		// Capitals of a name stay with the name: an acronym, or a capital in
+		// a later word.
+		{"URL", "address", false, "address"},
+		{"URL", "address", true, "address"},
+		{"Kapi CLI", "kapi", false, "kapi"},
+		{"Kapi CLI", "kapi", true, "kapi"},
+		// A rule about case.
+		{"Kapi", "kapi", true, "kapi"},
+		// A first word that is not Title-case takes a capital only at a
+		// sentence start.
+		{"E-Mail", "email", true, "Email"},
+		{"E-Mail", "email", false, "email"},
+		{"utilize", "", true, ""},
+		{"", "use", true, "use"},
 	}
 	for _, tt := range tests {
-		assert.Equal(t, tt.want, KeepInitialCapital(tt.words, tt.replacement), "%q → %q", tt.words, tt.replacement)
+		assert.Equal(t, tt.want, KeepInitialCapital(tt.words, tt.replacement, tt.atSentence),
+			"%q → %q at a sentence start: %v", tt.words, tt.replacement, tt.atSentence)
+	}
+}
+
+func TestSentenceStart(t *testing.T) {
+	text := "E-mail us. Then e-mail again: E-mail\nE-mail"
+	for _, tt := range []struct {
+		pos  int
+		want bool
+	}{
+		{0, true},
+		{strings.Index(text, "Then"), true},
+		{strings.Index(text, "e-mail again"), false},
+		{strings.Index(text, ": E") + 2, true},
+		{strings.LastIndex(text, "E-mail"), true},
+	} {
+		assert.Equal(t, tt.want, sentenceStart(text, tt.pos), "at %d", tt.pos)
 	}
 }
