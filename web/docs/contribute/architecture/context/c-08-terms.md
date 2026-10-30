@@ -277,7 +277,7 @@ about the same words, so a gate that asks them separately is two gates that can
 disagree about whether a word is in use.
 
 `terms.Locate` asks once. It takes the rules the caller holds and the bound
-store, matches the rules through `profile.MatchTermRules` and the store through
+store, matches the rules through `profile.MatchTermRulesInRuns` and the store through
 `LookupAll`, and returns **occurrences**: the matched surface text, the
 declaration that governs it, the concept it denotes, and a `model.Anchor`
 positioning it in the block's runs. Store matches are deduped across the
@@ -295,8 +295,8 @@ competitor's name, a forbidden term and a retired one, and `term-lookup`
 annotates all of them because context is what it is for. A pass that filtered to
 one caller's three statuses would be a pass only that caller could use.
 
-The matcher is rule-shaped rather than profile-shaped: `MatchTermRules` takes
-term rule *sets*, each carrying the kind of violation a hit is and, for a set
+The matcher is rule-shaped rather than profile-shaped: it takes term rule
+*sets*, each carrying the kind of violation a hit is and, for a set
 the store did not declare, where it comes from (`From`). The store contributes
 the word rules it imposes on source content through `terms.SourceWordRules`; a
 voice file contributes the terms it carries through `CarriedRuleSets`; a tool
@@ -306,6 +306,21 @@ form is capitalised or differs from the rejected one only in case, regardless
 of case otherwise, and as `case_sensitive` says when the rule sets it. That is what lets one match
 run cover every source a caller holds, and what keeps a rule-carrying tool from
 being a second-class citizen of the word-rule gate.
+
+Every surface that finds a term goes through one search with two entry
+points. `MatchTermRulesInRuns` takes a block's text and the runs it flattens
+from; `MatchTermRulesInText` takes text that has no runs, such as a text an
+agent or a person submits for checking. Both look for a term in the search text
+(`profile.SearchText`), where a character reference such as `&amp;` or
+`&eacute;` stands for the character it spells: in runs, the HTML reader
+keeps a reference as an inline code; in plain text, a reference is written in
+the text. Each hit is mapped back to offsets of the caller's text. A hit whose
+first or last character a reference spells (`caf&eacute;` for `café`) carries
+`Spelled`, the words as the page shows them. No span of the text holds those
+words, so the hit is reported with no position and no surface builds an edit
+from it: `check.Fix`, the rewrite tools and the blast radius's prescribed
+count all skip it. On text with no reference the two entry points return the
+same hits.
 
 A set may be marked `Suggested`, which is how the candidates a project has
 accumulated reach the same pass ([C-11](c-11-context-operations.md)). Every hit
