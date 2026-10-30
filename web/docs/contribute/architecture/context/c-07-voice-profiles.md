@@ -63,7 +63,7 @@ embedded starter packs and the voice store:
   advisory note.
 - **`StyleRules`**: active voice, sentence length, point of view, contractions,
   and prohibited/required regular-expression patterns. A `Pattern` carries an
-  optional `advisory` flag, an optional `rate` (`max` matches per `per_words` words, which turns
+  optional `fails` flag and `advisory` flag, an optional `rate` (`max` matches per `per_words` words, which turns
   a prohibition into a ceiling; under the ceiling nothing is reported, over it
   every match is), and an optional `scope` (`prose`, `code` or `heading`; empty
   means everywhere). The style enums stay closed, because code reads them.
@@ -107,11 +107,11 @@ terminology in. `term-check`, `translate`, `recycle` and `dnt-check` all read
 store, a voice file or a recipe, and
 `profile.TermRuleMap` is the single projection of that list into the map a
 prompt renders and the context fingerprint hashes, so the staleness gate and the
-producers cannot disagree about what governed a target. A violation of a rule
-or a pattern fails a check unless the rule is marked `advisory: true`, which
-makes it report; an unset marking fails. A terms-store concept carries the same
-marking, so a rule resolved from the store reports only when a person marked the
-concept advisory. A rule with an empty
+producers cannot disagree about what governed a target. A violation of a term
+rule fails a check unless the rule is marked `advisory: true`, which makes it
+report; an unset marking fails. A terms-store concept carries the same marking,
+so a rule resolved from the store reports only when a person marked the concept
+advisory. A pattern reports unless it is marked `fails: true`. A rule with an empty
 replacement is skipped by the translation tools unless it is marked
 do-not-translate, because "say this instead" needs a this; the check reads the
 same bare term as "avoid this".
@@ -182,9 +182,11 @@ Tools attach findings to a block as a `VoiceAnnotation` (annotation type
 `voice`), which also carries the profile id, the overall score and its own
 position.
 
-`Fails` is decided by the rule that raised the finding. A term rule, a
-prohibited or required pattern, and a shared constraint fail unless the rule is
-marked advisory. A finding raised by a suggested rule, one recorded by
+`Fails` is decided by the rule that raised the finding. A term rule fails
+unless it is marked advisory. A prohibited or required pattern, and the rate
+ceiling over it, reports unless it is marked `fails: true`
+(`Pattern.Failing`), and `advisory: true` beside it still makes it report. A
+shared constraint always fails. A finding raised by a suggested rule, one recorded by
 `kapi context note` and not yet kept, carries `Suggested` and
 never fails. The style measures report: the voice-similarity
 check, the model-backed `voice-check`, and the comment limits under
