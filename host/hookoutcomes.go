@@ -301,10 +301,10 @@ type transcriptItem struct {
 // editTools are the tools whose calls write a file.
 var editTools = []string{"Edit", "Write", "MultiEdit", "NotebookEdit"}
 
-// readTranscriptTurn reads the session's transcript for the turn a Stop hook
-// ran at the end of: the id of the transcript's last entry, which names the
-// Stop event (Claude Code writes an entry after every Stop hook, so the next
-// Stop sees a different last entry), and the files inside root that the assistant's edits since the
+// readTranscriptTurn reads the session's transcript for the Stop a hook ran
+// at. The turn is the id of the transcript's last entry. Claude Code writes an
+// entry after every Stop hook, so the next Stop sees a different last entry.
+// The files are those inside root that the assistant's edits since the
 // person's last message wrote, project-relative and each once. An unreadable
 // or missing transcript answers with nothing.
 func readTranscriptTurn(path, root string) (turn string, edited []string) {
