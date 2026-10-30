@@ -86,15 +86,17 @@ type ShareView struct {
 	// BowrainPlugin reports whether the kapi-bowrain plugin is installed,
 	// which connecting a project to a Bowrain server needs.
 	BowrainPlugin bool `json:"bowrain_plugin"`
-	// RecipeWritten is false for a folder opened without a kapi.yaml.
-	// SetProjectSharing writes the recipe before it names a place in it.
-	RecipeWritten bool `json:"recipe_written"`
+	// Error is what reading the recipe's place reported, such as a
+	// `context:` block the recipe check refuses. The page then stands on the
+	// first rung, where the context stays until the block is fixed.
+	Error string `json:"error,omitempty"`
 }
 
 // ShareView reads the Share page for a tab through the host's `kapi share
 // --status`: the rung, the place, the counts and the last sync, without
 // reaching the place. A tab holding the context alone stands on the first
-// rung, since sharing is named in a recipe and that tab has none.
+// rung, since sharing is named in a recipe and that tab has none. A recipe
+// whose place cannot be read stands there too, with the error beside it.
 func (a *App) ShareView(tabID string) (*ShareView, error) {
 	op := a.getOpenProject(tabID)
 	if op == nil {
@@ -110,16 +112,16 @@ func (a *App) ShareView(tabID string) (*ShareView, error) {
 	path := op.Path
 	a.mu.RUnlock()
 	out := &ShareView{
-		Rung:          host.ShareRungMachine,
-		Sharing:       &ProjectSharing{Kind: project.ContextBackendLocal, From: "default", Workspace: location},
-		RecipeWritten: !op.unsaved.Load(),
+		Rung:    host.ShareRungMachine,
+		Sharing: &ProjectSharing{Kind: project.ContextBackendLocal, From: "default", Workspace: location},
 	}
 	if op.contextOnly || path == "" {
 		return out, nil
 	}
 	res, err := a.hostEngine().Share(ctx, host.ShareRequest{Project: path, Status: true})
 	if err != nil {
-		return nil, err
+		out.Error = err.Error()
+		return out, nil
 	}
 	out.Rung, out.BowrainPlugin = res.Rung, res.BowrainPlugin
 	if b := res.Backend; b != nil {
@@ -187,8 +189,8 @@ func (a *App) SetProjectSharing(tabID string, spec project.ContextBackend) (*Pro
 
 // SyncProjectContext pulls what other machines shared through the place a
 // tab's recipe names, and pushes what this machine recorded: the sync `kapi
-// share` and `kapi context sync` run. A place that cannot be reached returns the host's error as it is,
-// with nothing changed here.
+// share` and `kapi context sync` run. A place that cannot be reached returns
+// the host's error as it is, with nothing changed here.
 func (a *App) SyncProjectContext(tabID string) (*host.ContextSyncResult, error) {
 	op := a.getOpenProject(tabID)
 	if op == nil {

@@ -15,6 +15,7 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/host/venue/schema"
+	"github.com/neokapi/neokapi/kapi-desktop/backend/sample"
 	"gopkg.in/yaml.v3"
 )
 
@@ -201,12 +202,74 @@ func TestShareView_NoPlaceStandsOnThisMac(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, host.ShareRungMachine, view.Rung)
 	assert.Equal(t, &ProjectSharing{Kind: project.ContextBackendLocal, From: "default", Workspace: location}, view.Sharing)
-	assert.True(t, view.RecipeWritten)
+	assert.Empty(t, view.Error)
 	require.NotNil(t, view.Rules)
 	assert.Zero(t, *view.Rules)
 
+	home, err := app.ListWorkspaceProjects()
+	require.NoError(t, err)
+	require.Len(t, home.Projects, 1)
+	ctxTab, err := app.OpenWorkspaceContext(home.Projects[0].Key)
+	require.NoError(t, err)
+	t.Cleanup(func() { app.CloseProject(ctxTab.ID) })
+	view, err = app.ShareView(ctxTab.ID)
+	require.NoError(t, err)
+	assert.Equal(t, host.ShareRungMachine, view.Rung)
+	assert.Equal(t, &ProjectSharing{Kind: project.ContextBackendLocal, From: "default", Workspace: location}, view.Sharing)
+	assert.Nil(t, view.Rules, "a tab with no checkout counts no rules")
+	assert.False(t, view.BowrainPlugin, "nothing connects a project from a tab with no checkout")
+
 	_, err = app.ShareView("no-such-tab")
 	require.EqualError(t, err, `project tab "no-such-tab" not found`)
+}
+
+// TestShareView_ABrokenPlaceStandsOnThisMac: a `context:` block broken after
+// the project opened leaves the page on the first rung with the recipe
+// check's words, and naming a place again writes a block that reads.
+func TestShareView_ABrokenPlaceStandsOnThisMac(t *testing.T) {
+	app := newWorkspaceApp(t)
+	tab, recipe := openSharingProject(t, app, "Broken")
+	data, err := os.ReadFile(recipe)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(recipe, append(data, []byte("context:\n  backend: dropbox\n")...), 0o644))
+
+	view, err := app.ShareView(tab)
+	require.NoError(t, err)
+	assert.Equal(t, host.ShareRungMachine, view.Rung)
+	assert.Equal(t, project.ContextBackendLocal, view.Sharing.Kind)
+	assert.Contains(t, view.Error, `"dropbox" is not a backend`)
+
+	shared := filepath.Join(t.TempDir(), "team-share")
+	_, err = app.SetProjectSharing(tab, project.ContextBackend{Backend: project.ContextBackendFile, Path: shared})
+	require.NoError(t, err)
+	view, err = app.ShareView(tab)
+	require.NoError(t, err)
+	assert.Empty(t, view.Error)
+	assert.Equal(t, host.ShareRungTeam, view.Rung)
+}
+
+// TestShareView_KapiMartCountsTheMapsRules: the team rung's rule count is the
+// number the Map shows for the same project.
+func TestShareView_KapiMartCountsTheMapsRules(t *testing.T) {
+	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
+	t.Setenv("KAPI_DATA_DIR", t.TempDir())
+	app := NewApp()
+	t.Cleanup(func() { app.shutdownEngine() })
+	dir := t.TempDir()
+	require.NoError(t, sample.Scaffold("kapimart", dir))
+	tab, err := app.OpenProject(filepath.Join(dir, project.RecipeFileName))
+	require.NoError(t, err)
+	t.Cleanup(func() { app.CloseProject(tab.ID) })
+	_, err = app.SyncProjectStore(tab.ID)
+	require.NoError(t, err)
+
+	summary, err := app.MapSummary(tab.ID)
+	require.NoError(t, err)
+	view, err := app.ShareView(tab.ID)
+	require.NoError(t, err)
+	require.NotNil(t, view.Rules)
+	assert.Positive(t, summary.Rules)
+	assert.Equal(t, summary.Rules, *view.Rules)
 }
 
 // TestShareView_ThroughAFolder: a folder written by SetProjectSharing puts the
@@ -310,7 +373,7 @@ func TestShareView_AnUnsavedFolder(t *testing.T) {
 	view, err := app.ShareView(tab.ID)
 	require.NoError(t, err)
 	assert.Equal(t, host.ShareRungMachine, view.Rung)
-	assert.False(t, view.RecipeWritten)
+	assert.Empty(t, view.Error, "a folder with no recipe yet is no error")
 	assert.NoFileExists(t, recipe, "reading the Share page writes nothing")
 
 	shared := filepath.Join(t.TempDir(), "team-share")
@@ -321,8 +384,8 @@ func TestShareView_AnUnsavedFolder(t *testing.T) {
 	view, err = app.ShareView(tab.ID)
 	require.NoError(t, err)
 	assert.Equal(t, host.ShareRungTeam, view.Rung)
-	assert.True(t, view.RecipeWritten)
 	assert.Equal(t, shared, view.Sharing.Location)
+	assert.True(t, tabInfoOf(app.getOpenProject(tab.ID)).RecipeWritten)
 }
 
 // TestShareView_ConnectedToBowrain: a recipe with a `bowrain:` block stands on
