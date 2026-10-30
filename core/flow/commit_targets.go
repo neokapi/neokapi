@@ -72,10 +72,14 @@ func (t *commitTargetsTool) commitOne(ctx context.Context, sess blockstore.Sessi
 		return nil
 	}
 	key := blockstore.OverlayKey(ctx, b.ID, b.SourceText())
+	// The stamp names the source as read, not the source as this step sees it:
+	// unredact may have put the originals back by now, and a script may have
+	// edited the wording, and a merge compares the stamp with the source it
+	// reads from the file.
 	overlay := blockstore.TargetOverlay{
 		Runs:   tgt.Runs,
 		Status: string(tgt.Status),
-		Source: blockstore.SourceStamp(b.SourceText()),
+		Source: blockstore.BlockSourceStamp(b),
 		Origin: blockstore.OverlayOrigin(tgt.Origin),
 	}
 	// The producer's own fingerprint of what it sent, carried forward from the

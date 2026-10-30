@@ -51,7 +51,7 @@ func (t *MTTranslateTool) ReusesStoredTarget(_ context.Context, b *model.Block, 
 	if b == nil {
 		return false
 	}
-	return stored.ReusableFor(b.SourceText(), t.configFP, t.contextFP)
+	return stored.ReusableFor(blockstore.AsReadSourceText(b), blockstore.ReuseConfig(t.configFP, b), t.contextFP)
 }
 
 // MTTranslateConfig holds configuration for the MT translate tool.
@@ -294,8 +294,8 @@ func (t *MTTranslateTool) sessionHandleBlock(
 			Text:     target,
 			Status:   string(model.TargetStatusDraft),
 			Provider: string(t.provider.Name()),
-			Config:   t.configFP,
-			Source:   blockstore.SourceStamp(block.SourceText()),
+			Config:   blockstore.ReuseConfig(t.configFP, block),
+			Source:   blockstore.BlockSourceStamp(block),
 			Origin:   blockstore.OverlayOrigin(t.mtOrigin()),
 		})
 		if err != nil {

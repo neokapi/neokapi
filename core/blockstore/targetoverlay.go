@@ -80,12 +80,15 @@ type TargetOverlay struct {
 	Provider string `json:"provider,omitempty"`
 	Config   string `json:"config,omitempty"`
 
-	// Source is model.ComputeContentHash of the source text the translation was
-	// made from. The overlay key namespaces a block by file and id but not by
-	// wording (StoreKey), so an edited sentence keeps the key its old
-	// translation sits under; this is what tells the two apart. An overlay
-	// carrying no source stamp is treated as no answer, rather than as a
-	// promise that the source stood still.
+	// Source is the stamp of the block's source as its reader produced it
+	// (BlockSourceStamp): the text a later merge reads from the file, whatever
+	// a step of the flow did to the source before the translation was made.
+	// The overlay key namespaces a block by file and id but not by wording
+	// (StoreKey), so an edited sentence keeps the key its old translation sits
+	// under; this is what tells the two apart. A merge applies an overlay only
+	// while its stamp names the source the merge reads (StaleFor). A producer
+	// treats an overlay carrying no source stamp as no answer, rather than as a
+	// promise that the source stood still; a merge applies it as it is.
 	Source string `json:"source,omitempty"`
 
 	// Origin is the provenance the producer stamped: how the target was made,
@@ -111,6 +114,46 @@ func OverlayOrigin(o model.Origin) *model.Origin {
 // SourceStamp is the value TargetOverlay.Source takes for a given source text.
 func SourceStamp(sourceText string) string { return model.ComputeContentHash(sourceText) }
 
+// AsReadSourceText is the plain text of the source b's reader produced
+// (model.Block.SourceAsRead). A step that rewrites the source keeps the source
+// as read: redact puts placeholders in it and a script may edit it, and this
+// still returns the text the file holds. A block no edit has touched keeps no
+// separate source as read, and this returns its current source text, which is
+// then the same text. A block rebuilt from a wire form or a store
+// (SetSourceRuns) has no source as read either, and returns its current source
+// text too.
+func AsReadSourceText(b *model.Block) string {
+	runs, _ := b.SourceAsRead()
+	return model.RunsText(runs)
+}
+
+// BlockSourceStamp is the stamp of b's source as read (AsReadSourceText). A
+// producer stamps a translation with it and a merge compares the stamp with
+// the one of the block it reads from the file, so both name the same text.
+func BlockSourceStamp(b *model.Block) string { return SourceStamp(AsReadSourceText(b)) }
+
+// StaleFor reports whether the overlay is a translation of a source other
+// than b's source as read: its stamp names a source the block no longer holds.
+// A merge applies no stale overlay and counts it as stale. An overlay with no
+// stamp (an import, a pseudo-translation, data older than the stamp) is never
+// stale: nothing in it says which source it answered.
+func (o TargetOverlay) StaleFor(b *model.Block) bool {
+	return o.Source != "" && o.Source != BlockSourceStamp(b)
+}
+
+// ReuseConfig is the configuration a producer records beside a translation of
+// b and compares a stored one against (TargetOverlay.Config). The stamp names
+// the source as read; when a step of the flow rewrote the source before the
+// producer saw it, config is extended with the stamp of the text the producer
+// sends, so a stored translation serves again only while the rewrite produces
+// the same text. A block whose source no step rewrote returns config as it is.
+func ReuseConfig(config string, b *model.Block) string {
+	if sent := b.SourceText(); sent != AsReadSourceText(b) {
+		return config + ":sent=" + SourceStamp(sent)
+	}
+	return config
+}
+
 // TargetText renders the overlay's translation: the runs when it has them,
 // otherwise the plain text (or the legacy Target alias).
 func (o TargetOverlay) TargetText() string {
@@ -132,12 +175,14 @@ func (o TargetOverlay) ContextFingerprint() string {
 	return o.Origin.ContextFingerprint
 }
 
-// ReusableFor reports whether a producer about to translate sourceText can
-// serve this stored target instead of calling out. Three anchors must hold:
+// ReusableFor reports whether a producer about to translate a block whose
+// source as read is sourceText (AsReadSourceText) can serve this stored target
+// instead of calling out. Three anchors must hold:
 //
 //   - the same source wording (Source), because the key says nothing about it;
 //   - the same producer configuration (Config), which covers the engine, the
-//     model and the prompt as well as the governance it sends;
+//     model and the prompt as well as the governance it sends, and the text
+//     it sends when a step rewrote the source (ReuseConfig);
 //   - the same governing context (Origin.ContextFingerprint), the stamp every
 //     producer computes the same way, so a voice profile or term rule that has
 //     moved re-drafts whichever engine made the original.

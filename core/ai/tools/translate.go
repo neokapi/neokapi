@@ -107,7 +107,7 @@ func (t *AITranslateTool) ReusesStoredTarget(ctx context.Context, b *model.Block
 	if b == nil {
 		return false
 	}
-	return stored.ReusableFor(b.SourceText(), t.cacheFingerprint(ctx, b), t.contextFP)
+	return stored.ReusableFor(blockstore.AsReadSourceText(b), t.cacheFingerprint(ctx, b), t.contextFP)
 }
 
 // applyStored puts a stored target on the block and counts the reuse. The
@@ -151,7 +151,7 @@ func (t *AITranslateTool) storedTarget(block *model.Block, target, configFP stri
 		Status:   string(model.TargetStatusDraft),
 		Provider: string(t.provider.Name()),
 		Config:   configFP,
-		Source:   blockstore.SourceStamp(block.SourceText()),
+		Source:   blockstore.BlockSourceStamp(block),
 		Origin:   blockstore.OverlayOrigin(t.aiOrigin()),
 	}
 }
@@ -1234,14 +1234,18 @@ func (t *AITranslateTool) blockContext(ctx context.Context, b *model.Block, neig
 // beyond the key is present, so the gate bought nothing but a place for the next
 // context source to be forgotten — which is exactly how the prior version was
 // nearly shipped outside the cache key.
+//
+// The source stamp names the source as read, so when a step ahead of this one
+// rewrote the source (redact, a script), the text the model was sent goes into
+// the key as well (blockstore.ReuseConfig).
 func (t *AITranslateTool) cacheFingerprint(ctx context.Context, b *model.Block) string {
 	if b == nil {
 		return t.configFP
 	}
 	if d := t.contextFor(ctx, b.ID, b.Name, b.ChainKey()).Digest(); d != "" {
-		return t.configFP + ":" + d
+		return blockstore.ReuseConfig(t.configFP+":"+d, b)
 	}
-	return t.configFP
+	return blockstore.ReuseConfig(t.configFP, b)
 }
 
 // attachPrior adds the block's previous approved translation to the prompt
