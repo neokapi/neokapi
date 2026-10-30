@@ -66,29 +66,19 @@ func (a *App) runToolOnPair(ctx context.Context, cfg ToolRunConfig) error {
 		return fmt.Errorf("target file %q does not exist", cfg.TargetFile)
 	}
 
-	t, err := cfg.NewTool()
+	chain, err := a.newToolChain(cfg)
 	if err != nil {
 		return err
 	}
-	in := make(chan *model.Part, len(blocks))
+	parts := make([]*model.Part, 0, len(blocks))
 	for _, b := range blocks {
-		in <- &model.Part{Type: model.PartBlock, Resource: b}
+		parts = append(parts, &model.Part{Type: model.PartBlock, Resource: b})
 	}
-	close(in)
-	out := make(chan *model.Part)
-	errc := make(chan error, 1)
-	go func() {
-		defer close(out)
-		errc <- t.Process(ctx, in, out)
-	}()
-	var parts []*model.Part
-	for p := range out {
-		parts = append(parts, p)
-	}
+	parts, perr := runChain(ctx, chain.tools(chain.main), parts)
 	if cfg.AfterTool != nil {
 		cfg.AfterTool()
 	}
-	if perr := <-errc; perr != nil {
+	if perr != nil {
 		return fmt.Errorf("%s %s: %w", cfg.ToolName, DisplayName(source), perr)
 	}
 

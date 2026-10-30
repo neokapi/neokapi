@@ -64,10 +64,8 @@ func RedactAtIngest(
 	if spec == nil || len(blocks) == 0 {
 		return nil
 	}
-	if spec.Rules == "" && !hasDetector(spec.Detectors, "entities") {
-		// Rules detection with no rules file redacts nothing, silently. Say so
-		// rather than leave the project's owner believing it is protected.
-		return errors.New("redaction is enabled but no rules file is set. Add defaults.redaction.rules to the recipe")
+	if err := checkRedactionRules(spec); err != nil {
+		return err
 	}
 	if vaultPath == "" {
 		return errors.New("redaction is enabled but no vault path was given: refusing to redact without somewhere to keep the originals")
@@ -76,6 +74,16 @@ func RedactAtIngest(
 		return err
 	}
 	return applyRedaction(ctx, blocks, spec, rootDir, vaultPath, sourceLocale)
+}
+
+// checkRedactionRules refuses a policy that would redact nothing: rules
+// detection with no rules file finds no span, silently. Saying so keeps the
+// project's owner from believing the content is protected.
+func checkRedactionRules(spec *project.RedactionSpec) error {
+	if spec.Rules == "" && !hasDetector(spec.Detectors, "entities") {
+		return errors.New("redaction is enabled but no rules file is set. Add defaults.redaction.rules to the recipe")
+	}
+	return nil
 }
 
 func hasDetector(detectors []string, want string) bool {

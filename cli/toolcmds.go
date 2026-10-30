@@ -276,8 +276,17 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 				return perr
 			}
 
+			// The parameters the command sets, which settle whether the run
+			// calls a provider: a provider left at its flag default is the
+			// configured one's to name, as newTool leaves it.
+			toolConfig := ReadAllSchemaFlags(cmd, ToolSchema)
+			if !cmd.Flags().Changed("provider") {
+				delete(toolConfig, "provider")
+			}
+
 			rc := ToolRunConfig{
 				ToolName:       toolName,
+				ToolConfig:     toolConfig,
 				Project:        projectPath,
 				Files:          args,
 				FormatMappings: mappings,

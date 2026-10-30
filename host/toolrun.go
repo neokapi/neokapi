@@ -100,14 +100,46 @@ type ToolRunConfig struct {
 	TargetFile     string
 	TracePath      string // write flow trace JSON to this file
 	ParallelBlocks int    // fan out block processing across N goroutines (0 = off)
-	NewTool        func() (tool.Tool, error)
-	NewCollector   func() flow.Collector
-	AfterTool      func() // called after tool execution completes (e.g. to clear progress)
+	// ToolConfig is the tool's parameters as the command sets them. With the
+	// tool's contract it settles whether the tool calls a provider, which is
+	// what the project's redaction policy applies to.
+	ToolConfig   map[string]any
+	NewTool      func() (tool.Tool, error)
+	NewCollector func() flow.Collector
+	AfterTool    func() // called after tool execution completes (e.g. to clear progress)
+
+	// policy is the project's redaction policy as it applies to this run,
+	// settled once by RunToolOnFiles.
+	policy toolRunPolicy
+}
+
+// newToolChain builds the run's tool and the steps its redaction policy puts
+// around it.
+func (a *App) newToolChain(cfg ToolRunConfig) (toolChain, error) {
+	t, err := cfg.NewTool()
+	if err != nil {
+		return toolChain{}, fmt.Errorf("create tool: %w", err)
+	}
+	return a.chainFor(cfg.policy, cfg.ToolName, cfg.ToolConfig, t)
 }
 
 // RunToolOnFiles processes each file through a single-tool flow and
 // aggregates results via the collector. Files are processed in parallel.
 func (a *App) RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
+	var proj *project.KapiProject
+	if cfg.Project != "" {
+		var perr error
+		proj, perr = project.LoadWithOptions(cfg.Project, project.LoadOptions{SkipRequiresCheck: true})
+		if perr != nil {
+			return fmt.Errorf("load project %s: %w", cfg.Project, perr)
+		}
+	}
+	policy, err := a.toolRunPolicyFor(cfg.Project, proj, cfg.ToolName, cfg.ToolConfig)
+	if err != nil {
+		return err
+	}
+	cfg.policy = policy
+
 	if cfg.TargetFile != "" {
 		return a.runToolOnPair(ctx, cfg)
 	}
@@ -118,11 +150,11 @@ func (a *App) RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 			return errKpzTransformOutput
 		}
 		return a.transformKpzInPlace(ctx, cfg.Files[0], cfg.ToolName, func() ([]tool.Tool, func(), error) {
-			t, terr := cfg.NewTool()
-			if terr != nil {
-				return nil, nil, terr
+			c, cerr := a.newToolChain(cfg)
+			if cerr != nil {
+				return nil, nil, cerr
 			}
-			return []tool.Tool{t}, nil, nil
+			return c.tools(c.main), nil, nil
 		}, cfg.TargetLang, a.toolDefaultLocale(cfg.ToolName), a.toolIsMonolingual(cfg.ToolName), cfg.Pack)
 	}
 	if IsKpzPath(cfg.OutputTemplate) {
@@ -140,11 +172,7 @@ func (a *App) RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 	// In a project the recipe's defaults.encoding is the charset the run reads
 	// and writes in unless --encoding named one. The exec verb resolves no
 	// ProjectContext, so the recipe is read here for that one default.
-	if cfg.Project != "" {
-		proj, perr := project.LoadWithOptions(cfg.Project, project.LoadOptions{SkipRequiresCheck: true})
-		if perr != nil {
-			return fmt.Errorf("load project %s: %w", cfg.Project, perr)
-		}
+	if proj != nil {
 		defer a.scopeEncoding()()
 		a.ResolveEncoding(proj.Defaults.Encoding)
 	}
@@ -542,10 +570,11 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 	reader.Close()
 	out.enter(parts)
 
-	t, err := cfg.NewTool()
+	chain, err := a.newToolChain(cfg)
 	if err != nil {
-		return fmt.Errorf("create tool: %w", err)
+		return err
 	}
+	t := chain.main
 
 	// Wrap with ParallelBlockTool if requested.
 	if cfg.ParallelBlocks > 1 {
@@ -592,7 +621,9 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 	}
 
 	fb := flow.NewFlow(cfg.ToolName)
-	fb.AddTool(t)
+	for _, step := range chain.tools(t) {
+		fb.AddTool(step)
+	}
 	f, err := fb.Build()
 	if err != nil {
 		return fmt.Errorf("build flow: %w", err)
