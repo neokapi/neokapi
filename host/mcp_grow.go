@@ -62,8 +62,10 @@ func registerContextGrowthMCPTools(server *mcp.Server, a *App) {
 		Description: "Report what this session recorded with context_note, and what the Stop hook's check " +
 			"runs found in it: `checked` runs, the `failing` findings the latest run left, the `caught` " +
 			"findings and the `files` the session edited. A finding is caught when a hook run reported it " +
-			"and the next run on the same file no longer found it. Call it only if you recorded a note, and " +
-			"end your report with what it says, including the command a person reviews the session with.",
+			"and the next run on the same file no longer found it. The hook records its runs under the " +
+			"assistant host's session id; pass that id in `session` to read them. Call it only if you " +
+			"recorded a note, and end your report with what it says, including the command a person " +
+			"reviews the session with.",
 	}, a.handleContextSessionSummary)
 }
 
