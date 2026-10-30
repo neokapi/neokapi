@@ -53,7 +53,7 @@ describe("wordsInPlainText", () => {
 });
 
 describe("decideOp", () => {
-  // A parked draft reads as absent; the decision names it so, never "*", so a
+  // A held-back draft reads as absent; the decision names it so, never "*", so a
   // file written meanwhile refuses it rather than taking it.
   it.each([
     { rev: "r:0123456789abcdef", want: "r:0123456789abcdef" },

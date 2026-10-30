@@ -50,7 +50,7 @@ type ConvergeOptions struct {
 type ConvergeLocaleResult struct {
 	Locale    string         `json:"locale"`
 	Shippable bool           `json:"shippable"`        // no scope for this locale is withheld
-	Parked    bool           `json:"parked,omitempty"` // the loop left work here (needs human)
+	Parked    bool           `json:"parked,omitempty"` // the loop left work here, waiting for review
 	Pct       map[string]int `json:"pct,omitempty"`    // ladder state → "at least" percent
 	// ShipState folds the locale's scopes into one standing: withheld when any
 	// scope is withheld, shippable when every scope is gated and clears its gate,

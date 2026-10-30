@@ -119,7 +119,14 @@ export const compassConverge: Lab = {
     "kapi up runs the loop: it reuses the wording the project has established, drafts the remainder with the configured provider, checks what it produced, and holds back for review what a machine cannot decide. This lab runs it on Compass with the built-in demo provider and reads what shipped and what waits for review.",
   sample: "compass",
   setup: ["kapi store import ./context"],
-  concepts: ["kapi up", "content memory", "recycle", "demo provider", "language waiting for review", "ship.json"],
+  concepts: [
+    "kapi up",
+    "content memory",
+    "recycle",
+    "demo provider",
+    "language waiting for review",
+    "ship.json",
+  ],
   docs: [DOCS.loop, DOCS.memory, DOCS.provider],
   minutes: 6,
   chapters: [

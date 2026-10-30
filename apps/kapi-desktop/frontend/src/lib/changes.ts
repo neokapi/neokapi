@@ -144,7 +144,7 @@ export function setContentOps(
 
 /**
  * A decide operation on the edition read at `rev`. An edition read with no
- * content in its home (a parked draft the project store holds) is named
+ * content in its home (a held-back draft the project store holds) is named
  * `absent`: the decision binds to the draft while the home still holds
  * nothing for it, and is refused as stale, with the text, once it does.
  */
