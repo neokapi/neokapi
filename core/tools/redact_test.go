@@ -300,6 +300,34 @@ func TestRedactTool_NoMatchesPassThrough(t *testing.T) {
 	assert.NotNil(t, entry.Policy)
 }
 
+// A second redact step that finds nothing keeps what the first withheld, so
+// unredact restores it.
+func TestRedactTool_ASecondStepKeepsTheFirstStepsValues(t *testing.T) {
+	first, err := tools.NewRedactTool(&tools.RedactConfig{
+		Detectors: []string{tools.DetectRules},
+		Rules:     []redaction.Rule{{Term: "Mr Bean", Category: "person"}},
+	})
+	require.NoError(t, err)
+	second, err := tools.NewRedactTool(&tools.RedactConfig{
+		Detectors: []string{tools.DetectRules},
+		Rules:     []redaction.Rule{{Term: "Nonexistent", Category: "person"}},
+	})
+	require.NoError(t, err)
+	unredact, err := tools.NewUnredactTool(&tools.UnredactConfig{})
+	require.NoError(t, err)
+
+	part := &model.Part{Type: model.PartBlock, Resource: newBeanBlock()}
+	part = processPart(t, first, part)
+	part = processPart(t, second, part)
+	entry, ok := model.AnnoAs[*redaction.SecretAnnotation](part.Resource.(*model.Block), redaction.SecretAnnotationKey)
+	require.True(t, ok)
+	assert.Len(t, entry.Values, 1, "the first step's value is kept")
+	assert.Same(t, second.Policy(), entry.Policy, "the entry carries the later step's policy")
+
+	part = processPart(t, unredact, part)
+	assert.Equal(t, beanSentence, part.Resource.(*model.Block).SourceText(), "unredact restores the first step's value")
+}
+
 // In external mode the block goes to a file, not to a provider, and carries
 // no policy.
 func TestRedactTool_ExternalModeLeavesNoPolicy(t *testing.T) {

@@ -340,7 +340,10 @@ func (t *RedactTool) bind(part *model.Part) {
 	if !ok || b == nil {
 		return
 	}
-	if ann, ok := model.AnnoAs[*redaction.SecretAnnotation](b, redaction.SecretAnnotationKey); ok && ann != nil && ann.Policy == t.policy {
+	// An entry an earlier redact step left keeps the values it withheld, so
+	// unredact still restores them, and takes this step's policy.
+	if ann, ok := model.AnnoAs[*redaction.SecretAnnotation](b, redaction.SecretAnnotationKey); ok && ann != nil {
+		ann.Policy = t.policy
 		return
 	}
 	b.SetAnno(redaction.SecretAnnotationKey, &redaction.SecretAnnotation{Policy: t.policy})
@@ -519,10 +522,11 @@ func (t *RedactTool) vaultSecrets(v tool.BlockView, secrets []tool.Secret) error
 		}
 		return nil
 	}
-	// The entry bind left on the block holds the policy; an entry another
-	// redact step left is replaced, as its tokens would collide with these.
+	// The entry bind left on the block holds the policy, and any value an
+	// earlier redact step withheld. Source keeps the runs the first step read,
+	// which is what the block reads once both steps are undone.
 	ann, ok := v.Annotations()[redaction.SecretAnnotationKey].(*redaction.SecretAnnotation)
-	if !ok || ann == nil || ann.Policy != t.policy || t.policy == nil {
+	if !ok || ann == nil {
 		ann = &redaction.SecretAnnotation{Policy: t.policy}
 	}
 	if ann.Values == nil {
@@ -531,7 +535,9 @@ func (t *RedactTool) vaultSecrets(v tool.BlockView, secrets []tool.Secret) error
 	for _, s := range secrets {
 		ann.Values[s.Token] = toValue(s)
 		if s.Locale.IsEmpty() {
-			ann.Source = slices.Clone(v.SourceRuns())
+			if ann.Source == nil {
+				ann.Source = slices.Clone(v.SourceRuns())
+			}
 			continue
 		}
 		if ann.Targets == nil {
