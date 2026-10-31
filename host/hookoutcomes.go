@@ -70,19 +70,20 @@ func (a *App) SessionOutcomes(ctx context.Context, req ContextSessionRequest) (S
 
 // SessionOutcomesOf derives every session's outcomes from check records, in
 // any order. Runs are compared within one project and one session, in the
-// order the log accepted them.
+// order the log accepted them, as CheckSequences and CaughtMarks pair them.
 func SessionOutcomesOf(records []contextop.Record) map[string]SessionOutcomes {
 	out := map[string]SessionOutcomes{}
 	files := map[string]map[string]bool{}
-	for _, seq := range checkSequences(records) {
+	for _, seq := range CheckSequences(records) {
 		session := seq[0].Actor.Session
 		o := out[session]
 		o.Session = session
 		if files[session] == nil {
 			files[session] = map[string]bool{}
 		}
-		var prev *contextop.CheckRun
-		for _, r := range seq {
+		marks := CaughtMarks(seq)
+		var last *contextop.CheckRun
+		for i, r := range seq {
 			run := *r.Check
 			o.Checked++
 			// A run with no transcript lists the files the check read,
@@ -92,16 +93,13 @@ func SessionOutcomesOf(records []contextop.Record) map[string]SessionOutcomes {
 					files[session][string(r.Project)+"\x00"+f] = true
 				}
 			}
-			if !run.Reached() {
-				continue
+			o.Caught += countCaught(marks[i])
+			if run.Reached() {
+				last = &run
 			}
-			if prev != nil {
-				o.Caught += caughtBetween(*prev, run)
-			}
-			prev = &run
 		}
-		if prev != nil {
-			o.Failing += prev.Failing
+		if last != nil {
+			o.Failing += last.Failing
 		}
 		o.Files = len(files[session])
 		out[session] = o
@@ -109,9 +107,16 @@ func SessionOutcomesOf(records []contextop.Record) map[string]SessionOutcomes {
 	return out
 }
 
-// checkSequences groups check records by project and session, each group
-// oldest first.
-func checkSequences(records []contextop.Record) [][]contextop.Record {
+// CheckSequences groups check records into the sequences caught is read
+// from: one per project and session, each in log order, the order of the
+// records' ids. The records may arrive in any order; a record that is not a
+// check run, or names no session, belongs to no sequence. The sequences are
+// ordered by project, then by session.
+//
+// Only the runs of a sequence that reached a verdict are paired for caught,
+// each with the sequence's next run that reached one. CaughtMarks applies
+// that pairing.
+func CheckSequences(records []contextop.Record) [][]contextop.Record {
 	groups := map[string][]contextop.Record{}
 	var order []string
 	for _, r := range records {
@@ -134,6 +139,26 @@ func checkSequences(records []contextop.Record) [][]contextop.Record {
 	return out
 }
 
+// CaughtMarks marks the findings of one sequence from CheckSequences that
+// its later runs caught. The result has one entry per record of seq: for a
+// run that reached a verdict and is followed by another that did, the
+// CaughtFindings of that pair; for every other run, nil. The marks of a
+// session's sequences add up to its SessionOutcomes caught count.
+func CaughtMarks(seq []contextop.Record) [][]bool {
+	out := make([][]bool, len(seq))
+	prev := -1
+	for i, r := range seq {
+		if !r.Check.Reached() {
+			continue
+		}
+		if prev >= 0 {
+			out[prev] = CaughtFindings(*seq[prev].Check, *r.Check)
+		}
+		prev = i
+	}
+	return out
+}
+
 // CaughtFindings marks which of prev's listed findings next no longer
 // reports: the result has one entry per finding of prev, true for a finding
 // next caught. A finding is the same finding by its file, its rule and the
@@ -144,7 +169,7 @@ func checkSequences(records []contextop.Record) [][]contextop.Record {
 // is caught.
 //
 // prev and next are consecutive runs of one session in one project that
-// reached a verdict; SessionOutcomesOf compares no other pair.
+// reached a verdict; CaughtMarks pairs no others.
 func CaughtFindings(prev, next contextop.CheckRun) []bool {
 	out := make([]bool, len(prev.Findings))
 	if !next.Complete() {
@@ -164,10 +189,10 @@ func CaughtFindings(prev, next contextop.CheckRun) []bool {
 	return out
 }
 
-// caughtBetween counts the findings of prev that next caught.
-func caughtBetween(prev, next contextop.CheckRun) int {
+// countCaught counts the findings marks names caught.
+func countCaught(marks []bool) int {
 	caught := 0
-	for _, c := range CaughtFindings(prev, next) {
+	for _, c := range marks {
 		if c {
 			caught++
 		}
@@ -179,19 +204,19 @@ func caughtBetween(prev, next contextop.CheckRun) int {
 // found that the session's previous run did.
 func runsCaught(records []contextop.Record) map[string]int {
 	out := map[string]int{}
-	for _, seq := range checkSequences(records) {
-		var prev *contextop.CheckRun
-		for _, r := range seq {
-			run := *r.Check
-			if !run.Reached() {
+	for _, seq := range CheckSequences(records) {
+		marks := CaughtMarks(seq)
+		prev := -1
+		for i, r := range seq {
+			if !r.Check.Reached() {
 				continue
 			}
-			if prev != nil {
-				if n := caughtBetween(*prev, run); n > 0 {
+			if prev >= 0 {
+				if n := countCaught(marks[prev]); n > 0 {
 					out[r.ID] = n
 				}
 			}
-			prev = &run
+			prev = i
 		}
 	}
 	return out

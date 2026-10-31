@@ -11,21 +11,15 @@ import (
 	"github.com/neokapi/neokapi/core/workspace"
 )
 
-// caughtMarks applies CaughtFindings the way SessionOutcomesOf pairs runs and
-// returns the marks by record id: each run that reached a verdict, compared
-// with the next such run of its session in its project.
+// caughtMarks returns the CaughtMarks of every sequence by record id, leaving
+// out the runs that were paired with none.
 func caughtMarks(records []contextop.Record) map[string][]bool {
 	out := map[string][]bool{}
-	for _, seq := range checkSequences(records) {
-		prev := -1
-		for i, r := range seq {
-			if !r.Check.Reached() {
-				continue
+	for _, seq := range CheckSequences(records) {
+		for i, m := range CaughtMarks(seq) {
+			if m != nil {
+				out[seq[i].ID] = m
 			}
-			if prev >= 0 {
-				out[seq[prev].ID] = CaughtFindings(*seq[prev].Check, *r.Check)
-			}
-			prev = i
 		}
 	}
 	return out
@@ -197,4 +191,59 @@ func TestCaughtFindings_OneMarkPerFindingOfTheEarlierRun(t *testing.T) {
 	assert.Equal(t, []bool{true, true}, CaughtFindings(prev, clean))
 	assert.Equal(t, []bool{false, false}, CaughtFindings(prev, cut), "an incomplete run catches none of them")
 	assert.Equal(t, []bool{}, CaughtFindings(clean, cut), "a run with no findings has no marks")
+}
+
+// TestCheckSequences_OnePerProjectAndSessionInLogOrder: the records arrive in
+// any order and come back grouped by project and session, ordered by project
+// then session, each group by record id. A record that is not a check run or
+// names no session is in no sequence.
+func TestCheckSequences_OnePerProjectAndSessionInLogOrder(t *testing.T) {
+	run := contextop.CheckRun{Verdict: "passed", Clean: true}
+	rec := func(id string, project workspace.ProjectKey, session string) contextop.Record {
+		return contextop.Record{ID: id, Project: project, Kind: contextop.KindCheck,
+			Actor: contextop.Actor{Kind: contextop.ActorAgent, Name: "claude-code", Session: session}, Check: &run}
+	}
+	noCheck := rec("op-9", "p", "s1")
+	noCheck.Check = nil
+	observe := rec("op-8", "p", "s1")
+	observe.Kind = contextop.KindObserve
+	records := []contextop.Record{
+		rec("op-5", "q", "s1"),
+		rec("op-3", "p", "s2"),
+		rec("op-4", "p", "s1"),
+		rec("op-1", "p", "s1"),
+		rec("op-2", "p", ""),
+		noCheck,
+		observe,
+	}
+
+	var ids [][]string
+	for _, seq := range CheckSequences(records) {
+		var group []string
+		for _, r := range seq {
+			group = append(group, r.ID)
+		}
+		ids = append(ids, group)
+	}
+	assert.Equal(t, [][]string{{"op-1", "op-4"}, {"op-3"}, {"op-5"}}, ids)
+	assert.Empty(t, CheckSequences(nil))
+}
+
+// TestCaughtMarks_PairsOnlyRunsThatReachedAVerdict: a run that did not reach
+// a verdict is skipped, so the runs on either side of it are the pair; it and
+// the sequence's last run that reached a verdict carry no marks.
+func TestCaughtMarks_PairsOnlyRunsThatReachedAVerdict(t *testing.T) {
+	logIn := contextop.CheckFinding{File: "docs/guide.md", Rule: "terms.vocabulary", Quote: "Log in"}
+	rec := func(id string, run contextop.CheckRun) contextop.Record {
+		return contextop.Record{ID: id, Project: "p", Kind: contextop.KindCheck,
+			Actor: contextop.Actor{Kind: contextop.ActorAgent, Name: "claude-code", Session: "s1"}, Check: &run}
+	}
+	seq := []contextop.Record{
+		rec("op-1", contextop.CheckRun{Verdict: "failed", Failing: 1, Findings: []contextop.CheckFinding{logIn}}),
+		rec("op-2", contextop.CheckRun{}),
+		rec("op-3", contextop.CheckRun{Verdict: "passed", Clean: true}),
+		rec("op-4", contextop.CheckRun{}),
+	}
+	assert.Equal(t, [][]bool{{true}, nil, nil, nil}, CaughtMarks(seq))
+	assert.Equal(t, 1, SessionOutcomesOf(seq)["s1"].Caught)
 }

@@ -975,35 +975,14 @@ func checkSessionsOf(checks []contextop.Record) checkSessions {
 // sessionRunsOf lists each session's latest check runs, newest first, with
 // what each run caught marked on its findings.
 //
-// Runs are compared as host.SessionOutcomesOf compares them: within one
-// project and one session, in the order the log accepted them, and only runs
-// that reached a verdict take part. host.CaughtFindings marks each pair, so
-// the marks add up to the session's caught count. The mark sits on the run
-// that last reported the finding, so the run that caught it shows what it
-// caught.
+// host.CheckSequences and host.CaughtMarks pair the runs as
+// host.SessionOutcomesOf does, so the marks add up to the session's caught
+// count. The mark sits on the run that last reported the finding, so the run
+// that caught it shows what it caught.
 func sessionRunsOf(checks []contextop.Record) map[string][]ContextCheckRun {
-	sequences := map[string][]contextop.Record{}
-	for _, r := range checks {
-		if r.Kind != contextop.KindCheck || r.Check == nil || r.Actor.Session == "" {
-			continue
-		}
-		key := string(r.Project) + "\x00" + r.Actor.Session
-		sequences[key] = append(sequences[key], r)
-	}
 	out := map[string][]ContextCheckRun{}
-	for _, seq := range sequences {
-		sort.SliceStable(seq, func(i, j int) bool { return seq[i].ID < seq[j].ID })
-		caught := make([][]bool, len(seq))
-		prev := -1
-		for i, r := range seq {
-			if !r.Check.Reached() {
-				continue
-			}
-			if prev >= 0 {
-				caught[prev] = host.CaughtFindings(*seq[prev].Check, *r.Check)
-			}
-			prev = i
-		}
+	for _, seq := range host.CheckSequences(checks) {
+		caught := host.CaughtMarks(seq)
 		session := seq[0].Actor.Session
 		for i, r := range seq {
 			out[session] = append(out[session], checkRunDTO(r, caught[i]))
