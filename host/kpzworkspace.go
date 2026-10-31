@@ -223,7 +223,7 @@ func (a *App) extractToKpz(ctx context.Context, sources []string, outKpz, target
 
 	a.printlnUnlessQuiet(fmt.Sprintf("Extracted %d document(s) → %s", len(full.Sources), outKpz))
 	if vaultPath != "" {
-		a.printlnUnlessQuiet(fmt.Sprintf("Redacted: each withheld value is a placeholder. kapi merge restores the values from %s", vaultPath))
+		a.printlnUnlessQuiet("Redacted: each withheld value is a placeholder. kapi merge restores the values from " + vaultPath)
 	}
 	return nil
 }

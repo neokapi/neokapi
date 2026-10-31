@@ -106,9 +106,9 @@ func adHocExtract(t *testing.T, content string, names ...string) (string, error)
 }
 
 // A file that holds a withheld value outside the blocks kapi can withhold it
-// from would put the value in the package, so extract writes none: a value
-// in the markup beside the same value in a block, and a value that appears
-// only in the markup, which the vault never records.
+// from would put the value in the package, so extract writes none. The value
+// sits in the markup beside the same value in a block, or only in the
+// markup, where the vault never records it.
 func TestExtractRedactedWorkspaceRefusesAValueOutsideTheBlocks(t *testing.T) {
 	for name, content := range map[string]string{
 		"beside a block that withholds it": `{"Alice Archer":"Hello Alice Archer"}`,
