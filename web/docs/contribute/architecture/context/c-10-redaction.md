@@ -66,6 +66,20 @@ The in-process annotation is keyed under a name no format writer serializes, and
 `unredact` deletes it after restoring, so it cannot reach an output file. The
 sidecars and the vault are written with restrictive permissions.
 
+A sidecar or the project vault keys each original by document, block ID and
+token (`redaction.RedactedValue.Doc`, the project-relative path). Block IDs
+repeat across files and the token counter starts again in every block, so a
+key without the document lets one file's original overwrite another's. Content
+that sits in no file (an edit record, a note) names itself in its block ID and
+records no document. The file format is version 2; a version 1 file, which
+records no document, still reads, and a lookup that names a document falls back
+to the entry that names none. The vault is the only copy of the originals,
+never a cache, so it is read as it is rather than reset.
+
+`kapi extract --format kpz` refuses under a redaction policy: the package
+carries each source file's skeleton, which holds the file's text whole, and a
+skeleton has no placeholder form.
+
 `vault/` sits beside `work/`, outside it. **`work/` is defined by being
 disposable**: losing it costs CPU. **The vault is defined by an exclusion**: a
 named destination must never read it, and losing it means redacted content can

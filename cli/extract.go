@@ -51,6 +51,12 @@ kapi merge checks the returned file against.`,
 				if !IsKpzPath(out) {
 					return errors.New("extract: writing source files needs -o <work.kpz>")
 				}
+				// A workspace carries each source file whole, so it has no
+				// place for a redacted value.
+				redact, _ := cmd.Flags().GetBool("redact")
+				if rules, _ := cmd.Flags().GetString("redact-rules"); redact || rules != "" {
+					return WithExitCode(ExitUsage, errors.New("extract: --redact and --redact-rules apply to a project's XLIFF 2 and PO files. A .kpz workspace carries each source file whole, so it cannot withhold a value"))
+				}
 				tl, _ := cmd.Flags().GetString("target-lang")
 				layout, _ := cmd.Flags().GetString("out")
 				return a.ExtractToKpz(cmd.Context(), args, out, tl, layout, withSource)

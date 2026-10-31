@@ -2,6 +2,8 @@ package redaction
 
 import (
 	"context"
+	"encoding/json"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -229,7 +231,7 @@ func TestRedactRestore_Roundtrip(t *testing.T) {
 	}
 
 	restored, n := Restore(redacted, func(token string) (string, bool) {
-		v, ok := vault.Get("b1", token)
+		v, ok := vault.Get("", "b1", token)
 		return v.Original, ok
 	})
 	assert.Equal(t, 2, n)
@@ -274,10 +276,10 @@ func redactWithDefaults(runs []model.Run, matches []Match) ([]model.Run, []Redac
 func TestMemoryVault(t *testing.T) {
 	v := NewMemoryVault()
 	require.NoError(t, v.Put(RedactedValue{Token: "rdx1", Original: "Secret", BlockID: "b1", Category: "person"}))
-	got, ok := v.Get("b1", "rdx1")
+	got, ok := v.Get("", "b1", "rdx1")
 	require.True(t, ok)
 	assert.Equal(t, "Secret", got.Original)
-	_, ok = v.Get("b1", "missing")
+	_, ok = v.Get("", "b1", "missing")
 	assert.False(t, ok)
 	assert.Len(t, v.All(), 1)
 }
@@ -292,9 +294,91 @@ func TestFileVault_Roundtrip(t *testing.T) {
 	// Reopen and confirm persistence.
 	v2, err := OpenFileVault(path)
 	require.NoError(t, err)
-	got, ok := v2.Get("b1", "rdx1")
+	got, ok := v2.Get("", "b1", "rdx1")
 	require.True(t, ok)
 	assert.Equal(t, "Mr Bean", got.Original)
+}
+
+// Two documents whose blocks share an ID, each withholding a different value
+// under the same token, keep both values, and each restores its own.
+func TestFileVault_TwoDocumentsSameBlockID(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "batch.json")
+	v, err := OpenFileVault(path)
+	require.NoError(t, err)
+	for doc, name := range map[string]string{"src/a.json": "Alice Archer", "src/b.json": "Bruno Black"} {
+		runs := []model.Run{{Text: &model.TextRun{Text: "Hello " + name}}}
+		_, recs, _ := Redact(runs, []Match{{Start: 6, End: 6 + len(name), Category: CategoryPerson, Original: name}}, RedactOptions{})
+		require.Len(t, recs, 1)
+		require.Equal(t, "rdx1", recs[0].Token)
+		require.NoError(t, v.Put(RedactedValue{Doc: doc, BlockID: "greeting", Token: recs[0].Token, Disp: recs[0].Disp, Original: recs[0].Original, Category: recs[0].Category}))
+	}
+	require.NoError(t, v.Flush())
+
+	reopened, err := OpenFileVault(path)
+	require.NoError(t, err)
+	assert.Len(t, reopened.All(), 2, "the second document's value must not overwrite the first's")
+	for doc, name := range map[string]string{"src/a.json": "Alice Archer", "src/b.json": "Bruno Black"} {
+		got, ok := reopened.Get(doc, "greeting", "rdx1")
+		require.True(t, ok, doc)
+		assert.Equal(t, name, got.Original, doc)
+
+		ph := []model.Run{{Text: &model.TextRun{Text: "Bonjour "}}, {Ph: &model.PlaceholderRun{ID: "rdx1", Type: PlaceholderType(CategoryPerson)}}}
+		out, n, _ := RestoreTree(ph, func(token string) (string, bool) {
+			rv, ok := reopened.Get(doc, "greeting", token)
+			return rv.Original, ok
+		}, ValuesForBlock(reopened, doc, "greeting"))
+		assert.Equal(t, 1, n, doc)
+		assert.Equal(t, "Bonjour "+name, TextOf(out), doc)
+
+		entries := ValuesForBlock(reopened, doc, "greeting")
+		require.Len(t, entries, 1, doc)
+		assert.Equal(t, name, entries[0].Original, doc)
+	}
+	_, ok := reopened.Get("src/c.json", "greeting", "rdx1")
+	assert.False(t, ok, "a document the vault holds nothing for, in a vault with no entry that names no document, restores nothing")
+}
+
+// A version 1 vault keyed every entry by block and token alone. It still
+// opens, a lookup that names a document falls back to the entry, and the
+// next Flush writes version 2 with the entry unchanged.
+func TestFileVault_ReadsVersion1(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "batch.json")
+	require.NoError(t, os.WriteFile(path, []byte(`{
+  "version": 1,
+  "values": [
+    {"token": "rdx1", "category": "person", "disp": "[REDACTED:Person]", "original": "Mr Bean", "locale": "en", "blockId": "tu1"}
+  ]
+}`), 0o600))
+	v, err := OpenFileVault(path)
+	require.NoError(t, err)
+
+	got, ok := v.Get("src/app.json", "tu1", "rdx1")
+	require.True(t, ok, "a lookup by document falls back to the entry a version 1 vault holds")
+	assert.Equal(t, "Mr Bean", got.Original)
+	got, ok = v.Get("", "tu1", "rdx1")
+	require.True(t, ok)
+	assert.Equal(t, "Mr Bean", got.Original)
+	entries := ValuesForBlock(v, "src/app.json", "tu1")
+	require.Len(t, entries, 1)
+	assert.Equal(t, "[REDACTED:Person]", entries[0].Disp)
+
+	// An entry that names the document wins over the old one.
+	require.NoError(t, v.Put(RedactedValue{Doc: "src/app.json", BlockID: "tu1", Token: "rdx1", Original: "Ms Bean"}))
+	got, _ = v.Get("src/app.json", "tu1", "rdx1")
+	assert.Equal(t, "Ms Bean", got.Original)
+	entries = ValuesForBlock(v, "src/app.json", "tu1")
+	require.Len(t, entries, 1)
+	assert.Equal(t, "Ms Bean", entries[0].Original)
+
+	require.NoError(t, v.Flush())
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	var doc struct {
+		Version int `json:"version"`
+	}
+	require.NoError(t, json.Unmarshal(data, &doc))
+	assert.Equal(t, 2, doc.Version)
+	assert.Contains(t, string(data), `"doc": "src/app.json"`)
 }
 
 func TestOpenFileVault_Missing(t *testing.T) {

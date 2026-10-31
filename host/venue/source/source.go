@@ -1668,7 +1668,7 @@ func (c *BowrainSourceConnector) scanLocal(ctx context.Context, paths []string) 
 			if err != nil {
 				return nil, fmt.Errorf("read %s as %s: %w", relPath, formatName, err)
 			}
-			if err := host.RedactAtIngest(ctx, blocks, redactSpec, c.project.Root, vaultPath, srcLocale); err != nil {
+			if err := host.RedactFileAtIngest(ctx, relPath, blocks, redactSpec, c.project.Root, vaultPath, srcLocale); err != nil {
 				return nil, fmt.Errorf("redact %s: %w", relPath, err)
 			}
 
@@ -1692,7 +1692,7 @@ func (c *BowrainSourceConnector) scanLocal(ctx context.Context, paths []string) 
 			if err != nil {
 				return nil, fmt.Errorf("read %s as %s: %w", relPath, formatName, err)
 			}
-			if err := host.RedactAtIngest(ctx, blocks, redactSpec, c.project.Root, vaultPath, srcLocale); err != nil {
+			if err := host.RedactFileAtIngest(ctx, relPath, blocks, redactSpec, c.project.Root, vaultPath, srcLocale); err != nil {
 				return nil, fmt.Errorf("redact %s: %w", relPath, err)
 			}
 

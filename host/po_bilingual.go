@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/redaction"
 )
 
 // Kapi uses `#.` (extracted) PO comments to carry its bookkeeping. The
@@ -105,16 +106,36 @@ func WritePOExtract(out io.Writer, target model.LocaleID, batchID, sourceRel, so
 		if ctxt := b.Properties["context"]; ctxt != "" {
 			fmt.Fprintf(bw, "msgctxt %s\n", poQuote(ctxt))
 		}
-		fmt.Fprintf(bw, "msgid %s\n", poQuote(b.SourceText()))
+		fmt.Fprintf(bw, "msgid %s\n", poQuote(poEntryText(b.SourceRuns())))
 
 		tgt := ""
 		if target != "" && b.HasTarget(target) {
-			tgt = b.TargetText(target)
+			tgt = poEntryText(b.TargetRuns(target))
 		}
 		fmt.Fprintf(bw, "msgstr %s\n", poQuote(tgt))
 	}
 
 	return bw.Flush()
+}
+
+// poEntryText is the text a PO entry carries for a run sequence: its plain
+// text, with each value redaction withheld written as the visible placeholder
+// the vault records for it. A PO entry has no inline codes, and
+// model.RunsText leaves a placeholder run out, so a withheld value would
+// leave kapi merge nothing to put it back into. The visible placeholder is
+// what merge's restore by text (redaction.RestoreText) matches.
+func poEntryText(runs []model.Run) string {
+	shown := make([]model.Run, len(runs))
+	for i, r := range runs {
+		if r.Ph != nil && r.Ph.Disp != "" {
+			if _, ok := redaction.CategoryOf(r.Ph.Type); ok {
+				shown[i] = model.Run{Text: &model.TextRun{Text: r.Ph.Disp}}
+				continue
+			}
+		}
+		shown[i] = r
+	}
+	return model.RunsText(shown)
 }
 
 // poMergeBlock is a returning PO entry parsed by ReadPOForMerge. Each

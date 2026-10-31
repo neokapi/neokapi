@@ -100,6 +100,66 @@ func TestScanLocalBlocks_RedactsAtIngest(t *testing.T) {
 		"the original must be recoverable from the vault")
 }
 
+// Two files whose blocks share an ID, each withholding a different name. The
+// scan's blocks for one file hold no value of the other's, and the project
+// vault keeps each name under its file, so restoring a file's blocks from the
+// vault gives that file's name back.
+func TestScanLocalBlocks_VaultKeepsEachFilesOriginal(t *testing.T) {
+	names := map[string]string{"locales/a.json": "Alice Archer", "locales/b.json": "Bruno Black"}
+	root := t.TempDir()
+	reg := registry.NewFormatRegistry()
+	formats.RegisterAll(reg)
+	rules := &redaction.RulesFile{Rules: []redaction.Rule{
+		{Term: "Alice Archer", Category: "person"},
+		{Term: "Bruno Black", Category: "person"},
+	}}
+	require.NoError(t, rules.Save(filepath.Join(root, "redact-rules.yaml")))
+	recipe := &bproject.Recipe{
+		Defaults: coreproj.Defaults{
+			SourceLanguage:  "en",
+			TargetLanguages: []model.LocaleID{"fr"},
+			Redaction:       &coreproj.RedactionSpec{Enabled: true, Rules: "redact-rules.yaml", Detectors: []string{"rules"}},
+		},
+		Collections: []coreproj.Collection{
+			{Path: "locales/*.json", Format: &coreproj.FormatSpec{Name: "json"}},
+		},
+	}
+	proj, err := bproject.InitProject(root, recipe)
+	require.NoError(t, err)
+	for rel, name := range names {
+		abs := filepath.Join(root, filepath.FromSlash(rel))
+		require.NoError(t, os.MkdirAll(filepath.Dir(abs), 0o755))
+		require.NoError(t, os.WriteFile(abs, []byte(`{"greeting":"Hello `+name+`"}`), 0o644))
+	}
+
+	conn := NewLocalConnector(&host.App{}, proj, reg)
+	defer conn.Close()
+	_, blockMap, err := conn.scanLocalBlocks(context.Background(), nil)
+	require.NoError(t, err)
+
+	vault, err := redaction.OpenFileVault(proj.Layout.RedactionVaultPath())
+	require.NoError(t, err)
+	assert.Len(t, vault.All(), len(names), "the vault keeps one name per file")
+
+	for rel, name := range names {
+		blocks := blockMap[rel]
+		require.Len(t, blocks, 1, rel)
+		b := blocks[0]
+		for _, other := range names {
+			assert.NotContains(t, b.SourceText(), other, "%s holds no withheld name", rel)
+		}
+		get := func(token string) (string, bool) {
+			rv, ok := vault.Get(rel, b.ID, token)
+			return rv.Original, ok
+		}
+		restored, n, _ := redaction.RestoreTree(b.SourceRuns(), get, redaction.ValuesForBlock(vault, rel, b.ID))
+		assert.Equal(t, 1, n, rel)
+		assert.Equal(t, "Hello "+name, redaction.TextOf(restored), rel)
+	}
+	require.Equal(t, blockMap["locales/a.json"][0].ID, blockMap["locales/b.json"][0].ID,
+		"the two files' blocks share an ID, which is what the vault must tell apart")
+}
+
 // A collection's redaction governs the files it holds in place of
 // defaults.redaction, on the route to the server as on every other: the block
 // index a push sends carries no value either policy withholds from the files

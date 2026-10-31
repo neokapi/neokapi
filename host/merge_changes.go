@@ -183,7 +183,7 @@ func (a *App) mergeReturned(ctx context.Context, task mergeTask, rf *returnedFil
 		return stats, nil, err
 	}
 	if rf.batch != "" {
-		if err := restoreRedactedBlocks(task.layout, rf.batch, rf.blocks, rf.locale, !task.noRestore); err != nil {
+		if err := restoreRedactedBlocks(task.layout, rf.batch, rf.doc, rf.blocks, rf.locale, !task.noRestore); err != nil {
 			return stats, nil, fmt.Errorf("merge: restore redaction for batch %s: %w", rf.batch, err)
 		}
 	}

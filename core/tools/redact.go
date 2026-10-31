@@ -45,6 +45,12 @@ type RedactConfig struct {
 	// the block as an in-process annotation. Used by extract → merge.
 	VaultPath string `json:"vaultPath,omitempty" schema:"-"`
 
+	// Document names the document the blocks sit in, as the sidecar vault
+	// records it beside each block ID: the project-relative, slash-separated
+	// path. Block IDs repeat across files, so a vault that serves several
+	// files needs it. Empty when the block IDs name the content alone.
+	Document string `json:"document,omitempty" schema:"-"`
+
 	// SourceLocale is recorded with each stored value; informational.
 	SourceLocale model.LocaleID `json:"sourceLocale,omitempty" schema:"-"`
 
@@ -66,6 +72,7 @@ func (c *RedactConfig) Reset() {
 	c.EntityTypes = nil
 	c.Rules = nil
 	c.VaultPath = ""
+	c.Document = ""
 	c.SourceLocale = ""
 	c.WholeBlock = false
 }
@@ -430,6 +437,7 @@ func (t *RedactTool) vaultSecrets(v tool.BlockView, secrets []tool.Secret) error
 			Disp:     s.Disp,
 			Original: s.Original,
 			Locale:   locale,
+			Doc:      t.cfg.Document,
 			BlockID:  v.ID(),
 		}
 	}

@@ -112,6 +112,59 @@ func TestRedactUnredact_ExternalVault(t *testing.T) {
 	assert.Equal(t, beanSentence, rb.TargetText("fr"))
 }
 
+// Two files whose blocks share an ID redact into one sidecar vault, each
+// under its own document, and each restores its own original.
+func TestRedactUnredact_ExternalVaultKeepsEachDocument(t *testing.T) {
+	vaultPath := filepath.Join(t.TempDir(), "batch.json")
+	rules := []redaction.Rule{{Term: "Alice Archer", Category: "person"}, {Term: "Bruno Black", Category: "person"}}
+	names := map[string]string{"src/a.json": "Alice Archer", "src/b.json": "Bruno Black"}
+	redacted := map[string]*model.Block{}
+	for _, doc := range []string{"src/a.json", "src/b.json"} {
+		rt, err := tools.NewRedactTool(&tools.RedactConfig{Detectors: []string{tools.DetectRules}, Rules: rules, VaultPath: vaultPath, Document: doc})
+		require.NoError(t, err)
+		b := model.NewBlock("greeting", "Hello "+names[doc])
+		b.SourceLocale = "en"
+		rb := processPart(t, rt, &model.Part{Type: model.PartBlock, Resource: b}).Resource.(*model.Block)
+		assert.NotContains(t, rb.SourceText(), names[doc])
+		redacted[doc] = rb
+	}
+
+	vault, err := redaction.OpenFileVault(vaultPath)
+	require.NoError(t, err)
+	require.Len(t, vault.All(), 2, "the second file's original must not overwrite the first's")
+
+	for doc, rb := range redacted {
+		rb.SetTargetRuns("fr", rb.SourceRuns())
+		ut, err := tools.NewUnredactTool(&tools.UnredactConfig{VaultPath: vaultPath, Document: doc})
+		require.NoError(t, err)
+		processPart(t, ut, &model.Part{Type: model.PartBlock, Resource: rb})
+		assert.Equal(t, "Hello "+names[doc], rb.SourceText(), doc)
+		assert.Equal(t, "Hello "+names[doc], rb.TargetText("fr"), doc)
+	}
+}
+
+// In process, the originals ride on each block, so two blocks with one ID
+// that one redact tool rewrites each restore their own.
+func TestRedactUnredact_InProcessBlocksWithOneID(t *testing.T) {
+	rt, err := tools.NewRedactTool(&tools.RedactConfig{Detectors: []string{tools.DetectRules},
+		Rules: []redaction.Rule{{Term: "Alice Archer", Category: "person"}, {Term: "Bruno Black", Category: "person"}}})
+	require.NoError(t, err)
+	ut, err := tools.NewUnredactTool(&tools.UnredactConfig{})
+	require.NoError(t, err)
+	a := model.NewBlock("greeting", "Hello Alice Archer")
+	b := model.NewBlock("greeting", "Hello Bruno Black")
+	for _, blk := range []*model.Block{a, b} {
+		blk.SourceLocale = "en"
+		processPart(t, rt, &model.Part{Type: model.PartBlock, Resource: blk})
+		blk.SetTargetRuns("fr", blk.SourceRuns())
+	}
+	for _, blk := range []*model.Block{a, b} {
+		processPart(t, ut, &model.Part{Type: model.PartBlock, Resource: blk})
+	}
+	assert.Equal(t, "Hello Alice Archer", a.TargetText("fr"))
+	assert.Equal(t, "Hello Bruno Black", b.TargetText("fr"))
+}
+
 func TestRedactTool_EntityDetection(t *testing.T) {
 	tl, err := tools.NewRedactTool(&tools.RedactConfig{
 		Detectors: []string{tools.DetectEntities},

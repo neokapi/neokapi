@@ -527,7 +527,7 @@ func (a *App) extractOne(ctx context.Context, task extractTask) (project.Extract
 	// lookups (and thus out of pre-filled targets), so nothing sensitive
 	// reaches the XLIFF.
 	if task.redaction != nil {
-		if err := applyRedaction(ctx, blocks, task.redaction, task.layout.Root, task.redactionVault, task.ctx.SourceLocale); err != nil {
+		if err := applyRedaction(ctx, vaultDoc(task.source.Relative), blocks, task.redaction, task.layout.Root, task.redactionVault, task.ctx.SourceLocale); err != nil {
 			return project.ExtractionFile{}, fmt.Errorf("redaction: %w", err)
 		}
 	}
@@ -726,15 +726,14 @@ func applyMemoryPrefill(ctx context.Context, tm memory.ContentMemory, block *mod
 	return prefillFuzzy
 }
 
-// applySegmentation runs the existing SRX segmentation tool over each
-// block's source — the overlay path from AD-017 / #417. The tool is a
-// regular kapi tool.Tool but we call its block handler directly here to
-// avoid wiring a one-stage channel pipeline into the extract flow.
 // applyRedaction runs the redact tool over the source blocks in external
-// mode, writing originals to the batch vault sidecar at vaultPath. Rule paths
-// in the spec are resolved relative to rootDir.
-func applyRedaction(ctx context.Context, blocks []*model.Block, spec *project.RedactionSpec, rootDir, vaultPath string, sourceLocale model.LocaleID) error {
-	rt, err := tools.NewRedactTool(redactToolConfig(spec, rootDir, vaultPath, sourceLocale))
+// mode, writing originals to the batch vault sidecar at vaultPath under doc,
+// the document the blocks sit in ("" for content in no file). Rule paths in
+// the spec are resolved relative to rootDir.
+func applyRedaction(ctx context.Context, doc string, blocks []*model.Block, spec *project.RedactionSpec, rootDir, vaultPath string, sourceLocale model.LocaleID) error {
+	cfg := redactToolConfig(spec, rootDir, vaultPath, sourceLocale)
+	cfg.Document = doc
+	rt, err := tools.NewRedactTool(cfg)
 	if err != nil {
 		return err
 	}
@@ -771,6 +770,10 @@ func redactToolConfig(spec *project.RedactionSpec, rootDir, vaultPath string, so
 	return cfg
 }
 
+// applySegmentation runs the SRX segmentation tool over each block's source,
+// the overlay path from AD-017 / #417. It calls the tool's block handler
+// directly rather than wiring a one-stage channel pipeline into the extract
+// flow.
 func applySegmentation(ctx context.Context, blocks []*model.Block, conf project.SegmentationDefaults) error {
 	cfg := &tools.SegmentationConfig{
 		SegmentSource: true,
@@ -1023,6 +1026,9 @@ func (a *App) RunExtractKpz(cmd Command) error {
 	if err != nil {
 		return fmt.Errorf("load project: %w", err)
 	}
+	if err := refuseKpzRedaction(cmd, proj); err != nil {
+		return err
+	}
 	pctx := project.NewProjectContext(proj, projectPath)
 	layout, err := project.LayoutFor(projectPath)
 	if err != nil {
@@ -1112,6 +1118,28 @@ func (a *App) RunExtractKpz(cmd Command) error {
 		}
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "\nExtracted %d bilingual interchange package(s) into %s\n", written, outDir)
+	return nil
+}
+
+// refuseKpzRedaction refuses a .kpz extraction under a redaction policy, the
+// one the recipe declares for any of its files (defaults.redaction, or a
+// collection's or item's redaction:) or the one --redact and --redact-rules
+// ask for. A
+// package carries each source file's skeleton, which holds the file's text
+// whole, and the translations the content memory fills in, so it would hand
+// over the values the policy withholds. XLIFF 2 and PO carry the redacted
+// blocks alone, and kapi merge puts the originals back from the vault.
+func refuseKpzRedaction(cmd Command, proj *project.KapiProject) error {
+	redactFlag, _ := cmd.Flags().GetBool("redact")
+	redactRules, _ := cmd.Flags().GetString("redact-rules")
+	switch {
+	case RedactionDeclared(proj):
+		return errors.New("extract: the project declares a redaction policy, and a .kpz package carries the text of each source file whole, so it would hold the values the policy withholds. " +
+			"Extract XLIFF 2 or PO instead (--format xliff2 or --format po): kapi merge puts the withheld values back from the vault the extraction keeps under .kapi/vault/")
+	case redactFlag || redactRules != "":
+		return errors.New("extract: --redact and --redact-rules apply to XLIFF 2 and PO. A .kpz package carries the text of each source file whole, so it cannot withhold a value. " +
+			"Use --format xliff2 or --format po")
+	}
 	return nil
 }
 

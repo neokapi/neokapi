@@ -36,9 +36,13 @@ import (
 // The incoming source is ALWAYS restored: a unit that carries no basis is
 // compared with the source as it stands, which holds the originals, so the
 // placeholders must be reverted for that comparison to hold. The translated
-// target is restored only when restoreTarget is set — passing false (the
+// target is restored only when restoreTarget is set. Passing false (the
 // --no-restore flag) leaves placeholders in the merged output.
-func restoreRedactedBlocks(layout project.Layout, batchID string, blocks []*model.Block, targetLocale model.LocaleID, restoreTarget bool) error {
+//
+// doc is the source document the blocks translate. The vault keeps each
+// original under its document, block and token; a sidecar an older kapi
+// wrote names no document, and its entries are found by block and token.
+func restoreRedactedBlocks(layout project.Layout, batchID, doc string, blocks []*model.Block, targetLocale model.LocaleID, restoreTarget bool) error {
 	sidecar := layout.RedactionSidecarPath(batchID)
 	if _, err := os.Stat(sidecar); err != nil {
 		if os.IsNotExist(err) {
@@ -50,12 +54,13 @@ func restoreRedactedBlocks(layout project.Layout, batchID string, blocks []*mode
 	if err != nil {
 		return err
 	}
+	doc = vaultDoc(doc)
 	for _, b := range blocks {
 		get := func(token string) (string, bool) {
-			v, ok := vault.Get(b.ID, token)
+			v, ok := vault.Get(doc, b.ID, token)
 			return v.Original, ok
 		}
-		entries := redaction.ValuesForBlock(vault, b.ID)
+		entries := redaction.ValuesForBlock(vault, doc, b.ID)
 		restore := func(runs []model.Run) ([]model.Run, int) {
 			runs, n1 := redaction.Restore(runs, get)
 			runs, n2 := redaction.RestoreText(runs, entries)
@@ -74,7 +79,7 @@ func restoreRedactedBlocks(layout project.Layout, batchID string, blocks []*mode
 		// vault records for it: text the file holds, as an XLIFF that carried
 		// the placeholder as a code returns it with no native form of its own.
 		if tr, n := redaction.Restore(b.TargetRuns(targetLocale), func(token string) (string, bool) {
-			v, ok := vault.Get(b.ID, token)
+			v, ok := vault.Get(doc, b.ID, token)
 			return v.Disp, ok && v.Disp != ""
 		}); n > 0 {
 			b.SetTargetRuns(targetLocale, tr)
