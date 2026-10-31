@@ -138,17 +138,18 @@ func TestReadsTargetsFollowsTheIOContract(t *testing.T) {
 	assert.False(t, ReadsTargets(nil))
 }
 
-// ExecTargetFor is the one rule for every exec tool: a tool that compares a
+// ExecTargetFor is the one rule for every exec tool. A tool that compares a
 // source with its translation pairs a translation file with --target unless it
-// writes a translation, and a tool that writes only findings writes no file a
-// run does not name. `exec qa docs/contacts.md --target-lang nb` wrote the
-// source over docs/nb/contacts.md through the default layout, and the message
-// it printed named a --target the command did not take.
+// writes a translation. A tool that writes only findings writes no file a run
+// does not name. `exec qa docs/contacts.md --target-lang nb` and `exec review`
+// with the same arguments wrote the source over docs/nb/contacts.md through
+// the default layout. qa also printed a message that named a --target the
+// command did not take.
 func TestExecTargetForEveryTool(t *testing.T) {
 	a := &App{}
 	a.InitRegistries()
-	pairs := map[string]bool{"term-check": true, "dnt-check": true, "placeholder-check": true, "qa": true}
-	findingsOnly := map[string]bool{"qa": true}
+	pairs := map[string]bool{"term-check": true, "dnt-check": true, "placeholder-check": true, "qa": true, "review": true}
+	findingsOnly := map[string]bool{"qa": true, "review": true}
 	seen := map[string]bool{}
 	for _, e := range a.ToolReg.CLITools() {
 		name := string(e.Info.Name)

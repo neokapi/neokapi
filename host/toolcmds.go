@@ -109,7 +109,7 @@ var ToolExamples = map[string]string{
 
 	// ── AI Quality ───────────────────────────────────────────────────────
 	"review": `  kapi exec review app.xliff --target-lang fr
-  kapi exec review messages.json --target-lang de`,
+  kapi exec review docs/contacts.md --target docs/nb/contacts.md --target-lang nb`,
 	"voice-check": `  kapi exec voice-check messages.json
   kapi exec voice-check page.html --provider anthropic`,
 

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-30T21:28:42Z",
+  "generatedAt": "2026-10-31T00:26:24Z",
   "tools": [
     {
       "name": "apply_edits",
@@ -1452,6 +1452,12 @@
       "surface": "all-tools",
       "params": [
         {
+          "name": "target",
+          "type": "string",
+          "required": true,
+          "description": "The existing translation to run the tool over, in `target_lang`. Bilingual tools read this; without it they have nothing to check."
+        },
+        {
           "name": "text",
           "type": "string",
           "required": true,
@@ -1480,12 +1486,6 @@
           "type": "string",
           "required": false,
           "description": "AI provider"
-        },
-        {
-          "name": "target",
-          "type": "string",
-          "required": false,
-          "description": "The existing translation to run the tool over, in `target_lang`. Bilingual tools read this; without it they have nothing to check."
         },
         {
           "name": "target_lang",

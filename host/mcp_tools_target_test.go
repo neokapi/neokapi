@@ -53,7 +53,7 @@ func TestTargetPolicyFor(t *testing.T) {
 		{"recycle", targetWithheld, "produces the target itself"},
 		{"create-target", targetWithheld, "writes the target container itself"},
 		{"remove-target", targetAccepted, "bilingual, acts on an existing target"},
-		{"review", targetAccepted, "bilingual, reads the target, declares no port"},
+		{"review", targetRequired, "consumes the target port"},
 		{"whitespace-correct", targetAccepted, "bilingual, rewrites the target"},
 		{"xml-validation", targetWithheld, "monolingual"},
 		{"search-replace", targetWithheld, "monolingual"},
