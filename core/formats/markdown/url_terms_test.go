@@ -13,7 +13,7 @@ import (
 // The reader keeps a bare URL as text, as Okapi does, and a link's or an
 // image's destination in the code that closes it. A word rule reads none of
 // them: the destinations never reach the text of the runs, and the bare URL
-// is read as an address (check.URLSpans). The word written in prose beside
+// and the bare domain are read as addresses (check.URLSpans). The word written in prose beside
 // them is still found, and a code span the reader holds as runs is code to a
 // rule scoped to prose.
 func TestURLsAndCodeSpansAsAWordRuleReadsThem(t *testing.T) {
@@ -38,6 +38,23 @@ func TestURLsAndCodeSpansAsAWordRuleReadsThem(t *testing.T) {
 			input: "Utilize https://example.com/leverage/utilize today.\n",
 			text:  "Utilize https://example.com/leverage/utilize today.",
 			hits:  []string{"utilize"},
+		},
+		{
+			name:  "a bare domain",
+			input: "Read utilize.example.dev/utilize/setup first.\n",
+			text:  "Read utilize.example.dev/utilize/setup first.",
+		},
+		{
+			name:  "a bare domain beside a use in prose",
+			input: "Utilize example.com/leverage to utilize it.\n",
+			text:  "Utilize example.com/leverage to utilize it.",
+			hits:  []string{"utilize", "utilize"},
+		},
+		{
+			name:  "a file name is prose",
+			input: "Utilize utilize.yaml today.\n",
+			text:  "Utilize utilize.yaml today.",
+			hits:  []string{"utilize", "utilize"},
 		},
 		{
 			name:  "a link's destination",
