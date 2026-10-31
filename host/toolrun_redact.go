@@ -191,6 +191,26 @@ func (a *App) specChecksRedactionTokens(spec *flow.StepsSpec) bool {
 	return redacts && execs
 }
 
+// checkRedactEntities refuses a flow's redact step that detects entities when
+// no earlier step of the flow produces the entity port. Entity detection reads
+// the entity annotations an extraction step leaves on a block, so such a step
+// would withhold nothing it detects by entity, and a provider later in the
+// flow would read the values. The wording follows the refusal a run of one
+// tool gives (toolRunPolicyFor).
+func (a *App) checkRedactEntities(flowName string, t tool.Tool, entitiesProduced bool) error {
+	if entitiesProduced || t == nil || t.Name() != "redact" {
+		return nil
+	}
+	cfg, ok := t.Config().(*tools.RedactConfig)
+	if !ok || !hasDetector(cfg.Detectors, tools.DetectEntities) {
+		return nil
+	}
+	if resolved := a.flowRedactionPolicy(); resolved.Spec != nil && hasDetector(resolved.Spec.Detectors, tools.DetectEntities) {
+		return fmt.Errorf("the project's redaction policy (%s) detects entities, which needs an entity-extract step that flow %q does not have ahead of its redact step, so the flow would send the values the policy withholds. Add entity-extract ahead of redact, or set %s.detectors to [rules]", resolved.At, flowName, resolved.At)
+	}
+	return fmt.Errorf("the redact step of flow %q detects entities, which needs an entity-extract step that the flow does not have ahead of it, so the flow would send the values the step is meant to withhold. Add entity-extract ahead of redact, or set the step's detectors to [rules]", flowName)
+}
+
 // placeholderBlocks counts the blocks a report holds a failing placeholder
 // finding on.
 func placeholderBlocks(r findingsReport) int {

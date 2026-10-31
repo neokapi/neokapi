@@ -13,6 +13,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
@@ -559,6 +560,7 @@ func (a *App) buildProjectFlowTools(cmd Command, flowName string, spec *flow.Ste
 	}
 
 	var tools []tool.Tool
+	entitiesProduced := false // an earlier step produces the entity port
 	for _, step := range spec.Steps {
 		if onProgress != nil {
 			// Live progress for AI tools; non-marshalable config values are
@@ -573,6 +575,17 @@ func (a *App) buildProjectFlowTools(cmd Command, flowName string, spec *flow.Ste
 		if err != nil {
 			cleanup()
 			return nil, nil, fmt.Errorf("flow %q: %w", flowName, &FlowToolBuildError{Tool: step.Tool, Locale: a.TargetLang, Err: err})
+		}
+		if err := a.checkRedactEntities(flowName, t, entitiesProduced); err != nil {
+			cleanup()
+			return nil, nil, err
+		}
+		if info := a.ToolReg.ResolveToolInfo(registry.ToolID(step.Tool), step.Config); info != nil {
+			for _, p := range info.Produces {
+				if p.Type == string(model.OverlayEntity) {
+					entitiesProduced = true
+				}
+			}
 		}
 		tools = append(tools, t)
 	}
