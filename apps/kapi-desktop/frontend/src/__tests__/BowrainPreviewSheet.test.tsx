@@ -194,6 +194,8 @@ describe("the remote preview port", () => {
     expect(port.actorName?.({ kind: "person", name: "ada" })).toBe("ada");
     expect(port.actorName?.({ kind: "person" })).toBe("Mira Holt");
     expect(port.actorName?.({ kind: "agent", name: "claude-code" })).toBe("claude-code");
+    // BOWRAIN_AUTH_TOKEN stores no name: the screens then draw "you".
+    expect(remotePreviewPort("t9").actorName?.({ kind: "person" })).toBeUndefined();
   });
 
   it("rejects a refused read with the refusal as it came", async () => {
@@ -211,8 +213,8 @@ describe("the remote preview port", () => {
 
 describe("the connected preview", () => {
   /** Open Preview on the connected Share page, with no port given. */
-  async function openConnected() {
-    render(<SharePanel tabID="t1" projectName="Fernwell" view={BOWRAIN_SIGNED_IN_VIEW} />);
+  async function openConnected(view = BOWRAIN_SIGNED_IN_VIEW) {
+    render(<SharePanel tabID="t1" projectName="Fernwell" view={view} />);
     await userEvent.click(screen.getByRole("button", { name: "Preview" }));
     return screen.findByRole("dialog");
   }
@@ -234,6 +236,17 @@ describe("the connected preview", () => {
     expect(rows[1].querySelector("[data-slot='kept-by']")).toHaveTextContent(/ada$/);
     expect(within(kept).queryByText(/you$/)).toBeNull();
     expectNoAction(sheet);
+    vi.restoreAllMocks();
+  });
+
+  it("draws an unnamed keeper as you when the sign-in stores no name", async () => {
+    vi.spyOn(api, "bowrainPreview").mockImplementation(async (_tab, part) => serverAnswers(part));
+    const sheet = await openConnected({ ...BOWRAIN_SIGNED_IN_VIEW, signed_in_as: undefined });
+    await userEvent.click(within(sheet).getByRole("tab", { name: "Rules" }));
+    const kept = await within(sheet).findByRole("region", { name: "Kept by" });
+    const rows = within(kept).getAllByRole("listitem");
+    expect(rows[0].querySelector("[data-slot='kept-by']")).toHaveTextContent(/you$/);
+    expect(rows[1].querySelector("[data-slot='kept-by']")).toHaveTextContent(/ada$/);
     vi.restoreAllMocks();
   });
 
