@@ -248,7 +248,7 @@ func TestReviewQueueStore_SplitItem_InvalidSplit(t *testing.T) {
 	assert.Contains(t, err.Error(), "both items")
 }
 
-// Version 45 takes the term candidates out of the review queue and drops the
+// Version 46 takes the term candidates out of the review queue and drops the
 // list of rejected terms, and leaves the entity reviews where they are.
 func TestReviewQueueStore_TermCandidatesLeave(t *testing.T) {
 	rq, cs := newTestReviewStore(t)
@@ -262,14 +262,14 @@ func TestReviewQueueStore_TermCandidatesLeave(t *testing.T) {
 	_, err := cs.db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS rejected_terms (project_id TEXT, term_text TEXT, locale TEXT)`)
 	require.NoError(t, err)
 
-	var v45 string
+	var v46 string
 	for _, m := range Migrations {
-		if m.Version == 45 {
-			v45 = m.SQL
+		if m.Version == 46 {
+			v46 = m.SQL
 		}
 	}
-	require.NotEmpty(t, v45)
-	_, err = cs.db.ExecContext(ctx, v45)
+	require.NotEmpty(t, v46)
+	_, err = cs.db.ExecContext(ctx, v46)
 	require.NoError(t, err, "the migration runs again on a database it already ran on")
 
 	result, err := rq.ListItems(ctx, ReviewQueueQuery{ProjectID: proj.ID})

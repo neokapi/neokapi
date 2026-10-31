@@ -140,7 +140,7 @@ func TestContextObjects_KeyAndDigests(t *testing.T) {
 	require.Error(t, err)
 }
 
-// Version 39 opens a working copy from before it: the projects gain the
+// Version 40 opens a working copy from before it: the projects gain the
 // context key column, the term candidates leave the review queue beside the
 // entity reviews, and the list of rejected terms is dropped.
 func TestMigrations_TermCandidatesLeaveTheReviewQueue(t *testing.T) {
@@ -154,7 +154,7 @@ func TestMigrations_TermCandidatesLeaveTheReviewQueue(t *testing.T) {
 		`CREATE TABLE rejected_terms (project_id TEXT NOT NULL, term_text TEXT NOT NULL, locale TEXT NOT NULL)`,
 		`INSERT INTO review_items (id, project_id, type, data) VALUES ('tc', '` + p.ID + `', 'term_candidate', '{}')`,
 		`INSERT INTO review_items (id, project_id, type, data) VALUES ('er', '` + p.ID + `', 'entity_review', '{}')`,
-		`DELETE FROM schema_migrations WHERE version >= 39`,
+		`DELETE FROM schema_migrations WHERE version >= 40`,
 	} {
 		_, err = s.db.ExecContext(ctx, stmt)
 		require.NoError(t, err, stmt)
