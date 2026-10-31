@@ -62,6 +62,11 @@ dropped; review the diff before committing it.`,
 			}
 			defer p.Close()
 
+			// The terms go out under the project's default redaction policy.
+			ctx, err = a.TermsExpandRedaction(ctx, cmd)
+			if err != nil {
+				return err
+			}
 			proposals, err := host.ProposeTermForms(ctx, p, concepts, opts)
 			if err != nil {
 				return err

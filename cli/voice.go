@@ -105,8 +105,13 @@ func newVoiceCheckCmd(a *App) *cobra.Command {
 				if perr != nil {
 					return perr
 				}
-				ai := aitools.NewVoiceCheckTool(p, profile)
-				af, aerr := RunBlockTool(cmd.Context(), ai, text)
+				// Under the project's redaction policy the tool runs between
+				// redact and unredact, as `kapi exec` runs it.
+				chain, cerr := a.VoiceCheckTools(cmd, subjectFile(cmd, args), aitools.NewVoiceCheckTool(p, profile))
+				if cerr != nil {
+					return cerr
+				}
+				af, aerr := RunBlockTools(cmd.Context(), chain, text)
 				if aerr != nil {
 					return aerr
 				}
@@ -150,6 +155,15 @@ func newVoiceCheckCmd(a *App) *cobra.Command {
 	// Only --json here (not output.AddFlags) to avoid colliding with --input-text.
 	cmd.Flags().Bool("json", false, "output results as JSON")
 	return cmd
+}
+
+// subjectFile is the file ReadSubjectText reads the text from, or "" when
+// the text is given with --input-text or on stdin.
+func subjectFile(cmd *cobra.Command, args []string) string {
+	if text, _ := cmd.Flags().GetString("input-text"); text == "" && len(args) == 1 && args[0] != "-" {
+		return args[0]
+	}
+	return ""
 }
 
 // VoiceProfileLabel names a profile for an error message, falling back to a
