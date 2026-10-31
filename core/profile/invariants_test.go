@@ -104,7 +104,7 @@ func TestValidateWarnsWhenAnOverrideDropsABasePattern(t *testing.T) {
 		"the message must name constraints as the route for a rule every audience keeps")
 	assert.Contains(t, found.Message, "a constraint's pattern always fails a check",
 		"the message must say what moving the rule under constraints does to its outcome")
-	assert.Contains(t, found.Message, "restate it in the style of each channel that sets one, where it can be marked advisory",
+	assert.Contains(t, found.Message, "restate it in the style of each channel that sets one, where it reports unless it is marked `fails: true`",
 		"the message must name the route that keeps the pattern advisory")
 	assert.NotContains(t, found.Message, "critical")
 	assert.NotContains(t, found.Message, "severity")

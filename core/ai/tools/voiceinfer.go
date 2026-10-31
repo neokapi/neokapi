@@ -126,9 +126,8 @@ func voiceInferLLMSchema() aiprovider.JSONSchema {
 		"properties": map[string]any{
 			"regex":       map[string]any{"type": "string"},
 			"description": map[string]any{"type": "string"},
-			"severity":    map[string]any{"type": "string", "enum": []string{"minor", "major", "critical"}},
 		},
-		"required":             []string{"regex", "description", "severity"},
+		"required":             []string{"regex", "description"},
 		"additionalProperties": false,
 	}
 	term := map[string]any{
@@ -246,7 +245,6 @@ type inferStyleResult struct {
 type inferPatternResult struct {
 	Regex       string `json:"regex"`
 	Description string `json:"description"`
-	Severity    string `json:"severity"`
 }
 
 type inferVocabularyResult struct {
@@ -312,11 +310,10 @@ func mapInferResult(res inferLLMResult, opts InferOptions) (*profile.VoiceProfil
 			continue
 		}
 		draft.Style.ProhibitedPatterns = append(draft.Style.ProhibitedPatterns, profile.Pattern{
+			// Every drafted pattern reports: a person marks a pattern
+			// `fails: true` to make it fail.
 			Regex:       p.Regex,
 			Description: p.Description,
-			// A pattern the model rates minor is drafted as advisory, so it
-			// reports until a person makes it fail.
-			Advisory: p.Severity == "minor",
 		})
 	}
 	for _, ex := range res.Examples {

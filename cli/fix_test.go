@@ -19,6 +19,7 @@ style:
   prohibited_patterns:
     - regex: '(?i)\bsimply\b'
       description: Say what to do without minimising it
+      fails: true
 terms:
   - term: utilize
     replacement: use

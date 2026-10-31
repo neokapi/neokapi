@@ -213,6 +213,7 @@ style:
   prohibited_patterns:
     - regex: '(?i)\bleverage\b'
       description: Write use
+      fails: true
 vocabulary:
   forbidden_terms:
     - term: utilize
@@ -319,6 +320,7 @@ style:
   prohibited_patterns:
     - regex: '(?i)\bleverage\b'
       description: Write use
+      fails: true
 vocabulary:
   forbidden_terms:
     - term: utilize

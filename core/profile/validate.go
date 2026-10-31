@@ -285,8 +285,8 @@ func FieldValues() map[string]FieldValueSet {
 // whole struct. A rule that must hold whatever the audience belongs under
 // constraints:, which resolution never replaces and which carries a scope, a
 // source and its exceptions. Every constraint finding fails, though, so the
-// warning also names the route that lets a pattern stay advisory: restating it
-// in each override's style.
+// warning also names the route that lets a pattern report: restating it in
+// each override's style, where it fails only when marked `fails: true`.
 //
 // What has no signal today is the mistake in between: an author states a
 // mandatory rule as a style pattern, declares an audience, and never learns
@@ -335,7 +335,7 @@ func validatePresentationOverrides(p *VoiceProfile) []ProfileProblem {
 					"%s %q supplies its own style, so the base pattern %q does not apply there. "+
 						"Either state it under constraints: if it must hold for every audience "+
 						"(a constraint's pattern always fails a check), or restate it in the style of each %s "+
-						"that sets one, where it can be marked advisory.",
+						"that sets one, where it reports unless it is marked `fails: true`.",
 					kind, name, regex, kind,
 				),
 				Warning: true,

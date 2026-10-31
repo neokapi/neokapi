@@ -148,7 +148,7 @@ style:
   prohibited_patterns:
     - regex: "\\b(synergy|leverage)\\b"
       description: Corporate jargon
-      advisory: true         # reports without failing a check; omit to fail
+      fails: true            # fails a check; omit to report
 
 # Word rules are terms. Importing this file moves them into the project's
 # terms, where they apply beside the terms the project already holds.

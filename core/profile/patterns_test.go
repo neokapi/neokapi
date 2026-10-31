@@ -21,22 +21,22 @@ func TestMatchPatterns(t *testing.T) {
 		wantFails []bool   // parallel to wantMatch
 	}{
 		{
-			name:      "prohibited pattern defaults to major",
+			name:      "an unmarked pattern reports",
 			profile:   profileWithPatterns(Pattern{Regex: `\bgonna\b`, Description: "Casual contraction"}),
 			text:      "This is gonna work",
 			wantMatch: []string{"gonna"},
-			wantFails: []bool{true},
+			wantFails: []bool{false},
 		},
 		{
-			name:      "rule severity overrides the default",
-			profile:   profileWithPatterns(Pattern{Regex: `\d+\s+formats`}),
+			name:      "a pattern marked fails: true fails",
+			profile:   profileWithPatterns(Pattern{Regex: `\d+\s+formats`, Fails: true}),
 			text:      "kapi reads 42 formats",
 			wantMatch: []string{"42 formats"},
 			wantFails: []bool{true},
 		},
 		{
 			name:      "every occurrence is a separate hit",
-			profile:   profileWithPatterns(Pattern{Regex: `\bhype\b`}),
+			profile:   profileWithPatterns(Pattern{Regex: `\bhype\b`, Fails: true}),
 			text:      "hype and more hype",
 			wantMatch: []string{"hype", "hype"},
 			wantFails: []bool{true, true},
@@ -44,7 +44,7 @@ func TestMatchPatterns(t *testing.T) {
 		{
 			name: "rules are independent and may overlap",
 			profile: profileWithPatterns(
-				Pattern{Regex: `powerful engine`},
+				Pattern{Regex: `powerful engine`, Fails: true},
 				Pattern{Regex: `\bengine\b`, Advisory: true},
 			),
 			text:      "a powerful engine",
@@ -59,7 +59,7 @@ func TestMatchPatterns(t *testing.T) {
 		},
 		{
 			name:      "an author opts into case folding with (?i)",
-			profile:   profileWithPatterns(Pattern{Regex: `(?i)\bpowerful\b`}),
+			profile:   profileWithPatterns(Pattern{Regex: `(?i)\bpowerful\b`, Fails: true}),
 			text:      "Powerful things happen",
 			wantMatch: []string{"Powerful"},
 			wantFails: []bool{true},
@@ -84,7 +84,7 @@ func TestMatchPatterns(t *testing.T) {
 		},
 		{
 			name:      "unicode class matches an emoji",
-			profile:   profileWithPatterns(Pattern{Regex: `[\x{1F300}-\x{1FAFF}]`}),
+			profile:   profileWithPatterns(Pattern{Regex: `[\x{1F300}-\x{1FAFF}]`, Fails: true}),
 			text:      "ship it 🚀 now",
 			wantMatch: []string{"🚀"},
 			wantFails: []bool{true},
@@ -118,7 +118,7 @@ func TestMatchPatterns(t *testing.T) {
 
 func TestPatternHitsToFindings(t *testing.T) {
 	p := profileWithPatterns(
-		Pattern{Regex: `\bgonna\b`, Description: "Casual contraction"},
+		Pattern{Regex: `\bgonna\b`, Description: "Casual contraction", Fails: true},
 		Pattern{Regex: `!!`},
 	)
 	text := "This is gonna be great!!"
@@ -135,6 +135,7 @@ func TestPatternHitsToFindings(t *testing.T) {
 	// never anonymous.
 	assert.Equal(t, `Prohibited pattern "!!" matched`, findings[1].Message)
 	assert.Equal(t, "!!", findings[1].OriginalText)
+	assert.False(t, findings[1].Fails, "an unmarked pattern reports")
 
 	assert.Empty(t, PatternHitsToFindings(nil, text, nil))
 }
@@ -158,7 +159,7 @@ func TestPatternHitsToFindings_AnchorsToRuns(t *testing.T) {
 func TestFindings_PatternsAndVocabularyScoreTogether(t *testing.T) {
 	p := (&VoiceProfile{
 		Style: StyleRules{ProhibitedPatterns: []Pattern{
-			{Regex: `\bgonna\b`, Description: "Casual contraction"},
+			{Regex: `\bgonna\b`, Description: "Casual contraction", Fails: true},
 		}},
 	}).Carry("test", []TermRule{
 		{Term: "leverage", Replacement: "use", Advisory: true},

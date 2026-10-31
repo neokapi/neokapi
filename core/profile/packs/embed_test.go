@@ -78,8 +78,8 @@ func TestProhibitedPatternsAreEnforced(t *testing.T) {
 
 	hits := profile.MatchPatterns(p, "This is gonna work")
 	require.NotEmpty(t, hits, "the pack's `gonna` rule must fire against content")
-	assert.True(t, hits[0].Fails,
-		"the pack's rule is not advisory, so a match fails")
+	assert.False(t, hits[0].Fails,
+		"a pack's pattern reports until a person marks it `fails: true`")
 
 	// The score moves, so the rule has an effect.
 	findings := profile.Findings(p, "This is gonna work", nil)

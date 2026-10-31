@@ -493,7 +493,8 @@ one axis per operation
 empty `value` withdraws the axis, and `product` or `channel` are refused there
 because both derive from a collection's `channel:`.
 Tone, style, and `examples` changes have no operation: propose them as an edit
-to the profile YAML and show the diff.
+to the profile YAML and show the diff. A pattern you propose reports until the
+user marks it `fails: true`.
 
 A new surface takes the point that suits it. `--name` puts the pattern in a
 named collection instead of a bare entry, and `--channel` binds that collection

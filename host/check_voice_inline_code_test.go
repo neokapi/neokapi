@@ -17,7 +17,7 @@ import (
 // inline code span is out of its reach in both, and plain prose is not.
 func TestVoicePatternRulesSkipInlineCodeInBothCommands(t *testing.T) {
 	const voice = "id: v\nname: V\nstyle:\n  prohibited_patterns:\n" +
-		"    - regex: '(?i)\\brule\\s+prefer'\n      scope: prose\n      description: anthropomorphism\n"
+		"    - regex: '(?i)\\brule\\s+prefer'\n      scope: prose\n      description: anthropomorphism\n      fails: true\n"
 
 	tests := []struct {
 		name     string
@@ -71,7 +71,7 @@ func TestVoicePatternRulesSkipInlineCodeInBothCommands(t *testing.T) {
 // run as code, as it reads a Markdown code span.
 func TestVoicePatternRulesSkipBacktickCodeInGoComments(t *testing.T) {
 	const voice = "id: v\nname: V\nstyle:\n  prohibited_patterns:\n" +
-		"    - regex: '(?i)\\brule\\s+prefer'\n      scope: prose\n      description: anthropomorphism\n"
+		"    - regex: '(?i)\\brule\\s+prefer'\n      scope: prose\n      description: anthropomorphism\n      fails: true\n"
 
 	tests := []struct {
 		name    string
@@ -103,6 +103,63 @@ func TestVoicePatternRulesSkipBacktickCodeInGoComments(t *testing.T) {
 			} else {
 				assert.Zero(t, fails)
 			}
+		})
+	}
+}
+
+// A voice pattern fails a check only when it is marked `fails: true`: one
+// failing and one unmarked pattern over the same text give one failing finding,
+// one reported finding and the gate's exit code. With the failing pattern gone,
+// the same findings report and the check passes.
+func TestVoicePatternFailsOnlyWhenMarked(t *testing.T) {
+	const marked = "id: v\nname: V\nstyle:\n  prohibited_patterns:\n" +
+		"    - regex: '\\bgonna\\b'\n      description: casual\n      fails: true\n" +
+		"    - regex: '\\bwanna\\b'\n      description: casual wish\n"
+	const unmarked = "id: v\nname: V\nstyle:\n  prohibited_patterns:\n" +
+		"    - regex: '\\bgonna\\b'\n      description: casual\n" +
+		"    - regex: '\\bwanna\\b'\n      description: casual wish\n      advisory: true\n"
+
+	tests := []struct {
+		name      string
+		voice     string
+		failing   int
+		reporting int
+		exit      int
+	}{
+		{"a marked pattern fails the check", marked, 1, 1, ExitGate},
+		{"unmarked and advisory patterns report", unmarked, 0, 2, ExitOK},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			isolateCheckExecution(t)
+			dir := t.TempDir()
+			src := writeCheckInput(t, dir, "s.md", "We are gonna ship what you wanna see.\n")
+			profilePath := writeCheckInput(t, dir, "v.yaml", tt.voice)
+
+			cmd := executionCommand(t)
+			cmd.Flags().String("profile-file", profilePath, "")
+			report, err := (&App{SourceLang: "en"}).ComputeCheck(cmd, []string{src})
+			require.NoError(t, err)
+			failing, reporting := 0, 0
+			for _, d := range report.Findings {
+				if d.Rule != "voice.style" {
+					continue
+				}
+				if d.Fails {
+					failing++
+				} else {
+					reporting++
+				}
+			}
+			assert.Equal(t, tt.failing, failing, "failing voice.style findings")
+			assert.Equal(t, tt.reporting, reporting, "reported voice.style findings")
+			assert.Equal(t, tt.failing, report.Summary.Failing)
+
+			run := executionCommand(t)
+			run.Flags().String("profile-file", profilePath, "")
+			var out strings.Builder
+			run.SetOut(&out)
+			assert.Equal(t, tt.exit, ExitCode(run, (&App{SourceLang: "en"}).RunCheck(run, []string{src})))
 		})
 	}
 }

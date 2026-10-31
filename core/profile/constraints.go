@@ -222,8 +222,9 @@ func constraintFindings(p *VoiceProfile, text string, runs []model.Run) []VoiceF
 			continue
 		}
 		c := r.Constraint
+		// A constraint holds for every audience, so its pattern fails.
 		rules := &VoiceProfile{Style: StyleRules{ProhibitedPatterns: []Pattern{{
-			Regex: c.Regex, Description: c.Statement,
+			Regex: c.Regex, Description: c.Statement, Fails: true,
 		}}}}
 		for _, finding := range patternHitFindings(rules, text, runs) {
 			finding.Metadata["constraint_id"] = c.ID

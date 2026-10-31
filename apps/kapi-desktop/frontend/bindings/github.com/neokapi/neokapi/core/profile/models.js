@@ -598,8 +598,18 @@ export class Pattern {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Advisory makes a match report without failing a check. A pattern rule
-             * fails where the voice is bound unless it is marked advisory.
+             * Fails makes a match fail a check where the voice is bound. Unset, a
+             * pattern rule is a tone rule that reports, until a person marks it
+             * failing. See Failing.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["fails"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Advisory makes a match report without failing a check, whatever Fails
+             * says. Reporting is the default, so the key restates it.
              * @member
              * @type {boolean | undefined}
              */
@@ -661,10 +671,10 @@ export class Pattern {
      * @returns {Pattern}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType14;
+        const $$createField4_0 = $$createType14;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("rate" in $$parsedSource) {
-            $$parsedSource["rate"] = $$createField3_0($$parsedSource["rate"]);
+            $$parsedSource["rate"] = $$createField4_0($$parsedSource["rate"]);
         }
         return new Pattern(/** @type {Partial<Pattern>} */($$parsedSource));
     }

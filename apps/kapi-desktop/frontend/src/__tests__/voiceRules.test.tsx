@@ -1,7 +1,14 @@
 import { render, screen } from "./testUtils";
 import { describe, it, expect } from "vite-plus/test";
 import type { Pattern, TermRule, VoiceProfile } from "../types/voice";
-import { AdvisoryChip, PatternRuleRow, RulesBlock, TermRuleRow } from "../components/voice/rules";
+import { patternOutcome, ruleOutcome, withPatternOutcome } from "../types/voice";
+import {
+  AdvisoryChip,
+  FailsChip,
+  PatternRuleRow,
+  RulesBlock,
+  TermRuleRow,
+} from "../components/voice/rules";
 
 describe("voice rule rows", () => {
   it("shows a pattern's description as the label and hides the regex behind the affordance", () => {
@@ -36,6 +43,64 @@ describe("voice rule rows", () => {
   it("draws no chip for a rule that fails, which is every rule not marked advisory", () => {
     render(<AdvisoryChip advisory={undefined} />);
     expect(screen.queryByTestId("voice-advisory")).not.toBeInTheDocument();
+  });
+
+  it("marks a pattern that fails the check with a neutral chip, and no other pattern", () => {
+    const { unmount } = render(
+      <ul>
+        <PatternRuleRow pattern={{ regex: "x", description: "Marked.", fails: true }} />
+      </ul>,
+    );
+    const chip = screen.getByTestId("voice-fails");
+    expect(chip).toHaveTextContent("fails the check");
+    expect(chip.className).toContain("text-muted-foreground");
+    expect(chip.className).not.toContain("text-destructive");
+    unmount();
+
+    for (const pattern of [
+      { regex: "x", description: "Unmarked." },
+      { regex: "x", description: "Advisory.", advisory: true },
+      { regex: "x", description: "Both.", fails: true, advisory: true },
+    ]) {
+      const { unmount: done } = render(
+        <ul>
+          <PatternRuleRow pattern={pattern} />
+        </ul>,
+      );
+      expect(screen.queryByTestId("voice-fails")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("voice-advisory")).not.toBeInTheDocument();
+      done();
+    }
+  });
+
+  it("draws no fails chip for a pattern that reports", () => {
+    render(<FailsChip fails={false} />);
+    expect(screen.queryByTestId("voice-fails")).not.toBeInTheDocument();
+  });
+
+  it("reads a pattern's outcome from fails and advisory, and a term rule's from advisory", () => {
+    expect(patternOutcome({})).toBe("reports");
+    expect(patternOutcome({ fails: true })).toBe("fails");
+    expect(patternOutcome({ advisory: true })).toBe("reports");
+    expect(patternOutcome({ fails: true, advisory: true })).toBe("reports");
+    expect(ruleOutcome(undefined)).toBe("fails");
+    expect(ruleOutcome(true)).toBe("reports");
+  });
+
+  it("writes the chosen outcome as fails and clears advisory", () => {
+    const base: Pattern = { regex: "x", description: "d", advisory: true, scope: "prose" };
+    expect(withPatternOutcome(base, "fails")).toEqual({
+      regex: "x",
+      description: "d",
+      scope: "prose",
+      fails: true,
+    });
+    expect(withPatternOutcome({ ...base, fails: true }, "reports")).toEqual({
+      regex: "x",
+      description: "d",
+      scope: "prose",
+    });
+    expect(patternOutcome(withPatternOutcome(base, "fails"))).toBe("fails");
   });
 
   it("states a term rule's replacement, and says when there is none", () => {

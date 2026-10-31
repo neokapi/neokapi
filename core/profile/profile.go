@@ -215,8 +215,12 @@ type StyleRules struct {
 type Pattern struct {
 	Regex       string `json:"regex" yaml:"regex"`
 	Description string `json:"description" yaml:"description"`
-	// Advisory makes a match report without failing a check. A pattern rule
-	// fails where the voice is bound unless it is marked advisory.
+	// Fails makes a match fail a check where the voice is bound. Unset, a
+	// pattern rule is a tone rule that reports, until a person marks it
+	// failing. See Failing.
+	Fails bool `json:"fails,omitempty" yaml:"fails,omitempty"`
+	// Advisory makes a match report without failing a check, whatever Fails
+	// says. Reporting is the default, so the key restates it.
 	Advisory bool `json:"advisory,omitempty" yaml:"advisory,omitempty"`
 
 	// Rate turns a prohibition into a ceiling: not "never" but "not this
@@ -249,6 +253,11 @@ type Pattern struct {
 	// with `$` to the end of that text.
 	NotAfter string `json:"not_after,omitempty" yaml:"not_after,omitempty"`
 }
+
+// Failing reports whether a match of the pattern fails a check: it is marked
+// `fails: true` and not `advisory: true`. A rate ceiling over the pattern
+// follows the same answer.
+func (p Pattern) Failing() bool { return p.Fails && !p.Advisory }
 
 // PatternRate is a density ceiling: at most Max matches per Per words.
 //

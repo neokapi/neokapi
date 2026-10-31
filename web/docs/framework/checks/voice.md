@@ -138,8 +138,10 @@ Three rule fields do most of the work beyond the example above:
   only in case. Any other rule matches regardless of case, and
   `case_sensitive: true` or `false` sets it either way.
 - A `style.prohibited_patterns` or `required_patterns` entry is a **pattern**:
-  `regex`, `description`, `advisory`, and optionally a `rate` (`max` matches per
-  `per_words`, default 1,000) that turns a ban into a ceiling, and a `scope`.
+  `regex`, `description`, `fails`, `advisory`, and optionally a `rate` (`max`
+  matches per `per_words`, default 1,000) that turns a ban into a ceiling, and a
+  `scope`. A pattern reports until it is marked `fails: true`, which makes a
+  match fail a check; `advisory: true` keeps it reporting either way.
 - `min_score` is the compliance bar a block must reach to count as compliant in
   roll-ups; unset, one failing finding already drops a block below it.
 

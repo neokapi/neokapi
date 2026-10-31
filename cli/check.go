@@ -32,10 +32,10 @@ plus a verdict (passed, failed, or did not run): the content-first counterpart
 to a test runner.
 
 Each finding either fails or reports, as the rule that raised it says. An
-established term and a voice pattern rule fail unless the rule is marked
-advisory; a suggested rule and a style measure report. The check fails when at
-least one finding fails. The score is reported beside the findings and never
-decides the verdict.
+established term fails unless the rule is marked advisory. A voice pattern rule
+and a style measure report unless the rule is marked "fails: true", and a
+suggested rule reports. The check fails when at least one finding fails. The
+score is reported beside the findings and never decides the verdict.
 
 The default checkset is source-side and needs no translation: text hygiene
 (empty, doubled spaces/words, stray whitespace), length limits (--max-chars/

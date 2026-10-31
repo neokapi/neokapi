@@ -19,15 +19,16 @@ import (
 	"github.com/neokapi/neokapi/core/tool"
 )
 
-// commitVoice is the project's own voice. Its pattern prohibits "simply"; the
-// word rules it carries move into the project's terms when the context is read,
-// "utilize" failing and "login" advisory. The required pattern holds over a
-// whole document.
+// commitVoice is the project's own voice. Its failing pattern prohibits
+// "simply"; the word rules it carries move into the project's terms when the
+// context is read, "utilize" failing and "login" advisory. The required pattern
+// holds over a whole document, and reports.
 const commitVoice = `name: Commit Voice
 style:
   prohibited_patterns:
     - regex: '(?i)\bsimply\b'
       description: Say what to do without minimising it
+      fails: true
   required_patterns:
     - regex: 'Northsea handbook'
       description: Name the handbook

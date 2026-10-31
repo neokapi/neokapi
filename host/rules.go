@@ -644,10 +644,10 @@ func voiceLines(v *coreprofile.VoiceProfile) []RuleLine {
 		add("Active voice.", false)
 	}
 	for _, p := range v.Style.ProhibitedPatterns {
-		add("Avoid: "+patternText(p)+".", !p.Advisory, p.Regex)
+		add("Avoid: "+patternText(p)+".", p.Failing(), p.Regex)
 	}
 	for _, p := range v.Style.RequiredPatterns {
-		add("Require: "+patternText(p)+".", !p.Advisory, p.Regex)
+		add("Require: "+patternText(p)+".", p.Failing(), p.Regex)
 	}
 	return out
 }

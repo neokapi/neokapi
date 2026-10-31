@@ -97,7 +97,7 @@ func nonEmpty(s []string) []string {
 
 func TestRequiredPatternFindings(t *testing.T) {
 	p := profileWithRequired(
-		Pattern{Regex: `(?i)\bstart free trial\b`, Description: "Every landing page carries the call to action"},
+		Pattern{Regex: `(?i)\bstart free trial\b`, Description: "Every landing page carries the call to action", Fails: true},
 		Pattern{Regex: `©`},
 	)
 	findings := DocumentFindings(p, "A page with neither.")
@@ -110,7 +110,7 @@ func TestRequiredPatternFindings(t *testing.T) {
 
 	// A rule with no description names its regex, so a finding is never anonymous.
 	assert.Equal(t, `Required pattern "©" is absent`, findings[1].Message)
-	assert.True(t, findings[1].Fails, "patterns default to major, as the prohibited half does")
+	assert.False(t, findings[1].Fails, "an unmarked required pattern reports, as the prohibited half does")
 
 	// An absence sits nowhere: there is no offending text and no range to anchor.
 	for _, f := range findings {

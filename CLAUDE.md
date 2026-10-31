@@ -341,8 +341,10 @@ that bite most often:
   projection to the prompt's map, because that map feeds the context
   fingerprint the staleness gate recomputes.
 
-  A rule fails a check unless it is marked `advisory: true`, which makes a
-  violation only report. A terms-store concept carries the same marking
+  A word rule fails a check unless it is marked `advisory: true`, which makes
+  a violation only report. A tone rule (a voice pattern, its rate ceiling, or
+  a style measure) only reports until a person marks it `fails: true`, and
+  `advisory: true` beside it still wins. A terms-store concept carries the same marking
   (`advisory`), set by `kapi context review --keep <id> --advisory` or `kapi terms import
   --advisory`; unset fails. A suggested rule (a
   candidate nobody has confirmed) reports and never fails, and each finding in

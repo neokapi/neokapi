@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/contextop"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 )
 
 // rulesProject writes a project whose docs write one name three ways and use
@@ -245,8 +246,8 @@ func TestListRulesGroupsAndCounts(t *testing.T) {
 		return l.Sentence == "Sentence length: short." && l.From[0] == "voice Technical Documentation"
 	}))
 	assert.True(t, hasLine(tone, func(l RuleLine) bool {
-		return l.Sentence == "Avoid: Minimizing words that assume reader knowledge." && l.Fails
-	}))
+		return l.Sentence == "Avoid: Minimizing words that assume reader knowledge." && !l.Fails
+	}), "an unmarked pattern reports")
 	assert.True(t, hasLine(tone, func(l RuleLine) bool {
 		return l.Sentence == "Avoid: Passive voice constructions." && !l.Fails
 	}), "an advisory pattern fails nothing")
@@ -309,6 +310,29 @@ func hasPrefixSuffix(list []string, prefix, suffix string) bool {
 
 func hasLine(lines []RuleLine, match func(RuleLine) bool) bool {
 	return slices.ContainsFunc(lines, match)
+}
+
+// TestVoiceLinesPatternOutcome: a voice pattern is listed as failing only
+// when it is marked `fails: true` and not `advisory: true`.
+func TestVoiceLinesPatternOutcome(t *testing.T) {
+	v := &coreprofile.VoiceProfile{Name: "house", Style: coreprofile.StyleRules{
+		ProhibitedPatterns: []coreprofile.Pattern{
+			{Regex: "a", Description: "Unmarked"},
+			{Regex: "b", Description: "Marked", Fails: true},
+			{Regex: "c", Description: "Both", Fails: true, Advisory: true},
+		},
+		RequiredPatterns: []coreprofile.Pattern{{Regex: "d", Description: "Required", Fails: true}},
+	}}
+	fails := map[string]bool{}
+	for _, l := range voiceLines(v) {
+		fails[l.Sentence] = l.Fails
+	}
+	assert.Equal(t, map[string]bool{
+		"Avoid: Unmarked.":   false,
+		"Avoid: Marked.":     true,
+		"Avoid: Both.":       false,
+		"Require: Required.": true,
+	}, fails)
 }
 
 func TestNarrowRuleToACollection(t *testing.T) {
