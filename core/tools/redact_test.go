@@ -322,10 +322,52 @@ func TestRedactTool_ASecondStepKeepsTheFirstStepsValues(t *testing.T) {
 	entry, ok := model.AnnoAs[*redaction.SecretAnnotation](part.Resource.(*model.Block), redaction.SecretAnnotationKey)
 	require.True(t, ok)
 	assert.Len(t, entry.Values, 1, "the first step's value is kept")
-	assert.Same(t, second.Policy(), entry.Policy, "the entry carries the later step's policy")
+	require.NotNil(t, entry.Policy)
+	assert.Equal(t, second.Policy().Options, entry.Policy.Options, "the entry renders with the later step's options")
 
 	part = processPart(t, unredact, part)
 	assert.Equal(t, beanSentence, part.Resource.(*model.Block).SourceText(), "unredact restores the first step's value")
+}
+
+// A second redact step that also withholds a value numbers its tokens after
+// the first step's, so neither overwrites the other and unredact restores
+// both. The entry's policy detects what either step's rules name.
+func TestRedactTool_TwoStepsThatBothWithholdKeepBothValues(t *testing.T) {
+	step := func(term string) *tools.RedactTool {
+		tl, err := tools.NewRedactTool(&tools.RedactConfig{
+			Detectors: []string{tools.DetectRules},
+			Rules:     []redaction.Rule{{Term: term, Category: "person"}},
+		})
+		require.NoError(t, err)
+		return tl
+	}
+	unredact, err := tools.NewUnredactTool(&tools.UnredactConfig{})
+	require.NoError(t, err)
+
+	const sentence = "Ada Lovelace wrote to Babbage."
+	b := model.NewBlock("b1", sentence)
+	b.SourceLocale = "en"
+	part := &model.Part{Type: model.PartBlock, Resource: b}
+	part = processPart(t, step("Ada Lovelace"), part)
+	part = processPart(t, step("Babbage"), part)
+
+	got := part.Resource.(*model.Block)
+	assert.Equal(t, " wrote to .", got.SourceText(), "both values are withheld")
+	entry, ok := model.AnnoAs[*redaction.SecretAnnotation](got, redaction.SecretAnnotationKey)
+	require.True(t, ok)
+	require.Len(t, entry.Values, 2, "the second step's token does not overwrite the first's")
+	disps := map[string]bool{}
+	for _, v := range entry.Values {
+		disps[v.Disp] = true
+	}
+	assert.Len(t, disps, 2, "each value shows as a visible token of its own")
+
+	ms, err := entry.Policy.Detector.Detect(t.Context(), "Ada Lovelace and Babbage", "en")
+	require.NoError(t, err)
+	assert.Len(t, ms, 2, "the entry's policy keeps the first step's rule beside the second's")
+
+	part = processPart(t, unredact, part)
+	assert.Equal(t, sentence, part.Resource.(*model.Block).SourceText())
 }
 
 // In external mode the block goes to a file, not to a provider, and carries

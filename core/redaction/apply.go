@@ -29,6 +29,15 @@ type RedactOptions struct {
 	// TokenPrefix prefixes the per-occurrence Ph ID. Empty means
 	// DefaultTokenPrefix.
 	TokenPrefix string
+	// After is the token number the sequence continues from: the first token
+	// is After+1. A redact step over runs an earlier step already redacted
+	// sets it to the highest number the block's entry holds, so the two
+	// steps' tokens never share a key. Zero starts at 1.
+	After int
+	// Taken are the visible tokens the block's entry already holds. A visible
+	// token that would equal one gets the next free number instead, so a
+	// restore by visible token stays unambiguous.
+	Taken []string
 }
 
 func (o RedactOptions) placeholder() string {
@@ -87,15 +96,18 @@ func Redact(runs []model.Run, matches []Match, opts RedactOptions) ([]model.Run,
 	for _, m := range matches {
 		catTotal[m.Category]++
 	}
-	rd := &redactor{tmpl: tmpl, prefix: prefix, catTotal: catTotal, catSeen: map[string]int{}}
+	rd := &redactor{tmpl: tmpl, prefix: prefix, catTotal: catTotal, catSeen: map[string]int{}, taken: map[string]bool{}}
+	for _, d := range opts.Taken {
+		rd.taken[d] = true
+	}
 
 	var (
 		out      []model.Run
 		records  []Redacted
-		applied  [][2]int // byte spans [start,end) of applied matches in flattened text
-		globalAt int      // byte offset into the flattened text
-		mi       int      // index into matches
-		counter  int      // token counter
+		applied  [][2]int     // byte spans [start,end) of applied matches in flattened text
+		globalAt int          // byte offset into the flattened text
+		mi       int          // index into matches
+		counter  = opts.After // token counter
 	)
 
 	// Group consecutive TextRuns so a span split across adjacent text runs
@@ -212,8 +224,9 @@ func carveGroup(text string, start int, matches []Match, rd *redactor, counter *
 type redactor struct {
 	tmpl     string
 	prefix   string
-	catTotal map[string]int // total matches per category in the block
-	catSeen  map[string]int // running count per category
+	catTotal map[string]int  // total matches per category in the block
+	catSeen  map[string]int  // running count per category
+	taken    map[string]bool // visible tokens already in use
 }
 
 func (rd *redactor) next(category string, counter *int) (token, disp string) {
@@ -226,6 +239,13 @@ func (rd *redactor) next(category string, counter *int) (token, disp string) {
 	if !strings.Contains(rd.tmpl, "{n}") && rd.catTotal[category] > 1 {
 		disp = fmt.Sprintf("%s#%d", disp, rd.catSeen[category])
 	}
+	if rd.taken[disp] {
+		base := renderPlaceholder(rd.tmpl, category, *counter)
+		for k := 1; rd.taken[disp]; k++ {
+			disp = fmt.Sprintf("%s#%d", base, k)
+		}
+	}
+	rd.taken[disp] = true
 	return token, disp
 }
 

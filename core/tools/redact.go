@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -341,9 +342,10 @@ func (t *RedactTool) bind(part *model.Part) {
 		return
 	}
 	// An entry an earlier redact step left keeps the values it withheld, so
-	// unredact still restores them, and takes this step's policy.
+	// unredact still restores them. Its policy keeps the earlier step's rules
+	// in force beside this step's, for the rest of every request.
 	if ann, ok := model.AnnoAs[*redaction.SecretAnnotation](b, redaction.SecretAnnotationKey); ok && ann != nil {
-		ann.Policy = t.policy
+		ann.Policy = unionPolicy(ann.Policy, t.policy)
 		return
 	}
 	b.SetAnno(redaction.SecretAnnotationKey, &redaction.SecretAnnotation{Policy: t.policy})
@@ -403,6 +405,54 @@ func tokenPrefix(opts redaction.RedactOptions) string {
 	return opts.TokenPrefix
 }
 
+// unionPolicy returns a policy that detects what both earlier and later do,
+// rendered with later's placeholder options. Either may be nil.
+func unionPolicy(earlier, later *redaction.Policy) *redaction.Policy {
+	if earlier == nil || earlier == later {
+		return later
+	}
+	if later == nil {
+		return earlier
+	}
+	var dets redaction.Detectors
+	for _, d := range []redaction.Detector{earlier.Detector, later.Detector} {
+		if d != nil {
+			dets = append(dets, d)
+		}
+	}
+	union := &redaction.Policy{Options: later.Options, Locale: later.Locale}
+	switch len(dets) {
+	case 1:
+		union.Detector = dets[0]
+	case 2:
+		union.Detector = dets
+	}
+	return union
+}
+
+// continueEntry returns opts set to continue the sequence the block's
+// redaction entry holds: an earlier redact step over the same block numbered
+// its tokens from 1 under the same prefix, and a token that shared a key or a
+// visible token with one of its values would overwrite it.
+func continueEntry(v tool.BlockView, opts redaction.RedactOptions) redaction.RedactOptions {
+	entry, ok := v.Annotations()[redaction.SecretAnnotationKey].(*redaction.SecretAnnotation)
+	if !ok || entry == nil || len(entry.Values) == 0 {
+		return opts
+	}
+	prefix := tokenPrefix(opts)
+	for tok, val := range entry.Values {
+		if rest, ok := strings.CutPrefix(tok, prefix); ok {
+			if n, err := strconv.Atoi(rest); err == nil && n > opts.After {
+				opts.After = n
+			}
+		}
+		if val.Disp != "" {
+			opts.Taken = append(opts.Taken, val.Disp)
+		}
+	}
+	return opts
+}
+
 // redactRuns detects the sensitive spans in one run sequence and returns the
 // redacted runs with what they withheld, and the edits that map the old text
 // to the new. Detection reads the sequence's own text runs, the coordinates
@@ -430,7 +480,7 @@ func (t *RedactTool) redactRuns(v tool.BlockView, runs []model.Run, locale model
 	matches = redaction.NormalizeMatches(matches)
 	out, records, edits := runs, []redaction.Redacted(nil), []model.RunEdit(nil)
 	if len(matches) > 0 {
-		out, records, edits = redaction.Redact(runs, matches, opts)
+		out, records, edits = redaction.Redact(runs, matches, continueEntry(v, opts))
 	}
 	if !model.HasStructuredRuns(out) {
 		if len(records) == 0 {
