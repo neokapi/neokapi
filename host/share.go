@@ -32,6 +32,10 @@ const (
 	ShareRungBowrain = "bowrain"
 )
 
+// ShareLabelBowrain names the ladder's top rung, and a bowrain context
+// backend, on every surface a person reads.
+const ShareLabelBowrain = "Managed on Bowrain"
+
 // The places `kapi share --via` takes.
 const (
 	ShareViaGit     = "git"
@@ -140,7 +144,7 @@ func shareLadder(current string, plugin bool) []ShareRung {
 		{Rung: ShareRungMachine, Label: machineLabel(), Reach: "your rules, your assistants", Current: current == ShareRungMachine},
 		{Rung: ShareRungTeam, Label: "With your team", Reach: "a shared folder or git", Current: current == ShareRungTeam,
 			Next: "kapi share --via git | folder <path>"},
-		{Rung: ShareRungBowrain, Label: "Managed on Bowrain", Reach: "a team queue, who kept what, the same screens in a browser",
+		{Rung: ShareRungBowrain, Label: ShareLabelBowrain, Reach: "a team queue, who kept what, the same screens in a browser",
 			Current: current == ShareRungBowrain, Next: bowrainNext},
 	}
 }
@@ -183,7 +187,7 @@ func (r *ShareResult) FormatText(w io.Writer) error {
 func (r *ShareResult) rungLine() string {
 	switch r.Rung {
 	case ShareRungBowrain:
-		line := "Managed on Bowrain"
+		line := ShareLabelBowrain
 		if r.Server != "" {
 			line += " · " + r.Server
 		}
@@ -386,6 +390,8 @@ func (a *App) readRung(ctx context.Context, recipe string, res *ShareResult) err
 	}
 	if server := recipeServer(recipe); server != "" {
 		res.Rung, res.Server = ShareRungBowrain, server
+	} else if info.Kind == project.ContextBackendBowrain {
+		res.Rung, res.Server = ShareRungBowrain, info.Location
 	}
 	return nil
 }

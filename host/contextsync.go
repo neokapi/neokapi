@@ -54,7 +54,7 @@ func HasContextRemote(kind string) bool {
 // ContextBackendInfo says which backend a project's context is shared
 // through, and where that choice was made.
 type ContextBackendInfo struct {
-	// Kind is local, file, git or s3.
+	// Kind is local, file, git, s3 or bowrain.
 	Kind string `json:"kind"`
 	// Location is where a shared backend keeps the context.
 	Location string `json:"location,omitempty"`
@@ -74,8 +74,10 @@ func (b ContextBackendInfo) FormatText(w io.Writer) error {
 	if b.Location != "" {
 		where += " (" + b.Location + ")"
 	}
-	switch b.From {
-	case "recipe":
+	switch {
+	case b.Kind == project.ContextBackendBowrain:
+		fmt.Fprintf(w, "Context: %s (%s), declared in the recipe.\n", ShareLabelBowrain, b.Location)
+	case b.From == "recipe":
 		fmt.Fprintf(w, "Context backend: %s, declared in the recipe.\n", where)
 	default:
 		fmt.Fprintln(w, "Context backend: local. The context stays on this machine; declare context.backend in kapi.yaml to share it.")
@@ -196,6 +198,13 @@ func resolveBackend(layout project.Layout) (ContextBackendInfo, error) {
 		info.Location = workspace.NewGitRemote("", spec.Remote, spec.Ref).Describe().Location
 	case project.ContextBackendS3:
 		info.Location = "s3://" + spec.Bucket + "/" + spec.Prefix
+	case project.ContextBackendBowrain:
+		venue, err := project.ReadContextVenue(layout.RecipePath)
+		if err != nil {
+			return ContextBackendInfo{}, err
+		}
+		info.spec.Venue = &venue
+		info.Location = venue.URL
 	}
 	return info, nil
 }
@@ -318,7 +327,12 @@ func (r ContextPush) FormatText(w io.Writer) error {
 	return nil
 }
 
+// describeRemote names the place a pull or a push reached. A bowrain backend
+// is named for the product and the project, never by its kind.
 func describeRemote(d workspace.RemoteDescriptor) string {
+	if d.Kind == project.ContextBackendBowrain {
+		return "Bowrain (" + d.Location + ")"
+	}
 	return d.Kind + " " + d.Location
 }
 

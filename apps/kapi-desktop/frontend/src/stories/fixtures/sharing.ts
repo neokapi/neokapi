@@ -122,7 +122,7 @@ function view(sharing: ProjectSharing, over: Partial<ShareView> = {}): ShareView
 export const LOCAL_VIEW = view(LOCAL_SHARING);
 /** A `context:` block the recipe check refuses, as the backend words it. */
 export const BROKEN_PLACE_ERROR =
-  'context.backend: "dropbox" is not a backend; use local, file, git or s3';
+  'context.backend: "dropbox" is not a backend; use local, file, git, s3 or bowrain';
 /** On this Mac, because the recipe's `context:` block cannot be read. */
 export const BROKEN_PLACE_VIEW = view(LOCAL_SHARING, { error: BROKEN_PLACE_ERROR });
 /** On this Mac, with the kapi-bowrain plugin installed. */
