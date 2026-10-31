@@ -1800,6 +1800,10 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.PUT("/:id/members/:uid", s.HandleUpdateProjectMember)
 	g.DELETE("/:id/members/:uid", s.HandleRemoveProjectMember)
 
+	// Context objects: /:ws/:id/context/objects. The objects a project's
+	// context ledger is shared through, in the core/workspace layout.
+	s.registerContextObjectRoutes(g)
+
 	// Presence — /:ws/:id/presence. Reports the caller's editing focus; the
 	// change relay fans it out to project watchers over the /:ws/events SSE
 	// stream (per-cursor presence uses the Yjs awareness channel).

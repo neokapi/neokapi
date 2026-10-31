@@ -50,6 +50,8 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 // 40  a decision records the revisions of the pairing it blesses
 // 41  a block records its source revision; decisions drop their text hashes
 // 42  an edition write names its unit by the venue's key alone
+// 43  spent: issued by #3074 and removed by #3076; never reuse
+// 44  a project's context objects, as the context layout names them
 var Migrations = []storage.Migration{
 	{
 		Version:     24,
@@ -1648,6 +1650,26 @@ var Migrations = []storage.Migration{
 			-- it resolved each block to (Block.Key), so a write no longer
 			-- carries the key the checkout's records give the unit beside it.
 			ALTER TABLE edition_writers DROP COLUMN IF EXISTS block;
+		`,
+	},
+	{
+		Version:     44,
+		Description: "a project's context objects",
+		SQL: `
+			-- The objects a project's context is shared through, under the
+			-- names the context layout gives them (core/workspace: log/,
+			-- blobs/, checkpoints/). An object is created once and never
+			-- replaced, so a row is never updated. sha256 is the hex digest of
+			-- data; pushed_by is the member whose push created the row.
+			CREATE TABLE IF NOT EXISTS context_objects (
+				project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				name       TEXT NOT NULL,
+				data       BYTEA NOT NULL,
+				sha256     TEXT NOT NULL,
+				pushed_by  TEXT NOT NULL DEFAULT '',
+				pushed_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				PRIMARY KEY (project_id, name)
+			);
 		`,
 	},
 }

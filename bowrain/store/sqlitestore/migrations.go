@@ -13,7 +13,8 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 // and 3 ("block occurrences", AD-036) ran on live databases before being
 // folded into the v1 baseline. New migrations start at 4. Versions 28 to 34
 // were issued by this store before it was rebuilt from a new baseline, so the
-// list continues at 35.
+// list continues at 35. Version 37 was issued by #3074 and removed by #3076;
+// it is spent too.
 var storeMigrations = []storage.Migration{
 	{
 		Version:     1,
@@ -1099,6 +1100,26 @@ var storeMigrations = []storage.Migration{
 			UPDATE unit_decisions SET draft_basis = '' WHERE draft_basis <> '';
 			UPDATE blocks SET properties = json_remove(properties, '$.__source_settled_hash')
 			 WHERE properties LIKE '%"__source_settled_hash"%';
+		`,
+	},
+	{
+		Version:     38,
+		Description: "a project's context objects",
+		SQL: `
+			-- Mirrors bowrain/store/migrations.go version 44: the objects a
+			-- project's context is shared through, under the names the
+			-- context layout gives them. An object is created once and never
+			-- replaced. sha256 is the hex digest of data; pushed_at is
+			-- RFC 3339 in UTC.
+			CREATE TABLE IF NOT EXISTS context_objects (
+				project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				name       TEXT NOT NULL,
+				data       BLOB NOT NULL,
+				sha256     TEXT NOT NULL,
+				pushed_by  TEXT NOT NULL DEFAULT '',
+				pushed_at  TEXT NOT NULL,
+				PRIMARY KEY (project_id, name)
+			);
 		`,
 	},
 }
