@@ -587,6 +587,7 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 					break
 				}
 				worker.ProjectBindings = b
+				worker.flowRedaction = &group.Redaction
 				if err = worker.runProjectStepsOver(ctx, cmd, flowName, spec, &rCtx, group.Inputs); err != nil {
 					break
 				}

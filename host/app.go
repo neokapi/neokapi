@@ -199,6 +199,13 @@ type App struct {
 	// brand- and terminology-aware with no flags. nil for ad-hoc runs.
 	ProjectBindings *ProjectBindings
 
+	// flowRedaction is the redaction policy that governs the files a project
+	// flow's chain is built for (bindingGroup.Redaction). Set beside
+	// ProjectBindings for each group; a redact step that names no rules of its
+	// own redacts under it (stepToolConfig). nil when no group was resolved,
+	// which stepToolConfig reads as the policy `defaults.redaction` declares.
+	flowRedaction *project.ResolvedRedaction
+
 	// translator localizes tool/format/plugin metadata at API egress.
 	// Built during Init from --lang / KAPI_LANG / config / POSIX env.
 	// Never nil after Init — unresolved locales get a NoopTranslator

@@ -250,27 +250,20 @@ func TestFlowPlacement_ExternalCommandNeedsARedactStepUnderAPolicy(t *testing.T)
 func TestFlowRun_ExternalCommandThatDropsAPlaceholderReportsTheFinding(t *testing.T) {
 	isolateKapiEnv(t)
 	t.Setenv("KAPI_TRUST_EXEC", "1")
-	config := rewriteProgram(t, `s/Write/Mail/; s/\[REDACTED:Person\]/someone/`)
-	// The flow's redact step reads the rules its own config names.
-	rules := filepath.Join(t.TempDir(), "rules.yaml")
-	require.NoError(t, os.WriteFile(rules, []byte(redactRules), 0o600))
-	recipe := redactProject(t, redactionYAML+"flows:\n  rewrite:\n    steps:\n"+
-		"      - tool: redact\n        config:\n          rulesPath: "+rules+"\n"+
-		"      - tool: external-command\n        config:\n          command: "+config["command"].(string)+
+	dir := t.TempDir()
+	saw := filepath.Join(dir, "saw.txt")
+	script := filepath.Join(dir, "rewrite.sh")
+	require.NoError(t, os.WriteFile(script, []byte("#!/bin/sh\ntee \""+saw+"\" | sed 's/Write/Mail/; s/\\[REDACTED:Person\\]/someone/'\n"), 0o700))
+	// The redact step names no rules, so it redacts under the project's policy.
+	recipe := redactProject(t, redactionYAML+"flows:\n  rewrite:\n    steps:\n      - tool: redact\n"+
+		"      - tool: external-command\n        config:\n          command: "+script+
 		"\n          applySource: true\n          applyTarget: false\n      - tool: unredact\n")
-	dir := filepath.Dir(recipe)
-	a := &App{}
-	a.InitRegistries()
-	cmd := flowRunCmd(a, "run")
-	AddProjectFlag(cmd)
-	require.NoError(t, cmd.Flags().Set("project", recipe))
-	require.NoError(t, cmd.Flags().Set("output", filepath.Join(dir, "out", "{name}.{ext}")))
-	var got []FlowFindings
-	stdout, err := captureStdout(t, func() error {
-		cmd.SetOut(os.Stdout)
-		return a.RunFromProject(cmd, "rewrite", recipe, RunCmdOptions{OnFindings: func(f FlowFindings) { got = append(got, f) }})
-	})
+	stdout, got, err := runRecipeFlow(t, recipe, "rewrite")
 	require.NoError(t, err, "a flow reports its findings and leaves the gate to kapi check")
+
+	read, rerr := os.ReadFile(saw)
+	require.NoError(t, rerr)
+	assert.Equal(t, "Write to [REDACTED:Person] today.", string(read), "the program reads the placeholder, never the name")
 
 	require.Len(t, got, 1)
 	require.Len(t, got[0].Findings, 1)
@@ -281,7 +274,78 @@ func TestFlowRun_ExternalCommandThatDropsAPlaceholderReportsTheFinding(t *testin
 	assert.Equal(t, "rewrite.sh dropped the redaction placeholder [REDACTED:Person] that the source holds; the block is unchanged", f.Message)
 	assert.Contains(t, stdout, "external-command.redaction-placeholder")
 
-	out, rerr := os.ReadFile(filepath.Join(dir, "out", "page.json"))
+	out, rerr := os.ReadFile(filepath.Join(filepath.Dir(recipe), "out", "page.json"))
 	require.NoError(t, rerr)
 	assert.Contains(t, string(out), "Write to "+redactedName+" today.", "the block reaches the output unchanged")
+}
+
+// runRecipeFlow is `kapi run <flow> -p <recipe> -o out/{name}.{ext}`, and
+// returns what it printed and the findings it handed to its sink.
+func runRecipeFlow(t *testing.T, recipe, flowName string, extra ...string) (string, []FlowFindings, error) {
+	t.Helper()
+	a := &App{}
+	a.InitRegistries()
+	cmd := flowRunCmd(a, "run")
+	AddProjectFlag(cmd)
+	require.NoError(t, cmd.Flags().Set("project", recipe))
+	require.NoError(t, cmd.Flags().Set("output", filepath.Join(filepath.Dir(recipe), "out", "{name}.{ext}")))
+	for i := 0; i+1 < len(extra); i += 2 {
+		require.NoError(t, cmd.Flags().Set(extra[i], extra[i+1]))
+	}
+	var got []FlowFindings
+	stdout, err := captureStdout(t, func() error {
+		cmd.SetOut(os.Stdout)
+		return a.RunFromProject(cmd, flowName, recipe, RunCmdOptions{OnFindings: func(f FlowFindings) { got = append(got, f) }})
+	})
+	return stdout, got, err
+}
+
+// A recipe flow that redacts ahead of a provider sends the provider no value
+// the project's policy withholds, though its redact step names no rules.
+func TestFlowRun_ARedactStepWithNoRulesTakesTheProjectsPolicy(t *testing.T) {
+	isolateKapiEnv(t)
+	onlyDemoProvider(t)
+	recipe := redactProject(t, redactionYAML+"flows:\n  secure:\n    steps:\n      - tool: redact\n"+
+		"      - tool: translate\n        config:\n          provider: demo\n      - tool: unredact\n")
+	saw := providerSaw(t)
+	_, _, err := runRecipeFlow(t, recipe, "secure", "target-lang", "fr")
+	require.NoError(t, err)
+	sent := saw()
+	require.Contains(t, sent, "today", "the run asked the provider about the block")
+	assert.NotContains(t, sent, redactedName, "the provider never reads the name the policy withholds")
+}
+
+// The redact step redacts each file under the policy that governs that file:
+// the legal collection's rules for its file, the defaults for the docs file.
+func TestFlowRun_ARedactStepRedactsEachFileUnderItsOwnPolicy(t *testing.T) {
+	isolateKapiEnv(t)
+	onlyDemoProvider(t)
+	recipe := collectionRedactProject(t, redactionYAML+"flows:\n  secure:\n    steps:\n      - tool: redact\n"+
+		"      - tool: translate\n        config:\n          provider: demo\n      - tool: unredact\n")
+	saw := providerSaw(t)
+	_, _, err := runRecipeFlow(t, recipe, "secure", "target-lang", "fr")
+	require.NoError(t, err)
+	sent := saw()
+	assert.Contains(t, sent, redactedName+" leads", "the legal file reads under its collection's rules")
+	assert.Contains(t, sent, "leads "+legalName, "the docs file reads under the defaults")
+	assert.NotContains(t, sent, redactedName+" leads "+legalName, "no file reaches the provider whole")
+}
+
+// A redact step that names rules of its own keeps them, and the project's
+// policy does not replace them.
+func TestFlowRun_ARedactStepWithItsOwnRulesKeepsThem(t *testing.T) {
+	isolateKapiEnv(t)
+	onlyDemoProvider(t)
+	rules := filepath.Join(t.TempDir(), "rules.yaml")
+	require.NoError(t, os.WriteFile(rules, []byte("version: v1\nrules:\n  - term: today\n    category: date\n"), 0o600))
+	recipe := redactProject(t, redactionYAML+"flows:\n  secure:\n    steps:\n"+
+		"      - tool: redact\n        config:\n          rulesPath: "+rules+"\n"+
+		"      - tool: translate\n        config:\n          provider: demo\n      - tool: unredact\n")
+	saw := providerSaw(t)
+	_, _, err := runRecipeFlow(t, recipe, "secure", "target-lang", "fr")
+	require.NoError(t, err)
+	sent := saw()
+	require.Contains(t, sent, "Write to", "the run asked the provider about the block")
+	assert.NotContains(t, sent, "today", "the step's own rule applies")
+	assert.Contains(t, sent, redactedName, "the project's rule does not replace the step's own")
 }

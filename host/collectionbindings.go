@@ -28,25 +28,70 @@ type bindingGroup struct {
 	Point project.GovernancePoint
 	// Inputs are the group's source files, in the order they were given.
 	Inputs []string
+	// Redaction is the redaction policy that governs every file of the group
+	// (project.RedactionForPath). A flow's redact step that names no rules of
+	// its own redacts under it (stepToolConfig).
+	Redaction project.ResolvedRedaction
 }
 
 // groupInputsByBinding partitions inputPaths by the governance that applies to
-// each path, resolved per file through project.ResolveGovernanceFor — so a
-// content item's own `channel:` partitions its files out of the rest of its
-// collection, and a profile outside its validity window governs nothing.
-// Paths outside the project root, and paths no content pattern claims, sit at
-// the project's default point.
-//
-// Grouping is by what the point *resolves to*, not by the reference that
-// selected it: every file resolving to the same profile, voice, terms and
-// channel — two collections on one profile's channel, say — stays in one group
-// and shares one tool chain. When nothing declares a channel at all, the whole
-// input set is one group at the default point, which resolves the project-wide
-// bindings exactly as an ungrouped run always did.
+// each path (groupInputsByGovernance), then splits each group by the redaction
+// policy that governs its files (splitByRedaction), so a flow's redact step
+// redacts every file under that file's own policy.
 //
 // The error is an unresolvable channel reference; a recipe that loaded cleanly
 // cannot produce one.
 func (a *App) groupInputsByBinding(cmd Command, proj *project.KapiProject, projectDir string, inputPaths []string) ([]bindingGroup, error) {
+	groups, err := a.groupInputsByGovernance(cmd, proj, projectDir, inputPaths)
+	if err != nil {
+		return nil, err
+	}
+	return splitByRedaction(proj, projectDir, groups), nil
+}
+
+// splitByRedaction splits each group by the redaction policy that governs its
+// files, keeping the order of the files within each part. A group with no
+// files keeps the policy `defaults.redaction` declares.
+func splitByRedaction(proj *project.KapiProject, projectDir string, groups []bindingGroup) []bindingGroup {
+	if proj == nil {
+		return groups
+	}
+	var out []bindingGroup
+	for _, g := range groups {
+		if len(g.Inputs) == 0 {
+			g.Redaction = proj.RedactionForPath("")
+			out = append(out, g)
+			continue
+		}
+		index := map[string]int{}
+		for _, in := range g.Inputs {
+			resolved := proj.RedactionForPath(redactionPath(projectDir, in))
+			i, seen := index[resolved.At]
+			if !seen {
+				i = len(out)
+				index[resolved.At] = i
+				out = append(out, bindingGroup{Point: g.Point, Redaction: resolved})
+			}
+			out[i].Inputs = append(out[i].Inputs, in)
+		}
+	}
+	return out
+}
+
+// groupInputsByGovernance partitions inputPaths by the governance that
+// applies to each path, resolved per file through
+// project.ResolveGovernanceFor. A content item's own `channel:` partitions its
+// files out of the rest of its collection, and a profile outside its validity
+// window governs nothing. Paths outside the project root, and paths no content
+// pattern claims, sit at the project's default point.
+//
+// Grouping is by what the point *resolves to*, not by the reference that
+// selected it. Every file resolving to the same profile, voice, terms and
+// channel (two collections on one profile's channel, say) stays in one group
+// and shares one tool chain. When nothing declares a channel at all, the whole
+// input set is one group at the default point, which resolves the project-wide
+// bindings.
+func (a *App) groupInputsByGovernance(cmd Command, proj *project.KapiProject, projectDir string, inputPaths []string) ([]bindingGroup, error) {
 	whole := []bindingGroup{{Inputs: inputPaths}}
 	if proj == nil || projectDir == "" || len(inputPaths) == 0 || !hasCollectionContext(proj) {
 		return whole, nil

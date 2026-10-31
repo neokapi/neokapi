@@ -226,10 +226,10 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 	// Standing project context + bindings for the run's tool assembly and
 	// output-path resolution; restored on exit so an embedding App can be
 	// reused.
-	savedPctx, savedBindings := a.ProjectContext, a.ProjectBindings
+	savedPctx, savedBindings, savedRedaction := a.ProjectContext, a.ProjectBindings, a.flowRedaction
 	savedSource, savedTarget := a.SourceLang, a.TargetLang
 	defer func() {
-		a.ProjectContext, a.ProjectBindings = savedPctx, savedBindings
+		a.ProjectContext, a.ProjectBindings, a.flowRedaction = savedPctx, savedBindings, savedRedaction
 		a.SourceLang, a.TargetLang = savedSource, savedTarget
 	}()
 	a.ProjectContext = pctx
@@ -384,6 +384,7 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 			}
 			a.ProjectBindings = b
 		}
+		a.flowRedaction = &group.Redaction
 		rCtx := flow.ResourceContext{ProjectDir: pctx.ProjectDir, SourceLocale: source, TargetLocale: lang}
 		tools, cleanup, err := a.buildProjectFlowTools(cmd, opts.FlowName, spec, &rCtx, onProgress)
 		if err != nil {
