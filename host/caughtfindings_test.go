@@ -1,0 +1,200 @@
+package host
+
+import (
+	"fmt"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/neokapi/neokapi/core/contextop"
+	"github.com/neokapi/neokapi/core/workspace"
+)
+
+// caughtMarks applies CaughtFindings the way SessionOutcomesOf pairs runs and
+// returns the marks by record id: each run that reached a verdict, compared
+// with the next such run of its session in its project.
+func caughtMarks(records []contextop.Record) map[string][]bool {
+	out := map[string][]bool{}
+	for _, seq := range checkSequences(records) {
+		prev := -1
+		for i, r := range seq {
+			if !r.Check.Reached() {
+				continue
+			}
+			if prev >= 0 {
+				out[seq[prev].ID] = CaughtFindings(*seq[prev].Check, *r.Check)
+			}
+			prev = i
+		}
+	}
+	return out
+}
+
+// TestCaughtFindings_MarksAddUpToTheSessionsCount: each case is one session's
+// check records, the findings CaughtFindings marks caught on each run, and
+// the session's outcomes. The marks add up to SessionOutcomesOf's caught
+// count in every case, so a surface that lists caught findings and one that
+// counts them agree.
+func TestCaughtFindings_MarksAddUpToTheSessionsCount(t *testing.T) {
+	at := time.Date(2026, 10, 1, 9, 0, 0, 0, time.UTC)
+	logIn := contextop.CheckFinding{File: "docs/guide.md", Rule: "terms.vocabulary", Quote: "Log in", Block: "p#2"}
+	moved := logIn
+	moved.Block = "p#5"
+	inOther := logIn
+	inOther.File = "docs/other.md"
+	missing := contextop.CheckFinding{File: "locales/fr/app.json", Rule: "completeness", Message: "greeting has no translation"}
+	otherMissing := missing
+	otherMissing.Message = "farewell has no translation"
+
+	failed := func(findings ...contextop.CheckFinding) contextop.CheckRun {
+		return contextop.CheckRun{Verdict: "failed", Failing: len(findings), Findings: findings}
+	}
+	clean := contextop.CheckRun{Verdict: "passed", Clean: true}
+	rec := func(id string, project workspace.ProjectKey, minute int, run contextop.CheckRun) contextop.Record {
+		return contextop.Record{
+			ID:      id,
+			Project: project,
+			Kind:    contextop.KindCheck,
+			At:      at.Add(time.Duration(minute) * time.Minute),
+			Actor:   contextop.Actor{Kind: contextop.ActorAgent, Name: "claude-code", Session: "s1"},
+			Check:   &run,
+		}
+	}
+
+	var many []contextop.CheckFinding
+	for i := range 30 {
+		many = append(many, contextop.CheckFinding{File: "docs/guide.md", Rule: "terms.vocabulary", Quote: fmt.Sprintf("word %02d", i)})
+	}
+	allCaught := make([]bool, len(many))
+	for i := range allCaught {
+		allCaught[i] = true
+	}
+	cut := failed()
+	cut.Failing = 3
+
+	cases := []struct {
+		name    string
+		records []contextop.Record
+		marks   map[string][]bool
+		caught  int
+		failing int
+	}{
+		{
+			name:    "a finding that moved to another block of the same file is still there",
+			records: []contextop.Record{rec("1", "p", 0, failed(logIn)), rec("2", "p", 1, failed(moved))},
+			marks:   map[string][]bool{"1": {false}},
+			failing: 1,
+		},
+		{
+			name: "a run that reached no verdict between two that did compares nothing",
+			records: []contextop.Record{
+				rec("1", "p", 0, failed(logIn)),
+				rec("2", "p", 1, contextop.CheckRun{Verdict: "did_not_run"}),
+				rec("3", "p", 2, failed(logIn)),
+			},
+			marks:   map[string][]bool{"1": {false}},
+			failing: 1,
+		},
+		{
+			name:    "the same rule and quote in two files with one fixed",
+			records: []contextop.Record{rec("1", "p", 0, failed(logIn, inOther)), rec("2", "p", 1, failed(inOther))},
+			marks:   map[string][]bool{"1": {true, false}},
+			caught:  1,
+			failing: 1,
+		},
+		{
+			name: "reported, absent and back again is caught once",
+			records: []contextop.Record{
+				rec("1", "p", 0, failed(logIn)),
+				rec("2", "p", 1, clean),
+				rec("3", "p", 2, failed(logIn)),
+			},
+			marks:   map[string][]bool{"1": {true}, "2": {}},
+			caught:  1,
+			failing: 1,
+		},
+		{
+			name:    "one wording twice in a file and fixed once is caught once",
+			records: []contextop.Record{rec("1", "p", 0, failed(logIn, moved)), rec("2", "p", 1, failed(moved))},
+			marks:   map[string][]bool{"1": {false, true}},
+			caught:  1,
+			failing: 1,
+		},
+		{
+			name:    "a next run that lists fewer findings than it counted catches nothing",
+			records: []contextop.Record{rec("1", "p", 0, failed(logIn)), rec("2", "p", 1, cut)},
+			marks:   map[string][]bool{"1": {false}},
+			failing: 3,
+		},
+		{
+			name: "a finding with no quote is the same finding by its message",
+			records: []contextop.Record{
+				rec("1", "p", 0, failed(missing, otherMissing)),
+				rec("2", "p", 1, failed(missing)),
+			},
+			marks:   map[string][]bool{"1": {false, true}},
+			caught:  1,
+			failing: 1,
+		},
+		{
+			name: "two projects in one session compare within their project, in any record order",
+			records: []contextop.Record{
+				rec("4", "q", 3, failed(logIn)),
+				rec("1", "p", 0, failed(logIn)),
+				rec("3", "p", 2, clean),
+				rec("2", "q", 1, failed(logIn)),
+			},
+			marks:   map[string][]bool{"1": {true}, "2": {false}},
+			caught:  1,
+			failing: 1,
+		},
+		{
+			name: "runs with one timestamp compare in the order of their ids",
+			records: []contextop.Record{
+				rec("op-2", "p", 0, clean),
+				rec("op-1", "p", 0, failed(logIn)),
+			},
+			marks:  map[string][]bool{"op-1": {true}},
+			caught: 1,
+		},
+		{
+			name:    "every caught finding counts, however many a surface lists",
+			records: []contextop.Record{rec("1", "p", 0, failed(many...)), rec("2", "p", 1, clean)},
+			marks:   map[string][]bool{"1": allCaught},
+			caught:  len(many),
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			marks := caughtMarks(tc.records)
+			assert.Equal(t, tc.marks, marks)
+			sum := 0
+			for _, m := range marks {
+				for _, c := range m {
+					if c {
+						sum++
+					}
+				}
+			}
+			got := SessionOutcomesOf(tc.records)["s1"]
+			assert.Equal(t, tc.caught, got.Caught)
+			assert.Equal(t, sum, got.Caught, "the marks add up to the session's count")
+			assert.Equal(t, tc.failing, got.Failing)
+			assert.Equal(t, len(tc.records), got.Checked)
+		})
+	}
+}
+
+// TestCaughtFindings_OneMarkPerFindingOfTheEarlierRun: the result has one
+// entry per finding of the earlier run, whatever the later run held.
+func TestCaughtFindings_OneMarkPerFindingOfTheEarlierRun(t *testing.T) {
+	logIn := contextop.CheckFinding{File: "docs/guide.md", Rule: "terms.vocabulary", Quote: "Log in"}
+	prev := contextop.CheckRun{Verdict: "failed", Failing: 2, Findings: []contextop.CheckFinding{logIn, logIn}}
+	clean := contextop.CheckRun{Verdict: "passed", Clean: true}
+	cut := contextop.CheckRun{Verdict: "failed", Failing: 1}
+
+	assert.Equal(t, []bool{true, true}, CaughtFindings(prev, clean))
+	assert.Equal(t, []bool{false, false}, CaughtFindings(prev, cut), "an incomplete run catches none of them")
+	assert.Equal(t, []bool{}, CaughtFindings(clean, cut), "a run with no findings has no marks")
+}
