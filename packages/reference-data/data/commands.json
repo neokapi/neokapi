@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-31T00:26:24Z",
+  "generatedAt": "2026-10-31T01:45:11Z",
   "commands": [
     {
       "id": "add",
@@ -2977,12 +2977,6 @@
           "type": "bool"
         },
         {
-          "name": "check-terminology",
-          "usage": "Enable terminology checks",
-          "default": "false",
-          "type": "bool"
-        },
-        {
           "name": "check-trailing-whitespace",
           "usage": "Check for trailing whitespace mismatches between source and target",
           "default": "true",
@@ -3217,7 +3211,7 @@
       ],
       "examples": [
         "kapi exec qa app.xliff --target-lang fr",
-        "kapi exec qa app.xliff --target-lang fr --provider anthropic",
+        "kapi exec qa app.xliff --target-lang fr --mode ai --provider anthropic",
         "kapi exec qa app.xliff --target-lang de --json"
       ],
       "offlineCapable": false,

@@ -98,7 +98,7 @@ kapi exec term-check i18n/ --target-lang fr --termstore terms/fr.db   # terminol
 - **Length bounds**: flag targets that grow or shrink beyond configurable percentages of the source (useful for fixed-width UI containers).
 - **Consistency**: double spaces, doubled words, leading/trailing whitespace, target-identical-to-source, and more (each individually toggleable).
 
-`term-check` flags targets that diverge from an approved term, for example a product name that must stay untranslated. (`kapi exec qa --check-terminology` folds the project terms store into the check pass instead of running a separate command.)
+`term-check` flags targets that diverge from an approved term, for example a product name that must stay untranslated.
 
 `kapi exec` reports what a check finds and exits 0 whatever it finds, so a run never fails a build on its own. The command that fails one is `kapi check`, which exits 3 while a finding fails; see [Ship gates and CI](/kapi/recipes/ship-gates-and-ci).
 

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-31T01:27:43Z",
+  "generatedAt": "2026-10-31T01:45:11Z",
   "kind": "tool",
   "entries": [
     {
@@ -2154,17 +2154,6 @@
             }
           },
           {
-            "id": "rules",
-            "label": "Deterministic rules",
-            "fields": [
-              "checkTerminology"
-            ],
-            "ui:visible": {
-              "field": "mode",
-              "eq": "rules"
-            }
-          },
-          {
             "id": "ai:provider",
             "label": "Provider",
             "fields": [
@@ -2308,12 +2297,6 @@
             "title": "Warn on Target Same as Source",
             "description": "Check when target text is identical to source text",
             "default": true
-          },
-          "checkTerminology": {
-            "type": "boolean",
-            "title": "Verify Terminology",
-            "description": "Enable terminology checks",
-            "default": false
           },
           "checkTrailingWhitespace": {
             "type": "boolean",
@@ -2601,11 +2584,6 @@
             "description": "Report a target identical to its source.",
             "help": "Reports a finding when the target equals the source and contains at least\none letter or digit. Number-only blocks are governed by\n`targetSameAsSourceWithNumbers`.\n",
             "values": "`true` / `false` (default `true`)"
-          },
-          "checkTerminology": {
-            "description": "Reserved; the rule checks read no terms.",
-            "help": "The rule checks ignore this setting. To check translations against the\nterms store, run the `term-check` tool.\n",
-            "values": "`true` / `false` (default `false`)"
           },
           "checkTrailingWhitespace": {
             "description": "Check for trailing-whitespace mismatches between source and target.",

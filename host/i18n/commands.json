@@ -1355,7 +1355,7 @@
             "short": "Pseudo Translate"
           },
           "qa": {
-            "example": "  kapi exec qa app.xliff --target-lang fr\n  kapi exec qa app.xliff --target-lang fr --provider anthropic\n  kapi exec qa app.xliff --target-lang de --json",
+            "example": "  kapi exec qa app.xliff --target-lang fr\n  kapi exec qa app.xliff --target-lang fr --mode ai --provider anthropic\n  kapi exec qa app.xliff --target-lang de --json",
             "flags": {
               "absolute-max-char-length": {
                 "usage": "Maximum number of characters allowed in any target segment"
@@ -1416,9 +1416,6 @@
               },
               "check-target-same-as-source": {
                 "usage": "Check when target text is identical to source text"
-              },
-              "check-terminology": {
-                "usage": "Enable terminology checks"
               },
               "check-trailing-whitespace": {
                 "usage": "Check for trailing whitespace mismatches between source and target"

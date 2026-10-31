@@ -124,12 +124,6 @@ parameters:
     dependsOn:
       - property: checkDoubledWord
         condition: only consulted when the doubled-word check is enabled
-  checkTerminology:
-    description: Reserved; the rule checks read no terms.
-    help: |
-      The rule checks ignore this setting. To check translations against the
-      terms store, run the `term-check` tool.
-    values: "`true` / `false` (default `false`)"
   checkSpanConstraints:
     description: Check non-deletable and non-cloneable span constraint violations.
     help: |

@@ -424,10 +424,6 @@
           "title": "Warn on Target Same as Source",
           "description": "Check when target text is identical to source text"
         },
-        "checkTerminology": {
-          "title": "Verify Terminology",
-          "description": "Enable terminology checks"
-        },
         "checkTrailingWhitespace": {
           "title": "Check Trailing Whitespace",
           "description": "Check for trailing whitespace mismatches between source and target"
@@ -549,9 +545,6 @@
         },
         "qa": {
           "label": "Quality check"
-        },
-        "rules": {
-          "label": "Deterministic rules"
         },
         "rules:characters": {
           "label": "Characters"

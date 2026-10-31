@@ -85,7 +85,7 @@ func AiProgressWriter(w *os.File) func(aiprovider.ProgressEvent) {
 var ToolExamples = map[string]string{
 	// ── Quality ─────────────────────────────────────────────────────────
 	"qa": `  kapi exec qa app.xliff --target-lang fr
-  kapi exec qa app.xliff --target-lang fr --provider anthropic
+  kapi exec qa app.xliff --target-lang fr --mode ai --provider anthropic
   kapi exec qa app.xliff --target-lang de --json`,
 	"term-check": `  kapi exec term-check app.xliff --source-lang en --target-lang fr
   kapi exec term-check messages.json --source-lang en --target-lang fr`,
