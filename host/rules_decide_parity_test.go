@@ -18,7 +18,7 @@ import (
 
 // The Decide parity fixture: one project, one ledger state, and the view
 // Decide shows for them. bowrain/server's Decide test stores the same blocks
-// at the same points, pushes the same log, and holds the server's view to
+// at the same points and pushes the same log. It holds the server's view to
 // the same file, so the desktop and the server answer one ledger state with
 // one JSON document.
 //
