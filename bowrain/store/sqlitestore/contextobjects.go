@@ -118,4 +118,59 @@ func (s *SQLiteStore) PutContextObjects(ctx context.Context, projectID, pushedBy
 	return nil
 }
 
+// DigestContextObjects implements platstore.ContextObjectStore.
+func (s *SQLiteStore) DigestContextObjects(ctx context.Context, projectID, dir string) (map[string]string, error) {
+	if err := storeutil.CheckContextDir(dir); err != nil {
+		return nil, err
+	}
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT name, sha256 FROM context_objects WHERE project_id = ? AND substr(name, 1, ?) = ?`,
+		projectID, len(dir), dir)
+	if err != nil {
+		return nil, fmt.Errorf("digest context objects under %s: %w", dir, err)
+	}
+	defer rows.Close()
+	out := map[string]string{}
+	for rows.Next() {
+		var name, digest string
+		if err := rows.Scan(&name, &digest); err != nil {
+			return nil, fmt.Errorf("digest context objects under %s: %w", dir, err)
+		}
+		if strings.HasPrefix(name, dir) {
+			out[name] = digest
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("digest context objects under %s: %w", dir, err)
+	}
+	return out, nil
+}
+
+// ContextKey implements platstore.ContextObjectStore.
+func (s *SQLiteStore) ContextKey(ctx context.Context, projectID string) (string, error) {
+	var key string
+	err := s.db.QueryRowContext(ctx, `SELECT context_key FROM projects WHERE id = ?`, projectID).Scan(&key)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", fmt.Errorf("%w: %s", platstore.ErrNoContextProject, projectID)
+	}
+	if err != nil {
+		return "", fmt.Errorf("read the context key of project %s: %w", projectID, err)
+	}
+	return key, nil
+}
+
+// BindContextKey implements platstore.ContextObjectStore. The update binds
+// only an unbound project, so of two first pushes naming different keys the
+// one that writes first binds and the other reads its key back.
+func (s *SQLiteStore) BindContextKey(ctx context.Context, projectID, key string) (string, error) {
+	if key == "" {
+		return "", errors.New("bind a context key: the key is empty")
+	}
+	if _, err := s.db.ExecContext(ctx,
+		`UPDATE projects SET context_key = ? WHERE id = ? AND context_key = ''`, key, projectID); err != nil {
+		return "", fmt.Errorf("bind the context key of project %s: %w", projectID, err)
+	}
+	return s.ContextKey(ctx, projectID)
+}
+
 var _ platstore.ContextObjectStore = (*SQLiteStore)(nil)

@@ -1150,6 +1150,20 @@ var storeMigrations = []storage.Migration{
 			})
 		},
 	},
+	{
+		Version:     40,
+		Description: "a project's context key; term candidates leave the review queue",
+		SQL: `
+			-- Mirrors bowrain/store/migrations.go version 46. context_key is
+			-- the project key the project's context objects carry, bound by
+			-- the first push that names one and empty before it; Apply adds it.
+			DELETE FROM review_items WHERE type = 'term_candidate';
+			DROP TABLE IF EXISTS rejected_terms;
+		`,
+		Apply: func(ctx context.Context, tx *sql.Tx) error {
+			return addMissingColumns(ctx, tx, "projects", []string{"context_key TEXT NOT NULL DEFAULT ''"})
+		},
+	},
 }
 
 // addMissingColumns adds each column definition to table unless the table

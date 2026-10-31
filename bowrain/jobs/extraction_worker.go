@@ -81,14 +81,13 @@ func (d *ExtractionWorkerDeps) drainGrace() time.Duration {
 // This is implemented by the review queue store.
 type ReviewQueueCreator interface {
 	CreateReviewItem(ctx context.Context, item *ReviewQueueItem) error
-	IsTermRejected(ctx context.Context, projectID, text, locale string) (bool, error)
 }
 
 // ReviewQueueItem is a lightweight struct for creating review items from the worker.
 // It maps to bstore.ReviewItem but avoids importing the bowrain/store package.
 type ReviewQueueItem struct {
 	ProjectID   string
-	Type        string // "term_candidate" or "entity_review"
+	Type        string // "entity_review"
 	PushID      string
 	Data        json.RawMessage
 	Occurrences json.RawMessage
@@ -400,7 +399,9 @@ func executeExtraction(ctx context.Context, deps *ExtractionWorkerDeps, job *Ext
 	return nil
 }
 
-// createReviewItemsFromParts extracts annotations from processed parts and creates review queue items.
+// createReviewItemsFromParts creates an entity review item for each entity the
+// processed parts carry. The term candidates the run found stay on the blocks
+// as overlay spans and file no review item.
 func createReviewItemsFromParts(ctx context.Context, deps *ExtractionWorkerDeps, job *ExtractionJob, parts []*model.Part, locale string) (int, error) {
 	if deps.ReviewQueueCreator == nil {
 		return 0, nil
@@ -415,47 +416,8 @@ func createReviewItemsFromParts(ctx context.Context, deps *ExtractionWorkerDeps,
 		if !ok {
 			continue
 		}
-		// Term-candidate and entity spans are anchored in the edition the
-		// block was read in.
+		// Entity spans are anchored in the edition the block was read in.
 		src, _ := block.Edition(model.EditionKey{})
-
-		// Term candidates (overlay spans).
-		if f := block.OverlayOf(model.OverlayTermCandidate); f != nil {
-			for _, span := range f.Spans {
-				a, ok := span.Value.(*model.TermCandidateAnnotation)
-				if !ok {
-					continue
-				}
-				// Skip rejected terms.
-				rejected, _ := deps.ReviewQueueCreator.IsTermRejected(ctx, job.ProjectID, a.Text, locale)
-				if rejected {
-					continue
-				}
-
-				data, _ := json.Marshal(a)
-				ps, pe := span.Range.ByteSpan(src.Runs)
-				occ, _ := json.Marshal([]map[string]any{{
-					"block_id": block.ID,
-					"start":    ps,
-					"end":      pe,
-					"context":  block.SourceText(),
-				}})
-
-				if err := deps.ReviewQueueCreator.CreateReviewItem(ctx, &ReviewQueueItem{
-					ProjectID:   job.ProjectID,
-					Type:        "term_candidate",
-					PushID:      job.PushID,
-					Data:        data,
-					Occurrences: occ,
-					Confidence:  a.Confidence,
-					Locale:      locale,
-				}); err != nil {
-					slog.Info("warning: create term candidate review item", "error", err)
-					continue
-				}
-				created++
-			}
-		}
 
 		// Entities (overlay spans).
 		if f := block.OverlayOf(model.OverlayEntity); f != nil {

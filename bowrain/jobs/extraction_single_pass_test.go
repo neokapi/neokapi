@@ -141,10 +141,6 @@ func (q *recordingReviewQueue) CreateReviewItem(_ context.Context, item *ReviewQ
 	return nil
 }
 
-func (q *recordingReviewQueue) IsTermRejected(context.Context, string, string, string) (bool, error) {
-	return false, nil
-}
-
 func (q *recordingReviewQueue) typed(kind string) []*ReviewQueueItem {
 	q.mu.Lock()
 	defer q.mu.Unlock()
@@ -273,11 +269,12 @@ func TestExtractionWorker_StoresOneSpanPerFinding(t *testing.T) {
 	}
 }
 
-// The review items an extraction creates: one per finding, from the chunk
-// loop's output.
-func TestExtractionWorker_CreatesOneReviewItemPerFinding(t *testing.T) {
+// The review items an extraction creates: one per entity, from the chunk
+// loop's output. A term candidate stays on its block and files none.
+func TestExtractionWorker_CreatesOneReviewItemPerEntity(t *testing.T) {
 	run := runExtraction(t, 60)
 
 	assert.Len(t, run.queue.typed("entity_review"), 60)
-	assert.Len(t, run.queue.typed("term_candidate"), 60)
+	assert.Empty(t, run.queue.typed("term_candidate"))
+	assert.Len(t, run.queue.items, 60, "the queue holds the entity reviews alone")
 }

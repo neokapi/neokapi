@@ -32,7 +32,3 @@ func (a *ReviewQueueStoreAdapter) CreateReviewItem(ctx context.Context, item *Re
 
 	return a.Store.CreateItem(ctx, ri)
 }
-
-func (a *ReviewQueueStoreAdapter) IsTermRejected(ctx context.Context, projectID, text, locale string) (bool, error) {
-	return a.Store.IsRejected(ctx, projectID, text, locale)
-}

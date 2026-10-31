@@ -41,7 +41,7 @@ func TestReviewQueueStore_CreateAndGet(t *testing.T) {
 
 	item := &ReviewItem{
 		ProjectID: proj.ID,
-		Type:      ReviewItemTermCandidate,
+		Type:      ReviewItemEntityReview,
 		Data:      json.RawMessage(`{"text":"Dashboard","definition":"Main screen"}`),
 		Occurrences: []Occurrence{
 			{BlockID: "b1", FilePath: "en.json", Start: 5, End: 14, Context: "The Dashboard shows..."},
@@ -60,7 +60,7 @@ func TestReviewQueueStore_CreateAndGet(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, item.ID, got.ID)
 	assert.Equal(t, proj.ID, got.ProjectID)
-	assert.Equal(t, ReviewItemTermCandidate, got.Type)
+	assert.Equal(t, ReviewItemEntityReview, got.Type)
 	assert.Equal(t, ReviewItemPending, got.Status)
 	assert.Equal(t, 0.88, got.Confidence)
 	assert.Equal(t, "en-US", got.Locale)
@@ -75,9 +75,9 @@ func TestReviewQueueStore_ListWithFilters(t *testing.T) {
 
 	// Create mixed items.
 	items := []ReviewItem{
-		{ProjectID: proj.ID, Type: ReviewItemTermCandidate, Data: json.RawMessage(`{"text":"Dashboard"}`), Confidence: 0.9, Locale: "en-US"},
+		{ProjectID: proj.ID, Type: ReviewItemEntityReview, Data: json.RawMessage(`{"text":"Dashboard"}`), Confidence: 0.9, Locale: "en-US"},
 		{ProjectID: proj.ID, Type: ReviewItemEntityReview, Data: json.RawMessage(`{"text":"John"}`), Confidence: 0.95, Locale: "en-US"},
-		{ProjectID: proj.ID, Type: ReviewItemTermCandidate, Data: json.RawMessage(`{"text":"Workflow"}`), Confidence: 0.3, Locale: "fr-FR"},
+		{ProjectID: proj.ID, Type: ReviewItemEntityReview, Data: json.RawMessage(`{"text":"Workflow"}`), Confidence: 0.3, Locale: "fr-FR"},
 	}
 	for i := range items {
 		require.NoError(t, rq.CreateItem(ctx, &items[i]))
@@ -92,9 +92,12 @@ func TestReviewQueueStore_ListWithFilters(t *testing.T) {
 	})
 
 	t.Run("filter by type", func(t *testing.T) {
-		result, err := rq.ListItems(ctx, ReviewQueueQuery{ProjectID: proj.ID, Type: ReviewItemTermCandidate})
+		result, err := rq.ListItems(ctx, ReviewQueueQuery{ProjectID: proj.ID, Type: ReviewItemEntityReview})
 		require.NoError(t, err)
-		assert.Equal(t, 2, result.Total)
+		assert.Equal(t, 3, result.Total)
+		result, err = rq.ListItems(ctx, ReviewQueueQuery{ProjectID: proj.ID, Type: "term_candidate"})
+		require.NoError(t, err)
+		assert.Zero(t, result.Total)
 	})
 
 	t.Run("filter by locale", func(t *testing.T) {
@@ -118,7 +121,7 @@ func TestReviewQueueStore_Decide(t *testing.T) {
 	ctx := t.Context()
 
 	item := &ReviewItem{
-		ProjectID: proj.ID, Type: ReviewItemTermCandidate,
+		ProjectID: proj.ID, Type: ReviewItemEntityReview,
 		Data: json.RawMessage(`{"text":"Dashboard"}`), Confidence: 0.9, Locale: "en-US",
 	}
 	require.NoError(t, rq.CreateItem(ctx, item))
@@ -182,7 +185,7 @@ func TestReviewQueueStore_Assign(t *testing.T) {
 	ctx := t.Context()
 
 	item := &ReviewItem{
-		ProjectID: proj.ID, Type: ReviewItemTermCandidate,
+		ProjectID: proj.ID, Type: ReviewItemEntityReview,
 		Data: json.RawMessage(`{"text":"API"}`), Confidence: 0.85, Locale: "en-US",
 	}
 	require.NoError(t, rq.CreateItem(ctx, item))
@@ -202,7 +205,7 @@ func TestReviewQueueStore_SplitItem(t *testing.T) {
 	ctx := t.Context()
 
 	item := &ReviewItem{
-		ProjectID: proj.ID, Type: ReviewItemTermCandidate,
+		ProjectID: proj.ID, Type: ReviewItemEntityReview,
 		Data: json.RawMessage(`{"text":"bank"}`),
 		Occurrences: []Occurrence{
 			{BlockID: "b1", Context: "river bank"},
@@ -232,7 +235,7 @@ func TestReviewQueueStore_SplitItem_InvalidSplit(t *testing.T) {
 	ctx := t.Context()
 
 	item := &ReviewItem{
-		ProjectID: proj.ID, Type: ReviewItemTermCandidate,
+		ProjectID: proj.ID, Type: ReviewItemEntityReview,
 		Data:        json.RawMessage(`{"text":"term"}`),
 		Occurrences: []Occurrence{{BlockID: "b1"}},
 		Confidence:  0.8, Locale: "en-US",
@@ -245,23 +248,38 @@ func TestReviewQueueStore_SplitItem_InvalidSplit(t *testing.T) {
 	assert.Contains(t, err.Error(), "both items")
 }
 
-func TestReviewQueueStore_RejectedTerms(t *testing.T) {
+// Version 45 takes the term candidates out of the review queue and drops the
+// list of rejected terms, and leaves the entity reviews where they are.
+func TestReviewQueueStore_TermCandidatesLeave(t *testing.T) {
 	rq, cs := newTestReviewStore(t)
 	proj := createReviewProject(t, cs)
 	ctx := t.Context()
 
-	rejected, err := rq.IsRejected(ctx, proj.ID, "Dashboard", "en-US")
+	entity := &ReviewItem{ProjectID: proj.ID, Type: ReviewItemEntityReview, Data: json.RawMessage(`{"text":"Acme"}`), Locale: "en-US"}
+	require.NoError(t, rq.CreateItem(ctx, entity))
+	candidate := &ReviewItem{ProjectID: proj.ID, Type: "term_candidate", Data: json.RawMessage(`{"text":"Dashboard"}`), Locale: "en-US"}
+	require.NoError(t, rq.CreateItem(ctx, candidate))
+	_, err := cs.db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS rejected_terms (project_id TEXT, term_text TEXT, locale TEXT)`)
 	require.NoError(t, err)
-	assert.False(t, rejected)
 
-	require.NoError(t, rq.AddRejectedTerm(ctx, proj.ID, "Dashboard", "en-US"))
+	var v45 string
+	for _, m := range Migrations {
+		if m.Version == 45 {
+			v45 = m.SQL
+		}
+	}
+	require.NotEmpty(t, v45)
+	_, err = cs.db.ExecContext(ctx, v45)
+	require.NoError(t, err, "the migration runs again on a database it already ran on")
 
-	rejected, err = rq.IsRejected(ctx, proj.ID, "Dashboard", "en-US")
+	result, err := rq.ListItems(ctx, ReviewQueueQuery{ProjectID: proj.ID})
 	require.NoError(t, err)
-	assert.True(t, rejected)
-
-	// Idempotent.
-	require.NoError(t, rq.AddRejectedTerm(ctx, proj.ID, "Dashboard", "en-US"))
+	require.Len(t, result.Items, 1)
+	assert.Equal(t, entity.ID, result.Items[0].ID)
+	var held int
+	require.NoError(t, cs.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = 'rejected_terms'`).Scan(&held))
+	assert.Zero(t, held)
 }
 
 func TestReviewQueueStore_DNTEntries(t *testing.T) {
