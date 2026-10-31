@@ -245,12 +245,11 @@ type ProjectItemResponse struct {
 // use as a fallback when targets[locale].status is empty.
 type BlockInfoResponse struct {
 	ID string `json:"id"`
-	// SourceID is the id the format reader gave this block inside its item —
-	// the id the document itself carries. The store mints its own id on
-	// ingest, so a surface holding a block and a surface holding the
-	// document are naming the same content two different ways, and anything
-	// addressed across that boundary has to translate. Empty for a block
-	// stored without an item, where there is no document to disagree with.
+	// SourceID is the block's durable key inside its item
+	// (convergence.BlockKey), the key each <kat-block> marker in the item's
+	// preview carries (editor.BuildPreview). ID is the row id the store
+	// mints, so a surface addressing the preview names the block by SourceID.
+	// Empty for a block stored without an item.
 	SourceID string `json:"source_id,omitempty"`
 	// Name is the name the format reader gave this block, which for a catalog
 	// format is the unit's key path: "errors.network.timeout" for JSON and
