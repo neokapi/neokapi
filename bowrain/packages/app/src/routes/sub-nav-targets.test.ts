@@ -1,7 +1,7 @@
-import { subNavConfig } from "@neokapi/ui";
+import { projectSubNavConfig, subNavConfig, type ProjectInfo } from "@neokapi/ui";
 import { describe, expect, it } from "vite-plus/test";
 
-import { subNavTarget, subNavTargets } from "./sub-nav-targets";
+import { projectSectionTargets, subNavTarget, subNavTargets } from "./sub-nav-targets";
 
 // A sidebar item that renders and goes nowhere is invisible to every other kind
 // of test: it has a label, an icon and a hover state, and only the click is
@@ -37,5 +37,42 @@ describe("sub-nav destinations", () => {
 
   it("returns undefined for an unknown id rather than a bare path", () => {
     expect(subNavTarget("not-a-section")).toBeUndefined();
+  });
+});
+
+// The same invariant for a project's own sections: every one the panel lists
+// navigates somewhere, in the order the panel lists them, Map first.
+describe("project section destinations", () => {
+  const noop = () => {};
+  const listed = projectSubNavConfig({
+    level: "project",
+    project: { id: "p1", name: "Fernwell" } as ProjectInfo,
+    activeStream: "main",
+    activeProjectView: "map",
+    onOpenMap: noop,
+    onOpenDashboard: noop,
+    onOpenRules: noop,
+    onOpenSource: noop,
+    onOpenFile: noop,
+    onStreamChange: noop,
+    onOpenAutomations: noop,
+    onOpenRuns: noop,
+    onOpenConnectors: noop,
+  }).map((item) => item.id);
+
+  it("projectSectionTargetsAreComplete: one per listed section, in the panel's order", () => {
+    expect(listed).toEqual(Object.keys(projectSectionTargets));
+  });
+
+  it("opens on the Map, with Overview one entry down", () => {
+    expect(listed.slice(0, 3)).toEqual(["map", "dashboard", "rules"]);
+  });
+
+  it("routes every destination through the project and stream params", () => {
+    for (const [id, to] of Object.entries(projectSectionTargets)) {
+      expect(to, `${id} must be stream-scoped`).toMatch(
+        /^\/\$workspace\/p\/\$projectId\/s\/\$stream(\/|$)/,
+      );
+    }
   });
 });

@@ -250,3 +250,40 @@ describe("route tree", () => {
     expect(childPaths).toContain("providers");
   });
 });
+
+describe("the project screens' routes", () => {
+  const router = () => createBowrainRouter({ queryClient: undefined!, api: undefined! });
+  const leaf = (href: string, search?: Record<string, unknown>) => {
+    const matches = router().matchRoutes(href, search);
+    return matches[matches.length - 1] as AnyRoute;
+  };
+
+  it("draws the Map at /map", () => {
+    expect(leaf("/acme/p/proj-1/s/main/map").routeId).toBe(
+      "/$workspace/p/$projectId/s/$stream/map",
+    );
+  });
+
+  it("opens the Reader on an item whose path keeps its slashes, at the block it names", () => {
+    const href = router().buildLocation({
+      to: "/$workspace/p/$projectId/s/$stream/read/$",
+      params: { workspace: "acme", projectId: "proj-1", stream: "main", _splat: "docs/a b.md" },
+      search: { block: "p2" },
+    }).href;
+    expect(href).toBe("/acme/p/proj-1/s/main/read/docs/a%20b.md?block=p2");
+    const route = leaf("/acme/p/proj-1/s/main/read/docs/a%20b.md", { block: "p2" });
+    expect(route.routeId).toBe("/$workspace/p/$projectId/s/$stream/read/$");
+    expect(route.params._splat).toBe("docs/a b.md");
+    expect(route.search.block).toBe("p2");
+  });
+
+  it("opens Rules on the question ?row= names", () => {
+    const route = leaf("/acme/p/proj-1/s/main/rules", { row: "suggested:s-1" });
+    expect(route.routeId).toBe("/$workspace/p/$projectId/s/$stream/rules");
+    expect(route.search.row).toBe("suggested:s-1");
+  });
+
+  it("keeps the Overview at the stream root", () => {
+    expect(leaf("/acme/p/proj-1/s/main").routeId).toBe("/$workspace/p/$projectId/s/$stream");
+  });
+});

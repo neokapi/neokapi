@@ -515,6 +515,39 @@ const translationDashboardRedirectRoute = createRoute({
   },
 });
 
+// The Map, the Reader and Rules: the project screens over the server's
+// routes. The Map is a project's landing page: the projects list and the trail
+// open it. The Reader's splat is the item's path, as the Map's file rows and
+// the Rules' evidence name it, and `?block=` names the block it opens at;
+// `?row=` names the question Rules opens on.
+const projectMapRoute = createRoute({
+  getParentRoute: () => workspaceRoute,
+  path: "p/$projectId/s/$stream/map",
+  pendingComponent: DashboardSkeleton,
+  component: lazyRouteComponent(() => import("./workspace/project-map"), "ProjectMapRoute"),
+});
+
+const projectReaderRoute = createRoute({
+  getParentRoute: () => workspaceRoute,
+  path: "p/$projectId/s/$stream/read/$",
+  params: requireSplat,
+  pendingComponent: DashboardSkeleton,
+  component: lazyRouteComponent(() => import("./workspace/project-reader"), "ProjectReaderRoute"),
+  validateSearch: (search: Record<string, unknown>): { block?: string } => ({
+    block: typeof search.block === "string" && search.block !== "" ? search.block : undefined,
+  }),
+});
+
+const projectRulesRoute = createRoute({
+  getParentRoute: () => workspaceRoute,
+  path: "p/$projectId/s/$stream/rules",
+  pendingComponent: DashboardSkeleton,
+  component: lazyRouteComponent(() => import("./workspace/project-rules"), "ProjectRulesRoute"),
+  validateSearch: (search: Record<string, unknown>): { row?: string } => ({
+    row: typeof search.row === "string" && search.row !== "" ? search.row : undefined,
+  }),
+});
+
 // The project's source content: its collections, the files inside them, its
 // streams, and the project-level actions (members, archive, settings). Reached
 // from the sidebar beside the overview.
@@ -1078,6 +1111,9 @@ const routeTree = rootRoute.addChildren([
     dashboardRoute,
     projectRoute,
     translationDashboardRedirectRoute,
+    projectMapRoute,
+    projectReaderRoute,
+    projectRulesRoute,
     projectSourceRoute,
     projectSettingsRoute,
     translateRoute,

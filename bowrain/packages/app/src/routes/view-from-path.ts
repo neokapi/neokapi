@@ -20,3 +20,41 @@ export function viewFromPath(pathname: string, workspace: string): WorkspaceView
   if (after.startsWith("/settings")) return "settings";
   return "translate";
 }
+
+/** A project's sections, by the id the secondary panel gives each. */
+export type ProjectSection =
+  | "map"
+  | "dashboard"
+  | "rules"
+  | "source"
+  | "automations"
+  | "runs"
+  | "connectors";
+
+/**
+ * The project section a URL is on, or undefined outside a project. The Reader
+ * is reached from the Map, so it lights the Map; a per-file editor lights the
+ * Overview.
+ */
+export function projectViewFromPath(
+  pathname: string,
+  workspace: string,
+): ProjectSection | undefined {
+  const prefix = `/${workspace}/p/`;
+  if (!pathname.startsWith(prefix)) return undefined;
+  const parts = pathname.slice(prefix.length).split("/");
+  if (parts.length < 3 || parts[1] !== "s") return undefined;
+  switch (parts[3]) {
+    case "map":
+    case "read":
+      return "map";
+    case "rules":
+    case "source":
+    case "automations":
+    case "runs":
+    case "connectors":
+      return parts[3];
+    default:
+      return "dashboard";
+  }
+}
