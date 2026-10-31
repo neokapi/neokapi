@@ -526,7 +526,7 @@ func address(r Record) string {
 	var parts []string
 	switch r.Kind {
 	case KindEstablish:
-		parts = append([]string{string(r.Kind), r.Target}, r.Because...)
+		return EstablishAddress(r.Target, r.Because)
 	case KindCheck:
 		if r.Check == nil || r.Check.Turn == "" {
 			return ""
@@ -542,8 +542,23 @@ func address(r Record) string {
 	default:
 		return ""
 	}
+	return addressOf(r.Kind, parts)
+}
+
+// addressOf renders the content address of an operation of kind whose
+// meaning is parts.
+func addressOf(kind Kind, parts []string) string {
 	sum := sha256.Sum256([]byte(strings.Join(parts, "\x00")))
-	return OpKindPrefix + string(r.Kind) + ":" + hex.EncodeToString(sum[:16])
+	return OpKindPrefix + string(kind) + ":" + hex.EncodeToString(sum[:16])
+}
+
+// EstablishAddress is the content address an establish operation carries
+// (workspace.Op.Address): the suggestion it establishes and the operations it
+// rested on, in the order the operation names them. A reader that holds those
+// operations can tell an establishment that follows from them from one that
+// does not.
+func EstablishAddress(target string, because []string) string {
+	return addressOf(KindEstablish, append([]string{string(KindEstablish), target}, because...))
 }
 
 // SettleActor is the actor settling records under: a tool acting on evidence

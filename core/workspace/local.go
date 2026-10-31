@@ -647,5 +647,24 @@ var keyEncoding = base32.StdEncoding.WithPadding(base32.NoPadding)
 // second store. Giving the recipe an `id:` is what joins them.
 func KeyForCheckout(normalizedRoot string) ProjectKey {
 	sum := sha256.Sum256([]byte(filepath.ToSlash(normalizedRoot)))
-	return ProjectKey("at_" + strings.ToLower(keyEncoding.EncodeToString(sum[:10])))
+	return ProjectKey(checkoutKeyPrefix + strings.ToLower(keyEncoding.EncodeToString(sum[:10])))
+}
+
+// checkoutKeyPrefix starts every key KeyForCheckout derives.
+const checkoutKeyPrefix = "at_"
+
+// IsCheckoutKey reports whether key has the shape KeyForCheckout gives a key:
+// the key of a project whose recipe states neither an `id:` nor a `name:`,
+// and whose context belongs to the one checkout it was found in.
+func IsCheckoutKey(key ProjectKey) bool {
+	digest, ok := strings.CutPrefix(string(key), checkoutKeyPrefix)
+	if !ok || len(digest) != 16 {
+		return false
+	}
+	for _, r := range digest {
+		if (r < 'a' || r > 'z') && (r < '2' || r > '7') {
+			return false
+		}
+	}
+	return true
 }

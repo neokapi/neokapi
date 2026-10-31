@@ -12,12 +12,12 @@ import (
 	"github.com/neokapi/neokapi/core/id"
 )
 
-// ReviewItemType classifies review queue items.
+// ReviewItemType classifies review queue items. The queue holds entity
+// reviews; name suggestions are kept in the project's context ledger.
 type ReviewItemType string
 
 const (
-	ReviewItemTermCandidate ReviewItemType = "term_candidate"
-	ReviewItemEntityReview  ReviewItemType = "entity_review"
+	ReviewItemEntityReview ReviewItemType = "entity_review"
 )
 
 // ReviewItemStatus tracks review lifecycle.
@@ -47,7 +47,7 @@ type ReviewItem struct {
 	Type        ReviewItemType   `json:"type"`
 	Status      ReviewItemStatus `json:"status"`
 	PushID      string           `json:"push_id,omitempty"`
-	Data        json.RawMessage  `json:"data"` // TermCandidateAnnotation or EntityAnnotation JSON
+	Data        json.RawMessage  `json:"data"` // EntityAnnotation JSON
 	Occurrences []Occurrence     `json:"occurrences"`
 	AssignedTo  string           `json:"assigned_to,omitempty"`
 	DecidedBy   string           `json:"decided_by,omitempty"`
@@ -382,23 +382,6 @@ func (s *ReviewQueueStore) SplitItem(ctx context.Context, itemID string, occurre
 		return nil, err
 	}
 	return newItem, nil
-}
-
-// AddRejectedTerm records a rejected term to prevent re-proposal.
-func (s *ReviewQueueStore) AddRejectedTerm(ctx context.Context, projectID, termText, locale string) error {
-	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO rejected_terms (project_id, term_text, locale) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
-		projectID, termText, locale)
-	return err
-}
-
-// IsRejected checks if a term was previously rejected.
-func (s *ReviewQueueStore) IsRejected(ctx context.Context, projectID, termText, locale string) (bool, error) {
-	var count int
-	err := s.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM rejected_terms WHERE project_id = $1 AND term_text = $2 AND locale = $3`,
-		projectID, termText, locale).Scan(&count)
-	return count > 0, err
 }
 
 // AddDNTEntry adds an entry to the do-not-translate list.

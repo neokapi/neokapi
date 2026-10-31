@@ -3,6 +3,7 @@ package sqlitestore
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -98,4 +99,87 @@ func TestContextObjects_Capability(t *testing.T) {
 	got, ok := platstore.ContextObjects(s)
 	require.True(t, ok)
 	assert.Same(t, s, got.(*SQLiteStore))
+}
+
+// A project's context binds to the first key named and keeps it; the digests
+// list each object under a directory with the digest of its bytes.
+func TestContextObjects_KeyAndDigests(t *testing.T) {
+	s := newTestStore(t)
+	ctx := t.Context()
+	p := createTestProject(t, s)
+	other := createTestProject(t, s)
+
+	key, err := s.ContextKey(ctx, p.ID)
+	require.NoError(t, err)
+	assert.Empty(t, key, "no push has bound a key yet")
+	held, err := s.BindContextKey(ctx, p.ID, "site")
+	require.NoError(t, err)
+	assert.Equal(t, "site", held)
+	held, err = s.BindContextKey(ctx, p.ID, "other")
+	require.NoError(t, err)
+	assert.Equal(t, "site", held, "a bound key stays")
+	key, err = s.ContextKey(ctx, other.ID)
+	require.NoError(t, err)
+	assert.Empty(t, key, "another project binds its own")
+	_, err = s.ContextKey(ctx, "no-such-project")
+	require.ErrorIs(t, err, platstore.ErrNoContextProject)
+	_, err = s.BindContextKey(ctx, "no-such-project", "site")
+	require.ErrorIs(t, err, platstore.ErrNoContextProject)
+
+	seg := workspace.SegmentName("w1", "000000000000000000000001")
+	blob := []byte("payload")
+	require.NoError(t, s.PutContextObjects(ctx, p.ID, "m", []platstore.ContextObject{
+		{Name: seg, Data: []byte("one\n")},
+		{Name: workspace.BlobObjectName(workspace.BlobAddress(blob)), Data: blob},
+	}))
+	digests, err := s.DigestContextObjects(ctx, p.ID, workspace.RemoteLogDir)
+	require.NoError(t, err)
+	sum := sha256.Sum256([]byte("one\n"))
+	assert.Equal(t, map[string]string{seg: hex.EncodeToString(sum[:])}, digests)
+	_, err = s.DigestContextObjects(ctx, p.ID, "log")
+	require.Error(t, err)
+}
+
+// Version 40 opens a working copy from before it: the projects gain the
+// context key column, the term candidates leave the review queue beside the
+// entity reviews, and the list of rejected terms is dropped.
+func TestMigrations_TermCandidatesLeaveTheReviewQueue(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "store.db")
+	s, err := NewSQLiteStore(dbPath)
+	require.NoError(t, err)
+	ctx := t.Context()
+	p := createTestProject(t, s)
+	for _, stmt := range []string{
+		`ALTER TABLE projects DROP COLUMN context_key`,
+		`CREATE TABLE rejected_terms (project_id TEXT NOT NULL, term_text TEXT NOT NULL, locale TEXT NOT NULL)`,
+		`INSERT INTO review_items (id, project_id, type, data) VALUES ('tc', '` + p.ID + `', 'term_candidate', '{}')`,
+		`INSERT INTO review_items (id, project_id, type, data) VALUES ('er', '` + p.ID + `', 'entity_review', '{}')`,
+		`DELETE FROM schema_migrations WHERE version >= 40`,
+	} {
+		_, err = s.db.ExecContext(ctx, stmt)
+		require.NoError(t, err, stmt)
+	}
+	require.NoError(t, s.Close())
+
+	reopened, err := NewSQLiteStore(dbPath)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = reopened.Close() })
+	key, err := reopened.ContextKey(ctx, p.ID)
+	require.NoError(t, err)
+	assert.Empty(t, key)
+	var ids []string
+	rows, err := reopened.db.QueryContext(ctx, `SELECT id FROM review_items ORDER BY id`)
+	require.NoError(t, err)
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		require.NoError(t, rows.Scan(&id))
+		ids = append(ids, id)
+	}
+	require.NoError(t, rows.Err())
+	assert.Equal(t, []string{"er"}, ids)
+	var n int
+	require.NoError(t, reopened.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'rejected_terms'`).Scan(&n))
+	assert.Zero(t, n)
 }

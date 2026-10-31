@@ -33,6 +33,23 @@ const (
 	// ContextObjectNoProjectCode answers a push to a project the server does
 	// not hold, with status 404.
 	ContextObjectNoProjectCode = "no_project"
+	// ContextKeyMismatchCode answers a push whose segments name a project key
+	// other than the one the project's context is bound to, or two keys,
+	// with status 409.
+	ContextKeyMismatchCode = "project_key_mismatch"
+	// ContextCheckoutKeyCode answers a push whose segments name a key derived
+	// from one checkout (workspace.KeyForCheckout), with status 422.
+	ContextCheckoutKeyCode = "checkout_key"
+	// ContextOutsideReachCode answers a push carrying a governing operation
+	// at a point outside the pusher's coordinates, or one the pusher's
+	// permissions do not cover, with status 403.
+	ContextOutsideReachCode = "outside_reach"
+	// ContextInvalidSegmentCode answers a push with an object under log/
+	// that is not a segment of operations of the project, with status 400.
+	ContextInvalidSegmentCode = "invalid_segment"
+	// ContextOperationConflictCode answers a push carrying an operation id
+	// the project holds with other content, with status 409.
+	ContextOperationConflictCode = "operation_conflict"
 )
 
 // ContextObjectList is the body of GET /:ws/:id/context/objects?dir=.

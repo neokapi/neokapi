@@ -4,139 +4,25 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
-	"time"
 
 	bstore "github.com/neokapi/neokapi/bowrain/store"
-	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/terms"
 )
 
-// processDecisionSideEffects handles the downstream effects of a review decision.
-// For approved term candidates → creates a terms store concept.
-// For rejected term candidates → adds to rejected_terms list.
-// For approved entities with DNT → adds to dnt_entries list.
-func (s *Server) processDecisionSideEffects(ctx context.Context, item *bstore.ReviewItem, wsSlug string) {
-	if item == nil {
+// processDecisionSideEffects handles the downstream effects of a review
+// decision. An approved entity marked do-not-translate is added to the
+// project's do-not-translate list; every other decision has none.
+func (s *Server) processDecisionSideEffects(ctx context.Context, item *bstore.ReviewItem, _ string) {
+	if item == nil || item.Status != bstore.ReviewItemApproved {
 		return
 	}
-
-	switch item.Status {
-	case bstore.ReviewItemApproved:
-		s.processApproval(ctx, item, wsSlug)
-	case bstore.ReviewItemRejected:
-		s.processRejection(ctx, item)
-	}
-}
-
-func (s *Server) processApproval(ctx context.Context, item *bstore.ReviewItem, wsSlug string) {
-	switch item.Type {
-	case bstore.ReviewItemTermCandidate:
-		s.approveTermCandidate(ctx, item, wsSlug)
-	case bstore.ReviewItemEntityReview:
+	if item.Type == bstore.ReviewItemEntityReview {
 		s.approveEntity(ctx, item)
 	}
 }
 
-func (s *Server) processRejection(ctx context.Context, item *bstore.ReviewItem) {
-	if item.Type != bstore.ReviewItemTermCandidate || s.ReviewQueueStore == nil {
-		return
-	}
-
-	// Extract term text from data and add to rejected_terms.
-	var data struct {
-		Text string `json:"text"`
-	}
-	if err := json.Unmarshal(item.Data, &data); err != nil || data.Text == "" {
-		return
-	}
-
-	if err := s.ReviewQueueStore.AddRejectedTerm(ctx, item.ProjectID, data.Text, item.Locale); err != nil {
-		slog.Info("review-effects: failed to add rejected term", "id", data.Text, "error", err)
-	}
-}
-
-// approveTermCandidate creates a terms store concept from an approved term candidate.
-func (s *Server) approveTermCandidate(ctx context.Context, item *bstore.ReviewItem, wsSlug string) {
-	if s.wsStores == nil {
-		return
-	}
-
-	var candidate model.TermCandidateAnnotation
-	if err := json.Unmarshal(item.Data, &candidate); err != nil {
-		slog.Info("review-effects: failed to unmarshal term candidate", "error", err)
-		return
-	}
-
-	// Apply any user edits.
-	if len(item.Edits) > 0 {
-		var edits struct {
-			Definition string `json:"definition"`
-			Category   string `json:"category"`
-		}
-		if err := json.Unmarshal(item.Edits, &edits); err == nil {
-			if edits.Definition != "" {
-				candidate.Definition = edits.Definition
-			}
-			if edits.Category != "" {
-				candidate.Category = model.TermCategory(edits.Category)
-			}
-		}
-	}
-
-	// Determine term status based on translatability.
-	termStatus := model.TermApproved
-	if candidate.Translatability == model.TranslatabilityDNT {
-		termStatus = model.TermPreferred
-	}
-
-	// The reviewer's approval of the candidate is the governing decision for it,
-	// so a candidate marked do-not-translate yields a concept carrying the flag in
-	// the same write, as a preferred term is created on the same approval.
-	concept := terms.Concept{
-		ID:             id.New(),
-		Domain:         string(candidate.Category),
-		Definition:     candidate.Definition,
-		DoNotTranslate: candidate.Translatability == model.TranslatabilityDNT,
-		Terms: []terms.Term{
-			{
-				Text:   candidate.Text,
-				Locale: candidate.Locale,
-				Status: termStatus,
-			},
-		},
-		Properties: map[string]string{
-			"translatability": string(candidate.Translatability),
-			"source":          string(candidate.Source),
-		},
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-	}
-
-	tb, tbErr := s.wsStores.getTerms(ctx, wsSlug)
-	if tbErr != nil {
-		slog.Error("review-effects: failed to init terms", "workspace", wsSlug, "error", tbErr)
-		return
-	}
-	if err := tb.AddConcept(ctx, concept); err != nil {
-		slog.Info("review-effects: failed to add concept for", "id", candidate.Text, "error", err)
-		return
-	}
-
-	// If translatability is DNT, also add to dnt_entries. Losing this write is
-	// not cosmetic — the term the reviewer marked do-not-translate goes on
-	// being machine-translated — but the caller is a fire-and-forget goroutine
-	// with no one to return to, so it is logged like every other failure in
-	// this file.
-	if candidate.Translatability == model.TranslatabilityDNT && s.ReviewQueueStore != nil {
-		if err := s.ReviewQueueStore.AddDNTEntry(ctx, item.ProjectID, candidate.Text, "", item.Locale, "review"); err != nil {
-			slog.ErrorContext(ctx, "review-effects: failed to record do-not-translate entry",
-				"project", item.ProjectID, "term", candidate.Text, "error", err)
-		}
-	}
-}
-
-// approveEntity processes an approved entity — if DNT, adds to dnt_entries.
+// approveEntity adds an approved entity marked do-not-translate to the
+// project's do-not-translate list.
 func (s *Server) approveEntity(ctx context.Context, item *bstore.ReviewItem) {
 	if s.ReviewQueueStore == nil {
 		return

@@ -302,3 +302,19 @@ func ids(ops []workspace.Op) []string {
 	}
 	return out
 }
+
+// The establishment settling records carries the address its evidence
+// derives, so a reader holding that evidence can tell it follows from it.
+func TestSettle_EstablishmentCarriesTheAddressItsEvidenceDerives(t *testing.T) {
+	ws := openWorkspace(t)
+	l := contextop.NewLedger(ws, contextop.PersonDecides)
+	s := observe(t, l, agent("claude", "s1"), "Quick cast", "Quickcast")
+	m := signal(t, l, s.ID, contextop.Signal{Source: contextop.SignalMerge, Commit: "abc1234def", PR: 412, Preferred: 2})
+	require.Len(t, settleAll(t, l), 1)
+
+	ops, err := ws.Select(t.Context(), workspace.OpQuery{KindPrefix: contextop.OpKindPrefix + string(contextop.KindEstablish)})
+	require.NoError(t, err)
+	require.Len(t, ops, 1)
+	assert.Equal(t, contextop.EstablishAddress(s.ID, []string{m.ID}), ops[0].Address)
+	assert.NotEqual(t, contextop.EstablishAddress(s.ID, nil), ops[0].Address)
+}

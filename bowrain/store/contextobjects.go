@@ -115,4 +115,57 @@ func (s *PostgresStore) PutContextObjects(ctx context.Context, projectID, pushed
 	return nil
 }
 
+// DigestContextObjects implements platstore.ContextObjectStore.
+func (s *PostgresStore) DigestContextObjects(ctx context.Context, projectID, dir string) (map[string]string, error) {
+	if err := storeutil.CheckContextDir(dir); err != nil {
+		return nil, err
+	}
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT name, sha256 FROM context_objects WHERE project_id = $1 AND starts_with(name, $2)`,
+		projectID, dir)
+	if err != nil {
+		return nil, fmt.Errorf("digest context objects under %s: %w", dir, err)
+	}
+	defer rows.Close()
+	out := map[string]string{}
+	for rows.Next() {
+		var name, digest string
+		if err := rows.Scan(&name, &digest); err != nil {
+			return nil, fmt.Errorf("digest context objects under %s: %w", dir, err)
+		}
+		out[name] = digest
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("digest context objects under %s: %w", dir, err)
+	}
+	return out, nil
+}
+
+// ContextKey implements platstore.ContextObjectStore.
+func (s *PostgresStore) ContextKey(ctx context.Context, projectID string) (string, error) {
+	var key string
+	err := s.db.QueryRowContext(ctx, `SELECT context_key FROM projects WHERE id = $1`, projectID).Scan(&key)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", fmt.Errorf("%w: %s", platstore.ErrNoContextProject, projectID)
+	}
+	if err != nil {
+		return "", fmt.Errorf("read the context key of project %s: %w", projectID, err)
+	}
+	return key, nil
+}
+
+// BindContextKey implements platstore.ContextObjectStore. The update binds
+// only an unbound project, so of two first pushes naming different keys the
+// one that commits first binds and the other reads its key back.
+func (s *PostgresStore) BindContextKey(ctx context.Context, projectID, key string) (string, error) {
+	if key == "" {
+		return "", errors.New("bind a context key: the key is empty")
+	}
+	if _, err := s.db.ExecContext(ctx,
+		`UPDATE projects SET context_key = $2 WHERE id = $1 AND context_key = ''`, projectID, key); err != nil {
+		return "", fmt.Errorf("bind the context key of project %s: %w", projectID, err)
+	}
+	return s.ContextKey(ctx, projectID)
+}
+
 var _ platstore.ContextObjectStore = (*PostgresStore)(nil)

@@ -53,6 +53,7 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 // 43  spent: issued by #3074 and removed by #3076; re-issued as 45
 // 44  a project's context objects, as the context layout names them
 // 45  the block history records the basis each translation carried
+// 46  a project's context key; term candidates leave the review queue
 var Migrations = []storage.Migration{
 	{
 		Version:     24,
@@ -1696,6 +1697,21 @@ var Migrations = []storage.Migration{
 			DELETE FROM unit_decisions
 			 WHERE review_state = '' AND status = '' AND decided_by = ''
 			   AND note = '' AND assignee = '' AND NOT parked;
+		`,
+	},
+	{
+		Version:     46,
+		Description: "a project's context key; term candidates leave the review queue",
+		SQL: `
+			-- context_key is the project key (core/workspace ProjectKey) the
+			-- project's context objects carry, bound by the first push that
+			-- names one and empty before it.
+			ALTER TABLE projects ADD COLUMN IF NOT EXISTS context_key TEXT NOT NULL DEFAULT '';
+			-- Name suggestions are kept in the context ledger. The review
+			-- queue holds entity reviews alone, and rejected_terms held the
+			-- term candidates a reviewer rejected.
+			DELETE FROM review_items WHERE type = 'term_candidate';
+			DROP TABLE IF EXISTS rejected_terms;
 		`,
 	},
 }

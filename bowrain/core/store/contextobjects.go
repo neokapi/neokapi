@@ -58,7 +58,22 @@ type ContextObjectStore interface {
 	// naming it. A blob whose name is not the address of its bytes is
 	// refused before anything is written.
 	PutContextObjects(ctx context.Context, projectID, pushedBy string, batch []ContextObject) error
+	// DigestContextObjects returns the SHA256 digest of every object under
+	// dir, keyed by name. A reader compares it with the list it read before
+	// to learn which objects are new without reading any of them.
+	DigestContextObjects(ctx context.Context, projectID, dir string) (map[string]string, error)
+	// ContextKey returns the project key (workspace.ProjectKey) the project's
+	// context is bound to, and an empty key before a push has bound one.
+	ContextKey(ctx context.Context, projectID string) (string, error)
+	// BindContextKey binds the project's context to key when it is bound to
+	// none, and returns the key it is bound to after the call: key itself, or
+	// the key an earlier push bound.
+	BindContextKey(ctx context.Context, projectID, key string) (string, error)
 }
+
+// ErrNoContextProject reports a context key read or bound for a project the
+// store does not hold.
+var ErrNoContextProject = errors.New("no project by that id")
 
 // ContextObjects finds the context object store behind a content store,
 // looking through any decorator that names what it wraps, as ShipVerdicts does.
