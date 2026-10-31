@@ -86,6 +86,10 @@ export const DEMOS: RegistryEntry[] = [
     "title": "A term agreed once should not be argued twice"
   },
   {
+    "id": "bowrain-web-project-screens",
+    "title": "One record of what your files do, for the whole team"
+  },
+  {
     "id": "bowrain-web-review",
     "title": "Nobody approves their own translation"
   },

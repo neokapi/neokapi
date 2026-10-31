@@ -14,11 +14,12 @@ aspects:
   - The brief an assistant reads
   - A note arriving from outside the app
   - How far the context reaches
+  - The project as Bowrain would show it
 
-# keep, word, choose and assistant carry no crop: the walk crops each to what
-# it marks during the beat (beatSpan in record-desktop.ts): the row answered in
-# Decide's list and the question beside it; or the file picker and the kept
-# rule's line.
+# keep, word, choose, assistant and preview carry no crop: the walk crops each
+# to what it marks during the beat (beatSpan in record-desktop.ts): the row
+# answered in Decide's list and the question beside it; the file picker and
+# the kept rule's line; or the Preview's tabs and its Kept by list.
 #
 # The sample arrives with two assistant sessions (claude-code, then codex),
 # seeded by the desktop backend when the sample is created. The walk creates
@@ -113,6 +114,16 @@ narration:
       Share says how far the project's context reaches. It is on this Mac,
       where every clone and worktree of the project reads it. Sharing with your
       team is not set up yet, and Bowrain is not connected.
+
+  - id: preview
+    kind: desktop
+    beat: preview
+    caption: The project as a Bowrain project page shows it.
+    text: >-
+      Preview draws the project as a Bowrain project page would. With no
+      server connected, it reads this Mac and says so. The Map tab is the page
+      a Bowrain project opens on. On the Rules tab, Kept by lists the rules you
+      kept a moment ago, each with who kept it and the day.
 
   - id: outro
     kind: outro
