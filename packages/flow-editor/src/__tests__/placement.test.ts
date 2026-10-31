@@ -280,6 +280,19 @@ describe("computePlacement — egress-after-restore", () => {
     expect(rules).toContain(RULE_EGRESS_AFTER_RESTORE);
   });
 
+  it("allows a step that keeps source in kapi after unredact", () => {
+    const spec: FlowSpec = {
+      steps: [
+        { tool: "redact" },
+        { tool: "translate" },
+        { tool: "unredact" },
+        { tool: "case-transform" },
+      ],
+    };
+    const rules = computePlacement(spec, tools).map((d) => d.rule);
+    expect(rules).not.toContain(RULE_EGRESS_AFTER_RESTORE);
+  });
+
   it("allows the egress step when a redact step runs between", () => {
     const spec: FlowSpec = {
       steps: [
