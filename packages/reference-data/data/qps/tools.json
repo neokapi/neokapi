@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-31T01:45:11Z",
+  "generatedAt": "2026-10-31T03:48:40Z",
   "kind": "tool",
   "entries": [
     {
@@ -1298,6 +1298,9 @@
         "configurable"
       ],
       "cardinality": "monolingual",
+      "sideEffects": [
+        "process-exec"
+      ],
       "isSourceTransform": true,
       "schema": {
         "$id": "external-command",
@@ -1314,6 +1317,9 @@
             "target-language"
           ],
           "cardinality": "monolingual",
+          "sideEffects": [
+            "process-exec"
+          ],
           "writesOutput": true
         },
         "properties": {

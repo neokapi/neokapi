@@ -134,8 +134,8 @@ positions beside data-flow validation at every flow build and load:
   (rewriting source orphans the targets). A transformer that produces targets
   itself, such as `unredact`, is exempt.
 - **Error**: a recoverable transformer (`redact`) follows a step with the
-  remote-source-egress side effect, except a step producing an input the
-  transformer's config-resolved contract requires (a cloud NER step feeding
+  remote-source-egress or process-exec side effect, except a step producing an
+  input the transformer's config-resolved contract requires (a cloud NER step feeding
   entity-driven redaction is the documented detection trade-off,
   [C-10](/contribute/architecture/context/c-10-redaction)). AI tools configured with
   a local provider (ollama, demo) carry no egress effect.

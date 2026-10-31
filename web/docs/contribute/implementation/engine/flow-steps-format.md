@@ -51,7 +51,7 @@ flow build/load gate and emits these diagnostics:
 | Rule id | Severity | Trigger |
 | --- | --- | --- |
 | `transformer-after-target` | error | a transformer follows a step that produces a committed target; exempt when the transformer produces the target port itself (e.g. `unredact`) |
-| `transformer-after-remote-egress` | error | a recoverable transformer (`redact`) follows a step with the remote-source-egress side effect; exempt for the step(s) producing an input the transformer's config-resolved contract requires |
+| `transformer-after-remote-egress` | error | a recoverable transformer (`redact`) follows a step with the remote-source-egress or process-exec side effect; exempt for the step(s) producing an input the transformer's config-resolved contract requires |
 | `transformer-late-placement` | warning | a transformer sits later than its earliest valid slot (after its last required input), forcing avoidable overlay rebasing |
 
 ## Compilation
