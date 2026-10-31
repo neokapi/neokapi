@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-30T21:39:37Z",
+  "generatedAt": "2026-10-31T00:26:24Z",
   "commands": [
     {
       "id": "add",
@@ -3770,12 +3770,12 @@
         {
           "name": "output",
           "shorthand": "o",
-          "usage": "▒ öüţþüţ þàţĥ ţéḿþļàţé (ṽàŕîàƃļéš: {dir}, {name}, {ext}, {lang}) ▒",
+          "usage": "▒ ŵŕîţé ţĥé çöñţéñţ ŕéàđ, ŵîţĥ îţš ƒîñđîñĝš àţţàçĥéđ, ţö ţĥîš þàţĥ ţéḿþļàţé (ṽàŕîàƃļéš: {dir}, {name}, {ext}, {lang}); ŵîţĥöüţ îţ ţĥé ŕüñ ŵŕîţéš ñö ƒîļé ▒",
           "type": "string"
         },
         {
           "name": "output-dir",
-          "usage": "▒ ŵŕîţé öüţþüţš üñđéŕ ĐÎŔ/{lang}/ (đéƒàüļţ: ţĥé ţàŕĝéţ-ļàñĝüàĝé ƒîļé ƃéšîđé ţĥé îñþüţ, ḿîŕŕöŕîñĝ îţš ļöçàļé ļàýöüţ; ŵîţĥ ñö ţàŕĝéţ ļàñĝüàĝé, ţĥé îñþüţ îţšéļƒ) ▒",
+          "usage": "▒ ŵŕîţé ţĥé çöñţéñţ ŕéàđ, ŵîţĥ îţš ƒîñđîñĝš àţţàçĥéđ, üñđéŕ ĐÎŔ/{lang}/ (đéƒàüļţ: ñö ƒîļé, ţĥé ƒîñđîñĝš ĝö ţö šţđöüţ) ▒",
           "type": "string"
         },
         {
@@ -3826,6 +3826,11 @@
           "type": "bool"
         },
         {
+          "name": "target",
+          "usage": "▒ ţĥé ţŕàñšļàţîöñ öƒ ţĥé öñé šöüŕçé ƒîļé ñàḿéđ, îñ --ţàŕĝéţ-ļàñĝ, ţö çĥéçķ îţ àĝàîñšţ (à ƒîļé ţĥàţ ĥöļđš ƃöţĥ, šüçĥ àš ẊĻÎƑƑ, ñééđš ñöñé) ▒",
+          "type": "string"
+        },
+        {
           "name": "target-lang",
           "usage": "▒ ţàŕĝéţ ļàñĝüàĝé (é.ĝ. ƒŕ, đé-ĐÉ); öñé þéŕ ŕüñ ▒",
           "type": "string"
@@ -3838,7 +3843,7 @@
       ],
       "examples": [
         "kapi exec review app.xliff --target-lang fr",
-        "kapi exec review messages.json --target-lang de"
+        "kapi exec review docs/contacts.md --target docs/nb/contacts.md --target-lang nb"
       ],
       "offlineCapable": false,
       "runnableInBrowser": true,

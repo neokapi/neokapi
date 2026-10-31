@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-16T21:39:04Z",
+  "generatedAt": "2026-10-31T00:26:24Z",
   "kind": "tool",
   "entries": [
     {
@@ -3163,6 +3163,12 @@
         "credentials"
       ],
       "cardinality": "bilingual",
+      "consumes": [
+        "target@target"
+      ],
+      "produces": [
+        "qa@target"
+      ],
       "sideEffects": [
         "api-call",
         "remote-source-egress"
@@ -3185,6 +3191,18 @@
             "credentials"
           ],
           "cardinality": "bilingual",
+          "consumes": [
+            {
+              "type": "target",
+              "side": "target"
+            }
+          ],
+          "produces": [
+            {
+              "type": "qa",
+              "side": "target"
+            }
+          ],
           "sideEffects": [
             "api-call",
             "remote-source-egress"
