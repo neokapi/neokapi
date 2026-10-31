@@ -240,6 +240,7 @@ export function SharePanel({
           source={preview.source}
           serverURL={venueServer(view.sharing.venue_url)}
           projectURL={venueLink(view.sharing)}
+          signedOut={!!view.sharing.venue_host && !view.signed_in}
         />
       )}
 

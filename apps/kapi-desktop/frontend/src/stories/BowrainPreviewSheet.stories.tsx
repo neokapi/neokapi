@@ -138,18 +138,45 @@ export const ConnectedNoPermission: Story = {
   },
 };
 
-/** The server does not take the sign-in: its words, and the command that signs in. */
+/**
+ * A connected project this Mac holds no sign-in for: previewed from this Mac,
+ * with the server named and the command that signs in.
+ */
 export const ConnectedSignedOut: Story = {
+  args: {
+    serverURL: CONNECTED.serverURL,
+    projectURL: CONNECTED.projectURL,
+    source: "local",
+    signedOut: true,
+  },
+  play: async () => {
+    const sheet = await screen.findByRole("dialog");
+    await expect(within(sheet).getByText("As this Mac shows it")).toBeInTheDocument();
+    await expect(within(sheet).getByText("Not signed in to app.bowrain.cloud")).toBeInTheDocument();
+    await expect(
+      within(sheet).getByText("kapi auth login --server https://app.bowrain.cloud"),
+    ).toBeInTheDocument();
+    await within(sheet).findByRole("heading", { name: "Fernwell" });
+  },
+};
+
+export const ConnectedSignedOutDark: Story = {
+  name: "Connected signed out (dark)",
+  args: {
+    serverURL: CONNECTED.serverURL,
+    projectURL: CONNECTED.projectURL,
+    source: "local",
+    signedOut: true,
+  },
+  globals: { theme: "dark" },
+};
+
+/** The server does not take the sign-in: its words, and the command that signs in. */
+export const ConnectedSignInRefused: Story = {
   args: { ...CONNECTED, port: SIGNED_OUT },
   play: async () => {
     const sheet = await screen.findByRole("dialog");
     const body = await within(sheet).findByRole("alert");
     await expect(body).toHaveTextContent("kapi auth login --server https://app.bowrain.cloud");
   },
-};
-
-export const ConnectedSignedOutDark: Story = {
-  name: "Connected signed out (dark)",
-  args: { ...CONNECTED, port: SIGNED_OUT },
-  globals: { theme: "dark" },
 };

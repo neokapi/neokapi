@@ -198,6 +198,20 @@ describe("the remote preview port", () => {
     expect(remotePreviewPort("t9").actorName?.({ kind: "person" })).toBeUndefined();
   });
 
+  it("reads the Map first for a file opened before any Map read returned", async () => {
+    const preview = vi
+      .spyOn(api, "bowrainPreview")
+      .mockImplementation(async (_tab, part) => serverAnswers(part));
+    await expect(remotePreviewPort("t9").readerFile("docs/billing.md")).resolves.toBe(
+      READER_WITH_FIXES,
+    );
+    expect(preview.mock.calls).toEqual([
+      ["t9", "map", ""],
+      ["t9", "reader", "/work/fernwell/docs/billing.md"],
+    ]);
+    vi.restoreAllMocks();
+  });
+
   it("rejects a refused read with the refusal as it came", async () => {
     vi.spyOn(api, "bowrainPreview").mockResolvedValue({
       refusal: { status: 403, message: "insufficient project permissions", action: "open" },
@@ -289,6 +303,53 @@ describe("the connected preview", () => {
     const body = await within(sheet).findByRole("alert");
     expect(body).toHaveTextContent("Not signed in to app.bowrain.cloud");
     expect(body).not.toHaveTextContent("HTTP");
+    vi.restoreAllMocks();
+  });
+
+  it("draws a Reader refusal in place of the file, with Back to the Map", async () => {
+    vi.spyOn(api, "bowrainPreview").mockImplementation(async (_tab, part) =>
+      part === "reader"
+        ? { refusal: { status: 404, message: "no such item", action: "open" } }
+        : serverAnswers(part),
+    );
+    const sheet = await openConnected();
+    await within(sheet).findByRole("heading", { name: "Fernwell" });
+    await userEvent.click(within(sheet).getAllByRole("button", { name: "Open" })[0]);
+    const body = await within(sheet).findByRole("alert");
+    expect(body).toHaveTextContent("no such item");
+    expect(within(sheet).getByRole("tab", { name: "Map" })).toBeInTheDocument();
+    await userEvent.click(within(body).getByRole("button", { name: /Back/ }));
+    await within(sheet).findByRole("heading", { name: "Fernwell" });
+    expect(within(sheet).queryByRole("alert")).toBeNull();
+    vi.restoreAllMocks();
+  });
+
+  it("previews a connected project with no sign-in from this Mac, naming the server", async () => {
+    const preview = vi.spyOn(api, "bowrainPreview");
+    render(
+      <SharePanel
+        tabID="t1"
+        projectName="Fernwell"
+        view={BOWRAIN_VIEW}
+        previewPort={fernwellPort()}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Preview" }));
+    const sheet = await screen.findByRole("dialog");
+    expect(within(sheet).getByText("As this Mac shows it")).toBeInTheDocument();
+    expect(within(sheet).getByText("Not signed in to app.bowrain.cloud")).toBeInTheDocument();
+    expect(sheet.querySelector("[data-slot='bowrain-preview-sign-in']")).toHaveTextContent(
+      "kapi auth login --server https://app.bowrain.cloud",
+    );
+    await within(sheet).findByRole("heading", { name: "Fernwell" });
+    expect(preview).not.toHaveBeenCalled();
+    vi.restoreAllMocks();
+  });
+
+  it("names no server on a signed-in preview", async () => {
+    vi.spyOn(api, "bowrainPreview").mockImplementation(async (_tab, part) => serverAnswers(part));
+    const sheet = await openConnected();
+    expect(within(sheet).queryByText(/^Not signed in/)).toBeNull();
     vi.restoreAllMocks();
   });
 });

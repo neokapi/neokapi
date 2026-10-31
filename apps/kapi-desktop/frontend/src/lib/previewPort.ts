@@ -79,18 +79,33 @@ async function fromBowrain<K extends Exclude<keyof BowrainPreviewAnswer, "refusa
  * A read-only port over the tab's project as the Bowrain server shows it.
  * The server knows a file by its item name, which the Map's rows carry, and
  * the Reader is opened by the file's path, so the port keeps the names the
- * last Map read and opens a path the Map did not list by that path. A person
+ * Map reads carried, reads the Map first when it has none for a path, and
+ * opens a path the Map did not list by that path. A person
  * the server leaves unnamed is the one signed in, shown by `signedInAs`.
  */
 export function remotePreviewPort(tabID: string, signedInAs?: string): ProjectScreensPort {
   const itemOf = new Map<string, string>();
+  let mapped: Promise<unknown> | null = null;
+  const readMap = async () => {
+    const summary = await fromBowrain(tabID, "map", "map");
+    for (const row of summary.file_rows ?? []) itemOf.set(row.relative, row.path);
+    return summary;
+  };
   return {
-    mapSummary: async () => {
-      const summary = await fromBowrain(tabID, "map", "map");
-      for (const row of summary.file_rows ?? []) itemOf.set(row.relative, row.path);
-      return summary;
+    mapSummary: () => {
+      const read = readMap();
+      mapped = read;
+      return read;
     },
-    readerFile: (path) => fromBowrain(tabID, "reader", "reader", itemOf.get(path) ?? path),
+    readerFile: async (path) => {
+      // A Reader opened before any Map read has returned, from Decide say,
+      // waits for one to learn the item's name.
+      if (!itemOf.has(path)) {
+        mapped ??= readMap();
+        await mapped.catch(() => undefined);
+      }
+      return fromBowrain(tabID, "reader", "reader", itemOf.get(path) ?? path);
+    },
     decideView: () => fromBowrain(tabID, "decide", "decide"),
     keptRules: () => fromBowrain(tabID, "kept", "kept"),
     actorName: (actor: ContextActor) =>
