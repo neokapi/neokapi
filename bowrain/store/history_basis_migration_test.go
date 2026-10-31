@@ -11,7 +11,7 @@ import (
 )
 
 // historyBasisV43 is the body version 43 carried before the change was lost
-// from main. Production databases applied it and recorded 43; version 46
+// from main. Production databases applied it and recorded 43; version 45
 // re-issues it.
 const historyBasisV43 = `
 	ALTER TABLE block_history ADD COLUMN IF NOT EXISTS basis      TEXT NOT NULL DEFAULT '';
@@ -21,11 +21,11 @@ const historyBasisV43 = `
 	   AND note = '' AND assignee = '' AND NOT parked;
 `
 
-// Version 46 adds the block history basis to a database that never had it.
+// Version 45 adds the block history basis to a database that never had it.
 // On a database that applied version 43 it keeps the columns and removes the
 // basis-only ledger rows written since. Either way the database ends with one
 // basis and one basis_from column and no basis-only rows.
-func TestMigrations_HistoryBasisReissuedAs46(t *testing.T) {
+func TestMigrations_HistoryBasisReissuedAs45(t *testing.T) {
 	for _, tc := range []struct {
 		name    string
 		prepare []string
@@ -68,7 +68,7 @@ func TestMigrations_HistoryBasisReissuedAs46(t *testing.T) {
 				`INSERT INTO unit_decisions (project_id, stream, item_name, unit, variant, draft_basis)
 				 VALUES ($1, 'main', 'en.json', 'basis-only', 'nb', 'rev-1')`, p.ID)
 			require.NoError(t, err)
-			_, err = s.db.ExecContext(ctx, `DELETE FROM store_schema_migrations WHERE version >= 46`)
+			_, err = s.db.ExecContext(ctx, `DELETE FROM store_schema_migrations WHERE version >= 45`)
 			require.NoError(t, err)
 
 			require.NoError(t, storage.MigratePostgresNS(s.db, "store_schema_migrations", Migrations))
@@ -85,7 +85,7 @@ func TestMigrations_HistoryBasisReissuedAs46(t *testing.T) {
 
 			var applied int
 			require.NoError(t, s.db.QueryRowContext(ctx,
-				`SELECT count(*) FROM store_schema_migrations WHERE version = 46`).Scan(&applied))
+				`SELECT count(*) FROM store_schema_migrations WHERE version = 45`).Scan(&applied))
 			assert.Equal(t, 1, applied)
 
 			// A second pass finds nothing to do.

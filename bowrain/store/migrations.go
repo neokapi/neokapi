@@ -50,9 +50,9 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 // 40  a decision records the revisions of the pairing it blesses
 // 41  a block records its source revision; decisions drop their text hashes
 // 42  an edition write names its unit by the venue's key alone
-// 43  spent: issued by #3074 and removed by #3076; re-issued as 46
+// 43  spent: issued by #3074 and removed by #3076; re-issued as 45
 // 44  a project's context objects, as the context layout names them
-// 46  the block history records the basis each translation carried
+// 45  the block history records the basis each translation carried
 var Migrations = []storage.Migration{
 	{
 		Version:     24,
@@ -1674,7 +1674,7 @@ var Migrations = []storage.Migration{
 		`,
 	},
 	{
-		Version:     46,
+		Version:     45,
 		Description: "the block history records the basis each translation carried",
 		SQL: `
 			-- Re-issues version 43, which some databases applied before the

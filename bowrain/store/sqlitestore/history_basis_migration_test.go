@@ -9,7 +9,7 @@ import (
 )
 
 // historyBasisV37 is the body version 37 carried before the change was lost
-// from main. Desktop databases applied it and recorded 37; version 40
+// from main. Desktop databases applied it and recorded 37; version 39
 // re-issues it.
 const historyBasisV37 = `
 	ALTER TABLE block_history ADD COLUMN basis      TEXT NOT NULL DEFAULT '';
@@ -19,11 +19,11 @@ const historyBasisV37 = `
 	   AND note = '' AND assignee = '' AND parked = 0;
 `
 
-// Version 40 adds the block history basis to a working copy that never had
+// Version 39 adds the block history basis to a working copy that never had
 // it. On one that applied version 37 it adds no column twice and removes the
 // basis-only ledger rows written since. Either way the working copy ends with
 // one basis and one basis_from column and no basis-only rows.
-func TestMigrations_HistoryBasisReissuedAs40(t *testing.T) {
+func TestMigrations_HistoryBasisReissuedAs39(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
 		applyV37 bool
@@ -56,7 +56,7 @@ func TestMigrations_HistoryBasisReissuedAs40(t *testing.T) {
 				`INSERT INTO unit_decisions (project_id, stream, item_name, unit, variant, draft_basis)
 				 VALUES ('p1', 'main', 'en.json', 'basis-only', 'nb', 'rev-1')`)
 			require.NoError(t, err)
-			_, err = s.db.ExecContext(ctx, `DELETE FROM schema_migrations WHERE version >= 40`)
+			_, err = s.db.ExecContext(ctx, `DELETE FROM schema_migrations WHERE version >= 39`)
 			require.NoError(t, err)
 			require.NoError(t, s.Close())
 
@@ -75,7 +75,7 @@ func TestMigrations_HistoryBasisReissuedAs40(t *testing.T) {
 
 			var applied int
 			require.NoError(t, reopened.db.QueryRowContext(ctx,
-				`SELECT count(*) FROM schema_migrations WHERE version = 40`).Scan(&applied))
+				`SELECT count(*) FROM schema_migrations WHERE version = 39`).Scan(&applied))
 			assert.Equal(t, 1, applied)
 		})
 	}

@@ -21,7 +21,7 @@ import (
 // folded into the v1 baseline. New migrations start at 4. Versions 28 to 34
 // were issued by this store before it was rebuilt from a new baseline, so the
 // list continues at 35. Version 37 was issued by #3074 and removed by #3076;
-// it is spent too, and re-issued as 40.
+// it is spent too, and re-issued as 39.
 var storeMigrations = []storage.Migration{
 	{
 		Version:     1,
@@ -1133,10 +1133,10 @@ var storeMigrations = []storage.Migration{
 		// Re-issues version 37, which some desktop databases applied before
 		// the change was lost from main. SQLite has no ADD COLUMN IF NOT
 		// EXISTS, so Apply reads the table and adds only the columns it lacks.
-		Version:     40,
+		Version:     39,
 		Description: "the block history records the basis each translation carried",
 		SQL: `
-			-- Mirrors bowrain/store/migrations.go version 46: the derivation
+			-- Mirrors bowrain/store/migrations.go version 45: the derivation
 			-- the edition carried when the row was written, and no ledger row
 			-- that carries a basis and nothing else.
 			DELETE FROM unit_decisions
