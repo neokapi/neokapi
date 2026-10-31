@@ -1011,3 +1011,56 @@ func TestContextLedger_SignalAfterSettlingIsNotItsEvidence_SQLite(t *testing.T) 
 	rec := r.do(ctx, http.MethodPost, r.base, pushBody(t, d.push(t)))
 	assert.Equal(t, http.StatusNoContent, rec.Code, rec.Body.String())
 }
+
+// A member holding the voice permission alone, over the whole project, pushes
+// a keep of a note and nothing that needs the terms permission: a keep of a
+// term rule and a blob are refused.
+func TestContextLedger_VoiceCustodianPushesVoiceDecisionsAlone_SQLite(t *testing.T) {
+	ctx := t.Context()
+	_, owner, cs := ledgerSQLiteServer(t)
+	pid := seedContextObjectProject(t, cs)
+	base := "/api/v1/ws/" + pid + "/context/objects"
+	d := newDesktop(t, "site")
+	term := d.observe(t, "use", "utilise")
+	note, err := contextop.NewLedger(d.ws, nil).Append(ctx, contextop.Record{
+		Project: "site", Actor: contextop.Actor{Kind: contextop.ActorPerson, Name: "asgeir"}, Kind: contextop.KindObserve,
+		Subject: contextop.Subject{Kind: contextop.SubjectNote, Text: "the product name is never translated"},
+	})
+	require.NoError(t, err)
+	require.NoError(t, (&routeRemote{h: owner, base: base}).Put(ctx, d.push(t)...))
+
+	voiceEcho := echo.New()
+	(&Server{ContentStore: cs, wsStores: newWorkspaceStores()}).registerContextObjectRoutes(voiceEcho.Group("/api/v1/:ws", func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			c.Set("user_id", "voice")
+			c.Set("project_permissions", platauth.PermViewContent|platauth.PermManageVoice)
+			return next(c)
+		}
+	}))
+	voice := &routeRemote{h: voiceEcho, base: base}
+	keepOf := func(target string) workspace.Object {
+		at := time.Now().UTC()
+		op := workspace.Op{
+			ID: workspace.NewOpID(at, note.ID), Project: "site", Kind: contextop.OpKindPrefix + string(contextop.KindKeep),
+			Payload: []byte(`{"actor":{"kind":"person","name":"voice"},"target":"` + target + `"}`), At: at,
+		}
+		return segmentOf(t, "voice", op)
+	}
+	refusalOf := func(rec *httptest.ResponseRecorder) ErrorResponse {
+		var e ErrorResponse
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &e))
+		return e
+	}
+
+	rec := voice.do(ctx, http.MethodPost, base, pushBody(t, []workspace.Object{keepOf(term.ID)}))
+	require.Equal(t, http.StatusForbidden, rec.Code, "a keep of a term rule needs the terms permission")
+	assert.Contains(t, refusalOf(rec).Error, "needs the")
+
+	rec = voice.do(ctx, http.MethodPost, base, pushBody(t, []workspace.Object{keepOf(note.ID)}))
+	assert.Equal(t, http.StatusNoContent, rec.Code, rec.Body.String())
+
+	blob := []byte("payload")
+	rec = voice.do(ctx, http.MethodPost, base, pushBody(t, []workspace.Object{{Name: workspace.BlobObjectName(workspace.BlobAddress(blob)), Data: blob}}))
+	require.Equal(t, http.StatusForbidden, rec.Code, "a blob needs the terms permission")
+	assert.Equal(t, contextOutsideReachCode, refusalOf(rec).Code)
+}

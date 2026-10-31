@@ -227,6 +227,10 @@ func (s *Server) HandlePutContextObjects(c echo.Context) error {
 func (s *Server) acceptContextBatch(c echo.Context, cos platstore.ContextObjectStore, batch []platstore.ContextObject) (refused bool, err error) {
 	ctx := c.Request().Context()
 	projectID := c.Param("id")
+	member := ledgerMemberOf(c)
+	if err := checkPushObjects(member, batch); err != nil {
+		return true, c.JSON(http.StatusForbidden, ErrorResponse{Error: err.Error(), Code: contextOutsideReachCode})
+	}
 	held, err := cos.DigestContextObjects(ctx, projectID, workspace.RemoteLogDir)
 	if err != nil {
 		return true, serverErr(c, err)
@@ -328,14 +332,22 @@ func (s *Server) acceptContextBatch(c echo.Context, cos platstore.ContextObjectS
 		fresh = append(fresh, op)
 	}
 
-	member := ledgerMemberOf(c)
-	if !member.Permissions.Has(governingPermissions) || !member.Reach.Unconstrained() {
-		for _, op := range fresh {
-			if err := checkReach(ctx, member, op, byID); err != nil {
-				return true, c.JSON(http.StatusForbidden, ErrorResponse{
-					Error: err.Error(), Details: op.ID, Code: contextOutsideReachCode,
-				})
-			}
+	if err := checkPushContent(member, fresh, byID); err != nil {
+		return true, c.JSON(http.StatusForbidden, ErrorResponse{Error: err.Error(), Code: contextOutsideReachCode})
+	}
+	// Permission.Has tests every bit, so the coordinate check is skipped
+	// only for a member holding all three permissions over an unbounded
+	// reach. The permission check runs for every operation.
+	skipPoints := member.Permissions.Has(governingPermissions) && member.Reach.Unconstrained()
+	for _, op := range fresh {
+		err := checkPermission(member, op, byID)
+		if err == nil && !skipPoints {
+			err = checkPoints(ctx, member, op, byID)
+		}
+		if err != nil {
+			return true, c.JSON(http.StatusForbidden, ErrorResponse{
+				Error: err.Error(), Details: op.ID, Code: contextOutsideReachCode,
+			})
 		}
 	}
 

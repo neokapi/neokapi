@@ -12,6 +12,7 @@ import (
 	"github.com/labstack/echo/v4"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/workspace"
 )
@@ -177,6 +178,16 @@ func subjectOf(op workspace.Op) (kind contextop.SubjectKind, target string) {
 // coordinates, and one with none governs the whole project, which only an
 // unbounded reach covers.
 func checkReach(ctx context.Context, member LedgerMember, op workspace.Op, byID map[string]workspace.Op) error {
+	if err := checkPermission(member, op, byID); err != nil {
+		return err
+	}
+	return checkPoints(ctx, member, op, byID)
+}
+
+// checkPermission refuses a governing context operation whose subject needs a
+// permission the member lacks (governingPermission of subjectKindOf). It
+// runs for every operation, whatever the member's reach.
+func checkPermission(member LedgerMember, op workspace.Op, byID map[string]workspace.Op) error {
 	kind, ok := strings.CutPrefix(op.Kind, contextop.OpKindPrefix)
 	if !ok || !slices.Contains(governingKinds, contextop.Kind(kind)) {
 		return nil
@@ -187,6 +198,16 @@ func checkReach(ctx context.Context, member LedgerMember, op workspace.Op, byID 
 	}
 	if need := governingPermission(subject); !member.Permissions.Has(need) {
 		return &ReachError{Kind: contextop.Kind(kind), ID: op.ID, Permission: need}
+	}
+	return nil
+}
+
+// checkPoints refuses a governing context operation at a point outside the
+// member's reach, as checkReach describes.
+func checkPoints(ctx context.Context, member LedgerMember, op workspace.Op, byID map[string]workspace.Op) error {
+	kind, ok := strings.CutPrefix(op.Kind, contextop.OpKindPrefix)
+	if !ok || !slices.Contains(governingKinds, contextop.Kind(kind)) {
+		return nil
 	}
 	if contextop.Kind(kind) == contextop.KindEstablish && followsFromLog(ctx, op, byID) {
 		return nil
@@ -309,3 +330,63 @@ func describeSubjectKind(k contextop.SubjectKind) string {
 	}
 	return string(k)
 }
+
+// checkPushContent applies the rule for a pusher who lacks PermManageTerms
+// (a voice or a memory custodian): such a member pushes segments alone, and
+// only operations of the context ledger whose subject their permissions cover
+// (governingPermission of subjectKindOf, for every operation and not only the
+// decisions). Blobs, checkpoints and the store writes a push carries beside
+// the ledger hold terms as well as anything else, so they need
+// PermManageTerms. A member holding PermManageTerms is not limited by it.
+func checkPushContent(member LedgerMember, fresh []workspace.Op, byID map[string]workspace.Op) error {
+	if member.Permissions.Has(platauth.PermManageTerms) {
+		return nil
+	}
+	for _, op := range fresh {
+		kind, ok := strings.CutPrefix(op.Kind, contextop.OpKindPrefix)
+		if !ok {
+			return &PushContentError{Op: op.ID, OpKind: op.Kind}
+		}
+		subject, err := subjectKindOf(op, contextop.Kind(kind), byID)
+		if err != nil {
+			return err
+		}
+		if need := governingPermission(subject); !member.Permissions.Has(need) {
+			return &ReachError{Kind: contextop.Kind(kind), ID: op.ID, Permission: need}
+		}
+	}
+	return nil
+}
+
+// checkPushObjects refuses a blob or a checkpoint from a pusher without
+// PermManageTerms, by the rule checkPushContent states.
+func checkPushObjects(member LedgerMember, batch []platstore.ContextObject) error {
+	if member.Permissions.Has(platauth.PermManageTerms) {
+		return nil
+	}
+	for _, obj := range batch {
+		if !strings.HasPrefix(obj.Name, workspace.RemoteLogDir) {
+			return &PushContentError{Object: obj.Name}
+		}
+	}
+	return nil
+}
+
+// PushContentError names an object or an operation a pusher without
+// PermManageTerms may not push.
+type PushContentError struct {
+	Object string
+	Op     string
+	OpKind string
+}
+
+func (e *PushContentError) Error() string {
+	if e.Object != "" {
+		return fmt.Sprintf("object %s needs the %s permission", e.Object, platauth.PermManageTerms)
+	}
+	return fmt.Sprintf("operation %s (%s) writes a store and needs the %s permission",
+		workspace.ShortOpID(e.Op), e.OpKind, platauth.PermManageTerms)
+}
+
+// Is reports ErrOutsideReach.
+func (e *PushContentError) Is(target error) bool { return target == ErrOutsideReach }
