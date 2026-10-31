@@ -13,11 +13,12 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/host"
+	"github.com/neokapi/neokapi/host/screens"
 	"github.com/neokapi/neokapi/kapi-desktop/backend/sample"
 )
 
 // readerFinding is the first finding of the read whose label is label.
-func readerFinding(t *testing.T, r *ReaderFileDTO, label string) ReaderFindingDTO {
+func readerFinding(t *testing.T, r *screens.ReaderFileDTO, label string) screens.ReaderFindingDTO {
 	t.Helper()
 	for _, b := range r.Blocks {
 		for _, f := range b.Findings {
@@ -27,7 +28,7 @@ func readerFinding(t *testing.T, r *ReaderFileDTO, label string) ReaderFindingDT
 		}
 	}
 	require.FailNowf(t, "no finding", "the Reader holds no finding labelled %q", label)
-	return ReaderFindingDTO{}
+	return screens.ReaderFindingDTO{}
 }
 
 // cachedBlocks are the block cache's translatable blocks for one file, by id,
@@ -175,7 +176,7 @@ func TestFixFinding_TermRule(t *testing.T) {
 	assert.True(t, f.Fails)
 	assert.Equal(t, "word", f.Kind)
 	require.NotNil(t, f.Span)
-	assert.Equal(t, ReaderSpan{Start: 7, End: 14}, *f.Span, "the span covers the word")
+	assert.Equal(t, screens.ReaderSpan{Start: 7, End: 14}, *f.Span, "the span covers the word")
 
 	again, err := app.ReaderFile(tabID, "locales/en.json")
 	require.NoError(t, err)
@@ -466,7 +467,7 @@ func TestReaderRules_Order(t *testing.T) {
 		},
 	}
 	rules, total = readerRules(answer)
-	assert.Equal(t, []ReaderRuleDTO{
+	assert.Equal(t, []screens.ReaderRuleDTO{
 		{Kind: "tone", Rule: "Plain and direct.", Status: "established", From: "voice house"},
 		{Kind: "word", Rule: "Sign in, not Login", Status: "established", From: "terms"},
 		{Kind: "name", Rule: "KapiMart, not Kapi Mart", Status: "established", From: "terms, pack technical-docs"},

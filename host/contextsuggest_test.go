@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/contextop"
+	"github.com/neokapi/neokapi/host/screens"
 )
 
 // suggestProject writes a project over docs/*.md and i18n/*.json with the
@@ -185,7 +186,7 @@ func TestSuggestFromFiles_SpellingFiledByKapi(t *testing.T) {
 
 	digest, err := app.ContextDigest(ctx, ContextDigestRequest{Project: recipeOf(root)})
 	require.NoError(t, err)
-	var item *DigestItem
+	var item *screens.DigestItem
 	for _, theme := range digest.Suggested {
 		for _, g := range theme.Groups {
 			for i := range g.Items {

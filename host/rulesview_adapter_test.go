@@ -14,6 +14,7 @@ import (
 	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/rulesview"
 	"github.com/neokapi/neokapi/core/workspace"
+	"github.com/neokapi/neokapi/host/screens"
 )
 
 // TestRulesviewShapesMatch: the digest and decide types the desktop binds hold
@@ -23,9 +24,9 @@ import (
 func TestRulesviewShapesMatch(t *testing.T) {
 	pairs := []struct{ host, model any }{
 		{ContextDigest{}, rulesview.Digest{}},
-		{DigestItem{}, rulesview.Item{}},
-		{DigestUsage{}, rulesview.Usage{}},
-		{DigestConflict{}, rulesview.Conflict{}},
+		{screens.DigestItem{}, rulesview.Item{}},
+		{screens.DigestUsage{}, rulesview.Usage{}},
+		{screens.DigestConflict{}, rulesview.Conflict{}},
 		{DigestTheme{}, rulesview.Theme{}},
 		{DigestGroup{}, rulesview.Group{}},
 		{DigestDrift{}, rulesview.Drift{}},

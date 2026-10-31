@@ -24,81 +24,11 @@ import (
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/host"
+	"github.com/neokapi/neokapi/host/screens"
 )
 
 // mapSummaryTimeout bounds the reads behind one MapSummary call.
 const mapSummaryTimeout = 30 * time.Second
-
-// MapSummaryDTO is everything the Map renders.
-type MapSummaryDTO struct {
-	// ProjectKey is the project's workspace key, empty for a tab the
-	// workspace does not hold.
-	ProjectKey string `json:"project_key,omitempty"`
-	// Files counts the project's content files: the files its collections
-	// declare, as the recipe resolves them.
-	Files int `json:"files"`
-	// Blocks counts the blocks the block cache holds for those files.
-	Blocks int `json:"blocks"`
-	// Rules counts the rules in force at the project's own point: the
-	// concepts in the bound terms store, the word rules and pattern rules of
-	// the voice profile, and the notes a person kept.
-	Rules int `json:"rules"`
-	// Findings counts the findings of the last checks run over the whole
-	// project in this session. Nil when none has run.
-	Findings *int `json:"findings"`
-	// CheckedAt is when that run finished, RFC3339; empty when none has run.
-	CheckedAt string `json:"checked_at,omitempty"`
-	// ReadFiles counts the files the block cache holds blocks for, and ReadAt
-	// is when the store sync last found the cache current with the files on
-	// disk, RFC3339. ReadAt is empty until the first sync in this session.
-	ReadFiles int    `json:"read_files"`
-	ReadAt    string `json:"read_at,omitempty"`
-	// Suggested counts the suggestions that advise and wait for a person, and
-	// Conflicts the disagreements. Awaiting is the two together: the rows
-	// under Suggestions.
-	Suggested int `json:"suggested"`
-	Conflicts int `json:"conflicts"`
-	Awaiting  int `json:"awaiting"`
-	// TargetLanguages are the languages the recipe declares, canonical
-	// BCP-47; empty for a source-only project.
-	TargetLanguages []string `json:"target_languages"`
-	// FileRows has one row per content file, the most findings first, then by
-	// path.
-	FileRows []MapFileDTO `json:"file_rows"`
-	// Suggestions are the items awaiting a decision: the disagreements, then
-	// the suggestions, in the order the digest lists them.
-	Suggestions []MapSuggestionDTO `json:"suggestions"`
-}
-
-// MapFileDTO is one content file on the Map.
-type MapFileDTO struct {
-	// Path is absolute, for the preview; Relative is project-relative and
-	// slash-separated, for the row.
-	Path       string `json:"path"`
-	Relative   string `json:"relative"`
-	Format     string `json:"format,omitempty"`
-	Collection string `json:"collection,omitempty"`
-	// Blocks counts the file's blocks in the block cache.
-	Blocks int `json:"blocks"`
-	// Findings counts the file's findings in the last checks run over the
-	// whole project, zero when none has run.
-	Findings int `json:"findings"`
-}
-
-// MapSuggestionDTO is one item awaiting a decision.
-type MapSuggestionDTO struct {
-	// Group is "conflict" for a disagreement, whose Item is its first side,
-	// or "suggested". It and the item's id make the key the Decide view
-	// selects the row by.
-	Group string          `json:"group"`
-	Item  host.DigestItem `json:"item"`
-	// Conflict is the disagreement, for a conflict row.
-	Conflict *host.DigestConflict `json:"conflict,omitempty"`
-	// Blocks and Files count the places the evidence names: distinct blocks
-	// (a unit, or a quote where no unit is recorded) and distinct files.
-	Blocks int `json:"blocks"`
-	Files  int `json:"files"`
-}
 
 // mapCheckTally is what the Map keeps of a checks run over the whole project.
 type mapCheckTally struct {
@@ -241,16 +171,16 @@ func (op *openProject) mapReads() (time.Time, *mapCheckTally) {
 // MapSummary answers the Map of the project a tab holds in one call. A tab
 // with no recipe on disk, or holding a project's context alone, answers with
 // zeros.
-func (a *App) MapSummary(tabID string) (*MapSummaryDTO, error) {
+func (a *App) MapSummary(tabID string) (*screens.MapSummaryDTO, error) {
 	op := a.getOpenProject(tabID)
 	if op == nil {
 		return nil, fmt.Errorf("project tab %q not found", tabID)
 	}
-	out := &MapSummaryDTO{
+	out := &screens.MapSummaryDTO{
 		ProjectKey:      string(op.workspaceKey),
 		TargetLanguages: []string{},
-		FileRows:        []MapFileDTO{},
-		Suggestions:     []MapSuggestionDTO{},
+		FileRows:        []screens.MapFileDTO{},
+		Suggestions:     []screens.MapSuggestionDTO{},
 	}
 	if op.contextOnly || op.Project == nil || op.Path == "" {
 		return out, nil
@@ -297,7 +227,7 @@ func (a *App) MapSummary(tabID string) (*MapSummaryDTO, error) {
 			continue
 		}
 		seen[rel] = true
-		row := MapFileDTO{
+		row := screens.MapFileDTO{
 			Path:       rf.Path,
 			Relative:   rel,
 			Format:     rf.Format,
@@ -328,7 +258,7 @@ func (a *App) MapSummary(tabID string) (*MapSummaryDTO, error) {
 }
 
 // sortMapFiles orders the file rows the most findings first, then by path.
-func sortMapFiles(rows []MapFileDTO) {
+func sortMapFiles(rows []screens.MapFileDTO) {
 	sort.SliceStable(rows, func(i, j int) bool {
 		if rows[i].Findings != rows[j].Findings {
 			return rows[i].Findings > rows[j].Findings
@@ -473,7 +403,7 @@ func voiceRuleCount(p *coreprofile.VoiceProfile) int {
 // mapSuggestions fills the items awaiting a decision from the project's
 // digest, the same read the Decide view makes, with each item's evidence
 // counted from the operation that carries it.
-func (a *App) mapSuggestions(ctx context.Context, op *openProject, out *MapSummaryDTO) error {
+func (a *App) mapSuggestions(ctx context.Context, op *openProject, out *screens.MapSummaryDTO) error {
 	if !op.onDisk() {
 		// Suggestions are recorded against a recipe; a folder without one
 		// has none yet.
@@ -494,9 +424,9 @@ func (a *App) mapSuggestions(ctx context.Context, op *openProject, out *MapSumma
 	for _, r := range log.Operations {
 		evidence[r.ID] = r.Evidence
 	}
-	row := func(group string, item host.DigestItem, conflict *host.DigestConflict) MapSuggestionDTO {
+	row := func(group string, item screens.DigestItem, conflict *screens.DigestConflict) screens.MapSuggestionDTO {
 		blocks, files := evidenceCounts(evidence[item.ID])
-		return MapSuggestionDTO{Group: group, Item: item, Conflict: conflict, Blocks: blocks, Files: files}
+		return screens.MapSuggestionDTO{Group: group, Item: item, Conflict: conflict, Blocks: blocks, Files: files}
 	}
 	for i := range digest.Conflicts {
 		c := digest.Conflicts[i]

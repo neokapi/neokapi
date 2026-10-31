@@ -36,6 +36,7 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/rulesview"
 	"github.com/neokapi/neokapi/core/workspace"
+	"github.com/neokapi/neokapi/host/screens"
 	"github.com/neokapi/neokapi/terms"
 )
 
@@ -74,100 +75,16 @@ type ContextDigest struct {
 	Since time.Time `json:"since,omitzero"`
 	// Conflicts need a person: two rules disagree, or the evidence turned
 	// against a rule.
-	Conflicts []DigestConflict `json:"conflicts"`
+	Conflicts []screens.DigestConflict `json:"conflicts"`
 	// Established are the rules that came into force, newest first: every one
 	// since the marker, then a few from before it.
-	Established []DigestItem `json:"established"`
+	Established []screens.DigestItem `json:"established"`
 	// Suggested are the suggestions still advising, grouped by theme.
 	Suggested []DigestTheme `json:"suggested"`
 	// Drift is content moving away from an established rule.
 	Drift []DigestDrift `json:"drift"`
 	// Numbers is the project in numbers.
 	Numbers DigestNumbers `json:"numbers"`
-}
-
-// DigestItem is one rule, suggestion or fact as the digest shows it.
-type DigestItem struct {
-	// ID names the operation every action on the item passes back, and Short
-	// is the form a person types.
-	ID    string `json:"id"`
-	Short string `json:"short"`
-	// Status is the operation's folded status.
-	Status contextop.Status `json:"status"`
-	// Theme is which suggestion theme the item belongs to.
-	Theme string `json:"theme"`
-	// Sentence is the rule as a sentence: "Write Quickcast, not Quick cast or
-	// QuickCast."
-	Sentence string `json:"sentence"`
-	// Subject is the rule itself, for a surface that renders its parts.
-	Subject contextop.Subject `json:"subject"`
-	// Quote is the evidence the item was seen in, with the file it links to.
-	Quote *contextop.Evidence `json:"quote,omitempty"`
-	// Collection is the collection the evidence sits in, empty when the
-	// project declares none or the recipe is not on this machine.
-	Collection string `json:"collection,omitempty"`
-	// Standing is the evidence as plain counts: "seen in 3 sessions · 14 of
-	// 15 uses in docs/ · merged in #412".
-	Standing string `json:"standing,omitempty"`
-	// Usage is the project's own words back to it, from the latest usage
-	// count, for a rule a check has counted.
-	Usage *DigestUsage `json:"usage,omitempty"`
-	// NoticedBy is who recorded it.
-	NoticedBy contextop.Actor `json:"noticed_by"`
-	// At is when it was recorded.
-	At time.Time `json:"at"`
-	// New reports an item recorded (or, for an established rule, established)
-	// after the marker.
-	New bool `json:"new"`
-	// Scope is how far the rule answers, as the log prints it.
-	Scope string `json:"scope"`
-	// Keepable reports a suggestion a person can keep as it stands. A
-	// contested suggestion with a rival waits until the rival is dropped.
-	Keepable bool `json:"keepable"`
-	// Droppable reports a suggestion or a rule a person can set aside. A rule
-	// in force is taken back out of the stores as it is dropped.
-	Droppable bool `json:"droppable"`
-	// Widenable reports a rule in force a person can apply more widely.
-	Widenable bool `json:"widenable"`
-	// WidenTo are the widenings open to a widenable rule: "workspace", and
-	// each axis of its point (ContextWidenOptions).
-	WidenTo []string `json:"widen_to,omitempty"`
-	// EstablishedAt and How say, for an established rule, when it came into
-	// force and on what: "merged in #412", "your correction in billing.md",
-	// "kept by you".
-	EstablishedAt time.Time `json:"established_at,omitzero"`
-	How           []string  `json:"how,omitempty"`
-}
-
-// DigestUsage is how often the project's content writes a rule's forms.
-type DigestUsage struct {
-	// Preferred is the form the rule says to write, and PreferredCount its
-	// uses.
-	Preferred      string `json:"preferred"`
-	PreferredCount int    `json:"preferred_count"`
-	// Rejected are the forms the rule avoids, and RejectedCount their uses
-	// together.
-	Rejected      []string `json:"rejected"`
-	RejectedCount int      `json:"rejected_count"`
-	// Within is the part of the project counted, as a path prefix; empty for
-	// the whole project.
-	Within string `json:"within,omitempty"`
-	// Line says it in a sentence: `docs/ says "studio" 41 times and
-	// "business" twice`.
-	Line string `json:"line"`
-}
-
-// DigestConflict is a disagreement a person settles: two or more rules saying
-// different things about one word, or one rule the evidence turned against.
-type DigestConflict struct {
-	// Sides are the rules that disagree. Choosing one keeps it and drops the
-	// others.
-	Sides []DigestItem `json:"sides"`
-	// ByEvidence reports a rule contested by evidence alone, with no rival
-	// rule: keeping it again is the choice, and so is dropping it.
-	ByEvidence bool `json:"by_evidence"`
-	// Reason says what the disagreement is, in a sentence.
-	Reason string `json:"reason"`
 }
 
 // DigestTheme is one theme's suggestions, split by collection when they sit in
@@ -185,13 +102,13 @@ type DigestTheme struct {
 type DigestGroup struct {
 	// Collection is empty for suggestions whose evidence sits in no
 	// collection, and for a theme whose suggestions all sit in one.
-	Collection string       `json:"collection,omitempty"`
-	Items      []DigestItem `json:"items"`
+	Collection string               `json:"collection,omitempty"`
+	Items      []screens.DigestItem `json:"items"`
 }
 
 // DigestDrift is content moving away from an established rule.
 type DigestDrift struct {
-	Rule DigestItem `json:"rule"`
+	Rule screens.DigestItem `json:"rule"`
 	// Line says what moved: `docs/ says "Quick cast" 3 times and "Quickcast"
 	// 11 times`.
 	Line string `json:"line"`
@@ -633,7 +550,7 @@ func (d ContextDigest) FormatText(w io.Writer) error {
 	}
 	if len(d.Established) > 0 {
 		b.WriteString("\nEstablished\n")
-		writeNewThenEarlier(&b, d.Established, "  ", func(it DigestItem) {
+		writeNewThenEarlier(&b, d.Established, "  ", func(it screens.DigestItem) {
 			writeDigestItem(&b, it, "  ")
 		})
 	}
@@ -647,7 +564,7 @@ func (d ContextDigest) FormatText(w io.Writer) error {
 					fmt.Fprintf(&b, "    in %s\n", g.Collection)
 					indent = "      "
 				}
-				writeNewThenEarlier(&b, g.Items, indent, func(it DigestItem) { writeDigestItem(&b, it, indent) })
+				writeNewThenEarlier(&b, g.Items, indent, func(it screens.DigestItem) { writeDigestItem(&b, it, indent) })
 			}
 		}
 	}
@@ -679,7 +596,7 @@ func (d ContextDigest) FormatText(w io.Writer) error {
 }
 
 // writeNewThenEarlier writes the new items, then the rest under "Earlier".
-func writeNewThenEarlier(b *strings.Builder, items []DigestItem, indent string, write func(DigestItem)) {
+func writeNewThenEarlier(b *strings.Builder, items []screens.DigestItem, indent string, write func(screens.DigestItem)) {
 	earlier := false
 	for _, it := range items {
 		if it.New {
@@ -699,7 +616,7 @@ func writeNewThenEarlier(b *strings.Builder, items []DigestItem, indent string, 
 }
 
 // writeDigestItem writes one item's lines.
-func writeDigestItem(b *strings.Builder, it DigestItem, indent string) {
+func writeDigestItem(b *strings.Builder, it screens.DigestItem, indent string) {
 	fmt.Fprintf(b, "%s%s  %s\n", indent, it.Short, it.Sentence)
 	if it.Quote != nil && (it.Quote.Quote != "" || it.Quote.Path != "") {
 		line := it.Quote.Path
@@ -728,12 +645,9 @@ func writeDigestItem(b *strings.Builder, it DigestItem, indent string) {
 	}
 }
 
-// Established reports an item that is a rule in force.
-func (it DigestItem) Established() bool { return !it.EstablishedAt.IsZero() }
-
-// The digest's types are bound by the desktop and stay declared here.
-// core/rulesview holds the same shapes for every surface, and the functions
-// below convert one to the other field by field.
+// The digest's types are bound by the desktop and declared here and in
+// host/screens. core/rulesview holds the same shapes for every surface, and
+// the functions below convert one to the other field by field.
 
 // buildDigest assembles a digest from a folded log, newest first as
 // contextop.Ledger.Records returns it (rulesview.BuildDigest).
@@ -742,12 +656,12 @@ func buildDigest(records []contextop.Record, key workspace.ProjectKey, since, no
 }
 
 // digestItem renders one subject-bearing operation (rulesview.NewItem).
-func digestItem(r contextop.Record, collectionFor func(string) string) DigestItem {
+func digestItem(r contextop.Record, collectionFor func(string) string) screens.DigestItem {
 	return digestItemFrom(rulesview.NewItem(r, collectionFor))
 }
 
 // digestUsage says how the content writes a rule's forms (rulesview.NewUsage).
-func digestUsage(preferred string, rejected []string, preferredCount, rejectedCount int, within string) *DigestUsage {
+func digestUsage(preferred string, rejected []string, preferredCount, rejectedCount int, within string) *screens.DigestUsage {
 	return digestUsageFrom(rulesview.NewUsage(preferred, rejected, preferredCount, rejectedCount, within))
 }
 
@@ -768,14 +682,14 @@ func digestFrom(d rulesview.Digest) ContextDigest {
 		Project:     d.Project,
 		ProjectName: d.ProjectName,
 		Since:       d.Since,
-		Conflicts:   make([]DigestConflict, len(d.Conflicts)),
+		Conflicts:   make([]screens.DigestConflict, len(d.Conflicts)),
 		Established: digestItemsFrom(d.Established),
 		Suggested:   make([]DigestTheme, len(d.Suggested)),
 		Drift:       make([]DigestDrift, len(d.Drift)),
 		Numbers:     DigestNumbers(d.Numbers),
 	}
 	for i, c := range d.Conflicts {
-		out.Conflicts[i] = DigestConflict{Sides: digestItemsFrom(c.Sides), ByEvidence: c.ByEvidence, Reason: c.Reason}
+		out.Conflicts[i] = screens.DigestConflict{Sides: digestItemsFrom(c.Sides), ByEvidence: c.ByEvidence, Reason: c.Reason}
 	}
 	for i, t := range d.Suggested {
 		theme := DigestTheme{Theme: t.Theme, Title: t.Title, Groups: make([]DigestGroup, len(t.Groups))}
@@ -792,11 +706,11 @@ func digestFrom(d rulesview.Digest) ContextDigest {
 
 // digestItemsFrom converts a list of items, keeping a nil list nil and an
 // empty one empty, as the model built them.
-func digestItemsFrom(items []rulesview.Item) []DigestItem {
+func digestItemsFrom(items []rulesview.Item) []screens.DigestItem {
 	if items == nil {
 		return nil
 	}
-	out := make([]DigestItem, len(items))
+	out := make([]screens.DigestItem, len(items))
 	for i, it := range items {
 		out[i] = digestItemFrom(it)
 	}
@@ -804,8 +718,8 @@ func digestItemsFrom(items []rulesview.Item) []DigestItem {
 }
 
 // digestItemFrom converts one item.
-func digestItemFrom(it rulesview.Item) DigestItem {
-	return DigestItem{
+func digestItemFrom(it rulesview.Item) screens.DigestItem {
+	return screens.DigestItem{
 		ID:            it.ID,
 		Short:         it.Short,
 		Status:        it.Status,
@@ -830,8 +744,8 @@ func digestItemFrom(it rulesview.Item) DigestItem {
 }
 
 // digestUsageFrom converts a usage count, whose two shapes are one.
-func digestUsageFrom(u *rulesview.Usage) *DigestUsage {
-	return (*DigestUsage)(u)
+func digestUsageFrom(u *rulesview.Usage) *screens.DigestUsage {
+	return (*screens.DigestUsage)(u)
 }
 
 func pluralWord(n int, one, many string) string {

@@ -12,6 +12,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/host"
+	"github.com/neokapi/neokapi/host/screens"
 	"github.com/neokapi/neokapi/kapi-desktop/backend/sample"
 )
 
@@ -35,7 +36,7 @@ func openKapiMart(t *testing.T) (*App, string, string) {
 
 // decisionIDs are the ids a view's questions answer to: a suggestion's own,
 // and each side's of a disagreement.
-func decisionIDs(decisions []RuleDecisionDTO) []string {
+func decisionIDs(decisions []screens.RuleDecisionDTO) []string {
 	var out []string
 	for _, d := range decisions {
 		if d.ID != "" {
@@ -83,7 +84,7 @@ func TestRulesDecideView_KapiMart(t *testing.T) {
 		assert.Contains(t, decisionIDs(view.Decisions), row.Item.ID)
 	}
 
-	byID := map[string]RuleDecisionDTO{}
+	byID := map[string]screens.RuleDecisionDTO{}
 	for _, d := range view.Decisions {
 		byID[d.ID] = d
 	}
@@ -130,7 +131,7 @@ func TestRulesDecideView_CountsAgainWhenAFileChanges(t *testing.T) {
 	engine := agentProcess(t, app)
 	name := agentSuggest(t, engine, recipe, "sess-1", "Kapi Mart", "KapiMart", "web/en/getting-started.md", "Welcome to the KapiMart Developer Platform!")
 
-	blocksOf := func(view *RulesDecideViewDTO, form string) int {
+	blocksOf := func(view *screens.RulesDecideViewDTO, form string) int {
 		t.Helper()
 		for _, d := range view.Decisions {
 			if d.ID != name.ID {
@@ -181,7 +182,7 @@ func TestDecideRule_KeepRecordsWhatRulesKeepRecords(t *testing.T) {
 
 	res, err := app.DecideRule(tabID, inDecide.ID, host.RuleAnswerKeep, "")
 	require.NoError(t, err)
-	assert.Equal(t, &RuleDecideResultDTO{Answer: "keep", Kept: 1}, res)
+	assert.Equal(t, &screens.RuleDecideResultDTO{Answer: "keep", Kept: 1}, res)
 	// What `kapi rules --keep <id>` calls, from a process of its own.
 	_, err = engine.DecideContextReview(context.Background(), host.ContextReviewRequest{
 		Actor: contextop.Actor{Kind: contextop.ActorPerson}, Project: recipe, Keep: []string{inTerminal.ID},

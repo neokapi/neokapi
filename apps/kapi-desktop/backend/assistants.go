@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/neokapi/neokapi/host"
+	"github.com/neokapi/neokapi/host/screens"
 )
 
 // The Assistants page: which assistants a project is connected to, and the
@@ -67,8 +68,8 @@ type AssistantHostView struct {
 // AssistantSession is one session in the project's feed, counted.
 type AssistantSession struct {
 	// ID is the feed group's id, which the Sessions view opens on.
-	ID    string          `json:"id"`
-	Actor ContextActorDTO `json:"actor"`
+	ID    string                  `json:"id"`
+	Actor screens.ContextActorDTO `json:"actor"`
 	// Last is when the session last recorded something, RFC3339 in UTC.
 	Last string `json:"last"`
 	// Quiet reports a session nothing has been added to for a while.
