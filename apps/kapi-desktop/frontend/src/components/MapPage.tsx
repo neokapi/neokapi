@@ -41,7 +41,7 @@ import { ConnectAICard } from "./ConnectAICard";
 import { qk } from "../lib/queryKeys";
 import { useInvalidateOnEvent } from "../hooks/useInvalidateOnEvent";
 import { useStoreSyncState } from "../hooks/useProjectStoreSync";
-import { ConflictLine, RuleLine } from "./DigestRule";
+import { ConflictLine, RuleLine } from "@neokapi/project-screens";
 import { FilePreview } from "./FilePreview";
 import type {
   DeeperLookModel,

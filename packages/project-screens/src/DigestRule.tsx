@@ -2,7 +2,7 @@
 // and a disagreement's sides, or on one line, for a row of the list.
 
 import { t } from "@neokapi/i18n-react/runtime";
-import type { DigestConflict, DigestItem, DigestTermRule } from "../types/api";
+import type { DigestConflict, DigestItem, DigestTermRule } from "./types";
 
 type RuleItem = Pick<DigestItem, "subject" | "sentence">;
 

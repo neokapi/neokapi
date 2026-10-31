@@ -22,6 +22,7 @@
     "@neokapi/context-explorer": "*",
     "@neokapi/flow-editor": "*",
     "@neokapi/i18n-react": "*",
+    "@neokapi/project-screens": "*",
     "@neokapi/ui": "*",
     "@tanstack/react-query": "^5.104.5",
     "@tanstack/react-router": "^1.170.46",
