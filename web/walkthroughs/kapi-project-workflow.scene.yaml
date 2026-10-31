@@ -134,7 +134,7 @@ steps:
     smoke: true
   - comment: One verb brings the project up to date.
   - command: kapi up
-    narration: up runs the project's flow until each locale meets its ship gate or needs human input. Here content memory supplies all French translations in one pass.
+    narration: up runs the project's flow until each locale meets its ship gate or waits for review. Here content memory supplies all French translations in one pass, and up writes messages.fr.json.
     # offline:false — `up` is not wired into the wasm build; the run → merge
     # beats below do the same work in the embed.
     offline: false
@@ -145,7 +145,7 @@ steps:
     # run it in isolation (no content memory) and leverage nothing.
     smoke: false
   - command: kapi merge
-    narration: merge materializes the translated files from the store — it replays the stored fr targets onto the source and writes messages.fr.json.
+    narration: merge writes each target file from the stored translations, here messages.fr.json. A file that already matches the store is left as it is, so after up it reports nothing written.
     # smoke:false — consumes the overlays committed by the prior run step.
     smoke: false
   - command: kapi status

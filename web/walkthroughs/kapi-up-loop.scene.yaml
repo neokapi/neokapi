@@ -178,7 +178,7 @@ steps:
     narration: --plan reports pending units, exact content-memory matches, remaining AI work and estimated tokens for each locale. It makes no provider calls or writes.
     offline: false
   - command: kapi up
-    narration: up fills all French targets from content memory, then holds the locale back for review by a person. The command exits zero.
+    narration: up fills all French targets from content memory, and French waits for review, because only a person can approve. The command exits zero.
     offline: false
   - command: kapi status --review
     narration: List translated units awaiting approval, each with the source document, block and language a decision names.

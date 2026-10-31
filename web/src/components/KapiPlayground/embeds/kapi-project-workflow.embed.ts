@@ -48,7 +48,7 @@ const config: WalkthroughEmbedConfig = {
     {
       command: "kapi merge",
       narration:
-        "merge materializes the translated files from the store — it replays the stored fr targets onto the source and writes messages.fr.json.",
+        "merge writes each target file from the stored translations, here messages.fr.json. A file that already matches the store is left as it is, so after up it reports nothing written.",
     },
     {
       command: "kapi status",
