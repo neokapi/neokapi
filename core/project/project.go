@@ -447,9 +447,11 @@ func importCommandFor(path string) string {
 // RedactionSpec configures content redaction. The sensitive term list itself
 // lives in a dedicated rules file (so it can be gitignored) referenced by
 // Rules; this spec only points at it and selects detection backends. Declared
-// under defaults: project-wide and overridable per content item.
+// under defaults for the project, on a collection, or on a content item; the
+// most specific declaration governs a file and replaces the others whole
+// (RedactionForPath).
 type RedactionSpec struct {
-	// Enabled turns redaction on for extract/merge.
+	// Enabled turns redaction on for the files the declaration governs.
 	Enabled bool `yaml:"enabled,omitempty" json:"enabled,omitempty"`
 	// Rules is the path to a redaction rules YAML file.
 	Rules string `yaml:"rules,omitempty" json:"rules,omitempty"`
@@ -735,6 +737,12 @@ type Collection struct {
 	// the items cannot drift into disagreeing.
 	SourceOnly bool `yaml:"source_only,omitempty" json:"source_only,omitempty"`
 
+	// Redaction is the redaction policy for the files this collection's items
+	// claim, on a named collection and on a bare entry alike. It replaces
+	// `defaults.redaction` for those files whole, and an item's own
+	// redaction replaces it in turn (RedactionForPath).
+	Redaction *RedactionSpec `yaml:"redaction,omitempty" json:"redaction,omitempty"`
+
 	// Bare entry fields (short form — promoted from ContentItem).
 	Path   string      `yaml:"path,omitempty" json:"path,omitempty"`
 	Format *FormatSpec `yaml:"format,omitempty" json:"format,omitempty"`
@@ -869,8 +877,9 @@ type ContentItem struct {
 	// per file through ResolveGovernanceForPath.
 	Channel string `yaml:"channel,omitempty" json:"channel,omitempty"`
 
-	// Redaction overrides the project-wide redaction spec for this item.
-	// nil means inherit defaults.
+	// Redaction is the redaction policy for the files this item claims. It
+	// replaces the collection's redaction and `defaults.redaction` for them
+	// whole; nil inherits the collection's, then the defaults'.
 	Redaction *RedactionSpec `yaml:"redaction,omitempty" json:"redaction,omitempty"`
 
 	// Comments declares the comments in this item's files as content.
@@ -1131,6 +1140,9 @@ func (p *KapiProject) validate(opts LoadOptions) error {
 	for i, c := range p.Collections {
 		if err := c.validateSourceOnly(i); err != nil {
 			return err
+		}
+		if err := c.Redaction.validate(); err != nil {
+			return fmt.Errorf("collections[%d]: %w", i, err)
 		}
 		if c.IsBareEntry() {
 			if c.Path == "" {

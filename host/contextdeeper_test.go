@@ -413,7 +413,7 @@ func TestDeeperLookChunks_CutsALongBlock(t *testing.T) {
 		{file: "a.md", plain: long},
 		{file: "a.md", plain: "The Dockyard lists every berth."},
 	}}
-	chunks, asked := deeperLookChunks(c)
+	chunks, _, asked := deeperLookChunks(c, nil)
 	assert.Equal(t, 2, asked)
 	require.Len(t, chunks, 2)
 	for _, chunk := range chunks {

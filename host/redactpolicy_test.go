@@ -12,45 +12,68 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 )
 
-// A declared policy must be visible to every ingest path, not just to the verb
-// that happened to grow it first.
-//
-// `defaults.redaction` had one consumer — resolveRedaction, called from
-// `kapi extract`. `kapi push` read it nowhere, so a project that declared its
-// content sensitive still sent originals to the server. This pins the
-// resolution as recipe-only and flag-free, which is what lets any ingest point
-// ask the same question.
-func TestProjectRedaction_ReadsTheDeclaredPolicy(t *testing.T) {
+// Every ingest path asks RedactionFor for the policy of the file it reads,
+// recipe-only and flag-free, so each route answers the same question the
+// same way.
+func TestRedactionFor_ReadsTheDeclaredPolicy(t *testing.T) {
 	t.Run("declared and enabled", func(t *testing.T) {
 		p := &project.KapiProject{Defaults: project.Defaults{
 			Redaction: &project.RedactionSpec{Enabled: true, Rules: "rules.yaml", Detectors: []string{"rules"}},
 		}}
-		spec := ProjectRedaction(p)
+		spec := RedactionFor(p, "")
 		require.NotNil(t, spec)
 		assert.Equal(t, "rules.yaml", spec.Rules)
+		assert.True(t, RedactionDeclared(p))
 	})
 
 	t.Run("declared but off", func(t *testing.T) {
 		p := &project.KapiProject{Defaults: project.Defaults{
 			Redaction: &project.RedactionSpec{Enabled: false, Rules: "rules.yaml"},
 		}}
-		assert.Nil(t, ProjectRedaction(p), "a policy switched off is not a policy")
+		assert.Nil(t, RedactionFor(p, ""), "a policy switched off is not a policy")
+		assert.False(t, RedactionDeclared(p))
 	})
 
 	t.Run("not declared", func(t *testing.T) {
-		assert.Nil(t, ProjectRedaction(&project.KapiProject{}))
-		assert.Nil(t, ProjectRedaction(nil), "a nil project must not panic an ingest path")
+		assert.Nil(t, RedactionFor(&project.KapiProject{}, "docs/a.md"))
+		assert.Nil(t, RedactionFor(nil, "docs/a.md"), "a nil project must not panic an ingest path")
+		assert.False(t, RedactionDeclared(nil))
 	})
 
 	t.Run("returns a copy", func(t *testing.T) {
 		p := &project.KapiProject{Defaults: project.Defaults{
 			Redaction: &project.RedactionSpec{Enabled: true, Rules: "rules.yaml"},
 		}}
-		got := ProjectRedaction(p)
+		got := RedactionFor(p, "")
 		got.Rules = "mutated.yaml"
 		assert.Equal(t, "rules.yaml", p.Defaults.Redaction.Rules,
 			"an ingest path must not be able to rewrite the project's policy")
 	})
+
+	t.Run("a collection's policy governs its files", func(t *testing.T) {
+		p := &project.KapiProject{
+			Defaults: project.Defaults{Redaction: &project.RedactionSpec{Enabled: true, Rules: "default.yaml"}},
+			Collections: []project.Collection{
+				{Name: "legal", Redaction: &project.RedactionSpec{Enabled: true, Rules: "legal.yaml"},
+					Content: []project.ContentItem{{Path: "legal/*.md"}}},
+				{Name: "docs", Content: []project.ContentItem{{Path: "docs/*.md"}}},
+			},
+		}
+		assert.Equal(t, "legal.yaml", RedactionFor(p, "legal/terms.md").Rules)
+		assert.Equal(t, "default.yaml", RedactionFor(p, "docs/a.md").Rules)
+		assert.Equal(t, "default.yaml", RedactionFor(p, "").Rules)
+	})
+}
+
+// A route that names a file by an absolute or a working-directory path reads
+// it relative to the project root, and a file outside the root under the
+// defaults.
+func TestRedactionPath(t *testing.T) {
+	root := t.TempDir()
+	assert.Equal(t, "docs/a.md", redactionPath(root, filepath.Join(root, "docs", "a.md")))
+	assert.Empty(t, redactionPath(root, filepath.Join(filepath.Dir(root), "elsewhere.md")))
+	assert.Empty(t, redactionPath(root, ""))
+	assert.Empty(t, redactionPath("", filepath.Join(root, "docs", "a.md")))
 }
 
 // RedactAtIngest is called unconditionally from ingest paths, so its no-op and

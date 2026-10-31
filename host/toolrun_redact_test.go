@@ -234,7 +234,7 @@ func TestToolRun_ChainCoverage(t *testing.T) {
 	recipe := redactProject(t, redactionYAML)
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
-	pol, err := a.toolRunPolicyFor(recipe, proj, "translate", remote)
+	pol, err := a.toolRunPolicyFor(recipe, proj, "", "translate", remote)
 	require.NoError(t, err)
 	require.NotNil(t, pol.redaction, "translate calls a provider")
 	c, err := a.chainFor(pol, "translate", remote, translate)
@@ -244,7 +244,7 @@ func TestToolRun_ChainCoverage(t *testing.T) {
 	assert.Equal(t, "redact", c.before[0].Name())
 	assert.Equal(t, "unredact", c.after[0].Name())
 
-	pol, err = a.toolRunPolicyFor(recipe, proj, "whitespace-correct", nil)
+	pol, err = a.toolRunPolicyFor(recipe, proj, "", "whitespace-correct", nil)
 	require.NoError(t, err)
 	assert.True(t, pol.declared)
 	assert.Nil(t, pol.redaction, "a tool that calls no provider runs alone")
@@ -268,7 +268,7 @@ func TestToolRun_QaToolCallsAProviderInAIModeOnly(t *testing.T) {
 		if config != "" {
 			cfg["mode"] = config
 		}
-		pol, err := a.toolRunPolicyFor(recipe, proj, "qa", cfg)
+		pol, err := a.toolRunPolicyFor(recipe, proj, "", "qa", cfg)
 		require.NoError(t, err)
 		assert.Equal(t, redacts, pol.redaction != nil, "mode %q", config)
 

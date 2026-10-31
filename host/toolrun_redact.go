@@ -18,10 +18,14 @@ import (
 
 // A run of one registry tool (`kapi exec <tool>`, and the MCP tools that run
 // one registry tool over a text) applies the redaction policy its project
-// declares. When the tool calls a provider, redact runs ahead of it and
-// unredact after it, so the provider reads placeholders and the output carries
-// the originals. Between the two steps the originals ride on the blocks, as in
-// the secure-translate flow, and the run writes none of them to disk.
+// declares for each file it reads: the policy of the collection or item that
+// holds the file, else `defaults.redaction` (RedactionFor). A text that sits
+// in no file is read under the defaults. When the tool calls a provider,
+// redact runs ahead of it and unredact after it, so the provider reads
+// placeholders and the output carries the originals. Between the two steps
+// the originals ride on the blocks, as in the secure-translate flow, and the
+// run writes none of them to disk. Each file is read under its own policy,
+// so one run over files of two collections redacts each with its own rules.
 
 // toolRedaction is the redaction policy one run of a tool applies.
 type toolRedaction struct {
@@ -30,20 +34,26 @@ type toolRedaction struct {
 	locale model.LocaleID
 }
 
-// toolRunPolicy is what a declared policy asks of one run of a tool: the
-// redaction it applies (nil when the tool calls no provider), and whether the
-// project declares a policy at all, which decides what the coverage check
-// requires.
+// toolRunPolicy is what a declared policy asks of one run of a tool over one
+// file: the redaction it applies (nil when the tool calls no provider), and
+// whether a policy governs the file at all, which decides what the coverage
+// check requires.
 type toolRunPolicy struct {
 	redaction *toolRedaction
 	declared  bool
 }
 
 // toolRunPolicyFor reads the policy the project at recipe declares for a run
-// of toolName with config. An empty recipe (no project) declares none.
-func (a *App) toolRunPolicyFor(recipe string, proj *project.KapiProject, toolName string, config map[string]any) (toolRunPolicy, error) {
-	spec := ProjectRedaction(proj)
-	if recipe == "" || spec == nil {
+// of toolName with config over file. An empty recipe (no project) declares
+// none; an empty file, or one outside the project, is read under
+// `defaults.redaction`.
+func (a *App) toolRunPolicyFor(recipe string, proj *project.KapiProject, file, toolName string, config map[string]any) (toolRunPolicy, error) {
+	if recipe == "" {
+		return toolRunPolicy{}, nil
+	}
+	resolved := proj.RedactionForPath(redactionPath(filepath.Dir(recipe), file))
+	spec := resolved.Spec
+	if spec == nil {
 		return toolRunPolicy{}, nil
 	}
 	pol := toolRunPolicy{declared: true}
@@ -57,7 +67,7 @@ func (a *App) toolRunPolicyFor(recipe string, proj *project.KapiProject, toolNam
 		// Entity detection reads the entity annotations an extraction step
 		// leaves on a block, and a run of one tool has none, so the names the
 		// policy withholds would reach the provider.
-		return toolRunPolicy{}, fmt.Errorf("the project's redaction policy detects entities, which needs an entity-extract step that a run of one tool does not have, so %s would send the values the policy withholds. Run it in a flow with entity-extract and redact ahead of it, or set defaults.redaction.detectors to [rules]", toolName)
+		return toolRunPolicy{}, fmt.Errorf("the project's redaction policy (%s) detects entities, which needs an entity-extract step that a run of one tool does not have, so %s would send the values the policy withholds. Run it in a flow with entity-extract and redact ahead of it, or set %s.detectors to [rules]", resolved.At, toolName, resolved.At)
 	}
 	if err := checkRedactionRules(spec); err != nil {
 		return toolRunPolicy{}, err
@@ -167,7 +177,7 @@ func (a *App) checkChainCoverage(toolName string, config map[string]any, c toolC
 	// the project's: the error says so rather than asking for a step the
 	// person running one tool has no way to add.
 	if err := def.CheckRedactionCoverage(a.ToolReg, true); err != nil {
-		return fmt.Errorf("kapi refused to run %s: the project declares defaults.redaction, and %s would send source to a remote provider with no redact step ahead of it. This is a fault in kapi; report it with the command you ran", toolName, toolName)
+		return fmt.Errorf("kapi refused to run %s: the project declares a redaction policy for the content, and %s would send source to a remote provider with no redact step ahead of it. This is a fault in kapi; report it with the command you ran", toolName, toolName)
 	}
 	if err := def.CheckPlacement(a.ToolReg); err != nil {
 		return fmt.Errorf("kapi refused to run %s: the redaction steps around it are out of order (%w). This is a fault in kapi; report it with the command you ran", toolName, err)

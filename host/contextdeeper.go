@@ -213,12 +213,12 @@ func (a *App) DeeperLook(ctx context.Context, req DeeperLookRequest) (DeeperLook
 		return out, err
 	}
 	out.Files, out.Blocks = len(corpus.files), len(corpus.blocks)
-	chunks, asked := deeperLookChunks(corpus)
+	chunks, policies, asked := deeperLookChunks(corpus, s.proj.RedactionForPath)
 	out.Asked = asked
 	if len(chunks) == 0 {
 		return out, nil
 	}
-	if err := s.redactForModel(ctx, chunks, corpus.language, req.DryRun); err != nil {
+	if err := s.redactForModel(ctx, chunks, policies, corpus.language, req.DryRun); err != nil {
 		return out, err
 	}
 
@@ -348,15 +348,22 @@ func (a *App) deeperLookConfig(proj *project.KapiProject, toolName, language str
 // deeperLookChunks gathers the project's distinct block texts into chunks for
 // the model, in the order the pass read them, up to the bound. asked counts
 // the blocks the chunks cover, each copy of a repeated text included.
-func deeperLookChunks(c suggestCorpus) (chunks []*model.Block, asked int) {
+//
+// policyOf names the redaction policy that governs each file; nil reads every
+// file under none. A chunk holds blocks of files under one policy only, and
+// policies holds each chunk's (nil for none), so a chunk is redacted under the
+// rules of the files it was cut from. A text is read once per policy.
+func deeperLookChunks(c suggestCorpus, policyOf func(file string) project.ResolvedRedaction) (chunks []*model.Block, policies []*project.RedactionSpec, asked int) {
 	seen := map[string]bool{}
 	var cur strings.Builder
+	var curPolicy project.ResolvedRedaction
 	runes := 0
 	flush := func() {
 		if cur.Len() == 0 {
 			return
 		}
 		chunks = append(chunks, model.NewBlock(fmt.Sprintf("deeper-look-%d", len(chunks)+1), cur.String()))
+		policies = append(policies, curPolicy.Spec)
 		cur.Reset()
 		runes = 0
 	}
@@ -365,21 +372,29 @@ func deeperLookChunks(c suggestCorpus) (chunks []*model.Block, asked int) {
 		if text == "" {
 			continue
 		}
+		var policy project.ResolvedRedaction
+		if policyOf != nil {
+			if policy = policyOf(b.file); policy.Spec == nil {
+				policy = project.ResolvedRedaction{}
+			}
+		}
 		// A block longer than a chunk is cut to one, so no chunk runs past
 		// the bound.
 		text = cutRunes(text, deeperLookChunkRunes)
-		if seen[text] {
+		key := policy.At + "\x00" + text
+		if seen[key] {
 			asked++
 			continue
 		}
 		n := utf8.RuneCountInString(text)
-		if runes > 0 && runes+n > deeperLookChunkRunes {
+		if runes > 0 && (runes+n > deeperLookChunkRunes || policy.At != curPolicy.At) {
 			flush()
 		}
 		if len(chunks) == deeperLookMaxChunks {
 			break
 		}
-		seen[text] = true
+		curPolicy = policy
+		seen[key] = true
 		if cur.Len() > 0 {
 			cur.WriteString("\n\n")
 		}
@@ -390,7 +405,7 @@ func deeperLookChunks(c suggestCorpus) (chunks []*model.Block, asked int) {
 	if len(chunks) < deeperLookMaxChunks {
 		flush()
 	}
-	return chunks, asked
+	return chunks, policies, asked
 }
 
 // cutRunes cuts s to at most n runes, on a rune boundary.
@@ -405,15 +420,15 @@ func cutRunes(s string, n int) string {
 	return s
 }
 
-// redactForModel applies the project's declared redaction policy to the
+// redactForModel applies the project's declared redaction policies to the
 // chunks before any of them reaches a model, as every route that sends source
-// out of kapi does. The originals are kept in the project's vault, except on a
-// dry run, which records nothing: its originals go to a vault of its own that
-// is removed when the redaction is done, since the redacted chunks are never
-// written anywhere.
-func (s *contextOpsSession) redactForModel(ctx context.Context, chunks []*model.Block, language string, dry bool) error {
-	spec := ProjectRedaction(s.proj)
-	if spec == nil {
+// out of kapi does: each chunk under the policy of the files it was cut from
+// (policies, parallel to chunks). The originals are kept in the project's
+// vault, except on a dry run, which records nothing: its originals go to a
+// vault of its own that is removed when the redaction is done, since the
+// redacted chunks are never written anywhere.
+func (s *contextOpsSession) redactForModel(ctx context.Context, chunks []*model.Block, policies []*project.RedactionSpec, language string, dry bool) error {
+	if !slices.ContainsFunc(policies, func(p *project.RedactionSpec) bool { return p != nil }) {
 		return nil
 	}
 	layout := project.LayoutAt(s.root)
@@ -428,7 +443,12 @@ func (s *contextOpsSession) redactForModel(ctx context.Context, chunks []*model.
 	} else if err := layout.PrepareVault(); err != nil {
 		return err
 	}
-	return RedactAtIngest(ctx, chunks, spec, layout.Root, vault, model.LocaleID(language))
+	for i, chunk := range chunks {
+		if err := RedactAtIngest(ctx, []*model.Block{chunk}, policies[i], layout.Root, vault, model.LocaleID(language)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // deeperLookTerms runs term-extract over each chunk and returns the terms it

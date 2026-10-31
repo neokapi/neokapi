@@ -11,35 +11,50 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 )
 
-// A declared redaction policy is a property of the CONTENT, not of the command
-// that happens to be moving it.
+// A declared redaction policy is a property of the content, not of the command
+// that moves it. Every route that sends content out of kapi (a push, a run of
+// one tool, a flow, the deeper look, the record of an edit) asks for the
+// policy of the file the content sits in, through RedactionFor, and takes no
+// flags: flags belong to a command, and the policy belongs to the project.
 //
-// It did not start that way. `defaults.redaction` had exactly one consumer —
-// resolveRedaction, called from `kapi extract` — so a project that declared its
-// content sensitive was heard by one verb and ignored by every other. `kapi
-// push` read the policy nowhere at all, which meant originals reached the
-// server whenever the operator used the wrong verb.
-//
-// That failure mode is worse than the flags retired alongside it. Forgetting
-// --no-brand carried governance; forgetting --concepts did an ordinary push.
-// Both failed safe. A policy that is simply not consulted fails OPEN.
-//
-// So the resolution lives here, callable from any ingest point, and takes no
-// flags: flags belong to a command, and this is a property of the project.
+// A recipe declares a policy under `defaults.redaction`, on a collection and
+// on a content item (project.RedactionForPath). The most specific declaration
+// governs a file and replaces the others whole.
 
-// ProjectRedaction returns the redaction policy a project declares, or nil when
-// it declares none.
+// RedactionFor returns the redaction policy that governs the file at relPath
+// in project p, or nil when none does. relPath is project-relative and
+// slash-separated; "" names content that sits in no file, which
+// `defaults.redaction` governs.
 //
-// Recipe only — deliberately. `kapi extract` layers --redact / --redact-rules
-// on top of this for ad-hoc, project-less runs (see resolveRedaction), and that
-// is the correct place for a flag. Every non-interactive ingest path wants the
+// Recipe only. `kapi extract` layers --redact / --redact-rules on top of this
+// for ad-hoc runs (see resolveRedaction); every other route applies the
 // declared policy and nothing else.
-func ProjectRedaction(p *project.KapiProject) *project.RedactionSpec {
-	if p == nil || p.Defaults.Redaction == nil || !p.Defaults.Redaction.Enabled {
-		return nil
+func RedactionFor(p *project.KapiProject, relPath string) *project.RedactionSpec {
+	return p.RedactionForPath(relPath).Spec
+}
+
+// RedactionDeclared reports whether p declares a redaction policy for any of
+// its files. A route that cannot name the file it guards (a flow whose tools
+// serve every file of a run, the vault a route prepares before it reads)
+// asks this.
+func RedactionDeclared(p *project.KapiProject) bool {
+	return p.DeclaresRedaction()
+}
+
+// redactionPath is the path RedactionFor reads for a file a route names: its
+// path relative to the project root, or "" for no file and for a file outside
+// the root, which `defaults.redaction` governs. Relative paths are read
+// against the working directory.
+func redactionPath(root, path string) string {
+	if root == "" || path == "" {
+		return ""
 	}
-	spec := *p.Defaults.Redaction
-	return &spec
+	absRoot, err := filepath.Abs(root)
+	if err != nil {
+		return ""
+	}
+	rel, _ := projectRelPath(absRoot, path)
+	return rel
 }
 
 // RedactAtIngest applies a declared policy to blocks as they enter kapi, before
@@ -50,7 +65,7 @@ func ProjectRedaction(p *project.KapiProject) *project.RedactionSpec {
 // and every step before it has held the original, so safety depends on ordering
 // and the ordering has to be checked (that is what ValidatePlacement does).
 // Redact at ingest and the block store never holds an original, so every
-// downstream destination — server, model, connector, reviewer — is safe by
+// downstream destination (server, model, connector, reviewer) is safe by
 // construction.
 //
 // It is a no-op when spec is nil, so callers can invoke it unconditionally.
@@ -81,7 +96,7 @@ func RedactAtIngest(
 // project's owner from believing the content is protected.
 func checkRedactionRules(spec *project.RedactionSpec) error {
 	if spec.Rules == "" && !hasDetector(spec.Detectors, "entities") {
-		return errors.New("redaction is enabled but no rules file is set. Add defaults.redaction.rules to the recipe")
+		return errors.New("redaction is enabled but no rules file is set. Add rules: to the redaction policy in the recipe (defaults.redaction, or the redaction: of the collection or content item that holds the file)")
 	}
 	return nil
 }

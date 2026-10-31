@@ -1427,7 +1427,7 @@ func (a *App) buildFlowTools(flowName, inputPath string, cmd ...Command) ([]tool
 	// Transformer placement gate (AD-006): errors (a transformer after a
 	// target producer, a redactor after remote egress) reject the flow;
 	// warnings (avoidable overlay rebasing) are surfaced but don't block.
-	if err := a.checkFlowPlacement(flowDef); err != nil {
+	if err := a.checkFlowPlacement(flowDef, a.flowRequiresRedaction(inputPath)); err != nil {
 		return nil, nil, err
 	}
 
@@ -1570,7 +1570,9 @@ func (a *App) BuildFlowTools(flowName, inputPath, src, tgt string, cmd ...Comman
 // checkFlowPlacement runs the AD-006 transformer placement pass over a flow
 // definition: error-severity diagnostics reject the flow (the unconditional
 // build gate beside ValidateDataFlow), warnings are printed to stderr.
-func (a *App) checkFlowPlacement(def *flow.FlowDefinition) error {
+// requireRedaction holds the flow to the redaction coverage check
+// (flowRequiresRedaction).
+func (a *App) checkFlowPlacement(def *flow.FlowDefinition, requireRedaction bool) error {
 	diags, err := def.ValidatePlacement(a.ToolReg)
 	if err != nil {
 		return err
@@ -1584,11 +1586,24 @@ func (a *App) checkFlowPlacement(def *flow.FlowDefinition) error {
 		return err
 	}
 	// A declared redaction policy binds every route to a remote sink, including
-	// a flow the operator composes step by step: if the project declares
-	// defaults.redaction, a flow that egresses source remotely must carry a
-	// redact step.
-	requireRedaction := a.ProjectContext != nil && ProjectRedaction(a.ProjectContext.Project) != nil
+	// a flow the operator composes step by step: where a policy governs the
+	// content, a flow that egresses source remotely must carry a redact step.
 	return def.CheckRedactionCoverage(a.ToolReg, requireRedaction)
+}
+
+// flowRequiresRedaction reports whether a policy the project declares governs
+// the content a flow runs over. A flow built for one file asks for that file's
+// policy; a flow built once for every file of a run (inputPath "") asks
+// whether the project declares a policy for any file.
+func (a *App) flowRequiresRedaction(inputPath string) bool {
+	pc := a.ProjectContext
+	if pc == nil || pc.Project == nil {
+		return false
+	}
+	if inputPath == "" {
+		return RedactionDeclared(pc.Project)
+	}
+	return RedactionFor(pc.Project, redactionPath(pc.ProjectDir, inputPath)) != nil
 }
 
 // mergeFlowNodeConfig overlays a flow node's per-tool config onto the shared run

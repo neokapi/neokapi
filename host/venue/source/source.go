@@ -1609,17 +1609,16 @@ func (c *BowrainSourceConnector) scanLocal(ctx context.Context, paths []string) 
 	recipe := c.project.Recipe
 	assetsEnabled := recipe.AssetsEnabled()
 
-	// The declared redaction policy applies HERE, where content enters kapi —
-	// before anything hashes, stores or transmits it. Push used to read the
-	// policy nowhere at all, so a project that declared its content sensitive
-	// still sent originals to the server; only `kapi extract` honoured it.
+	// The declared redaction policy applies HERE, where content enters kapi,
+	// before anything hashes, stores or transmits it. Each file is redacted
+	// under the policy that governs it (host.RedactionFor): its collection's
+	// or item's redaction, else defaults.redaction.
 	//
 	// Redacting at ingest also means the content hashes below are hashes of the
 	// redacted text, which is what the server should be diffing: the vault
 	// stays local, and the server never holds a value it could restore.
-	redactSpec := host.ProjectRedaction(&recipe.KapiProject)
 	vaultPath := c.project.Layout.RedactionVaultPath()
-	if redactSpec != nil {
+	if host.RedactionDeclared(&recipe.KapiProject) {
 		if err := c.project.Layout.PrepareVault(); err != nil {
 			return nil, err
 		}
@@ -1661,6 +1660,7 @@ func (c *BowrainSourceConnector) scanLocal(ctx context.Context, paths []string) 
 		if (coreproj.ResolvedFile{Item: c.itemFor(absPath), Format: formatName}).CommentsOnly() {
 			continue
 		}
+		redactSpec := host.RedactionFor(&recipe.KapiProject, filepath.ToSlash(relPath))
 
 		// Extract blocks and optionally media.
 		if assetsEnabled {

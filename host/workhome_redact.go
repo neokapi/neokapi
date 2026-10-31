@@ -9,16 +9,18 @@ import (
 
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/reconcile"
 	"github.com/neokapi/neokapi/core/redaction"
 	"github.com/neokapi/neokapi/core/workhome"
 )
 
-// A project that declares redaction (defaults.redaction) keeps no withheld
-// value in a record, and a write to the workspace home is a record that
-// travels to every context backend the project shares its context through.
-// So the workspace home redacts what it records of a kept edition as the
-// recorder redacts a file edit: the runs before and after each change, and
-// the note, with the project's rules, the originals going to the project
+// A project that declares redaction keeps no withheld value in a record, and
+// a write to the workspace home is a record that travels to every context
+// backend the project shares its context through. So the workspace home
+// redacts what it records of a kept edition as the recorder redacts a file
+// edit: the runs before and after each change, and the note, under the policy
+// that governs the document's file (RedactionFor), the originals going to the
+// project
 // vault under the name of the edition and revision they belong to
 // (edit:<doc>#<block>@<edition>:<revision>), and the change set as sent left
 // out. Where the workspace home reads an edition back it puts the originals
@@ -47,65 +49,62 @@ type keptRedaction struct {
 
 var _ workhome.Redaction = (*keptRedaction)(nil)
 
-// keeps reports why the policy keeps no edition in the workspace home, or
-// nil when it redacts what a kept edition records.
+// errKeepsNoEdition is the refusal of a policy that detects entities.
+var errKeepsNoEdition = &change.Error{Code: change.CodeUnsupported, Capability: "redaction",
+	Message: "the project's redaction policy detects entities, which needs a read of the content the workspace home does not keep, so a translation with no file cannot be kept without the values the policy withholds"}
+
+// keeps reports why the project's policies keep no edition in the workspace
+// home, or nil when they redact what a kept edition records. It asks of every
+// policy the project declares, for a caller that writes many documents.
 func (k *keptRedaction) keeps() error {
-	if slices.Contains(k.policy.spec.Detectors, "entities") {
-		return &change.Error{Code: change.CodeUnsupported, Capability: "redaction",
-			Message: "the project's redaction policy detects entities, which needs a read of the content the workspace home does not keep, so a translation with no file cannot be kept without the values the policy withholds"}
+	if detectsEntities(k.policy.proj.DeclaredRedactions()) {
+		return errKeepsNoEdition
 	}
 	return nil
 }
 
 // Redact redacts, in place, the runs and the note a write to the workspace
-// home records, and drops the change set as sent.
+// home records, under the policy that governs the document's file, and drops
+// the change set as sent.
 func (k *keptRedaction) Redact(ctx context.Context, c *workhome.Commit) error {
-	if err := k.keeps(); err != nil {
-		return err
+	path := c.Path
+	if reconcile.IsDocumentKey(path) {
+		path = ""
+	}
+	policies := k.policy.policiesFor(ctx, c.Doc, path)
+	if detectsEntities(policies) {
+		return errKeepsNoEdition
 	}
 	c.Set = nil
-	var (
-		blocks []*model.Block
-		sinks  []*[]model.Run
-	)
-	add := func(id string, runs *[]model.Run) {
-		if len(*runs) == 0 {
-			return
-		}
-		b := &model.Block{ID: id, Translatable: true}
-		b.SetSourceRuns(slices.Clone(*runs))
-		blocks = append(blocks, b)
-		sinks = append(sinks, runs)
+	if len(policies) == 0 {
+		return nil
 	}
+	var seqs redactRuns
 	for i := range c.Blocks {
 		b := &c.Blocks[i]
 		at := keptVaultID(c.Doc, b.Block, c.Edition, "")
 		if len(b.BeforeRuns) > 0 {
 			b.BeforeRuns = slices.Clone(b.BeforeRuns)
-			add(at+b.Before, &b.BeforeRuns)
+			seqs.add(at+b.Before, &b.BeforeRuns)
 		}
 		if b.Edition != nil {
 			ed := *b.Edition
 			ed.Runs = slices.Clone(ed.Runs)
 			b.Edition = &ed
-			add(at+b.After, &b.Edition.Runs)
+			seqs.add(at+b.After, &b.Edition.Runs)
 		}
 	}
 	var note []model.Run
 	if c.Note != "" {
 		note = []model.Run{{Text: &model.TextRun{Text: c.Note}}}
-		add("note:"+model.ComputeContentHash(c.Note), &note)
+		seqs.add("note:"+model.ComputeContentHash(c.Note), &note)
 	}
-	if len(blocks) == 0 {
-		return nil
+	groups := make(map[string]*redactRuns, len(policies))
+	for _, p := range policies {
+		groups[p.At] = &redactRuns{spec: p.Spec, ids: seqs.ids, sinks: seqs.sinks}
 	}
-	p := k.policy
-	if err := RedactAtIngest(ctx, blocks, p.spec, p.root, p.vault, ""); err != nil {
+	if err := k.policy.redactInOrder(ctx, groups); err != nil {
 		return err
-	}
-	for i, b := range blocks {
-		src, _ := b.Edition(model.EditionKey{})
-		*sinks[i] = src.Runs
 	}
 	if note != nil {
 		c.Note = model.RenderRunsWithData(note)

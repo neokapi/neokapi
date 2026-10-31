@@ -205,7 +205,7 @@ func (d *FlowDefinition) CheckRedactionCoverage(reg *registry.ToolRegistry, requ
 		}
 	}
 	if egressTool != "" && !hasRedact {
-		return fmt.Errorf("flow %q: the project declares defaults.redaction, but %q sends source to a remote sink and the flow has no redact step. Add a redact step before it, or run it on a local provider",
+		return fmt.Errorf("flow %q: the project declares a redaction policy for the content it runs over, but %q sends source to a remote sink and the flow has no redact step. Add a redact step before it, or run it on a local provider",
 			d.Name, egressTool)
 	}
 	return nil

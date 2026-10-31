@@ -144,11 +144,12 @@ func (a *App) keptRedactionAt(root string) (*keptRedaction, error) {
 		return nil, fmt.Errorf("the workspace home: read the redaction policy: %w", err)
 	}
 	read = keptRedactionRead{size: info.Size(), mod: info.ModTime()}
-	if spec := ProjectRedaction(proj); spec != nil {
-		if err := layout.PrepareVault(); err != nil {
-			return nil, fmt.Errorf("the workspace home: %w", err)
-		}
-		read.policy = &keptRedaction{policy: &recordRedaction{spec: spec, root: layout.Root, vault: layout.RedactionVaultPath()}}
+	rr, err := newRecordRedaction(a, proj, layout)
+	if err != nil {
+		return nil, fmt.Errorf("the workspace home: %w", err)
+	}
+	if rr != nil {
+		read.policy = &keptRedaction{policy: rr}
 	}
 	s.mu.Lock()
 	if s.keptRedact == nil {
