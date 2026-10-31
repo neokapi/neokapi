@@ -154,10 +154,15 @@ on a failing finding and reports the compliance score, and, where the recipe
 declares one, the translation-coverage bar in `ship_gate:`. See [project.md](project.md) and
 [translate.md](translate.md).
 
-The optional Claude Code Stop hook runs these project gates when installed.
-Each run is recorded in the project's log under your session, and `kapi
-context log` lists it: a finding one run reports and your next run no longer
-finds on the same file counts as caught. The MCP tool `context_session_summary`
+The kapi Claude Code plugin runs two checks for you once it is installed. The
+edit hook runs after each edit and checks the one file the edit wrote, as
+`kapi check <file>` does: names, spellings and word rules fail, and tone
+reports unless a rule marks it. A failing finding comes back beside the edit's
+result, with the fix when the rule names one; correct the file before you
+report the work done. The Stop hook runs these project gates when you finish.
+Each run of either hook is recorded in the project's log under your session,
+and `kapi context log` lists it: a finding one run reports and your next run
+on the same file no longer finds counts as caught. The MCP tool `context_session_summary`
 returns the counts `checked`, `failing`, `caught` and `files` for a session.
 The hook records under the assistant host's session id. Without `session`, the
 tool reads the session with the project's latest check run, or the session

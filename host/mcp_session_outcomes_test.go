@@ -202,8 +202,9 @@ func TestContextSessionSummary_DefaultWithAnEmptyLog(t *testing.T) {
 	t.Logf("context_session_summary (empty log): %s", raw)
 	assert.Equal(t, contextSessionOutput{Report: noSessionReport}, out)
 	assert.Equal(t,
-		"The project's log holds no session's operations yet: the Stop hook records one "+
-			"each time it runs the project's checks at the end of an assistant turn.",
+		"The project's log holds no session's operations yet: the edit hook records one "+
+			"each time it checks a file an assistant edited, and the Stop hook each time it runs the project's "+
+			"checks at the end of an assistant turn.",
 		out.Report)
 	assert.NotContains(t, out.Report, "\n")
 }

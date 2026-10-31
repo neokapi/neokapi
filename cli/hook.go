@@ -39,9 +39,9 @@ recipe's hooks: block, which is a different (and unimplemented) mechanism.`,
 
 // newHookStopCmd implements the Claude Code `Stop` hook: it runs the current
 // project's `kapi check --ship` gates and, when they fail, tells Claude to keep
-// working (with the findings) instead of finishing. This turns the verify gate
-// into a hard guardrail — the assistant cannot end a turn with a project that
-// is non-compliant, off-terminology, or with broken placeholders.
+// working (with the findings) instead of finishing. The assistant cannot end a
+// turn with a project that is non-compliant, off-terminology, or with broken
+// placeholders.
 func newHookStopCmd(a *App) *cobra.Command {
 	return &cobra.Command{
 		Use:   "stop",

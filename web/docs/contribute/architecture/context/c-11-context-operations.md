@@ -116,16 +116,22 @@ subject, those that act on one, and `check`, which does neither.
   and `establish` records that settling established one
   ([below](#suggestions-settle-by-evidence)).
 - `check` records one run of the project's checks for an assistant: the Claude
-  Code Stop hook running `kapi check --ship` as a turn ends. Its `CheckRun`
-  holds the files the turn edited, the failing findings by file, rule id and
-  quote, and whether the run was clean. Its id is derived from the session and
-  the id of the transcript's last entry. Claude Code writes an entry after
-  every Stop hook, so each Stop is a run of its own, and the hook running
-  twice on one transcript state records one operation. A check run stays on the
+  Code Stop hook running `kapi check --ship` as a turn ends (`CheckRun.Hook`
+  `stop`), or its PostToolUse hook running `kapi check <file>` on the one file
+  an edit wrote (`edit`). Its `CheckRun` holds the files the turn edited, the
+  failing findings by file, rule id and quote, and whether the run was clean.
+  Its id is derived from the session and the event the run answered: for a
+  Stop hook run, the id of the transcript's last entry, which Claude Code
+  writes after every Stop hook, so each Stop is a run of its own; for an edit
+  hook run, the id of the tool call. A hook running twice for one event
+  records one operation. A check run stays on the
   machine that recorded it: sharing the context leaves it out
   (`projector.LocalKinds`). A
-  failing finding that one run reports and the session's next run no longer
-  finds on the same file counts as caught; `host.SessionOutcomes` derives the
+  failing finding that one run reports and the session's next run on the same
+  file no longer finds counts as caught. A Stop hook run covers every file; an
+  edit hook run covers its one file and the findings whose rule the writing
+  check reports (`CheckRun.Covers`), so a finding on another file waits for the
+  next run that checks that file; `host.SessionOutcomes` derives the
   count from the log and nothing stores it.
 
 `contextop.Ledger` derives status by replaying the log in order and applying

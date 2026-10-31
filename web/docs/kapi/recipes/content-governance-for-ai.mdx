@@ -39,7 +39,7 @@ With the rules bound in the project, governance is automatic: the agent reads th
 
 > Extract candidate terms from `docs/` and add the ones I approve to our terms store.
 
-The Claude Code plugin's Stop hook checks the ship gate before task completion. Agents note what they see and what you change with `context_note`, and each note arrives as a suggestion that holds only where it was seen; a person keeps the right ones with `kapi context review`. See [Growing context](/kapi/context-decisions) for reviewing and for going back to before an agent's session.
+The Claude Code plugin's edit hook checks each file an agent edits, and its Stop hook checks the ship gate before task completion. Agents note what they see and what you change with `context_note`, and each note arrives as a suggestion that holds only where it was seen; a person keeps the right ones with `kapi context review`. See [Growing context](/kapi/context-decisions) for reviewing and for going back to before an agent's session.
 
 </TabItem>
 <TabItem value="cli" label="CLI">
