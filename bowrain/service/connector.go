@@ -132,9 +132,9 @@ func (s *ConnectorService) ListContent(ctx context.Context, workspaceID, connect
 // item.
 //
 // Each fetched ContentItem upserts an item row and makes its blocks the item's
-// whole block set (store.ReplaceItemBlocks), as the editor upload, the sync
-// push and the desktop import do. A block the fetched file no longer has is
-// removed.
+// whole block set (connector.StoreFetched), as the editor upload, the sync
+// push, the desktop import and the desktop's fetch do. A block the fetched
+// file no longer has is removed.
 //
 // The dashboard stats (GetBlockStats), the convergence derive and produce
 // steps (jobs are enqueued per item) and forge delivery (per-item
@@ -160,50 +160,10 @@ func (s *ConnectorService) Fetch(ctx context.Context, workspaceID, connectorID, 
 		return nil, fmt.Errorf("fetch from %s: %w", connectorID, err)
 	}
 
-	for _, item := range items {
-		name := connectorItemName(item)
-		if name == "" {
-			continue // nothing addressable
-		}
-		if len(item.Blocks) == 0 {
-			// A file that reads to no blocks adds no item, and an item stored
-			// from an earlier fetch loses the blocks it had.
-			if _, err := store.ReplaceItemBlocks(ctx, s.store, projectID, "main", name, nil); err != nil {
-				return nil, fmt.Errorf("store fetched blocks: %w", err)
-			}
-			continue
-		}
-		if err := s.store.StoreItem(ctx, projectID, "main", &store.Item{
-			Name:       name,
-			Format:     item.Format,
-			ItemType:   "file",
-			Properties: map[string]string{},
-		}); err != nil {
-			return nil, fmt.Errorf("store fetched item %q: %w", name, err)
-		}
-		if _, err := store.ReplaceItemBlocks(ctx, s.store, projectID, "main", name, item.Blocks); err != nil {
-			return nil, fmt.Errorf("store fetched blocks: %w", err)
-		}
+	if err := connector.StoreFetched(ctx, s.store, projectID, "main", items); err != nil {
+		return nil, err
 	}
-
 	return items, nil
-}
-
-// connectorItemName resolves the store item name for a fetched ContentItem:
-// the source-relative Path when the connector reports one (file/git/forge —
-// unique, and what delivery derives target paths from), else the item's Name,
-// else its ID (CMS connectors address content by ID).
-func connectorItemName(item *connector.ContentItem) string {
-	if item == nil {
-		return ""
-	}
-	if item.Path != "" {
-		return item.Path
-	}
-	if item.Name != "" {
-		return item.Name
-	}
-	return item.ID
 }
 
 // Publish sends content from the store to a connector.

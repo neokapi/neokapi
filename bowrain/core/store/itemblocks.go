@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neokapi/neokapi/core/editor"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/reconcile"
 	"github.com/neokapi/neokapi/core/venue"
@@ -119,4 +120,32 @@ func ResolveItemBlockKeys(itemID string, blocks []*model.Block, priors []reconci
 // rewrites each block's ID to its row id.
 func ItemBlockKeys(itemName string, blocks []*model.Block) []string {
 	return venue.ItemBlockKeys(map[string][]*model.Block{itemName: blocks})[itemName]
+}
+
+// ReadItemWriter is the part of a ContentStore that StoreReadItem writes
+// through.
+type ReadItemWriter interface {
+	ItemBlockReplacer
+	StoreItem(ctx context.Context, projectID, stream string, item *Item) error
+}
+
+// StoreReadItem stores item and makes read, a parse of the item's file, its
+// whole block set (ReplaceItemBlocks). It then stores the item's preview,
+// rendered once ReplaceItemBlocks has resolved each block's key, so every
+// marker in the preview carries the key its block's row is stored under as
+// source id. item.PreviewHTML is set to that preview.
+func StoreReadItem(ctx context.Context, w ReadItemWriter, projectID, stream string, item *Item, read *editor.ParseResult) error {
+	// The item row comes first: ReplaceItemBlocks scopes the keys it
+	// resolves to the item's id.
+	if err := w.StoreItem(ctx, projectID, stream, item); err != nil {
+		return fmt.Errorf("store item %q: %w", item.Name, err)
+	}
+	if _, err := ReplaceItemBlocks(ctx, w, projectID, stream, item.Name, read.Blocks); err != nil {
+		return err
+	}
+	item.PreviewHTML = read.PreviewHTML()
+	if err := w.StoreItem(ctx, projectID, stream, item); err != nil {
+		return fmt.Errorf("store the preview of %q: %w", item.Name, err)
+	}
+	return nil
 }

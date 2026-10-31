@@ -820,7 +820,7 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	}
 
 	// Generate per-item editor metadata (BlockIndex + PreviewHTML) for changed items.
-	itemMeta := c.buildItemMeta(ctx, changed)
+	itemMeta := c.buildItemMeta(ctx, changed, blockMap)
 
 	// Group changed blocks by item for the push API.
 	blocksByItem := map[string][]*model.Block{}
@@ -1822,7 +1822,11 @@ func (c *BowrainSourceConnector) configureWriterFor(writer format.DataFormatWrit
 // (core/project.CollectionForPath): the same globs, in the same first-match
 // order, that target resolution uses, so an item cannot land in one collection
 // for governance and another for output.
-func (c *BowrainSourceConnector) buildItemMeta(ctx context.Context, changed []itemBlock) []apiclient.ItemMeta {
+//
+// scanned is the push's read of each item, with each block's key resolved.
+// The preview marks each block by that key, which the venue stores as the
+// block's source id, so a surface finds a stored block in the preview.
+func (c *BowrainSourceConnector) buildItemMeta(ctx context.Context, changed []itemBlock, scanned map[string][]*model.Block) []apiclient.ItemMeta {
 	// Collect unique item names that have changes.
 	seen := map[string]bool{}
 	var itemNames []string
@@ -1872,17 +1876,35 @@ func (c *BowrainSourceConnector) buildItemMeta(ctx context.Context, changed []it
 		if err != nil {
 			continue
 		}
+		carryResolvedKeys(result.Blocks, scanned[itemName])
 
 		meta = append(meta, apiclient.ItemMeta{
 			Name:        itemName,
 			Format:      formatName,
 			BlockIndex:  result.BlockIndexJSON,
-			PreviewHTML: result.PreviewHTML,
+			PreviewHTML: result.PreviewHTML(),
 			Collection:  c.project.Recipe.CollectionForPath(filepath.ToSlash(itemName)),
 		})
 	}
 
 	return meta
+}
+
+// carryResolvedKeys gives each block of a fresh read the key the push resolved
+// for the scanned block with the same reader id. Both reads use the same
+// reader configuration, so a reader id names the same block in each.
+func carryResolvedKeys(blocks, scanned []*model.Block) {
+	keys := make(map[string]string, len(scanned))
+	for _, b := range scanned {
+		if b.Key != "" {
+			keys[b.ID] = b.Key
+		}
+	}
+	for _, b := range blocks {
+		if key, ok := keys[b.ID]; ok {
+			b.Key = key
+		}
+	}
 }
 
 // readBlocks reads a file and extracts blocks using the format reader.

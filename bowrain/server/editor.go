@@ -618,8 +618,8 @@ func editorAddFilesToCollection(ctx context.Context, cs store.ContentStore, form
 
 // editorAddFilesInternal is the shared upload path: it parses each file,
 // stores the item (tagged with collectionID when non-empty), replaces the
-// item's block set with the blocks the file now reads to
-// (store.ReplaceItemBlocks), collects per-file skip reasons, and returns the
+// item's block set with the blocks the file now reads to and stores its
+// preview (store.StoreReadItem), collects per-file skip reasons, and returns the
 // project info with Skipped set. Uploading an unchanged file again leaves the
 // item's blocks as they were. A storage error fails the whole upload, because
 // it reports the store's state rather than a problem with one file.
@@ -675,14 +675,9 @@ func editorAddFilesInternal(ctx context.Context, cs store.ContentStore, formatRe
 			ItemType:     "file",
 			CollectionID: collectionID,
 			BlockIndex:   result.BlockIndexJSON,
-			PreviewHTML:  result.PreviewHTML,
 			Properties:   map[string]string{},
 		}
-		if err := cs.StoreItem(ctx, projectID, stream, item); err != nil {
-			return nil, fmt.Errorf("store item %q: %w", itemName, err)
-		}
-
-		if _, err := store.ReplaceItemBlocks(ctx, cs, projectID, stream, itemName, result.Blocks); err != nil {
+		if err := store.StoreReadItem(ctx, cs, projectID, stream, item, result); err != nil {
 			return nil, err
 		}
 	}

@@ -87,7 +87,11 @@ func (a *App) RemoveConnector(connectorID string) error {
 	return c.Close()
 }
 
-// FetchContent fetches content from a connector into the content store.
+// FetchContent fetches content from a connector into the content store. Each
+// fetched item is stored under its own item row, created when the project has
+// none, and its blocks become that item's whole block set
+// (connector.StoreFetched), as the server's connector fetch and an upload
+// store them.
 func (a *App) FetchContent(connectorID, projectID string) ([]ContentItemInfo, error) {
 	c, ok := activeConnectors[connectorID]
 	if !ok {
@@ -100,14 +104,9 @@ func (a *App) FetchContent(connectorID, projectID string) ([]ContentItemInfo, er
 		return nil, fmt.Errorf("fetch from %s: %w", connectorID, err)
 	}
 
-	// Store blocks if we have a content store.
 	if a.store != nil && projectID != "" {
-		for _, item := range items {
-			if len(item.Blocks) > 0 {
-				if err := a.store.StoreBlocks(ctx, projectID, "main", item.Blocks); err != nil {
-					return nil, fmt.Errorf("store blocks: %w", err)
-				}
-			}
+		if err := connector.StoreFetched(ctx, a.store, projectID, "main", items); err != nil {
+			return nil, err
 		}
 	}
 

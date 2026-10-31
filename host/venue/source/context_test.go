@@ -82,7 +82,7 @@ func TestBuildItemMeta_NamesTheClaimingCollection(t *testing.T) {
 		{itemName: "loose/c.json", block: &model.Block{ID: "b3", Translatable: true}},
 		{itemName: "stray/d.json", block: &model.Block{ID: "b4", Translatable: true}},
 	}
-	meta := conn.buildItemMeta(ctx, changed)
+	meta := conn.buildItemMeta(ctx, changed, nil)
 
 	byName := map[string]string{}
 	for _, m := range meta {

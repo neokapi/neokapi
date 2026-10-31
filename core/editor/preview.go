@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 )
@@ -8,11 +9,49 @@ import (
 // BuildPreview generates a preview HTML string for the given parts.
 // If the reader implements format.PreviewBuilder, delegates to it;
 // otherwise uses the generic fallback.
+//
+// Each <kat-block> marker carries its block's durable key
+// (convergence.BlockKey), the key a venue stores as the block's source id.
+// A surface holding a stored block finds it in the document under that key.
+// The key is read when the preview is built, so a caller builds it after the
+// blocks' keys are resolved.
 func BuildPreview(parts []*model.Part, reader format.DataFormatReader) string {
+	parts = markedByKey(parts)
 	if pb, ok := reader.(format.PreviewBuilder); ok {
 		return pb.BuildPreview(parts)
 	}
 	return BuildGenericPreview(parts)
+}
+
+// markedByKey returns parts with each block carrying its durable key as its
+// ID, the field every preview builder writes into a marker. A block whose key
+// differs from its ID is copied, so the caller's blocks keep their IDs.
+func markedByKey(parts []*model.Part) []*model.Part {
+	out := parts
+	copied := false
+	for i, pt := range parts {
+		if pt == nil {
+			continue
+		}
+		b, ok := pt.Resource.(*model.Block)
+		if !ok || b == nil {
+			continue
+		}
+		key := convergence.BlockKey(b)
+		if key == b.ID {
+			continue
+		}
+		if !copied {
+			out = append([]*model.Part(nil), parts...)
+			copied = true
+		}
+		marked := *b
+		marked.ID = key
+		part := *pt
+		part.Resource = &marked
+		out[i] = &part
+	}
+	return out
 }
 
 // PreviewBoilerplateStart returns the standard HTML preamble for preview documents.
