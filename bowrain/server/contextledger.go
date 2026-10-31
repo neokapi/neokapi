@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"slices"
 	"strings"
 	"sync"
@@ -93,8 +92,8 @@ func (l *contextLog) Select(ctx context.Context, q workspace.OpQuery) ([]workspa
 // Record implements contextop.Log. The operations the log does not hold
 // already, by id or by content address, are written as one new segment,
 // log/bowrain/<first-op-id>.jsonl, under the project's key; an operation it
-// holds is returned as held. Each context operation is stamped with the log's
-// actor.
+// holds is returned as held. Each context operation a person records is
+// stamped with the log's actor.
 func (l *contextLog) Record(ctx context.Context, ops ...workspace.Op) ([]workspace.Op, error) {
 	key, held, err := l.cache.read(ctx, l.objects, l.project)
 	if err != nil {
@@ -177,12 +176,20 @@ func (l *contextLog) Record(ctx context.Context, ops ...workspace.Op) ([]workspa
 	return out, nil
 }
 
-// stampActor sets the actor of a context operation's payload.
+// stampActor sets the actor of a context operation a person records. An
+// operation whose payload names a tool or an agent (a settling, a signal)
+// keeps the actor it names.
 func stampActor(payload []byte, actor contextop.Actor) ([]byte, error) {
 	body := map[string]json.RawMessage{}
 	if len(payload) > 0 {
 		if err := json.Unmarshal(payload, &body); err != nil {
 			return nil, fmt.Errorf("record a context operation: the payload is not a JSON object: %w", err)
+		}
+	}
+	if raw, ok := body["actor"]; ok {
+		var named contextop.Actor
+		if err := json.Unmarshal(raw, &named); err == nil && named.Kind != "" && named.Kind != contextop.ActorPerson {
+			return payload, nil
 		}
 	}
 	stamped, err := json.Marshal(actor)
@@ -268,11 +275,7 @@ func (p *projectContextLog) read(ctx context.Context, objects platstore.ContextO
 			}
 			ops, err := workspace.DecodeSegment(obj.Data, key)
 			if err != nil {
-				// A segment is never replaced, so one that does not decode
-				// is read past rather than stopping every later reading.
-				slog.WarnContext(ctx, "context ledger: a segment does not decode as the project's operations",
-					"project", projectID, "segment", name, "error", err)
-				ops = nil
+				return "", nil, fmt.Errorf("context ledger: segment %s: %w", name, err)
 			}
 			segments[name] = readSegment{digest: digest, ops: ops}
 		}
@@ -282,11 +285,18 @@ func (p *projectContextLog) read(ctx context.Context, objects platstore.ContextO
 }
 
 // mergeSegments merges the operations of every segment in id order, holding
-// one operation per id and per content address, and numbers them from 1.
+// one operation per id and per content address, and numbers them from 1. The
+// segments are read in name order, so where two hold one id the operation
+// kept is the same on every reading.
 func mergeSegments(segments map[string]readSegment) []workspace.Op {
+	names := make([]string, 0, len(segments))
+	for name := range segments {
+		names = append(names, name)
+	}
+	slices.Sort(names)
 	all := []workspace.Op{}
-	for _, seg := range segments {
-		all = append(all, seg.ops...)
+	for _, name := range names {
+		all = append(all, segments[name].ops...)
 	}
 	slices.SortStableFunc(all, func(a, b workspace.Op) int { return strings.Compare(a.ID, b.ID) })
 	ids := map[string]bool{}

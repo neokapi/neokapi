@@ -110,6 +110,9 @@ func checkReach(member LedgerMember, op workspace.Op, byID map[string]workspace.
 	if !member.Permissions.Has(governingPermission) {
 		return &ReachError{Kind: contextop.Kind(kind), ID: op.ID, Permission: governingPermission}
 	}
+	if contextop.Kind(kind) == contextop.KindEstablish && followsFromLog(op, byID) {
+		return nil
+	}
 	own, target := scopeOf(op)
 	var points []map[string]string
 	if target == "" || len(own) > 0 || contextop.Kind(kind) == contextop.KindWiden {
@@ -152,4 +155,28 @@ func scopeOf(op workspace.Op) (coordinates map[string]string, target string) {
 		_ = json.Unmarshal(op.Payload, &body)
 	}
 	return body.Scope.Coordinates, body.Target
+}
+
+// followsFromLog reports whether an establish operation is the one settling
+// derives from operations byID holds: its target and every operation it
+// rested on are held, and its content address is the one they derive
+// (contextop.EstablishAddress). Settling follows from the log rather than
+// from anyone's reach, so such an establishment is accepted at any point.
+func followsFromLog(op workspace.Op, byID map[string]workspace.Op) bool {
+	var body struct {
+		Target  string   `json:"target"`
+		Because []string `json:"because"`
+	}
+	if len(op.Payload) == 0 || json.Unmarshal(op.Payload, &body) != nil || body.Target == "" || len(body.Because) == 0 {
+		return false
+	}
+	if _, ok := byID[body.Target]; !ok {
+		return false
+	}
+	for _, id := range body.Because {
+		if _, ok := byID[id]; !ok {
+			return false
+		}
+	}
+	return op.Address == contextop.EstablishAddress(body.Target, body.Because)
 }

@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"io/fs"
+	"maps"
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -24,6 +24,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/workspace"
+	"github.com/neokapi/neokapi/core/workspace/workspacetest"
 )
 
 // desktop is a machine's workspace that records context and pushes it to a
@@ -272,7 +273,9 @@ func TestContextLedger_KeyRefusals_SQLite(t *testing.T) {
 	require.Equal(t, http.StatusUnprocessableEntity, rec.Code)
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &refusal))
 	assert.Equal(t, contextCheckoutKeyCode, refusal.Code)
-	assert.True(t, strings.HasSuffix(refusal.Error, "Name the project in kapi.yaml, then push again"), refusal.Error)
+	assert.Equal(t, "the push carries project key "+string(checkout.key)+
+		", which belongs to one checkout because kapi.yaml states neither id: nor name:", refusal.Error)
+	assert.Equal(t, "Name the project in kapi.yaml, then push again.", refusal.Message)
 	assert.Contains(t, refusal.Error, string(checkout.key))
 	key, err := cs.ContextKey(ctx, fresh)
 	require.NoError(t, err)
@@ -321,22 +324,40 @@ func TestContextLedger_CacheFollowsTheObjectList_SQLite(t *testing.T) {
 	assert.Equal(t, int64(2), cs.gets.Load(), "only the new segment is fetched")
 }
 
-// A segment that does not decode as the project's operations is read past.
-func TestContextLedger_SegmentThatDoesNotDecode_SQLite(t *testing.T) {
+// An object under log/ that is not a segment of the project's operations is
+// refused, whoever pushes it, and binds no key: a desktop could never pull
+// past it, since an object is never replaced.
+func TestContextLedger_SegmentThatDoesNotDecodeIsRefused_SQLite(t *testing.T) {
 	ctx := t.Context()
-	srv, e, cs := ledgerSQLiteServer(t)
+	_, e, cs := ledgerSQLiteServer(t)
 	pid := seedContextObjectProject(t, cs)
 	r := &routeRemote{h: e, base: "/api/v1/ws/" + pid + "/context/objects"}
+	junk := workspace.Object{Name: workspace.SegmentName("w9", "000000000000000000000001"), Data: []byte("not a segment\n")}
+	rec := r.do(ctx, http.MethodPost, r.base, pushBody(t, []workspace.Object{junk}))
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+	var refusal ErrorResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &refusal))
+	assert.Equal(t, contextInvalidSegmentCode, refusal.Code)
+	assert.Equal(t, junk.Name, refusal.Details)
+
 	d := newDesktop(t, "site")
 	d.observe(t, "use", "utilise")
-	require.NoError(t, r.Put(ctx, d.push(t)...))
-	require.NoError(t, r.Put(ctx, workspace.Object{Name: workspace.SegmentName("w9", "000000000000000000000001"), Data: []byte("not a segment\n")}))
+	good := d.push(t)
+	rec = r.do(ctx, http.MethodPost, r.base, pushBody(t, append(good, junk)))
+	require.Equal(t, http.StatusBadRequest, rec.Code, "one bad segment refuses the whole push")
+	names, err := cs.ListContextObjects(ctx, pid, workspace.RemoteLogDir)
+	require.NoError(t, err)
+	assert.Empty(t, names)
+	key, err := cs.ContextKey(ctx, pid)
+	require.NoError(t, err)
+	assert.Empty(t, key)
 
-	ledger, err := srv.ContextLedger(ctx, pid, testMember("member-a"))
-	require.NoError(t, err)
-	records, err := ledger.Records(ctx, contextop.Filter{})
-	require.NoError(t, err)
-	assert.Len(t, records, 1)
+	// A segment of the bound key carrying a line of another project.
+	require.NoError(t, r.Put(ctx, good...))
+	mixed := append([]byte{}, workspacetest.Segment("site", "000000000000000000000003", "a")...)
+	mixed = append(mixed, workspacetest.Segment("other", "000000000000000000000004", "b")...)
+	rec = r.do(ctx, http.MethodPost, r.base, pushBody(t, []workspace.Object{{Name: workspace.SegmentName("w9", "000000000000000000000003"), Data: mixed}}))
+	assert.Equal(t, http.StatusConflict, rec.Code, "a segment naming two projects is refused")
 }
 
 // The same claims on the full server, behind its real auth middleware and
@@ -546,4 +567,228 @@ func TestContextLedger_DecisionOnAnUnknownOperation_SQLite(t *testing.T) {
 	var reachErr *ReachError
 	require.ErrorAs(t, err, &reachErr)
 	assert.Equal(t, platauth.PermManageTerms, reachErr.Permission, "a full reach without the permission governs nothing")
+}
+
+// heldOp returns the operation a desktop holds under an id.
+func (d *desktop) heldOp(t *testing.T, id string) workspace.Op {
+	t.Helper()
+	ops, err := d.ws.Select(t.Context(), workspace.OpQuery{Project: d.key})
+	require.NoError(t, err)
+	for _, op := range ops {
+		if op.ID == id {
+			return op
+		}
+	}
+	t.Fatalf("the desktop holds no operation %s", id)
+	return workspace.Op{}
+}
+
+// withPayload returns op with the payload fields given set over its own.
+func withPayload(t *testing.T, op workspace.Op, fields map[string]any) workspace.Op {
+	t.Helper()
+	body := map[string]any{}
+	require.NoError(t, json.Unmarshal(op.Payload, &body))
+	maps.Copy(body, fields)
+	raw, err := json.Marshal(body)
+	require.NoError(t, err)
+	op.Payload = raw
+	return op
+}
+
+// segmentOf encodes ops as one segment object under a writer.
+func segmentOf(t *testing.T, writer string, ops ...workspace.Op) workspace.Object {
+	t.Helper()
+	data, err := workspace.EncodeSegment(ops)
+	require.NoError(t, err)
+	return workspace.Object{Name: workspace.SegmentName(writer, ops[0].ID), Data: data}
+}
+
+// A bounded custodian cannot move a held suggestion into their reach by
+// pushing a copy of it under its id with other coordinates, and a keep riding
+// on the copy is refused with it.
+func TestContextLedger_ForgedCopyOfAHeldOperationIsRefused_SQLite(t *testing.T) {
+	ctx := t.Context()
+	e, cs := reachSQLiteServer(t, platauth.CoordinateReach{}.Add(platauth.CoordinateFilter{"brand": "acme"}))
+	pid := seedContextObjectProject(t, cs)
+	r := &routeRemote{h: e, base: "/api/v1/ws/" + pid + "/context/objects"}
+	d := newDesktop(t, "site")
+	atOther := d.observeAt(t, "sign in", "login", map[string]string{"brand": "other"})
+	require.NoError(t, r.Put(ctx, d.push(t)...))
+
+	forged := withPayload(t, d.heldOp(t, atOther.ID), map[string]any{"scope": map[string]any{"coordinates": map[string]string{"brand": "acme"}}})
+	at := time.Now().UTC()
+	keep := workspace.Op{
+		ID: workspace.NewOpID(at, atOther.ID), Project: "site", Kind: contextop.OpKindPrefix + string(contextop.KindKeep),
+		Payload: []byte(`{"actor":{"kind":"person","name":"custodian"},"target":"` + atOther.ID + `"}`), At: at,
+	}
+	rec := r.do(ctx, http.MethodPost, r.base, pushBody(t, []workspace.Object{segmentOf(t, "forger", forged, keep)}))
+	require.Equal(t, http.StatusConflict, rec.Code)
+	var refusal ErrorResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &refusal))
+	assert.Equal(t, contextOperationConflictCode, refusal.Code)
+	assert.Equal(t, atOther.ID, refusal.Details)
+
+	names, err := cs.ListContextObjects(ctx, pid, workspace.RemoteLogDir)
+	require.NoError(t, err)
+	assert.Len(t, names, 1, "nothing of the forged push is written")
+}
+
+// Where two segments hold one id, the operation kept is the one in the
+// segment whose name sorts first, on every reading.
+func TestContextLedger_MergeKeepsOneOperationPerIDInNameOrder(t *testing.T) {
+	at := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	id := workspace.NewOpID(at, "")
+	op := func(text string) workspace.Op {
+		return workspace.Op{ID: id, Project: "site", Kind: "context.observe", Payload: []byte(`{"note":"` + text + `"}`), At: at}
+	}
+	segments := map[string]readSegment{
+		workspace.SegmentName("zz", id): {ops: []workspace.Op{op("last")}},
+		workspace.SegmentName("aa", id): {ops: []workspace.Op{op("first")}},
+		workspace.SegmentName("mm", id): {ops: []workspace.Op{op("middle")}},
+	}
+	for range 50 {
+		merged := mergeSegments(segments)
+		require.Len(t, merged, 1)
+		require.JSONEq(t, `{"note":"first"}`, string(merged[0].Payload))
+	}
+}
+
+// A push refused for reach binds no key: the next push may still name the
+// project.
+func TestContextLedger_RefusedPushBindsNoKey_SQLite(t *testing.T) {
+	ctx := t.Context()
+	e, cs := reachSQLiteServer(t, platauth.CoordinateReach{}.Add(platauth.CoordinateFilter{"brand": "acme"}))
+	pid := seedContextObjectProject(t, cs)
+	r := &routeRemote{h: e, base: "/api/v1/ws/" + pid + "/context/objects"}
+	d := newDesktop(t, "site")
+	atOther := d.observeAt(t, "sign in", "login", map[string]string{"brand": "other"})
+	d.keep(t, atOther.ID)
+	rec := r.do(ctx, http.MethodPost, r.base, pushBody(t, d.push(t)))
+	require.Equal(t, http.StatusForbidden, rec.Code)
+	key, err := cs.ContextKey(ctx, pid)
+	require.NoError(t, err)
+	assert.Empty(t, key, "a refused push leaves the project unbound")
+}
+
+// An establishment settling derives from the log is accepted at any point,
+// and keeps the tool actor it names; one whose address its evidence does not
+// derive is checked as any decision is.
+func TestContextLedger_SettlingFollowsFromTheLog_SQLite(t *testing.T) {
+	ctx := t.Context()
+	e, cs := reachSQLiteServer(t, platauth.CoordinateReach{}.Add(platauth.CoordinateFilter{"brand": "acme"}))
+	pid := seedContextObjectProject(t, cs)
+	r := &routeRemote{h: e, base: "/api/v1/ws/" + pid + "/context/objects"}
+	d := newDesktop(t, "site")
+	ledger := contextop.NewLedger(d.ws, nil)
+	s, err := ledger.Append(ctx, contextop.Record{
+		Project: "site", Actor: contextop.Actor{Kind: contextop.ActorAgent, Name: "claude", Session: "s1"},
+		Kind: contextop.KindObserve, Scope: contextop.Scope{Coordinates: map[string]string{"brand": "other"}},
+		Subject:  contextop.Subject{Kind: contextop.SubjectTerm, Term: &profile.TermRule{Term: "Quick cast", Replacement: "Quickcast"}},
+		Evidence: []contextop.Evidence{{Path: "docs/guide.md"}},
+	})
+	require.NoError(t, err)
+	_, err = ledger.Append(ctx, contextop.Record{
+		Project: "site", Actor: contextop.Actor{Kind: contextop.ActorTool, Name: "settle-merged"}, Kind: contextop.KindSignal,
+		Target: s.ID, Signal: &contextop.Signal{Source: contextop.SignalMerge, Commit: "abc1234def", PR: 412, Preferred: 2},
+	})
+	require.NoError(t, err)
+	settled, err := ledger.Settle(ctx, contextop.Filter{})
+	require.NoError(t, err)
+	require.Len(t, settled, 1)
+	require.NoError(t, r.Put(ctx, d.push(t)...), "a settling at brand=other follows from the log the push carries")
+
+	srvLedger, err := reachServerLedger(t, cs, pid)
+	require.NoError(t, err)
+	records, err := srvLedger.Records(ctx, contextop.Filter{Kinds: []contextop.Kind{contextop.KindEstablish}})
+	require.NoError(t, err)
+	require.Len(t, records, 1)
+	assert.Equal(t, contextop.SettleActor, records[0].Actor, "the settling keeps its tool actor")
+
+	// An establishment naming evidence it was not derived from.
+	at := time.Now().UTC()
+	forged := workspace.Op{
+		ID: workspace.NewOpID(at, records[0].ID), Project: "site", Kind: contextop.OpKindPrefix + string(contextop.KindEstablish),
+		Address: "context.establish:00000000000000000000000000000000",
+		Payload: []byte(`{"actor":{"kind":"tool","name":"settle"},"target":"` + s.ID + `","because":["` + records[0].Because[0] + `"]}`), At: at,
+	}
+	rec := r.do(ctx, http.MethodPost, r.base, pushBody(t, []workspace.Object{segmentOf(t, "forger", forged)}))
+	assert.Equal(t, http.StatusForbidden, rec.Code)
+}
+
+// reachServerLedger opens the server ledger of a project for an unbounded
+// custodian.
+func reachServerLedger(t *testing.T, cs *sqlitestore.SQLiteStore, pid string) (*contextop.Ledger, error) {
+	t.Helper()
+	srv := &Server{ContentStore: cs, wsStores: newWorkspaceStores()}
+	return srv.ContextLedger(t.Context(), pid, testMember("owner"))
+}
+
+// A server-side establishment keeps the tool actor it names; a keep is
+// stamped with the member.
+func TestContextLedger_RecordKeepsAToolActor_SQLite(t *testing.T) {
+	ctx := t.Context()
+	srv, e, cs := ledgerSQLiteServer(t)
+	pid := seedContextObjectProject(t, cs)
+	r := &routeRemote{h: e, base: "/api/v1/ws/" + pid + "/context/objects"}
+	d := newDesktop(t, "site")
+	s := d.observe(t, "use", "utilise")
+	require.NoError(t, r.Put(ctx, d.push(t)...))
+
+	ledger, err := srv.ContextLedger(ctx, pid, testMember("member-a"))
+	require.NoError(t, err)
+	signal, err := ledger.Append(ctx, contextop.Record{
+		Actor: contextop.Actor{Kind: contextop.ActorTool, Name: "settle-merged"}, Kind: contextop.KindSignal,
+		Target: s.ID, Signal: &contextop.Signal{Source: contextop.SignalMerge, Commit: "abc1234def", PR: 7, Preferred: 1},
+	})
+	require.NoError(t, err)
+	established, err := ledger.Append(ctx, contextop.Record{
+		Actor: contextop.SettleActor, Kind: contextop.KindEstablish, Target: s.ID, Because: []string{signal.ID},
+	})
+	require.NoError(t, err)
+	records, err := ledger.Records(ctx, contextop.Filter{})
+	require.NoError(t, err)
+	byID := map[string]contextop.Record{}
+	for _, rec := range records {
+		byID[rec.ID] = rec
+	}
+	assert.Equal(t, contextop.SettleActor, byID[established.ID].Actor)
+	assert.Equal(t, contextop.ActorTool, byID[signal.ID].Actor.Kind)
+}
+
+// A keep that declares a subject of its own is governed by what it keeps: a
+// note subject on a term rule needs the terms permission, so a member holding
+// the voice permission alone keeps nothing, through the server or a push.
+func TestContextLedger_KeepIsGovernedByItsTarget_SQLite(t *testing.T) {
+	ctx := t.Context()
+	srv, e, cs := ledgerSQLiteServer(t)
+	pid := seedContextObjectProject(t, cs)
+	r := &routeRemote{h: e, base: "/api/v1/ws/" + pid + "/context/objects"}
+	d := newDesktop(t, "site")
+	term := d.observe(t, "use", "utilise")
+	require.NoError(t, r.Put(ctx, d.push(t)...))
+
+	voiceOnly, err := srv.ContextLedger(ctx, pid, LedgerMember{UserID: "voice", Permissions: platauth.PermManageVoice})
+	require.NoError(t, err)
+	_, err = voiceOnly.Append(ctx, contextop.Record{
+		Kind: contextop.KindKeep, Target: term.ID,
+		Subject: contextop.Subject{Kind: contextop.SubjectNote, Text: "a note, not a rule"},
+	})
+	require.ErrorIs(t, err, ErrOutsideReach)
+
+	at := time.Now().UTC()
+	keep := workspace.Op{
+		ID: workspace.NewOpID(at, term.ID), Project: "site", Kind: contextop.OpKindPrefix + string(contextop.KindKeep),
+		Payload: []byte(`{"actor":{"kind":"person","name":"voice"},"target":"` + term.ID + `","subject":{"kind":"note","text":"x"}}`), At: at,
+	}
+	voiceEcho := echo.New()
+	(&Server{ContentStore: cs, wsStores: newWorkspaceStores()}).registerContextObjectRoutes(voiceEcho.Group("/api/v1/:ws", func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			c.Set("user_id", "voice")
+			c.Set("project_permissions", platauth.PermViewContent|platauth.PermManageVoice)
+			return next(c)
+		}
+	}))
+	voicePush := &routeRemote{h: voiceEcho, base: r.base}
+	rec := voicePush.do(ctx, http.MethodPost, r.base, pushBody(t, []workspace.Object{segmentOf(t, "voice", keep)}))
+	assert.Equal(t, http.StatusForbidden, rec.Code)
 }
