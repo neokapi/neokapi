@@ -1638,7 +1638,7 @@
           "type": "string"
         },
         "session": {
-          "description": "the session to summarize (default: this MCP server's own)",
+          "description": "the session to summarize (default: the session that recorded last in the project's log, named in chosen)",
           "type": "string"
         }
       },
