@@ -61,3 +61,30 @@ export const Empty: Story = {
 export const Loading: Story = {
   args: { projects: [], loading: true },
 };
+
+/** Questions about suggestions waiting in two projects, beside the review standing. */
+export const RulesWaiting: Story = {
+  args: {
+    onOpenRules: fn(),
+    rules: [
+      {
+        projectId: "p1",
+        projectName: "Marketing Website",
+        stream: "main",
+        waiting: 3,
+        assigned: 1,
+      },
+      { projectId: "p2", projectName: "Mobile App", stream: "main", waiting: 2, assigned: 0 },
+    ],
+    projects: [
+      {
+        projectId: "p1",
+        projectName: "Marketing Website",
+        stream: "main",
+        pending: 12,
+        established: 3,
+        translated: 5,
+      },
+    ],
+  },
+};

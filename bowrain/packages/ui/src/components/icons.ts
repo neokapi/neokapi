@@ -89,4 +89,6 @@ export {
   GitFork,
   Rocket,
   RefreshCw,
+  ListChecks,
+  Map as MapIcon,
 } from "lucide-react";

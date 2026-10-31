@@ -2,6 +2,7 @@ import type { ApiAdapter, ComponentSchema } from "@neokapi/ui";
 import { ALL_PERMISSIONS, governedRefusalError } from "@neokapi/ui";
 import type {
   CallerPermissions,
+  ContextQueue,
   ConvergenceRun,
   ConvergenceEstimate,
   ConvergenceRunScope,
@@ -2050,5 +2051,57 @@ export class WailsApiAdapter implements ApiAdapter {
 
   async promoteEntityToConcept(): Promise<never> {
     throw new Error("entity-to-concept promotion is not available in the desktop app");
+  }
+
+  // The project screens read a Bowrain server's stores; the desktop app draws
+  // them from its own project instead.
+  async getMapSummary(): Promise<never> {
+    throw new Error("the Map is not available in the desktop app");
+  }
+
+  async getReaderFile(): Promise<never> {
+    throw new Error("the Reader is not available in the desktop app");
+  }
+
+  async getDecideView(): Promise<never> {
+    throw new Error("Decide is not available in the desktop app");
+  }
+
+  async getDecideConsequence(): Promise<never> {
+    throw new Error("Decide is not available in the desktop app");
+  }
+
+  async decideRule(): Promise<never> {
+    throw new Error("Decide is not available in the desktop app");
+  }
+
+  async assignSuggestion(): Promise<never> {
+    throw new Error("Decide is not available in the desktop app");
+  }
+
+  async getKeptRules(): Promise<never> {
+    throw new Error("the kept rules are not available in the desktop app");
+  }
+
+  async runProjectChecks(): Promise<never> {
+    throw new Error("project-wide checks are not available in the desktop app");
+  }
+
+  async getJob(): Promise<never> {
+    throw new Error("jobs are not available in the desktop app");
+  }
+
+  async fixFinding(): Promise<never> {
+    throw new Error("source proposals are not available in the desktop app");
+  }
+
+  async fixFile(): Promise<never> {
+    throw new Error("source proposals are not available in the desktop app");
+  }
+
+  async getContextQueue(_ws: string): Promise<ContextQueue> {
+    // No ledger in the desktop app: an empty queue hides the review inbox's
+    // Rules waiting count.
+    return { projects: [] };
   }
 }

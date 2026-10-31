@@ -1,5 +1,5 @@
 import { Card, CardContent, Button, cn } from "@neokapi/ui-primitives";
-import { Eye, CircleCheck, Sparkles, ShieldCheck, ArrowRight, Lock } from "../icons";
+import { Eye, CircleCheck, Sparkles, ShieldCheck, ArrowRight, Lock, ListChecks } from "../icons";
 
 /** One project's pending-review standing in the workspace review inbox. */
 export interface ReviewInboxProject {
@@ -27,6 +27,17 @@ export interface ReviewInboxTask {
   stream?: string;
 }
 
+/** One project's questions waiting for a decision (GET /:ws/context/queue). */
+export interface ReviewInboxRules {
+  projectId: string;
+  projectName: string;
+  /** The stream its Rules page opens on. */
+  stream: string;
+  waiting: number;
+  /** The waiting questions assigned to the current user. */
+  assigned: number;
+}
+
 export interface ReviewInboxProps {
   /** Projects with pending review, most-pending first. */
   projects: ReviewInboxProject[];
@@ -40,6 +51,10 @@ export interface ReviewInboxProps {
   onOpenReview: (projectId: string, stream: string) => void;
   /** Open what a task is waiting on (change-set page or review session). */
   onOpenTask?: (task: ReviewInboxTask) => void;
+  /** Projects with questions waiting for a decision. */
+  rules?: ReviewInboxRules[];
+  /** Open a project's Rules page. */
+  onOpenRules?: (projectId: string, stream: string) => void;
   loading?: boolean;
   /** Coverage note when the rollup counts only some projects. */
   coverageNote?: string;
@@ -57,11 +72,15 @@ export function ReviewInbox({
   tasks = [],
   onOpenReview,
   onOpenTask,
+  rules = [],
+  onOpenRules,
   loading,
   coverageNote,
 }: ReviewInboxProps) {
   const withPending = projects.filter((p) => p.pending > 0);
-  const empty = withPending.length === 0 && tasks.length === 0;
+  const withRules = rules.filter((r) => r.waiting > 0);
+  const rulesWaiting = withRules.reduce((sum, r) => sum + r.waiting, 0);
+  const empty = withPending.length === 0 && tasks.length === 0 && withRules.length === 0;
 
   return (
     <div className="mx-auto w-full max-w-4xl p-4 md:p-6" data-testid="review-inbox">
@@ -118,6 +137,52 @@ export function ReviewInbox({
                           </p>
                         </div>
                         <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      </CardContent>
+                    </Card>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {withRules.length > 0 && (
+            <section className="mb-4 space-y-2" data-testid="review-inbox-rules">
+              <h2 className="flex items-baseline gap-2 text-sm font-medium text-muted-foreground">
+                Rules waiting
+                <span
+                  className="tabular-nums text-foreground"
+                  data-testid="review-inbox-rules-count"
+                >
+                  {rulesWaiting}
+                </span>
+              </h2>
+              <ul className="space-y-2">
+                {withRules.map((r) => (
+                  <li key={r.projectId}>
+                    <Card
+                      className={cn(
+                        onOpenRules && "cursor-pointer transition-colors hover:border-primary/40",
+                      )}
+                      onClick={() => onOpenRules?.(r.projectId, r.stream)}
+                      data-testid={`review-inbox-rules-${r.projectId}`}
+                    >
+                      <CardContent className="flex items-center gap-4 py-3">
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-2xl font-semibold tabular-nums leading-none text-primary">
+                            {r.waiting}
+                          </span>
+                          <ListChecks className="h-3.5 w-3.5 self-center text-muted-foreground" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-medium">{r.projectName}</p>
+                          {r.assigned > 0 && (
+                            <p className="text-xs text-muted-foreground">
+                              <span>{r.assigned} assigned to you</span>
+                            </p>
+                          )}
+                        </div>
+                        {onOpenRules && (
+                          <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        )}
                       </CardContent>
                     </Card>
                   </li>

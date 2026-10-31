@@ -38,6 +38,8 @@ import {
   Rocket,
   Plug,
   FolderOpen,
+  ListChecks,
+  MapIcon,
 } from "./icons";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 import { MobileWorkspaceSwitcher } from "./MobileWorkspaceSwitcher";
@@ -88,7 +90,14 @@ export function NavCount({ count }: { count?: number }) {
 
 type ConnectionState = "disconnected" | "connecting" | "connected" | "offline";
 
-export type ProjectView = "dashboard" | "source" | "automations" | "runs" | "connectors";
+export type ProjectView =
+  | "map"
+  | "dashboard"
+  | "rules"
+  | "source"
+  | "automations"
+  | "runs"
+  | "connectors";
 
 export type SidebarContext =
   | { level: "workspace"; activeView: View }
@@ -97,7 +106,11 @@ export type SidebarContext =
       project: ProjectInfo;
       activeStream: string;
       activeProjectView: ProjectView;
+      /** The Map: the project's landing page. */
+      onOpenMap?: () => void;
       onOpenDashboard: () => void;
+      /** The questions about the project's suggestions, and the rules in force. */
+      onOpenRules?: () => void;
       /** The project's source content: collections, items and streams. */
       onOpenSource?: () => void;
       onOpenFile: (fileName: string) => void;
@@ -204,7 +217,9 @@ export const projectSubNavConfig = (
   ctx: Extract<SidebarContext, { level: "project" }>,
 ): SubNavItem[] =>
   [
+    { id: "map", label: t("Map"), icon: <MapIcon />, on: ctx.onOpenMap },
     { id: "dashboard", label: t("Overview"), icon: <LayoutDashboard />, on: ctx.onOpenDashboard },
+    { id: "rules", label: t("Rules"), icon: <ListChecks />, on: ctx.onOpenRules },
     { id: "source", label: t("Source content"), icon: <FolderOpen />, on: ctx.onOpenSource },
     { id: "automations", label: t("Automations"), icon: <Sparkles />, on: ctx.onOpenAutomations },
     { id: "runs", label: t("Runs"), icon: <Rocket />, on: ctx.onOpenRuns },
@@ -219,7 +234,9 @@ export function openProjectSection(
   id: string,
 ): void {
   const run = {
+    map: ctx.onOpenMap,
     dashboard: ctx.onOpenDashboard,
+    rules: ctx.onOpenRules,
     source: ctx.onOpenSource,
     automations: ctx.onOpenAutomations,
     runs: ctx.onOpenRuns,

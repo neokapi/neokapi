@@ -1,5 +1,12 @@
 import { CHANGE_RESULT_SCHEMA_ID } from "@neokapi/contract-types";
 import type { ComponentSchema } from "@neokapi/ui-primitives";
+import type {
+  KeptRule,
+  MapSummary,
+  ReaderFile,
+  RuleDecideResult,
+  RulesDecideView,
+} from "@neokapi/project-screens";
 import { ApiError, apiErrorFromResponse } from "../errors/ApiError";
 import type { ApiAdapter } from "./adapter";
 import type { ChangeResult, ContentChangeSet } from "./contentChanges";
@@ -156,6 +163,12 @@ import type {
   ContextScanApproveResult,
   ApproveAxisRequest,
   PendingRecipeChange,
+  ProjectCheckStarted,
+  JobState,
+  ReaderFixResult,
+  DecideRuleRequest,
+  SuggestionAssignment,
+  ContextQueue,
 } from "../types/api";
 import type {
   VoiceProfile,
@@ -1835,6 +1848,130 @@ export class RestApiAdapter implements ApiAdapter {
       `${this.projectEp(workspaceSlug, projectId)}/source-proposals/${encodeURIComponent(proposalId)}/decide`,
       { method: "POST", body: JSON.stringify({ decision, reason }) },
     );
+  }
+
+  // ── The project screens ────────────────────────────────────────────────
+
+  async getMapSummary(
+    workspaceSlug: string,
+    projectId: string,
+    stream?: string,
+  ): Promise<MapSummary> {
+    return this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/map/${this.ref(stream)}`);
+  }
+
+  async getReaderFile(
+    workspaceSlug: string,
+    projectId: string,
+    itemName: string,
+    stream?: string,
+  ): Promise<ReaderFile> {
+    return this.fetchJSON(
+      `${this.projectEp(workspaceSlug, projectId)}/reader/${this.ref(stream)}?item=${encodeURIComponent(itemName)}`,
+    );
+  }
+
+  async getDecideView(
+    workspaceSlug: string,
+    projectId: string,
+    stream?: string,
+  ): Promise<RulesDecideView> {
+    return this.fetchJSON(
+      `${this.projectEp(workspaceSlug, projectId)}/rules/${this.ref(stream)}/decide`,
+    );
+  }
+
+  async getDecideConsequence(
+    workspaceSlug: string,
+    projectId: string,
+    id: string,
+    form: string,
+    stream?: string,
+  ): Promise<string> {
+    const q = new URLSearchParams({ id, form });
+    const res = await this.fetchJSON<{ consequence: string }>(
+      `${this.projectEp(workspaceSlug, projectId)}/rules/${this.ref(stream)}/decide/consequence?${q.toString()}`,
+    );
+    return res.consequence;
+  }
+
+  async decideRule(
+    workspaceSlug: string,
+    projectId: string,
+    req: DecideRuleRequest,
+    stream?: string,
+  ): Promise<RuleDecideResult> {
+    return this.fetchJSON(
+      `${this.projectEp(workspaceSlug, projectId)}/rules/${this.ref(stream)}/decide`,
+      { method: "POST", body: JSON.stringify(req) },
+    );
+  }
+
+  async assignSuggestion(
+    workspaceSlug: string,
+    projectId: string,
+    id: string,
+    userId: string | null,
+    stream?: string,
+  ): Promise<SuggestionAssignment> {
+    return this.fetchJSON(
+      `${this.projectEp(workspaceSlug, projectId)}/rules/${this.ref(stream)}/assign`,
+      { method: "POST", body: JSON.stringify({ id, user_id: userId }) },
+    );
+  }
+
+  async getKeptRules(
+    workspaceSlug: string,
+    projectId: string,
+    stream?: string,
+  ): Promise<KeptRule[]> {
+    return this.fetchJSON(
+      `${this.projectEp(workspaceSlug, projectId)}/rules/${this.ref(stream)}/kept`,
+    );
+  }
+
+  async runProjectChecks(
+    workspaceSlug: string,
+    projectId: string,
+    stream?: string,
+  ): Promise<ProjectCheckStarted> {
+    return this.fetchJSON(
+      `${this.projectEp(workspaceSlug, projectId)}/map/${this.ref(stream)}/check`,
+      { method: "POST" },
+    );
+  }
+
+  async getJob(workspaceSlug: string, jobId: string): Promise<JobState> {
+    return this.fetchJSON(`/api/v1/${workspaceSlug}/jobs/${encodeURIComponent(jobId)}`);
+  }
+
+  async fixFinding(
+    workspaceSlug: string,
+    projectId: string,
+    itemName: string,
+    findingId: string,
+    stream?: string,
+  ): Promise<ReaderFixResult> {
+    return this.fetchJSON(
+      `${this.projectEp(workspaceSlug, projectId)}/reader/${this.ref(stream)}/fix`,
+      { method: "POST", body: JSON.stringify({ item: itemName, finding_id: findingId }) },
+    );
+  }
+
+  async fixFile(
+    workspaceSlug: string,
+    projectId: string,
+    itemName: string,
+    stream?: string,
+  ): Promise<ReaderFixResult> {
+    return this.fetchJSON(
+      `${this.projectEp(workspaceSlug, projectId)}/reader/${this.ref(stream)}/fix-file`,
+      { method: "POST", body: JSON.stringify({ item: itemName }) },
+    );
+  }
+
+  async getContextQueue(workspaceSlug: string): Promise<ContextQueue> {
+    return this.fetchJSON(`/api/v1/${workspaceSlug}/context/queue`);
   }
 
   async promoteEntityToConcept(

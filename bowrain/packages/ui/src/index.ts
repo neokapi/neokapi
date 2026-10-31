@@ -231,6 +231,7 @@ export { ReviewInbox } from "./components/review/ReviewInbox";
 export type {
   ReviewInboxProps,
   ReviewInboxProject,
+  ReviewInboxRules,
   ReviewInboxTask,
 } from "./components/review/ReviewInbox";
 export { MarkSourceTermDialog } from "./components/review/MarkSourceTermDialog";
@@ -973,6 +974,13 @@ export type {
   ApproveAxisRequest,
   PendingRecipeChange,
   ContextScanApproveResult,
+  ProjectCheckStarted,
+  JobState,
+  ReaderFixResult,
+  DecideRuleRequest,
+  SuggestionAssignment,
+  ContextQueue,
+  ContextQueueProject,
 } from "./types/api";
 
 // What the signed-in user may do on a project, and the catalog of permission

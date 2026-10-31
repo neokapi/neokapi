@@ -29,6 +29,7 @@
     "@neokapi/contract-types": "*",
     "@neokapi/editor-grid": "*",
     "@neokapi/kapi-format": "*",
+    "@neokapi/project-screens": "*",
     "@neokapi/i18n-react": "*",
     "@neokapi/status-views": "*",
     "@neokapi/ui-primitives": "*",

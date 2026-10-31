@@ -36,3 +36,31 @@ describe("ReviewInbox tasks section", () => {
     expect(screen.getByTestId("review-inbox-empty")).toBeInTheDocument();
   });
 });
+
+describe("ReviewInbox rules waiting", () => {
+  const rules = [
+    { projectId: "p1", projectName: "Fernwell", stream: "main", waiting: 3, assigned: 1 },
+    { projectId: "p2", projectName: "Docs site", stream: "main", waiting: 2, assigned: 0 },
+    { projectId: "p3", projectName: "Help Center", stream: "main", waiting: 0, assigned: 0 },
+  ];
+
+  it("counts the questions waiting, by project, and opens a project's Rules", () => {
+    const onOpenRules = vi.fn();
+    render(
+      <ReviewInbox projects={[]} rules={rules} onOpenReview={() => {}} onOpenRules={onOpenRules} />,
+    );
+    expect(screen.queryByTestId("review-inbox-empty")).toBeNull();
+    expect(screen.getByTestId("review-inbox-rules-count")).toHaveTextContent("5");
+    expect(screen.getByTestId("review-inbox-rules-p1")).toHaveTextContent("1 assigned to you");
+    expect(screen.getByTestId("review-inbox-rules-p2")).not.toHaveTextContent("assigned");
+    expect(screen.queryByTestId("review-inbox-rules-p3")).toBeNull();
+    fireEvent.click(screen.getByTestId("review-inbox-rules-p2"));
+    expect(onOpenRules).toHaveBeenCalledWith("p2", "main");
+  });
+
+  it("draws no Rules waiting when no question waits", () => {
+    render(<ReviewInbox projects={[]} rules={[rules[2]]} onOpenReview={() => {}} />);
+    expect(screen.queryByTestId("review-inbox-rules")).toBeNull();
+    expect(screen.getByTestId("review-inbox-empty")).toBeInTheDocument();
+  });
+});
