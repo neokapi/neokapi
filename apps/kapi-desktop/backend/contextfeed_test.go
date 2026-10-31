@@ -543,7 +543,8 @@ func TestASessionCountsWhatItsChecksCaught(t *testing.T) {
 	agentSuggest(t, engine, recipe, "sess-1", "sign in", "log in", "docs/a.md", "Sign in.")
 
 	hookRun(t, app, key, "sess-1", "t1", time.Time{}, failingRun())
-	hookRun(t, app, key, "sess-1", "t2", time.Time{}, cleanRun())
+	lastRun := time.Now().UTC().Add(time.Minute).Truncate(time.Second)
+	hookRun(t, app, key, "sess-1", "t2", lastRun, cleanRun())
 
 	feed, err := app.ContextFeed(key, 0)
 	require.NoError(t, err)
@@ -558,6 +559,8 @@ func TestASessionCountsWhatItsChecksCaught(t *testing.T) {
 	assert.Equal(t, [4]int{2, 0, 1, 1}, [4]int{one.Checked, one.Failing, one.Caught, one.Files})
 	assert.True(t, one.Failed, "the first run failed")
 	assert.False(t, one.Clean)
+	assert.Equal(t, lastRun.Format(time.RFC3339), one.Last, "a session's span runs to its last check")
+	assert.False(t, one.Quiet, "a session still running checks is not finished")
 }
 
 // TestASessionThatOnlyRanChecksIsAGroup: a session whose only operations are
@@ -607,6 +610,28 @@ func TestASessionThatOnlyRanChecksIsAGroup(t *testing.T) {
 		ids = append(ids, group.Session)
 	}
 	assert.Equal(t, []string{"sess-1", "sess-3", "sess-2"}, ids)
+}
+
+// TestASessionSortsByItsLastCheck: a session that noted something and ran a
+// check since sorts by that check, above a session that only ran a check in
+// between.
+func TestASessionSortsByItsLastCheck(t *testing.T) {
+	app := newWorkspaceApp(t)
+	recipe, key := openFeedProject(t, app, "KapiMart")
+	engine := agentProcess(t, app)
+	agentSuggest(t, engine, recipe, "sess-a", "sign in", "log in", "docs/a.md", "Sign in.")
+	now := time.Now().UTC().Truncate(time.Second)
+	hookRun(t, app, key, "sess-b", "t1", now.Add(time.Minute), cleanRun())
+	hookRun(t, app, key, "sess-a", "t1", now.Add(2*time.Minute), cleanRun())
+
+	feed, err := app.ContextFeed(key, 0)
+	require.NoError(t, err)
+	ids := make([]string, 0, len(feed.Groups))
+	for _, group := range feed.Groups {
+		ids = append(ids, group.Session)
+	}
+	assert.Equal(t, []string{"sess-a", "sess-b"}, ids)
+	assert.Equal(t, now.Add(2*time.Minute).Format(time.RFC3339), feedGroups(feed)["sess-a"].Last)
 }
 
 // TestACutFeedLeavesOutOlderHookOnlySessions: when the limit cuts the feed

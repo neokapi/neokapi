@@ -789,13 +789,26 @@ func groupContextFeed(records, checks []contextop.Record, registry *contextProje
 		countInto(group, r)
 	}
 
+	// A session's span covers its entries and its check runs, so a session
+	// still running checks after its last note is neither quiet nor sorted
+	// below a session that ran checks since that note.
+	runs := checkSessionsOf(checks)
 	for _, id := range order {
 		group := groups[id]
 		group.First, group.Last = spanOf(group.Entries)
+		if r, ok := runs.sessions[group.Session]; ok && group.Session != "" {
+			if first := r.first.UTC().Format(time.RFC3339); first < group.First {
+				group.First = first
+			}
+			if last := r.last.UTC().Format(time.RFC3339); last > group.Last {
+				group.Last = last
+			}
+		}
 	}
 
 	// A session that only ran checks is a group of its own, with no entries.
-	runs := checkSessionsOf(checks)
+	// So is a session whose entries the limit cut, when it ran a check since
+	// the oldest entry shown.
 	for _, session := range runs.order {
 		id := "session:" + session
 		if _, ok := groups[id]; ok {
