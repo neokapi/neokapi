@@ -531,7 +531,11 @@ export function ExportTranslatedItem($0, itemName, $2) {
 }
 
 /**
- * FetchContent fetches content from a connector into the content store.
+ * FetchContent fetches content from a connector into the content store. Each
+ * fetched item is stored under its own item row, created when the project has
+ * none, and its blocks become that item's whole block set
+ * (connector.StoreFetched), as the server's connector fetch and an upload
+ * store them.
  * @param {string} connectorID
  * @param {string} projectID
  * @returns {$CancellablePromise<$models.ContentItemInfo[]>}
@@ -1614,9 +1618,11 @@ export function RenderBlockHTML(projectID, itemName, blockID, targetLocale) {
 }
 
 /**
- * RenderDocumentPreview returns pre-rendered HTML for an item.
- * Uses stored PreviewHTML if available, falling back to generating
- * a preview from the stored BlockIndex.
+ * RenderDocumentPreview returns pre-rendered HTML for an item, in the order
+ * the server's preview route answers: the stored PreviewHTML, then a preview
+ * built from the stored BlockIndex, then a listing of the item's stored
+ * blocks (store.BlockListPreview). An item a connector fetched has no preview
+ * and no block index, so the listing is what it renders.
  * @param {string} projectID
  * @param {string} itemName
  * @param {string} targetLocale
