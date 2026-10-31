@@ -741,7 +741,9 @@ function CheckRunRow({ run }: { run: ContextCheckRun }) {
                   className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground"
                 >
                   {f.quote ? (
-                    <span className="min-w-0 truncate text-foreground">“{f.quote}”</span>
+                    <span className="min-w-0 truncate text-foreground" translate="no">
+                      “{f.quote}”
+                    </span>
                   ) : (
                     f.message && <span className="min-w-0 truncate">{f.message}</span>
                   )}
