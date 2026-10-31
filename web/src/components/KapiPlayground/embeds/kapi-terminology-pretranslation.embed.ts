@@ -36,9 +36,10 @@ const config: WalkthroughEmbedConfig = {
         "Pseudo-translate the unmatched content. The default up flow uses AI translation at this step.",
     },
     {
-      command: "kapi exec term-check step2_translated.json --source-lang en --target-lang fr",
+      command:
+        "kapi exec term-check messages_en.json --target step2_translated.json --source-lang en --target-lang fr",
       narration:
-        "Check the output against the required terminology. up applies the same check after each pass.",
+        "Check the output against the required terminology, comparing the source with its translation. up applies the same check after each pass.",
     },
   ],
 };
