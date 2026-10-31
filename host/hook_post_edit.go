@@ -196,8 +196,11 @@ func postEditBlockReason(display string, report check.Report) string {
 			break
 		}
 		loc := display
-		if d.Location.Lines != nil {
+		switch {
+		case d.Location.Lines != nil:
 			loc += fmt.Sprintf(":%d", d.Location.Lines.First)
+		case d.Location.Block != "":
+			loc += " (" + d.Location.Block + ")"
 		}
 		fmt.Fprintf(&b, "  FAILS [%s] %s: %s", d.Rule, loc, d.Message)
 		if d.Suggestion != "" {
