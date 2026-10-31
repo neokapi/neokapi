@@ -1816,8 +1816,8 @@ func (c *BowrainSourceConnector) configureWriterFor(writer format.DataFormatWrit
 // unique item that has changed blocks. It re-parses the source files using
 // editor.ParseItem to build the full Part stream needed for metadata generation.
 //
-// It also names each item's collection — the recipe collection whose glob
-// claims the item's path — which is what links a stored item to the context
+// It also names each item's collection, the recipe collection whose glob
+// claims the item's path. That name links a stored item to the context
 // content type's collection row. The matcher is the recipe's own
 // (core/project.CollectionForPath): the same globs, in the same first-match
 // order, that target resolution uses, so an item cannot land in one collection

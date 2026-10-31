@@ -41,7 +41,7 @@ func (r *ParseResult) PreviewHTML() string {
 // (ParseResult.PreviewHTML). This is the shared entry point used by both the
 // server upload flow and the CLI push flow.
 //
-// The reader must not have been opened yet — ParseItem calls Open and Close.
+// The reader must not have been opened yet: ParseItem calls Open and Close.
 func ParseItem(ctx context.Context, reader format.DataFormatReader, doc *model.RawDocument,
 	sourceLocale, formatName, itemName string) (*ParseResult, error) {
 
