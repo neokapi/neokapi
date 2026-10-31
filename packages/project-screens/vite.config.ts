@@ -17,6 +17,8 @@ export default defineConfig({
   },
   fmt: {
     singleQuote: false,
-    ignorePatterns: ["dist/**", "storybook-static/**"],
+    // fixtures/ is written and pinned byte for byte by TestFixtures in
+    // host/screens.
+    ignorePatterns: ["dist/**", "storybook-static/**", "fixtures/**"],
   },
 });

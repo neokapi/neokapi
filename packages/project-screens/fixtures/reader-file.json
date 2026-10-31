@@ -1,0 +1,179 @@
+{
+  "path": "docs/billing.md",
+  "abs": "/work/acme-docs/docs/billing.md",
+  "format": "markdown",
+  "blocks": [
+    {
+      "id": "b1",
+      "runs": [
+        {
+          "text": "Your credits reset on "
+        },
+        {
+          "ph": {
+            "id": "1",
+            "type": "var",
+            "data": "{date}",
+            "equiv": "date"
+          }
+        },
+        {
+          "text": ". Ask Quick cast support."
+        }
+      ],
+      "findings": [
+        {
+          "id": "f-3c1a9e",
+          "block_id": "b1",
+          "position": {
+            "kind": "range",
+            "start": {
+              "run": 2,
+              "offset": 6
+            },
+            "end": {
+              "run": 2,
+              "offset": 16
+            }
+          },
+          "span": {
+            "start": 28,
+            "end": 38
+          },
+          "kind": "name",
+          "label": "Write Quickcast, not Quick cast",
+          "fails": true,
+          "fixable": true
+        }
+      ]
+    },
+    {
+      "id": "b2",
+      "runs": [
+        {
+          "plural": {
+            "pivot": "count",
+            "forms": {
+              "one": [
+                {
+                  "text": "You have "
+                },
+                {
+                  "ph": {
+                    "id": "1",
+                    "type": "var",
+                    "data": "{count}",
+                    "equiv": "count"
+                  }
+                },
+                {
+                  "text": " credit left."
+                }
+              ],
+              "other": [
+                {
+                  "text": "You have "
+                },
+                {
+                  "ph": {
+                    "id": "1",
+                    "type": "var",
+                    "data": "{count}",
+                    "equiv": "count"
+                  }
+                },
+                {
+                  "text": " credits left, use them easily."
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "findings": [
+        {
+          "id": "f-8d02b4",
+          "block_id": "b2",
+          "position": {
+            "kind": "form",
+            "path": [
+              0
+            ],
+            "key": "other"
+          },
+          "kind": "word",
+          "label": "Avoid \"easily\"",
+          "fails": false,
+          "suggested": true,
+          "fixable": false
+        }
+      ]
+    },
+    {
+      "id": "b3",
+      "runs": [
+        {
+          "text": "Billing runs on the first day of each month."
+        }
+      ],
+      "findings": [
+        {
+          "id": "f-51e7c0",
+          "block_id": "b3",
+          "position": {
+            "kind": "block"
+          },
+          "kind": "tone",
+          "label": "The translation reads less formal than the voice profile asks.",
+          "fails": false,
+          "fixable": false,
+          "locale": "nb"
+        }
+      ]
+    }
+  ],
+  "document": [
+    {
+      "id": "f-0a4f2d",
+      "kind": "hygiene",
+      "label": "The file has no top-level heading.",
+      "fails": false,
+      "fixable": false
+    }
+  ],
+  "findings": 4,
+  "fixable": 1,
+  "verdict": "failed",
+  "rules": [
+    {
+      "kind": "tone",
+      "rule": "Formal, plain register; short sentences.",
+      "status": "established",
+      "from": "voice profile"
+    },
+    {
+      "kind": "name",
+      "rule": "Write Quickcast, not Quick cast.",
+      "status": "established",
+      "from": "terms",
+      "by": "maria",
+      "at": "2026-10-21T14:02:00Z"
+    },
+    {
+      "kind": "note",
+      "rule": "Keep sentences in release notes under 25 words.",
+      "status": "suggested",
+      "from": "workspace"
+    }
+  ],
+  "rules_total": 3,
+  "attention": [
+    "The terms store acme-terms did not load: the file is missing."
+  ],
+  "refused": [
+    {
+      "finding_id": "f-77b3e1",
+      "reason": "The block changed after the check read it."
+    }
+  ]
+}
