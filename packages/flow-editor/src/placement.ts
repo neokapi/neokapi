@@ -39,6 +39,8 @@ export interface PlacementDiagnostic {
 }
 
 const REMOTE_SOURCE_EGRESS = "remote-source-egress";
+/** A tool that hands source to a program outside kapi (external-command). */
+const PROCESS_EXEC = "process-exec";
 const PORT_TARGET = "target";
 const PORT_SOURCE = "source";
 
@@ -174,6 +176,14 @@ export function computePlacement(
           stepIndex: i,
           tool: info.tool,
           message: `"${info.tool}" must run before "${up.tool}", which sends source to a remote sink: unprotected content leaks before redaction applies. Move it earlier, or use a local provider`,
+        });
+      } else if (info.recoverable && up.sideEffects.includes(PROCESS_EXEC)) {
+        diags.push({
+          severity: "error",
+          rule: RULE_TRANSFORMER_AFTER_EGRESS,
+          stepIndex: i,
+          tool: info.tool,
+          message: `"${info.tool}" must run before "${up.tool}", which hands source to a program outside kapi: unprotected content leaks before redaction applies. Move it earlier`,
         });
       }
     }
