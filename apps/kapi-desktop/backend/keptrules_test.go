@@ -11,6 +11,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/host"
+	"github.com/neokapi/neokapi/host/screens"
 )
 
 // TestKeptRules_NamesWhoKeptEachRule: a suggestion an agent made and a person
@@ -32,7 +33,7 @@ func TestKeptRules_NamesWhoKeptEachRule(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, kept, len(before)+1, "the kept suggestion lists; the waiting one does not")
 
-	var found *KeptRuleDTO
+	var found *screens.KeptRuleDTO
 	for i, k := range kept {
 		assert.NotContains(t, k.Rule, "purchase", "a suggestion still waiting is not kept")
 		if strings.Contains(k.Rule, "studio") && strings.Contains(k.Rule, "business") {
@@ -42,7 +43,7 @@ func TestKeptRules_NamesWhoKeptEachRule(t *testing.T) {
 	require.NotNil(t, found, "the kept word rule lists: %+v", kept)
 	assert.Equal(t, "word", found.Kind)
 	assert.NotEmpty(t, found.Applies, "where the rule holds")
-	assert.Equal(t, ContextActorDTO{Kind: "person"}, found.KeptBy, "kept by the person, not the agent that suggested it")
+	assert.Equal(t, screens.ContextActorDTO{Kind: "person"}, found.KeptBy, "kept by the person, not the agent that suggested it")
 	at, err := time.Parse(time.RFC3339, found.KeptAt)
 	require.NoError(t, err)
 	assert.WithinDuration(t, time.Now(), at, time.Hour)

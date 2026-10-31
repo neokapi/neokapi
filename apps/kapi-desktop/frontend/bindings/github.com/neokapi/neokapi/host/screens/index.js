@@ -8,6 +8,7 @@ export {
     DigestConflict,
     DigestItem,
     DigestUsage,
+    KeptRuleDTO,
     MapFileDTO,
     MapSuggestionDTO,
     MapSummaryDTO,

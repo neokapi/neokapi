@@ -12,33 +12,18 @@ import (
 
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/host"
+	"github.com/neokapi/neokapi/host/screens"
 )
-
-// KeptRuleDTO is one rule in force and who kept it.
-type KeptRuleDTO struct {
-	// Kind is "name", "word", "tone" or "note".
-	Kind string `json:"kind"`
-	// Rule is the rule as a person reads it.
-	Rule string `json:"rule"`
-	// From is where the rule is held: terms, a pack, the workspace, the voice
-	// profile. Empty for a rule the operation log alone holds.
-	From string `json:"from,omitempty"`
-	// Applies is where the rule holds.
-	Applies string          `json:"applies"`
-	KeptBy  ContextActorDTO `json:"kept_by"`
-	// KeptAt is when the rule came into force, RFC 3339.
-	KeptAt string `json:"kept_at"`
-}
 
 // KeptRules lists the rules in force in the project a tab holds that the
 // operation log records a keeper for, in the order `kapi rules list` prints
 // them. A folder without a kapi.yaml has none.
-func (a *App) KeptRules(tabID string) ([]KeptRuleDTO, error) {
+func (a *App) KeptRules(tabID string) ([]screens.KeptRuleDTO, error) {
 	op, err := a.decideTab(tabID)
 	if err != nil {
 		return nil, err
 	}
-	out := []KeptRuleDTO{}
+	out := []screens.KeptRuleDTO{}
 	if op.unsaved.Load() {
 		return out, nil
 	}
@@ -59,17 +44,17 @@ func (a *App) KeptRules(tabID string) ([]KeptRuleDTO, error) {
 }
 
 // keptRuleDTO shapes one line that names its keeper.
-func keptRuleDTO(l host.RuleLine) (KeptRuleDTO, bool) {
+func keptRuleDTO(l host.RuleLine) (screens.KeptRuleDTO, bool) {
 	who, at, ok := l.Kept()
 	if !ok || l.Group == host.RulesGroupSuggested {
-		return KeptRuleDTO{}, false
+		return screens.KeptRuleDTO{}, false
 	}
 	// The keeper's phrase is the last of From; the rest say where the rule is held.
 	from := l.From
 	if len(from) > 0 {
 		from = from[:len(from)-1]
 	}
-	return KeptRuleDTO{
+	return screens.KeptRuleDTO{
 		Kind:    keptRuleKind(l),
 		Rule:    l.Sentence,
 		From:    strings.Join(from, ", "),

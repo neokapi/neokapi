@@ -6,7 +6,8 @@
 import mapJSON from "../fixtures/map-summary.json";
 import readerJSON from "../fixtures/reader-file.json";
 import decideJSON from "../fixtures/rules-decide-view.json";
-import type { MapSummary, ReaderFile, RulesDecideView } from "./types";
+import keptJSON from "../fixtures/kept-rules.json";
+import type { KeptRule, MapSummary, ReaderFile, RulesDecideView } from "./types";
 
 // A JSON import types each string as `string`, never as one of a union's
 // literals, so the fixtures satisfy the types with those literals widened.
@@ -23,3 +24,4 @@ export const mapSummaryFixture = mapJSON satisfies Loose<MapSummary> as MapSumma
 export const readerFileFixture = readerJSON satisfies Loose<ReaderFile> as ReaderFile;
 export const rulesDecideViewFixture =
   decideJSON satisfies Loose<RulesDecideView> as RulesDecideView;
+export const keptRulesFixture = keptJSON satisfies Loose<KeptRule[]> as KeptRule[];

@@ -7,6 +7,7 @@ import {
   mapSummaryFixture as map,
   readerFileFixture as reader,
   rulesDecideViewFixture as decide,
+  keptRulesFixture as kept,
 } from "../fixtures";
 import type { ContextActor, DigestItem, ReaderFinding, RuleDecision } from "../types";
 
@@ -157,5 +158,18 @@ describe("rules-decide-view.json", () => {
       ...d.options.flatMap((o) => (o.noticed_by ? [o.noticed_by] : [])),
     ]);
     expect(actors.some((a) => a.name === undefined)).toBe(true);
+  });
+});
+
+describe("kept-rules.json", () => {
+  it("holds each rule with who kept it and when", () => {
+    expect(kept.length).toBeGreaterThan(0);
+    for (const k of kept) {
+      expect(["name", "word", "tone", "note"]).toContain(k.kind);
+      expect(k.rule).not.toBe("");
+      expect(k.applies).not.toBe("");
+      expectActor(k.kept_by);
+      expect(Number.isNaN(Date.parse(k.kept_at))).toBe(false);
+    }
   });
 });
