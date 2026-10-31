@@ -2,6 +2,7 @@ package host
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/registry"
 )
 
 // postEditHookInput is the subset of the Claude Code PostToolUse-hook stdin
@@ -91,6 +93,14 @@ func (a *App) RunHookPostEdit(cmd Command) error {
 	run, skip, err := a.postEditCheck(cmd, projectPath, abs)
 	restore()
 	switch {
+	case err != nil && run.rel != "" && errors.Is(err, registry.ErrUnknownFormat):
+		// No reader for the file's format is installed on this machine. That
+		// holds for every edit of every such file until a plugin is installed,
+		// and `kapi check` and `kapi status` already name the plugin, so the
+		// hook prints nothing. The run is on record as one that did not run.
+		run.report = check.Report{Verdict: check.VerdictDidNotRun}
+		a.recordPostEditRun(cmd, in, projectPath, run)
+		return nil
 	case err != nil:
 		return hookUnheard(cmd, hook, err.Error())
 	case skip:
@@ -108,7 +118,7 @@ func (a *App) RunHookPostEdit(cmd Command) error {
 
 	var dec PostEditHookDecision
 	if report.Verdict == check.VerdictFailed && report.Summary.Failing > 0 {
-		dec = PostEditHookDecision{Decision: "block", Reason: postEditBlockReason(run.display, report)}
+		dec = PostEditHookDecision{Decision: "block", Reason: postEditBlockReason(run.display, run.command, report)}
 	}
 	enc := json.NewEncoder(cmd.OutOrStdout())
 	enc.SetEscapeHTML(false)
@@ -126,7 +136,8 @@ func (a *App) RunHookPostEdit(cmd Command) error {
 type postEditRun struct {
 	root    string
 	rel     string // project-relative, slash-separated
-	display string // as the agent types it from the session's directory
+	display string // as the reason names it: project-relative
+	command string // as the agent types it from the session's directory
 	report  check.Report
 }
 
@@ -148,41 +159,53 @@ func (a *App) postEditCheck(cmd Command, projectPath, abs string) (run postEditR
 	if !inside {
 		return run, true, nil
 	}
-	if _, _, isTarget := matchTargetToSource(proj, root, target); isTarget {
-		return run, true, nil
-	}
 	if info, serr := os.Stat(target); serr != nil || info.IsDir() {
 		return run, true, nil
 	}
-
-	a.InitRegistries()
-	pcmd := NewEnvCommand(CmdContext(cmd), "check")
-	pcmd.SetOut(io.Discard)
-	pcmd.SetErr(io.Discard)
-	pcmd.Flags().String(projectFlagName, projectPath, "")
-	formats, err := a.newCheckFormats(pcmd)
-	if err != nil {
-		return run, false, err
+	// The command the reason names is typed from the session's directory.
+	command := rel
+	if cwd, cerr := os.Getwd(); cerr == nil {
+		command = filepath.ToSlash(relForReason(NormalizeCheckoutPath(cwd), target))
 	}
+
+	// The project's content is resolved once, and the binding, the target
+	// match and the check all read that one resolution: on a large project
+	// each resolution walks every collection's globs.
+	a.InitRegistries()
+	pctx := project.NewProjectContext(proj, filepath.Join(root, "x.kapi"))
+	resolved, err := pctx.ResolveContent(a.FormatReg)
+	if err != nil {
+		return run, false, fmt.Errorf("the project's content could not be resolved: %w", err)
+	}
+	formats := checkFormatsFrom(proj, pctx.ProjectDir, resolved)
 	if _, declared := formats.lookup(target); !declared {
 		return run, true, nil
 	}
+	if _, _, isTarget := matchTargetIn(proj, root, target, resolved); isTarget {
+		return run, true, nil
+	}
 
-	report, err := a.ComputeCheck(pcmd, []string{target})
+	// The check runs from the project root on the project-relative path, so
+	// everything it reports names the file as the project does.
+	if err := os.Chdir(root); err != nil {
+		return run, false, fmt.Errorf("the project directory %s could not be entered: %w", root, err)
+	}
+	pcmd := NewEnvCommand(withCheckFormats(CmdContext(cmd), formats), "check")
+	pcmd.SetOut(io.Discard)
+	pcmd.SetErr(io.Discard)
+	pcmd.Flags().String(projectFlagName, projectPath, "")
+	report, err := a.ComputeCheck(pcmd, []string{filepath.FromSlash(rel)})
 	if err != nil {
+		run = postEditRun{root: root, rel: rel, display: rel, command: command}
 		return run, false, fmt.Errorf("the check of %s could not run: %w", rel, err)
 	}
-	display := rel
-	if cwd, cerr := os.Getwd(); cerr == nil {
-		display = filepath.ToSlash(relForReason(NormalizeCheckoutPath(cwd), target))
-	}
-	return postEditRun{root: root, rel: rel, display: display, report: report}, false, nil
+	return postEditRun{root: root, rel: rel, display: rel, command: command, report: report}, false, nil
 }
 
 // postEditBlockReason renders the failing findings as the feedback Claude
 // reads beside the edit's result: one line per finding, with the rule's fix
 // when it names one, and the command that shows the full report.
-func postEditBlockReason(display string, report check.Report) string {
+func postEditBlockReason(display, command string, report check.Report) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "kapi check found %d failing %s in %s. Fix %s in this file before you report the work done; kapi checks the file again on your next edit.\n\n",
 		report.Summary.Failing, pluralWord(report.Summary.Failing, "finding", "findings"), display,
@@ -212,7 +235,7 @@ func postEditBlockReason(display string, report check.Report) string {
 	if report.Summary.Failing > shown {
 		fmt.Fprintf(&b, "  ... and %d more.\n", report.Summary.Failing-shown)
 	}
-	fmt.Fprintf(&b, "\nRun `kapi check %s` to see the full report.", display)
+	fmt.Fprintf(&b, "\nRun `kapi check %s` to see the full report.", command)
 	return b.String()
 }
 

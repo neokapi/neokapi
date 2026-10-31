@@ -131,3 +131,48 @@ func TestHookPostEdit_WarnsWhenTheCheckCannotRun(t *testing.T) {
 	assert.Contains(t, notice.SystemMessage, "kapi hook post-edit: the guard did not run")
 	assert.Contains(t, stderr, "kapi hook post-edit")
 }
+
+// TestHookPostEdit_NamesTheFileAsTheProjectDoes: from a subdirectory of the
+// project, the reason names the file by its project-relative path, and the
+// command to run by the path the agent types from where it is.
+func TestHookPostEdit_NamesTheFileAsTheProjectDoes(t *testing.T) {
+	t.Setenv("KAPI_DATA_DIR", t.TempDir())
+	root, _ := writeVerifyProject(t)
+	t.Chdir(t.TempDir())
+	a := &App{}
+	source := filepath.Join(root, "locales", "en", "app.json")
+
+	stdout, _ := runHookPostEditCmd(t, a, postEditPayload(filepath.Join(root, "locales"), source, "toolu_sub"))
+	var dec host.PostEditHookDecision
+	require.NoError(t, json.Unmarshal([]byte(stdout), &dec), stdout)
+	assert.Contains(t, dec.Reason, "in locales/en/app.json.")
+	assert.Contains(t, dec.Reason, "] locales/en/app.json")
+	assert.Contains(t, dec.Reason, "Run `kapi check en/app.json`")
+}
+
+// TestHookPostEdit_AMissingReaderPrintsNothing: a declared file whose
+// comments no installed reader opens prints nothing, because the reader is a
+// property of this machine, and the run is on record as one that did not run.
+func TestHookPostEdit_AMissingReaderPrintsNothing(t *testing.T) {
+	t.Setenv("KAPI_DATA_DIR", t.TempDir())
+	t.Setenv("KAPI_NO_PROJECT", "")
+	t.Setenv("KAPI_PLUGINS_DIR_ONLY", "1")
+	t.Setenv("KAPI_PLUGINS_DIR", "")
+	root := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "src"), 0o755))
+	recipe := "version: v1\nname: comments\ndefaults:\n  source_language: en\ncollections:\n" +
+		"  - name: code\n    source_only: true\n    content:\n      - path: \"src/**/*.tsx\"\n        comments:\n          only: true\n"
+	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
+	file := filepath.Join(root, "src", "App.tsx")
+	require.NoError(t, os.WriteFile(file, []byte("// Log in to start.\nexport const App = () => null;\n"), 0o644))
+	t.Chdir(t.TempDir())
+	a := &App{}
+
+	stdout, stderr := runHookPostEditCmd(t, a, postEditPayload(root, file, "toolu_tsx"))
+	assert.Empty(t, stdout)
+	assert.Empty(t, stderr)
+
+	runs := runContext(t, a, "log", "--session", "edit-s1", "-p", filepath.Join(root, "kapi.yaml"))
+	assert.Contains(t, runs, "did not run")
+	assert.Contains(t, runs, "src/App.tsx")
+}

@@ -132,7 +132,9 @@ directory, runs the check "kapi check <file>" runs on that one file, and:
     reason to Claude beside the edit's result, so Claude fixes the file before
     it reports done;
   - emits nothing (exit 0) when the file passes, outside a project, on a file
-    the project's collections do not read, and on a generated target; or
+    the project's collections do not read, and on a generated target. A file
+    whose format no installed reader opens on this machine also emits
+    nothing, and its run is on record as one that did not run; or
   - emits {"systemMessage":"…"} (exit 0), and the same warning on stderr, when
     the check could not run: an unreadable, empty, or malformed payload, a
     session directory it cannot enter, a project that will not load, or a

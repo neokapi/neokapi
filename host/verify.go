@@ -1423,6 +1423,12 @@ func matchTargetToSource(proj *project.KapiProject, root, targetAbs string) (sou
 	if err != nil {
 		return project.ResolvedFile{}, "", false
 	}
+	return matchTargetIn(proj, root, targetAbs, resolved)
+}
+
+// matchTargetIn is matchTargetToSource over content the caller has already
+// resolved.
+func matchTargetIn(proj *project.KapiProject, root, targetAbs string, resolved []project.ResolvedFile) (source project.ResolvedFile, locale string, ok bool) {
 	for _, rf := range resolved {
 		if rf.Item == nil || rf.Item.Target == "" {
 			continue
