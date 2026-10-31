@@ -19,8 +19,8 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	coreproj "github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
-	venueconn "github.com/neokapi/neokapi/core/venue/connector"
 	"github.com/neokapi/neokapi/core/venue"
+	venueconn "github.com/neokapi/neokapi/core/venue/connector"
 )
 
 // fileConnector fetches one file, read fresh on every Fetch the way an import
