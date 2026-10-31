@@ -133,7 +133,7 @@ Under `--json` (or `--jq` / `--output-format=json`), a failing command prints a 
 | 1 | `error` | Operational error |
 | 2 | `usage` | Usage / invocation error (also grep-style "trouble" for the toolbox utilities) |
 | 3 | `gate` | A check failed: at least one finding fails (`kapi check`, `kapi check --ship`, `kapi voice check`), distinct from an operational error so CI can tell "the content isn't good enough" from "the tool broke" |
-| 4 | `did_not_run` | `kapi check` reached no verdict: it checked no content, or one of its checks reported nothing on the known-bad sample it runs beside the content. Never a pass |
+| 4 | `did_not_run` | `kapi check` reached no verdict: it checked no content, or one of its checks reported nothing on the known-bad sample it runs beside the content. `kapi exec <check>` exits 4 too when the tool compares a source with its translation and no block it read held one; the report names `--target`. Never a pass |
 | 130 | `signal` | Interrupted (SIGINT/SIGTERM); no error line is printed |
 
 The toolbox utilities (`kgrep`) additionally use grep-parity semantics: exit 1 with no message when nothing matched.
@@ -386,7 +386,7 @@ Four properties of a built-in tool's registration are asserted over the populate
 
 - **A tool that declares settable schema fields registers a config factory.** Without one, `NewToolWithConfig` calls the zero-arg factory and discards the step's `config:` map without a word, and the tool's documented parameters do nothing.
 - **A bilingual tool's target locale comes from the run.** `--target-lang` outranks any locale written into a step's config, so one flow serves every locale it is run for. A factory that pins a locale leaves the tool processing content the run never asked for, and reporting success.
-- **A CLI-visible tool that rewrites content declares `writesOutput`.** `kapi exec` grows `-o` / `--output-dir` only for tools that do; without it an exec run rewrites the content in memory, exits 0, and writes nothing.
+- **A CLI-visible tool that rewrites content declares `writesOutput`.** `kapi exec` grows `-o` / `--output-dir` only for tools that do; without it an exec run rewrites the content in memory, exits 0, and writes nothing. A tool whose produced ports are all findings (`host.WritesFindingsOnly`) writes a file only where `-o` or `--output-dir` names one.
 - **A monolingual tool declares the target language it reads, and only that.** `kapi exec` offers `--target-lang` to a bilingual tool and to a monolingual one whose `ToolMeta` accepts or requires `target-language`. A monolingual tool whose config factory reads the run's target language without declaring it has a target scope nobody can reach from the command line; one that declares it without reading it offers a flag that does nothing.
 
 Withholding a tool from the CLI is a separate decision, declared with `internal: true` on its `ToolMeta` and never expressed by omitting a config factory, which would make a forgotten tool indistinguishable from one deliberately withheld. An internal tool is still configurable: a flow may name it as a step.

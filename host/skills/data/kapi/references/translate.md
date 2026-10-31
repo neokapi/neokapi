@@ -115,7 +115,8 @@ paired with it by position.
 until it passes. For a one-off file with no project, `kapi check <source> --target
 <translation>` plays the same role: it exits 3 while a finding fails. `kapi exec
 term-check` reports the same terminology findings and exits 0 whatever it finds, so a
-clean exit from it proves nothing. Either way, a clean result, not a written file, is
+clean exit from it proves nothing; a run that read no translation in `--target-lang`
+exits 4 and names `--target`. Either way, a clean result, not a written file, is
 the finish line.
 
 ## Or have kapi call a provider (unattended / CI)
