@@ -90,7 +90,7 @@ func newLLMSegmenter(base segment.BaseConfig, p *LLMParams) (segment.Segmenter, 
 		return nil, fmt.Errorf("segment llm: no provider for %q", p.Provider)
 	}
 	return &llmSegmenter{
-		provider:      prov,
+		provider:      aiprovider.Redacting(prov),
 		language:      base.Language,
 		instruction:   p.Instruction,
 		maxChunkRunes: p.MaxChunkRunes,

@@ -516,9 +516,7 @@ func NewProvider(name ProviderID, cfg Config) (LLMProvider, error) {
 	if recordersInstalled() {
 		p = withRecording(p)
 	}
-	// Outside the recorder, so a request a redaction policy covers is
-	// recorded as it is sent.
-	return Redacting(p), nil
+	return p, nil
 }
 
 // Providers returns the list of available AI providers in display order.

@@ -74,7 +74,7 @@ func TestObserverWrapsTheGrantedProvider(t *testing.T) {
 
 	wrapper, ok := aitools.ToolProvider(built).(*wrappedProvider)
 	require.True(t, ok)
-	assert.Same(t, granted, wrapper.inner)
+	assert.Same(t, granted, aiprovider.WithoutRedaction(wrapper.inner), "the observer wraps the granted provider behind the redaction wrapper")
 	assert.Len(t, *seen, 1)
 }
 

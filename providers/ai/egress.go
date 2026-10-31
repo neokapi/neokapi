@@ -75,9 +75,9 @@ func (w *redactingStreamingProvider) ChatStructuredStream(ctx context.Context, m
 }
 
 // Redacting wraps p so a request whose context carries a redaction.Egress is
-// redacted before p sends it. NewProvider applies it to every provider it
-// builds; a host applies it to a provider it built some other way. A provider
-// already wrapped is returned as it is.
+// redacted before p sends it. Every AI tool calls its provider through it,
+// whoever built the provider. A provider already wrapped is returned as it
+// is.
 func Redacting(p LLMProvider) LLMProvider {
 	switch p.(type) {
 	case nil:
@@ -90,6 +90,18 @@ func Redacting(p LLMProvider) LLMProvider {
 		return &redactingStreamingProvider{redactingProvider: base, streaming: s}
 	}
 	return base
+}
+
+// WithoutRedaction returns the provider a Redacting wrapper holds, or p when
+// p is not one.
+func WithoutRedaction(p LLMProvider) LLMProvider {
+	switch w := p.(type) {
+	case *redactingProvider:
+		return w.LLMProvider
+	case *redactingStreamingProvider:
+		return w.LLMProvider
+	}
+	return p
 }
 
 // redactMessages returns messages with every text part and section redacted

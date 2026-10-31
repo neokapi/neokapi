@@ -292,7 +292,27 @@ func TestRedactTool_NoMatchesPassThrough(t *testing.T) {
 	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: block})
 	rb := result.Resource.(*model.Block)
 	assert.Equal(t, beanSentence, rb.SourceText())
-	_, ok := rb.Anno(redaction.SecretAnnotationKey)
+	// The block withholds nothing, and still carries the policy, for the
+	// term rules or prior version a request sends beside it.
+	entry, ok := model.AnnoAs[*redaction.SecretAnnotation](rb, redaction.SecretAnnotationKey)
+	require.True(t, ok)
+	assert.Empty(t, entry.Values)
+	assert.NotNil(t, entry.Policy)
+}
+
+// In external mode the block goes to a file, not to a provider, and carries
+// no policy.
+func TestRedactTool_ExternalModeLeavesNoPolicy(t *testing.T) {
+	tl, err := tools.NewRedactTool(&tools.RedactConfig{
+		Detectors: []string{tools.DetectRules},
+		Rules:     []redaction.Rule{{Term: "Nonexistent", Category: "person"}},
+		VaultPath: filepath.Join(t.TempDir(), "vault.json"),
+	})
+	require.NoError(t, err)
+
+	block := newBeanBlock()
+	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: block})
+	_, ok := result.Resource.(*model.Block).Anno(redaction.SecretAnnotationKey)
 	assert.False(t, ok)
 }
 
