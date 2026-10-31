@@ -247,7 +247,7 @@ describe("the Share page", () => {
     expect(slot("share-place", rung("team"))?.textContent).toBe("s3://acme-kapi/fernwell/");
   });
 
-  it("before Bowrain: the command that connects it and About Bowrain, with no button to press", () => {
+  it("before Bowrain: Preview, About Bowrain and the command that connects it", () => {
     render(<SharePanel tabID="t1" view={LOCAL_VIEW} />);
     const bowrain = rung("bowrain");
     expect(slot("share-bowrain-command", bowrain)?.textContent).toBe(BOWRAIN_SHARE_COMMAND);
@@ -258,7 +258,11 @@ describe("the Share page", () => {
     expect(about).toHaveAttribute("href", BOWRAIN_ABOUT_URL);
     expect(about).toHaveAttribute("target", "_blank");
     expect(about).toHaveAttribute("rel", "noopener noreferrer");
-    expect(within(bowrain).queryByRole("button")).toBeNull();
+    expect(
+      within(bowrain)
+        .getAllByRole("button")
+        .map((b) => b.textContent?.trim()),
+    ).toEqual(["Preview"]);
   });
 
   it("before Bowrain, with the plugin installed: the command alone", () => {

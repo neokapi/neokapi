@@ -3,6 +3,12 @@ import { fn } from "storybook/test";
 import { SharePanel } from "../components/SharePanel";
 import { ShareSetupDialog } from "../components/ShareSetupDialog";
 import {
+  DECIDE_VIEW,
+  KEPT_RULES,
+  MAP_PENDING,
+  READER_WITH_FIXES,
+} from "@neokapi/project-screens/fixtures";
+import {
   BOWRAIN_VIEW,
   BOWRAIN_WITHOUT_TEAM_VIEW,
   BROKEN_PLACE_VIEW,
@@ -45,6 +51,13 @@ const meta: Meta<typeof SharePanel> = {
     projectName: "Fernwell",
     view: LOCAL_VIEW,
     onSetUp: fn(),
+    // Preview reads the Fernwell fixtures, as the tab's own bindings would.
+    previewPort: {
+      mapSummary: async () => MAP_PENDING,
+      readerFile: async () => READER_WITH_FIXES,
+      decideView: async () => DECIDE_VIEW,
+      keptRules: async () => KEPT_RULES,
+    },
   },
   decorators: [BothThemes],
 };
