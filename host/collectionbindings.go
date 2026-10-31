@@ -66,10 +66,16 @@ func splitByRedaction(proj *project.KapiProject, projectDir string, groups []bin
 		index := map[string]int{}
 		for _, in := range g.Inputs {
 			resolved := proj.RedactionForPath(redactionPath(projectDir, in))
-			i, seen := index[resolved.At]
+			// Files no policy governs share one part, whichever declaration
+			// (a disabled one, or none) resolved them.
+			key := resolved.At
+			if resolved.Spec == nil {
+				key = ""
+			}
+			i, seen := index[key]
 			if !seen {
 				i = len(out)
-				index[resolved.At] = i
+				index[key] = i
 				out = append(out, bindingGroup{Point: g.Point, Redaction: resolved})
 			}
 			out[i].Inputs = append(out[i].Inputs, in)
