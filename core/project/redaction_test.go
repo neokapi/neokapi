@@ -135,16 +135,16 @@ defaults:
 `+scoped), &p))
 		return p.Validate()
 	}
-	assert.EqualError(t, load("", "  - path: \"hr/*.json\"\n    redaction:\n      rules: hr.yaml\n"),
+	require.EqualError(t, load("", "  - path: \"hr/*.json\"\n    redaction:\n      rules: hr.yaml\n"),
 		"collections[0]: "+msg, "a bare entry's rules without enabled")
-	assert.EqualError(t, load("", "  - name: legal\n    redaction:\n      detectors: [rules]\n    content:\n      - path: \"legal/*.md\"\n"),
+	require.EqualError(t, load("", "  - name: legal\n    redaction:\n      detectors: [rules]\n    content:\n      - path: \"legal/*.md\"\n"),
 		"collections[0]: "+msg)
-	assert.EqualError(t, load("", "  - name: legal\n    content:\n      - path: \"legal/*.md\"\n        redaction:\n          enabled: false\n          placeholder: \"[X]\"\n"),
+	require.EqualError(t, load("", "  - name: legal\n    content:\n      - path: \"legal/*.md\"\n        redaction:\n          enabled: false\n          placeholder: \"[X]\"\n"),
 		"collections[0].content[0]: "+msg, "an item's placeholder under enabled: false")
 
-	assert.NoError(t, load("", "  - name: public\n    redaction:\n      enabled: false\n    content:\n      - path: \"public/*.md\"\n"),
+	require.NoError(t, load("", "  - name: public\n    redaction:\n      enabled: false\n    content:\n      - path: \"public/*.md\"\n"),
 		"enabled: false alone switches the collection off")
-	assert.NoError(t, load("  redaction:\n    rules: default.yaml\n", "  - path: \"docs/*.md\"\n"),
+	require.NoError(t, load("  redaction:\n    rules: default.yaml\n", "  - path: \"docs/*.md\"\n"),
 		"defaults.redaction keeps its declared-but-off form")
 }
 
