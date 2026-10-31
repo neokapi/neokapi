@@ -66,6 +66,13 @@ every block, and each translation beside it, with the policy's rules applied,
 and its output carries the original values. A policy that detects entities
 stops the run, because no step ahead of the tool finds them.
 
+On a redacted .kpz package (one kapi extract wrote under a redaction policy)
+a tool reads and writes the placeholders the package holds, and never the
+withheld values: those stay in the package's vault until kapi merge restores
+them. In a project that declares a collection's or an item's policy, a tool
+that calls a model runs over a package only when the package is redacted and
+its vault is on this machine.
+
 Discover tools and their options with 'kapi tools list' and
 'kapi tools schema <name>'.`,
 		// Fail loudly on a tool name that doesn't exist (or no longer exists —

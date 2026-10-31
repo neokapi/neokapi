@@ -257,6 +257,20 @@ func TestMergeRedactedWorkspaceRefusesWithoutItsVault(t *testing.T) {
 	})
 }
 
+// The vault is the only copy of the values, so an extract to a package whose
+// vault is still beside it writes nothing and keeps the vault.
+func TestExtractRedactedWorkspaceKeepsAnEarlierVault(t *testing.T) {
+	a, work, dir := adHocRedactedPackage(t, false)
+	before, err := os.ReadFile(work + ".vault")
+	require.NoError(t, err)
+	err = a.ExtractRedactedToKpz(t.Context(), []string{filepath.Join(dir, "a.json")}, work, "fr", "", false, filepath.Join(dir, "redact.yaml"))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "a vault already sits at "+work+".vault")
+	after, err := os.ReadFile(work + ".vault")
+	require.NoError(t, err)
+	assert.Equal(t, before, after, "the earlier vault is kept as it is")
+}
+
 // A file that holds a withheld value outside the blocks kapi can withhold it
 // from would put the value in the package, so extract writes none.
 func TestExtractRedactedWorkspaceRefusesAValueOutsideTheBlocks(t *testing.T) {

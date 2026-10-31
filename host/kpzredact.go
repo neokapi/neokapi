@@ -70,15 +70,15 @@ type redactedSourceInput struct {
 	locale    model.LocaleID
 }
 
-// newPackageVault writes an empty vault with the given ID at path. A vault
-// already at path is replaced: it belonged to the package the extract
-// replaces.
+// newPackageVault writes an empty vault with the given ID at path. It never
+// replaces a vault already there, which is the only copy of the values an
+// earlier extract withheld.
 func newPackageVault(path, id string) error {
 	if err := ensureVaultDir(path); err != nil {
 		return err
 	}
-	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("replace vault %s: %w", path, err)
+	if _, err := os.Stat(path); err == nil {
+		return fmt.Errorf("a vault already sits at %s and holds the values an earlier extract withheld. Merge the package it restores first and then remove the vault, or extract to another package name", path)
 	}
 	v, err := redaction.OpenFileVault(path)
 	if err != nil {
