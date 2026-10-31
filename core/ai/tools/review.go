@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/ai/prompt"
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/schema"
@@ -35,6 +36,12 @@ import (
 //     the JSON contract parsed.
 //
 //   - "review-provider" — the provider id that produced the review. Always set.
+//
+// It also records the review as check findings under the tool's name: one per
+// finding in the contract, or one carrying the prose when the response is not
+// the contract. A run reports them as it reports qa's. A critical or major
+// finding fails; a minor or info one reports. The tool changes neither the
+// source nor the translation.
 type AIReviewTool struct {
 	tool.BaseTool
 	usageAccumulator
@@ -88,9 +95,11 @@ func AIReviewSchema() *schema.ComponentSchema {
 		DefaultParallelBlocks: 5,
 		Requires:              []string{schema.RequiresTargetLanguage, schema.RequiresCredentials},
 		Cardinality:           schema.Bilingual,
-		// review writes the "review" block property (the JSON contract
-		// documented on AIReviewTool, or raw prose as fallback), not a
-		// registered findings annotation, so it declares no Produces type.
+		// review reads the translation and writes findings about it, beside
+		// the "review" block property documented on AIReviewTool. It writes
+		// no translation, so an exec run writes a file only where one is named.
+		Consumes:    []schema.IOPort{schema.Port(schema.PortTarget, model.SideTarget)},
+		Produces:    []schema.IOPort{schema.Port(model.OverlayCheck, model.SideTarget)},
 		SideEffects: []schema.SideEffect{schema.SideEffectAPICall, schema.SideEffectRemoteSourceEgress},
 	})
 	injectProviderOptions(s)
@@ -232,10 +241,35 @@ func (t *AIReviewTool) annotate(v tool.BlockView) error {
 		}
 		v.SetProperty("review", string(payload))
 		v.SetProperty("review-score", strconv.Itoa(result.Score))
+		check.Annotate(v, "review", ReviewFindings(result))
 	} else {
 		v.SetProperty("review", resp.Content)
+		check.Annotate(v, "review", []check.Finding{{Category: "review", Message: strings.TrimSpace(resp.Content)}})
 	}
 	v.SetProperty("review-provider", string(t.provider.Name()))
 
 	return nil
+}
+
+// reviewFailing are the review severities whose findings fail a check.
+var reviewFailing = map[string]bool{"critical": true, "major": true}
+
+// ReviewFindings maps a parsed review onto check findings: one per finding,
+// in the "review" category, failing when its severity is critical or major.
+// Each carries its severity and the review's score in its metadata.
+func ReviewFindings(r *ReviewResult) []check.Finding {
+	if r == nil {
+		return nil
+	}
+	out := make([]check.Finding, 0, len(r.Findings))
+	for _, f := range r.Findings {
+		out = append(out, check.Finding{
+			Category:   "review",
+			Fails:      reviewFailing[f.Severity],
+			Message:    f.Message,
+			Suggestion: f.Suggestion,
+			Metadata:   map[string]string{"severity": f.Severity, "score": strconv.Itoa(r.Score)},
+		})
+	}
+	return out
 }
