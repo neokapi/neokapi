@@ -45,13 +45,14 @@ parameters:
       When enabled, a block that already has a target for the locale is left
       untouched, so only untranslated content is sent to the provider.
     values: "`true` / `false` (default `false`)"
-  batchSize:
-    description: Number of blocks per LLM call.
+  batching:
+    description: How many blocks share one LLM call.
     help: |
-      Blocks are grouped into batches of this size and translated in a single
-      structured call per batch (LLM providers). A value of 1 translates block by
-      block.
-    values: "integer ≥ 1 (default `100`)"
+      `auto` sizes each batch from what the model can return in one reply and
+      translates the batch in a single structured call. `single` translates one
+      block per call. Local providers, and a run with do-not-translate terms,
+      translate one block per call under either setting.
+    values: "`auto` / `single` (default `auto`)"
   batchConcurrency:
     description: Number of batch calls to run in parallel.
     help: |

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-31T00:26:24Z",
+  "generatedAt": "2026-10-31T01:27:43Z",
   "kind": "tool",
   "entries": [
     {
@@ -1989,7 +1989,7 @@
       "source": "built-in",
       "kind": "tool",
       "displayName": "Quality Check",
-      "description": "Check translation quality with rule-based checks, or an LLM when a provider is set.",
+      "description": "Check each translation against its source, with deterministic rules or an AI review.",
       "category": "quality",
       "tags": [
         "quality",
@@ -2476,10 +2476,10 @@
         }
       },
       "doc": {
-        "overview": "The **Quality Check** tool runs a battery of rule-based checks over each\ntranslation and records the findings on the block's properties as a JSON array\nof findings, along with a pass/fail flag. The checks span several categories:\ngeneral text issues (empty target, whitespace mismatches, double spaces,\ndoubled words, target identical to source, corrupted characters), inline-code\nconsistency, span constraint violations, regex pattern preservation, and length\nratios. A target locale is required; when a block has no translation, only the\nempty-target check applies.\n\nWith no `--provider`, the checks are deterministic and need no credentials.\nSetting `--provider` instead runs LLM-judged checks: the chosen model reviews each\ntranslation for terminology, fluency, and accuracy. The rule-based toggles\nbelow apply to the deterministic mode; `model` and `checks` apply to the LLM\nmode. Every rule check can be toggled independently, and the length checks\nshare the long/short ratio model used by the dedicated length-check tool.\n",
+        "overview": "The **Quality Check** tool compares each block's source with its translation\nin the language `--target-lang` names, and reports what it finds. `--mode`\nselects how:\n\n- `rules`, the default, runs deterministic checks locally. They cover empty\n  and identical targets, whitespace, doubled words, inline codes, span\n  constraints, characters, length, and, when enabled, consistency across the\n  run.\n- `ai` sends each translated block's source and translation to the provider\n  `--provider` names, which reviews the dimensions in `--checks`. A hosted\n  provider needs a credential. `--provider` and `--model` apply only in this\n  mode.\n\nThe tool reads a file that holds both languages, such as XLIFF, or a source\nfile with its translation passed as `--target \u003cfile\u003e`. Findings print on\nstandard output as a table, or as a JSON report with `--json`. The run writes\nno file unless `-o` or `--output-dir` names one. Each finding is marked as\nfailing or reported, and the run exits 0 whatever it finds. It exits 4 when it\ncompared no translation and reported nothing.\n",
         "parameters": {
           "absoluteMaxCharLength": {
-            "description": "Maximum number of characters allowed in any target segment.",
+            "description": "Maximum number of characters allowed in a target.",
             "help": "The absolute character cap used by the absolute-maximum-length check.\n",
             "values": "integer (default `255`)",
             "dependsOn": [
@@ -2490,13 +2490,24 @@
             ]
           },
           "apiKey": {
-            "description": "API key for the LLM provider (LLM mode).",
-            "help": "Credential for the chosen hosted provider when `--provider` selects one.\n",
+            "description": "API key for the AI provider (`ai` mode).",
+            "help": "Credential for a hosted provider. A saved credential (`--credential`) is\nused when this is empty.\n",
             "values": "string"
           },
+          "charset": {
+            "description": "Character set encoding the target is checked against.",
+            "help": "An IANA character set name, such as `ISO-8859-1` or `US-ASCII`.\n",
+            "values": "string (default `ISO-8859-1`)",
+            "dependsOn": [
+              {
+                "property": "checkCharset",
+                "condition": "only consulted when the charset check is enabled"
+              }
+            ]
+          },
           "checkAbsoluteMaxCharLength": {
-            "description": "Flag target segments that exceed an absolute character count limit.",
-            "help": "When enabled, the target is flagged when it exceeds the absolute character\ncount given by `absoluteMaxCharLength`, independent of source length.\n",
+            "description": "Report a target that exceeds an absolute character count.",
+            "help": "When enabled, a target longer than `absoluteMaxCharLength` characters is\nreported, whatever the length of its source.\n",
             "values": "`true` / `false` (default `false`)",
             "dependsOn": [
               {
@@ -2505,84 +2516,115 @@
               }
             ]
           },
+          "checkCharset": {
+            "description": "Report target characters outside a character set encoding.",
+            "help": "Reports a finding when the target contains a character that the encoding\nnamed by `charset` cannot represent.\n",
+            "values": "`true` / `false` (default `false`)"
+          },
           "checkCodeDifference": {
             "description": "Verify that the target has the same inline codes as the source.",
-            "help": "Flags warnings when inline codes are missing from or extra in the target\ncompared with the source, counted by code type.\n",
+            "help": "Reports findings when inline codes are missing from or extra in the target\ncompared with the source, counted by code type.\n",
             "values": "`true` / `false` (default `true`)"
           },
           "checkCorruptedCharacters": {
-            "description": "Check for patterns indicating encoding corruption.",
-            "help": "Flags a warning when the target contains characters that suggest encoding\ncorruption (for example UTF-8 misread as ISO-8859-1, signalled by the\nUnicode replacement character).\n",
+            "description": "Fail a target that shows encoding corruption.",
+            "help": "Fails a block whose target contains signs of encoding corruption: UTF-8\nmisread as ISO-8859-1, the Unicode replacement character, or stray control\ncharacters.\n",
             "values": "`true` / `false` (default `true`)"
           },
           "checkDoubleSpaces": {
             "description": "Check for double spaces in the target.",
-            "help": "Flags a warning when the target contains two consecutive spaces.\n",
+            "help": "Reports a finding when the target contains two consecutive spaces.\n",
             "values": "`true` / `false` (default `true`)"
           },
           "checkDoubledWord": {
             "description": "Check for consecutive repeated words in the target.",
-            "help": "Flags a warning when the same word appears twice in a row in the target,\nunless the word is listed in `doubledWordExceptions`.\n",
+            "help": "Reports a finding when the same word appears twice in a row in the target,\nunless the word is listed in `doubledWordExceptions`.\n",
             "values": "`true` / `false` (default `true`)"
           },
           "checkEmptySource": {
-            "description": "Warn when the target is non-empty but the source is empty.",
-            "help": "Flags a warning when the target has content but the source is empty.\n",
+            "description": "Report a non-empty target whose source is empty.",
+            "help": "Reports a finding when the target has content but the source is empty.\n",
             "values": "`true` / `false` (default `true`)"
           },
           "checkEmptyTarget": {
-            "description": "Warn when the target is empty but the source has content.",
-            "help": "Flags an error when a block has source content but no (or empty) target\ntext. This is the one check that still applies when a block has no\ntranslation at all.\n",
+            "description": "Fail when the target is empty but the source has content.",
+            "help": "Fails a block that has source content and no target, or an empty one. A\nblock with no translation in the target language gets this check and no\nother.\n",
             "values": "`true` / `false` (default `true`)"
           },
           "checkLeadingWhitespace": {
             "description": "Check for leading-whitespace mismatches between source and target.",
-            "help": "Flags a warning when the leading whitespace of the target differs from that\nof the source.\n",
+            "help": "Reports a finding when the leading whitespace of the target differs from\nthat of the source.\n",
             "values": "`true` / `false` (default `true`)"
           },
           "checkMaxCharLength": {
-            "description": "Flag targets longer than a percentage of source character length.",
+            "description": "Report targets longer than a percentage of source character length.",
             "help": "Enables the maximum length-ratio check, using a long/short model: the\nallowed percentage depends on whether the source is above or below the\nmaximum breakpoint.\n",
             "values": "`true` / `false` (default `true`)"
           },
+          "checkMaxWords": {
+            "description": "Report a target that exceeds an absolute word count.",
+            "help": "When enabled, a target with more words than `maxWords` is reported.\n",
+            "values": "`true` / `false` (default `false`)",
+            "dependsOn": [
+              {
+                "property": "maxWords",
+                "condition": "sets the limit; `0` leaves the check without effect"
+              }
+            ]
+          },
           "checkMinCharLength": {
-            "description": "Flag targets shorter than a percentage of source character length.",
+            "description": "Report targets shorter than a percentage of source character length.",
             "help": "Enables the minimum length-ratio check, using a long/short model: the\nrequired percentage depends on whether the source is above or below the\nminimum breakpoint.\n",
             "values": "`true` / `false` (default `true`)"
           },
           "checkPatterns": {
             "description": "Verify that source patterns have expected corresponding content in the target.",
-            "help": "When enabled, configured source/target regex pattern pairs are checked so\nthat patterns found in the source are preserved in the target. The pattern\npairs themselves are supplied programmatically.\n",
+            "help": "When enabled, configured source/target regex pattern pairs are checked so\nthat patterns found in the source are preserved in the target, and\nforbidden patterns fail the block. The pattern pairs themselves are\nsupplied programmatically.\n",
             "values": "`true` / `false` (default `true`)"
+          },
+          "checkSourceInconsistency": {
+            "description": "Fail a translation shared by different sources.",
+            "help": "Fails a block whose translation occurs earlier in the run for a different\nsource, and names the other sources.\n",
+            "values": "`true` / `false` (default `false`)"
           },
           "checkSpanConstraints": {
             "description": "Check non-deletable and non-cloneable span constraint violations.",
-            "help": "Flags an error when a non-deletable inline code is missing from the target,\nor a non-cloneable inline code is duplicated in the target, according to the\nper-code constraints carried on the source runs.\n",
+            "help": "Fails a block when a non-deletable inline code is missing from the target,\nor a non-cloneable inline code is duplicated in it, according to the\nper-code constraints carried on the source runs.\n",
             "values": "`true` / `false` (default `true`)"
           },
+          "checkTargetInconsistency": {
+            "description": "Fail a source translated differently across the run.",
+            "help": "Fails a block whose source occurs earlier in the run with a different\ntranslation, and names the other translations.\n",
+            "values": "`true` / `false` (default `false`)"
+          },
           "checkTargetSameAsSource": {
-            "description": "Warn when the target is identical to the source.",
-            "help": "Flags a warning when the target text equals the source text and contains at\nleast one letter or digit. Number-only segments are governed by\n`targetSameAsSourceWithNumbers`.\n",
+            "description": "Report a target identical to its source.",
+            "help": "Reports a finding when the target equals the source and contains at least\none letter or digit. Number-only blocks are governed by\n`targetSameAsSourceWithNumbers`.\n",
             "values": "`true` / `false` (default `true`)"
           },
           "checkTerminology": {
-            "description": "Enable terminology checks.",
-            "help": "Enables terminology verification within the check. Disabled by default.\n",
+            "description": "Reserved; the rule checks read no terms.",
+            "help": "The rule checks ignore this setting. To check translations against the\nterms store, run the `term-check` tool.\n",
             "values": "`true` / `false` (default `false`)"
           },
           "checkTrailingWhitespace": {
             "description": "Check for trailing-whitespace mismatches between source and target.",
-            "help": "Flags a warning when the trailing whitespace of the target differs from that\nof the source.\n",
+            "help": "Reports a finding when the trailing whitespace of the target differs from\nthat of the source.\n",
             "values": "`true` / `false` (default `true`)"
           },
           "checks": {
-            "description": "Quality dimensions for the LLM judge (LLM mode).",
-            "help": "The list of quality dimensions the LLM evaluates, e.g. terminology,\nfluency, accuracy, consistency. Defaults to terminology, fluency, accuracy.\n",
-            "values": "list of strings"
+            "description": "Quality dimensions for the AI review (`ai` mode).",
+            "help": "The dimensions the provider reviews, such as terminology, fluency,\naccuracy and consistency. The review reports a finding as failing when the\nprovider rates it an error.\n",
+            "values": "list of strings (default `terminology`, `fluency`, `accuracy`)"
+          },
+          "consistencyCaseSensitive": {
+            "description": "Whether the consistency checks compare letter case.",
+            "help": "When disabled, two blocks that differ only in letter case count as the\nsame for the two consistency checks.\n",
+            "values": "`true` / `false` (default `true`)"
           },
           "doubledWordExceptions": {
             "description": "Words allowed to repeat consecutively.",
-            "help": "A semicolon-separated list of words that may legitimately appear twice in a\nrow (for example certain pronouns), so they are not flagged by the\ndoubled-word check.\n",
+            "help": "A semicolon-separated list of words that may legitimately appear twice in a\nrow (for example certain pronouns), so the doubled-word check passes them.\n",
             "values": "string (default `sie;vous;nous`)",
             "dependsOn": [
               {
@@ -2591,49 +2633,84 @@
               }
             ]
           },
+          "forbiddenChars": {
+            "description": "Characters that must not appear in the target.",
+            "help": "Each character listed here fails a block whose target contains it.\n",
+            "values": "string (default empty)",
+            "examples": [
+              "`{}[]` fails any target that contains a brace or a bracket"
+            ]
+          },
           "maxCharLengthAbove": {
-            "description": "Maximum allowed percentage of source length for long text.",
+            "description": "Maximum allowed percentage of source length for a long source.",
             "help": "The maximum target/source ratio applied when the source is long.\n",
             "values": "integer (default `200`)"
           },
           "maxCharLengthBelow": {
-            "description": "Maximum allowed percentage of source length for short text.",
+            "description": "Maximum allowed percentage of source length for a short source.",
             "help": "The maximum target/source ratio applied when the source is short.\n",
             "values": "integer (default `350`)"
           },
           "maxCharLengthBreak": {
-            "description": "Character count above which text is considered long (max check).",
-            "help": "Source text longer than this is treated as long for the maximum-ratio check;\nshorter text is treated as short.\n",
+            "description": "Character count above which a source is considered long (max check).",
+            "help": "A source longer than this is treated as long for the maximum-ratio check;\na shorter one is treated as short.\n",
             "values": "integer (default `20`)"
           },
+          "maxWords": {
+            "description": "Maximum number of words allowed in a target.",
+            "help": "The word limit used by the maximum-words check.\n",
+            "values": "integer (default `0`)",
+            "dependsOn": [
+              {
+                "property": "checkMaxWords",
+                "condition": "must be enabled for this limit to take effect"
+              }
+            ]
+          },
           "minCharLengthAbove": {
-            "description": "Minimum required percentage of source length for long text.",
+            "description": "Minimum required percentage of source length for a long source.",
             "help": "The minimum target/source ratio applied when the source is long.\n",
             "values": "integer (default `45`)"
           },
           "minCharLengthBelow": {
-            "description": "Minimum required percentage of source length for short text.",
+            "description": "Minimum required percentage of source length for a short source.",
             "help": "The minimum target/source ratio applied when the source is short.\n",
             "values": "integer (default `30`)"
           },
           "minCharLengthBreak": {
-            "description": "Character count above which text is considered long (min check).",
-            "help": "Source text longer than this is treated as long for the minimum-ratio check;\nshorter text is treated as short.\n",
+            "description": "Character count above which a source is considered long (min check).",
+            "help": "A source longer than this is treated as long for the minimum-ratio check;\na shorter one is treated as short.\n",
             "values": "integer (default `20`)"
           },
+          "mode": {
+            "description": "How to check the translations.",
+            "help": "`rules` runs the deterministic checks below locally and calls no model.\n`ai` asks an AI provider to review each translation, using `provider`,\n`apiKey`, `model` and `checks`. The rule toggles apply only to `rules`.\n",
+            "values": "`rules` / `ai` (default `rules`)"
+          },
           "model": {
-            "description": "The model name to request (LLM mode).",
-            "help": "The provider-specific model identifier for LLM-judged checks. When omitted, the\nprovider's default model is used.\n",
+            "description": "The model name to request (`ai` mode).",
+            "help": "The provider-specific model identifier. When omitted, the provider's\ndefault model is used.\n",
             "values": "string"
           },
           "provider": {
-            "description": "LLM provider for AI-judged checks (omit for rule-based checks).",
-            "help": "When set, the tool runs as an LLM judge using this provider instead of the\ndeterministic rule checks. Options are populated from the provider\nregistry. Leave empty to run the rule-based checks with no credentials.\n",
-            "values": "`anthropic` / `openai` / `gemini` / `azureopenai` / `ollama` (default: unset → rule-based)"
+            "description": "AI provider for the review (`ai` mode).",
+            "help": "The provider that reviews each translation when `mode` is `ai`. The options\ncome from the provider registry; `demo` returns illustrative output with\nno credentials. In `rules` mode the value is ignored.\n",
+            "values": "a provider id (default `anthropic`)",
+            "dependsOn": [
+              {
+                "property": "mode",
+                "condition": "applies only when `mode` is `ai`"
+              }
+            ]
+          },
+          "requiredChars": {
+            "description": "Characters the target must keep when the source has them.",
+            "help": "Reports a finding for each listed character that occurs in the source and\nis missing from the target.\n",
+            "values": "string (default empty)"
           },
           "strictCodeOrder": {
-            "description": "Flag differences when codes appear in a different order.",
-            "help": "When enabled, and no count differences were found, the target is flagged if\nits inline codes appear in a different order than in the source.\n",
+            "description": "Report codes that appear in a different order.",
+            "help": "When enabled, and no count differences were found, the target is reported\nif its inline codes appear in a different order than in the source.\n",
             "values": "`true` / `false` (default `false`)",
             "dependsOn": [
               {
@@ -2648,20 +2725,23 @@
             "values": "`true` / `false` (default `true`)"
           },
           "targetSameAsSourceWithNumbers": {
-            "description": "Include number-only segments in the same-as-source comparison.",
-            "help": "When enabled, segments containing only numbers (and punctuation) are\nincluded in the target-same-as-source check. Disable it to ignore\nnumber-only segments, which are often legitimately identical.\n",
+            "description": "Include number-only blocks in the same-as-source comparison.",
+            "help": "When enabled, blocks containing only numbers and punctuation are included\nin the same-as-source check. Disable it to ignore them, since they are\noften legitimately identical.\n",
             "values": "`true` / `false` (default `true`)"
           }
         },
         "limitations": [
           "Length and ratio checks compare character lengths only when source and target are both non-empty.",
           "The regex pattern pairs used by `checkPatterns` are supplied programmatically, not as schema parameters.",
-          "Requires a configured target locale."
+          "Requires a target language. The tool compares translations in that one language per run.",
+          "Run on a translation file alone, the `rules` mode reads each block as untranslated and reports it as an empty target. Name the source file and pass the translation with `--target`.",
+          "A run with `--target` pairs one source file with one translation and refuses `-o` and `--output-dir`."
         ],
         "processingNotes": [
           "Operates on translatable blocks; non-translatable structure passes through unchanged.",
-          "When a block has no translation, only the empty-target check applies.",
-          "Findings are stored on the block as a JSON array with a pass/fail flag."
+          "When a block has no translation in the target language, only the empty-target check applies.",
+          "Findings are recorded on the block as a findings annotation, which `kapi exec qa` prints as its report.",
+          "The consistency checks compare each block with the blocks before it in the same run."
         ],
         "examples": [
           {
@@ -2671,8 +2751,13 @@
           },
           {
             "title": "Enforce an absolute character cap",
-            "description": "Flag any target segment longer than 200 characters.",
+            "description": "Report any target longer than 200 characters.",
             "config": "checkAbsoluteMaxCharLength: true\nabsoluteMaxCharLength: 200\n"
+          },
+          {
+            "title": "Review with an AI provider",
+            "description": "Ask the provider to review fluency and accuracy.",
+            "config": "mode: ai\nprovider: anthropic\nchecks: [fluency, accuracy]\n"
           }
         ]
       },
@@ -3591,7 +3676,7 @@
       "source": "built-in",
       "kind": "tool",
       "displayName": "Segmentation",
-      "description": "Split block text into sentence-level segments using SRX-style rules.",
+      "description": "Mark sentence or chunk boundaries within each block as a segmentation overlay.",
       "category": "text-processing",
       "tags": [
         "text-processing"
@@ -3812,61 +3897,102 @@
         }
       },
       "doc": {
-        "overview": "The **Segmentation** tool splits a block's text into sentence-level segments.\nSegmentation determines the span that is translated and matched against\nthe content memory, so consistent segmentation is important for leverage and\nreview.\nBy default the tool segments source text using built-in SRX-style rules that\nhandle common sentence boundaries and abbreviations; rules can also be loaded\nfrom an SRX file.\n\nThe number of segments produced is recorded on each block. Already-segmented\ntext is left alone unless re-segmentation is requested. Target text can be\nsegmented independently, with its own rules file.\n",
+        "overview": "The **Segmentation** tool marks sentence or chunk boundaries within each\nblock. It records them as a stand-off overlay and leaves the block's runs\nunchanged, so dropping the overlay restores the unsegmented block. `--engine`\nselects the segmenter:\n\n- `srx`, the default, finds sentence boundaries with built-in rules and needs\n  no configuration. `rulesPath` loads an SRX 2.0 rules file in their place.\n- `uax29` applies the Unicode default sentence boundaries, with no\n  language-specific exceptions.\n- `llm` asks an AI provider for meaning-based chunks rather than sentences.\n\nPlugins can register further engines, which appear as options. Bilingual\nformats write the sentence layer as segments. A block that already has a\nlayer keeps it unless `overwriteSegmentation` is set.\n",
         "parameters": {
+          "credential": {
+            "description": "Saved credential name (`llm` engine).",
+            "help": "The name of a credential saved with `kapi credentials add`.\n",
+            "values": "string"
+          },
+          "engine": {
+            "description": "The segmenter to run.",
+            "help": "`srx` and `uax29` write the sentence layer; `llm` writes the `llm-chunk`\nlayer. The options come from the segment engine registry.\n",
+            "values": "`srx` / `uax29` / `llm` (default `srx`)"
+          },
+          "instruction": {
+            "description": "Guidance for how to chunk (`llm` engine).",
+            "help": "Free-text guidance added to the chunking request.\n",
+            "values": "string"
+          },
+          "layer": {
+            "description": "Name of the overlay layer to write.",
+            "help": "When empty, the engine's own layer is used: the sentence layer for `srx`\nand `uax29`, `llm-chunk` for `llm`. A named layer sits beside the others.\n",
+            "values": "string (default empty)"
+          },
+          "maxChunkRunes": {
+            "description": "Soft upper bound on chunk size in characters (`llm` engine).",
+            "help": "`0` leaves the size to the model.\n",
+            "values": "integer (default `0`)"
+          },
+          "model": {
+            "description": "Model name to request (`llm` engine).",
+            "help": "The provider-specific model identifier. When omitted, the provider's\ndefault model is used.\n",
+            "values": "string"
+          },
           "overwriteSegmentation": {
-            "description": "Re-segment already-segmented text.",
-            "help": "By default text that already has more than one segment is left untouched.\nEnable this to discard the existing segmentation and re-segment.\n",
+            "description": "Re-segment blocks that already have the layer.",
+            "help": "By default a block that already carries the layer keeps it. Enable this to\nreplace it.\n",
             "values": "`true` / `false` (default `false`)"
+          },
+          "provider": {
+            "description": "AI provider for chunking (`llm` engine).",
+            "help": "The provider that returns the chunks. When empty, `anthropic` is used.\n",
+            "values": "a provider id"
           },
           "renumberCodes": {
-            "description": "Renumber inline-code IDs within each segment.",
-            "help": "When enabled, inline-code IDs are renumbered to start at 1 within each\nresulting segment.\n",
+            "description": "Renumber inline-code IDs within each segment in bilingual output.",
+            "help": "Applies when a bilingual format writes the segments out: inline-code IDs\nare renumbered from 1 within each segment. The overlay itself leaves the\nruns as they are.\n",
             "values": "`true` / `false` (default `false`)"
           },
+          "rulesPath": {
+            "description": "Path to an SRX 2.0 rules file (`srx` engine).",
+            "help": "Replaces the built-in rules. One file serves source and target, since SRX\nrules are keyed by language.\n",
+            "values": "file path"
+          },
           "segmentSource": {
-            "description": "Segment the source text.",
-            "help": "When enabled, the source text is split into segments using the source\nrules. If neither source nor target segmentation is enabled, source\nsegmentation is applied by default.\n",
+            "description": "Segment the source.",
+            "help": "When enabled, the source of each block is segmented. If neither source nor\ntarget segmentation is enabled, the source is segmented.\n",
             "values": "`true` / `false` (default `true`)"
           },
           "segmentTarget": {
-            "description": "Segment existing target text.",
-            "help": "When enabled, existing target text for the configured locale is split\ninto segments using the target rules.\n",
+            "description": "Segment the existing target.",
+            "help": "When enabled, the translation in the language `--target-lang` names is\nsegmented with the same engine. SRX rules are keyed by language, so each\nside gets its own language's rules.\n",
             "values": "`true` / `false` (default `false`)"
-          },
-          "sourceSrxPath": {
-            "description": "Path to an SRX rules file for the source.",
-            "help": "Path to an SRX segmentation rules file used for the source text. When\nempty, the built-in default rules are used.\n",
-            "values": "file path"
-          },
-          "targetSrxPath": {
-            "description": "Path to an SRX rules file for the target.",
-            "help": "Path to an SRX segmentation rules file used for the target text. When\nempty, the built-in default rules are used.\n",
-            "values": "file path"
           },
           "treatIsolatedCodesAsWhitespace": {
             "description": "Treat isolated inline codes as whitespace while segmenting.",
             "help": "When enabled, an isolated inline code is treated like whitespace for the\npurpose of finding segment boundaries.\n",
             "values": "`true` / `false` (default `false`)"
+          },
+          "trimLeadingWhitespace": {
+            "description": "Exclude leading whitespace from each segment.",
+            "help": "When enabled, whitespace at the start of a segment falls outside its span.\n",
+            "values": "`true` / `false` (default `true`)"
+          },
+          "trimTrailingWhitespace": {
+            "description": "Exclude trailing whitespace from each segment.",
+            "help": "When enabled, whitespace at the end of a segment falls outside its span.\n",
+            "values": "`true` / `false` (default `true`)"
           }
         },
         "limitations": [
-          "The built-in rule set targets common Latin-script sentence boundaries; non-Latin scripts may need a custom SRX file."
+          "The built-in rule set targets common Latin-script sentence boundaries; non-Latin scripts may need a custom SRX file.",
+          "The `llm` engine calls a hosted provider unless a local one is chosen, and needs a credential for a hosted provider."
         ],
         "processingNotes": [
           "Operates on translatable blocks only; non-translatable blocks pass through unchanged.",
-          "The resulting segment count is written to a block property."
+          "When the source is written to the sentence layer, the segment count is recorded in the block property `segment-count`."
         ],
         "examples": [
           {
-            "title": "Segment source text with default rules",
-            "description": "Split source into sentences using the built-in rules.",
+            "title": "Segment the source with the default rules",
+            "description": "Mark sentence boundaries using the built-in rules.",
             "config": "segmentSource: true\n"
           },
           {
             "title": "Re-segment with a custom SRX file",
             "description": "Replace existing segmentation using project-specific rules.",
-            "config": "segmentSource: true\noverwriteSegmentation: true\nsourceSrxPath: ./rules/segmentation.srx\n"
+            "config": "engine: srx\noverwriteSegmentation: true\nrulesPath: ./rules/segmentation.srx\n"
           }
         ]
       },
@@ -4391,10 +4517,10 @@
             "help": "How many batches are translated concurrently. A value of 0 or 1 runs\nbatches sequentially.\n",
             "values": "integer ≥ 1 (default `1`)"
           },
-          "batchSize": {
-            "description": "Number of blocks per LLM call.",
-            "help": "Blocks are grouped into batches of this size and translated in a single\nstructured call per batch (LLM providers). A value of 1 translates block by\nblock.\n",
-            "values": "integer ≥ 1 (default `100`)"
+          "batching": {
+            "description": "How many blocks share one LLM call.",
+            "help": "`auto` sizes each batch from what the model can return in one reply and\ntranslates the batch in a single structured call. `single` translates one\nblock per call. Local providers, and a run with do-not-translate terms,\ntranslate one block per call under either setting.\n",
+            "values": "`auto` / `single` (default `auto`)"
           },
           "model": {
             "description": "The model name to request (LLM providers).",
