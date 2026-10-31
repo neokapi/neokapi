@@ -2,6 +2,7 @@ package redaction
 
 import (
 	"context"
+	"encoding/json"
 	"slices"
 	"testing"
 
@@ -172,4 +173,49 @@ func TestVisibleSource_MapsSpansAroundTokens(t *testing.T) {
 	start, end, ok = toSource(0, len("Ask"))
 	require.True(t, ok)
 	assert.Equal(t, "Ask", source[start:end])
+}
+
+// A token never takes the form of text the person wrote: unredact would put
+// the value back in place of that text.
+func TestEgress_ATokenAvoidsTextTheRequestHolds(t *testing.T) {
+	p := egressPolicy(t, Rule{Term: "Ada Lovelace", Category: CategoryPerson})
+	runs, entry := entryFor(t, p, "See the [REDACTED:Person] marker in the docs.")
+	require.Empty(t, entry.Values, "the block withholds nothing")
+	block, _ := VisibleText(runs)
+	got, err := NewEgress(p, entry).Redact(context.Background(), []string{block, "Greet Ada Lovelace."})
+	require.NoError(t, err)
+	assert.Equal(t, "See the [REDACTED:Person] marker in the docs.", got[0])
+	assert.Equal(t, "Greet [REDACTED:Person]#1.", got[1])
+
+	answer := []model.Run{model.TextR("Voir le marqueur [REDACTED:Person]. Saluez [REDACTED:Person]#1.")}
+	restored, _, _ := RestoreTree(answer, func(tok string) (string, bool) {
+		v, ok := entry.Get(tok)
+		return v.Original, ok
+	}, valuesOf(entry))
+	assert.Equal(t, "Voir le marqueur [REDACTED:Person]. Saluez Ada Lovelace.", model.RunsText(restored),
+		"the marker the person wrote stays as written")
+}
+
+// A value escaped inside a JSON payload (a batch prompt's prior version) is
+// found and replaced there, by a rule and as a value a block withholds.
+func TestEgress_RedactsAValueEscapedInJSON(t *testing.T) {
+	quoted := `Jane "JJ" Doe`
+	p := egressPolicy(t, Rule{Term: quoted, Category: CategoryPerson})
+	payload, err := json.Marshal(map[string]string{"approved": "Écrivez à " + quoted + " <ici>."})
+	require.NoError(t, err)
+
+	t.Run("a rule", func(t *testing.T) {
+		got, err := NewEgress(p).Redact(context.Background(), []string{string(payload)})
+		require.NoError(t, err)
+		assert.NotContains(t, got[0], "JJ")
+		var back map[string]string
+		require.NoError(t, json.Unmarshal([]byte(got[0]), &back), "the payload is still JSON")
+		assert.Equal(t, "Écrivez à [REDACTED:Person] <ici>.", back["approved"])
+	})
+	t.Run("a value the block withholds", func(t *testing.T) {
+		_, entry := entryFor(t, p, "Write to "+quoted+".")
+		got, err := NewEgress(&Policy{Locale: "en"}, entry).Redact(context.Background(), []string{string(payload)})
+		require.NoError(t, err)
+		assert.NotContains(t, got[0], "JJ")
+	})
 }

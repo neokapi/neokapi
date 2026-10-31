@@ -3,6 +3,7 @@ package redaction
 import (
 	"cmp"
 	"context"
+	"encoding/json"
 	"maps"
 	"slices"
 	"strconv"
@@ -177,15 +178,26 @@ func (e *Egress) Redact(ctx context.Context, texts []string) ([]string, error) {
 		if s == "" {
 			continue
 		}
-		var ms []Match
-		if e.policy.Detector != nil {
-			detected, err := e.policy.Detector.Detect(ctx, s, e.policy.Locale)
+		ms, err := e.detect(ctx, s, withheld)
+		if err != nil {
+			return nil, err
+		}
+		// A prompt that carries a JSON payload holds each string escaped:
+		// `Jane "JJ" Doe` reads there as `Jane \"JJ\" Doe`, which neither the
+		// rules nor the withheld text match. The unescaped text is read too,
+		// and each match is mapped back to the escaped span.
+		if strings.Contains(s, `\`) {
+			plain, at := jsonUnescape(s)
+			more, err := e.detect(ctx, plain, withheld)
 			if err != nil {
 				return nil, err
 			}
-			ms = detected
+			for _, m := range more {
+				if start, end := at[m.Start], at[m.End]; s[start:end] != m.Original {
+					ms = append(ms, Match{Start: start, End: end, Category: m.Category, Original: m.Original})
+				}
+			}
 		}
-		ms = append(ms, literalMatches(s, withheld)...)
 		found[i] = NormalizeMatches(ms)
 		hit = hit || len(found[i]) > 0
 	}
@@ -201,6 +213,69 @@ func (e *Egress) Redact(ctx context.Context, texts []string) ([]string, error) {
 		out[i] = e.replace(s, found[i], shown)
 	}
 	return out, nil
+}
+
+// detect returns the spans of s the policy's rules find and the occurrences
+// of every value the entries withhold.
+func (e *Egress) detect(ctx context.Context, s string, withheld []RedactedValue) ([]Match, error) {
+	var ms []Match
+	if e.policy.Detector != nil {
+		detected, err := e.policy.Detector.Detect(ctx, s, e.policy.Locale)
+		if err != nil {
+			return nil, err
+		}
+		ms = detected
+	}
+	return append(ms, literalMatches(s, withheld)...), nil
+}
+
+// jsonEscapes are the single-character JSON string escapes and what each
+// stands for.
+var jsonEscapes = map[byte]string{'"': `"`, '\\': `\`, '/': "/", 'b': "\b", 'f': "\f", 'n': "\n", 'r': "\r", 't': "\t"}
+
+// jsonUnescape returns s with each JSON string escape decoded, and the byte
+// offset in s where each byte of the result begins (with len(s) after the
+// last), so a span of the result maps back to the span of s it was read
+// from. An escape it cannot decode is kept as written.
+func jsonUnescape(s string) (string, []int) {
+	var (
+		b  strings.Builder
+		at []int
+	)
+	emit := func(text string, from int) {
+		for range len(text) {
+			at = append(at, from)
+		}
+		b.WriteString(text)
+	}
+	for i := 0; i < len(s); {
+		if s[i] == '\\' && i+1 < len(s) {
+			if dec, ok := jsonEscapes[s[i+1]]; ok {
+				emit(dec, i)
+				i += 2
+				continue
+			}
+			if s[i+1] == 'u' && i+6 <= len(s) {
+				if r, err := strconv.ParseUint(s[i+2:i+6], 16, 32); err == nil {
+					emit(string(rune(r)), i)
+					i += 6
+					continue
+				}
+			}
+		}
+		emit(s[i:i+1], i)
+		i++
+	}
+	return b.String(), append(at, len(s))
+}
+
+// jsonEscape returns token as it reads inside a JSON string.
+func jsonEscape(token string) string {
+	raw, err := json.Marshal(token)
+	if err != nil || len(raw) < 2 {
+		return token
+	}
+	return string(raw[1 : len(raw)-1])
 }
 
 // withheld returns the values the entries hold, longest original first.
@@ -252,7 +327,12 @@ func (e *Egress) replace(s string, matches []Match, shown string) string {
 			continue
 		}
 		b.WriteString(s[at:m.Start])
-		b.WriteString(e.tokenFor(m, shown))
+		tok := e.tokenFor(m, shown)
+		if s[m.Start:m.End] != m.Original {
+			// The value sits escaped in a JSON string, and so does its token.
+			tok = jsonEscape(tok)
+		}
+		b.WriteString(tok)
 		at = m.End
 	}
 	b.WriteString(s[at:])
@@ -304,7 +384,7 @@ func (e *Egress) tokenFor(m Match, shown string) string {
 		e.spread(v)
 		return v.Disp
 	}
-	return e.add(m).Disp
+	return e.add(m, shown).Disp
 }
 
 // spread keeps v in every entry of the request that lacks it, under the next
@@ -387,13 +467,13 @@ func rank(v RedactedValue, source model.LocaleID) int {
 // in their sequence and a visible token none of them uses for another value:
 // in every entry of a request whose answers go back to each block, and in
 // the first entry otherwise.
-func (e *Egress) add(m Match) RedactedValue {
+func (e *Egress) add(m Match, shown string) RedactedValue {
 	token := e.nextToken()
 	n, _ := strconv.Atoi(strings.TrimPrefix(token, e.policy.Options.tokenPrefix()))
 	v := RedactedValue{
 		Token:    token,
 		Category: m.Category,
-		Disp:     e.freeDisp(m.Category, n),
+		Disp:     e.freeDisp(m.Category, n, shown),
 		Original: m.Original,
 		Locale:   e.policy.Locale,
 	}
@@ -411,21 +491,26 @@ func (e *Egress) add(m Match) RedactedValue {
 }
 
 // freeDisp renders the visible token for the nth value of category, adding
-// a number when another value already shows as it.
-func (e *Egress) freeDisp(category string, n int) string {
+// a number when another value already shows as it, or when shown, the text of
+// the request, already holds it. A token that matched text the person wrote
+// would put the value back in place of that text when unredact restores it.
+func (e *Egress) freeDisp(category string, n int, shown string) string {
 	tmpl := e.policy.Options.placeholder()
 	base := renderPlaceholder(tmpl, category, n)
-	if !e.dispTaken(base) {
+	if !e.dispTaken(base, shown) {
 		return base
 	}
 	for k := 1; ; k++ {
-		if d := base + "#" + strconv.Itoa(k); !e.dispTaken(d) {
+		if d := base + "#" + strconv.Itoa(k); !e.dispTaken(d, shown) {
 			return d
 		}
 	}
 }
 
-func (e *Egress) dispTaken(disp string) bool {
+func (e *Egress) dispTaken(disp, shown string) bool {
+	if strings.Contains(shown, disp) {
+		return true
+	}
 	for _, a := range e.entries {
 		for _, v := range a.Values {
 			if v.Disp == disp {
