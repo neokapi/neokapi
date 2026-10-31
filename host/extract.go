@@ -1133,7 +1133,7 @@ func refuseKpzRedaction(cmd Command, proj *project.KapiProject) error {
 	switch {
 	case ProjectRedaction(proj) != nil:
 		return errors.New("extract: the project declares defaults.redaction, and a .kpz package carries the text of each source file whole, so it would hold the values the policy withholds. " +
-			"Extract XLIFF 2 or PO instead (--format xliff2 or --format po): kapi merge puts the withheld values back from the project's vault")
+			"Extract XLIFF 2 or PO instead (--format xliff2 or --format po): kapi merge puts the withheld values back from the vault the extraction keeps under .kapi/vault/")
 	case redactFlag || redactRules != "":
 		return errors.New("extract: --redact and --redact-rules apply to XLIFF 2 and PO. A .kpz package carries the text of each source file whole, so it cannot withhold a value. " +
 			"Use --format xliff2 or --format po")
