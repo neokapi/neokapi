@@ -103,6 +103,25 @@ func policyDetector(spec *project.RedactionSpec, rootDir string) (redaction.Dete
 	return redaction.NewRuleDetector(rf.Rules)
 }
 
+// joinedTexts returns the text of runs with inline codes left out
+// (model.RunsText), and the same for every plural form and select case.
+func joinedTexts(runs []model.Run) []string {
+	out := []string{model.RunsText(runs)}
+	for _, r := range runs {
+		switch {
+		case r.Plural != nil:
+			for _, form := range r.Plural.Forms {
+				out = append(out, joinedTexts(form)...)
+			}
+		case r.Select != nil:
+			for _, c := range r.Select.Cases {
+				out = append(out, joinedTexts(c)...)
+			}
+		}
+	}
+	return out
+}
+
 // runTexts returns the text of every text run in runs, in every plural form
 // and select case too.
 func runTexts(runs []model.Run) []string {
@@ -247,7 +266,10 @@ func (a *App) redactSourceForKpz(ctx context.Context, in redactedSourceInput) (*
 		if held {
 			break
 		}
-		for _, text := range runTexts(b.SourceRuns()) {
+		// The text with its inline codes left out, so a value a code splits
+		// ("Alice</b> Archer") reads whole, and each text run as it is.
+		texts := append(joinedTexts(b.SourceRuns()), runTexts(b.SourceRuns())...)
+		for _, text := range texts {
 			if held, err = rs.finds(ctx, text, tokens); err != nil {
 				return nil, err
 			}

@@ -16,6 +16,7 @@ import (
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/memory"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // Where a redacted .kpz refuses: a value it cannot withhold, a vault that
@@ -87,11 +88,11 @@ func TestExtractRedactedWorkspaceKeepsAnEarlierVault(t *testing.T) {
 
 // adHocExtract writes src with content and extracts it with --redact-rules
 // over the names, returning the error.
-func adHocExtract(t *testing.T, content string, names ...string) (string, error) {
+func adHocExtract(t *testing.T, base, content string, names ...string) (string, error) {
 	t.Helper()
 	t.Setenv("KAPI_KPZ_CACHE", t.TempDir())
 	dir := t.TempDir()
-	src := filepath.Join(dir, "app.json")
+	src := filepath.Join(dir, base)
 	require.NoError(t, os.WriteFile(src, []byte(content), 0o644))
 	rules := &redaction.RulesFile{}
 	for _, n := range names {
@@ -110,14 +111,15 @@ func adHocExtract(t *testing.T, content string, names ...string) (string, error)
 // sits in the markup beside the same value in a block, or only in the
 // markup, where the vault never records it.
 func TestExtractRedactedWorkspaceRefusesAValueOutsideTheBlocks(t *testing.T) {
-	for name, content := range map[string]string{
-		"beside a block that withholds it": `{"Alice Archer":"Hello Alice Archer"}`,
-		"only in the markup":               `{"Alice Archer":"Hello there","b":"Hi Bruno Black"}`,
+	for name, tc := range map[string]struct{ base, content string }{
+		"beside a block that withholds it": {"app.json", `{"Alice Archer":"Hello Alice Archer"}`},
+		"only in the markup":               {"app.json", `{"Alice Archer":"Hello there","b":"Hi Bruno Black"}`},
+		"split by an inline code":          {"page.html", "<html><body><p>Hello <b>Alice</b> Archer, welcome.</p><p>Hi Bruno Black</p></body></html>\n"},
 	} {
 		t.Run(name, func(t *testing.T) {
-			work, err := adHocExtract(t, content, "Alice Archer", "Bruno Black")
+			work, err := adHocExtract(t, tc.base, tc.content, "Alice Archer", "Bruno Black")
 			require.Error(t, err)
-			assert.Equal(t, "extract: app.json holds a withheld value outside any block (in markup, in a field kapi does not read, or across an inline code). kapi wrote no package. Extract XLIFF 2 or PO instead (--format xliff2 or --format po)", err.Error())
+			assert.Equal(t, "extract: "+tc.base+" holds a withheld value outside any block (in markup, in a field kapi does not read, or across an inline code). kapi wrote no package. Extract XLIFF 2 or PO instead (--format xliff2 or --format po)", err.Error())
 			assert.NoFileExists(t, work)
 			assert.NoFileExists(t, work+".vault")
 		})
@@ -134,6 +136,7 @@ func TestExtractKpzLeavesOutAMemoryMatchThatNamesAWithheldValue(t *testing.T) {
 		{Term: "Alice Archer", Category: redaction.CategoryPerson},
 		{Term: "Bruno Black", Category: redaction.CategoryPerson},
 		{Term: "Carla Cruz", Category: redaction.CategoryPerson},
+		{Term: "Dora Dunn", Category: redaction.CategoryPerson},
 	}}
 	require.NoError(t, rules.Save(filepath.Join(dir, "redact.yaml")))
 	layout, err := project.LayoutFor(recipe)
@@ -147,6 +150,15 @@ func TestExtractKpzLeavesOutAMemoryMatchThatNamesAWithheldValue(t *testing.T) {
 			"fr": {model.TextR("Bon retour sur la page de votre compte, Carla Cruz.")},
 		},
 	}))
+	// A concept that names a withheld person, and one that names none.
+	require.NoError(t, db.Terms().AddConcept(context.Background(), terms.Concept{
+		ID: "concept:dora", Source: terms.TermSourceTerminology,
+		Terms: []terms.Term{{Text: "Dora Dunn", Locale: "en", Status: model.TermPreferred}},
+	}))
+	require.NoError(t, db.Terms().AddConcept(context.Background(), terms.Concept{
+		ID: "concept:workspace", Source: terms.TermSourceTerminology,
+		Terms: []terms.Term{{Text: "workspace", Locale: "en", Status: model.TermPreferred}},
+	}))
 	out := t.TempDir()
 	cmd := kpzExtractCommand(t, recipe, out)
 	require.NoError(t, cmd.Flags().Set("no-memory", "false"))
@@ -154,7 +166,16 @@ func TestExtractKpzLeavesOutAMemoryMatchThatNamesAWithheldValue(t *testing.T) {
 	packages := kpzPackages(t, out)
 	require.NotEmpty(t, packages)
 	for _, p := range packages {
-		assertPackageWithholds(t, p, map[string]string{"a": "Alice Archer", "b": "Bruno Black", "c": "Carla Cruz"})
+		assertPackageWithholds(t, p, map[string]string{"a": "Alice Archer", "b": "Bruno Black", "c": "Carla Cruz", "d": "Dora Dunn"})
+		pkg, err := LoadWorkspace(p)
+		require.NoError(t, err)
+		require.NotNil(t, pkg.Terms, "a concept that names no withheld value travels")
+		var ids []string
+		for _, c := range pkg.Terms.Concepts {
+			ids = append(ids, c.ID)
+		}
+		assert.Contains(t, ids, "concept:workspace")
+		assert.NotContains(t, ids, "concept:dora")
 	}
 }
 
