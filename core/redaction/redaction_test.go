@@ -381,6 +381,44 @@ func TestFileVault_ReadsVersion1(t *testing.T) {
 	assert.Contains(t, string(data), `"doc": "src/app.json"`)
 }
 
+// A vault opens at every version this binary reads, and one a newer kapi
+// wrote is refused with a message that names the file and both versions.
+func TestOpenFileVault_Version(t *testing.T) {
+	entry := `{"token": "rdx1", "category": "person", "original": "Mr Bean", "blockId": "tu1"}`
+	cases := []struct {
+		name    string
+		version string
+	}{
+		{name: "absent", version: ""},
+		{name: "version 1", version: `"version": 1, `},
+		{name: "version 2", version: `"version": 2, `},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "batch.json")
+			require.NoError(t, os.WriteFile(path, []byte(`{`+tc.version+`"values": [`+entry+`]}`), 0o600))
+			v, err := OpenFileVault(path)
+			require.NoError(t, err)
+			got, ok := v.Get("", "tu1", "rdx1")
+			require.True(t, ok)
+			assert.Equal(t, "Mr Bean", got.Original)
+		})
+	}
+
+	t.Run("version 3", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "batch.json")
+		data := []byte(`{"version": 3, "values": [` + entry + `]}`)
+		require.NoError(t, os.WriteFile(path, data, 0o600))
+		v, err := OpenFileVault(path)
+		require.ErrorIs(t, err, ErrNewerVault)
+		assert.Nil(t, v)
+		assert.Equal(t, "redaction: vault "+path+" is version 3 and this kapi reads up to version 2: a newer kapi wrote this vault; upgrade kapi to read it", err.Error())
+		kept, err := os.ReadFile(path)
+		require.NoError(t, err)
+		assert.Equal(t, data, kept, "the refused vault is left as it is")
+	})
+}
+
 func TestOpenFileVault_Missing(t *testing.T) {
 	v, err := OpenFileVault(filepath.Join(t.TempDir(), "nope.json"))
 	require.NoError(t, err)
