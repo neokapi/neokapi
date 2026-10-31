@@ -340,7 +340,7 @@ func TestFileVault_TwoDocumentsSameBlockID(t *testing.T) {
 
 // A version 1 vault keyed every entry by block and token alone. It still
 // opens, a lookup that names a document falls back to the entry, and the
-// next Flush writes version 2 with the entry unchanged.
+// next Flush writes version 3 with the entry unchanged.
 func TestFileVault_ReadsVersion1(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "batch.json")
 	require.NoError(t, os.WriteFile(path, []byte(`{
@@ -377,7 +377,7 @@ func TestFileVault_ReadsVersion1(t *testing.T) {
 		Version int `json:"version"`
 	}
 	require.NoError(t, json.Unmarshal(data, &doc))
-	assert.Equal(t, 2, doc.Version)
+	assert.Equal(t, 3, doc.Version)
 	assert.Contains(t, string(data), `"doc": "src/app.json"`)
 }
 
@@ -392,6 +392,7 @@ func TestOpenFileVault_Version(t *testing.T) {
 		{name: "absent", version: ""},
 		{name: "version 1", version: `"version": 1, `},
 		{name: "version 2", version: `"version": 2, `},
+		{name: "version 3", version: `"version": 3, `},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -402,21 +403,69 @@ func TestOpenFileVault_Version(t *testing.T) {
 			got, ok := v.Get("", "tu1", "rdx1")
 			require.True(t, ok)
 			assert.Equal(t, "Mr Bean", got.Original)
+			assert.Empty(t, v.ID(), "a vault that records no ID has none")
 		})
 	}
 
-	t.Run("version 3", func(t *testing.T) {
+	t.Run("version 4", func(t *testing.T) {
 		path := filepath.Join(t.TempDir(), "batch.json")
-		data := []byte(`{"version": 3, "values": [` + entry + `]}`)
+		data := []byte(`{"version": 4, "values": [` + entry + `]}`)
 		require.NoError(t, os.WriteFile(path, data, 0o600))
 		v, err := OpenFileVault(path)
 		require.ErrorIs(t, err, ErrNewerVault)
 		assert.Nil(t, v)
-		assert.Equal(t, "redaction: vault "+path+" is version 3 and this kapi reads up to version 2: a newer kapi wrote this vault; upgrade kapi to read it", err.Error())
+		assert.Equal(t, "redaction: vault "+path+" is version 4 and this kapi reads up to version 3: a newer kapi wrote this vault; upgrade kapi to read it", err.Error())
 		kept, err := os.ReadFile(path)
 		require.NoError(t, err)
 		assert.Equal(t, data, kept, "the refused vault is left as it is")
 	})
+}
+
+// The ID a vault is given travels with it: Flush writes it, and the next
+// open reads it back with the entries.
+func TestFileVault_KeepsItsID(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "work.kpz.vault")
+	v, err := OpenFileVault(path)
+	require.NoError(t, err)
+	id := NewVaultID()
+	assert.Len(t, id, 32)
+	assert.NotEqual(t, id, NewVaultID(), "every vault gets an ID of its own")
+	v.SetID(id)
+	require.NoError(t, v.Put(RedactedValue{Doc: "a.json", BlockID: "tu1", Token: "rdx1", Original: "Mr Bean"}))
+	require.NoError(t, v.Flush())
+
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), `"version": 3`)
+	assert.Contains(t, string(data), `"id": "`+id+`"`)
+
+	reopened, err := OpenFileVault(path)
+	require.NoError(t, err)
+	assert.Equal(t, id, reopened.ID())
+	got, ok := reopened.Get("a.json", "tu1", "rdx1")
+	require.True(t, ok)
+	assert.Equal(t, "Mr Bean", got.Original)
+}
+
+// ShowTokens draws each redaction placeholder as its visible token, in the
+// sequence and in every plural form, and keeps every other run.
+func TestShowTokens(t *testing.T) {
+	ph := func(token, disp string) model.Run {
+		return model.Run{Ph: &model.PlaceholderRun{ID: token, Type: PlaceholderType(CategoryPerson), Disp: disp, Data: disp}}
+	}
+	other := model.Run{Ph: &model.PlaceholderRun{ID: "1", Type: "fmt", Data: "%s"}}
+	runs := []model.Run{
+		textRun("Hello "), ph("rdx1", "[REDACTED:Person]"), other,
+		{Plural: &model.PluralRun{Pivot: "n", Forms: map[model.PluralForm][]model.Run{
+			model.PluralOne: {textRun("one "), ph("rdx2.one-rdx1", "[REDACTED:Person]")},
+		}}},
+	}
+	out := ShowTokens(runs)
+	require.Len(t, out, 4)
+	assert.Equal(t, "[REDACTED:Person]", out[1].Text.Text)
+	assert.Equal(t, other, out[2], "a placeholder that is not a redaction is kept")
+	assert.Equal(t, "one [REDACTED:Person]", TextOf(out[3].Plural.Forms[model.PluralOne]))
+	assert.NotNil(t, runs[1].Ph, "the input is left as it is")
 }
 
 func TestOpenFileVault_Missing(t *testing.T) {
