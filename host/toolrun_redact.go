@@ -19,10 +19,9 @@ import (
 // A run of one registry tool (`kapi exec <tool>`, and the MCP tools that run
 // one registry tool over a text) reads each file under the redaction policy
 // that covers it (RedactionFor); a text in no file reads under the defaults.
-// When the tool sends blocks out, to a provider or to a program kapi runs
-// (external-command), redact runs ahead of it and unredact after it, so the
-// provider or program reads placeholders and the output carries the
-// originals. Between the two steps the originals ride on the blocks, as in the
+// When the tool sends blocks out (toolSendsBlocksOut), redact runs ahead of
+// it and unredact after it, so the provider or program reads placeholders and
+// the output carries the originals. Between the two steps the originals ride on the blocks, as in the
 // secure-translate flow, and the run writes none of them to disk.
 
 // toolRedaction is the redaction policy one run of a tool applies.

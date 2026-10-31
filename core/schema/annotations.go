@@ -44,11 +44,11 @@ const (
 
 	// SideEffectProcessExec marks a tool that hands block content to a program
 	// outside kapi (external-command). kapi cannot tell what the program does
-	// with the content, including whether it sends it off the machine, so a
-	// redaction policy treats the tool as it treats one with remote source
-	// egress: under a policy the program reads redacted blocks, and a flow
-	// that runs the tool needs a redact step ahead of it. It is distinct from
-	// SideEffectAPICall, which names a provider call and drives provider
-	// selection and token estimates, neither of which applies to a program.
+	// with the content, including whether it sends it off the machine. A
+	// redaction policy therefore treats the tool as one with remote source
+	// egress. Under a policy the program reads redacted blocks, and a flow
+	// that runs the tool needs a redact step ahead of it. SideEffectAPICall
+	// names a provider call and drives provider selection and token
+	// estimates, so a program does not carry it.
 	SideEffectProcessExec SideEffect = "process-exec"
 )
