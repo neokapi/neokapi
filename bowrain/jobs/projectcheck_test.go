@@ -17,10 +17,10 @@ import (
 )
 
 // TestProjectCheck_EndToEnd runs a project-wide check through the durable
-// worker path over the PostgreSQL stores: every item of the stream is
-// checked at the source language under the voice bound at the project and
-// the workspace's terms, each item's tally is written, and the job reports
-// its progress in items and completes.
+// worker path over the PostgreSQL stores. Every item of the stream is checked
+// at the source language under the project's voice and the workspace's
+// terms. Each item's tally is written, and the job reports its progress in
+// items and completes.
 func TestProjectCheck_EndToEnd(t *testing.T) {
 	db := pgtest.NewTestDB(t)
 	ctx := t.Context()

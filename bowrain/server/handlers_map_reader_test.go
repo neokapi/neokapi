@@ -147,11 +147,12 @@ func mapReaderGet(t *testing.T, e *echo.Echo, method, pid, route string, body, o
 }
 
 // TestMapReaderParity holds the server's Map and Reader to the desktop's for
-// the same project: the same blocks under the same voice and terms answer
-// with the same JSON, apart from what the server cannot know (paths on disk,
-// the workspace key of a project no push has bound, and when the files were
-// read and checked) and the desktop's note about the profile a file sits
-// under, which the context answer writes and the server does not.
+// the same project. The same blocks under the same voice and terms answer
+// with the same JSON. Left out are the fields the server cannot know: paths
+// on disk, the workspace key of a project no push has bound, and when the
+// files were read and checked. The desktop's note about the profile a file
+// sits under is left out too; the context answer writes it, and the server
+// does not.
 func TestMapReaderParity(t *testing.T) {
 	caller := &decideCaller{userID: "member-a", perms: platauth.PermViewContent}
 	srv, e, cs := mapReaderSQLiteServer(t, caller)

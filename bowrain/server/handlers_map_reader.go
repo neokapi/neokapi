@@ -1,16 +1,13 @@
 package server
 
-// The Map and the Reader on the server: the page a project opens on, and one
-// item as a person reads it, in the shapes the desktop draws them
-// (host/screens). The Map counts what the stores hold without reading a
-// block: the items, the block counts, the tallies the last project-wide
-// check recorded, and the ledger. The Reader reads one item's blocks and
-// runs the checks at the source language over them, as the project-wide
-// check does item by item.
+// The Map and the Reader on the server, in the shapes the desktop draws them
+// (host/screens). The Map counts what the stores hold and reads no block. The
+// Reader reads one item's blocks and checks them at the source language, as
+// the project-wide check does item by item.
 //
-// A fix from the Reader files a source proposal: the server holds blocks,
-// not the project's files, so the edit a finding carries is applied to the
-// block in memory and proposed to the source owners as the block's new text.
+// A fix from the Reader files a source proposal. The server holds blocks, not
+// files, so the fix is applied to a copy of the block and the copy's text is
+// proposed.
 
 import (
 	"context"
@@ -348,12 +345,11 @@ func checkedFinding(b *model.Block, f jobs.ItemFinding, source model.LocaleID) s
 }
 
 // readerRules lists the rules that hold at an item, in the order `kapi
-// context <path>` lists them: the voice bound at its point, then the word
-// rules of the terms in force and of the voice's own file
-// (rulesview.SayThisNotThat), then the term rules and notes the ledger holds
-// established with a scope that covers the item's point, each with who put it
-// in force and when. The word rules are capped at readerTermsLimit; the total
-// counts every rule.
+// context <path>` lists them. The voice bound at its point comes first. The
+// word rules of the terms and of the voice's own file follow
+// (rulesview.SayThisNotThat), capped at readerTermsLimit. Last come the term
+// rules and notes the ledger holds established at the item's point, each with
+// who put it in force and when. The total counts every rule.
 func (s *Server) readerRules(ctx context.Context, st *decideState, checks jobs.PointChecks, path string) ([]screens.ReaderRuleDTO, int, error) {
 	out := []screens.ReaderRuleDTO{}
 	if checks.Voice != nil {
