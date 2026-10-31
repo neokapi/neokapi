@@ -66,7 +66,7 @@ func (a *App) toolRunPolicyFor(recipe string, proj *project.KapiProject, file, t
 		return toolRunPolicy{}, nil
 	}
 	pol := toolRunPolicy{declared: true}
-	if !a.toolCallsProvider(toolName, config) {
+	if !a.toolSendsBlocksOut(toolName, config) {
 		return pol, nil
 	}
 	if hasDetector(spec.Detectors, "entities") {
@@ -99,20 +99,22 @@ func (a *App) toolContractKnown(toolName string) bool {
 	return s != nil && s.ToolMeta != nil
 }
 
-// toolCallsProvider reports whether a run of the tool with config reaches a
-// provider: its contract, refined for the config, carries an API call.
-// toolRunPolicyFor asks only about a tool whose contract the registry holds
-// (toolContractKnown).
+// toolSendsBlocksOut reports whether a run of the tool with config hands
+// blocks to something outside kapi: its contract, refined for the config,
+// carries an API call (a provider) or process-exec (a program kapi runs, such
+// as external-command's). toolRunPolicyFor asks only about a tool whose
+// contract the registry holds (toolContractKnown).
 //
 // The registry fills in the configured default provider only for a tool
 // whose contract, resolved for the same config, requires credentials, so the
 // answer for the config the command sets is the answer for the tool it builds.
-func (a *App) toolCallsProvider(toolName string, config map[string]any) bool {
+func (a *App) toolSendsBlocksOut(toolName string, config map[string]any) bool {
 	if a.ToolReg == nil {
 		return false
 	}
 	info := a.ToolReg.ResolveToolInfo(registry.ToolID(toolName), config)
-	return info != nil && slices.Contains(info.SideEffects, schema.SideEffectAPICall)
+	return info != nil && (slices.Contains(info.SideEffects, schema.SideEffectAPICall) ||
+		slices.Contains(info.SideEffects, schema.SideEffectProcessExec))
 }
 
 // toolChain is the tools one run applies to a file: the tool, and the steps

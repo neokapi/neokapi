@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/redaction"
 	"github.com/neokapi/neokapi/core/tool"
 )
 
@@ -98,7 +99,10 @@ func NewExternalCommandTool(cfg *ExternalCommandConfig) *tool.BaseTool {
 	}
 	// Transform producer: returns the command output as an edit plan; the
 	// framework applier rewrites the block (AD-006). A command failure is
-	// recorded in block properties and leaves the content untouched.
+	// recorded in block properties and leaves the content untouched. The
+	// program reads the block's text with each redaction placeholder drawn as
+	// its visible token (redaction.VisibleText); a block with none reads as
+	// SourceText and TargetText read it.
 	t.Transform = func(v tool.BlockView) (tool.EditPlan, error) {
 		if !v.Translatable() {
 			return tool.EditPlan{}, nil
@@ -115,26 +119,26 @@ func NewExternalCommandTool(cfg *ExternalCommandConfig) *tool.BaseTool {
 
 		// Process source text.
 		if conf.ApplySource {
-			result, exitCode, err := runCommand(v.Context(), conf, v.SourceText(), timeout)
-			v.SetProperty(PropExternalCommandExitCode, strconv.Itoa(exitCode))
+			text, tokens := redaction.VisibleText(v.SourceRuns())
+			result, err := runOn(v, conf, text, tokens, timeout)
 			if err != nil {
 				v.SetProperty(PropExternalCommandError, err.Error())
 				return tool.EditPlan{}, nil
 			}
-			if result != v.SourceText() {
+			if result != text {
 				plan.ReplaceAll = &result
 			}
 		}
 
 		// Process target text.
 		if conf.ApplyTarget && !conf.TargetLocale.IsEmpty() && v.HasTarget(conf.TargetLocale) {
-			result, exitCode, err := runCommand(v.Context(), conf, v.TargetText(conf.TargetLocale), timeout)
-			v.SetProperty(PropExternalCommandExitCode, strconv.Itoa(exitCode))
+			text, tokens := redaction.VisibleText(v.TargetRuns(conf.TargetLocale))
+			result, err := runOn(v, conf, text, tokens, timeout)
 			if err != nil {
 				v.SetProperty(PropExternalCommandError, err.Error())
 				return tool.EditPlan{}, nil
 			}
-			if result != v.TargetText(conf.TargetLocale) {
+			if result != text {
 				plan.SetTarget(conf.TargetLocale, []model.Run{{Text: &model.TextRun{Text: result}}})
 			}
 		}
@@ -142,6 +146,25 @@ func NewExternalCommandTool(cfg *ExternalCommandConfig) *tool.BaseTool {
 		return plan, nil
 	}
 	return t
+}
+
+// runOn runs the command over text and records its exit code on the block.
+// Under a redaction policy text holds the visible token of each value the
+// policy withholds, and unredact puts the original back where the token
+// survives in the output. An output that drops a token would lose that
+// value, so it counts as a failure and leaves the block as it was.
+func runOn(v tool.BlockView, conf *ExternalCommandConfig, text string, tokens []string, timeout int) (string, error) {
+	result, exitCode, err := runCommand(v.Context(), conf, text, timeout)
+	v.SetProperty(PropExternalCommandExitCode, strconv.Itoa(exitCode))
+	if err != nil {
+		return "", err
+	}
+	for _, tok := range tokens {
+		if !strings.Contains(result, tok) {
+			return "", fmt.Errorf("external-command: the output of %s drops the redaction placeholder %s, so the value it stands for could not be restored", conf.Command, tok)
+		}
+	}
+	return result, nil
 }
 
 // runCommand executes the configured command with the given text input.

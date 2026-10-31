@@ -26,7 +26,8 @@ import (
 //     sides coherently) is exempt.
 //
 //   - Error: a recoverable transformer (redact) must run before any step that
-//     egresses source to a remote sink — otherwise unprotected source leaks
+//     egresses source to a remote sink, or hands it to a program outside kapi
+//     (process-exec) — otherwise unprotected source leaks
 //     before redaction applies. The step(s) producing the inputs its detection
 //     consumes are exempt: a cloud NER feeding entity-driven redaction is the
 //     documented AD-020 detection trade-off, while a local detector never
@@ -127,6 +128,17 @@ func (d *FlowDefinition) ValidatePlacement(reg *registry.ToolRegistry) ([]Placem
 					Message: fmt.Sprintf("%q must run before %q, which sends source to a remote sink: unprotected content leaks before redaction applies. Move %q earlier, or use a local provider for %q",
 						n.Name, ordered[j].Name, n.Name, ordered[j].Name),
 				})
+			} else if info.Recoverable && hasSideEffect(up, schema.SideEffectProcessExec) {
+				// A program kapi runs feeds no port a transformer reads, so
+				// no exemption applies.
+				diags = append(diags, PlacementDiagnostic{
+					Severity: PlacementError,
+					Rule:     RuleTransformerAfterEgress,
+					NodeID:   n.ID,
+					Tool:     n.Name,
+					Message: fmt.Sprintf("%q must run before %q, which hands source to a program outside kapi: unprotected content leaks before redaction applies. Move %q earlier",
+						n.Name, ordered[j].Name, n.Name),
+				})
 			}
 		}
 
@@ -176,8 +188,9 @@ func (d *FlowDefinition) CheckPlacement(reg *registry.ToolRegistry) error {
 	return errors.Join(errs...)
 }
 
-// CheckRedactionCoverage rejects a flow that sends source to a remote sink
-// without a recoverable transformer when requireRedaction is set.
+// CheckRedactionCoverage rejects a flow that sends source to a remote sink, or
+// hands it to a program outside kapi, without a recoverable transformer when
+// requireRedaction is set.
 //
 // ValidatePlacement checks the order of existing redact steps, including the
 // AD-020 exemption for remote detection inputs. This check covers flows with no
@@ -191,7 +204,7 @@ func (d *FlowDefinition) CheckRedactionCoverage(reg *registry.ToolRegistry, requ
 		return err
 	}
 	hasRedact := false
-	var egressTool string
+	var egressTool, execTool string
 	for _, n := range ordered {
 		info := reg.ResolveToolInfo(registry.ToolID(n.Name), n.Config)
 		if info == nil {
@@ -203,6 +216,13 @@ func (d *FlowDefinition) CheckRedactionCoverage(reg *registry.ToolRegistry, requ
 		if egressTool == "" && hasSideEffect(info, schema.SideEffectRemoteSourceEgress) {
 			egressTool = n.Name
 		}
+		if execTool == "" && hasSideEffect(info, schema.SideEffectProcessExec) {
+			execTool = n.Name
+		}
+	}
+	if execTool != "" && !hasRedact && egressTool == "" {
+		return fmt.Errorf("flow %q: the project declares a redaction policy for the content it runs over, but %q hands source to a program outside kapi and the flow has no redact step. Add a redact step before it",
+			d.Name, execTool)
 	}
 	if egressTool != "" && !hasRedact {
 		return fmt.Errorf("flow %q: the project declares a redaction policy for the content it runs over, but %q sends source to a remote sink and the flow has no redact step. Add a redact step before it, or run it on a local provider",

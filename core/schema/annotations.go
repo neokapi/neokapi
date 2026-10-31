@@ -41,4 +41,14 @@ const (
 	// remoteness depends on configuration (an AI tool pointed at a local Ollama
 	// or the offline demo provider) refine it away via their contract resolver.
 	SideEffectRemoteSourceEgress SideEffect = "remote-source-egress"
+
+	// SideEffectProcessExec marks a tool that hands block content to a program
+	// outside kapi (external-command). kapi cannot tell what the program does
+	// with the content, including whether it sends it off the machine, so a
+	// redaction policy treats the tool as it treats one with remote source
+	// egress: under a policy the program reads redacted blocks, and a flow
+	// that runs the tool needs a redact step ahead of it. It is distinct from
+	// SideEffectAPICall, which names a provider call and drives provider
+	// selection and token estimates, neither of which applies to a program.
+	SideEffectProcessExec SideEffect = "process-exec"
 )
