@@ -1,5 +1,7 @@
 package contextop
 
+import "strings"
+
 // CheckRunMaxFiles bounds how many file paths one check operation lists, and
 // CheckRunMaxFindings how many failing findings. The log is read whole on
 // every fold, so a run over a large project keeps its counts exact and lists
@@ -12,13 +14,17 @@ const (
 // CheckRun is what one run of a project's checks found, as a check operation
 // carries it.
 type CheckRun struct {
-	// Hook names what ran the checks: "stop" for the Claude Code Stop hook.
+	// Hook names what ran the checks: CheckHookStop for the Claude Code Stop
+	// hook, which runs the ship gates over the project, or CheckHookEdit for
+	// its PostToolUse hook, which runs the writing check on the one file an
+	// edit wrote. A record that names no hook was written by the Stop hook.
 	Hook string `json:"hook,omitempty"`
-	// Turn identifies the Stop event the run answered: the id of the last
-	// entry in the session's transcript. Claude Code writes an entry after
-	// every Stop hook, so each Stop gets a turn of its own, and the hook
-	// running twice on one transcript state shares one. The operation's id is
-	// derived from the session and the turn.
+	// Turn identifies the event the run answered. For a Stop hook run it is
+	// the id of the last entry in the session's transcript: Claude Code
+	// writes an entry after every Stop hook, so each Stop gets a turn of its
+	// own, and the hook running twice on one transcript state shares one. For
+	// an edit hook run it is the id of the tool call that wrote the file. The
+	// operation's id is derived from the session and the turn.
 	Turn string `json:"turn"`
 	// Verdict is the run's outcome: passed, failed or did_not_run.
 	Verdict string `json:"verdict"`
@@ -39,6 +45,33 @@ type CheckRun struct {
 	// Findings are the failing findings, at most CheckRunMaxFindings of
 	// them.
 	Findings []CheckFinding `json:"findings,omitempty"`
+}
+
+// The hooks a check run names.
+const (
+	// CheckHookStop is the Claude Code Stop hook: the ship gates over the
+	// whole project as a turn ends.
+	CheckHookStop = "stop"
+	// CheckHookEdit is the Claude Code PostToolUse hook: the writing check
+	// on the one file an edit wrote.
+	CheckHookEdit = "edit"
+)
+
+// OneFile reports a run that checked a single file, the one an edit wrote:
+// Files names it. Every other run checked the whole project.
+func (c CheckRun) OneFile() bool { return c.Hook == CheckHookEdit }
+
+// Covers reports whether the run would have reported f again had f still
+// been there. A run over the whole project covers every finding. A run on
+// one file covers the findings on that file whose rule the writing check
+// reports, which a rule id of the form "<check>.<category>" names; a finding
+// only a ship gate reports names the gate instead, and an edit's run cannot
+// see it.
+func (c CheckRun) Covers(f CheckFinding) bool {
+	if !c.OneFile() {
+		return true
+	}
+	return len(c.Files) > 0 && c.Files[0] == f.File && strings.Contains(f.Rule, ".")
 }
 
 // Complete reports that Findings lists every failing finding the run

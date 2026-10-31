@@ -38,11 +38,11 @@ type SessionOutcomes struct {
 	Session string `json:"session"`
 	// Checked counts the check runs the session recorded.
 	Checked int `json:"checked"`
-	// Failing counts the failing findings of the session's latest run that
-	// reached a verdict: what the session left failing.
+	// Failing counts what the session left failing: the failing findings of
+	// its runs that no later run checked again.
 	Failing int `json:"failing"`
 	// Caught counts the failing findings one run reported and the session's
-	// next run no longer found on the same file.
+	// next run on the same file no longer found.
 	Caught int `json:"caught"`
 	// Files counts the distinct files the session's turns edited, as their
 	// transcripts name them. A run with no transcript adds none.
@@ -140,7 +140,6 @@ func SessionOutcomesOf(records []contextop.Record) map[string]SessionOutcomes {
 			files[session] = map[string]bool{}
 		}
 		marks := CaughtMarks(seq)
-		var last *contextop.CheckRun
 		for i, r := range seq {
 			run := *r.Check
 			o.Checked++
@@ -152,13 +151,8 @@ func SessionOutcomesOf(records []contextop.Record) map[string]SessionOutcomes {
 				}
 			}
 			o.Caught += countCaught(marks[i])
-			if run.Reached() {
-				last = &run
-			}
 		}
-		if last != nil {
-			o.Failing += last.Failing
-		}
+		o.Failing += leftFailing(seq)
 		o.Files = len(files[session])
 		out[session] = o
 	}
@@ -199,22 +193,128 @@ func CheckSequences(records []contextop.Record) [][]contextop.Record {
 
 // CaughtMarks marks the findings of one sequence from CheckSequences that
 // its later runs caught. The result has one entry per record of seq: for a
-// run that reached a verdict and is followed by another that did, the
-// CaughtFindings of that pair; for every other run, nil. The marks of a
-// session's sequences add up to its SessionOutcomes caught count.
+// run that reached a verdict and is followed by another that did, one mark
+// per finding, true for a finding a later run caught; for every other run,
+// nil. The marks of a session's sequences add up to its SessionOutcomes
+// caught count.
+//
+// Each finding is compared with the sequence's next run that reached a
+// verdict and covers it (contextop.CheckRun.Covers): the next run of the
+// ship gates, or the next edit hook run on the finding's file. Between two
+// Stop hook runs that is the next run, as CaughtFindings pairs them.
 func CaughtMarks(seq []contextop.Record) [][]bool {
+	by := caughtBy(seq)
 	out := make([][]bool, len(seq))
-	prev := -1
-	for i, r := range seq {
-		if !r.Check.Reached() {
+	for i, catchers := range by {
+		if catchers == nil {
 			continue
 		}
-		if prev >= 0 {
-			out[prev] = CaughtFindings(*seq[prev].Check, *r.Check)
+		out[i] = make([]bool, len(catchers))
+		for k, j := range catchers {
+			out[i][k] = j >= 0
 		}
-		prev = i
 	}
 	return out
+}
+
+// caughtBy answers, for each finding of each run of seq that reached a
+// verdict and is followed by another that did, the index in seq of the run
+// that caught it, or -1. Runs with no later run that reached a verdict, and
+// runs that reached none, answer nil.
+func caughtBy(seq []contextop.Record) [][]int {
+	out := make([][]int, len(seq))
+	last := -1
+	for i, r := range seq {
+		if r.Check.Reached() {
+			last = i
+		}
+	}
+	// remaining holds, per later run, the findings it lists that no earlier
+	// finding has been matched to yet, so findings with one key match one
+	// to one.
+	remaining := map[int]map[string]int{}
+	for i, r := range seq {
+		if !r.Check.Reached() || i >= last {
+			continue
+		}
+		out[i] = make([]int, len(r.Check.Findings))
+		for k, f := range r.Check.Findings {
+			out[i][k] = -1
+			j := nextCovering(seq, i, f)
+			if j < 0 || !seq[j].Check.Complete() {
+				continue
+			}
+			rem, ok := remaining[j]
+			if !ok {
+				rem = map[string]int{}
+				for _, g := range seq[j].Check.Findings {
+					rem[g.Key()]++
+				}
+				remaining[j] = rem
+			}
+			if rem[f.Key()] > 0 {
+				rem[f.Key()]--
+				continue
+			}
+			out[i][k] = j
+		}
+	}
+	return out
+}
+
+// nextCovering is the index of the first run after i in seq that reached a
+// verdict and covers f, or -1.
+func nextCovering(seq []contextop.Record, i int, f contextop.CheckFinding) int {
+	for j := i + 1; j < len(seq); j++ {
+		if seq[j].Check.Reached() && seq[j].Check.Covers(f) {
+			return j
+		}
+	}
+	return -1
+}
+
+// leftFailing counts the failing findings a sequence ends with: each run's
+// listed findings that no later run that reached a verdict covers. A Stop
+// hook run covers every run before it, so a sequence of Stop hook runs ends
+// with its last run's failing count. A finding a run counted and did not
+// list is counted until a later run checks everything the run checked.
+func leftFailing(seq []contextop.Record) int {
+	failing := 0
+	for i, r := range seq {
+		run := r.Check
+		if !run.Reached() {
+			continue
+		}
+		for _, f := range run.Findings {
+			if nextCovering(seq, i, f) < 0 {
+				failing++
+			}
+		}
+		if unlisted := run.Failing - len(run.Findings); unlisted > 0 && !coveredLater(seq, i) {
+			failing += unlisted
+		}
+	}
+	return failing
+}
+
+// coveredLater reports whether a run after i in seq that reached a verdict
+// checked everything run i checked: a later run of the ship gates, or, for an
+// edit hook run, a later edit hook run on the same file.
+func coveredLater(seq []contextop.Record, i int) bool {
+	run := seq[i].Check
+	for j := i + 1; j < len(seq); j++ {
+		next := seq[j].Check
+		if !next.Reached() {
+			continue
+		}
+		if !next.OneFile() {
+			return true
+		}
+		if run.OneFile() && len(run.Files) > 0 && len(next.Files) > 0 && run.Files[0] == next.Files[0] {
+			return true
+		}
+	}
+	return false
 }
 
 // CaughtFindings marks which of prev's listed findings next no longer
@@ -259,22 +359,16 @@ func countCaught(marks []bool) int {
 }
 
 // runsCaught answers, for each check record, how many findings it no longer
-// found that the session's previous run did.
+// found that the session's earlier runs did.
 func runsCaught(records []contextop.Record) map[string]int {
 	out := map[string]int{}
 	for _, seq := range CheckSequences(records) {
-		marks := CaughtMarks(seq)
-		prev := -1
-		for i, r := range seq {
-			if !r.Check.Reached() {
-				continue
-			}
-			if prev >= 0 {
-				if n := countCaught(marks[prev]); n > 0 {
-					out[r.ID] = n
+		for _, catchers := range caughtBy(seq) {
+			for _, j := range catchers {
+				if j >= 0 {
+					out[seq[j].ID]++
 				}
 			}
-			prev = i
 		}
 	}
 	return out
