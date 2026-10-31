@@ -467,6 +467,83 @@ export class DigestUsage {
 }
 
 /**
+ * KeptRuleDTO is one rule in force and who kept it, a line of Kept by on the
+ * Rules screen.
+ */
+export class KeptRuleDTO {
+    /**
+     * Creates a new KeptRuleDTO instance.
+     * @param {Partial<KeptRuleDTO>} [$$source = {}] - The source object to create the KeptRuleDTO.
+     */
+    constructor($$source = {}) {
+        if (!("kind" in $$source)) {
+            /**
+             * Kind is "name", "word", "tone" or "note".
+             * @member
+             * @type {string}
+             */
+            this["kind"] = "";
+        }
+        if (!("rule" in $$source)) {
+            /**
+             * Rule is the rule as a person reads it.
+             * @member
+             * @type {string}
+             */
+            this["rule"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * From is where the rule is held: terms, a pack, the workspace, the voice
+             * profile. Empty for a rule the operation log alone holds.
+             * @member
+             * @type {string | undefined}
+             */
+            this["from"] = undefined;
+        }
+        if (!("applies" in $$source)) {
+            /**
+             * Applies is where the rule holds.
+             * @member
+             * @type {string}
+             */
+            this["applies"] = "";
+        }
+        if (!("kept_by" in $$source)) {
+            /**
+             * @member
+             * @type {ContextActorDTO}
+             */
+            this["kept_by"] = (new ContextActorDTO());
+        }
+        if (!("kept_at" in $$source)) {
+            /**
+             * KeptAt is when the rule came into force, RFC 3339.
+             * @member
+             * @type {string}
+             */
+            this["kept_at"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new KeptRuleDTO instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {KeptRuleDTO}
+     */
+    static createFrom($$source = {}) {
+        const $$createField4_0 = $$createType9;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("kept_by" in $$parsedSource) {
+            $$parsedSource["kept_by"] = $$createField4_0($$parsedSource["kept_by"]);
+        }
+        return new KeptRuleDTO(/** @type {Partial<KeptRuleDTO>} */($$parsedSource));
+    }
+}
+
+/**
  * MapFileDTO is one content file on the Map.
  */
 export class MapFileDTO {
@@ -598,7 +675,7 @@ export class MapSuggestionDTO {
      */
     static createFrom($$source = {}) {
         const $$createField1_0 = $$createType0;
-        const $$createField2_0 = $$createType10;
+        const $$createField2_0 = $$createType11;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("item" in $$parsedSource) {
             $$parsedSource["item"] = $$createField1_0($$parsedSource["item"]);
@@ -751,8 +828,8 @@ export class MapSummaryDTO {
      */
     static createFrom($$source = {}) {
         const $$createField11_0 = $$createType8;
-        const $$createField12_0 = $$createType12;
-        const $$createField13_0 = $$createType14;
+        const $$createField12_0 = $$createType13;
+        const $$createField13_0 = $$createType15;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_languages" in $$parsedSource) {
             $$parsedSource["target_languages"] = $$createField11_0($$parsedSource["target_languages"]);
@@ -809,8 +886,8 @@ export class ReaderBlockDTO {
      * @returns {ReaderBlockDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType15;
-        const $$createField2_0 = $$createType17;
+        const $$createField1_0 = $$createType16;
+        const $$createField2_0 = $$createType18;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("runs" in $$parsedSource) {
             $$parsedSource["runs"] = $$createField1_0($$parsedSource["runs"]);
@@ -942,11 +1019,11 @@ export class ReaderFileDTO {
      * @returns {ReaderFileDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType19;
-        const $$createField4_0 = $$createType17;
-        const $$createField8_0 = $$createType21;
+        const $$createField3_0 = $$createType20;
+        const $$createField4_0 = $$createType18;
+        const $$createField8_0 = $$createType22;
         const $$createField10_0 = $$createType8;
-        const $$createField11_0 = $$createType23;
+        const $$createField11_0 = $$createType24;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("blocks" in $$parsedSource) {
             $$parsedSource["blocks"] = $$createField3_0($$parsedSource["blocks"]);
@@ -1072,8 +1149,8 @@ export class ReaderFindingDTO {
      * @returns {ReaderFindingDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType24;
-        const $$createField3_0 = $$createType26;
+        const $$createField2_0 = $$createType25;
+        const $$createField3_0 = $$createType27;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("position" in $$parsedSource) {
             $$parsedSource["position"] = $$createField2_0($$parsedSource["position"]);
@@ -1429,9 +1506,9 @@ export class RuleDecisionDTO {
      * @returns {RuleDecisionDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField8_0 = $$createType28;
-        const $$createField12_0 = $$createType30;
-        const $$createField14_0 = $$createType31;
+        const $$createField8_0 = $$createType29;
+        const $$createField12_0 = $$createType31;
+        const $$createField14_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("options" in $$parsedSource) {
             $$parsedSource["options"] = $$createField8_0($$parsedSource["options"]);
@@ -1620,29 +1697,29 @@ const $$createType5 = DigestUsage.createFrom;
 const $$createType6 = $Create.Nullable($$createType5);
 const $$createType7 = contextop$0.Actor.createFrom;
 const $$createType8 = $Create.Array($Create.Any);
-const $$createType9 = DigestConflict.createFrom;
-const $$createType10 = $Create.Nullable($$createType9);
-const $$createType11 = MapFileDTO.createFrom;
-const $$createType12 = $Create.Array($$createType11);
-const $$createType13 = MapSuggestionDTO.createFrom;
-const $$createType14 = $Create.Array($$createType13);
-const $$createType15 = $Create.Array($Create.Any);
-const $$createType16 = ReaderFindingDTO.createFrom;
-const $$createType17 = $Create.Array($$createType16);
-const $$createType18 = ReaderBlockDTO.createFrom;
-const $$createType19 = $Create.Array($$createType18);
-const $$createType20 = ReaderRuleDTO.createFrom;
-const $$createType21 = $Create.Array($$createType20);
-const $$createType22 = ReaderRefusalDTO.createFrom;
-const $$createType23 = $Create.Array($$createType22);
-const $$createType24 = model$0.Anchor.createFrom;
-const $$createType25 = ReaderSpan.createFrom;
-const $$createType26 = $Create.Nullable($$createType25);
-const $$createType27 = RuleOptionDTO.createFrom;
-const $$createType28 = $Create.Array($$createType27);
-const $$createType29 = ContextEvidenceDTO.createFrom;
-const $$createType30 = $Create.Nullable($$createType29);
-const $$createType31 = ContextActorDTO.createFrom;
-const $$createType32 = $Create.Nullable($$createType31);
+const $$createType9 = ContextActorDTO.createFrom;
+const $$createType10 = DigestConflict.createFrom;
+const $$createType11 = $Create.Nullable($$createType10);
+const $$createType12 = MapFileDTO.createFrom;
+const $$createType13 = $Create.Array($$createType12);
+const $$createType14 = MapSuggestionDTO.createFrom;
+const $$createType15 = $Create.Array($$createType14);
+const $$createType16 = $Create.Array($Create.Any);
+const $$createType17 = ReaderFindingDTO.createFrom;
+const $$createType18 = $Create.Array($$createType17);
+const $$createType19 = ReaderBlockDTO.createFrom;
+const $$createType20 = $Create.Array($$createType19);
+const $$createType21 = ReaderRuleDTO.createFrom;
+const $$createType22 = $Create.Array($$createType21);
+const $$createType23 = ReaderRefusalDTO.createFrom;
+const $$createType24 = $Create.Array($$createType23);
+const $$createType25 = model$0.Anchor.createFrom;
+const $$createType26 = ReaderSpan.createFrom;
+const $$createType27 = $Create.Nullable($$createType26);
+const $$createType28 = RuleOptionDTO.createFrom;
+const $$createType29 = $Create.Array($$createType28);
+const $$createType30 = ContextEvidenceDTO.createFrom;
+const $$createType31 = $Create.Nullable($$createType30);
+const $$createType32 = $Create.Nullable($$createType9);
 const $$createType33 = RuleDecisionDTO.createFrom;
 const $$createType34 = $Create.Array($$createType33);

@@ -16,10 +16,12 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { ProjectScreensPort } from "@neokapi/project-screens";
 import { t } from "@neokapi/i18n-react/runtime";
 import {
   Cloud,
   ExternalLink,
+  Eye,
   Folder,
   GitBranch,
   Laptop,
@@ -42,6 +44,8 @@ import { qk } from "../lib/queryKeys";
 import { useInvalidateOnEvent } from "../hooks/useInvalidateOnEvent";
 import { useShortenHome } from "../hooks/useShortenHome";
 import { ShareSetupDialog } from "./ShareSetupDialog";
+import { BowrainPreviewSheet } from "./BowrainPreviewSheet";
+import { useLocalPreviewPort } from "../lib/previewPort";
 import { api } from "../hooks/useApi";
 import type {
   ContextSyncResult,
@@ -106,6 +110,8 @@ export interface SharePanelProps {
   contextOnly?: boolean;
   /** Called once Change has saved a place to kapi.yaml. */
   onSetUp?: (sharing: ProjectSharing) => void;
+  /** What Preview reads through, for Storybook and tests; the tab's own project otherwise. */
+  previewPort?: ProjectScreensPort;
 }
 
 export function SharePanel({
@@ -114,9 +120,13 @@ export function SharePanel({
   view: given,
   contextOnly,
   onSetUp,
+  previewPort: givenPort,
 }: SharePanelProps) {
   const qc = useQueryClient();
   const [settingUp, setSettingUp] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
+  const localPort = useLocalPreviewPort(tabID);
+  const previewPort = givenPort ?? localPort;
   const [result, setResult] = useState<ContextSyncResult | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
 
@@ -200,7 +210,13 @@ export function SharePanel({
                 </Button>
               </Actions>
             )}
-            {rung === "bowrain" && <BowrainDetail view={view} contextOnly={contextOnly} />}
+            {rung === "bowrain" && (
+              <BowrainDetail
+                view={view}
+                contextOnly={contextOnly}
+                onPreview={contextOnly ? undefined : () => setPreviewing(true)}
+              />
+            )}
             {rung === "bowrain" && view.sharing.kind === "bowrain" && (
               <TeamDetail
                 sharing={view.sharing}
@@ -214,6 +230,15 @@ export function SharePanel({
           </RungRow>
         ))}
       </ol>
+
+      {!contextOnly && (
+        <BowrainPreviewSheet
+          open={previewing}
+          onOpenChange={setPreviewing}
+          projectName={projectName || t("This project")}
+          port={previewPort}
+        />
+      )}
 
       {!contextOnly && (
         <ShareSetupDialog
@@ -602,22 +627,34 @@ function SyncResultLine({ result }: { result: ContextSyncResult }) {
 }
 
 /**
- * Under Bowrain's rung: the server and workspace once the recipe connects to
- * one; until then the command that connects it, which needs the kapi-bowrain
- * plugin, and where to read about Bowrain. A tab with no checkout leaves the
- * command out, since nothing connects from there.
+ * Under Bowrain's rung: Preview, which draws the project as a Bowrain project
+ * page draws it, beside a link. Until the recipe connects to a server the
+ * link reads about Bowrain, followed by the command that connects it, which
+ * needs the kapi-bowrain plugin; once it does, the server and workspace, and
+ * the link opens the project there. A tab with no checkout leaves out the
+ * command and Preview, since neither reads anything from there.
  */
-function BowrainDetail({ view, contextOnly }: { view: ShareView; contextOnly?: boolean }) {
+function BowrainDetail({
+  view,
+  contextOnly,
+  onPreview,
+}: {
+  view: ShareView;
+  contextOnly?: boolean;
+  /** Open the preview. Absent, the rung draws no Preview. */
+  onPreview?: () => void;
+}) {
   const sharing = view.sharing;
+  const preview = onPreview && (
+    <Button size="sm" variant="secondary" data-slot="share-preview-bowrain" onClick={onPreview}>
+      <Eye size={13} aria-hidden />
+      Preview
+    </Button>
+  );
   if (view.rung !== "bowrain") {
     return (
       <Actions>
-        {!contextOnly && <MonoChip slot="share-bowrain-command">{BOWRAIN_SHARE_COMMAND}</MonoChip>}
-        {!contextOnly && !view.bowrain_plugin && (
-          <span data-slot="share-bowrain-plugin" className="text-[11px] text-muted-foreground">
-            Needs the <span translate="no">kapi-bowrain</span> plugin
-          </span>
-        )}
+        {preview}
         <Button size="sm" variant="outline" asChild>
           <a
             href={BOWRAIN_ABOUT_URL}
@@ -629,6 +666,12 @@ function BowrainDetail({ view, contextOnly }: { view: ShareView; contextOnly?: b
             <ExternalLink size={13} aria-hidden />
           </a>
         </Button>
+        {!contextOnly && <MonoChip slot="share-bowrain-command">{BOWRAIN_SHARE_COMMAND}</MonoChip>}
+        {!contextOnly && !view.bowrain_plugin && (
+          <span data-slot="share-bowrain-plugin" className="text-[11px] text-muted-foreground">
+            Needs the <span translate="no">kapi-bowrain</span> plugin
+          </span>
+        )}
       </Actions>
     );
   }
@@ -646,14 +689,22 @@ function BowrainDetail({ view, contextOnly }: { view: ShareView; contextOnly?: b
           </Fact>
         )}
       </Facts>
-      {link && (
+      {(preview || link) && (
         <Actions>
-          <Button size="sm" variant="outline" asChild>
-            <a href={link} target="_blank" rel="noopener noreferrer" data-slot="share-open-bowrain">
-              Open the project
-              <ExternalLink size={13} aria-hidden />
-            </a>
-          </Button>
+          {preview}
+          {link && (
+            <Button size="sm" variant="outline" asChild>
+              <a
+                href={link}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-slot="share-open-bowrain"
+              >
+                Open the project
+                <ExternalLink size={13} aria-hidden />
+              </a>
+            </Button>
+          )}
         </Actions>
       )}
     </>

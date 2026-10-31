@@ -32,6 +32,7 @@ func TestFixtures(t *testing.T) {
 		{"map-summary.json", mapSummary()},
 		{"reader-file.json", readerFile()},
 		{"rules-decide-view.json", rulesDecideView()},
+		{"kept-rules.json", keptRules()},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -244,5 +245,25 @@ func rulesDecideView() screens.RulesDecideViewDTO {
 		Rules:     7,
 		Suggested: 3,
 		Narrowed:  1,
+	}
+}
+
+// keptRules is Kept by: a rule a person kept, one a teammate kept from the
+// terms store, and a note an assistant kept.
+func keptRules() []screens.KeptRuleDTO {
+	return []screens.KeptRuleDTO{
+		{
+			Kind: "word", Rule: "Write sign in, not login.", From: "terms", Applies: "the whole project",
+			KeptBy: screens.ContextActorDTO{Kind: "person"}, KeptAt: recordedAt.Format(time.RFC3339),
+		},
+		{
+			Kind: "name", Rule: "Write Quickcast, not Quick cast or QuickCast.", Applies: "docs",
+			KeptBy: screens.ContextActorDTO{Kind: "person", Name: "ada"}, KeptAt: recordedAt.Add(-48 * time.Hour).Format(time.RFC3339),
+		},
+		{
+			Kind: "note", Rule: "Address the reader as you.", Applies: "the whole project",
+			KeptBy: screens.ContextActorDTO{Kind: "agent", Name: "claude-code", Session: "s-7f3a", Host: "build-01"},
+			KeptAt: recordedAt.Add(-24 * time.Hour).Format(time.RFC3339),
+		},
 	}
 }

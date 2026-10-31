@@ -37,6 +37,7 @@ import type {
   DeeperLookResult,
   ReaderFile,
   RulesDecideView,
+  KeptRule,
   RuleAnswer,
   RuleDecideResult,
   ConvergenceReport,
@@ -547,6 +548,8 @@ export const api = {
     call<ContextDigest>("ProjectContextDigest", tabID, since),
   /** The questions `kapi rules` asks about the tab's project, one per suggestion. */
   rulesDecideView: (tabID: string) => call<RulesDecideView>("RulesDecideView", tabID),
+  /** The rules in force in the tab's project that name who kept them. */
+  keptRules: (tabID: string) => call<KeptRule[]>("KeptRules", tabID),
   /**
    * Record one answer: keep (with the form a kept name writes, empty for the
    * suggestion's own), drop (Not a rule) or later. `id` names the suggestion,

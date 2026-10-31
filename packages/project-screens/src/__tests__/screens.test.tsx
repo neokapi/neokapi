@@ -2,11 +2,12 @@
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi } from "vite-plus/test";
-import { DecideScreen, MapScreen, ReaderScreen } from "../screens";
+import { DecideScreen, KeptRulesScreen, MapScreen, ReaderScreen } from "../screens";
 import type { ProjectScreensPort } from "../port";
 import {
   DECIDE_IDS,
   DECIDE_VIEW,
+  KEPT_RULES,
   MAP_PENDING,
   READER_CLEAN,
   READER_WITH_FIXES,
@@ -117,5 +118,53 @@ describe("the screens over a port that acts", () => {
     act(() => changed?.("map"));
     act(() => changed?.("decide"));
     await waitFor(() => expect(decideView).toHaveBeenCalledTimes(2));
+  });
+
+  it("read the questions again once an answer is recorded, on a port that reports no change", async () => {
+    let answered = false;
+    const decideView = vi.fn(async () =>
+      answered
+        ? {
+            ...DECIDE_VIEW,
+            decisions: DECIDE_VIEW.decisions.slice(1),
+            rules: DECIDE_VIEW.rules + 1,
+          }
+        : DECIDE_VIEW,
+    );
+    const decide = vi.fn(async () => {
+      answered = true;
+      return { answer: "keep" as const, kept: 1, dropped: 0, later: 0 };
+    });
+    const { container } = render(
+      <DecideScreen port={readOnly({ decideView, decide })} keyboard={false} navigate={vi.fn()} />,
+    );
+    await screen.findByRole("listbox", { name: "Suggestions to decide" });
+    await userEvent.click(screen.getByRole("button", { name: /^Keep/ }));
+    await waitFor(() => expect(decideView).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(container.querySelector("[data-slot='decide-counts']")).toHaveTextContent(
+        `${DECIDE_VIEW.decisions.length - 1} to decide · ${DECIDE_VIEW.rules + 1} kept`,
+      ),
+    );
+  });
+});
+
+describe("Kept by", () => {
+  it("lists each kept rule with who kept it", async () => {
+    render(<KeptRulesScreen port={readOnly({ keptRules: async () => KEPT_RULES })} />);
+    const rows = await screen.findAllByRole("listitem");
+    expect(rows).toHaveLength(KEPT_RULES.length);
+    expect(within(rows[0]).getByText(KEPT_RULES[0].rule)).toBeInTheDocument();
+    const by = rows.map((r) => r.querySelector("[data-slot='kept-by']")?.textContent);
+    // Each row names its keeper after the keeper's mark, and an assistant's session after its name.
+    expect(by[0]).toMatch(/you$/);
+    expect(by[1]).toMatch(/ada$/);
+    expect(by[2]).toMatch(/kapi$/);
+    expect(by[3]).toMatch(/claudes3$/);
+  });
+
+  it("draws nothing on a port with no keptRules", () => {
+    const { container } = render(<KeptRulesScreen port={readOnly()} />);
+    expect(container).toBeEmptyDOMElement();
   });
 });

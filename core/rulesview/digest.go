@@ -576,6 +576,28 @@ func Establishment(r contextop.Record, acts []contextop.Record, byID map[string]
 	return at, how
 }
 
+// EstablishedBy reads who put a rule in force, from the same operations
+// Establishment reads: the person who kept it, the actor that settled it on
+// the evidence, or the one that imported or wrote it.
+func EstablishedBy(r contextop.Record, acts []contextop.Record) contextop.Actor {
+	if r.Kind == contextop.KindImport || r.Kind == contextop.KindEdit {
+		return r.Actor
+	}
+	who := r.Actor
+	var at time.Time
+	for _, act := range acts {
+		switch act.Kind {
+		case contextop.KindKeep:
+			at, who = act.At, act.Actor
+		case contextop.KindEstablish:
+			if at.IsZero() || act.At.After(at) {
+				at, who = act.At, act.Actor
+			}
+		}
+	}
+	return who
+}
+
 // becauseLines says what an establish operation rested on.
 func becauseLines(because []string, byID map[string]contextop.Record) []string {
 	var out []string

@@ -21,6 +21,7 @@ export type {
   DigestSubject,
   DigestTermRule,
   DigestUsage,
+  KeptRule,
   MapFileRow,
   MapSuggestionRow,
   MapSummary,

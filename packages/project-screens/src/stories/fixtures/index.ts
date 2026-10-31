@@ -5,3 +5,4 @@ export * from "./fernwell";
 export * from "./mapSummary";
 export * from "./readerFile";
 export * from "./rulesDecide";
+export * from "./keptRules";
