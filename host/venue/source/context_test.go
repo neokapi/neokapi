@@ -94,6 +94,31 @@ func TestBuildItemMeta_NamesTheClaimingCollection(t *testing.T) {
 	assert.Empty(t, byName["stray/d.json"], "a file outside every glob syncs ungrouped, not unpushed")
 }
 
+// The preview a push sends marks each block by the key the push resolved for
+// it, the key the venue stores as the block's source id. A push that resolved
+// no key sends each block under its reader's name, and the preview marks it
+// by that name.
+func TestBuildItemMeta_PreviewMarksBlocksByTheResolvedKey(t *testing.T) {
+	conn := newContextProject(t)
+	ctx := t.Context()
+	const item = "docs/a.json"
+
+	scanned, err := conn.readBlocks(ctx, conn.project.ResolvePath(filepath.Join(conn.project.Root, item)), "json")
+	require.NoError(t, err)
+	require.Len(t, scanned, 1)
+	changed := []itemBlock{{itemName: item, block: scanned[0]}}
+
+	unresolved := conn.buildItemMeta(ctx, changed, map[string][]*model.Block{item: scanned})
+	require.Len(t, unresolved, 1)
+	assert.Contains(t, unresolved[0].PreviewHTML, `<kat-block id="greeting">`, "an unresolved block is marked by its name")
+
+	scanned[0].Key = "u-0123456789abcdef"
+	resolved := conn.buildItemMeta(ctx, changed, map[string][]*model.Block{item: scanned})
+	require.Len(t, resolved, 1)
+	assert.Contains(t, resolved[0].PreviewHTML, `<kat-block id="u-0123456789abcdef">`, "a resolved block is marked by its key")
+	assert.NotContains(t, resolved[0].PreviewHTML, `<kat-block id="greeting">`)
+}
+
 // TestApplyPulledContext_RecipeOwnedGovernanceIsNotApplied is the pull-side
 // protection. The server reports a recipe-owned collection at a different point
 // than the recipe declares; the pull records the observation and reports the
