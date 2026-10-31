@@ -85,7 +85,7 @@ func TestTermRuleOutcomeIsUnchanged(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			hits := MatchTermRules([]TermRuleSet{{Rules: []TermRule{tt.rule}, Kind: VocabForbidden, Suggested: tt.suggested}}, "we utilize it")
+			hits := MatchTermRulesInText([]TermRuleSet{{Rules: []TermRule{tt.rule}, Kind: VocabForbidden, Suggested: tt.suggested}}, "we utilize it")
 			require.Len(t, hits, 1)
 			assert.Equal(t, tt.want, hits[0].Fails)
 		})
