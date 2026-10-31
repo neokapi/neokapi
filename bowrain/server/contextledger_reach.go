@@ -49,11 +49,18 @@ type ReachError struct {
 	// Target is set when the operation acts on one the log does not hold, so
 	// the point it governs cannot be read.
 	Target string
+	// Declared and Held are set when the operation declares a subject kind
+	// other than the one the operation it acts on holds.
+	Declared, Held contextop.SubjectKind
 }
 
 func (e *ReachError) Error() string {
 	if e.Permission != 0 {
 		return fmt.Sprintf("context operation %s (%s) needs the %s permission", workspace.ShortOpID(e.ID), e.Kind, e.Permission)
+	}
+	if e.Declared != "" {
+		return fmt.Sprintf("context operation %s (%s) declares a %s subject, and the operation it acts on holds a %s subject",
+			workspace.ShortOpID(e.ID), e.Kind, e.Declared, describeSubjectKind(e.Held))
 	}
 	if e.Target != "" {
 		return fmt.Sprintf("context operation %s (%s) acts on operation %s, which the project's context does not hold",
@@ -93,9 +100,74 @@ var governingKinds = []contextop.Kind{
 	contextop.KindWiden, contextop.KindReset, contextop.KindEstablish,
 }
 
-// governingPermission is the permission a governing operation needs, the one
-// the server's terms routes gate on.
-const governingPermission = platauth.PermManageTerms
+// governingPermission is the permission a decision about a subject of kind
+// needs, the one the server's routes for that store gate on: a note is voice
+// guidance, a memory pair is content memory, and a term rule, or a subject
+// that cannot be read, is terms.
+func governingPermission(kind contextop.SubjectKind) platauth.Permission {
+	switch kind {
+	case contextop.SubjectNote:
+		return platauth.PermManageVoice
+	case contextop.SubjectMemory:
+		return platauth.PermManageMemory
+	}
+	return platauth.PermManageTerms
+}
+
+// governingPermissions is every permission a governing operation can need. A
+// member holding all of them over an unbounded reach may record any decision.
+const governingPermissions = platauth.PermManageTerms | platauth.PermManageVoice | platauth.PermManageMemory
+
+// maxTargetHops bounds how far subjectKindOf follows a chain of operations
+// that act on others.
+const maxTargetHops = 8
+
+// subjectKindOf returns the subject kind a governing operation decides about.
+// An operation that acts on another (a keep, a drop, a widening) decides
+// about what its target holds, followed through any operation that itself
+// acts on another; when it also declares a subject of its own, that kind must
+// be the target's. An operation with no target (an import, an edit) decides
+// about its own subject. A target the log does not hold refuses the
+// operation, since what it decides about cannot be read.
+func subjectKindOf(op workspace.Op, kind contextop.Kind, byID map[string]workspace.Op) (contextop.SubjectKind, error) {
+	own, target := subjectOf(op)
+	if target == "" {
+		return own, nil
+	}
+	resolved := contextop.SubjectKind("")
+	at := target
+	for range maxTargetHops {
+		t, ok := byID[at]
+		if !ok {
+			return "", &ReachError{Kind: kind, ID: op.ID, Target: at}
+		}
+		held, next := subjectOf(t)
+		if held != "" || next == "" {
+			resolved = held
+			break
+		}
+		at = next
+	}
+	if own != "" && own != resolved {
+		return "", &ReachError{Kind: kind, ID: op.ID, Declared: own, Held: resolved}
+	}
+	return resolved, nil
+}
+
+// subjectOf reads the subject kind and the target a context operation's
+// payload carries.
+func subjectOf(op workspace.Op) (kind contextop.SubjectKind, target string) {
+	var body struct {
+		Subject struct {
+			Kind contextop.SubjectKind `json:"kind"`
+		} `json:"subject"`
+		Target string `json:"target"`
+	}
+	if len(op.Payload) > 0 {
+		_ = json.Unmarshal(op.Payload, &body)
+	}
+	return body.Subject.Kind, body.Target
+}
 
 // checkReach refuses a context operation that governs a point outside the
 // member's reach. An operation that acts on another (a keep, a drop) governs
@@ -109,8 +181,12 @@ func checkReach(ctx context.Context, member LedgerMember, op workspace.Op, byID 
 	if !ok || !slices.Contains(governingKinds, contextop.Kind(kind)) {
 		return nil
 	}
-	if !member.Permissions.Has(governingPermission) {
-		return &ReachError{Kind: contextop.Kind(kind), ID: op.ID, Permission: governingPermission}
+	subject, err := subjectKindOf(op, contextop.Kind(kind), byID)
+	if err != nil {
+		return err
+	}
+	if need := governingPermission(subject); !member.Permissions.Has(need) {
+		return &ReachError{Kind: contextop.Kind(kind), ID: op.ID, Permission: need}
 	}
 	if contextop.Kind(kind) == contextop.KindEstablish && followsFromLog(ctx, op, byID) {
 		return nil
@@ -220,4 +296,13 @@ func (l *settleLog) Record(_ context.Context, ops ...workspace.Op) ([]workspace.
 		out[i] = op
 	}
 	return out, nil
+}
+
+// describeSubjectKind names a subject kind for a refusal, and an unreadable
+// one as such.
+func describeSubjectKind(k contextop.SubjectKind) string {
+	if k == "" {
+		return "unreadable"
+	}
+	return string(k)
 }

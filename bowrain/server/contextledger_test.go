@@ -827,6 +827,10 @@ func TestContextLedger_KeepIsGovernedByItsTarget_SQLite(t *testing.T) {
 		Subject: contextop.Subject{Kind: contextop.SubjectNote, Text: "a note, not a rule"},
 	})
 	require.ErrorIs(t, err, ErrOutsideReach)
+	var mismatch *ReachError
+	require.ErrorAs(t, err, &mismatch)
+	assert.Equal(t, contextop.SubjectNote, mismatch.Declared, "the declared kind is refused against the term rule it keeps")
+	assert.Equal(t, contextop.SubjectTerm, mismatch.Held)
 
 	at := time.Now().UTC()
 	keep := workspace.Op{
@@ -844,4 +848,37 @@ func TestContextLedger_KeepIsGovernedByItsTarget_SQLite(t *testing.T) {
 	voicePush := &routeRemote{h: voiceEcho, base: r.base}
 	rec := voicePush.do(ctx, http.MethodPost, r.base, pushBody(t, []workspace.Object{segmentOf(t, "voice", keep)}))
 	assert.Equal(t, http.StatusForbidden, rec.Code)
+}
+
+// The permission a decision needs follows what it decides about: keeping a
+// note is voice guidance and needs the voice permission, whatever other
+// permission the member holds, and a keep naming its target's kind is
+// checked as one that names none.
+func TestContextLedger_DecisionNeedsThePermissionOfItsSubject_SQLite(t *testing.T) {
+	ctx := t.Context()
+	srv, e, cs := ledgerSQLiteServer(t)
+	pid := seedContextObjectProject(t, cs)
+	r := &routeRemote{h: e, base: "/api/v1/ws/" + pid + "/context/objects"}
+	d := newDesktop(t, "site")
+	note, err := contextop.NewLedger(d.ws, nil).Append(ctx, contextop.Record{
+		Project: "site", Actor: contextop.Actor{Kind: contextop.ActorPerson, Name: "asgeir"}, Kind: contextop.KindObserve,
+		Subject: contextop.Subject{Kind: contextop.SubjectNote, Text: "the product name is never translated"},
+	})
+	require.NoError(t, err)
+	require.NoError(t, r.Put(ctx, d.push(t)...))
+
+	termsOnly, err := srv.ContextLedger(ctx, pid, LedgerMember{UserID: "terms", Permissions: platauth.PermManageTerms})
+	require.NoError(t, err)
+	_, err = termsOnly.Append(ctx, contextop.Record{Kind: contextop.KindKeep, Target: note.ID})
+	var reachErr *ReachError
+	require.ErrorAs(t, err, &reachErr)
+	assert.Equal(t, platauth.PermManageVoice, reachErr.Permission)
+
+	voice, err := srv.ContextLedger(ctx, pid, LedgerMember{UserID: "voice", Permissions: platauth.PermManageVoice})
+	require.NoError(t, err)
+	_, err = voice.Append(ctx, contextop.Record{
+		Kind: contextop.KindKeep, Target: note.ID,
+		Subject: contextop.Subject{Kind: contextop.SubjectNote, Text: "the product name is never translated"},
+	})
+	require.NoError(t, err, "a keep naming its target's kind needs that kind's permission alone")
 }

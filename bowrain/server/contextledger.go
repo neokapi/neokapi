@@ -62,7 +62,7 @@ func (s *Server) ContextSettler(projectID string) (*contextop.Ledger, error) {
 		cache:   s.contextLogs.project(projectID),
 		project: projectID,
 		actor:   contextop.SettleActor,
-		member:  LedgerMember{UserID: contextop.SettleActor.Name, Permissions: governingPermission},
+		member:  LedgerMember{UserID: contextop.SettleActor.Name, Permissions: governingPermissions},
 	}
 	return contextop.NewLedger(log, contextop.PersonDecides), nil
 }
