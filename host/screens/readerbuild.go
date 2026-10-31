@@ -8,6 +8,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -37,6 +38,26 @@ type CheckedFinding struct {
 	// Fix is the change operation that applies Replacement, kapi.change/v1
 	// JSON; empty for a finding with no fix.
 	Fix string
+}
+
+// FindingRule names the rule that fired. The checker states it on Check;
+// where it does not, the term or pattern the rule is about identifies it,
+// and the category is the last resort.
+func FindingRule(f check.Finding) string {
+	if f.Check != "" {
+		return f.Check
+	}
+	if f.Metadata != nil {
+		for _, key := range []string{"rule", "term", "pattern"} {
+			if v := f.Metadata[key]; v != "" {
+				return v
+			}
+		}
+	}
+	if f.OriginalText != "" {
+		return f.OriginalText
+	}
+	return f.Category
 }
 
 // ReaderPlacement is a file's blocks with each finding set on its block, and

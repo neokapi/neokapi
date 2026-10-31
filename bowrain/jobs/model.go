@@ -73,6 +73,8 @@ func (j *TranslationJob) Kind() string {
 		return "ingest"
 	case j.IsModelSweep():
 		return "model-sweep"
+	case j.IsProjectCheck():
+		return "project-check"
 	default:
 		return "translation"
 	}
