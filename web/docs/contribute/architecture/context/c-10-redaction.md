@@ -283,8 +283,12 @@ policy of the file it holds:
    `redact` step that names no `rulesPath` or `rules` of its own redacts each
    part under that part's policy (`App.applyFlowRedaction`); a step that names
    its own rules keeps them. `kapi run`, `kapi up` and its plan reach the step
-   through the same assembly, and the MCP `run_flow` tool builds its chain
-   under the policy of the one file it runs over.
+   through the same assembly, and the MCP `run_flow` tool and the desktop's
+   flow preview build their chains under the policy of the one file they run
+   over. The step detects with its own detectors and the policy's together,
+   and a step that detects entities with no entity-extract step ahead of it is
+   refused. A step that sends source out after `unredact`, with no redact
+   step between them, fails placement (`egress-after-restore`).
 4. **A single-tool run.** `kapi exec <tool>`, and the MCP tools that run one
    registry tool over a caller's text, compose no flow of the user's, so the run
    itself places the steps (`host/toolrun_redact.go`). When the tool's contract,

@@ -31,8 +31,8 @@ overview: |
   output. A flow that runs this tool needs a `redact` step ahead of it. An
   output that drops, alters, repeats or adds a placeholder leaves the block
   unchanged and records a failing `external-command.redaction-placeholder`
-  finding that names the block and the placeholder. `kapi exec` prints the
-  findings and exits with code 3, the code a failed check uses.
+  finding that names the block and the placeholder. `kapi exec` and `kapi up`
+  print the findings and exit with code 3, the code a failed check uses.
 parameters:
   command:
     description: The executable to run.
