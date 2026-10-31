@@ -179,7 +179,7 @@ describe("the Reader on a host that files each fix as a proposal", () => {
     const onOpenProposal = vi.fn();
     const { container } = render(
       <ReaderScreen
-        port={readOnly({ readerFile, fixFinding })}
+        port={readOnly({ readerFile, fixFinding, fixFile: vi.fn() })}
         path="docs/billing.md"
         navigate={vi.fn()}
         onOpenProposal={onOpenProposal}
@@ -191,8 +191,11 @@ describe("the Reader on a host that files each fix as a proposal", () => {
     )!;
     await userEvent.click(within(row).getByRole("button", { name: "Fix" }));
     expect(fixFinding).toHaveBeenCalledWith("docs/billing.md", "a1f0-1");
-    const link = await within(row).findByRole("button", { name: "Proposed 0d4c2b9e" });
+    const link = await within(row).findByRole("button", { name: "Proposed" });
+    expect(link).toHaveAttribute("title", "0d4c2b9e-77aa-4f1e-9c11-5b2f0e0a1d3c");
     expect(within(row).queryByRole("button", { name: "Fix" })).toBeNull();
+    // The file's fix action counts only the fixes not yet filed.
+    expect(screen.getByRole("button", { name: "Fix 1 in this file" })).toBeInTheDocument();
     await userEvent.click(link);
     expect(onOpenProposal).toHaveBeenCalledWith("0d4c2b9e-77aa-4f1e-9c11-5b2f0e0a1d3c");
     // A filed fix changes nothing until a person approves it, so the file is
@@ -214,8 +217,19 @@ describe("the Reader on a host that files each fix as a proposal", () => {
         "Not fixed: The change was refused.",
       ),
     );
-    expect(container.querySelector("[data-slot='reader-proposed']")).toHaveTextContent(
-      "Proposed p-1",
-    );
+    expect(container.querySelector("[data-slot='reader-proposed']")).toHaveTextContent("Proposed");
+  });
+
+  it("draws no file fix action once every fix is filed", async () => {
+    const fixFile = vi.fn(async () => ({
+      proposed: [
+        { finding_id: "a1f0-1", proposal: "p-1" },
+        { finding_id: "b2c3-1", proposal: "p-1" },
+      ],
+      refused: [],
+    }));
+    render(<ReaderScreen port={readOnly({ fixFile })} path="docs/billing.md" navigate={vi.fn()} />);
+    await userEvent.click(await screen.findByRole("button", { name: "Fix 2 in this file" }));
+    await waitFor(() => expect(screen.queryByRole("button", { name: /in this file/ })).toBeNull());
   });
 });

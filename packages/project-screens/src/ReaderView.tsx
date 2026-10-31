@@ -95,6 +95,14 @@ export function ReaderView({
     return out;
   }, [proposed]);
   const filed: Filed = { proposals, onOpenProposal };
+  // The fixes not yet filed as proposals: a filed fix leaves the file as it is.
+  const unfiled = useMemo(() => {
+    let n = 0;
+    for (const f of [...reader.document, ...reader.blocks.flatMap((b) => b.findings)]) {
+      if (f.fixable && !proposals.has(f.id)) n++;
+    }
+    return n;
+  }, [reader.blocks, reader.document, proposals]);
   // A refusal whose finding is gone from the file read again is drawn at the
   // top, since there is no row left to draw it under.
   const placed = useMemo(() => {
@@ -134,12 +142,12 @@ export function ReaderView({
           )
         }
         actions={
-          reader.fixable > 0 &&
+          unfiled > 0 &&
           onFixAll && (
             <Button size="sm" data-slot="reader-fix-file" disabled={busy} onClick={onFixAll}>
               {fixingAll ? <LoadingSpinner size="sm" /> : <Wand2 size={14} />}
               {t("Fix {count} in this file", "a button: apply every fix in the file", {
-                count: reader.fixable,
+                count: unfiled,
               })}
             </Button>
           )
@@ -384,11 +392,9 @@ interface Filed {
   onOpenProposal?: (id: string) => void;
 }
 
-/** A fix filed as a proposal: its short id, which opens it when the host can. */
+/** A fix filed as a proposal, which opens it when the host can; the id is its title. */
 function Proposed({ id, onOpen }: { id: string; onOpen?: (id: string) => void }) {
-  const label = t("Proposed {proposal}", "a fix filed as a source proposal, with its id", {
-    proposal: id.slice(0, 8),
-  });
+  const label = t("Proposed", "a fix filed as a source proposal for a person to approve");
   return onOpen ? (
     <Button
       size="xs"

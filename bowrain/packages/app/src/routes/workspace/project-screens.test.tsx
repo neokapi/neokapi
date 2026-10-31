@@ -80,7 +80,7 @@ describe("the Reader route", () => {
     await userEvent.click(fix[0]);
     await waitFor(() =>
       expect(container.querySelector("[data-slot='reader-proposed']")).toHaveTextContent(
-        "Proposed sp-fernw",
+        "Proposed",
       ),
     );
   });
