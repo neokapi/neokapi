@@ -295,11 +295,11 @@ scope, a run with no explicit sink commits its work as overlays to the project
 block store and emits no document. Materializing the per-locale files is a
 separate, explicit step (`kapi merge`). The store is the working copy: a re-run
 reuses the overlays already present and recomputes only what changed
-([M-06](../multilingual/m-06-content-packages.md)). A merge applies a
-translation overlay only while its source stamp, taken from the block's source
-as its reader produced it rather than as a step such as `redact` or `script`
-rewrote it, names the source the merge reads; an overlay whose stamp names
-another source is counted as stale and not applied.
+([M-06](../multilingual/m-06-content-packages.md)). A translation overlay's
+source stamp is taken from the block's source as its reader produced it, not
+as a step such as `redact` or `script` rewrote it. A merge applies the overlay
+only while that stamp names the source the merge reads, and counts one that
+names another source as stale.
 
 ### 6. Archives: a source that fans out, a sink that repacks
 

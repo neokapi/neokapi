@@ -136,33 +136,13 @@ func BlockSourceStamp(b *model.Block) string { return SourceStamp(AsReadSourceTe
 // than b's source as read: its stamp names a source the block no longer holds.
 // A merge applies no stale overlay and counts it as stale. An overlay with no
 // stamp (an import, a pseudo-translation, data older than the stamp) is never
-// stale, since nothing in it says which source it answered. Neither is an
-// overlay for a block that carries no source at all, neither as read nor now:
-// a block rebuilt from a skeleton carries its id alone (partsFromSkeleton),
-// and has no source to compare the stamp with. A block whose source as read
-// is empty, or a step emptied, is compared like any other.
+// stale, since nothing in it says which source it answered. Every stamped
+// overlay is compared, including one for a block whose source is empty: an
+// empty source is a source, and a translation of another one is stale for it.
+// A block rebuilt from a skeleton carries no source to compare with, so the
+// merge that reads one applies its overlays without asking (hydrateTargetsTool).
 func (o TargetOverlay) StaleFor(b *model.Block) bool {
-	if o.Source == "" || !carriesSource(b) {
-		return false
-	}
-	return o.Source != BlockSourceStamp(b)
-}
-
-// carriesSource reports whether b carries a source, as read or now.
-func carriesSource(b *model.Block) bool {
-	read, _ := b.SourceAsRead()
-	return holdsSource(read) || holdsSource(b.SourceRuns())
-}
-
-// holdsSource reports whether runs hold anything beyond empty text: a block
-// rebuilt from a skeleton holds no run, or one empty text run.
-func holdsSource(runs []model.Run) bool {
-	for _, r := range runs {
-		if r.Text == nil || r.Text.Text != "" {
-			return true
-		}
-	}
-	return false
+	return o.Source != "" && o.Source != BlockSourceStamp(b)
 }
 
 // ReuseConfig is the configuration a producer records beside a translation of

@@ -155,6 +155,7 @@ func TestHydrateTargets_AStaleSourceStampIsCountedAndNotApplied(t *testing.T) {
 	skeleton := model.NewBlock("moved", "")
 	skeleton.Translatable = true
 	tl = newHydrateTargetsTool("fr")
+	tl.skeleton = true
 	in = make(chan *model.Part, 1)
 	out = make(chan *model.Part, 1)
 	in <- &model.Part{Type: model.PartBlock, Resource: skeleton}
@@ -276,4 +277,46 @@ func TestKpzRedactedFlowThenMerge_EveryTranslationLands(t *testing.T) {
 		assert.NotEqual(t, source, got[key], "%s: the translation lands", key)
 		assert.Contains(t, got[key], "Mr Bean", "%s: the redacted value is restored", key)
 	}
+}
+
+// A reader's block for an empty value carries the empty source, and a stored
+// translation of "Hello world" is stale for it: the merge counts it and writes
+// the empty source, and writes the other block's current translation.
+func TestMaterialize_AnEmptiedSourceMakesItsTranslationStale(t *testing.T) {
+	a, recipe, dir := newProcessOnlyProject(t)
+	src := filepath.Join(dir, "src", "en.json")
+	require.NoError(t, os.WriteFile(src, []byte(`{"greeting":"Hello world","farewell":"Goodbye"}`), 0o644))
+	layout, err := project.LayoutFor(recipe)
+	require.NoError(t, err)
+	db, err := a.ProjectDB(t.Context(), layout.Root)
+	require.NoError(t, err)
+	blocks := readStampedBlocks(t, a, dir)
+	sess, err := db.BlocksAutocommit().Begin(t.Context())
+	require.NoError(t, err)
+	for name, tr := range map[string]string{"greeting": "Bonjour le monde", "farewell": "Au revoir"} {
+		b := blocks[name]
+		require.NotNil(t, b, name)
+		payload, err := json.Marshal(blockstore.TargetOverlay{Text: tr, Source: blockstore.SourceStamp(b.SourceText())})
+		require.NoError(t, err)
+		require.NoError(t, sess.PutOverlay(blockstore.Overlay{
+			Kind:      blockstore.TargetOverlayKind("fr"),
+			BlockHash: blockstore.StoreKey(filepath.Join("src", "en.json"), b.ID, b.SourceText()),
+			Payload:   payload,
+		}))
+	}
+	require.NoError(t, sess.Commit())
+
+	require.NoError(t, os.WriteFile(src, []byte(`{"greeting":"","farewell":"Goodbye"}`), 0o644))
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	written, stale, err := a.materializeProject(context.Background(), io.Discard, proj, recipe, []model.LocaleID{"fr"}, true, nil)
+	require.NoError(t, err)
+	assert.Equal(t, 1, written)
+	assert.Equal(t, 1, stale)
+	out, err := os.ReadFile(filepath.Join(dir, "src", "fr.json"))
+	require.NoError(t, err)
+	var got map[string]string
+	require.NoError(t, json.Unmarshal(out, &got))
+	assert.Empty(t, got["greeting"], "the stale translation is not written; the empty source is")
+	assert.Equal(t, "Au revoir", got["farewell"])
 }

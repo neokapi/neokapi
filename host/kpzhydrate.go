@@ -23,6 +23,12 @@ type hydrateTargetsTool struct {
 	tool.BaseTool
 	locale model.LocaleID
 	stale  atomic.Int64
+
+	// skeleton is set when the merge rebuilds the document from its skeleton
+	// (a workspace packed without its source): each block carries its id
+	// alone, so there is no source to compare a stamp with, and every overlay
+	// applies as it is.
+	skeleton bool
 }
 
 // Stale is how many blocks held a stored translation of another source.
@@ -53,20 +59,26 @@ func (t *hydrateTargetsTool) SessionProcess(ctx context.Context, sess blockstore
 				// has no translation yet" (ordinary pending work), anything else
 				// is a store read that failed. Conflating them made a locked or
 				// corrupt block store write the SOURCE text into the target file
-				// and report the merge applied — the shipped-deliverable form of
-				// #1449. The same distinction absorbStoreTargets now draws, and
-				// the one core/convergence/coverage.go already drew.
+				// and report the merge applied, the shipped-deliverable form of
+				// #1449. absorbStoreTargets and core/convergence/coverage.go draw
+				// the same distinction.
 				o, err := sess.GetOverlay(kind, key)
 				if err != nil && !errors.Is(err, blockstore.ErrNotFound) {
 					return fmt.Errorf("read %s overlay for block %s: %w", kind, blockKey(b), err)
 				}
 				if err == nil && len(o.Payload) > 0 {
-					stale, aerr := applyCurrentTargetOverlay(b, b, t.locale, o.Payload)
-					if aerr != nil {
-						return aerr
-					}
-					if stale {
-						t.stale.Add(1)
+					if t.skeleton {
+						if aerr := applyTargetOverlay(b, t.locale, o.Payload); aerr != nil {
+							return aerr
+						}
+					} else {
+						stale, aerr := applyCurrentTargetOverlay(b, b, t.locale, o.Payload)
+						if aerr != nil {
+							return aerr
+						}
+						if stale {
+							t.stale.Add(1)
+						}
 					}
 				}
 			}

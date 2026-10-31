@@ -341,6 +341,10 @@ func (a *App) MergeFromKpz(ctx context.Context, kpzPath, outOverride string) err
 				return derr
 			}
 			hydrate := newHydrateTargetsTool(model.LocaleID(locale))
+			// Without the raw source, runCacheSource rebuilds the document
+			// from its skeleton, whose blocks carry no source to compare a
+			// stamp with.
+			hydrate.skeleton = !c.hasSource(src)
 			if err := a.runCacheSource(ctx, c, src, "merge", []tool.Tool{hydrate}, docOut, locale); err != nil {
 				return err
 			}

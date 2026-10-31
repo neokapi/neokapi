@@ -34,10 +34,11 @@ func TestTargetOverlay_StaleFor(t *testing.T) {
 	assert.False(t, TargetOverlay{Text: "Bonjour", Source: SourceStamp("Hello")}.StaleFor(b))
 	assert.True(t, TargetOverlay{Text: "Bonjour", Source: SourceStamp("Hello there")}.StaleFor(b))
 	assert.False(t, TargetOverlay{Text: "Bonjour"}.StaleFor(b), "a stampless overlay applies")
-	for _, skeleton := range []*model.Block{{ID: "b1"}, model.NewBlock("b1", "")} {
-		assert.False(t, TargetOverlay{Text: "Bonjour", Source: SourceStamp("Hello")}.StaleFor(skeleton),
-			"a block rebuilt from a skeleton holds no source to compare the stamp with")
-	}
+	// An empty source is a source: a reader's block for an empty value has the
+	// stamp of "", and a translation of anything else is stale for it.
+	empty := model.NewBlock("b1", "")
+	assert.True(t, TargetOverlay{Text: "Bonjour", Source: SourceStamp("Hello")}.StaleFor(empty))
+	assert.False(t, TargetOverlay{Text: "", Source: SourceStamp("")}.StaleFor(empty))
 
 	// A step that empties the source leaves the source as read to compare
 	// with: an overlay stamped with another source is stale.

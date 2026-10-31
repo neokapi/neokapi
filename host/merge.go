@@ -568,7 +568,7 @@ func absorbStoreTargets(ctx context.Context, reg *registry.FormatRegistry, srcFo
 			return newCount, updatedCount, fmt.Errorf("read %s overlay for block %s of %s: %w", kind, blockKey(b), sourceRel, oerr)
 		}
 		if len(o.Payload) == 0 {
-			continue // recorded but empty — nothing to absorb
+			continue // recorded but empty: nothing to absorb
 		}
 		// A translation of a source that has changed since is not the
 		// translation of this one: the content memory gets no pair of the two.
