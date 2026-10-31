@@ -19,12 +19,12 @@ import (
 
 	"github.com/neokapi/neokapi/core/axis"
 	"github.com/neokapi/neokapi/core/contextop"
-	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/profile/packs"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/review"
+	"github.com/neokapi/neokapi/core/rulesview"
 	"github.com/neokapi/neokapi/terms"
 )
 
@@ -986,75 +986,35 @@ func notesAt(records []contextop.Record, coordinates map[string]string, space ax
 // the word.
 func suggestionKey(term string) string { return strings.ToLower(strings.TrimSpace(term)) }
 
-// termsInForce projects the concepts bound at a point into the answer's hits:
-// the terms whose own window covers the instant, discouraged ones first, capped
-// at limit. It returns the total in force as well, so a capped list says what it
-// is a part of.
-//
-// The discouraged-first order is the useful one when the list is capped. A rule
-// a writer must not break outranks a word it may reuse, and truncating
-// alphabetically would drop the rules about as often as it kept them.
+// termsInForce projects the concepts bound at a point into the answer's hits
+// (rulesview.TermsInForce): the terms whose own window covers the instant,
+// discouraged ones first, capped at limit, with the total in force.
 func termsInForce(concepts []terms.Concept, locale model.LocaleID, at time.Time, limit int) ([]ContextTermHit, int) {
-	var all []ContextTermHit
-	for _, c := range concepts {
-		for _, t := range c.Terms {
-			if locale != "" && t.Locale != locale {
-				continue
-			}
-			if !at.IsZero() && !t.Validity.Matches(graph.ScopeAt(at)) {
-				continue
-			}
-			hit := ContextTermHit{
-				ConceptID:   c.ID,
-				Term:        t.Text,
-				Locale:      string(t.Locale),
-				Status:      string(t.Status),
-				Definition:  c.Definition,
-				Domain:      c.Domain,
-				Discouraged: t.Status.Discouraged(),
-			}
-			if hit.Discouraged {
-				hit.Replacement = discouragedReplacement(c, t)
-				hit.Advisory = c.Advisory
-			}
-			if v := t.Validity; v != nil {
-				if v.ValidFrom != nil {
-					hit.ValidFrom = v.ValidFrom.UTC().Format(time.RFC3339)
-				}
-				if v.ValidTo != nil {
-					hit.ValidTo = v.ValidTo.UTC().Format(time.RFC3339)
-				}
-			}
-			all = append(all, hit)
+	found, total := rulesview.TermsInForce(concepts, locale, at, limit)
+	out := make([]ContextTermHit, 0, len(found))
+	for _, h := range found {
+		hit := ContextTermHit{
+			ConceptID:   h.ConceptID,
+			Term:        h.Term,
+			Locale:      h.Locale,
+			Status:      h.Status,
+			Definition:  h.Definition,
+			Domain:      h.Domain,
+			Discouraged: h.Discouraged,
+			Replacement: h.Replacement,
+			Advisory:    h.Advisory,
 		}
-	}
-	sort.SliceStable(all, func(i, j int) bool {
-		if ri, rj := termRank(all[i]), termRank(all[j]); ri != rj {
-			return ri < rj
+		if v := h.Validity; v != nil {
+			if v.ValidFrom != nil {
+				hit.ValidFrom = v.ValidFrom.UTC().Format(time.RFC3339)
+			}
+			if v.ValidTo != nil {
+				hit.ValidTo = v.ValidTo.UTC().Format(time.RFC3339)
+			}
 		}
-		if a, b := strings.ToLower(all[i].Term), strings.ToLower(all[j].Term); a != b {
-			return a < b
-		}
-		return all[i].Locale < all[j].Locale
-	})
-	total := len(all)
-	if limit > 0 && len(all) > limit {
-		all = all[:limit]
+		out = append(out, hit)
 	}
-	return all, total
-}
-
-// termRank orders a term within the answer: a rule to act on, then a word to
-// reuse, then the rest.
-func termRank(h ContextTermHit) int {
-	switch {
-	case h.Discouraged:
-		return 0
-	case h.Status == string(model.TermPreferred):
-		return 1
-	default:
-		return 2
-	}
+	return out, total
 }
 
 // recordingAdvice closes an answer that has room to grow: what to record while

@@ -1182,6 +1182,25 @@ var storeMigrations = []storage.Migration{
 			CREATE INDEX IF NOT EXISTS context_assignments_assignee ON context_assignments (assignee);
 		`,
 	},
+	{
+		Version:     42,
+		Description: "the findings a project-wide check counted in each item",
+		SQL: `
+			-- Mirrors bowrain/store/migrations.go version 48: one row per
+			-- item of a project's stream, what the last project-wide check at
+			-- the source locale counted on its blocks. checked_at is RFC 3339
+			-- in UTC.
+			CREATE TABLE IF NOT EXISTS item_check_tallies (
+				project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				stream     TEXT NOT NULL DEFAULT 'main',
+				item_id    TEXT NOT NULL,
+				findings   INTEGER NOT NULL DEFAULT 0,
+				fixable    INTEGER NOT NULL DEFAULT 0,
+				checked_at TEXT NOT NULL,
+				PRIMARY KEY (project_id, stream, item_id)
+			);
+		`,
+	},
 }
 
 // addMissingColumns adds each column definition to table unless the table

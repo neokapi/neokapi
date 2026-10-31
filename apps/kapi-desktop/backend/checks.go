@@ -21,6 +21,7 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	coretools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/host"
+	"github.com/neokapi/neokapi/host/screens"
 	"github.com/neokapi/neokapi/terms"
 )
 
@@ -933,27 +934,9 @@ func withFix(df DesktopFinding, f check.Finding, b *model.Block, doc string, sou
 	return df
 }
 
-// findingRule names the rule that fired.
-//
-// The checker states it on Check; where it does not, the term or pattern the
-// rule is about identifies it, and the category is the last resort. A finding
+// findingRule names the rule that fired (screens.FindingRule). A finding
 // that named nothing would leave a reader with a complaint and nowhere to go.
-func findingRule(f check.Finding) string {
-	if f.Check != "" {
-		return f.Check
-	}
-	if f.Metadata != nil {
-		for _, key := range []string{"rule", "term", "pattern"} {
-			if v := f.Metadata[key]; v != "" {
-				return v
-			}
-		}
-	}
-	if f.OriginalText != "" {
-		return f.OriginalText
-	}
-	return f.Category
-}
+func findingRule(f check.Finding) string { return screens.FindingRule(f) }
 
 // pointRef renders the point a finding is scoped to, as the explorer addresses
 // it. The project's own point renders empty rather than as a guessed name.

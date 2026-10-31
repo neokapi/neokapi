@@ -135,32 +135,53 @@ func (s *Server) HandleCreateSourceProposal(c echo.Context) error {
 		return c.JSON(http.StatusUnprocessableEntity, ErrorResponse{Error: "proposed_source is identical to the current source"})
 	}
 
+	proj, perr := s.ContentStore.GetProject(ctx, pid)
+	if perr != nil {
+		proj = nil
+	}
+	proposal, err := s.fileSourceProposal(ctx, c, proj, stream, itemName, sb.Block, kind, req.ProposedSource, req.Rationale, req.FoundInLocale)
+	if err != nil {
+		return serverErr(c, err)
+	}
+	return c.JSON(http.StatusCreated, proposal)
+}
+
+// fileSourceProposal records a proposed change to one block's source, found
+// by the request's member, and puts a source-review task in the source
+// owners' queue. proj may be nil, which files the proposal under the
+// request's project id and creates no task.
+func (s *Server) fileSourceProposal(ctx context.Context, c echo.Context, proj *platstore.Project, stream, itemName string, block *model.Block,
+	kind bstore.SourceProposalKind, proposed, rationale, foundIn string,
+) (*bstore.ProposedSourceChange, error) {
 	wsID, _ := c.Get("workspace_id").(string)
 	finder, _ := c.Get("user_id").(string)
+	pid := projectParam(c)
+	if proj != nil {
+		pid = proj.ID
+	}
 	proposal := &bstore.ProposedSourceChange{
 		WorkspaceID:    wsID,
 		ProjectID:      pid,
 		Stream:         stream,
 		ItemName:       itemName,
-		BlockID:        req.BlockID,
+		BlockID:        block.ID,
 		Kind:           kind,
-		OriginalSource: sb.Block.SourceText(),
-		ProposedSource: req.ProposedSource,
-		Rationale:      req.Rationale,
-		FoundInLocale:  req.FoundInLocale,
+		OriginalSource: block.SourceText(),
+		ProposedSource: proposed,
+		Rationale:      rationale,
+		FoundInLocale:  foundIn,
 		FinderUser:     finder,
 	}
 	if err := s.SourceProposalStore.Create(ctx, proposal); err != nil {
-		return serverErr(c, err)
+		return nil, err
 	}
-
-	// Surface to source owners: a source-review task in their queue. Best-effort —
-	// the proposal is authoritative even if task creation is skipped.
-	if proj, perr := s.ContentStore.GetProject(ctx, pid); perr == nil {
+	// Surface to source owners: a source-review task in their queue.
+	// Best-effort: the proposal is authoritative even if task creation is
+	// skipped.
+	if proj != nil {
 		s.createSourceProposalTask(context.WithoutCancel(ctx), proj, proposal)
 	}
-
-	return c.JSON(http.StatusCreated, proposal)
+	return proposal, nil
 }
 
 // HandleDecideSourceProposal approves or rejects an open proposal. Approval is

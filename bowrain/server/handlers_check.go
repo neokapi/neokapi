@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"net/http"
@@ -13,9 +12,6 @@ import (
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
-	coreprofile "github.com/neokapi/neokapi/core/profile"
-	"github.com/neokapi/neokapi/core/tool"
-	"github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/terms"
 )
 
@@ -175,110 +171,29 @@ func (s *Server) HandleCheckFile(c echo.Context) error {
 	return c.JSON(http.StatusOK, results)
 }
 
-// pointChecks is the set of checks in force at one point: the standard
-// per-locale checks every block gets, plus the ones the governance there adds.
-//
-// The framework selects the same way — a check run resolves the voice profile
-// and the vocabulary at each file's own point, so a project that governs two
-// products by two profiles judges each by the one that governs it rather than
-// by whichever was resolved first (host/check.go). The platform's point is the
-// item's collection, and the ladder is voicescope's.
-type pointChecks struct {
-	// TargetLocale is the locale being checked; SourceLocale is what the
-	// vocabulary is looked up in.
-	TargetLocale model.LocaleID
-	SourceLocale model.LocaleID
-	// Voice governs the wording here. Nil leaves the vocabulary check out of
-	// the set, which is what "nothing is bound at this point" means.
-	Voice *coreprofile.VoiceProfile
-	// Terms is the vocabulary the voice check reads alongside the profile's
-	// own rules. Nil reports what the profile forbids and stays silent about
-	// every term the workspace itself retired.
-	Terms terms.Terminology
-	// DNT are the terms that must survive verbatim. Empty leaves that check
-	// out of the set.
-	DNT []string
+// pointChecks is the set of checks in force at one point (jobs.PointChecks).
+type pointChecks = jobs.PointChecks
+
+// checkBinding is where the server reads the checks at a point from: its
+// content store, voice store, workspace default and the workspace's terms.
+func (s *Server) checkBinding(workspaceSlug string) jobs.PointCheckBinding {
+	voiceCtx := s.editorVoiceContext()
+	b := jobs.PointCheckBinding{Store: s.ContentStore, Voice: voiceCtx.Voice, WorkspaceDefault: voiceCtx.WorkspaceDefault}
+	if voiceCtx.Stores != nil && workspaceSlug != "" {
+		b.Terms = func(ctx context.Context) (terms.Terminology, error) {
+			return voiceCtx.Stores.getTerms(ctx, workspaceSlug)
+		}
+	}
+	return b
 }
 
-// checksAtPoint resolves the checks in force where an item sits: the standard
-// per-locale set, plus the voice profile bound at the item's own point (its
-// collection, then the stream, the project, and the workspace default), the
-// workspace vocabulary, and the project's protected terms.
-//
-// Resolution failures are operational errors. They cannot silently narrow the
-// configured checks and leave the editor displaying a clean assessment.
+// checksAtPoint resolves the checks in force where an item sits
+// (jobs.ResolvePointChecks).
 func (s *Server) checksAtPoint(ctx context.Context, projectID, stream, itemName, workspaceID, workspaceSlug string, locale model.LocaleID) (pointChecks, error) {
-	checks := pointChecks{TargetLocale: locale}
-	if err := ctx.Err(); err != nil {
-		return checks, err
-	}
 	if s.ContentStore == nil {
-		return checks, errors.New("check context: content store unavailable")
+		return pointChecks{TargetLocale: locale}, errors.New("check context: content store unavailable")
 	}
-	proj, err := s.ContentStore.GetProject(ctx, projectID)
-	if err != nil {
-		return checks, fmt.Errorf("check project: %w", err)
-	}
-	if proj == nil {
-		return checks, errors.New("check project is unavailable")
-	}
-	checks.SourceLocale = proj.DefaultSourceLanguage
-	checks.DNT = jobs.ProjectDNTTerms(proj)
-	voiceCtx := s.editorVoiceContext()
-	if voiceCtx.Stores != nil && workspaceSlug != "" {
-		checks.Terms, err = voiceCtx.Stores.getTerms(ctx, workspaceSlug)
-		if err != nil {
-			return checks, fmt.Errorf("check terms: %w", err)
-		}
-	}
-	rc := coreprofile.ResolveContext{Locale: locale, ProjectProperties: proj.Properties}
-	if stream != "" {
-		// A project's main stream need not have a row of its own; a stream
-		// with no row carries no properties.
-		st, err := s.ContentStore.GetStream(ctx, projectID, stream)
-		switch {
-		case errors.Is(err, sql.ErrNoRows) && stream == "main":
-		case err != nil:
-			return checks, fmt.Errorf("check stream: %w", err)
-		case st == nil:
-			return checks, errors.New("check stream is unavailable")
-		default:
-			rc.StreamProperties = st.Properties
-		}
-	}
-	if itemName != "" {
-		item, err := s.ContentStore.GetItem(ctx, projectID, stream, itemName)
-		if err != nil {
-			return checks, fmt.Errorf("check item: %w", err)
-		}
-		if item == nil {
-			return checks, errors.New("check item is unavailable")
-		}
-		if item.CollectionID != "" {
-			col, err := s.ContentStore.GetCollection(ctx, projectID, item.CollectionID)
-			if err != nil {
-				return checks, fmt.Errorf("check collection: %w", err)
-			}
-			if col == nil {
-				return checks, errors.New("check collection is unavailable")
-			}
-			rc.CollectionConfig = col.ConnectorConfig
-		}
-	}
-	if workspaceID == "" {
-		workspaceID = proj.WorkspaceID
-	}
-	if voiceCtx.WorkspaceDefault != nil && workspaceID != "" {
-		rc.RootProfileID, err = voiceCtx.WorkspaceDefault.WorkspaceVoiceProfileID(ctx, workspaceID)
-		if err != nil {
-			return checks, fmt.Errorf("check workspace voice: %w", err)
-		}
-	}
-	checks.Voice, err = coreprofile.ResolveProfileFromContext(ctx, rc, voiceCtx.Voice)
-	if err != nil {
-		return checks, fmt.Errorf("check voice: %w", err)
-	}
-	return checks, nil
+	return jobs.ResolvePointChecks(ctx, s.checkBinding(workspaceSlug), projectID, stream, itemName, workspaceID, locale)
 }
 
 // runChecksOnBlock runs the checks in force on a single block and returns the
@@ -309,79 +224,15 @@ func runChecksOnBlock(ctx context.Context, block *model.Block, checks pointCheck
 }
 
 // standardFindings runs the standard per-locale checks on a scratch copy of
-// block: the rule check with placeholder integrity, and the protected terms
-// when the project declares any. They judge the target for checks'
-// TargetLocale against the block's source.
+// block (jobs.StandardFindings).
 func standardFindings(ctx context.Context, block *model.Block, checks pointChecks) ([]check.Finding, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	if block == nil {
-		return nil, errors.New("check block is unavailable")
-	}
-	scratch := *block
-	scratch.Annotations = nil // fresh findings surface; SetAnno re-creates lazily
-	part := &model.Part{
-		Type:     model.PartBlock,
-		Resource: &scratch,
-	}
-
-	// The standard set: what every target in this locale is judged by.
-	//
-	// Placeholder integrity is asked for explicitly, because the config leaves
-	// it off. A catalogue leaf carries {name} in its text rather than as an
-	// inline run, so the run-based checks find nothing to compare and the
-	// target goes unexamined: a help string reached a locale without {ext},
-	// {lang}, {name} or {path}, and an ICU plural arrived as a sentence with no
-	// count in it. The CLI gate asks the same question of the same content
-	// (host/verify.go, host/loopchecks.go), and a target converged on this
-	// venue is judged the same way.
-	ruleCfg := tools.NewRuleCheckConfig(checks.TargetLocale)
-	ruleCfg.CheckPlaceholders = true
-	if _, err := tools.NewRuleCheckTool(ruleCfg).ApplyContext(ctx, part); err != nil {
-		return nil, fmt.Errorf("rule check: %w", err)
-	}
-
-	// Protected terms, when the project declares any. A term that must survive
-	// verbatim is checked in the same pass the editor asks for, so a person
-	// sees it on the block they are editing.
-	if len(checks.DNT) > 0 {
-		dntCfg := tools.NewDNTCheckConfig(checks.TargetLocale)
-		dntCfg.Terms = checks.DNT
-		if _, err := tools.NewDNTCheckTool(dntCfg).ApplyContext(ctx, part); err != nil {
-			return nil, fmt.Errorf("protected terms check: %w", err)
-		}
-	}
-
-	return check.Findings(tool.NewBlockViewWithContext(ctx, &scratch)), nil
+	return jobs.StandardFindings(ctx, block, checks)
 }
 
 // voiceFindings runs the vocabulary governing the point on a scratch copy of
-// block: the profile's own rules and the workspace's retired, forbidden and
-// competitor terms, located in the source. It reports on its own annotation
-// rather than the unified surface, so it is read separately. With no voice
-// bound at the point it finds nothing.
+// block (jobs.VoiceFindings).
 func voiceFindings(ctx context.Context, block *model.Block, checks pointChecks) ([]check.Finding, error) {
-	if checks.Voice == nil {
-		return nil, nil
-	}
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	if block == nil {
-		return nil, errors.New("check block is unavailable")
-	}
-	scratch := *block
-	scratch.Annotations = nil
-	part := &model.Part{Type: model.PartBlock, Resource: &scratch}
-	vocab := tools.NewVoiceVocabCheckTool(checks.Voice, checks.Terms).InSourceLocale(checks.SourceLocale)
-	if _, err := vocab.ApplyContext(ctx, part); err != nil {
-		return nil, fmt.Errorf("voice rules check: %w", err)
-	}
-	if ann, ok := model.AnnoAs[*coreprofile.VoiceAnnotation](&scratch, "voice"); ok {
-		return ann.Findings, nil
-	}
-	return nil, nil
+	return jobs.VoiceFindings(ctx, block, checks)
 }
 
 // checkIssuesFromFindings maps core/check.Finding onto the CheckIssueResponse wire shape.

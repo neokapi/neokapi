@@ -14,7 +14,6 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 
@@ -241,7 +240,7 @@ func (a *App) MapSummary(tabID string) (*screens.MapSummaryDTO, error) {
 		out.FileRows = append(out.FileRows, row)
 	}
 	out.Files = len(out.FileRows)
-	sortMapFiles(out.FileRows)
+	screens.SortMapFiles(out.FileRows)
 
 	rules, err := a.mapRuleCount(ctx, op)
 	if err != nil {
@@ -255,16 +254,6 @@ func (a *App) MapSummary(tabID string) (*screens.MapSummaryDTO, error) {
 		}
 	}
 	return out, nil
-}
-
-// sortMapFiles orders the file rows the most findings first, then by path.
-func sortMapFiles(rows []screens.MapFileDTO) {
-	sort.SliceStable(rows, func(i, j int) bool {
-		if rows[i].Findings != rows[j].Findings {
-			return rows[i].Findings > rows[j].Findings
-		}
-		return rows[i].Relative < rows[j].Relative
-	})
 }
 
 // localeStrings turns the recipe's target languages into strings.
@@ -312,7 +301,9 @@ func (a *App) mapBlockCounts(ctx context.Context, op *openProject) (map[string]i
 // mapRuleCount counts the rules in force at the project's own point. Those
 // are the concepts in the terms store the project binds, where a kept term
 // rule is recorded, and the word rules and patterns of the voice profile. The
-// notes a person kept count too; the operation log alone holds them.
+// notes a person kept count too; the operation log alone holds them. The
+// record of an import is a note about where context came from, not a rule,
+// and is not counted.
 func (a *App) mapRuleCount(ctx context.Context, op *openProject) (int, error) {
 	total := 0
 	if _, ok := a.existingProjectStore(op); ok { //nolint:contextcheck // the store opens under the engine's own context
@@ -335,7 +326,7 @@ func (a *App) mapRuleCount(ctx context.Context, op *openProject) (int, error) {
 			return 0, fmt.Errorf("read kept notes: %w", lerr)
 		}
 		for _, r := range log.Operations {
-			if r.Subject.Kind == contextop.SubjectNote && r.Project == op.workspaceKey {
+			if r.Subject.Kind == contextop.SubjectNote && r.Kind != contextop.KindImport && r.Project == op.workspaceKey {
 				total++
 			}
 		}
@@ -424,52 +415,15 @@ func (a *App) mapSuggestions(ctx context.Context, op *openProject, out *screens.
 	for _, r := range log.Operations {
 		evidence[r.ID] = r.Evidence
 	}
-	row := func(group string, item screens.DigestItem, conflict *screens.DigestConflict) screens.MapSuggestionDTO {
-		blocks, files := evidenceCounts(evidence[item.ID])
-		return screens.MapSuggestionDTO{Group: group, Item: item, Conflict: conflict, Blocks: blocks, Files: files}
-	}
-	for i := range digest.Conflicts {
-		c := digest.Conflicts[i]
-		if len(c.Sides) == 0 {
-			continue
-		}
-		out.Suggestions = append(out.Suggestions, row("conflict", c.Sides[0], &c))
-		out.Conflicts++
-	}
+	var suggested []screens.DigestItem
 	for _, theme := range digest.Suggested {
 		for _, g := range theme.Groups {
-			for _, item := range g.Items {
-				out.Suggestions = append(out.Suggestions, row("suggested", item, nil))
-				out.Suggested++
-			}
+			suggested = append(suggested, g.Items...)
 		}
 	}
+	rows := screens.MapSuggestionRows(digest.Conflicts, suggested, evidence)
+	out.Suggestions = append(out.Suggestions, rows.Rows...)
+	out.Conflicts, out.Suggested = rows.Conflicts, rows.Suggested
 	out.Awaiting = out.Conflicts + out.Suggested
 	return nil
-}
-
-// evidenceCounts counts the distinct blocks and files a list of evidence
-// names. A block is a file's unit, or its quote where no unit is recorded; a
-// web page counts as neither.
-func evidenceCounts(ev []contextop.Evidence) (blocks, files int) {
-	seenFile := map[string]bool{}
-	seenBlock := map[string]bool{}
-	for _, e := range ev {
-		if e.Path == "" {
-			continue
-		}
-		if !seenFile[e.Path] {
-			seenFile[e.Path] = true
-			files++
-		}
-		at := e.Unit
-		if at == "" {
-			at = "quote:" + e.Quote
-		}
-		if key := e.Path + "\x00" + at; !seenBlock[key] && (e.Unit != "" || e.Quote != "") {
-			seenBlock[key] = true
-			blocks++
-		}
-	}
-	return blocks, files
 }

@@ -1,0 +1,198 @@
+{
+  "path": "site/locales/en/child.json",
+  "abs": "",
+  "format": "json",
+  "blocks": [
+    {
+      "id": "tu1",
+      "runs": [
+        {
+          "text": "Children"
+        }
+      ],
+      "findings": []
+    },
+    {
+      "id": "tu2",
+      "runs": [
+        {
+          "text": "Harbor Help"
+        }
+      ],
+      "findings": []
+    },
+    {
+      "id": "tu3",
+      "runs": [
+        {
+          "text": "Talk to us on a screen"
+        }
+      ],
+      "findings": []
+    },
+    {
+      "id": "tu4",
+      "runs": [
+        {
+          "text": "A video appointment is a time when you can talk with a Harbor Help adviser on a screen."
+        }
+      ],
+      "findings": []
+    },
+    {
+      "id": "tu5",
+      "runs": [
+        {
+          "text": "What is the same for everyone"
+        }
+      ],
+      "findings": []
+    },
+    {
+      "id": "tu6",
+      "runs": [
+        {
+          "text": "A video appointment is not recorded. Harbor Help cannot see inside your device."
+        }
+      ],
+      "findings": []
+    },
+    {
+      "id": "tu7",
+      "runs": [
+        {
+          "text": "Keep your information safe"
+        }
+      ],
+      "findings": []
+    },
+    {
+      "id": "tu8",
+      "runs": [
+        {
+          "text": "We will not ask for your password or bank details. Ask a trusted adult if you are unsure."
+        }
+      ],
+      "findings": []
+    },
+    {
+      "id": "tu9",
+      "runs": [
+        {
+          "text": "Ask a trusted adult to book a video call with you. It is risk-free."
+        }
+      ],
+      "findings": [
+        {
+          "id": "bacc1971a9ed-1",
+          "block_id": "tu9",
+          "position": {
+            "kind": "range",
+            "start": {
+              "run": 0,
+              "offset": 30
+            },
+            "end": {
+              "run": 0,
+              "offset": 40
+            }
+          },
+          "span": {
+            "start": 30,
+            "end": 40
+          },
+          "kind": "word",
+          "label": "video appointment, not video call",
+          "fails": true,
+          "fixable": true
+        },
+        {
+          "id": "d6a52af14fec-1",
+          "block_id": "tu9",
+          "position": {
+            "kind": "range",
+            "start": {
+              "run": 0,
+              "offset": 57
+            },
+            "end": {
+              "run": 0,
+              "offset": 66
+            }
+          },
+          "span": {
+            "start": 57,
+            "end": 66
+          },
+          "kind": "tone",
+          "label": "Prohibited pattern: Do not describe the service as guaranteed, always safe or risk-free.",
+          "fails": true,
+          "fixable": false
+        }
+      ]
+    },
+    {
+      "id": "tu10",
+      "runs": [
+        {
+          "text": "A grown-up can call the support line if you need help."
+        }
+      ],
+      "findings": []
+    }
+  ],
+  "document": [],
+  "findings": 2,
+  "fixable": 1,
+  "verdict": "failed",
+  "rules": [
+    {
+      "kind": "tone",
+      "rule": "Voice: Harbor Help. Harbor Help explains how to get practical support. The facts stay the same for every reader; the explanation changes only to meet the reader where they are. Kind, clear, calm, informal register, warm tone, no humor, active voice, short sentences, second person (you), no contractions. Use familiar words and explain one idea at a time. Tell the reader to ask a trusted adult for help with an appointment. Do not ask the reader to make an adult decision.\n\nShared constraints:\nharbor-help/no-unsupported-assurance v1 (service-facts.md#assurances): Do not describe the service as guaranteed, always safe or risk-free. [prohibited pattern, a match fails the check: (?i)\\b(guarantee|always safe|risk-free)\\b]\nharbor-help/recording-and-control v1 (service-facts.md#recording-and-control): Appointments are not recorded. Screen sharing requires consent and can be stopped. The adviser cannot control the device or open its files. [guidance; semantic verification unsupported by deterministic checks]",
+      "status": "established",
+      "from": "voice Harbor Help"
+    },
+    {
+      "kind": "word",
+      "rule": "video appointment, not video call",
+      "status": "established",
+      "from": "terms"
+    },
+    {
+      "kind": "word",
+      "rule": "Harbor Help",
+      "status": "established",
+      "from": "terms"
+    },
+    {
+      "kind": "word",
+      "rule": "hjelpetelefon",
+      "status": "established",
+      "from": "terms"
+    },
+    {
+      "kind": "word",
+      "rule": "support line",
+      "status": "established",
+      "from": "terms"
+    },
+    {
+      "kind": "word",
+      "rule": "videomøte",
+      "status": "established",
+      "from": "terms"
+    },
+    {
+      "kind": "note",
+      "rule": "Every page names the support line as the way to get help.",
+      "status": "established",
+      "by": "asgeir",
+      "at": "2026-10-31T22:05:23Z"
+    }
+  ],
+  "rules_total": 7,
+  "attention": [
+    "this file sits under the `harbor-help` profile: the rules below are the ones that hold for it, and a rule held elsewhere in the project does not apply here"
+  ],
+  "refused": []
+}

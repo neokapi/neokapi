@@ -1809,6 +1809,10 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	// Decide: the questions about a project's suggestions, answered by a
 	// member, and the workspace's queue of them.
 	s.registerRulesDecideRoutes(g)
+	// The Map and the Reader: a project's stream at a glance, one item with
+	// its findings and the rules at it, a project-wide check as a job, and a
+	// fix filed as a source proposal.
+	s.registerMapReaderRoutes(g)
 
 	// Presence — /:ws/:id/presence. Reports the caller's editing focus; the
 	// change relay fans it out to project watchers over the /:ws/events SSE
