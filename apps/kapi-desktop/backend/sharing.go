@@ -10,6 +10,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/host"
+	"github.com/neokapi/neokapi/host/venue/config"
 	"github.com/neokapi/neokapi/host/venue/schema"
 )
 
@@ -64,6 +65,19 @@ func venueHost(url string) string {
 	return server
 }
 
+// signedInTo reports whether the stored sign-in names the server a project
+// URL is on, and who it signs in.
+func signedInTo(projectURL string) (bool, string) {
+	server, user, ok := config.StoredSignIn()
+	if !ok || server == "" || server != config.NormalizeServerURL(schema.ParseProjectURL(projectURL).ServerURL) {
+		return false, ""
+	}
+	if user.Name != "" {
+		return true, user.Name
+	}
+	return true, user.Email
+}
+
 // workspaceLocation is the workspace directory on this machine.
 func (a *App) workspaceLocation(ctx context.Context) (string, error) {
 	ws, err := a.hostEngine().Workspace(ctx)
@@ -86,6 +100,11 @@ type ShareView struct {
 	// BowrainPlugin reports whether the kapi-bowrain plugin is installed,
 	// which connecting a project to a Bowrain server needs.
 	BowrainPlugin bool `json:"bowrain_plugin"`
+	// SignedIn reports whether a sign-in on this Mac names the server the
+	// recipe connects to, read without the keychain. SignedInAs is the name,
+	// or else the email, that sign-in carries.
+	SignedIn   bool   `json:"signed_in,omitempty"`
+	SignedInAs string `json:"signed_in_as,omitempty"`
 	// Error is what reading the recipe's place reported, such as a
 	// `context:` block the recipe check refuses. The page then stands on the
 	// first rung, where the context stays until the block is fixed.
@@ -133,6 +152,7 @@ func (a *App) ShareView(tabID string) (*ShareView, error) {
 	if strings.Contains(res.Server, "://") {
 		out.Sharing.VenueURL = res.Server
 		out.Sharing.VenueHost = venueHost(res.Server)
+		out.SignedIn, out.SignedInAs = signedInTo(res.Server)
 	}
 	if n, err := a.mapRuleCount(ctx, op); err == nil {
 		out.Rules = &n
