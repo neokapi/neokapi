@@ -17,15 +17,12 @@ import (
 // `translate` is a single command whose `--provider` selects the backend: any
 // LLM provider (anthropic, openai, …) routes to the AI translate tool, any
 // plugin-registered MT engine routes to the machine-translation tool. The
-// framework ships no classic MT engines — the translation core is LLM-only,
-// and mttools.Providers is populated by plugins. There is no
-// `<provider>-translate` command per engine, nor a separate `ai-translate` —
-// provider is the only dimension.
+// framework ships no classic MT engines: the translation core is LLM-only,
+// and plugins populate mttools.Providers. Provider is the only dimension.
 //
 // `qa` selects its backend with `--mode`: `rules` (the default) runs the
-// deterministic, rule-based quality checks (no credentials needed), and `ai`
-// runs the LLM judge with the configured provider. Both underlying implementations (core/tools' rule checks
-// and core/ai/tools' LLM judge) are reached through one verb.
+// deterministic rule checks from core/tools, which need no credentials, and
+// `ai` runs the LLM judge with the configured provider.
 
 // isMTProvider reports whether a provider id names a machine-translation engine
 // (as opposed to an LLM provider). MT ids route `translate` to the MT tool.

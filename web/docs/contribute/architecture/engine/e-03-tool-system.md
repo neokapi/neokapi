@@ -727,9 +727,9 @@ appear in `kapi tools` and resolve in flows. Their distinguishing trait is
 provider injection: the registry holds a default offline-provider factory, and
 the real provider, with credentials, is supplied on demand via the config factory
 when the tool is instantiated. They use the same `Tool` interface and work
-identically in flows. Translation is one `translate` tool across every backend
-and quality one `qa` tool, with the backend chosen by `--provider`
-([E-07](e-07-model-providers.md)).
+identically in flows. Translation is one `translate` tool across every backend,
+with the backend chosen by `--provider`, and quality one `qa` tool, with the
+backend chosen by `--mode` ([E-07](e-07-model-providers.md)).
 
 ### Flow steps format
 

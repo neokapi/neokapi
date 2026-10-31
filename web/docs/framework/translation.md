@@ -52,8 +52,8 @@ Translation composes with other LLM-backed tools in the same [flow](/framework/f
 | `review`       | Detailed translation review with explanations                         |
 | `term-extract` | Extract candidate terminology from source blocks                      |
 
-The `qa` tool runs deterministic rule-based checks without `--provider`, and
-switches to LLM-judged review when a provider is given. See
+The `qa` tool runs deterministic rule-based checks by default, and an
+LLM-judged review with `--mode ai`. See
 [Rule-based checks](/framework/checks/rule-checks) for the full check catalogue.
 
 ## Composing in flows

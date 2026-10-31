@@ -65,8 +65,12 @@ func StepConfigError(tool ToolID, config map[string]any, at, keys string) error 
 	mode, hasMode := config[QAModeField]
 	if !hasMode {
 		if provider, ok := config["provider"]; ok {
-			return fmt.Errorf("%s (qa) sets provider: %v without mode, and a qa step that names a provider requires mode. Write %s",
-				at, provider, qaModeChoices())
+			step := at
+			if !strings.HasSuffix(at, ".qa") {
+				step += " (qa)"
+			}
+			return fmt.Errorf("%s sets provider: %v without mode, and a qa step that names a provider requires mode. Write %s",
+				step, provider, qaModeChoices())
 		}
 		return nil
 	}

@@ -29,9 +29,9 @@ func TestLoad_RefusesRetiredAndIncompleteShapes(t *testing.T) {
 		name, body, want, fixed string
 	}{
 		{
-			name: "checkTerminology in a flow step",
-			body: head + coll + "flows:\n  review:\n    steps:\n      - tool: translate\n      - tool: qa\n        config:\n          checkTerminology: true\n",
-			want: "flows.review.steps[1].config.checkTerminology is retired and nothing reads it. Remove the key",
+			name:  "checkTerminology in a flow step",
+			body:  head + coll + "flows:\n  review:\n    steps:\n      - tool: translate\n      - tool: qa\n        config:\n          checkTerminology: true\n",
+			want:  "flows.review.steps[1].config.checkTerminology is retired and nothing reads it. Remove the key",
 			fixed: head + coll + "flows:\n  review:\n    steps:\n      - tool: translate\n      - tool: qa\n",
 		},
 		{
@@ -61,7 +61,7 @@ func TestLoad_RefusesRetiredAndIncompleteShapes(t *testing.T) {
 		{
 			name:  "a per-locale qa preset with a provider and no mode",
 			body:  head + "  locales:\n    fr:\n      tools:\n        qa:\n          provider: openai\n" + coll,
-			want:  "defaults.locales.fr.tools.qa (qa) sets provider: openai without mode, and a qa step that names a provider requires mode. " + modes,
+			want:  "defaults.locales.fr.tools.qa sets provider: openai without mode, and a qa step that names a provider requires mode. " + modes,
 			fixed: head + "  locales:\n    fr:\n      tools:\n        qa:\n          mode: ai\n          provider: openai\n" + coll,
 		},
 		{

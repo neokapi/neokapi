@@ -38,7 +38,7 @@ caught in CI, or in an assistant's fix-loop, the same way a failing test is.
 
 ## Deterministic rules
 
-By default, with no `--provider`, the `qa` tool runs a battery of
+By default, in `rules` mode, the `qa` tool runs a battery of
 deterministic rules over each block, comparing source and target. It needs no
 API key. It records each finding as a structured issue with a
 type and whether it fails, and marks whether the block passed. The

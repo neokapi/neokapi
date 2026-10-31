@@ -755,9 +755,10 @@ the most specific declaration that covers it: its item's, else its
 collection's, else the defaults. That declaration replaces the others for the
 file. Its fields are not merged with theirs, so a collection that names its own
 `rules` file redacts with that file alone, and `enabled: false` on a collection
-or an item turns redaction off for its files. A collection's or an item's
-`redaction:` that sets `rules`, `detectors` or `placeholder` must also set
-`enabled: true`; loading the recipe fails otherwise.
+or an item turns redaction off for its files. A `redaction:` at any of the
+three places that sets `rules`, `detectors` or `placeholder` must also set
+`enabled: true`, and the recipe fails to load otherwise; write `enabled: false`
+with no other key to switch redaction off.
 
 | Field         | Type     | Description                                                              |
 | ------------- | -------- | ------------------------------------------------------------------------ |
@@ -838,6 +839,23 @@ The steps run in the order listed, each tool reading what the step before it
 emitted. A step holding a `parallel:` list of tools is parsed but cannot run:
 `kapi run` stops with an error before processing the flow. List those tools as
 ordered steps instead.
+
+A `qa` step selects its backend with `mode`: `rules` (the default) runs the
+deterministic checks, and `ai` runs the AI review with the step's `provider`.
+A `qa` step or preset that sets `provider` must also set `mode`, and the recipe
+fails to load otherwise. A `qa` config that holds `checkTerminology` also fails
+to load: the rule checks read no terms, so remove the key and run `term-check`
+to check translations against the terms store.
+
+```yaml
+flows:
+  review:
+    steps:
+      - tool: qa
+        config:
+          mode: ai
+          provider: anthropic
+```
 
 ### Flow files
 

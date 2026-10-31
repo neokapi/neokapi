@@ -180,7 +180,7 @@ item's, else its collection's, else the defaults. That declaration replaces the
 others for the file. Its fields are not merged with theirs, so a collection
 that names its own `rules` file redacts with that file alone, and one that
 needs the default rules as well lists them in its own rules file. A
-collection's or an item's `redaction:` that sets `rules`, `detectors` or
+`redaction:` at any of the three places that sets `rules`, `detectors` or
 `placeholder` must set `enabled: true`, and the recipe fails to load if it
 does not; `enabled: false` alone turns redaction off for those files.
 

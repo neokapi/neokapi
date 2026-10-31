@@ -208,7 +208,7 @@ collections:
 When loaded by a binary that links `gitlab-plugin/schema` (the plugin binary, or a desktop app that blank-imports the schema for validation), the recipe validates. When loaded by a `kapi` with no gitlab plugin installed, the recipe fails to validate:
 
 ```
-invalid project file: recipe requires plugin "gitlab" (*) but no matching extension is registered (install with `kapi plugin install gitlab`)
+invalid project file /srv/site/kapi.yaml: recipe requires plugin "gitlab" (*) but no matching extension is registered (install with `kapi plugin install gitlab`)
 ```
 
 ### Adding a command
