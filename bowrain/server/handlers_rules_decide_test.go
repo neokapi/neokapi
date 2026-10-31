@@ -245,6 +245,9 @@ func TestRulesDecide_RecordsOneAnswerAtATime_SQLite(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, screens.ContextActorDTO{Kind: "person", Name: "asgeir"}, widget.KeptBy, "another person's keep carries their name")
 	assert.Equal(t, "word", widget.Kind)
+	chosen, ok := byRule[employ.Sentence]
+	require.True(t, ok, "%v", kept)
+	assert.Equal(t, "docs", chosen.Applies, "the side chosen keeps the point it was suggested at")
 }
 
 // A decision needs the permission its subject takes over the point the

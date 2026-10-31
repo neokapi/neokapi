@@ -529,7 +529,9 @@ func (st *decideState) keepPlan(d rulesview.Decision, option int, form string) (
 			}
 			plan = append(plan, st.record(contextop.KindDrop, rival))
 		}
-		return append(plan, st.record(contextop.KindKeep, chosen)), nil
+		keep := st.record(contextop.KindKeep, chosen)
+		keep.Scope = chosen.Scope
+		return append(plan, keep), nil
 	}
 	target, ok := st.byID[d.ID]
 	if !ok {
