@@ -245,12 +245,11 @@ type ProjectItemResponse struct {
 // use as a fallback when targets[locale].status is empty.
 type BlockInfoResponse struct {
 	ID string `json:"id"`
-	// SourceID is the id the format reader gave this block inside its item —
-	// the id the document itself carries. The store mints its own id on
-	// ingest, so a surface holding a block and a surface holding the
-	// document are naming the same content two different ways, and anything
-	// addressed across that boundary has to translate. Empty for a block
-	// stored without an item, where there is no document to disagree with.
+	// SourceID is the block's durable key inside its item
+	// (convergence.BlockKey), the key each <kat-block> marker in the item's
+	// preview carries (editor.BuildPreview). ID is the row id the store
+	// mints, so a surface addressing the preview names the block by SourceID.
+	// Empty for a block stored without an item.
 	SourceID string `json:"source_id,omitempty"`
 	// Name is the name the format reader gave this block, which for a catalog
 	// format is the unit's key path: "errors.network.timeout" for JSON and
@@ -618,8 +617,8 @@ func editorAddFilesToCollection(ctx context.Context, cs store.ContentStore, form
 
 // editorAddFilesInternal is the shared upload path: it parses each file,
 // stores the item (tagged with collectionID when non-empty), replaces the
-// item's block set with the blocks the file now reads to
-// (store.ReplaceItemBlocks), collects per-file skip reasons, and returns the
+// item's block set with the blocks the file now reads to and stores its
+// preview (store.StoreReadItem), collects per-file skip reasons, and returns the
 // project info with Skipped set. Uploading an unchanged file again leaves the
 // item's blocks as they were. A storage error fails the whole upload, because
 // it reports the store's state rather than a problem with one file.
@@ -675,14 +674,9 @@ func editorAddFilesInternal(ctx context.Context, cs store.ContentStore, formatRe
 			ItemType:     "file",
 			CollectionID: collectionID,
 			BlockIndex:   result.BlockIndexJSON,
-			PreviewHTML:  result.PreviewHTML,
 			Properties:   map[string]string{},
 		}
-		if err := cs.StoreItem(ctx, projectID, stream, item); err != nil {
-			return nil, fmt.Errorf("store item %q: %w", itemName, err)
-		}
-
-		if _, err := store.ReplaceItemBlocks(ctx, cs, projectID, stream, itemName, result.Blocks); err != nil {
+		if err := store.StoreReadItem(ctx, cs, projectID, stream, item, result); err != nil {
 			return nil, err
 		}
 	}

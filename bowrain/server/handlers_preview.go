@@ -10,7 +10,6 @@ import (
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/editor"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/venue"
 )
 
 // HandleRenderDocumentPreview returns a full HTML preview for a file in a project.
@@ -72,7 +71,7 @@ func (s *Server) HandleRenderDocumentPreview(c echo.Context) error {
 		Order:     store.BlockOrderDocument,
 	})
 	if err == nil && len(storedBlocks) > 0 {
-		return c.HTML(http.StatusOK, buildBlockListPreview(storedBlocks))
+		return c.HTML(http.StatusOK, store.BlockListPreview(storedBlocks))
 	}
 
 	return c.HTML(http.StatusOK, "")
@@ -125,17 +124,4 @@ func (s *Server) HandleRenderBlockHTML(c echo.Context) error {
 	}
 
 	return c.HTML(http.StatusOK, sb.Block.SourceText())
-}
-
-// buildBlockListPreview generates a simple block-list preview from stored blocks.
-// Used as a last resort when neither PreviewHTML nor BlockIndex is available.
-func buildBlockListPreview(blocks []*venue.StoredBlock) string {
-	parts := make([]*model.Part, 0, len(blocks))
-	for _, sb := range blocks {
-		if !sb.Block.Translatable {
-			continue
-		}
-		parts = append(parts, &model.Part{Type: model.PartBlock, Resource: sb.Block})
-	}
-	return editor.BuildGenericPreview(parts)
 }

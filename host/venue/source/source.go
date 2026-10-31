@@ -820,7 +820,7 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	}
 
 	// Generate per-item editor metadata (BlockIndex + PreviewHTML) for changed items.
-	itemMeta := c.buildItemMeta(ctx, changed)
+	itemMeta := c.buildItemMeta(ctx, changed, blockMap)
 
 	// Group changed blocks by item for the push API.
 	blocksByItem := map[string][]*model.Block{}
@@ -1816,13 +1816,17 @@ func (c *BowrainSourceConnector) configureWriterFor(writer format.DataFormatWrit
 // unique item that has changed blocks. It re-parses the source files using
 // editor.ParseItem to build the full Part stream needed for metadata generation.
 //
-// It also names each item's collection — the recipe collection whose glob
-// claims the item's path — which is what links a stored item to the context
+// It also names each item's collection, the recipe collection whose glob
+// claims the item's path. That name links a stored item to the context
 // content type's collection row. The matcher is the recipe's own
 // (core/project.CollectionForPath): the same globs, in the same first-match
 // order, that target resolution uses, so an item cannot land in one collection
 // for governance and another for output.
-func (c *BowrainSourceConnector) buildItemMeta(ctx context.Context, changed []itemBlock) []apiclient.ItemMeta {
+//
+// scanned is the push's read of each item, with each block's key resolved.
+// The preview marks each block by that key, which the venue stores as the
+// block's source id, so a surface finds a stored block in the preview.
+func (c *BowrainSourceConnector) buildItemMeta(ctx context.Context, changed []itemBlock, scanned map[string][]*model.Block) []apiclient.ItemMeta {
 	// Collect unique item names that have changes.
 	seen := map[string]bool{}
 	var itemNames []string
@@ -1872,17 +1876,50 @@ func (c *BowrainSourceConnector) buildItemMeta(ctx context.Context, changed []it
 		if err != nil {
 			continue
 		}
+		carryResolvedKeys(result.Blocks, scanned[itemName])
 
 		meta = append(meta, apiclient.ItemMeta{
 			Name:        itemName,
 			Format:      formatName,
 			BlockIndex:  result.BlockIndexJSON,
-			PreviewHTML: result.PreviewHTML,
+			PreviewHTML: result.PreviewHTML(),
 			Collection:  c.project.Recipe.CollectionForPath(filepath.ToSlash(itemName)),
 		})
 	}
 
 	return meta
+}
+
+// carryResolvedKeys gives each block of a fresh read the key the push resolved
+// for the same block of the scan. A block is the same when its reader id names
+// a scanned block with the same reader name. The scan reads with media
+// extraction on and the fresh read does not, so a reader can number the two
+// reads differently; a block whose id names another block is then matched by
+// its reader name, when exactly one scanned block carries that name.
+func carryResolvedKeys(blocks, scanned []*model.Block) {
+	byID := make(map[string]*model.Block, len(scanned))
+	byName := make(map[string]*model.Block, len(scanned))
+	shared := map[string]bool{}
+	for _, b := range scanned {
+		byID[b.ID] = b
+		if b.Name == "" {
+			continue
+		}
+		if _, seen := byName[b.Name]; seen {
+			shared[b.Name] = true
+		}
+		byName[b.Name] = b
+	}
+	for _, b := range blocks {
+		match, ok := byID[b.ID]
+		if !ok || match.Name != b.Name {
+			match, ok = byName[b.Name]
+			ok = ok && b.Name != "" && !shared[b.Name]
+		}
+		if ok && match.Key != "" {
+			b.Key = match.Key
+		}
+	}
 }
 
 // readBlocks reads a file and extracts blocks using the format reader.

@@ -23,15 +23,25 @@ type ParseResult struct {
 	// BlockIndexJSON is the JSON-serialized BlockIndex.
 	BlockIndexJSON string
 
-	// PreviewHTML is the pre-rendered editor preview HTML.
-	PreviewHTML string
+	// reader is the reader the file was parsed with, kept for PreviewHTML.
+	reader format.DataFormatReader
 }
 
-// ParseItem parses a file using the given reader and builds all editor metadata
-// (BlockIndex, PreviewHTML, block list). This is the shared entry point used by
-// both the server upload flow and the CLI push flow.
+// PreviewHTML renders the editor preview of the parsed file (BuildPreview).
+// Each block is marked by its durable key as it stands at the call, so a
+// caller that stores the blocks calls it after the store resolves their keys
+// (the bowrain store's ReplaceItemBlocks), and a producer after it resolves
+// them against the venue (host.ResolveIdentity).
+func (r *ParseResult) PreviewHTML() string {
+	return BuildPreview(r.Parts, r.reader)
+}
+
+// ParseItem parses a file using the given reader and builds the editor
+// metadata (BlockIndex, block list). The preview is rendered on request
+// (ParseResult.PreviewHTML). This is the shared entry point used by both the
+// server upload flow and the CLI push flow.
 //
-// The reader must not have been opened yet — ParseItem calls Open and Close.
+// The reader must not have been opened yet: ParseItem calls Open and Close.
 func ParseItem(ctx context.Context, reader format.DataFormatReader, doc *model.RawDocument,
 	sourceLocale, formatName, itemName string) (*ParseResult, error) {
 
@@ -64,13 +74,11 @@ func ParseItem(ctx context.Context, reader format.DataFormatReader, doc *model.R
 		return nil, fmt.Errorf("marshal block index for %q: %w", itemName, err)
 	}
 
-	previewHTML := BuildPreview(parts, reader)
-
 	return &ParseResult{
 		Parts:          parts,
 		Blocks:         blocks,
 		BlockIndex:     blockIndex,
 		BlockIndexJSON: string(blockIndexJSON),
-		PreviewHTML:    previewHTML,
+		reader:         reader,
 	}, nil
 }

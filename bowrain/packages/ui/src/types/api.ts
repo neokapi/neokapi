@@ -800,12 +800,12 @@ export type TargetEntry = string | TargetInfo;
 export interface BlockInfo {
   id: string;
   /**
-   * The id the format reader gave this block inside its item — the id the
-   * rendered document carries in its `<kat-block>` markers. The store mints
-   * its own `id` on ingest, so anything addressed between a block and the
-   * document it came from must translate (see `documentIdOf`). Absent for a
-   * block stored without an item, and for a document the server rendered from
-   * the stored blocks themselves, where the two ids are already the same.
+   * The block's durable key inside its item (`convergence.BlockKey`): the key
+   * an upload or a push resolved, else the reader's name, else the reader's
+   * id. The rendered document marks each `<kat-block>` with it, while `id` is
+   * the row id the store mints, so a message between a block and its document
+   * names the block by this key (see `blockKeyOf`). Absent for a block stored
+   * without an item.
    */
   source_id?: string;
   /**

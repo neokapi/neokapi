@@ -35,7 +35,64 @@ func (s *PostgresStore) ReplaceItemBlocks(ctx context.Context, projectID, stream
 	if err := lockStream(ctx, tx, projectID, stream, false); err != nil {
 		return 0, err
 	}
+	n, err := replaceItemBlocksTx(ctx, tx, projectID, stream, itemName, blocks)
+	if err != nil {
+		return 0, err
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit block replacement for item %q: %w", itemName, err)
+	}
+	return n, nil
+}
 
+var _ platstore.ItemReplaceStore = (*PostgresStore)(nil)
+
+// ReplaceItem stores item and makes blocks its whole block set. See
+// platstore.ReplaceItem.
+//
+// The item row, the block replacement and the preview share one transaction
+// under the stream's shared write lock, as in ReplaceItemBlocks. The preview
+// is rendered after the keys are resolved and written by an update of the
+// row, so no reader sees the row without its preview.
+func (s *PostgresStore) ReplaceItem(ctx context.Context, projectID, stream string, item *platstore.Item, blocks []*model.Block, render func() string) (int, error) {
+	if item == nil || item.Name == "" {
+		return 0, errors.New("replace item: no item name")
+	}
+	stream = storeutil.DefaultStream(stream)
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if err := lockStream(ctx, tx, projectID, stream, false); err != nil {
+		return 0, err
+	}
+	if err := storeItemTx(ctx, tx, projectID, stream, item); err != nil {
+		return 0, err
+	}
+	n, err := replaceItemBlocksTx(ctx, tx, projectID, stream, item.Name, blocks)
+	if err != nil {
+		return 0, err
+	}
+	if render != nil {
+		item.PreviewHTML = render()
+		if _, err := tx.ExecContext(ctx,
+			`UPDATE items SET preview_html=$1 WHERE project_id=$2 AND stream=$3 AND name=$4`,
+			item.PreviewHTML, projectID, stream, item.Name); err != nil {
+			return 0, fmt.Errorf("store the preview of %q: %w", item.Name, err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit item replacement for %q: %w", item.Name, err)
+	}
+	return n, nil
+}
+
+// replaceItemBlocksTx resolves blocks' keys against the item's rows, stores
+// them and prunes the rows none matched, on the caller's transaction.
+func replaceItemBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName string, blocks []*model.Block) (int, error) {
 	if len(blocks) > 0 {
 		itemID, err := resolveItemIDPg(ctx, tx, projectID, stream, itemName)
 		if err != nil {
@@ -56,9 +113,6 @@ func (s *PostgresStore) ReplaceItemBlocks(ctx context.Context, projectID, stream
 	n, err := pruneItemBlocksTx(ctx, tx, projectID, stream, itemName, keep)
 	if err != nil {
 		return 0, fmt.Errorf("remove the blocks %q no longer has: %w", itemName, err)
-	}
-	if err := tx.Commit(); err != nil {
-		return 0, fmt.Errorf("commit block replacement for item %q: %w", itemName, err)
 	}
 	return n, nil
 }

@@ -289,21 +289,16 @@ func (a *App) addItemsLocal(ctx context.Context, projectID string, filePaths []s
 			return nil, fmt.Errorf("parse %q: %w", filePath, err)
 		}
 
-		// Store item with block index and preview HTML.
+		// The blocks the file reads to become the item's whole block set, and
+		// the item keeps its block index and preview.
 		item := &store.Item{
-			Name:        itemName,
-			Format:      fmtName,
-			ItemType:    "file",
-			BlockIndex:  result.BlockIndexJSON,
-			PreviewHTML: result.PreviewHTML,
-			Properties:  map[string]string{},
+			Name:       itemName,
+			Format:     fmtName,
+			ItemType:   "file",
+			BlockIndex: result.BlockIndexJSON,
+			Properties: map[string]string{},
 		}
-		if err := a.store.StoreItem(ctx, projectID, "main", item); err != nil {
-			return nil, fmt.Errorf("store item %q: %w", itemName, err)
-		}
-
-		// The blocks the file reads to become the item's whole block set.
-		if _, err := store.ReplaceItemBlocks(ctx, a.store, projectID, "main", itemName, result.Blocks); err != nil {
+		if err := store.StoreReadItem(ctx, a.store, projectID, "main", item, result); err != nil {
 			return nil, err
 		}
 	}
