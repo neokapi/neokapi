@@ -48,6 +48,8 @@ export function projectViewFromPath(
     case "map":
     case "read":
       return "map";
+    case "overview":
+      return "dashboard";
     case "rules":
     case "source":
     case "automations":

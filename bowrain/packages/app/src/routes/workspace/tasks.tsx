@@ -112,7 +112,7 @@ export function TasksRoute() {
           void navigate({
             to: isReview
               ? "/$workspace/p/$projectId/s/$stream/review"
-              : "/$workspace/p/$projectId/s/$stream",
+              : "/$workspace/p/$projectId/s/$stream/overview",
             params: {
               workspace: workspace ?? ws,
               projectId: task.project_id,

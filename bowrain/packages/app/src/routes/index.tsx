@@ -481,14 +481,15 @@ const overviewLoader = async ({
 
 // Stream-scoped project routes.
 //
-// The stream root is the project's overview: opening a project lands on its
-// collections and their ship readiness, and the item list is one drill-down
-// below (`?collection=` / `?items=all`). The file-centric source view — where
-// collections, uploads and streams are managed — is a sibling at
+// The stream root opens the project's landing page, the Map. The overview of
+// the project's collections and their ship readiness is at
+// `…/s/$stream/overview`, and its item list is one drill-down below
+// (`?collection=` / `?items=all`). The file-centric source view, where
+// collections, uploads and streams are managed, is a sibling at
 // `…/s/$stream/source`.
 const projectRoute = createRoute({
   getParentRoute: () => workspaceRoute,
-  path: "p/$projectId/s/$stream",
+  path: "p/$projectId/s/$stream/overview",
   pendingComponent: TranslationDashboardSkeleton,
   component: lazyRouteComponent(
     () => import("./workspace/translation-dashboard"),
@@ -496,6 +497,22 @@ const projectRoute = createRoute({
   ),
   validateSearch: overviewSearch,
   loader: overviewLoader,
+});
+
+// The stream root. A link that carries the overview's drill-down state lands on
+// the overview with it; any other lands on the Map.
+const projectIndexRoute = createRoute({
+  getParentRoute: () => workspaceRoute,
+  path: "p/$projectId/s/$stream",
+  validateSearch: overviewSearch,
+  beforeLoad: ({ params, search }) => {
+    const drilled = Object.values(search).some((v) => v !== undefined);
+    throw redirect(
+      drilled
+        ? { to: "/$workspace/p/$projectId/s/$stream/overview", params, search, replace: true }
+        : { to: "/$workspace/p/$projectId/s/$stream/map", params, replace: true },
+    );
+  },
 });
 
 // The overview's former address. Links and bookmarks shipped pointing here, so
@@ -507,7 +524,7 @@ const translationDashboardRedirectRoute = createRoute({
   validateSearch: overviewSearch,
   beforeLoad: ({ params, search }) => {
     throw redirect({
-      to: "/$workspace/p/$projectId/s/$stream",
+      to: "/$workspace/p/$projectId/s/$stream/overview",
       params,
       search,
       replace: true,
@@ -1109,6 +1126,7 @@ const routeTree = rootRoute.addChildren([
   ]),
   workspaceRoute.addChildren([
     dashboardRoute,
+    projectIndexRoute,
     projectRoute,
     translationDashboardRedirectRoute,
     projectMapRoute,

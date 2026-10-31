@@ -155,15 +155,14 @@ describe("route tree", () => {
     expect((matches[matches.length - 1] as AnyRoute).params._splat).toBe(itemName);
   });
 
-  // Opening a project lands on its overview — collections and ship readiness —
-  // not on a list of its files. The stream root IS that surface; the
+  // The overview of collections and ship readiness has its own address; the
   // file-centric source view is a named sibling.
-  it("renders the overview at the stream root", () => {
+  it("renders the overview at /overview", () => {
     const router = createBowrainRouter({ queryClient: undefined!, api: undefined! });
 
-    const matches = router.matchRoutes("/acme/p/proj-1/s/main", undefined);
+    const matches = router.matchRoutes("/acme/p/proj-1/s/main/overview", undefined);
     const leaf = matches[matches.length - 1] as AnyRoute;
-    expect(leaf.routeId).toBe("/$workspace/p/$projectId/s/$stream");
+    expect(leaf.routeId).toBe("/$workspace/p/$projectId/s/$stream/overview");
 
     const source = router.matchRoutes("/acme/p/proj-1/s/main/source", undefined);
     expect((source[source.length - 1] as AnyRoute).routeId).toBe(
@@ -171,53 +170,67 @@ describe("route tree", () => {
     );
   });
 
-  // The overview's drill-down is search state on that same root, so a link to
-  // one collection resolves to the root route rather than a path of its own.
-  it("keeps the collection drill-down on the root route", () => {
+  // The overview's drill-down is search state on its route, so a link to one
+  // collection resolves to the overview rather than a path of its own.
+  it("keeps the collection drill-down on the overview route", () => {
     const router = createBowrainRouter({ queryClient: undefined!, api: undefined! });
     const href = router.buildLocation({
-      to: "/$workspace/p/$projectId/s/$stream",
+      to: "/$workspace/p/$projectId/s/$stream/overview",
       params: { workspace: "acme", projectId: "proj-1", stream: "main" },
       search: { collection: "docs" },
     }).href;
-    expect(href).toBe("/acme/p/proj-1/s/main?collection=docs");
+    expect(href).toBe("/acme/p/proj-1/s/main/overview?collection=docs");
 
-    const matches = router.matchRoutes("/acme/p/proj-1/s/main", { collection: "docs" });
+    const matches = router.matchRoutes("/acme/p/proj-1/s/main/overview", { collection: "docs" });
     const leaf = matches[matches.length - 1] as AnyRoute;
-    expect(leaf.routeId).toBe("/$workspace/p/$projectId/s/$stream");
+    expect(leaf.routeId).toBe("/$workspace/p/$projectId/s/$stream/overview");
     expect(leaf.search.collection).toBe("docs");
   });
 
+  /** The redirect a route's beforeLoad throws, for the params and search given. */
+  const redirectOf = (routeId: string, search: Record<string, unknown>) => {
+    const router = createBowrainRouter({ queryClient: undefined!, api: undefined! });
+    const route = router.routesById[routeId as keyof typeof router.routesById] as unknown as {
+      options: { beforeLoad: (opts: unknown) => void };
+    };
+    try {
+      route.options.beforeLoad({
+        params: { workspace: "acme", projectId: "proj-1", stream: "main" },
+        search,
+      });
+    } catch (err) {
+      return (err as AnyRoute).options;
+    }
+    return undefined;
+  };
+
   // Links and bookmarks to the overview's former address must not break, and
   // must arrive on the drill-down they named.
-  it("redirects the former /dashboard address to the root, keeping its scope", () => {
+  it("redirects the former /dashboard address to the overview, keeping its scope", () => {
     const router = createBowrainRouter({ queryClient: undefined!, api: undefined! });
     const matches = router.matchRoutes("/acme/p/proj-1/s/main/dashboard", { collection: "docs" });
     const leaf = matches[matches.length - 1] as AnyRoute;
     expect(leaf.routeId).toBe("/$workspace/p/$projectId/s/$stream/dashboard");
     expect(leaf.search.collection).toBe("docs");
 
-    // beforeLoad throws the redirect; assert where it points rather than
-    // driving a full navigation, which would need a live query client.
-    const route = router.routesById["/$workspace/p/$projectId/s/$stream/dashboard"] as unknown as {
-      options: { beforeLoad: (opts: unknown) => void };
-    };
-    const thrown = (() => {
-      try {
-        route.options.beforeLoad({
-          params: { workspace: "acme", projectId: "proj-1", stream: "main" },
-          search: { collection: "docs" },
-        });
-      } catch (err) {
-        return err as AnyRoute;
-      }
-      return undefined;
-    })();
+    const to = redirectOf("/$workspace/p/$projectId/s/$stream/dashboard", { collection: "docs" });
+    expect(to, "the former address must redirect, not render").toBeDefined();
+    expect(to.to).toBe("/$workspace/p/$projectId/s/$stream/overview");
+    expect(to.search).toEqual({ collection: "docs" });
+    expect(to.replace).toBe(true);
+  });
 
-    expect(thrown, "the former address must redirect, not render").toBeDefined();
-    expect(thrown!.options.to).toBe("/$workspace/p/$projectId/s/$stream");
-    expect(thrown!.options.search).toEqual({ collection: "docs" });
-    expect(thrown!.options.replace).toBe(true);
+  // Opening a project lands on the Map. A link to the stream root that carries
+  // the overview's drill-down lands on the overview with it.
+  it("redirects the stream root to the Map, or to the overview with its drill-down", () => {
+    const toMap = redirectOf("/$workspace/p/$projectId/s/$stream", {});
+    expect(toMap.to).toBe("/$workspace/p/$projectId/s/$stream/map");
+    expect(toMap.replace).toBe(true);
+
+    const toOverview = redirectOf("/$workspace/p/$projectId/s/$stream", { collection: "docs" });
+    expect(toOverview.to).toBe("/$workspace/p/$projectId/s/$stream/overview");
+    expect(toOverview.search).toEqual({ collection: "docs" });
+    expect(toOverview.replace).toBe(true);
   });
 
   it("contains auth child routes", () => {
@@ -283,7 +296,9 @@ describe("the project screens' routes", () => {
     expect(route.search.row).toBe("suggested:s-1");
   });
 
-  it("keeps the Overview at the stream root", () => {
-    expect(leaf("/acme/p/proj-1/s/main").routeId).toBe("/$workspace/p/$projectId/s/$stream");
+  it("keeps the Overview at /overview", () => {
+    expect(leaf("/acme/p/proj-1/s/main/overview").routeId).toBe(
+      "/$workspace/p/$projectId/s/$stream/overview",
+    );
   });
 });

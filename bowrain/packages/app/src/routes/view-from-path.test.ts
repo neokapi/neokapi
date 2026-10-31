@@ -74,8 +74,8 @@ describe("projectViewFromPath", () => {
     expect(projectViewFromPath("/acme/p/abc/s/main/rules", "acme")).toBe("rules");
   });
 
-  it("lights the Overview at the stream root and in a per-file editor", () => {
-    expect(projectViewFromPath("/acme/p/abc/s/main", "acme")).toBe("dashboard");
+  it("lights the Overview on the overview and in a per-file editor", () => {
+    expect(projectViewFromPath("/acme/p/abc/s/main/overview", "acme")).toBe("dashboard");
     expect(projectViewFromPath("/acme/p/abc/s/main/translate/docs/a.md", "acme")).toBe("dashboard");
   });
 

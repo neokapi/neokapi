@@ -56,7 +56,7 @@ export function subNavTarget(id: string): (typeof subNavTargets)[SubNavId] | und
  */
 export const projectSectionTargets = {
   map: "/$workspace/p/$projectId/s/$stream/map",
-  dashboard: "/$workspace/p/$projectId/s/$stream",
+  dashboard: "/$workspace/p/$projectId/s/$stream/overview",
   rules: "/$workspace/p/$projectId/s/$stream/rules",
   source: "/$workspace/p/$projectId/s/$stream/source",
   automations: "/$workspace/p/$projectId/s/$stream/automations",

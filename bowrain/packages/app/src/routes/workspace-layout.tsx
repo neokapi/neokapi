@@ -876,7 +876,7 @@ export function WorkspaceLayout() {
                     if (task.project_id) {
                       const taskStream = task.stream || "main";
                       void navigate({
-                        to: "/$workspace/p/$projectId/s/$stream",
+                        to: "/$workspace/p/$projectId/s/$stream/overview",
                         params: {
                           workspace: ws,
                           projectId: task.project_id,
