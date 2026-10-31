@@ -554,13 +554,15 @@ export class ContentItem {
  * block of a recipe.
  * 
  * 	context:
- * 	  backend: git                  # local (default), file, git, s3
+ * 	  backend: git                  # local (default), file, git, s3, bowrain
  * 	  ref: refs/kapi/context        # git: a ref in this repository
- * 	# file: path: /Volumes/team/kapi/fernwell
- * 	# s3:   bucket: acme-kapi, prefix: fernwell/
+ * 	# file:    path: /Volumes/team/kapi/fernwell
+ * 	# s3:      bucket: acme-kapi, prefix: fernwell/
+ * 	# bowrain: no further keys; the project is the one `bowrain: {url: ...}` names
  * 
  * Credentials never appear here: a git backend uses the repository's own
- * remote access, and an S3 backend the standard AWS environment and profile.
+ * remote access, an S3 backend the standard AWS environment and profile, and
+ * a bowrain backend the sign-in that `kapi auth login` stores.
  * `kapi context sync` shares the context through it.
  */
 export class ContextBackend {
@@ -571,7 +573,8 @@ export class ContextBackend {
     constructor($$source = {}) {
         if (/** @type {any} */(false)) {
             /**
-             * Backend names the kind: local, file, git or s3. Empty means local.
+             * Backend names the kind: local, file, git, s3 or bowrain. Empty means
+             * local.
              * @member
              * @type {string | undefined}
              */

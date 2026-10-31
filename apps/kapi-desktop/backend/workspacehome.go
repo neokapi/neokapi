@@ -85,7 +85,7 @@ type WorkspaceProject struct {
 // this machine's workspace, a place the recipe names under `context:`, and the
 // Bowrain server its `bowrain:` block connects it to.
 type ProjectSharing struct {
-	// Kind is local, file, git or s3.
+	// Kind is local, file, git, s3 or bowrain.
 	Kind string `json:"kind"`
 	// Location is where a shared backend keeps the context, as kapi context
 	// backend prints it.

@@ -11,25 +11,32 @@ import (
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/workspace"
+	apiclient "github.com/neokapi/neokapi/host/venue/client"
 )
 
-// Error codes the context object routes answer with, which a client remote
-// maps to the workspace errors of the same meaning.
+// Error codes the context object routes answer with. The client remote
+// (host/venue/contextremote) maps them to the workspace errors of the same
+// meaning, so both sides read them from the client package.
 const (
 	// contextObjectExistsCode answers a put of a name the project holds with
 	// other bytes (workspace.ErrObjectExists), with status 409.
-	contextObjectExistsCode = "object_exists"
+	contextObjectExistsCode = apiclient.ContextObjectExistsCode
 	// contextObjectMissingCode answers a get of a name the project does not
 	// hold (workspace.ErrNoObject), with status 404.
-	contextObjectMissingCode = "no_object"
+	contextObjectMissingCode = apiclient.ContextObjectMissingCode
 	// contextObjectInvalidCode answers a name or a directory outside the
 	// context layout, or a blob whose name is not the address of its bytes,
 	// with status 400.
-	contextObjectInvalidCode = "invalid_name"
+	contextObjectInvalidCode = apiclient.ContextObjectInvalidCode
 	// contextObjectNoProjectCode answers a push to a project id the store
 	// does not hold, with status 404.
-	contextObjectNoProjectCode = "no_project"
+	contextObjectNoProjectCode = apiclient.ContextObjectNoProjectCode
 )
+
+// requestBodyLimit bounds every request body the server reads. A push of
+// context objects travels as base64 in JSON, so the client remote splits a
+// push into batches that stay under it.
+const requestBodyLimit = "50M"
 
 // contextObjectWritePermission gates a push of context objects. The objects
 // carry the project's context ledger: terms writes and the keep and drop
@@ -37,21 +44,12 @@ const (
 // routes gate on PermManageTerms.
 const contextObjectWritePermission = platauth.PermManageTerms
 
-// contextObjectList is the body of GET /:id/context/objects.
-type contextObjectList struct {
-	Names []string `json:"names"`
-}
-
-// contextObjectBatch is the body of POST /:id/context/objects. Data travels
-// as base64, as encoding/json writes a byte slice.
-type contextObjectBatch struct {
-	Objects []contextObjectWire `json:"objects"`
-}
-
-type contextObjectWire struct {
-	Name string `json:"name"`
-	Data []byte `json:"data"`
-}
+// The bodies of GET and POST /:id/context/objects, the shapes the client
+// sends and reads.
+type (
+	contextObjectList  = apiclient.ContextObjectList
+	contextObjectBatch = apiclient.ContextObjectBatch
+)
 
 // registerContextObjectRoutes adds the routes a project's context objects are
 // read and pushed through, under the project group /:ws.

@@ -108,6 +108,17 @@ export const BOWRAIN_WITHOUT_TEAM: ProjectSharing = {
   venue_url: "https://app.bowrain.cloud/acme/help",
 };
 
+/** Connected to Bowrain, with the context kept there under `context: {backend: bowrain}`. */
+export const BOWRAIN_BACKEND: ProjectSharing = {
+  kind: "bowrain",
+  location: "https://app.bowrain.cloud/acme/help",
+  from: "recipe",
+  status: status({ remote: { Kind: "bowrain", Location: "https://app.bowrain.cloud/acme/help" } }),
+  workspace: WORKSPACE_DIR,
+  venue_host: "app.bowrain.cloud",
+  venue_url: "https://app.bowrain.cloud/acme/help",
+};
+
 /** The Share page over one of the places above, with twelve rules in force. */
 function view(sharing: ProjectSharing, over: Partial<ShareView> = {}): ShareView {
   const rung: ShareRungID = sharing.venue_host
@@ -122,7 +133,7 @@ function view(sharing: ProjectSharing, over: Partial<ShareView> = {}): ShareView
 export const LOCAL_VIEW = view(LOCAL_SHARING);
 /** A `context:` block the recipe check refuses, as the backend words it. */
 export const BROKEN_PLACE_ERROR =
-  'context.backend: "dropbox" is not a backend; use local, file, git or s3';
+  'context.backend: "dropbox" is not a backend; use local, file, git, s3 or bowrain';
 /** On this Mac, because the recipe's `context:` block cannot be read. */
 export const BROKEN_PLACE_VIEW = view(LOCAL_SHARING, { error: BROKEN_PLACE_ERROR });
 /** On this Mac, with the kapi-bowrain plugin installed. */
@@ -135,6 +146,7 @@ export const FOLDER_UNREACHABLE_VIEW = view(FOLDER_UNREACHABLE);
 export const S3_VIEW = view(S3_IN_SYNC);
 export const BOWRAIN_VIEW = view(BOWRAIN_CONNECTED, { bowrain_plugin: true });
 export const BOWRAIN_WITHOUT_TEAM_VIEW = view(BOWRAIN_WITHOUT_TEAM, { bowrain_plugin: true });
+export const BOWRAIN_BACKEND_VIEW = view(BOWRAIN_BACKEND, { bowrain_plugin: true });
 /** A project whose path names a long folder, as a network share often does. */
 export const FOLDER_LONG_PATH_VIEW = view({
   ...FOLDER_IN_SYNC,

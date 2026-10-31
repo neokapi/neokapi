@@ -157,6 +157,38 @@ Only the connection coordinates sit under `bowrain:`:
 | `stream`   | Server-side stream to sync against; `$auto` auto-detects from CI / git branch |
 | `converge` | Server-side convergence policy: `on-push` (default) or `manual`              |
 
+### Sharing the project's context on Bowrain
+
+`kapi context sync` can keep the project's context on the Bowrain project the
+`bowrain:` block connects to: the terms, the kept and dropped suggestions, and
+the decisions every checkout records. `kapi share` reports it there.
+`kapi share --via bowrain` connects the project and leaves the context where
+it is, so name the `bowrain` backend in the recipe's `context:` block
+yourself:
+
+```yaml
+context:
+  backend: bowrain
+bowrain:
+  url: https://app.bowrain.cloud/my-team/abc123
+```
+
+The `context:` block takes no other field for this backend. The project comes
+from `bowrain.url`, and the URL must name a workspace project
+(`<server>/<workspace>/<project-id>`). A project has one context, so every
+stream reads the same one. A recipe that names the `bowrain` backend without a
+`bowrain:` block is refused, with the block to add.
+
+The sync signs in as the person `kapi auth login` stored, or in CI with
+`BOWRAIN_AUTH_TOKEN` and `BOWRAIN_SERVER_URL` together. The sign-in reaches
+only the server it names: a recipe whose `bowrain.url` names another server
+is refused before any request, and so is a CI token with no server URL. The
+URL must use `https://`, except for a server on `localhost`. Reading the
+context needs view access to the
+project; sharing changes back needs permission to manage terms.
+`BOWRAIN_PROJECT_URL` points the context at another project, as it does for
+`kapi push`. `kapi share` names this place *Managed on Bowrain*.
+
 ### Settings a push carries
 
 Three recipe settings govern what the server does with the project:

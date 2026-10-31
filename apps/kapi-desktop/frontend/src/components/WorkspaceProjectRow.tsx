@@ -310,6 +310,8 @@ export function projectReach(sharing?: ProjectSharing): ProjectReach | null {
       return { icon: Folder, word: t("folder", "where a project's context is shared") };
     case "s3":
       return { icon: Database, word: "S3" };
+    case "bowrain":
+      return { icon: Cloud, word: "Bowrain" };
     default:
       return { icon: Laptop, word: t("this Mac", "where a project's context is kept") };
   }
@@ -341,6 +343,10 @@ export function reachDetail(
       return location
         ? t("Shared through S3, at {location}", { location })
         : t("Shared through S3");
+    case "bowrain":
+      return location
+        ? t("Managed on Bowrain, at {location}", { location })
+        : t("Managed on Bowrain");
     default:
       return t("On this Mac");
   }

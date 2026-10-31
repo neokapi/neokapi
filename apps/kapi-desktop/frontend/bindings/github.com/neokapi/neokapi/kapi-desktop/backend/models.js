@@ -8091,7 +8091,7 @@ export class ProjectSharing {
     constructor($$source = {}) {
         if (!("kind" in $$source)) {
             /**
-             * Kind is local, file, git or s3.
+             * Kind is local, file, git, s3 or bowrain.
              * @member
              * @type {string}
              */

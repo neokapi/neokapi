@@ -58,6 +58,21 @@ func (t *Transport) SetRefreshToken(token string, onRefresh func(newAccess, newR
 	t.onTokenRefresh = onRefresh
 }
 
+// RefuseRedirectsOffServer makes the transport refuse a redirect to any scheme
+// or host other than the server's own. Go drops the Authorization header on a
+// redirect to another host, and keeps it on one to another port of the same
+// host or to a subdomain, so a caller holding a sign-in for one server pins
+// its requests to that server.
+func (t *Transport) RefuseRedirectsOffServer() {
+	base, err := url.Parse(t.baseURL)
+	t.httpClient.CheckRedirect = func(req *http.Request, _ []*http.Request) error {
+		if err != nil || req.URL.Scheme != base.Scheme || req.URL.Host != base.Host {
+			return fmt.Errorf("refused a redirect to %s://%s: requests go only to %s", req.URL.Scheme, req.URL.Host, t.baseURL)
+		}
+		return nil
+	}
+}
+
 // ApplyAuth adds authorization headers. Callers that build their own request
 // and send it on their own http.Client — a long-lived SSE stream, say — use
 // this to authenticate it.

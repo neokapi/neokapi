@@ -118,7 +118,7 @@ func TestSetProjectSharing_RefusesWhatTheRecipeWould(t *testing.T) {
 		spec project.ContextBackend
 		want string
 	}{
-		{"unknown kind", project.ContextBackend{Backend: "dropbox"}, `context.backend: "dropbox" is not a backend; use local, file, git or s3`},
+		{"unknown kind", project.ContextBackend{Backend: "dropbox"}, `context.backend: "dropbox" is not a backend; use local, file, git, s3 or bowrain`},
 		{"a folder with no path", project.ContextBackend{Backend: project.ContextBackendFile}, "context.path: a file backend names the directory it keeps the context in"},
 		{"a bucket with no name", project.ContextBackend{Backend: project.ContextBackendS3}, "context.bucket: an s3 backend names its bucket"},
 		{"a branch for a ref", project.ContextBackend{Backend: project.ContextBackendGit, Ref: "refs/heads/main"}, `context.ref: "refs/heads/main" is a branch or a tag; keep the context on a ref outside them, such as refs/kapi/context`},
