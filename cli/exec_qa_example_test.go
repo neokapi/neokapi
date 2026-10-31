@@ -17,8 +17,8 @@ import (
 
 // The help example that names a provider for `kapi exec qa` has to select the
 // AI review with --mode ai. qa defaults to the rule checks, which call no
-// model, so an example carrying only --provider printed rule findings and
-// read as an AI review to whoever copied it.
+// model. An example that carries only --provider prints rule findings, and a
+// reader who copies it takes them for an AI review.
 func TestExecQualityCheckHelpExampleRunsTheAIReview(t *testing.T) {
 	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
 	t.Setenv("KAPI_DATA_DIR", t.TempDir())
