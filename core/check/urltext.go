@@ -53,7 +53,7 @@ func URLSpans(text string) [][2]int {
 //   - a file name, kapi.yaml or example.com.json, ends in an extension, and
 //     no extension is on the list;
 //   - a sentence boundary with no space, "kapi.The", ends in a capital;
-//   - a name in code, cfg.Name or log.info, ends in a capital or a word off
+//   - a name in code, cfg.Name or log.debug, ends in a capital or a word off
 //     the list.
 func hostSpans(text string) [][2]int {
 	if !containsTopLabel(text) {
@@ -76,12 +76,22 @@ func hostSpans(text string) [][2]int {
 	return out
 }
 
-// hostTopLabels are the top-level labels a bare host name may end in: the
-// generic ones text writes most, and none that is also a common file
-// extension. The list leaves out app for macOS bundle names (Kapi.app), sh for
-// shell scripts and md for Markdown files. A host under a label off the list,
-// such as example.no, is read as prose; written with its scheme, it is a URL.
-var hostTopLabels = []string{"com", "org", "net", "edu", "gov", "io", "dev", "ai", "cloud"}
+// hostTopLabels are the top-level labels a bare host name may end in, sorted:
+// the generic ones and the country codes a reader of these docs meets. A
+// second-level ending such as co.uk or com.au needs no entry: its last label
+// is on the list.
+//
+// A label that is also a common file extension stays off the list, so the file
+// name keeps its words: md, sh, rs, pl, so, ps, go, js, ts, py, cs, rb, php,
+// css, yml, yaml, json, txt, toml, mod, sum, pb, and in (Makefile.in,
+// requirements.in). A host under a label off the list is read as prose;
+// written with its scheme, it is a URL.
+var hostTopLabels = []string{
+	"ai", "app", "at", "au", "be", "biz", "br", "ca", "ch", "cloud", "cn",
+	"com", "de", "dev", "dk", "edu", "es", "eu", "fi", "fr", "gov", "ie",
+	"info", "io", "is", "it", "jp", "kr", "me", "mx", "net", "nl", "no", "nz",
+	"online", "org", "pt", "se", "site", "tech", "tv", "uk", "us",
+}
 
 // hostPattern matches a host name, the first submatch, after a character a
 // URL may start after (urlPattern). The second submatch is the last label, and

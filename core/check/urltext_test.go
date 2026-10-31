@@ -1,6 +1,7 @@
 package check
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -61,20 +62,30 @@ func TestURLSpans_BareHosts(t *testing.T) {
 		{name: "a host before a sentence with no space", in: "Visit kapi.dev.The rest follows.", want: []string{"kapi.dev"}},
 		{name: "a host before a closing quote", in: `Write "example.com" there.`, want: []string{"example.com"}},
 		{name: "a host already in a URL is one span", in: "Go to https://example.com/x now.", want: []string{"https://example.com/x"}},
+		{name: "a country-code host", in: "Read bowrain.no first.", want: []string{"bowrain.no"}},
+		{name: "a second-level ending under uk", in: "See bbc.co.uk today.", want: []string{"bbc.co.uk"}},
+		{name: "a second-level ending under au", in: "See example.com.au today.", want: []string{"example.com.au"}},
+		{name: "a Swedish host with a path", in: "Open example.se/docs now.", want: []string{"example.se/docs"}},
+		{name: "an app host", in: "Open kapi.app in a browser.", want: []string{"kapi.app"}},
+		// The last label decides, and a capital in an earlier label does not
+		// change it, so a macOS bundle name reads as a host.
+		{name: "a macOS bundle name", in: "Open Kapi.app to start.", want: []string{"Kapi.app"}},
 
 		// Not hosts.
 		{name: "a version number ends in digits", in: "Install 1.3.0 or v1.3.0.", want: nil},
 		{name: "a file name ends in an extension", in: "Edit kapi.yaml and README.md.", want: nil},
 		{name: "a file name whose stem is a host", in: "Open example.com.json now.", want: nil},
 		{name: "a shell script", in: "Run install.sh first.", want: nil},
-		{name: "a macOS bundle name", in: "Open Kapi.app to start.", want: nil},
+		{name: "a Markdown file", in: "Read README.md first.", want: nil},
+		{name: "an autoconf input", in: "Edit Makefile.in or requirements.in.", want: nil},
+		{name: "source files", in: "Open main.go, app.ts, lib.rs and run.py.", want: nil},
 		{name: "a sentence boundary with no space", in: "Run kapi.The next step reads it.", want: nil},
 		{name: "a name in code ending in a capital", in: "Call cfg.Name and System.Net here.", want: nil},
-		{name: "a name in code ending in another word", in: "Call log.info here.", want: nil},
+		{name: "a name in code ending in another word", in: "Call log.debug here.", want: nil},
 		{name: "a top-level label inside a longer word", in: "Open kapi.devtools or kapi.dev_mode.", want: nil},
 		{name: "a top-level label before a hyphen", in: "Read example.com-backup now.", want: nil},
 		{name: "a top-level label in capitals", in: "Mail EXAMPLE.COM now.", want: nil},
-		{name: "a top-level label not on the list", in: "Read example.no first.", want: nil},
+		{name: "a top-level label not on the list", in: "Read example.zz first.", want: nil},
 		{name: "an abbreviation", in: "Use a tool, e.g. this one, i.e. kapi.", want: nil},
 		{name: "a path before the name", in: "Edit src/example.com here.", want: nil},
 		{name: "an email address", in: "Mail admin@example.com today.", want: nil},
@@ -88,6 +99,14 @@ func TestURLSpans_BareHosts(t *testing.T) {
 			}
 			assert.Equal(t, tt.want, got)
 		})
+	}
+}
+
+// The list of endings stays sorted and holds no common file extension.
+func TestHostTopLabels(t *testing.T) {
+	assert.True(t, slices.IsSorted(hostTopLabels))
+	for _, ext := range []string{"md", "sh", "rs", "pl", "so", "ps", "go", "js", "ts", "py", "cs", "rb", "php", "css", "yml", "yaml", "json", "txt", "toml", "mod", "sum", "pb", "in"} {
+		assert.NotContains(t, hostTopLabels, ext)
 	}
 }
 
