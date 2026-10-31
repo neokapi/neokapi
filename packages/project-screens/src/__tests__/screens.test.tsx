@@ -168,3 +168,54 @@ describe("Kept by", () => {
     expect(container).toBeEmptyDOMElement();
   });
 });
+
+describe("the Reader on a host that files each fix as a proposal", () => {
+  it("draws the proposal under its finding, with a link, and keeps the file it read", async () => {
+    const readerFile = vi.fn(async () => READER_WITH_FIXES);
+    const fixFinding = vi.fn(async () => ({
+      proposed: [{ finding_id: "a1f0-1", proposal: "0d4c2b9e-77aa-4f1e-9c11-5b2f0e0a1d3c" }],
+      refused: [],
+    }));
+    const onOpenProposal = vi.fn();
+    const { container } = render(
+      <ReaderScreen
+        port={readOnly({ readerFile, fixFinding })}
+        path="docs/billing.md"
+        navigate={vi.fn()}
+        onOpenProposal={onOpenProposal}
+      />,
+    );
+    await screen.findByRole("heading", { name: "docs/billing.md" });
+    const row = container.querySelector<HTMLElement>(
+      "[data-slot='reader-finding'][data-id='a1f0-1']",
+    )!;
+    await userEvent.click(within(row).getByRole("button", { name: "Fix" }));
+    expect(fixFinding).toHaveBeenCalledWith("docs/billing.md", "a1f0-1");
+    const link = await within(row).findByRole("button", { name: "Proposed 0d4c2b9e" });
+    expect(within(row).queryByRole("button", { name: "Fix" })).toBeNull();
+    await userEvent.click(link);
+    expect(onOpenProposal).toHaveBeenCalledWith("0d4c2b9e-77aa-4f1e-9c11-5b2f0e0a1d3c");
+    // A filed fix changes nothing until a person approves it, so the file is
+    // not read again.
+    expect(readerFile).toHaveBeenCalledTimes(1);
+  });
+
+  it("says why a fix could not be filed, under its finding", async () => {
+    const fixFile = vi.fn(async () => ({
+      proposed: [{ finding_id: "a1f0-1", proposal: "p-1" }],
+      refused: [{ finding_id: "b2c3-1", reason: "The change was refused." }],
+    }));
+    const { container } = render(
+      <ReaderScreen port={readOnly({ fixFile })} path="docs/billing.md" navigate={vi.fn()} />,
+    );
+    await userEvent.click(await screen.findByRole("button", { name: "Fix 2 in this file" }));
+    await waitFor(() =>
+      expect(container.querySelector("[data-slot='reader-finding-refused']")).toHaveTextContent(
+        "Not fixed: The change was refused.",
+      ),
+    );
+    expect(container.querySelector("[data-slot='reader-proposed']")).toHaveTextContent(
+      "Proposed p-1",
+    );
+  });
+});

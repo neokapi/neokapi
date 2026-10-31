@@ -17,6 +17,8 @@ export type {
   ReaderBlock,
   ReaderFile,
   ReaderFinding,
+  ReaderFixFiled,
+  ReaderProposal,
   ReaderRefusal,
   ReaderRule,
   RuleAnswer,

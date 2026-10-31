@@ -69,6 +69,22 @@ export interface ReaderRefusal {
   reason: string;
 }
 
+/** A finding whose fix a host filed as a proposal for a person to approve. */
+export interface ReaderProposal {
+  finding_id: string;
+  /** The proposal's id. */
+  proposal: string;
+}
+
+/**
+ * What a fix answers on a host that files each fix as a proposal and leaves
+ * the file as it is: the proposals filed and the fixes that could not be.
+ */
+export interface ReaderFixFiled {
+  proposed: ReaderProposal[];
+  refused: ReaderRefusal[];
+}
+
 // --- Context operations: who recorded a rule, where it was seen, the digest ---
 
 /** Who performed a context operation. */
