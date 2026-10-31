@@ -111,6 +111,22 @@ func TestToolRun_RedactsTheRestOfTheRequest(t *testing.T) {
 	}
 }
 
+// The model reads one token for one value: the instruction shows the name as
+// the block does, as its placeholder tag.
+func TestToolRun_OneValueIsOneTokenAcrossTheRequest(t *testing.T) {
+	isolateKapiEnv(t)
+	onlyDemoProvider(t)
+	recipe := redactProject(t, redactionYAML)
+	saw := providerSaw(t)
+	a := &App{SourceLang: "en"}
+	a.InitRegistries()
+	config := map[string]any{"provider": "demo", "instruction": "Address Ada Lovelace formally."}
+	require.NoError(t, a.RunToolOnFiles(t.Context(), execRun(a, "translate", recipe, config, "fr", filepath.Join(filepath.Dir(recipe), "docs", "page.json"))))
+	sent := saw()
+	assert.Contains(t, sent, `Write to <x id="rdx1/"/> today.`)
+	assert.Contains(t, sent, `Address <x id="rdx1/"/> formally.`)
+}
+
 // A block that withholds nothing still carries the policy, so the term rules
 // and instruction sent with it are redacted too.
 func TestToolRun_RedactsTheRequestOfABlockThatWithholdsNothing(t *testing.T) {
