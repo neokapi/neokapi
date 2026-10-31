@@ -1164,6 +1164,24 @@ var storeMigrations = []storage.Migration{
 			return addMissingColumns(ctx, tx, "projects", []string{"context_key TEXT NOT NULL DEFAULT ''"})
 		},
 	},
+	{
+		Version:     41,
+		Description: "the members a project's suggestions are assigned to",
+		SQL: `
+			-- Mirrors bowrain/store/migrations.go version 47: one row per
+			-- suggestion of a project's context ledger that a member is
+			-- assigned to decide. assigned_at is RFC 3339 in UTC.
+			CREATE TABLE IF NOT EXISTS context_assignments (
+				project_id    TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				suggestion_id TEXT NOT NULL,
+				assignee      TEXT NOT NULL,
+				assigned_by   TEXT NOT NULL DEFAULT '',
+				assigned_at   TEXT NOT NULL,
+				PRIMARY KEY (project_id, suggestion_id)
+			);
+			CREATE INDEX IF NOT EXISTS context_assignments_assignee ON context_assignments (assignee);
+		`,
+	},
 }
 
 // addMissingColumns adds each column definition to table unless the table
