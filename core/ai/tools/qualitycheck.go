@@ -57,6 +57,7 @@ func NewAICheckFromConfig(config map[string]any, targetLang string) (tool.Tool, 
 
 // NewAICheckTool creates a new AI quality check tool.
 func NewAICheckTool(p aiprovider.LLMProvider, cfg AICheckConfig) *AICheckTool {
+	p = aiprovider.Redacting(p)
 	if len(cfg.Checks) == 0 {
 		cfg.Checks = []string{"terminology", "fluency", "accuracy"}
 	}
@@ -112,8 +113,8 @@ func (t *AICheckTool) annotate(v tool.BlockView) error {
 		return nil
 	}
 
-	sourceText := v.SourceText()
-	targetText := v.TargetText(t.targetLocale)
+	sourceText := visibleText(v.SourceRuns())
+	targetText := visibleText(v.TargetRuns(t.targetLocale))
 
 	turns := prompt.QualityCheck{
 		SourceLocale: t.sourceLocale,

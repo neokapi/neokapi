@@ -666,7 +666,13 @@ func (a *App) BuildVoiceProvider(cmd Command) (aiprovider.LLMProvider, error) {
 	pName, _ := resolved["provider"].(string)
 	key, _ := resolved["apiKey"].(string)
 	mdl, _ := resolved["model"].(string)
-	return aitools.ProviderFromConfig(pName, aiprovider.Config{APIKey: key, Model: mdl})
+	p, err := aitools.ProviderFromConfig(pName, aiprovider.Config{APIKey: key, Model: mdl})
+	if err != nil {
+		return nil, err
+	}
+	// Redacting, so a request made under a redaction policy
+	// (VoiceCheckTools, TermsExpandRedaction) is redacted before it is sent.
+	return aiprovider.Redacting(p), nil
 }
 
 // ReadSubjectText reads the text to check/rewrite from --input-text, a positional
@@ -696,20 +702,15 @@ func ReadSubjectText(cmd Command, args []string) (string, error) {
 // RunBlockTool runs a single-block tool over text and returns the voice
 // findings it produced (read from the block annotation).
 func RunBlockTool(ctx context.Context, t tool.Tool, text string) ([]coreprofile.VoiceFinding, error) {
-	block := model.NewBlock("stdin", text)
-	in := make(chan *model.Part, 1)
-	out := make(chan *model.Part, 1)
-	in <- &model.Part{Type: model.PartBlock, Resource: block}
-	close(in)
+	return RunBlockTools(ctx, []tool.Tool{t}, text)
+}
 
-	errc := make(chan error, 1)
-	go func() {
-		defer close(out)
-		errc <- t.Process(ctx, in, out)
-	}()
-	for range out { //nolint:revive // drain the pipeline
-	}
-	if err := <-errc; err != nil {
+// RunBlockTools runs each tool of a chain in turn over one block holding
+// text, as VoiceCheckTools composes it, and returns the voice findings the
+// block carries at the end.
+func RunBlockTools(ctx context.Context, chain []tool.Tool, text string) ([]coreprofile.VoiceFinding, error) {
+	block := model.NewBlock("stdin", text)
+	if _, err := runChain(ctx, chain, []*model.Part{{Type: model.PartBlock, Resource: block}}); err != nil {
 		return nil, err
 	}
 

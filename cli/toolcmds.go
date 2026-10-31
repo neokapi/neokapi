@@ -62,9 +62,11 @@ converter. The verb pairs with 'kapi run <flow>' the way 'kapi tools' pairs
 with 'kapi flows': run composes a pipeline, exec executes one tool.
 
 In a project that declares a redaction policy, a tool that calls a model reads
-every block, and each translation beside it, with the policy's rules applied,
-and its output carries the original values. A policy that detects entities
-stops the run, because no step ahead of the tool finds them.
+every block, and each translation beside it, with the policy's rules applied.
+The rules apply as well to everything it sends with them: term rules, the voice
+profile, the content memory's previous version and the instruction. Its output
+carries the original values. A policy that detects entities stops the run,
+because no step ahead of the tool finds them.
 
 On a redacted .kpz package (one kapi extract wrote under a redaction policy)
 a tool reads and writes the placeholders the package holds, and never the

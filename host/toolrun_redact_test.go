@@ -357,9 +357,10 @@ func TestToolRun_ACollectionsPolicyGovernsItsFiles(t *testing.T) {
 		require.NoError(t, a.RunToolOnFiles(t.Context(), termExtractRun(a, recipe,
 			filepath.Join(root, "legal", "memo.json"), filepath.Join(root, "docs", "page.json"))))
 		sent := saw()
-		// A placeholder is an inline code, which the prompt's text leaves out.
-		assert.Contains(t, sent, "Text: Ada Lovelace leads .", "the legal file reads under the collection's rules")
-		assert.Contains(t, sent, "Text:  leads Project Nightfall.", "the docs file reads under the defaults")
+		// A prompt that carries text alone draws each placeholder as its
+		// visible token, so the model reads a token where the value was.
+		assert.Contains(t, sent, "Text: Ada Lovelace leads [REDACTED:Product].", "the legal file reads under the collection's rules")
+		assert.Contains(t, sent, "Text: [REDACTED:Person] leads Project Nightfall.", "the docs file reads under the defaults")
 	})
 }
 

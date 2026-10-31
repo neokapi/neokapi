@@ -22,8 +22,10 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/redaction"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/schema"
+	"github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/host/credentials"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
@@ -448,6 +450,33 @@ func (s *contextOpsSession) redactForModel(ctx context.Context, chunks []*model.
 			return err
 		}
 	}
+	return bindDeeperLookPolicies(chunks, policies, layout.Root, vault, model.LocaleID(language))
+}
+
+// bindDeeperLookPolicies leaves on each redacted chunk the policy that
+// redacted it and the values it withheld, read back from the vault, so the
+// rest of each request that carries the chunk (the domain hint) is redacted
+// under the same policy, with the chunk's tokens.
+func bindDeeperLookPolicies(chunks []*model.Block, policies []*project.RedactionSpec, root, vaultPath string, locale model.LocaleID) error {
+	v, err := redaction.OpenFileVault(vaultPath)
+	if err != nil {
+		return err
+	}
+	for i, chunk := range chunks {
+		if policies[i] == nil {
+			continue
+		}
+		cfg := redactToolConfig(policies[i], root, "", locale)
+		rt, err := tools.NewRedactTool(cfg)
+		if err != nil {
+			return fmt.Errorf("redaction: %w", err)
+		}
+		entry := &redaction.SecretAnnotation{Policy: rt.Policy(), Values: map[string]redaction.RedactedValue{}}
+		for _, rv := range redaction.ValuesForBlock(v, "", chunk.ID) {
+			entry.Values[rv.Token] = rv
+		}
+		chunk.SetAnno(redaction.SecretAnnotationKey, entry)
+	}
 	return nil
 }
 
@@ -501,10 +530,14 @@ func (a *App) deeperLookVoice(ctx context.Context, proj *project.KapiProject, la
 		return nil, aiprovider.TokenUsage{}, errors.New("voice-infer: the registry returned a different tool")
 	}
 	texts := make([]string, 0, len(chunks))
+	entries := make([]*redaction.SecretAnnotation, 0, len(chunks))
 	for _, c := range chunks {
-		texts = append(texts, c.SourceText())
+		// A withheld value reads as its visible token, not as a gap.
+		text, _ := redaction.VisibleText(c.SourceRuns())
+		texts = append(texts, text)
+		entries = append(entries, redaction.EntryOf(c))
 	}
-	draft, _, err := infer.InferFrom(ctx, strings.Join(texts, "\n\n"))
+	draft, _, err := infer.InferFrom(redaction.BindCorpus(ctx, entries...), strings.Join(texts, "\n\n"))
 	usage := infer.TotalUsage()
 	if errors.Is(err, aitools.ErrEmptyCorpus) {
 		return nil, usage, nil

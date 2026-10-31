@@ -63,6 +63,7 @@ var axisToken = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 // is the common case for a first scan of one small site. Callers must not read
 // an empty result as a failure.
 func InferAxes(ctx context.Context, provider aiprovider.LLMProvider, corpus string, opts AxisOptions) ([]AxisProposal, aiprovider.TokenUsage, error) {
+	provider = aiprovider.Redacting(provider)
 	var usage aiprovider.TokenUsage
 	if provider == nil {
 		return nil, usage, errors.New("axis-discover: nil provider")

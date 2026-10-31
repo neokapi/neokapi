@@ -26,6 +26,10 @@ type SecretAnnotation struct {
 	// alone change nothing about it.
 	Source  []model.Run
 	Targets map[model.LocaleID]model.Edition
+	// Policy is the policy the redact step applied, which redacts the rest
+	// of every provider request that carries the block ([Egress]). Nil on an
+	// entry no redact step left.
+	Policy *Policy
 }
 
 // AnnotationType identifies this annotation.

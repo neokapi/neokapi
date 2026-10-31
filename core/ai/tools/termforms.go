@@ -60,6 +60,7 @@ type RejectedForm struct {
 // One call rather than one per term: the model reads a coherent vocabulary and
 // a run over a profile of twenty rules costs one round trip.
 func ExpandTermForms(ctx context.Context, p aiprovider.LLMProvider, terms []string, language string) ([]TermExpansion, error) {
+	p = aiprovider.Redacting(p)
 	if p == nil {
 		return nil, errors.New("term-forms: nil provider")
 	}

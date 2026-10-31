@@ -312,7 +312,8 @@ policy of the file it holds:
 5. **The deeper look.** It sends chunks of the project's block texts to a model
    (`host/contextdeeper.go`). A chunk holds blocks of files under one policy
    only, and each chunk is redacted under that policy before the model reads
-   it.
+   it. Each chunk then carries that policy and the values read back from the
+   vault, so the rest of its requests is redacted as below.
 6. **The operation log.** The record of an applied edit travels to every
    context backend the project shares its context through, so the recorder
    redacts the runs and the note it keeps of each document under that
@@ -333,6 +334,113 @@ policy of the file it holds:
    its placeholders. A policy that detects entities needs a read's entity
    annotations, which a record does not carry, so under one a record keeps
    revisions and hashes only and the workspace home keeps no edition.
+
+### Everything a request carries
+
+A request to a model carries more than the block, and the policy covers all
+of it. The project strings a request can carry, by where the prompt takes
+them from:
+
+| String | Source | Prompts |
+| --- | --- | --- |
+| The block, its translations, its plural forms | the block | every prompt |
+| The neighbouring blocks | the document | translate |
+| The block's key | the block's name | translate |
+| The previous source and approved translation | the content memory (`prompt.Context.Prior`) | translate |
+| Each term and its replacement, the do-not-translate terms | the term rules (`profile.TermRuleMap`) | translate, review |
+| Guidance, style, patterns, examples | the voice profile (`profile.RenderVoiceGuide`) | translate, review, voice-check |
+| The instruction | `--instruction`, the recipe, a fix pass's findings | translate, segment |
+| The domain | a tool preset | term-extract, voice-infer |
+| The known terms | the terms store | entity-extract |
+| The neighbouring lines | the document | media-refine |
+
+The redact step leaves its policy (`redaction.Policy`: the rule detector and
+the placeholder options) on every block it reads in-process, in the block's
+secret annotation, whether or not the block holds a value to withhold. A
+tool's view of a block puts a `redaction.Egress` over that entry on the
+view's context (`tool.ContextBinder`). A tool that sends several blocks in one
+request binds them together: the translate batch (`redaction.BindBlocks`),
+and the voice-infer corpus and the media-refine neighbours
+(`redaction.BindCorpus`). Each exported AI tool constructor and prompt
+function in `core/ai/tools` wraps the provider it is given in
+`aiprovider.Redacting`, whoever built the provider; the wrapper reports the
+provider's limits and does nothing for a context with no Egress. It reads the
+Egress from the call's context and redacts each text part and section of a
+chat, and every field of a translate request, before the provider sends it.
+The recorder sits inside the wrapper, so `--explain-prompts` shows the
+request as it was sent.
+
+The Egress matches the policy's rules, and every original the request's
+blocks already withhold, the latter by literal text, so a value an entity
+step found is redacted beside the block too. A JSON payload in a prompt (the
+translate batch) holds each string escaped, so the Egress also reads the
+unescaped text and replaces each match at its escaped span, with the token
+escaped the same way. Entity detection itself reads the blocks only: a value
+named only beside the block is redacted when a rule names it or a block of
+the request withholds the same text. Tokens are shared within a request:
+
+- A value a block withholds is drawn as the token the request already shows
+  for it: its placeholder tag when the prompt carries the block's runs as
+  tags (translate), its visible token (`[REDACTED:Person]`) otherwise. In a
+  batch, the value is also kept in each other block's entry, so it restores
+  in whichever block's answer the model copies it into.
+- A value met only beside the block takes the next token in the block's
+  sequence, under a visible token that no other value of the request uses and
+  that the request's text does not already hold, and is kept in the block's
+  entry. `unredact` restores it from there by its visible token, so a token
+  that matched text the person wrote would replace that text.
+- A span inside a token the request already shows is left alone.
+
+Only the request that produced a translation fills the entry its tokens
+restore from, so the translate tool neither serves a block that carries an
+entry from the session's target cache nor keeps its translation there. A
+later redact step keeps the values an earlier one left in the entry and
+takes the entry's policy over.
+
+A prompt that carries text alone (review, quality check, term-extract,
+voice-check, voice-infer, entity-extract, the media-refine neighbours, the
+deeper look) draws each placeholder as its visible token
+(`redaction.VisibleText`), so the model reads a token where the value was.
+entity-extract reports spans in the text it sent, and
+`redaction.VisibleSource` maps each back to the runs; a span on a token names
+a withheld value and is dropped. The LLM segmenter reads the block as every
+segmentation engine does, with each inline code masked, because its chunks
+must align with the runs.
+
+The entry grows in memory only, by at most one value per distinct original
+the rest of the request carries and the block does not hold, and `unredact`
+discards it with the entry. On `samples/northsea`, a policy over the product
+and company names adds 250 values to the 23 the redact step recorded, across
+136 blocks, at most 2 in one block: the voice profile names both, and every
+request carries it. The deeper look reads the project vault and writes
+nothing back to it.
+
+Two commands ask a model outside a run of a registry tool. `kapi voice check
+--ai` runs its tool between redact and unredact (`host.VoiceCheckTools`)
+under the policy of the file it reads, or `defaults.redaction` for text given
+inline. `kapi terms expand` holds no block, so it redacts each request under
+the rules of `defaults.redaction` (`host.TermsExpandRedaction`); a project
+whose only policies sit on collections or items gives it none to apply. A
+withheld term goes out as its token, and the forms the model returns for a
+token name no term that was asked about, so none is written. The AI actions
+on Kapi Desktop's review (Fix with AI, Retranslate, Explain, the AI
+pre-review) run their tool through `host.RedactionChain`, under the policy of
+the unit's file.
+
+A machine-translation engine reads a redacted block through semantic HTML:
+each withheld value is a placeholder element
+(`<span data-type="redaction:person"/>`) that maps back to its placeholder by
+position, and unredact restores it by id, as the translate tool's placeholder
+tag does. The engine never reads the visible token as text: an engine
+translates text, so `[REDACTED:Person]` could come back reworded and match
+nothing, where it keeps markup in place.
+
+Not covered:
+
+| Path | What reaches the provider |
+| --- | --- |
+| Media payloads (media-refine's image crop, speech clip, video frame) | The media as recognised; the rules match text, and a crop or clip holds none |
+| Machine-translation plugin engines (`translate` with an MT provider) | The redacted block, each withheld value a placeholder element; no term rules, voice profile or other project text. The request goes through the plugin's provider, not `aiprovider.Redacting`, so anything the plugin sends beyond it is outside the policy |
 
 ### CLI surface
 

@@ -130,6 +130,7 @@ func NewAIReviewFromConfig(config map[string]any, targetLang string) (tool.Tool,
 
 // NewAIReviewTool creates a new AI translation review tool.
 func NewAIReviewTool(p aiprovider.LLMProvider, cfg AIReviewConfig) *AIReviewTool {
+	p = aiprovider.Redacting(p)
 	t := &AIReviewTool{
 		provider:     p,
 		sourceLocale: cfg.SourceLocale,
@@ -210,8 +211,8 @@ func (t *AIReviewTool) annotate(v tool.BlockView) error {
 		return nil
 	}
 
-	sourceText := v.SourceText()
-	targetText := v.TargetText(t.targetLocale)
+	sourceText := visibleText(v.SourceRuns())
+	targetText := visibleText(v.TargetRuns(t.targetLocale))
 
 	turns := prompt.Review{
 		SourceLocale:   t.sourceLocale,

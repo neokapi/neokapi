@@ -14,6 +14,7 @@ import (
 	corememory "github.com/neokapi/neokapi/core/memory"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/redaction"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
@@ -104,7 +105,7 @@ func (t *AITranslateTool) ReusedTargets() int { return int(t.reused.Load()) }
 // Every store lookup this tool makes goes through here, and so does the plan's,
 // so the reuse question has one answer per block.
 func (t *AITranslateTool) ReusesStoredTarget(ctx context.Context, b *model.Block, stored blockstore.TargetOverlay) bool {
-	if b == nil {
+	if b == nil || !cachesTarget(b) {
 		return false
 	}
 	return stored.ReusableFor(blockstore.AsReadSourceText(b), t.cacheFingerprint(ctx, b), t.contextFP)
@@ -387,6 +388,7 @@ func NewAITranslateFromConfig(config map[string]any, targetLang string) (tool.To
 
 // NewAITranslateTool creates a new AI translation tool.
 func NewAITranslateTool(p aiprovider.LLMProvider, cfg AITranslateConfig) *AITranslateTool {
+	p = aiprovider.Redacting(p)
 	t := &AITranslateTool{
 		provider:     p,
 		sourceLocale: cfg.SourceLocale,
@@ -612,8 +614,10 @@ func (t *AITranslateTool) sessionHandleBlock(
 	cacheFP := t.cacheFingerprint(ctx, block)
 
 	// Serve the stored target when it answers this exact source under this
-	// exact configuration (ReusesStoredTarget).
-	if randomAccess && !t.leavesProducedAlone(block) {
+	// exact configuration (ReusesStoredTarget). A block a redact step read is
+	// neither served nor stored (cachesTarget).
+	cacheable := cachesTarget(block)
+	if randomAccess && cacheable && !t.leavesProducedAlone(block) {
 		if sc, err := sess.GetOverlay(overlayKind, hash); err == nil && len(sc.Payload) > 0 {
 			var cached blockstore.TargetOverlay
 			if err := json.Unmarshal(sc.Payload, &cached); err == nil && t.ReusesStoredTarget(ctx, block, cached) && t.applyStored(ctx, block, cached) == nil {
@@ -626,7 +630,7 @@ func (t *AITranslateTool) sessionHandleBlock(
 		return err
 	}
 
-	if target := block.TargetText(t.targetLocale); target != "" {
+	if target := block.TargetText(t.targetLocale); cacheable && target != "" {
 		payload, err := json.Marshal(t.storedTarget(block, target, cacheFP))
 		if err != nil {
 			return fmt.Errorf("translate: encode overlay: %w", err)
@@ -641,6 +645,15 @@ func (t *AITranslateTool) sessionHandleBlock(
 	}
 	_ = ctx // ctx reserved for future streaming hooks
 	return nil
+}
+
+// cachesTarget reports whether the session's target cache may serve or keep
+// the translation of block. A block a redact step read may not: its target
+// holds tokens until unredact restores them, a token for a value met only
+// beside the block is restored from the in-memory entry the request filled,
+// and a served target makes no request to fill it.
+func cachesTarget(block *model.Block) bool {
+	return redaction.EntryOf(block) == nil
 }
 
 // processBatchedWithSession funnels the batched path through the
@@ -692,7 +705,7 @@ func (t *AITranslateTool) processBatchedWithSession(
 				// document has been drained. So in that mode the block goes through
 				// to the batch path, which knows both. A cache miss is a cost; a
 				// cache hit under the wrong neighbourhood is a wrong answer.
-				if caps.RandomAccess && t.contextPolicy != ContextNeighbours && !t.leavesProducedAlone(block) {
+				if caps.RandomAccess && t.contextPolicy != ContextNeighbours && cachesTarget(block) && !t.leavesProducedAlone(block) {
 					if sc, err := sess.GetOverlay(overlayKind, blockstore.OverlayKey(ctx, block.ID, block.SourceText())); err == nil && len(sc.Payload) > 0 {
 						var cached blockstore.TargetOverlay
 						if err := json.Unmarshal(sc.Payload, &cached); err == nil && t.ReusesStoredTarget(ctx, block, cached) && t.applyStored(ctx, block, cached) == nil {
@@ -722,7 +735,7 @@ func (t *AITranslateTool) processBatchedWithSession(
 	}()
 
 	for part := range batchOut {
-		if block, ok := part.Resource.(*model.Block); ok && block != nil && block.ID != "" {
+		if block, ok := part.Resource.(*model.Block); ok && block != nil && block.ID != "" && cachesTarget(block) {
 			if target := block.TargetText(t.targetLocale); target != "" {
 				payload, err := json.Marshal(t.storedTarget(block, target, t.cacheFingerprint(ctx, block)))
 				if err == nil {
@@ -775,7 +788,9 @@ func (t *AITranslateTool) translate(v tool.VariantView) error {
 	}
 
 	sourceText := v.SourceText()
-	if sourceText == "" {
+	// A block that holds nothing but a withheld value is still translated: its
+	// placeholder goes to the model and comes back in place.
+	if sourceText == "" && visibleText(v.SourceRuns()) == "" {
 		return nil
 	}
 
@@ -1084,7 +1099,7 @@ func (t *AITranslateTool) processBatched(ctx context.Context, in <-chan *model.P
 			continue
 		}
 		src := block.SourceText()
-		if src == "" {
+		if src == "" && visibleText(block.SourceRuns()) == "" {
 			continue
 		}
 		sourceRuns := block.SourceRuns()
@@ -1420,6 +1435,14 @@ func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEnt
 	if len(entries) == 1 {
 		return tool.WriteAs(ctx, entries[0].block, t.ToolName, t.translate)
 	}
+
+	// One request carries every block of the batch, so it is redacted under
+	// the policy that redacted them, with their tokens.
+	blocks := make([]*model.Block, len(entries))
+	for i, entry := range entries {
+		blocks[i] = entry.block
+	}
+	ctx = redaction.BindBlocks(ctx, blocks...)
 
 	texts := make([]string, len(entries))
 	for i, entry := range entries {

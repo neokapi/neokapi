@@ -30,15 +30,17 @@ func RunsPlaceholderText(runs []Run) string {
 	return buf.String()
 }
 
+// PhPlaceholderTag is the tag RunsPlaceholderText draws a placeholder run with
+// the given ID as.
+func PhPlaceholderTag(id string) string { return `<x id="` + id + `/"/>` }
+
 func appendRunsPlaceholder(buf *strings.Builder, runs []Run) {
 	for _, r := range runs {
 		switch {
 		case r.Text != nil:
 			buf.WriteString(r.Text.Text)
 		case r.Ph != nil:
-			buf.WriteString(`<x id="`)
-			buf.WriteString(r.Ph.ID)
-			buf.WriteString(`/"/>`)
+			buf.WriteString(PhPlaceholderTag(r.Ph.ID))
 		case r.PcOpen != nil:
 			buf.WriteString(`<x id="`)
 			buf.WriteString(r.PcOpen.ID)

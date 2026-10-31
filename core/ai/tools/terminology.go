@@ -69,6 +69,7 @@ func NewAITerminologyFromConfig(config map[string]any, _ string) (tool.Tool, err
 
 // NewAITerminologyTool creates a new AI terminology extraction tool.
 func NewAITerminologyTool(p aiprovider.LLMProvider, cfg AITerminologyConfig) *AITerminologyTool {
+	p = aiprovider.Redacting(p)
 	t := &AITerminologyTool{
 		provider: p,
 		locale:   cfg.Locale,
@@ -122,7 +123,7 @@ type terminologyResult struct {
 }
 
 func (t *AITerminologyTool) annotate(v tool.BlockView) error {
-	sourceText := v.SourceText()
+	sourceText := visibleText(v.SourceRuns())
 	if strings.TrimSpace(sourceText) == "" {
 		return nil
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -175,6 +176,14 @@ type RedactTool struct {
 	entityCats  map[string]bool
 	opts        redaction.RedactOptions
 	vault       *redaction.FileVault // non-nil in external mode
+	// egress is the policy the tool applies, for the strings of a provider
+	// request beside the block (redaction.Egress).
+	egress *redaction.Policy
+	// policy is what the tool leaves on each block it reads in-process, so
+	// the provider requests that carry the block are redacted the same way.
+	// Nil in external mode, where the block goes to a file rather than to a
+	// provider.
+	policy *redaction.Policy
 }
 
 // NewRedactFromConfig builds a redact tool from a config map.
@@ -243,12 +252,18 @@ func NewRedactTool(cfg *RedactConfig) (*RedactTool, error) {
 		}
 	}
 
+	t.egress = &redaction.Policy{Options: t.opts, Locale: cfg.SourceLocale}
+	if t.rules != nil {
+		t.egress.Detector = t.rules
+	}
 	if cfg.VaultPath != "" {
 		v, err := redaction.OpenFileVault(cfg.VaultPath)
 		if err != nil {
 			return nil, err
 		}
 		t.vault = v
+	} else {
+		t.policy = t.egress
 	}
 
 	base := &tool.BaseTool{
@@ -267,13 +282,73 @@ func NewRedactTool(cfg *RedactConfig) (*RedactTool, error) {
 	return t, nil
 }
 
-// Process runs the streaming transform, then flushes the sidecar vault (if
-// any) once the input is drained.
+// Process runs the streaming transform over each part (ApplyContext), then
+// flushes the sidecar vault (if any) once the input is drained.
 func (t *RedactTool) Process(ctx context.Context, in <-chan *model.Part, out chan<- *model.Part) error {
-	if err := t.BaseTool.Process(ctx, in, out); err != nil {
+	if err := t.ValidateHandlers(); err != nil {
 		return err
 	}
-	return t.Flush()
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case part, ok := <-in:
+			if !ok {
+				return t.Flush()
+			}
+			result, err := t.ApplyContext(ctx, part)
+			if err != nil {
+				return err
+			}
+			if result == nil {
+				continue
+			}
+			select {
+			case out <- result:
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+	}
+}
+
+// Policy returns the policy the tool applies: its rule detector and its
+// placeholder options. A route that redacts blocks into a sidecar vault and
+// then sends them to a provider binds it to the blocks itself.
+func (t *RedactTool) Policy() *redaction.Policy { return t.egress }
+
+// Apply is ApplyContext with no deadline.
+func (t *RedactTool) Apply(part *model.Part) (*model.Part, error) {
+	return t.ApplyContext(context.Background(), part)
+}
+
+// ApplyContext redacts one part. In-process, it first leaves the tool's
+// policy on the block, whether or not the block holds a value to withhold:
+// a block with none still travels with term rules, a voice profile or a
+// prior version that may hold one.
+func (t *RedactTool) ApplyContext(ctx context.Context, part *model.Part) (*model.Part, error) {
+	t.bind(part)
+	return t.BaseTool.ApplyContext(ctx, part)
+}
+
+// bind leaves the tool's policy on the block part holds, in its redaction
+// entry.
+func (t *RedactTool) bind(part *model.Part) {
+	if t.policy == nil || part == nil {
+		return
+	}
+	b, ok := part.Resource.(*model.Block)
+	if !ok || b == nil {
+		return
+	}
+	// An entry an earlier redact step left keeps the values it withheld, so
+	// unredact still restores them. Its policy keeps the earlier step's rules
+	// in force beside this step's, for the rest of every request.
+	if ann, ok := model.AnnoAs[*redaction.SecretAnnotation](b, redaction.SecretAnnotationKey); ok && ann != nil {
+		ann.Policy = unionPolicy(ann.Policy, t.policy)
+		return
+	}
+	b.SetAnno(redaction.SecretAnnotationKey, &redaction.SecretAnnotation{Policy: t.policy})
 }
 
 // Flush persists the sidecar vault, if the tool is in external mode. Callers
@@ -330,6 +405,54 @@ func tokenPrefix(opts redaction.RedactOptions) string {
 	return opts.TokenPrefix
 }
 
+// unionPolicy returns a policy that detects what both earlier and later do,
+// rendered with later's placeholder options. Either may be nil.
+func unionPolicy(earlier, later *redaction.Policy) *redaction.Policy {
+	if earlier == nil || earlier == later {
+		return later
+	}
+	if later == nil {
+		return earlier
+	}
+	var dets redaction.Detectors
+	for _, d := range []redaction.Detector{earlier.Detector, later.Detector} {
+		if d != nil {
+			dets = append(dets, d)
+		}
+	}
+	union := &redaction.Policy{Options: later.Options, Locale: later.Locale}
+	switch len(dets) {
+	case 1:
+		union.Detector = dets[0]
+	case 2:
+		union.Detector = dets
+	}
+	return union
+}
+
+// continueEntry returns opts set to continue the sequence the block's
+// redaction entry holds: an earlier redact step over the same block numbered
+// its tokens from 1 under the same prefix, and a token that shared a key or a
+// visible token with one of its values would overwrite it.
+func continueEntry(v tool.BlockView, opts redaction.RedactOptions) redaction.RedactOptions {
+	entry, ok := v.Annotations()[redaction.SecretAnnotationKey].(*redaction.SecretAnnotation)
+	if !ok || entry == nil || len(entry.Values) == 0 {
+		return opts
+	}
+	prefix := tokenPrefix(opts)
+	for tok, val := range entry.Values {
+		if rest, ok := strings.CutPrefix(tok, prefix); ok {
+			if n, err := strconv.Atoi(rest); err == nil && n > opts.After {
+				opts.After = n
+			}
+		}
+		if val.Disp != "" {
+			opts.Taken = append(opts.Taken, val.Disp)
+		}
+	}
+	return opts
+}
+
 // redactRuns detects the sensitive spans in one run sequence and returns the
 // redacted runs with what they withheld, and the edits that map the old text
 // to the new. Detection reads the sequence's own text runs, the coordinates
@@ -357,7 +480,7 @@ func (t *RedactTool) redactRuns(v tool.BlockView, runs []model.Run, locale model
 	matches = redaction.NormalizeMatches(matches)
 	out, records, edits := runs, []redaction.Redacted(nil), []model.RunEdit(nil)
 	if len(matches) > 0 {
-		out, records, edits = redaction.Redact(runs, matches, opts)
+		out, records, edits = redaction.Redact(runs, matches, continueEntry(v, opts))
 	}
 	if !model.HasStructuredRuns(out) {
 		if len(records) == 0 {
@@ -449,11 +572,22 @@ func (t *RedactTool) vaultSecrets(v tool.BlockView, secrets []tool.Secret) error
 		}
 		return nil
 	}
-	ann := &redaction.SecretAnnotation{Values: make(map[string]redaction.RedactedValue, len(secrets))}
+	// The entry bind left on the block holds the policy, and any value an
+	// earlier redact step withheld. Source keeps the runs the first step read,
+	// which is what the block reads once both steps are undone.
+	ann, ok := v.Annotations()[redaction.SecretAnnotationKey].(*redaction.SecretAnnotation)
+	if !ok || ann == nil {
+		ann = &redaction.SecretAnnotation{Policy: t.policy}
+	}
+	if ann.Values == nil {
+		ann.Values = make(map[string]redaction.RedactedValue, len(secrets))
+	}
 	for _, s := range secrets {
 		ann.Values[s.Token] = toValue(s)
 		if s.Locale.IsEmpty() {
-			ann.Source = slices.Clone(v.SourceRuns())
+			if ann.Source == nil {
+				ann.Source = slices.Clone(v.SourceRuns())
+			}
 			continue
 		}
 		if ann.Targets == nil {

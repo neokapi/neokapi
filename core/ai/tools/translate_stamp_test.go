@@ -3,6 +3,7 @@ package tools_test
 import (
 	"context"
 	"encoding/json"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -48,10 +49,14 @@ func storedOverlay(t *testing.T, sess blockstore.Session) blockstore.TargetOverl
 // The AI producer stamps the source as read, so the stamp names the sentence
 // the file holds rather than the redacted text the model was sent; a later
 // read of the same block, redacted the same way, is served the stored answer.
+// The block is redacted into a sidecar vault, as extract and ingest redact it,
+// so it carries no in-process entry: a block that does is never served from
+// the store (TestAITranslate_ARedactedBlockIsNeverServedFromTheCache).
 func TestAITranslate_StampsTheSourceAsReadOfARedactedBlock(t *testing.T) {
 	redact, err := coretools.NewRedactTool(&coretools.RedactConfig{
 		Detectors: []string{coretools.DetectRules},
 		Rules:     []redaction.Rule{{Term: "Mr Bean", Category: "person"}},
+		VaultPath: filepath.Join(t.TempDir(), "vault.json"),
 	})
 	require.NoError(t, err)
 

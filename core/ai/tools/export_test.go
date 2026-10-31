@@ -15,28 +15,34 @@ func ExportCacheFingerprint(t *AITranslateTool, ctx context.Context, b *model.Bl
 }
 
 // ToolProvider exposes the LLM provider an AI tool was built with, so the
-// external tests can assert which one a config factory chose. It answers nil
-// for a tool that holds none (an MT engine, the deterministic check, the local
-// NER model).
+// external tests can assert which one a config factory chose. Every tool
+// calls its provider through the redaction wrapper, which this looks past.
+// It answers nil for a tool that holds none (an MT engine, the deterministic
+// check, the local NER model).
 func ToolProvider(t any) aiprovider.LLMProvider {
+	var p aiprovider.LLMProvider
 	switch v := t.(type) {
 	case *AITranslateTool:
-		return v.provider
+		p = v.provider
 	case *AIReviewTool:
-		return v.provider
+		p = v.provider
 	case *AICheckTool:
-		return v.provider
+		p = v.provider
 	case *VoiceCheckTool:
-		return v.provider
+		p = v.provider
 	case *VoiceInferTool:
-		return v.provider
+		p = v.provider
 	case *AITerminologyTool:
-		return v.provider
+		p = v.provider
 	case *MediaRefineTool:
-		return v.provider
+		p = v.provider
 	case *AIEntityExtractTool:
-		return v.llm
+		p = v.llm
 	default:
 		return nil
 	}
+	if p == nil {
+		return nil
+	}
+	return aiprovider.WithoutRedaction(p)
 }

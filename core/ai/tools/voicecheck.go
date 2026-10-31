@@ -109,6 +109,7 @@ func NewVoiceCheckFromConfig(config map[string]any, _ string) (tool.Tool, error)
 
 // NewVoiceCheckTool creates a new LLM-based voice profile check tool.
 func NewVoiceCheckTool(p aiprovider.LLMProvider, profile *coreprofile.VoiceProfile) *VoiceCheckTool {
+	p = aiprovider.Redacting(p)
 	t := &VoiceCheckTool{
 		provider: p,
 		profile:  profile,
@@ -124,6 +125,7 @@ func NewVoiceCheckTool(p aiprovider.LLMProvider, profile *coreprofile.VoiceProfi
 // lazily resolves its profile from the organizational context hierarchy.
 // The resolver is called once on first use and the result is cached.
 func NewVoiceCheckToolWithResolver(p aiprovider.LLMProvider, resolver coreprofile.ProfileResolver, rc coreprofile.ResolveContext) *VoiceCheckTool {
+	p = aiprovider.Redacting(p)
 	t := &VoiceCheckTool{
 		provider: p,
 		resolver: resolver,
@@ -232,7 +234,7 @@ func (t *VoiceCheckTool) annotate(v tool.BlockView) error {
 		return fmt.Errorf("voice-check profile: %w", err)
 	}
 
-	sourceText := v.SourceText()
+	sourceText := visibleText(v.SourceRuns())
 	if strings.TrimSpace(sourceText) == "" {
 		return nil
 	}

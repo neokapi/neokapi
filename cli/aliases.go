@@ -237,6 +237,7 @@ var (
 	RmPattern                    = host.RmPattern
 	RuleRewrite                  = host.RuleRewrite
 	RunBlockTool                 = host.RunBlockTool
+	RunBlockTools                = host.RunBlockTools
 	RunVersionProbe              = host.RunVersionProbe
 	ScaffoldRecipe               = host.ScaffoldRecipe
 	RenderCollections            = host.RenderCollections

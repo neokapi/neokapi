@@ -304,7 +304,11 @@ func (a *App) freshAIReview(ctx context.Context, op *openProject, scope, key str
 // The returned release frees whatever the assembly opened and is always safe to
 // call. Tests inject aiToolFactory with a MockProvider-backed tool; it still
 // receives the assembled config.
-func (a *App) newReviewAITool(ctx context.Context, op *openProject, name string, unit host.UnitRef, base map[string]any) (tool.Tool, func(), error) {
+//
+// Under the redaction policy that covers the unit's file, the tool runs
+// between redact and unredact, as `kapi exec` runs it (host.RedactionChain),
+// so the returned chain is the tool alone or the three steps.
+func (a *App) newReviewAITool(ctx context.Context, op *openProject, name string, unit host.UnitRef, base map[string]any) ([]tool.Tool, func(), error) {
 	noop := func() {}
 	cfg, release, err := a.reviewToolConfig(ctx, op, name, unit, base)
 	if err != nil {
@@ -329,7 +333,20 @@ func (a *App) newReviewAITool(ctx context.Context, op *openProject, name string,
 		release()
 		return nil, noop, err
 	}
-	return tl, release, nil
+	var proj *project.KapiProject
+	recipe, file := "", ""
+	if op != nil {
+		proj, recipe = op.Project, op.Path
+		if recipe != "" && unit.Path != "" {
+			file = filepath.Join(filepath.Dir(recipe), filepath.FromSlash(unit.Path))
+		}
+	}
+	chain, err := a.hostEngine().RedactionChain(recipe, proj, file, name, cfg, tl)
+	if err != nil {
+		release()
+		return nil, noop, err
+	}
+	return chain, release, nil
 }
 
 // reviewToolConfig assembles one tool's config for one unit through the host,
@@ -360,21 +377,10 @@ func friendlyAIProviderError(err error) error {
 	return err
 }
 
-// runReviewAITool drives one block through a tool's Process, draining the
-// output — the same one-block invocation the checks panel uses.
-func runReviewAITool(ctx context.Context, tl tool.Tool, b *model.Block) error {
-	in := make(chan *model.Part, 1)
-	out := make(chan *model.Part, 4)
-	in <- &model.Part{Type: model.PartBlock, Resource: b}
-	close(in)
-	errc := make(chan error, 1)
-	go func() {
-		defer close(out)
-		errc <- tl.Process(ctx, in, out)
-	}()
-	for range out { //nolint:revive // drain
-	}
-	return <-errc
+// runReviewAITool drives one block through each tool of the chain
+// newReviewAITool built, in turn.
+func runReviewAITool(ctx context.Context, chain []tool.Tool, b *model.Block) error {
+	return host.RunTools(ctx, chain, b)
 }
 
 // --- AI pre-review -----------------------------------------------------------

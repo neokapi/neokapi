@@ -292,7 +292,97 @@ func TestRedactTool_NoMatchesPassThrough(t *testing.T) {
 	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: block})
 	rb := result.Resource.(*model.Block)
 	assert.Equal(t, beanSentence, rb.SourceText())
-	_, ok := rb.Anno(redaction.SecretAnnotationKey)
+	// The block withholds nothing, and still carries the policy, for the
+	// term rules or prior version a request sends beside it.
+	entry, ok := model.AnnoAs[*redaction.SecretAnnotation](rb, redaction.SecretAnnotationKey)
+	require.True(t, ok)
+	assert.Empty(t, entry.Values)
+	assert.NotNil(t, entry.Policy)
+}
+
+// A second redact step that finds nothing keeps what the first withheld, so
+// unredact restores it.
+func TestRedactTool_ASecondStepKeepsTheFirstStepsValues(t *testing.T) {
+	first, err := tools.NewRedactTool(&tools.RedactConfig{
+		Detectors: []string{tools.DetectRules},
+		Rules:     []redaction.Rule{{Term: "Mr Bean", Category: "person"}},
+	})
+	require.NoError(t, err)
+	second, err := tools.NewRedactTool(&tools.RedactConfig{
+		Detectors: []string{tools.DetectRules},
+		Rules:     []redaction.Rule{{Term: "Nonexistent", Category: "person"}},
+	})
+	require.NoError(t, err)
+	unredact, err := tools.NewUnredactTool(&tools.UnredactConfig{})
+	require.NoError(t, err)
+
+	part := &model.Part{Type: model.PartBlock, Resource: newBeanBlock()}
+	part = processPart(t, first, part)
+	part = processPart(t, second, part)
+	entry, ok := model.AnnoAs[*redaction.SecretAnnotation](part.Resource.(*model.Block), redaction.SecretAnnotationKey)
+	require.True(t, ok)
+	assert.Len(t, entry.Values, 1, "the first step's value is kept")
+	require.NotNil(t, entry.Policy)
+	assert.Equal(t, second.Policy().Options, entry.Policy.Options, "the entry renders with the later step's options")
+
+	part = processPart(t, unredact, part)
+	assert.Equal(t, beanSentence, part.Resource.(*model.Block).SourceText(), "unredact restores the first step's value")
+}
+
+// A second redact step that also withholds a value numbers its tokens after
+// the first step's, so neither overwrites the other and unredact restores
+// both. The entry's policy detects what either step's rules name.
+func TestRedactTool_TwoStepsThatBothWithholdKeepBothValues(t *testing.T) {
+	step := func(term string) *tools.RedactTool {
+		tl, err := tools.NewRedactTool(&tools.RedactConfig{
+			Detectors: []string{tools.DetectRules},
+			Rules:     []redaction.Rule{{Term: term, Category: "person"}},
+		})
+		require.NoError(t, err)
+		return tl
+	}
+	unredact, err := tools.NewUnredactTool(&tools.UnredactConfig{})
+	require.NoError(t, err)
+
+	const sentence = "Ada Lovelace wrote to Babbage."
+	b := model.NewBlock("b1", sentence)
+	b.SourceLocale = "en"
+	part := &model.Part{Type: model.PartBlock, Resource: b}
+	part = processPart(t, step("Ada Lovelace"), part)
+	part = processPart(t, step("Babbage"), part)
+
+	got := part.Resource.(*model.Block)
+	assert.Equal(t, " wrote to .", got.SourceText(), "both values are withheld")
+	entry, ok := model.AnnoAs[*redaction.SecretAnnotation](got, redaction.SecretAnnotationKey)
+	require.True(t, ok)
+	require.Len(t, entry.Values, 2, "the second step's token does not overwrite the first's")
+	disps := map[string]bool{}
+	for _, v := range entry.Values {
+		disps[v.Disp] = true
+	}
+	assert.Len(t, disps, 2, "each value shows as a visible token of its own")
+
+	ms, err := entry.Policy.Detector.Detect(t.Context(), "Ada Lovelace and Babbage", "en")
+	require.NoError(t, err)
+	assert.Len(t, ms, 2, "the entry's policy keeps the first step's rule beside the second's")
+
+	part = processPart(t, unredact, part)
+	assert.Equal(t, sentence, part.Resource.(*model.Block).SourceText())
+}
+
+// In external mode the block goes to a file, not to a provider, and carries
+// no policy.
+func TestRedactTool_ExternalModeLeavesNoPolicy(t *testing.T) {
+	tl, err := tools.NewRedactTool(&tools.RedactConfig{
+		Detectors: []string{tools.DetectRules},
+		Rules:     []redaction.Rule{{Term: "Nonexistent", Category: "person"}},
+		VaultPath: filepath.Join(t.TempDir(), "vault.json"),
+	})
+	require.NoError(t, err)
+
+	block := newBeanBlock()
+	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: block})
+	_, ok := result.Resource.(*model.Block).Anno(redaction.SecretAnnotationKey)
 	assert.False(t, ok)
 }
 

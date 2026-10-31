@@ -14,6 +14,7 @@ import (
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/imageops"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/redaction"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/core/vision"
@@ -289,6 +290,7 @@ const defaultRefineThreshold = 0.85
 
 // NewMediaRefineTool builds the tool from a provider + config.
 func NewMediaRefineTool(provider aiprovider.LLMProvider, cfg MediaRefineConfig) *MediaRefineTool {
+	provider = aiprovider.Redacting(provider)
 	thr := cfg.Threshold
 	if thr <= 0 {
 		thr = defaultRefineThreshold
@@ -419,7 +421,8 @@ func (t *MediaRefineTool) refine(ctx context.Context, b *model.Block, all []*mod
 	// data, not instruction — the same rule the text prompts follow.
 	msgs[len(msgs)-1].Parts = append(msgs[len(msgs)-1].Parts, part)
 
-	ctx = prompt.WithID(ctx, p.ID())
+	// The neighbours ride in the request, so it is redacted under their policy.
+	ctx = prompt.WithID(redaction.BindCorpus(ctx, neighbourEntries(all, idx)...), p.ID())
 	resp, err := t.provider.Chat(ctx, msgs)
 	if err != nil {
 		return err
@@ -471,8 +474,23 @@ func neighbourText(all []*model.Block, idx int) []string {
 		if i < 0 || i >= len(all) || i == idx {
 			continue
 		}
-		if txt := strings.TrimSpace(all[i].SourceText()); txt != "" {
+		if txt := strings.TrimSpace(visibleText(all[i].SourceRuns())); txt != "" {
 			out = append(out, txt)
+		}
+	}
+	return out
+}
+
+// neighbourEntries returns the redaction entries of the block at idx and of
+// the neighbours neighbourText reads.
+func neighbourEntries(all []*model.Block, idx int) []*redaction.SecretAnnotation {
+	var out []*redaction.SecretAnnotation
+	for i := idx - 2; i <= idx+2; i++ {
+		if i < 0 || i >= len(all) {
+			continue
+		}
+		if e := redaction.EntryOf(all[i]); e != nil {
+			out = append(out, e)
 		}
 	}
 	return out
