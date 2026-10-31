@@ -349,3 +349,54 @@ func TestFlowRun_ARedactStepWithItsOwnRulesKeepsThem(t *testing.T) {
 	assert.NotContains(t, sent, "today", "the step's own rule applies")
 	assert.Contains(t, sent, redactedName, "the project's rule does not replace the step's own")
 }
+
+// The plan builds a unit's chain under the policy that governs the unit's
+// file, as the run does. The legal collection's policy names no rules file,
+// so a run refuses its redact step there: the plan cannot build that chain
+// either, and builds the docs file's chain under the defaults.
+func TestPlanReuse_BuildsEachUnitsChainUnderItsFilesPolicy(t *testing.T) {
+	isolateKapiEnv(t)
+	onlyDemoProvider(t)
+	root := t.TempDir()
+	write := func(rel, body string) {
+		t.Helper()
+		path := filepath.Join(root, filepath.FromSlash(rel))
+		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o700))
+		require.NoError(t, os.WriteFile(path, []byte(body), 0o600))
+	}
+	write(project.RecipeFileName, "version: v1\nname: plan-redact\ndefaults:\n  source_language: en\n  target_languages: [fr]\n"+redactionYAML+
+		"collections:\n"+
+		"  - name: legal\n    redaction:\n      enabled: true\n      detectors: [rules]\n    content:\n      - path: \"legal/*.json\"\n"+
+		"  - name: docs\n    content:\n      - path: \"docs/*.json\"\n")
+	write("redact.yaml", redactRules)
+	write("docs/page.json", redactedPage)
+	write("legal/memo.json", redactedPage)
+	recipe := filepath.Join(root, project.RecipeFileName)
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+
+	a := &App{SourceLang: "en"}
+	a.InitRegistries()
+	cmd, err := a.unitCommand(t.Context(), recipe)
+	require.NoError(t, err)
+	spec := &flow.StepsSpec{Steps: []flow.FlowStep{
+		{Tool: "redact"},
+		{Tool: "translate", Config: map[string]any{"provider": "demo"}},
+		{Tool: "unredact"},
+	}}
+	p := &planReuse{
+		app:        a,
+		cmd:        cmd,
+		pctx:       project.NewProjectContext(proj, recipe),
+		projectDir: root,
+		fl:         upPlanFlow{Name: "secure", Spec: spec, Drafts: true},
+		bindings:   a.newLocaleBindings(cmd, proj, recipe),
+		producers:  map[string][]tool.StoredTargetReuser{},
+	}
+	defer p.close()
+
+	assert.NotEmpty(t, p.producersFor(VerifyUnit{SourcePath: filepath.Join(root, "docs", "page.json"), Locale: "fr"}),
+		"the docs file's chain builds under the defaults")
+	assert.Empty(t, p.producersFor(VerifyUnit{SourcePath: filepath.Join(root, "legal", "memo.json"), Locale: "fr"}),
+		"the legal file's chain takes its collection's policy, which a run refuses")
+}
