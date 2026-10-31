@@ -32,17 +32,37 @@ func (a *App) VoiceCheckTools(cmd Command, file string, t tool.Tool) ([]tool.Too
 	if err != nil {
 		return nil, fmt.Errorf("load project for redaction: %w", err)
 	}
+	return a.RedactionChain(recipe, proj, file, "voice-check", map[string]any{}, t)
+}
+
+// RedactionChain returns the tools a run of the registry tool toolName, built
+// as t with config, applies to the blocks of file in the project at recipe:
+// t between redact and unredact under the policy that covers the file, as
+// `kapi exec` places them, and t alone when no policy covers it or the tool
+// sends no block out. file is an absolute path, or "" for content in no file,
+// which reads under `defaults.redaction`. A surface that runs one tool over
+// a block it holds (the desktop's review actions) builds its run with it.
+func (a *App) RedactionChain(recipe string, proj *project.KapiProject, file, toolName string, config map[string]any, t tool.Tool) ([]tool.Tool, error) {
+	if recipe == "" || proj == nil {
+		return []tool.Tool{t}, nil
+	}
 	a.InitRegistries()
-	config := map[string]any{}
-	pol, err := a.toolRunPolicyFor(recipe, proj, file, "voice-check", config)
+	pol, err := a.toolRunPolicyFor(recipe, proj, file, toolName, config)
 	if err != nil {
 		return nil, err
 	}
-	chain, err := a.chainFor(pol, "voice-check", config, t)
+	chain, err := a.chainFor(pol, toolName, config, t)
 	if err != nil {
 		return nil, err
 	}
 	return chain.tools(t), nil
+}
+
+// RunTools runs each tool of a chain in turn over one block, as RedactionChain
+// composes it.
+func RunTools(ctx context.Context, chain []tool.Tool, b *model.Block) error {
+	_, err := runChain(ctx, chain, []*model.Part{{Type: model.PartBlock, Resource: b}})
+	return err
 }
 
 // TermsExpandRedaction returns ctx carrying the redaction `kapi terms expand`
