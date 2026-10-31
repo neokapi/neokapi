@@ -11,14 +11,19 @@ import (
 //
 // Migration rule: migrations are APPEND-ONLY. Bowrain databases now carry
 // production data, so a migration that has shipped must never be edited,
-// renumbered, or removed — schema changes are expressed as a new Migration
+// renumbered, or removed. Schema changes are expressed as a new Migration
 // with the next version number (using ALTER TABLE / CREATE ... IF NOT EXISTS
 // as appropriate). The per-namespace tracking tables record which versions a
 // database has applied; rewriting history desynchronizes them.
+//
+// Apply, when set, runs inside the same transaction after SQL. It carries the
+// steps one dialect cannot say in a statement, such as adding a SQLite column
+// only when the table lacks it.
 type Migration struct {
 	Version     int
 	Description string
 	SQL         string
+	Apply       func(ctx context.Context, tx *sql.Tx) error
 }
 
 // DefaultMigrationTimeout bounds one migration pass when the caller supplies
@@ -64,9 +69,17 @@ func runMigrations(ctx context.Context, db migrationDB, tableName, createTableSQ
 			return fmt.Errorf("begin migration %d: %w", m.Version, err)
 		}
 
-		if _, err := tx.ExecContext(ctx, m.SQL); err != nil {
-			_ = tx.Rollback()
-			return fmt.Errorf("apply migration %d (%s): %w", m.Version, m.Description, err)
+		if m.SQL != "" {
+			if _, err := tx.ExecContext(ctx, m.SQL); err != nil {
+				_ = tx.Rollback()
+				return fmt.Errorf("apply migration %d (%s): %w", m.Version, m.Description, err)
+			}
+		}
+		if m.Apply != nil {
+			if err := m.Apply(ctx, tx); err != nil {
+				_ = tx.Rollback()
+				return fmt.Errorf("apply migration %d (%s): %w", m.Version, m.Description, err)
+			}
 		}
 
 		if _, err := tx.ExecContext(ctx, insertSQL, m.Version, m.Description); err != nil {

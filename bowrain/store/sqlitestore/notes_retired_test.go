@@ -35,6 +35,8 @@ func TestMigrations_DropTheRetiredBlockNotesTable(t *testing.T) {
 		`ALTER TABLE unit_decisions ADD COLUMN target_hash TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE unit_decisions ADD COLUMN content_hash TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE blocks DROP COLUMN source_revision`,
+		`ALTER TABLE block_history DROP COLUMN basis`,
+		`ALTER TABLE block_history DROP COLUMN basis_from`,
 	} {
 		_, err = s.db.ExecContext(ctx, stmt)
 		require.NoError(t, err, stmt)
