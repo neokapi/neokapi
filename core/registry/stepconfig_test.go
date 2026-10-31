@@ -3,7 +3,6 @@ package registry
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -31,9 +30,9 @@ func TestStepConfigError(t *testing.T) {
 		{"mode": "rules", "provider": "anthropic"},
 		{"checkDoubleSpaces": false},
 	} {
-		assert.NoError(t, StepConfigError("qa", ok, at, keys), "%v", ok)
+		require.NoError(t, StepConfigError("qa", ok, at, keys), "%v", ok)
 	}
 
-	assert.NoError(t, StepConfigError("translate", map[string]any{"provider": "anthropic", "checkTerminology": true}, at, keys),
+	require.NoError(t, StepConfigError("translate", map[string]any{"provider": "anthropic", "checkTerminology": true}, at, keys),
 		"only qa's config is held to these keys")
 }
