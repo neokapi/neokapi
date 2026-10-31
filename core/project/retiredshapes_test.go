@@ -55,13 +55,13 @@ func TestLoad_RefusesRetiredAndIncompleteShapes(t *testing.T) {
 		{
 			name:  "a qa step with a provider and no mode",
 			body:  head + coll + "flows:\n  review:\n    steps:\n      - tool: qa\n        config:\n          provider: anthropic\n",
-			want:  "flows.review.steps[0] (qa) sets provider: anthropic without mode, and a qa step that names a provider requires mode. " + modes,
+			want:  "flows.review.steps[0] (qa) sets provider: anthropic without mode, and a qa config that names a provider requires mode. " + modes,
 			fixed: head + coll + "flows:\n  review:\n    steps:\n      - tool: qa\n        config:\n          mode: ai\n          provider: anthropic\n",
 		},
 		{
 			name:  "a per-locale qa preset with a provider and no mode",
 			body:  head + "  locales:\n    fr:\n      tools:\n        qa:\n          provider: openai\n" + coll,
-			want:  "defaults.locales.fr.tools.qa sets provider: openai without mode, and a qa step that names a provider requires mode. " + modes,
+			want:  "defaults.locales.fr.tools.qa sets provider: openai without mode, and a qa config that names a provider requires mode. " + modes,
 			fixed: head + "  locales:\n    fr:\n      tools:\n        qa:\n          mode: ai\n          provider: openai\n" + coll,
 		},
 		{

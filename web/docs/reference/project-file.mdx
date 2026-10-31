@@ -843,7 +843,8 @@ ordered steps instead.
 A `qa` step selects its backend with `mode`: `rules` (the default) runs the
 deterministic checks, and `ai` runs the AI review with the step's `provider`.
 A `qa` step or preset that sets `provider` must also set `mode`, and the recipe
-fails to load otherwise. A `qa` config that holds `checkTerminology` also fails
+fails to load otherwise. A `mode` other than `rules` or `ai` also stops the
+load. A `qa` config that holds `checkTerminology` also fails
 to load: the rule checks read no terms, so remove the key and run `term-check`
 to check translations against the terms store.
 

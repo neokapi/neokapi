@@ -18,7 +18,7 @@ func TestStepConfigError(t *testing.T) {
 	}
 
 	require.EqualError(t, StepConfigError("qa", map[string]any{"provider": "anthropic"}, at, keys),
-		at+" (qa) sets provider: anthropic without mode, and a qa step that names a provider requires mode. "+modes)
+		at+" (qa) sets provider: anthropic without mode, and a qa config that names a provider requires mode. "+modes)
 	require.EqualError(t, StepConfigError("qa", map[string]any{"mode": "llm"}, at, keys),
 		keys+".mode is llm, a value qa does not take. "+modes)
 

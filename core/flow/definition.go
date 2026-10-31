@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/set"
 )
 
@@ -76,7 +77,9 @@ type FlowEdge struct {
 	Target string `json:"target"`
 }
 
-// Validate checks that the flow definition is well-formed.
+// Validate checks that the flow definition is well-formed. A tool node's
+// config is held to the same keys a recipe step is (registry.StepConfigError),
+// so a stored definition cannot carry what a recipe may not.
 func (d *FlowDefinition) Validate() error {
 	if d.ID == "" {
 		return ErrFlowIDRequired
@@ -97,6 +100,12 @@ func (d *FlowDefinition) Validate() error {
 		case NodeTool, NodeReader, NodeWriter:
 		default:
 			return fmt.Errorf("invalid node type %q for node %s", n.Type, n.ID)
+		}
+		if n.Type == NodeTool {
+			at := "nodes[" + n.ID + "]"
+			if err := registry.StepConfigError(registry.ToolID(n.Name), n.Config, at, at+".config"); err != nil {
+				return err
+			}
 		}
 	}
 	for _, e := range d.Edges {

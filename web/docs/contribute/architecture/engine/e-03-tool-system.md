@@ -648,9 +648,8 @@ two renderings from one definition:
   of a group, not the model.
 
 The discriminator carries a default, so the bare tool works with no
-configuration. Where a tool can infer its backend from another field (`qa` from
-whether a provider is set), that inference is the fallback when the discriminator
-is unset.
+configuration. A `qa` config selects its backend with `mode` alone; a `provider`
+selects nothing.
 
 ### Annotation-based communication
 
@@ -691,7 +690,7 @@ previous document version), `pseudo-translate` (deterministic
 translation-readiness testing), `translate-after`.
 
 **Quality** (validate without rewriting content): `qa` (rule-based, or an LLM
-judge when a provider is set), `review` (per-translation score, assessment and
+judge with `mode: ai`), `review` (per-translation score, assessment and
 suggestion), `term-check`, `dnt-check` (alias `dnt`), `placeholder-check`,
 `voice-check`, `voice-vocab-check`, `xml-validation`.
 
