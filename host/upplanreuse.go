@@ -123,27 +123,30 @@ func (p *planReuse) storedTarget(ctx context.Context, u VerifyUnit, b *model.Blo
 }
 
 // producersFor returns the drafting producers built for the unit's locale at
-// its governance point, building them on first ask.
+// its governance point, under the redaction policy that governs its file,
+// building them on first ask.
 func (p *planReuse) producersFor(u VerifyUnit) []tool.StoredTargetReuser {
 	point := p.app.unitGovernancePoint(p.projectDir, u)
-	key := strings.Join([]string{u.Locale, point.Profile, point.Collection, point.Path}, "\x00")
+	redaction := p.pctx.Project.RedactionForPath(redactionPath(p.projectDir, u.SourcePath))
+	key := strings.Join([]string{u.Locale, point.Profile, point.Collection, point.Path, redaction.At}, "\x00")
 	if r, ok := p.producers[key]; ok {
 		return r
 	}
-	r := p.build(u.Locale, point)
+	r := p.build(u.Locale, point, redaction)
 	p.producers[key] = r
 	return r
 }
 
 // build assembles the flow's tool chain for one locale at one governance point
 // exactly as a pass does: a worker for the locale, the bindings resolved at the
-// point for that locale, and buildProjectFlowTools over the same spec. It keeps
-// the producers that answer the reuse question.
+// point for that locale, the redaction policy that governs the unit's file, and
+// buildProjectFlowTools over the same spec. It keeps the producers that answer
+// the reuse question.
 //
 // A chain that cannot be built answers nothing, and the units it would have
 // served stay priced as provider work. The run could not start there either,
 // and the ceiling is the honest figure until it can.
-func (p *planReuse) build(locale string, point project.GovernancePoint) []tool.StoredTargetReuser {
+func (p *planReuse) build(locale string, point project.GovernancePoint, redaction project.ResolvedRedaction) []tool.StoredTargetReuser {
 	b, err := p.bindings.at(point, locale)
 	if err != nil {
 		return nil
@@ -151,6 +154,7 @@ func (p *planReuse) build(locale string, point project.GovernancePoint) []tool.S
 	worker := p.app.convergeWorker(locale, nil)
 	worker.ProjectContext = p.pctx
 	worker.ProjectBindings = b
+	worker.flowRedaction = &redaction
 	rCtx := flow.ResourceContext{ProjectDir: p.projectDir, SourceLocale: worker.SourceLang, TargetLocale: locale}
 	tools, cleanup, err := worker.buildProjectFlowTools(p.cmd, p.fl.Name, p.fl.Spec, &rCtx, nil)
 	if cleanup != nil {

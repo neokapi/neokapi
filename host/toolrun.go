@@ -203,13 +203,31 @@ func (a *App) RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 		if cfg, err = a.filePolicy(cfg, proj, cfg.Files[0]); err != nil {
 			return err
 		}
-		return a.transformKpzInPlace(ctx, cfg.Files[0], cfg.ToolName, func() ([]tool.Tool, func(), error) {
+		// A package run under a policy reports the placeholder findings it
+		// meets after the line the transform prints, as a run over a file
+		// reports them, "No findings." included.
+		var found *flowFindings
+		if a.checksRedactionTokens(cfg.ToolName, map[string]ToolRunConfig{cfg.Files[0]: cfg}) {
+			found = &flowFindings{}
+		}
+		if err := a.transformKpzInPlace(ctx, cfg.Files[0], cfg.ToolName, func() ([]tool.Tool, func(), error) {
 			c, cerr := a.newToolChain(cfg)
 			if cerr != nil {
 				return nil, nil, cerr
 			}
-			return c.tools(c.main), nil, nil
-		}, cfg.TargetLang, a.toolDefaultLocale(cfg.ToolName), a.toolIsMonolingual(cfg.ToolName), cfg.Pack)
+			chain := c.tools(c.main)
+			if found != nil {
+				last := len(chain) - 1
+				chain[last] = flow.NewTappingTool(chain[last], &flowFindingsTap{shared: found, file: DisplayName(cfg.Files[0])})
+			}
+			return chain, nil, nil
+		}, cfg.TargetLang, a.toolDefaultLocale(cfg.ToolName), a.toolIsMonolingual(cfg.ToolName), cfg.Pack); err != nil {
+			return err
+		}
+		if found == nil {
+			return nil
+		}
+		return printToolResult(cfg, *found.report())
 	}
 	if IsKpzPath(cfg.OutputTemplate) {
 		return errKpzCreateWithExtract
@@ -247,8 +265,13 @@ func (a *App) RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 	}
 
 	var collector flow.Collector
-	if cfg.NewCollector != nil {
+	switch {
+	case cfg.NewCollector != nil:
 		collector = cfg.NewCollector()
+	case a.checksRedactionTokens(cfg.ToolName, runCfgs):
+		// The tool records a failing finding on each block whose program
+		// output changes a redaction placeholder, so the run reports them.
+		collector = &findingsCollector{}
 	}
 
 	var commonDir string

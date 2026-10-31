@@ -170,7 +170,7 @@ func (c *findingsCollector) Result() (flow.CollectorResult, error) {
 	return flow.CollectorResult{Name: "findings", Data: newFindingsReport(report)}, nil
 }
 
-// findingsReport is what a run that is not the gate reports: the findings and
+// FindingsReport is what a run that is not the gate reports: the findings and
 // their roll-up, field-for-field as the kapi.check/v2 Report carries them, so
 // `.findings[]` and `.summary` read the same whichever command produced them.
 // `kapi exec <check>` emits it on its own; `kapi run <flow>` nests it under the
@@ -184,7 +184,7 @@ func (c *findingsCollector) Result() (flow.CollectorResult, error) {
 // It carries did_not_run, which is coverage rather than a bar: a check that
 // read no content block reached no result, and an empty findings table in its
 // place would read as a clean one.
-type findingsReport struct {
+type FindingsReport struct {
 	Target   check.Target       `json:"target"`
 	Summary  check.Summary      `json:"summary"`
 	Findings []check.Diagnostic `json:"findings"`
@@ -205,8 +205,8 @@ type untranslatedRun struct{ tool, lang string }
 // newFindingsReport keeps what a report that is not the gate carries from a
 // built check.Report: the findings and their roll-up, and did_not_run with its
 // cause when Decide found nothing checked.
-func newFindingsReport(r check.Report) findingsReport {
-	out := findingsReport{Target: r.Target, Summary: r.Summary, Findings: r.Findings}
+func newFindingsReport(r check.Report) FindingsReport {
+	out := FindingsReport{Target: r.Target, Summary: r.Summary, Findings: r.Findings}
 	if r.Verdict == check.VerdictDidNotRun {
 		out.DidNotRun = r.DidNotRun
 		out.DidNotRunCause = r.DidNotRunCause
@@ -217,7 +217,7 @@ func newFindingsReport(r check.Report) findingsReport {
 // FormatTable renders the findings the way `kapi check` renders them, minus the
 // PASS/FAIL verdict. A report that did not run prints the sentence `kapi check`
 // prints for that cause in place of the table.
-func (r findingsReport) FormatTable(w io.Writer) {
+func (r FindingsReport) FormatTable(w io.Writer) {
 	if r.DidNotRunCause != "" {
 		writeDidNotRun(w, r.DidNotRunCause)
 		for _, reason := range r.DidNotRun {
@@ -233,7 +233,7 @@ func (r findingsReport) FormatTable(w io.Writer) {
 
 // FormatText is the same rendering under the interface output.Print asks for,
 // so a report nested in another command's output renders with it.
-func (r findingsReport) FormatText(w io.Writer) error {
+func (r FindingsReport) FormatText(w io.Writer) error {
 	r.FormatTable(w)
 	return nil
 }

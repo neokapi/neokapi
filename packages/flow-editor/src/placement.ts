@@ -13,8 +13,14 @@
 //    the inputs its config-resolved contract REQUIRES are exempt (the AD-020
 //    detection trade-off: a cloud NER feeding entity-driven redaction).
 //
+//  - Error: a step that sends source out of kapi (remote egress or a program
+//    outside kapi) after unredact restored the withheld values, with no redact
+//    step between them, sends the originals.
+//
 //  - Warning: a transformer placed later than its earliest valid slot forces
-//    the overlays produced in between to be rebased across its rewrite.
+//    the overlays produced in between to be rebased across its rewrite. A
+//    transformer that sends source out counts a redact step ahead of it as
+//    one of its inputs.
 //
 // The Go pass refines contracts per node config via registry contract
 // resolvers; the client mirrors the two resolvers that matter here — redact's
@@ -28,6 +34,7 @@ export type PlacementSeverity = "error" | "warning";
 export const RULE_TRANSFORMER_AFTER_TARGET = "transformer-after-target";
 export const RULE_TRANSFORMER_AFTER_EGRESS = "transformer-after-remote-egress";
 export const RULE_TRANSFORMER_LATE = "transformer-late-placement";
+export const RULE_EGRESS_AFTER_RESTORE = "egress-after-restore";
 
 export interface PlacementDiagnostic {
   severity: PlacementSeverity;
@@ -41,6 +48,8 @@ export interface PlacementDiagnostic {
 const REMOTE_SOURCE_EGRESS = "remote-source-egress";
 /** A tool that hands source to a program outside kapi (external-command). */
 const PROCESS_EXEC = "process-exec";
+/** The port that carries the withheld values from redact to unredact. */
+const SECRET_PORT = "redaction.secret";
 const PORT_TARGET = "target";
 const PORT_SOURCE = "source";
 
@@ -127,6 +136,10 @@ const feedsAny = (up: ResolvedStep, keys: Set<string>) =>
 const consumedKeys = (r: ResolvedStep, includeOptional: boolean) =>
   new Set(r.consumes.filter((c) => includeOptional || !c.optional).map(portKey));
 
+/** A step that hands source to something outside kapi a redaction policy covers. */
+const sendsSourceOut = (r: ResolvedStep) =>
+  r.sideEffects.includes(REMOTE_SOURCE_EGRESS) || r.sideEffects.includes(PROCESS_EXEC);
+
 /**
  * Run the placement pass over a FlowSpec, returning diagnostics indexed by
  * step. Steps whose tools are unknown to the tool map are skipped.
@@ -148,12 +161,15 @@ export function computePlacement(
     const consumed = consumedKeys(info, true);
     const required = consumedKeys(info, false);
     const selfProducesTarget = producesTarget(info);
+    // A transformer that sends source out of kapi belongs after a redact
+    // step, so a recoverable step ahead of it counts as one of its inputs.
+    const sendsOut = sendsSourceOut(info);
 
     let lastInputIdx = -1;
     for (let j = 0; j < i; j++) {
       const up = resolved[j];
       if (!up) continue;
-      if (feedsAny(up, consumed)) lastInputIdx = j;
+      if (feedsAny(up, consumed) || (sendsOut && up.recoverable)) lastInputIdx = j;
 
       if (!selfProducesTarget && producesTarget(up)) {
         diags.push({
@@ -213,6 +229,24 @@ export function computePlacement(
         message: `"${info.tool}" is placed later than needed: the ${rebased.join(", ")} overlay(s) produced before it must be rebased across its rewrite. Move it right after its last required input`,
       });
     }
+  });
+
+  // A step that sends source out after unredact restored the withheld values
+  // sends the originals, unless a redact step runs between the two.
+  let restoredBy = "";
+  resolved.forEach((info, i) => {
+    if (!info) return;
+    if (info.recoverable) restoredBy = "";
+    if (restoredBy && sendsSourceOut(info)) {
+      diags.push({
+        severity: "error",
+        rule: RULE_EGRESS_AFTER_RESTORE,
+        stepIndex: i,
+        tool: info.tool,
+        message: `"${info.tool}" sends source out of kapi after "${restoredBy}" restored the values redaction withholds, with no redact step between them. Add a redact step ahead of "${info.tool}", or move "${info.tool}" ahead of "${restoredBy}"`,
+      });
+    }
+    if (info.consumes.some((c) => c.type === SECRET_PORT)) restoredBy = info.tool;
   });
   return diags;
 }

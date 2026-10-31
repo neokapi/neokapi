@@ -15,7 +15,6 @@ import (
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
-	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/host/credentials"
@@ -534,19 +533,39 @@ func (a *App) PreviewFlow(tabID, flowName, sampleText, sourceLang, targetLang st
 		return nil, errors.New("sample text is required")
 	}
 
-	// Build tools from steps with config.
-	var tools []tool.Tool
-	for _, step := range spec.Steps {
-		config := step.Config
-		if config == nil {
-			config = make(map[string]any)
-		}
-		t, err := a.toolReg.NewToolWithConfig(registry.ToolID(step.Tool), config, targetLang)
-		if err != nil {
-			return nil, fmt.Errorf("tool %q: %w", step.Tool, err)
-		}
-		tools = append(tools, t)
+	// Create a temporary file with sample text to use as input.
+	tmpFile, err := os.CreateTemp("", "kapi-preview-*.txt")
+	if err != nil {
+		return nil, fmt.Errorf("create temp file: %w", err)
 	}
+	defer os.Remove(tmpFile.Name())
+
+	if _, err := tmpFile.WriteString(sampleText); err != nil {
+		tmpFile.Close()
+		return nil, fmt.Errorf("write sample text: %w", err)
+	}
+	tmpFile.Close()
+
+	pctx := project.NewProjectContext(op.Project, op.Path)
+	ctx := context.Background()
+
+	// Build the chain as a flow run builds it (host.BuildProjectFlowTools): the
+	// placement gate, the trust decision an exec-class step needs, the project
+	// bindings, and the redaction policy that governs the sample, which sits in
+	// no collection and so reads under defaults.redaction.
+	capp := a.borrowEngine(&host.App{
+		FormatReg:   a.formatReg,
+		ToolReg:     a.toolReg,
+		SchemaReg:   a.schemaReg,
+		Credentials: a.credentials,
+		Config:      a.aiConfig,
+		Quiet:       true,
+	})
+	tools, cleanup, err := capp.BuildProjectFlowTools(ctx, flowName, spec, pctx, op.Path, tmpFile.Name(), sourceLang, targetLang)
+	if err != nil {
+		return nil, err
+	}
+	defer cleanup()
 
 	recorder := flow.NewTraceRecorder()
 
@@ -565,19 +584,6 @@ func (a *App) PreviewFlow(tabID, flowName, sampleText, sourceLang, targetLang st
 		nodeOrder[i] = nodeID
 	}
 
-	// Create a temporary file with sample text to use as input.
-	tmpFile, err := os.CreateTemp("", "kapi-preview-*.txt")
-	if err != nil {
-		return nil, fmt.Errorf("create temp file: %w", err)
-	}
-	defer os.Remove(tmpFile.Name())
-
-	if _, err := tmpFile.WriteString(sampleText); err != nil {
-		tmpFile.Close()
-		return nil, fmt.Errorf("write sample text: %w", err)
-	}
-	tmpFile.Close()
-
 	// Build flow and execute with the sample text file.
 	fb := flow.NewFlow(flowName)
 	for _, t := range tracedTools {
@@ -587,8 +593,6 @@ func (a *App) PreviewFlow(tabID, flowName, sampleText, sourceLang, targetLang st
 	if err != nil {
 		return nil, fmt.Errorf("build flow: %w", err)
 	}
-
-	pctx := project.NewProjectContext(op.Project, op.Path)
 
 	executor := flow.NewExecutor()
 	item := &flow.Item{
@@ -600,7 +604,6 @@ func (a *App) PreviewFlow(tabID, flowName, sampleText, sourceLang, targetLang st
 		},
 	}
 
-	ctx := context.Background()
 	if err := executor.Execute(ctx, f, []*flow.Item{item}); err != nil {
 		return nil, fmt.Errorf("preview: %w", err)
 	}

@@ -105,6 +105,11 @@ func (a *App) RunUp(ctx context.Context, projectPath, sourceLang string, opts Up
 		capture:     &result,
 	})
 	if err != nil {
+		// A run that failed on the placeholder findings completed, and its
+		// result carries them, so the caller gets both.
+		if result.Findings != nil {
+			return &result, err
+		}
 		return nil, err
 	}
 	return &result, nil

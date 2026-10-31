@@ -8,6 +8,12 @@ import { Create as $Create } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as change$0 from "../change/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as format$0 from "../format/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as model$0 from "../model/models.js";
 
 /**
@@ -160,6 +166,131 @@ export class ContextSync {
 }
 
 /**
+ * Diagnostic is one finding in a Report. It enriches the producer-agnostic
+ * Finding with a STABLE rule id (the loop's primary key — an AI tracks it across
+ * iterations to confirm a fix and avoid regressions) and a block-level location
+ * (so the AI knows exactly which block to revise).
+ */
+export class Diagnostic {
+    /**
+     * Creates a new Diagnostic instance.
+     * @param {Partial<Diagnostic>} [$$source = {}] - The source object to create the Diagnostic.
+     */
+    constructor($$source = {}) {
+        if (!("rule" in $$source)) {
+            /**
+             * Rule is the stable id "<check>.<category>" (e.g. "length.max-chars-exceeded",
+             * "structure.xml-well-formedness", "terms.vocabulary"). The dedupe/track key.
+             * @member
+             * @type {string}
+             */
+            this["rule"] = "";
+        }
+        if (!("check" in $$source)) {
+            /**
+             * Check is the producing check family (length|pattern|chars|structure|
+             * hygiene|terms|voice and the target-gated families).
+             * @member
+             * @type {string}
+             */
+            this["check"] = "";
+        }
+        if (!("fails" in $$source)) {
+            /**
+             * Fails says whether the finding fails the check. See Finding.Fails.
+             * @member
+             * @type {boolean}
+             */
+            this["fails"] = false;
+        }
+        if (!("message" in $$source)) {
+            /**
+             * Message is the human-readable explanation.
+             * @member
+             * @type {string}
+             */
+            this["message"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Suggestion is an optional remediation hint.
+             * @member
+             * @type {string | undefined}
+             */
+            this["suggestion"] = undefined;
+        }
+        if (!("location" in $$source)) {
+            /**
+             * Location anchors the finding to a block (and anchor/snippet when known).
+             * @member
+             * @type {Location}
+             */
+            this["location"] = (new Location());
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Point is the governance point the finding's block was checked at. It is
+             * set when a project resolved the governance, and omitted otherwise.
+             * @member
+             * @type {Point | null | undefined}
+             */
+            this["point"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Metadata carries checker-specific detail (limit, count, matched rule id).
+             * @member
+             * @type {{ [_ in string]?: string } | undefined}
+             */
+            this["metadata"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Suggested marks a diagnostic raised by a suggested rule. It never fails
+             * and weighs nothing in the score. See Finding.Suggested.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["suggested"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Fix is the change operation that applies the finding's replacement
+             * (Fix), for a finding whose rule names one: a kapi.change/v1 operation a
+             * change set carries to kapi apply as it is.
+             * @member
+             * @type {change$0.Op | null | undefined}
+             */
+            this["fix"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Diagnostic instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {Diagnostic}
+     */
+    static createFrom($$source = {}) {
+        const $$createField5_0 = $$createType2;
+        const $$createField6_0 = $$createType4;
+        const $$createField7_0 = $$createType5;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("location" in $$parsedSource) {
+            $$parsedSource["location"] = $$createField5_0($$parsedSource["location"]);
+        }
+        if ("point" in $$parsedSource) {
+            $$parsedSource["point"] = $$createField6_0($$parsedSource["point"]);
+        }
+        if ("metadata" in $$parsedSource) {
+            $$parsedSource["metadata"] = $$createField7_0($$parsedSource["metadata"]);
+        }
+        return new Diagnostic(/** @type {Partial<Diagnostic>} */($$parsedSource));
+    }
+}
+
+/**
  * Finding is a single content-verification result. It is producer-agnostic: a
  * deterministic rule, a small ML model, and an LLM judge all emit this struct
  * into the same scoring and annotation pipeline.
@@ -266,8 +397,8 @@ export class Finding {
      * @returns {Finding}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType2;
-        const $$createField7_0 = $$createType3;
+        const $$createField4_0 = $$createType6;
+        const $$createField7_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("position" in $$parsedSource) {
             $$parsedSource["position"] = $$createField4_0($$parsedSource["position"]);
@@ -276,6 +407,256 @@ export class Finding {
             $$parsedSource["metadata"] = $$createField7_0($$parsedSource["metadata"]);
         }
         return new Finding(/** @type {Partial<Finding>} */($$parsedSource));
+    }
+}
+
+/**
+ * Location anchors a Diagnostic. Block is the primary handle an AI uses to find
+ * the content to revise; anchor/snippet refine it when the checker populated
+ * a position.
+ */
+export class Location {
+    /**
+     * Creates a new Location instance.
+     * @param {Partial<Location>} [$$source = {}] - The source object to create the Location.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["file"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["block"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {model$0.Anchor | null | undefined}
+             */
+            this["anchor"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Lines are the lines of File the whole block spans, when the block's
+             * position in the file is known. They locate the block, not the finding
+             * inside it, which Anchor does.
+             * @member
+             * @type {format$0.LineRange | null | undefined}
+             */
+            this["lines"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * CommentSHA256 is the hex SHA-256 of the bytes of the comment a finding
+             * sits on (comment.Fingerprint), set when its block is a comment. A comment
+             * edit carries it back, so a comment that changed since is refused.
+             * @member
+             * @type {string | undefined}
+             */
+            this["comment_sha256"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["snippet"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Location instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {Location}
+     */
+    static createFrom($$source = {}) {
+        const $$createField2_0 = $$createType7;
+        const $$createField3_0 = $$createType9;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("anchor" in $$parsedSource) {
+            $$parsedSource["anchor"] = $$createField2_0($$parsedSource["anchor"]);
+        }
+        if ("lines" in $$parsedSource) {
+            $$parsedSource["lines"] = $$createField3_0($$parsedSource["lines"]);
+        }
+        return new Location(/** @type {Partial<Location>} */($$parsedSource));
+    }
+}
+
+/**
+ * Point is a governance point a project resolved for checked blocks: the
+ * profile and channel it resolved to, both empty at the project's default
+ * point. Comments marks the point a file's comments sit at when the project
+ * places them apart from the file's other content.
+ */
+export class Point {
+    /**
+     * Creates a new Point instance.
+     * @param {Partial<Point>} [$$source = {}] - The source object to create the Point.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["profile"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["channel"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["comments"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Point instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {Point}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Point(/** @type {Partial<Point>} */($$parsedSource));
+    }
+}
+
+/**
+ * Summary is the count + score roll-up over a Report's findings. A check
+ * fails when Failing is above zero. Score is a reported metric and gates
+ * nothing.
+ */
+export class Summary {
+    /**
+     * Creates a new Summary instance.
+     * @param {Partial<Summary>} [$$source = {}] - The source object to create the Summary.
+     */
+    constructor($$source = {}) {
+        if (!("findings" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["findings"] = 0;
+        }
+        if (!("failing" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["failing"] = 0;
+        }
+        if (!("reporting" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["reporting"] = 0;
+        }
+        if (!("score" in $$source)) {
+            /**
+             * 0-100 roll-up (length-normalized when word count is known)
+             * @member
+             * @type {number}
+             */
+            this["score"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Summary instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {Summary}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Summary(/** @type {Partial<Summary>} */($$parsedSource));
+    }
+}
+
+/**
+ * Target describes the thing a Report was produced for.
+ */
+export class Target {
+    /**
+     * Creates a new Target instance.
+     * @param {Partial<Target>} [$$source = {}] - The source object to create the Target.
+     */
+    constructor($$source = {}) {
+        if (!("kind" in $$source)) {
+            /**
+             * "file" | "text" | "diff"
+             * @member
+             * @type {string}
+             */
+            this["kind"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * path, for kind=="file"
+             * @member
+             * @type {string | undefined}
+             */
+            this["file"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * detected/declared format
+             * @member
+             * @type {string | undefined}
+             */
+            this["format"] = undefined;
+        }
+        if (!("blocks" in $$source)) {
+            /**
+             * content blocks checked
+             * @member
+             * @type {number}
+             */
+            this["blocks"] = 0;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * ContextPath selects the project-relative guidance for a text draft. It
+             * does not identify an extracted file or assert that the file exists.
+             * @member
+             * @type {string | undefined}
+             */
+            this["context_path"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Target instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {Target}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Target(/** @type {Partial<Target>} */($$parsedSource));
     }
 }
 
@@ -346,5 +727,11 @@ export class Warning {
 // Private type creation functions
 const $$createType0 = ContextSync.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
-const $$createType2 = model$0.Anchor.createFrom;
-const $$createType3 = $Create.Map($Create.Any, $Create.Any);
+const $$createType2 = Location.createFrom;
+const $$createType3 = Point.createFrom;
+const $$createType4 = $Create.Nullable($$createType3);
+const $$createType5 = $Create.Map($Create.Any, $Create.Any);
+const $$createType6 = model$0.Anchor.createFrom;
+const $$createType7 = $Create.Nullable($$createType6);
+const $$createType8 = format$0.LineRange.createFrom;
+const $$createType9 = $Create.Nullable($$createType8);

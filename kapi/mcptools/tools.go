@@ -298,14 +298,6 @@ func handleRunFlowWithProject(ctx context.Context, a *cli.App, projectPath strin
 	}
 	if pf != nil && pf.Source != host.FlowSourceBuiltin {
 		spec := pf.Spec
-		// Project flow — assemble the tool chain through the host so the
-		// AD-006 placement gate, per-step config resolution and project
-		// bindings all apply, exactly as they do on the CLI.
-		flowTools, cleanup, err := a.BuildProjectFlowTools(ctx, flowName, spec, pctx, projectPath, sourceLang, targetLang)
-		if err != nil {
-			return nil, RunFlowOutput{}, err
-		}
-		defer cleanup()
 		// Use the first input file (from flag or content resolution).
 		inputPath := input.Path
 		if inputPath == "" {
@@ -318,6 +310,15 @@ func handleRunFlowWithProject(ctx context.Context, a *cli.App, projectPath strin
 				return nil, RunFlowOutput{}, errors.New("no input files. Specify path or add content patterns")
 			}
 		}
+		// Project flow: assemble the tool chain through the host so the
+		// AD-006 placement gate, per-step config resolution, project bindings
+		// and the redaction policy that governs the input file all apply, as
+		// they do on the CLI.
+		flowTools, cleanup, err := a.BuildProjectFlowTools(ctx, flowName, spec, pctx, projectPath, inputPath, sourceLang, targetLang)
+		if err != nil {
+			return nil, RunFlowOutput{}, err
+		}
+		defer cleanup()
 		outputPath, err := executeFlowWithTools(ctx, a, flowName, inputPath, sourceLang, targetLang, input.OutputPath, flowTools, pctx)
 		if err != nil {
 			return nil, RunFlowOutput{}, err

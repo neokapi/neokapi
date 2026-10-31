@@ -85,7 +85,7 @@ func ExecTargetFor(s *schema.ComponentSchema, writesOutput bool) ExecTarget {
 // ExitNotRun, as for a `kapi check` that checked no content, so a script does
 // not read the run as a clean one.
 func notRunError(data any) error {
-	r, ok := data.(findingsReport)
+	r, ok := data.(FindingsReport)
 	if !ok || r.untranslated == nil {
 		return nil
 	}
@@ -93,12 +93,16 @@ func notRunError(data any) error {
 		ErrCheckNotRun, r.untranslated.tool, r.untranslated.lang)
 }
 
-// printToolResult prints a run's collected result and returns notRunError for it.
+// printToolResult prints a run's collected result and returns notRunError
+// for it, or else placeholderGateError.
 func printToolResult(cfg ToolRunConfig, data any) error {
 	if err := output.FormatCollectorResult(cfg.JSONOutput, cfg.JQ, cfg.Colorize, data); err != nil {
 		return err
 	}
-	return notRunError(data)
+	if err := notRunError(data); err != nil {
+		return err
+	}
+	return placeholderGateError(data)
 }
 
 // runToolOnPair runs cfg's tool over the one source file cfg.Files names,

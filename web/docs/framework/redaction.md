@@ -49,7 +49,9 @@ The policy also covers `external-command`, because the program it runs may
 send what it reads anywhere. The program reads each withheld value as its
 placeholder, and kapi puts the original back into the program's output. This
 holds for `kapi exec external-command` and for a flow, which needs a `redact`
-step ahead of the tool.
+step ahead of the tool. When the output drops, alters, repeats or adds a
+placeholder, the block keeps its content and the run reports a failing finding
+that names the block and the placeholder, and `kapi exec` and `kapi up` exit 3.
 
 ## What the policy covers
 
@@ -184,6 +186,10 @@ steps:
   - tool: translate
   - tool: unredact
 ```
+
+In a project, a `redact` step that names no `rulesPath` or `rules` of its own
+redacts each file under the policy the recipe declares for that file. A step
+that names its own rules keeps them.
 
 ### External: extract, translate, merge
 

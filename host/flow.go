@@ -27,6 +27,7 @@ import (
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projector"
+	"github.com/neokapi/neokapi/core/redaction"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/safeio"
 	"github.com/neokapi/neokapi/core/schema"
@@ -2449,12 +2450,120 @@ func (a *App) stepToolConfig(step flow.FlowStep, cmd Command, rCtx *flow.Resourc
 		}
 	}
 	config = a.ApplyProjectBindings(step.Tool, toolSchema, config)
+	config, err := a.applyFlowRedaction(step.Tool, config, rCtx)
+	if err != nil {
+		return nil, noop, err
+	}
 
 	// The grant happens here, on the config map, at the one place a flow step
 	// becomes a tool: a map takes the handle for any tool that declared it
 	// wants one, so the capability is not narrowed to the single concrete
 	// config type a pass over built tools would have to assert.
 	return a.grantMemory(step.Tool, config, cmd)
+}
+
+// flowRedactionPolicy is the redaction policy that governs the files the
+// chain being built will process: a.flowRedaction, or the policy
+// `defaults.redaction` declares when no group was resolved. Its Spec is nil
+// when no policy governs them, or when the App has no project.
+func (a *App) flowRedactionPolicy() project.ResolvedRedaction {
+	if a.ProjectContext == nil || a.ProjectContext.Project == nil {
+		return project.ResolvedRedaction{}
+	}
+	if a.flowRedaction != nil {
+		return *a.flowRedaction
+	}
+	return a.ProjectContext.Project.RedactionForPath("")
+}
+
+// applyFlowRedaction gives a project flow's redact step the redaction policy
+// that governs the files its chain is built for (flowRedactionPolicy). The
+// step detects with its own detectors and the policy's together. A step that
+// names no rules of its own (no rulesPath, no rules) takes the policy's rules
+// file; one that names rules keeps them. Every other step is returned as it
+// is. A rule-less step under a policy with no rules file and no entity
+// detection would withhold nothing, so it is refused.
+func (a *App) applyFlowRedaction(toolName string, config map[string]any, rCtx *flow.ResourceContext) (map[string]any, error) {
+	if toolName != "redact" {
+		return config, nil
+	}
+	resolved := a.flowRedactionPolicy()
+	if resolved.Spec == nil {
+		return config, nil
+	}
+	ownRules := stepNamesRedactRules(config)
+	if !ownRules {
+		if err := checkRedactionRules(resolved.Spec); err != nil {
+			return nil, fmt.Errorf("the redact step takes the policy at %s: %w", resolved.At, err)
+		}
+	}
+	root := a.ProjectContext.ProjectDir
+	if rCtx != nil && rCtx.ProjectDir != "" {
+		root = rCtx.ProjectDir
+	}
+	rcfg := redactToolConfig(resolved.Spec, root, "", model.LocaleID(a.SourceLocale()))
+	out := make(map[string]any, len(config)+3)
+	maps.Copy(out, config)
+	detectors := stepDetectors(config)
+	if len(detectors) == 0 && ownRules {
+		// A step that names rules and no detectors detects by its rules, as
+		// the redact tool's default has it.
+		detectors = []string{"rules"}
+	}
+	for _, d := range rcfg.Detectors {
+		if !slices.Contains(detectors, d) {
+			detectors = append(detectors, d)
+		}
+	}
+	out["detectors"] = detectors
+	if !ownRules && rcfg.RulesPath != "" {
+		out["rulesPath"] = rcfg.RulesPath
+	}
+	if rcfg.Placeholder != "" {
+		if _, set := config["placeholder"]; !set {
+			out["placeholder"] = rcfg.Placeholder
+		}
+	}
+	return out, nil
+}
+
+// stepDetectors returns the detectors a redact step's config names, or nil
+// when it names none.
+func stepDetectors(config map[string]any) []string {
+	var out []string
+	switch ds := config["detectors"].(type) {
+	case []string:
+		out = append(out, ds...)
+	case []any:
+		for _, d := range ds {
+			if s, ok := d.(string); ok && s != "" {
+				out = append(out, s)
+			}
+		}
+	case string:
+		if ds != "" {
+			out = append(out, ds)
+		}
+	}
+	return out
+}
+
+// stepNamesRedactRules reports whether a redact step's config names rules of
+// its own: a rulesPath or inline rules.
+func stepNamesRedactRules(config map[string]any) bool {
+	if p, ok := config["rulesPath"].(string); ok && p != "" {
+		return true
+	}
+	switch rules := config["rules"].(type) {
+	case nil:
+		return false
+	case []any:
+		return len(rules) > 0
+	case []redaction.Rule:
+		return len(rules) > 0
+	default:
+		return true
+	}
 }
 
 // resolveRunBindings returns the standing context a flow run should carry.

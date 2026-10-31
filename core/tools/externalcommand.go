@@ -6,10 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/redaction"
 	"github.com/neokapi/neokapi/core/tool"
@@ -102,7 +104,10 @@ func NewExternalCommandTool(cfg *ExternalCommandConfig) *tool.BaseTool {
 	// recorded in block properties and leaves the content untouched. The
 	// program reads the block's text with each redaction placeholder drawn as
 	// its visible token (redaction.VisibleText); a block with none reads as
-	// SourceText and TargetText read it.
+	// SourceText and TargetText read it. Unredact puts each value back by its
+	// token, so an output whose placeholders differ from the input's leaves
+	// the whole block untouched and records a failing finding for each
+	// placeholder that differs.
 	t.Transform = func(v tool.BlockView) (tool.EditPlan, error) {
 		if !v.Translatable() {
 			return tool.EditPlan{}, nil
@@ -116,13 +121,18 @@ func NewExternalCommandTool(cfg *ExternalCommandConfig) *tool.BaseTool {
 		}
 
 		var plan tool.EditPlan
+		known := blockTokens(v)
 
 		// Process source text.
 		if conf.ApplySource {
 			text, tokens := redaction.VisibleText(v.SourceRuns())
-			result, err := runOn(v, conf, text, tokens, timeout)
+			result, err := runOn(v, conf, text, timeout)
 			if err != nil {
 				v.SetProperty(PropExternalCommandError, err.Error())
+				return tool.EditPlan{}, nil
+			}
+			if changes := redaction.CompareTokens(text, result, tokens, known); len(changes) > 0 {
+				check.Annotate(v, string(ExternalCommand), tokenFindings(conf, "source", changes))
 				return tool.EditPlan{}, nil
 			}
 			if result != text {
@@ -133,9 +143,14 @@ func NewExternalCommandTool(cfg *ExternalCommandConfig) *tool.BaseTool {
 		// Process target text.
 		if conf.ApplyTarget && !conf.TargetLocale.IsEmpty() && v.HasTarget(conf.TargetLocale) {
 			text, tokens := redaction.VisibleText(v.TargetRuns(conf.TargetLocale))
-			result, err := runOn(v, conf, text, tokens, timeout)
+			result, err := runOn(v, conf, text, timeout)
 			if err != nil {
 				v.SetProperty(PropExternalCommandError, err.Error())
+				return tool.EditPlan{}, nil
+			}
+			if changes := redaction.CompareTokens(text, result, tokens, known); len(changes) > 0 {
+				side := string(conf.TargetLocale) + " target"
+				check.Annotate(v, string(ExternalCommand), tokenFindings(conf, side, changes))
 				return tool.EditPlan{}, nil
 			}
 			if result != text {
@@ -148,13 +163,75 @@ func NewExternalCommandTool(cfg *ExternalCommandConfig) *tool.BaseTool {
 	return t
 }
 
+// RulePlaceholder is the category of the finding external-command records
+// when the output of its program differs from the program's input in a
+// redaction placeholder. A report names it external-command.redaction-placeholder.
+const RulePlaceholder = "redaction-placeholder"
+
+// blockTokens returns the visible token of every redaction placeholder the
+// block holds: in its source, in each translation, and among the values the
+// redact step ahead of the tool withheld.
+func blockTokens(v tool.BlockView) []string {
+	tokens := redaction.Tokens(v.SourceRuns())
+	for _, locale := range v.TargetLocales() {
+		tokens = append(tokens, redaction.Tokens(v.TargetRuns(locale))...)
+	}
+	if ann, ok := v.Annotations()[redaction.SecretAnnotationKey].(*redaction.SecretAnnotation); ok {
+		for _, val := range ann.Values {
+			if val.Disp != "" {
+				tokens = append(tokens, val.Disp)
+			}
+		}
+	}
+	return tokens
+}
+
+// tokenFindings turns the placeholder changes in the program's output
+// for one side of a block into failing findings. side names that side:
+// "source", or "<locale> target".
+func tokenFindings(conf *ExternalCommandConfig, side string, changes []redaction.TokenChange) []check.Finding {
+	program := filepath.Base(conf.Command)
+	findings := make([]check.Finding, 0, len(changes))
+	for _, c := range changes {
+		var msg string
+		suggestion := fmt.Sprintf("Make %s give back %s exactly as it reads it", program, c.Token)
+		switch c.Kind {
+		case redaction.TokenAltered:
+			msg = fmt.Sprintf("%s gave back %s where the %s holds the redaction placeholder %s; the block is unchanged", program, c.Variant, side, c.Token)
+		case redaction.TokenDuplicated:
+			msg = fmt.Sprintf("%s gave back the redaction placeholder %s %d times; the %s holds it %d time(s); the block is unchanged", program, c.Token, c.Found, side, c.Expected)
+		case redaction.TokenAdded:
+			msg = fmt.Sprintf("%s gave back the redaction placeholder %s, which the %s does not hold; the block is unchanged", program, c.Token, side)
+			suggestion = fmt.Sprintf("Make %s give back only the redaction placeholders it reads", program)
+		default:
+			if c.Found > 0 {
+				// A partial drop: the output keeps some occurrences.
+				msg = fmt.Sprintf("%s gave back the redaction placeholder %s %d time(s); the %s holds it %d time(s); the block is unchanged", program, c.Token, c.Found, side, c.Expected)
+				break
+			}
+			msg = fmt.Sprintf("%s dropped the redaction placeholder %s that the %s holds; the block is unchanged", program, c.Token, side)
+		}
+		findings = append(findings, check.Finding{
+			Category:     RulePlaceholder,
+			Fails:        true,
+			Message:      msg,
+			Suggestion:   suggestion,
+			OriginalText: c.Token,
+			Metadata: map[string]string{
+				"kind":     string(c.Kind),
+				"side":     side,
+				"token":    c.Token,
+				"expected": strconv.Itoa(c.Expected),
+				"found":    strconv.Itoa(c.Found),
+			},
+		})
+	}
+	return findings
+}
+
 // runOn runs the command over text and records its exit code on the block.
 // A non-zero exit counts as a failure, so the block is left as it was.
-// Under a redaction policy text holds the visible token of each value the
-// policy withholds, and unredact puts the original back where the token
-// survives in the output. An output that drops a token would lose that
-// value, so it counts as a failure and leaves the block as it was.
-func runOn(v tool.BlockView, conf *ExternalCommandConfig, text string, tokens []string, timeout int) (string, error) {
+func runOn(v tool.BlockView, conf *ExternalCommandConfig, text string, timeout int) (string, error) {
 	result, exitCode, err := runCommand(v.Context(), conf, text, timeout)
 	v.SetProperty(PropExternalCommandExitCode, strconv.Itoa(exitCode))
 	if err != nil {
@@ -162,11 +239,6 @@ func runOn(v tool.BlockView, conf *ExternalCommandConfig, text string, tokens []
 	}
 	if exitCode != 0 {
 		return "", fmt.Errorf("external-command: %s exited with code %d", conf.Command, exitCode)
-	}
-	for _, tok := range tokens {
-		if !strings.Contains(result, tok) {
-			return "", fmt.Errorf("external-command: the output of %s drops the redaction placeholder %s, so the value it stands for could not be restored", conf.Command, tok)
-		}
 	}
 	return result, nil
 }

@@ -253,6 +253,14 @@ func (a *App) ExecuteUp(cmd Command, projectPath string) error {
 		onEvent:     onEvent,
 		capture:     &result,
 	}); err != nil {
+		// A run that left blocks unchanged because a program changed their
+		// redaction placeholders completed: its summary carries the findings,
+		// so it is printed before the run fails as a failed check does.
+		if result.Findings != nil && !printing {
+			if perr := PrintUpResultStream(cmd, stream, result); perr != nil {
+				return perr
+			}
+		}
 		return err
 	}
 	if printing {

@@ -519,6 +519,132 @@ func VisibleText(runs []model.Run) (string, []string) {
 	return text, held
 }
 
+// Tokens returns the visible token of every redaction placeholder in runs,
+// in every plural form and select case too, each once.
+func Tokens(runs []model.Run) []string {
+	var tokens []string
+	showTokens(runs, &tokens)
+	var out []string
+	for _, tok := range tokens {
+		if !slices.Contains(out, tok) {
+			out = append(out, tok)
+		}
+	}
+	return out
+}
+
+// TokenChangeKind names how a text a reader gave back differs from the text
+// it read in one redaction placeholder.
+type TokenChangeKind string
+
+const (
+	// TokenDropped: the output carries the placeholder fewer times than the
+	// input held it.
+	TokenDropped TokenChangeKind = "dropped"
+	// TokenAltered: the output carries a variant of the placeholder that
+	// differs from it in letter case only, where the input held it.
+	TokenAltered TokenChangeKind = "altered"
+	// TokenDuplicated: the output carries the placeholder more times than the
+	// input held it.
+	TokenDuplicated TokenChangeKind = "duplicated"
+	// TokenAdded: the output carries a placeholder of the block that the
+	// input did not hold.
+	TokenAdded TokenChangeKind = "added"
+)
+
+// TokenChange is one redaction placeholder whose occurrences differ between
+// the text a reader read and the text it gave back.
+type TokenChange struct {
+	Kind TokenChangeKind
+	// Token is the placeholder's visible token.
+	Token string
+	// Expected is how many times the input held Token, and Found how many
+	// times the output carries it.
+	Expected int
+	Found    int
+	// Variant is the text the output carries in Token's place, for
+	// TokenAltered.
+	Variant string
+}
+
+// CompareTokens compares the redaction placeholders of in, the text a reader
+// was given, with those of out, the text it gave back. The tokens argument
+// holds the visible tokens of in (VisibleText). The known argument holds the
+// tokens of every placeholder the block holds, on any side and in any form,
+// so CompareTokens also reports an output that carries a placeholder the
+// input did not hold.
+//
+// Unredact restores each value by its token. A dropped or altered token loses
+// the value, a duplicated one repeats it, and an added one puts a value where
+// the input had none. The changes come in the order of tokens, then of known.
+func CompareTokens(in, out string, tokens, known []string) []TokenChange {
+	all := make([]string, 0, len(tokens)+len(known))
+	for _, tok := range append(slices.Clone(tokens), known...) {
+		if tok != "" && !slices.Contains(all, tok) {
+			all = append(all, tok)
+		}
+	}
+	if len(all) == 0 {
+		return nil
+	}
+	held, carried := countTokens(in, all), countTokens(out, all)
+	var changes []TokenChange
+	for _, tok := range all {
+		expected, found := held[tok], carried[tok]
+		switch {
+		case expected == found:
+		case found == 0 && expected > 0:
+			if variant := foldVariant(out, tok, all); variant != "" {
+				changes = append(changes, TokenChange{Kind: TokenAltered, Token: tok, Expected: expected, Variant: variant})
+				continue
+			}
+			changes = append(changes, TokenChange{Kind: TokenDropped, Token: tok, Expected: expected})
+		case found < expected:
+			changes = append(changes, TokenChange{Kind: TokenDropped, Token: tok, Expected: expected, Found: found})
+		case expected == 0:
+			changes = append(changes, TokenChange{Kind: TokenAdded, Token: tok, Found: found})
+		default:
+			changes = append(changes, TokenChange{Kind: TokenDuplicated, Token: tok, Expected: expected, Found: found})
+		}
+	}
+	return changes
+}
+
+// countTokens counts the occurrences of each token in text, reading it left
+// to right as RestorePlan does: at each position the longest token wins, so
+// "[REDACTED:Person]#1" is not counted inside "[REDACTED:Person]#10".
+func countTokens(text string, tokens []string) map[string]int {
+	entries := make([]RedactedValue, len(tokens))
+	for i, tok := range tokens {
+		entries[i] = RedactedValue{Disp: tok, Original: tok}
+	}
+	counts := map[string]int{}
+	for from := 0; from < len(text); {
+		_, end, tok, ok := nextTokenMatch(text, from, entries)
+		if !ok {
+			break
+		}
+		counts[tok]++
+		from = end
+	}
+	return counts
+}
+
+// foldVariant returns the first text in out that equals tok but for letter
+// case and is not itself one of tokens, or "" when out carries none.
+func foldVariant(out, tok string, tokens []string) string {
+	for i := 0; i+len(tok) <= len(out); i++ {
+		if !utf8.RuneStart(out[i]) {
+			continue
+		}
+		cand := out[i : i+len(tok)]
+		if cand != tok && strings.EqualFold(cand, tok) && !slices.Contains(tokens, cand) {
+			return cand
+		}
+	}
+	return ""
+}
+
 // showTokens returns runs with each redaction placeholder replaced by a text
 // run holding its visible token, in every plural form and select case too,
 // and appends each token to tokens. Every other run is kept as it is, so

@@ -5,6 +5,11 @@
 export {
     ContextProvenance,
     ContextSync,
+    Diagnostic,
     Finding,
+    Location,
+    Point,
+    Summary,
+    Target,
     Warning
 } from "./models.js";

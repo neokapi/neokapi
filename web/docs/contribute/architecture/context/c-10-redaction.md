@@ -278,8 +278,17 @@ policy of the file it holds:
    so. A project flow's tools are built once for every file of a pass, so the
    gate holds it when any declaration turns redaction on
    (`KapiProject.DeclaresRedaction`); a built-in flow built for one input file
-   is held when a policy covers that file. The flow's `redact` step takes its
-   rules from its own configuration.
+   is held when a policy covers that file. A project flow's input set splits
+   by the policy that governs each file (`groupInputsByBinding`), and a
+   `redact` step that names no `rulesPath` or `rules` of its own redacts each
+   part under that part's policy (`App.applyFlowRedaction`); a step that names
+   its own rules keeps them. `kapi run`, `kapi up` and its plan reach the step
+   through the same assembly, and the MCP `run_flow` tool and the desktop's
+   flow preview build their chains under the policy of the one file they run
+   over. The step detects with its own detectors and the policy's together,
+   and a step that detects entities with no entity-extract step ahead of it is
+   refused. A step that sends source out after `unredact`, with no redact
+   step between them, fails placement (`egress-after-restore`).
 4. **A single-tool run.** `kapi exec <tool>`, and the MCP tools that run one
    registry tool over a caller's text, compose no flow of the user's, so the run
    itself places the steps (`host/toolrun_redact.go`). When the tool's contract,
@@ -314,8 +323,13 @@ policy of the file it holds:
    and `unredact` around it, a run over a `.kpz` package is refused under a
    collection's or an item's policy, and a flow that runs it needs a `redact`
    step ahead of it. The program reads each placeholder as its visible token
-   (`redaction.VisibleText`), and an output that drops a token leaves the block
-   as it was rather than lose the value.
+   (`redaction.VisibleText`). The tool compares the tokens of its input with
+   those of the program's output (`redaction.CompareTokens`); a token the output
+   drops, alters, repeats or adds leaves the block as it was and records a
+   failing `external-command.redaction-placeholder` finding, which `kapi exec`
+   reports with exit code 3 and a flow run reports beside its other findings.
+   `kapi up` collects the same finding over its passes, prints it under the
+   run's summary in place of the up-to-date line, and exits 3.
 5. **The deeper look.** It sends chunks of the project's block texts to a model
    (`host/contextdeeper.go`). A chunk holds blocks of files under one policy
    only, and each chunk is redacted under that policy before the model reads

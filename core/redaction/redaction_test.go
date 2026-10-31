@@ -498,3 +498,58 @@ func TestRulesFile_Roundtrip(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, got, 2)
 }
+
+func TestCompareTokens(t *testing.T) {
+	const person, email = "[REDACTED:Person]", "[REDACTED:Email]"
+	in := "Write to " + person + " today."
+	tests := []struct {
+		name  string
+		out   string
+		known []string
+		want  []TokenChange
+	}{
+		{name: "kept", out: "Mail to " + person + " today."},
+		{
+			name: "dropped", out: "Mail to someone today.",
+			want: []TokenChange{{Kind: TokenDropped, Token: person, Expected: 1}},
+		},
+		{
+			name: "altered in case", out: "WRITE TO [REDACTED:PERSON] TODAY.",
+			want: []TokenChange{{Kind: TokenAltered, Token: person, Expected: 1, Variant: "[REDACTED:PERSON]"}},
+		},
+		{
+			name: "duplicated", out: person + ": write to " + person + " today.",
+			want: []TokenChange{{Kind: TokenDuplicated, Token: person, Expected: 1, Found: 2}},
+		},
+		{
+			name: "added from elsewhere in the block", out: "Write to " + person + " at " + email + ".", known: []string{person, email},
+			want: []TokenChange{{Kind: TokenAdded, Token: email, Found: 1}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, CompareTokens(in, tt.out, []string{person}, tt.known))
+		})
+	}
+}
+
+// A token is counted where RestorePlan would restore it, so "#1" is not read
+// inside "#10".
+func TestCompareTokens_LongestTokenWins(t *testing.T) {
+	one, ten := "[REDACTED:Person]#1", "[REDACTED:Person]#10"
+	in := one + " and " + ten
+	assert.Empty(t, CompareTokens(in, ten+" and "+one, []string{one, ten}, nil))
+	assert.Equal(t, []TokenChange{{Kind: TokenDropped, Token: one, Expected: 1}},
+		CompareTokens(in, ten+" and someone", []string{one, ten}, nil))
+}
+
+func TestTokens_ReadsEveryForm(t *testing.T) {
+	ph := func(disp string) model.Run {
+		return model.Run{Ph: &model.PlaceholderRun{ID: "rdx1", Type: PlaceholderType("person"), Disp: disp}}
+	}
+	runs := []model.Run{ph("[REDACTED:Person]"), {Plural: &model.PluralRun{Pivot: "n", Forms: map[model.PluralForm][]model.Run{
+		model.PluralOne:   {ph("[REDACTED:Person]")},
+		model.PluralOther: {ph("[REDACTED:Email]")},
+	}}}}
+	assert.ElementsMatch(t, []string{"[REDACTED:Person]", "[REDACTED:Email]"}, Tokens(runs))
+}

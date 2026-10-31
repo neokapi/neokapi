@@ -180,6 +180,7 @@ var convergeWorkerFields = map[string]workerFieldPolicy{
 	"flowFindings":        fieldOwned,  // armed per reported run; a silent worker reports none
 	"flowFindingsSink":    fieldOwned,  // scoped to one RunFromProject; a worker gates nothing
 	"convergeProgressTap": fieldOwned,  // one tap per locale
+	"flowRedaction":       fieldOwned,  // set per binding group on the worker that runs it
 	"pluginRuntimeOnce":   fieldOwned,  // a fresh Once that sees the pre-seeded runtime
 	"projectStoresOnce":   fieldOwned,  // a fresh Once that sees the pre-seeded holder
 	// The plugin MCP servers belong to a `kapi mcp` session, and a converge
