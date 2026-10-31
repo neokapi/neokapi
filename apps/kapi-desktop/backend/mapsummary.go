@@ -301,7 +301,9 @@ func (a *App) mapBlockCounts(ctx context.Context, op *openProject) (map[string]i
 // mapRuleCount counts the rules in force at the project's own point. Those
 // are the concepts in the terms store the project binds, where a kept term
 // rule is recorded, and the word rules and patterns of the voice profile. The
-// notes a person kept count too; the operation log alone holds them.
+// notes a person kept count too; the operation log alone holds them. The
+// record of an import is a note about where context came from, not a rule,
+// and is not counted.
 func (a *App) mapRuleCount(ctx context.Context, op *openProject) (int, error) {
 	total := 0
 	if _, ok := a.existingProjectStore(op); ok { //nolint:contextcheck // the store opens under the engine's own context
@@ -324,7 +326,7 @@ func (a *App) mapRuleCount(ctx context.Context, op *openProject) (int, error) {
 			return 0, fmt.Errorf("read kept notes: %w", lerr)
 		}
 		for _, r := range log.Operations {
-			if r.Subject.Kind == contextop.SubjectNote && r.Project == op.workspaceKey {
+			if r.Subject.Kind == contextop.SubjectNote && r.Kind != contextop.KindImport && r.Project == op.workspaceKey {
 				total++
 			}
 		}

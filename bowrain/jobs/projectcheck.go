@@ -67,10 +67,11 @@ type ItemCheck struct {
 }
 
 // CheckItemSource runs the checks at the source locale over one item's
-// translatable blocks, a batch at a time, and hands each block and its
-// findings to visit. The checks are resolved once, at the item's point, and
-// returned.
-func CheckItemSource(ctx context.Context, b PointCheckBinding, it ItemCheck, visit func(*model.Block, []ItemFinding) error) (PointChecks, error) {
+// translatable blocks, in the order the item holds them, and hands each block
+// and its findings to visit. One item's blocks are the unit of work: the read
+// names the item, and nothing reads the rest of the project. The checks are
+// resolved once, at the item's point, and returned.
+func CheckItemSource(ctx context.Context, b PointCheckBinding, it ItemCheck, visit func(*venue.StoredBlock, []ItemFinding) error) (PointChecks, error) {
 	proj, err := b.Store.GetProject(ctx, it.ProjectID)
 	if err != nil {
 		return PointChecks{}, fmt.Errorf("check project: %w", err)
@@ -87,24 +88,29 @@ func CheckItemSource(ctx context.Context, b PointCheckBinding, it ItemCheck, vis
 	if doc == "" {
 		doc = it.Item
 	}
+	if it.Item == "" {
+		return checks, errors.New("check an item: no item named")
+	}
 	translatable := true
-	return checks, store.EachBlockBatch(ctx, b.Store, store.BlockQuery{
-		ProjectID: it.ProjectID, Stream: it.Stream, ItemName: it.Item, Translatable: &translatable,
-	}, 0, func(batch []*venue.StoredBlock) error {
-		for _, sb := range batch {
-			if sb == nil || sb.Block == nil {
-				continue
-			}
-			found, err := blockSourceFindings(ctx, sb.Block, checks, doc, source)
-			if err != nil {
-				return err
-			}
-			if err := visit(sb.Block, found); err != nil {
-				return err
-			}
-		}
-		return nil
+	blocks, err := b.Store.GetBlocks(ctx, store.BlockQuery{
+		ProjectID: it.ProjectID, Stream: it.Stream, ItemName: it.Item, Translatable: &translatable, Order: store.BlockOrderDocument,
 	})
+	if err != nil {
+		return checks, fmt.Errorf("read the blocks of %s: %w", it.Item, err)
+	}
+	for _, sb := range blocks {
+		if sb == nil || sb.Block == nil {
+			continue
+		}
+		found, err := blockSourceFindings(ctx, sb.Block, checks, doc, source)
+		if err != nil {
+			return checks, err
+		}
+		if err := visit(sb, found); err != nil {
+			return checks, err
+		}
+	}
+	return checks, nil
 }
 
 // blockSourceFindings runs the checks on one block, the standard set first
@@ -161,7 +167,7 @@ type ProjectCheckResult struct {
 
 // Run checks every item of the stream at the source locale, item by item,
 // and records each item's tally. A block's findings are counted and let go,
-// so the check holds one batch of one item at a time.
+// so the check holds one item's blocks at a time.
 func (pc ProjectCheck) Run(ctx context.Context) (ProjectCheckResult, error) {
 	var res ProjectCheckResult
 	if pc.Binding.Store == nil || pc.Tallies == nil {
@@ -191,7 +197,7 @@ func (pc ProjectCheck) Run(ctx context.Context) (ProjectCheckResult, error) {
 		tally := store.ItemCheckTally{ProjectID: pc.ProjectID, Stream: stream, ItemID: it.ID, CheckedAt: res.CheckedAt}
 		_, err := CheckItemSource(ctx, pc.Binding, ItemCheck{
 			ProjectID: pc.ProjectID, Stream: stream, WorkspaceID: pc.WorkspaceID, Item: it.Name, Doc: doc,
-		}, func(_ *model.Block, found []ItemFinding) error {
+		}, func(_ *venue.StoredBlock, found []ItemFinding) error {
 			tally.Findings += len(found)
 			for _, f := range found {
 				if f.Fix != nil {

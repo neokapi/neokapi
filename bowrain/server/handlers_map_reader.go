@@ -34,6 +34,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/rulesview"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/host/screens"
 )
 
@@ -232,6 +233,7 @@ type readerItem struct {
 	dto    *screens.ReaderFileDTO
 	item   *platstore.Item
 	source model.LocaleID
+	// blocks holds each stored block by the id the Reader names it by.
 	blocks map[string]*model.Block
 	fixes  map[string]string
 	order  []string
@@ -264,11 +266,17 @@ func (s *Server) readItem(c echo.Context, st *decideState, name string) (*reader
 	var findings []screens.CheckedFinding
 	checks, err := jobs.CheckItemSource(ctx, s.checkBinding(c.Param("ws")), jobs.ItemCheck{
 		ProjectID: st.project.ID, Stream: st.stream, WorkspaceID: st.project.WorkspaceID, Item: item.Name, Doc: path,
-	}, func(b *model.Block, found []jobs.ItemFinding) error {
-		blocks = append(blocks, b)
-		out.blocks[b.ID] = b
+	}, func(sb *venue.StoredBlock, found []jobs.ItemFinding) error {
+		// The Reader names a block as the format's reader named it, as the
+		// check on the desktop does; the store's own id files a proposal.
+		view := *sb.Block
+		if sb.SourceID != "" {
+			view.ID = sb.SourceID
+		}
+		blocks = append(blocks, &view)
+		out.blocks[view.ID] = sb.Block
 		for _, f := range found {
-			findings = append(findings, checkedFinding(b, f, out.source))
+			findings = append(findings, checkedFinding(&view, f, out.source))
 		}
 		return nil
 	})
