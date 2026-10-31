@@ -55,7 +55,6 @@ func TestFixtures(t *testing.T) {
 var (
 	recordedAt  = time.Date(2026, 10, 28, 9, 30, 0, 0, time.UTC)
 	agent       = contextop.Actor{Kind: contextop.ActorAgent, Name: "claude-code@build-01", Session: "s-7f3a"}
-	person      = contextop.Actor{Kind: contextop.ActorPerson, Name: "maria"}
 	personAlone = contextop.Actor{Kind: contextop.ActorPerson}
 )
 
