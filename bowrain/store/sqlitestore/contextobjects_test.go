@@ -76,7 +76,7 @@ func TestContextObjects_NamesOutsideTheLayoutAreRefused(t *testing.T) {
 		require.Error(t, s.PutContextObjects(ctx, p.ID, "m", []platstore.ContextObject{{Name: name, Data: []byte("x")}}), name)
 		_, err := s.GetContextObject(ctx, p.ID, name)
 		require.Error(t, err, name)
-		assert.NotErrorIs(t, err, platstore.ErrNoContextObject, name)
+		require.NotErrorIs(t, err, platstore.ErrNoContextObject, name)
 	}
 	_, err := s.ListContextObjects(ctx, p.ID, "log")
 	require.Error(t, err, "a directory is named with its slash, as the layout names it")
