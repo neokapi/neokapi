@@ -532,8 +532,9 @@ the full extension model.
   whitespace-free, and `valid_from`/`valid_to` must parse as a date or an
   RFC3339 instant.
 - `defaults.merge.conflict_policy`, `defaults.memory.fuzzy_threshold` (0..100),
-  `defaults.redaction.detectors`, `defaults.materialize` and `defaults.voice`
-  are each shape-checked. `defaults.translate_after` must name `written`,
+  `defaults.redaction.detectors` (and the `detectors` of a collection's or an
+  item's `redaction:`), `defaults.materialize` and `defaults.voice` are each
+  shape-checked. `defaults.translate_after` must name `written`,
   `established` or `none`; the runner applies `written` when it is unset.
 - Each flow must have at least one step
 - Each step must have a non-empty `tool` field (unless it uses `parallel`)

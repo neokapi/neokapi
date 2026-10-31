@@ -282,6 +282,11 @@ func TestSanitizeRecipeClearsNonLocalPaths(t *testing.T) {
 				}}}
 			},
 			func(p *project.KapiProject) string { return p.Collections[0].Content[0].Redaction.Rules }},
+		{"collection redaction rules",
+			func(p *project.KapiProject) {
+				p.Collections = []project.Collection{{Path: "src/**", Redaction: &project.RedactionSpec{Enabled: true, Rules: escape}}}
+			},
+			func(p *project.KapiProject) string { return p.Collections[0].Redaction.Rules }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			r := &project.KapiProject{Version: project.CurrentVersion}

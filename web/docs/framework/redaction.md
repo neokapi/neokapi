@@ -32,8 +32,9 @@ In the CLI, `redact` and `unredact` are pipeline steps: the built-in
 `secure-translate` flow runs redact → translate → unredact
 (`kapi run secure-translate`), a project flow can place the same steps around
 its own pipeline, and `kapi extract --redact` protects a translator hand-off.
-In a project that declares `defaults.redaction`, `kapi exec <tool>` puts the
-same two steps around a tool that calls a model. They apply the policy's rules
+In a project that declares a redaction policy, `kapi exec <tool>` puts the
+same two steps around a tool that calls a model, for each file under the
+policy that covers it (see [Recipe configuration](#recipe-configuration)). They apply the policy's rules
 to every block the tool reads, blocks marked not translatable included, and to
 each translation beside the source, plural forms included. The policy covers
 blocks only: the term rules, voice profile and content memory a tool sends
@@ -159,8 +160,20 @@ redaction in the recipe (below) so plain `kapi extract` redacts. Use
 
 ## Recipe configuration
 
-Declare redaction in the project recipe to make it the default for `extract`.
-It can be set project-wide under `defaults` and overridden per content item:
+Declare redaction in the project recipe, and kapi applies it wherever content
+leaves the project: `kapi push`, `kapi exec`, `kapi extract`, **Deeper look
+with AI** and the record kept of each edit. A policy can be declared in three
+places:
+
+- `defaults.redaction`, for every file of the project;
+- `redaction:` on a collection, named or bare, for the files it holds;
+- `redaction:` on a content item, for the files that item matches.
+
+Each file is redacted under the most specific declaration that covers it: its
+item's, else its collection's, else the defaults. That declaration replaces the
+others for the file. Its fields are not merged with theirs, so a collection
+that names its own `rules` file redacts with that file alone, and one that
+needs the default rules as well lists them in its own rules file.
 
 ```yaml
 defaults:
@@ -173,11 +186,25 @@ defaults:
     placeholder: "[REDACTED:{category}]"
 
 collections:
+  - name: legal
+    redaction:              # replaces defaults.redaction for legal/
+      enabled: true
+      rules: legal-redaction.yaml
+    content:
+      - path: "legal/*.md"
+
   - path: "src/locales/*.json"
     format: json
     redaction:
-      enabled: false      # skip redaction for this entry
+      enabled: false        # no redaction for this entry
 ```
+
+Content that sits in no file, such as the text an MCP tool call passes, is
+redacted under `defaults.redaction`. A flow places its own `redact` step, and
+kapi refuses to run a flow that sends source to a remote provider without one.
+A project flow runs over every file of the run, so it needs the step when any
+declaration in the recipe turns redaction on. A built-in flow run on one file
+needs it when a policy covers that file.
 
 ## Where the originals live
 

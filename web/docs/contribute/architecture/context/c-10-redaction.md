@@ -141,11 +141,11 @@ formats differ in whether they preserve inline structure on write:
 
 Together they cover every supported carrier.
 
-### The policy has three readers
+### The policy and its readers
 
-The recipe declares redaction under `defaults.redaction`, and per content item,
-pointing at a separate rules file so the sensitive term list stays out of the
-committed recipe:
+The recipe declares redaction under `defaults.redaction`, on a collection
+(named or bare) and on a content item, each pointing at a separate rules file
+so the sensitive term list stays out of the committed recipe:
 
 ```yaml
 defaults:
@@ -154,34 +154,57 @@ defaults:
     rules: redaction.yaml         # binds any path; keep it out of version control
     detectors: [rules]            # opt in: entities
     placeholder: "[REDACTED:{category}]"
+collections:
+  - name: legal
+    redaction:                    # replaces defaults.redaction for these files
+      enabled: true
+      rules: legal-redaction.yaml
+    content:
+      - path: "legal/*.md"
 ```
 
-A policy with one reader is a policy that fails open everywhere else, so the
-policy is read at every point content can leave:
+A file's policy is the most specific declaration that covers it: the item that
+claims the file (the claim `ItemForPath` makes), else that item's collection,
+else the defaults (`KapiProject.RedactionForPath`, which `host.RedactionFor`
+wraps). The declaration replaces the others whole. Rule files, detectors and
+placeholders are not merged across levels, so what a collection declares is
+the complete policy for its files, and `enabled: false` takes them out of
+redaction. Content in no file (an MCP call's text) falls under the defaults.
 
-1. **`kapi extract`** resolves and applies it, emitting a redacted bilingual file
-   and writing the batch sidecar. Redaction runs **before** memory pre-fill, so
+A policy with one reader is a policy that fails open everywhere else, so the
+policy is read at every point content can leave, and each reader asks for the
+policy of the file it holds:
+
+1. **`kapi extract`** resolves it per source, before it reads any, and applies
+   it, emitting a redacted bilingual file and writing the batch sidecar. The
+   `--redact` and `--redact-rules` flags layer over the policy each source
+   resolves. Redaction runs **before** memory pre-fill, so
    the content memory is queried with redacted text and pre-fills targets from
    it, and no sensitive value reaches the emitted file by way of a memory match.
    On `kapi merge` the incoming source is always restored, so per-block
    staleness compares original against original; the target is restored unless
    `--no-restore` is set.
 2. **Ingest**, which is the push to a venue (`host/venue/source`).
-   `host.ProjectRedaction` resolves the project's policy and
-   `host.RedactAtIngest` applies it as content is read in, vaulting into the
-   project vault. Ingest is continuous rather than batched, which is why its
-   vault is project-scoped: a later restore has no batch id to look under.
+   `host.RedactionFor` resolves each file's policy and `host.RedactAtIngest`
+   applies it as the file is read in, vaulting into the project vault. Ingest
+   is continuous rather than batched, which is why its vault is project-scoped:
+   a later restore has no batch id to look under.
 3. **The flow placement gate.** A project that declares redaction **rejects any
    flow that sends source to a remote destination without a `redact` step**
    (`FlowDefinition.CheckRedactionCoverage`, enforced in flow placement). This is
    a gate rather than an implicit rewrite: silently inserting a step into a
    user's flow would change what their flow means, while refusing to run it says
-   so.
+   so. A project flow's tools are built once for every file of a pass, so the
+   gate holds it when any declaration turns redaction on
+   (`KapiProject.DeclaresRedaction`); a built-in flow built for one input file
+   is held when a policy covers that file. The flow's `redact` step takes its
+   rules from its own configuration.
 4. **A single-tool run.** `kapi exec <tool>`, and the MCP tools that run one
    registry tool over a caller's text, compose no flow of the user's, so the run
    itself places the steps (`host/toolrun_redact.go`). When the tool's contract,
    refined for its config, carries an API call, `redact` runs ahead of it with
-   the project's rules and `unredact` after it, the originals riding on the
+   the rules of the policy that covers the file, settled per file before any
+   file is read, and `unredact` after it, the originals riding on the
    block in between as they do in `secure-translate`. The tools a run reaches
    read the whole block, so the step is configured for it (`WholeBlock`): it
    redacts blocks marked not translatable, and each target locale's runs under
@@ -200,11 +223,20 @@ policy is read at every point content can leave:
    provider. A tool that calls no provider runs alone. The chain each run builds is held to
    `CheckRedactionCoverage` and `CheckPlacement`, so a run without the redact
    step fails the gate a flow fails.
-5. **The operation log.** The record of an applied edit travels to every
+5. **The deeper look.** It sends chunks of the project's block texts to a model
+   (`host/contextdeeper.go`). A chunk holds blocks of files under one policy
+   only, and each chunk is redacted under that policy before the model reads
+   it.
+6. **The operation log.** The record of an applied edit travels to every
    context backend the project shares its context through, so the recorder
-   redacts the runs and the note it keeps, vaulting each run sequence under the
-   edition and revision it belongs to, and leaves the change set as sent out
+   redacts the runs and the note it keeps of each document under that
+   document's policy, vaulting each run sequence under the edition and revision
+   it belongs to, and leaves the change set as sent out of every record of a
+   project that declares a policy
    ([C-03](c-03-context-store-and-graph.md#edits-are-recorded-as-content-edit)).
+   A document the recorder knows by key alone is looked up in the document
+   index; one whose file it still cannot name is redacted under every policy
+   the recipe declares, in recipe order.
    A translation with no file is kept in the log itself (the workspace home),
    so its record is redacted the same way and the workspace home restores the
    originals from the project vault where it reads the edition: on the machine

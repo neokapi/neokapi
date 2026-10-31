@@ -119,6 +119,8 @@ while debugging a flow, or a one-off check on a file. See the
 
 In a project that declares a [redaction policy](/framework/redaction#recipe-configuration),
 `exec` puts `redact` before a tool that calls a model and `unredact` after it.
+Each file is redacted under the policy that covers it: its collection's or
+content item's `redaction:`, else `defaults.redaction`.
 The model reads placeholders in every block and in each translation beside it,
 and the output carries the original values. A policy that detects entities
 stops the run; run the tool in a flow with `entity-extract` ahead of `redact`
