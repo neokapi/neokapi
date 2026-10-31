@@ -1,7 +1,7 @@
-// The Map: the page a project tab opens on. It is an overview (page-patterns
-// "Overview"): the project's name and when kapi last read its files, four
-// counts, the suggestions that wait for a person and the content files, each
-// row leading to the place that acts on it. Nothing on it is edited in place.
+// The Map: the page a project tab opens on, drawn by @neokapi/project-screens'
+// MapView. This page reads it through the desktop backend and fills the parts
+// only the desktop has: the deeper look's row, the Connect your AI card, Add
+// files and the file preview.
 //
 // The page renders from one read, MapSummary, which the backend answers from
 // what it already holds. It reads again when the store sync finishes, when the
@@ -18,43 +18,18 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FileText, Play, Sparkles } from "lucide-react";
-import {
-  Badge,
-  Button,
-  EmptyState,
-  ErrorNotice,
-  KindIcon,
-  LoadingSpinner,
-  PageHeader,
-  ScrollArea,
-  SectionHeading,
-  SimpleTooltip,
-  StatRow,
-  When,
-  digestKind,
-  type StatItem,
-} from "@neokapi/ui-primitives";
+import { Sparkles } from "lucide-react";
+import { Button, ErrorNotice, LoadingSpinner, ScrollArea } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
+import { MapView, type ScreenTarget } from "@neokapi/project-screens";
 import { api } from "../hooks/useApi";
 import { ConnectAICard } from "./ConnectAICard";
 import { qk } from "../lib/queryKeys";
+import { desktopView } from "../lib/screenTargets";
 import { useInvalidateOnEvent } from "../hooks/useInvalidateOnEvent";
 import { useStoreSyncState } from "../hooks/useProjectStoreSync";
-import { ConflictLine, RuleLine } from "@neokapi/project-screens";
 import { FilePreview } from "./FilePreview";
-import type {
-  DeeperLookModel,
-  DeeperLookResult,
-  MapFileRow,
-  MapSuggestionRow,
-  MapSummary,
-} from "../types/api";
-
-/** The Decide view's key for a row: its group and its item's id. */
-export function decideRowKey(row: MapSuggestionRow): string {
-  return `${row.group}:${row.item.id}`;
-}
+import type { DeeperLookModel, DeeperLookResult, MapFileRow, MapSummary } from "../types/api";
 
 /** The tabs the Map has run a first check for in this session. */
 const autoChecked = new Set<string>();
@@ -186,6 +161,15 @@ export function MapPage({
   const [preview, setPreview] = useState<MapFileRow | null>(null);
   const filesRef = useRef<HTMLElement>(null);
 
+  // Decide and the Reader open through the tab's own handlers, which also
+  // reset the hub's pin and remember the page the Reader returns to.
+  const navigate = (target: ScreenTarget) => {
+    if (target.kind === "rules") onDecide(target.row);
+    else if (target.kind === "reader") onOpenReader?.(target.path);
+    else onNavigate(desktopView(target));
+  };
+  const canNavigate = (target: ScreenTarget) => target.kind !== "reader" || !!onOpenReader;
+
   if (!summary) {
     return query.error ? (
       <div className="p-6">
@@ -206,20 +190,25 @@ export function MapPage({
         running={run.isPending}
         runError={run.error}
         onRun={() => run.mutate()}
-        deeperLook={{
-          model: lookModel?.connected ? (lookModel.model ?? lookModel.provider ?? "") : null,
-          pending: lookModel === null,
-          running: look.isPending,
-          result: lookResult,
-          error: look.error && !noModelError(look.error) ? look.error : undefined,
-        }}
-        onDeeperLook={() => {
-          // Until the backend says whether a model is connected, a click has
-          // nothing to run and nothing to offer.
-          if (lookModel === null) return;
-          if (!lookModel.connected) setConnectOpen((open) => !open);
-          else look.mutate();
-        }}
+        deeperLook={
+          <DeeperLookRow
+            state={{
+              model: lookModel?.connected ? (lookModel.model ?? lookModel.provider ?? "") : null,
+              pending: lookModel === null,
+              running: look.isPending,
+              result: lookResult,
+              error: look.error && !noModelError(look.error) ? look.error : undefined,
+            }}
+            disabled={summary.files === 0}
+            onRun={() => {
+              // Until the backend says whether a model is connected, a click has
+              // nothing to run and nothing to offer.
+              if (lookModel === null) return;
+              if (!lookModel.connected) setConnectOpen((open) => !open);
+              else look.mutate();
+            }}
+          />
+        }
         connectAI={
           connectOpen &&
           lookModel &&
@@ -235,186 +224,34 @@ export function MapPage({
             />
           )
         }
-        onDecide={onDecide}
-        onNavigate={onNavigate}
+        navigate={navigate}
+        canNavigate={canNavigate}
         setupPending={setupPending}
         onShowFiles={() => filesRef.current?.scrollIntoView({ behavior: "smooth" })}
-        onOpenFile={(row) =>
-          onOpenReader && row.blocks > 0 ? onOpenReader(row.relative) : setPreview(row)
+        onPreviewFile={setPreview}
+        addFiles={
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={async () => {
+              const added = await api.addFilesDialog(tabID, "");
+              if (added && added.length > 0) void qc.invalidateQueries({ queryKey: key });
+            }}
+          >
+            Add files
+          </Button>
         }
-        onAddFiles={async () => {
-          const added = await api.addFilesDialog(tabID, "");
-          if (added && added.length > 0) void qc.invalidateQueries({ queryKey: key });
-        }}
+        filePreview={
+          <FilePreview
+            tabID={tabID}
+            filePath={preview?.path ?? null}
+            filename={preview?.relative ?? ""}
+            onClose={() => setPreview(null)}
+          />
+        }
         filesRef={filesRef}
       />
-      <FilePreview
-        tabID={tabID}
-        filePath={preview?.path ?? null}
-        filename={preview?.relative ?? ""}
-        onClose={() => setPreview(null)}
-      />
     </ScrollArea>
-  );
-}
-
-export interface MapViewProps {
-  projectName: string;
-  summary: MapSummary;
-  /** A checks run over the whole project is in progress. */
-  running?: boolean;
-  runError?: unknown;
-  onRun: () => void;
-  /** The deeper look's row under "What your files do"; absent draws none. */
-  deeperLook?: DeeperLookState;
-  onDeeperLook?: () => void;
-  /** The Connect your AI card, drawn under the deeper look's row when open. */
-  connectAI?: React.ReactNode;
-  onDecide: (rowKey?: string) => void;
-  onNavigate: (view: string) => void;
-  /** The project waits to be set up (MapPageProps.setupPending). */
-  setupPending?: boolean;
-  onShowFiles?: () => void;
-  onOpenFile: (row: MapFileRow) => void;
-  onAddFiles?: () => void;
-  filesRef?: React.Ref<HTMLElement>;
-}
-
-/** The Map as it is drawn, from a summary already read. */
-export function MapView({
-  projectName,
-  summary,
-  running,
-  runError,
-  onRun,
-  deeperLook,
-  onDeeperLook,
-  connectAI,
-  onDecide,
-  onNavigate,
-  setupPending,
-  onShowFiles,
-  onOpenFile,
-  onAddFiles,
-  filesRef,
-}: MapViewProps) {
-  return (
-    <div data-slot="map" className="mx-auto max-w-4xl space-y-8 p-6">
-      <div className="space-y-5">
-        <PageHeader
-          className="mb-0"
-          title={projectName}
-          subtitle={<ReadLine summary={summary} />}
-          actions={
-            <>
-              <Button
-                size="sm"
-                variant="outline"
-                data-slot="map-run"
-                disabled={running || summary.files === 0}
-                onClick={onRun}
-              >
-                {running ? <LoadingSpinner size="sm" /> : <Play size={14} />}
-                {running ? <>Checking</> : <>Run on everything</>}
-              </Button>
-              {summary.awaiting > 0 && (
-                <Button size="sm" data-slot="map-decide" onClick={() => onDecide()}>
-                  {t("Decide {count}", "a button: the items awaiting a decision", {
-                    count: summary.awaiting,
-                  })}
-                </Button>
-              )}
-            </>
-          }
-        />
-        <div className="flex flex-wrap items-end gap-x-7 gap-y-3">
-          <MapCounts
-            summary={summary}
-            running={running}
-            onNavigate={onNavigate}
-            onShowFiles={onShowFiles}
-          />
-          {/* The Decide button carries the same number unless disagreements
-              wait too, so the link shows only when the two differ. */}
-          {summary.suggested > 0 && summary.suggested !== summary.awaiting && (
-            <Button
-              variant="link"
-              size="sm"
-              data-slot="map-suggests"
-              className="h-auto px-0 text-xs"
-              onClick={() => onDecide()}
-            >
-              {t("kapi suggests {count}", "a link to the suggestions awaiting a decision", {
-                count: summary.suggested,
-              })}
-            </Button>
-          )}
-        </div>
-        {!!runError && <ErrorNotice error={runError} title={t("The checks did not run")} />}
-      </div>
-
-      <section data-slot="map-suggestions" className="space-y-2">
-        <SectionHeading>What your files do</SectionHeading>
-        {summary.suggestions.length === 0 ? (
-          <div data-slot="map-suggestions-empty">
-            <EmptyState
-              icon={<Sparkles size={20} className="mx-auto" />}
-              title={t("No suggestions yet.")}
-              action={
-                <Button size="sm" variant="outline" onClick={() => onNavigate("context:agent")}>
-                  Connect an assistant
-                </Button>
-              }
-            />
-          </div>
-        ) : (
-          <ul role="list" className="divide-y divide-border/60 border-y border-border/60">
-            {summary.suggestions.map((row) => (
-              <SuggestionRow key={decideRowKey(row)} row={row} onDecide={onDecide} />
-            ))}
-          </ul>
-        )}
-        {deeperLook && (
-          <DeeperLookRow
-            state={deeperLook}
-            disabled={summary.files === 0}
-            onRun={() => onDeeperLook?.()}
-          />
-        )}
-        {connectAI}
-      </section>
-
-      <section ref={filesRef} data-slot="map-files" className="space-y-2">
-        <SectionHeading>Files</SectionHeading>
-        {summary.file_rows.length === 0 ? (
-          <div data-slot="map-files-empty">
-            <EmptyState
-              icon={<FileText size={20} className="mx-auto" />}
-              title={t("No content files yet")}
-              action={
-                setupPending ? (
-                  <Button size="sm" variant="outline" onClick={() => onNavigate("project-home")}>
-                    Set up the project
-                  </Button>
-                ) : (
-                  onAddFiles && (
-                    <Button size="sm" variant="outline" onClick={onAddFiles}>
-                      Add files
-                    </Button>
-                  )
-                )
-              }
-            />
-          </div>
-        ) : (
-          <ul role="list" className="divide-y divide-border/60 border-y border-border/60">
-            {summary.file_rows.map((row) => (
-              <FileRow key={row.relative} row={row} onOpen={() => onOpenFile(row)} />
-            ))}
-          </ul>
-        )}
-      </section>
-    </div>
   );
 }
 
@@ -422,7 +259,7 @@ export function MapView({
  * The deeper look's button and its one line: what it does, the model it is
  * reading with while it runs, and what it filed for a few seconds after.
  */
-function DeeperLookRow({
+export function DeeperLookRow({
   state,
   disabled,
   onRun,
@@ -474,205 +311,5 @@ function DeeperLookRow({
       </div>
       {!!error && <ErrorNotice error={error} title={t("The deeper look did not run")} />}
     </div>
-  );
-}
-
-/** When kapi last read the project's files, under the title. */
-// The files count beside it says how many there are, so the line names a
-// number only when kapi read a different number of them (a file no reader
-// opens, or a file waiting for the next read).
-function ReadLine({ summary }: { summary: MapSummary }) {
-  const sameCount = summary.read_files === summary.files;
-  if (sameCount && !summary.read_at) return null;
-  const when = summary.read_at && <When iso={summary.read_at} relative />;
-  if (sameCount) {
-    return <span data-slot="map-read">Read {when}</span>;
-  }
-  const read = t("Read {count, plural, one {# file} other {# files}}", "under the project title", {
-    count: summary.read_files,
-  });
-  return (
-    <span data-slot="map-read">
-      {read}
-      {when && <> {when}</>}
-    </span>
-  );
-}
-
-/** The four counts: files, blocks, rules and findings. */
-function MapCounts({
-  summary,
-  running,
-  onNavigate,
-  onShowFiles,
-}: {
-  summary: MapSummary;
-  running?: boolean;
-  onNavigate: (view: string) => void;
-  onShowFiles?: () => void;
-}) {
-  const findings = summary.findings ?? 0;
-  const checked = summary.findings !== null;
-  const items: StatItem[] = [
-    {
-      id: "files",
-      value: summary.files,
-      label: t("{count, plural, one {file} other {files}}", "a count on the Map", {
-        count: summary.files,
-      }),
-      onClick: onShowFiles,
-    },
-    {
-      id: "blocks",
-      value: summary.blocks,
-      label: t("{count, plural, one {block} other {blocks}}", "a count on the Map", {
-        count: summary.blocks,
-      }),
-      onClick: () => onNavigate("context:explorer"),
-    },
-    {
-      id: "rules",
-      value: summary.rules,
-      label: t("{count, plural, one {rule} other {rules}}", "a count on the Map", {
-        count: summary.rules,
-      }),
-      onClick: () => onNavigate("context:atlas"),
-    },
-    {
-      id: "findings",
-      value: findings,
-      label: t("{count, plural, one {finding} other {findings}}", "a count on the Map", {
-        count: findings,
-      }),
-      tone: !checked ? "muted" : findings > 0 ? "warning" : "default",
-      hint: running ? t("Checking") : !checked ? t("Not checked yet") : undefined,
-      onClick: () => onNavigate("checks"),
-    },
-  ];
-  return <StatRow data-slot="map-counts" items={items} />;
-}
-
-/** One item awaiting a decision: its kind, the rule, its evidence, and Decide. */
-function SuggestionRow({
-  row,
-  onDecide,
-}: {
-  row: MapSuggestionRow;
-  onDecide: (rowKey?: string) => void;
-}) {
-  const quote = row.item.quote?.quote;
-  return (
-    <li
-      data-slot="map-suggestion"
-      data-id={row.item.id}
-      data-group={row.group}
-      className="flex min-h-11 items-center gap-3 py-1.5"
-    >
-      <KindIcon kind={digestKind(row.item)} />
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-sm">
-          {row.conflict ? <ConflictLine conflict={row.conflict} /> : <RuleLine item={row.item} />}
-        </div>
-        <EvidenceMeta quote={quote} blocks={row.blocks} files={row.files} />
-      </div>
-      <Button
-        size="sm"
-        variant="outline"
-        data-slot="map-suggestion-decide"
-        onClick={() => onDecide(decideRowKey(row))}
-      >
-        Decide
-      </Button>
-    </li>
-  );
-}
-
-/** The evidence on one meta line: the words it was seen in, and where. */
-function EvidenceMeta({ quote, blocks, files }: { quote?: string; blocks: number; files: number }) {
-  if (!quote && blocks === 0 && files === 0) return null;
-  const facts: string[] = [];
-  if (blocks > 0) {
-    facts.push(
-      t("{count, plural, one {# block} other {# blocks}}", "evidence on a Map row", {
-        count: blocks,
-      }),
-    );
-  }
-  if (files > 0) {
-    facts.push(
-      t("{count, plural, one {# file} other {# files}}", "evidence on a Map row", {
-        count: files,
-      }),
-    );
-  }
-  return (
-    <div className="flex min-w-0 items-baseline gap-1 text-[11px] text-muted-foreground">
-      {quote && (
-        <q data-slot="map-suggestion-quote" className="min-w-0 truncate">
-          {quote}
-        </q>
-      )}
-      {facts.length > 0 && (
-        <span className="shrink-0 tabular-nums">
-          {quote ? " · " : ""}
-          {facts.join(" · ")}
-        </span>
-      )}
-    </div>
-  );
-}
-
-/** One content file: its format, its name, its blocks and findings, and Open. */
-function FileRow({ row, onOpen }: { row: MapFileRow; onOpen: () => void }) {
-  const slash = row.relative.lastIndexOf("/");
-  const name = slash >= 0 ? row.relative.slice(slash + 1) : row.relative;
-  const folder = slash >= 0 ? row.relative.slice(0, slash) : "";
-  return (
-    <li
-      data-slot="map-file"
-      data-path={row.relative}
-      className="flex min-h-11 items-center gap-3 py-1.5"
-    >
-      <Badge
-        variant="outline"
-        translate="no"
-        className="w-20 shrink-0 justify-center truncate font-mono text-[10px] font-normal text-muted-foreground"
-      >
-        {row.format || "?"}
-      </Badge>
-      <div className="min-w-0 flex-1">
-        <SimpleTooltip content={row.relative}>
-          <span translate="no" className="block truncate text-sm">
-            {name}
-          </span>
-        </SimpleTooltip>
-        <div className="flex min-w-0 items-baseline gap-1 text-[11px] text-muted-foreground">
-          {folder && (
-            <span translate="no" className="min-w-0 truncate">
-              {folder}
-              {" · "}
-            </span>
-          )}
-          <span className="shrink-0 tabular-nums">
-            {t("{count, plural, one {# block} other {# blocks}}", "a file's blocks on the Map", {
-              count: row.blocks,
-            })}
-          </span>
-          {row.findings > 0 && (
-            <span data-slot="map-file-findings" className="shrink-0 tabular-nums">
-              {" · "}
-              {t(
-                "{count, plural, one {# finding} other {# findings}}",
-                "a file's findings on the Map",
-                { count: row.findings },
-              )}
-            </span>
-          )}
-        </div>
-      </div>
-      <Button size="sm" variant="ghost" data-slot="map-file-open" onClick={onOpen}>
-        Open
-      </Button>
-    </li>
   );
 }

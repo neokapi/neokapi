@@ -27,13 +27,23 @@ export function toolName(name?: string): string {
   return name && name !== "kapi" ? `kapi ${name}` : "kapi";
 }
 
-/** Who recorded an item: their mark, their name, and the session it came from. */
-export function NoticedBy({ who }: { who: Actor }) {
+/**
+ * Who recorded an item: their mark, their name, and the session it came from.
+ * nameOf gives the name a person is shown by; a person it names nothing for,
+ * and with no name of their own, is "you".
+ */
+export function NoticedBy({
+  who,
+  nameOf,
+}: {
+  who: Actor;
+  nameOf?: (who: Actor) => string | undefined;
+}) {
   const mark = <NoticedMark who={who} decorative />;
   let name: React.ReactNode;
   if (who.kind === "agent") name = who.name || t("an assistant");
   else if (who.kind === "tool") name = toolName(who.name);
-  else name = who.name || t("you");
+  else name = nameOf?.(who) || who.name || t("you");
   return (
     <span className="inline-flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
       {mark}

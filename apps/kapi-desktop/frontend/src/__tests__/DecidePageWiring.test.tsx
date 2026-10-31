@@ -13,7 +13,7 @@ vi.mock("../hooks/useInvalidateOnEvent", () => ({
 import { DecidePage } from "../components/DecidePage";
 import { api } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
-import { DECIDE_VIEW, EMPTY_DECIDE_VIEW } from "../stories/fixtures/rulesDecide";
+import { DECIDE_VIEW, EMPTY_DECIDE_VIEW } from "@neokapi/project-screens/fixtures";
 
 afterEach(() => {
   vi.restoreAllMocks();

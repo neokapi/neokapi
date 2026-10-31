@@ -1,28 +1,26 @@
 // The Map of Fernwell, a studio-software project, in its three states: no
 // content files yet, suggestions waiting for a person, and every suggestion
-// kept. The suggestion rows are the Fernwell digest's (contextDigest.ts), so
-// a row's Decide lands on the same item in the Decide view.
+// kept. The suggestion rows are the Fernwell digest's (fernwell.ts), so a
+// row's Decide lands on the same item in the Decide view.
 
-import type { MapFileRow, MapSuggestionRow, MapSummary } from "../../types/api";
-import { CONTEXT_DIGEST } from "./contextDigest";
+import type { MapFileRow, MapSuggestionRow, MapSummary } from "../../types";
+import { FERNWELL_PROJECT, FERNWELL_SUGGESTED, LOGIN_CONFLICT } from "./fernwell";
 
 const minute = 60_000;
 const ago = (minutes: number) => new Date(Date.now() - minutes * minute).toISOString();
 
-const conflict = CONTEXT_DIGEST.conflicts[0];
+const conflict = LOGIN_CONFLICT;
 
 /** The digest's disagreement, then its suggestions, as MapSummary lists them. */
 const SUGGESTIONS: MapSuggestionRow[] = [
   { group: "conflict", item: conflict.sides[0], conflict, blocks: 2, files: 2 },
-  ...CONTEXT_DIGEST.suggested.flatMap((theme, ti) =>
-    theme.groups.flatMap((g) =>
-      g.items.map((item, ii): MapSuggestionRow => ({
-        group: "suggested",
-        item,
-        blocks: 1 + ti + ii,
-        files: 1,
-      })),
-    ),
+  ...FERNWELL_SUGGESTED.flatMap((theme, ti) =>
+    theme.map((item): MapSuggestionRow => ({
+      group: "suggested",
+      item,
+      blocks: 1 + ti,
+      files: 1,
+    })),
   ),
 ];
 
@@ -62,7 +60,7 @@ const FILES: MapFileRow[] = [
 ];
 
 const base = {
-  project_key: CONTEXT_DIGEST.project,
+  project_key: FERNWELL_PROJECT,
   target_languages: ["de", "nb"],
   read_at: ago(2),
   checked_at: ago(1),

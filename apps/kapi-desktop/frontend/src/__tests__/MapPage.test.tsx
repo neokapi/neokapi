@@ -1,16 +1,19 @@
 import { act, fireEvent, render, screen, within, waitFor } from "./testUtils";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, it, expect, vi } from "vite-plus/test";
-import { DEEPER_LOOK_RESULT_MS, MapPage, MapView, decideRowKey } from "../components/MapPage";
-import { api } from "../hooks/useApi";
+import { MapView } from "@neokapi/project-screens";
 import {
-  MAP_ALL_KEPT,
   MAP_EMPTY,
-  MAP_PARTLY_READ,
   MAP_PENDING,
   MAP_SOURCE_ONLY_UNCHECKED,
-  MAP_SUGGESTED_ONLY,
-} from "../stories/fixtures/mapSummary";
+} from "@neokapi/project-screens/fixtures";
+import {
+  DEEPER_LOOK_RESULT_MS,
+  DeeperLookRow,
+  MapPage,
+  type DeeperLookState,
+} from "../components/MapPage";
+import { api } from "../hooks/useApi";
 import type { DeeperLookResult, MapSummary } from "../types/api";
 
 // The preview inspects the file through the backend, which no test runtime
@@ -34,157 +37,64 @@ const LOOKED: DeeperLookResult = {
   tokens: 1200,
 };
 
-function renderView(summary: MapSummary, over: Partial<Parameters<typeof MapView>[0]> = {}) {
-  const props = {
-    projectName: "Fernwell",
-    summary,
-    onRun: vi.fn(),
-    onDecide: vi.fn(),
-    onNavigate: vi.fn(),
-    onOpenFile: vi.fn(),
-    onAddFiles: vi.fn(),
-    ...over,
-  };
-  render(<MapView {...props} />);
-  return props;
+/** The Map as drawn, with the deeper look's row in a given state. */
+function renderView(summary: MapSummary, over: { deeperLook: DeeperLookState }) {
+  render(
+    <MapView
+      projectName="Fernwell"
+      summary={summary}
+      navigate={vi.fn()}
+      deeperLook={
+        <DeeperLookRow state={over.deeperLook} disabled={summary.files === 0} onRun={vi.fn()} />
+      }
+    />,
+  );
 }
 
-/** The counts as assistive technology reads them, in order. */
-const counts = () =>
-  Array.from(document.querySelectorAll('[data-slot="map-counts"] [data-slot="stat"]')).map(
-    (li) => li.querySelector(".sr-only")?.textContent,
-  );
-
-describe("the Map", () => {
-  it("shows the four counts, with findings the only one in the warning ink", () => {
-    renderView(MAP_PENDING);
-    expect(counts()).toEqual(["4 files", "251 blocks", "23 rules", "4 findings"]);
-    const tones = Array.from(document.querySelectorAll('[data-slot="stat"]')).map((li) =>
-      li.getAttribute("data-tone"),
+describe("MapPage", () => {
+  it("adds files through the backend from the empty files list", async () => {
+    const add = vi.spyOn(api, "addFilesDialog").mockResolvedValue([]);
+    render(
+      <MapPage
+        tabID="t-empty"
+        projectName="Untitled"
+        summary={MAP_EMPTY}
+        onDecide={vi.fn()}
+        onNavigate={vi.fn()}
+      />,
     );
-    expect(tones).toEqual(["default", "default", "default", "warning"]);
+    const empty = document.querySelector('[data-slot="map-files-empty"]') as HTMLElement;
+    await userEvent.click(within(empty).getByRole("button", { name: "Add files" }));
+    expect(add).toHaveBeenCalledWith("t-empty", "");
   });
 
-  it("draws no findings in the warning ink when there are none, and says when none ran", () => {
-    renderView(MAP_ALL_KEPT);
-    expect(document.querySelector('[data-slot="stat"][data-tone="warning"]')).toBeNull();
-    renderView(MAP_SOURCE_ONLY_UNCHECKED);
-    const unchecked = document.querySelectorAll('[data-slot="map-counts"]')[1];
-    expect(unchecked.querySelector('[data-tone="muted"]')).not.toBeNull();
-  });
-
-  it("names when kapi read the files, and no count the files count already gives", () => {
-    renderView(MAP_PENDING);
-    const read = document.querySelector('[data-slot="map-read"]')?.textContent ?? "";
-    expect(read).toMatch(/^Read /);
-    expect(read).not.toMatch(/\d+ files?/);
-  });
-
-  it("names how many files kapi read when that differs from the files count", () => {
-    renderView(MAP_PARTLY_READ);
-    expect(document.querySelector('[data-slot="map-read"]')?.textContent).toMatch(/^Read 3 files /);
-  });
-
-  it("leaves the line out before the first read when the counts agree", () => {
-    renderView({ ...MAP_ALL_KEPT, read_at: undefined });
-    expect(document.querySelector('[data-slot="map-read"]')).toBeNull();
-  });
-
-  it("lists each suggestion with its kind mark and evidence, and Decide opens that row", async () => {
-    const { onDecide } = renderView(MAP_PENDING);
-    const rows = document.querySelectorAll('[data-slot="map-suggestion"]');
-    expect(rows).toHaveLength(MAP_PENDING.suggestions.length);
-    const kinds = Array.from(rows).map((r) =>
-      r.querySelector('[data-slot="kind-icon"]')?.getAttribute("data-kind"),
+  it("maps each place the Map leads to onto the tab's views", async () => {
+    const onDecide = vi.fn();
+    const onNavigate = vi.fn();
+    const onOpenReader = vi.fn();
+    render(
+      <MapPage
+        tabID="t-nav"
+        projectName="Fernwell"
+        summary={MAP_PENDING}
+        onDecide={onDecide}
+        onNavigate={onNavigate}
+        onOpenReader={onOpenReader}
+      />,
     );
-    expect(kinds).toEqual(["conflict", "name", "name", "word", "note"]);
-    expect(rows[1].textContent).toContain("1 block · 1 file");
-
-    await userEvent.click(within(rows[1] as HTMLElement).getByRole("button", { name: "Decide" }));
-    expect(onDecide).toHaveBeenCalledWith(decideRowKey(MAP_PENDING.suggestions[1]));
-    expect(decideRowKey(MAP_PENDING.suggestions[0])).toBe(
-      `conflict:${MAP_PENDING.suggestions[0].item.id}`,
-    );
-  });
-
-  it("shows kapi suggests only when disagreements make it differ from Decide", () => {
-    renderView(MAP_SUGGESTED_ONLY);
-    expect(screen.getByRole("button", { name: "Decide 4" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /kapi suggests/ })).not.toBeInTheDocument();
-  });
-
-  it("offers Decide with the count awaiting, and kapi suggests beside the counts", async () => {
-    const { onDecide } = renderView(MAP_PENDING);
-    await userEvent.click(screen.getByRole("button", { name: "Decide 5" }));
-    expect(onDecide).toHaveBeenLastCalledWith();
-    await userEvent.click(screen.getByRole("button", { name: "kapi suggests 4" }));
-    expect(onDecide).toHaveBeenCalledTimes(2);
-  });
-
-  it("sends each count to the place that holds what it counts", async () => {
-    const { onNavigate } = renderView(MAP_PENDING);
     await userEvent.click(screen.getByRole("button", { name: "4 findings" }));
     expect(onNavigate).toHaveBeenCalledWith("checks");
     await userEvent.click(screen.getByRole("button", { name: "23 rules" }));
     expect(onNavigate).toHaveBeenCalledWith("context:atlas");
     await userEvent.click(screen.getByRole("button", { name: "251 blocks" }));
     expect(onNavigate).toHaveBeenCalledWith("context:explorer");
+    await userEvent.click(screen.getByRole("button", { name: "Decide 5" }));
+    expect(onDecide).toHaveBeenLastCalledWith(undefined);
+    const row = document.querySelector('[data-path="docs/billing.md"]') as HTMLElement;
+    await userEvent.click(within(row).getByRole("button", { name: "Open" }));
+    expect(onOpenReader).toHaveBeenCalledWith("docs/billing.md");
   });
 
-  it("lists the files with their format, blocks and findings, and Open opens one", async () => {
-    const { onOpenFile } = renderView(MAP_PENDING);
-    const rows = document.querySelectorAll('[data-slot="map-file"]');
-    expect(Array.from(rows).map((r) => r.getAttribute("data-path"))).toEqual(
-      MAP_PENDING.file_rows.map((f) => f.relative),
-    );
-    expect(rows[0].textContent).toContain("markdown");
-    expect(rows[0].textContent).toContain("billing.md");
-    expect(rows[0].textContent).toContain("42 blocks");
-    expect(rows[0].textContent).toContain("3 findings");
-    expect(rows[2].querySelector('[data-slot="map-file-findings"]')).toBeNull();
-
-    await userEvent.click(within(rows[1] as HTMLElement).getByRole("button", { name: "Open" }));
-    expect(onOpenFile).toHaveBeenCalledWith(MAP_PENDING.file_rows[1]);
-  });
-
-  it("says in one line when nobody has suggested anything, and leads to an assistant", async () => {
-    const { onNavigate } = renderView(MAP_ALL_KEPT);
-    const empty = document.querySelector('[data-slot="map-suggestions-empty"]') as HTMLElement;
-    expect(empty).toHaveTextContent("No suggestions yet.");
-    expect(empty.textContent?.match(/Connect an assistant/g)).toHaveLength(1);
-    expect(screen.queryByRole("button", { name: /^Decide/ })).not.toBeInTheDocument();
-    await userEvent.click(within(empty).getByRole("button", { name: "Connect an assistant" }));
-    expect(onNavigate).toHaveBeenCalledWith("context:agent");
-  });
-
-  it("offers to add files to a project with none, and nothing to run", async () => {
-    const { onAddFiles } = renderView(MAP_EMPTY);
-    const empty = document.querySelector('[data-slot="map-files-empty"]') as HTMLElement;
-    expect(empty).toHaveTextContent("No content files yet");
-    await userEvent.click(within(empty).getByRole("button", { name: "Add files" }));
-    expect(onAddFiles).toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: "Run on everything" })).toBeDisabled();
-  });
-
-  it("leads a project waiting to be set up to the page that sets it up", async () => {
-    const { onNavigate } = renderView(MAP_EMPTY, { setupPending: true });
-    const empty = document.querySelector('[data-slot="map-files-empty"]') as HTMLElement;
-    expect(within(empty).queryByRole("button", { name: "Add files" })).not.toBeInTheDocument();
-    await userEvent.click(within(empty).getByRole("button", { name: "Set up the project" }));
-    expect(onNavigate).toHaveBeenCalledWith("project-home");
-  });
-
-  it("runs the checks on everything and shows a quiet progress state", async () => {
-    const { onRun } = renderView(MAP_PENDING);
-    await userEvent.click(screen.getByRole("button", { name: "Run on everything" }));
-    expect(onRun).toHaveBeenCalled();
-    renderView(MAP_PENDING, { running: true });
-    expect(screen.getByRole("button", { name: "Checking" })).toBeDisabled();
-    expect(document.body.textContent).not.toMatch(/extract/i);
-  });
-});
-
-describe("MapPage", () => {
   it("opens a file's preview from its row", async () => {
     render(
       <MapPage
@@ -223,7 +133,7 @@ describe("MapPage", () => {
 
 describe("the deeper look on the Map", () => {
   it("offers one button with one line under What your files do", () => {
-    renderView(MAP_PENDING, { deeperLook: { model: "demo-stub" }, onDeeperLook: vi.fn() });
+    renderView(MAP_PENDING, { deeperLook: { model: "demo-stub" } });
     const row = document.querySelector('[data-slot="map-deeper-look"]') as HTMLElement;
     expect(row.closest('[data-slot="map-suggestions"]')).not.toBeNull();
     expect(within(row).getByRole("button", { name: "Deeper look with AI" })).toBeEnabled();
@@ -231,7 +141,7 @@ describe("the deeper look on the Map", () => {
   });
 
   it("has nothing to read in a project with no files", () => {
-    renderView(MAP_EMPTY, { deeperLook: { model: "demo-stub" }, onDeeperLook: vi.fn() });
+    renderView(MAP_EMPTY, { deeperLook: { model: "demo-stub" } });
     expect(screen.getByRole("button", { name: "Deeper look with AI" })).toBeDisabled();
   });
 

@@ -1,10 +1,10 @@
 import { render, screen } from "./testUtils";
 import { afterEach, describe, it, expect, vi } from "vite-plus/test";
 import { ContextHub, contextSectionOf, decideRowOf } from "../components/ContextHub";
-import { decideRowKey } from "../components/MapPage";
+import { decideRowKey } from "@neokapi/project-screens";
 import { api } from "../hooks/useApi";
 import { CONTEXT_DIGEST } from "../stories/fixtures/contextDigest";
-import { DECIDE_IDS, DECIDE_VIEW, DISAGREEMENT } from "../stories/fixtures/rulesDecide";
+import { DECIDE_IDS, DECIDE_VIEW, DISAGREEMENT } from "@neokapi/project-screens/fixtures";
 import type { MapSuggestionRow } from "../types/api";
 
 afterEach(() => {

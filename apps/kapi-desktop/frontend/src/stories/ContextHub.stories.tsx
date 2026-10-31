@@ -7,7 +7,7 @@ import { RESET_FEED } from "./fixtures/contextFeed";
 import { ASSISTANTS_CLAUDE_CONNECTED } from "./fixtures/assistants";
 import { RULES_FILES_WRITTEN } from "./fixtures/rulesFiles";
 import { LOCAL_VIEW } from "./fixtures/sharing";
-import { DECIDE_VIEW, EMPTY_DECIDE_VIEW } from "./fixtures/rulesDecide";
+import { DECIDE_VIEW, EMPTY_DECIDE_VIEW } from "@neokapi/project-screens/fixtures";
 import type { ContextDigest, RulesDecideView } from "../types/api";
 
 const TAB = "tab-fernwell";

@@ -6,7 +6,7 @@ import { ErrorProvider } from "../components/ErrorBanner";
 import { ChecksPanel } from "../components/ChecksPanel";
 import { MapPage } from "../components/MapPage";
 import { api } from "../hooks/useApi";
-import { MAP_PENDING } from "../stories/fixtures/mapSummary";
+import { MAP_PENDING } from "@neokapi/project-screens/fixtures";
 import type { CheckRunResult } from "../types/api";
 
 afterEach(() => {

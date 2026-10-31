@@ -6,6 +6,7 @@
  */
 @import "../../packages/ui/src/styles/globals.css";
 @import "@neokapi/flow-editor/styles/sources.css";
+@import "@neokapi/project-screens/styles/sources.css";
 
 @source "../../apps/bowrain/frontend/src";
 @source "../../emails/src";

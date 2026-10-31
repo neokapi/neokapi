@@ -12,6 +12,7 @@ const config = createMainConfig(
       "../../packages/concept-ui/src/**/*.stories.@(ts|tsx)",
       "../../packages/context-explorer/src/**/*.stories.@(ts|tsx)",
       "../../packages/context-atlas/src/**/*.stories.@(ts|tsx)",
+      "../../packages/project-screens/src/**/*.stories.@(ts|tsx)",
       "../../packages/kapi-lab/src/**/*.stories.@(ts|tsx)",
       "../../packages/docs-shared/src/**/*.stories.@(ts|tsx)",
       "../../apps/kapi-desktop/frontend/src/**/*.stories.@(ts|tsx)",
