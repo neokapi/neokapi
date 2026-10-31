@@ -222,7 +222,8 @@ policy of the file it holds:
    extraction step leaves and a run of one tool has none. A tool with no
    declared contract (no registry entry, or a schema with no `toolMeta`) is
    refused before it reads a block, because nothing says whether it calls a
-   provider. A tool that calls no provider runs alone. The chain each run builds is held to
+   provider: over a file a policy covers, and over a `.kpz` package in a
+   project that declares any policy. A tool that calls no provider runs alone. The chain each run builds is held to
    `CheckRedactionCoverage` and `CheckPlacement`, so a run without the redact
    step fails the gate a flow fails.
 5. **The deeper look.** It sends chunks of the project's block texts to a model

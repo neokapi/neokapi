@@ -49,14 +49,23 @@ func (a *App) toolRunPolicyFor(recipe string, proj *project.KapiProject, file, t
 		return toolRunPolicy{}, nil
 	}
 	resolved := proj.RedactionForPath(redactionPath(filepath.Dir(recipe), file))
+	// governing is the policy a tool with no known contract is refused under:
+	// the file's, or for a package, which holds files of every collection, the
+	// first policy the recipe declares (as checkPackagePolicy holds it).
+	governing := resolved
+	if governing.Spec == nil && IsKpzPath(file) {
+		if declared := proj.DeclaredRedactions(); len(declared) > 0 {
+			governing = declared[0]
+		}
+	}
+	if governing.Spec != nil && !a.toolContractKnown(toolName) {
+		return toolRunPolicy{}, fmt.Errorf("kapi refused to run %s: the project declares a redaction policy at %s, and %s has no contract that kapi knows, so kapi cannot tell whether it sends blocks to a provider. Declare its side effects in the toolMeta of the schema its plugin manifest names, or run it in a flow with a redact step ahead of it", toolName, governing.At, toolName)
+	}
 	spec := resolved.Spec
 	if spec == nil {
 		return toolRunPolicy{}, nil
 	}
 	pol := toolRunPolicy{declared: true}
-	if !a.toolContractKnown(toolName) {
-		return toolRunPolicy{}, fmt.Errorf("kapi refused to run %s: the project declares defaults.redaction, and %s has no contract that kapi knows, so kapi cannot tell whether it sends blocks to a provider. Declare its side effects in the toolMeta of the schema its plugin manifest names, or run it in a flow with a redact step ahead of it", toolName, toolName)
-	}
 	if !a.toolCallsProvider(toolName, config) {
 		return pol, nil
 	}
