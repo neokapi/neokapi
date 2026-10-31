@@ -134,26 +134,43 @@ func checkSequences(records []contextop.Record) [][]contextop.Record {
 	return out
 }
 
-// caughtBetween counts the failing findings of prev that next no longer
-// reports. A finding is the same finding by its file, its rule and the wording
-// it quotes, so one that moved to another block of the file is still there.
-// When next lists fewer findings than it counted, what it left out is
-// unknown, and nothing is counted as caught.
-func caughtBetween(prev, next contextop.CheckRun) int {
+// CaughtFindings marks which of prev's listed findings next no longer
+// reports: the result has one entry per finding of prev, true for a finding
+// next caught. A finding is the same finding by its file, its rule and the
+// wording it quotes (contextop.CheckFinding.Key), so one that moved to another
+// block of the file is still there. Findings with one key match one to one, so
+// a finding reported twice and fixed once is caught once. When next lists
+// fewer findings than it counted, what it left out is unknown, and no finding
+// is caught.
+//
+// prev and next are consecutive runs of one session in one project that
+// reached a verdict; SessionOutcomesOf compares no other pair.
+func CaughtFindings(prev, next contextop.CheckRun) []bool {
+	out := make([]bool, len(prev.Findings))
 	if !next.Complete() {
-		return 0
+		return out
 	}
 	remaining := map[string]int{}
 	for _, f := range next.Findings {
 		remaining[f.Key()]++
 	}
-	caught := 0
-	for _, f := range prev.Findings {
+	for i, f := range prev.Findings {
 		if remaining[f.Key()] > 0 {
 			remaining[f.Key()]--
 			continue
 		}
-		caught++
+		out[i] = true
+	}
+	return out
+}
+
+// caughtBetween counts the findings of prev that next caught.
+func caughtBetween(prev, next contextop.CheckRun) int {
+	caught := 0
+	for _, c := range CaughtFindings(prev, next) {
+		if c {
+			caught++
+		}
 	}
 	return caught
 }
