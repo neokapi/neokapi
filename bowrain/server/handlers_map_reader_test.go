@@ -438,3 +438,85 @@ func TestReaderFix_FilesASourceProposal(t *testing.T) {
 	assert.Equal(t, http.StatusForbidden, mapReaderGet(t, e, http.MethodPost, p.ID, "/reader/main/fix",
 		readerFixRequest{Item: "docs/a.md", FindingID: fixable.ID}, &errBody))
 }
+
+// TestReaderFix_KeepsInlineCodesThroughApproval: a fix on a block that holds
+// a paired code and a placeholder is proposed in edit-text form, and a source
+// owner's approval writes the fix with both codes where they were.
+func TestReaderFix_KeepsInlineCodesThroughApproval(t *testing.T) {
+	ctx := t.Context()
+	s, wsID, ownerID := newRecheckHarness(t)
+	caller := &decideCaller{userID: ownerID, perms: platauth.PermViewContent | platauth.PermReview}
+	e := echo.New()
+	g := e.Group("/api/v1/:ws", func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			c.Set("user_id", caller.userID)
+			c.Set("workspace_id", wsID)
+			c.Set("project_permissions", caller.perms)
+			return next(c)
+		}
+	})
+	s.registerMapReaderRoutes(g)
+
+	profile := &coreprofile.VoiceProfile{Scope: wsID, Name: "Plain"}
+	require.NoError(t, s.VoiceStore.CreateProfile(ctx, profile))
+	p := &platstore.Project{
+		Name: "codes", DefaultSourceLanguage: "en", WorkspaceID: wsID,
+		Properties: map[string]string{coreprofile.PropertyProfileID: profile.ID, "translate_after": "none"},
+	}
+	require.NoError(t, s.ContentStore.CreateProject(ctx, p))
+	tb, err := s.wsStores.getTerms(ctx, "ws")
+	require.NoError(t, err)
+	require.NoError(t, tb.AddConcept(ctx, terms.Concept{ID: "c-affordable", Terms: []terms.Term{
+		{Text: "affordable", Locale: "en", Status: model.TermPreferred},
+		{Text: "cheap", Locale: "en", Status: model.TermForbidden},
+	}}))
+	block := &model.Block{ID: "c-1", Translatable: true}
+	block.SetSourceRuns([]model.Run{
+		model.TextR("The "),
+		model.PcOpenR(model.PcOpenRun{ID: "1", Type: "fmt", Data: "<b>", Equiv: "<b>"}),
+		model.TextR("cheap"),
+		model.PcCloseR(model.PcCloseRun{ID: "1", Type: "fmt", Data: "</b>", Equiv: "</b>"}),
+		model.TextR(" plan, see "),
+		model.PhR(model.PlaceholderRun{ID: "2", Type: "var", Data: "{link}", Equiv: "{link}"}),
+		model.TextR(" now."),
+	})
+	require.NoError(t, s.ContentStore.StoreItem(ctx, p.ID, "main", &platstore.Item{Name: "ui.json", Format: "json", ItemType: "file"}))
+	require.NoError(t, s.ContentStore.StoreBlocksForItem(ctx, p.ID, "main", "ui.json", []*model.Block{block}))
+
+	var r screens.ReaderFileDTO
+	require.Equal(t, http.StatusOK, mapReaderGet(t, e, http.MethodGet, p.ID, "/reader/main?item=ui.json", nil, &r))
+	require.Equal(t, 1, r.Fixable)
+	var fixed ReaderFixResult
+	require.Equal(t, http.StatusOK, mapReaderGet(t, e, http.MethodPost, p.ID, "/reader/main/fix-file",
+		readerFixRequest{Item: "ui.json"}, &fixed))
+	require.Len(t, fixed.Proposals, 1, fixed.Refused)
+	proposal, err := s.SourceProposalStore.Get(ctx, fixed.Proposals[0])
+	require.NoError(t, err)
+	assert.Equal(t, "The cheap plan, see  now.", proposal.OriginalSource)
+	assert.Contains(t, proposal.ProposedSource, "affordable")
+	assert.NotContains(t, proposal.ProposedSource, "cheap")
+
+	c, rec := spCtx(wsID, p.ID, proposal.ID, platauth.PermEditSource, ownerID, `{"decision":"approve"}`)
+	require.NoError(t, s.HandleDecideSourceProposal(c))
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+
+	stored, err := s.ContentStore.GetBlocks(ctx, platstore.BlockQuery{ProjectID: p.ID, Stream: "main", ItemName: "ui.json"})
+	require.NoError(t, err)
+	require.Len(t, stored, 1)
+	runs := stored[0].Block.SourceRuns()
+	assert.Equal(t, "The affordable plan, see  now.", model.RunsText(runs))
+	var open, closing, ph int
+	for _, run := range runs {
+		switch {
+		case run.PcOpen != nil:
+			open++
+			assert.Equal(t, "<b>", run.PcOpen.Data)
+		case run.PcClose != nil:
+			closing++
+		case run.Ph != nil:
+			ph++
+			assert.Equal(t, "{link}", run.Ph.Data)
+		}
+	}
+	assert.Equal(t, [3]int{1, 1, 1}, [3]int{open, closing, ph}, "the paired code and the placeholder stay")
+}

@@ -6,8 +6,8 @@ package server
 // the project-wide check does item by item.
 //
 // A fix from the Reader files a source proposal. The server holds blocks, not
-// files, so the fix is applied to a copy of the block and the copy's text is
-// proposed.
+// files, so the fix is applied to a copy of the block and the copy's source is
+// proposed in edit-text form, which keeps its inline codes.
 
 import (
 	"context"
@@ -452,8 +452,11 @@ func (s *Server) HandleReaderFixFile(c echo.Context) error {
 
 // readerFix files fixes as source proposals. A fix is the change operation
 // its finding carries (check.Fix), applied to the stored block in memory
-// with the block's other fixes (change.ApplyBlock); the block's new source
-// text is the proposal. Filing needs the permission a source proposal needs.
+// with the block's other fixes (change.ApplyBlock). The proposal is the
+// copy's source in edit-text form (model.RunsEditText), where each inline code
+// stands as a marker that approval maps back to the block's own code, so an
+// approved fix keeps every code. Filing needs the permission a source
+// proposal needs.
 func (s *Server) readerFix(c echo.Context, whole bool) error {
 	if err := s.requirePermission(c, platauth.PermReview); err != nil {
 		return err
@@ -512,7 +515,7 @@ func (s *Server) readerFix(c echo.Context, whole bool) error {
 			labels = append(labels, r.labels[id])
 		}
 		p, err := s.fileSourceProposal(ctx, c, st.project, st.stream, r.item.Name, r.blocks[blockID], bstore.SourceProposalTextFix,
-			proposed.SourceText(), "Fix from the Reader: "+strings.Join(labels, "; "), "")
+			model.RunsEditText(proposed.SourceRuns()), "Fix from the Reader: "+strings.Join(labels, "; "), "")
 		if err != nil {
 			return serverErr(c, err)
 		}
