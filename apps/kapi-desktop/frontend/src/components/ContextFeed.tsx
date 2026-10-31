@@ -12,9 +12,10 @@
 // each, with the reset the session offers in its toolbar: Reset to before this
 // session, and Take this reset back on a session that holds a reset. A check
 // run's row says what it checked and what it found, and marks a finding the
-// session's next run no longer found as caught. A proposal is an operation that still takes a decision.
-// It keeps Keep, Edit and Not a rule on its row, and the file, the unit and the
-// quotation it came from sit in a disclosure under the row.
+// session's next run no longer found as caught. A proposal is an operation
+// that still takes a decision. It keeps Keep, Edit and Not a rule on its row,
+// and the file, the unit and the quotation it came from sit in a disclosure
+// under the row.
 //
 // The keys are the review session's: j and k (and the arrows) move between
 // sessions, and a keeps, r drops and e edits the selected session's proposal,
