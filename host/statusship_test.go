@@ -82,7 +82,7 @@ func TestStatusShipColumnIsAVerdict(t *testing.T) {
 	assert.Contains(t, lines["nb"], "blocked: review", "only the top bar is left")
 
 	assert.NotContains(t, text, "shippable", "the verdict is a ship state, not a percentage-adjacent word")
-	assert.Contains(t, text, "1 of 4 scopes ready to ship")
+	assert.Contains(t, text, "1 of 4 ready to ship")
 }
 
 // TestStatusPipelineColumnTracksTheGate: the bar is distance to the ship bar, so
@@ -134,6 +134,33 @@ func TestStatusPipelineDegradesInANarrowTerminal(t *testing.T) {
 	assert.Contains(t, narrow, "50%")
 }
 
+// TestStatusGridHeadersNameWhatTheyShow: the first column holds a locale, or
+// a locale and a collection, and the bar column holds progress toward the
+// ship gate; the headers say so. "scope" and "pipeline" never reach the grid.
+func TestStatusGridHeadersNameWhatTheyShow(t *testing.T) {
+	g := gate.Gate{"translated": {Pct: 100}}
+	header := func(text string) string {
+		for ln := range strings.SplitSeq(text, "\n") {
+			if strings.Contains(ln, "blocks") {
+				return strings.Join(strings.Fields(ln), " ")
+			}
+		}
+		return ""
+	}
+
+	plain := renderStatus(t, StatusOutput{Locales: []LocaleCoverage{covRow("de", g, rep("translated", 2)...)}})
+	assert.Equal(t, "locale blocks draft translated approved progress ship", header(plain), plain)
+
+	row := covRow("de", g, rep("translated", 2)...)
+	row.Collection = "docs"
+	named := renderStatus(t, StatusOutput{Locales: []LocaleCoverage{row}})
+	assert.Equal(t, "locale/collection blocks draft translated approved progress ship", header(named), named)
+
+	for _, text := range []string{plain, named} {
+		assert.NotRegexp(t, `(?i)\bscopes?\b|\bpipeline\b`, text)
+	}
+}
+
 // TestStatusAllReadySummary: the closing line is the number a release decision
 // reads, so "all ready" must be stated as such.
 func TestStatusAllReadySummary(t *testing.T) {
@@ -142,7 +169,7 @@ func TestStatusAllReadySummary(t *testing.T) {
 		covRow("de", g, rep("translated", 2)...),
 		covRow("fr", g, rep("established", 2)...),
 	}}
-	assert.Contains(t, renderStatus(t, out), "2 of 2 scopes ready to ship")
+	assert.Contains(t, renderStatus(t, out), "2 of 2 ready to ship")
 }
 
 // TestStatusBlockingLabelsAreActions: the ladder rungs are lifecycle states, but

@@ -234,23 +234,23 @@ func (o StatusOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// writeCoverageGrid renders the per-locale coverage table. The scope column
+// writeCoverageGrid renders the per-locale coverage table. The first column
 // is the locale, or "locale/collection" when the project has named
-// collections with their own gates.
+// collections with their own gates, and its header names which.
 //
 // Ship is a verdict, not a percentage. A percentage there would invite the
 // question "is 80% shippable?", whose answer is always no: a gate either holds
 // or it does not. So the column reads the ship state (`approved` or
 // `translated`) or `blocked: <rung>`, naming the
 // first unmet gate so it points at the work; the numbers live in the stage
-// columns, and the pipeline bar carries distance-to-the-bar at a glance.
+// columns, and the progress bar carries distance-to-the-bar at a glance.
 func (o StatusOutput) writeCoverageGrid(w io.Writer) {
 	headers := make([]string, 0, len(statusLadder)+4)
-	headers = append(headers, "scope", "blocks")
+	headers = append(headers, coverageRowHeader(o.Locales), "blocks")
 	for _, rung := range statusLadder {
 		headers = append(headers, model.StatusLabel(rung))
 	}
-	headers = append(headers, "pipeline", "ship")
+	headers = append(headers, "progress", "ship")
 
 	t := output.NewTable(w).Accent(0).Headers(headers...)
 	s := t.Styles()
@@ -350,9 +350,10 @@ func (o StatusOutput) writeBasisLines(w io.Writer) {
 }
 
 // writeShipSummary closes the grid with the one number a release decision needs:
-// how many gated scopes clear their bar, with the scopes no gate matches counted
-// beside it. A grid with no gated scope says that no ship gates are declared,
-// since "0 of 0 ready" says nothing.
+// how many gated rows clear their bar, with the rows no gate matches counted
+// beside it. The grid's first column names what a row is, so the line carries
+// no noun of its own. A grid with no gated row says that no ship gates are
+// declared, since "0 of 0 ready" says nothing.
 func (o StatusOutput) writeShipSummary(w io.Writer, s *output.Styles) {
 	gated, ready, notGated := 0, 0, 0
 	for _, lc := range o.Locales {
@@ -373,7 +374,7 @@ func (o StatusOutput) writeShipSummary(w io.Writer, s *output.Styles) {
 		}
 		return
 	}
-	line := fmt.Sprintf("%d of %d scopes ready to ship", ready, gated)
+	line := fmt.Sprintf("%d of %d ready to ship", ready, gated)
 	if notGated > 0 {
 		line += fmt.Sprintf(" · %d not gated", notGated)
 	}
@@ -384,14 +385,14 @@ func (o StatusOutput) writeShipSummary(w io.Writer, s *output.Styles) {
 	fmt.Fprintf(w, "\n%s\n", line)
 }
 
-// shipBarWidth is the pipeline bar's width on a normal terminal.
+// shipBarWidth is the progress bar's width on a normal terminal.
 const shipBarWidth = 10
 
-// shipGridMinWidth is the terminal width below which the pipeline column drops
+// shipGridMinWidth is the terminal width below which the progress column drops
 // its bar and shows the percentage alone.
 const shipGridMinWidth = 100
 
-// shipBars decides whether the pipeline column draws a block bar. A narrow
+// shipBars decides whether the progress column draws a block bar. A narrow
 // terminal gets the percentage alone rather than a bar squeezed to noise; the
 // number is the information, the bar is the affordance.
 func shipBars(w io.Writer) bool {
@@ -610,6 +611,17 @@ func scopeLabel(lc LocaleCoverage) string {
 		return lc.Locale + "/" + lc.Collection
 	}
 	return lc.Locale
+}
+
+// coverageRowHeader names the grid's first column for the rows it holds:
+// "locale", or "locale/collection" when any row is a collection's.
+func coverageRowHeader(rows []LocaleCoverage) string {
+	for _, lc := range rows {
+		if lc.Collection != "" {
+			return "locale/collection"
+		}
+	}
+	return "locale"
 }
 
 // shipCell renders the ship verdict: the state the scope ships at

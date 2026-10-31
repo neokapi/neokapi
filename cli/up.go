@@ -33,7 +33,7 @@ func NewUpCmd(a *App) *cobra.Command {
 		Args:    cobra.NoArgs,
 		Long: `Bring the project up to date: the recipe declares the languages, the flow, and
 the gates that decide shippable; kapi up runs the project's default flow
-(defaults.flow) over every target language, looping until every gated scope is
+(defaults.flow) over every target language, looping until every gated locale is
 shippable or waits for review.
 
 Without defaults.flow, up runs the built-in default flow, Memory reuse (recycle)
@@ -57,7 +57,7 @@ reports the same verdict. --no-checks opts out.
 The materialize policy determines whether the run owns delivery of the
 target-language files. Under 'defaults.materialize: on-converge' (or the
 --materialize flag) it does, and the ship gate holds it back: each pass drafts
-into a run-local tree, and only a locale whose gated scopes are all shippable
+into a run-local tree, and only a locale whose gated collections are all shippable
 has its files written where the recipe points, and the files of a locale
 waiting for review are absent, not merely unblessed. The default ('manual') leaves delivery to
 'kapi merge' and claims no gate.

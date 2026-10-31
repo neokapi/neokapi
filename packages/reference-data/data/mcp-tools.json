@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-31T17:54:10Z",
+  "generatedAt": "2026-10-31T19:30:30Z",
   "tools": [
     {
       "name": "apply_edits",
@@ -2018,7 +2018,7 @@
     },
     {
       "name": "up",
-      "description": "Bring a kapi project up to date against its ship gates: re-extract drifted sources, run the default flow (content memory reuse then AI translate) over every target language, concurrently per language, loop until every gated scope is shippable or waits for review, and run the project's bound checks each pass. In a project connected to a Bowrain server the run happens there (push, converge on the org's keys and shared content memory, pull the results); pass local to run the loop on this machine instead. Never fails on pending target work: blocks waiting for review are reported, not thrown. Returns the structured result (per-locale standing, scopes waiting for review, materialized files). Use up_plan first to see the pending work and token estimate.",
+      "description": "Bring a kapi project up to date against its ship gates: re-extract drifted sources, run the default flow (content memory reuse then AI translate) over every target language, concurrently per language, loop until every gated locale is shippable or waits for review, and run the project's bound checks each pass. In a project connected to a Bowrain server the run happens there (push, converge on the org's keys and shared content memory, pull the results); pass local to run the loop on this machine instead. Never fails on pending target work: blocks waiting for review are reported, not thrown. Returns the structured result (per-locale standing, locales waiting for review, materialized files). Use up_plan first to see the pending work and token estimate.",
       "surface": "translation",
       "params": [
         {

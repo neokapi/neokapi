@@ -58,7 +58,7 @@ func TestRunAccumulator_ConvergedServerRunClaimsItsBar(t *testing.T) {
 
 	var b bytes.Buffer
 	require.NoError(t, out.FormatText(&b))
-	assert.Contains(t, b.String(), "Up to date: every gated scope is shippable.")
+	assert.Contains(t, b.String(), "Up to date: every gated locale is shippable.")
 	assert.NotContains(t, b.String(), "not gated")
 	assert.NotContains(t, b.String(), "No ship gates are declared")
 }

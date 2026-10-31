@@ -39,7 +39,7 @@ describe("ConvergenceRunView: converged outcome and ship states", () => {
     expect(
       screen.getByText("Up to date in 1 pass(es). No ship gates are declared."),
     ).toBeInTheDocument();
-    expect(screen.queryByText(/Every gated scope is shippable/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Every gated locale is shippable/)).not.toBeInTheDocument();
   });
 
   it("names the languages no gate matches beside the gated verdict", () => {
@@ -57,7 +57,7 @@ describe("ConvergenceRunView: converged outcome and ship states", () => {
       />,
     );
     expect(
-      screen.getByText("Up to date in 1 pass(es). Every gated scope is shippable. Not gated: nb."),
+      screen.getByText("Up to date in 1 pass(es). Every gated locale is shippable. Not gated: nb."),
     ).toBeInTheDocument();
   });
 });

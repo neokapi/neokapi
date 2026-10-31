@@ -31,6 +31,14 @@ vocabulary:
 // source file with one target locale, and returns the project root.
 func writeStalenessProject(t *testing.T) string {
 	t.Helper()
+	return writeStalenessProjectWith(t, stalenessVoiceYAML)
+}
+
+// writeStalenessProjectWith is writeStalenessProject with the voice profile
+// given. An empty voice writes none, and the fixture binds no terms, so nothing
+// governs the project's content.
+func writeStalenessProjectWith(t *testing.T, voice string) string {
+	t.Helper()
 	t.Setenv("KAPI_NO_PROJECT", "")
 	root := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "locales", "en"), 0o755))
@@ -46,7 +54,9 @@ collections:
     target: "locales/{lang}/*.json"
 `
 	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
-	require.NoError(t, os.WriteFile(layoutVoicePath(t, root), []byte(stalenessVoiceYAML), 0o644))
+	if voice != "" {
+		require.NoError(t, os.WriteFile(layoutVoicePath(t, root), []byte(voice), 0o644))
+	}
 	require.NoError(t, os.WriteFile(filepath.Join(root, "locales", "en", "app.json"),
 		[]byte("{\n  \"greeting\": \"Hello there\"\n}\n"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "locales", "fr", "app.json"),
@@ -178,6 +188,27 @@ func TestStalenessGate_ThreeOutcomes(t *testing.T) {
 		assert.Contains(t, gate.Findings[0].Message, "no governing-context stamp")
 	})
 
+	t.Run("a target written by hand without a stamp is still reported", func(t *testing.T) {
+		f := newStalenessFixture(t)
+		ctx := context.Background()
+		st, err := f.app.OpenProjectState(ctx, f.root)
+		require.NoError(t, err)
+		require.NoError(t, st.Put(ctx, state.UnitState{
+			Unit: f.unitKeys[0], Variant: model.Variant(model.LocaleID(f.units[0].Locale)),
+			Scope:  f.app.DocumentScope(ctx, f.root, f.units[0].SourcePath),
+			Status: model.TargetStatusEstablished, TargetHash: "h-by-hand",
+			Decision: state.Decision{ReviewState: "approved"},
+			Origin:   model.Origin{Kind: model.OriginHuman},
+		}))
+
+		gate, judged := f.run(t)
+		require.True(t, judged)
+		assert.True(t, gate.Pass)
+		require.Len(t, gate.Findings, 1)
+		assert.False(t, gate.Findings[0].Fails)
+		assert.Contains(t, gate.Findings[0].Message, "1 targets carry no governing-context stamp")
+	})
+
 	t.Run("a project with nothing produced is not judged at all", func(t *testing.T) {
 		f := newStalenessFixture(t)
 
@@ -203,6 +234,48 @@ func TestStalenessGate_ThreeOutcomes(t *testing.T) {
 		assert.True(t, judged, "the store records produced targets, so the gate ran and reports")
 		assert.True(t, gate.Pass)
 	})
+}
+
+// TestStalenessGate_UngovernedProducerStampMatches: with no voice profile and
+// no terms in force, every producer stamps an empty fingerprint
+// (coreprofile.GovernanceContext), and the gate reads that stamp as matching
+// the ungoverned context. A pass that fills every target from content memory
+// leaves the gate with nothing to report.
+func TestStalenessGate_UngovernedProducerStampMatches(t *testing.T) {
+	t.Setenv("KAPI_NO_PROJECT", "")
+	root := writeStalenessProjectWith(t, "")
+	t.Chdir(root)
+
+	a := &App{SourceLang: "en"}
+	a.InitRegistries()
+	cmd := NewEnvCommand(context.Background(), "staleness")
+	AddProjectFlag(cmd)
+	AddVerifyFlags(cmd)
+
+	proj, err := project.LoadWithOptions(filepath.Join(root, "kapi.yaml"),
+		project.LoadOptions{SkipRequiresCheck: true})
+	require.NoError(t, err)
+	units, err := a.UnitsFromProject(proj, root, "")
+	require.NoError(t, err)
+	require.NotEmpty(t, units)
+
+	fps, err := newContextFingerprints(a, cmd, proj, root)
+	require.NoError(t, err)
+	governing, err := fps.at(a.unitGovernancePoint(root, units[0]), units[0].Locale)
+	fps.close()
+	require.NoError(t, err)
+	require.Empty(t, governing.fingerprint, "nothing governs the fixture")
+
+	doc, err := filepath.Rel(root, units[0].SourcePath)
+	require.NoError(t, err)
+	recordFlowWrite(t, a, filepath.Join(root, project.RecipeFileName), filepath.ToSlash(doc),
+		model.LocaleID(units[0].Locale), model.Origin{Kind: model.OriginMemory, Tool: "recycle"})
+
+	gate, judged, err := a.verifyStaleness(cmd, proj, root, units, nil)
+	require.NoError(t, err)
+	assert.True(t, judged, "the flow's write is a produced target")
+	assert.True(t, gate.Pass)
+	assert.Empty(t, gate.Findings, "an empty stamp under an ungoverned context matches it")
 }
 
 // TestStalenessGate_MovingTheVoiceMovesTheContext is the whole-verb case:

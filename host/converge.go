@@ -337,9 +337,9 @@ func (o ConvergeOutput) upToDateLine() string {
 	case len(o.Locales) > 0 && !gated:
 		return "Up to date. No ship gates are declared."
 	case len(notGated) > 0:
-		return "Up to date: every gated scope is shippable. Not gated: " + strings.Join(notGated, ", ") + "."
+		return "Up to date: every gated locale is shippable. Not gated: " + strings.Join(notGated, ", ") + "."
 	default:
-		return "Up to date: every gated scope is shippable."
+		return "Up to date: every gated locale is shippable."
 	}
 }
 
@@ -382,7 +382,7 @@ func (o ConvergeOutput) formatMonolingual(w io.Writer) error {
 // RunDefaultFlowConverge executes the project's default flow (defaults.flow)
 // over its content across every target language — the no-argument `kapi run`.
 // Without untilGate it runs a single pass; with untilGate it loops the pass,
-// re-deriving coverage each time, until every gated scope is shippable, a pass
+// re-deriving coverage each time, until every gated locale is shippable, a pass
 // makes no progress, or maxPasses is reached — parking the locales that remain
 // short of their gate. It never fails the build: parked work is reported, not an
 // error (target drift is normal toil, not a break).

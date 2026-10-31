@@ -54,7 +54,7 @@ func TestUp_ChecksInLoop_FailingPlaceholderParks(t *testing.T) {
 	registerPlaceholderDropper(a2)
 	out2, err := runUp(t, a2, recipe)
 	require.NoError(t, err, out2)
-	assert.Contains(t, out2, "Up to date: every gated scope is shippable", out2)
+	assert.Contains(t, out2, "Up to date: every gated locale is shippable", out2)
 	assert.NotContains(t, out2, "failing checks", out2)
 }
 

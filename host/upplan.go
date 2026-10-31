@@ -187,8 +187,15 @@ func (o UpPlanOutput) FormatText(w io.Writer) error {
 		return nil
 	}
 	fmt.Fprintf(w, "Plan for flow %q (dry run: nothing written, no provider calls):\n\n", o.Flow)
+	first := "locale"
+	for _, s := range o.Scopes {
+		if s.Collection != "" {
+			first = "locale/collection"
+			break
+		}
+	}
 	t := output.NewTable(w).Accent(0).
-		Headers("scope", "missing", "stale", "unanswered", "content memory exact",
+		Headers(first, "missing", "stale", "unanswered", "content memory exact",
 			"stored drafts", "drafted by flow", "out of reach", "~tokens")
 	for _, s := range o.Scopes {
 		scope := s.Locale

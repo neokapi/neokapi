@@ -97,7 +97,7 @@ jobs:
           git push
 ```
 
-With `command: up` (the default), the action runs `kapi up` (the kapi loop on the server: push → catch up → pull) and reports what the run left in the working tree. The action commits nothing; the last step above commits and pushes. A run that **caught up** (`converged`: every gated scope cleared its ship gate) leaves the produced results; a run that leaves work **waiting for review** (outcome `parked`: work a person has to decide) leaves what did catch up and annotates the languages waiting for review; a **failed** run exits non-zero, so the steps after it are skipped. It sets outputs you can use in subsequent steps:
+With `command: up` (the default), the action runs `kapi up` (the kapi loop on the server: push → catch up → pull) and reports what the run left in the working tree. The action commits nothing; the last step above commits and pushes. A run that **caught up** (`converged`: every gated locale cleared its ship gate) leaves the produced results; a run that leaves work **waiting for review** (outcome `parked`: work a person has to decide) leaves what did catch up and annotates the languages waiting for review; a **failed** run exits non-zero, so the steps after it are skipped. It sets outputs you can use in subsequent steps:
 
 | Output              | Description                                                        |
 | ------------------- | ------------------------------------------------------------------ |
