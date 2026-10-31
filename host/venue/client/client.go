@@ -53,6 +53,13 @@ func NewWorkspaceBowrainClient(serverURL, workspace, projectID, authToken string
 	}
 }
 
+// NewWorkspaceClientOn creates a client on workspace-scoped routes that sends
+// its requests through t. Clients that share one sign-in share its transport,
+// so they refresh an expired access token once between them.
+func NewWorkspaceClientOn(t *Transport, workspace, projectID string) *BowrainClient {
+	return &BowrainClient{Transport: t, projectID: projectID, workspace: workspace}
+}
+
 // NewClaimTokenClient creates a client that uses claim token auth for anonymous projects.
 func NewClaimTokenClient(serverURL, projectID, claimToken string) *BowrainClient {
 	t := NewTransport(serverURL, "")

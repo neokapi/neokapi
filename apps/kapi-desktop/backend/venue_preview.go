@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 
 	"github.com/neokapi/neokapi/host/screens"
 	apiclient "github.com/neokapi/neokapi/host/venue/client"
@@ -91,10 +92,11 @@ func (a *App) BowrainPreview(tabID, part, item string) (*BowrainPreviewAnswer, e
 	if err != nil {
 		return nil, err
 	}
-	c, refusal := previewClient(server, ws, pid)
+	t, refusal := a.bowrain.transport(server)
 	if refusal != nil {
 		return &BowrainPreviewAnswer{Refusal: refusal}, nil
 	}
+	c := apiclient.NewWorkspaceClientOn(t, ws, pid)
 	c.SetStream(projectStream(op.Project))
 
 	ctx, cancel := context.WithTimeout(context.Background(), sharingTimeout)
@@ -111,7 +113,13 @@ func (a *App) BowrainPreview(tabID, part, item string) (*BowrainPreviewAnswer, e
 		out.Kept, err = c.KeptRules(ctx)
 	}
 	if err != nil {
-		return &BowrainPreviewAnswer{Refusal: previewRefusal(err)}, nil
+		refusal := previewRefusal(err)
+		if refusal.Action == PreviewActionSignIn {
+			// The sign-in no longer works; the next read takes the one
+			// `kapi auth login` stores next.
+			a.bowrain.forget(server, t)
+		}
+		return &BowrainPreviewAnswer{Refusal: refusal}, nil
 	}
 	return out, nil
 }
@@ -144,33 +152,68 @@ func loopbackHost(host string) bool {
 	return false
 }
 
-// previewClient builds the client with the stored sign-in, which goes only to
-// the server the sign-in names: the recipe names the server, and anyone who
-// commits to the project writes the recipe.
-func previewClient(server, ws, pid string) (*apiclient.BowrainClient, *PreviewRefusal) {
-	stored, _, ok := config.StoredSignIn()
-	if !ok || stored != server {
+// bowrainSignIns holds one transport per server, built from the stored
+// sign-in at the first read. The preview reads several parts at once, and
+// they share the transport so an expired access token is refreshed once and
+// the keychain is read once per server.
+type bowrainSignIns struct {
+	mu         sync.Mutex
+	transports map[string]*apiclient.Transport
+}
+
+// transport answers the server's transport, built with the stored sign-in on
+// first use. The sign-in goes only to the server it names: the recipe names
+// the server, and anyone who commits to the project writes the recipe.
+func (b *bowrainSignIns) transport(server string) (*apiclient.Transport, *PreviewRefusal) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if t, ok := b.transports[server]; ok {
+		return t, nil
+	}
+	// The metadata names the server without a keychain read, so a project on
+	// another server prompts for nothing.
+	if stored, _, ok := config.StoredSignIn(); !ok || stored != server {
 		return nil, &PreviewRefusal{Action: PreviewActionSignIn}
 	}
 	auth, err := config.LoadAuth()
-	if err != nil {
+	if err != nil || config.NormalizeServerURL(auth.ServerURL) != server {
 		return nil, &PreviewRefusal{Action: PreviewActionSignIn}
 	}
-	c := apiclient.NewWorkspaceBowrainClient(server, ws, pid, auth.AccessToken)
-	c.RefuseRedirectsOffServer()
+	t := apiclient.NewTransport(server, auth.AccessToken)
+	t.RefuseRedirectsOffServer()
 	if auth.RefreshToken != "" {
-		c.SetRefreshToken(auth.RefreshToken, func(newAccess, newRefresh string) {
-			auth.AccessToken, auth.RefreshToken = newAccess, newRefresh
-			_ = config.SaveAuth(*auth)
+		t.SetRefreshToken(auth.RefreshToken, func(newAccess, newRefresh string) {
+			saved := *auth
+			saved.AccessToken, saved.RefreshToken = newAccess, newRefresh
+			_ = config.SaveAuth(saved)
 		})
 	}
-	return c, nil
+	if b.transports == nil {
+		b.transports = map[string]*apiclient.Transport{}
+	}
+	b.transports[server] = t
+	return t, nil
+}
+
+// forget drops the server's transport when it is still t.
+func (b *bowrainSignIns) forget(server string, t *apiclient.Transport) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.transports[server] == t {
+		delete(b.transports, server)
+	}
 }
 
 // previewRefusal is the server's error as the server worded it, with the
-// action that answers its status. An error that carries no status, such as
-// a server that cannot be reached, keeps its own words and names no action.
+// action that answers its status. A refresh of the sign-in that failed asks
+// for a sign-in and carries no message. Any other error that carries no
+// status, such as a server that cannot be reached, keeps its own words and
+// names no action.
 func previewRefusal(err error) *PreviewRefusal {
+	var re *apiclient.RefreshError
+	if errors.As(err, &re) {
+		return &PreviewRefusal{Status: re.StatusCode, Action: PreviewActionSignIn}
+	}
 	var se *apiclient.StatusError
 	if !errors.As(err, &se) {
 		return &PreviewRefusal{Message: err.Error()}
@@ -180,7 +223,7 @@ func previewRefusal(err error) *PreviewRefusal {
 		msg = se.Code
 	}
 	if msg == "" {
-		msg = strings.TrimSpace(se.Body)
+		msg = plainBody(se.Body)
 	}
 	if msg == "" {
 		msg = http.StatusText(se.StatusCode)
@@ -193,4 +236,17 @@ func previewRefusal(err error) *PreviewRefusal {
 		out.Action = PreviewActionOpen
 	}
 	return out
+}
+
+// maxPlainBody bounds a response body read as the server's words.
+const maxPlainBody = 200
+
+// plainBody is a body short enough to read as a sentence and holding no
+// markup, such as a proxy's HTML error page; empty otherwise.
+func plainBody(body string) string {
+	body = strings.TrimSpace(body)
+	if len(body) > maxPlainBody || strings.Contains(body, "<") {
+		return ""
+	}
+	return body
 }

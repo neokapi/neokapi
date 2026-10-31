@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -24,15 +25,36 @@ const defaultClientTimeout = 120 * time.Second
 // client is bound to one project, while the editor client browses many
 // workspaces and holds only a token. Both need the same 401-refresh-retry
 // behaviour, and neither should own a second copy of it.
+//
+// A transport is safe for concurrent use. Requests that meet an expired
+// access token at the same time refresh it once: the server rotates the
+// refresh token on each use and revokes the sign-in when a rotated token is
+// presented again, so a second refresh with the same token would sign the
+// person out.
 type Transport struct {
 	baseURL    string
-	authToken  string // JWT bearer token
 	claimToken string // ClaimToken for unclaimed projects
 	httpClient *http.Client
 
+	mu             sync.Mutex                         // guards authToken and refreshToken
+	authToken      string                             // JWT bearer token
 	refreshToken   string                             // opaque refresh token for auto-refresh
 	onTokenRefresh func(newAccess, newRefresh string) // callback after successful refresh
+
+	refreshMu sync.Mutex // serializes refreshes
 }
+
+// RefreshError is a refresh of the access token that failed. StatusCode is
+// the refresh endpoint's HTTP status, 0 when no response came back. The
+// stored sign-in no longer works, so the person signs in again.
+type RefreshError struct {
+	StatusCode int
+	Err        error
+}
+
+func (e *RefreshError) Error() string { return "token refresh failed: " + e.Err.Error() }
+
+func (e *RefreshError) Unwrap() error { return e.Err }
 
 // NewTransport creates a bearer-authenticated transport against serverURL.
 func NewTransport(serverURL, authToken string) *Transport {
@@ -48,12 +70,25 @@ func (t *Transport) BaseURL() string { return t.baseURL }
 
 // SetAuthToken updates the bearer token used for authentication. It is used
 // after a token refresh or re-login.
-func (t *Transport) SetAuthToken(token string) { t.authToken = token }
+func (t *Transport) SetAuthToken(token string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.authToken = token
+}
+
+// tokens answers the access and refresh tokens the transport holds now.
+func (t *Transport) tokens() (access, refresh string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.authToken, t.refreshToken
+}
 
 // SetRefreshToken configures auto-refresh with the given refresh token.
 // The onRefresh callback is called after a successful token refresh so the
 // caller can persist the new tokens.
 func (t *Transport) SetRefreshToken(token string, onRefresh func(newAccess, newRefresh string)) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	t.refreshToken = token
 	t.onTokenRefresh = onRefresh
 }
@@ -77,11 +112,21 @@ func (t *Transport) RefuseRedirectsOffServer() {
 // and send it on their own http.Client — a long-lived SSE stream, say — use
 // this to authenticate it.
 func (t *Transport) ApplyAuth(req *http.Request) {
-	if t.authToken != "" {
-		req.Header.Set("Authorization", "Bearer "+t.authToken)
-	} else if t.claimToken != "" {
+	t.applyAuth(req)
+}
+
+// applyAuth adds the authorization header and answers the access token it
+// carries, empty for a claim token or none.
+func (t *Transport) applyAuth(req *http.Request) string {
+	access, _ := t.tokens()
+	if access != "" {
+		req.Header.Set("Authorization", "Bearer "+access)
+		return access
+	}
+	if t.claimToken != "" {
 		req.Header.Set("Authorization", "ClaimToken "+t.claimToken)
 	}
+	return ""
 }
 
 // Do executes an HTTP request and automatically retries once with a refreshed
@@ -100,18 +145,18 @@ func (t *Transport) Do(req *http.Request) (*http.Response, error) {
 		req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
 	}
 
-	t.ApplyAuth(req)
+	sent := t.applyAuth(req)
 	resp, err := t.httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
 
 	// Auto-refresh on 401 if we have a refresh token.
-	if resp.StatusCode == http.StatusUnauthorized && t.refreshToken != "" && t.authToken != "" {
+	if _, refresh := t.tokens(); resp.StatusCode == http.StatusUnauthorized && refresh != "" && sent != "" {
 		resp.Body.Close()
 
-		if refreshErr := t.doRefresh(req.Context()); refreshErr != nil {
-			return nil, fmt.Errorf("token refresh failed: %w", refreshErr)
+		if refreshErr := t.refreshAfter(req.Context(), sent); refreshErr != nil {
+			return nil, refreshErr
 		}
 
 		// Retry the original request with the new token and replayed body.
@@ -175,25 +220,38 @@ func (t *Transport) DoJSON(ctx context.Context, method, path string, query url.V
 	return nil
 }
 
+// refreshAfter refreshes the access token a request was refused with. A
+// refresh another request finished while this one waited has already
+// replaced that token, and the request then retries with the new one.
+func (t *Transport) refreshAfter(ctx context.Context, refused string) error {
+	t.refreshMu.Lock()
+	defer t.refreshMu.Unlock()
+	if access, _ := t.tokens(); access != refused {
+		return nil
+	}
+	return t.doRefresh(ctx)
+}
+
 // doRefresh calls the /api/v1/auth/refresh endpoint to obtain a new access
-// token and a rotated refresh token.
+// token and a rotated refresh token. A failure is a *RefreshError.
 func (t *Transport) doRefresh(ctx context.Context) error {
-	body, _ := json.Marshal(map[string]string{"refresh_token": t.refreshToken})
+	_, refresh := t.tokens()
+	body, _ := json.Marshal(map[string]string{"refresh_token": refresh})
 	refreshURL := t.baseURL + "/api/v1/auth/refresh"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, refreshURL, bytes.NewReader(body))
 	if err != nil {
-		return err
+		return &RefreshError{Err: err}
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := t.httpClient.Do(req)
 	if err != nil {
-		return err
+		return &RefreshError{Err: err}
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("refresh failed with HTTP %d", resp.StatusCode)
+		return &RefreshError{StatusCode: resp.StatusCode, Err: fmt.Errorf("refresh failed with HTTP %d", resp.StatusCode)}
 	}
 
 	var tokenResp struct {
@@ -201,13 +259,16 @@ func (t *Transport) doRefresh(ctx context.Context) error {
 		RefreshToken string `json:"refresh_token"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
-		return err
+		return &RefreshError{StatusCode: resp.StatusCode, Err: err}
 	}
 
+	t.mu.Lock()
 	t.authToken = tokenResp.AccessToken
 	t.refreshToken = tokenResp.RefreshToken
-	if t.onTokenRefresh != nil {
-		t.onTokenRefresh(tokenResp.AccessToken, tokenResp.RefreshToken)
+	onRefresh := t.onTokenRefresh
+	t.mu.Unlock()
+	if onRefresh != nil {
+		onRefresh(tokenResp.AccessToken, tokenResp.RefreshToken)
 	}
 	return nil
 }

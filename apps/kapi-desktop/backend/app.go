@@ -52,6 +52,10 @@ import (
 
 // App is the Wails service that bridges Go backend to the React frontend.
 type App struct {
+	// bowrain holds one transport per Bowrain server the Share page's
+	// preview reads (venue_preview.go).
+	bowrain bowrainSignIns
+
 	app       *application.App
 	formatReg *registry.FormatRegistry
 	toolReg   *registry.ToolRegistry

@@ -1,13 +1,19 @@
 package backend
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/neokapi/neokapi/core/project"
+	apiclient "github.com/neokapi/neokapi/host/venue/client"
 	"github.com/neokapi/neokapi/host/venue/config"
 	"github.com/neokapi/neokapi/host/venue/schema"
 	"github.com/stretchr/testify/assert"
@@ -180,4 +186,164 @@ func TestSignedInTo(t *testing.T) {
 	assert.Equal(t, "Mira Holt", who)
 	ok, _ = signedInTo("https://other.example.com/acme/p1")
 	assert.False(t, ok)
+}
+
+// rotatingServer refreshes an access token the way the Bowrain server does:
+// each refresh token works once and is replaced, and presenting a replaced
+// one revokes the sign-in. Requests carrying a stale access token wait until
+// `stale` of them have arrived, so they meet the expired token together.
+type rotatingServer struct {
+	*httptest.Server
+
+	mu        sync.Mutex
+	access    string
+	refresh   string
+	used      map[string]bool
+	refreshes int
+	revoked   bool
+
+	stale   int
+	arrived atomic.Int32
+	gate    chan struct{}
+}
+
+func newRotatingServer(t *testing.T, stale int) *rotatingServer {
+	t.Helper()
+	rs := &rotatingServer{access: "access-1", refresh: "refresh-1", used: map[string]bool{}, stale: stale, gate: make(chan struct{})}
+	kept := previewFixture(t, "kept-rules.json")
+	mapJSON := previewFixture(t, "map-summary.json")
+	rs.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/api/v1/auth/refresh" {
+			rs.serveRefresh(w, r)
+			return
+		}
+		rs.mu.Lock()
+		current := rs.access
+		rs.mu.Unlock()
+		if r.Header.Get("Authorization") != "Bearer "+current {
+			if int(rs.arrived.Add(1)) == rs.stale {
+				close(rs.gate)
+			}
+			select {
+			case <-rs.gate:
+			case <-time.After(2 * time.Second):
+			}
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte(`{"error":"invalid token"}`))
+			return
+		}
+		switch r.URL.Path {
+		case "/api/v1/acme/p1/map/main":
+			_, _ = w.Write(mapJSON)
+		case "/api/v1/acme/p1/rules/main/kept":
+			_, _ = w.Write(kept)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(rs.Close)
+	return rs
+}
+
+func (rs *rotatingServer) serveRefresh(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&body)
+	rs.mu.Lock()
+	defer rs.mu.Unlock()
+	if rs.used[body.RefreshToken] {
+		rs.revoked = true
+	}
+	if rs.revoked || body.RefreshToken != rs.refresh {
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte(`{"error":"invalid refresh token"}`))
+		return
+	}
+	rs.used[body.RefreshToken] = true
+	rs.refreshes++
+	rs.access = fmt.Sprintf("access-%d", rs.refreshes+1)
+	rs.refresh = fmt.Sprintf("refresh-%d", rs.refreshes+1)
+	_ = json.NewEncoder(w).Encode(map[string]string{"access_token": rs.access, "refresh_token": rs.refresh})
+}
+
+// signInWithRefresh stores an expired access token beside a refresh token.
+func signInWithRefresh(t *testing.T, server, refresh string) {
+	t.Helper()
+	keyring.MockInit()
+	t.Setenv("BOWRAIN_CONFIG_DIR", t.TempDir())
+	t.Setenv("BOWRAIN_AUTH_TOKEN", "")
+	require.NoError(t, config.SaveAuth(config.StoredAuth{
+		ServerURL: server, AccessToken: "expired", RefreshToken: refresh,
+	}))
+}
+
+// Two parts read at once meet an expired access token together: one of them
+// refreshes it, the other retries with the new token, and the sign-in stays.
+func TestBowrainPreviewRefreshesOnceForReadsAtOnce(t *testing.T) {
+	rs := newRotatingServer(t, 2)
+	signInWithRefresh(t, rs.URL, "refresh-1")
+	a := previewApp(t, rs.URL+"/acme/p1")
+
+	var wg sync.WaitGroup
+	answers := make([]*BowrainPreviewAnswer, 2)
+	errs := make([]error, 2)
+	for i, part := range []string{PreviewMap, PreviewKept} {
+		wg.Go(func() { answers[i], errs[i] = a.BowrainPreview("t", part, "") })
+	}
+	wg.Wait()
+
+	for i := range answers {
+		require.NoError(t, errs[i])
+		assert.Nil(t, answers[i].Refusal)
+	}
+	assert.NotNil(t, answers[0].Map)
+	assert.Len(t, answers[1].Kept, 3)
+	rs.mu.Lock()
+	defer rs.mu.Unlock()
+	assert.False(t, rs.revoked, "a refresh token is presented once")
+	assert.Equal(t, 1, rs.refreshes)
+
+	stored, err := config.LoadAuth()
+	require.NoError(t, err)
+	assert.Equal(t, rs.refresh, stored.RefreshToken, "the rotated sign-in is stored")
+}
+
+// A refresh the server refuses asks for a sign-in, and the next read takes
+// the sign-in stored after it.
+func TestBowrainPreviewRefreshRefusedAsksForSignIn(t *testing.T) {
+	rs := newRotatingServer(t, 1)
+	signInWithRefresh(t, rs.URL, "refresh-unknown")
+	a := previewApp(t, rs.URL+"/acme/p1")
+
+	got, err := a.BowrainPreview("t", PreviewMap, "")
+	require.NoError(t, err)
+	assert.Equal(t, &PreviewRefusal{Status: http.StatusUnauthorized, Action: PreviewActionSignIn}, got.Refusal)
+
+	require.NoError(t, config.SaveAuth(config.StoredAuth{ServerURL: rs.URL, AccessToken: "access-1"}))
+	got, err = a.BowrainPreview("t", PreviewMap, "")
+	require.NoError(t, err)
+	assert.Nil(t, got.Refusal)
+	assert.NotNil(t, got.Map)
+}
+
+// The token goes only to the server the sign-in it is read with names.
+func TestBowrainPreviewChecksTheServerOfTheTokenItSends(t *testing.T) {
+	srv := previewServer(t)
+	keyring.MockInit()
+	t.Setenv("BOWRAIN_CONFIG_DIR", t.TempDir())
+	// BOWRAIN_AUTH_TOKEN with no server names none, which matches no recipe.
+	t.Setenv("BOWRAIN_AUTH_TOKEN", "tok")
+	t.Setenv("BOWRAIN_SERVER_URL", "")
+	got, err := previewApp(t, srv.URL+"/acme/p1").BowrainPreview("t", PreviewMap, "")
+	require.NoError(t, err)
+	assert.Equal(t, &PreviewRefusal{Action: PreviewActionSignIn}, got.Refusal)
+}
+
+func TestPreviewRefusalKeepsMarkupOut(t *testing.T) {
+	got := previewRefusal(apiclient.NewStatusError("map", http.StatusBadGateway, []byte("<html><body><h1>502 Bad Gateway</h1></body></html>")))
+	assert.Equal(t, &PreviewRefusal{Status: http.StatusBadGateway, Message: "Bad Gateway"}, got)
+	got = previewRefusal(apiclient.NewStatusError("map", http.StatusBadGateway, []byte("upstream timed out")))
+	assert.Equal(t, "upstream timed out", got.Message)
 }
