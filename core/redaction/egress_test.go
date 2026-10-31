@@ -2,6 +2,7 @@ package redaction
 
 import (
 	"context"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -71,7 +72,7 @@ func TestEgress_AValueMetOnlyBesideTheBlockGetsTheNextToken(t *testing.T) {
 	assert.Equal(t, "Charles Babbage", v.Original)
 
 	// A model that copies the token into its answer gets the value back.
-	answer := append(runs, model.TextR(" Cc [REDACTED:Person]#1."))
+	answer := append(slices.Clone(runs), model.TextR(" Cc [REDACTED:Person]#1."))
 	restored, n, _ := RestoreTree(answer, func(tok string) (string, bool) {
 		v, ok := entry.Get(tok)
 		return v.Original, ok
