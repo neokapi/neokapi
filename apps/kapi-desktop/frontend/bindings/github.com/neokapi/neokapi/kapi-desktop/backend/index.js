@@ -37,6 +37,8 @@ export {
     ConceptDTO,
     ContextActorDTO,
     ContextBlessingDTO,
+    ContextCheckFinding,
+    ContextCheckRun,
     ContextCollectionDTO,
     ContextCorrectionDTO,
     ContextCoverageDTO,
