@@ -7,23 +7,17 @@ import (
 	"github.com/neokapi/neokapi/bowrain/core/store"
 )
 
-// FetchStore is the part of a ContentStore that StoreFetched writes through.
-type FetchStore interface {
-	store.ItemBlockReplacer
-	StoreItem(ctx context.Context, projectID, stream string, item *store.Item) error
-}
-
 // StoreFetched stores what a connector fetched into a project's stream, one
 // item per ContentItem (ItemName). Each item's row is stored and its blocks
-// become the item's whole block set (store.ReplaceItemBlocks), as an editor
-// upload and a push store a file. A block keeps its row, its translations and
+// become the item's whole block set (store.ReplaceItem), as an editor upload
+// and a push store a file. A block keeps its row, its translations and
 // its decisions across fetches and uploads of the same item, and a block the
 // fetched content no longer has is removed. A ContentItem with no blocks adds
 // no item and empties an item stored from an earlier fetch.
 //
 // Each item stores in its own transaction, so a partial failure heals on the
 // next fetch.
-func StoreFetched(ctx context.Context, s FetchStore, projectID, stream string, items []*ContentItem) error {
+func StoreFetched(ctx context.Context, s store.ItemWriter, projectID, stream string, items []*ContentItem) error {
 	for _, item := range items {
 		name := ItemName(item)
 		if name == "" {
@@ -35,16 +29,13 @@ func StoreFetched(ctx context.Context, s FetchStore, projectID, stream string, i
 			}
 			continue
 		}
-		if err := s.StoreItem(ctx, projectID, stream, &store.Item{
+		if _, err := store.ReplaceItem(ctx, s, projectID, stream, &store.Item{
 			Name:       name,
 			Format:     item.Format,
 			ItemType:   "file",
 			Properties: map[string]string{},
-		}); err != nil {
+		}, item.Blocks, nil); err != nil {
 			return fmt.Errorf("store fetched item %q: %w", name, err)
-		}
-		if _, err := store.ReplaceItemBlocks(ctx, s, projectID, stream, name, item.Blocks); err != nil {
-			return fmt.Errorf("store fetched blocks: %w", err)
 		}
 	}
 	return nil

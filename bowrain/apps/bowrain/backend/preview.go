@@ -4,14 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
+	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/editor"
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// RenderDocumentPreview returns pre-rendered HTML for an item.
-// Uses stored PreviewHTML if available, falling back to generating
-// a preview from the stored BlockIndex.
+// RenderDocumentPreview returns pre-rendered HTML for an item, in the order
+// the server's preview route answers: the stored PreviewHTML, then a preview
+// built from the stored BlockIndex, then a listing of the item's stored
+// blocks (store.BlockListPreview). An item a connector fetched has no preview
+// and no block index, so the listing is what it renders.
 func (a *App) RenderDocumentPreview(projectID, itemName, targetLocale string) (string, error) {
 	ctx := context.Background()
 
@@ -24,8 +28,22 @@ func (a *App) RenderDocumentPreview(projectID, itemName, targetLocale string) (s
 		return item.PreviewHTML, nil
 	}
 
-	if item.BlockIndex != "" {
-		return editor.BuildPreviewFromBlockIndex(item.BlockIndex), nil
+	// StoreItem writes "{}" for an item stored with no block index, and the
+	// preview built from it lists no block.
+	if item.BlockIndex != "" && item.BlockIndex != "{}" {
+		if preview := editor.BuildPreviewFromBlockIndex(item.BlockIndex); strings.Contains(preview, "<kat-block") {
+			return preview, nil
+		}
+	}
+
+	blocks, err := a.store.GetBlocks(ctx, store.BlockQuery{
+		ProjectID: projectID,
+		Stream:    "main",
+		ItemName:  itemName,
+		Order:     store.BlockOrderDocument,
+	})
+	if err == nil && len(blocks) > 0 {
+		return store.BlockListPreview(blocks), nil
 	}
 
 	return "", nil

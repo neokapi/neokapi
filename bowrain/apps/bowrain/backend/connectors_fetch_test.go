@@ -145,3 +145,43 @@ func TestFetchContent_StoresUnderTheItemAndAnImportKeepsTheRows(t *testing.T) {
 	sort.Strings(keys)
 	assert.Equal(t, keys, markers, "the preview marks each block by its row's source id")
 }
+
+// A fetched item has no stored preview and no block index, so the desktop
+// renders a listing of its stored blocks, each marked by its source id.
+func TestFetchContent_PreviewListsTheStoredBlocks(t *testing.T) {
+	app := newTestApp(t)
+	ctx := t.Context()
+	proj, err := app.CreateProject("Fetch preview", "en", []string{"fr"})
+	require.NoError(t, err)
+
+	dir := t.TempDir()
+	const name = "app.json"
+	writeTestFile(t, dir, name, `{"greeting":"Hello from the app","farewell":"Goodbye from the app"}`)
+	path := filepath.Join(dir, name)
+	format, err := app.DetectFormat(path)
+	require.NoError(t, err)
+
+	conn := &fileConnector{id: "fetch-preview-test", path: path, format: format, reg: app.formatReg}
+	activeConnectors[conn.id] = conn
+	t.Cleanup(func() { delete(activeConnectors, conn.id) })
+	_, err = app.FetchContent(conn.id, proj.ID)
+	require.NoError(t, err)
+
+	rows, err := app.store.GetBlocks(ctx, store.BlockQuery{ProjectID: proj.ID, Stream: "main", ItemName: name})
+	require.NoError(t, err)
+	require.Len(t, rows, 2)
+	var keys []string
+	for _, sb := range rows {
+		keys = append(keys, sb.SourceID)
+	}
+
+	html, err := app.RenderDocumentPreview(proj.ID, name, "fr")
+	require.NoError(t, err)
+	var markers []string
+	for _, m := range regexp.MustCompile(`<kat-block id="([^"]*)"`).FindAllStringSubmatch(html, -1) {
+		markers = append(markers, m[1])
+	}
+	sort.Strings(markers)
+	sort.Strings(keys)
+	assert.Equal(t, keys, markers, "the listing marks each block by its row's source id")
+}

@@ -122,30 +122,86 @@ func ItemBlockKeys(itemName string, blocks []*model.Block) []string {
 	return venue.ItemBlockKeys(map[string][]*model.Block{itemName: blocks})[itemName]
 }
 
-// ReadItemWriter is the part of a ContentStore that StoreReadItem writes
-// through.
-type ReadItemWriter interface {
+// ItemWriter is the part of a ContentStore that ReplaceItem and StoreReadItem
+// write through.
+type ItemWriter interface {
 	ItemBlockReplacer
 	StoreItem(ctx context.Context, projectID, stream string, item *Item) error
 }
 
-// StoreReadItem stores item and makes read, a parse of the item's file, its
-// whole block set (ReplaceItemBlocks). It then stores the item's preview,
-// rendered once ReplaceItemBlocks has resolved each block's key, so every
-// marker in the preview carries the key its block's row is stored under as
-// source id. item.PreviewHTML is set to that preview.
-func StoreReadItem(ctx context.Context, w ReadItemWriter, projectID, stream string, item *Item, read *editor.ParseResult) error {
+// ItemReplaceStore is the optional capability of storing an item row and
+// replacing its block set in one transaction, under the stream's shared write
+// lock, with one item write. ReplaceItem uses it when the store has it.
+type ItemReplaceStore interface {
+	ReplaceItem(ctx context.Context, projectID, stream string, item *Item, blocks []*model.Block, render func() string) (int, error)
+}
+
+// ReplaceItem stores item and makes blocks, a fresh read of the item's file,
+// its whole block set (ReplaceItemBlocks), and reports how many stored blocks
+// it removed. A non-nil render is called once the blocks' keys are resolved,
+// and its result is stored as the item's preview and set on
+// item.PreviewHTML. A preview rendered then marks each block by the key its
+// row is stored under as source id.
+func ReplaceItem(ctx context.Context, w ItemWriter, projectID, stream string, item *Item, blocks []*model.Block, render func() string) (int, error) {
+	if item == nil || item.Name == "" {
+		return 0, errors.New("replace item: no item name")
+	}
+	if rs, ok := w.(ItemReplaceStore); ok {
+		return rs.ReplaceItem(ctx, projectID, stream, item, blocks, render)
+	}
+	return ReplaceItemInSteps(ctx, w, projectID, stream, item, blocks, render)
+}
+
+// ReplaceItemInSteps is ReplaceItem for a store without ItemReplaceStore. It
+// writes the item row, replaces the blocks, and writes the row again with the
+// preview when render is not nil, each in its own transaction.
+func ReplaceItemInSteps(ctx context.Context, w ItemWriter, projectID, stream string, item *Item, blocks []*model.Block, render func() string) (int, error) {
+	if item == nil || item.Name == "" {
+		return 0, errors.New("replace item: no item name")
+	}
 	// The item row comes first: ReplaceItemBlocks scopes the keys it
 	// resolves to the item's id.
 	if err := w.StoreItem(ctx, projectID, stream, item); err != nil {
-		return fmt.Errorf("store item %q: %w", item.Name, err)
+		return 0, fmt.Errorf("store item %q: %w", item.Name, err)
 	}
-	if _, err := ReplaceItemBlocks(ctx, w, projectID, stream, item.Name, read.Blocks); err != nil {
-		return err
+	n, err := ReplaceItemBlocks(ctx, w, projectID, stream, item.Name, blocks)
+	if err != nil {
+		return n, err
 	}
-	item.PreviewHTML = read.PreviewHTML()
+	if render == nil {
+		return n, nil
+	}
+	item.PreviewHTML = render()
 	if err := w.StoreItem(ctx, projectID, stream, item); err != nil {
-		return fmt.Errorf("store the preview of %q: %w", item.Name, err)
+		return n, fmt.Errorf("store the preview of %q: %w", item.Name, err)
 	}
-	return nil
+	return n, nil
+}
+
+// StoreReadItem stores item with read, a parse of the item's file, as its
+// whole block set and its preview (ReplaceItem).
+func StoreReadItem(ctx context.Context, w ItemWriter, projectID, stream string, item *Item, read *editor.ParseResult) error {
+	_, err := ReplaceItem(ctx, w, projectID, stream, item, read.Blocks, read.PreviewHTML)
+	return err
+}
+
+// BlockListPreview is the preview of an item that has no stored preview and
+// no block index: a listing of its stored translatable blocks
+// (editor.BuildGenericPreview). Each block is marked by its source id, the
+// key a surface names it by, or by its row id when it has none.
+func BlockListPreview(blocks []*venue.StoredBlock) string {
+	parts := make([]*model.Part, 0, len(blocks))
+	for _, sb := range blocks {
+		if sb == nil || sb.Block == nil || !sb.Block.Translatable {
+			continue
+		}
+		b := sb.Block
+		if sb.SourceID != "" {
+			marked := *b
+			marked.ID = sb.SourceID
+			b = &marked
+		}
+		parts = append(parts, &model.Part{Type: model.PartBlock, Resource: b})
+	}
+	return editor.BuildGenericPreview(parts)
 }
