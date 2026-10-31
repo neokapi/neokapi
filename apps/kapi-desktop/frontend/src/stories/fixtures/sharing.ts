@@ -147,6 +147,12 @@ export const S3_VIEW = view(S3_IN_SYNC);
 export const BOWRAIN_VIEW = view(BOWRAIN_CONNECTED, { bowrain_plugin: true });
 export const BOWRAIN_WITHOUT_TEAM_VIEW = view(BOWRAIN_WITHOUT_TEAM, { bowrain_plugin: true });
 export const BOWRAIN_BACKEND_VIEW = view(BOWRAIN_BACKEND, { bowrain_plugin: true });
+/** Connected to Bowrain, with a sign-in on this Mac for its server. */
+export const BOWRAIN_SIGNED_IN_VIEW = view(BOWRAIN_CONNECTED, {
+  bowrain_plugin: true,
+  signed_in: true,
+  signed_in_as: "Mira Holt",
+});
 /** A project whose path names a long folder, as a network share often does. */
 export const FOLDER_LONG_PATH_VIEW = view({
   ...FOLDER_IN_SYNC,

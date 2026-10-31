@@ -1,11 +1,22 @@
-// The port the Bowrain preview draws the project screens through. It reads
-// and never acts: it carries the four reads and no decide, assign, fix or
-// check, so the screens draw no control that changes the project.
+// The ports the Bowrain preview draws the project screens through. Each
+// reads and never acts: it carries the four reads and no decide, assign, fix
+// or check, so the screens draw no control that changes the project.
+//
+// The local port reads the tab's own project on this Mac. The remote port
+// reads the server the recipe's `bowrain:` block connects to, through the
+// sign-in on this Mac; the Share page picks it when the recipe names a
+// server and a sign-in names that server.
 
 import { useMemo } from "react";
 import { t } from "@neokapi/i18n-react/runtime";
-import type { ProjectScreensPort, ScreenTarget } from "@neokapi/project-screens";
+import type { ContextActor, ProjectScreensPort, ScreenTarget } from "@neokapi/project-screens";
 import { api } from "../hooks/useApi";
+import type {
+  BowrainPreviewAnswer,
+  BowrainPreviewPart,
+  PreviewRefusal,
+  ShareView,
+} from "../types/api";
 
 /** A read that answers null, with no backend behind it, rejects instead. */
 async function required<T>(read: Promise<T | null>): Promise<T> {
@@ -27,9 +38,82 @@ export function localPreviewPort(tabID: string): ProjectScreensPort {
   };
 }
 
-/** The local preview port for a tab, the same object while the tab is. */
-export function useLocalPreviewPort(tabID: string): ProjectScreensPort {
-  return useMemo(() => localPreviewPort(tabID), [tabID]);
+/** Where a preview reads the project: the Bowrain server, or this Mac. */
+export type PreviewSource = "bowrain" | "local";
+
+/**
+ * The source a Share page previews: the server when the recipe names one and
+ * a sign-in on this Mac names it, this Mac otherwise.
+ */
+export function previewSource(view: ShareView | null | undefined): PreviewSource {
+  return view?.sharing.venue_host && view.signed_in ? "bowrain" : "local";
+}
+
+/** A read the server, or this Mac, refused, carrying the refusal as it came. */
+export class PreviewRefusalError extends Error {
+  readonly refusal: PreviewRefusal;
+  constructor(refusal: PreviewRefusal) {
+    super(refusal.message ?? "");
+    this.name = "PreviewRefusalError";
+    this.refusal = refusal;
+  }
+}
+
+/** One part of the project from the server, or the refusal as an error. */
+async function fromBowrain<K extends Exclude<keyof BowrainPreviewAnswer, "refusal">>(
+  tabID: string,
+  part: BowrainPreviewPart,
+  key: K,
+  item = "",
+): Promise<NonNullable<BowrainPreviewAnswer[K]>> {
+  const answer = await api.bowrainPreview(tabID, part, item);
+  if (answer?.refusal) throw new PreviewRefusalError(answer.refusal);
+  const value = answer?.[key];
+  if (value === undefined || value === null) {
+    throw new Error(t("This project could not be read from Bowrain"));
+  }
+  return value as NonNullable<BowrainPreviewAnswer[K]>;
+}
+
+/**
+ * A read-only port over the tab's project as the Bowrain server shows it.
+ * The server knows a file by its item name, which the Map's rows carry, and
+ * the Reader is opened by the file's path, so the port keeps the names the
+ * last Map read and opens a path the Map did not list by that path. A person
+ * the server leaves unnamed is the one signed in, shown by `signedInAs`.
+ */
+export function remotePreviewPort(tabID: string, signedInAs?: string): ProjectScreensPort {
+  const itemOf = new Map<string, string>();
+  return {
+    mapSummary: async () => {
+      const summary = await fromBowrain(tabID, "map", "map");
+      for (const row of summary.file_rows ?? []) itemOf.set(row.relative, row.path);
+      return summary;
+    },
+    readerFile: (path) => fromBowrain(tabID, "reader", "reader", itemOf.get(path) ?? path),
+    decideView: () => fromBowrain(tabID, "decide", "decide"),
+    keptRules: () => fromBowrain(tabID, "kept", "kept"),
+    actorName: (actor: ContextActor) =>
+      actor.name || (actor.kind === "person" && signedInAs ? signedInAs : undefined),
+  };
+}
+
+/**
+ * The port a Share page previews through and where it reads: the remote port
+ * when `previewSource` picks the server, the local port otherwise. The same
+ * object while the tab, the source and the signed-in name are.
+ */
+export function usePreviewPort(
+  tabID: string,
+  view: ShareView | null | undefined,
+): { port: ProjectScreensPort; source: PreviewSource } {
+  const source = previewSource(view);
+  const signedInAs = view?.signed_in_as;
+  const port = useMemo(
+    () => (source === "bowrain" ? remotePreviewPort(tabID, signedInAs) : localPreviewPort(tabID)),
+    [tabID, source, signedInAs],
+  );
+  return { port, source };
 }
 
 /** The targets a preview opens: the Map, the Reader and the Rules tab. */

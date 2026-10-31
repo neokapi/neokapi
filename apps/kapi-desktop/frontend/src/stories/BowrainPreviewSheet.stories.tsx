@@ -8,6 +8,8 @@ import {
   READER_WITH_FIXES,
 } from "@neokapi/project-screens/fixtures";
 import { BowrainPreviewSheet } from "../components/BowrainPreviewSheet";
+import { PreviewRefusalError } from "../lib/previewPort";
+import type { PreviewRefusal } from "../types/api";
 
 /** The Fernwell fixtures through the four reads a local preview makes. */
 const FERNWELL_LOCAL: ProjectScreensPort = {
@@ -76,4 +78,78 @@ export const ReaderInside: Story = {
     );
     await expect(within(sheet).queryByRole("button", { name: /^Fix/ })).toBeNull();
   },
+};
+
+/**
+ * The Fernwell fixtures as a Bowrain server answers them: the member who kept
+ * a rule is named, and the person signed in is shown by their name.
+ */
+const FERNWELL_SERVER: ProjectScreensPort = {
+  ...FERNWELL_LOCAL,
+  actorName: (actor) => actor.name || (actor.kind === "person" ? "Mira Holt" : undefined),
+};
+
+/** A port whose every read the server refuses. */
+function refusing(refusal: PreviewRefusal): ProjectScreensPort {
+  const refuse = async (): Promise<never> => {
+    throw new PreviewRefusalError(refusal);
+  };
+  return { mapSummary: refuse, readerFile: refuse, decideView: refuse, keptRules: refuse };
+}
+
+const CONNECTED = {
+  source: "bowrain" as const,
+  serverURL: "https://app.bowrain.cloud",
+  projectURL: "https://app.bowrain.cloud/acme/help",
+};
+
+const NO_PERMISSION = refusing({
+  status: 403,
+  message: "insufficient project permissions",
+  action: "open",
+});
+const SIGNED_OUT = refusing({ status: 401, message: "invalid token", action: "sign_in" });
+
+/** Connected and signed in: the server's own Rules, with its member names. */
+export const ConnectedRules: Story = {
+  args: { ...CONNECTED, port: FERNWELL_SERVER, defaultTab: "rules" },
+  play: async () => {
+    const sheet = await screen.findByRole("dialog");
+    await expect(within(sheet).getByText("As Bowrain shows it")).toBeInTheDocument();
+    const kept = await within(sheet).findByRole("region", { name: "Kept by" });
+    await waitFor(() => expect(within(kept).getAllByText(/Mira Holt$/).length).toBeGreaterThan(0));
+  },
+};
+
+export const ConnectedRulesDark: Story = {
+  name: "Connected rules (dark)",
+  args: { ...CONNECTED, port: FERNWELL_SERVER, defaultTab: "rules" },
+  globals: { theme: "dark" },
+};
+
+/** The server refuses the project: its words, and Open Bowrain. */
+export const ConnectedNoPermission: Story = {
+  args: { ...CONNECTED, port: NO_PERMISSION },
+  play: async () => {
+    const sheet = await screen.findByRole("dialog");
+    const body = await within(sheet).findByRole("alert");
+    await expect(body).toHaveTextContent("insufficient project permissions");
+    await expect(within(body).getByRole("link", { name: /Open Bowrain/ })).toBeInTheDocument();
+  },
+};
+
+/** The server does not take the sign-in: its words, and the command that signs in. */
+export const ConnectedSignedOut: Story = {
+  args: { ...CONNECTED, port: SIGNED_OUT },
+  play: async () => {
+    const sheet = await screen.findByRole("dialog");
+    const body = await within(sheet).findByRole("alert");
+    await expect(body).toHaveTextContent("kapi auth login --server https://app.bowrain.cloud");
+  },
+};
+
+export const ConnectedSignedOutDark: Story = {
+  name: "Connected signed out (dark)",
+  args: { ...CONNECTED, port: SIGNED_OUT },
+  globals: { theme: "dark" },
 };
