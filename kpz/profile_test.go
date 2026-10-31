@@ -115,3 +115,41 @@ func TestUnmarshalRejectsUnknownKind(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown kind")
 }
+
+// A redacted package records the vault that restores it in its manifest, and
+// nowhere else; the record is metadata, outside the content RootHash.
+func TestRedactionRoundTrip(t *testing.T) {
+	plain := &Package{Overlays: sampleOverlays()}
+	redacted := &Package{Overlays: sampleOverlays(), Redaction: &Redaction{VaultID: "0123456789abcdef0123456789abcdef"}}
+	data, err := redacted.Marshal()
+	require.NoError(t, err)
+	got, err := Unmarshal(data)
+	require.NoError(t, err)
+	require.NotNil(t, got.Redaction)
+	assert.Equal(t, "0123456789abcdef0123456789abcdef", got.Redaction.VaultID)
+
+	plainRoot, err := plain.RootHash()
+	require.NoError(t, err)
+	redactedRoot, err := redacted.RootHash()
+	require.NoError(t, err)
+	assert.Equal(t, plainRoot, redactedRoot, "the record is metadata")
+
+	data, err = plain.Marshal()
+	require.NoError(t, err)
+	got, err = Unmarshal(data)
+	require.NoError(t, err)
+	assert.Nil(t, got.Redaction, "a package that withholds nothing records no vault")
+}
+
+// The vault ID names a file on the machine that merges, so a manifest whose
+// ID could be read as a path is refused.
+func TestUnmarshalRejectsAVaultIDThatIsAPath(t *testing.T) {
+	for _, id := range []string{"", "../../etc/passwd", "a/b", "batch.json"} {
+		pkg := &Package{Overlays: sampleOverlays(), Redaction: &Redaction{VaultID: id}}
+		data, err := pkg.Marshal()
+		require.NoError(t, err)
+		_, err = Unmarshal(data)
+		require.Error(t, err, id)
+		assert.Contains(t, err.Error(), "is not a vault id", id)
+	}
+}
