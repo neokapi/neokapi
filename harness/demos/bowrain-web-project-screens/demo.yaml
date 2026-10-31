@@ -70,9 +70,8 @@ narration:
     beat: fix
     caption: A fix, filed as a source proposal.
     text: >-
-      Fix files a source proposal and leaves the file as it is. The
-      proposal's id takes the button's place and opens the list of open
-      proposals, where an approval applies the change and keeps every inline
+      Fix files a source proposal and leaves the file as it is. Proposed
+      takes the button's place and opens the list of open proposals, where an approval applies the change and keeps every inline
       code.
 
   - id: rules

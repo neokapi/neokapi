@@ -107,8 +107,8 @@ A Bowrain project opens on its Map, and its sidebar adds Rules: the Map, the
 Reader and Rules (the team queue and Kept by) in the browser. On the desktop,
 Share's Preview reads the Bowrain server when the recipe names one and this
 Mac is signed in to it, and this Mac otherwise. The scripts below are
-authored; **nothing was captured, narrated or rendered**. The founder reviews
-the scripts before any capture.
+authored; **nothing was captured, narrated or rendered**. The scripts are
+reviewed before any capture.
 
 | Asset | What changed | Re-record | Infra | Norwegian (nb) | Publish |
 | --- | --- | --- | --- | --- | --- |

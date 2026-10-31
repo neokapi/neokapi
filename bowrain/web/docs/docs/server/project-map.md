@@ -7,8 +7,8 @@ description: A project opens on its Map. The Reader shows one file with its find
 
 # Map, Reader and Rules
 
-A project opens on its **Map**. The project's sidebar lists **Map**, then
-**Overview** and **Rules**. These are the screens kapi draws on the desktop,
+A project opens on its **Map**. The project's sidebar lists **Map** first, then
+**Overview**, **Rules** and the other sections. These are the screens kapi draws on the desktop,
 read from the server, so your team works from one record of what an assistant
 noticed and what a person decided.
 
@@ -53,8 +53,9 @@ and in the margin the rules that hold at that file.
 - **Fix** on a finding files a source proposal. The file stays as it is until
   someone approves the proposal.
 - **Fix N in this file** files one proposal per block with a fixable finding.
-- **Proposed** and the proposal's short id replace **Fix** once it is filed.
-  The id opens **Source change proposals**.
+  It shows only while no fix on the page has been filed.
+- **Proposed** replaces **Fix** once it is filed, with the proposal's id as
+  its title; it opens **Source change proposals**.
 - **Approve & re-draft** in that list applies the change and keeps every
   inline code. Approving needs the `edit_source` permission; filing needs
   `review`.
