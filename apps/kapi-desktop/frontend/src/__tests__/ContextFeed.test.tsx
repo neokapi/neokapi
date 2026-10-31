@@ -13,12 +13,20 @@ import {
   RESET,
   RESET_FEED,
   SECOND_CANDIDATE,
+  HOOK_ONLY_SESSION,
+  MIXED_SESSION,
+  checkRun,
   feedEntry,
   feedGroup,
 } from "../stories/fixtures/contextFeed";
 import type { ContextFeed } from "../types/api";
 
 const PERSON_DAY = "actor:person/asgeir:2026-09-21";
+
+const SIGN_IN_FINDING = { file: "docs/pricing.md", rule: "terms.vocabulary", quote: "sign in" };
+
+const runResultText = (run: HTMLElement) =>
+  run.querySelector("[data-slot='check-run-result']")?.textContent;
 
 function renderFeed(feed: ContextFeed = CONTEXT_FEED, props: Partial<ContextFeedProps> = {}) {
   const onKeep = vi.fn();
@@ -287,6 +295,118 @@ describe("History as a list of sessions beside a detail pane", () => {
     expect(detail().querySelector("[data-slot='session-counts']")?.textContent).toBe(
       "2 suggestions, 1 kept · 2 files · 3 checks · 1 caught",
     );
+  });
+
+  it("lists a session's check runs under its counts, newest first", () => {
+    renderFeed(
+      { ...CONTEXT_FEED, groups: [HOOK_ONLY_SESSION, ...CONTEXT_FEED.groups] },
+      { defaultSelected: HOOK_ONLY_SESSION.id },
+    );
+    expect(detail().querySelector("[data-slot='session-counts']")?.textContent).toBe(
+      "2 files · 3 checks · 2 caught",
+    );
+    const runs = Array.from(
+      detail().querySelectorAll<HTMLElement>("[data-slot='context-check-run']"),
+    );
+    expect(runs.map((r) => r.getAttribute("data-run"))).toEqual(["run-3", "run-2", "run-1"]);
+    expect(runs.map((r) => r.getAttribute("data-result"))).toEqual(["clean", "failing", "failing"]);
+    expect(runs.map(runResultText)).toEqual([
+      "clean",
+      "1 failingterms.vocabulary",
+      "2 failingterms.vocabulary",
+    ]);
+    expect(runs.map((r) => r.querySelector("[data-slot='check-run-files']")?.textContent)).toEqual([
+      "pricing.md",
+      "pricing.md",
+      "pricing.md, welcome.md",
+    ]);
+    expect(runs[0].querySelector("[data-slot='check-run-findings']")).toBeNull();
+    expect(detail().querySelectorAll("[data-slot='context-feed-entry']")).toHaveLength(0);
+  });
+
+  it("marks a finding the next run no longer found as caught, on the run that last reported it", () => {
+    renderFeed(
+      { ...CONTEXT_FEED, groups: [HOOK_ONLY_SESSION, ...CONTEXT_FEED.groups] },
+      { defaultSelected: HOOK_ONLY_SESSION.id },
+    );
+    const findings = (id: string) =>
+      Array.from(
+        detail().querySelectorAll<HTMLElement>(
+          `[data-run='${id}'] [data-slot='check-run-finding']`,
+        ),
+      ).map((f) => f.textContent);
+    expect(findings("run-2")).toEqual(["“sign in”terms.vocabularypricing.mdcaught"]);
+    expect(findings("run-1")).toEqual([
+      "“sign in”terms.vocabularypricing.md",
+      "“utilise”terms.vocabularywelcome.mdcaught",
+    ]);
+    expect(detail().querySelectorAll("[data-slot='finding-caught']")).toHaveLength(2);
+  });
+
+  it("lists a session's operations and check runs in one list by time", () => {
+    renderFeed(
+      { ...CONTEXT_FEED, groups: [MIXED_SESSION, ...CONTEXT_FEED.groups.slice(1)] },
+      { defaultSelected: MIXED_SESSION.id },
+    );
+    const rows = Array.from(
+      detail().querySelectorAll<HTMLElement>(
+        "[data-slot='context-feed-entries'] > li > [data-slot='context-feed-entry'], [data-slot='context-feed-entries'] > li > [data-slot='context-check-run']",
+      ),
+    );
+    expect(
+      rows.map((r) => r.getAttribute("data-entry") ?? `run:${r.getAttribute("data-run")}`),
+    ).toEqual([CANDIDATE.id, "run:run-b", IN_FORCE.id, "run:run-a"]);
+    // The proposal keeps its decisions beside the runs.
+    expect(entry(CANDIDATE.id).querySelector("[data-slot='keep-suggestion']")).not.toBeNull();
+    expect(detail().querySelector("[data-slot='session-counts']")?.textContent).toBe(
+      "2 suggestions, 1 kept · 1 file · 2 checks · 1 caught",
+    );
+  });
+
+  it("says a run that reached no verdict did not run, and counts the findings it does not list", () => {
+    renderFeed(
+      {
+        ...CONTEXT_FEED,
+        groups: [
+          feedGroup({
+            id: "session:hook",
+            session: "hook",
+            checked: 2,
+            failed: true,
+            failing: 30,
+            entries: [],
+            runs: [
+              checkRun({
+                id: "run-big",
+                at: "2026-09-21T09:10:00Z",
+                edited: false,
+                files: [],
+                file_count: 140,
+                clean: false,
+                failing: 30,
+                rules: ["terms.vocabulary"],
+                findings: [{ ...SIGN_IN_FINDING, caught: false }],
+              }),
+              checkRun({
+                id: "run-none",
+                at: "2026-09-21T09:00:00Z",
+                reached: false,
+                clean: false,
+              }),
+            ],
+          }),
+        ],
+      },
+      { defaultSelected: "session:hook" },
+    );
+    const big = detail().querySelector<HTMLElement>("[data-run='run-big']")!;
+    expect(big.querySelector("[data-slot='check-run-files']")?.textContent).toBe("140 files");
+    expect(
+      big.querySelector("[data-slot='check-run-findings']")?.lastElementChild?.textContent,
+    ).toBe("29 more");
+    const none = detail().querySelector<HTMLElement>("[data-run='run-none']")!;
+    expect(runResultText(none)).toBe("did not run");
+    expect(none.getAttribute("data-result")).toBe("did-not-run");
   });
 
   it("reads out what the selected session did, and says who worked and where", () => {

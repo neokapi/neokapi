@@ -8,9 +8,11 @@
 //
 // The list has one row per session, newest first: who worked, when, and how
 // many operations the session holds. The detail pane lists the selected
-// session's operations, one row each, with the reset the session offers in its
-// toolbar: Reset to before this session, and Take this reset back on a session
-// that holds a reset. A proposal is an operation that still takes a decision.
+// session's operations and its latest check runs, newest first and one row
+// each, with the reset the session offers in its toolbar: Reset to before this
+// session, and Take this reset back on a session that holds a reset. A check
+// run's row says what it checked and what it found, and marks a finding the
+// session's next run no longer found as caught. A proposal is an operation that still takes a decision.
 // It keeps Keep, Edit and Not a rule on its row, and the file, the unit and the
 // quotation it came from sit in a disclosure under the row.
 //
@@ -27,6 +29,7 @@ import {
   FileText,
   History,
   Inbox,
+  ListChecks,
   Maximize2,
   Pencil,
   Terminal,
@@ -66,7 +69,14 @@ import {
   digestKind,
   useListNavigation,
 } from "@neokapi/ui-primitives";
-import type { ContextActor, ContextFeed, ContextFeedEntry, ContextFeedGroup } from "../types/api";
+import type {
+  ContextActor,
+  ContextCheckRun,
+  ContextFeed,
+  ContextFeedEntry,
+  ContextFeedGroup,
+} from "../types/api";
+import { lastSegment } from "./WorkspaceProjectRow";
 
 /** The edit a person makes to a rule before accepting it. */
 export interface ContextRuleEdit {
@@ -617,28 +627,189 @@ function SessionDetail({
         </p>
       )}
       <ul data-slot="context-feed-entries" className="-mx-2 flex flex-col gap-px">
-        {group.entries.map((entry) => (
-          <li key={entry.id}>
-            <FeedEntryRow
-              entry={entry}
-              groupProject={group.project_key}
-              active={entry.id === activeID}
-              decided={decided.has(entry.id)}
-              editing={editing === entry.id}
-              edit={edit}
-              editRef={editRef}
-              onPick={() => entry.decidable && onPick(entry.id)}
-              onEditChange={onEditChange}
-              onOpenEdit={() => onOpenEdit(entry)}
-              onCancelEdit={onCancelEdit}
-              onKeep={() => onKeep(entry)}
-              onDrop={() => onDrop(entry)}
-              onWiden={(to) => onWiden(entry, to)}
-            />
-          </li>
-        ))}
+        {sessionRows(group).map((row) =>
+          row.kind === "run" ? (
+            <li key={`run:${row.run.id}`}>
+              <CheckRunRow run={row.run} />
+            </li>
+          ) : (
+            <li key={row.entry.id}>
+              <FeedEntryRow
+                entry={row.entry}
+                groupProject={group.project_key}
+                active={row.entry.id === activeID}
+                decided={decided.has(row.entry.id)}
+                editing={editing === row.entry.id}
+                edit={edit}
+                editRef={editRef}
+                onPick={() => row.entry.decidable && onPick(row.entry.id)}
+                onEditChange={onEditChange}
+                onOpenEdit={() => onOpenEdit(row.entry)}
+                onCancelEdit={onCancelEdit}
+                onKeep={() => onKeep(row.entry)}
+                onDrop={() => onDrop(row.entry)}
+                onWiden={(to) => onWiden(row.entry, to)}
+              />
+            </li>
+          ),
+        )}
       </ul>
     </ListDetailPane>
+  );
+}
+
+/** One row of a session's detail: an operation it recorded, or a check run. */
+export type SessionDetailRow =
+  | { kind: "entry"; at: string; entry: ContextFeedEntry }
+  | { kind: "run"; at: string; run: ContextCheckRun };
+
+/**
+ * A session's operations and check runs in one list, newest first. Both
+ * arrive newest first with their times in one format, and the sort is
+ * stable, so an operation and a run at the same second keep the operation
+ * above.
+ */
+export function sessionRows(group: Pick<ContextFeedGroup, "entries" | "runs">): SessionDetailRow[] {
+  const rows: SessionDetailRow[] = [
+    ...group.entries.map((entry) => ({ kind: "entry" as const, at: entry.at, entry })),
+    ...(group.runs ?? []).map((run) => ({ kind: "run" as const, at: run.at, run })),
+  ];
+  return rows.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
+}
+
+/** What a check run found: clean, how many findings failed, or that it did not run. */
+function runResult(run: ContextCheckRun): string {
+  if (!run.reached) return t("did not run", "check run result");
+  if (run.clean) return t("clean");
+  return t("{count} failing", { count: run.failing });
+}
+
+/**
+ * One check run: what it found and the rules that failed on the first line,
+ * then what it checked and when, then its failing findings, each marked
+ * caught when the session's next run no longer found it.
+ */
+function CheckRunRow({ run }: { run: ContextCheckRun }) {
+  const label = t("checked", "context operation kind");
+  const more = run.failing - run.findings.length;
+  const unlisted = t("{count} more", { count: more });
+  return (
+    <div
+      data-slot="context-check-run"
+      data-run={run.id}
+      data-result={!run.reached ? "did-not-run" : run.clean ? "clean" : "failing"}
+      className="rounded-md px-2 py-2"
+    >
+      <div className="flex min-w-0 items-start gap-2">
+        <span className="mt-0.5 flex w-4 shrink-0 justify-center">
+          <SimpleTooltip content={label}>
+            <span
+              role="img"
+              aria-label={label}
+              data-slot="operation-mark"
+              className="inline-flex text-muted-foreground"
+            >
+              <ListChecks aria-hidden className="size-3.5" />
+            </span>
+          </SimpleTooltip>
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm" data-slot="check-run-result">
+            {runResult(run)}
+            {run.reached && !run.clean && run.rules.length > 0 && (
+              <span className="ml-1.5 font-mono text-xs text-muted-foreground" translate="no">
+                {run.rules.join(", ")}
+              </span>
+            )}
+          </div>
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[11px] text-muted-foreground">
+            <span>{label}</span>
+            <RunFiles run={run} />
+            <span aria-hidden>·</span>
+            <When iso={run.at} relative />
+          </div>
+          {run.findings.length > 0 && (
+            <ul data-slot="check-run-findings" className="mt-1.5 flex flex-col gap-0.5">
+              {run.findings.map((f, i) => (
+                <li
+                  // A run can report one wording twice in a file, so the
+                  // position keeps the two rows apart.
+                  key={i}
+                  data-slot="check-run-finding"
+                  {...(f.caught ? { "data-caught": "" } : {})}
+                  className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground"
+                >
+                  {f.quote ? (
+                    <span className="min-w-0 truncate text-foreground">“{f.quote}”</span>
+                  ) : (
+                    f.message && <span className="min-w-0 truncate">{f.message}</span>
+                  )}
+                  <span className="shrink-0 font-mono" translate="no">
+                    {f.rule}
+                  </span>
+                  {f.file && (
+                    <SimpleTooltip content={<span translate="no">{f.file}</span>}>
+                      <span className="shrink-0 font-mono" translate="no">
+                        {lastSegment(f.file)}
+                      </span>
+                    </SimpleTooltip>
+                  )}
+                  {f.caught && (
+                    <span
+                      data-slot="finding-caught"
+                      className="inline-flex shrink-0 items-center gap-0.5 text-foreground"
+                    >
+                      <Check size={11} aria-hidden className="text-success" />
+                      {t("caught")}
+                    </span>
+                  )}
+                </li>
+              ))}
+              {more > 0 && <li className="text-[11px] text-muted-foreground">{unlisted}</li>}
+            </ul>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * What a run checked: the files the session's turn edited, by their last
+ * segment with the full paths on hover, or how many files the check read when
+ * the run knows no edit.
+ */
+function RunFiles({ run }: { run: ContextCheckRun }) {
+  if (run.edited && run.files.length > 0) {
+    const shown = run.files.slice(0, 2);
+    const rest = run.file_count - shown.length;
+    return (
+      <>
+        <span aria-hidden>·</span>
+        <SimpleTooltip
+          content={
+            <span className="font-mono" translate="no">
+              {run.files.join(", ")}
+            </span>
+          }
+        >
+          <span data-slot="check-run-files" className="min-w-0 truncate">
+            <span className="font-mono" translate="no">
+              {shown.map(lastSegment).join(", ")}
+            </span>
+            {rest > 0 && <span className="ml-1">{t("{count} more", { count: rest })}</span>}
+          </span>
+        </SimpleTooltip>
+      </>
+    );
+  }
+  if (run.file_count <= 0) return null;
+  const read = t("{count, plural, one {# file} other {# files}}", { count: run.file_count });
+  return (
+    <>
+      <span aria-hidden>·</span>
+      <span data-slot="check-run-files">{read}</span>
+    </>
   );
 }
 
