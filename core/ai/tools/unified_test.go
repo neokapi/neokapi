@@ -80,6 +80,20 @@ func TestNewCheckFromConfig_ModeDispatch(t *testing.T) {
 		"legacy heuristic: provider set without a mode means AI")
 }
 
+// TestCheckSchemaHasNoTerminologySetting pins that qa offers no terminology
+// toggle: the rule checks read no terms, and term-check is the tool that does.
+// A config written while the setting existed still builds the rule checker,
+// because qa ignores a key it does not define.
+func TestCheckSchemaHasNoTerminologySetting(t *testing.T) {
+	_, ok := tools.CheckSchema().Properties["checkTerminology"]
+	assert.False(t, ok, "the composed qa schema has no checkTerminology property")
+
+	tl, err := tools.NewCheckFromConfig(map[string]any{"checkTerminology": true}, "fr")
+	require.NoError(t, err)
+	_, isLLMJudge := tl.(*tools.AICheckTool)
+	assert.False(t, isLLMJudge, "the key leaves qa in rules mode")
+}
+
 // TestTranslateGroupRegistration is the tool-group registration sanity check:
 // RegisterAll wires the translate and qa groups into the registry, the
 // composed translate schema carries the engine discriminator (LLM default,
