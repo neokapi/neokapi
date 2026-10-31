@@ -145,7 +145,7 @@ export const compassConverge: Lab = {
       narration:
         "Two languages are offered on translated work. Dutch is held until somebody looks at the unit that failed. Its drafts are safe in the store; what the gate withholds is delivery.",
       command: "kapi status",
-      expect: ["2 of 3 scopes ready to ship"],
+      expect: ["2 of 3 ready to ship"],
     },
     {
       id: "emit",

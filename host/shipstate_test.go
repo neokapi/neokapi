@@ -119,5 +119,5 @@ func TestStatusSummaryCountsTheScopesNoGateMatches(t *testing.T) {
 	}})
 
 	assert.Contains(t, shipLineFor(text, "de"), "not gated", text)
-	assert.Contains(t, text, "1 of 1 scopes ready to ship · 1 not gated", text)
+	assert.Contains(t, text, "1 of 1 ready to ship · 1 not gated", text)
 }

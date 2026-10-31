@@ -172,6 +172,8 @@ func TestUpPlan_TextTable(t *testing.T) {
 	assert.Contains(t, out, "content memory exact")
 	assert.Contains(t, out, "total")
 	assert.Contains(t, out, "chars / 4", "the token heuristic is disclosed")
+	assert.Regexp(t, `(?m)^\s*locale\s+missing\s`, out, "the first column holds the locale")
+	assert.NotRegexp(t, `(?i)\bscope\b`, out)
 }
 
 // TestUpPlan_NoWritesToExistingStore: with an existing project store, --plan

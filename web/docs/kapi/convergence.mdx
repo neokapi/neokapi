@@ -240,11 +240,11 @@ standing against its gate, recomputed on every run:
 kapi status
 # source      2 blocks · written 100% · approved 0%
 #
-# scope  blocks  draft  translated  approved  pipeline         ship
+# locale blocks  draft  translated  approved  progress         ship
 # de         42   100%        100%       80%  ██████████ 100%  translated
 # nb         42   100%         60%        0%  ███░░░░░░░  30%  blocked: translate
 #
-# 1 of 2 scopes ready to ship
+# 1 of 2 ready to ship
 ```
 
 A project connected to a convergence venue gets two more lines, and they are two
@@ -431,7 +431,7 @@ step. Take a German scope fully caught up under
 
 ```bash
 kapi status
-# scope  blocks  draft  translated  approved  pipeline         ship
+# locale blocks  draft  translated  approved  progress         ship
 # de         42   100%        100%      100%  ██████████ 100%  translated
 ```
 
@@ -444,7 +444,7 @@ does not apply:
 
 ```bash
 kapi status
-# scope  blocks  draft  translated  approved  pipeline         ship
+# locale blocks  draft  translated  approved  progress         ship
 # de         42   100%         98%       98%  █████████░  99%  blocked: stale
 #
 # 1 block(s) stale: the source changed since the translation was decided.
@@ -458,7 +458,7 @@ all) and the plan quotes that work before any tokens burn:
 
 ```bash
 kapi up --plan
-# scope  missing  stale  unanswered  content memory exact  stored drafts  drafted by flow  out of reach  ~tokens
+# locale missing  stale  unanswered  content memory exact  stored drafts  drafted by flow  out of reach  ~tokens
 # de           0      1           0                     0              0                1             0        9
 #
 # 1 block(s) stale: their source changed since the translation was decided.
@@ -469,7 +469,7 @@ kapi up --passes 1
 # Re-drafted 1 stale block(s) against the current source. They return to
 # review un-approved (the earlier approval is not restored).
 kapi status
-# scope  blocks  draft  translated  approved  pipeline         ship
+# locale blocks  draft  translated  approved  progress         ship
 # de         42   100%        100%       98%  █████████░  99%  blocked: stale
 ```
 
