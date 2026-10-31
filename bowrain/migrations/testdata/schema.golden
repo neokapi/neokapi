@@ -341,6 +341,12 @@ connector_configs.name text NOT NULL DEFAULT ''::text
 connector_configs.type text NOT NULL
 connector_configs.updated_at text NOT NULL DEFAULT ''::text
 connector_configs.workspace_id text NOT NULL
+context_objects.data bytea NOT NULL
+context_objects.name text NOT NULL
+context_objects.project_id text NOT NULL
+context_objects.pushed_at timestamp with time zone NOT NULL DEFAULT now()
+context_objects.pushed_by text NOT NULL DEFAULT ''::text
+context_objects.sha256 text NOT NULL
 context_scan_jobs.attempts integer NOT NULL DEFAULT 0
 context_scan_jobs.claim_epoch bigint NOT NULL DEFAULT 0
 context_scan_jobs.created_at timestamp with time zone NOT NULL DEFAULT now()
@@ -1307,6 +1313,8 @@ channel_alias_proposals channel_alias_proposals_pkey PRIMARY KEY (workspace_id, 
 collections collections_pkey PRIMARY KEY (project_id, id)
 collections collections_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 connector_configs connector_configs_pkey PRIMARY KEY (workspace_id, id)
+context_objects context_objects_pkey PRIMARY KEY (project_id, name)
+context_objects context_objects_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 context_scan_jobs context_scan_jobs_pkey PRIMARY KEY (id)
 context_scan_schema_migrations context_scan_schema_migrations_pkey PRIMARY KEY (version)
 convergence_run_events convergence_run_events_pkey PRIMARY KEY (run_id, seq)
@@ -1725,6 +1733,7 @@ CREATE UNIQUE INDEX change_log_pkey ON public.change_log USING btree (seq)
 CREATE UNIQUE INDEX channel_alias_proposals_pkey ON public.channel_alias_proposals USING btree (workspace_id, profile, proposed_channel, existing_channel)
 CREATE UNIQUE INDEX collections_pkey ON public.collections USING btree (project_id, id)
 CREATE UNIQUE INDEX connector_configs_pkey ON public.connector_configs USING btree (workspace_id, id)
+CREATE UNIQUE INDEX context_objects_pkey ON public.context_objects USING btree (project_id, name)
 CREATE UNIQUE INDEX context_scan_jobs_pkey ON public.context_scan_jobs USING btree (id)
 CREATE UNIQUE INDEX context_scan_schema_migrations_pkey ON public.context_scan_schema_migrations USING btree (version)
 CREATE UNIQUE INDEX convergence_run_events_pkey ON public.convergence_run_events USING btree (run_id, seq)
