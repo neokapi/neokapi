@@ -22,7 +22,7 @@ import (
 // The gate conformance suite holds the built binary to what the gate claims to
 // catch and to leave alone. Each case under gate/testdata is a small project
 // and an expect.yaml naming what `kapi check`, `kapi fix`, `kapi context` and
-// the plugin's Stop hook do with it. An expectation the code does not meet yet
+// the plugin's Stop and edit hooks do with it. An expectation the code does not meet yet
 // carries `xfail: <reason>`, and the test fails once it passes. `make
 // gate-conformance` prints the matrix; web/docs/contribute/testing.md describes
 // the expect.yaml keys.
@@ -124,11 +124,19 @@ type contextExpect struct {
 	Xfail string   `yaml:"xfail"`
 }
 
-// hookExpect is what the plugin's Stop hook decides.
+// hookExpect is what one of the plugin's hooks decides.
 type hookExpect struct {
-	// Edit is applied before the hook runs: the assistant's last change.
+	// Event is the hook that runs: "stop" (the default), the Stop hook over
+	// the project, or "edit", the PostToolUse hook on the edited file.
+	Event string `yaml:"event"`
+	// Edit is applied before the hook runs: the assistant's last change. The
+	// edit hook is handed its path.
 	Edit *fileWrite `yaml:"edit"`
-	// Blocks says whether the hook keeps the assistant working.
+	// Outside writes the edit to a file outside the project instead, at Edit's
+	// path under a directory of its own.
+	Outside bool `yaml:"outside"`
+	// Blocks says whether the hook blocks: the Stop hook keeps the assistant
+	// working, and the edit hook feeds the findings back beside the edit.
 	Blocks bool `yaml:"blocks"`
 	// Names are substrings the block reason must carry.
 	Names []string `yaml:"names"`
@@ -309,7 +317,7 @@ func runGateCase(t *testing.T, caseDir string, outcome func(name, surface string
 				}
 			}
 			if stage.Hook != nil {
-				run.hook(t, *stage.Hook, outcome(name, surfaceHook))
+				run.hook(t, stage.Name, *stage.Hook, outcome(name, surfaceHook))
 			}
 		})
 	}
@@ -624,54 +632,90 @@ func (r gateRun) contextFile(t *testing.T, path string, ce contextExpect, o *gat
 	}
 }
 
-// stopHookCommand reads the command the kapi Claude Code plugin registers
-// for the Stop event.
-func stopHookCommand(t *testing.T) string {
+// hookCommand reads the command the kapi Claude Code plugin registers for
+// event, and the matcher it registers it under.
+func hookCommand(t *testing.T, event string) (command, matcher string) {
 	t.Helper()
 	path := filepath.Join(findRoot(), "packages", "kapi-claude-plugin", "plugins", "kapi", "hooks", "hooks.json")
 	raw, err := os.ReadFile(path)
 	require.NoError(t, err)
 	var cfg struct {
 		Hooks map[string][]struct {
-			Hooks []struct {
+			Matcher string `json:"matcher"`
+			Hooks   []struct {
 				Type    string `json:"type"`
 				Command string `json:"command"`
 			} `json:"hooks"`
 		} `json:"hooks"`
 	}
 	require.NoError(t, json.Unmarshal(raw, &cfg))
-	for _, group := range cfg.Hooks["Stop"] {
+	for _, group := range cfg.Hooks[event] {
 		for _, h := range group.Hooks {
 			if h.Type == "command" {
-				return h.Command
+				return h.Command, group.Matcher
 			}
 		}
 	}
-	t.Fatalf("%s registers no Stop command", path)
-	return ""
+	t.Fatalf("%s registers no %s command", path, event)
+	return "", ""
 }
 
-// hook runs the plugin's Stop command the way Claude Code runs it: through
-// the shell, with kapi resolved on PATH, the Stop event's JSON on stdin and
-// the session's directory as the payload's cwd.
-func (r gateRun) hook(t *testing.T, he hookExpect, o *gateOutcome) {
+// hook runs one of the plugin's hook commands the way Claude Code runs it:
+// through the shell, with kapi resolved on PATH, the event's JSON on stdin
+// and the session's directory as the payload's cwd. The Stop event names the
+// session's transcript; the PostToolUse event names the tool call and the
+// file it wrote.
+func (r gateRun) hook(t *testing.T, stage string, he hookExpect, o *gateOutcome) {
 	t.Helper()
-	if he.Edit != nil {
-		r.write(t, *he.Edit)
-	}
 	bin := t.TempDir()
 	require.NoError(t, os.Symlink(kapiBin, filepath.Join(bin, "kapi")))
-	payload, err := json.Marshal(map[string]any{
-		"session_id":       hookSession,
-		"transcript_path":  filepath.Join(bin, "transcript.jsonl"),
-		"cwd":              r.dir,
-		"permission_mode":  "default",
-		"hook_event_name":  "Stop",
-		"stop_hook_active": false,
-	})
+	edited := ""
+	if he.Edit != nil {
+		if he.Outside {
+			edited = filepath.Join(t.TempDir(), filepath.FromSlash(he.Edit.Path))
+			require.NoError(t, os.MkdirAll(filepath.Dir(edited), 0o755))
+			require.NoError(t, os.WriteFile(edited, []byte(he.Edit.Content+he.Edit.Append), 0o644))
+		} else {
+			r.write(t, *he.Edit)
+			edited = filepath.Join(r.dir, filepath.FromSlash(he.Edit.Path))
+		}
+	}
+
+	var event map[string]any
+	var command string
+	switch he.Event {
+	case "", "stop":
+		command, _ = hookCommand(t, "Stop")
+		event = map[string]any{
+			"session_id":       hookSession,
+			"transcript_path":  filepath.Join(bin, "transcript.jsonl"),
+			"cwd":              r.dir,
+			"permission_mode":  "default",
+			"hook_event_name":  "Stop",
+			"stop_hook_active": false,
+		}
+	case "edit":
+		require.NotNil(t, he.Edit, "an edit hook stage names the edit")
+		var matcher string
+		command, matcher = hookCommand(t, "PostToolUse")
+		require.Equal(t, "Edit|Write|MultiEdit", matcher, "the plugin runs the edit hook after every edit tool")
+		event = map[string]any{
+			"session_id":      hookSession,
+			"transcript_path": filepath.Join(bin, "transcript.jsonl"),
+			"cwd":             r.dir,
+			"permission_mode": "default",
+			"hook_event_name": "PostToolUse",
+			"tool_name":       "Write",
+			"tool_input":      map[string]any{"file_path": edited, "content": he.Edit.Content + he.Edit.Append},
+			"tool_response":   map[string]any{"filePath": edited, "type": "update"},
+			"tool_use_id":     "toolu_" + stage,
+		}
+	default:
+		t.Fatalf("hook event %q: want stop or edit", he.Event)
+	}
+	payload, err := json.Marshal(event)
 	require.NoError(t, err)
 
-	command := stopHookCommand(t)
 	cmd := exec.Command("/bin/sh", "-c", command)
 	// The hook starts outside the project, as Claude Code's may, and finds it
 	// through the payload's cwd. Project discovery is on for this one run:
@@ -700,12 +744,12 @@ func (r gateRun) hook(t *testing.T, he hookExpect, o *gateOutcome) {
 	}
 	expectation(t, o, "hook ran its gates", dec.SystemMessage == "", "", detail)
 	if he.Blocks {
-		expectation(t, o, "hook blocks the stop", dec.Decision == "block", he.Xfail, detail)
+		expectation(t, o, "hook blocks", dec.Decision == "block", he.Xfail, detail)
 		for _, n := range he.Names {
 			expectation(t, o, "hook reason names "+n, strings.Contains(dec.Reason, n), he.Xfail, detail)
 		}
 	} else {
-		expectation(t, o, "hook lets the assistant stop", dec.Decision == "" && out.Len() == 0, he.Xfail, detail)
+		expectation(t, o, "hook prints nothing", dec.Decision == "" && out.Len() == 0, he.Xfail, detail)
 	}
 	if he.Log != nil {
 		r.hookLog(t, *he.Log, o)

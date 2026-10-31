@@ -11,6 +11,17 @@
         ]
       }
     ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "kapi hook post-edit"
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [
