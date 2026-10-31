@@ -39,11 +39,11 @@ func (s *Server) ContextLedger(ctx context.Context, projectID string, member Led
 		return nil, errors.New("context objects not configured")
 	}
 	log := &contextLog{
-		objects:  objects,
-		cache:    s.contextLogs.project(projectID),
-		project:  projectID,
-		actor:    contextop.Actor{Kind: contextop.ActorPerson, Name: s.displayName(ctx, member.UserID)},
-		member:   member,
+		objects: objects,
+		cache:   s.contextLogs.project(projectID),
+		project: projectID,
+		actor:   contextop.Actor{Kind: contextop.ActorPerson, Name: s.displayName(ctx, member.UserID)},
+		member:  member,
 	}
 	return contextop.NewLedger(log, contextop.PersonDecides), nil
 }
