@@ -26,22 +26,17 @@ import (
 //     {"score": <0-100>, "findings": [{"severity": "critical|major|minor|info",
 //     "message": "...", "suggestion": "..."}]}
 //
-//     the property holds that result re-marshalled canonically (parsed via
-//     [ParseReviewResult]: score clamped to 0–100, severities normalized,
-//     empty-message findings dropped). When the model output is not
-//     parseable as JSON the raw prose is stored unchanged, the lenient
-//     fallback that keeps older prose-style model output working.
+//     the property holds that result as [ParseReviewResult] normalizes it.
+//     Output that is not JSON is stored unchanged as prose.
 //
 //   - "review-score": the integer score as a decimal string. Only set when
 //     the JSON contract parsed.
 //
 //   - "review-provider": the provider id that produced the review. Always set.
 //
-// It also records the review as check findings under the tool's name: one per
-// finding in the contract, or one carrying the prose when the response is not
-// the contract. A run reports them as it reports qa's. A critical or major
-// finding fails; a minor or info one reports. The tool changes neither the
-// source nor the translation.
+// It also records the review as check findings ([ReviewFindings]), or one
+// finding holding the prose. The tool changes neither the source nor the
+// translation.
 type AIReviewTool struct {
 	tool.BaseTool
 	usageAccumulator
