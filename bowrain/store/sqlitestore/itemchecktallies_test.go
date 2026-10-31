@@ -46,4 +46,14 @@ func TestItemCheckTallies_OnePerItem(t *testing.T) {
 	assert.Empty(t, elsewhere, "another project holds its own tallies")
 
 	require.Error(t, s.PutItemCheckTally(ctx, platstore.ItemCheckTally{ProjectID: p.ID}), "a tally names its item")
+
+	require.NoError(t, s.DeleteItemCheckTally(ctx, p.ID, "", "item-a"))
+	require.NoError(t, s.DeleteItemCheckTally(ctx, p.ID, "main", "no-such-item"), "deleting a tally an item does not hold is no error")
+	got, err = s.ListItemCheckTallies(ctx, p.ID, "main")
+	require.NoError(t, err)
+	require.Len(t, got, 1, "deleting one item's tally leaves the others")
+	assert.Equal(t, "item-b", got[0].ItemID)
+	draft, err = s.ListItemCheckTallies(ctx, p.ID, "draft")
+	require.NoError(t, err)
+	assert.Len(t, draft, 1, "another stream's tally of the same item stays")
 }

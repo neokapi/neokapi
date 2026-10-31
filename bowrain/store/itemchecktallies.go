@@ -60,4 +60,17 @@ func (s *PostgresStore) ListItemCheckTallies(ctx context.Context, projectID, str
 	return out, nil
 }
 
+// DeleteItemCheckTally implements platstore.ItemCheckTallyStore.
+func (s *PostgresStore) DeleteItemCheckTally(ctx context.Context, projectID, stream, itemID string) error {
+	if stream == "" {
+		stream = "main"
+	}
+	if _, err := s.db.ExecContext(ctx,
+		`DELETE FROM item_check_tallies WHERE project_id = $1 AND stream = $2 AND item_id = $3`,
+		projectID, stream, itemID); err != nil {
+		return fmt.Errorf("delete the check tally of item %s: %w", itemID, err)
+	}
+	return nil
+}
+
 var _ platstore.ItemCheckTallyStore = (*PostgresStore)(nil)

@@ -26,6 +26,9 @@ type ItemCheckTallyStore interface {
 	// ListItemCheckTallies returns every tally a stream of a project holds,
 	// ordered by item id.
 	ListItemCheckTallies(ctx context.Context, projectID, stream string) ([]ItemCheckTally, error)
+	// DeleteItemCheckTally removes one item's tally; an item with none is
+	// left as it is.
+	DeleteItemCheckTally(ctx context.Context, projectID, stream, itemID string) error
 }
 
 // ItemCheckTallies finds the tally store behind a content store, looking
