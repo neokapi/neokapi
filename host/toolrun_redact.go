@@ -47,6 +47,9 @@ func (a *App) toolRunPolicyFor(recipe string, proj *project.KapiProject, toolNam
 		return toolRunPolicy{}, nil
 	}
 	pol := toolRunPolicy{declared: true}
+	if !a.toolContractKnown(toolName) {
+		return toolRunPolicy{}, fmt.Errorf("kapi refused to run %s: the project declares defaults.redaction, and %s has no contract that kapi knows, so kapi cannot tell whether it sends blocks to a provider. Declare its side effects in the toolMeta of the schema its plugin manifest names, or run it in a flow with a redact step ahead of it", toolName, toolName)
+	}
 	if !a.toolCallsProvider(toolName, config) {
 		return pol, nil
 	}
@@ -67,9 +70,23 @@ func (a *App) toolRunPolicyFor(recipe string, proj *project.KapiProject, toolNam
 	return pol, nil
 }
 
+// toolContractKnown reports whether the registry holds the tool's contract:
+// an entry whose schema carries a toolMeta. Under a declared policy a tool
+// without one does not run, because nothing says whether it reaches a
+// provider. Every built-in tool carries one. A tool registered without a
+// schema, or with a schema that has no toolMeta, has none.
+func (a *App) toolContractKnown(toolName string) bool {
+	if a.ToolReg == nil {
+		return false
+	}
+	s := a.ToolReg.Schema(registry.ToolID(toolName))
+	return s != nil && s.ToolMeta != nil
+}
+
 // toolCallsProvider reports whether a run of the tool with config reaches a
-// provider: its contract, refined for the config, carries an API call. A
-// tool whose contract the registry does not hold calls none it declares.
+// provider: its contract, refined for the config, carries an API call.
+// toolRunPolicyFor asks only about a tool whose contract the registry holds
+// (toolContractKnown).
 //
 // The registry fills in the configured default provider only for a tool
 // whose contract, resolved for the same config, requires credentials, so the

@@ -194,8 +194,10 @@ policy is read at every point content can leave:
    collector that sends what it gathered to a model
    (voice-infer's draft) reads the blocks between the two steps. A policy that
    detects entities is refused, because entity detection reads annotations an
-   extraction step leaves and a run of one tool has none. A tool that calls no
-   provider runs alone. The chain each run builds is held to
+   extraction step leaves and a run of one tool has none. A tool with no
+   declared contract (no registry entry, or a schema with no `toolMeta`) is
+   refused before it reads a block, because nothing says whether it calls a
+   provider. A tool that calls no provider runs alone. The chain each run builds is held to
    `CheckRedactionCoverage` and `CheckPlacement`, so a run without the redact
    step fails the gate a flow fails.
 5. **The operation log.** The record of an applied edit travels to every

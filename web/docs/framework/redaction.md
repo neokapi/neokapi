@@ -38,7 +38,9 @@ to every block the tool reads, blocks marked not translatable included, and to
 each translation beside the source, plural forms included. The policy covers
 blocks only: the term rules, voice profile and content memory a tool sends
 with them go as the project holds them. A policy that detects entities stops
-the run, because no step ahead of the tool finds them. See
+the run, because no step ahead of the tool finds them. A tool with no declared
+contract does not run under the policy, because nothing says whether it calls a
+model. See
 [Understanding the CLI layers](/kapi/direct-execution-layer) for the flow and
 single-tool surfaces.
 
