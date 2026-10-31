@@ -27,6 +27,7 @@ import {
   Check,
   ChevronRight,
   Circle,
+  FilePen,
   FileText,
   History,
   Inbox,
@@ -686,12 +687,18 @@ function runResult(run: ContextCheckRun): string {
 }
 
 /**
- * One check run: what it found and the rules that failed on the first line,
- * then what it checked and when, then its failing findings, each marked
- * caught when the session's next run no longer found it.
+ * One check run: its hook's mark, what it found and the rules that failed on
+ * the first line, then what it checked and when, then its failing findings,
+ * each marked caught when the session's next run on the file no longer found
+ * it. The edit hook's run checked the one file an edit wrote; the Stop hook's
+ * ran the ship gates as the turn ended.
  */
 function CheckRunRow({ run }: { run: ContextCheckRun }) {
-  const label = t("checked", "context operation kind");
+  const onEdit = run.hook === "edit";
+  const label = onEdit
+    ? t("checked on edit", "context operation kind")
+    : t("checked", "context operation kind");
+  const Mark = onEdit ? FilePen : ListChecks;
   const more = run.failing - run.findings.length;
   const unlisted = t("{count} more", { count: more });
   return (
@@ -699,6 +706,7 @@ function CheckRunRow({ run }: { run: ContextCheckRun }) {
       data-slot="context-check-run"
       data-run={run.id}
       data-result={!run.reached ? "did-not-run" : run.clean ? "clean" : "failing"}
+      data-hook={run.hook}
       className="rounded-md px-2 py-2"
     >
       <div className="flex min-w-0 items-start gap-2">
@@ -710,7 +718,7 @@ function CheckRunRow({ run }: { run: ContextCheckRun }) {
               data-slot="operation-mark"
               className="inline-flex text-muted-foreground"
             >
-              <ListChecks aria-hidden className="size-3.5" />
+              <Mark aria-hidden className="size-3.5" />
             </span>
           </SimpleTooltip>
         </span>

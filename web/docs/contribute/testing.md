@@ -180,8 +180,8 @@ schedule there; see [A-02](/contribute/architecture/assurance/a-02-parity).
 The gate conformance suite holds the built `kapi` binary to what the gate
 claims. Each case states which findings `kapi check` reports and which it
 leaves alone, what `kapi fix` writes, what `kapi context <path>` names among a
-file's rules, and what the Claude Code plugin's Stop hook decides after an
-edit. Run it with:
+file's rules, and what the Claude Code plugin's edit and Stop hooks decide
+after an edit. Run it with:
 
 ```bash
 make gate-conformance
@@ -235,7 +235,10 @@ A step is a `kapi` command line (run in the project, as the person or as an
 `agent`), a `keep` or `narrow` of a rule named by the sentence `kapi rules`
 prints, or a `write` to a file. A `fix` with no `after` asserts that the file
 keeps its bytes; `args: []` runs `kapi fix` over the whole project, and
-`unchanged` names other files whose bytes must not move. A hook's `log` reads
+`unchanged` names other files whose bytes must not move. A hook runs the Stop
+hook unless it sets `event: edit`, which runs the PostToolUse hook on the
+edit's file; `outside: true` writes that file outside the project. A hook's
+`log` reads
 `kapi context log --session` after the run: `failing` is the count the run
 recorded, and `caught` is how many findings the session's runs have caught
 so far.

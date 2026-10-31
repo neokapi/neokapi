@@ -324,6 +324,20 @@ describe("History as a list of sessions beside a detail pane", () => {
     expect(detail().querySelectorAll("[data-slot='context-feed-entry']")).toHaveLength(0);
   });
 
+  it("marks each run with the hook that ran it", () => {
+    renderFeed(
+      { ...CONTEXT_FEED, groups: [HOOK_ONLY_SESSION, ...CONTEXT_FEED.groups] },
+      { defaultSelected: HOOK_ONLY_SESSION.id },
+    );
+    const runs = Array.from(
+      detail().querySelectorAll<HTMLElement>("[data-slot='context-check-run']"),
+    );
+    expect(runs.map((r) => r.getAttribute("data-hook"))).toEqual(["stop", "edit", "stop"]);
+    expect(
+      runs.map((r) => r.querySelector("[data-slot='operation-mark']")?.getAttribute("aria-label")),
+    ).toEqual(["checked", "checked on edit", "checked"]);
+  });
+
   it("marks a finding the next run no longer found as caught, on the run that last reported it", () => {
     renderFeed(
       { ...CONTEXT_FEED, groups: [HOOK_ONLY_SESSION, ...CONTEXT_FEED.groups] },

@@ -659,3 +659,17 @@ func TestACutFeedLeavesOutOlderHookOnlySessions(t *testing.T) {
 	require.False(t, whole.Truncated)
 	assert.Contains(t, feedGroups(whole), "sess-old", "a feed nothing cut shows every session")
 }
+
+// TestACheckRunNamesItsHook: a run carries the hook that ran it, so the
+// session's run list marks the edit hook's runs apart from the Stop hook's.
+// A record that names no hook was written by the Stop hook.
+func TestACheckRunNamesItsHook(t *testing.T) {
+	rec := func(hook string) contextop.Record {
+		run := cleanRun()
+		run.Hook, run.Files, run.Edited = hook, []string{"docs/a.md"}, true
+		return contextop.Record{ID: "op-" + hook, Project: "p", Kind: contextop.KindCheck, At: time.Now(), Check: &run}
+	}
+	assert.Equal(t, "edit", checkRunDTO(rec(contextop.CheckHookEdit), nil).Hook)
+	assert.Equal(t, "stop", checkRunDTO(rec(contextop.CheckHookStop), nil).Hook)
+	assert.Equal(t, "stop", checkRunDTO(rec(""), nil).Hook)
+}

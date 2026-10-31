@@ -278,11 +278,16 @@ attempts and distinguish these outcomes from human judgments of the content.
 The [paired evaluation runner](../../implementation/repo/paired-agent-evaluation.md)
 records the model and integration configuration for each attempt.
 
-### Two hooks, and a protocol for failing open
+### Three hooks, and a protocol for failing open
 
-The Claude Code plugin ships two project-scoped hooks that drive kapi rather
+The Claude Code plugin ships three project-scoped hooks that drive kapi rather
 than being kapi:
 
+- a **PostToolUse** hook on `Edit|Write|MultiEdit` running
+  `kapi hook post-edit`, which runs the writing check (`kapi check <file>`) on
+  the one file an edit wrote and returns a failing finding beside the edit's
+  result as `{"decision":"block","reason":…}`, so the assistant corrects the
+  file before it reports done;
 - a **Stop** hook running `kapi hook stop`, which runs the project's ship gates
   and keeps the assistant working until they are green;
 - a **PreToolUse** hook running `kapi hook pre-edit`, which blocks direct

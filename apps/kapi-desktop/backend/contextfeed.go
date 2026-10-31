@@ -19,6 +19,7 @@ package backend
 // file records no operation of its own.
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"path/filepath"
@@ -185,10 +186,10 @@ type ContextFeedGroup struct {
 	Kept      int `json:"kept"`
 	Dropped   int `json:"dropped"`
 	// Checked, Failing, Caught and Files are what the session's check runs
-	// found (host.SessionOutcomes): how many runs the Stop hook recorded, the
-	// failing findings its latest run left, the findings one run reported and
-	// the next no longer found, and the files the runs name. A check run is
-	// counted here and listed in no entry.
+	// found (host.SessionOutcomes): the runs the edit and Stop hooks recorded,
+	// the failing findings no later run checked again, the findings one run
+	// reported and the next no longer found, and the files the runs name. A
+	// check run is counted here and listed in no entry.
 	Checked int `json:"checked"`
 	Failing int `json:"failing"`
 	Caught  int `json:"caught"`
@@ -227,6 +228,9 @@ type ContextCheckRun struct {
 	ProjectKey string `json:"project_key"`
 	// At is when the log accepted the run, RFC3339 in UTC.
 	At string `json:"at"`
+	// Hook is the hook that ran the check: "edit" for the run on the one file
+	// an edit wrote, "stop" for the ship gates as the turn ended.
+	Hook string `json:"hook"`
 	// Files are the files the session's turn edited, when the run knows them
 	// (Edited), at most contextRunMaxFiles of them. FileCount counts the
 	// edited files, or the files the check read when the run knows no edit.
@@ -1011,6 +1015,7 @@ func checkRunDTO(r contextop.Record, caught []bool) ContextCheckRun {
 		ID:         r.ID,
 		ProjectKey: string(r.Project),
 		At:         r.At.UTC().Format(time.RFC3339),
+		Hook:       cmp.Or(run.Hook, contextop.CheckHookStop),
 		Files:      []string{},
 		Edited:     run.Edited,
 		FileCount:  run.Covered,

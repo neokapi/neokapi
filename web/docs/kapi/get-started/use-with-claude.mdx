@@ -18,6 +18,7 @@ $ kapi connect
 Claude Code   connected · rules, MCP server, skill
   .mcp.json            created
   .claude/skills/kapi  created
+  Edit hook            pending: in Claude Code, /plugin marketplace add neokapi/claude-plugins, then /plugin install kapi@neokapi-plugins
   Stop hook            pending: in Claude Code, /plugin marketplace add neokapi/claude-plugins, then /plugin install kapi@neokapi-plugins
 Cursor        connected · rules, MCP server
   .cursor/mcp.json     created
@@ -68,11 +69,18 @@ section of its own. See [rules files for agents](/kapi/context#rules-files).
 `kapi context <path> --explain` prints what it reads there.
 
 **After it edits**, it runs `kapi check` on each file it changed, or
-`check_file`, and fixes what fails. The Stop hook in the kapi Claude Code
-plugin runs the project gate (`kapi check --ship`) when Claude tries to finish,
-and keeps it working while a gate fails. `kapi connect` reports the hook as
-pending until the plugin is installed and enabled, with the two commands that
-install it.
+`check_file`, and fixes what fails. The kapi Claude Code plugin makes both
+checks automatic:
+
+- The **edit hook** runs after each edit and checks the one file the edit
+  wrote, as `kapi check <file>` does. A failing finding (a name, a spelling, a
+  word rule) comes back to Claude beside the edit's result, with the fix when
+  the rule names one, so Claude corrects the file before it reports done.
+- The **Stop hook** runs the project gate (`kapi check --ship`) when Claude
+  tries to finish, and keeps it working while a gate fails.
+
+`kapi connect` reports both hooks as pending until the plugin is installed and
+enabled, with the two commands that install it.
 
 As it works, the assistant notes what the files keep to and what you change in
 its drafts, with the file and sentence each came from. Each note arrives as a
@@ -136,8 +144,8 @@ credential for attended work: Claude writes, kapi applies and checks.
 <details>
 <summary>Install the Agent Skill (Claude Code and any SKILL.md-aware tool)</summary>
 
-**Claude Code**: the plugin bundles the skill, the hook above that runs the
-project gate, and a **PreToolUse hook**:
+**Claude Code**: the plugin bundles the skill, the edit hook and the Stop hook
+above, and a **PreToolUse hook**:
 
 ```text
 /plugin marketplace add neokapi/claude-plugins
@@ -145,11 +153,11 @@ project gate, and a **PreToolUse hook**:
 ```
 
 The PreToolUse hook denies hand-edits to generated translation targets,
-steering changes through the source. Both hooks are fail-open outside a project, and both follow one
+steering changes through the source. Every hook is fail-open outside a project, and all follow one
 [decision protocol](#the-hook-decision-protocol). `kapi connect` reads the
 project's `.claude/settings.json` and `.claude/settings.local.json`, then your
 own Claude Code settings (`settings.json` in `$CLAUDE_CONFIG_DIR`, or in
-`~/.claude`), and reports the hook as kept once one of them enables the plugin,
+`~/.claude`), and reports the hooks as kept once one of them enables the plugin,
 or `kept (enabled for your user)` when only your own settings do.
 
 **Copilot, Cursor, Windsurf, VS Code, Codex**: `SKILL.md` is an open standard:
@@ -190,8 +198,9 @@ A kapi hook states its verdict as JSON on stdout and always exits `0`. The verdi
 
 | What the hook found | On stdout | What happens |
 |---|---|---|
+| The edited file has a failing finding | `{"decision":"block","reason":"…"}` (PostToolUse) | The edit stands. Claude reads the `reason` beside the edit's result: one line per finding, the fix when the rule names one, and the `kapi check <file>` command to run. |
 | A gate fails / the file is a generated target | `{"decision":"block","reason":"…"}` (Stop) · `{"hookSpecificOutput":{"permissionDecision":"deny","permissionDecisionReason":"…"}}` (PreToolUse) | Claude keeps working, or the edit is refused. The `reason` names the findings, or the source and locale to change instead. |
-| Nothing to report (gates pass, the file is not generated, or there is no kapi project) | nothing | The operation proceeds. |
+| Nothing to report (the file or the gates pass, the file is not generated or not read by the project, or there is no kapi project) | nothing | The operation proceeds. |
 | **The guard could not run at all** | `{"systemMessage":"…"}` plus the same warning on stderr, naming the hook | The operation proceeds: kapi hooks fail open, so a broken guard never blocks work. But the bypass is stated, because a guard that never ran must not look like a guard that passed. |
 
 An unreadable, empty, or malformed hook payload; a session directory kapi cannot enter; a recipe that will not load because it needs a plugin you have not installed: each of those leaves the guard installed but inert. The notice says which hook, and what stopped it.

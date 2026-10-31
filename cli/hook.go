@@ -33,14 +33,15 @@ recipe's hooks: block, which is a different (and unimplemented) mechanism.`,
 	}
 	cmd.AddCommand(newHookStopCmd(a))
 	cmd.AddCommand(newHookPreEditCmd(a))
+	cmd.AddCommand(newHookPostEditCmd(a))
 	return cmd
 }
 
 // newHookStopCmd implements the Claude Code `Stop` hook: it runs the current
 // project's `kapi check --ship` gates and, when they fail, tells Claude to keep
-// working (with the findings) instead of finishing. This turns the verify gate
-// into a hard guardrail — the assistant cannot end a turn with a project that
-// is non-compliant, off-terminology, or with broken placeholders.
+// working (with the findings) instead of finishing. The assistant cannot end a
+// turn with a project that is non-compliant, off-terminology, or with broken
+// placeholders.
 func newHookStopCmd(a *App) *cobra.Command {
 	return &cobra.Command{
 		Use:   "stop",
@@ -108,6 +109,51 @@ match lets the edit proceed, so the guard never traps the assistant on an
 unrelated file.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return a.RunHookPreEdit(cmd)
+		},
+	}
+}
+
+// newHookPostEditCmd implements the Claude Code `PostToolUse` hook for
+// Edit/Write/MultiEdit: it runs the project's writing check on the one file
+// the edit wrote and, when a finding fails, feeds the findings back beside the
+// edit's result, so the assistant corrects the file before it reports done.
+func newHookPostEditCmd(a *App) *cobra.Command {
+	return &cobra.Command{
+		Use:   "post-edit",
+		Short: "Claude Code PostToolUse hook: run kapi check on each file an edit wrote",
+		Long: `Claude Code PostToolUse hook for Edit/Write/MultiEdit. Reads the
+PostToolUse-event JSON on stdin (cwd, session_id, tool_use_id and
+tool_input.file_path), resolves the .kapi project in the session's working
+directory, runs the check "kapi check <file>" runs on that one file, and:
+
+  - emits {"decision":"block","reason":"…findings…"} (exit 0) when a finding
+    fails: names, spellings and word rules fail, and tone reports unless a
+    rule marks it. The edit has already happened; Claude Code shows the
+    reason to Claude beside the edit's result, so Claude fixes the file before
+    it reports done;
+  - emits nothing (exit 0) when the file passes, outside a project, on a file
+    the project's collections do not read, and on a generated target. A file
+    whose format no installed reader opens on this machine also emits
+    nothing, and its run is on record as one that did not run; or
+  - emits {"systemMessage":"…"} (exit 0), and the same warning on stderr, when
+    the check could not run: an unreadable, empty, or malformed payload, a
+    session directory it cannot enter, a project that will not load, or a
+    check that did not run. The edit stands. When the check reports that it
+    did not run, the run is on record as unchecked rather than passing.
+
+Each run that reaches the check is recorded in the project's log, under the
+session's assistant, as the Stop hook's runs are: the file, the failing
+findings and whether the run was clean. A finding one run reports and the
+session's next run on the same file no longer finds counts as caught. --json
+prints the decision with the id of that record.
+
+The Stop hook ("kapi hook stop") runs the ship gates over the whole project as
+the turn ends; this hook runs the writing check on one file after each edit.
+Wire it up via the kapi Claude Code plugin (hooks/hooks.json) with a matcher of
+Edit|Write|MultiEdit. A block here stops nothing: the assistant reads the
+findings and carries on, so an unfixable finding cannot trap it.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return a.RunHookPostEdit(cmd)
 		},
 	}
 }

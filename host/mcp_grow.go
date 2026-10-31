@@ -59,8 +59,9 @@ func registerContextGrowthMCPTools(server *mcp.Server, a *App) {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "context_session_summary",
-		Description: "Report what this session recorded with context_note, and what the Stop hook's check " +
-			"runs found in it: `checked` runs, the `failing` findings the latest run left, the `caught` " +
+		Description: "Report what this session recorded with context_note, and what the hooks' check " +
+			"runs found in it (the edit hook's run on each edited file, and the Stop hook's ship gates): " +
+			"`checked` runs, the `failing` findings the runs left, the `caught` " +
 			"findings and the `files` the session edited. A finding is caught when a hook run reported it " +
 			"and the next run on the same file no longer found it. The hook records its runs under the " +
 			"assistant host's session id. Without `session`, it summarizes the session with the project's " +
@@ -268,8 +269,8 @@ type contextSessionOutput struct {
 	Reset       int `json:"reset"`
 	// Checked, Failing, Caught and Files are what the session's check runs
 	// found (SessionOutcomes), under the names the desktop feed gives them.
-	// Checked counts the runs the Stop hook recorded and Failing the failing
-	// findings the latest run left. Caught counts the findings one run
+	// Checked counts the runs the edit hook and the Stop hook recorded and
+	// Failing the failing findings the runs left. Caught counts the findings one run
 	// reported and the next no longer found on the same file, and Files the
 	// files the session's turns edited. Each is present at zero, so a session
 	// with no run (checked 0) reads apart from a clean one.
@@ -480,8 +481,9 @@ func chosenSession(l LatestSession) string {
 
 // noSessionReport answers a call with no `session` in a project whose log holds
 // no session's operations.
-const noSessionReport = "The project's log holds no session's operations yet: the Stop hook records one " +
-	"each time it runs the project's checks at the end of an assistant turn."
+const noSessionReport = "The project's log holds no session's operations yet: the edit hook records one " +
+	"each time it checks a file an assistant edited, and the Stop hook each time it runs the project's " +
+	"checks at the end of an assistant turn."
 
 // ─── Rendering ──────────────────────────────────────────────────────────────
 
@@ -561,7 +563,7 @@ func sessionReport(s contextSessionOutput, notes int) string {
 
 // checkRunsReport is what the session's check runs found, as a sentence that
 // follows another: " Checks ran 2 times on 1 edited file: 1 failing, 1
-// caught." A session the Stop hook recorded no run for adds nothing.
+// caught." A session no hook recorded a run for adds nothing.
 func checkRunsReport(s contextSessionOutput) string {
 	if s.Checked == 0 {
 		return ""

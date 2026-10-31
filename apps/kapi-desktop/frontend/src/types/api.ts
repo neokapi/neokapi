@@ -1000,7 +1000,7 @@ export interface AssistantHostView {
   connected: boolean;
   /** Why an assistant whose own files are in place is not connected: "rules files missing". */
   reason?: string;
-  /** kapi check runs when it finishes, through the kapi Claude Code plugin. */
+  /** kapi check runs on every edit and when it finishes, through the kapi Claude Code plugin's hooks. */
   check: boolean;
   /** The commands that turn the check on, while the plugin is not enabled. */
   pending?: string[];
@@ -1209,6 +1209,8 @@ export interface ContextCheckRun {
   project_key: string;
   /** When the log accepted the run, RFC3339 in UTC. */
   at: string;
+  /** The hook that ran the check: "edit" on the one file an edit wrote, "stop" as the turn ended. */
+  hook: "edit" | "stop";
   /** The files the session's turn edited, when the run knows them (`edited`). */
   files: string[];
   edited: boolean;

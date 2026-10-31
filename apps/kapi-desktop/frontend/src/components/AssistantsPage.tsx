@@ -11,7 +11,8 @@
 // rules files, its MCP entry and skill, and the recipe of a folder opened
 // without one. Claude Desktop reads a configuration file of the person's own,
 // outside the project, so its Connect asks before it writes there. The check
-// when Claude Code finishes comes from the kapi Claude Code plugin; until the
+// on every edit and when Claude Code finishes comes from the kapi Claude Code
+// plugin's hooks; until the
 // project or the person enables it, the row names the two commands that
 // install it.
 

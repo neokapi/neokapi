@@ -1,0 +1,78 @@
+description: >-
+  The edit hook runs the writing check on the one file an assistant edit
+  wrote. A rejected name in the edited file blocks with the finding and the
+  command to run; the clean file that follows prints nothing, and the session
+  counts the finding as caught. A file outside the project and a file the
+  project does not read print nothing and record no run.
+stages:
+  - name: kept
+    steps:
+      - actor: agent
+        kapi: [context, note, --term, Sign in, --instead-of, Log in, --instead-of, login, --instead-of, Signin, --seen-in, docs/guide.md]
+      - keep: Write Sign in, not Log in, login, Signin, Sign-in or SignIn.
+    files:
+      - path: docs/guide.md
+        check:
+          failing: 3
+  - name: edit-breaks
+    hook:
+      event: edit
+      edit:
+        path: docs/guide.md
+        content: |
+          # Welcome
+
+          Sign in to start.
+
+          Log in with your account.
+      blocks: true
+      names:
+        - kapi check found 1 failing finding in docs/guide.md
+        - FAILS [terms.vocabulary] docs/guide.md
+        - Log in
+        - Run `kapi check docs/guide.md`
+      log:
+        failing: 1
+        caught: 0
+  - name: edit-fixes
+    hook:
+      event: edit
+      edit:
+        path: docs/guide.md
+        content: |
+          # Welcome
+
+          Sign in to start.
+
+          Sign in with your account.
+      blocks: false
+      log:
+        failing: 0
+        caught: 1
+  - name: edit-outside
+    hook:
+      event: edit
+      outside: true
+      edit:
+        path: elsewhere/guide.md
+        content: |
+          # Elsewhere
+
+          Log in with your account.
+      blocks: false
+      log:
+        failing: 0
+        caught: 1
+  - name: edit-unread
+    hook:
+      event: edit
+      edit:
+        path: notes/todo.md
+        content: |
+          # Notes
+
+          Log in with your account.
+      blocks: false
+      log:
+        failing: 0
+        caught: 1

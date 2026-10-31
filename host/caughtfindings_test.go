@@ -247,3 +247,56 @@ func TestCaughtMarks_PairsOnlyRunsThatReachedAVerdict(t *testing.T) {
 	assert.Equal(t, [][]bool{{true}, nil, nil, nil}, CaughtMarks(seq))
 	assert.Equal(t, 1, SessionOutcomesOf(seq)["s1"].Caught)
 }
+
+// TestCaughtMarks_AnEditRunCatchesOnlyOnItsFile: an edit hook run checks one
+// file, so it catches a finding on that file and leaves the findings on every
+// other file to the next run that checks them. A finding only a ship gate
+// reports is left to the next Stop hook run, and the session's failing count
+// keeps what no later run checked again.
+func TestCaughtMarks_AnEditRunCatchesOnlyOnItsFile(t *testing.T) {
+	onGuide := contextop.CheckFinding{File: "docs/guide.md", Rule: "terms.vocabulary", Quote: "Log in"}
+	onOther := contextop.CheckFinding{File: "docs/other.md", Rule: "terms.vocabulary", Quote: "Log in"}
+	gateOnly := contextop.CheckFinding{File: "docs/guide.md", Rule: "completeness", Message: "greeting has no translation"}
+	rec := func(id string, run contextop.CheckRun) contextop.Record {
+		return contextop.Record{ID: id, Project: "p", Kind: contextop.KindCheck,
+			Actor: contextop.Actor{Kind: contextop.ActorAgent, Name: "claude-code", Session: "s1"}, Check: &run}
+	}
+	edit := func(file string, findings ...contextop.CheckFinding) contextop.CheckRun {
+		run := contextop.CheckRun{Hook: contextop.CheckHookEdit, Files: []string{file}, Edited: true, Covered: 1,
+			Verdict: "passed", Clean: len(findings) == 0, Failing: len(findings), Findings: findings}
+		if len(findings) > 0 {
+			run.Verdict = "failed"
+		}
+		return run
+	}
+	stop := contextop.CheckRun{Hook: contextop.CheckHookStop, Verdict: "failed", Failing: 3,
+		Findings: []contextop.CheckFinding{onGuide, onOther, gateOnly}}
+
+	seq := []contextop.Record{
+		rec("op-1", stop),
+		rec("op-2", edit("docs/other.md", onOther)),
+		rec("op-3", edit("docs/guide.md")),
+	}
+	assert.Equal(t, [][]bool{{true, false, false}, {false}, nil}, CaughtMarks(seq),
+		"op-3 catches the finding on guide.md; op-2 still reports the one on other.md; the gate's finding waits for a Stop hook run")
+	o := SessionOutcomesOf(seq)["s1"]
+	assert.Equal(t, 1, o.Caught)
+	assert.Equal(t, 2, o.Failing, "the finding on other.md and the gate's finding are left failing")
+	assert.Equal(t, map[string]int{"op-3": 1}, runsCaught(seq))
+
+	// An edit run on another file catches nothing on the first.
+	seq = []contextop.Record{
+		rec("op-1", edit("docs/guide.md", onGuide)),
+		rec("op-2", edit("docs/other.md")),
+	}
+	assert.Equal(t, [][]bool{{false}, nil}, CaughtMarks(seq))
+	assert.Equal(t, 1, SessionOutcomesOf(seq)["s1"].Failing)
+
+	// A Stop hook run after an edit run checks every file again.
+	seq = []contextop.Record{
+		rec("op-1", edit("docs/guide.md", onGuide)),
+		rec("op-2", contextop.CheckRun{Hook: contextop.CheckHookStop, Verdict: "passed", Clean: true}),
+	}
+	assert.Equal(t, [][]bool{{true}, nil}, CaughtMarks(seq))
+	assert.Equal(t, 0, SessionOutcomesOf(seq)["s1"].Failing)
+}

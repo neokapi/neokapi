@@ -1273,6 +1273,11 @@ func (a *App) newCheckFormats(cmd Command) (*checkFormats, error) {
 	if a.FormatFlag != "" {
 		return f, nil
 	}
+	if cmd != nil {
+		if bound, ok := CmdContext(cmd).Value(checkFormatsKey{}).(*checkFormats); ok {
+			return bound, nil
+		}
+	}
 	projectPath, err := ResolveProjectPath(cmd)
 	if err != nil || projectPath == "" {
 		return f, nil
@@ -1296,6 +1301,24 @@ func (a *App) newCheckFormats(cmd Command) (*checkFormats, error) {
 	}
 	f.bind(proj, resolved)
 	return f, nil
+}
+
+// checkFormatsKey carries a binding a caller resolved once on the command's
+// context, so the checks it runs read it instead of resolving the project's
+// content again.
+type checkFormatsKey struct{}
+
+// withCheckFormats returns ctx carrying f for newCheckFormats to answer with.
+func withCheckFormats(ctx context.Context, f *checkFormats) context.Context {
+	return context.WithValue(ctx, checkFormatsKey{}, f)
+}
+
+// checkFormatsFrom builds the binding for content the caller resolved for proj
+// in projectDir.
+func checkFormatsFrom(proj *project.KapiProject, projectDir string, resolved []project.ResolvedFile) *checkFormats {
+	f := &checkFormats{byPath: map[string]resolvedFormat{}, root: projectDir, directives: proj.Defaults.Comments.Directives}
+	f.bind(proj, resolved)
+	return f
 }
 
 // bind records the format, reader config and comment declaration proj gives

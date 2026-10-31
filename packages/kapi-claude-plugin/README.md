@@ -23,7 +23,7 @@ alongside the plugin so the skill matches your installed command surface.
 ### `kapi`
 
 One `kapi` Agent Skill — a router `SKILL.md` that loads the relevant reference on
-demand (progressive disclosure) — plus two Claude Code hooks. It covers the loop
+demand (progressive disclosure) — plus three Claude Code hooks. It covers the loop
 **know the context → author → check → fix → publish**:
 
 - **Discover & refresh the context** — draft a project's voice profile and
@@ -41,17 +41,25 @@ demand (progressive disclosure) — plus two Claude Code hooks. It covers the lo
   other languages and formats.
 - **i18n setup** — add i18n to a project.
 
-The hooks (`plugins/kapi/hooks/hooks.json`), both scoped to the `.kapi` project in
-the session's working directory and both **fail-open** (outside a project, or if
+The hooks (`plugins/kapi/hooks/hooks.json`), all scoped to the `.kapi` project in
+the session's working directory and all **fail-open** (outside a project, or if
 they cannot run, the assistant proceeds normally):
 
+- **`PostToolUse` (Edit/Write/MultiEdit) → `kapi hook post-edit`.** After each
+  edit, it runs `kapi check` on the one file the edit wrote. A failing finding
+  (a name, a spelling, a word rule) comes back to the assistant beside the
+  edit's result, with the fix when the rule names one, so the assistant
+  corrects the file before it reports done. Files outside the project, files
+  the project does not read and generated targets are left alone. Each run is
+  recorded in the project's log under the session.
+
 - **`Stop` → `kapi hook stop`.** When the assistant tries to finish, it runs the
-  project's `kapi check --ship` gates — voice, terminology, translation checks —
+  project's `kapi check --ship` gates (voice, terminology, translation checks)
   and, if a gate is failing, keeps the assistant working with the findings to fix.
   The skill makes the check loop the default; this hook makes it a guarantee.
   Each run is recorded in the project's log (`kapi context log`) under the
-  session, and a finding one run reports and the next run no longer finds on
-  the same file counts as caught.
+  session, and a finding one run of either hook reports and the next run on
+  the same file no longer finds counts as caught.
 - **`PreToolUse` (Edit/Write/MultiEdit) → `kapi hook pre-edit`.** Denies direct
   hand-edits to files the project *generates* as translation targets (a
   `kapi merge` output), steering the change through the source + round-trip

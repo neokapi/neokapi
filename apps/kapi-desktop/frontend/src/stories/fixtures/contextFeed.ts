@@ -64,6 +64,7 @@ export function checkRun(
 ): ContextCheckRun {
   return {
     project_key: PROJECT.project_key,
+    hook: "stop",
     files: ["docs/pricing.md"],
     edited: true,
     file_count: 1,
@@ -289,6 +290,7 @@ export const HOOK_ONLY_SESSION = feedGroup({
     checkRun({
       id: "run-2",
       at: "2026-09-21T08:20:00Z",
+      hook: "edit",
       clean: false,
       failing: 1,
       rules: ["terms.vocabulary"],
