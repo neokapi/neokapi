@@ -91,7 +91,7 @@ func (a *App) ExtractRedactedToKpz(ctx context.Context, sources []string, outKpz
 	return a.extractToKpz(ctx, sources, outKpz, targetLang, outLayout, withSource, rules)
 }
 
-func (a *App) extractToKpz(ctx context.Context, sources []string, outKpz, targetLang, outLayout string, withSource bool, rules string) error {
+func (a *App) extractToKpz(ctx context.Context, sources []string, outKpz, targetLang, outLayout string, withSource bool, rules string) (err error) {
 	files, err := resolveFiles(sources)
 	if err != nil {
 		return err
@@ -127,6 +127,12 @@ func (a *App) extractToKpz(ctx context.Context, sources []string, outKpz, target
 		if err := newPackageVault(vaultPath, vaultID); err != nil {
 			return fmt.Errorf("extract: %w", err)
 		}
+		// A vault whose package was never written restores nothing.
+		defer func() {
+			if err != nil {
+				_ = os.Remove(vaultPath)
+			}
+		}()
 	}
 
 	// Build a full in-memory package (raw source always present) so the cache
@@ -156,7 +162,6 @@ func (a *App) extractToKpz(ctx context.Context, sources []string, outKpz, target
 				spec: spec, vaultPath: vaultPath, locale: model.LocaleID(a.SourceLocale()),
 			})
 			if rerr != nil {
-				_ = os.Remove(vaultPath)
 				return fmt.Errorf("extract: %w", rerr)
 			}
 			data = rs.data

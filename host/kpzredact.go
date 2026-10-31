@@ -23,20 +23,14 @@ import (
 )
 
 // A .kpz written under a redaction policy carries each source file as the
-// policy leaves it: the file is written again with each withheld value
-// replaced by its visible token ("[REDACTED:Person]"), and every member the
-// package holds (the skeleton, the raw source with --with-source, the
-// content-memory matches) is taken from that redacted file. The originals go
-// to a vault that stays with whoever extracted the package: the project's
-// batch vault under .kapi/vault/batches/ for `kapi extract --format kpz`, and
-// <package>.vault beside the package for `kapi extract <files> -o work.kpz`.
-// The manifest records the vault's ID (kpz.Redaction), the vault file
-// records the same ID, and kapi merge restores from that vault and from no
-// other.
+// policy leaves it. Extract writes the file again with each withheld value
+// replaced by its visible token ("[REDACTED:Person]"), and every member of
+// the package comes from that file. The originals go to a vault that stays
+// with whoever extracted the package. The manifest and the vault file record
+// the same ID, and kapi merge restores from that vault alone.
 //
-// A token reaches the redacted file as text, so it survives any format, and
-// kapi merge restores it by its visible text within the block, as it does
-// for a PO file. Whoever receives the package works on the tokens.
+// The token is text in the redacted file, so it survives any format, and
+// merge restores it by that text within the block, as it does for PO.
 
 // workspaceVaultSuffix names the vault of a package an ad-hoc extract writes:
 // the package's own path with this suffix.
