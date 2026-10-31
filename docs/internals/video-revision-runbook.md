@@ -101,6 +101,41 @@ the demo scripts were already clean, and their `beat`/step ids (`open-termbases`
 Storybook fixtures were swept in the same pass and are **not** recorded, so they
 carry no re-record debt.
 
+## Waiting for review and the Clear Path screens (2026-10-31), recording deferred
+
+Two changes left published captures behind their source. `kapi up` prints
+"waiting for review" for a language its gate holds back (#3293), and the
+desktop opens any folder on its Map, with Decide, the Reader, Assistants with
+Sessions, Share's ladder and a Languages + door until the first target
+language (#3294 to #3348). Authoring is done; **no capture, narration or
+render was performed**, so every asset below still needs its take.
+
+Every CLI sequence was run end to end with `bin/kapi` in sandboxes under the
+isolation contract, with `KAPI_ACTOR=person`. Under an agent host, `kapi
+apply` refuses an `establish` decision, so a take recorded from an assistant's
+shell needs that variable too.
+
+| Asset | What changed on screen or in output | Re-record | Infra | Docs embed |
+| --- | --- | --- | --- | --- |
+| `web/walkthroughs/kapi-up-loop` | `kapi up` prints `waiting for review` and "Not yet up to date: some languages wait for review". The `up` narration now quotes it. Sequence verified: `up` exits 0, `check --ship` exits 3, `apply`, then exit 0. | record-first-time: no curated tape exists under `web/scenes/kapi-up-loop/`. | none | none |
+| `web/walkthroughs/kapi-project-workflow` | `kapi up` writes `messages.fr.json`, so the later `kapi merge` reports `wrote=0`. The merge narration said it writes the file; it now says a file matching the store is left as it is. Embed regenerated. | re-capture the generated tape | none | none |
+| `harness/demos/s1-compass-ship-gate` | Published take shows `parked`. Script comments and narration say block, not unit or string. Output verified against the narration. | re-capture + re-dub | none (built-in `demo` provider) | none |
+| `harness/demos/s1-compass-converge` | Same as above. | re-capture + re-dub | none | none |
+| `harness/demos/s2-tidewatch-build-output` | Same as above. | re-capture + re-dub | none | none |
+| `harness/demos/bowrain-desktop-automations` | Run labels say waiting for review; narration swept in #3293, not verified natively. | re-capture | Docker compose stack, `make harness-seed` | `PendingMedia` |
+| `harness/demos/bowrain-cli-getting-started` | One narration line swept in #3293; the take's `kapi up` output predates it. Not verified natively. | re-capture | Docker compose stack, `make harness-seed` | two bowrain pages |
+| `harness/demos/kapi-desktop-context` | Map, Decide, Assistants and Share were authored in #3302, #3307 and #3321. New `sessions` beat: claude-code's session, the kept rules in force, Reset pointed at and never pressed. | narrate, then re-capture | desktop stack via wbridge (no Docker), Gemini key | tour |
+| `harness/demos/kapi-desktop-projects` | `add-language` goes through the rail's Languages + door; the plus goes and Review appears once French is saved. Plan narration says blocks. | narrate, then re-capture | wbridge, Gemini key | tour, recipe (marked outdated) |
+| `harness/demos/kapi-desktop-content` | Re-authored: Map counts and Files, Open on `web/en/faq.md`, the Reader's margin, Fix on the FAQ heading, Edit by hand on an exclamation. The stale nb sidecar is removed; the loop writes a new one. | record-first-time | wbridge, Gemini key | none |
+| `harness/demos/kapi-desktop-explorer` | Screens unchanged; caption and narration say blocks. | re-dub + re-render | Gemini key | none |
+| `harness/demos/kapi-desktop-review` | Screens unchanged; prose says block, not unit. | record-first-time | wbridge, Gemini key | `PendingMedia` on two recipes |
+| `harness/demos/kapi-desktop-flows` | Script unchanged; the tour marks the published clip outdated. | re-capture | wbridge | tour, recipe (marked outdated) |
+| `harness/demos/kapi-desktop-config` | Script unchanged; the tour marks the published clip outdated. | re-capture | wbridge | tour, recipe (marked outdated) |
+
+The Map and Decide have no demo of their own: `kapi-desktop-context` opens on
+the Map and spends four beats in Decide. After publishing, remove the
+`outdated` props on the tour and recipe pages whose clip was replaced.
+
 ## Bowrain project screens and the desktop Preview (2026-10-31), scripts only
 
 A Bowrain project opens on its Map, and its sidebar adds Rules: the Map, the
