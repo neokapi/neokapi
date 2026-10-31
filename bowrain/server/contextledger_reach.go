@@ -44,11 +44,18 @@ type ReachError struct {
 	// Permission is set when the member lacks the permission the kind needs,
 	// rather than the reach.
 	Permission platauth.Permission
+	// Target is set when the operation acts on one the log does not hold, so
+	// the point it governs cannot be read.
+	Target string
 }
 
 func (e *ReachError) Error() string {
 	if e.Permission != 0 {
 		return fmt.Sprintf("context operation %s (%s) needs the %s permission", workspace.ShortOpID(e.ID), e.Kind, e.Permission)
+	}
+	if e.Target != "" {
+		return fmt.Sprintf("context operation %s (%s) acts on operation %s, which the project's context does not hold",
+			workspace.ShortOpID(e.ID), e.Kind, workspace.ShortOpID(e.Target))
 	}
 	return fmt.Sprintf("context operation %s (%s) governs %s, outside the coordinates you hold (%s)",
 		workspace.ShortOpID(e.ID), e.Kind, describePoint(e.Point), describeReach(e.Reach))
@@ -103,17 +110,26 @@ func checkReach(member LedgerMember, op workspace.Op, byID map[string]workspace.
 	if !member.Permissions.Has(governingPermission) {
 		return &ReachError{Kind: contextop.Kind(kind), ID: op.ID, Permission: governingPermission}
 	}
-	if member.Reach.Unconstrained() {
-		return nil
-	}
 	own, target := scopeOf(op)
 	var points []map[string]string
 	if target == "" || len(own) > 0 || contextop.Kind(kind) == contextop.KindWiden {
 		points = append(points, own)
 	}
-	if t, ok := byID[target]; ok && target != "" {
+	if target != "" {
+		t, ok := byID[target]
+		if !ok {
+			// An operation the log does not hold has no point to read, so
+			// what acts on it is refused rather than let through.
+			return &ReachError{Kind: contextop.Kind(kind), ID: op.ID, Reach: member.Reach, Target: target}
+		}
 		at, _ := scopeOf(t)
 		points = append(points, at)
+	}
+	if len(points) == 0 {
+		points = append(points, nil)
+	}
+	if member.Reach.Unconstrained() {
+		return nil
 	}
 	for _, point := range points {
 		if !member.Reach.Reaches(point) {

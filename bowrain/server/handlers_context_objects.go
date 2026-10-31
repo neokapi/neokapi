@@ -263,12 +263,13 @@ func checkoutKeyRefusal(key workspace.ProjectKey) string {
 // checkPushReach refuses a push carrying a governing context operation (a
 // keep, a drop, an edit) at a point the pusher's grants do not reach. The
 // route's permission is checked for the whole project; a member whose grants
-// name coordinates may push only the decisions that lie inside them. A pusher
-// with an unbounded reach is not decoded for. refused reports that the answer
+// name coordinates may push only the decisions that lie inside them. Only a
+// pusher who holds the governing permission over an unbounded reach is not
+// decoded for. refused reports that the answer
 // has been written.
 func (s *Server) checkPushReach(c echo.Context, cos platstore.ContextObjectStore, batch []platstore.ContextObject) (refused bool, err error) {
 	member := ledgerMemberOf(c)
-	if member.Reach.Unconstrained() {
+	if member.Permissions.Has(governingPermission) && member.Reach.Unconstrained() {
 		return false, nil
 	}
 	ctx := c.Request().Context()

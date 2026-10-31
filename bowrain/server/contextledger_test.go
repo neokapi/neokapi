@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
@@ -464,4 +465,85 @@ func TestContextLedger_DecisionsStayInReach_SQLite(t *testing.T) {
 	_, err = reviewer.Append(ctx, contextop.Record{Kind: contextop.KindKeep, Target: atOther.ID})
 	require.ErrorIs(t, err, ErrOutsideReach)
 	assert.Contains(t, err.Error(), "needs the")
+}
+
+// reachSQLiteServer serves the context object routes as a custodian holding
+// PermManageTerms over the reach given.
+func reachSQLiteServer(t *testing.T, reach platauth.CoordinateReach) (*echo.Echo, *sqlitestore.SQLiteStore) {
+	t.Helper()
+	cs, err := sqlitestore.NewSQLiteStore(filepath.Join(t.TempDir(), "content.db"))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = cs.Close() })
+	srv := &Server{ContentStore: cs, wsStores: newWorkspaceStores()}
+	e := echo.New()
+	srv.registerContextObjectRoutes(e.Group("/api/v1/:ws", func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			c.Set("user_id", "custodian")
+			c.Set("project_permissions", platauth.PermViewContent|contextObjectWritePermission)
+			c.Set("project_coordinates", reach)
+			return next(c)
+		}
+	}))
+	return e, cs
+}
+
+// A custodian bounded to one brand cannot push a decision about a rule that
+// holds across the whole project.
+func TestContextLedger_ProjectWideDecisionNeedsAnUnboundedReach_SQLite(t *testing.T) {
+	ctx := t.Context()
+	e, cs := reachSQLiteServer(t, platauth.CoordinateReach{}.Add(platauth.CoordinateFilter{"brand": "acme"}))
+	pid := seedContextObjectProject(t, cs)
+	r := &routeRemote{h: e, base: "/api/v1/ws/" + pid + "/context/objects"}
+
+	d := newDesktop(t, "site")
+	everywhere := d.observe(t, "use", "utilise")
+	d.keep(t, everywhere.ID)
+	rec := r.do(ctx, http.MethodPost, r.base, pushBody(t, d.push(t)))
+	require.Equal(t, http.StatusForbidden, rec.Code)
+	var refusal ErrorResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &refusal))
+	assert.Equal(t, contextOutsideReachCode, refusal.Code)
+	assert.Contains(t, refusal.Error, "governs the whole project, outside the coordinates you hold (brand=acme)")
+	names, err := cs.ListContextObjects(ctx, pid, workspace.RemoteLogDir)
+	require.NoError(t, err)
+	assert.Empty(t, names, "a refused push writes nothing")
+}
+
+// A decision about an operation the project's context does not hold is
+// refused, whatever the pusher's reach: its point cannot be read.
+func TestContextLedger_DecisionOnAnUnknownOperation_SQLite(t *testing.T) {
+	ctx := t.Context()
+	keepOf := func(t *testing.T, target string) []workspace.Object {
+		t.Helper()
+		at := time.Now().UTC()
+		op := workspace.Op{
+			ID: workspace.NewOpID(at, ""), Project: "site", Kind: contextop.OpKindPrefix + string(contextop.KindKeep),
+			Payload: []byte(`{"actor":{"kind":"person","name":"asgeir"},"target":"` + target + `"}`), At: at,
+		}
+		data, err := workspace.EncodeSegment([]workspace.Op{op})
+		require.NoError(t, err)
+		return []workspace.Object{{Name: workspace.SegmentName("w1", op.ID), Data: data}}
+	}
+	unknown := workspace.NewOpID(time.Now().Add(-time.Hour), "")
+
+	e, cs := reachSQLiteServer(t, platauth.CoordinateReach{}.Add(platauth.CoordinateFilter{"brand": "acme"}))
+	pid := seedContextObjectProject(t, cs)
+	r := &routeRemote{h: e, base: "/api/v1/ws/" + pid + "/context/objects"}
+	rec := r.do(ctx, http.MethodPost, r.base, pushBody(t, keepOf(t, unknown)))
+	require.Equal(t, http.StatusForbidden, rec.Code)
+	var refusal ErrorResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &refusal))
+	assert.Contains(t, refusal.Error, "which the project's context does not hold")
+
+	unbounded := LedgerMember{UserID: "owner", Permissions: platauth.PermManageTerms}
+	keep := keepOf(t, unknown)
+	ops, err := workspace.DecodeSegment(keep[0].Data, "site")
+	require.NoError(t, err)
+	require.ErrorIs(t, checkReach(unbounded, ops[0], map[string]workspace.Op{}), ErrOutsideReach)
+
+	noPermission := LedgerMember{UserID: "viewer", Permissions: platauth.PermViewContent}
+	err = checkReach(noPermission, ops[0], map[string]workspace.Op{unknown: {ID: unknown}})
+	var reachErr *ReachError
+	require.ErrorAs(t, err, &reachErr)
+	assert.Equal(t, platauth.PermManageTerms, reachErr.Permission, "a full reach without the permission governs nothing")
 }
