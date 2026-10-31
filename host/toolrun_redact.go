@@ -21,9 +21,7 @@ import (
 // declares. When the tool calls a provider, redact runs ahead of it and
 // unredact after it, so the provider reads placeholders and the output carries
 // the originals. Between the two steps the originals ride on the blocks, as in
-// the secure-translate flow, and the run writes none of them to disk. A tool
-// whose contract the registry does not hold does not run under a declared
-// policy, because nothing says whether it calls a provider.
+// the secure-translate flow, and the run writes none of them to disk.
 
 // toolRedaction is the redaction policy one run of a tool applies.
 type toolRedaction struct {
