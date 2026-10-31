@@ -568,13 +568,15 @@ type TokenChange struct {
 }
 
 // CompareTokens compares the redaction placeholders of in, the text a reader
-// was given, with those of out, the text it gave back. tokens are the visible
-// tokens in holds (VisibleText). known are the tokens of every placeholder
-// the block holds, on any side and in any form, so an output that carries a
-// placeholder the input did not hold is reported too. Unredact restores each
-// value by its token, so a dropped or altered token loses the value, a
-// duplicated one repeats it, and an added one puts a value where the input
-// had none. It returns the changes in the order of tokens, then of known.
+// was given, with those of out, the text it gave back. The tokens argument
+// holds the visible tokens of in (VisibleText). The known argument holds the
+// tokens of every placeholder the block holds, on any side and in any form,
+// so CompareTokens also reports an output that carries a placeholder the
+// input did not hold.
+//
+// Unredact restores each value by its token. A dropped or altered token loses
+// the value, a duplicated one repeats it, and an added one puts a value where
+// the input had none. The changes come in the order of tokens, then of known.
 func CompareTokens(in, out string, tokens, known []string) []TokenChange {
 	all := make([]string, 0, len(tokens)+len(known))
 	for _, tok := range append(slices.Clone(tokens), known...) {

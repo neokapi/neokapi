@@ -266,8 +266,8 @@ func (a *App) tapFindings(tools []tool.Tool, inputPath string) []tool.Tool {
 }
 
 // chainProducesFindings reports whether any step of the chain declares a
-// findings port — the same IO-contract question ProducesFindings answers for a
-// single tool, which is what decides whether `kapi exec` reports. A chain
+// findings port. ProducesFindings asks the same IO-contract question of a
+// single tool, which decides whether `kapi exec` reports. A chain
 // that redacts ahead of a tool that hands blocks to a program reports too:
 // that tool records a failing finding on each block whose program output
 // changes a redaction placeholder (chainChecksRedactionTokens).
