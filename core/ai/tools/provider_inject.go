@@ -81,9 +81,9 @@ func providerFor(in Injected, name string, cfg aiprovider.Config) (aiprovider.LL
 	if err != nil {
 		return nil, err
 	}
-	// A provider the host granted was built outside NewProvider, so it is
-	// wrapped here to redact what a redaction policy covers.
-	p = aiprovider.Redacting(p)
+	// The tool's constructor wraps whatever this returns in
+	// aiprovider.Redacting, outside the observer, so the observer reads each
+	// request as it is sent.
 	if in.Observe == nil || p == nil {
 		return p, nil
 	}

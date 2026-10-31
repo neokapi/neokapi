@@ -80,9 +80,10 @@ func (w *redactingStreamingProvider) ChatStructuredStream(ctx context.Context, m
 }
 
 // Redacting wraps p so a request whose context carries a redaction.Egress is
-// redacted before p sends it. Every AI tool calls its provider through it,
-// whoever built the provider. A provider already wrapped is returned as it
-// is.
+// redacted before p sends it. Each exported AI tool constructor and prompt
+// function in core/ai/tools wraps the provider it is given, whoever built it.
+// The wrapper does nothing for a context with no Egress. A provider already
+// wrapped is returned as it is.
 func Redacting(p LLMProvider) LLMProvider {
 	switch p.(type) {
 	case nil:

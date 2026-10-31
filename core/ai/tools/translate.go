@@ -388,6 +388,7 @@ func NewAITranslateFromConfig(config map[string]any, targetLang string) (tool.To
 
 // NewAITranslateTool creates a new AI translation tool.
 func NewAITranslateTool(p aiprovider.LLMProvider, cfg AITranslateConfig) *AITranslateTool {
+	p = aiprovider.Redacting(p)
 	t := &AITranslateTool{
 		provider:     p,
 		sourceLocale: cfg.SourceLocale,

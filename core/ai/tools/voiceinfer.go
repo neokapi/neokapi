@@ -83,6 +83,7 @@ type DraftEvidence struct {
 // An empty (or whitespace-only) corpus returns ErrEmptyCorpus; a tiny corpus
 // is analyzed as-is and simply yields a low-evidence draft.
 func InferVoiceProfile(ctx context.Context, provider aiprovider.LLMProvider, corpus string, opts InferOptions) (*profile.VoiceProfile, *DraftEvidence, error) {
+	provider = aiprovider.Redacting(provider)
 	draft, evidence, _, err := inferVoiceProfile(ctx, provider, corpus, opts)
 	return draft, evidence, err
 }
@@ -455,6 +456,7 @@ func NewVoiceInferFromConfig(config map[string]any, _ string) (tool.Tool, error)
 
 // NewVoiceInferTool creates a new LLM-based voice profile inference tool.
 func NewVoiceInferTool(p aiprovider.LLMProvider, cfg VoiceInferConfig) *VoiceInferTool {
+	p = aiprovider.Redacting(p)
 	t := &VoiceInferTool{
 		provider: p,
 		opts: InferOptions{

@@ -130,6 +130,7 @@ func NewAIReviewFromConfig(config map[string]any, targetLang string) (tool.Tool,
 
 // NewAIReviewTool creates a new AI translation review tool.
 func NewAIReviewTool(p aiprovider.LLMProvider, cfg AIReviewConfig) *AIReviewTool {
+	p = aiprovider.Redacting(p)
 	t := &AIReviewTool{
 		provider:     p,
 		sourceLocale: cfg.SourceLocale,

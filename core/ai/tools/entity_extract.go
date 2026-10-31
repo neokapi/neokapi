@@ -184,6 +184,7 @@ func NewAIEntityExtractFromConfig(config map[string]any, _ string) (tool.Tool, e
 // NewAIEntityExtractTool creates a new entity/term extraction tool.
 // The nerProvider parameter is optional — pass nil for LLM-only extraction.
 func NewAIEntityExtractTool(llm aiprovider.LLMProvider, nerProvider ner.Provider, cfg AIEntityExtractConfig) *AIEntityExtractTool {
+	llm = aiprovider.Redacting(llm)
 	known := make(map[string]bool, len(cfg.KnownTerms))
 	for _, t := range cfg.KnownTerms {
 		known[strings.ToLower(t)] = true

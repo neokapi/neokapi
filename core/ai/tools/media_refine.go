@@ -290,6 +290,7 @@ const defaultRefineThreshold = 0.85
 
 // NewMediaRefineTool builds the tool from a provider + config.
 func NewMediaRefineTool(provider aiprovider.LLMProvider, cfg MediaRefineConfig) *MediaRefineTool {
+	provider = aiprovider.Redacting(provider)
 	thr := cfg.Threshold
 	if thr <= 0 {
 		thr = defaultRefineThreshold

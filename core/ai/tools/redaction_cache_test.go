@@ -60,7 +60,7 @@ func TestAITranslate_ARedactedBlockIsNeverServedFromTheCache(t *testing.T) {
 		out := make(chan *model.Part, 1)
 		in <- part
 		close(in)
-		require.NoError(t, tools.NewAITranslateTool(aiprovider.Redacting(mock), cfg).SessionProcess(ctx, sess, in, out))
+		require.NoError(t, tools.NewAITranslateTool(mock, cfg).SessionProcess(ctx, sess, in, out))
 		close(out)
 		<-out
 		require.NoError(t, sess.Commit())

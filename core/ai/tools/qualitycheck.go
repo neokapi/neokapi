@@ -57,6 +57,7 @@ func NewAICheckFromConfig(config map[string]any, targetLang string) (tool.Tool, 
 
 // NewAICheckTool creates a new AI quality check tool.
 func NewAICheckTool(p aiprovider.LLMProvider, cfg AICheckConfig) *AICheckTool {
+	p = aiprovider.Redacting(p)
 	if len(cfg.Checks) == 0 {
 		cfg.Checks = []string{"terminology", "fluency", "accuracy"}
 	}

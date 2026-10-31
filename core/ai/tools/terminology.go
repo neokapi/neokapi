@@ -69,6 +69,7 @@ func NewAITerminologyFromConfig(config map[string]any, _ string) (tool.Tool, err
 
 // NewAITerminologyTool creates a new AI terminology extraction tool.
 func NewAITerminologyTool(p aiprovider.LLMProvider, cfg AITerminologyConfig) *AITerminologyTool {
+	p = aiprovider.Redacting(p)
 	t := &AITerminologyTool{
 		provider: p,
 		locale:   cfg.Locale,
