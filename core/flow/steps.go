@@ -58,6 +58,23 @@ func CheckRenamedTools(steps []FlowStep) error {
 	return nil
 }
 
+// CheckStepConfigs reports the first step, sequential or in a parallel
+// branch, whose config carries a key a flow may not hold
+// (registry.StepConfigError). at is the key path of the steps list, such as
+// `flows.review.steps`; a step is named at[i], and a branch at[i].parallel[j].
+func CheckStepConfigs(steps []FlowStep, at string) error {
+	for i, step := range steps {
+		where := fmt.Sprintf("%s[%d]", at, i)
+		if err := registry.StepConfigError(registry.ToolID(step.Tool), step.Config, where, where+".config"); err != nil {
+			return err
+		}
+		if err := CheckStepConfigs(step.Parallel, where+".parallel"); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // CheckSequential reports the first step that holds a parallel: list. Every
 // host runs a flow as an ordered tool chain, one step after another, so a flow
 // with such a step cannot run. The error names the step by its position and
@@ -115,6 +132,9 @@ func StepsToGraph(spec *StepsSpec) ([]FlowNode, []FlowEdge, error) {
 		return nil, nil, errors.New("flow has no steps")
 	}
 	if err := CheckRenamedTools(spec.Steps); err != nil {
+		return nil, nil, err
+	}
+	if err := CheckStepConfigs(spec.Steps, "steps"); err != nil {
 		return nil, nil, err
 	}
 

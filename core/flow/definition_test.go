@@ -37,6 +37,32 @@ func TestFlowDefinitionValidate(t *testing.T) {
 			wantErr: "duplicate node id",
 		},
 		{
+			name: "qa node with a provider and no mode",
+			def: FlowDefinition{
+				ID:    "test",
+				Name:  "test",
+				Nodes: []FlowNode{{ID: "q", Type: NodeTool, Name: "qa", Config: map[string]any{"provider": "anthropic"}}},
+			},
+			wantErr: "nodes[q] (qa) sets provider: anthropic without mode",
+		},
+		{
+			name: "qa node with checkTerminology",
+			def: FlowDefinition{
+				ID:    "test",
+				Name:  "test",
+				Nodes: []FlowNode{{ID: "q", Type: NodeTool, Name: "qa", Config: map[string]any{"mode": "rules", "checkTerminology": true}}},
+			},
+			wantErr: "nodes[q].config.checkTerminology is retired and nothing reads it. Remove the key",
+		},
+		{
+			name: "qa node in ai mode",
+			def: FlowDefinition{
+				ID:    "test",
+				Name:  "test",
+				Nodes: []FlowNode{{ID: "q", Type: NodeTool, Name: "qa", Config: map[string]any{"mode": "ai", "provider": "anthropic"}}},
+			},
+		},
+		{
 			name: "invalid node type",
 			def: FlowDefinition{
 				ID:   "test",

@@ -17,15 +17,12 @@ import (
 // `translate` is a single command whose `--provider` selects the backend: any
 // LLM provider (anthropic, openai, …) routes to the AI translate tool, any
 // plugin-registered MT engine routes to the machine-translation tool. The
-// framework ships no classic MT engines — the translation core is LLM-only,
-// and mttools.Providers is populated by plugins. There is no
-// `<provider>-translate` command per engine, nor a separate `ai-translate` —
-// provider is the only dimension.
+// framework ships no classic MT engines: the translation core is LLM-only,
+// and plugins populate mttools.Providers. Provider is the only dimension.
 //
-// `qa` mirrors that shape: with no `--provider` it runs the deterministic,
-// rule-based quality checks (no credentials needed); with `--provider` set it
-// runs the LLM judge. Both underlying implementations (core/tools' rule checks
-// and core/ai/tools' LLM judge) are reached through one verb.
+// `qa` selects its backend with `--mode`: `rules` (the default) runs the
+// deterministic rule checks from core/tools, which need no credentials, and
+// `ai` runs the LLM judge with the configured provider.
 
 // isMTProvider reports whether a provider id names a machine-translation engine
 // (as opposed to an LLM provider). MT ids route `translate` to the MT tool.
@@ -186,9 +183,17 @@ func checkMembers() []registry.ToolGroupMember {
 	rules := schema.FromStruct(libtools.NewRuleCheckConfig(model.LocaleEnglish), schema.ToolMeta{ID: "qa-rules"})
 	ai := schema.FromStruct(&AICheckConfig{}, schema.ToolMeta{ID: "qa-ai"})
 	setProviderOptions(ai, aiProviderOptions())
+	label := func(mode string) string {
+		for _, m := range registry.CheckModes {
+			if m.Value == mode {
+				return m.Label
+			}
+		}
+		return mode
+	}
 	return []registry.ToolGroupMember{
-		{Name: checkModeRules, Label: "Deterministic rules", Description: "Local rule-based checks: no credentials, no network.", Schema: rules},
-		{Name: checkModeAI, Label: "AI review", Description: "LLM-judged quality review via an AI provider.", Schema: ai},
+		{Name: checkModeRules, Label: label(checkModeRules), Description: "Local rule-based checks: no credentials, no network.", Schema: rules},
+		{Name: checkModeAI, Label: label(checkModeAI), Description: "LLM-judged quality review via an AI provider.", Schema: ai},
 	}
 }
 
@@ -229,27 +234,23 @@ func NewTranslateFromConfig(config map[string]any, targetLang string) (tool.Tool
 }
 
 // Check mode discriminator: the `qa` tool selects its backend with `mode`
-// (Deterministic rules vs AI review), replacing the old "provider-presence"
-// heuristic. The values double as the ComposeVariants variant names.
+// (Deterministic rules vs AI review). The values double as the
+// ComposeVariants variant names; core/registry holds them so the recipe
+// loader can name them when it refuses a qa step.
 const (
-	checkModeField = "mode"
-	checkModeRules = "rules"
-	checkModeAI    = "ai"
+	checkModeField = registry.CheckModeField
+	checkModeRules = registry.CheckModeRules
+	checkModeAI    = registry.CheckModeAI
 )
 
-// checkUsesAI reports whether a qa config selects the AI backend. The explicit
-// `mode` wins; when it is unset (older recipes / flags), it falls back to the
-// historical rule: a set `provider` means AI.
+// checkUsesAI reports whether a qa config selects the AI backend: `mode: ai`
+// does, and anything else runs the rule checks. A provider in the config
+// selects nothing, so a host that injects one into every step leaves a qa
+// step in the mode it states. The recipe loader refuses a qa step that names
+// a provider without a mode (registry.StepConfigError).
 func checkUsesAI(config map[string]any) bool {
-	switch mode, _ := config[checkModeField].(string); mode {
-	case checkModeAI:
-		return true
-	case checkModeRules:
-		return false
-	default:
-		provider, _ := config["provider"].(string)
-		return provider != ""
-	}
+	mode, _ := config[checkModeField].(string)
+	return mode == checkModeAI
 }
 
 // NewCheckFromConfig builds the deterministic rule-based checker in rules mode, or

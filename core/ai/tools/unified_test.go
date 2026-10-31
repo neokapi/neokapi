@@ -62,8 +62,8 @@ func TestNewTranslateFromConfig_RoutesByProvider(t *testing.T) {
 }
 
 // TestNewCheckFromConfig_ModeDispatch pins the `qa` mode discriminator: rules
-// mode (and the no-provider default) builds the deterministic checker, ai
-// mode (and the legacy provider-set heuristic) builds the LLM judge.
+// mode and an absent mode build the deterministic checker, and ai mode builds
+// the LLM judge. A provider selects nothing.
 func TestNewCheckFromConfig_ModeDispatch(t *testing.T) {
 	isLLMJudge := func(config map[string]any) bool {
 		tl, err := tools.NewCheckFromConfig(config, "fr")
@@ -76,14 +76,14 @@ func TestNewCheckFromConfig_ModeDispatch(t *testing.T) {
 	assert.False(t, isLLMJudge(map[string]any{"mode": "rules", "provider": "anthropic", "apiKey": "k"}),
 		"explicit rules mode wins even with a provider set")
 	assert.True(t, isLLMJudge(map[string]any{"mode": "ai", "apiKey": "k"}), "explicit ai mode builds the LLM judge")
-	assert.True(t, isLLMJudge(map[string]any{"provider": "anthropic", "apiKey": "k"}),
-		"legacy heuristic: provider set without a mode means AI")
+	assert.False(t, isLLMJudge(map[string]any{"provider": "anthropic", "apiKey": "k"}),
+		"a provider without a mode runs the rule checks")
 }
 
 // TestCheckSchemaHasNoTerminologySetting pins that qa offers no terminology
 // toggle: the rule checks read no terms, and term-check is the tool that does.
-// A config written while the setting existed still builds the rule checker,
-// because qa ignores a key it does not define.
+// The factory ignores a key it does not define; the recipe loader is what
+// refuses the key (registry.StepConfigError).
 func TestCheckSchemaHasNoTerminologySetting(t *testing.T) {
 	_, ok := tools.CheckSchema().Properties["checkTerminology"]
 	assert.False(t, ok, "the composed qa schema has no checkTerminology property")

@@ -126,7 +126,7 @@ func TestToolRun_RunsAToolWithNoContractWithoutAPolicy(t *testing.T) {
 			for project, recipe := range map[string]func(t *testing.T) string{
 				"a project with no policy": func(t *testing.T) string { return redactProject(t, "") },
 				"a policy switched off": func(t *testing.T) string {
-					return redactProject(t, "  redaction:\n    enabled: false\n    rules: redact.yaml\n")
+					return redactProject(t, "  redaction:\n    enabled: false\n")
 				},
 			} {
 				t.Run(project, func(t *testing.T) {

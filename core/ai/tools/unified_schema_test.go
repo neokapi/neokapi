@@ -147,8 +147,8 @@ func TestEntityExtractSchemaComposition(t *testing.T) {
 	assert.NotEmpty(t, s.ToolMeta.Produces)
 }
 
-// TestCheckUsesAI covers explicit-mode dispatch and the back-compat fallback to
-// provider presence.
+// TestCheckUsesAI covers mode dispatch: mode: ai selects the AI backend, and a
+// provider without a mode selects nothing.
 func TestCheckUsesAI(t *testing.T) {
 	cases := []struct {
 		name   string
@@ -157,7 +157,8 @@ func TestCheckUsesAI(t *testing.T) {
 	}{
 		{"explicit rules wins over provider", map[string]any{"mode": "rules", "provider": "anthropic"}, false},
 		{"explicit ai", map[string]any{"mode": "ai"}, true},
-		{"unset + provider (back-compat)", map[string]any{"provider": "anthropic"}, true},
+		{"unset + provider runs the rule checks", map[string]any{"provider": "anthropic"}, false},
+		{"an unknown mode runs the rule checks", map[string]any{"mode": "llm", "provider": "anthropic"}, false},
 		{"unset + no provider", map[string]any{}, false},
 	}
 	for _, c := range cases {

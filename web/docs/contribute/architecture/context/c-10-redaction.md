@@ -186,7 +186,9 @@ else the defaults (`KapiProject.RedactionForPath`, which `host.RedactionFor`
 wraps). The declaration replaces the others whole. Rule files, detectors and
 placeholders are not merged across levels, so what a collection declares is
 the complete policy for its files, and `enabled: false` takes them out of
-redaction. Content in no file (an MCP call's text) falls under the defaults.
+redaction. One check (`RedactionSpec.validateAt`) holds every level to the
+same shape: a declaration that sets `rules`, `detectors` or `placeholder`
+without `enabled: true` fails the recipe load. Content in no file (an MCP call's text) falls under the defaults.
 
 A policy with one reader is a policy that fails open everywhere else, so the
 policy is read at every point content can leave, and each reader asks for the

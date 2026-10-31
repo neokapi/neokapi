@@ -25,7 +25,8 @@ progress. `MTProvider` is one method: plain text in, plain text out. The
 framework ships built-in LLM backends and **no** classic MT
 engines: the translation core is LLM-first, and MT engines arrive as plugins that
 register a config factory. On the CLI surface there is one `translate` command
-and one `qa` command across every backend; `--provider` selects.
+across every backend, selected by `--provider`, and one `qa` command, whose
+`--mode` selects the rule checks or the AI review.
 
 ## Context
 

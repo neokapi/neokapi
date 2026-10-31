@@ -194,6 +194,10 @@ func loadDirFlowFile(path, name string) *DirFlow {
 		def.Err = err
 		return def
 	}
+	if err := flow.CheckStepConfigs(file.Steps, "steps"); err != nil {
+		def.Err = fmt.Errorf("project: flow %s: %w", path, err)
+		return def
+	}
 
 	spec := file.StepsSpec
 	def.Spec = &spec

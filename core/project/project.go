@@ -462,10 +462,20 @@ type RedactionSpec struct {
 	Placeholder string `yaml:"placeholder,omitempty" json:"placeholder,omitempty"`
 }
 
-// validate checks the spec's detector names. Detector identifiers mirror the
-// redact tool's constants ("rules", "entities"); project keeps them as
-// literals to avoid depending on the tools package.
-func (r *RedactionSpec) validate() error {
+// validateAt checks a redaction declaration at the recipe key at, such as
+// `defaults.redaction` or `collections[1].content[0].redaction`. Every scope
+// is checked by this one function.
+//
+// Detector identifiers mirror the redact tool's constants ("rules",
+// "entities"); project keeps them as literals to avoid depending on the tools
+// package.
+//
+// A declaration that names rules, detectors or a placeholder without
+// `enabled: true` reads as a policy and redacts nothing: a scoped one replaces
+// the defaults whole and so switches redaction off for its files, and the
+// defaults' one leaves the project unredacted. It is refused. `enabled: false`
+// alone is the way to switch redaction off.
+func (r *RedactionSpec) validateAt(at string) error {
 	if r == nil {
 		return nil
 	}
@@ -473,23 +483,25 @@ func (r *RedactionSpec) validate() error {
 		switch d {
 		case "rules", "entities":
 		default:
-			return fmt.Errorf("redaction: unknown detector %q (want \"rules\" or \"entities\")", d)
+			return fmt.Errorf("%s: unknown detector %q (want \"rules\" or \"entities\")", at, d)
 		}
 	}
-	return nil
-}
-
-// validateScoped checks a collection's or an item's redaction. Such a
-// declaration replaces the defaults whole, so one that names rules, detectors
-// or a placeholder without `enabled: true` would switch redaction off for its
-// files while reading as a policy. It is refused. `defaults.redaction` is
-// checked by validate alone and keeps its "declared but off" form.
-func (r *RedactionSpec) validateScoped() error {
-	if err := r.validate(); err != nil {
-		return err
+	if r.Enabled {
+		return nil
 	}
-	if r != nil && !r.Enabled && (r.Rules != "" || len(r.Detectors) > 0 || r.Placeholder != "") {
-		return errors.New("redaction: rules, detectors or placeholder are set but enabled is not true; set enabled: true, or enabled: false alone to switch redaction off for these files")
+	var set []string
+	if r.Rules != "" {
+		set = append(set, "rules")
+	}
+	if len(r.Detectors) > 0 {
+		set = append(set, "detectors")
+	}
+	if r.Placeholder != "" {
+		set = append(set, "placeholder")
+	}
+	if len(set) > 0 {
+		return fmt.Errorf("%s sets %s without enabled: true, so it redacts nothing. Write enabled: true to apply the policy, or enabled: false with no other key to switch redaction off",
+			at, strings.Join(set, " and "))
 	}
 	return nil
 }
@@ -1051,10 +1063,10 @@ func LoadWithOptions(path string, opts LoadOptions) (*KapiProject, error) {
 	}
 
 	if err := proj.validate(opts); err != nil {
-		return nil, fmt.Errorf("invalid project file: %w", err)
+		return nil, fmt.Errorf("invalid project file %s: %w", path, err)
 	}
 	if err := proj.checkPlaceShapes(filepath.Dir(path)); err != nil {
-		return nil, fmt.Errorf("invalid project file: %w", err)
+		return nil, fmt.Errorf("invalid project file %s: %w", path, err)
 	}
 	// A key that is nearly a field is preserved like any other unknown one, so
 	// nothing above this line notices it. See keywarnings.go and #2223.
@@ -1134,7 +1146,7 @@ func (p *KapiProject) validate(opts LoadOptions) error {
 	if err := p.Defaults.Memory.validate(); err != nil {
 		return err
 	}
-	if err := p.Defaults.Redaction.validate(); err != nil {
+	if err := p.Defaults.Redaction.validateAt("defaults.redaction"); err != nil {
 		return err
 	}
 	if err := p.Defaults.Voice.validate("defaults.voice"); err != nil {
@@ -1156,8 +1168,8 @@ func (p *KapiProject) validate(opts LoadOptions) error {
 		if err := c.validateSourceOnly(i); err != nil {
 			return err
 		}
-		if err := c.Redaction.validateScoped(); err != nil {
-			return fmt.Errorf("collections[%d]: %w", i, err)
+		if err := c.Redaction.validateAt(fmt.Sprintf("collections[%d].redaction", i)); err != nil {
+			return err
 		}
 		if c.IsBareEntry() {
 			if c.Path == "" {
@@ -1177,8 +1189,8 @@ func (p *KapiProject) validate(opts LoadOptions) error {
 				if err := item.validateCommentsOnly(fmt.Sprintf("collections[%d].content[%d]", i, j)); err != nil {
 					return err
 				}
-				if err := item.Redaction.validateScoped(); err != nil {
-					return fmt.Errorf("collections[%d].content[%d]: %w", i, j, err)
+				if err := item.Redaction.validateAt(fmt.Sprintf("collections[%d].content[%d].redaction", i, j)); err != nil {
+					return err
 				}
 				field := fmt.Sprintf("collections[%d].content[%d].comments.directives", i, j)
 				if err := validateDirectives(field, item.Comments.Directives, p.Defaults.Comments.Directives); err != nil {
@@ -1199,6 +1211,9 @@ func (p *KapiProject) validate(opts LoadOptions) error {
 		if err := flow.CheckRenamedTools(spec.Steps); err != nil {
 			return fmt.Errorf("flow %q %w", name, err)
 		}
+	}
+	if err := p.validateToolConfigs(); err != nil {
+		return err
 	}
 	if err := p.validateRequiresSyntax(); err != nil {
 		return err
@@ -1228,6 +1243,39 @@ func (p *KapiProject) validate(opts LoadOptions) error {
 	}
 	if err := p.validateLocales(); err != nil {
 		return err
+	}
+	return nil
+}
+
+// validateToolConfigs refuses a tool config the recipe may not hold
+// (registry.StepConfigError), in every place the recipe writes one: a flow
+// step, a `defaults.tools` preset and a per-locale preset under
+// `defaults.locales`. Flows, tools and locales are visited in name order, so
+// a recipe with two such configs always reports the same one first.
+func (p *KapiProject) validateToolConfigs() error {
+	for _, name := range sortedKeys(p.Flows) {
+		if spec := p.Flows[name]; spec != nil {
+			if err := flow.CheckStepConfigs(spec.Steps, fmt.Sprintf("flows.%s.steps", name)); err != nil {
+				return err
+			}
+		}
+	}
+	presets := func(tools map[string]map[string]any, at string) error {
+		for _, id := range sortedKeys(tools) {
+			where := at + "." + id
+			if err := registry.StepConfigError(registry.ToolID(id), tools[id], where, where); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	if err := presets(p.Defaults.Tools, "defaults.tools"); err != nil {
+		return err
+	}
+	for _, loc := range sortedKeys(p.Defaults.Locales) {
+		if err := presets(p.Defaults.Locales[loc].Tools, fmt.Sprintf("defaults.locales.%s.tools", loc)); err != nil {
+			return err
+		}
 	}
 	return nil
 }
