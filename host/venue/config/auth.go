@@ -146,3 +146,23 @@ func DeleteAuth(serverURL string) error {
 	}
 	return nil
 }
+
+// StoredSignIn reports the server the stored sign-in names and who it signs
+// in, without reading the OS keychain, so a page can show whether a server is
+// signed in to without a keychain prompt. With BOWRAIN_AUTH_TOKEN set, the
+// server is BOWRAIN_SERVER_URL and the user is empty. ok is false when
+// nothing is stored.
+func StoredSignIn() (serverURL string, user StoredUser, ok bool) {
+	if os.Getenv("BOWRAIN_AUTH_TOKEN") != "" {
+		return NormalizeServerURL(os.Getenv("BOWRAIN_SERVER_URL")), StoredUser{}, true
+	}
+	data, err := os.ReadFile(AuthFilePath())
+	if err != nil {
+		return "", StoredUser{}, false
+	}
+	var a StoredAuth
+	if err := json.Unmarshal(data, &a); err != nil || a.ServerURL == "" {
+		return "", StoredUser{}, false
+	}
+	return NormalizeServerURL(a.ServerURL), a.User, true
+}

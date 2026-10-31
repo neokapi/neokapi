@@ -45,7 +45,7 @@ import { useInvalidateOnEvent } from "../hooks/useInvalidateOnEvent";
 import { useShortenHome } from "../hooks/useShortenHome";
 import { ShareSetupDialog } from "./ShareSetupDialog";
 import { BowrainPreviewSheet } from "./BowrainPreviewSheet";
-import { useLocalPreviewPort } from "../lib/previewPort";
+import { usePreviewPort } from "../lib/previewPort";
 import { api } from "../hooks/useApi";
 import type {
   ContextSyncResult,
@@ -125,8 +125,6 @@ export function SharePanel({
   const qc = useQueryClient();
   const [settingUp, setSettingUp] = useState(false);
   const [previewing, setPreviewing] = useState(false);
-  const localPort = useLocalPreviewPort(tabID);
-  const previewPort = givenPort ?? localPort;
   const [result, setResult] = useState<ContextSyncResult | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
 
@@ -157,6 +155,8 @@ export function SharePanel({
   });
 
   const view = given ?? query.data ?? null;
+  const preview = usePreviewPort(tabID, view);
+  const previewPort = givenPort ?? preview.port;
   if (query.error && !given) {
     return (
       <ErrorNotice
@@ -237,6 +237,10 @@ export function SharePanel({
           onOpenChange={setPreviewing}
           projectName={projectName || t("This project")}
           port={previewPort}
+          source={preview.source}
+          serverURL={venueServer(view.sharing.venue_url)}
+          projectURL={venueLink(view.sharing)}
+          signedOut={!!view.sharing.venue_host && !view.signed_in}
         />
       )}
 
@@ -732,6 +736,16 @@ export function venueLink(
   const host = sharing.venue_host;
   if (host && url.hostname !== host && url.host !== host) return null;
   return url.href;
+}
+
+/** The server a Bowrain project URL is on: its scheme and host. */
+export function venueServer(url?: string): string | undefined {
+  if (!url) return undefined;
+  try {
+    return new URL(url).origin;
+  } catch {
+    return undefined;
+  }
 }
 
 /** The workspace and project a Bowrain URL names: its path, without slashes. */

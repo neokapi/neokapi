@@ -12,6 +12,10 @@ import type {
   DigestConflict,
   DigestItem,
   DigestSubject,
+  KeptRule,
+  MapSummary,
+  ReaderFile,
+  RulesDecideView,
 } from "@neokapi/project-screens";
 export type {
   ContextActor,
@@ -876,8 +880,34 @@ export interface ShareView {
   rules?: number;
   /** Whether the kapi-bowrain plugin is installed. */
   bowrain_plugin: boolean;
+  /** Whether a sign-in on this Mac names the server the recipe connects to. */
+  signed_in?: boolean;
+  /** The name, or else the email, that sign-in carries. */
+  signed_in_as?: string;
   /** What reading the recipe's place reported; the page then stands on this Mac. */
   error?: string;
+}
+
+/** A part of a connected project the Share page's preview reads from Bowrain. */
+export type BowrainPreviewPart = "map" | "reader" | "decide" | "kept";
+
+/** Why the server, or this Mac, read nothing for the preview. */
+export interface PreviewRefusal {
+  /** The server's HTTP status; 0 when no request was sent. */
+  status: number;
+  /** The server's error, word for word; absent when no request was sent. */
+  message?: string;
+  /** The action that answers the refusal. */
+  action?: "sign_in" | "open";
+}
+
+/** One part of a connected project as the Bowrain server shows it, or its refusal. */
+export interface BowrainPreviewAnswer {
+  map?: MapSummary;
+  reader?: ReaderFile;
+  decide?: RulesDecideView;
+  kept?: KeptRule[];
+  refusal?: PreviewRefusal;
 }
 
 /** The `context:` block of a recipe: where the project's context is shared. */

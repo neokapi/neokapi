@@ -76,6 +76,35 @@ func TestLoadAuthNoMetadataFile(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestStoredSignInReadsNoKeychain(t *testing.T) {
+	keyring.MockInit()
+	dir := t.TempDir()
+	t.Setenv("BOWRAIN_CONFIG_DIR", dir)
+	t.Setenv("BOWRAIN_AUTH_TOKEN", "")
+
+	_, _, ok := StoredSignIn()
+	assert.False(t, ok, "nothing stored")
+
+	require.NoError(t, SaveAuth(StoredAuth{
+		ServerURL:   "https://bowrain.example.com/",
+		AccessToken: "a",
+		User:        StoredUser{Name: "Mira Holt", Email: "mira@example.com"},
+	}))
+	// A keychain that answers nothing leaves the metadata readable.
+	require.NoError(t, keyring.Delete(keyringService, keyringAccessKey("https://bowrain.example.com/")))
+	server, user, ok := StoredSignIn()
+	require.True(t, ok)
+	assert.Equal(t, "https://bowrain.example.com", server)
+	assert.Equal(t, "Mira Holt", user.Name)
+
+	t.Setenv("BOWRAIN_AUTH_TOKEN", "env-token")
+	t.Setenv("BOWRAIN_SERVER_URL", "https://env.example.com")
+	server, user, ok = StoredSignIn()
+	require.True(t, ok)
+	assert.Equal(t, "https://env.example.com", server)
+	assert.Empty(t, user.Name)
+}
+
 func TestDeleteAuthClearsKeychainAndFile(t *testing.T) {
 	keyring.MockInit()
 	dir := t.TempDir()

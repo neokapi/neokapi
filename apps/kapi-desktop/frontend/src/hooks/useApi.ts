@@ -38,6 +38,8 @@ import type {
   ReaderFile,
   RulesDecideView,
   KeptRule,
+  BowrainPreviewAnswer,
+  BowrainPreviewPart,
   RuleAnswer,
   RuleDecideResult,
   ConvergenceReport,
@@ -550,6 +552,9 @@ export const api = {
   rulesDecideView: (tabID: string) => call<RulesDecideView>("RulesDecideView", tabID),
   /** The rules in force in the tab's project that name who kept them. */
   keptRules: (tabID: string) => call<KeptRule[]>("KeptRules", tabID),
+  /** One part of the tab's project as the Bowrain server its recipe connects to shows it. */
+  bowrainPreview: (tabID: string, part: BowrainPreviewPart, item = "") =>
+    call<BowrainPreviewAnswer>("BowrainPreview", tabID, part, item),
   /**
    * Record one answer: keep (with the form a kept name writes, empty for the
    * suggestion's own), drop (Not a rule) or later. `id` names the suggestion,
