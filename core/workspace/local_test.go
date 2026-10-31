@@ -249,3 +249,11 @@ func TestSegmentCarriesTheSubject(t *testing.T) {
 	assert.Equal(t, "d_1@de", back[0].Subject)
 	assert.Empty(t, back[1].Subject)
 }
+
+// A key derived from a checkout is told from a key a recipe states.
+func TestIsCheckoutKey(t *testing.T) {
+	assert.True(t, workspace.IsCheckoutKey(workspace.KeyForCheckout("/fakehome/src/site")))
+	for _, key := range []workspace.ProjectKey{"", "site", "p_01hzx", "at_", "at_short", "at_ABCDEFGHIJKLMNOP", "at_abcdefghijklmno1"} {
+		assert.False(t, workspace.IsCheckoutKey(key), key)
+	}
+}

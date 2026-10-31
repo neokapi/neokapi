@@ -3,7 +3,9 @@ package server
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/labstack/echo/v4"
@@ -31,6 +33,13 @@ const (
 	// contextObjectNoProjectCode answers a push to a project id the store
 	// does not hold, with status 404.
 	contextObjectNoProjectCode = apiclient.ContextObjectNoProjectCode
+	// contextKeyMismatchCode answers a push whose segments name a project key
+	// other than the one the project's context is bound to, or two keys,
+	// with status 409.
+	contextKeyMismatchCode = apiclient.ContextKeyMismatchCode
+	// contextCheckoutKeyCode answers a push whose segments name a key derived
+	// from one checkout (workspace.KeyForCheckout), with status 422.
+	contextCheckoutKeyCode = apiclient.ContextCheckoutKeyCode
 )
 
 // requestBodyLimit bounds every request body the server reads. A push of
@@ -168,6 +177,9 @@ func (s *Server) HandlePutContextObjects(c echo.Context) error {
 	} else if err != nil {
 		return serverErr(c, err)
 	}
+	if refused, err := bindContextKey(c, cos, batch); refused || err != nil {
+		return err
+	}
 	pushedBy, _ := c.Get("user_id").(string)
 	err := cos.PutContextObjects(ctx, projectID, pushedBy, batch)
 	if exists, ok := errors.AsType[*platstore.ContextObjectExistsError](err); ok {
@@ -179,4 +191,65 @@ func (s *Server) HandlePutContextObjects(c echo.Context) error {
 		return serverErr(c, err)
 	}
 	return c.NoContent(http.StatusNoContent)
+}
+
+// bindContextKey binds the project's context to the project key the batch's
+// segments name, on the push that first names one, and refuses a batch that
+// names another key, two keys, or a key derived from one checkout. refused
+// reports that the answer has been written. A batch whose objects name no key
+// (blobs, checkpoints) binds nothing.
+func bindContextKey(c echo.Context, cos platstore.ContextObjectStore, batch []platstore.ContextObject) (refused bool, err error) {
+	var keys []workspace.ProjectKey
+	for _, obj := range batch {
+		if !strings.HasPrefix(obj.Name, workspace.RemoteLogDir) {
+			continue
+		}
+		for _, key := range segmentKeys(obj.Data) {
+			if !slices.Contains(keys, key) {
+				keys = append(keys, key)
+			}
+		}
+	}
+	if len(keys) == 0 {
+		return false, nil
+	}
+	if len(keys) > 1 {
+		return true, c.JSON(http.StatusConflict, ErrorResponse{
+			Error: fmt.Sprintf("the push carries the context of two projects, project key %s and project key %s", keys[0], keys[1]),
+			Code:  contextKeyMismatchCode,
+		})
+	}
+	key := keys[0]
+	if workspace.IsCheckoutKey(key) {
+		return true, c.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+			Error:   checkoutKeyRefusal(key),
+			Details: string(key),
+			Code:    contextCheckoutKeyCode,
+		})
+	}
+	held, err := cos.BindContextKey(c.Request().Context(), c.Param("id"), string(key))
+	if errors.Is(err, platstore.ErrNoContextProject) {
+		return true, c.JSON(http.StatusNotFound, ErrorResponse{Error: "project not found", Code: contextObjectNoProjectCode})
+	}
+	if err != nil {
+		return true, serverErr(c, err)
+	}
+	if held != string(key) {
+		return true, c.JSON(http.StatusConflict, ErrorResponse{
+			Error:   keyMismatchRefusal(workspace.ProjectKey(held), key),
+			Details: string(key),
+			Code:    contextKeyMismatchCode,
+		})
+	}
+	return false, nil
+}
+
+// keyMismatchRefusal says why a push naming another project key is refused.
+func keyMismatchRefusal(bound, pushed workspace.ProjectKey) string {
+	return fmt.Sprintf("this project's context belongs to project key %s, and the push carries project key %s", bound, pushed)
+}
+
+// checkoutKeyRefusal says why a push naming a checkout's key is refused.
+func checkoutKeyRefusal(key workspace.ProjectKey) string {
+	return fmt.Sprintf("the push carries project key %s, which belongs to one checkout because kapi.yaml states neither id: nor name:. Name the project in kapi.yaml, then push again", key)
 }

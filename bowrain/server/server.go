@@ -77,6 +77,9 @@ type Server struct {
 	// termSnapshots keeps each workspace's terms snapshot under the revision
 	// it was read at (termSnapshotCache).
 	termSnapshots termSnapshotCache
+	// contextLogs keeps each project's context ledger log as last read,
+	// under the segments it was read from (ContextLedger).
+	contextLogs contextLogCache
 
 	// CredentialStore manages AI provider credentials.
 	CredentialStore *credentials.Store
