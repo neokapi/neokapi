@@ -12,6 +12,7 @@ import type {
   RuleAnswer,
   RuleDecideResult,
   RulesDecideView,
+  ScreenMember,
 } from "./types";
 
 /** A place a screen leads to. The host maps each to a view of its own. */
@@ -56,7 +57,13 @@ export interface ProjectScreensPort {
   decideConsequence?(id: string, form: string): Promise<string>;
   /** Record an answer. Absent, Decide draws no Keep, Not a rule or Later. */
   decide?(id: string, answer: RuleAnswer, form?: string): Promise<RuleDecideResult>;
+  /**
+   * Assign a question to a member, or to no one. Absent, Decide draws no
+   * Assigned to column, picker or filter.
+   */
   assign?(id: string, userId: string | null): Promise<void>;
+  /** The members a question can be assigned to, read where assign is present. */
+  members?(): Promise<ScreenMember[]>;
   /**
    * Apply one finding's fix and answer with the file read again, or file it as
    * a proposal and answer with what was filed. Absent, the Reader draws no Fix.

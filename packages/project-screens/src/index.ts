@@ -26,6 +26,7 @@ export type {
   RuleDecision,
   RuleOption,
   RulesDecideView,
+  ScreenMember,
 } from "./types";
 
 export type { ProjectScreensPort, ScreenNavigation, ScreenTarget } from "./port";

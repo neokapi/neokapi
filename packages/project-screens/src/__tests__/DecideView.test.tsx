@@ -293,3 +293,117 @@ describe("where Decide leads", () => {
     expect(slot("decide-noticed")!.textContent).toContain("you");
   });
 });
+
+describe("Decide on a host that assigns questions", () => {
+  const MEMBERS = [
+    { id: "u-me", name: "Ada Holt", me: true },
+    { id: "u-mira", name: "Mira Holt" },
+  ];
+  // The name is the reader's; the word is a teammate's; the rest are no one's.
+  const ASSIGNED: RulesDecideView = {
+    ...DECIDE_VIEW,
+    decisions: DECIDE_VIEW.decisions.map((d) => {
+      if (d.id === NAME_DECISION.id) {
+        return { ...d, assignee: { kind: "person" }, assignee_id: "u-me" };
+      }
+      if (d.id === WORD_DECISION.id) {
+        return { ...d, assignee: { kind: "person", name: "Mira Holt" }, assignee_id: "u-mira" };
+      }
+      return d;
+    }),
+  };
+  const assignee = () => all("decide-assignee").map((el) => el.textContent);
+
+  function renderAssigning(extra: Partial<DecideViewProps> = {}) {
+    const onAssign = vi.fn().mockResolvedValue(undefined);
+    const out = renderDecide(ASSIGNED, { onAssign, members: MEMBERS, ...extra });
+    return { ...out, onAssign };
+  }
+
+  it("ends each row with who holds the question, or a dash", () => {
+    renderAssigning();
+    expect(slot("decide-columns")!.textContent).toBe("SuggestionsAssigned to");
+    expect(assignee()).toEqual(["–", "You", "Mira Holt", "–"]);
+  });
+
+  it("names the reader by the name the host gives", () => {
+    renderAssigning({ nameOf: (who) => (who.name ? undefined : "Ada Holt") });
+    expect(assignee()[1]).toBe("Ada Holt");
+  });
+
+  it("assigns the selected question to the member picked, or to nobody", async () => {
+    const { onAssign } = renderAssigning({ defaultSelected: `suggested:${WORD_DECISION.id}` });
+    const picker = screen.getByRole("combobox", { name: "Assigned to" });
+    expect(picker).toHaveTextContent("Mira Holt");
+    await userEvent.click(picker);
+    await userEvent.click(screen.getByRole("option", { name: "Ada Holt" }));
+    expect(onAssign).toHaveBeenLastCalledWith(
+      expect.objectContaining({ id: WORD_DECISION.id }),
+      "u-me",
+    );
+    expect(assignee()[2]).toBe("Ada Holt");
+
+    await userEvent.click(screen.getByRole("combobox", { name: "Assigned to" }));
+    await userEvent.click(screen.getByRole("option", { name: "Nobody" }));
+    expect(onAssign).toHaveBeenLastCalledWith(
+      expect.objectContaining({ id: WORD_DECISION.id }),
+      null,
+    );
+    expect(assignee()[2]).toBe("–");
+  });
+
+  it("puts an assignment back when it is not recorded", async () => {
+    const onAssign = vi.fn().mockRejectedValue(new Error("not a member"));
+    renderDecide(ASSIGNED, {
+      onAssign,
+      members: MEMBERS,
+      defaultSelected: `suggested:${WORD_DECISION.id}`,
+    });
+    await userEvent.click(screen.getByRole("combobox", { name: "Assigned to" }));
+    await userEvent.click(screen.getByRole("option", { name: "Nobody" }));
+    expect(await screen.findByText("The assignment was not recorded")).toBeInTheDocument();
+    expect(assignee()[2]).toBe("Mira Holt");
+  });
+
+  it("narrows the list to the questions assigned to the reader", async () => {
+    renderAssigning();
+    const mine = screen.getByRole("button", { name: /Assigned to me/ });
+    expect(mine).toHaveTextContent("Assigned to me1");
+    await userEvent.click(mine);
+    expect(all("decide-item").map((r) => r.getAttribute("data-id"))).toEqual([NAME_DECISION.id]);
+    expect(selectedId()).toBe(NAME_DECISION.id);
+    // The counts still state every question waiting.
+    expect(slot("decide-counts")!.textContent).toBe("4 to decide · 14 kept");
+    await userEvent.click(mine);
+    expect(all("decide-item")).toHaveLength(4);
+  });
+
+  it("says nothing is assigned to the reader, with the way back to every question", async () => {
+    renderDecide(DECIDE_VIEW, { onAssign: vi.fn(), members: MEMBERS, defaultAssignedToMe: true });
+    expect(screen.getByText("Nothing assigned to you.")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Show every question" }));
+    expect(all("decide-item")).toHaveLength(4);
+  });
+
+  it("leaves a question's assignee as it is when it is left for later", async () => {
+    const { onAssign, onAnswer } = renderAssigning({
+      defaultSelected: `suggested:${NAME_DECISION.id}`,
+    });
+    await userEvent.click(screen.getByRole("button", { name: /Later/ }));
+    expect(onAnswer).toHaveBeenCalledWith(
+      expect.objectContaining({ id: NAME_DECISION.id }),
+      "later",
+      expect.anything(),
+    );
+    expect(onAssign).not.toHaveBeenCalled();
+  });
+
+  it("draws no column, picker or filter without onAssign", () => {
+    renderDecide(ASSIGNED, { members: MEMBERS, defaultAssignedToMe: true });
+    expect(slot("decide-columns")).toBeNull();
+    expect(all("decide-assignee")).toHaveLength(0);
+    expect(slot("decide-assign")).toBeNull();
+    expect(slot("decide-mine")).toBeNull();
+    expect(all("decide-item")).toHaveLength(4);
+  });
+});

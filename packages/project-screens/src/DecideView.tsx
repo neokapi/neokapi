@@ -14,6 +14,10 @@
 // option numbers pick an option. An answer is recorded at once through
 // onAnswer, and the next question is selected. Without onAnswer the pane draws
 // the question and its evidence and no way to answer it.
+//
+// On a host that assigns questions (onAssign), each row ends with the member
+// it is assigned to, the detail pane holds a picker of the members, and the
+// header holds an Assigned to me filter. Later leaves the assignment as it is.
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FileText } from "lucide-react";
@@ -25,20 +29,34 @@ import {
   Input,
   KindIcon,
   ListDetail,
+  ListDetailGroup,
   ListDetailItem,
   ListDetailList,
   ListDetailPane,
   ListDetailToolbar,
   LoadingSpinner,
   PageHeader,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   SimpleTooltip,
+  Toggle,
   cn,
   useListNavigation,
   type DigestKind,
 } from "@neokapi/ui-primitives";
 import { NoticedBy } from "./NoticedBy";
 import { opens, type ScreenNavigation } from "./port";
-import type { ContextActor, RuleAnswer, RuleDecision, RuleOption, RulesDecideView } from "./types";
+import type {
+  ContextActor,
+  RuleAnswer,
+  RuleDecision,
+  RuleOption,
+  RulesDecideView,
+  ScreenMember,
+} from "./types";
 
 /** The option a keep takes: one of the options, or a form the person typed. */
 export type DecidePick = { option: number } | { other: string };
@@ -90,6 +108,42 @@ function decisionKind(d: RuleDecision): DigestKind {
 /** The name a person is shown by, where the host knows one. */
 type NameOf = (who: ContextActor) => string | undefined;
 
+/** Who holds a question: the member's id and name, and whether it is the reader. */
+interface Held {
+  id: string | null;
+  name?: string;
+  mine: boolean;
+}
+
+/** The value the picker gives a question assigned to no one. */
+const NOBODY = "nobody";
+
+/**
+ * Who holds a question: the member an assignment made on this screen names,
+ * or else the assignee the view carries. A person with no name is the reader.
+ */
+function heldBy(
+  d: RuleDecision,
+  local: string | null | undefined,
+  members: readonly ScreenMember[],
+  nameOf: NameOf | undefined,
+): Held {
+  if (local !== undefined) {
+    if (local === null) return { id: null, mine: false };
+    const m = members.find((x) => x.id === local);
+    return { id: local, name: m?.name ?? local, mine: !!m?.me };
+  }
+  const who = d.assignee;
+  if (!who) return { id: null, mine: false };
+  const mine = !who.name;
+  const id = d.assignee_id ?? (mine ? (members.find((m) => m.me)?.id ?? null) : null);
+  const name =
+    nameOf?.(who) ||
+    who.name ||
+    (mine ? t("You", "the reader, as a question's assignee") : undefined);
+  return { id, name, mine };
+}
+
 export interface DecideViewProps extends ScreenNavigation {
   /** The questions, null while the first read is in flight. */
   view: RulesDecideView | null;
@@ -110,6 +164,15 @@ export interface DecideViewProps extends ScreenNavigation {
   onOtherForm?: (d: RuleDecision, form: string) => void;
   /** The name a person is shown by. Absent, a person with no name is "you". */
   nameOf?: NameOf;
+  /**
+   * Assign a question to a member, or to no one. A rejection puts the
+   * assignment back and says so. Absent, no assignment is drawn.
+   */
+  onAssign?: (d: RuleDecision, userId: string | null) => Promise<unknown>;
+  /** The members the picker offers. */
+  members?: readonly ScreenMember[];
+  /** Open with the list narrowed to the questions assigned to the reader. */
+  defaultAssignedToMe?: boolean;
 }
 
 export function DecideView({
@@ -122,6 +185,9 @@ export function DecideView({
   otherConsequence,
   onOtherForm,
   nameOf,
+  onAssign,
+  members = [],
+  defaultAssignedToMe = false,
   navigate,
   canNavigate,
 }: DecideViewProps) {
@@ -150,11 +216,25 @@ export function DecideView({
   );
   const waiting = (view?.decisions ?? []).filter((d) => later.has(decisionKey(d))).length;
 
-  const opened = decisionForRow(decisions, defaultSelected);
+  // Assignments made on this screen, by question key, until the view is read again.
+  const [assigned, setAssigned] = useState<{
+    of: RulesDecideView | null;
+    keys: Record<string, string | null>;
+  }>({ of: null, keys: {} });
+  const local = assigned.of === view ? assigned.keys : {};
+  const held = (d: RuleDecision): Held => {
+    const key = decisionKey(d);
+    return heldBy(d, key in local ? local[key] : undefined, members, nameOf);
+  };
+  const [mineOnly, setMineOnly] = useState(defaultAssignedToMe && !!onAssign);
+  const mine = onAssign ? decisions.filter((d) => held(d).mine) : [];
+  const shown = onAssign && mineOnly ? mine : decisions;
+
+  const opened = decisionForRow(shown, defaultSelected);
   const [chosen, setChosen] = useState<string | null>(opened ? decisionKey(opened) : null);
   const selected =
-    decisions.find((d) => decisionKey(d) === chosen) ??
-    (chosen === null ? (opened ?? decisions[0]) : decisions[0]);
+    shown.find((d) => decisionKey(d) === chosen) ??
+    (chosen === null ? (opened ?? shown[0]) : shown[0]);
   const selectedKey = selected ? decisionKey(selected) : null;
 
   // The option picked on each question, by its key, until it is answered.
@@ -174,8 +254,8 @@ export function DecideView({
     if (!selected || !onAnswer) return;
     if (a === "keep" && "other" in pick && !pick.other.trim()) return;
     const key = decisionKey(selected);
-    const at = decisions.indexOf(selected);
-    const next = decisions[at + 1] ?? decisions[at - 1];
+    const at = shown.indexOf(selected);
+    const next = shown[at + 1] ?? shown[at - 1];
     if (a === "later") setLater((s) => new Set([...s, key]));
     else setAnswered({ of: view, keys: new Set([...gone, key]) });
     setChosen(next ? decisionKey(next) : null);
@@ -189,8 +269,24 @@ export function DecideView({
     });
   };
 
+  const [assignFailure, setAssignFailure] = useState<{ key: string; error: unknown } | null>(null);
+  const assign = (d: RuleDecision, userId: string | null) => {
+    if (!onAssign) return;
+    const key = decisionKey(d);
+    setAssigned({ of: view, keys: { ...local, [key]: userId } });
+    setAssignFailure(null);
+    onAssign(d, userId).catch((err: unknown) => {
+      setAssignFailure({ key, error: err });
+      setAssigned((s) => {
+        const keys = { ...s.keys };
+        delete keys[key];
+        return { ...s, keys };
+      });
+    });
+  };
+
   const nav = useListNavigation({
-    ids: decisions.map(decisionKey),
+    ids: shown.map(decisionKey),
     selectedId: selectedKey,
     onSelect: setChosen,
   });
@@ -257,6 +353,21 @@ export function DecideView({
           </span>
         ) : undefined
       }
+      actions={
+        onAssign &&
+        decisions.length > 0 && (
+          <Toggle
+            size="sm"
+            variant="outline"
+            data-slot="decide-mine"
+            pressed={mineOnly}
+            onPressedChange={setMineOnly}
+          >
+            {t("Assigned to me")}
+            <span className="tabular-nums text-muted-foreground">{mine.length}</span>
+          </Toggle>
+        )
+      }
     />
   );
 
@@ -310,6 +421,17 @@ export function DecideView({
               }
             />
           </div>
+        ) : shown.length === 0 ? (
+          <div className="mx-auto max-w-xl p-6" data-slot="decide-mine-empty">
+            <EmptyState
+              title={t("Nothing assigned to you.")}
+              action={
+                <Button size="sm" variant="outline" onClick={() => setMineOnly(false)}>
+                  Show every question
+                </Button>
+              }
+            />
+          </div>
         ) : (
           <ListDetail
             list={
@@ -318,8 +440,19 @@ export function DecideView({
                 onSelect={setChosen}
                 aria-label={t("Suggestions to decide")}
               >
-                {decisions.map((d) => (
-                  <DecideRow key={decisionKey(d)} decision={d} />
+                {onAssign && (
+                  <ListDetailGroup
+                    data-slot="decide-columns"
+                    label={t("Suggestions")}
+                    count={t("Assigned to")}
+                  />
+                )}
+                {shown.map((d) => (
+                  <DecideRow
+                    key={decisionKey(d)}
+                    decision={d}
+                    held={onAssign ? held(d) : undefined}
+                  />
                 ))}
               </ListDetailList>
             }
@@ -336,6 +469,18 @@ export function DecideView({
                   onOpenFile={onOpenFile}
                   nameOf={nameOf}
                   failure={failure?.key === selectedKey ? failure.error : undefined}
+                  assignee={
+                    onAssign && (
+                      <AssigneePicker
+                        held={held(selected)}
+                        members={members}
+                        onAssign={(userId) => assign(selected, userId)}
+                        failure={
+                          assignFailure?.key === selectedKey ? assignFailure.error : undefined
+                        }
+                      />
+                    )
+                  }
                 />
               )
             }
@@ -346,8 +491,11 @@ export function DecideView({
   );
 }
 
-/** One row of the list: the kind, the wording, and how much it covers. */
-function DecideRow({ decision: d }: { decision: RuleDecision }) {
+/**
+ * One row of the list: the kind, the wording, and how much it covers, and on
+ * a host that assigns questions the member who holds it, or a dash.
+ */
+function DecideRow({ decision: d, held }: { decision: RuleDecision; held?: Held }) {
   return (
     <ListDetailItem
       id={decisionKey(d)}
@@ -355,7 +503,26 @@ function DecideRow({ decision: d }: { decision: RuleDecision }) {
       data-id={d.id ?? d.options[0]?.id}
       data-kind={d.kind}
       leading={<KindIcon kind={decisionKind(d)} />}
-      trailing={<RowMeta decision={d} />}
+      trailing={
+        <>
+          <RowMeta decision={d} />
+          {held && (
+            <span
+              data-slot="decide-assignee"
+              data-mine={held.mine || undefined}
+              className="w-24 truncate text-right text-[11px] text-muted-foreground"
+              title={held.name}
+              translate="no"
+            >
+              {held.id === null && !held.name ? (
+                <span aria-label={t("Nobody", "no member holds the question")}>–</span>
+              ) : (
+                held.name
+              )}
+            </span>
+          )}
+        </>
+      }
     >
       <span translate="no">{d.label || d.seen?.quote || d.sentence}</span>
     </ListDetailItem>
@@ -411,6 +578,8 @@ interface QuestionProps {
   nameOf?: NameOf;
   /** Why the last answer to this question was not recorded. */
   failure?: unknown;
+  /** The picker of who holds the question, on a host that assigns questions. */
+  assignee?: React.ReactNode;
 }
 
 /** The detail pane: the question, its options, what keeping does, the actions and the evidence. */
@@ -424,6 +593,7 @@ function Question({
   onOpenFile,
   nameOf,
   failure,
+  assignee,
 }: QuestionProps) {
   const disagreement = d.kind === "disagreement";
   // A typed form is only ever kept, so a pane that keeps nothing takes none.
@@ -551,6 +721,7 @@ function Question({
           <ErrorNotice error={failure} title={t("The answer was not recorded")} />
         </div>
       )}
+      {assignee}
       <Evidence decision={d} onOpenFile={onOpenFile} nameOf={nameOf} />
     </ListDetailPane>
   );
@@ -672,6 +843,50 @@ function Evidence({
         <span data-slot="decide-noticed" className="ml-auto text-[11px]">
           <NoticedBy who={d.noticed_by} nameOf={nameOf} />
         </span>
+      )}
+    </div>
+  );
+}
+
+/** Who holds a question, as a picker of the members and Nobody. */
+function AssigneePicker({
+  held,
+  members,
+  onAssign,
+  failure,
+}: {
+  held: Held;
+  members: readonly ScreenMember[];
+  onAssign: (userId: string | null) => void;
+  /** Why the last assignment of this question was not recorded. */
+  failure?: unknown;
+}) {
+  const value = held.id ?? NOBODY;
+  // An assignee the members list does not hold (a former member) stays shown.
+  const listed = held.id === null || members.some((m) => m.id === held.id);
+  return (
+    <div data-slot="decide-assign" className="flex flex-wrap items-center gap-2 text-sm">
+      <span className="text-[11px] text-muted-foreground">
+        <>Assigned to</>
+      </span>
+      <Select value={value} onValueChange={(v) => onAssign(v === NOBODY ? null : v)}>
+        <SelectTrigger size="sm" className="w-48" aria-label={t("Assigned to")}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={NOBODY}>{t("Nobody", "no member holds the question")}</SelectItem>
+          {!listed && held.id && <SelectItem value={held.id}>{held.name ?? held.id}</SelectItem>}
+          {members.map((m) => (
+            <SelectItem key={m.id} value={m.id}>
+              <span translate="no">{m.name}</span>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {failure !== undefined && (
+        <div data-slot="decide-assign-refused" className="basis-full">
+          <ErrorNotice error={failure} title={t("The assignment was not recorded")} />
+        </div>
       )}
     </div>
   );
