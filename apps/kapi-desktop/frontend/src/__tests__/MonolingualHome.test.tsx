@@ -121,6 +121,8 @@ describe("the monolingual home", () => {
     expect(screen.queryByText("Bring up to date")).not.toBeInTheDocument();
     expect(screen.queryByText("Plan…")).not.toBeInTheDocument();
     expect(document.querySelector('[data-slot="convergence-hero"]')).toBeNull();
+    // The writing gate stays: Check leads to the checks and their fixes.
+    expect(screen.getByText("Check")).toBeInTheDocument();
   });
 
   it("shows Bring up to date, Plan… and the targets once the recipe declares one", () => {

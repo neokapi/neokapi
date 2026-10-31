@@ -438,7 +438,10 @@ export function ViewSwitch({
         );
 
       case "runner":
-        if (runnerState) {
+        // Bring up to date is language work: on a project whose saved recipe
+        // declares no target language, a convergence request opens the
+        // selected job instead of the Bring up to date view.
+        if (runnerState && (!runnerState.converge || languages)) {
           return (
             <RunnerPage
               tabID={tabID}

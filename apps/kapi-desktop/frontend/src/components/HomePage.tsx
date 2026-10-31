@@ -308,7 +308,7 @@ export function HomePage({
         <ActionCard
           icon={<ShieldCheck size={16} />}
           title="Check"
-          description="Verify structure, brand, and placeholders"
+          description="Verify structure, voice, terms and placeholders"
           onClick={() => onNavigate("checks")}
         />
         <ActionCard
