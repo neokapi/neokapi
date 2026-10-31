@@ -232,6 +232,17 @@ export class Collection {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Redaction is the redaction policy for the files this collection's items
+             * claim, on a named collection and on a bare entry alike. It replaces
+             * `defaults.redaction` for those files whole, and an item's own
+             * redaction replaces it in turn (RedactionForPath).
+             * @member
+             * @type {RedactionSpec | null | undefined}
+             */
+            this["redaction"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * Bare entry fields (short form — promoted from ContentItem).
              * @member
              * @type {string | undefined}
@@ -265,7 +276,8 @@ export class Collection {
         const $$createField2_0 = $$createType1;
         const $$createField3_0 = $$createType3;
         const $$createField6_0 = $$createType4;
-        const $$createField9_0 = $$createType6;
+        const $$createField8_0 = $$createType6;
+        const $$createField10_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_languages" in $$parsedSource) {
             $$parsedSource["target_languages"] = $$createField2_0($$parsedSource["target_languages"]);
@@ -276,8 +288,11 @@ export class Collection {
         if ("coordinates" in $$parsedSource) {
             $$parsedSource["coordinates"] = $$createField6_0($$parsedSource["coordinates"]);
         }
+        if ("redaction" in $$parsedSource) {
+            $$parsedSource["redaction"] = $$createField8_0($$parsedSource["redaction"]);
+        }
         if ("format" in $$parsedSource) {
-            $$parsedSource["format"] = $$createField9_0($$parsedSource["format"]);
+            $$parsedSource["format"] = $$createField10_0($$parsedSource["format"]);
         }
         return new Collection(/** @type {Partial<Collection>} */($$parsedSource));
     }
@@ -472,8 +487,9 @@ export class ContentItem {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Redaction overrides the project-wide redaction spec for this item.
-             * nil means inherit defaults.
+             * Redaction is the redaction policy for the files this item claims. It
+             * replaces the collection's redaction and `defaults.redaction` for them
+             * whole; nil inherits the collection's, then the defaults'.
              * @member
              * @type {RedactionSpec | null | undefined}
              */
@@ -508,9 +524,9 @@ export class ContentItem {
      * @returns {ContentItem}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType6;
+        const $$createField1_0 = $$createType8;
         const $$createField5_0 = $$createType1;
-        const $$createField7_0 = $$createType8;
+        const $$createField7_0 = $$createType6;
         const $$createField8_0 = $$createType9;
         const $$createField9_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
@@ -907,7 +923,7 @@ export class Defaults {
         const $$createField14_0 = $$createType13;
         const $$createField15_0 = $$createType14;
         const $$createField16_0 = $$createType15;
-        const $$createField17_0 = $$createType8;
+        const $$createField17_0 = $$createType6;
         const $$createField18_0 = $$createType16;
         const $$createField19_0 = $$createType18;
         const $$createField20_0 = $$createType4;
@@ -1847,7 +1863,9 @@ export class Profile {
  * RedactionSpec configures content redaction. The sensitive term list itself
  * lives in a dedicated rules file (so it can be gitignored) referenced by
  * Rules; this spec only points at it and selects detection backends. Declared
- * under defaults: project-wide and overridable per content item.
+ * under defaults for the project, on a collection, or on a content item; the
+ * most specific declaration governs a file and replaces the others whole
+ * (RedactionForPath).
  */
 export class RedactionSpec {
     /**
@@ -1857,7 +1875,7 @@ export class RedactionSpec {
     constructor($$source = {}) {
         if (/** @type {any} */(false)) {
             /**
-             * Enabled turns redaction on for extract/merge.
+             * Enabled turns redaction on for the files the declaration governs.
              * @member
              * @type {boolean | undefined}
              */
@@ -2059,9 +2077,9 @@ const $$createType1 = $Create.Array($Create.Any);
 const $$createType2 = ContentItem.createFrom;
 const $$createType3 = $Create.Array($$createType2);
 const $$createType4 = $Create.Map($Create.Any, $Create.Any);
-const $$createType5 = FormatSpec.createFrom;
+const $$createType5 = RedactionSpec.createFrom;
 const $$createType6 = $Create.Nullable($$createType5);
-const $$createType7 = RedactionSpec.createFrom;
+const $$createType7 = FormatSpec.createFrom;
 const $$createType8 = $Create.Nullable($$createType7);
 const $$createType9 = ContentComments.createFrom;
 const $$createType10 = FormatDefaults.createFrom;
