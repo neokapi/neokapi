@@ -68,6 +68,10 @@ type kpzCacheMeta struct {
 	// kept in sync by save()/load.
 	Recipe     *project.KapiProject `json:"-"`
 	RecipeYAML string               `json:"recipeYaml,omitempty"`
+
+	// Redaction is the package's redaction record, which a pack writes back
+	// into the manifest so the package stays marked as redacted.
+	Redaction *kpz.Redaction `json:"redaction,omitempty"`
 }
 
 type kpzCacheSource struct {
@@ -182,7 +186,7 @@ func buildKpzCacheFromPackage(ctx context.Context, kpzPath string, pkg *kpz.Pack
 		return nil, err
 	}
 	abs, _ := filepath.Abs(kpzPath)
-	c := &kpzCache{dir: dir, meta: kpzCacheMeta{KpzPath: abs, PackedRootHash: rootHash, Recipe: pkg.Recipe}}
+	c := &kpzCache{dir: dir, meta: kpzCacheMeta{KpzPath: abs, PackedRootHash: rootHash, Recipe: pkg.Recipe, Redaction: pkg.Redaction}}
 
 	// Index raw source bytes + skeletons by archive/source path so each
 	// source's cache entry can be built whether it carries raw bytes, just a
@@ -360,7 +364,7 @@ func kpzFileRootHash(kpzPath string) (string, error) {
 // retained as identity + skeleton by default; the raw bytes ride only when the
 // cache holds them (the .kpz was packed --with-source) (AD-025 §6).
 func (c *kpzCache) toPackage(ctx context.Context) (*kpz.Package, error) {
-	pkg := &kpz.Package{Generator: &kpz.GeneratorInfo{ID: "kapi"}, Recipe: c.meta.Recipe}
+	pkg := &kpz.Package{Generator: &kpz.GeneratorInfo{ID: "kapi"}, Recipe: c.meta.Recipe, Redaction: c.meta.Redaction}
 	for _, src := range c.meta.Sources {
 		si := kpz.SourceIdentity{
 			SourcePath:  src.Name,
