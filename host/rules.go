@@ -121,13 +121,13 @@ type RuleLine struct {
 // Kept answers who put the rule in force and when, for a rule the operation
 // log holds. A rule held only in the terms store or the voice profile, and a
 // suggestion, answer false.
-func (l RuleLine) Kept() (contextop.Actor, time.Time, bool) {
-	return l.keeper, l.keptAt, l.kept
+func (r RuleLine) Kept() (contextop.Actor, time.Time, bool) {
+	return r.keeper, r.keptAt, r.kept
 }
 
 // SubjectKind is the kind of subject the operation behind the line is about:
 // a term or a note. Empty for a line the log does not hold.
-func (l RuleLine) SubjectKind() contextop.SubjectKind { return l.subject }
+func (r RuleLine) SubjectKind() contextop.SubjectKind { return r.subject }
 
 // FormatText renders a listing: the counts, then each group.
 func (l RulesListing) FormatText(w io.Writer) error {
