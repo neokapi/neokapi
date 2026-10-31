@@ -151,7 +151,7 @@ Under `--json` (or `--jq` / `--output-format=json`), a failing command prints a 
 | 0 | (none) | Success |
 | 1 | `error` | Operational error |
 | 2 | `usage` | Usage / invocation error (also grep-style "trouble" for the toolbox utilities) |
-| 3 | `gate` | A check failed: at least one finding fails (`kapi check`, `kapi check --ship`, `kapi voice check`), distinct from an operational error so CI can tell "the content isn't good enough" from "the tool broke" |
+| 3 | `gate` | A check failed: at least one finding fails (`kapi check`, `kapi check --ship`, `kapi voice check`), distinct from an operational error so CI can tell "the content isn't good enough" from "the tool broke". `kapi exec external-command` exits 3 too under a redaction policy when the program's output drops, alters, repeats or adds a redaction placeholder; each such block keeps its content and the report names it under `external-command.redaction-placeholder` |
 | 4 | `did_not_run` | `kapi check` reached no verdict: it checked no content, or one of its checks reported nothing on the known-bad sample it runs beside the content. `kapi exec <check>` exits 4 too when the tool compares a source with its translation and no block it read held one; the report names `--target`. Never a pass |
 | 130 | `signal` | Interrupted (SIGINT/SIGTERM); no error line is printed |
 

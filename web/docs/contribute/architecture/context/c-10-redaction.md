@@ -314,8 +314,11 @@ policy of the file it holds:
    and `unredact` around it, a run over a `.kpz` package is refused under a
    collection's or an item's policy, and a flow that runs it needs a `redact`
    step ahead of it. The program reads each placeholder as its visible token
-   (`redaction.VisibleText`), and an output that drops a token leaves the block
-   as it was rather than lose the value.
+   (`redaction.VisibleText`). The tool compares the tokens of its input with
+   those of the program's output (`redaction.CompareTokens`); a token the output
+   drops, alters, repeats or adds leaves the block as it was and records a
+   failing `external-command.redaction-placeholder` finding, which `kapi exec`
+   reports with exit code 3 and a flow run reports beside its other findings.
 5. **The deeper look.** It sends chunks of the project's block texts to a model
    (`host/contextdeeper.go`). A chunk holds blocks of files under one policy
    only, and each chunk is redacted under that policy before the model reads
