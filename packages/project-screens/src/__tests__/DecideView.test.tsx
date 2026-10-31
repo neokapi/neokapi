@@ -398,6 +398,19 @@ describe("Decide on a host that assigns questions", () => {
     expect(onAssign).not.toHaveBeenCalled();
   });
 
+  it("counts a question as the reader's by the member id, whatever name it carries", async () => {
+    const named: RulesDecideView = {
+      ...ASSIGNED,
+      decisions: ASSIGNED.decisions.map((d) =>
+        d.id === NAME_DECISION.id ? { ...d, assignee: { kind: "person", name: "Ada Holt" } } : d,
+      ),
+    };
+    renderDecide(named, { onAssign: vi.fn(), members: MEMBERS });
+    expect(assignee()[1]).toBe("Ada Holt");
+    await userEvent.click(screen.getByRole("button", { name: /Assigned to me/ }));
+    expect(all("decide-item").map((r) => r.getAttribute("data-id"))).toEqual([NAME_DECISION.id]);
+  });
+
   it("draws no column, picker or filter without onAssign", () => {
     renderDecide(ASSIGNED, { members: MEMBERS, defaultAssignedToMe: true });
     expect(slot("decide-columns")).toBeNull();

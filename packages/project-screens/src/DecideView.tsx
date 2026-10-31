@@ -120,7 +120,8 @@ const NOBODY = "nobody";
 
 /**
  * Who holds a question: the member an assignment made on this screen names,
- * or else the assignee the view carries. A person with no name is the reader.
+ * or else the assignee the view carries. The reader holds it when its member
+ * id is the reader's, or, with no id to match, when it names a person with no name.
  */
 function heldBy(
   d: RuleDecision,
@@ -135,8 +136,9 @@ function heldBy(
   }
   const who = d.assignee;
   if (!who) return { id: null, mine: false };
-  const mine = !who.name;
-  const id = d.assignee_id ?? (mine ? (members.find((m) => m.me)?.id ?? null) : null);
+  const me = members.find((m) => m.me)?.id;
+  const mine = d.assignee_id && me ? d.assignee_id === me : !who.name;
+  const id = d.assignee_id ?? (mine ? (me ?? null) : null);
   const name =
     nameOf?.(who) ||
     who.name ||

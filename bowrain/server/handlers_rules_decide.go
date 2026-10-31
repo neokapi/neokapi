@@ -330,18 +330,15 @@ func (s *Server) assignees(ctx context.Context, projectID string) (map[string]pl
 	return out, nil
 }
 
-// assigneeOf is the member a question is assigned to, as the reader sees
-// them (the reader is a person with no name), and the member's user id.
-func (s *Server) assigneeOf(ctx context.Context, d rulesview.Decision, assigned map[string]platstore.ContextAssignment, reader LedgerMember) (*screens.ContextActorDTO, string) {
+// assigneeOf is the member a question is assigned to, by name, and the
+// member's user id, which tells a reader the questions that are theirs.
+func (s *Server) assigneeOf(ctx context.Context, d rulesview.Decision, assigned map[string]platstore.ContextAssignment) (*screens.ContextActorDTO, string) {
 	for _, id := range questionIDs(d) {
 		a, ok := assigned[id]
 		if !ok {
 			continue
 		}
-		who := screens.ContextActorDTO{Kind: string(contextop.ActorPerson)}
-		if a.Assignee != reader.UserID {
-			who.Name = s.displayName(ctx, a.Assignee)
-		}
+		who := screens.ContextActorDTO{Kind: string(contextop.ActorPerson), Name: s.displayName(ctx, a.Assignee)}
 		return &who, a.Assignee
 	}
 	return nil, ""
@@ -383,7 +380,7 @@ func (s *Server) HandleRulesDecideView(c echo.Context) error {
 	out.Rules, out.Suggested, out.Narrowed = st.counts()
 	for _, d := range questions {
 		dto := screens.RuleDecisionFrom(d)
-		dto.Assignee, dto.AssigneeID = s.assigneeOf(ctx, d, assigned, st.member)
+		dto.Assignee, dto.AssigneeID = s.assigneeOf(ctx, d, assigned)
 		out.Decisions = append(out.Decisions, dto)
 	}
 	return c.JSON(http.StatusOK, out)
@@ -672,7 +669,7 @@ func (s *Server) HandleAssignRule(c echo.Context) error {
 	}
 	out := ruleAssignment{ID: req.ID}
 	if assignee != "" {
-		out.Assignee, out.AssigneeID = s.assigneeOf(ctx, d, map[string]platstore.ContextAssignment{req.ID: {Assignee: assignee}}, st.member)
+		out.Assignee, out.AssigneeID = s.assigneeOf(ctx, d, map[string]platstore.ContextAssignment{req.ID: {Assignee: assignee}})
 	}
 	return c.JSON(http.StatusOK, out)
 }

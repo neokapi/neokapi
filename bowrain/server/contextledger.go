@@ -43,6 +43,7 @@ func (s *Server) ContextLedger(ctx context.Context, projectID string, member Led
 		project: projectID,
 		actor:   contextop.Actor{Kind: contextop.ActorPerson, Name: s.displayName(ctx, member.UserID)},
 		member:  member,
+		nameOf:  s.displayName,
 	}
 	return contextop.NewLedger(log, contextop.PersonDecides), nil
 }
@@ -63,6 +64,7 @@ func (s *Server) ContextSettler(projectID string) (*contextop.Ledger, error) {
 		project: projectID,
 		actor:   contextop.SettleActor,
 		member:  LedgerMember{UserID: contextop.SettleActor.Name, Permissions: governingPermissions},
+		nameOf:  s.displayName,
 	}
 	return contextop.NewLedger(log, contextop.PersonDecides), nil
 }
@@ -80,6 +82,10 @@ type contextLog struct {
 	// member's id, and a governing operation is checked against the member's
 	// permissions and reach.
 	member LedgerMember
+	// nameOf is the name a member is shown by. A context operation by a
+	// person with no name is read as by the member who pushed its segment,
+	// under this name.
+	nameOf func(ctx context.Context, userID string) string
 }
 
 var _ contextop.Log = (*contextLog)(nil)
@@ -88,10 +94,24 @@ var _ contextop.Log = (*contextLog)(nil)
 // segment under log/ that decodes as operations of the project's key, merged
 // in id order and numbered from 1 in that order (Op.Seq), less those the
 // query leaves out.
+//
+// A context operation whose actor is a person with no name, as the command
+// line records one and a sync pushes it, is returned under the name of the
+// member who pushed its segment. The log itself holds the operation as it was
+// pushed, so a later push of the same operation still matches it.
 func (l *contextLog) Select(ctx context.Context, q workspace.OpQuery) ([]workspace.Op, error) {
-	_, ops, err := l.cache.read(ctx, l.objects, l.project)
+	_, ops, pushers, err := l.cache.readPushers(ctx, l.objects, l.project)
 	if err != nil {
 		return nil, err
+	}
+	names := map[string]string{}
+	nameOf := func(userID string) string {
+		name, ok := names[userID]
+		if !ok {
+			name = l.nameOf(ctx, userID)
+			names[userID] = name
+		}
+		return name
 	}
 	out := []workspace.Op{}
 	for _, op := range ops {
@@ -100,6 +120,9 @@ func (l *contextLog) Select(ctx context.Context, q workspace.OpQuery) ([]workspa
 			(q.Project != "" && op.Project != q.Project) ||
 			(q.Subject != "" && op.Subject != q.Subject) {
 			continue
+		}
+		if pusher := pushers[op.ID]; pusher != "" && l.nameOf != nil && strings.HasPrefix(op.Kind, contextop.OpKindPrefix) {
+			op.Payload = nameUnnamedPerson(op.Payload, func() string { return nameOf(pusher) })
 		}
 		out = append(out, op)
 		if q.Limit > 0 && len(out) == q.Limit {
@@ -214,6 +237,37 @@ func stampActor(payload []byte, actor contextop.Actor) ([]byte, error) {
 	return json.Marshal(body)
 }
 
+// nameUnnamedPerson returns a context operation's payload with name as its
+// actor's name when the actor is a person with no name, and the payload as
+// it is otherwise, or when it does not read as a JSON object.
+func nameUnnamedPerson(payload []byte, name func() string) []byte {
+	body := map[string]json.RawMessage{}
+	if len(payload) == 0 || json.Unmarshal(payload, &body) != nil {
+		return payload
+	}
+	var actor contextop.Actor
+	if raw, ok := body["actor"]; ok && json.Unmarshal(raw, &actor) != nil {
+		return payload
+	}
+	if actor.Name != "" || (actor.Kind != "" && actor.Kind != contextop.ActorPerson) {
+		return payload
+	}
+	actor.Kind, actor.Name = contextop.ActorPerson, name()
+	if actor.Name == "" {
+		return payload
+	}
+	stamped, err := json.Marshal(actor)
+	if err != nil {
+		return payload
+	}
+	body["actor"] = stamped
+	out, err := json.Marshal(body)
+	if err != nil {
+		return payload
+	}
+	return out
+}
+
 // contextLogCache holds each project's decoded log between requests. The
 // zero value is ready to use.
 type contextLogCache struct {
@@ -246,32 +300,43 @@ type projectContextLog struct {
 	list     string
 	segments map[string]readSegment
 	ops      []workspace.Op
+	// pushers names the member who pushed the segment each operation was
+	// read from, by operation id.
+	pushers map[string]string
 }
 
-// readSegment is one segment as it was decoded.
+// readSegment is one segment as it was decoded, and the member who pushed it.
 type readSegment struct {
-	digest string
-	ops    []workspace.Op
+	digest   string
+	ops      []workspace.Op
+	pushedBy string
 }
 
 // read returns the project's key and its log, merged in id order and numbered
 // from 1. The slice is the caller's own.
 func (p *projectContextLog) read(ctx context.Context, objects platstore.ContextObjectStore, projectID string) (workspace.ProjectKey, []workspace.Op, error) {
+	key, ops, _, err := p.readPushers(ctx, objects, projectID)
+	return key, ops, err
+}
+
+// readPushers is read, with the member who pushed the segment each operation
+// was read from, by operation id. The map is shared and read-only.
+func (p *projectContextLog) readPushers(ctx context.Context, objects platstore.ContextObjectStore, projectID string) (workspace.ProjectKey, []workspace.Op, map[string]string, error) {
 	raw, err := objects.ContextKey(ctx, projectID)
 	if err != nil {
-		return "", nil, err
+		return "", nil, nil, err
 	}
 	key := workspace.ProjectKey(raw)
 	digests, err := objects.DigestContextObjects(ctx, projectID, workspace.RemoteLogDir)
 	if err != nil {
-		return "", nil, err
+		return "", nil, nil, err
 	}
 	list := listDigest(key, digests)
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.ops != nil && p.list == list {
-		return key, slices.Clone(p.ops), nil
+		return key, slices.Clone(p.ops), p.pushers, nil
 	}
 	if p.key != key {
 		p.segments = nil
@@ -285,17 +350,39 @@ func (p *projectContextLog) read(ctx context.Context, objects platstore.ContextO
 			}
 			obj, err := objects.GetContextObject(ctx, projectID, name)
 			if err != nil {
-				return "", nil, err
+				return "", nil, nil, err
 			}
 			ops, err := workspace.DecodeSegment(obj.Data, key)
 			if err != nil {
-				return "", nil, fmt.Errorf("context ledger: segment %s: %w", name, err)
+				return "", nil, nil, fmt.Errorf("context ledger: segment %s: %w", name, err)
 			}
-			segments[name] = readSegment{digest: digest, ops: ops}
+			segments[name] = readSegment{digest: digest, ops: ops, pushedBy: obj.PushedBy}
 		}
 	}
 	p.key, p.list, p.segments, p.ops = key, list, segments, mergeSegments(segments)
-	return key, slices.Clone(p.ops), nil
+	p.pushers = segmentPushers(segments)
+	return key, slices.Clone(p.ops), p.pushers, nil
+}
+
+// segmentPushers names the member who pushed each operation's segment, by
+// operation id. Where two segments hold one id, the first in name order
+// names it, as mergeSegments keeps that segment's operation.
+func segmentPushers(segments map[string]readSegment) map[string]string {
+	names := make([]string, 0, len(segments))
+	for name := range segments {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+	out := map[string]string{}
+	for _, name := range names {
+		seg := segments[name]
+		for _, op := range seg.ops {
+			if _, ok := out[op.ID]; !ok && seg.pushedBy != "" {
+				out[op.ID] = seg.pushedBy
+			}
+		}
+	}
+	return out
 }
 
 // mergeSegments merges the operations of every segment in id order, holding

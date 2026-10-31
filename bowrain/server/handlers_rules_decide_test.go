@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
@@ -113,6 +114,58 @@ func seedDecideParity(t *testing.T, e *echo.Echo, cs platstore.ContentStore) str
 	r := &routeRemote{h: e, base: "/api/v1/ws/" + p.ID + "/context/objects"}
 	require.NoError(t, r.Put(ctx, workspace.Object{Name: workspace.SegmentName("desktop", ops[0].ID), Data: segment}))
 	return p.ID
+}
+
+// pushUnnamedKeep pushes, as the caller, a segment holding a keep of target
+// by a person with no name: what `kapi context sync` pushes for a keep the
+// command line recorded.
+func pushUnnamedKeep(t *testing.T, e *echo.Echo, pid, target string) workspace.Object {
+	t.Helper()
+	at := time.Date(2026, 10, 31, 21, 0, 0, 0, time.UTC)
+	op := workspace.Op{
+		ID:      workspace.NewOpID(at, ""),
+		Project: "prj_decideparityaaaaaaaa",
+		Kind:    "context.keep",
+		At:      at,
+		Payload: json.RawMessage(`{"actor":{"kind":"person"},"scope":{"level":"project","coordinates":{"brand":"acme","surface":"help"}},"target":"` + target + `"}`),
+	}
+	data, err := workspace.EncodeSegment([]workspace.Op{op})
+	require.NoError(t, err)
+	obj := workspace.Object{Name: workspace.SegmentName("laptop", op.ID), Data: data}
+	r := &routeRemote{h: e, base: "/api/v1/ws/" + pid + "/context/objects"}
+	require.NoError(t, r.Put(t.Context(), obj))
+	return obj
+}
+
+// A keep the command line recorded with no name and a sync pushed reads as
+// the pushing member's, to every member who reads it, and the log still
+// holds it as it was pushed.
+func TestRulesDecide_ASyncedKeepIsThePushersKeep_SQLite(t *testing.T) {
+	caller := &decideCaller{userID: "member-a", perms: decideAll}
+	e, cs := decideSQLiteServer(t, caller)
+	pid := seedDecideParity(t, e, cs)
+	const note = "0recs8gy9ymvarh1x960prt8"
+	obj := pushUnnamedKeep(t, e, pid, note)
+
+	caller.userID = "member-b"
+	var kept []screens.KeptRuleDTO
+	require.Equal(t, http.StatusOK, decideRoute(t, e, http.MethodGet, pid, "/rules/main/kept", nil, &kept))
+	var found *screens.KeptRuleDTO
+	for i := range kept {
+		if kept[i].Rule == "Help pages address a reader who is stuck." {
+			found = &kept[i]
+		}
+	}
+	require.NotNil(t, found, "the synced keep puts the note in force")
+	assert.Equal(t, screens.ContextActorDTO{Kind: "person", Name: "member-a"}, found.KeptBy)
+	for _, d := range readDecideView(t, e, pid).Decisions {
+		assert.NotEqual(t, note, d.ID, "a kept note waits for no decision")
+	}
+
+	// The same segment pushed again matches what the log holds.
+	caller.userID = "member-a"
+	r := &routeRemote{h: e, base: "/api/v1/ws/" + pid + "/context/objects"}
+	require.NoError(t, r.Put(t.Context(), obj))
 }
 
 // decideRoute requests one Decide route of the project and decodes the JSON
@@ -307,8 +360,8 @@ func TestRulesDecide_AssignAndQueue_SQLite(t *testing.T) {
 
 	view = readDecideView(t, e, pid)
 	assert.Equal(t, &screens.ContextActorDTO{Kind: "person", Name: "member-b"}, decisionOf(t, view, "name").Assignee)
-	assert.Equal(t, &screens.ContextActorDTO{Kind: "person"}, decisionOf(t, view, "disagreement").Assignee,
-		"a question assigned to the reader reads as theirs")
+	assert.Equal(t, &screens.ContextActorDTO{Kind: "person", Name: "member-a"}, decisionOf(t, view, "disagreement").Assignee,
+		"a question assigned to the reader names the reader")
 	assert.Nil(t, decisionOf(t, view, "note").Assignee)
 	// The member's id comes with the name, for a picker that shows who holds
 	// the question; the reader's own is among them.
