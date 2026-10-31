@@ -27,6 +27,11 @@ type redactingProvider struct {
 // Unwrap returns the provider this one wraps.
 func (w *redactingProvider) Unwrap() LLMProvider { return w.LLMProvider }
 
+// Limits reports the limits of the provider this one wraps, so a caller
+// sizing a batch by LimitsOf reads the model's limits and not the
+// conservative fallback.
+func (w *redactingProvider) Limits() Limits { return LimitsOf(w.LLMProvider) }
+
 func (w *redactingProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
 	ctx, req, err := redactTranslate(ctx, req)
 	if err != nil {

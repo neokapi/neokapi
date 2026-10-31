@@ -94,6 +94,23 @@ func TestRedacting_LeavesARequestWithNoPolicyAsItIs(t *testing.T) {
 	assert.Equal(t, "Write to Ada Lovelace.", mock.ChatCalls[0][0].Text())
 }
 
+// A caller that sizes a batch by the model's output limit reads the same
+// limit through the wrapper, streaming or not.
+func TestRedacting_KeepsTheProvidersLimits(t *testing.T) {
+	for id, model := range map[ProviderID]string{Anthropic: "claude-sonnet-4-5", Gemini: "gemini-2.5-pro"} {
+		t.Run(string(id), func(t *testing.T) {
+			p, err := NewProvider(id, Config{Model: model, APIKey: "k"})
+			require.NoError(t, err)
+			_, streams := Redacting(p).(StreamingLLMProvider)
+			_, inner := p.(StreamingLLMProvider)
+			require.Equal(t, inner, streams, "gemini streams and covers the streaming wrapper")
+			want := LimitsOf(p)
+			require.Greater(t, want.MaxOutputTokens, ConservativeMaxOutputTokens, "the model declares its own limit")
+			assert.Equal(t, want, LimitsOf(Redacting(p)))
+		})
+	}
+}
+
 func TestRedacting_WrapsOnceAndKeepsStreaming(t *testing.T) {
 	p := Redacting(NewMockProvider())
 	assert.Same(t, p, Redacting(p))
