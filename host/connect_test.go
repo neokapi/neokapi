@@ -244,6 +244,11 @@ func TestConnectHosts_ClaudePluginEnabledInTheProject(t *testing.T) {
 	assert.Equal(t, ConnectKept, hook.Action)
 	assert.Equal(t, ".claude/settings.json", hook.Path)
 	assert.Contains(t, claude.Reads, "kapi check when it finishes")
+	assert.Contains(t, claude.Reads, "kapi check on every edit")
+	edit := claude.Files[len(claude.Files)-2]
+	assert.Equal(t, ConnectHookEdit, edit.Hook)
+	assert.Equal(t, ConnectKept, edit.Action)
+	assert.Equal(t, ConnectHookStop, hook.Hook)
 }
 
 func TestParseConnectHost(t *testing.T) {
@@ -307,6 +312,7 @@ func TestConnectHosts_ClaudePluginEnabledForTheUser(t *testing.T) {
 		var text bytes.Buffer
 		require.NoError(t, res.FormatText(&text))
 		assert.Contains(t, text.String(), "Stop hook            kept (enabled for your user)\n")
+		assert.Contains(t, text.String(), "Edit hook            kept (enabled for your user)\n")
 	})
 
 	t.Run("home", func(t *testing.T) {

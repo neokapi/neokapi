@@ -20,9 +20,9 @@ import (
 // ConnectHosts writes the rules files (host/rulesfiles.go) and each
 // assistant's MCP entry and skill (host/agentwiring.go), the recipe first when
 // the folder has none, through the services `kapi init` uses. It reports each
-// file as created, updated or kept. The Stop hook comes from the kapi Claude
-// Code plugin, so it is reported as a step to take until the project's Claude
-// Code settings enable the plugin.
+// file as created, updated or kept. The edit hook and the Stop hook come from
+// the kapi Claude Code plugin, so they are reported as a step to take until the
+// project's Claude Code settings enable the plugin.
 
 // ConnectOptions configures ConnectHosts.
 type ConnectOptions struct {
@@ -75,8 +75,8 @@ const (
 	ConnectMCP ConnectFileKind = "mcp"
 	// ConnectSkill is a skill directory.
 	ConnectSkill ConnectFileKind = "skill"
-	// ConnectHook is the hook that runs kapi check when the assistant
-	// finishes.
+	// ConnectHook is a hook of the kapi Claude Code plugin that runs kapi
+	// check: ConnectFile.Hook names which.
 	ConnectHook ConnectFileKind = "hook"
 )
 
@@ -89,6 +89,27 @@ type ConnectFile struct {
 	// Detail adds what a person reading the line needs: the step to take for
 	// a pending hook, or why an entry was kept.
 	Detail string `json:"detail,omitempty"`
+	// Hook names the hook a ConnectHook entry is: ConnectHookEdit or
+	// ConnectHookStop. Empty for every other kind.
+	Hook string `json:"hook,omitempty"`
+}
+
+// The hooks of the kapi Claude Code plugin that run kapi check.
+const (
+	// ConnectHookEdit runs kapi check on each file an edit writes.
+	ConnectHookEdit = "edit"
+	// ConnectHookStop runs the project's ship gates when the assistant
+	// finishes.
+	ConnectHookStop = "stop"
+)
+
+// connectHooks are the plugin's check hooks in the order connect lists them,
+// each with what the assistant gets from it.
+var connectHooks = []struct {
+	hook, reads string
+}{
+	{ConnectHookEdit, "kapi check on every edit"},
+	{ConnectHookStop, "kapi check when it finishes"},
 }
 
 // ConnectHost is one assistant and what connecting did for it.
@@ -100,11 +121,11 @@ type ConnectHost struct {
 	Connected bool `json:"connected"`
 	// Reason says why an assistant was not connected.
 	Reason string `json:"reason,omitempty"`
-	// Reads names what the assistant gets: rules, MCP server, skill, and the
-	// check when it finishes.
+	// Reads names what the assistant gets: rules, MCP server, skill, the check
+	// on every edit and the check when it finishes.
 	Reads []string `json:"reads,omitempty"`
 	// Files are the assistant's own files: its MCP configuration, its skill
-	// directory, its hook.
+	// directory, its hooks.
 	Files []ConnectFile `json:"files,omitempty"`
 }
 
@@ -178,8 +199,8 @@ func ParseConnectHost(name string) (AgentHost, error) {
 }
 
 // ClaudePluginCommands are the two commands a person runs inside Claude Code
-// to install the kapi Claude Code plugin, whose Stop hook runs the project's
-// check when Claude Code finishes.
+// to install the kapi Claude Code plugin, whose hooks run kapi check on each
+// file an edit writes and the project's ship gates when Claude Code finishes.
 func ClaudePluginCommands() []string {
 	return []string{"/plugin marketplace add neokapi/claude-plugins", "/plugin install kapi@neokapi-plugins"}
 }
@@ -345,17 +366,22 @@ func (a *App) ConnectHosts(ctx context.Context, cmd Command, opts ConnectOptions
 			}
 		}
 		if h.host == AgentHostClaudeCode {
-			hook := ConnectFile{Kind: ConnectHook, Action: ConnectPending, Detail: claudePluginSteps}
+			// Both hooks come from the one plugin, so they share its state.
+			state := ConnectFile{Kind: ConnectHook, Action: ConnectPending, Detail: claudePluginSteps}
 			switch rel := claudePluginEnabledIn(root); {
 			case rel != "":
-				hook = ConnectFile{Path: rel, Kind: ConnectHook, Action: ConnectKept, Detail: "the kapi plugin is enabled"}
+				state = ConnectFile{Path: rel, Kind: ConnectHook, Action: ConnectKept, Detail: "the kapi plugin is enabled"}
 			case claudePluginEnabledForUser():
-				hook = ConnectFile{Kind: ConnectHook, Action: ConnectKept, Detail: "enabled for your user"}
+				state = ConnectFile{Kind: ConnectHook, Action: ConnectKept, Detail: "enabled for your user"}
 			}
-			if hook.Action == ConnectKept {
-				entry.Reads = append(entry.Reads, "kapi check when it finishes")
+			for _, ch := range connectHooks {
+				hook := state
+				hook.Hook = ch.hook
+				if hook.Action == ConnectKept {
+					entry.Reads = append(entry.Reads, ch.reads)
+				}
+				entry.Files = append(entry.Files, hook)
 			}
-			entry.Files = append(entry.Files, hook)
 		}
 		res.Hosts = append(res.Hosts, entry)
 	}
@@ -568,6 +594,9 @@ func connectCommandName(h AgentHost) string {
 
 // connectFileLabel is the first column of a file's line.
 func connectFileLabel(f ConnectFile) string {
+	if f.Kind == ConnectHook && f.Hook == ConnectHookEdit {
+		return "Edit hook"
+	}
 	if f.Kind == ConnectHook {
 		return "Stop hook"
 	}

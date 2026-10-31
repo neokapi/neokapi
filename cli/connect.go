@@ -36,10 +36,11 @@ With no argument it connects Claude Code and every assistant whose folder the
 project keeps (.cursor/, .vscode/, .codex/, .agents/), and lists the others.
 Name one to connect it alone: claude, cursor, vscode, codex or agents.
 
-Claude Code runs the project's check when it finishes through the Stop hook
-of the kapi Claude Code plugin. kapi connect reports that hook as pending,
-with the commands that install it, until the project's .claude/settings.json
-or your own Claude Code settings enable the plugin.
+Claude Code runs kapi check through two hooks of the kapi Claude Code
+plugin: the edit hook checks each file an edit writes, and the Stop hook runs
+the project's ship gates when Claude Code finishes. kapi connect reports both
+hooks as pending, with the commands that install the plugin, until the
+project's .claude/settings.json or your own Claude Code settings enable it.
 
 Running it again rewrites nothing that is current. --dry-run lists the same
 files with what it would do and writes none of them.`,

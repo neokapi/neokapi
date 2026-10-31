@@ -52,6 +52,7 @@ func TestConnectCmd_AFolderWithNoRecipe(t *testing.T) {
 	assert.Contains(t, out, "Claude Code   connected · rules, MCP server, skill\n")
 	assert.Contains(t, out, "  .mcp.json            created\n")
 	assert.Contains(t, out, "  .claude/skills/kapi  created\n")
+	assert.Contains(t, out, "  Edit hook            pending: in Claude Code, /plugin marketplace add neokapi/claude-plugins, then /plugin install kapi@neokapi-plugins\n")
 	assert.Contains(t, out, "  Stop hook            pending: in Claude Code, /plugin marketplace add neokapi/claude-plugins, then /plugin install kapi@neokapi-plugins\n")
 	assert.Contains(t, out, "Codex         not connected: no .codex/ folder here (kapi connect codex adds it)\n")
 	assert.Contains(t, out, "\nProject\n  kapi.yaml            created\n  AGENTS.md            created\n  CLAUDE.md            created\n")
@@ -145,6 +146,7 @@ func TestConnectCmd_JSON(t *testing.T) {
 				Kind   string `json:"kind"`
 				Action string `json:"action"`
 				Detail string `json:"detail"`
+				Hook   string `json:"hook"`
 			} `json:"files"`
 		} `json:"hosts"`
 		Files []struct {
@@ -170,6 +172,13 @@ func TestConnectCmd_JSON(t *testing.T) {
 		kinds[f.Kind] = f.Action
 	}
 	assert.Equal(t, map[string]string{"mcp": "created", "skill": "created", "hook": "pending"}, kinds)
+	var hooks []string
+	for _, f := range claude.Files {
+		if f.Kind == "hook" {
+			hooks = append(hooks, f.Hook+":"+f.Action)
+		}
+	}
+	assert.Equal(t, []string{"edit:pending", "stop:pending"}, hooks, "--json carries each hook and its state")
 
 	project := map[string]string{}
 	for _, f := range doc.Files {
