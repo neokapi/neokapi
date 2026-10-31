@@ -254,10 +254,11 @@ collections:
 	assert.Contains(t, stderr, "neither an id nor a name")
 }
 
-func TestCaughtBetween_AFindingIsTheSameByFileRuleAndQuote(t *testing.T) {
+func TestCaughtFindings_AFindingIsTheSameByFileRuleAndQuote(t *testing.T) {
 	run := func(findings ...contextop.CheckFinding) contextop.CheckRun {
 		return contextop.CheckRun{Verdict: "failed", Failing: len(findings), Findings: findings}
 	}
+	caughtBetween := func(prev, next contextop.CheckRun) int { return countCaught(CaughtFindings(prev, next)) }
 	logIn := contextop.CheckFinding{File: "docs/guide.md", Rule: "terms.vocabulary", Quote: "Log in", Block: "p#2"}
 	moved := logIn
 	moved.Block = "p#5"
