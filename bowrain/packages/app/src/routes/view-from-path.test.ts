@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vite-plus/test";
-import { viewFromPath } from "./view-from-path";
+import { projectViewFromPath, viewFromPath } from "./view-from-path";
 
 describe("viewFromPath", () => {
   it("returns 'translate' for workspace root", () => {
@@ -61,5 +61,32 @@ describe("viewFromPath", () => {
 
   it("defaults to 'translate' for unknown paths", () => {
     expect(viewFromPath("/acme/unknown", "acme")).toBe("translate");
+  });
+});
+
+describe("projectViewFromPath", () => {
+  it("lights the Map on the Map and in the Reader it opens", () => {
+    expect(projectViewFromPath("/acme/p/abc/s/main/map", "acme")).toBe("map");
+    expect(projectViewFromPath("/acme/p/abc/s/main/read/docs/a.md", "acme")).toBe("map");
+  });
+
+  it("lights Rules on Rules", () => {
+    expect(projectViewFromPath("/acme/p/abc/s/main/rules", "acme")).toBe("rules");
+  });
+
+  it("lights the Overview on the overview and in a per-file editor", () => {
+    expect(projectViewFromPath("/acme/p/abc/s/main/overview", "acme")).toBe("dashboard");
+    expect(projectViewFromPath("/acme/p/abc/s/main/translate/docs/a.md", "acme")).toBe("dashboard");
+  });
+
+  it("names each other section by its segment", () => {
+    for (const s of ["source", "automations", "runs", "connectors"]) {
+      expect(projectViewFromPath(`/acme/p/abc/s/main/${s}`, "acme")).toBe(s);
+    }
+  });
+
+  it("answers undefined outside a project", () => {
+    expect(projectViewFromPath("/acme/context", "acme")).toBeUndefined();
+    expect(projectViewFromPath("/acme/p/abc", "acme")).toBeUndefined();
   });
 });

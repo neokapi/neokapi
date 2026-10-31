@@ -40,8 +40,8 @@ import {
 } from "@neokapi/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUIStore } from "../stores/ui-store";
-import { subNavTarget } from "./sub-nav-targets";
-import { viewFromPath, type WorkspaceView } from "./view-from-path";
+import { projectSectionTargets, subNavTarget, type ProjectSectionId } from "./sub-nav-targets";
+import { projectViewFromPath, viewFromPath, type WorkspaceView } from "./view-from-path";
 import {
   activitiesQueryOptions,
   projectQueryOptions,
@@ -70,6 +70,8 @@ const EDITOR_SURFACE_LABELS: Record<string, string> = {
 
 /** What each project section is called in the trail — the sub-nav's own labels. */
 const PROJECT_SURFACE_LABELS: Record<string, string> = {
+  map: "Map",
+  rules: "Rules",
   source: "Source content",
   automations: "Automations",
   runs: "Runs",
@@ -133,16 +135,13 @@ function parseProjectParams(pathname: string, workspaceSlug: string) {
   // keeps its slashes, so it spans as many segments as it has parts. A bare
   // /review with nothing trailing is the project-level review session, not a
   // file, which is why this needs a segment beyond the surface.
-  if (parts.length >= 5 && EDITOR_SURFACES.includes(parts[3])) {
+  if (parts.length >= 5 && (EDITOR_SURFACES.includes(parts[3]) || parts[3] === "read")) {
     itemName = parts.slice(4).map(decodeURIComponent).join("/");
   }
 
-  const isSource = parts.length >= 4 && parts[3] === "source";
-  const isAutomations = parts.length >= 4 && parts[3] === "automations";
-  const isRuns = parts.length >= 4 && parts[3] === "runs";
-  const isConnectors = parts.length >= 4 && parts[3] === "connectors";
+  const section = projectViewFromPath(pathname, workspaceSlug) ?? "dashboard";
 
-  return { projectId, stream, itemName, isSource, isAutomations, isRuns, isConnectors };
+  return { projectId, stream, itemName, section };
 }
 
 // ---------------------------------------------------------------------------
@@ -488,42 +487,27 @@ export function WorkspaceLayout() {
       return { level: "workspace", activeView: effectiveView as View };
     }
 
-    // Determine which project sub-page is active.
-    const activeProjectView = projectParams.isSource
-      ? ("source" as const)
-      : projectParams.isAutomations
-        ? ("automations" as const)
-        : projectParams.isRuns
-          ? ("runs" as const)
-          : projectParams.isConnectors
-            ? ("connectors" as const)
-            : ("dashboard" as const);
+    // Each section the panel lists opens its route (projectSectionTargets).
+    const openSection = (id: ProjectSectionId) => () => {
+      void navigate({
+        to: projectSectionTargets[id],
+        params: {
+          workspace: workspaceSlug ?? ws,
+          projectId: project.id,
+          stream: projectParams.stream,
+        },
+      });
+    };
 
     return {
       level: "project",
       project,
       activeStream: projectParams.stream,
-      activeProjectView,
-      onOpenDashboard: () => {
-        void navigate({
-          to: "/$workspace/p/$projectId/s/$stream",
-          params: {
-            workspace: workspaceSlug ?? ws,
-            projectId: project.id,
-            stream: projectParams.stream,
-          },
-        });
-      },
-      onOpenSource: () => {
-        void navigate({
-          to: "/$workspace/p/$projectId/s/$stream/source",
-          params: {
-            workspace: workspaceSlug ?? ws,
-            projectId: project.id,
-            stream: projectParams.stream,
-          },
-        });
-      },
+      activeProjectView: projectParams.section,
+      onOpenMap: openSection("map"),
+      onOpenDashboard: openSection("dashboard"),
+      onOpenRules: openSection("rules"),
+      onOpenSource: openSection("source"),
       onOpenFile: (itemName: string) => {
         void navigate({
           to: "/$workspace/p/$projectId/s/$stream/translate/$",
@@ -536,36 +520,9 @@ export function WorkspaceLayout() {
         });
       },
       onStreamChange: handleStreamChange,
-      onOpenAutomations: () => {
-        void navigate({
-          to: "/$workspace/p/$projectId/s/$stream/automations",
-          params: {
-            workspace: workspaceSlug ?? ws,
-            projectId: project.id,
-            stream: projectParams.stream,
-          },
-        });
-      },
-      onOpenRuns: () => {
-        void navigate({
-          to: "/$workspace/p/$projectId/s/$stream/runs",
-          params: {
-            workspace: workspaceSlug ?? ws,
-            projectId: project.id,
-            stream: projectParams.stream,
-          },
-        });
-      },
-      onOpenConnectors: () => {
-        void navigate({
-          to: "/$workspace/p/$projectId/s/$stream/connectors",
-          params: {
-            workspace: workspaceSlug ?? ws,
-            projectId: project.id,
-            stream: projectParams.stream,
-          },
-        });
-      },
+      onOpenAutomations: openSection("automations"),
+      onOpenRuns: openSection("runs"),
+      onOpenConnectors: openSection("connectors"),
     };
   }, [
     pathname,
@@ -643,7 +600,8 @@ export function WorkspaceLayout() {
       // name there is — better a stable step that fills in than one that pops
       // into existence a moment later and shifts everything left.
       label: project?.name ?? projectParams.projectId,
-      onClick: goto(projectRoute, projectRouteParams),
+      // The project's step opens its landing page, the Map.
+      onClick: goto(projectSectionTargets.map, projectRouteParams),
       testId: "back-to-project",
     });
 
@@ -656,15 +614,7 @@ export function WorkspaceLayout() {
       });
     }
 
-    const surface = projectParams.isSource
-      ? "source"
-      : projectParams.isAutomations
-        ? "automations"
-        : projectParams.isRuns
-          ? "runs"
-          : projectParams.isConnectors
-            ? "connectors"
-            : undefined;
+    const surface = projectParams.section === "dashboard" ? undefined : projectParams.section;
     if (surface) {
       trail.push({
         label: PROJECT_SURFACE_LABELS[surface],
@@ -926,7 +876,7 @@ export function WorkspaceLayout() {
                     if (task.project_id) {
                       const taskStream = task.stream || "main";
                       void navigate({
-                        to: "/$workspace/p/$projectId/s/$stream",
+                        to: "/$workspace/p/$projectId/s/$stream/overview",
                         params: {
                           workspace: ws,
                           projectId: task.project_id,

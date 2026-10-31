@@ -630,6 +630,9 @@ importers:
       '@neokapi/kapi-format':
         specifier: '*'
         version: link:../../../packages/kapi-format
+      '@neokapi/project-screens':
+        specifier: '*'
+        version: link:../../../packages/project-screens
       '@neokapi/status-views':
         specifier: '*'
         version: link:../../../packages/status-views

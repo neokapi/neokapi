@@ -1,7 +1,13 @@
 import { useEffect } from "react";
 import { useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ReviewInbox, useApi, type ReviewInboxProject, type ReviewInboxTask } from "@neokapi/ui";
+import {
+  ReviewInbox,
+  useApi,
+  type ReviewInboxProject,
+  type ReviewInboxRules,
+  type ReviewInboxTask,
+} from "@neokapi/ui";
 import type { WorkspaceRouteContext } from "..";
 import { myReviewTasksQueryOptions } from "../../queries";
 
@@ -56,6 +62,23 @@ export function ReviewInboxRoute() {
     translated: p.translated,
   }));
 
+  // The questions waiting for a decision in each project. Rules opens on the
+  // stream the project's review standing names, or main.
+  const { data: queue } = useQuery({
+    queryKey: ["contextQueue", ws],
+    queryFn: () => adapter.getContextQueue(ws),
+    enabled: !!ws,
+    staleTime: 30_000,
+  });
+  const streamOf = new Map(projects.map((p) => [p.projectId, p.stream]));
+  const rules: ReviewInboxRules[] = (queue?.projects ?? []).map((q) => ({
+    projectId: q.project_id,
+    projectName: q.project_name || q.project_id,
+    stream: streamOf.get(q.project_id) ?? "main",
+    waiting: q.waiting,
+    assigned: q.assigned,
+  }));
+
   const ship = rollup?.ship;
   const coverageNote =
     ship && ship.counted_projects < ship.total_projects
@@ -79,6 +102,14 @@ export function ReviewInboxRoute() {
         }
       }}
       projects={projects}
+      rules={rules}
+      onOpenRules={(projectId, stream) =>
+        navigate({
+          to: "/$workspace/p/$projectId/s/$stream/rules",
+          params: { workspace: wsParam, projectId, stream },
+          search: {},
+        })
+      }
       loading={isLoading}
       coverageNote={coverageNote}
       onOpenReview={(projectId, stream) =>

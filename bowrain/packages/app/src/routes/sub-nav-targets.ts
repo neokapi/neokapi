@@ -47,3 +47,21 @@ export type SubNavId = keyof typeof subNavTargets;
 export function subNavTarget(id: string): (typeof subNavTargets)[SubNavId] | undefined {
   return (subNavTargets as Record<string, (typeof subNavTargets)[SubNavId]>)[id];
 }
+
+/**
+ * Where each of a project's sections navigates, by the id the secondary panel
+ * gives it (projectSubNavConfig). The Map comes first: it is the project's
+ * landing page. `projectSectionTargetsAreComplete` in sub-nav-targets.test.ts
+ * holds the table and the panel in step.
+ */
+export const projectSectionTargets = {
+  map: "/$workspace/p/$projectId/s/$stream/map",
+  dashboard: "/$workspace/p/$projectId/s/$stream/overview",
+  rules: "/$workspace/p/$projectId/s/$stream/rules",
+  source: "/$workspace/p/$projectId/s/$stream/source",
+  automations: "/$workspace/p/$projectId/s/$stream/automations",
+  runs: "/$workspace/p/$projectId/s/$stream/runs",
+  connectors: "/$workspace/p/$projectId/s/$stream/connectors",
+} as const;
+
+export type ProjectSectionId = keyof typeof projectSectionTargets;

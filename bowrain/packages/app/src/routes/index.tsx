@@ -481,14 +481,15 @@ const overviewLoader = async ({
 
 // Stream-scoped project routes.
 //
-// The stream root is the project's overview: opening a project lands on its
-// collections and their ship readiness, and the item list is one drill-down
-// below (`?collection=` / `?items=all`). The file-centric source view — where
-// collections, uploads and streams are managed — is a sibling at
+// The stream root opens the project's landing page, the Map. The overview of
+// the project's collections and their ship readiness is at
+// `…/s/$stream/overview`, and its item list is one drill-down below
+// (`?collection=` / `?items=all`). The file-centric source view, where
+// collections, uploads and streams are managed, is a sibling at
 // `…/s/$stream/source`.
 const projectRoute = createRoute({
   getParentRoute: () => workspaceRoute,
-  path: "p/$projectId/s/$stream",
+  path: "p/$projectId/s/$stream/overview",
   pendingComponent: TranslationDashboardSkeleton,
   component: lazyRouteComponent(
     () => import("./workspace/translation-dashboard"),
@@ -496,6 +497,22 @@ const projectRoute = createRoute({
   ),
   validateSearch: overviewSearch,
   loader: overviewLoader,
+});
+
+// The stream root. A link that carries the overview's drill-down state lands on
+// the overview with it; any other lands on the Map.
+const projectIndexRoute = createRoute({
+  getParentRoute: () => workspaceRoute,
+  path: "p/$projectId/s/$stream",
+  validateSearch: overviewSearch,
+  beforeLoad: ({ params, search }) => {
+    const drilled = Object.values(search).some((v) => v !== undefined);
+    throw redirect(
+      drilled
+        ? { to: "/$workspace/p/$projectId/s/$stream/overview", params, search, replace: true }
+        : { to: "/$workspace/p/$projectId/s/$stream/map", params, replace: true },
+    );
+  },
 });
 
 // The overview's former address. Links and bookmarks shipped pointing here, so
@@ -507,12 +524,45 @@ const translationDashboardRedirectRoute = createRoute({
   validateSearch: overviewSearch,
   beforeLoad: ({ params, search }) => {
     throw redirect({
-      to: "/$workspace/p/$projectId/s/$stream",
+      to: "/$workspace/p/$projectId/s/$stream/overview",
       params,
       search,
       replace: true,
     });
   },
+});
+
+// The Map, the Reader and Rules: the project screens over the server's
+// routes. The Map is a project's landing page: the projects list and the trail
+// open it. The Reader's splat is the item's path, as the Map's file rows and
+// the Rules' evidence name it, and `?block=` names the block it opens at;
+// `?row=` names the question Rules opens on.
+const projectMapRoute = createRoute({
+  getParentRoute: () => workspaceRoute,
+  path: "p/$projectId/s/$stream/map",
+  pendingComponent: DashboardSkeleton,
+  component: lazyRouteComponent(() => import("./workspace/project-map"), "ProjectMapRoute"),
+});
+
+const projectReaderRoute = createRoute({
+  getParentRoute: () => workspaceRoute,
+  path: "p/$projectId/s/$stream/read/$",
+  params: requireSplat,
+  pendingComponent: DashboardSkeleton,
+  component: lazyRouteComponent(() => import("./workspace/project-reader"), "ProjectReaderRoute"),
+  validateSearch: (search: Record<string, unknown>): { block?: string } => ({
+    block: typeof search.block === "string" && search.block !== "" ? search.block : undefined,
+  }),
+});
+
+const projectRulesRoute = createRoute({
+  getParentRoute: () => workspaceRoute,
+  path: "p/$projectId/s/$stream/rules",
+  pendingComponent: DashboardSkeleton,
+  component: lazyRouteComponent(() => import("./workspace/project-rules"), "ProjectRulesRoute"),
+  validateSearch: (search: Record<string, unknown>): { row?: string } => ({
+    row: typeof search.row === "string" && search.row !== "" ? search.row : undefined,
+  }),
 });
 
 // The project's source content: its collections, the files inside them, its
@@ -1076,8 +1126,12 @@ const routeTree = rootRoute.addChildren([
   ]),
   workspaceRoute.addChildren([
     dashboardRoute,
+    projectIndexRoute,
     projectRoute,
     translationDashboardRedirectRoute,
+    projectMapRoute,
+    projectReaderRoute,
+    projectRulesRoute,
     projectSourceRoute,
     projectSettingsRoute,
     translateRoute,

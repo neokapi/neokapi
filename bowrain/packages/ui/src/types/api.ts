@@ -2459,6 +2459,10 @@ export type PermissionName =
   | "review"
   | "manage_terms"
   | "manage_tm"
+  // The server answers a caller's permissions (GET /:ws/:id/permissions) with
+  // the content memory permission spelled manage_memory; it still accepts
+  // manage_tm, the spelling role templates send.
+  | "manage_memory"
   | "run_flows"
   | "manage_files"
   | "manage_streams"
@@ -2496,6 +2500,7 @@ export const PERMISSION_LABELS: Record<PermissionName, string> = {
   review: "Review",
   manage_terms: "Manage terminology",
   manage_tm: "Manage content memory",
+  manage_memory: "Manage content memory",
   run_flows: "Run flows",
   manage_files: "Manage files",
   manage_streams: "Manage streams",
@@ -3013,4 +3018,60 @@ export interface ModelSweepLocaleGroup {
 export interface ModelRecommendationsResponse {
   enabled: boolean;
   locales: ModelSweepLocaleGroup[];
+}
+
+// --- The project screens: the Map, the Reader and Decide on the server ---
+
+/** The body POST /:ws/:id/map/:ref/check answers with: the job to follow. */
+export interface ProjectCheckStarted {
+  job_id: string;
+}
+
+/** A job as GET /:ws/jobs/:id answers it, with the fields a page follows. */
+export interface JobState {
+  id: string;
+  status: "queued" | "processing" | "completed" | "failed";
+  /** 0 to 100. */
+  progress: number;
+  error?: string;
+}
+
+/**
+ * What a fix from the Reader filed (POST /:ws/:id/reader/:ref/fix and
+ * /fix-file): one source proposal per block it changes, in the file's block
+ * order, and the fixes that could not be proposed, each with the reason.
+ */
+export interface ReaderFixResult {
+  proposals: string[];
+  refused: { finding_id: string; reason: string }[];
+}
+
+/** An answer to a Decide question, as POST /:ws/:id/rules/:ref/decide takes it. */
+export interface DecideRuleRequest {
+  /** The suggestion, or for a disagreement the side a keep chooses. */
+  id: string;
+  answer: "keep" | "drop" | "later";
+  /** The form a kept name writes. Empty keeps the suggestion's own. */
+  form?: string;
+}
+
+/** What an assignment holds now (POST /:ws/:id/rules/:ref/assign). */
+export interface SuggestionAssignment {
+  id: string;
+  assignee: { kind: string; name?: string } | null;
+}
+
+/** One project of the workspace's Decide queue. */
+export interface ContextQueueProject {
+  project_id: string;
+  project_name: string;
+  /** The questions waiting for a decision. */
+  waiting: number;
+  /** The waiting questions assigned to the caller. */
+  assigned: number;
+}
+
+/** GET /:ws/context/queue: every project the caller can view, with its questions waiting. */
+export interface ContextQueue {
+  projects: ContextQueueProject[];
 }

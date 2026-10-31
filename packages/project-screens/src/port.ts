@@ -8,6 +8,7 @@ import type {
   KeptRule,
   MapSummary,
   ReaderFile,
+  ReaderFixFiled,
   RuleAnswer,
   RuleDecideResult,
   RulesDecideView,
@@ -56,10 +57,13 @@ export interface ProjectScreensPort {
   /** Record an answer. Absent, Decide draws no Keep, Not a rule or Later. */
   decide?(id: string, answer: RuleAnswer, form?: string): Promise<RuleDecideResult>;
   assign?(id: string, userId: string | null): Promise<void>;
-  /** Apply one finding's fix and answer with the file read again. Absent, the Reader draws no Fix. */
-  fixFinding?(path: string, findingId: string): Promise<ReaderFile>;
-  /** Apply every fix in a file and answer with the file read again. */
-  fixFile?(path: string): Promise<ReaderFile>;
+  /**
+   * Apply one finding's fix and answer with the file read again, or file it as
+   * a proposal and answer with what was filed. Absent, the Reader draws no Fix.
+   */
+  fixFinding?(path: string, findingId: string): Promise<ReaderFile | ReaderFixFiled>;
+  /** Apply every fix in a file, or file each as a proposal, and answer as fixFinding does. */
+  fixFile?(path: string): Promise<ReaderFile | ReaderFixFiled>;
   /** Run the checks over the whole project. Absent, the Map draws no check action. */
   runChecks?(): Promise<void>;
   /** The name a person is shown by. Absent, or answering nothing, a person with no name is "you". */

@@ -1,5 +1,12 @@
 import type { ComponentSchema } from "@neokapi/ui-primitives";
 import type {
+  KeptRule,
+  MapSummary,
+  ReaderFile,
+  RuleDecideResult,
+  RulesDecideView,
+} from "@neokapi/project-screens";
+import type {
   User,
   Workspace,
   Membership,
@@ -143,6 +150,12 @@ import type {
   ContextScanApproveResult,
   ApproveAxisRequest,
   PendingRecipeChange,
+  ProjectCheckStarted,
+  JobState,
+  ReaderFixResult,
+  DecideRuleRequest,
+  SuggestionAssignment,
+  ContextQueue,
 } from "../types/api";
 import type {
   VoiceProfile,
@@ -1516,6 +1529,73 @@ export interface ApiAdapter {
     projectId: string,
     stream: string,
   ): Promise<TrialReport>;
+
+  // The project screens: the Map, the Reader and Decide over one stream.
+  /** The Map of a project's stream (GET /:ws/:id/map/:ref). */
+  getMapSummary(workspaceSlug: string, projectId: string, stream?: string): Promise<MapSummary>;
+  /** One item as the Reader draws it (GET /:ws/:id/reader/:ref?item=). */
+  getReaderFile(
+    workspaceSlug: string,
+    projectId: string,
+    itemName: string,
+    stream?: string,
+  ): Promise<ReaderFile>;
+  /** Every question waiting for a decision (GET /:ws/:id/rules/:ref/decide). */
+  getDecideView(
+    workspaceSlug: string,
+    projectId: string,
+    stream?: string,
+  ): Promise<RulesDecideView>;
+  /** What keeping a name with a typed form does (GET /:ws/:id/rules/:ref/decide/consequence). */
+  getDecideConsequence(
+    workspaceSlug: string,
+    projectId: string,
+    id: string,
+    form: string,
+    stream?: string,
+  ): Promise<string>;
+  /** Record one answer as the signed-in member (POST /:ws/:id/rules/:ref/decide). */
+  decideRule(
+    workspaceSlug: string,
+    projectId: string,
+    req: DecideRuleRequest,
+    stream?: string,
+  ): Promise<RuleDecideResult>;
+  /** Assign a question to a member, or to no one (POST /:ws/:id/rules/:ref/assign). */
+  assignSuggestion(
+    workspaceSlug: string,
+    projectId: string,
+    id: string,
+    userId: string | null,
+    stream?: string,
+  ): Promise<SuggestionAssignment>;
+  /** The rules in force, newest first, with who kept each (GET /:ws/:id/rules/:ref/kept). */
+  getKeptRules(workspaceSlug: string, projectId: string, stream?: string): Promise<KeptRule[]>;
+  /** Start the checks over every item of the stream as a job (POST /:ws/:id/map/:ref/check). */
+  runProjectChecks(
+    workspaceSlug: string,
+    projectId: string,
+    stream?: string,
+  ): Promise<ProjectCheckStarted>;
+  /** A job's state (GET /:ws/jobs/:id). */
+  getJob(workspaceSlug: string, jobId: string): Promise<JobState>;
+  /** File one finding's fix as a source proposal (POST /:ws/:id/reader/:ref/fix). */
+  fixFinding(
+    workspaceSlug: string,
+    projectId: string,
+    itemName: string,
+    findingId: string,
+    stream?: string,
+  ): Promise<ReaderFixResult>;
+  /** File every fix in an item as source proposals, one per block (POST /:ws/:id/reader/:ref/fix-file). */
+  fixFile(
+    workspaceSlug: string,
+    projectId: string,
+    itemName: string,
+    stream?: string,
+  ): Promise<ReaderFixResult>;
+  /** The questions waiting in each project of the workspace (GET /:ws/context/queue). */
+  getContextQueue(workspaceSlug: string): Promise<ContextQueue>;
 
   // Utility
   getKnownLocales(): Promise<LocaleInfo[]>;

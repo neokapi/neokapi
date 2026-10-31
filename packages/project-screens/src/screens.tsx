@@ -11,7 +11,7 @@ import { MapView, type MapViewProps } from "./MapView";
 import { KeptRulesView } from "./KeptRulesView";
 import { ReaderView } from "./ReaderView";
 import type { ProjectScreensPort, ScreenNavigation } from "./port";
-import type { ReaderFile, ReaderRefusal } from "./types";
+import type { ReaderFile, ReaderFixFiled, ReaderProposal, ReaderRefusal } from "./types";
 
 /** How long a typed form rests before what keeping it does is read. */
 const OTHER_DEBOUNCE_MS = 250;
@@ -107,22 +107,43 @@ export interface ReaderScreenProps extends ScreenNavigation {
   focusBlockID?: string;
   onBack?: () => void;
   backLabel?: string;
+  /** Open a proposal a fix filed. Absent, its id is drawn with no link. */
+  onOpenProposal?: (id: string) => void;
+}
+
+/** Whether a fix answered with what it filed rather than the file read again. */
+function filed(answer: ReaderFile | ReaderFixFiled): answer is ReaderFixFiled {
+  return "proposed" in answer;
 }
 
 /** The Reader on one file, read through the port. */
 export function ReaderScreen({ port, path, ...rest }: ReaderScreenProps) {
   const { data, setData, error } = usePortRead(port, "reader", () => port.readerFile(path), path);
-  // A fix answers with the file read again. Its refusals are kept apart from
-  // the read: a later read carries no refusal of its own.
+  // A fix answers with the file read again, or with the proposals it filed.
+  // Its refusals are kept apart from the read: a later read carries no
+  // refusal of its own. The proposals filed on this page stay drawn, since
+  // the file does not change until a person approves one.
   const [refused, setRefused] = useState<ReaderRefusal[] | null>(null);
+  const [proposed, setProposed] = useState<ReaderProposal[]>([]);
   const [fixing, setFixing] = useState<{ id?: string; all?: boolean } | null>(null);
   const [fixError, setFixError] = useState<unknown>(null);
   if (!data) return <Pending error={error} title={t("The file could not be read")} />;
-  const fix = (run: () => Promise<ReaderFile>, at: { id?: string; all?: boolean }) => {
+  const fix = (
+    run: () => Promise<ReaderFile | ReaderFixFiled>,
+    at: { id?: string; all?: boolean },
+  ) => {
     setFixing(at);
     setFixError(null);
     run()
       .then((next) => {
+        if (filed(next)) {
+          setRefused(next.refused);
+          setProposed((before) => {
+            const ids = new Set(next.proposed.map((p) => p.finding_id));
+            return [...before.filter((p) => !ids.has(p.finding_id)), ...next.proposed];
+          });
+          return;
+        }
         setData(next);
         setRefused(next.refused);
       })
@@ -136,6 +157,7 @@ export function ReaderScreen({ port, path, ...rest }: ReaderScreenProps) {
       {...rest}
       reader={data}
       refused={refused ?? data.refused}
+      proposed={proposed}
       busy={fixing !== null}
       fixingID={fixing?.id}
       fixingAll={!!fixing?.all}

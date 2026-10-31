@@ -178,7 +178,7 @@ export function ProjectDashboardRoute() {
       }
       invalidateProjects();
       void navigate({
-        to: "/$workspace/p/$projectId/s/$stream",
+        to: "/$workspace/p/$projectId/s/$stream/map",
         params: { workspace: workspace ?? ws, projectId: info.id, stream: "main" },
       });
     },
@@ -188,7 +188,7 @@ export function ProjectDashboardRoute() {
   const handleOpenProject = useCallback(
     (project: ProjectInfo) => {
       void navigate({
-        to: "/$workspace/p/$projectId/s/$stream",
+        to: "/$workspace/p/$projectId/s/$stream/map",
         params: { workspace: workspace ?? ws, projectId: project.id, stream: "main" },
       });
     },
@@ -204,7 +204,7 @@ export function ProjectDashboardRoute() {
     });
     invalidateProjects();
     void navigate({
-      to: "/$workspace/p/$projectId/s/$stream",
+      to: "/$workspace/p/$projectId/s/$stream/map",
       params: { workspace: workspace ?? ws, projectId: info.id, stream: "main" },
     });
   }, [ws, workspace, adapter, capture, navigate, invalidateProjects]);
@@ -275,7 +275,7 @@ export function ProjectDashboardRoute() {
     const target = loopRollup?.ship?.projects?.[0];
     if (!target) return;
     void navigate({
-      to: "/$workspace/p/$projectId/s/$stream",
+      to: "/$workspace/p/$projectId/s/$stream/overview",
       params: {
         workspace: workspace ?? ws,
         projectId: target.project_id,

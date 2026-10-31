@@ -30,12 +30,23 @@ import {
 } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import { opens, type ScreenNavigation } from "./port";
-import type { ReaderBlock, ReaderFile, ReaderFinding, ReaderRefusal, ReaderRule } from "./types";
+import type {
+  ReaderBlock,
+  ReaderFile,
+  ReaderFinding,
+  ReaderProposal,
+  ReaderRefusal,
+  ReaderRule,
+} from "./types";
 
 export interface ReaderViewProps extends ScreenNavigation {
   reader: ReaderFile;
   /** The last fix's refusals; the read's own when absent. */
   refused?: ReaderRefusal[];
+  /** The fixes filed as proposals on this page, each under its finding. */
+  proposed?: ReaderProposal[];
+  /** Open a filed proposal. Absent, its id is drawn with no link. */
+  onOpenProposal?: (id: string) => void;
   focusBlockID?: string;
   /** A fix is being applied. */
   busy?: boolean;
@@ -57,6 +68,8 @@ export interface ReaderViewProps extends ScreenNavigation {
 export function ReaderView({
   reader,
   refused: given,
+  proposed,
+  onOpenProposal,
   focusBlockID,
   busy,
   fixingID,
@@ -76,6 +89,12 @@ export function ReaderView({
     for (const r of refused) out.set(r.finding_id, r.reason);
     return out;
   }, [refused]);
+  const proposals = useMemo(() => {
+    const out = new Map<string, string>();
+    for (const p of proposed ?? []) out.set(p.finding_id, p.proposal);
+    return out;
+  }, [proposed]);
+  const filed: Filed = { proposals, onOpenProposal };
   // A refusal whose finding is gone from the file read again is drawn at the
   // top, since there is no row left to draw it under.
   const placed = useMemo(() => {
@@ -115,7 +134,10 @@ export function ReaderView({
           )
         }
         actions={
+          // A filed fix leaves the file as it is, and fixing the file files
+          // every fix again, so the action goes once anything is filed.
           reader.fixable > 0 &&
+          proposals.size === 0 &&
           onFixAll && (
             <Button size="sm" data-slot="reader-fix-file" disabled={busy} onClick={onFixAll}>
               {fixingAll ? <LoadingSpinner size="sm" /> : <Wand2 size={14} />}
@@ -143,6 +165,7 @@ export function ReaderView({
             <FindingRows
               findings={reader.document}
               refusals={refusals}
+              filed={filed}
               busy={busy}
               fixingID={fixingID}
               onFix={onFix}
@@ -162,6 +185,7 @@ export function ReaderView({
                 block={block}
                 focused={block.id === focusBlockID}
                 refusals={refusals}
+                filed={filed}
                 busy={busy}
                 fixingID={fixingID}
                 onFix={onFix}
@@ -200,6 +224,7 @@ function BlockView({
   block,
   focused,
   refusals,
+  filed,
   busy,
   fixingID,
   onFix,
@@ -207,6 +232,7 @@ function BlockView({
   block: ReaderBlock;
   focused: boolean;
   refusals: Map<string, string>;
+  filed: Filed;
   busy?: boolean;
   fixingID?: string;
   onFix?: (findingID: string) => void;
@@ -235,6 +261,7 @@ function BlockView({
         <FindingRows
           findings={block.findings}
           refusals={refusals}
+          filed={filed}
           busy={busy}
           fixingID={fixingID}
           onFix={onFix}
@@ -248,12 +275,14 @@ function BlockView({
 function FindingRows({
   findings,
   refusals,
+  filed,
   busy,
   fixingID,
   onFix,
 }: {
   findings: ReaderFinding[];
   refusals: Map<string, string>;
+  filed: Filed;
   busy?: boolean;
   fixingID?: string;
   onFix?: (findingID: string) => void;
@@ -265,6 +294,8 @@ function FindingRows({
           key={f.id}
           finding={f}
           refused={refusals.get(f.id)}
+          proposal={filed.proposals.get(f.id)}
+          onOpenProposal={filed.onOpenProposal}
           busy={busy}
           fixing={fixingID === f.id}
           onFix={onFix && (() => onFix(f.id))}
@@ -281,12 +312,17 @@ function FindingRows({
 function FindingRow({
   finding,
   refused,
+  proposal,
+  onOpenProposal,
   busy,
   fixing,
   onFix,
 }: {
   finding: ReaderFinding;
   refused?: string;
+  /** The proposal this finding's fix was filed as. */
+  proposal?: string;
+  onOpenProposal?: (id: string) => void;
   busy?: boolean;
   fixing: boolean;
   onFix?: () => void;
@@ -312,7 +348,9 @@ function FindingRow({
           </span>
         )}
       </span>
-      {finding.fixable ? (
+      {proposal ? (
+        <Proposed id={proposal} onOpen={onOpenProposal} />
+      ) : finding.fixable ? (
         onFix && (
           <Button
             size="xs"
@@ -340,6 +378,32 @@ function FindingRow({
         </div>
       )}
     </li>
+  );
+}
+
+/** The fixes filed as proposals, by finding, and how a proposal opens. */
+interface Filed {
+  proposals: Map<string, string>;
+  onOpenProposal?: (id: string) => void;
+}
+
+/** A fix filed as a proposal, which opens it when the host can; the id is its title. */
+function Proposed({ id, onOpen }: { id: string; onOpen?: (id: string) => void }) {
+  const label = t("Proposed", "a fix filed as a source proposal for a person to approve");
+  return onOpen ? (
+    <Button
+      size="xs"
+      variant="link"
+      data-slot="reader-proposed"
+      title={id}
+      onClick={() => onOpen(id)}
+    >
+      {label}
+    </Button>
+  ) : (
+    <span data-slot="reader-proposed" title={id} className="text-[11px] text-muted-foreground">
+      {label}
+    </span>
   );
 }
 

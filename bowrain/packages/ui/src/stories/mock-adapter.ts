@@ -8,6 +8,12 @@
 
 import type { ChangeFinding, ChangeOp } from "@neokapi/contract-types";
 import { otherBranch, projectRuns, type ModelRunSpec, type Run } from "@neokapi/kapi-format";
+import {
+  DECIDE_VIEW,
+  KEPT_RULES,
+  MAP_PENDING,
+  READER_WITH_FIXES,
+} from "@neokapi/project-screens/fixtures";
 import type { ApiAdapter } from "../api/adapter";
 import type { ContentChangeSet } from "../api/contentChanges";
 import { blockHasInlineCodes, sourceRuns } from "../components/editor/blockContent";
@@ -2139,6 +2145,31 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
       cleared_total: 1,
       terms_computed: true,
       computed_at: MOCK_NOW,
+    }),
+    // The project screens, over the Fernwell fixtures the screens' own
+    // stories draw. A fix files a proposal and leaves the item as it is.
+    getMapSummary: async () => MAP_PENDING,
+    getReaderFile: async () => READER_WITH_FIXES,
+    getDecideView: async () => DECIDE_VIEW,
+    getDecideConsequence: async (_ws, _projectId, _id, form) =>
+      `${form} becomes the name in 3 blocks.`,
+    decideRule: async (_ws, _projectId, req) => ({
+      answer: req.answer,
+      kept: req.answer === "keep" ? 1 : 0,
+      dropped: req.answer === "drop" ? 1 : 0,
+      later: req.answer === "later" ? 1 : 0,
+    }),
+    assignSuggestion: async (_ws, _projectId, id, userId) => ({
+      id,
+      assignee: userId ? { kind: "person", name: userId } : null,
+    }),
+    getKeptRules: async () => KEPT_RULES,
+    runProjectChecks: async () => ({ job_id: "job-check-1" }),
+    getJob: async (_ws, jobId) => ({ id: jobId, status: "completed", progress: 100 }),
+    fixFinding: async () => ({ proposals: ["sp-fernwell-0001"], refused: [] }),
+    fixFile: async () => ({ proposals: ["sp-fernwell-0002"], refused: [] }),
+    getContextQueue: async () => ({
+      projects: [{ project_id: "p1", project_name: "Fernwell", waiting: 3, assigned: 1 }],
     }),
   };
   return adapter;
