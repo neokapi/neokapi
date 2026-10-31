@@ -975,13 +975,12 @@ func checkSessionsOf(checks []contextop.Record) checkSessions {
 // sessionRunsOf lists each session's latest check runs, newest first, with
 // what each run caught marked on its findings.
 //
-// The rule is host.SessionOutcomesOf's, applied finding by finding. Runs are
-// compared within one project and one session, in the order the log accepted
-// them, and only runs that reached a verdict take part. A failing finding of
-// one run that the next such run no longer reports, by its file, its rule and
-// the wording it quotes, was caught; when the next run lists fewer findings
-// than it counted, nothing is caught. The mark sits on the run that last
-// reported the finding, so the run that caught it shows what it caught.
+// Runs are compared as host.SessionOutcomesOf compares them: within one
+// project and one session, in the order the log accepted them, and only runs
+// that reached a verdict take part. host.CaughtFindings marks each pair, so
+// the marks add up to the session's caught count. The mark sits on the run
+// that last reported the finding, so the run that caught it shows what it
+// caught.
 func sessionRunsOf(checks []contextop.Record) map[string][]ContextCheckRun {
 	sequences := map[string][]contextop.Record{}
 	for _, r := range checks {
@@ -1001,7 +1000,7 @@ func sessionRunsOf(checks []contextop.Record) map[string][]ContextCheckRun {
 				continue
 			}
 			if prev >= 0 {
-				caught[prev] = caughtFindings(*seq[prev].Check, *r.Check)
+				caught[prev] = host.CaughtFindings(*seq[prev].Check, *r.Check)
 			}
 			prev = i
 		}
@@ -1021,28 +1020,6 @@ func sessionRunsOf(checks []contextop.Record) map[string][]ContextCheckRun {
 			runs = runs[:contextFeedMaxRuns]
 		}
 		out[session] = runs
-	}
-	return out
-}
-
-// caughtFindings marks which of prev's listed findings next no longer
-// reports. Two findings with one key match one to one, so a finding reported
-// twice and fixed once is caught once.
-func caughtFindings(prev, next contextop.CheckRun) []bool {
-	if !next.Complete() {
-		return nil
-	}
-	remaining := map[string]int{}
-	for _, f := range next.Findings {
-		remaining[f.Key()]++
-	}
-	out := make([]bool, len(prev.Findings))
-	for i, f := range prev.Findings {
-		if remaining[f.Key()] > 0 {
-			remaining[f.Key()]--
-			continue
-		}
-		out[i] = true
 	}
 	return out
 }
