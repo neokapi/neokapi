@@ -8,18 +8,21 @@ overview: |
   in the language `--target-lang` names, and reports what it finds. `--mode`
   selects how:
 
-  - `rules`, the default, runs deterministic checks on your machine with no
-    credentials. They cover empty and identical targets, whitespace, doubled
-    words, inline codes, span constraints, characters, length, and, when you
-    enable them, consistency across the run.
+  - `rules`, the default, runs deterministic checks locally. They cover empty
+    and identical targets, whitespace, doubled words, inline codes, span
+    constraints, characters, length, and, when enabled, consistency across the
+    run.
   - `ai` sends each translated block's source and translation to the provider
     `--provider` names, which reviews the dimensions in `--checks`. A hosted
     provider needs a credential. `--provider` and `--model` apply only in this
     mode.
 
-  The tool reads a file that holds both languages, such as XLIFF. Findings print
-  on standard output as a table, or as a JSON report with `--json`. Each finding
-  is marked as failing or reported, and the run exits 0 whatever it finds.
+  The tool reads a file that holds both languages, such as XLIFF, or a source
+  file with its translation passed as `--target <file>`. Findings print on
+  standard output as a table, or as a JSON report with `--json`. The run writes
+  no file unless `-o` or `--output-dir` names one. Each finding is marked as
+  failing or reported, and the run exits 0 whatever it finds. It exits 4 when it
+  compared no translation and reported nothing.
 parameters:
   mode:
     description: How to check the translations.
@@ -292,6 +295,8 @@ limitations:
   - Length and ratio checks compare character lengths only when source and target are both non-empty.
   - The regex pattern pairs used by `checkPatterns` are supplied programmatically, not as schema parameters.
   - Requires a target language. The tool compares translations in that one language per run.
+  - Run on a translation file alone, the `rules` mode reads each block as untranslated and reports it as an empty target. Name the source file and pass the translation with `--target`.
+  - A run with `--target` pairs one source file with one translation and refuses `-o` and `--output-dir`.
 processingNotes:
   - Operates on translatable blocks; non-translatable structure passes through unchanged.
   - When a block has no translation in the target language, only the empty-target check applies.
