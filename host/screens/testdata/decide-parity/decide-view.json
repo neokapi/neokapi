@@ -1,0 +1,134 @@
+{
+  "project": "prj_decideparityaaaaaaaa",
+  "project_name": "decide-parity",
+  "decisions": [
+    {
+      "kind": "disagreement",
+      "question": "Which one holds?",
+      "reason": "These rules say different things about the same word. Choose one, and the others are set aside.",
+      "sentence": "",
+      "label": "utilise",
+      "avoided": 1,
+      "options": [
+        {
+          "id": "0recs8gxh4awnqpdr3p40esq",
+          "short": "0recs8gxh4",
+          "sentence": "Write employ, not utilise.",
+          "blocks": 0,
+          "files": 0,
+          "consequence": "If you keep \"employ\": \"utilise\" becomes a finding in 1 block. Applies to docs.",
+          "noticed_by": {
+            "kind": "agent",
+            "name": "codex",
+            "session": "s-parity",
+            "host": "build-01"
+          }
+        },
+        {
+          "id": "0recs8gw72yc442cnq8yk81w",
+          "short": "0recs8gw72",
+          "sentence": "Write use, not utilise.",
+          "blocks": 0,
+          "files": 0,
+          "consequence": "If you keep \"use\": \"utilise\" becomes a finding in 1 block. Applies to docs.",
+          "noticed_by": {
+            "kind": "agent",
+            "name": "codex",
+            "session": "s-parity",
+            "host": "build-01"
+          }
+        }
+      ],
+      "chosen": 0,
+      "other": false,
+      "seen": {
+        "path": "docs/b.md",
+        "quote": "We utilise the widget."
+      },
+      "applies": "docs",
+      "noticed_by": {
+        "kind": "agent",
+        "name": "codex",
+        "session": "s-parity",
+        "host": "build-01"
+      }
+    },
+    {
+      "id": "0recs8gt14ph9003v6nd4jr1",
+      "short": "0recs8gt14",
+      "kind": "name",
+      "question": "Which one do your files use?",
+      "sentence": "Write Sign in, not Sign In, Sign-in, Signin or SignIn.",
+      "label": "Sign in",
+      "avoided": 0,
+      "options": [
+        {
+          "form": "Sign in",
+          "blocks": 2,
+          "files": 2,
+          "consequence": "If you keep \"Sign in\": the other 4 forms become findings in 2 blocks. Applies to docs."
+        },
+        {
+          "form": "Sign In",
+          "blocks": 2,
+          "files": 1,
+          "consequence": "If you keep \"Sign In\": the other 4 forms become findings in 2 blocks. Applies to docs."
+        },
+        {
+          "form": "Sign-in",
+          "blocks": 0,
+          "files": 0,
+          "consequence": "If you keep \"Sign-in\": the other 4 forms become findings in 4 blocks. Applies to docs."
+        },
+        {
+          "form": "Signin",
+          "blocks": 0,
+          "files": 0,
+          "consequence": "If you keep \"Signin\": the other 4 forms become findings in 4 blocks. Applies to docs."
+        },
+        {
+          "form": "SignIn",
+          "blocks": 0,
+          "files": 0,
+          "consequence": "If you keep \"SignIn\": the other 4 forms become findings in 4 blocks. Applies to docs."
+        }
+      ],
+      "chosen": 0,
+      "other": true,
+      "seen": {
+        "path": "docs/a.md",
+        "quote": "Please Sign In first."
+      },
+      "applies": "docs",
+      "noticed_by": {
+        "kind": "agent",
+        "name": "codex",
+        "session": "s-parity",
+        "host": "build-01"
+      }
+    },
+    {
+      "id": "0recs8gy9ymvarh1x960prt8",
+      "short": "0recs8gy9y",
+      "kind": "note",
+      "question": "Keep this as a rule?",
+      "sentence": "Help pages address a reader who is stuck.",
+      "label": "Help pages address a reader who is stuck.",
+      "avoided": 0,
+      "options": [],
+      "chosen": 0,
+      "other": false,
+      "consequence": "If you keep it: it is stated to writers and assistants where it applies. No check reads it. Applies to help.",
+      "seen": {
+        "path": "help/c.md"
+      },
+      "applies": "help",
+      "noticed_by": {
+        "kind": "person"
+      }
+    }
+  ],
+  "rules": 1,
+  "suggested": 4,
+  "narrowed": 1
+}

@@ -1,0 +1,48 @@
+{
+  "collections": [
+    {
+      "name": "docs",
+      "coordinates": {
+        "brand": "acme",
+        "surface": "docs"
+      }
+    },
+    {
+      "name": "help",
+      "coordinates": {
+        "brand": "acme",
+        "surface": "help"
+      }
+    }
+  ],
+  "items": [
+    {
+      "name": "docs/a.md",
+      "collection": "docs",
+      "blocks": [
+        "Login",
+        "Sign in to continue.",
+        "Please Sign In first.",
+        "Sign In again."
+      ]
+    },
+    {
+      "name": "docs/b.md",
+      "collection": "docs",
+      "blocks": [
+        "Help",
+        "Sign in with your account.",
+        "We utilise the widget."
+      ]
+    },
+    {
+      "name": "help/c.md",
+      "collection": "help",
+      "blocks": [
+        "More",
+        "Sign In from the menu.",
+        "We utilise the menu too."
+      ]
+    }
+  ]
+}

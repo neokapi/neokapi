@@ -1,0 +1,20 @@
+version: v1
+id: prj_decideparityaaaaaaaa
+name: decide-parity
+defaults:
+  source_language: en
+  coordinates:
+    brand: acme
+collections:
+  - name: docs
+    source_only: true
+    coordinates:
+      surface: docs
+    content:
+      - path: "docs/*.md"
+  - name: help
+    source_only: true
+    coordinates:
+      surface: help
+    content:
+      - path: "help/*.md"
