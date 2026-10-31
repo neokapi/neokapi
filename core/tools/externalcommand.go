@@ -199,11 +199,16 @@ func tokenFindings(conf *ExternalCommandConfig, side string, changes []redaction
 		case redaction.TokenAltered:
 			msg = fmt.Sprintf("%s gave back %s where the %s holds the redaction placeholder %s; the block is unchanged", program, c.Variant, side, c.Token)
 		case redaction.TokenDuplicated:
-			msg = fmt.Sprintf("%s gave back the redaction placeholder %s %d times where the %s holds it %d; the block is unchanged", program, c.Token, c.Found, side, c.Expected)
+			msg = fmt.Sprintf("%s gave back the redaction placeholder %s %d times; the %s holds it %d time(s); the block is unchanged", program, c.Token, c.Found, side, c.Expected)
 		case redaction.TokenAdded:
 			msg = fmt.Sprintf("%s gave back the redaction placeholder %s, which the %s does not hold; the block is unchanged", program, c.Token, side)
 			suggestion = fmt.Sprintf("Make %s give back only the redaction placeholders it reads", program)
 		default:
+			if c.Found > 0 {
+				// A partial drop: the output keeps some occurrences.
+				msg = fmt.Sprintf("%s gave back the redaction placeholder %s %d time(s); the %s holds it %d time(s); the block is unchanged", program, c.Token, c.Found, side, c.Expected)
+				break
+			}
 			msg = fmt.Sprintf("%s dropped the redaction placeholder %s that the %s holds; the block is unchanged", program, c.Token, side)
 		}
 		findings = append(findings, check.Finding{

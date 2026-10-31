@@ -203,8 +203,9 @@ func (a *App) RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 		if cfg, err = a.filePolicy(cfg, proj, cfg.Files[0]); err != nil {
 			return err
 		}
-		// A package run reports the placeholder findings it meets, and only
-		// those, after the line the transform prints.
+		// A package run under a policy reports the placeholder findings it
+		// meets after the line the transform prints, as a run over a file
+		// reports them, "No findings." included.
 		var found *flowFindings
 		if a.checksRedactionTokens(cfg.ToolName, map[string]ToolRunConfig{cfg.Files[0]: cfg}) {
 			found = &flowFindings{}
@@ -226,11 +227,7 @@ func (a *App) RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 		if found == nil {
 			return nil
 		}
-		report := *found.report()
-		if placeholderGateError(report) == nil {
-			return nil
-		}
-		return printToolResult(cfg, report)
+		return printToolResult(cfg, *found.report())
 	}
 	if IsKpzPath(cfg.OutputTemplate) {
 		return errKpzCreateWithExtract

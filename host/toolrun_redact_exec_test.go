@@ -140,13 +140,14 @@ func TestToolRun_ExternalCommandOverAPackageFailsOnADroppedPlaceholder(t *testin
 	assert.Equal(t, ExitGate, ExitCode(nil, err))
 	assert.Contains(t, stdout, "rewrite.sh dropped the redaction placeholder [REDACTED:Person] that the source holds; the block is unchanged")
 
-	// The same package and a program that keeps the placeholder: no report.
+	// The same package and a program that keeps the placeholder: a clean
+	// report, as a run over a file prints.
 	keep := rewriteProgram(t, `s/Write/Mail/`)
 	stdout, err = captureStdout(t, func() error {
 		return a.RunToolOnFiles(t.Context(), externalCommandRun(a, recipe, pkg, keep))
 	})
 	require.NoError(t, err)
-	assert.Empty(t, stdout)
+	assert.Contains(t, stdout, "No findings.")
 }
 
 // With no policy, nothing is redacted and the run reports nothing.

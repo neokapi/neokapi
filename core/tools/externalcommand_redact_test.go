@@ -87,7 +87,7 @@ func TestExternalCommand_OutputThatChangesATokenLeavesTheBlock(t *testing.T) {
 		},
 		{
 			name: "duplicated", cmd: sourceCommand("sed", `s/\(\[REDACTED:Person\]\)/\1 and \1/`), kind: "duplicated",
-			message:  "sed gave back the redaction placeholder [REDACTED:Person] 2 times where the source holds it 1; the block is unchanged",
+			message:  "sed gave back the redaction placeholder [REDACTED:Person] 2 times; the source holds it 1 time(s); the block is unchanged",
 			expected: "1", found: "2",
 		},
 	}
@@ -123,6 +123,29 @@ func TestExternalCommand_OutputThatChangesATokenLeavesTheBlock(t *testing.T) {
 
 // An output that carries a placeholder of the block that the side it read
 // does not hold puts a value where the input had none.
+// An output that keeps some occurrences of a placeholder the input holds
+// more than once reports both counts.
+func TestExternalCommand_OutputThatDropsOneOfTwoOccurrencesReportsTheCounts(t *testing.T) {
+	t.Parallel()
+	person := func(id string) model.Run {
+		return model.Run{Ph: &model.PlaceholderRun{ID: id, Type: redaction.PlaceholderType("person"), Disp: "[REDACTED:Person]"}}
+	}
+	block := model.NewBlock("b1", "")
+	block.SourceLocale = "en"
+	block.SetSourceRuns([]model.Run{
+		{Text: &model.TextRun{Text: "Write to "}}, person("rdx1"),
+		{Text: &model.TextRun{Text: " and "}}, person("rdx2"),
+	})
+	cmd := tools.NewExternalCommandTool(sourceCommand("sed", `s/\[REDACTED:Person\]/someone/`))
+	processPart(t, cmd, &model.Part{Type: model.PartBlock, Resource: block})
+	findings := check.Findings(tool.NewBlockView(block))
+	require.Len(t, findings, 1)
+	assert.Equal(t, "sed gave back the redaction placeholder [REDACTED:Person] 1 time(s); the source holds it 2 time(s); the block is unchanged", findings[0].Message)
+	assert.Equal(t, "dropped", findings[0].Metadata["kind"])
+	assert.Equal(t, "2", findings[0].Metadata["expected"])
+	assert.Equal(t, "1", findings[0].Metadata["found"])
+}
+
 func TestExternalCommand_OutputThatAddsATokenLeavesTheBlock(t *testing.T) {
 	t.Parallel()
 	redactTool, err := tools.NewRedactTool(&tools.RedactConfig{
