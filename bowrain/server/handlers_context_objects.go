@@ -1,8 +1,10 @@
 package server
 
 import (
+	"database/sql"
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 
@@ -21,8 +23,12 @@ const (
 	// hold (workspace.ErrNoObject), with status 404.
 	contextObjectMissingCode = "no_object"
 	// contextObjectInvalidCode answers a name or a directory outside the
-	// context layout, with status 400.
+	// context layout, or a blob whose name is not the address of its bytes,
+	// with status 400.
 	contextObjectInvalidCode = "invalid_name"
+	// contextObjectNoProjectCode answers a push to a project id the store
+	// does not hold, with status 404.
+	contextObjectNoProjectCode = "no_project"
 )
 
 // contextObjectWritePermission gates a push of context objects. The objects
@@ -143,17 +149,32 @@ func (s *Server) HandlePutContextObjects(c echo.Context) error {
 				Error: "not a name in the context layout", Details: obj.Name, Code: contextObjectInvalidCode,
 			})
 		}
+		if strings.HasPrefix(obj.Name, workspace.RemoteBlobDir) &&
+			workspace.BlobObjectName(workspace.BlobAddress(obj.Data)) != obj.Name {
+			return c.JSON(http.StatusBadRequest, ErrorResponse{
+				Error: "the blob's name is not the address of its bytes", Details: obj.Name, Code: contextObjectInvalidCode,
+			})
+		}
 		batch = append(batch, platstore.ContextObject{Name: obj.Name, Data: obj.Data})
 	}
 	cos, ok := s.contextObjects()
 	if !ok {
 		return contextObjectsUnavailable(c)
 	}
+	ctx := c.Request().Context()
+	projectID := c.Param("id")
+	if _, err := s.ContentStore.GetProject(ctx, projectID); errors.Is(err, sql.ErrNoRows) {
+		return c.JSON(http.StatusNotFound, ErrorResponse{
+			Error: "project not found", Details: projectID, Code: contextObjectNoProjectCode,
+		})
+	} else if err != nil {
+		return serverErr(c, err)
+	}
 	pushedBy, _ := c.Get("user_id").(string)
-	err := cos.PutContextObjects(c.Request().Context(), c.Param("id"), pushedBy, batch)
-	if errors.Is(err, platstore.ErrContextObjectExists) {
+	err := cos.PutContextObjects(ctx, projectID, pushedBy, batch)
+	if exists, ok := errors.AsType[*platstore.ContextObjectExistsError](err); ok {
 		return c.JSON(http.StatusConflict, ErrorResponse{
-			Error: "the project already holds that context object with other bytes", Details: err.Error(), Code: contextObjectExistsCode,
+			Error: "the project already holds that context object with other bytes", Details: exists.Name, Code: contextObjectExistsCode,
 		})
 	}
 	if err != nil {

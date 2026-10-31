@@ -196,7 +196,36 @@ func TestContextObjectRoutes_ConflictBody_SQLite(t *testing.T) {
 	var e2 ErrorResponse
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &e2))
 	assert.Equal(t, "object_exists", e2.Code)
-	assert.Contains(t, e2.Details, name)
+	assert.Equal(t, name, e2.Details, "the body names the refused object alone")
+}
+
+// A blob whose name is not the address of its bytes is refused with 400, so
+// it can never take the name its real bytes would need.
+func TestContextObjectRoutes_BlobNameMustMatchBytes_SQLite(t *testing.T) {
+	ctx := t.Context()
+	e, cs := contextObjectSQLiteServer(t, "member-a", platauth.PermViewContent|contextObjectWritePermission)
+	r := &routeRemote{h: e, base: "/api/v1/ws/" + seedContextObjectProject(t, cs) + "/context/objects"}
+	name := workspace.BlobObjectName(workspace.BlobAddress([]byte("right")))
+	body, err := json.Marshal(contextObjectBatch{Objects: []contextObjectWire{{Name: name, Data: []byte("wrong")}}})
+	require.NoError(t, err)
+	rec := r.do(ctx, http.MethodPost, r.base, body)
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+	var e2 ErrorResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &e2))
+	assert.Equal(t, "invalid_name", e2.Code)
+	assert.Equal(t, name, e2.Details)
+	require.NoError(t, r.Put(ctx, workspace.Object{Name: name, Data: []byte("right")}),
+		"the blob's real bytes still land under its name")
+}
+
+// A push to a project id the store does not hold answers 404.
+func TestContextObjectRoutes_UnknownProject_SQLite(t *testing.T) {
+	e, _ := contextObjectSQLiteServer(t, "member-a", platauth.PermViewContent|contextObjectWritePermission)
+	r := &routeRemote{h: e, base: "/api/v1/ws/no-such-project/context/objects"}
+	err := r.Put(t.Context(), workspace.Object{Name: workspace.SegmentName("w1", "000000000000000000000001"), Data: []byte("x\n")})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "status 404")
+	assert.Contains(t, err.Error(), "no_project")
 }
 
 // The routes on the full server, behind its real auth middleware and over
@@ -246,5 +275,27 @@ func TestContextObjectRoutes_RemoteConformance_Postgres(t *testing.T) {
 		err = reader.Put(ctx, workspace.Object{Name: workspace.SegmentName("w2", "000000000000000000000002"), Data: []byte("x\n")})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "status 403")
+	})
+
+	t.Run("a project in another workspace is not found", func(t *testing.T) {
+		ctx := t.Context()
+		ws := &platauth.Workspace{ID: "other-ws", Name: "Other", Slug: "other", Type: platauth.WorkspaceTypePersonal}
+		require.NoError(t, srv.AuthStore.CreateWorkspace(ctx, ws))
+		p := &platstore.Project{
+			Name: "theirs", DefaultSourceLanguage: "en", TargetLanguages: []model.LocaleID{"fr"},
+			WorkspaceID: ws.ID, Properties: map[string]string{},
+		}
+		require.NoError(t, srv.ContentStore.CreateProject(ctx, p))
+		r := &routeRemote{h: e, base: "/api/v1/test/" + p.ID + "/context/objects", bearer: token}
+		rec := r.do(ctx, http.MethodGet, r.base+"?dir=log/", nil)
+		assert.Equal(t, http.StatusNotFound, rec.Code)
+		err := r.Put(ctx, workspace.Object{Name: workspace.SegmentName("w1", "000000000000000000000001"), Data: []byte("x\n")})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "status 404")
+		cos, ok := platstore.ContextObjects(srv.ContentStore)
+		require.True(t, ok)
+		names, err := cos.ListContextObjects(ctx, p.ID, workspace.RemoteLogDir)
+		require.NoError(t, err)
+		assert.Empty(t, names, "nothing reached the other workspace's project")
 	})
 }

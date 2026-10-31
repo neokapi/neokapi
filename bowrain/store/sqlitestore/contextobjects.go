@@ -74,7 +74,7 @@ func (s *SQLiteStore) GetContextObject(ctx context.Context, projectID, name stri
 // rather than failing on a stale snapshot.
 func (s *SQLiteStore) PutContextObjects(ctx context.Context, projectID, pushedBy string, batch []platstore.ContextObject) error {
 	for _, obj := range batch {
-		if err := storeutil.CheckContextObjectName(obj.Name); err != nil {
+		if err := storeutil.CheckContextObject(obj.Name, obj.Data); err != nil {
 			return err
 		}
 	}
@@ -109,7 +109,7 @@ func (s *SQLiteStore) PutContextObjects(ctx context.Context, projectID, pushedBy
 			return fmt.Errorf("read held context object %s: %w", obj.Name, err)
 		}
 		if !bytes.Equal(held, data) {
-			return fmt.Errorf("%w: %s", platstore.ErrContextObjectExists, obj.Name)
+			return &platstore.ContextObjectExistsError{Name: obj.Name}
 		}
 	}
 	if err := tx.Commit(); err != nil {

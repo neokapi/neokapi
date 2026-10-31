@@ -61,6 +61,9 @@ func TestContextObjects_CreatedOnce(t *testing.T) {
 		{Name: seg1, Data: []byte("changed\n")},
 	})
 	require.ErrorIs(t, err, platstore.ErrContextObjectExists)
+	var exists *platstore.ContextObjectExistsError
+	require.ErrorAs(t, err, &exists)
+	assert.Equal(t, seg1, exists.Name, "the error names the refused object")
 	_, err = s.GetContextObject(ctx, p.ID, seg3)
 	require.ErrorIs(t, err, platstore.ErrNoContextObject, "a refused batch writes none of its objects")
 	got, err = s.GetContextObject(ctx, p.ID, seg1)
@@ -78,7 +81,15 @@ func TestContextObjects_NamesOutsideTheLayoutAreRefused(t *testing.T) {
 		require.Error(t, err, name)
 		require.NotErrorIs(t, err, platstore.ErrNoContextObject, name)
 	}
-	_, err := s.ListContextObjects(ctx, p.ID, "log")
+	blobName := workspace.BlobObjectName(workspace.BlobAddress([]byte("right")))
+	err := s.PutContextObjects(ctx, p.ID, "m", []platstore.ContextObject{{Name: blobName, Data: []byte("wrong")}})
+	require.Error(t, err, "a blob is stored only under the address of its bytes")
+	require.NotErrorIs(t, err, platstore.ErrContextObjectExists)
+	_, err = s.GetContextObject(ctx, p.ID, blobName)
+	require.ErrorIs(t, err, platstore.ErrNoContextObject)
+	require.NoError(t, s.PutContextObjects(ctx, p.ID, "m", []platstore.ContextObject{{Name: blobName, Data: []byte("right")}}))
+
+	_, err = s.ListContextObjects(ctx, p.ID, "log")
 	require.Error(t, err, "a directory is named with its slash, as the layout names it")
 }
 

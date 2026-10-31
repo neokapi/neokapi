@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/workspace"
 )
@@ -21,6 +22,21 @@ func CheckContextDir(dir string) error {
 func CheckContextObjectName(name string) error {
 	if !workspace.ValidObjectName(name) {
 		return fmt.Errorf("%q is not a name in the context layout", name)
+	}
+	return nil
+}
+
+// CheckContextObject refuses an object a put must not write: a name outside
+// the context layout, or a blob whose name is not the address of its bytes.
+// An object is created once, so a blob stored under the wrong bytes would
+// refuse every later push of the right ones.
+func CheckContextObject(name string, data []byte) error {
+	if err := CheckContextObjectName(name); err != nil {
+		return err
+	}
+	if strings.HasPrefix(name, workspace.RemoteBlobDir) &&
+		workspace.BlobObjectName(workspace.BlobAddress(data)) != name {
+		return fmt.Errorf("%q is not the address of the bytes it holds", name)
 	}
 	return nil
 }
