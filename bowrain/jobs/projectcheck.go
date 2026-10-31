@@ -221,6 +221,34 @@ func (pc ProjectCheck) Run(ctx context.Context) (ProjectCheckResult, error) {
 			}
 		}
 	}
+
+	// A tally of an item the stream no longer lists goes, so the Map counts
+	// the items it shows.
+	listed := make(map[string]bool, len(items))
+	for _, it := range items {
+		if it != nil {
+			listed[it.ID] = true
+		}
+	}
+	held, err := pc.Tallies.ListItemCheckTallies(ctx, pc.ProjectID, stream)
+	if err != nil {
+		return res, err
+	}
+	for _, t := range held {
+		if !listed[t.ItemID] {
+			if err := pc.Tallies.DeleteItemCheckTally(ctx, pc.ProjectID, stream, t.ItemID); err != nil {
+				return res, err
+			}
+		}
+	}
+
+	// A stream with no items is checked as one step, done, so its job does
+	// not read as not started.
+	if len(items) == 0 && pc.Progress != nil {
+		if err := pc.Progress(ctx, 1, 1); err != nil {
+			return res, err
+		}
+	}
 	return res, nil
 }
 

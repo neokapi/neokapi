@@ -112,4 +112,34 @@ func TestProjectCheck_EndToEnd(t *testing.T) {
 	b := byItem[idOf["docs/b.md"]]
 	assert.Zero(t, b.Findings)
 	assert.Zero(t, b.Fixable)
+
+	// An item deleted since takes its tally with it at the next check.
+	require.NoError(t, cs.DeleteItem(ctx, projectID, "main", "docs/b.md"))
+	again := NewProjectCheckJob(wsID, wsSlug, projectID, "main", "member-a")
+	require.NoError(t, js.CreateJob(ctx, again))
+	require.NoError(t, processJobWithDeps(ctx, deps, again.ID))
+	tallies, err = cs.ListItemCheckTallies(ctx, projectID, "main")
+	require.NoError(t, err)
+	require.Len(t, tallies, 1)
+	assert.Equal(t, idOf["docs/a.md"], tallies[0].ItemID)
+}
+
+// TestProjectCheck_EmptyStreamIsDone: a check of a stream with no items
+// completes with its progress at the end, not at the start.
+func TestProjectCheck_EmptyStreamIsDone(t *testing.T) {
+	db := pgtest.NewTestDB(t)
+	ctx := t.Context()
+	cs, err := bstore.NewPostgresStoreFromDB(db)
+	require.NoError(t, err)
+	js, err := NewJobStore(db)
+	require.NoError(t, err)
+	require.NoError(t, cs.CreateProject(ctx, &store.Project{ID: "proj-empty", Name: "Empty", DefaultSourceLanguage: "en", WorkspaceID: "ws-empty"}))
+
+	job := NewProjectCheckJob("ws-empty", "empty", "proj-empty", "main", "member-a")
+	require.NoError(t, js.CreateJob(ctx, job))
+	require.NoError(t, processJobWithDeps(ctx, &WorkerDeps{JobStore: js, ContentStore: cs}, job.ID))
+	got, err := js.GetJob(ctx, job.ID)
+	require.NoError(t, err)
+	assert.Equal(t, StatusCompleted, got.Status, got.Error)
+	assert.Equal(t, 100, got.Progress)
 }
