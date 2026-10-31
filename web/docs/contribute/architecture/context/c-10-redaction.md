@@ -361,16 +361,23 @@ tool's view of a block puts a `redaction.Egress` over that entry on the
 view's context (`tool.ContextBinder`). A tool that sends several blocks in one
 request binds them together: the translate batch (`redaction.BindBlocks`),
 and the voice-infer corpus and the media-refine neighbours
-(`redaction.BindCorpus`). Every AI tool calls its provider through
-`aiprovider.Redacting`, which reads the Egress from the call's context and
-redacts each text part and section of a chat, and every field of a translate
-request, before the provider sends it. The recorder sits inside the wrapper,
-so `--explain-prompts` shows the request as it was sent.
+(`redaction.BindCorpus`). Each exported AI tool constructor and prompt
+function in `core/ai/tools` wraps the provider it is given in
+`aiprovider.Redacting`, whoever built the provider; the wrapper reports the
+provider's limits and does nothing for a context with no Egress. It reads the
+Egress from the call's context and redacts each text part and section of a
+chat, and every field of a translate request, before the provider sends it.
+The recorder sits inside the wrapper, so `--explain-prompts` shows the
+request as it was sent.
 
 The Egress matches the policy's rules, and every original the request's
 blocks already withhold, the latter by literal text, so a value an entity
-step found is redacted beside the block too. Tokens are shared within a
-request:
+step found is redacted beside the block too. A JSON payload in a prompt (the
+translate batch) holds each string escaped, so the Egress also reads the
+unescaped text and replaces each match at its escaped span, with the token
+escaped the same way. Entity detection itself reads the blocks only: a value
+named only beside the block is redacted when a rule names it or a block of
+the request withholds the same text. Tokens are shared within a request:
 
 - A value a block withholds is drawn as the token the request already shows
   for it: its placeholder tag when the prompt carries the block's runs as
@@ -378,10 +385,17 @@ request:
   batch, the value is also kept in each other block's entry, so it restores
   in whichever block's answer the model copies it into.
 - A value met only beside the block takes the next token in the block's
-  sequence, under a visible token no other value of the request uses, and is
-  kept in the block's entry. `unredact` restores it from there by its visible
-  token.
+  sequence, under a visible token that no other value of the request uses and
+  that the request's text does not already hold, and is kept in the block's
+  entry. `unredact` restores it from there by its visible token, so a token
+  that matched text the person wrote would replace that text.
 - A span inside a token the request already shows is left alone.
+
+Only the request that produced a translation fills the entry its tokens
+restore from, so the translate tool neither serves a block that carries an
+entry from the session's target cache nor keeps its translation there. A
+later redact step keeps the values an earlier one left in the entry and
+takes the entry's policy over.
 
 A prompt that carries text alone (review, quality check, term-extract,
 voice-check, voice-infer, entity-extract, the media-refine neighbours, the
@@ -408,14 +422,25 @@ inline. `kapi terms expand` holds no block, so it redacts each request under
 the rules of `defaults.redaction` (`host.TermsExpandRedaction`); a project
 whose only policies sit on collections or items gives it none to apply. A
 withheld term goes out as its token, and the forms the model returns for a
-token name no term that was asked about, so none is written.
+token name no term that was asked about, so none is written. The AI actions
+on Kapi Desktop's review (Fix with AI, Retranslate, Explain, the AI
+pre-review) run their tool through `host.RedactionChain`, under the policy of
+the unit's file.
+
+A machine-translation engine reads a redacted block through semantic HTML:
+each withheld value is a placeholder element
+(`<span data-type="redaction:person"/>`) that maps back to its placeholder by
+position, and unredact restores it by id, as the translate tool's placeholder
+tag does. The engine never reads the visible token as text: an engine
+translates text, so `[REDACTED:Person]` could come back reworded and match
+nothing, where it keeps markup in place.
 
 Not covered:
 
 | Path | What reaches the provider |
 | --- | --- |
 | Media payloads (media-refine's image crop, speech clip, video frame) | The media as recognised; the rules match text, and a crop or clip holds none |
-| Machine-translation plugin engines (`translate` with an MT provider) | The redacted block, read as `SourceText`, so each withheld value is a gap; no term rules or voice profile. The request goes through the plugin's provider, not `aiprovider.Redacting`, so what the plugin sends beyond it is the plugin's |
+| Machine-translation plugin engines (`translate` with an MT provider) | The redacted block, each withheld value a placeholder element; no term rules, voice profile or other project text. The request goes through the plugin's provider, not `aiprovider.Redacting`, so anything the plugin sends beyond it is outside the policy |
 
 ### CLI surface
 

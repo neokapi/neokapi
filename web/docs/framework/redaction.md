@@ -69,13 +69,19 @@ project a request to a model carries:
 - the text an MCP tool call passes, and the translation passed beside it.
 
 This holds for `kapi exec`, for each step of a flow that runs after its
-`redact` step (`kapi run`, `kapi up`), for the MCP tools and for **Deeper
-look with AI**. A value a block withholds
+`redact` step (`kapi run`, `kapi up`), for the MCP tools, for **Deeper
+look with AI**, and for the AI actions in Kapi Desktop's review (Fix with AI,
+Retranslate, Explain and the AI pre-review). A value a block withholds
 reads as the same placeholder wherever the request carries it. A value that
 appears only beside the block, in a term rule say, gets a placeholder of its
 own, and kapi restores it when the model copies it into a translation. A tool
 that reads text alone, such as term extraction, review or voice inference,
 reads each withheld value as its visible placeholder (`[REDACTED:Person]`).
+
+Entity detection reads the blocks and does not reach the rest of a request.
+A person named only in the voice profile or a previous version is redacted
+there when a rule names them, or when a block of the same request withholds
+the same text.
 
 `kapi voice check --ai` applies the policy of the file it reads, or
 `defaults.redaction` for text given inline. `kapi terms expand` applies the
@@ -84,7 +90,8 @@ a term the policy withholds.
 
 The image crop or speech clip `media-refine` sends is media, not text, and
 the rules do not reach it. A machine-translation engine from a plugin reads
-the redacted block and nothing else from the project.
+the redacted block, each withheld value as a placeholder element it keeps in
+place, and nothing else from the project.
 
 ## How it stays local
 

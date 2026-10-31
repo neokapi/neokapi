@@ -35,13 +35,14 @@ func (a *App) VoiceCheckTools(cmd Command, file string, t tool.Tool) ([]tool.Too
 	return a.RedactionChain(recipe, proj, file, "voice-check", map[string]any{}, t)
 }
 
-// RedactionChain returns the tools a run of the registry tool toolName, built
-// as t with config, applies to the blocks of file in the project at recipe:
-// t between redact and unredact under the policy that covers the file, as
-// `kapi exec` places them, and t alone when no policy covers it or the tool
-// sends no block out. file is an absolute path, or "" for content in no file,
-// which reads under `defaults.redaction`. A surface that runs one tool over
-// a block it holds (the desktop's review actions) builds its run with it.
+// RedactionChain returns the tools a run of the registry tool toolName (built
+// as t with config) applies to the blocks of file in the project at recipe.
+// Under the policy that covers the file, t runs between redact and unredact,
+// as `kapi exec` places them. With no policy, or for a tool that sends no
+// block out, t runs alone. file is an absolute path, or "" for content in no
+// file, which reads under `defaults.redaction`. A surface that runs one tool
+// over a block it holds, such as the desktop's review actions, builds its run
+// with it.
 func (a *App) RedactionChain(recipe string, proj *project.KapiProject, file, toolName string, config map[string]any, t tool.Tool) ([]tool.Tool, error) {
 	if recipe == "" || proj == nil {
 		return []tool.Tool{t}, nil
