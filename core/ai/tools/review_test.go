@@ -7,8 +7,10 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/ai/tools"
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	"github.com/stretchr/testify/assert"
@@ -80,7 +82,7 @@ func TestAIReviewTool_TransportNoiseTolerated(t *testing.T) {
 }
 
 // TestAIReviewTool_ProseFallback: a model answering in free text (no JSON)
-// keeps working — the raw prose lands in "review" unchanged and no score
+// keeps working: the raw prose lands in "review" unchanged and no score
 // property is set. This is the backward-lenient path.
 func TestAIReviewTool_ProseFallback(t *testing.T) {
 	prose := "Score: 9\nAssessment: Accurate translation.\nSuggestion: none"
@@ -90,6 +92,52 @@ func TestAIReviewTool_ProseFallback(t *testing.T) {
 	_, hasScore := block.Properties["review-score"]
 	assert.False(t, hasScore, "prose fallback must not fabricate a score")
 	assert.Equal(t, "mock", block.Properties["review-provider"])
+}
+
+// reviewFindings reads the check findings the review tool recorded on a block.
+func reviewFindings(t *testing.T, b *model.Block) []check.Finding {
+	t.Helper()
+	ann, ok := model.AnnoAs[*check.FindingsAnnotation](b, check.AnnotationKey)
+	require.True(t, ok, "the review is recorded as check findings")
+	assert.Equal(t, "review", ann.Source)
+	return ann.Findings
+}
+
+// The review is recorded as check findings, so a run reports it the way it
+// reports qa's: one finding per finding in the contract, failing when the
+// severity is critical or major, and one carrying the prose otherwise. The
+// translation is left as it was.
+func TestAIReviewTool_RecordsFindings(t *testing.T) {
+	block := reviewBlock(t, scripted(
+		`{"score": 60, "findings": [{"severity": "major", "message": "meaning lost", "suggestion": "Bonjour tout le monde"}, {"severity": "info", "message": "fine register"}]}`,
+	))
+	found := reviewFindings(t, block)
+	require.Len(t, found, 2)
+	assert.True(t, found[0].Fails, "a major finding fails")
+	assert.Equal(t, "review", found[0].Category)
+	assert.Equal(t, "meaning lost", found[0].Message)
+	assert.Equal(t, "Bonjour tout le monde", found[0].Suggestion)
+	assert.Equal(t, map[string]string{"severity": "major", "score": "60"}, found[0].Metadata)
+	assert.False(t, found[1].Fails, "an info finding reports")
+	assert.Equal(t, "Bonjour le monde", block.TargetText(model.LocaleFrench), "review changes no translation")
+
+	prose := reviewFindings(t, reviewBlock(t, scripted("Accurate translation.\n")))
+	require.Len(t, prose, 1)
+	assert.Equal(t, check.Finding{Category: "review", Message: "Accurate translation.", Check: "review"}, prose[0])
+
+	clean := reviewBlock(t, scripted(`{"score": 100, "findings": []}`))
+	_, ok := model.AnnoAs[*check.FindingsAnnotation](clean, check.AnnotationKey)
+	assert.False(t, ok, "a review that found nothing records no finding")
+}
+
+// review declares the translation it reads and the findings it writes, so an
+// exec run pairs a translation file with --target and writes no file it is
+// not asked to.
+func TestAIReviewSchema_DeclaresItsPorts(t *testing.T) {
+	meta := tools.AIReviewSchema().ToolMeta
+	require.NotNil(t, meta)
+	assert.Equal(t, []schema.IOPort{schema.Port(schema.PortTarget, model.SideTarget)}, meta.Consumes)
+	assert.Equal(t, []schema.IOPort{schema.Port(model.OverlayCheck, model.SideTarget)}, meta.Produces)
 }
 
 // TestAIReviewTool_MalformedJSONFallsBack: a broken JSON payload (truncated

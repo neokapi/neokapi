@@ -20,7 +20,7 @@ import (
 // Output contract: for every block that has a target in the configured
 // locale the tool sets these block properties:
 //
-//   - "review" — the review payload. When the model returns the requested
+//   - "review": the review payload. When the model returns the requested
 //     JSON contract
 //
 //     {"score": <0-100>, "findings": [{"severity": "critical|major|minor|info",
@@ -29,13 +29,13 @@ import (
 //     the property holds that result re-marshalled canonically (parsed via
 //     [ParseReviewResult]: score clamped to 0–100, severities normalized,
 //     empty-message findings dropped). When the model output is not
-//     parseable as JSON the raw prose is stored unchanged — the lenient
+//     parseable as JSON the raw prose is stored unchanged, the lenient
 //     fallback that keeps older prose-style model output working.
 //
-//   - "review-score" — the integer score as a decimal string. Only set when
+//   - "review-score": the integer score as a decimal string. Only set when
 //     the JSON contract parsed.
 //
-//   - "review-provider" — the provider id that produced the review. Always set.
+//   - "review-provider": the provider id that produced the review. Always set.
 //
 // It also records the review as check findings under the tool's name: one per
 // finding in the contract, or one carrying the prose when the response is not
@@ -173,9 +173,9 @@ var reviewSeverities = map[string]bool{
 
 // ParseReviewResult parses a model response against the review output
 // contract {score: 0-100, findings: [{severity, message, suggestion}]}.
-// It is lenient about transport noise — a markdown code fence, leading
-// prose, or trailing commentary around the JSON value are tolerated (see
-// decodeFirstJSON) — and normalizes the payload: the score is clamped to
+// It is lenient about transport noise: it tolerates a markdown code fence,
+// leading prose, or trailing commentary around the JSON value (see
+// decodeFirstJSON). It normalizes the payload: the score is clamped to
 // [0, 100], severities are lower-cased and default to "info" when unknown
 // or absent, and findings without a message are dropped. It returns an
 // error only when no JSON object can be found at all; callers fall back
@@ -233,7 +233,7 @@ func (t *AIReviewTool) annotate(v tool.BlockView) error {
 	t.addUsage(resp.Usage)
 
 	// Structured contract when the model honored it; raw prose otherwise
-	// (backward-lenient — older models answered in free text).
+	// (lenient: older models answered in free text).
 	if result, perr := ParseReviewResult(resp.Content); perr == nil {
 		payload, merr := json.Marshal(result)
 		if merr != nil {

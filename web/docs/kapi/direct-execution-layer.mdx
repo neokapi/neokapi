@@ -93,6 +93,26 @@ with. kapi reports that the check did not run, names `--target`, and exits with
 code 4, as `kapi check` does when it checks no content. `qa` writes a file only
 where `-o` or `--output-dir` names one.
 
+`review` pairs a translation file the same way. It asks a provider to review
+each block's translation, prints what the provider found, and changes neither
+file:
+
+```console
+$ kapi exec review docs/contacts.md --target docs/nb/contacts.md --target-lang nb --provider demo
+demo mode: illustrative output from a built-in stub rather than a real language model.
+  outcome  rule           location                     message
+  REPORTS  review.review  docs/contacts.md:contacts/p  ⟦demo⟧ illustrative stub response (no real language model)
+  REPORTS  review.review  docs/contacts.md:h           ⟦demo⟧ illustrative stub response (no real language model)
+
+0 failing, 2 reported · score 98/100
+```
+
+The demo provider answers each block in prose, so each block carries one
+finding that holds the answer. A provider that answers with the review's
+findings reports one row per finding, and counts a critical or major one as
+failing. Run without `--target` on a file that holds no `nb` translation,
+`review` reports that it did not run and exits with code 4, as `qa` does.
+
 Reach for `exec` when you want exactly one tool's behavior: isolating a step
 while debugging a flow, or a one-off check on a file. See the
 [`exec` reference](/reference/commands/exec).
