@@ -1891,18 +1891,33 @@ func (c *BowrainSourceConnector) buildItemMeta(ctx context.Context, changed []it
 }
 
 // carryResolvedKeys gives each block of a fresh read the key the push resolved
-// for the scanned block with the same reader id. Both reads use the same
-// reader configuration, so a reader id names the same block in each.
+// for the same block of the scan. A block is the same when its reader id names
+// a scanned block with the same reader name. The scan reads with media
+// extraction on and the fresh read does not, so a reader can number the two
+// reads differently; a block whose id names another block is then matched by
+// its reader name, when exactly one scanned block carries that name.
 func carryResolvedKeys(blocks, scanned []*model.Block) {
-	keys := make(map[string]string, len(scanned))
+	byID := make(map[string]*model.Block, len(scanned))
+	byName := make(map[string]*model.Block, len(scanned))
+	shared := map[string]bool{}
 	for _, b := range scanned {
-		if b.Key != "" {
-			keys[b.ID] = b.Key
+		byID[b.ID] = b
+		if b.Name == "" {
+			continue
 		}
+		if _, seen := byName[b.Name]; seen {
+			shared[b.Name] = true
+		}
+		byName[b.Name] = b
 	}
 	for _, b := range blocks {
-		if key, ok := keys[b.ID]; ok {
-			b.Key = key
+		match, ok := byID[b.ID]
+		if !ok || match.Name != b.Name {
+			match, ok = byName[b.Name]
+			ok = ok && b.Name != "" && !shared[b.Name]
+		}
+		if ok && match.Key != "" {
+			b.Key = match.Key
 		}
 	}
 }
