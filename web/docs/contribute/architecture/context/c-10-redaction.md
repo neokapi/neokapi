@@ -204,7 +204,9 @@ policy of the file it holds:
    itself places the steps (`host/toolrun_redact.go`). When the tool's contract,
    refined for its config, carries an API call, `redact` runs ahead of it with
    the rules of the policy that covers the file, settled per file before any
-   file is read, and `unredact` after it, the originals riding on the
+   file is read, and `unredact` after it. A `.kpz` package is one chain over
+   every file it holds, so under a collection's or an item's policy such a run
+   is refused. The originals ride on the
    block in between as they do in `secure-translate`. The tools a run reaches
    read the whole block, so the step is configured for it (`WholeBlock`): it
    redacts blocks marked not translatable, and each target locale's runs under

@@ -123,6 +123,23 @@ func (a *App) filePolicy(cfg ToolRunConfig, proj *project.KapiProject, file stri
 	return cfg, nil
 }
 
+// checkPackagePolicy refuses a run of a tool that calls a provider over a .kpz
+// package in a project that declares a redaction policy on a collection or a
+// content item. The run builds one chain for every file the package holds, and
+// those files may sit in collections under different policies, so no single
+// policy covers them.
+func (a *App) checkPackagePolicy(cfg ToolRunConfig, proj *project.KapiProject) error {
+	if cfg.Project == "" || !a.toolCallsProvider(cfg.ToolName, cfg.ToolConfig) {
+		return nil
+	}
+	for _, declared := range proj.DeclaredRedactions() {
+		if declared.At != "defaults.redaction" {
+			return fmt.Errorf("the project declares a redaction policy at %s, and %s would run over every file of %s under one policy. Run it on the project's files, so each file is redacted under its own policy", declared.At, cfg.ToolName, DisplayName(cfg.Files[0]))
+		}
+	}
+	return nil
+}
+
 // newToolChain builds the run's tool and the steps its redaction policy puts
 // around it.
 func (a *App) newToolChain(cfg ToolRunConfig) (toolChain, error) {
@@ -159,6 +176,9 @@ func (a *App) RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 	if kpzWorkspaceInput(cfg.Files) {
 		if cfg.OutputTemplate != "" {
 			return errKpzTransformOutput
+		}
+		if err := a.checkPackagePolicy(cfg, proj); err != nil {
+			return err
 		}
 		var err error
 		if cfg, err = a.filePolicy(cfg, proj, cfg.Files[0]); err != nil {

@@ -200,7 +200,10 @@ collections:
 ```
 
 Content that sits in no file, such as the text an MCP tool call passes, is
-redacted under `defaults.redaction`. A flow places its own `redact` step, and
+redacted under `defaults.redaction`. A `.kpz` package holds files of every
+collection, so in a project that declares a collection's or an item's policy,
+`kapi exec` refuses to run a tool that calls a model over a package; run it on
+the project's files instead. A flow places its own `redact` step, and
 kapi refuses to run a flow that sends source to a remote provider without one.
 A project flow runs over every file of the run, so it needs the step when any
 declaration in the recipe turns redaction on. A built-in flow run on one file

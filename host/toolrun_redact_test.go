@@ -363,6 +363,29 @@ func TestToolRun_ACollectionsPolicyGovernsItsFiles(t *testing.T) {
 	})
 }
 
+// A package holds files of every collection, and a run over it builds one
+// chain, so under a collection's policy a tool that calls a provider refuses
+// the package before reading it.
+func TestToolRun_RefusesAPackageUnderACollectionsPolicy(t *testing.T) {
+	isolateKapiEnv(t)
+	onlyDemoProvider(t)
+	recipe := collectionRedactProject(t, redactionYAML)
+	a := &App{SourceLang: "en"}
+	a.InitRegistries()
+	pkg := filepath.Join(filepath.Dir(recipe), "work.kpz")
+
+	err := a.RunToolOnFiles(t.Context(), termExtractRun(a, recipe, pkg))
+	require.ErrorContains(t, err, "collections[0].redaction")
+	require.ErrorContains(t, err, "Run it on the project's files")
+
+	upper := upperRun(a, pkg)
+	upper.Project = recipe
+	upper.ToolConfig = map[string]any{"mode": "upper"}
+	err = a.RunToolOnFiles(t.Context(), upper)
+	require.Error(t, err, "the package does not exist")
+	assert.NotContains(t, err.Error(), "redaction policy", "a tool that calls no provider runs over a package as before")
+}
+
 func TestToolRun_ACollectionsPolicyWithNoDefaults(t *testing.T) {
 	isolateKapiEnv(t)
 	onlyDemoProvider(t)
