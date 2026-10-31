@@ -4003,6 +4003,19 @@ export class ConvergeLocaleResult {
              */
             this["materialized"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * StaleDrafts counts the blocks whose stored draft was made from an earlier
+             * source, which the materialize step therefore did not write
+             * (blockstore.TargetOverlay.StaleFor). Stale counts a decision whose basis
+             * moved, and Redrafted the units this run produced over; a stale draft is
+             * neither, and stays until a pass with a producing step drafts the block
+             * again.
+             * @member
+             * @type {number | undefined}
+             */
+            this["staleDrafts"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }

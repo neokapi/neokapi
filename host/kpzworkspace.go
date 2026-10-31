@@ -333,21 +333,32 @@ func (a *App) MergeFromKpz(ctx context.Context, kpzPath, outOverride string) err
 		a.SourceLang = sl
 	}
 
-	written := 0
+	written, stale := 0, 0
 	for _, src := range c.meta.Sources {
 		for _, locale := range locales {
 			docOut, derr := mergeOutputPath(layout, src.Path, locale, len(locales) > 1)
 			if derr != nil {
 				return derr
 			}
-			tools := []tool.Tool{newHydrateTargetsTool(model.LocaleID(locale))}
-			if err := a.runCacheSource(ctx, c, src, "merge", tools, docOut, locale); err != nil {
+			hydrate := newHydrateTargetsTool(model.LocaleID(locale))
+			// Without the raw source, runCacheSource rebuilds the document
+			// from its skeleton, whose blocks carry no source to compare a
+			// stamp with.
+			hydrate.skeleton = !c.hasSource(src)
+			if err := a.runCacheSource(ctx, c, src, "merge", []tool.Tool{hydrate}, docOut, locale); err != nil {
 				return err
 			}
 			written++
+			stale += hydrate.Stale()
 		}
 	}
-	a.printlnUnlessQuiet(fmt.Sprintf("Merged %s → %d file(s) (%s)", kpzPath, written, strings.Join(locales, ", ")))
+	line := fmt.Sprintf("Merged %s → %d file(s) (%s)", kpzPath, written, strings.Join(locales, ", "))
+	if stale > 0 {
+		// A stored translation of a source that has changed since is not
+		// applied: the block keeps its source in the merged file.
+		line += fmt.Sprintf(" stale=%d", stale)
+	}
+	a.printlnUnlessQuiet(line)
 	return nil
 }
 

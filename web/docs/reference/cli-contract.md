@@ -115,6 +115,12 @@ Materializing from the project store (`kapi merge` with no `-i` in a project) wr
 { "written": 4, "from_project_store": true }
 ```
 
+A stored target made from a source the block no longer holds is not written. `stale` counts those blocks, and it appears when the count is above zero:
+
+```json
+{ "written": 4, "stale": 1, "from_project_store": true }
+```
+
 ## Error envelope
 
 Under `--json` (or `--jq` / `--output-format=json`), a failing command prints a structured envelope on **stderr** instead of the plain `Error:` line:

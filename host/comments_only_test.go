@@ -322,7 +322,7 @@ func TestRunReadsNoValueOfACommentsOnlyItem(t *testing.T) {
 func TestMergeMaterializesNoValueOfACommentsOnlyItem(t *testing.T) {
 	notNothingToDo(t, "has no source files to materialize", func(t *testing.T, spelled string) error {
 		a, recipe, proj := commentsOnlyYAMLProject(t, spelled)
-		_, err := a.materializeProject(context.Background(), io.Discard, proj, recipe, []model.LocaleID{"fr"}, true, nil)
+		_, _, err := a.materializeProject(context.Background(), io.Discard, proj, recipe, []model.LocaleID{"fr"}, true, nil)
 		return err
 	})
 }

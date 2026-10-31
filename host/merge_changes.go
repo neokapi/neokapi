@@ -562,12 +562,15 @@ func (m *materializeServices) of(locale model.LocaleID) (*change.Service, error)
 // since reads as stale in its file as it did where it was kept. It returns
 // how many blocks have a translation to write, and whether the translation's
 // file was written: a file that already holds every one of them and every
-// block of the source is left as it is. ctx addresses the stored overlays by
-// doc's key (blockstore.WithSourceRel).
-func materializeEdition(ctx context.Context, svc *change.Service, store blockstore.Store, kept *workhome.Held, doc string, locale model.LocaleID) (int, bool, error) {
+// block of the source is left as it is. A stored target whose source stamp
+// names another source than the block's (blockstore.TargetOverlay.StaleFor) is
+// a translation of a source that has changed since: it is not written, and
+// stale counts it. ctx addresses the stored overlays by doc's key
+// (blockstore.WithSourceRel).
+func materializeEdition(ctx context.Context, svc *change.Service, store blockstore.Store, kept *workhome.Held, doc string, locale model.LocaleID) (n, stale int, wrote bool, err error) {
 	sess, err := store.Begin(ctx)
 	if err != nil {
-		return 0, false, err
+		return 0, 0, false, err
 	}
 	defer sess.Close()
 	key := model.EditionKey{Locale: locale}
@@ -602,8 +605,13 @@ func materializeEdition(ctx context.Context, svc *change.Service, store blocksto
 			return nil
 		}
 		stored := &model.Block{ID: b.ID}
-		if err := applyTargetOverlay(stored, locale, o.Payload); err != nil {
+		isStale, err := applyCurrentTargetOverlay(b, stored, locale, o.Payload)
+		if err != nil {
 			return err
+		}
+		if isStale {
+			stale++
+			return nil
 		}
 		t, ok := stored.TargetEdition(locale)
 		if !ok {
@@ -617,25 +625,24 @@ func materializeEdition(ctx context.Context, svc *change.Service, store blocksto
 		return nil
 	})
 	if err != nil || len(ops) == 0 {
-		return 0, false, err
+		return 0, stale, false, err
 	}
 	res, err := svc.Apply(ctx, change.Set{Gate: change.GateReport, Note: "materialize " + string(locale), Ops: ops}, materializeActor)
 	if err != nil {
-		return 0, false, err
+		return 0, stale, false, err
 	}
 	if res.Status != change.SetApplied {
 		for _, r := range res.Ops {
 			if r.Status == change.OpRefused && r.Error != nil {
-				return 0, false, fmt.Errorf("block %s: %w", refBlock(r.At), r.Error)
+				return 0, stale, false, fmt.Errorf("block %s: %w", refBlock(r.At), r.Error)
 			}
 		}
-		return 0, false, fmt.Errorf("the change set was %s", res.Status)
+		return 0, stale, false, fmt.Errorf("the change set was %s", res.Status)
 	}
-	written := false
 	for _, d := range res.Docs {
-		written = written || (d.Written && d.Edition != "")
+		wrote = wrote || (d.Written && d.Edition != "")
 	}
-	return len(ops), written, nil
+	return len(ops), stale, wrote, nil
 }
 
 // refBlock names the block a result addresses.

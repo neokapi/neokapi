@@ -86,6 +86,13 @@ type ConvergeLocaleResult struct {
 	// --materialize). Only shippable locales materialize; a parked locale
 	// stays at 0.
 	Materialized int `json:"materialized,omitempty"`
+	// StaleDrafts counts the blocks whose stored draft was made from an earlier
+	// source, which the materialize step therefore did not write
+	// (blockstore.TargetOverlay.StaleFor). Stale counts a decision whose basis
+	// moved, and Redrafted the units this run produced over; a stale draft is
+	// neither, and stays until a pass with a producing step drafts the block
+	// again.
+	StaleDrafts int `json:"staleDrafts,omitempty"`
 }
 
 // ParkedScope identifies one gated (collection, locale) scope still short of
@@ -154,6 +161,16 @@ type ConvergeOutput struct {
 	// a format no installed reader opens (check.WarningFormatNoReader). The run
 	// set that content aside and converged the rest.
 	Warnings []check.Warning `json:"warnings,omitempty"`
+}
+
+// StaleDraftUnits totals the blocks whose stored draft was made from an
+// earlier source and was not written, across every locale of the run.
+func (o ConvergeOutput) StaleDraftUnits() int {
+	n := 0
+	for _, lc := range o.Locales {
+		n += lc.StaleDrafts
+	}
+	return n
 }
 
 // StaleUnits totals the units held out of shipping because their source moved
@@ -265,6 +282,9 @@ func (o ConvergeOutput) FormatText(w io.Writer) error {
 	}
 	if o.MaterializedFiles > 0 {
 		fmt.Fprintf(w, "Materialized %d target file(s) from the project store.\n", o.MaterializedFiles)
+	}
+	if staleDrafts := o.StaleDraftUnits(); staleDrafts > 0 {
+		fmt.Fprintf(w, "Note: %d block(s) hold a draft of an earlier source and were not written.\n", staleDrafts)
 	}
 	o.formatProposedChangeset(w)
 	return nil
@@ -1092,8 +1112,11 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 				continue
 			}
 			// Per-file progress lines go nowhere: the structured result carries
-			// the counts, and stray lines would corrupt --json output.
-			n, merr := a.materializeProject(ctx, io.Discard, proj, projectPath, []model.LocaleID{model.LocaleID(lc.Locale)}, false, facts.unread)
+			// the counts, and stray lines would corrupt --json output. A stored
+			// draft of a source that changed since is not written
+			// (materializeEdition), and the result counts it: coverage counts
+			// an overlay by its presence and never reads the stamp.
+			n, staleDrafts, merr := a.materializeProject(ctx, io.Discard, proj, projectPath, []model.LocaleID{model.LocaleID(lc.Locale)}, false, facts.unread)
 			if merr != nil {
 				return fmt.Errorf("materialize %s: %w", lc.Locale, merr)
 			}
@@ -1101,6 +1124,7 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 				n = len(delivered)
 			}
 			lc.Materialized = n
+			lc.StaleDrafts = staleDrafts
 			out.MaterializedFiles += n
 		}
 		if out.MaterializedFiles > 0 {
@@ -1131,13 +1155,16 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 			return fmt.Errorf("re-derive the delivered standing: %w", rerr)
 		}
 		report := buildConvergeOutput(flowName, passes, cov, locales, facts.redraftable)
-		// How many files each locale got is the run's own fact, not the tree's.
-		materialized := make(map[string]int, len(out.Locales))
+		// How many files each locale got, and how many stale drafts its
+		// materialize left out, are the run's own facts, not the tree's.
+		materialized := make(map[string]ConvergeLocaleResult, len(out.Locales))
 		for _, lc := range out.Locales {
-			materialized[lc.Locale] = lc.Materialized
+			materialized[lc.Locale] = lc
 		}
 		for i := range report.Locales {
-			report.Locales[i].Materialized = materialized[report.Locales[i].Locale]
+			ran := materialized[report.Locales[i].Locale]
+			report.Locales[i].Materialized = ran.Materialized
+			report.Locales[i].StaleDrafts = ran.StaleDrafts
 		}
 		out.Locales = report.Locales
 		out.ParkedScopes = report.ParkedScopes
