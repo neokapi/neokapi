@@ -1,0 +1,7 @@
+/*
+ * Registers @neokapi/project-screens/src as a Tailwind @source, so classes used
+ * only inside the project screens are generated in the consumer's CSS. Import
+ * this from any CSS file that processes Tailwind utilities and renders them.
+ */
+
+@source "../";

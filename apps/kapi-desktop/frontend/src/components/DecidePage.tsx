@@ -40,7 +40,7 @@ import { api } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
 import { useInvalidateOnEvent } from "../hooks/useInvalidateOnEvent";
 import type { RuleAnswer, RuleDecision, RuleOption, RulesDecideView } from "../types/api";
-import { NoticedBy } from "./ContextDigestDetail";
+import { NoticedBy } from "@neokapi/project-screens";
 
 /** The option a keep takes: one of the options, or a form the person typed. */
 export type DecidePick = { option: number } | { other: string };

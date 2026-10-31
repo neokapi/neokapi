@@ -1,7 +1,8 @@
+// @vitest-environment jsdom
 import { describe, it, expect } from "vite-plus/test";
-import { render, screen } from "./testUtils";
+import { render, screen } from "@testing-library/react";
 
-import { NoticedBy, toolName } from "../components/ContextDigestDetail";
+import { NoticedBy, toolName } from "../NoticedBy";
 
 describe("toolName", () => {
   it("names kapi itself once", () => {

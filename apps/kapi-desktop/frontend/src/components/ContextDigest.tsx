@@ -36,15 +36,10 @@ import {
 } from "@neokapi/ui-primitives";
 import type { ContextDigest, DigestItem } from "../types/api";
 import { defaultRowKey, digestRows, nextRowKey, type DigestRow } from "../lib/digestRows";
-import { ConflictLine, RuleLine, themeLabel } from "./DigestRule";
-import {
-  DigestDetail,
-  DigestNothingSelected,
-  NoticedMark,
-  type DigestChange,
-} from "./ContextDigestDetail";
+import { ConflictLine, NoticedMark, RuleLine, themeLabel } from "@neokapi/project-screens";
+import { DigestDetail, DigestNothingSelected, type DigestChange } from "./ContextDigestDetail";
 
-export { RuleSentence } from "./DigestRule";
+export { RuleSentence } from "@neokapi/project-screens";
 
 export interface ContextDigestViewProps {
   /** The digest, null while the first read is in flight. */
