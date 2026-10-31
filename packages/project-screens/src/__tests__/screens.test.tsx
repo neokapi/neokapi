@@ -194,8 +194,8 @@ describe("the Reader on a host that files each fix as a proposal", () => {
     const link = await within(row).findByRole("button", { name: "Proposed" });
     expect(link).toHaveAttribute("title", "0d4c2b9e-77aa-4f1e-9c11-5b2f0e0a1d3c");
     expect(within(row).queryByRole("button", { name: "Fix" })).toBeNull();
-    // The file's fix action counts only the fixes not yet filed.
-    expect(screen.getByRole("button", { name: "Fix 1 in this file" })).toBeInTheDocument();
+    // Fixing the file would file this fix again, so its action goes.
+    expect(screen.queryByRole("button", { name: /in this file/ })).toBeNull();
     await userEvent.click(link);
     expect(onOpenProposal).toHaveBeenCalledWith("0d4c2b9e-77aa-4f1e-9c11-5b2f0e0a1d3c");
     // A filed fix changes nothing until a person approves it, so the file is

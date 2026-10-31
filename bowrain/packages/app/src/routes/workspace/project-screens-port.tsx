@@ -36,6 +36,8 @@ export interface RestScreensPort extends ProjectScreensPort {
   notify(what: ScreenRead): void;
   /** Stop following a check's job; the check started is left to run on the server. */
   dispose(): void;
+  /** Follow jobs again after dispose, as a remount (React StrictMode) does. */
+  resume(): void;
 }
 
 export interface RestScreensOptions {
@@ -114,8 +116,9 @@ export function restScreensPort(
   // The waits of the jobs being followed, so dispose can end them.
   let disposed = false;
   const waits = new Set<() => void>();
-  const wait = (ms: number) =>
-    new Promise<void>((resolve) => {
+  const wait = (ms: number) => {
+    if (disposed) return Promise.resolve();
+    return new Promise<void>((resolve) => {
       const done = () => {
         clearTimeout(timer);
         waits.delete(done);
@@ -124,8 +127,12 @@ export function restScreensPort(
       const timer = setTimeout(done, ms);
       waits.add(done);
     });
+  };
   return {
     notify,
+    resume() {
+      disposed = false;
+    },
     dispose() {
       disposed = true;
       for (const done of waits) done();
@@ -277,7 +284,10 @@ export function useProjectScreensPort(
     queryFn: async () => Date.now(),
     staleTime: Infinity,
   });
-  useEffect(() => () => rest.dispose(), [rest]);
+  useEffect(() => {
+    rest.resume();
+    return () => rest.dispose();
+  }, [rest]);
 
   const seen = useRef(dataUpdatedAt);
   useEffect(() => {

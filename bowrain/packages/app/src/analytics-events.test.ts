@@ -25,6 +25,8 @@ describe("featureFromRoutePattern", () => {
   it("derives project-scoped features without leaking params", () => {
     const base = "/$workspace/p/$projectId/s/$stream";
     expect(featureFromRoutePattern(base)).toBe("project_overview");
+    // The overview's own address keeps the overview's event value.
+    expect(featureFromRoutePattern(`${base}/overview`)).toBe("project_overview");
     expect(featureFromRoutePattern(`${base}/dashboard`)).toBe("translation_dashboard");
     expect(featureFromRoutePattern(`${base}/source`)).toBe("project_source");
     expect(featureFromRoutePattern(`${base}/settings`)).toBe("project_settings");

@@ -277,3 +277,48 @@ describe("following the check's job", () => {
     expect(changed).not.toHaveBeenCalled();
   });
 });
+
+describe("disposing the port", () => {
+  const scope = { ws: "acme", projectId: "p1", stream: "main" };
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("schedules no wait when the job read in flight answers after dispose", async () => {
+    vi.useFakeTimers();
+    let answer: (v: JobState) => void = () => {};
+    const getJob = vi.fn(
+      () =>
+        new Promise<JobState>((resolve) => {
+          answer = resolve;
+        }),
+    );
+    const api = {
+      runProjectChecks: vi.fn(async () => ({ job_id: "job-1" })),
+      getJob,
+    } as unknown as ApiAdapter;
+    const port = restScreensPort(api, scope);
+    const done = port.runChecks!();
+    await vi.advanceTimersByTimeAsync(0);
+    port.dispose();
+    answer({ id: "job-1", status: "processing", progress: 0 });
+    await done;
+    expect(vi.getTimerCount()).toBe(0);
+    expect(getJob).toHaveBeenCalledTimes(1);
+  });
+
+  it("follows a job again after resume, as a StrictMode remount does", async () => {
+    const api = {
+      runProjectChecks: vi.fn(async () => ({ job_id: "job-1" })),
+      getJob: vi.fn(async () => ({ id: "job-1", status: "completed", progress: 100 })),
+    } as unknown as ApiAdapter;
+    const port = restScreensPort(api, scope);
+    port.dispose();
+    port.resume();
+    const changed = vi.fn();
+    port.subscribe!(changed);
+    await port.runChecks!();
+    expect(changed).toHaveBeenCalledWith("map");
+  });
+});

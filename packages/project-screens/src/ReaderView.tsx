@@ -95,14 +95,6 @@ export function ReaderView({
     return out;
   }, [proposed]);
   const filed: Filed = { proposals, onOpenProposal };
-  // The fixes not yet filed as proposals: a filed fix leaves the file as it is.
-  const unfiled = useMemo(() => {
-    let n = 0;
-    for (const f of [...reader.document, ...reader.blocks.flatMap((b) => b.findings)]) {
-      if (f.fixable && !proposals.has(f.id)) n++;
-    }
-    return n;
-  }, [reader.blocks, reader.document, proposals]);
   // A refusal whose finding is gone from the file read again is drawn at the
   // top, since there is no row left to draw it under.
   const placed = useMemo(() => {
@@ -142,12 +134,15 @@ export function ReaderView({
           )
         }
         actions={
-          unfiled > 0 &&
+          // A filed fix leaves the file as it is, and fixing the file files
+          // every fix again, so the action goes once anything is filed.
+          reader.fixable > 0 &&
+          proposals.size === 0 &&
           onFixAll && (
             <Button size="sm" data-slot="reader-fix-file" disabled={busy} onClick={onFixAll}>
               {fixingAll ? <LoadingSpinner size="sm" /> : <Wand2 size={14} />}
               {t("Fix {count} in this file", "a button: apply every fix in the file", {
-                count: unfiled,
+                count: reader.fixable,
               })}
             </Button>
           )
