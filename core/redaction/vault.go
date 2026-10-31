@@ -3,6 +3,7 @@ package redaction
 import (
 	"cmp"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -131,8 +132,16 @@ type fileVaultDoc struct {
 // that name no document, which Get and ValuesForBlock fall back to, so a
 // vault an older kapi wrote still restores. The vault is the only record of
 // the originals, never a cache a later run rebuilds, so it is read as it is
-// rather than reset.
+// rather than reset. A file with no version field is version 1, and a file
+// above this version is refused (ErrNewerVault).
 const fileVaultVersion = 2
+
+// ErrNewerVault is the refusal of a vault file whose version is above the
+// one this binary writes. A newer kapi wrote it in a format this one cannot
+// read, so its entries could restore the wrong originals. OpenFileVault
+// returns it wrapped with the file, the version found and the version
+// supported.
+var ErrNewerVault = errors.New("a newer kapi wrote this vault")
 
 // FileVault is a [Vault] backed by a JSON sidecar file. It is meant to live
 // in a project's vault directory (.kapi/vault/, prepared owner-only and out of
@@ -145,7 +154,9 @@ type FileVault struct {
 }
 
 // OpenFileVault opens (loading if present) a sidecar vault at path. A missing
-// file yields an empty vault; the file is not created until Flush.
+// file yields an empty vault; the file is not created until Flush. A file
+// whose version is above fileVaultVersion is refused with [ErrNewerVault],
+// so neither its entries nor a Flush over it are ever used.
 func OpenFileVault(path string) (*FileVault, error) {
 	fv := &FileVault{path: path, mem: NewMemoryVault()}
 	data, err := os.ReadFile(path)
@@ -158,6 +169,10 @@ func OpenFileVault(path string) (*FileVault, error) {
 	var doc fileVaultDoc
 	if err := json.Unmarshal(data, &doc); err != nil {
 		return nil, fmt.Errorf("redaction: parse vault %s: %w", path, err)
+	}
+	if doc.Version > fileVaultVersion {
+		return nil, fmt.Errorf("redaction: vault %s is version %d and this kapi reads up to version %d: %w; upgrade kapi to read it",
+			path, doc.Version, fileVaultVersion, ErrNewerVault)
 	}
 	for _, rv := range doc.Values {
 		_ = fv.mem.Put(rv)

@@ -360,6 +360,31 @@ func TestChangeService_AnEntityPolicyKeepsNoEdition(t *testing.T) {
 	assert.Zero(t, recordedLeaks(t, a, filepath.Dir(recipe), "Falcon"))
 }
 
+// TestChangeService_AVaultANewerKapiWroteKeepsNoEdition: the project vault
+// is in a format this binary cannot read when a newer kapi wrote it, so a
+// change to a translation with no file is refused rather than kept with
+// originals the vault cannot record, and the vault is left as it is.
+func TestChangeService_AVaultANewerKapiWroteKeepsNoEdition(t *testing.T) {
+	a, recipe := redactingKeptProject(t, "rules")
+	root := filepath.Dir(recipe)
+	vault := project.LayoutAt(root).RedactionVaultPath()
+	newer := []byte(`{"version": 3, "values": []}`)
+	require.NoError(t, os.MkdirAll(filepath.Dir(vault), 0o700))
+	require.NoError(t, os.WriteFile(vault, newer, 0o600))
+
+	svc := changeService(t, a, recipe)
+	res, err := svc.Apply(context.Background(), change.Set{Ops: []change.Op{
+		setTo(change.Ref{Doc: "docs/a.json", Block: "greeting", Edition: model.EditionKey{Locale: "de"}}, model.AbsentRevision, "Falcon kommt")}}, changePerson)
+	require.ErrorIs(t, err, redaction.ErrNewerVault)
+	assert.Contains(t, err.Error(), vault)
+	assert.Nil(t, res)
+	assert.Empty(t, keptGerman(t, a, recipe, "docs/a.json"))
+	assert.Zero(t, recordedLeaks(t, a, root, "Falcon"))
+	kept, rerr := os.ReadFile(vault)
+	require.NoError(t, rerr)
+	assert.Equal(t, newer, kept, "the vault is left as it is")
+}
+
 // TestDraftStamp_KeepsTheOverlayAStepAfterTheProducerChanged: a step after
 // the producer (unredact, a post-processing tool) can change a draft, so the
 // overlay the producer serves the draft from differs from the draft the
