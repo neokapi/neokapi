@@ -51,12 +51,18 @@ func assertPackageWithholds(t *testing.T, path string, names map[string]string) 
 // French, as a translator returns it.
 func returnTranslation(t *testing.T, path string) {
 	t.Helper()
-	returnTranslationRuns(t, path, "tu1", []model.Run{model.TextR("Bonjour [REDACTED:Person]")})
+	returnTranslationRuns(t, path, "tu1", redactedHello, []model.Run{model.TextR("Bonjour [REDACTED:Person]")})
 }
 
+// redactedHello is the source every fixture file carries in a redacted
+// package: "Hello <name>" with the name withheld.
+const redactedHello = "Hello [REDACTED:Person]"
+
 // returnTranslationRuns writes into the package at path a French translation
-// of block blockID of every file it carries, as runs.
-func returnTranslationRuns(t *testing.T, path, blockID string, runs []model.Run) {
+// of block blockID of every file it carries, as runs, stamped with source, the
+// text of the block in the package, as the translator's kapi stamps what it
+// writes.
+func returnTranslationRuns(t *testing.T, path, blockID, source string, runs []model.Run) {
 	t.Helper()
 	pkg, err := LoadWorkspace(path)
 	require.NoError(t, err)
@@ -69,7 +75,7 @@ func returnTranslationRuns(t *testing.T, path, blockID string, runs []model.Run)
 	}
 	pkg.Overlays = kept
 	for _, si := range pkg.Sources {
-		payload, err := json.Marshal(blockstore.TargetOverlay{Runs: runs, Status: string(model.TargetStatusDraft)})
+		payload, err := json.Marshal(blockstore.TargetOverlay{Runs: runs, Status: string(model.TargetStatusDraft), Source: blockstore.SourceStamp(source)})
 		require.NoError(t, err)
 		pkg.Overlays = append(pkg.Overlays, kpz.OverlayDoc{
 			Kind: kind, BlockHash: blockID, Payload: payload, Source: kpz.SourceDir + filepath.Base(si.SourcePath),

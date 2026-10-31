@@ -238,7 +238,7 @@ func TestMergeRedactedKpzRefusesAChangedPlaceholder(t *testing.T) {
 		require.NoError(t, a.RunExtractKpz(kpzExtractCommand(t, recipe, out)))
 		packages := kpzPackages(t, out)
 		require.NotEmpty(t, packages)
-		returnTranslationRuns(t, packages[0], "tu1", changed)
+		returnTranslationRuns(t, packages[0], "tu1", redactedHello, changed)
 		err := a.MergeOneKpz(mergeKpzCommand(t, recipe), packages[0])
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), ", block tu1: the translation holds a placeholder no value in the vault matches (\"[REDACTED:\"…), so a translator changed it")
@@ -246,7 +246,7 @@ func TestMergeRedactedKpzRefusesAChangedPlaceholder(t *testing.T) {
 	})
 	t.Run("source files", func(t *testing.T) {
 		a, work, dir := adHocRedactedPackage(t, false)
-		returnTranslationRuns(t, work, "tu1", changed)
+		returnTranslationRuns(t, work, "tu1", redactedHello, changed)
 		merged := filepath.Join(dir, "translated")
 		err := a.MergeFromKpz(t.Context(), work, merged)
 		require.Error(t, err)
@@ -323,7 +323,7 @@ func TestMergeRedactedKpzRestoresEveryPluralForm(t *testing.T) {
 		}
 		forms[form] = tr
 	}
-	returnTranslationRuns(t, packages[0], "tu1", []model.Run{{Plural: &model.PluralRun{Pivot: src[0].Plural.Pivot, Forms: forms}}})
+	returnTranslationRuns(t, packages[0], "tu1", strings.ReplaceAll(model.RunsText(src), "Alice Archer", "[REDACTED:Person]"), []model.Run{{Plural: &model.PluralRun{Pivot: src[0].Plural.Pivot, Forms: forms}}})
 	require.NoError(t, a.MergeOneKpz(mergeKpzCommand(t, recipe), packages[0]))
 	data, err := os.ReadFile(filepath.Join(dir, "l10n", "app_fr.arb"))
 	require.NoError(t, err)
@@ -453,4 +453,19 @@ func TestExecOverARedactedPackage(t *testing.T) {
 		assert.Contains(t, err.Error(), "is a redacted package, and its vault is not in this project")
 		assert.NoFileExists(t, saw, "the program never reads Alice Archer")
 	})
+}
+
+// A redacted workspace whose vault an earlier kapi wrote is refused before
+// any file is written, with the vault named and the command that writes a
+// new package and vault.
+func TestMergeRedactedWorkspaceRefusesAVaultAnEarlierKapiWrote(t *testing.T) {
+	a, work, dir := adHocRedactedPackage(t, false)
+	returnTranslation(t, work)
+	vault := work + ".vault"
+	require.NoError(t, os.WriteFile(vault, []byte(`{"version": 1, "values": []}`), 0o600))
+	merged := filepath.Join(dir, "translated")
+	err := a.MergeFromKpz(t.Context(), work, merged)
+	require.ErrorIs(t, err, redaction.ErrOlderVault)
+	assert.Equal(t, vault+" is a redaction vault from an earlier kapi (version 1). Run `kapi extract` again to write a new package and vault.", err.Error())
+	assert.NoDirExists(t, merged, "the merge writes no file")
 }
