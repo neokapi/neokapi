@@ -11,17 +11,13 @@ package backend
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"path"
 	"path/filepath"
 	"slices"
-	"strconv"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
@@ -293,150 +289,32 @@ func (a *App) readerSource(tabID string, op *openProject, rel string) (project.R
 }
 
 // place sets each finding on the block it names, in the order the run
-// reported them, and keeps each one's fix.
+// reported them, and keeps each one's fix (screens.PlaceFindings).
 func (r *readerRead) place(blocks []*model.Block, findings []DesktopFinding) {
-	index := make(map[string]int, len(blocks))
-	for _, b := range blocks {
-		index[b.ID] = len(r.dto.Blocks)
-		r.dto.Blocks = append(r.dto.Blocks, screens.ReaderBlockDTO{ID: b.ID, Runs: b.SourceRuns(), Findings: []screens.ReaderFindingDTO{}})
+	checked := make([]screens.CheckedFinding, len(findings))
+	for i, df := range findings {
+		checked[i] = checkedFinding(df)
 	}
-	seen := map[string]int{}
-	for _, df := range findings {
-		f := screens.ReaderFindingDTO{
-			BlockID:   df.BlockID,
-			Position:  df.Position,
-			Kind:      readerKind(df),
-			Label:     readerLabel(df),
-			Fails:     df.Fails,
-			Suggested: df.Suggested,
-			Fixable:   df.Fix != "",
-		}
-		if df.Field == "target" {
-			f.Locale = df.Locale
-		}
-		key := findingKey(df)
-		seen[key]++
-		f.ID = key + "-" + strconv.Itoa(seen[key])
-		if f.Fixable {
-			r.fixes[f.ID] = df.Fix
-			r.dto.Fixable++
-		}
-		i, ok := index[df.BlockID]
-		if !ok || df.BlockID == "" {
-			r.dto.Document = append(r.dto.Document, f)
-			continue
-		}
-		// A finding on a translation is anchored to the source runs too
-		// (core/check), at the words the translation lost or changed.
-		f.Span = readerSpan(r.dto.Blocks[i].Runs, df.Position)
-		r.dto.Blocks[i].Findings = append(r.dto.Blocks[i].Findings, f)
-	}
-	for i := range r.dto.Blocks {
-		slices.SortStableFunc(r.dto.Blocks[i].Findings, func(x, y screens.ReaderFindingDTO) int {
-			return spanStart(x.Span) - spanStart(y.Span)
-		})
-		for _, f := range r.dto.Blocks[i].Findings {
-			if f.Fixable {
-				r.order = append(r.order, f.ID)
-			}
-		}
+	p := screens.PlaceFindings(blocks, checked)
+	r.dto.Blocks, r.dto.Document, r.dto.Fixable = p.Blocks, p.Document, p.Fixable
+	r.fixes, r.order = p.Fixes, p.Order
+}
+
+// checkedFinding is a desktop finding as the Reader places it.
+func checkedFinding(df DesktopFinding) screens.CheckedFinding {
+	return screens.CheckedFinding{
+		BlockID: df.BlockID, Field: df.Field, Locale: df.Locale, Check: df.Check,
+		Category: df.Category, Rule: df.Rule, OriginalText: df.OriginalText, Message: df.Message,
+		Replacement: df.Replacement, Term: df.Term, Fails: df.Fails, Suggested: df.Suggested,
+		Position: df.Position, Fix: df.Fix,
 	}
 }
 
-// findingKey identifies a finding by what it is about, not by where in the
-// block it sits, so the same finding keeps its id while a fix elsewhere in
-// the block moves its words.
-func findingKey(df DesktopFinding) string {
-	sum := sha256.Sum256([]byte(strings.Join([]string{
-		df.BlockID, df.Field, df.Locale, df.Check, df.Category, df.Rule, df.OriginalText, df.Message,
-	}, "\x00")))
-	return hex.EncodeToString(sum[:6])
-}
+// readerLabel is the line under a finding (screens.ReaderLabel).
+func readerLabel(df DesktopFinding) string { return screens.ReaderLabel(checkedFinding(df)) }
 
-// spanStart orders findings with a span by where it starts, and the others
-// after them.
-func spanStart(s *screens.ReaderSpan) int {
-	if s == nil {
-		return 1 << 30
-	}
-	return s.Start
-}
-
-// readerSpan is the code-point range of the block's own text that a run range
-// over its top-level runs covers. A range inside a plural or a select, or one
-// the runs do not hold, has none.
-func readerSpan(runs []model.Run, a model.Anchor) *screens.ReaderSpan {
-	if a.Kind != model.AnchorRange || len(a.Path) > 0 || !a.InBounds(runs) {
-		return nil
-	}
-	start, end := textOffset(runs, a.Start), textOffset(runs, a.End)
-	if end <= start {
-		return nil
-	}
-	return &screens.ReaderSpan{Start: start, End: end}
-}
-
-// textOffset is the code-point offset of p into the text the runs hold
-// themselves, in which every run but a text run has no width.
-func textOffset(runs []model.Run, p model.RunPos) int {
-	n := 0
-	for i := 0; i < p.Run && i < len(runs); i++ {
-		if runs[i].Text != nil {
-			n += utf8.RuneCountInString(runs[i].Text.Text)
-		}
-	}
-	if p.Run < len(runs) && runs[p.Run].Text != nil {
-		n += p.Offset
-	}
-	return n
-}
-
-// readerKind marks a finding by the check that raised it: a term rule about a
-// spelling is a name, any other term rule a word, a voice rule tone, and every
-// other check its own family.
-func readerKind(df DesktopFinding) string {
-	switch df.Check {
-	case "terms":
-		if df.Replacement != "" && df.Term != "" && spellingKey(df.Replacement) == spellingKey(df.Term) {
-			return "name"
-		}
-		return "word"
-	case "voice":
-		return "tone"
-	case "":
-		return df.Category
-	}
-	return df.Check
-}
-
-// readerLabel is the line under a finding: the wording a term rule asks for
-// and the word it found, or the check's message.
-func readerLabel(df DesktopFinding) string {
-	if df.Check == "terms" && df.Replacement != "" {
-		found := df.OriginalText
-		if found == "" {
-			found = df.Term
-		}
-		if found != "" {
-			return df.Replacement + ", not " + found
-		}
-	}
-	return df.Message
-}
-
-// spellingKey folds a form to compare spellings: lower case, with spaces,
-// hyphens, underscores and dots taken out.
-func spellingKey(form string) string {
-	var b strings.Builder
-	for _, r := range strings.ToLower(form) {
-		switch r {
-		case ' ', '-', '_', '.', ' ':
-			continue
-		}
-		b.WriteRune(r)
-	}
-	return b.String()
-}
+// spellingKey folds a form to compare spellings (screens.SpellingKey).
+func spellingKey(form string) string { return screens.SpellingKey(form) }
 
 // readerRules turns the context answer for a file into the margin's rows, in
 // the order `kapi context <path>` prints it. The voice comes first, then what

@@ -689,7 +689,7 @@ func digestFrom(d rulesview.Digest) ContextDigest {
 		Numbers:     DigestNumbers(d.Numbers),
 	}
 	for i, c := range d.Conflicts {
-		out.Conflicts[i] = screens.DigestConflict{Sides: digestItemsFrom(c.Sides), ByEvidence: c.ByEvidence, Reason: c.Reason}
+		out.Conflicts[i] = screens.DigestConflictFrom(c)
 	}
 	for i, t := range d.Suggested {
 		theme := DigestTheme{Theme: t.Theme, Title: t.Title, Groups: make([]DigestGroup, len(t.Groups))}
@@ -704,44 +704,13 @@ func digestFrom(d rulesview.Digest) ContextDigest {
 	return out
 }
 
-// digestItemsFrom converts a list of items, keeping a nil list nil and an
-// empty one empty, as the model built them.
+// digestItemsFrom converts a list of items (screens.DigestItemsFrom).
 func digestItemsFrom(items []rulesview.Item) []screens.DigestItem {
-	if items == nil {
-		return nil
-	}
-	out := make([]screens.DigestItem, len(items))
-	for i, it := range items {
-		out[i] = digestItemFrom(it)
-	}
-	return out
+	return screens.DigestItemsFrom(items)
 }
 
-// digestItemFrom converts one item.
-func digestItemFrom(it rulesview.Item) screens.DigestItem {
-	return screens.DigestItem{
-		ID:            it.ID,
-		Short:         it.Short,
-		Status:        it.Status,
-		Theme:         it.Theme,
-		Sentence:      it.Sentence,
-		Subject:       it.Subject,
-		Quote:         it.Quote,
-		Collection:    it.Collection,
-		Standing:      it.Standing,
-		Usage:         digestUsageFrom(it.Usage),
-		NoticedBy:     it.NoticedBy,
-		At:            it.At,
-		New:           it.New,
-		Scope:         it.Scope,
-		Keepable:      it.Keepable,
-		Droppable:     it.Droppable,
-		Widenable:     it.Widenable,
-		WidenTo:       it.WidenTo,
-		EstablishedAt: it.EstablishedAt,
-		How:           it.How,
-	}
-}
+// digestItemFrom converts one item (screens.DigestItemFrom).
+func digestItemFrom(it rulesview.Item) screens.DigestItem { return screens.DigestItemFrom(it) }
 
 // digestUsageFrom converts a usage count, whose two shapes are one.
 func digestUsageFrom(u *rulesview.Usage) *screens.DigestUsage {
