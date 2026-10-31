@@ -121,9 +121,11 @@ func (s *Server) decideState(c echo.Context) (*decideState, error) {
 }
 
 // readPlaces reads the stream's collections and items: the coordinates each
-// collection sits at, as the push stored them, and the collection each item
-// belongs to. The project's own point is the coordinates every collection
-// shares, the project's defaults as each collection carries them.
+// collection the recipe declares sits at, as the push stored them, and the
+// collection each item belongs to. A collection the workspace owns, such as
+// the default one an upload lands in, declares no point and is left out. The
+// project's own point is the coordinates every declared collection shares,
+// the project's defaults as each collection carries them.
 func (st *decideState) readPlaces(ctx context.Context, cs platstore.ContentStore) error {
 	collections, err := cs.ListCollections(ctx, st.project.ID, st.stream)
 	if err != nil {
@@ -131,14 +133,15 @@ func (st *decideState) readPlaces(ctx context.Context, cs platstore.ContentStore
 	}
 	byID := map[string]*platstore.Collection{}
 	var root map[string]string
-	for i, col := range collections {
-		if col == nil || col.Name == "" {
+	first := true
+	for _, col := range collections {
+		if col == nil || col.Name == "" || !venue.IsRecipeOwned(col.Owner) {
 			continue
 		}
 		byID[col.ID] = col
 		st.places.Collections = append(st.places.Collections, rulesview.Place{Name: col.Name, Coordinates: maps.Clone(col.Context)})
-		if i == 0 || root == nil {
-			root = maps.Clone(col.Context)
+		if first {
+			root, first = maps.Clone(col.Context), false
 			continue
 		}
 		maps.DeleteFunc(root, func(axis, value string) bool { return col.Context[axis] != value })

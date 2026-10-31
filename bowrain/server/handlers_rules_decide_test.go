@@ -347,3 +347,56 @@ func TestRulesDecide_NoContextKey_SQLite(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, decideRoute(t, e, http.MethodGet, "nope", "/rules/main/decide", nil, &refusal))
 	assert.True(t, strings.Contains(refusal.Error, "not found"))
 }
+
+// pushSuggestions records, on a desktop sharing the parity project, two
+// rules about one word that disagree: one across the brand, one in docs.
+func pushSuggestions(t *testing.T, e *echo.Echo, pid string) {
+	t.Helper()
+	d := newDesktop(t, "prj_decideparityaaaaaaaa")
+	d.observeAt(t, "use", "leverage", map[string]string{"brand": "acme"})
+	d.observeAt(t, "apply", "leverage", map[string]string{"brand": "acme", "surface": "docs"})
+	r := &routeRemote{h: e, base: "/api/v1/ws/" + pid + "/context/objects"}
+	require.NoError(t, r.Put(t.Context(), d.push(t)...))
+}
+
+// sideOf returns the option of a disagreement whose sentence is sentence.
+func sideOf(t *testing.T, d screens.RuleDecisionDTO, sentence string) screens.RuleOptionDTO {
+	t.Helper()
+	for _, o := range d.Options {
+		if o.Sentence == sentence {
+			return o
+		}
+	}
+	require.Failf(t, "no side", "the disagreement has no side %q", sentence)
+	return screens.RuleOptionDTO{}
+}
+
+// leverageQuestion is the disagreement pushSuggestions records.
+func leverageQuestion(t *testing.T, view screens.RulesDecideViewDTO) screens.RuleDecisionDTO {
+	t.Helper()
+	for _, d := range view.Decisions {
+		if d.Kind == "disagreement" && d.Label == "leverage" {
+			return d
+		}
+	}
+	require.Fail(t, "the view asks nothing about leverage")
+	return screens.RuleDecisionDTO{}
+}
+
+// A collection the workspace owns declares no point: it does not stop a rule
+// across the brand from applying to the whole project.
+func TestRulesDecide_WorkspaceCollectionsAreNoPlace_SQLite(t *testing.T) {
+	caller := &decideCaller{userID: "member-a", perms: decideAll}
+	e, cs := decideSQLiteServer(t, caller)
+	pid := seedDecideParity(t, e, cs)
+	require.NoError(t, cs.CreateCollection(t.Context(), &platstore.Collection{
+		ProjectID: pid, Name: "default", Kind: platstore.CollectionUploaded, ItemLabel: "file",
+		Stream: "main", IsDefault: true, Owner: "workspace",
+	}))
+	pushSuggestions(t, e, pid)
+	d := leverageQuestion(t, readDecideView(t, e, pid))
+	wide := sideOf(t, d, "Write use, not leverage.")
+	assert.Contains(t, wide.Consequence, "Applies to the whole project.")
+	narrow := sideOf(t, d, "Write apply, not leverage.")
+	assert.Contains(t, narrow.Consequence, "Applies to docs.")
+}
