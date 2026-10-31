@@ -17,15 +17,12 @@ import (
 )
 
 // A run of one registry tool (`kapi exec <tool>`, and the MCP tools that run
-// one registry tool over a text) applies the redaction policy its project
-// declares for each file it reads: the policy of the collection or item that
-// holds the file, else `defaults.redaction` (RedactionFor). A text that sits
-// in no file is read under the defaults. When the tool calls a provider,
-// redact runs ahead of it and unredact after it, so the provider reads
-// placeholders and the output carries the originals. Between the two steps
-// the originals ride on the blocks, as in the secure-translate flow, and the
-// run writes none of them to disk. Each file is read under its own policy,
-// so one run over files of two collections redacts each with its own rules.
+// one registry tool over a text) reads each file under the redaction policy
+// that covers it (RedactionFor); a text in no file reads under the defaults.
+// When the tool calls a provider, redact runs ahead of it and unredact after
+// it, so the provider reads placeholders and the output carries the
+// originals. Between the two steps the originals ride on the blocks, as in the
+// secure-translate flow, and the run writes none of them to disk.
 
 // toolRedaction is the redaction policy one run of a tool applies.
 type toolRedaction struct {

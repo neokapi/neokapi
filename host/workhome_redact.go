@@ -19,11 +19,10 @@ import (
 // backend the project shares its context through. So the workspace home
 // redacts what it records of a kept edition as the recorder redacts a file
 // edit: the runs before and after each change, and the note, under the policy
-// that governs the document's file (RedactionFor), the originals going to the
-// project
-// vault under the name of the edition and revision they belong to
-// (edit:<doc>#<block>@<edition>:<revision>), and the change set as sent left
-// out. Where the workspace home reads an edition back it puts the originals
+// that governs the document's file (RedactionFor). The originals go to the
+// project vault under the name of the edition and revision they belong to
+// (edit:<doc>#<block>@<edition>:<revision>), and the change set as sent is
+// left out. Where the workspace home reads an edition back it puts the originals
 // back from the vault, so on the machine that withheld them the edition reads
 // as it was written; another machine, which has no vault entry for it, reads
 // the placeholders.

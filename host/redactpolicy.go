@@ -11,11 +11,11 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 )
 
-// A declared redaction policy is a property of the content, not of the command
-// that moves it. Every route that sends content out of kapi (a push, a run of
-// one tool, a flow, the deeper look, the record of an edit) asks for the
-// policy of the file the content sits in, through RedactionFor, and takes no
-// flags: flags belong to a command, and the policy belongs to the project.
+// A declared redaction policy belongs to the content. Every route that sends
+// content out of kapi asks RedactionFor for the policy of the file the content
+// sits in: a push, a run of one tool, a flow, the deeper look and the record
+// of an edit. None of them takes a flag for it, since a flag belongs to a
+// command and the policy belongs to the project.
 //
 // A recipe declares a policy under `defaults.redaction`, on a collection and
 // on a content item (project.RedactionForPath). The most specific declaration
