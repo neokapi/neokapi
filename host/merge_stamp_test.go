@@ -1,6 +1,7 @@
 package host
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"io"
@@ -19,6 +20,7 @@ import (
 	"github.com/neokapi/neokapi/core/redaction"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/core/tools"
+	"github.com/neokapi/neokapi/memory"
 )
 
 // stampedProject is a one-file project whose block store holds a French
@@ -319,4 +321,58 @@ func TestMaterialize_AnEmptiedSourceMakesItsTranslationStale(t *testing.T) {
 	require.NoError(t, json.Unmarshal(out, &got))
 	assert.Empty(t, got["greeting"], "the stale translation is not written; the empty source is")
 	assert.Equal(t, "Au revoir", got["farewell"])
+}
+
+// `kapi up` over a flow with no producing step for a block cannot draft it
+// again, so a stored draft of an earlier source stays: the materialize step
+// leaves it out, and the run counts it per locale and says so.
+func TestUp_AProducerlessFlowNotesAStaleDraft(t *testing.T) {
+	a, cmd, recipe, dir := newLoopProject(t, map[string]string{
+		"en.json": `{"greeting":"Hello world","farewell":"Goodbye now"}`,
+	})
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	proj.Defaults.Materialize = project.MaterializeOnConverge
+	proj.Flows["translate"] = &flow.StepsSpec{Steps: []flow.FlowStep{{Tool: "recycle"}}}
+	require.NoError(t, project.Save(recipe, proj))
+
+	layout, err := project.LayoutFor(recipe)
+	require.NoError(t, err)
+	db, err := a.ProjectDB(context.Background(), layout.Root)
+	require.NoError(t, err)
+	require.NoError(t, db.Memory().Add(context.Background(), memory.Entry{
+		ID: "Hello world", HintSrcLang: "en",
+		Variants: map[model.LocaleID][]model.Run{
+			"en": {model.TextR("Hello world")}, "nb": {model.TextR("Hallo verden")}, "de": {model.TextR("Hallo Welt")},
+		},
+	}))
+	// A draft of the farewell made when its source read "Goodbye".
+	farewell := readStampedBlocks(t, a, dir)["farewell"]
+	require.NotNil(t, farewell)
+	sess, err := db.BlocksAutocommit().Begin(context.Background())
+	require.NoError(t, err)
+	for loc, text := range map[string]string{"nb": "Ha det", "de": "Tschüss"} {
+		payload, err := json.Marshal(blockstore.TargetOverlay{Text: text, Status: string(model.TargetStatusDraft), Source: blockstore.SourceStamp("Goodbye")})
+		require.NoError(t, err)
+		require.NoError(t, sess.PutOverlay(blockstore.Overlay{
+			Kind:      blockstore.TargetOverlayKind(model.LocaleID(loc)),
+			BlockHash: blockstore.StoreKey(filepath.Join("src", "en.json"), farewell.ID, farewell.SourceText()),
+			Payload:   payload,
+		}))
+	}
+	require.NoError(t, sess.Commit())
+
+	out := converge(t, a, cmd, recipe)
+	require.Equal(t, 2, out.MaterializedFiles, "one file per locale")
+	assert.Equal(t, 2, out.StaleDraftUnits())
+	for _, lc := range out.Locales {
+		assert.Equal(t, 1, lc.StaleDrafts, lc.Locale)
+		data, rerr := os.ReadFile(filepath.Join(dir, "out", lc.Locale, "en.json"))
+		require.NoError(t, rerr)
+		assert.NotContains(t, string(data), "Ha det", "%s: the stale draft is not written", lc.Locale)
+		assert.NotContains(t, string(data), "Tschüss", "%s: the stale draft is not written", lc.Locale)
+	}
+	var text bytes.Buffer
+	require.NoError(t, out.FormatText(&text))
+	assert.Contains(t, text.String(), "Note: 2 block(s) hold a draft of an earlier source and were not written.")
 }
