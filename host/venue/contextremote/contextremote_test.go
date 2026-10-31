@@ -121,3 +121,34 @@ func TestTheSignInReachesItsServer(t *testing.T) {
 	require.Error(t, err, "the stand-in answers 418")
 	assert.Equal(t, int32(1), hits.Load())
 }
+
+// A redirect to another port of the sign-in's host is refused: Go would carry
+// the Authorization header there.
+func TestARedirectOffTheServerIsRefused(t *testing.T) {
+	target, hits := countingHost(t)
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		http.Redirect(w, req, target+req.URL.RequestURI(), http.StatusTemporaryRedirect)
+	}))
+	t.Cleanup(origin.Close)
+	signInFor(t, origin.URL)
+	r, err := New(Options{URL: origin.URL + "/acme/p1"})
+	require.NoError(t, err)
+	_, err = r.List(t.Context(), workspace.RemoteLogDir)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "refused a redirect to "+target)
+	assert.Zero(t, hits.Load(), "the redirect target received nothing")
+}
+
+// An object larger than one request carries is refused before any request,
+// with its size and the limit.
+func TestAnObjectLargerThanOneRequestIsRefused(t *testing.T) {
+	host, hits := countingHost(t)
+	signInFor(t, host)
+	r, err := New(Options{URL: host + "/acme/p1"})
+	require.NoError(t, err)
+	blob := make([]byte, 40<<20)
+	err = r.Put(t.Context(), workspace.Object{Name: workspace.BlobObjectName(workspace.BlobAddress(blob)), Data: blob})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "is 40 MiB, and one push to Bowrain carries at most 37 MiB per object")
+	assert.Zero(t, hits.Load())
+}

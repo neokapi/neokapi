@@ -39,6 +39,12 @@ const projectURLEnvVar = "BOWRAIN_PROJECT_URL"
 // a request body of at most 50 MB, and base64 grows the bytes by a third.
 const maxBatchBytes = 24 << 20
 
+// maxSingleObject is the largest object one request can carry: the 50 MB
+// body limit less a third for base64 and room for the JSON around it. A
+// larger object would be refused with 413 on every push, so Put refuses it
+// before sending anything.
+const maxSingleObject = (50<<20)*3/4 - 64<<10
+
 // Options place the remote.
 type Options struct {
 	// URL is the recipe's compound project URL,
@@ -110,6 +116,7 @@ func (r *Remote) bowrainClient() (*apiclient.BowrainClient, error) {
 	r.once.Do(func() {
 		if r.token != "" {
 			r.client = apiclient.NewWorkspaceBowrainClient(r.server, r.workspace, r.project, r.token)
+			r.client.RefuseRedirectsOffServer()
 			return
 		}
 		auth, err := config.LoadAuth()
@@ -125,6 +132,7 @@ func (r *Remote) bowrainClient() (*apiclient.BowrainClient, error) {
 			return
 		}
 		c := apiclient.NewWorkspaceBowrainClient(r.server, r.workspace, r.project, auth.AccessToken)
+		c.RefuseRedirectsOffServer()
 		if auth.RefreshToken != "" {
 			c.SetRefreshToken(auth.RefreshToken, func(newAccess, newRefresh string) {
 				auth.AccessToken, auth.RefreshToken = newAccess, newRefresh
@@ -191,6 +199,10 @@ func (r *Remote) Put(ctx context.Context, objs ...workspace.Object) error {
 	for _, obj := range objs {
 		if !workspace.ValidObjectName(obj.Name) {
 			return fmt.Errorf("bowrain: %q is not a name in the context layout", obj.Name)
+		}
+		if len(obj.Data) > maxSingleObject {
+			return fmt.Errorf("bowrain: %s is %d MiB, and one push to Bowrain carries at most %d MiB per object",
+				obj.Name, len(obj.Data)>>20, maxSingleObject>>20)
 		}
 	}
 	if len(objs) == 0 {
