@@ -329,7 +329,7 @@ func (s *Server) acceptContextBatch(c echo.Context, cos platstore.ContextObjectS
 	member := ledgerMemberOf(c)
 	if !member.Permissions.Has(governingPermission) || !member.Reach.Unconstrained() {
 		for _, op := range fresh {
-			if err := checkReach(member, op, byID); err != nil {
+			if err := checkReach(ctx, member, op, byID); err != nil {
 				return true, c.JSON(http.StatusForbidden, ErrorResponse{
 					Error: err.Error(), Details: op.ID, Code: contextOutsideReachCode,
 				})

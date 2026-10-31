@@ -158,7 +158,7 @@ func (l *contextLog) Record(ctx context.Context, ops ...workspace.Op) ([]workspa
 			return nil, fmt.Errorf("record a context operation: %q is not an operation id", op.ID)
 		}
 		if strings.HasPrefix(op.Kind, contextop.OpKindPrefix) {
-			if err := checkReach(l.member, op, byID); err != nil {
+			if err := checkReach(ctx, l.member, op, byID); err != nil {
 				return nil, err
 			}
 			if op.Payload, err = stampActor(op.Payload, l.actor); err != nil {

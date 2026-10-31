@@ -560,10 +560,10 @@ func TestContextLedger_DecisionOnAnUnknownOperation_SQLite(t *testing.T) {
 	keep := keepOf(t, unknown)
 	ops, err := workspace.DecodeSegment(keep[0].Data, "site")
 	require.NoError(t, err)
-	require.ErrorIs(t, checkReach(unbounded, ops[0], map[string]workspace.Op{}), ErrOutsideReach)
+	require.ErrorIs(t, checkReach(ctx, unbounded, ops[0], map[string]workspace.Op{}), ErrOutsideReach)
 
 	noPermission := LedgerMember{UserID: "viewer", Permissions: platauth.PermViewContent}
-	err = checkReach(noPermission, ops[0], map[string]workspace.Op{unknown: {ID: unknown}})
+	err = checkReach(ctx, noPermission, ops[0], map[string]workspace.Op{unknown: {ID: unknown}})
 	var reachErr *ReachError
 	require.ErrorAs(t, err, &reachErr)
 	assert.Equal(t, platauth.PermManageTerms, reachErr.Permission, "a full reach without the permission governs nothing")

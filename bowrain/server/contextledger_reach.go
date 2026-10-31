@@ -104,7 +104,7 @@ const governingPermission = platauth.PermManageTerms
 // even when that is the whole project. Any other operation governs its own
 // coordinates, and one with none governs the whole project, which only an
 // unbounded reach covers.
-func checkReach(member LedgerMember, op workspace.Op, byID map[string]workspace.Op) error {
+func checkReach(ctx context.Context, member LedgerMember, op workspace.Op, byID map[string]workspace.Op) error {
 	kind, ok := strings.CutPrefix(op.Kind, contextop.OpKindPrefix)
 	if !ok || !slices.Contains(governingKinds, contextop.Kind(kind)) {
 		return nil
@@ -112,7 +112,7 @@ func checkReach(member LedgerMember, op workspace.Op, byID map[string]workspace.
 	if !member.Permissions.Has(governingPermission) {
 		return &ReachError{Kind: contextop.Kind(kind), ID: op.ID, Permission: governingPermission}
 	}
-	if contextop.Kind(kind) == contextop.KindEstablish && followsFromLog(op, byID) {
+	if contextop.Kind(kind) == contextop.KindEstablish && followsFromLog(ctx, op, byID) {
 		return nil
 	}
 	own, target := scopeOf(op)
@@ -167,7 +167,7 @@ func scopeOf(op workspace.Op) (coordinates map[string]string, target string) {
 // Settling follows from the log rather than from anyone's reach, so such an
 // establishment is accepted at any point. One that settling would not record,
 // whatever address it claims, is checked as any decision is.
-func followsFromLog(op workspace.Op, byID map[string]workspace.Op) bool {
+func followsFromLog(ctx context.Context, op workspace.Op, byID map[string]workspace.Op) bool {
 	log := &settleLog{}
 	for id, held := range byID {
 		if id != op.ID {
@@ -178,7 +178,7 @@ func followsFromLog(op workspace.Op, byID map[string]workspace.Op) bool {
 	for i := range log.ops {
 		log.ops[i].Seq = int64(i + 1)
 	}
-	if _, err := contextop.NewLedger(log, contextop.PersonDecides).Settle(context.Background(), contextop.Filter{}); err != nil {
+	if _, err := contextop.NewLedger(log, contextop.PersonDecides).Settle(ctx, contextop.Filter{}); err != nil {
 		return false
 	}
 	for _, rec := range log.recorded {
