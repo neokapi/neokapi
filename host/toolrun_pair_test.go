@@ -47,14 +47,14 @@ func TestExecTermCheckPairsASourceWithItsTranslation(t *testing.T) {
 	a := &App{SourceLang: "en"}
 	a.InitRegistries()
 
-	run := func(t *testing.T, rc ToolRunConfig) (findingsReport, error) {
+	run := func(t *testing.T, rc ToolRunConfig) (FindingsReport, error) {
 		t.Helper()
 		out, err := captureStdout(t, func() error { return a.RunToolOnFiles(t.Context(), rc) })
-		var r findingsReport
+		var r FindingsReport
 		require.NoError(t, json.Unmarshal([]byte(out), &r), out)
 		return r, err
 	}
-	report := func(t *testing.T, rc ToolRunConfig) findingsReport {
+	report := func(t *testing.T, rc ToolRunConfig) FindingsReport {
 		t.Helper()
 		r, err := run(t, rc)
 		require.NoError(t, err)
@@ -172,9 +172,9 @@ func TestExecTargetForEveryTool(t *testing.T) {
 // A tool that reads a translation reports that it compared none, and exits
 // as a check that did not run (ExitNotRun), wherever it read the blocks from.
 func TestExecRunThatComparedNoTranslationDidNotRun(t *testing.T) {
-	assert.NoError(t, notRunError(findingsReport{}))
+	assert.NoError(t, notRunError(FindingsReport{}))
 	assert.NoError(t, notRunError("not a findings report"))
-	err := notRunError(findingsReport{untranslated: &untranslatedRun{tool: "qa", lang: "nb"}})
+	err := notRunError(FindingsReport{untranslated: &untranslatedRun{tool: "qa", lang: "nb"}})
 	require.ErrorIs(t, err, ErrCheckNotRun)
 	assert.Equal(t, ExitNotRun, ExitCode(nil, err))
 	assert.Contains(t, err.Error(), "qa read no nb translation; pass the translation file with --target <file>")

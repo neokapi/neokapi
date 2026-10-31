@@ -4215,6 +4215,17 @@ export class ConvergeOutput {
              */
             this["warnings"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Findings holds the failing findings of a program step whose output
+             * changed a redaction placeholder (tools.RulePlaceholder). Each such block
+             * was left as it was, and the run exits with the code a failed check uses.
+             * Nil when there are none.
+             * @member
+             * @type {FindingsReport | null | undefined}
+             */
+            this["findings"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -4228,6 +4239,7 @@ export class ConvergeOutput {
         const $$createField3_0 = $$createType90;
         const $$createField4_0 = $$createType92;
         const $$createField15_0 = $$createType94;
+        const $$createField16_0 = $$createType96;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("locales" in $$parsedSource) {
             $$parsedSource["locales"] = $$createField3_0($$parsedSource["locales"]);
@@ -4237,6 +4249,9 @@ export class ConvergeOutput {
         }
         if ("warnings" in $$parsedSource) {
             $$parsedSource["warnings"] = $$createField15_0($$parsedSource["warnings"]);
+        }
+        if ("findings" in $$parsedSource) {
+            $$parsedSource["findings"] = $$createField16_0($$parsedSource["findings"]);
         }
         return new ConvergeOutput(/** @type {Partial<ConvergeOutput>} */($$parsedSource));
     }
@@ -4619,8 +4634,8 @@ export class DigestItem {
      */
     static createFrom($$source = {}) {
         const $$createField5_0 = $$createType59;
-        const $$createField6_0 = $$createType95;
-        const $$createField9_0 = $$createType97;
+        const $$createField6_0 = $$createType97;
+        const $$createField9_0 = $$createType99;
         const $$createField10_0 = $$createType6;
         const $$createField17_0 = $$createType0;
         const $$createField19_0 = $$createType0;
@@ -4755,7 +4770,7 @@ export class DigestTheme {
      * @returns {DigestTheme}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType99;
+        const $$createField2_0 = $$createType101;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("groups" in $$parsedSource) {
             $$parsedSource["groups"] = $$createField2_0($$parsedSource["groups"]);
@@ -4839,6 +4854,96 @@ export class DigestUsage {
             $$parsedSource["rejected"] = $$createField2_0($$parsedSource["rejected"]);
         }
         return new DigestUsage(/** @type {Partial<DigestUsage>} */($$parsedSource));
+    }
+}
+
+/**
+ * FindingsReport is what a run that is not the gate reports: the findings and
+ * their roll-up, field-for-field as the kapi.check/v2 Report carries them, so
+ * `.findings[]` and `.summary` read the same whichever command produced them.
+ * `kapi exec <check>` emits it on its own; `kapi run <flow>` nests it under the
+ * run's own output so one run stays one document.
+ * 
+ * Deliberately without `pass` and `gate`. Neither verb holds the content to a
+ * bar, and a `"pass": true` next to a failing finding is precisely the
+ * reassurance this whole class of defect hands out. The verdict belongs to
+ * `kapi check`, which owns the gate and the exit code.
+ * 
+ * It carries did_not_run, which is coverage rather than a bar: a check that
+ * read no content block reached no result, and an empty findings table in its
+ * place would read as a clean one.
+ */
+export class FindingsReport {
+    /**
+     * Creates a new FindingsReport instance.
+     * @param {Partial<FindingsReport>} [$$source = {}] - The source object to create the FindingsReport.
+     */
+    constructor($$source = {}) {
+        if (!("target" in $$source)) {
+            /**
+             * @member
+             * @type {check$0.Target}
+             */
+            this["target"] = (new check$0.Target());
+        }
+        if (!("summary" in $$source)) {
+            /**
+             * @member
+             * @type {check$0.Summary}
+             */
+            this["summary"] = (new check$0.Summary());
+        }
+        if (!("findings" in $$source)) {
+            /**
+             * @member
+             * @type {check$0.Diagnostic[]}
+             */
+            this["findings"] = [];
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * DidNotRun and DidNotRunCause are set as the kapi.check/v2 Report sets
+             * them, when the check read no content block.
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["did_not_run"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["did_not_run_cause"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FindingsReport instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {FindingsReport}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType102;
+        const $$createField1_0 = $$createType103;
+        const $$createField2_0 = $$createType105;
+        const $$createField3_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("target" in $$parsedSource) {
+            $$parsedSource["target"] = $$createField0_0($$parsedSource["target"]);
+        }
+        if ("summary" in $$parsedSource) {
+            $$parsedSource["summary"] = $$createField1_0($$parsedSource["summary"]);
+        }
+        if ("findings" in $$parsedSource) {
+            $$parsedSource["findings"] = $$createField2_0($$parsedSource["findings"]);
+        }
+        if ("did_not_run" in $$parsedSource) {
+            $$parsedSource["did_not_run"] = $$createField3_0($$parsedSource["did_not_run"]);
+        }
+        return new FindingsReport(/** @type {Partial<FindingsReport>} */($$parsedSource));
     }
 }
 
@@ -5032,7 +5137,7 @@ export class RulesFilesResult {
      * @returns {RulesFilesResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType101;
+        const $$createField0_0 = $$createType107;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("files" in $$parsedSource) {
             $$parsedSource["files"] = $$createField0_0($$parsedSource["files"]);
@@ -5162,8 +5267,8 @@ export class UpPlanOutput {
      * @returns {UpPlanOutput}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType103;
-        const $$createField4_0 = $$createType102;
+        const $$createField3_0 = $$createType109;
+        const $$createField4_0 = $$createType108;
         const $$createField8_0 = $$createType94;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("scopes" in $$parsedSource) {
@@ -5446,12 +5551,18 @@ const $$createType91 = ParkedScope.createFrom;
 const $$createType92 = $Create.Array($$createType91);
 const $$createType93 = check$0.Warning.createFrom;
 const $$createType94 = $Create.Array($$createType93);
-const $$createType95 = $Create.Nullable($$createType13);
-const $$createType96 = DigestUsage.createFrom;
-const $$createType97 = $Create.Nullable($$createType96);
-const $$createType98 = DigestGroup.createFrom;
-const $$createType99 = $Create.Array($$createType98);
-const $$createType100 = RulesFile.createFrom;
+const $$createType95 = FindingsReport.createFrom;
+const $$createType96 = $Create.Nullable($$createType95);
+const $$createType97 = $Create.Nullable($$createType13);
+const $$createType98 = DigestUsage.createFrom;
+const $$createType99 = $Create.Nullable($$createType98);
+const $$createType100 = DigestGroup.createFrom;
 const $$createType101 = $Create.Array($$createType100);
-const $$createType102 = UpPlanScope.createFrom;
-const $$createType103 = $Create.Array($$createType102);
+const $$createType102 = check$0.Target.createFrom;
+const $$createType103 = check$0.Summary.createFrom;
+const $$createType104 = check$0.Diagnostic.createFrom;
+const $$createType105 = $Create.Array($$createType104);
+const $$createType106 = RulesFile.createFrom;
+const $$createType107 = $Create.Array($$createType106);
+const $$createType108 = UpPlanScope.createFrom;
+const $$createType109 = $Create.Array($$createType108);

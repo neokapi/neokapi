@@ -60,6 +60,7 @@ export {
     DigestNumbers,
     DigestTheme,
     DigestUsage,
+    FindingsReport,
     ParkedScope,
     ReviewContext,
     ReviewQueue,

@@ -169,7 +169,7 @@ type ConvergeOutput struct {
 	// changed a redaction placeholder (tools.RulePlaceholder). Each such block
 	// was left as it was, and the run exits with the code a failed check uses.
 	// Nil when there are none.
-	Findings *findingsReport `json:"findings,omitempty"`
+	Findings *FindingsReport `json:"findings,omitempty"`
 }
 
 // StaleDraftUnits totals the blocks whose stored draft was made from an
@@ -810,7 +810,7 @@ type convergeFacts struct {
 
 // placeholderReport is the findings report of the placeholder findings the
 // passes collected, or nil when there are none.
-func (f *convergeFacts) placeholderReport() *findingsReport {
+func (f *convergeFacts) placeholderReport() *FindingsReport {
 	if f == nil || f.placeholders == nil {
 		return nil
 	}

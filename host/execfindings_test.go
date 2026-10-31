@@ -88,7 +88,7 @@ func TestFindingsCollectorReportsWhatTheCheckFound(t *testing.T) {
 
 	res, err := c.Result()
 	require.NoError(t, err)
-	report, ok := res.Data.(findingsReport)
+	report, ok := res.Data.(FindingsReport)
 	require.True(t, ok)
 
 	require.Len(t, report.Findings, 1)
@@ -119,7 +119,7 @@ func TestFindingsCollectorSaysSoWhenThereAreNone(t *testing.T) {
 
 	res, err := c.Result()
 	require.NoError(t, err)
-	report := res.Data.(findingsReport)
+	report := res.Data.(FindingsReport)
 	assert.Empty(t, report.Findings)
 	assert.Empty(t, report.DidNotRunCause, "a check that read a block ran")
 
@@ -138,7 +138,7 @@ func TestFindingsCollectorOverNoBlockDidNotRun(t *testing.T) {
 
 	res, err := c.Result()
 	require.NoError(t, err)
-	report := res.Data.(findingsReport)
+	report := res.Data.(FindingsReport)
 	assert.Equal(t, 0, report.Target.Blocks)
 	assert.Equal(t, check.CauseNothingToCheck, report.DidNotRunCause)
 	assert.NotEmpty(t, report.DidNotRun)
@@ -197,7 +197,7 @@ func TestFindingsCollectorReportsTermCheckViolations(t *testing.T) {
 	}, []*model.Part{{Type: model.PartBlock, Resource: b}}))
 	res, err := c.Result()
 	require.NoError(t, err)
-	report := res.Data.(findingsReport)
+	report := res.Data.(FindingsReport)
 
 	require.Len(t, report.Findings, 2)
 	byFails := map[bool]check.Diagnostic{}

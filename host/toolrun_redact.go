@@ -213,7 +213,7 @@ func (a *App) checkRedactEntities(flowName string, t tool.Tool, entitiesProduced
 
 // placeholderBlocks counts the blocks a report holds a failing placeholder
 // finding on.
-func placeholderBlocks(r findingsReport) int {
+func placeholderBlocks(r FindingsReport) int {
 	blocks := map[string]bool{}
 	for _, d := range r.Findings {
 		if d.Fails && d.Rule == placeholderRule {
@@ -228,7 +228,7 @@ func placeholderBlocks(r findingsReport) int {
 // block was left unchanged, so the run did not do what it was asked to, and
 // it exits with the code a failed check uses (ExitGate).
 func placeholderGateError(data any) error {
-	r, ok := data.(findingsReport)
+	r, ok := data.(FindingsReport)
 	if !ok {
 		return nil
 	}

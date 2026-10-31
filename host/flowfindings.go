@@ -88,7 +88,7 @@ func (c *flowFindings) observe(file string, b *model.Block) {
 }
 
 // report builds the run's findings report.
-func (c *flowFindings) report() *findingsReport {
+func (c *flowFindings) report() *FindingsReport {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	// This report carries findings, not a verdict, and BuildReport's counting,
@@ -104,7 +104,7 @@ func (c *flowFindings) report() *findingsReport {
 // for one that holds none, which keeps an ordinary run's output free of an
 // empty findings table. A check step that read no block still reports, and its
 // report is did_not_run.
-func (c *flowFindings) reportIfChecked() *findingsReport {
+func (c *flowFindings) reportIfChecked() *FindingsReport {
 	c.mu.Lock()
 	checks := c.checks
 	c.mu.Unlock()
@@ -231,7 +231,7 @@ func (a *App) flowDeclaresChecks(flowName string) bool {
 
 // flowFindingsReport returns the armed collector's report, or nil when no
 // collector is armed or the flow holds no check step.
-func (a *App) flowFindingsReport() *findingsReport {
+func (a *App) flowFindingsReport() *FindingsReport {
 	if a.flowFindings == nil {
 		return nil
 	}
@@ -293,7 +293,7 @@ func (a *App) chainProducesFindings(tools []tool.Tool) bool {
 // same json tags.
 type flowRunReport struct {
 	output.FlowRunOutput
-	Findings *findingsReport `json:"findings,omitempty"`
+	Findings *FindingsReport `json:"findings,omitempty"`
 }
 
 // FormatText prints the run line the flow always printed, then the findings

@@ -85,7 +85,7 @@ func ExecTargetFor(s *schema.ComponentSchema, writesOutput bool) ExecTarget {
 // ExitNotRun, as for a `kapi check` that checked no content, so a script does
 // not read the run as a clean one.
 func notRunError(data any) error {
-	r, ok := data.(findingsReport)
+	r, ok := data.(FindingsReport)
 	if !ok || r.untranslated == nil {
 		return nil
 	}
