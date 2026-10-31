@@ -45,6 +45,12 @@ model. See
 [Understanding the CLI layers](/kapi/direct-execution-layer) for the flow and
 single-tool surfaces.
 
+The policy also covers `external-command`, because the program it runs may
+send what it reads anywhere. The program reads each withheld value as its
+placeholder, and kapi puts the original back into the program's output. This
+holds for `kapi exec external-command` and for a flow, which needs a `redact`
+step ahead of the tool.
+
 ## How it stays local
 
 A redacted span becomes a **placeholder**, the same protected inline-code

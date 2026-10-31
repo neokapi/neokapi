@@ -243,6 +243,15 @@ policy of the file it holds:
    project that declares any policy. A tool that calls no provider runs alone. The chain each run builds is held to
    `CheckRedactionCoverage` and `CheckPlacement`, so a run without the redact
    step fails the gate a flow fails.
+
+   `external-command` hands each block to a program kapi runs, which may send
+   it anywhere, so its contract declares the `process-exec` side effect and
+   the policy covers it as it covers a provider call: a run places `redact`
+   and `unredact` around it, a run over a `.kpz` package is refused under a
+   collection's or an item's policy, and a flow that runs it needs a `redact`
+   step ahead of it. The program reads each placeholder as its visible token
+   (`redaction.VisibleText`), and an output that drops a token leaves the block
+   as it was rather than lose the value.
 5. **The deeper look.** It sends chunks of the project's block texts to a model
    (`host/contextdeeper.go`). A chunk holds blocks of files under one policy
    only, and each chunk is redacted under that policy before the model reads

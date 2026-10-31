@@ -123,13 +123,13 @@ func (a *App) filePolicy(cfg ToolRunConfig, proj *project.KapiProject, file stri
 	return cfg, nil
 }
 
-// checkPackagePolicy refuses a run of a tool that calls a provider over a .kpz
-// package in a project that declares a redaction policy on a collection or a
-// content item. The run builds one chain for every file the package holds, and
-// those files may sit in collections under different policies, so no single
-// policy covers them.
+// checkPackagePolicy refuses a run of a tool that sends blocks out (to a
+// provider, or to a program kapi runs) over a .kpz package in a project that
+// declares a redaction policy on a collection or a content item. The run
+// builds one chain for every file the package holds, and those files may sit
+// in collections under different policies, so no single policy covers them.
 func (a *App) checkPackagePolicy(cfg ToolRunConfig, proj *project.KapiProject) error {
-	if cfg.Project == "" || !a.toolCallsProvider(cfg.ToolName, cfg.ToolConfig) {
+	if cfg.Project == "" || !a.toolSendsBlocksOut(cfg.ToolName, cfg.ToolConfig) {
 		return nil
 	}
 	for _, declared := range proj.DeclaredRedactions() {

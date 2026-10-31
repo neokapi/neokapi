@@ -19,9 +19,9 @@ import (
 // A run of one registry tool (`kapi exec <tool>`, and the MCP tools that run
 // one registry tool over a text) reads each file under the redaction policy
 // that covers it (RedactionFor); a text in no file reads under the defaults.
-// When the tool calls a provider, redact runs ahead of it and unredact after
-// it, so the provider reads placeholders and the output carries the
-// originals. Between the two steps the originals ride on the blocks, as in the
+// When the tool sends blocks out (toolSendsBlocksOut), redact runs ahead of
+// it and unredact after it, so the provider or program reads placeholders and
+// the output carries the originals. Between the two steps the originals ride on the blocks, as in the
 // secure-translate flow, and the run writes none of them to disk.
 
 // toolRedaction is the redaction policy one run of a tool applies.
@@ -32,7 +32,7 @@ type toolRedaction struct {
 }
 
 // toolRunPolicy is what a declared policy asks of one run of a tool over one
-// file: the redaction it applies (nil when the tool calls no provider), and
+// file: the redaction it applies (nil when the tool sends no blocks out), and
 // whether a policy governs the file at all, which decides what the coverage
 // check requires.
 type toolRunPolicy struct {
@@ -66,7 +66,7 @@ func (a *App) toolRunPolicyFor(recipe string, proj *project.KapiProject, file, t
 		return toolRunPolicy{}, nil
 	}
 	pol := toolRunPolicy{declared: true}
-	if !a.toolCallsProvider(toolName, config) {
+	if !a.toolSendsBlocksOut(toolName, config) {
 		return pol, nil
 	}
 	if hasDetector(spec.Detectors, "entities") {
@@ -99,20 +99,22 @@ func (a *App) toolContractKnown(toolName string) bool {
 	return s != nil && s.ToolMeta != nil
 }
 
-// toolCallsProvider reports whether a run of the tool with config reaches a
-// provider: its contract, refined for the config, carries an API call.
-// toolRunPolicyFor asks only about a tool whose contract the registry holds
-// (toolContractKnown).
+// toolSendsBlocksOut reports whether a run of the tool with config hands
+// blocks to something outside kapi: its contract, refined for the config,
+// carries an API call (a provider) or process-exec (a program kapi runs, such
+// as external-command's). toolRunPolicyFor asks only about a tool whose
+// contract the registry holds (toolContractKnown).
 //
 // The registry fills in the configured default provider only for a tool
 // whose contract, resolved for the same config, requires credentials, so the
 // answer for the config the command sets is the answer for the tool it builds.
-func (a *App) toolCallsProvider(toolName string, config map[string]any) bool {
+func (a *App) toolSendsBlocksOut(toolName string, config map[string]any) bool {
 	if a.ToolReg == nil {
 		return false
 	}
 	info := a.ToolReg.ResolveToolInfo(registry.ToolID(toolName), config)
-	return info != nil && slices.Contains(info.SideEffects, schema.SideEffectAPICall)
+	return info != nil && (slices.Contains(info.SideEffects, schema.SideEffectAPICall) ||
+		slices.Contains(info.SideEffects, schema.SideEffectProcessExec))
 }
 
 // toolChain is the tools one run applies to a file: the tool, and the steps

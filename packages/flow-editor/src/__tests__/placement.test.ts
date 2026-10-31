@@ -59,6 +59,10 @@ const tools = new Map<string, ToolInfo>([
     produces: [{ type: "entity", side: "source" }],
     side_effects: ["remote-source-egress"],
   }),
+  // Hands source to a program outside kapi; no provider config removes it.
+  tool("external-command", {
+    side_effects: ["process-exec"],
+  }),
   // Overlay producer with no egress.
   tool("segmentation", {
     produces: [{ type: "segmentation", side: "source" }],
@@ -112,6 +116,21 @@ describe("computePlacement — transformer-after-remote-egress", () => {
       stepIndex: 1,
       tool: "redact",
     });
+  });
+
+  it("flags a recoverable transformer after a step that runs a program outside kapi", () => {
+    const spec: FlowSpec = {
+      steps: [{ tool: "external-command", config: { provider: "ollama" } }, { tool: "redact" }],
+    };
+    const diags = computePlacement(spec, tools);
+    expect(diags).toHaveLength(1);
+    expect(diags[0]).toMatchObject({
+      severity: "error",
+      rule: RULE_TRANSFORMER_AFTER_EGRESS,
+      stepIndex: 1,
+      tool: "redact",
+    });
+    expect(diags[0].message).toContain("hands source to a program outside kapi");
   });
 
   it("does not hold a non-recoverable transformer to the egress rule", () => {

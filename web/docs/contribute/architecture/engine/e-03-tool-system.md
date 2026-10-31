@@ -436,6 +436,10 @@ const (
     // system, distinct from APICall: a local detector, terms, or
     // content-memory lookup must not carry it, every cloud-provider call must.
     SideEffectRemoteSourceEgress SideEffect = "remote-source-egress"
+
+    // ProcessExec marks a tool that hands block content to a program
+    // outside kapi (external-command), whatever that program does with it.
+    SideEffectProcessExec SideEffect = "process-exec"
 )
 ```
 
@@ -443,10 +447,13 @@ Most side-effect declarations are informational metadata for the flow editor and
 the documentation. They are not enforced at runtime: a tool declaring a memory
 write still runs normally with no content memory configured; it skips the
 write. This keeps the tool interface simple while giving the UI enough
-information to warn meaningfully. The one exception is `RemoteSourceEgress`: the
-transformer placement pass keys a hard build error off it, and a tool whose
-remoteness depends on configuration (a model tool pointed at a local runtime or
-the offline demo provider) refines it away through its contract resolver.
+information to warn meaningfully. The exceptions are `RemoteSourceEgress` and
+`ProcessExec`. The transformer placement pass and the redaction coverage check
+key a hard build error off each, and a tool whose remoteness depends on
+configuration (a model tool pointed at a local runtime or the offline demo
+provider) refines `RemoteSourceEgress` away through its contract resolver. A
+single-tool run under a redaction policy places `redact` ahead of a tool that
+carries `ProcessExec` or `APICall`.
 
 #### Flow locale inference
 

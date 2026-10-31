@@ -254,12 +254,15 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	}})
 
 	// external-command rewrites the text with the output of the program it runs,
-	// so it declares WritesOutput.
+	// so it declares WritesOutput. It hands the text to that program, which may
+	// send it anywhere, so it declares process-exec and a redaction policy
+	// covers it.
 	reg.RegisterWithSchema("external-command", func() tool.Tool {
 		return NewExternalCommandTool(NewExternalCommandConfig(""))
 	}, toolSchema(NewExternalCommandConfig(""),
 		toolMeta("external-command", "External Command", schema.CategoryTextProcessing,
-			withTags("configurable"), withWritesOutput(), withCardinality(schema.Monolingual), withAccepts(schema.AcceptsTargetLanguage))))
+			withTags("configurable"), withWritesOutput(), withCardinality(schema.Monolingual), withAccepts(schema.AcceptsTargetLanguage),
+			withSideEffects(schema.SideEffectProcessExec))))
 
 	// voice-vocab-check's input is a voice profile the host resolves from
 	// the project/starter pack, never from step config — hence no schema properties

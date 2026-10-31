@@ -49,6 +49,7 @@ describe("side-effect keys match the Go source of truth", () => {
     ["termbase-read", "terms"],
     ["termbase-write", "terms"],
     ["api-call", "api"],
+    ["process-exec", "program"],
   ])("resolves the Go value %s to a badge", (goValue, expectedKey) => {
     expect(goValues).toContain(goValue);
     const [effect, ...rest] = getSystemEffects([goValue]);

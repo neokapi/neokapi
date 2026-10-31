@@ -244,6 +244,37 @@ func TestCheckRedactionCoverage(t *testing.T) {
 	require.NoError(t, entityDriven.CheckRedactionCoverage(reg, true))
 }
 
+// external-command hands source to a program outside kapi (process-exec), so
+// under a declared policy a flow running it needs a redact step, and the
+// redact step must come first.
+func TestRedactionCoversExternalCommand(t *testing.T) {
+	t.Parallel()
+	reg := placementReg(t)
+	cmd := map[string]any{"command": "cat", "applySource": true}
+
+	alone := chain(toolNode("x", "external-command", cmd))
+	err := alone.CheckRedactionCoverage(reg, true)
+	require.ErrorContains(t, err, `"external-command" hands source to a program outside kapi`)
+	require.NoError(t, alone.CheckRedactionCoverage(reg, false), "no policy declared, nothing to enforce")
+
+	redactFirst := chain(
+		toolNode("r", "redact", nil),
+		toolNode("x", "external-command", cmd),
+		toolNode("u", "unredact", nil),
+	)
+	require.NoError(t, redactFirst.CheckRedactionCoverage(reg, true))
+	require.NoError(t, redactFirst.CheckPlacement(reg))
+
+	redactAfter := chain(
+		toolNode("x", "external-command", cmd),
+		toolNode("r", "redact", nil),
+	)
+	diags, err := redactAfter.ValidatePlacement(reg)
+	require.NoError(t, err)
+	assert.Equal(t, []string{flow.RuleTransformerAfterEgress}, errorRules(diags))
+	require.ErrorContains(t, redactAfter.CheckPlacement(reg), "hands source to a program outside kapi")
+}
+
 // Unknown (plugin) tools without loaded contracts are skipped, and a nil
 // registry disables the pass.
 func TestValidatePlacement_UnknownToolsAndNilRegistry(t *testing.T) {

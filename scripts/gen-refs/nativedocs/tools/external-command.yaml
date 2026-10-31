@@ -23,6 +23,14 @@ overview: |
   tool from the agent surface, from the engine API, and from any recipe arriving
   inside a `.kpz`. See
   [E-06](/contribute/architecture/engine/e-06-execution-trust).
+
+  **A redaction policy applies.** The program may send what it reads anywhere,
+  so in a project that declares a [redaction policy](/framework/redaction) the
+  program reads each withheld value as its placeholder, such as
+  `[REDACTED:Person]`, and kapi puts the original back into the program's
+  output. A flow that runs this tool needs a `redact` step ahead of it. An
+  output that drops a placeholder leaves the block unchanged and records the
+  error.
 parameters:
   command:
     description: The executable to run.

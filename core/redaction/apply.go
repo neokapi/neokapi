@@ -2,6 +2,7 @@ package redaction
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -476,6 +477,61 @@ func TextOf(runs []model.Run) string {
 		}
 	}
 	return b.String()
+}
+
+// VisibleText returns the plain text of a run sequence as model.RunsText
+// reads it, with each redaction placeholder drawn as its visible token
+// (Disp), and the tokens that text holds. A reader that takes text and gives
+// text back (a program external-command runs) sees where each value was
+// withheld, and [RestoreText] puts the original back wherever the token
+// survives in what it returns.
+func VisibleText(runs []model.Run) (string, []string) {
+	var tokens []string
+	text := model.RunsText(showTokens(runs, &tokens))
+	// A plural form or select case other than the one RunsText reads holds
+	// tokens the text does not.
+	var held []string
+	for _, tok := range tokens {
+		if strings.Contains(text, tok) && !slices.Contains(held, tok) {
+			held = append(held, tok)
+		}
+	}
+	return text, held
+}
+
+// showTokens returns runs with each redaction placeholder replaced by a text
+// run holding its visible token, in every plural form and select case too,
+// and appends each token to tokens. Every other run is kept as it is, so
+// model.RunsText reads the result as it reads runs.
+func showTokens(runs []model.Run, tokens *[]string) []model.Run {
+	out := make([]model.Run, 0, len(runs))
+	for _, r := range runs {
+		switch {
+		case r.Ph != nil && isRedactionPh(r.Ph):
+			out = append(out, textRun(r.Ph.Disp))
+			*tokens = append(*tokens, r.Ph.Disp)
+		case r.Plural != nil:
+			forms := make(map[model.PluralForm][]model.Run, len(r.Plural.Forms))
+			for form, fr := range r.Plural.Forms {
+				forms[form] = showTokens(fr, tokens)
+			}
+			out = append(out, model.Run{Plural: &model.PluralRun{Pivot: r.Plural.Pivot, Forms: forms}})
+		case r.Select != nil:
+			cases := make(map[string][]model.Run, len(r.Select.Cases))
+			for key, cr := range r.Select.Cases {
+				cases[key] = showTokens(cr, tokens)
+			}
+			out = append(out, model.Run{Select: &model.SelectRun{Pivot: r.Select.Pivot, Cases: cases}})
+		default:
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+func isRedactionPh(ph *model.PlaceholderRun) bool {
+	_, ok := CategoryOf(ph.Type)
+	return ok && ph.Disp != ""
 }
 
 func textRun(s string) model.Run {

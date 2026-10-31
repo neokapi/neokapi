@@ -4,7 +4,15 @@
 // terms, an API/provider, analytics, a redaction vault).
 
 import { t } from "@neokapi/i18n-react/runtime";
-import { Database, BookMarked, Cloud, BarChart3, Vault, type LucideIcon } from "lucide-react";
+import {
+  Database,
+  BookMarked,
+  Cloud,
+  BarChart3,
+  Terminal,
+  Vault,
+  type LucideIcon,
+} from "lucide-react";
 import type { IOPort } from "./types";
 
 export type SystemDirection = "read" | "write" | "both";
@@ -90,6 +98,18 @@ const BY_EFFECT: Record<string, SystemEffect> = {
     color: API_COLOR,
     get description() {
       return t("Calls an external API / provider");
+    },
+  },
+  "process-exec": {
+    key: "program",
+    get label() {
+      return t("Program", "external system");
+    },
+    icon: Terminal,
+    direction: "both",
+    color: API_COLOR,
+    get description() {
+      return t("Hands blocks to a program outside kapi");
     },
   },
   analytics: {

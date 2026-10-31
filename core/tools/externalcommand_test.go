@@ -145,6 +145,8 @@ func TestExternalCommandToolExitCode(t *testing.T) {
 
 	resultBlock := result.Resource.(*model.Block)
 	assert.Equal(t, "1", resultBlock.Properties[tools.PropExternalCommandExitCode])
+	assert.Equal(t, "Hello", resultBlock.SourceText(), "a failed command leaves the text as it was")
+	assert.Contains(t, resultBlock.Properties[tools.PropExternalCommandError], "false exited with code 1")
 }
 
 func TestExternalCommandConfigValidation(t *testing.T) {
