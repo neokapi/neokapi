@@ -1806,6 +1806,9 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	// Context objects: /:ws/:id/context/objects. The objects a project's
 	// context ledger is shared through, in the core/workspace layout.
 	s.registerContextObjectRoutes(g)
+	// Decide: the questions about a project's suggestions, answered by a
+	// member, and the workspace's queue of them.
+	s.registerRulesDecideRoutes(g)
 
 	// Presence — /:ws/:id/presence. Reports the caller's editing focus; the
 	// change relay fans it out to project watchers over the /:ws/events SSE
