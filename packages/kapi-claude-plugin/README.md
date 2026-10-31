@@ -23,7 +23,7 @@ alongside the plugin so the skill matches your installed command surface.
 ### `kapi`
 
 One `kapi` Agent Skill — a router `SKILL.md` that loads the relevant reference on
-demand (progressive disclosure) — plus two Claude Code hooks. It covers the loop
+demand (progressive disclosure) — plus three Claude Code hooks. It covers the loop
 **know the context → author → check → fix → publish**:
 
 - **Discover & refresh the context** — draft a project's voice profile and

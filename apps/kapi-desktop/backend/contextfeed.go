@@ -186,10 +186,10 @@ type ContextFeedGroup struct {
 	Kept      int `json:"kept"`
 	Dropped   int `json:"dropped"`
 	// Checked, Failing, Caught and Files are what the session's check runs
-	// found (host.SessionOutcomes): how many runs the Stop hook recorded, the
-	// failing findings its latest run left, the findings one run reported and
-	// the next no longer found, and the files the runs name. A check run is
-	// counted here and listed in no entry.
+	// found (host.SessionOutcomes): the runs the edit and Stop hooks recorded,
+	// the failing findings no later run checked again, the findings one run
+	// reported and the next no longer found, and the files the runs name. A
+	// check run is counted here and listed in no entry.
 	Checked int `json:"checked"`
 	Failing int `json:"failing"`
 	Caught  int `json:"caught"`

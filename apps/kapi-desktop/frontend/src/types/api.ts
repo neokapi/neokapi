@@ -1036,7 +1036,7 @@ export interface AssistantHostView {
   connected: boolean;
   /** Why an assistant whose own files are in place is not connected: "rules files missing". */
   reason?: string;
-  /** kapi check runs when it finishes, through the kapi Claude Code plugin. */
+  /** kapi check runs on every edit and when it finishes, through the kapi Claude Code plugin's hooks. */
   check: boolean;
   /** The commands that turn the check on, while the plugin is not enabled. */
   pending?: string[];

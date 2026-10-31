@@ -47,8 +47,8 @@ type AssistantHostView struct {
 	// Reason says why an assistant whose own files are in place is not
 	// connected: "rules files missing".
 	Reason string `json:"reason,omitempty"`
-	// Check reports that kapi check runs when the assistant finishes, through
-	// the Stop hook of the kapi Claude Code plugin.
+	// Check reports that kapi check runs on every edit and when the assistant
+	// finishes, through the kapi Claude Code plugin's hooks.
 	Check bool `json:"check"`
 	// Pending are the commands a person runs in the assistant to turn the
 	// check on, when the plugin is not enabled yet.

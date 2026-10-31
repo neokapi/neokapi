@@ -136,8 +136,8 @@ directory, runs the check "kapi check <file>" runs on that one file, and:
   - emits {"systemMessage":"…"} (exit 0), and the same warning on stderr, when
     the check could not run: an unreadable, empty, or malformed payload, a
     session directory it cannot enter, a project that will not load, or a
-    check that did not run. The edit stands, and the run is on record as
-    unchecked rather than passing.
+    check that did not run. The edit stands. When the check reports that it
+    did not run, the run is on record as unchecked rather than passing.
 
 Each run that reaches the check is recorded in the project's log, under the
 session's assistant, as the Stop hook's runs are: the file, the failing
