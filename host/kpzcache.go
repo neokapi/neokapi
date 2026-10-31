@@ -68,12 +68,26 @@ type kpzCacheMeta struct {
 	// kept in sync by save()/load.
 	Recipe     *project.KapiProject `json:"-"`
 	RecipeYAML string               `json:"recipeYaml,omitempty"`
+
+	// Redaction is the package's redaction record, which a pack writes back
+	// into the manifest so the package stays marked as redacted.
+	Redaction *kpz.Redaction `json:"redaction,omitempty"`
+
+	// Kind and InterchangeTask are the package's profile and task, which a
+	// pack writes back, so an interchange package a receiver packs still
+	// merges as one.
+	Kind            string               `json:"kind,omitempty"`
+	InterchangeTask *kpz.InterchangeTask `json:"interchangeTask,omitempty"`
 }
 
 type kpzCacheSource struct {
 	Path string `json:"path"` // archive path, e.g. "source/app.json"
 	Name string `json:"name"` // base name, e.g. "app.json"
 	Key  string `json:"key"`  // per-source store key
+	// SourcePath is the source's logical path as the package names it: the
+	// project-relative path in an interchange package, the base name in a
+	// workspace. A pack writes it back.
+	SourcePath string `json:"sourcePath,omitempty"`
 
 	// Skeleton, FormatID, and ContentHash carry this source's identity +
 	// round-trip skeleton (AD-025 §6). Skeleton is the cache-local skeleton
@@ -102,6 +116,16 @@ func (c *kpzCache) metaPath() string                { return filepath.Join(c.dir
 func (c *kpzCache) sourcePath(name string) string   { return filepath.Join(c.dir, "sources", name) }
 func (c *kpzCache) storePath(key string) string     { return filepath.Join(c.dir, "overlays", key+".db") }
 func (c *kpzCache) skeletonPath(name string) string { return filepath.Join(c.dir, "skeletons", name) }
+
+// logicalPath is the path a pack names the source by: the one the package
+// named it by, or its base name for a package that named it by its archive
+// path alone.
+func (s kpzCacheSource) logicalPath() string {
+	if s.SourcePath == "" || s.SourcePath == s.Path {
+		return s.Name
+	}
+	return s.SourcePath
+}
 
 // hasSource reports whether the cache holds this source's raw bytes on disk
 // (the runtime needs them for transform/merge), regardless of pack retention.
@@ -182,7 +206,7 @@ func buildKpzCacheFromPackage(ctx context.Context, kpzPath string, pkg *kpz.Pack
 		return nil, err
 	}
 	abs, _ := filepath.Abs(kpzPath)
-	c := &kpzCache{dir: dir, meta: kpzCacheMeta{KpzPath: abs, PackedRootHash: rootHash, Recipe: pkg.Recipe}}
+	c := &kpzCache{dir: dir, meta: kpzCacheMeta{KpzPath: abs, PackedRootHash: rootHash, Recipe: pkg.Recipe, Redaction: pkg.Redaction, Kind: pkg.Kind, InterchangeTask: pkg.InterchangeTask}}
 
 	// Index raw source bytes + skeletons by archive/source path so each
 	// source's cache entry can be built whether it carries raw bytes, just a
@@ -227,7 +251,7 @@ func buildKpzCacheFromPackage(ctx context.Context, kpzPath string, pkg *kpz.Pack
 		name := filepath.Base(e.sourcePath)
 		key := sourceStoreKey(e.archivePath)
 		cs := kpzCacheSource{
-			Path: e.archivePath, Name: name, Key: key,
+			Path: e.archivePath, Name: name, Key: key, SourcePath: e.sourcePath,
 			FormatID: e.formatID, ContentHash: e.contentHash,
 		}
 
@@ -360,10 +384,10 @@ func kpzFileRootHash(kpzPath string) (string, error) {
 // retained as identity + skeleton by default; the raw bytes ride only when the
 // cache holds them (the .kpz was packed --with-source) (AD-025 §6).
 func (c *kpzCache) toPackage(ctx context.Context) (*kpz.Package, error) {
-	pkg := &kpz.Package{Generator: &kpz.GeneratorInfo{ID: "kapi"}, Recipe: c.meta.Recipe}
+	pkg := &kpz.Package{Generator: &kpz.GeneratorInfo{ID: "kapi"}, Recipe: c.meta.Recipe, Redaction: c.meta.Redaction, Kind: c.meta.Kind, InterchangeTask: c.meta.InterchangeTask}
 	for _, src := range c.meta.Sources {
 		si := kpz.SourceIdentity{
-			SourcePath:  src.Name,
+			SourcePath:  src.logicalPath(),
 			FormatID:    src.FormatID,
 			ContentHash: src.ContentHash,
 		}
@@ -374,7 +398,7 @@ func (c *kpzCache) toPackage(ctx context.Context) (*kpz.Package, error) {
 			skelPath := kpz.SkeletonDir + filepath.Base(src.Name)
 			pkg.Skeletons = append(pkg.Skeletons, kpz.SkeletonDoc{
 				Path:        skelPath,
-				SourcePath:  src.Name,
+				SourcePath:  src.logicalPath(),
 				FormatID:    src.FormatID,
 				ContentHash: src.ContentHash,
 				Content:     kpz.FileContent(c.skeletonPath(src.Skeleton)),

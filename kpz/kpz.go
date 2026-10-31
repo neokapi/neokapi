@@ -292,6 +292,13 @@ type Package struct {
 	// Manifest metadata, not part of the content RootHash.
 	InterchangeTask *InterchangeTask
 
+	// Redaction, when set, marks a package written under a redaction policy:
+	// its members hold a placeholder token wherever the policy withholds a
+	// value, and the originals stay in the vault Redaction names, on the
+	// machine that wrote the package. nil for a package that withholds
+	// nothing. Manifest metadata, not part of the content RootHash.
+	Redaction *Redaction
+
 	// Layout carries a context transfer file's files, one member each at its
 	// path in the layout. Empty for every profile but KindContext.
 	Layout []LayoutDoc
@@ -374,6 +381,15 @@ type InterchangeTask struct {
 	// unit's translation, so a merge needs nothing but the package to know
 	// what changed since.
 	Revisions map[string]UnitRevision `json:"revisions,omitempty"`
+}
+
+// Redaction is what the manifest of a redacted package records: the ID of
+// the vault that restores it, which the vault file carries too. The package
+// holds nothing else about the originals.
+type Redaction struct {
+	// VaultID is the ID of the vault that holds the originals
+	// (redaction.FileVault.ID).
+	VaultID string `json:"vaultId"`
 }
 
 // UnitRevision is what one unit of an interchange task was extracted against:
@@ -475,6 +491,9 @@ type Manifest struct {
 	// Task scopes a KindInterchange package to one locale pair. Metadata,
 	// not in the RootHash.
 	Task *InterchangeTask `json:"task,omitempty"`
+	// Redaction marks a package written under a redaction policy and names
+	// the vault that restores it. Metadata, not in the RootHash.
+	Redaction *Redaction `json:"redaction,omitempty"`
 	// Checkpoint says which project a checkpoint's tables belong to and the
 	// operation they stand at. Metadata, not in the RootHash.
 	Checkpoint *CheckpointMark `json:"checkpoint,omitempty"`
@@ -554,6 +573,7 @@ func (p *Package) WriteTo(w io.Writer) (int64, error) {
 		Recipe:        recipe,
 		Sources:       p.Sources,
 		Task:          p.InterchangeTask,
+		Redaction:     p.Redaction,
 		Checkpoint:    p.Checkpoint,
 		Projects:      projects,
 		TermStores:    termStores,
@@ -874,6 +894,7 @@ func read(zr *zip.Reader) (*Package, error) {
 		Recipe:          recipe,
 		Sources:         manifest.Sources,
 		InterchangeTask: manifest.Task,
+		Redaction:       manifest.Redaction,
 		Checkpoint:      manifest.Checkpoint,
 	}
 	// Index source identities by skeleton member path so skeleton members can
@@ -1099,7 +1120,26 @@ func validateManifestPaths(m *Manifest) error {
 			}
 		}
 	}
+	// The vault ID names a file on the machine that merges the package, so
+	// it is an identifier and never a path.
+	if m.Redaction != nil && !validVaultID(m.Redaction.VaultID) {
+		return fmt.Errorf("kpz: redaction vault id %q is not a vault id", m.Redaction.VaultID)
+	}
 	return nil
+}
+
+// validVaultID reports whether id is a vault ID: 1 to 64 ASCII letters,
+// digits and hyphens.
+func validVaultID(id string) bool {
+	if id == "" || len(id) > 64 {
+		return false
+	}
+	for _, r := range id {
+		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '-') {
+			return false
+		}
+	}
+	return true
 }
 
 // layoutPath reports whether a member path is one a context layout holds:

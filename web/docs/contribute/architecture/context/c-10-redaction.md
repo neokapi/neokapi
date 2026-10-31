@@ -59,7 +59,8 @@ per lifetime:
 | Backing | Where | For |
 | --- | --- | --- |
 | An in-process secret annotation on the block | memory | single-run flows |
-| A per-batch JSON sidecar | `.kapi/vault/batches/<batch-id>.json` | the extract → external tool → merge round trip |
+| A per-batch JSON sidecar | `.kapi/vault/batches/<batch-id>.json` | the extract → external tool → merge round trip, a project's redacted `.kpz` packages among them |
+| A package sidecar | `<package>.kpz.vault`, beside the package | a redacted `.kpz` extracted from source files outside a project |
 | The project vault | `.kapi/vault/redaction.json` | continuous ingest, which has no batch id to look under |
 
 The in-process annotation is keyed under a name no format writer serializes, and
@@ -71,17 +72,15 @@ token (`redaction.RedactedValue.Doc`, the project-relative path). Block IDs
 repeat across files and the token counter starts again in every block, so a
 key without the document lets one file's original overwrite another's. Content
 that sits in no file (an edit record, a note) names itself in its block ID and
-records no document. The file format is version 2; a version 1 file, which
-records no document, still reads, and a lookup that names a document falls back
-to the entry that names none. A file above version 2 was written by a newer
-kapi, and `redaction.OpenFileVault` refuses it with `ErrNewerVault`, so merge
-fails for that file and a write to the workspace home is refused. The vault
-is the only copy of the originals, never a cache, so it is read as it is
+records no document. The file format is version 2, which records the
+document and, for a vault a redacted package names, the vault's ID
+(`redaction.FileVault.ID`, optional). A version 1 file, which records no
+document, still reads, and a lookup that names a document falls back to the
+entry that names none. A file above version 2 was written by a newer kapi, and
+`redaction.OpenFileVault` refuses it with `ErrNewerVault`, so
+merge fails for that file and a write to the workspace home is refused. The
+vault is the only copy of the originals, never a cache, so it is read as it is
 rather than reset.
-
-`kapi extract --format kpz` refuses under a redaction policy: the package
-carries each source file's skeleton, which holds the file's text whole, and a
-skeleton has no placeholder form.
 
 `vault/` sits beside `work/`, outside it. **`work/` is defined by being
 disposable**: losing it costs CPU. **The vault is defined by an exclusion**: a
@@ -97,6 +96,62 @@ placeholder as an opaque token (the model sees neither the original nor even the
 visible label), and the return is matched back to the source run by id, so the
 placeholder survives the round trip with full fidelity
 ([M-05](../multilingual/m-05-prompts-and-batching.md)).
+
+### Redacted packages
+
+A `.kpz` carries each source file as a skeleton (whose entries hold the text of
+every block, rendered and as written), with the raw bytes under
+`--with-source`, and a skeleton has no placeholder form. So a package written
+under a policy carries a different file: `host.redactSourceForKpz` runs the
+`redact` tool over the source in external mode, a step that draws each
+redaction placeholder as its visible token (`redaction.ShowTokens`), and the
+format writer, which writes the token as text whatever the format. The
+skeleton, the raw source and the content-memory lookups all read that file.
+The policy's rules, compiled into a detector, read each memory match and each
+terms concept as JSON, and one they find a value in is left out of the
+package, whichever file the value comes from.
+
+The package works on tokens from there on, so merge restores by visible token
+within the block, in every plural form and select case
+(`redaction.RestoreTree`), as it does for PO, keyed by the file's name in the
+package and the block ID. The block IDs of the redacted file are those of the
+original: extract reads both and refuses the file when they differ, since merge
+matches by block. The same detector then reads the redacted bytes and the text
+of every redacted block, and extract refuses the file when it finds a value:
+one in the markup or in a field the reader does not extract, which the redact
+step never sees, or one across an inline code, where `redaction.Redact` skips
+a match. A policy that detects entities is refused before anything is read,
+since extract runs no entity-extract step to find them.
+
+The manifest records `redaction.vaultId` (`kpz.Redaction`), and the vault file
+records the same ID. The vault stays where the route keeps its originals: the
+project's batch vault, named by its ID, for `kapi extract --format kpz`, and
+`<package>.vault` beside the package for an extract from source files, which
+refuses to replace a vault already at that path. A workspace cache carries the
+record in its metadata, with the package's kind, interchange task and each
+file's project path, and a pack writes them back, so a package that a receiver
+ran a tool over and packed still merges as what it is. `kapi merge` refuses a
+redacted package before it writes anything when the vault is absent or its ID
+differs (`host.packageVault`); a vault that records no ID is refused the same
+way. Merge then restores through the batch-vault path for an interchange
+package (`restoreRedactedBlocks`) and an `unredact` step in external mode for a
+workspace. A translation that still holds a placeholder prefix after the
+restore stops the merge with the file and the block: a translator changed the
+placeholder. The workspace route merges once into the cache to find one
+before it writes any file.
+
+The interchange task's revisions in the manifest are unsalted hashes of the
+original runs, as they are in XLIFF 2 and PO, because merge compares them with
+the source the project holds.
+
+`kapi exec` never reads the vault: a tool over a redacted package reads and
+writes tokens, and the originals reach a file only at merge. The refusal of a
+tool that sends blocks out over a package in a project with a collection's or
+an item's policy does not apply to a package whose vault is among the project's
+batch vaults (`host.packageVaultHere`): `kapi extract --format kpz` wrote it in
+this project and withheld each file's values under that file's policy. A vault
+beside a package proves nothing about which rules withheld its values, so any
+other redacted package is refused like any other package.
 
 ### Detection
 

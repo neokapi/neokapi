@@ -245,62 +245,96 @@ func TestMergeRefusesABatchVaultANewerKapiWrote(t *testing.T) {
 	assert.NoFileExists(t, filepath.Join(dir, "src", "locales", "fr", "a.json"), "the merge writes no target file")
 }
 
-// A .kpz package carries each source file's skeleton, which holds the file's
-// text whole, so under a redaction policy kapi extract --format kpz writes no
-// package and names the formats that withhold the values.
-func TestExtractKpzRefusesUnderARedactionPolicy(t *testing.T) {
-	kpzCommand := func(t *testing.T, recipe, outDir string) *EnvCommand {
-		t.Helper()
-		cmd := NewEnvCommand(t.Context(), "extract")
-		cmd.SetOut(&bytes.Buffer{})
-		cmd.SetErr(&bytes.Buffer{})
-		addKpzExtractFlags(cmd, recipe)
-		cmd.Flags().Bool("redact", false, "")
-		cmd.Flags().String("redact-rules", "", "")
-		require.NoError(t, cmd.Flags().Set("out-dir", outDir))
-		return cmd
-	}
-	packages := func(t *testing.T, outDir string) []string {
-		t.Helper()
-		written, err := filepath.Glob(filepath.Join(outDir, "*.kpz"))
-		require.NoError(t, err)
-		return written
-	}
-	withoutPolicy := func(t *testing.T, recipe string) {
-		t.Helper()
-		proj, err := project.Load(recipe)
-		require.NoError(t, err)
-		proj.Defaults.Redaction = nil
-		require.NoError(t, project.Save(recipe, proj))
-	}
+// kpzExtractCommand is kapi extract --format kpz over the project at recipe,
+// writing into outDir.
+func kpzExtractCommand(t *testing.T, recipe, outDir string) *EnvCommand {
+	t.Helper()
+	cmd := NewEnvCommand(t.Context(), "extract")
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(&bytes.Buffer{})
+	addKpzExtractFlags(cmd, recipe)
+	cmd.Flags().Bool("redact", false, "")
+	cmd.Flags().String("redact-rules", "", "")
+	require.NoError(t, cmd.Flags().Set("out-dir", outDir))
+	return cmd
+}
 
+// kpzPackages returns the packages in outDir.
+func kpzPackages(t *testing.T, outDir string) []string {
+	t.Helper()
+	written, err := filepath.Glob(filepath.Join(outDir, "*.kpz"))
+	require.NoError(t, err)
+	return written
+}
+
+// withoutRedactionPolicy removes the project's defaults.redaction.
+func withoutRedactionPolicy(t *testing.T, recipe string) {
+	t.Helper()
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	proj.Defaults.Redaction = nil
+	require.NoError(t, project.Save(recipe, proj))
+}
+
+// Under a redaction policy, and under --redact-rules, kapi extract --format
+// kpz writes packages that withhold every name and record the batch vault
+// that keeps the names. With no policy the packages record none.
+func TestExtractKpzUnderARedactionPolicy(t *testing.T) {
 	t.Run("the recipe declares defaults.redaction", func(t *testing.T) {
-		a, recipe, _ := vaultProject(t)
+		a, recipe, dir := vaultProject(t)
 		out := t.TempDir()
-		err := a.RunExtractKpz(kpzCommand(t, recipe, out))
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "redaction policy")
-		assert.Contains(t, err.Error(), "--format xliff2")
-		assert.Empty(t, packages(t, out), "no package is written")
+		require.NoError(t, a.RunExtractKpz(kpzExtractCommand(t, recipe, out)))
+		assertRedactedPackages(t, dir, kpzPackages(t, out))
 	})
 	t.Run("--redact-rules on a project that declares none", func(t *testing.T) {
 		a, recipe, dir := vaultProject(t)
-		withoutPolicy(t, recipe)
+		withoutRedactionPolicy(t, recipe)
 		out := t.TempDir()
-		cmd := kpzCommand(t, recipe, out)
+		cmd := kpzExtractCommand(t, recipe, out)
 		require.NoError(t, cmd.Flags().Set("redact-rules", filepath.Join(dir, "redact.yaml")))
-		err := a.RunExtractKpz(cmd)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "--redact")
-		assert.Empty(t, packages(t, out), "no package is written")
+		require.NoError(t, a.RunExtractKpz(cmd))
+		assertRedactedPackages(t, dir, kpzPackages(t, out))
 	})
-	t.Run("with no policy the packages are written", func(t *testing.T) {
+	t.Run("with no policy the packages record no vault", func(t *testing.T) {
 		a, recipe, _ := vaultProject(t)
-		withoutPolicy(t, recipe)
+		withoutRedactionPolicy(t, recipe)
 		out := t.TempDir()
-		require.NoError(t, a.RunExtractKpz(kpzCommand(t, recipe, out)))
-		assert.Len(t, packages(t, out), len(vaultNames))
+		require.NoError(t, a.RunExtractKpz(kpzExtractCommand(t, recipe, out)))
+		written := kpzPackages(t, out)
+		require.Len(t, written, len(vaultNames))
+		for _, p := range written {
+			pkg, err := LoadWorkspace(p)
+			require.NoError(t, err)
+			assert.Nil(t, pkg.Redaction, p)
+		}
 	})
+}
+
+// assertRedactedPackages checks that every package withholds every name in
+// every member, records one batch vault, and that the vault, named by its
+// ID under .kapi/vault/batches/, keeps each file's name.
+func assertRedactedPackages(t *testing.T, dir string, packages []string) {
+	t.Helper()
+	require.Len(t, packages, len(vaultNames))
+	vaultID := ""
+	for _, p := range packages {
+		assertPackageWithholds(t, p, vaultNames)
+		pkg, err := LoadWorkspace(p)
+		require.NoError(t, err)
+		require.NotNil(t, pkg.Redaction, "%s records that it is redacted", p)
+		if vaultID == "" {
+			vaultID = pkg.Redaction.VaultID
+		}
+		assert.Equal(t, vaultID, pkg.Redaction.VaultID, "one extraction writes one vault")
+	}
+	v, err := redaction.OpenFileVault(project.LayoutAt(dir).RedactionSidecarPath(vaultID))
+	require.NoError(t, err)
+	assert.Equal(t, vaultID, v.ID(), "the vault carries the ID the packages name")
+	for doc, name := range vaultNames {
+		got, ok := v.Get(doc, "tu1", "rdx1")
+		require.True(t, ok, doc)
+		assert.Equal(t, name, got.Original, doc)
+	}
 }
 
 // A PO entry has no inline codes, so the writer carries a withheld value as

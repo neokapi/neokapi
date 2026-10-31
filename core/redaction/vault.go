@@ -2,6 +2,8 @@ package redaction
 
 import (
 	"cmp"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -123,17 +125,22 @@ func (v *MemoryVault) All() []RedactedValue {
 
 // fileVaultDoc is the on-disk shape of a sidecar vault.
 type fileVaultDoc struct {
-	Version int             `json:"version"`
-	Values  []RedactedValue `json:"values"`
+	Version int `json:"version"`
+	// ID names the vault to the package it restores: a redacted .kpz records
+	// the same ID in its manifest, and kapi merge restores the package only
+	// from the vault whose ID matches. Empty for a vault no package names.
+	ID     string          `json:"id,omitempty"`
+	Values []RedactedValue `json:"values"`
 }
 
 // fileVaultVersion is the version Flush writes. Version 2 records each
-// entry's document (RedactedValue.Doc). A version 1 file reads as entries
-// that name no document, which Get and ValuesForBlock fall back to, so a
-// vault an older kapi wrote still restores. The vault is the only record of
-// the originals, never a cache a later run rebuilds, so it is read as it is
-// rather than reset. A file with no version field is version 1, and a file
-// above this version is refused (ErrNewerVault).
+// entry's document (RedactedValue.Doc), and may record the vault's ID; a
+// vault with no ID restores no redacted package. A version 1 file reads as
+// entries that name no document, which Get and ValuesForBlock fall back to.
+// The vault is the only record of the originals, never a cache a later run
+// rebuilds, so it is read as it is rather than reset. A file with no version
+// field is version 1, and a file above this version is refused
+// (ErrNewerVault).
 const fileVaultVersion = 2
 
 // ErrNewerVault is the refusal of a vault file whose version is above the
@@ -150,6 +157,7 @@ var ErrNewerVault = errors.New("a newer kapi wrote this vault")
 // (or [FileVault.Close]) to persist.
 type FileVault struct {
 	path string
+	id   string
 	mem  *MemoryVault
 }
 
@@ -174,11 +182,25 @@ func OpenFileVault(path string) (*FileVault, error) {
 		return nil, fmt.Errorf("redaction: vault %s is version %d and this kapi reads up to version %d: %w; upgrade kapi to read it",
 			path, doc.Version, fileVaultVersion, ErrNewerVault)
 	}
+	fv.id = doc.ID
 	for _, rv := range doc.Values {
 		_ = fv.mem.Put(rv)
 	}
 	return fv, nil
 }
+
+// NewVaultID returns a fresh random vault ID of 32 lowercase hex digits.
+func NewVaultID() string {
+	var b [16]byte
+	_, _ = rand.Read(b[:])
+	return hex.EncodeToString(b[:])
+}
+
+// ID returns the vault's ID, empty when it has none.
+func (f *FileVault) ID() string { return f.id }
+
+// SetID sets the ID the next Flush writes.
+func (f *FileVault) SetID(id string) { f.id = id }
 
 // Put stores a value in memory; it is persisted on the next Flush.
 func (f *FileVault) Put(rv RedactedValue) error { return f.mem.Put(rv) }
@@ -200,7 +222,7 @@ func (f *FileVault) Flush() error {
 	if err := os.MkdirAll(filepath.Dir(f.path), 0o755); err != nil {
 		return fmt.Errorf("redaction: create vault dir: %w", err)
 	}
-	doc := fileVaultDoc{Version: fileVaultVersion, Values: f.mem.All()}
+	doc := fileVaultDoc{Version: fileVaultVersion, ID: f.id, Values: f.mem.All()}
 	data, err := json.MarshalIndent(doc, "", "  ")
 	if err != nil {
 		return fmt.Errorf("redaction: encode vault: %w", err)

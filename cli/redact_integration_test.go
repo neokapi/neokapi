@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"archive/zip"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -148,23 +150,63 @@ func TestExtractRedact_NoRestoreKeepsPlaceholder(t *testing.T) {
 	assert.NotContains(t, string(data), "Mr Bean", "original must not appear when restore is skipped")
 }
 
-// An ad-hoc .kpz workspace carries each source file whole, so extract refuses
-// --redact there rather than write the package with the value in it.
-func TestExtractRedact_KpzWorkspaceRefuses(t *testing.T) {
+// An ad-hoc .kpz workspace extracted with --redact-rules holds a placeholder
+// where the rules withhold a value, the original goes to the vault beside the
+// package, and kapi merge restores it. --redact with no rules file writes
+// nothing.
+func TestExtractRedact_KpzWorkspaceRoundTrip(t *testing.T) {
+	t.Setenv("KAPI_KPZ_CACHE", t.TempDir())
 	dir := t.TempDir()
 	src := filepath.Join(dir, "app.json")
 	require.NoError(t, os.WriteFile(src, []byte(`{"greeting":"Hello Mr Bean"}`), 0o644))
+	rules := filepath.Join(dir, "redaction.yaml")
+	require.NoError(t, os.WriteFile(rules, []byte("version: v1\nrules:\n  - term: \"Mr Bean\"\n    category: person\n"), 0o644))
 	work := filepath.Join(dir, "work.kpz")
 
+	run := func(cmd interface {
+		SetArgs([]string)
+		SetOut(io.Writer)
+		SetErr(io.Writer)
+		Execute() error
+	}, args ...string) error {
+		cmd.SetArgs(args)
+		var out strings.Builder
+		cmd.SetOut(&out)
+		cmd.SetErr(&out)
+		return cmd.Execute()
+	}
+
 	a := newExtractApp(t)
-	cmd := NewExtractCmd(a, ExtractCmdOptions{})
-	cmd.SetArgs([]string{src, "-o", work, "--target-lang", "fr", "--redact"})
-	var out strings.Builder
-	cmd.SetOut(&out)
-	cmd.SetErr(&out)
-	err := cmd.Execute()
+	err := run(NewExtractCmd(a, ExtractCmdOptions{}), src, "-o", work, "--target-lang", "fr", "--redact")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--redact")
-	_, statErr := os.Stat(work)
-	assert.True(t, os.IsNotExist(statErr), "no workspace is written")
+	assert.Contains(t, err.Error(), "--redact-rules")
+	assert.NoFileExists(t, work, "no workspace is written without a rules file")
+
+	require.NoError(t, run(NewExtractCmd(a, ExtractCmdOptions{}), src, "-o", work, "--target-lang", "fr", "--redact-rules", rules, "--with-source"))
+	zr, err := zip.OpenReader(work)
+	require.NoError(t, err)
+	defer zr.Close()
+	sawSource := false
+	for _, f := range zr.File {
+		rc, err := f.Open()
+		require.NoError(t, err)
+		data, err := io.ReadAll(rc)
+		require.NoError(t, rc.Close())
+		require.NoError(t, err)
+		assert.NotContains(t, string(data), "Mr Bean", "%s withholds the name", f.Name)
+		if f.Name == "source/app.json" {
+			sawSource = true
+			assert.Equal(t, `{"greeting":"Hello [REDACTED:Person]"}`, strings.TrimSpace(string(data)))
+		}
+	}
+	assert.True(t, sawSource, "--with-source carries the redacted file")
+	vault, err := os.ReadFile(work + ".vault")
+	require.NoError(t, err, "the vault sits beside the package")
+	assert.Contains(t, string(vault), "Mr Bean")
+
+	outDir := filepath.Join(dir, "translated")
+	require.NoError(t, run(NewMergeCmd(a, MergeCmdOptions{}), work, "-o", outDir))
+	merged, err := os.ReadFile(filepath.Join(outDir, "app.json"))
+	require.NoError(t, err)
+	assert.Equal(t, `{"greeting":"Hello Mr Bean"}`, strings.TrimSpace(string(merged)), "merge restores the withheld name")
 }

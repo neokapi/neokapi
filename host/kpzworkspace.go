@@ -17,9 +17,11 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/preset"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/redaction"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
+	"github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/neokapi/neokapi/kpz"
 )
@@ -74,6 +76,22 @@ type toolChainBuilder func() ([]tool.Tool, func(), error)
 // the raw source locally (it is the runtime), so the extract → transform →
 // merge loop works regardless of the packed retention.
 func (a *App) ExtractToKpz(ctx context.Context, sources []string, outKpz, targetLang, outLayout string, withSource bool) error {
+	return a.extractToKpz(ctx, sources, outKpz, targetLang, outLayout, withSource, "")
+}
+
+// ExtractRedactedToKpz is ExtractToKpz under the redaction rules file at
+// rules: the package holds each value the rules match as its visible token,
+// and the originals go to the vault <outKpz>.vault beside it, which kapi
+// merge restores them from. The vault stays with whoever extracted the
+// package; it is never part of it.
+func (a *App) ExtractRedactedToKpz(ctx context.Context, sources []string, outKpz, targetLang, outLayout string, withSource bool, rules string) error {
+	if rules == "" {
+		return errors.New("extract: --redact needs a rules file. Pass --redact-rules <file>")
+	}
+	return a.extractToKpz(ctx, sources, outKpz, targetLang, outLayout, withSource, rules)
+}
+
+func (a *App) extractToKpz(ctx context.Context, sources []string, outKpz, targetLang, outLayout string, withSource bool, rules string) (err error) {
 	files, err := resolveFiles(sources)
 	if err != nil {
 		return err
@@ -93,9 +111,36 @@ func (a *App) ExtractToKpz(ctx context.Context, sources []string, outKpz, target
 
 	recipe := newWorkspaceRecipe(a.SourceLocale(), splitLocales(targetLang), outLayout)
 
+	// Under redaction rules every member below is taken from the file as the
+	// rules leave it, and the originals go to the vault beside the package.
+	var spec *project.RedactionSpec
+	vaultPath := ""
+	vaultID := ""
+	if rules != "" {
+		abs, aerr := filepath.Abs(rules)
+		if aerr != nil {
+			return aerr
+		}
+		spec = &project.RedactionSpec{Enabled: true, Detectors: []string{"rules"}, Rules: abs}
+		vaultPath = workspaceVaultPath(outKpz)
+		vaultID = redaction.NewVaultID()
+		if err := newPackageVault(vaultPath, vaultID); err != nil {
+			return fmt.Errorf("extract: %w", err)
+		}
+		// A vault whose package was never written restores nothing.
+		defer func() {
+			if err != nil {
+				_ = os.Remove(vaultPath)
+			}
+		}()
+	}
+
 	// Build a full in-memory package (raw source always present) so the cache
 	// holds it. The packed .kpz then drops raw source unless withSource.
 	full := &kpz.Package{Generator: &kpz.GeneratorInfo{ID: "kapi"}, Recipe: recipe}
+	if vaultID != "" {
+		full.Redaction = &kpz.Redaction{VaultID: vaultID}
+	}
 	for _, f := range files {
 		if IsKpzPath(f) {
 			return errors.New("extract: source must be a document, not a .kpz")
@@ -109,6 +154,18 @@ func (a *App) ExtractToKpz(ctx context.Context, sources []string, outKpz, target
 		formatID := ""
 		if det := a.kpzDetectFormat(f); det != nil {
 			formatID = string(det(f))
+		}
+		content := kpz.FileContent(f)
+		if spec != nil {
+			rs, rerr := a.redactSourceForKpz(ctx, redactedSourceInput{
+				path: f, formatID: registry.FormatID(formatID), doc: base,
+				spec: spec, vaultPath: vaultPath, locale: model.LocaleID(a.SourceLocale()),
+			})
+			if rerr != nil {
+				return fmt.Errorf("extract: %w", rerr)
+			}
+			data = rs.data
+			content = kpz.BytesContent(rs.data)
 		}
 		si := kpz.SourceIdentity{
 			SourcePath:   base,
@@ -137,7 +194,7 @@ func (a *App) ExtractToKpz(ctx context.Context, sources []string, outKpz, target
 		}
 		// Stream the original source file into the parcel rather than retaining
 		// the bytes (already read above only to hash + capture the skeleton).
-		full.Source = append(full.Source, kpz.SourceDoc{Path: archivePath, Content: kpz.FileContent(f)})
+		full.Source = append(full.Source, kpz.SourceDoc{Path: archivePath, Content: content})
 		full.Sources = append(full.Sources, si)
 	}
 
@@ -165,6 +222,9 @@ func (a *App) ExtractToKpz(ctx context.Context, sources []string, outKpz, target
 	}
 
 	a.printlnUnlessQuiet(fmt.Sprintf("Extracted %d document(s) → %s", len(full.Sources), outKpz))
+	if vaultPath != "" {
+		a.printlnUnlessQuiet("Redacted: each withheld value is a placeholder. kapi merge restores the values from " + vaultPath)
+	}
 	return nil
 }
 
@@ -333,24 +393,76 @@ func (a *App) MergeFromKpz(ctx context.Context, kpzPath, outOverride string) err
 		a.SourceLang = sl
 	}
 
-	written, stale := 0, 0
-	for _, src := range c.meta.Sources {
-		for _, locale := range locales {
-			docOut, derr := mergeOutputPath(layout, src.Path, locale, len(locales) > 1)
-			if derr != nil {
-				return derr
-			}
-			hydrate := newHydrateTargetsTool(model.LocaleID(locale))
-			// Without the raw source, runCacheSource rebuilds the document
-			// from its skeleton, whose blocks carry no source to compare a
-			// stamp with.
-			hydrate.skeleton = !c.hasSource(src)
-			if err := a.runCacheSource(ctx, c, src, "merge", []tool.Tool{hydrate}, docOut, locale); err != nil {
-				return err
-			}
-			written++
-			stale += hydrate.Stale()
+	// A redacted package is merged only with the vault that restores it, so
+	// no placeholder reaches a written file. The check comes before any file
+	// is written.
+	vaultPath := ""
+	var vault *redaction.FileVault
+	if r := c.meta.Redaction; r != nil {
+		vaultPath = workspaceVaultPath(kpzPath)
+		if vault, err = packageVault(filepath.Base(kpzPath), vaultPath, r.VaultID, workspaceVaultAdvice); err != nil {
+			return err
 		}
+	}
+
+	// pass runs the merge chain over every source and locale, writing each
+	// document where outFor says. With check set, a translation that still
+	// holds a placeholder once the vault restored it stops the pass.
+	pass := func(outFor func(src kpzCacheSource, locale string) (string, error), check bool) (written, stale int, err error) {
+		for _, src := range c.meta.Sources {
+			for _, locale := range locales {
+				docOut, derr := outFor(src, locale)
+				if derr != nil {
+					return 0, 0, derr
+				}
+				hydrate := newHydrateTargetsTool(model.LocaleID(locale))
+				// Without the raw source, runCacheSource rebuilds the document
+				// from its skeleton, whose blocks carry no source to compare a
+				// stamp with.
+				hydrate.skeleton = !c.hasSource(src)
+				chain := []tool.Tool{hydrate}
+				if vault != nil {
+					// The vault keeps the file's originals under its name in the
+					// package.
+					ut, uerr := tools.NewUnredactTool(&tools.UnredactConfig{VaultPath: vaultPath, Document: src.Name})
+					if uerr != nil {
+						return 0, 0, packageVaultOpenError(filepath.Base(kpzPath), uerr)
+					}
+					chain = append(chain, ut)
+					if check {
+						chain = append(chain, newPlaceholderCheckTool(src.Name, model.LocaleID(locale), vault))
+					}
+				}
+				if err := a.runCacheSource(ctx, c, src, "merge", chain, docOut, locale); err != nil {
+					return 0, 0, err
+				}
+				written++
+				stale += hydrate.Stale()
+			}
+		}
+		return written, stale, nil
+	}
+
+	// A redacted package is merged once into the cache first, where a
+	// placeholder a translator changed stops the merge before any file is
+	// written.
+	if vault != nil {
+		trial := filepath.Join(c.dir, "merge-check")
+		if err := os.MkdirAll(trial, 0o755); err != nil {
+			return fmt.Errorf("merge: %w", err)
+		}
+		defer os.RemoveAll(trial)
+		if _, _, err := pass(func(src kpzCacheSource, locale string) (string, error) {
+			return filepath.Join(trial, locale+"-"+src.Name), nil
+		}, true); err != nil {
+			return err
+		}
+	}
+	written, stale, err := pass(func(src kpzCacheSource, locale string) (string, error) {
+		return mergeOutputPath(layout, src.Path, locale, len(locales) > 1)
+	}, false)
+	if err != nil {
+		return err
 	}
 	line := fmt.Sprintf("Merged %s → %d file(s) (%s)", kpzPath, written, strings.Join(locales, ", "))
 	if stale > 0 {

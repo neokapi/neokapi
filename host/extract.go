@@ -22,6 +22,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projector"
+	"github.com/neokapi/neokapi/core/redaction"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/core/version"
@@ -1026,9 +1027,6 @@ func (a *App) RunExtractKpz(cmd Command) error {
 	if err != nil {
 		return fmt.Errorf("load project: %w", err)
 	}
-	if err := refuseKpzRedaction(cmd, proj); err != nil {
-		return err
-	}
 	pctx := project.NewProjectContext(proj, projectPath)
 	layout, err := project.LayoutFor(projectPath)
 	if err != nil {
@@ -1071,6 +1069,14 @@ func (a *App) RunExtractKpz(cmd Command) error {
 		return fmt.Errorf("extract: create out dir: %w", err)
 	}
 
+	// Each source is redacted under the policy that governs it, once for
+	// every target language, into one batch vault for the whole run. Every
+	// package records that vault's ID.
+	redacted, vaultID, err := a.redactKpzSources(cmd, pctx, layout, files)
+	if err != nil {
+		return err
+	}
+
 	// Content-memory / terms leverage context, both read from the project store.
 	// A store that will not open is REPORTED, never dropped: the store is
 	// CREATED when it is absent, so a failure here can only mean "a store that
@@ -1110,6 +1116,7 @@ func (a *App) RunExtractKpz(cmd Command) error {
 			}
 			if err := a.extractOneKpz(cmd.Context(), kpzInterchangeTask{
 				ctx: pctx, source: src, targetLocale: tgt, outputPath: outPath, tm: mem, tb: tb, revisions: revisions,
+				redacted: redacted[src.Relative], vaultID: vaultID,
 			}); err != nil {
 				return fmt.Errorf("extract: %s → %s: %w", src.Relative, tgt, err)
 			}
@@ -1118,29 +1125,76 @@ func (a *App) RunExtractKpz(cmd Command) error {
 		}
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "\nExtracted %d bilingual interchange package(s) into %s\n", written, outDir)
+	if vaultID != "" {
+		vault, _ := filepath.Rel(layout.Root, layout.RedactionSidecarPath(vaultID))
+		fmt.Fprintf(cmd.OutOrStdout(), "Redacted: each withheld value is a placeholder. kapi merge restores the values in this project from %s\n", filepath.ToSlash(vault))
+	}
 	return nil
 }
 
-// refuseKpzRedaction refuses a .kpz extraction under a redaction policy, the
-// one the recipe declares for any of its files (defaults.redaction, or a
-// collection's or item's redaction:) or the one --redact and --redact-rules
-// ask for. A
-// package carries each source file's skeleton, which holds the file's text
-// whole, and the translations the content memory fills in, so it would hand
-// over the values the policy withholds. XLIFF 2 and PO carry the redacted
-// blocks alone, and kapi merge puts the originals back from the vault.
-func refuseKpzRedaction(cmd Command, proj *project.KapiProject) error {
-	redactFlag, _ := cmd.Flags().GetBool("redact")
-	redactRules, _ := cmd.Flags().GetString("redact-rules")
-	switch {
-	case RedactionDeclared(proj):
-		return errors.New("extract: the project declares a redaction policy, and a .kpz package carries the text of each source file whole, so it would hold the values the policy withholds. " +
-			"Extract XLIFF 2 or PO instead (--format xliff2 or --format po): kapi merge puts the withheld values back from the vault the extraction keeps under .kapi/vault/")
-	case redactFlag || redactRules != "":
-		return errors.New("extract: --redact and --redact-rules apply to XLIFF 2 and PO. A .kpz package carries the text of each source file whole, so it cannot withhold a value. " +
-			"Use --format xliff2 or --format po")
+// redactKpzSources writes each source a redaction policy governs again with
+// the values it withholds replaced by their visible tokens, keyed by the
+// source's project-relative path. The policy is the one the recipe declares
+// for the file, or the one --redact and --redact-rules ask for
+// (resolveRedaction). The originals go to one batch vault under .kapi/vault/,
+// whose ID it returns; with no policy for any source it returns no sources
+// and no ID.
+func (a *App) redactKpzSources(cmd Command, pctx *project.ProjectContext, layout project.Layout, files []project.ResolvedFile) (map[string]*redactedSource, string, error) {
+	specs := make(map[string]*project.RedactionSpec, len(files))
+	for _, src := range files {
+		spec, err := resolveRedaction(cmd, pctx, layout.Root, filepath.ToSlash(src.Relative))
+		if err != nil {
+			return nil, "", err
+		}
+		if spec == nil {
+			continue
+		}
+		if hasDetector(spec.Detectors, "entities") {
+			// Entity detection reads the entity annotations an
+			// entity-extract step leaves on a block, and extract runs none,
+			// so the package would hold the names while recording that it
+			// withholds them.
+			at := pctx.Project.RedactionForPath(filepath.ToSlash(src.Relative)).At
+			return nil, "", fmt.Errorf("extract: the redaction policy at %s detects entities, which needs an entity-extract step that a .kpz extraction does not run, so the package would hold the values the policy withholds. Set %s.detectors to [rules], or extract XLIFF 2 or PO instead", at, at)
+		}
+		specs[src.Relative] = spec
 	}
-	return nil
+	if len(specs) == 0 {
+		return nil, "", nil
+	}
+	if err := layout.PrepareVault(); err != nil {
+		return nil, "", fmt.Errorf("extract: %w", err)
+	}
+	// The batch vault is named by its ID, so a merge finds it from the
+	// package's manifest alone.
+	id := redaction.NewVaultID()
+	final := layout.RedactionSidecarPath(id)
+	if err := newPackageVault(final, id); err != nil {
+		return nil, "", fmt.Errorf("extract: %w", err)
+	}
+	out := make(map[string]*redactedSource, len(specs))
+	for _, src := range files {
+		spec := specs[src.Relative]
+		if spec == nil {
+			continue
+		}
+		rs, err := a.redactSourceForKpz(cmd.Context(), redactedSourceInput{
+			path:      src.Path,
+			formatID:  registry.FormatID(src.Format),
+			formatCfg: mergedFormatConfig(pctx.Project, src.Format, src.Item),
+			doc:       vaultDoc(src.Relative),
+			spec:      spec,
+			rootDir:   layout.Root,
+			vaultPath: final,
+			locale:    pctx.SourceLocale,
+		})
+		if err != nil {
+			_ = os.Remove(final)
+			return nil, "", fmt.Errorf("extract: %w", err)
+		}
+		out[src.Relative] = rs
+	}
+	return out, id, nil
 }
 
 type kpzInterchangeTask struct {
@@ -1152,6 +1206,11 @@ type kpzInterchangeTask struct {
 	tb           terms.Terminology
 	// revisions is, by block ID, what each unit is extracted against.
 	revisions map[string]unitRevision
+	// redacted, when set, is the source as its redaction policy leaves it,
+	// and every member of the package is taken from it. vaultID names the
+	// vault that keeps the originals.
+	redacted *redactedSource
+	vaultID  string
 }
 
 // extractOneKpz assembles a KindInterchange package for one (source, target)
@@ -1172,6 +1231,14 @@ func (a *App) extractOneKpz(ctx context.Context, task kpzInterchangeTask) error 
 	if err != nil {
 		return fmt.Errorf("read blocks: %w", err)
 	}
+	// Under a redaction policy the skeleton and the content-memory lookups
+	// read the source as the policy leaves it, and nothing that holds a
+	// withheld value goes into the package. The revisions stay those of the
+	// source as the project holds it, which is what merge compares them with.
+	skelData, lookupBlocks := data, blocks
+	if task.redacted != nil {
+		skelData, lookupBlocks = task.redacted.data, task.redacted.blocks
+	}
 
 	// Capture the round-trip skeleton. A capture FAILURE is not the same thing
 	// as "this format has no skeleton": captureSkeletonBytes already reports
@@ -1184,7 +1251,7 @@ func (a *App) extractOneKpz(ctx context.Context, task kpzInterchangeTask) error 
 	// out).
 	var skeletons []kpz.SkeletonDoc
 	skelMember := ""
-	skel, serr := captureSkeletonBytes(ctx, a.FormatReg, formatID, srcAbs, data, task.ctx.SourceLocale)
+	skel, serr := captureSkeletonBytes(ctx, a.FormatReg, formatID, srcAbs, skelData, task.ctx.SourceLocale)
 	if serr != nil {
 		return fmt.Errorf("capture round-trip skeleton for %s: %w", task.source.Relative, serr)
 	}
@@ -1204,12 +1271,22 @@ func (a *App) extractOneKpz(ctx context.Context, task kpzInterchangeTask) error 
 	srcArchive := kpz.SourceDir + filepath.Base(task.source.Relative)
 	var overlays []kpz.OverlayDoc
 	contextEntries := map[string]memory.Entry{}
-	for _, b := range blocks {
+	for _, b := range lookupBlocks {
 		if !b.Translatable || b.ID == "" {
 			continue
 		}
 		if task.tm != nil {
 			if matches, merr := task.tm.Lookup(ctx, b, task.ctx.SourceLocale, task.targetLocale, memory.LookupOptions{MinScore: threshold, MaxResults: 1}); merr == nil && len(matches) > 0 && !matches[0].Ambiguous {
+				// A match that holds anything the policy withholds, from any
+				// file, is left out whole: its translation and its entry would
+				// carry the value.
+				held, herr := task.redacted.holds(ctx, matches[0].Entry)
+				if herr != nil {
+					return herr
+				}
+				if held {
+					continue
+				}
 				if text := matches[0].Entry.VariantText(task.targetLocale); text != "" {
 					// A content memory-leveraged prefill is a draft; carry that status so the
 					// workspace → merge round-trip preserves it (the matching read
@@ -1243,7 +1320,21 @@ func (a *App) extractOneKpz(ctx context.Context, task kpzInterchangeTask) error 
 	var tbFile *ktb.File
 	if task.tb != nil {
 		if concepts, cerr := task.tb.Concepts(ctx); cerr == nil && len(concepts) > 0 {
-			tbFile = ktb.FromConcepts(concepts)
+			// A concept that names anything the policy withholds stays out
+			// of a redacted package.
+			kept := concepts[:0:0]
+			for _, c := range concepts {
+				held, herr := task.redacted.holds(ctx, c)
+				if herr != nil {
+					return herr
+				}
+				if !held {
+					kept = append(kept, c)
+				}
+			}
+			if len(kept) > 0 {
+				tbFile = ktb.FromConcepts(kept)
+			}
 		}
 	}
 
@@ -1280,6 +1371,9 @@ func (a *App) extractOneKpz(ctx context.Context, task kpzInterchangeTask) error 
 			SourceFiles:  []string{task.source.Relative},
 			Revisions:    revisions,
 		},
+	}
+	if task.redacted != nil {
+		pkg.Redaction = &kpz.Redaction{VaultID: task.vaultID}
 	}
 	if err := os.MkdirAll(filepath.Dir(task.outputPath), 0o755); err != nil {
 		return err
