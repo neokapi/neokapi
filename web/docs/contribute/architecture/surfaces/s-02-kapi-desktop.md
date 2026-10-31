@@ -633,6 +633,11 @@ when a project tab becomes active and after the file watcher reports a change.
 It returns without extracting while a run holds the project, because
 `kapi up` extracts before each pass.
 
+The hero, its verb and **Plan…** appear only while the saved recipe declares
+a target language, the answer of `declaresTargetLanguages` in
+`frontend/src/lib/languages.ts` that the rail's Review entry also reads. On a
+project without one the runner route opens no Bring up to date view either.
+
 The project home reports the cache only by its effect: while it catches up,
 the hero reads "Reading the project's files…", and a failed read is shown as
 an error with its cause. Below the hero's verb, three counts separate the

@@ -3,9 +3,11 @@
 // add-a-language settings under one line, and a persisted Review view lands
 // there too. Once the saved recipe on the tab declares a target, the same
 // route opens the Project page on its language standing, with Bring up to
-// date, and Review holds the queue again.
+// date, and Review holds the queue again. The runner's Bring up to date view
+// reads the same answer.
 
-import { render, screen } from "./testUtils";
+import { render, screen, waitFor } from "./testUtils";
+import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi } from "vite-plus/test";
 
 vi.mock("../hooks/useApi", async () => {
@@ -28,6 +30,11 @@ vi.mock("../hooks/useApi", async () => {
       listProjectFiles: vi.fn().mockResolvedValue([]),
       listOutputs: vi.fn().mockResolvedValue({}),
       listFlows: vi.fn().mockResolvedValue([]),
+      listProjectTools: vi.fn().mockResolvedValue([]),
+      getEffectiveModel: vi.fn().mockResolvedValue(null),
+      syncProjectStore: vi.fn().mockResolvedValue(null),
+      aiNeedsModelChoice: vi.fn().mockResolvedValue(false),
+      bringUpToDate: vi.fn().mockResolvedValue(undefined),
     },
     call: vi.fn().mockResolvedValue(null),
   };
@@ -77,7 +84,7 @@ function historyOf(project: KapiProject): ProjectHistory {
   };
 }
 
-function view(effectiveView: string, project: KapiProject) {
+function view(effectiveView: string, project: KapiProject, navigate = vi.fn()) {
   return (
     <ErrorProvider>
       <JobFeedProvider>
@@ -87,7 +94,7 @@ function view(effectiveView: string, project: KapiProject) {
             activeTab={tabOf(project)}
             history={historyOf(project)}
             updateProject={vi.fn()}
-            navigate={vi.fn()}
+            navigate={navigate}
             updateTab={vi.fn()}
             workspace={null}
             startHereDismissed={false}
@@ -138,6 +145,24 @@ describe("the Languages door", () => {
     expect(screen.queryByText(LINE)).not.toBeInTheDocument();
     expect(screen.getByText("Bring up to date")).toBeInTheDocument();
     expect(screen.getByText("Plan…")).toBeInTheDocument();
+  });
+});
+
+describe("Bring up to date in the runner", () => {
+  it("opens the Bring up to date view only while the saved recipe declares a target", async () => {
+    const navigate = vi.fn();
+    const { rerender } = render(view("project-home", withFrench, navigate));
+    await userEvent.click(screen.getByRole("button", { name: "Bring the project up to date" }));
+    await waitFor(() => expect(navigate).toHaveBeenLastCalledWith("runner"));
+
+    rerender(view("runner", withFrench, navigate));
+    expect(screen.getByRole("heading", { name: "Bring up to date" })).toBeInTheDocument();
+
+    // The saved recipe loses its last target: the route shows the run it
+    // launched as the selected job, with no Bring up to date view.
+    rerender(view("runner", sourceOnly, navigate));
+    expect(screen.queryByText("Bring up to date")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Run: up" })).toBeInTheDocument();
   });
 });
 
