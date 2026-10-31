@@ -177,8 +177,12 @@ from `bowrain.url`, and the URL must name a workspace project
 stream reads the same one. A recipe that names the `bowrain` backend without a
 `bowrain:` block is refused, with the block to add.
 
-The sync signs in as the person `kapi auth login` stored, or with
-`BOWRAIN_AUTH_TOKEN` in CI. Reading the context needs view access to the
+The sync signs in as the person `kapi auth login` stored, or in CI with
+`BOWRAIN_AUTH_TOKEN` and `BOWRAIN_SERVER_URL` together. The sign-in reaches
+only the server it names: a recipe whose `bowrain.url` names another server
+is refused before any request, and so is a CI token with no server URL. The
+URL must use `https://`, except for a server on `localhost`. Reading the
+context needs view access to the
 project; sharing changes back needs permission to manage terms.
 `BOWRAIN_PROJECT_URL` points the context at another project, as it does for
 `kapi push`. `kapi share` names this place *Managed on Bowrain*.

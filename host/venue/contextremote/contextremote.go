@@ -81,6 +81,11 @@ func parseProjectURL(raw string) (server, ws, pid string, err error) {
 	if perr != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
 		return "", "", "", fmt.Errorf("bowrain: %q is not a project URL (expected <server>/<workspace>/<project>)", raw)
 	}
+	// Every request carries a bearer token, so it travels over TLS unless it
+	// never leaves this machine.
+	if u.Scheme == "http" && !loopback(u.Hostname()) {
+		return "", "", "", fmt.Errorf("bowrain: %s sends the sign-in unencrypted: give bowrain.url an https:// address (http:// is taken for localhost only)", raw)
+	}
 	segments := strings.Split(strings.Trim(u.Path, "/"), "/")
 	if len(segments) != 2 || segments[0] == "" || segments[1] == "" {
 		return "", "", "", fmt.Errorf("bowrain: %q does not name a project (expected <server>/<workspace>/<project>)", raw)
@@ -89,6 +94,15 @@ func parseProjectURL(raw string) (server, ws, pid string, err error) {
 		return "", "", "", fmt.Errorf("bowrain: %s is not in a workspace, and a project shares its context on Bowrain once it is: claim it into one with `kapi auth claim`", raw)
 	}
 	return config.NormalizeServerURL(u.Scheme + "://" + u.Host), segments[0], segments[1], nil
+}
+
+// loopback reports whether host names this machine.
+func loopback(host string) bool {
+	switch host {
+	case "localhost", "127.0.0.1", "::1":
+		return true
+	}
+	return false
 }
 
 // bowrainClient builds the client on first use, with the stored sign-in.
@@ -103,8 +117,11 @@ func (r *Remote) bowrainClient() (*apiclient.BowrainClient, error) {
 			r.clientErr = fmt.Errorf("%w: bowrain: no sign-in for %s: run `kapi auth login` (or set BOWRAIN_AUTH_TOKEN in CI)", workspace.ErrRemoteUnreachable, r.server)
 			return
 		}
-		if authServer := config.NormalizeServerURL(auth.ServerURL); authServer != "" && authServer != r.server {
-			r.clientErr = fmt.Errorf("bowrain: the sign-in is for %s and the recipe connects to %s: run `kapi auth login` against %s", auth.ServerURL, r.server, r.server)
+		// The recipe names the server, and anyone can write a recipe. The
+		// stored tokens go only to the server the sign-in itself names; a
+		// sign-in that names none is refused rather than trusted.
+		if authServer := config.NormalizeServerURL(auth.ServerURL); authServer == "" || authServer != r.server {
+			r.clientErr = fmt.Errorf("bowrain: the stored sign-in does not name %s: run `kapi auth login` against it (in CI, set BOWRAIN_SERVER_URL beside BOWRAIN_AUTH_TOKEN)", r.server)
 			return
 		}
 		c := apiclient.NewWorkspaceBowrainClient(r.server, r.workspace, r.project, auth.AccessToken)
