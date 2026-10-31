@@ -44,7 +44,6 @@ type RuleCheckConfig struct {
 	CheckDoubleSpaces             bool   `json:"checkDoubleSpaces,omitempty"               schema:"title=Check Double Spaces,description=Check for double spaces in target text,default=true,group=general"`
 	CheckDoubledWord              bool   `json:"checkDoubledWord,omitempty"                schema:"title=Warn on Doubled Words,description=Check for consecutive repeated words in target text,default=true,group=general"`
 	DoubledWordExceptions         string `json:"doubledWordExceptions,omitempty"           schema:"title=Doubled Word Exceptions,description=Semicolon-separated list of words allowed to repeat (e.g. sie;vous;nous),group=general"`
-	CheckTerminology              bool   `json:"checkTerminology,omitempty"                schema:"title=Verify Terminology,description=Enable terminology checks"`
 	CheckSpanConstraints          bool   `json:"checkSpanConstraints,omitempty"            schema:"title=Check Span Constraints,description=Check non-deletable and non-cloneable span constraint violations,default=true,group=general"`
 
 	// --- Inline code checks ---
@@ -118,7 +117,6 @@ func (c *RuleCheckConfig) Reset() {
 	c.CheckDoubleSpaces = true
 	c.CheckDoubledWord = true
 	c.DoubledWordExceptions = "sie;vous;nous"
-	c.CheckTerminology = false
 	c.CheckSpanConstraints = true
 
 	// Inline codes
