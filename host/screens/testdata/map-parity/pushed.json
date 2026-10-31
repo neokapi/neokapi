@@ -1,0 +1,1003 @@
+{
+  "source_language": "en",
+  "collections": [
+    {
+      "name": "child-page",
+      "voice": {
+        "constraints": [
+          {
+            "id": "harbor-help/no-unsupported-assurance",
+            "version": 1,
+            "source": "service-facts.md#assurances",
+            "statement": "Do not describe the service as guaranteed, always safe or risk-free.",
+            "kind": "prohibited_pattern",
+            "regex": "(?i)\\b(guarantee|always safe|risk-free)\\b",
+            "exceptions": [
+              {
+                "scope": {
+                  "channel": "policy-example"
+                },
+                "reason": "A reviewed policy example quotes the prohibited wording.",
+                "approved_by": "fixture-author",
+                "approval_ref": "service-facts.md#fixture-exception"
+              }
+            ]
+          },
+          {
+            "id": "harbor-help/recording-and-control",
+            "version": 1,
+            "source": "service-facts.md#recording-and-control",
+            "statement": "Appointments are not recorded. Screen sharing requires consent and can be stopped. The adviser cannot control the device or open its files.",
+            "kind": "guidance"
+          }
+        ],
+        "id": "harbor-help",
+        "name": "Harbor Help",
+        "description": "Harbor Help explains how to get practical support. The facts stay the same for every reader; the explanation changes only to meet the reader where they are.",
+        "tone": {
+          "personality": [
+            "kind",
+            "clear",
+            "calm"
+          ],
+          "formality": "informal",
+          "emotion": "warm",
+          "humor": "none",
+          "guidelines": "Use familiar words and explain one idea at a time. Tell the reader to ask a trusted adult for help with an appointment. Do not ask the reader to make an adult decision."
+        },
+        "style": {
+          "active_voice": true,
+          "sentence_length": "short",
+          "person_pov": "second",
+          "contractions": "never"
+        },
+        "examples": null,
+        "channels": {
+          "adult": {
+            "tone": {
+              "personality": [
+                "clear",
+                "practical",
+                "respectful"
+              ],
+              "formality": "neutral",
+              "emotion": "neutral",
+              "humor": "none",
+              "guidelines": "Explain eligibility, the next step and the privacy boundary. Do not hide an important condition behind reassuring language."
+            },
+            "style": {
+              "active_voice": true,
+              "sentence_length": "varied",
+              "person_pov": "second",
+              "contractions": "never"
+            }
+          },
+          "child": {
+            "tone": {
+              "personality": [
+                "kind",
+                "clear",
+                "calm"
+              ],
+              "formality": "informal",
+              "emotion": "warm",
+              "humor": "none",
+              "guidelines": "Use familiar words and explain one idea at a time. Tell the reader to ask a trusted adult for help with an appointment. Do not ask the reader to make an adult decision."
+            },
+            "style": {
+              "active_voice": true,
+              "sentence_length": "short",
+              "person_pov": "second",
+              "contractions": "never"
+            }
+          },
+          "older-adult": {
+            "tone": {
+              "personality": [
+                "patient",
+                "clear",
+                "respectful"
+              ],
+              "formality": "neutral",
+              "emotion": "warm",
+              "humor": "none",
+              "guidelines": "Use plain language and give an obvious route to a person. Do not assume familiarity with video software or ask the reader to solve a technical problem alone."
+            },
+            "style": {
+              "active_voice": true,
+              "sentence_length": "short",
+              "person_pov": "second",
+              "contractions": "never"
+            }
+          },
+          "teen": {
+            "tone": {
+              "personality": [
+                "direct",
+                "respectful",
+                "calm"
+              ],
+              "formality": "neutral",
+              "emotion": "warm",
+              "humor": "none",
+              "guidelines": "Be direct without talking down to the reader. Explain privacy in plain language and name the choice to get help from a trusted adult."
+            },
+            "style": {
+              "active_voice": true,
+              "sentence_length": "short",
+              "person_pov": "second",
+              "contractions": "never"
+            }
+          }
+        },
+        "workspace_id": "",
+        "version": 1,
+        "created_at": "0001-01-01T00:00:00Z",
+        "updated_at": "0001-01-01T00:00:00Z"
+      }
+    },
+    {
+      "name": "adult-page",
+      "voice": {
+        "constraints": [
+          {
+            "id": "harbor-help/no-unsupported-assurance",
+            "version": 1,
+            "source": "service-facts.md#assurances",
+            "statement": "Do not describe the service as guaranteed, always safe or risk-free.",
+            "kind": "prohibited_pattern",
+            "regex": "(?i)\\b(guarantee|always safe|risk-free)\\b",
+            "exceptions": [
+              {
+                "scope": {
+                  "channel": "policy-example"
+                },
+                "reason": "A reviewed policy example quotes the prohibited wording.",
+                "approved_by": "fixture-author",
+                "approval_ref": "service-facts.md#fixture-exception"
+              }
+            ]
+          },
+          {
+            "id": "harbor-help/recording-and-control",
+            "version": 1,
+            "source": "service-facts.md#recording-and-control",
+            "statement": "Appointments are not recorded. Screen sharing requires consent and can be stopped. The adviser cannot control the device or open its files.",
+            "kind": "guidance"
+          }
+        ],
+        "id": "harbor-help",
+        "name": "Harbor Help",
+        "description": "Harbor Help explains how to get practical support. The facts stay the same for every reader; the explanation changes only to meet the reader where they are.",
+        "tone": {
+          "personality": [
+            "clear",
+            "practical",
+            "respectful"
+          ],
+          "formality": "neutral",
+          "emotion": "neutral",
+          "humor": "none",
+          "guidelines": "Explain eligibility, the next step and the privacy boundary. Do not hide an important condition behind reassuring language."
+        },
+        "style": {
+          "active_voice": true,
+          "sentence_length": "varied",
+          "person_pov": "second",
+          "contractions": "never"
+        },
+        "examples": null,
+        "channels": {
+          "adult": {
+            "tone": {
+              "personality": [
+                "clear",
+                "practical",
+                "respectful"
+              ],
+              "formality": "neutral",
+              "emotion": "neutral",
+              "humor": "none",
+              "guidelines": "Explain eligibility, the next step and the privacy boundary. Do not hide an important condition behind reassuring language."
+            },
+            "style": {
+              "active_voice": true,
+              "sentence_length": "varied",
+              "person_pov": "second",
+              "contractions": "never"
+            }
+          },
+          "child": {
+            "tone": {
+              "personality": [
+                "kind",
+                "clear",
+                "calm"
+              ],
+              "formality": "informal",
+              "emotion": "warm",
+              "humor": "none",
+              "guidelines": "Use familiar words and explain one idea at a time. Tell the reader to ask a trusted adult for help with an appointment. Do not ask the reader to make an adult decision."
+            },
+            "style": {
+              "active_voice": true,
+              "sentence_length": "short",
+              "person_pov": "second",
+              "contractions": "never"
+            }
+          },
+          "older-adult": {
+            "tone": {
+              "personality": [
+                "patient",
+                "clear",
+                "respectful"
+              ],
+              "formality": "neutral",
+              "emotion": "warm",
+              "humor": "none",
+              "guidelines": "Use plain language and give an obvious route to a person. Do not assume familiarity with video software or ask the reader to solve a technical problem alone."
+            },
+            "style": {
+              "active_voice": true,
+              "sentence_length": "short",
+              "person_pov": "second",
+              "contractions": "never"
+            }
+          },
+          "teen": {
+            "tone": {
+              "personality": [
+                "direct",
+                "respectful",
+                "calm"
+              ],
+              "formality": "neutral",
+              "emotion": "warm",
+              "humor": "none",
+              "guidelines": "Be direct without talking down to the reader. Explain privacy in plain language and name the choice to get help from a trusted adult."
+            },
+            "style": {
+              "active_voice": true,
+              "sentence_length": "short",
+              "person_pov": "second",
+              "contractions": "never"
+            }
+          }
+        },
+        "workspace_id": "",
+        "version": 1,
+        "created_at": "0001-01-01T00:00:00Z",
+        "updated_at": "0001-01-01T00:00:00Z"
+      }
+    },
+    {
+      "name": "older-adult-page",
+      "voice": {
+        "constraints": [
+          {
+            "id": "harbor-help/no-unsupported-assurance",
+            "version": 1,
+            "source": "service-facts.md#assurances",
+            "statement": "Do not describe the service as guaranteed, always safe or risk-free.",
+            "kind": "prohibited_pattern",
+            "regex": "(?i)\\b(guarantee|always safe|risk-free)\\b",
+            "exceptions": [
+              {
+                "scope": {
+                  "channel": "policy-example"
+                },
+                "reason": "A reviewed policy example quotes the prohibited wording.",
+                "approved_by": "fixture-author",
+                "approval_ref": "service-facts.md#fixture-exception"
+              }
+            ]
+          },
+          {
+            "id": "harbor-help/recording-and-control",
+            "version": 1,
+            "source": "service-facts.md#recording-and-control",
+            "statement": "Appointments are not recorded. Screen sharing requires consent and can be stopped. The adviser cannot control the device or open its files.",
+            "kind": "guidance"
+          }
+        ],
+        "id": "harbor-help",
+        "name": "Harbor Help",
+        "description": "Harbor Help explains how to get practical support. The facts stay the same for every reader; the explanation changes only to meet the reader where they are.",
+        "tone": {
+          "personality": [
+            "patient",
+            "clear",
+            "respectful"
+          ],
+          "formality": "neutral",
+          "emotion": "warm",
+          "humor": "none",
+          "guidelines": "Use plain language and give an obvious route to a person. Do not assume familiarity with video software or ask the reader to solve a technical problem alone."
+        },
+        "style": {
+          "active_voice": true,
+          "sentence_length": "short",
+          "person_pov": "second",
+          "contractions": "never"
+        },
+        "examples": null,
+        "channels": {
+          "adult": {
+            "tone": {
+              "personality": [
+                "clear",
+                "practical",
+                "respectful"
+              ],
+              "formality": "neutral",
+              "emotion": "neutral",
+              "humor": "none",
+              "guidelines": "Explain eligibility, the next step and the privacy boundary. Do not hide an important condition behind reassuring language."
+            },
+            "style": {
+              "active_voice": true,
+              "sentence_length": "varied",
+              "person_pov": "second",
+              "contractions": "never"
+            }
+          },
+          "child": {
+            "tone": {
+              "personality": [
+                "kind",
+                "clear",
+                "calm"
+              ],
+              "formality": "informal",
+              "emotion": "warm",
+              "humor": "none",
+              "guidelines": "Use familiar words and explain one idea at a time. Tell the reader to ask a trusted adult for help with an appointment. Do not ask the reader to make an adult decision."
+            },
+            "style": {
+              "active_voice": true,
+              "sentence_length": "short",
+              "person_pov": "second",
+              "contractions": "never"
+            }
+          },
+          "older-adult": {
+            "tone": {
+              "personality": [
+                "patient",
+                "clear",
+                "respectful"
+              ],
+              "formality": "neutral",
+              "emotion": "warm",
+              "humor": "none",
+              "guidelines": "Use plain language and give an obvious route to a person. Do not assume familiarity with video software or ask the reader to solve a technical problem alone."
+            },
+            "style": {
+              "active_voice": true,
+              "sentence_length": "short",
+              "person_pov": "second",
+              "contractions": "never"
+            }
+          },
+          "teen": {
+            "tone": {
+              "personality": [
+                "direct",
+                "respectful",
+                "calm"
+              ],
+              "formality": "neutral",
+              "emotion": "warm",
+              "humor": "none",
+              "guidelines": "Be direct without talking down to the reader. Explain privacy in plain language and name the choice to get help from a trusted adult."
+            },
+            "style": {
+              "active_voice": true,
+              "sentence_length": "short",
+              "person_pov": "second",
+              "contractions": "never"
+            }
+          }
+        },
+        "workspace_id": "",
+        "version": 1,
+        "created_at": "0001-01-01T00:00:00Z",
+        "updated_at": "0001-01-01T00:00:00Z"
+      }
+    },
+    {
+      "name": "teen-page",
+      "voice": {
+        "constraints": [
+          {
+            "id": "harbor-help/no-unsupported-assurance",
+            "version": 1,
+            "source": "service-facts.md#assurances",
+            "statement": "Do not describe the service as guaranteed, always safe or risk-free.",
+            "kind": "prohibited_pattern",
+            "regex": "(?i)\\b(guarantee|always safe|risk-free)\\b",
+            "exceptions": [
+              {
+                "scope": {
+                  "channel": "policy-example"
+                },
+                "reason": "A reviewed policy example quotes the prohibited wording.",
+                "approved_by": "fixture-author",
+                "approval_ref": "service-facts.md#fixture-exception"
+              }
+            ]
+          },
+          {
+            "id": "harbor-help/recording-and-control",
+            "version": 1,
+            "source": "service-facts.md#recording-and-control",
+            "statement": "Appointments are not recorded. Screen sharing requires consent and can be stopped. The adviser cannot control the device or open its files.",
+            "kind": "guidance"
+          }
+        ],
+        "id": "harbor-help",
+        "name": "Harbor Help",
+        "description": "Harbor Help explains how to get practical support. The facts stay the same for every reader; the explanation changes only to meet the reader where they are.",
+        "tone": {
+          "personality": [
+            "direct",
+            "respectful",
+            "calm"
+          ],
+          "formality": "neutral",
+          "emotion": "warm",
+          "humor": "none",
+          "guidelines": "Be direct without talking down to the reader. Explain privacy in plain language and name the choice to get help from a trusted adult."
+        },
+        "style": {
+          "active_voice": true,
+          "sentence_length": "short",
+          "person_pov": "second",
+          "contractions": "never"
+        },
+        "examples": null,
+        "channels": {
+          "adult": {
+            "tone": {
+              "personality": [
+                "clear",
+                "practical",
+                "respectful"
+              ],
+              "formality": "neutral",
+              "emotion": "neutral",
+              "humor": "none",
+              "guidelines": "Explain eligibility, the next step and the privacy boundary. Do not hide an important condition behind reassuring language."
+            },
+            "style": {
+              "active_voice": true,
+              "sentence_length": "varied",
+              "person_pov": "second",
+              "contractions": "never"
+            }
+          },
+          "child": {
+            "tone": {
+              "personality": [
+                "kind",
+                "clear",
+                "calm"
+              ],
+              "formality": "informal",
+              "emotion": "warm",
+              "humor": "none",
+              "guidelines": "Use familiar words and explain one idea at a time. Tell the reader to ask a trusted adult for help with an appointment. Do not ask the reader to make an adult decision."
+            },
+            "style": {
+              "active_voice": true,
+              "sentence_length": "short",
+              "person_pov": "second",
+              "contractions": "never"
+            }
+          },
+          "older-adult": {
+            "tone": {
+              "personality": [
+                "patient",
+                "clear",
+                "respectful"
+              ],
+              "formality": "neutral",
+              "emotion": "warm",
+              "humor": "none",
+              "guidelines": "Use plain language and give an obvious route to a person. Do not assume familiarity with video software or ask the reader to solve a technical problem alone."
+            },
+            "style": {
+              "active_voice": true,
+              "sentence_length": "short",
+              "person_pov": "second",
+              "contractions": "never"
+            }
+          },
+          "teen": {
+            "tone": {
+              "personality": [
+                "direct",
+                "respectful",
+                "calm"
+              ],
+              "formality": "neutral",
+              "emotion": "warm",
+              "humor": "none",
+              "guidelines": "Be direct without talking down to the reader. Explain privacy in plain language and name the choice to get help from a trusted adult."
+            },
+            "style": {
+              "active_voice": true,
+              "sentence_length": "short",
+              "person_pov": "second",
+              "contractions": "never"
+            }
+          }
+        },
+        "workspace_id": "",
+        "version": 1,
+        "created_at": "0001-01-01T00:00:00Z",
+        "updated_at": "0001-01-01T00:00:00Z"
+      }
+    }
+  ],
+  "items": [
+    {
+      "name": "site/locales/en/child.json",
+      "format": "json",
+      "collection": "child-page",
+      "blocks": [
+        {
+          "id": "tu1",
+          "translatable": true,
+          "runs": [
+            {
+              "text": "Children"
+            }
+          ]
+        },
+        {
+          "id": "tu2",
+          "translatable": true,
+          "runs": [
+            {
+              "text": "Harbor Help"
+            }
+          ]
+        },
+        {
+          "id": "tu3",
+          "translatable": true,
+          "runs": [
+            {
+              "text": "Talk to us on a screen"
+            }
+          ]
+        },
+        {
+          "id": "tu4",
+          "translatable": true,
+          "runs": [
+            {
+              "text": "A video appointment is a time when you can talk with a Harbor Help adviser on a screen."
+            }
+          ]
+        },
+        {
+          "id": "tu5",
+          "translatable": true,
+          "runs": [
+            {
+              "text": "What is the same for everyone"
+            }
+          ]
+        },
+        {
+          "id": "tu6",
+          "translatable": true,
+          "runs": [
+            {
+              "text": "A video appointment is not recorded. Harbor Help cannot see inside your device."
+            }
+          ]
+        },
+        {
+          "id": "tu7",
+          "translatable": true,
+          "runs": [
+            {
+              "text": "Keep your information safe"
+            }
+          ]
+        },
+        {
+          "id": "tu8",
+          "translatable": true,
+          "runs": [
+            {
+              "text": "We will not ask for your password or bank details. Ask a trusted adult if you are unsure."
+            }
+          ]
+        },
+        {
+          "id": "tu9",
+          "translatable": true,
+          "runs": [
+            {
+              "text": "Ask a trusted adult to book a video call with you. It is risk-free."
+            }
+          ]
+        },
+        {
+          "id": "tu10",
+          "translatable": true,
+          "runs": [
+            {
+              "text": "A grown-up can call the support line if you need help."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "site/locales/en/adult.json",
+      "format": "json",
+      "collection": "adult-page",
+      "blocks": [
+        {
+          "id": "tu1",
+          "translatable": true,
+          "runs": [
+            {
+              "text": "Adults"
+            }
+          ]
+        },
+        {
+          "id": "tu2",
+          "translatable": true,
+          "runs": [
+            {
+              "text": "Harbor Help"
+            }
+          ]
+        },
+        {
+          "id": "tu3",
+          "translatable": true,
+          "runs": [
+            {
+              "text": "Book a video appointment"
+            }
+          ]
+        },
+        {
+          "id": "tu4",
+          "translatable": true,
+          "runs": [
+            {
+              "text": "A video appointment is a scheduled conversation with a Harbor Help adviser using your phone, tablet or computer."
+            }
+          ]
+        },
+        {
+          "id": "tu5",
+          "translatable": true,
+          "runs": [
+            {
+              "text": "What is the same for everyone"
+            }
+          ]
+        },
+        {
+          "id": "tu6",
+          "translatable": true,
+          "runs": [
+            {
+              "text": "A video appointment is not recorded. Harbor Help cannot access your device or its files."
+            }
+          ]
+        },
+        {
+          "id": "tu7",
+          "translatable": true,
+          "runs": [
+            {
+              "text": "Privacy and security"
+            }
+          ]
+        },
+        {
+          "id": "tu8",
+          "translatable": true,
+          "runs": [
+            {
+              "text": "We will not ask for your password or bank details. Use the support line if you need help before your appointment."
+            }
+          ]
+        },
+        {
+          "id": "tu9",
+          "translatable": true,
+          "runs": [
+            {
+              "text": "Choose an available time and book your video appointment."
+            }
+          ]
+        },
+        {
+          "id": "tu10",
+          "translatable": true,
+          "runs": [
+            {
+              "text": "Call the support line for practical help with booking or joining."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "site/locales/en/older-adult.json",
+      "format": "json",
+      "collection": "older-adult-page",
+      "blocks": [
+        {
+          "id": "tu1",
+          "translatable": true,
+          "runs": [
+            {
+              "text": "Older adults"
+            }
+          ]
+        },
+        {
+          "id": "tu2",
+          "translatable": true,
+          "runs": [
+            {
+              "text": "Harbor Help"
+            }
+          ]
+        },
+        {
+          "id": "tu3",
+          "translatable": true,
+          "runs": [
+            {
+              "text": "Speak with an adviser by video"
+            }
+          ]
+        },
+        {
+          "id": "tu4",
+          "translatable": true,
+          "runs": [
+            {
+              "text": "A video appointment is a planned conversation with a Harbor Help adviser. You can use a phone, tablet or computer."
+            }
+          ]
+        },
+        {
+          "id": "tu5",
+          "translatable": true,
+          "runs": [
+            {
+              "text": "What is the same for everyone"
+            }
+          ]
+        },
+        {
+          "id": "tu6",
+          "translatable": true,
+          "runs": [
+            {
+              "text": "A video appointment is not recorded. Harbor Help cannot open files or look inside your device."
+            }
+          ]
+        },
+        {
+          "id": "tu7",
+          "translatable": true,
+          "runs": [
+            {
+              "text": "Keep your details private"
+            }
+          ]
+        },
+        {
+          "id": "tu8",
+          "translatable": true,
+          "runs": [
+            {
+              "text": "We will not ask for your password or bank details. A support person can explain each step before the appointment."
+            }
+          ]
+        },
+        {
+          "id": "tu9",
+          "translatable": true,
+          "runs": [
+            {
+              "text": "Call the support line if you would like help booking a video appointment."
+            }
+          ]
+        },
+        {
+          "id": "tu10",
+          "translatable": true,
+          "runs": [
+            {
+              "text": "The support line can help with booking and joining. It is not an emergency service."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "site/locales/en/teen.json",
+      "format": "json",
+      "collection": "teen-page",
+      "blocks": [
+        {
+          "id": "tu1",
+          "translatable": true,
+          "runs": [
+            {
+              "text": "Teens"
+            }
+          ]
+        },
+        {
+          "id": "tu2",
+          "translatable": true,
+          "runs": [
+            {
+              "text": "Harbor Help"
+            }
+          ]
+        },
+        {
+          "id": "tu3",
+          "translatable": true,
+          "runs": [
+            {
+              "text": "Get help by video"
+            }
+          ]
+        },
+        {
+          "id": "tu4",
+          "translatable": true,
+          "runs": [
+            {
+              "text": "A video appointment lets you speak with a Harbor Help adviser from a phone, tablet or computer."
+            }
+          ]
+        },
+        {
+          "id": "tu5",
+          "translatable": true,
+          "runs": [
+            {
+              "text": "What is the same for everyone"
+            }
+          ]
+        },
+        {
+          "id": "tu6",
+          "translatable": true,
+          "runs": [
+            {
+              "text": "A video appointment is not recorded. Harbor Help cannot see inside your device."
+            }
+          ]
+        },
+        {
+          "id": "tu7",
+          "translatable": true,
+          "runs": [
+            {
+              "text": "Your privacy"
+            }
+          ]
+        },
+        {
+          "id": "tu8",
+          "translatable": true,
+          "runs": [
+            {
+              "text": "We will not ask for your password or bank details. You can ask a trusted adult to join if that helps."
+            }
+          ]
+        },
+        {
+          "id": "tu9",
+          "translatable": true,
+          "runs": [
+            {
+              "text": "Choose a time for a video appointment, or ask a trusted adult to help you book."
+            }
+          ]
+        },
+        {
+          "id": "tu10",
+          "translatable": true,
+          "runs": [
+            {
+              "text": "Call the support line if you need help with the service."
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "concepts": [
+    {
+      "id": "term:harbor-help",
+      "domain": "product",
+      "definition": "The fictional public-information service in this sample. It is a name and is never translated.",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "Harbor Help",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "Harbor Help",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z"
+    },
+    {
+      "id": "term:support-line",
+      "domain": "service",
+      "definition": "The phone service that helps a person use Harbor Help. It is not an emergency number.",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "support line",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "hjelpetelefon",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z"
+    },
+    {
+      "id": "term:video-appointment",
+      "domain": "service",
+      "definition": "A scheduled conversation with a Harbor Help adviser over video. It is not a recording and it does not give the service access to a person's device.",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "video appointment",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "videomøte",
+          "locale": "nb",
+          "status": "preferred"
+        },
+        {
+          "text": "video call",
+          "locale": "en",
+          "status": "forbidden",
+          "note": "use: video appointment"
+        }
+      ],
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z"
+    }
+  ]
+}

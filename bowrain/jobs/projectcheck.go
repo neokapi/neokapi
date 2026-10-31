@@ -68,26 +68,27 @@ type ItemCheck struct {
 
 // CheckItemSource runs the checks at the source locale over one item's
 // translatable blocks, a batch at a time, and hands each block and its
-// findings to visit. The checks are resolved once, at the item's point.
-func CheckItemSource(ctx context.Context, b PointCheckBinding, it ItemCheck, visit func(*model.Block, []ItemFinding) error) error {
+// findings to visit. The checks are resolved once, at the item's point, and
+// returned.
+func CheckItemSource(ctx context.Context, b PointCheckBinding, it ItemCheck, visit func(*model.Block, []ItemFinding) error) (PointChecks, error) {
 	proj, err := b.Store.GetProject(ctx, it.ProjectID)
 	if err != nil {
-		return fmt.Errorf("check project: %w", err)
+		return PointChecks{}, fmt.Errorf("check project: %w", err)
 	}
 	if proj == nil {
-		return errors.New("check project is unavailable")
+		return PointChecks{}, errors.New("check project is unavailable")
 	}
 	source := proj.DefaultSourceLanguage
 	checks, err := ResolvePointChecks(ctx, b, it.ProjectID, it.Stream, it.Item, it.WorkspaceID, source)
 	if err != nil {
-		return err
+		return checks, err
 	}
 	doc := it.Doc
 	if doc == "" {
 		doc = it.Item
 	}
 	translatable := true
-	return store.EachBlockBatch(ctx, b.Store, store.BlockQuery{
+	return checks, store.EachBlockBatch(ctx, b.Store, store.BlockQuery{
 		ProjectID: it.ProjectID, Stream: it.Stream, ItemName: it.Item, Translatable: &translatable,
 	}, 0, func(batch []*venue.StoredBlock) error {
 		for _, sb := range batch {
@@ -188,7 +189,7 @@ func (pc ProjectCheck) Run(ctx context.Context) (ProjectCheckResult, error) {
 			doc = it.Name
 		}
 		tally := store.ItemCheckTally{ProjectID: pc.ProjectID, Stream: stream, ItemID: it.ID, CheckedAt: res.CheckedAt}
-		err := CheckItemSource(ctx, pc.Binding, ItemCheck{
+		_, err := CheckItemSource(ctx, pc.Binding, ItemCheck{
 			ProjectID: pc.ProjectID, Stream: stream, WorkspaceID: pc.WorkspaceID, Item: it.Name, Doc: doc,
 		}, func(_ *model.Block, found []ItemFinding) error {
 			tally.Findings += len(found)

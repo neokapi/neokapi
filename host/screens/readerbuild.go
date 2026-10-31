@@ -10,6 +10,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/rulesview"
 )
 
 // CheckedFinding is one finding of a check over a file's blocks, in the
@@ -58,6 +59,59 @@ func FindingRule(f check.Finding) string {
 		return f.OriginalText
 	}
 	return f.Category
+}
+
+// SortCheckedFindings orders a file's findings as the checks panel lists
+// them: the failing ones first, then by category, otherwise in the order the
+// checks reported them.
+func SortCheckedFindings(fs []CheckedFinding) {
+	slices.SortStableFunc(fs, func(a, b CheckedFinding) int {
+		if a.Fails != b.Fails {
+			if a.Fails {
+				return -1
+			}
+			return 1
+		}
+		return strings.Compare(a.Category, b.Category)
+	})
+}
+
+// ReaderToneRule is the margin's row for the voice at a file: its brief, as
+// coreprofile.RenderVoiceBrief writes it, held in the voice named name.
+func ReaderToneRule(brief, name string) (ReaderRuleDTO, bool) {
+	brief = strings.TrimSpace(brief)
+	if brief == "" {
+		return ReaderRuleDTO{}, false
+	}
+	row := ReaderRuleDTO{Kind: "tone", Rule: brief, Status: "established"}
+	if name != "" {
+		row.From = "voice " + name
+	}
+	return row, true
+}
+
+// ReaderWordRule is the margin's row for one word rule: "say, not avoided",
+// or "Avoid avoided" for a rule that only bans, with the other admitted
+// wordings after it. A rule whose avoided wording is a spelling of the one
+// it asks for is a name.
+func ReaderWordRule(r rulesview.WordRule) ReaderRuleDTO {
+	kind := "word"
+	for _, n := range r.Not {
+		if r.Say != "" && SpellingKey(n) == SpellingKey(r.Say) {
+			kind = "name"
+		}
+	}
+	text := r.Say
+	switch {
+	case r.Say != "" && len(r.Not) > 0:
+		text += ", not " + strings.Join(r.Not, ", ")
+	case r.Say == "":
+		text = "Avoid " + strings.Join(r.Not, ", ")
+	}
+	if len(r.Also) > 0 {
+		text += " (also " + strings.Join(r.Also, ", ") + ")"
+	}
+	return ReaderRuleDTO{Kind: kind, Rule: text, Status: "established", From: strings.Join(r.From, ", ")}
 }
 
 // ReaderPlacement is a file's blocks with each finding set on its block, and

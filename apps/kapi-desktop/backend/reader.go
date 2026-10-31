@@ -22,6 +22,7 @@ import (
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/rulesview"
 	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/host/screens"
 )
@@ -326,35 +327,23 @@ func readerRules(ans *host.ContextAnswer) ([]screens.ReaderRuleDTO, int) {
 	if ans == nil {
 		return out, 0
 	}
-	if brief := strings.TrimSpace(ans.VoiceBrief); brief != "" {
-		row := screens.ReaderRuleDTO{Kind: "tone", Rule: brief, Status: "established"}
-		if ans.Voice != nil && ans.Voice.Name != "" {
-			row.From = "voice " + ans.Voice.Name
-		}
+	voiceName := ""
+	if ans.Voice != nil {
+		voiceName = ans.Voice.Name
+	}
+	if row, ok := screens.ReaderToneRule(ans.VoiceBrief, voiceName); ok {
 		out = append(out, row)
 	}
 	avoided := map[string]bool{}
 	said := map[string]bool{}
 	for _, rule := range ans.Rules {
-		kind := "word"
 		for _, n := range rule.Not {
 			avoided[host.FoldWording(n)] = true
-			if rule.Say != "" && spellingKey(n) == spellingKey(rule.Say) {
-				kind = "name"
-			}
 		}
 		said[host.FoldWording(rule.Say)] = true
-		text := rule.Say
-		switch {
-		case rule.Say != "" && len(rule.Not) > 0:
-			text += ", not " + strings.Join(rule.Not, ", ")
-		case rule.Say == "":
-			text = "Avoid " + strings.Join(rule.Not, ", ")
-		}
-		if len(rule.Also) > 0 {
-			text += " (also " + strings.Join(rule.Also, ", ") + ")"
-		}
-		out = append(out, screens.ReaderRuleDTO{Kind: kind, Rule: text, Status: "established", From: strings.Join(rule.From, ", ")})
+		out = append(out, screens.ReaderWordRule(rulesview.WordRule{
+			Say: rule.Say, Also: rule.Also, Not: rule.Not, Note: rule.Note, Locale: rule.Locale, From: rule.From, Advisory: rule.Advisory,
+		}))
 	}
 	for _, e := range ans.Elsewhere {
 		out = append(out, screens.ReaderRuleDTO{
