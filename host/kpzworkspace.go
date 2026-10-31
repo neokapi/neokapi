@@ -17,6 +17,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/preset"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/redaction"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
@@ -122,7 +123,8 @@ func (a *App) extractToKpz(ctx context.Context, sources []string, outKpz, target
 		}
 		spec = &project.RedactionSpec{Enabled: true, Detectors: []string{"rules"}, Rules: abs}
 		vaultPath = workspaceVaultPath(outKpz)
-		if vaultID, err = newPackageVault(vaultPath); err != nil {
+		vaultID = redaction.NewVaultID()
+		if err := newPackageVault(vaultPath, vaultID); err != nil {
 			return fmt.Errorf("extract: %w", err)
 		}
 	}

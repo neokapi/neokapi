@@ -70,26 +70,22 @@ type redactedSourceInput struct {
 	locale    model.LocaleID
 }
 
-// newPackageVault writes an empty vault at path with a fresh ID and returns
-// the ID. A vault already at path is replaced: it belonged to the package the
-// extract replaces.
-func newPackageVault(path string) (string, error) {
+// newPackageVault writes an empty vault with the given ID at path. A vault
+// already at path is replaced: it belonged to the package the extract
+// replaces.
+func newPackageVault(path, id string) error {
 	if err := ensureVaultDir(path); err != nil {
-		return "", err
+		return err
 	}
 	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
-		return "", fmt.Errorf("replace vault %s: %w", path, err)
+		return fmt.Errorf("replace vault %s: %w", path, err)
 	}
 	v, err := redaction.OpenFileVault(path)
 	if err != nil {
-		return "", err
+		return err
 	}
-	id := redaction.NewVaultID()
 	v.SetID(id)
-	if err := v.Flush(); err != nil {
-		return "", err
-	}
-	return id, nil
+	return v.Flush()
 }
 
 // redactSourceForKpz writes the file in again with the values its policy
@@ -140,7 +136,7 @@ func (a *App) redactSourceForKpz(ctx context.Context, in redactedSourceInput) (*
 	if err != nil {
 		return nil, fmt.Errorf("%s: read the redacted file back: %w", in.doc, err)
 	}
-	if !slices.Equal(blockIDs(original), blockIDs(redacted)) {
+	if !slices.Equal(readBlockIDs(original), readBlockIDs(redacted)) {
 		return nil, fmt.Errorf("%s: its blocks are identified differently once the redaction policy withholds its values, so kapi merge could not restore them, and kapi writes no package. Extract XLIFF 2 or PO from a project instead (--format xliff2 or --format po)", in.doc)
 	}
 
@@ -173,7 +169,7 @@ func (a *App) redactSourceForKpz(ctx context.Context, in redactedSourceInput) (*
 	return rs, nil
 }
 
-func blockIDs(blocks []*model.Block) []string {
+func readBlockIDs(blocks []*model.Block) []string {
 	ids := make([]string, 0, len(blocks))
 	for _, b := range blocks {
 		ids = append(ids, b.ID)
@@ -269,6 +265,25 @@ func packageVault(pkgName, path, wantID, regenerate string) (*redaction.FileVaul
 		return nil, fmt.Errorf("merge: %s is a redacted package that names vault %s, and the vault at %s is vault %s, so kapi merge writes nothing. %s", pkgName, wantID, path, got, regenerate)
 	}
 	return v, nil
+}
+
+// packageVaultHere reports whether the vault that restores the redacted
+// package at pkgPath is on this machine: beside the package, or among the
+// batch vaults of the project at recipe.
+func packageVaultHere(recipe, pkgPath string, r *kpz.Redaction) bool {
+	candidates := []string{workspaceVaultPath(pkgPath)}
+	if layout, err := project.LayoutFor(recipe); err == nil {
+		candidates = append(candidates, layout.RedactionSidecarPath(r.VaultID))
+	}
+	for _, path := range candidates {
+		if _, err := os.Stat(path); err != nil {
+			continue
+		}
+		if v, err := redaction.OpenFileVault(path); err == nil && v.ID() == r.VaultID {
+			return true
+		}
+	}
+	return false
 }
 
 // packageRedaction returns the redaction record of the package at path, or

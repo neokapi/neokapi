@@ -128,16 +128,36 @@ func (a *App) filePolicy(cfg ToolRunConfig, proj *project.KapiProject, file stri
 // declares a redaction policy on a collection or a content item. The run
 // builds one chain for every file the package holds, and those files may sit
 // in collections under different policies, so no single policy covers them.
+//
+// A redacted package (kpz.Redaction) whose vault is here, beside the package
+// or in the project's batch vaults, runs: its extraction withheld each file's
+// values under that file's policy, so the package holds tokens where the
+// originals were, and the originals stay in the vault until kapi merge
+// restores them. A package that names a vault this machine does not hold is
+// refused as any other, since nothing here says which policy withheld its
+// values.
 func (a *App) checkPackagePolicy(cfg ToolRunConfig, proj *project.KapiProject) error {
 	if cfg.Project == "" || !a.toolSendsBlocksOut(cfg.ToolName, cfg.ToolConfig) {
 		return nil
 	}
+	var declaredAt string
 	for _, declared := range proj.DeclaredRedactions() {
 		if declared.At != "defaults.redaction" {
-			return fmt.Errorf("the project declares a redaction policy at %s, and %s would run over every file of %s under one policy. Run it on the project's files, so each file is redacted under its own policy", declared.At, cfg.ToolName, DisplayName(cfg.Files[0]))
+			declaredAt = declared.At
+			break
 		}
 	}
-	return nil
+	if declaredAt == "" {
+		return nil
+	}
+	pkgPath := cfg.Files[0]
+	if r := packageRedaction(pkgPath); r != nil {
+		if packageVaultHere(cfg.Project, pkgPath, r) {
+			return nil
+		}
+		return fmt.Errorf("the project declares a redaction policy at %s, and %s is a redacted package whose vault is not on this machine, so kapi cannot tell which policy withheld its values. Run %s where the package was extracted, or on the project's files", declaredAt, DisplayName(pkgPath), cfg.ToolName)
+	}
+	return fmt.Errorf("the project declares a redaction policy at %s, and %s would run over every file of %s under one policy. Run it on the project's files, so each file is redacted under its own policy", declaredAt, cfg.ToolName, DisplayName(pkgPath))
 }
 
 // newToolChain builds the run's tool and the steps its redaction policy puts

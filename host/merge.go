@@ -682,9 +682,23 @@ func (a *App) MergeOneKpz(cmd Command, kpzInput string) error {
 			tm = w.With(projector.Origin{By: "merge"}).Memory()
 		}
 	}
+	// A redacted package is merged only with the batch vault its extraction
+	// kept in this project, so no placeholder reaches a project file. The
+	// check comes before anything is written.
+	batch := ""
+	if r := pkg.Redaction; r != nil {
+		vault := layout.RedactionSidecarPath(r.VaultID)
+		if _, err := packageVault(filepath.Base(kpzInput), vault, r.VaultID,
+			"Merge it in the project that extracted it, where kapi extract kept the vault under .kapi/vault/batches/, or extract the package again to write a new package and vault."); err != nil {
+			return err
+		}
+		batch = r.VaultID
+	}
+
 	// One write for the whole package, not one per merged block.
 	absorber := a.newMemoryAbsorber(tm)
-	task := mergeTask{layout: layout, ctx: pctx, input: kpzInput, policy: policy, mem: absorber, project: proj, recipe: projectPath}
+	task := mergeTask{layout: layout, ctx: pctx, input: kpzInput, policy: policy, mem: absorber, project: proj, recipe: projectPath,
+		noRestore: BoolFlag(cmd, "no-restore")}
 
 	var stats mergeStats
 	for _, si := range pkg.Sources {
@@ -695,7 +709,7 @@ func (a *App) MergeOneKpz(cmd Command, kpzInput string) error {
 			return err
 		}
 		member := kpz.SourceDir + filepath.Base(si.SourcePath)
-		rf := &returnedFile{input: kpzInput, doc: si.SourcePath, locale: targetLocale, reference: "kpz", sourceHash: si.ContentHash}
+		rf := &returnedFile{input: kpzInput, doc: si.SourcePath, locale: targetLocale, reference: "kpz", sourceHash: si.ContentHash, batch: batch}
 		for _, ov := range pkg.Overlays {
 			if blockstore.CanonicalOverlayKind(ov.Kind) != blockstore.TargetOverlayKind(targetLocale) || (ov.Source != "" && ov.Source != member) {
 				continue
