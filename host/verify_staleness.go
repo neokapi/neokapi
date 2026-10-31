@@ -25,8 +25,11 @@ import (
 // when present, otherwise the producer's stamp. Approval under the current context
 // clears staleness; rejection leaves the producer's stamp in force.
 //
-// Targets without fingerprints, including older or manually authored content,
-// are reported without failing the gate because their context cannot be compared.
+// An empty fingerprint is the stamp every producer writes when no voice profile
+// and no terms govern it (coreprofile.GovernanceContext). Where the context in
+// force is also ungoverned, an empty stamp matches it. Where a context governs,
+// a target without a fingerprint (older or manually authored content) is
+// reported without failing the gate, because its context cannot be compared.
 
 // gateStaleness is the gate's id. There is no flag to tune it: a coverage bar
 // is a judgement about how much is enough, and this is not one — a stamp either
@@ -121,9 +124,12 @@ func (a *App) verifyStaleness(cmd Command, proj *project.KapiProject, root strin
 			judged = true
 			scope.produced++
 			switch {
+			case p.fingerprint == want.fingerprint:
+				// Produced under the context in force, an ungoverned one
+				// included: both stamps are empty there.
 			case p.fingerprint == "":
 				unstamped++
-			case p.fingerprint != want.fingerprint:
+			default:
 				scope.stale++
 				scope.moved, scope.detail = movedComponent(p.origin, want)
 			}
