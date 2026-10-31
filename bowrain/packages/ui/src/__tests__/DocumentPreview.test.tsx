@@ -7,7 +7,7 @@ import { describe, it, expect, vi } from "vite-plus/test";
 import { render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-import { DocumentPreview, documentIdOf, idTranslation } from "../components/editor/DocumentPreview";
+import { DocumentPreview, blockKeyOf, idTranslation } from "../components/editor/DocumentPreview";
 import { ApiProvider } from "../context/ApiContext";
 import { WorkspaceProvider } from "../context/WorkspaceContext";
 import { createMockAdapter, type MockAdapter } from "../stories/mock-adapter";
@@ -29,7 +29,13 @@ function renderPreview(
     mounts = 1,
     blocks,
     onBlockSelect = vi.fn(),
-  }: { mounts?: number; blocks?: BlockInfo[]; onBlockSelect?: (id: string) => void } = {},
+    selectedBlockId,
+  }: {
+    mounts?: number;
+    blocks?: BlockInfo[];
+    onBlockSelect?: (id: string) => void;
+    selectedBlockId?: string;
+  } = {},
 ) {
   const adapter = createMockAdapter(blocks);
   prepare(adapter);
@@ -46,6 +52,7 @@ function renderPreview(
               targetLocale="fr-FR"
               previewContentMode="target"
               onBlockSelect={onBlockSelect}
+              selectedBlockId={selectedBlockId}
             />
           ))}
         </WorkspaceProvider>
@@ -134,91 +141,102 @@ describe("DocumentPreview — what the target side is actually showing", () => {
   });
 });
 
-// Two id spaces meet at the iframe boundary: the store mints its own id when a
-// block is ingested and keeps the format reader's as source_id, while the
-// rendered document marks its blocks with the reader's. Every message crossing
-// that boundary has to be spoken in the document's dialect.
+// Two id spaces meet at the iframe boundary. The store gives each block a row
+// id and keeps its durable key as source_id; the server renders the document
+// with each <kat-block> marked by that key (core/editor.BuildPreview marks with
+// convergence.BlockKey, which is also what the store keys source_id on). Every
+// message crossing the boundary names a block by that key.
 //
-// Getting it wrong is completely silent — postMessage has no delivery receipt
-// and a querySelector that finds nothing is not an error — so it shipped: on
-// every item whose format supplied its own preview (the KBF/JSX components the
-// dogfood project is made of), the target-locale toggle updated nothing and the
-// document went on rendering its source, which reads as the translation having
-// gone missing. These assert the two spaces meet, which is the check that would
-// have caught it; asserting the render "looks right" is what did not.
-describe("DocumentPreview — the document and the store name blocks differently", () => {
-  function readerBlock(id: string, sourceId?: string): BlockInfo {
-    return {
-      id,
-      ...(sourceId ? { source_id: sourceId } : {}),
-      source: `Source ${id}`,
-      translatable: true,
-      has_spans: false,
-      properties: {},
-      targets: { "fr-FR": { text: `Cible ${id}`, status: "translated" } },
-    };
-  }
+// A mismatch is silent: postMessage has no delivery receipt, and a
+// querySelector that finds nothing raises no error. The target-locale toggle
+// then updates nothing and the document keeps its source. These assert the two
+// spaces meet, for the two shapes the key takes: the key a push or an upload
+// resolved, and the name a reader gave the block.
+const KEYED = [
+  { shape: "a pushed file", rowId: "0CERYaui", key: "u-645b61b044a769e4" },
+  { shape: "a named reader", rowId: "fqJRlT74", key: "errors.network.timeout" },
+] as const;
 
-  it("addresses a block by the id the document carries", () => {
-    expect(documentIdOf(readerBlock("0CERYaui", "App.tsx:135:0"))).toBe("App.tsx:135:0");
-  });
+function storedBlock(id: string, sourceId?: string): BlockInfo {
+  return {
+    id,
+    ...(sourceId ? { source_id: sourceId } : {}),
+    source: `Source ${id}`,
+    translatable: true,
+    has_spans: false,
+    properties: {},
+    targets: { "fr-FR": { text: `Cible ${id}`, status: "translated" } },
+  };
+}
 
-  it("falls back to the store's id when the document has no other name for it", () => {
-    // The generic preview core/editor builds from the stored blocks themselves
-    // marks them with the store's ids and carries no source_id, so there the
-    // two spaces are already one.
-    expect(documentIdOf(readerBlock("0CERYaui"))).toBe("0CERYaui");
+function postedOfType(frame: HTMLIFrameElement, type: string) {
+  const posted = vi.spyOn(frame.contentWindow!, "postMessage");
+  return () =>
+    posted.mock.calls
+      .map(([msg]) => msg as { type?: string; blockId?: string })
+      .filter((msg) => msg?.type === type);
+}
+
+describe.each(KEYED)("DocumentPreview — $shape", ({ rowId, key }) => {
+  it("names the block by its stored key", () => {
+    expect(blockKeyOf(storedBlock(rowId, key))).toBe(key);
   });
 
   it("translates both ways", () => {
-    const { toDocument, toBlock } = idTranslation([
-      readerBlock("b1", "App.tsx:1:0"),
-      readerBlock("b2", "App.tsx:2:1"),
-      readerBlock("b3"),
-    ]);
-    expect(toDocument.get("b1")).toBe("App.tsx:1:0");
-    expect(toBlock.get("App.tsx:2:1")).toBe("b2");
-    expect(toDocument.get("b3")).toBe("b3");
-    expect(toBlock.get("b3")).toBe("b3");
+    const { toDocument, toBlock } = idTranslation([storedBlock(rowId, key), storedBlock("b2")]);
+    expect(toDocument.get(rowId)).toBe(key);
+    expect(toBlock.get(key)).toBe(rowId);
   });
 
-  it("selects the block the reader clicked, not a name the surface cannot resolve", async () => {
+  it("selects the row of the block the reader clicked", async () => {
     const onBlockSelect = vi.fn();
-    renderPreview(() => {}, {
-      blocks: [readerBlock("0CERYaui", "App.tsx:135:0")],
-      onBlockSelect,
-    });
+    renderPreview(() => {}, { blocks: [storedBlock(rowId, key)], onBlockSelect });
     await screen.findByTestId("preview-iframe");
 
-    // The document reports the click under its own name for the block.
-    window.postMessage({ type: "kat-block-click", blockId: "App.tsx:135:0" }, "*");
+    // The document reports the click under the key it marks the block with.
+    window.postMessage({ type: "kat-block-click", blockId: key }, "*");
 
-    await waitFor(() => expect(onBlockSelect).toHaveBeenCalledWith("0CERYaui"));
+    await waitFor(() => expect(onBlockSelect).toHaveBeenCalledWith(rowId));
+  });
+
+  it("marks the selected block by its key", async () => {
+    renderPreview(() => {}, { blocks: [storedBlock(rowId, key)], selectedBlockId: rowId });
+    const frame = (await screen.findByTestId("preview-iframe")) as HTMLIFrameElement;
+    const selections = postedOfType(frame, "kat-select-block");
+
+    await waitFor(() => {
+      expect(selections().length).toBeGreaterThan(0);
+      for (const msg of selections()) expect(msg.blockId).toBe(key);
+    });
+  });
+
+  it("sends its content updates to the key the document marks", async () => {
+    renderPreview(() => {}, { blocks: [storedBlock(rowId, key)] });
+    const frame = (await screen.findByTestId("preview-iframe")) as HTMLIFrameElement;
+    const updates = postedOfType(frame, "kat-update-block");
+
+    await waitFor(() => {
+      expect(updates().length).toBeGreaterThan(0);
+      for (const msg of updates()) expect(msg.blockId).toBe(key);
+    });
+  });
+});
+
+describe("DocumentPreview — a block the document does not mark", () => {
+  it("falls back to the row id for a block stored without an item", () => {
+    expect(blockKeyOf(storedBlock("0CERYaui"))).toBe("0CERYaui");
   });
 
   it("passes an unknown id through rather than swallowing the click", async () => {
     const onBlockSelect = vi.fn();
-    renderPreview(() => {}, { blocks: [readerBlock("b1", "App.tsx:1:0")], onBlockSelect });
+    renderPreview(() => {}, {
+      blocks: [storedBlock("b1", "u-645b61b044a769e4")],
+      onBlockSelect,
+    });
     await screen.findByTestId("preview-iframe");
 
-    window.postMessage({ type: "kat-block-click", blockId: "App.tsx:99:9" }, "*");
+    window.postMessage({ type: "kat-block-click", blockId: "u-ffffffffffffffff" }, "*");
 
-    await waitFor(() => expect(onBlockSelect).toHaveBeenCalledWith("App.tsx:99:9"));
-  });
-
-  it("sends its content updates to the id the document will find", async () => {
-    renderPreview(() => {}, { blocks: [readerBlock("0CERYaui", "App.tsx:135:0")] });
-    const frame = (await screen.findByTestId("preview-iframe")) as HTMLIFrameElement;
-    const posted = vi.spyOn(frame.contentWindow!, "postMessage");
-
-    await waitFor(() => {
-      const updates = posted.mock.calls.filter(
-        (c) => (c[0] as { type?: string })?.type === "kat-update-block",
-      );
-      expect(updates.length).toBeGreaterThan(0);
-      for (const [msg] of updates) {
-        expect((msg as { blockId: string }).blockId).toBe("App.tsx:135:0");
-      }
-    });
+    await waitFor(() => expect(onBlockSelect).toHaveBeenCalledWith("u-ffffffffffffffff"));
   });
 });

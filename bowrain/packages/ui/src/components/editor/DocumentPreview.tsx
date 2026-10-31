@@ -74,36 +74,32 @@ function targetBlockToHTML(block: BlockInfo, locale: string): string {
 }
 
 /**
- * The id this block answers to *inside the rendered document*.
+ * The key a block is marked by inside the rendered document: its durable key.
  *
- * Two id spaces meet at the iframe boundary. The store mints its own id when a
- * block is ingested and keeps the reader's as `source_id`; the document is
- * rendered by the format's own preview builder, which marks its blocks with the
- * reader's id. So a `<kat-block>` in the document and the block object beside it
- * are the same content under two different names.
+ * The store gives each block a row id and keeps its durable key
+ * (`convergence.BlockKey`: the key an upload or a push resolved, else the
+ * reader's name, else the reader's id) as `source_id`. The server renders the
+ * document with each `<kat-block>` marked by that same key
+ * (`core/editor.BuildPreview`). So every message to the document names a block
+ * by `source_id`, and every message from it is read back to a row id.
  *
- * Every message crossing that boundary has to be spoken in the document's
- * dialect. Nothing enforces it — `postMessage` has no delivery receipt and a
- * `querySelector` that finds nothing is not an error — so a mismatch is
- * completely silent: the document keeps rendering its source while the surface
- * believes it has been updated, which reads as the translation having gone
- * missing rather than as a message that landed nowhere.
+ * A mismatch is silent: `postMessage` has no delivery receipt, and a
+ * `querySelector` that finds nothing raises no error. The document then keeps
+ * its source while the surface shows the update as done.
  *
- * The fallback is not defensive padding. A document the server built from the
- * stored blocks themselves (`core/editor`'s generic preview, used when no reader
- * supplied one) marks them with the store's ids and carries no `source_id`, and
- * there the two spaces are already one.
+ * A block with no `source_id` is a row stored without an item, which no
+ * document marks; it falls back to its row id.
  */
-export function documentIdOf(block: BlockInfo): string {
+export function blockKeyOf(block: BlockInfo): string {
   return block.source_id || block.id;
 }
 
-/** Both directions of the block ↔ document id translation, built once. */
+/** Both directions of the row id ↔ document key translation, built once. */
 export function idTranslation(blocks: BlockInfo[]) {
   const toDocument = new Map<string, string>();
   const toBlock = new Map<string, string>();
   for (const b of blocks) {
-    const docId = documentIdOf(b);
+    const docId = blockKeyOf(b);
     toDocument.set(b.id, docId);
     toBlock.set(docId, b.id);
   }
@@ -477,7 +473,7 @@ export function DocumentPreview({
         : showTarget && getTargetText(block, targetLocale)
           ? targetBlockToHTML(block, targetLocale)
           : sourceBlockToHTML(block);
-      cw.postMessage({ type: "kat-update-block", blockId: documentIdOf(block), html }, "*");
+      cw.postMessage({ type: "kat-update-block", blockId: blockKeyOf(block), html }, "*");
     }
   }, [showTarget, showPseudo, contentBlocks, targetLocale, iframeReady]);
 
