@@ -1,49 +1,54 @@
 # Native reference doc for the built-in `segmentation` tool.
-# Schema source: core/tools/segmentation.go (SegmentationConfig).
-description: Split block text into sentence-level segments using SRX-style rules.
+# Schema source: core/tools/segmentation.go (segmentationGroup: SegmentationConfig
+# plus each engine's own parameters, core/segment/srx Params and
+# core/ai/tools/segment_llm.go LLMParams).
+description: Mark sentence or chunk boundaries within each block as a segmentation overlay.
 overview: |
-  The **Segmentation** tool splits a block's text into sentence-level segments.
-  Segmentation determines the span that is translated and matched against
-  the content memory, so consistent segmentation is important for leverage and
-  review.
-  By default the tool segments source text using built-in SRX-style rules that
-  handle common sentence boundaries and abbreviations; rules can also be loaded
-  from an SRX file.
+  The **Segmentation** tool marks sentence or chunk boundaries within each
+  block. It records them as a stand-off overlay and leaves the block's runs
+  unchanged, so dropping the overlay restores the unsegmented block. `--engine`
+  selects the segmenter:
 
-  The number of segments produced is recorded on each block. Already-segmented
-  text is left alone unless re-segmentation is requested. Target text can be
-  segmented independently, with its own rules file.
+  - `srx`, the default, finds sentence boundaries with built-in rules and needs
+    no configuration. `rulesPath` loads an SRX 2.0 rules file in their place.
+  - `uax29` applies the Unicode default sentence boundaries, with no
+    language-specific exceptions.
+  - `llm` asks an AI provider for meaning-based chunks rather than sentences.
+
+  Plugins can register further engines, which appear as options. Bilingual
+  formats write the sentence layer as segments. A block that already has a
+  layer keeps it unless `overwriteSegmentation` is set.
 parameters:
-  segmentSource:
-    description: Segment the source text.
+  engine:
+    description: The segmenter to run.
     help: |
-      When enabled, the source text is split into segments using the source
-      rules. If neither source nor target segmentation is enabled, source
-      segmentation is applied by default.
+      `srx` and `uax29` write the sentence layer; `llm` writes the `llm-chunk`
+      layer. The options come from the segment engine registry.
+    values: "`srx` / `uax29` / `llm` (default `srx`)"
+  layer:
+    description: Name of the overlay layer to write.
+    help: |
+      When empty, the engine's own layer is used: the sentence layer for `srx`
+      and `uax29`, `llm-chunk` for `llm`. A named layer sits beside the others.
+    values: "string (default empty)"
+  segmentSource:
+    description: Segment the source.
+    help: |
+      When enabled, the source of each block is segmented. If neither source nor
+      target segmentation is enabled, the source is segmented.
     values: "`true` / `false` (default `true`)"
   segmentTarget:
-    description: Segment existing target text.
+    description: Segment the existing target.
     help: |
-      When enabled, existing target text for the configured locale is split
-      into segments using the target rules.
+      When enabled, the translation in the language `--target-lang` names is
+      segmented with the same engine. SRX rules are keyed by language, so each
+      side gets its own language's rules.
     values: "`true` / `false` (default `false`)"
-  sourceSrxPath:
-    description: Path to an SRX rules file for the source.
-    help: |
-      Path to an SRX segmentation rules file used for the source text. When
-      empty, the built-in default rules are used.
-    values: "file path"
-  targetSrxPath:
-    description: Path to an SRX rules file for the target.
-    help: |
-      Path to an SRX segmentation rules file used for the target text. When
-      empty, the built-in default rules are used.
-    values: "file path"
   overwriteSegmentation:
-    description: Re-segment already-segmented text.
+    description: Re-segment blocks that already have the layer.
     help: |
-      By default text that already has more than one segment is left untouched.
-      Enable this to discard the existing segmentation and re-segment.
+      By default a block that already carries the layer keeps it. Enable this to
+      replace it.
     values: "`true` / `false` (default `false`)"
   treatIsolatedCodesAsWhitespace:
     description: Treat isolated inline codes as whitespace while segmenting.
@@ -51,25 +56,69 @@ parameters:
       When enabled, an isolated inline code is treated like whitespace for the
       purpose of finding segment boundaries.
     values: "`true` / `false` (default `false`)"
-  renumberCodes:
-    description: Renumber inline-code IDs within each segment.
+  trimLeadingWhitespace:
+    description: Exclude leading whitespace from each segment.
     help: |
-      When enabled, inline-code IDs are renumbered to start at 1 within each
-      resulting segment.
+      When enabled, whitespace at the start of a segment falls outside its span.
+    values: "`true` / `false` (default `true`)"
+  trimTrailingWhitespace:
+    description: Exclude trailing whitespace from each segment.
+    help: |
+      When enabled, whitespace at the end of a segment falls outside its span.
+    values: "`true` / `false` (default `true`)"
+  renumberCodes:
+    description: Renumber inline-code IDs within each segment in bilingual output.
+    help: |
+      Applies when a bilingual format writes the segments out: inline-code IDs
+      are renumbered from 1 within each segment. The overlay itself leaves the
+      runs as they are.
     values: "`true` / `false` (default `false`)"
+  rulesPath:
+    description: Path to an SRX 2.0 rules file (`srx` engine).
+    help: |
+      Replaces the built-in rules. One file serves source and target, since SRX
+      rules are keyed by language.
+    values: "file path"
+  provider:
+    description: AI provider for chunking (`llm` engine).
+    help: |
+      The provider that returns the chunks. When empty, `anthropic` is used.
+    values: "a provider id"
+  model:
+    description: Model name to request (`llm` engine).
+    help: |
+      The provider-specific model identifier. When omitted, the provider's
+      default model is used.
+    values: "string"
+  credential:
+    description: Saved credential name (`llm` engine).
+    help: |
+      The name of a credential saved with `kapi credentials add`.
+    values: "string"
+  instruction:
+    description: Guidance for how to chunk (`llm` engine).
+    help: |
+      Free-text guidance added to the chunking request.
+    values: "string"
+  maxChunkRunes:
+    description: Soft upper bound on chunk size in characters (`llm` engine).
+    help: |
+      `0` leaves the size to the model.
+    values: "integer (default `0`)"
 limitations:
   - The built-in rule set targets common Latin-script sentence boundaries; non-Latin scripts may need a custom SRX file.
+  - The `llm` engine calls a hosted provider unless a local one is chosen, and needs a credential for a hosted provider.
 processingNotes:
   - Operates on translatable blocks only; non-translatable blocks pass through unchanged.
-  - The resulting segment count is written to a block property.
+  - When the source is written to the sentence layer, the segment count is recorded in the block property `segment-count`.
 examples:
-  - title: Segment source text with default rules
-    description: Split source into sentences using the built-in rules.
+  - title: Segment the source with the default rules
+    description: Mark sentence boundaries using the built-in rules.
     config: |
       segmentSource: true
   - title: Re-segment with a custom SRX file
     description: Replace existing segmentation using project-specific rules.
     config: |
-      segmentSource: true
+      engine: srx
       overwriteSegmentation: true
-      sourceSrxPath: ./rules/segmentation.srx
+      rulesPath: ./rules/segmentation.srx
