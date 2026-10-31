@@ -107,9 +107,37 @@ type ToolRunConfig struct {
 	NewCollector func() flow.Collector
 	AfterTool    func() // called after tool execution completes (e.g. to clear progress)
 
-	// policy is the project's redaction policy as it applies to this run,
-	// settled once by RunToolOnFiles.
+	// policy is the project's redaction policy as it applies to the file this
+	// run reads, settled per file by RunToolOnFiles (filePolicy).
 	policy toolRunPolicy
+}
+
+// filePolicy returns cfg with the redaction policy the project declares for
+// file, so the chain built for that file redacts under the file's own rules.
+func (a *App) filePolicy(cfg ToolRunConfig, proj *project.KapiProject, file string) (ToolRunConfig, error) {
+	policy, err := a.toolRunPolicyFor(cfg.Project, proj, file, cfg.ToolName, cfg.ToolConfig)
+	if err != nil {
+		return cfg, err
+	}
+	cfg.policy = policy
+	return cfg, nil
+}
+
+// checkPackagePolicy refuses a run of a tool that calls a provider over a .kpz
+// package in a project that declares a redaction policy on a collection or a
+// content item. The run builds one chain for every file the package holds, and
+// those files may sit in collections under different policies, so no single
+// policy covers them.
+func (a *App) checkPackagePolicy(cfg ToolRunConfig, proj *project.KapiProject) error {
+	if cfg.Project == "" || !a.toolCallsProvider(cfg.ToolName, cfg.ToolConfig) {
+		return nil
+	}
+	for _, declared := range proj.DeclaredRedactions() {
+		if declared.At != "defaults.redaction" {
+			return fmt.Errorf("the project declares a redaction policy at %s, and %s would run over every file of %s under one policy. Run it on the project's files, so each file is redacted under its own policy", declared.At, cfg.ToolName, DisplayName(cfg.Files[0]))
+		}
+	}
+	return nil
 }
 
 // newToolChain builds the run's tool and the steps its redaction policy puts
@@ -133,13 +161,14 @@ func (a *App) RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 			return fmt.Errorf("load project %s: %w", cfg.Project, perr)
 		}
 	}
-	policy, err := a.toolRunPolicyFor(cfg.Project, proj, cfg.ToolName, cfg.ToolConfig)
-	if err != nil {
-		return err
-	}
-	cfg.policy = policy
 
 	if cfg.TargetFile != "" {
+		if len(cfg.Files) == 1 {
+			var err error
+			if cfg, err = a.filePolicy(cfg, proj, cfg.Files[0]); err != nil {
+				return err
+			}
+		}
 		return a.runToolOnPair(ctx, cfg)
 	}
 	// A tool run on a single .kpz transforms the workspace IN PLACE; output
@@ -147,6 +176,13 @@ func (a *App) RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 	if kpzWorkspaceInput(cfg.Files) {
 		if cfg.OutputTemplate != "" {
 			return errKpzTransformOutput
+		}
+		if err := a.checkPackagePolicy(cfg, proj); err != nil {
+			return err
+		}
+		var err error
+		if cfg, err = a.filePolicy(cfg, proj, cfg.Files[0]); err != nil {
+			return err
 		}
 		return a.transformKpzInPlace(ctx, cfg.Files[0], cfg.ToolName, func() ([]tool.Tool, func(), error) {
 			c, cerr := a.newToolChain(cfg)
@@ -166,6 +202,16 @@ func (a *App) RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 	}
 	if len(files) == 0 {
 		return errors.New("no files to process")
+	}
+	// Each file is read under the policy that governs it. A policy a run of
+	// one tool cannot apply refuses the run before any file is read.
+	runCfgs := make(map[string]ToolRunConfig, len(files))
+	for _, file := range files {
+		fileCfg, perr := a.filePolicy(cfg, proj, file)
+		if perr != nil {
+			return perr
+		}
+		runCfgs[file] = fileCfg
 	}
 
 	// In a project the recipe's defaults.encoding is the charset the run reads
@@ -267,7 +313,7 @@ func (a *App) RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 
 			// Suppress per-file trace writes in batch mode — the path has no
 			// {name} placeholder so every file would clobber the same target.
-			runCfg := cfg
+			runCfg := runCfgs[file]
 			if batchTrace {
 				runCfg.TracePath = ""
 			}

@@ -76,6 +76,44 @@ func TestExtractRedact_MergeRestores(t *testing.T) {
 	assert.NotContains(t, merged, "REDACTED", "placeholder leaked into merged output")
 }
 
+// TestExtractRedact_ACollectionsPolicyApplies: a policy declared on the
+// collection, with nothing under defaults and no flag, redacts the files the
+// collection holds on a plain `kapi extract`, and merge restores them.
+func TestExtractRedact_ACollectionsPolicyApplies(t *testing.T) {
+	dir := t.TempDir()
+	real, err := filepath.EvalSymlinks(dir)
+	require.NoError(t, err)
+	recipe := mergeProjectFixture(t, real)
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	proj.Collections[0].Redaction = &project.RedactionSpec{Enabled: true, Rules: "redaction.yaml"}
+	require.NoError(t, project.Save(recipe, proj))
+	writeJSONSource(t, real, "src/locales/en/app.json", `{"greeting":"Hello Mr Bean"}`)
+	require.NoError(t, os.WriteFile(filepath.Join(real, "redaction.yaml"), []byte(
+		"version: v1\nrules:\n  - term: \"Mr Bean\"\n    category: person\n"), 0o644))
+
+	out, err := runExtractCmd(t, recipe, "--no-memory")
+	require.NoError(t, err, "extract stdout: %s", out)
+
+	entries, err := os.ReadDir(filepath.Join(real, "out"))
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	xliffPath := filepath.Join(real, "out", entries[0].Name())
+	xliffData, err := os.ReadFile(xliffPath)
+	require.NoError(t, err)
+	assert.NotContains(t, string(xliffData), "Mr Bean", "the collection's policy keeps the value out of the XLIFF")
+	assert.Contains(t, string(xliffData), "REDACTED")
+
+	m := xliffSourceInnerRe.FindStringSubmatch(string(xliffData))
+	require.Len(t, m, 2)
+	editXLIFFTarget(t, xliffPath, strings.Replace(m[1], "Hello", "Bonjour", 1))
+	mergeOut, err := runMergeCmd(t, recipe, "-i", xliffPath, "--no-memory-update")
+	require.NoError(t, err, "merge stdout: %s", mergeOut)
+	data, err := os.ReadFile(filepath.Join(real, "src", "locales", "fr-FR", "app.json"))
+	require.NoError(t, err)
+	assert.Contains(t, string(data), "Bonjour Mr Bean")
+}
+
 // TestExtractRedact_NoRestoreFlag verifies --no-restore leaves the placeholder
 // in the merged output (originals stay only in the vault).
 func TestExtractRedact_NoRestoreKeepsPlaceholder(t *testing.T) {

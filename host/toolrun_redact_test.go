@@ -234,7 +234,7 @@ func TestToolRun_ChainCoverage(t *testing.T) {
 	recipe := redactProject(t, redactionYAML)
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
-	pol, err := a.toolRunPolicyFor(recipe, proj, "translate", remote)
+	pol, err := a.toolRunPolicyFor(recipe, proj, "", "translate", remote)
 	require.NoError(t, err)
 	require.NotNil(t, pol.redaction, "translate calls a provider")
 	c, err := a.chainFor(pol, "translate", remote, translate)
@@ -244,7 +244,7 @@ func TestToolRun_ChainCoverage(t *testing.T) {
 	assert.Equal(t, "redact", c.before[0].Name())
 	assert.Equal(t, "unredact", c.after[0].Name())
 
-	pol, err = a.toolRunPolicyFor(recipe, proj, "whitespace-correct", nil)
+	pol, err = a.toolRunPolicyFor(recipe, proj, "", "whitespace-correct", nil)
 	require.NoError(t, err)
 	assert.True(t, pol.declared)
 	assert.Nil(t, pol.redaction, "a tool that calls no provider runs alone")
@@ -268,7 +268,7 @@ func TestToolRun_QaToolCallsAProviderInAIModeOnly(t *testing.T) {
 		if config != "" {
 			cfg["mode"] = config
 		}
-		pol, err := a.toolRunPolicyFor(recipe, proj, "qa", cfg)
+		pol, err := a.toolRunPolicyFor(recipe, proj, "", "qa", cfg)
 		require.NoError(t, err)
 		assert.Equal(t, redacts, pol.redaction != nil, "mode %q", config)
 
@@ -277,4 +277,166 @@ func TestToolRun_QaToolCallsAProviderInAIModeOnly(t *testing.T) {
 		_, judges := built.(interface{ TotalUsage() aiprovider.TokenUsage })
 		assert.Equal(t, redacts, judges, "the tool the registry builds for mode %q", config)
 	}
+}
+
+// A policy a collection declares governs the files the collection holds, in
+// place of defaults.redaction: the provider reads each file under its own
+// rules, and the rule lists are not merged.
+const (
+	legalName  = "Project Nightfall"
+	bothNames  = `{"line": "Ada Lovelace leads Project Nightfall."}` + "\n"
+	legalRules = "version: v1\nrules:\n  - term: Project Nightfall\n    category: product\n"
+)
+
+// collectionRedactProject writes a project with the extra recipe block given
+// under defaults and a legal collection that withholds legalName under rules
+// of its own. Both docs/page.json and legal/memo.json hold both names.
+func collectionRedactProject(t *testing.T, defaults string) string {
+	t.Helper()
+	root := t.TempDir()
+	write := func(rel, body string) {
+		t.Helper()
+		path := filepath.Join(root, filepath.FromSlash(rel))
+		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o700))
+		require.NoError(t, os.WriteFile(path, []byte(body), 0o600))
+	}
+	write(project.RecipeFileName, "version: v1\nname: collection-redact\ndefaults:\n  source_language: en\n"+defaults+
+		"collections:\n"+
+		"  - name: legal\n    redaction:\n      enabled: true\n      rules: legal.yaml\n      detectors: [rules]\n    content:\n      - path: \"legal/*.json\"\n"+
+		"  - name: docs\n    content:\n      - path: \"docs/*.json\"\n")
+	write("redact.yaml", redactRules)
+	write("legal.yaml", legalRules)
+	write("docs/page.json", bothNames)
+	write("legal/memo.json", bothNames)
+	require.NoError(t, os.MkdirAll(filepath.Join(root, ".kapi"), 0o700))
+	return filepath.Join(root, project.RecipeFileName)
+}
+
+// termExtractRun is `kapi exec term-extract <files> --provider demo` in the
+// project at recipe.
+func termExtractRun(a *App, recipe string, files ...string) ToolRunConfig {
+	return ToolRunConfig{
+		ToolName:   "term-extract",
+		Project:    recipe,
+		Files:      files,
+		ToolConfig: map[string]any{"provider": "demo"},
+		NewTool: func() (tool.Tool, error) {
+			return a.ToolReg.NewToolWithConfig(registry.ToolID("term-extract"), map[string]any{"provider": "demo"}, "")
+		},
+	}
+}
+
+func TestToolRun_ACollectionsPolicyGovernsItsFiles(t *testing.T) {
+	isolateKapiEnv(t)
+	onlyDemoProvider(t)
+	recipe := collectionRedactProject(t, redactionYAML)
+	root := filepath.Dir(recipe)
+	a := &App{SourceLang: "en"}
+	a.InitRegistries()
+
+	t.Run("a file in the collection", func(t *testing.T) {
+		saw := providerSaw(t)
+		require.NoError(t, a.RunToolOnFiles(t.Context(), termExtractRun(a, recipe, filepath.Join(root, "legal", "memo.json"))))
+		sent := saw()
+		require.Contains(t, sent, "leads", "the run asked the provider about the block")
+		assert.NotContains(t, sent, legalName, "the collection's rules withhold its name")
+		assert.Contains(t, sent, redactedName, "the collection's policy replaces the defaults, so their rule does not apply")
+	})
+
+	t.Run("a file outside it", func(t *testing.T) {
+		saw := providerSaw(t)
+		require.NoError(t, a.RunToolOnFiles(t.Context(), termExtractRun(a, recipe, filepath.Join(root, "docs", "page.json"))))
+		sent := saw()
+		require.Contains(t, sent, "leads")
+		assert.NotContains(t, sent, redactedName, "the defaults withhold their name")
+		assert.Contains(t, sent, legalName, "the collection's rule governs only the collection's files")
+	})
+
+	t.Run("one run over both", func(t *testing.T) {
+		saw := providerSaw(t)
+		require.NoError(t, a.RunToolOnFiles(t.Context(), termExtractRun(a, recipe,
+			filepath.Join(root, "legal", "memo.json"), filepath.Join(root, "docs", "page.json"))))
+		sent := saw()
+		// A placeholder is an inline code, which the prompt's text leaves out.
+		assert.Contains(t, sent, "Text: Ada Lovelace leads .", "the legal file reads under the collection's rules")
+		assert.Contains(t, sent, "Text:  leads Project Nightfall.", "the docs file reads under the defaults")
+	})
+}
+
+// A package holds files of every collection, and a run over it builds one
+// chain, so under a collection's policy a tool that calls a provider refuses
+// the package before reading it.
+func TestToolRun_RefusesAPackageUnderACollectionsPolicy(t *testing.T) {
+	isolateKapiEnv(t)
+	onlyDemoProvider(t)
+	recipe := collectionRedactProject(t, redactionYAML)
+	a := &App{SourceLang: "en"}
+	a.InitRegistries()
+	pkg := filepath.Join(filepath.Dir(recipe), "work.kpz")
+
+	err := a.RunToolOnFiles(t.Context(), termExtractRun(a, recipe, pkg))
+	require.ErrorContains(t, err, "collections[0].redaction")
+	require.ErrorContains(t, err, "Run it on the project's files")
+
+	upper := upperRun(a, pkg)
+	upper.Project = recipe
+	upper.ToolConfig = map[string]any{"mode": "upper"}
+	err = a.RunToolOnFiles(t.Context(), upper)
+	require.Error(t, err, "the package does not exist")
+	assert.NotContains(t, err.Error(), "redaction policy", "a tool that calls no provider runs over a package as before")
+}
+
+// A flow over a package runs one chain over files of every collection, so the
+// coverage gate holds it to any policy the recipe declares, as a project flow
+// is held.
+func TestFlow_APackageUnderACollectionsPolicyNeedsARedactStep(t *testing.T) {
+	isolateKapiEnv(t)
+	onlyDemoProvider(t)
+	recipe := collectionRedactProject(t, "")
+	root := filepath.Dir(recipe)
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	a := &App{SourceLang: "en", ProjectContext: project.NewProjectContext(proj, recipe)}
+	a.InitRegistries()
+
+	pkg := filepath.Join(root, "work.kpz")
+	assert.True(t, a.flowRequiresRedaction(pkg), "a package is held to any declared policy")
+	assert.True(t, a.flowRequiresRedaction(filepath.Join(root, "legal", "memo.json")))
+	assert.False(t, a.flowRequiresRedaction(filepath.Join(root, "docs", "page.json")), "no policy covers the docs file")
+	assert.True(t, a.flowRequiresRedaction(""))
+
+	_, cleanup, err := a.BuildFlowTools("translate", pkg, "en", "fr")
+	if cleanup != nil {
+		cleanup()
+	}
+	require.ErrorContains(t, err, "no redact step")
+}
+
+func TestToolRun_ACollectionsPolicyWithNoDefaults(t *testing.T) {
+	isolateKapiEnv(t)
+	onlyDemoProvider(t)
+	recipe := collectionRedactProject(t, "")
+	root := filepath.Dir(recipe)
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	a := &App{SourceLang: "en"}
+	a.InitRegistries()
+	demo := map[string]any{"provider": "demo"}
+
+	pol, err := a.toolRunPolicyFor(recipe, proj, filepath.Join(root, "legal", "memo.json"), "term-extract", demo)
+	require.NoError(t, err)
+	assert.True(t, pol.declared, "the coverage check holds the collection's file to its policy")
+	require.NotNil(t, pol.redaction)
+	_, err = a.chainFor(pol, "term-extract", demo, &tool.BaseTool{ToolName: "term-extract"})
+	require.NoError(t, err, "the chain built for the collection's file passes the coverage check")
+
+	pol, err = a.toolRunPolicyFor(recipe, proj, filepath.Join(root, "docs", "page.json"), "term-extract", demo)
+	require.NoError(t, err)
+	assert.False(t, pol.declared, "no policy governs a file outside the collection")
+
+	saw := providerSaw(t)
+	require.NoError(t, a.RunToolOnFiles(t.Context(), termExtractRun(a, recipe, filepath.Join(root, "legal", "memo.json"))))
+	sent := saw()
+	require.Contains(t, sent, "leads")
+	assert.NotContains(t, sent, legalName)
 }

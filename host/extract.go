@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -36,18 +37,16 @@ import (
 // hooks into the extract command. None are required today.
 type ExtractCmdOptions struct{}
 
-// resolveRedaction determines the effective redaction spec for an extract
-// run, combining the project recipe's defaults with the --redact /
-// --redact-rules flags. Returns nil when redaction is off.
-func resolveRedaction(cmd Command, ctx *project.ProjectContext, rootDir string) (*project.RedactionSpec, error) {
+// resolveRedaction determines the effective redaction spec for the file at
+// relPath in an extract run, combining the policy the recipe declares for it
+// (RedactionFor) with the --redact / --redact-rules flags. Returns nil when
+// redaction is off for the file.
+func resolveRedaction(cmd Command, ctx *project.ProjectContext, rootDir, relPath string) (*project.RedactionSpec, error) {
 	redactFlag, _ := cmd.Flags().GetBool("redact")
 	redactRules, _ := cmd.Flags().GetString("redact-rules")
 
-	var base *project.RedactionSpec
-	if ctx.Project != nil {
-		base = ctx.Project.Defaults.Redaction
-	}
-	enabled := redactFlag || redactRules != "" || (base != nil && base.Enabled)
+	base := RedactionFor(ctx.Project, relPath)
+	enabled := redactFlag || redactRules != "" || base != nil
 	if !enabled {
 		return nil, nil
 	}
@@ -64,7 +63,7 @@ func resolveRedaction(cmd Command, ctx *project.ProjectContext, rootDir string) 
 		eff.Detectors = []string{"rules"}
 	}
 	if eff.Rules == "" {
-		return nil, errors.New("extract: redaction is enabled but no rules file is set. Set defaults.redaction.rules in the recipe or pass --redact-rules")
+		return nil, fmt.Errorf("extract: redaction is enabled for %s but no rules file is set. Set rules: on the redaction policy that covers it in the recipe (defaults.redaction, or its collection's or item's redaction:) or pass --redact-rules", relPath)
 	}
 	if !filepath.IsAbs(eff.Rules) {
 		eff.Rules = filepath.Join(rootDir, eff.Rules)
@@ -169,12 +168,22 @@ func (a *App) RunExtract(cmd Command) error {
 		return err
 	}
 
-	redactionSpec, err := resolveRedaction(cmd, pctx, layout.Root)
-	if err != nil {
-		return err
+	// Each source is redacted under the policy that governs it, settled for
+	// every source before any is read.
+	redactionSpecs := make(map[string]*project.RedactionSpec, len(files))
+	var redactionRules []string
+	for _, src := range files {
+		spec, err := resolveRedaction(cmd, pctx, layout.Root, filepath.ToSlash(src.Relative))
+		if err != nil {
+			return err
+		}
+		redactionSpecs[src.Relative] = spec
+		if spec != nil && !slices.Contains(redactionRules, spec.Rules) {
+			redactionRules = append(redactionRules, spec.Rules)
+		}
 	}
 	redactionVault := ""
-	if redactionSpec != nil {
+	if len(redactionRules) > 0 {
 		if err := layout.PrepareVault(); err != nil {
 			return fmt.Errorf("extract: %w", err)
 		}
@@ -227,8 +236,8 @@ func (a *App) RunExtract(cmd Command) error {
 		Targets: localeStrings(targets),
 		Sources: len(files),
 	}
-	if redactionSpec != nil {
-		res.RedactionRules = redactionSpec.Rules
+	if redactionVault != "" {
+		res.RedactionRules = strings.Join(redactionRules, ", ")
 		res.RedactionVault = redactionVault
 	}
 
@@ -318,7 +327,7 @@ func (a *App) RunExtract(cmd Command) error {
 				format:         format,
 				xliffVersion:   xliffVersion,
 				tm:             tm,
-				redaction:      redactionSpec,
+				redaction:      redactionSpecs[src.Relative],
 				redactionVault: redactionVault,
 				revisions:      revisions,
 			})

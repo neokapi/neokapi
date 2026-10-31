@@ -66,7 +66,7 @@ var contractless = map[string]func(reg *registry.ToolRegistry, rt *readingTool){
 	},
 }
 
-const contractlessRefusal = "kapi refused to run contractless: the project declares defaults.redaction, and contractless has no contract that kapi knows, so kapi cannot tell whether it sends blocks to a provider. Declare its side effects in the toolMeta of the schema its plugin manifest names, or run it in a flow with a redact step ahead of it"
+const contractlessRefusal = "kapi refused to run contractless: the project declares a redaction policy at defaults.redaction, and contractless has no contract that kapi knows, so kapi cannot tell whether it sends blocks to a provider. Declare its side effects in the toolMeta of the schema its plugin manifest names, or run it in a flow with a redact step ahead of it"
 
 func TestToolRun_RefusesAToolWithNoContractUnderAPolicy(t *testing.T) {
 	isolateKapiEnv(t)
@@ -82,6 +82,38 @@ func TestToolRun_RefusesAToolWithNoContractUnderAPolicy(t *testing.T) {
 			err := a.RunToolOnFiles(t.Context(), readerRun("contractless", recipe, rt))
 			require.EqualError(t, err, contractlessRefusal)
 			assert.Empty(t, rt.sources(), "the tool reads no block")
+		})
+	}
+}
+
+// A package holds files of every collection, so a policy declared on one
+// collection alone governs a run over it, and a tool with no known contract
+// is refused there too. A file outside that collection, with no default
+// policy, runs the tool as it is.
+func TestToolRun_RefusesAToolWithNoContractOverAPackageUnderACollectionsPolicy(t *testing.T) {
+	isolateKapiEnv(t)
+	onlyDemoProvider(t)
+	recipe := collectionRedactProject(t, "")
+	root := filepath.Dir(recipe)
+	for name, register := range contractless {
+		t.Run(name, func(t *testing.T) {
+			a := &App{SourceLang: "en"}
+			a.InitRegistries()
+			rt := &readingTool{}
+			register(a.ToolReg, rt)
+
+			run := readerRun("contractless", recipe, rt)
+			run.Files = []string{filepath.Join(root, "work.kpz")}
+			err := a.RunToolOnFiles(t.Context(), run)
+			require.ErrorContains(t, err, "kapi refused to run contractless: the project declares a redaction policy at collections[0].redaction")
+
+			run.Files = []string{filepath.Join(root, "legal", "memo.json")}
+			require.ErrorContains(t, a.RunToolOnFiles(t.Context(), run), "collections[0].redaction")
+			assert.Empty(t, rt.sources(), "the tool reads no block")
+
+			run.Files = []string{filepath.Join(root, "docs", "page.json")}
+			require.NoError(t, a.RunToolOnFiles(t.Context(), run))
+			assert.Contains(t, rt.sources(), redactedName, "no policy covers the docs file")
 		})
 	}
 }

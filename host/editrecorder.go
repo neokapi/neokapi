@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
@@ -34,14 +36,15 @@ import (
 // with the edition it leaves, because the log is that home; the recorder
 // records the rest of the change set.
 //
-// A project that declares redaction (defaults.redaction) keeps no withheld
-// value in a record, because a record travels to every context backend the
-// project syncs with (C-10). The runs a record keeps, and its note, are
-// redacted with the project's rules first, the originals going to the project
-// vault as ingest puts them, and the change set as sent, whose free text no
-// rule reaches through its structure, is left out. A policy that detects
-// entities needs the entity annotations of a read, which a record's runs do
-// not carry, so under one the record keeps no runs and no note.
+// A project that declares redaction keeps no withheld value in a record,
+// because a record travels to every context backend the project syncs with
+// (C-10). The runs a record keeps of each document, and its note, are redacted
+// first under the policy that governs the document's file (RedactionFor), the
+// originals going to the project vault as ingest puts them. The change set as
+// sent, whose free text no rule reaches through its structure, is left out of
+// every record of a project that declares a policy for any file. A policy that
+// detects entities needs the entity annotations of a read, which a record's
+// runs do not carry, so under one the record keeps no runs and no note.
 
 // homeWorkspace is the home whose text the log holds (change.DocResult.Home).
 const homeWorkspace = workhome.Name
@@ -65,11 +68,8 @@ func (a *App) EditRecorder(ctx context.Context, root string) (change.Recorder, e
 		// would carry whatever the edit held.
 		return nil, fmt.Errorf("record edits: read the redaction policy: %w", err)
 	default:
-		if spec := ProjectRedaction(proj); spec != nil {
-			if err := layout.PrepareVault(); err != nil {
-				return nil, fmt.Errorf("record edits: %w", err)
-			}
-			r.redaction = &recordRedaction{spec: spec, root: layout.Root, vault: layout.RedactionVaultPath()}
+		if r.redaction, err = newRecordRedaction(a, proj, layout); err != nil {
+			return nil, fmt.Errorf("record edits: %w", err)
 		}
 	}
 	return r, nil
@@ -272,68 +272,149 @@ func overriddenIn(doc string, findings []change.Finding) []change.Finding {
 	return out
 }
 
-// recordRedaction is a project's declared redaction policy as the recorder
-// applies it to what a record keeps.
+// recordRedaction is a project's declared redaction policies as the recorder
+// applies them to what a record keeps: the runs of each document under the
+// policy that governs the document's file (RedactionFor).
 type recordRedaction struct {
-	spec  *project.RedactionSpec
+	app   *App
+	proj  *project.KapiProject
 	root  string
 	vault string
 }
 
-// apply redacts the runs and the notes of a record's edits in place, in one
-// pass of the redact tool. A nil policy leaves them as they are.
+// newRecordRedaction returns the redaction a record of the project rooted at
+// root applies, or nil when proj declares no policy.
+func newRecordRedaction(a *App, proj *project.KapiProject, layout project.Layout) (*recordRedaction, error) {
+	if !RedactionDeclared(proj) {
+		return nil, nil
+	}
+	if err := layout.PrepareVault(); err != nil {
+		return nil, err
+	}
+	return &recordRedaction{app: a, proj: proj, root: layout.Root, vault: layout.RedactionVaultPath()}, nil
+}
+
+// policiesFor returns the policy that governs a document, named by its key
+// and, where the caller knows it, its project-relative path, and whether a
+// record of the document can keep runs at all. A document with no path is
+// looked up in the project's document index. A document whose file is still
+// unknown falls under every policy the project declares. Under one, it is
+// redacted with that one. Under several, no single pass of the redact tool
+// covers it, and the passes in turn would number their tokens alike and
+// overwrite each other's originals in the vault, so its record keeps no runs
+// and no note. A policy that detects entities keeps none either.
+func (r *recordRedaction) policiesFor(ctx context.Context, key, path string) (policies []project.ResolvedRedaction, keepsRuns bool) {
+	if path == "" && key != "" {
+		path, _ = r.app.documentIndexOrEmpty(ctx, r.root).PathOf(key)
+	}
+	if path == "" {
+		policies = r.proj.DeclaredRedactions()
+		return policies, len(policies) <= 1 && !detectsEntities(policies)
+	}
+	path = filepath.ToSlash(path)
+	// An archive member (container!entry) sits in the container's file.
+	if i := strings.Index(path, "!"); i > 0 {
+		path = path[:i]
+	}
+	if resolved := r.proj.RedactionForPath(path); resolved.Spec != nil {
+		policies = []project.ResolvedRedaction{resolved}
+	}
+	return policies, !detectsEntities(policies)
+}
+
+// detectsEntities reports a policy among policies that detects entities.
+func detectsEntities(policies []project.ResolvedRedaction) bool {
+	return slices.ContainsFunc(policies, func(p project.ResolvedRedaction) bool {
+		return slices.Contains(p.Spec.Detectors, "entities")
+	})
+}
+
+// redactRuns is a set of run sequences redacted together under one policy.
+// Each sequence is redacted as the source of a block of its own, named by the
+// content it holds, so the originals the vault keeps under that name are
+// always the ones the placeholders replaced.
+type redactRuns struct {
+	spec  *project.RedactionSpec
+	ids   []string
+	sinks []*[]model.Run
+}
+
+func (g *redactRuns) add(id string, runs *[]model.Run) {
+	if len(*runs) > 0 {
+		g.ids = append(g.ids, id)
+		g.sinks = append(g.sinks, runs)
+	}
+}
+
+// redactGroups redacts each set under its policy, in recipe order of the
+// policies, and writes the result back to each sequence. A sequence belongs
+// to one set only (policiesFor), so the vault never holds two passes' tokens
+// for one sequence.
+func (r *recordRedaction) redactGroups(ctx context.Context, groups map[string]*redactRuns) error {
+	for _, declared := range r.proj.DeclaredRedactions() {
+		g := groups[declared.At]
+		if g == nil || len(g.ids) == 0 {
+			continue
+		}
+		blocks := make([]*model.Block, len(g.ids))
+		for i, id := range g.ids {
+			b := &model.Block{ID: id, Translatable: true}
+			b.SetSourceRuns(slices.Clone(*g.sinks[i]))
+			blocks[i] = b
+		}
+		if err := RedactAtIngest(ctx, blocks, g.spec, r.root, r.vault, ""); err != nil {
+			return err
+		}
+		for i, b := range blocks {
+			src, _ := b.Edition(model.EditionKey{})
+			*g.sinks[i] = src.Runs
+		}
+	}
+	return nil
+}
+
+// apply redacts the runs and the notes of a record's edits in place, each
+// edit under the policy of its document. A nil redaction leaves them as they
+// are. A document whose record can keep no runs (policiesFor) is left with no
+// runs and no note.
 func (r *recordRedaction) apply(ctx context.Context, edits []projector.Edit) error {
 	if r == nil {
 		return nil
 	}
-	if slices.Contains(r.spec.Detectors, "entities") {
-		for i := range edits {
-			edits[i].Note = ""
-			for j := range edits[i].Transitions {
-				edits[i].Transitions[j].BeforeRuns, edits[i].Transitions[j].AfterRuns = nil, nil
-			}
-		}
-		return nil
-	}
-	// Each sequence is redacted as the source of a block of its own, named by
-	// the content it holds, so the originals the vault keeps under that name
-	// are always the ones the placeholders replaced.
-	var (
-		blocks []*model.Block
-		sinks  []*[]model.Run
-	)
-	add := func(id string, runs *[]model.Run) {
-		if len(*runs) == 0 {
-			return
-		}
-		b := &model.Block{ID: id, Translatable: true}
-		b.SetSourceRuns(slices.Clone(*runs))
-		blocks = append(blocks, b)
-		sinks = append(sinks, runs)
-	}
+	groups := map[string]*redactRuns{}
 	notes := make([][]model.Run, len(edits))
 	for i := range edits {
 		e := &edits[i]
+		policies, keepsRuns := r.policiesFor(ctx, e.Doc.Key, e.Doc.Path)
+		if !keepsRuns {
+			e.Note = ""
+			for j := range e.Transitions {
+				e.Transitions[j].BeforeRuns, e.Transitions[j].AfterRuns = nil, nil
+			}
+			continue
+		}
+		if len(policies) == 0 {
+			continue
+		}
+		p := policies[0]
+		g := groups[p.At]
+		if g == nil {
+			g = &redactRuns{spec: p.Spec}
+			groups[p.At] = g
+		}
 		for j := range e.Transitions {
 			t := &e.Transitions[j]
 			at := "edit:" + e.Doc.Key + "#" + t.Block + "@" + t.Edition + ":"
-			add(at+t.Before, &t.BeforeRuns)
-			add(at+t.After, &t.AfterRuns)
+			g.add(at+t.Before, &t.BeforeRuns)
+			g.add(at+t.After, &t.AfterRuns)
 		}
 		if e.Note != "" {
 			notes[i] = []model.Run{{Text: &model.TextRun{Text: e.Note}}}
-			add("note:"+model.ComputeContentHash(e.Note), &notes[i])
+			g.add("note:"+model.ComputeContentHash(e.Note), &notes[i])
 		}
 	}
-	if len(blocks) == 0 {
-		return nil
-	}
-	if err := RedactAtIngest(ctx, blocks, r.spec, r.root, r.vault, ""); err != nil {
+	if err := r.redactGroups(ctx, groups); err != nil {
 		return err
-	}
-	for i, b := range blocks {
-		src, _ := b.Edition(model.EditionKey{})
-		*sinks[i] = src.Runs
 	}
 	for i := range edits {
 		if notes[i] != nil {

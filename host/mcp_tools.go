@@ -430,6 +430,7 @@ func runToolOverText(ctx context.Context, chain []tool.Tool, text string, target
 
 // mcpToolRunPolicy reads the redaction policy of the project one framework
 // tool call acts on: the one it names, else the one the server started in.
+// The call's text sits in no file, so `defaults.redaction` governs it.
 func (a *App) mcpToolRunPolicy(named, toolName string, config map[string]any) (toolRunPolicy, error) {
 	recipe, err := a.ResolveMCPCallProject(named)
 	if err != nil || recipe == "" {
@@ -439,7 +440,7 @@ func (a *App) mcpToolRunPolicy(named, toolName string, config map[string]any) (t
 	if err != nil {
 		return toolRunPolicy{}, fmt.Errorf("load project %s: %w", DisplayName(recipe), err)
 	}
-	return a.toolRunPolicyFor(recipe, proj, toolName, config)
+	return a.toolRunPolicyFor(recipe, proj, "", toolName, config)
 }
 
 // serializeBlock renders a processed block into the JSON-friendly output shape.

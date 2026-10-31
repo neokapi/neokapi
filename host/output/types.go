@@ -393,7 +393,9 @@ type ExtractOutput struct {
 	Reused   int                 `json:"reused,omitempty"`
 	Leverage LeverageOutput      `json:"leverage"`
 	Failures int                 `json:"failures,omitempty"`
-	// Redaction reporting (set when the batch ran redacted).
+	// Redaction reporting (set when the batch ran redacted). RedactionRules
+	// lists the rules file of each policy the batch applied, comma-separated,
+	// in the order the sources first named them.
 	RedactionRules string `json:"redaction_rules,omitempty"`
 	RedactionVault string `json:"redaction_vault,omitempty"`
 }

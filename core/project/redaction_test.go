@@ -8,36 +8,159 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func TestRedactionSpec_Validate(t *testing.T) {
-	p := &KapiProject{
-		Version:  "v1",
-		Name:     "app",
-		Defaults: Defaults{Redaction: &RedactionSpec{Enabled: true, Rules: ".kapi/redaction.yaml", Detectors: []string{"rules", "entities"}}},
-	}
-	require.NoError(t, p.Validate())
-
-	p.Defaults.Redaction.Detectors = []string{"bogus"}
-	assert.Error(t, p.Validate())
-}
-
-func TestRedactionSpec_YAMLRoundtrip(t *testing.T) {
-	const doc = `
-version: v1
-name: app
+// redactionRecipe declares a policy at every level a recipe can: the
+// defaults, a named collection, one of its items, a bare entry, and an item
+// that switches redaction off.
+const redactionRecipe = `version: v1
+name: redaction
 defaults:
   source_language: en
-  target_languages: [fr]
   redaction:
     enabled: true
-    rules: .kapi/redaction.yaml
-    detectors: [rules]
-    placeholder: "[REDACTED:{category}]"
+    rules: default.yaml
+collections:
+  - name: legal
+    redaction:
+      enabled: true
+      rules: legal.yaml
+      detectors: [rules]
+    content:
+      - path: "legal/*.md"
+      - path: "legal/contracts/*.md"
+        redaction:
+          enabled: true
+          rules: contracts.yaml
+  - path: "hr/*.json"
+    format: json
+    redaction:
+      enabled: true
+      rules: hr.yaml
+  - name: public
+    content:
+      - path: "public/*.md"
+        redaction:
+          enabled: false
+  - name: docs
+    content:
+      - path: "docs/*.md"
 `
+
+func TestRedactionForPath_TheMostSpecificDeclarationGoverns(t *testing.T) {
+	p := loadRecipe(t, redactionRecipe)
+
+	for _, tc := range []struct {
+		path, rules, at string
+	}{
+		{"legal/terms.md", "legal.yaml", "collections[0].redaction"},
+		{"legal/contracts/nda.md", "contracts.yaml", "collections[0].content[1].redaction"},
+		{"hr/staff.json", "hr.yaml", "collections[1].redaction"},
+		{"docs/a.md", "default.yaml", "defaults.redaction"},
+		{"elsewhere.md", "default.yaml", "defaults.redaction"},
+		{"", "default.yaml", "defaults.redaction"},
+	} {
+		t.Run(tc.path, func(t *testing.T) {
+			got := p.RedactionForPath(tc.path)
+			require.NotNil(t, got.Spec)
+			assert.Equal(t, tc.rules, got.Spec.Rules)
+			assert.Equal(t, tc.at, got.At)
+		})
+	}
+
+	t.Run("a declaration replaces the defaults whole", func(t *testing.T) {
+		got := p.RedactionForPath("legal/contracts/nda.md")
+		assert.Empty(t, got.Spec.Detectors, "the item's policy carries no detectors of the collection's")
+	})
+
+	t.Run("a declaration switched off governs its files with none", func(t *testing.T) {
+		got := p.RedactionForPath("public/index.md")
+		assert.Nil(t, got.Spec)
+		assert.Equal(t, "collections[2].content[0].redaction", got.At)
+	})
+
+	t.Run("the spec is a copy", func(t *testing.T) {
+		got := p.RedactionForPath("legal/terms.md")
+		got.Spec.Detectors[0] = "entities"
+		assert.Equal(t, []string{"rules"}, p.Collections[0].Redaction.Detectors)
+	})
+}
+
+func TestDeclaredRedactions_ListsEveryPolicySwitchedOnInRecipeOrder(t *testing.T) {
+	p := loadRecipe(t, redactionRecipe)
+	var at []string
+	for _, r := range p.DeclaredRedactions() {
+		at = append(at, r.At)
+	}
+	assert.Equal(t, []string{
+		"defaults.redaction",
+		"collections[0].redaction",
+		"collections[0].content[1].redaction",
+		"collections[1].redaction",
+	}, at)
+	assert.True(t, p.DeclaresRedaction())
+
+	only := loadRecipe(t, `version: v1
+name: only-a-collection
+defaults:
+  source_language: en
+collections:
+  - name: legal
+    redaction:
+      enabled: true
+      rules: legal.yaml
+    content:
+      - path: "legal/*.md"
+  - name: docs
+    content:
+      - path: "docs/*.md"
+`)
+	assert.True(t, only.DeclaresRedaction(), "a policy on one collection is a declared policy")
+	assert.Nil(t, only.RedactionForPath("docs/a.md").Spec, "a file outside that collection has none")
+	assert.Nil(t, (*KapiProject)(nil).RedactionForPath("docs/a.md").Spec)
+	assert.False(t, (&KapiProject{}).DeclaresRedaction())
+}
+
+// A collection's or an item's redaction replaces the defaults, so one that
+// names rules without `enabled: true` would switch redaction off while
+// reading as a policy. It is refused at load; `enabled: false` alone is not,
+// and neither is the defaults' declared-but-off form.
+func TestValidate_AScopedRedactionMustBeSwitchedOn(t *testing.T) {
+	const msg = "redaction: rules, detectors or placeholder are set but enabled is not true; set enabled: true, or enabled: false alone to switch redaction off for these files"
+	load := func(defaults, scoped string) error {
+		var p KapiProject
+		require.NoError(t, yaml.Unmarshal([]byte(`version: v1
+name: scoped
+defaults:
+  source_language: en
+`+defaults+`collections:
+`+scoped), &p))
+		return p.Validate()
+	}
+	require.EqualError(t, load("", "  - path: \"hr/*.json\"\n    redaction:\n      rules: hr.yaml\n"),
+		"collections[0]: "+msg, "a bare entry's rules without enabled")
+	require.EqualError(t, load("", "  - name: legal\n    redaction:\n      detectors: [rules]\n    content:\n      - path: \"legal/*.md\"\n"),
+		"collections[0]: "+msg)
+	require.EqualError(t, load("", "  - name: legal\n    content:\n      - path: \"legal/*.md\"\n        redaction:\n          enabled: false\n          placeholder: \"[X]\"\n"),
+		"collections[0].content[0]: "+msg, "an item's placeholder under enabled: false")
+
+	require.NoError(t, load("", "  - name: public\n    redaction:\n      enabled: false\n    content:\n      - path: \"public/*.md\"\n"),
+		"enabled: false alone switches the collection off")
+	require.NoError(t, load("  redaction:\n    rules: default.yaml\n", "  - path: \"docs/*.md\"\n"),
+		"defaults.redaction keeps its declared-but-off form")
+}
+
+func TestValidate_ACollectionsRedactionDetectors(t *testing.T) {
 	var p KapiProject
-	require.NoError(t, yaml.Unmarshal([]byte(doc), &p))
-	require.NoError(t, p.Validate())
-	require.NotNil(t, p.Defaults.Redaction)
-	assert.True(t, p.Defaults.Redaction.Enabled)
-	assert.Equal(t, ".kapi/redaction.yaml", p.Defaults.Redaction.Rules)
-	assert.Equal(t, []string{"rules"}, p.Defaults.Redaction.Detectors)
+	require.NoError(t, yaml.Unmarshal([]byte(`version: v1
+name: bad
+defaults:
+  source_language: en
+collections:
+  - name: legal
+    redaction:
+      enabled: true
+      detectors: [regex]
+    content:
+      - path: "legal/*.md"
+`), &p))
+	require.ErrorContains(t, p.Validate(), `collections[0]: redaction: unknown detector "regex"`)
 }

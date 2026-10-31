@@ -306,6 +306,7 @@ func sanitizeContent(coll project.Collection, index int, note func(string, ...an
 	}
 	coll.Base = sanitizeRecipePath(coll.Base, where+".base", note)
 	coll.Target = sanitizeRecipePath(coll.Target, where+".target", note)
+	coll.Redaction = sanitizeRedaction(coll.Redaction, where+".redaction.rules", note)
 	coll.Extras = sanitizeExtras(coll.Extras, where+".", note)
 
 	if len(coll.Content) > 0 {

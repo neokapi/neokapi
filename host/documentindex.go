@@ -73,6 +73,17 @@ func (d DocumentIndex) Key(rel string) string {
 	return reconcile.DocumentKeyFor(rel)
 }
 
+// PathOf returns the project-relative path of the document the project
+// resolved under key, and false when the index holds no document by that key.
+func (d DocumentIndex) PathOf(key string) (string, bool) {
+	for path, k := range d.byPath {
+		if k == key {
+			return path, true
+		}
+	}
+	return "", false
+}
+
 // documentKey is DocumentIndex.Key for one project-relative path, asked of
 // the store for that path alone (state.WorkStore.DocumentKey), for a caller
 // naming a single document: resolving the whole index reads every document

@@ -153,6 +153,7 @@ collections:
 | `source_language`  | string          | Overrides `defaults.source_language` for this collection                                                  |
 | `target_languages` | string[]        | Overrides `defaults.target_languages` for this collection                                                 |
 | `source_only`      | bool            | The collection has no target language: `kapi up` skips it and target-coverage gates exclude it. Rejected if the collection or any item also carries a target |
+| `redaction`        | RedactionSpec   | The redaction policy for the files this collection holds, on a named collection or a bare entry. It replaces `defaults.redaction` for those files (see [redaction](#redaction)) |
 | `path`             | string          | Bare entries only: the glob, written instead of `content:`                                                |
 | `format`           | string or map   | Bare entries only                                                                                         |
 | `target`           | string          | Bare entries only                                                                                          |
@@ -178,7 +179,7 @@ intent, and loading fails if the collection contradicts it. See
 | `target_languages` | string[]      | Overrides the collection's and the project's target languages                             |
 | `channel`          | string        | Overrides the collection's `channel:` for the files this item matches (see [Profiles and channels](#profiles-and-channels)) |
 | `coordinates`      | map           | The declared axes of the files this item matches, overlaid per axis on the collection's `coordinates:`. For example, one neighbourhood inside a campaign's city (see [Declared axes](#declared-axes)) |
-| `redaction`        | RedactionSpec | Overrides `defaults.redaction` for this item                                              |
+| `redaction`        | RedactionSpec | The redaction policy for the files this item matches. It replaces the collection's `redaction:` and `defaults.redaction` for those files (see [redaction](#redaction)) |
 | `comments`         | bool or map   | Declares the comments in the matched files as content to check: Go source, read for its comments alone, and YAML, XML-based, HTML, Markdown, MDX, PO and properties formats, whose comments are checked beside the values their readers extract. The map form declares them too, and its `directives` list names markers your own tools read at the start of a comment line, which are set aside beside those under `defaults.comments.directives`. Its `channel` places the comments at a point of their own, a qualified `profile/channel`: each comment is checked under that point's voice and terms, and the rest of the file stays at the item's point. Its `only: true` declares the files for their comments alone: kapi checks the comments and reads none of the values, so `kapi up`, flow runs, `kapi merge`, `kapi extract`, `kapi stats`, `kapi status` coverage and the `--ship` gates leave the values alone, and the item cannot also set `target`, `target_languages`, `redaction`, `format.config` or `format.preset`. Go source is read for its comments alone with or without `only`. A format that supplies no comments makes the check report that it did not run (see [Comments in source code](/kapi/recipes/verify-content#comments-in-source-code)) |
 
 #### base
@@ -604,7 +605,7 @@ bounded profile against the current time and labels it `active`, `upcoming` or
 | `jobs`             | int                 | How many target languages one `kapi up` pass runs concurrently. `0` (default) leaves it to the runner (4); `--jobs` overrides per run |
 | `translate_after`  | string              | The source status a block must reach before the loop translates it (see [translate_after](#defaults-translate-after)) |
 
-Individual content items can override `redaction` per entry (`ContentItem.redaction`).
+A collection and a content item can each declare a `redaction:` of their own (see [redaction](#redaction)).
 
 #### translate_after {#defaults-translate-after}
 
@@ -748,9 +749,19 @@ a file, from which engine and by which rule, under the recipe in scope.
 
 The sensitive term list lives in a separate rules file referenced by `rules` (so it can be gitignored); this spec points at it and selects detection backends.
 
+A policy can be declared in three places: `defaults.redaction`, `redaction:` on
+a collection, and `redaction:` on a content item. Each file is redacted under
+the most specific declaration that covers it: its item's, else its
+collection's, else the defaults. That declaration replaces the others for the
+file. Its fields are not merged with theirs, so a collection that names its own
+`rules` file redacts with that file alone, and `enabled: false` on a collection
+or an item turns redaction off for its files. A collection's or an item's
+`redaction:` that sets `rules`, `detectors` or `placeholder` must also set
+`enabled: true`; loading the recipe fails otherwise.
+
 | Field         | Type     | Description                                                              |
 | ------------- | -------- | ------------------------------------------------------------------------ |
-| `enabled`     | bool     | Turn redaction on for extract/merge                                      |
+| `enabled`     | bool     | Turn redaction on for the files the declaration covers                   |
 | `rules`       | string   | Path to a redaction rules YAML file                                      |
 | `detectors`   | string[] | Detection backends: `rules` and/or `entities`                            |
 | `placeholder` | string   | Override the visible stand-in template, e.g. `[REDACTED:{category}]`     |

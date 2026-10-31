@@ -543,7 +543,9 @@ func (a *App) buildProjectFlowTools(cmd Command, flowName string, spec *flow.Ste
 			}
 		}
 		def := &flow.FlowDefinition{ID: flowName, Name: flowName, Nodes: nodes, Edges: edges}
-		if err := a.checkFlowPlacement(def); err != nil {
+		// The tools are built once for every file of the pass, so a policy
+		// declared for any of them holds the flow to the coverage check.
+		if err := a.checkFlowPlacement(def, a.flowRequiresRedaction("")); err != nil {
 			return nil, nil, err
 		}
 	}
