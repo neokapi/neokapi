@@ -77,38 +77,50 @@ func vaultProject(t *testing.T) (*App, string, string) {
 	return a, recipe, dir
 }
 
-// extractXLIFF runs kapi extract --format xliff2 over the project into
+// extractBilingual runs kapi extract --format format over the project into
 // <dir>/out and returns the files it wrote.
-func extractXLIFF(t *testing.T, a *App, recipe, dir string) []string {
+func extractBilingual(t *testing.T, a *App, recipe, dir, format string) []string {
 	t.Helper()
 	cmd := NewEnvCommand(t.Context(), "extract")
 	cmd.SetOut(&bytes.Buffer{})
 	cmd.SetErr(&bytes.Buffer{})
 	addKpzExtractFlags(cmd, recipe)
 	require.NoError(t, cmd.Flags().Set("no-memory", "true"))
-	cmd.Flags().String("format", ExtractFormatXLIFF2, "")
+	cmd.Flags().String("format", format, "")
 	cmd.Flags().String("xliff-version", "", "")
 	cmd.Flags().Bool("force", false, "")
 	cmd.Flags().Bool("redact", false, "")
 	cmd.Flags().String("redact-rules", "", "")
 	require.NoError(t, a.RunExtract(cmd))
-	out, err := filepath.Glob(filepath.Join(dir, "out", "*.xliff"))
+	out, err := filepath.Glob(filepath.Join(dir, "out", "*"))
 	require.NoError(t, err)
 	return out
 }
 
-var xliffSourceRe = regexp.MustCompile(`(?s)<source>(.*?)</source>`)
+var (
+	xliffSourceRe = regexp.MustCompile(`(?s)<source>(.*?)</source>`)
+	poEntryRe     = regexp.MustCompile(`(?m)^msgid ("[^"\n]+")\nmsgstr ""$`)
+)
 
-// translateXLIFF fills each unit's target with its source, the placeholder
-// kept and "Hello" put into French, as a translator returns it.
-func translateXLIFF(t *testing.T, path string) {
+// translateReturned fills each unit's target with its source, the
+// placeholder kept and "Hello" put into French, as a translator returns it.
+func translateReturned(t *testing.T, path string) {
 	t.Helper()
 	data, err := os.ReadFile(path)
 	require.NoError(t, err)
-	out := xliffSourceRe.ReplaceAllStringFunc(string(data), func(src string) string {
-		inner := xliffSourceRe.FindStringSubmatch(src)[1]
-		return src + "<target>" + strings.Replace(inner, "Hello", "Bonjour", 1) + "</target>"
-	})
+	var out string
+	if strings.HasSuffix(path, ".po") {
+		out = poEntryRe.ReplaceAllStringFunc(string(data), func(entry string) string {
+			msgid := poEntryRe.FindStringSubmatch(entry)[1]
+			return "msgid " + msgid + "\nmsgstr " + strings.Replace(msgid, "Hello", "Bonjour", 1)
+		})
+	} else {
+		out = xliffSourceRe.ReplaceAllStringFunc(string(data), func(src string) string {
+			inner := xliffSourceRe.FindStringSubmatch(src)[1]
+			return src + "<target>" + strings.Replace(inner, "Hello", "Bonjour", 1) + "</target>"
+		})
+	}
+	require.NotEqual(t, string(data), out, "the translation fills a target in %s", path)
 	require.NoError(t, os.WriteFile(path, []byte(out), 0o644))
 }
 
@@ -133,35 +145,40 @@ func batchVault(t *testing.T, dir string) string {
 }
 
 func TestExtractMergeRestoresEachFilesOwnRedactedName(t *testing.T) {
-	a, recipe, dir := vaultProject(t)
-	files := extractXLIFF(t, a, recipe, dir)
-	require.Len(t, files, len(vaultNames))
-	for _, f := range files {
-		data, err := os.ReadFile(f)
-		require.NoError(t, err)
-		for _, name := range vaultNames {
-			assert.NotContains(t, string(data), name, "the extracted file withholds every name")
-		}
-	}
+	for _, format := range []string{ExtractFormatXLIFF2, extractFormatPO} {
+		t.Run(format, func(t *testing.T) {
+			a, recipe, dir := vaultProject(t)
+			files := extractBilingual(t, a, recipe, dir, format)
+			require.Len(t, files, len(vaultNames))
+			for _, f := range files {
+				data, err := os.ReadFile(f)
+				require.NoError(t, err)
+				for _, name := range vaultNames {
+					assert.NotContains(t, string(data), name, "the extracted file withholds every name")
+				}
+				assert.Contains(t, string(data), "[REDACTED:Person]", "the extracted file shows where a name was withheld")
+			}
 
-	v, err := redaction.OpenFileVault(batchVault(t, dir))
-	require.NoError(t, err)
-	assert.Len(t, v.All(), len(vaultNames), "the batch vault keeps one name per file")
-	for doc, name := range vaultNames {
-		got, ok := v.Get(doc, "tu1", "rdx1")
-		require.True(t, ok, doc)
-		assert.Equal(t, name, got.Original, doc)
-	}
+			v, err := redaction.OpenFileVault(batchVault(t, dir))
+			require.NoError(t, err)
+			assert.Len(t, v.All(), len(vaultNames), "the batch vault keeps one name per file")
+			for doc, name := range vaultNames {
+				got, ok := v.Get(doc, "tu1", "rdx1")
+				require.True(t, ok, doc)
+				assert.Equal(t, name, got.Original, doc)
+			}
 
-	for _, f := range files {
-		translateXLIFF(t, f)
-		mergeFile(t, a, recipe, f)
-	}
-	for _, base := range []string{"a.json", "b.json"} {
-		data, err := os.ReadFile(filepath.Join(dir, "src", "locales", "fr", base))
-		require.NoError(t, err, "merge writes %s", base)
-		name := vaultNames["src/locales/en/"+base]
-		assert.Equal(t, `{"greeting":"Bonjour `+name+`"}`, strings.TrimSpace(string(data)), base)
+			for _, f := range files {
+				translateReturned(t, f)
+				mergeFile(t, a, recipe, f)
+			}
+			for _, base := range []string{"a.json", "b.json"} {
+				data, err := os.ReadFile(filepath.Join(dir, "src", "locales", "fr", base))
+				require.NoError(t, err, "merge writes %s", base)
+				name := vaultNames["src/locales/en/"+base]
+				assert.Equal(t, `{"greeting":"Bonjour `+name+`"}`, strings.TrimSpace(string(data)), base)
+			}
+		})
 	}
 }
 
@@ -170,7 +187,7 @@ func TestExtractMergeRestoresEachFilesOwnRedactedName(t *testing.T) {
 func TestMergeRestoresFromAVersion1BatchVault(t *testing.T) {
 	a, recipe, dir := vaultProject(t)
 	require.NoError(t, os.Remove(filepath.Join(dir, "src", "locales", "en", "b.json")))
-	files := extractXLIFF(t, a, recipe, dir)
+	files := extractBilingual(t, a, recipe, dir, ExtractFormatXLIFF2)
 	require.Len(t, files, 1)
 
 	path := batchVault(t, dir)
@@ -193,7 +210,7 @@ func TestMergeRestoresFromAVersion1BatchVault(t *testing.T) {
 	require.NotContains(t, string(data), `"doc"`)
 	require.NoError(t, os.WriteFile(path, data, 0o600))
 
-	translateXLIFF(t, files[0])
+	translateReturned(t, files[0])
 	mergeFile(t, a, recipe, files[0])
 	got, err := os.ReadFile(filepath.Join(dir, "src", "locales", "fr", "a.json"))
 	require.NoError(t, err)
@@ -256,4 +273,31 @@ func TestExtractKpzRefusesUnderARedactionPolicy(t *testing.T) {
 		require.NoError(t, a.RunExtractKpz(kpzCommand(t, recipe, out)))
 		assert.Len(t, packages(t, out), len(vaultNames))
 	})
+}
+
+// A PO entry has no inline codes, so the writer carries a withheld value as
+// its visible placeholder, and the reader returns that placeholder for merge
+// to restore. Other inline codes stay out of the entry, as before.
+func TestWritePOExtractCarriesTheRedactionPlaceholder(t *testing.T) {
+	b := &model.Block{ID: "tu1", Translatable: true}
+	b.SetSourceRuns([]model.Run{
+		{Text: &model.TextRun{Text: "Hello "}},
+		{Ph: &model.PlaceholderRun{ID: "rdx1", Type: redaction.PlaceholderType(redaction.CategoryPerson), Data: "[REDACTED:Person]", Disp: "[REDACTED:Person]"}},
+		{Text: &model.TextRun{Text: ", see "}},
+		{Ph: &model.PlaceholderRun{ID: "x1", Type: "fmt:br", Data: "<br/>", Disp: "<br/>"}},
+	})
+	b.SetTargetRuns("fr", []model.Run{
+		{Text: &model.TextRun{Text: "Bonjour "}},
+		{Ph: &model.PlaceholderRun{ID: "rdx1", Type: redaction.PlaceholderType(redaction.CategoryPerson), Disp: "[REDACTED:Person]"}},
+	})
+	path := filepath.Join(t.TempDir(), "a.po")
+	var buf bytes.Buffer
+	require.NoError(t, WritePOExtract(&buf, "fr", "batch", "src/a.json", "sha256:x", []*model.Block{b}))
+	require.NoError(t, os.WriteFile(path, buf.Bytes(), 0o644))
+
+	po, err := ReadPOForMerge(path)
+	require.NoError(t, err)
+	require.Len(t, po.Blocks, 1)
+	assert.Equal(t, "Hello [REDACTED:Person], see ", po.Blocks[0].MsgID)
+	assert.Equal(t, "Bonjour [REDACTED:Person]", po.Blocks[0].MsgStr)
 }
