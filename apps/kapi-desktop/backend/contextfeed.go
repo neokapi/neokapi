@@ -25,7 +25,6 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/neokapi/neokapi/core/contextop"
@@ -1114,15 +1113,7 @@ func contextFeedEntry(r contextop.Record, projectName, recipe string) ContextFee
 // actorDTO renders an actor, splitting a "<client>@<host>" name so a reader
 // sees which machine an agent ran on.
 func actorDTO(a contextop.Actor) screens.ContextActorDTO {
-	kind := string(a.Kind)
-	if kind == "" {
-		kind = string(contextop.ActorPerson)
-	}
-	out := screens.ContextActorDTO{Kind: kind, Name: a.Name, Session: a.Session}
-	if name, hostName, found := strings.Cut(a.Name, "@"); found && name != "" && hostName != "" {
-		out.Name, out.Host = name, hostName
-	}
-	return out
+	return screens.ActorFrom(a)
 }
 
 // subjectDTO flattens a subject for the feed.

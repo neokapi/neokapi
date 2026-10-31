@@ -13,7 +13,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"slices"
 	"time"
 
 	"github.com/neokapi/neokapi/core/contextop"
@@ -143,43 +142,5 @@ func (a *App) decideTab(tabID string) (*openProject, error) {
 // ruleDecisionDTO shapes one question for the screen, its options the most
 // used first.
 func ruleDecisionDTO(d host.RuleDecision) screens.RuleDecisionDTO {
-	out := screens.RuleDecisionDTO{
-		ID:          d.ID,
-		Short:       d.Short,
-		Kind:        d.Kind,
-		Question:    d.Question,
-		Reason:      d.Reason,
-		Sentence:    d.Sentence,
-		Label:       d.Label(),
-		Avoided:     d.Avoided(),
-		Options:     []screens.RuleOptionDTO{},
-		Other:       d.Kind == host.RuleDecisionName,
-		Consequence: d.Consequence,
-		Applies:     d.Applies,
-		NoticedBy:   actorDTO(d.NoticedBy()),
-	}
-	if e := d.Seen; e != nil {
-		out.Seen = &screens.ContextEvidenceDTO{Path: e.Path, Unit: e.Unit, Quote: e.Quote}
-	}
-	order := make([]int, len(d.Options))
-	for i := range order {
-		order[i] = i
-	}
-	slices.SortStableFunc(order, func(x, y int) int { return d.Options[y].Blocks - d.Options[x].Blocks })
-	for at, i := range order {
-		o := d.Options[i]
-		opt := screens.RuleOptionDTO{
-			Form: o.Form, ID: o.ID, Short: o.Short, Sentence: o.Sentence,
-			Blocks: o.Blocks, Files: o.Files, Consequence: o.Consequence,
-		}
-		if d.Kind == host.RuleDecisionDisagreement {
-			who := actorDTO(o.NoticedBy())
-			opt.NoticedBy = &who
-		}
-		out.Options = append(out.Options, opt)
-		if i == d.Chosen {
-			out.Chosen = at
-		}
-	}
-	return out
+	return screens.RuleDecisionFrom(d.Model())
 }
