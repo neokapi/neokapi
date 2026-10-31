@@ -14,6 +14,7 @@ import {
   type PermissionName,
   type ReaderFixResult,
 } from "@neokapi/ui";
+import { memberName } from "@neokapi/project-screens";
 import type {
   ContextActor,
   ProjectScreensPort,
@@ -282,8 +283,8 @@ export function useProjectScreensPort(
   const { nameOf } = useUserDisplayNames();
   const { can, data: permissions } = useCallerPermissions(projectId);
 
-  // The names a person is shown by: the server leaves the reader's own name
-  // out, and names another member by their id when it holds no name for them.
+  // The member list names a person the server names by their id; the
+  // signed-in member's id marks them among the members a question can go to.
   const names = useRef({ nameOf, me });
   names.current = { nameOf, me };
 
@@ -293,11 +294,7 @@ export function useProjectScreensPort(
         api,
         { ws, projectId, stream },
         {
-          actorName: (actor) => {
-            if (actor.kind !== "person") return undefined;
-            if (!actor.name) return names.current.me?.name || undefined;
-            return names.current.nameOf(actor.name);
-          },
+          actorName: (actor) => memberName(actor, names.current.nameOf),
           me: () => names.current.me?.id,
         },
       ),

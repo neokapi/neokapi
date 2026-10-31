@@ -3,7 +3,7 @@ import { afterEach, describe, it, expect, vi } from "vite-plus/test";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ApiAdapter, JobState, PermissionName, ReaderFixResult } from "@neokapi/ui";
-import type { RulesDecideView } from "@neokapi/project-screens";
+import { memberName, type RulesDecideView } from "@neokapi/project-screens";
 import { DECIDE_IDS, DECIDE_VIEW, READER_WITH_FIXES } from "@neokapi/project-screens/fixtures";
 import { ProjectMapPage } from "./project-map";
 import { ProjectReaderPage } from "./project-reader";
@@ -247,6 +247,24 @@ describe("the Rules route's team queue", () => {
     await expect(permittedPort(fixtureScreensPort(), MEMBER).members?.()).resolves.toEqual(
       FERNWELL_MEMBERS,
     );
+  });
+});
+
+describe("a person's name on the screens", () => {
+  const nameOf = (id: string) => (id === "u-mira" ? "Mira Holt" : id);
+
+  it("shows a person the server names by their id under their member name", () => {
+    expect(memberName({ kind: "person", name: "u-mira" }, nameOf)).toBe("Mira Holt");
+    expect(memberName({ kind: "person", name: "Ada Lind" }, nameOf)).toBe("Ada Lind");
+  });
+
+  it("shows a person with no name as a member, never as the reader", () => {
+    expect(memberName({ kind: "person" }, nameOf)).toBe("A member");
+  });
+
+  it("leaves an assistant or a tool to the screens", () => {
+    expect(memberName({ kind: "agent", name: "claude" }, nameOf)).toBeUndefined();
+    expect(memberName({ kind: "tool", name: "kapi" }, nameOf)).toBeUndefined();
   });
 });
 
