@@ -1,0 +1,112 @@
+{
+  "project": "acme/docs",
+  "project_name": "Acme docs",
+  "decisions": [
+    {
+      "id": "01JBQC2K8M1N3P",
+      "short": "n3p4",
+      "kind": "name",
+      "question": "Which one do your files use?",
+      "sentence": "Write Invoicely, not Invoice-ly.",
+      "label": "Invoicely",
+      "avoided": 1,
+      "options": [
+        {
+          "form": "Invoicely",
+          "blocks": 12,
+          "files": 4,
+          "consequence": "If you keep \"Invoicely\": the other form becomes a finding in 2 blocks. Applies to the whole project."
+        },
+        {
+          "form": "Invoice-ly",
+          "blocks": 2,
+          "files": 1,
+          "consequence": "If you keep \"Invoice-ly\": the other form becomes a finding in 12 blocks. Applies to the whole project."
+        }
+      ],
+      "chosen": 0,
+      "other": true,
+      "seen": {
+        "path": "docs/billing.md",
+        "unit": "b4",
+        "quote": "Invoicely sends the receipt."
+      },
+      "applies": "the whole project",
+      "noticed_by": {
+        "kind": "agent",
+        "name": "claude-code",
+        "session": "s-7f3a",
+        "host": "build-01"
+      }
+    },
+    {
+      "kind": "disagreement",
+      "question": "Which one do your files use?",
+      "reason": "Two suggestions name different forms for Quickcast.",
+      "sentence": "Write Quickcast, not Quick cast or QuickCast.",
+      "label": "Quickcast",
+      "avoided": 0,
+      "options": [
+        {
+          "id": "01JBQ8X4K2M7Z9",
+          "short": "q7z9",
+          "sentence": "Write Quickcast, not Quick cast or QuickCast.",
+          "blocks": 14,
+          "files": 5,
+          "consequence": "If you keep it: \"Quick cast\" or \"QuickCast\" become findings in 3 blocks. Applies to the whole project.",
+          "noticed_by": {
+            "kind": "agent",
+            "name": "claude-code",
+            "session": "s-7f3a",
+            "host": "build-01"
+          }
+        },
+        {
+          "id": "01JBQ9A1C3D5E7",
+          "short": "e5e7",
+          "sentence": "Write QuickCast, not Quickcast.",
+          "blocks": 2,
+          "files": 1,
+          "consequence": "If you keep it: \"Quickcast\" becomes a finding in 14 blocks. Applies to the whole project.",
+          "noticed_by": {
+            "kind": "person"
+          }
+        }
+      ],
+      "chosen": 0,
+      "other": false,
+      "seen": {
+        "path": "docs/billing.md",
+        "unit": "b2",
+        "quote": "Quickcast keeps your credits."
+      },
+      "applies": "the whole project",
+      "noticed_by": {
+        "kind": "agent",
+        "name": "claude-code",
+        "session": "s-7f3a",
+        "host": "build-01"
+      }
+    },
+    {
+      "id": "01JBQB7F2G4H6J",
+      "short": "h6j1",
+      "kind": "note",
+      "question": "Keep this as a rule?",
+      "sentence": "Keep sentences in release notes under 25 words.",
+      "label": "Keep sentences in release notes under 25 words.",
+      "avoided": 0,
+      "options": [],
+      "chosen": 0,
+      "other": false,
+      "consequence": "If you keep it: it is stated to writers and assistants where it applies. No check reads it. Applies to docs/release-notes.md.",
+      "applies": "docs/release-notes.md",
+      "noticed_by": {
+        "kind": "person"
+      }
+    }
+  ],
+  "rules": 7,
+  "suggested": 3,
+  "narrowed": 1
+}

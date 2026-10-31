@@ -1,0 +1,207 @@
+{
+  "project_key": "acme/docs",
+  "files": 3,
+  "blocks": 42,
+  "rules": 7,
+  "findings": 4,
+  "checked_at": "2026-10-30T12:00:00Z",
+  "read_files": 3,
+  "read_at": "2026-10-30T11:58:12Z",
+  "suggested": 1,
+  "conflicts": 1,
+  "awaiting": 2,
+  "target_languages": [
+    "de",
+    "nb"
+  ],
+  "file_rows": [
+    {
+      "path": "/work/acme-docs/docs/billing.md",
+      "relative": "docs/billing.md",
+      "format": "markdown",
+      "collection": "docs",
+      "blocks": 18,
+      "findings": 3
+    },
+    {
+      "path": "/work/acme-docs/docs/release-notes.md",
+      "relative": "docs/release-notes.md",
+      "format": "markdown",
+      "collection": "docs",
+      "blocks": 15,
+      "findings": 1
+    },
+    {
+      "path": "/work/acme-docs/locales/en.json",
+      "relative": "locales/en.json",
+      "format": "json",
+      "collection": "app",
+      "blocks": 9,
+      "findings": 0
+    }
+  ],
+  "suggestions": [
+    {
+      "group": "conflict",
+      "item": {
+        "id": "01JBQ8X4K2M7Z9",
+        "short": "q7z9",
+        "status": "contested",
+        "theme": "names",
+        "sentence": "Write Quickcast, not Quick cast or QuickCast.",
+        "subject": {
+          "kind": "term",
+          "term": {
+            "term": "Quick cast",
+            "replacement": "Quickcast",
+            "forms": [
+              "QuickCast"
+            ]
+          }
+        },
+        "quote": {
+          "path": "docs/billing.md",
+          "unit": "b2",
+          "quote": "Quickcast keeps your credits."
+        },
+        "collection": "docs",
+        "standing": "seen in 3 sessions · 14 of 17 uses in docs/",
+        "usage": {
+          "preferred": "Quickcast",
+          "preferred_count": 14,
+          "rejected": [
+            "Quick cast",
+            "QuickCast"
+          ],
+          "rejected_count": 3,
+          "within": "docs/",
+          "line": "docs/ says \"Quickcast\" 14 times and \"Quick cast\" or \"QuickCast\" 3 times"
+        },
+        "noticed_by": {
+          "kind": "agent",
+          "name": "claude-code@build-01",
+          "session": "s-7f3a"
+        },
+        "at": "2026-10-28T09:30:00Z",
+        "new": true,
+        "scope": "project acme/docs",
+        "keepable": false,
+        "droppable": true,
+        "widenable": false
+      },
+      "conflict": {
+        "sides": [
+          {
+            "id": "01JBQ8X4K2M7Z9",
+            "short": "q7z9",
+            "status": "contested",
+            "theme": "names",
+            "sentence": "Write Quickcast, not Quick cast or QuickCast.",
+            "subject": {
+              "kind": "term",
+              "term": {
+                "term": "Quick cast",
+                "replacement": "Quickcast",
+                "forms": [
+                  "QuickCast"
+                ]
+              }
+            },
+            "quote": {
+              "path": "docs/billing.md",
+              "unit": "b2",
+              "quote": "Quickcast keeps your credits."
+            },
+            "collection": "docs",
+            "standing": "seen in 3 sessions · 14 of 17 uses in docs/",
+            "usage": {
+              "preferred": "Quickcast",
+              "preferred_count": 14,
+              "rejected": [
+                "Quick cast",
+                "QuickCast"
+              ],
+              "rejected_count": 3,
+              "within": "docs/",
+              "line": "docs/ says \"Quickcast\" 14 times and \"Quick cast\" or \"QuickCast\" 3 times"
+            },
+            "noticed_by": {
+              "kind": "agent",
+              "name": "claude-code@build-01",
+              "session": "s-7f3a"
+            },
+            "at": "2026-10-28T09:30:00Z",
+            "new": true,
+            "scope": "project acme/docs",
+            "keepable": false,
+            "droppable": true,
+            "widenable": false
+          },
+          {
+            "id": "01JBQ9A1C3D5E7",
+            "short": "e5e7",
+            "status": "contested",
+            "theme": "names",
+            "sentence": "Write QuickCast, not Quickcast.",
+            "subject": {
+              "kind": "term",
+              "term": {
+                "term": "Quickcast",
+                "replacement": "QuickCast"
+              }
+            },
+            "quote": {
+              "path": "docs/release-notes.md",
+              "quote": "QuickCast now reads PDF files."
+            },
+            "noticed_by": {
+              "kind": "person"
+            },
+            "at": "2026-10-28T11:30:00Z",
+            "new": false,
+            "scope": "project acme/docs",
+            "keepable": false,
+            "droppable": true,
+            "widenable": false
+          }
+        ],
+        "by_evidence": false,
+        "reason": "Two suggestions name different forms for Quickcast."
+      },
+      "blocks": 2,
+      "files": 2
+    },
+    {
+      "group": "suggested",
+      "item": {
+        "id": "01JBQB7F2G4H6J",
+        "short": "h6j1",
+        "status": "suggested",
+        "theme": "writing",
+        "sentence": "Keep sentences in release notes under 25 words.",
+        "subject": {
+          "kind": "note",
+          "text": "Keep sentences in release notes under 25 words."
+        },
+        "quote": {
+          "path": "docs/release-notes.md",
+          "unit": "b7",
+          "quote": "QuickCast now reads PDF files."
+        },
+        "noticed_by": {
+          "kind": "agent",
+          "name": "claude-code@build-01",
+          "session": "s-7f3a"
+        },
+        "at": "2026-10-28T10:30:00Z",
+        "new": true,
+        "scope": "project acme/docs",
+        "keepable": true,
+        "droppable": true,
+        "widenable": false
+      },
+      "blocks": 1,
+      "files": 1
+    }
+  ]
+}

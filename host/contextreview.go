@@ -8,6 +8,7 @@ import (
 	"slices"
 
 	"github.com/neokapi/neokapi/core/contextop"
+	"github.com/neokapi/neokapi/host/screens"
 )
 
 // Reviewing a project's context (AD C-11): the decisions a person makes about
@@ -212,7 +213,7 @@ func (d ContextDigest) OnlySession(session string) ContextDigest {
 	if session == "" {
 		return d
 	}
-	mine := func(it DigestItem) bool { return it.NoticedBy.Session == session }
+	mine := func(it screens.DigestItem) bool { return it.NoticedBy.Session == session }
 	out := d
 	out.Conflicts = nil
 	for _, c := range d.Conflicts {

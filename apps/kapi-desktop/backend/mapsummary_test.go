@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/host/screens"
 	"github.com/neokapi/neokapi/kapi-desktop/backend/sample"
 )
 
@@ -127,7 +128,7 @@ func TestMapSummary_KapiMart(t *testing.T) {
 	assert.Equal(t, 2, got.Suggested)
 	assert.Equal(t, 2, got.Awaiting)
 	require.Len(t, got.Suggestions, 2)
-	ids := map[string]MapSuggestionDTO{}
+	ids := map[string]screens.MapSuggestionDTO{}
 	for _, s := range got.Suggestions {
 		assert.Equal(t, "suggested", s.Group)
 		ids[s.Item.ID] = s

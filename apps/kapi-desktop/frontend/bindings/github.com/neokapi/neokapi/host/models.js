@@ -27,6 +27,9 @@ import * as workspace$0 from "../core/workspace/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as output$0 from "./output/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as screens$0 from "./screens/models.js";
 
 /**
  * AIModelOrigin says which layer supplied the effective value.
@@ -1789,7 +1792,7 @@ export class ContextDigest {
              * Conflicts need a person: two rules disagree, or the evidence turned
              * against a rule.
              * @member
-             * @type {DigestConflict[]}
+             * @type {screens$0.DigestConflict[]}
              */
             this["conflicts"] = [];
         }
@@ -1798,7 +1801,7 @@ export class ContextDigest {
              * Established are the rules that came into force, newest first: every one
              * since the marker, then a few from before it.
              * @member
-             * @type {DigestItem[]}
+             * @type {screens$0.DigestItem[]}
              */
             this["established"] = [];
         }
@@ -4295,61 +4298,6 @@ export const ConvergenceReport = convergence$0.Report;
  */
 
 /**
- * DigestConflict is a disagreement a person settles: two or more rules saying
- * different things about one word, or one rule the evidence turned against.
- */
-export class DigestConflict {
-    /**
-     * Creates a new DigestConflict instance.
-     * @param {Partial<DigestConflict>} [$$source = {}] - The source object to create the DigestConflict.
-     */
-    constructor($$source = {}) {
-        if (!("sides" in $$source)) {
-            /**
-             * Sides are the rules that disagree. Choosing one keeps it and drops the
-             * others.
-             * @member
-             * @type {DigestItem[]}
-             */
-            this["sides"] = [];
-        }
-        if (!("by_evidence" in $$source)) {
-            /**
-             * ByEvidence reports a rule contested by evidence alone, with no rival
-             * rule: keeping it again is the choice, and so is dropping it.
-             * @member
-             * @type {boolean}
-             */
-            this["by_evidence"] = false;
-        }
-        if (!("reason" in $$source)) {
-            /**
-             * Reason says what the disagreement is, in a sentence.
-             * @member
-             * @type {string}
-             */
-            this["reason"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new DigestConflict instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {DigestConflict}
-     */
-    static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType53;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("sides" in $$parsedSource) {
-            $$parsedSource["sides"] = $$createField0_0($$parsedSource["sides"]);
-        }
-        return new DigestConflict(/** @type {Partial<DigestConflict>} */($$parsedSource));
-    }
-}
-
-/**
  * DigestDrift is content moving away from an established rule.
  */
 export class DigestDrift {
@@ -4361,9 +4309,9 @@ export class DigestDrift {
         if (!("rule" in $$source)) {
             /**
              * @member
-             * @type {DigestItem}
+             * @type {screens$0.DigestItem}
              */
-            this["rule"] = (new DigestItem());
+            this["rule"] = (new screens$0.DigestItem());
         }
         if (!("line" in $$source)) {
             /**
@@ -4431,7 +4379,7 @@ export class DigestGroup {
         if (!("items" in $$source)) {
             /**
              * @member
-             * @type {DigestItem[]}
+             * @type {screens$0.DigestItem[]}
              */
             this["items"] = [];
         }
@@ -4451,223 +4399,6 @@ export class DigestGroup {
             $$parsedSource["items"] = $$createField1_0($$parsedSource["items"]);
         }
         return new DigestGroup(/** @type {Partial<DigestGroup>} */($$parsedSource));
-    }
-}
-
-/**
- * DigestItem is one rule, suggestion or fact as the digest shows it.
- */
-export class DigestItem {
-    /**
-     * Creates a new DigestItem instance.
-     * @param {Partial<DigestItem>} [$$source = {}] - The source object to create the DigestItem.
-     */
-    constructor($$source = {}) {
-        if (!("id" in $$source)) {
-            /**
-             * ID names the operation every action on the item passes back, and Short
-             * is the form a person types.
-             * @member
-             * @type {string}
-             */
-            this["id"] = "";
-        }
-        if (!("short" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["short"] = "";
-        }
-        if (!("status" in $$source)) {
-            /**
-             * Status is the operation's folded status.
-             * @member
-             * @type {contextop$0.Status}
-             */
-            this["status"] = contextop$0.Status.$zero;
-        }
-        if (!("theme" in $$source)) {
-            /**
-             * Theme is which suggestion theme the item belongs to.
-             * @member
-             * @type {string}
-             */
-            this["theme"] = "";
-        }
-        if (!("sentence" in $$source)) {
-            /**
-             * Sentence is the rule as a sentence: "Write Quickcast, not Quick cast or
-             * QuickCast."
-             * @member
-             * @type {string}
-             */
-            this["sentence"] = "";
-        }
-        if (!("subject" in $$source)) {
-            /**
-             * Subject is the rule itself, for a surface that renders its parts.
-             * @member
-             * @type {contextop$0.Subject}
-             */
-            this["subject"] = (new contextop$0.Subject());
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * Quote is the evidence the item was seen in, with the file it links to.
-             * @member
-             * @type {contextop$0.Evidence | null | undefined}
-             */
-            this["quote"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * Collection is the collection the evidence sits in, empty when the
-             * project declares none or the recipe is not on this machine.
-             * @member
-             * @type {string | undefined}
-             */
-            this["collection"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * Standing is the evidence as plain counts: "seen in 3 sessions · 14 of
-             * 15 uses in docs/ · merged in #412".
-             * @member
-             * @type {string | undefined}
-             */
-            this["standing"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * Usage is the project's own words back to it, from the latest usage
-             * count, for a rule a check has counted.
-             * @member
-             * @type {DigestUsage | null | undefined}
-             */
-            this["usage"] = undefined;
-        }
-        if (!("noticed_by" in $$source)) {
-            /**
-             * NoticedBy is who recorded it.
-             * @member
-             * @type {contextop$0.Actor}
-             */
-            this["noticed_by"] = (new contextop$0.Actor());
-        }
-        if (!("at" in $$source)) {
-            /**
-             * At is when it was recorded.
-             * @member
-             * @type {string}
-             */
-            this["at"] = "0001-01-01T00:00:00.000Z";
-        }
-        if (!("new" in $$source)) {
-            /**
-             * New reports an item recorded (or, for an established rule, established)
-             * after the marker.
-             * @member
-             * @type {boolean}
-             */
-            this["new"] = false;
-        }
-        if (!("scope" in $$source)) {
-            /**
-             * Scope is how far the rule answers, as the log prints it.
-             * @member
-             * @type {string}
-             */
-            this["scope"] = "";
-        }
-        if (!("keepable" in $$source)) {
-            /**
-             * Keepable reports a suggestion a person can keep as it stands. A
-             * contested suggestion with a rival waits until the rival is dropped.
-             * @member
-             * @type {boolean}
-             */
-            this["keepable"] = false;
-        }
-        if (!("droppable" in $$source)) {
-            /**
-             * Droppable reports a suggestion or a rule a person can set aside. A rule
-             * in force is taken back out of the stores as it is dropped.
-             * @member
-             * @type {boolean}
-             */
-            this["droppable"] = false;
-        }
-        if (!("widenable" in $$source)) {
-            /**
-             * Widenable reports a rule in force a person can apply more widely.
-             * @member
-             * @type {boolean}
-             */
-            this["widenable"] = false;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * WidenTo are the widenings open to a widenable rule: "workspace", and
-             * each axis of its point (ContextWidenOptions).
-             * @member
-             * @type {string[] | undefined}
-             */
-            this["widen_to"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * EstablishedAt and How say, for an established rule, when it came into
-             * force and on what: "merged in #412", "your correction in billing.md",
-             * "kept by you".
-             * @member
-             * @type {string | undefined}
-             */
-            this["established_at"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string[] | undefined}
-             */
-            this["how"] = undefined;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new DigestItem instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {DigestItem}
-     */
-    static createFrom($$source = {}) {
-        const $$createField5_0 = $$createType59;
-        const $$createField6_0 = $$createType97;
-        const $$createField9_0 = $$createType99;
-        const $$createField10_0 = $$createType6;
-        const $$createField17_0 = $$createType0;
-        const $$createField19_0 = $$createType0;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("subject" in $$parsedSource) {
-            $$parsedSource["subject"] = $$createField5_0($$parsedSource["subject"]);
-        }
-        if ("quote" in $$parsedSource) {
-            $$parsedSource["quote"] = $$createField6_0($$parsedSource["quote"]);
-        }
-        if ("usage" in $$parsedSource) {
-            $$parsedSource["usage"] = $$createField9_0($$parsedSource["usage"]);
-        }
-        if ("noticed_by" in $$parsedSource) {
-            $$parsedSource["noticed_by"] = $$createField10_0($$parsedSource["noticed_by"]);
-        }
-        if ("widen_to" in $$parsedSource) {
-            $$parsedSource["widen_to"] = $$createField17_0($$parsedSource["widen_to"]);
-        }
-        if ("how" in $$parsedSource) {
-            $$parsedSource["how"] = $$createField19_0($$parsedSource["how"]);
-        }
-        return new DigestItem(/** @type {Partial<DigestItem>} */($$parsedSource));
     }
 }
 
@@ -4779,90 +4510,12 @@ export class DigestTheme {
      * @returns {DigestTheme}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType101;
+        const $$createField2_0 = $$createType98;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("groups" in $$parsedSource) {
             $$parsedSource["groups"] = $$createField2_0($$parsedSource["groups"]);
         }
         return new DigestTheme(/** @type {Partial<DigestTheme>} */($$parsedSource));
-    }
-}
-
-/**
- * DigestUsage is how often the project's content writes a rule's forms.
- */
-export class DigestUsage {
-    /**
-     * Creates a new DigestUsage instance.
-     * @param {Partial<DigestUsage>} [$$source = {}] - The source object to create the DigestUsage.
-     */
-    constructor($$source = {}) {
-        if (!("preferred" in $$source)) {
-            /**
-             * Preferred is the form the rule says to write, and PreferredCount its
-             * uses.
-             * @member
-             * @type {string}
-             */
-            this["preferred"] = "";
-        }
-        if (!("preferred_count" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["preferred_count"] = 0;
-        }
-        if (!("rejected" in $$source)) {
-            /**
-             * Rejected are the forms the rule avoids, and RejectedCount their uses
-             * together.
-             * @member
-             * @type {string[]}
-             */
-            this["rejected"] = [];
-        }
-        if (!("rejected_count" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["rejected_count"] = 0;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * Within is the part of the project counted, as a path prefix; empty for
-             * the whole project.
-             * @member
-             * @type {string | undefined}
-             */
-            this["within"] = undefined;
-        }
-        if (!("line" in $$source)) {
-            /**
-             * Line says it in a sentence: `docs/ says "studio" 41 times and
-             * "business" twice`.
-             * @member
-             * @type {string}
-             */
-            this["line"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new DigestUsage instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {DigestUsage}
-     */
-    static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType0;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("rejected" in $$parsedSource) {
-            $$parsedSource["rejected"] = $$createField2_0($$parsedSource["rejected"]);
-        }
-        return new DigestUsage(/** @type {Partial<DigestUsage>} */($$parsedSource));
     }
 }
 
@@ -4935,9 +4588,9 @@ export class FindingsReport {
      * @returns {FindingsReport}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType102;
-        const $$createField1_0 = $$createType103;
-        const $$createField2_0 = $$createType105;
+        const $$createField0_0 = $$createType99;
+        const $$createField1_0 = $$createType100;
+        const $$createField2_0 = $$createType102;
         const $$createField3_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target" in $$parsedSource) {
@@ -5146,7 +4799,7 @@ export class RulesFilesResult {
      * @returns {RulesFilesResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType107;
+        const $$createField0_0 = $$createType104;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("files" in $$parsedSource) {
             $$parsedSource["files"] = $$createField0_0($$parsedSource["files"]);
@@ -5276,8 +4929,8 @@ export class UpPlanOutput {
      * @returns {UpPlanOutput}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType109;
-        const $$createField4_0 = $$createType108;
+        const $$createField3_0 = $$createType106;
+        const $$createField4_0 = $$createType105;
         const $$createField8_0 = $$createType94;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("scopes" in $$parsedSource) {
@@ -5515,9 +5168,9 @@ const $$createType46 = AtlasRecord.createFrom;
 const $$createType47 = $Create.Array($$createType46);
 const $$createType48 = AtlasEvent.createFrom;
 const $$createType49 = $Create.Array($$createType48);
-const $$createType50 = DigestConflict.createFrom;
+const $$createType50 = screens$0.DigestConflict.createFrom;
 const $$createType51 = $Create.Array($$createType50);
-const $$createType52 = DigestItem.createFrom;
+const $$createType52 = screens$0.DigestItem.createFrom;
 const $$createType53 = $Create.Array($$createType52);
 const $$createType54 = DigestTheme.createFrom;
 const $$createType55 = $Create.Array($$createType54);
@@ -5562,16 +5215,13 @@ const $$createType93 = check$0.Warning.createFrom;
 const $$createType94 = $Create.Array($$createType93);
 const $$createType95 = FindingsReport.createFrom;
 const $$createType96 = $Create.Nullable($$createType95);
-const $$createType97 = $Create.Nullable($$createType13);
-const $$createType98 = DigestUsage.createFrom;
-const $$createType99 = $Create.Nullable($$createType98);
-const $$createType100 = DigestGroup.createFrom;
-const $$createType101 = $Create.Array($$createType100);
-const $$createType102 = check$0.Target.createFrom;
-const $$createType103 = check$0.Summary.createFrom;
-const $$createType104 = check$0.Diagnostic.createFrom;
-const $$createType105 = $Create.Array($$createType104);
-const $$createType106 = RulesFile.createFrom;
-const $$createType107 = $Create.Array($$createType106);
-const $$createType108 = UpPlanScope.createFrom;
-const $$createType109 = $Create.Array($$createType108);
+const $$createType97 = DigestGroup.createFrom;
+const $$createType98 = $Create.Array($$createType97);
+const $$createType99 = check$0.Target.createFrom;
+const $$createType100 = check$0.Summary.createFrom;
+const $$createType101 = check$0.Diagnostic.createFrom;
+const $$createType102 = $Create.Array($$createType101);
+const $$createType103 = RulesFile.createFrom;
+const $$createType104 = $Create.Array($$createType103);
+const $$createType105 = UpPlanScope.createFrom;
+const $$createType106 = $Create.Array($$createType105);

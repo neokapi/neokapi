@@ -32,6 +32,7 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/workspace"
 	"github.com/neokapi/neokapi/host"
+	"github.com/neokapi/neokapi/host/screens"
 )
 
 // contextFeedTimeout caps one read or one decision. The feed is interactive,
@@ -43,27 +44,6 @@ const contextFeedTimeout = 30 * time.Second
 // caller names no limit. The log holds one operation per context change, so
 // this is a bound on the screen rather than on the store.
 const contextFeedDefaultLimit = 200
-
-// ContextActorDTO is who performed an operation.
-type ContextActorDTO struct {
-	// Kind is "person", "agent" or "tool".
-	Kind string `json:"kind"`
-	// Name is the person's handle, the agent's client name, or the tool's
-	// name. A person working alone has none.
-	Name string `json:"name,omitempty"`
-	// Session groups one agent run's operations.
-	Session string `json:"session,omitempty"`
-	// Host is the machine or client the agent ran under, when the actor's name
-	// carries one as "<client>@<host>".
-	Host string `json:"host,omitempty"`
-}
-
-// ContextEvidenceDTO is where a subject was seen.
-type ContextEvidenceDTO struct {
-	Path  string `json:"path,omitempty"`
-	Unit  string `json:"unit,omitempty"`
-	Quote string `json:"quote,omitempty"`
-}
 
 // ContextSubjectDTO is what an operation is about, flattened for a surface.
 // Kind says which fields carry anything.
@@ -123,12 +103,12 @@ type ContextFeedEntry struct {
 	Status string `json:"status"`
 	// ContestedBy names the operations on the other side of a disagreement,
 	// for a contested entry.
-	ContestedBy []string              `json:"contested_by"`
-	Actor       ContextActorDTO       `json:"actor"`
-	Subject     ContextSubjectDTO     `json:"subject"`
-	Correction  *ContextCorrectionDTO `json:"correction,omitempty"`
-	Evidence    []ContextEvidenceDTO  `json:"evidence"`
-	Scope       ContextScopeDTO       `json:"scope"`
+	ContestedBy []string                     `json:"contested_by"`
+	Actor       screens.ContextActorDTO      `json:"actor"`
+	Subject     ContextSubjectDTO            `json:"subject"`
+	Correction  *ContextCorrectionDTO        `json:"correction,omitempty"`
+	Evidence    []screens.ContextEvidenceDTO `json:"evidence"`
+	Scope       ContextScopeDTO              `json:"scope"`
 	// Target is the operation this one acts on, and Before the first
 	// operation a reset set aside.
 	Target string `json:"target,omitempty"`
@@ -163,8 +143,8 @@ type ContextFeedGroup struct {
 	// ID addresses the group on screen and stays the same across refreshes.
 	ID string `json:"id"`
 	// Session is the agent session id, empty for a person's or a tool's work.
-	Session string          `json:"session,omitempty"`
-	Actor   ContextActorDTO `json:"actor"`
+	Session string                  `json:"session,omitempty"`
+	Actor   screens.ContextActorDTO `json:"actor"`
 	// Day is the local date a person's or a tool's group covers, RFC3339 date
 	// only. Empty for an agent session.
 	Day string `json:"day,omitempty"`
@@ -1106,7 +1086,7 @@ func contextFeedEntry(r contextop.Record, projectName, recipe string) ContextFee
 		ContestedBy: contextop.ShortIDs(r.ContestedBy),
 		Actor:       actorDTO(r.Actor),
 		Subject:     subjectDTO(r.Subject),
-		Evidence:    []ContextEvidenceDTO{},
+		Evidence:    []screens.ContextEvidenceDTO{},
 		Scope:       scopeDTO(r.Scope),
 		Target:      contextop.ShortID(r.Target),
 		Before:      contextop.ShortID(r.Before),
@@ -1121,7 +1101,7 @@ func contextFeedEntry(r contextop.Record, projectName, recipe string) ContextFee
 		out.Correction = &ContextCorrectionDTO{From: r.Correction.From, To: r.Correction.To}
 	}
 	for _, e := range r.Evidence {
-		out.Evidence = append(out.Evidence, ContextEvidenceDTO{Path: e.Path, Unit: e.Unit, Quote: e.Quote})
+		out.Evidence = append(out.Evidence, screens.ContextEvidenceDTO{Path: e.Path, Unit: e.Unit, Quote: e.Quote})
 	}
 	out.Droppable = out.Decidable
 	if r.Established && r.Kind.Bears() {
@@ -1133,12 +1113,12 @@ func contextFeedEntry(r contextop.Record, projectName, recipe string) ContextFee
 
 // actorDTO renders an actor, splitting a "<client>@<host>" name so a reader
 // sees which machine an agent ran on.
-func actorDTO(a contextop.Actor) ContextActorDTO {
+func actorDTO(a contextop.Actor) screens.ContextActorDTO {
 	kind := string(a.Kind)
 	if kind == "" {
 		kind = string(contextop.ActorPerson)
 	}
-	out := ContextActorDTO{Kind: kind, Name: a.Name, Session: a.Session}
+	out := screens.ContextActorDTO{Kind: kind, Name: a.Name, Session: a.Session}
 	if name, hostName, found := strings.Cut(a.Name, "@"); found && name != "" && hostName != "" {
 		out.Name, out.Host = name, hostName
 	}

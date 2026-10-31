@@ -37,6 +37,9 @@ import * as review$0 from "../../core/review/models.js";
 import * as host$0 from "../../host/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as screens$0 from "../../host/screens/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as memory$0 from "../../memory/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -669,7 +672,7 @@ export function CreateTerms(path) {
  * @param {string} id
  * @param {string} answer
  * @param {string} form
- * @returns {$CancellablePromise<$models.RuleDecideResultDTO | null>}
+ * @returns {$CancellablePromise<screens$0.RuleDecideResultDTO | null>}
  */
 export function DecideRule(tabID, id, answer, form) {
     return $Call.ByID(85811686, tabID, id, answer, form).then(/** @type {($result: any) => any} */(($result) => {
@@ -929,7 +932,7 @@ export function DropContextSuggestion(req) {
  * with its reason, and the rest are applied without it.
  * @param {string} tabID
  * @param {string} relPath
- * @returns {$CancellablePromise<$models.ReaderFileDTO | null>}
+ * @returns {$CancellablePromise<screens$0.ReaderFileDTO | null>}
  */
 export function FixFile(tabID, relPath) {
     return $Call.ByID(2480297165, tabID, relPath).then(/** @type {($result: any) => any} */(($result) => {
@@ -944,7 +947,7 @@ export function FixFile(tabID, relPath) {
  * @param {string} tabID
  * @param {string} relPath
  * @param {string} findingID
- * @returns {$CancellablePromise<$models.ReaderFileDTO | null>}
+ * @returns {$CancellablePromise<screens$0.ReaderFileDTO | null>}
  */
 export function FixFinding(tabID, relPath, findingID) {
     return $Call.ByID(2954525752, tabID, relPath, findingID).then(/** @type {($result: any) => any} */(($result) => {
@@ -2082,7 +2085,7 @@ export function LookupMemory(handle, req) {
  * with no recipe on disk, or holding a project's context alone, answers with
  * zeros.
  * @param {string} tabID
- * @returns {$CancellablePromise<$models.MapSummaryDTO | null>}
+ * @returns {$CancellablePromise<screens$0.MapSummaryDTO | null>}
  */
 export function MapSummary(tabID) {
     return $Call.ByID(1961346714, tabID).then(/** @type {($result: any) => any} */(($result) => {
@@ -2345,7 +2348,7 @@ export function Read(tabID, request) {
  * a translation in is refused: the Reader reads the source.
  * @param {string} tabID
  * @param {string} relPath
- * @returns {$CancellablePromise<$models.ReaderFileDTO | null>}
+ * @returns {$CancellablePromise<screens$0.ReaderFileDTO | null>}
  */
 export function ReaderFile(tabID, relPath) {
     return $Call.ByID(950445157, tabID, relPath).then(/** @type {($result: any) => any} */(($result) => {
@@ -2620,7 +2623,7 @@ export function RulesDecideConsequence(tabID, id, form) {
  * RulesDecideView reads the questions about the project a tab holds. A folder
  * without a kapi.yaml has nothing recorded and answers with no question.
  * @param {string} tabID
- * @returns {$CancellablePromise<$models.RulesDecideViewDTO | null>}
+ * @returns {$CancellablePromise<screens$0.RulesDecideViewDTO | null>}
  */
 export function RulesDecideView(tabID) {
     return $Call.ByID(1041405458, tabID).then(/** @type {($result: any) => any} */(($result) => {
@@ -3414,14 +3417,14 @@ const $$createType44 = $models.ContextWidenPreview.createFrom;
 const $$createType45 = $Create.Nullable($$createType44);
 const $$createType46 = $models.TabInfo.createFrom;
 const $$createType47 = $Create.Nullable($$createType46);
-const $$createType48 = $models.RuleDecideResultDTO.createFrom;
+const $$createType48 = screens$0.RuleDecideResultDTO.createFrom;
 const $$createType49 = $Create.Nullable($$createType48);
 const $$createType50 = $models.DeeperLookDTO.createFrom;
 const $$createType51 = $Create.Nullable($$createType50);
 const $$createType52 = $models.DeeperLookModelDTO.createFrom;
 const $$createType53 = $Create.Nullable($$createType52);
 const $$createType54 = $models.AIDetectionResult.createFrom;
-const $$createType55 = $models.ReaderFileDTO.createFrom;
+const $$createType55 = screens$0.ReaderFileDTO.createFrom;
 const $$createType56 = $Create.Nullable($$createType55);
 const $$createType57 = $models.AIActivityResult.createFrom;
 const $$createType58 = locale$0.LocaleInfo.createFrom;
@@ -3521,7 +3524,7 @@ const $$createType151 = $models.WorkspaceHome.createFrom;
 const $$createType152 = $Create.Nullable($$createType151);
 const $$createType153 = $models.MemoryMatchDTO.createFrom;
 const $$createType154 = $Create.Array($$createType153);
-const $$createType155 = $models.MapSummaryDTO.createFrom;
+const $$createType155 = screens$0.MapSummaryDTO.createFrom;
 const $$createType156 = $Create.Nullable($$createType155);
 const $$createType157 = $models.FileMatch.createFrom;
 const $$createType158 = $Create.Array($$createType157);
@@ -3541,7 +3544,7 @@ const $$createType171 = $Create.Nullable($$createType170);
 const $$createType172 = $models.ReviewAIActionResult.createFrom;
 const $$createType173 = $Create.Nullable($$createType172);
 const $$createType174 = convergence$0.ReviewQueue.createFrom;
-const $$createType175 = $models.RulesDecideViewDTO.createFrom;
+const $$createType175 = screens$0.RulesDecideViewDTO.createFrom;
 const $$createType176 = $Create.Nullable($$createType175);
 const $$createType177 = $models.RulesFileView.createFrom;
 const $$createType178 = $Create.Array($$createType177);

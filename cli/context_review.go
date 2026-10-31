@@ -14,6 +14,7 @@ import (
 
 	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/host/output"
+	"github.com/neokapi/neokapi/host/screens"
 )
 
 // `kapi context review`: the decisions a person makes about what was
@@ -162,10 +163,10 @@ var reviewInteractive = func(cmd *cobra.Command) bool {
 // reviewStep is one thing review asks about: a disagreement (several sides), a
 // suggestion, or a rule that came into force since the person last looked.
 type reviewStep struct {
-	sides    []host.DigestItem
+	sides    []screens.DigestItem
 	evidence bool // a rule contested by evidence alone
 	reason   string
-	item     host.DigestItem
+	item     screens.DigestItem
 	rule     bool // a rule in force
 }
 
@@ -313,7 +314,7 @@ func ask(w io.Writer, in *bufio.Reader, prompt string) string {
 }
 
 // writeReviewFacts writes where an item was seen and who noticed it.
-func writeReviewFacts(w io.Writer, it host.DigestItem, indent string) {
+func writeReviewFacts(w io.Writer, it screens.DigestItem, indent string) {
 	if it.Quote != nil && (it.Quote.Quote != "" || it.Quote.Path != "") {
 		line := it.Quote.Path
 		if it.Quote.Quote != "" {
