@@ -501,6 +501,12 @@ groups.description text NOT NULL DEFAULT ''::text
 groups.id text NOT NULL
 groups.name text NOT NULL
 groups.workspace_id text NOT NULL
+item_check_tallies.checked_at timestamp with time zone NOT NULL DEFAULT now()
+item_check_tallies.findings integer NOT NULL DEFAULT 0
+item_check_tallies.fixable integer NOT NULL DEFAULT 0
+item_check_tallies.item_id text NOT NULL
+item_check_tallies.project_id text NOT NULL
+item_check_tallies.stream text NOT NULL DEFAULT 'main'::text
 items.block_index text NOT NULL DEFAULT '{}'::text
 items.collection_id text NOT NULL DEFAULT ''::text
 items.created_at timestamp with time zone NOT NULL DEFAULT now()
@@ -1356,6 +1362,8 @@ group_role_bindings group_role_bindings_workspace_id_fkey FOREIGN KEY (workspace
 groups groups_pkey PRIMARY KEY (id)
 groups groups_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
 groups groups_workspace_id_name_key UNIQUE (workspace_id, name)
+item_check_tallies item_check_tallies_pkey PRIMARY KEY (project_id, stream, item_id)
+item_check_tallies item_check_tallies_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 items items_pkey PRIMARY KEY (project_id, stream, id)
 items items_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 jobs_schema_migrations jobs_schema_migrations_pkey PRIMARY KEY (version)
@@ -1776,6 +1784,7 @@ CREATE UNIQUE INDEX idx_items_stream_name ON public.items USING btree (project_i
 CREATE UNIQUE INDEX idx_pending_recipe_changes_path ON public.pending_recipe_changes USING btree (project_id, path) WHERE (status = 'pending'::text)
 CREATE UNIQUE INDEX idx_provider_configs_ws_name ON public.provider_configs USING btree (workspace_id, name)
 CREATE UNIQUE INDEX idx_stream_tags_unique ON public.stream_tags USING btree (project_id, stream, name)
+CREATE UNIQUE INDEX item_check_tallies_pkey ON public.item_check_tallies USING btree (project_id, stream, item_id)
 CREATE UNIQUE INDEX items_pkey ON public.items USING btree (project_id, stream, id)
 CREATE UNIQUE INDEX jobs_schema_migrations_pkey ON public.jobs_schema_migrations USING btree (version)
 CREATE UNIQUE INDEX kg_changeset_ops_pkey ON public.kg_changeset_ops USING btree (workspace_id, changeset_id, seq)
