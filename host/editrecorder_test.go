@@ -328,6 +328,50 @@ func TestRecorderRedactsEachDocumentUnderItsCollectionsPolicy(t *testing.T) {
 	}
 }
 
+// TestRecorderKeepsNoRunsOfAnUnknownFileUnderTwoPolicies: a document whose
+// file the recorder cannot name falls under every declared policy, and no one
+// pass covers two of them; passes in turn would number their tokens alike and
+// overwrite each other's originals in the vault. So the record keeps no runs
+// and no note, while a document whose file is known keeps its own policy's.
+func TestRecorderKeepsNoRunsOfAnUnknownFileUnderTwoPolicies(t *testing.T) {
+	a, root, _ := recorderProject(t)
+	recipe := filepath.Join(root, project.RecipeFileName)
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	proj.Defaults.Redaction = &project.RedactionSpec{Enabled: true, Rules: "defaults.yaml", Detectors: []string{"rules"}}
+	proj.Collections[0].Redaction = &project.RedactionSpec{Enabled: true, Rules: "redaction.yaml", Detectors: []string{"rules"}}
+	require.NoError(t, project.Save(recipe, proj))
+	for name, term := range map[string]string{"defaults.yaml": "ships", "redaction.yaml": "Falcon"} {
+		rules := &redaction.RulesFile{Rules: []redaction.Rule{{Term: term, Category: "product"}}}
+		require.NoError(t, rules.Save(filepath.Join(root, name)))
+	}
+	rec, err := a.EditRecorder(t.Context(), root)
+	require.NoError(t, err)
+
+	last := func(t *testing.T) (projector.Edit, string) {
+		t.Helper()
+		ops := editOps(t, a, root)
+		require.NotEmpty(t, ops)
+		var e projector.Edit
+		require.NoError(t, json.Unmarshal(ops[len(ops)-1].Payload, &e))
+		return e, string(ops[len(ops)-1].Payload)
+	}
+
+	_, err = rec.Record(t.Context(), falconEdit(reconcile.DocumentKeyFor("unknown/doc")))
+	require.NoError(t, err)
+	e, payload := last(t)
+	assert.NotContains(t, payload, "Falcon")
+	assert.NotContains(t, payload, "ships")
+	assert.Empty(t, e.Note)
+	require.Len(t, e.Transitions, 1)
+	assert.Empty(t, e.Transitions[0].RunsBefore+e.Transitions[0].RunsAfter)
+
+	_, err = rec.Record(t.Context(), falconEdit("src/intro.en.json"))
+	require.NoError(t, err)
+	e, _ = last(t)
+	assert.Equal(t, "Say when [REDACTED:Product] ships", e.Note, "a known file keeps its collection's policy alone")
+}
+
 // TestRecorderUnderEntityDetectionKeepsNoRuns: entity detection needs the
 // annotations of a read, which the runs of a record do not carry, so a
 // project that detects entities records revisions and hashes only.

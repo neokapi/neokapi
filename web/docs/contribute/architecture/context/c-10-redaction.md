@@ -237,8 +237,11 @@ policy of the file it holds:
    project that declares a policy
    ([C-03](c-03-context-store-and-graph.md#edits-are-recorded-as-content-edit)).
    A document the recorder knows by key alone is looked up in the document
-   index; one whose file it still cannot name is redacted under every policy
-   the recipe declares, in recipe order.
+   index. One whose file it still cannot name falls under every policy the
+   recipe declares: under one, it is redacted with it; under several, its
+   record keeps revisions and hashes only and the workspace home refuses to
+   keep it, because successive passes of the redact tool number their tokens
+   alike and would overwrite each other's originals in the vault.
    A translation with no file is kept in the log itself (the workspace home),
    so its record is redacted the same way and the workspace home restores the
    originals from the project vault where it reads the edition: on the machine

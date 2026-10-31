@@ -479,6 +479,21 @@ func (r *RedactionSpec) validate() error {
 	return nil
 }
 
+// validateScoped checks a collection's or an item's redaction. Such a
+// declaration replaces the defaults whole, so one that names rules, detectors
+// or a placeholder without `enabled: true` would switch redaction off for its
+// files while reading as a policy. It is refused. `defaults.redaction` is
+// checked by validate alone and keeps its "declared but off" form.
+func (r *RedactionSpec) validateScoped() error {
+	if err := r.validate(); err != nil {
+		return err
+	}
+	if r != nil && !r.Enabled && (r.Rules != "" || len(r.Detectors) > 0 || r.Placeholder != "") {
+		return errors.New("redaction: rules, detectors or placeholder are set but enabled is not true; set enabled: true, or enabled: false alone to switch redaction off for these files")
+	}
+	return nil
+}
+
 // FormatDefaults holds project-level default settings for a specific format.
 type FormatDefaults struct {
 	Preset string         `yaml:"preset,omitempty" json:"preset,omitempty"`
@@ -1141,7 +1156,7 @@ func (p *KapiProject) validate(opts LoadOptions) error {
 		if err := c.validateSourceOnly(i); err != nil {
 			return err
 		}
-		if err := c.Redaction.validate(); err != nil {
+		if err := c.Redaction.validateScoped(); err != nil {
 			return fmt.Errorf("collections[%d]: %w", i, err)
 		}
 		if c.IsBareEntry() {
@@ -1162,7 +1177,7 @@ func (p *KapiProject) validate(opts LoadOptions) error {
 				if err := item.validateCommentsOnly(fmt.Sprintf("collections[%d].content[%d]", i, j)); err != nil {
 					return err
 				}
-				if err := item.Redaction.validate(); err != nil {
+				if err := item.Redaction.validateScoped(); err != nil {
 					return fmt.Errorf("collections[%d].content[%d]: %w", i, j, err)
 				}
 				field := fmt.Sprintf("collections[%d].content[%d].comments.directives", i, j)

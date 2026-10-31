@@ -70,9 +70,13 @@ func (k *keptRedaction) Redact(ctx context.Context, c *workhome.Commit) error {
 	if reconcile.IsDocumentKey(path) {
 		path = ""
 	}
-	policies := k.policy.policiesFor(ctx, c.Doc, path)
-	if detectsEntities(policies) {
+	policies, keepsRuns := k.policy.policiesFor(ctx, c.Doc, path)
+	switch {
+	case detectsEntities(policies):
 		return errKeepsNoEdition
+	case !keepsRuns:
+		return &change.Error{Code: change.CodeUnsupported, Capability: "redaction",
+			Message: "the project declares more than one redaction policy and kapi cannot name the file this translation belongs to, so it cannot be kept without the values one of them withholds"}
 	}
 	c.Set = nil
 	if len(policies) == 0 {
@@ -98,11 +102,9 @@ func (k *keptRedaction) Redact(ctx context.Context, c *workhome.Commit) error {
 		note = []model.Run{{Text: &model.TextRun{Text: c.Note}}}
 		seqs.add("note:"+model.ComputeContentHash(c.Note), &note)
 	}
-	groups := make(map[string]*redactRuns, len(policies))
-	for _, p := range policies {
-		groups[p.At] = &redactRuns{spec: p.Spec, ids: seqs.ids, sinks: seqs.sinks}
-	}
-	if err := k.policy.redactInOrder(ctx, groups); err != nil {
+	p := policies[0]
+	groups := map[string]*redactRuns{p.At: {spec: p.Spec, ids: seqs.ids, sinks: seqs.sinks}}
+	if err := k.policy.redactGroups(ctx, groups); err != nil {
 		return err
 	}
 	if note != nil {

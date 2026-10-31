@@ -1594,13 +1594,14 @@ func (a *App) checkFlowPlacement(def *flow.FlowDefinition, requireRedaction bool
 // flowRequiresRedaction reports whether a policy the project declares governs
 // the content a flow runs over. A flow built for one file asks for that file's
 // policy; a flow built once for every file of a run (inputPath "") asks
-// whether the project declares a policy for any file.
+// whether the project declares a policy for any file. So does a flow over a
+// .kpz package, which holds files of every collection under one chain.
 func (a *App) flowRequiresRedaction(inputPath string) bool {
 	pc := a.ProjectContext
 	if pc == nil || pc.Project == nil {
 		return false
 	}
-	if inputPath == "" {
+	if inputPath == "" || IsKpzPath(inputPath) {
 		return RedactionDeclared(pc.Project)
 	}
 	return RedactionFor(pc.Project, redactionPath(pc.ProjectDir, inputPath)) != nil

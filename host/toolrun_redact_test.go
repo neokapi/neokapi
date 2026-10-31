@@ -386,6 +386,32 @@ func TestToolRun_RefusesAPackageUnderACollectionsPolicy(t *testing.T) {
 	assert.NotContains(t, err.Error(), "redaction policy", "a tool that calls no provider runs over a package as before")
 }
 
+// A flow over a package runs one chain over files of every collection, so the
+// coverage gate holds it to any policy the recipe declares, as a project flow
+// is held.
+func TestFlow_APackageUnderACollectionsPolicyNeedsARedactStep(t *testing.T) {
+	isolateKapiEnv(t)
+	onlyDemoProvider(t)
+	recipe := collectionRedactProject(t, "")
+	root := filepath.Dir(recipe)
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	a := &App{SourceLang: "en", ProjectContext: project.NewProjectContext(proj, recipe)}
+	a.InitRegistries()
+
+	pkg := filepath.Join(root, "work.kpz")
+	assert.True(t, a.flowRequiresRedaction(pkg), "a package is held to any declared policy")
+	assert.True(t, a.flowRequiresRedaction(filepath.Join(root, "legal", "memo.json")))
+	assert.False(t, a.flowRequiresRedaction(filepath.Join(root, "docs", "page.json")), "no policy covers the docs file")
+	assert.True(t, a.flowRequiresRedaction(""))
+
+	_, cleanup, err := a.BuildFlowTools("translate", pkg, "en", "fr")
+	if cleanup != nil {
+		cleanup()
+	}
+	require.ErrorContains(t, err, "no redact step")
+}
+
 func TestToolRun_ACollectionsPolicyWithNoDefaults(t *testing.T) {
 	isolateKapiEnv(t)
 	onlyDemoProvider(t)

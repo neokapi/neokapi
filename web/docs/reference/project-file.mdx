@@ -755,7 +755,9 @@ the most specific declaration that covers it: its item's, else its
 collection's, else the defaults. That declaration replaces the others for the
 file. Its fields are not merged with theirs, so a collection that names its own
 `rules` file redacts with that file alone, and `enabled: false` on a collection
-or an item turns redaction off for its files.
+or an item turns redaction off for its files. A collection's or an item's
+`redaction:` that sets `rules`, `detectors` or `placeholder` must also set
+`enabled: true`; loading the recipe fails otherwise.
 
 | Field         | Type     | Description                                                              |
 | ------------- | -------- | ------------------------------------------------------------------------ |
