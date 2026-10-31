@@ -184,7 +184,7 @@ func checkMembers() []registry.ToolGroupMember {
 	ai := schema.FromStruct(&AICheckConfig{}, schema.ToolMeta{ID: "qa-ai"})
 	setProviderOptions(ai, aiProviderOptions())
 	label := func(mode string) string {
-		for _, m := range registry.QAModes {
+		for _, m := range registry.CheckModes {
 			if m.Value == mode {
 				return m.Label
 			}
@@ -238,9 +238,9 @@ func NewTranslateFromConfig(config map[string]any, targetLang string) (tool.Tool
 // ComposeVariants variant names; core/registry holds them so the recipe
 // loader can name them when it refuses a qa step.
 const (
-	checkModeField = registry.QAModeField
-	checkModeRules = registry.QAModeRules
-	checkModeAI    = registry.QAModeAI
+	checkModeField = registry.CheckModeField
+	checkModeRules = registry.CheckModeRules
+	checkModeAI    = registry.CheckModeAI
 )
 
 // checkUsesAI reports whether a qa config selects the AI backend: `mode: ai`

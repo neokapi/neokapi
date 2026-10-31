@@ -56,7 +56,7 @@ func BuiltInFlows() []flow.FlowDefinition {
 				// mode: ai runs the LLM judge rather than the deterministic
 				// default, with a pinned provider that --provider overrides.
 				{ID: "qa", Type: flow.NodeTool, Name: "qa", Label: "Quality Check", Position: flow.NodePosition{X: 250, Y: 100},
-					Config: map[string]any{registry.QAModeField: registry.QAModeAI, "provider": "anthropic"}},
+					Config: map[string]any{registry.CheckModeField: registry.CheckModeAI, "provider": "anthropic"}},
 			},
 			Edges: []flow.FlowEdge{
 				{ID: "e-translate-qa", Source: "translate", Target: "qa"},

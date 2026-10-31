@@ -6,18 +6,18 @@ import (
 	"strings"
 )
 
-// QAModeField is the `qa` tool's mode selector. A qa config chooses its
+// CheckModeField is the `qa` tool's mode selector. A qa config chooses its
 // backend with this key alone: a provider in the config never selects one.
-const QAModeField = "mode"
+const CheckModeField = "mode"
 
 // The `qa` tool's mode values. They double as the tool group's member names.
 const (
-	QAModeRules = "rules"
-	QAModeAI    = "ai"
+	CheckModeRules = "rules"
+	CheckModeAI    = "ai"
 )
 
-// QAMode is one value the `qa` tool's mode selector takes.
-type QAMode struct {
+// CheckMode is one value the `qa` tool's mode selector takes.
+type CheckMode struct {
 	// Value is what a config writes under `mode`.
 	Value string
 	// Label names the mode on a selector.
@@ -26,17 +26,17 @@ type QAMode struct {
 	Runs string
 }
 
-// QAModes lists the values `mode` takes on a qa step, in the order a message
+// CheckModes lists the values `mode` takes on a qa step, in the order a message
 // or a selector offers them.
-var QAModes = []QAMode{
-	{Value: QAModeRules, Label: "Deterministic rules", Runs: "the rule checks"},
-	{Value: QAModeAI, Label: "AI review", Runs: "the AI review"},
+var CheckModes = []CheckMode{
+	{Value: CheckModeRules, Label: "Deterministic rules", Runs: "the rule checks"},
+	{Value: CheckModeAI, Label: "AI review", Runs: "the AI review"},
 }
 
-// retiredQAKeys are keys a qa config may still carry that no code reads. The
+// retiredCheckKeys are keys a qa config may still carry that no code reads. The
 // rule checks decode a step's config case-insensitively, so a key matches in
 // any letter case; check_terminology is the recipe-style spelling.
-var retiredQAKeys = []string{"checkTerminology", "check_terminology"}
+var retiredCheckKeys = []string{"checkTerminology", "check_terminology"}
 
 // StepConfigError reports the first key in a tool's config that a recipe or a
 // flow file may not carry, or nil. at names the step or preset, such as
@@ -57,12 +57,12 @@ func StepConfigError(tool ToolID, config map[string]any, at, keys string) error 
 	}
 	slices.Sort(names)
 	for _, k := range names {
-		if slices.ContainsFunc(retiredQAKeys, func(r string) bool { return strings.EqualFold(k, r) }) {
+		if slices.ContainsFunc(retiredCheckKeys, func(r string) bool { return strings.EqualFold(k, r) }) {
 			return fmt.Errorf("%s.%s is retired and nothing reads it. Remove the key", keys, k)
 		}
 	}
 
-	mode, hasMode := config[QAModeField]
+	mode, hasMode := config[CheckModeField]
 	if !hasMode {
 		if provider, ok := config["provider"]; ok {
 			step := at
@@ -70,22 +70,22 @@ func StepConfigError(tool ToolID, config map[string]any, at, keys string) error 
 				step += " (qa)"
 			}
 			return fmt.Errorf("%s sets provider: %v without mode, and a qa step that names a provider requires mode. Write %s",
-				step, provider, qaModeChoices())
+				step, provider, checkModeChoices())
 		}
 		return nil
 	}
-	if s, ok := mode.(string); !ok || !slices.ContainsFunc(QAModes, func(m QAMode) bool { return m.Value == s }) {
-		return fmt.Errorf("%s.%s is %v, a value qa does not take. Write %s", keys, QAModeField, mode, qaModeChoices())
+	if s, ok := mode.(string); !ok || !slices.ContainsFunc(CheckModes, func(m CheckMode) bool { return m.Value == s }) {
+		return fmt.Errorf("%s.%s is %v, a value qa does not take. Write %s", keys, CheckModeField, mode, checkModeChoices())
 	}
 	return nil
 }
 
-// qaModeChoices spells the mode values for a message:
+// checkModeChoices spells the mode values for a message:
 // `mode: rules for the rule checks, or mode: ai for the AI review`.
-func qaModeChoices() string {
-	parts := make([]string, len(QAModes))
-	for i, m := range QAModes {
-		parts[i] = fmt.Sprintf("%s: %s for %s", QAModeField, m.Value, m.Runs)
+func checkModeChoices() string {
+	parts := make([]string, len(CheckModes))
+	for i, m := range CheckModes {
+		parts[i] = fmt.Sprintf("%s: %s for %s", CheckModeField, m.Value, m.Runs)
 	}
 	return strings.Join(parts, ", or ")
 }
