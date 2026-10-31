@@ -73,8 +73,11 @@ key without the document lets one file's original overwrite another's. Content
 that sits in no file (an edit record, a note) names itself in its block ID and
 records no document. The file format is version 2; a version 1 file, which
 records no document, still reads, and a lookup that names a document falls back
-to the entry that names none. The vault is the only copy of the originals,
-never a cache, so it is read as it is rather than reset.
+to the entry that names none. A file above version 2 was written by a newer
+kapi, and `redaction.OpenFileVault` refuses it with `ErrNewerVault`, so merge
+fails for that file and a write to the workspace home is refused. The vault
+is the only copy of the originals, never a cache, so it is read as it is
+rather than reset.
 
 `kapi extract --format kpz` refuses under a redaction policy: the package
 carries each source file's skeleton, which holds the file's text whole, and a
