@@ -3,6 +3,13 @@
   "collections": [
     {
       "name": "child-page",
+      "coordinates": {
+        "audience": "child",
+        "channel": "child",
+        "product": "harbor-help",
+        "service": "harbor-help",
+        "topic": "video-appointments"
+      },
       "voice": {
         "constraints": [
           {
@@ -138,6 +145,13 @@
     },
     {
       "name": "adult-page",
+      "coordinates": {
+        "audience": "adult",
+        "channel": "adult",
+        "product": "harbor-help",
+        "service": "harbor-help",
+        "topic": "video-appointments"
+      },
       "voice": {
         "constraints": [
           {
@@ -273,6 +287,13 @@
     },
     {
       "name": "older-adult-page",
+      "coordinates": {
+        "audience": "older-adult",
+        "channel": "older-adult",
+        "product": "harbor-help",
+        "service": "harbor-help",
+        "topic": "video-appointments"
+      },
       "voice": {
         "constraints": [
           {
@@ -408,6 +429,13 @@
     },
     {
       "name": "teen-page",
+      "coordinates": {
+        "audience": "teen",
+        "channel": "teen",
+        "product": "harbor-help",
+        "service": "harbor-help",
+        "topic": "video-appointments"
+      },
       "voice": {
         "constraints": [
           {

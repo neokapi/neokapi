@@ -20,6 +20,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/workspace"
 	"github.com/neokapi/neokapi/host/screens"
 	"github.com/neokapi/neokapi/terms"
 )
@@ -34,6 +35,7 @@ type mapParityPushed struct {
 	SourceLanguage string `json:"source_language"`
 	Collections    []struct {
 		Name        string                    `json:"name"`
+		Coordinates map[string]string         `json:"coordinates"`
 		Voice       *coreprofile.VoiceProfile `json:"voice"`
 		CarriedFrom string                    `json:"carried_from"`
 		Carried     []coreprofile.TermRule    `json:"carried"`
@@ -87,7 +89,7 @@ func mapReaderSQLiteServer(t *testing.T, caller *decideCaller) (*Server, *echo.E
 // seedMapParity stores the parity project as a push leaves it: each
 // collection bound to the voice at its point, each file's blocks, and the
 // workspace's terms.
-func seedMapParity(t *testing.T, srv *Server, cs platstore.ContentStore) string {
+func seedMapParity(t *testing.T, srv *Server, e *echo.Echo, cs platstore.ContentStore, caller *decideCaller) string {
 	t.Helper()
 	ctx := t.Context()
 	var pushed mapParityPushed
@@ -108,7 +110,7 @@ func seedMapParity(t *testing.T, srv *Server, cs platstore.ContentStore) string 
 		voices.profiles[profile.ID] = (&profile).Carry(c.CarriedFrom, c.Carried)
 		col := &platstore.Collection{
 			ProjectID: p.ID, Name: c.Name, Kind: platstore.CollectionUploaded, ItemLabel: "file",
-			Stream: "main", Owner: "recipe",
+			Stream: "main", Owner: "recipe", Context: c.Coordinates,
 			ConnectorConfig: map[string]string{coreprofile.PropertyProfileID: profile.ID},
 		}
 		require.NoError(t, cs.CreateCollection(ctx, col))
@@ -136,8 +138,24 @@ func seedMapParity(t *testing.T, srv *Server, cs platstore.ContentStore) string 
 	for _, c := range pushed.Concepts {
 		require.NoError(t, tb.AddConcept(ctx, c))
 	}
+
+	// The ledger, pushed as the desktop shares it: a kept term rule the terms
+	// store also holds, and a kept note.
+	segment, err := os.ReadFile(filepath.Join(mapParityDir, "log.jsonl"))
+	require.NoError(t, err)
+	ops, err := workspace.DecodeSegment(segment, mapParityKey)
+	require.NoError(t, err)
+	r := &routeRemote{h: e, base: "/api/v1/ws/" + p.ID + "/context/objects"}
+	perms := caller.perms
+	caller.perms |= contextObjectWritePermission
+	require.NoError(t, r.Put(ctx, workspace.Object{Name: workspace.SegmentName("desktop", ops[0].ID), Data: segment}))
+	caller.perms = perms
 	return p.ID
 }
+
+// mapParityKey is the fixture project's key, as the desktop's test writes it
+// into the sample's recipe.
+const mapParityKey workspace.ProjectKey = "prj_mapparityaaaaaaaaaaa"
 
 // mapReaderGet requests one route of the project and decodes its JSON into
 // out, returning the status.
@@ -156,7 +174,7 @@ func mapReaderGet(t *testing.T, e *echo.Echo, method, pid, route string, body, o
 func TestMapReaderParity(t *testing.T) {
 	caller := &decideCaller{userID: "member-a", perms: platauth.PermViewContent}
 	srv, e, cs := mapReaderSQLiteServer(t, caller)
-	pid := seedMapParity(t, srv, cs)
+	pid := seedMapParity(t, srv, e, cs, caller)
 
 	// Before a project-wide check, the Map counts no findings. A tally left
 	// by an item the stream no longer lists is not counted.
@@ -226,7 +244,7 @@ func assertSameJSON(t *testing.T, want, got any, what string) {
 func TestReader_UnknownItemAndMissingItem(t *testing.T) {
 	caller := &decideCaller{userID: "member-a", perms: platauth.PermViewContent}
 	srv, e, cs := mapReaderSQLiteServer(t, caller)
-	pid := seedMapParity(t, srv, cs)
+	pid := seedMapParity(t, srv, e, cs, caller)
 	var errBody ErrorResponse
 	assert.Equal(t, http.StatusBadRequest, mapReaderGet(t, e, http.MethodGet, pid, "/reader/main", nil, &errBody))
 	assert.Equal(t, http.StatusNotFound, mapReaderGet(t, e, http.MethodGet, pid, "/reader/main?item=nothing.json", nil, &errBody))
@@ -283,7 +301,7 @@ func TestChecksAtSourceLocale(t *testing.T) {
 func TestCheckProject_WithoutJobSystem(t *testing.T) {
 	caller := &decideCaller{userID: "member-a", perms: platauth.PermViewContent | platauth.PermReview}
 	srv, e, cs := mapReaderSQLiteServer(t, caller)
-	pid := seedMapParity(t, srv, cs)
+	pid := seedMapParity(t, srv, e, cs, caller)
 	var errBody ErrorResponse
 	assert.Equal(t, http.StatusServiceUnavailable, mapReaderGet(t, e, http.MethodPost, pid, "/map/main/check", nil, &errBody))
 }

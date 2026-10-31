@@ -181,9 +181,16 @@
       "rule": "videomøte",
       "status": "established",
       "from": "terms"
+    },
+    {
+      "kind": "note",
+      "rule": "Every page names the support line as the way to get help.",
+      "status": "established",
+      "by": "asgeir",
+      "at": "2026-10-31T22:05:23Z"
     }
   ],
-  "rules_total": 6,
+  "rules_total": 7,
   "attention": [
     "this file sits under the `harbor-help` profile: the rules below are the ones that hold for it, and a rule held elsewhere in the project does not apply here"
   ],

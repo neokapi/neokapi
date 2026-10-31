@@ -14,6 +14,8 @@ import (
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/workspace"
 	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/host/screens"
 	"github.com/neokapi/neokapi/terms"
@@ -39,6 +41,48 @@ var mapParityDir = filepath.Join("..", "..", "..", "host", "screens", "testdata"
 // readerParityFile is the file the fixture's Reader reads.
 const readerParityFile = "site/locales/en/child.json"
 
+// mapParityKey is the fixture project's key.
+const mapParityKey workspace.ProjectKey = "prj_mapparityaaaaaaaaaaa"
+
+// recordMapParityLog records the fixture's ledger through the calls kapi
+// makes and writes the operations it added to path as one segment: an
+// assistant's term rule a person kept, which the terms store already holds,
+// and a note a person kept. Regenerate it with KAPI_UPDATE_MAP_LOG=1.
+func recordMapParityLog(t *testing.T, app *host.App, recipe, path string) {
+	t.Helper()
+	ctx := t.Context()
+	ws, err := app.Workspace(ctx)
+	require.NoError(t, err)
+	before, err := ws.Select(ctx, workspace.OpQuery{Project: mapParityKey})
+	require.NoError(t, err)
+	var after int64
+	for _, op := range before {
+		after = max(after, op.Seq)
+	}
+	person := contextop.Actor{Kind: contextop.ActorPerson, Name: "asgeir"}
+	term, err := app.RecordContextObservation(ctx, host.ContextObserveRequest{
+		Project: recipe, Actor: contextop.Actor{Kind: contextop.ActorAgent, Name: "codex@build-01", Session: "s-map"},
+		Term: "video appointment", InsteadOf: []string{"video call"},
+		Evidence: []contextop.Evidence{{Path: readerParityFile, Quote: "Ask a trusted adult to book a video call with you."}},
+	})
+	require.NoError(t, err)
+	_, err = app.DecideRule(ctx, host.RuleDecideRequest{Actor: person, Project: recipe, ID: term.ID, Answer: host.RuleAnswerKeep})
+	require.NoError(t, err)
+	note, err := app.RecordContextObservation(ctx, host.ContextObserveRequest{
+		Project: recipe, Actor: person, Text: "Every page names the support line as the way to get help.",
+	})
+	require.NoError(t, err)
+	_, err = app.DecideRule(ctx, host.RuleDecideRequest{Actor: person, Project: recipe, ID: note.ID, Answer: host.RuleAnswerKeep})
+	require.NoError(t, err)
+
+	ops, err := ws.Select(ctx, workspace.OpQuery{Project: mapParityKey, After: after})
+	require.NoError(t, err)
+	require.NotEmpty(t, ops)
+	data, err := workspace.EncodeSegment(ops)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(path, data, 0o644))
+}
+
 // MapParityPushed is pushed.json.
 type MapParityPushed struct {
 	SourceLanguage string           `json:"source_language"`
@@ -49,8 +93,10 @@ type MapParityPushed struct {
 
 // MapParityPoint is one collection with the voice at its point.
 type MapParityPoint struct {
-	Name  string                    `json:"name"`
-	Voice *coreprofile.VoiceProfile `json:"voice"`
+	Name string `json:"name"`
+	// Coordinates are the collection's point, as a push stores them.
+	Coordinates map[string]string         `json:"coordinates"`
+	Voice       *coreprofile.VoiceProfile `json:"voice"`
 	// CarriedFrom and Carried are the word rules the voice's file carries,
 	// which the profile's JSON does not hold.
 	CarriedFrom string                 `json:"carried_from,omitempty"`
@@ -89,6 +135,12 @@ func TestMapReaderParity(t *testing.T) {
 		"Ask a trusted adult to book a video call with you. It is risk-free.", 1)
 	require.NotEqual(t, string(data), broken)
 	require.NoError(t, os.WriteFile(child, []byte(broken), 0o644))
+	// A fixed project key, so the recorded ledger reads back as this
+	// project's.
+	recipeData, err := os.ReadFile(recipe)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(recipe, []byte(strings.Replace(string(recipeData),
+		"version: v1\n", "version: v1\nid: "+string(mapParityKey)+"\n", 1)), 0o644))
 
 	// The sample's context read into the workspace the app reads, as `kapi
 	// store import ./context` reads it.
@@ -99,6 +151,22 @@ func TestMapReaderParity(t *testing.T) {
 	require.NoError(t, err)
 	_, err = importer.ImportProjectContext(t.Context(), recipe, host.ContextImportRequest{Dir: filepath.Join(dir, "context")})
 	require.NoError(t, err)
+
+	// The ledger: a kept term rule the terms store also holds, and a kept
+	// note, so the Map and the Reader count each rule once.
+	logPath := filepath.Join(mapParityDir, "log.jsonl")
+	if os.Getenv("KAPI_UPDATE_MAP_LOG") != "" {
+		recordMapParityLog(t, importer, recipe, logPath)
+	} else {
+		segment, err := os.ReadFile(logPath)
+		require.NoError(t, err)
+		ops, err := workspace.DecodeSegment(segment, mapParityKey)
+		require.NoError(t, err)
+		ws, err := importer.Workspace(t.Context())
+		require.NoError(t, err)
+		_, err = ws.Record(t.Context(), ops...)
+		require.NoError(t, err)
+	}
 	importer.Shutdown()
 
 	tab, err := app.OpenProject(recipe)
@@ -130,7 +198,10 @@ func TestMapReaderParity(t *testing.T) {
 		// The voice as stored, without the times this run stored it at.
 		voice := *profile.VoiceOnly()
 		voice.CreatedAt, voice.UpdatedAt = time.Time{}, time.Time{}
-		point := MapParityPoint{Name: row.Collection, Voice: &voice}
+		at := project.GovernancePoint{Collection: row.Collection, Path: row.Relative}
+		rc, err := op.Project.ResolveGovernanceFor(at)
+		require.NoError(t, err)
+		point := MapParityPoint{Name: row.Collection, Coordinates: op.Project.CoordinatesAt(at, rc), Voice: &voice}
 		if carried := profile.CarriedTerms(); len(carried.Rules) > 0 {
 			point.CarriedFrom, point.Carried = carried.From, carried.Rules
 		}

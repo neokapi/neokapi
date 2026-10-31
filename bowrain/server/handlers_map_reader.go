@@ -33,6 +33,7 @@ import (
 	"github.com/neokapi/neokapi/core/rulesview"
 	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/host/screens"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // readerTermsLimit caps the word rules the Reader lists for an item, as the
@@ -158,20 +159,50 @@ func (s *Server) HandleMapSummary(c echo.Context) error {
 // concepts in the workspace's terms store, the patterns of the voice bound
 // there, and the term rules and notes the ledger holds established.
 func (s *Server) mapRuleCount(ctx context.Context, c echo.Context, st *decideState) (int, error) {
-	total := len(st.established())
 	checks, err := jobs.ResolvePointChecks(ctx, s.checkBinding(c.Param("ws")), st.project.ID, st.stream, "", st.project.WorkspaceID, st.project.DefaultSourceLanguage)
 	if err != nil {
 		return 0, err
 	}
-	total += voiceRuleCount(checks.Voice)
-	if checks.Terms != nil {
-		_, n, err := checks.Terms.Search(ctx, "", "", "", 0, 1)
-		if err != nil {
-			return 0, fmt.Errorf("count terms: %w", err)
-		}
-		total += n
+	concepts, err := conceptsOf(ctx, checks.Terms)
+	if err != nil {
+		return 0, err
 	}
-	return total, nil
+	return len(concepts) + voiceRuleCount(checks.Voice) + len(notInTerms(st.established(), concepts)), nil
+}
+
+// conceptsOf reads every concept of a terms store; none when no store is
+// bound.
+func conceptsOf(ctx context.Context, tb terms.Terminology) ([]terms.Concept, error) {
+	if tb == nil {
+		return nil, nil
+	}
+	concepts, err := tb.Concepts(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("read the terms: %w", err)
+	}
+	return concepts, nil
+}
+
+// notInTerms keeps the established records a concept of the terms store does
+// not already state: every note, and each term rule whose wording no concept
+// holds. A kept term rule is recorded in the ledger and filed as a concept,
+// and the concept is what counts it.
+func notInTerms(records []contextop.Record, concepts []terms.Concept) []contextop.Record {
+	held := map[string]bool{}
+	for _, c := range concepts {
+		for _, t := range c.Terms {
+			held[rulesview.FoldWording(t.Text)] = true
+		}
+	}
+	var out []contextop.Record
+	for _, r := range records {
+		if rule, ok := r.Subject.Rule(); ok &&
+			(held[rulesview.FoldWording(rule.Term)] || (rule.Replacement != "" && held[rulesview.FoldWording(rule.Replacement)])) {
+			continue
+		}
+		out = append(out, r)
+	}
+	return out
 }
 
 // voiceRuleCount counts the rules a voice profile applies to text: the word
@@ -372,7 +403,7 @@ func checkedFinding(b *model.Block, f jobs.ItemFinding, source model.LocaleID) s
 // word rules of the terms and of the voice's own file follow
 // (rulesview.SayThisNotThat), capped at readerTermsLimit. Last come the term
 // rules and notes the ledger holds established at the item's point, each with
-// who put it in force and when. The total counts every rule.
+// who recorded it and when. The total counts every rule.
 func (s *Server) readerRules(ctx context.Context, st *decideState, checks jobs.PointChecks, path string) ([]screens.ReaderRuleDTO, int, error) {
 	out := []screens.ReaderRuleDTO{}
 	if checks.Voice != nil {
@@ -380,14 +411,11 @@ func (s *Server) readerRules(ctx context.Context, st *decideState, checks jobs.P
 			out = append(out, row)
 		}
 	}
-	var hits []rulesview.TermHit
-	if checks.Terms != nil {
-		concepts, err := checks.Terms.Concepts(ctx)
-		if err != nil {
-			return nil, 0, fmt.Errorf("read the terms: %w", err)
-		}
-		hits, _ = rulesview.TermsInForce(concepts, "", time.Now().UTC(), 0)
+	concepts, err := conceptsOf(ctx, checks.Terms)
+	if err != nil {
+		return nil, 0, err
 	}
+	hits, _ := rulesview.TermsInForce(concepts, "", time.Now().UTC(), 0)
 	words, wordsTotal := rulesview.SayThisNotThat(hits, nil, checks.Voice, readerTermsLimit)
 	for _, r := range words {
 		out = append(out, screens.ReaderWordRule(r))
@@ -395,19 +423,18 @@ func (s *Server) readerRules(ctx context.Context, st *decideState, checks jobs.P
 	extra := wordsTotal - len(words)
 
 	point := st.coordinates[path]
-	acts := rulesview.Acts(st.records, st.byID)
-	for _, r := range st.established() {
+	// A term rule the terms store holds is already listed among the words.
+	for _, r := range notInTerms(st.established(), concepts) {
 		if r.Scope.Level != contextop.LevelWorkspace && !r.Scope.CoversIn(st.places.Space, point) {
 			continue
 		}
-		who, at := keptBy(r, acts[r.ID])
 		out = append(out, screens.ReaderRuleDTO{
 			Kind:   keptKind(r.Subject),
 			Rule:   rulesview.Sentence(r.Subject),
 			Status: "established",
 			From:   keptFrom(r),
-			By:     who.Name,
-			At:     at.UTC().Format(time.RFC3339),
+			By:     r.Actor.Name,
+			At:     r.At.UTC().Format(time.RFC3339),
 		})
 	}
 	return out, len(out) + extra, nil
