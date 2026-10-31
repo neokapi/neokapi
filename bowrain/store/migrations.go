@@ -55,6 +55,7 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 // 45  the block history records the basis each translation carried
 // 46  a project's context key; term candidates leave the review queue
 // 47  the members a project's suggestions are assigned to
+// 48  the findings a project-wide check counted in each item
 var Migrations = []storage.Migration{
 	{
 		Version:     24,
@@ -1733,6 +1734,25 @@ var Migrations = []storage.Migration{
 				PRIMARY KEY (project_id, suggestion_id)
 			);
 			CREATE INDEX IF NOT EXISTS context_assignments_assignee ON context_assignments (assignee);
+		`,
+	},
+	{
+		Version:     48,
+		Description: "the findings a project-wide check counted in each item",
+		SQL: `
+			-- One row per item of a project's stream: what the last
+			-- project-wide check at the source locale counted on its blocks.
+			-- The Map reads the rows; a project with none has not been
+			-- checked yet.
+			CREATE TABLE IF NOT EXISTS item_check_tallies (
+				project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				stream     TEXT NOT NULL DEFAULT 'main',
+				item_id    TEXT NOT NULL,
+				findings   INTEGER NOT NULL DEFAULT 0,
+				fixable    INTEGER NOT NULL DEFAULT 0,
+				checked_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				PRIMARY KEY (project_id, stream, item_id)
+			);
 		`,
 	},
 }

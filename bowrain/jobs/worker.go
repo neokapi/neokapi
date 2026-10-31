@@ -436,6 +436,12 @@ func processJobWithDeps(ctx context.Context, deps *WorkerDeps, jobID string) err
 		return processModelSweepJob(ctx, deps, job, epoch)
 	}
 
+	// Route project-wide checks to their handler. They run no AI work, so
+	// the quota check below does not apply.
+	if job.IsProjectCheck() {
+		return processProjectCheckJob(ctx, deps, job, epoch)
+	}
+
 	// Check the monthly token quota before starting. This is the internal abuse
 	// cap (see jobs.QuotaStore) — a hard ceiling to bound runaway usage — not the
 	// user-facing credit ledger (bowrain/billing). It applies to platform and BYO

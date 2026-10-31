@@ -603,6 +603,35 @@ func (s *jobStore) CountActivePushApplies(ctx context.Context, projectID, stream
 	return n, nil
 }
 
+// ActiveProjectChecks finds a project-wide check that is queued or running.
+// The PostgreSQL job store implements it.
+type ActiveProjectChecks interface {
+	// ActiveProjectCheck returns the id of the oldest project-wide check of
+	// the project's stream that is queued or running, or "" when none is.
+	ActiveProjectCheck(ctx context.Context, projectID, stream string) (string, error)
+}
+
+// ActiveProjectCheck implements ActiveProjectChecks.
+func (s *jobStore) ActiveProjectCheck(ctx context.Context, projectID, stream string) (string, error) {
+	if stream == "" {
+		stream = "main"
+	}
+	var id string
+	err := s.db.QueryRowContext(ctx,
+		`SELECT id FROM translation_jobs
+		 WHERE project_id = $1 AND item_name = $2 AND status IN ($3, $4)
+		   AND COALESCE(NULLIF(stream, ''), 'main') = $5
+		 ORDER BY created_at, id LIMIT 1`,
+		projectID, ProjectCheckItemName, string(StatusQueued), string(StatusProcessing), stream).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("find an active project check: %w", err)
+	}
+	return id, nil
+}
+
 // scanJob scans a single TranslationJob from a sql.Row.
 func scanJob(row *sql.Row) (*TranslationJob, error) {
 	var j TranslationJob
