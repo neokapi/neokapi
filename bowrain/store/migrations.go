@@ -6,7 +6,7 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 // consolidated baseline and subsequent migrations, including hash-partitioned
 // blocks, translations, annotations and overlays_ext tables.
 //
-// LEDGER — every version this subsystem has ever issued, now folded in:
+// LEDGER: every version this subsystem has ever issued, now folded in:
 //
 //	 1  content store schema (baseline)
 //	 2  workspace-scoped AI provider configs (Epic 004 hybrid AI)
@@ -50,8 +50,9 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 // 40  a decision records the revisions of the pairing it blesses
 // 41  a block records its source revision; decisions drop their text hashes
 // 42  an edition write names its unit by the venue's key alone
-// 43  spent: issued by #3074 and removed by #3076; never reuse
+// 43  spent: issued by #3074 and removed by #3076; re-issued as 46
 // 44  a project's context objects, as the context layout names them
+// 46  the block history records the basis each translation carried
 var Migrations = []storage.Migration{
 	{
 		Version:     24,
@@ -1670,6 +1671,31 @@ var Migrations = []storage.Migration{
 				pushed_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				PRIMARY KEY (project_id, name)
 			);
+		`,
+	},
+	{
+		Version:     46,
+		Description: "the block history records the basis each translation carried",
+		SQL: `
+			-- Re-issues version 43, which some databases applied before the
+			-- change was lost from main. Every statement is safe to run on a
+			-- database that already holds it.
+			--
+			-- The derivation the edition carried when the row was written
+			-- (model.Edition.Derived): the revision of the edition it was
+			-- made from (basis) and that edition's key in text form
+			-- (basis_from, '' for the edition the document is written in).
+			-- Empty on every row written before this version.
+			ALTER TABLE block_history ADD COLUMN IF NOT EXISTS basis      TEXT NOT NULL DEFAULT '';
+			ALTER TABLE block_history ADD COLUMN IF NOT EXISTS basis_from TEXT NOT NULL DEFAULT '';
+
+			-- A translation's basis lives on its edition, so the ledger holds
+			-- no row that carries a basis and nothing else. Such a row would
+			-- shadow the derivation the translation records, so the ones a
+			-- push or a draft wrote before this version go.
+			DELETE FROM unit_decisions
+			 WHERE review_state = '' AND status = '' AND decided_by = ''
+			   AND note = '' AND assignee = '' AND NOT parked;
 		`,
 	},
 }

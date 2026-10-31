@@ -352,11 +352,11 @@ func applyStagedPush(
 		}
 	}
 
-	// How each translation came to be, after the decisions, so a write on a
-	// unit this push decided is read against the decision: the basis a
-	// translation was made from lands as the unit's record where nobody has
-	// decided it, and a translation the pusher wrote by hand is attributed to
-	// them in the block history.
+	// How each translation came to be, after the decisions: the basis a
+	// translation was made from lands on the edition the venue holds and on
+	// the block history row this push wrote for it, a write that names no
+	// source clears the basis the edition recorded, and a translation the
+	// pusher wrote by hand is attributed to them in the block history.
 	if len(writes) > 0 {
 		n, werr := tx.RecordEditionWrites(ctx, projectID, stream, gov.actor, writes)
 		if werr != nil {
@@ -384,7 +384,8 @@ type pushOutcome struct {
 	Removed   int
 	Renamed   int
 	Decisions int
-	// Writes is how many edition writes landed on a unit's record.
+	// Writes is how many edition writes described a translation the venue
+	// holds a block for.
 	Writes int
 
 	// Governance is what the platform's review gate did not accept: the

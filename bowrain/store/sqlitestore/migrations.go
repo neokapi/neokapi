@@ -1,6 +1,13 @@
 package sqlitestore
 
-import "github.com/neokapi/neokapi/bowrain/storage"
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"strings"
+
+	"github.com/neokapi/neokapi/bowrain/storage"
+)
 
 // storeMigrations defines the SQLite content store schema. Mirrors
 // bowrain/store/migrations.go (the Postgres schema) with the dialect
@@ -9,12 +16,12 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 // desktops carry long-lived local databases, so every schema change after it
 // MUST be an incremental migration.
 //
-// RETIRED VERSION NUMBERS — never reuse: 2 ("Live Preview", AD-023/AD-036)
+// RETIRED VERSION NUMBERS, never reused: 2 ("Live Preview", AD-023/AD-036)
 // and 3 ("block occurrences", AD-036) ran on live databases before being
 // folded into the v1 baseline. New migrations start at 4. Versions 28 to 34
 // were issued by this store before it was rebuilt from a new baseline, so the
 // list continues at 35. Version 37 was issued by #3074 and removed by #3076;
-// it is spent too.
+// it is spent too, and re-issued as 40.
 var storeMigrations = []storage.Migration{
 	{
 		Version:     1,
@@ -1122,4 +1129,59 @@ var storeMigrations = []storage.Migration{
 			);
 		`,
 	},
+	{
+		// Re-issues version 37, which some desktop databases applied before
+		// the change was lost from main. SQLite has no ADD COLUMN IF NOT
+		// EXISTS, so Apply reads the table and adds only the columns it lacks.
+		Version:     40,
+		Description: "the block history records the basis each translation carried",
+		SQL: `
+			-- Mirrors bowrain/store/migrations.go version 46: the derivation
+			-- the edition carried when the row was written, and no ledger row
+			-- that carries a basis and nothing else.
+			DELETE FROM unit_decisions
+			 WHERE review_state = '' AND status = '' AND decided_by = ''
+			   AND note = '' AND assignee = '' AND parked = 0;
+		`,
+		Apply: func(ctx context.Context, tx *sql.Tx) error {
+			return addMissingColumns(ctx, tx, "block_history", []string{
+				"basis      TEXT NOT NULL DEFAULT ''",
+				"basis_from TEXT NOT NULL DEFAULT ''",
+			})
+		},
+	},
+}
+
+// addMissingColumns adds each column definition to table unless the table
+// already has a column of that name. A definition starts with the column name.
+func addMissingColumns(ctx context.Context, tx *sql.Tx, table string, defs []string) error {
+	rows, err := tx.QueryContext(ctx, `SELECT name FROM pragma_table_info(?)`, table)
+	if err != nil {
+		return fmt.Errorf("read columns of %s: %w", table, err)
+	}
+	have := map[string]bool{}
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			_ = rows.Close()
+			return fmt.Errorf("read columns of %s: %w", table, err)
+		}
+		have[name] = true
+	}
+	if err := rows.Close(); err != nil {
+		return fmt.Errorf("read columns of %s: %w", table, err)
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("read columns of %s: %w", table, err)
+	}
+	for _, def := range defs {
+		name, _, _ := strings.Cut(def, " ")
+		if have[name] {
+			continue
+		}
+		if _, err := tx.ExecContext(ctx, "ALTER TABLE "+table+" ADD COLUMN "+def); err != nil {
+			return fmt.Errorf("add column %s.%s: %w", table, name, err)
+		}
+	}
+	return nil
 }

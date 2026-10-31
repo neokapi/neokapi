@@ -738,6 +738,8 @@ func TestMigrations_AWorkingCopyGradedByHashLosesThePairing(t *testing.T) {
 		`UPDATE unit_decisions SET target_hash='t-hash', content_hash='s-hash', draft_basis='s-hash'`,
 		`UPDATE blocks SET properties = json_set(properties, '$.__source_settled_hash', 's-hash')`,
 		`ALTER TABLE blocks DROP COLUMN source_revision`,
+		`ALTER TABLE block_history DROP COLUMN basis`,
+		`ALTER TABLE block_history DROP COLUMN basis_from`,
 		`DELETE FROM schema_migrations WHERE version >= 36`,
 	} {
 		_, err = s.db.ExecContext(ctx, stmt)
@@ -791,8 +793,14 @@ func TestMigrations_AWorkingCopyFromBeforeTheRebuildStillOpens(t *testing.T) {
 	ctx := t.Context()
 	_, err = s.db.ExecContext(ctx, `DROP TABLE unit_decisions`)
 	require.NoError(t, err)
-	_, err = s.db.ExecContext(ctx, `ALTER TABLE blocks DROP COLUMN source_revision`)
-	require.NoError(t, err)
+	for _, stmt := range []string{
+		`ALTER TABLE blocks DROP COLUMN source_revision`,
+		`ALTER TABLE block_history DROP COLUMN basis`,
+		`ALTER TABLE block_history DROP COLUMN basis_from`,
+	} {
+		_, err = s.db.ExecContext(ctx, stmt)
+		require.NoError(t, err, stmt)
+	}
 	_, err = s.db.ExecContext(ctx, `DELETE FROM schema_migrations WHERE version >= 28`)
 	require.NoError(t, err)
 	for v := 28; v <= 34; v++ {
@@ -861,4 +869,42 @@ func TestTallyDecisionBasis_SQLiteGradesARecordedDerivation(t *testing.T) {
 		assert.Zero(t, got.Stale, "a decision's basis takes over from the derivation")
 		assert.Zero(t, got.Owed)
 	}
+}
+
+// TestGetBlockHistory_SQLiteRecordsTheBasis pins the history of a translation:
+// each entry records the derivation the edition carried when it was written,
+// and an entry for a translation that recorded none carries no basis.
+func TestGetBlockHistory_SQLiteRecordsTheBasis(t *testing.T) {
+	s := newTestStore(t)
+	ctx := t.Context()
+	p := createTestProject(t, s)
+
+	// The history records the rewrites of a translation the store holds.
+	first := &model.Block{ID: "greeting", Translatable: true}
+	first.SetSourceText("Hello")
+	first.SetTargetText("nb", "Hej")
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{first}))
+
+	b := &model.Block{ID: "greeting", Translatable: true}
+	b.SetSourceText("Hello")
+	b.SetTargetText("nb", "Hei")
+	b.SetDerivation(model.EditionKey{Locale: "nb"}, &model.Derivation{Rev: sourceRevision("Hello")})
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{b}))
+
+	edited := &model.Block{ID: "greeting", Translatable: true}
+	edited.SetSourceText("Hello")
+	edited.SetTargetText("nb", "Hallo")
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{edited}))
+
+	blocks, err := s.GetBlocks(ctx, platstore.BlockQuery{ProjectID: p.ID, Stream: "main", ItemName: "en.json"})
+	require.NoError(t, err)
+	require.Len(t, blocks, 1)
+	history, err := s.GetBlockHistory(ctx, p.ID, "main", blocks[0].ID, "nb", 0)
+	require.NoError(t, err)
+	require.Len(t, history, 2)
+	assert.Equal(t, "Hallo", history[0].Text)
+	assert.Empty(t, history[0].Basis, "the edit recorded no derivation")
+	assert.Equal(t, "Hei", history[1].Text)
+	assert.Equal(t, sourceRevision("Hello"), history[1].Basis)
+	assert.Empty(t, history[1].BasisFrom, "made from the edition the document is written in")
 }

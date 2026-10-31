@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/storage"
@@ -20,13 +19,18 @@ import (
 // each translation (venue.EditionWrite), and the venue keeps the facts it
 // grades by where it keeps the same facts about its own drafts:
 //
-//   - the basis, on the unit's ledger row, where nobody has decided the unit:
-//     the row a run of the venue's own writes for a draft it made, so a
-//     translation a run on the checkout made is graded stale against the
-//     source the same way (TallyDecisionBasis). A decision's basis is the
-//     decision's, and a write never replaces it.
-//   - the draft mark, for a translation a tool made from a recorded source, so
-//     the venue's own runs count the unit as drafted against that source.
+//   - the basis, on the translation the venue holds (model.Edition.Derived,
+//     target_json.derived) and on the block history row this push wrote for
+//     it: where a draft of the venue's own records it, so a translation a run
+//     on the checkout made is graded stale against the source the same way
+//     (TallyDecisionBasis). A write that names no source for a translation
+//     it replaced (an edit by hand, or one made outside kapi) clears the
+//     basis the translation recorded. A decision's basis is the decision's,
+//     on its ledger row, and a write never touches it; the ledger holds
+//     decisions and draft marks and no record that carries a basis alone.
+//   - the draft mark, for a translation a tool made from a recorded source, on
+//     a unit the ledger holds a row for, so the venue's own runs count the
+//     unit as drafted against that source.
 //   - the author of a translation the pusher wrote by hand: in
 //     edition_writers, whether or not the venue holds the translation, which
 //     separation of duties reads when an approval of it arrives in a later
@@ -38,7 +42,7 @@ import (
 // nothing the venue has, and leaves its basis and draft mark alone.
 //
 // The venue's view of an item is read once per item for all its writes: the
-// blocks, the translations and the ledger rows, each in one query, so a push
+// blocks, the translations and the draft marks, each in one query, so a push
 // that carries the writes of a whole pass costs a few queries per item rather
 // than several per write.
 
@@ -79,7 +83,6 @@ func recordEditionWritesTx(ctx context.Context, tx Runner, projectID, stream, au
 
 	rec := writeRecorder{
 		tx: tx, projectID: projectID, stream: stream, author: author, correlation: correlation,
-		updated: time.Now().UTC().Format(time.RFC3339),
 	}
 	recorded := 0
 	for _, item := range items {
@@ -97,13 +100,13 @@ type writeRecorder struct {
 	tx                  Runner
 	projectID, stream   string
 	author, correlation string
-	updated             string
 }
 
-// basisRecord is a unit's ledger record of the source its translation was
-// made from, as an edition write gives it: the pairing and nothing else.
-type basisRecord struct {
-	unit, variant, revision, basis, governing string
+// basisMark is the basis a write gives the translation the venue holds: the
+// derivation to record on its edition, or nil to clear the one it records.
+type basisMark struct {
+	blockID, variant string
+	derived          *model.Derivation
 }
 
 // draftMark is the source a tool's write says it drafted a unit's translation
@@ -112,13 +115,49 @@ type draftMark struct {
 	unit, variant, basis string
 }
 
-// unitRecord is the part of a unit's ledger row a write is judged against.
-type unitRecord struct {
-	reviewState, revision, basis, draftBasis string
-}
-
 // unitVariant names one translation of a unit within an item.
 type unitVariant struct{ unit, variant string }
+
+// writtenBasis is the derivation write w gives the translation it describes,
+// and whether it gives one at all. A write that names its source gives the
+// edition the document is written in at that revision. One that replaced the
+// translation with one made from no recorded source gives none, which clears
+// what the translation recorded. A record of what a pull or a merge brought in
+// says nothing new about the source and leaves the translation's own record
+// alone.
+func writtenBasis(w venue.EditionWrite) (*model.Derivation, bool) {
+	switch {
+	case w.HasBasis():
+		return &model.Derivation{Rev: w.Basis}, true
+	case w.KnowsNoBasis():
+		return nil, true
+	}
+	return nil, false
+}
+
+// sameBasis reports whether a translation recording held already records the
+// basis want names. The source is compared by revision: the edition a
+// derivation names it under is the one the document is written in either way.
+func sameBasis(held, want *model.Derivation) bool {
+	if held == nil || want == nil {
+		return held == nil && want == nil
+	}
+	return held.Rev == want.Rev
+}
+
+// derivationColumns is d as the block history and target_json store it: the
+// text form of the edition key it was made from, and that edition's revision.
+// Both are empty for no derivation.
+func derivationColumns(d *model.Derivation) (from, rev string, err error) {
+	if d == nil {
+		return "", "", nil
+	}
+	text, err := d.From.MarshalText()
+	if err != nil {
+		return "", "", err
+	}
+	return string(text), d.Rev, nil
+}
 
 // item records the writes of one item.
 func (r *writeRecorder) item(ctx context.Context, item string, writes []venue.EditionWrite) (int, error) {
@@ -142,12 +181,12 @@ func (r *writeRecorder) item(ctx context.Context, item string, writes []venue.Ed
 	if err != nil {
 		return 0, err
 	}
-	records, err := r.records(ctx, item, units)
+	marks, err := r.draftMarks(ctx, item, units)
 	if err != nil {
 		return 0, err
 	}
 
-	var bases []basisRecord
+	var bases []basisMark
 	var drafts []draftMark
 	recorded := 0
 	for _, w := range writes {
@@ -158,37 +197,32 @@ func (r *writeRecorder) item(ctx context.Context, item string, writes []venue.Ed
 		key, _ := model.ParseEditionKey(w.Variant)
 
 		// The translation the venue holds, when it holds one.
-		held := false
+		var held *model.Edition
 		if targetJSON, ok := targets[[2]string{blockID, w.Variant}]; ok {
 			if tgt, uerr := UnmarshalTargetJSON([]byte(targetJSON)); uerr == nil {
 				if model.RunsRevision(key.Canonical(), tgt.Runs) != w.Revision {
 					continue // the write describes another translation
 				}
-				held = true
+				held = &tgt
 			}
 		}
-		revision := ""
-		if held {
-			revision = w.Revision
-		}
 
-		prev, haveRecord := records[unitVariant{w.Unit, w.Variant}]
-		decided := haveRecord && prev.reviewState != ""
-		basis := ""
-		if w.HasBasis() {
-			basis = w.Basis
+		// The basis lives on the translation, so a write about one the venue
+		// does not hold has nowhere to put it.
+		if want, gives := writtenBasis(w); held != nil && gives {
+			if !sameBasis(held.Derived, want) {
+				bases = append(bases, basisMark{blockID: blockID, variant: w.Variant, derived: want})
+			}
+			if r.correlation != "" {
+				if err := r.basisInHistory(ctx, blockID, w.Variant, want); err != nil {
+					return recorded, fmt.Errorf("record the basis of %s/%s in its history: %w", w.Unit, w.Variant, err)
+				}
+			}
 		}
-		if !decided && (basis != "" || w.KnowsNoBasis()) &&
-			(!haveRecord || prev.basis != basis || prev.revision != revision) {
-			bases = append(bases, basisRecord{
-				unit: w.Unit, variant: w.Variant, revision: revision, basis: basis,
-				governing: w.GoverningFingerprint,
-			})
-		}
-		if w.Produced() && (!haveRecord || prev.draftBasis != w.Basis) {
+		if prev, had := marks[unitVariant{w.Unit, w.Variant}]; w.Produced() && had && prev != w.Basis {
 			drafts = append(drafts, draftMark{unit: w.Unit, variant: w.Variant, basis: w.Basis})
 		}
-		if author := writers[unitVariant{w.Unit, w.Variant}]; held && author != "" && r.correlation != "" {
+		if author := writers[unitVariant{w.Unit, w.Variant}]; held != nil && author != "" && r.correlation != "" {
 			if _, err := r.tx.ExecContext(ctx,
 				`UPDATE block_history SET author=$1
 				 WHERE id = (SELECT MAX(id) FROM block_history
@@ -202,13 +236,31 @@ func (r *writeRecorder) item(ctx context.Context, item string, writes []venue.Ed
 		}
 		recorded++
 	}
-	// The records first: a unit nobody had a record of gets its row here, and
-	// the draft marks land on rows and create none. A statement may name a
-	// row once, so the last write of a translation answers for it.
-	if err := r.recordBases(ctx, item, lastOf(bases, func(b basisRecord) unitVariant { return unitVariant{b.unit, b.variant} })); err != nil {
+	// A statement may name a row once, so the last write of a translation
+	// answers for it.
+	if err := r.recordBases(ctx, lastOf(bases, func(b basisMark) unitVariant { return unitVariant{b.blockID, b.variant} })); err != nil {
 		return recorded, err
 	}
 	return recorded, r.markDrafts(ctx, item, lastOf(drafts, func(d draftMark) unitVariant { return unitVariant{d.unit, d.variant} }))
+}
+
+// basisInHistory records basis d on the block history row this push wrote
+// for the translation, when it wrote one, so the history keeps the derivation
+// each revision of the translation carried.
+func (r *writeRecorder) basisInHistory(ctx context.Context, blockID, variant string, d *model.Derivation) error {
+	from, rev, err := derivationColumns(d)
+	if err != nil {
+		return err
+	}
+	_, err = r.tx.ExecContext(ctx,
+		`UPDATE block_history SET basis=$1, basis_from=$2
+		 WHERE id = (SELECT MAX(id) FROM block_history
+		   WHERE project_id=$3 AND stream=$4 AND block_id=$5 AND locale=$6
+		     AND change_type IN `+targetContentChangeTypes+`
+		     AND correlation_id=$7)
+		   AND (basis <> $1 OR basis_from <> $2)`,
+		rev, from, r.projectID, r.stream, blockID, variant, r.correlation)
+	return err
 }
 
 // lastOf keeps the last of the values that share a key, in the order of their
@@ -231,45 +283,38 @@ func lastOf[T any](in []T, key func(T) unitVariant) []T {
 // basisChunk and draftChunk bound the rows one statement writes, inside the
 // statement's parameter limit.
 const (
-	basisChunk = 500
+	basisChunk = 1000
 	draftChunk = 1000
 )
 
-// recordBases writes the basis records of an item's units, a few hundred to a
-// statement. A record carries the pairing and nothing else, so it never
-// replaces a decision: a unit decided since the push read its record keeps the
-// decision whole, and an undecided record keeps its rung, note and assignee.
-// A basis decides nothing, so it is not filed in the block history as a
+// recordBases records the basis of each translation on its edition
+// (target_json.derived), a thousand to a statement: the derivation a mark
+// names, or none for a mark that clears it. The rest of the edition stays as
+// it is, its status among it, so a basis decides nothing and replaces no
 // decision.
-func (r *writeRecorder) recordBases(ctx context.Context, item string, bases []basisRecord) error {
-	if len(bases) == 0 {
-		return nil
-	}
-	itemID, err := resolveItemIDPg(ctx, r.tx, r.projectID, r.stream, item)
-	if err != nil {
-		return err
-	}
+func (r *writeRecorder) recordBases(ctx context.Context, bases []basisMark) error {
 	for start := 0; start < len(bases); start += basisChunk {
 		chunk := bases[start:min(start+basisChunk, len(bases))]
-		args := []any{r.projectID, r.stream, itemID, item, r.updated}
+		args := []any{r.projectID, r.stream}
 		values := make([]string, len(chunk))
 		for i, b := range chunk {
+			from, rev, err := derivationColumns(b.derived)
+			if err != nil {
+				return fmt.Errorf("encode the basis of %s/%s: %w", b.blockID, b.variant, err)
+			}
 			n := len(args)
-			values[i] = fmt.Sprintf("($1,$2,$3,$4,$%d,$%d,$%d,$%d,$%d,$5,NOW())", n+1, n+2, n+3, n+4, n+5)
-			args = append(args, b.unit, b.variant, b.revision, b.basis, b.governing)
+			values[i] = fmt.Sprintf("($%d::text,$%d::text,$%d::text,$%d::text)", n+1, n+2, n+3, n+4)
+			args = append(args, b.blockID, b.variant, from, rev)
 		}
 		if _, err := r.tx.ExecContext(ctx,
-			`INSERT INTO unit_decisions
-				(project_id, stream, item_id, item_name, unit, variant, revision, basis,
-				 governing_fingerprint, updated, updated_at)
-			 VALUES `+strings.Join(values, ",")+`
-			 ON CONFLICT (project_id, stream, item_id, unit, variant) DO UPDATE SET
-				revision=EXCLUDED.revision, basis=EXCLUDED.basis,
-				governing_fingerprint=EXCLUDED.governing_fingerprint,
-				updated=EXCLUDED.updated, updated_at=EXCLUDED.updated_at
-			 WHERE unit_decisions.review_state = ''`,
+			`UPDATE translations t SET
+				target_json = CASE WHEN v.rev = '' THEN t.target_json - 'derived'
+					ELSE jsonb_set(t.target_json, '{derived}', jsonb_build_object('from', v.from_key, 'rev', v.rev)) END,
+				updated_at = NOW()
+			 FROM (VALUES `+strings.Join(values, ",")+`) AS v(block_id, locale, from_key, rev)
+			 WHERE t.project_id=$1 AND t.stream=$2 AND t.block_id=v.block_id AND t.locale=v.locale`,
 			args...); err != nil {
-			return fmt.Errorf("record the bases of %s: %w", item, err)
+			return fmt.Errorf("record the bases of a push's translations: %w", err)
 		}
 	}
 	return nil
@@ -432,36 +477,37 @@ func (r *writeRecorder) translations(ctx context.Context, blockIDs map[string]st
 	return out, nil
 }
 
-// records maps each ledger row the units hold in item to what a write is
-// judged against.
-func (r *writeRecorder) records(ctx context.Context, item string, units []string) (map[unitVariant]unitRecord, error) {
-	out := map[unitVariant]unitRecord{}
+// draftMarks maps each ledger row the units hold in item to the draft mark
+// it carries. A unit with no row is absent: a draft mark lands on a row and
+// creates none.
+func (r *writeRecorder) draftMarks(ctx context.Context, item string, units []string) (map[unitVariant]string, error) {
+	out := map[unitVariant]string{}
 	for chunk := range chunked(units, writeLookupChunk) {
 		args := []any{r.projectID, r.stream, item}
 		args = append(args, anyStrings(chunk)...)
 		rows, err := r.tx.QueryContext(ctx,
-			`SELECT unit, variant, review_state, revision, basis, draft_basis FROM unit_decisions
+			`SELECT unit, variant, draft_basis FROM unit_decisions
 			 WHERE project_id=$1 AND stream=$2
 			   AND item_id = (SELECT id FROM items WHERE project_id=$1 AND stream=$2 AND name=$3)
 			   AND unit IN (`+placeholderList("pg", 4, len(chunk))+`)`,
 			args...)
 		if err != nil {
-			return nil, fmt.Errorf("read the records of %s: %w", item, err)
+			return nil, fmt.Errorf("read the draft marks of %s: %w", item, err)
 		}
-		type keptRecord struct {
-			at  unitVariant
-			rec unitRecord
+		type keptMark struct {
+			at    unitVariant
+			basis string
 		}
-		held, err := storage.ScanRows(rows, func(sc storage.Scanner) (keptRecord, error) {
-			var k keptRecord
-			err := sc.Scan(&k.at.unit, &k.at.variant, &k.rec.reviewState, &k.rec.revision, &k.rec.basis, &k.rec.draftBasis)
+		held, err := storage.ScanRows(rows, func(sc storage.Scanner) (keptMark, error) {
+			var k keptMark
+			err := sc.Scan(&k.at.unit, &k.at.variant, &k.basis)
 			return k, err
 		})
 		if err != nil {
-			return nil, fmt.Errorf("read the records of %s: %w", item, err)
+			return nil, fmt.Errorf("read the draft marks of %s: %w", item, err)
 		}
 		for _, k := range held {
-			out[k.at] = k.rec
+			out[k.at] = k.basis
 		}
 	}
 	return out, nil
