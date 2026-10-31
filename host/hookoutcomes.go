@@ -68,6 +68,42 @@ func (a *App) SessionOutcomes(ctx context.Context, req ContextSessionRequest) (S
 	return out, nil
 }
 
+// LatestSession is the session that recorded last in a project's log.
+type LatestSession struct {
+	// Session is the id the session recorded under.
+	Session string
+	// Last is when it last recorded.
+	Last time.Time
+}
+
+// LatestContextSession names the session that recorded most recently in a
+// project's log, counting an operation of any kind: a Stop hook's check run, a
+// note, a decision. ok is false when the log holds no operation under a session.
+//
+// The MCP tools record under the server's own session and the Stop hook under
+// the assistant host's, so a caller that knows neither id reads the latest one
+// the log holds.
+func (a *App) LatestContextSession(ctx context.Context, project string) (latest LatestSession, ok bool, err error) {
+	s, err := a.contextOps(ctx, project)
+	if err != nil {
+		return LatestSession{}, false, err
+	}
+	records, err := s.ledger.Records(ctx, contextop.Filter{Project: s.key})
+	if err != nil {
+		return LatestSession{}, false, err
+	}
+	// Newest first: on equal instants the record the log accepted later wins.
+	for _, r := range records {
+		if r.Actor.Session == "" {
+			continue
+		}
+		if !ok || r.At.After(latest.Last) {
+			latest, ok = LatestSession{Session: r.Actor.Session, Last: r.At}, true
+		}
+	}
+	return latest, ok, nil
+}
+
 // SessionOutcomesOf derives every session's outcomes from check records, in
 // any order. Runs are compared within one project and one session, in the
 // order the log accepted them, as CheckSequences and CaughtMarks pair them.

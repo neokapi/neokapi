@@ -63,7 +63,8 @@ func registerContextGrowthMCPTools(server *mcp.Server, a *App) {
 			"runs found in it: `checked` runs, the `failing` findings the latest run left, the `caught` " +
 			"findings and the `files` the session edited. A finding is caught when a hook run reported it " +
 			"and the next run on the same file no longer found it. The hook records its runs under the " +
-			"assistant host's session id; pass that id in `session` to read them. Call it only if you " +
+			"assistant host's session id. Without `session`, it summarizes the session that recorded last " +
+			"in the project's log and names it in `chosen`. Call it only if you " +
 			"recorded a note, and end your report with what it says, including the command a person " +
 			"reviews the session with.",
 	}, a.handleContextSessionSummary)
@@ -212,7 +213,7 @@ type contextNoteInput struct {
 
 // contextSessionInput asks what one session did.
 type contextSessionInput struct {
-	Session string `json:"session,omitempty" jsonschema:"the session to summarize (default: this MCP server's own)"`
+	Session string `json:"session,omitempty" jsonschema:"the session to summarize (default: the session that recorded last in the project's log, named in chosen)"`
 	Project string `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
 }
 
@@ -278,6 +279,9 @@ type contextSessionOutput struct {
 	// First and Last bound the session in time, RFC 3339.
 	First string `json:"first,omitempty"`
 	Last  string `json:"last,omitempty"`
+	// Chosen names the session a call without `session` summarizes and when
+	// it last recorded. A call that names its session gets none.
+	Chosen string `json:"chosen,omitempty"`
 	// Review is the command a person reads the session with.
 	Review string `json:"review"`
 	// Report is the sentence to end a task report with.
@@ -434,8 +438,19 @@ func (a *App) handleContextSessionSummary(ctx context.Context, req *mcp.CallTool
 		return nil, contextSessionOutput{}, err
 	}
 	session := strings.TrimSpace(in.Session)
+	var chosen string
 	if session == "" {
-		session = MCPSessionID()
+		latest, ok, err := a.LatestContextSession(ctx, recipe)
+		if err != nil {
+			return nil, contextSessionOutput{}, err
+		}
+		if !ok {
+			a.NoteMCPSession(ctx, recipe, mcpClientName(req))
+			return nil, contextSessionOutput{Report: noSessionReport}, nil
+		}
+		session = latest.Session
+		chosen = fmt.Sprintf("No `session` given: this is %s, the latest session in the project's log, last recorded %s.",
+			session, latest.Last.UTC().Format(time.RFC3339))
 	}
 	sreq := ContextSessionRequest{Project: recipe, Session: session}
 	summary, err := a.ContextSessionSummary(ctx, sreq)
@@ -447,8 +462,15 @@ func (a *App) handleContextSessionSummary(ctx context.Context, req *mcp.CallTool
 		return nil, contextSessionOutput{}, err
 	}
 	a.NoteMCPSession(ctx, recipe, mcpClientName(req))
-	return nil, sessionOutput(summary, outcomes), nil
+	out := sessionOutput(summary, outcomes)
+	out.Chosen = chosen
+	return nil, out, nil
 }
+
+// noSessionReport answers a call with no `session` in a project whose log holds
+// no session's operations.
+const noSessionReport = "The project's log holds no session's operations yet: the Stop hook records one " +
+	"each time it runs the project's checks at the end of an assistant turn."
 
 // ─── Rendering ──────────────────────────────────────────────────────────────
 
