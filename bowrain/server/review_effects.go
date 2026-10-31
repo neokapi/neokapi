@@ -21,7 +21,8 @@ func (s *Server) processDecisionSideEffects(ctx context.Context, item *bstore.Re
 	}
 }
 
-// approveEntity processes an approved entity — if DNT, adds to dnt_entries.
+// approveEntity adds an approved entity marked do-not-translate to the
+// project's do-not-translate list.
 func (s *Server) approveEntity(ctx context.Context, item *bstore.ReviewItem) {
 	if s.ReviewQueueStore == nil {
 		return
