@@ -527,7 +527,7 @@ func (a *App) extractOne(ctx context.Context, task extractTask) (project.Extract
 	// lookups (and thus out of pre-filled targets), so nothing sensitive
 	// reaches the XLIFF.
 	if task.redaction != nil {
-		if err := applyRedaction(ctx, blocks, task.redaction, task.layout.Root, task.redactionVault, task.ctx.SourceLocale); err != nil {
+		if err := applyRedaction(ctx, vaultDoc(task.source.Relative), blocks, task.redaction, task.layout.Root, task.redactionVault, task.ctx.SourceLocale); err != nil {
 			return project.ExtractionFile{}, fmt.Errorf("redaction: %w", err)
 		}
 	}
@@ -731,10 +731,13 @@ func applyMemoryPrefill(ctx context.Context, tm memory.ContentMemory, block *mod
 // regular kapi tool.Tool but we call its block handler directly here to
 // avoid wiring a one-stage channel pipeline into the extract flow.
 // applyRedaction runs the redact tool over the source blocks in external
-// mode, writing originals to the batch vault sidecar at vaultPath. Rule paths
-// in the spec are resolved relative to rootDir.
-func applyRedaction(ctx context.Context, blocks []*model.Block, spec *project.RedactionSpec, rootDir, vaultPath string, sourceLocale model.LocaleID) error {
-	rt, err := tools.NewRedactTool(redactToolConfig(spec, rootDir, vaultPath, sourceLocale))
+// mode, writing originals to the batch vault sidecar at vaultPath under doc,
+// the document the blocks sit in ("" for content in no file). Rule paths in
+// the spec are resolved relative to rootDir.
+func applyRedaction(ctx context.Context, doc string, blocks []*model.Block, spec *project.RedactionSpec, rootDir, vaultPath string, sourceLocale model.LocaleID) error {
+	cfg := redactToolConfig(spec, rootDir, vaultPath, sourceLocale)
+	cfg.Document = doc
+	rt, err := tools.NewRedactTool(cfg)
 	if err != nil {
 		return err
 	}

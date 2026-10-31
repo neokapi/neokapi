@@ -20,36 +20,62 @@ type RedactedValue struct {
 	Disp     string         `json:"disp,omitempty"` // visible placeholder string, for text-based restore
 	Original string         `json:"original"`
 	Locale   model.LocaleID `json:"locale,omitempty"`
-	BlockID  string         `json:"blockId,omitempty"`
+	// Doc names the document the block sits in: its project-relative,
+	// slash-separated path. Empty names content that sits in no document,
+	// whose block ID names it alone (a recorded edit, a note), and every
+	// entry a version 1 vault holds.
+	Doc     string `json:"doc,omitempty"`
+	BlockID string `json:"blockId,omitempty"`
 }
 
 // Vault stores the original values that redaction removed from content,
-// keyed by block ID and token. Implementations keep the originals local: an
-// in-process map for single-run flows, or a gitignored sidecar file for the
-// extract → external translation → merge roundtrip.
+// keyed by document, block ID and token. Block IDs and tokens repeat from
+// one document to the next (every JSON file can hold a block "greeting",
+// and the token counter starts again in every block), so the document is
+// part of the key. Implementations keep the originals local: an in-process
+// map for single-run flows, or a gitignored sidecar file for the extract →
+// external translation → merge roundtrip.
 type Vault interface {
-	// Put stores (or overwrites) a value. BlockID and Token together form
-	// the key.
+	// Put stores (or overwrites) a value. Doc, BlockID and Token together
+	// form the key.
 	Put(v RedactedValue) error
-	// Get returns the value for a block/token pair.
-	Get(blockID, token string) (RedactedValue, bool)
+	// Get returns the value for a document/block/token triple. When doc is
+	// set and the vault holds nothing under it, Get returns the entry for
+	// the block and token that names no document, which is how a version 1
+	// vault stored every entry.
+	Get(doc, blockID, token string) (RedactedValue, bool)
 	// All returns every stored value in a stable order.
 	All() []RedactedValue
 }
 
-func vaultKey(blockID, token string) string { return blockID + "\x00" + token }
+func vaultKey(doc, blockID, token string) string {
+	return doc + "\x00" + blockID + "\x00" + token
+}
 
-// ValuesForBlock returns every stored value belonging to a block. Used for
-// text-based restore, which matches by visible placeholder rather than by
-// token.
-func ValuesForBlock(v Vault, blockID string) []RedactedValue {
-	var out []RedactedValue
+// ValuesForBlock returns every stored value belonging to one block of one
+// document. Used for text-based restore, which matches by visible
+// placeholder rather than by token. When doc is set and the vault holds
+// nothing for the block under it, the entries for the block that name no
+// document are returned: a version 1 vault keyed every entry by block alone,
+// so an extraction or a push written before the document was part of the key
+// still restores.
+func ValuesForBlock(v Vault, doc, blockID string) []RedactedValue {
+	var exact, legacy []RedactedValue
 	for _, rv := range v.All() {
-		if rv.BlockID == blockID {
-			out = append(out, rv)
+		if rv.BlockID != blockID {
+			continue
+		}
+		switch rv.Doc {
+		case doc:
+			exact = append(exact, rv)
+		case "":
+			legacy = append(legacy, rv)
 		}
 	}
-	return out
+	if len(exact) > 0 || doc == "" {
+		return exact
+	}
+	return legacy
 }
 
 // MemoryVault is a concurrency-safe in-process [Vault]. Nothing it holds is
@@ -69,19 +95,26 @@ func NewMemoryVault() *MemoryVault {
 func (v *MemoryVault) Put(rv RedactedValue) error {
 	v.mu.Lock()
 	defer v.mu.Unlock()
-	v.m[vaultKey(rv.BlockID, rv.Token)] = rv
+	v.m[vaultKey(rv.Doc, rv.BlockID, rv.Token)] = rv
 	return nil
 }
 
-// Get returns the value for a block/token pair.
-func (v *MemoryVault) Get(blockID, token string) (RedactedValue, bool) {
+// Get returns the value for a document/block/token triple, falling back to
+// the entry that names no document (see [Vault]).
+func (v *MemoryVault) Get(doc, blockID, token string) (RedactedValue, bool) {
 	v.mu.RLock()
 	defer v.mu.RUnlock()
-	rv, ok := v.m[vaultKey(blockID, token)]
+	if rv, ok := v.m[vaultKey(doc, blockID, token)]; ok {
+		return rv, true
+	}
+	if doc == "" {
+		return RedactedValue{}, false
+	}
+	rv, ok := v.m[vaultKey("", blockID, token)]
 	return rv, ok
 }
 
-// All returns every stored value sorted by block ID then token.
+// All returns every stored value sorted by document, block ID, then token.
 func (v *MemoryVault) All() []RedactedValue {
 	v.mu.RLock()
 	defer v.mu.RUnlock()
@@ -94,7 +127,13 @@ type fileVaultDoc struct {
 	Values  []RedactedValue `json:"values"`
 }
 
-const fileVaultVersion = 1
+// fileVaultVersion is the version Flush writes. Version 2 records each
+// entry's document (RedactedValue.Doc). A version 1 file reads as entries
+// that name no document, which Get and ValuesForBlock fall back to, so a
+// vault an older kapi wrote still restores. The vault is the only record of
+// the originals, never a cache a later run rebuilds, so it is read as it is
+// rather than reset.
+const fileVaultVersion = 2
 
 // FileVault is a [Vault] backed by a JSON sidecar file. It is meant to live
 // in a project's vault directory (.kapi/vault/, prepared owner-only and out of
@@ -130,9 +169,9 @@ func OpenFileVault(path string) (*FileVault, error) {
 // Put stores a value in memory; it is persisted on the next Flush.
 func (f *FileVault) Put(rv RedactedValue) error { return f.mem.Put(rv) }
 
-// Get returns the value for a block/token pair.
-func (f *FileVault) Get(blockID, token string) (RedactedValue, bool) {
-	return f.mem.Get(blockID, token)
+// Get returns the value for a document/block/token triple (see [Vault]).
+func (f *FileVault) Get(doc, blockID, token string) (RedactedValue, bool) {
+	return f.mem.Get(doc, blockID, token)
 }
 
 // All returns every stored value.
@@ -167,7 +206,7 @@ func sortedValues(m map[string]RedactedValue) []RedactedValue {
 		out = append(out, rv)
 	}
 	slices.SortFunc(out, func(a, b RedactedValue) int {
-		return cmp.Or(cmp.Compare(a.BlockID, b.BlockID), cmp.Compare(a.Token, b.Token))
+		return cmp.Or(cmp.Compare(a.Doc, b.Doc), cmp.Compare(a.BlockID, b.BlockID), cmp.Compare(a.Token, b.Token))
 	})
 	return out
 }

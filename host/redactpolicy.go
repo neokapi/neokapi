@@ -76,6 +76,22 @@ func RedactAtIngest(
 	rootDir, vaultPath string,
 	sourceLocale model.LocaleID,
 ) error {
+	return RedactFileAtIngest(ctx, "", blocks, spec, rootDir, vaultPath, sourceLocale)
+}
+
+// RedactFileAtIngest is RedactAtIngest for the blocks of one file, doc being
+// its project-relative path. The vault keeps each original under the file as
+// well as the block, since block IDs repeat from one file to the next. An
+// empty doc names content that sits in no file, whose block IDs name it
+// alone.
+func RedactFileAtIngest(
+	ctx context.Context,
+	doc string,
+	blocks []*model.Block,
+	spec *project.RedactionSpec,
+	rootDir, vaultPath string,
+	sourceLocale model.LocaleID,
+) error {
 	if spec == nil || len(blocks) == 0 {
 		return nil
 	}
@@ -88,8 +104,12 @@ func RedactAtIngest(
 	if err := ensureVaultDir(vaultPath); err != nil {
 		return err
 	}
-	return applyRedaction(ctx, blocks, spec, rootDir, vaultPath, sourceLocale)
+	return applyRedaction(ctx, vaultDoc(doc), blocks, spec, rootDir, vaultPath, sourceLocale)
 }
+
+// vaultDoc is the name a vault keeps a file's originals under: its path,
+// slash-separated whatever the platform.
+func vaultDoc(relPath string) string { return filepath.ToSlash(relPath) }
 
 // checkRedactionRules refuses a policy that would redact nothing: rules
 // detection with no rules file finds no span, silently. Saying so keeps the

@@ -16,13 +16,17 @@ type UnredactConfig struct {
 	// [redaction.FileVault] (external mode). Otherwise unredact restores
 	// from the in-process SecretAnnotation left by redact.
 	VaultPath string `json:"vaultPath,omitempty" schema:"-"`
+
+	// Document names the document the blocks sit in, as redact recorded it
+	// in the sidecar vault (RedactConfig.Document).
+	Document string `json:"document,omitempty" schema:"-"`
 }
 
 // ToolName returns the tool name this config applies to.
 func (c *UnredactConfig) ToolName() string { return "unredact" }
 
 // Reset restores default values.
-func (c *UnredactConfig) Reset() { c.VaultPath = "" }
+func (c *UnredactConfig) Reset() { c.VaultPath, c.Document = "", "" }
 
 // Validate checks configuration validity.
 func (c *UnredactConfig) Validate() error { return nil }
@@ -104,12 +108,12 @@ func (t *UnredactTool) handleBlock(v tool.BlockView) (tool.EditPlan, error) {
 	var entries []redaction.RedactedValue
 
 	if t.vault != nil {
-		blockID := v.ID()
+		doc, blockID := t.cfg.Document, v.ID()
 		get = func(token string) (string, bool) {
-			val, ok := t.vault.Get(blockID, token)
+			val, ok := t.vault.Get(doc, blockID, token)
 			return val.Original, ok
 		}
-		entries = redaction.ValuesForBlock(t.vault, blockID)
+		entries = redaction.ValuesForBlock(t.vault, doc, blockID)
 	} else if hasAnn {
 		if secretAnn, ok := ann.(*redaction.SecretAnnotation); ok {
 			get = func(token string) (string, bool) {
