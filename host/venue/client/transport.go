@@ -40,6 +40,7 @@ type Transport struct {
 	authToken      string                             // JWT bearer token
 	refreshToken   string                             // opaque refresh token for auto-refresh
 	onTokenRefresh func(newAccess, newRefresh string) // callback after successful refresh
+	tokenSource    func() (access, refresh string, ok bool)
 
 	refreshMu sync.Mutex // serializes refreshes
 }
@@ -91,6 +92,19 @@ func (t *Transport) SetRefreshToken(token string, onRefresh func(newAccess, newR
 	defer t.mu.Unlock()
 	t.refreshToken = token
 	t.onTokenRefresh = onRefresh
+}
+
+// SetTokenSource names where the sign-in is kept, such as the OS keychain.
+// The transport reads it before each refresh: another process holding the
+// same sign-in may have refreshed it, which consumed the refresh token this
+// transport holds, and presenting a consumed token revokes the sign-in. When
+// the source holds another refresh token, the transport takes the source's
+// pair and refreshes with it. ok is false when the source holds no sign-in
+// for this server.
+func (t *Transport) SetTokenSource(source func() (access, refresh string, ok bool)) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.tokenSource = source
 }
 
 // RefuseRedirectsOffServer makes the transport refuse a redirect to any scheme
@@ -228,6 +242,18 @@ func (t *Transport) refreshAfter(ctx context.Context, refused string) error {
 	defer t.refreshMu.Unlock()
 	if access, _ := t.tokens(); access != refused {
 		return nil
+	}
+	t.mu.Lock()
+	source := t.tokenSource
+	t.mu.Unlock()
+	if source != nil {
+		if access, refresh, ok := source(); ok && refresh != "" {
+			t.mu.Lock()
+			if refresh != t.refreshToken {
+				t.authToken, t.refreshToken = access, refresh
+			}
+			t.mu.Unlock()
+		}
 	}
 	return t.doRefresh(ctx)
 }

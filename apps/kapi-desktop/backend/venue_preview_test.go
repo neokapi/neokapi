@@ -2,11 +2,13 @@ package backend
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -346,4 +348,69 @@ func TestPreviewRefusalKeepsMarkupOut(t *testing.T) {
 	assert.Equal(t, &PreviewRefusal{Status: http.StatusBadGateway, Message: "Bad Gateway"}, got)
 	got = previewRefusal(apiclient.NewStatusError("map", http.StatusBadGateway, []byte("upstream timed out")))
 	assert.Equal(t, "upstream timed out", got.Message)
+}
+
+// A refresh that reached no server names no action, and the sign-in stays.
+func TestPreviewRefusalOfAnUnreachedRefresh(t *testing.T) {
+	got := previewRefusal(&apiclient.RefreshError{Err: errors.New("dial tcp: connection refused")})
+	assert.Equal(t, &PreviewRefusal{Message: "token refresh failed: dial tcp: connection refused"}, got)
+	got = previewRefusal(&apiclient.RefreshError{StatusCode: http.StatusUnauthorized, Err: errors.New("refresh failed with HTTP 401")})
+	assert.Equal(t, &PreviewRefusal{Status: http.StatusUnauthorized, Action: PreviewActionSignIn}, got)
+}
+
+// kapi in another process refreshes the shared sign-in while the desktop
+// holds the pair it read first. The desktop's next refresh starts from the
+// pair the keychain holds then, so no consumed refresh token is presented.
+func TestBowrainPreviewRefreshesFromTheKeychainAfterAnotherProcessRefreshed(t *testing.T) {
+	rs := newRotatingServer(t, 1)
+	keyring.MockInit()
+	t.Setenv("BOWRAIN_CONFIG_DIR", t.TempDir())
+	t.Setenv("BOWRAIN_AUTH_TOKEN", "")
+	require.NoError(t, config.SaveAuth(config.StoredAuth{ServerURL: rs.URL, AccessToken: "access-1", RefreshToken: "refresh-1"}))
+	a := previewApp(t, rs.URL+"/acme/p1")
+
+	got, err := a.BowrainPreview("t", PreviewMap, "")
+	require.NoError(t, err)
+	require.Nil(t, got.Refusal, "the first read caches access-1 and refresh-1")
+
+	// The CLI refreshes: refresh-1 is consumed, and access-1 no longer works.
+	resp, err := http.Post(rs.URL+"/api/v1/auth/refresh", "application/json", strings.NewReader(`{"refresh_token":"refresh-1"}`))
+	require.NoError(t, err)
+	var rotated struct {
+		AccessToken  string `json:"access_token"`
+		RefreshToken string `json:"refresh_token"`
+	}
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&rotated))
+	require.NoError(t, resp.Body.Close())
+	require.NoError(t, config.SaveAuth(config.StoredAuth{ServerURL: rs.URL, AccessToken: rotated.AccessToken, RefreshToken: rotated.RefreshToken}))
+	rs.mu.Lock()
+	rs.access = "access-expired"
+	rs.mu.Unlock()
+
+	got, err = a.BowrainPreview("t", PreviewKept, "")
+	require.NoError(t, err)
+	assert.Nil(t, got.Refusal)
+	assert.Len(t, got.Kept, 3)
+	rs.mu.Lock()
+	defer rs.mu.Unlock()
+	assert.False(t, rs.revoked, "the consumed refresh-1 is never presented again")
+	assert.Equal(t, 2, rs.refreshes)
+}
+
+// A sign-in removed while the sheet is open ends the cached one at the next
+// read.
+func TestBowrainPreviewStopsAfterSignOut(t *testing.T) {
+	srv := previewServer(t)
+	signIn(t, srv.URL, "tok")
+	a := previewApp(t, srv.URL+"/acme/p1")
+
+	got, err := a.BowrainPreview("t", PreviewMap, "")
+	require.NoError(t, err)
+	require.Nil(t, got.Refusal)
+
+	require.NoError(t, config.DeleteAuth(srv.URL))
+	got, err = a.BowrainPreview("t", PreviewMap, "")
+	require.NoError(t, err)
+	assert.Equal(t, &PreviewRefusal{Action: PreviewActionSignIn}, got.Refusal)
+	assert.Nil(t, got.Map)
 }

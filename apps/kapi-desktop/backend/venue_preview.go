@@ -167,20 +167,30 @@ type bowrainSignIns struct {
 func (b *bowrainSignIns) transport(server string) (*apiclient.Transport, *PreviewRefusal) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	// The metadata names the server without a keychain read, so a project on
+	// another server prompts for nothing, and a sign-in removed by `kapi auth
+	// logout` ends the cached one.
+	if stored, _, ok := config.StoredSignIn(); !ok || stored != server {
+		delete(b.transports, server)
+		return nil, &PreviewRefusal{Action: PreviewActionSignIn}
+	}
 	if t, ok := b.transports[server]; ok {
 		return t, nil
 	}
-	// The metadata names the server without a keychain read, so a project on
-	// another server prompts for nothing.
-	if stored, _, ok := config.StoredSignIn(); !ok || stored != server {
-		return nil, &PreviewRefusal{Action: PreviewActionSignIn}
-	}
-	auth, err := config.LoadAuth()
-	if err != nil || config.NormalizeServerURL(auth.ServerURL) != server {
+	auth, ok := loadSignIn(server)
+	if !ok {
 		return nil, &PreviewRefusal{Action: PreviewActionSignIn}
 	}
 	t := apiclient.NewTransport(server, auth.AccessToken)
 	t.RefuseRedirectsOffServer()
+	// kapi refreshes the same sign-in in other processes, so each refresh
+	// starts from the pair the keychain holds then.
+	t.SetTokenSource(func() (string, string, bool) {
+		if now, ok := loadSignIn(server); ok {
+			return now.AccessToken, now.RefreshToken, true
+		}
+		return "", "", false
+	})
 	if auth.RefreshToken != "" {
 		t.SetRefreshToken(auth.RefreshToken, func(newAccess, newRefresh string) {
 			saved := *auth
@@ -195,6 +205,15 @@ func (b *bowrainSignIns) transport(server string) (*apiclient.Transport, *Previe
 	return t, nil
 }
 
+// loadSignIn reads the stored sign-in from the keychain when it names server.
+func loadSignIn(server string) (*config.StoredAuth, bool) {
+	auth, err := config.LoadAuth()
+	if err != nil || config.NormalizeServerURL(auth.ServerURL) != server {
+		return nil, false
+	}
+	return auth, true
+}
+
 // forget drops the server's transport when it is still t.
 func (b *bowrainSignIns) forget(server string, t *apiclient.Transport) {
 	b.mu.Lock()
@@ -205,12 +224,17 @@ func (b *bowrainSignIns) forget(server string, t *apiclient.Transport) {
 }
 
 // previewRefusal is the server's error as the server worded it, with the
-// action that answers its status. A refresh of the sign-in that failed asks
-// for a sign-in and carries no message. Any other error that carries no
+// action that answers its status. A refresh of the sign-in the server
+// refused asks for a sign-in and carries no message; one that reached no
+// server keeps its own words. Any other error that carries no
 // status, such as a server that cannot be reached, keeps its own words and
 // names no action.
 func previewRefusal(err error) *PreviewRefusal {
 	if re, ok := errors.AsType[*apiclient.RefreshError](err); ok {
+		// A refresh that reached no server leaves the sign-in as it was.
+		if re.StatusCode == 0 {
+			return &PreviewRefusal{Message: re.Error()}
+		}
 		return &PreviewRefusal{Status: re.StatusCode, Action: PreviewActionSignIn}
 	}
 	var se *apiclient.StatusError
