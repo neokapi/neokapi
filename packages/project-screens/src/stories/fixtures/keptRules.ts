@@ -3,7 +3,7 @@
 
 import type { KeptRule } from "../../types";
 
-/** Kept by you, by a teammate, by kapi on the evidence, and by an assistant. */
+/** Kept by you, by a teammate, by kapi on the evidence, and by an assistant, the newest first. */
 export const KEPT_RULES: KeptRule[] = [
   {
     kind: "word",
@@ -19,7 +19,7 @@ export const KEPT_RULES: KeptRule[] = [
     from: "terms",
     applies: "docs, app",
     kept_by: { kind: "person", name: "ada" },
-    kept_at: "2026-10-20T09:00:00Z",
+    kept_at: "2026-10-27T09:00:00Z",
   },
   {
     kind: "word",

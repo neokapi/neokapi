@@ -159,10 +159,19 @@ describe("Kept by", () => {
     const by = rows.map((r) => r.querySelector("[data-slot='kept-by']")?.textContent);
     // Each row names its keeper after the keeper's mark, and an assistant's session after its name.
     expect(by[0]).toMatch(/you$/);
-    expect(by[1]).toMatch(/kapi$/);
-    expect(by[2]).toMatch(/claudes3$/);
-    expect(by[3]).toMatch(/ada$/);
+    expect(by[1]).toMatch(/ada$/);
+    expect(by[2]).toMatch(/kapi$/);
+    expect(by[3]).toMatch(/claudes3$/);
     expect(document.querySelector("[data-slot='kept-group']")).toBeNull();
+  });
+
+  it("draws the newest first whatever order the port answers in", async () => {
+    render(
+      <KeptRulesScreen port={readOnly({ keptRules: async () => [...KEPT_RULES].reverse() })} />,
+    );
+    const rows = await screen.findAllByRole("listitem");
+    expect(within(rows[0]).getByText(KEPT_RULES[0].rule)).toBeInTheDocument();
+    expect(within(rows[3]).getByText(KEPT_RULES[3].rule)).toBeInTheDocument();
   });
 
   it("splits a long list under a heading per kind, each the newest first", async () => {
