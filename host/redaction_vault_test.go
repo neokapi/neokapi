@@ -217,6 +217,34 @@ func TestMergeRestoresFromAVersion1BatchVault(t *testing.T) {
 	assert.Equal(t, `{"greeting":"Bonjour Alice Archer"}`, strings.TrimSpace(string(got)))
 }
 
+// A batch vault a newer kapi wrote is in a format this binary cannot read,
+// so a merge that needs it fails before it writes the target file.
+func TestMergeRefusesABatchVaultANewerKapiWrote(t *testing.T) {
+	a, recipe, dir := vaultProject(t)
+	require.NoError(t, os.Remove(filepath.Join(dir, "src", "locales", "en", "b.json")))
+	files := extractBilingual(t, a, recipe, dir, ExtractFormatXLIFF2)
+	require.Len(t, files, 1)
+	path := batchVault(t, dir)
+	require.NoError(t, os.WriteFile(path, []byte(`{"version": 3, "values": []}`), 0o600))
+
+	translateReturned(t, files[0])
+	cmd, stdout, _ := mergeCommand(t, recipe)
+	cmd.Flags().StringArray("input", nil, "")
+	cmd.Flags().Bool("no-restore", false, "")
+	require.NoError(t, cmd.Flags().Set("input", files[0]))
+	require.NoError(t, cmd.Flags().Set("no-memory-update", "true"))
+	require.Error(t, a.RunMerge(cmd))
+	var res struct {
+		Files []struct {
+			Error string `json:"error"`
+		} `json:"files"`
+	}
+	require.NoError(t, json.Unmarshal(stdout.Bytes(), &res), stdout.String())
+	require.Len(t, res.Files, 1)
+	assert.Contains(t, res.Files[0].Error, "vault "+path+" is version 3 and this kapi reads up to version 2: a newer kapi wrote this vault")
+	assert.NoFileExists(t, filepath.Join(dir, "src", "locales", "fr", "a.json"), "the merge writes no target file")
+}
+
 // A .kpz package carries each source file's skeleton, which holds the file's
 // text whole, so under a redaction policy kapi extract --format kpz writes no
 // package and names the formats that withhold the values.
