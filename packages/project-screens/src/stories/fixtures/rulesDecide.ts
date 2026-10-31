@@ -2,7 +2,7 @@
 // RulesDecideView answers with: a name written three ways, a word the files
 // avoid, two assistants disagreeing about one word, and a note.
 
-import type { RuleDecision, RulesDecideView } from "../../types/api";
+import type { RuleDecision, RulesDecideView } from "../../types";
 
 export const DECIDE_IDS = {
   quickcast: "0njy7pfhjp00000000000000",

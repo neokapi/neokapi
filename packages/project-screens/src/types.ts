@@ -223,6 +223,33 @@ export interface RuleDecision {
   /** Where a kept rule holds. */
   applies: string;
   noticed_by: ContextActor;
+  /** The member the question is assigned to, where the host assigns questions. */
+  assignee?: ContextActor;
+}
+
+/** An answer to a Decide question: "drop" is Not a rule. */
+export type RuleAnswer = "keep" | "drop" | "later";
+
+/** What one answer recorded (RuleDecideResultDTO). */
+export interface RuleDecideResult {
+  answer: RuleAnswer;
+  kept: number;
+  dropped: number;
+  later: number;
+}
+
+/** One rule in force: what it says, where it comes from and holds, and who kept it when. */
+export interface KeptRule {
+  /** tone, name, word, keep or note. */
+  kind: string;
+  rule: string;
+  /** Where the rule is held: terms, a pack, the workspace, the voice profile. */
+  from?: string;
+  /** Where the rule holds. */
+  applies: string;
+  kept_by: ContextActor;
+  /** RFC 3339. */
+  kept_at: string;
 }
 
 /** Every question Decide asks about one project (RulesDecideViewDTO). */

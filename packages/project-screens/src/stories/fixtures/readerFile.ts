@@ -1,7 +1,7 @@
 // Reader fixtures: one file of the Fernwell sample as ReaderFile answers it,
 // in the states the page draws. Shared by the stories and the tests.
 
-import type { ReaderFile, ReaderRule } from "../../types/api";
+import type { ReaderFile, ReaderRule } from "../../types";
 
 /** The context answer for docs/billing.md, in the order `kapi context` prints it. */
 export const BILLING_RULES: ReaderRule[] = [

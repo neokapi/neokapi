@@ -7,15 +7,16 @@ import { afterEach, describe, it, expect, vi } from "vite-plus/test";
 import { ErrorProvider } from "../components/ErrorBanner";
 import { ChecksPanel } from "../components/ChecksPanel";
 import { MapPage } from "../components/MapPage";
-import { ReaderPage, readerTargetOf, readerView } from "../components/ReaderPage";
+import { ReaderPage } from "../components/ReaderPage";
 import { api } from "../hooks/useApi";
-import { MAP_PENDING } from "../stories/fixtures/mapSummary";
+import { readerTargetOf, readerView } from "../lib/screenTargets";
 import {
+  MAP_PENDING,
   READER_CLEAN,
   READER_REFUSED,
   READER_WITH_FIXES,
   READER_WITHOUT_FIXES,
-} from "../stories/fixtures/readerFile";
+} from "@neokapi/project-screens/fixtures";
 import type { CheckRunResult, MapSummary } from "../types/api";
 
 afterEach(() => {

@@ -9,6 +9,7 @@
   },
   "devDependencies": {
     "@neokapi/flow-editor": "*",
+    "@neokapi/project-screens": "*",
     "@neokapi/storybook-config": "*",
     "@neokapi/ui": "*",
     "@neokapi/ui-primitives": "*",

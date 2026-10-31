@@ -29,6 +29,8 @@ export type {
   ReaderFinding,
   ReaderRefusal,
   ReaderRule,
+  RuleAnswer,
+  RuleDecideResult,
   RuleDecision,
   RuleOption,
   RulesDecideView,
@@ -1957,17 +1959,6 @@ export interface StoreSyncResult {
   files: number;
   blocks: number;
   skipped?: ExtractSkip[];
-}
-
-/** An answer to a Decide question: "drop" is Not a rule. */
-export type RuleAnswer = "keep" | "drop" | "later";
-
-/** What one answer recorded (RuleDecideResultDTO). */
-export interface RuleDecideResult {
-  answer: RuleAnswer;
-  kept: number;
-  dropped: number;
-  later: number;
 }
 
 /** The model a deeper look of a tab would ask (DeeperLookModel). */

@@ -1,6 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, fn, userEvent, within } from "storybook/test";
-import { DecideView } from "../components/DecidePage";
+import { DecideView } from "../DecideView";
+import { DecideScreen } from "../screens";
+import type { ProjectScreensPort } from "../port";
 import {
   DECIDE_IDS,
   DECIDE_VIEW,
@@ -8,7 +10,9 @@ import {
   LONG_VIEW,
   NAME_VIEW,
   WORD_VIEW,
-} from "./fixtures/rulesDecide";
+  MAP_PENDING,
+  READER_WITH_FIXES,
+} from "./fixtures";
 
 /**
  * Decide: each suggestion waiting for a person as one question. The list on
@@ -17,15 +21,14 @@ import {
  * the picked one does, and Keep, Not a rule and Later.
  */
 const meta: Meta<typeof DecideView> = {
-  title: "Components/DecidePage",
+  title: "Project screens/Rules",
   component: DecideView,
   tags: ["autodocs"],
   args: {
     view: DECIDE_VIEW,
     keyboard: false,
     onAnswer: fn(async () => undefined),
-    onOpenFile: fn(),
-    onOpenMap: fn(),
+    navigate: fn(),
   },
   decorators: [
     (Story) => (
@@ -95,7 +98,7 @@ export const NothingToDecide: Story = {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("Nothing to decide.")).toBeInTheDocument();
     await userEvent.click(canvas.getByRole("button", { name: "Open the Map" }));
-    await expect(args.onOpenMap).toHaveBeenCalled();
+    await expect(args.navigate).toHaveBeenCalledWith({ kind: "map" });
   },
 };
 
@@ -107,3 +110,17 @@ export const NothingToDecideDark: Story = {
 
 /** Forms, a quote and a path that run long. */
 export const LongContent: Story = { args: { view: LONG_VIEW } };
+
+/** A port with the reads alone. */
+const READ_ONLY: ProjectScreensPort = {
+  mapSummary: async () => MAP_PENDING,
+  readerFile: async () => READER_WITH_FIXES,
+  decideView: async () => DECIDE_VIEW,
+};
+
+/** A read-only preview: each question and its evidence, and no Keep, Not a rule or Later. */
+export const ReadOnly: StoryObj<typeof DecideScreen> = {
+  render: () => (
+    <DecideScreen port={READ_ONLY} keyboard={false} navigate={fn()} canNavigate={() => false} />
+  ),
+};

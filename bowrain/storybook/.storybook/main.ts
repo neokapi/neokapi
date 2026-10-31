@@ -13,6 +13,7 @@ const config = createMainConfig(
       "../../../packages/flow-editor/src/**/*.stories.@(ts|tsx)",
       "../../../packages/editor-grid/src/**/*.stories.@(ts|tsx)",
       "../../../packages/status-views/src/**/*.stories.@(ts|tsx)",
+      "../../../packages/project-screens/src/**/*.stories.@(ts|tsx)",
       // Bowrain UI components (includes its own editor stories)
       "../../packages/ui/src/**/*.stories.@(ts|tsx)",
       // Bowrain apps
