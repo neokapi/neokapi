@@ -687,20 +687,28 @@ func (s *Server) HandleKeptRules(c echo.Context) error {
 		return decideError(c, err)
 	}
 	acts := rulesview.Acts(st.records, st.byID)
-	out := []screens.KeptRuleDTO{}
+	type kept struct {
+		dto screens.KeptRuleDTO
+		at  time.Time
+	}
+	var rules []kept
 	for _, r := range st.established() {
 		who, at := keptBy(r, acts[r.ID])
 		applies, _ := st.places.Applies(r.Scope)
-		out = append(out, screens.KeptRuleDTO{
+		rules = append(rules, kept{at: at, dto: screens.KeptRuleDTO{
 			Kind:    keptKind(r.Subject),
 			Rule:    rulesview.Sentence(r.Subject),
 			From:    keptFrom(r),
 			Applies: applies,
 			KeptBy:  screens.ActorFrom(who),
-			KeptAt:  at.UTC(),
-		})
+			KeptAt:  at.UTC().Format(time.RFC3339),
+		}})
 	}
-	slices.SortStableFunc(out, func(a, b screens.KeptRuleDTO) int { return b.KeptAt.Compare(a.KeptAt) })
+	slices.SortStableFunc(rules, func(a, b kept) int { return b.at.Compare(a.at) })
+	out := make([]screens.KeptRuleDTO, 0, len(rules))
+	for _, k := range rules {
+		out = append(out, k.dto)
+	}
 	return c.JSON(http.StatusOK, out)
 }
 
@@ -728,17 +736,14 @@ func keptKind(s contextop.Subject) string {
 	return rulesview.DecisionWord
 }
 
-// keptFrom is where a rule in force is held: the terms store, or the
-// workspace for a rule that holds across it. A note is held in the ledger
-// alone.
+// keptFrom is where a rule in force is held besides the ledger: the
+// workspace, for a rule that holds across it. The server holds every other
+// rule in the ledger alone, which screens.KeptRuleDTO leaves empty.
 func keptFrom(r contextop.Record) string {
-	switch {
-	case r.Subject.Kind == contextop.SubjectNote:
-		return ""
-	case r.Scope.Level == contextop.LevelWorkspace:
+	if r.Scope.Level == contextop.LevelWorkspace {
 		return "workspace"
 	}
-	return "terms"
+	return ""
 }
 
 // contextQueueProject is one project of the workspace's Decide queue.

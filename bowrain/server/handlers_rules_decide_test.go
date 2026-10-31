@@ -238,7 +238,7 @@ func TestRulesDecide_RecordsOneAnswerAtATime_SQLite(t *testing.T) {
 	signIn, ok := byRule["Write Sign In, not Sign in, Sign-in, Signin or SignIn."]
 	require.True(t, ok, "the form picked is the one the rule writes: %v", kept)
 	assert.Equal(t, "name", signIn.Kind)
-	assert.Equal(t, "terms", signIn.From)
+	assert.Empty(t, signIn.From, "the server holds the rule in the ledger alone")
 	assert.Equal(t, "docs", signIn.Applies)
 	assert.Equal(t, screens.ContextActorDTO{Kind: "person"}, signIn.KeptBy, "what the reader kept reads as theirs")
 	widget, ok := byRule["Write widget, not gadget."]
