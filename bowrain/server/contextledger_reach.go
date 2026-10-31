@@ -237,7 +237,7 @@ func scopeOf(op workspace.Op) (coordinates map[string]string, target string) {
 
 // followsFromLog reports whether an establish operation is one settling
 // records over the operations byID holds. Settling (contextop.Ledger.Settle)
-// runs over those operations, less op itself, under the policy in force, and
+// runs over those whose id sorts below op's, under the policy in force, and
 // op is accepted only when settling records an establishment with its content
 // address and its payload byte for byte: target, evidence, scope and actor.
 // Settling follows from the log rather than from anyone's reach, so such an
@@ -246,7 +246,10 @@ func scopeOf(op workspace.Op) (coordinates map[string]string, target string) {
 func followsFromLog(ctx context.Context, op workspace.Op, byID map[string]workspace.Op) bool {
 	log := &settleLog{}
 	for id, held := range byID {
-		if id != op.ID {
+		// Settling records an operation with an id above every one it
+		// read, so only the operations below the establishment's id were
+		// its evidence; a signal recorded after it changes nothing.
+		if id < op.ID {
 			log.ops = append(log.ops, held)
 		}
 	}

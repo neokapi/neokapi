@@ -936,7 +936,11 @@ func TestContextLedger_KeepIsGovernedByItsTarget_SQLite(t *testing.T) {
 	}))
 	voicePush := &routeRemote{h: voiceEcho, base: r.base}
 	rec := voicePush.do(ctx, http.MethodPost, r.base, pushBody(t, []workspace.Object{segmentOf(t, "voice", keep)}))
-	assert.Equal(t, http.StatusForbidden, rec.Code)
+	require.Equal(t, http.StatusForbidden, rec.Code)
+	var refusal ErrorResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &refusal))
+	assert.Equal(t, contextOutsideReachCode, refusal.Code, "the voice permission passes the route and the reach check refuses the keep")
+	assert.Contains(t, refusal.Error, "declares a note subject")
 }
 
 // The permission a decision needs follows what it decides about: keeping a
@@ -970,4 +974,40 @@ func TestContextLedger_DecisionNeedsThePermissionOfItsSubject_SQLite(t *testing.
 		Subject: contextop.Subject{Kind: contextop.SubjectNote, Text: "the product name is never translated"},
 	})
 	require.NoError(t, err, "a keep naming its target's kind needs that kind's permission alone")
+}
+
+// A settling followed by a later signal on the same suggestion, pushed in one
+// batch by a bounded custodian, is accepted: the later signal was not the
+// settling's evidence.
+func TestContextLedger_SignalAfterSettlingIsNotItsEvidence_SQLite(t *testing.T) {
+	ctx := t.Context()
+	e, cs := reachSQLiteServer(t, platauth.CoordinateReach{}.Add(platauth.CoordinateFilter{"brand": "acme"}))
+	pid := seedContextObjectProject(t, cs)
+	r := &routeRemote{h: e, base: "/api/v1/ws/" + pid + "/context/objects"}
+	d := newDesktop(t, "site")
+	ledger := contextop.NewLedger(d.ws, nil)
+	s, err := ledger.Append(ctx, contextop.Record{
+		Project: "site", Actor: contextop.Actor{Kind: contextop.ActorAgent, Name: "claude", Session: "s1"},
+		Kind: contextop.KindObserve, Scope: contextop.Scope{Coordinates: map[string]string{"brand": "other"}},
+		Subject:  contextop.Subject{Kind: contextop.SubjectTerm, Term: &profile.TermRule{Term: "Quick cast", Replacement: "Quickcast"}},
+		Evidence: []contextop.Evidence{{Path: "docs/guide.md"}},
+	})
+	require.NoError(t, err)
+	merged := contextop.Actor{Kind: contextop.ActorTool, Name: "settle-merged"}
+	_, err = ledger.Append(ctx, contextop.Record{
+		Project: "site", Actor: merged, Kind: contextop.KindSignal, Target: s.ID,
+		Signal: &contextop.Signal{Source: contextop.SignalMerge, Commit: "abc1234def", PR: 412, Preferred: 2},
+	})
+	require.NoError(t, err)
+	settled, err := ledger.Settle(ctx, contextop.Filter{})
+	require.NoError(t, err)
+	require.Len(t, settled, 1)
+	_, err = ledger.Append(ctx, contextop.Record{
+		Project: "site", Actor: merged, Kind: contextop.KindSignal, Target: s.ID,
+		Signal: &contextop.Signal{Source: contextop.SignalMerge, Commit: "fed4321cba", PR: 413, Preferred: 3},
+	})
+	require.NoError(t, err)
+
+	rec := r.do(ctx, http.MethodPost, r.base, pushBody(t, d.push(t)))
+	assert.Equal(t, http.StatusNoContent, rec.Code, rec.Body.String())
 }

@@ -60,11 +60,11 @@ const (
 // push into batches that stay under it.
 const requestBodyLimit = "50M"
 
-// contextObjectWritePermission gates a push of context objects. The objects
-// carry the project's context ledger: terms writes and the keep and drop
-// decisions of context review, which the server's change-set and concept
-// routes gate on PermManageTerms.
-const contextObjectWritePermission = platauth.PermManageTerms
+// contextObjectWritePermission gates a push of context objects: a member
+// holding any of the permissions a decision can need (governingPermissions)
+// pushes, and each decision the push carries is then checked against the one
+// it needs (checkReach).
+const contextObjectWritePermission = governingPermissions
 
 // The bodies of GET and POST /:id/context/objects, the shapes the client
 // sends and reads.
@@ -155,8 +155,10 @@ func (s *Server) HandleGetContextObject(c echo.Context) error {
 // signed-in member. A name the project holds with other bytes refuses the
 // whole batch with 409.
 func (s *Server) HandlePutContextObjects(c echo.Context) error {
-	if err := s.requirePermission(c, contextObjectWritePermission); err != nil {
-		return err
+	if perms, _ := c.Get("project_permissions").(platauth.Permission); perms&contextObjectWritePermission == 0 {
+		if err := s.requirePermission(c, contextObjectWritePermission); err != nil {
+			return err
+		}
 	}
 	var body contextObjectBatch
 	if err := c.Bind(&body); err != nil {
