@@ -255,7 +255,7 @@ export const compassReview: Lab = {
       narration:
         "A decision unparks the language. The drafts the loop already made are recycled, so the provider is asked for nothing a second time.",
       command: "kapi up",
-      expect: ["every gated scope is shippable"],
+      expect: ["every gated locale is shippable"],
     },
     {
       id: "ship",

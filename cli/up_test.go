@@ -48,7 +48,7 @@ func TestUp_ConvergesByDefault(t *testing.T) {
 		require.NoError(t, rerr, "up must write %s", loc)
 	}
 	assert.Contains(t, out, "over 2 locale(s)")
-	assert.Contains(t, out, "Up to date: every gated scope is shippable")
+	assert.Contains(t, out, "Up to date: every gated locale is shippable")
 }
 
 // TestUp_BuiltinDefaultFlow: a recipe with NO defaults.flow and NO flows map
@@ -66,7 +66,7 @@ func TestUp_BuiltinDefaultFlow(t *testing.T) {
 	out, upErr := runUp(t, a, recipe)
 	require.NoError(t, upErr, out)
 	assert.Contains(t, out, `Ran flow "default (built-in)"`)
-	assert.Contains(t, out, "Up to date: every gated scope is shippable")
+	assert.Contains(t, out, "Up to date: every gated locale is shippable")
 	for _, f := range []string{"a.json", "b.json"} {
 		_, statErr := os.Stat(filepath.Join(root, "src/locales/nb-NO", f))
 		require.NoError(t, statErr, "the built-in default must materialize %s", f)

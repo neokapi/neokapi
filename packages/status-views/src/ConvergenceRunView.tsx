@@ -254,11 +254,11 @@ function upToDateLine(result: ConvergenceOutcome): string {
   }
   if (notGated.length > 0) {
     return t(
-      "Up to date in {count} pass(es). Every gated scope is shippable. Not gated: {languages}.",
+      "Up to date in {count} pass(es). Every gated locale is shippable. Not gated: {languages}.",
       { count: result.passes, languages: notGated.join(", ") },
     );
   }
-  return t("Up to date in {count} pass(es). Every gated scope is shippable.", {
+  return t("Up to date in {count} pass(es). Every gated locale is shippable.", {
     count: result.passes,
   });
 }

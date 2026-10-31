@@ -71,7 +71,7 @@ func TestUp_BuiltinDefaultFlow_ConcurrentLocales(t *testing.T) {
 
 		out, upErr := runUp(t, a, recipe)
 		require.NoError(t, upErr, out)
-		assert.Contains(t, out, "Up to date: every gated scope is shippable", out)
+		assert.Contains(t, out, "Up to date: every gated locale is shippable", out)
 		_ = root
 	}
 }

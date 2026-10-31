@@ -40,6 +40,6 @@ describe("ConvergeRunView: a project with no ship gates", () => {
     expect(
       screen.getByText("Up to date in 1 pass(es). No ship gates are declared."),
     ).toBeInTheDocument();
-    expect(screen.queryByText(/Every gated scope is shippable/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Every gated locale is shippable/)).not.toBeInTheDocument();
   });
 });

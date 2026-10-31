@@ -35,7 +35,7 @@ Three roles, kept separate:
 - **Review promotes**: a person advances a block past what a machine can decide
   (*translated → approved*).
 - **The gate releases**: it drives nothing and answers one question, *is this
-  scope shippable?*
+  locale shippable?*
 
 :::note[The formal name]
 The model behind the loop (derived state, the lifecycle ladders, coverage
@@ -95,7 +95,7 @@ comes from an approval recorded in the project's
 ## The gate: coverage thresholds
 
 A **gate** is a set of coverage thresholds over the ladder: a state name to a
-minimum percent. A scope clears a gate when, for every threshold, at least that
+minimum percent. A locale clears a gate when, for every threshold, at least that
 percent of its blocks have reached that rung or higher.
 
 ```yaml
@@ -107,7 +107,8 @@ This reads *"every block translated, and the important 80% approved; ship the lo
 tail machine-translated."* A bare `100% approved` is the degenerate case.
 
 Gates can be selected by rule, so different collections or locales answer to
-different bars (the most specific matching rule wins):
+different bars (the most specific matching rule wins). Where a rule names a
+collection, each collection in a locale is judged on its own:
 
 ```yaml
 ship_gates:
@@ -124,28 +125,28 @@ and a gate is a **release** check you opt into (see below).
 
 ### Ship states {#ship-states}
 
-A scope that ships uses the status ladder's words for how it ships, and one that
+A locale that ships uses the status ladder's words for how it ships, and one that
 does not is withheld:
 
 | State | What it means |
 | --- | --- |
-| **approved** | The scope clears its approval gate (`established_gate` / `established_gates`): a person approved the content. |
-| **translated** | The scope clears its ship gate and no approval gate: translated, with its checks green, and shipped as AI translation. |
-| **withheld** | The scope does not ship. It is short of its gate, or it holds stale wording, a translation a reviewer turned down, a failing check, or terms that were not checked. These hold a scope back whether or not a gate matches it. |
-| **not gated** | No gate matches the scope, and nothing withholds it. |
+| **approved** | The locale clears its approval gate (`established_gate` / `established_gates`): a person approved the content. |
+| **translated** | The locale clears its ship gate and no approval gate: translated, with its checks green, and shipped as AI translation. |
+| **withheld** | The locale does not ship. It is short of its gate, or it holds stale wording, a translation a reviewer turned down, a failing check, or terms that were not checked. These hold a locale back whether or not a gate matches it. |
+| **not gated** | No gate matches the locale, and nothing withholds it. |
 
 A project chooses which it delivers through its ship gate: `{ translated: 100 }`
 delivers translated content, `{ established: 100 }` only approved content.
-A project with no gates has only withheld and not-gated scopes, and a `kapi
+A project with no gates has only withheld and not-gated locales, and a `kapi
 up` run that converges says that no ship gates are declared. Nothing withholds
-a not-gated scope, so a language picker offers it by default.
+a not-gated locale, so a language picker offers it by default.
 
 ### Who approves a block {#approver-classes}
 
 *Approved* is the one human rung: a person reviewed or edited this exact
 translation. An agent pre-reviews a block with a score and its reasons, which
 the review queue shows, and its judgement never counts as a person's, so every
-`established` threshold counts people. Gates still differ by scope, so tiers
+`established` threshold counts people. Gates still differ by locale and collection, so tiers
 coexist:
 
 ```yaml
@@ -233,7 +234,7 @@ re-settles and re-translates just those, never the whole corpus.
 
 ## Seeing it: `status` and `check`
 
-`kapi status` is the derived dashboard: coverage per locale and each scope's
+`kapi status` is the derived dashboard: coverage per locale and each locale's
 standing against its gate, recomputed on every run:
 
 ```bash
@@ -275,7 +276,7 @@ counterpart to a test runner.) See
 
 `kapi up` runs the loop. It reads what the recipe declares, then runs the
 project's default flow (`defaults.flow`) over all content across every target
-language, **looping** until every gated scope is shippable or waits for
+language, **looping** until every gated locale is shippable or waits for
 review:
 
 ```yaml
@@ -318,7 +319,7 @@ violations) still counts as *translated*, because it is, and the finding holds
 its locale out of shipping until it is fixed. The percentages describe the
 content; the verdict is what a guardrail withholds, and `kapi status` and
 `kapi status --ship` run the same checks and reach the same verdict. The loop
-stops when every gated scope is shippable, a
+stops when every gated locale is shippable, a
 pass makes no progress, or the pass cap (default 5, `--passes N`) is reached.
 Whatever cannot be advanced unaided **waits for review**: it is reported as
 awaiting a person and the command still exits zero. `up` never blocks the
@@ -426,7 +427,7 @@ reach for `kapi up` for the daily catch-up.
 ### Drift, watched end to end
 
 Because state is derived, recovery from a source edit is observable at every
-step. Take a German scope fully caught up under
+step. Take German, fully caught up under
 `ship_gate: { translated: 100, established: 80 }`:
 
 ```bash
@@ -506,7 +507,7 @@ kapi status
 
 The loop produces and never decides. Producing a translation is a different act
 from approving one, so the re-drafted block comes back at *draft*, in the review
-worklist, with the earlier approval **not** restored; the scope does not ship
+worklist, with the earlier approval **not** restored; the locale does not ship
 until a person reviews the new pairing. Drift is never converged over, and it is
 never left un-worked either.
 
@@ -612,7 +613,7 @@ flips to shippable.
 A block whose **source** moved reads as *stale*: it holds a target, so it sits at
 *draft* rather than below the ladder, but it is not a translation of the source
 the project has now. `kapi status` counts it, the review worklist takes it back,
-and the scope does not ship, whether or not a ship gate was declared, because no
+and the locale does not ship, whether or not a ship gate was declared, because no
 coverage threshold makes a translation of a rewritten sentence shippable. The
 next `kapi up` re-drafts it against the current source (priced in `--plan`, and
 reported as a re-draft in the run summary) and leaves it un-approved for review.

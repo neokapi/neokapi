@@ -117,7 +117,7 @@ func TestConverge_MaterializesFilesAndConverges(t *testing.T) {
 		assert.NotEmpty(t, data)
 	}
 
-	assert.Contains(t, out, "Up to date: every gated scope is shippable",
+	assert.Contains(t, out, "Up to date: every gated locale is shippable",
 		"a present target meets translated:100 (presence baseline)")
 	assert.Contains(t, out, "✓ shippable")
 }
@@ -156,7 +156,7 @@ func TestConverge_NoDefaultFlowUsesBuiltin(t *testing.T) {
 	out, runErr := runConverge(t, a, recipe, ConvergeOptions{})
 	require.NoError(t, runErr, out)
 	assert.Contains(t, out, `Ran flow "default (built-in)"`)
-	assert.Contains(t, out, "Up to date: every gated scope is shippable")
+	assert.Contains(t, out, "Up to date: every gated locale is shippable")
 }
 
 // TestConverge_MissingExplicitDefaultFlow: an explicitly configured

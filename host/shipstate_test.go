@@ -96,7 +96,7 @@ func TestConvergeText_NamesTheLanguagesNoGateMatches(t *testing.T) {
 	assert.Contains(t, shipLineFor(text, "fr"), "✓ shippable", text)
 	assert.Contains(t, shipLineFor(text, "nb"), "not gated", text)
 	assert.NotContains(t, shipLineFor(text, "nb"), "shippable", text)
-	assert.Contains(t, text, "Up to date: every gated scope is shippable. Not gated: nb.", text)
+	assert.Contains(t, text, "Up to date: every gated locale is shippable. Not gated: nb.", text)
 }
 
 // TestStatusUngatedScopeReadsNotGated: the ship column names a scope no gate

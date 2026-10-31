@@ -130,7 +130,7 @@ export const contextEngine: Lab = {
       narration:
         "The second run reads the twenty decisions, draws on the memory for the rest, and every gated edition is shippable. The graph is the same graph, with more in it: that is the whole mechanism, and it is what an agent, a reviewer and a build all read.",
       command: "kapi up",
-      expect: ["every gated scope is shippable"],
+      expect: ["every gated locale is shippable"],
       focus: "editions",
     },
   ],

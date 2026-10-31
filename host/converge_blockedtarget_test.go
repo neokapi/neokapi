@@ -22,7 +22,7 @@ import (
 // readable", and coverage counts an unreadable-but-present target as fully
 // `translated` by file-presence. So the locale read 100%, never became pending,
 // the convergence loop never ran it, no write was ever attempted — and `kapi up`
-// reported "Up to date: every gated scope is shippable" over an empty directory
+// reported "Up to date: every gated locale is shippable" over an empty directory
 // with no translation anywhere. This is the fixture the #1442 convergence-state
 // work could not build, because the failure was not observable.
 
