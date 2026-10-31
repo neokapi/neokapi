@@ -1,5 +1,11 @@
 package screens
 
+import (
+	"slices"
+
+	"github.com/neokapi/neokapi/core/rulesview"
+)
+
 // RulesDecideViewDTO is every question Decide asks about one project.
 type RulesDecideViewDTO struct {
 	// Project is the project's workspace key, and ProjectName what a person
@@ -45,6 +51,9 @@ type RuleDecisionDTO struct {
 	// Applies is where a kept rule holds.
 	Applies   string          `json:"applies"`
 	NoticedBy ContextActorDTO `json:"noticed_by"`
+	// Assignee is the member the question is assigned to, on a surface that
+	// assigns questions to members.
+	Assignee *ContextActorDTO `json:"assignee,omitempty"`
 }
 
 // RuleOptionDTO is one answer to a question.
@@ -74,4 +83,48 @@ type RuleDecideResultDTO struct {
 	Dropped int `json:"dropped"`
 	// Later counts the suggestions left waiting, which records nothing.
 	Later int `json:"later"`
+}
+
+// RuleDecisionFrom shapes one question for a screen, its options the most
+// used first.
+func RuleDecisionFrom(d rulesview.Decision) RuleDecisionDTO {
+	out := RuleDecisionDTO{
+		ID:          d.ID,
+		Short:       d.Short,
+		Kind:        d.Kind,
+		Question:    d.Question,
+		Reason:      d.Reason,
+		Sentence:    d.Sentence,
+		Label:       d.Label(),
+		Avoided:     d.Avoided(),
+		Options:     []RuleOptionDTO{},
+		Other:       d.Kind == rulesview.DecisionName,
+		Consequence: d.Consequence,
+		Applies:     d.Applies,
+		NoticedBy:   ActorFrom(d.NoticedBy),
+	}
+	if e := d.Seen; e != nil {
+		out.Seen = &ContextEvidenceDTO{Path: e.Path, Unit: e.Unit, Quote: e.Quote}
+	}
+	order := make([]int, len(d.Options))
+	for i := range order {
+		order[i] = i
+	}
+	slices.SortStableFunc(order, func(x, y int) int { return d.Options[y].Blocks - d.Options[x].Blocks })
+	for at, i := range order {
+		o := d.Options[i]
+		opt := RuleOptionDTO{
+			Form: o.Form, ID: o.ID, Short: o.Short, Sentence: o.Sentence,
+			Blocks: o.Blocks, Files: o.Files, Consequence: o.Consequence,
+		}
+		if d.Kind == rulesview.DecisionDisagreement {
+			who := ActorFrom(o.NoticedBy)
+			opt.NoticedBy = &who
+		}
+		out.Options = append(out.Options, opt)
+		if i == d.Chosen {
+			out.Chosen = at
+		}
+	}
+	return out
 }

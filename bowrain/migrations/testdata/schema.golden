@@ -343,6 +343,11 @@ connector_configs.name text NOT NULL DEFAULT ''::text
 connector_configs.type text NOT NULL
 connector_configs.updated_at text NOT NULL DEFAULT ''::text
 connector_configs.workspace_id text NOT NULL
+context_assignments.assigned_at timestamp with time zone NOT NULL DEFAULT now()
+context_assignments.assigned_by text NOT NULL DEFAULT ''::text
+context_assignments.assignee text NOT NULL
+context_assignments.project_id text NOT NULL
+context_assignments.suggestion_id text NOT NULL
 context_objects.data bytea NOT NULL
 context_objects.name text NOT NULL
 context_objects.project_id text NOT NULL
@@ -1312,6 +1317,8 @@ channel_alias_proposals channel_alias_proposals_pkey PRIMARY KEY (workspace_id, 
 collections collections_pkey PRIMARY KEY (project_id, id)
 collections collections_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 connector_configs connector_configs_pkey PRIMARY KEY (workspace_id, id)
+context_assignments context_assignments_pkey PRIMARY KEY (project_id, suggestion_id)
+context_assignments context_assignments_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 context_objects context_objects_pkey PRIMARY KEY (project_id, name)
 context_objects context_objects_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 context_scan_jobs context_scan_jobs_pkey PRIMARY KEY (id)
@@ -1511,6 +1518,7 @@ CREATE INDEX annotations_p6_project_id_stream_block_id_idx ON public.annotations
 CREATE INDEX annotations_p6_project_id_stream_kind_updated_at_idx ON public.annotations_p6 USING btree (project_id, stream, kind, updated_at DESC)
 CREATE INDEX annotations_p7_project_id_stream_block_id_idx ON public.annotations_p7 USING btree (project_id, stream, block_id)
 CREATE INDEX annotations_p7_project_id_stream_kind_updated_at_idx ON public.annotations_p7 USING btree (project_id, stream, kind, updated_at DESC)
+CREATE INDEX context_assignments_assignee ON public.context_assignments USING btree (assignee)
 CREATE INDEX idx_activities_actor ON public.activities USING btree (workspace_id, actor_id, created_at DESC)
 CREATE INDEX idx_activities_project ON public.activities USING btree (workspace_id, project_id, created_at DESC)
 CREATE INDEX idx_activities_workspace ON public.activities USING btree (workspace_id, created_at DESC)
@@ -1731,6 +1739,7 @@ CREATE UNIQUE INDEX change_log_pkey ON public.change_log USING btree (seq)
 CREATE UNIQUE INDEX channel_alias_proposals_pkey ON public.channel_alias_proposals USING btree (workspace_id, profile, proposed_channel, existing_channel)
 CREATE UNIQUE INDEX collections_pkey ON public.collections USING btree (project_id, id)
 CREATE UNIQUE INDEX connector_configs_pkey ON public.connector_configs USING btree (workspace_id, id)
+CREATE UNIQUE INDEX context_assignments_pkey ON public.context_assignments USING btree (project_id, suggestion_id)
 CREATE UNIQUE INDEX context_objects_pkey ON public.context_objects USING btree (project_id, name)
 CREATE UNIQUE INDEX context_scan_jobs_pkey ON public.context_scan_jobs USING btree (id)
 CREATE UNIQUE INDEX context_scan_schema_migrations_pkey ON public.context_scan_schema_migrations USING btree (version)

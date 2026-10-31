@@ -1,6 +1,7 @@
 package screens
 
 import (
+	"strings"
 	"time"
 
 	"github.com/neokapi/neokapi/core/contextop"
@@ -18,6 +19,20 @@ type ContextActorDTO struct {
 	// Host is the machine or client the agent ran under, when the actor's name
 	// carries one as "<client>@<host>".
 	Host string `json:"host,omitempty"`
+}
+
+// ActorFrom shapes an actor for a screen. An actor with no kind is a person,
+// and a name written "<client>@<host>" is split into its name and host.
+func ActorFrom(a contextop.Actor) ContextActorDTO {
+	kind := string(a.Kind)
+	if kind == "" {
+		kind = string(contextop.ActorPerson)
+	}
+	out := ContextActorDTO{Kind: kind, Name: a.Name, Session: a.Session}
+	if name, host, found := strings.Cut(a.Name, "@"); found && name != "" && host != "" {
+		out.Name, out.Host = name, host
+	}
+	return out
 }
 
 // ContextEvidenceDTO is where a subject was seen.

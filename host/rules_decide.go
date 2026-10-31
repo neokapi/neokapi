@@ -153,7 +153,7 @@ func (a *App) decideView(ctx context.Context, st *rulesState, withCounts, counte
 // Consequence states what keeping a name with form as the one to write does.
 // The form may be one the person typed rather than one of the options.
 func (v *RulesDecideView) Consequence(d RuleDecision, form string) string {
-	return v.counter().Consequence(d.model(), form)
+	return v.counter().Consequence(d.Model(), form)
 }
 
 // counter counts over the blocks the view read, where its project's scopes
@@ -180,8 +180,9 @@ func ruleDecisionFrom(d rulesview.Decision) RuleDecision {
 	return out
 }
 
-// model converts a question to the model's shape.
-func (d RuleDecision) model() rulesview.Decision {
+// Model converts a question to the shape core/rulesview holds it in, which
+// host/screens shapes for a screen.
+func (d RuleDecision) Model() rulesview.Decision {
 	out := rulesview.Decision{
 		ID: d.ID, Short: d.Short, Kind: d.Kind, Question: d.Question, Reason: d.Reason,
 		Sentence: d.Sentence, Chosen: d.Chosen, Consequence: d.Consequence, Seen: d.Seen,
@@ -307,11 +308,11 @@ func (o RuleOption) NoticedBy() contextop.Actor { return o.noticedBy }
 // write, and for a word rule the wording it avoids, which both sides of a
 // disagreement share. A content-memory pair gives its source, and a note its
 // prose.
-func (d RuleDecision) Label() string { return d.model().Label() }
+func (d RuleDecision) Label() string { return d.Model().Label() }
 
 // Avoided counts the wordings a word rule's check reports: the term and its
 // other forms. A question about anything else counts none.
-func (d RuleDecision) Avoided() int { return d.model().Avoided() }
+func (d RuleDecision) Avoided() int { return d.Model().Avoided() }
 
 // Find returns the question id belongs to, and the option it names: id is a
 // suggestion's own, or one side's of a disagreement. The option is -1 for a
@@ -635,7 +636,7 @@ func (a *App) NarrowRule(ctx context.Context, req RulesNarrowRequest) (RulesNarr
 		}
 	}
 	if maps.Equal(merged, narrowed.Coordinates) && !narrowed.AllProfiles {
-		if maps.Equal(coordinates, st.rootCoordinates) {
+		if maps.Equal(coordinates, st.places.Root) {
 			return RulesNarrowResult{}, fmt.Errorf("%s sits at the project's own point: it has no profile, channel or coordinate of its own, and a rule holds at a set of coordinates, so nothing tells it apart from the rest of the project. Give it a profile or coordinates in kapi.yaml, or narrow to a collection that has them", to)
 		}
 		return RulesNarrowResult{}, fmt.Errorf("this rule already holds only where %s sits", to)
@@ -686,8 +687,8 @@ func (a *App) narrowPoint(_ context.Context, st *rulesState, to string) (project
 	info, err := os.Stat(filepath.Join(st.root, filepath.FromSlash(to)))
 	if err != nil || !info.IsDir() {
 		var names []string
-		for _, c := range st.collections {
-			names = append(names, c.name)
+		for _, c := range st.places.Collections {
+			names = append(names, c.Name)
 		}
 		if len(names) == 0 {
 			return project.GovernancePoint{}, fmt.Errorf("%s is neither a collection of this project nor a folder in it", to)

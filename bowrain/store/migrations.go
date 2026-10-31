@@ -54,6 +54,7 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 // 44  a project's context objects, as the context layout names them
 // 45  the block history records the basis each translation carried
 // 46  a project's context key; term candidates leave the review queue
+// 47  the members a project's suggestions are assigned to
 var Migrations = []storage.Migration{
 	{
 		Version:     24,
@@ -1712,6 +1713,26 @@ var Migrations = []storage.Migration{
 			-- term candidates a reviewer rejected.
 			DELETE FROM review_items WHERE type = 'term_candidate';
 			DROP TABLE IF EXISTS rejected_terms;
+		`,
+	},
+	{
+		Version:     47,
+		Description: "the members a project's suggestions are assigned to",
+		SQL: `
+			-- One row per suggestion of a project's context ledger that a
+			-- member is assigned to decide. suggestion_id is the id of the
+			-- suggestion's operation, or of one side of a disagreement. An
+			-- assignment is team workflow: the ledger records no operation
+			-- for it.
+			CREATE TABLE IF NOT EXISTS context_assignments (
+				project_id    TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				suggestion_id TEXT NOT NULL,
+				assignee      TEXT NOT NULL,
+				assigned_by   TEXT NOT NULL DEFAULT '',
+				assigned_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				PRIMARY KEY (project_id, suggestion_id)
+			);
+			CREATE INDEX IF NOT EXISTS context_assignments_assignee ON context_assignments (assignee);
 		`,
 	},
 }

@@ -1496,6 +1496,15 @@ export class RuleDecisionDTO {
              */
             this["noticed_by"] = (new ContextActorDTO());
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Assignee is the member the question is assigned to, on a surface that
+             * assigns questions to members.
+             * @member
+             * @type {ContextActorDTO | null | undefined}
+             */
+            this["assignee"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -1509,6 +1518,7 @@ export class RuleDecisionDTO {
         const $$createField8_0 = $$createType29;
         const $$createField12_0 = $$createType31;
         const $$createField14_0 = $$createType9;
+        const $$createField15_0 = $$createType32;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("options" in $$parsedSource) {
             $$parsedSource["options"] = $$createField8_0($$parsedSource["options"]);
@@ -1518,6 +1528,9 @@ export class RuleDecisionDTO {
         }
         if ("noticed_by" in $$parsedSource) {
             $$parsedSource["noticed_by"] = $$createField14_0($$parsedSource["noticed_by"]);
+        }
+        if ("assignee" in $$parsedSource) {
+            $$parsedSource["assignee"] = $$createField15_0($$parsedSource["assignee"]);
         }
         return new RuleDecisionDTO(/** @type {Partial<RuleDecisionDTO>} */($$parsedSource));
     }
