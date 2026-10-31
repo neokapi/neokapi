@@ -1122,7 +1122,9 @@ func (a *App) RunExtractKpz(cmd Command) error {
 }
 
 // refuseKpzRedaction refuses a .kpz extraction under a redaction policy, the
-// one the recipe declares or the one --redact and --redact-rules ask for. A
+// one the recipe declares for any of its files (defaults.redaction, or a
+// collection's or item's redaction:) or the one --redact and --redact-rules
+// ask for. A
 // package carries each source file's skeleton, which holds the file's text
 // whole, and the translations the content memory fills in, so it would hand
 // over the values the policy withholds. XLIFF 2 and PO carry the redacted
@@ -1131,8 +1133,8 @@ func refuseKpzRedaction(cmd Command, proj *project.KapiProject) error {
 	redactFlag, _ := cmd.Flags().GetBool("redact")
 	redactRules, _ := cmd.Flags().GetString("redact-rules")
 	switch {
-	case ProjectRedaction(proj) != nil:
-		return errors.New("extract: the project declares defaults.redaction, and a .kpz package carries the text of each source file whole, so it would hold the values the policy withholds. " +
+	case RedactionDeclared(proj):
+		return errors.New("extract: the project declares a redaction policy, and a .kpz package carries the text of each source file whole, so it would hold the values the policy withholds. " +
 			"Extract XLIFF 2 or PO instead (--format xliff2 or --format po): kapi merge puts the withheld values back from the vault the extraction keeps under .kapi/vault/")
 	case redactFlag || redactRules != "":
 		return errors.New("extract: --redact and --redact-rules apply to XLIFF 2 and PO. A .kpz package carries the text of each source file whole, so it cannot withhold a value. " +

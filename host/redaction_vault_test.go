@@ -251,7 +251,7 @@ func TestExtractKpzRefusesUnderARedactionPolicy(t *testing.T) {
 		out := t.TempDir()
 		err := a.RunExtractKpz(kpzCommand(t, recipe, out))
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "defaults.redaction")
+		assert.Contains(t, err.Error(), "redaction policy")
 		assert.Contains(t, err.Error(), "--format xliff2")
 		assert.Empty(t, packages(t, out), "no package is written")
 	})
@@ -266,7 +266,7 @@ func TestExtractKpzRefusesUnderARedactionPolicy(t *testing.T) {
 		assert.Contains(t, err.Error(), "--redact")
 		assert.Empty(t, packages(t, out), "no package is written")
 	})
-	t.Run("must fail: with no policy the packages are written", func(t *testing.T) {
+	t.Run("with no policy the packages are written", func(t *testing.T) {
 		a, recipe, _ := vaultProject(t)
 		withoutPolicy(t, recipe)
 		out := t.TempDir()
