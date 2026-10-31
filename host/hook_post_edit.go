@@ -168,7 +168,7 @@ func (a *App) postEditCheck(cmd Command, projectPath, abs string) (run postEditR
 		return run, true, nil
 	}
 
-	report, err := a.ComputeCheck(pcmd, []string{target}) //nolint:contextcheck // ctx travels on pcmd (NewEnvCommand), which computeCheck reads through CmdContext
+	report, err := a.ComputeCheck(pcmd, []string{target})
 	if err != nil {
 		return run, false, fmt.Errorf("the check of %s could not run: %w", rel, err)
 	}
