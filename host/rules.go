@@ -15,6 +15,7 @@ import (
 	"github.com/neokapi/neokapi/core/contextop"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/rulesview"
 	"github.com/neokapi/neokapi/core/workspace"
 	"github.com/neokapi/neokapi/terms"
 )
@@ -232,7 +233,7 @@ func (a *App) rulesState(ctx context.Context, recipePath string) (*rulesState, e
 	for _, r := range records {
 		st.byID[r.ID] = r
 	}
-	st.acts = digestActs(records, st.byID)
+	st.acts = rulesview.Acts(records, st.byID)
 	if _, _, coordinates, perr := governedPoint(proj, project.GovernancePoint{Path: rulesRootSample, At: st.at}); perr == nil {
 		st.rootCoordinates = coordinates
 	}
@@ -332,7 +333,7 @@ func (st *rulesState) established() []contextop.Record {
 // keptBy says who put a rule in force and on which day: "kept by you,
 // 2026-10-30", or what the evidence it settled on was.
 func (st *rulesState) keptBy(r contextop.Record) string {
-	at, how := establishment(r, st.acts[r.ID], st.byID)
+	at, how := rulesview.Establishment(r, st.acts[r.ID], st.byID)
 	if len(how) == 0 {
 		return ""
 	}
@@ -373,7 +374,7 @@ func (a *App) listRules(ctx context.Context, st *rulesState) (RulesListing, erro
 			// The operation states the rule whole: a form the terms store
 			// folds away with case is still one the check holds files to.
 			line.ID, line.Short = op.ID, contextop.ShortID(op.ID)
-			line.Sentence = ruleSentence(op.Subject)
+			line.Sentence = rulesview.Sentence(op.Subject)
 			line.words = append(line.words, subjectWords(op.Subject)...)
 			line.Applies, line.Narrowed = st.applies(op.Scope)
 			if op.Scope.Level != contextop.LevelWorkspace {
@@ -466,7 +467,7 @@ func (st *rulesState) opLine(r contextop.Record) RuleLine {
 		ID:       r.ID,
 		Short:    contextop.ShortID(r.ID),
 		Group:    rulesSubjectGroup(r.Subject),
-		Sentence: ruleSentence(r.Subject),
+		Sentence: rulesview.Sentence(r.Subject),
 		words:    subjectWords(r.Subject),
 	}
 	if r.Established {
@@ -570,9 +571,9 @@ func rulesGroupOf(r ContextRule) string {
 	if r.Say == "" || len(r.Not) == 0 {
 		return RulesGroupWords
 	}
-	want := spellingKey(r.Say)
+	want := rulesview.SpellingKey(r.Say)
 	for _, n := range r.Not {
-		if spellingKey(n) == want {
+		if rulesview.SpellingKey(n) == want {
 			return RulesGroupNames
 		}
 	}
@@ -581,7 +582,7 @@ func rulesGroupOf(r ContextRule) string {
 
 // rulesSubjectGroup sorts a subject of the log the same way.
 func rulesSubjectGroup(s contextop.Subject) string {
-	switch digestTheme(s) {
+	switch rulesview.ThemeOf(s) {
 	case DigestThemeNames:
 		return RulesGroupNames
 	case DigestThemeWriting:
@@ -594,11 +595,11 @@ func rulesSubjectGroup(s contextop.Subject) string {
 func contextRuleSentence(r ContextRule) string {
 	switch {
 	case r.Say != "" && len(r.Not) > 0:
-		return "Write " + r.Say + ", not " + orList(r.Not) + "."
+		return "Write " + r.Say + ", not " + rulesview.OrList(r.Not) + "."
 	case r.Say != "":
 		return "Write " + r.Say + "."
 	}
-	return "Avoid " + orList(r.Not) + "."
+	return "Avoid " + rulesview.OrList(r.Not) + "."
 }
 
 // subjectWords are the wordings a subject mentions.

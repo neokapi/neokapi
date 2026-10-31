@@ -25,11 +25,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"maps"
 	"os"
 	"path/filepath"
-	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -37,40 +34,19 @@ import (
 
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/rulesview"
 	"github.com/neokapi/neokapi/core/workspace"
 	"github.com/neokapi/neokapi/terms"
 )
 
-// Digest themes, in the order a digest lists them.
+// Digest themes, in the order a digest lists them (rulesview.ThemeNames and
+// its neighbours).
 const (
-	// DigestThemeNames holds term rules about how a name is spelled: the
-	// preferred form and the forms to avoid differ only in case, spacing or
-	// punctuation ("Quickcast", not "Quick cast").
-	DigestThemeNames = "names"
-	// DigestThemeWords holds term rules that replace one word with another,
-	// or say a word to avoid.
-	DigestThemeWords = "words"
-	// DigestThemeWriting holds what was noticed about how the project writes,
-	// in prose: address, tone.
-	DigestThemeWriting = "writing"
-	// DigestThemeMemory holds wording pairs for the content memory.
-	DigestThemeMemory = "memory"
+	DigestThemeNames   = rulesview.ThemeNames
+	DigestThemeWords   = rulesview.ThemeWords
+	DigestThemeWriting = rulesview.ThemeWriting
+	DigestThemeMemory  = rulesview.ThemeMemory
 )
-
-// digestThemes is every theme with the title a text digest prints for it.
-var digestThemes = []struct{ id, title string }{
-	{DigestThemeNames, "Names and spellings"},
-	{DigestThemeWords, "Words to avoid"},
-	{DigestThemeWriting, "How the project writes"},
-	{DigestThemeMemory, "Wording in other languages"},
-}
-
-// digestEarlierEstablished caps the established rules a digest repeats from
-// before the marker, so "Earlier" stays a glance back rather than a history.
-const digestEarlierEstablished = 10
-
-// digestWeek is the span "new this week" counts over.
-const digestWeek = 7 * 24 * time.Hour
 
 // ContextDigestRequest asks for one project's digest.
 type ContextDigestRequest struct {
@@ -243,17 +219,28 @@ type DigestNumbers struct {
 // ContextDigest assembles one project's digest from the operation log. It
 // records nothing and leaves the marker where it is.
 func (a *App) ContextDigest(ctx context.Context, req ContextDigestRequest) (ContextDigest, error) {
-	ws, err := a.Workspace(ctx)
+	d, err := a.digestModel(ctx, req)
 	if err != nil {
 		return ContextDigest{}, err
+	}
+	return digestFrom(d), nil
+}
+
+// digestModel assembles the digest as core/rulesview holds it. The recipe and
+// the operation log are read here, the records are seen by the person
+// reading, and rulesview.BuildDigest groups them.
+func (a *App) digestModel(ctx context.Context, req ContextDigestRequest) (rulesview.Digest, error) {
+	ws, err := a.Workspace(ctx)
+	if err != nil {
+		return rulesview.Digest{}, err
 	}
 	key, proj, err := a.digestProject(ctx, ws, req)
 	if err != nil {
-		return ContextDigest{}, err
+		return rulesview.Digest{}, err
 	}
 	records, err := a.contextLedger(ctx, ws).Records(ctx, contextop.Filter{})
 	if err != nil {
-		return ContextDigest{}, err
+		return rulesview.Digest{}, err
 	}
 	since := req.Since
 	if since.IsZero() {
@@ -266,7 +253,7 @@ func (a *App) ContextDigest(ctx context.Context, req ContextDigestRequest) (Cont
 	if reader, rerr := a.commandActor(); rerr == nil {
 		records = seenBy(records, reader.Actor)
 	}
-	out := buildDigest(records, key, since, a.GovernanceInstant(), collectionFor)
+	out := rulesview.BuildDigest(records, key, since, a.GovernanceInstant(), collectionFor)
 	if reg, ok, lerr := ws.Lookup(ctx, key); lerr == nil && ok {
 		out.ProjectName = workspaceRegistrationName(reg)
 	}
@@ -514,7 +501,7 @@ func latestActivity(records []contextop.Record, key workspace.ProjectKey, since,
 			if out.NewByTheme == nil {
 				out.NewByTheme = map[string]int{}
 			}
-			out.NewByTheme[digestTheme(r.Subject)]++
+			out.NewByTheme[rulesview.ThemeOf(r.Subject)]++
 		}
 	}
 	out.Working = out.Actor.Kind == contextop.ActorAgent && now.Sub(out.At) < ContextSessionQuietAfter
@@ -581,20 +568,20 @@ func workspaceRules(widened []contextop.WidenedRule, records []contextop.Record,
 	for _, r := range records {
 		byID[r.ID] = r
 	}
-	acts := digestActs(records, byID)
+	acts := rulesview.Acts(records, byID)
 	out := make([]ContextWorkspaceRule, 0, len(widened))
 	for _, w := range widened {
 		rule := ContextWorkspaceRule{
 			ID:          w.Operation,
 			Short:       contextop.ShortID(w.Operation),
-			Sentence:    ruleSentence(w.Subject),
+			Sentence:    rulesview.Sentence(w.Subject),
 			Subject:     w.Subject,
 			Project:     string(w.Project),
 			ProjectName: names[w.Project],
 			At:          w.At,
 		}
 		if r, ok := byID[w.Operation]; ok && r.Project == w.Project {
-			rule.At, rule.How = establishment(r, acts[r.ID], byID)
+			rule.At, rule.How = rulesview.Establishment(r, acts[r.ID], byID)
 		}
 		out = append(out, rule)
 	}
@@ -619,554 +606,6 @@ func workspaceRegistrationName(reg workspace.Registration) string {
 		return reg.Name
 	}
 	return string(reg.Key)
-}
-
-// buildDigest assembles a digest from a folded log, newest first as
-// contextop.Ledger.Records returns it. collectionFor names the collection a
-// path sits in, nil when the project declares none.
-func buildDigest(records []contextop.Record, key workspace.ProjectKey, since, now time.Time, collectionFor func(string) string) ContextDigest {
-	out := ContextDigest{
-		Project:     string(key),
-		Since:       since,
-		Conflicts:   []DigestConflict{},
-		Established: []DigestItem{},
-		Suggested:   []DigestTheme{},
-		Drift:       []DigestDrift{},
-	}
-	byID := make(map[string]contextop.Record, len(records))
-	for _, r := range records {
-		byID[r.ID] = r
-	}
-	acts := digestActs(records, byID)
-	isNew := func(at time.Time) bool { return since.IsZero() || at.After(since) }
-	item := func(r contextop.Record) DigestItem {
-		it := digestItem(r, collectionFor)
-		it.New = isNew(r.At)
-		return it
-	}
-
-	conflicted := map[string]bool{}
-	themed := map[string]map[string][]DigestItem{}
-	var established []DigestItem
-	for _, r := range records {
-		if r.Project != key || !r.Kind.Bears() || !r.Status.Answers() {
-			continue
-		}
-		switch {
-		case r.Kind == contextop.KindImport:
-			// A file read in is a record of where terms, a voice or wording
-			// came from, not a rule a person decided: it stays in the log and
-			// out of the digest, where "established" means a rule in force.
-			continue
-		case r.Status == contextop.StatusContested:
-			if conflicted[r.ID] {
-				continue
-			}
-			out.Conflicts = append(out.Conflicts, digestConflict(r, byID, conflicted, item))
-		case r.Established:
-			it := item(r)
-			it.EstablishedAt, it.How = establishment(r, acts[r.ID], byID)
-			it.New = isNew(it.EstablishedAt)
-			out.Numbers.Rules++
-			if now.Sub(it.EstablishedAt) < digestWeek {
-				out.Numbers.NewThisWeek++
-			}
-			if it.Usage == nil {
-				it.Usage = latestUsage(r, acts[r.ID])
-			}
-			established = append(established, it)
-			if drift, ok := digestDrift(r, acts[r.ID], it); ok {
-				out.Drift = append(out.Drift, drift)
-			}
-		case r.Subject.Kind != contextop.SubjectNone:
-			it := item(r)
-			out.Numbers.Suggested++
-			if themed[it.Theme] == nil {
-				themed[it.Theme] = map[string][]DigestItem{}
-			}
-			themed[it.Theme][it.Collection] = append(themed[it.Theme][it.Collection], it)
-		}
-	}
-	out.Numbers.Conflicts = len(out.Conflicts)
-
-	sort.SliceStable(established, func(i, j int) bool { return established[i].EstablishedAt.After(established[j].EstablishedAt) })
-	earlier := 0
-	for _, it := range established {
-		if !it.New {
-			if earlier == digestEarlierEstablished {
-				continue
-			}
-			earlier++
-		}
-		out.Established = append(out.Established, it)
-	}
-
-	for _, theme := range digestThemes {
-		byCollection := themed[theme.id]
-		if len(byCollection) == 0 {
-			continue
-		}
-		t := DigestTheme{Theme: theme.id, Title: theme.title, Groups: []DigestGroup{}}
-		collections := slices.Sorted(maps.Keys(byCollection))
-		if len(collections) == 1 {
-			// One collection says nothing a reader needs told.
-			t.Groups = append(t.Groups, DigestGroup{Items: byCollection[collections[0]]})
-		} else {
-			for _, c := range collections {
-				t.Groups = append(t.Groups, DigestGroup{Collection: c, Items: byCollection[c]})
-			}
-		}
-		out.Suggested = append(out.Suggested, t)
-	}
-
-	for _, c := range out.Conflicts {
-		for _, side := range c.Sides {
-			if side.New {
-				out.Numbers.New++
-			}
-		}
-	}
-	for _, it := range out.Established {
-		if it.New {
-			out.Numbers.New++
-		}
-	}
-	for _, t := range out.Suggested {
-		for _, g := range t.Groups {
-			for _, it := range g.Items {
-				if it.New {
-					out.Numbers.New++
-				}
-			}
-		}
-	}
-	return out
-}
-
-// digestActs indexes, per subject-bearing operation, the operations that act
-// on it, oldest first.
-func digestActs(records []contextop.Record, byID map[string]contextop.Record) map[string][]contextop.Record {
-	out := map[string][]contextop.Record{}
-	for _, act := range slices.Backward(records) {
-		if act.Kind.Bears() || act.Target == "" {
-			continue
-		}
-		if bearer, ok := digestBearer(byID, act); ok {
-			out[bearer.ID] = append(out[bearer.ID], act)
-		}
-	}
-	return out
-}
-
-// digestBearer follows an act's target to the operation that carries the
-// subject.
-func digestBearer(byID map[string]contextop.Record, r contextop.Record) (contextop.Record, bool) {
-	for range 16 {
-		if r.Kind.Bears() {
-			return r, true
-		}
-		next, ok := byID[r.Target]
-		if !ok {
-			return contextop.Record{}, false
-		}
-		r = next
-	}
-	return contextop.Record{}, false
-}
-
-// digestItem renders one subject-bearing operation.
-func digestItem(r contextop.Record, collectionFor func(string) string) DigestItem {
-	it := DigestItem{
-		ID:        r.ID,
-		Short:     contextop.ShortID(r.ID),
-		Status:    r.Status,
-		Theme:     digestTheme(r.Subject),
-		Sentence:  ruleSentence(r.Subject),
-		Subject:   r.Subject,
-		Standing:  r.Standing.Describe(),
-		NoticedBy: r.Actor,
-		At:        r.At,
-		Scope:     r.Scope.Describe(),
-	}
-	if it.Sentence == "" && r.Correction != nil {
-		// A correction that states no rule of its own is the change itself.
-		it.Sentence = fmt.Sprintf("Changed %q to %q.", r.Correction.From, r.Correction.To)
-	}
-	for i := range r.Evidence {
-		e := r.Evidence[i]
-		if it.Quote == nil || (it.Quote.Quote == "" && e.Quote != "") {
-			it.Quote = &e
-		}
-	}
-	if it.Quote != nil && it.Quote.Path != "" && collectionFor != nil {
-		it.Collection = collectionFor(it.Quote.Path)
-	}
-	if rule, ok := r.Rule(); ok && r.Standing != nil && r.Standing.Uses != nil && r.Standing.Uses.Total > 0 {
-		u := r.Standing.Uses
-		it.Usage = digestUsage(rule.Replacement, append([]string{rule.Term}, rule.Forms...), u.Preferred, u.Total-u.Preferred, u.Within)
-	}
-	switch {
-	case r.Established:
-		it.Droppable = true
-		if r.Status == contextop.StatusEstablished {
-			it.WidenTo = ContextWidenOptions(r.Subject.Kind, r.Scope)
-			it.Widenable = len(it.WidenTo) > 0
-		}
-	case r.Subject.Kind == contextop.SubjectNote:
-		it.Droppable = true
-	default:
-		it.Droppable = true
-		it.Keepable = r.Status == contextop.StatusSuggested || r.ContestedByEvidence()
-	}
-	return it
-}
-
-// digestTheme sorts a subject into a suggestion theme.
-func digestTheme(s contextop.Subject) string {
-	switch s.Kind {
-	case contextop.SubjectMemory:
-		return DigestThemeMemory
-	case contextop.SubjectNote:
-		return DigestThemeWriting
-	}
-	rule, ok := s.Rule()
-	if !ok || rule.Replacement == "" {
-		return DigestThemeWords
-	}
-	want := spellingKey(rule.Replacement)
-	for _, form := range append([]string{rule.Term}, rule.Forms...) {
-		if spellingKey(form) == want {
-			return DigestThemeNames
-		}
-	}
-	return DigestThemeWords
-}
-
-// spellingKey folds case, spacing and joining punctuation, so two spellings of
-// one name compare equal.
-func spellingKey(form string) string {
-	var b strings.Builder
-	for _, r := range strings.ToLower(form) {
-		switch r {
-		case ' ', '-', '_', '.', ' ':
-			continue
-		}
-		b.WriteRune(r)
-	}
-	return b.String()
-}
-
-// ruleSentence states a subject as the sentence a person reads.
-func ruleSentence(s contextop.Subject) string {
-	switch s.Kind {
-	case contextop.SubjectTerm:
-		rule, ok := s.Rule()
-		if !ok {
-			return ""
-		}
-		avoid := orList(append([]string{rule.Term}, rule.Forms...))
-		if rule.Replacement == "" {
-			return "Avoid " + avoid + "."
-		}
-		return "Write " + rule.Replacement + ", not " + avoid + "."
-	case contextop.SubjectMemory:
-		if s.Memory == nil {
-			return ""
-		}
-		return fmt.Sprintf("Translate %q into %s as %q.", s.Memory.Source, s.Memory.TargetLocale, s.Memory.Target)
-	case contextop.SubjectNote:
-		return s.Text
-	}
-	return ""
-}
-
-// orList joins forms the way a sentence lists alternatives: "a", "a or b",
-// "a, b or c".
-func orList(forms []string) string {
-	switch len(forms) {
-	case 0:
-		return ""
-	case 1:
-		return forms[0]
-	}
-	return strings.Join(forms[:len(forms)-1], ", ") + " or " + forms[len(forms)-1]
-}
-
-// digestUsage says how the content writes a rule's forms.
-func digestUsage(preferred string, rejected []string, preferredCount, rejectedCount int, within string) *DigestUsage {
-	where := "The project"
-	if within != "" {
-		where = within
-	}
-	line := fmt.Sprintf("%s says %q %s", where, preferred, times(preferredCount))
-	if rejectedCount > 0 {
-		quoted := make([]string, len(rejected))
-		for i, f := range rejected {
-			quoted[i] = strconv.Quote(f)
-		}
-		line += fmt.Sprintf(" and %s %s", orList(quoted), times(rejectedCount))
-	}
-	return &DigestUsage{
-		Preferred:      preferred,
-		PreferredCount: preferredCount,
-		Rejected:       rejected,
-		RejectedCount:  rejectedCount,
-		Within:         within,
-		Line:           line,
-	}
-}
-
-// times renders a count of uses the way a sentence says it.
-func times(n int) string {
-	switch n {
-	case 1:
-		return "once"
-	case 2:
-		return "twice"
-	}
-	return strconv.Itoa(n) + " times"
-}
-
-// digestConflict gathers one contested record and the rules on its other
-// side, marking every one it takes so the disagreement is listed once.
-func digestConflict(r contextop.Record, byID map[string]contextop.Record, taken map[string]bool, item func(contextop.Record) DigestItem) DigestConflict {
-	// Every side of a conflict can be chosen: choosing keeps it and drops the
-	// others, and keeping a rule the evidence turned against is the choice.
-	side := func(r contextop.Record) DigestItem {
-		it := item(r)
-		it.Keepable, it.Droppable = true, !r.Established
-		return it
-	}
-	c := DigestConflict{Sides: []DigestItem{}}
-	taken[r.ID] = true
-	c.Sides = append(c.Sides, side(r))
-	// A correction that suggests the opposite rule is evidence against this
-	// one and a rival to it at once: the person chooses between the two rules,
-	// so it is listed as a side rather than as the evidence alone.
-	if r.ContestedByEvidence() && !contestedByRival(r, byID, taken) {
-		c.ByEvidence = true
-		c.Reason = contestedByEvidenceReason(r, byID)
-		return c
-	}
-	for _, id := range r.ContestedBy {
-		other, ok := byID[id]
-		if !ok || taken[id] {
-			continue
-		}
-		if !other.Kind.Bears() {
-			// A correction or a count against the rule, rather than a rival.
-			continue
-		}
-		taken[id] = true
-		c.Sides = append(c.Sides, side(other))
-	}
-	if len(c.Sides) > 1 {
-		c.Reason = "These rules say different things about the same word. Choose one, and the others are set aside."
-	} else {
-		c.Reason = contestedByEvidenceReason(r, byID)
-		c.ByEvidence = true
-	}
-	return c
-}
-
-// contestedByRival reports a record contested by a rule of its own that the
-// digest has not yet listed: a suggestion or a correction stating a rule.
-func contestedByRival(r contextop.Record, byID map[string]contextop.Record, taken map[string]bool) bool {
-	for _, id := range r.ContestedBy {
-		other, ok := byID[id]
-		if ok && !taken[id] && other.Kind.Bears() && other.Subject.Kind == contextop.SubjectTerm {
-			return true
-		}
-	}
-	return false
-}
-
-// contestedByEvidenceReason says what turned the evidence against a rule.
-func contestedByEvidenceReason(r contextop.Record, byID map[string]contextop.Record) string {
-	for _, id := range r.ContestedBy {
-		against, ok := byID[id]
-		if !ok {
-			continue
-		}
-		switch {
-		case against.Kind == contextop.KindCorrect && against.Correction != nil:
-			where := ""
-			if len(against.Evidence) > 0 && against.Evidence[0].Path != "" {
-				where = " in " + against.Evidence[0].Path
-			}
-			return fmt.Sprintf("%s changed %q back to %q%s.", actorPhrase(against.Actor, true), against.Correction.From, against.Correction.To, where)
-		case against.Kind == contextop.KindSignal && against.Signal != nil && against.Signal.Source == contextop.SignalUsage:
-			return fmt.Sprintf("The content moved to a form this rule avoids: %d uses now.", against.Signal.Rejected)
-		case against.Kind == contextop.KindWithdraw:
-			return "Its author withdrew it after a person backed it."
-		}
-	}
-	return "The evidence no longer agrees on this rule."
-}
-
-// establishment reads when a rule came into force and on what, from the
-// operations that act on it.
-func establishment(r contextop.Record, acts []contextop.Record, byID map[string]contextop.Record) (time.Time, []string) {
-	switch r.Kind {
-	case contextop.KindImport:
-		how := "imported"
-		if r.Note != "" {
-			how += " (" + r.Note + ")"
-		}
-		return r.At, []string{how}
-	case contextop.KindEdit:
-		return r.At, []string{"written by " + actorPhrase(r.Actor, false)}
-	}
-	var at time.Time
-	var how []string
-	for _, act := range acts {
-		switch act.Kind {
-		case contextop.KindKeep:
-			at, how = act.At, []string{"kept by " + actorPhrase(act.Actor, false)}
-		case contextop.KindEstablish:
-			if at.IsZero() || act.At.After(at) {
-				at, how = act.At, becauseLines(act.Because, byID)
-			}
-		}
-	}
-	if at.IsZero() {
-		at = r.At
-	}
-	return at, how
-}
-
-// becauseLines says what an establish operation rested on.
-func becauseLines(because []string, byID map[string]contextop.Record) []string {
-	var out []string
-	for _, id := range because {
-		ev, ok := byID[id]
-		if !ok {
-			continue
-		}
-		switch {
-		case ev.Kind == contextop.KindSignal && ev.Signal != nil && ev.Signal.Source == contextop.SignalMerge:
-			if ev.Signal.PR > 0 {
-				out = append(out, "merged in #"+strconv.Itoa(ev.Signal.PR))
-			} else if ev.Signal.Commit != "" {
-				out = append(out, "merged in "+shortCommit(ev.Signal.Commit))
-			} else {
-				out = append(out, "merged")
-			}
-		case ev.Kind == contextop.KindCorrect:
-			line := actorPhrase(ev.Actor, true) + " correction"
-			if actorPhrase(ev.Actor, true) == "you" {
-				line = "your correction"
-			}
-			if len(ev.Evidence) > 0 && ev.Evidence[0].Path != "" {
-				line += " in " + ev.Evidence[0].Path
-			}
-			out = append(out, line)
-		case ev.Kind == contextop.KindKeep:
-			out = append(out, "kept by "+actorPhrase(ev.Actor, false))
-		}
-	}
-	return out
-}
-
-// seenBy returns the records as the person reading the digest sees them: what
-// they did themselves carries no name, so it reads as "you", and what a
-// teammate did carries the teammate's. The records are copied, never changed in
-// place.
-func seenBy(records []contextop.Record, reader contextop.Actor) []contextop.Record {
-	if reader.Kind != contextop.ActorPerson || reader.Name == "" {
-		return records
-	}
-	out := make([]contextop.Record, len(records))
-	for i, r := range records {
-		if r.Actor.Kind == contextop.ActorPerson && r.Actor.Name == reader.Name {
-			r.Actor.Name = ""
-		}
-		out[i] = r
-	}
-	return out
-}
-
-// actorPhrase names an actor in a sentence. A person with no name is the
-// person reading, so "you"; possessive asks for the form that precedes a noun.
-func actorPhrase(a contextop.Actor, possessive bool) string {
-	switch a.Kind {
-	case contextop.ActorPerson, "":
-		if a.Name == "" {
-			return "you"
-		}
-		if possessive {
-			return a.Name + "'s"
-		}
-		return a.Name
-	case contextop.ActorAgent:
-		name := a.Name
-		if name == "" {
-			name = "an agent"
-		}
-		if possessive {
-			return name + "'s"
-		}
-		return name
-	}
-	name := "kapi"
-	if a.Name != "" && a.Name != SuggestActor.Name {
-		name += " " + a.Name
-	}
-	if possessive {
-		return name + "'s"
-	}
-	return name
-}
-
-// latestUsage is the latest usage count recorded against a rule, nil when no
-// check has counted it.
-func latestUsage(r contextop.Record, acts []contextop.Record) *DigestUsage {
-	rule, ok := r.Rule()
-	if !ok || rule.Replacement == "" {
-		return nil
-	}
-	var latest *contextop.Signal
-	for _, act := range acts {
-		if act.Kind == contextop.KindSignal && act.Signal != nil && act.Signal.Source == contextop.SignalUsage && act.Status.Answers() {
-			latest = act.Signal
-		}
-	}
-	if latest == nil || latest.Preferred+latest.Rejected == 0 {
-		return nil
-	}
-	return digestUsage(rule.Replacement, append([]string{rule.Term}, rule.Forms...), latest.Preferred, latest.Rejected, latest.Within)
-}
-
-// digestDrift reports an established rule whose content moved to a form it
-// avoids: the latest usage count writes a rejected form more often than the
-// baseline. The baseline is the last count taken when the rule came into force,
-// or, for a rule nobody had counted by then, the first count after it, so
-// rejected uses the content already held when the rule was kept are not drift.
-func digestDrift(r contextop.Record, acts []contextop.Record, it DigestItem) (DigestDrift, bool) {
-	rule, ok := r.Rule()
-	if !ok || rule.Replacement == "" {
-		return DigestDrift{}, false
-	}
-	var base, latest *contextop.Signal
-	for _, act := range acts {
-		if act.Kind != contextop.KindSignal || act.Signal == nil || act.Signal.Source != contextop.SignalUsage || !act.Status.Answers() {
-			continue
-		}
-		switch {
-		case !act.At.After(it.EstablishedAt):
-			base = act.Signal
-		case base == nil:
-			base = act.Signal
-		default:
-			latest = act.Signal
-		}
-	}
-	if base == nil || latest == nil || latest.Within != base.Within || latest.Rejected <= base.Rejected {
-		return DigestDrift{}, false
-	}
-	usage := digestUsage(rule.Replacement, append([]string{rule.Term}, rule.Forms...), latest.Preferred, latest.Rejected, latest.Within)
-	it.Usage = usage
-	return DigestDrift{Rule: it, Line: usage.Line, Rejected: latest.Rejected, Before: base.Rejected}, true
 }
 
 // FormatText renders the digest the way `kapi context review` lists it.
@@ -1291,6 +730,109 @@ func writeDigestItem(b *strings.Builder, it DigestItem, indent string) {
 
 // Established reports an item that is a rule in force.
 func (it DigestItem) Established() bool { return !it.EstablishedAt.IsZero() }
+
+// The digest's types are bound by the desktop and stay declared here.
+// core/rulesview holds the same shapes for every surface, and the functions
+// below convert one to the other field by field.
+
+// buildDigest assembles a digest from a folded log, newest first as
+// contextop.Ledger.Records returns it (rulesview.BuildDigest).
+func buildDigest(records []contextop.Record, key workspace.ProjectKey, since, now time.Time, collectionFor func(string) string) ContextDigest {
+	return digestFrom(rulesview.BuildDigest(records, key, since, now, collectionFor))
+}
+
+// digestItem renders one subject-bearing operation (rulesview.NewItem).
+func digestItem(r contextop.Record, collectionFor func(string) string) DigestItem {
+	return digestItemFrom(rulesview.NewItem(r, collectionFor))
+}
+
+// digestUsage says how the content writes a rule's forms (rulesview.NewUsage).
+func digestUsage(preferred string, rejected []string, preferredCount, rejectedCount int, within string) *DigestUsage {
+	return digestUsageFrom(rulesview.NewUsage(preferred, rejected, preferredCount, rejectedCount, within))
+}
+
+// seenBy returns the records as the person reading them sees them
+// (rulesview.SeenBy).
+func seenBy(records []contextop.Record, reader contextop.Actor) []contextop.Record {
+	return rulesview.SeenBy(records, reader)
+}
+
+// actorPhrase names an actor in a sentence (rulesview.ActorPhrase).
+func actorPhrase(a contextop.Actor, possessive bool) string {
+	return rulesview.ActorPhrase(a, possessive)
+}
+
+// digestFrom converts a digest from the model's shape to the bound one.
+func digestFrom(d rulesview.Digest) ContextDigest {
+	out := ContextDigest{
+		Project:     d.Project,
+		ProjectName: d.ProjectName,
+		Since:       d.Since,
+		Conflicts:   make([]DigestConflict, len(d.Conflicts)),
+		Established: digestItemsFrom(d.Established),
+		Suggested:   make([]DigestTheme, len(d.Suggested)),
+		Drift:       make([]DigestDrift, len(d.Drift)),
+		Numbers:     DigestNumbers(d.Numbers),
+	}
+	for i, c := range d.Conflicts {
+		out.Conflicts[i] = DigestConflict{Sides: digestItemsFrom(c.Sides), ByEvidence: c.ByEvidence, Reason: c.Reason}
+	}
+	for i, t := range d.Suggested {
+		theme := DigestTheme{Theme: t.Theme, Title: t.Title, Groups: make([]DigestGroup, len(t.Groups))}
+		for j, g := range t.Groups {
+			theme.Groups[j] = DigestGroup{Collection: g.Collection, Items: digestItemsFrom(g.Items)}
+		}
+		out.Suggested[i] = theme
+	}
+	for i, dr := range d.Drift {
+		out.Drift[i] = DigestDrift{Rule: digestItemFrom(dr.Rule), Line: dr.Line, Rejected: dr.Rejected, Before: dr.Before}
+	}
+	return out
+}
+
+// digestItemsFrom converts a list of items, keeping a nil list nil and an
+// empty one empty, as the model built them.
+func digestItemsFrom(items []rulesview.Item) []DigestItem {
+	if items == nil {
+		return nil
+	}
+	out := make([]DigestItem, len(items))
+	for i, it := range items {
+		out[i] = digestItemFrom(it)
+	}
+	return out
+}
+
+// digestItemFrom converts one item.
+func digestItemFrom(it rulesview.Item) DigestItem {
+	return DigestItem{
+		ID:            it.ID,
+		Short:         it.Short,
+		Status:        it.Status,
+		Theme:         it.Theme,
+		Sentence:      it.Sentence,
+		Subject:       it.Subject,
+		Quote:         it.Quote,
+		Collection:    it.Collection,
+		Standing:      it.Standing,
+		Usage:         digestUsageFrom(it.Usage),
+		NoticedBy:     it.NoticedBy,
+		At:            it.At,
+		New:           it.New,
+		Scope:         it.Scope,
+		Keepable:      it.Keepable,
+		Droppable:     it.Droppable,
+		Widenable:     it.Widenable,
+		WidenTo:       it.WidenTo,
+		EstablishedAt: it.EstablishedAt,
+		How:           it.How,
+	}
+}
+
+// digestUsageFrom converts a usage count, whose two shapes are one.
+func digestUsageFrom(u *rulesview.Usage) *DigestUsage {
+	return (*DigestUsage)(u)
+}
 
 func pluralWord(n int, one, many string) string {
 	if n == 1 {

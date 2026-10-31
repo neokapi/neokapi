@@ -14,6 +14,7 @@ import (
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/rulesview"
 	"github.com/neokapi/neokapi/core/workspace"
 )
 
@@ -115,8 +116,8 @@ func (u *contextUsage) add(r contextop.Record, rule profile.TermRule, text strin
 	m, ok := u.match[r.ID]
 	if !ok {
 		m = [2]*regexp.Regexp{
-			formMatcher([]string{rule.Replacement}, rule.MatchesCase()),
-			formMatcher(append([]string{rule.Term}, rule.Forms...), rule.MatchesCase()),
+			rulesview.FormMatcher([]string{rule.Replacement}, rule.MatchesCase()),
+			rulesview.FormMatcher(append([]string{rule.Term}, rule.Forms...), rule.MatchesCase()),
 		}
 		u.match[r.ID] = m
 	}
@@ -287,7 +288,7 @@ func (a *App) noteAgentEdits(ctx context.Context, recipe string, actor contextop
 			if !r.Scope.CoversIn(s.proj.AxisSpace(), point.Coordinates) {
 				continue
 			}
-			use := formMatcher([]string{rule.Replacement}, rule.MatchesCase())
+			use := rulesview.FormMatcher([]string{rule.Replacement}, rule.MatchesCase())
 			// Only the uses an edit introduced count: a use the text
 			// already held before the edit is the files', not the edit's.
 			n := 0

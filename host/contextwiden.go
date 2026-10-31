@@ -15,6 +15,7 @@ import (
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/rulesview"
 	"github.com/neokapi/neokapi/core/workspace"
 )
 
@@ -389,11 +390,11 @@ func widenMatcher(subject contextop.Subject) *regexp.Regexp {
 	switch subject.Kind {
 	case contextop.SubjectTerm:
 		if subject.Term != nil {
-			return formMatcher(append([]string{subject.Term.Term}, subject.Term.Forms...), subject.Term.MatchesCase())
+			return rulesview.FormMatcher(append([]string{subject.Term.Term}, subject.Term.Forms...), subject.Term.MatchesCase())
 		}
 	case contextop.SubjectMemory:
 		if subject.Memory != nil {
-			return formMatcher([]string{subject.Memory.Source}, true)
+			return rulesview.FormMatcher([]string{subject.Memory.Source}, true)
 		}
 	}
 	return nil

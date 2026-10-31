@@ -8,40 +8,30 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/contextop"
-	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/rulesview"
 )
 
 // Deciding about suggestions, as `kapi rules` asks a person.
 //
-// Each suggestion is one question with the evidence as its options: each form
-// of a name, with the blocks and files that write it, or each side of a
-// disagreement. Beside each option is what keeping it does: the blocks a
-// check then reports, and where the rule applies. The counts come from one
-// read of the project's source, made before the first question, with the
-// matcher a check's usage count uses (formMatcher). Every answer is the
-// ContextReviewRequest `kapi context review` records its decisions with.
+// core/rulesview builds the questions and fills in their counts. This file
+// reads what it needs: the recipe, the operation log as the person reading
+// sees it, and one read of the project's source, made before the first
+// question. Every answer is the ContextReviewRequest `kapi context review`
+// records its decisions with.
 
 // The kinds of decision a person is asked about.
 const (
-	RuleDecisionName         = "name"
-	RuleDecisionWord         = "word"
-	RuleDecisionNote         = "note"
-	RuleDecisionMemory       = "memory"
-	RuleDecisionDisagreement = "disagreement"
-)
-
-// The questions a decision asks.
-const (
-	questionWhichForm = "Which one do your files use?"
-	questionKeep      = "Keep this as a rule?"
-	questionWhichSide = "Which one holds?"
+	RuleDecisionName         = rulesview.DecisionName
+	RuleDecisionWord         = rulesview.DecisionWord
+	RuleDecisionNote         = rulesview.DecisionNote
+	RuleDecisionMemory       = rulesview.DecisionMemory
+	RuleDecisionDisagreement = rulesview.DecisionDisagreement
 )
 
 // RulesDecideView is every suggestion waiting for a person, as questions.
@@ -56,7 +46,7 @@ type RulesDecideView struct {
 	Hint string `json:"hint,omitempty"`
 
 	st     *rulesState
-	blocks []ruleBlock
+	blocks []rulesview.Block
 	// stamp names the source the blocks were read from: each file's path,
 	// size and modification time, and the recipe's.
 	stamp string
@@ -114,13 +104,6 @@ type RuleOption struct {
 	noticedBy contextop.Actor
 }
 
-// ruleBlock is one block of the project's source as the counts read it.
-type ruleBlock struct {
-	file        string
-	coordinates map[string]string
-	text        string
-}
-
 // DecideRules reads the suggestions waiting in a project as questions. It
 // records nothing.
 func (a *App) DecideRules(ctx context.Context, req RulesRequest) (*RulesDecideView, error) {
@@ -136,50 +119,22 @@ func (a *App) DecideRules(ctx context.Context, req RulesRequest) (*RulesDecideVi
 // it does: what recording an answer needs, and no more. reuse is a view read
 // earlier whose blocks are counted again while the source is unchanged.
 func (a *App) decideView(ctx context.Context, st *rulesState, withCounts, counted bool, reuse *RulesDecideView) (*RulesDecideView, error) {
-	digest, err := a.ContextDigest(ctx, ContextDigestRequest{Project: st.recipe})
+	digest, err := a.digestModel(ctx, ContextDigestRequest{Project: st.recipe})
 	if err != nil {
 		return nil, err
 	}
 	v := &RulesDecideView{Project: string(st.key), Decisions: []RuleDecision{}, st: st}
 
-	seen := map[string]bool{}
-	var items []DigestItem
-	for _, c := range digest.Conflicts {
-		for _, side := range c.Sides {
-			seen[side.ID] = true
-		}
-		if len(c.Sides) > 1 {
-			v.Decisions = append(v.Decisions, v.disagreement(c))
-			continue
-		}
-		items = append(items, c.Sides...)
-	}
-	for _, t := range digest.Suggested {
-		for _, g := range t.Groups {
-			for _, it := range g.Items {
-				if !seen[it.ID] && (it.Keepable || it.Droppable) {
-					items = append(items, it)
-					seen[it.ID] = true
-				}
-			}
-		}
-	}
-	if counted && needsBlocks(v.Decisions, items) {
+	questions := rulesview.Questions(digest, st.records)
+	if counted && rulesview.NeedsBlocks(questions) {
 		v.blocks, v.stamp = a.ruleBlocks(ctx, st, reuse)
 	}
-	// A disagreement's counts are read now the blocks are.
-	for i := range v.Decisions {
-		if !counted {
-			break
-		}
-		v.fill(&v.Decisions[i])
-	}
-	for _, it := range items {
-		d := v.suggestion(it)
+	counter := v.counter()
+	for i := range questions {
 		if counted {
-			v.fill(&d)
+			counter.Fill(&questions[i])
 		}
-		v.Decisions = append(v.Decisions, d)
+		v.Decisions = append(v.Decisions, ruleDecisionFrom(questions[i]))
 	}
 
 	if len(v.Decisions) == 0 || withCounts {
@@ -195,212 +150,52 @@ func (a *App) decideView(ctx context.Context, st *rulesState, withCounts, counte
 	return v, nil
 }
 
-// needsBlocks reports whether any question counts uses of a wording.
-func needsBlocks(decisions []RuleDecision, items []DigestItem) bool {
-	if len(decisions) > 0 {
-		return true
-	}
-	for _, it := range items {
-		if it.Subject.Kind == contextop.SubjectTerm {
-			return true
-		}
-	}
-	return false
+// Consequence states what keeping a name with form as the one to write does.
+// The form may be one the person typed rather than one of the options.
+func (v *RulesDecideView) Consequence(d RuleDecision, form string) string {
+	return v.counter().Consequence(d.model(), form)
 }
 
-// disagreement asks which side of a disagreement holds.
-func (v *RulesDecideView) disagreement(c DigestConflict) RuleDecision {
-	d := RuleDecision{Kind: RuleDecisionDisagreement, Question: questionWhichSide, Reason: c.Reason}
-	names := true
-	for _, side := range c.Sides {
-		r := v.st.byID[side.ID]
-		if digestTheme(side.Subject) != DigestThemeNames {
-			names = false
-		}
-		d.Options = append(d.Options, RuleOption{
-			ID: side.ID, Short: side.Short, Sentence: side.Sentence,
-			subject: side.Subject, scope: r.Scope, noticedBy: side.NoticedBy,
+// counter counts over the blocks the view read, where its project's scopes
+// apply.
+func (v *RulesDecideView) counter() rulesview.Counter {
+	return rulesview.Counter{Space: v.st.space, Applies: v.st.applies, Blocks: slices.Values(v.blocks)}
+}
+
+// ruleDecisionFrom converts a question from the model's shape.
+func ruleDecisionFrom(d rulesview.Decision) RuleDecision {
+	out := RuleDecision{
+		ID: d.ID, Short: d.Short, Kind: d.Kind, Question: d.Question, Reason: d.Reason,
+		Sentence: d.Sentence, Chosen: d.Chosen, Consequence: d.Consequence, Seen: d.Seen,
+		Applies: d.Applies, SuggestedBy: d.SuggestedBy,
+		subject: d.Subject, scope: d.Scope, noticedBy: d.NoticedBy,
+	}
+	for _, o := range d.Options {
+		out.Options = append(out.Options, RuleOption{
+			Form: o.Form, ID: o.ID, Short: o.Short, Sentence: o.Sentence,
+			Blocks: o.Blocks, Files: o.Files, Consequence: o.Consequence,
+			subject: o.Subject, scope: o.Scope, noticedBy: o.NoticedBy,
 		})
-		if d.Seen == nil && side.Quote != nil {
-			d.Seen = side.Quote
-		}
-		if d.scope.Level == "" {
-			d.scope, d.subject, d.noticedBy = r.Scope, side.Subject, side.NoticedBy
-		}
-	}
-	if names {
-		d.Question = questionWhichForm
-	}
-	return d
-}
-
-// suggestion asks about one suggestion: which of its forms the files use,
-// for a name, and whether to keep it otherwise.
-func (v *RulesDecideView) suggestion(it DigestItem) RuleDecision {
-	r := v.st.byID[it.ID]
-	d := RuleDecision{
-		ID: it.ID, Short: it.Short, Sentence: it.Sentence, Seen: it.Quote,
-		Question: questionKeep, SuggestedBy: actorPhrase(it.NoticedBy, false),
-		subject: it.Subject, scope: r.Scope, noticedBy: it.NoticedBy,
-	}
-	switch {
-	case it.Subject.Kind == contextop.SubjectMemory:
-		d.Kind = RuleDecisionMemory
-	case it.Subject.Kind == contextop.SubjectNote || it.Subject.Kind == contextop.SubjectNone:
-		d.Kind = RuleDecisionNote
-	case digestTheme(it.Subject) == DigestThemeNames:
-		d.Kind, d.Question = RuleDecisionName, questionWhichForm
-		rule, _ := it.Subject.Rule()
-		for _, form := range ruleForms(rule) {
-			d.Options = append(d.Options, RuleOption{Form: form, scope: r.Scope})
-		}
-	default:
-		d.Kind = RuleDecisionWord
-	}
-	return d
-}
-
-// ruleForms are a name's forms: the one the rule says to write first, then
-// the ones it avoids, each once.
-func ruleForms(rule coreprofile.TermRule) []string {
-	var out []string
-	for _, f := range append([]string{rule.Replacement, rule.Term}, rule.Forms...) {
-		if f = strings.TrimSpace(f); f != "" && !slices.Contains(out, f) {
-			out = append(out, f)
-		}
 	}
 	return out
 }
 
-// fill counts each option's uses and states what keeping it does.
-func (v *RulesDecideView) fill(d *RuleDecision) {
-	d.Applies, _ = v.st.applies(d.scope)
-	switch d.Kind {
-	case RuleDecisionName:
-		rule, _ := d.subject.Rule()
-		caseSensitive := rule.MatchesCase()
-		for i := range d.Options {
-			o := &d.Options[i]
-			o.Blocks, o.Files = v.uses(d.scope, []string{o.Form}, caseSensitive)
-			o.Consequence = v.Consequence(*d, o.Form)
-		}
-	case RuleDecisionDisagreement:
-		best := -1
-		for i := range d.Options {
-			o := &d.Options[i]
-			if rule, ok := o.subject.Rule(); ok && rule.Replacement != "" {
-				o.Blocks, o.Files = v.uses(o.scope, []string{rule.Replacement}, rule.MatchesCase())
-			}
-			label := ""
-			if rule, ok := o.subject.Rule(); ok {
-				label = rule.Replacement
-			}
-			o.Consequence = v.keepConsequence(o.subject, o.scope, label, digestTheme(o.subject) == DigestThemeNames)
-			if best < 0 || o.Blocks > d.Options[best].Blocks {
-				best = i
-			}
-		}
-		d.Chosen = max(best, 0)
-	default:
-		d.Consequence = v.keepConsequence(d.subject, d.scope, "", false)
+// model converts a question to the model's shape.
+func (d RuleDecision) model() rulesview.Decision {
+	out := rulesview.Decision{
+		ID: d.ID, Short: d.Short, Kind: d.Kind, Question: d.Question, Reason: d.Reason,
+		Sentence: d.Sentence, Chosen: d.Chosen, Consequence: d.Consequence, Seen: d.Seen,
+		Applies: d.Applies, SuggestedBy: d.SuggestedBy,
+		Subject: d.subject, Scope: d.scope, NoticedBy: d.noticedBy,
 	}
-}
-
-// Consequence states what keeping a name with form as the one to write does.
-// The form may be one the person typed rather than one of the options.
-func (v *RulesDecideView) Consequence(d RuleDecision, form string) string {
-	subject := d.subject
-	if form != "" {
-		subject, _ = editSubject(subject, form, nil)
+	for _, o := range d.Options {
+		out.Options = append(out.Options, rulesview.Option{
+			Form: o.Form, ID: o.ID, Short: o.Short, Sentence: o.Sentence,
+			Blocks: o.Blocks, Files: o.Files, Consequence: o.Consequence,
+			Subject: o.subject, Scope: o.scope, NoticedBy: o.noticedBy,
+		})
 	}
-	return v.keepConsequence(subject, d.scope, form, true)
-}
-
-// keepConsequence says what keeping subject at scope does: the blocks a check
-// then reports, and where it applies. label is the wording the kept rule
-// writes, empty to call it "it"; name counts the avoided wordings as the
-// other forms of one name rather than listing them.
-func (v *RulesDecideView) keepConsequence(subject contextop.Subject, scope contextop.Scope, label string, name bool) string {
-	applies, _ := v.st.applies(scope)
-	where := " Applies to " + applies + "."
-	switch subject.Kind {
-	case contextop.SubjectNote, contextop.SubjectNone:
-		return "If you keep it: it is stated to writers and assistants where it applies. No check reads it." + where
-	case contextop.SubjectMemory:
-		return "If you keep it: the content memory holds this wording." + where
-	}
-	rule, _ := subject.Rule()
-	avoided := slices.DeleteFunc(append([]string{rule.Term}, rule.Forms...), func(f string) bool {
-		return strings.TrimSpace(f) == "" || f == rule.Replacement
-	})
-	blocks, _ := v.uses(scope, avoided, rule.MatchesCase())
-	lead := "If you keep it: "
-	if label != "" {
-		lead = "If you keep " + strconv.Quote(label) + ": "
-	}
-	var what string
-	switch {
-	case name && blocks == 0:
-		what = "no block uses " + otherForms(len(avoided)) + "."
-	case name:
-		what = otherForms(len(avoided)) + " " + become(len(avoided)) + " in " + blockCount(blocks) + "."
-	case blocks == 0:
-		what = "no block uses " + quotedAlternatives(avoided) + "."
-	default:
-		what = quotedAlternatives(avoided) + " " + become(len(avoided)) + " in " + blockCount(blocks) + "."
-	}
-	if rule.Advisory {
-		what += " They report and fail nothing."
-	}
-	return lead + what + where
-}
-
-// otherForms names the forms a kept name avoids: "the other form", "the other
-// 4 forms".
-func otherForms(n int) string {
-	if n == 1 {
-		return "the other form"
-	}
-	return "the other " + strconv.Itoa(n) + " forms"
-}
-
-// become is the verb for n avoided forms turning into findings.
-func become(n int) string {
-	if n == 1 {
-		return "becomes a finding"
-	}
-	return "become findings"
-}
-
-// blockCount renders a count of blocks.
-func blockCount(n int) string {
-	if n == 1 {
-		return "1 block"
-	}
-	return strconv.Itoa(n) + " blocks"
-}
-
-// uses counts the blocks at scope that write any of forms, and the files
-// they sit in.
-func (v *RulesDecideView) uses(scope contextop.Scope, forms []string, caseSensitive bool) (blocks, files int) {
-	re := formMatcher(forms, caseSensitive)
-	if re == nil {
-		return 0, 0
-	}
-	return countBlocks(v.blocks, scope, v.st, re)
-}
-
-func countBlocks(blocks []ruleBlock, scope contextop.Scope, st *rulesState, re *regexp.Regexp) (int, int) {
-	n := 0
-	inFiles := map[string]bool{}
-	for _, b := range blocks {
-		if !scope.CoversIn(st.space, b.coordinates) || !re.MatchString(b.text) {
-			continue
-		}
-		n++
-		inFiles[b.file] = true
-	}
-	return n, len(inFiles)
+	return out
 }
 
 // ruleBlocks reads every block of the project's source once, with the
@@ -409,7 +204,7 @@ func countBlocks(blocks []ruleBlock, scope contextop.Scope, st *rulesState, re *
 // changed since, its blocks are returned without reading a file. A file that
 // will not read is left out: a count is advice, and not worth failing the
 // question over.
-func (a *App) ruleBlocks(ctx context.Context, st *rulesState, reuse *RulesDecideView) ([]ruleBlock, string) {
+func (a *App) ruleBlocks(ctx context.Context, st *rulesState, reuse *RulesDecideView) ([]rulesview.Block, string) {
 	a.InitRegistries()
 	pctx := project.NewProjectContext(st.proj, st.recipe)
 	resolved, err := pctx.ResolveContent(a.FormatReg)
@@ -424,7 +219,7 @@ func (a *App) ruleBlocks(ctx context.Context, st *rulesState, reuse *RulesDecide
 	if err != nil {
 		return nil, ""
 	}
-	var out []ruleBlock
+	var out []rulesview.Block
 	read := map[string]bool{}
 	for _, rf := range resolved {
 		if read[rf.Path] {
@@ -442,7 +237,7 @@ func (a *App) ruleBlocks(ctx context.Context, st *rulesState, reuse *RulesDecide
 			continue
 		}
 		for _, b := range blocks {
-			out = append(out, ruleBlock{file: rel, coordinates: coordinates, text: b.SourceText()})
+			out = append(out, rulesview.Block{Path: rel, Coordinates: coordinates, Text: b.SourceText()})
 		}
 	}
 	return out, stamp
@@ -512,34 +307,11 @@ func (o RuleOption) NoticedBy() contextop.Actor { return o.noticedBy }
 // write, and for a word rule the wording it avoids, which both sides of a
 // disagreement share. A content-memory pair gives its source, and a note its
 // prose.
-func (d RuleDecision) Label() string {
-	if rule, ok := d.subject.Rule(); ok {
-		if d.Kind == RuleDecisionName {
-			return rule.Replacement
-		}
-		return rule.Term
-	}
-	if m := d.subject.Memory; m != nil {
-		return m.Source
-	}
-	return d.subject.Text
-}
+func (d RuleDecision) Label() string { return d.model().Label() }
 
 // Avoided counts the wordings a word rule's check reports: the term and its
 // other forms. A question about anything else counts none.
-func (d RuleDecision) Avoided() int {
-	rule, ok := d.subject.Rule()
-	if !ok || d.Kind == RuleDecisionName {
-		return 0
-	}
-	n := 0
-	for _, f := range append([]string{rule.Term}, rule.Forms...) {
-		if strings.TrimSpace(f) != "" && f != rule.Replacement {
-			n++
-		}
-	}
-	return n
-}
+func (d RuleDecision) Avoided() int { return d.model().Avoided() }
 
 // Find returns the question id belongs to, and the option it names: id is a
 // suggestion's own, or one side's of a disagreement. The option is -1 for a
@@ -686,7 +458,7 @@ func (d RuleDecision) Write(w io.Writer, chosen int) error {
 		if d.Kind == RuleDecisionDisagreement {
 			label = o.Sentence + "  #" + o.Short
 		}
-		fmt.Fprintf(&b, "  %s %d) %s  %s in %s\n", mark, i+1, label, blockCount(o.Blocks), fileCount(o.Files))
+		fmt.Fprintf(&b, "  %s %d) %s  %s in %s\n", mark, i+1, label, rulesview.BlockCount(o.Blocks), fileCount(o.Files))
 	}
 	if d.Kind == RuleDecisionName {
 		fmt.Fprintf(&b, "    %d) Other…\n", len(d.Options)+1)

@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/contextop"
+	"github.com/neokapi/neokapi/core/rulesview"
 )
 
 // Settling a project's context by evidence (AD C-11).
@@ -153,7 +154,7 @@ func (s *contextOpsSession) recordMerge(ctx context.Context, req ContextSettleRe
 			continue
 		}
 		preferred, rejected := 0, 0
-		use, avoid := formMatcher([]string{rule.Replacement}, rule.MatchesCase()), formMatcher(append([]string{rule.Term}, rule.Forms...), rule.MatchesCase())
+		use, avoid := rulesview.FormMatcher([]string{rule.Replacement}, rule.MatchesCase()), rulesview.FormMatcher(append([]string{rule.Term}, rule.Forms...), rule.MatchesCase())
 		for _, f := range files {
 			if _, scope := s.basisAt([]contextop.Evidence{{Path: f.path}}); !r.Scope.CoversIn(s.proj.AxisSpace(), scope.Coordinates) {
 				continue
@@ -245,24 +246,6 @@ func parseDiffLines(diff []byte) []diffFile {
 		}
 	}
 	return out
-}
-
-// formMatcher matches any of the forms as a whole word.
-func formMatcher(forms []string, caseSensitive bool) *regexp.Regexp {
-	var alts []string
-	for _, f := range forms {
-		if f = strings.TrimSpace(f); f != "" {
-			alts = append(alts, regexp.QuoteMeta(f))
-		}
-	}
-	if len(alts) == 0 {
-		return nil
-	}
-	flags := ""
-	if !caseSensitive {
-		flags = "(?i)"
-	}
-	return regexp.MustCompile(flags + `(?:^|[^\p{L}\p{N}_])(?:` + strings.Join(alts, "|") + `)(?:$|[^\p{L}\p{N}_])`)
 }
 
 // countLines counts the lines a matcher finds a form in.
