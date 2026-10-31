@@ -68,6 +68,64 @@ func (a *App) SessionOutcomes(ctx context.Context, req ContextSessionRequest) (S
 	return out, nil
 }
 
+// LatestSession is the session a caller that names none reads in a project's
+// log.
+type LatestSession struct {
+	// Session is the id the session recorded under.
+	Session string
+	// Checked is true when Session holds the project's latest check run, and
+	// false when no session holds a check run and Session is the one that
+	// recorded last.
+	Checked bool
+	// Last is when the session last recorded, in any operation.
+	Last time.Time
+}
+
+// LatestContextSession names the session a caller that knows no session id
+// reads: the session whose latest Stop hook check run is the project's most
+// recent one. When no session holds a check run, it is the session that
+// recorded last in any operation. ok is false when the log holds no operation
+// under a session.
+//
+// The MCP tools record notes under the server's own session and the Stop hook
+// records its runs under the assistant host's. A check run outranks a later
+// note, so the hook's outcomes reach an agent that has just written a note.
+func (a *App) LatestContextSession(ctx context.Context, project string) (latest LatestSession, ok bool, err error) {
+	s, err := a.contextOps(ctx, project)
+	if err != nil {
+		return LatestSession{}, false, err
+	}
+	records, err := s.ledger.Records(ctx, contextop.Filter{Project: s.key})
+	if err != nil {
+		return LatestSession{}, false, err
+	}
+	// The records arrive newest first, so on equal instants the record the log
+	// accepted later wins.
+	last := map[string]time.Time{}
+	var anyOp, checkRun contextop.Record
+	for _, r := range records {
+		if r.Actor.Session == "" {
+			continue
+		}
+		if t, seen := last[r.Actor.Session]; !seen || r.At.After(t) {
+			last[r.Actor.Session] = r.At
+		}
+		if anyOp.Actor.Session == "" || r.At.After(anyOp.At) {
+			anyOp = r
+		}
+		if r.Kind == contextop.KindCheck && (checkRun.Actor.Session == "" || r.At.After(checkRun.At)) {
+			checkRun = r
+		}
+	}
+	switch {
+	case checkRun.Actor.Session != "":
+		return LatestSession{Session: checkRun.Actor.Session, Checked: true, Last: last[checkRun.Actor.Session]}, true, nil
+	case anyOp.Actor.Session != "":
+		return LatestSession{Session: anyOp.Actor.Session, Last: last[anyOp.Actor.Session]}, true, nil
+	}
+	return LatestSession{}, false, nil
+}
+
 // SessionOutcomesOf derives every session's outcomes from check records, in
 // any order. Runs are compared within one project and one session, in the
 // order the log accepted them, as CheckSequences and CaughtMarks pair them.

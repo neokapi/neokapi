@@ -401,8 +401,16 @@ It also returns what the Stop hook's check runs found in the session:
 | `files` | the files the session's turns edited |
 
 Each field is present at zero, so `checked: 0` means no run was recorded. The
-hook records a run under the assistant host's session id. To read its runs,
-pass that id in `session`.
+hook records a run under the assistant host's session id, and the MCP server
+records a note under its own.
+
+Without `session`, the tool summarizes the session whose latest check run is
+the project's most recent, so a note written after a hook run leaves the run's
+outcomes in view. When no session holds a check run, it summarizes the session
+that recorded last. `chosen` names the session, the rule that applied and when
+the session last recorded. When the log holds no session's operations, the
+answer is one line in `report` saying that the Stop hook records one each time
+it runs the project's checks. Pass `session` to read another session.
 
 <McpToolParams name="context_session_summary" />
 

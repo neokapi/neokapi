@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-31T01:45:11Z",
+  "generatedAt": "2026-10-31T09:32:51Z",
   "tools": [
     {
       "name": "apply_edits",
@@ -441,7 +441,7 @@
     },
     {
       "name": "context_session_summary",
-      "description": "Report what this session recorded with context_note, and what the Stop hook's check runs found in it: `checked` runs, the `failing` findings the latest run left, the `caught` findings and the `files` the session edited. A finding is caught when a hook run reported it and the next run on the same file no longer found it. The hook records its runs under the assistant host's session id; pass that id in `session` to read them. Call it only if you recorded a note, and end your report with what it says, including the command a person reviews the session with.",
+      "description": "Report what this session recorded with context_note, and what the Stop hook's check runs found in it: `checked` runs, the `failing` findings the latest run left, the `caught` findings and the `files` the session edited. A finding is caught when a hook run reported it and the next run on the same file no longer found it. The hook records its runs under the assistant host's session id. Without `session`, it summarizes the session with the project's latest check run, or the session that recorded last when none ran a check, and names it in `chosen`. Call it only if you recorded a note, and end your report with what it says, including the command a person reviews the session with.",
       "surface": "writing",
       "params": [
         {
@@ -454,7 +454,7 @@
           "name": "session",
           "type": "string",
           "required": false,
-          "description": "the session to summarize (default: this MCP server's own)"
+          "description": "the session to summarize (default: the latest session with a check run, named in chosen)"
         }
       ]
     },

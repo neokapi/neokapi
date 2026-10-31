@@ -319,7 +319,11 @@ every other project-scoped tool. `context_read` returns exactly the text the
 `context://<path>` resource returns, for a client that lists no resources from
 a template, and its `comments` field, like the resource's `comments` query
 parameter and `kapi context <path> --comments`, answers for the comments in a
-file.
+file. Without `session`, `context_session_summary` summarizes the session
+with the project's latest check run, or the session that recorded last when no
+session holds a check run, and names it, the rule that applied and when it last
+recorded in `chosen`; a log with no session's operations answers with one
+line in `report`.
 
 `context_note` took the place of `context_observe`, `context_correct` and
 `context_withdraw` before 1.3.0 shipped: an explicit decision to give the agent
