@@ -118,6 +118,9 @@ interface Held {
 /** The value the picker gives a question assigned to no one. */
 const NOBODY = "nobody";
 
+/** The value the picker gives an assignee it knows by name alone. */
+const HELD = "held";
+
 /**
  * Who holds a question: the member an assignment made on this screen names,
  * or else the assignee the view carries. The reader holds it when its member
@@ -137,7 +140,7 @@ function heldBy(
   const who = d.assignee;
   if (!who) return { id: null, mine: false };
   const me = members.find((m) => m.me)?.id;
-  const mine = d.assignee_id && me ? d.assignee_id === me : !who.name;
+  const mine = d.assignee_id ? d.assignee_id === me : !who.name;
   const id = d.assignee_id ?? (mine ? (me ?? null) : null);
   const name =
     nameOf?.(who) ||
@@ -175,6 +178,13 @@ export interface DecideViewProps extends ScreenNavigation {
   members?: readonly ScreenMember[];
   /** Open with the list narrowed to the questions assigned to the reader. */
   defaultAssignedToMe?: boolean;
+  /**
+   * Whether the members are being read. Until they are, which questions are
+   * the reader's is not known: the narrowed list waits and the filter is off.
+   */
+  membersLoading?: boolean;
+  /** The members could not be read: every question is shown and the filter is off. */
+  membersFailed?: boolean;
 }
 
 export function DecideView({
@@ -190,6 +200,8 @@ export function DecideView({
   onAssign,
   members = [],
   defaultAssignedToMe = false,
+  membersLoading = false,
+  membersFailed = false,
   navigate,
   canNavigate,
 }: DecideViewProps) {
@@ -229,8 +241,11 @@ export function DecideView({
     return heldBy(d, key in local ? local[key] : undefined, members, nameOf);
   };
   const [mineOnly, setMineOnly] = useState(defaultAssignedToMe && !!onAssign);
-  const mine = onAssign ? decisions.filter((d) => held(d).mine) : [];
-  const shown = onAssign && mineOnly ? mine : decisions;
+  // Which questions are the reader's is known once the members are read.
+  const knowsMine = !!onAssign && !membersLoading && !membersFailed;
+  const narrowed = !!onAssign && mineOnly && !membersFailed;
+  const mine = knowsMine ? decisions.filter((d) => held(d).mine) : [];
+  const shown = narrowed ? mine : decisions;
 
   const opened = decisionForRow(shown, defaultSelected);
   const [chosen, setChosen] = useState<string | null>(opened ? decisionKey(opened) : null);
@@ -362,11 +377,12 @@ export function DecideView({
             size="sm"
             variant="outline"
             data-slot="decide-mine"
-            pressed={mineOnly}
+            pressed={narrowed}
+            disabled={!knowsMine}
             onPressedChange={setMineOnly}
           >
             {t("Assigned to me")}
-            <span className="tabular-nums text-muted-foreground">{mine.length}</span>
+            {knowsMine && <span className="tabular-nums text-muted-foreground">{mine.length}</span>}
           </Toggle>
         )
       }
@@ -422,6 +438,10 @@ export function DecideView({
                 )
               }
             />
+          </div>
+        ) : narrowed && membersLoading ? (
+          <div className="p-6" data-slot="decide-mine-loading">
+            <LoadingSpinner />
           </div>
         ) : shown.length === 0 ? (
           <div className="mx-auto max-w-xl p-6" data-slot="decide-mine-empty">
@@ -863,7 +883,7 @@ function AssigneePicker({
   /** Why the last assignment of this question was not recorded. */
   failure?: unknown;
 }) {
-  const value = held.id ?? NOBODY;
+  const value = held.id ?? (held.name ? HELD : NOBODY);
   // An assignee the members list does not hold (a former member) stays shown.
   const listed = held.id === null || members.some((m) => m.id === held.id);
   return (
@@ -871,12 +891,17 @@ function AssigneePicker({
       <span className="text-[11px] text-muted-foreground">
         <>Assigned to</>
       </span>
-      <Select value={value} onValueChange={(v) => onAssign(v === NOBODY ? null : v)}>
+      <Select value={value} onValueChange={(v) => v !== HELD && onAssign(v === NOBODY ? null : v)}>
         <SelectTrigger size="sm" className="w-48" aria-label={t("Assigned to")}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value={NOBODY}>{t("Nobody", "no member holds the question")}</SelectItem>
+          {held.id === null && held.name && (
+            <SelectItem value={HELD} disabled>
+              <span translate="no">{held.name}</span>
+            </SelectItem>
+          )}
           {!listed && held.id && <SelectItem value={held.id}>{held.name ?? held.id}</SelectItem>}
           {members.map((m) => (
             <SelectItem key={m.id} value={m.id}>

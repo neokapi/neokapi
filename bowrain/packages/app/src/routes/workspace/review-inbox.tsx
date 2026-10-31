@@ -12,13 +12,6 @@ import type { WorkspaceRouteContext } from "..";
 import { myReviewTasksQueryOptions } from "../../queries";
 
 /**
- * ReviewInboxRoute is the workspace-level roll-up of pending review: every
- * project awaiting review, most-pending first, each linking into its focused
- * review session. It reads the loop rollup's per-project ship standing —
- * project-scoped, not assignee-scoped — so pooled and owner-assigned review is
- * visible, not only what's assigned to the current user.
- */
-/**
  * Where a project's Rules opens from the inbox: on the questions assigned to
  * the member when they hold any there, else on every question.
  */
@@ -30,6 +23,13 @@ export function rulesSearch(
   return assigned > 0 ? { assigned: "me" } : {};
 }
 
+/**
+ * ReviewInboxRoute is the workspace-level roll-up of pending review: every
+ * project awaiting review, most-pending first, each linking into its focused
+ * review session. It reads the loop rollup's per-project ship standing —
+ * project-scoped, not assignee-scoped — so pooled and owner-assigned review is
+ * visible, not only what's assigned to the current user.
+ */
 export function ReviewInboxRoute() {
   const navigate = useNavigate();
   const { workspace } = useParams({ strict: false });

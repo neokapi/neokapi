@@ -295,18 +295,51 @@ describe("Decide on a port that assigns questions", () => {
     await waitFor(() => expect(decideView).toHaveBeenCalledTimes(2));
   });
 
-  it("opens on the questions assigned to the reader when asked to", async () => {
+  it("opens on the questions assigned to the reader once the members are read", async () => {
+    let answer: (list: typeof members) => void = () => {};
     render(
       <DecideScreen
-        port={readOnly({ decideView: async () => assignedView, assign: async () => {} })}
+        port={readOnly({
+          decideView: async () => assignedView,
+          assign: async () => {},
+          members: () => new Promise((resolve) => (answer = resolve)),
+        })}
         assignedToMe
         keyboard={false}
         navigate={vi.fn()}
       />,
     );
-    const rows = await screen.findAllByRole("option");
-    expect(rows).toHaveLength(1);
-    expect(rows[0].getAttribute("data-id")).toBe(DECIDE_IDS.quickcast);
+    // Until the members are read, which questions are the reader's is not known.
+    await waitFor(() =>
+      expect(document.querySelector("[data-slot='decide-mine-loading']")).not.toBeNull(),
+    );
+    expect(screen.queryByText("Nothing assigned to you.")).toBeNull();
+    expect(screen.getByRole("button", { name: /Assigned to me/ })).toBeDisabled();
+    act(() => answer(members));
+    await waitFor(() => expect(screen.getAllByRole("option")).toHaveLength(1));
+    expect(screen.getAllByRole("option")[0].getAttribute("data-id")).toBe(DECIDE_IDS.quickcast);
+    expect(screen.getByRole("button", { name: /Assigned to me/ })).toBeEnabled();
+  });
+
+  it("shows every question, the filter off, when the members cannot be read", async () => {
+    render(
+      <DecideScreen
+        port={readOnly({
+          decideView: async () => assignedView,
+          assign: async () => {},
+          members: async () => {
+            throw new Error("members unavailable");
+          },
+        })}
+        assignedToMe
+        keyboard={false}
+        navigate={vi.fn()}
+      />,
+    );
+    await waitFor(() => expect(screen.getAllByRole("option")).toHaveLength(4));
+    const toggle = screen.getByRole("button", { name: /Assigned to me/ });
+    expect(toggle).toBeDisabled();
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
   });
 
   it("draws no assignment on a port with no assign", async () => {

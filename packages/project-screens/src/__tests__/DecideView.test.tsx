@@ -411,6 +411,21 @@ describe("Decide on a host that assigns questions", () => {
     expect(all("decide-item").map((r) => r.getAttribute("data-id"))).toEqual([NAME_DECISION.id]);
   });
 
+  it("shows an assignee known by name alone as the picker's value", () => {
+    const byName: RulesDecideView = {
+      ...ASSIGNED,
+      decisions: ASSIGNED.decisions.map((d) =>
+        d.id === WORD_DECISION.id ? { ...d, assignee_id: undefined } : d,
+      ),
+    };
+    renderDecide(byName, {
+      onAssign: vi.fn(),
+      members: MEMBERS,
+      defaultSelected: `suggested:${WORD_DECISION.id}`,
+    });
+    expect(screen.getByRole("combobox", { name: "Assigned to" })).toHaveTextContent("Mira Holt");
+  });
+
   it("draws no column, picker or filter without onAssign", () => {
     renderDecide(ASSIGNED, { members: MEMBERS, defaultAssignedToMe: true });
     expect(slot("decide-columns")).toBeNull();

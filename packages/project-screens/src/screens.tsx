@@ -190,14 +190,19 @@ export function DecideScreen({ port, assignedToMe, ...rest }: DecideScreenProps)
   const decideConsequence = port.decideConsequence?.bind(port);
   const assign = port.assign?.bind(port);
 
-  // The members a question can be assigned to, read once per port.
-  const [members, setMembers] = useState<ScreenMember[]>([]);
+  // The members a question can be assigned to, read once per port: null
+  // while the read is in flight, and "failed" when it did not answer.
+  const [members, setMembers] = useState<ScreenMember[] | null | "failed">(null);
   useEffect(() => {
-    if (!port.assign || !port.members) return;
+    if (!port.assign || !port.members) {
+      setMembers([]);
+      return;
+    }
     let current = true;
+    setMembers(null);
     port.members().then(
       (list) => current && setMembers(list),
-      () => current && setMembers([]),
+      () => current && setMembers("failed"),
     );
     return () => {
       current = false;
@@ -242,7 +247,9 @@ export function DecideScreen({ port, assignedToMe, ...rest }: DecideScreenProps)
         })
       }
       onOtherForm={(d, form) => setTyped({ id: d.id ?? "", form: form.trim() })}
-      members={members}
+      members={Array.isArray(members) ? members : []}
+      membersLoading={members === null}
+      membersFailed={members === "failed"}
       defaultAssignedToMe={assignedToMe}
       onAssign={
         assign &&

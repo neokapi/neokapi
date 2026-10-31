@@ -6,6 +6,7 @@ import type {
   ReaderFile,
   RuleDecideResult,
   RulesDecideView,
+  ScreenMember,
 } from "@neokapi/project-screens";
 import { ApiError, apiErrorFromResponse } from "../errors/ApiError";
 import type { ApiAdapter } from "./adapter";
@@ -1927,6 +1928,16 @@ export class RestApiAdapter implements ApiAdapter {
   ): Promise<KeptRule[]> {
     return this.fetchJSON(
       `${this.projectEp(workspaceSlug, projectId)}/rules/${this.ref(stream)}/kept`,
+    );
+  }
+
+  async getRuleAssignees(
+    workspaceSlug: string,
+    projectId: string,
+    stream?: string,
+  ): Promise<ScreenMember[]> {
+    return this.fetchJSON(
+      `${this.projectEp(workspaceSlug, projectId)}/rules/${this.ref(stream)}/assignees`,
     );
   }
 

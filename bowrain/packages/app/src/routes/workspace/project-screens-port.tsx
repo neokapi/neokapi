@@ -10,7 +10,6 @@ import {
   useCallerPermissions,
   useUserDisplayNames,
   type ApiAdapter,
-  type Membership,
   type PermissionName,
   type ReaderFixResult,
 } from "@neokapi/ui";
@@ -20,7 +19,6 @@ import type {
   ProjectScreensPort,
   ReaderFile,
   ReaderFixFiled,
-  ScreenMember,
   ScreenTarget,
 } from "@neokapi/project-screens";
 
@@ -48,26 +46,6 @@ export interface RestScreensOptions {
   actorName?: (actor: ContextActor) => string | undefined;
   /** How the check follows its job. */
   poll?: Partial<JobPolling>;
-  /** The signed-in member's user id, which marks them among the members. */
-  me?: () => string | undefined;
-}
-
-/**
- * The members a question can be assigned to: every member of the workspace
- * but a viewer, who answers no question. A member is shown by their name,
- * else their email, else their id.
- */
-export function assignableMembers(
-  members: readonly Membership[],
-  me: string | undefined,
-): ScreenMember[] {
-  return members
-    .filter((m) => m.role !== "viewer")
-    .map((m) => ({
-      id: m.user_id,
-      name: m.user?.name.trim() || m.user?.email.trim() || m.user_id,
-      me: m.user_id === me || undefined,
-    }));
 }
 
 /** How the project-wide check follows its job. */
@@ -181,9 +159,7 @@ export function restScreensPort(
       await api.assignSuggestion(ws, projectId, id, userId, stream);
       notify("decide");
     },
-    async members() {
-      return assignableMembers(await api.listMembers(ws), opts.me?.());
-    },
+    members: () => api.getRuleAssignees(ws, projectId, stream),
     async fixFinding(path, findingId) {
       const res = await api.fixFinding(ws, projectId, await names.resolve(path), findingId, stream);
       return {
@@ -274,19 +250,15 @@ export function bowrainOpens(target: ScreenTarget): boolean {
  * change stream reports a change to the project: the stream invalidates the
  * project's queries, this one among them.
  */
-export function useProjectScreensPort(
-  scope: ScreensScope,
-  me: { id?: string; name?: string } | null,
-): ProjectScreensPort {
+export function useProjectScreensPort(scope: ScreensScope): ProjectScreensPort {
   const api = useApi();
   const { ws, projectId, stream } = scope;
   const { nameOf } = useUserDisplayNames();
   const { can, data: permissions } = useCallerPermissions(projectId);
 
-  // The member list names a person the server names by their id; the
-  // signed-in member's id marks them among the members a question can go to.
-  const names = useRef({ nameOf, me });
-  names.current = { nameOf, me };
+  // The member list names a person the server names by their id.
+  const names = useRef({ nameOf });
+  names.current = { nameOf };
 
   const rest = useMemo(
     () =>
@@ -295,7 +267,6 @@ export function useProjectScreensPort(
         { ws, projectId, stream },
         {
           actorName: (actor) => memberName(actor, names.current.nameOf),
-          me: () => names.current.me?.id,
         },
       ),
     [api, ws, projectId, stream],

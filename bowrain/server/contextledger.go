@@ -238,21 +238,26 @@ func stampActor(payload []byte, actor contextop.Actor) ([]byte, error) {
 }
 
 // nameUnnamedPerson returns a context operation's payload with name as its
-// actor's name when the actor is a person with no name, and the payload as
-// it is otherwise, or when it does not read as a JSON object.
+// actor's name when the actor is a person with no name. A payload with any
+// other actor, with none, or that does not read as a JSON object is returned
+// as it is.
 func nameUnnamedPerson(payload []byte, name func() string) []byte {
 	body := map[string]json.RawMessage{}
 	if len(payload) == 0 || json.Unmarshal(payload, &body) != nil {
 		return payload
 	}
-	var actor contextop.Actor
-	if raw, ok := body["actor"]; ok && json.Unmarshal(raw, &actor) != nil {
+	raw, ok := body["actor"]
+	if !ok {
 		return payload
 	}
-	if actor.Name != "" || (actor.Kind != "" && actor.Kind != contextop.ActorPerson) {
+	var actor *contextop.Actor
+	if json.Unmarshal(raw, &actor) != nil || actor == nil {
 		return payload
 	}
-	actor.Kind, actor.Name = contextop.ActorPerson, name()
+	if actor.Kind != contextop.ActorPerson || actor.Name != "" {
+		return payload
+	}
+	actor.Name = name()
 	if actor.Name == "" {
 		return payload
 	}

@@ -10,7 +10,6 @@ import { ProjectReaderPage } from "./project-reader";
 import { ProjectRulesPage } from "./project-rules";
 import { FERNWELL_MEMBERS, fixtureScreensPort } from "./project-screens-fixture-port";
 import {
-  assignableMembers,
   bowrainOpens,
   permittedPort,
   proposalsByFinding,
@@ -217,28 +216,16 @@ describe("the Rules route's team queue", () => {
     expect(screen.queryByRole("button", { name: /Assigned to me/ })).toBeNull();
   });
 
-  it("offers every member but a viewer, the signed-in one marked", () => {
-    const user = (id: string, name: string) => ({
-      id,
-      name,
-      email: `${id}@fernwell.test`,
-      avatar_url: "",
+  it("offers the members the server says decide in the project", async () => {
+    const members = [{ id: "u-ada", name: "Ada Lind", me: true }];
+    const getRuleAssignees = vi.fn(async () => members);
+    const port = restScreensPort({ getRuleAssignees } as unknown as ApiAdapter, {
+      ws: "acme",
+      projectId: "p1",
+      stream: "main",
     });
-    expect(
-      assignableMembers(
-        [
-          { user_id: "u-ada", workspace_id: "ws", role: "admin", user: user("u-ada", "Ada Lind") },
-          { user_id: "u-mira", workspace_id: "ws", role: "member", user: user("u-mira", " ") },
-          { user_id: "u-viv", workspace_id: "ws", role: "viewer", user: user("u-viv", "Viv") },
-          { user_id: "u-gone", workspace_id: "ws", role: "member" },
-        ],
-        "u-ada",
-      ),
-    ).toEqual([
-      { id: "u-ada", name: "Ada Lind", me: true },
-      { id: "u-mira", name: "u-mira@fernwell.test", me: undefined },
-      { id: "u-gone", name: "u-gone", me: undefined },
-    ]);
+    await expect(port.members?.()).resolves.toEqual(members);
+    expect(getRuleAssignees).toHaveBeenCalledWith("acme", "p1", "main");
   });
 
   it("keeps the members from a member who assigns nothing", async () => {

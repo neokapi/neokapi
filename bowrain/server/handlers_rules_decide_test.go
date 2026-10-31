@@ -116,6 +116,62 @@ func seedDecideParity(t *testing.T, e *echo.Echo, cs platstore.ContentStore) str
 	return p.ID
 }
 
+// Only a person with no name is named after the segment's pusher: a named
+// person, an assistant, a tool, a payload with no actor, a null actor and an
+// actor with no kind are read as they were pushed.
+func TestNameUnnamedPerson(t *testing.T) {
+	name := func() string { return "member-a" }
+	for _, tc := range []struct {
+		name, payload, want string
+	}{
+		{"person with no name", `{"actor":{"kind":"person"},"target":"x"}`, `{"actor":{"kind":"person","name":"member-a"},"target":"x"}`},
+		{"named person", `{"actor":{"kind":"person","name":"ada"}}`, `{"actor":{"kind":"person","name":"ada"}}`},
+		{"assistant", `{"actor":{"kind":"agent"}}`, `{"actor":{"kind":"agent"}}`},
+		{"tool", `{"actor":{"kind":"tool"}}`, `{"actor":{"kind":"tool"}}`},
+		{"no actor", `{"target":"x"}`, `{"target":"x"}`},
+		{"null actor", `{"actor":null}`, `{"actor":null}`},
+		{"actor with no kind", `{"actor":{}}`, `{"actor":{}}`},
+		{"not an object", `[1]`, `[1]`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.JSONEq(t, tc.want, string(nameUnnamedPerson([]byte(tc.payload), name)))
+		})
+	}
+}
+
+// One question holds one assignment: with each side of a disagreement
+// assigned to someone else, the view and the queue read the same one.
+func TestRulesDecide_ADisagreementHoldsOneAssignment_SQLite(t *testing.T) {
+	caller := &decideCaller{userID: "member-a", perms: decideAll}
+	e, cs := decideSQLiteServer(t, caller)
+	pid := seedDecideParity(t, e, cs)
+	side := decisionOf(t, readDecideView(t, e, pid), "disagreement")
+	require.Len(t, side.Options, 2)
+
+	as, ok := platstore.ContextAssignments(cs)
+	require.True(t, ok)
+	at := time.Now().UTC()
+	require.NoError(t, as.AssignContextSuggestion(t.Context(), platstore.ContextAssignment{
+		ProjectID: pid, SuggestionID: side.Options[0].ID, Assignee: "member-b", AssignedBy: "member-b", AssignedAt: at,
+	}))
+	require.NoError(t, as.AssignContextSuggestion(t.Context(), platstore.ContextAssignment{
+		ProjectID: pid, SuggestionID: side.Options[1].ID, Assignee: "member-a", AssignedBy: "member-a", AssignedAt: at,
+	}))
+
+	mine := decisionOf(t, readDecideView(t, e, pid), "disagreement").AssigneeID == "member-a"
+	var queue contextQueue
+	require.Equal(t, http.StatusOK, decideRoute(t, e, http.MethodGet, "", "context/queue", nil, &queue))
+	assert.Equal(t, mine, queue.Projects[0].Assigned == 1, "the queue counts the question as the view reads it")
+
+	// An assignment through either side lands on the one the view reads.
+	var assigned ruleAssignment
+	require.Equal(t, http.StatusOK, decideRoute(t, e, http.MethodPost, pid, "/rules/main/assign",
+		ruleAssignRequest{ID: side.Options[1].ID, UserID: new("member-b")}, &assigned))
+	assert.Equal(t, "member-b", decisionOf(t, readDecideView(t, e, pid), "disagreement").AssigneeID)
+	require.Equal(t, http.StatusOK, decideRoute(t, e, http.MethodGet, "", "context/queue", nil, &queue))
+	assert.Equal(t, 0, queue.Projects[0].Assigned)
+}
+
 // pushUnnamedKeep pushes, as the caller, a segment holding a keep of target
 // by a person with no name: what `kapi context sync` pushes for a keep the
 // command line recorded.

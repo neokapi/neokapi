@@ -164,6 +164,14 @@ describe("Decide", () => {
     expect(out).toEqual(keptRulesFixture);
   });
 
+  it("reads the members who decide in the project", async () => {
+    const members = [{ id: "u-ada", name: "Ada Lind", me: true }];
+    const fetchMock = mockFetch(members);
+    const out = await api().getRuleAssignees("acme", "p1", "main");
+    expect(call(fetchMock).path).toBe("/api/v1/acme/p1/rules/main/assignees");
+    expect(out).toEqual(members);
+  });
+
   it("reads the workspace's queue", async () => {
     const fetchMock = mockFetch({
       projects: [{ project_id: "p1", project_name: "Fernwell", waiting: 2, assigned: 1 }],

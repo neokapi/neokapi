@@ -46,9 +46,9 @@ export function ProjectRulesPage({ port, row, assignedToMe, navigate }: ProjectR
 export function ProjectRulesRoute() {
   const { projectId = "", stream = "main" } = useParams({ strict: false });
   const { row, assigned } = useSearch({ strict: false }) as { row?: string; assigned?: "me" };
-  const { activeWorkspace, user } = useRouteContext({ strict: false }) as WorkspaceRouteContext;
+  const { activeWorkspace } = useRouteContext({ strict: false }) as WorkspaceRouteContext;
   const scope = { ws: activeWorkspace.slug, projectId, stream };
-  const port = useProjectScreensPort(scope, user);
+  const port = useProjectScreensPort(scope);
   const navigate = useScreenNavigate(scope);
 
   useEffect(() => {

@@ -51,9 +51,9 @@ export function ProjectReaderPage({
 export function ProjectReaderRoute() {
   const { projectId = "", stream = "main", _splat = "" } = useParams({ strict: false });
   const { block } = useSearch({ strict: false }) as { block?: string };
-  const { activeWorkspace, user } = useRouteContext({ strict: false }) as WorkspaceRouteContext;
+  const { activeWorkspace } = useRouteContext({ strict: false }) as WorkspaceRouteContext;
   const scope = { ws: activeWorkspace.slug, projectId, stream };
-  const port = useProjectScreensPort(scope, user);
+  const port = useProjectScreensPort(scope);
   const navigate = useScreenNavigate(scope);
 
   useEffect(() => {
