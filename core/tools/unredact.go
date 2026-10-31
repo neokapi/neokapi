@@ -78,7 +78,9 @@ func NewUnredactTool(cfg *UnredactConfig) (*UnredactTool, error) {
 	if cfg.VaultPath != "" {
 		v, err := redaction.OpenFileVault(cfg.VaultPath)
 		if err != nil {
-			return nil, err
+			// The vault holds the originals of content redacted under it, so a
+			// new one comes with a new redaction of that content.
+			return nil, redaction.WithRun(err, "Run the redaction again to write a new one, then restore from it.")
 		}
 		t.vault = v
 	}

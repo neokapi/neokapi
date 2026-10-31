@@ -157,7 +157,8 @@ which writes the locale in canonical form, and the payload as a
 read and write (`blockstore.CanonicalOverlayKind`). `source` is the content hash
 of the source the translation was made from (`blockstore.SourceStamp`): the
 overlay key names a block by file and id and says nothing about its wording,
-so an overlay with no source stamp serves nothing.
+so an overlay with no source stamp serves nothing, and a merge counts it as
+stale and writes none of it.
 
 `origin` carries the provenance the producer stamped, including the
 `ContextFingerprint` of the governing context. Most target formats

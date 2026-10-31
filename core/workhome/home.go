@@ -52,8 +52,9 @@ type Redaction interface {
 	// no edition in the log.
 	Redact(ctx context.Context, c *Commit) error
 	// Restore returns runs as the edition held them before Redact, for the
-	// row that keeps them.
-	Restore(ctx context.Context, r Row, runs []model.Run) []model.Run
+	// row that keeps them. An error fails the read: the originals could not
+	// be read where they are kept.
+	Restore(ctx context.Context, r Row, runs []model.Run) ([]model.Run, error)
 }
 
 // Commit is one write to one edition the workspace home keeps, as the log
@@ -228,7 +229,10 @@ func (h *Home) edition(ctx context.Context, r Row) (model.Edition, error) {
 		}
 	}
 	if h.Redaction != nil {
-		runs = h.Redaction.Restore(ctx, r, runs)
+		var err error
+		if runs, err = h.Redaction.Restore(ctx, r, runs); err != nil {
+			return model.Edition{}, err
+		}
 	}
 	return model.Edition{Runs: runs, Status: r.Status, Origin: r.Origin}, nil
 }

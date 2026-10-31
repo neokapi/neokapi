@@ -215,10 +215,11 @@ func ImportFromFormat(
 			}
 
 			if err := writeTargetOverlay(sess, ImportPair{
-				BlockHash: blockHash,
-				Locale:    string(locale),
-				Text:      text,
-				Runs:      runs,
+				BlockHash:  blockHash,
+				SourceText: srcText,
+				Locale:     string(locale),
+				Text:       text,
+				Runs:       runs,
 			}, opts.Provider); err != nil {
 				return r, err
 			}
@@ -288,9 +289,15 @@ func skipByPolicy(sess blockstore.Session, policy ConflictPolicy, kind, blockHas
 // writeTargetOverlay persists one pair as a `targets/<locale>`
 // overlay on the supplied session. Payload shape is the adapter's
 // translationPayload (`{text, provider, segments}`); platform adapters
-// can split that across their own first-class columns at dispatch time.
+// can split that across their own first-class columns at dispatch time. A pair
+// that carries its source text is stamped with it (blockstore.SourceStamp);
+// one given by block hash alone carries no stamp, and a merge counts it as
+// stale (blockstore.TargetOverlay.StaleFor).
 func writeTargetOverlay(sess blockstore.Session, p ImportPair, provider string) error {
 	payload := map[string]any{"text": p.Text}
+	if p.SourceText != "" {
+		payload["source"] = blockstore.SourceStamp(p.SourceText)
+	}
 	if provider != "" {
 		payload["provider"] = provider
 	}

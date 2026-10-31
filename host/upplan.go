@@ -408,8 +408,12 @@ func (a *App) planPassingLocales(ctx context.Context, run planRun, proj *project
 			locales = append(locales, model.LocaleID(u.Locale))
 		}
 	}
+	unstamped, err := a.unstampedDrafts(ctx, root, locales)
+	if err != nil {
+		return nil, err
+	}
 	passing := map[string]bool{}
-	for _, loc := range localesNeedingPass(cov, locales) {
+	for _, loc := range localesNeedingWork(cov, locales, unstamped) {
 		passing[string(loc)] = true
 	}
 	return passing, nil

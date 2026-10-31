@@ -86,9 +86,12 @@ type TargetOverlay struct {
 	// The overlay key namespaces a block by file and id but not by wording
 	// (StoreKey), so an edited sentence keeps the key its old translation sits
 	// under; this is what tells the two apart. A merge applies an overlay only
-	// while its stamp names the source the merge reads (StaleFor). A producer
-	// treats an overlay carrying no source stamp as no answer, rather than as a
-	// promise that the source stood still; a merge applies it as it is.
+	// while its stamp names the source the merge reads (StaleFor). The
+	// translate tools, commit-targets, pseudo-translate and the content-memory
+	// prefill of a .kpz extract stamp what they write. An overlay carrying no
+	// source stamp was written by an earlier kapi, or imported by block hash
+	// with no source text (Unstamped). A producer treats it as no answer and
+	// drafts the block again, and a merge treats it as stale.
 	Source string `json:"source,omitempty"`
 
 	// Origin is the provenance the producer stamped: how the target was made,
@@ -135,15 +138,22 @@ func BlockSourceStamp(b *model.Block) string { return SourceStamp(AsReadSourceTe
 // StaleFor reports whether the overlay is a translation of a source other
 // than b's source as read: its stamp names a source the block no longer holds.
 // A merge applies no stale overlay and counts it as stale. An overlay with no
-// stamp (an import, a pseudo-translation, data older than the stamp) is never
-// stale, since nothing in it says which source it answered. Every stamped
-// overlay is compared, including one for a block whose source is empty: an
-// empty source is a source, and a translation of another one is stale for it.
-// A block rebuilt from a skeleton carries no source to compare with, so the
-// merge that reads one applies its overlays without asking (hydrateTargetsTool).
+// stamp is stale too (Unstamped): nothing in it says which source it
+// answered. Every overlay is compared, including one for a block whose source
+// is empty: an empty source is a source, and a translation of another one is
+// stale for it. A block rebuilt from a skeleton carries no source to compare
+// with, so the merge that reads one applies its stamped overlays without
+// comparing and leaves out the unstamped ones (hydrateTargetsTool).
 func (o TargetOverlay) StaleFor(b *model.Block) bool {
-	return o.Source != "" && o.Source != BlockSourceStamp(b)
+	return o.Source != BlockSourceStamp(b)
 }
+
+// Unstamped reports whether the overlay carries no source stamp: an earlier
+// kapi wrote it, or an import gave it by block hash with no source text (see
+// Source). A merge counts it as stale and names the file and locale it
+// belongs to, and the next pass with a translating step drafts the block
+// again.
+func (o TargetOverlay) Unstamped() bool { return o.Source == "" }
 
 // ReuseConfig is the configuration a producer records beside a translation of
 // b and compares a stored one against (TargetOverlay.Config). The stamp names

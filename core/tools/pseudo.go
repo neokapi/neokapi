@@ -306,10 +306,11 @@ func (t *PseudoTranslateTool) processOne(
 	// access. If one exists, hydrate the block from it and skip the
 	// translator.
 	configFP := pseudoConfigFingerprint(t.cfg)
+	stamp := blockstore.BlockSourceStamp(block)
 	if randomAccess {
 		if sc, err := sess.GetOverlay(overlayKind, hash); err == nil && len(sc.Payload) > 0 {
 			var cached pseudoCache
-			if err := json.Unmarshal(sc.Payload, &cached); err == nil && cached.Target != "" && cached.Config == configFP {
+			if err := json.Unmarshal(sc.Payload, &cached); err == nil && cached.Target != "" && cached.Config == configFP && cached.Source == stamp {
 				return tool.WriteAs(ctx, block, t.cfg.ToolName(), func(v tool.VariantView) error {
 					v.SetTargetText(t.cfg.TargetLocale, cached.Target)
 					v.StampTargetProvenance(t.cfg.TargetLocale, model.TargetStatusDraft, model.Origin{Tool: t.cfg.ToolName()})
@@ -327,7 +328,7 @@ func (t *PseudoTranslateTool) processOne(
 	// runs can skip the work. Pure text cache — runs-level targets
 	// round-trip through the block model itself.
 	if target := block.TargetText(t.cfg.TargetLocale); target != "" {
-		payload, err := json.Marshal(pseudoCache{Target: target, Config: configFP})
+		payload, err := json.Marshal(pseudoCache{Target: target, Config: configFP, Source: stamp})
 		if err != nil {
 			return fmt.Errorf("pseudo-translate: encode overlay: %w", err)
 		}
@@ -363,6 +364,11 @@ type pseudoCache struct {
 	// reused only when it matches the current config (prefix/suffix/expansion/
 	// locale), so changing the pseudo style re-runs rather than serving stale.
 	Config string `json:"config,omitempty"`
+	// Source is the stamp of the source the target was made from
+	// (blockstore.BlockSourceStamp), the field a merge reads from a
+	// targets/<locale> overlay (blockstore.TargetOverlay.Source). A cached
+	// target is reused only while it names the block's source.
+	Source string `json:"source,omitempty"`
 }
 
 // pseudoConfigFingerprint hashes the pseudo settings that change a block's

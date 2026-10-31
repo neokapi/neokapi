@@ -288,8 +288,20 @@ no sensitive value can reach the emitted file through a memory match.
 A vault keeps each original under the file it came from, the block, and the
 placeholder's token. Block IDs and tokens repeat from file to file, so two files
 that each withhold a different name keep both names, and `kapi merge` gives each
-file its own. A vault written by an earlier kapi records no file, and a merge
-still restores from it by block and token.
+file its own.
+
+A vault written by an earlier kapi records no file, and kapi refuses it. The
+message names the vault file and what to run:
+
+- For a batch vault under `.kapi/vault/batches/`, run `kapi extract` again. The
+  new extraction writes a new vault with new files to translate, and a file
+  returned from the old extraction no longer merges.
+- For the project vault, `.kapi/vault/redaction.json`, move the file aside and
+  run the command again. kapi writes a new vault from the content it reads. A
+  recorded edit whose originals are in the old file keeps its placeholders, and
+  the moved file is the only copy of those originals.
+
+A vault written by a newer kapi is refused too; upgrade kapi to read it.
 
 A PO file has no inline codes, so `kapi extract --format po` writes each
 withheld value as its visible placeholder (`[REDACTED:Person]`), and

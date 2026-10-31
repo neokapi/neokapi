@@ -2324,6 +2324,9 @@ func (a *App) storeConcepts(cmd Command, point project.GovernancePoint) ([]sqlte
 // (locale, pending-files) slice per pass; RunFromProject drives it once per
 // resolved locale pass.
 func (a *App) runProjectStepsOver(ctx context.Context, cmd Command, flowName string, spec *flow.StepsSpec, rCtx *flow.ResourceContext, inputPaths []string) error {
+	if err := refuseProjectFlowOverKpz(inputPaths); err != nil {
+		return err
+	}
 	concurrency, _ := cmd.Flags().GetInt("concurrency")
 
 	// A flow whose every tool is monolingual reconciles the source alone, so it
@@ -2365,6 +2368,22 @@ func (a *App) runProjectStepsOver(ctx context.Context, cmd Command, flowName str
 	}
 	outputFlag, _ := cmd.Flags().GetString("output")
 	return a.runMultipleFiles(ctx, cmd, flowName, inputPaths, concurrency, outputFlag)
+}
+
+// refuseProjectFlowOverKpz refuses a project flow given a .kpz package. A
+// project flow reads the project's files with their recipe configuration and
+// writes its work to the project store, and a package holds files of its own
+// with a store of its own. kapi exec runs one tool on the package itself, and
+// kapi merge brings the package's work into the project.
+func refuseProjectFlowOverKpz(inputPaths []string) error {
+	for _, p := range inputPaths {
+		if IsKpzPath(p) {
+			//nolint:staticcheck // ST1005: two sentences a person reads, the second ending in a full stop.
+			return WithExitCode(ExitUsage, fmt.Errorf("%s is a package, and a project flow runs over the project's files. "+
+				"Run `kapi exec <tool> %s` to run one tool on the package, or `kapi merge %s` to bring it into the project first.", p, p, p))
+		}
+	}
+	return nil
 }
 
 // toolFromStep creates a tool.Tool from a flow step definition.

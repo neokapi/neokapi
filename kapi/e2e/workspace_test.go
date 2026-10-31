@@ -291,7 +291,18 @@ func TestKpzTransformReusesCache(t *testing.T) {
 	tampered := false
 	for i := range pkg.Overlays {
 		if strings.HasPrefix(pkg.Overlays[i].Kind, "targets/") {
-			pkg.Overlays[i].Payload = json.RawMessage(`{"target":"SENTINEL-CACHED"}`)
+			// The translation becomes the sentinel; the source stamp the
+			// transform wrote stays, so the overlay still names the source
+			// it answers.
+			var payload map[string]any
+			require.NoError(t, json.Unmarshal(pkg.Overlays[i].Payload, &payload))
+			require.NotEmpty(t, payload["source"], "the first transform stamps its overlay")
+			delete(payload, "runs")
+			delete(payload, "text")
+			payload["target"] = "SENTINEL-CACHED"
+			tamperedPayload, err := json.Marshal(payload)
+			require.NoError(t, err)
+			pkg.Overlays[i].Payload = tamperedPayload
 			tampered = true
 		}
 	}

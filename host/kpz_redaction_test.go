@@ -2,6 +2,7 @@ package host
 
 import (
 	"archive/zip"
+	"context"
 	"encoding/json"
 	"io"
 	"os"
@@ -17,6 +18,7 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/redaction"
 	"github.com/neokapi/neokapi/kpz"
+	"github.com/neokapi/neokapi/memory"
 )
 
 // A .kpz written under a redaction policy holds a token where the policy
@@ -49,12 +51,18 @@ func assertPackageWithholds(t *testing.T, path string, names map[string]string) 
 // French, as a translator returns it.
 func returnTranslation(t *testing.T, path string) {
 	t.Helper()
-	returnTranslationRuns(t, path, "tu1", []model.Run{model.TextR("Bonjour [REDACTED:Person]")})
+	returnTranslationRuns(t, path, "tu1", redactedHello, []model.Run{model.TextR("Bonjour [REDACTED:Person]")})
 }
 
+// redactedHello is the source every fixture file carries in a redacted
+// package: "Hello <name>" with the name withheld.
+const redactedHello = "Hello [REDACTED:Person]"
+
 // returnTranslationRuns writes into the package at path a French translation
-// of block blockID of every file it carries, as runs.
-func returnTranslationRuns(t *testing.T, path, blockID string, runs []model.Run) {
+// of block blockID of every file it carries, as runs, stamped with source, the
+// text of the block in the package, as the translator's kapi stamps what it
+// writes.
+func returnTranslationRuns(t *testing.T, path, blockID, source string, runs []model.Run) {
 	t.Helper()
 	pkg, err := LoadWorkspace(path)
 	require.NoError(t, err)
@@ -67,7 +75,7 @@ func returnTranslationRuns(t *testing.T, path, blockID string, runs []model.Run)
 	}
 	pkg.Overlays = kept
 	for _, si := range pkg.Sources {
-		payload, err := json.Marshal(blockstore.TargetOverlay{Runs: runs, Status: string(model.TargetStatusDraft)})
+		payload, err := json.Marshal(blockstore.TargetOverlay{Runs: runs, Status: string(model.TargetStatusDraft), Source: blockstore.SourceStamp(source)})
 		require.NoError(t, err)
 		pkg.Overlays = append(pkg.Overlays, kpz.OverlayDoc{
 			Kind: kind, BlockHash: blockID, Payload: payload, Source: kpz.SourceDir + filepath.Base(si.SourcePath),
@@ -233,4 +241,52 @@ func TestPackKeepsTheRedactionRecord(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, after.Redaction)
 	assert.Equal(t, before.Redaction.VaultID, after.Redaction.VaultID)
+}
+
+// The content-memory prefill of a redacted .kpz is looked up from the source
+// as the policy leaves it, and it is stamped with that source, the one the
+// package carries. A merge of the package as it came back writes the prefill
+// with each file's name restored, so the stamp never reads as stale.
+func TestRedactedKpzPrefillIsStampedWithThePackageSource(t *testing.T) {
+	a, recipe, dir := vaultProject(t)
+	layout, err := project.LayoutFor(recipe)
+	require.NoError(t, err)
+	db, err := a.ProjectDB(context.Background(), layout.Root)
+	require.NoError(t, err)
+	require.NoError(t, db.Memory().Add(context.Background(), memory.Entry{
+		ID: "m1", HintSrcLang: "en",
+		Variants: map[model.LocaleID][]model.Run{
+			"en": {model.TextR("Hello [REDACTED:Person]")},
+			"fr": {model.TextR("Bonjour [REDACTED:Person]")},
+		},
+	}))
+	out := t.TempDir()
+	cmd := kpzExtractCommand(t, recipe, out)
+	require.NoError(t, cmd.Flags().Set("no-memory", "false"))
+	require.NoError(t, a.RunExtractKpz(cmd))
+	packages := kpzPackages(t, out)
+	require.Len(t, packages, len(vaultNames))
+
+	for _, p := range packages {
+		assertPackageWithholds(t, p, vaultNames)
+		pkg, err := LoadWorkspace(p)
+		require.NoError(t, err)
+		var prefills []blockstore.TargetOverlay
+		for _, ov := range pkg.Overlays {
+			if blockstore.CanonicalOverlayKind(ov.Kind) != blockstore.TargetOverlayKind("fr") {
+				continue
+			}
+			var o blockstore.TargetOverlay
+			require.NoError(t, json.Unmarshal(ov.Payload, &o))
+			prefills = append(prefills, o)
+		}
+		require.Len(t, prefills, 1, filepath.Base(p))
+		assert.Equal(t, blockstore.SourceStamp("Hello [REDACTED:Person]"), prefills[0].Source, "the stamp names the source the package carries")
+		require.NoError(t, a.MergeOneKpz(mergeKpzCommand(t, recipe), p))
+	}
+	for doc, name := range vaultNames {
+		data, err := os.ReadFile(filepath.Join(dir, "src", "locales", "fr", filepath.Base(doc)))
+		require.NoError(t, err, doc)
+		assert.Equal(t, `{"greeting":"Bonjour `+name+`"}`, strings.TrimSpace(string(data)), doc)
+	}
 }

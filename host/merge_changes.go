@@ -15,6 +15,7 @@ import (
 	"github.com/neokapi/neokapi/core/formats/xliff2"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/redaction"
 	"github.com/neokapi/neokapi/core/workhome"
 )
 
@@ -187,7 +188,10 @@ func (a *App) mergeReturned(ctx context.Context, task mergeTask, rf *returnedFil
 	}
 	if rf.batch != "" {
 		if err := restoreRedactedBlocks(task.layout, rf.batch, rf.doc, rf.blocks, rf.locale, !task.noRestore, rf.redactedPackage); err != nil {
-			if pe := (*unrestoredPlaceholderError)(nil); errors.As(err, &pe) {
+			// A placeholder a translator changed, and the refusal of a vault
+			// an earlier kapi wrote, each name what they found (the vault file
+			// names the batch) and what to do.
+			if pe := (*unrestoredPlaceholderError)(nil); errors.As(err, &pe) || errors.Is(err, redaction.ErrOlderVault) {
 				return stats, nil, err
 			}
 			return stats, nil, fmt.Errorf("merge: restore redaction for batch %s: %w", rf.batch, err)
@@ -568,15 +572,14 @@ func (m *materializeServices) of(locale model.LocaleID) (*change.Service, error)
 // since reads as stale in its file as it did where it was kept. It returns
 // how many blocks have a translation to write, and whether the translation's
 // file was written: a file that already holds every one of them and every
-// block of the source is left as it is. A stored target whose source stamp
-// names another source than the block's (blockstore.TargetOverlay.StaleFor) is
-// a translation of a source that has changed since: it is not written, and
-// stale counts it. ctx addresses the stored overlays by doc's key
-// (blockstore.WithSourceRel).
-func materializeEdition(ctx context.Context, svc *change.Service, store blockstore.Store, kept *workhome.Held, doc string, locale model.LocaleID) (n, stale int, wrote bool, err error) {
+// block of the source is left as it is. A stale stored target
+// (blockstore.TargetOverlay.StaleFor) is not written. stale counts it, and
+// counts one an earlier kapi wrote apart as well. ctx addresses the stored
+// overlays by doc's key (blockstore.WithSourceRel).
+func materializeEdition(ctx context.Context, svc *change.Service, store blockstore.Store, kept *workhome.Held, doc string, locale model.LocaleID) (n int, stale editionStale, wrote bool, err error) {
 	sess, err := store.Begin(ctx)
 	if err != nil {
-		return 0, 0, false, err
+		return 0, stale, false, err
 	}
 	defer sess.Close()
 	key := model.EditionKey{Locale: locale}
@@ -611,12 +614,15 @@ func materializeEdition(ctx context.Context, svc *change.Service, store blocksto
 			return nil
 		}
 		stored := &model.Block{ID: b.ID}
-		isStale, err := applyCurrentTargetOverlay(b, stored, locale, o.Payload)
+		staleness, err := applyCurrentTargetOverlay(b, stored, locale, o.Payload)
 		if err != nil {
 			return err
 		}
-		if isStale {
-			stale++
+		if staleness != overlayCurrent {
+			stale.blocks++
+			if staleness == overlayUnstamped {
+				stale.unstamped++
+			}
 			return nil
 		}
 		t, ok := stored.TargetEdition(locale)
@@ -649,6 +655,13 @@ func materializeEdition(ctx context.Context, svc *change.Service, store blocksto
 		wrote = wrote || (d.Written && d.Edition != "")
 	}
 	return len(ops), stale, wrote, nil
+}
+
+// editionStale counts the stored targets of one translation a materialize
+// pass did not write: blocks is every stale one, and unstamped those among
+// them an earlier kapi wrote.
+type editionStale struct {
+	blocks, unstamped int
 }
 
 // refBlock names the block a result addresses.

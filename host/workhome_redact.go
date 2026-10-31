@@ -120,15 +120,20 @@ func (k *keptRedaction) Redact(ctx context.Context, c *workhome.Commit) error {
 
 // Restore puts back, from the project vault, the originals Redact withheld
 // from the runs a row keeps. Runs the vault holds nothing for come back as
-// they are.
-func (k *keptRedaction) Restore(_ context.Context, r workhome.Row, runs []model.Run) []model.Run {
+// they are. A vault it cannot read fails the read, as it refuses a write: an
+// edition read with its placeholders where the originals are on this machine
+// would pass for the edition as written.
+func (k *keptRedaction) Restore(_ context.Context, r workhome.Row, runs []model.Run) ([]model.Run, error) {
 	if len(runs) == 0 {
-		return runs
+		return runs, nil
 	}
 	id := keptVaultID(r.Doc, r.Block, r.Edition, r.Rev)
-	entries := k.valuesFor(id)
+	entries, err := k.valuesFor(id)
+	if err != nil {
+		return nil, err
+	}
 	if len(entries) == 0 {
-		return runs
+		return runs, nil
 	}
 	byToken := make(map[string]string, len(entries))
 	for _, e := range entries {
@@ -140,31 +145,46 @@ func (k *keptRedaction) Restore(_ context.Context, r workhome.Row, runs []model.
 	}
 	restored, n, _ := redaction.RestorePlan(runs, get, entries)
 	if n == 0 {
-		return runs
+		return runs, nil
 	}
-	return restored
+	return restored, nil
 }
 
 // valuesFor returns what the project vault holds for one vault id. The vault
 // is read again whenever it changed since the last read, which another
-// process writing a kept edition, or this one, changes it.
-func (k *keptRedaction) valuesFor(id string) []redaction.RedactedValue {
+// process writing a kept edition, or this one, changes it. A missing vault
+// holds nothing. A vault that cannot be read is an error, with the refusal of
+// one an earlier kapi wrote naming what to run (runForProjectVault), and the
+// next call reads it again.
+func (k *keptRedaction) valuesFor(id string) ([]redaction.RedactedValue, error) {
 	k.mu.Lock()
 	defer k.mu.Unlock()
 	info, err := os.Stat(k.policy.vault)
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	if !k.loaded || info.Size() != k.size || !info.ModTime().Equal(k.mod) {
+		v, err := redaction.OpenFileVault(k.policy.vault)
+		if err != nil {
+			k.loaded, k.values = false, nil
+			return nil, redaction.WithRun(err, runForProjectVault)
+		}
 		k.loaded, k.size, k.mod = true, info.Size(), info.ModTime()
 		k.values = map[string][]redaction.RedactedValue{}
-		if v, err := redaction.OpenFileVault(k.policy.vault); err == nil {
-			for _, rv := range v.All() {
-				k.values[rv.BlockID] = append(k.values[rv.BlockID], rv)
+		// A kept edition's originals sit in no document: its vault id names
+		// it (keptVaultID). An entry a push recorded for a file names the file,
+		// and a vault id never answers for it.
+		for _, rv := range v.All() {
+			if rv.Doc != "" {
+				continue
 			}
+			k.values[rv.BlockID] = append(k.values[rv.BlockID], rv)
 		}
 	}
-	return k.values[id]
+	return k.values[id], nil
 }
 
 // keptVaultID names the run sequence of one edition at one revision in the

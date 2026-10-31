@@ -25,8 +25,7 @@ type RedactedValue struct {
 	Locale   model.LocaleID `json:"locale,omitempty"`
 	// Doc names the document the block sits in: its project-relative,
 	// slash-separated path. Empty names content that sits in no document,
-	// whose block ID names it alone (a recorded edit, a note), and every
-	// entry a version 1 vault holds.
+	// whose block ID names it alone (a recorded edit, a note).
 	Doc     string `json:"doc,omitempty"`
 	BlockID string `json:"blockId,omitempty"`
 }
@@ -42,10 +41,7 @@ type Vault interface {
 	// Put stores (or overwrites) a value. Doc, BlockID and Token together
 	// form the key.
 	Put(v RedactedValue) error
-	// Get returns the value for a document/block/token triple. When doc is
-	// set and the vault holds nothing under it, Get returns the entry for
-	// the block and token that names no document, which is how a version 1
-	// vault stored every entry.
+	// Get returns the value for a document/block/token triple.
 	Get(doc, blockID, token string) (RedactedValue, bool)
 	// All returns every stored value in a stable order.
 	All() []RedactedValue
@@ -57,27 +53,15 @@ func vaultKey(doc, blockID, token string) string {
 
 // ValuesForBlock returns every stored value belonging to one block of one
 // document. Used for text-based restore, which matches by visible
-// placeholder rather than by token. When doc is set and the vault holds
-// nothing for the block under it, it returns the block's entries that name
-// no document. A version 1 vault keys every entry by block alone, so an
-// extraction or a push it recorded still restores.
+// placeholder rather than by token.
 func ValuesForBlock(v Vault, doc, blockID string) []RedactedValue {
-	var exact, legacy []RedactedValue
+	var out []RedactedValue
 	for _, rv := range v.All() {
-		if rv.BlockID != blockID {
-			continue
-		}
-		switch rv.Doc {
-		case doc:
-			exact = append(exact, rv)
-		case "":
-			legacy = append(legacy, rv)
+		if rv.BlockID == blockID && rv.Doc == doc {
+			out = append(out, rv)
 		}
 	}
-	if len(exact) > 0 || doc == "" {
-		return exact
-	}
-	return legacy
+	return out
 }
 
 // MemoryVault is a concurrency-safe in-process [Vault]. Nothing it holds is
@@ -101,18 +85,11 @@ func (v *MemoryVault) Put(rv RedactedValue) error {
 	return nil
 }
 
-// Get returns the value for a document/block/token triple, falling back to
-// the entry that names no document (see [Vault]).
+// Get returns the value for a document/block/token triple.
 func (v *MemoryVault) Get(doc, blockID, token string) (RedactedValue, bool) {
 	v.mu.RLock()
 	defer v.mu.RUnlock()
-	if rv, ok := v.m[vaultKey(doc, blockID, token)]; ok {
-		return rv, true
-	}
-	if doc == "" {
-		return RedactedValue{}, false
-	}
-	rv, ok := v.m[vaultKey("", blockID, token)]
+	rv, ok := v.m[vaultKey(doc, blockID, token)]
 	return rv, ok
 }
 
@@ -133,15 +110,74 @@ type fileVaultDoc struct {
 	Values []RedactedValue `json:"values"`
 }
 
+// readVaultDoc is the on-disk shape as OpenFileVault reads it: Version is nil
+// for a file with no version field.
+type readVaultDoc struct {
+	Version *int            `json:"version"`
+	ID      string          `json:"id,omitempty"`
+	Values  []RedactedValue `json:"values"`
+}
+
 // fileVaultVersion is the version Flush writes. Version 2 records each
 // entry's document (RedactedValue.Doc), and may record the vault's ID; a
-// vault with no ID restores no redacted package. A version 1 file reads as
-// entries that name no document, which Get and ValuesForBlock fall back to.
-// The vault is the only record of the originals, never a cache a later run
-// rebuilds, so it is read as it is rather than reset. A file with no version
-// field is version 1, and a file above this version is refused
-// (ErrNewerVault).
+// vault with no ID restores no redacted package. A file above it was written
+// by a newer kapi and is refused with ErrNewerVault.
 const fileVaultVersion = 2
+
+// oldestVaultVersion is the oldest version OpenFileVault reads. Version 2 is
+// the first that records each entry's document (RedactedValue.Doc). A file
+// below it, or with no version field, is refused with an [*OlderVaultError].
+// It stays where it is when fileVaultVersion moves, so the vaults this kapi
+// writes still open under a kapi that writes a later version. The vault is the
+// only record of the originals, never a cache a later run rebuilds, so a
+// refused file is left as it is.
+const oldestVaultVersion = 2
+
+// ErrOlderVault is the refusal of a vault file whose version is below
+// oldestVaultVersion, or which carries no version. An earlier kapi wrote it
+// keyed by block and token alone, so a lookup by document finds none of its
+// entries. OpenFileVault returns it as an [*OlderVaultError].
+var ErrOlderVault = errors.New("an earlier kapi wrote this vault")
+
+// OlderVaultError names a vault file an earlier kapi wrote and the version it
+// carries, or NoVersion for a file with no version field. Run is the sentence
+// that names the command writing a new vault in its place: the caller that
+// knows which vault it opened sets it.
+type OlderVaultError struct {
+	Path      string
+	Version   int
+	NoVersion bool
+	Run       string
+}
+
+func (e *OlderVaultError) Error() string {
+	found := fmt.Sprintf("version %d", e.Version)
+	if e.NoVersion {
+		found = "no version"
+	}
+	msg := fmt.Sprintf("%s is a redaction vault from an earlier kapi (%s).", e.Path, found)
+	if e.Run != "" {
+		msg += " " + e.Run
+	}
+	return msg
+}
+
+// Unwrap makes errors.Is(err, ErrOlderVault) hold.
+func (e *OlderVaultError) Unwrap() error { return ErrOlderVault }
+
+// WithRun returns err with the run sentence set on the OlderVaultError it
+// carries, or err unchanged when it carries none. The result is the
+// OlderVaultError itself, without the context err wrapped it in, so the
+// message reads as the two sentences it is.
+func WithRun(err error, run string) error {
+	var ov *OlderVaultError
+	if !errors.As(err, &ov) {
+		return err
+	}
+	out := *ov
+	out.Run = run
+	return &out
+}
 
 // ErrNewerVault is the refusal of a vault file whose version is above the
 // one this binary writes. A newer kapi wrote it in a format this one cannot
@@ -163,8 +199,10 @@ type FileVault struct {
 
 // OpenFileVault opens (loading if present) a sidecar vault at path. A missing
 // file yields an empty vault; the file is not created until Flush. A file
-// whose version is above fileVaultVersion is refused with [ErrNewerVault],
-// so neither its entries nor a Flush over it are ever used.
+// whose version is above fileVaultVersion is refused with [ErrNewerVault], and
+// one below oldestVaultVersion, or with no version, with an
+// [*OlderVaultError], so neither its
+// entries nor a Flush over it are ever used.
 func OpenFileVault(path string) (*FileVault, error) {
 	fv := &FileVault{path: path, mem: NewMemoryVault()}
 	data, err := os.ReadFile(path)
@@ -174,13 +212,18 @@ func OpenFileVault(path string) (*FileVault, error) {
 		}
 		return nil, fmt.Errorf("redaction: open vault %s: %w", path, err)
 	}
-	var doc fileVaultDoc
+	var doc readVaultDoc
 	if err := json.Unmarshal(data, &doc); err != nil {
 		return nil, fmt.Errorf("redaction: parse vault %s: %w", path, err)
 	}
-	if doc.Version > fileVaultVersion {
+	switch {
+	case doc.Version == nil:
+		return nil, &OlderVaultError{Path: path, NoVersion: true}
+	case *doc.Version > fileVaultVersion:
 		return nil, fmt.Errorf("redaction: vault %s is version %d and this kapi reads up to version %d: %w; upgrade kapi to read it",
-			path, doc.Version, fileVaultVersion, ErrNewerVault)
+			path, *doc.Version, fileVaultVersion, ErrNewerVault)
+	case *doc.Version < oldestVaultVersion:
+		return nil, &OlderVaultError{Path: path, Version: *doc.Version}
 	}
 	fv.id = doc.ID
 	for _, rv := range doc.Values {

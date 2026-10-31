@@ -23,16 +23,24 @@ type hydrateTargetsTool struct {
 	tool.BaseTool
 	locale model.LocaleID
 	stale  atomic.Int64
+	// unstamped counts, among the stale, the overlays an earlier kapi wrote
+	// (blockstore.TargetOverlay.Unstamped).
+	unstamped atomic.Int64
 
 	// skeleton is set when the merge rebuilds the document from its skeleton
 	// (a workspace packed without its source): each block carries its id
-	// alone, so there is no source to compare a stamp with, and every overlay
-	// applies as it is.
+	// alone, so there is no source to compare a stamp with: every stamped
+	// overlay applies as it is, and an unstamped one is counted and left out.
 	skeleton bool
 }
 
-// Stale is how many blocks held a stored translation of another source.
+// Stale is how many blocks held a stored translation of another source, or
+// one an earlier kapi wrote.
 func (t *hydrateTargetsTool) Stale() int { return int(t.stale.Load()) }
+
+// Unstamped is how many of the Stale blocks held a translation an earlier
+// kapi wrote.
+func (t *hydrateTargetsTool) Unstamped() int { return int(t.unstamped.Load()) }
 
 func newHydrateTargetsTool(locale model.LocaleID) *hydrateTargetsTool {
 	t := &hydrateTargetsTool{locale: locale}
@@ -68,16 +76,28 @@ func (t *hydrateTargetsTool) SessionProcess(ctx context.Context, sess blockstore
 				}
 				if err == nil && len(o.Payload) > 0 {
 					if t.skeleton {
-						if aerr := applyTargetOverlay(b, t.locale, o.Payload); aerr != nil {
-							return aerr
+						// No source to compare a stamp with, but an overlay
+						// with no stamp needs none to be told apart.
+						p, derr := decodeTargetOverlay(b, t.locale, o.Payload)
+						if derr != nil {
+							return derr
+						}
+						if p.Unstamped() {
+							t.stale.Add(1)
+							t.unstamped.Add(1)
+						} else {
+							setTargetOverlay(b, t.locale, p)
 						}
 					} else {
 						stale, aerr := applyCurrentTargetOverlay(b, b, t.locale, o.Payload)
 						if aerr != nil {
 							return aerr
 						}
-						if stale {
+						if stale != overlayCurrent {
 							t.stale.Add(1)
+						}
+						if stale == overlayUnstamped {
+							t.unstamped.Add(1)
 						}
 					}
 				}
@@ -112,20 +132,37 @@ func applyTargetOverlay(b *model.Block, locale model.LocaleID, payload []byte) e
 // block it read from the file (read): it applies the overlay to dst, which may
 // be read itself, only while the overlay's source stamp names read's source as
 // read (blockstore.TargetOverlay.StaleFor). An overlay whose stamp names
-// another source is a translation of a source that has changed since: dst is
-// left as it is and stale is true, for the merge to count. An overlay with no
-// stamp applies as it is.
-func applyCurrentTargetOverlay(read, dst *model.Block, locale model.LocaleID, payload []byte) (stale bool, err error) {
+// another source is a translation of a source that has changed since, and one
+// with no stamp was written by an earlier kapi: dst is left as it is and the
+// result says which, for the merge to count.
+func applyCurrentTargetOverlay(read, dst *model.Block, locale model.LocaleID, payload []byte) (overlayStaleness, error) {
 	p, err := decodeTargetOverlay(read, locale, payload)
 	if err != nil {
-		return false, err
+		return overlayCurrent, err
 	}
-	if p.StaleFor(read) {
-		return true, nil
+	switch {
+	case p.Unstamped():
+		return overlayUnstamped, nil
+	case p.StaleFor(read):
+		return overlayStale, nil
 	}
 	setTargetOverlay(dst, locale, p)
-	return false, nil
+	return overlayCurrent, nil
 }
+
+// overlayStaleness is what a merge found of a stored translation against the
+// block it read from the file.
+type overlayStaleness int
+
+const (
+	// overlayCurrent is a translation of the source the block holds.
+	overlayCurrent overlayStaleness = iota
+	// overlayStale is a translation of a source the block no longer holds.
+	overlayStale
+	// overlayUnstamped is a translation an earlier kapi wrote, with no stamp
+	// naming the source it answered.
+	overlayUnstamped
+)
 
 // decodeTargetOverlay decodes a target-overlay payload stored for b.
 func decodeTargetOverlay(b *model.Block, locale model.LocaleID, payload []byte) (blockstore.TargetOverlay, error) {

@@ -1,6 +1,7 @@
 package convergence
 
 import (
+	"encoding/json"
 	"errors"
 	"math"
 	"sort"
@@ -267,11 +268,13 @@ type BlockStoreScope struct {
 	Locales    []string
 }
 
-// TallyBlockStore tallies coverage from a project block store session — the
+// TallyBlockStore tallies coverage from a project block store session, the
 // desktop status panel's block source. For each scope, every translatable
 // block counts once per target locale: at `translated` when a committed
 // `targets/<locale>` overlay exists for it (the overlay kind `kapi run` /
-// `kapi merge` write), else as untranslated (""). The returned totals map
+// `kapi merge` write), else as untranslated (""). An overlay with no source
+// stamp counts as untranslated too: an earlier kapi wrote it, and a merge
+// writes none of it (blockstore.TargetOverlay.Unstamped). The returned totals map
 // carries each collection's translatable block count (by recipe collection
 // name), including collections with no target locales, which contribute no
 // tally scopes.
@@ -301,7 +304,14 @@ func TallyBlockStore(sess blockstore.Session, scopes []BlockStoreScope) (*Covera
 			s := Scope{Collection: sc.Collection, Locale: loc}
 			kind := blockstore.TargetOverlayKind(model.LocaleID(loc))
 			for _, id := range blockIDs {
-				if _, err := sess.GetOverlay(kind, id); err == nil {
+				if o, err := sess.GetOverlay(kind, id); err == nil {
+					// A draft an earlier kapi wrote names no source, and a
+					// merge writes none of it: the block has no translation.
+					var p blockstore.TargetOverlay
+					if json.Unmarshal(o.Payload, &p) == nil && p.Unstamped() {
+						tally.Add(s, "")
+						continue
+					}
 					tally.Add(s, string(model.TargetStatusTranslated))
 				} else if errors.Is(err, blockstore.ErrNotFound) {
 					tally.Add(s, "")

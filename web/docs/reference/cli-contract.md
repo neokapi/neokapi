@@ -121,6 +121,19 @@ A stored target made from a source the block no longer holds is not written. `st
 { "written": 4, "stale": 1, "from_project_store": true }
 ```
 
+A stored target an earlier kapi wrote names no source, so it is not written either. `stale` counts it, and `unstamped` names each file and locale that holds one, with the number of blocks. A translating pass drafts those blocks again:
+
+```json
+{
+  "written": 4,
+  "stale": 1,
+  "unstamped": [{ "file": "src/en.json", "locale": "fr", "blocks": 1 }],
+  "from_project_store": true
+}
+```
+
+`kapi up --json` carries the same list per locale, as `unstampedDrafts` beside `staleDrafts`.
+
 ## Error envelope
 
 Under `--json` (or `--jq` / `--output-format=json`), a failing command prints a structured envelope on **stderr** instead of the plain `Error:` line:

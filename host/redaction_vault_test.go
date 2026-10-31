@@ -182,39 +182,76 @@ func TestExtractMergeRestoresEachFilesOwnRedactedName(t *testing.T) {
 	}
 }
 
-// A batch vault written before the vault kept each file's name holds its
-// entries under block and token alone. A merge still restores from it.
-func TestMergeRestoresFromAVersion1BatchVault(t *testing.T) {
-	a, recipe, dir := vaultProject(t)
-	require.NoError(t, os.Remove(filepath.Join(dir, "src", "locales", "en", "b.json")))
-	files := extractBilingual(t, a, recipe, dir, ExtractFormatXLIFF2)
-	require.Len(t, files, 1)
+// A batch vault an earlier kapi wrote holds its entries under block and token
+// alone, with version 1 or no version. A merge that needs it stops before it
+// writes the target file, names the vault and says to extract again; the
+// vault is left as it is.
+func TestMergeRefusesABatchVaultAnEarlierKapiWrote(t *testing.T) {
+	for _, version := range []string{`"version": 1, `, ""} {
+		name := "version 1"
+		if version == "" {
+			name = "no version"
+		}
+		t.Run(name, func(t *testing.T) {
+			a, recipe, dir := vaultProject(t)
+			require.NoError(t, os.Remove(filepath.Join(dir, "src", "locales", "en", "b.json")))
+			files := extractBilingual(t, a, recipe, dir, ExtractFormatXLIFF2)
+			require.Len(t, files, 1)
+			path := batchVault(t, dir)
+			old := []byte(`{` + version + `"values": [{"token": "rdx1", "category": "person", "disp": "[REDACTED:Person]", "original": "Alice Archer", "blockId": "tu1"}]}`)
+			require.NoError(t, os.WriteFile(path, old, 0o600))
 
-	path := batchVault(t, dir)
-	v, err := redaction.OpenFileVault(path)
-	require.NoError(t, err)
-	type v1Value struct {
-		Token    string `json:"token"`
-		Category string `json:"category"`
-		Disp     string `json:"disp,omitempty"`
-		Original string `json:"original"`
-		Locale   string `json:"locale,omitempty"`
-		BlockID  string `json:"blockId,omitempty"`
+			translateReturned(t, files[0])
+			cmd, stdout, _ := mergeCommand(t, recipe)
+			cmd.Flags().StringArray("input", nil, "")
+			cmd.Flags().Bool("no-restore", false, "")
+			require.NoError(t, cmd.Flags().Set("input", files[0]))
+			require.NoError(t, cmd.Flags().Set("no-memory-update", "true"))
+			require.Error(t, a.RunMerge(cmd))
+			var res struct {
+				Files []struct {
+					Error string `json:"error"`
+				} `json:"files"`
+			}
+			require.NoError(t, json.Unmarshal(stdout.Bytes(), &res), stdout.String())
+			require.Len(t, res.Files, 1)
+			assert.Equal(t, path+" is a redaction vault from an earlier kapi ("+name+"). Run `kapi extract` again to write a new one with the files it extracts.", res.Files[0].Error)
+			assert.NoFileExists(t, filepath.Join(dir, "src", "locales", "fr", "a.json"), "the merge writes no target file")
+			kept, err := os.ReadFile(path)
+			require.NoError(t, err)
+			assert.Equal(t, old, kept, "the refused vault is left as it is")
+		})
 	}
-	var old []v1Value
-	for _, rv := range v.All() {
-		old = append(old, v1Value{rv.Token, rv.Category, rv.Disp, rv.Original, string(rv.Locale), rv.BlockID})
-	}
-	data, err := json.Marshal(map[string]any{"version": 1, "values": old})
-	require.NoError(t, err)
-	require.NotContains(t, string(data), `"doc"`)
-	require.NoError(t, os.WriteFile(path, data, 0o600))
+}
 
-	translateReturned(t, files[0])
-	mergeFile(t, a, recipe, files[0])
-	got, err := os.ReadFile(filepath.Join(dir, "src", "locales", "fr", "a.json"))
+// A project vault an earlier kapi wrote refuses the redaction of content as
+// it enters kapi (a push, a recorded edit, the deeper look), and the refusal
+// names the vault and says to move it aside and run again.
+func TestRedactAtIngestRefusesAProjectVaultAnEarlierKapiWrote(t *testing.T) {
+	_, recipe, dir := vaultProject(t)
+	layout, err := project.LayoutFor(recipe)
 	require.NoError(t, err)
-	assert.Equal(t, `{"greeting":"Bonjour Alice Archer"}`, strings.TrimSpace(string(got)))
+	vault := layout.RedactionVaultPath()
+	require.NoError(t, layout.PrepareVault())
+	old := []byte(`{"version": 1, "values": []}`)
+	require.NoError(t, os.WriteFile(vault, old, 0o600))
+
+	blocks := []*model.Block{model.NewBlock("tu1", "Hello Alice Archer")}
+	spec := &project.RedactionSpec{Enabled: true, Rules: "redact.yaml"}
+	err = RedactFileAtIngest(t.Context(), "src/locales/en/a.json", blocks, spec, dir, vault, "en")
+	require.ErrorIs(t, err, redaction.ErrOlderVault)
+	assert.Equal(t, vault+" is a redaction vault from an earlier kapi (version 1). Move it aside and run the command again to write a new one; recorded edits keep their placeholders.", err.Error())
+	kept, rerr := os.ReadFile(vault)
+	require.NoError(t, rerr)
+	assert.Equal(t, old, kept, "the refused vault is left as it is")
+
+	require.NoError(t, os.Rename(vault, vault+".old"))
+	require.NoError(t, RedactFileAtIngest(t.Context(), "src/locales/en/a.json", blocks, spec, dir, vault, "en"))
+	v, err := redaction.OpenFileVault(vault)
+	require.NoError(t, err)
+	got, ok := v.Get("src/locales/en/a.json", "tu1", "rdx1")
+	require.True(t, ok, "the run writes a new vault in its place")
+	assert.Equal(t, "Alice Archer", got.Original)
 }
 
 // A batch vault a newer kapi wrote is in a format this binary cannot read,

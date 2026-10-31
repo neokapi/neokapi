@@ -87,12 +87,16 @@ type ConvergeLocaleResult struct {
 	// stays at 0.
 	Materialized int `json:"materialized,omitempty"`
 	// StaleDrafts counts the blocks whose stored draft was made from an earlier
-	// source, which the materialize step therefore did not write
-	// (blockstore.TargetOverlay.StaleFor). Stale counts a decision whose basis
-	// moved, and Redrafted the units this run produced over; a stale draft is
-	// neither, and stays until a pass with a producing step drafts the block
-	// again.
+	// source, or written by an earlier kapi, which the materialize step
+	// therefore did not write (blockstore.TargetOverlay.StaleFor). Stale counts
+	// a decision whose basis moved, and Redrafted the units this run produced
+	// over; a stale draft is neither, and stays until a pass with a producing
+	// step drafts the block again.
 	StaleDrafts int `json:"staleDrafts,omitempty"`
+	// UnstampedDrafts names each file whose stored drafts in this locale an
+	// earlier kapi wrote (blockstore.TargetOverlay.Unstamped). StaleDrafts
+	// counts them too.
+	UnstampedDrafts []output.UnstampedDrafts `json:"unstampedDrafts,omitempty"`
 }
 
 // ParkedScope identifies one gated (collection, locale) scope still short of
@@ -284,7 +288,12 @@ func (o ConvergeOutput) FormatText(w io.Writer) error {
 		fmt.Fprintf(w, "Materialized %d target file(s) from the project store.\n", o.MaterializedFiles)
 	}
 	if staleDrafts := o.StaleDraftUnits(); staleDrafts > 0 {
-		fmt.Fprintf(w, "Note: %d block(s) hold a draft of an earlier source and were not written.\n", staleDrafts)
+		fmt.Fprintf(w, "Note: %d block(s) hold a stale draft (an earlier source, or an earlier kapi) and were not written.\n", staleDrafts)
+		for _, lc := range o.Locales {
+			for _, u := range lc.UnstampedDrafts {
+				fmt.Fprintf(w, "  %s\n", u.Line())
+			}
+		}
 	}
 	o.formatProposedChangeset(w)
 	return nil
@@ -537,8 +546,8 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 	// are the CLI venue's IO: working-tree drift re-extract, file-derived
 	// coverage with bound checks, and the default flow on per-locale worker
 	// Apps.
-	derive := func(cov []LocaleCoverage, excl *CheckExclusions) convergence.PassState {
-		pending := localesNeedingPass(cov, locales)
+	derive := func(cov []LocaleCoverage, excl *CheckExclusions, unstamped map[string]int) convergence.PassState {
+		pending := localesNeedingWork(cov, locales, unstamped)
 		facts.noteRedraftable(cov, pending)
 		return convergence.PassState{
 			Pending:       localeStrings(pending),
@@ -554,7 +563,11 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 			if err != nil {
 				return convergence.PassState{}, err
 			}
-			return derive(cov, excl), nil
+			unstamped, err := a.unstampedDrafts(ctx, root, locales)
+			if err != nil {
+				return convergence.PassState{}, err
+			}
+			return derive(cov, excl, unstamped), nil
 		},
 		Produce: func(ctx context.Context, locale string, pass int, emit *convergence.Emitter) (convergence.PassProduction, error) {
 			tap := newConvergeTap(locale)
@@ -939,6 +952,29 @@ func (a *App) deriveCoverage(ctx context.Context, cmd Command, proj *project.Kap
 	return cov, excl, err
 }
 
+// localesNeedingWork is localesNeedingPass with one more kind of work: a
+// locale with blocks whose stored draft an earlier kapi wrote (unstamped, by
+// locale, from unstampedDrafts). Coverage reads the target files, which may
+// hold those translations, so it calls the locale complete; a merge writes
+// none of those drafts, and a pass drafts each block again.
+func localesNeedingWork(cov []LocaleCoverage, locales []model.LocaleID, unstamped map[string]int) []model.LocaleID {
+	pending := localesNeedingPass(cov, locales)
+	if len(unstamped) == 0 {
+		return pending
+	}
+	in := make(map[model.LocaleID]bool, len(pending))
+	for _, loc := range pending {
+		in[loc] = true
+	}
+	var out []model.LocaleID
+	for _, loc := range locales {
+		if in[loc] || unstamped[string(loc)] > 0 {
+			out = append(out, loc)
+		}
+	}
+	return out
+}
+
 // localesNeedingPass returns the locales (in target order) that still have work:
 // a scope holding units whose source moved since their translation was decided,
 // a gated scope that is not shippable, or — when ungated — content with no
@@ -1113,9 +1149,10 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 			}
 			// Per-file progress lines go nowhere: the structured result carries
 			// the counts, and stray lines would corrupt --json output. A stored
-			// draft of a source that changed since is not written
-			// (materializeEdition), and the result counts it: coverage counts
-			// an overlay by its presence and never reads the stamp.
+			// draft of a source that changed since, or one an earlier kapi
+			// wrote, is not written (materializeEdition), and the result counts
+			// it: coverage counts an overlay by its presence and never reads
+			// the stamp.
 			n, staleDrafts, merr := a.materializeProject(ctx, io.Discard, proj, projectPath, []model.LocaleID{model.LocaleID(lc.Locale)}, false, facts.unread)
 			if merr != nil {
 				return fmt.Errorf("materialize %s: %w", lc.Locale, merr)
@@ -1124,7 +1161,8 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 				n = len(delivered)
 			}
 			lc.Materialized = n
-			lc.StaleDrafts = staleDrafts
+			lc.StaleDrafts = staleDrafts.Blocks
+			lc.UnstampedDrafts = staleDrafts.Unstamped
 			out.MaterializedFiles += n
 		}
 		if out.MaterializedFiles > 0 {
@@ -1165,6 +1203,7 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 			ran := materialized[report.Locales[i].Locale]
 			report.Locales[i].Materialized = ran.Materialized
 			report.Locales[i].StaleDrafts = ran.StaleDrafts
+			report.Locales[i].UnstampedDrafts = ran.UnstampedDrafts
 		}
 		out.Locales = report.Locales
 		out.ParkedScopes = report.ParkedScopes
