@@ -47,12 +47,17 @@ func TestExecTermCheckPairsASourceWithItsTranslation(t *testing.T) {
 	a := &App{SourceLang: "en"}
 	a.InitRegistries()
 
-	report := func(t *testing.T, rc ToolRunConfig) findingsReport {
+	run := func(t *testing.T, rc ToolRunConfig) (findingsReport, error) {
 		t.Helper()
 		out, err := captureStdout(t, func() error { return a.RunToolOnFiles(t.Context(), rc) })
-		require.NoError(t, err)
 		var r findingsReport
 		require.NoError(t, json.Unmarshal([]byte(out), &r), out)
+		return r, err
+	}
+	report := func(t *testing.T, rc ToolRunConfig) findingsReport {
+		t.Helper()
+		r, err := run(t, rc)
+		require.NoError(t, err)
 		return r
 	}
 
@@ -81,7 +86,10 @@ func TestExecTermCheckPairsASourceWithItsTranslation(t *testing.T) {
 	})
 
 	t.Run("the translation file alone compared nothing", func(t *testing.T) {
-		r := report(t, termCheckRun(a, []string{fr}, rules))
+		r, err := run(t, termCheckRun(a, []string{fr}, rules))
+		require.ErrorIs(t, err, ErrCheckNotRun, "a run that compared nothing does not exit as a clean one")
+		assert.Equal(t, ExitNotRun, ExitCode(nil, err))
+		assert.Contains(t, err.Error(), "--target <file>")
 		assert.Empty(t, r.Findings)
 		assert.Equal(t, check.CauseContentNotChecked, r.DidNotRunCause)
 		require.Len(t, r.DidNotRun, 1)
@@ -128,6 +136,47 @@ func TestReadsTargetsFollowsTheIOContract(t *testing.T) {
 		assert.False(t, ReadsTargets(a.ToolReg.Schema(registry.ToolID(name))), name)
 	}
 	assert.False(t, ReadsTargets(nil))
+}
+
+// ExecTargetFor is the one rule for every exec tool: a tool that compares a
+// source with its translation pairs a translation file with --target unless it
+// writes a translation, and a tool that writes only findings writes no file a
+// run does not name. `exec qa docs/contacts.md --target-lang nb` wrote the
+// source over docs/nb/contacts.md through the default layout, and the message
+// it printed named a --target the command did not take.
+func TestExecTargetForEveryTool(t *testing.T) {
+	a := &App{}
+	a.InitRegistries()
+	pairs := map[string]bool{"term-check": true, "dnt-check": true, "placeholder-check": true, "qa": true}
+	findingsOnly := map[string]bool{"qa": true}
+	seen := map[string]bool{}
+	for _, e := range a.ToolReg.CLITools() {
+		name := string(e.Info.Name)
+		seen[name] = true
+		got := ExecTargetFor(e.Schema, e.Info.WritesOutput)
+		assert.Equal(t, pairs[name], got.PairsTarget, "%s: --target", name)
+		assert.Equal(t, e.Info.WritesOutput && !findingsOnly[name], got.WritesByDefault, "%s: a file with no -o", name)
+		assert.Equal(t, findingsOnly[name], e.Info.WritesOutput && WritesFindingsOnly(e.Schema), "%s: writes only findings", name)
+		if ReadsTargets(e.Schema) && e.Info.WritesOutput {
+			assert.False(t, got.WritesByDefault, "%s reads a translation it does not write, so a run names the file it writes", name)
+		}
+	}
+	for name := range pairs {
+		assert.True(t, seen[name], "%s is an exec tool", name)
+	}
+	assert.Equal(t, ExecTarget{PairsTarget: false, WritesByDefault: true}, ExecTargetFor(nil, true),
+		"a tool with no contract keeps the default layout and pairs nothing")
+}
+
+// A tool that reads a translation reports that it compared none, and exits
+// as a check that did not run (ExitNotRun), wherever it read the blocks from.
+func TestExecRunThatComparedNoTranslationDidNotRun(t *testing.T) {
+	assert.NoError(t, notRunError(findingsReport{}))
+	assert.NoError(t, notRunError("not a findings report"))
+	err := notRunError(findingsReport{untranslated: &untranslatedRun{tool: "qa", lang: "nb"}})
+	require.ErrorIs(t, err, ErrCheckNotRun)
+	assert.Equal(t, ExitNotRun, ExitCode(nil, err))
+	assert.Contains(t, err.Error(), "qa read no nb translation; pass the translation file with --target <file>")
 }
 
 // A terms store named with --termstore that does not exist is refused by every

@@ -70,9 +70,28 @@ runs just the content-memory leverage. Discover a tool's options with
 
 ```bash
 kapi exec translate app.json --target-lang fr    # bare translate, no memory, no checks
-kapi exec term-check locales/fr.json --target-lang fr
+kapi exec term-check locales/en.json --target locales/fr.json --target-lang fr
 kapi exec recycle app.json --target-lang fr      # content-memory leverage only
 ```
+
+A check that compares a block's source with its translation reads both. A
+file that holds both, such as XLIFF, needs nothing more. When the translation
+is a file of its own, name the source file and pass the translation with
+`--target`. The run reads the two files as one set of blocks, prints its
+findings, and writes no file:
+
+```console
+$ kapi exec qa docs/contacts.md --target docs/nb/contacts.md --target-lang nb
+  outcome  rule             location                       message
+  REPORTS  qa.doubled-word  docs/contacts.md:contacts/p#2  Target contains doubled word: "på"
+
+0 failing, 1 reported · score 99/100
+```
+
+Run on `docs/contacts.md` alone, `qa` finds no `nb` translation to compare
+with. kapi reports that the check did not run, names `--target`, and exits with
+code 4, as `kapi check` does when it checks no content. `qa` writes a file only
+where `-o` or `--output-dir` names one.
 
 Reach for `exec` when you want exactly one tool's behavior: isolating a step
 while debugging a flow, or a one-off check on a file. See the

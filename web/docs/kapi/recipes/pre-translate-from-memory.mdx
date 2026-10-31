@@ -43,8 +43,9 @@ kapi memory import project.memory.json          # 1. load past work (see kapi me
 kapi exec recycle messages_en.json -o step1.json \
   --source-lang en --target-lang fr             # 2. fill exact + fuzzy matches
 kapi pseudo-translate step1.json -o step2.json  # 3. mark what memory missed
-kapi exec term-check step2.json --source-lang en --target-lang fr \
-  --termstore product-terms                  # 4. pre-flag terminology drift
+kapi exec term-check messages_en.json --target step2.json \
+  --source-lang en --target-lang fr \
+  --termstore product-terms                     # 4. pre-flag terminology drift
 ```
 
 Tune matching with `--fuzzy-threshold` (default 70) and `--fill-target-threshold` (default 95); [how matching works](/framework/content-memory). To machine-translate the misses instead of pseudo-filling them, swap step 3 for [`kapi translate`](/reference/commands/translate) and keep `term-check` as the guardrail.

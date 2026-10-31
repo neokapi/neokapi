@@ -33,12 +33,83 @@ func ReadsTargets(s *schema.ComponentSchema) bool {
 	return false
 }
 
+// WritesFindingsOnly reports whether everything a tool writes to a block is a
+// finding: its IO contract declares produced ports, and each one carries a
+// check verdict. Such a tool changes no source and no translation, so the file
+// it can write is the content it read with its findings attached, never a
+// translation (`qa`).
+func WritesFindingsOnly(s *schema.ComponentSchema) bool {
+	if s == nil || s.ToolMeta == nil || len(s.ToolMeta.Produces) == 0 {
+		return false
+	}
+	for _, p := range s.ToolMeta.Produces {
+		if !findingsPorts[p.Type] {
+			return false
+		}
+	}
+	return true
+}
+
+// ExecTarget is how `kapi exec <tool>` treats the target language of a run.
+type ExecTarget struct {
+	// PairsTarget: the command takes --target, the translation of the one
+	// source file named, kept in a file of its own. The run reads the two
+	// files as one bilingual set of blocks and writes no file.
+	PairsTarget bool
+	// WritesByDefault: a run with no -o and no --output-dir writes a file,
+	// the target-language file in the input's locale layout or, with no
+	// target language, the input itself. A tool that reads a translation
+	// and writes only findings writes a file only where -o or --output-dir
+	// names one, so its run never puts the source it read in the place of
+	// the translation it checked.
+	WritesByDefault bool
+}
+
+// ExecTargetFor returns how `kapi exec` treats the target of a run of the tool
+// s describes, which writes output files when writesOutput is set.
+func ExecTargetFor(s *schema.ComponentSchema, writesOutput bool) ExecTarget {
+	var meta *schema.ToolMeta
+	if s != nil {
+		meta = s.ToolMeta
+	}
+	findingsOnly := writesOutput && WritesFindingsOnly(s)
+	return ExecTarget{
+		PairsTarget:     meta.TakesTargetLanguage() && ReadsTargets(s) && (!writesOutput || findingsOnly),
+		WritesByDefault: writesOutput && !findingsOnly,
+	}
+}
+
+// notRunError is the error a run returns once its report is printed: a tool
+// that compares a block's source with its translation, run where no block held
+// one, checked nothing. The report says what to pass; the exit code is
+// ExitNotRun, as for a `kapi check` that checked no content, so a script does
+// not read the run as a clean one.
+func notRunError(data any) error {
+	r, ok := data.(findingsReport)
+	if !ok || r.untranslated == nil {
+		return nil
+	}
+	return fmt.Errorf("%w: %s read no %s translation; pass the translation file with --target <file>",
+		ErrCheckNotRun, r.untranslated.tool, r.untranslated.lang)
+}
+
+// printToolResult prints a run's collected result and returns notRunError for it.
+func printToolResult(cfg ToolRunConfig, data any) error {
+	if err := output.FormatCollectorResult(cfg.JSONOutput, cfg.JQ, cfg.Colorize, data); err != nil {
+		return err
+	}
+	return notRunError(data)
+}
+
 // runToolOnPair runs cfg's tool over the one source file cfg.Files names,
 // each block paired with its translation from cfg.TargetFile in
 // cfg.TargetLang, and reports through cfg's collector. It writes no file.
 func (a *App) runToolOnPair(ctx context.Context, cfg ToolRunConfig) error {
 	if len(cfg.Files) != 1 {
 		return errors.New("--target pairs one source file with its translation; pass exactly one positional file")
+	}
+	if cfg.OutputTemplate != "" {
+		return errors.New("a run paired with --target writes no file; drop -o and --output-dir, and read the findings on stdout")
 	}
 	if cfg.TargetLang == "" {
 		return errors.New("--target needs the language of the translation; pass --target-lang")
@@ -94,5 +165,5 @@ func (a *App) runToolOnPair(ctx context.Context, cfg ToolRunConfig) error {
 	if err != nil {
 		return fmt.Errorf("collector result: %w", err)
 	}
-	return output.FormatCollectorResult(cfg.JSONOutput, cfg.JQ, cfg.Colorize, result.Data)
+	return printToolResult(cfg, result.Data)
 }

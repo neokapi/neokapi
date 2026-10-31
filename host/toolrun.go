@@ -26,7 +26,6 @@ import (
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/safeio"
 	"github.com/neokapi/neokapi/core/tool"
-	"github.com/neokapi/neokapi/host/output"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -328,7 +327,7 @@ func (a *App) RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 	if err != nil {
 		return fmt.Errorf("collector result: %w", err)
 	}
-	return output.FormatCollectorResult(cfg.JSONOutput, cfg.JQ, cfg.Colorize, result.Data)
+	return printToolResult(cfg, result.Data)
 }
 
 // batchTraceInfo holds per-file timing for the batch-trace assembler in

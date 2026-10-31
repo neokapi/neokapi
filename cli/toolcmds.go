@@ -106,9 +106,12 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 	// because the format reader takes the source language on every run.
 	takesTarget := ToolSchema.ToolMeta.TakesTargetLanguage()
 	// A check that compares a block's source with its translation, and writes
-	// no file, can pair one source file with a translation kept in a file of
-	// its own (--target), as `kapi check --target` does.
-	pairsTarget := takesTarget && !info.WritesOutput && ReadsTargets(ToolSchema)
+	// no translation, can pair one source file with a translation kept in a
+	// file of its own (--target), as `kapi check --target` does. When it
+	// writes only findings it writes a file only where -o or --output-dir
+	// names one (host.ExecTargetFor).
+	execTarget := host.ExecTargetFor(ToolSchema, info.WritesOutput)
+	pairsTarget := execTarget.PairsTarget
 
 	short := info.Description
 	if short == "" {
@@ -146,6 +149,9 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 				switch {
 				case outputTmpl != "":
 					// Explicit -o template wins.
+				case outputDir == "" && !execTarget.WritesByDefault:
+					// A tool that writes only findings writes no file unless
+					// one is named: the findings go to stdout.
 				case outputDir != "" && !takesTarget:
 					// No target language to lay out by: the files land in DIR.
 					outputTmpl = filepath.Clean(outputDir) + string(filepath.Separator)
@@ -357,6 +363,9 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 	cmd.Flags().Bool("progress", false, "show progress bar")
 	cmd.Flags().Bool("pack", false, "when transforming a .kpz, also eject the result to the .kpz (auto-pack)")
 	switch {
+	case info.WritesOutput && !execTarget.WritesByDefault:
+		cmd.Flags().StringP("output", "o", "", "write the content read, with its findings attached, to this path template (variables: {dir}, {name}, {ext}, {lang}); without it the run writes no file")
+		cmd.Flags().String("output-dir", "", "write the content read, with its findings attached, under DIR/{lang}/ (default: no file, the findings go to stdout)")
 	case info.WritesOutput && takesTarget:
 		cmd.Flags().StringP("output", "o", "", "output path template (variables: {dir}, {name}, {ext}, {lang})")
 		cmd.Flags().String("output-dir", "", "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)")
