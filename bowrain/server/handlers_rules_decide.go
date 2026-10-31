@@ -16,6 +16,7 @@ import (
 	"maps"
 	"net/http"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -449,7 +450,8 @@ func (e *decideRefusal) Error() string { return e.msg }
 // writes; a keep of one side of a disagreement drops every rival side first;
 // a drop records a drop of the suggestion, or of every side. "Later" records
 // nothing. The member needs the permission the subject's kind takes
-// (governingPermission) over the coordinates the suggestion holds at.
+// (governingPermission) over the coordinates the suggestion holds at. The
+// records of one answer are written together or not at all.
 func (s *Server) HandleDecideRule(c echo.Context) error {
 	var req ruleDecideRequest
 	if err := c.Bind(&req); err != nil {
@@ -483,22 +485,19 @@ func (s *Server) HandleDecideRule(c echo.Context) error {
 	default:
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: fmt.Sprintf("answer %q is none of keep, drop and later", req.Answer)})
 	}
-	if err == nil {
-		err = st.mayRecord(plan)
-	}
 	if refusal, ok := errors.AsType[*decideRefusal](err); ok {
 		return c.JSON(refusal.status, ErrorResponse{Error: refusal.msg, Code: refusal.code})
 	}
 	if err != nil {
 		return serverErr(c, err)
 	}
-	for _, r := range plan {
-		if _, err := st.ledger.Append(ctx, r); err != nil {
-			if errors.Is(err, ErrOutsideReach) {
-				return c.JSON(http.StatusForbidden, ErrorResponse{Error: err.Error(), Code: contextOutsideReachCode})
-			}
-			return serverErr(c, err)
+	if err := s.recordPlan(ctx, st, plan); err != nil {
+		if errors.Is(err, ErrOutsideReach) {
+			return c.JSON(http.StatusForbidden, ErrorResponse{Error: err.Error(), Code: contextOutsideReachCode})
 		}
+		return serverErr(c, err)
+	}
+	for _, r := range plan {
 		switch r.Kind {
 		case contextop.KindKeep:
 			out.Kept++
@@ -586,19 +585,6 @@ func (st *decideState) record(kind contextop.Kind, target contextop.Record) cont
 	}
 }
 
-// mayRecord refuses a plan with a record the member may not write: one about
-// a subject whose permission the member lacks, or at a point outside the
-// coordinates they hold. Nothing of a refused plan is written.
-func (st *decideState) mayRecord(plan []contextop.Record) error {
-	for _, r := range plan {
-		target := st.byID[r.Target]
-		if err := st.member.governs(target.Subject.Kind, target.Scope.Coordinates); err != nil {
-			return &decideRefusal{status: http.StatusForbidden, code: contextOutsideReachCode, msg: err.Error()}
-		}
-	}
-	return nil
-}
-
 // governs refuses a decision about a subject of kind at point that the
 // member's permissions or coordinates do not cover.
 func (m LedgerMember) governs(kind contextop.SubjectKind, point map[string]string) error {
@@ -651,8 +637,11 @@ func (s *Server) HandleAssignRule(c echo.Context) error {
 	if !ok {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: fmt.Sprintf("no suggestion %s waits for a decision", contextop.ShortID(req.ID))})
 	}
-	if err := st.member.governs(d.Subject.Kind, d.Scope.Coordinates); err != nil {
-		return c.JSON(http.StatusForbidden, ErrorResponse{Error: err.Error(), Code: contextOutsideReachCode})
+	for _, id := range questionIDs(d) {
+		side := st.byID[id]
+		if err := st.member.governs(side.Subject.Kind, side.Scope.Coordinates); err != nil {
+			return c.JSON(http.StatusForbidden, ErrorResponse{Error: err.Error(), Code: contextOutsideReachCode})
+		}
 	}
 	assignee := ""
 	if req.UserID != nil {
@@ -844,4 +833,103 @@ func (s *Server) canViewProject(c echo.Context, projectID string) bool {
 		userID: userID, projectID: projectID, workspaceID: wsID, role: role, plan: plan,
 	})
 	return access.permissions.Has(platauth.PermViewContent)
+}
+
+// recordPlan records the records of one answer in one write: the ledger
+// appends them to a staged log, which holds what it is given, and the staged
+// operations go to the project's log in one Record call. That call checks
+// every operation against the member's permissions and reach before it
+// writes, and writes them as one segment, so a refusal of any record writes
+// none.
+func (s *Server) recordPlan(ctx context.Context, st *decideState, plan []contextop.Record) error {
+	objects, ok := s.contextObjects()
+	if !ok {
+		return errors.New("context objects not configured")
+	}
+	log := &contextLog{
+		objects: objects,
+		cache:   s.contextLogs.project(st.project.ID),
+		project: st.project.ID,
+		actor:   contextop.Actor{Kind: contextop.ActorPerson, Name: st.reader.Name},
+		member:  st.member,
+	}
+	staged := &stagedLog{log: log, key: st.key}
+	ledger := contextop.NewLedger(staged, contextop.PersonDecides)
+	for _, r := range plan {
+		if _, err := ledger.Append(ctx, r); err != nil {
+			return err
+		}
+	}
+	_, err := log.Record(ctx, staged.ops...)
+	return err
+}
+
+// stagedLog is a project's log with the operations recorded through it held
+// back: a read answers with the log followed by the held operations, and a
+// write holds its operations, each given an id that sorts after every id
+// read.
+type stagedLog struct {
+	log *contextLog
+	key workspace.ProjectKey
+	ops []workspace.Op
+}
+
+var _ contextop.Log = (*stagedLog)(nil)
+
+// Select implements contextop.Log.
+func (l *stagedLog) Select(ctx context.Context, q workspace.OpQuery) ([]workspace.Op, error) {
+	all, err := l.log.Select(ctx, workspace.OpQuery{})
+	if err != nil {
+		return nil, err
+	}
+	for _, op := range l.ops {
+		op.Seq = int64(len(all) + 1)
+		all = append(all, op)
+	}
+	out := []workspace.Op{}
+	for _, op := range all {
+		if op.Seq <= q.After ||
+			(q.KindPrefix != "" && !strings.HasPrefix(op.Kind, q.KindPrefix)) ||
+			(q.Project != "" && op.Project != q.Project) ||
+			(q.Subject != "" && op.Subject != q.Subject) {
+			continue
+		}
+		out = append(out, op)
+		if q.Limit > 0 && len(out) == q.Limit {
+			break
+		}
+	}
+	return out, nil
+}
+
+// Record implements contextop.Log. It writes nothing.
+func (l *stagedLog) Record(ctx context.Context, ops ...workspace.Op) ([]workspace.Op, error) {
+	held, err := l.log.Select(ctx, workspace.OpQuery{})
+	if err != nil {
+		return nil, err
+	}
+	after := ""
+	for _, op := range held {
+		after = max(after, op.ID)
+	}
+	for _, op := range l.ops {
+		after = max(after, op.ID)
+	}
+	out := make([]workspace.Op, len(ops))
+	for i, op := range ops {
+		if op.Project == "" {
+			op.Project = l.key
+		}
+		if op.At.IsZero() {
+			op.At = time.Now()
+		}
+		op.At = op.At.UTC()
+		if op.ID == "" {
+			op.ID = workspace.NewOpID(op.At, after)
+		}
+		after = max(after, op.ID)
+		l.ops = append(l.ops, op)
+		out[i] = op
+	}
+	return out, nil
 }

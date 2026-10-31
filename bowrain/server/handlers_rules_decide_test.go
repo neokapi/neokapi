@@ -265,7 +265,7 @@ func TestRulesDecide_PermissionAndReach_SQLite(t *testing.T) {
 	var refusal ErrorResponse
 	require.Equal(t, http.StatusForbidden, decideRoute(t, e, http.MethodPost, pid, "/rules/main/decide",
 		ruleDecideRequest{ID: note.ID, Answer: "keep"}, &refusal))
-	assert.Equal(t, "deciding this needs the manage_voice permission", refusal.Error)
+	assert.Contains(t, refusal.Error, "needs the manage_voice permission")
 	assert.Equal(t, contextOutsideReachCode, refusal.Code)
 
 	caller.perms = platauth.PermViewContent | platauth.PermManageVoice
@@ -399,4 +399,39 @@ func TestRulesDecide_WorkspaceCollectionsAreNoPlace_SQLite(t *testing.T) {
 	assert.Contains(t, wide.Consequence, "Applies to the whole project.")
 	narrow := sideOf(t, d, "Write apply, not leverage.")
 	assert.Contains(t, narrow.Consequence, "Applies to docs.")
+}
+
+// One answer is written whole or not at all: keeping the brand-wide side
+// drops the docs side and keeps the other, and a member bounded to docs is
+// refused the keep, so the drop is not written either. Assigning the
+// question needs every side in reach.
+func TestRulesDecide_AnAnswerIsWrittenWhole_SQLite(t *testing.T) {
+	caller := &decideCaller{userID: "member-a", perms: decideAll}
+	e, cs := decideSQLiteServer(t, caller)
+	pid := seedDecideParity(t, e, cs)
+	pushSuggestions(t, e, pid)
+	d := leverageQuestion(t, readDecideView(t, e, pid))
+	wide := sideOf(t, d, "Write use, not leverage.")
+	narrow := sideOf(t, d, "Write apply, not leverage.")
+
+	caller.reach = platauth.CoordinateReach{}.Add(platauth.CoordinateFilter{"surface": "docs"})
+	var refusal ErrorResponse
+	require.Equal(t, http.StatusForbidden, decideRoute(t, e, http.MethodPost, pid, "/rules/main/decide",
+		ruleDecideRequest{ID: wide.ID, Answer: "keep"}, &refusal))
+	assert.Equal(t, contextOutsideReachCode, refusal.Code)
+	again := leverageQuestion(t, readDecideView(t, e, pid))
+	assert.Len(t, again.Options, 2, "the drop of the docs side is not written without the keep")
+
+	require.Equal(t, http.StatusForbidden, decideRoute(t, e, http.MethodPost, pid, "/rules/main/assign",
+		ruleAssignRequest{ID: narrow.ID, UserID: new("member-b")}, &refusal),
+		"the side asked by is in reach, the other side is not")
+
+	caller.reach = nil
+	var res screens.RuleDecideResultDTO
+	require.Equal(t, http.StatusOK, decideRoute(t, e, http.MethodPost, pid, "/rules/main/decide",
+		ruleDecideRequest{ID: wide.ID, Answer: "keep"}, &res))
+	assert.Equal(t, screens.RuleDecideResultDTO{Answer: "keep", Kept: 1, Dropped: 1}, res)
+	for _, q := range readDecideView(t, e, pid).Decisions {
+		assert.NotEqual(t, "leverage", q.Label, "both sides are decided")
+	}
 }
