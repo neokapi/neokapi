@@ -205,9 +205,9 @@ func TestExecChecksAcceptTheirDecisiveInput(t *testing.T) {
 
 // A check that compares a source with its translation can pair one source
 // file with a translation kept in a file of its own (--target), as `kapi check
-// --target` does; a translation read alone holds no source to compare. qa
-// and review write a file only where -o names one, and then only the content
-// they read with their findings, so they pair one too. A tool that writes a
+// --target` does; a translation read alone holds no source to compare. Both
+// qa and review write a file only where -o names one, and then only the
+// content they read with their findings, so they pair one too. A tool that writes a
 // translation, or reads none, offers no --target.
 func TestExecTranslationChecksPairATargetFile(t *testing.T) {
 	tools := execChildren(t, newTestApp())
