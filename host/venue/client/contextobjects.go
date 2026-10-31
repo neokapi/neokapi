@@ -27,8 +27,12 @@ const (
 	// hold, with status 404.
 	ContextObjectMissingCode = "no_object"
 	// ContextObjectInvalidCode answers a name or a directory outside the
-	// context layout, with status 400.
+	// context layout, or a blob whose name is not the address of its bytes,
+	// with status 400.
 	ContextObjectInvalidCode = "invalid_name"
+	// ContextObjectNoProjectCode answers a push to a project the server does
+	// not hold, with status 404.
+	ContextObjectNoProjectCode = "no_project"
 )
 
 // ContextObjectList is the body of GET /:ws/:id/context/objects?dir=.

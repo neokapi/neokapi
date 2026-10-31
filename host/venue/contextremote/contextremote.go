@@ -222,7 +222,11 @@ func (r *Remote) refusal(verb, name string, err error) error {
 	case e.StatusCode == http.StatusNotFound && e.Code == apiclient.ContextObjectMissingCode:
 		return fmt.Errorf("%w: %s", workspace.ErrNoObject, name)
 	case e.StatusCode == http.StatusConflict && e.Code == apiclient.ContextObjectExistsCode:
+		// The details carry the bare name of the refused object.
 		return fmt.Errorf("%w: %s", workspace.ErrObjectExists, e.Details)
+	case e.StatusCode == http.StatusNotFound && e.Code == apiclient.ContextObjectNoProjectCode:
+		return fmt.Errorf("bowrain %s %s: %s holds no project %s/%s; check the url in the recipe's bowrain: block",
+			verb, name, r.server, r.workspace, r.project)
 	case e.StatusCode == http.StatusUnauthorized:
 		return fmt.Errorf("%w: bowrain %s %s: the server did not accept the sign-in: run `kapi auth login`", workspace.ErrRemoteUnreachable, verb, name)
 	case e.StatusCode == http.StatusForbidden:

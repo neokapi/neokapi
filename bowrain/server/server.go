@@ -1159,7 +1159,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 	// see observe/tracing.go. No-op when Sentry is unconfigured.
 	e.Use(observe.TracingMiddleware())
 	e.Use(middleware.Recover())
-	e.Use(middleware.BodyLimit("50M"))
+	e.Use(middleware.BodyLimit(requestBodyLimit))
 	e.Use(middleware.CORSWithConfig(s.corsConfig()))
 	// Baseline response headers (nosniff, frame policy, referrer policy, HSTS
 	// over TLS, and a content policy for this server's own responses). Runs
