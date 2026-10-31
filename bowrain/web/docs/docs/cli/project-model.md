@@ -159,10 +159,12 @@ Only the connection coordinates sit under `bowrain:`:
 
 ### Sharing the project's context on Bowrain
 
-`kapi context sync` and `kapi share` can keep the project's context on the
-Bowrain project the `bowrain:` block connects to: the terms, the kept and
-dropped suggestions, and the decisions every checkout records. Name the
-`bowrain` backend in the recipe's `context:` block:
+`kapi context sync` can keep the project's context on the Bowrain project the
+`bowrain:` block connects to: the terms, the kept and dropped suggestions, and
+the decisions every checkout records. `kapi share` reports it there.
+`kapi share --via bowrain` connects the project and leaves the context where
+it is, so name the `bowrain` backend in the recipe's `context:` block
+yourself:
 
 ```yaml
 context:

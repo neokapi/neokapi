@@ -14,6 +14,7 @@ import {
 } from "../components/SharePanel";
 import { api } from "../hooks/useApi";
 import {
+  BOWRAIN_BACKEND_VIEW,
   BOWRAIN_VIEW,
   BOWRAIN_WITHOUT_TEAM_VIEW,
   CONTACTED,
@@ -223,6 +224,21 @@ describe("the Share page", () => {
     expect(within(rung("team")).getByText("The place could not be reached.")).toBeInTheDocument();
     expect(slot("share-status-error")?.textContent).toBe(FOLDER_UNREACHABLE.status?.error);
     expect(primaries()).toEqual(["Sync now"]);
+  });
+
+  it("kept on Bowrain: the top rung, with the place and Sync now under it and the team rung not reached", () => {
+    expect(reachedRungs(BOWRAIN_BACKEND_VIEW)).toEqual({
+      machine: true,
+      team: false,
+      bowrain: true,
+    });
+    render(<SharePanel tabID="t1" view={BOWRAIN_BACKEND_VIEW} />);
+    expect(marked()).toEqual(["bowrain"]);
+    expect(rung("team")).not.toHaveAttribute("data-reached");
+    expect(reach("team")).toBe("A shared folder or git");
+    expect(slot("share-kind", rung("team"))).toBeNull();
+    expect(slot("share-kind", rung("bowrain"))?.textContent).toBe("Managed on Bowrain");
+    expect(slot("share-sync", rung("bowrain"))).not.toBeNull();
   });
 
   it("through S3", () => {

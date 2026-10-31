@@ -191,6 +191,13 @@ describe("how far a project's context reaches", () => {
     );
     expect(reachDetail(at("local"))).toBe("On this Mac");
   });
+
+  it("names a context kept on Bowrain for the product, without a venue host to read", () => {
+    expect(sharingWord(at("bowrain"))).toBe("Bowrain");
+    expect(reachDetail(at("bowrain", undefined, "https://app.bowrain.cloud/acme/help"))).toBe(
+      "Managed on Bowrain, at https://app.bowrain.cloud/acme/help",
+    );
+  });
 });
 
 describe("the parts of a path", () => {

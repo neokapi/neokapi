@@ -69,12 +69,12 @@ export function sharingSetUp(sharing: ProjectSharing): boolean {
  * The rungs a project has reached. This Mac always is; the team rung once the
  * recipe names a place; Bowrain's once the recipe connects to a server. A
  * project connected to Bowrain without a team place has not reached the team
- * rung.
+ * rung, and a context kept on Bowrain is the top rung, not a team place.
  */
 export function reachedRungs(view: ShareView): Record<ShareRungID, boolean> {
   return {
     machine: true,
-    team: sharingSetUp(view.sharing),
+    team: sharingSetUp(view.sharing) && view.sharing.kind !== "bowrain",
     bowrain: view.rung === "bowrain",
   };
 }
@@ -201,6 +201,16 @@ export function SharePanel({
               </Actions>
             )}
             {rung === "bowrain" && <BowrainDetail view={view} contextOnly={contextOnly} />}
+            {rung === "bowrain" && view.sharing.kind === "bowrain" && (
+              <TeamDetail
+                sharing={view.sharing}
+                onChange={change}
+                onSync={() => sync.mutate()}
+                syncing={sync.isPending}
+                result={result}
+                syncError={syncError}
+              />
+            )}
           </RungRow>
         ))}
       </ol>
@@ -286,11 +296,7 @@ function RungReach({ rung, view }: { rung: ShareRungID; view: ShareView }) {
     case "machine":
       return <>Your rules, your assistants</>;
     case "team":
-      return sharingSetUp(view.sharing) ? (
-        <TeamStanding view={view} />
-      ) : (
-        <>A shared folder or git</>
-      );
+      return reachedRungs(view).team ? <TeamStanding view={view} /> : <>A shared folder or git</>;
     case "bowrain":
       return <>A team queue, who kept what, the same screens in a browser</>;
   }
@@ -521,6 +527,13 @@ function PlaceKind({ kind }: { kind: string }) {
         <span data-slot="share-kind" className="inline-flex items-center gap-1.5">
           <Cloud {...icon} />
           <span translate="no">S3</span>
+        </span>
+      );
+    case "bowrain":
+      return (
+        <span data-slot="share-kind" className="inline-flex items-center gap-1.5">
+          <Cloud {...icon} />
+          {t("Managed on Bowrain")}
         </span>
       );
   }
