@@ -387,7 +387,7 @@ function KindGlyph({ kind }: { kind: string }) {
 }
 
 /** A kind as a small mark and its word, in a column of its own. */
-function KindMark({ kind }: { kind: string }) {
+export function KindMark({ kind }: { kind: string }) {
   return (
     <span
       data-slot="reader-kind"

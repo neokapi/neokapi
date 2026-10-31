@@ -34,6 +34,7 @@ export { NoticedBy, NoticedMark, toolName } from "./NoticedBy";
 
 export { MapView, decideRowKey, type MapViewProps } from "./MapView";
 export { ReaderView, type ReaderViewProps } from "./ReaderView";
+export { KeptRulesView, type KeptRulesViewProps } from "./KeptRulesView";
 export {
   DecideView,
   answerArgs,
@@ -44,9 +45,11 @@ export {
 } from "./DecideView";
 export {
   DecideScreen,
+  KeptRulesScreen,
   MapScreen,
   ReaderScreen,
   type DecideScreenProps,
+  type KeptRulesScreenProps,
   type MapScreenProps,
   type ReaderScreenProps,
 } from "./screens";

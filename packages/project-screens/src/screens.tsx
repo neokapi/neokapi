@@ -8,6 +8,7 @@ import { ErrorNotice, LoadingSpinner } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import { DecideView, answerArgs } from "./DecideView";
 import { MapView, type MapViewProps } from "./MapView";
+import { KeptRulesView } from "./KeptRulesView";
 import { ReaderView } from "./ReaderView";
 import type { ProjectScreensPort, ScreenNavigation } from "./port";
 import type { ReaderFile, ReaderRefusal } from "./types";
@@ -154,7 +155,7 @@ export interface DecideScreenProps extends ScreenNavigation {
 
 /** Decide for one project, read through the port. */
 export function DecideScreen({ port, ...rest }: DecideScreenProps) {
-  const { data, error } = usePortRead(port, "decide", () => port.decideView());
+  const { data, error, reload } = usePortRead(port, "decide", () => port.decideView());
   const decide = port.decide?.bind(port);
   const decideConsequence = port.decideConsequence?.bind(port);
 
@@ -190,7 +191,9 @@ export function DecideScreen({ port, ...rest }: DecideScreenProps) {
         decide &&
         ((d, answer, pick) => {
           const { id, form } = answerArgs(d, answer, pick);
-          return decide(id, answer, form || undefined);
+          // Read again once the answer is recorded, so the counts follow it on
+          // a port that reports no change.
+          return decide(id, answer, form || undefined).finally(reload);
         })
       }
       onOtherForm={(d, form) => setTyped({ id: d.id ?? "", form: form.trim() })}
@@ -201,4 +204,16 @@ export function DecideScreen({ port, ...rest }: DecideScreenProps) {
       }
     />
   );
+}
+
+export interface KeptRulesScreenProps {
+  port: ProjectScreensPort;
+}
+
+/** Kept by, read through the port. A port with no keptRules draws nothing. */
+export function KeptRulesScreen({ port }: KeptRulesScreenProps) {
+  const read = port.keptRules?.bind(port);
+  const { data, error } = usePortRead(port, "decide", () => read?.() ?? Promise.resolve([]));
+  if (!read) return null;
+  return <KeptRulesView rules={data} error={error} nameOf={port.actorName?.bind(port)} />;
 }

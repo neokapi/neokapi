@@ -110,7 +110,24 @@ type RuleLine struct {
 
 	// words are the wordings the line mentions, for `kapi rules find`.
 	words []string
+	// keeper and keptAt say who put a rule found in the log in force and when;
+	// kept reports a line that has them. subject is the operation's subject kind.
+	keeper  contextop.Actor
+	keptAt  time.Time
+	kept    bool
+	subject contextop.SubjectKind
 }
+
+// Kept answers who put the rule in force and when, for a rule the operation
+// log holds. A rule held only in the terms store or the voice profile, and a
+// suggestion, answer false.
+func (l RuleLine) Kept() (contextop.Actor, time.Time, bool) {
+	return l.keeper, l.keptAt, l.kept
+}
+
+// SubjectKind is the kind of subject the operation behind the line is about:
+// a term or a note. Empty for a line the log does not hold.
+func (l RuleLine) SubjectKind() contextop.SubjectKind { return l.subject }
 
 // FormatText renders a listing: the counts, then each group.
 func (l RulesListing) FormatText(w io.Writer) error {
@@ -340,6 +357,17 @@ func (st *rulesState) keptBy(r contextop.Record) string {
 	return strings.Join(how, ", ") + ", " + at.UTC().Format(time.DateOnly)
 }
 
+// markKept records on a line who put r in force and when, beside the phrase
+// keptBy appends to its From.
+func (st *rulesState) markKept(line *RuleLine, r contextop.Record) {
+	at, how := rulesview.Establishment(r, st.acts[r.ID], st.byID)
+	if len(how) == 0 {
+		return
+	}
+	line.keeper, line.keptAt, line.kept = rulesview.EstablishedBy(r, st.acts[r.ID]), at.UTC(), true
+	line.subject = r.Subject.Kind
+}
+
 // ListRules lists the rules a project keeps.
 func (a *App) ListRules(ctx context.Context, req RulesRequest) (RulesListing, error) {
 	st, err := a.rulesState(ctx, req.Project)
@@ -387,6 +415,7 @@ func (a *App) listRules(ctx context.Context, st *rulesState) (RulesListing, erro
 			}
 			if kept := st.keptBy(op); kept != "" {
 				line.From = append(line.From, kept)
+				st.markKept(&line, op)
 			}
 		} else if slices.Equal(r.From, []string{"workspace"}) {
 			line.Applies = "every project in the workspace"
@@ -473,6 +502,7 @@ func (st *rulesState) opLine(r contextop.Record) RuleLine {
 	if r.Established {
 		if kept := st.keptBy(r); kept != "" {
 			line.From = append(line.From, kept)
+			st.markKept(&line, r)
 		}
 	}
 	line.Applies, line.Narrowed = st.applies(r.Scope)

@@ -40,11 +40,16 @@ export function opens(nav: ScreenNavigation, target: ScreenTarget): boolean {
   return nav.canNavigate ? nav.canNavigate(target) : true;
 }
 
-/** What a host implements for the screens to read and act through. */
+/**
+ * What a host implements for the screens to read and act through. A screen
+ * reads again whenever it is given another port object, so a host keeps the
+ * port stable across renders (`useMemo`) rather than building it inline.
+ */
 export interface ProjectScreensPort {
   mapSummary(): Promise<MapSummary>;
   readerFile(path: string): Promise<ReaderFile>;
   decideView(): Promise<RulesDecideView>;
+  /** The rules in force and who kept each. Absent, Kept by is not drawn. */
   keptRules?(): Promise<KeptRule[]>;
   /** What keeping a name with a typed form does. */
   decideConsequence?(id: string, form: string): Promise<string>;

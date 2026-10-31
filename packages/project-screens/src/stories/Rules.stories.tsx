@@ -1,12 +1,14 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, fn, userEvent, within } from "storybook/test";
 import { DecideView } from "../DecideView";
+import { KeptRulesView } from "../KeptRulesView";
 import { DecideScreen } from "../screens";
 import type { ProjectScreensPort } from "../port";
 import {
   DECIDE_IDS,
   DECIDE_VIEW,
   EMPTY_DECIDE_VIEW,
+  KEPT_RULES,
   LONG_VIEW,
   NAME_VIEW,
   WORD_VIEW,
@@ -122,5 +124,29 @@ const READ_ONLY: ProjectScreensPort = {
 export const ReadOnly: StoryObj<typeof DecideScreen> = {
   render: () => (
     <DecideScreen port={READ_ONLY} keyboard={false} navigate={fn()} canNavigate={() => false} />
+  ),
+};
+
+/** Kept by: each rule in force with who kept it, the day and where it holds. */
+export const KeptBy: StoryObj<typeof KeptRulesView> = {
+  render: () => (
+    <div className="p-6">
+      <KeptRulesView rules={KEPT_RULES} />
+    </div>
+  ),
+};
+
+export const KeptByDark: StoryObj<typeof KeptRulesView> = {
+  ...dark,
+  name: "Kept by (dark)",
+  render: KeptBy.render,
+};
+
+/** Kept by with nothing kept. */
+export const KeptByEmpty: StoryObj<typeof KeptRulesView> = {
+  render: () => (
+    <div className="p-6">
+      <KeptRulesView rules={[]} />
+    </div>
   ),
 };
