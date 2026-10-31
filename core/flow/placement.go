@@ -27,7 +27,7 @@ import (
 //
 //   - Error: a recoverable transformer (redact) must run before any step that
 //     egresses source to a remote sink, or hands it to a program outside kapi
-//     (process-exec) — otherwise unprotected source leaks
+//     (process-exec); otherwise unprotected source leaks
 //     before redaction applies. The step(s) producing the inputs its detection
 //     consumes are exempt: a cloud NER feeding entity-driven redaction is the
 //     documented AD-020 detection trade-off, while a local detector never
