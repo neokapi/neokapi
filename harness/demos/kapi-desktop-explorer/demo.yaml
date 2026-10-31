@@ -49,11 +49,11 @@ narration:
   - id: search-tm
     kind: desktop
     beat: search-tm
-    caption: Every string that mentions checkout, in one query.
+    caption: Every block that mentions checkout, in one query.
     text: >-
       Content memory works the same way, one section across. It holds every
       translation this project has approved, and a search over it answers with
-      the strings a word actually appears in.
+      the blocks a word actually appears in.
 
   - id: inspect-tm
     kind: desktop

@@ -30,10 +30,10 @@ outro:
 script:
   - comment: Compass ships three languages from one source. Bring them up to date first.
   - command: kapi up
-  - comment: Norwegian and German clear the ship gate on translated work. Dutch waits for review, because one of its units fails the project's bound checks.
+  - comment: Norwegian and German clear the ship gate on translated work. Dutch waits for review, because one of its blocks fails the project's bound checks.
   - command: kapi status --ship --emit site/ship.json
   - command: cat site/ship.json
-  - comment: The review queue names each unit's document, block and language, which a decision addresses. This selects the Dutch a person wrote and leaves what the stub drafted.
+  - comment: The review queue names each block's document, key and language, which a decision addresses. This selects the Dutch a person wrote and leaves what the stub drafted.
   - command: >-
       kapi status --review --json --jq '.pending[]|select(.locale=="nl" and (.target|startswith("⟦")|not))|{op:"decide",at:{doc:.relative,block:.key,edition:.locale},if_match:"*",outcome:"establish"}' > dutch.json
   # The report goes to stderr, so the tail has to see stderr to trim it.
@@ -41,7 +41,7 @@ script:
   - comment: Each approval is in the record as it is made, attributable, and reviewable in the context log.
   - comment: A decision releases the language, so run the loop again. The drafts it already made are recycled, so the provider is asked for nothing a second time.
   - command: kapi up
-  - comment: Dutch is offered now, in the translated state, because not every string in it is approved.
+  - comment: Dutch is offered now, in the translated state, because not every block in it is approved.
   - command: kapi status --ship --emit site/ship.json
   - command: cat site/ship.json
   - comment: Establish the rest of Norwegian, and the same file says so.
@@ -80,7 +80,7 @@ narration:
     text: >-
       Dutch waits for review on a failing check. Its drafts are safe in the project store
       and nothing about them is lost; what the gate withholds is delivery, until
-      somebody has looked at the unit that failed.
+      somebody has looked at the block that failed.
 
   - id: review
     kind: terminal
@@ -98,7 +98,7 @@ narration:
     highlight: { text: [nl, nb] }
     caption: Dutch offered as translated. Norwegian is approved.
     text: >-
-      Dutch is offered now, in the translated state, because not every string
+      Dutch is offered now, in the translated state, because not every block
       in it is approved. Approve the rest of Norwegian and the same file
       offers it as approved. Three languages, two states, and none of them
       configured by hand.

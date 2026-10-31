@@ -78,7 +78,7 @@ narration:
     caption: Norwegian ships. Dutch waits for review, and nothing failed.
     text: >-
       One verb converges both languages. Norwegian clears the ship gate on
-      translated work. Dutch waits for review, because the gate asks for half its units to
+      translated work. Dutch waits for review, because the gate asks for half its blocks to
       have been read by a person and none of them have.
 
   - id: translated
@@ -88,7 +88,7 @@ narration:
     text: >-
       This is the file the loop wrote. Front matter travels with the prose,
       because a title in a sidebar and a description in a search result are
-      things a reader reads, and the stub's own marks are on every string it
+      things a reader reads, and the stub's own marks are on every block it
       invented.
 
   - id: delivered

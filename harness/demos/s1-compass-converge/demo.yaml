@@ -37,7 +37,7 @@ script:
   - command: cat site/ship.json
   - comment: One verb. Approved wording is recycled; only what is left reaches a provider.
   - command: kapi up
-  - comment: Norwegian and German clear the ship gate on translated work. Dutch waits for review, because one of its units fails the project's bound checks.
+  - comment: Norwegian and German clear the ship gate on translated work. Dutch waits for review, because one of its blocks fails the project's bound checks.
   - command: kapi status
   - command: kapi status --ship --emit site/ship.json
   - command: cat site/ship.json
@@ -65,10 +65,10 @@ narration:
     kind: terminal
     through: 7
     highlight: { text: ["false"] }
-    caption: Four strings behind, and nothing offered yet.
+    caption: Four blocks behind, and nothing offered yet.
     text: >-
       Both axes on one screen. The source gained a Tide window panel last week,
-      four strings, and no language carries it. That is ordinary work rather
+      four blocks, and no language carries it. That is ordinary work rather
       than a failure, and it is enough to hold every language behind the ship
       gate.
 
@@ -77,7 +77,7 @@ narration:
     through: 9
     caption: Recycled first, and only the remainder is drafted.
     text: >-
-      One verb converges. Thirty-seven of Norwegian's thirty-eight units come
+      One verb converges. Thirty-seven of Norwegian's thirty-eight blocks come
       back out of the project's own content memory, and only the remainder
       reaches a provider, which here is the offline stub that marks everything
       it writes.
@@ -89,8 +89,8 @@ narration:
     caption: Two languages offered. Dutch waits for review on a failing check.
     text: >-
       Norwegian and German clear the ship gate on translated work. Dutch waits for
-      review: one of its units fails the checks the project binds, and a locale holding a
-      failing unit is held back until somebody looks. Its drafts are safe in the
+      review: one of its blocks fails the checks the project binds, and a locale holding a
+      failing block is held back until somebody looks. Its drafts are safe in the
       store; what the gate withholds is delivery.
 
   - id: ship
@@ -100,7 +100,7 @@ narration:
     text: >-
       This file is the whole contract between the loop and the deployed site.
       Per language, two answers: is it safe to offer at all, and is every
-      string in it approved or only translated. Dutch also notes that no
+      block in it approved or only translated. Dutch also notes that no
       terms govern it.
 
   - id: outro
