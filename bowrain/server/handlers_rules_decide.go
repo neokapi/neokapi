@@ -483,8 +483,7 @@ func (s *Server) HandleDecideRule(c echo.Context) error {
 	if err == nil {
 		err = st.mayRecord(plan)
 	}
-	var refusal *decideRefusal
-	if errors.As(err, &refusal) {
+	if refusal, ok := errors.AsType[*decideRefusal](err); ok {
 		return c.JSON(refusal.status, ErrorResponse{Error: refusal.msg, Code: refusal.code})
 	}
 	if err != nil {

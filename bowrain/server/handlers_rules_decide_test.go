@@ -280,7 +280,7 @@ func TestRulesDecide_PermissionAndReach_SQLite(t *testing.T) {
 		ruleDecideRequest{ID: name.ID, Answer: "keep"}, &refusal))
 	assert.Contains(t, refusal.Error, "outside the coordinates you hold")
 	require.Equal(t, http.StatusForbidden, decideRoute(t, e, http.MethodPost, pid, "/rules/main/assign",
-		ruleAssignRequest{ID: name.ID, UserID: ptr("member-b")}, &refusal), "assigning needs what deciding needs")
+		ruleAssignRequest{ID: name.ID, UserID: new("member-b")}, &refusal), "assigning needs what deciding needs")
 	assert.Len(t, readDecideView(t, e, pid).Decisions, len(view.Decisions)-1, "a refused answer records nothing")
 }
 
@@ -296,10 +296,10 @@ func TestRulesDecide_AssignAndQueue_SQLite(t *testing.T) {
 
 	var assigned ruleAssignment
 	require.Equal(t, http.StatusOK, decideRoute(t, e, http.MethodPost, pid, "/rules/main/assign",
-		ruleAssignRequest{ID: name.ID, UserID: ptr("member-b")}, &assigned))
+		ruleAssignRequest{ID: name.ID, UserID: new("member-b")}, &assigned))
 	assert.Equal(t, ruleAssignment{ID: name.ID, Assignee: &screens.ContextActorDTO{Kind: "person", Name: "member-b"}}, assigned)
 	require.Equal(t, http.StatusOK, decideRoute(t, e, http.MethodPost, pid, "/rules/main/assign",
-		ruleAssignRequest{ID: side.Options[0].ID, UserID: ptr("member-a")}, &assigned))
+		ruleAssignRequest{ID: side.Options[0].ID, UserID: new("member-a")}, &assigned))
 
 	view = readDecideView(t, e, pid)
 	assert.Equal(t, &screens.ContextActorDTO{Kind: "person", Name: "member-b"}, decisionOf(t, view, "name").Assignee)
@@ -345,4 +345,3 @@ func TestRulesDecide_NoContextKey_SQLite(t *testing.T) {
 	assert.True(t, strings.Contains(refusal.Error, "not found"))
 }
 
-func ptr[T any](v T) *T { return &v }
