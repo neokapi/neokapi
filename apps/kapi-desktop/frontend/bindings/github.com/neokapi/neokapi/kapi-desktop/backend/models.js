@@ -1150,8 +1150,8 @@ export class AssistantHostView {
         }
         if (!("check" in $$source)) {
             /**
-             * Check reports that kapi check runs when the assistant finishes, through
-             * the Stop hook of the kapi Claude Code plugin.
+             * Check reports that kapi check runs on every edit and when the assistant
+             * finishes, through the kapi Claude Code plugin's hooks.
              * @member
              * @type {boolean}
              */
@@ -3105,10 +3105,10 @@ export class ContextFeedGroup {
         if (!("checked" in $$source)) {
             /**
              * Checked, Failing, Caught and Files are what the session's check runs
-             * found (host.SessionOutcomes): how many runs the Stop hook recorded, the
-             * failing findings its latest run left, the findings one run reported and
-             * the next no longer found, and the files the runs name. A check run is
-             * counted here and listed in no entry.
+             * found (host.SessionOutcomes): the runs the edit and Stop hooks recorded,
+             * the failing findings no later run checked again, the findings one run
+             * reported and the next no longer found, and the files the runs name. A
+             * check run is counted here and listed in no entry.
              * @member
              * @type {number}
              */
