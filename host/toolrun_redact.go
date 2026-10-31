@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strconv"
 
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
@@ -115,6 +116,81 @@ func (a *App) toolSendsBlocksOut(toolName string, config map[string]any) bool {
 	info := a.ToolReg.ResolveToolInfo(registry.ToolID(toolName), config)
 	return info != nil && (slices.Contains(info.SideEffects, schema.SideEffectAPICall) ||
 		slices.Contains(info.SideEffects, schema.SideEffectProcessExec))
+}
+
+// toolExecsProcess reports whether the tool's contract declares process-exec:
+// it hands block text to a program kapi runs. Under a redaction policy such a
+// tool reads each withheld value as its visible token, and records a failing
+// finding on a block whose program output changes one
+// (tools.RulePlaceholder).
+func (a *App) toolExecsProcess(toolName string) bool {
+	if a.ToolReg == nil {
+		return false
+	}
+	s := a.ToolReg.Schema(registry.ToolID(toolName))
+	return s != nil && s.ToolMeta != nil && slices.Contains(s.ToolMeta.SideEffects, schema.SideEffectProcessExec)
+}
+
+// checksRedactionTokens reports whether a run of toolName under the policies
+// in runCfgs can record the placeholder finding: the tool hands blocks to a
+// program, and a redact step runs ahead of it over at least one file.
+func (a *App) checksRedactionTokens(toolName string, runCfgs map[string]ToolRunConfig) bool {
+	if !a.toolExecsProcess(toolName) {
+		return false
+	}
+	for _, c := range runCfgs {
+		if c.policy.redaction != nil {
+			return true
+		}
+	}
+	return false
+}
+
+// chainChecksRedactionTokens is checksRedactionTokens for a flow's chain: it
+// holds a redact step (a recoverable transformer, as CheckRedactionCoverage
+// reads one) and a tool that hands blocks to a program.
+func (a *App) chainChecksRedactionTokens(chain []tool.Tool) bool {
+	if a.ToolReg == nil {
+		return false
+	}
+	redacts, execs := false, false
+	for _, t := range chain {
+		if t == nil {
+			continue
+		}
+		if info := a.ToolReg.ResolveToolInfo(registry.ToolID(t.Name()), nil); info != nil && info.Recoverable {
+			redacts = true
+		}
+		if a.toolExecsProcess(t.Name()) {
+			execs = true
+		}
+	}
+	return redacts && execs
+}
+
+// placeholderRule is the rule id a report gives the finding a tool records
+// when the output of the program it runs changes a redaction placeholder.
+var placeholderRule = check.RuleID(string(tools.ExternalCommand), tools.RulePlaceholder)
+
+// placeholderGateError is the error a `kapi exec` run returns once its report
+// is printed, when the report holds a failing placeholder finding. Each such
+// block was left unchanged, so the run did not do what it was asked to, and
+// it exits with the code a failed check uses (ExitGate).
+func placeholderGateError(data any) error {
+	r, ok := data.(findingsReport)
+	if !ok {
+		return nil
+	}
+	blocks := map[string]bool{}
+	for _, d := range r.Findings {
+		if d.Fails && d.Rule == placeholderRule {
+			blocks[d.Location.File+"\x00"+d.Location.Block] = true
+		}
+	}
+	if len(blocks) == 0 {
+		return nil
+	}
+	return WithExitCode(ExitGate, fmt.Errorf("%d block(s) left unchanged: the program's output changed a redaction placeholder its input held, so kapi could not restore the value it stands for", len(blocks)))
 }
 
 // toolChain is the tools one run applies to a file: the tool, and the steps

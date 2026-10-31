@@ -1,6 +1,7 @@
 package host
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -8,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
@@ -29,6 +31,137 @@ func echoProgram(t *testing.T) (config map[string]any, saw string) {
 		"applySource": true,
 		"applyTarget": false,
 	}, saw
+}
+
+// rewriteProgram writes a script that runs sed with expr over the text it reads
+// on stdin, and returns the external-command config that runs it over the
+// source.
+func rewriteProgram(t *testing.T, expr string) map[string]any {
+	t.Helper()
+	script := filepath.Join(t.TempDir(), "rewrite.sh")
+	require.NoError(t, os.WriteFile(script, []byte("#!/bin/sh\nsed '"+expr+"'\n"), 0o700))
+	return map[string]any{"command": script, "applySource": true, "applyTarget": false}
+}
+
+// A program that drops the placeholder it read leaves the block as it was:
+// the run prints the finding, writes the file with the block unchanged, and
+// exits with the code a failed check uses.
+func TestToolRun_ExternalCommandThatDropsAPlaceholderFailsTheRun(t *testing.T) {
+	isolateKapiEnv(t)
+	recipe := redactProject(t, redactionYAML)
+	page := filepath.Join(filepath.Dir(recipe), "docs", "page.json")
+	config := rewriteProgram(t, `s/Write/Mail/; s/\[REDACTED:Person\]/someone/`)
+	a := &App{SourceLang: "en"}
+	a.InitRegistries()
+
+	stdout, err := captureStdout(t, func() error {
+		return a.RunToolOnFiles(t.Context(), externalCommandRun(a, recipe, page, config))
+	})
+	require.Error(t, err)
+	assert.Equal(t, ExitGate, ExitCode(nil, err), "the run exits as a failed check does")
+	assert.Equal(t, "1 block(s) left unchanged: the program's output changed a redaction placeholder its input held, so kapi could not restore the value it stands for", err.Error())
+	assert.Contains(t, stdout, "external-command.redaction-placeholder")
+	assert.Contains(t, stdout, "page.json:greeting")
+	assert.Contains(t, stdout, "rewrite.sh dropped the redaction placeholder [REDACTED:Person] that the source holds; the block is unchanged")
+	assert.NotContains(t, stdout, redactedName, "the report names the placeholder, never the value")
+
+	out, rerr := os.ReadFile(page)
+	require.NoError(t, rerr)
+	assert.Equal(t, redactedPage, string(out), "the block keeps its content")
+}
+
+// The same run with --json prints the finding in the kapi.check/v2 shape.
+func TestToolRun_ExternalCommandPlaceholderFindingJSON(t *testing.T) {
+	isolateKapiEnv(t)
+	recipe := redactProject(t, redactionYAML)
+	page := filepath.Join(filepath.Dir(recipe), "docs", "page.json")
+	config := rewriteProgram(t, `s/\[REDACTED:Person\]/&, &/`)
+	a := &App{SourceLang: "en"}
+	a.InitRegistries()
+	run := externalCommandRun(a, recipe, page, config)
+	run.JSONOutput = true
+
+	stdout, err := captureStdout(t, func() error { return a.RunToolOnFiles(t.Context(), run) })
+	assert.Equal(t, ExitGate, ExitCode(nil, err))
+	var report struct {
+		Summary  check.Summary      `json:"summary"`
+		Findings []check.Diagnostic `json:"findings"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stdout), &report), stdout)
+	require.Len(t, report.Findings, 1)
+	f := report.Findings[0]
+	assert.Equal(t, "external-command.redaction-placeholder", f.Rule)
+	assert.True(t, f.Fails)
+	assert.Equal(t, "greeting", f.Location.Block)
+	assert.Equal(t, "duplicated", f.Metadata["kind"])
+	assert.Equal(t, "[REDACTED:Person]", f.Metadata["token"])
+	assert.Equal(t, "1", f.Metadata["expected"])
+	assert.Equal(t, "2", f.Metadata["found"])
+}
+
+// A program that keeps the placeholder gets its output written with the
+// original back in place, and the run reports no finding and exits 0.
+func TestToolRun_ExternalCommandThatKeepsThePlaceholderPasses(t *testing.T) {
+	isolateKapiEnv(t)
+	recipe := redactProject(t, redactionYAML)
+	page := filepath.Join(filepath.Dir(recipe), "docs", "page.json")
+	config := rewriteProgram(t, `s/Write/Mail/`)
+	a := &App{SourceLang: "en"}
+	a.InitRegistries()
+
+	stdout, err := captureStdout(t, func() error {
+		return a.RunToolOnFiles(t.Context(), externalCommandRun(a, recipe, page, config))
+	})
+	require.NoError(t, err)
+	assert.Contains(t, stdout, "No findings.")
+	out, rerr := os.ReadFile(page)
+	require.NoError(t, rerr)
+	assert.Contains(t, string(out), "Mail to "+redactedName+" today.")
+}
+
+// A run over a package reports the finding and fails as a run over a file
+// does.
+func TestToolRun_ExternalCommandOverAPackageFailsOnADroppedPlaceholder(t *testing.T) {
+	isolateKapiEnv(t)
+	t.Setenv("KAPI_KPZ_CACHE", t.TempDir())
+	recipe := redactProject(t, redactionYAML)
+	root := filepath.Dir(recipe)
+	a := &App{SourceLang: "en", Quiet: true}
+	a.InitRegistries()
+	pkg := filepath.Join(root, "work.kpz")
+	require.NoError(t, a.ExtractToKpz(t.Context(), []string{filepath.Join(root, "docs", "page.json")}, pkg, "fr", "", false))
+
+	config := rewriteProgram(t, `s/\[REDACTED:Person\]/someone/`)
+	stdout, err := captureStdout(t, func() error {
+		return a.RunToolOnFiles(t.Context(), externalCommandRun(a, recipe, pkg, config))
+	})
+	require.Error(t, err)
+	assert.Equal(t, ExitGate, ExitCode(nil, err))
+	assert.Contains(t, stdout, "rewrite.sh dropped the redaction placeholder [REDACTED:Person] that the source holds; the block is unchanged")
+
+	// The same package and a program that keeps the placeholder: no report.
+	keep := rewriteProgram(t, `s/Write/Mail/`)
+	stdout, err = captureStdout(t, func() error {
+		return a.RunToolOnFiles(t.Context(), externalCommandRun(a, recipe, pkg, keep))
+	})
+	require.NoError(t, err)
+	assert.Empty(t, stdout)
+}
+
+// With no policy, nothing is redacted and the run reports nothing.
+func TestToolRun_ExternalCommandWithNoPolicyPrintsNoReport(t *testing.T) {
+	isolateKapiEnv(t)
+	recipe := redactProject(t, "")
+	page := filepath.Join(filepath.Dir(recipe), "docs", "page.json")
+	config := rewriteProgram(t, `s/Write/Mail/`)
+	a := &App{SourceLang: "en"}
+	a.InitRegistries()
+
+	stdout, err := captureStdout(t, func() error {
+		return a.RunToolOnFiles(t.Context(), externalCommandRun(a, recipe, page, config))
+	})
+	require.NoError(t, err)
+	assert.Empty(t, stdout)
 }
 
 // externalCommandRun is `kapi exec external-command <file>` with config in
@@ -109,4 +242,46 @@ func TestFlowPlacement_ExternalCommandNeedsARedactStepUnderAPolicy(t *testing.T)
 			require.ErrorContains(t, err, `"external-command" hands source to a program outside kapi and the flow has no redact step`)
 		})
 	}
+}
+
+// In a flow the step records the finding on the block, the run reports it
+// beside the findings of any other check, and the block reaches the output
+// unchanged.
+func TestFlowRun_ExternalCommandThatDropsAPlaceholderReportsTheFinding(t *testing.T) {
+	isolateKapiEnv(t)
+	t.Setenv("KAPI_TRUST_EXEC", "1")
+	config := rewriteProgram(t, `s/Write/Mail/; s/\[REDACTED:Person\]/someone/`)
+	// The flow's redact step reads the rules its own config names.
+	rules := filepath.Join(t.TempDir(), "rules.yaml")
+	require.NoError(t, os.WriteFile(rules, []byte(redactRules), 0o600))
+	recipe := redactProject(t, redactionYAML+"flows:\n  rewrite:\n    steps:\n"+
+		"      - tool: redact\n        config:\n          rulesPath: "+rules+"\n"+
+		"      - tool: external-command\n        config:\n          command: "+config["command"].(string)+
+		"\n          applySource: true\n          applyTarget: false\n      - tool: unredact\n")
+	dir := filepath.Dir(recipe)
+	a := &App{}
+	a.InitRegistries()
+	cmd := flowRunCmd(a, "run")
+	AddProjectFlag(cmd)
+	require.NoError(t, cmd.Flags().Set("project", recipe))
+	require.NoError(t, cmd.Flags().Set("output", filepath.Join(dir, "out", "{name}.{ext}")))
+	var got []FlowFindings
+	stdout, err := captureStdout(t, func() error {
+		cmd.SetOut(os.Stdout)
+		return a.RunFromProject(cmd, "rewrite", recipe, RunCmdOptions{OnFindings: func(f FlowFindings) { got = append(got, f) }})
+	})
+	require.NoError(t, err, "a flow reports its findings and leaves the gate to kapi check")
+
+	require.Len(t, got, 1)
+	require.Len(t, got[0].Findings, 1)
+	f := got[0].Findings[0]
+	assert.Equal(t, "external-command.redaction-placeholder", f.Rule)
+	assert.True(t, f.Fails)
+	assert.Equal(t, "greeting", f.Location.Block)
+	assert.Equal(t, "rewrite.sh dropped the redaction placeholder [REDACTED:Person] that the source holds; the block is unchanged", f.Message)
+	assert.Contains(t, stdout, "external-command.redaction-placeholder")
+
+	out, rerr := os.ReadFile(filepath.Join(dir, "out", "page.json"))
+	require.NoError(t, rerr)
+	assert.Contains(t, string(out), "Write to "+redactedName+" today.", "the block reaches the output unchanged")
 }

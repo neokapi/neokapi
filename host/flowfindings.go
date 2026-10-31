@@ -267,7 +267,10 @@ func (a *App) tapFindings(tools []tool.Tool, inputPath string) []tool.Tool {
 
 // chainProducesFindings reports whether any step of the chain declares a
 // findings port — the same IO-contract question ProducesFindings answers for a
-// single tool, which is what decides whether `kapi exec` reports.
+// single tool, which is what decides whether `kapi exec` reports. A chain
+// that redacts ahead of a tool that hands blocks to a program reports too:
+// that tool records a failing finding on each block whose program output
+// changes a redaction placeholder (chainChecksRedactionTokens).
 func (a *App) chainProducesFindings(tools []tool.Tool) bool {
 	if a.ToolReg == nil {
 		return false
@@ -280,7 +283,7 @@ func (a *App) chainProducesFindings(tools []tool.Tool) bool {
 			return true
 		}
 	}
-	return false
+	return a.chainChecksRedactionTokens(tools)
 }
 
 // flowRunReport is a flow run's own output with the findings its check steps
