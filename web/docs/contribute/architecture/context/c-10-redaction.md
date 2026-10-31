@@ -401,9 +401,21 @@ and company names adds 250 values to the 23 the redact step recorded, across
 request carries it. The deeper look reads the project vault and writes
 nothing back to it.
 
-The rules do not reach the media a request carries (media-refine's image
-crop or speech clip), and two commands ask a model outside the routes above:
-`kapi voice check --ai` and `kapi terms expand`.
+Two commands ask a model outside a run of a registry tool. `kapi voice check
+--ai` runs its tool between redact and unredact (`host.VoiceCheckTools`)
+under the policy of the file it reads, or `defaults.redaction` for text given
+inline. `kapi terms expand` holds no block, so it redacts each request under
+the rules of `defaults.redaction` (`host.TermsExpandRedaction`); a project
+whose only policies sit on collections or items gives it none to apply. A
+withheld term goes out as its token, and the forms the model returns for a
+token name no term that was asked about, so none is written.
+
+Not covered:
+
+| Path | What reaches the provider |
+| --- | --- |
+| Media payloads (media-refine's image crop, speech clip, video frame) | The media as recognised; the rules match text, and a crop or clip holds none |
+| Machine-translation plugin engines (`translate` with an MT provider) | The redacted block, read as `SourceText`, so each withheld value is a gap; no term rules or voice profile. The request goes through the plugin's provider, not `aiprovider.Redacting`, so what the plugin sends beyond it is the plugin's |
 
 ### CLI surface
 

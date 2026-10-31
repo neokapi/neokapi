@@ -77,9 +77,14 @@ own, and kapi restores it when the model copies it into a translation. A tool
 that reads text alone, such as term extraction, review or voice inference,
 reads each withheld value as its visible placeholder (`[REDACTED:Person]`).
 
+`kapi voice check --ai` applies the policy of the file it reads, or
+`defaults.redaction` for text given inline. `kapi terms expand` applies the
+rules of `defaults.redaction` to the terms it sends, and writes no forms for
+a term the policy withholds.
+
 The image crop or speech clip `media-refine` sends is media, not text, and
-the rules do not reach it. `kapi voice check --ai` and `kapi terms expand`
-ask a model outside these routes and do not apply the policy.
+the rules do not reach it. A machine-translation engine from a plugin reads
+the redacted block and nothing else from the project.
 
 ## How it stays local
 
