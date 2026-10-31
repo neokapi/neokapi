@@ -172,8 +172,39 @@ func (a *App) chainChecksRedactionTokens(chain []tool.Tool) bool {
 // when the output of the program it runs changes a redaction placeholder.
 var placeholderRule = check.RuleID(string(tools.ExternalCommand), tools.RulePlaceholder)
 
-// placeholderGateError is the error a `kapi exec` run returns once its report
-// is printed, when the report holds a failing placeholder finding. Each such
+// specChecksRedactionTokens is chainChecksRedactionTokens for a flow's steps
+// before they are built: a redact step and a tool that hands blocks to a
+// program.
+func (a *App) specChecksRedactionTokens(spec *flow.StepsSpec) bool {
+	if a.ToolReg == nil || spec == nil {
+		return false
+	}
+	redacts, execs := false, false
+	for _, step := range spec.Steps {
+		if info := a.ToolReg.ResolveToolInfo(registry.ToolID(step.Tool), step.Config); info != nil && info.Recoverable {
+			redacts = true
+		}
+		if a.toolExecsProcess(step.Tool) {
+			execs = true
+		}
+	}
+	return redacts && execs
+}
+
+// placeholderBlocks counts the blocks a report holds a failing placeholder
+// finding on.
+func placeholderBlocks(r findingsReport) int {
+	blocks := map[string]bool{}
+	for _, d := range r.Findings {
+		if d.Fails && d.Rule == placeholderRule {
+			blocks[d.Location.File+"\x00"+d.Location.Block] = true
+		}
+	}
+	return len(blocks)
+}
+
+// placeholderGateError is the error a run returns once its report is
+// printed, when the report holds a failing placeholder finding. Each such
 // block was left unchanged, so the run did not do what it was asked to, and
 // it exits with the code a failed check uses (ExitGate).
 func placeholderGateError(data any) error {
@@ -181,16 +212,11 @@ func placeholderGateError(data any) error {
 	if !ok {
 		return nil
 	}
-	blocks := map[string]bool{}
-	for _, d := range r.Findings {
-		if d.Fails && d.Rule == placeholderRule {
-			blocks[d.Location.File+"\x00"+d.Location.Block] = true
-		}
-	}
-	if len(blocks) == 0 {
+	n := placeholderBlocks(r)
+	if n == 0 {
 		return nil
 	}
-	return WithExitCode(ExitGate, fmt.Errorf("%d block(s) left unchanged: the program's output changed a redaction placeholder its input held, so kapi could not restore the value it stands for", len(blocks)))
+	return WithExitCode(ExitGate, fmt.Errorf("%d block(s): the program's output changed its redaction placeholders, so kapi left each such block as it was", n))
 }
 
 // toolChain is the tools one run applies to a file: the tool, and the steps

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -59,7 +60,7 @@ func TestToolRun_ExternalCommandThatDropsAPlaceholderFailsTheRun(t *testing.T) {
 	})
 	require.Error(t, err)
 	assert.Equal(t, ExitGate, ExitCode(nil, err), "the run exits as a failed check does")
-	assert.Equal(t, "1 block(s) left unchanged: the program's output changed a redaction placeholder its input held, so kapi could not restore the value it stands for", err.Error())
+	assert.Equal(t, "1 block(s): the program's output changed its redaction placeholders, so kapi left each such block as it was", err.Error())
 	assert.Contains(t, stdout, "external-command.redaction-placeholder")
 	assert.Contains(t, stdout, "page.json:greeting")
 	assert.Contains(t, stdout, "rewrite.sh dropped the redaction placeholder [REDACTED:Person] that the source holds; the block is unchanged")
@@ -399,4 +400,57 @@ func TestPlanReuse_BuildsEachUnitsChainUnderItsFilesPolicy(t *testing.T) {
 		"the docs file's chain builds under the defaults")
 	assert.Empty(t, p.producersFor(VerifyUnit{SourcePath: filepath.Join(root, "legal", "memo.json"), Locale: "fr"}),
 		"the legal file's chain takes its collection's policy, which a run refuses")
+}
+
+// `kapi up` over a flow whose program drops a placeholder reports the finding
+// and fails as a failed check does, rather than reporting the project up to
+// date.
+func TestUp_AProgramThatDropsAPlaceholderFailsTheRun(t *testing.T) {
+	isolateKapiEnv(t)
+	onlyDemoProvider(t)
+	t.Setenv("KAPI_TRUST_EXEC", "1")
+	script := filepath.Join(t.TempDir(), "rewrite.sh")
+	require.NoError(t, os.WriteFile(script, []byte("#!/bin/sh\nsed 's/Write/Mail/; s/\\[REDACTED:Person\\]/someone/'\n"), 0o700))
+	root := t.TempDir()
+	write := func(rel, body string) {
+		t.Helper()
+		path := filepath.Join(root, filepath.FromSlash(rel))
+		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o700))
+		require.NoError(t, os.WriteFile(path, []byte(body), 0o600))
+	}
+	write(project.RecipeFileName, "version: v1\nname: up-redact\ndefaults:\n  source_language: en\n  flow: rewrite\n  target_languages: [fr]\n"+
+		"  translate_after: none\n"+redactionYAML+
+		"collections:\n  - name: docs\n    content:\n      - path: \"docs/*.json\"\n        target: \"out/{lang}/{name}.{ext}\"\n"+
+		"flows:\n  rewrite:\n    steps:\n      - tool: redact\n"+
+		"      - tool: external-command\n        config:\n          command: "+script+"\n          applySource: true\n          applyTarget: false\n"+
+		"      - tool: unredact\n      - tool: translate\n        config:\n          provider: demo\n")
+	write("redact.yaml", redactRules)
+	write("docs/page.json", redactedPage)
+	require.NoError(t, os.MkdirAll(filepath.Join(root, project.StateDirName), 0o700))
+	recipe := filepath.Join(root, project.RecipeFileName)
+	t.Chdir(root)
+
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	a := &App{}
+	a.InitRegistries()
+	a.SourceLang = "en"
+	cmd := NewEnvCommand(t.Context(), "up")
+	a.AddFlowRunFlags(cmd)
+	var out ConvergeOutput
+	err = a.RunDefaultFlowConverge(cmd, proj, recipe, ConvergeOptions{UntilGate: true, MaxPasses: 2, noChecks: true, capture: &out})
+	require.Error(t, err)
+	assert.Equal(t, ExitGate, ExitCode(nil, err))
+	assert.Equal(t, "1 block(s): the program's output changed its redaction placeholders, so kapi left each such block as it was", err.Error())
+	require.NotNil(t, out.Findings, "the run's output carries the finding")
+	require.NotEmpty(t, out.Findings.Findings)
+	f := out.Findings.Findings[0]
+	assert.Equal(t, "external-command.redaction-placeholder", f.Rule)
+	assert.Equal(t, "greeting", f.Location.Block)
+
+	var text strings.Builder
+	require.NoError(t, out.FormatText(&text))
+	assert.Contains(t, text.String(), "rewrite.sh dropped the redaction placeholder [REDACTED:Person] that the source holds; the block is unchanged")
+	assert.Contains(t, text.String(), "Not up to date: 1 block(s) left unchanged because a program's output changed a redaction placeholder.")
+	assert.NotContains(t, text.String(), "Up to date.")
 }

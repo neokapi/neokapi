@@ -165,6 +165,11 @@ type ConvergeOutput struct {
 	// a format no installed reader opens (check.WarningFormatNoReader). The run
 	// set that content aside and converged the rest.
 	Warnings []check.Warning `json:"warnings,omitempty"`
+	// Findings holds the failing findings of a program step whose output
+	// changed a redaction placeholder (tools.RulePlaceholder). Each such block
+	// was left as it was, and the run exits with the code a failed check uses.
+	// Nil when there are none.
+	Findings *findingsReport `json:"findings,omitempty"`
 }
 
 // StaleDraftUnits totals the blocks whose stored draft was made from an
@@ -211,7 +216,9 @@ func (o ConvergeOutput) RedraftedUnits() int {
 func (o ConvergeOutput) FormatText(w io.Writer) error {
 	defer writeSetAside(w, o.Warnings)
 	if o.Monolingual {
-		return o.formatMonolingual(w)
+		err := o.formatMonolingual(w)
+		o.formatPlaceholderFindings(w)
+		return err
 	}
 	verb := "pass"
 	if o.Passes != 1 {
@@ -277,7 +284,9 @@ func (o ConvergeOutput) FormatText(w io.Writer) error {
 		fmt.Fprintf(w, "%d block(s) still hold wording a reviewer turned down. "+
 			"They do not ship until a pass drafts something else for them.\n", rejected)
 	}
-	if o.Converged {
+	if o.Findings != nil {
+		o.formatPlaceholderFindings(w)
+	} else if o.Converged {
 		fmt.Fprintln(w, o.upToDateLine())
 	} else if o.StallReason == convergence.StallSourceNotReady {
 		fmt.Fprintln(w, "Held on source. Nothing translatable is settled yet. Set defaults.translate_after: none to draft freely.")
@@ -297,6 +306,17 @@ func (o ConvergeOutput) FormatText(w io.Writer) error {
 	}
 	o.formatProposedChangeset(w)
 	return nil
+}
+
+// formatPlaceholderFindings prints the placeholder findings and the line that
+// says the run is not up to date because of them. It prints nothing when the
+// run has none.
+func (o ConvergeOutput) formatPlaceholderFindings(w io.Writer) {
+	if o.Findings == nil {
+		return
+	}
+	o.Findings.FormatTable(w)
+	fmt.Fprintf(w, "Not up to date: %d block(s) left unchanged because a program's output changed a redaction placeholder.\n", placeholderBlocks(*o.Findings))
 }
 
 // upToDateLine is the closing line of a converged run. It claims the gates only
@@ -535,6 +555,13 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 	onEvent := opts.onEvent
 	emitter := convergence.NewEmitter(onEvent)
 	facts := &convergeFacts{monolingual: monolingual, unread: unread}
+	if a.specChecksRedactionTokens(spec) {
+		// A program step under a redaction policy records a failing finding on
+		// each block whose program output changes a placeholder, and the block
+		// stays as it was. The passes collect those findings, and the run
+		// reports them and fails (placeholderGateError).
+		facts.placeholders = &flowFindings{}
+	}
 	announceSetAside(emitter, unread)
 	if onEvent == nil {
 		// No event consumer: the set-aside lines go to stderr instead.
@@ -588,6 +615,10 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 				}
 				worker.ProjectBindings = b
 				worker.flowRedaction = &group.Redaction
+				// A quiet worker arms no findings collector of its own
+				// (beginFlowFindings), so the run's placeholder collector
+				// stays armed and taps the worker's chain per file.
+				worker.flowFindings = facts.placeholders
 				if err = worker.runProjectStepsOver(ctx, cmd, flowName, spec, &rCtx, group.Inputs); err != nil {
 					break
 				}
@@ -744,8 +775,14 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 			a.countProjectUsage(ctx, cmd, projectPath, resolved)
 		}
 		d := res.Final.Detail.(derivedState)
-		return a.finishConverge(ctx, cmd, proj, projectPath, flowLabel, res.Passes, d.cov, locales,
-			translateAfter, blockedOnSource, totalSource, facts, opts, emitter.Emit)
+		if err := a.finishConverge(ctx, cmd, proj, projectPath, flowLabel, res.Passes, d.cov, locales,
+			translateAfter, blockedOnSource, totalSource, facts, opts, emitter.Emit); err != nil {
+			return err
+		}
+		if r := facts.placeholderReport(); r != nil {
+			return placeholderGateError(*r)
+		}
+		return nil
 	})
 }
 
@@ -765,6 +802,30 @@ type convergeFacts struct {
 	// unread names the content the run set aside because no installed reader
 	// opens its format. Nil when --fail-on-unknown keeps it in.
 	unread *UnreadSet
+	// placeholders collects, over every pass, the findings of a program step
+	// whose output changed a redaction placeholder. Nil when the flow holds no
+	// such step behind a redact step.
+	placeholders *flowFindings
+}
+
+// placeholderReport is the findings report of the placeholder findings the
+// passes collected, or nil when there are none.
+func (f *convergeFacts) placeholderReport() *findingsReport {
+	if f == nil || f.placeholders == nil {
+		return nil
+	}
+	all := f.placeholders.report()
+	var diags []check.Diagnostic
+	for _, d := range all.Findings {
+		if d.Rule == placeholderRule {
+			diags = append(diags, d)
+		}
+	}
+	if len(diags) == 0 {
+		return nil
+	}
+	r := newFindingsReport(check.BuildReport(all.Target, diags))
+	return &r
 }
 
 // announceSetAside emits a run log event for each format no installed reader
@@ -1070,6 +1131,7 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 	out.ExtractedFiles = facts.extractedFiles
 	out.ExtractedBlocks = facts.extractedBlocks
 	out.BlockedOnSource = blockedOnSource
+	out.Findings = facts.placeholderReport()
 	if translateAfter != "" {
 		out.TranslateAfter = string(translateAfter)
 	}

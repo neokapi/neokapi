@@ -324,8 +324,8 @@ policy of the file it holds:
    drops, alters, repeats or adds leaves the block as it was and records a
    failing `external-command.redaction-placeholder` finding, which `kapi exec`
    reports with exit code 3 and a flow run reports beside its other findings.
-   A flow step's finding appears in the run's output and is not part of the
-   coverage count `kapi up` derives from the written files.
+   `kapi up` collects the same finding over its passes, prints it under the
+   run's summary in place of the up-to-date line, and exits 3.
 5. **The deeper look.** It sends chunks of the project's block texts to a model
    (`host/contextdeeper.go`). A chunk holds blocks of files under one policy
    only, and each chunk is redacted under that policy before the model reads
