@@ -72,5 +72,6 @@ func TestParseItem_PreviewMarksBlocksByTheirKey(t *testing.T) {
 	for _, id := range readerIDs {
 		assert.NotContains(t, preview, `<kat-block id="`+id+`">`, "no marker carries the reader's id")
 	}
-	assert.Equal(t, readerIDs, []string{first.ID, second.ID}, "the parsed blocks keep the reader's ids")
+	assert.Equal(t, readerIDs[0], first.ID, "the parsed blocks keep the reader's ids")
+	assert.Equal(t, readerIDs[1], second.ID, "the parsed blocks keep the reader's ids")
 }
