@@ -36,6 +36,12 @@ const members: Membership[] = [
   },
 ];
 
+// The fixtures age from the clock, and the view labels a day from the clock,
+// so the clock is held at noon: a run in the first half hour after midnight
+// otherwise finds no "Today" row. Only Date is faked; timers stay real so
+// waitFor and user events run as before.
+vi.useFakeTimers({ toFake: ["Date"], now: new Date(2026, 5, 13, 12, 0, 0) });
+
 const minutesAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
 
 // Newest first, as the server returns the feed: Sam comments, Alex approves a
