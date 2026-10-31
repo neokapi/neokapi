@@ -25,11 +25,9 @@ import (
 // when present, otherwise the producer's stamp. Approval under the current context
 // clears staleness; rejection leaves the producer's stamp in force.
 //
-// An empty fingerprint is the stamp every producer writes when no voice profile
-// and no terms govern it (coreprofile.GovernanceContext). Where the context in
-// force is also ungoverned, an empty stamp matches it. Where a context governs,
-// a target without a fingerprint (older or manually authored content) is
-// reported without failing the gate, because its context cannot be compared.
+// An empty fingerprint matches an ungoverned context. Under a governing context,
+// a target without one (older or hand-written content) is reported and never
+// failed, because its context cannot be compared.
 
 // gateStaleness is the gate's id. There is no flag to tune it: a coverage bar
 // is a judgement about how much is enough, and this is not one — a stamp either
