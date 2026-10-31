@@ -122,7 +122,7 @@ type terminologyResult struct {
 }
 
 func (t *AITerminologyTool) annotate(v tool.BlockView) error {
-	sourceText := v.SourceText()
+	sourceText := visibleText(v.SourceRuns())
 	if strings.TrimSpace(sourceText) == "" {
 		return nil
 	}

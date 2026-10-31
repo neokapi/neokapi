@@ -175,10 +175,13 @@ type RedactTool struct {
 	entityCats  map[string]bool
 	opts        redaction.RedactOptions
 	vault       *redaction.FileVault // non-nil in external mode
+	// egress is the policy the tool applies, for the strings of a provider
+	// request beside the block (redaction.Egress).
+	egress *redaction.Policy
 	// policy is what the tool leaves on each block it reads in-process, so
-	// the provider requests that carry the block are redacted the same way
-	// (redaction.Egress). Nil in external mode, where the block goes to a
-	// file rather than to a provider.
+	// the provider requests that carry the block are redacted the same way.
+	// Nil in external mode, where the block goes to a file rather than to a
+	// provider.
 	policy *redaction.Policy
 }
 
@@ -248,6 +251,10 @@ func NewRedactTool(cfg *RedactConfig) (*RedactTool, error) {
 		}
 	}
 
+	t.egress = &redaction.Policy{Options: t.opts, Locale: cfg.SourceLocale}
+	if t.rules != nil {
+		t.egress.Detector = t.rules
+	}
 	if cfg.VaultPath != "" {
 		v, err := redaction.OpenFileVault(cfg.VaultPath)
 		if err != nil {
@@ -255,10 +262,7 @@ func NewRedactTool(cfg *RedactConfig) (*RedactTool, error) {
 		}
 		t.vault = v
 	} else {
-		t.policy = &redaction.Policy{Options: t.opts, Locale: cfg.SourceLocale}
-		if t.rules != nil {
-			t.policy.Detector = t.rules
-		}
+		t.policy = t.egress
 	}
 
 	base := &tool.BaseTool{
@@ -306,6 +310,11 @@ func (t *RedactTool) Process(ctx context.Context, in <-chan *model.Part, out cha
 		}
 	}
 }
+
+// Policy returns the policy the tool applies: its rule detector and its
+// placeholder options. A route that redacts blocks into a sidecar vault and
+// then sends them to a provider binds it to the blocks itself.
+func (t *RedactTool) Policy() *redaction.Policy { return t.egress }
 
 // Apply is ApplyContext with no deadline.
 func (t *RedactTool) Apply(part *model.Part) (*model.Part, error) {

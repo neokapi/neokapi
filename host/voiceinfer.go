@@ -11,6 +11,7 @@ import (
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/redaction"
 	"github.com/neokapi/neokapi/core/tool"
 )
 
@@ -43,6 +44,9 @@ type voiceInferCollector struct {
 	mu     sync.Mutex
 	corpus strings.Builder
 	blocks int
+	// entries are the redaction entries of the blocks the corpus holds, so
+	// the request that carries it is redacted under their policy.
+	entries []*redaction.SecretAnnotation
 }
 
 // NewVoiceInferCollectorFor returns a collector factory for voice-infer, or nil
@@ -84,7 +88,9 @@ func (c *voiceInferCollector) Observe(p *model.Part) {
 	if !ok || b == nil {
 		return
 	}
-	text := strings.TrimSpace(b.SourceText())
+	// A withheld value reads as its visible token, not as a gap.
+	text, _ := redaction.VisibleText(b.SourceRuns())
+	text = strings.TrimSpace(text)
 	if text == "" {
 		return
 	}
@@ -94,6 +100,9 @@ func (c *voiceInferCollector) Observe(p *model.Part) {
 		return
 	}
 	c.blocks++
+	if e := redaction.EntryOf(b); e != nil {
+		c.entries = append(c.entries, e)
+	}
 	if c.corpus.Len() > 0 {
 		c.corpus.WriteString("\n")
 	}
@@ -110,7 +119,7 @@ var _ flow.StreamingCollector = (*voiceInferCollector)(nil)
 // findings shape would have to be unwrapped first.
 func (c *voiceInferCollector) Result() (flow.CollectorResult, error) {
 	c.mu.Lock()
-	corpus, blocks := c.corpus.String(), c.blocks
+	corpus, blocks, entries := c.corpus.String(), c.blocks, c.entries
 	c.mu.Unlock()
 
 	if strings.TrimSpace(corpus) == "" {
@@ -124,7 +133,7 @@ func (c *voiceInferCollector) Result() (flow.CollectorResult, error) {
 	if !ok {
 		return flow.CollectorResult{}, errors.New("voice-infer: the registry returned a different tool")
 	}
-	draft, _, err := inferrer.InferFrom(context.Background(), corpus)
+	draft, _, err := inferrer.InferFrom(redaction.BindCorpus(context.Background(), entries...), corpus)
 	if err != nil {
 		return flow.CollectorResult{}, err
 	}

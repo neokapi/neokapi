@@ -14,6 +14,7 @@ import (
 	corememory "github.com/neokapi/neokapi/core/memory"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/redaction"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
@@ -775,7 +776,9 @@ func (t *AITranslateTool) translate(v tool.VariantView) error {
 	}
 
 	sourceText := v.SourceText()
-	if sourceText == "" {
+	// A block that holds nothing but a withheld value is still translated: its
+	// placeholder goes to the model and comes back in place.
+	if sourceText == "" && visibleText(v.SourceRuns()) == "" {
 		return nil
 	}
 
@@ -1084,7 +1087,7 @@ func (t *AITranslateTool) processBatched(ctx context.Context, in <-chan *model.P
 			continue
 		}
 		src := block.SourceText()
-		if src == "" {
+		if src == "" && visibleText(block.SourceRuns()) == "" {
 			continue
 		}
 		sourceRuns := block.SourceRuns()
@@ -1420,6 +1423,14 @@ func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEnt
 	if len(entries) == 1 {
 		return tool.WriteAs(ctx, entries[0].block, t.ToolName, t.translate)
 	}
+
+	// One request carries every block of the batch, so it is redacted under
+	// the policy that redacted them, with their tokens.
+	blocks := make([]*model.Block, len(entries))
+	for i, entry := range entries {
+		blocks[i] = entry.block
+	}
+	ctx = redaction.BindBlocks(ctx, blocks...)
 
 	texts := make([]string, len(entries))
 	for i, entry := range entries {

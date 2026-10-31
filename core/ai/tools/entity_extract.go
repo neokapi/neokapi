@@ -12,6 +12,7 @@ import (
 	"github.com/neokapi/neokapi/core/ai/ner"
 	"github.com/neokapi/neokapi/core/ai/prompt"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/redaction"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
@@ -321,7 +322,11 @@ func (t *AIEntityExtractTool) processBatched(ctx context.Context, in <-chan *mod
 		if err := goBatches(batches, t.concurrency, func(idx int, batch []extractionEntry) error {
 			llmEntries := make([]extractionEntry, len(batch))
 			copy(llmEntries, batch)
-			result, err := t.extractWithLLM(ctx, llmEntries)
+			blocks := make([]*model.Block, len(batch))
+			for i, e := range batch {
+				blocks[i] = e.block
+			}
+			result, err := t.extractWithLLM(redaction.BindBlocks(ctx, blocks...), llmEntries)
 			if err != nil {
 				return err
 			}

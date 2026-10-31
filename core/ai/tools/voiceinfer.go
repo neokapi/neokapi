@@ -11,6 +11,7 @@ import (
 	"github.com/neokapi/neokapi/core/ai/prompt"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/redaction"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
@@ -480,7 +481,12 @@ func (t *VoiceInferTool) Process(ctx context.Context, in <-chan *model.Part, out
 	// Parts keep streaming through; only the collection stops. This keeps
 	// memory bounded on arbitrarily large inputs.
 	corpusByteCap := 4 * t.opts.withDefaults().MaxCorpusChars
-	var corpus strings.Builder
+	var (
+		corpus strings.Builder
+		// entries are the redaction entries of the blocks the corpus holds,
+		// so the request that carries it is redacted under their policy.
+		entries []*redaction.SecretAnnotation
+	)
 read:
 	for {
 		var part *model.Part
@@ -495,11 +501,14 @@ read:
 		}
 		if corpus.Len() < corpusByteCap && part.Type == model.PartBlock {
 			if block, ok := part.Resource.(*model.Block); ok && block != nil {
-				if text := strings.TrimSpace(block.SourceText()); text != "" {
+				if text := strings.TrimSpace(visibleText(block.SourceRuns())); text != "" {
 					if corpus.Len() > 0 {
 						corpus.WriteString("\n")
 					}
 					corpus.WriteString(text)
+					if e := redaction.EntryOf(block); e != nil {
+						entries = append(entries, e)
+					}
 				}
 			}
 		}
@@ -510,7 +519,7 @@ read:
 		}
 	}
 
-	draft, evidence, usage, err := inferVoiceProfile(ctx, t.provider, corpus.String(), t.opts)
+	draft, evidence, usage, err := inferVoiceProfile(redaction.BindCorpus(ctx, entries...), t.provider, corpus.String(), t.opts)
 	if err != nil {
 		if errors.Is(err, ErrEmptyCorpus) {
 			return nil

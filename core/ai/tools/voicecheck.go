@@ -232,7 +232,7 @@ func (t *VoiceCheckTool) annotate(v tool.BlockView) error {
 		return fmt.Errorf("voice-check profile: %w", err)
 	}
 
-	sourceText := v.SourceText()
+	sourceText := visibleText(v.SourceRuns())
 	if strings.TrimSpace(sourceText) == "" {
 		return nil
 	}

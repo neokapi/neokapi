@@ -112,8 +112,8 @@ func (t *AICheckTool) annotate(v tool.BlockView) error {
 		return nil
 	}
 
-	sourceText := v.SourceText()
-	targetText := v.TargetText(t.targetLocale)
+	sourceText := visibleText(v.SourceRuns())
+	targetText := visibleText(v.TargetRuns(t.targetLocale))
 
 	turns := prompt.QualityCheck{
 		SourceLocale: t.sourceLocale,

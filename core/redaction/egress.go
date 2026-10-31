@@ -43,6 +43,9 @@ type Policy struct {
 type Egress struct {
 	policy  *Policy
 	entries []*SecretAnnotation
+	// spreads keeps a value one entry holds in every other entry, for a
+	// request whose answers go back to each of its blocks (BindBlocks).
+	spreads bool
 }
 
 // egressMu serializes the writes an Egress makes to the entries it holds. A
@@ -94,30 +97,66 @@ func (a *SecretAnnotation) BindContext(ctx context.Context) context.Context {
 }
 
 // BindBlocks returns ctx carrying an Egress over the entries of blocks, for a
-// tool that sends several blocks in one request. The blocks a redact step
-// read carry its policy; ctx is returned as it is when none does.
+// tool that sends several blocks in one request and writes each answer back
+// to its block. A value one block withholds is kept in the others too, so it
+// restores in whichever block's answer the model copies it into. The blocks
+// a redact step read carry its policy; ctx is returned as it is when none
+// does.
 func BindBlocks(ctx context.Context, blocks ...*model.Block) context.Context {
-	var (
-		policy  *Policy
-		entries []*SecretAnnotation
-	)
+	entries := make([]*SecretAnnotation, 0, len(blocks))
 	for _, b := range blocks {
-		if b == nil {
-			continue
-		}
-		a, ok := model.AnnoAs[*SecretAnnotation](b, SecretAnnotationKey)
-		if !ok || a == nil || a.Policy == nil {
+		entries = append(entries, EntryOf(b))
+	}
+	e := bindEntries(entries)
+	if e == nil {
+		return ctx
+	}
+	e.spreads = true
+	return WithEgress(ctx, e)
+}
+
+// BindCorpus returns ctx carrying an Egress over entries, for a tool that
+// sends the text of many blocks as one corpus and writes no answer back to
+// them. ctx is returned as it is when no entry carries a policy.
+func BindCorpus(ctx context.Context, entries ...*SecretAnnotation) context.Context {
+	if e := bindEntries(entries); e != nil {
+		return WithEgress(ctx, e)
+	}
+	return ctx
+}
+
+// EntryOf returns the redaction entry a redact step left on b, or nil.
+func EntryOf(b *model.Block) *SecretAnnotation {
+	if b == nil {
+		return nil
+	}
+	a, ok := model.AnnoAs[*SecretAnnotation](b, SecretAnnotationKey)
+	if !ok || a == nil || a.Policy == nil {
+		return nil
+	}
+	return a
+}
+
+// bindEntries returns an Egress over the entries that carry a policy, under
+// the first one's policy, or nil when none does.
+func bindEntries(entries []*SecretAnnotation) *Egress {
+	var (
+		policy *Policy
+		held   []*SecretAnnotation
+	)
+	for _, a := range entries {
+		if a == nil || a.Policy == nil {
 			continue
 		}
 		if policy == nil {
 			policy = a.Policy
 		}
-		entries = append(entries, a)
+		held = append(held, a)
 	}
 	if policy == nil {
-		return ctx
+		return nil
 	}
-	return WithEgress(ctx, NewEgress(policy, entries...))
+	return NewEgress(policy, held...)
 }
 
 // Redact returns texts, the strings of one request, with every span the
@@ -276,7 +315,7 @@ func (e *Egress) tokenFor(m Match, shown string) string {
 // block's answer the model copies it into. An entry that shows another value
 // as the same visible token keeps its own.
 func (e *Egress) spread(v RedactedValue) {
-	if len(e.entries) < 2 {
+	if !e.spreads || len(e.entries) < 2 {
 		return
 	}
 	for _, a := range e.entries {
@@ -347,9 +386,10 @@ func rank(v RedactedValue, source model.LocaleID) int {
 	return 1
 }
 
-// add keeps a value the request's blocks do not withhold in every entry,
-// under the next token in their sequence and a visible token none of them
-// uses for another value.
+// add keeps a value the request's blocks do not withhold under the next token
+// in their sequence and a visible token none of them uses for another value:
+// in every entry of a request whose answers go back to each block, and in
+// the first entry otherwise.
 func (e *Egress) add(m Match) RedactedValue {
 	token := e.nextToken()
 	n, _ := strconv.Atoi(strings.TrimPrefix(token, e.policy.Options.tokenPrefix()))
@@ -360,7 +400,11 @@ func (e *Egress) add(m Match) RedactedValue {
 		Original: m.Original,
 		Locale:   e.policy.Locale,
 	}
-	for _, a := range e.entries {
+	keep := e.entries
+	if !e.spreads {
+		keep = e.entries[:1]
+	}
+	for _, a := range keep {
 		if a.Values == nil {
 			a.Values = map[string]RedactedValue{}
 		}
