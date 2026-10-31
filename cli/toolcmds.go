@@ -70,8 +70,8 @@ On a redacted .kpz package (one kapi extract wrote under a redaction policy)
 a tool reads and writes the placeholders the package holds, and never the
 withheld values: those stay in the package's vault until kapi merge restores
 them. In a project that declares a collection's or an item's policy, a tool
-that calls a model runs over a package only when the package is redacted and
-its vault is on this machine.
+that calls a model runs over a package only when it is a redacted package
+kapi extract --format kpz wrote in this project.
 
 Discover tools and their options with 'kapi tools list' and
 'kapi tools schema <name>'.`,

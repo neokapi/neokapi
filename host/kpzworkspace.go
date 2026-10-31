@@ -223,7 +223,7 @@ func (a *App) extractToKpz(ctx context.Context, sources []string, outKpz, target
 
 	a.printlnUnlessQuiet(fmt.Sprintf("Extracted %d document(s) → %s", len(full.Sources), outKpz))
 	if vaultPath != "" {
-		a.printlnUnlessQuiet(fmt.Sprintf("Redacted: the package holds a placeholder for each withheld value. Keep %s: kapi merge restores the values from it", vaultPath))
+		a.printlnUnlessQuiet(fmt.Sprintf("Redacted: each withheld value is a placeholder. kapi merge restores the values from %s", vaultPath))
 	}
 	return nil
 }
@@ -397,42 +397,72 @@ func (a *App) MergeFromKpz(ctx context.Context, kpzPath, outOverride string) err
 	// no placeholder reaches a written file. The check comes before any file
 	// is written.
 	vaultPath := ""
+	var vault *redaction.FileVault
 	if r := c.meta.Redaction; r != nil {
 		vaultPath = workspaceVaultPath(kpzPath)
-		if _, err := packageVault(filepath.Base(kpzPath), vaultPath, r.VaultID,
-			"Put the vault kapi extract wrote with the package beside it under that name, or extract the package again to write a new package and vault."); err != nil {
+		if vault, err = packageVault(filepath.Base(kpzPath), vaultPath, r.VaultID, workspaceVaultAdvice); err != nil {
 			return err
 		}
 	}
 
-	written, stale := 0, 0
-	for _, src := range c.meta.Sources {
-		for _, locale := range locales {
-			docOut, derr := mergeOutputPath(layout, src.Path, locale, len(locales) > 1)
-			if derr != nil {
-				return derr
-			}
-			hydrate := newHydrateTargetsTool(model.LocaleID(locale))
-			// Without the raw source, runCacheSource rebuilds the document
-			// from its skeleton, whose blocks carry no source to compare a
-			// stamp with.
-			hydrate.skeleton = !c.hasSource(src)
-			chain := []tool.Tool{hydrate}
-			if vaultPath != "" {
-				// The vault keeps the file's originals under its name in the
-				// package.
-				ut, uerr := tools.NewUnredactTool(&tools.UnredactConfig{VaultPath: vaultPath, Document: src.Name})
-				if uerr != nil {
-					return fmt.Errorf("merge: %w", uerr)
+	// pass runs the merge chain over every source and locale, writing each
+	// document where outFor says. With check set, a translation that still
+	// holds a placeholder once the vault restored it stops the pass.
+	pass := func(outFor func(src kpzCacheSource, locale string) (string, error), check bool) (written, stale int, err error) {
+		for _, src := range c.meta.Sources {
+			for _, locale := range locales {
+				docOut, derr := outFor(src, locale)
+				if derr != nil {
+					return 0, 0, derr
 				}
-				chain = append(chain, ut)
+				hydrate := newHydrateTargetsTool(model.LocaleID(locale))
+				// Without the raw source, runCacheSource rebuilds the document
+				// from its skeleton, whose blocks carry no source to compare a
+				// stamp with.
+				hydrate.skeleton = !c.hasSource(src)
+				chain := []tool.Tool{hydrate}
+				if vault != nil {
+					// The vault keeps the file's originals under its name in the
+					// package.
+					ut, uerr := tools.NewUnredactTool(&tools.UnredactConfig{VaultPath: vaultPath, Document: src.Name})
+					if uerr != nil {
+						return 0, 0, packageVaultOpenError(filepath.Base(kpzPath), uerr)
+					}
+					chain = append(chain, ut)
+					if check {
+						chain = append(chain, newPlaceholderCheckTool(src.Name, model.LocaleID(locale), vault))
+					}
+				}
+				if err := a.runCacheSource(ctx, c, src, "merge", chain, docOut, locale); err != nil {
+					return 0, 0, err
+				}
+				written++
+				stale += hydrate.Stale()
 			}
-			if err := a.runCacheSource(ctx, c, src, "merge", chain, docOut, locale); err != nil {
-				return err
-			}
-			written++
-			stale += hydrate.Stale()
 		}
+		return written, stale, nil
+	}
+
+	// A redacted package is merged once into the cache first, where a
+	// placeholder a translator changed stops the merge before any file is
+	// written.
+	if vault != nil {
+		trial := filepath.Join(c.dir, "merge-check")
+		if err := os.MkdirAll(trial, 0o755); err != nil {
+			return fmt.Errorf("merge: %w", err)
+		}
+		defer os.RemoveAll(trial)
+		if _, _, err := pass(func(src kpzCacheSource, locale string) (string, error) {
+			return filepath.Join(trial, locale+"-"+src.Name), nil
+		}, true); err != nil {
+			return err
+		}
+	}
+	written, stale, err := pass(func(src kpzCacheSource, locale string) (string, error) {
+		return mergeOutputPath(layout, src.Path, locale, len(locales) > 1)
+	}, false)
+	if err != nil {
+		return err
 	}
 	line := fmt.Sprintf("Merged %s → %d file(s) (%s)", kpzPath, written, strings.Join(locales, ", "))
 	if stale > 0 {

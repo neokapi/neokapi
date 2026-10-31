@@ -368,7 +368,7 @@ func TestChangeService_AVaultANewerKapiWroteKeepsNoEdition(t *testing.T) {
 	a, recipe := redactingKeptProject(t, "rules")
 	root := filepath.Dir(recipe)
 	vault := project.LayoutAt(root).RedactionVaultPath()
-	newer := []byte(`{"version": 4, "values": []}`)
+	newer := []byte(`{"version": 3, "values": []}`)
 	require.NoError(t, os.MkdirAll(filepath.Dir(vault), 0o700))
 	require.NoError(t, os.WriteFile(vault, newer, 0o600))
 

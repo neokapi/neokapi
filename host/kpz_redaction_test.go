@@ -16,8 +16,6 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/redaction"
-	"github.com/neokapi/neokapi/core/registry"
-	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/kpz"
 )
 
@@ -51,6 +49,13 @@ func assertPackageWithholds(t *testing.T, path string, names map[string]string) 
 // French, as a translator returns it.
 func returnTranslation(t *testing.T, path string) {
 	t.Helper()
+	returnTranslationRuns(t, path, "tu1", []model.Run{model.TextR("Bonjour [REDACTED:Person]")})
+}
+
+// returnTranslationRuns writes into the package at path a French translation
+// of block blockID of every file it carries, as runs.
+func returnTranslationRuns(t *testing.T, path, blockID string, runs []model.Run) {
+	t.Helper()
 	pkg, err := LoadWorkspace(path)
 	require.NoError(t, err)
 	kind := blockstore.TargetOverlayKind("fr")
@@ -62,10 +67,10 @@ func returnTranslation(t *testing.T, path string) {
 	}
 	pkg.Overlays = kept
 	for _, si := range pkg.Sources {
-		payload, err := json.Marshal(map[string]string{"text": "Bonjour [REDACTED:Person]", "status": string(model.TargetStatusDraft)})
+		payload, err := json.Marshal(blockstore.TargetOverlay{Runs: runs, Status: string(model.TargetStatusDraft)})
 		require.NoError(t, err)
 		pkg.Overlays = append(pkg.Overlays, kpz.OverlayDoc{
-			Kind: kind, BlockHash: "tu1", Payload: payload, Source: kpz.SourceDir + filepath.Base(si.SourcePath),
+			Kind: kind, BlockHash: blockID, Payload: payload, Source: kpz.SourceDir + filepath.Base(si.SourcePath),
 		})
 	}
 	require.NoError(t, saveWorkspace(pkg, path))
@@ -116,8 +121,8 @@ func TestMergeRedactedKpzRefusesWithoutItsVault(t *testing.T) {
 		t.Cleanup(func() { _ = os.Rename(moved, vault) })
 		err := a.MergeOneKpz(mergeKpzCommand(t, recipe), packages[0])
 		require.Error(t, err)
-		assert.Equal(t, "merge: "+filepath.Base(packages[0])+" is a redacted package: it holds a placeholder wherever its redaction policy withheld a value, and the vault that restores them is not at "+vault+
-			", so kapi merge writes nothing. Merge it in the project that extracted it, where kapi extract kept the vault under .kapi/vault/batches/, or extract the package again to write a new package and vault.", err.Error())
+		assert.Equal(t, "merge: "+filepath.Base(packages[0])+" is redacted, and its vault is not at "+vault+
+			". kapi merge wrote no file. Merge it in the project that extracted it, or extract it again", err.Error())
 		assertNoFrenchFile(t, dir)
 	})
 	t.Run("another vault", func(t *testing.T) {
@@ -130,7 +135,7 @@ func TestMergeRedactedKpzRefusesWithoutItsVault(t *testing.T) {
 		require.NoError(t, other.Flush())
 		err = a.MergeOneKpz(mergeKpzCommand(t, recipe), packages[0])
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "names vault "+pkg.Redaction.VaultID+", and the vault at "+vault+" is vault 00000000000000000000000000000000, so kapi merge writes nothing")
+		assert.Contains(t, err.Error(), "names vault "+pkg.Redaction.VaultID+". The vault at "+vault+" is vault 00000000000000000000000000000000. kapi merge wrote no file")
 		assertNoFrenchFile(t, dir)
 	})
 }
@@ -228,133 +233,4 @@ func TestPackKeepsTheRedactionRecord(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, after.Redaction)
 	assert.Equal(t, before.Redaction.VaultID, after.Redaction.VaultID)
-}
-
-func TestMergeRedactedWorkspaceRefusesWithoutItsVault(t *testing.T) {
-	a, work, dir := adHocRedactedPackage(t, false)
-	returnTranslation(t, work)
-	vault := work + ".vault"
-	merged := filepath.Join(dir, "translated")
-
-	t.Run("absent", func(t *testing.T) {
-		require.NoError(t, os.Rename(vault, vault+".moved"))
-		t.Cleanup(func() { _ = os.Rename(vault+".moved", vault) })
-		err := a.MergeFromKpz(t.Context(), work, merged)
-		require.Error(t, err)
-		assert.Equal(t, "merge: work.kpz is a redacted package: it holds a placeholder wherever its redaction policy withheld a value, and the vault that restores them is not at "+vault+
-			", so kapi merge writes nothing. Put the vault kapi extract wrote with the package beside it under that name, or extract the package again to write a new package and vault.", err.Error())
-		assert.NoDirExists(t, merged, "the merge writes no file")
-	})
-	t.Run("a vault an earlier kapi wrote", func(t *testing.T) {
-		data, err := os.ReadFile(vault)
-		require.NoError(t, err)
-		t.Cleanup(func() { _ = os.WriteFile(vault, data, 0o600) })
-		require.NoError(t, os.WriteFile(vault, []byte(`{"version": 2, "values": []}`), 0o600))
-		err = a.MergeFromKpz(t.Context(), work, merged)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "is vault none, so kapi merge writes nothing")
-		assert.NoDirExists(t, merged, "the merge writes no file")
-	})
-}
-
-// The vault is the only copy of the values, so an extract to a package whose
-// vault is still beside it writes nothing and keeps the vault.
-func TestExtractRedactedWorkspaceKeepsAnEarlierVault(t *testing.T) {
-	a, work, dir := adHocRedactedPackage(t, false)
-	before, err := os.ReadFile(work + ".vault")
-	require.NoError(t, err)
-	err = a.ExtractRedactedToKpz(t.Context(), []string{filepath.Join(dir, "a.json")}, work, "fr", "", false, filepath.Join(dir, "redact.yaml"))
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "a vault already sits at "+work+".vault")
-	after, err := os.ReadFile(work + ".vault")
-	require.NoError(t, err)
-	assert.Equal(t, before, after, "the earlier vault is kept as it is")
-}
-
-// A file that holds a withheld value outside the blocks kapi can withhold it
-// from would put the value in the package, so extract writes none.
-func TestExtractRedactedWorkspaceRefusesAValueOutsideTheBlocks(t *testing.T) {
-	t.Setenv("KAPI_KPZ_CACHE", t.TempDir())
-	dir := t.TempDir()
-	src := filepath.Join(dir, "app.json")
-	// The key is markup, which the package carries whole.
-	require.NoError(t, os.WriteFile(src, []byte(`{"Alice Archer":"Hello Alice Archer"}`), 0o644))
-	rules := &redaction.RulesFile{Rules: []redaction.Rule{{Term: "Alice Archer", Category: redaction.CategoryPerson}}}
-	rulesPath := filepath.Join(dir, "redact.yaml")
-	require.NoError(t, rules.Save(rulesPath))
-	a := &App{SourceLang: "en", Quiet: true}
-	a.InitRegistries()
-	work := filepath.Join(dir, "work.kpz")
-	err := a.ExtractRedactedToKpz(t.Context(), []string{src}, work, "fr", "", false, rulesPath)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "app.json holds a value the redaction policy withholds outside any block")
-	assert.NoFileExists(t, work)
-	assert.NoFileExists(t, work+".vault")
-}
-
-// collectionPolicyProject is the vault fixture with its redaction policy
-// declared on the collection, under which a run that sends blocks out over a
-// package is refused.
-func collectionPolicyProject(t *testing.T) (*App, string, string) {
-	t.Helper()
-	a, recipe, dir := vaultProject(t)
-	proj, err := project.Load(recipe)
-	require.NoError(t, err)
-	proj.Collections[0].Redaction = proj.Defaults.Redaction
-	proj.Defaults.Redaction = nil
-	require.NoError(t, project.Save(recipe, proj))
-	t.Setenv("KAPI_KPZ_CACHE", t.TempDir())
-	return a, recipe, dir
-}
-
-// kapi exec over a redacted package: a tool that sends blocks out runs when
-// the vault that restores the package is on this machine, and reads tokens;
-// it is refused when the vault is not, as it is over a package that withholds
-// nothing. A tool that sends nothing out runs either way.
-func TestExecOverARedactedPackage(t *testing.T) {
-	a, recipe, dir := collectionPolicyProject(t)
-	srcs := []string{
-		filepath.Join(dir, "src", "locales", "en", "a.json"),
-		filepath.Join(dir, "src", "locales", "en", "b.json"),
-	}
-	plain := filepath.Join(dir, "plain.kpz")
-	require.NoError(t, a.ExtractToKpz(t.Context(), srcs, plain, "fr", "", true))
-	work := filepath.Join(dir, "work.kpz")
-	require.NoError(t, a.ExtractRedactedToKpz(t.Context(), srcs, work, "fr", "", true, filepath.Join(dir, "redact.yaml")))
-
-	t.Run("a package that withholds nothing is refused", func(t *testing.T) {
-		config, _ := echoProgram(t)
-		err := a.RunToolOnFiles(t.Context(), externalCommandRun(a, recipe, plain, config))
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "would run over every file of "+plain+" under one policy")
-	})
-	t.Run("a redacted package with its vault runs on tokens", func(t *testing.T) {
-		config, saw := echoProgram(t)
-		require.NoError(t, a.RunToolOnFiles(t.Context(), externalCommandRun(a, recipe, work, config)))
-		read, err := os.ReadFile(saw)
-		require.NoError(t, err)
-		assert.Contains(t, string(read), "[REDACTED:Person]", "the program reads the tokens")
-		for _, name := range vaultNames {
-			assert.NotContains(t, string(read), name, "the program never reads a withheld name")
-		}
-	})
-	t.Run("a redacted package without its vault is refused", func(t *testing.T) {
-		vault := work + ".vault"
-		require.NoError(t, os.Rename(vault, vault+".moved"))
-		t.Cleanup(func() { _ = os.Rename(vault+".moved", vault) })
-		config, saw := echoProgram(t)
-		err := a.RunToolOnFiles(t.Context(), externalCommandRun(a, recipe, work, config))
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), work+" is a redacted package whose vault is not on this machine")
-		assert.NoFileExists(t, saw, "the program never runs")
-
-		// A tool that sends nothing out runs.
-		require.NoError(t, a.RunToolOnFiles(t.Context(), ToolRunConfig{
-			ToolName: "case-transform", Project: recipe, Files: []string{work},
-			ToolConfig: map[string]any{"mode": "upper"},
-			NewTool: func() (tool.Tool, error) {
-				return a.ToolReg.NewToolWithConfig(registry.ToolID("case-transform"), map[string]any{"mode": "upper"}, "")
-			},
-		}))
-	})
 }

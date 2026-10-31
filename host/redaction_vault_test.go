@@ -225,7 +225,7 @@ func TestMergeRefusesABatchVaultANewerKapiWrote(t *testing.T) {
 	files := extractBilingual(t, a, recipe, dir, ExtractFormatXLIFF2)
 	require.Len(t, files, 1)
 	path := batchVault(t, dir)
-	require.NoError(t, os.WriteFile(path, []byte(`{"version": 4, "values": []}`), 0o600))
+	require.NoError(t, os.WriteFile(path, []byte(`{"version": 3, "values": []}`), 0o600))
 
 	translateReturned(t, files[0])
 	cmd, stdout, _ := mergeCommand(t, recipe)
@@ -241,7 +241,7 @@ func TestMergeRefusesABatchVaultANewerKapiWrote(t *testing.T) {
 	}
 	require.NoError(t, json.Unmarshal(stdout.Bytes(), &res), stdout.String())
 	require.Len(t, res.Files, 1)
-	assert.Contains(t, res.Files[0].Error, "vault "+path+" is version 4 and this kapi reads up to version 3: a newer kapi wrote this vault")
+	assert.Contains(t, res.Files[0].Error, "vault "+path+" is version 3 and this kapi reads up to version 2: a newer kapi wrote this vault")
 	assert.NoFileExists(t, filepath.Join(dir, "src", "locales", "fr", "a.json"), "the merge writes no target file")
 }
 

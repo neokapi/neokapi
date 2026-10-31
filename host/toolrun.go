@@ -129,13 +129,12 @@ func (a *App) filePolicy(cfg ToolRunConfig, proj *project.KapiProject, file stri
 // builds one chain for every file the package holds, and those files may sit
 // in collections under different policies, so no single policy covers them.
 //
-// A redacted package (kpz.Redaction) whose vault is here, beside the package
-// or in the project's batch vaults, runs: its extraction withheld each file's
-// values under that file's policy, so the package holds tokens where the
-// originals were, and the originals stay in the vault until kapi merge
-// restores them. A package that names a vault this machine does not hold is
-// refused as any other, since nothing here says which policy withheld its
-// values.
+// A redacted package (kpz.Redaction) whose vault is among the project's batch
+// vaults runs: kapi extract --format kpz wrote it in this project and
+// withheld each file's values under that file's policy, so the package holds
+// tokens where the originals were, and the originals stay in the vault until
+// kapi merge restores them. Any other redacted package is refused, since
+// nothing here says which rules withheld its values.
 func (a *App) checkPackagePolicy(cfg ToolRunConfig, proj *project.KapiProject) error {
 	if cfg.Project == "" || !a.toolSendsBlocksOut(cfg.ToolName, cfg.ToolConfig) {
 		return nil
@@ -152,10 +151,10 @@ func (a *App) checkPackagePolicy(cfg ToolRunConfig, proj *project.KapiProject) e
 	}
 	pkgPath := cfg.Files[0]
 	if r := packageRedaction(pkgPath); r != nil {
-		if packageVaultHere(cfg.Project, pkgPath, r) {
+		if packageVaultHere(cfg.Project, r) {
 			return nil
 		}
-		return fmt.Errorf("the project declares a redaction policy at %s, and %s is a redacted package whose vault is not on this machine, so kapi cannot tell which policy withheld its values. Run %s where the package was extracted, or on the project's files", declaredAt, DisplayName(pkgPath), cfg.ToolName)
+		return fmt.Errorf("kapi refused to run %s: %s is a redacted package, and its vault is not in this project. The project declares a redaction policy at %s. Run %s on the project's files", cfg.ToolName, DisplayName(pkgPath), declaredAt, cfg.ToolName)
 	}
 	return fmt.Errorf("the project declares a redaction policy at %s, and %s would run over every file of %s under one policy. Run it on the project's files, so each file is redacted under its own policy", declaredAt, cfg.ToolName, DisplayName(pkgPath))
 }

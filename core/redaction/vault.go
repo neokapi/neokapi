@@ -133,15 +133,15 @@ type fileVaultDoc struct {
 	Values []RedactedValue `json:"values"`
 }
 
-// fileVaultVersion is the version Flush writes. Version 3 records the
-// vault's ID, and version 2 each entry's document (RedactedValue.Doc). A file
-// below version 3 has no ID, so no redacted package names it. A version 1
-// file reads as entries that name no document, which Get and ValuesForBlock
-// fall back to. The vault is the only record of the originals, never a cache
-// a later run rebuilds, so it is read as it is rather than reset. A file with
-// no version field is version 1, and a file above this version is refused
+// fileVaultVersion is the version Flush writes. Version 2 records each
+// entry's document (RedactedValue.Doc), and may record the vault's ID; a
+// vault with no ID restores no redacted package. A version 1 file reads as
+// entries that name no document, which Get and ValuesForBlock fall back to.
+// The vault is the only record of the originals, never a cache a later run
+// rebuilds, so it is read as it is rather than reset. A file with no version
+// field is version 1, and a file above this version is refused
 // (ErrNewerVault).
-const fileVaultVersion = 3
+const fileVaultVersion = 2
 
 // ErrNewerVault is the refusal of a vault file whose version is above the
 // one this binary writes. A newer kapi wrote it in a format this one cannot

@@ -42,7 +42,11 @@ import (
 // doc is the source document the blocks translate. The vault keeps each
 // original under its document, block and token; a sidecar an older kapi
 // wrote names no document, and its entries are found by block and token.
-func restoreRedactedBlocks(layout project.Layout, batchID, doc string, blocks []*model.Block, targetLocale model.LocaleID, restoreTarget bool) error {
+//
+// With checkPlaceholders set (a redacted .kpz), a restored translation that
+// still holds a placeholder stops the merge: a translator changed it, and
+// the file would carry it.
+func restoreRedactedBlocks(layout project.Layout, batchID, doc string, blocks []*model.Block, targetLocale model.LocaleID, restoreTarget, checkPlaceholders bool) error {
 	sidecar := layout.RedactionSidecarPath(batchID)
 	if _, err := os.Stat(sidecar); err != nil {
 		if os.IsNotExist(err) {
@@ -55,16 +59,21 @@ func restoreRedactedBlocks(layout project.Layout, batchID, doc string, blocks []
 		return err
 	}
 	doc = vaultDoc(doc)
+	var prefixes []string
+	if checkPlaceholders && restoreTarget {
+		prefixes = docPlaceholderPrefixes(vault, doc)
+	}
 	for _, b := range blocks {
 		get := func(token string) (string, bool) {
 			v, ok := vault.Get(doc, b.ID, token)
 			return v.Original, ok
 		}
 		entries := redaction.ValuesForBlock(vault, doc, b.ID)
+		// By placeholder ID and by visible token, in every plural form and
+		// select case.
 		restore := func(runs []model.Run) ([]model.Run, int) {
-			runs, n1 := redaction.Restore(runs, get)
-			runs, n2 := redaction.RestoreText(runs, entries)
-			return runs, n1 + n2
+			runs, n, _ := redaction.RestoreTree(runs, get, entries)
+			return runs, n
 		}
 		if sr, n := restore(b.SourceRuns()); n > 0 {
 			b.SetSourceRuns(sr)
@@ -72,6 +81,9 @@ func restoreRedactedBlocks(layout project.Layout, batchID, doc string, blocks []
 		if restoreTarget {
 			if tr, n := restore(b.TargetRuns(targetLocale)); n > 0 {
 				b.SetTargetRuns(targetLocale, tr)
+			}
+			if p, ok := heldPlaceholder(b.TargetRuns(targetLocale), prefixes); ok {
+				return errUnrestoredPlaceholder(doc, b.ID, p)
 			}
 			continue
 		}
@@ -688,8 +700,7 @@ func (a *App) MergeOneKpz(cmd Command, kpzInput string) error {
 	batch := ""
 	if r := pkg.Redaction; r != nil {
 		vault := layout.RedactionSidecarPath(r.VaultID)
-		if _, err := packageVault(filepath.Base(kpzInput), vault, r.VaultID,
-			"Merge it in the project that extracted it, where kapi extract kept the vault under .kapi/vault/batches/, or extract the package again to write a new package and vault."); err != nil {
+		if _, err := packageVault(filepath.Base(kpzInput), vault, r.VaultID, projectVaultAdvice); err != nil {
 			return err
 		}
 		batch = r.VaultID
@@ -709,7 +720,7 @@ func (a *App) MergeOneKpz(cmd Command, kpzInput string) error {
 			return err
 		}
 		member := kpz.SourceDir + filepath.Base(si.SourcePath)
-		rf := &returnedFile{input: kpzInput, doc: si.SourcePath, locale: targetLocale, reference: "kpz", sourceHash: si.ContentHash, batch: batch}
+		rf := &returnedFile{input: kpzInput, doc: si.SourcePath, locale: targetLocale, reference: "kpz", sourceHash: si.ContentHash, batch: batch, redactedPackage: batch != ""}
 		for _, ov := range pkg.Overlays {
 			if blockstore.CanonicalOverlayKind(ov.Kind) != blockstore.TargetOverlayKind(targetLocale) || (ov.Source != "" && ov.Source != member) {
 				continue
@@ -1137,9 +1148,12 @@ func expandMergeInputs(inputs []string, root string) ([]string, error) {
 	return out, nil
 }
 
+// hasAnyText reports whether runs hold text, in the sequence or in any
+// plural form or select case, so a translation that is a plural alone is not
+// taken for an empty one.
 func hasAnyText(runs []model.Run) bool {
-	for _, r := range runs {
-		if r.Text != nil && strings.TrimSpace(r.Text.Text) != "" {
+	for _, text := range runTexts(runs) {
+		if strings.TrimSpace(text) != "" {
 			return true
 		}
 	}

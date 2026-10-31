@@ -1127,7 +1127,7 @@ func (a *App) RunExtractKpz(cmd Command) error {
 	fmt.Fprintf(cmd.OutOrStdout(), "\nExtracted %d bilingual interchange package(s) into %s\n", written, outDir)
 	if vaultID != "" {
 		vault, _ := filepath.Rel(layout.Root, layout.RedactionSidecarPath(vaultID))
-		fmt.Fprintf(cmd.OutOrStdout(), "Redacted: the packages hold a placeholder for each withheld value, and kapi merge restores the values in this project from %s\n", filepath.ToSlash(vault))
+		fmt.Fprintf(cmd.OutOrStdout(), "Redacted: each withheld value is a placeholder. kapi merge restores the values in this project from %s\n", filepath.ToSlash(vault))
 	}
 	return nil
 }
@@ -1146,9 +1146,18 @@ func (a *App) redactKpzSources(cmd Command, pctx *project.ProjectContext, layout
 		if err != nil {
 			return nil, "", err
 		}
-		if spec != nil {
-			specs[src.Relative] = spec
+		if spec == nil {
+			continue
 		}
+		if hasDetector(spec.Detectors, "entities") {
+			// Entity detection reads the entity annotations an
+			// entity-extract step leaves on a block, and extract runs none,
+			// so the package would hold the names while recording that it
+			// withholds them.
+			at := pctx.Project.RedactionForPath(filepath.ToSlash(src.Relative)).At
+			return nil, "", fmt.Errorf("extract: the redaction policy at %s detects entities, which needs an entity-extract step that a .kpz extraction does not run, so the package would hold the values the policy withholds. Set %s.detectors to [rules], or extract XLIFF 2 or PO instead", at, at)
+		}
+		specs[src.Relative] = spec
 	}
 	if len(specs) == 0 {
 		return nil, "", nil
@@ -1227,9 +1236,8 @@ func (a *App) extractOneKpz(ctx context.Context, task kpzInterchangeTask) error 
 	// withheld value goes into the package. The revisions stay those of the
 	// source as the project holds it, which is what merge compares them with.
 	skelData, lookupBlocks := data, blocks
-	var withheld []string
 	if task.redacted != nil {
-		skelData, lookupBlocks, withheld = task.redacted.data, task.redacted.blocks, task.redacted.withheld
+		skelData, lookupBlocks = task.redacted.data, task.redacted.blocks
 	}
 
 	// Capture the round-trip skeleton. A capture FAILURE is not the same thing
@@ -1269,9 +1277,14 @@ func (a *App) extractOneKpz(ctx context.Context, task kpzInterchangeTask) error 
 		}
 		if task.tm != nil {
 			if matches, merr := task.tm.Lookup(ctx, b, task.ctx.SourceLocale, task.targetLocale, memory.LookupOptions{MinScore: threshold, MaxResults: 1}); merr == nil && len(matches) > 0 && !matches[0].Ambiguous {
-				// A match that holds a withheld value is left out whole: its
-				// translation and its entry would carry the value.
-				if entryJSON, _ := json.Marshal(matches[0].Entry); heldInText(string(entryJSON), withheld) {
+				// A match that holds anything the policy withholds, from any
+				// file, is left out whole: its translation and its entry would
+				// carry the value.
+				held, herr := task.redacted.holds(ctx, matches[0].Entry)
+				if herr != nil {
+					return herr
+				}
+				if held {
 					continue
 				}
 				if text := matches[0].Entry.VariantText(task.targetLocale); text != "" {
@@ -1307,11 +1320,15 @@ func (a *App) extractOneKpz(ctx context.Context, task kpzInterchangeTask) error 
 	var tbFile *ktb.File
 	if task.tb != nil {
 		if concepts, cerr := task.tb.Concepts(ctx); cerr == nil && len(concepts) > 0 {
-			// A concept that names a withheld value stays out of a redacted
-			// package.
+			// A concept that names anything the policy withholds stays out
+			// of a redacted package.
 			kept := concepts[:0:0]
 			for _, c := range concepts {
-				if cj, _ := json.Marshal(c); !heldInText(string(cj), withheld) {
+				held, herr := task.redacted.holds(ctx, c)
+				if herr != nil {
+					return herr
+				}
+				if !held {
 					kept = append(kept, c)
 				}
 			}

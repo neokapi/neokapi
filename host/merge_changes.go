@@ -134,6 +134,9 @@ type returnedFile struct {
 	// plainSource says the units carry their source as plain text, as a PO
 	// msgid does, rather than as runs.
 	plainSource bool
+	// redactedPackage says the file is a redacted .kpz, whose translations
+	// must hold no placeholder once the vault restored them.
+	redactedPackage bool
 }
 
 // mergeOutcome is what became of one unit of a returned file.
@@ -183,7 +186,10 @@ func (a *App) mergeReturned(ctx context.Context, task mergeTask, rf *returnedFil
 		return stats, nil, err
 	}
 	if rf.batch != "" {
-		if err := restoreRedactedBlocks(task.layout, rf.batch, rf.doc, rf.blocks, rf.locale, !task.noRestore); err != nil {
+		if err := restoreRedactedBlocks(task.layout, rf.batch, rf.doc, rf.blocks, rf.locale, !task.noRestore, rf.redactedPackage); err != nil {
+			if pe := (*unrestoredPlaceholderError)(nil); errors.As(err, &pe) {
+				return stats, nil, err
+			}
 			return stats, nil, fmt.Errorf("merge: restore redaction for batch %s: %w", rf.batch, err)
 		}
 	}

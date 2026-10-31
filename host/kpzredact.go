@@ -3,6 +3,7 @@ package host
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -48,6 +49,79 @@ type redactedSource struct {
 	blocks []*model.Block
 	// withheld are the originals the vault keeps for the file.
 	withheld []string
+	// detector finds what the policy's rules withhold, in any text; locale is
+	// the language it reads the text in.
+	detector redaction.Detector
+	locale   model.LocaleID
+}
+
+// finds reports whether the policy's rules find a value to withhold in s,
+// once each visible token in tokens is taken out of it.
+func (rs *redactedSource) finds(ctx context.Context, s string, tokens []string) (bool, error) {
+	for _, tok := range tokens {
+		s = strings.ReplaceAll(s, tok, "")
+	}
+	matches, err := rs.detector.Detect(ctx, s, rs.locale)
+	if err != nil {
+		return false, fmt.Errorf("redaction: %w", err)
+	}
+	return len(matches) > 0, nil
+}
+
+// holds reports whether v, as JSON, holds a value the policy's rules
+// withhold, or one the vault keeps for the file. A nil rs holds nothing.
+func (rs *redactedSource) holds(ctx context.Context, v any) (bool, error) {
+	if rs == nil {
+		return false, nil
+	}
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(v); err != nil {
+		return false, err
+	}
+	if heldIn(buf.Bytes(), rs.withheld) {
+		return true, nil
+	}
+	return rs.finds(ctx, buf.String(), nil)
+}
+
+// policyDetector compiles the rules file a policy names into a detector.
+// Relative paths are read against rootDir.
+func policyDetector(spec *project.RedactionSpec, rootDir string) (redaction.Detector, error) {
+	path := spec.Rules
+	if path == "" {
+		return nil, errors.New("redaction is enabled but no rules file is set")
+	}
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(rootDir, path)
+	}
+	rf, err := redaction.LoadRulesFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return redaction.NewRuleDetector(rf.Rules)
+}
+
+// runTexts returns the text of every text run in runs, in every plural form
+// and select case too.
+func runTexts(runs []model.Run) []string {
+	var out []string
+	for _, r := range runs {
+		switch {
+		case r.Text != nil:
+			out = append(out, r.Text.Text)
+		case r.Plural != nil:
+			for _, form := range r.Plural.Forms {
+				out = append(out, runTexts(form)...)
+			}
+		case r.Select != nil:
+			for _, c := range r.Select.Cases {
+				out = append(out, runTexts(c)...)
+			}
+		}
+	}
+	return out
 }
 
 // redactedSourceInput says which file redactSourceForKpz writes again and
@@ -72,7 +146,7 @@ func newPackageVault(path, id string) error {
 		return err
 	}
 	if _, err := os.Stat(path); err == nil {
-		return fmt.Errorf("a vault already sits at %s and holds the values an earlier extract withheld. Merge the package it restores first and then remove the vault, or extract to another package name", path)
+		return fmt.Errorf("%s already holds the values an earlier extract withheld. Merge that package and remove the vault, or extract to another name", path)
 	}
 	v, err := redaction.OpenFileVault(path)
 	if err != nil {
@@ -131,14 +205,18 @@ func (a *App) redactSourceForKpz(ctx context.Context, in redactedSourceInput) (*
 		return nil, fmt.Errorf("%s: read the redacted file back: %w", in.doc, err)
 	}
 	if !slices.Equal(readBlockIDs(original), readBlockIDs(redacted)) {
-		return nil, fmt.Errorf("%s: its blocks are identified differently once the redaction policy withholds its values, so kapi merge could not restore them, and kapi writes no package. Extract XLIFF 2 or PO from a project instead (--format xliff2 or --format po)", in.doc)
+		return nil, fmt.Errorf("%s: withholding its values changes its block IDs, so kapi merge could not restore them. kapi wrote no package. Extract XLIFF 2 or PO instead (--format xliff2 or --format po)", in.doc)
 	}
 
+	det, err := policyDetector(in.spec, in.rootDir)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", in.doc, err)
+	}
 	v, err := redaction.OpenFileVault(in.vaultPath)
 	if err != nil {
 		return nil, err
 	}
-	rs := &redactedSource{data: data, blocks: redacted}
+	rs := &redactedSource{data: data, blocks: redacted, detector: det, locale: in.locale}
 	var tokens []string
 	for _, rv := range v.All() {
 		if rv.Doc != in.doc {
@@ -151,14 +229,35 @@ func (a *App) redactSourceForKpz(ctx context.Context, in redactedSourceInput) (*
 			tokens = append(tokens, rv.Disp)
 		}
 	}
-	// A value that reads as part of a token ("Person" in "[REDACTED:Person]")
-	// is not held by the token.
+	// The redacted file must hold nothing the rules withhold: not in its
+	// markup, and not in a block, where a value split by an inline code
+	// escapes the redact step. A value that reads as part of a token
+	// ("Person" in "[REDACTED:Person]") is not held by the token.
 	bare := data
 	for _, tok := range tokens {
 		bare = bytes.ReplaceAll(bare, []byte(tok), nil)
 	}
-	if heldIn(bare, rs.withheld) {
-		return nil, fmt.Errorf("%s holds a value the redaction policy withholds outside any block kapi can withhold it from (in the file's markup, in a field kapi does not read as a block, or across an inline code), and a .kpz package carries that part of the file whole, so kapi writes no package. Extract XLIFF 2 or PO from a project instead (--format xliff2 or --format po)", in.doc)
+	held := heldIn(bare, rs.withheld)
+	if !held {
+		if held, err = rs.finds(ctx, string(data), tokens); err != nil {
+			return nil, err
+		}
+	}
+	for _, b := range redacted {
+		if held {
+			break
+		}
+		for _, text := range runTexts(b.SourceRuns()) {
+			if held, err = rs.finds(ctx, text, tokens); err != nil {
+				return nil, err
+			}
+			if held {
+				break
+			}
+		}
+	}
+	if held {
+		return nil, fmt.Errorf("%s holds a withheld value outside any block (in markup, in a field kapi does not read, or across an inline code). kapi wrote no package. Extract XLIFF 2 or PO instead (--format xliff2 or --format po)", in.doc)
 	}
 	return rs, nil
 }
@@ -175,16 +274,6 @@ func readBlockIDs(blocks []*model.Block) []string {
 func heldIn(data []byte, withheld []string) bool {
 	for _, w := range withheld {
 		if bytes.Contains(data, []byte(w)) {
-			return true
-		}
-	}
-	return false
-}
-
-// heldInText is heldIn over a string.
-func heldInText(s string, withheld []string) bool {
-	for _, w := range withheld {
-		if strings.Contains(s, w) {
 			return true
 		}
 	}
@@ -243,29 +332,95 @@ func tokenEdits(runs, shown []model.Run) []model.RunEdit {
 func packageVault(pkgName, path, wantID, regenerate string) (*redaction.FileVault, error) {
 	if _, err := os.Stat(path); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return nil, fmt.Errorf("merge: %s is a redacted package: it holds a placeholder wherever its redaction policy withheld a value, and the vault that restores them is not at %s, so kapi merge writes nothing. %s", pkgName, path, regenerate)
+			return nil, fmt.Errorf("merge: %s is redacted, and its vault is not at %s. kapi merge wrote no file. %s", pkgName, path, regenerate)
 		}
-		return nil, fmt.Errorf("merge: %s is a redacted package, and its vault %s cannot be read: %w", pkgName, path, err)
+		return nil, fmt.Errorf("merge: %s is redacted, and its vault %s cannot be read: %w", pkgName, path, err)
 	}
 	v, err := redaction.OpenFileVault(path)
 	if err != nil {
-		return nil, fmt.Errorf("merge: %s is a redacted package, and its vault cannot be read: %w", pkgName, err)
+		return nil, packageVaultOpenError(pkgName, err)
 	}
 	if v.ID() != wantID {
 		got := v.ID()
 		if got == "" {
 			got = "none"
 		}
-		return nil, fmt.Errorf("merge: %s is a redacted package that names vault %s, and the vault at %s is vault %s, so kapi merge writes nothing. %s", pkgName, wantID, path, got, regenerate)
+		return nil, fmt.Errorf("merge: %s is redacted and names vault %s. The vault at %s is vault %s. kapi merge wrote no file. %s", pkgName, wantID, path, got, regenerate)
 	}
 	return v, nil
 }
 
+// packageVaultOpenError is the refusal of a redacted package whose vault
+// does not open. A vault a newer kapi wrote says to upgrade; any other vault
+// that does not open, an older one among them, is replaced by extracting the
+// package again.
+func packageVaultOpenError(pkgName string, err error) error {
+	if errors.Is(err, redaction.ErrNewerVault) {
+		return fmt.Errorf("merge: %s is redacted, and its vault cannot be read: %w", pkgName, err)
+	}
+	return fmt.Errorf("merge: %s is redacted, and its vault cannot be read: %w. Run kapi extract again to write a new package and vault", pkgName, err)
+}
+
+// Advice the merge refusal of a redacted package ends with, per route.
+const (
+	workspaceVaultAdvice = "Copy the vault kapi extract wrote to that path, or extract the package again"
+	projectVaultAdvice   = "Merge it in the project that extracted it, or extract it again"
+)
+
+// placeholderPrefixes returns the part of each visible token in entries that
+// comes before its category ("[REDACTED:" of "[REDACTED:Person]"): text a
+// translation holds only when a translator rewrote a placeholder.
+func placeholderPrefixes(entries []redaction.RedactedValue) []string {
+	var out []string
+	for _, e := range entries {
+		if e.Disp == "" {
+			continue
+		}
+		prefix := e.Disp
+		if cat := e.Category; cat != "" {
+			title := strings.ToUpper(cat[:1]) + cat[1:]
+			if i := strings.Index(e.Disp, title); i > 0 {
+				prefix = e.Disp[:i]
+			}
+		}
+		if !slices.Contains(out, prefix) {
+			out = append(out, prefix)
+		}
+	}
+	return out
+}
+
+// heldPlaceholder returns the first prefix that a text run of runs, in any
+// plural form or select case, still holds.
+func heldPlaceholder(runs []model.Run, prefixes []string) (string, bool) {
+	for _, text := range runTexts(runs) {
+		for _, p := range prefixes {
+			if strings.Contains(text, p) {
+				return p, true
+			}
+		}
+	}
+	return "", false
+}
+
+// errUnrestoredPlaceholder is the refusal of a translation that still holds
+// a placeholder once the vault restored what it could.
+func errUnrestoredPlaceholder(doc, blockID, prefix string) error {
+	return &unrestoredPlaceholderError{doc: doc, block: blockID, prefix: prefix}
+}
+
+type unrestoredPlaceholderError struct{ doc, block, prefix string }
+
+func (e *unrestoredPlaceholderError) Error() string {
+	return fmt.Sprintf("merge: %s, block %s: the translation holds a placeholder no value in the vault matches (%q…), so a translator changed it. kapi merge wrote no file for it. Put the placeholder back as the package holds it and merge again", e.doc, e.block, e.prefix)
+}
+
 // packageVaultHere reports whether the vault that restores the redacted
-// package at pkgPath is on this machine: beside the package, or among the
-// batch vaults of the project at recipe.
-func packageVaultHere(recipe, pkgPath string, r *kpz.Redaction) bool {
-	candidates := []string{workspaceVaultPath(pkgPath)}
+// package r records is among the batch vaults of the project at recipe:
+// only a package kapi extract --format kpz wrote in this project was
+// redacted under the project's own policies.
+func packageVaultHere(recipe string, r *kpz.Redaction) bool {
+	var candidates []string
 	if layout, err := project.LayoutFor(recipe); err == nil {
 		candidates = append(candidates, layout.RedactionSidecarPath(r.VaultID))
 	}
@@ -288,4 +443,34 @@ func packageRedaction(path string) *kpz.Redaction {
 		return nil
 	}
 	return pkg.Redaction
+}
+
+// docPlaceholderPrefixes returns the placeholder prefixes of every value the
+// vault keeps for doc.
+func docPlaceholderPrefixes(vault redaction.Vault, doc string) []string {
+	var entries []redaction.RedactedValue
+	for _, rv := range vault.All() {
+		if rv.Doc == doc {
+			entries = append(entries, rv)
+		}
+	}
+	return placeholderPrefixes(entries)
+}
+
+// newPlaceholderCheckTool returns the merge step that stops at a translation
+// of doc into locale that still holds a placeholder once unredact restored
+// what the vault keeps.
+func newPlaceholderCheckTool(doc string, locale model.LocaleID, vault redaction.Vault) tool.Tool {
+	prefixes := docPlaceholderPrefixes(vault, doc)
+	t := &tool.BaseTool{
+		ToolName:        "check-redaction-placeholders",
+		ToolDescription: "Stops at a translation that holds a placeholder the vault cannot restore",
+	}
+	t.Annotate = func(v tool.BlockView) error {
+		if p, ok := heldPlaceholder(v.TargetRuns(locale), prefixes); ok {
+			return errUnrestoredPlaceholder(doc, v.ID(), p)
+		}
+		return nil
+	}
+	return t
 }

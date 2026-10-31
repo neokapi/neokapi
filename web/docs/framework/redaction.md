@@ -212,9 +212,10 @@ Content that sits in no file, such as the text an MCP tool call passes, is
 redacted under `defaults.redaction`. A `.kpz` package holds files of every
 collection, so in a project that declares a collection's or an item's policy,
 `kapi exec` refuses to run a tool that calls a model over a package; run it on
-the project's files instead. A redacted package (below) whose vault is on your
-machine is the exception: its files already hold tokens, so the tool runs and
-reads them. A flow places its own `redact` step, and
+the project's files instead. A redacted package (below) that
+`kapi extract --format kpz` wrote in this project is the exception: its files
+already hold placeholders, so the tool runs and reads them. A flow places its
+own `redact` step, and
 kapi refuses to run a flow that sends source to a remote provider without one.
 A project flow runs over every file of the run, so it needs the step when any
 declaration in the recipe turns redaction on. A built-in flow run on one file
@@ -259,9 +260,9 @@ and `kapi extract <files> -o work.kpz` write a redacted package. Each source
 file in it holds the visible placeholder (`[REDACTED:Person]`) wherever the
 policy withholds a value: the skeleton, the raw source that `--with-source`
 adds, and the content-memory matches and terms that travel with the package. A
-match or a term that holds a withheld value stays out of the package. The
-package's manifest records that it is redacted and the ID of the vault that
-restores it, and nothing else about the originals.
+match or a term in which the policy's rules find a value stays out of the
+package. The package's manifest records that it is redacted and the ID of the
+vault that restores it.
 
 The vault never travels inside the package:
 
@@ -272,22 +273,26 @@ The vault never travels inside the package:
   path: merge the package it restores first and remove the vault, or extract to
   another name.
 
-Whoever receives the package works on the placeholders. `kapi merge` restores
-each file's values from the vault whose ID the manifest records: in the project
-for a project package, and beside the package for `merge work.kpz`. When the
-vault is not there, or its ID differs, the merge stops before it writes a file
-and names the vault it looked for. Keep the placeholders intact during
-translation; a placeholder a translator rewrites stays in the merged file as
-written.
+Whoever receives the package works on the placeholders. A receiver who runs
+`kapi exec` on the package needs the source text in it, so extract it with
+`--with-source`: a package that carries only skeletons gives a tool no text to
+work on, and merges empty values. `kapi merge` restores each file's values,
+in every plural form, from the vault whose ID the manifest records: in the
+project for a project package, and beside the package for `merge work.kpz`.
+When the vault is not there, or its ID differs, the merge stops before it
+writes a file and names the vault it looked for. Keep the placeholders intact
+during translation: a translation that still holds a placeholder after the
+restore stops the merge, which names the file and the block.
 
 `kapi exec` runs a tool over a redacted package on the placeholders and never
-reads the vault, so the package keeps holding tokens until the merge. A tool
-that calls a model runs over a redacted package in a project that declares a
-collection's or an item's policy only when the package's vault is on your
-machine.
+reads the vault, so the package keeps holding placeholders until the merge. In
+a project that declares a collection's or an item's policy, a tool that calls a
+model runs over a package only when `kapi extract --format kpz` wrote the
+package in this project, so its vault is among the project's batch vaults.
 
-Extract refuses a file it cannot redact into a package: one that holds a
-withheld value outside any block (in its markup, in a field kapi does not read
-as a block, or across an inline code), and one whose blocks are identified
-differently once the values are withheld. A project's XLIFF 2 or PO extraction
-carries the blocks alone, and works for both.
+Extract refuses a file it cannot redact into a package: one in which the
+policy's rules still find a value once the blocks are redacted (in its markup,
+in a field kapi does not read as a block, or across an inline code), and one
+whose block IDs change once the values are withheld. It also refuses a policy
+that detects entities, since a `.kpz` extraction runs no entity-extract step.
+A project's XLIFF 2 or PO extraction carries the blocks alone.
