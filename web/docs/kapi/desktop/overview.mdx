@@ -278,10 +278,14 @@ through it.
 ## Sessions, and going back {#history-and-going-back}
 
 **Sessions**, reached from the Assistants page, lists what was recorded in the
-project, one session per row, newest first: the assistant or the person who worked, when, and how many
-operations the session holds. Select a session and the pane beside the list
-shows its operations: what the assistant noticed, what a person decided, and
-when. `kapi context log` prints the same record.
+project, one session per row, newest first: the assistant or the person who
+worked, when, and how many operations the session holds, if it holds any.
+Select a session and the pane beside the list shows its counts, with the check
+counts where the check on every edit ran, and then one list by time: its
+operations (what the assistant noticed, what a person decided) and its latest
+check runs. A check run's row names the files it checked, or how many, and reads `clean` or
+the failing count with the rules, and marks `caught` beside a finding the next
+run no longer found. `kapi context log` prints the same record.
 
 An assistant's session has **Reset to before this session** above its
 operations. It goes back to how the context stood before that session started.

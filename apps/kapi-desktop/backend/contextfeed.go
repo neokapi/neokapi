@@ -203,6 +203,62 @@ type ContextFeedGroup struct {
 	// when its summary is a count of finished work.
 	Quiet   bool               `json:"quiet"`
 	Entries []ContextFeedEntry `json:"entries"`
+	// Runs are the session's latest check runs, newest first, at most
+	// contextFeedMaxRuns of them. Checked counts them all.
+	Runs []ContextCheckRun `json:"runs"`
+}
+
+// contextFeedMaxRuns bounds the check runs a group lists, and
+// contextRunMaxFiles and contextRunMaxFindings what one run lists. The feed
+// is read on every change to the log, and a session's detail shows its latest
+// runs; the counts stay exact.
+const (
+	contextFeedMaxRuns    = 20
+	contextRunMaxFiles    = 20
+	contextRunMaxFindings = 20
+)
+
+// ContextCheckRun is one run of a project's checks, as a session's detail
+// lists it.
+type ContextCheckRun struct {
+	// ID names the check operation.
+	ID string `json:"id"`
+	// ProjectKey is the project the run checked.
+	ProjectKey string `json:"project_key"`
+	// At is when the log accepted the run, RFC3339 in UTC.
+	At string `json:"at"`
+	// Files are the files the session's turn edited, when the run knows them
+	// (Edited), at most contextRunMaxFiles of them. FileCount counts the
+	// edited files, or the files the check read when the run knows no edit.
+	Files     []string `json:"files"`
+	Edited    bool     `json:"edited"`
+	FileCount int      `json:"file_count"`
+	// Reached reports a run that reached a verdict. Clean reports one that
+	// reached it with nothing failing.
+	Reached bool `json:"reached"`
+	Clean   bool `json:"clean"`
+	// Failing counts the run's failing findings, and Rules are their rule ids,
+	// sorted.
+	Failing int      `json:"failing"`
+	Rules   []string `json:"rules"`
+	// Findings are the failing findings, at most contextRunMaxFindings of
+	// them, those caught first when the run holds more.
+	Findings []ContextCheckFinding `json:"findings"`
+	// Caught counts the run's failing findings the session's next run no
+	// longer found.
+	Caught int `json:"caught"`
+}
+
+// ContextCheckFinding is one failing finding of a check run.
+type ContextCheckFinding struct {
+	File  string `json:"file,omitempty"`
+	Rule  string `json:"rule"`
+	Quote string `json:"quote,omitempty"`
+	// Message is the finding's message, for a finding that quotes nothing.
+	Message string `json:"message,omitempty"`
+	// Caught reports a finding the session's next run no longer found on the
+	// same file: the check reported it and the assistant fixed it.
+	Caught bool `json:"caught"`
 }
 
 // ContextFeed is what a person and the agents beside them have recorded.
@@ -836,10 +892,15 @@ func groupContextFeed(records, checks []contextop.Record, registry *contextProje
 	}
 
 	outcomes := host.SessionOutcomesOf(checks)
+	listed := sessionRunsOf(checks)
 	out := make([]ContextFeedGroup, 0, len(order))
 	for _, id := range order {
 		group := groups[id]
+		group.Runs = []ContextCheckRun{}
 		if group.Session != "" {
+			if r := listed[group.Session]; r != nil {
+				group.Runs = r
+			}
 			if o, ok := outcomes[group.Session]; ok {
 				group.Checked, group.Failing, group.Caught, group.Files = o.Checked, o.Failing, o.Caught, o.Files
 			}
@@ -908,6 +969,128 @@ func checkSessionsOf(checks []contextop.Record) checkSessions {
 	sort.SliceStable(out.order, func(i, j int) bool {
 		return out.sessions[out.order[i]].last.After(out.sessions[out.order[j]].last)
 	})
+	return out
+}
+
+// sessionRunsOf lists each session's latest check runs, newest first, with
+// what each run caught marked on its findings.
+//
+// The rule is host.SessionOutcomesOf's, applied finding by finding. Runs are
+// compared within one project and one session, in the order the log accepted
+// them, and only runs that reached a verdict take part. A failing finding of
+// one run that the next such run no longer reports, by its file, its rule and
+// the wording it quotes, was caught; when the next run lists fewer findings
+// than it counted, nothing is caught. The mark sits on the run that last
+// reported the finding, so the run that caught it shows what it caught.
+func sessionRunsOf(checks []contextop.Record) map[string][]ContextCheckRun {
+	sequences := map[string][]contextop.Record{}
+	for _, r := range checks {
+		if r.Kind != contextop.KindCheck || r.Check == nil || r.Actor.Session == "" {
+			continue
+		}
+		key := string(r.Project) + "\x00" + r.Actor.Session
+		sequences[key] = append(sequences[key], r)
+	}
+	out := map[string][]ContextCheckRun{}
+	for _, seq := range sequences {
+		sort.SliceStable(seq, func(i, j int) bool { return seq[i].ID < seq[j].ID })
+		caught := make([][]bool, len(seq))
+		prev := -1
+		for i, r := range seq {
+			if !r.Check.Reached() {
+				continue
+			}
+			if prev >= 0 {
+				caught[prev] = caughtFindings(*seq[prev].Check, *r.Check)
+			}
+			prev = i
+		}
+		session := seq[0].Actor.Session
+		for i, r := range seq {
+			out[session] = append(out[session], checkRunDTO(r, caught[i]))
+		}
+	}
+	for session, runs := range out {
+		sort.SliceStable(runs, func(i, j int) bool {
+			if runs[i].At != runs[j].At {
+				return runs[i].At > runs[j].At
+			}
+			return runs[i].ID > runs[j].ID
+		})
+		if len(runs) > contextFeedMaxRuns {
+			runs = runs[:contextFeedMaxRuns]
+		}
+		out[session] = runs
+	}
+	return out
+}
+
+// caughtFindings marks which of prev's listed findings next no longer
+// reports. Two findings with one key match one to one, so a finding reported
+// twice and fixed once is caught once.
+func caughtFindings(prev, next contextop.CheckRun) []bool {
+	if !next.Complete() {
+		return nil
+	}
+	remaining := map[string]int{}
+	for _, f := range next.Findings {
+		remaining[f.Key()]++
+	}
+	out := make([]bool, len(prev.Findings))
+	for i, f := range prev.Findings {
+		if remaining[f.Key()] > 0 {
+			remaining[f.Key()]--
+			continue
+		}
+		out[i] = true
+	}
+	return out
+}
+
+// checkRunDTO renders one check run, with caught marking its findings by
+// position.
+func checkRunDTO(r contextop.Record, caught []bool) ContextCheckRun {
+	run := *r.Check
+	out := ContextCheckRun{
+		ID:         r.ID,
+		ProjectKey: string(r.Project),
+		At:         r.At.UTC().Format(time.RFC3339),
+		Files:      []string{},
+		Edited:     run.Edited,
+		FileCount:  run.Covered,
+		Reached:    run.Reached(),
+		Clean:      run.Clean,
+		Failing:    run.Failing,
+		Rules:      append([]string{}, run.Rules...),
+		Findings:   []ContextCheckFinding{},
+	}
+	if run.Edited {
+		out.FileCount = len(run.Files)
+		out.Files = append(out.Files, run.Files[:min(len(run.Files), contextRunMaxFiles)]...)
+	}
+	// Every caught finding is listed before any other is, so a run with more
+	// findings than it lists still shows what it caught; the list keeps the
+	// run's order.
+	room := contextRunMaxFindings
+	for _, c := range caught {
+		if c {
+			out.Caught++
+		}
+	}
+	room -= min(out.Caught, room)
+	for i, f := range run.Findings {
+		isCaught := i < len(caught) && caught[i]
+		if !isCaught {
+			if room == 0 {
+				continue
+			}
+			room--
+		}
+		if len(out.Findings) == contextRunMaxFindings {
+			break
+		}
+		out.Findings = append(out.Findings, ContextCheckFinding{File: f.File, Rule: f.Rule, Quote: f.Quote, Message: f.Message, Caught: isCaught})
+	}
 	return out
 }
 

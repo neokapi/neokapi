@@ -1254,6 +1254,43 @@ export interface ContextFeedGroup {
   quiet: boolean;
   /** Empty for a session that only ran checks. */
   entries: ContextFeedEntry[];
+  /** The session's latest check runs, newest first; `checked` counts them all. */
+  runs: ContextCheckRun[];
+}
+
+/** One run of a project's checks, as a session's detail lists it. */
+export interface ContextCheckRun {
+  id: string;
+  project_key: string;
+  /** When the log accepted the run, RFC3339 in UTC. */
+  at: string;
+  /** The files the session's turn edited, when the run knows them (`edited`). */
+  files: string[];
+  edited: boolean;
+  /** The edited files, or the files the check read when the run knows no edit. */
+  file_count: number;
+  /** The run reached a verdict. */
+  reached: boolean;
+  /** It reached one with nothing failing. */
+  clean: boolean;
+  failing: number;
+  /** The rule ids of the failing findings, sorted. */
+  rules: string[];
+  /** The failing findings the run lists, those caught first when it holds more. */
+  findings: ContextCheckFinding[];
+  /** The run's findings the session's next run no longer found. */
+  caught: number;
+}
+
+/** One failing finding of a check run. */
+export interface ContextCheckFinding {
+  file?: string;
+  rule: string;
+  quote?: string;
+  /** The finding's message, for a finding that quotes nothing. */
+  message?: string;
+  /** The session's next run no longer found it on the same file. */
+  caught: boolean;
 }
 
 /** What one project's digest holds that the person has not seen. */

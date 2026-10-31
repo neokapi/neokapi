@@ -8,8 +8,10 @@ import {
   CANDIDATE,
   CONTEXT_FEED,
   EMPTY_FEED,
+  HOOK_ONLY_SESSION,
   IN_FORCE,
   MANY_SESSIONS_FEED,
+  MIXED_SESSION,
   RESET_FEED,
   feedEntry,
   feedGroup,
@@ -130,41 +132,37 @@ export const StillWorking: Story = {
 };
 
 /**
- * Sessions the check on every edit ran in: claude's suggestions with runs
- * that caught a finding, and a session that only ran the check, selected,
- * which holds no operations.
+ * Sessions the check on every edit ran in, the one that only ran the check
+ * selected: its runs newest first, the last one clean, and the findings the
+ * next run no longer found marked caught.
  */
 export const SessionsTheCheckRanIn: Story = {
   args: {
     feed: {
       ...CONTEXT_FEED,
-      groups: [
-        feedGroup({
-          id: "session:sess-1",
-          session: "sess-1",
-          recorded: 2,
-          kept: 1,
-          files: 2,
-          checked: 3,
-          caught: 1,
-          failed: true,
-          entries: [CANDIDATE, IN_FORCE],
-        }),
-        feedGroup({
-          id: "session:sess-2",
-          session: "sess-2",
-          actor: { kind: "agent", name: "claude-code", session: "sess-2", host: "studio" },
-          first: "2026-09-21T08:10:00Z",
-          last: "2026-09-21T08:40:00Z",
-          files: 1,
-          checked: 2,
-          clean: true,
-          entries: [],
-        }),
-        ...CONTEXT_FEED.groups.slice(1),
-      ],
+      groups: [MIXED_SESSION, HOOK_ONLY_SESSION, ...CONTEXT_FEED.groups.slice(1)],
     } satisfies ContextFeed,
-    defaultSelected: "session:sess-2",
+    defaultSelected: HOOK_ONLY_SESSION.id,
+  },
+};
+
+/** The same in the dark theme. */
+export const SessionsTheCheckRanInDark: Story = {
+  ...SessionsTheCheckRanIn,
+  globals: { theme: "dark" },
+};
+
+/**
+ * A session that recorded suggestions and ran the check between them,
+ * selected: its operations and its runs in one list by time.
+ */
+export const SuggestionsAndChecksInOneSession: Story = {
+  args: {
+    feed: {
+      ...CONTEXT_FEED,
+      groups: [MIXED_SESSION, HOOK_ONLY_SESSION, ...CONTEXT_FEED.groups.slice(1)],
+    } satisfies ContextFeed,
+    defaultSelected: MIXED_SESSION.id,
   },
 };
 

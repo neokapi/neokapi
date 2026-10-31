@@ -2,7 +2,12 @@
 // backend renders one: an agent session with a candidate awaiting a decision,
 // a rule already in force, and a person's own day of work.
 
-import type { ContextFeed, ContextFeedEntry, ContextFeedGroup } from "../../types/api";
+import type {
+  ContextCheckRun,
+  ContextFeed,
+  ContextFeedEntry,
+  ContextFeedGroup,
+} from "../../types/api";
 
 const PROJECT = { project_key: "kapimart", project_name: "KapiMart" };
 
@@ -47,8 +52,28 @@ export function feedGroup(group: Partial<ContextFeedGroup> & { id: string }): Co
     quiet: true,
     ...PROJECT,
     recipe: "/fakehome/project/kapi.yaml",
+    runs: [],
     ...group,
     entries,
+  };
+}
+
+/** One check run, a clean one unless the fields say otherwise. */
+export function checkRun(
+  run: Partial<ContextCheckRun> & { id: string; at: string },
+): ContextCheckRun {
+  return {
+    project_key: PROJECT.project_key,
+    files: ["docs/pricing.md"],
+    edited: true,
+    file_count: 1,
+    reached: true,
+    clean: true,
+    failing: 0,
+    rules: [],
+    findings: [],
+    caught: 0,
+    ...run,
   };
 }
 
@@ -239,3 +264,79 @@ export const MANY_SESSIONS_FEED: ContextFeed = {
   truncated: true,
   read_only: false,
 };
+
+/** The wording the check reported in the session's first turns. */
+const SIGN_IN = { file: "docs/pricing.md", rule: "terms.vocabulary", quote: "sign in" };
+const UTILISE = { file: "docs/onboarding/welcome.md", rule: "terms.vocabulary", quote: "utilise" };
+
+/**
+ * A session that only ran the check on every edit: the first run found two
+ * findings, the next no longer found one of them, and the last was clean.
+ */
+export const HOOK_ONLY_SESSION = feedGroup({
+  id: "session:sess-hook",
+  session: "sess-hook",
+  actor: { kind: "agent", name: "claude-code", session: "sess-hook", host: "studio" },
+  first: "2026-09-21T08:10:00Z",
+  last: "2026-09-21T08:30:00Z",
+  files: 2,
+  checked: 3,
+  caught: 2,
+  failed: true,
+  entries: [],
+  runs: [
+    checkRun({ id: "run-3", at: "2026-09-21T08:30:00Z" }),
+    checkRun({
+      id: "run-2",
+      at: "2026-09-21T08:20:00Z",
+      clean: false,
+      failing: 1,
+      rules: ["terms.vocabulary"],
+      findings: [{ ...SIGN_IN, caught: true }],
+      caught: 1,
+    }),
+    checkRun({
+      id: "run-1",
+      at: "2026-09-21T08:10:00Z",
+      files: ["docs/pricing.md", "docs/onboarding/welcome.md"],
+      file_count: 2,
+      clean: false,
+      failing: 2,
+      rules: ["terms.vocabulary"],
+      findings: [
+        { ...SIGN_IN, caught: false },
+        { ...UTILISE, caught: true },
+      ],
+      caught: 1,
+    }),
+  ],
+});
+
+/**
+ * A session that recorded suggestions and ran the check between them: a
+ * failing run before the rule in force, and a clean one after it.
+ */
+export const MIXED_SESSION = feedGroup({
+  id: "session:sess-1",
+  session: "sess-1",
+  recorded: 2,
+  kept: 1,
+  files: 1,
+  checked: 2,
+  caught: 1,
+  failed: true,
+  entries: [CANDIDATE, IN_FORCE],
+  first: "2026-09-21T08:30:00Z",
+  runs: [
+    checkRun({ id: "run-b", at: "2026-09-21T08:50:00Z" }),
+    checkRun({
+      id: "run-a",
+      at: "2026-09-21T08:30:00Z",
+      clean: false,
+      failing: 1,
+      rules: ["terms.vocabulary"],
+      findings: [{ ...SIGN_IN, caught: true }],
+      caught: 1,
+    }),
+  ],
+});
