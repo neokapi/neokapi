@@ -175,6 +175,11 @@ type RedactTool struct {
 	entityCats  map[string]bool
 	opts        redaction.RedactOptions
 	vault       *redaction.FileVault // non-nil in external mode
+	// policy is what the tool leaves on each block it reads in-process, so
+	// the provider requests that carry the block are redacted the same way
+	// (redaction.Egress). Nil in external mode, where the block goes to a
+	// file rather than to a provider.
+	policy *redaction.Policy
 }
 
 // NewRedactFromConfig builds a redact tool from a config map.
@@ -249,6 +254,11 @@ func NewRedactTool(cfg *RedactConfig) (*RedactTool, error) {
 			return nil, err
 		}
 		t.vault = v
+	} else {
+		t.policy = &redaction.Policy{Options: t.opts, Locale: cfg.SourceLocale}
+		if t.rules != nil {
+			t.policy.Detector = t.rules
+		}
 	}
 
 	base := &tool.BaseTool{
@@ -267,13 +277,64 @@ func NewRedactTool(cfg *RedactConfig) (*RedactTool, error) {
 	return t, nil
 }
 
-// Process runs the streaming transform, then flushes the sidecar vault (if
-// any) once the input is drained.
+// Process runs the streaming transform over each part (ApplyContext), then
+// flushes the sidecar vault (if any) once the input is drained.
 func (t *RedactTool) Process(ctx context.Context, in <-chan *model.Part, out chan<- *model.Part) error {
-	if err := t.BaseTool.Process(ctx, in, out); err != nil {
+	if err := t.ValidateHandlers(); err != nil {
 		return err
 	}
-	return t.Flush()
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case part, ok := <-in:
+			if !ok {
+				return t.Flush()
+			}
+			result, err := t.ApplyContext(ctx, part)
+			if err != nil {
+				return err
+			}
+			if result == nil {
+				continue
+			}
+			select {
+			case out <- result:
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+	}
+}
+
+// Apply is ApplyContext with no deadline.
+func (t *RedactTool) Apply(part *model.Part) (*model.Part, error) {
+	return t.ApplyContext(context.Background(), part)
+}
+
+// ApplyContext redacts one part. In-process, it first leaves the tool's
+// policy on the block, whether or not the block holds a value to withhold:
+// a block with none still travels with term rules, a voice profile or a
+// prior version that may hold one.
+func (t *RedactTool) ApplyContext(ctx context.Context, part *model.Part) (*model.Part, error) {
+	t.bind(part)
+	return t.BaseTool.ApplyContext(ctx, part)
+}
+
+// bind leaves the tool's policy on the block part holds, in its redaction
+// entry.
+func (t *RedactTool) bind(part *model.Part) {
+	if t.policy == nil || part == nil {
+		return
+	}
+	b, ok := part.Resource.(*model.Block)
+	if !ok || b == nil {
+		return
+	}
+	if ann, ok := model.AnnoAs[*redaction.SecretAnnotation](b, redaction.SecretAnnotationKey); ok && ann != nil && ann.Policy == t.policy {
+		return
+	}
+	b.SetAnno(redaction.SecretAnnotationKey, &redaction.SecretAnnotation{Policy: t.policy})
 }
 
 // Flush persists the sidecar vault, if the tool is in external mode. Callers
@@ -449,7 +510,15 @@ func (t *RedactTool) vaultSecrets(v tool.BlockView, secrets []tool.Secret) error
 		}
 		return nil
 	}
-	ann := &redaction.SecretAnnotation{Values: make(map[string]redaction.RedactedValue, len(secrets))}
+	// The entry bind left on the block holds the policy; an entry another
+	// redact step left is replaced, as its tokens would collide with these.
+	ann, ok := v.Annotations()[redaction.SecretAnnotationKey].(*redaction.SecretAnnotation)
+	if !ok || ann == nil || ann.Policy != t.policy || t.policy == nil {
+		ann = &redaction.SecretAnnotation{Policy: t.policy}
+	}
+	if ann.Values == nil {
+		ann.Values = make(map[string]redaction.RedactedValue, len(secrets))
+	}
 	for _, s := range secrets {
 		ann.Values[s.Token] = toValue(s)
 		if s.Locale.IsEmpty() {

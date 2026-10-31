@@ -224,13 +224,38 @@ type blockView struct {
 }
 
 func newBlockView(ctx context.Context, b *model.Block) *blockView {
-	return &blockView{ctx: ctx, b: b}
+	return &blockView{ctx: bindContext(ctx, b), b: b}
 }
 
 // newToolView is a view a tool's dispatched handler writes through as the
 // named tool.
 func newToolView(ctx context.Context, b *model.Block, toolName string) *blockView {
-	return &blockView{ctx: ctx, b: b, tool: toolName}
+	return &blockView{ctx: bindContext(ctx, b), b: b, tool: toolName}
+}
+
+// ContextBinder is a block annotation that scopes the context a tool reads
+// the block with. The redaction entry a redact step leaves on a block is
+// one: it puts the policy that redacted the block on the context, so a
+// provider call the tool makes for the block redacts the rest of its request
+// too.
+type ContextBinder interface {
+	BindContext(context.Context) context.Context
+}
+
+// bindContext returns ctx scoped by every annotation of b that binds one.
+func bindContext(ctx context.Context, b *model.Block) context.Context {
+	if b == nil {
+		return ctx
+	}
+	for _, a := range b.Annotations {
+		if cb, ok := a.(ContextBinder); ok {
+			if ctx == nil {
+				ctx = context.Background()
+			}
+			ctx = cb.BindContext(ctx)
+		}
+	}
+	return ctx
 }
 
 // Refusal returns the first write the view's applier refused, or nil. The
