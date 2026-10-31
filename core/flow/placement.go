@@ -33,10 +33,16 @@ import (
 //     documented AD-020 detection trade-off, while a local detector never
 //     carries the egress effect in the first place.
 //
+//   - Error: a step that egresses source to a remote sink, or hands it to a
+//     program outside kapi, must not follow a step that restores the withheld
+//     values (unredact) unless a redact step runs between them; otherwise the
+//     restored originals leave kapi.
+//
 //   - Warning: a transformer placed later than its earliest valid slot (right
 //     after the last step producing a port it consumes) forces every overlay
 //     produced in between to be rebased across its rewrite; an earlier slot
-//     avoids the work and the precision loss.
+//     avoids the work and the precision loss. A transformer that sends source
+//     out of kapi counts a redact step ahead of it as one of its inputs.
 
 // PlacementSeverity grades a placement diagnostic.
 type PlacementSeverity string
@@ -53,6 +59,7 @@ const (
 	RuleTransformerAfterEgress       = "transformer-after-remote-egress"
 	RuleTransformerLate              = "transformer-late-placement"
 	RuleRedactionMissingBeforeEgress = "redaction-missing-before-remote-egress"
+	RuleEgressAfterRestore           = "egress-after-restore"
 )
 
 // PlacementDiagnostic is one finding from the placement pass.
@@ -172,7 +179,51 @@ func (d *FlowDefinition) ValidatePlacement(reg *registry.ToolRegistry) ([]Placem
 			})
 		}
 	}
-	return diags, nil
+	return append(diags, egressAfterRestore(ordered, infos)...), nil
+}
+
+// egressAfterRestore reports each step that sends source out of kapi after a
+// step that restores the withheld values (one that consumes the
+// redaction.secret port, unredact) with no recoverable step between them.
+func egressAfterRestore(ordered []FlowNode, infos []*registry.ToolInfo) []PlacementDiagnostic {
+	var diags []PlacementDiagnostic
+	restoredBy := ""
+	for i, n := range ordered {
+		info := infos[i]
+		if info == nil {
+			continue
+		}
+		if info.Recoverable {
+			restoredBy = ""
+		}
+		if restoredBy != "" && sendsSourceOut(info) {
+			diags = append(diags, PlacementDiagnostic{
+				Severity: PlacementError,
+				Rule:     RuleEgressAfterRestore,
+				NodeID:   n.ID,
+				Tool:     n.Name,
+				Message: fmt.Sprintf("%q sends source out of kapi after %q restored the values redaction withholds, with no redact step between them. Add a redact step ahead of %q, or move %q ahead of %q",
+					n.Name, restoredBy, n.Name, n.Name, restoredBy),
+			})
+		}
+		if consumesPortType(info, secretPort) {
+			restoredBy = n.Name
+		}
+	}
+	return diags
+}
+
+// secretPort is the port type that carries the withheld values from redact to
+// unredact (redaction.SecretAnnotationKey).
+const secretPort = "redaction.secret"
+
+func consumesPortType(info *registry.ToolInfo, portType string) bool {
+	for _, c := range info.Consumes {
+		if c.Type == portType {
+			return true
+		}
+	}
+	return false
 }
 
 // CheckPlacement runs ValidatePlacement and returns an error joining every

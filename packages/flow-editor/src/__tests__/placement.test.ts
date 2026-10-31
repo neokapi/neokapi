@@ -5,6 +5,7 @@ import {
   RULE_TRANSFORMER_AFTER_TARGET,
   RULE_TRANSFORMER_AFTER_EGRESS,
   RULE_TRANSFORMER_LATE,
+  RULE_EGRESS_AFTER_RESTORE,
 } from "../placement";
 import { stepsToGraph, graphToSteps } from "../conversion";
 import type { FlowSpec, ToolInfo } from "../types";
@@ -64,6 +65,11 @@ const tools = new Map<string, ToolInfo>([
   tool("external-command", {
     isSourceTransform: true,
     side_effects: ["process-exec"],
+  }),
+  // Rewrites the source by sending it to a remote service.
+  tool("cloud-rewrite", {
+    isSourceTransform: true,
+    side_effects: ["remote-source-egress"],
   }),
   // Overlay producer with no egress.
   tool("segmentation", {
@@ -231,6 +237,62 @@ describe("computePlacement — transformer-late-placement", () => {
     });
     expect(diags[0].message).toContain("segmentation");
     expect(diags[0].message).not.toContain("redaction.secret");
+  });
+
+  it("does not warn when a redact step runs ahead of a transformer that sends source to a remote sink", () => {
+    const spec: FlowSpec = {
+      steps: [{ tool: "redact" }, { tool: "cloud-rewrite" }, { tool: "unredact" }],
+    };
+    expect(computePlacement(spec, tools)).toEqual([]);
+    const between: FlowSpec = {
+      steps: [{ tool: "redact" }, { tool: "segmentation" }, { tool: "cloud-rewrite" }],
+    };
+    const diags = computePlacement(between, tools);
+    expect(diags.map((d) => d.rule)).toEqual([RULE_TRANSFORMER_LATE]);
+  });
+});
+
+describe("computePlacement — egress-after-restore", () => {
+  it("flags a step that sends source out after unredact with no redact step between", () => {
+    const spec: FlowSpec = {
+      steps: [
+        { tool: "redact" },
+        { tool: "external-command" },
+        { tool: "unredact" },
+        { tool: "translate" },
+      ],
+    };
+    const diags = computePlacement(spec, tools).filter((d) => d.severity === "error");
+    expect(diags).toHaveLength(1);
+    expect(diags[0]).toMatchObject({
+      rule: RULE_EGRESS_AFTER_RESTORE,
+      stepIndex: 3,
+      tool: "translate",
+    });
+    expect(diags[0].message).toContain('after "unredact" restored the values redaction withholds');
+  });
+
+  it("flags a program that runs after unredact", () => {
+    const spec: FlowSpec = {
+      steps: [{ tool: "redact" }, { tool: "unredact" }, { tool: "external-command" }],
+    };
+    const rules = computePlacement(spec, tools).map((d) => d.rule);
+    expect(rules).toContain(RULE_EGRESS_AFTER_RESTORE);
+  });
+
+  it("allows the egress step when a redact step runs between", () => {
+    const spec: FlowSpec = {
+      steps: [
+        { tool: "redact" },
+        { tool: "external-command" },
+        { tool: "unredact" },
+        { tool: "redact" },
+        { tool: "translate" },
+        { tool: "unredact" },
+      ],
+    };
+    const rules = computePlacement(spec, tools).map((d) => d.rule);
+    expect(rules).not.toContain(RULE_EGRESS_AFTER_RESTORE);
   });
 });
 
