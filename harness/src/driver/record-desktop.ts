@@ -930,7 +930,7 @@ const NEW_PROJECT_DIR = path.join(ISO_HOME, "KapiProjects", "Acme Help Center");
  *  api.addFilesDialog, which Playwright cannot drive), and the plan is read on
  *  the sample project, which has content to plan over. */
 async function projectsWalk(c: WalkCtx): Promise<void> {
-  const { page, beat, beatEls, cursorTo, sidebar } = c;
+  const { page, beat, beatEls, cursorTo, cue, sidebar } = c;
   // An empty folder, made off camera: a project starts from a folder, and this
   // one holds nothing yet. ISO_HOME is wiped between passes, so each pass
   // makes its own.
@@ -954,22 +954,33 @@ async function projectsWalk(c: WalkCtx): Promise<void> {
     await humanClick(page, page.locator('button:has-text("Input → Output")'));
     await page.waitForTimeout(1600);
   });
-  // A target language, added and saved. MultiLocaleSelect adds on pick with no
-  // confirm step (locale-select.tsx), and SaveBar renders only while the draft
-  // is dirty, so the save click is guarded rather than assumed.
-  await beatEls("add-language", ['input[placeholder="Add locale..."]', '[data-slot="combobox-item"]'], async () => {
-    await humanClick(page, sidebar("Project Settings"));
-    await page.waitForTimeout(1300);
-    const add = page.locator('input[placeholder="Add locale..."]').first();
-    await add.scrollIntoViewIfNeeded().catch(() => {});
+  // A target language, added through the rail's Languages + door and saved.
+  // Without a target language the rail reads "Languages +" and has no Review;
+  // the door opens the add-a-language part of Project Settings alone
+  // (LanguagesPage.tsx). MultiLocaleSelect adds on pick with no confirm step
+  // (locale-select.tsx), and SaveBar renders only while the draft is dirty.
+  // Once the saved recipe declares French, the entry reads "Languages" and
+  // Review appears beside it (IconSidebar.tsx). The rail is what changes, so
+  // the beat records the whole window.
+  await beat("add-language", null, async () => {
+    await cue("Languages", 2.0);
+    await humanClick(page, page.locator('button[aria-label="Languages +"]'));
+    await page.waitForSelector('[data-slot="languages-page"]', { timeout: 20_000 });
+    await page.waitForTimeout(900);
+    const add = page.locator('[data-slot="languages-page"] input[placeholder="Add locale..."]').first();
+    await cue("French", 6.0);
     await humanType(page, add, "French");
     await page.waitForTimeout(800);
-    const item = page.locator('[data-slot="combobox-item"]').first();
-    if (await item.count()) await humanClick(page, item);
-    await page.waitForTimeout(1000);
-    const save = page.locator('button:has-text("Save Changes")').first();
-    if (await save.count()) await humanClick(page, save);
-    await page.waitForTimeout(1400);
+    await humanClick(page, page.locator('[data-slot="combobox-item"]').first());
+    await page.waitForTimeout(800);
+    await cue("saving", 9.0);
+    await humanClick(page, page.locator('button:has-text("Save Changes")').first());
+    await page.waitForSelector('button[aria-label="Review"]', { timeout: 20_000 }).catch(() => {
+      throw new Error("kapi-desktop-projects: Review did not appear on the rail after French was saved");
+    });
+    await cue("Review", 13.0);
+    await cursorTo('button[aria-label="Review"]', 700);
+    await page.waitForTimeout(1200);
   });
   // A collection, declared on the project home: a name and one glob. The
   // pattern field is a CodeMirror editor (GlobInput → CodeInput), so the text
@@ -1114,114 +1125,117 @@ async function openSample(page: Page, testid: string, readyLabel: string): Promi
   await page.waitForTimeout(1200);
 }
 
-/**
- * Expand one collection on the project home and open one of its files in the
- * preview sheet.
- *
- * The matched-file table nests: a shared output pattern renders as a
- * `matched-pattern-row` that opens to the source file and one row per locale
- * (CollectionsPanel.tsx). A file with no shared pattern is a `matched-source-row`
- * directly. Try the source row first, then open the pattern that carries the
- * name and try again, so both shapes reach the same sheet.
- */
-async function openCollectionFile(page: Page, collection: string, filename: string): Promise<void> {
-  const expand = page.locator('button[aria-label="Expand"]').filter({ hasText: collection }).first();
-  if (await expand.count()) {
-    await humanClick(page, expand);
-    await page.waitForTimeout(900);
-  }
-  const sourceRow = page
-    .locator('tr[data-slot="matched-source-row"]')
-    .filter({ hasText: filename })
-    .first();
-  // A pattern row is a disclosure, and which one hides this file is not
-  // knowable from the file name: the row's cells carry the output pattern and
-  // the glob, either of which may spell the stem differently. Open them in turn
-  // until the source row is on the page, rather than guess once and then wait
-  // out a timeout on a row that never appeared.
-  if (!(await sourceRow.count())) {
-    const patterns = page.locator('tr[data-slot="matched-pattern-row"]');
-    const n = await patterns.count();
-    for (let i = 0; i < n; i++) {
-      await humanClick(page, patterns.nth(i));
-      await page.waitForTimeout(500);
-      if (await sourceRow.count()) break;
-    }
-  }
-  await sourceRow.waitFor({ state: "visible", timeout: 15_000 });
-  await sourceRow.scrollIntoViewIfNeeded().catch(() => {});
-  await humanClick(page, sourceRow);
-  await page.waitForSelector('[data-preview="keyed-table"], [data-preview="data"]', { timeout: 30_000 });
-  await page.waitForTimeout(1200);
-}
-
-/** Close the file preview sheet and settle back on the collections. */
-async function closePreview(page: Page): Promise<void> {
-  await page.keyboard.press("Escape").catch(() => {});
-  await page.waitForTimeout(800);
-}
+/** The file the content walk reads: its heading trips a word rule with a replacement. */
+const READER_FILE = "web/en/faq.md";
 
 /**
- * A project's content: what a collection matched, and what one file holds.
+ * A project's files, and one file in the Reader with what applies to it.
  *
- * Content stopped being a rail item when the project home merged (#2273), so
- * the collections ARE the front door: the standing and the point map sit above
- * them and every collection opens in place. The app reads the project's files
- * itself as the tab opens and again when one changes (App.tsx
- * useProjectStoreSync), so the walk waits for the counts that read produces.
- * Opening a file from a collection raises the preview sheet, which reads a
- * keyed format (JSON, YAML, .properties) as a table of keys beside their
- * values, with the file itself one click away.
+ * The sample opens on its Map: four counts (files, blocks, rules, findings)
+ * and a Files list with one row per content file (MapPage.tsx). Open on a row
+ * shows the file in the Reader (ReaderPage.tsx), which reads it with a check
+ * run over that file alone: its blocks in file order, each finding marked on
+ * its words with a row under the block, and the rules that hold at the file
+ * down the margin. Nothing here needs a provider.
+ *
+ * web/en/faq.md is the file because its first heading, "Frequently Asked
+ * Questions", meets the sample voice's word rule "frequently asked questions"
+ * with the replacement "FAQ" (backend/sample/kapimart/context/voice.yaml), so
+ * its finding carries Fix, and its "Yes!" meets the exclamation rule, which
+ * names no replacement and reads "Edit by hand". Fix applies the finding's own
+ * change through the change service; the Reader then draws the file as the
+ * change left it, and the fixed finding is gone.
  */
 async function contentWalk(c: WalkCtx): Promise<void> {
-  const { page, beat, beatEls, cursorTo, sidebar } = c;
-  // Open the KapiMart sample: it lands on its Map, and openSample goes on to
-  // the project home, which opens on the standing.
-  await beatEls("open-project", ['[data-testid="project-standing"]'], async () => {
+  const { page, beatEls, beatSpan, cursorTo, cue } = c;
+  const fileRow = `[data-slot="map-file"][data-path="${READER_FILE}"]`;
+  const settle = () => page.waitForTimeout(1000);
+
+  // Try with KapiMart opens the sample on its Map. The app reads the files as
+  // the tab opens, so the beat waits for the Files list rather than a pause.
+  await beatEls("map", ['[data-slot="map-counts"]', '[data-slot="map-files"]'], async () => {
     await landOnHome(page);
-    await openSample(page, "sample-kapimart", "Project");
-    await moveTo(page, WIDTH * 0.5, HEIGHT * 0.24, 700);
-    await page.waitForTimeout(1800);
-  });
-  // What the read produced: a file count per collection and a gate cell per
-  // language. Reading the collections takes a moment, and the beat is the
-  // counts being there, so the wait is for the gate cells rather than a fixed
-  // pause, and a take without them fails rather than film an empty table.
-  await beatEls("extract", ['[data-testid="collection-file-count"]', '[data-slot="ship-gate-cell"]'], async () => {
-    await page.waitForSelector('[data-slot="ship-gate-cell"]', { timeout: 120_000 }).catch(() => {
-      throw new Error("kapi-desktop-content: no ship-gate cell rendered within 120 s of opening the project");
+    await humanClick(page, page.getByTestId("sample-kapimart"));
+    await page.waitForSelector('[data-slot="map-file"]', { timeout: 120_000 }).catch(() => {
+      throw new Error("kapi-desktop-content: the Map listed no files within 120 s of opening the sample");
     });
-    // The collections table sits below the project standing, so bring it on
-    // camera: a crop is resolved from element boxes, and an element scrolled
-    // past the fold contributes nothing to one.
-    await page.locator('[data-slot="ship-gate-cell"]').first().scrollIntoViewIfNeeded().catch(() => {});
-    await cursorTo('[data-testid="collection-file-count"]');
-    await page.waitForTimeout(2600);
+    await cue("counts", 2.5);
+    await cursorTo('[data-slot="map-counts"]', 700);
+    await cue("Files", 7.0);
+    await page.locator('[data-slot="map-files"]').scrollIntoViewIfNeeded().catch(() => {});
+    await cursorTo('[data-slot="map-file"]', 700);
+    await page.waitForTimeout(1200);
   });
-  // Open one collection: its patterns, and the files they match.
-  await beatEls("patterns", ['[data-slot="matched-files-scroll"]'], async () => {
-    const expand = page.locator('button[aria-label="Expand"]').filter({ hasText: "Online Store" }).first();
-    if (await expand.count()) await humanClick(page, expand);
-    await page.waitForTimeout(1600);
-    await page.locator('[data-slot="matched-files-scroll"]').first().scrollIntoViewIfNeeded().catch(() => {});
-    await moveTo(page, WIDTH * 0.4, HEIGHT * 0.6, 700);
+  await settle();
+
+  // Open on the FAQ's row: the Reader, with the blocks at reading width and
+  // the counts under the path.
+  await page.locator(fileRow).scrollIntoViewIfNeeded().catch(() => {});
+  await beatSpan("open", async (mark) => {
+    await mark(page.locator(fileRow));
+    await cue("Open", 1.5);
+    await humanClick(page, page.locator(`${fileRow} [data-slot="map-file-open"]`));
+    await page.waitForSelector('[data-slot="reader-block"]', { timeout: 60_000 });
+    await page.waitForSelector('[data-slot="reader-counts"]', { timeout: 30_000 });
+    await page.waitForTimeout(1200);
+    await mark(page.locator('[data-slot="reader"] h1').first());
+    await mark(page.locator('[data-slot="reader-counts"]'));
+    await mark(page.locator('[data-slot="reader-block"]').first());
+    await page.waitForTimeout(1500);
+  });
+  await settle();
+
+  // The margin: the rules that hold at this file, in the order
+  // `kapi context <path>` prints them.
+  await beatEls("margin", ['[data-slot="reader-rules"]'], async () => {
+    await cue("margin", 1.5);
+    await cursorTo('[data-slot="reader-rules"]', 800);
+    await page.waitForTimeout(2400);
+  });
+  await settle();
+
+  // A finding with Fix, on the heading. The crop holds the block and its row;
+  // the cursor rests on Fix as the narration names it, and the click applies
+  // the change. The finding leaves the page once the file is drawn again.
+  const fixable = page.locator('[data-slot="reader-finding"]').filter({ has: page.locator('[data-slot="reader-fix"]') }).first();
+  await fixable.waitFor({ state: "visible", timeout: 30_000 }).catch(() => {
+    throw new Error(`kapi-desktop-content: ${READER_FILE} showed no finding with Fix`);
+  });
+  const fixedBlock = page.locator('[data-slot="reader-block"]').filter({ has: fixable }).first();
+  await fixedBlock.evaluate((el) => el.scrollIntoView({ block: "center" }));
+  await page.waitForTimeout(700);
+  const findingId = await fixable.getAttribute("data-id");
+  await beatSpan("fix", async (mark) => {
+    await mark(fixedBlock);
+    await cue("words", 2.0);
+    await cursorTo('[data-slot="reader-finding"] [data-slot="reader-fix"]', 700);
+    await cue("Fix", 5.5);
+    await humanClick(page, fixable.locator('[data-slot="reader-fix"]'));
+    await page
+      .locator(`[data-slot="reader-finding"][data-id="${findingId}"]`)
+      .waitFor({ state: "detached", timeout: 20_000 })
+      .catch(() => {
+        throw new Error("kapi-desktop-content: the fixed finding stayed on the page");
+      });
+    await page.waitForTimeout(1500);
+  });
+  await settle();
+
+  // A finding whose rule names no replacement reads Edit by hand.
+  const byHand = page.locator('[data-slot="reader-finding"]').filter({ has: page.locator('[data-slot="reader-by-hand"]') }).first();
+  await byHand.waitFor({ state: "visible", timeout: 10_000 }).catch(() => {
+    throw new Error(`kapi-desktop-content: ${READER_FILE} showed no finding to edit by hand`);
+  });
+  const handBlock = page.locator('[data-slot="reader-block"]').filter({ has: byHand }).first();
+  await handBlock.evaluate((el) => el.scrollIntoView({ block: "center" }));
+  await page.waitForTimeout(700);
+  await beatSpan("by-hand", async (mark) => {
+    await mark(handBlock);
+    await cue("hand", 3.0);
+    await cursorTo('[data-slot="reader-by-hand"]', 700);
     await page.waitForTimeout(2000);
   });
-  // Open a JSON catalog → the preview sheet reads it as keys and values, and
-  // the key column is the thing to look at.
-  await beatEls("keys", ['[data-preview="keyed-table"]'], async () => {
-    await openCollectionFile(page, "Online Store", "store-ui.json");
-    await page.waitForTimeout(1200);
-    await cursorTo('[data-preview="keyed-table"] tr[data-key-path]');
-    await page.waitForTimeout(2400);
-  });
-  // The same file as it is written on disk, with the selected key's line
-  // highlighted: structure on one tab, bytes on the other.
-  await beatEls("code", ['[data-preview="data"]'], async () => {
-    const file = page.locator('[data-preview="data"] button:has-text("File")').first();
-    if (await file.count()) await humanClick(page, file);
-    await page.waitForTimeout(2400);
-  });
+  await settle();
 }
 
 /**
@@ -1456,7 +1470,8 @@ function recordLiveNote(): void {
  * sample from the Open screen and reads what waits on its Map, opens Decide
  * from there, settles the disagreement by picking a side and pressing `k`,
  * keeps a name in the form its files use and a word with `k`, reads the brief
- * an assistant gets for a file, watches a note recorded from outside the app
+ * an assistant gets for a file, opens claude-code's session under Sessions
+ * with the kept rules in force, watches a note recorded from outside the app
  * arrive on the Map, and ends on Share and its Preview.
  *
  * Decide is a list of suggestions beside one question about the selected
@@ -1623,6 +1638,34 @@ async function contextWalk(c: WalkCtx): Promise<void> {
     await mark(picker);
     await mark(keptTerm);
     await page.waitForTimeout(1500);
+  });
+  await settle();
+
+  // Sessions, from the Assistants page: claude-code's session lists every
+  // operation it recorded with its status, and the two rules kept a moment ago
+  // read In force (ContextFeed.tsx StatusWord). Reset to before this session
+  // sits in the detail's toolbar; the walk points at it and never presses it.
+  await humanClick(page, contextSection(page, "Assistants"));
+  const claudeSession = page.locator('[data-slot="assistant-session"]').filter({ hasText: "claude-code" }).first();
+  await claudeSession.waitFor({ state: "visible", timeout: 30_000 });
+  await page.waitForTimeout(800);
+  await beatSpan("sessions", async (mark) => {
+    await mark(claudeSession);
+    await cue("claude-code's", 3.0);
+    await humanClick(page, claudeSession);
+    await page.waitForSelector('[data-slot="context-feed-detail"]', { timeout: 30_000 });
+    const inForce = page.locator('[data-slot="context-feed-entry"][data-status="established"]');
+    await inForce.first().waitFor({ state: "visible", timeout: 10_000 }).catch(() => {
+      throw new Error("kapi-desktop-context: claude-code's session shows no rule in force after the keeps");
+    });
+    await page.waitForTimeout(600);
+    await mark(page.locator('[data-slot="context-feed-session"]').filter({ hasText: "claude-code" }).first());
+    await mark(inForce.first());
+    await cue("force", 7.0);
+    await restOn(inForce.first());
+    await cue("Reset", 10.5);
+    await cursorTo('[data-slot="reset-session"]', 700);
+    await page.waitForTimeout(1200);
   });
   await settle();
 

@@ -10,7 +10,7 @@ needsAi: false
 oneshot: true
 aspects:
   - Projects
-  - Source & target languages
+  - Languages + and the first target language
   - Content patterns
   - The catch-up plan
 outro:
@@ -38,12 +38,12 @@ narration:
   - id: add-language
     kind: desktop
     beat: add-language
-    caption: One language picked, and saved into the recipe.
-    zoom: 1.4
+    caption: Languages +, one language picked, and Review appears.
     text: >-
-      Project Settings is where the source language and the languages you
-      translate into are declared. Picking French adds it, and saving writes one
-      line into the recipe beside your files.
+      While the project translates into nothing, the rail shows Languages with
+      a plus. The door opens the one setting it needs: picking French adds it,
+      and saving writes one line into the recipe beside your files. The plus
+      goes, and Review appears beside it.
 
   - id: add-collection
     kind: desktop
@@ -63,7 +63,7 @@ narration:
     hold: 10
     text: >-
       On a project that already has content, the plan reads what is pending
-      before anything runs. Units with no target, what the project's own memory
+      before anything runs. Blocks with no target, what the project's own memory
       can answer, and an estimate for the rest, all computed on this machine.
 
   - id: outro

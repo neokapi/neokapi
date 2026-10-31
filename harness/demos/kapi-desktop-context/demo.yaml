@@ -12,6 +12,7 @@ aspects:
   - What waits on the Map
   - One question per suggestion
   - The brief an assistant reads
+  - What a session recorded
   - A note arriving from outside the app
   - How far the context reaches
   - The project as Bowrain would show it
@@ -94,6 +95,16 @@ narration:
       strings, the brief marks basket as discouraged and says cart instead,
       the rule you kept a moment ago. It is the answer kapi context prints for
       that file.
+
+  - id: sessions
+    kind: desktop
+    beat: sessions
+    caption: Every operation a session recorded, with its status.
+    text: >-
+      Below the assistants, Sessions lists what each one recorded. Opening
+      claude-code's session shows every operation in it with its status: the
+      name and the word you kept are in force. Reset to before this session
+      would take the whole session back.
 
   - id: live
     kind: desktop

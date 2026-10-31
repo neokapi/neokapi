@@ -1,6 +1,6 @@
 id: kapi-desktop-content
-title: What a collection holds
-subtitle: Every matched file read as the project opens, and one file as keys and values.
+title: One file, and what applies to it
+subtitle: The Map lists every file; the Reader shows one with its rules and findings.
 kind: use-case
 publishAs: kapi-desktop-content
 terminal: desktop
@@ -9,74 +9,70 @@ needsAi: false
 # One continuous narration read: uniform voice speed and tone across scenes.
 oneshot: true
 aspects:
-  - Content collections
-  - File patterns
-  - Keyed file preview
-  - Format detection
+  - The Map's counts and files
+  - A file in the Reader
+  - The rules that hold at a file
+  - Fix, and what is edited by hand
+
+# open, fix and by-hand carry no crop: the walk marks what each beat is about
+# (beatSpan in record-desktop.ts): the file's row and the Reader's header, the
+# block with the fixable finding, and the block whose finding is edited by hand.
 outro:
-  line: Edit a file; the app reads it again.
-  pointer: kapi status
+  line: Open a file from the Map and fix what names its replacement.
+  pointer: kapi context web/en/faq.md
 
 narration:
   - id: title
     kind: title
     text: >-
-      A collection is a set of file patterns. The app reads the files they
-      match as the project opens, and every language has a number against it.
+      Every content file in a project is listed on its Map. Opening one shows
+      its blocks, the rules that hold there, and what the checks found.
 
-  - id: open-project
+  - id: map
     kind: desktop
-    beat: open-project
-    caption: The collections, read as the project opens.
+    beat: map
+    caption: Four counts, and one row per file.
     text: >-
-      The sample opens on its Map, and the project section beside it shows the
-      standing: the blocks read from its collections, and the voice and terms
-      that govern them.
+      The sample opens on its Map. The counts at the top are its files, blocks,
+      rules and findings. Under Files, each row is one content file with its
+      format, its blocks and its findings.
 
-  - id: extract
+  - id: open
     kind: desktop
-    beat: extract
-    caption: Read on its own, and the coverage fills in.
-    crop: { selector: ['[data-slot="ship-gate-cell"]', '[data-testid="collection-file-count"]'] }
-    highlight: { selector: '[data-slot="ship-gate-cell"]' }
-    hold: 12
+    beat: open
+    caption: The FAQ, block by block.
     text: >-
-      The app reads every matched file with the format it detected for it and
-      turns each one into blocks. The counts and the ladder for each language
-      come from that read.
+      Open on the FAQ shows it in the Reader. Its blocks run in file order at
+      reading width, and the line under the path counts the blocks and the
+      findings.
 
-  - id: patterns
+  - id: margin
     kind: desktop
-    beat: patterns
-    caption: The patterns, and the files each one matched.
-    crop: { selector: '[data-slot="matched-files-scroll"]' }
+    beat: margin
+    caption: The rules that hold at this file.
     text: >-
-      Opening a collection shows the patterns that define it. Each output
-      pattern opens to the source file above its language files, every one
-      carrying the format Kapi read it as.
+      Down the margin are the rules that hold at this file, in the order kapi
+      context prints them for the same path.
 
-  - id: keys
+  - id: fix
     kind: desktop
-    beat: keys
-    caption: The key column names the block Review decides on.
-    crop: { x: 0.5, y: 0.14, w: 0.5, h: 0.42 }
+    beat: fix
+    caption: A finding with a replacement, fixed in one click.
     text: >-
-      A JSON catalog is a list of keys with text against them, so the preview
-      reads it as a table. The key column is what makes it navigable, and it is
-      the same key that names the block in Review.
+      A finding is marked on the words it is about, with its row under the
+      block. This rule names FAQ in place of the long form, so the row offers
+      Fix. One click writes the change into the file, and the finding is gone.
 
-  - id: code
+  - id: by-hand
     kind: desktop
-    beat: code
-    caption: The same file, as it is written on disk.
-    crop: { x: 0.5, y: 0.12, w: 0.5, h: 0.42 }
+    beat: by-hand
+    caption: No replacement named, so it is edited by hand.
     text: >-
-      The other tab is the file itself, with the line for the selected key
-      highlighted. Structure on one, bytes on the other, and the same content
-      underneath both.
+      The exclamation rule names no replacement, so its row says to edit by
+      hand: you change the wording in the file yourself.
 
   - id: outro
     kind: outro
     text: >-
-      An edit to a source file is read again on its own, so what the project
-      knows stays level with the working tree.
+      The Reader shows a file with what applies to it. kapi context prints the
+      same rules from a terminal in the same folder.

@@ -1,6 +1,6 @@
 id: kapi-desktop-review
 title: Judged where it sits
-subtitle: Five layers under one unit, and a keystroke to decide.
+subtitle: Five layers under one block, and a keystroke to decide.
 kind: use-case
 publishAs: kapi-desktop-review
 terminal: desktop
@@ -10,11 +10,11 @@ needsAi: false
 oneshot: true
 aspects:
   - One review queue
-  - The point a unit sits at
+  - The point a block sits at
   - Prior decisions and approved wording
   - Findings anchored in the runs
 outro:
-  line: Open Review and press A on a clean unit.
+  line: Open Review and press A on a clean block.
   pointer: kapi status --review
 
 narration:
@@ -37,7 +37,7 @@ narration:
     beat: open-unit
     caption: Source, target, and the layers beneath them.
     text: >-
-      Opening a unit gives the source and the translation, with what shaped
+      Opening a block gives the source and the translation, with what shaped
       them stacked underneath.
 
   - id: point
@@ -92,7 +92,7 @@ narration:
     caption: One keystroke, then the clean ones together.
     text: >-
       With that read, the decision is a keystroke bound to the text it judged,
-      and the units no check flagged go together.
+      and the blocks no check flagged go together.
 
   - id: outro
     kind: outro
