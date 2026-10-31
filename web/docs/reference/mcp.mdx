@@ -404,9 +404,11 @@ Each field is present at zero, so `checked: 0` means no run was recorded. The
 hook records a run under the assistant host's session id, and the MCP server
 records a note under its own.
 
-Without `session`, the tool summarizes the session that recorded last in the
-project's log: a hook run and a note both count. `chosen` names that session
-and when it last recorded. When the log holds no session's operations, the
+Without `session`, the tool summarizes the session whose latest check run is
+the project's most recent, so a note written after a hook run leaves the run's
+outcomes in view. When no session holds a check run, it summarizes the session
+that recorded last. `chosen` names the session, the rule that applied and when
+the session last recorded. When the log holds no session's operations, the
 answer is one line in `report` saying that the Stop hook records one each time
 it runs the project's checks. Pass `session` to read another session.
 

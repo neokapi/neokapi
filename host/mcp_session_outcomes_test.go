@@ -106,11 +106,10 @@ func callSessionSummaryDefault(t *testing.T, app *App, root string) (contextSess
 	return out, string(body)
 }
 
-// Without `session`, the tool summarizes the session that recorded last in
-// the project's log. A session the workspace knows of that recorded nothing,
-// such as this MCP server's own, is passed over for the hook's session with
-// runs, and an explicit `session` still wins.
-func TestContextSessionSummary_DefaultIsTheLatestSessionWithOperations(t *testing.T) {
+// Without `session`, the tool summarizes the session with the project's latest
+// check run. A session the workspace knows of that recorded nothing, such as
+// this MCP server's own, is passed over, and an explicit `session` still wins.
+func TestContextSessionSummary_DefaultIsTheLatestSessionWithACheckRun(t *testing.T) {
 	app := hookApp(t)
 	root := hookProject(t, app, "mcpdefault")
 	tr := filepath.Join(t.TempDir(), "transcript.jsonl")
@@ -133,9 +132,7 @@ func TestContextSessionSummary_DefaultIsTheLatestSessionWithOperations(t *testin
 	t.Logf("context_session_summary (no session): %s", raw)
 	assert.Equal(t, "s-hook", out.Session, "the session with runs, not the later one that recorded nothing")
 	assert.Equal(t, 1, out.Checked)
-	assert.Equal(t,
-		"No `session` given: this is s-hook, the latest session in the project's log, last recorded "+ran+".",
-		out.Chosen)
+	assert.Equal(t, "Session s-hook, the latest in the project's log with a check run, last recorded "+ran+".", out.Chosen)
 	assert.Equal(t, ran, out.Last)
 
 	named, raw := callSessionSummary(t, app, root, "s-empty")
@@ -146,9 +143,9 @@ func TestContextSessionSummary_DefaultIsTheLatestSessionWithOperations(t *testin
 	assert.Equal(t, "Recorded nothing about this project's context (session s-empty).", named.Report)
 }
 
-// A note this server records after the hook's run is the latest operation, so
-// the default reads this server's session.
-func TestContextSessionSummary_DefaultCountsANote(t *testing.T) {
+// A note this server records after the hook's run does not hide the run: the
+// default still reads the hook's session.
+func TestContextSessionSummary_DefaultPrefersACheckRunToALaterNote(t *testing.T) {
 	app := hookApp(t)
 	root := hookProject(t, app, "mcpdefaultnote")
 	tr := filepath.Join(t.TempDir(), "transcript.jsonl")
@@ -159,13 +156,40 @@ func TestContextSessionSummary_DefaultCountsANote(t *testing.T) {
 		"text": "The guide addresses the reader as you.", "path": "docs/guide.md", "project": recipeOf(root),
 	})
 	require.False(t, res.IsError, resultText(res))
+	require.Equal(t, MCPSessionID(), recorded.Session)
 
+	runs := checkRuns(t, app, root)
+	require.Len(t, runs, 1)
 	out, raw := callSessionSummaryDefault(t, app, root)
 	t.Logf("context_session_summary (no session, after a note): %s", raw)
-	assert.Equal(t, MCPSessionID(), recorded.Session)
-	assert.Equal(t, MCPSessionID(), out.Session, "the note is newer than the hook's run")
+	assert.Equal(t, "s-hook", out.Session, "the check run outranks the later note")
+	assert.Equal(t, 1, out.Checked)
+	assert.Equal(t,
+		"Session s-hook, the latest in the project's log with a check run, last recorded "+
+			runs[0].At.UTC().Format(time.RFC3339)+".",
+		out.Chosen)
+}
+
+// With no check run in the log, the default reads the session that recorded
+// last in any operation, and says which rule applied.
+func TestContextSessionSummary_DefaultFallsBackToTheLatestSession(t *testing.T) {
+	app := hookApp(t)
+	root := hookProject(t, app, "mcpdefaultfallback")
+
+	recorded, res := callRecord(t, growthSession(t, app), "context_note", map[string]any{
+		"text": "The guide addresses the reader as you.", "path": "docs/guide.md", "project": recipeOf(root),
+	})
+	require.False(t, res.IsError, resultText(res))
+
+	out, raw := callSessionSummaryDefault(t, app, root)
+	t.Logf("context_session_summary (no session, no check run): %s", raw)
+	assert.Equal(t, recorded.Session, out.Session, "the note is newer than the setup session's")
 	assert.Equal(t, 1, out.Observed)
-	assert.Contains(t, out.Chosen, "this is "+MCPSessionID()+", the latest session")
+	assert.Zero(t, out.Checked)
+	assert.Equal(t,
+		"Session "+recorded.Session+", the latest in the project's log (no session holds a check run), last recorded "+
+			out.Last+".",
+		out.Chosen)
 }
 
 // A log that holds no session's operations answers in one line that says what

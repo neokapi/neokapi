@@ -159,5 +159,6 @@ context log` lists it: a finding one run reports and your next run no longer
 finds on the same file counts as caught. The MCP tool `context_session_summary`
 returns the counts `checked`, `failing`, `caught` and `files` for a session.
 The hook records under the assistant host's session id. Without `session`, the
-tool reads the session that recorded last in the project's log and names it in
-`chosen`; pass `session` to read another.
+tool reads the session with the project's latest check run, or the session
+that recorded last when no session ran a check, and names it in `chosen`; pass
+`session` to read another.
