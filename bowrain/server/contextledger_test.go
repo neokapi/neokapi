@@ -1,14 +1,20 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"io/fs"
 	"maps"
 	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -25,7 +31,90 @@ import (
 	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/workspace"
 	"github.com/neokapi/neokapi/core/workspace/workspacetest"
+	apiclient "github.com/neokapi/neokapi/host/venue/client"
 )
+
+// routeRemote is a workspace.Remote over the context object routes, served in
+// process, for the ledger tests that read a refusal's body. It maps the
+// routes' 404 and 409 codes to the workspace errors, as the client remote
+// does.
+type routeRemote struct {
+	h      http.Handler
+	base   string
+	bearer string
+}
+
+func (r *routeRemote) Describe() workspace.RemoteDescriptor {
+	return workspace.RemoteDescriptor{Kind: "bowrain", Location: r.base}
+}
+
+func (r *routeRemote) do(ctx context.Context, method, target string, body []byte) *httptest.ResponseRecorder {
+	var rd io.Reader
+	if body != nil {
+		rd = bytes.NewReader(body)
+	}
+	req := httptest.NewRequestWithContext(ctx, method, target, rd)
+	if body != nil {
+		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	}
+	if r.bearer != "" {
+		req.Header.Set(echo.HeaderAuthorization, "Bearer "+r.bearer)
+	}
+	rec := httptest.NewRecorder()
+	r.h.ServeHTTP(rec, req)
+	return rec
+}
+
+// routeError turns a refusal into the error the workspace names for it.
+func routeError(rec *httptest.ResponseRecorder) error {
+	var e ErrorResponse
+	_ = json.Unmarshal(rec.Body.Bytes(), &e)
+	switch {
+	case rec.Code == http.StatusNotFound && e.Code == contextObjectMissingCode:
+		return fmt.Errorf("%w: %s", workspace.ErrNoObject, e.Details)
+	case rec.Code == http.StatusConflict && e.Code == contextObjectExistsCode:
+		return fmt.Errorf("%w: %s", workspace.ErrObjectExists, e.Details)
+	}
+	return fmt.Errorf("context objects: status %d: %s", rec.Code, strings.TrimSpace(rec.Body.String()))
+}
+
+func (r *routeRemote) List(ctx context.Context, dir string) ([]string, error) {
+	rec := r.do(ctx, http.MethodGet, r.base+"?dir="+url.QueryEscape(dir), nil)
+	if rec.Code != http.StatusOK {
+		return nil, routeError(rec)
+	}
+	var out contextObjectList
+	if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil {
+		return nil, err
+	}
+	return out.Names, nil
+}
+
+func (r *routeRemote) Get(ctx context.Context, name string) ([]byte, error) {
+	rec := r.do(ctx, http.MethodGet, r.base+"/"+name, nil)
+	if rec.Code != http.StatusOK {
+		return nil, routeError(rec)
+	}
+	return rec.Body.Bytes(), nil
+}
+
+func (r *routeRemote) Put(ctx context.Context, objs ...workspace.Object) error {
+	batch := contextObjectBatch{Objects: make([]apiclient.ContextObjectWire, 0, len(objs))}
+	for _, o := range objs {
+		batch.Objects = append(batch.Objects, apiclient.ContextObjectWire{Name: o.Name, Data: o.Data})
+	}
+	body, err := json.Marshal(batch)
+	if err != nil {
+		return err
+	}
+	rec := r.do(ctx, http.MethodPost, r.base, body)
+	if rec.Code != http.StatusNoContent {
+		return routeError(rec)
+	}
+	return nil
+}
+
+func (r *routeRemote) Close() error { return nil }
 
 // desktop is a machine's workspace that records context and pushes it to a
 // folder, as kapi does for a project whose context is shared (the
@@ -159,7 +248,7 @@ func pushBody(t *testing.T, objs []workspace.Object) []byte {
 	t.Helper()
 	batch := contextObjectBatch{}
 	for _, o := range objs {
-		batch.Objects = append(batch.Objects, contextObjectWire{Name: o.Name, Data: o.Data})
+		batch.Objects = append(batch.Objects, apiclient.ContextObjectWire{Name: o.Name, Data: o.Data})
 	}
 	body, err := json.Marshal(batch)
 	require.NoError(t, err)
