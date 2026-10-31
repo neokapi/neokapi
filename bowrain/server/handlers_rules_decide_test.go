@@ -169,6 +169,7 @@ func TestRulesDecide_TheDesktopsViewOfOneLedger_SQLite(t *testing.T) {
 	view := readDecideView(t, e, pid)
 	for i := range view.Decisions {
 		view.Decisions[i].Assignee = nil
+		view.Decisions[i].AssigneeID = ""
 	}
 	got, err := json.MarshalIndent(view, "", "  ")
 	require.NoError(t, err)
@@ -300,7 +301,7 @@ func TestRulesDecide_AssignAndQueue_SQLite(t *testing.T) {
 	var assigned ruleAssignment
 	require.Equal(t, http.StatusOK, decideRoute(t, e, http.MethodPost, pid, "/rules/main/assign",
 		ruleAssignRequest{ID: name.ID, UserID: new("member-b")}, &assigned))
-	assert.Equal(t, ruleAssignment{ID: name.ID, Assignee: &screens.ContextActorDTO{Kind: "person", Name: "member-b"}}, assigned)
+	assert.Equal(t, ruleAssignment{ID: name.ID, Assignee: &screens.ContextActorDTO{Kind: "person", Name: "member-b"}, AssigneeID: "member-b"}, assigned)
 	require.Equal(t, http.StatusOK, decideRoute(t, e, http.MethodPost, pid, "/rules/main/assign",
 		ruleAssignRequest{ID: side.Options[0].ID, UserID: new("member-a")}, &assigned))
 
@@ -309,6 +310,11 @@ func TestRulesDecide_AssignAndQueue_SQLite(t *testing.T) {
 	assert.Equal(t, &screens.ContextActorDTO{Kind: "person"}, decisionOf(t, view, "disagreement").Assignee,
 		"a question assigned to the reader reads as theirs")
 	assert.Nil(t, decisionOf(t, view, "note").Assignee)
+	// The member's id comes with the name, for a picker that shows who holds
+	// the question; the reader's own is among them.
+	assert.Equal(t, "member-b", decisionOf(t, view, "name").AssigneeID)
+	assert.Equal(t, "member-a", decisionOf(t, view, "disagreement").AssigneeID)
+	assert.Empty(t, decisionOf(t, view, "note").AssigneeID)
 
 	var queue contextQueue
 	require.Equal(t, http.StatusOK, decideRoute(t, e, http.MethodGet, "", "context/queue", nil, &queue))
@@ -321,9 +327,11 @@ func TestRulesDecide_AssignAndQueue_SQLite(t *testing.T) {
 	assert.Equal(t, 1, queue.Projects[0].Assigned)
 
 	caller.userID = "member-a"
+	assigned = ruleAssignment{}
 	require.Equal(t, http.StatusOK, decideRoute(t, e, http.MethodPost, pid, "/rules/main/assign",
 		ruleAssignRequest{ID: name.ID}, &assigned))
 	assert.Nil(t, assigned.Assignee)
+	assert.Empty(t, assigned.AssigneeID)
 	assert.Nil(t, decisionOf(t, readDecideView(t, e, pid), "name").Assignee, "assigning to no one removes it")
 
 	caller.perms = 0

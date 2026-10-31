@@ -1505,6 +1505,15 @@ export class RuleDecisionDTO {
              */
             this["assignee"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * AssigneeID is the assigned member's user id, for a surface that picks
+             * among the workspace's members.
+             * @member
+             * @type {string | undefined}
+             */
+            this["assignee_id"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }

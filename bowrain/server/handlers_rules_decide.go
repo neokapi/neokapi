@@ -331,8 +331,8 @@ func (s *Server) assignees(ctx context.Context, projectID string) (map[string]pl
 }
 
 // assigneeOf is the member a question is assigned to, as the reader sees
-// them: the reader is a person with no name.
-func (s *Server) assigneeOf(ctx context.Context, d rulesview.Decision, assigned map[string]platstore.ContextAssignment, reader LedgerMember) *screens.ContextActorDTO {
+// them (the reader is a person with no name), and the member's user id.
+func (s *Server) assigneeOf(ctx context.Context, d rulesview.Decision, assigned map[string]platstore.ContextAssignment, reader LedgerMember) (*screens.ContextActorDTO, string) {
 	for _, id := range questionIDs(d) {
 		a, ok := assigned[id]
 		if !ok {
@@ -342,9 +342,9 @@ func (s *Server) assigneeOf(ctx context.Context, d rulesview.Decision, assigned 
 		if a.Assignee != reader.UserID {
 			who.Name = s.displayName(ctx, a.Assignee)
 		}
-		return &who
+		return &who, a.Assignee
 	}
-	return nil
+	return nil, ""
 }
 
 // decideError answers an error reading a Decide call's state.
@@ -383,7 +383,7 @@ func (s *Server) HandleRulesDecideView(c echo.Context) error {
 	out.Rules, out.Suggested, out.Narrowed = st.counts()
 	for _, d := range questions {
 		dto := screens.RuleDecisionFrom(d)
-		dto.Assignee = s.assigneeOf(ctx, d, assigned, st.member)
+		dto.Assignee, dto.AssigneeID = s.assigneeOf(ctx, d, assigned, st.member)
 		out.Decisions = append(out.Decisions, dto)
 	}
 	return c.JSON(http.StatusOK, out)
@@ -610,6 +610,8 @@ type ruleAssignRequest struct {
 type ruleAssignment struct {
 	ID       string                   `json:"id"`
 	Assignee *screens.ContextActorDTO `json:"assignee"`
+	// AssigneeID is the assigned member's user id.
+	AssigneeID string `json:"assignee_id,omitempty"`
 }
 
 // HandleAssignRule answers POST /:ws/:id/rules/:ref/assign: it assigns the
@@ -670,7 +672,7 @@ func (s *Server) HandleAssignRule(c echo.Context) error {
 	}
 	out := ruleAssignment{ID: req.ID}
 	if assignee != "" {
-		out.Assignee = s.assigneeOf(ctx, d, map[string]platstore.ContextAssignment{req.ID: {Assignee: assignee}}, st.member)
+		out.Assignee, out.AssigneeID = s.assigneeOf(ctx, d, map[string]platstore.ContextAssignment{req.ID: {Assignee: assignee}}, st.member)
 	}
 	return c.JSON(http.StatusOK, out)
 }
