@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-31T08:47:45Z",
+  "generatedAt": "2026-10-31T10:08:09Z",
   "commands": [
     {
       "id": "add",
@@ -1296,7 +1296,7 @@
       ],
       "use": "exec",
       "short": "Execute one registry tool on files (the raw layer under the porcelain verbs)",
-      "long": "Execute any CLI-visible registry tool on files: one tool, one pass, no\nguardrails around it. The top-level verbs are porcelain workflows over this\nlayer: 'kapi translate' wraps recycle → translate → checks, 'kapi up'\nbrings a whole project up to date, 'kapi check' verifies, 'kapi stats' measures.\nReach for exec when you want exactly one tool's behavior: a bare\n'exec translate' with no Memory pass, a single 'exec term-check', a format\nconverter. The verb pairs with 'kapi run \u003cflow\u003e' the way 'kapi tools' pairs\nwith 'kapi flows': run composes a pipeline, exec executes one tool.\n\nIn a project that declares a redaction policy, a tool that calls a model reads\nevery block, and each translation beside it, with the policy's rules applied,\nand its output carries the original values. A policy that detects entities\nstops the run, because no step ahead of the tool finds them.\n\nDiscover tools and their options with 'kapi tools list' and\n'kapi tools schema \u003cname\u003e'.",
+      "long": "Execute any CLI-visible registry tool on files: one tool, one pass, no\nguardrails around it. The top-level verbs are porcelain workflows over this\nlayer: 'kapi translate' wraps recycle → translate → checks, 'kapi up'\nbrings a whole project up to date, 'kapi check' verifies, 'kapi stats' measures.\nReach for exec when you want exactly one tool's behavior: a bare\n'exec translate' with no Memory pass, a single 'exec term-check', a format\nconverter. The verb pairs with 'kapi run \u003cflow\u003e' the way 'kapi tools' pairs\nwith 'kapi flows': run composes a pipeline, exec executes one tool.\n\nIn a project that declares a redaction policy, a tool that calls a model reads\nevery block, and each translation beside it, with the policy's rules applied,\nand its output carries the original values. A policy that detects entities\nstops the run, because no step ahead of the tool finds them.\n\nOn a redacted .kpz package (one kapi extract wrote under a redaction policy)\na tool reads and writes the placeholders the package holds, and never the\nwithheld values: those stay in the package's vault until kapi merge restores\nthem. In a project that declares a collection's or an item's policy, a tool\nthat calls a model runs over a package only when it is a redacted package\nkapi extract --format kpz wrote in this project.\n\nDiscover tools and their options with 'kapi tools list' and\n'kapi tools schema \u003cname\u003e'.",
       "groupID": "advanced",
       "offlineCapable": true,
       "runnableInBrowser": true,
