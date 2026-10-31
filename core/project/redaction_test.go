@@ -119,12 +119,12 @@ collections:
 	assert.False(t, (&KapiProject{}).DeclaresRedaction())
 }
 
-// A collection's or an item's redaction replaces the defaults, so one that
-// names rules without `enabled: true` would switch redaction off while
-// reading as a policy. It is refused at load; `enabled: false` alone is not,
-// and neither is the defaults' declared-but-off form.
-func TestValidate_AScopedRedactionMustBeSwitchedOn(t *testing.T) {
-	const msg = "redaction: rules, detectors or placeholder are set but enabled is not true; set enabled: true, or enabled: false alone to switch redaction off for these files"
+// A redaction declaration that names rules, detectors or a placeholder
+// without `enabled: true` reads as a policy and redacts nothing. It is
+// refused at load at every scope, by the same check and with the same
+// message; `enabled: false` alone is not refused.
+func TestValidate_ARedactionPolicyMustBeSwitchedOn(t *testing.T) {
+	const instead = " without enabled: true, so it redacts nothing. Write enabled: true to apply the policy, or enabled: false with no other key to switch redaction off"
 	load := func(defaults, scoped string) error {
 		var p KapiProject
 		require.NoError(t, yaml.Unmarshal([]byte(`version: v1
@@ -136,16 +136,22 @@ defaults:
 		return p.Validate()
 	}
 	require.EqualError(t, load("", "  - path: \"hr/*.json\"\n    redaction:\n      rules: hr.yaml\n"),
-		"collections[0]: "+msg, "a bare entry's rules without enabled")
+		"collections[0].redaction sets rules"+instead, "a bare entry's rules without enabled")
 	require.EqualError(t, load("", "  - name: legal\n    redaction:\n      detectors: [rules]\n    content:\n      - path: \"legal/*.md\"\n"),
-		"collections[0]: "+msg)
+		"collections[0].redaction sets detectors"+instead)
 	require.EqualError(t, load("", "  - name: legal\n    content:\n      - path: \"legal/*.md\"\n        redaction:\n          enabled: false\n          placeholder: \"[X]\"\n"),
-		"collections[0].content[0]: "+msg, "an item's placeholder under enabled: false")
+		"collections[0].content[0].redaction sets placeholder"+instead, "an item's placeholder under enabled: false")
+	require.EqualError(t, load("  redaction:\n    rules: default.yaml\n", "  - path: \"docs/*.md\"\n"),
+		"defaults.redaction sets rules"+instead, "the defaults are held to the same rule")
+	require.EqualError(t, load("  redaction:\n    enabled: false\n    rules: default.yaml\n    detectors: [rules, entities]\n", "  - path: \"docs/*.md\"\n"),
+		"defaults.redaction sets rules and detectors"+instead, "enabled: false beside other keys")
 
 	require.NoError(t, load("", "  - name: public\n    redaction:\n      enabled: false\n    content:\n      - path: \"public/*.md\"\n"),
 		"enabled: false alone switches the collection off")
-	require.NoError(t, load("  redaction:\n    rules: default.yaml\n", "  - path: \"docs/*.md\"\n"),
-		"defaults.redaction keeps its declared-but-off form")
+	require.NoError(t, load("  redaction:\n    enabled: false\n", "  - path: \"docs/*.md\"\n"),
+		"enabled: false alone switches the defaults off")
+	require.NoError(t, load("  redaction:\n    enabled: true\n    rules: default.yaml\n", "  - path: \"docs/*.md\"\n"),
+		"the corrected defaults load")
 }
 
 func TestValidate_ACollectionsRedactionDetectors(t *testing.T) {
@@ -162,5 +168,5 @@ collections:
     content:
       - path: "legal/*.md"
 `), &p))
-	require.ErrorContains(t, p.Validate(), `collections[0]: redaction: unknown detector "regex"`)
+	require.ErrorContains(t, p.Validate(), `collections[0].redaction: unknown detector "regex"`)
 }

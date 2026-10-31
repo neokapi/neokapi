@@ -118,6 +118,27 @@ func TestStepsToGraph_RenamedToolRejected(t *testing.T) {
 	require.ErrorContains(t, err, `step[1].parallel: step[1]: tool "source-gate" is now "translate-after"`)
 }
 
+// A qa step that carries a retired key, or names a provider without a mode,
+// fails to compile, sequential or in a parallel branch, with the key path.
+func TestStepsToGraph_QualityCheckConfigRefused(t *testing.T) {
+	_, _, err := StepsToGraph(&StepsSpec{Steps: []FlowStep{
+		{Tool: "translate"},
+		{Tool: "qa", Config: map[string]any{"checkTerminology": true}},
+	}})
+	require.EqualError(t, err, "steps[1].config.checkTerminology is retired and nothing reads it. Remove the key")
+
+	_, _, err = StepsToGraph(&StepsSpec{Steps: []FlowStep{
+		{Tool: "recycle"},
+		{Parallel: []FlowStep{{Tool: "word-count"}, {Tool: "qa", Config: map[string]any{"provider": "anthropic"}}}},
+	}})
+	require.ErrorContains(t, err, "steps[1].parallel[1] (qa) sets provider: anthropic without mode")
+
+	_, _, err = StepsToGraph(&StepsSpec{Steps: []FlowStep{
+		{Tool: "qa", Config: map[string]any{"mode": "ai", "provider": "anthropic"}},
+	}})
+	require.NoError(t, err, "the corrected step compiles")
+}
+
 func TestStepsToGraph_TransformerAsOrderedStep(t *testing.T) {
 	spec := &StepsSpec{
 		Steps: []FlowStep{{Tool: "redact"}, {Tool: "translate"}},

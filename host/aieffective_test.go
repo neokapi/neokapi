@@ -88,7 +88,7 @@ func TestEffectiveAIModel_PresetForAnotherToolIsIgnored(t *testing.T) {
 	proj := &project.KapiProject{
 		Defaults: project.Defaults{
 			Tools: map[string]map[string]any{
-				"qa": {"provider": "openai", "model": "gpt-5"},
+				"qa": {"mode": "ai", "provider": "openai", "model": "gpt-5"},
 			},
 		},
 	}

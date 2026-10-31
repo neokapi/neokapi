@@ -36,6 +36,23 @@ func TestLoadDirFlow_ReadsTheStepsAndTheDescription(t *testing.T) {
 	assert.Equal(t, "qa", def.Spec.Steps[1].Tool)
 }
 
+// A flow file whose qa step names a provider without a mode does not load,
+// and the error names the file and the step.
+func TestLoadDirFlow_RefusesAQualityCheckWithoutAMode(t *testing.T) {
+	dir := writeDirFlow(t, map[string]string{
+		"review.yaml": "steps:\n  - tool: qa\n    config:\n      provider: anthropic\n",
+		"fixed.yaml":  "steps:\n  - tool: qa\n    config:\n      mode: ai\n      provider: anthropic\n",
+	})
+
+	_, err := LoadDirFlow(dir, "review")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), filepath.Join(dir, "review.yaml")+": steps[0] (qa) sets provider: anthropic without mode")
+
+	def, err := LoadDirFlow(dir, "fixed")
+	require.NoError(t, err)
+	assert.Equal(t, "ai", def.Spec.Steps[0].Config["mode"])
+}
+
 func TestLoadDirFlow_MissingFileIsNotExist(t *testing.T) {
 	dir := writeDirFlow(t, nil)
 

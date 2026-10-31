@@ -178,7 +178,7 @@ func TestToolRun_WithNoPolicySendsTheBlockAsItIs(t *testing.T) {
 	for name, recipe := range map[string]func(t *testing.T) string{
 		"a project with no policy": func(t *testing.T) string { return redactProject(t, "") },
 		"a policy switched off": func(t *testing.T) string {
-			return redactProject(t, "  redaction:\n    enabled: false\n    rules: redact.yaml\n")
+			return redactProject(t, "  redaction:\n    enabled: false\n")
 		},
 	} {
 		t.Run(name, func(t *testing.T) {

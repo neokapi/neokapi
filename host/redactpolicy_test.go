@@ -28,7 +28,7 @@ func TestRedactionFor_ReadsTheDeclaredPolicy(t *testing.T) {
 
 	t.Run("declared but off", func(t *testing.T) {
 		p := &project.KapiProject{Defaults: project.Defaults{
-			Redaction: &project.RedactionSpec{Enabled: false, Rules: "rules.yaml"},
+			Redaction: &project.RedactionSpec{Enabled: false},
 		}}
 		assert.Nil(t, RedactionFor(p, ""), "a policy switched off is not a policy")
 		assert.False(t, RedactionDeclared(p))

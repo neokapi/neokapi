@@ -51,19 +51,19 @@ func TestTranslateDispatch(t *testing.T) {
 	assert.Equal(t, "translate", mtTool.Name())
 }
 
-// TestCheckDispatch verifies qa runs deterministic rule checks with no provider
-// (and needs no credentials) and the LLM judge when a provider is set.
+// TestCheckDispatch verifies qa runs deterministic rule checks by default
+// (and needs no credentials) and the LLM judge in ai mode.
 func TestCheckDispatch(t *testing.T) {
 	reg := registry.NewToolRegistry()
 	tools.RegisterAll(reg)
 
-	// No provider → deterministic rule checks, constructible without credentials.
+	// No mode → deterministic rule checks, constructible without credentials.
 	det, err := reg.NewToolWithConfig("qa", map[string]any{}, "fr")
 	require.NoError(t, err)
 	require.NotNil(t, det)
 
-	// Provider set → the LLM judge.
-	llm, err := reg.NewToolWithConfig("qa", map[string]any{"provider": "anthropic", "apiKey": "test"}, "fr")
+	// mode: ai → the LLM judge.
+	llm, err := reg.NewToolWithConfig("qa", map[string]any{"mode": "ai", "provider": "anthropic", "apiKey": "test"}, "fr")
 	require.NoError(t, err)
 	require.NotNil(t, llm)
 }
