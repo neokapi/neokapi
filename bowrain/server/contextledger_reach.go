@@ -1,0 +1,139 @@
+package server
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"slices"
+	"strings"
+
+	"github.com/labstack/echo/v4"
+
+	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+	"github.com/neokapi/neokapi/core/contextop"
+	"github.com/neokapi/neokapi/core/workspace"
+)
+
+// LedgerMember is who writes to a project's context ledger: the member, the
+// permissions the request resolved for them, and the coordinates their grants
+// reach.
+type LedgerMember struct {
+	UserID      string
+	Permissions platauth.Permission
+	Reach       platauth.CoordinateReach
+}
+
+// ledgerMemberOf reads the signed-in member of a request.
+func ledgerMemberOf(c echo.Context) LedgerMember {
+	userID, _ := c.Get("user_id").(string)
+	perms, _ := c.Get("project_permissions").(platauth.Permission)
+	return LedgerMember{UserID: userID, Permissions: perms, Reach: callerReach(c)}
+}
+
+// ErrOutsideReach reports a context operation that governs a point the
+// member's grants do not reach, or that the member's permissions do not
+// cover. The error is a *ReachError.
+var ErrOutsideReach = errors.New("the operation governs a point outside the coordinates you hold")
+
+// ReachError names the operation refused and why.
+type ReachError struct {
+	Kind  contextop.Kind
+	ID    string
+	Point platauth.CoordinateFilter
+	Reach platauth.CoordinateReach
+	// Permission is set when the member lacks the permission the kind needs,
+	// rather than the reach.
+	Permission platauth.Permission
+}
+
+func (e *ReachError) Error() string {
+	if e.Permission != 0 {
+		return fmt.Sprintf("context operation %s (%s) needs the %s permission", workspace.ShortOpID(e.ID), e.Kind, e.Permission)
+	}
+	return fmt.Sprintf("context operation %s (%s) governs %s, outside the coordinates you hold (%s)",
+		workspace.ShortOpID(e.ID), e.Kind, describePoint(e.Point), describeReach(e.Reach))
+}
+
+// Is reports ErrOutsideReach.
+func (e *ReachError) Is(target error) bool { return target == ErrOutsideReach }
+
+// describePoint renders a point as the scope grammar writes it.
+func describePoint(p platauth.CoordinateFilter) string {
+	if len(p) == 0 {
+		return "the whole project"
+	}
+	return p.String()
+}
+
+// describeReach renders a reach as the scope grammar writes each filter.
+func describeReach(r platauth.CoordinateReach) string {
+	parts := make([]string, 0, len(r))
+	for _, f := range r {
+		parts = append(parts, f.String())
+	}
+	slices.Sort(parts)
+	return strings.Join(parts, "; ")
+}
+
+// governingKinds are the context operations that establish, change or set
+// aside what governs content: what a person decides. The other kinds say what
+// somebody saw (observe, correct, signal, check) or take back one's own
+// suggestion (withdraw), and govern nothing.
+var governingKinds = []contextop.Kind{
+	contextop.KindKeep, contextop.KindDrop, contextop.KindImport, contextop.KindEdit,
+	contextop.KindWiden, contextop.KindReset, contextop.KindEstablish,
+}
+
+// governingPermission is the permission a governing operation needs, the one
+// the server's terms routes gate on.
+const governingPermission = platauth.PermManageTerms
+
+// checkReach refuses a context operation that governs a point outside the
+// member's reach. An operation that acts on another (a keep, a drop) governs
+// the point of the operation it names, looked up in byID, and its own
+// coordinates when it carries any; a widening governs the point it widens to
+// even when that is the whole project. Any other operation governs its own
+// coordinates, and one with none governs the whole project, which only an
+// unbounded reach covers.
+func checkReach(member LedgerMember, op workspace.Op, byID map[string]workspace.Op) error {
+	kind, ok := strings.CutPrefix(op.Kind, contextop.OpKindPrefix)
+	if !ok || !slices.Contains(governingKinds, contextop.Kind(kind)) {
+		return nil
+	}
+	if !member.Permissions.Has(governingPermission) {
+		return &ReachError{Kind: contextop.Kind(kind), ID: op.ID, Permission: governingPermission}
+	}
+	if member.Reach.Unconstrained() {
+		return nil
+	}
+	own, target := scopeOf(op)
+	var points []map[string]string
+	if target == "" || len(own) > 0 || contextop.Kind(kind) == contextop.KindWiden {
+		points = append(points, own)
+	}
+	if t, ok := byID[target]; ok && target != "" {
+		at, _ := scopeOf(t)
+		points = append(points, at)
+	}
+	for _, point := range points {
+		if !member.Reach.Reaches(point) {
+			return &ReachError{Kind: contextop.Kind(kind), ID: op.ID, Point: point, Reach: member.Reach}
+		}
+	}
+	return nil
+}
+
+// scopeOf reads the coordinates and the target a context operation's payload
+// carries.
+func scopeOf(op workspace.Op) (coordinates map[string]string, target string) {
+	var body struct {
+		Scope struct {
+			Coordinates map[string]string `json:"coordinates"`
+		} `json:"scope"`
+		Target string `json:"target"`
+	}
+	if len(op.Payload) > 0 {
+		_ = json.Unmarshal(op.Payload, &body)
+	}
+	return body.Scope.Coordinates, body.Target
+}

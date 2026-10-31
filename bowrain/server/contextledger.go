@@ -28,10 +28,12 @@ const contextLedgerWriter = "bowrain"
 var ErrNoContextKey = errors.New("the project's context has no project key yet: push it from kapi first")
 
 // ContextLedger returns the context ledger of a project, read from its
-// context objects and written as the member userID. Every operation the
-// ledger records carries the member as its actor, a person under the
-// member's display name, whatever actor the caller filled in.
-func (s *Server) ContextLedger(ctx context.Context, projectID, userID string) (*contextop.Ledger, error) {
+// context objects and written as member. Every operation the ledger records
+// carries the member as its actor, a person under the member's display name,
+// whatever actor the caller filled in. A governing operation (a keep, a drop,
+// an edit) is refused with ErrOutsideReach unless the member holds
+// PermManageTerms at every point it governs.
+func (s *Server) ContextLedger(ctx context.Context, projectID string, member LedgerMember) (*contextop.Ledger, error) {
 	objects, ok := s.contextObjects()
 	if !ok {
 		return nil, errors.New("context objects not configured")
@@ -40,8 +42,8 @@ func (s *Server) ContextLedger(ctx context.Context, projectID, userID string) (*
 		objects:  objects,
 		cache:    s.contextLogs.project(projectID),
 		project:  projectID,
-		actor:    contextop.Actor{Kind: contextop.ActorPerson, Name: s.displayName(ctx, userID)},
-		pushedBy: userID,
+		actor:    contextop.Actor{Kind: contextop.ActorPerson, Name: s.displayName(ctx, member.UserID)},
+		member:   member,
 	}
 	return contextop.NewLedger(log, contextop.PersonDecides), nil
 }
@@ -55,8 +57,10 @@ type contextLog struct {
 	project string
 	// actor is stamped on every context operation Record writes.
 	actor contextop.Actor
-	// pushedBy is the member the segments Record writes are stamped with.
-	pushedBy string
+	// member is who writes: the segments Record writes are stamped with the
+	// member's id, and a governing operation is checked against the member's
+	// permissions and reach.
+	member LedgerMember
 }
 
 var _ contextop.Log = (*contextLog)(nil)
@@ -135,6 +139,9 @@ func (l *contextLog) Record(ctx context.Context, ops ...workspace.Op) ([]workspa
 			return nil, fmt.Errorf("record a context operation: %q is not an operation id", op.ID)
 		}
 		if strings.HasPrefix(op.Kind, contextop.OpKindPrefix) {
+			if err := checkReach(l.member, op, byID); err != nil {
+				return nil, err
+			}
 			if op.Payload, err = stampActor(op.Payload, l.actor); err != nil {
 				return nil, err
 			}
@@ -164,7 +171,7 @@ func (l *contextLog) Record(ctx context.Context, ops ...workspace.Op) ([]workspa
 		return nil, err
 	}
 	name := workspace.SegmentName(contextLedgerWriter, fresh[0].ID)
-	if err := l.objects.PutContextObjects(ctx, l.project, l.pushedBy, []platstore.ContextObject{{Name: name, Data: data}}); err != nil {
+	if err := l.objects.PutContextObjects(ctx, l.project, l.member.UserID, []platstore.ContextObject{{Name: name, Data: data}}); err != nil {
 		return nil, fmt.Errorf("record context operations: %w", err)
 	}
 	return out, nil

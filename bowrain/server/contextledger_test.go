@@ -117,7 +117,9 @@ func (nopApplier) Checkpoint(context.Context, []string) ([]byte, string, error) 
 func (nopApplier) CheckpointMark([]byte) (string, []string, []string, error) {
 	return "", nil, nil, errors.New("no checkpoints")
 }
-func (nopApplier) InstallCheckpoint(context.Context, []byte) error { return errors.New("no checkpoints") }
+func (nopApplier) InstallCheckpoint(context.Context, []byte) error {
+	return errors.New("no checkpoints")
+}
 
 // countingObjects counts the context objects read through it.
 type countingObjects struct {
@@ -178,7 +180,7 @@ func ledgerRoundTrip(t *testing.T, srv *Server, r *routeRemote, projectID, userI
 	require.NoError(t, err)
 	assert.Equal(t, "site", key, "the first push binds the project key")
 
-	ledger, err := srv.ContextLedger(ctx, projectID, userID)
+	ledger, err := srv.ContextLedger(ctx, projectID, LedgerMember{UserID: userID, Permissions: platauth.PermManageTerms})
 	require.NoError(t, err)
 	records, err := ledger.Records(ctx, contextop.Filter{})
 	require.NoError(t, err)
@@ -275,7 +277,7 @@ func TestContextLedger_KeyRefusals_SQLite(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, key, "a refused push binds no key")
 
-	ledger, err := srv.ContextLedger(ctx, fresh, "member-a")
+	ledger, err := srv.ContextLedger(ctx, fresh, testMember("member-a"))
 	require.NoError(t, err)
 	_, err = ledger.Append(ctx, contextop.Record{
 		Kind:    contextop.KindObserve,
@@ -295,7 +297,7 @@ func TestContextLedger_CacheFollowsTheObjectList_SQLite(t *testing.T) {
 	d.observe(t, "use", "utilise")
 	require.NoError(t, r.Put(ctx, d.push(t)...))
 
-	ledger, err := srv.ContextLedger(ctx, pid, "member-a")
+	ledger, err := srv.ContextLedger(ctx, pid, testMember("member-a"))
 	require.NoError(t, err)
 	records, err := ledger.Records(ctx, contextop.Filter{})
 	require.NoError(t, err)
@@ -304,7 +306,7 @@ func TestContextLedger_CacheFollowsTheObjectList_SQLite(t *testing.T) {
 
 	_, err = ledger.Records(ctx, contextop.Filter{})
 	require.NoError(t, err)
-	again, err := srv.ContextLedger(ctx, pid, "member-b")
+	again, err := srv.ContextLedger(ctx, pid, testMember("member-b"))
 	require.NoError(t, err)
 	_, err = again.Records(ctx, contextop.Filter{})
 	require.NoError(t, err)
@@ -329,7 +331,7 @@ func TestContextLedger_SegmentThatDoesNotDecode_SQLite(t *testing.T) {
 	require.NoError(t, r.Put(ctx, d.push(t)...))
 	require.NoError(t, r.Put(ctx, workspace.Object{Name: workspace.SegmentName("w9", "000000000000000000000001"), Data: []byte("not a segment\n")}))
 
-	ledger, err := srv.ContextLedger(ctx, pid, "member-a")
+	ledger, err := srv.ContextLedger(ctx, pid, testMember("member-a"))
 	require.NoError(t, err)
 	records, err := ledger.Records(ctx, contextop.Filter{})
 	require.NoError(t, err)
@@ -380,4 +382,86 @@ func TestContextLedger_Postgres(t *testing.T) {
 		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &refusal))
 		assert.Equal(t, contextCheckoutKeyCode, refusal.Code)
 	})
+}
+
+// testMember is a member with the permission to govern the whole project.
+func testMember(userID string) LedgerMember {
+	return LedgerMember{UserID: userID, Permissions: platauth.PermManageTerms}
+}
+
+// observeAt records a term rule suggestion seen at a point.
+func (d *desktop) observeAt(t *testing.T, term, instead string, point map[string]string) contextop.Record {
+	t.Helper()
+	r, err := contextop.NewLedger(d.ws, nil).Append(t.Context(), contextop.Record{
+		Project: d.key,
+		Actor:   contextop.Actor{Kind: contextop.ActorPerson, Name: "asgeir"},
+		Kind:    contextop.KindObserve,
+		Subject: contextop.Subject{Kind: contextop.SubjectTerm, Term: &profile.TermRule{Term: instead, Replacement: term}},
+		Scope:   contextop.Scope{Coordinates: point},
+	})
+	require.NoError(t, err)
+	return r
+}
+
+// keep records a person keeping a suggestion.
+func (d *desktop) keep(t *testing.T, id string) {
+	t.Helper()
+	_, err := contextop.NewLedger(d.ws, nil).Append(t.Context(), contextop.Record{
+		Project: d.key,
+		Actor:   contextop.Actor{Kind: contextop.ActorPerson, Name: "asgeir"},
+		Kind:    contextop.KindKeep,
+		Target:  id,
+	})
+	require.NoError(t, err)
+}
+
+// A custodian whose grants name brand=acme pushes the decisions at acme and
+// the suggestions anywhere, and a decision at another brand is refused. The
+// same holds for a keep recorded through the server, and a member without
+// the permission to govern keeps nothing.
+func TestContextLedger_DecisionsStayInReach_SQLite(t *testing.T) {
+	ctx := t.Context()
+	cs, err := sqlitestore.NewSQLiteStore(filepath.Join(t.TempDir(), "content.db"))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = cs.Close() })
+	acme := platauth.CoordinateReach{}.Add(platauth.CoordinateFilter{"brand": "acme"})
+	srv := &Server{ContentStore: cs, wsStores: newWorkspaceStores()}
+	e := echo.New()
+	srv.registerContextObjectRoutes(e.Group("/api/v1/:ws", func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			c.Set("user_id", "custodian")
+			c.Set("project_permissions", platauth.PermViewContent|contextObjectWritePermission)
+			c.Set("project_coordinates", acme)
+			return next(c)
+		}
+	}))
+	pid := seedContextObjectProject(t, cs)
+	r := &routeRemote{h: e, base: "/api/v1/ws/" + pid + "/context/objects"}
+
+	d := newDesktop(t, "site")
+	atAcme := d.observeAt(t, "use", "utilise", map[string]string{"brand": "acme"})
+	d.keep(t, atAcme.ID)
+	atOther := d.observeAt(t, "sign in", "login", map[string]string{"brand": "other"})
+	require.NoError(t, r.Put(ctx, d.push(t)...), "a decision at acme and a suggestion at other")
+
+	d.keep(t, atOther.ID)
+	rec := r.do(ctx, http.MethodPost, r.base, pushBody(t, d.push(t)))
+	require.Equal(t, http.StatusForbidden, rec.Code)
+	var refusal ErrorResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &refusal))
+	assert.Equal(t, contextOutsideReachCode, refusal.Code)
+	assert.Contains(t, refusal.Error, "governs brand=other, outside the coordinates you hold (brand=acme)")
+
+	ledger, err := srv.ContextLedger(ctx, pid, LedgerMember{UserID: "custodian", Permissions: platauth.PermManageTerms, Reach: acme})
+	require.NoError(t, err)
+	_, err = ledger.Append(ctx, contextop.Record{Kind: contextop.KindKeep, Target: atOther.ID})
+	require.ErrorIs(t, err, ErrOutsideReach)
+	_, err = ledger.Append(ctx, contextop.Record{Kind: contextop.KindDrop, Target: atAcme.ID})
+	require.NoError(t, err, "a decision at acme is the custodian's")
+
+	reviewer, err := srv.ContextLedger(ctx, pid, LedgerMember{UserID: "reviewer", Permissions: platauth.PermReview})
+	require.NoError(t, err)
+	_, err = reviewer.Append(ctx, contextop.Record{Kind: contextop.KindKeep, Target: atOther.ID})
+	require.ErrorIs(t, err, ErrOutsideReach)
+	assert.Contains(t, err.Error(), "needs the")
 }

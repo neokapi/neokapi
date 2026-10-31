@@ -40,6 +40,9 @@ const (
 	// contextCheckoutKeyCode answers a push whose segments name a key derived
 	// from one checkout (workspace.KeyForCheckout), with status 422.
 	contextCheckoutKeyCode = apiclient.ContextCheckoutKeyCode
+	// contextOutsideReachCode answers a push carrying a governing operation
+	// at a point outside the pusher's coordinates, with status 403.
+	contextOutsideReachCode = apiclient.ContextOutsideReachCode
 )
 
 // requestBodyLimit bounds every request body the server reads. A push of
@@ -180,6 +183,9 @@ func (s *Server) HandlePutContextObjects(c echo.Context) error {
 	if refused, err := bindContextKey(c, cos, batch); refused || err != nil {
 		return err
 	}
+	if refused, err := s.checkPushReach(c, cos, batch); refused || err != nil {
+		return err
+	}
 	pushedBy, _ := c.Get("user_id").(string)
 	err := cos.PutContextObjects(ctx, projectID, pushedBy, batch)
 	if exists, ok := errors.AsType[*platstore.ContextObjectExistsError](err); ok {
@@ -252,4 +258,51 @@ func keyMismatchRefusal(bound, pushed workspace.ProjectKey) string {
 // checkoutKeyRefusal says why a push naming a checkout's key is refused.
 func checkoutKeyRefusal(key workspace.ProjectKey) string {
 	return fmt.Sprintf("the push carries project key %s, which belongs to one checkout because kapi.yaml states neither id: nor name:. Name the project in kapi.yaml, then push again", key)
+}
+
+// checkPushReach refuses a push carrying a governing context operation (a
+// keep, a drop, an edit) at a point the pusher's grants do not reach. The
+// route's permission is checked for the whole project; a member whose grants
+// name coordinates may push only the decisions that lie inside them. A pusher
+// with an unbounded reach is not decoded for. refused reports that the answer
+// has been written.
+func (s *Server) checkPushReach(c echo.Context, cos platstore.ContextObjectStore, batch []platstore.ContextObject) (refused bool, err error) {
+	member := ledgerMemberOf(c)
+	if member.Reach.Unconstrained() {
+		return false, nil
+	}
+	ctx := c.Request().Context()
+	key, held, err := s.contextLogs.project(c.Param("id")).read(ctx, cos, c.Param("id"))
+	if err != nil {
+		return true, serverErr(c, err)
+	}
+	if key == "" {
+		return false, nil
+	}
+	byID := make(map[string]workspace.Op, len(held))
+	for _, op := range held {
+		byID[op.ID] = op
+	}
+	var pushed []workspace.Op
+	for _, obj := range batch {
+		if !strings.HasPrefix(obj.Name, workspace.RemoteLogDir) {
+			continue
+		}
+		ops, err := workspace.DecodeSegment(obj.Data, key)
+		if err != nil {
+			continue
+		}
+		for _, op := range ops {
+			byID[op.ID] = op
+		}
+		pushed = append(pushed, ops...)
+	}
+	for _, op := range pushed {
+		if err := checkReach(member, op, byID); err != nil {
+			return true, c.JSON(http.StatusForbidden, ErrorResponse{
+				Error: err.Error(), Details: op.ID, Code: contextOutsideReachCode,
+			})
+		}
+	}
+	return false, nil
 }
