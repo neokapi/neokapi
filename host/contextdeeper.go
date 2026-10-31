@@ -24,6 +24,7 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/redaction"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/rulesview"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/host/credentials"
@@ -568,7 +569,7 @@ func deeperTermFindings(c suggestCorpus, named []aitools.TermEntry) []suggestFin
 		if letterCount(term) < 2 || utf8.RuneCountInString(term) > 60 {
 			continue
 		}
-		key := spellingKey(term)
+		key := rulesview.SpellingKey(term)
 		if i, ok := index[key]; ok {
 			if candidates[i].definition == "" {
 				candidates[i].definition = strings.TrimSpace(e.Definition)
@@ -601,7 +602,7 @@ func deeperTermFindings(c suggestCorpus, named []aitools.TermEntry) []suggestFin
 // deeperTermFinding states one term as a finding, when the files write it as
 // the term rule about it would have them write it.
 func deeperTermFinding(c suggestCorpus, term, definition string) (suggestFinding, bool) {
-	uses := formMatcher([]string{term}, true)
+	uses := rulesview.FormMatcher([]string{term}, true)
 	form := SuggestedForm{Form: term}
 	files := map[string]bool{}
 	sample := -1
@@ -623,7 +624,7 @@ func deeperTermFinding(c suggestCorpus, term, definition string) (suggestFinding
 	form.Files = slices.Sorted(maps.Keys(files))
 
 	rule := contextop.ObservedRule(term, nil)
-	letters := spellingKey(term)
+	letters := rulesview.SpellingKey(term)
 	fd := suggestFinding{
 		kind:    SuggestKindTerm,
 		letters: letters,
@@ -646,7 +647,7 @@ func deeperTermFinding(c suggestCorpus, term, definition string) (suggestFinding
 
 	// A file that writes a form the rule avoids writes the term more than one
 	// way, which is the pass over the files' finding to make.
-	avoided := formMatcher(append([]string{rule.Term}, rule.Forms...), rule.MatchesCase())
+	avoided := rulesview.FormMatcher(append([]string{rule.Term}, rule.Forms...), rule.MatchesCase())
 	for _, b := range c.blocks {
 		if countUses(b.plain, avoided) > 0 {
 			return suggestFinding{}, false

@@ -20,6 +20,7 @@ import (
 	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/profile/packs"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/rulesview"
 	"github.com/neokapi/neokapi/core/workspace"
 )
 
@@ -37,7 +38,7 @@ import (
 
 // SuggestActor is who files what the suggestions pass sees: kapi itself. An
 // agent's notes carry the agent; these carry kapi.
-var SuggestActor = contextop.Actor{Kind: contextop.ActorTool, Name: "kapi"}
+var SuggestActor = rulesview.SuggestActor
 
 // The kinds of finding the pass reports.
 const (
@@ -611,7 +612,7 @@ type variantCount struct {
 func spellingFindings(c suggestCorpus) []suggestFinding {
 	groups := map[string]map[string]*variantCount{}
 	add := func(written string, block int, file string) {
-		key := spellingKey(written)
+		key := rulesview.SpellingKey(written)
 		if letterCount(key) < 4 {
 			return
 		}
@@ -795,8 +796,8 @@ func spellingFinding(c suggestCorpus, key string, forms map[string]*variantCount
 
 	// The usage count a check makes of the rule, so the queue shows how the
 	// files write it from the moment it is filed.
-	preferred := formMatcher([]string{rule.Replacement}, rule.MatchesCase())
-	rejected := formMatcher(append([]string{rule.Term}, rule.Forms...), rule.MatchesCase())
+	preferred := rulesview.FormMatcher([]string{rule.Replacement}, rule.MatchesCase())
+	rejected := rulesview.FormMatcher(append([]string{rule.Term}, rule.Forms...), rule.MatchesCase())
 	sig := &contextop.Signal{Source: contextop.SignalUsage}
 	for _, b := range c.blocks {
 		sig.Preferred += countUses(b.plain, preferred)
@@ -830,7 +831,7 @@ func writtenAs(form string, spellings map[string]int) string {
 func spellingCounts(forms []SuggestedForm) string {
 	parts := make([]string, len(forms))
 	for i, f := range forms {
-		parts[i] = strconv.Quote(f.Form) + " " + times(f.Count)
+		parts[i] = strconv.Quote(f.Form) + " " + rulesview.Times(f.Count)
 	}
 	return strings.Join(parts, ", ")
 }
@@ -937,7 +938,7 @@ func packFindings(c suggestCorpus) ([]suggestFinding, error) {
 		counted := make([]string, len(found))
 		for i, f := range found {
 			words[i] = f.Form
-			counted[i] = f.Form + " " + times(f.Count)
+			counted[i] = f.Form + " " + rulesview.Times(f.Count)
 		}
 		fd.signature = strings.Join(slices.Sorted(slices.Values(words)), ", ")
 		fd.note = suggestNotePack(name) + fd.signature
@@ -1096,7 +1097,7 @@ func passFound(res *ContextSuggestResult) map[string]bool {
 			out["address:second"] = true
 		case SuggestKindSpelling:
 			if rule, ok := s.Subject.Rule(); ok && rule.Replacement != "" {
-				out["letters:"+spellingKey(rule.Replacement)] = true
+				out["letters:"+rulesview.SpellingKey(rule.Replacement)] = true
 			}
 		}
 	}
@@ -1123,7 +1124,7 @@ func (f *suggestFiler) file(ctx context.Context, fd suggestFinding) (SuggestedFi
 	out := SuggestedFinding{
 		Kind:     fd.kind,
 		Subject:  fd.subject,
-		Sentence: ruleSentence(fd.subject),
+		Sentence: rulesview.Sentence(fd.subject),
 		Forms:    fd.forms,
 		Pack:     fd.pack,
 		Address:  fd.address,
@@ -1156,7 +1157,7 @@ func (f *suggestFiler) file(ctx context.Context, fd suggestFinding) (SuggestedFi
 		out.Short = contextop.ShortID(prior.ID)
 		if f.signature(*prior) != fd.signature {
 			out.Subject = prior.Subject
-			out.Sentence = ruleSentence(prior.Subject)
+			out.Sentence = rulesview.Sentence(prior.Subject)
 			if fd.kind == SuggestKindVoice {
 				out.Value = f.signature(*prior)
 			}
@@ -1255,7 +1256,7 @@ func (f *suggestFiler) keyOf(r contextop.Record) string {
 		if !ok || rule.Replacement == "" {
 			return ""
 		}
-		return "spelling:" + spellingKey(rule.Replacement)
+		return "spelling:" + rulesview.SpellingKey(rule.Replacement)
 	case contextop.SubjectNote:
 		switch {
 		case r.Note == suggestNoteAddress:
@@ -1335,7 +1336,7 @@ func (f *suggestFiler) known(fd suggestFinding) bool {
 			continue
 		}
 		for _, form := range append([]string{rule.Replacement, rule.Term}, rule.Forms...) {
-			if form != "" && spellingKey(form) == letters {
+			if form != "" && rulesview.SpellingKey(form) == letters {
 				return true
 			}
 		}

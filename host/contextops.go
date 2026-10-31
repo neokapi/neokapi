@@ -52,6 +52,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/rulesview"
 	"github.com/neokapi/neokapi/core/workspace"
 )
 
@@ -261,27 +262,16 @@ type ContextSessionRequest struct {
 
 // WidenToWorkspace is the scope that puts a rule in force in every project of
 // the workspace.
-const WidenToWorkspace = "workspace"
+const WidenToWorkspace = rulesview.WidenToWorkspace
 
 // WidenToProject is the scope that puts a rule settled under one profile in
 // force under every profile of its project.
 const WidenToProject = "project"
 
 // ContextWidenOptions are the widenings open to an established subject at
-// scope: the whole workspace, and each axis its point is specific about. A
-// rule already answering workspace-wide has nowhere further to go, and a note
-// holds within its project at the widest, so neither is offered the workspace.
+// scope (rulesview.WidenOptions).
 func ContextWidenOptions(subject contextop.SubjectKind, scope contextop.Scope) []string {
-	out := []string{}
-	if scope.Level != contextop.LevelWorkspace && subject != contextop.SubjectNote {
-		out = append(out, WidenToWorkspace)
-	}
-	axes := make([]string, 0, len(scope.Coordinates))
-	for axis := range scope.Coordinates {
-		axes = append(axes, axis)
-	}
-	slices.Sort(axes)
-	return append(out, axes...)
+	return rulesview.WidenOptions(subject, scope)
 }
 
 // ContextLogSessionSelf is the value ContextLogRequest.Session takes for the
@@ -595,7 +585,7 @@ const maxContradictionPages = 10
 // at the button would call the library wrong. Only evidence that names a
 // block is weighed, against the file's blocks and the editions it holds.
 func (s *contextOpsSession) entriesContradict(ctx context.Context, rule profile.TermRule, evidence []contextop.Evidence, what string) error {
-	re := formMatcher(append([]string{rule.Term}, rule.Forms...), rule.MatchesCase())
+	re := rulesview.FormMatcher(append([]string{rule.Term}, rule.Forms...), rule.MatchesCase())
 	if re == nil {
 		return nil
 	}
@@ -948,7 +938,7 @@ func (s *contextOpsSession) keep(ctx context.Context, actor contextop.Actor, not
 		Note:    note,
 		Scope:   target.Scope,
 	}
-	if edited, changed := editSubject(target.Subject, req.Replacement, req.Advisory); changed {
+	if edited, changed := rulesview.EditSubject(target.Subject, req.Replacement, req.Advisory); changed {
 		keep.Subject = edited
 		target.Subject = edited
 	}
@@ -981,57 +971,6 @@ func (s *contextOpsSession) keep(ctx context.Context, actor contextop.Actor, not
 		return ContextOperation{}, err
 	}
 	return ContextOperation{Record: written, Landed: landed}, nil
-}
-
-// editSubject applies a keep's edits to the rule being kept, and reports
-// whether anything moved. A content-memory pair and a note carry no
-// replacement or advisory marking, so an edit of either is a no-op.
-func editSubject(subject contextop.Subject, replacement string, advisory *bool) (contextop.Subject, bool) {
-	if replacement == "" && advisory == nil {
-		return subject, false
-	}
-	apply := func(rule *profile.TermRule) bool {
-		changed := false
-		if replacement != "" && rule.Replacement != replacement {
-			*rule = withPreferred(*rule, replacement)
-			changed = true
-		}
-		if advisory != nil && rule.Advisory != *advisory {
-			rule.Advisory, changed = *advisory, true
-		}
-		return changed
-	}
-	if subject.Kind == contextop.SubjectTerm && subject.Term != nil {
-		rule := *subject.Term
-		if apply(&rule) {
-			subject.Term = &rule
-			return subject, true
-		}
-	}
-	return subject, false
-}
-
-// withPreferred makes form the wording a rule says to write. A form the rule
-// avoided trades places with the wording it said to write before, so a name
-// kept as another of its spellings avoids the spelling the suggestion
-// preferred and never avoids the one it now prefers.
-func withPreferred(rule profile.TermRule, form string) profile.TermRule {
-	avoided := append([]string{rule.Term}, rule.Forms...)
-	if i := slices.Index(avoided, form); i >= 0 {
-		if rule.Replacement != "" {
-			avoided[i] = rule.Replacement
-		} else {
-			avoided = slices.Delete(avoided, i, i+1)
-		}
-		if len(avoided) > 0 {
-			rule.Term, rule.Forms = avoided[0], slices.Clip(avoided[1:])
-			if len(rule.Forms) == 0 {
-				rule.Forms = nil
-			}
-		}
-	}
-	rule.Replacement = form
-	return rule
 }
 
 // widenScope moves a scope outward. "workspace" puts the rule in force in every

@@ -19,6 +19,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/rulesview"
 	"github.com/neokapi/neokapi/core/workspace"
 	"github.com/neokapi/neokapi/host/output"
 )
@@ -753,7 +754,7 @@ func lookFindingLabel(d check.Diagnostic) string {
 func lookCheckKind(d check.Diagnostic) string {
 	switch d.Check {
 	case "terms":
-		if r, t := d.Metadata["replacement"], d.Metadata["term"]; r != "" && spellingKey(r) == spellingKey(t) {
+		if r, t := d.Metadata["replacement"], d.Metadata["term"]; r != "" && rulesview.SpellingKey(r) == rulesview.SpellingKey(t) {
 			return "Name"
 		}
 		return "Word"
@@ -788,7 +789,7 @@ func (a *App) lookRulesAt(cmd Command, abs string) []LookRule {
 	for _, r := range res.Rules {
 		kind := "Word"
 		for _, n := range r.Not {
-			if r.Say != "" && spellingKey(n) == spellingKey(r.Say) {
+			if r.Say != "" && rulesview.SpellingKey(n) == rulesview.SpellingKey(r.Say) {
 				kind = "Name"
 			}
 		}
@@ -819,7 +820,7 @@ func (a *App) lookRulesAt(cmd Command, abs string) []LookRule {
 		if c.Kind == string(contextop.SubjectTerm) {
 			subject.Term = &coreprofile.TermRule{Term: c.Term, Forms: c.Forms, Replacement: c.Replacement}
 		}
-		rule.Kind = lookThemeKind(digestTheme(subject))
+		rule.Kind = lookThemeKind(rulesview.ThemeOf(subject))
 		rule.Rule = lookSubjectText(subject, c.Text)
 		out = append(out, rule)
 	}
