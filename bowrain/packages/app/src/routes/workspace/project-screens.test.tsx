@@ -1,14 +1,19 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from "vite-plus/test";
+import { afterEach, describe, it, expect, vi } from "vite-plus/test";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { PermissionName, ReaderFixResult } from "@neokapi/ui";
+import type { ApiAdapter, JobState, PermissionName, ReaderFixResult } from "@neokapi/ui";
 import { READER_WITH_FIXES } from "@neokapi/project-screens/fixtures";
 import { ProjectMapPage } from "./project-map";
 import { ProjectReaderPage } from "./project-reader";
 import { ProjectRulesPage } from "./project-rules";
 import { fixtureScreensPort } from "./project-screens-fixture-port";
-import { bowrainOpens, permittedPort, proposalsByFinding } from "./project-screens-port";
+import {
+  bowrainOpens,
+  permittedPort,
+  proposalsByFinding,
+  restScreensPort,
+} from "./project-screens-port";
 
 /** What a member holding exactly `held` may do. */
 const holding =
@@ -20,11 +25,11 @@ const MEMBER = holding("view_content", "review", "manage_terms");
 const VIEWER = holding();
 
 describe("the Map route", () => {
-  it("offers the project-wide check to a member who may view the content", async () => {
+  it("offers the project-wide check to a member who may review", async () => {
     const runChecks = vi.fn(async () => {});
     render(
       <ProjectMapPage
-        port={permittedPort(fixtureScreensPort({ runChecks }), holding("view_content"))}
+        port={permittedPort(fixtureScreensPort({ runChecks }), holding("view_content", "review"))}
         projectName="Fernwell"
         navigate={vi.fn()}
       />,
@@ -33,10 +38,10 @@ describe("the Map route", () => {
     expect(runChecks).toHaveBeenCalled();
   });
 
-  it("draws no check action for a member without the permission", async () => {
+  it("draws no check action for a member who may only view", async () => {
     render(
       <ProjectMapPage
-        port={permittedPort(fixtureScreensPort(), VIEWER)}
+        port={permittedPort(fixtureScreensPort(), holding("view_content"))}
         projectName="Fernwell"
         navigate={vi.fn()}
       />,
@@ -159,5 +164,116 @@ describe("the port", () => {
       refused: [{ finding_id: "b2c3-1", reason: "The change was refused." }],
     };
     expect(proposalsByFinding(READER_WITH_FIXES, result)).toEqual([]);
+  });
+});
+
+describe("who may answer a question", () => {
+  it("counts the content memory permission the server reports as manage_memory", () => {
+    expect(permittedPort(fixtureScreensPort(), holding("manage_memory")).decide).toBeDefined();
+    expect(permittedPort(fixtureScreensPort(), VIEWER).decide).toBeUndefined();
+  });
+
+  it("shows the server's refusal in the question's pane", async () => {
+    // A voice-only member sees Keep on a name; the server refuses it, since a
+    // name takes the terms permission.
+    const decide = vi.fn(async () => {
+      throw new Error("deciding a term needs the manage_terms permission");
+    });
+    const { container } = render(
+      <ProjectRulesPage
+        port={permittedPort(fixtureScreensPort({ decide }), holding("manage_voice"))}
+        navigate={vi.fn()}
+      />,
+    );
+    await userEvent.click(await screen.findByRole("button", { name: /^Keep/ }));
+    await waitFor(() =>
+      expect(container.querySelector("[data-slot='decide-refused']")).toHaveTextContent(
+        "deciding a term needs the manage_terms permission",
+      ),
+    );
+  });
+});
+
+describe("following the check's job", () => {
+  /** An adapter whose check starts job-1 and whose job answers each status in turn. */
+  function jobAdapter(statuses: JobState["status"][]) {
+    const getJob = vi.fn(async (_ws: string, id: string) => ({
+      id,
+      status: statuses.length > 1 ? statuses.shift()! : statuses[0],
+      progress: 0,
+    }));
+    const api = {
+      runProjectChecks: vi.fn(async () => ({ job_id: "job-1" })),
+      getJob,
+    } as unknown as ApiAdapter;
+    return { api, getJob };
+  }
+  const scope = { ws: "acme", projectId: "p1", stream: "main" };
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("waits longer between reads, up to 5 s, and reads the Map again when the job completes", async () => {
+    vi.useFakeTimers();
+    const { api, getJob } = jobAdapter([
+      "queued",
+      "processing",
+      "processing",
+      "processing",
+      "processing",
+      "completed",
+    ]);
+    const port = restScreensPort(api, scope);
+    const changed = vi.fn();
+    port.subscribe!(changed);
+    const done = port.runChecks!();
+    for (const ms of [1000, 2000, 4000, 5000, 5000]) {
+      await vi.advanceTimersByTimeAsync(ms - 1);
+      const before = getJob.mock.calls.length;
+      await vi.advanceTimersByTimeAsync(1);
+      expect(getJob.mock.calls.length).toBe(before + 1);
+    }
+    await done;
+    expect(getJob).toHaveBeenCalledTimes(6);
+    expect(changed).toHaveBeenCalledWith("map");
+  });
+
+  it("gives up after 10 minutes", async () => {
+    vi.useFakeTimers();
+    const { api } = jobAdapter(["processing"]);
+    const done = restScreensPort(api, scope).runChecks!();
+    const failed = expect(done).rejects.toThrow("The check did not finish");
+    await vi.advanceTimersByTimeAsync(10 * 60 * 1000 + 5000);
+    await failed;
+  });
+
+  it("reports a failed job with the job's own error", async () => {
+    const { api } = jobAdapter(["failed"]);
+    (api.getJob as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: "job-1",
+      status: "failed",
+      progress: 0,
+      error: "the stream holds no items",
+    });
+    await expect(restScreensPort(api, scope).runChecks!()).rejects.toThrow(
+      "the stream holds no items",
+    );
+  });
+
+  it("stops reading the job once disposed", async () => {
+    vi.useFakeTimers();
+    const { api, getJob } = jobAdapter(["processing"]);
+    const port = restScreensPort(api, scope);
+    const changed = vi.fn();
+    port.subscribe!(changed);
+    const done = port.runChecks!();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(getJob).toHaveBeenCalledTimes(1);
+    port.dispose();
+    await done;
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(getJob).toHaveBeenCalledTimes(1);
+    expect(changed).not.toHaveBeenCalled();
   });
 });

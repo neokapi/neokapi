@@ -191,6 +191,8 @@ describe("Decide's answers", () => {
     key("k");
     await waitFor(() => expect(screen.getByText("The answer was not recorded")).toBeTruthy());
     expect(selectedId()).toBe(DECIDE_IDS.business);
+    // The reason is drawn in the question's own pane.
+    expect(slot("decide-refused")!.textContent).toContain("the store is read-only");
   });
 });
 

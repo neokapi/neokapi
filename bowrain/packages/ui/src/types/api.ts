@@ -2459,6 +2459,10 @@ export type PermissionName =
   | "review"
   | "manage_terms"
   | "manage_tm"
+  // The server answers a caller's permissions (GET /:ws/:id/permissions) with
+  // the content memory permission spelled manage_memory; it still accepts
+  // manage_tm, the spelling role templates send.
+  | "manage_memory"
   | "run_flows"
   | "manage_files"
   | "manage_streams"
@@ -2496,6 +2500,7 @@ export const PERMISSION_LABELS: Record<PermissionName, string> = {
   review: "Review",
   manage_terms: "Manage terminology",
   manage_tm: "Manage content memory",
+  manage_memory: "Manage content memory",
   run_flows: "Run flows",
   manage_files: "Manage files",
   manage_streams: "Manage streams",

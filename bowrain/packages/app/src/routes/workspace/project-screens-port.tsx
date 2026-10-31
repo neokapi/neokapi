@@ -34,19 +34,28 @@ type ScreenRead = "map" | "reader" | "decide";
 export interface RestScreensPort extends ProjectScreensPort {
   /** Report a change to what the screens read. */
   notify(what: ScreenRead): void;
+  /** Stop following a check's job; the check started is left to run on the server. */
+  dispose(): void;
 }
 
 export interface RestScreensOptions {
   /** The name a person is shown by. */
   actorName?: (actor: ContextActor) => string | undefined;
-  /** How long the check waits between reads of its job. */
-  pollMs?: number;
+  /** How the check follows its job. */
+  poll?: Partial<JobPolling>;
 }
 
-/** How long the project-wide check waits between reads of its job. */
-const JOB_POLL_MS = 1000;
+/** How the project-wide check follows its job. */
+export interface JobPolling {
+  /** The wait before the second read of the job. */
+  firstMs: number;
+  /** The longest wait between reads: each wait doubles up to it. */
+  maxMs: number;
+  /** How long the check follows a job before it gives up. */
+  limitMs: number;
+}
 
-const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+const JOB_POLLING: JobPolling = { firstMs: 1000, maxMs: 5000, limitMs: 10 * 60 * 1000 };
 
 /**
  * The Map's file rows name each file by its path in the project, and the
@@ -98,12 +107,30 @@ export function restScreensPort(
   const { ws, projectId, stream } = scope;
   const listeners = new Set<(what: ScreenRead) => void>();
   const names = itemNames(api, scope);
-  const pollMs = opts.pollMs ?? JOB_POLL_MS;
+  const poll = { ...JOB_POLLING, ...opts.poll };
   const notify = (what: ScreenRead) => {
     for (const l of listeners) l(what);
   };
+  // The waits of the jobs being followed, so dispose can end them.
+  let disposed = false;
+  const waits = new Set<() => void>();
+  const wait = (ms: number) =>
+    new Promise<void>((resolve) => {
+      const done = () => {
+        clearTimeout(timer);
+        waits.delete(done);
+        resolve();
+      };
+      const timer = setTimeout(done, ms);
+      waits.add(done);
+    });
   return {
     notify,
+    dispose() {
+      disposed = true;
+      for (const done of waits) done();
+      listeners.clear();
+    },
     async mapSummary() {
       const summary = await api.getMapSummary(ws, projectId, stream);
       names.learn(summary);
@@ -141,13 +168,18 @@ export function restScreensPort(
     },
     async runChecks() {
       const { job_id } = await api.runProjectChecks(ws, projectId, stream);
+      const giveUpAt = Date.now() + poll.limitMs;
+      let delay = poll.firstMs;
       for (;;) {
+        if (disposed) return;
         const job = await api.getJob(ws, job_id);
         if (job.status === "completed") break;
         if (job.status === "failed") throw new Error(job.error || t("The check did not finish"));
-        await wait(pollMs);
+        if (Date.now() >= giveUpAt) throw new Error(t("The check did not finish"));
+        await wait(Math.min(delay, Math.max(0, giveUpAt - Date.now())));
+        delay = Math.min(delay * 2, poll.maxMs);
       }
-      notify("map");
+      if (!disposed) notify("map");
     },
     actorName: (actor) => opts.actorName?.(actor),
     subscribe(onChange) {
@@ -157,13 +189,18 @@ export function restScreensPort(
   };
 }
 
-/** The permissions a member needs to answer a question: any that governs a rule. */
-const GOVERNING: PermissionName[] = ["manage_terms", "manage_voice", "manage_tm"];
+/**
+ * The permissions a member needs to answer a question: any that governs a
+ * rule. The server checks the one the question's subject takes, so a member
+ * holding another sees Keep and the server's refusal in the question's pane.
+ */
+const GOVERNING: PermissionName[] = ["manage_terms", "manage_voice", "manage_memory"];
 
 /**
  * The port with only the actions the member may take: Decide's answers and
- * assignments with a permission that governs rules, Fix (which files a
- * source proposal) with review, and the project-wide check with view.
+ * assignments with a permission that governs rules, and Fix (which files a
+ * source proposal) and the project-wide check with review, as the server's
+ * routes require.
  */
 export function permittedPort<P extends ProjectScreensPort>(
   port: P,
@@ -179,7 +216,7 @@ export function permittedPort<P extends ProjectScreensPort>(
     delete out.fixFinding;
     delete out.fixFile;
   }
-  if (!can("view_content")) delete out.runChecks;
+  if (!can("review")) delete out.runChecks;
   return out;
 }
 
@@ -240,6 +277,8 @@ export function useProjectScreensPort(
     queryFn: async () => Date.now(),
     staleTime: Infinity,
   });
+  useEffect(() => () => rest.dispose(), [rest]);
+
   const seen = useRef(dataUpdatedAt);
   useEffect(() => {
     if (seen.current === dataUpdatedAt) return;

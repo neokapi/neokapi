@@ -167,7 +167,9 @@ export function DecideView({
     if (selected && "other" in p) onOtherForm?.(selected, p.other);
   };
 
-  const [failure, setFailure] = useState<unknown>(null);
+  // An answer the host did not record, drawn in its question's pane with the
+  // host's reason, such as a permission the member lacks for that subject.
+  const [failure, setFailure] = useState<{ key: string; error: unknown } | null>(null);
   const answer = (a: RuleAnswer) => {
     if (!selected || !onAnswer) return;
     if (a === "keep" && "other" in pick && !pick.other.trim()) return;
@@ -179,7 +181,7 @@ export function DecideView({
     setChosen(next ? decisionKey(next) : null);
     setFailure(null);
     onAnswer(selected, a, pick).catch((err: unknown) => {
-      setFailure(err);
+      setFailure({ key, error: err });
       const without = (s: ReadonlySet<string>) => new Set([...s].filter((k) => k !== key));
       setLater(without);
       setAnswered((s) => ({ ...s, keys: without(s.keys) }));
@@ -276,11 +278,6 @@ export function DecideView({
   return (
     <div data-slot="decide" className="flex h-full min-h-0 flex-col">
       {header}
-      {failure !== null && (
-        <div className="shrink-0 px-6 pb-3">
-          <ErrorNotice error={failure} title={t("The answer was not recorded")} />
-        </div>
-      )}
       <div className="min-h-0 flex-1 border-t border-border">
         {decisions.length === 0 ? (
           <div className="mx-auto max-w-xl p-6" data-slot="decide-empty">
@@ -338,6 +335,7 @@ export function DecideView({
                   otherField={otherField}
                   onOpenFile={onOpenFile}
                   nameOf={nameOf}
+                  failure={failure?.key === selectedKey ? failure.error : undefined}
                 />
               )
             }
@@ -411,6 +409,8 @@ interface QuestionProps {
   /** How a file the suggestion was seen in opens, or undefined when it does not. */
   onOpenFile: (path: string) => (() => void) | undefined;
   nameOf?: NameOf;
+  /** Why the last answer to this question was not recorded. */
+  failure?: unknown;
 }
 
 /** The detail pane: the question, its options, what keeping does, the actions and the evidence. */
@@ -423,6 +423,7 @@ function Question({
   otherField,
   onOpenFile,
   nameOf,
+  failure,
 }: QuestionProps) {
   const disagreement = d.kind === "disagreement";
   // A typed form is only ever kept, so a pane that keeps nothing takes none.
@@ -543,6 +544,11 @@ function Question({
             Later
             <Shortcut k="l" />
           </Button>
+        </div>
+      )}
+      {failure !== undefined && (
+        <div data-slot="decide-refused">
+          <ErrorNotice error={failure} title={t("The answer was not recorded")} />
         </div>
       )}
       <Evidence decision={d} onOpenFile={onOpenFile} nameOf={nameOf} />
