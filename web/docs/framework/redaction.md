@@ -45,11 +45,11 @@ model. See
 [Understanding the CLI layers](/kapi/direct-execution-layer) for the flow and
 single-tool surfaces.
 
-The policy covers `external-command` as it covers a tool that calls a model,
-because the program it runs may send what it reads anywhere: the program
-reads each withheld value as its placeholder, and kapi puts the original back
-into the program's output, in `kapi exec external-command` and in a flow,
-which needs a `redact` step ahead of it.
+The policy also covers `external-command`, because the program it runs may
+send what it reads anywhere. The program reads each withheld value as its
+placeholder, and kapi puts the original back into the program's output. This
+holds for `kapi exec external-command` and for a flow, which needs a `redact`
+step ahead of the tool.
 
 ## How it stays local
 

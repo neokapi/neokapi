@@ -149,6 +149,7 @@ func NewExternalCommandTool(cfg *ExternalCommandConfig) *tool.BaseTool {
 }
 
 // runOn runs the command over text and records its exit code on the block.
+// A non-zero exit counts as a failure, so the block is left as it was.
 // Under a redaction policy text holds the visible token of each value the
 // policy withholds, and unredact puts the original back where the token
 // survives in the output. An output that drops a token would lose that
@@ -158,6 +159,9 @@ func runOn(v tool.BlockView, conf *ExternalCommandConfig, text string, tokens []
 	v.SetProperty(PropExternalCommandExitCode, strconv.Itoa(exitCode))
 	if err != nil {
 		return "", err
+	}
+	if exitCode != 0 {
+		return "", fmt.Errorf("external-command: %s exited with code %d", conf.Command, exitCode)
 	}
 	for _, tok := range tokens {
 		if !strings.Contains(result, tok) {
