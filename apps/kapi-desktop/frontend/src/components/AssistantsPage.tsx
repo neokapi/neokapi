@@ -1,7 +1,9 @@
 // The Assistants page: which assistants work on the project, and the sessions
 // they and the person recorded in it. A settings-and-setup page: one row per
 // assistant with its state and Connect, then the sessions as rows, each
-// leading to the Sessions view where its entries are listed and decided. What
+// leading to the Sessions view where its entries are listed and decided. A
+// session row counts what its check runs found, and the header totals what
+// they caught across the sessions shown. What
 // an assistant reads is the same for every assistant, so its action sits in
 // the page header.
 //
@@ -39,7 +41,7 @@ import { api } from "../hooks/useApi";
 import { useInvalidateOnEvent } from "../hooks/useInvalidateOnEvent";
 import { useShortenHome } from "../hooks/useShortenHome";
 import { qk } from "../lib/queryKeys";
-import { ActorName, SessionMark } from "./ContextFeed";
+import { ActorName, SessionMark, checkCounts } from "./ContextFeed";
 import type {
   AgentWiringResult,
   AssistantHostView,
@@ -138,13 +140,23 @@ export function AssistantsPage({
           view.rules !== undefined && <PitchLine rules={view.rules} />
         }
         actions={
-          // Every assistant reads the same rules files and briefs, so what it
-          // reads is the page's, reachable before any assistant is connected.
-          view &&
-          !view.needs_checkout && (
-            <Button size="sm" variant="outline" data-slot="assistants-reads" onClick={onShowReads}>
-              Show what it reads
-            </Button>
+          view && (
+            <>
+              {!view.sessions_error && <CaughtTotal sessions={view.sessions} />}
+              {/* Every assistant reads the same rules files and briefs, so what
+                  it reads is the page's, reachable before any assistant is
+                  connected. */}
+              {!view.needs_checkout && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  data-slot="assistants-reads"
+                  onClick={onShowReads}
+                >
+                  Show what it reads
+                </Button>
+              )}
+            </>
           )
         }
       />
@@ -227,6 +239,20 @@ function PitchLine({ rules }: { rules: number }) {
         count: rules,
       })}{" "}
       · {t("leaves suggestions here")}
+    </span>
+  );
+}
+
+/**
+ * What the check on every edit caught across the sessions shown, once any of
+ * them ran a check.
+ */
+function CaughtTotal({ sessions }: { sessions: AssistantSession[] }) {
+  if (!sessions.some((s) => s.checked > 0)) return null;
+  const caught = sessions.reduce((sum, s) => sum + s.caught, 0);
+  return (
+    <span data-slot="assistants-caught" className="text-xs text-muted-foreground tabular-nums">
+      {t("{count} caught", { count: caught })}
     </span>
   );
 }
@@ -444,13 +470,23 @@ function SessionList({
                     className="shrink-0 text-[11px] text-muted-foreground"
                   />
                 </span>
-                <span
-                  data-slot="assistant-session-counts"
-                  className="block text-[11px] text-muted-foreground"
-                >
-                  {sessionCounts(s)}
-                </span>
+                {s.operations > 0 && (
+                  <span
+                    data-slot="assistant-session-counts"
+                    className="block text-[11px] text-muted-foreground"
+                  >
+                    {sessionCounts(s)}
+                  </span>
+                )}
               </span>
+              {s.checked > 0 && (
+                <span
+                  data-slot="assistant-session-checks"
+                  className="shrink-0 text-[11px] text-muted-foreground tabular-nums"
+                >
+                  {checkCounts(s).join(" · ")}
+                </span>
+              )}
               {s.awaiting > 0 && (
                 <span
                   role="img"

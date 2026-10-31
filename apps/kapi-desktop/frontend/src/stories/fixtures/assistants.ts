@@ -66,9 +66,61 @@ export function session(s: Partial<AssistantSession> & { id: string }): Assistan
     kept: 0,
     dropped: 0,
     awaiting: 0,
+    files: 0,
+    checked: 0,
+    failing: 0,
+    caught: 0,
+    clean: false,
+    failed: false,
     ...s,
   };
 }
+
+/**
+ * Sessions whose check runs the Stop hook recorded: one with suggestions and
+ * runs that caught two findings, one that only ran the hook and left a finding
+ * failing, one whose every run was clean, and one with no run at all.
+ */
+export const SESSIONS_WITH_CHECKS: AssistantSession[] = [
+  session({
+    id: "session:sess-1",
+    actor: { kind: "agent", name: "claude-code", session: "sess-1", host: "studio" },
+    operations: 2,
+    suggestions: 2,
+    awaiting: 1,
+    files: 3,
+    checked: 4,
+    caught: 2,
+    failed: true,
+  }),
+  session({
+    id: "session:sess-2",
+    actor: { kind: "agent", name: "claude-code", session: "sess-2", host: "studio" },
+    last: "2026-10-29T11:40:00Z",
+    operations: 0,
+    files: 1,
+    checked: 2,
+    failing: 1,
+    caught: 0,
+    failed: true,
+  }),
+  session({
+    id: "session:sess-3",
+    actor: { kind: "agent", name: "claude-code", session: "sess-3", host: "laptop" },
+    last: "2026-10-28T16:10:00Z",
+    operations: 0,
+    files: 2,
+    checked: 3,
+    clean: true,
+  }),
+  session({
+    id: "actor:person/:2026-10-28",
+    actor: { kind: "person" },
+    last: "2026-10-28T09:05:00Z",
+    operations: 2,
+    kept: 2,
+  }),
+];
 
 /** An assistant's session with a suggestion open, and the person's own day. */
 export const SESSIONS: AssistantSession[] = [
@@ -102,6 +154,13 @@ export const ASSISTANTS_CLAUDE_CONNECTED: AssistantsView = {
   ...ASSISTANTS_NONE,
   hosts: [claudeCode(true), ...OTHERS],
   sessions: SESSIONS,
+};
+
+/** Claude Code connected with the check on, and sessions the check ran in. */
+export const ASSISTANTS_WITH_CHECKS: AssistantsView = {
+  ...ASSISTANTS_NONE,
+  hosts: [claudeCode(true), ...OTHERS],
+  sessions: SESSIONS_WITH_CHECKS,
 };
 
 /** Claude Code connected, the check waiting on the plugin install. */

@@ -22,6 +22,8 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"slices"
+	"sort"
 	"strings"
 	"time"
 
@@ -191,6 +193,12 @@ type ContextFeedGroup struct {
 	Failing int `json:"failing"`
 	Caught  int `json:"caught"`
 	Files   int `json:"files"`
+	// Clean reports a session at least one of whose check runs reached a
+	// verdict, every one of them clean. Failed reports a session one of whose
+	// runs reached a verdict with something failing. A session whose runs
+	// reached no verdict reports neither.
+	Clean  bool `json:"clean"`
+	Failed bool `json:"failed"`
 	// Quiet reports a group nothing has been added to for a while, which is
 	// when its summary is a count of finished work.
 	Quiet   bool               `json:"quiet"`
@@ -402,14 +410,18 @@ func (a *App) contextFeed(ctx context.Context, key workspace.ProjectKey, limit i
 	for _, op := range log.Operations {
 		shown = append(shown, op.Record)
 	}
+	// A cut feed shows the operations from its oldest entry on, and a
+	// session that only ran checks before then is cut with them.
+	var since time.Time
 	if len(shown) > limit {
 		shown, out.Truncated = shown[:limit], true
+		since = shown[len(shown)-1].At
 	}
 	checks := make([]contextop.Record, 0, len(runs.Operations))
 	for _, op := range runs.Operations {
 		checks = append(checks, op.Record)
 	}
-	out.Groups = groupContextFeed(shown, checks, registry, a.hostEngine().GovernanceInstant())
+	out.Groups = groupContextFeed(shown, checks, registry, a.hostEngine().GovernanceInstant(), since)
 	return out, nil
 }
 
@@ -745,8 +757,11 @@ func decidable(r contextop.Record) bool {
 // local day, which is the span a person recognises as "what I did".
 //
 // checks are the check runs, whose outcomes are counted into the session
-// that recorded them when that session has entries in the feed.
-func groupContextFeed(records, checks []contextop.Record, registry *contextProjectIndex, now time.Time) []ContextFeedGroup {
+// that recorded them. A session that only ran checks is a group with no
+// entries and the span of its runs, unless its last run is older than since:
+// a feed the limit cut short shows nothing before its oldest entry. A zero
+// since admits every session.
+func groupContextFeed(records, checks []contextop.Record, registry *contextProjectIndex, now, since time.Time) []ContextFeedGroup {
 	order := []string{}
 	groups := map[string]*ContextFeedGroup{}
 	for _, r := range records {
@@ -774,22 +789,125 @@ func groupContextFeed(records, checks []contextop.Record, registry *contextProje
 		countInto(group, r)
 	}
 
-	// A session that only ran the hook has no group here: its outcomes
-	// (host.SessionOutcomes) belong to the surface that shows them.
+	// A session's span covers its entries and its check runs, so a session
+	// still running checks after its last note is neither quiet nor sorted
+	// below a session that ran checks since that note.
+	runs := checkSessionsOf(checks)
+	for _, id := range order {
+		group := groups[id]
+		group.First, group.Last = spanOf(group.Entries)
+		if r, ok := runs.sessions[group.Session]; ok && group.Session != "" {
+			if first := r.first.UTC().Format(time.RFC3339); first < group.First {
+				group.First = first
+			}
+			if last := r.last.UTC().Format(time.RFC3339); last > group.Last {
+				group.Last = last
+			}
+		}
+	}
+
+	// A session that only ran checks is a group of its own, with no entries.
+	// So is a session whose entries the limit cut, when it ran a check since
+	// the oldest entry shown.
+	for _, session := range runs.order {
+		id := "session:" + session
+		if _, ok := groups[id]; ok {
+			continue
+		}
+		r := runs.sessions[session]
+		if !since.IsZero() && r.last.Before(since) {
+			continue
+		}
+		group := &ContextFeedGroup{
+			ID:      id,
+			Session: session,
+			Actor:   actorDTO(r.actor),
+			First:   r.first.UTC().Format(time.RFC3339),
+			Last:    r.last.UTC().Format(time.RFC3339),
+			Entries: []ContextFeedEntry{},
+		}
+		if len(r.projects) == 1 {
+			group.ProjectKey = string(r.projects[0])
+			group.ProjectName = registry.name(r.projects[0])
+			group.Recipe = registry.recipe(r.projects[0])
+		}
+		groups[id] = group
+		order = append(order, id)
+	}
+
 	outcomes := host.SessionOutcomesOf(checks)
 	out := make([]ContextFeedGroup, 0, len(order))
 	for _, id := range order {
 		group := groups[id]
-		first, last := spanOf(group.Entries)
-		group.First, group.Last = first, last
-		if o, ok := outcomes[group.Session]; ok && group.Session != "" {
-			group.Checked, group.Failing, group.Caught, group.Files = o.Checked, o.Failing, o.Caught, o.Files
+		if group.Session != "" {
+			if o, ok := outcomes[group.Session]; ok {
+				group.Checked, group.Failing, group.Caught, group.Files = o.Checked, o.Failing, o.Caught, o.Files
+			}
+			if r, ok := runs.sessions[group.Session]; ok {
+				group.Clean, group.Failed = r.reached && !r.failed, r.failed
+			}
 		}
-		if parsed, err := time.Parse(time.RFC3339, last); err == nil {
+		if parsed, err := time.Parse(time.RFC3339, group.Last); err == nil {
 			group.Quiet = now.Sub(parsed) >= host.ContextSessionQuietAfter
 		}
 		out = append(out, *group)
 	}
+	// Groups with entries arrive newest first; a session that only ran
+	// checks takes its place among them by its last run.
+	sort.SliceStable(out, func(i, j int) bool { return out[i].Last > out[j].Last })
+	return out
+}
+
+// checkSessions is what the feed reads from check runs beside their
+// outcomes: who ran them, in which projects, when, and the verdicts they
+// reached.
+type checkSessions struct {
+	// order is the sessions, the newest last run first.
+	order    []string
+	sessions map[string]*checkSession
+}
+
+// checkSession is one session's check runs, summarised.
+type checkSession struct {
+	actor       contextop.Actor
+	projects    []workspace.ProjectKey
+	first, last time.Time
+	// reached reports a run that reached a verdict; failed, one that reached
+	// a verdict with something failing.
+	reached, failed bool
+}
+
+// checkSessionsOf summarises the check runs by session. A run recorded with
+// no session belongs to none.
+func checkSessionsOf(checks []contextop.Record) checkSessions {
+	out := checkSessions{sessions: map[string]*checkSession{}}
+	for _, r := range checks {
+		if r.Kind != contextop.KindCheck || r.Check == nil || r.Actor.Session == "" {
+			continue
+		}
+		s, ok := out.sessions[r.Actor.Session]
+		if !ok {
+			s = &checkSession{actor: r.Actor, first: r.At, last: r.At}
+			out.sessions[r.Actor.Session] = s
+			out.order = append(out.order, r.Actor.Session)
+		}
+		if r.At.Before(s.first) {
+			s.first = r.At
+		}
+		if r.At.After(s.last) {
+			s.last, s.actor = r.At, r.Actor
+		}
+		if !slices.Contains(s.projects, r.Project) {
+			s.projects = append(s.projects, r.Project)
+		}
+		if r.Check.Reached() {
+			s.reached = true
+			s.failed = s.failed || !r.Check.Clean
+		}
+	}
+	sort.SliceStable(out.order, func(i, j int) bool {
+		return out.sessions[out.order[i]].last.After(out.sessions[out.order[j]].last)
+	})
 	return out
 }
 

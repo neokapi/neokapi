@@ -494,47 +494,168 @@ func findFeedEntry(t *testing.T, feed *ContextFeed, id string) ContextFeedEntry 
 	return ContextFeedEntry{}
 }
 
+// hookRun records one Stop hook run the way `kapi hook stop` does: a check
+// operation under the session, over docs/a.md. A zero at is the moment of
+// recording.
+func hookRun(t *testing.T, app *App, key, session, turn string, at time.Time, run contextop.CheckRun) {
+	t.Helper()
+	ws, err := app.hostEngine().Workspace(context.Background())
+	require.NoError(t, err)
+	run.Hook, run.Turn, run.Files, run.Edited, run.Covered = "stop", turn, []string{"docs/a.md"}, true, 1
+	_, err = contextop.NewLedger(ws, nil).Append(context.Background(), contextop.Record{
+		Project: workspace.ProjectKey(key),
+		Actor:   contextop.Actor{Kind: contextop.ActorAgent, Name: "claude-code@studio", Session: session},
+		Kind:    contextop.KindCheck,
+		At:      at,
+		Check:   &run,
+	})
+	require.NoError(t, err)
+}
+
+// logInFinding is the failing finding the hook runs in these tests report.
+var logInFinding = contextop.CheckFinding{File: "docs/a.md", Rule: "terms.vocabulary", Quote: "Log in"}
+
+// failingRun is a run that reached a verdict with logInFinding failing.
+func failingRun() contextop.CheckRun {
+	return contextop.CheckRun{Verdict: "failed", Failing: 1, Rules: []string{"terms.vocabulary"}, Findings: []contextop.CheckFinding{logInFinding}}
+}
+
+// cleanRun is a run that reached a verdict with nothing failing.
+func cleanRun() contextop.CheckRun {
+	return contextop.CheckRun{Verdict: "passed", Clean: true}
+}
+
+// feedGroups indexes a feed's groups by session.
+func feedGroups(feed *ContextFeed) map[string]ContextFeedGroup {
+	out := map[string]ContextFeedGroup{}
+	for _, group := range feed.Groups {
+		out[group.Session] = group
+	}
+	return out
+}
+
 // TestASessionCountsWhatItsChecksCaught: the Stop hook's check runs are
-// counted into the session that recorded them, never listed as entries, and a
-// session whose only operations are check runs has no group.
+// counted into the session that recorded them and never listed as entries.
 func TestASessionCountsWhatItsChecksCaught(t *testing.T) {
 	app := newWorkspaceApp(t)
 	recipe, key := openFeedProject(t, app, "KapiMart")
 	engine := agentProcess(t, app)
 	agentSuggest(t, engine, recipe, "sess-1", "sign in", "log in", "docs/a.md", "Sign in.")
 
-	ws, err := app.hostEngine().Workspace(context.Background())
-	require.NoError(t, err)
-	ledger := contextop.NewLedger(ws, nil)
-	logIn := contextop.CheckFinding{File: "docs/a.md", Rule: "terms.vocabulary", Quote: "Log in"}
-	check := func(session, turn string, run contextop.CheckRun) {
-		t.Helper()
-		run.Hook, run.Turn, run.Files, run.Edited, run.Covered = "stop", turn, []string{"docs/a.md"}, true, 1
-		_, err := ledger.Append(context.Background(), contextop.Record{
-			Project: workspace.ProjectKey(key),
-			Actor:   contextop.Actor{Kind: contextop.ActorAgent, Name: "claude-code", Session: session},
-			Kind:    contextop.KindCheck,
-			Check:   &run,
-		})
-		require.NoError(t, err)
-	}
-	check("sess-1", "t1", contextop.CheckRun{Verdict: "failed", Failing: 1, Rules: []string{"terms.vocabulary"}, Findings: []contextop.CheckFinding{logIn}})
-	check("sess-1", "t2", contextop.CheckRun{Verdict: "passed", Clean: true})
-	check("sess-2", "t1", contextop.CheckRun{Verdict: "failed", Failing: 1, Findings: []contextop.CheckFinding{logIn}})
+	hookRun(t, app, key, "sess-1", "t1", time.Time{}, failingRun())
+	lastRun := time.Now().UTC().Add(time.Minute).Truncate(time.Second)
+	hookRun(t, app, key, "sess-1", "t2", lastRun, cleanRun())
 
 	feed, err := app.ContextFeed(key, 0)
 	require.NoError(t, err)
-	groups := map[string]ContextFeedGroup{}
 	for _, group := range feed.Groups {
-		groups[group.Session] = group
 		for _, entry := range group.Entries {
 			assert.NotEqual(t, string(contextop.KindCheck), entry.Kind, "a check run is counted, not listed")
 		}
 	}
-	one := groups["sess-1"]
+	one := feedGroups(feed)["sess-1"]
 	assert.Equal(t, 1, one.Recorded)
+	assert.Len(t, one.Entries, 1)
 	assert.Equal(t, [4]int{2, 0, 1, 1}, [4]int{one.Checked, one.Failing, one.Caught, one.Files})
+	assert.True(t, one.Failed, "the first run failed")
+	assert.False(t, one.Clean)
+	assert.Equal(t, lastRun.Format(time.RFC3339), one.Last, "a session's span runs to its last check")
+	assert.False(t, one.Quiet, "a session still running checks is not finished")
+}
 
-	_, ok := groups["sess-2"]
-	assert.False(t, ok, "a session that only ran checks has no group")
+// TestASessionThatOnlyRanChecksIsAGroup: a session whose only operations are
+// check runs is a group with no entries, the actor and the span of its runs,
+// and its counts. A session whose every run was clean says so.
+func TestASessionThatOnlyRanChecksIsAGroup(t *testing.T) {
+	app := newWorkspaceApp(t)
+	recipe, key := openFeedProject(t, app, "KapiMart")
+	engine := agentProcess(t, app)
+	agentSuggest(t, engine, recipe, "sess-1", "sign in", "log in", "docs/a.md", "Sign in.")
+
+	start := time.Now().UTC().Add(-time.Hour).Truncate(time.Second)
+	hookRun(t, app, key, "sess-2", "t1", start, failingRun())
+	hookRun(t, app, key, "sess-2", "t2", start.Add(2*time.Minute), failingRun())
+	hookRun(t, app, key, "sess-3", "t1", start.Add(3*time.Minute), cleanRun())
+	hookRun(t, app, key, "sess-3", "t2", start.Add(4*time.Minute), cleanRun())
+
+	feed, err := app.ContextFeed(key, 0)
+	require.NoError(t, err)
+	groups := feedGroups(feed)
+	require.Contains(t, groups, "sess-2")
+	two := groups["sess-2"]
+	assert.Equal(t, "session:sess-2", two.ID)
+	assert.Empty(t, two.Entries)
+	assert.Equal(t, "agent", two.Actor.Kind)
+	assert.Equal(t, "claude-code", two.Actor.Name)
+	assert.Equal(t, "studio", two.Actor.Host)
+	assert.Equal(t, key, two.ProjectKey)
+	assert.Equal(t, "KapiMart", two.ProjectName)
+	assert.Equal(t, start.Format(time.RFC3339), two.First)
+	assert.Equal(t, start.Add(2*time.Minute).Format(time.RFC3339), two.Last)
+	assert.True(t, two.Quiet, "an hour-old session is finished")
+	assert.Equal(t, [4]int{2, 1, 0, 1}, [4]int{two.Checked, two.Failing, two.Caught, two.Files})
+	assert.True(t, two.Failed)
+	assert.False(t, two.Clean)
+	assert.Zero(t, two.Recorded+two.Corrected+two.Kept+two.Dropped+two.Awaiting)
+
+	three := groups["sess-3"]
+	assert.Equal(t, [4]int{2, 0, 0, 1}, [4]int{three.Checked, three.Failing, three.Caught, three.Files})
+	assert.True(t, three.Clean)
+	assert.False(t, three.Failed)
+
+	// Newest first: the session with entries, then the hook-only sessions by
+	// their last run.
+	ids := make([]string, 0, len(feed.Groups))
+	for _, group := range feed.Groups {
+		ids = append(ids, group.Session)
+	}
+	assert.Equal(t, []string{"sess-1", "sess-3", "sess-2"}, ids)
+}
+
+// TestASessionSortsByItsLastCheck: a session that noted something and ran a
+// check since sorts by that check, above a session that only ran a check in
+// between.
+func TestASessionSortsByItsLastCheck(t *testing.T) {
+	app := newWorkspaceApp(t)
+	recipe, key := openFeedProject(t, app, "KapiMart")
+	engine := agentProcess(t, app)
+	agentSuggest(t, engine, recipe, "sess-a", "sign in", "log in", "docs/a.md", "Sign in.")
+	now := time.Now().UTC().Truncate(time.Second)
+	hookRun(t, app, key, "sess-b", "t1", now.Add(time.Minute), cleanRun())
+	hookRun(t, app, key, "sess-a", "t1", now.Add(2*time.Minute), cleanRun())
+
+	feed, err := app.ContextFeed(key, 0)
+	require.NoError(t, err)
+	ids := make([]string, 0, len(feed.Groups))
+	for _, group := range feed.Groups {
+		ids = append(ids, group.Session)
+	}
+	assert.Equal(t, []string{"sess-a", "sess-b"}, ids)
+	assert.Equal(t, now.Add(2*time.Minute).Format(time.RFC3339), feedGroups(feed)["sess-a"].Last)
+}
+
+// TestACutFeedLeavesOutOlderHookOnlySessions: when the limit cuts the feed
+// short, a session that only ran checks before the oldest entry shown is not
+// added, and one that ran checks since is.
+func TestACutFeedLeavesOutOlderHookOnlySessions(t *testing.T) {
+	app := newWorkspaceApp(t)
+	recipe, key := openFeedProject(t, app, "KapiMart")
+	engine := agentProcess(t, app)
+
+	hookRun(t, app, key, "sess-old", "t1", time.Now().UTC().Add(-time.Hour), failingRun())
+	agentSuggest(t, engine, recipe, "sess-1", "sign in", "log in", "docs/a.md", "Sign in.")
+	agentSuggest(t, engine, recipe, "sess-1", "utilise", "use", "docs/b.md", "Utilise.")
+	hookRun(t, app, key, "sess-new", "t1", time.Now().UTC().Add(time.Minute), cleanRun())
+
+	cut, err := app.ContextFeed(key, 1)
+	require.NoError(t, err)
+	require.True(t, cut.Truncated)
+	groups := feedGroups(cut)
+	assert.NotContains(t, groups, "sess-old", "a hook-only session older than the oldest entry shown is cut")
+	assert.Contains(t, groups, "sess-new")
+
+	whole, err := app.ContextFeed(key, 0)
+	require.NoError(t, err)
+	require.False(t, whole.Truncated)
+	assert.Contains(t, feedGroups(whole), "sess-old", "a feed nothing cut shows every session")
 }

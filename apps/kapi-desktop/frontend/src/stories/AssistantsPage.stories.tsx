@@ -7,7 +7,9 @@ import {
   ASSISTANTS_NO_CHECKOUT,
   ASSISTANTS_NONE,
   ASSISTANTS_RULES_MISSING,
+  ASSISTANTS_WITH_CHECKS,
   SESSIONS,
+  SESSIONS_WITH_CHECKS,
   session,
 } from "./fixtures/assistants";
 
@@ -79,4 +81,26 @@ export const ManySessions: Story = {
       ],
     },
   },
+};
+
+/**
+ * Sessions the check on every edit ran in: suggestions with runs that caught
+ * two findings, a session that only ran the check, a clean session, and the
+ * person's day with no run. The header totals what was caught.
+ */
+export const SessionsTheCheckRanIn: Story = { args: { view: ASSISTANTS_WITH_CHECKS } };
+
+/** A session with suggestions whose runs caught what they reported. */
+export const SessionWithNotesAndRuns: Story = {
+  args: { view: { ...ASSISTANTS_WITH_CHECKS, sessions: SESSIONS_WITH_CHECKS.slice(0, 1) } },
+};
+
+/** A session that only ran the check, with a finding left failing and nothing caught. */
+export const HookOnlySession: Story = {
+  args: { view: { ...ASSISTANTS_WITH_CHECKS, sessions: SESSIONS_WITH_CHECKS.slice(1, 2) } },
+};
+
+/** A session whose every run was clean. */
+export const CleanSession: Story = {
+  args: { view: { ...ASSISTANTS_WITH_CHECKS, sessions: SESSIONS_WITH_CHECKS.slice(2, 3) } },
 };
