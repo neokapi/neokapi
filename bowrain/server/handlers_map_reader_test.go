@@ -158,7 +158,9 @@ func TestMapReaderParity(t *testing.T) {
 	srv, e, cs := mapReaderSQLiteServer(t, caller)
 	pid := seedMapParity(t, srv, cs)
 
-	// Before a project-wide check, the Map counts no findings.
+	// Before a project-wide check, the Map counts no findings. A tally left
+	// by an item the stream no longer lists is not counted.
+	require.NoError(t, cs.PutItemCheckTally(t.Context(), platstore.ItemCheckTally{ProjectID: pid, ItemID: "deleted-item", Findings: 9}))
 	var before screens.MapSummaryDTO
 	require.Equal(t, http.StatusOK, mapReaderGet(t, e, http.MethodGet, pid, "/map/main", nil, &before))
 	assert.Nil(t, before.Findings, "a project not checked yet counts no findings")
@@ -169,6 +171,9 @@ func TestMapReaderParity(t *testing.T) {
 	}.Run(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, 4, res.Items)
+	left, err := cs.ListItemCheckTallies(t.Context(), pid, "main")
+	require.NoError(t, err)
+	assert.Len(t, left, 4, "the check removes the tally of the item no longer listed")
 
 	var got screens.MapSummaryDTO
 	require.Equal(t, http.StatusOK, mapReaderGet(t, e, http.MethodGet, pid, "/map/main", nil, &got))
@@ -276,7 +281,7 @@ func TestChecksAtSourceLocale(t *testing.T) {
 
 // TestCheckProject_WithoutJobSystem: a server with no job queue says so.
 func TestCheckProject_WithoutJobSystem(t *testing.T) {
-	caller := &decideCaller{userID: "member-a", perms: platauth.PermViewContent}
+	caller := &decideCaller{userID: "member-a", perms: platauth.PermViewContent | platauth.PermReview}
 	srv, e, cs := mapReaderSQLiteServer(t, caller)
 	pid := seedMapParity(t, srv, cs)
 	var errBody ErrorResponse
@@ -316,7 +321,7 @@ func mapReaderPgServer(t *testing.T, caller *decideCaller) (*Server, *echo.Echo,
 // TestCheckProject_EnqueuesAJob: the Map's check is a project-wide check
 // job of the stream, requested by the member, and enqueued.
 func TestCheckProject_EnqueuesAJob(t *testing.T) {
-	caller := &decideCaller{userID: "member-a", perms: platauth.PermViewContent}
+	caller := &decideCaller{userID: "member-a", perms: platauth.PermViewContent | platauth.PermReview}
 	srv, e, q := mapReaderPgServer(t, caller)
 	p := &platstore.Project{Name: "check", DefaultSourceLanguage: "en", WorkspaceID: "ws", Properties: map[string]string{}}
 	require.NoError(t, srv.ContentStore.CreateProject(t.Context(), p))
@@ -334,6 +339,26 @@ func TestCheckProject_EnqueuesAJob(t *testing.T) {
 	require.NoError(t, err)
 	ack()
 	assert.Equal(t, started.JobID, queued)
+
+	// A second request while the check waits is answered with the same job,
+	// and nothing more is enqueued.
+	var again projectCheckStarted
+	require.Equal(t, http.StatusAccepted, mapReaderGet(t, e, http.MethodPost, p.ID, "/map/main/check", nil, &again))
+	assert.Equal(t, started.JobID, again.JobID)
+	jobsList, err := srv.JobStore.ListJobs(t.Context(), "ws", 10)
+	require.NoError(t, err)
+	assert.Len(t, jobsList, 1)
+
+	// Once it has finished, a request starts a new check.
+	require.NoError(t, srv.JobStore.UpdateJobStatus(t.Context(), started.JobID, jobs.StatusCompleted, ""))
+	var next projectCheckStarted
+	require.Equal(t, http.StatusAccepted, mapReaderGet(t, e, http.MethodPost, p.ID, "/map/main/check", nil, &next))
+	assert.NotEqual(t, started.JobID, next.JobID)
+
+	// Starting a check needs the review permission.
+	caller.perms = platauth.PermViewContent
+	var errBody ErrorResponse
+	assert.Equal(t, http.StatusForbidden, mapReaderGet(t, e, http.MethodPost, p.ID, "/map/main/check", nil, &errBody))
 }
 
 // TestReaderFix_FilesASourceProposal: a fix from the Reader is filed as a

@@ -80,16 +80,26 @@ func (s *Server) HandleMapSummary(c echo.Context) error {
 		if err != nil {
 			return serverErr(c, err)
 		}
+		// Only the tallies of the items the stream lists count: an item
+		// deleted since the check took its findings with it.
+		listed := make(map[string]bool, len(st.items))
+		for _, it := range st.items {
+			listed[it.ID] = true
+		}
 		var checkedAt time.Time
-		findings := 0
+		findings, counted := 0, 0
 		for _, t := range list {
+			if !listed[t.ItemID] {
+				continue
+			}
 			tallied[t.ItemID] = t
 			findings += t.Findings
+			counted++
 			if t.CheckedAt.After(checkedAt) {
 				checkedAt = t.CheckedAt
 			}
 		}
-		if len(list) > 0 {
+		if counted > 0 {
 			out.Findings = &findings
 			out.CheckedAt = checkedAt.UTC().Format(time.RFC3339Nano)
 		}
@@ -196,9 +206,12 @@ type projectCheckStarted struct {
 // HandleCheckProject answers POST /:ws/:id/map/:ref/check: it enqueues a
 // project-wide check of the stream (jobs.NewProjectCheckJob), which checks
 // every item at the source language and records each one's tally for the
-// Map. The job's progress counts items.
+// Map. The job's progress counts items. A check of the stream already queued
+// or running is answered with its own id, and no second job is enqueued. It
+// needs the permission reviewing needs, since the job writes the tallies
+// every member's Map reads.
 func (s *Server) HandleCheckProject(c echo.Context) error {
-	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
+	if err := s.requirePermission(c, platauth.PermReview); err != nil {
 		return err
 	}
 	if s.JobStore == nil || s.JobQueue == nil {
@@ -212,9 +225,19 @@ func (s *Server) HandleCheckProject(c echo.Context) error {
 	if err != nil || proj == nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: errNoProject.Error()})
 	}
+	stream := streamParamWithProject(c, proj)
+	if active, ok := s.JobStore.(jobs.ActiveProjectChecks); ok {
+		id, err := active.ActiveProjectCheck(ctx, proj.ID, stream)
+		if err != nil {
+			return serverErr(c, err)
+		}
+		if id != "" {
+			return c.JSON(http.StatusAccepted, projectCheckStarted{JobID: id})
+		}
+	}
 	wsID, _ := c.Get("workspace_id").(string)
 	userID, _ := c.Get("user_id").(string)
-	job := jobs.NewProjectCheckJob(wsID, c.Param("ws"), proj.ID, streamParamWithProject(c, proj), userID)
+	job := jobs.NewProjectCheckJob(wsID, c.Param("ws"), proj.ID, stream, userID)
 	if err := s.JobStore.CreateJob(ctx, job); err != nil {
 		return serverErr(c, err)
 	}
