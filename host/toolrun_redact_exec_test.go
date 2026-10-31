@@ -423,7 +423,7 @@ func TestUp_AProgramThatDropsAPlaceholderFailsTheRun(t *testing.T) {
 		"collections:\n  - name: docs\n    content:\n      - path: \"docs/*.json\"\n        target: \"out/{lang}/{name}.{ext}\"\n"+
 		"flows:\n  rewrite:\n    steps:\n      - tool: redact\n"+
 		"      - tool: external-command\n        config:\n          command: "+script+"\n          applySource: true\n          applyTarget: false\n"+
-		"      - tool: unredact\n      - tool: translate\n        config:\n          provider: demo\n")
+		"      - tool: translate\n        config:\n          provider: demo\n      - tool: unredact\n")
 	write("redact.yaml", redactRules)
 	write("docs/page.json", redactedPage)
 	require.NoError(t, os.MkdirAll(filepath.Join(root, project.StateDirName), 0o700))
