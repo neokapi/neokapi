@@ -235,7 +235,10 @@ export class CheckRun {
     constructor($$source = {}) {
         if (/** @type {any} */(false)) {
             /**
-             * Hook names what ran the checks: "stop" for the Claude Code Stop hook.
+             * Hook names what ran the checks: CheckHookStop for the Claude Code Stop
+             * hook, which runs the ship gates over the project, or CheckHookEdit for
+             * its PostToolUse hook, which runs the writing check on the one file an
+             * edit wrote. A record that names no hook was written by the Stop hook.
              * @member
              * @type {string | undefined}
              */
@@ -243,11 +246,12 @@ export class CheckRun {
         }
         if (!("turn" in $$source)) {
             /**
-             * Turn identifies the Stop event the run answered: the id of the last
-             * entry in the session's transcript. Claude Code writes an entry after
-             * every Stop hook, so each Stop gets a turn of its own, and the hook
-             * running twice on one transcript state shares one. The operation's id is
-             * derived from the session and the turn.
+             * Turn identifies the event the run answered. For a Stop hook run it is
+             * the id of the last entry in the session's transcript: Claude Code
+             * writes an entry after every Stop hook, so each Stop gets a turn of its
+             * own, and the hook running twice on one transcript state shares one. For
+             * an edit hook run it is the id of the tool call that wrote the file. The
+             * operation's id is derived from the session and the turn.
              * @member
              * @type {string}
              */

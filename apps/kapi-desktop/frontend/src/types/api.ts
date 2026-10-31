@@ -1264,6 +1264,8 @@ export interface ContextCheckRun {
   project_key: string;
   /** When the log accepted the run, RFC3339 in UTC. */
   at: string;
+  /** The hook that ran the check: "edit" on the one file an edit wrote, "stop" as the turn ended. */
+  hook: "edit" | "stop";
   /** The files the session's turn edited, when the run knows them (`edited`). */
   files: string[];
   edited: boolean;

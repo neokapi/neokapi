@@ -2332,6 +2332,15 @@ export class ContextCheckRun {
              */
             this["at"] = "";
         }
+        if (!("hook" in $$source)) {
+            /**
+             * Hook is the hook that ran the check: "edit" for the run on the one file
+             * an edit wrote, "stop" for the ship gates as the turn ended.
+             * @member
+             * @type {string}
+             */
+            this["hook"] = "";
+        }
         if (!("files" in $$source)) {
             /**
              * Files are the files the session's turn edited, when the run knows them
@@ -2416,18 +2425,18 @@ export class ContextCheckRun {
      * @returns {ContextCheckRun}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType6;
-        const $$createField9_0 = $$createType6;
-        const $$createField10_0 = $$createType37;
+        const $$createField4_0 = $$createType6;
+        const $$createField10_0 = $$createType6;
+        const $$createField11_0 = $$createType37;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("files" in $$parsedSource) {
-            $$parsedSource["files"] = $$createField3_0($$parsedSource["files"]);
+            $$parsedSource["files"] = $$createField4_0($$parsedSource["files"]);
         }
         if ("rules" in $$parsedSource) {
-            $$parsedSource["rules"] = $$createField9_0($$parsedSource["rules"]);
+            $$parsedSource["rules"] = $$createField10_0($$parsedSource["rules"]);
         }
         if ("findings" in $$parsedSource) {
-            $$parsedSource["findings"] = $$createField10_0($$parsedSource["findings"]);
+            $$parsedSource["findings"] = $$createField11_0($$parsedSource["findings"]);
         }
         return new ContextCheckRun(/** @type {Partial<ContextCheckRun>} */($$parsedSource));
     }

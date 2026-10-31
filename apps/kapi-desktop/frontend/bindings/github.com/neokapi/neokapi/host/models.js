@@ -1027,6 +1027,15 @@ export class ConnectFile {
              */
             this["detail"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Hook names the hook a ConnectHook entry is: ConnectHookEdit or
+             * ConnectHookStop. Empty for every other kind.
+             * @member
+             * @type {string | undefined}
+             */
+            this["hook"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -1074,8 +1083,8 @@ export const ConnectFileKind = {
     ConnectSkill: "skill",
 
     /**
-     * ConnectHook is the hook that runs kapi check when the assistant
-     * finishes.
+     * ConnectHook is a hook of the kapi Claude Code plugin that runs kapi
+     * check: ConnectFile.Hook names which.
      */
     ConnectHook: "hook",
 };
@@ -1122,8 +1131,8 @@ export class ConnectHost {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Reads names what the assistant gets: rules, MCP server, skill, and the
-             * check when it finishes.
+             * Reads names what the assistant gets: rules, MCP server, skill, the check
+             * on every edit and the check when it finishes.
              * @member
              * @type {string[] | undefined}
              */
@@ -1132,7 +1141,7 @@ export class ConnectHost {
         if (/** @type {any} */(false)) {
             /**
              * Files are the assistant's own files: its MCP configuration, its skill
-             * directory, its hook.
+             * directory, its hooks.
              * @member
              * @type {ConnectFile[] | undefined}
              */
