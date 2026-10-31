@@ -68,8 +68,9 @@ project a request to a model carries:
 - the domain named for term extraction and voice inference;
 - the text an MCP tool call passes, and the translation passed beside it.
 
-This holds for `kapi exec`, for every step of a flow (`kapi run`, `kapi up`),
-for the MCP tools and for **Deeper look with AI**. A value a block withholds
+This holds for `kapi exec`, for each step of a flow that runs after its
+`redact` step (`kapi run`, `kapi up`), for the MCP tools and for **Deeper
+look with AI**. A value a block withholds
 reads as the same placeholder wherever the request carries it. A value that
 appears only beside the block, in a term rule say, gets a placeholder of its
 own, and kapi restores it when the model copies it into a translation. A tool
