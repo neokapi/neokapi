@@ -12,19 +12,16 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// A redact step withholds the sensitive spans of a block, but a request to a
-// provider carries more than the block: the term rules, the voice profile,
-// the content memory's prior version, the neighbouring blocks, the
-// instruction. An [Egress] redacts every string of one request under the
-// policy that redacted the block, so a value the policy withholds leaves the
-// machine as a token wherever the request carries it.
+// A request to a provider carries more than the block: term rules, the voice
+// profile, the content memory's prior version, neighbouring blocks. An
+// [Egress] redacts every string of one request under the policy that
+// redacted the block.
 //
-// The redact step leaves its [Policy] on each block it reads, in the block's
-// [SecretAnnotation]. A tool reads a block through a view whose context
-// carries an Egress over that annotation ([SecretAnnotation.BindContext]),
-// and a tool that sends several blocks in one request binds them together
-// ([BindBlocks]). The provider layer reads the Egress from the call's context
-// and redacts the request before it is sent.
+// The redact step leaves its [Policy] in each block's [SecretAnnotation]. A
+// tool's view of the block carries an Egress on its context
+// ([SecretAnnotation.BindContext]); a tool that sends several blocks in one
+// request binds them together ([BindBlocks]). The provider layer reads the
+// Egress from the call's context and redacts the request before sending it.
 
 // Policy is what redaction applies to a string: the detector that finds the
 // spans, the placeholder options that render a token, and the locale
