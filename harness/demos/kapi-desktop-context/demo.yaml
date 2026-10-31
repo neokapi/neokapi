@@ -17,9 +17,9 @@ aspects:
   - The project as Bowrain would show it
 
 # keep, word, choose, assistant and preview carry no crop: the walk crops each
-# to what it marks during the beat (beatSpan in record-desktop.ts): the row
-# answered in Decide's list and the question beside it; the file picker and
-# the kept rule's line; or the Preview's tabs and its Kept by list.
+# to what it marks (beatSpan in record-desktop.ts). That is
+# the row answered in Decide's list and the question beside it, the file
+# picker and the kept rule's line, or the Preview's tabs and its Kept by list.
 #
 # The sample arrives with two assistant sessions (claude-code, then codex),
 # seeded by the desktop backend when the sample is created. The walk creates

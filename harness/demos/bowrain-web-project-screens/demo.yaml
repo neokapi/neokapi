@@ -16,18 +16,14 @@ aspects:
   - A fix filed as a source proposal
   - The team queue and who kept what
 
-# Recording needs the Docker stack (make -C bowrain stack-up-web), a seed run
-# (make -C harness seed) for the session token and the peer member, and
-# BOWRAIN_SCREENS_PROJECT_ID: a project in the seeded workspace whose context
-# holds undecided suggestions, synced from a checkout with
-# `context: {backend: bowrain}` and `kapi context sync`, and with a file a
-# check reports a fixable finding in. The seed does not build that project
-# yet; the walk refuses to start without it.
+# Recording needs the Docker stack, a seed run and BOWRAIN_SCREENS_PROJECT_ID.
+# That project's context holds undecided suggestions, synced with the bowrain
+# context backend, and one of its files has a fixable finding. The seed does
+# not build it yet, and the walk refuses to start without it.
 #
 # reader, fix, assign and keep carry no crop: the walk crops each to what it
-# marks during the beat (beatSpan in record-desktop.ts).
-#
-# The assign beat drives the assignee picker the team queue adds to Rules.
+# marks (beatSpan in record-desktop.ts). assign drives the team queue's
+# assignee picker.
 outro:
   line: Add context with backend bowrain to kapi.yaml.
   pointer: kapi context sync
