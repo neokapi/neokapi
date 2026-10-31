@@ -285,6 +285,49 @@ func TestRecorderKeepsWithheldValuesOutOfTheRecord(t *testing.T) {
 	assert.Contains(t, string(vault), "Falcon", "the original is kept in the project vault")
 }
 
+// TestRecorderRedactsEachDocumentUnderItsCollectionsPolicy: a policy the
+// collection declares governs the records of the documents it holds, and no
+// other; a document whose file the recorder cannot name is redacted under
+// every policy the project declares.
+func TestRecorderRedactsEachDocumentUnderItsCollectionsPolicy(t *testing.T) {
+	a, root, _ := recorderProject(t)
+	recipe := filepath.Join(root, project.RecipeFileName)
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	proj.Collections[0].Redaction = &project.RedactionSpec{Enabled: true, Rules: "redaction.yaml", Detectors: []string{"rules"}}
+	require.NoError(t, project.Save(recipe, proj))
+	rules := &redaction.RulesFile{Rules: []redaction.Rule{{Term: "Falcon", Category: "product"}}}
+	require.NoError(t, rules.Save(filepath.Join(root, "redaction.yaml")))
+	rec, err := a.EditRecorder(t.Context(), root)
+	require.NoError(t, err)
+
+	for _, tc := range []struct {
+		doc      string
+		withheld bool
+	}{
+		{"src/intro.en.json", true},
+		{"notes/plan.json", false},
+		{reconcile.DocumentKeyFor("unknown/doc"), true},
+	} {
+		t.Run(tc.doc, func(t *testing.T) {
+			before := len(editOps(t, a, root))
+			_, err := rec.Record(t.Context(), falconEdit(tc.doc))
+			require.NoError(t, err)
+			ops := editOps(t, a, root)
+			require.Len(t, ops, before+1)
+			var e projector.Edit
+			require.NoError(t, json.Unmarshal(ops[len(ops)-1].Payload, &e))
+			if tc.withheld {
+				assert.NotContains(t, string(ops[len(ops)-1].Payload), "Falcon")
+				assert.Equal(t, "Say when [REDACTED:Product] ships", e.Note)
+			} else {
+				assert.Equal(t, "Say when Falcon ships", e.Note, "a document outside the collection is recorded as written")
+			}
+			assert.Empty(t, e.ChangeSet, "a project that declares a policy leaves every change set out")
+		})
+	}
+}
+
 // TestRecorderUnderEntityDetectionKeepsNoRuns: entity detection needs the
 // annotations of a read, which the runs of a record do not carry, so a
 // project that detects entities records revisions and hashes only.

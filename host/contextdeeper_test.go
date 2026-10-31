@@ -325,6 +325,72 @@ func TestDeeperLook_RedactsBeforeTheModelReads(t *testing.T) {
 	assert.NoError(t, err, "a run keeps the originals in the project's vault")
 }
 
+// The deeper look reads each file under the policy of the collection that
+// holds it: the model never reads a value the docs collection withholds, and
+// reads the same value in a file the policy does not govern.
+func TestDeeperLook_RedactsEachFileUnderItsCollectionsPolicy(t *testing.T) {
+	useDemoProvider(t)
+	app, _ := contextOpsApp(t)
+	root := suggestProject(t, "deeperredactcollection", "", map[string]string{
+		"docs/a.md":    "# Moorings\n\nThe Dockyard lists every berth.\n",
+		"i18n/en.json": `{"title": "Visit the Dockyard at noon."}` + "\n",
+		"redact.yaml":  "version: v1\nrules:\n  - term: Dockyard\n    category: place\n",
+	})
+	require.NoError(t, os.WriteFile(recipeOf(root), []byte(`version: v1
+id: `+projectIDFor("deeperredactcollection")+`
+name: deeperredactcollection
+defaults:
+  source_language: en
+collections:
+  - name: docs
+    redaction:
+      enabled: true
+      rules: redact.yaml
+      detectors: [rules]
+    content:
+      - path: "docs/*.md"
+  - name: app
+    source_only: true
+    content:
+      - path: "i18n/*.json"
+`), 0o600))
+
+	saw := providerSaw(t)
+	_, err := app.DeeperLook(context.Background(), DeeperLookRequest{Project: recipeOf(root), DryRun: true})
+	require.NoError(t, err)
+	sent := saw()
+	assert.Contains(t, sent, "lists every berth", "the model read the docs file")
+	assert.NotContains(t, sent, "The Dockyard lists", "the docs collection's rules withhold the name")
+	assert.Contains(t, sent, "Visit the Dockyard at noon.", "a file outside the collection reads as written")
+}
+
+func TestDeeperLookChunks_AChunkHoldsFilesUnderOnePolicy(t *testing.T) {
+	strict := &project.RedactionSpec{Enabled: true, Rules: "strict.yaml"}
+	c := suggestCorpus{blocks: []suggestBlock{
+		{file: "docs/a.md", plain: "Same words."},
+		{file: "legal/b.md", plain: "Same words."},
+		{file: "legal/b.md", plain: "Legal words."},
+		{file: "docs/c.md", plain: "Docs words."},
+	}}
+	policyOf := func(file string) project.ResolvedRedaction {
+		if strings.HasPrefix(file, "legal/") {
+			return project.ResolvedRedaction{Spec: strict, At: "collections[0].redaction"}
+		}
+		return project.ResolvedRedaction{}
+	}
+	chunks, policies, asked := deeperLookChunks(c, policyOf)
+	assert.Equal(t, 4, asked)
+	require.Len(t, chunks, 3)
+	require.Len(t, policies, 3)
+	assert.Equal(t, "Same words.", chunks[0].SourceText())
+	assert.Nil(t, policies[0])
+	assert.Equal(t, "Same words.\n\nLegal words.", chunks[1].SourceText(),
+		"a text read under no policy is read again under the legal policy")
+	assert.Same(t, strict, policies[1])
+	assert.Equal(t, "Docs words.", chunks[2].SourceText())
+	assert.Nil(t, policies[2])
+}
+
 func TestDeeperLook_AnotherModelsSuggestionStands(t *testing.T) {
 	useDemoProvider(t)
 	t.Setenv("KAPI_AI_MODEL", "alpha")

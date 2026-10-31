@@ -99,3 +99,73 @@ func TestScanLocalBlocks_RedactsAtIngest(t *testing.T) {
 	assert.Contains(t, string(vaultBytes), secret,
 		"the original must be recoverable from the vault")
 }
+
+// A collection's redaction governs the files it holds in place of
+// defaults.redaction, on the route to the server as on every other: the block
+// index a push sends carries no value either policy withholds from the files
+// it governs.
+func TestScanLocalBlocks_RedactsEachFileUnderItsCollectionsPolicy(t *testing.T) {
+	const person, product = "Ada Lovelace", "Project Nightfall"
+
+	root := t.TempDir()
+	reg := registry.NewFormatRegistry()
+	formats.RegisterAll(reg)
+	save := func(name, term, category string) {
+		t.Helper()
+		rules := &redaction.RulesFile{Detectors: []string{"rules"}, Rules: []redaction.Rule{{Term: term, Category: category}}}
+		require.NoError(t, rules.Save(filepath.Join(root, name)))
+	}
+	save("default-rules.yaml", person, "person")
+	save("legal-rules.yaml", product, "product")
+
+	recipe := &bproject.Recipe{
+		Defaults: coreproj.Defaults{
+			SourceLanguage:  "en",
+			TargetLanguages: []model.LocaleID{"fr"},
+			Redaction:       &coreproj.RedactionSpec{Enabled: true, Rules: "default-rules.yaml", Detectors: []string{"rules"}},
+		},
+		Collections: []coreproj.Collection{
+			{
+				Name:      "legal",
+				Redaction: &coreproj.RedactionSpec{Enabled: true, Rules: "legal-rules.yaml", Detectors: []string{"rules"}},
+				Content:   []coreproj.ContentItem{{Path: "legal/*.json", Format: &coreproj.FormatSpec{Name: "json"}}},
+			},
+			{Path: "locales/en.json", Format: &coreproj.FormatSpec{Name: "json"}},
+		},
+	}
+	proj, err := bproject.InitProject(root, recipe)
+	require.NoError(t, err)
+	body := []byte(`{"line":"` + person + ` leads ` + product + `."}`)
+	for _, rel := range []string{"legal/memo.json", "locales/en.json"} {
+		abs := filepath.Join(root, filepath.FromSlash(rel))
+		require.NoError(t, os.MkdirAll(filepath.Dir(abs), 0o755))
+		require.NoError(t, os.WriteFile(abs, body, 0o644))
+	}
+
+	conn := NewLocalConnector(&host.App{}, proj, reg)
+	defer conn.Close()
+	_, blockMap, err := conn.scanLocalBlocks(context.Background(), nil)
+	require.NoError(t, err)
+
+	text := func(rel string) string {
+		t.Helper()
+		blocks := blockMap[rel]
+		require.NotEmpty(t, blocks, "the scan read %s", rel)
+		var sb strings.Builder
+		for _, b := range blocks {
+			sb.WriteString(b.SourceText())
+			for _, r := range b.SourceRuns() {
+				if r.Ph != nil {
+					sb.WriteString(r.Ph.Data + r.Ph.Equiv)
+				}
+			}
+		}
+		return sb.String()
+	}
+	legal := text("legal/memo.json")
+	assert.NotContains(t, legal, product, "the collection's rules withhold its value from the push")
+	assert.Contains(t, legal, person, "the collection's policy replaces the defaults for its files")
+	other := text("locales/en.json")
+	assert.NotContains(t, other, person, "the defaults withhold their value from a file outside the collection")
+	assert.Contains(t, other, product)
+}
