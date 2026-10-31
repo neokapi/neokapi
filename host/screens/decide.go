@@ -2,7 +2,6 @@ package screens
 
 import (
 	"slices"
-	"time"
 
 	"github.com/neokapi/neokapi/core/rulesview"
 )
@@ -84,23 +83,6 @@ type RuleDecideResultDTO struct {
 	Dropped int `json:"dropped"`
 	// Later counts the suggestions left waiting, which records nothing.
 	Later int `json:"later"`
-}
-
-// KeptRuleDTO is one rule in force that a person kept, with who kept it and
-// when.
-type KeptRuleDTO struct {
-	// Kind is "name", "word" or "note".
-	Kind string `json:"kind"`
-	// Rule is the rule as a sentence.
-	Rule string `json:"rule"`
-	// From is where the rule is held: "terms" for a word rule kept in this
-	// project, "workspace" for one that holds across the workspace. A note
-	// has none.
-	From string `json:"from,omitempty"`
-	// Applies is where the rule holds.
-	Applies string          `json:"applies"`
-	KeptBy  ContextActorDTO `json:"kept_by"`
-	KeptAt  time.Time       `json:"kept_at"`
 }
 
 // RuleDecisionFrom shapes one question for a screen, its options the most

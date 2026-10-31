@@ -103,6 +103,10 @@
       "applies": "docs/release-notes.md",
       "noticed_by": {
         "kind": "person"
+      },
+      "assignee": {
+        "kind": "person",
+        "name": "Mira Holt"
       }
     }
   ],
