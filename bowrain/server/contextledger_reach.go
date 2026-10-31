@@ -1,11 +1,13 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 
@@ -157,26 +159,65 @@ func scopeOf(op workspace.Op) (coordinates map[string]string, target string) {
 	return body.Scope.Coordinates, body.Target
 }
 
-// followsFromLog reports whether an establish operation is the one settling
-// derives from operations byID holds: its target and every operation it
-// rested on are held, and its content address is the one they derive
-// (contextop.EstablishAddress). Settling follows from the log rather than
-// from anyone's reach, so such an establishment is accepted at any point.
+// followsFromLog reports whether an establish operation is one settling
+// records over the operations byID holds. Settling (contextop.Ledger.Settle)
+// runs over those operations, less op itself, under the policy in force, and
+// op is accepted only when settling records an establishment with its content
+// address and its payload byte for byte: target, evidence, scope and actor.
+// Settling follows from the log rather than from anyone's reach, so such an
+// establishment is accepted at any point. One that settling would not record,
+// whatever address it claims, is checked as any decision is.
 func followsFromLog(op workspace.Op, byID map[string]workspace.Op) bool {
-	var body struct {
-		Target  string   `json:"target"`
-		Because []string `json:"because"`
-	}
-	if len(op.Payload) == 0 || json.Unmarshal(op.Payload, &body) != nil || body.Target == "" || len(body.Because) == 0 {
-		return false
-	}
-	if _, ok := byID[body.Target]; !ok {
-		return false
-	}
-	for _, id := range body.Because {
-		if _, ok := byID[id]; !ok {
-			return false
+	log := &settleLog{}
+	for id, held := range byID {
+		if id != op.ID {
+			log.ops = append(log.ops, held)
 		}
 	}
-	return op.Address == contextop.EstablishAddress(body.Target, body.Because)
+	slices.SortFunc(log.ops, func(a, b workspace.Op) int { return strings.Compare(a.ID, b.ID) })
+	for i := range log.ops {
+		log.ops[i].Seq = int64(i + 1)
+	}
+	if _, err := contextop.NewLedger(log, contextop.PersonDecides).Settle(context.Background(), contextop.Filter{}); err != nil {
+		return false
+	}
+	for _, rec := range log.recorded {
+		if rec.Address == op.Address && compactJSON(rec.Payload) == compactJSON(op.Payload) {
+			return true
+		}
+	}
+	return false
+}
+
+// settleLog is a log settling reads and records into without writing
+// anything: what it records is kept apart, for followsFromLog to compare.
+type settleLog struct {
+	ops      []workspace.Op
+	recorded []workspace.Op
+}
+
+func (l *settleLog) Select(_ context.Context, q workspace.OpQuery) ([]workspace.Op, error) {
+	out := []workspace.Op{}
+	for _, op := range l.ops {
+		if op.Seq <= q.After ||
+			(q.KindPrefix != "" && !strings.HasPrefix(op.Kind, q.KindPrefix)) ||
+			(q.Project != "" && op.Project != q.Project) ||
+			(q.Subject != "" && op.Subject != q.Subject) {
+			continue
+		}
+		out = append(out, op)
+	}
+	return out, nil
+}
+
+func (l *settleLog) Record(_ context.Context, ops ...workspace.Op) ([]workspace.Op, error) {
+	out := make([]workspace.Op, len(ops))
+	for i, op := range ops {
+		if op.ID == "" {
+			op.ID = workspace.NewOpID(time.Now().UTC(), "")
+		}
+		l.recorded = append(l.recorded, op)
+		out[i] = op
+	}
+	return out, nil
 }

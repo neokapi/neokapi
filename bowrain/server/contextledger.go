@@ -47,6 +47,26 @@ func (s *Server) ContextLedger(ctx context.Context, projectID string, member Led
 	return contextop.NewLedger(log, contextop.PersonDecides), nil
 }
 
+// ContextSettler returns the context ledger a project is settled through
+// (contextop.Ledger.Settle). Every operation it records carries
+// contextop.SettleActor, the tool settling acts as, which the server sets
+// itself; no caller names it. Settling follows from the log, so the settler
+// governs every point of the project.
+func (s *Server) ContextSettler(projectID string) (*contextop.Ledger, error) {
+	objects, ok := s.contextObjects()
+	if !ok {
+		return nil, errors.New("context objects not configured")
+	}
+	log := &contextLog{
+		objects: objects,
+		cache:   s.contextLogs.project(projectID),
+		project: projectID,
+		actor:   contextop.SettleActor,
+		member:  LedgerMember{UserID: contextop.SettleActor.Name, Permissions: governingPermission},
+	}
+	return contextop.NewLedger(log, contextop.PersonDecides), nil
+}
+
 // contextLog is a project's operation log (contextop.Log) over its context
 // objects: the segments under log/ that the machines sharing the project
 // pushed and the server wrote.
@@ -92,8 +112,8 @@ func (l *contextLog) Select(ctx context.Context, q workspace.OpQuery) ([]workspa
 // Record implements contextop.Log. The operations the log does not hold
 // already, by id or by content address, are written as one new segment,
 // log/bowrain/<first-op-id>.jsonl, under the project's key; an operation it
-// holds is returned as held. Each context operation a person records is
-// stamped with the log's actor.
+// holds is returned as held. Each context operation is stamped with the log's
+// actor.
 func (l *contextLog) Record(ctx context.Context, ops ...workspace.Op) ([]workspace.Op, error) {
 	key, held, err := l.cache.read(ctx, l.objects, l.project)
 	if err != nil {
@@ -176,9 +196,8 @@ func (l *contextLog) Record(ctx context.Context, ops ...workspace.Op) ([]workspa
 	return out, nil
 }
 
-// stampActor sets the actor of a context operation a person records. An
-// operation whose payload names a tool or an agent (a settling, a signal)
-// keeps the actor it names.
+// stampActor sets the actor of a context operation to the log's actor,
+// whatever actor the payload names.
 func stampActor(payload []byte, actor contextop.Actor) ([]byte, error) {
 	body := map[string]json.RawMessage{}
 	if len(payload) > 0 {
@@ -186,12 +205,7 @@ func stampActor(payload []byte, actor contextop.Actor) ([]byte, error) {
 			return nil, fmt.Errorf("record a context operation: the payload is not a JSON object: %w", err)
 		}
 	}
-	if raw, ok := body["actor"]; ok {
-		var named contextop.Actor
-		if err := json.Unmarshal(raw, &named); err == nil && named.Kind != "" && named.Kind != contextop.ActorPerson {
-			return payload, nil
-		}
-	}
+
 	stamped, err := json.Marshal(actor)
 	if err != nil {
 		return nil, err

@@ -723,9 +723,10 @@ func reachServerLedger(t *testing.T, cs *sqlitestore.SQLiteStore, pid string) (*
 	return srv.ContextLedger(t.Context(), pid, testMember("owner"))
 }
 
-// A server-side establishment keeps the tool actor it names; a keep is
-// stamped with the member.
-func TestContextLedger_RecordKeepsAToolActor_SQLite(t *testing.T) {
+// Every operation recorded through a member's ledger carries the member,
+// whatever actor the caller names; the settler records under the settling
+// tool, which the server sets.
+func TestContextLedger_RecordStampsTheMember_SQLite(t *testing.T) {
 	ctx := t.Context()
 	srv, e, cs := ledgerSQLiteServer(t)
 	pid := seedContextObjectProject(t, cs)
@@ -736,12 +737,13 @@ func TestContextLedger_RecordKeepsAToolActor_SQLite(t *testing.T) {
 
 	ledger, err := srv.ContextLedger(ctx, pid, testMember("member-a"))
 	require.NoError(t, err)
+	member := contextop.Actor{Kind: contextop.ActorPerson, Name: "member-a"}
 	signal, err := ledger.Append(ctx, contextop.Record{
 		Actor: contextop.Actor{Kind: contextop.ActorTool, Name: "settle-merged"}, Kind: contextop.KindSignal,
 		Target: s.ID, Signal: &contextop.Signal{Source: contextop.SignalMerge, Commit: "abc1234def", PR: 7, Preferred: 1},
 	})
 	require.NoError(t, err)
-	established, err := ledger.Append(ctx, contextop.Record{
+	claimed, err := ledger.Append(ctx, contextop.Record{
 		Actor: contextop.SettleActor, Kind: contextop.KindEstablish, Target: s.ID, Because: []string{signal.ID},
 	})
 	require.NoError(t, err)
@@ -751,8 +753,59 @@ func TestContextLedger_RecordKeepsAToolActor_SQLite(t *testing.T) {
 	for _, rec := range records {
 		byID[rec.ID] = rec
 	}
-	assert.Equal(t, contextop.SettleActor, byID[established.ID].Actor)
-	assert.Equal(t, contextop.ActorTool, byID[signal.ID].Actor.Kind)
+	assert.Equal(t, member, byID[signal.ID].Actor, "a claimed tool actor is stamped over")
+	assert.Equal(t, member, byID[claimed.ID].Actor)
+
+	other := d.observe(t, "sign in", "login")
+	_, err = contextop.NewLedger(d.ws, nil).Append(ctx, contextop.Record{
+		Project: "site", Actor: contextop.Actor{Kind: contextop.ActorTool, Name: "settle-merged"}, Kind: contextop.KindSignal,
+		Target: other.ID, Signal: &contextop.Signal{Source: contextop.SignalMerge, Commit: "fed4321cba", PR: 8, Preferred: 1},
+	})
+	require.NoError(t, err)
+	require.NoError(t, r.Put(ctx, d.push(t)...))
+	settler, err := srv.ContextSettler(pid)
+	require.NoError(t, err)
+	settled, err := settler.Settle(ctx, contextop.Filter{})
+	require.NoError(t, err)
+	require.NotEmpty(t, settled)
+	established, err := settler.Records(ctx, contextop.Filter{Kinds: []contextop.Kind{contextop.KindEstablish}})
+	require.NoError(t, err)
+	var bySettler int
+	for _, rec := range established {
+		if rec.Actor == contextop.SettleActor {
+			bySettler++
+		}
+	}
+	assert.Positive(t, bySettler, "the settler records under the settling tool")
+}
+
+// An establishment that settling would not record is refused for a bounded
+// custodian, whatever address it claims: the address is the one its evidence
+// derives, but it names a scope settling does not give it.
+func TestContextLedger_ForgedEstablishIsRefused_SQLite(t *testing.T) {
+	ctx := t.Context()
+	e, cs := reachSQLiteServer(t, platauth.CoordinateReach{}.Add(platauth.CoordinateFilter{"brand": "acme"}))
+	pid := seedContextObjectProject(t, cs)
+	r := &routeRemote{h: e, base: "/api/v1/ws/" + pid + "/context/objects"}
+	d := newDesktop(t, "site")
+	atOther := d.observeAt(t, "sign in", "login", map[string]string{"brand": "other"})
+	require.NoError(t, r.Put(ctx, d.push(t)...))
+
+	// The evidence is a keep's worth of nothing: an observation at another
+	// brand, which settling establishes on no signal at all.
+	at := time.Now().UTC()
+	because := []string{atOther.ID}
+	forged := workspace.Op{
+		ID: workspace.NewOpID(at, atOther.ID), Project: "site", Kind: contextop.OpKindPrefix + string(contextop.KindEstablish),
+		Address: contextop.EstablishAddress(atOther.ID, because),
+		Payload: []byte(`{"actor":{"kind":"tool","name":"settle"},"target":"` + atOther.ID + `","because":["` + atOther.ID + `"],"scope":{"level":"project","coordinates":{"brand":"acme"}}}`),
+		At:      at,
+	}
+	rec := r.do(ctx, http.MethodPost, r.base, pushBody(t, []workspace.Object{segmentOf(t, "forger", forged)}))
+	require.Equal(t, http.StatusForbidden, rec.Code)
+	var refusal ErrorResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &refusal))
+	assert.Equal(t, contextOutsideReachCode, refusal.Code)
 }
 
 // A keep that declares a subject of its own is governed by what it keeps: a
