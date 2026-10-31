@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -58,7 +59,30 @@ func openRemote(t *testing.T, open func(t *testing.T) workspace.Remote) workspac
 
 // segmentNamed builds a valid segment name for a writer and an id.
 func segmentNamed(writer string, n int) string {
-	return workspace.SegmentName(writer, fmt.Sprintf("0000000000000000000000%02d", n))
+	return workspace.SegmentName(writer, segmentID(n))
+}
+
+// segmentID is the id of the one operation a test segment holds.
+func segmentID(n int) string { return fmt.Sprintf("0000000000000000000000%02d", n) }
+
+// segmentData is a segment of project prj holding operation n, whose payload
+// names text.
+func segmentData(n int, text string) []byte { return Segment("prj", segmentID(n), text) }
+
+// Segment returns the bytes of a segment holding one operation of project,
+// with the id given and a payload naming text, for a test that writes
+// objects to a remote. A remote that reads what it stores, as a server does,
+// takes it as operations.
+func Segment(project workspace.ProjectKey, id, text string) []byte {
+	data, err := workspace.EncodeSegment([]workspace.Op{{
+		ID: id, Project: project, Kind: "test.note",
+		Payload: []byte(`{"text":` + strconv.Quote(text) + `}`),
+		At:      time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+	}})
+	if err != nil {
+		panic(err)
+	}
+	return data
 }
 
 func remoteDescribesItself(t *testing.T, open func(t *testing.T) workspace.Remote) {
@@ -86,8 +110,8 @@ func objectsReadBack(t *testing.T, open func(t *testing.T) workspace.Remote) {
 	blobName := workspace.BlobObjectName(workspace.BlobAddress(blob))
 	require.NoError(t, r.Put(ctx,
 		workspace.Object{Name: blobName, Data: blob},
-		workspace.Object{Name: segmentNamed("w2", 2), Data: []byte("two\n")},
-		workspace.Object{Name: segmentNamed("w1", 1), Data: []byte("one\n")},
+		workspace.Object{Name: segmentNamed("w2", 2), Data: segmentData(2, "two")},
+		workspace.Object{Name: segmentNamed("w1", 1), Data: segmentData(1, "one")},
 	))
 	logs, err := r.List(ctx, workspace.RemoteLogDir)
 	require.NoError(t, err)
@@ -98,7 +122,7 @@ func objectsReadBack(t *testing.T, open func(t *testing.T) workspace.Remote) {
 
 	got, err := r.Get(ctx, segmentNamed("w1", 1))
 	require.NoError(t, err)
-	assert.Equal(t, "one\n", string(got))
+	assert.Equal(t, segmentData(1, "one"), got)
 	got, err = r.Get(ctx, blobName)
 	require.NoError(t, err)
 	assert.Equal(t, blob, got)
@@ -108,14 +132,14 @@ func objectIsCreatedOnce(t *testing.T, open func(t *testing.T) workspace.Remote)
 	r := openRemote(t, open)
 	ctx := t.Context()
 	name := segmentNamed("w1", 1)
-	require.NoError(t, r.Put(ctx, workspace.Object{Name: name, Data: []byte("first\n")}))
-	require.NoError(t, r.Put(ctx, workspace.Object{Name: name, Data: []byte("first\n")}),
+	require.NoError(t, r.Put(ctx, workspace.Object{Name: name, Data: segmentData(1, "first")}))
+	require.NoError(t, r.Put(ctx, workspace.Object{Name: name, Data: segmentData(1, "first")}),
 		"writing the bytes an object already holds changes nothing")
-	err := r.Put(ctx, workspace.Object{Name: name, Data: []byte("second\n")})
+	err := r.Put(ctx, workspace.Object{Name: name, Data: segmentData(1, "second")})
 	require.ErrorIs(t, err, workspace.ErrObjectExists, "an object is never replaced")
 	got, err := r.Get(ctx, name)
 	require.NoError(t, err)
-	assert.Equal(t, "first\n", string(got))
+	assert.Equal(t, segmentData(1, "first"), got)
 }
 
 func nameOutsideLayoutIsRefused(t *testing.T, open func(t *testing.T) workspace.Remote) {
@@ -133,11 +157,11 @@ func nameOutsideLayoutIsRefused(t *testing.T, open func(t *testing.T) workspace.
 func anotherHandleSees(t *testing.T, open func(t *testing.T) workspace.Remote) {
 	a, b := openRemote(t, open), openRemote(t, open)
 	ctx := t.Context()
-	require.NoError(t, a.Put(ctx, workspace.Object{Name: segmentNamed("wa", 1), Data: []byte("a\n")}))
+	require.NoError(t, a.Put(ctx, workspace.Object{Name: segmentNamed("wa", 1), Data: segmentData(1, "a")}))
 	got, err := b.Get(ctx, segmentNamed("wa", 1))
 	require.NoError(t, err)
-	assert.Equal(t, "a\n", string(got))
-	require.NoError(t, b.Put(ctx, workspace.Object{Name: segmentNamed("wb", 2), Data: []byte("b\n")}))
+	assert.Equal(t, segmentData(1, "a"), got)
+	require.NoError(t, b.Put(ctx, workspace.Object{Name: segmentNamed("wb", 2), Data: segmentData(2, "b")}))
 	c := openRemote(t, open)
 	names, err := c.List(ctx, workspace.RemoteLogDir)
 	require.NoError(t, err)
@@ -152,7 +176,7 @@ func twoHandlesWriteAtOnce(t *testing.T, open func(t *testing.T) workspace.Remot
 	for i, r := range []workspace.Remote{a, b} {
 		wg.Go(func() {
 			for n := range 3 {
-				if err := r.Put(ctx, workspace.Object{Name: segmentNamed(fmt.Sprintf("w%d", i), n), Data: []byte("x\n")}); err != nil {
+				if err := r.Put(ctx, workspace.Object{Name: segmentNamed(fmt.Sprintf("w%d", i), n), Data: segmentData(n, "x")}); err != nil {
 					errs[i] = err
 					return
 				}
