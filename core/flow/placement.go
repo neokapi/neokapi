@@ -95,13 +95,18 @@ func (d *FlowDefinition) ValidatePlacement(reg *registry.ToolRegistry) ([]Placem
 		required := consumedPortKeys(info, false) // required only — the egress exemption
 		producesTarget := producesPort(info, schema.PortTarget, model.SideTarget)
 
+		// A transformer that sends source out of kapi belongs after a redact
+		// step, so a recoverable step ahead of it counts as one of its inputs
+		// and the overlays it produces are not reported as rebased.
+		sendsOut := sendsSourceOut(info)
+
 		lastInputIdx := -1 // index of the last upstream step producing a consumed port
 		for j := range i {
 			up := infos[j]
 			if up == nil {
 				continue
 			}
-			if feedsAny(up, consumed) {
+			if feedsAny(up, consumed) || (sendsOut && up.Recoverable) {
 				lastInputIdx = j
 			}
 
@@ -274,6 +279,13 @@ func producesPort(info *registry.ToolInfo, portType string, side model.Side) boo
 
 func hasSideEffect(info *registry.ToolInfo, effect schema.SideEffect) bool {
 	return slices.Contains(info.SideEffects, effect)
+}
+
+// sendsSourceOut reports whether a tool hands source to something outside
+// kapi that a redaction policy covers: a remote sink (remote-source-egress)
+// or a program kapi runs (process-exec).
+func sendsSourceOut(info *registry.ToolInfo) bool {
+	return hasSideEffect(info, schema.SideEffectRemoteSourceEgress) || hasSideEffect(info, schema.SideEffectProcessExec)
 }
 
 // isPseudoPort reports whether a port type names a pseudo-port (target/source)

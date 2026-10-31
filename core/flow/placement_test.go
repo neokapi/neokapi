@@ -264,12 +264,26 @@ func TestRedactionCoversExternalCommand(t *testing.T) {
 	)
 	require.NoError(t, redactFirst.CheckRedactionCoverage(reg, true))
 	require.NoError(t, redactFirst.CheckPlacement(reg))
+	diags, err := redactFirst.ValidatePlacement(reg)
+	require.NoError(t, err)
+	assert.Empty(t, diags, "a redact step ahead of the program is the expected order, so nothing warns")
+
+	// The redact step still counts as the input it is when something else
+	// stands between: an overlay produced after it is rebased, so that warns.
+	segmentedBetween := chain(
+		toolNode("r", "redact", nil),
+		toolNode("s", "segmentation", nil),
+		toolNode("x", "external-command", cmd),
+	)
+	diags, err = segmentedBetween.ValidatePlacement(reg)
+	require.NoError(t, err)
+	assert.Equal(t, []string{flow.RuleTransformerLate}, warningRules(diags))
 
 	redactAfter := chain(
 		toolNode("x", "external-command", cmd),
 		toolNode("r", "redact", nil),
 	)
-	diags, err := redactAfter.ValidatePlacement(reg)
+	diags, err = redactAfter.ValidatePlacement(reg)
 	require.NoError(t, err)
 	assert.Equal(t, []string{flow.RuleTransformerAfterEgress}, errorRules(diags))
 	require.ErrorContains(t, redactAfter.CheckPlacement(reg), "hands source to a program outside kapi")

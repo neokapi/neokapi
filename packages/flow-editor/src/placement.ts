@@ -148,12 +148,16 @@ export function computePlacement(
     const consumed = consumedKeys(info, true);
     const required = consumedKeys(info, false);
     const selfProducesTarget = producesTarget(info);
+    // A transformer that sends source out of kapi belongs after a redact
+    // step, so a recoverable step ahead of it counts as one of its inputs.
+    const sendsOut =
+      info.sideEffects.includes(REMOTE_SOURCE_EGRESS) || info.sideEffects.includes(PROCESS_EXEC);
 
     let lastInputIdx = -1;
     for (let j = 0; j < i; j++) {
       const up = resolved[j];
       if (!up) continue;
-      if (feedsAny(up, consumed)) lastInputIdx = j;
+      if (feedsAny(up, consumed) || (sendsOut && up.recoverable)) lastInputIdx = j;
 
       if (!selfProducesTarget && producesTarget(up)) {
         diags.push({

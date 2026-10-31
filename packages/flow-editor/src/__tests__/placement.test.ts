@@ -59,8 +59,10 @@ const tools = new Map<string, ToolInfo>([
     produces: [{ type: "entity", side: "source" }],
     side_effects: ["remote-source-egress"],
   }),
-  // Hands source to a program outside kapi; no provider config removes it.
+  // Rewrites the source with the output of a program outside kapi; no
+  // provider config removes the process-exec effect.
   tool("external-command", {
+    isSourceTransform: true,
     side_effects: ["process-exec"],
   }),
   // Overlay producer with no egress.
@@ -204,6 +206,31 @@ describe("computePlacement — transformer-late-placement", () => {
       ],
     };
     expect(computePlacement(fed, tools)).toEqual([]);
+  });
+
+  it("does not warn when a redact step runs ahead of a program outside kapi", () => {
+    // external-command sends source out, so redact ahead of it is the
+    // expected order, as for a step that sends source to a remote sink.
+    const spec: FlowSpec = {
+      steps: [{ tool: "redact" }, { tool: "external-command" }, { tool: "unredact" }],
+    };
+    expect(computePlacement(spec, tools)).toEqual([]);
+  });
+
+  it("still warns when an overlay is produced between the redact step and the program", () => {
+    const spec: FlowSpec = {
+      steps: [{ tool: "redact" }, { tool: "segmentation" }, { tool: "external-command" }],
+    };
+    const diags = computePlacement(spec, tools);
+    expect(diags).toHaveLength(1);
+    expect(diags[0]).toMatchObject({
+      severity: "warning",
+      rule: RULE_TRANSFORMER_LATE,
+      stepIndex: 2,
+      tool: "external-command",
+    });
+    expect(diags[0].message).toContain("segmentation");
+    expect(diags[0].message).not.toContain("redaction.secret");
   });
 });
 
