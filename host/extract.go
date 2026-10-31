@@ -726,10 +726,6 @@ func applyMemoryPrefill(ctx context.Context, tm memory.ContentMemory, block *mod
 	return prefillFuzzy
 }
 
-// applySegmentation runs the existing SRX segmentation tool over each
-// block's source — the overlay path from AD-017 / #417. The tool is a
-// regular kapi tool.Tool but we call its block handler directly here to
-// avoid wiring a one-stage channel pipeline into the extract flow.
 // applyRedaction runs the redact tool over the source blocks in external
 // mode, writing originals to the batch vault sidecar at vaultPath under doc,
 // the document the blocks sit in ("" for content in no file). Rule paths in
@@ -774,6 +770,10 @@ func redactToolConfig(spec *project.RedactionSpec, rootDir, vaultPath string, so
 	return cfg
 }
 
+// applySegmentation runs the SRX segmentation tool over each block's source,
+// the overlay path from AD-017 / #417. It calls the tool's block handler
+// directly rather than wiring a one-stage channel pipeline into the extract
+// flow.
 func applySegmentation(ctx context.Context, blocks []*model.Block, conf project.SegmentationDefaults) error {
 	cfg := &tools.SegmentationConfig{
 		SegmentSource: true,

@@ -36,7 +36,7 @@ import (
 // The incoming source is ALWAYS restored: a unit that carries no basis is
 // compared with the source as it stands, which holds the originals, so the
 // placeholders must be reverted for that comparison to hold. The translated
-// target is restored only when restoreTarget is set — passing false (the
+// target is restored only when restoreTarget is set. Passing false (the
 // --no-restore flag) leaves placeholders in the merged output.
 //
 // doc is the source document the blocks translate. The vault keeps each

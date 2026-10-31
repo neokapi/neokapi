@@ -232,3 +232,16 @@ preserves inline structure (in-process pipelines and XLIFF), and by the unique
 visible token text where the format flattens placeholders to plain text (such
 as JSON). On `extract`, redaction runs before content-memory pre-fill, so
 no sensitive value can reach the emitted file through a memory match.
+
+A vault keeps each original under the file it came from, the block, and the
+placeholder's token. Block IDs and tokens repeat from file to file, so two files
+that each withhold a different name keep both names, and `kapi merge` gives each
+file its own. A vault written by an earlier kapi records no file, and a merge
+still restores from it by block and token.
+
+A PO file has no inline codes, so `kapi extract --format po` writes each
+withheld value as its visible placeholder (`[REDACTED:Person]`), and
+`kapi merge` restores it by that text. `kapi extract --format kpz` refuses to
+run under a redaction policy, and under `--redact`: a `.kpz` package carries the
+text of each source file whole, so it would hold the values the policy
+withholds. Extract XLIFF 2 or PO instead.

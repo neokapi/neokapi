@@ -13,7 +13,7 @@ import (
 )
 
 // RedactedValue is one secret↔token mapping held by a [Vault]. It is the
-// authoritative — and only — record of an original sensitive value.
+// only record of an original sensitive value.
 type RedactedValue struct {
 	Token    string         `json:"token"`
 	Category string         `json:"category"`
@@ -55,10 +55,9 @@ func vaultKey(doc, blockID, token string) string {
 // ValuesForBlock returns every stored value belonging to one block of one
 // document. Used for text-based restore, which matches by visible
 // placeholder rather than by token. When doc is set and the vault holds
-// nothing for the block under it, the entries for the block that name no
-// document are returned: a version 1 vault keyed every entry by block alone,
-// so an extraction or a push written before the document was part of the key
-// still restores.
+// nothing for the block under it, it returns the block's entries that name
+// no document. A version 1 vault keys every entry by block alone, so an
+// extraction or a push it recorded still restores.
 func ValuesForBlock(v Vault, doc, blockID string) []RedactedValue {
 	var exact, legacy []RedactedValue
 	for _, rv := range v.All() {
