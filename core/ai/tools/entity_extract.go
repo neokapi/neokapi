@@ -223,7 +223,9 @@ func (t *AIEntityExtractTool) Process(ctx context.Context, in <-chan *model.Part
 // ---------------------------------------------------------------------------
 
 func (t *AIEntityExtractTool) annotate(v tool.BlockView) error {
-	sourceText := v.SourceText()
+	// A withheld value reads as its visible token; mergeAndAttach anchors
+	// what the extractors report back in the runs.
+	sourceText, _ := redaction.VisibleSource(v.SourceRuns())
 	if strings.TrimSpace(sourceText) == "" {
 		return nil
 	}
@@ -288,7 +290,7 @@ func (t *AIEntityExtractTool) processBatched(ctx context.Context, in <-chan *mod
 		if !ok {
 			continue
 		}
-		text := block.SourceText()
+		text, _ := redaction.VisibleSource(block.SourceRuns())
 		if strings.TrimSpace(text) == "" {
 			continue
 		}
@@ -576,6 +578,19 @@ func (t *AIEntityExtractTool) mergeAndAttach(v tool.BlockView, nerEntities []ner
 	}
 	seen := make(map[entityKey]bool)
 
+	// The extractors read the block with each withheld value as its visible
+	// token, and report spans in that text. A span is anchored at the same
+	// text in the runs; one that touches a token names a withheld value and
+	// is dropped.
+	_, toSource := redaction.VisibleSource(v.SourceRuns())
+	anchor := func(offset, length int) (model.Anchor, bool) {
+		start, end, ok := toSource(offset, offset+length)
+		if !ok {
+			return model.Anchor{}, false
+		}
+		return model.RangeAnchorForBytes(v.SourceRuns(), start, end), true
+	}
+
 	entityIdx := 0
 
 	// Add LLM entities first (preferred classification).
@@ -583,6 +598,10 @@ func (t *AIEntityExtractTool) mergeAndAttach(v tool.BlockView, nerEntities []ner
 		for _, e := range llmBlock.Entities {
 			key := entityKey{e.Offset, e.Length}
 			seen[key] = true
+			at, ok := anchor(e.Offset, e.Length)
+			if !ok {
+				continue
+			}
 			ann := &model.EntityAnnotation{
 				Text:   e.Text,
 				Type:   llmEntityType(e.Type),
@@ -592,7 +611,7 @@ func (t *AIEntityExtractTool) mergeAndAttach(v tool.BlockView, nerEntities []ner
 			}
 			v.AddOverlaySpan(model.OverlayEntity, model.Span{
 				ID:    fmt.Sprintf("entity:%d", entityIdx),
-				Range: model.RangeAnchorForBytes(v.SourceRuns(), e.Offset, e.Offset+e.Length),
+				Range: at,
 				Value: ann,
 			})
 			entityIdx++
@@ -605,6 +624,10 @@ func (t *AIEntityExtractTool) mergeAndAttach(v tool.BlockView, nerEntities []ner
 		if seen[key] {
 			continue
 		}
+		at, ok := anchor(e.Offset, e.Length)
+		if !ok {
+			continue
+		}
 		ann := &model.EntityAnnotation{
 			Text:   e.Text,
 			Type:   e.Type,
@@ -614,7 +637,7 @@ func (t *AIEntityExtractTool) mergeAndAttach(v tool.BlockView, nerEntities []ner
 		}
 		v.AddOverlaySpan(model.OverlayEntity, model.Span{
 			ID:    fmt.Sprintf("entity:%d", entityIdx),
-			Range: model.RangeAnchorForBytes(v.SourceRuns(), e.Offset, e.Offset+e.Length),
+			Range: at,
 			Value: ann,
 		})
 		entityIdx++
@@ -625,6 +648,10 @@ func (t *AIEntityExtractTool) mergeAndAttach(v tool.BlockView, nerEntities []ner
 		termIdx := 0
 		for _, tc := range llmBlock.TermCandidates {
 			if t.knownTerms[strings.ToLower(tc.Text)] {
+				continue
+			}
+			at, ok := anchor(tc.Offset, tc.Length)
+			if !ok {
 				continue
 			}
 			ann := &model.TermCandidateAnnotation{
@@ -639,7 +666,7 @@ func (t *AIEntityExtractTool) mergeAndAttach(v tool.BlockView, nerEntities []ner
 			}
 			v.AddOverlaySpan(model.OverlayTermCandidate, model.Span{
 				ID:    fmt.Sprintf("term-candidate:%d", termIdx),
-				Range: model.RangeAnchorForBytes(v.SourceRuns(), tc.Offset, tc.Offset+tc.Length),
+				Range: at,
 				Value: ann,
 			})
 			termIdx++

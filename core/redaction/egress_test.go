@@ -151,3 +151,24 @@ func valuesOf(a *SecretAnnotation) []RedactedValue {
 	}
 	return out
 }
+
+func TestVisibleSource_MapsSpansAroundTokens(t *testing.T) {
+	p := egressPolicy(t, Rule{Term: "Ada Lovelace", Category: CategoryPerson})
+	runs, _ := entryFor(t, p, "Ask Ada Lovelace about Babbage.")
+	text, toSource := VisibleSource(runs)
+	require.Equal(t, "Ask [REDACTED:Person] about Babbage.", text)
+	source := model.RunsText(runs)
+
+	at := len("Ask [REDACTED:Person] about ")
+	start, end, ok := toSource(at, at+len("Babbage"))
+	require.True(t, ok)
+	assert.Equal(t, "Babbage", source[start:end], "a span after the token lands on the same text")
+
+	_, _, ok = toSource(len("Ask "), len("Ask [REDACTED:Person]"))
+	assert.False(t, ok, "a span on the token names a withheld value")
+	_, _, ok = toSource(0, len("Ask [RED"))
+	assert.False(t, ok, "a span into the token too")
+	start, end, ok = toSource(0, len("Ask"))
+	require.True(t, ok)
+	assert.Equal(t, "Ask", source[start:end])
+}

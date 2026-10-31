@@ -92,6 +92,13 @@ func TestToolRun_RedactsTheRestOfTheRequest(t *testing.T) {
 			config := map[string]any{"provider": "demo", "profile": egressVoice()}
 			require.NoError(t, a.RunToolOnFiles(t.Context(), execRun(a, "voice-check", recipe, config, "", filepath.Join(root, "docs", "page.json"))))
 		}},
+		{"entity-extract reads the token", func(t *testing.T, a *App, recipe string) {
+			root := filepath.Dir(recipe)
+			saw := providerSaw(t)
+			config := map[string]any{"provider": "demo"}
+			require.NoError(t, a.RunToolOnFiles(t.Context(), execRun(a, "entity-extract", recipe, config, "", filepath.Join(root, "docs", "page.json"))))
+			assert.Contains(t, saw(), "Write to [REDACTED:Person] today.", "the extractor reads a token where the value was")
+		}},
 		{"term-extract with a domain", func(t *testing.T, a *App, recipe string) {
 			root := filepath.Dir(recipe)
 			config := map[string]any{"provider": "demo", "domain": "letters to Ada Lovelace"}
