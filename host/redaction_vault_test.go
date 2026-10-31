@@ -199,3 +199,61 @@ func TestMergeRestoresFromAVersion1BatchVault(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, `{"greeting":"Bonjour Alice Archer"}`, strings.TrimSpace(string(got)))
 }
+
+// A .kpz package carries each source file's skeleton, which holds the file's
+// text whole, so under a redaction policy kapi extract --format kpz writes no
+// package and names the formats that withhold the values.
+func TestExtractKpzRefusesUnderARedactionPolicy(t *testing.T) {
+	kpzCommand := func(t *testing.T, recipe, outDir string) *EnvCommand {
+		t.Helper()
+		cmd := NewEnvCommand(t.Context(), "extract")
+		cmd.SetOut(&bytes.Buffer{})
+		cmd.SetErr(&bytes.Buffer{})
+		addKpzExtractFlags(cmd, recipe)
+		cmd.Flags().Bool("redact", false, "")
+		cmd.Flags().String("redact-rules", "", "")
+		require.NoError(t, cmd.Flags().Set("out-dir", outDir))
+		return cmd
+	}
+	packages := func(t *testing.T, outDir string) []string {
+		t.Helper()
+		written, err := filepath.Glob(filepath.Join(outDir, "*.kpz"))
+		require.NoError(t, err)
+		return written
+	}
+	withoutPolicy := func(t *testing.T, recipe string) {
+		t.Helper()
+		proj, err := project.Load(recipe)
+		require.NoError(t, err)
+		proj.Defaults.Redaction = nil
+		require.NoError(t, project.Save(recipe, proj))
+	}
+
+	t.Run("the recipe declares defaults.redaction", func(t *testing.T) {
+		a, recipe, _ := vaultProject(t)
+		out := t.TempDir()
+		err := a.RunExtractKpz(kpzCommand(t, recipe, out))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "defaults.redaction")
+		assert.Contains(t, err.Error(), "--format xliff2")
+		assert.Empty(t, packages(t, out), "no package is written")
+	})
+	t.Run("--redact-rules on a project that declares none", func(t *testing.T) {
+		a, recipe, dir := vaultProject(t)
+		withoutPolicy(t, recipe)
+		out := t.TempDir()
+		cmd := kpzCommand(t, recipe, out)
+		require.NoError(t, cmd.Flags().Set("redact-rules", filepath.Join(dir, "redact.yaml")))
+		err := a.RunExtractKpz(cmd)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "--redact")
+		assert.Empty(t, packages(t, out), "no package is written")
+	})
+	t.Run("must fail: with no policy the packages are written", func(t *testing.T) {
+		a, recipe, _ := vaultProject(t)
+		withoutPolicy(t, recipe)
+		out := t.TempDir()
+		require.NoError(t, a.RunExtractKpz(kpzCommand(t, recipe, out)))
+		assert.Len(t, packages(t, out), len(vaultNames))
+	})
+}

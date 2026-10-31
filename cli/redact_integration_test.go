@@ -147,3 +147,24 @@ func TestExtractRedact_NoRestoreKeepsPlaceholder(t *testing.T) {
 	assert.Contains(t, string(data), "REDACTED", "with --no-restore the placeholder should remain")
 	assert.NotContains(t, string(data), "Mr Bean", "original must not appear when restore is skipped")
 }
+
+// An ad-hoc .kpz workspace carries each source file whole, so extract refuses
+// --redact there rather than write the package with the value in it.
+func TestExtractRedact_KpzWorkspaceRefuses(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "app.json")
+	require.NoError(t, os.WriteFile(src, []byte(`{"greeting":"Hello Mr Bean"}`), 0o644))
+	work := filepath.Join(dir, "work.kpz")
+
+	a := newExtractApp(t)
+	cmd := NewExtractCmd(a, ExtractCmdOptions{})
+	cmd.SetArgs([]string{src, "-o", work, "--target-lang", "fr", "--redact"})
+	var out strings.Builder
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	err := cmd.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "--redact")
+	_, statErr := os.Stat(work)
+	assert.True(t, os.IsNotExist(statErr), "no workspace is written")
+}

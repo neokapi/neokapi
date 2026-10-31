@@ -1026,6 +1026,9 @@ func (a *App) RunExtractKpz(cmd Command) error {
 	if err != nil {
 		return fmt.Errorf("load project: %w", err)
 	}
+	if err := refuseKpzRedaction(cmd, proj); err != nil {
+		return err
+	}
 	pctx := project.NewProjectContext(proj, projectPath)
 	layout, err := project.LayoutFor(projectPath)
 	if err != nil {
@@ -1115,6 +1118,26 @@ func (a *App) RunExtractKpz(cmd Command) error {
 		}
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "\nExtracted %d bilingual interchange package(s) into %s\n", written, outDir)
+	return nil
+}
+
+// refuseKpzRedaction refuses a .kpz extraction under a redaction policy, the
+// one the recipe declares or the one --redact and --redact-rules ask for. A
+// package carries each source file's skeleton, which holds the file's text
+// whole, and the translations the content memory fills in, so it would hand
+// over the values the policy withholds. XLIFF 2 and PO carry the redacted
+// blocks alone, and kapi merge puts the originals back from the vault.
+func refuseKpzRedaction(cmd Command, proj *project.KapiProject) error {
+	redactFlag, _ := cmd.Flags().GetBool("redact")
+	redactRules, _ := cmd.Flags().GetString("redact-rules")
+	switch {
+	case ProjectRedaction(proj) != nil:
+		return errors.New("extract: the project declares defaults.redaction, and a .kpz package carries the text of each source file whole, so it would hold the values the policy withholds. " +
+			"Extract XLIFF 2 or PO instead (--format xliff2 or --format po): kapi merge puts the withheld values back from the project's vault")
+	case redactFlag || redactRules != "":
+		return errors.New("extract: --redact and --redact-rules apply to XLIFF 2 and PO. A .kpz package carries the text of each source file whole, so it cannot withhold a value. " +
+			"Use --format xliff2 or --format po")
+	}
 	return nil
 }
 
