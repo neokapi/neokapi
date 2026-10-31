@@ -10,6 +10,7 @@ import {
   useCallerPermissions,
   useUserDisplayNames,
   type ApiAdapter,
+  type Membership,
   type PermissionName,
   type ReaderFixResult,
 } from "@neokapi/ui";
@@ -18,6 +19,7 @@ import type {
   ProjectScreensPort,
   ReaderFile,
   ReaderFixFiled,
+  ScreenMember,
   ScreenTarget,
 } from "@neokapi/project-screens";
 
@@ -45,6 +47,26 @@ export interface RestScreensOptions {
   actorName?: (actor: ContextActor) => string | undefined;
   /** How the check follows its job. */
   poll?: Partial<JobPolling>;
+  /** The signed-in member's user id, which marks them among the members. */
+  me?: () => string | undefined;
+}
+
+/**
+ * The members a question can be assigned to: every member of the workspace
+ * but a viewer, who answers no question. A member is shown by their name,
+ * else their email, else their id.
+ */
+export function assignableMembers(
+  members: readonly Membership[],
+  me: string | undefined,
+): ScreenMember[] {
+  return members
+    .filter((m) => m.role !== "viewer")
+    .map((m) => ({
+      id: m.user_id,
+      name: m.user?.name.trim() || m.user?.email.trim() || m.user_id,
+      me: m.user_id === me || undefined,
+    }));
 }
 
 /** How the project-wide check follows its job. */
@@ -158,6 +180,9 @@ export function restScreensPort(
       await api.assignSuggestion(ws, projectId, id, userId, stream);
       notify("decide");
     },
+    async members() {
+      return assignableMembers(await api.listMembers(ws), opts.me?.());
+    },
     async fixFinding(path, findingId) {
       const res = await api.fixFinding(ws, projectId, await names.resolve(path), findingId, stream);
       return {
@@ -218,6 +243,7 @@ export function permittedPort<P extends ProjectScreensPort>(
     delete out.decide;
     delete out.decideConsequence;
     delete out.assign;
+    delete out.members;
   }
   if (!can("review")) {
     delete out.fixFinding;
@@ -249,7 +275,7 @@ export function bowrainOpens(target: ScreenTarget): boolean {
  */
 export function useProjectScreensPort(
   scope: ScreensScope,
-  me: { name?: string } | null,
+  me: { id?: string; name?: string } | null,
 ): ProjectScreensPort {
   const api = useApi();
   const { ws, projectId, stream } = scope;
@@ -272,6 +298,7 @@ export function useProjectScreensPort(
             if (!actor.name) return names.current.me?.name || undefined;
             return names.current.nameOf(actor.name);
           },
+          me: () => names.current.me?.id,
         },
       ),
     [api, ws, projectId, stream],

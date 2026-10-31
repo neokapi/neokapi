@@ -560,8 +560,9 @@ const projectRulesRoute = createRoute({
   path: "p/$projectId/s/$stream/rules",
   pendingComponent: DashboardSkeleton,
   component: lazyRouteComponent(() => import("./workspace/project-rules"), "ProjectRulesRoute"),
-  validateSearch: (search: Record<string, unknown>): { row?: string } => ({
+  validateSearch: (search: Record<string, unknown>): { row?: string; assigned?: "me" } => ({
     row: typeof search.row === "string" && search.row !== "" ? search.row : undefined,
+    assigned: search.assigned === "me" ? "me" : undefined,
   }),
 });
 

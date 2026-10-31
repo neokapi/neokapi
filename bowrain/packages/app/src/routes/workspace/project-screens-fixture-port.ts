@@ -2,7 +2,7 @@
 // components' stories and tests. It answers the way the server's routes do:
 // a fix files a source proposal and leaves the file as it is.
 
-import type { ProjectScreensPort } from "@neokapi/project-screens";
+import type { ProjectScreensPort, ScreenMember } from "@neokapi/project-screens";
 import {
   DECIDE_VIEW,
   KEPT_RULES,
@@ -10,6 +10,12 @@ import {
   READER_WITH_FIXES,
 } from "@neokapi/project-screens/fixtures";
 import { proposalsByFinding } from "./project-screens-port";
+
+/** The Fernwell team: the reader, and a teammate. */
+export const FERNWELL_MEMBERS: ScreenMember[] = [
+  { id: "u-ada", name: "Ada Lind", me: true },
+  { id: "u-mira", name: "Mira Holt" },
+];
 
 /** The Fernwell fixtures through a port with every action. */
 export function fixtureScreensPort(over: Partial<ProjectScreensPort> = {}): ProjectScreensPort {
@@ -28,6 +34,7 @@ export function fixtureScreensPort(over: Partial<ProjectScreensPort> = {}): Proj
       later: answer === "later" ? 1 : 0,
     }),
     assign: async () => {},
+    members: async () => FERNWELL_MEMBERS,
     fixFinding: async (_path, findingId) => ({
       proposed: [{ finding_id: findingId, proposal: nextProposal() }],
       refused: [],

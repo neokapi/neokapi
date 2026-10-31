@@ -18,6 +18,18 @@ import { myReviewTasksQueryOptions } from "../../queries";
  * project-scoped, not assignee-scoped — so pooled and owner-assigned review is
  * visible, not only what's assigned to the current user.
  */
+/**
+ * Where a project's Rules opens from the inbox: on the questions assigned to
+ * the member when they hold any there, else on every question.
+ */
+export function rulesSearch(
+  rules: readonly ReviewInboxRules[],
+  projectId: string,
+): { assigned?: "me" } {
+  const assigned = rules.find((r) => r.projectId === projectId)?.assigned ?? 0;
+  return assigned > 0 ? { assigned: "me" } : {};
+}
+
 export function ReviewInboxRoute() {
   const navigate = useNavigate();
   const { workspace } = useParams({ strict: false });
@@ -107,7 +119,7 @@ export function ReviewInboxRoute() {
         navigate({
           to: "/$workspace/p/$projectId/s/$stream/rules",
           params: { workspace: wsParam, projectId, stream },
-          search: {},
+          search: rulesSearch(rules, projectId),
         })
       }
       loading={isLoading}

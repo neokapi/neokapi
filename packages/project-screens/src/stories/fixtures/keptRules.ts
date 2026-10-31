@@ -36,3 +36,10 @@ export const KEPT_RULES: KeptRule[] = [
     kept_at: "2026-10-22T11:45:00Z",
   },
 ];
+
+/** Sixteen rules kept over a fortnight, enough for Kept by to group them by kind. */
+export const MANY_KEPT_RULES: KeptRule[] = Array.from({ length: 16 }, (_, i) => ({
+  ...KEPT_RULES[i % KEPT_RULES.length],
+  rule: `${KEPT_RULES[i % KEPT_RULES.length].rule.replace(/\.$/, "")} (${i + 1}).`,
+  kept_at: new Date(Date.UTC(2026, 9, 14 + i, 9)).toISOString(),
+}));

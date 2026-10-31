@@ -17,18 +17,21 @@ export interface ProjectRulesPageProps {
   port: ProjectScreensPort;
   /** The Map row to open on (`suggested:<id>`, `conflict:<id>`). */
   row?: string;
+  /** Open Decide on the questions assigned to the signed-in member. */
+  assignedToMe?: boolean;
   navigate: (target: ScreenTarget) => void;
 }
 
 /** Decide and the kept rules of one project, read through the port it is given. */
-export function ProjectRulesPage({ port, row, navigate }: ProjectRulesPageProps) {
+export function ProjectRulesPage({ port, row, assignedToMe, navigate }: ProjectRulesPageProps) {
   return (
     <div data-slot="project-rules" className="flex min-h-full flex-col">
       <div className="h-[36rem] shrink-0 border-b border-border">
         <DecideScreen
-          key={row}
+          key={`${row}:${assignedToMe}`}
           port={port}
           defaultSelected={row}
+          assignedToMe={assignedToMe}
           navigate={navigate}
           canNavigate={bowrainOpens}
         />
@@ -42,7 +45,7 @@ export function ProjectRulesPage({ port, row, navigate }: ProjectRulesPageProps)
 
 export function ProjectRulesRoute() {
   const { projectId = "", stream = "main" } = useParams({ strict: false });
-  const { row } = useSearch({ strict: false }) as { row?: string };
+  const { row, assigned } = useSearch({ strict: false }) as { row?: string; assigned?: "me" };
   const { activeWorkspace, user } = useRouteContext({ strict: false }) as WorkspaceRouteContext;
   const scope = { ws: activeWorkspace.slug, projectId, stream };
   const port = useProjectScreensPort(scope, user);
@@ -52,5 +55,7 @@ export function ProjectRulesRoute() {
     document.title = `Rules · Bowrain`;
   }, []);
 
-  return <ProjectRulesPage port={port} row={row} navigate={navigate} />;
+  return (
+    <ProjectRulesPage port={port} row={row} assignedToMe={assigned === "me"} navigate={navigate} />
+  );
 }

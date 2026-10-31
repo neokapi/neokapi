@@ -296,6 +296,13 @@ describe("the project screens' routes", () => {
     expect(route.search.row).toBe("suggested:s-1");
   });
 
+  it("opens Rules on the questions assigned to the member with ?assigned=me", () => {
+    expect(leaf("/acme/p/proj-1/s/main/rules", { assigned: "me" }).search.assigned).toBe("me");
+    expect(leaf("/acme/p/proj-1/s/main/rules", { assigned: "all" }).search.assigned).toBe(
+      undefined,
+    );
+  });
+
   it("keeps the Overview at /overview", () => {
     expect(leaf("/acme/p/proj-1/s/main/overview").routeId).toBe(
       "/$workspace/p/$projectId/s/$stream/overview",
