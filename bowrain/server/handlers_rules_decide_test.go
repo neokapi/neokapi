@@ -344,4 +344,3 @@ func TestRulesDecide_NoContextKey_SQLite(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, decideRoute(t, e, http.MethodGet, "nope", "/rules/main/decide", nil, &refusal))
 	assert.True(t, strings.Contains(refusal.Error, "not found"))
 }
-
