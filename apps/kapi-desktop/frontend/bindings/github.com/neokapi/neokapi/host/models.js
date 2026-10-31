@@ -24,6 +24,9 @@ import * as review$0 from "../core/review/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as workspace$0 from "../core/workspace/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as output$0 from "./output/models.js";
 
 /**
  * AIModelOrigin says which layer supplied the effective value.
@@ -4006,15 +4009,25 @@ export class ConvergeLocaleResult {
         if (/** @type {any} */(false)) {
             /**
              * StaleDrafts counts the blocks whose stored draft was made from an earlier
-             * source, which the materialize step therefore did not write
-             * (blockstore.TargetOverlay.StaleFor). Stale counts a decision whose basis
-             * moved, and Redrafted the units this run produced over; a stale draft is
-             * neither, and stays until a pass with a producing step drafts the block
-             * again.
+             * source, or written by an earlier kapi, which the materialize step
+             * therefore did not write (blockstore.TargetOverlay.StaleFor). Stale counts
+             * a decision whose basis moved, and Redrafted the units this run produced
+             * over; a stale draft is neither, and stays until a pass with a producing
+             * step drafts the block again.
              * @member
              * @type {number | undefined}
              */
             this["staleDrafts"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * UnstampedDrafts names each file whose stored drafts in this locale an
+             * earlier kapi wrote (blockstore.TargetOverlay.Unstamped). StaleDrafts
+             * counts them too.
+             * @member
+             * @type {output$0.UnstampedDrafts[] | undefined}
+             */
+            this["unstampedDrafts"] = undefined;
         }
 
         Object.assign(this, $$source);
@@ -4027,9 +4040,13 @@ export class ConvergeLocaleResult {
      */
     static createFrom($$source = {}) {
         const $$createField3_0 = $$createType19;
+        const $$createField12_0 = $$createType88;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pct" in $$parsedSource) {
             $$parsedSource["pct"] = $$createField3_0($$parsedSource["pct"]);
+        }
+        if ("unstampedDrafts" in $$parsedSource) {
+            $$parsedSource["unstampedDrafts"] = $$createField12_0($$parsedSource["unstampedDrafts"]);
         }
         return new ConvergeLocaleResult(/** @type {Partial<ConvergeLocaleResult>} */($$parsedSource));
     }
@@ -4208,9 +4225,9 @@ export class ConvergeOutput {
      * @returns {ConvergeOutput}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType88;
-        const $$createField4_0 = $$createType90;
-        const $$createField15_0 = $$createType92;
+        const $$createField3_0 = $$createType90;
+        const $$createField4_0 = $$createType92;
+        const $$createField15_0 = $$createType94;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("locales" in $$parsedSource) {
             $$parsedSource["locales"] = $$createField3_0($$parsedSource["locales"]);
@@ -4602,8 +4619,8 @@ export class DigestItem {
      */
     static createFrom($$source = {}) {
         const $$createField5_0 = $$createType59;
-        const $$createField6_0 = $$createType93;
-        const $$createField9_0 = $$createType95;
+        const $$createField6_0 = $$createType95;
+        const $$createField9_0 = $$createType97;
         const $$createField10_0 = $$createType6;
         const $$createField17_0 = $$createType0;
         const $$createField19_0 = $$createType0;
@@ -4738,7 +4755,7 @@ export class DigestTheme {
      * @returns {DigestTheme}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType97;
+        const $$createField2_0 = $$createType99;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("groups" in $$parsedSource) {
             $$parsedSource["groups"] = $$createField2_0($$parsedSource["groups"]);
@@ -5015,7 +5032,7 @@ export class RulesFilesResult {
      * @returns {RulesFilesResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType99;
+        const $$createField0_0 = $$createType101;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("files" in $$parsedSource) {
             $$parsedSource["files"] = $$createField0_0($$parsedSource["files"]);
@@ -5145,9 +5162,9 @@ export class UpPlanOutput {
      * @returns {UpPlanOutput}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType101;
-        const $$createField4_0 = $$createType100;
-        const $$createField8_0 = $$createType92;
+        const $$createField3_0 = $$createType103;
+        const $$createField4_0 = $$createType102;
+        const $$createField8_0 = $$createType94;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("scopes" in $$parsedSource) {
             $$parsedSource["scopes"] = $$createField3_0($$parsedSource["scopes"]);
@@ -5421,18 +5438,20 @@ const $$createType83 = RulesFilesResult.createFrom;
 const $$createType84 = $Create.Nullable($$createType83);
 const $$createType85 = ContextTermUse.createFrom;
 const $$createType86 = $Create.Array($$createType85);
-const $$createType87 = ConvergeLocaleResult.createFrom;
+const $$createType87 = output$0.UnstampedDrafts.createFrom;
 const $$createType88 = $Create.Array($$createType87);
-const $$createType89 = ParkedScope.createFrom;
+const $$createType89 = ConvergeLocaleResult.createFrom;
 const $$createType90 = $Create.Array($$createType89);
-const $$createType91 = check$0.Warning.createFrom;
+const $$createType91 = ParkedScope.createFrom;
 const $$createType92 = $Create.Array($$createType91);
-const $$createType93 = $Create.Nullable($$createType13);
-const $$createType94 = DigestUsage.createFrom;
-const $$createType95 = $Create.Nullable($$createType94);
-const $$createType96 = DigestGroup.createFrom;
-const $$createType97 = $Create.Array($$createType96);
-const $$createType98 = RulesFile.createFrom;
+const $$createType93 = check$0.Warning.createFrom;
+const $$createType94 = $Create.Array($$createType93);
+const $$createType95 = $Create.Nullable($$createType13);
+const $$createType96 = DigestUsage.createFrom;
+const $$createType97 = $Create.Nullable($$createType96);
+const $$createType98 = DigestGroup.createFrom;
 const $$createType99 = $Create.Array($$createType98);
-const $$createType100 = UpPlanScope.createFrom;
+const $$createType100 = RulesFile.createFrom;
 const $$createType101 = $Create.Array($$createType100);
+const $$createType102 = UpPlanScope.createFrom;
+const $$createType103 = $Create.Array($$createType102);

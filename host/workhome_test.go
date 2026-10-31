@@ -470,3 +470,50 @@ func TestRestoreKeptOverlays_WritesTheOverlayAsTheProducerLeftIt(t *testing.T) {
 		assert.Equal(t, "fp", stored.Config)
 	}
 }
+
+// TestChangeService_AVaultAnEarlierKapiWroteFailsTheRead: a kept edition
+// whose originals sit in the project vault does not read with its
+// placeholders once the vault is a file an earlier kapi wrote. The read fails
+// with the refusal the write path gives, naming the vault and what to run.
+func TestChangeService_AVaultAnEarlierKapiWroteFailsTheRead(t *testing.T) {
+	ctx := context.Background()
+	a, recipe := redactingKeptProject(t, "rules")
+	root := filepath.Dir(recipe)
+	keepGerman(t, a, recipe, "docs/a.json", map[string]string{"greeting": "Hallo", "farewell": "Falcon sagt Tschüss"})
+	svc := changeService(t, a, recipe)
+	target := targetRef(t, a, recipe, "docs/a.json", "de")
+	page, err := svc.Read(ctx, change.ReadRequest{Doc: target, Blocks: []string{"farewell"}})
+	require.NoError(t, err)
+	require.Equal(t, "Falcon sagt Tschüss", page.Blocks[0].Text)
+
+	vault := project.LayoutAt(root).RedactionVaultPath()
+	older := []byte(`{"version": 1, "values": []}`)
+	require.NoError(t, os.WriteFile(vault, older, 0o600))
+
+	_, err = changeService(t, a, recipe).Read(ctx, change.ReadRequest{Doc: target, Blocks: []string{"farewell"}})
+	require.ErrorIs(t, err, redaction.ErrOlderVault)
+	assert.Contains(t, err.Error(), vault+" is a redaction vault from an earlier kapi (version 1). Move it aside and run the command again to write a new one; recorded edits keep their placeholders.")
+	kept, rerr := os.ReadFile(vault)
+	require.NoError(t, rerr)
+	assert.Equal(t, older, kept, "the vault is left as it is")
+}
+
+// TestKeptRedaction_ReadsOnlyEntriesThatNameNoDocument: a kept edition's
+// originals sit under its vault id and name no document. An entry recorded
+// for a file under the same id names the file and never restores a kept
+// edition.
+func TestKeptRedaction_ReadsOnlyEntriesThatNameNoDocument(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "redaction.json")
+	id := keptVaultID("docs/a.json", "greeting", "de", "r1")
+	v, err := redaction.OpenFileVault(path)
+	require.NoError(t, err)
+	require.NoError(t, v.Put(redaction.RedactedValue{BlockID: id, Token: "rdx1", Original: "Falcon"}))
+	require.NoError(t, v.Put(redaction.RedactedValue{Doc: "docs/a.json", BlockID: id, Token: "rdx1", Original: "Osprey"}))
+	require.NoError(t, v.Flush())
+
+	k := &keptRedaction{policy: &recordRedaction{vault: path}}
+	got, err := k.valuesFor(id)
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	assert.Equal(t, "Falcon", got[0].Original)
+}

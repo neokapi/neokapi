@@ -227,6 +227,12 @@ func TestCLIContractText(t *testing.T) {
 	require.NoError(t, sres.FormatText(&buf))
 	assert.Equal(t, "\nMerge complete. wrote=4 file(s) stale=2 from the project store.\n", buf.String())
 
+	sres.Unstamped = []output.UnstampedDrafts{{File: "src/en.json", Locale: "fr", Blocks: 1}}
+	buf.Reset()
+	require.NoError(t, sres.FormatText(&buf))
+	assert.Equal(t, "\nMerge complete. wrote=4 file(s) stale=2 from the project store.\n"+
+		"  src/en.json (fr): 1 block(s) hold a draft an earlier kapi wrote; a translating pass drafts them again.\n", buf.String())
+
 	pres := output.FlowRunOutput{FlowName: "translate", InputPath: "src/messages.json", ProcessOnly: true}
 	buf.Reset()
 	require.NoError(t, pres.FormatText(&buf))

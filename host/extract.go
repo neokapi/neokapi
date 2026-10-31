@@ -1291,9 +1291,12 @@ func (a *App) extractOneKpz(ctx context.Context, task kpzInterchangeTask) error 
 					// A content memory-leveraged prefill is a draft; carry that status so the
 					// workspace → merge round-trip preserves it (the matching read
 					// is applyTargetOverlay).
+					// The source stamp names the source the prefill answers,
+					// which a merge compares with the source it reads.
 					payload, _ := json.Marshal(map[string]string{
 						"text":   text,
 						"status": string(model.TargetStatusDraft),
+						"source": blockstore.BlockSourceStamp(b),
 					})
 					overlays = append(overlays, kpz.OverlayDoc{
 						Kind: blockstore.TargetOverlayKind(task.targetLocale), BlockHash: b.ID, Payload: payload, Source: srcArchive,

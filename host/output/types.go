@@ -489,14 +489,31 @@ func (o MergeOutput) FormatText(w io.Writer) error {
 // project: localized files materialized from the project block store.
 type MergeStoreOutput struct {
 	Written int `json:"written"`
-	// Stale is how many blocks the store holds a translation of another
-	// source for: the source changed since the translation was made, and the
-	// merge wrote none of them.
-	Stale            int  `json:"stale,omitempty"`
-	FromProjectStore bool `json:"from_project_store"`
+	// Stale is how many blocks the store holds a stale translation for: one of
+	// a source that changed since it was made, or one an earlier kapi wrote.
+	// The merge wrote none of them.
+	Stale int `json:"stale,omitempty"`
+	// Unstamped names each file and locale whose stored drafts an earlier
+	// kapi wrote, which Stale counts too.
+	Unstamped        []UnstampedDrafts `json:"unstamped,omitempty"`
+	FromProjectStore bool              `json:"from_project_store"`
 	// Warnings name the declared files the merge did not write because no
 	// installed reader opens their format (check.WarningFormatNoReader).
 	Warnings []check.Warning `json:"warnings,omitempty"`
+}
+
+// UnstampedDrafts names a file whose stored drafts for one locale an earlier
+// kapi wrote. They name no source they translate, so a merge counts them as
+// stale and writes none of them, and a translating pass drafts them again.
+type UnstampedDrafts struct {
+	File   string `json:"file"`
+	Locale string `json:"locale"`
+	Blocks int    `json:"blocks"`
+}
+
+// Line is the line a report prints for u, under its stale count.
+func (u UnstampedDrafts) Line() string {
+	return fmt.Sprintf("%s (%s): %d block(s) hold a draft an earlier kapi wrote; a translating pass drafts them again.", u.File, u.Locale, u.Blocks)
 }
 
 func (o MergeStoreOutput) FormatText(w io.Writer) error {
@@ -504,6 +521,9 @@ func (o MergeStoreOutput) FormatText(w io.Writer) error {
 		fmt.Fprintf(w, "\nMerge complete. wrote=%d file(s) stale=%d from the project store.\n", o.Written, o.Stale)
 	} else {
 		fmt.Fprintf(w, "\nMerge complete. wrote=%d file(s) from the project store.\n", o.Written)
+	}
+	for _, u := range o.Unstamped {
+		fmt.Fprintf(w, "  %s\n", u.Line())
 	}
 	for _, warning := range o.Warnings {
 		fmt.Fprintf(w, "  Set aside: %s.\n", warning.Message)

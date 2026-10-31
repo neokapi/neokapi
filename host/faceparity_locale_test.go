@@ -113,7 +113,7 @@ func TestFaceParity_StoresKeyCanonicalLocales(t *testing.T) {
 		require.NoError(t, sess.PutOverlay(blockstore.Overlay{
 			Kind:      blockstore.TargetOverlayKind("nb_NO"),
 			BlockHash: b.Hash,
-			Payload:   []byte(`{"text":"x","status":"translated"}`),
+			Payload:   []byte(`{"text":"x","status":"translated","source":"` + blockstore.SourceStamp(model.RunsText(b.SourceRuns())) + `"}`),
 		}))
 		n++
 	}

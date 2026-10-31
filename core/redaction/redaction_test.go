@@ -2,7 +2,7 @@ package redaction
 
 import (
 	"context"
-	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -335,74 +335,73 @@ func TestFileVault_TwoDocumentsSameBlockID(t *testing.T) {
 		assert.Equal(t, name, entries[0].Original, doc)
 	}
 	_, ok := reopened.Get("src/c.json", "greeting", "rdx1")
-	assert.False(t, ok, "a document the vault holds nothing for, in a vault with no entry that names no document, restores nothing")
+	assert.False(t, ok, "a document the vault holds nothing for restores nothing")
+	_, ok = reopened.Get("", "greeting", "rdx1")
+	assert.False(t, ok, "a lookup that names no document finds no entry that names one")
+	assert.Empty(t, ValuesForBlock(reopened, "", "greeting"))
 }
 
-// A version 1 vault keyed every entry by block and token alone. It still
-// opens, a lookup that names a document falls back to the entry, and the
-// next Flush writes version 2 with the entry unchanged.
-func TestFileVault_ReadsVersion1(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "batch.json")
-	require.NoError(t, os.WriteFile(path, []byte(`{
-  "version": 1,
-  "values": [
-    {"token": "rdx1", "category": "person", "disp": "[REDACTED:Person]", "original": "Mr Bean", "locale": "en", "blockId": "tu1"}
-  ]
-}`), 0o600))
-	v, err := OpenFileVault(path)
-	require.NoError(t, err)
-
-	got, ok := v.Get("src/app.json", "tu1", "rdx1")
-	require.True(t, ok, "a lookup by document falls back to the entry a version 1 vault holds")
-	assert.Equal(t, "Mr Bean", got.Original)
-	got, ok = v.Get("", "tu1", "rdx1")
+// Content that sits in no document is stored and found under the empty
+// document alone: a lookup that names a document never returns it.
+func TestFileVault_EntryWithNoDocument(t *testing.T) {
+	v := NewMemoryVault()
+	require.NoError(t, v.Put(RedactedValue{BlockID: "edit:a.md#b1@fr:", Token: "rdx1", Original: "Mr Bean"}))
+	got, ok := v.Get("", "edit:a.md#b1@fr:", "rdx1")
 	require.True(t, ok)
 	assert.Equal(t, "Mr Bean", got.Original)
-	entries := ValuesForBlock(v, "src/app.json", "tu1")
-	require.Len(t, entries, 1)
-	assert.Equal(t, "[REDACTED:Person]", entries[0].Disp)
-
-	// An entry that names the document wins over the old one.
-	require.NoError(t, v.Put(RedactedValue{Doc: "src/app.json", BlockID: "tu1", Token: "rdx1", Original: "Ms Bean"}))
-	got, _ = v.Get("src/app.json", "tu1", "rdx1")
-	assert.Equal(t, "Ms Bean", got.Original)
-	entries = ValuesForBlock(v, "src/app.json", "tu1")
-	require.Len(t, entries, 1)
-	assert.Equal(t, "Ms Bean", entries[0].Original)
-
-	require.NoError(t, v.Flush())
-	data, err := os.ReadFile(path)
-	require.NoError(t, err)
-	var doc struct {
-		Version int `json:"version"`
-	}
-	require.NoError(t, json.Unmarshal(data, &doc))
-	assert.Equal(t, 2, doc.Version)
-	assert.Contains(t, string(data), `"doc": "src/app.json"`)
+	_, ok = v.Get("a.md", "edit:a.md#b1@fr:", "rdx1")
+	assert.False(t, ok)
+	assert.Len(t, ValuesForBlock(v, "", "edit:a.md#b1@fr:"), 1)
+	assert.Empty(t, ValuesForBlock(v, "a.md", "edit:a.md#b1@fr:"))
 }
 
-// A vault opens at every version this binary reads, and one a newer kapi
-// wrote is refused with a message that names the file and both versions.
+// A vault opens at the version this binary writes. One with no version, or
+// version 1, was written by an earlier kapi and is refused with a message that
+// names the file and the version; one a newer kapi wrote is refused with a
+// message that names the file and both versions. A refused file is left as it
+// is.
 func TestOpenFileVault_Version(t *testing.T) {
 	entry := `{"token": "rdx1", "category": "person", "original": "Mr Bean", "blockId": "tu1"}`
-	cases := []struct {
+
+	t.Run("version 2", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "batch.json")
+		require.NoError(t, os.WriteFile(path, []byte(`{"version": 2, "values": [`+entry+`]}`), 0o600))
+		v, err := OpenFileVault(path)
+		require.NoError(t, err)
+		got, ok := v.Get("", "tu1", "rdx1")
+		require.True(t, ok)
+		assert.Equal(t, "Mr Bean", got.Original)
+		assert.Empty(t, v.ID(), "a vault that records no ID has none")
+	})
+
+	for _, tc := range []struct {
 		name    string
 		version string
+		found   string
 	}{
-		{name: "absent", version: ""},
-		{name: "version 1", version: `"version": 1, `},
-		{name: "version 2", version: `"version": 2, `},
-	}
-	for _, tc := range cases {
+		{name: "absent", version: "", found: "no version"},
+		{name: "version 1", version: `"version": 1, `, found: "version 1"},
+		{name: "version 0", version: `"version": 0, `, found: "version 0"},
+	} {
 		t.Run(tc.name, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "batch.json")
-			require.NoError(t, os.WriteFile(path, []byte(`{`+tc.version+`"values": [`+entry+`]}`), 0o600))
+			data := []byte(`{` + tc.version + `"values": [` + entry + `]}`)
+			require.NoError(t, os.WriteFile(path, data, 0o600))
 			v, err := OpenFileVault(path)
+			require.ErrorIs(t, err, ErrOlderVault)
+			assert.Nil(t, v)
+			var ov *OlderVaultError
+			require.ErrorAs(t, err, &ov)
+			assert.Equal(t, path, ov.Path)
+			assert.Equal(t, path+" is a redaction vault from an earlier kapi ("+tc.found+").", err.Error())
+
+			run := WithRun(fmt.Errorf("redact a.json: %w", err), "Run `kapi extract` again to write a new one with the files it extracts.")
+			require.ErrorIs(t, run, ErrOlderVault)
+			assert.Equal(t, path+" is a redaction vault from an earlier kapi ("+tc.found+"). Run `kapi extract` again to write a new one with the files it extracts.", run.Error())
+
+			kept, err := os.ReadFile(path)
 			require.NoError(t, err)
-			got, ok := v.Get("", "tu1", "rdx1")
-			require.True(t, ok)
-			assert.Equal(t, "Mr Bean", got.Original)
-			assert.Empty(t, v.ID(), "a vault that records no ID has none")
+			assert.Equal(t, data, kept, "the refused vault is left as it is")
 		})
 	}
 
@@ -412,8 +411,10 @@ func TestOpenFileVault_Version(t *testing.T) {
 		require.NoError(t, os.WriteFile(path, data, 0o600))
 		v, err := OpenFileVault(path)
 		require.ErrorIs(t, err, ErrNewerVault)
+		require.NotErrorIs(t, err, ErrOlderVault)
 		assert.Nil(t, v)
 		assert.Equal(t, "redaction: vault "+path+" is version 3 and this kapi reads up to version 2: a newer kapi wrote this vault; upgrade kapi to read it", err.Error())
+		assert.Equal(t, err, WithRun(err, "unused"), "WithRun leaves an error that is no OlderVaultError as it is")
 		kept, err := os.ReadFile(path)
 		require.NoError(t, err)
 		assert.Equal(t, data, kept, "the refused vault is left as it is")

@@ -373,10 +373,14 @@ func packageVault(pkgName, path, wantID, regenerate string) (*redaction.FileVaul
 }
 
 // packageVaultOpenError is the refusal of a redacted package whose vault
-// does not open. A vault a newer kapi wrote says to upgrade; any other vault
-// that does not open, an older one among them, is replaced by extracting the
-// package again.
+// does not open. A vault a newer kapi wrote says to upgrade. One an earlier
+// kapi wrote is refused with the vault named and the command to run
+// (redaction.WithRun), and any other vault that does not open is replaced by
+// extracting the package again.
 func packageVaultOpenError(pkgName string, err error) error {
+	if errors.Is(err, redaction.ErrOlderVault) {
+		return redaction.WithRun(err, runForPackageVault)
+	}
 	if errors.Is(err, redaction.ErrNewerVault) {
 		return fmt.Errorf("merge: %s is redacted, and its vault cannot be read: %w", pkgName, err)
 	}

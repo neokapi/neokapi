@@ -246,7 +246,9 @@ func NewRedactTool(cfg *RedactConfig) (*RedactTool, error) {
 	if cfg.VaultPath != "" {
 		v, err := redaction.OpenFileVault(cfg.VaultPath)
 		if err != nil {
-			return nil, err
+			// A caller that knows which vault this is names its own command
+			// (redaction.WithRun replaces this sentence).
+			return nil, redaction.WithRun(err, "Move it aside and run the redaction again to write a new one.")
 		}
 		t.vault = v
 	}

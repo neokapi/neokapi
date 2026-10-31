@@ -27,13 +27,15 @@ func TestBlockSourceStamp_NamesTheSourceAsRead(t *testing.T) {
 	assert.Equal(t, BlockSourceStamp(read), BlockSourceStamp(edited))
 }
 
-// An overlay is stale for a block when its stamp names another source; an
-// overlay that carries no stamp is never stale.
+// An overlay is stale for a block when its stamp names another source, and
+// when it carries no stamp, which an earlier kapi wrote.
 func TestTargetOverlay_StaleFor(t *testing.T) {
 	b := model.NewBlock("b1", "Hello")
 	assert.False(t, TargetOverlay{Text: "Bonjour", Source: SourceStamp("Hello")}.StaleFor(b))
 	assert.True(t, TargetOverlay{Text: "Bonjour", Source: SourceStamp("Hello there")}.StaleFor(b))
-	assert.False(t, TargetOverlay{Text: "Bonjour"}.StaleFor(b), "a stampless overlay applies")
+	assert.True(t, TargetOverlay{Text: "Bonjour"}.StaleFor(b), "an overlay an earlier kapi wrote is stale")
+	assert.True(t, TargetOverlay{Text: "Bonjour"}.Unstamped())
+	assert.False(t, TargetOverlay{Text: "Bonjour", Source: SourceStamp("Hello there")}.Unstamped())
 	// An empty source is a source: a reader's block for an empty value has the
 	// stamp of "", and a translation of anything else is stale for it.
 	empty := model.NewBlock("b1", "")

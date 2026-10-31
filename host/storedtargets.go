@@ -2,6 +2,9 @@ package host
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
 
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/model"
@@ -53,4 +56,58 @@ func (a *App) storedTargetStore(ctx context.Context, root string) blockstore.Sto
 	// handle would hold the write permit for its whole life, parking any
 	// converge run writing beside it.
 	return db.BlocksAutocommit()
+}
+
+// unstampedDrafts counts, per target locale, the blocks of the project's
+// current extraction whose stored draft carries no source stamp
+// (blockstore.TargetOverlay.Unstamped). An earlier kapi wrote those drafts. A
+// merge writes none of them, whatever the target file holds, so they are work
+// for the loop: a translating pass drafts each block again and stamps the
+// draft. A project with no store has none.
+func (a *App) unstampedDrafts(ctx context.Context, root string, locales []model.LocaleID) (map[string]int, error) {
+	store := a.storedTargetStore(ctx, root)
+	if store == nil || len(locales) == 0 {
+		return nil, nil
+	}
+	sess, err := store.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("read the stored targets: %w", err)
+	}
+	defer sess.Close()
+	translatable := true
+	var keys []string
+	for b, err := range sess.Blocks(blockstore.BlockFilter{Translatable: &translatable}) {
+		if err != nil {
+			return nil, fmt.Errorf("read the stored blocks: %w", err)
+		}
+		// The block's Hash is the key its overlays are written under
+		// (blockstore.StoreKey).
+		key := b.Hash
+		if key == "" {
+			key = b.ID
+		}
+		keys = append(keys, key)
+	}
+	var out map[string]int
+	for _, loc := range locales {
+		kind := blockstore.TargetOverlayKind(loc)
+		for _, key := range keys {
+			o, err := sess.GetOverlay(kind, key)
+			if errors.Is(err, blockstore.ErrNotFound) {
+				continue
+			}
+			if err != nil {
+				return nil, fmt.Errorf("read %s overlay for block %s: %w", kind, key, err)
+			}
+			var p blockstore.TargetOverlay
+			if len(o.Payload) == 0 || json.Unmarshal(o.Payload, &p) != nil || !p.Unstamped() {
+				continue
+			}
+			if out == nil {
+				out = map[string]int{}
+			}
+			out[string(loc)]++
+		}
+	}
+	return out, nil
 }

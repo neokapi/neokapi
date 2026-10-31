@@ -299,7 +299,13 @@ reuses the overlays already present and recomputes only what changed
 source stamp is taken from the block's source as its reader produced it, not
 as a step such as `redact` or `script` rewrote it. A merge applies the overlay
 only while that stamp names the source the merge reads, and counts one that
-names another source as stale.
+names another source as stale. The translate tools, `commit-targets`,
+`pseudo-translate` and the content-memory prefill of a `.kpz` extract stamp
+what they write, so an overlay with no stamp was written by an earlier kapi or
+imported by block hash without its source text. The merge counts it as stale
+too and names its file and locale, a merge from a skeleton leaves it out as
+well, and `kapi up` treats the block as work: the next translating pass drafts
+it again.
 
 ### 6. Archives: a source that fans out, a sink that repacks
 

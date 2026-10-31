@@ -408,12 +408,14 @@ func (a *App) MergeFromKpz(ctx context.Context, kpzPath, outOverride string) err
 	// pass runs the merge chain over every source and locale, writing each
 	// document where outFor says. With check set, a translation that still
 	// holds a placeholder once the vault restored it stops the pass.
-	pass := func(outFor func(src kpzCacheSource, locale string) (string, error), check bool) (written, stale int, err error) {
+	// It also returns a line for each source and locale whose drafts an
+	// earlier kapi wrote.
+	pass := func(outFor func(src kpzCacheSource, locale string) (string, error), check bool) (written, stale int, unstamped []string, err error) {
 		for _, src := range c.meta.Sources {
 			for _, locale := range locales {
 				docOut, derr := outFor(src, locale)
 				if derr != nil {
-					return 0, 0, derr
+					return 0, 0, nil, derr
 				}
 				hydrate := newHydrateTargetsTool(model.LocaleID(locale))
 				// Without the raw source, runCacheSource rebuilds the document
@@ -426,7 +428,7 @@ func (a *App) MergeFromKpz(ctx context.Context, kpzPath, outOverride string) err
 					// package.
 					ut, uerr := tools.NewUnredactTool(&tools.UnredactConfig{VaultPath: vaultPath, Document: src.Name})
 					if uerr != nil {
-						return 0, 0, packageVaultOpenError(filepath.Base(kpzPath), uerr)
+						return 0, 0, nil, packageVaultOpenError(filepath.Base(kpzPath), uerr)
 					}
 					chain = append(chain, ut)
 					if check {
@@ -434,13 +436,17 @@ func (a *App) MergeFromKpz(ctx context.Context, kpzPath, outOverride string) err
 					}
 				}
 				if err := a.runCacheSource(ctx, c, src, "merge", chain, docOut, locale); err != nil {
-					return 0, 0, err
+					return 0, 0, nil, err
 				}
 				written++
 				stale += hydrate.Stale()
+				if n := hydrate.Unstamped(); n > 0 {
+					unstamped = append(unstamped, fmt.Sprintf("  %s (%s): %d block(s) hold a draft an earlier kapi wrote; a translating tool run on %s drafts them again.",
+						src.Path, locale, n, filepath.Base(kpzPath)))
+				}
 			}
 		}
-		return written, stale, nil
+		return written, stale, unstamped, nil
 	}
 
 	// A redacted package is merged once into the cache first, where a
@@ -452,13 +458,13 @@ func (a *App) MergeFromKpz(ctx context.Context, kpzPath, outOverride string) err
 			return fmt.Errorf("merge: %w", err)
 		}
 		defer os.RemoveAll(trial)
-		if _, _, err := pass(func(src kpzCacheSource, locale string) (string, error) {
+		if _, _, _, err := pass(func(src kpzCacheSource, locale string) (string, error) {
 			return filepath.Join(trial, locale+"-"+src.Name), nil
 		}, true); err != nil {
 			return err
 		}
 	}
-	written, stale, err := pass(func(src kpzCacheSource, locale string) (string, error) {
+	written, stale, unstamped, err := pass(func(src kpzCacheSource, locale string) (string, error) {
 		return mergeOutputPath(layout, src.Path, locale, len(locales) > 1)
 	}, false)
 	if err != nil {
@@ -466,11 +472,15 @@ func (a *App) MergeFromKpz(ctx context.Context, kpzPath, outOverride string) err
 	}
 	line := fmt.Sprintf("Merged %s → %d file(s) (%s)", kpzPath, written, strings.Join(locales, ", "))
 	if stale > 0 {
-		// A stored translation of a source that has changed since is not
-		// applied: the block keeps its source in the merged file.
+		// A stored translation of a source that has changed since, or one an
+		// earlier kapi wrote, is not applied: the block keeps its source in
+		// the merged file.
 		line += fmt.Sprintf(" stale=%d", stale)
 	}
 	a.printlnUnlessQuiet(line)
+	for _, u := range unstamped {
+		a.printlnUnlessQuiet(u)
+	}
 	return nil
 }
 

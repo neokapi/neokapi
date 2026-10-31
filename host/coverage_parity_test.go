@@ -111,23 +111,23 @@ func TestCoverageParity_FileScanVsBlockStore(t *testing.T) {
 	sess, err := store.Begin(ctx)
 	require.NoError(t, err)
 	tr := true
-	var overlayIDs []string
+	overlays := map[string]string{} // overlay key → the source it translates
 	for b, berr := range sess.Blocks(blockstore.BlockFilter{Collection: "docs", Translatable: &tr}) {
 		require.NoError(t, berr)
-		if translated[model.RunsText(b.SourceRuns())] {
+		if src := model.RunsText(b.SourceRuns()); translated[src] {
 			// The store block's Hash is the overlay key (blockstore.StoreKey), which
 			// is what every writer and reader of a target overlay addresses.
 			key := b.Hash
 			if key == "" {
 				key = b.ID
 			}
-			overlayIDs = append(overlayIDs, key)
+			overlays[key] = src
 		}
 	}
-	require.Len(t, overlayIDs, 2)
-	for _, id := range overlayIDs {
+	require.Len(t, overlays, 2)
+	for id, src := range overlays {
 		require.NoError(t, sess.PutOverlay(blockstore.Overlay{
-			Kind: "targets/fr", BlockHash: id, Payload: []byte(`{}`),
+			Kind: "targets/fr", BlockHash: id, Payload: []byte(`{"source":"` + blockstore.SourceStamp(src) + `"}`),
 		}))
 	}
 	require.NoError(t, sess.Commit())

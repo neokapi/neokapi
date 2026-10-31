@@ -354,7 +354,7 @@ func TestMaterialize_WritesEachTranslationThroughTheChangeService(t *testing.T) 
 		require.NoError(t, sess.PutOverlay(blockstore.Overlay{
 			Kind:      blockstore.TargetOverlayKind("fr"),
 			BlockHash: blockstore.OverlayKey(fileCtx, ids[text], text),
-			Payload:   []byte(`{"text":"` + french + `","status":"draft"}`),
+			Payload:   []byte(`{"text":"` + french + `","status":"draft","source":"` + blockstore.SourceStamp(text) + `"}`),
 		}))
 	}
 	require.NoError(t, sess.Close())
@@ -456,7 +456,7 @@ func TestMaterialize_KeepsTheTranslationsAPOCatalogHolds(t *testing.T) {
 	require.NoError(t, sess.PutOverlay(blockstore.Overlay{
 		Kind:      blockstore.TargetOverlayKind("fr"),
 		BlockHash: blockstore.OverlayKey(blockstore.WithSourceRel(ctx, "po/en.po"), ids["New"], "New"),
-		Payload:   []byte(`{"text":"Nouveau","status":"draft"}`),
+		Payload:   []byte(`{"text":"Nouveau","status":"draft","source":"` + blockstore.SourceStamp("New") + `"}`),
 	}))
 	require.NoError(t, sess.Close())
 
@@ -486,7 +486,7 @@ func TestMaterialize_BringsATranslationBackToItsSource(t *testing.T) {
 	require.NoError(t, sess.PutOverlay(blockstore.Overlay{
 		Kind:      blockstore.TargetOverlayKind("fr"),
 		BlockHash: blockstore.OverlayKey(blockstore.WithSourceRel(ctx, "src/en/app.json"), ids["Hello"], "Hello"),
-		Payload:   []byte(`{"text":"Salut","status":"draft"}`),
+		Payload:   []byte(`{"text":"Salut","status":"draft","source":"` + blockstore.SourceStamp("Hello") + `"}`),
 	}))
 	require.NoError(t, sess.Close())
 

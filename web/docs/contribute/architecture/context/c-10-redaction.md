@@ -72,15 +72,22 @@ token (`redaction.RedactedValue.Doc`, the project-relative path). Block IDs
 repeat across files and the token counter starts again in every block, so a
 key without the document lets one file's original overwrite another's. Content
 that sits in no file (an edit record, a note) names itself in its block ID and
-records no document. The file format is version 2, which records the
-document and, for a vault a redacted package names, the vault's ID
-(`redaction.FileVault.ID`, optional). A version 1 file, which records no
-document, still reads, and a lookup that names a document falls back to the
-entry that names none. A file above version 2 was written by a newer kapi, and
-`redaction.OpenFileVault` refuses it with `ErrNewerVault`, so
-merge fails for that file and a write to the workspace home is refused. The
-vault is the only copy of the originals, never a cache, so it is read as it is
-rather than reset.
+records no document. `Flush` writes version 2 (`fileVaultVersion`), which
+records the document and, for a vault a redacted package names, the vault's ID
+(`redaction.FileVault.ID`, optional), and
+`redaction.OpenFileVault` reads from version 2 (`oldestVaultVersion`) up to the
+version it writes; the floor stays put when the written version moves. A file
+with no version, or below the floor, was written by an earlier kapi, and it is
+refused with an `*OlderVaultError` (`ErrOlderVault`) that names the version
+found; one above the written version was written by a newer kapi, and it is
+refused with `ErrNewerVault`. Either way merge fails for that file, and a
+write to the workspace home and a read of a kept edition fail. The caller
+names the command that writes a new vault (`redaction.WithRun`): `kapi
+extract` for a batch sidecar or a package sidecar, whose entries belong to the
+files that extraction wrote, and, for the project vault, a run after moving the file
+aside, since the old file holds the only copy of every recorded edit's
+originals. The vault is the only copy of the originals, never a cache, so kapi
+leaves a refused file as it is.
 
 `vault/` sits beside `work/`, outside it. **`work/` is defined by being
 disposable**: losing it costs CPU. **The vault is defined by an exclusion**: a

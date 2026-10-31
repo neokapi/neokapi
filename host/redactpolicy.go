@@ -9,6 +9,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/redaction"
 )
 
 // A declared redaction policy belongs to the content. Every route that sends
@@ -104,8 +105,28 @@ func RedactFileAtIngest(
 	if err := ensureVaultDir(vaultPath); err != nil {
 		return err
 	}
-	return applyRedaction(ctx, vaultDoc(doc), blocks, spec, rootDir, vaultPath, sourceLocale)
+	err := applyRedaction(ctx, vaultDoc(doc), blocks, spec, rootDir, vaultPath, sourceLocale)
+	return redaction.WithRun(err, runForProjectVault)
 }
+
+// runForProjectVault is what to run when the project vault
+// (Layout.RedactionVaultPath) is a file an earlier kapi wrote. Every writer
+// adds to the vault as it reads content, so a new file starts empty and fills
+// on the next run. The originals of a recorded edit are in the old file alone,
+// so it is moved aside, never deleted, and those edits read with their
+// placeholders.
+const runForProjectVault = "Move it aside and run the command again to write a new one; recorded edits keep their placeholders."
+
+// runForBatchVault is what to run when an extraction's batch vault
+// (Layout.RedactionSidecarPath) is a file an earlier kapi wrote. Its entries
+// belong to the files that extraction wrote, so a new vault comes with a new
+// extraction.
+const runForBatchVault = "Run `kapi extract` again to write a new one with the files it extracts."
+
+// runForPackageVault is what to run when the vault a redacted .kpz names is a
+// file an earlier kapi wrote. The package and its vault are written together,
+// so a new vault comes with a new package.
+const runForPackageVault = "Run `kapi extract` again to write a new package and vault."
 
 // vaultDoc is the name a vault keeps a file's originals under: its path,
 // slash-separated whatever the platform.
