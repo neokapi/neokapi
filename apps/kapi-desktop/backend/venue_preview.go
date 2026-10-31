@@ -210,8 +210,7 @@ func (b *bowrainSignIns) forget(server string, t *apiclient.Transport) {
 // status, such as a server that cannot be reached, keeps its own words and
 // names no action.
 func previewRefusal(err error) *PreviewRefusal {
-	var re *apiclient.RefreshError
-	if errors.As(err, &re) {
+	if re, ok := errors.AsType[*apiclient.RefreshError](err); ok {
 		return &PreviewRefusal{Status: re.StatusCode, Action: PreviewActionSignIn}
 	}
 	var se *apiclient.StatusError
