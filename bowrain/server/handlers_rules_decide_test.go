@@ -172,6 +172,53 @@ func TestRulesDecide_ADisagreementHoldsOneAssignment_SQLite(t *testing.T) {
 	assert.Equal(t, 0, queue.Projects[0].Assigned)
 }
 
+// An assignment held under a side other than the question's key, as one made
+// before the question gained an older side is, is shown and counted, and the
+// next assignment moves it to the key.
+func TestRulesDecide_AnAssignmentUnderAnotherSideIsRead_SQLite(t *testing.T) {
+	caller := &decideCaller{userID: "member-a", perms: decideAll}
+	e, cs := decideSQLiteServer(t, caller)
+	pid := seedDecideParity(t, e, cs)
+	side := decisionOf(t, readDecideView(t, e, pid), "disagreement")
+	require.Len(t, side.Options, 2)
+	key := min(side.Options[0].ID, side.Options[1].ID)
+	other := max(side.Options[0].ID, side.Options[1].ID)
+
+	as, ok := platstore.ContextAssignments(cs)
+	require.True(t, ok)
+	require.NoError(t, as.AssignContextSuggestion(t.Context(), platstore.ContextAssignment{
+		ProjectID: pid, SuggestionID: other, Assignee: "member-a", AssignedBy: "member-a", AssignedAt: time.Now().UTC(),
+	}))
+
+	assert.Equal(t, "member-a", decisionOf(t, readDecideView(t, e, pid), "disagreement").AssigneeID)
+	var queue contextQueue
+	require.Equal(t, http.StatusOK, decideRoute(t, e, http.MethodGet, "", "context/queue", nil, &queue))
+	assert.Equal(t, 1, queue.Projects[0].Assigned)
+
+	var assigned ruleAssignment
+	require.Equal(t, http.StatusOK, decideRoute(t, e, http.MethodPost, pid, "/rules/main/assign",
+		ruleAssignRequest{ID: other, UserID: new("member-b")}, &assigned))
+	rows, err := as.ListContextAssignments(t.Context(), pid)
+	require.NoError(t, err)
+	require.Len(t, rows, 1, "one question holds one assignment")
+	assert.Equal(t, key, rows[0].SuggestionID)
+	assert.Equal(t, "member-b", rows[0].Assignee)
+}
+
+// The members who decide are read only by a member who decides.
+func TestRulesDecide_AssigneesNeedAGoverningPermission_SQLite(t *testing.T) {
+	caller := &decideCaller{userID: "member-a", perms: decideAll}
+	e, cs := decideSQLiteServer(t, caller)
+	pid := seedDecideParity(t, e, cs)
+	var members []ruleAssignee
+	require.Equal(t, http.StatusOK, decideRoute(t, e, http.MethodGet, pid, "/rules/main/assignees", nil, &members))
+
+	caller.perms = platauth.PermViewContent
+	var refusal ErrorResponse
+	require.Equal(t, http.StatusForbidden, decideRoute(t, e, http.MethodGet, pid, "/rules/main/assignees", nil, &refusal))
+	assert.NotEmpty(t, refusal.Error)
+}
+
 // pushUnnamedKeep pushes, as the caller, a segment holding a keep of target
 // by a person with no name: what `kapi context sync` pushes for a keep the
 // command line recorded.

@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -49,10 +50,12 @@ func TestRuleAssignees_FollowTheProjectsResolvedPermissions(t *testing.T) {
 		}
 		return rec.Code
 	}
+	users := map[string]*platauth.User{}
 	member := func(name string, role platauth.Role) string {
 		u := &platauth.User{Email: name + "@example.com", Name: name}
 		require.NoError(t, srv.AuthStore.CreateUser(ctx, u))
 		require.NoError(t, srv.AuthStore.AddMember(ctx, wsID, u.ID, role))
+		users[u.ID] = u
 		return u.ID
 	}
 	grant := func(userID, role string) {
@@ -111,4 +114,13 @@ func TestRuleAssignees_FollowTheProjectsResolvedPermissions(t *testing.T) {
 	assert.Equal(t, errCannotDecide, refusal.Error)
 	require.Equal(t, http.StatusOK, call(http.MethodGet, "/rules/main/decide", nil, &view))
 	assert.Equal(t, decider, view.Decisions[0].AssigneeID, "a refused assignment leaves the one held")
+
+	// A project observer may not read who decides.
+	token, err := platauth.GenerateToken(users[observer], "test-pm-secret", time.Hour)
+	require.NoError(t, err)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/"+wsSlug+"/"+pid+"/rules/main/assignees", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusForbidden, rec.Code, rec.Body.String())
 }

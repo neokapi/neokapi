@@ -342,11 +342,27 @@ func questionKey(d rulesview.Decision) string {
 	return slices.Min(ids)
 }
 
+// assignmentOf is the assignment a question holds: the one under
+// questionKey, or else one under another of its sides, in id order. A
+// question can hold one under another side when it was assigned before it
+// gained an older side; the next assignment moves it to questionKey.
+func assignmentOf(d rulesview.Decision, assigned map[string]platstore.ContextAssignment) (platstore.ContextAssignment, bool) {
+	if a, ok := assigned[questionKey(d)]; ok && a.Assignee != "" {
+		return a, true
+	}
+	for _, id := range slices.Sorted(slices.Values(questionIDs(d))) {
+		if a, ok := assigned[id]; ok && a.Assignee != "" {
+			return a, true
+		}
+	}
+	return platstore.ContextAssignment{}, false
+}
+
 // assigneeOf is the member a question is assigned to, by name, and the
 // member's user id, which tells a reader the questions that are theirs.
 func (s *Server) assigneeOf(ctx context.Context, d rulesview.Decision, assigned map[string]platstore.ContextAssignment) (*screens.ContextActorDTO, string) {
-	a, ok := assigned[questionKey(d)]
-	if !ok || a.Assignee == "" {
+	a, ok := assignmentOf(d, assigned)
+	if !ok {
 		return nil, ""
 	}
 	who := screens.ContextActorDTO{Kind: string(contextop.ActorPerson), Name: s.displayName(ctx, a.Assignee)}
@@ -399,10 +415,15 @@ func (s *Server) projectDeciders(c echo.Context, proj *platstore.Project) (out [
 
 // HandleRuleAssignees answers GET /:ws/:id/rules/:ref/assignees with the
 // members a question of the project can be assigned to: those whose
-// permissions on it govern a rule.
+// permissions on it govern a rule. Only a member who governs a rule there
+// may read it, as only such a member assigns.
 func (s *Server) HandleRuleAssignees(c echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
+	}
+	if perms, _ := c.Get("project_permissions").(platauth.Permission); perms&governingPermissions == 0 {
+		s.emitAuthzDenied(c, governingPermissions, "insufficient_permissions")
+		return deny(c, "insufficient project permissions")
 	}
 	ctx := c.Request().Context()
 	proj, err := s.ContentStore.GetProject(ctx, projectParam(c))
@@ -889,7 +910,7 @@ func (s *Server) HandleContextQueue(c echo.Context) error {
 			digest := rulesview.BuildDigest(records, workspace.ProjectKey(raw), time.Time{}, time.Now().UTC(), nil)
 			for _, d := range rulesview.Questions(digest, records) {
 				row.Waiting++
-				if a, ok := assigned[questionKey(d)]; ok && a.Assignee == userID {
+				if a, ok := assignmentOf(d, assigned); ok && a.Assignee == userID {
 					row.Assigned++
 				}
 			}
