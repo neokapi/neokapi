@@ -101,7 +101,7 @@ func TestFlowPlacement_ExternalCommandNeedsARedactStepUnderAPolicy(t *testing.T)
 			require.NoError(t, err)
 			a := &App{SourceLang: "en", ProjectContext: project.NewProjectContext(proj, recipe)}
 			a.InitRegistries()
-			err = a.checkFlowPlacement(def)
+			err = a.checkFlowPlacement(def, a.flowRequiresRedaction(""))
 			if defaults == "" {
 				require.NoError(t, err)
 				return
