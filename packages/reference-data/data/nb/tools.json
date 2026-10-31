@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-31T00:26:24Z",
+  "generatedAt": "2026-10-31T01:45:11Z",
   "kind": "tool",
   "entries": [
     {
@@ -2154,17 +2154,6 @@
             }
           },
           {
-            "id": "rules",
-            "label": "Deterministiske regler",
-            "fields": [
-              "checkTerminology"
-            ],
-            "ui:visible": {
-              "field": "mode",
-              "eq": "rules"
-            }
-          },
-          {
             "id": "ai:provider",
             "label": "Leverandør",
             "fields": [
@@ -2308,12 +2297,6 @@
             "title": "Advar når mål er lik kilde",
             "description": "Kontroller når målteksten er identisk med kildeteksten",
             "default": true
-          },
-          "checkTerminology": {
-            "type": "boolean",
-            "title": "Verifiser terminologi",
-            "description": "Aktiver terminologikontroller",
-            "default": false
           },
           "checkTrailingWhitespace": {
             "type": "boolean",
