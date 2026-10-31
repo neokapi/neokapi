@@ -43,22 +43,18 @@ func URLSpans(text string) [][2]int {
 //
 // A host name is two or more labels of letters, digits and hyphens joined by
 // dots, whose last label is one of hostTopLabels in lower case. It starts
-// after the same characters a URL starts after (urlPattern), and a letter, a
-// digit, a hyphen or an underscore straight after it makes the whole word
-// something else. A path after it ends as a URL's address ends (urlLength).
+// where a URL may start (urlPattern), and a letter, digit, hyphen or
+// underscore straight after it makes the word something else. A path after
+// it ends as a URL's address ends (urlLength).
 //
-// The last label tells a host from the other dotted words text holds:
+// The last label tells a host from other dotted words:
 //
 //   - a version number, 1.3.0, ends in digits;
-//   - a file name, kapi.yaml or README.md, ends in an extension, and no
-//     extension is on the list, so example.com.json is a file name too;
-//   - a sentence boundary with no space after the full stop, "kapi.The",
-//     ends in a capital;
-//   - a name in code, cfg.Name or log.info, ends in a capital or in a word
-//     that is not on the list.
-//
-// A host under any other top-level label, such as example.no, is read as
-// prose. Written with its scheme, it is a URL.
+//   - a file name, kapi.yaml or example.com.json, ends in an extension, and
+//     no extension is on the list;
+//   - a sentence boundary with no space, "kapi.The", ends in a capital;
+//   - a name in code, cfg.Name or log.info, ends in a capital or a word off
+//     the list.
 func hostSpans(text string) [][2]int {
 	if !containsTopLabel(text) {
 		return nil
@@ -83,7 +79,8 @@ func hostSpans(text string) [][2]int {
 // hostTopLabels are the top-level labels a bare host name may end in: the
 // generic ones text writes most, and none that is also a common file
 // extension. The list leaves out app for macOS bundle names (Kapi.app), sh for
-// shell scripts and md for Markdown files.
+// shell scripts and md for Markdown files. A host under a label off the list,
+// such as example.no, is read as prose; written with its scheme, it is a URL.
 var hostTopLabels = []string{"com", "org", "net", "edu", "gov", "io", "dev", "ai", "cloud"}
 
 // hostPattern matches a host name, the first submatch, after a character a

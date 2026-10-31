@@ -211,6 +211,10 @@ or `defaults.tools` accepts under `term_rules:` for `term-check`, `translate`,
 `recycle`, `dnt-check` and `pseudo-translate`, so a rule carried by a voice file
 and a rule handed to a tool read identically.
 
+A rule matches whole words. It never matches inside a placeholder's name, a URL
+or a bare domain such as `docs.example.com`, so a rule on `docs` leaves that
+domain alone and still matches "the docs page".
+
 | Field | Type | Notes |
 | --- | --- | --- |
 | `term` | string | The word or phrase to reject. A rule with a `replacement` and no `term` names a preferred form and rejects nothing. |
