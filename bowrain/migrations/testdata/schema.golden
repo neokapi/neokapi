@@ -726,6 +726,7 @@ project_members.user_id text NOT NULL
 project_members.workspace_id text NOT NULL
 projects.archived boolean NOT NULL DEFAULT false
 projects.archived_at timestamp with time zone NULL
+projects.context_key text NOT NULL DEFAULT ''::text
 projects.converge_policy text NOT NULL DEFAULT 'on-push'::text
 projects.created_at timestamp with time zone NOT NULL DEFAULT now()
 projects.dashboard_visibility text NOT NULL DEFAULT 'private'::text
@@ -777,10 +778,6 @@ refresh_tokens.family_id text NOT NULL DEFAULT ''::text
 refresh_tokens.id text NOT NULL
 refresh_tokens.token_hash text NOT NULL
 refresh_tokens.user_id text NOT NULL
-rejected_terms.locale text NOT NULL
-rejected_terms.project_id text NOT NULL
-rejected_terms.rejected_at timestamp with time zone NOT NULL DEFAULT now()
-rejected_terms.term_text text NOT NULL
 review_items.assigned_to text NOT NULL DEFAULT ''::text
 review_items.comment text NOT NULL DEFAULT ''::text
 review_items.confidence double precision NOT NULL DEFAULT 0
@@ -1404,7 +1401,6 @@ quota_schema_migrations quota_schema_migrations_pkey PRIMARY KEY (version)
 refresh_tokens refresh_tokens_pkey PRIMARY KEY (id)
 refresh_tokens refresh_tokens_token_hash_key UNIQUE (token_hash)
 refresh_tokens refresh_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-rejected_terms rejected_terms_pkey PRIMARY KEY (project_id, term_text, locale)
 review_items review_items_pkey PRIMARY KEY (id)
 review_items review_items_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 role_templates role_templates_pkey PRIMARY KEY (workspace_id, id)
@@ -1811,7 +1807,6 @@ CREATE UNIQUE INDEX provider_configs_pkey ON public.provider_configs USING btree
 CREATE UNIQUE INDEX quota_schema_migrations_pkey ON public.quota_schema_migrations USING btree (version)
 CREATE UNIQUE INDEX refresh_tokens_pkey ON public.refresh_tokens USING btree (id)
 CREATE UNIQUE INDEX refresh_tokens_token_hash_key ON public.refresh_tokens USING btree (token_hash)
-CREATE UNIQUE INDEX rejected_terms_pkey ON public.rejected_terms USING btree (project_id, term_text, locale)
 CREATE UNIQUE INDEX review_items_pkey ON public.review_items USING btree (id)
 CREATE UNIQUE INDEX role_templates_pkey ON public.role_templates USING btree (workspace_id, id)
 CREATE UNIQUE INDEX role_templates_workspace_id_name_key ON public.role_templates USING btree (workspace_id, name)

@@ -99,3 +99,42 @@ func TestContextObjects_Capability(t *testing.T) {
 	require.True(t, ok)
 	assert.Same(t, s, got.(*PostgresStore))
 }
+
+// A project's context binds to the first key named and keeps it; the digests
+// list each object under a directory with the digest of its bytes.
+func TestContextObjects_KeyAndDigests(t *testing.T) {
+	s := newTestStore(t)
+	ctx := t.Context()
+	p := createTestProject(t, s)
+	other := createTestProject(t, s)
+
+	key, err := s.ContextKey(ctx, p.ID)
+	require.NoError(t, err)
+	assert.Empty(t, key, "no push has bound a key yet")
+	held, err := s.BindContextKey(ctx, p.ID, "site")
+	require.NoError(t, err)
+	assert.Equal(t, "site", held)
+	held, err = s.BindContextKey(ctx, p.ID, "other")
+	require.NoError(t, err)
+	assert.Equal(t, "site", held, "a bound key stays")
+	key, err = s.ContextKey(ctx, other.ID)
+	require.NoError(t, err)
+	assert.Empty(t, key, "another project binds its own")
+	_, err = s.ContextKey(ctx, "no-such-project")
+	require.ErrorIs(t, err, platstore.ErrNoContextProject)
+	_, err = s.BindContextKey(ctx, "no-such-project", "site")
+	require.ErrorIs(t, err, platstore.ErrNoContextProject)
+
+	seg := workspace.SegmentName("w1", "000000000000000000000001")
+	blob := []byte("payload")
+	require.NoError(t, s.PutContextObjects(ctx, p.ID, "m", []platstore.ContextObject{
+		{Name: seg, Data: []byte("one\n")},
+		{Name: workspace.BlobObjectName(workspace.BlobAddress(blob)), Data: blob},
+	}))
+	digests, err := s.DigestContextObjects(ctx, p.ID, workspace.RemoteLogDir)
+	require.NoError(t, err)
+	sum := sha256.Sum256([]byte("one\n"))
+	assert.Equal(t, map[string]string{seg: hex.EncodeToString(sum[:])}, digests)
+	_, err = s.DigestContextObjects(ctx, p.ID, "log")
+	require.Error(t, err)
+}
